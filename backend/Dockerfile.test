@@ -1,0 +1,9 @@
+FROM python:3.12-slim
+RUN apt-get update && apt-get install -y ffmpeg curl && rm -rf /var/lib/apt/lists/*
+WORKDIR /app
+COPY requirements-dev.txt requirements.txt ./
+RUN pip install --no-cache-dir -r requirements-dev.txt
+COPY app/ ./app/
+COPY tests/ ./tests/
+COPY pytest.ini ./
+CMD ["pytest", "-v", "--tb=short", "--cov=app", "--cov-report=term-missing"]

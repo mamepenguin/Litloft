@@ -27,7 +27,9 @@
       "Bash(curl -s -o /dev/null -w \"HTTP %{http_code}\" -H \"Range: bytes=0-1023\" http://localhost:3000/api/videos/1/stream)",
       "Bash(curl -s -o /dev/null -w \"HTTP %{http_code} %{content_type}\" http://localhost:3000/api/videos/1/thumbnail)",
       "Bash(curl -s -X PUT -H \"Content-Type: application/json\" -d '{\"\"title\"\":\"\"Updated Title\"\",\"\"description\"\":\"\"テスト説明\"\"}' http://localhost:3000/api/videos/1)",
-      "Bash(curl -s -X POST http://localhost:3000/api/scan)"
+      "Bash(curl -s -X POST http://localhost:3000/api/scan)",
+      "Bash(source /tmp/video-share-venv/bin/activate)",
+      "Bash(pip install:*)"
     ]
   }
 }

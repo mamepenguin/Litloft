@@ -4,10 +4,9 @@ from typing import Annotated
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Request
 from fastapi.responses import FileResponse, StreamingResponse
-from sqlalchemy import func
 from sqlalchemy.orm import Session
 
-from app.config import CHUNK_SIZE, DATA_DIR, THUMBNAILS_DIR, VIDEOS_DIR
+import app.config as config
 from app.database import get_db
 from app.models import Video
 from app.schemas import (
@@ -118,7 +117,9 @@ async def stream_video(
     if not video:
         raise HTTPException(status_code=404, detail="Video not found")
 
-    file_path = _validate_path(str(VIDEOS_DIR / video.file_path), VIDEOS_DIR)
+    file_path = _validate_path(
+        str(config.VIDEOS_DIR / video.file_path), config.VIDEOS_DIR
+    )
     if not file_path.exists():
         raise HTTPException(status_code=404, detail="Video file not found")
 
@@ -129,7 +130,11 @@ async def stream_video(
         range_spec = range_header.replace("bytes=", "")
         parts = range_spec.split("-")
         start = int(parts[0])
-        end = int(parts[1]) if parts[1] else min(start + CHUNK_SIZE - 1, file_size - 1)
+        end = (
+            int(parts[1])
+            if parts[1]
+            else min(start + config.CHUNK_SIZE - 1, file_size - 1)
+        )
         end = min(end, file_size - 1)
 
         def iter_chunks():
@@ -137,7 +142,7 @@ async def stream_video(
                 f.seek(start)
                 remaining = end - start + 1
                 while remaining > 0:
-                    chunk = f.read(min(CHUNK_SIZE, remaining))
+                    chunk = f.read(min(config.CHUNK_SIZE, remaining))
                     if not chunk:
                         break
                     remaining -= len(chunk)
@@ -156,7 +161,7 @@ async def stream_video(
 
     def iter_full():
         with open(file_path, "rb") as f:
-            while chunk := f.read(CHUNK_SIZE):
+            while chunk := f.read(config.CHUNK_SIZE):
                 yield chunk
 
     return StreamingResponse(
@@ -180,7 +185,7 @@ async def get_thumbnail(
 
     if video.thumbnail_path:
         thumb_path = _validate_path(
-            str(THUMBNAILS_DIR / video.thumbnail_path), DATA_DIR
+            str(config.THUMBNAILS_DIR / video.thumbnail_path), config.DATA_DIR
         )
         if thumb_path.exists():
             return FileResponse(str(thumb_path), media_type="image/jpeg")
