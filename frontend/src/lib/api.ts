@@ -1,4 +1,4 @@
-import type { Category, PaginatedResponse, SortField, SortOrder, Video } from "@/types";
+import type { Category, PaginatedResponse, SortField, SortOrder, Tag, Video } from "@/types";
 
 const API_BASE = "/api";
 
@@ -13,6 +13,8 @@ async function fetchJSON<T>(url: string, options?: RequestInit): Promise<T> {
 export async function getVideos(params: {
   category?: string;
   search?: string;
+  favorite?: boolean;
+  tag?: string;
   sort?: SortField;
   order?: SortOrder;
   page?: number;
@@ -21,6 +23,8 @@ export async function getVideos(params: {
   const searchParams = new URLSearchParams();
   if (params.category) searchParams.set("category", params.category);
   if (params.search) searchParams.set("search", params.search);
+  if (params.favorite !== undefined) searchParams.set("favorite", String(params.favorite));
+  if (params.tag) searchParams.set("tag", params.tag);
   if (params.sort) searchParams.set("sort", params.sort);
   if (params.order) searchParams.set("order", params.order);
   if (params.page) searchParams.set("page", String(params.page));
@@ -43,6 +47,30 @@ export async function updateVideo(
     method: "PUT",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(data),
+  });
+}
+
+export async function likeVideo(id: number): Promise<Video> {
+  return fetchJSON<Video>(`${API_BASE}/videos/${id}/like`, { method: "POST" });
+}
+
+export async function dislikeVideo(id: number): Promise<Video> {
+  return fetchJSON<Video>(`${API_BASE}/videos/${id}/dislike`, { method: "POST" });
+}
+
+export async function toggleFavorite(id: number): Promise<Video> {
+  return fetchJSON<Video>(`${API_BASE}/videos/${id}/favorite`, { method: "POST" });
+}
+
+export async function getTags(): Promise<Tag[]> {
+  return fetchJSON<Tag[]>(`${API_BASE}/tags`);
+}
+
+export async function updateVideoTags(id: number, tags: string[]): Promise<Video> {
+  return fetchJSON<Video>(`${API_BASE}/videos/${id}/tags`, {
+    method: "PUT",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ tags }),
   });
 }
 

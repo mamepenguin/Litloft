@@ -4,7 +4,7 @@ import logging
 from fastapi import FastAPI, HTTPException
 
 from app.database import init_db
-from app.routers import categories, videos
+from app.routers import categories, tags, videos
 from app.schemas import ScanResponse
 from app.services.scanner import scan_videos_directory
 
@@ -18,6 +18,7 @@ app = FastAPI(title="Video Share API")
 
 app.include_router(videos.router)
 app.include_router(categories.router)
+app.include_router(tags.router)
 
 
 @app.on_event("startup")

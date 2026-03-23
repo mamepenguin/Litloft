@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { Folder, Film } from "lucide-react";
+import { Folder } from "lucide-react";
 import type { Category } from "@/types";
 
 async function fetchCategories(): Promise<Category[]> {
@@ -14,16 +14,9 @@ export default async function Home() {
   const categories = await fetchCategories();
 
   return (
-    <main className="mx-auto w-full max-w-7xl flex-1 px-4 py-6">
-      <div className="mb-6 flex items-center justify-between">
-        <h1 className="text-2xl font-bold text-text-primary">Video Share</h1>
-        <Link
-          href="/category/all"
-          className="flex items-center gap-1.5 rounded-lg bg-accent px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-accent/80"
-        >
-          <Film size={16} />
-          すべての動画
-        </Link>
+    <div className="w-full flex-1 px-4 py-6">
+      <div className="mb-6">
+        <h1 className="text-2xl font-bold text-text-primary">カテゴリ</h1>
       </div>
 
       {categories.length === 0 ? (
@@ -57,6 +50,6 @@ export default async function Home() {
           ))}
         </div>
       )}
-    </main>
+    </div>
   );
 }

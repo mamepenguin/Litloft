@@ -12,6 +12,10 @@ const mockVideo: Video = {
   thumbnail_url: "/api/videos/1/thumbnail",
   file_size: 1048576,
   duration: 125.5,
+  likes: 3,
+  dislikes: 1,
+  is_favorite: false,
+  tags: [],
   created_at: "2026-03-20T10:00:00",
   updated_at: "2026-03-20T10:00:00",
 };
@@ -34,8 +38,9 @@ describe("VideoCard", () => {
 
   it("links to video page", () => {
     render(<VideoCard video={mockVideo} />);
-    const link = screen.getByRole("link");
-    expect(link).toHaveAttribute("href", "/videos/1");
+    const links = screen.getAllByRole("link");
+    const videoLink = links.find((l) => l.getAttribute("href") === "/videos/1");
+    expect(videoLink).toBeTruthy();
   });
 
   it("renders thumbnail image", () => {

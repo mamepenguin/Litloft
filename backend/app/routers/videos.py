@@ -8,10 +8,11 @@ from sqlalchemy.orm import Session
 
 import app.config as config
 from app.database import get_db
-from app.models import Video
+from app.models import Tag, Video, video_tags
 from app.schemas import (
     PaginatedResponse,
     PaginationMeta,
+    TagUpdate,
     VideoResponse,
     VideoUpdate,
 )
@@ -39,6 +40,10 @@ def _to_response(video: Video) -> VideoResponse:
         thumbnail_url=f"/api/videos/{video.id}/thumbnail",
         file_size=video.file_size,
         duration=video.duration,
+        likes=video.likes,
+        dislikes=video.dislikes,
+        is_favorite=video.is_favorite,
+        tags=[tag.name for tag in video.tags],
         created_at=video.created_at,
         updated_at=video.updated_at,
     )
@@ -49,6 +54,8 @@ async def list_videos(
     db: Annotated[Session, Depends(get_db)],
     category: str | None = None,
     search: str | None = None,
+    favorite: bool | None = None,
+    tag: str | None = None,
     sort: str = Query("created_at", pattern="^(created_at|title|file_size)$"),
     order: str = Query("desc", pattern="^(asc|desc)$"),
     page: int = Query(1, ge=1),
@@ -60,6 +67,10 @@ async def list_videos(
         query = query.filter(Video.category == category)
     if search:
         query = query.filter(Video.title.ilike(f"%{search}%"))
+    if favorite is not None:
+        query = query.filter(Video.is_favorite == favorite)
+    if tag:
+        query = query.filter(Video.tags.any(Tag.name == tag))
 
     total = query.count()
 
@@ -103,6 +114,88 @@ async def update_video(
         setattr(video, key, value)
 
     db.commit()
+    db.refresh(video)
+    return _to_response(video)
+
+
+@router.post("/{video_id}/like", response_model=VideoResponse)
+async def like_video(
+    video_id: int,
+    db: Annotated[Session, Depends(get_db)],
+):
+    video = db.query(Video).filter(Video.id == video_id).first()
+    if not video:
+        raise HTTPException(status_code=404, detail="Video not found")
+
+    video.likes = Video.likes + 1
+    db.commit()
+    db.refresh(video)
+    return _to_response(video)
+
+
+@router.post("/{video_id}/dislike", response_model=VideoResponse)
+async def dislike_video(
+    video_id: int,
+    db: Annotated[Session, Depends(get_db)],
+):
+    video = db.query(Video).filter(Video.id == video_id).first()
+    if not video:
+        raise HTTPException(status_code=404, detail="Video not found")
+
+    video.dislikes = Video.dislikes + 1
+    db.commit()
+    db.refresh(video)
+    return _to_response(video)
+
+
+@router.post("/{video_id}/favorite", response_model=VideoResponse)
+async def toggle_favorite(
+    video_id: int,
+    db: Annotated[Session, Depends(get_db)],
+):
+    video = db.query(Video).filter(Video.id == video_id).first()
+    if not video:
+        raise HTTPException(status_code=404, detail="Video not found")
+
+    video.is_favorite = not video.is_favorite
+    db.commit()
+    db.refresh(video)
+    return _to_response(video)
+
+
+@router.put("/{video_id}/tags", response_model=VideoResponse)
+async def update_video_tags(
+    video_id: int,
+    update: TagUpdate,
+    db: Annotated[Session, Depends(get_db)],
+):
+    video = db.query(Video).filter(Video.id == video_id).first()
+    if not video:
+        raise HTTPException(status_code=404, detail="Video not found")
+
+    tag_objects = []
+    for tag_name in update.tags:
+        tag = db.query(Tag).filter(Tag.name == tag_name).first()
+        if not tag:
+            tag = Tag(name=tag_name)
+            db.add(tag)
+            db.flush()
+        tag_objects.append(tag)
+
+    video.tags = tag_objects
+    db.commit()
+
+    orphans = (
+        db.query(Tag)
+        .outerjoin(video_tags)
+        .filter(video_tags.c.video_id.is_(None))
+        .all()
+    )
+    for orphan in orphans:
+        db.delete(orphan)
+    if orphans:
+        db.commit()
+
     db.refresh(video)
     return _to_response(video)
 

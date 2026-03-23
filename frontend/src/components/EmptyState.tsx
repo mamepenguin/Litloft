@@ -1,6 +1,6 @@
-import { FileVideo, Search, RefreshCw } from "lucide-react";
+import { FileVideo, Search, RefreshCw, Star } from "lucide-react";
 
-type EmptyVariant = "no-videos" | "no-results" | "needs-scan";
+type EmptyVariant = "no-videos" | "no-results" | "needs-scan" | "no-favorites";
 
 const variants: Record<
   EmptyVariant,
@@ -20,6 +20,11 @@ const variants: Record<
     icon: RefreshCw,
     title: "スキャンを実行してください",
     description: "videos/ ディレクトリを読み込みます。",
+  },
+  "no-favorites": {
+    icon: Star,
+    title: "お気に入りの動画がありません",
+    description: "星アイコンをクリックしてお気に入りに追加しましょう。",
   },
 };
 

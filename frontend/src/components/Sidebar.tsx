@@ -1,0 +1,168 @@
+"use client";
+
+import { Suspense, useEffect, useState } from "react";
+import Link from "next/link";
+import { usePathname, useSearchParams } from "next/navigation";
+import { Film, Folder, Home, Menu, Star, Tag, X } from "lucide-react";
+
+import { getCategories, getTags } from "@/lib/api";
+import type { Category, Tag as TagType } from "@/types";
+import { useSidebar } from "./SidebarProvider";
+
+function SidebarNav() {
+  const pathname = usePathname();
+  const searchParams = useSearchParams();
+  const activeTag = searchParams.get("tag");
+  const { close, refreshKey } = useSidebar();
+
+  const [categories, setCategories] = useState<Category[]>([]);
+  const [tags, setTags] = useState<TagType[]>([]);
+
+  useEffect(() => {
+    getCategories().then(setCategories);
+    getTags().then(setTags);
+  }, [refreshKey]);
+
+  function isActive(href: string): boolean {
+    if (href === "/") return pathname === "/";
+    if (href === "/favorites") return pathname === "/favorites";
+    if (href.startsWith("/category/")) {
+      const slug = decodeURIComponent(href.split("/category/")[1].split("?")[0]);
+      const currentSlug = pathname.startsWith("/category/")
+        ? decodeURIComponent(pathname.split("/category/")[1])
+        : null;
+      if (href.includes("?tag=")) {
+        const hrefTag = new URL(href, "http://x").searchParams.get("tag");
+        return currentSlug === slug && activeTag === hrefTag;
+      }
+      return currentSlug === slug && !activeTag;
+    }
+    return false;
+  }
+
+  const linkClass = (href: string) =>
+    `flex items-center gap-2.5 rounded-lg px-3 py-2 text-sm transition-colors ${
+      isActive(href)
+        ? "bg-accent text-white"
+        : "text-text-muted hover:bg-bg-elevated hover:text-text-primary"
+    }`;
+
+  return (
+    <nav className="flex flex-col gap-1 overflow-y-auto p-3">
+      <div className="mb-2 px-3 py-2">
+        <Link href="/" onClick={close} className="text-lg font-bold text-text-primary">
+          Video Share
+        </Link>
+      </div>
+
+      <div className="mb-1 px-3 text-[11px] font-semibold uppercase tracking-wider text-text-muted">
+        Library
+      </div>
+      <Link href="/" onClick={close} className={linkClass("/")}>
+        <Home size={16} />
+        ホーム
+      </Link>
+      <Link href="/favorites" onClick={close} className={linkClass("/favorites")}>
+        <Star size={16} />
+        お気に入り
+      </Link>
+      <Link href="/category/all" onClick={close} className={linkClass("/category/all")}>
+        <Film size={16} />
+        すべての動画
+      </Link>
+
+      {categories.length > 0 && (
+        <>
+          <div className="mb-1 mt-4 px-3 text-[11px] font-semibold uppercase tracking-wider text-text-muted">
+            Categories
+          </div>
+          {categories.map((cat) => (
+            <Link
+              key={cat.name}
+              href={`/category/${encodeURIComponent(cat.name)}`}
+              onClick={close}
+              className={linkClass(`/category/${encodeURIComponent(cat.name)}`)}
+            >
+              <Folder size={16} />
+              <span className="flex-1 truncate">{cat.name}</span>
+              <span className="text-xs opacity-60">{cat.count}</span>
+            </Link>
+          ))}
+        </>
+      )}
+
+      {tags.length > 0 && (
+        <>
+          <div className="mb-1 mt-4 px-3 text-[11px] font-semibold uppercase tracking-wider text-text-muted">
+            Tags
+          </div>
+          {tags.map((t) => (
+            <Link
+              key={t.name}
+              href={`/category/all?tag=${encodeURIComponent(t.name)}`}
+              onClick={close}
+              className={linkClass(`/category/all?tag=${encodeURIComponent(t.name)}`)}
+            >
+              <Tag size={16} />
+              <span className="flex-1 truncate">{t.name}</span>
+              <span className="text-xs opacity-60">{t.count}</span>
+            </Link>
+          ))}
+        </>
+      )}
+    </nav>
+  );
+}
+
+function SidebarContent() {
+  return (
+    <Suspense fallback={<div className="p-6" />}>
+      <SidebarNav />
+    </Suspense>
+  );
+}
+
+export function Sidebar() {
+  const { isOpen, toggle, close } = useSidebar();
+
+  return (
+    <>
+      <button
+        onClick={toggle}
+        className="fixed left-3 top-3 z-50 rounded-lg bg-bg-card p-2 text-text-muted hover:text-text-primary md:hidden"
+        aria-label="メニュー"
+      >
+        <Menu size={20} />
+      </button>
+
+      {isOpen && (
+        <div
+          className="fixed inset-0 z-40 bg-black/50 md:hidden"
+          onClick={close}
+        />
+      )}
+
+      <aside
+        className={`fixed top-0 left-0 z-40 h-dvh w-60 flex-shrink-0 border-r border-white/5 bg-bg-primary transition-transform md:static md:translate-x-0 ${
+          isOpen ? "translate-x-0" : "-translate-x-full"
+        }`}
+      >
+        <div className="flex h-full flex-col md:hidden">
+          <div className="flex justify-end p-2">
+            <button
+              onClick={close}
+              className="rounded-lg p-2 text-text-muted hover:text-text-primary"
+              aria-label="閉じる"
+            >
+              <X size={20} />
+            </button>
+          </div>
+          <SidebarContent />
+        </div>
+        <div className="hidden h-full flex-col md:flex">
+          <SidebarContent />
+        </div>
+      </aside>
+    </>
+  );
+}

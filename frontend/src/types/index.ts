@@ -7,6 +7,10 @@ export interface Video {
   thumbnail_url: string;
   file_size: number;
   duration: number | null;
+  likes: number;
+  dislikes: number;
+  is_favorite: boolean;
+  tags: string[];
   created_at: string;
   updated_at: string;
 }
@@ -23,6 +27,11 @@ export interface PaginatedResponse {
 }
 
 export interface Category {
+  name: string;
+  count: number;
+}
+
+export interface Tag {
   name: string;
   count: number;
 }
