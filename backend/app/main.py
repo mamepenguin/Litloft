@@ -1,9 +1,11 @@
 import asyncio
 import logging
 
-from fastapi import FastAPI
+from fastapi import FastAPI, HTTPException
 
 from app.database import init_db
+from app.routers import categories, videos
+from app.schemas import ScanResponse
 from app.services.scanner import scan_videos_directory
 
 logging.basicConfig(
@@ -13,6 +15,9 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 app = FastAPI(title="Video Share API")
+
+app.include_router(videos.router)
+app.include_router(categories.router)
 
 
 @app.on_event("startup")
@@ -26,3 +31,12 @@ async def startup():
 @app.get("/api/health")
 async def health():
     return {"status": "ok"}
+
+
+@app.post("/api/scan", response_model=ScanResponse)
+async def trigger_scan():
+    try:
+        result = await scan_videos_directory()
+        return ScanResponse(**result)
+    except RuntimeError:
+        raise HTTPException(status_code=409, detail="Scan already in progress")
