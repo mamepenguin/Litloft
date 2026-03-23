@@ -1,0 +1,18 @@
+#!/bin/bash
+DEPLOY_DIR=/Users/libre/Sources/video_share
+GIT_DIR=/Users/libre/video-share.git
+
+echo "=== Deploying video-share ==="
+git --work-tree=$DEPLOY_DIR --git-dir=$GIT_DIR checkout -f main
+cd $DEPLOY_DIR
+
+# ビルドを先に行い、成功時のみ切り替える
+docker compose build
+if [ $? -eq 0 ]; then
+    docker compose down
+    docker compose up -d
+    echo "=== Deploy complete ==="
+else
+    echo "=== Build failed, keeping current version ==="
+    exit 1
+fi
