@@ -1,0 +1,50 @@
+import { FileVideo, Search, RefreshCw } from "lucide-react";
+
+type EmptyVariant = "no-videos" | "no-results" | "needs-scan";
+
+const variants: Record<
+  EmptyVariant,
+  { icon: typeof FileVideo; title: string; description: string }
+> = {
+  "no-videos": {
+    icon: FileVideo,
+    title: "動画がありません",
+    description: "このカテゴリにはまだ動画がありません。",
+  },
+  "no-results": {
+    icon: Search,
+    title: "一致する動画が見つかりません",
+    description: "検索条件を変更してください。",
+  },
+  "needs-scan": {
+    icon: RefreshCw,
+    title: "スキャンを実行してください",
+    description: "videos/ ディレクトリを読み込みます。",
+  },
+};
+
+export function EmptyState({
+  variant,
+  action,
+}: {
+  variant: EmptyVariant;
+  action?: { label: string; onClick: () => void };
+}) {
+  const { icon: Icon, title, description } = variants[variant];
+
+  return (
+    <div className="flex flex-col items-center justify-center py-16 text-center">
+      <Icon size={48} className="mb-4 text-text-muted" />
+      <h2 className="text-lg font-semibold text-text-primary">{title}</h2>
+      <p className="mt-1 text-sm text-text-muted">{description}</p>
+      {action && (
+        <button
+          onClick={action.onClick}
+          className="mt-4 rounded-lg bg-accent px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-accent/80"
+        >
+          {action.label}
+        </button>
+      )}
+    </div>
+  );
+}

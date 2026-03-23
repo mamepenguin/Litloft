@@ -1,7 +1,62 @@
-export default function Home() {
+import Link from "next/link";
+import { Folder, Film } from "lucide-react";
+import type { Category } from "@/types";
+
+async function fetchCategories(): Promise<Category[]> {
+  const res = await fetch("http://backend:8000/api/categories", {
+    cache: "no-store",
+  });
+  if (!res.ok) return [];
+  return res.json();
+}
+
+export default async function Home() {
+  const categories = await fetchCategories();
+
   return (
-    <main className="flex-1 flex items-center justify-center">
-      <h1 className="text-3xl font-bold text-text-primary">Video Share</h1>
+    <main className="mx-auto w-full max-w-7xl flex-1 px-4 py-6">
+      <div className="mb-6 flex items-center justify-between">
+        <h1 className="text-2xl font-bold text-text-primary">Video Share</h1>
+        <Link
+          href="/category/all"
+          className="flex items-center gap-1.5 rounded-lg bg-accent px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-accent/80"
+        >
+          <Film size={16} />
+          すべての動画
+        </Link>
+      </div>
+
+      {categories.length === 0 ? (
+        <div className="flex flex-col items-center justify-center py-16 text-center">
+          <Folder size={48} className="mb-4 text-text-muted" />
+          <h2 className="text-lg font-semibold text-text-primary">
+            カテゴリがありません
+          </h2>
+          <p className="mt-1 text-sm text-text-muted">
+            videos/ ディレクトリに動画を配置してスキャンを実行してください。
+          </p>
+        </div>
+      ) : (
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+          {categories.map((cat) => (
+            <Link
+              key={cat.name}
+              href={`/category/${encodeURIComponent(cat.name)}`}
+              className="group flex items-center gap-3 rounded-xl bg-bg-card p-4 transition-all duration-200 hover:scale-[1.02] hover:bg-bg-elevated hover:shadow-lg"
+            >
+              <div className="flex h-12 w-12 items-center justify-center rounded-lg bg-accent/20">
+                <Folder size={24} className="text-accent" />
+              </div>
+              <div>
+                <h2 className="font-semibold text-text-primary group-hover:text-accent">
+                  {cat.name}
+                </h2>
+                <p className="text-sm text-text-muted">{cat.count} 本の動画</p>
+              </div>
+            </Link>
+          ))}
+        </div>
+      )}
     </main>
   );
 }

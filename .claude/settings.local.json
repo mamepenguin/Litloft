@@ -17,7 +17,11 @@
       "Bash(curl -s http://localhost:3000/api/categories)",
       "Bash(curl -s http://localhost:3000/api/videos)",
       "Bash(curl -s -o /dev/null -w \"HTTP %{http_code}, Size: %{size_download}\" -H \"Range: bytes=0-1023\" http://localhost:3000/api/videos/1/stream)",
-      "Bash(curl -s -o /dev/null -w \"HTTP %{http_code}, Content-Type: %{content_type}\" http://localhost:3000/api/videos/1/thumbnail)"
+      "Bash(curl -s -o /dev/null -w \"HTTP %{http_code}, Content-Type: %{content_type}\" http://localhost:3000/api/videos/1/thumbnail)",
+      "Bash(curl -s -o /dev/null -w \"HTTP %{http_code}\" http://localhost:3000)",
+      "Bash(curl -s -o /dev/null -w \"HTTP %{http_code}\" \"http://localhost:3000/category/all\")",
+      "Bash(curl -s -o /dev/null -w \"HTTP %{http_code}\" http://localhost:3000/videos/1)",
+      "Bash(curl -s http://localhost:3000)"
     ]
   }
 }
