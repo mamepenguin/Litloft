@@ -70,9 +70,11 @@ export function FileGrid({
             open={renameOpen}
             currentName={target.filename}
             onRename={async (name) => {
-              await renameFile(target.id, name);
-              setRenameOpen(false);
-              if (onRefresh) onRefresh();
+              try {
+                await renameFile(target.id, name);
+                setRenameOpen(false);
+                if (onRefresh) onRefresh();
+              } catch { /* dialog stays open on error */ }
             }}
             onCancel={() => setRenameOpen(false)}
           />
@@ -81,9 +83,11 @@ export function FileGrid({
             drive={target.drive}
             currentPath={target.folder_path}
             onMove={async (path) => {
-              await moveFile(target.id, path);
-              setMoveOpen(false);
-              if (onRefresh) onRefresh();
+              try {
+                await moveFile(target.id, path);
+                setMoveOpen(false);
+                if (onRefresh) onRefresh();
+              } catch { /* dialog stays open on error */ }
             }}
             onCancel={() => setMoveOpen(false)}
           />
@@ -93,9 +97,11 @@ export function FileGrid({
             message={`「${target.filename}」を削除しますか？この操作は取り消せません。`}
             confirmLabel="削除"
             onConfirm={async () => {
-              await deleteFile(target.id);
-              setDeleteOpen(false);
-              if (onRefresh) onRefresh();
+              try {
+                await deleteFile(target.id);
+                setDeleteOpen(false);
+                if (onRefresh) onRefresh();
+              } catch { /* dialog stays open on error */ }
             }}
             onCancel={() => setDeleteOpen(false)}
           />

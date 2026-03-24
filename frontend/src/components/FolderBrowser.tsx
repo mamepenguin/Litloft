@@ -113,10 +113,19 @@ export function FolderBrowser({ driveName, folderPath, view, tagFilter }: Folder
   const [folderError, setFolderError] = useState<string | null>(null);
 
   async function handleCreateFolder() {
-    if (!newFolderName.trim()) return;
+    const name = newFolderName.trim();
+    if (!name) return;
+    if (name.includes("/") || name.includes("\\") || name === ".." || name === "." || name.startsWith(".")) {
+      setFolderError("無効なフォルダ名です");
+      return;
+    }
+    if (name.length > 255) {
+      setFolderError("フォルダ名が長すぎます");
+      return;
+    }
     setFolderError(null);
     try {
-      await createFolder(driveName, folderPath ?? "", newFolderName.trim());
+      await createFolder(driveName, folderPath ?? "", name);
       setNewFolderName("");
       setCreatingFolder(false);
       refresh();
