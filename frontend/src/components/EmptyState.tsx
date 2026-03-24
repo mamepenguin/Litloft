@@ -1,6 +1,6 @@
-import { File, Search, RefreshCw, Star } from "lucide-react";
+import { Clock, File, Search, RefreshCw, Star } from "lucide-react";
 
-type EmptyVariant = "no-files" | "no-results" | "needs-scan" | "no-favorites";
+type EmptyVariant = "no-files" | "no-results" | "needs-scan" | "no-favorites" | "no-recent";
 
 const variants: Record<
   EmptyVariant,
@@ -25,6 +25,11 @@ const variants: Record<
     icon: Star,
     title: "お気に入りのファイルがありません",
     description: "星アイコンをクリックしてお気に入りに追加しましょう。",
+  },
+  "no-recent": {
+    icon: Clock,
+    title: "最近再生した動画がありません",
+    description: "動画を再生すると、ここに表示されます。",
   },
 };
 

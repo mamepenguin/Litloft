@@ -200,6 +200,14 @@ export async function cancelUpload(drive: string, uploadId: string): Promise<voi
 }
 
 // Batch operations
+export async function batchGetFiles(ids: number[]): Promise<FileItem[]> {
+  return fetchJSON<FileItem[]>(`${API_BASE}/files/batch/get`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ ids }),
+  });
+}
+
 export async function batchDelete(ids: number[]): Promise<{ deleted: number; errors: { id: number; error: string }[] }> {
   return fetchJSON(`${API_BASE}/files/batch/delete`, {
     method: "POST",

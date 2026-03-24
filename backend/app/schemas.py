@@ -123,17 +123,21 @@ class FileMoveRequest(BaseModel):
     target_folder_path: str
 
 
-class BatchDeleteRequest(BaseModel):
+def _validate_batch_ids(v: list[int]) -> list[int]:
+    if not v:
+        raise ValueError("At least one file ID is required")
+    if len(v) > 100:
+        raise ValueError("Maximum 100 files per batch operation")
+    return v
+
+
+class BatchIdsRequest(BaseModel):
     ids: list[int]
 
     @field_validator("ids")
     @classmethod
     def validate_ids(cls, v: list[int]) -> list[int]:
-        if not v:
-            raise ValueError("At least one file ID is required")
-        if len(v) > 100:
-            raise ValueError("Maximum 100 files per batch operation")
-        return v
+        return _validate_batch_ids(v)
 
 
 class BatchMoveRequest(BaseModel):
@@ -144,11 +148,7 @@ class BatchMoveRequest(BaseModel):
     @field_validator("ids")
     @classmethod
     def validate_ids(cls, v: list[int]) -> list[int]:
-        if not v:
-            raise ValueError("At least one file ID is required")
-        if len(v) > 100:
-            raise ValueError("Maximum 100 files per batch operation")
-        return v
+        return _validate_batch_ids(v)
 
 
 class BatchTagRequest(BaseModel):
@@ -158,11 +158,7 @@ class BatchTagRequest(BaseModel):
     @field_validator("ids")
     @classmethod
     def validate_ids(cls, v: list[int]) -> list[int]:
-        if not v:
-            raise ValueError("At least one file ID is required")
-        if len(v) > 100:
-            raise ValueError("Maximum 100 files per batch operation")
-        return v
+        return _validate_batch_ids(v)
 
     @field_validator("tags")
     @classmethod

@@ -3,7 +3,8 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { CheckSquare, FolderPlus, Search, Upload, X } from "lucide-react";
 
-import { createFolder, getDriveFiles, getFolders } from "@/lib/api";
+import { batchGetFiles, createFolder, getDriveFiles, getFolders } from "@/lib/api";
+import { getRecentFileIds } from "@/lib/recentlyPlayed";
 import type { FileItem, Folder, PaginatedResponse, SortField, SortOrder, ViewMode } from "@/types";
 import { FileGrid } from "@/components/FileGrid";
 import { FileList } from "@/components/FileList";
@@ -35,30 +36,46 @@ export function FolderBrowser({ driveName, folderPath, view, tagFilter }: Folder
 
   const limit = 30;
   const isFavorites = view === "favorites";
+  const isRecent = view === "recent";
   const isAll = view === "all";
+  const isSpecialView = isFavorites || isRecent || isAll;
 
   const label = isFavorites
     ? "お気に入り"
-    : isAll
-      ? "すべてのファイル"
-      : tagFilter
-        ? `#${tagFilter}`
-        : folderPath
-          ? folderPath.split("/").pop() || driveName
-          : driveName;
+    : isRecent
+      ? "最近再生"
+      : isAll
+        ? "すべてのファイル"
+        : tagFilter
+          ? `#${tagFilter}`
+          : folderPath
+            ? folderPath.split("/").pop() || driveName
+            : driveName;
 
-  useEffect(() => {
-    if (!isFavorites && !isAll) {
-      getFolders(driveName, folderPath).then(setFolders).catch(() => setFolders([]));
-    } else {
-      setFolders([]);
-    }
-  }, [driveName, folderPath, isFavorites, isAll]);
-
-  useEffect(() => {
+  const fetchFiles = useCallback(() => {
     setLoading(true);
+    if (isRecent) {
+      const recentIds = getRecentFileIds();
+      if (recentIds.length === 0) {
+        setFiles([]);
+        setTotal(0);
+        setLoading(false);
+        return;
+      }
+      batchGetFiles(recentIds).then((fetched) => {
+        const driveFiles = fetched.filter((f) => f.drive === driveName);
+        setFiles(driveFiles);
+        setTotal(driveFiles.length);
+        setLoading(false);
+      }).catch(() => {
+        setFiles([]);
+        setTotal(0);
+        setLoading(false);
+      });
+      return;
+    }
     getDriveFiles(driveName, {
-      path: isFavorites || isAll ? undefined : (folderPath ?? ""),
+      path: isSpecialView ? undefined : (folderPath ?? ""),
       search: search || undefined,
       favorite: isFavorites ? true : undefined,
       tag: tagFilter || undefined,
@@ -75,7 +92,19 @@ export function FolderBrowser({ driveName, folderPath, view, tagFilter }: Folder
       setTotal(0);
       setLoading(false);
     });
-  }, [driveName, folderPath, search, sort, order, page, isFavorites, isAll, tagFilter]);
+  }, [driveName, folderPath, search, sort, order, page, isFavorites, isRecent, isSpecialView, tagFilter, limit]);
+
+  useEffect(() => {
+    if (!isSpecialView) {
+      getFolders(driveName, folderPath).then(setFolders).catch(() => setFolders([]));
+    } else {
+      setFolders([]);
+    }
+  }, [driveName, folderPath, isSpecialView]);
+
+  useEffect(() => {
+    fetchFiles();
+  }, [fetchFiles]);
 
   useEffect(() => {
     setPage(1);
@@ -89,28 +118,10 @@ export function FolderBrowser({ driveName, folderPath, view, tagFilter }: Folder
 
   useEffect(() => {
     if (refreshKey === 0) return;
-    if (!isFavorites && !isAll) {
+    if (!isSpecialView) {
       getFolders(driveName, folderPath).then(setFolders).catch(() => setFolders([]));
     }
-    setLoading(true);
-    getDriveFiles(driveName, {
-      path: isFavorites || isAll ? undefined : (folderPath ?? ""),
-      search: search || undefined,
-      favorite: isFavorites ? true : undefined,
-      tag: tagFilter || undefined,
-      sort,
-      order,
-      page,
-      limit,
-    }).then((res: PaginatedResponse) => {
-      setFiles(res.data);
-      setTotal(res.meta.total);
-      setLoading(false);
-    }).catch(() => {
-      setFiles([]);
-      setTotal(0);
-      setLoading(false);
-    });
+    fetchFiles();
   }, [refreshKey]);
 
   const [creatingFolder, setCreatingFolder] = useState(false);
@@ -335,6 +346,8 @@ export function FolderBrowser({ driveName, folderPath, view, tagFilter }: Folder
           />
         ) : isFavorites ? (
           <EmptyState variant="no-favorites" />
+        ) : isRecent ? (
+          <EmptyState variant="no-recent" />
         ) : (
           <EmptyState variant="no-files" />
         )

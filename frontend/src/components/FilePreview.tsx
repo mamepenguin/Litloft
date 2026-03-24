@@ -28,6 +28,18 @@ export function FilePreview({ file }: { file: FileItem }) {
     return <AudioPlayer file={file} />;
   }
 
+  if (file.mime_type === "application/pdf") {
+    return (
+      <div className="w-full overflow-hidden rounded-xl bg-bg-card">
+        <iframe
+          src={getStreamUrl(file.id)}
+          title={file.title}
+          className="h-[80vh] w-full border-0"
+        />
+      </div>
+    );
+  }
+
   return (
     <div className="flex w-full flex-col items-center justify-center rounded-xl bg-bg-card py-16">
       <FileTypeIcon fileType={file.file_type} size={64} className="mb-4 text-text-muted" />

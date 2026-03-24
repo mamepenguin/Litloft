@@ -2,6 +2,7 @@
 
 import { useRef, useEffect, useCallback } from "react";
 import { getStreamUrl } from "@/lib/api";
+import { addRecentlyPlayed } from "@/lib/recentlyPlayed";
 
 const SAVE_INTERVAL = 5;
 const RESUME_THRESHOLD = 5;
@@ -42,6 +43,7 @@ export function VideoPlayer({ videoId }: { videoId: number }) {
   const handleLoadedMetadata = useCallback(() => {
     const video = videoRef.current;
     if (!video) return;
+    addRecentlyPlayed(videoId);
     const saved = getSavedProgress(videoId);
     if (saved > RESUME_THRESHOLD && saved < video.duration - RESUME_THRESHOLD) {
       video.currentTime = saved;

@@ -12,7 +12,7 @@ import app.config as config
 from app.database import get_db
 from app.models import File, Tag, file_tags
 from app.schemas import (
-    BatchDeleteRequest,
+    BatchIdsRequest,
     BatchMoveRequest,
     BatchTagRequest,
     FileResponse,
@@ -41,9 +41,19 @@ def _validate_path(file_path: str, base_dir: Path) -> Path:
 _to_response = file_to_response
 
 
+@router.post("/batch/get", response_model=list[FileResponse])
+async def batch_get(
+    body: BatchIdsRequest,
+    db: Annotated[Session, Depends(get_db)],
+):
+    files = db.query(File).filter(File.id.in_(body.ids)).all()
+    file_map = {f.id: f for f in files}
+    return [_to_response(file_map[fid]) for fid in body.ids if fid in file_map]
+
+
 @router.post("/batch/delete")
 async def batch_delete(
-    body: BatchDeleteRequest,
+    body: BatchIdsRequest,
     db: Annotated[Session, Depends(get_db)],
 ):
     deleted = 0
