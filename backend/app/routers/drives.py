@@ -1,3 +1,4 @@
+import unicodedata
 from typing import Annotated
 
 from fastapi import APIRouter, Depends, HTTPException, Query
@@ -145,7 +146,7 @@ async def list_drive_files(
     if path is not None:
         query = query.filter(File.folder_path == path)
     if search:
-        escaped_search = _escape_like(search)
+        escaped_search = _escape_like(unicodedata.normalize("NFC", search))
         query = query.filter(File.title.ilike(f"%{escaped_search}%", escape="\\"))
     if favorite is not None:
         query = query.filter(File.is_favorite == favorite)

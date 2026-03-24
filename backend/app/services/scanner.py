@@ -1,5 +1,6 @@
 import asyncio
 import logging
+import unicodedata
 from pathlib import Path
 
 from sqlalchemy.orm import Session
@@ -59,15 +60,22 @@ def _scan_and_register(db: Session, drive_name: str) -> dict[str, int]:
         if is_hidden(item, drive_path):
             continue
 
-        relative_path = str(item.relative_to(drive_path))
+        relative_path = unicodedata.normalize("NFC", str(item.relative_to(drive_path)))
         found_paths.add(relative_path)
-        folder_path = _get_folder_path(item, drive_path)
+        folder_path = unicodedata.normalize("NFC", _get_folder_path(item, drive_path))
         file_type, mime_type = classify(item.name)
+
+        nfc_name = unicodedata.normalize("NFC", item.name)
+        nfc_stem = Path(nfc_name).stem
 
         if relative_path in existing:
             file_record = existing[relative_path]
             needs_update = False
 
+            if file_record.filename != nfc_name:
+                file_record.filename = nfc_name
+                file_record.title = _filename_to_title(nfc_name)
+                needs_update = True
             if file_record.folder_path != folder_path:
                 file_record.folder_path = folder_path
                 needs_update = True
@@ -78,7 +86,7 @@ def _scan_and_register(db: Session, drive_name: str) -> dict[str, int]:
 
             # Thumbnail management for video and image
             if file_type in ("video", "image"):
-                expected_thumb = f"{drive_name}/{folder_path}/{item.stem}.jpg" if folder_path else f"{drive_name}/{item.stem}.jpg"
+                expected_thumb = f"{drive_name}/{folder_path}/{nfc_stem}.jpg" if folder_path else f"{drive_name}/{nfc_stem}.jpg"
                 gen_fn = generate_thumbnail if file_type == "video" else generate_image_thumbnail
                 if file_record.thumbnail_path != expected_thumb:
                     old_thumb = config.THUMBNAILS_DIR / file_record.thumbnail_path if file_record.thumbnail_path else None
@@ -108,15 +116,15 @@ def _scan_and_register(db: Session, drive_name: str) -> dict[str, int]:
 
         thumbnail_rel = None
         if file_type in ("video", "image"):
-            thumbnail_rel = f"{drive_name}/{folder_path}/{item.stem}.jpg" if folder_path else f"{drive_name}/{item.stem}.jpg"
+            thumbnail_rel = f"{drive_name}/{folder_path}/{nfc_stem}.jpg" if folder_path else f"{drive_name}/{nfc_stem}.jpg"
             thumbnail_full = config.THUMBNAILS_DIR / thumbnail_rel
             gen_fn = generate_thumbnail if file_type == "video" else generate_image_thumbnail
             if not gen_fn(str(item), str(thumbnail_full)):
                 thumbnail_rel = None
 
         file_record = File(
-            filename=item.name,
-            title=_filename_to_title(item.name),
+            filename=nfc_name,
+            title=_filename_to_title(nfc_name),
             drive=drive_name,
             folder_path=folder_path,
             file_path=relative_path,

@@ -114,7 +114,7 @@ export function GlobalSearch() {
       try {
         const res = await getDriveFiles(drive, {
           search: query.trim(),
-          limit: 200,
+          limit: 100,
         });
         setResults(res.data);
         setTotal(res.meta.total);
@@ -271,9 +271,9 @@ export function GlobalSearch() {
                         </div>
                       </button>
                     ))}
-                    {total > 200 && (
+                    {total > 100 && (
                       <div className="border-t border-bg-border px-4 py-3 text-center text-xs text-text-muted">
-                        {total} 件中 200 件を表示
+                        {total} 件中 100 件を表示
                       </div>
                     )}
                   </>
@@ -376,9 +376,9 @@ export function GlobalSearch() {
                           </div>
                         </button>
                       ))}
-                      {total > 200 && (
+                      {total > 100 && (
                         <div className="border-t border-bg-border px-4 py-2.5 text-center text-xs text-text-muted">
-                          {total} 件中 200 件を表示
+                          {total} 件中 100 件を表示
                         </div>
                       )}
                     </>
