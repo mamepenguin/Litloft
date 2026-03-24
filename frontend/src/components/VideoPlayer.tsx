@@ -48,6 +48,10 @@ export function VideoPlayer({ videoId }: { videoId: number }) {
     if (saved > RESUME_THRESHOLD && saved < video.duration - RESUME_THRESHOLD) {
       video.currentTime = saved;
     }
+    const isPC = !("ontouchstart" in window);
+    if (isPC) {
+      video.play().catch(() => {});
+    }
   }, [videoId]);
 
   const handleTimeUpdate = useCallback(() => {
