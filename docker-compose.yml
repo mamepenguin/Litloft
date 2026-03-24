@@ -5,7 +5,7 @@ services:
       - "8000"
     volumes:
       - ./drives.json:/app/drives.json:ro
-      - ./videos:/app/drives/default:ro
+      - ./videos:/app/drives/default
       - ./data:/app/data
     environment:
       - DRIVES_CONFIG=/app/drives.json

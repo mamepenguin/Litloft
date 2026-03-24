@@ -1,6 +1,7 @@
 import os
 from pathlib import Path
 from typing import Annotated
+from urllib.parse import quote
 
 from fastapi import APIRouter, Depends, HTTPException, Request
 from fastapi.responses import FileResponse as FastAPIFileResponse
@@ -12,10 +13,13 @@ from app.database import get_db
 from app.models import File, Tag, file_tags
 from app.schemas import (
     FileResponse,
+    FileMoveRequest,
+    FileRenameRequest,
     FileUpdate,
     TagUpdate,
     file_to_response,
 )
+from app.services import fileops
 
 router = APIRouter(prefix="/api/files", tags=["files"])
 
@@ -25,7 +29,8 @@ PLACEHOLDER_THUMBNAIL = Path(__file__).parent.parent / "static" / "placeholder.j
 def _validate_path(file_path: str, base_dir: Path) -> Path:
     real_path = Path(os.path.realpath(file_path))
     real_base = Path(os.path.realpath(base_dir))
-    if not str(real_path).startswith(str(real_base)):
+    base_str = str(real_base)
+    if not (str(real_path) == base_str or str(real_path).startswith(base_str + os.sep)):
         raise HTTPException(status_code=403, detail="Access denied")
     return real_path
 
@@ -150,6 +155,7 @@ async def stream_file(
     file_id: int,
     request: Request,
     db: Annotated[Session, Depends(get_db)],
+    download: bool = False,
 ):
     file = db.query(File).filter(File.id == file_id).first()
     if not file:
@@ -195,30 +201,31 @@ async def stream_file(
                     remaining -= len(chunk)
                     yield chunk
 
-        return StreamingResponse(
-            iter_chunks(),
-            status_code=206,
-            headers={
-                "Content-Range": f"bytes {start}-{end}/{file_size}",
-                "Accept-Ranges": "bytes",
-                "Content-Length": str(end - start + 1),
-                "Content-Type": content_type,
-            },
-        )
+        headers = {
+            "Content-Range": f"bytes {start}-{end}/{file_size}",
+            "Accept-Ranges": "bytes",
+            "Content-Length": str(end - start + 1),
+            "Content-Type": content_type,
+        }
+        if download:
+            headers["Content-Disposition"] = f"attachment; filename*=UTF-8''{quote(file.filename, safe='')}"
+
+        return StreamingResponse(iter_chunks(), status_code=206, headers=headers)
 
     def iter_full():
         with open(file_path, "rb") as f:
             while chunk := f.read(config.CHUNK_SIZE):
                 yield chunk
 
-    return StreamingResponse(
-        iter_full(),
-        headers={
-            "Accept-Ranges": "bytes",
-            "Content-Length": str(file_size),
-            "Content-Type": content_type,
-        },
-    )
+    headers = {
+        "Accept-Ranges": "bytes",
+        "Content-Length": str(file_size),
+        "Content-Type": content_type,
+    }
+    if download:
+        headers["Content-Disposition"] = f"attachment; filename*=UTF-8''{quote(file.filename, safe='')}"
+
+    return StreamingResponse(iter_full(), headers=headers)
 
 
 @router.get("/{file_id}/thumbnail")
@@ -241,3 +248,32 @@ async def get_thumbnail(
         return FastAPIFileResponse(str(PLACEHOLDER_THUMBNAIL), media_type="image/jpeg")
 
     raise HTTPException(status_code=404, detail="Thumbnail not found")
+
+
+@router.put("/{file_id}/rename", response_model=FileResponse)
+async def rename_file_endpoint(
+    file_id: int,
+    body: FileRenameRequest,
+    db: Annotated[Session, Depends(get_db)],
+):
+    file = fileops.rename_file(db, file_id, body.new_filename)
+    return _to_response(file)
+
+
+@router.put("/{file_id}/move", response_model=FileResponse)
+async def move_file_endpoint(
+    file_id: int,
+    body: FileMoveRequest,
+    db: Annotated[Session, Depends(get_db)],
+):
+    file = fileops.move_file(db, file_id, body.target_drive, body.target_folder_path)
+    return _to_response(file)
+
+
+@router.delete("/{file_id}")
+async def delete_file_endpoint(
+    file_id: int,
+    db: Annotated[Session, Depends(get_db)],
+):
+    fileops.delete_file(db, file_id)
+    return {"status": "deleted"}

@@ -153,12 +153,14 @@ def _migrate(engine_) -> None:
             conn.execute(text("DROP TABLE videos"))
             logger.info("Migration complete: videos → files")
 
-    # === Phase 2: Ensure file_tags exists (fresh installs) ===
+    # === Phase 2: Ensure tables exist (fresh installs) ===
     tables = inspector.get_table_names()
     if "file_tags" not in tables:
         Base.metadata.tables["file_tags"].create(bind=engine_, checkfirst=True)
     if "tags" not in tables:
         Base.metadata.tables["tags"].create(bind=engine_, checkfirst=True)
+    if "empty_folders" not in tables:
+        Base.metadata.tables["empty_folders"].create(bind=engine_, checkfirst=True)
 
 
 def init_db() -> None:

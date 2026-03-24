@@ -29,6 +29,8 @@ backend/
     services/
       scanner.py       # ドライブ単位の再帰スキャン（全ファイル対応）、DB同期、排他ロック
       filetype.py      # ファイルタイプ分類 (classify, is_hidden)
+      fileops.py       # ファイル/フォルダ CRUD 操作（リネーム、移動、削除、作成）
+      upload.py        # チャンクアップロード管理（セッション、結合、クリーンアップ）
       thumbnail.py     # ffmpeg サムネイル生成、ffprobe duration取得
   tests/               # pytest (Docker内で実行: Dockerfile.test)
   static/
@@ -95,6 +97,13 @@ docker compose logs -f backend
 | GET | /api/drives/{drive}/folders?path= | サブフォルダ一覧（名前+ファイル数） |
 | GET | /api/drives/{drive}/files?path=&search=&sort=&order=&page=&limit=&favorite=&tag=&type= | ファイル一覧（type でフィルタ可能） |
 | GET | /api/drives/{drive}/tags | タグ一覧 |
+| POST | /api/drives/{drive}/folders | フォルダ作成 |
+| PUT | /api/drives/{drive}/folders | フォルダリネーム |
+| DELETE | /api/drives/{drive}/folders?path= | フォルダ削除（空のみ） |
+| POST | /api/drives/{drive}/upload/init | アップロード開始 |
+| POST | /api/drives/{drive}/upload/{id}/chunk | チャンク送信 |
+| POST | /api/drives/{drive}/upload/{id}/complete | アップロード完了 |
+| DELETE | /api/drives/{drive}/upload/{id} | アップロードキャンセル |
 | POST | /api/drives/{drive}/scan | ドライブ単位スキャン (排他制御、競合時 409) |
 
 ### グローバル（IDベース）
@@ -110,6 +119,9 @@ docker compose logs -f backend
 | POST | /api/files/{id}/dislike | わるいね |
 | POST | /api/files/{id}/favorite | お気に入りトグル |
 | PUT | /api/files/{id}/tags | タグ編集 |
+| PUT | /api/files/{id}/rename | ファイルリネーム |
+| PUT | /api/files/{id}/move | ファイル移動 |
+| DELETE | /api/files/{id} | ファイル削除 |
 
 ## 重要な設計判断
 
@@ -126,7 +138,8 @@ docker compose logs -f backend
 - **ドライブ**: 論理的なコンテンツ領域の分離。タグもドライブ間で独立
 - **フォルダ階層**: ファイラーのようにネストしたフォルダを辿れるUI
 - ドライブ設定は `drives.json` で管理（DB外）。変更時はコンテナ再起動
-- フォルダはDBで管理せず `folder_path` カラムから動的算出（パスベース）
+- フォルダは `folder_path` カラムから動的算出 + `EmptyFolder` テーブルで空フォルダ表示
+- `drives.json` に `readonly: true` で書き込み禁止（デフォルト: 書き込み可能）
 - ドライブ横断操作（検索、お気に入り）は不要。各ドライブは完全に独立
 - お気に入りURLは `?view=favorites` クエリパラメータ（フォルダ名との競合回避）
 - 設計書: `docs/superpowers/specs/2026-03-24-drives-and-folders-design.md`
@@ -173,3 +186,4 @@ Mac mini上にbare gitリポジトリ (`~/video-share.git`) を作成し、`post
 - `docs/superpowers/specs/2026-03-23-video-share-implementation-plan.md` — 実装計画
 - `docs/superpowers/specs/2026-03-24-drives-and-folders-design.md` — ドライブ+フォルダ階層設計書
 - `docs/superpowers/specs/2026-03-24-file-browsing-extension-design.md` — ファイル閲覧拡張設計書
+- `docs/superpowers/specs/2026-03-24-file-operations-design.md` — ファイル操作設計書

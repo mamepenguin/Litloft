@@ -6,10 +6,12 @@ from sqlalchemy.orm import Session
 
 import app.config as config
 from app.database import get_db
-from app.models import File, Tag, file_tags
+from app.models import EmptyFolder, File, Tag, file_tags
 from app.schemas import (
     DriveResponse,
     FileResponse,
+    FolderCreateRequest,
+    FolderRenameRequest,
     FolderResponse,
     PaginatedResponse,
     PaginationMeta,
@@ -17,6 +19,7 @@ from app.schemas import (
     TagResponse,
     file_to_response,
 )
+from app.services import fileops
 from app.services.scanner import scan_drive
 
 router = APIRouter(prefix="/api/drives", tags=["drives"])
@@ -32,6 +35,8 @@ def _validate_drive(drive_name: str) -> None:
 
 
 def _validate_folder_path(path: str) -> str:
+    if "\x00" in path:
+        raise HTTPException(status_code=400, detail="Invalid folder path")
     if ".." in path.split("/") or path.startswith("/"):
         raise HTTPException(status_code=400, detail="Invalid folder path")
     return path
@@ -76,6 +81,26 @@ async def list_folders(
         top_segment = remainder.split("/")[0]
         folder_full_path = f"{path}/{top_segment}" if path else top_segment
         folders[folder_full_path] = folders.get(folder_full_path, 0) + 1
+
+    # Merge empty folders from DB
+    ef_query = db.query(EmptyFolder).filter(EmptyFolder.drive == drive_name)
+    if path:
+        ef_query = ef_query.filter(EmptyFolder.path.like(_escape_like(path) + "/%", escape="\\"))
+    else:
+        ef_query = ef_query.filter(EmptyFolder.path != "")
+
+    for ef in ef_query.all():
+        ef_path = ef.path
+        if path:
+            remainder = ef_path[len(path) + 1:]
+        else:
+            remainder = ef_path
+        if not remainder:
+            continue
+        top_segment = remainder.split("/")[0]
+        folder_full_path = f"{path}/{top_segment}" if path else top_segment
+        if folder_full_path not in folders:
+            folders[folder_full_path] = 0
 
     return [
         FolderResponse(
@@ -151,6 +176,39 @@ async def list_drive_tags(
         .all()
     )
     return [TagResponse(name=name, count=count) for name, count in results]
+
+
+@router.post("/{drive_name}/folders", response_model=FolderResponse)
+async def create_folder(
+    drive_name: str,
+    body: FolderCreateRequest,
+    db: Annotated[Session, Depends(get_db)],
+):
+    _validate_drive(drive_name)
+    result = fileops.create_folder(drive_name, body.path, body.name, db)
+    return FolderResponse(**result)
+
+
+@router.put("/{drive_name}/folders", response_model=FolderResponse)
+async def rename_folder(
+    drive_name: str,
+    body: FolderRenameRequest,
+    db: Annotated[Session, Depends(get_db)],
+):
+    _validate_drive(drive_name)
+    result = fileops.rename_folder(drive_name, body.path, body.new_name, db)
+    return FolderResponse(**result)
+
+
+@router.delete("/{drive_name}/folders")
+async def delete_folder(
+    drive_name: str,
+    path: str,
+    db: Annotated[Session, Depends(get_db)],
+):
+    _validate_drive(drive_name)
+    fileops.delete_folder(drive_name, path, db)
+    return {"status": "deleted"}
 
 
 @router.post("/{drive_name}/scan", response_model=ScanResponse)

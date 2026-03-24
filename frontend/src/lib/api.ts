@@ -1,4 +1,4 @@
-import type { Drive, FileItem, FileType, Folder, PaginatedResponse, SortField, SortOrder, Tag } from "@/types";
+import type { ChunkResponse, Drive, FileItem, FileType, Folder, PaginatedResponse, SortField, SortOrder, Tag, UploadInitResponse } from "@/types";
 
 const API_BASE = "/api";
 
@@ -100,6 +100,101 @@ export function getStreamUrl(id: number): string {
   return `${API_BASE}/files/${id}/stream`;
 }
 
+export function getDownloadUrl(id: number): string {
+  return `${API_BASE}/files/${id}/stream?download=true`;
+}
+
 export function getThumbnailUrl(id: number): string {
   return `${API_BASE}/files/${id}/thumbnail`;
+}
+
+// File operations
+export async function renameFile(id: number, newFilename: string): Promise<FileItem> {
+  return fetchJSON<FileItem>(`${API_BASE}/files/${id}/rename`, {
+    method: "PUT",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ new_filename: newFilename }),
+  });
+}
+
+export async function moveFile(id: number, targetFolderPath: string, targetDrive?: string): Promise<FileItem> {
+  return fetchJSON<FileItem>(`${API_BASE}/files/${id}/move`, {
+    method: "PUT",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ target_folder_path: targetFolderPath, target_drive: targetDrive }),
+  });
+}
+
+export async function deleteFile(id: number): Promise<void> {
+  const res = await fetch(`${API_BASE}/files/${id}`, { method: "DELETE" });
+  if (!res.ok) throw new Error(`API error: ${res.status}`);
+}
+
+// Folder operations
+export async function createFolder(drive: string, path: string, name: string): Promise<Folder> {
+  return fetchJSON<Folder>(`${API_BASE}/drives/${encodeURIComponent(drive)}/folders`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ path, name }),
+  });
+}
+
+export async function renameFolder(drive: string, path: string, newName: string): Promise<Folder> {
+  return fetchJSON<Folder>(`${API_BASE}/drives/${encodeURIComponent(drive)}/folders`, {
+    method: "PUT",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ path, new_name: newName }),
+  });
+}
+
+export async function deleteFolder(drive: string, path: string): Promise<void> {
+  const res = await fetch(
+    `${API_BASE}/drives/${encodeURIComponent(drive)}/folders?path=${encodeURIComponent(path)}`,
+    { method: "DELETE" }
+  );
+  if (!res.ok) throw new Error(`API error: ${res.status}`);
+}
+
+// Upload
+export async function initUpload(
+  drive: string,
+  params: { filename: string; file_size: number; folder_path: string; chunk_size: number }
+): Promise<UploadInitResponse> {
+  return fetchJSON<UploadInitResponse>(
+    `${API_BASE}/drives/${encodeURIComponent(drive)}/upload/init`,
+    {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(params),
+    }
+  );
+}
+
+export async function uploadChunk(
+  drive: string,
+  uploadId: string,
+  chunkIndex: number,
+  chunk: Blob
+): Promise<ChunkResponse> {
+  const form = new FormData();
+  form.append("chunk_index", String(chunkIndex));
+  form.append("chunk", chunk);
+  return fetchJSON<ChunkResponse>(
+    `${API_BASE}/drives/${encodeURIComponent(drive)}/upload/${uploadId}/chunk`,
+    { method: "POST", body: form }
+  );
+}
+
+export async function completeUpload(drive: string, uploadId: string): Promise<FileItem> {
+  return fetchJSON<FileItem>(
+    `${API_BASE}/drives/${encodeURIComponent(drive)}/upload/${uploadId}/complete`,
+    { method: "POST" }
+  );
+}
+
+export async function cancelUpload(drive: string, uploadId: string): Promise<void> {
+  await fetch(
+    `${API_BASE}/drives/${encodeURIComponent(drive)}/upload/${uploadId}`,
+    { method: "DELETE" }
+  );
 }

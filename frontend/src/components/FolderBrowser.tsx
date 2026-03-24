@@ -1,9 +1,9 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
-import { Search, X } from "lucide-react";
+import { FolderPlus, Search, X } from "lucide-react";
 
-import { getDriveFiles, getFolders } from "@/lib/api";
+import { createFolder, getDriveFiles, getFolders } from "@/lib/api";
 import type { FileItem, Folder, PaginatedResponse, SortField, SortOrder, ViewMode } from "@/types";
 import { FileGrid } from "@/components/FileGrid";
 import { FileList } from "@/components/FileList";
@@ -11,6 +11,7 @@ import { ViewToggle } from "@/components/ViewToggle";
 import { EmptyState } from "@/components/EmptyState";
 import { FolderCard } from "@/components/FolderCard";
 import { Breadcrumb } from "@/components/Breadcrumb";
+import { UploadZone } from "@/components/UploadZone";
 
 interface FolderBrowserProps {
   driveName: string;
@@ -78,6 +79,52 @@ export function FolderBrowser({ driveName, folderPath, view, tagFilter }: Folder
     setPage(1);
   }, [driveName, folderPath, view, tagFilter]);
 
+  const [refreshKey, setRefreshKey] = useState(0);
+  const refresh = useCallback(() => setRefreshKey((k) => k + 1), []);
+
+  useEffect(() => {
+    if (refreshKey === 0) return;
+    if (!isFavorites && !isAll) {
+      getFolders(driveName, folderPath).then(setFolders).catch(() => setFolders([]));
+    }
+    setLoading(true);
+    getDriveFiles(driveName, {
+      path: isFavorites || isAll ? undefined : (folderPath ?? ""),
+      search: search || undefined,
+      favorite: isFavorites ? true : undefined,
+      tag: tagFilter || undefined,
+      sort,
+      order,
+      page,
+      limit,
+    }).then((res: PaginatedResponse) => {
+      setFiles(res.data);
+      setTotal(res.meta.total);
+      setLoading(false);
+    }).catch(() => {
+      setFiles([]);
+      setTotal(0);
+      setLoading(false);
+    });
+  }, [refreshKey]);
+
+  const [creatingFolder, setCreatingFolder] = useState(false);
+  const [newFolderName, setNewFolderName] = useState("");
+  const [folderError, setFolderError] = useState<string | null>(null);
+
+  async function handleCreateFolder() {
+    if (!newFolderName.trim()) return;
+    setFolderError(null);
+    try {
+      await createFolder(driveName, folderPath ?? "", newFolderName.trim());
+      setNewFolderName("");
+      setCreatingFolder(false);
+      refresh();
+    } catch {
+      setFolderError("フォルダの作成に失敗しました");
+    }
+  }
+
   const handleViewChange = useCallback((mode: ViewMode) => {
     setViewMode(mode);
   }, []);
@@ -105,6 +152,7 @@ export function FolderBrowser({ driveName, folderPath, view, tagFilter }: Folder
   const totalPages = Math.ceil(total / limit);
 
   return (
+    <UploadZone drive={driveName} folderPath={folderPath ?? ""} onUploadComplete={refresh}>
     <div className="w-full flex-1 px-4 py-6">
       <Breadcrumb driveName={driveName} folderPath={folderPath} />
 
@@ -156,6 +204,46 @@ export function FolderBrowser({ driveName, folderPath, view, tagFilter }: Folder
         </select>
 
         <ViewToggle onChange={handleViewChange} />
+
+        {!isFavorites && !isAll && !tagFilter && (
+          creatingFolder ? (
+            <div className="flex items-center gap-2">
+              <input
+                type="text"
+                autoFocus
+                value={newFolderName}
+                onChange={(e) => setNewFolderName(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") handleCreateFolder();
+                  if (e.key === "Escape") { setCreatingFolder(false); setNewFolderName(""); }
+                }}
+                placeholder="フォルダ名..."
+                className="rounded-lg bg-bg-card px-3 py-2 text-sm text-text-primary placeholder:text-text-muted outline-none focus:ring-2 focus:ring-accent"
+              />
+              <button
+                onClick={handleCreateFolder}
+                className="rounded-lg bg-accent px-3 py-2 text-sm text-white hover:bg-accent/80"
+              >
+                作成
+              </button>
+              <button
+                onClick={() => { setCreatingFolder(false); setNewFolderName(""); setFolderError(null); }}
+                className="rounded-lg bg-bg-card px-3 py-2 text-sm text-text-muted hover:text-text-primary"
+              >
+                <X size={16} />
+              </button>
+              {folderError && <span className="text-xs text-red-400">{folderError}</span>}
+            </div>
+          ) : (
+            <button
+              onClick={() => setCreatingFolder(true)}
+              className="flex items-center gap-1.5 rounded-lg bg-bg-card px-3 py-2 text-sm text-text-muted hover:text-text-primary"
+            >
+              <FolderPlus size={16} />
+              新規フォルダ
+            </button>
+          )
+        )}
       </div>
 
       <p className="mb-4 text-sm text-text-muted">
@@ -165,7 +253,7 @@ export function FolderBrowser({ driveName, folderPath, view, tagFilter }: Folder
       {folders.length > 0 && !search && (
         <div className="mb-6 grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
           {folders.map((folder) => (
-            <FolderCard key={folder.path} folder={folder} driveName={driveName} />
+            <FolderCard key={folder.path} folder={folder} driveName={driveName} onUpdate={refresh} />
           ))}
         </div>
       )}
@@ -219,5 +307,6 @@ export function FolderBrowser({ driveName, folderPath, view, tagFilter }: Folder
         </div>
       )}
     </div>
+    </UploadZone>
   );
 }

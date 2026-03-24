@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { useParams } from "next/navigation";
+import { useParams, useRouter } from "next/navigation";
 import { ArrowLeft, Pencil, Check, X, ThumbsUp, ThumbsDown } from "lucide-react";
 import Link from "next/link";
 
@@ -11,9 +11,11 @@ import type { FileItem } from "@/types";
 import { FilePreview } from "@/components/FilePreview";
 import { FavoriteButton } from "@/components/FavoriteButton";
 import { TagEditor } from "@/components/TagEditor";
+import { FileActions } from "@/components/FileActions";
 
 export default function FilePage() {
   const params = useParams();
+  const router = useRouter();
   const fileId = Number(params.id);
 
   const [file, setFile] = useState<FileItem | null>(null);
@@ -161,6 +163,16 @@ export default function FilePage() {
                 >
                   <Pencil size={16} />
                 </button>
+                <FileActions
+                  file={file}
+                  onUpdate={setFile}
+                  onDelete={() => {
+                    const backPath = file.folder_path
+                      ? `/drive/${encodeURIComponent(file.drive)}/${file.folder_path}`
+                      : `/drive/${encodeURIComponent(file.drive)}`;
+                    router.push(backPath);
+                  }}
+                />
               </div>
             </div>
             {file.description && (

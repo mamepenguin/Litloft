@@ -7,7 +7,10 @@ DRIVES_CONFIG = Path(os.getenv("DRIVES_CONFIG", "./drives.json"))
 DATA_DIR = Path(os.getenv("DATA_DIR", "./data"))
 DATABASE_URL = f"sqlite:///{DATA_DIR}/videos.db"
 THUMBNAILS_DIR = DATA_DIR / "thumbnails"
+UPLOAD_DIR = DATA_DIR / "uploads"
 CHUNK_SIZE = 1024 * 1024  # 1MB for streaming
+MAX_UPLOAD_SIZE = 2 * 1024 * 1024 * 1024  # 2GB
+DEFAULT_CHUNK_SIZE = 5 * 1024 * 1024  # 5MB
 
 _drives_cache: list[dict] | None = None
 
@@ -37,3 +40,10 @@ def get_drive_path(drive_name: str) -> Path:
 
 def get_drive_names() -> list[str]:
     return [d["name"] for d in load_drives()]
+
+
+def is_drive_readonly(drive_name: str) -> bool:
+    for drive in load_drives():
+        if drive["name"] == drive_name:
+            return drive.get("readonly", False)
+    raise ValueError(f"Drive not found: {drive_name}")

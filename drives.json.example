@@ -1,4 +1,4 @@
 [
   { "name": "家族ビデオ", "path": "/app/drives/family" },
-  { "name": "テレビ番組", "path": "/app/drives/tv" }
+  { "name": "テレビ番組", "path": "/app/drives/tv", "readonly": true }
 ]

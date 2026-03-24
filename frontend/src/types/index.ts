@@ -49,3 +49,15 @@ export interface Tag {
 export type ViewMode = "grid" | "list";
 export type SortField = "created_at" | "title" | "file_size";
 export type SortOrder = "asc" | "desc";
+
+export interface UploadInitResponse {
+  upload_id: string;
+  chunk_size: number;
+  total_chunks: number;
+}
+
+export interface ChunkResponse {
+  chunk_index: number;
+  received_chunks: number;
+  total_chunks: number;
+}

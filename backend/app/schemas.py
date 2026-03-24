@@ -85,6 +85,44 @@ class ScanResponse(BaseModel):
     total: int
 
 
+class UploadInitRequest(BaseModel):
+    filename: str
+    file_size: int
+    folder_path: str = ""
+    chunk_size: int = 5_242_880
+
+
+class UploadInitResponse(BaseModel):
+    upload_id: str
+    chunk_size: int
+    total_chunks: int
+
+
+class ChunkResponse(BaseModel):
+    chunk_index: int
+    received_chunks: int
+    total_chunks: int
+
+
+class FolderCreateRequest(BaseModel):
+    path: str = ""
+    name: str
+
+
+class FolderRenameRequest(BaseModel):
+    path: str
+    new_name: str
+
+
+class FileRenameRequest(BaseModel):
+    new_filename: str
+
+
+class FileMoveRequest(BaseModel):
+    target_drive: str | None = None
+    target_folder_path: str
+
+
 def file_to_response(file) -> FileResponse:
     return FileResponse(
         id=file.id,

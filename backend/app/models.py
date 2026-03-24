@@ -79,3 +79,18 @@ class File(Base):
         Index("idx_files_is_favorite", "is_favorite"),
         Index("idx_files_file_type", "file_type"),
     )
+
+
+class EmptyFolder(Base):
+    __tablename__ = "empty_folders"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    drive: Mapped[str] = mapped_column(String, nullable=False)
+    path: Mapped[str] = mapped_column(String, nullable=False)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime, default=lambda: datetime.now(UTC)
+    )
+
+    __table_args__ = (
+        UniqueConstraint("drive", "path", name="uq_empty_folders_drive_path"),
+    )
