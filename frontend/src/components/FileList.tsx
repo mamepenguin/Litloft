@@ -1,74 +1,155 @@
+"use client";
+
+import { useCallback, useState } from "react";
 import Link from "next/link";
-import type { FileItem } from "@/types";
+import { Download, Move, Pencil, Trash2 } from "lucide-react";
+
+import { deleteFile, getDownloadUrl, getThumbnailUrl, moveFile, renameFile } from "@/lib/api";
 import { formatDuration, formatFileSize } from "@/lib/format";
-import { getThumbnailUrl } from "@/lib/api";
+import type { FileItem } from "@/types";
 import { FavoriteButton } from "./FavoriteButton";
 import { TagList } from "./TagList";
 import { FileTypeIcon } from "./FileTypeIcon";
+import { ContextMenu, type MenuItem } from "./ContextMenu";
+import { ConfirmDialog } from "./ConfirmDialog";
+import { RenameDialog } from "./RenameDialog";
+import { MoveDialog } from "./MoveDialog";
 
 export function FileList({
   files,
   onFavoriteToggle,
+  onRefresh,
 }: {
   files: FileItem[];
   onFavoriteToggle?: (file: FileItem) => void;
+  onRefresh?: () => void;
 }) {
-  return (
-    <div className="flex flex-col gap-2">
-      {files.map((file) => {
-        const isVideo = file.file_type === "video";
-        const hasDuration = (file.file_type === "video" || file.file_type === "audio") && file.duration != null;
+  const [menuState, setMenuState] = useState<{ open: boolean; x: number; y: number; file: FileItem | null }>({
+    open: false, x: 0, y: 0, file: null,
+  });
+  const [renameOpen, setRenameOpen] = useState(false);
+  const [moveOpen, setMoveOpen] = useState(false);
+  const [deleteOpen, setDeleteOpen] = useState(false);
 
-        return (
-          <div
-            key={file.id}
-            className="flex items-center gap-3 rounded-lg bg-bg-card p-2 transition-colors hover:bg-bg-elevated"
-          >
-            <Link
-              href={`/files/${file.id}`}
-              className="flex flex-1 items-center gap-3 min-w-0"
+  const closeMenu = useCallback(() => setMenuState({ open: false, x: 0, y: 0, file: null }), []);
+
+  const target = menuState.file;
+
+  const menuItems: MenuItem[] = target ? [
+    { icon: Download, label: "ダウンロード", onClick: () => window.open(getDownloadUrl(target.id), "_blank") },
+    { icon: Pencil, label: "名前を変更", onClick: () => setRenameOpen(true) },
+    { icon: Move, label: "移動", onClick: () => setMoveOpen(true) },
+    { icon: Trash2, label: "削除", onClick: () => setDeleteOpen(true), danger: true },
+  ] : [];
+
+  return (
+    <>
+      <div className="flex flex-col gap-2">
+        {files.map((file) => {
+          const isVideo = file.file_type === "video";
+          const hasDuration = (file.file_type === "video" || file.file_type === "audio") && file.duration != null;
+
+          return (
+            <div
+              key={file.id}
+              className="flex items-center gap-3 rounded-lg bg-bg-card p-2 transition-colors hover:bg-bg-elevated"
+              onContextMenu={(e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                setMenuState({ open: true, x: e.clientX, y: e.clientY, file });
+              }}
             >
-              <div className="relative h-16 w-28 flex-shrink-0 overflow-hidden rounded-md bg-bg-elevated">
-                {isVideo ? (
-                  <img
-                    src={getThumbnailUrl(file.id)}
-                    alt={file.title}
-                    className="h-full w-full object-cover"
-                    loading="lazy"
-                  />
-                ) : (
-                  <div className="flex h-full w-full items-center justify-center">
-                    <FileTypeIcon fileType={file.file_type} size={24} className="text-text-muted" />
-                  </div>
-                )}
-                {hasDuration && (
-                  <span className="absolute bottom-0.5 right-0.5 rounded bg-black/70 px-1 py-0.5 text-[10px] text-white">
-                    {formatDuration(file.duration)}
-                  </span>
-                )}
-              </div>
-              <div className="min-w-0 flex-1">
-                <h3 className="truncate text-sm font-semibold text-text-primary">
-                  {file.title}
-                </h3>
-                <div className="flex items-center gap-1.5">
-                  <span className="text-xs text-text-muted">
-                    {file.folder_path || file.drive} · {formatFileSize(file.file_size)}
-                  </span>
-                  {file.tags.length > 0 && <TagList tags={file.tags} maxVisible={3} />}
+              <Link
+                href={`/files/${file.id}`}
+                className="flex flex-1 items-center gap-3 min-w-0"
+              >
+                <div className="relative h-16 w-28 flex-shrink-0 overflow-hidden rounded-md bg-bg-elevated">
+                  {isVideo ? (
+                    <img
+                      src={getThumbnailUrl(file.id)}
+                      alt={file.title}
+                      className="h-full w-full object-cover"
+                      loading="lazy"
+                    />
+                  ) : (
+                    <div className="flex h-full w-full items-center justify-center">
+                      <FileTypeIcon fileType={file.file_type} size={24} className="text-text-muted" />
+                    </div>
+                  )}
+                  {hasDuration && (
+                    <span className="absolute bottom-0.5 right-0.5 rounded bg-black/70 px-1 py-0.5 text-[10px] text-white">
+                      {formatDuration(file.duration)}
+                    </span>
+                  )}
                 </div>
-              </div>
-            </Link>
-            {onFavoriteToggle && (
-              <FavoriteButton
-                fileId={file.id}
-                isFavorite={file.is_favorite}
-                onToggle={onFavoriteToggle}
-              />
-            )}
-          </div>
-        );
-      })}
-    </div>
+                <div className="min-w-0 flex-1">
+                  <h3 className="truncate text-sm font-semibold text-text-primary">
+                    {file.title}
+                  </h3>
+                  <div className="flex items-center gap-1.5">
+                    <span className="text-xs text-text-muted">
+                      {file.folder_path || file.drive} · {formatFileSize(file.file_size)}
+                    </span>
+                    {file.tags.length > 0 && <TagList tags={file.tags} maxVisible={3} />}
+                  </div>
+                </div>
+              </Link>
+              {onFavoriteToggle && (
+                <FavoriteButton
+                  fileId={file.id}
+                  isFavorite={file.is_favorite}
+                  onToggle={onFavoriteToggle}
+                />
+              )}
+            </div>
+          );
+        })}
+      </div>
+
+      <ContextMenu
+        open={menuState.open}
+        position={{ x: menuState.x, y: menuState.y }}
+        items={menuItems}
+        onClose={closeMenu}
+      />
+
+      {target && (
+        <>
+          <RenameDialog
+            open={renameOpen}
+            currentName={target.filename}
+            onRename={async (name) => {
+              await renameFile(target.id, name);
+              setRenameOpen(false);
+              if (onRefresh) onRefresh();
+            }}
+            onCancel={() => setRenameOpen(false)}
+          />
+          <MoveDialog
+            open={moveOpen}
+            drive={target.drive}
+            currentPath={target.folder_path}
+            onMove={async (path) => {
+              await moveFile(target.id, path);
+              setMoveOpen(false);
+              if (onRefresh) onRefresh();
+            }}
+            onCancel={() => setMoveOpen(false)}
+          />
+          <ConfirmDialog
+            open={deleteOpen}
+            title="ファイルを削除"
+            message={`「${target.filename}」を削除しますか？この操作は取り消せません。`}
+            confirmLabel="削除"
+            onConfirm={async () => {
+              await deleteFile(target.id);
+              setDeleteOpen(false);
+              if (onRefresh) onRefresh();
+            }}
+            onCancel={() => setDeleteOpen(false)}
+          />
+        </>
+      )}
+    </>
   );
 }

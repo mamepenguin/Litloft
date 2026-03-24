@@ -308,9 +308,9 @@ export function FolderBrowser({ driveName, folderPath, view, tagFilter }: Folder
           <EmptyState variant="no-files" />
         )
       ) : viewMode === "grid" ? (
-        <FileGrid files={files} onFavoriteToggle={handleFavoriteToggle} />
+        <FileGrid files={files} onFavoriteToggle={handleFavoriteToggle} onRefresh={refresh} />
       ) : (
-        <FileList files={files} onFavoriteToggle={handleFavoriteToggle} />
+        <FileList files={files} onFavoriteToggle={handleFavoriteToggle} onRefresh={refresh} />
       )}
 
       {totalPages > 1 && (

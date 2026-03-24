@@ -9,9 +9,11 @@ import { FileTypeIcon } from "./FileTypeIcon";
 export function FileCard({
   file,
   onFavoriteToggle,
+  onContextMenu,
 }: {
   file: FileItem;
   onFavoriteToggle?: (file: FileItem) => void;
+  onContextMenu?: (e: React.MouseEvent) => void;
 }) {
   const isVideo = file.file_type === "video";
 
@@ -19,6 +21,7 @@ export function FileCard({
     <Link
       href={`/files/${file.id}`}
       className="group block rounded-xl bg-bg-card overflow-hidden transition-transform duration-200 ease-out hover:scale-[1.02] hover:shadow-lg"
+      onContextMenu={onContextMenu}
     >
       <div className="relative aspect-video bg-bg-elevated">
         {isVideo ? (
@@ -33,12 +36,7 @@ export function FileCard({
             <FileTypeIcon fileType={file.file_type} size={48} className="text-text-muted" />
           </div>
         )}
-        {isVideo && file.duration != null && (
-          <span className="absolute bottom-2 right-2 rounded bg-black/70 px-1.5 py-0.5 text-xs font-medium text-white">
-            {formatDuration(file.duration)}
-          </span>
-        )}
-        {file.file_type === "audio" && file.duration != null && (
+        {(isVideo || file.file_type === "audio") && file.duration != null && (
           <span className="absolute bottom-2 right-2 rounded bg-black/70 px-1.5 py-0.5 text-xs font-medium text-white">
             {formatDuration(file.duration)}
           </span>

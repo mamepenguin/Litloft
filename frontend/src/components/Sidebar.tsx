@@ -9,6 +9,7 @@ import { getDrives, getDriveTags } from "@/lib/api";
 import type { Drive, Tag as TagType } from "@/types";
 import { useSidebar } from "./SidebarProvider";
 import { ThemeToggle } from "./ThemeToggle";
+import { GlobalSearch } from "./GlobalSearch";
 
 function useCurrentDrive(): string | null {
   const pathname = usePathname();
@@ -83,7 +84,10 @@ function SidebarNav() {
         <Link href="/" onClick={close} className="text-lg font-bold text-text-primary">
           Video Share
         </Link>
-        <ThemeToggle />
+        <div className="flex items-center gap-1">
+          <GlobalSearch />
+          <ThemeToggle />
+        </div>
       </div>
 
       <div className="mb-1 px-3 text-[11px] font-semibold uppercase tracking-wider text-text-muted">
