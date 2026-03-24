@@ -65,7 +65,60 @@ export function VideoPlayer({ videoId }: { videoId: number }) {
   }, [videoId]);
 
   useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      const video = videoRef.current;
+      if (!video) return;
+
+      const target = e.target as HTMLElement;
+      const tag = target?.tagName;
+      if (tag === "INPUT" || tag === "TEXTAREA" || tag === "SELECT") return;
+      if (target?.isContentEditable) return;
+
+      switch (e.key) {
+        case "ArrowLeft":
+          e.preventDefault();
+          video.currentTime = Math.max(0, video.currentTime - 10);
+          break;
+        case "ArrowRight":
+          e.preventDefault();
+          video.currentTime = Math.min(video.duration, video.currentTime + 10);
+          break;
+        case "ArrowUp":
+          e.preventDefault();
+          video.currentTime = Math.min(video.duration, video.currentTime + 60);
+          break;
+        case "ArrowDown":
+          e.preventDefault();
+          video.currentTime = Math.max(0, video.currentTime - 60);
+          break;
+        case " ":
+          e.preventDefault();
+          if (video.paused) {
+            video.play();
+          } else {
+            video.pause();
+          }
+          break;
+        case "m":
+        case "M":
+          e.preventDefault();
+          video.muted = !video.muted;
+          break;
+        case "f":
+        case "F":
+          e.preventDefault();
+          if (document.fullscreenElement) {
+            document.exitFullscreen();
+          } else {
+            video.requestFullscreen();
+          }
+          break;
+      }
+    };
+
+    document.addEventListener("keydown", handleKeyDown);
     return () => {
+      document.removeEventListener("keydown", handleKeyDown);
       const video = videoRef.current;
       if (video && video.currentTime > 0) {
         saveProgress(videoId, video.currentTime);
