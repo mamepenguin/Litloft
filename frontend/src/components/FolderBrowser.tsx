@@ -1,14 +1,15 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
-import { CheckSquare, FolderPlus, Search, Upload, X } from "lucide-react";
+import { CheckSquare, FolderPlus, RefreshCw, Upload, X } from "lucide-react";
 
-import { batchGetFiles, createFolder, getDriveFiles, getFolders } from "@/lib/api";
+import { batchGetFiles, createFolder, getDriveFiles, getFolders, scanDrive } from "@/lib/api";
 import { getRecentFileIds } from "@/lib/recentlyPlayed";
 import type { FileItem, Folder, PaginatedResponse, SortField, SortOrder, ViewMode } from "@/types";
 import { FileGrid } from "@/components/FileGrid";
 import { FileList } from "@/components/FileList";
 import { ViewToggle } from "@/components/ViewToggle";
+import { SortButton } from "@/components/SortButton";
 import { EmptyState } from "@/components/EmptyState";
 import { FolderCard } from "@/components/FolderCard";
 import { Breadcrumb } from "@/components/Breadcrumb";
@@ -29,7 +30,6 @@ export function FolderBrowser({ driveName, folderPath, view, tagFilter }: Folder
   const [total, setTotal] = useState(0);
   const [page, setPage] = useState(1);
   const [viewMode, setViewMode] = useState<ViewMode>("grid");
-  const [search, setSearch] = useState("");
   const [sort, setSort] = useState<SortField>("created_at");
   const [order, setOrder] = useState<SortOrder>("desc");
   const [loading, setLoading] = useState(true);
@@ -76,7 +76,6 @@ export function FolderBrowser({ driveName, folderPath, view, tagFilter }: Folder
     }
     getDriveFiles(driveName, {
       path: isSpecialView ? undefined : (folderPath ?? ""),
-      search: search || undefined,
       favorite: isFavorites ? true : undefined,
       tag: tagFilter || undefined,
       sort,
@@ -92,7 +91,7 @@ export function FolderBrowser({ driveName, folderPath, view, tagFilter }: Folder
       setTotal(0);
       setLoading(false);
     });
-  }, [driveName, folderPath, search, sort, order, page, isFavorites, isRecent, isSpecialView, tagFilter, limit]);
+  }, [driveName, folderPath, sort, order, page, isFavorites, isRecent, isSpecialView, tagFilter, limit]);
 
   useEffect(() => {
     if (!isSpecialView) {
@@ -115,6 +114,20 @@ export function FolderBrowser({ driveName, folderPath, view, tagFilter }: Folder
 
   const [refreshKey, setRefreshKey] = useState(0);
   const refresh = useCallback(() => setRefreshKey((k) => k + 1), []);
+  const [scanning, setScanning] = useState(false);
+
+  async function handleScan() {
+    if (scanning) return;
+    setScanning(true);
+    try {
+      await scanDrive(driveName);
+      refresh();
+    } catch {
+      // 409 = already scanning, ignore
+    } finally {
+      setScanning(false);
+    }
+  }
 
   useEffect(() => {
     if (refreshKey === 0) return;
@@ -183,118 +196,79 @@ export function FolderBrowser({ driveName, folderPath, view, tagFilter }: Folder
     <div className="w-full flex-1 px-4 py-6">
       <Breadcrumb driveName={driveName} folderPath={folderPath} />
 
-      {/* Action buttons row */}
-      {!isFavorites && !isAll && !tagFilter && (
-        <div className="mb-4 flex items-center gap-2">
-          <input
-            ref={fileInputRef}
-            type="file"
-            multiple
-            className="hidden"
-            onChange={(e) => {
-              const uploadZone = document.querySelector<HTMLElement>("[data-upload-zone]");
-              if (uploadZone && e.target.files) {
-                const event = new CustomEvent("upload-files", { detail: Array.from(e.target.files) });
-                uploadZone.dispatchEvent(event);
-              }
-              e.target.value = "";
-            }}
-          />
-          <button
-            onClick={() => fileInputRef.current?.click()}
-            className="flex items-center gap-2 rounded-lg bg-accent px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-accent/80"
-          >
-            <Upload size={16} />
-            Upload
-          </button>
-
-          {creatingFolder ? (
-            <div className="flex items-center gap-2">
-              <input
-                type="text"
-                autoFocus
-                value={newFolderName}
-                onChange={(e) => setNewFolderName(e.target.value)}
-                onKeyDown={(e) => {
-                  if (e.key === "Enter") handleCreateFolder();
-                  if (e.key === "Escape") { setCreatingFolder(false); setNewFolderName(""); setFolderError(null); }
-                }}
-                placeholder="フォルダ名..."
-                className="rounded-lg bg-bg-card px-3 py-2 text-sm text-text-primary placeholder:text-text-muted outline-none focus:ring-2 focus:ring-accent"
-              />
-              <button
-                onClick={handleCreateFolder}
-                className="rounded-lg bg-accent px-3 py-2 text-sm text-white hover:bg-accent/80"
-              >
-                作成
-              </button>
-              <button
-                onClick={() => { setCreatingFolder(false); setNewFolderName(""); setFolderError(null); }}
-                className="rounded-lg p-2 text-text-muted hover:text-text-primary"
-              >
-                <X size={16} />
-              </button>
-              {folderError && <span className="text-xs text-red-400">{folderError}</span>}
-            </div>
-          ) : (
-            <button
-              onClick={() => setCreatingFolder(true)}
-              className="flex items-center gap-2 rounded-lg border border-bg-border bg-bg-card px-4 py-2 text-sm font-medium text-text-primary transition-colors hover:bg-bg-elevated"
-            >
-              <FolderPlus size={16} />
-              New Folder
-            </button>
-          )}
-        </div>
-      )}
-
-      {/* Search / Sort / View row */}
-      <div className="mb-4 flex flex-wrap items-center gap-3">
-        <div className="relative min-w-[200px] flex-1">
-          <Search
-            size={16}
-            className="absolute left-3 top-1/2 -translate-y-1/2 text-text-muted"
-          />
-          <input
-            type="text"
-            placeholder="ファイルを検索..."
-            value={search}
-            onChange={(e) => {
-              setSearch(e.target.value);
-              setPage(1);
-            }}
-            className="w-full rounded-lg bg-bg-card py-2 pl-9 pr-8 text-sm text-text-primary placeholder:text-text-muted outline-none focus:ring-2 focus:ring-accent"
-          />
-          {search && (
-            <button
-              onClick={() => {
-                setSearch("");
-                setPage(1);
+      {/* Toolbar row */}
+      <div className="mb-4 flex items-center gap-2">
+        {!isFavorites && !isAll && !tagFilter && (
+          <>
+            <input
+              ref={fileInputRef}
+              type="file"
+              multiple
+              className="hidden"
+              onChange={(e) => {
+                const uploadZone = document.querySelector<HTMLElement>("[data-upload-zone]");
+                if (uploadZone && e.target.files) {
+                  const event = new CustomEvent("upload-files", { detail: Array.from(e.target.files) });
+                  uploadZone.dispatchEvent(event);
+                }
+                e.target.value = "";
               }}
-              className="absolute right-2 top-1/2 -translate-y-1/2 text-text-muted hover:text-text-primary"
+            />
+            <button
+              onClick={() => fileInputRef.current?.click()}
+              className="flex items-center gap-2 rounded-lg bg-accent px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-accent/80"
             >
-              <X size={16} />
+              <Upload size={16} />
+              Upload
             </button>
-          )}
-        </div>
 
-        <select
-          value={`${sort}-${order}`}
-          onChange={(e) => {
-            const [s, o] = e.target.value.split("-") as [SortField, SortOrder];
-            setSort(s);
-            setOrder(o);
-            setPage(1);
-          }}
-          className="rounded-lg bg-bg-card px-3 py-2 text-sm text-text-primary outline-none"
-        >
-          <option value="created_at-desc">新しい順</option>
-          <option value="created_at-asc">古い順</option>
-          <option value="title-asc">タイトル A→Z</option>
-          <option value="title-desc">タイトル Z→A</option>
-          <option value="file_size-desc">サイズ 大→小</option>
-          <option value="file_size-asc">サイズ 小→大</option>
-        </select>
+            {creatingFolder ? (
+              <div className="flex items-center gap-2">
+                <input
+                  type="text"
+                  autoFocus
+                  value={newFolderName}
+                  onChange={(e) => setNewFolderName(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter") handleCreateFolder();
+                    if (e.key === "Escape") { setCreatingFolder(false); setNewFolderName(""); setFolderError(null); }
+                  }}
+                  placeholder="フォルダ名..."
+                  className="rounded-lg bg-bg-card px-3 py-2 text-sm text-text-primary placeholder:text-text-muted outline-none focus:ring-2 focus:ring-accent"
+                />
+                <button
+                  onClick={handleCreateFolder}
+                  className="rounded-lg bg-accent px-3 py-2 text-sm text-white hover:bg-accent/80"
+                >
+                  作成
+                </button>
+                <button
+                  onClick={() => { setCreatingFolder(false); setNewFolderName(""); setFolderError(null); }}
+                  className="rounded-lg p-2 text-text-muted hover:text-text-primary"
+                >
+                  <X size={16} />
+                </button>
+                {folderError && <span className="text-xs text-red-400">{folderError}</span>}
+              </div>
+            ) : (
+              <button
+                onClick={() => setCreatingFolder(true)}
+                className="flex items-center gap-2 rounded-lg border border-bg-border bg-bg-card px-4 py-2 text-sm font-medium text-text-primary transition-colors hover:bg-bg-elevated"
+              >
+                <FolderPlus size={16} />
+                New Folder
+              </button>
+            )}
+          </>
+        )}
+
+        <div className="flex-1" />
+
+        <SortButton
+          sort={sort}
+          order={order}
+          onChange={(s, o) => { setSort(s); setOrder(o); setPage(1); }}
+        />
 
         <button
           onClick={() => {
@@ -314,13 +288,23 @@ export function FolderBrowser({ driveName, folderPath, view, tagFilter }: Folder
         </button>
 
         <ViewToggle onChange={handleViewChange} />
+
+        <button
+          onClick={handleScan}
+          disabled={scanning}
+          className="flex items-center gap-1.5 rounded-lg bg-bg-card px-3 py-2 text-sm text-text-muted transition-colors hover:text-text-primary disabled:opacity-50"
+          aria-label="再スキャン"
+          title="ドライブを再スキャン"
+        >
+          <RefreshCw size={16} className={scanning ? "animate-spin" : ""} />
+        </button>
       </div>
 
       <p className="mb-4 text-sm text-text-muted">
         {label} · {total} 件
       </p>
 
-      {folders.length > 0 && !search && (
+      {folders.length > 0 && (
         <div className="mb-6 grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
           {folders.map((folder) => (
             <FolderCard key={folder.path} folder={folder} driveName={driveName} onUpdate={refresh} />
@@ -333,18 +317,7 @@ export function FolderBrowser({ driveName, folderPath, view, tagFilter }: Folder
           <div className="h-8 w-8 animate-spin rounded-full border-2 border-accent border-t-transparent" />
         </div>
       ) : files.length === 0 && folders.length === 0 ? (
-        search ? (
-          <EmptyState
-            variant="no-results"
-            action={{
-              label: "検索をクリア",
-              onClick: () => {
-                setSearch("");
-                setPage(1);
-              },
-            }}
-          />
-        ) : isFavorites ? (
+        isFavorites ? (
           <EmptyState variant="no-favorites" />
         ) : isRecent ? (
           <EmptyState variant="no-recent" />

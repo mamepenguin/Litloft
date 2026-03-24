@@ -3,13 +3,11 @@
 import { Suspense, useEffect, useState } from "react";
 import Link from "next/link";
 import { usePathname, useSearchParams } from "next/navigation";
-import { Clock, Files, HardDrive, Home, Menu, Star, Tag, X } from "lucide-react";
+import { Clock, Files, HardDrive, Home, Star, Tag, X } from "lucide-react";
 
 import { getDrives, getDriveTags } from "@/lib/api";
 import type { Drive, Tag as TagType } from "@/types";
 import { useSidebar } from "./SidebarProvider";
-import { ThemeToggle } from "./ThemeToggle";
-import { GlobalSearch } from "./GlobalSearch";
 
 function useCurrentDrive(): string | null {
   const pathname = usePathname();
@@ -83,14 +81,10 @@ function SidebarNav() {
 
   return (
     <nav className="flex flex-col gap-1 overflow-y-auto p-3">
-      <div className="mb-2 flex items-center justify-between px-3 py-2">
+      <div className="mb-2 px-3 py-2">
         <Link href="/" onClick={close} className="text-lg font-bold text-text-primary">
           Video Share
         </Link>
-        <div className="flex items-center gap-1">
-          <GlobalSearch />
-          <ThemeToggle />
-        </div>
       </div>
 
       <div className="mb-1 px-3 text-[11px] font-semibold uppercase tracking-wider text-text-muted">
@@ -180,14 +174,6 @@ export function Sidebar() {
 
   return (
     <>
-      <button
-        onClick={toggle}
-        className="fixed left-3 top-3 z-50 rounded-lg bg-bg-card p-2 text-text-muted hover:text-text-primary md:hidden"
-        aria-label="メニュー"
-      >
-        <Menu size={20} />
-      </button>
-
       {isOpen && (
         <div
           className="fixed inset-0 z-40 bg-black/50 md:hidden"

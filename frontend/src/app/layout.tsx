@@ -2,6 +2,7 @@ import type { Metadata, Viewport } from "next";
 import { Inter } from "next/font/google";
 import "./globals.css";
 
+import { Header } from "@/components/Header";
 import { Sidebar } from "@/components/Sidebar";
 import { SidebarProvider } from "@/components/SidebarProvider";
 import { ThemeProvider } from "@/components/ThemeProvider";
@@ -54,7 +55,8 @@ export default function RootLayout({
           <SidebarProvider>
             <div className="flex min-h-dvh">
               <Sidebar />
-              <main className="flex flex-1 flex-col pl-0 md:pl-0">
+              <main className="flex flex-1 flex-col">
+                <Header />
                 {children}
               </main>
             </div>
