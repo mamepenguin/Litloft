@@ -33,13 +33,13 @@ export function TagList({
             e.stopPropagation();
             router.push(`${getDriveBase()}?tag=${encodeURIComponent(tag)}`);
           }}
-          className="cursor-pointer rounded-full bg-bg-elevated px-2 py-0.5 text-[10px] text-text-muted transition-colors hover:bg-accent/20 hover:text-accent"
+          className="cursor-pointer rounded-full bg-accent-teal/15 px-2.5 py-0.5 text-xs font-medium text-accent-teal transition-colors hover:bg-accent-teal/25"
         >
           {tag}
         </button>
       ))}
       {remaining > 0 && (
-        <span className="text-[10px] text-text-muted">+{remaining}</span>
+        <span className="text-xs text-text-muted">+{remaining}</span>
       )}
     </span>
   );

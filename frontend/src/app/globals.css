@@ -2,53 +2,57 @@
 
 :root,
 [data-theme="dark"] {
-  --bg-primary: #0c1221;
-  --bg-card: #151d2e;
-  --bg-elevated: #1a2538;
+  --bg-primary: #130c06;
+  --bg-card: #1e1209;
+  --bg-elevated: #2a1a0e;
   --bg-border: rgba(255, 255, 255, 0.08);
-  --text-primary: #dfe3ea;
-  --text-muted: #64748b;
-  --accent: #3b82f6;
-  --accent-cta: #e8a308;
+  --text-primary: #ebe0d5;
+  --text-muted: #8b7562;
+  --accent: #e65100;
+  --accent-cta: #ff9100;
+  --accent-teal: #00897b;
   color-scheme: dark;
 }
 
 [data-theme="light"] {
-  --bg-primary: #f0f2f8;
+  --bg-primary: #faf5f0;
   --bg-card: #ffffff;
-  --bg-elevated: #e8ecf4;
+  --bg-elevated: #f0e6da;
   --bg-border: rgba(0, 0, 0, 0.08);
-  --text-primary: #1a1d2e;
-  --text-muted: #6b7280;
-  --accent: #4a6cf7;
-  --accent-cta: #d4940a;
+  --text-primary: #2e1a0c;
+  --text-muted: #7a6b5c;
+  --accent: #d84315;
+  --accent-cta: #e65100;
+  --accent-teal: #00796b;
   color-scheme: light;
 }
 
 @media (prefers-color-scheme: light) {
   [data-theme="system"] {
-    --bg-primary: #f0f2f8;
+    --bg-primary: #faf5f0;
     --bg-card: #ffffff;
-    --bg-elevated: #e8ecf4;
+    --bg-elevated: #f0e6da;
     --bg-border: rgba(0, 0, 0, 0.08);
-    --text-primary: #1a1d2e;
-    --text-muted: #6b7280;
-    --accent: #4a6cf7;
-    --accent-cta: #d4940a;
+    --text-primary: #2e1a0c;
+    --text-muted: #7a6b5c;
+    --accent: #d84315;
+    --accent-cta: #e65100;
+    --accent-teal: #00796b;
     color-scheme: light;
   }
 }
 
 @media (prefers-color-scheme: dark) {
   [data-theme="system"] {
-    --bg-primary: #0c1221;
-    --bg-card: #151d2e;
-    --bg-elevated: #1a2538;
+    --bg-primary: #130c06;
+    --bg-card: #1e1209;
+    --bg-elevated: #2a1a0e;
     --bg-border: rgba(255, 255, 255, 0.08);
-    --text-primary: #dfe3ea;
-    --text-muted: #64748b;
-    --accent: #3b82f6;
-    --accent-cta: #e8a308;
+    --text-primary: #ebe0d5;
+    --text-muted: #8b7562;
+    --accent: #e65100;
+    --accent-cta: #ff9100;
+    --accent-teal: #00897b;
     color-scheme: dark;
   }
 }
@@ -62,6 +66,7 @@
   --color-text-muted: var(--text-muted);
   --color-accent: var(--accent);
   --color-accent-cta: var(--accent-cta);
+  --color-accent-teal: var(--accent-teal);
   --font-sans: "Inter", sans-serif;
 }
 

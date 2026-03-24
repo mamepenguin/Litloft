@@ -121,7 +121,7 @@ export function TagEditor({
         {tags.map((tag) => (
           <span
             key={tag}
-            className="flex items-center gap-1 rounded-full bg-bg-card px-2.5 py-1 text-xs text-text-muted"
+            className="flex items-center gap-1 rounded-full bg-accent-teal/15 px-2.5 py-1 text-sm font-medium text-accent-teal"
           >
             {tag}
             <button

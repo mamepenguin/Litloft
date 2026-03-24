@@ -55,8 +55,8 @@ export function FavoriteButton({
           : "rounded-lg p-1.5"
       } ${
         current
-          ? "text-yellow-400"
-          : "text-text-muted/50 hover:text-yellow-400"
+          ? "text-accent-teal"
+          : "text-text-muted/50 hover:text-accent-teal"
       }`}
       aria-label={current ? "お気に入り解除" : "お気に入りに追加"}
     >
