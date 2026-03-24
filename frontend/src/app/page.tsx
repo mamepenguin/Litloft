@@ -1,10 +1,20 @@
+import { cookies } from "next/headers";
 import Link from "next/link";
-import { HardDrive } from "lucide-react";
+import { HardDrive, Lock } from "lucide-react";
 import type { Drive } from "@/types";
 
 async function fetchDrives(): Promise<Drive[]> {
+  const cookieStore = await cookies();
+  const accessToken = cookieStore.get("access_token");
+
+  const headers: HeadersInit = {};
+  if (accessToken) {
+    headers["Cookie"] = `access_token=${accessToken.value}`;
+  }
+
   const res = await fetch("http://backend:8000/api/drives", {
     cache: "no-store",
+    headers,
   });
   if (!res.ok) return [];
   return res.json();
@@ -40,11 +50,14 @@ export default async function Home() {
               <div className="flex h-12 w-12 items-center justify-center rounded-lg bg-accent/20">
                 <HardDrive size={24} className="text-accent" />
               </div>
-              <div>
+              <div className="flex-1">
                 <h2 className="font-semibold text-text-primary group-hover:text-accent">
                   {drive.name}
                 </h2>
               </div>
+              {drive.protected && (
+                <Lock size={14} className="text-text-muted" />
+              )}
             </Link>
           ))}
         </div>

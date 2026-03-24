@@ -33,6 +33,18 @@ export interface PaginatedResponse {
 
 export interface Drive {
   name: string;
+  protected: boolean;
+}
+
+export interface UnlockResult {
+  success: boolean;
+  groups?: string[];
+  error?: string;
+}
+
+export interface AuthStatus {
+  unlocked_groups: string[];
+  has_protected_drives: boolean;
 }
 
 export interface Folder {

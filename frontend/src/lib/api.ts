@@ -1,9 +1,9 @@
-import type { ChunkResponse, Drive, FileItem, FileType, Folder, PaginatedResponse, SortField, SortOrder, Tag, UploadInitResponse } from "@/types";
+import type { AuthStatus, ChunkResponse, Drive, FileItem, FileType, Folder, PaginatedResponse, SortField, SortOrder, Tag, UnlockResult, UploadInitResponse } from "@/types";
 
 const API_BASE = "/api";
 
 async function fetchJSON<T>(url: string, options?: RequestInit): Promise<T> {
-  const res = await fetch(url, options);
+  const res = await fetch(url, { credentials: "include", ...options });
   if (!res.ok) {
     throw new Error(`API error: ${res.status} ${res.statusText}`);
   }
@@ -126,7 +126,7 @@ export async function moveFile(id: number, targetFolderPath: string, targetDrive
 }
 
 export async function deleteFile(id: number): Promise<void> {
-  const res = await fetch(`${API_BASE}/files/${id}`, { method: "DELETE" });
+  const res = await fetch(`${API_BASE}/files/${id}`, { method: "DELETE", credentials: "include" });
   if (!res.ok) throw new Error(`API error: ${res.status}`);
 }
 
@@ -150,7 +150,7 @@ export async function renameFolder(drive: string, path: string, newName: string)
 export async function deleteFolder(drive: string, path: string): Promise<void> {
   const res = await fetch(
     `${API_BASE}/drives/${encodeURIComponent(drive)}/folders?path=${encodeURIComponent(path)}`,
-    { method: "DELETE" }
+    { method: "DELETE", credentials: "include" }
   );
   if (!res.ok) throw new Error(`API error: ${res.status}`);
 }
@@ -195,7 +195,7 @@ export async function completeUpload(drive: string, uploadId: string): Promise<F
 export async function cancelUpload(drive: string, uploadId: string): Promise<void> {
   await fetch(
     `${API_BASE}/drives/${encodeURIComponent(drive)}/upload/${uploadId}`,
-    { method: "DELETE" }
+    { method: "DELETE", credentials: "include" }
   );
 }
 
@@ -237,4 +237,24 @@ export async function batchTag(
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ ids, tags }),
   });
+}
+
+// Auth
+export async function unlock(
+  password: string,
+  remember: boolean
+): Promise<UnlockResult> {
+  return fetchJSON<UnlockResult>(`${API_BASE}/auth/unlock`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ password, remember }),
+  });
+}
+
+export async function lock(): Promise<void> {
+  await fetchJSON(`${API_BASE}/auth/lock`, { method: "POST" });
+}
+
+export async function getAuthStatus(): Promise<AuthStatus> {
+  return fetchJSON<AuthStatus>(`${API_BASE}/auth/status`);
 }

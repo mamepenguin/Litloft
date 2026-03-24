@@ -3,3 +3,4 @@ uvicorn[standard]==0.34.2
 sqlalchemy==2.0.40
 pydantic==2.11.1
 python-multipart==0.0.20
+PyJWT==2.9.0

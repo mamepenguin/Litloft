@@ -9,6 +9,7 @@ from fastapi.responses import StreamingResponse
 from sqlalchemy.orm import Session
 
 import app.config as config
+from app.auth import check_drive_access, get_unlocked_groups
 from app.database import get_db
 from app.models import File, Tag, file_tags
 from app.schemas import (
@@ -41,25 +42,47 @@ def _validate_path(file_path: str, base_dir: Path) -> Path:
 _to_response = file_to_response
 
 
+def _is_drive_accessible(drive_name: str, unlocked_groups: list[str]) -> bool:
+    access_group = config.get_drive_access_group(drive_name)
+    return not access_group or access_group in unlocked_groups
+
+
+def _get_file_or_404(
+    db: Session, file_id: int, unlocked_groups: list[str]
+) -> File:
+    file = db.query(File).filter(File.id == file_id).first()
+    if not file:
+        raise HTTPException(status_code=404, detail="File not found")
+    check_drive_access(file.drive, unlocked_groups)
+    return file
+
+
 @router.post("/batch/get", response_model=list[FileResponse])
 async def batch_get(
     body: BatchIdsRequest,
     db: Annotated[Session, Depends(get_db)],
+    unlocked_groups: Annotated[list[str], Depends(get_unlocked_groups)],
 ):
     files = db.query(File).filter(File.id.in_(body.ids)).all()
     file_map = {f.id: f for f in files}
-    return [_to_response(file_map[fid]) for fid in body.ids if fid in file_map]
+    return [
+        _to_response(file_map[fid])
+        for fid in body.ids
+        if fid in file_map and _is_drive_accessible(file_map[fid].drive, unlocked_groups)
+    ]
 
 
 @router.post("/batch/delete")
 async def batch_delete(
     body: BatchIdsRequest,
     db: Annotated[Session, Depends(get_db)],
+    unlocked_groups: Annotated[list[str], Depends(get_unlocked_groups)],
 ):
     deleted = 0
     errors = []
     for file_id in body.ids:
         try:
+            _get_file_or_404(db, file_id, unlocked_groups)
             fileops.delete_file(db, file_id)
             deleted += 1
         except HTTPException as e:
@@ -71,11 +94,13 @@ async def batch_delete(
 async def batch_move(
     body: BatchMoveRequest,
     db: Annotated[Session, Depends(get_db)],
+    unlocked_groups: Annotated[list[str], Depends(get_unlocked_groups)],
 ):
     moved = 0
     errors = []
     for file_id in body.ids:
         try:
+            _get_file_or_404(db, file_id, unlocked_groups)
             fileops.move_file(db, file_id, body.target_drive, body.target_folder_path)
             moved += 1
         except HTTPException as e:
@@ -87,15 +112,13 @@ async def batch_move(
 async def batch_tags(
     body: BatchTagRequest,
     db: Annotated[Session, Depends(get_db)],
+    unlocked_groups: Annotated[list[str], Depends(get_unlocked_groups)],
 ):
     updated = 0
     errors = []
     for file_id in body.ids:
         try:
-            file = db.query(File).filter(File.id == file_id).first()
-            if not file:
-                errors.append({"id": file_id, "error": "File not found"})
-                continue
+            file = _get_file_or_404(db, file_id, unlocked_groups)
             tag_objects = []
             for tag_name in body.tags:
                 tag = db.query(Tag).filter(Tag.name == tag_name, Tag.drive == file.drive).first()
@@ -128,10 +151,9 @@ async def batch_tags(
 async def get_file(
     file_id: int,
     db: Annotated[Session, Depends(get_db)],
+    unlocked_groups: Annotated[list[str], Depends(get_unlocked_groups)],
 ):
-    file = db.query(File).filter(File.id == file_id).first()
-    if not file:
-        raise HTTPException(status_code=404, detail="File not found")
+    file = _get_file_or_404(db, file_id, unlocked_groups)
     return _to_response(file)
 
 
@@ -140,10 +162,9 @@ async def update_file(
     file_id: int,
     update: FileUpdate,
     db: Annotated[Session, Depends(get_db)],
+    unlocked_groups: Annotated[list[str], Depends(get_unlocked_groups)],
 ):
-    file = db.query(File).filter(File.id == file_id).first()
-    if not file:
-        raise HTTPException(status_code=404, detail="File not found")
+    file = _get_file_or_404(db, file_id, unlocked_groups)
 
     update_data = update.model_dump(exclude_unset=True)
     for key, value in update_data.items():
@@ -158,10 +179,9 @@ async def update_file(
 async def like_file(
     file_id: int,
     db: Annotated[Session, Depends(get_db)],
+    unlocked_groups: Annotated[list[str], Depends(get_unlocked_groups)],
 ):
-    file = db.query(File).filter(File.id == file_id).first()
-    if not file:
-        raise HTTPException(status_code=404, detail="File not found")
+    file = _get_file_or_404(db, file_id, unlocked_groups)
 
     file.likes = File.likes + 1
     db.commit()
@@ -173,10 +193,9 @@ async def like_file(
 async def dislike_file(
     file_id: int,
     db: Annotated[Session, Depends(get_db)],
+    unlocked_groups: Annotated[list[str], Depends(get_unlocked_groups)],
 ):
-    file = db.query(File).filter(File.id == file_id).first()
-    if not file:
-        raise HTTPException(status_code=404, detail="File not found")
+    file = _get_file_or_404(db, file_id, unlocked_groups)
 
     file.dislikes = File.dislikes + 1
     db.commit()
@@ -188,10 +207,9 @@ async def dislike_file(
 async def toggle_favorite(
     file_id: int,
     db: Annotated[Session, Depends(get_db)],
+    unlocked_groups: Annotated[list[str], Depends(get_unlocked_groups)],
 ):
-    file = db.query(File).filter(File.id == file_id).first()
-    if not file:
-        raise HTTPException(status_code=404, detail="File not found")
+    file = _get_file_or_404(db, file_id, unlocked_groups)
 
     file.is_favorite = not file.is_favorite
     db.commit()
@@ -204,10 +222,9 @@ async def update_file_tags(
     file_id: int,
     update: TagUpdate,
     db: Annotated[Session, Depends(get_db)],
+    unlocked_groups: Annotated[list[str], Depends(get_unlocked_groups)],
 ):
-    file = db.query(File).filter(File.id == file_id).first()
-    if not file:
-        raise HTTPException(status_code=404, detail="File not found")
+    file = _get_file_or_404(db, file_id, unlocked_groups)
 
     tag_objects = []
     for tag_name in update.tags:
@@ -241,11 +258,10 @@ async def stream_file(
     file_id: int,
     request: Request,
     db: Annotated[Session, Depends(get_db)],
+    unlocked_groups: Annotated[list[str], Depends(get_unlocked_groups)],
     download: bool = False,
 ):
-    file = db.query(File).filter(File.id == file_id).first()
-    if not file:
-        raise HTTPException(status_code=404, detail="File not found")
+    file = _get_file_or_404(db, file_id, unlocked_groups)
 
     drive_path = config.get_drive_path(file.drive)
     file_path = _validate_path(
@@ -318,10 +334,9 @@ async def stream_file(
 async def get_thumbnail(
     file_id: int,
     db: Annotated[Session, Depends(get_db)],
+    unlocked_groups: Annotated[list[str], Depends(get_unlocked_groups)],
 ):
-    file = db.query(File).filter(File.id == file_id).first()
-    if not file:
-        raise HTTPException(status_code=404, detail="File not found")
+    file = _get_file_or_404(db, file_id, unlocked_groups)
 
     if file.thumbnail_path:
         thumb_path = _validate_path(
@@ -341,7 +356,9 @@ async def rename_file_endpoint(
     file_id: int,
     body: FileRenameRequest,
     db: Annotated[Session, Depends(get_db)],
+    unlocked_groups: Annotated[list[str], Depends(get_unlocked_groups)],
 ):
+    _get_file_or_404(db, file_id, unlocked_groups)
     file = fileops.rename_file(db, file_id, body.new_filename)
     return _to_response(file)
 
@@ -351,7 +368,9 @@ async def move_file_endpoint(
     file_id: int,
     body: FileMoveRequest,
     db: Annotated[Session, Depends(get_db)],
+    unlocked_groups: Annotated[list[str], Depends(get_unlocked_groups)],
 ):
+    _get_file_or_404(db, file_id, unlocked_groups)
     file = fileops.move_file(db, file_id, body.target_drive, body.target_folder_path)
     return _to_response(file)
 
@@ -360,6 +379,8 @@ async def move_file_endpoint(
 async def delete_file_endpoint(
     file_id: int,
     db: Annotated[Session, Depends(get_db)],
+    unlocked_groups: Annotated[list[str], Depends(get_unlocked_groups)],
 ):
+    _get_file_or_404(db, file_id, unlocked_groups)
     fileops.delete_file(db, file_id)
     return {"status": "deleted"}

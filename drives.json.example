@@ -1,4 +1,5 @@
 [
   { "name": "家族ビデオ", "path": "/app/drives/family" },
-  { "name": "テレビ番組", "path": "/app/drives/tv", "readonly": true }
+  { "name": "テレビ番組", "path": "/app/drives/tv", "readonly": true },
+  { "name": "プライベート", "path": "/app/drives/private", "access_group": "private" }
 ]

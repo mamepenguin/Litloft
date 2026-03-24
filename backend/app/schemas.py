@@ -65,6 +65,7 @@ class PaginatedResponse(BaseModel):
 
 class DriveResponse(BaseModel):
     name: str
+    protected: bool = False
 
 
 class FolderResponse(BaseModel):

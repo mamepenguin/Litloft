@@ -2,6 +2,7 @@
 videos/
 data/
 drives.json
+passwords.json
 
 # Python
 __pycache__/

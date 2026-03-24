@@ -9,6 +9,7 @@ services:
       - ./data:/app/data
     environment:
       - DRIVES_CONFIG=/app/drives.json
+      - PASSWORDS_CONFIG=/app/passwords.json
       - DATA_DIR=/app/data
     restart: unless-stopped
     healthcheck:

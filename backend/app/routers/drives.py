@@ -5,6 +5,7 @@ from sqlalchemy import func
 from sqlalchemy.orm import Session
 
 import app.config as config
+from app.auth import check_drive_access, filter_drives, get_unlocked_groups
 from app.database import get_db
 from app.models import EmptyFolder, File, Tag, file_tags
 from app.schemas import (
@@ -29,9 +30,10 @@ def _escape_like(value: str) -> str:
     return value.replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_")
 
 
-def _validate_drive(drive_name: str) -> None:
+def _validate_drive(drive_name: str, unlocked_groups: list[str]) -> None:
     if drive_name not in config.get_drive_names():
         raise HTTPException(status_code=404, detail=f"Drive not found: {drive_name}")
+    check_drive_access(drive_name, unlocked_groups)
 
 
 def _validate_folder_path(path: str) -> str:
@@ -46,17 +48,24 @@ _to_response = file_to_response
 
 
 @router.get("", response_model=list[DriveResponse])
-async def list_drives():
-    return [DriveResponse(name=name) for name in config.get_drive_names()]
+async def list_drives(
+    unlocked_groups: Annotated[list[str], Depends(get_unlocked_groups)],
+):
+    drives = filter_drives(config.load_drives(), unlocked_groups)
+    return [
+        DriveResponse(name=d["name"], protected=bool(d.get("access_group")))
+        for d in drives
+    ]
 
 
 @router.get("/{drive_name}/folders", response_model=list[FolderResponse])
 async def list_folders(
     drive_name: str,
     db: Annotated[Session, Depends(get_db)],
+    unlocked_groups: Annotated[list[str], Depends(get_unlocked_groups)],
     path: str = "",
 ):
-    _validate_drive(drive_name)
+    _validate_drive(drive_name, unlocked_groups)
     if path:
         path = _validate_folder_path(path)
 
@@ -116,6 +125,7 @@ async def list_folders(
 async def list_drive_files(
     drive_name: str,
     db: Annotated[Session, Depends(get_db)],
+    unlocked_groups: Annotated[list[str], Depends(get_unlocked_groups)],
     path: str | None = None,
     search: str | None = None,
     favorite: bool | None = None,
@@ -126,7 +136,7 @@ async def list_drive_files(
     page: int = Query(1, ge=1),
     limit: int = Query(30, ge=1, le=100),
 ):
-    _validate_drive(drive_name)
+    _validate_drive(drive_name, unlocked_groups)
     if path is not None and path:
         path = _validate_folder_path(path)
 
@@ -164,8 +174,9 @@ async def list_drive_files(
 async def list_drive_tags(
     drive_name: str,
     db: Annotated[Session, Depends(get_db)],
+    unlocked_groups: Annotated[list[str], Depends(get_unlocked_groups)],
 ):
-    _validate_drive(drive_name)
+    _validate_drive(drive_name, unlocked_groups)
 
     results = (
         db.query(Tag.name, func.count(file_tags.c.file_id).label("count"))
@@ -183,8 +194,9 @@ async def create_folder(
     drive_name: str,
     body: FolderCreateRequest,
     db: Annotated[Session, Depends(get_db)],
+    unlocked_groups: Annotated[list[str], Depends(get_unlocked_groups)],
 ):
-    _validate_drive(drive_name)
+    _validate_drive(drive_name, unlocked_groups)
     result = fileops.create_folder(drive_name, body.path, body.name, db)
     return FolderResponse(**result)
 
@@ -194,8 +206,9 @@ async def rename_folder(
     drive_name: str,
     body: FolderRenameRequest,
     db: Annotated[Session, Depends(get_db)],
+    unlocked_groups: Annotated[list[str], Depends(get_unlocked_groups)],
 ):
-    _validate_drive(drive_name)
+    _validate_drive(drive_name, unlocked_groups)
     result = fileops.rename_folder(drive_name, body.path, body.new_name, db)
     return FolderResponse(**result)
 
@@ -205,15 +218,19 @@ async def delete_folder(
     drive_name: str,
     path: str,
     db: Annotated[Session, Depends(get_db)],
+    unlocked_groups: Annotated[list[str], Depends(get_unlocked_groups)],
 ):
-    _validate_drive(drive_name)
+    _validate_drive(drive_name, unlocked_groups)
     fileops.delete_folder(drive_name, path, db)
     return {"status": "deleted"}
 
 
 @router.post("/{drive_name}/scan", response_model=ScanResponse)
-async def trigger_drive_scan(drive_name: str):
-    _validate_drive(drive_name)
+async def trigger_drive_scan(
+    drive_name: str,
+    unlocked_groups: Annotated[list[str], Depends(get_unlocked_groups)],
+):
+    _validate_drive(drive_name, unlocked_groups)
 
     try:
         result = await scan_drive(drive_name)

@@ -3,10 +3,10 @@
 import { Suspense, useEffect, useState } from "react";
 import Link from "next/link";
 import { usePathname, useSearchParams } from "next/navigation";
-import { Clock, FilePlus, Files, HardDrive, Home, Star, Tag, X } from "lucide-react";
+import { Clock, FilePlus, Files, HardDrive, Home, Lock, LockOpen, Star, Tag, X } from "lucide-react";
 
-import { getDrives, getDriveTags } from "@/lib/api";
-import type { Drive, Tag as TagType } from "@/types";
+import { getDrives, getDriveTags, getAuthStatus, lock as lockApi } from "@/lib/api";
+import type { AuthStatus, Drive, Tag as TagType } from "@/types";
 import { useSidebar } from "./SidebarProvider";
 
 function useCurrentDrive(): string | null {
@@ -27,9 +27,11 @@ function SidebarNav() {
 
   const [drives, setDrives] = useState<Drive[]>([]);
   const [tags, setTags] = useState<TagType[]>([]);
+  const [authStatus, setAuthStatus] = useState<AuthStatus | null>(null);
 
   useEffect(() => {
     getDrives().then(setDrives).catch(() => setDrives([]));
+    getAuthStatus().then(setAuthStatus).catch(() => setAuthStatus(null));
   }, [refreshKey]);
 
   useEffect(() => {
@@ -159,10 +161,26 @@ function SidebarNav() {
               >
                 <HardDrive size={16} />
                 <span className="flex-1 truncate">{drive.name}</span>
+                {drive.protected && <Lock size={12} className="opacity-40" />}
               </Link>
             );
           })}
         </>
+      )}
+
+      {authStatus?.has_protected_drives && authStatus.unlocked_groups.length > 0 && (
+        <div className="mt-4 px-3">
+          <button
+            onClick={async () => {
+              await lockApi();
+              window.location.href = "/";
+            }}
+            className="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-xs text-text-muted transition-colors hover:bg-bg-elevated hover:text-text-primary"
+          >
+            <LockOpen size={14} />
+            Lock
+          </button>
+        </div>
       )}
     </nav>
   );

@@ -67,7 +67,9 @@ deploy/
 docker-compose.yml     # backend (expose 8000) + frontend (ports 3000)
 drives.json            # ドライブ設定 (git管理外)
 drives.json.example    # ドライブ設定サンプル
-data/                  # SQLite DB + サムネイル (git管理外)
+passwords.json         # アクセス制御パスワード設定 (git管理外)
+passwords.json.example # パスワード設定サンプル
+data/                  # SQLite DB + サムネイル + .jwt_secret (git管理外)
 ```
 
 ## 開発コマンド
@@ -106,6 +108,14 @@ docker compose logs -f backend
 | DELETE | /api/drives/{drive}/upload/{id} | アップロードキャンセル |
 | POST | /api/drives/{drive}/scan | ドライブ単位スキャン (排他制御、競合時 409) |
 
+### 認証
+
+| メソッド | パス | 説明 |
+|---------|------|------|
+| POST | /api/auth/unlock | パスワード検証 → JWT Cookie 発行 |
+| POST | /api/auth/lock | Cookie 削除（ロック） |
+| GET | /api/auth/status | ロック解除状態の確認 |
+
 ### グローバル（IDベース）
 
 | メソッド | パス | 説明 |
@@ -124,6 +134,16 @@ docker compose logs -f backend
 | DELETE | /api/files/{id} | ファイル削除 |
 
 ## 重要な設計判断
+
+### アクセス制御
+- **独立型グループ**: `drives.json` の `access_group` でドライブをグループに割当、`passwords.json` でパスワードごとに解除するグループを定義
+- **JWT Cookie**: `HttpOnly`, `SameSite=Strict`, HMAC-SHA256署名。シークレットは `DATA_DIR/.jwt_secret` に自動生成・永続化
+- **保護ドライブの不可視性**: 未ロック時はAPI応答から完全除外（404を返す、403ではない）
+- **`/unlock` ページ**: UIにリンクなし、URLを知っている人だけがアクセス
+- **「このデバイスを記憶する」**: チェック時は永続Cookie（1年）、未チェック時はセッションCookie
+- **`passwords.json` 未配置時**: 全ドライブ公開（既存動作と同じ、graceful degradation）。`docker-compose.yml` にマウント追加も不要
+- **`passwords.json` 使用時**: `docker-compose.yml` の backend volumes に `./passwords.json:/app/passwords.json:ro` を追加する必要あり
+- 設計書: `docs/superpowers/specs/2026-03-24-drive-access-control-design.md`
 
 ### ファイルタイプシステム
 - **File テーブル**: 全ファイルの統一モデル（旧 Video テーブルを統合）
