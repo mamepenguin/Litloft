@@ -151,7 +151,7 @@ async def list_drive_files(
     if favorite is not None:
         query = query.filter(File.is_favorite == favorite)
     if tag:
-        query = query.filter(File.tags.any(Tag.name == tag))
+        query = query.filter(File.tags.any(func.lower(Tag.name) == tag.lower()))
     if type:
         query = query.filter(File.file_type == type)
 

@@ -6,6 +6,7 @@ from urllib.parse import quote
 from fastapi import APIRouter, Depends, HTTPException, Request
 from fastapi.responses import FileResponse as FastAPIFileResponse
 from fastapi.responses import StreamingResponse
+from sqlalchemy import func
 from sqlalchemy.orm import Session
 
 import app.config as config
@@ -121,9 +122,11 @@ async def batch_tags(
             file = _get_file_or_404(db, file_id, unlocked_groups)
             tag_objects = []
             for tag_name in body.tags:
-                tag = db.query(Tag).filter(Tag.name == tag_name, Tag.drive == file.drive).first()
+                tag = db.query(Tag).filter(func.lower(Tag.name) == tag_name.lower(), Tag.drive == file.drive).first()
                 if not tag:
                     tag = Tag(name=tag_name, drive=file.drive)
+                elif tag.name != tag_name:
+                    tag.name = tag_name
                     db.add(tag)
                     db.flush()
                 tag_objects.append(tag)
@@ -228,9 +231,11 @@ async def update_file_tags(
 
     tag_objects = []
     for tag_name in update.tags:
-        tag = db.query(Tag).filter(Tag.name == tag_name, Tag.drive == file.drive).first()
+        tag = db.query(Tag).filter(func.lower(Tag.name) == tag_name.lower(), Tag.drive == file.drive).first()
         if not tag:
             tag = Tag(name=tag_name, drive=file.drive)
+        elif tag.name != tag_name:
+            tag.name = tag_name
             db.add(tag)
             db.flush()
         tag_objects.append(tag)

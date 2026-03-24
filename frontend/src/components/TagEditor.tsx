@@ -36,7 +36,9 @@ export function TagEditor({
     if (input.trim()) {
       const lower = input.trim().toLowerCase();
       const filtered = allTags.filter(
-        (t) => t.includes(lower) && !tags.includes(t)
+        (t) =>
+          t.toLowerCase().includes(lower) &&
+          !tags.some((existing) => existing.toLowerCase() === t.toLowerCase())
       );
       setSuggestions(filtered.slice(0, 5));
     } else {
@@ -46,18 +48,18 @@ export function TagEditor({
   }, [input, allTags, tags]);
 
   async function submitTag(value: string) {
-    const normalized = value.trim().toLowerCase();
-    if (!normalized) return;
+    const trimmed = value.trim();
+    if (!trimmed) return;
 
-    if (normalized.length > 30) {
+    if (trimmed.length > 30) {
       setError("タグは30文字以内にしてください");
       return;
     }
-    if (!/^[\w\-]+$/u.test(normalized)) {
+    if (!/^[\p{L}\p{N}_\-]+$/u.test(trimmed)) {
       setError("使用できない文字が含まれています");
       return;
     }
-    if (tags.includes(normalized)) {
+    if (tags.some((t) => t.toLowerCase() === trimmed.toLowerCase())) {
       setInput("");
       setSuggestions([]);
       return;
@@ -69,7 +71,7 @@ export function TagEditor({
 
     setError(null);
     try {
-      const updated = await updateFileTags(fileId, [...tags, normalized]);
+      const updated = await updateFileTags(fileId, [...tags, trimmed]);
       onUpdate(updated);
       requestRefresh();
       setInput("");

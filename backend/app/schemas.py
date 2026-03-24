@@ -41,7 +41,7 @@ class TagUpdate(BaseModel):
             raise ValueError("Maximum 10 tags per file")
         normalized = []
         for tag in v:
-            tag = tag.strip().lower()
+            tag = tag.strip()
             if not tag:
                 continue
             if len(tag) > 30:
@@ -49,7 +49,12 @@ class TagUpdate(BaseModel):
             if not re.match(r"^[\w\-]+$", tag, re.UNICODE):
                 raise ValueError(f"Tag '{tag}' contains invalid characters")
             normalized.append(tag)
-        return list(dict.fromkeys(normalized))
+        seen: dict[str, str] = {}
+        for tag in normalized:
+            key = tag.lower()
+            if key not in seen:
+                seen[key] = tag
+        return list(seen.values())
 
 
 class PaginationMeta(BaseModel):
@@ -168,7 +173,7 @@ class BatchTagRequest(BaseModel):
             raise ValueError("Maximum 10 tags")
         normalized = []
         for tag in v:
-            tag = tag.strip().lower()
+            tag = tag.strip()
             if not tag:
                 continue
             if len(tag) > 30:
@@ -176,7 +181,12 @@ class BatchTagRequest(BaseModel):
             if not re.match(r"^[\w\-]+$", tag, re.UNICODE):
                 raise ValueError(f"Tag '{tag}' contains invalid characters")
             normalized.append(tag)
-        return list(dict.fromkeys(normalized))
+        seen: dict[str, str] = {}
+        for tag in normalized:
+            key = tag.lower()
+            if key not in seen:
+                seen[key] = tag
+        return list(seen.values())
 
 
 def file_to_response(file) -> FileResponse:

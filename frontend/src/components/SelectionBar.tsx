@@ -62,7 +62,7 @@ export function SelectionBar({
   async function handleBatchTag() {
     const tags = tagInput
       .split(",")
-      .map((t) => t.trim().toLowerCase())
+      .map((t) => t.trim())
       .filter(Boolean);
     if (tags.length === 0) return;
     try {

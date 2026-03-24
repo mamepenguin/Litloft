@@ -84,11 +84,19 @@ class TestUpdateFileTags:
         res = c.put(f"/api/files/{file.id}/tags", json={"tags": []})
         assert res.json()["tags"] == []
 
-    def test_lowercase_normalization(self, client):
+    def test_case_preserved(self, client):
         c, db, drive_dir, data_dir = client
         file = _seed_file(db, drive_dir)
-        res = c.put(f"/api/files/{file.id}/tags", json={"tags": ["Tokyo", "NIGHT"]})
-        assert sorted(res.json()["tags"]) == ["night", "tokyo"]
+        res = c.put(f"/api/files/{file.id}/tags", json={"tags": ["Tokyo", "iPhone"]})
+        assert sorted(res.json()["tags"]) == ["Tokyo", "iPhone"]
+
+    def test_case_insensitive_dedup(self, client):
+        c, db, drive_dir, data_dir = client
+        file = _seed_file(db, drive_dir)
+        res = c.put(
+            f"/api/files/{file.id}/tags", json={"tags": ["Tokyo", "tokyo", "TOKYO"]}
+        )
+        assert res.json()["tags"] == ["Tokyo"]
 
     def test_duplicate_tags(self, client):
         c, db, drive_dir, data_dir = client
@@ -108,6 +116,15 @@ class TestUpdateFileTags:
         file = _seed_file(db, drive_dir)
         res = c.put(f"/api/files/{file.id}/tags", json={"tags": ["a" * 31]})
         assert res.status_code == 422
+
+    def test_unicode_tags(self, client):
+        c, db, drive_dir, data_dir = client
+        file = _seed_file(db, drive_dir)
+        res = c.put(
+            f"/api/files/{file.id}/tags", json={"tags": ["旅行", "カフェ", "風景"]}
+        )
+        assert res.status_code == 200
+        assert sorted(res.json()["tags"]) == ["カフェ", "旅行", "風景"]
 
     def test_invalid_characters(self, client):
         c, db, drive_dir, data_dir = client
