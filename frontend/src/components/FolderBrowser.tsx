@@ -78,7 +78,7 @@ export function FolderBrowser({ driveName, folderPath, view, tagFilter }: Folder
       return;
     }
     getDriveFiles(driveName, {
-      path: isSpecialView ? undefined : (folderPath ?? ""),
+      path: isSpecialView || tagFilter ? undefined : (folderPath ?? ""),
       favorite: isFavorites ? true : undefined,
       tag: tagFilter || undefined,
       sort: isRecentAdded ? "created_at" : sort,
