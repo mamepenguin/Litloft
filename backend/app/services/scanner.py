@@ -8,7 +8,7 @@ import app.config as config
 from app.database import SessionLocal
 from app.models import File
 from app.services.filetype import classify, is_hidden
-from app.services.thumbnail import generate_thumbnail, get_video_duration
+from app.services.thumbnail import generate_image_thumbnail, generate_thumbnail, get_video_duration
 
 logger = logging.getLogger(__name__)
 
@@ -76,9 +76,10 @@ def _scan_and_register(db: Session, drive_name: str) -> dict[str, int]:
                 file_record.mime_type = mime_type
                 needs_update = True
 
-            # Video thumbnail management
-            if file_type == "video":
+            # Thumbnail management for video and image
+            if file_type in ("video", "image"):
                 expected_thumb = f"{drive_name}/{folder_path}/{item.stem}.jpg" if folder_path else f"{drive_name}/{item.stem}.jpg"
+                gen_fn = generate_thumbnail if file_type == "video" else generate_image_thumbnail
                 if file_record.thumbnail_path != expected_thumb:
                     old_thumb = config.THUMBNAILS_DIR / file_record.thumbnail_path if file_record.thumbnail_path else None
                     new_thumb = config.THUMBNAILS_DIR / expected_thumb
@@ -87,11 +88,11 @@ def _scan_and_register(db: Session, drive_name: str) -> dict[str, int]:
                         old_thumb.rename(new_thumb)
                         _cleanup_empty_parents(old_thumb.parent, config.THUMBNAILS_DIR)
                     else:
-                        generate_thumbnail(str(item), str(new_thumb))
+                        gen_fn(str(item), str(new_thumb))
                     file_record.thumbnail_path = expected_thumb
                     needs_update = True
                 elif not (config.THUMBNAILS_DIR / expected_thumb).exists():
-                    generate_thumbnail(str(item), str(config.THUMBNAILS_DIR / expected_thumb))
+                    gen_fn(str(item), str(config.THUMBNAILS_DIR / expected_thumb))
                     file_record.thumbnail_path = expected_thumb
                     needs_update = True
 
@@ -106,10 +107,11 @@ def _scan_and_register(db: Session, drive_name: str) -> dict[str, int]:
             duration = get_video_duration(str(item))
 
         thumbnail_rel = None
-        if file_type == "video":
+        if file_type in ("video", "image"):
             thumbnail_rel = f"{drive_name}/{folder_path}/{item.stem}.jpg" if folder_path else f"{drive_name}/{item.stem}.jpg"
             thumbnail_full = config.THUMBNAILS_DIR / thumbnail_rel
-            if not generate_thumbnail(str(item), str(thumbnail_full)):
+            gen_fn = generate_thumbnail if file_type == "video" else generate_image_thumbnail
+            if not gen_fn(str(item), str(thumbnail_full)):
                 thumbnail_rel = None
 
         file_record = File(

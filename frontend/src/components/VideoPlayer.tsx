@@ -1,16 +1,88 @@
 "use client";
 
+import { useRef, useEffect, useCallback } from "react";
 import { getStreamUrl } from "@/lib/api";
 
+const SAVE_INTERVAL = 5;
+const RESUME_THRESHOLD = 5;
+
+function getProgressKey(videoId: number): string {
+  return `video-progress-${videoId}`;
+}
+
+function getSavedProgress(videoId: number): number {
+  try {
+    const raw = localStorage.getItem(getProgressKey(videoId));
+    return raw ? Number(raw) : 0;
+  } catch {
+    return 0;
+  }
+}
+
+function saveProgress(videoId: number, time: number): void {
+  try {
+    localStorage.setItem(getProgressKey(videoId), String(time));
+  } catch {
+    // localStorage unavailable
+  }
+}
+
+function clearProgress(videoId: number): void {
+  try {
+    localStorage.removeItem(getProgressKey(videoId));
+  } catch {
+    // localStorage unavailable
+  }
+}
+
 export function VideoPlayer({ videoId }: { videoId: number }) {
+  const videoRef = useRef<HTMLVideoElement>(null);
+  const lastSavedRef = useRef(0);
+
+  const handleLoadedMetadata = useCallback(() => {
+    const video = videoRef.current;
+    if (!video) return;
+    const saved = getSavedProgress(videoId);
+    if (saved > RESUME_THRESHOLD && saved < video.duration - RESUME_THRESHOLD) {
+      video.currentTime = saved;
+    }
+  }, [videoId]);
+
+  const handleTimeUpdate = useCallback(() => {
+    const video = videoRef.current;
+    if (!video) return;
+    const current = video.currentTime;
+    if (Math.abs(current - lastSavedRef.current) >= SAVE_INTERVAL) {
+      lastSavedRef.current = current;
+      saveProgress(videoId, current);
+    }
+  }, [videoId]);
+
+  const handleEnded = useCallback(() => {
+    clearProgress(videoId);
+  }, [videoId]);
+
+  useEffect(() => {
+    return () => {
+      const video = videoRef.current;
+      if (video && video.currentTime > 0) {
+        saveProgress(videoId, video.currentTime);
+      }
+    };
+  }, [videoId]);
+
   return (
     <div className="w-full overflow-hidden rounded-xl bg-black">
       <video
+        ref={videoRef}
         src={getStreamUrl(videoId)}
         controls
         playsInline
         preload="metadata"
         className="w-full"
+        onLoadedMetadata={handleLoadedMetadata}
+        onTimeUpdate={handleTimeUpdate}
+        onEnded={handleEnded}
       >
         お使いのブラウザは動画再生に対応していません。
       </video>

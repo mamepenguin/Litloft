@@ -123,6 +123,65 @@ class FileMoveRequest(BaseModel):
     target_folder_path: str
 
 
+class BatchDeleteRequest(BaseModel):
+    ids: list[int]
+
+    @field_validator("ids")
+    @classmethod
+    def validate_ids(cls, v: list[int]) -> list[int]:
+        if not v:
+            raise ValueError("At least one file ID is required")
+        if len(v) > 100:
+            raise ValueError("Maximum 100 files per batch operation")
+        return v
+
+
+class BatchMoveRequest(BaseModel):
+    ids: list[int]
+    target_drive: str | None = None
+    target_folder_path: str
+
+    @field_validator("ids")
+    @classmethod
+    def validate_ids(cls, v: list[int]) -> list[int]:
+        if not v:
+            raise ValueError("At least one file ID is required")
+        if len(v) > 100:
+            raise ValueError("Maximum 100 files per batch operation")
+        return v
+
+
+class BatchTagRequest(BaseModel):
+    ids: list[int]
+    tags: list[str]
+
+    @field_validator("ids")
+    @classmethod
+    def validate_ids(cls, v: list[int]) -> list[int]:
+        if not v:
+            raise ValueError("At least one file ID is required")
+        if len(v) > 100:
+            raise ValueError("Maximum 100 files per batch operation")
+        return v
+
+    @field_validator("tags")
+    @classmethod
+    def validate_tags(cls, v: list[str]) -> list[str]:
+        if len(v) > 10:
+            raise ValueError("Maximum 10 tags")
+        normalized = []
+        for tag in v:
+            tag = tag.strip().lower()
+            if not tag:
+                continue
+            if len(tag) > 30:
+                raise ValueError(f"Tag '{tag}' exceeds 30 characters")
+            if not re.match(r"^[\w\-]+$", tag, re.UNICODE):
+                raise ValueError(f"Tag '{tag}' contains invalid characters")
+            normalized.append(tag)
+        return list(dict.fromkeys(normalized))
+
+
 def file_to_response(file) -> FileResponse:
     return FileResponse(
         id=file.id,

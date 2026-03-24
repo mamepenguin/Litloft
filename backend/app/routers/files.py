@@ -12,6 +12,9 @@ import app.config as config
 from app.database import get_db
 from app.models import File, Tag, file_tags
 from app.schemas import (
+    BatchDeleteRequest,
+    BatchMoveRequest,
+    BatchTagRequest,
     FileResponse,
     FileMoveRequest,
     FileRenameRequest,
@@ -36,6 +39,79 @@ def _validate_path(file_path: str, base_dir: Path) -> Path:
 
 
 _to_response = file_to_response
+
+
+@router.post("/batch/delete")
+async def batch_delete(
+    body: BatchDeleteRequest,
+    db: Annotated[Session, Depends(get_db)],
+):
+    deleted = 0
+    errors = []
+    for file_id in body.ids:
+        try:
+            fileops.delete_file(db, file_id)
+            deleted += 1
+        except HTTPException as e:
+            errors.append({"id": file_id, "error": e.detail})
+    return {"deleted": deleted, "errors": errors}
+
+
+@router.put("/batch/move")
+async def batch_move(
+    body: BatchMoveRequest,
+    db: Annotated[Session, Depends(get_db)],
+):
+    moved = 0
+    errors = []
+    for file_id in body.ids:
+        try:
+            fileops.move_file(db, file_id, body.target_drive, body.target_folder_path)
+            moved += 1
+        except HTTPException as e:
+            errors.append({"id": file_id, "error": e.detail})
+    return {"moved": moved, "errors": errors}
+
+
+@router.put("/batch/tags")
+async def batch_tags(
+    body: BatchTagRequest,
+    db: Annotated[Session, Depends(get_db)],
+):
+    updated = 0
+    errors = []
+    for file_id in body.ids:
+        try:
+            file = db.query(File).filter(File.id == file_id).first()
+            if not file:
+                errors.append({"id": file_id, "error": "File not found"})
+                continue
+            tag_objects = []
+            for tag_name in body.tags:
+                tag = db.query(Tag).filter(Tag.name == tag_name, Tag.drive == file.drive).first()
+                if not tag:
+                    tag = Tag(name=tag_name, drive=file.drive)
+                    db.add(tag)
+                    db.flush()
+                tag_objects.append(tag)
+            file.tags = tag_objects
+            updated += 1
+        except HTTPException as e:
+            errors.append({"id": file_id, "error": e.detail})
+    db.commit()
+
+    orphans = (
+        db.query(Tag)
+        .outerjoin(file_tags)
+        .filter(file_tags.c.file_id.is_(None))
+        .all()
+    )
+    for orphan in orphans:
+        db.delete(orphan)
+    if orphans:
+        db.commit()
+
+    return {"updated": updated, "errors": errors}
 
 
 @router.get("/{file_id}", response_model=FileResponse)

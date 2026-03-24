@@ -15,10 +15,16 @@ export function FileGrid({
   files,
   onFavoriteToggle,
   onRefresh,
+  selectable,
+  isSelected,
+  onSelect,
 }: {
   files: FileItem[];
   onFavoriteToggle?: (file: FileItem) => void;
   onRefresh?: () => void;
+  selectable?: boolean;
+  isSelected?: (id: number) => boolean;
+  onSelect?: (id: number) => void;
 }) {
   const [menuPos, setMenuPos] = useState<{ open: boolean; x: number; y: number }>({
     open: false, x: 0, y: 0,
@@ -74,6 +80,9 @@ export function FileGrid({
               setTarget(file);
               setMenuPos({ open: true, x: e.clientX, y: e.clientY });
             }}
+            selectable={selectable}
+            selected={isSelected?.(file.id)}
+            onSelect={onSelect}
           />
         ))}
       </div>

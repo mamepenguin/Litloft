@@ -198,3 +198,35 @@ export async function cancelUpload(drive: string, uploadId: string): Promise<voi
     { method: "DELETE" }
   );
 }
+
+// Batch operations
+export async function batchDelete(ids: number[]): Promise<{ deleted: number; errors: { id: number; error: string }[] }> {
+  return fetchJSON(`${API_BASE}/files/batch/delete`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ ids }),
+  });
+}
+
+export async function batchMove(
+  ids: number[],
+  targetFolderPath: string,
+  targetDrive?: string
+): Promise<{ moved: number; errors: { id: number; error: string }[] }> {
+  return fetchJSON(`${API_BASE}/files/batch/move`, {
+    method: "PUT",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ ids, target_folder_path: targetFolderPath, target_drive: targetDrive }),
+  });
+}
+
+export async function batchTag(
+  ids: number[],
+  tags: string[]
+): Promise<{ updated: number; errors: { id: number; error: string }[] }> {
+  return fetchJSON(`${API_BASE}/files/batch/tags`, {
+    method: "PUT",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ ids, tags }),
+  });
+}

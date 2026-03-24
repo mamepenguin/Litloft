@@ -19,10 +19,16 @@ export function FileList({
   files,
   onFavoriteToggle,
   onRefresh,
+  selectable,
+  isSelected,
+  onSelect,
 }: {
   files: FileItem[];
   onFavoriteToggle?: (file: FileItem) => void;
   onRefresh?: () => void;
+  selectable?: boolean;
+  isSelected?: (id: number) => boolean;
+  onSelect?: (id: number) => void;
 }) {
   const [menuPos, setMenuPos] = useState<{ open: boolean; x: number; y: number }>({
     open: false, x: 0, y: 0,
@@ -68,55 +74,81 @@ export function FileList({
     <>
       <div className="flex flex-col gap-2">
         {files.map((file) => {
-          const isVideo = file.file_type === "video";
+          const hasThumbnail = file.file_type === "video" || file.file_type === "image";
           const hasDuration = (file.file_type === "video" || file.file_type === "audio") && file.duration != null;
+          const fileSelected = isSelected?.(file.id);
 
           return (
             <div
               key={file.id}
-              className="flex items-center gap-3 rounded-lg bg-bg-card p-2 transition-colors hover:bg-bg-elevated"
-              onContextMenu={(e) => {
+              className={`flex items-center gap-3 rounded-lg bg-bg-card p-2 transition-colors hover:bg-bg-elevated ${
+                selectable ? "cursor-pointer select-none" : ""
+              } ${fileSelected ? "ring-2 ring-accent" : ""}`}
+              onClick={selectable ? () => onSelect?.(file.id) : undefined}
+              onContextMenu={selectable ? undefined : (e) => {
                 e.preventDefault();
                 e.stopPropagation();
                 setTarget(file);
                 setMenuPos({ open: true, x: e.clientX, y: e.clientY });
               }}
             >
-              <Link
-                href={`/files/${file.id}`}
-                className="flex flex-1 items-center gap-3 min-w-0"
-              >
-                <div className="relative h-16 w-28 flex-shrink-0 overflow-hidden rounded-md bg-bg-elevated">
-                  {isVideo ? (
-                    <img
-                      src={getThumbnailUrl(file.id)}
-                      alt={file.title}
-                      className="h-full w-full object-cover"
-                      loading="lazy"
-                    />
-                  ) : (
-                    <div className="flex h-full w-full items-center justify-center">
-                      <FileTypeIcon fileType={file.file_type} size={24} className="text-text-muted" />
+              {selectable && (
+                <div
+                  className={`flex h-5 w-5 flex-shrink-0 items-center justify-center rounded border-2 transition-colors pointer-events-none ${
+                    fileSelected
+                      ? "border-accent bg-accent text-white"
+                      : "border-text-muted/50"
+                  }`}
+                  aria-hidden
+                >
+                  {fileSelected && (
+                    <svg width="12" height="12" viewBox="0 0 12 12" fill="none">
+                      <path d="M2 6L5 9L10 3" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+                    </svg>
+                  )}
+                </div>
+              )}
+              {(() => {
+                const content = (
+                  <>
+                    <div className="relative h-16 w-28 flex-shrink-0 overflow-hidden rounded-md bg-bg-elevated">
+                      {hasThumbnail ? (
+                        <img
+                          src={getThumbnailUrl(file.id)}
+                          alt={file.title}
+                          className="h-full w-full object-cover"
+                          loading="lazy"
+                        />
+                      ) : (
+                        <div className="flex h-full w-full items-center justify-center">
+                          <FileTypeIcon fileType={file.file_type} size={24} className="text-text-muted" />
+                        </div>
+                      )}
+                      {hasDuration && (
+                        <span className="absolute bottom-0.5 right-0.5 rounded bg-black/70 px-1 py-0.5 text-[10px] text-white">
+                          {formatDuration(file.duration)}
+                        </span>
+                      )}
                     </div>
-                  )}
-                  {hasDuration && (
-                    <span className="absolute bottom-0.5 right-0.5 rounded bg-black/70 px-1 py-0.5 text-[10px] text-white">
-                      {formatDuration(file.duration)}
-                    </span>
-                  )}
-                </div>
-                <div className="min-w-0 flex-1">
-                  <h3 className="truncate text-sm font-semibold text-text-primary">
-                    {file.title}
-                  </h3>
-                  <div className="flex items-center gap-1.5">
-                    <span className="text-xs text-text-muted">
-                      {file.folder_path || file.drive} · {formatFileSize(file.file_size)}
-                    </span>
-                    {file.tags.length > 0 && <TagList tags={file.tags} maxVisible={3} />}
-                  </div>
-                </div>
-              </Link>
+                    <div className="min-w-0 flex-1">
+                      <h3 className="truncate text-sm font-semibold text-text-primary">
+                        {file.title}
+                      </h3>
+                      <div className="flex items-center gap-1.5">
+                        <span className="text-xs text-text-muted">
+                          {file.folder_path || file.drive} · {formatFileSize(file.file_size)}
+                        </span>
+                        {file.tags.length > 0 && <TagList tags={file.tags} maxVisible={3} />}
+                      </div>
+                    </div>
+                  </>
+                );
+                return selectable ? (
+                  <div className="flex flex-1 items-center gap-3 min-w-0">{content}</div>
+                ) : (
+                  <Link href={`/files/${file.id}`} className="flex flex-1 items-center gap-3 min-w-0">{content}</Link>
+                );
+              })()}
               {onFavoriteToggle && (
                 <FavoriteButton
                   fileId={file.id}

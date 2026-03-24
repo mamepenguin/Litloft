@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
-import { FolderPlus, Search, Upload, X } from "lucide-react";
+import { CheckSquare, FolderPlus, Search, Upload, X } from "lucide-react";
 
 import { createFolder, getDriveFiles, getFolders } from "@/lib/api";
 import type { FileItem, Folder, PaginatedResponse, SortField, SortOrder, ViewMode } from "@/types";
@@ -12,6 +12,8 @@ import { EmptyState } from "@/components/EmptyState";
 import { FolderCard } from "@/components/FolderCard";
 import { Breadcrumb } from "@/components/Breadcrumb";
 import { UploadZone } from "@/components/UploadZone";
+import { SelectionBar } from "@/components/SelectionBar";
+import { useSelection } from "@/hooks/useSelection";
 
 interface FolderBrowserProps {
   driveName: string;
@@ -78,6 +80,9 @@ export function FolderBrowser({ driveName, folderPath, view, tagFilter }: Folder
   useEffect(() => {
     setPage(1);
   }, [driveName, folderPath, view, tagFilter]);
+
+  const [selectable, setSelectable] = useState(false);
+  const selection = useSelection();
 
   const [refreshKey, setRefreshKey] = useState(0);
   const refresh = useCallback(() => setRefreshKey((k) => k + 1), []);
@@ -280,6 +285,23 @@ export function FolderBrowser({ driveName, folderPath, view, tagFilter }: Folder
           <option value="file_size-asc">サイズ 小→大</option>
         </select>
 
+        <button
+          onClick={() => {
+            setSelectable((s) => {
+              if (s) selection.clear();
+              return !s;
+            });
+          }}
+          className={`flex items-center gap-1.5 rounded-lg px-3 py-2 text-sm transition-colors ${
+            selectable
+              ? "bg-accent text-white"
+              : "bg-bg-card text-text-muted hover:text-text-primary"
+          }`}
+          aria-label="選択モード"
+        >
+          <CheckSquare size={16} />
+        </button>
+
         <ViewToggle onChange={handleViewChange} />
       </div>
 
@@ -317,9 +339,23 @@ export function FolderBrowser({ driveName, folderPath, view, tagFilter }: Folder
           <EmptyState variant="no-files" />
         )
       ) : viewMode === "grid" ? (
-        <FileGrid files={files} onFavoriteToggle={handleFavoriteToggle} onRefresh={refresh} />
+        <FileGrid
+          files={files}
+          onFavoriteToggle={handleFavoriteToggle}
+          onRefresh={refresh}
+          selectable={selectable}
+          isSelected={selection.isSelected}
+          onSelect={selection.toggle}
+        />
       ) : (
-        <FileList files={files} onFavoriteToggle={handleFavoriteToggle} onRefresh={refresh} />
+        <FileList
+          files={files}
+          onFavoriteToggle={handleFavoriteToggle}
+          onRefresh={refresh}
+          selectable={selectable}
+          isSelected={selection.isSelected}
+          onSelect={selection.toggle}
+        />
       )}
 
       {totalPages > 1 && (
@@ -342,6 +378,21 @@ export function FolderBrowser({ driveName, folderPath, view, tagFilter }: Folder
             次へ
           </button>
         </div>
+      )}
+      {selectable && (
+        <SelectionBar
+          count={selection.count}
+          selectedIds={selection.selectedIds}
+          totalCount={files.length}
+          drive={driveName}
+          currentPath={folderPath}
+          onSelectAll={() => selection.selectAll(files.map((f) => f.id))}
+          onClear={() => {
+            selection.clear();
+            setSelectable(false);
+          }}
+          onComplete={refresh}
+        />
       )}
     </div>
     </UploadZone>

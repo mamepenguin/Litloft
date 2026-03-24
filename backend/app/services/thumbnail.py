@@ -71,3 +71,37 @@ def generate_thumbnail(video_path: str, output_path: str) -> bool:
     except subprocess.TimeoutExpired:
         logger.error("ffmpeg timeout for %s", video_path)
         return False
+
+
+def generate_image_thumbnail(image_path: str, output_path: str) -> bool:
+    output = Path(output_path)
+    output.parent.mkdir(parents=True, exist_ok=True)
+
+    try:
+        result = subprocess.run(
+            [
+                "ffmpeg",
+                "-i", image_path,
+                "-frames:v", "1",
+                "-vf",
+                "scale=320:180:force_original_aspect_ratio=decrease,"
+                "pad=320:180:(ow-iw)/2:(oh-ih)/2",
+                "-q:v", "2",
+                "-y",
+                output_path,
+            ],
+            capture_output=True,
+            text=True,
+            check=False,
+            timeout=30,
+        )
+        if result.returncode != 0:
+            logger.error(
+                "ffmpeg image thumbnail failed for %s: %s", image_path, result.stderr
+            )
+            return False
+
+        return output.exists()
+    except subprocess.TimeoutExpired:
+        logger.error("ffmpeg timeout for image %s", image_path)
+        return False

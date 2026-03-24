@@ -2,12 +2,30 @@
 
 import type { FileItem } from "@/types";
 import { VideoPlayer } from "./VideoPlayer";
+import { AudioPlayer } from "./AudioPlayer";
 import { FileTypeIcon } from "./FileTypeIcon";
 import { formatFileSize } from "@/lib/format";
+import { getStreamUrl } from "@/lib/api";
 
 export function FilePreview({ file }: { file: FileItem }) {
   if (file.file_type === "video") {
     return <VideoPlayer videoId={file.id} />;
+  }
+
+  if (file.file_type === "image") {
+    return (
+      <div className="flex w-full items-center justify-center overflow-hidden rounded-xl bg-bg-card">
+        <img
+          src={getStreamUrl(file.id)}
+          alt={file.title}
+          className="max-h-[70vh] w-auto object-contain"
+        />
+      </div>
+    );
+  }
+
+  if (file.file_type === "audio") {
+    return <AudioPlayer file={file} />;
   }
 
   return (
