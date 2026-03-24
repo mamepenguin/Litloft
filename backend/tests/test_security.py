@@ -1,22 +1,25 @@
 import shutil
 from pathlib import Path
 
+from tests.conftest import TEST_DRIVE
+
 FIXTURES_DIR = Path(__file__).parent / "fixtures"
 
 
-def _seed(db, videos_dir):
+def _seed(db, drive_dir):
     from app.models import Video
 
-    cat_dir = videos_dir / "旅行"
-    cat_dir.mkdir(exist_ok=True)
-    shutil.copy(FIXTURES_DIR / "short_video.mp4", cat_dir / "test.mp4")
+    folder = drive_dir / "旅行"
+    folder.mkdir(exist_ok=True)
+    shutil.copy(FIXTURES_DIR / "short_video.mp4", folder / "test.mp4")
 
     video = Video(
         filename="test.mp4",
         title="Test",
-        category="旅行",
+        drive=TEST_DRIVE,
+        folder_path="旅行",
         file_path="旅行/test.mp4",
-        file_size=cat_dir.joinpath("test.mp4").stat().st_size,
+        file_size=folder.joinpath("test.mp4").stat().st_size,
     )
     db.add(video)
     db.commit()
@@ -30,14 +33,14 @@ def _seed(db, videos_dir):
 
 class TestPathTraversal:
     def test_stream_blocked(self, client):
-        c, db, videos_dir, data_dir = client
-        video = _seed(db, videos_dir)
+        c, db, drive_dir, data_dir = client
+        video = _seed(db, drive_dir)
         res = c.get(f"/api/videos/{video.id}/stream")
         assert res.status_code in (403, 404)
 
     def test_thumbnail_blocked(self, client):
-        c, db, videos_dir, data_dir = client
-        video = _seed(db, videos_dir)
+        c, db, drive_dir, data_dir = client
+        video = _seed(db, drive_dir)
         video.thumbnail_path = "../../../etc/passwd"
         db.commit()
         res = c.get(f"/api/videos/{video.id}/thumbnail")

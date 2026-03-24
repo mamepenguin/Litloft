@@ -11,6 +11,7 @@ from sqlalchemy import (
     String,
     Table,
     Text,
+    UniqueConstraint,
 )
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
@@ -28,13 +29,18 @@ class Tag(Base):
     __tablename__ = "tags"
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
-    name: Mapped[str] = mapped_column(String, nullable=False, unique=True)
+    name: Mapped[str] = mapped_column(String, nullable=False)
+    drive: Mapped[str] = mapped_column(String, nullable=False, default="")
     created_at: Mapped[datetime] = mapped_column(
         DateTime, default=lambda: datetime.now(UTC)
     )
 
     videos: Mapped[list["Video"]] = relationship(
         "Video", secondary=video_tags, back_populates="tags"
+    )
+
+    __table_args__ = (
+        UniqueConstraint("drive", "name", name="uq_tags_drive_name"),
     )
 
 
@@ -45,7 +51,8 @@ class Video(Base):
     filename: Mapped[str] = mapped_column(String, nullable=False)
     title: Mapped[str] = mapped_column(String, nullable=False)
     description: Mapped[str] = mapped_column(Text, default="")
-    category: Mapped[str] = mapped_column(String, nullable=False)
+    drive: Mapped[str] = mapped_column(String, nullable=False, default="")
+    folder_path: Mapped[str] = mapped_column(String, nullable=False, default="")
     file_path: Mapped[str] = mapped_column(String, nullable=False, unique=True)
     thumbnail_path: Mapped[str | None] = mapped_column(String, nullable=True)
     file_size: Mapped[int] = mapped_column(Integer, nullable=False)
@@ -65,7 +72,7 @@ class Video(Base):
     )
 
     __table_args__ = (
-        Index("idx_videos_category", "category"),
+        Index("idx_videos_drive_folder_path", "drive", "folder_path"),
         Index("idx_videos_title", "title"),
         Index("idx_videos_is_favorite", "is_favorite"),
     )

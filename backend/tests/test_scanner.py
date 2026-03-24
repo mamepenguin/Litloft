@@ -3,7 +3,7 @@ from pathlib import Path
 
 import pytest
 
-from app.services.scanner import _filename_to_title, _get_category
+from app.services.scanner import _filename_to_title, _get_folder_path
 
 
 class TestFilenameToTitle:
@@ -23,21 +23,27 @@ class TestFilenameToTitle:
         assert _filename_to_title("My Video.mp4") == "My Video"
 
 
-class TestGetCategory:
+class TestGetFolderPath:
     def test_subfolder(self, tmp_path):
-        base = tmp_path / "videos"
+        base = tmp_path / "drive"
         base.mkdir()
         file_path = base / "旅行" / "video.mp4"
-        assert _get_category(file_path, base) == "旅行"
+        assert _get_folder_path(file_path, base) == "旅行"
 
     def test_nested_subfolder(self, tmp_path):
-        base = tmp_path / "videos"
+        base = tmp_path / "drive"
         base.mkdir()
         file_path = base / "旅行" / "2024" / "summer.mp4"
-        assert _get_category(file_path, base) == "旅行"
+        assert _get_folder_path(file_path, base) == "旅行/2024"
+
+    def test_deeply_nested(self, tmp_path):
+        base = tmp_path / "drive"
+        base.mkdir()
+        file_path = base / "a" / "b" / "c" / "video.mp4"
+        assert _get_folder_path(file_path, base) == "a/b/c"
 
     def test_root_file(self, tmp_path):
-        base = tmp_path / "videos"
+        base = tmp_path / "drive"
         base.mkdir()
         file_path = base / "video.mp4"
-        assert _get_category(file_path, base) == "未分類"
+        assert _get_folder_path(file_path, base) == ""

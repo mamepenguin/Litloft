@@ -2,7 +2,7 @@ import os
 from pathlib import Path
 from typing import Annotated
 
-from fastapi import APIRouter, Depends, HTTPException, Query, Request
+from fastapi import APIRouter, Depends, HTTPException, Request
 from fastapi.responses import FileResponse, StreamingResponse
 from sqlalchemy.orm import Session
 
@@ -10,11 +10,10 @@ import app.config as config
 from app.database import get_db
 from app.models import Tag, Video, video_tags
 from app.schemas import (
-    PaginatedResponse,
-    PaginationMeta,
     TagUpdate,
     VideoResponse,
     VideoUpdate,
+    video_to_response,
 )
 
 router = APIRouter(prefix="/api/videos", tags=["videos"])
@@ -30,62 +29,7 @@ def _validate_path(file_path: str, base_dir: Path) -> Path:
     return real_path
 
 
-def _to_response(video: Video) -> VideoResponse:
-    return VideoResponse(
-        id=video.id,
-        filename=video.filename,
-        title=video.title,
-        description=video.description,
-        category=video.category,
-        thumbnail_url=f"/api/videos/{video.id}/thumbnail",
-        file_size=video.file_size,
-        duration=video.duration,
-        likes=video.likes,
-        dislikes=video.dislikes,
-        is_favorite=video.is_favorite,
-        tags=[tag.name for tag in video.tags],
-        created_at=video.created_at,
-        updated_at=video.updated_at,
-    )
-
-
-@router.get("", response_model=PaginatedResponse)
-async def list_videos(
-    db: Annotated[Session, Depends(get_db)],
-    category: str | None = None,
-    search: str | None = None,
-    favorite: bool | None = None,
-    tag: str | None = None,
-    sort: str = Query("created_at", pattern="^(created_at|title|file_size)$"),
-    order: str = Query("desc", pattern="^(asc|desc)$"),
-    page: int = Query(1, ge=1),
-    limit: int = Query(30, ge=1, le=100),
-):
-    query = db.query(Video)
-
-    if category:
-        query = query.filter(Video.category == category)
-    if search:
-        query = query.filter(Video.title.ilike(f"%{search}%"))
-    if favorite is not None:
-        query = query.filter(Video.is_favorite == favorite)
-    if tag:
-        query = query.filter(Video.tags.any(Tag.name == tag))
-
-    total = query.count()
-
-    sort_column = getattr(Video, sort)
-    if order == "desc":
-        sort_column = sort_column.desc()
-    query = query.order_by(sort_column)
-
-    offset = (page - 1) * limit
-    videos = query.offset(offset).limit(limit).all()
-
-    return PaginatedResponse(
-        data=[_to_response(v) for v in videos],
-        meta=PaginationMeta(total=total, page=page, limit=limit),
-    )
+_to_response = video_to_response
 
 
 @router.get("/{video_id}", response_model=VideoResponse)
@@ -175,9 +119,9 @@ async def update_video_tags(
 
     tag_objects = []
     for tag_name in update.tags:
-        tag = db.query(Tag).filter(Tag.name == tag_name).first()
+        tag = db.query(Tag).filter(Tag.name == tag_name, Tag.drive == video.drive).first()
         if not tag:
-            tag = Tag(name=tag_name)
+            tag = Tag(name=tag_name, drive=video.drive)
             db.add(tag)
             db.flush()
         tag_objects.append(tag)
@@ -210,8 +154,9 @@ async def stream_video(
     if not video:
         raise HTTPException(status_code=404, detail="Video not found")
 
+    drive_path = config.get_drive_path(video.drive)
     file_path = _validate_path(
-        str(config.VIDEOS_DIR / video.file_path), config.VIDEOS_DIR
+        str(drive_path / video.file_path), drive_path
     )
     if not file_path.exists():
         raise HTTPException(status_code=404, detail="Video file not found")
@@ -220,15 +165,22 @@ async def stream_video(
     range_header = request.headers.get("range")
 
     if range_header:
-        range_spec = range_header.replace("bytes=", "")
-        parts = range_spec.split("-")
-        start = int(parts[0])
-        end = (
-            int(parts[1])
-            if parts[1]
-            else min(start + config.CHUNK_SIZE - 1, file_size - 1)
-        )
-        end = min(end, file_size - 1)
+        try:
+            range_spec = range_header.replace("bytes=", "").split(",")[0]
+            parts = range_spec.split("-")
+            start = int(parts[0])
+            end = (
+                int(parts[1])
+                if parts[1]
+                else min(start + config.CHUNK_SIZE - 1, file_size - 1)
+            )
+            end = min(end, file_size - 1)
+            if start < 0 or start > end or start >= file_size:
+                raise HTTPException(status_code=416, detail="Range not satisfiable")
+        except HTTPException:
+            raise
+        except (ValueError, IndexError):
+            raise HTTPException(status_code=416, detail="Invalid range header")
 
         def iter_chunks():
             with open(file_path, "rb") as f:

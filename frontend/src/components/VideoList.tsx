@@ -40,7 +40,7 @@ export function VideoList({
               </h3>
               <div className="flex items-center gap-1.5">
                 <span className="text-xs text-text-muted">
-                  {video.category} · {formatFileSize(video.file_size)}
+                  {video.folder_path || video.drive} · {formatFileSize(video.file_size)}
                 </span>
                 {video.tags.length > 0 && <TagList tags={video.tags} maxVisible={3} />}
               </div>

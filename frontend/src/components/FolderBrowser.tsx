@@ -3,33 +3,24 @@
 import { useCallback, useEffect, useState } from "react";
 import { Search, X } from "lucide-react";
 
-import { getVideos } from "@/lib/api";
-import type { PaginatedResponse, SortField, SortOrder, Video, ViewMode } from "@/types";
+import { getDriveVideos, getFolders } from "@/lib/api";
+import type { Folder, PaginatedResponse, SortField, SortOrder, Video, ViewMode } from "@/types";
 import { VideoGrid } from "@/components/VideoGrid";
 import { VideoList } from "@/components/VideoList";
 import { ViewToggle } from "@/components/ViewToggle";
 import { EmptyState } from "@/components/EmptyState";
+import { FolderCard } from "@/components/FolderCard";
+import { Breadcrumb } from "@/components/Breadcrumb";
 
-type EmptyVariant = "no-videos" | "no-results" | "needs-scan" | "no-favorites";
-
-interface VideoListPageProps {
-  label: string;
-  searchPlaceholder?: string;
-  emptyVariant?: EmptyVariant;
-  fetchParams: Omit<Parameters<typeof getVideos>[0], "search" | "sort" | "order" | "page" | "limit">;
-  onFavoriteToggle?: (videos: Video[], updated: Video) => Video[];
+interface FolderBrowserProps {
+  driveName: string;
+  folderPath?: string;
+  view?: string | null;
+  tagFilter?: string | null;
 }
 
-const defaultFavoriteToggle = (videos: Video[], updated: Video): Video[] =>
-  videos.map((v) => (v.id === updated.id ? updated : v));
-
-export function VideoListPage({
-  label,
-  searchPlaceholder = "動画を検索...",
-  emptyVariant = "no-videos",
-  fetchParams,
-  onFavoriteToggle = defaultFavoriteToggle,
-}: VideoListPageProps) {
+export function FolderBrowser({ driveName, folderPath, view, tagFilter }: FolderBrowserProps) {
+  const [folders, setFolders] = useState<Folder[]>([]);
   const [videos, setVideos] = useState<Video[]>([]);
   const [total, setTotal] = useState(0);
   const [page, setPage] = useState(1);
@@ -40,14 +31,34 @@ export function VideoListPage({
   const [loading, setLoading] = useState(true);
 
   const limit = 30;
+  const isFavorites = view === "favorites";
+  const isAll = view === "all";
 
-  const fetchParamsKey = JSON.stringify(fetchParams);
+  const label = isFavorites
+    ? "お気に入り"
+    : isAll
+      ? "すべての動画"
+      : tagFilter
+        ? `#${tagFilter}`
+        : folderPath
+          ? folderPath.split("/").pop() || driveName
+          : driveName;
+
+  useEffect(() => {
+    if (!isFavorites && !isAll) {
+      getFolders(driveName, folderPath).then(setFolders).catch(() => setFolders([]));
+    } else {
+      setFolders([]);
+    }
+  }, [driveName, folderPath, isFavorites, isAll]);
 
   useEffect(() => {
     setLoading(true);
-    getVideos({
-      ...fetchParams,
+    getDriveVideos(driveName, {
+      path: isFavorites || isAll ? undefined : (folderPath ?? ""),
       search: search || undefined,
+      favorite: isFavorites ? true : undefined,
+      tag: tagFilter || undefined,
       sort,
       order,
       page,
@@ -56,13 +67,16 @@ export function VideoListPage({
       setVideos(res.data);
       setTotal(res.meta.total);
       setLoading(false);
+    }).catch(() => {
+      setVideos([]);
+      setTotal(0);
+      setLoading(false);
     });
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [fetchParamsKey, search, sort, order, page]);
+  }, [driveName, folderPath, search, sort, order, page, isFavorites, isAll, tagFilter]);
 
   useEffect(() => {
     setPage(1);
-  }, [fetchParamsKey]);
+  }, [driveName, folderPath, view, tagFilter]);
 
   const handleViewChange = useCallback((mode: ViewMode) => {
     setViewMode(mode);
@@ -70,21 +84,30 @@ export function VideoListPage({
 
   const handleFavoriteToggle = useCallback(
     (updated: Video) => {
-      setVideos((prev) => {
-        const next = onFavoriteToggle(prev, updated);
-        if (next.length < prev.length) {
-          setTotal((t) => t - (prev.length - next.length));
+      if (isFavorites) {
+        setVideos((prev) =>
+          updated.is_favorite
+            ? prev.map((v) => (v.id === updated.id ? updated : v))
+            : prev.filter((v) => v.id !== updated.id)
+        );
+        if (!updated.is_favorite) {
+          setTotal((t) => t - 1);
         }
-        return next;
-      });
+      } else {
+        setVideos((prev) =>
+          prev.map((v) => (v.id === updated.id ? updated : v))
+        );
+      }
     },
-    [onFavoriteToggle],
+    [isFavorites],
   );
 
   const totalPages = Math.ceil(total / limit);
 
   return (
     <div className="w-full flex-1 px-4 py-6">
+      <Breadcrumb driveName={driveName} folderPath={folderPath} />
+
       <div className="mb-4 flex flex-wrap items-center gap-3">
         <div className="relative min-w-[200px] flex-1">
           <Search
@@ -93,7 +116,7 @@ export function VideoListPage({
           />
           <input
             type="text"
-            placeholder={searchPlaceholder}
+            placeholder="動画を検索..."
             value={search}
             onChange={(e) => {
               setSearch(e.target.value);
@@ -139,11 +162,19 @@ export function VideoListPage({
         {label} · {total} 本
       </p>
 
+      {folders.length > 0 && !search && (
+        <div className="mb-6 grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+          {folders.map((folder) => (
+            <FolderCard key={folder.path} folder={folder} driveName={driveName} />
+          ))}
+        </div>
+      )}
+
       {loading ? (
         <div className="flex items-center justify-center py-16">
           <div className="h-8 w-8 animate-spin rounded-full border-2 border-accent border-t-transparent" />
         </div>
-      ) : videos.length === 0 ? (
+      ) : videos.length === 0 && folders.length === 0 ? (
         search ? (
           <EmptyState
             variant="no-results"
@@ -155,8 +186,10 @@ export function VideoListPage({
               },
             }}
           />
+        ) : isFavorites ? (
+          <EmptyState variant="no-favorites" />
         ) : (
-          <EmptyState variant={emptyVariant} />
+          <EmptyState variant="no-videos" />
         )
       ) : viewMode === "grid" ? (
         <VideoGrid videos={videos} onFavoriteToggle={handleFavoriteToggle} />

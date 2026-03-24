@@ -3,39 +3,64 @@
 import { Suspense, useEffect, useState } from "react";
 import Link from "next/link";
 import { usePathname, useSearchParams } from "next/navigation";
-import { Film, Folder, Home, Menu, Star, Tag, X } from "lucide-react";
+import { Film, HardDrive, Home, Menu, Star, Tag, X } from "lucide-react";
 
-import { getCategories, getTags } from "@/lib/api";
-import type { Category, Tag as TagType } from "@/types";
+import { getDrives, getDriveTags } from "@/lib/api";
+import type { Drive, Tag as TagType } from "@/types";
 import { useSidebar } from "./SidebarProvider";
+
+function useCurrentDrive(): string | null {
+  const pathname = usePathname();
+  const match = pathname.match(/^\/drive\/([^/]+)/);
+  if (!match) return null;
+  return decodeURIComponent(match[1]);
+}
 
 function SidebarNav() {
   const pathname = usePathname();
   const searchParams = useSearchParams();
-  const activeTag = searchParams.get("tag");
   const { close, refreshKey } = useSidebar();
 
-  const [categories, setCategories] = useState<Category[]>([]);
+  const currentDrive = useCurrentDrive();
+  const activeView = searchParams.get("view");
+  const activeTag = searchParams.get("tag");
+
+  const [drives, setDrives] = useState<Drive[]>([]);
   const [tags, setTags] = useState<TagType[]>([]);
 
   useEffect(() => {
-    getCategories().then(setCategories);
-    getTags().then(setTags);
+    getDrives().then(setDrives).catch(() => setDrives([]));
   }, [refreshKey]);
+
+  useEffect(() => {
+    if (currentDrive) {
+      getDriveTags(currentDrive).then(setTags).catch(() => setTags([]));
+    } else {
+      setTags([]);
+    }
+  }, [currentDrive, refreshKey]);
 
   function isActive(href: string): boolean {
     if (href === "/") return pathname === "/";
-    if (href === "/favorites") return pathname === "/favorites";
-    if (href.startsWith("/category/")) {
-      const slug = decodeURIComponent(href.split("/category/")[1].split("?")[0]);
-      const currentSlug = pathname.startsWith("/category/")
-        ? decodeURIComponent(pathname.split("/category/")[1])
-        : null;
-      if (href.includes("?tag=")) {
-        const hrefTag = new URL(href, "http://x").searchParams.get("tag");
-        return currentSlug === slug && activeTag === hrefTag;
-      }
-      return currentSlug === slug && !activeTag;
+    if (!currentDrive) return false;
+
+    const driveBase = `/drive/${encodeURIComponent(currentDrive)}`;
+
+    if (href === `${driveBase}?view=favorites`) {
+      return pathname === driveBase && activeView === "favorites";
+    }
+    if (href === `${driveBase}?view=all`) {
+      return pathname === driveBase && activeView === "all";
+    }
+    if (href.includes("?tag=")) {
+      const hrefTag = new URL(href, "http://x").searchParams.get("tag");
+      return pathname === driveBase && activeTag === hrefTag && !activeView;
+    }
+    if (href === driveBase) {
+      return pathname === driveBase && !activeView && !activeTag;
+    }
+    if (href.startsWith("/drive/")) {
+      return pathname === href;
     }
     return false;
   }
@@ -46,6 +71,10 @@ function SidebarNav() {
         ? "bg-accent text-white"
         : "text-text-muted hover:bg-bg-elevated hover:text-text-primary"
     }`;
+
+  const driveBase = currentDrive
+    ? `/drive/${encodeURIComponent(currentDrive)}`
+    : null;
 
   return (
     <nav className="flex flex-col gap-1 overflow-y-auto p-3">
@@ -62,36 +91,20 @@ function SidebarNav() {
         <Home size={16} />
         ホーム
       </Link>
-      <Link href="/favorites" onClick={close} className={linkClass("/favorites")}>
-        <Star size={16} />
-        お気に入り
-      </Link>
-      <Link href="/category/all" onClick={close} className={linkClass("/category/all")}>
-        <Film size={16} />
-        すべての動画
-      </Link>
-
-      {categories.length > 0 && (
+      {driveBase && (
         <>
-          <div className="mb-1 mt-4 px-3 text-[11px] font-semibold uppercase tracking-wider text-text-muted">
-            Categories
-          </div>
-          {categories.map((cat) => (
-            <Link
-              key={cat.name}
-              href={`/category/${encodeURIComponent(cat.name)}`}
-              onClick={close}
-              className={linkClass(`/category/${encodeURIComponent(cat.name)}`)}
-            >
-              <Folder size={16} />
-              <span className="flex-1 truncate">{cat.name}</span>
-              <span className="text-xs opacity-60">{cat.count}</span>
-            </Link>
-          ))}
+          <Link href={`${driveBase}?view=favorites`} onClick={close} className={linkClass(`${driveBase}?view=favorites`)}>
+            <Star size={16} />
+            お気に入り
+          </Link>
+          <Link href={`${driveBase}?view=all`} onClick={close} className={linkClass(`${driveBase}?view=all`)}>
+            <Film size={16} />
+            すべての動画
+          </Link>
         </>
       )}
 
-      {tags.length > 0 && (
+      {driveBase && tags.length > 0 && (
         <>
           <div className="mb-1 mt-4 px-3 text-[11px] font-semibold uppercase tracking-wider text-text-muted">
             Tags
@@ -99,15 +112,42 @@ function SidebarNav() {
           {tags.map((t) => (
             <Link
               key={t.name}
-              href={`/category/all?tag=${encodeURIComponent(t.name)}`}
+              href={`${driveBase}?tag=${encodeURIComponent(t.name)}`}
               onClick={close}
-              className={linkClass(`/category/all?tag=${encodeURIComponent(t.name)}`)}
+              className={linkClass(`${driveBase}?tag=${encodeURIComponent(t.name)}`)}
             >
               <Tag size={16} />
               <span className="flex-1 truncate">{t.name}</span>
               <span className="text-xs opacity-60">{t.count}</span>
             </Link>
           ))}
+        </>
+      )}
+
+      {drives.length > 0 && (
+        <>
+          <div className="mb-1 mt-4 px-3 text-[11px] font-semibold uppercase tracking-wider text-text-muted">
+            Drives
+          </div>
+          {drives.map((drive) => {
+            const href = `/drive/${encodeURIComponent(drive.name)}`;
+            const isCurrentDrive = drive.name === currentDrive;
+            return (
+              <Link
+                key={drive.name}
+                href={href}
+                onClick={close}
+                className={`flex items-center gap-2.5 rounded-lg px-3 py-2 text-sm transition-colors ${
+                  isCurrentDrive
+                    ? "bg-accent/20 text-accent"
+                    : "text-text-muted hover:bg-bg-elevated hover:text-text-primary"
+                }`}
+              >
+                <HardDrive size={16} />
+                <span className="flex-1 truncate">{drive.name}</span>
+              </Link>
+            );
+          })}
         </>
       )}
     </nav>

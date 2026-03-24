@@ -9,7 +9,8 @@ class VideoResponse(BaseModel):
     filename: str
     title: str
     description: str
-    category: str
+    drive: str
+    folder_path: str
     thumbnail_url: str
     file_size: int
     duration: float | None
@@ -21,10 +22,6 @@ class VideoResponse(BaseModel):
     updated_at: datetime
 
     model_config = {"from_attributes": True}
-
-
-class VideoDetail(VideoResponse):
-    file_path: str
 
 
 class VideoUpdate(BaseModel):
@@ -64,9 +61,14 @@ class PaginatedResponse(BaseModel):
     meta: PaginationMeta
 
 
-class CategoryResponse(BaseModel):
+class DriveResponse(BaseModel):
     name: str
-    count: int
+
+
+class FolderResponse(BaseModel):
+    name: str
+    path: str
+    video_count: int
 
 
 class TagResponse(BaseModel):
@@ -77,4 +79,25 @@ class TagResponse(BaseModel):
 class ScanResponse(BaseModel):
     added: int
     removed: int
+    updated: int = 0
     total: int
+
+
+def video_to_response(video) -> VideoResponse:
+    return VideoResponse(
+        id=video.id,
+        filename=video.filename,
+        title=video.title,
+        description=video.description,
+        drive=video.drive,
+        folder_path=video.folder_path,
+        thumbnail_url=f"/api/videos/{video.id}/thumbnail",
+        file_size=video.file_size,
+        duration=video.duration,
+        likes=video.likes,
+        dislikes=video.dislikes,
+        is_favorite=video.is_favorite,
+        tags=[tag.name for tag in video.tags],
+        created_at=video.created_at,
+        updated_at=video.updated_at,
+    )

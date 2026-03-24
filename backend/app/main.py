@@ -1,12 +1,12 @@
 import asyncio
 import logging
+from contextlib import asynccontextmanager
 
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI
 
 from app.database import init_db
-from app.routers import categories, tags, videos
-from app.schemas import ScanResponse
-from app.services.scanner import scan_videos_directory
+from app.routers import drives, videos
+from app.services.scanner import scan_all_drives
 
 logging.basicConfig(
     level=logging.INFO,
@@ -14,30 +14,22 @@ logging.basicConfig(
 )
 logger = logging.getLogger(__name__)
 
-app = FastAPI(title="Video Share API")
 
-app.include_router(videos.router)
-app.include_router(categories.router)
-app.include_router(tags.router)
-
-
-@app.on_event("startup")
-async def startup():
+@asynccontextmanager
+async def lifespan(app: FastAPI):
     init_db()
     logger.info("Database initialized")
-    asyncio.create_task(scan_videos_directory())
-    logger.info("Background scan started")
+    asyncio.create_task(scan_all_drives())
+    logger.info("Background scan started for all drives")
+    yield
+
+
+app = FastAPI(title="Video Share API", lifespan=lifespan)
+
+app.include_router(videos.router)
+app.include_router(drives.router)
 
 
 @app.get("/api/health")
 async def health():
     return {"status": "ok"}
-
-
-@app.post("/api/scan", response_model=ScanResponse)
-async def trigger_scan():
-    try:
-        result = await scan_videos_directory()
-        return ScanResponse(**result)
-    except RuntimeError:
-        raise HTTPException(status_code=409, detail="Scan already in progress")

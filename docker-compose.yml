@@ -4,10 +4,11 @@ services:
     expose:
       - "8000"
     volumes:
-      - ./videos:/app/videos:ro
+      - ./drives.json:/app/drives.json:ro
+      - ./videos:/app/drives/default:ro
       - ./data:/app/data
     environment:
-      - VIDEOS_DIR=/app/videos
+      - DRIVES_CONFIG=/app/drives.json
       - DATA_DIR=/app/data
     restart: unless-stopped
     healthcheck:

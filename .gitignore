@@ -1,6 +1,7 @@
 # Videos & data
 videos/
 data/
+drives.json
 
 # Python
 __pycache__/

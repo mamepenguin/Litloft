@@ -42,7 +42,7 @@ export function VideoCard({
           {video.title}
         </h3>
         <div className="mt-1 flex items-center gap-1.5">
-          <span className="text-xs text-text-muted">{video.category}</span>
+          <span className="text-xs text-text-muted">{video.folder_path || video.drive}</span>
           {video.tags.length > 0 && <TagList tags={video.tags} maxVisible={2} />}
         </div>
       </div>

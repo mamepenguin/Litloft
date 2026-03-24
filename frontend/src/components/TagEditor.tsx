@@ -3,16 +3,18 @@
 import { useEffect, useRef, useState } from "react";
 import { Plus, X } from "lucide-react";
 
-import { getTags, updateVideoTags } from "@/lib/api";
+import { getDriveTags, updateVideoTags } from "@/lib/api";
 import type { Video } from "@/types";
 import { useSidebar } from "./SidebarProvider";
 
 export function TagEditor({
   videoId,
+  drive,
   tags,
   onUpdate,
 }: {
   videoId: number;
+  drive: string;
   tags: string[];
   onUpdate: (video: Video) => void;
 }) {
@@ -27,8 +29,8 @@ export function TagEditor({
   const { requestRefresh } = useSidebar();
 
   useEffect(() => {
-    getTags().then((t) => setAllTags(t.map((tag) => tag.name)));
-  }, [tags]);
+    getDriveTags(drive).then((t) => setAllTags(t.map((tag) => tag.name)));
+  }, [drive, tags]);
 
   useEffect(() => {
     if (input.trim()) {

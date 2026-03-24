@@ -8,7 +8,8 @@ const mockVideo: Video = {
   filename: "test.mp4",
   title: "Test Video",
   description: "",
-  category: "旅行",
+  drive: "test-drive",
+  folder_path: "旅行",
   thumbnail_url: "/api/videos/1/thumbnail",
   file_size: 1048576,
   duration: 125.5,
@@ -26,9 +27,14 @@ describe("VideoCard", () => {
     expect(screen.getByText("Test Video")).toBeInTheDocument();
   });
 
-  it("renders category", () => {
+  it("renders folder path", () => {
     render(<VideoCard video={mockVideo} />);
     expect(screen.getByText("旅行")).toBeInTheDocument();
+  });
+
+  it("renders drive name when folder_path is empty", () => {
+    render(<VideoCard video={{ ...mockVideo, folder_path: "" }} />);
+    expect(screen.getByText("test-drive")).toBeInTheDocument();
   });
 
   it("renders formatted duration", () => {

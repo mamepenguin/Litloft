@@ -1,6 +1,6 @@
 "use client";
 
-import { useRouter } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 
 export function TagList({
   tags,
@@ -10,8 +10,17 @@ export function TagList({
   maxVisible?: number;
 }) {
   const router = useRouter();
+  const pathname = usePathname();
   const visible = tags.slice(0, maxVisible);
   const remaining = tags.length - maxVisible;
+
+  function getDriveBase(): string {
+    const match = pathname.match(/^\/drive\/([^/]+)/);
+    if (match) {
+      return `/drive/${encodeURIComponent(decodeURIComponent(match[1]))}`;
+    }
+    return "/";
+  }
 
   return (
     <span className="flex items-center gap-1">
@@ -22,7 +31,7 @@ export function TagList({
           onClick={(e) => {
             e.preventDefault();
             e.stopPropagation();
-            router.push(`/category/all?tag=${encodeURIComponent(tag)}`);
+            router.push(`${getDriveBase()}?tag=${encodeURIComponent(tag)}`);
           }}
           className="cursor-pointer rounded-full bg-bg-elevated px-2 py-0.5 text-[10px] text-text-muted transition-colors hover:bg-accent/20 hover:text-accent"
         >

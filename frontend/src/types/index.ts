@@ -3,7 +3,8 @@ export interface Video {
   filename: string;
   title: string;
   description: string;
-  category: string;
+  drive: string;
+  folder_path: string;
   thumbnail_url: string;
   file_size: number;
   duration: number | null;
@@ -26,9 +27,14 @@ export interface PaginatedResponse {
   meta: PaginationMeta;
 }
 
-export interface Category {
+export interface Drive {
   name: string;
-  count: number;
+}
+
+export interface Folder {
+  name: string;
+  path: string;
+  video_count: number;
 }
 
 export interface Tag {
