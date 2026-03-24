@@ -18,10 +18,12 @@ interface ContextMenuProps {
 
 export function ContextMenu({ open, position, items, onClose }: ContextMenuProps) {
   const menuRef = useRef<HTMLDivElement>(null);
+  const adjustedRef = useRef(position);
 
   useEffect(() => {
     if (!open) return;
-    function handleClick(e: MouseEvent) {
+
+    function handleClickOutside(e: MouseEvent) {
       if (menuRef.current && !menuRef.current.contains(e.target as Node)) {
         onClose();
       }
@@ -29,10 +31,23 @@ export function ContextMenu({ open, position, items, onClose }: ContextMenuProps
     function handleKey(e: KeyboardEvent) {
       if (e.key === "Escape") onClose();
     }
-    document.addEventListener("mousedown", handleClick);
+    function handleContextMenu(e: MouseEvent) {
+      if (menuRef.current && !menuRef.current.contains(e.target as Node)) {
+        onClose();
+      }
+    }
+
+    // Use setTimeout to avoid catching the same mousedown that opened the menu
+    const timer = setTimeout(() => {
+      document.addEventListener("mousedown", handleClickOutside);
+      document.addEventListener("contextmenu", handleContextMenu);
+    }, 0);
     document.addEventListener("keydown", handleKey);
+
     return () => {
-      document.removeEventListener("mousedown", handleClick);
+      clearTimeout(timer);
+      document.removeEventListener("mousedown", handleClickOutside);
+      document.removeEventListener("contextmenu", handleContextMenu);
       document.removeEventListener("keydown", handleKey);
     };
   }, [open, onClose]);
@@ -44,13 +59,9 @@ export function ContextMenu({ open, position, items, onClose }: ContextMenuProps
     const vw = window.innerWidth;
     const vh = window.innerHeight;
 
-    let x = position.x;
-    let y = position.y;
-    if (x + rect.width > vw) x = vw - rect.width - 8;
-    if (y + rect.height > vh) y = vh - rect.height - 8;
-    if (x < 8) x = 8;
-    if (y < 8) y = 8;
-
+    const x = Math.max(8, Math.min(position.x, vw - rect.width - 8));
+    const y = Math.max(8, Math.min(position.y, vh - rect.height - 8));
+    adjustedRef.current = { x, y };
     menu.style.left = `${x}px`;
     menu.style.top = `${y}px`;
   }, [open, position]);
@@ -66,11 +77,16 @@ export function ContextMenu({ open, position, items, onClose }: ContextMenuProps
       {items.map((item) => (
         <button
           key={item.label}
+          onMouseDown={(e) => {
+            e.preventDefault();
+            e.stopPropagation();
+          }}
           onClick={(e) => {
             e.preventDefault();
             e.stopPropagation();
-            item.onClick();
             onClose();
+            // Use requestAnimationFrame to let the menu close before opening dialog
+            requestAnimationFrame(() => item.onClick());
           }}
           className={`flex w-full items-center gap-2.5 px-3 py-2 text-left text-sm transition-colors ${
             item.danger

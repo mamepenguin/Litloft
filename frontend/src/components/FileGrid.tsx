@@ -1,7 +1,6 @@
 "use client";
 
 import { useCallback, useState } from "react";
-import { useRouter } from "next/navigation";
 import { Download, Move, Pencil, Trash2 } from "lucide-react";
 
 import { deleteFile, getDownloadUrl, moveFile, renameFile } from "@/lib/api";
@@ -21,23 +20,44 @@ export function FileGrid({
   onFavoriteToggle?: (file: FileItem) => void;
   onRefresh?: () => void;
 }) {
-  const router = useRouter();
-  const [menuState, setMenuState] = useState<{ open: boolean; x: number; y: number; file: FileItem | null }>({
-    open: false, x: 0, y: 0, file: null,
+  const [menuPos, setMenuPos] = useState<{ open: boolean; x: number; y: number }>({
+    open: false, x: 0, y: 0,
   });
+  const [target, setTarget] = useState<FileItem | null>(null);
   const [renameOpen, setRenameOpen] = useState(false);
   const [moveOpen, setMoveOpen] = useState(false);
   const [deleteOpen, setDeleteOpen] = useState(false);
 
-  const closeMenu = useCallback(() => setMenuState({ open: false, x: 0, y: 0, file: null }), []);
+  const closeMenu = useCallback(() => {
+    setMenuPos({ open: false, x: 0, y: 0 });
+  }, []);
 
-  const target = menuState.file;
+  const clearTarget = useCallback(() => {
+    setTarget(null);
+  }, []);
 
   const menuItems: MenuItem[] = target ? [
-    { icon: Download, label: "ダウンロード", onClick: () => window.open(getDownloadUrl(target.id), "_blank") },
-    { icon: Pencil, label: "名前を変更", onClick: () => setRenameOpen(true) },
-    { icon: Move, label: "移動", onClick: () => setMoveOpen(true) },
-    { icon: Trash2, label: "削除", onClick: () => setDeleteOpen(true), danger: true },
+    {
+      icon: Download,
+      label: "ダウンロード",
+      onClick: () => window.open(getDownloadUrl(target.id), "_blank"),
+    },
+    {
+      icon: Pencil,
+      label: "名前を変更",
+      onClick: () => setRenameOpen(true),
+    },
+    {
+      icon: Move,
+      label: "移動",
+      onClick: () => setMoveOpen(true),
+    },
+    {
+      icon: Trash2,
+      label: "削除",
+      onClick: () => setDeleteOpen(true),
+      danger: true,
+    },
   ] : [];
 
   return (
@@ -51,15 +71,16 @@ export function FileGrid({
             onContextMenu={(e) => {
               e.preventDefault();
               e.stopPropagation();
-              setMenuState({ open: true, x: e.clientX, y: e.clientY, file });
+              setTarget(file);
+              setMenuPos({ open: true, x: e.clientX, y: e.clientY });
             }}
           />
         ))}
       </div>
 
       <ContextMenu
-        open={menuState.open}
-        position={{ x: menuState.x, y: menuState.y }}
+        open={menuPos.open}
+        position={{ x: menuPos.x, y: menuPos.y }}
         items={menuItems}
         onClose={closeMenu}
       />
@@ -73,10 +94,11 @@ export function FileGrid({
               try {
                 await renameFile(target.id, name);
                 setRenameOpen(false);
+                clearTarget();
                 if (onRefresh) onRefresh();
               } catch { /* dialog stays open on error */ }
             }}
-            onCancel={() => setRenameOpen(false)}
+            onCancel={() => { setRenameOpen(false); clearTarget(); }}
           />
           <MoveDialog
             open={moveOpen}
@@ -86,10 +108,11 @@ export function FileGrid({
               try {
                 await moveFile(target.id, path);
                 setMoveOpen(false);
+                clearTarget();
                 if (onRefresh) onRefresh();
               } catch { /* dialog stays open on error */ }
             }}
-            onCancel={() => setMoveOpen(false)}
+            onCancel={() => { setMoveOpen(false); clearTarget(); }}
           />
           <ConfirmDialog
             open={deleteOpen}
@@ -100,10 +123,11 @@ export function FileGrid({
               try {
                 await deleteFile(target.id);
                 setDeleteOpen(false);
+                clearTarget();
                 if (onRefresh) onRefresh();
               } catch { /* dialog stays open on error */ }
             }}
-            onCancel={() => setDeleteOpen(false)}
+            onCancel={() => { setDeleteOpen(false); clearTarget(); }}
           />
         </>
       )}
