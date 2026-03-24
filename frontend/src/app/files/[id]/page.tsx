@@ -165,7 +165,7 @@ export default function FilePage() {
                 </button>
                 <FileActions
                   file={file}
-                  onUpdate={setFile}
+                  onUpdate={() => getFile(fileId).then(setFile)}
                   onDelete={() => {
                     const backPath = file.folder_path
                       ? `/drive/${encodeURIComponent(file.drive)}/${file.folder_path}`
