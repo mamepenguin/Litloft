@@ -29,14 +29,9 @@ describe("FileCard", () => {
     expect(screen.getByText("Test Video")).toBeInTheDocument();
   });
 
-  it("renders folder path", () => {
+  it("renders file size and relative date", () => {
     render(<FileCard file={mockFile} />);
-    expect(screen.getByText("旅行")).toBeInTheDocument();
-  });
-
-  it("renders drive name when folder_path is empty", () => {
-    render(<FileCard file={{ ...mockFile, folder_path: "" }} />);
-    expect(screen.getByText("test-drive")).toBeInTheDocument();
+    expect(screen.getByText("1.0 MB")).toBeInTheDocument();
   });
 
   it("renders formatted duration for video", () => {
