@@ -5,7 +5,7 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI
 
 from app.database import init_db
-from app.routers import drives, videos
+from app.routers import drives, files
 from app.services.scanner import scan_all_drives
 
 logging.basicConfig(
@@ -26,7 +26,7 @@ async def lifespan(app: FastAPI):
 
 app = FastAPI(title="Video Share API", lifespan=lifespan)
 
-app.include_router(videos.router)
+app.include_router(files.router)
 app.include_router(drives.router)
 
 

@@ -3,10 +3,10 @@
 import { useCallback, useEffect, useState } from "react";
 import { Search, X } from "lucide-react";
 
-import { getDriveVideos, getFolders } from "@/lib/api";
-import type { Folder, PaginatedResponse, SortField, SortOrder, Video, ViewMode } from "@/types";
-import { VideoGrid } from "@/components/VideoGrid";
-import { VideoList } from "@/components/VideoList";
+import { getDriveFiles, getFolders } from "@/lib/api";
+import type { FileItem, Folder, PaginatedResponse, SortField, SortOrder, ViewMode } from "@/types";
+import { FileGrid } from "@/components/FileGrid";
+import { FileList } from "@/components/FileList";
 import { ViewToggle } from "@/components/ViewToggle";
 import { EmptyState } from "@/components/EmptyState";
 import { FolderCard } from "@/components/FolderCard";
@@ -21,7 +21,7 @@ interface FolderBrowserProps {
 
 export function FolderBrowser({ driveName, folderPath, view, tagFilter }: FolderBrowserProps) {
   const [folders, setFolders] = useState<Folder[]>([]);
-  const [videos, setVideos] = useState<Video[]>([]);
+  const [files, setFiles] = useState<FileItem[]>([]);
   const [total, setTotal] = useState(0);
   const [page, setPage] = useState(1);
   const [viewMode, setViewMode] = useState<ViewMode>("grid");
@@ -37,7 +37,7 @@ export function FolderBrowser({ driveName, folderPath, view, tagFilter }: Folder
   const label = isFavorites
     ? "お気に入り"
     : isAll
-      ? "すべての動画"
+      ? "すべてのファイル"
       : tagFilter
         ? `#${tagFilter}`
         : folderPath
@@ -54,7 +54,7 @@ export function FolderBrowser({ driveName, folderPath, view, tagFilter }: Folder
 
   useEffect(() => {
     setLoading(true);
-    getDriveVideos(driveName, {
+    getDriveFiles(driveName, {
       path: isFavorites || isAll ? undefined : (folderPath ?? ""),
       search: search || undefined,
       favorite: isFavorites ? true : undefined,
@@ -64,11 +64,11 @@ export function FolderBrowser({ driveName, folderPath, view, tagFilter }: Folder
       page,
       limit,
     }).then((res: PaginatedResponse) => {
-      setVideos(res.data);
+      setFiles(res.data);
       setTotal(res.meta.total);
       setLoading(false);
     }).catch(() => {
-      setVideos([]);
+      setFiles([]);
       setTotal(0);
       setLoading(false);
     });
@@ -83,19 +83,19 @@ export function FolderBrowser({ driveName, folderPath, view, tagFilter }: Folder
   }, []);
 
   const handleFavoriteToggle = useCallback(
-    (updated: Video) => {
+    (updated: FileItem) => {
       if (isFavorites) {
-        setVideos((prev) =>
+        setFiles((prev) =>
           updated.is_favorite
-            ? prev.map((v) => (v.id === updated.id ? updated : v))
-            : prev.filter((v) => v.id !== updated.id)
+            ? prev.map((f) => (f.id === updated.id ? updated : f))
+            : prev.filter((f) => f.id !== updated.id)
         );
         if (!updated.is_favorite) {
           setTotal((t) => t - 1);
         }
       } else {
-        setVideos((prev) =>
-          prev.map((v) => (v.id === updated.id ? updated : v))
+        setFiles((prev) =>
+          prev.map((f) => (f.id === updated.id ? updated : f))
         );
       }
     },
@@ -116,7 +116,7 @@ export function FolderBrowser({ driveName, folderPath, view, tagFilter }: Folder
           />
           <input
             type="text"
-            placeholder="動画を検索..."
+            placeholder="ファイルを検索..."
             value={search}
             onChange={(e) => {
               setSearch(e.target.value);
@@ -159,7 +159,7 @@ export function FolderBrowser({ driveName, folderPath, view, tagFilter }: Folder
       </div>
 
       <p className="mb-4 text-sm text-text-muted">
-        {label} · {total} 本
+        {label} · {total} 件
       </p>
 
       {folders.length > 0 && !search && (
@@ -174,7 +174,7 @@ export function FolderBrowser({ driveName, folderPath, view, tagFilter }: Folder
         <div className="flex items-center justify-center py-16">
           <div className="h-8 w-8 animate-spin rounded-full border-2 border-accent border-t-transparent" />
         </div>
-      ) : videos.length === 0 && folders.length === 0 ? (
+      ) : files.length === 0 && folders.length === 0 ? (
         search ? (
           <EmptyState
             variant="no-results"
@@ -189,12 +189,12 @@ export function FolderBrowser({ driveName, folderPath, view, tagFilter }: Folder
         ) : isFavorites ? (
           <EmptyState variant="no-favorites" />
         ) : (
-          <EmptyState variant="no-videos" />
+          <EmptyState variant="no-files" />
         )
       ) : viewMode === "grid" ? (
-        <VideoGrid videos={videos} onFavoriteToggle={handleFavoriteToggle} />
+        <FileGrid files={files} onFavoriteToggle={handleFavoriteToggle} />
       ) : (
-        <VideoList videos={videos} onFavoriteToggle={handleFavoriteToggle} />
+        <FileList files={files} onFavoriteToggle={handleFavoriteToggle} />
       )}
 
       {totalPages > 1 && (

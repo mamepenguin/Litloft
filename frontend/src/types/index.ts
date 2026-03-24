@@ -1,10 +1,14 @@
-export interface Video {
+export type FileType = "video" | "image" | "audio" | "document" | "other";
+
+export interface FileItem {
   id: number;
   filename: string;
   title: string;
   description: string;
   drive: string;
   folder_path: string;
+  file_type: FileType;
+  mime_type: string;
   thumbnail_url: string;
   file_size: number;
   duration: number | null;
@@ -23,7 +27,7 @@ export interface PaginationMeta {
 }
 
 export interface PaginatedResponse {
-  data: Video[];
+  data: FileItem[];
   meta: PaginationMeta;
 }
 
@@ -34,7 +38,7 @@ export interface Drive {
 export interface Folder {
   name: string;
   path: string;
-  video_count: number;
+  file_count: number;
 }
 
 export interface Tag {

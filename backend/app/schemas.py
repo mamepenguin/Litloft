@@ -4,13 +4,15 @@ from datetime import datetime
 from pydantic import BaseModel, field_validator
 
 
-class VideoResponse(BaseModel):
+class FileResponse(BaseModel):
     id: int
     filename: str
     title: str
     description: str
     drive: str
     folder_path: str
+    file_type: str
+    mime_type: str
     thumbnail_url: str
     file_size: int
     duration: float | None
@@ -24,7 +26,7 @@ class VideoResponse(BaseModel):
     model_config = {"from_attributes": True}
 
 
-class VideoUpdate(BaseModel):
+class FileUpdate(BaseModel):
     title: str | None = None
     description: str | None = None
 
@@ -36,7 +38,7 @@ class TagUpdate(BaseModel):
     @classmethod
     def validate_tags(cls, v: list[str]) -> list[str]:
         if len(v) > 10:
-            raise ValueError("Maximum 10 tags per video")
+            raise ValueError("Maximum 10 tags per file")
         normalized = []
         for tag in v:
             tag = tag.strip().lower()
@@ -57,7 +59,7 @@ class PaginationMeta(BaseModel):
 
 
 class PaginatedResponse(BaseModel):
-    data: list[VideoResponse]
+    data: list[FileResponse]
     meta: PaginationMeta
 
 
@@ -68,7 +70,7 @@ class DriveResponse(BaseModel):
 class FolderResponse(BaseModel):
     name: str
     path: str
-    video_count: int
+    file_count: int
 
 
 class TagResponse(BaseModel):
@@ -83,21 +85,23 @@ class ScanResponse(BaseModel):
     total: int
 
 
-def video_to_response(video) -> VideoResponse:
-    return VideoResponse(
-        id=video.id,
-        filename=video.filename,
-        title=video.title,
-        description=video.description,
-        drive=video.drive,
-        folder_path=video.folder_path,
-        thumbnail_url=f"/api/videos/{video.id}/thumbnail",
-        file_size=video.file_size,
-        duration=video.duration,
-        likes=video.likes,
-        dislikes=video.dislikes,
-        is_favorite=video.is_favorite,
-        tags=[tag.name for tag in video.tags],
-        created_at=video.created_at,
-        updated_at=video.updated_at,
+def file_to_response(file) -> FileResponse:
+    return FileResponse(
+        id=file.id,
+        filename=file.filename,
+        title=file.title,
+        description=file.description,
+        drive=file.drive,
+        folder_path=file.folder_path,
+        file_type=file.file_type,
+        mime_type=file.mime_type,
+        thumbnail_url=f"/api/files/{file.id}/thumbnail",
+        file_size=file.file_size,
+        duration=file.duration,
+        likes=file.likes,
+        dislikes=file.dislikes,
+        is_favorite=file.is_favorite,
+        tags=[tag.name for tag in file.tags],
+        created_at=file.created_at,
+        updated_at=file.updated_at,
     )

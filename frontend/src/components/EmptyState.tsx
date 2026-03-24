@@ -1,29 +1,29 @@
-import { FileVideo, Search, RefreshCw, Star } from "lucide-react";
+import { File, Search, RefreshCw, Star } from "lucide-react";
 
-type EmptyVariant = "no-videos" | "no-results" | "needs-scan" | "no-favorites";
+type EmptyVariant = "no-files" | "no-results" | "needs-scan" | "no-favorites";
 
 const variants: Record<
   EmptyVariant,
-  { icon: typeof FileVideo; title: string; description: string }
+  { icon: typeof File; title: string; description: string }
 > = {
-  "no-videos": {
-    icon: FileVideo,
-    title: "動画がありません",
-    description: "このカテゴリにはまだ動画がありません。",
+  "no-files": {
+    icon: File,
+    title: "ファイルがありません",
+    description: "このフォルダにはまだファイルがありません。",
   },
   "no-results": {
     icon: Search,
-    title: "一致する動画が見つかりません",
+    title: "一致するファイルが見つかりません",
     description: "検索条件を変更してください。",
   },
   "needs-scan": {
     icon: RefreshCw,
     title: "スキャンを実行してください",
-    description: "videos/ ディレクトリを読み込みます。",
+    description: "ドライブのファイルを読み込みます。",
   },
   "no-favorites": {
     icon: Star,
-    title: "お気に入りの動画がありません",
+    title: "お気に入りのファイルがありません",
     description: "星アイコンをクリックしてお気に入りに追加しましょう。",
   },
 };

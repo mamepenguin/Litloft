@@ -20,7 +20,7 @@ export function FolderCard({ folder, driveName }: FolderCardProps) {
         <h3 className="font-semibold text-text-primary group-hover:text-accent">
           {folder.name}
         </h3>
-        <p className="text-sm text-text-muted">{folder.video_count} 本</p>
+        <p className="text-sm text-text-muted">{folder.file_count} 件</p>
       </div>
     </Link>
   );

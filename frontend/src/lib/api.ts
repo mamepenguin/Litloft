@@ -1,4 +1,4 @@
-import type { Drive, Folder, PaginatedResponse, SortField, SortOrder, Tag, Video } from "@/types";
+import type { Drive, FileItem, FileType, Folder, PaginatedResponse, SortField, SortOrder, Tag } from "@/types";
 
 const API_BASE = "/api";
 
@@ -23,13 +23,14 @@ export async function getFolders(drive: string, path?: string): Promise<Folder[]
   );
 }
 
-export async function getDriveVideos(
+export async function getDriveFiles(
   drive: string,
   params: {
     path?: string;
     search?: string;
     favorite?: boolean;
     tag?: string;
+    type?: FileType;
     sort?: SortField;
     order?: SortOrder;
     page?: number;
@@ -41,13 +42,14 @@ export async function getDriveVideos(
   if (params.search) searchParams.set("search", params.search);
   if (params.favorite !== undefined) searchParams.set("favorite", String(params.favorite));
   if (params.tag) searchParams.set("tag", params.tag);
+  if (params.type) searchParams.set("type", params.type);
   if (params.sort) searchParams.set("sort", params.sort);
   if (params.order) searchParams.set("order", params.order);
   if (params.page) searchParams.set("page", String(params.page));
   if (params.limit) searchParams.set("limit", String(params.limit));
 
   return fetchJSON<PaginatedResponse>(
-    `${API_BASE}/drives/${encodeURIComponent(drive)}/videos?${searchParams.toString()}`
+    `${API_BASE}/drives/${encodeURIComponent(drive)}/files?${searchParams.toString()}`
   );
 }
 
@@ -59,35 +61,35 @@ export async function scanDrive(drive: string): Promise<{ added: number; removed
   return fetchJSON(`${API_BASE}/drives/${encodeURIComponent(drive)}/scan`, { method: "POST" });
 }
 
-export async function getVideo(id: number): Promise<Video> {
-  return fetchJSON<Video>(`${API_BASE}/videos/${id}`);
+export async function getFile(id: number): Promise<FileItem> {
+  return fetchJSON<FileItem>(`${API_BASE}/files/${id}`);
 }
 
-export async function updateVideo(
+export async function updateFile(
   id: number,
   data: { title?: string; description?: string }
-): Promise<Video> {
-  return fetchJSON<Video>(`${API_BASE}/videos/${id}`, {
+): Promise<FileItem> {
+  return fetchJSON<FileItem>(`${API_BASE}/files/${id}`, {
     method: "PUT",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(data),
   });
 }
 
-export async function likeVideo(id: number): Promise<Video> {
-  return fetchJSON<Video>(`${API_BASE}/videos/${id}/like`, { method: "POST" });
+export async function likeFile(id: number): Promise<FileItem> {
+  return fetchJSON<FileItem>(`${API_BASE}/files/${id}/like`, { method: "POST" });
 }
 
-export async function dislikeVideo(id: number): Promise<Video> {
-  return fetchJSON<Video>(`${API_BASE}/videos/${id}/dislike`, { method: "POST" });
+export async function dislikeFile(id: number): Promise<FileItem> {
+  return fetchJSON<FileItem>(`${API_BASE}/files/${id}/dislike`, { method: "POST" });
 }
 
-export async function toggleFavorite(id: number): Promise<Video> {
-  return fetchJSON<Video>(`${API_BASE}/videos/${id}/favorite`, { method: "POST" });
+export async function toggleFavorite(id: number): Promise<FileItem> {
+  return fetchJSON<FileItem>(`${API_BASE}/files/${id}/favorite`, { method: "POST" });
 }
 
-export async function updateVideoTags(id: number, tags: string[]): Promise<Video> {
-  return fetchJSON<Video>(`${API_BASE}/videos/${id}/tags`, {
+export async function updateFileTags(id: number, tags: string[]): Promise<FileItem> {
+  return fetchJSON<FileItem>(`${API_BASE}/files/${id}/tags`, {
     method: "PUT",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ tags }),
@@ -95,9 +97,9 @@ export async function updateVideoTags(id: number, tags: string[]): Promise<Video
 }
 
 export function getStreamUrl(id: number): string {
-  return `${API_BASE}/videos/${id}/stream`;
+  return `${API_BASE}/files/${id}/stream`;
 }
 
 export function getThumbnailUrl(id: number): string {
-  return `${API_BASE}/videos/${id}/thumbnail`;
+  return `${API_BASE}/files/${id}/thumbnail`;
 }

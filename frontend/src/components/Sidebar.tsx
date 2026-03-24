@@ -3,7 +3,7 @@
 import { Suspense, useEffect, useState } from "react";
 import Link from "next/link";
 import { usePathname, useSearchParams } from "next/navigation";
-import { Film, HardDrive, Home, Menu, Star, Tag, X } from "lucide-react";
+import { Files, HardDrive, Home, Menu, Star, Tag, X } from "lucide-react";
 
 import { getDrives, getDriveTags } from "@/lib/api";
 import type { Drive, Tag as TagType } from "@/types";
@@ -100,8 +100,8 @@ function SidebarNav() {
             お気に入り
           </Link>
           <Link href={`${driveBase}?view=all`} onClick={close} className={linkClass(`${driveBase}?view=all`)}>
-            <Film size={16} />
-            すべての動画
+            <Files size={16} />
+            すべてのファイル
           </Link>
         </>
       )}

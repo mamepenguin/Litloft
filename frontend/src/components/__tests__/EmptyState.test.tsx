@@ -3,14 +3,14 @@ import { render, screen, fireEvent } from "@testing-library/react";
 import { EmptyState } from "../EmptyState";
 
 describe("EmptyState", () => {
-  it("renders no-videos variant", () => {
-    render(<EmptyState variant="no-videos" />);
-    expect(screen.getByText("動画がありません")).toBeInTheDocument();
+  it("renders no-files variant", () => {
+    render(<EmptyState variant="no-files" />);
+    expect(screen.getByText("ファイルがありません")).toBeInTheDocument();
   });
 
   it("renders no-results variant", () => {
     render(<EmptyState variant="no-results" />);
-    expect(screen.getByText("一致する動画が見つかりません")).toBeInTheDocument();
+    expect(screen.getByText("一致するファイルが見つかりません")).toBeInTheDocument();
   });
 
   it("renders needs-scan variant", () => {
@@ -30,7 +30,7 @@ describe("EmptyState", () => {
   });
 
   it("does not render button without action", () => {
-    render(<EmptyState variant="no-videos" />);
+    render(<EmptyState variant="no-files" />);
     expect(screen.queryByRole("button")).toBeNull();
   });
 });

@@ -17,10 +17,10 @@ from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.database import Base
 
-video_tags = Table(
-    "video_tags",
+file_tags = Table(
+    "file_tags",
     Base.metadata,
-    Column("video_id", Integer, ForeignKey("videos.id", ondelete="CASCADE"), primary_key=True),
+    Column("file_id", Integer, ForeignKey("files.id", ondelete="CASCADE"), primary_key=True),
     Column("tag_id", Integer, ForeignKey("tags.id", ondelete="CASCADE"), primary_key=True),
 )
 
@@ -35,8 +35,8 @@ class Tag(Base):
         DateTime, default=lambda: datetime.now(UTC)
     )
 
-    videos: Mapped[list["Video"]] = relationship(
-        "Video", secondary=video_tags, back_populates="tags"
+    files: Mapped[list["File"]] = relationship(
+        "File", secondary=file_tags, back_populates="tags"
     )
 
     __table_args__ = (
@@ -44,8 +44,8 @@ class Tag(Base):
     )
 
 
-class Video(Base):
-    __tablename__ = "videos"
+class File(Base):
+    __tablename__ = "files"
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
     filename: Mapped[str] = mapped_column(String, nullable=False)
@@ -54,8 +54,10 @@ class Video(Base):
     drive: Mapped[str] = mapped_column(String, nullable=False, default="")
     folder_path: Mapped[str] = mapped_column(String, nullable=False, default="")
     file_path: Mapped[str] = mapped_column(String, nullable=False, unique=True)
-    thumbnail_path: Mapped[str | None] = mapped_column(String, nullable=True)
     file_size: Mapped[int] = mapped_column(Integer, nullable=False)
+    file_type: Mapped[str] = mapped_column(String, nullable=False, default="other")
+    mime_type: Mapped[str] = mapped_column(String, nullable=False, default="application/octet-stream")
+    thumbnail_path: Mapped[str | None] = mapped_column(String, nullable=True)
     duration: Mapped[float | None] = mapped_column(Float, nullable=True)
     likes: Mapped[int] = mapped_column(Integer, default=0, server_default="0")
     dislikes: Mapped[int] = mapped_column(Integer, default=0, server_default="0")
@@ -68,11 +70,12 @@ class Video(Base):
     )
 
     tags: Mapped[list[Tag]] = relationship(
-        "Tag", secondary=video_tags, back_populates="videos", lazy="selectin"
+        "Tag", secondary=file_tags, back_populates="files", lazy="selectin"
     )
 
     __table_args__ = (
-        Index("idx_videos_drive_folder_path", "drive", "folder_path"),
-        Index("idx_videos_title", "title"),
-        Index("idx_videos_is_favorite", "is_favorite"),
+        Index("idx_files_drive_folder_path", "drive", "folder_path"),
+        Index("idx_files_title", "title"),
+        Index("idx_files_is_favorite", "is_favorite"),
+        Index("idx_files_file_type", "file_type"),
     )

@@ -1,6 +1,6 @@
 # Video Share
 
-自宅LAN向け動画ストリーミングWebアプリ。Mac mini上でDockerで動作する。
+自宅LAN向けファイル管理＆動画ストリーミングWebアプリ。Mac mini上でDockerで動作する。
 
 ## アーキテクチャ
 
@@ -21,13 +21,14 @@ backend/
     main.py           # FastAPIエントリーポイント、ルーター登録、startup scan
     config.py          # drives.json からドライブ設定読み取り、DATA_DIR
     database.py        # SQLAlchemy engine, SessionLocal, get_db (DI), マイグレーション
-    models.py          # Video, Tag モデル (SQLAlchemy ORM)
+    models.py          # File, Tag モデル (SQLAlchemy ORM)
     schemas.py         # Pydantic スキーマ (リクエスト/レスポンス)
     routers/
-      videos.py        # GET/PUT /api/videos/{id}, stream, thumbnail, like, tags
-      drives.py        # GET /api/drives, folders, videos, tags, scan
+      files.py         # GET/PUT /api/files/{id}, stream, thumbnail, like, tags
+      drives.py        # GET /api/drives, folders, files, tags, scan
     services/
-      scanner.py       # ドライブ単位の再帰スキャン、DB同期、排他ロック
+      scanner.py       # ドライブ単位の再帰スキャン（全ファイル対応）、DB同期、排他ロック
+      filetype.py      # ファイルタイプ分類 (classify, is_hidden)
       thumbnail.py     # ffmpeg サムネイル生成、ffprobe duration取得
   tests/               # pytest (Docker内で実行: Dockerfile.test)
   static/
@@ -37,21 +38,26 @@ frontend/
   src/
     app/
       page.tsx           # / トップ（ドライブ一覧、Server Component）
-      drive/[name]/      # ドライブルート（フォルダ+動画、Client Component）
+      drive/[name]/      # ドライブルート（フォルダ+ファイル、Client Component）
       drive/[name]/[...path]/ # サブフォルダブラウザ (Client Component)
-      videos/[id]/       # 動画再生ページ (Client Component)
+      files/[id]/        # ファイル詳細・再生ページ (Client Component)
       layout.tsx         # ルートレイアウト (Inter, PWA meta, dark theme)
       globals.css        # CSS変数 (デザイントークン), Tailwind
     components/
       Sidebar.tsx        # サイドバー（LIBRARY/TAGS/DRIVES セクション）
-      FolderBrowser.tsx  # フォルダ一覧 + 動画一覧の統合表示
+      FolderBrowser.tsx  # フォルダ一覧 + ファイル一覧の統合表示
       FolderCard.tsx     # フォルダアイテム表示
       Breadcrumb.tsx     # パンくずリスト
-      VideoCard.tsx, VideoGrid.tsx, VideoList.tsx, VideoPlayer.tsx, etc.
+      FileCard.tsx       # ファイルカード（file_type でサムネイル/アイコン切替）
+      FileGrid.tsx       # グリッド表示
+      FileList.tsx       # リスト表示
+      FilePreview.tsx    # file_type 分岐プレビュー（video→VideoPlayer、他→情報表示）
+      FileTypeIcon.tsx   # ファイルタイプアイコン
+      VideoPlayer.tsx    # 動画プレーヤー
     lib/
       api.ts           # Backend API呼び出しクライアント
       format.ts        # formatDuration, formatFileSize
-    types/index.ts     # Video, Drive, Folder, Tag, PaginatedResponse 等の型定義
+    types/index.ts     # FileItem, Drive, Folder, Tag, PaginatedResponse 等の型定義
 
 deploy/
   post-receive         # git push → Mac mini 自動デプロイ hook
@@ -86,8 +92,8 @@ docker compose logs -f backend
 | メソッド | パス | 説明 |
 |---------|------|------|
 | GET | /api/drives | ドライブ一覧 |
-| GET | /api/drives/{drive}/folders?path= | サブフォルダ一覧（名前+動画数） |
-| GET | /api/drives/{drive}/videos?path=&search=&sort=&order=&page=&limit=&favorite=&tag= | 動画一覧 |
+| GET | /api/drives/{drive}/folders?path= | サブフォルダ一覧（名前+ファイル数） |
+| GET | /api/drives/{drive}/files?path=&search=&sort=&order=&page=&limit=&favorite=&tag=&type= | ファイル一覧（type でフィルタ可能） |
 | GET | /api/drives/{drive}/tags | タグ一覧 |
 | POST | /api/drives/{drive}/scan | ドライブ単位スキャン (排他制御、競合時 409) |
 
@@ -96,16 +102,25 @@ docker compose logs -f backend
 | メソッド | パス | 説明 |
 |---------|------|------|
 | GET | /api/health | ヘルスチェック |
-| GET | /api/videos/{id} | 動画詳細 |
-| PUT | /api/videos/{id} | メタデータ編集 (title, description) |
-| GET | /api/videos/{id}/stream | 動画ストリーミング (Range Request 206対応) |
-| GET | /api/videos/{id}/thumbnail | サムネイル画像 |
-| POST | /api/videos/{id}/like | いいね |
-| POST | /api/videos/{id}/dislike | わるいね |
-| POST | /api/videos/{id}/favorite | お気に入りトグル |
-| PUT | /api/videos/{id}/tags | タグ編集 |
+| GET | /api/files/{id} | ファイル詳細 |
+| PUT | /api/files/{id} | メタデータ編集 (title, description) |
+| GET | /api/files/{id}/stream | ストリーミング (Range Request 206対応、Content-Type は mime_type から動的決定) |
+| GET | /api/files/{id}/thumbnail | サムネイル画像 (動画: ffmpeg生成、他: placeholder) |
+| POST | /api/files/{id}/like | いいね |
+| POST | /api/files/{id}/dislike | わるいね |
+| POST | /api/files/{id}/favorite | お気に入りトグル |
+| PUT | /api/files/{id}/tags | タグ編集 |
 
 ## 重要な設計判断
+
+### ファイルタイプシステム
+- **File テーブル**: 全ファイルの統一モデル（旧 Video テーブルを統合）
+- **file_type**: 大分類（video/image/audio/document/other）— UIフィルタ・アイコン切替
+- **mime_type**: 詳細（video/mp4 等）— Content-Type 決定・プレビュー方式判定
+- **duration**: nullable、video/audio のみ ffprobe で取得
+- **スキャン**: 隠しファイル（`.` 始まり）以外の全ファイルを登録
+- 分類ロジックは `services/filetype.py` に分離
+- 設計書: `docs/superpowers/specs/2026-03-24-file-browsing-extension-design.md`
 
 ### ドライブ + フォルダ階層
 - **ドライブ**: 論理的なコンテンツ領域の分離。タグもドライブ間で独立
@@ -126,7 +141,7 @@ docker compose logs -f backend
 ### Frontend
 - Next.js 16: `params` は `Promise` 型。Server Component では `await params`、Client Component では `use(params)` または `useParams()`
 - トップページ (`/`) は Server Component で `http://backend:8000` に直接fetch
-- ドライブ・動画ページは Client Component で `/api/` (rewrites経由) にfetch
+- ドライブ・ファイルページは Client Component で `/api/` (rewrites経由) にfetch
 - rewrites (`next.config.ts`): `/api/*` → `http://backend:8000/api/*` でプロキシ。CORSは不要。
 - ダークテーマ固定 (CSS変数 `--bg-primary: #0a0a0f` 等)
 - ViewToggle の状態は localStorage に保持
@@ -157,3 +172,4 @@ Mac mini上にbare gitリポジトリ (`~/video-share.git`) を作成し、`post
 - `docs/superpowers/specs/2026-03-23-video-share-design.md` — 詳細設計書
 - `docs/superpowers/specs/2026-03-23-video-share-implementation-plan.md` — 実装計画
 - `docs/superpowers/specs/2026-03-24-drives-and-folders-design.md` — ドライブ+フォルダ階層設計書
+- `docs/superpowers/specs/2026-03-24-file-browsing-extension-design.md` — ファイル閲覧拡張設計書

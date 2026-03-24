@@ -3,20 +3,20 @@
 import { useEffect, useRef, useState } from "react";
 import { Plus, X } from "lucide-react";
 
-import { getDriveTags, updateVideoTags } from "@/lib/api";
-import type { Video } from "@/types";
+import { getDriveTags, updateFileTags } from "@/lib/api";
+import type { FileItem } from "@/types";
 import { useSidebar } from "./SidebarProvider";
 
 export function TagEditor({
-  videoId,
+  fileId,
   drive,
   tags,
   onUpdate,
 }: {
-  videoId: number;
+  fileId: number;
   drive: string;
   tags: string[];
-  onUpdate: (video: Video) => void;
+  onUpdate: (file: FileItem) => void;
 }) {
   const [adding, setAdding] = useState(false);
   const [input, setInput] = useState("");
@@ -69,7 +69,7 @@ export function TagEditor({
 
     setError(null);
     try {
-      const updated = await updateVideoTags(videoId, [...tags, normalized]);
+      const updated = await updateFileTags(fileId, [...tags, normalized]);
       onUpdate(updated);
       requestRefresh();
       setInput("");
@@ -81,8 +81,8 @@ export function TagEditor({
 
   async function removeTag(tagToRemove: string) {
     try {
-      const updated = await updateVideoTags(
-        videoId,
+      const updated = await updateFileTags(
+        fileId,
         tags.filter((t) => t !== tagToRemove)
       );
       onUpdate(updated);

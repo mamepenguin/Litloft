@@ -3,20 +3,21 @@ from pathlib import Path
 from typing import Annotated
 
 from fastapi import APIRouter, Depends, HTTPException, Request
-from fastapi.responses import FileResponse, StreamingResponse
+from fastapi.responses import FileResponse as FastAPIFileResponse
+from fastapi.responses import StreamingResponse
 from sqlalchemy.orm import Session
 
 import app.config as config
 from app.database import get_db
-from app.models import Tag, Video, video_tags
+from app.models import File, Tag, file_tags
 from app.schemas import (
+    FileResponse,
+    FileUpdate,
     TagUpdate,
-    VideoResponse,
-    VideoUpdate,
-    video_to_response,
+    file_to_response,
 )
 
-router = APIRouter(prefix="/api/videos", tags=["videos"])
+router = APIRouter(prefix="/api/files", tags=["files"])
 
 PLACEHOLDER_THUMBNAIL = Path(__file__).parent.parent / "static" / "placeholder.jpg"
 
@@ -29,110 +30,110 @@ def _validate_path(file_path: str, base_dir: Path) -> Path:
     return real_path
 
 
-_to_response = video_to_response
+_to_response = file_to_response
 
 
-@router.get("/{video_id}", response_model=VideoResponse)
-async def get_video(
-    video_id: int,
+@router.get("/{file_id}", response_model=FileResponse)
+async def get_file(
+    file_id: int,
     db: Annotated[Session, Depends(get_db)],
 ):
-    video = db.query(Video).filter(Video.id == video_id).first()
-    if not video:
-        raise HTTPException(status_code=404, detail="Video not found")
-    return _to_response(video)
+    file = db.query(File).filter(File.id == file_id).first()
+    if not file:
+        raise HTTPException(status_code=404, detail="File not found")
+    return _to_response(file)
 
 
-@router.put("/{video_id}", response_model=VideoResponse)
-async def update_video(
-    video_id: int,
-    update: VideoUpdate,
+@router.put("/{file_id}", response_model=FileResponse)
+async def update_file(
+    file_id: int,
+    update: FileUpdate,
     db: Annotated[Session, Depends(get_db)],
 ):
-    video = db.query(Video).filter(Video.id == video_id).first()
-    if not video:
-        raise HTTPException(status_code=404, detail="Video not found")
+    file = db.query(File).filter(File.id == file_id).first()
+    if not file:
+        raise HTTPException(status_code=404, detail="File not found")
 
     update_data = update.model_dump(exclude_unset=True)
     for key, value in update_data.items():
-        setattr(video, key, value)
+        setattr(file, key, value)
 
     db.commit()
-    db.refresh(video)
-    return _to_response(video)
+    db.refresh(file)
+    return _to_response(file)
 
 
-@router.post("/{video_id}/like", response_model=VideoResponse)
-async def like_video(
-    video_id: int,
+@router.post("/{file_id}/like", response_model=FileResponse)
+async def like_file(
+    file_id: int,
     db: Annotated[Session, Depends(get_db)],
 ):
-    video = db.query(Video).filter(Video.id == video_id).first()
-    if not video:
-        raise HTTPException(status_code=404, detail="Video not found")
+    file = db.query(File).filter(File.id == file_id).first()
+    if not file:
+        raise HTTPException(status_code=404, detail="File not found")
 
-    video.likes = Video.likes + 1
+    file.likes = File.likes + 1
     db.commit()
-    db.refresh(video)
-    return _to_response(video)
+    db.refresh(file)
+    return _to_response(file)
 
 
-@router.post("/{video_id}/dislike", response_model=VideoResponse)
-async def dislike_video(
-    video_id: int,
+@router.post("/{file_id}/dislike", response_model=FileResponse)
+async def dislike_file(
+    file_id: int,
     db: Annotated[Session, Depends(get_db)],
 ):
-    video = db.query(Video).filter(Video.id == video_id).first()
-    if not video:
-        raise HTTPException(status_code=404, detail="Video not found")
+    file = db.query(File).filter(File.id == file_id).first()
+    if not file:
+        raise HTTPException(status_code=404, detail="File not found")
 
-    video.dislikes = Video.dislikes + 1
+    file.dislikes = File.dislikes + 1
     db.commit()
-    db.refresh(video)
-    return _to_response(video)
+    db.refresh(file)
+    return _to_response(file)
 
 
-@router.post("/{video_id}/favorite", response_model=VideoResponse)
+@router.post("/{file_id}/favorite", response_model=FileResponse)
 async def toggle_favorite(
-    video_id: int,
+    file_id: int,
     db: Annotated[Session, Depends(get_db)],
 ):
-    video = db.query(Video).filter(Video.id == video_id).first()
-    if not video:
-        raise HTTPException(status_code=404, detail="Video not found")
+    file = db.query(File).filter(File.id == file_id).first()
+    if not file:
+        raise HTTPException(status_code=404, detail="File not found")
 
-    video.is_favorite = not video.is_favorite
+    file.is_favorite = not file.is_favorite
     db.commit()
-    db.refresh(video)
-    return _to_response(video)
+    db.refresh(file)
+    return _to_response(file)
 
 
-@router.put("/{video_id}/tags", response_model=VideoResponse)
-async def update_video_tags(
-    video_id: int,
+@router.put("/{file_id}/tags", response_model=FileResponse)
+async def update_file_tags(
+    file_id: int,
     update: TagUpdate,
     db: Annotated[Session, Depends(get_db)],
 ):
-    video = db.query(Video).filter(Video.id == video_id).first()
-    if not video:
-        raise HTTPException(status_code=404, detail="Video not found")
+    file = db.query(File).filter(File.id == file_id).first()
+    if not file:
+        raise HTTPException(status_code=404, detail="File not found")
 
     tag_objects = []
     for tag_name in update.tags:
-        tag = db.query(Tag).filter(Tag.name == tag_name, Tag.drive == video.drive).first()
+        tag = db.query(Tag).filter(Tag.name == tag_name, Tag.drive == file.drive).first()
         if not tag:
-            tag = Tag(name=tag_name, drive=video.drive)
+            tag = Tag(name=tag_name, drive=file.drive)
             db.add(tag)
             db.flush()
         tag_objects.append(tag)
 
-    video.tags = tag_objects
+    file.tags = tag_objects
     db.commit()
 
     orphans = (
         db.query(Tag)
-        .outerjoin(video_tags)
-        .filter(video_tags.c.video_id.is_(None))
+        .outerjoin(file_tags)
+        .filter(file_tags.c.file_id.is_(None))
         .all()
     )
     for orphan in orphans:
@@ -140,28 +141,29 @@ async def update_video_tags(
     if orphans:
         db.commit()
 
-    db.refresh(video)
-    return _to_response(video)
+    db.refresh(file)
+    return _to_response(file)
 
 
-@router.get("/{video_id}/stream")
-async def stream_video(
-    video_id: int,
+@router.get("/{file_id}/stream")
+async def stream_file(
+    file_id: int,
     request: Request,
     db: Annotated[Session, Depends(get_db)],
 ):
-    video = db.query(Video).filter(Video.id == video_id).first()
-    if not video:
-        raise HTTPException(status_code=404, detail="Video not found")
+    file = db.query(File).filter(File.id == file_id).first()
+    if not file:
+        raise HTTPException(status_code=404, detail="File not found")
 
-    drive_path = config.get_drive_path(video.drive)
+    drive_path = config.get_drive_path(file.drive)
     file_path = _validate_path(
-        str(drive_path / video.file_path), drive_path
+        str(drive_path / file.file_path), drive_path
     )
     if not file_path.exists():
-        raise HTTPException(status_code=404, detail="Video file not found")
+        raise HTTPException(status_code=404, detail="File not found on disk")
 
     file_size = file_path.stat().st_size
+    content_type = file.mime_type or "application/octet-stream"
     range_header = request.headers.get("range")
 
     if range_header:
@@ -200,7 +202,7 @@ async def stream_video(
                 "Content-Range": f"bytes {start}-{end}/{file_size}",
                 "Accept-Ranges": "bytes",
                 "Content-Length": str(end - start + 1),
-                "Content-Type": "video/mp4",
+                "Content-Type": content_type,
             },
         )
 
@@ -214,28 +216,28 @@ async def stream_video(
         headers={
             "Accept-Ranges": "bytes",
             "Content-Length": str(file_size),
-            "Content-Type": "video/mp4",
+            "Content-Type": content_type,
         },
     )
 
 
-@router.get("/{video_id}/thumbnail")
+@router.get("/{file_id}/thumbnail")
 async def get_thumbnail(
-    video_id: int,
+    file_id: int,
     db: Annotated[Session, Depends(get_db)],
 ):
-    video = db.query(Video).filter(Video.id == video_id).first()
-    if not video:
-        raise HTTPException(status_code=404, detail="Video not found")
+    file = db.query(File).filter(File.id == file_id).first()
+    if not file:
+        raise HTTPException(status_code=404, detail="File not found")
 
-    if video.thumbnail_path:
+    if file.thumbnail_path:
         thumb_path = _validate_path(
-            str(config.THUMBNAILS_DIR / video.thumbnail_path), config.DATA_DIR
+            str(config.THUMBNAILS_DIR / file.thumbnail_path), config.DATA_DIR
         )
         if thumb_path.exists():
-            return FileResponse(str(thumb_path), media_type="image/jpeg")
+            return FastAPIFileResponse(str(thumb_path), media_type="image/jpeg")
 
     if PLACEHOLDER_THUMBNAIL.exists():
-        return FileResponse(str(PLACEHOLDER_THUMBNAIL), media_type="image/jpeg")
+        return FastAPIFileResponse(str(PLACEHOLDER_THUMBNAIL), media_type="image/jpeg")
 
     raise HTTPException(status_code=404, detail="Thumbnail not found")

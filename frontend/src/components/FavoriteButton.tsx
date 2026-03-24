@@ -4,18 +4,18 @@ import { useEffect, useState } from "react";
 import { Star } from "lucide-react";
 
 import { toggleFavorite } from "@/lib/api";
-import type { Video } from "@/types";
+import type { FileItem } from "@/types";
 
 export function FavoriteButton({
-  videoId,
+  fileId,
   isFavorite,
   onToggle,
   size = "sm",
   showLabel = false,
 }: {
-  videoId: number;
+  fileId: number;
   isFavorite: boolean;
-  onToggle: (video: Video) => void;
+  onToggle: (file: FileItem) => void;
   size?: "sm" | "md";
   showLabel?: boolean;
 }) {
@@ -37,7 +37,7 @@ export function FavoriteButton({
     setOptimistic(!current);
     setPending(true);
     try {
-      const updated = await toggleFavorite(videoId);
+      const updated = await toggleFavorite(fileId);
       onToggle(updated);
     } catch {
       setOptimistic(current);

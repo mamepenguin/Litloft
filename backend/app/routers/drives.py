@@ -6,16 +6,16 @@ from sqlalchemy.orm import Session
 
 import app.config as config
 from app.database import get_db
-from app.models import Tag, Video, video_tags
+from app.models import File, Tag, file_tags
 from app.schemas import (
     DriveResponse,
+    FileResponse,
     FolderResponse,
     PaginatedResponse,
     PaginationMeta,
     ScanResponse,
     TagResponse,
-    VideoResponse,
-    video_to_response,
+    file_to_response,
 )
 from app.services.scanner import scan_drive
 
@@ -37,7 +37,7 @@ def _validate_folder_path(path: str) -> str:
     return path
 
 
-_to_response = video_to_response
+_to_response = file_to_response
 
 
 @router.get("", response_model=list[DriveResponse])
@@ -55,13 +55,13 @@ async def list_folders(
     if path:
         path = _validate_folder_path(path)
 
-    query = db.query(Video.folder_path).filter(Video.drive == drive_name)
+    query = db.query(File.folder_path).filter(File.drive == drive_name)
 
     if path:
         prefix = _escape_like(path) + "/"
-        query = query.filter(Video.folder_path.like(prefix + "%", escape="\\"))
+        query = query.filter(File.folder_path.like(prefix + "%", escape="\\"))
     else:
-        query = query.filter(Video.folder_path != "")
+        query = query.filter(File.folder_path != "")
 
     all_paths = {row[0] for row in query.all()}
 
@@ -81,20 +81,21 @@ async def list_folders(
         FolderResponse(
             name=fp.split("/")[-1],
             path=fp,
-            video_count=count,
+            file_count=count,
         )
         for fp, count in sorted(folders.items())
     ]
 
 
-@router.get("/{drive_name}/videos", response_model=PaginatedResponse)
-async def list_drive_videos(
+@router.get("/{drive_name}/files", response_model=PaginatedResponse)
+async def list_drive_files(
     drive_name: str,
     db: Annotated[Session, Depends(get_db)],
     path: str | None = None,
     search: str | None = None,
     favorite: bool | None = None,
     tag: str | None = None,
+    type: str | None = None,
     sort: str = Query("created_at", pattern="^(created_at|title|file_size)$"),
     order: str = Query("desc", pattern="^(asc|desc)$"),
     page: int = Query(1, ge=1),
@@ -104,30 +105,32 @@ async def list_drive_videos(
     if path is not None and path:
         path = _validate_folder_path(path)
 
-    query = db.query(Video).filter(Video.drive == drive_name)
+    query = db.query(File).filter(File.drive == drive_name)
 
     if path is not None:
-        query = query.filter(Video.folder_path == path)
+        query = query.filter(File.folder_path == path)
     if search:
         escaped_search = _escape_like(search)
-        query = query.filter(Video.title.ilike(f"%{escaped_search}%", escape="\\"))
+        query = query.filter(File.title.ilike(f"%{escaped_search}%", escape="\\"))
     if favorite is not None:
-        query = query.filter(Video.is_favorite == favorite)
+        query = query.filter(File.is_favorite == favorite)
     if tag:
-        query = query.filter(Video.tags.any(Tag.name == tag))
+        query = query.filter(File.tags.any(Tag.name == tag))
+    if type:
+        query = query.filter(File.file_type == type)
 
     total = query.count()
 
-    sort_column = getattr(Video, sort)
+    sort_column = getattr(File, sort)
     if order == "desc":
         sort_column = sort_column.desc()
     query = query.order_by(sort_column)
 
     offset = (page - 1) * limit
-    videos = query.offset(offset).limit(limit).all()
+    files = query.offset(offset).limit(limit).all()
 
     return PaginatedResponse(
-        data=[_to_response(v) for v in videos],
+        data=[_to_response(f) for f in files],
         meta=PaginationMeta(total=total, page=page, limit=limit),
     )
 
@@ -140,8 +143,8 @@ async def list_drive_tags(
     _validate_drive(drive_name)
 
     results = (
-        db.query(Tag.name, func.count(video_tags.c.video_id).label("count"))
-        .outerjoin(video_tags)
+        db.query(Tag.name, func.count(file_tags.c.file_id).label("count"))
+        .outerjoin(file_tags)
         .filter(Tag.drive == drive_name)
         .group_by(Tag.id)
         .order_by(Tag.name)
