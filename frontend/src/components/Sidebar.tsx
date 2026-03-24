@@ -3,7 +3,7 @@
 import { Suspense, useEffect, useState } from "react";
 import Link from "next/link";
 import { usePathname, useSearchParams } from "next/navigation";
-import { Clock, Files, HardDrive, Home, Star, Tag, X } from "lucide-react";
+import { Clock, FilePlus, Files, HardDrive, Home, Star, Tag, X } from "lucide-react";
 
 import { getDrives, getDriveTags } from "@/lib/api";
 import type { Drive, Tag as TagType } from "@/types";
@@ -51,6 +51,9 @@ function SidebarNav() {
     }
     if (href === `${driveBase}?view=recent`) {
       return pathname === driveBase && activeView === "recent";
+    }
+    if (href === `${driveBase}?view=recent-added`) {
+      return pathname === driveBase && activeView === "recent-added";
     }
     if (href === `${driveBase}?view=all`) {
       return pathname === driveBase && activeView === "all";
@@ -103,6 +106,10 @@ function SidebarNav() {
           <Link href={`${driveBase}?view=recent`} onClick={close} className={linkClass(`${driveBase}?view=recent`)}>
             <Clock size={16} />
             最近再生
+          </Link>
+          <Link href={`${driveBase}?view=recent-added`} onClick={close} className={linkClass(`${driveBase}?view=recent-added`)}>
+            <FilePlus size={16} />
+            最近追加
           </Link>
           <Link href={`${driveBase}?view=all`} onClick={close} className={linkClass(`${driveBase}?view=all`)}>
             <Files size={16} />

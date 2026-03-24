@@ -37,20 +37,23 @@ export function FolderBrowser({ driveName, folderPath, view, tagFilter }: Folder
   const limit = 30;
   const isFavorites = view === "favorites";
   const isRecent = view === "recent";
+  const isRecentAdded = view === "recent-added";
   const isAll = view === "all";
-  const isSpecialView = isFavorites || isRecent || isAll;
+  const isSpecialView = isFavorites || isRecent || isRecentAdded || isAll;
 
   const label = isFavorites
     ? "お気に入り"
     : isRecent
       ? "最近再生"
-      : isAll
-        ? "すべてのファイル"
-        : tagFilter
-          ? `#${tagFilter}`
-          : folderPath
-            ? folderPath.split("/").pop() || driveName
-            : driveName;
+      : isRecentAdded
+        ? "最近追加"
+        : isAll
+          ? "すべてのファイル"
+          : tagFilter
+            ? `#${tagFilter}`
+            : folderPath
+              ? folderPath.split("/").pop() || driveName
+              : driveName;
 
   const fetchFiles = useCallback(() => {
     setLoading(true);
@@ -78,8 +81,8 @@ export function FolderBrowser({ driveName, folderPath, view, tagFilter }: Folder
       path: isSpecialView ? undefined : (folderPath ?? ""),
       favorite: isFavorites ? true : undefined,
       tag: tagFilter || undefined,
-      sort,
-      order,
+      sort: isRecentAdded ? "created_at" : sort,
+      order: isRecentAdded ? "desc" : order,
       page,
       limit,
     }).then((res: PaginatedResponse) => {
@@ -91,15 +94,15 @@ export function FolderBrowser({ driveName, folderPath, view, tagFilter }: Folder
       setTotal(0);
       setLoading(false);
     });
-  }, [driveName, folderPath, sort, order, page, isFavorites, isRecent, isSpecialView, tagFilter, limit]);
+  }, [driveName, folderPath, sort, order, page, isFavorites, isRecent, isRecentAdded, isSpecialView, tagFilter, limit]);
 
   useEffect(() => {
-    if (!isSpecialView) {
+    if (!isSpecialView && !tagFilter) {
       getFolders(driveName, folderPath).then(setFolders).catch(() => setFolders([]));
     } else {
       setFolders([]);
     }
-  }, [driveName, folderPath, isSpecialView]);
+  }, [driveName, folderPath, isSpecialView, tagFilter]);
 
   useEffect(() => {
     fetchFiles();
@@ -131,7 +134,7 @@ export function FolderBrowser({ driveName, folderPath, view, tagFilter }: Folder
 
   useEffect(() => {
     if (refreshKey === 0) return;
-    if (!isSpecialView) {
+    if (!isSpecialView && !tagFilter) {
       getFolders(driveName, folderPath).then(setFolders).catch(() => setFolders([]));
     }
     fetchFiles();
@@ -198,7 +201,7 @@ export function FolderBrowser({ driveName, folderPath, view, tagFilter }: Folder
 
       {/* Toolbar row */}
       <div className="mb-4 flex items-center gap-2">
-        {!isFavorites && !isAll && !tagFilter && (
+        {!isSpecialView && !tagFilter && (
           <>
             <input
               ref={fileInputRef}
@@ -321,6 +324,8 @@ export function FolderBrowser({ driveName, folderPath, view, tagFilter }: Folder
           <EmptyState variant="no-favorites" />
         ) : isRecent ? (
           <EmptyState variant="no-recent" />
+        ) : isRecentAdded ? (
+          <EmptyState variant="no-recent-added" />
         ) : (
           <EmptyState variant="no-files" />
         )
