@@ -59,9 +59,9 @@ export function FileCard({
       )}
       <Wrapper
         {...wrapperProps as any}
-        className={`group block rounded-xl bg-bg-card overflow-hidden transition-transform duration-200 ease-out hover:scale-[1.02] hover:shadow-lg ${
+        className={`group block rounded-xl overflow-hidden transition-colors duration-200 ease-out hover:bg-bg-card ${
           selectable ? "cursor-pointer select-none" : ""
-        } ${selected ? "ring-2 ring-accent" : ""}`}
+        } ${selected ? "ring-2 ring-accent bg-bg-card" : ""}`}
         onContextMenu={selectable ? undefined : onContextMenu}
       >
         <div className="relative aspect-video bg-bg-elevated">
@@ -96,7 +96,7 @@ export function FileCard({
           <h3 className="line-clamp-2 text-sm font-semibold text-text-primary group-hover:text-accent">
             {file.title}
           </h3>
-          <div className="mt-1 flex items-center gap-1.5 text-xs text-text-muted">
+          <div className="mt-1 flex flex-wrap items-center gap-x-1.5 gap-y-0.5 text-xs text-text-muted">
             <span className="tabular-nums">{formatFileSize(file.file_size)}</span>
             <span className="opacity-40">·</span>
             <span className="tabular-nums">{formatRelativeDate(file.updated_at)}</span>

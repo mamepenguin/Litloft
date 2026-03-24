@@ -28,8 +28,8 @@ export const viewport: Viewport = {
   width: "device-width",
   initialScale: 1,
   themeColor: [
-    { media: "(prefers-color-scheme: dark)", color: "#0c1221" },
-    { media: "(prefers-color-scheme: light)", color: "#f0f2f8" },
+    { media: "(prefers-color-scheme: dark)", color: "#130c06" },
+    { media: "(prefers-color-scheme: light)", color: "#faf5f0" },
   ],
 };
 
@@ -55,7 +55,7 @@ export default function RootLayout({
           <SidebarProvider>
             <div className="flex min-h-dvh">
               <Sidebar />
-              <main className="flex flex-1 flex-col">
+              <main className="flex min-w-0 flex-1 flex-col">
                 <Header />
                 {children}
               </main>

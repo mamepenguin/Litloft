@@ -196,11 +196,11 @@ export function FolderBrowser({ driveName, folderPath, view, tagFilter }: Folder
 
   return (
     <UploadZone drive={driveName} folderPath={folderPath ?? ""} onUploadComplete={refresh}>
-    <div className="w-full flex-1 px-4 py-6">
+    <div className="min-w-0 w-full flex-1 px-2 py-4 sm:px-4 sm:py-6">
       <Breadcrumb driveName={driveName} folderPath={folderPath} />
 
       {/* Toolbar row */}
-      <div className="mb-4 flex items-center gap-2">
+      <div className="mb-4 flex flex-wrap items-center gap-2">
         {!isSpecialView && !tagFilter && (
           <>
             <input
@@ -219,14 +219,15 @@ export function FolderBrowser({ driveName, folderPath, view, tagFilter }: Folder
             />
             <button
               onClick={() => fileInputRef.current?.click()}
-              className="flex items-center gap-2 rounded-lg bg-accent px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-accent/80"
+              className="flex items-center gap-2 rounded-lg bg-accent px-3 py-2 text-sm font-medium text-white transition-colors hover:bg-accent/80"
+              aria-label="アップロード"
             >
               <Upload size={16} />
-              Upload
+              <span className="hidden sm:inline">Upload</span>
             </button>
 
             {creatingFolder ? (
-              <div className="flex items-center gap-2">
+              <div className="flex w-full items-center gap-2 sm:w-auto">
                 <input
                   type="text"
                   autoFocus
@@ -237,7 +238,7 @@ export function FolderBrowser({ driveName, folderPath, view, tagFilter }: Folder
                     if (e.key === "Escape") { setCreatingFolder(false); setNewFolderName(""); setFolderError(null); }
                   }}
                   placeholder="フォルダ名..."
-                  className="rounded-lg bg-bg-card px-3 py-2 text-sm text-text-primary placeholder:text-text-muted outline-none focus:ring-2 focus:ring-accent"
+                  className="min-w-0 flex-1 rounded-lg bg-bg-card px-3 py-2 text-sm text-text-primary placeholder:text-text-muted outline-none focus:ring-2 focus:ring-accent sm:w-40 sm:flex-initial"
                 />
                 <button
                   onClick={handleCreateFolder}
@@ -256,10 +257,11 @@ export function FolderBrowser({ driveName, folderPath, view, tagFilter }: Folder
             ) : (
               <button
                 onClick={() => setCreatingFolder(true)}
-                className="flex items-center gap-2 rounded-lg border border-bg-border bg-bg-card px-4 py-2 text-sm font-medium text-text-primary transition-colors hover:bg-bg-elevated"
+                className="flex items-center gap-2 rounded-lg border border-bg-border bg-bg-card px-3 py-2 text-sm font-medium text-text-primary transition-colors hover:bg-bg-elevated"
+                aria-label="新規フォルダ"
               >
                 <FolderPlus size={16} />
-                New Folder
+                <span className="hidden sm:inline">New Folder</span>
               </button>
             )}
           </>
@@ -267,40 +269,42 @@ export function FolderBrowser({ driveName, folderPath, view, tagFilter }: Folder
 
         <div className="flex-1" />
 
-        <SortButton
-          sort={sort}
-          order={order}
-          onChange={(s, o) => { setSort(s); setOrder(o); setPage(1); }}
-        />
+        <div className="flex items-center gap-2">
+          <SortButton
+            sort={sort}
+            order={order}
+            onChange={(s, o) => { setSort(s); setOrder(o); setPage(1); }}
+          />
 
-        <button
-          onClick={() => {
-            setSelectable((s) => {
-              if (s) selection.clear();
-              return !s;
-            });
-          }}
-          className={`flex items-center gap-1.5 rounded-lg px-3 py-2 text-sm transition-colors ${
-            selectable
-              ? "bg-accent text-white"
-              : "bg-bg-card text-text-muted hover:text-text-primary"
-          }`}
-          aria-label="選択モード"
-        >
-          <CheckSquare size={16} />
-        </button>
+          <button
+            onClick={() => {
+              setSelectable((s) => {
+                if (s) selection.clear();
+                return !s;
+              });
+            }}
+            className={`flex items-center gap-1.5 rounded-lg px-3 py-2 text-sm transition-colors ${
+              selectable
+                ? "bg-accent text-white"
+                : "bg-bg-card text-text-muted hover:text-text-primary"
+            }`}
+            aria-label="選択モード"
+          >
+            <CheckSquare size={16} />
+          </button>
 
-        <ViewToggle onChange={handleViewChange} />
+          <ViewToggle onChange={handleViewChange} />
 
-        <button
-          onClick={handleScan}
-          disabled={scanning}
-          className="flex items-center gap-1.5 rounded-lg bg-bg-card px-3 py-2 text-sm text-text-muted transition-colors hover:text-text-primary disabled:opacity-50"
-          aria-label="再スキャン"
-          title="ドライブを再スキャン"
-        >
-          <RefreshCw size={16} className={scanning ? "animate-spin" : ""} />
-        </button>
+          <button
+            onClick={handleScan}
+            disabled={scanning}
+            className="flex items-center gap-1.5 rounded-lg bg-bg-card px-3 py-2 text-sm text-text-muted transition-colors hover:text-text-primary disabled:opacity-50"
+            aria-label="再スキャン"
+            title="ドライブを再スキャン"
+          >
+            <RefreshCw size={16} className={scanning ? "animate-spin" : ""} />
+          </button>
+        </div>
       </div>
 
       <p className="mb-4 text-sm text-text-muted">
