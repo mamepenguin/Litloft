@@ -8,6 +8,7 @@ import { Film, HardDrive, Home, Menu, Star, Tag, X } from "lucide-react";
 import { getDrives, getDriveTags } from "@/lib/api";
 import type { Drive, Tag as TagType } from "@/types";
 import { useSidebar } from "./SidebarProvider";
+import { ThemeToggle } from "./ThemeToggle";
 
 function useCurrentDrive(): string | null {
   const pathname = usePathname();
@@ -78,10 +79,11 @@ function SidebarNav() {
 
   return (
     <nav className="flex flex-col gap-1 overflow-y-auto p-3">
-      <div className="mb-2 px-3 py-2">
+      <div className="mb-2 flex items-center justify-between px-3 py-2">
         <Link href="/" onClick={close} className="text-lg font-bold text-text-primary">
           Video Share
         </Link>
+        <ThemeToggle />
       </div>
 
       <div className="mb-1 px-3 text-[11px] font-semibold uppercase tracking-wider text-text-muted">
@@ -183,7 +185,7 @@ export function Sidebar() {
       )}
 
       <aside
-        className={`fixed top-0 left-0 z-40 h-dvh w-60 flex-shrink-0 border-r border-white/5 bg-bg-primary transition-transform md:static md:translate-x-0 ${
+        className={`fixed top-0 left-0 z-40 h-dvh w-60 flex-shrink-0 border-r border-bg-border bg-bg-primary transition-transform md:static md:translate-x-0 ${
           isOpen ? "translate-x-0" : "-translate-x-full"
         }`}
       >
