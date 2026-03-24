@@ -1,6 +1,6 @@
 "use client";
 
-import { type DragEvent, type ReactNode, useCallback, useRef, useState } from "react";
+import { type DragEvent, type ReactNode, useCallback, useEffect, useRef, useState } from "react";
 import { Upload } from "lucide-react";
 import { useUpload } from "@/hooks/useUpload";
 import { UploadProgress } from "./UploadProgress";
@@ -20,10 +20,25 @@ export function UploadZone({
 }: UploadZoneProps) {
   const [isDragging, setIsDragging] = useState(false);
   const dragCounterRef = useRef(0);
+  const zoneRef = useRef<HTMLDivElement>(null);
   const { uploads, addFiles, cancelUpload, clearCompleted } = useUpload(
     drive,
     folderPath
   );
+
+  // Listen for upload-files custom event from the Upload button
+  useEffect(() => {
+    const el = zoneRef.current;
+    if (!el) return;
+    function handleUploadFiles(e: Event) {
+      const files = (e as CustomEvent<File[]>).detail;
+      if (files && files.length > 0) {
+        addFiles(files);
+      }
+    }
+    el.addEventListener("upload-files", handleUploadFiles);
+    return () => el.removeEventListener("upload-files", handleUploadFiles);
+  }, [addFiles]);
 
   const handleDragEnter = useCallback((e: DragEvent) => {
     e.preventDefault();
@@ -74,6 +89,8 @@ export function UploadZone({
 
   return (
     <div
+      ref={zoneRef}
+      data-upload-zone
       className="relative"
       onDragEnter={handleDragEnter}
       onDragLeave={handleDragLeave}

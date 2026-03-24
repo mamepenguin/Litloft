@@ -1,7 +1,7 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
-import { FolderPlus, Search, X } from "lucide-react";
+import { useCallback, useEffect, useRef, useState } from "react";
+import { FolderPlus, Search, Upload, X } from "lucide-react";
 
 import { createFolder, getDriveFiles, getFolders } from "@/lib/api";
 import type { FileItem, Folder, PaginatedResponse, SortField, SortOrder, ViewMode } from "@/types";
@@ -151,11 +151,79 @@ export function FolderBrowser({ driveName, folderPath, view, tagFilter }: Folder
 
   const totalPages = Math.ceil(total / limit);
 
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
   return (
     <UploadZone drive={driveName} folderPath={folderPath ?? ""} onUploadComplete={refresh}>
     <div className="w-full flex-1 px-4 py-6">
       <Breadcrumb driveName={driveName} folderPath={folderPath} />
 
+      {/* Action buttons row */}
+      {!isFavorites && !isAll && !tagFilter && (
+        <div className="mb-4 flex items-center gap-2">
+          <input
+            ref={fileInputRef}
+            type="file"
+            multiple
+            className="hidden"
+            onChange={(e) => {
+              const uploadZone = document.querySelector<HTMLElement>("[data-upload-zone]");
+              if (uploadZone && e.target.files) {
+                const event = new CustomEvent("upload-files", { detail: Array.from(e.target.files) });
+                uploadZone.dispatchEvent(event);
+              }
+              e.target.value = "";
+            }}
+          />
+          <button
+            onClick={() => fileInputRef.current?.click()}
+            className="flex items-center gap-2 rounded-lg bg-accent px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-accent/80"
+          >
+            <Upload size={16} />
+            Upload
+          </button>
+
+          {creatingFolder ? (
+            <div className="flex items-center gap-2">
+              <input
+                type="text"
+                autoFocus
+                value={newFolderName}
+                onChange={(e) => setNewFolderName(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") handleCreateFolder();
+                  if (e.key === "Escape") { setCreatingFolder(false); setNewFolderName(""); setFolderError(null); }
+                }}
+                placeholder="フォルダ名..."
+                className="rounded-lg bg-bg-card px-3 py-2 text-sm text-text-primary placeholder:text-text-muted outline-none focus:ring-2 focus:ring-accent"
+              />
+              <button
+                onClick={handleCreateFolder}
+                className="rounded-lg bg-accent px-3 py-2 text-sm text-white hover:bg-accent/80"
+              >
+                作成
+              </button>
+              <button
+                onClick={() => { setCreatingFolder(false); setNewFolderName(""); setFolderError(null); }}
+                className="rounded-lg p-2 text-text-muted hover:text-text-primary"
+              >
+                <X size={16} />
+              </button>
+              {folderError && <span className="text-xs text-red-400">{folderError}</span>}
+            </div>
+          ) : (
+            <button
+              onClick={() => setCreatingFolder(true)}
+              className="flex items-center gap-2 rounded-lg border border-bg-border bg-bg-card px-4 py-2 text-sm font-medium text-text-primary transition-colors hover:bg-bg-elevated"
+            >
+              <FolderPlus size={16} />
+              New Folder
+            </button>
+          )}
+        </div>
+      )}
+
+      {/* Search / Sort / View row */}
       <div className="mb-4 flex flex-wrap items-center gap-3">
         <div className="relative min-w-[200px] flex-1">
           <Search
@@ -204,46 +272,6 @@ export function FolderBrowser({ driveName, folderPath, view, tagFilter }: Folder
         </select>
 
         <ViewToggle onChange={handleViewChange} />
-
-        {!isFavorites && !isAll && !tagFilter && (
-          creatingFolder ? (
-            <div className="flex items-center gap-2">
-              <input
-                type="text"
-                autoFocus
-                value={newFolderName}
-                onChange={(e) => setNewFolderName(e.target.value)}
-                onKeyDown={(e) => {
-                  if (e.key === "Enter") handleCreateFolder();
-                  if (e.key === "Escape") { setCreatingFolder(false); setNewFolderName(""); }
-                }}
-                placeholder="フォルダ名..."
-                className="rounded-lg bg-bg-card px-3 py-2 text-sm text-text-primary placeholder:text-text-muted outline-none focus:ring-2 focus:ring-accent"
-              />
-              <button
-                onClick={handleCreateFolder}
-                className="rounded-lg bg-accent px-3 py-2 text-sm text-white hover:bg-accent/80"
-              >
-                作成
-              </button>
-              <button
-                onClick={() => { setCreatingFolder(false); setNewFolderName(""); setFolderError(null); }}
-                className="rounded-lg bg-bg-card px-3 py-2 text-sm text-text-muted hover:text-text-primary"
-              >
-                <X size={16} />
-              </button>
-              {folderError && <span className="text-xs text-red-400">{folderError}</span>}
-            </div>
-          ) : (
-            <button
-              onClick={() => setCreatingFolder(true)}
-              className="flex items-center gap-1.5 rounded-lg bg-bg-card px-3 py-2 text-sm text-text-muted hover:text-text-primary"
-            >
-              <FolderPlus size={16} />
-              新規フォルダ
-            </button>
-          )
-        )}
       </div>
 
       <p className="mb-4 text-sm text-text-muted">
