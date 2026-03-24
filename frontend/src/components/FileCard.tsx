@@ -1,6 +1,6 @@
 import Link from "next/link";
 import type { FileItem } from "@/types";
-import { formatDuration } from "@/lib/format";
+import { formatDuration, formatFileSize, formatRelativeDate } from "@/lib/format";
 import { getThumbnailUrl } from "@/lib/api";
 import { FavoriteButton } from "./FavoriteButton";
 import { TagList } from "./TagList";
@@ -96,9 +96,16 @@ export function FileCard({
           <h3 className="line-clamp-2 text-sm font-semibold text-text-primary group-hover:text-accent">
             {file.title}
           </h3>
-          <div className="mt-1 flex items-center gap-1.5">
-            <span className="text-xs text-text-muted">{file.folder_path || file.drive}</span>
-            {file.tags.length > 0 && <TagList tags={file.tags} maxVisible={2} />}
+          <div className="mt-1 flex items-center gap-1.5 text-xs text-text-muted">
+            <span className="tabular-nums">{formatFileSize(file.file_size)}</span>
+            <span className="opacity-40">·</span>
+            <span className="tabular-nums">{formatRelativeDate(file.updated_at)}</span>
+            {file.tags.length > 0 && (
+              <>
+                <span className="opacity-40">·</span>
+                <TagList tags={file.tags} maxVisible={2} />
+              </>
+            )}
           </div>
         </div>
       </Wrapper>

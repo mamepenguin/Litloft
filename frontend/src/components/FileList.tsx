@@ -5,7 +5,7 @@ import Link from "next/link";
 import { Download, Move, Pencil, Trash2 } from "lucide-react";
 
 import { deleteFile, getDownloadUrl, getThumbnailUrl, moveFile, renameFile } from "@/lib/api";
-import { formatDuration, formatFileSize } from "@/lib/format";
+import { formatDuration, formatFileSize, formatRelativeDate } from "@/lib/format";
 import type { FileItem } from "@/types";
 import { FavoriteButton } from "./FavoriteButton";
 import { TagList } from "./TagList";
@@ -109,9 +109,16 @@ export function FileList({
                 </div>
               )}
               {(() => {
+                const fileTypeLabel: Record<string, string> = {
+                  video: "動画",
+                  image: "画像",
+                  audio: "音声",
+                  document: "文書",
+                  other: "ファイル",
+                };
                 const content = (
                   <>
-                    <div className="relative h-16 w-28 flex-shrink-0 overflow-hidden rounded-md bg-bg-elevated">
+                    <div className="relative h-12 w-20 flex-shrink-0 overflow-hidden rounded-md bg-bg-elevated sm:h-14 sm:w-24">
                       {hasThumbnail ? (
                         <img
                           src={getThumbnailUrl(file.id)}
@@ -121,7 +128,7 @@ export function FileList({
                         />
                       ) : (
                         <div className="flex h-full w-full items-center justify-center">
-                          <FileTypeIcon fileType={file.file_type} size={24} className="text-text-muted" />
+                          <FileTypeIcon fileType={file.file_type} size={22} className="text-text-muted" />
                         </div>
                       )}
                       {hasDuration && (
@@ -131,14 +138,28 @@ export function FileList({
                       )}
                     </div>
                     <div className="min-w-0 flex-1">
-                      <h3 className="truncate text-sm font-semibold text-text-primary">
-                        {file.title}
-                      </h3>
-                      <div className="flex items-center gap-1.5">
-                        <span className="text-xs text-text-muted">
-                          {file.folder_path || file.drive} · {formatFileSize(file.file_size)}
+                      <div className="flex items-center gap-2">
+                        <h3 className="min-w-0 flex-1 truncate text-sm font-semibold text-text-primary">
+                          {file.title}
+                        </h3>
+                        <span className="hidden flex-shrink-0 text-xs tabular-nums text-text-muted sm:inline">
+                          {formatFileSize(file.file_size)}
                         </span>
-                        {file.tags.length > 0 && <TagList tags={file.tags} maxVisible={3} />}
+                        <span className="hidden flex-shrink-0 text-xs tabular-nums text-text-muted sm:inline">
+                          {formatRelativeDate(file.updated_at)}
+                        </span>
+                      </div>
+                      <div className="mt-0.5 flex items-center gap-1.5 text-xs text-text-muted">
+                        <span className="flex-shrink-0">{fileTypeLabel[file.file_type] ?? file.file_type}</span>
+                        <span className="flex-shrink-0 sm:hidden">{formatFileSize(file.file_size)}</span>
+                        <span className="flex-shrink-0 opacity-40 sm:hidden">·</span>
+                        <span className="flex-shrink-0 sm:hidden">{formatRelativeDate(file.updated_at)}</span>
+                        {file.tags.length > 0 && (
+                          <>
+                            <span className="hidden flex-shrink-0 opacity-40 sm:inline">·</span>
+                            <TagList tags={file.tags} maxVisible={3} />
+                          </>
+                        )}
                       </div>
                     </div>
                   </>
