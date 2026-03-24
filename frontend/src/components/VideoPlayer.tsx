@@ -131,14 +131,14 @@ export function VideoPlayer({ videoId }: { videoId: number }) {
   }, [videoId]);
 
   return (
-    <div className="w-full overflow-hidden rounded-xl bg-black">
+    <div className="aspect-video w-full overflow-hidden rounded-xl bg-black">
       <video
         ref={videoRef}
         src={getStreamUrl(videoId)}
         controls
         playsInline
         preload="metadata"
-        className="w-full"
+        className="h-full w-full object-contain"
         onLoadedMetadata={handleLoadedMetadata}
         onTimeUpdate={handleTimeUpdate}
         onEnded={handleEnded}
