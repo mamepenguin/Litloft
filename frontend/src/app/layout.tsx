@@ -6,6 +6,7 @@ import { Header } from "@/components/Header";
 import { Sidebar } from "@/components/Sidebar";
 import { SidebarProvider } from "@/components/SidebarProvider";
 import { ThemeProvider } from "@/components/ThemeProvider";
+import { CurrentDriveProvider } from "@/components/CurrentDriveProvider";
 
 const inter = Inter({
   variable: "--font-inter",
@@ -52,15 +53,17 @@ export default function RootLayout({
       </head>
       <body className="min-h-dvh">
         <ThemeProvider>
-          <SidebarProvider>
-            <div className="flex min-h-dvh">
-              <Sidebar />
-              <main className="flex min-w-0 flex-1 flex-col">
-                <Header />
-                {children}
-              </main>
-            </div>
-          </SidebarProvider>
+          <CurrentDriveProvider>
+            <SidebarProvider>
+              <div className="flex min-h-dvh">
+                <Sidebar />
+                <main className="flex min-w-0 flex-1 flex-col">
+                  <Header />
+                  {children}
+                </main>
+              </div>
+            </SidebarProvider>
+          </CurrentDriveProvider>
         </ThemeProvider>
       </body>
     </html>

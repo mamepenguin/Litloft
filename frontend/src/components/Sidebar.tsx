@@ -8,13 +8,7 @@ import { Clock, FilePlus, Files, HardDrive, Home, Lock, LockOpen, Star, Tag, X }
 import { getDrives, getDriveTags, getAuthStatus, lock as lockApi } from "@/lib/api";
 import type { AuthStatus, Drive, Tag as TagType } from "@/types";
 import { useSidebar } from "./SidebarProvider";
-
-function useCurrentDrive(): string | null {
-  const pathname = usePathname();
-  const match = pathname.match(/^\/drive\/([^/]+)/);
-  if (!match) return null;
-  return decodeURIComponent(match[1]);
-}
+import { useCurrentDrive } from "./CurrentDriveProvider";
 
 function SidebarNav() {
   const pathname = usePathname();
@@ -95,7 +89,7 @@ function SidebarNav() {
       <div className="mb-1 px-3 text-[11px] font-semibold uppercase tracking-wider text-text-muted">
         Library
       </div>
-      <Link href="/" onClick={close} className={linkClass("/")}>
+      <Link href={driveBase ?? "/"} onClick={close} className={linkClass(driveBase ?? "/")}>
         <Home size={16} />
         ホーム
       </Link>

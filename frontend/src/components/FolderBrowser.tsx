@@ -38,8 +38,9 @@ export function FolderBrowser({ driveName, folderPath, view, tagFilter }: Folder
   const isFavorites = view === "favorites";
   const isRecent = view === "recent";
   const isRecentAdded = view === "recent-added";
+  const isPopular = view === "popular";
   const isAll = view === "all";
-  const isSpecialView = isFavorites || isRecent || isRecentAdded || isAll;
+  const isSpecialView = isFavorites || isRecent || isRecentAdded || isPopular || isAll;
 
   const label = isFavorites
     ? "お気に入り"
@@ -47,13 +48,15 @@ export function FolderBrowser({ driveName, folderPath, view, tagFilter }: Folder
       ? "最近再生"
       : isRecentAdded
         ? "最近追加"
-        : isAll
-          ? "すべてのファイル"
-          : tagFilter
-            ? `#${tagFilter}`
-            : folderPath
-              ? folderPath.split("/").pop() || driveName
-              : driveName;
+        : isPopular
+          ? "人気"
+          : isAll
+            ? "すべてのファイル"
+            : tagFilter
+              ? `#${tagFilter}`
+              : folderPath
+                ? folderPath.split("/").pop() || driveName
+                : driveName;
 
   const fetchFiles = useCallback(() => {
     setLoading(true);
@@ -81,8 +84,8 @@ export function FolderBrowser({ driveName, folderPath, view, tagFilter }: Folder
       path: isSpecialView || tagFilter ? undefined : (folderPath ?? ""),
       favorite: isFavorites ? true : undefined,
       tag: tagFilter || undefined,
-      sort: isRecentAdded ? "created_at" : sort,
-      order: isRecentAdded ? "desc" : order,
+      sort: isRecentAdded ? "created_at" : isPopular ? "likes" : sort,
+      order: isRecentAdded || isPopular ? "desc" : order,
       page,
       limit,
     }).then((res: PaginatedResponse) => {
@@ -94,7 +97,7 @@ export function FolderBrowser({ driveName, folderPath, view, tagFilter }: Folder
       setTotal(0);
       setLoading(false);
     });
-  }, [driveName, folderPath, sort, order, page, isFavorites, isRecent, isRecentAdded, isSpecialView, tagFilter, limit]);
+  }, [driveName, folderPath, sort, order, page, isFavorites, isRecent, isRecentAdded, isPopular, isSpecialView, tagFilter, limit]);
 
   useEffect(() => {
     if (!isSpecialView && !tagFilter) {

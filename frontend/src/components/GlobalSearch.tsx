@@ -7,16 +7,10 @@ import { ArrowLeft, ArrowUpLeft, Clock, Search, X } from "lucide-react";
 import { getDriveFiles } from "@/lib/api";
 import type { FileItem } from "@/types";
 import { FileTypeIcon } from "./FileTypeIcon";
+import { useCurrentDrive } from "./CurrentDriveProvider";
 
 const HISTORY_KEY = "search-history";
 const MAX_HISTORY = 20;
-
-function useCurrentDrive(): string | null {
-  if (typeof window === "undefined") return null;
-  const match = window.location.pathname.match(/^\/drive\/([^/]+)/);
-  if (!match) return null;
-  return decodeURIComponent(match[1]);
-}
 
 function getHistory(): string[] {
   if (typeof window === "undefined") return [];

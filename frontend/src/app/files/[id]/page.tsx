@@ -12,6 +12,7 @@ import { FilePreview } from "@/components/FilePreview";
 import { FavoriteButton } from "@/components/FavoriteButton";
 import { TagEditor } from "@/components/TagEditor";
 import { FileActions } from "@/components/FileActions";
+import { useSetOverrideDrive } from "@/components/CurrentDriveProvider";
 
 export default function FilePage() {
   const params = useParams();
@@ -23,14 +24,17 @@ export default function FilePage() {
   const [editTitle, setEditTitle] = useState("");
   const [editDesc, setEditDesc] = useState("");
   const [saving, setSaving] = useState(false);
+  const setOverrideDrive = useSetOverrideDrive();
 
   useEffect(() => {
     getFile(fileId).then((f) => {
       setFile(f);
       setEditTitle(f.title);
       setEditDesc(f.description);
+      setOverrideDrive(f.drive);
     });
-  }, [fileId]);
+    return () => setOverrideDrive(null);
+  }, [fileId, setOverrideDrive]);
 
   async function handleLike() {
     if (!file) return;

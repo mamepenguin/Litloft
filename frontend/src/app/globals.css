@@ -78,3 +78,11 @@ body {
   overscroll-behavior: contain;
   transition: background-color 0.2s ease, color 0.2s ease;
 }
+
+@utility scrollbar-hide {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+  &::-webkit-scrollbar {
+    display: none;
+  }
+}

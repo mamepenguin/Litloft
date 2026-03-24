@@ -132,7 +132,7 @@ async def list_drive_files(
     favorite: bool | None = None,
     tag: str | None = None,
     type: str | None = None,
-    sort: str = Query("created_at", pattern="^(created_at|title|file_size)$"),
+    sort: str = Query("created_at", pattern="^(created_at|title|file_size|likes|random)$"),
     order: str = Query("desc", pattern="^(asc|desc)$"),
     page: int = Query(1, ge=1),
     limit: int = Query(30, ge=1, le=100),
@@ -157,10 +157,13 @@ async def list_drive_files(
 
     total = query.count()
 
-    sort_column = getattr(File, sort)
-    if order == "desc":
-        sort_column = sort_column.desc()
-    query = query.order_by(sort_column)
+    if sort == "random":
+        query = query.order_by(func.random())
+    else:
+        sort_column = getattr(File, sort)
+        if order == "desc":
+            sort_column = sort_column.desc()
+        query = query.order_by(sort_column)
 
     offset = (page - 1) * limit
     files = query.offset(offset).limit(limit).all()

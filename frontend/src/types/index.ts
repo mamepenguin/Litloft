@@ -59,7 +59,7 @@ export interface Tag {
 }
 
 export type ViewMode = "grid" | "list";
-export type SortField = "created_at" | "title" | "file_size";
+export type SortField = "created_at" | "title" | "file_size" | "likes" | "random";
 export type SortOrder = "asc" | "desc";
 
 export interface UploadInitResponse {
