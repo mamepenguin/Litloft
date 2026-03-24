@@ -28,8 +28,10 @@ export function FileActions({ file, onUpdate, onDelete }: FileActionsProps) {
   const [error, setError] = useState<string | null>(null);
   const menuRef = useRef<HTMLDivElement>(null);
 
+  const anyDialogOpen = renameOpen || moveOpen || deleteOpen;
+
   useEffect(() => {
-    if (!menuOpen) return;
+    if (!menuOpen || anyDialogOpen) return;
     function handleClick(e: MouseEvent) {
       if (menuRef.current && !menuRef.current.contains(e.target as Node)) {
         setMenuOpen(false);
@@ -37,7 +39,7 @@ export function FileActions({ file, onUpdate, onDelete }: FileActionsProps) {
     }
     document.addEventListener("mousedown", handleClick);
     return () => document.removeEventListener("mousedown", handleClick);
-  }, [menuOpen]);
+  }, [menuOpen, anyDialogOpen]);
 
   useEffect(() => {
     if (error) {
