@@ -5,7 +5,7 @@ import { CheckSquare, FolderPlus, RefreshCw, Upload, X } from "lucide-react";
 
 import { addPin, batchGetFiles, createFolder, getDriveFiles, getFolders, getPins, removePin, scanDrive } from "@/lib/api";
 import { getRecentFileIds } from "@/lib/recentlyPlayed";
-import type { FileItem, Folder, PaginatedResponse, PinnedFolder, SortField, SortOrder, ViewMode } from "@/types";
+import type { FileItem, Folder, PaginatedResponse, SortField, SortOrder, ViewMode } from "@/types";
 import { FileGrid } from "@/components/FileGrid";
 import { FileList } from "@/components/FileList";
 import { ViewToggle } from "@/components/ViewToggle";
@@ -128,7 +128,8 @@ export function FolderBrowser({ driveName, folderPath, view, tagFilter }: Folder
   const handleTogglePin = useCallback(
     async (folderPath: string) => {
       try {
-        if (pinnedPaths.has(folderPath)) {
+        const isPinned = pinnedPaths.has(folderPath);
+        if (isPinned) {
           await removePin(driveName, folderPath);
           setPinnedPaths((prev) => {
             const next = new Set(prev);
