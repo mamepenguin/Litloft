@@ -1,10 +1,22 @@
 import re
-from datetime import datetime
+from datetime import UTC, datetime
 
-from pydantic import BaseModel, field_validator
+from pydantic import BaseModel, field_validator, model_serializer
 
 
-class FileResponse(BaseModel):
+class _UtcDateTimeMixin:
+    """Ensure naive datetimes from SQLite are serialized with UTC timezone."""
+
+    @model_serializer(mode="wrap")
+    def _serialize_utc(self, handler):
+        data = handler(self)
+        for key, value in data.items():
+            if isinstance(value, datetime) and value.tzinfo is None:
+                data[key] = value.replace(tzinfo=UTC)
+        return data
+
+
+class FileResponse(_UtcDateTimeMixin, BaseModel):
     id: str
     filename: str
     title: str
