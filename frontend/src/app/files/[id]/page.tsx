@@ -3,7 +3,6 @@
 import { useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { ArrowLeft, Pencil, Check, X, ThumbsUp, ThumbsDown } from "lucide-react";
-import Link from "next/link";
 
 import { getFile, updateFile, likeFile, dislikeFile } from "@/lib/api";
 import { formatDuration, formatFileSize } from "@/lib/format";
@@ -73,19 +72,25 @@ export default function FilePage() {
   return (
     <div className="mx-auto w-full max-w-5xl flex-1 px-4 py-6">
       <div className="mb-4">
-        <Link
-          href={file.folder_path
-            ? `/drive/${encodeURIComponent(file.drive)}/${file.folder_path}`
-            : `/drive/${encodeURIComponent(file.drive)}`
-          }
-          className="inline-flex items-center gap-1 text-sm text-text-muted hover:text-text-primary"
+        <button
+          onClick={() => {
+            if (window.history.length > 1) {
+              router.back();
+            } else {
+              const backPath = file.folder_path
+                ? `/drive/${encodeURIComponent(file.drive)}/${file.folder_path}`
+                : `/drive/${encodeURIComponent(file.drive)}`;
+              router.push(backPath);
+            }
+          }}
+          className="inline-flex cursor-pointer items-center gap-1 text-sm text-text-muted hover:text-text-primary"
         >
           <ArrowLeft size={16} />
           {file.folder_path
             ? file.folder_path.split("/").pop()
             : file.drive
           } に戻る
-        </Link>
+        </button>
       </div>
 
       <FilePreview file={file} />
