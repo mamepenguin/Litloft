@@ -48,9 +48,6 @@ def _migrate(engine_) -> None:
             if "likes" not in columns:
                 logger.info("Migrating: adding 'likes' column to videos")
                 conn.execute(text("ALTER TABLE videos ADD COLUMN likes INTEGER NOT NULL DEFAULT 0"))
-            if "dislikes" not in columns:
-                logger.info("Migrating: adding 'dislikes' column to videos")
-                conn.execute(text("ALTER TABLE videos ADD COLUMN dislikes INTEGER NOT NULL DEFAULT 0"))
             if "is_favorite" not in columns:
                 logger.info("Migrating: adding 'is_favorite' column to videos")
                 conn.execute(text("ALTER TABLE videos ADD COLUMN is_favorite BOOLEAN NOT NULL DEFAULT 0"))
@@ -114,7 +111,6 @@ def _migrate(engine_) -> None:
                     thumbnail_path VARCHAR,
                     duration REAL,
                     likes INTEGER DEFAULT 0,
-                    dislikes INTEGER DEFAULT 0,
                     is_favorite BOOLEAN DEFAULT 0,
                     created_at DATETIME,
                     updated_at DATETIME
@@ -123,10 +119,10 @@ def _migrate(engine_) -> None:
             conn.execute(text("""
                 INSERT INTO files (id, filename, title, description, drive, folder_path,
                     file_path, file_size, file_type, mime_type, thumbnail_path, duration,
-                    likes, dislikes, is_favorite, created_at, updated_at)
+                    likes, is_favorite, created_at, updated_at)
                 SELECT id, filename, title, description, drive, folder_path,
                     file_path, file_size, 'video', 'video/mp4', thumbnail_path, duration,
-                    likes, dislikes, is_favorite, created_at, updated_at
+                    likes, is_favorite, created_at, updated_at
                 FROM videos
             """))
             conn.execute(text("CREATE INDEX idx_files_drive_folder_path ON files(drive, folder_path)"))
@@ -192,7 +188,6 @@ def _migrate(engine_) -> None:
                         thumbnail_path VARCHAR,
                         duration REAL,
                         likes INTEGER DEFAULT 0,
-                        dislikes INTEGER DEFAULT 0,
                         is_favorite BOOLEAN DEFAULT 0,
                         created_at DATETIME,
                         updated_at DATETIME
@@ -203,11 +198,11 @@ def _migrate(engine_) -> None:
                     conn.execute(text("""
                         INSERT INTO files_new (id, filename, title, description, drive,
                             folder_path, file_path, file_size, file_type, mime_type,
-                            thumbnail_path, duration, likes, dislikes, is_favorite,
+                            thumbnail_path, duration, likes, is_favorite,
                             created_at, updated_at)
                         SELECT :new_id, filename, title, description, drive,
                             folder_path, file_path, file_size, file_type, mime_type,
-                            thumbnail_path, duration, likes, dislikes, is_favorite,
+                            thumbnail_path, duration, likes, is_favorite,
                             created_at, updated_at
                         FROM files WHERE id = :old_id
                     """), {"new_id": new_id, "old_id": old_id})
@@ -237,6 +232,69 @@ def _migrate(engine_) -> None:
                 conn.execute(text("CREATE INDEX idx_files_file_type ON files(file_type)"))
 
             logger.info("Migration complete: files.id → nanoid (%d files migrated)", len(id_map))
+
+    # === Phase 4: Drop dislikes column from files ===
+    tables = inspector.get_table_names()
+    if "files" in tables:
+        file_columns = {col["name"] for col in inspector.get_columns("files")}
+        if "dislikes" in file_columns:
+            logger.info("Migrating: dropping 'dislikes' column from files")
+            with engine_.begin() as conn:
+                conn.execute(text("""
+                    CREATE TABLE files_new (
+                        id VARCHAR(12) PRIMARY KEY,
+                        filename VARCHAR NOT NULL,
+                        title VARCHAR NOT NULL,
+                        description TEXT DEFAULT '',
+                        drive VARCHAR NOT NULL DEFAULT '',
+                        folder_path VARCHAR NOT NULL DEFAULT '',
+                        file_path VARCHAR NOT NULL UNIQUE,
+                        file_size INTEGER NOT NULL,
+                        file_type VARCHAR NOT NULL DEFAULT 'other',
+                        mime_type VARCHAR NOT NULL DEFAULT 'application/octet-stream',
+                        thumbnail_path VARCHAR,
+                        duration REAL,
+                        likes INTEGER DEFAULT 0,
+                        is_favorite BOOLEAN DEFAULT 0,
+                        created_at DATETIME,
+                        updated_at DATETIME
+                    )
+                """))
+                conn.execute(text("""
+                    INSERT INTO files_new (id, filename, title, description, drive,
+                        folder_path, file_path, file_size, file_type, mime_type,
+                        thumbnail_path, duration, likes, is_favorite,
+                        created_at, updated_at)
+                    SELECT id, filename, title, description, drive,
+                        folder_path, file_path, file_size, file_type, mime_type,
+                        thumbnail_path, duration, likes, is_favorite,
+                        created_at, updated_at
+                    FROM files
+                """))
+
+                conn.execute(text("""
+                    CREATE TABLE file_tags_new (
+                        file_id VARCHAR(12) REFERENCES files_new(id) ON DELETE CASCADE,
+                        tag_id INTEGER REFERENCES tags(id) ON DELETE CASCADE,
+                        PRIMARY KEY (file_id, tag_id)
+                    )
+                """))
+                conn.execute(text("""
+                    INSERT INTO file_tags_new (file_id, tag_id)
+                    SELECT file_id, tag_id FROM file_tags
+                """))
+
+                conn.execute(text("DROP TABLE file_tags"))
+                conn.execute(text("DROP TABLE files"))
+                conn.execute(text("ALTER TABLE files_new RENAME TO files"))
+                conn.execute(text("ALTER TABLE file_tags_new RENAME TO file_tags"))
+
+                conn.execute(text("CREATE INDEX idx_files_drive_folder_path ON files(drive, folder_path)"))
+                conn.execute(text("CREATE INDEX idx_files_title ON files(title)"))
+                conn.execute(text("CREATE INDEX idx_files_is_favorite ON files(is_favorite)"))
+                conn.execute(text("CREATE INDEX idx_files_file_type ON files(file_type)"))
+
+            logger.info("Migration complete: dislikes column dropped")
 
 
 def init_db() -> None:

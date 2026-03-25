@@ -61,7 +61,6 @@ class File(Base):
     thumbnail_path: Mapped[str | None] = mapped_column(String, nullable=True)
     duration: Mapped[float | None] = mapped_column(Float, nullable=True)
     likes: Mapped[int] = mapped_column(Integer, default=0, server_default="0")
-    dislikes: Mapped[int] = mapped_column(Integer, default=0, server_default="0")
     is_favorite: Mapped[bool] = mapped_column(Boolean, default=False, server_default="0")
     created_at: Mapped[datetime] = mapped_column(
         DateTime, default=lambda: datetime.now(UTC)

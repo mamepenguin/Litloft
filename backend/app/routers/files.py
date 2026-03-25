@@ -202,7 +202,7 @@ async def dislike_file(
 ):
     file = _get_file_or_404(db, file_id, unlocked_groups)
 
-    file.dislikes = File.dislikes + 1
+    file.likes = File.likes - 1
     db.commit()
     db.refresh(file)
     return _to_response(file)

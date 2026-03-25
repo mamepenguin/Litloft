@@ -17,7 +17,6 @@ class FileResponse(BaseModel):
     file_size: int
     duration: float | None
     likes: int
-    dislikes: int
     is_favorite: bool
     tags: list[str]
     created_at: datetime
@@ -217,7 +216,6 @@ def file_to_response(file) -> FileResponse:
         file_size=file.file_size,
         duration=file.duration,
         likes=file.likes,
-        dislikes=file.dislikes,
         is_favorite=file.is_favorite,
         tags=[tag.name for tag in file.tags],
         created_at=file.created_at,

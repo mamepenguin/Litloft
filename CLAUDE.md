@@ -126,7 +126,7 @@ docker compose logs -f backend
 | GET | /api/files/{id}/stream | ストリーミング (Range Request 206対応、Content-Type は mime_type から動的決定) |
 | GET | /api/files/{id}/thumbnail | サムネイル画像 (動画: ffmpeg生成、他: placeholder) |
 | POST | /api/files/{id}/like | いいね |
-| POST | /api/files/{id}/dislike | わるいね |
+| POST | /api/files/{id}/dislike | likes - 1 |
 | POST | /api/files/{id}/favorite | お気に入りトグル |
 | PUT | /api/files/{id}/tags | タグ編集 |
 | PUT | /api/files/{id}/rename | ファイルリネーム |

@@ -13,7 +13,6 @@ export interface FileItem {
   file_size: number;
   duration: number | null;
   likes: number;
-  dislikes: number;
   is_favorite: boolean;
   tags: string[];
   created_at: string;

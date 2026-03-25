@@ -16,7 +16,6 @@ const mockFile: FileItem = {
   file_size: 1048576,
   duration: 125.5,
   likes: 3,
-  dislikes: 1,
   is_favorite: false,
   tags: [],
   created_at: "2026-03-20T10:00:00",

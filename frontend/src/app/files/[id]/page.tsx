@@ -143,20 +143,18 @@ export default function FilePage() {
                 <div className="flex items-center overflow-hidden rounded-full bg-bg-card">
                   <button
                     onClick={handleLike}
-                    className="flex items-center gap-1.5 px-3 py-1.5 text-sm text-text-muted transition-colors hover:text-text-primary"
+                    className="px-2.5 py-1.5 text-sm text-text-muted transition-colors hover:text-text-primary"
                     aria-label="Like"
                   >
                     <ThumbsUp size={16} />
-                    <span>{file.likes}</span>
                   </button>
-                  <div className="h-5 w-px bg-text-muted/30" />
+                  <span className="min-w-[1.5rem] text-center text-sm text-text-muted">{file.likes}</span>
                   <button
                     onClick={handleDislike}
-                    className="flex items-center gap-1.5 px-3 py-1.5 text-sm text-text-muted transition-colors hover:text-text-primary"
+                    className="px-2.5 py-1.5 text-sm text-text-muted transition-colors hover:text-text-primary"
                     aria-label="Dislike"
                   >
                     <ThumbsDown size={16} />
-                    <span>{file.dislikes}</span>
                   </button>
                 </div>
                 <FavoriteButton
