@@ -137,7 +137,7 @@ async def list_drive_files(
     sort: str = Query("created_at", pattern="^(created_at|title|file_size|likes|random)$"),
     order: str = Query("desc", pattern="^(asc|desc)$"),
     page: int = Query(1, ge=1),
-    limit: int = Query(30, ge=1, le=100),
+    limit: int = Query(30, ge=1, le=500),
 ):
     _validate_drive(drive_name, unlocked_groups)
     if path is not None and path:

@@ -1,0 +1,350 @@
+"use client";
+
+import { useCallback, useEffect, useRef, useState } from "react";
+import { ChevronLeft, ChevronRight, Pause, Play, X } from "lucide-react";
+
+import { getDriveFiles, getStreamUrl } from "@/lib/api";
+import type { FileItem, SortField, SortOrder } from "@/types";
+
+interface ImageGalleryProps {
+  open: boolean;
+  file: FileItem;
+  sort?: string;
+  order?: string;
+  onClose: (currentFileId: string | null) => void;
+}
+
+const INTERVAL_OPTIONS = [3, 5, 10] as const;
+
+export function ImageGallery({
+  open,
+  file,
+  sort,
+  order,
+  onClose,
+}: ImageGalleryProps) {
+  const [images, setImages] = useState<FileItem[]>([]);
+  const [currentIndex, setCurrentIndex] = useState(0);
+  const [loading, setLoading] = useState(true);
+  const [imageLoading, setImageLoading] = useState(false);
+
+  const [playing, setPlaying] = useState(false);
+  const [slideshowInterval, setSlideshowInterval] = useState(5);
+  const [showControls, setShowControls] = useState(true);
+
+  const hideTimerRef = useRef<number | null>(null);
+
+  // Capture file info at open time to avoid re-fetching on parent re-renders
+  const openFileRef = useRef(file);
+  useEffect(() => {
+    if (open) {
+      openFileRef.current = file;
+    }
+  }, [open, file]);
+
+  // Load all images in the same folder (only when gallery opens)
+  useEffect(() => {
+    if (!open) return;
+
+    let cancelled = false;
+    const openFile = openFileRef.current;
+
+    async function loadAllImages() {
+      setLoading(true);
+      setPlaying(false);
+
+      try {
+        const firstPage = await getDriveFiles(openFile.drive, {
+          path: openFile.folder_path,
+          type: "image",
+          sort: sort as SortField,
+          order: order as SortOrder,
+          limit: 500,
+          page: 1,
+        });
+
+        if (cancelled) return;
+
+        let allImages = firstPage.data;
+
+        if (firstPage.meta.total > 500) {
+          const totalPages = Math.ceil(firstPage.meta.total / 500);
+          for (let p = 2; p <= totalPages; p++) {
+            const nextPage = await getDriveFiles(openFile.drive, {
+              path: openFile.folder_path,
+              type: "image",
+              sort: sort as SortField,
+              order: order as SortOrder,
+              limit: 500,
+              page: p,
+            });
+            if (cancelled) return;
+            allImages = [...allImages, ...nextPage.data];
+          }
+        }
+
+        const idx = allImages.findIndex((img) => img.id === openFile.id);
+        setImages(allImages);
+        setCurrentIndex(idx >= 0 ? idx : 0);
+        setLoading(false);
+      } catch {
+        if (!cancelled) {
+          setLoading(false);
+          onClose(null);
+        }
+      }
+    }
+
+    loadAllImages();
+    return () => {
+      cancelled = true;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open]);
+
+  const currentImage = images[currentIndex] ?? file;
+
+  // Navigation
+  const navigatePrev = useCallback(() => {
+    setCurrentIndex((prev) => {
+      if (prev <= 0) return prev;
+      return prev - 1;
+    });
+  }, []);
+
+  const navigateNext = useCallback(() => {
+    setCurrentIndex((prev) => {
+      if (prev >= images.length - 1) return prev;
+      return prev + 1;
+    });
+  }, [images.length]);
+
+  // Close handler: notify parent of the current image
+  const handleClose = useCallback(() => {
+    const currentId = images[currentIndex]?.id ?? null;
+    onClose(currentId);
+  }, [images, currentIndex, onClose]);
+
+  // Prefetch adjacent images
+  useEffect(() => {
+    if (images.length === 0) return;
+
+    const prefetchIndices = [
+      currentIndex - 1,
+      currentIndex + 1,
+      currentIndex - 2,
+      currentIndex + 2,
+    ].filter((i) => i >= 0 && i < images.length && i !== currentIndex);
+
+    prefetchIndices.forEach((i) => {
+      const img = new Image();
+      img.src = getStreamUrl(images[i].id);
+    });
+  }, [currentIndex, images]);
+
+  // Slideshow timer
+  useEffect(() => {
+    if (!playing || images.length <= 1) return;
+
+    const timer = window.setTimeout(() => {
+      setCurrentIndex((prev) =>
+        prev >= images.length - 1 ? 0 : prev + 1
+      );
+    }, slideshowInterval * 1000);
+
+    return () => window.clearTimeout(timer);
+  }, [playing, currentIndex, slideshowInterval, images.length]);
+
+  // Keyboard handling (capture phase to override page.tsx)
+  useEffect(() => {
+    if (!open) return;
+
+    function handleKeyDown(e: KeyboardEvent) {
+      const target = e.target as HTMLElement;
+      if (
+        target.tagName === "INPUT" ||
+        target.tagName === "TEXTAREA" ||
+        target.tagName === "SELECT" ||
+        target.isContentEditable
+      ) {
+        return;
+      }
+
+      switch (e.key) {
+        case "ArrowLeft":
+          e.preventDefault();
+          e.stopPropagation();
+          setCurrentIndex((prev) => (prev > 0 ? prev - 1 : prev));
+          break;
+        case "ArrowRight":
+          e.preventDefault();
+          e.stopPropagation();
+          setCurrentIndex((prev) =>
+            prev < images.length - 1 ? prev + 1 : prev
+          );
+          break;
+        case "Escape":
+          e.preventDefault();
+          handleClose();
+          break;
+        case " ":
+          e.preventDefault();
+          if (images.length > 1) {
+            setPlaying((p) => !p);
+          }
+          break;
+      }
+    }
+
+    window.addEventListener("keydown", handleKeyDown, true);
+    return () => window.removeEventListener("keydown", handleKeyDown, true);
+  }, [open, images.length, handleClose]);
+
+  // Auto-hide controls during slideshow
+  useEffect(() => {
+    if (hideTimerRef.current) {
+      window.clearTimeout(hideTimerRef.current);
+      hideTimerRef.current = null;
+    }
+    if (playing) {
+      hideTimerRef.current = window.setTimeout(
+        () => setShowControls(false),
+        3000
+      );
+    }
+    return () => {
+      if (hideTimerRef.current) window.clearTimeout(hideTimerRef.current);
+    };
+  }, [playing, currentIndex]);
+
+  function handleImageAreaClick() {
+    setShowControls((prev) => !prev);
+    if (hideTimerRef.current) {
+      window.clearTimeout(hideTimerRef.current);
+      hideTimerRef.current = null;
+    }
+    if (playing) {
+      hideTimerRef.current = window.setTimeout(
+        () => setShowControls(false),
+        3000
+      );
+    }
+  }
+
+  // Reset state on close
+  useEffect(() => {
+    if (!open) {
+      setPlaying(false);
+      setShowControls(true);
+      setImages([]);
+      setCurrentIndex(0);
+      setLoading(true);
+    }
+  }, [open]);
+
+  if (!open) return null;
+
+  return (
+    <div className="fixed inset-0 z-[60] flex flex-col bg-black">
+      {/* Header */}
+      <div
+        className="absolute inset-x-0 top-0 z-10 flex items-center justify-between bg-gradient-to-b from-black/80 to-transparent px-4 py-3 transition-opacity duration-300"
+        style={{ opacity: showControls ? 1 : 0, pointerEvents: showControls ? "auto" : "none" }}
+      >
+        <span className="max-w-[40%] truncate text-sm text-white/80">
+          {currentImage.title}
+        </span>
+
+        {images.length > 0 && (
+          <span className="text-sm text-white/60">
+            {currentIndex + 1} / {images.length}
+          </span>
+        )}
+
+        <div className="flex items-center gap-2">
+          {images.length > 1 && (
+            <>
+              <select
+                value={slideshowInterval}
+                onChange={(e) => setSlideshowInterval(Number(e.target.value))}
+                className="rounded bg-white/10 px-2 py-1 text-sm text-white outline-none"
+                aria-label="スライドショー間隔"
+              >
+                {INTERVAL_OPTIONS.map((sec) => (
+                  <option key={sec} value={sec}>
+                    {sec}秒
+                  </option>
+                ))}
+              </select>
+              <button
+                onClick={() => setPlaying((p) => !p)}
+                className="rounded-full p-1.5 text-white/80 transition-colors hover:bg-white/10 hover:text-white"
+                aria-label={playing ? "一時停止" : "再生"}
+              >
+                {playing ? <Pause size={18} /> : <Play size={18} />}
+              </button>
+            </>
+          )}
+          <button
+            onClick={handleClose}
+            className="rounded-full p-1.5 text-white/80 transition-colors hover:bg-white/10 hover:text-white"
+            aria-label="閉じる"
+          >
+            <X size={18} />
+          </button>
+        </div>
+      </div>
+
+      {/* Main image area */}
+      <div
+        className="flex flex-1 cursor-pointer items-center justify-center"
+        onClick={handleImageAreaClick}
+      >
+        {loading ? (
+          <div className="h-8 w-8 animate-spin rounded-full border-2 border-white border-t-transparent" />
+        ) : (
+          <>
+            {imageLoading && (
+              <div className="absolute h-8 w-8 animate-spin rounded-full border-2 border-white border-t-transparent" />
+            )}
+            <img
+              key={currentImage.id}
+              src={getStreamUrl(currentImage.id)}
+              alt={currentImage.title}
+              className="max-h-full max-w-full select-none object-contain"
+              onLoad={() => setImageLoading(false)}
+              onLoadStart={() => setImageLoading(true)}
+              draggable={false}
+            />
+          </>
+        )}
+      </div>
+
+      {/* Navigation buttons */}
+      {showControls && !loading && currentIndex > 0 && (
+        <button
+          onClick={(e) => {
+            e.stopPropagation();
+            navigatePrev();
+          }}
+          className="absolute left-4 top-1/2 -translate-y-1/2 rounded-full bg-black/50 p-2 text-white/70 transition-opacity hover:text-white"
+          aria-label="前の画像"
+        >
+          <ChevronLeft size={32} />
+        </button>
+      )}
+      {showControls && !loading && currentIndex < images.length - 1 && (
+        <button
+          onClick={(e) => {
+            e.stopPropagation();
+            navigateNext();
+          }}
+          className="absolute right-4 top-1/2 -translate-y-1/2 rounded-full bg-black/50 p-2 text-white/70 transition-opacity hover:text-white"
+          aria-label="次の画像"
+        >
+          <ChevronRight size={32} />
+        </button>
+      )}
+    </div>
+  );
+}

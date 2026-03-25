@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useState } from "react";
 import { useParams, useRouter, useSearchParams } from "next/navigation";
-import { ArrowLeft, ChevronLeft, ChevronRight, Pencil, Check, X, ThumbsUp, ThumbsDown } from "lucide-react";
+import { ArrowLeft, ChevronLeft, ChevronRight, Maximize2, Pencil, Check, X, ThumbsUp, ThumbsDown } from "lucide-react";
 
 import { getFile, getFileNeighbors, updateFile, likeFile, dislikeFile } from "@/lib/api";
 import { formatDuration, formatFileSize } from "@/lib/format";
@@ -11,6 +11,7 @@ import { FilePreview } from "@/components/FilePreview";
 import { FavoriteButton } from "@/components/FavoriteButton";
 import { TagEditor } from "@/components/TagEditor";
 import { FileActions } from "@/components/FileActions";
+import { ImageGallery } from "@/components/ImageGallery";
 import { useSetOverrideDrive } from "@/components/CurrentDriveProvider";
 
 export default function FilePage() {
@@ -28,6 +29,7 @@ export default function FilePage() {
   const [editTitle, setEditTitle] = useState("");
   const [editDesc, setEditDesc] = useState("");
   const [saving, setSaving] = useState(false);
+  const [galleryOpen, setGalleryOpen] = useState(false);
   const setOverrideDrive = useSetOverrideDrive();
 
   useEffect(() => {
@@ -238,6 +240,15 @@ export default function FilePage() {
                 onToggle={setFile}
                 showLabel
               />
+              {file.file_type === "image" && (
+                <button
+                  onClick={() => setGalleryOpen(true)}
+                  className="rounded-lg p-2 text-text-muted hover:bg-bg-card hover:text-text-primary"
+                  aria-label="ギャラリーモード"
+                >
+                  <Maximize2 size={16} />
+                </button>
+              )}
               <button
                 onClick={() => setEditing(true)}
                 className="rounded-lg p-2 text-text-muted hover:bg-bg-card hover:text-text-primary"
@@ -275,6 +286,19 @@ export default function FilePage() {
           </div>
         )}
       </div>
+
+      <ImageGallery
+        open={galleryOpen}
+        file={file}
+        sort={sort}
+        order={order}
+        onClose={(currentFileId) => {
+          setGalleryOpen(false);
+          if (currentFileId && currentFileId !== fileId) {
+            router.replace(buildNavUrl(currentFileId));
+          }
+        }}
+      />
     </div>
   );
 }
