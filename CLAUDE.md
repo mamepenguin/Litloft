@@ -11,7 +11,7 @@
 - **Backend**: FastAPI (Python 3.12) + SQLite (SQLAlchemy) + ffmpeg
 - **Frontend**: Next.js 16 (App Router, TypeScript, Tailwind CSS v4)
 - **インフラ**: Docker Compose (2コンテナ、backendは外部非公開)
-- 認証なし（自宅LAN前提）
+- **認証**: オプショナルなパスワード保護（`passwords.json` によるドライブ単位のアクセス制御）
 
 ## ディレクトリ構成
 
@@ -21,17 +21,21 @@ backend/
     main.py           # FastAPIエントリーポイント、ルーター登録、startup scan
     config.py          # drives.json からドライブ設定読み取り、DATA_DIR
     database.py        # SQLAlchemy engine, SessionLocal, get_db (DI), マイグレーション
-    models.py          # File, Tag モデル (SQLAlchemy ORM)
+    models.py          # File, Tag, EmptyFolder, PinnedFolder モデル (SQLAlchemy ORM)
     schemas.py         # Pydantic スキーマ (リクエスト/レスポンス)
+    auth.py            # JWT認証ロジック（トークン生成・検証、アクセスグループ管理）
+    nanoid.py          # Nano ID生成ユーティリティ
     routers/
-      files.py         # GET/PUT /api/files/{id}, stream, thumbnail, like, tags
-      drives.py        # GET /api/drives, folders, files, tags, scan
+      files.py         # GET/PUT /api/files/{id}, stream, thumbnail, like, tags, batch操作
+      drives.py        # GET /api/drives, folders, files, tags, scan, pins
+      auth.py          # POST /api/auth/unlock, lock, GET status
+      uploads.py       # チャンクアップロードエンドポイント
     services/
       scanner.py       # ドライブ単位の再帰スキャン（全ファイル対応）、DB同期、排他ロック
       filetype.py      # ファイルタイプ分類 (classify, is_hidden)
       fileops.py       # ファイル/フォルダ CRUD 操作（リネーム、移動、削除、作成）
       upload.py        # チャンクアップロード管理（セッション、結合、クリーンアップ）
-      thumbnail.py     # ffmpeg サムネイル生成、ffprobe duration取得
+      thumbnail.py     # ffmpeg/ffprobe サムネイル生成（動画+画像対応）、duration取得
   tests/               # pytest (Docker内で実行: Dockerfile.test)
   static/
     placeholder.jpg    # サムネイル未生成時のフォールバック画像
@@ -43,10 +47,12 @@ frontend/
       drive/[name]/      # ドライブルート（フォルダ+ファイル、Client Component）
       drive/[name]/[...path]/ # サブフォルダブラウザ (Client Component)
       files/[id]/        # ファイル詳細・再生ページ (Client Component)
+      unlock/            # パスワード解除ページ (UIにリンクなし)
       layout.tsx         # ルートレイアウト (Inter, PWA meta, dark theme)
       globals.css        # CSS変数 (デザイントークン), Tailwind
     components/
       Sidebar.tsx        # サイドバー（LIBRARY/TAGS/DRIVES セクション）
+      Header.tsx         # ヘッダー・ナビゲーションバー
       FolderBrowser.tsx  # フォルダ一覧 + ファイル一覧の統合表示
       FolderCard.tsx     # フォルダアイテム表示
       Breadcrumb.tsx     # パンくずリスト
@@ -55,11 +61,36 @@ frontend/
       FileList.tsx       # リスト表示
       FilePreview.tsx    # file_type 分岐プレビュー（video→VideoPlayer、他→情報表示）
       FileTypeIcon.tsx   # ファイルタイプアイコン
+      FileActions.tsx    # ファイル操作メニュー（リネーム、移動、削除）
+      FolderActions.tsx  # フォルダ操作メニュー
       VideoPlayer.tsx    # 動画プレーヤー
+      AudioPlayer.tsx    # 音声プレーヤー
+      DriveHome.tsx      # ドライブホームページレイアウト
+      GlobalSearch.tsx   # グローバル検索
+      SortButton.tsx     # ソートオプションボタン
+      SelectionBar.tsx   # 複数選択アクションバー
+      FavoriteButton.tsx # お気に入りトグルボタン
+      TagEditor.tsx      # タグ編集
+      TagList.tsx        # タグ一覧表示
+      MoveDialog.tsx     # ファイル/フォルダ移動ダイアログ
+      RenameDialog.tsx   # リネームダイアログ
+      ConfirmDialog.tsx  # 確認ダイアログ
+      ContextMenu.tsx    # 右クリックコンテキストメニュー
+      CarouselSection.tsx # カルーセルUI
+      EmptyState.tsx     # 空状態表示
+      CurrentDriveProvider.tsx # カレントドライブ Context Provider
+      SidebarProvider.tsx     # サイドバー Context Provider
+      ThemeProvider.tsx       # テーマ Context Provider
+      ThemeToggle.tsx         # ダーク/ライトテーマ切替
+    hooks/
+      useContextMenu.ts  # コンテキストメニュー hook
+      useSelection.ts    # 複数選択状態 hook
+      useUpload.ts       # アップロード管理 hook
     lib/
-      api.ts           # Backend API呼び出しクライアント
-      format.ts        # formatDuration, formatFileSize
-    types/index.ts     # FileItem, Drive, Folder, Tag, PaginatedResponse 等の型定義
+      api.ts             # Backend API呼び出しクライアント
+      format.ts          # formatDuration, formatFileSize
+      recentlyPlayed.ts  # 最近再生した曲の管理
+    types/index.ts       # FileItem, Drive, Folder, Tag, PaginatedResponse 等の型定義
 
 deploy/
   post-receive         # git push → Mac mini 自動デプロイ hook
@@ -106,6 +137,9 @@ docker compose logs -f backend
 | POST | /api/drives/{drive}/upload/{id}/chunk | チャンク送信 |
 | POST | /api/drives/{drive}/upload/{id}/complete | アップロード完了 |
 | DELETE | /api/drives/{drive}/upload/{id} | アップロードキャンセル |
+| GET | /api/drives/{drive}/pins | ピン留めフォルダ一覧 |
+| POST | /api/drives/{drive}/pins | フォルダをピン留め |
+| DELETE | /api/drives/{drive}/pins?path= | ピン留め解除 |
 | POST | /api/drives/{drive}/scan | ドライブ単位スキャン (排他制御、競合時 409) |
 
 ### 認証
@@ -122,6 +156,7 @@ docker compose logs -f backend
 |---------|------|------|
 | GET | /api/health | ヘルスチェック |
 | GET | /api/files/{id} | ファイル詳細 |
+| GET | /api/files/{id}/neighbors?sort=&order= | 同一フォルダ内の前後ファイルID（sort=random不可） |
 | PUT | /api/files/{id} | メタデータ編集 (title, description) |
 | GET | /api/files/{id}/stream | ストリーミング (Range Request 206対応、Content-Type は mime_type から動的決定) |
 | GET | /api/files/{id}/thumbnail | サムネイル画像 (動画: ffmpeg生成、他: placeholder) |
@@ -132,6 +167,10 @@ docker compose logs -f backend
 | PUT | /api/files/{id}/rename | ファイルリネーム |
 | PUT | /api/files/{id}/move | ファイル移動 |
 | DELETE | /api/files/{id} | ファイル削除 |
+| POST | /api/files/batch/get | バッチ取得（IDリスト） |
+| POST | /api/files/batch/delete | バッチ削除 |
+| PUT | /api/files/batch/move | バッチ移動 |
+| PUT | /api/files/batch/tags | バッチタグ更新 |
 
 ## 重要な設計判断
 
@@ -158,7 +197,7 @@ docker compose logs -f backend
 - **ドライブ**: 論理的なコンテンツ領域の分離。タグもドライブ間で独立
 - **フォルダ階層**: ファイラーのようにネストしたフォルダを辿れるUI
 - ドライブ設定は `drives.json` で管理（DB外）。変更時はコンテナ再起動
-- フォルダは `folder_path` カラムから動的算出 + `EmptyFolder` テーブルで空フォルダ表示
+- フォルダは `folder_path` カラムから動的算出 + `EmptyFolder` テーブルで空フォルダ表示 + `PinnedFolder` テーブルでピン留め管理
 - `drives.json` に `readonly: true` で書き込み禁止（デフォルト: 書き込み可能）
 - ドライブ横断操作（検索、お気に入り）は不要。各ドライブは完全に独立
 - お気に入りURLは `?view=favorites` クエリパラメータ（フォルダ名との競合回避）
@@ -169,7 +208,17 @@ docker compose logs -f backend
 - Range Request: Rangeヘッダーなしは200で全体配信、ありは206でPartial Content
 - パストラバーサル防止: IDベースでDBからfile_pathを取得 → `os.path.realpath()` で正規化 → base_dir配下か検証
 - スキャン排他制御: `asyncio.Lock` で同時実行防止、ロック中は 409 Conflict
-- サムネイル: ffmpegで5秒目(短い動画は0秒目)を抽出、320x180 JPEG
+- サムネイル: 動画はffmpegで5秒目(短い動画は0秒目)を抽出、画像はリサイズ。いずれも320x180 JPEG
+
+### ファイル前後ナビゲーション
+- **neighbors API**: `GET /api/files/{id}/neighbors?sort=&order=` で同一フォルダ内の前後ファイルIDを返す。SQLで前後1件ずつ取得（O(1)）
+- **安定ソート**: 一覧APIとneighbors APIで `id` によるセカンダリソートを共有し、順序の一貫性を保証
+- **sort=random 除外**: ランダム順では前後が定義できないため 422 を返す。一覧からのリンクにもパラメータを付与しない
+- **ソート順の引き継ぎ**: 一覧ページのリンクに `?sort=&order=` クエリパラメータを付与し、詳細ページで同じ順序のナビゲーションを提供
+- **キーボードショートカット**: 画像・document・otherファイルで `←`/`→` キー有効。video/audioでは動画シークと競合するため無効
+- **履歴管理**: 前後移動は `router.replace` で履歴を置き換え、ブラウザ戻るボタンでフォルダ一覧に正しく戻る
+- **特殊ビューからの遷移**: お気に入り・タグ等からの遷移ではフォルダ内ナビゲーションとなる（将来プレイリスト機能で拡張予定）
+- 設計書: `docs/superpowers/specs/2026-03-25-file-navigation-design.md`
 
 ### Frontend
 - Next.js 16: `params` は `Promise` 型。Server Component では `await params`、Client Component では `use(params)` または `useParams()`
@@ -206,4 +255,8 @@ Mac mini上にbare gitリポジトリ (`~/video-share.git`) を作成し、`post
 - `docs/superpowers/specs/2026-03-23-video-share-implementation-plan.md` — 実装計画
 - `docs/superpowers/specs/2026-03-24-drives-and-folders-design.md` — ドライブ+フォルダ階層設計書
 - `docs/superpowers/specs/2026-03-24-file-browsing-extension-design.md` — ファイル閲覧拡張設計書
+- `docs/superpowers/specs/2026-03-24-drive-access-control-design.md` — ドライブアクセス制御設計書
 - `docs/superpowers/specs/2026-03-24-file-operations-design.md` — ファイル操作設計書
+- `docs/superpowers/specs/2026-03-25-folder-pinning-design.md` — フォルダピン留め設計書
+- `docs/superpowers/specs/2026-03-25-like-dislike-unification-design.md` — いいね/よくないね統合設計書
+- `docs/superpowers/specs/2026-03-25-file-navigation-design.md` — ファイル前後ナビゲーション設計書
