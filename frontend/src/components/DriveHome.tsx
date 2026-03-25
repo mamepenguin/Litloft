@@ -4,9 +4,10 @@ import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
 import { Folder, Heart, Sparkles, Clock, ThumbsUp } from "lucide-react";
 import type { FileItem, Folder as FolderType } from "@/types";
-import { getDriveFiles, getFolders } from "@/lib/api";
+import { addPin, getDriveFiles, getFolders, getPins, removePin } from "@/lib/api";
 import { CarouselSection } from "./CarouselSection";
 import { FolderCard } from "./FolderCard";
+import { useSidebar } from "./SidebarProvider";
 
 interface DriveHomeProps {
   driveName: string;
@@ -28,6 +29,37 @@ export function DriveHome({ driveName }: DriveHomeProps) {
   const [folders, setFolders] = useState<FolderType[]>([]);
   const [foldersLoading, setFoldersLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
+  const [pinnedPaths, setPinnedPaths] = useState<Set<string>>(new Set());
+  const { requestRefresh: refreshSidebar } = useSidebar();
+
+  const applyFileSections = useCallback((results: PromiseSettledResult<any>[]) => {
+    setPickup({
+      files: results[0].status === "fulfilled" ? results[0].value.data : [],
+      loading: false,
+    });
+    setRecent({
+      files: results[1].status === "fulfilled" ? results[1].value.data : [],
+      loading: false,
+    });
+    setFavorites({
+      files: results[2].status === "fulfilled" ? results[2].value.data : [],
+      loading: false,
+    });
+    const popularFiles = results[3].status === "fulfilled" ? results[3].value.data : [];
+    setPopular({
+      files: popularFiles.filter((f: FileItem) => f.likes > 0),
+      loading: false,
+    });
+  }, []);
+
+  const fetchFileSections = useCallback(() => {
+    return Promise.allSettled([
+      getDriveFiles(driveName, { sort: "random", limit: SECTION_LIMIT }),
+      getDriveFiles(driveName, { sort: "created_at", order: "desc", limit: SECTION_LIMIT }),
+      getDriveFiles(driveName, { favorite: true, sort: "created_at", order: "desc", limit: SECTION_LIMIT }),
+      getDriveFiles(driveName, { sort: "likes", order: "desc", limit: SECTION_LIMIT }),
+    ]);
+  }, [driveName]);
 
   const fetchPickup = useCallback(async () => {
     try {
@@ -46,39 +78,58 @@ export function DriveHome({ driveName }: DriveHomeProps) {
       setPopular({ files: [], loading: true });
       setFoldersLoading(true);
 
-      const results = await Promise.allSettled([
-        getDriveFiles(driveName, { sort: "random", limit: SECTION_LIMIT }),
-        getDriveFiles(driveName, { sort: "created_at", order: "desc", limit: SECTION_LIMIT }),
-        getDriveFiles(driveName, { favorite: true, sort: "created_at", order: "desc", limit: SECTION_LIMIT }),
-        getDriveFiles(driveName, { sort: "likes", order: "desc", limit: SECTION_LIMIT }),
-        getFolders(driveName),
+      const [fileResults, foldersResult, pinsResult] = await Promise.all([
+        fetchFileSections(),
+        getFolders(driveName).catch(() => [] as FolderType[]),
+        getPins(driveName).catch(() => [] as { path: string }[]),
       ]);
 
-      setPickup({
-        files: results[0].status === "fulfilled" ? results[0].value.data : [],
-        loading: false,
-      });
-      setRecent({
-        files: results[1].status === "fulfilled" ? results[1].value.data : [],
-        loading: false,
-      });
-      setFavorites({
-        files: results[2].status === "fulfilled" ? results[2].value.data : [],
-        loading: false,
-      });
+      applyFileSections(fileResults);
 
-      const popularFiles = results[3].status === "fulfilled" ? results[3].value.data : [];
-      setPopular({
-        files: popularFiles.filter((f) => f.likes > 0),
-        loading: false,
-      });
-
-      setFolders(results[4].status === "fulfilled" ? results[4].value : []);
+      setFolders(foldersResult);
       setFoldersLoading(false);
+      setPinnedPaths(new Set(pinsResult.map((p) => p.path)));
     };
 
     fetchAll();
+  }, [driveName, fetchFileSections, applyFileSections]);
+
+  const refreshFolders = useCallback(async () => {
+    try {
+      const updated = await getFolders(driveName);
+      setFolders(updated);
+    } catch {
+      // ignore
+    }
   }, [driveName]);
+
+  const handleTogglePin = useCallback(
+    async (folderPath: string) => {
+      try {
+        const isPinned = pinnedPaths.has(folderPath);
+        if (isPinned) {
+          await removePin(driveName, folderPath);
+          setPinnedPaths((prev) => {
+            const next = new Set(prev);
+            next.delete(folderPath);
+            return next;
+          });
+        } else {
+          await addPin(driveName, folderPath);
+          setPinnedPaths((prev) => new Set(prev).add(folderPath));
+        }
+        refreshSidebar();
+      } catch {
+        // ignore
+      }
+    },
+    [driveName, pinnedPaths, refreshSidebar]
+  );
+
+  const refetchAllSections = useCallback(async () => {
+    const results = await fetchFileSections();
+    applyFileSections(results);
+  }, [fetchFileSections, applyFileSections]);
 
   const handleRefreshPickup = async () => {
     setRefreshing(true);
@@ -93,39 +144,6 @@ export function DriveHome({ driveName }: DriveHomeProps) {
 
   return (
     <div className="space-y-8 p-4 sm:p-6">
-      <CarouselSection
-        title="ピックアップ"
-        icon={<Sparkles size={20} className="text-accent-cta" />}
-        files={pickup.files}
-        loading={pickup.loading}
-        onRefresh={handleRefreshPickup}
-        refreshing={refreshing}
-      />
-
-      <CarouselSection
-        title="最近追加"
-        icon={<Clock size={20} className="text-accent-teal" />}
-        files={recent.files}
-        loading={recent.loading}
-        seeAllHref={`${driveBase}?view=recent-added`}
-      />
-
-      <CarouselSection
-        title="お気に入り"
-        icon={<Heart size={20} className="text-red-400" />}
-        files={favorites.files}
-        loading={favorites.loading}
-        seeAllHref={`${driveBase}?view=favorites`}
-      />
-
-      <CarouselSection
-        title="人気"
-        icon={<ThumbsUp size={20} className="text-amber-400" />}
-        files={popular.files}
-        loading={popular.loading}
-        seeAllHref={`${driveBase}?view=popular`}
-      />
-
       {(foldersLoading || folders.length > 0) && (
         <section>
           <div className="mb-3 flex items-center justify-between">
@@ -160,12 +178,56 @@ export function DriveHome({ driveName }: DriveHomeProps) {
           ) : (
             <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
               {folders.slice(0, MAX_FOLDERS).map((folder) => (
-                <FolderCard key={folder.path} folder={folder} driveName={driveName} />
+                <FolderCard
+                  key={folder.path}
+                  folder={folder}
+                  driveName={driveName}
+                  isPinned={pinnedPaths.has(folder.path)}
+                  onTogglePin={() => handleTogglePin(folder.path)}
+                  onUpdate={refreshFolders}
+                />
               ))}
             </div>
           )}
         </section>
       )}
+
+      <CarouselSection
+        title="ピックアップ"
+        icon={<Sparkles size={20} className="text-accent-cta" />}
+        files={pickup.files}
+        loading={pickup.loading}
+        onRefresh={handleRefreshPickup}
+        refreshing={refreshing}
+        onFileAction={refetchAllSections}
+      />
+
+      <CarouselSection
+        title="最近追加"
+        icon={<Clock size={20} className="text-accent-teal" />}
+        files={recent.files}
+        loading={recent.loading}
+        seeAllHref={`${driveBase}?view=recent-added`}
+        onFileAction={refetchAllSections}
+      />
+
+      <CarouselSection
+        title="お気に入り"
+        icon={<Heart size={20} className="text-red-400" />}
+        files={favorites.files}
+        loading={favorites.loading}
+        seeAllHref={`${driveBase}?view=favorites`}
+        onFileAction={refetchAllSections}
+      />
+
+      <CarouselSection
+        title="人気"
+        icon={<ThumbsUp size={20} className="text-amber-400" />}
+        files={popular.files}
+        loading={popular.loading}
+        seeAllHref={`${driveBase}?view=popular`}
+        onFileAction={refetchAllSections}
+      />
     </div>
   );
 }
