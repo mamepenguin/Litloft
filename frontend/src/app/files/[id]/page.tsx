@@ -135,52 +135,50 @@ export default function FilePage() {
           </div>
         ) : (
           <div>
-            <div className="flex items-start justify-between gap-2">
-              <h1 className="text-xl font-bold text-text-primary">
-                {file.title}
-              </h1>
-              <div className="flex flex-shrink-0 items-center gap-1">
-                <div className="flex items-center overflow-hidden rounded-full bg-bg-card">
-                  <button
-                    onClick={handleLike}
-                    className="px-2.5 py-1.5 text-sm text-text-muted transition-colors hover:text-text-primary"
-                    aria-label="Like"
-                  >
-                    <ThumbsUp size={16} />
-                  </button>
-                  <span className="min-w-[1.5rem] text-center text-sm text-text-muted">{file.likes}</span>
-                  <button
-                    onClick={handleDislike}
-                    className="px-2.5 py-1.5 text-sm text-text-muted transition-colors hover:text-text-primary"
-                    aria-label="Dislike"
-                  >
-                    <ThumbsDown size={16} />
-                  </button>
-                </div>
-                <FavoriteButton
-                  fileId={file.id}
-                  isFavorite={file.is_favorite}
-                  onToggle={setFile}
-                  showLabel
-                />
+            <h1 className="text-xl font-bold text-text-primary">
+              {file.title}
+            </h1>
+            <div className="mt-2 flex items-center gap-1">
+              <div className="flex items-center overflow-hidden rounded-full bg-bg-card">
                 <button
-                  onClick={() => setEditing(true)}
-                  className="rounded-lg p-2 text-text-muted hover:bg-bg-card hover:text-text-primary"
-                  aria-label="編集"
+                  onClick={handleLike}
+                  className="px-2.5 py-1.5 text-sm text-text-muted transition-colors hover:text-text-primary"
+                  aria-label="Like"
                 >
-                  <Pencil size={16} />
+                  <ThumbsUp size={16} />
                 </button>
-                <FileActions
-                  file={file}
-                  onUpdate={() => getFile(fileId).then(setFile)}
-                  onDelete={() => {
-                    const backPath = file.folder_path
-                      ? `/drive/${encodeURIComponent(file.drive)}/${file.folder_path}`
-                      : `/drive/${encodeURIComponent(file.drive)}`;
-                    router.push(backPath);
-                  }}
-                />
+                <span className="min-w-[1.5rem] text-center text-sm text-text-muted">{file.likes}</span>
+                <button
+                  onClick={handleDislike}
+                  className="px-2.5 py-1.5 text-sm text-text-muted transition-colors hover:text-text-primary"
+                  aria-label="Dislike"
+                >
+                  <ThumbsDown size={16} />
+                </button>
               </div>
+              <FavoriteButton
+                fileId={file.id}
+                isFavorite={file.is_favorite}
+                onToggle={setFile}
+                showLabel
+              />
+              <button
+                onClick={() => setEditing(true)}
+                className="rounded-lg p-2 text-text-muted hover:bg-bg-card hover:text-text-primary"
+                aria-label="編集"
+              >
+                <Pencil size={16} />
+              </button>
+              <FileActions
+                file={file}
+                onUpdate={() => getFile(fileId).then(setFile)}
+                onDelete={() => {
+                  const backPath = file.folder_path
+                    ? `/drive/${encodeURIComponent(file.drive)}/${file.folder_path}`
+                    : `/drive/${encodeURIComponent(file.drive)}`;
+                  router.push(backPath);
+                }}
+              />
             </div>
             {file.description && (
               <p className="mt-2 text-sm text-text-muted whitespace-pre-wrap">
