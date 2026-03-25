@@ -162,6 +162,80 @@ def _migrate(engine_) -> None:
     if "empty_folders" not in tables:
         Base.metadata.tables["empty_folders"].create(bind=engine_, checkfirst=True)
 
+    # === Phase 3: Migrate files.id from INTEGER to nanoid VARCHAR(12) ===
+    tables = inspector.get_table_names()
+    if "files" in tables:
+        file_columns = inspector.get_columns("files")
+        id_col = next((c for c in file_columns if c["name"] == "id"), None)
+        if id_col and str(id_col["type"]).upper().startswith("INTEGER"):
+            logger.info("Migrating: files.id INTEGER → VARCHAR(12) nanoid")
+            from app.nanoid import generate_nanoid
+
+            with engine_.begin() as conn:
+                rows = conn.execute(text("SELECT id FROM files")).fetchall()
+                id_map = {row[0]: generate_nanoid() for row in rows}
+
+                conn.execute(text("""
+                    CREATE TABLE files_new (
+                        id VARCHAR(12) PRIMARY KEY,
+                        filename VARCHAR NOT NULL,
+                        title VARCHAR NOT NULL,
+                        description TEXT DEFAULT '',
+                        drive VARCHAR NOT NULL DEFAULT '',
+                        folder_path VARCHAR NOT NULL DEFAULT '',
+                        file_path VARCHAR NOT NULL UNIQUE,
+                        file_size INTEGER NOT NULL,
+                        file_type VARCHAR NOT NULL DEFAULT 'other',
+                        mime_type VARCHAR NOT NULL DEFAULT 'application/octet-stream',
+                        thumbnail_path VARCHAR,
+                        duration REAL,
+                        likes INTEGER DEFAULT 0,
+                        dislikes INTEGER DEFAULT 0,
+                        is_favorite BOOLEAN DEFAULT 0,
+                        created_at DATETIME,
+                        updated_at DATETIME
+                    )
+                """))
+
+                for old_id, new_id in id_map.items():
+                    conn.execute(text("""
+                        INSERT INTO files_new (id, filename, title, description, drive,
+                            folder_path, file_path, file_size, file_type, mime_type,
+                            thumbnail_path, duration, likes, dislikes, is_favorite,
+                            created_at, updated_at)
+                        SELECT :new_id, filename, title, description, drive,
+                            folder_path, file_path, file_size, file_type, mime_type,
+                            thumbnail_path, duration, likes, dislikes, is_favorite,
+                            created_at, updated_at
+                        FROM files WHERE id = :old_id
+                    """), {"new_id": new_id, "old_id": old_id})
+
+                conn.execute(text("""
+                    CREATE TABLE file_tags_new (
+                        file_id VARCHAR(12) REFERENCES files_new(id) ON DELETE CASCADE,
+                        tag_id INTEGER REFERENCES tags(id) ON DELETE CASCADE,
+                        PRIMARY KEY (file_id, tag_id)
+                    )
+                """))
+
+                for old_id, new_id in id_map.items():
+                    conn.execute(text("""
+                        INSERT INTO file_tags_new (file_id, tag_id)
+                        SELECT :new_id, tag_id FROM file_tags WHERE file_id = :old_id
+                    """), {"new_id": new_id, "old_id": old_id})
+
+                conn.execute(text("DROP TABLE file_tags"))
+                conn.execute(text("DROP TABLE files"))
+                conn.execute(text("ALTER TABLE files_new RENAME TO files"))
+                conn.execute(text("ALTER TABLE file_tags_new RENAME TO file_tags"))
+
+                conn.execute(text("CREATE INDEX idx_files_drive_folder_path ON files(drive, folder_path)"))
+                conn.execute(text("CREATE INDEX idx_files_title ON files(title)"))
+                conn.execute(text("CREATE INDEX idx_files_is_favorite ON files(is_favorite)"))
+                conn.execute(text("CREATE INDEX idx_files_file_type ON files(file_type)"))
+
+            logger.info("Migration complete: files.id → nanoid (%d files migrated)", len(id_map))
+
 
 def init_db() -> None:
     DATA_DIR.mkdir(parents=True, exist_ok=True)

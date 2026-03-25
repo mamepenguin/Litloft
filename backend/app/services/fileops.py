@@ -97,7 +97,7 @@ def remove_empty_folder_if_has_files(db: Session, drive: str, folder_path: str) 
         db.delete(existing)
 
 
-def rename_file(db: Session, file_id: int, new_filename: str) -> File:
+def rename_file(db: Session, file_id: str, new_filename: str) -> File:
     file = db.query(File).filter(File.id == file_id).first()
     if not file:
         raise HTTPException(status_code=404, detail="File not found")
@@ -135,7 +135,7 @@ def rename_file(db: Session, file_id: int, new_filename: str) -> File:
     return file
 
 
-def move_file(db: Session, file_id: int, target_drive: str | None, target_folder: str) -> File:
+def move_file(db: Session, file_id: str, target_drive: str | None, target_folder: str) -> File:
     file = db.query(File).filter(File.id == file_id).first()
     if not file:
         raise HTTPException(status_code=404, detail="File not found")
@@ -178,7 +178,7 @@ def move_file(db: Session, file_id: int, target_drive: str | None, target_folder
     return file
 
 
-def delete_file(db: Session, file_id: int) -> None:
+def delete_file(db: Session, file_id: str) -> None:
     file = db.query(File).filter(File.id == file_id).first()
     if not file:
         raise HTTPException(status_code=404, detail="File not found")

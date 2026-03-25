@@ -3,9 +3,9 @@
 import { useCallback, useState } from "react";
 
 export function useSelection() {
-  const [selectedIds, setSelectedIds] = useState<Set<number>>(new Set());
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
 
-  const toggle = useCallback((id: number) => {
+  const toggle = useCallback((id: string) => {
     setSelectedIds((prev) => {
       const next = new Set(prev);
       if (next.has(id)) {
@@ -17,7 +17,7 @@ export function useSelection() {
     });
   }, []);
 
-  const selectAll = useCallback((ids: number[]) => {
+  const selectAll = useCallback((ids: string[]) => {
     setSelectedIds(new Set(ids));
   }, []);
 
@@ -26,7 +26,7 @@ export function useSelection() {
   }, []);
 
   const isSelected = useCallback(
-    (id: number) => selectedIds.has(id),
+    (id: string) => selectedIds.has(id),
     [selectedIds],
   );
 

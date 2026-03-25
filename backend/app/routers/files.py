@@ -3,7 +3,7 @@ from pathlib import Path
 from typing import Annotated
 from urllib.parse import quote
 
-from fastapi import APIRouter, Depends, HTTPException, Request
+from fastapi import APIRouter, Depends, HTTPException, Path as PathParam, Request
 from fastapi.responses import FileResponse as FastAPIFileResponse
 from fastapi.responses import StreamingResponse
 from sqlalchemy import func
@@ -28,6 +28,8 @@ from app.services import fileops
 
 router = APIRouter(prefix="/api/files", tags=["files"])
 
+FileId = Annotated[str, PathParam(min_length=12, max_length=12, pattern=r"^[A-Za-z0-9_-]+$")]
+
 PLACEHOLDER_THUMBNAIL = Path(__file__).parent.parent / "static" / "placeholder.jpg"
 
 
@@ -49,7 +51,7 @@ def _is_drive_accessible(drive_name: str, unlocked_groups: list[str]) -> bool:
 
 
 def _get_file_or_404(
-    db: Session, file_id: int, unlocked_groups: list[str]
+    db: Session, file_id: str, unlocked_groups: list[str]
 ) -> File:
     file = db.query(File).filter(File.id == file_id).first()
     if not file:
@@ -152,7 +154,7 @@ async def batch_tags(
 
 @router.get("/{file_id}", response_model=FileResponse)
 async def get_file(
-    file_id: int,
+    file_id: FileId,
     db: Annotated[Session, Depends(get_db)],
     unlocked_groups: Annotated[list[str], Depends(get_unlocked_groups)],
 ):
@@ -162,7 +164,7 @@ async def get_file(
 
 @router.put("/{file_id}", response_model=FileResponse)
 async def update_file(
-    file_id: int,
+    file_id: FileId,
     update: FileUpdate,
     db: Annotated[Session, Depends(get_db)],
     unlocked_groups: Annotated[list[str], Depends(get_unlocked_groups)],
@@ -180,7 +182,7 @@ async def update_file(
 
 @router.post("/{file_id}/like", response_model=FileResponse)
 async def like_file(
-    file_id: int,
+    file_id: FileId,
     db: Annotated[Session, Depends(get_db)],
     unlocked_groups: Annotated[list[str], Depends(get_unlocked_groups)],
 ):
@@ -194,7 +196,7 @@ async def like_file(
 
 @router.post("/{file_id}/dislike", response_model=FileResponse)
 async def dislike_file(
-    file_id: int,
+    file_id: FileId,
     db: Annotated[Session, Depends(get_db)],
     unlocked_groups: Annotated[list[str], Depends(get_unlocked_groups)],
 ):
@@ -208,7 +210,7 @@ async def dislike_file(
 
 @router.post("/{file_id}/favorite", response_model=FileResponse)
 async def toggle_favorite(
-    file_id: int,
+    file_id: FileId,
     db: Annotated[Session, Depends(get_db)],
     unlocked_groups: Annotated[list[str], Depends(get_unlocked_groups)],
 ):
@@ -222,7 +224,7 @@ async def toggle_favorite(
 
 @router.put("/{file_id}/tags", response_model=FileResponse)
 async def update_file_tags(
-    file_id: int,
+    file_id: FileId,
     update: TagUpdate,
     db: Annotated[Session, Depends(get_db)],
     unlocked_groups: Annotated[list[str], Depends(get_unlocked_groups)],
@@ -260,7 +262,7 @@ async def update_file_tags(
 
 @router.get("/{file_id}/stream")
 async def stream_file(
-    file_id: int,
+    file_id: FileId,
     request: Request,
     db: Annotated[Session, Depends(get_db)],
     unlocked_groups: Annotated[list[str], Depends(get_unlocked_groups)],
@@ -337,7 +339,7 @@ async def stream_file(
 
 @router.get("/{file_id}/thumbnail")
 async def get_thumbnail(
-    file_id: int,
+    file_id: FileId,
     db: Annotated[Session, Depends(get_db)],
     unlocked_groups: Annotated[list[str], Depends(get_unlocked_groups)],
 ):
@@ -358,7 +360,7 @@ async def get_thumbnail(
 
 @router.put("/{file_id}/rename", response_model=FileResponse)
 async def rename_file_endpoint(
-    file_id: int,
+    file_id: FileId,
     body: FileRenameRequest,
     db: Annotated[Session, Depends(get_db)],
     unlocked_groups: Annotated[list[str], Depends(get_unlocked_groups)],
@@ -370,7 +372,7 @@ async def rename_file_endpoint(
 
 @router.put("/{file_id}/move", response_model=FileResponse)
 async def move_file_endpoint(
-    file_id: int,
+    file_id: FileId,
     body: FileMoveRequest,
     db: Annotated[Session, Depends(get_db)],
     unlocked_groups: Annotated[list[str], Depends(get_unlocked_groups)],
@@ -382,7 +384,7 @@ async def move_file_endpoint(
 
 @router.delete("/{file_id}")
 async def delete_file_endpoint(
-    file_id: int,
+    file_id: FileId,
     db: Annotated[Session, Depends(get_db)],
     unlocked_groups: Annotated[list[str], Depends(get_unlocked_groups)],
 ):

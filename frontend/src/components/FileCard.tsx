@@ -19,7 +19,7 @@ export function FileCard({
   onContextMenu?: (e: React.MouseEvent) => void;
   selectable?: boolean;
   selected?: boolean;
-  onSelect?: (id: number) => void;
+  onSelect?: (id: string) => void;
 }) {
   const hasThumbnail = file.file_type === "video" || file.file_type === "image";
 

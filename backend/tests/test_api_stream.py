@@ -64,7 +64,7 @@ class TestStreamFile:
 
     def test_not_found(self, client):
         c, db, drive_dir, data_dir = client
-        res = c.get("/api/files/999/stream")
+        res = c.get("/api/files/zzNOTFOUNDzz/stream")
         assert res.status_code == 404
 
 
@@ -78,5 +78,5 @@ class TestThumbnail:
 
     def test_not_found(self, client):
         c, db, drive_dir, data_dir = client
-        res = c.get("/api/files/999/thumbnail")
+        res = c.get("/api/files/zzNOTFOUNDzz/thumbnail")
         assert res.status_code == 404

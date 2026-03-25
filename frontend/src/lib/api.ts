@@ -61,12 +61,12 @@ export async function scanDrive(drive: string): Promise<{ added: number; removed
   return fetchJSON(`${API_BASE}/drives/${encodeURIComponent(drive)}/scan`, { method: "POST" });
 }
 
-export async function getFile(id: number): Promise<FileItem> {
+export async function getFile(id: string): Promise<FileItem> {
   return fetchJSON<FileItem>(`${API_BASE}/files/${id}`);
 }
 
 export async function updateFile(
-  id: number,
+  id: string,
   data: { title?: string; description?: string }
 ): Promise<FileItem> {
   return fetchJSON<FileItem>(`${API_BASE}/files/${id}`, {
@@ -76,19 +76,19 @@ export async function updateFile(
   });
 }
 
-export async function likeFile(id: number): Promise<FileItem> {
+export async function likeFile(id: string): Promise<FileItem> {
   return fetchJSON<FileItem>(`${API_BASE}/files/${id}/like`, { method: "POST" });
 }
 
-export async function dislikeFile(id: number): Promise<FileItem> {
+export async function dislikeFile(id: string): Promise<FileItem> {
   return fetchJSON<FileItem>(`${API_BASE}/files/${id}/dislike`, { method: "POST" });
 }
 
-export async function toggleFavorite(id: number): Promise<FileItem> {
+export async function toggleFavorite(id: string): Promise<FileItem> {
   return fetchJSON<FileItem>(`${API_BASE}/files/${id}/favorite`, { method: "POST" });
 }
 
-export async function updateFileTags(id: number, tags: string[]): Promise<FileItem> {
+export async function updateFileTags(id: string, tags: string[]): Promise<FileItem> {
   return fetchJSON<FileItem>(`${API_BASE}/files/${id}/tags`, {
     method: "PUT",
     headers: { "Content-Type": "application/json" },
@@ -96,20 +96,20 @@ export async function updateFileTags(id: number, tags: string[]): Promise<FileIt
   });
 }
 
-export function getStreamUrl(id: number): string {
+export function getStreamUrl(id: string): string {
   return `${API_BASE}/files/${id}/stream`;
 }
 
-export function getDownloadUrl(id: number): string {
+export function getDownloadUrl(id: string): string {
   return `${API_BASE}/files/${id}/stream?download=true`;
 }
 
-export function getThumbnailUrl(id: number): string {
+export function getThumbnailUrl(id: string): string {
   return `${API_BASE}/files/${id}/thumbnail`;
 }
 
 // File operations
-export async function renameFile(id: number, newFilename: string): Promise<FileItem> {
+export async function renameFile(id: string, newFilename: string): Promise<FileItem> {
   return fetchJSON<FileItem>(`${API_BASE}/files/${id}/rename`, {
     method: "PUT",
     headers: { "Content-Type": "application/json" },
@@ -117,7 +117,7 @@ export async function renameFile(id: number, newFilename: string): Promise<FileI
   });
 }
 
-export async function moveFile(id: number, targetFolderPath: string, targetDrive?: string): Promise<FileItem> {
+export async function moveFile(id: string, targetFolderPath: string, targetDrive?: string): Promise<FileItem> {
   return fetchJSON<FileItem>(`${API_BASE}/files/${id}/move`, {
     method: "PUT",
     headers: { "Content-Type": "application/json" },
@@ -125,7 +125,7 @@ export async function moveFile(id: number, targetFolderPath: string, targetDrive
   });
 }
 
-export async function deleteFile(id: number): Promise<void> {
+export async function deleteFile(id: string): Promise<void> {
   const res = await fetch(`${API_BASE}/files/${id}`, { method: "DELETE", credentials: "include" });
   if (!res.ok) throw new Error(`API error: ${res.status}`);
 }
@@ -200,7 +200,7 @@ export async function cancelUpload(drive: string, uploadId: string): Promise<voi
 }
 
 // Batch operations
-export async function batchGetFiles(ids: number[]): Promise<FileItem[]> {
+export async function batchGetFiles(ids: string[]): Promise<FileItem[]> {
   return fetchJSON<FileItem[]>(`${API_BASE}/files/batch/get`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
@@ -208,7 +208,7 @@ export async function batchGetFiles(ids: number[]): Promise<FileItem[]> {
   });
 }
 
-export async function batchDelete(ids: number[]): Promise<{ deleted: number; errors: { id: number; error: string }[] }> {
+export async function batchDelete(ids: string[]): Promise<{ deleted: number; errors: { id: string; error: string }[] }> {
   return fetchJSON(`${API_BASE}/files/batch/delete`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
@@ -217,10 +217,10 @@ export async function batchDelete(ids: number[]): Promise<{ deleted: number; err
 }
 
 export async function batchMove(
-  ids: number[],
+  ids: string[],
   targetFolderPath: string,
   targetDrive?: string
-): Promise<{ moved: number; errors: { id: number; error: string }[] }> {
+): Promise<{ moved: number; errors: { id: string; error: string }[] }> {
   return fetchJSON(`${API_BASE}/files/batch/move`, {
     method: "PUT",
     headers: { "Content-Type": "application/json" },
@@ -229,9 +229,9 @@ export async function batchMove(
 }
 
 export async function batchTag(
-  ids: number[],
+  ids: string[],
   tags: string[]
-): Promise<{ updated: number; errors: { id: number; error: string }[] }> {
+): Promise<{ updated: number; errors: { id: string; error: string }[] }> {
   return fetchJSON(`${API_BASE}/files/batch/tags`, {
     method: "PUT",
     headers: { "Content-Type": "application/json" },

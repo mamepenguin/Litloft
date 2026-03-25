@@ -16,11 +16,12 @@ from sqlalchemy import (
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.database import Base
+from app.nanoid import generate_nanoid
 
 file_tags = Table(
     "file_tags",
     Base.metadata,
-    Column("file_id", Integer, ForeignKey("files.id", ondelete="CASCADE"), primary_key=True),
+    Column("file_id", String(12), ForeignKey("files.id", ondelete="CASCADE"), primary_key=True),
     Column("tag_id", Integer, ForeignKey("tags.id", ondelete="CASCADE"), primary_key=True),
 )
 
@@ -47,7 +48,7 @@ class Tag(Base):
 class File(Base):
     __tablename__ = "files"
 
-    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    id: Mapped[str] = mapped_column(String(12), primary_key=True, default=generate_nanoid)
     filename: Mapped[str] = mapped_column(String, nullable=False)
     title: Mapped[str] = mapped_column(String, nullable=False)
     description: Mapped[str] = mapped_column(Text, default="")

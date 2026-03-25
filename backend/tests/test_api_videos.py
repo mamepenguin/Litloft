@@ -46,7 +46,7 @@ class TestGetFile:
 
     def test_not_found(self, client):
         c, db, drive_dir, data_dir = client
-        res = c.get("/api/files/999")
+        res = c.get("/api/files/zzNOTFOUNDzz")
         assert res.status_code == 404
 
 
@@ -73,5 +73,5 @@ class TestUpdateFile:
 
     def test_not_found(self, client):
         c, db, drive_dir, data_dir = client
-        res = c.put("/api/files/999", json={"title": "x"})
+        res = c.put("/api/files/zzNOTFOUNDzz", json={"title": "x"})
         assert res.status_code == 404

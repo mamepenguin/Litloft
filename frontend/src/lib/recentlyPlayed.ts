@@ -2,7 +2,7 @@ const STORAGE_KEY = "recently-played";
 const MAX_ENTRIES = 50;
 
 export interface RecentEntry {
-  fileId: number;
+  fileId: string;
   timestamp: number;
 }
 
@@ -14,14 +14,14 @@ export function getRecentlyPlayed(): RecentEntry[] {
     if (!Array.isArray(parsed)) return [];
     return parsed.filter(
       (e): e is RecentEntry =>
-        typeof e === "object" && e !== null && typeof e.fileId === "number",
+        typeof e === "object" && e !== null && typeof e.fileId === "string",
     );
   } catch {
     return [];
   }
 }
 
-export function addRecentlyPlayed(fileId: number): void {
+export function addRecentlyPlayed(fileId: string): void {
   try {
     const entries = getRecentlyPlayed().filter((e) => e.fileId !== fileId);
     entries.unshift({ fileId, timestamp: Date.now() });
@@ -34,6 +34,6 @@ export function addRecentlyPlayed(fileId: number): void {
   }
 }
 
-export function getRecentFileIds(): number[] {
+export function getRecentFileIds(): string[] {
   return getRecentlyPlayed().map((e) => e.fileId);
 }

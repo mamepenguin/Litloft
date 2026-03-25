@@ -4,7 +4,7 @@ import { FileCard } from "../FileCard";
 import type { FileItem } from "@/types";
 
 const mockFile: FileItem = {
-  id: 1,
+  id: "abc123def456",
   filename: "test.mp4",
   title: "Test Video",
   description: "",
@@ -12,7 +12,7 @@ const mockFile: FileItem = {
   folder_path: "旅行",
   file_type: "video",
   mime_type: "video/mp4",
-  thumbnail_url: "/api/files/1/thumbnail",
+  thumbnail_url: "/api/files/abc123def456/thumbnail",
   file_size: 1048576,
   duration: 125.5,
   likes: 3,
@@ -42,14 +42,14 @@ describe("FileCard", () => {
   it("links to file page", () => {
     render(<FileCard file={mockFile} />);
     const links = screen.getAllByRole("link");
-    const fileLink = links.find((l) => l.getAttribute("href") === "/files/1");
+    const fileLink = links.find((l) => l.getAttribute("href") === "/files/abc123def456");
     expect(fileLink).toBeTruthy();
   });
 
   it("renders thumbnail image for video", () => {
     render(<FileCard file={mockFile} />);
     const img = screen.getByAltText("Test Video");
-    expect(img).toHaveAttribute("src", "/api/files/1/thumbnail");
+    expect(img).toHaveAttribute("src", "/api/files/abc123def456/thumbnail");
   });
 
   it("does not show duration for non-media files", () => {

@@ -5,7 +5,7 @@ from pydantic import BaseModel, field_validator
 
 
 class FileResponse(BaseModel):
-    id: int
+    id: str
     filename: str
     title: str
     description: str
@@ -129,25 +129,31 @@ class FileMoveRequest(BaseModel):
     target_folder_path: str
 
 
-def _validate_batch_ids(v: list[int]) -> list[int]:
+_NANOID_RE = re.compile(r"^[A-Za-z0-9_-]{12}$")
+
+
+def _validate_batch_ids(v: list[str]) -> list[str]:
     if not v:
         raise ValueError("At least one file ID is required")
     if len(v) > 100:
         raise ValueError("Maximum 100 files per batch operation")
+    for fid in v:
+        if not _NANOID_RE.match(fid):
+            raise ValueError(f"Invalid file ID: {fid}")
     return v
 
 
 class BatchIdsRequest(BaseModel):
-    ids: list[int]
+    ids: list[str]
 
     @field_validator("ids")
     @classmethod
-    def validate_ids(cls, v: list[int]) -> list[int]:
+    def validate_ids(cls, v: list[str]) -> list[str]:
         return _validate_batch_ids(v)
 
 
 class BatchMoveRequest(BaseModel):
-    ids: list[int]
+    ids: list[str]
     target_drive: str | None = None
     target_folder_path: str
 
@@ -158,12 +164,12 @@ class BatchMoveRequest(BaseModel):
 
 
 class BatchTagRequest(BaseModel):
-    ids: list[int]
+    ids: list[str]
     tags: list[str]
 
     @field_validator("ids")
     @classmethod
-    def validate_ids(cls, v: list[int]) -> list[int]:
+    def validate_ids(cls, v: list[str]) -> list[str]:
         return _validate_batch_ids(v)
 
     @field_validator("tags")

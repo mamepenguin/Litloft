@@ -27,8 +27,8 @@ export function FileList({
   onFavoriteToggle?: (file: FileItem) => void;
   onRefresh?: () => void;
   selectable?: boolean;
-  isSelected?: (id: number) => boolean;
-  onSelect?: (id: number) => void;
+  isSelected?: (id: string) => boolean;
+  onSelect?: (id: string) => void;
 }) {
   const [menuPos, setMenuPos] = useState<{ open: boolean; x: number; y: number }>({
     open: false, x: 0, y: 0,

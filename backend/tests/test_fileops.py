@@ -47,7 +47,7 @@ class TestRenameFile:
 
     def test_rename_not_found(self, client):
         c, db, drive_dir, data_dir = client
-        res = c.put("/api/files/999/rename", json={"new_filename": "x.mp4"})
+        res = c.put("/api/files/zzNOTFOUNDzz/rename", json={"new_filename": "x.mp4"})
         assert res.status_code == 404
 
     def test_rename_invalid_filename(self, client):
@@ -93,7 +93,7 @@ class TestDeleteFile:
 
     def test_delete_not_found(self, client):
         c, db, drive_dir, data_dir = client
-        res = c.delete("/api/files/999")
+        res = c.delete("/api/files/zzNOTFOUNDzz")
         assert res.status_code == 404
 
 

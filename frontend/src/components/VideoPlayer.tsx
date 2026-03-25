@@ -7,11 +7,11 @@ import { addRecentlyPlayed } from "@/lib/recentlyPlayed";
 const SAVE_INTERVAL = 5;
 const RESUME_THRESHOLD = 5;
 
-function getProgressKey(videoId: number): string {
+function getProgressKey(videoId: string): string {
   return `video-progress-${videoId}`;
 }
 
-function getSavedProgress(videoId: number): number {
+function getSavedProgress(videoId: string): number {
   try {
     const raw = localStorage.getItem(getProgressKey(videoId));
     return raw ? Number(raw) : 0;
@@ -20,7 +20,7 @@ function getSavedProgress(videoId: number): number {
   }
 }
 
-function saveProgress(videoId: number, time: number): void {
+function saveProgress(videoId: string, time: number): void {
   try {
     localStorage.setItem(getProgressKey(videoId), String(time));
   } catch {
@@ -28,7 +28,7 @@ function saveProgress(videoId: number, time: number): void {
   }
 }
 
-function clearProgress(videoId: number): void {
+function clearProgress(videoId: string): void {
   try {
     localStorage.removeItem(getProgressKey(videoId));
   } catch {
@@ -36,7 +36,7 @@ function clearProgress(videoId: number): void {
   }
 }
 
-export function VideoPlayer({ videoId }: { videoId: number }) {
+export function VideoPlayer({ videoId }: { videoId: string }) {
   const videoRef = useRef<HTMLVideoElement>(null);
   const lastSavedRef = useRef(0);
 

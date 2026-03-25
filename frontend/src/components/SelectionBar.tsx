@@ -9,7 +9,7 @@ import { MoveDialog } from "./MoveDialog";
 
 interface SelectionBarProps {
   count: number;
-  selectedIds: Set<number>;
+  selectedIds: Set<string>;
   totalCount: number;
   drive: string;
   currentPath?: string;

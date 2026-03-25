@@ -13,7 +13,7 @@ export function TagEditor({
   tags,
   onUpdate,
 }: {
-  fileId: number;
+  fileId: string;
   drive: string;
   tags: string[];
   onUpdate: (file: FileItem) => void;

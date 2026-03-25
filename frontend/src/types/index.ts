@@ -1,7 +1,7 @@
 export type FileType = "video" | "image" | "audio" | "document" | "other";
 
 export interface FileItem {
-  id: number;
+  id: string;
   filename: string;
   title: string;
   description: string;

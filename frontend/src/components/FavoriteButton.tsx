@@ -13,7 +13,7 @@ export function FavoriteButton({
   size = "sm",
   showLabel = false,
 }: {
-  fileId: number;
+  fileId: string;
   isFavorite: boolean;
   onToggle: (file: FileItem) => void;
   size?: "sm" | "md";

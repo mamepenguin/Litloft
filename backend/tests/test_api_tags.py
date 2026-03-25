@@ -134,7 +134,7 @@ class TestUpdateFileTags:
 
     def test_not_found(self, client):
         c, db, drive_dir, data_dir = client
-        res = c.put("/api/files/999/tags", json={"tags": ["night"]})
+        res = c.put("/api/files/zzNOTFOUNDzz/tags", json={"tags": ["night"]})
         assert res.status_code == 404
 
 

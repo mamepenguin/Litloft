@@ -48,7 +48,7 @@ class TestFavoriteToggle:
 
     def test_toggle_not_found(self, client):
         c, db, drive_dir, data_dir = client
-        res = c.post("/api/files/999/favorite")
+        res = c.post("/api/files/zzNOTFOUNDzz/favorite")
         assert res.status_code == 404
 
 

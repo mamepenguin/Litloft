@@ -17,7 +17,7 @@ import { useSetOverrideDrive } from "@/components/CurrentDriveProvider";
 export default function FilePage() {
   const params = useParams();
   const router = useRouter();
-  const fileId = Number(params.id);
+  const fileId = params.id as string;
 
   const [file, setFile] = useState<FileItem | null>(null);
   const [editing, setEditing] = useState(false);
