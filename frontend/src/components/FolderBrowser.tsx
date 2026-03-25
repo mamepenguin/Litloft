@@ -3,9 +3,9 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { CheckSquare, FolderPlus, RefreshCw, Upload, X } from "lucide-react";
 
-import { batchGetFiles, createFolder, getDriveFiles, getFolders, scanDrive } from "@/lib/api";
+import { addPin, batchGetFiles, createFolder, getDriveFiles, getFolders, getPins, removePin, scanDrive } from "@/lib/api";
 import { getRecentFileIds } from "@/lib/recentlyPlayed";
-import type { FileItem, Folder, PaginatedResponse, SortField, SortOrder, ViewMode } from "@/types";
+import type { FileItem, Folder, PaginatedResponse, PinnedFolder, SortField, SortOrder, ViewMode } from "@/types";
 import { FileGrid } from "@/components/FileGrid";
 import { FileList } from "@/components/FileList";
 import { ViewToggle } from "@/components/ViewToggle";
@@ -16,6 +16,7 @@ import { Breadcrumb } from "@/components/Breadcrumb";
 import { UploadZone } from "@/components/UploadZone";
 import { SelectionBar } from "@/components/SelectionBar";
 import { useSelection } from "@/hooks/useSelection";
+import { useSidebar } from "@/components/SidebarProvider";
 
 interface FolderBrowserProps {
   driveName: string;
@@ -114,6 +115,37 @@ export function FolderBrowser({ driveName, folderPath, view, tagFilter }: Folder
   useEffect(() => {
     setPage(1);
   }, [driveName, folderPath, view, tagFilter]);
+
+  const [pinnedPaths, setPinnedPaths] = useState<Set<string>>(new Set());
+  const { requestRefresh: refreshSidebar } = useSidebar();
+
+  useEffect(() => {
+    getPins(driveName)
+      .then((pins) => setPinnedPaths(new Set(pins.map((p) => p.path))))
+      .catch(() => setPinnedPaths(new Set()));
+  }, [driveName]);
+
+  const handleTogglePin = useCallback(
+    async (folderPath: string) => {
+      try {
+        if (pinnedPaths.has(folderPath)) {
+          await removePin(driveName, folderPath);
+          setPinnedPaths((prev) => {
+            const next = new Set(prev);
+            next.delete(folderPath);
+            return next;
+          });
+        } else {
+          await addPin(driveName, folderPath);
+          setPinnedPaths((prev) => new Set(prev).add(folderPath));
+        }
+        refreshSidebar();
+      } catch {
+        // ignore
+      }
+    },
+    [driveName, pinnedPaths, refreshSidebar]
+  );
 
   const [selectable, setSelectable] = useState(false);
   const selection = useSelection();
@@ -317,7 +349,14 @@ export function FolderBrowser({ driveName, folderPath, view, tagFilter }: Folder
       {folders.length > 0 && (
         <div className="mb-6 grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
           {folders.map((folder) => (
-            <FolderCard key={folder.path} folder={folder} driveName={driveName} onUpdate={refresh} />
+            <FolderCard
+              key={folder.path}
+              folder={folder}
+              driveName={driveName}
+              isPinned={pinnedPaths.has(folder.path)}
+              onTogglePin={() => handleTogglePin(folder.path)}
+              onUpdate={refresh}
+            />
           ))}
         </div>
       )}

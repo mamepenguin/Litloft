@@ -161,6 +161,8 @@ def _migrate(engine_) -> None:
         Base.metadata.tables["tags"].create(bind=engine_, checkfirst=True)
     if "empty_folders" not in tables:
         Base.metadata.tables["empty_folders"].create(bind=engine_, checkfirst=True)
+    if "pinned_folders" not in tables:
+        Base.metadata.tables["pinned_folders"].create(bind=engine_, checkfirst=True)
 
     # === Phase 3: Migrate files.id from INTEGER to nanoid VARCHAR(12) ===
     tables = inspector.get_table_names()

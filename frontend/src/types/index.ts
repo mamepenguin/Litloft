@@ -58,6 +58,10 @@ export interface Tag {
   count: number;
 }
 
+export interface PinnedFolder {
+  path: string;
+}
+
 export type ViewMode = "grid" | "list";
 export type SortField = "created_at" | "title" | "file_size" | "likes" | "random";
 export type SortOrder = "asc" | "desc";

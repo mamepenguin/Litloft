@@ -95,3 +95,18 @@ class EmptyFolder(Base):
     __table_args__ = (
         UniqueConstraint("drive", "path", name="uq_empty_folders_drive_path"),
     )
+
+
+class PinnedFolder(Base):
+    __tablename__ = "pinned_folders"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    drive: Mapped[str] = mapped_column(String, nullable=False)
+    path: Mapped[str] = mapped_column(String, nullable=False)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime, default=lambda: datetime.now(UTC)
+    )
+
+    __table_args__ = (
+        UniqueConstraint("drive", "path", name="uq_pinned_folders_drive_path"),
+    )

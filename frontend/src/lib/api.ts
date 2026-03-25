@@ -1,4 +1,4 @@
-import type { AuthStatus, ChunkResponse, Drive, FileItem, FileType, Folder, PaginatedResponse, SortField, SortOrder, Tag, UnlockResult, UploadInitResponse } from "@/types";
+import type { AuthStatus, ChunkResponse, Drive, FileItem, FileType, Folder, PaginatedResponse, PinnedFolder, SortField, SortOrder, Tag, UnlockResult, UploadInitResponse } from "@/types";
 
 const API_BASE = "/api";
 
@@ -237,6 +237,27 @@ export async function batchTag(
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ ids, tags }),
   });
+}
+
+// Pins
+export async function getPins(drive: string): Promise<PinnedFolder[]> {
+  return fetchJSON<PinnedFolder[]>(`${API_BASE}/drives/${encodeURIComponent(drive)}/pins`);
+}
+
+export async function addPin(drive: string, path: string): Promise<PinnedFolder> {
+  return fetchJSON<PinnedFolder>(`${API_BASE}/drives/${encodeURIComponent(drive)}/pins`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ path }),
+  });
+}
+
+export async function removePin(drive: string, path: string): Promise<void> {
+  const res = await fetch(
+    `${API_BASE}/drives/${encodeURIComponent(drive)}/pins?path=${encodeURIComponent(path)}`,
+    { method: "DELETE", credentials: "include" }
+  );
+  if (!res.ok) throw new Error(`API error: ${res.status}`);
 }
 
 // Auth

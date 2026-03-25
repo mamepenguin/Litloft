@@ -3,10 +3,10 @@
 import { Suspense, useEffect, useState } from "react";
 import Link from "next/link";
 import { usePathname, useSearchParams } from "next/navigation";
-import { Clock, FilePlus, Files, HardDrive, Home, Lock, LockOpen, Star, Tag, X } from "lucide-react";
+import { Clock, FilePlus, Files, Folder, HardDrive, Home, Lock, LockOpen, Pin, Star, Tag, X } from "lucide-react";
 
-import { getDrives, getDriveTags, getAuthStatus, lock as lockApi } from "@/lib/api";
-import type { AuthStatus, Drive, Tag as TagType } from "@/types";
+import { getDrives, getDriveTags, getPins, getAuthStatus, lock as lockApi } from "@/lib/api";
+import type { AuthStatus, Drive, PinnedFolder, Tag as TagType } from "@/types";
 import { useSidebar } from "./SidebarProvider";
 import { useCurrentDrive } from "./CurrentDriveProvider";
 
@@ -21,6 +21,7 @@ function SidebarNav() {
 
   const [drives, setDrives] = useState<Drive[]>([]);
   const [tags, setTags] = useState<TagType[]>([]);
+  const [pins, setPins] = useState<PinnedFolder[]>([]);
   const [authStatus, setAuthStatus] = useState<AuthStatus | null>(null);
 
   useEffect(() => {
@@ -31,8 +32,10 @@ function SidebarNav() {
   useEffect(() => {
     if (currentDrive) {
       getDriveTags(currentDrive).then(setTags).catch(() => setTags([]));
+      getPins(currentDrive).then(setPins).catch(() => setPins([]));
     } else {
       setTags([]);
+      setPins([]);
     }
   }, [currentDrive, refreshKey]);
 
@@ -62,7 +65,7 @@ function SidebarNav() {
       return pathname === driveBase && !activeView && !activeTag;
     }
     if (href.startsWith("/drive/")) {
-      return pathname === href;
+      return pathname === decodeURIComponent(href) || pathname === href;
     }
     return false;
   }
@@ -111,6 +114,29 @@ function SidebarNav() {
             <Files size={16} />
             すべてのファイル
           </Link>
+        </>
+      )}
+
+      {driveBase && pins.length > 0 && (
+        <>
+          <div className="mb-1 mt-4 px-3 text-[11px] font-semibold uppercase tracking-wider text-text-muted">
+            Pins
+          </div>
+          {pins.map((pin) => {
+            const pinHref = `${driveBase}/${pin.path.split("/").map(encodeURIComponent).join("/")}`;
+            const pinName = pin.path.split("/").pop() ?? pin.path;
+            return (
+              <Link
+                key={pin.path}
+                href={pinHref}
+                onClick={close}
+                className={linkClass(pinHref)}
+              >
+                <Folder size={16} />
+                <span className="flex-1 truncate">{pinName}</span>
+              </Link>
+            );
+          })}
         </>
       )}
 

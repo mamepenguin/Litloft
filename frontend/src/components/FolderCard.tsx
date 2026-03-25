@@ -6,10 +6,12 @@ import { FolderActions } from "./FolderActions";
 interface FolderCardProps {
   folder: FolderType;
   driveName: string;
+  isPinned?: boolean;
+  onTogglePin?: () => void;
   onUpdate?: () => void;
 }
 
-export function FolderCard({ folder, driveName, onUpdate }: FolderCardProps) {
+export function FolderCard({ folder, driveName, isPinned, onTogglePin, onUpdate }: FolderCardProps) {
   return (
     <div className="group relative flex items-center gap-3 rounded-xl bg-bg-card p-4 transition-all duration-200 hover:scale-[1.02] hover:bg-bg-elevated hover:shadow-lg">
       <Link
@@ -28,7 +30,7 @@ export function FolderCard({ folder, driveName, onUpdate }: FolderCardProps) {
       </Link>
       {onUpdate && (
         <div className="opacity-0 group-hover:opacity-100 transition-opacity">
-          <FolderActions folder={folder} drive={driveName} onUpdate={onUpdate} />
+          <FolderActions folder={folder} drive={driveName} isPinned={isPinned} onTogglePin={onTogglePin} onUpdate={onUpdate} />
         </div>
       )}
     </div>

@@ -8,7 +8,7 @@ from sqlalchemy.orm import Session
 import app.config as config
 from app.auth import check_drive_access, filter_drives, get_unlocked_groups
 from app.database import get_db
-from app.models import EmptyFolder, File, Tag, file_tags
+from app.models import EmptyFolder, File, PinnedFolder, Tag, file_tags
 from app.schemas import (
     DriveResponse,
     FileResponse,
@@ -17,6 +17,8 @@ from app.schemas import (
     FolderResponse,
     PaginatedResponse,
     PaginationMeta,
+    PinnedFolderCreateRequest,
+    PinnedFolderResponse,
     ScanResponse,
     TagResponse,
     file_to_response,
@@ -241,3 +243,65 @@ async def trigger_drive_scan(
         return ScanResponse(**result)
     except RuntimeError:
         raise HTTPException(status_code=409, detail="Scan already in progress")
+
+
+@router.get("/{drive_name}/pins", response_model=list[PinnedFolderResponse])
+async def list_pinned_folders(
+    drive_name: str,
+    db: Annotated[Session, Depends(get_db)],
+    unlocked_groups: Annotated[list[str], Depends(get_unlocked_groups)],
+):
+    _validate_drive(drive_name, unlocked_groups)
+    pins = (
+        db.query(PinnedFolder)
+        .filter(PinnedFolder.drive == drive_name)
+        .order_by(PinnedFolder.id)
+        .all()
+    )
+    return [PinnedFolderResponse(path=pin.path) for pin in pins]
+
+
+@router.post("/{drive_name}/pins", response_model=PinnedFolderResponse, status_code=201)
+async def pin_folder(
+    drive_name: str,
+    body: PinnedFolderCreateRequest,
+    db: Annotated[Session, Depends(get_db)],
+    unlocked_groups: Annotated[list[str], Depends(get_unlocked_groups)],
+):
+    _validate_drive(drive_name, unlocked_groups)
+    path = _validate_folder_path(body.path) if body.path else body.path
+
+    existing = (
+        db.query(PinnedFolder)
+        .filter(PinnedFolder.drive == drive_name, PinnedFolder.path == path)
+        .first()
+    )
+    if existing:
+        raise HTTPException(status_code=409, detail="Folder already pinned")
+
+    pin = PinnedFolder(drive=drive_name, path=path)
+    db.add(pin)
+    db.commit()
+    db.refresh(pin)
+    return PinnedFolderResponse(path=pin.path)
+
+
+@router.delete("/{drive_name}/pins", status_code=204)
+async def unpin_folder(
+    drive_name: str,
+    path: str,
+    db: Annotated[Session, Depends(get_db)],
+    unlocked_groups: Annotated[list[str], Depends(get_unlocked_groups)],
+):
+    _validate_drive(drive_name, unlocked_groups)
+
+    pin = (
+        db.query(PinnedFolder)
+        .filter(PinnedFolder.drive == drive_name, PinnedFolder.path == path)
+        .first()
+    )
+    if not pin:
+        raise HTTPException(status_code=404, detail="Pin not found")
+
+    db.delete(pin)
+    db.commit()

@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
-import { Pencil, Trash2 } from "lucide-react";
+import { Pencil, Pin, PinOff, Trash2 } from "lucide-react";
 
 import { deleteFolder, renameFolder } from "@/lib/api";
 import type { Folder } from "@/types";
@@ -11,6 +11,8 @@ import { RenameDialog } from "./RenameDialog";
 interface FolderActionsProps {
   folder: Folder;
   drive: string;
+  isPinned?: boolean;
+  onTogglePin?: () => void;
   onUpdate?: () => void;
   onDelete?: () => void;
 }
@@ -18,6 +20,8 @@ interface FolderActionsProps {
 export function FolderActions({
   folder,
   drive,
+  isPinned,
+  onTogglePin,
   onUpdate,
   onDelete,
 }: FolderActionsProps) {
@@ -59,6 +63,23 @@ export function FolderActions({
   return (
     <>
       <div className="flex items-center gap-1">
+        {onTogglePin && (
+          <button
+            onClick={(e) => {
+              e.preventDefault();
+              e.stopPropagation();
+              onTogglePin();
+            }}
+            className={`rounded-lg p-1.5 transition-all ${
+              isPinned
+                ? "text-accent hover:bg-accent/10"
+                : "text-text-muted hover:bg-bg-elevated hover:text-text-primary"
+            }`}
+            aria-label={isPinned ? "ピン留め解除" : "ピン留め"}
+          >
+            {isPinned ? <PinOff size={14} /> : <Pin size={14} />}
+          </button>
+        )}
         <button
           onClick={(e) => {
             e.preventDefault();

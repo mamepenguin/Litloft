@@ -84,6 +84,14 @@ class TagResponse(BaseModel):
     count: int
 
 
+class PinnedFolderResponse(BaseModel):
+    path: str
+
+
+class PinnedFolderCreateRequest(BaseModel):
+    path: str
+
+
 class ScanResponse(BaseModel):
     added: int
     removed: int
