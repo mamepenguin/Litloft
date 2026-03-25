@@ -1,18 +1,19 @@
 "use client";
 
-import { Suspense, useEffect, useState } from "react";
+import { Suspense, useCallback, useEffect, useRef, useState } from "react";
 import Link from "next/link";
-import { usePathname, useSearchParams } from "next/navigation";
-import { Clock, FilePlus, Files, Folder, HardDrive, Home, Lock, LockOpen, Pin, Star, Tag, X } from "lucide-react";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
+import { Clock, FilePlus, Files, Folder, HardDrive, Home, ListMusic, Lock, LockOpen, Pencil, Plus, Star, Tag, Trash2, X } from "lucide-react";
 
-import { getDrives, getDriveTags, getPins, getAuthStatus, lock as lockApi } from "@/lib/api";
-import type { AuthStatus, Drive, PinnedFolder, Tag as TagType } from "@/types";
+import { getDrives, getDriveTags, getPins, getPlaylists, getPlaylist, createPlaylist, updatePlaylist, deletePlaylist, getAuthStatus, lock as lockApi } from "@/lib/api";
+import type { AuthStatus, Drive, PinnedFolder, PlaylistSummary, Tag as TagType } from "@/types";
 import { useSidebar } from "./SidebarProvider";
 import { useCurrentDrive } from "./CurrentDriveProvider";
 
 function SidebarNav() {
   const pathname = usePathname();
   const searchParams = useSearchParams();
+  const router = useRouter();
   const { close, refreshKey } = useSidebar();
 
   const currentDrive = useCurrentDrive();
@@ -22,7 +23,16 @@ function SidebarNav() {
   const [drives, setDrives] = useState<Drive[]>([]);
   const [tags, setTags] = useState<TagType[]>([]);
   const [pins, setPins] = useState<PinnedFolder[]>([]);
+  const [playlistList, setPlaylistList] = useState<PlaylistSummary[]>([]);
   const [authStatus, setAuthStatus] = useState<AuthStatus | null>(null);
+
+  const [creatingPlaylist, setCreatingPlaylist] = useState(false);
+  const [newPlaylistName, setNewPlaylistName] = useState("");
+  const [renamingId, setRenamingId] = useState<string | null>(null);
+  const [renameValue, setRenameValue] = useState("");
+  const [contextMenu, setContextMenu] = useState<{ id: string; x: number; y: number } | null>(null);
+  const createInputRef = useRef<HTMLInputElement>(null);
+  const renameInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     getDrives().then(setDrives).catch(() => setDrives([]));
@@ -33,11 +43,93 @@ function SidebarNav() {
     if (currentDrive) {
       getDriveTags(currentDrive).then(setTags).catch(() => setTags([]));
       getPins(currentDrive).then(setPins).catch(() => setPins([]));
+      getPlaylists(currentDrive).then(setPlaylistList).catch(() => setPlaylistList([]));
     } else {
       setTags([]);
       setPins([]);
+      setPlaylistList([]);
     }
   }, [currentDrive, refreshKey]);
+
+  useEffect(() => {
+    if (creatingPlaylist && createInputRef.current) {
+      createInputRef.current.focus();
+    }
+  }, [creatingPlaylist]);
+
+  useEffect(() => {
+    if (renamingId && renameInputRef.current) {
+      renameInputRef.current.focus();
+      renameInputRef.current.select();
+    }
+  }, [renamingId]);
+
+  useEffect(() => {
+    if (!contextMenu) return;
+    function handleClick() { setContextMenu(null); }
+    window.addEventListener("click", handleClick);
+    return () => window.removeEventListener("click", handleClick);
+  }, [contextMenu]);
+
+  const handleCreatePlaylist = useCallback(async () => {
+    if (!currentDrive || !newPlaylistName.trim()) {
+      setCreatingPlaylist(false);
+      setNewPlaylistName("");
+      return;
+    }
+    try {
+      await createPlaylist(currentDrive, newPlaylistName.trim());
+      const updated = await getPlaylists(currentDrive);
+      setPlaylistList(updated);
+    } catch {
+      // name conflict or other error
+    }
+    setCreatingPlaylist(false);
+    setNewPlaylistName("");
+  }, [currentDrive, newPlaylistName]);
+
+  const handleRenamePlaylist = useCallback(async () => {
+    if (!currentDrive || !renamingId || !renameValue.trim()) {
+      setRenamingId(null);
+      setRenameValue("");
+      return;
+    }
+    try {
+      await updatePlaylist(currentDrive, renamingId, renameValue.trim());
+      const updated = await getPlaylists(currentDrive);
+      setPlaylistList(updated);
+    } catch {
+      // name conflict or other error
+    }
+    setRenamingId(null);
+    setRenameValue("");
+  }, [currentDrive, renamingId, renameValue]);
+
+  const handleDeletePlaylist = useCallback(async (id: string) => {
+    if (!currentDrive) return;
+    try {
+      await deletePlaylist(currentDrive, id);
+      const updated = await getPlaylists(currentDrive);
+      setPlaylistList(updated);
+    } catch {
+      // error
+    }
+    setContextMenu(null);
+  }, [currentDrive]);
+
+  const handlePlaylistClick = useCallback(async (pl: PlaylistSummary) => {
+    if (!currentDrive || pl.item_count === 0) return;
+    try {
+      const detail = await getPlaylist(currentDrive, pl.id);
+      if (detail.items.length > 0) {
+        const firstFileId = detail.items[0].file.id;
+        close();
+        router.push(`/files/${firstFileId}?playlist=${pl.id}`);
+      }
+    } catch {
+      // error
+    }
+  }, [currentDrive, close, router]);
 
   function isActive(href: string): boolean {
     if (href === "/") return pathname === "/";
@@ -114,6 +206,114 @@ function SidebarNav() {
             <Files size={16} />
             すべてのファイル
           </Link>
+        </>
+      )}
+
+      {driveBase && (
+        <>
+          <div className="mb-1 mt-4 flex items-center justify-between px-3">
+            <span className="text-[11px] font-semibold uppercase tracking-wider text-text-muted">
+              Playlists
+            </span>
+            <button
+              onClick={() => {
+                setCreatingPlaylist(true);
+                setNewPlaylistName("");
+              }}
+              className="text-text-muted hover:text-text-primary"
+              aria-label="プレイリスト作成"
+            >
+              <Plus size={14} />
+            </button>
+          </div>
+
+          {creatingPlaylist && (
+            <div className="px-3">
+              <input
+                ref={createInputRef}
+                type="text"
+                value={newPlaylistName}
+                onChange={(e) => setNewPlaylistName(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") handleCreatePlaylist();
+                  if (e.key === "Escape") {
+                    setCreatingPlaylist(false);
+                    setNewPlaylistName("");
+                  }
+                }}
+                onBlur={handleCreatePlaylist}
+                placeholder="プレイリスト名..."
+                className="w-full rounded-lg bg-bg-card px-2 py-1.5 text-sm text-text-primary placeholder:text-text-muted outline-none focus:ring-2 focus:ring-accent"
+              />
+            </div>
+          )}
+
+          {playlistList.map((pl) => (
+            <div key={pl.id} className="relative">
+              {renamingId === pl.id ? (
+                <div className="px-3">
+                  <input
+                    ref={renameInputRef}
+                    type="text"
+                    value={renameValue}
+                    onChange={(e) => setRenameValue(e.target.value)}
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter") handleRenamePlaylist();
+                      if (e.key === "Escape") {
+                        setRenamingId(null);
+                        setRenameValue("");
+                      }
+                    }}
+                    onBlur={handleRenamePlaylist}
+                    className="w-full rounded-lg bg-bg-card px-2 py-1.5 text-sm text-text-primary outline-none focus:ring-2 focus:ring-accent"
+                  />
+                </div>
+              ) : (
+                <button
+                  onClick={() => handlePlaylistClick(pl)}
+                  onContextMenu={(e) => {
+                    e.preventDefault();
+                    setContextMenu({ id: pl.id, x: e.clientX, y: e.clientY });
+                  }}
+                  className={`flex w-full items-center gap-2.5 rounded-lg px-3 py-2 text-sm transition-colors ${
+                    pl.item_count === 0
+                      ? "text-text-muted/50 cursor-default"
+                      : "text-text-muted hover:bg-bg-elevated hover:text-text-primary cursor-pointer"
+                  }`}
+                >
+                  <ListMusic size={16} />
+                  <span className="flex-1 truncate text-left">{pl.name}</span>
+                  <span className="text-xs opacity-60">{pl.item_count}</span>
+                </button>
+              )}
+
+              {contextMenu?.id === pl.id && (
+                <div
+                  className="fixed z-50 min-w-[140px] rounded-lg border border-bg-border bg-bg-primary py-1 shadow-lg"
+                  style={{ left: contextMenu.x, top: contextMenu.y }}
+                >
+                  <button
+                    onClick={() => {
+                      setRenamingId(pl.id);
+                      setRenameValue(pl.name);
+                      setContextMenu(null);
+                    }}
+                    className="flex w-full items-center gap-2 px-3 py-1.5 text-sm text-text-muted hover:bg-bg-elevated hover:text-text-primary"
+                  >
+                    <Pencil size={14} />
+                    リネーム
+                  </button>
+                  <button
+                    onClick={() => handleDeletePlaylist(pl.id)}
+                    className="flex w-full items-center gap-2 px-3 py-1.5 text-sm text-red-400 hover:bg-red-400/10"
+                  >
+                    <Trash2 size={14} />
+                    削除
+                  </button>
+                </div>
+              )}
+            </div>
+          ))}
         </>
       )}
 

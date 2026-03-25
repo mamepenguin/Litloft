@@ -219,6 +219,85 @@ class BatchTagRequest(BaseModel):
         return list(seen.values())
 
 
+class PlaylistCreateRequest(BaseModel):
+    name: str
+
+    @field_validator("name")
+    @classmethod
+    def validate_name(cls, v: str) -> str:
+        v = v.strip()
+        if not v:
+            raise ValueError("Playlist name is required")
+        if len(v) > 100:
+            raise ValueError("Playlist name exceeds 100 characters")
+        return v
+
+
+class PlaylistUpdateRequest(BaseModel):
+    name: str
+
+    @field_validator("name")
+    @classmethod
+    def validate_name(cls, v: str) -> str:
+        v = v.strip()
+        if not v:
+            raise ValueError("Playlist name is required")
+        if len(v) > 100:
+            raise ValueError("Playlist name exceeds 100 characters")
+        return v
+
+
+class PlaylistItemAddRequest(BaseModel):
+    file_ids: list[str]
+
+    @field_validator("file_ids")
+    @classmethod
+    def validate_file_ids(cls, v: list[str]) -> list[str]:
+        if not v:
+            raise ValueError("At least one file ID is required")
+        if len(v) > 100:
+            raise ValueError("Maximum 100 files per operation")
+        for fid in v:
+            if not _NANOID_RE.match(fid):
+                raise ValueError(f"Invalid file ID: {fid}")
+        return v
+
+
+class PlaylistItemReorderRequest(BaseModel):
+    item_ids: list[int]
+
+    @field_validator("item_ids")
+    @classmethod
+    def validate_item_ids(cls, v: list[int]) -> list[int]:
+        if not v:
+            raise ValueError("At least one item ID is required")
+        return v
+
+
+class PlaylistItemResponse(BaseModel):
+    id: int
+    position: int
+    file: FileResponse
+
+
+class PlaylistSummaryResponse(_UtcDateTimeMixin, BaseModel):
+    id: str
+    name: str
+    drive: str
+    item_count: int
+    created_at: datetime
+    updated_at: datetime
+
+
+class PlaylistDetailResponse(_UtcDateTimeMixin, BaseModel):
+    id: str
+    name: str
+    drive: str
+    items: list[PlaylistItemResponse]
+    created_at: datetime
+    updated_at: datetime
+
+
 def file_to_response(file) -> FileResponse:
     return FileResponse(
         id=file.id,

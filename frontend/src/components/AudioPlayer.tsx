@@ -5,7 +5,7 @@ import { FileTypeIcon } from "./FileTypeIcon";
 import { getStreamUrl } from "@/lib/api";
 import { formatFileSize } from "@/lib/format";
 
-export function AudioPlayer({ file }: { file: FileItem }) {
+export function AudioPlayer({ file, onEnded }: { file: FileItem; onEnded?: () => void }) {
   return (
     <div className="flex w-full flex-col items-center justify-center rounded-xl bg-bg-card py-12">
       <FileTypeIcon fileType="audio" size={64} className="mb-4 text-text-muted" />
@@ -16,6 +16,7 @@ export function AudioPlayer({ file }: { file: FileItem }) {
         controls
         preload="metadata"
         className="w-full max-w-md"
+        onEnded={onEnded}
       >
         お使いのブラウザは音声再生に対応していません。
       </audio>

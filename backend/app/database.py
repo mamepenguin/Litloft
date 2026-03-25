@@ -1,7 +1,7 @@
 import logging
 import re
 
-from sqlalchemy import create_engine, inspect, text
+from sqlalchemy import create_engine, event, inspect, text
 from sqlalchemy.orm import DeclarativeBase, Session, sessionmaker
 
 logger = logging.getLogger(__name__)
@@ -17,6 +17,13 @@ engine = create_engine(
     DATABASE_URL,
     connect_args={"check_same_thread": False},
 )
+
+
+@event.listens_for(engine, "connect")
+def _set_sqlite_pragma(dbapi_conn, connection_record):
+    cursor = dbapi_conn.cursor()
+    cursor.execute("PRAGMA foreign_keys=ON")
+    cursor.close()
 
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 
@@ -159,6 +166,10 @@ def _migrate(engine_) -> None:
         Base.metadata.tables["empty_folders"].create(bind=engine_, checkfirst=True)
     if "pinned_folders" not in tables:
         Base.metadata.tables["pinned_folders"].create(bind=engine_, checkfirst=True)
+    if "playlists" not in tables:
+        Base.metadata.tables["playlists"].create(bind=engine_, checkfirst=True)
+    if "playlist_items" not in tables:
+        Base.metadata.tables["playlist_items"].create(bind=engine_, checkfirst=True)
 
     # === Phase 3: Migrate files.id from INTEGER to nanoid VARCHAR(12) ===
     tables = inspector.get_table_names()

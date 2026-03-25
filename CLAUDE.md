@@ -21,13 +21,14 @@ backend/
     main.py           # FastAPIエントリーポイント、ルーター登録、startup scan
     config.py          # drives.json からドライブ設定読み取り、DATA_DIR
     database.py        # SQLAlchemy engine, SessionLocal, get_db (DI), マイグレーション
-    models.py          # File, Tag, EmptyFolder, PinnedFolder モデル (SQLAlchemy ORM)
+    models.py          # File, Tag, EmptyFolder, PinnedFolder, Playlist, PlaylistItem モデル (SQLAlchemy ORM)
     schemas.py         # Pydantic スキーマ (リクエスト/レスポンス)
     auth.py            # JWT認証ロジック（トークン生成・検証、アクセスグループ管理）
     nanoid.py          # Nano ID生成ユーティリティ
     routers/
       files.py         # GET/PUT /api/files/{id}, stream, thumbnail, like, tags, batch操作
       drives.py        # GET /api/drives, folders, files, tags, scan, pins
+      playlists.py     # プレイリストCRUD + アイテム操作エンドポイント
       auth.py          # POST /api/auth/unlock, lock, GET status
       uploads.py       # チャンクアップロードエンドポイント
     services/
@@ -51,7 +52,7 @@ frontend/
       layout.tsx         # ルートレイアウト (Inter, PWA meta, dark theme)
       globals.css        # CSS変数 (デザイントークン), Tailwind
     components/
-      Sidebar.tsx        # サイドバー（LIBRARY/TAGS/DRIVES セクション）
+      Sidebar.tsx        # サイドバー（LIBRARY/PLAYLISTS/PINS/TAGS/DRIVES セクション）
       Header.tsx         # ヘッダー・ナビゲーションバー
       FolderBrowser.tsx  # フォルダ一覧 + ファイル一覧の統合表示
       FolderCard.tsx     # フォルダアイテム表示
@@ -64,7 +65,9 @@ frontend/
       FileActions.tsx    # ファイル操作メニュー（リネーム、移動、削除）
       FolderActions.tsx  # フォルダ操作メニュー
       VideoPlayer.tsx    # 動画プレーヤー
-      AudioPlayer.tsx    # 音声プレーヤー
+      AudioPlayer.tsx    # 音声プレーヤー（onEnded コールバック対応）
+      PlaylistPanel.tsx # プレイリスト再生パネル（トラックリスト、レイアウト切替）
+      PlaylistPicker.tsx # プレイリスト選択ダイアログ（追加先選択用）
       DriveHome.tsx      # ドライブホームページレイアウト
       GlobalSearch.tsx   # グローバル検索
       SortButton.tsx     # ソートオプションボタン
@@ -90,7 +93,7 @@ frontend/
       api.ts             # Backend API呼び出しクライアント
       format.ts          # formatDuration, formatFileSize
       recentlyPlayed.ts  # 最近再生した曲の管理
-    types/index.ts       # FileItem, Drive, Folder, Tag, PaginatedResponse 等の型定義
+    types/index.ts       # FileItem, Drive, Folder, Tag, PlaylistSummary, PlaylistDetail 等の型定義
 
 deploy/
   post-receive         # git push → Mac mini 自動デプロイ hook
@@ -141,6 +144,14 @@ docker compose logs -f backend
 | POST | /api/drives/{drive}/pins | フォルダをピン留め |
 | DELETE | /api/drives/{drive}/pins?path= | ピン留め解除 |
 | POST | /api/drives/{drive}/scan | ドライブ単位スキャン (排他制御、競合時 409) |
+| GET | /api/drives/{drive}/playlists | プレイリスト一覧 |
+| POST | /api/drives/{drive}/playlists | プレイリスト作成 |
+| GET | /api/drives/{drive}/playlists/{id} | プレイリスト詳細（アイテム一覧含む） |
+| PUT | /api/drives/{drive}/playlists/{id} | プレイリストリネーム |
+| DELETE | /api/drives/{drive}/playlists/{id} | プレイリスト削除 |
+| POST | /api/drives/{drive}/playlists/{id}/items | アイテム追加（複数可） |
+| DELETE | /api/drives/{drive}/playlists/{id}/items/{item_id} | アイテム削除 |
+| PUT | /api/drives/{drive}/playlists/{id}/items/reorder | アイテム並び替え |
 
 ### 認証
 
@@ -219,6 +230,18 @@ docker compose logs -f backend
 - **履歴管理**: 前後移動は `router.replace` で履歴を置き換え、ブラウザ戻るボタンでフォルダ一覧に正しく戻る
 - **特殊ビューからの遷移**: お気に入り・タグ等からの遷移ではフォルダ内ナビゲーションとなる（将来プレイリスト機能で拡張予定）
 - 設計書: `docs/superpowers/specs/2026-03-25-file-navigation-design.md`
+
+### プレイリスト
+- **2種類**: ユーザー作成プレイリスト（DB永続化）+ フォルダ自動プレイリスト（フロントエンドが都度構築）
+- **ドライブ内限定**: プレイリストはドライブに紐づき、ドライブ横断不可。ファイル追加時にドライブ一致を検証
+- **DB モデル**: `Playlist`（nanoid主キー）+ `PlaylistItem`（auto-increment主キー、position で曲順管理）
+- **カスケード削除**: SQLite の `PRAGMA foreign_keys=ON` を有効化し、ファイル削除時にPlaylistItemも自動削除
+- **再生画面**: 既存の `/files/[id]` ページに `?playlist={id}` or `?folder_play=1` で起動。`router.replace` で次曲遷移（ImageGalleryと同パターン）
+- **レイアウト切替**: デスクトップ動画=シアターモード（縦積み）、デスクトップ音声=サイドパネル、モバイル=縦積み折りたたみ
+- **曲順変更**: 上下ボタン（▲▼）で全デバイス共通。ドラッグ&ドロップライブラリは不使用
+- **管理UI**: サイドバーのPLAYLISTSセクション + 右クリックメニュー / 選択バーからファイル追加
+- **readonlyドライブ**: プレイリストはDBメタデータなので、readonlyドライブでもCRUD可能
+- 設計書: `docs/superpowers/specs/2026-03-25-playlist-design.md`
 
 ### Frontend
 - Next.js 16: `params` は `Promise` 型。Server Component では `await params`、Client Component では `use(params)` または `useParams()`

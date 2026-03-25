@@ -1,4 +1,4 @@
-import type { AuthStatus, ChunkResponse, Drive, FileItem, FileType, Folder, Neighbors, PaginatedResponse, PinnedFolder, SortField, SortOrder, Tag, UnlockResult, UploadInitResponse } from "@/types";
+import type { AuthStatus, ChunkResponse, Drive, FileItem, FileType, Folder, Neighbors, PaginatedResponse, PinnedFolder, PlaylistDetail, PlaylistSummary, SortField, SortOrder, Tag, UnlockResult, UploadInitResponse } from "@/types";
 
 const API_BASE = "/api";
 
@@ -270,6 +270,91 @@ export async function removePin(drive: string, path: string): Promise<void> {
     { method: "DELETE", credentials: "include" }
   );
   if (!res.ok) throw new Error(`API error: ${res.status}`);
+}
+
+// Playlists
+export async function getPlaylists(drive: string): Promise<PlaylistSummary[]> {
+  return fetchJSON<PlaylistSummary[]>(
+    `${API_BASE}/drives/${encodeURIComponent(drive)}/playlists`
+  );
+}
+
+export async function createPlaylist(drive: string, name: string): Promise<PlaylistSummary> {
+  return fetchJSON<PlaylistSummary>(
+    `${API_BASE}/drives/${encodeURIComponent(drive)}/playlists`,
+    {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ name }),
+    }
+  );
+}
+
+export async function getPlaylist(drive: string, id: string): Promise<PlaylistDetail> {
+  return fetchJSON<PlaylistDetail>(
+    `${API_BASE}/drives/${encodeURIComponent(drive)}/playlists/${id}`
+  );
+}
+
+export async function updatePlaylist(drive: string, id: string, name: string): Promise<PlaylistSummary> {
+  return fetchJSON<PlaylistSummary>(
+    `${API_BASE}/drives/${encodeURIComponent(drive)}/playlists/${id}`,
+    {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ name }),
+    }
+  );
+}
+
+export async function deletePlaylist(drive: string, id: string): Promise<void> {
+  const res = await fetch(
+    `${API_BASE}/drives/${encodeURIComponent(drive)}/playlists/${id}`,
+    { method: "DELETE", credentials: "include" }
+  );
+  if (!res.ok) throw new Error(`API error: ${res.status}`);
+}
+
+export async function addPlaylistItems(
+  drive: string,
+  playlistId: string,
+  fileIds: string[]
+): Promise<PlaylistDetail> {
+  return fetchJSON<PlaylistDetail>(
+    `${API_BASE}/drives/${encodeURIComponent(drive)}/playlists/${playlistId}/items`,
+    {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ file_ids: fileIds }),
+    }
+  );
+}
+
+export async function removePlaylistItem(
+  drive: string,
+  playlistId: string,
+  itemId: number
+): Promise<void> {
+  const res = await fetch(
+    `${API_BASE}/drives/${encodeURIComponent(drive)}/playlists/${playlistId}/items/${itemId}`,
+    { method: "DELETE", credentials: "include" }
+  );
+  if (!res.ok) throw new Error(`API error: ${res.status}`);
+}
+
+export async function reorderPlaylistItems(
+  drive: string,
+  playlistId: string,
+  itemIds: number[]
+): Promise<PlaylistDetail> {
+  return fetchJSON<PlaylistDetail>(
+    `${API_BASE}/drives/${encodeURIComponent(drive)}/playlists/${playlistId}/items/reorder`,
+    {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ item_ids: itemIds }),
+    }
+  );
 }
 
 // Auth

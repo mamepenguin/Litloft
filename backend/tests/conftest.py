@@ -6,8 +6,16 @@ from pathlib import Path
 
 import pytest
 from fastapi.testclient import TestClient
-from sqlalchemy import create_engine
+from sqlalchemy import create_engine, event
 from sqlalchemy.orm import sessionmaker
+
+
+def _enable_fk(engine):
+    @event.listens_for(engine, "connect")
+    def _set_pragma(dbapi_conn, connection_record):
+        cursor = dbapi_conn.cursor()
+        cursor.execute("PRAGMA foreign_keys=ON")
+        cursor.close()
 
 from app.database import Base, get_db
 from app.main import app
@@ -32,6 +40,7 @@ def db_session(tmp_path):
         f"sqlite:///{db_path}",
         connect_args={"check_same_thread": False},
     )
+    _enable_fk(engine)
     Base.metadata.create_all(bind=engine)
     TestSession = sessionmaker(autocommit=False, autoflush=False, bind=engine)
     session = TestSession()
@@ -49,6 +58,7 @@ def client(tmp_path):
         f"sqlite:///{db_path}",
         connect_args={"check_same_thread": False},
     )
+    _enable_fk(engine)
     Base.metadata.create_all(bind=engine)
     TestSession = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 

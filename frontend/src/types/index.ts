@@ -66,6 +66,30 @@ export interface Neighbors {
   next_id: string | null;
 }
 
+export interface PlaylistSummary {
+  id: string;
+  name: string;
+  drive: string;
+  item_count: number;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface PlaylistItemEntry {
+  id: number;
+  position: number;
+  file: FileItem;
+}
+
+export interface PlaylistDetail {
+  id: string;
+  name: string;
+  drive: string;
+  items: PlaylistItemEntry[];
+  created_at: string;
+  updated_at: string;
+}
+
 export type ViewMode = "grid" | "list";
 export type SortField = "created_at" | "title" | "file_size" | "likes" | "random";
 export type SortOrder = "asc" | "desc";

@@ -12,6 +12,7 @@ import { FavoriteButton } from "@/components/FavoriteButton";
 import { TagEditor } from "@/components/TagEditor";
 import { FileActions } from "@/components/FileActions";
 import { ImageGallery } from "@/components/ImageGallery";
+import { PlaylistPanel, getPlaylistOnEnded } from "@/components/PlaylistPanel";
 import { useSetOverrideDrive } from "@/components/CurrentDriveProvider";
 
 export default function FilePage() {
@@ -22,6 +23,9 @@ export default function FilePage() {
 
   const sort = searchParams.get("sort") || undefined;
   const order = searchParams.get("order") || undefined;
+  const playlistId = searchParams.get("playlist") || undefined;
+  const folderPlay = searchParams.get("folder_play") === "1";
+  const hasPlaylist = !!playlistId || folderPlay;
 
   const [file, setFile] = useState<FileItem | null>(null);
   const [neighbors, setNeighbors] = useState<Neighbors | null>(null);
@@ -39,22 +43,26 @@ export default function FilePage() {
       setEditTitle(f.title);
       setEditDesc(f.description);
       setOverrideDrive(f.drive);
-      getFileNeighbors(fileId, sort, order)
-        .then(setNeighbors)
-        .catch(() => setNeighbors(null));
+      if (!hasPlaylist) {
+        getFileNeighbors(fileId, sort, order)
+          .then(setNeighbors)
+          .catch(() => setNeighbors(null));
+      }
     });
     return () => setOverrideDrive(null);
-  }, [fileId, sort, order, setOverrideDrive]);
+  }, [fileId, sort, order, setOverrideDrive, hasPlaylist]);
 
   const buildNavUrl = useCallback(
     (id: string) => {
       const params = new URLSearchParams();
+      if (playlistId) params.set("playlist", playlistId);
+      if (folderPlay) params.set("folder_play", "1");
       if (sort) params.set("sort", sort);
       if (order) params.set("order", order);
       const qs = params.toString();
       return `/files/${id}${qs ? `?${qs}` : ""}`;
     },
-    [sort, order]
+    [playlistId, folderPlay, sort, order]
   );
 
   const navigatePrev = useCallback(() => {
@@ -64,6 +72,18 @@ export default function FilePage() {
   const navigateNext = useCallback(() => {
     if (neighbors?.next_id) router.replace(buildNavUrl(neighbors.next_id));
   }, [neighbors, router, buildNavUrl]);
+
+  const handlePlaylistNavigate = useCallback(
+    (nextFileId: string) => {
+      router.replace(buildNavUrl(nextFileId));
+    },
+    [router, buildNavUrl]
+  );
+
+  const handleMediaEnded = useCallback(() => {
+    const onEnded = getPlaylistOnEnded();
+    if (onEnded) onEnded();
+  }, []);
 
   useEffect(() => {
     if (!file || !neighbors) return;
@@ -124,9 +144,11 @@ export default function FilePage() {
   }
 
   const hasDuration = (file.file_type === "video" || file.file_type === "audio") && file.duration != null;
+  const isVideoTheater = hasPlaylist && file.file_type === "video";
+  const isAudioSide = hasPlaylist && file.file_type !== "video";
 
   return (
-    <div className="mx-auto w-full max-w-5xl flex-1 px-4 py-6">
+    <div className={`mx-auto w-full flex-1 px-4 py-6 ${hasPlaylist ? "max-w-6xl" : "max-w-5xl"}`}>
       <div className="mb-4">
         <button
           onClick={() => {
@@ -149,141 +171,175 @@ export default function FilePage() {
         </button>
       </div>
 
-      <div className="group/nav relative">
-        <FilePreview file={file} />
+      <div className={`${isAudioSide ? "flex flex-col gap-4 md:flex-row" : ""}`}>
+        <div className={`${isAudioSide ? "min-w-0 flex-1" : ""}`}>
+          <div className="group/nav relative">
+            <FilePreview file={file} onEnded={hasPlaylist ? handleMediaEnded : undefined} />
 
-        {neighbors?.prev_id && (
-          <button
-            onClick={navigatePrev}
-            className="absolute top-1/2 left-2 -translate-y-1/2 rounded-full bg-black/50 p-2 text-white opacity-70 transition-opacity hover:opacity-100 sm:opacity-0 sm:group-hover/nav:opacity-70 sm:group-hover/nav:hover:opacity-100"
-            aria-label="前のファイル"
-          >
-            <ChevronLeft size={24} />
-          </button>
-        )}
-
-        {neighbors?.next_id && (
-          <button
-            onClick={navigateNext}
-            className="absolute top-1/2 right-2 -translate-y-1/2 rounded-full bg-black/50 p-2 text-white opacity-70 transition-opacity hover:opacity-100 sm:opacity-0 sm:group-hover/nav:opacity-70 sm:group-hover/nav:hover:opacity-100"
-            aria-label="次のファイル"
-          >
-            <ChevronRight size={24} />
-          </button>
-        )}
-      </div>
-
-      <div className="mt-4">
-        {editing ? (
-          <div className="space-y-3">
-            <input
-              type="text"
-              value={editTitle}
-              onChange={(e) => setEditTitle(e.target.value)}
-              className="w-full rounded-lg bg-bg-card px-3 py-2 text-lg font-bold text-text-primary outline-none focus:ring-2 focus:ring-accent"
-            />
-            <textarea
-              value={editDesc}
-              onChange={(e) => setEditDesc(e.target.value)}
-              placeholder="説明を追加..."
-              rows={3}
-              className="w-full rounded-lg bg-bg-card px-3 py-2 text-sm text-text-primary outline-none focus:ring-2 focus:ring-accent"
-            />
-            <div className="flex gap-2">
+            {!hasPlaylist && neighbors?.prev_id && (
               <button
-                onClick={handleSave}
-                disabled={saving}
-                className="flex items-center gap-1 rounded-lg bg-accent px-3 py-1.5 text-sm font-medium text-white hover:bg-accent/80 disabled:opacity-50"
+                onClick={navigatePrev}
+                className="absolute top-1/2 left-2 -translate-y-1/2 rounded-full bg-black/50 p-2 text-white opacity-70 transition-opacity hover:opacity-100 sm:opacity-0 sm:group-hover/nav:opacity-70 sm:group-hover/nav:hover:opacity-100"
+                aria-label="前のファイル"
               >
-                <Check size={14} />
-                保存
+                <ChevronLeft size={24} />
               </button>
-              <button
-                onClick={() => {
-                  setEditing(false);
-                  setEditTitle(file.title);
-                  setEditDesc(file.description);
-                }}
-                className="flex items-center gap-1 rounded-lg bg-bg-card px-3 py-1.5 text-sm text-text-muted hover:text-text-primary"
-              >
-                <X size={14} />
-                キャンセル
-              </button>
-            </div>
-          </div>
-        ) : (
-          <div>
-            <h1 className="text-xl font-bold text-text-primary">
-              {file.title}
-            </h1>
-            <div className="mt-2 flex items-center gap-1">
-              <div className="flex items-center overflow-hidden rounded-full bg-bg-card">
-                <button
-                  onClick={handleLike}
-                  className="px-2.5 py-1.5 text-sm text-text-muted transition-colors hover:text-text-primary"
-                  aria-label="Like"
-                >
-                  <ThumbsUp size={16} />
-                </button>
-                <span className="min-w-[1.5rem] text-center text-sm text-text-muted">{file.likes}</span>
-                <button
-                  onClick={handleDislike}
-                  className="px-2.5 py-1.5 text-sm text-text-muted transition-colors hover:text-text-primary"
-                  aria-label="Dislike"
-                >
-                  <ThumbsDown size={16} />
-                </button>
-              </div>
-              <FavoriteButton
-                fileId={file.id}
-                isFavorite={file.is_favorite}
-                onToggle={setFile}
-                showLabel
-              />
-              {file.file_type === "image" && (
-                <button
-                  onClick={() => setGalleryOpen(true)}
-                  className="rounded-lg p-2 text-text-muted hover:bg-bg-card hover:text-text-primary"
-                  aria-label="ギャラリーモード"
-                >
-                  <Maximize2 size={16} />
-                </button>
-              )}
-              <button
-                onClick={() => setEditing(true)}
-                className="rounded-lg p-2 text-text-muted hover:bg-bg-card hover:text-text-primary"
-                aria-label="編集"
-              >
-                <Pencil size={16} />
-              </button>
-              <FileActions
-                file={file}
-                onUpdate={() => getFile(fileId).then(setFile)}
-                onDelete={() => {
-                  const backPath = file.folder_path
-                    ? `/drive/${encodeURIComponent(file.drive)}/${file.folder_path}`
-                    : `/drive/${encodeURIComponent(file.drive)}`;
-                  router.push(backPath);
-                }}
-              />
-            </div>
-            {file.description && (
-              <p className="mt-2 text-sm text-text-muted whitespace-pre-wrap">
-                {file.description}
-              </p>
             )}
-            <div className="mt-3 flex gap-4 text-xs text-text-muted">
-              {hasDuration && <span>{formatDuration(file.duration)}</span>}
-              <span>{formatFileSize(file.file_size)}</span>
-              <span>{file.drive}{file.folder_path ? ` / ${file.folder_path}` : ""}</span>
-            </div>
-            <TagEditor
-              fileId={file.id}
-              drive={file.drive}
-              tags={file.tags}
-              onUpdate={setFile}
-            />
+
+            {!hasPlaylist && neighbors?.next_id && (
+              <button
+                onClick={navigateNext}
+                className="absolute top-1/2 right-2 -translate-y-1/2 rounded-full bg-black/50 p-2 text-white opacity-70 transition-opacity hover:opacity-100 sm:opacity-0 sm:group-hover/nav:opacity-70 sm:group-hover/nav:hover:opacity-100"
+                aria-label="次のファイル"
+              >
+                <ChevronRight size={24} />
+              </button>
+            )}
           </div>
+
+          <div className="mt-4">
+            {editing ? (
+              <div className="space-y-3">
+                <input
+                  type="text"
+                  value={editTitle}
+                  onChange={(e) => setEditTitle(e.target.value)}
+                  className="w-full rounded-lg bg-bg-card px-3 py-2 text-lg font-bold text-text-primary outline-none focus:ring-2 focus:ring-accent"
+                />
+                <textarea
+                  value={editDesc}
+                  onChange={(e) => setEditDesc(e.target.value)}
+                  placeholder="説明を追加..."
+                  rows={3}
+                  className="w-full rounded-lg bg-bg-card px-3 py-2 text-sm text-text-primary outline-none focus:ring-2 focus:ring-accent"
+                />
+                <div className="flex gap-2">
+                  <button
+                    onClick={handleSave}
+                    disabled={saving}
+                    className="flex items-center gap-1 rounded-lg bg-accent px-3 py-1.5 text-sm font-medium text-white hover:bg-accent/80 disabled:opacity-50"
+                  >
+                    <Check size={14} />
+                    保存
+                  </button>
+                  <button
+                    onClick={() => {
+                      setEditing(false);
+                      setEditTitle(file.title);
+                      setEditDesc(file.description);
+                    }}
+                    className="flex items-center gap-1 rounded-lg bg-bg-card px-3 py-1.5 text-sm text-text-muted hover:text-text-primary"
+                  >
+                    <X size={14} />
+                    キャンセル
+                  </button>
+                </div>
+              </div>
+            ) : (
+              <div>
+                <h1 className="text-xl font-bold text-text-primary">
+                  {file.title}
+                </h1>
+                <div className="mt-2 flex items-center gap-1">
+                  <div className="flex items-center overflow-hidden rounded-full bg-bg-card">
+                    <button
+                      onClick={handleLike}
+                      className="px-2.5 py-1.5 text-sm text-text-muted transition-colors hover:text-text-primary"
+                      aria-label="Like"
+                    >
+                      <ThumbsUp size={16} />
+                    </button>
+                    <span className="min-w-[1.5rem] text-center text-sm text-text-muted">{file.likes}</span>
+                    <button
+                      onClick={handleDislike}
+                      className="px-2.5 py-1.5 text-sm text-text-muted transition-colors hover:text-text-primary"
+                      aria-label="Dislike"
+                    >
+                      <ThumbsDown size={16} />
+                    </button>
+                  </div>
+                  <FavoriteButton
+                    fileId={file.id}
+                    isFavorite={file.is_favorite}
+                    onToggle={setFile}
+                    showLabel
+                  />
+                  {file.file_type === "image" && (
+                    <button
+                      onClick={() => setGalleryOpen(true)}
+                      className="rounded-lg p-2 text-text-muted hover:bg-bg-card hover:text-text-primary"
+                      aria-label="ギャラリーモード"
+                    >
+                      <Maximize2 size={16} />
+                    </button>
+                  )}
+                  <button
+                    onClick={() => setEditing(true)}
+                    className="rounded-lg p-2 text-text-muted hover:bg-bg-card hover:text-text-primary"
+                    aria-label="編集"
+                  >
+                    <Pencil size={16} />
+                  </button>
+                  <FileActions
+                    file={file}
+                    onUpdate={() => getFile(fileId).then(setFile)}
+                    onDelete={() => {
+                      const backPath = file.folder_path
+                        ? `/drive/${encodeURIComponent(file.drive)}/${file.folder_path}`
+                        : `/drive/${encodeURIComponent(file.drive)}`;
+                      router.push(backPath);
+                    }}
+                  />
+                </div>
+                {file.description && (
+                  <p className="mt-2 text-sm text-text-muted whitespace-pre-wrap">
+                    {file.description}
+                  </p>
+                )}
+                <div className="mt-3 flex gap-4 text-xs text-text-muted">
+                  {hasDuration && <span>{formatDuration(file.duration)}</span>}
+                  <span>{formatFileSize(file.file_size)}</span>
+                  <span>{file.drive}{file.folder_path ? ` / ${file.folder_path}` : ""}</span>
+                </div>
+                <TagEditor
+                  fileId={file.id}
+                  drive={file.drive}
+                  tags={file.tags}
+                  onUpdate={setFile}
+                />
+              </div>
+            )}
+          </div>
+
+          {/* Video theater: playlist below */}
+          {isVideoTheater && (
+            <PlaylistPanel
+              playlistId={playlistId}
+              folderPlay={folderPlay}
+              currentFileId={fileId}
+              currentFileType={file.file_type}
+              drive={file.drive}
+              folderPath={file.folder_path}
+              sort={sort}
+              order={order}
+              onNavigate={handlePlaylistNavigate}
+            />
+          )}
+        </div>
+
+        {/* Audio side panel */}
+        {isAudioSide && (
+          <PlaylistPanel
+            playlistId={playlistId}
+            folderPlay={folderPlay}
+            currentFileId={fileId}
+            currentFileType={file.file_type}
+            drive={file.drive}
+            folderPath={file.folder_path}
+            sort={sort}
+            order={order}
+            onNavigate={handlePlaylistNavigate}
+          />
         )}
       </div>
 

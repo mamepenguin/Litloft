@@ -1,7 +1,8 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
-import { CheckSquare, FolderPlus, RefreshCw, Upload, X } from "lucide-react";
+import { useRouter } from "next/navigation";
+import { CheckSquare, FolderPlus, Play, RefreshCw, Upload, X } from "lucide-react";
 
 import { addPin, batchGetFiles, createFolder, getDriveFiles, getFolders, getPins, removePin, scanDrive } from "@/lib/api";
 import { getRecentFileIds } from "@/lib/recentlyPlayed";
@@ -235,6 +236,25 @@ export function FolderBrowser({ driveName, folderPath, view, tagFilter }: Folder
   const totalPages = Math.ceil(total / limit);
 
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const folderRouter = useRouter();
+
+  const hasPlayableFiles = files.some(
+    (f) => f.file_type === "audio" || f.file_type === "video"
+  );
+
+  const handlePlayAll = useCallback(() => {
+    const firstPlayable = files.find(
+      (f) => f.file_type === "audio" || f.file_type === "video"
+    );
+    if (!firstPlayable) return;
+    const params = new URLSearchParams();
+    params.set("folder_play", "1");
+    if (sort !== "random") {
+      params.set("sort", effectiveSort);
+      params.set("order", effectiveOrder);
+    }
+    folderRouter.push(`/files/${firstPlayable.id}?${params.toString()}`);
+  }, [files, sort, effectiveSort, effectiveOrder, folderRouter]);
 
   return (
     <UploadZone drive={driveName} folderPath={folderPath ?? ""} onUploadComplete={refresh}>
@@ -312,6 +332,17 @@ export function FolderBrowser({ driveName, folderPath, view, tagFilter }: Folder
         <div className="flex-1" />
 
         <div className="flex items-center gap-2">
+          {hasPlayableFiles && !isSpecialView && !tagFilter && (
+            <button
+              onClick={handlePlayAll}
+              className="flex items-center gap-1.5 rounded-lg bg-accent px-3 py-2 text-sm font-medium text-white transition-colors hover:bg-accent/80"
+              aria-label="全曲再生"
+            >
+              <Play size={16} />
+              <span className="hidden sm:inline">再生</span>
+            </button>
+          )}
+
           <SortButton
             sort={sort}
             order={order}

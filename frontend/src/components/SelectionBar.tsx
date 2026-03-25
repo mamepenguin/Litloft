@@ -1,11 +1,12 @@
 "use client";
 
 import { useState } from "react";
-import { Move, Tag, Trash2, X } from "lucide-react";
+import { ListMusic, Move, Tag, Trash2, X } from "lucide-react";
 
 import { batchDelete, batchMove, batchTag } from "@/lib/api";
 import { ConfirmDialog } from "./ConfirmDialog";
 import { MoveDialog } from "./MoveDialog";
+import { PlaylistPicker } from "./PlaylistPicker";
 
 interface SelectionBarProps {
   count: number;
@@ -32,6 +33,7 @@ export function SelectionBar({
   const [moveOpen, setMoveOpen] = useState(false);
   const [tagInput, setTagInput] = useState("");
   const [tagging, setTagging] = useState(false);
+  const [playlistPickerOpen, setPlaylistPickerOpen] = useState(false);
 
   if (count === 0) return null;
 
@@ -127,6 +129,15 @@ export function SelectionBar({
         )}
 
         <button
+          onClick={() => setPlaylistPickerOpen(true)}
+          className="flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-sm text-text-muted transition-colors hover:bg-bg-card hover:text-text-primary"
+          aria-label="プレイリストに追加"
+        >
+          <ListMusic size={16} />
+          <span className="hidden sm:inline">プレイリスト</span>
+        </button>
+
+        <button
           onClick={() => setMoveOpen(true)}
           className="flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-sm text-text-muted transition-colors hover:bg-bg-card hover:text-text-primary"
           aria-label="移動"
@@ -170,6 +181,13 @@ export function SelectionBar({
         currentPath={currentPath ?? ""}
         onMove={handleBatchMove}
         onCancel={() => setMoveOpen(false)}
+      />
+
+      <PlaylistPicker
+        open={playlistPickerOpen}
+        drive={drive}
+        fileIds={ids}
+        onClose={() => setPlaylistPickerOpen(false)}
       />
     </>
   );

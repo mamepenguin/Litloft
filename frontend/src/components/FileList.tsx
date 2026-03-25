@@ -2,7 +2,7 @@
 
 import { useCallback, useState } from "react";
 import Link from "next/link";
-import { Download, Move, Pencil, Trash2 } from "lucide-react";
+import { Download, ListMusic, Move, Pencil, Trash2 } from "lucide-react";
 
 import { deleteFile, getDownloadUrl, getThumbnailUrl, moveFile, renameFile } from "@/lib/api";
 import { formatDuration, formatFileSize, formatRelativeDate } from "@/lib/format";
@@ -14,6 +14,7 @@ import { ContextMenu, type MenuItem } from "./ContextMenu";
 import { ConfirmDialog } from "./ConfirmDialog";
 import { RenameDialog } from "./RenameDialog";
 import { MoveDialog } from "./MoveDialog";
+import { PlaylistPicker } from "./PlaylistPicker";
 
 export function FileList({
   files,
@@ -39,6 +40,7 @@ export function FileList({
   const [renameOpen, setRenameOpen] = useState(false);
   const [moveOpen, setMoveOpen] = useState(false);
   const [deleteOpen, setDeleteOpen] = useState(false);
+  const [playlistPickerOpen, setPlaylistPickerOpen] = useState(false);
 
   const closeMenu = useCallback(() => {
     setMenuPos({ open: false, x: 0, y: 0 });
@@ -53,6 +55,11 @@ export function FileList({
       icon: Download,
       label: "ダウンロード",
       onClick: () => window.open(getDownloadUrl(target.id), "_blank"),
+    },
+    {
+      icon: ListMusic,
+      label: "プレイリストに追加",
+      onClick: () => setPlaylistPickerOpen(true),
     },
     {
       icon: Pencil,
@@ -219,6 +226,12 @@ export function FileList({
               } catch { /* dialog stays open on error */ }
             }}
             onCancel={() => { setMoveOpen(false); clearTarget(); }}
+          />
+          <PlaylistPicker
+            open={playlistPickerOpen}
+            drive={target.drive}
+            fileIds={[target.id]}
+            onClose={() => { setPlaylistPickerOpen(false); clearTarget(); }}
           />
           <ConfirmDialog
             open={deleteOpen}

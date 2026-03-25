@@ -109,3 +109,50 @@ class PinnedFolder(Base):
     __table_args__ = (
         UniqueConstraint("drive", "path", name="uq_pinned_folders_drive_path"),
     )
+
+
+class Playlist(Base):
+    __tablename__ = "playlists"
+
+    id: Mapped[str] = mapped_column(String(12), primary_key=True, default=generate_nanoid)
+    drive: Mapped[str] = mapped_column(String, nullable=False)
+    name: Mapped[str] = mapped_column(String(100), nullable=False)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime, default=lambda: datetime.now(UTC)
+    )
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime, default=lambda: datetime.now(UTC), onupdate=lambda: datetime.now(UTC)
+    )
+
+    items: Mapped[list["PlaylistItem"]] = relationship(
+        "PlaylistItem", back_populates="playlist", cascade="all, delete-orphan",
+        lazy="selectin", order_by="PlaylistItem.position"
+    )
+
+    __table_args__ = (
+        UniqueConstraint("drive", "name", name="uq_playlists_drive_name"),
+    )
+
+
+class PlaylistItem(Base):
+    __tablename__ = "playlist_items"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    playlist_id: Mapped[str] = mapped_column(
+        String(12), ForeignKey("playlists.id", ondelete="CASCADE"), nullable=False
+    )
+    file_id: Mapped[str] = mapped_column(
+        String(12), ForeignKey("files.id", ondelete="CASCADE"), nullable=False
+    )
+    position: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime, default=lambda: datetime.now(UTC)
+    )
+
+    playlist: Mapped["Playlist"] = relationship("Playlist", back_populates="items")
+    file: Mapped["File"] = relationship("File", lazy="selectin")
+
+    __table_args__ = (
+        UniqueConstraint("playlist_id", "file_id", name="uq_playlist_items_playlist_file"),
+        Index("idx_playlist_items_playlist_id", "playlist_id"),
+    )

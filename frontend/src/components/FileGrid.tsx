@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useState } from "react";
-import { Download, Move, Pencil, Trash2 } from "lucide-react";
+import { Download, ListMusic, Move, Pencil, Trash2 } from "lucide-react";
 
 import { deleteFile, getDownloadUrl, moveFile, renameFile } from "@/lib/api";
 import type { FileItem } from "@/types";
@@ -10,6 +10,7 @@ import { ContextMenu, type MenuItem } from "./ContextMenu";
 import { ConfirmDialog } from "./ConfirmDialog";
 import { RenameDialog } from "./RenameDialog";
 import { MoveDialog } from "./MoveDialog";
+import { PlaylistPicker } from "./PlaylistPicker";
 
 export function FileGrid({
   files,
@@ -35,6 +36,7 @@ export function FileGrid({
   const [renameOpen, setRenameOpen] = useState(false);
   const [moveOpen, setMoveOpen] = useState(false);
   const [deleteOpen, setDeleteOpen] = useState(false);
+  const [playlistPickerOpen, setPlaylistPickerOpen] = useState(false);
 
   const closeMenu = useCallback(() => {
     setMenuPos({ open: false, x: 0, y: 0 });
@@ -49,6 +51,11 @@ export function FileGrid({
       icon: Download,
       label: "ダウンロード",
       onClick: () => window.open(getDownloadUrl(target.id), "_blank"),
+    },
+    {
+      icon: ListMusic,
+      label: "プレイリストに追加",
+      onClick: () => setPlaylistPickerOpen(true),
     },
     {
       icon: Pencil,
@@ -125,6 +132,12 @@ export function FileGrid({
               } catch { /* dialog stays open on error */ }
             }}
             onCancel={() => { setMoveOpen(false); clearTarget(); }}
+          />
+          <PlaylistPicker
+            open={playlistPickerOpen}
+            drive={target.drive}
+            fileIds={[target.id]}
+            onClose={() => { setPlaylistPickerOpen(false); clearTarget(); }}
           />
           <ConfirmDialog
             open={deleteOpen}

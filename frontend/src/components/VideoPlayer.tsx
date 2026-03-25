@@ -36,7 +36,7 @@ function clearProgress(videoId: string): void {
   }
 }
 
-export function VideoPlayer({ videoId }: { videoId: string }) {
+export function VideoPlayer({ videoId, onEnded }: { videoId: string; onEnded?: () => void }) {
   const videoRef = useRef<HTMLVideoElement>(null);
   const lastSavedRef = useRef(0);
 
@@ -66,7 +66,8 @@ export function VideoPlayer({ videoId }: { videoId: string }) {
 
   const handleEnded = useCallback(() => {
     clearProgress(videoId);
-  }, [videoId]);
+    onEnded?.();
+  }, [videoId, onEnded]);
 
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
