@@ -187,37 +187,37 @@ export function PlaylistPanel({
       <div className={`${
         isVideoLayout
           ? "mt-4 w-full"
-          : "mt-0 w-full md:w-[300px] md:flex-shrink-0"
+          : "mt-0 w-full md:w-[360px] md:flex-shrink-0"
       }`}>
-        <div className="rounded-xl border border-bg-border bg-bg-card p-3">
+        <div className="rounded-xl border border-bg-border bg-bg-card p-4">
           {/* Header */}
-          <div className="mb-2 flex items-center justify-between">
+          <div className="mb-3 flex items-center justify-between">
             <div className="min-w-0 flex-1">
-              <div className="truncate text-sm font-semibold text-text-primary">
+              <div className="truncate text-base font-semibold text-text-primary">
                 {playlistName}
               </div>
-              <div className="text-xs text-text-muted">
-                {currentIndex >= 0 ? currentIndex + 1 : "–"}/{totalTracks}
+              <div className="text-sm text-text-muted">
+                {currentIndex >= 0 ? currentIndex + 1 : "–"}/{totalTracks} tracks
               </div>
             </div>
-            <div className="flex items-center gap-1">
+            <div className="flex items-center gap-1.5">
               <button
                 onClick={toggleLoop}
-                className={`rounded-md p-1.5 text-xs transition-colors ${
+                className={`rounded-lg p-2 transition-colors ${
                   loop
                     ? "bg-accent/20 text-accent"
-                    : "text-text-muted hover:text-text-primary"
+                    : "text-text-muted hover:bg-bg-elevated hover:text-text-primary"
                 }`}
                 aria-label={loop ? "ループOFF" : "ループON"}
               >
-                <Repeat size={14} />
+                <Repeat size={18} />
               </button>
               <button
                 onClick={() => setCollapsed(!collapsed)}
-                className="rounded-md p-1.5 text-text-muted hover:text-text-primary md:hidden"
+                className="rounded-lg p-2 text-text-muted hover:bg-bg-elevated hover:text-text-primary md:hidden"
                 aria-label={collapsed ? "展開" : "折りたたみ"}
               >
-                {collapsed ? <ChevronDown size={14} /> : <ChevronUp size={14} />}
+                {collapsed ? <ChevronDown size={18} /> : <ChevronUp size={18} />}
               </button>
             </div>
           </div>
@@ -287,18 +287,18 @@ function VideoTrackList({
   onRemove: (index: number) => void;
 }) {
   return (
-    <div className="flex gap-2 overflow-x-auto pb-1">
+    <div className="flex gap-3 overflow-x-auto pb-2">
       {tracks.map((track, index) => {
         const isCurrent = track.file.id === currentFileId;
         return (
           <div
             key={track.itemId ?? track.file.id}
-            className={`group relative flex-shrink-0 cursor-pointer overflow-hidden rounded-lg ${
+            className={`group relative flex-shrink-0 cursor-pointer overflow-hidden rounded-xl ${
               isCurrent
                 ? "ring-2 ring-accent"
                 : "hover:ring-1 hover:ring-bg-border"
             }`}
-            style={{ width: 160 }}
+            style={{ width: 200 }}
             onClick={() => onNavigate(track.file.id)}
           >
             <div className="aspect-video bg-bg-elevated">
@@ -310,39 +310,39 @@ function VideoTrackList({
                 />
               ) : (
                 <div className="flex h-full items-center justify-center text-text-muted">
-                  <Music size={24} />
+                  <Music size={32} />
                 </div>
               )}
               {isCurrent && (
                 <div className="absolute inset-0 flex items-center justify-center bg-black/40">
-                  <span className="text-lg text-accent">▶</span>
+                  <span className="text-2xl text-accent">▶</span>
                 </div>
               )}
             </div>
-            <div className="p-1.5">
-              <div className={`truncate text-xs ${isCurrent ? "font-semibold text-text-primary" : "text-text-muted"}`}>
+            <div className="p-2">
+              <div className={`truncate text-sm ${isCurrent ? "font-semibold text-text-primary" : "text-text-muted"}`}>
                 {track.file.title}
               </div>
               {track.file.duration != null && (
-                <div className={`text-[10px] ${isCurrent ? "text-accent" : "text-text-muted/60"}`}>
+                <div className={`text-xs ${isCurrent ? "text-accent" : "text-text-muted/60"}`}>
                   {formatDuration(track.file.duration)}
                 </div>
               )}
             </div>
             {isUserPlaylist && (
-              <div className="absolute top-0.5 right-0.5 hidden gap-0.5 group-hover:flex">
+              <div className="absolute top-1 right-1 hidden gap-1 group-hover:flex">
                 {index > 0 && (
-                  <button onClick={(e) => { e.stopPropagation(); onMoveUp(index); }} className="rounded bg-black/60 p-0.5 text-white hover:bg-black/80">
-                    <ChevronUp size={10} />
+                  <button onClick={(e) => { e.stopPropagation(); onMoveUp(index); }} className="rounded-md bg-black/60 p-1 text-white hover:bg-black/80">
+                    <ChevronUp size={14} />
                   </button>
                 )}
                 {index < tracks.length - 1 && (
-                  <button onClick={(e) => { e.stopPropagation(); onMoveDown(index); }} className="rounded bg-black/60 p-0.5 text-white hover:bg-black/80">
-                    <ChevronDown size={10} />
+                  <button onClick={(e) => { e.stopPropagation(); onMoveDown(index); }} className="rounded-md bg-black/60 p-1 text-white hover:bg-black/80">
+                    <ChevronDown size={14} />
                   </button>
                 )}
-                <button onClick={(e) => { e.stopPropagation(); onRemove(index); }} className="rounded bg-black/60 p-0.5 text-red-400 hover:bg-black/80">
-                  <Trash2 size={10} />
+                <button onClick={(e) => { e.stopPropagation(); onRemove(index); }} className="rounded-md bg-black/60 p-1 text-red-400 hover:bg-black/80">
+                  <Trash2 size={14} />
                 </button>
               </div>
             )}
@@ -374,14 +374,14 @@ function AudioTrackList({
   onRemove: (index: number) => void;
 }) {
   return (
-    <div className="flex max-h-[400px] flex-col gap-0.5 overflow-y-auto">
+    <div className="flex max-h-[500px] flex-col gap-1 overflow-y-auto">
       {tracks.map((track, index) => {
         const isCurrent = track.file.id === currentFileId;
         return (
           <div
             key={track.itemId ?? track.file.id}
             ref={isCurrent ? activeRef : undefined}
-            className={`group flex items-center gap-2 rounded-lg px-2 py-1.5 text-xs transition-colors ${
+            className={`group flex items-center gap-3 rounded-lg px-3 py-2.5 transition-colors ${
               isCurrent
                 ? "bg-accent/10 ring-1 ring-accent/40"
                 : "hover:bg-bg-elevated"
@@ -389,37 +389,37 @@ function AudioTrackList({
           >
             <button
               onClick={() => onNavigate(track.file.id)}
-              className="flex min-w-0 flex-1 items-center gap-2"
+              className="flex min-w-0 flex-1 items-center gap-3"
             >
-              <span className={`w-4 text-center ${isCurrent ? "text-accent" : "text-text-muted/50"}`}>
+              <span className={`w-6 text-center text-sm ${isCurrent ? "text-accent" : "text-text-muted/50"}`}>
                 {isCurrent ? "▶" : index + 1}
               </span>
               <span className="text-text-muted/50">
-                {track.file.file_type === "video" ? <Video size={12} /> : <Music size={12} />}
+                {track.file.file_type === "video" ? <Video size={18} /> : <Music size={18} />}
               </span>
-              <span className={`flex-1 truncate text-left ${isCurrent ? "font-semibold text-text-primary" : "text-text-muted"}`}>
+              <span className={`flex-1 truncate text-left text-sm ${isCurrent ? "font-semibold text-text-primary" : "text-text-muted"}`}>
                 {track.file.title}
               </span>
               {track.file.duration != null && (
-                <span className={`flex-shrink-0 ${isCurrent ? "text-accent" : "text-text-muted/50"}`}>
+                <span className={`flex-shrink-0 text-sm ${isCurrent ? "text-accent" : "text-text-muted/50"}`}>
                   {formatDuration(track.file.duration)}
                 </span>
               )}
             </button>
             {isUserPlaylist && (
-              <div className="hidden flex-shrink-0 items-center gap-0.5 group-hover:flex">
+              <div className="hidden flex-shrink-0 items-center gap-1 group-hover:flex">
                 {index > 0 && (
-                  <button onClick={() => onMoveUp(index)} className="rounded p-0.5 text-text-muted hover:text-text-primary">
-                    <ChevronUp size={12} />
+                  <button onClick={() => onMoveUp(index)} className="rounded-md p-1 text-text-muted hover:bg-bg-elevated hover:text-text-primary">
+                    <ChevronUp size={16} />
                   </button>
                 )}
                 {index < tracks.length - 1 && (
-                  <button onClick={() => onMoveDown(index)} className="rounded p-0.5 text-text-muted hover:text-text-primary">
-                    <ChevronDown size={12} />
+                  <button onClick={() => onMoveDown(index)} className="rounded-md p-1 text-text-muted hover:bg-bg-elevated hover:text-text-primary">
+                    <ChevronDown size={16} />
                   </button>
                 )}
-                <button onClick={() => onRemove(index)} className="rounded p-0.5 text-red-400 hover:text-red-300">
-                  <Trash2 size={12} />
+                <button onClick={() => onRemove(index)} className="rounded-md p-1 text-red-400 hover:bg-red-400/10 hover:text-red-300">
+                  <Trash2 size={16} />
                 </button>
               </div>
             )}
