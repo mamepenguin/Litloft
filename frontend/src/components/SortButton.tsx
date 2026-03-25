@@ -17,6 +17,8 @@ const sortOptions: SortOption[] = [
   { label: "タイトル Z→A", sort: "title", order: "desc" },
   { label: "サイズ 大→小", sort: "file_size", order: "desc" },
   { label: "サイズ 小→大", sort: "file_size", order: "asc" },
+  { label: "いいね 多→少", sort: "likes", order: "desc" },
+  { label: "いいね 少→多", sort: "likes", order: "asc" },
 ];
 
 interface SortButtonProps {
