@@ -411,7 +411,11 @@ async def get_thumbnail(
             return FastAPIFileResponse(str(thumb_path), media_type="image/jpeg")
 
     if PLACEHOLDER_THUMBNAIL.exists():
-        return FastAPIFileResponse(str(PLACEHOLDER_THUMBNAIL), media_type="image/jpeg")
+        return FastAPIFileResponse(
+            str(PLACEHOLDER_THUMBNAIL),
+            media_type="image/jpeg",
+            headers={"Cache-Control": "no-cache"},
+        )
 
     raise HTTPException(status_code=404, detail="Thumbnail not found")
 
