@@ -7,9 +7,9 @@ import { FileTypeIcon } from "./FileTypeIcon";
 import { formatFileSize } from "@/lib/format";
 import { getStreamUrl } from "@/lib/api";
 
-export function FilePreview({ file, onEnded }: { file: FileItem; onEnded?: () => void }) {
+export function FilePreview({ file, onEnded, autoPlay }: { file: FileItem; onEnded?: () => void; autoPlay?: boolean }) {
   if (file.file_type === "video") {
-    return <VideoPlayer videoId={file.id} onEnded={onEnded} />;
+    return <VideoPlayer videoId={file.id} onEnded={onEnded} autoPlay={autoPlay} />;
   }
 
   if (file.file_type === "image") {
@@ -25,7 +25,7 @@ export function FilePreview({ file, onEnded }: { file: FileItem; onEnded?: () =>
   }
 
   if (file.file_type === "audio") {
-    return <AudioPlayer file={file} onEnded={onEnded} />;
+    return <AudioPlayer file={file} onEnded={onEnded} autoPlay={autoPlay} />;
   }
 
   if (file.mime_type === "application/pdf") {

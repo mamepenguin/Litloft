@@ -36,7 +36,7 @@ function clearProgress(videoId: string): void {
   }
 }
 
-export function VideoPlayer({ videoId, onEnded }: { videoId: string; onEnded?: () => void }) {
+export function VideoPlayer({ videoId, onEnded, autoPlay }: { videoId: string; onEnded?: () => void; autoPlay?: boolean }) {
   const videoRef = useRef<HTMLVideoElement>(null);
   const lastSavedRef = useRef(0);
 
@@ -49,10 +49,10 @@ export function VideoPlayer({ videoId, onEnded }: { videoId: string; onEnded?: (
       video.currentTime = saved;
     }
     const isPC = !("ontouchstart" in window);
-    if (isPC) {
+    if (isPC || autoPlay) {
       video.play().catch(() => {});
     }
-  }, [videoId]);
+  }, [videoId, autoPlay]);
 
   const handleTimeUpdate = useCallback(() => {
     const video = videoRef.current;

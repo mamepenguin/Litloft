@@ -174,7 +174,7 @@ export default function FilePage() {
       <div className={`${isAudioSide ? "flex flex-col gap-4 md:flex-row" : ""}`}>
         <div className={`${isAudioSide ? "min-w-0 flex-1" : ""}`}>
           <div className="group/nav relative">
-            <FilePreview file={file} onEnded={hasPlaylist ? handleMediaEnded : undefined} />
+            <FilePreview file={file} onEnded={hasPlaylist ? handleMediaEnded : undefined} autoPlay={hasPlaylist} />
 
             {!hasPlaylist && neighbors?.prev_id && (
               <button
