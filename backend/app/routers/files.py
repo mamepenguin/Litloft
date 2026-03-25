@@ -3,10 +3,10 @@ from pathlib import Path
 from typing import Annotated
 from urllib.parse import quote
 
-from fastapi import APIRouter, Depends, HTTPException, Path as PathParam, Request
+from fastapi import APIRouter, Depends, HTTPException, Path as PathParam, Query, Request
 from fastapi.responses import FileResponse as FastAPIFileResponse
 from fastapi.responses import StreamingResponse
-from sqlalchemy import func
+from sqlalchemy import and_, func, or_
 from sqlalchemy.orm import Session
 
 import app.config as config
@@ -21,6 +21,7 @@ from app.schemas import (
     FileMoveRequest,
     FileRenameRequest,
     FileUpdate,
+    NeighborsResponse,
     TagUpdate,
     file_to_response,
 )
@@ -160,6 +161,63 @@ async def get_file(
 ):
     file = _get_file_or_404(db, file_id, unlocked_groups)
     return _to_response(file)
+
+
+@router.get("/{file_id}/neighbors", response_model=NeighborsResponse)
+async def get_file_neighbors(
+    file_id: FileId,
+    db: Annotated[Session, Depends(get_db)],
+    unlocked_groups: Annotated[list[str], Depends(get_unlocked_groups)],
+    sort: str = Query("created_at", pattern="^(created_at|title|file_size|likes)$"),
+    order: str = Query("desc", pattern="^(asc|desc)$"),
+):
+    file = _get_file_or_404(db, file_id, unlocked_groups)
+
+    sort_col = getattr(File, sort)
+    current_val = getattr(file, sort)
+
+    base = db.query(File.id).filter(
+        File.drive == file.drive,
+        File.folder_path == file.folder_path,
+        File.id != file.id,
+    )
+
+    if order == "asc":
+        prev_query = base.filter(
+            or_(
+                sort_col < current_val,
+                and_(sort_col == current_val, File.id < file.id),
+            )
+        ).order_by(sort_col.desc(), File.id.desc()).limit(1)
+
+        next_query = base.filter(
+            or_(
+                sort_col > current_val,
+                and_(sort_col == current_val, File.id > file.id),
+            )
+        ).order_by(sort_col.asc(), File.id.asc()).limit(1)
+    else:
+        prev_query = base.filter(
+            or_(
+                sort_col > current_val,
+                and_(sort_col == current_val, File.id > file.id),
+            )
+        ).order_by(sort_col.asc(), File.id.asc()).limit(1)
+
+        next_query = base.filter(
+            or_(
+                sort_col < current_val,
+                and_(sort_col == current_val, File.id < file.id),
+            )
+        ).order_by(sort_col.desc(), File.id.desc()).limit(1)
+
+    prev_row = prev_query.first()
+    next_row = next_query.first()
+
+    return NeighborsResponse(
+        prev_id=prev_row[0] if prev_row else None,
+        next_id=next_row[0] if next_row else None,
+    )
 
 
 @router.put("/{file_id}", response_model=FileResponse)

@@ -13,6 +13,7 @@ export function FileCard({
   selectable,
   selected,
   onSelect,
+  sortQuery,
 }: {
   file: FileItem;
   onFavoriteToggle?: (file: FileItem) => void;
@@ -20,6 +21,7 @@ export function FileCard({
   selectable?: boolean;
   selected?: boolean;
   onSelect?: (id: string) => void;
+  sortQuery?: string;
 }) {
   const hasThumbnail = file.file_type === "video" || file.file_type === "image";
 
@@ -33,7 +35,7 @@ export function FileCard({
           if (e.key === "Enter" || e.key === " ") { e.preventDefault(); onSelect?.(file.id); }
         },
       }
-    : { href: `/files/${file.id}` };
+    : { href: `/files/${file.id}${sortQuery || ""}` };
 
   return (
     <div className="relative">

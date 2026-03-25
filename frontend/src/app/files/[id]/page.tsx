@@ -1,12 +1,12 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import { useParams, useRouter } from "next/navigation";
-import { ArrowLeft, Pencil, Check, X, ThumbsUp, ThumbsDown } from "lucide-react";
+import { useCallback, useEffect, useState } from "react";
+import { useParams, useRouter, useSearchParams } from "next/navigation";
+import { ArrowLeft, ChevronLeft, ChevronRight, Pencil, Check, X, ThumbsUp, ThumbsDown } from "lucide-react";
 
-import { getFile, updateFile, likeFile, dislikeFile } from "@/lib/api";
+import { getFile, getFileNeighbors, updateFile, likeFile, dislikeFile } from "@/lib/api";
 import { formatDuration, formatFileSize } from "@/lib/format";
-import type { FileItem } from "@/types";
+import type { FileItem, Neighbors } from "@/types";
 import { FilePreview } from "@/components/FilePreview";
 import { FavoriteButton } from "@/components/FavoriteButton";
 import { TagEditor } from "@/components/TagEditor";
@@ -16,9 +16,14 @@ import { useSetOverrideDrive } from "@/components/CurrentDriveProvider";
 export default function FilePage() {
   const params = useParams();
   const router = useRouter();
+  const searchParams = useSearchParams();
   const fileId = params.id as string;
 
+  const sort = searchParams.get("sort") || undefined;
+  const order = searchParams.get("order") || undefined;
+
   const [file, setFile] = useState<FileItem | null>(null);
+  const [neighbors, setNeighbors] = useState<Neighbors | null>(null);
   const [editing, setEditing] = useState(false);
   const [editTitle, setEditTitle] = useState("");
   const [editDesc, setEditDesc] = useState("");
@@ -26,14 +31,63 @@ export default function FilePage() {
   const setOverrideDrive = useSetOverrideDrive();
 
   useEffect(() => {
+    setNeighbors(null);
     getFile(fileId).then((f) => {
       setFile(f);
       setEditTitle(f.title);
       setEditDesc(f.description);
       setOverrideDrive(f.drive);
+      getFileNeighbors(fileId, sort, order)
+        .then(setNeighbors)
+        .catch(() => setNeighbors(null));
     });
     return () => setOverrideDrive(null);
-  }, [fileId, setOverrideDrive]);
+  }, [fileId, sort, order, setOverrideDrive]);
+
+  const buildNavUrl = useCallback(
+    (id: string) => {
+      const params = new URLSearchParams();
+      if (sort) params.set("sort", sort);
+      if (order) params.set("order", order);
+      const qs = params.toString();
+      return `/files/${id}${qs ? `?${qs}` : ""}`;
+    },
+    [sort, order]
+  );
+
+  const navigatePrev = useCallback(() => {
+    if (neighbors?.prev_id) router.push(buildNavUrl(neighbors.prev_id));
+  }, [neighbors, router, buildNavUrl]);
+
+  const navigateNext = useCallback(() => {
+    if (neighbors?.next_id) router.push(buildNavUrl(neighbors.next_id));
+  }, [neighbors, router, buildNavUrl]);
+
+  useEffect(() => {
+    if (!file || !neighbors) return;
+    if (file.file_type === "video" || file.file_type === "audio") return;
+
+    function handleKeyDown(e: KeyboardEvent) {
+      const target = e.target as HTMLElement;
+      if (
+        target.tagName === "INPUT" ||
+        target.tagName === "TEXTAREA" ||
+        target.isContentEditable
+      ) {
+        return;
+      }
+      if (e.key === "ArrowLeft") {
+        e.preventDefault();
+        navigatePrev();
+      } else if (e.key === "ArrowRight") {
+        e.preventDefault();
+        navigateNext();
+      }
+    }
+
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [file, neighbors, navigatePrev, navigateNext]);
 
   async function handleLike() {
     if (!file) return;
@@ -93,7 +147,29 @@ export default function FilePage() {
         </button>
       </div>
 
-      <FilePreview file={file} />
+      <div className="group/nav relative">
+        <FilePreview file={file} />
+
+        {neighbors?.prev_id && (
+          <button
+            onClick={navigatePrev}
+            className="absolute top-1/2 left-2 -translate-y-1/2 rounded-full bg-black/50 p-2 text-white opacity-70 transition-opacity hover:opacity-100 sm:opacity-0 sm:group-hover/nav:opacity-70 sm:group-hover/nav:hover:opacity-100"
+            aria-label="前のファイル"
+          >
+            <ChevronLeft size={24} />
+          </button>
+        )}
+
+        {neighbors?.next_id && (
+          <button
+            onClick={navigateNext}
+            className="absolute top-1/2 right-2 -translate-y-1/2 rounded-full bg-black/50 p-2 text-white opacity-70 transition-opacity hover:opacity-100 sm:opacity-0 sm:group-hover/nav:opacity-70 sm:group-hover/nav:hover:opacity-100"
+            aria-label="次のファイル"
+          >
+            <ChevronRight size={24} />
+          </button>
+        )}
+      </div>
 
       <div className="mt-4">
         {editing ? (

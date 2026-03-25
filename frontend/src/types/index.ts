@@ -61,6 +61,11 @@ export interface PinnedFolder {
   path: string;
 }
 
+export interface Neighbors {
+  prev_id: string | null;
+  next_id: string | null;
+}
+
 export type ViewMode = "grid" | "list";
 export type SortField = "created_at" | "title" | "file_size" | "likes" | "random";
 export type SortOrder = "asc" | "desc";

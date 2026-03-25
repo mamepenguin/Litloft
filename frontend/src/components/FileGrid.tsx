@@ -18,6 +18,7 @@ export function FileGrid({
   selectable,
   isSelected,
   onSelect,
+  sortQuery,
 }: {
   files: FileItem[];
   onFavoriteToggle?: (file: FileItem) => void;
@@ -25,6 +26,7 @@ export function FileGrid({
   selectable?: boolean;
   isSelected?: (id: string) => boolean;
   onSelect?: (id: string) => void;
+  sortQuery?: string;
 }) {
   const [menuPos, setMenuPos] = useState<{ open: boolean; x: number; y: number }>({
     open: false, x: 0, y: 0,
@@ -83,6 +85,7 @@ export function FileGrid({
             selectable={selectable}
             selected={isSelected?.(file.id)}
             onSelect={onSelect}
+            sortQuery={sortQuery}
           />
         ))}
       </div>

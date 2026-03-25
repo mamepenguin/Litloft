@@ -79,6 +79,11 @@ class PaginatedResponse(BaseModel):
     meta: PaginationMeta
 
 
+class NeighborsResponse(BaseModel):
+    prev_id: str | None
+    next_id: str | None
+
+
 class DriveResponse(BaseModel):
     name: str
     protected: bool = False

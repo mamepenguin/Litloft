@@ -226,6 +226,12 @@ export function FolderBrowser({ driveName, folderPath, view, tagFilter }: Folder
     [isFavorites],
   );
 
+  const effectiveSort = isRecentAdded ? "created_at" : isPopular ? "likes" : sort;
+  const effectiveOrder = isRecentAdded || isPopular ? "desc" : order;
+  const sortQuery = effectiveSort === "random"
+    ? ""
+    : `?sort=${effectiveSort}&order=${effectiveOrder}`;
+
   const totalPages = Math.ceil(total / limit);
 
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -384,6 +390,7 @@ export function FolderBrowser({ driveName, folderPath, view, tagFilter }: Folder
           selectable={selectable}
           isSelected={selection.isSelected}
           onSelect={selection.toggle}
+          sortQuery={sortQuery}
         />
       ) : (
         <FileList
@@ -393,6 +400,7 @@ export function FolderBrowser({ driveName, folderPath, view, tagFilter }: Folder
           selectable={selectable}
           isSelected={selection.isSelected}
           onSelect={selection.toggle}
+          sortQuery={sortQuery}
         />
       )}
 

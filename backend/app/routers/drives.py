@@ -163,9 +163,11 @@ async def list_drive_files(
         query = query.order_by(func.random())
     else:
         sort_column = getattr(File, sort)
+        id_column = File.id
         if order == "desc":
             sort_column = sort_column.desc()
-        query = query.order_by(sort_column)
+            id_column = id_column.desc()
+        query = query.order_by(sort_column, id_column)
 
     offset = (page - 1) * limit
     files = query.offset(offset).limit(limit).all()

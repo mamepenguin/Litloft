@@ -22,6 +22,7 @@ export function FileList({
   selectable,
   isSelected,
   onSelect,
+  sortQuery,
 }: {
   files: FileItem[];
   onFavoriteToggle?: (file: FileItem) => void;
@@ -29,6 +30,7 @@ export function FileList({
   selectable?: boolean;
   isSelected?: (id: string) => boolean;
   onSelect?: (id: string) => void;
+  sortQuery?: string;
 }) {
   const [menuPos, setMenuPos] = useState<{ open: boolean; x: number; y: number }>({
     open: false, x: 0, y: 0,
@@ -167,7 +169,7 @@ export function FileList({
                 return selectable ? (
                   <div className="flex flex-1 items-center gap-3 min-w-0">{content}</div>
                 ) : (
-                  <Link href={`/files/${file.id}`} className="flex flex-1 items-center gap-3 min-w-0">{content}</Link>
+                  <Link href={`/files/${file.id}${sortQuery || ""}`} className="flex flex-1 items-center gap-3 min-w-0">{content}</Link>
                 );
               })()}
               {onFavoriteToggle && (

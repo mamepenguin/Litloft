@@ -1,4 +1,4 @@
-import type { AuthStatus, ChunkResponse, Drive, FileItem, FileType, Folder, PaginatedResponse, PinnedFolder, SortField, SortOrder, Tag, UnlockResult, UploadInitResponse } from "@/types";
+import type { AuthStatus, ChunkResponse, Drive, FileItem, FileType, Folder, Neighbors, PaginatedResponse, PinnedFolder, SortField, SortOrder, Tag, UnlockResult, UploadInitResponse } from "@/types";
 
 const API_BASE = "/api";
 
@@ -94,6 +94,18 @@ export async function updateFileTags(id: string, tags: string[]): Promise<FileIt
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ tags }),
   });
+}
+
+export async function getFileNeighbors(
+  id: string,
+  sort?: string,
+  order?: string
+): Promise<Neighbors> {
+  const params = new URLSearchParams();
+  if (sort) params.set("sort", sort);
+  if (order) params.set("order", order);
+  const qs = params.toString();
+  return fetchJSON<Neighbors>(`${API_BASE}/files/${id}/neighbors${qs ? `?${qs}` : ""}`);
 }
 
 export function getStreamUrl(id: string): string {
