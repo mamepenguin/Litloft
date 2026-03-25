@@ -56,11 +56,11 @@ export default function FilePage() {
   );
 
   const navigatePrev = useCallback(() => {
-    if (neighbors?.prev_id) router.push(buildNavUrl(neighbors.prev_id));
+    if (neighbors?.prev_id) router.replace(buildNavUrl(neighbors.prev_id));
   }, [neighbors, router, buildNavUrl]);
 
   const navigateNext = useCallback(() => {
-    if (neighbors?.next_id) router.push(buildNavUrl(neighbors.next_id));
+    if (neighbors?.next_id) router.replace(buildNavUrl(neighbors.next_id));
   }, [neighbors, router, buildNavUrl]);
 
   useEffect(() => {
