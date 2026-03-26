@@ -7,6 +7,7 @@ import type { FileItem, Folder as FolderType } from "@/types";
 import { addPin, getDriveFiles, getFolders, getPins, removePin } from "@/lib/api";
 import { CarouselSection } from "./CarouselSection";
 import { FolderCard } from "./FolderCard";
+import { RootFileListing } from "./RootFileListing";
 import { useSidebar } from "./SidebarProvider";
 
 interface DriveHomeProps {
@@ -227,6 +228,12 @@ export function DriveHome({ driveName }: DriveHomeProps) {
         loading={popular.loading}
         seeAllHref={`${driveBase}?view=popular`}
         onFileAction={refetchAllSections}
+      />
+
+      <RootFileListing
+        driveName={driveName}
+        onFileAction={refetchAllSections}
+        onFolderChange={refreshFolders}
       />
     </div>
   );
