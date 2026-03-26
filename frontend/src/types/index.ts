@@ -50,6 +50,7 @@ export interface Folder {
   name: string;
   path: string;
   file_count: number;
+  thumbnail_file_id: string | null;
 }
 
 export interface Tag {

@@ -96,6 +96,128 @@ class TestListFolders:
         assert res.status_code == 200
         assert res.json() == []
 
+    def test_thumbnail_file_id_with_video(self, client):
+        """Folder with video files returns thumbnail_file_id (first by filename)."""
+        c, db, drive_dir, data_dir = client
+        _seed(db, drive_dir)
+        res = c.get(f"/api/drives/{TEST_DRIVE}/folders")
+        assert res.status_code == 200
+        folders = res.json()
+        for f in folders:
+            assert f["thumbnail_file_id"] is not None
+
+    def test_thumbnail_file_id_selects_first_by_filename(self, client):
+        """thumbnail_file_id picks the first image/video file by filename ASC."""
+        from app.models import File
+
+        c, db, drive_dir, data_dir = client
+        d = drive_dir / "gallery"
+        d.mkdir()
+        shutil.copy(FIXTURES_DIR / "short_video.mp4", d / "b_second.mp4")
+        shutil.copy(FIXTURES_DIR / "short_video.mp4", d / "a_first.mp4")
+        size = d.joinpath("a_first.mp4").stat().st_size
+        file_a = File(
+            filename="a_first.mp4",
+            title="A",
+            drive=TEST_DRIVE,
+            folder_path="gallery",
+            file_path="gallery/a_first.mp4",
+            file_size=size,
+            file_type="video",
+            mime_type="video/mp4",
+        )
+        file_b = File(
+            filename="b_second.mp4",
+            title="B",
+            drive=TEST_DRIVE,
+            folder_path="gallery",
+            file_path="gallery/b_second.mp4",
+            file_size=size,
+            file_type="video",
+            mime_type="video/mp4",
+        )
+        db.add(file_b)
+        db.add(file_a)
+        db.commit()
+        db.refresh(file_a)
+
+        res = c.get(f"/api/drives/{TEST_DRIVE}/folders")
+        folders = res.json()
+        assert len(folders) == 1
+        assert folders[0]["thumbnail_file_id"] == file_a.id
+
+    def test_thumbnail_file_id_null_for_non_media_files(self, client):
+        """Folder with only non-image/non-video files returns null thumbnail."""
+        from app.models import File
+
+        c, db, drive_dir, data_dir = client
+        d = drive_dir / "docs"
+        d.mkdir()
+        (d / "readme.txt").write_text("hello")
+        db.add(
+            File(
+                filename="readme.txt",
+                title="Readme",
+                drive=TEST_DRIVE,
+                folder_path="docs",
+                file_path="docs/readme.txt",
+                file_size=5,
+                file_type="document",
+                mime_type="text/plain",
+            )
+        )
+        db.commit()
+
+        res = c.get(f"/api/drives/{TEST_DRIVE}/folders")
+        folders = res.json()
+        assert len(folders) == 1
+        assert folders[0]["name"] == "docs"
+        assert folders[0]["thumbnail_file_id"] is None
+
+    def test_thumbnail_file_id_null_for_empty_folder(self, client):
+        """Empty folder returns null thumbnail."""
+        from app.models import EmptyFolder
+
+        c, db, drive_dir, data_dir = client
+        (drive_dir / "empty").mkdir()
+        db.add(EmptyFolder(drive=TEST_DRIVE, path="empty"))
+        db.commit()
+
+        res = c.get(f"/api/drives/{TEST_DRIVE}/folders")
+        folders = res.json()
+        assert len(folders) == 1
+        assert folders[0]["name"] == "empty"
+        assert folders[0]["thumbnail_file_id"] is None
+
+    def test_thumbnail_from_subfolder(self, client):
+        """Parent folder uses image/video from subfolder as thumbnail."""
+        from app.models import File
+
+        c, db, drive_dir, data_dir = client
+        d = drive_dir / "parent" / "child"
+        d.mkdir(parents=True)
+        shutil.copy(FIXTURES_DIR / "short_video.mp4", d / "clip.mp4")
+        size = d.joinpath("clip.mp4").stat().st_size
+        child_file = File(
+            filename="clip.mp4",
+            title="Clip",
+            drive=TEST_DRIVE,
+            folder_path="parent/child",
+            file_path="parent/child/clip.mp4",
+            file_size=size,
+            file_type="video",
+            mime_type="video/mp4",
+        )
+        db.add(child_file)
+        db.commit()
+        db.refresh(child_file)
+
+        res = c.get(f"/api/drives/{TEST_DRIVE}/folders")
+        folders = res.json()
+        assert len(folders) == 1
+        assert folders[0]["name"] == "parent"
+        assert folders[0]["thumbnail_file_id"] == child_file.id
+
 
 class TestListDriveFiles:
     def test_all_files(self, client):

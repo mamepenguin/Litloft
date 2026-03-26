@@ -25,9 +25,20 @@ export function FolderCard({ folder, driveName, isPinned, onTogglePin, onUpdate,
         href={`/drive/${encodeURIComponent(driveName)}/${folder.path.split("/").map(encodeURIComponent).join("/")}`}
         className="flex flex-1 items-center gap-3"
       >
-        <div className="flex h-12 w-12 items-center justify-center rounded-lg bg-accent/20">
-          <Folder size={24} className="text-accent" />
-        </div>
+        {folder.thumbnail_file_id ? (
+          <div className="h-12 w-12 flex-shrink-0 overflow-hidden rounded-lg">
+            <img
+              src={`/api/files/${folder.thumbnail_file_id}/thumbnail`}
+              alt={folder.name}
+              className="h-full w-full object-cover"
+              loading="lazy"
+            />
+          </div>
+        ) : (
+          <div className="flex h-12 w-12 flex-shrink-0 items-center justify-center rounded-lg bg-accent/20">
+            <Folder size={24} className="text-accent" />
+          </div>
+        )}
         <div>
           <h3 className="font-semibold text-text-primary group-hover:text-accent">
             {folder.name}

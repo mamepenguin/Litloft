@@ -93,6 +93,7 @@ class FolderResponse(BaseModel):
     name: str
     path: str
     file_count: int
+    thumbnail_file_id: str | None
 
 
 class TagResponse(BaseModel):

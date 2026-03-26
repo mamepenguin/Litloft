@@ -114,11 +114,38 @@ async def list_folders(
         if folder_full_path not in folders:
             folders[folder_full_path] = 0
 
+    # Collect thumbnail file IDs for each folder
+    thumbnail_map: dict[str, str] = {}
+    if folders:
+        thumb_query = db.query(File.id, File.folder_path, File.filename).filter(
+            File.drive == drive_name,
+            File.file_type.in_(["video", "image"]),
+        )
+        if path:
+            thumb_query = thumb_query.filter(
+                File.folder_path.like(_escape_like(path) + "/%", escape="\\")
+            )
+        else:
+            thumb_query = thumb_query.filter(File.folder_path != "")
+
+        thumb_query = thumb_query.order_by(File.filename.asc())
+
+        for file_id, file_folder_path, _ in thumb_query.all():
+            for folder_path in folders:
+                if folder_path in thumbnail_map:
+                    continue
+                if file_folder_path == folder_path or file_folder_path.startswith(folder_path + "/"):
+                    thumbnail_map[folder_path] = file_id
+            # Early exit if all folders have thumbnails
+            if len(thumbnail_map) == len(folders):
+                break
+
     return [
         FolderResponse(
             name=fp.split("/")[-1],
             path=fp,
             file_count=count,
+            thumbnail_file_id=thumbnail_map.get(fp),
         )
         for fp, count in sorted(folders.items())
     ]

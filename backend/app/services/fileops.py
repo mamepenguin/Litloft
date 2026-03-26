@@ -217,7 +217,7 @@ def create_folder(drive: str, parent_path: str, name: str, db: Session) -> dict:
     db.add(ef)
     db.commit()
 
-    return {"name": name, "path": folder_path, "file_count": 0}
+    return {"name": name, "path": folder_path, "file_count": 0, "thumbnail_file_id": None}
 
 
 def rename_folder(drive: str, path: str, new_name: str, db: Session) -> dict:
@@ -309,7 +309,7 @@ def rename_folder(drive: str, path: str, new_name: str, db: Session) -> dict:
         .filter(File.drive == drive, File.folder_path == new_path)
         .count()
     )
-    return {"name": new_name, "path": new_path, "file_count": file_count}
+    return {"name": new_name, "path": new_path, "file_count": file_count, "thumbnail_file_id": None}
 
 
 def delete_folder(drive: str, path: str, db: Session) -> None:
