@@ -20,6 +20,10 @@ export function FileGrid({
   isSelected,
   onSelect,
   sortQuery,
+  draggable,
+  draggedFileIds,
+  onDragStart,
+  onDragEnd,
 }: {
   files: FileItem[];
   onFavoriteToggle?: (file: FileItem) => void;
@@ -28,6 +32,10 @@ export function FileGrid({
   isSelected?: (id: string) => boolean;
   onSelect?: (id: string) => void;
   sortQuery?: string;
+  draggable?: boolean;
+  draggedFileIds?: string[];
+  onDragStart?: (e: React.DragEvent, fileId: string) => void;
+  onDragEnd?: () => void;
 }) {
   const [menuPos, setMenuPos] = useState<{ open: boolean; x: number; y: number }>({
     open: false, x: 0, y: 0,
@@ -93,6 +101,10 @@ export function FileGrid({
             selected={isSelected?.(file.id)}
             onSelect={onSelect}
             sortQuery={sortQuery}
+            draggable={draggable}
+            isDragging={draggedFileIds?.includes(file.id)}
+            onDragStart={onDragStart ? (e) => onDragStart(e, file.id) : undefined}
+            onDragEnd={onDragEnd}
           />
         ))}
       </div>

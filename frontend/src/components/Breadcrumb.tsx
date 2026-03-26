@@ -4,9 +4,11 @@ import { ChevronRight, Home } from "lucide-react";
 interface BreadcrumbProps {
   driveName: string;
   folderPath?: string;
+  getDropTargetProps?: (targetPath: string) => Record<string, (e: React.DragEvent) => void>;
+  isDropTarget?: (targetPath: string) => boolean;
 }
 
-export function Breadcrumb({ driveName, folderPath }: BreadcrumbProps) {
+export function Breadcrumb({ driveName, folderPath, getDropTargetProps, isDropTarget }: BreadcrumbProps) {
   const segments = folderPath ? folderPath.split("/").filter(Boolean) : [];
 
   return (
@@ -25,7 +27,10 @@ export function Breadcrumb({ driveName, folderPath }: BreadcrumbProps) {
       ) : (
         <Link
           href={`/drive/${encodeURIComponent(driveName)}`}
-          className="hover:text-text-primary truncate"
+          className={`hover:text-text-primary truncate rounded px-1 transition-colors${
+            isDropTarget?.("") ? " ring-2 ring-accent bg-accent/10 text-accent" : ""
+          }`}
+          {...getDropTargetProps?.("")}
         >
           {driveName}
         </Link>
@@ -43,7 +48,10 @@ export function Breadcrumb({ driveName, folderPath }: BreadcrumbProps) {
             ) : (
               <Link
                 href={`/drive/${encodeURIComponent(driveName)}/${encodedPath}`}
-                className="hover:text-text-primary truncate"
+                className={`hover:text-text-primary truncate rounded px-1 transition-colors${
+                  isDropTarget?.(path) ? " ring-2 ring-accent bg-accent/10 text-accent" : ""
+                }`}
+                {...getDropTargetProps?.(path)}
               >
                 {segment}
               </Link>

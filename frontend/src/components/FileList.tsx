@@ -24,6 +24,10 @@ export function FileList({
   isSelected,
   onSelect,
   sortQuery,
+  draggable,
+  draggedFileIds,
+  onDragStart,
+  onDragEnd,
 }: {
   files: FileItem[];
   onFavoriteToggle?: (file: FileItem) => void;
@@ -32,6 +36,10 @@ export function FileList({
   isSelected?: (id: string) => boolean;
   onSelect?: (id: string) => void;
   sortQuery?: string;
+  draggable?: boolean;
+  draggedFileIds?: string[];
+  onDragStart?: (e: React.DragEvent, fileId: string) => void;
+  onDragEnd?: () => void;
 }) {
   const [menuPos, setMenuPos] = useState<{ open: boolean; x: number; y: number }>({
     open: false, x: 0, y: 0,
@@ -92,7 +100,12 @@ export function FileList({
               key={file.id}
               className={`flex items-center gap-3 rounded-lg bg-bg-card p-2.5 sm:p-2 transition-colors hover:bg-bg-elevated ${
                 selectable ? "cursor-pointer select-none" : ""
-              } ${fileSelected ? "ring-2 ring-accent" : ""}`}
+              } ${fileSelected ? "ring-2 ring-accent" : ""}${
+                draggedFileIds?.includes(file.id) ? " opacity-40" : ""
+              }`}
+              draggable={draggable}
+              onDragStart={onDragStart ? (e) => onDragStart(e, file.id) : undefined}
+              onDragEnd={onDragEnd}
               onClick={selectable ? () => onSelect?.(file.id) : undefined}
               onContextMenu={selectable ? undefined : (e) => {
                 e.preventDefault();

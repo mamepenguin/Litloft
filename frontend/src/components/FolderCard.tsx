@@ -9,11 +9,18 @@ interface FolderCardProps {
   isPinned?: boolean;
   onTogglePin?: () => void;
   onUpdate?: () => void;
+  isDropTarget?: boolean;
+  dropTargetProps?: Record<string, (e: React.DragEvent) => void>;
 }
 
-export function FolderCard({ folder, driveName, isPinned, onTogglePin, onUpdate }: FolderCardProps) {
+export function FolderCard({ folder, driveName, isPinned, onTogglePin, onUpdate, isDropTarget, dropTargetProps }: FolderCardProps) {
   return (
-    <div className="group relative flex items-center gap-3 rounded-xl bg-bg-card p-4 transition-all duration-200 hover:scale-[1.02] hover:bg-bg-elevated hover:shadow-lg">
+    <div
+      className={`group relative flex items-center gap-3 rounded-xl bg-bg-card p-4 transition-all duration-200 hover:scale-[1.02] hover:bg-bg-elevated hover:shadow-lg${
+        isDropTarget ? " ring-2 ring-accent bg-accent/10 scale-[1.02]" : ""
+      }`}
+      {...dropTargetProps}
+    >
       <Link
         href={`/drive/${encodeURIComponent(driveName)}/${folder.path.split("/").map(encodeURIComponent).join("/")}`}
         className="flex flex-1 items-center gap-3"

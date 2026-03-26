@@ -14,6 +14,10 @@ export function FileCard({
   selected,
   onSelect,
   sortQuery,
+  draggable,
+  isDragging,
+  onDragStart,
+  onDragEnd,
 }: {
   file: FileItem;
   onFavoriteToggle?: (file: FileItem) => void;
@@ -22,6 +26,10 @@ export function FileCard({
   selected?: boolean;
   onSelect?: (id: string) => void;
   sortQuery?: string;
+  draggable?: boolean;
+  isDragging?: boolean;
+  onDragStart?: (e: React.DragEvent) => void;
+  onDragEnd?: (e: React.DragEvent) => void;
 }) {
   const hasThumbnail = file.file_type === "video" || file.file_type === "image";
 
@@ -38,7 +46,12 @@ export function FileCard({
     : { href: `/files/${file.id}${sortQuery || ""}` };
 
   return (
-    <div className="relative">
+    <div
+      className={`relative${isDragging ? " opacity-40" : ""}`}
+      draggable={draggable}
+      onDragStart={onDragStart}
+      onDragEnd={onDragEnd}
+    >
       {selectable && (
         <div
           className="absolute top-2 left-2 z-10 opacity-100 transition-opacity"

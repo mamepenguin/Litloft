@@ -17,6 +17,7 @@ import { Breadcrumb } from "@/components/Breadcrumb";
 import { UploadZone } from "@/components/UploadZone";
 import { SelectionBar } from "@/components/SelectionBar";
 import { useSelection } from "@/hooks/useSelection";
+import { useDragAndDrop } from "@/hooks/useDragAndDrop";
 import { useSidebar } from "@/components/SidebarProvider";
 
 interface FolderBrowserProps {
@@ -158,6 +159,12 @@ export function FolderBrowser({ driveName, folderPath, view, tagFilter }: Folder
 
   const [refreshKey, setRefreshKey] = useState(0);
   const refresh = useCallback(() => setRefreshKey((k) => k + 1), []);
+
+  const { dragState, handleDragStart, handleDragEnd, getDropTargetProps, isDropTarget } = useDragAndDrop({
+    drive: driveName,
+    selectedIds: selection.selectedIds,
+    onComplete: refresh,
+  });
   const [scanning, setScanning] = useState(false);
 
   async function handleScan() {
@@ -263,7 +270,12 @@ export function FolderBrowser({ driveName, folderPath, view, tagFilter }: Folder
   return (
     <UploadZone drive={driveName} folderPath={folderPath ?? ""} onUploadComplete={refresh}>
     <div className="min-w-0 w-full flex-1 px-2 py-4 sm:px-4 sm:py-6">
-      <Breadcrumb driveName={driveName} folderPath={folderPath} />
+      <Breadcrumb
+        driveName={driveName}
+        folderPath={folderPath}
+        getDropTargetProps={dragState.isDragging ? getDropTargetProps : undefined}
+        isDropTarget={dragState.isDragging ? isDropTarget : undefined}
+      />
 
       {/* Toolbar row */}
       <div className="mb-4 flex flex-wrap items-center gap-2">
@@ -420,6 +432,8 @@ export function FolderBrowser({ driveName, folderPath, view, tagFilter }: Folder
               isPinned={pinnedPaths.has(folder.path)}
               onTogglePin={() => handleTogglePin(folder.path)}
               onUpdate={refresh}
+              isDropTarget={dragState.isDragging && isDropTarget(folder.path)}
+              dropTargetProps={dragState.isDragging ? getDropTargetProps(folder.path) : undefined}
             />
           ))}
         </div>
@@ -448,6 +462,10 @@ export function FolderBrowser({ driveName, folderPath, view, tagFilter }: Folder
           isSelected={selection.isSelected}
           onSelect={selection.toggle}
           sortQuery={sortQuery}
+          draggable={!selectable || selection.count > 0}
+          draggedFileIds={dragState.draggedFileIds}
+          onDragStart={handleDragStart}
+          onDragEnd={handleDragEnd}
         />
       ) : (
         <FileList
@@ -458,6 +476,10 @@ export function FolderBrowser({ driveName, folderPath, view, tagFilter }: Folder
           isSelected={selection.isSelected}
           onSelect={selection.toggle}
           sortQuery={sortQuery}
+          draggable={!selectable || selection.count > 0}
+          draggedFileIds={dragState.draggedFileIds}
+          onDragStart={handleDragStart}
+          onDragEnd={handleDragEnd}
         />
       )}
 
