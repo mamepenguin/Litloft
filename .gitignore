@@ -18,6 +18,13 @@ node_modules/
 .env
 .env.local
 
+# AI design docs
+docs/superpowers/
+.superpowers/
+
+# Claude Code local settings
+.claude/settings.local.json
+
 # IDE
 .vscode/
 .idea/

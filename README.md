@@ -1,78 +1,163 @@
-# Video Share
+# HomeVault
 
-自宅LAN向け動画ストリーミングWebアプリ。Mac mini上でDockerで動作し、`videos/` ディレクトリに配置したMP4ファイルをブラウザ（PWA）で再生できます。
+A self-hosted file manager and media streaming app for your home LAN. Runs on Docker, accessed via browser (PWA).
 
-## 技術スタック
+> **Note:** This project is developed for personal use. Issues and PRs are welcome, but response and support are not guaranteed.
 
-- **Backend**: FastAPI (Python 3.12) + SQLite + ffmpeg
-- **Frontend**: Next.js 16 (TypeScript + Tailwind CSS)
-- **インフラ**: Docker Compose
+> **Warning:** HomeVault is designed for trusted home networks only. It does not provide the level of security required for internet-facing deployments. Do not expose it to the public internet without adding your own authentication and encryption layer (e.g. reverse proxy with HTTPS and VPN).
 
-## クイックスタート
+> Japanese documentation: [docs/README.ja.md](docs/README.ja.md)
 
-### 1. 動画を配置
+<!-- TODO: Screenshot (drive list or folder browser main screen) -->
+![HomeVault main screen](docs/screenshots/main.png)
 
-```bash
-mkdir -p videos/旅行
-cp /path/to/your/videos/*.mp4 videos/旅行/
+## Features
+
+- **Multi-drive** — Separate content areas by purpose (family videos, music, photos, etc.)
+- **Folder browser** — Navigate nested folder hierarchies like a file manager
+- **Video/audio streaming** — In-browser playback with Range Request support
+- **Image/document viewer** — Preview with prev/next navigation
+- **Playlists** — User-created playlists and automatic folder playback
+- **File operations** — Upload, rename, move, delete, drag-and-drop organization
+- **Search, tags, favorites** — Quickly find files within a drive
+- **Pinned folders** — Shortcuts to frequently used folders
+- **Access control** — Optional per-drive password protection
+- **Dark/light theme** — Toggle between themes
+- **PWA** — Add to home screen for a native app-like experience
+
+<!-- TODO: Screenshots (feature gallery, 2-3 images side by side) -->
+<p align="center">
+  <img src="docs/screenshots/folder-browser.png" width="32%" alt="Folder browser" />
+  <img src="docs/screenshots/video-player.png" width="32%" alt="Video player" />
+  <img src="docs/screenshots/playlist.png" width="32%" alt="Playlist" />
+</p>
+
+## Tech Stack
+
+| Layer | Technology |
+|-------|-----------|
+| Backend | FastAPI (Python 3.12) + SQLite (SQLAlchemy) + ffmpeg |
+| Frontend | Next.js 16 (App Router, TypeScript, Tailwind CSS v4) |
+| Infrastructure | Docker Compose (2 containers) |
+
+```
+Browser → :3000 (Next.js) → rewrites /api/* → :8000 (FastAPI, internal only)
 ```
 
-サブフォルダがカテゴリとして扱われます。
+## Getting Started
 
-### 2. 起動
+### 1. Configure drives
+
+Create `drives.json` from the example:
+
+```bash
+cp drives.json.example drives.json
+```
+
+```json
+[
+  { "name": "Family Videos", "path": "/app/drives/family" },
+  { "name": "TV Shows", "path": "/app/drives/tv", "readonly": true },
+  { "name": "Private", "path": "/app/drives/private", "access_group": "private" }
+]
+```
+
+| Property | Description |
+|----------|-------------|
+| `name` | Display name in the UI |
+| `path` | Container path (mounted via `docker-compose.yml` volumes) |
+| `readonly` | Set `true` to disable file operations (default: writable) |
+| `access_group` | Access control group name (omit for public drives) |
+
+### 2. Mount drives in docker-compose.yml
+
+```yaml
+services:
+  backend:
+    volumes:
+      - ./drives.json:/app/drives.json:ro
+      - /path/to/family-videos:/app/drives/family:ro
+      - /path/to/tv-shows:/app/drives/tv:ro
+      - /path/to/private:/app/drives/private
+      - ./data:/app/data
+```
+
+### 3. Start
 
 ```bash
 docker compose up -d --build
 ```
 
-### 3. アクセス
+Open `http://localhost:3000` in your browser. From other devices on your LAN, use `http://<host-ip>:3000`.
 
-ブラウザで `http://localhost:3000` を開きます。
-スマホの場合は `http://<Mac miniのIP>:3000` でアクセスできます。
+### 4. Access control (optional)
 
-## Mac mini デプロイ
-
-### 初回セットアップ（Mac mini側）
+To password-protect specific drives:
 
 ```bash
-# bare リポジトリ作成
-git init --bare ~/video-share.git
-
-# post-receive hook 設置（初回のみ手動コピー）
-# deploy/post-receive を ~/video-share.git/hooks/post-receive にコピー
-cp /Users/libre/Sources/video_share/deploy/post-receive ~/video-share.git/hooks/post-receive
-chmod +x ~/video-share.git/hooks/post-receive
+cp passwords.json.example passwords.json
 ```
 
-### 開発マシンからのデプロイ
+```json
+[
+  { "password": "your-password", "groups": ["private"] }
+]
+```
+
+Add to backend volumes in `docker-compose.yml`:
+
+```yaml
+- ./passwords.json:/app/passwords.json:ro
+```
+
+If `passwords.json` is not present, all drives are publicly accessible (default behavior).
+
+## Development
 
 ```bash
-# リモート追加（初回のみ）
-git remote add mac-mini libre@<mac-mini-ip>:video-share.git
+# Start
+docker compose up -d --build
 
-# pushで自動デプロイ
-git push mac-mini main
+# Backend tests (run inside Docker)
+docker build -f backend/Dockerfile.test -t homevault-test backend/
+docker run --rm homevault-test
+
+# Frontend tests
+cd frontend && pnpm test
+
+# Logs
+docker compose logs -f backend
 ```
 
-## ディレクトリ構成
+## Deployment (Mac mini)
 
+Supports automatic deployment via `git push`.
+
+### Initial setup (on Mac mini)
+
+```bash
+# Create bare repository
+git init --bare ~/homevault.git
+
+# Install post-receive hook
+cp deploy/post-receive ~/homevault.git/hooks/post-receive
+chmod +x ~/homevault.git/hooks/post-receive
 ```
-videos/          # 動画ファイル（git管理外）
-  ├── 旅行/      # カテゴリ = フォルダ名
-  ├── 料理/
-  └── sample.mp4 # カテゴリ = 未分類
 
-data/            # DB + サムネイル（git管理外、Docker volumeで永続化）
+> Edit `DEPLOY_DIR` and `GIT_DIR` in `deploy/post-receive` to match your environment.
+
+### Deploy from dev machine
+
+```bash
+# Add remote (once)
+git remote add deploy libre@<mac-mini-ip>:homevault.git
+
+# Deploy via push
+git push deploy main
 ```
 
-## API
+Containers are replaced only when `docker compose build` succeeds. On failure, the current version is preserved.
 
-| エンドポイント | 説明 |
-|--------------|------|
-| `GET /api/videos` | 動画一覧（ページネーション、検索、ソート対応） |
-| `GET /api/videos/{id}` | 動画詳細 |
-| `PUT /api/videos/{id}` | メタデータ編集 |
-| `GET /api/videos/{id}/stream` | 動画ストリーミング（Range Request対応） |
-| `GET /api/videos/{id}/thumbnail` | サムネイル画像 |
-| `GET /api/categories` | カテゴリ一覧 |
-| `POST /api/scan` | ディレクトリ再スキャン |
+## License
+
+MIT

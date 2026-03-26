@@ -15,13 +15,13 @@ const inter = Inter({
 });
 
 export const metadata: Metadata = {
-  title: "Video Share",
-  description: "自宅LAN向け動画ストリーミング",
+  title: "HomeVault",
+  description: "自宅LAN向けファイル管理＆メディアストリーミング",
   manifest: "/manifest.json",
   appleWebApp: {
     capable: true,
     statusBarStyle: "black-translucent",
-    title: "Video Share",
+    title: "HomeVault",
   },
 };
 

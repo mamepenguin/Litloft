@@ -40,7 +40,7 @@ function generateId(): string {
   return `upload-${Date.now()}-${nextId}`;
 }
 
-export function useUpload(drive: string, folderPath: string) {
+export function useUpload(drive: string, folderPath: string, onFileComplete?: () => void) {
   const [uploads, setUploads] = useState<UploadState[]>([]);
   const internalsRef = useRef<Map<string, InternalUpload>>(new Map());
   const activeCountRef = useRef(0);
@@ -116,6 +116,7 @@ export function useUpload(drive: string, folderPath: string) {
       updateUpload(id, { status: "processing", progress: 95 });
       await completeUpload(drive, initResult.upload_id);
       updateUpload(id, { status: "complete", progress: 100 });
+      onFileComplete?.();
     } catch (err) {
       if (!internal.aborted) {
         const message =

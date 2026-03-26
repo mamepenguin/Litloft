@@ -23,7 +23,8 @@ export function UploadZone({
   const zoneRef = useRef<HTMLDivElement>(null);
   const { uploads, addFiles, cancelUpload, clearCompleted } = useUpload(
     drive,
-    folderPath
+    folderPath,
+    onUploadComplete,
   );
 
   // Listen for upload-files custom event from the Upload button

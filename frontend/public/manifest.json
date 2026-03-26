@@ -1,6 +1,6 @@
 {
-  "name": "Video Share",
-  "short_name": "VideoShare",
+  "name": "HomeVault",
+  "short_name": "HomeVault",
   "start_url": "/",
   "display": "standalone",
   "background_color": "#000000",
