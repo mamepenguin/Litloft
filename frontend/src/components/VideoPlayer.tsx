@@ -2,39 +2,10 @@
 
 import { useRef, useEffect, useCallback } from "react";
 import { getStreamUrl } from "@/lib/api";
-import { addRecentlyPlayed } from "@/lib/recentlyPlayed";
+import { addRecentlyPlayed, getSavedProgress, saveProgress, clearProgress } from "@/lib/recentlyPlayed";
 
 const SAVE_INTERVAL = 5;
 const RESUME_THRESHOLD = 5;
-
-function getProgressKey(videoId: string): string {
-  return `video-progress-${videoId}`;
-}
-
-function getSavedProgress(videoId: string): number {
-  try {
-    const raw = localStorage.getItem(getProgressKey(videoId));
-    return raw ? Number(raw) : 0;
-  } catch {
-    return 0;
-  }
-}
-
-function saveProgress(videoId: string, time: number): void {
-  try {
-    localStorage.setItem(getProgressKey(videoId), String(time));
-  } catch {
-    // localStorage unavailable
-  }
-}
-
-function clearProgress(videoId: string): void {
-  try {
-    localStorage.removeItem(getProgressKey(videoId));
-  } catch {
-    // localStorage unavailable
-  }
-}
 
 export function VideoPlayer({ videoId, onEnded, autoPlay }: { videoId: string; onEnded?: () => void; autoPlay?: boolean }) {
   const videoRef = useRef<HTMLVideoElement>(null);
