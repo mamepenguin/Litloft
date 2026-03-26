@@ -6,7 +6,7 @@ import { CheckSquare, FolderPlus, Play, RefreshCw, Upload, X } from "lucide-reac
 
 import { addPin, batchGetFiles, createFolder, getDriveFiles, getFolders, getPins, removePin, scanDrive } from "@/lib/api";
 import { getRecentFileIds } from "@/lib/recentlyPlayed";
-import type { FileItem, FileType, Folder, PaginatedResponse, SortField, SortOrder, ViewMode } from "@/types";
+import type { FileItem, FileType, Folder, SortField, SortOrder, ViewMode } from "@/types";
 import { FileGrid } from "@/components/FileGrid";
 import { FileList } from "@/components/FileList";
 import { ViewToggle } from "@/components/ViewToggle";
@@ -17,6 +17,7 @@ import { Breadcrumb } from "@/components/Breadcrumb";
 import { UploadZone } from "@/components/UploadZone";
 import { SelectionBar } from "@/components/SelectionBar";
 import { useSelection } from "@/hooks/useSelection";
+import { useInfiniteScroll } from "@/hooks/useInfiniteScroll";
 import { useDragAndDrop } from "@/hooks/useDragAndDrop";
 import { useSidebar } from "@/components/SidebarProvider";
 
@@ -29,16 +30,11 @@ interface FolderBrowserProps {
 
 export function FolderBrowser({ driveName, folderPath, view, tagFilter }: FolderBrowserProps) {
   const [folders, setFolders] = useState<Folder[]>([]);
-  const [files, setFiles] = useState<FileItem[]>([]);
-  const [total, setTotal] = useState(0);
-  const [page, setPage] = useState(1);
   const [viewMode, setViewMode] = useState<ViewMode>("grid");
   const [sort, setSort] = useState<SortField>("created_at");
   const [order, setOrder] = useState<SortOrder>("desc");
-  const [loading, setLoading] = useState(true);
   const [typeFilter, setTypeFilter] = useState<FileType | null>(null);
 
-  const limit = 30;
   const isFavorites = view === "favorites";
   const isRecent = view === "recent";
   const isRecentAdded = view === "recent-added";
@@ -62,49 +58,68 @@ export function FolderBrowser({ driveName, folderPath, view, tagFilter }: Folder
                 ? folderPath.split("/").pop() || driveName
                 : driveName;
 
-  const fetchFiles = useCallback(() => {
-    setLoading(true);
-    if (isRecent) {
-      const recentIds = getRecentFileIds();
-      if (recentIds.length === 0) {
-        setFiles([]);
-        setTotal(0);
-        setLoading(false);
-        return;
-      }
-      batchGetFiles(recentIds).then((fetched) => {
-        const driveFiles = fetched.filter((f) =>
-          f.drive === driveName && (!typeFilter || f.file_type === typeFilter)
-        );
-        setFiles(driveFiles);
-        setTotal(driveFiles.length);
-        setLoading(false);
-      }).catch(() => {
-        setFiles([]);
-        setTotal(0);
-        setLoading(false);
+  // Infinite scroll for paginated views
+  const fetchPage = useCallback(
+    async (page: number, limit: number) => {
+      const res = await getDriveFiles(driveName, {
+        path: isSpecialView || tagFilter ? undefined : (folderPath ?? ""),
+        favorite: isFavorites ? true : undefined,
+        tag: tagFilter || undefined,
+        type: typeFilter || undefined,
+        sort: isRecentAdded ? "created_at" : isPopular ? "likes" : sort,
+        order: isRecentAdded || isPopular ? "desc" : order,
+        page,
+        limit,
       });
+      return { data: res.data, total: res.meta.total };
+    },
+    [driveName, folderPath, sort, order, isFavorites, isSpecialView, isRecentAdded, isPopular, tagFilter, typeFilter],
+  );
+
+  const {
+    items: paginatedFiles,
+    total: paginatedTotal,
+    loading: paginatedLoading,
+    loadingMore,
+    hasMore,
+    sentinelRef,
+    reset,
+    setItems: setPaginatedFiles,
+    setTotal: setPaginatedTotal,
+  } = useInfiniteScroll<FileItem>({ fetchPage, limit: 30, disabled: isRecent });
+
+  // Recent view uses localStorage, managed separately
+  const [recentFiles, setRecentFiles] = useState<FileItem[]>([]);
+  const [recentLoading, setRecentLoading] = useState(false);
+
+  const fetchRecentFiles = useCallback(() => {
+    const recentIds = getRecentFileIds();
+    if (recentIds.length === 0) {
+      setRecentFiles([]);
       return;
     }
-    getDriveFiles(driveName, {
-      path: isSpecialView || tagFilter ? undefined : (folderPath ?? ""),
-      favorite: isFavorites ? true : undefined,
-      tag: tagFilter || undefined,
-      type: typeFilter || undefined,
-      sort: isRecentAdded ? "created_at" : isPopular ? "likes" : sort,
-      order: isRecentAdded || isPopular ? "desc" : order,
-      page,
-      limit,
-    }).then((res: PaginatedResponse) => {
-      setFiles(res.data);
-      setTotal(res.meta.total);
-      setLoading(false);
+    setRecentLoading(true);
+    batchGetFiles(recentIds).then((fetched) => {
+      const driveFiles = fetched.filter((f) =>
+        f.drive === driveName && (!typeFilter || f.file_type === typeFilter)
+      );
+      setRecentFiles(driveFiles);
     }).catch(() => {
-      setFiles([]);
-      setTotal(0);
-      setLoading(false);
+      setRecentFiles([]);
+    }).finally(() => {
+      setRecentLoading(false);
     });
-  }, [driveName, folderPath, sort, order, page, isFavorites, isRecent, isRecentAdded, isPopular, isSpecialView, tagFilter, typeFilter, limit]);
+  }, [driveName, typeFilter]);
+
+  useEffect(() => {
+    if (isRecent) fetchRecentFiles();
+  }, [isRecent, fetchRecentFiles]);
+
+  // Merge: pick the right source
+  const files = isRecent ? recentFiles : paginatedFiles;
+  const total = isRecent ? recentFiles.length : paginatedTotal;
+  const loading = isRecent ? recentLoading : paginatedLoading;
+  const setFiles = isRecent ? setRecentFiles : setPaginatedFiles;
 
   useEffect(() => {
     if (!isSpecialView && !tagFilter) {
@@ -114,13 +129,16 @@ export function FolderBrowser({ driveName, folderPath, view, tagFilter }: Folder
     }
   }, [driveName, folderPath, isSpecialView, tagFilter]);
 
+  // Reset infinite scroll on filter/sort/drive changes (scroll to top)
+  const prevResetKeyRef = useRef("");
   useEffect(() => {
-    fetchFiles();
-  }, [fetchFiles]);
-
-  useEffect(() => {
-    setPage(1);
-  }, [driveName, folderPath, view, tagFilter, typeFilter]);
+    const key = `${driveName}|${folderPath}|${view}|${tagFilter}|${typeFilter}|${sort}|${order}`;
+    if (prevResetKeyRef.current && prevResetKeyRef.current !== key) {
+      reset();
+      window.scrollTo({ top: 0 });
+    }
+    prevResetKeyRef.current = key;
+  }, [driveName, folderPath, view, tagFilter, typeFilter, sort, order, reset]);
 
   const [pinnedPaths, setPinnedPaths] = useState<Set<string>>(new Set());
   const { requestRefresh: refreshSidebar } = useSidebar();
@@ -185,7 +203,12 @@ export function FolderBrowser({ driveName, folderPath, view, tagFilter }: Folder
     if (!isSpecialView && !tagFilter) {
       getFolders(driveName, folderPath).then(setFolders).catch(() => setFolders([]));
     }
-    fetchFiles();
+    if (isRecent) {
+      fetchRecentFiles();
+    } else {
+      reset();
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps -- intentionally triggered only by refreshKey
   }, [refreshKey]);
 
   const [creatingFolder, setCreatingFolder] = useState(false);
@@ -226,8 +249,8 @@ export function FolderBrowser({ driveName, folderPath, view, tagFilter }: Folder
             ? prev.map((f) => (f.id === updated.id ? updated : f))
             : prev.filter((f) => f.id !== updated.id)
         );
-        if (!updated.is_favorite) {
-          setTotal((t) => t - 1);
+        if (!updated.is_favorite && !isRecent) {
+          setPaginatedTotal((t) => t - 1);
         }
       } else {
         setFiles((prev) =>
@@ -235,7 +258,7 @@ export function FolderBrowser({ driveName, folderPath, view, tagFilter }: Folder
         );
       }
     },
-    [isFavorites],
+    [isFavorites, isRecent, setFiles, setPaginatedTotal],
   );
 
   const effectiveSort = isRecentAdded ? "created_at" : isPopular ? "likes" : sort;
@@ -243,8 +266,6 @@ export function FolderBrowser({ driveName, folderPath, view, tagFilter }: Folder
   const sortQuery = effectiveSort === "random"
     ? ""
     : `?sort=${effectiveSort}&order=${effectiveOrder}`;
-
-  const totalPages = Math.ceil(total / limit);
 
   const fileInputRef = useRef<HTMLInputElement>(null);
   const folderRouter = useRouter();
@@ -362,7 +383,7 @@ export function FolderBrowser({ driveName, folderPath, view, tagFilter }: Folder
           <SortButton
             sort={sort}
             order={order}
-            onChange={(s, o) => { setSort(s); setOrder(o); setPage(1); }}
+            onChange={(s, o) => { setSort(s); setOrder(o); }}
           />
 
           <button
@@ -483,25 +504,11 @@ export function FolderBrowser({ driveName, folderPath, view, tagFilter }: Folder
         />
       )}
 
-      {totalPages > 1 && (
-        <div className="mt-6 flex items-center justify-center gap-2">
-          <button
-            onClick={() => setPage((p) => Math.max(1, p - 1))}
-            disabled={page === 1}
-            className="rounded-lg bg-bg-card px-3 py-2 text-sm text-text-muted disabled:opacity-40 hover:text-text-primary"
-          >
-            前へ
-          </button>
-          <span className="text-sm text-text-muted">
-            {page} / {totalPages}
-          </span>
-          <button
-            onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
-            disabled={page === totalPages}
-            className="rounded-lg bg-bg-card px-3 py-2 text-sm text-text-muted disabled:opacity-40 hover:text-text-primary"
-          >
-            次へ
-          </button>
+      {!isRecent && (
+        <div ref={sentinelRef} className="flex items-center justify-center py-4">
+          {loadingMore && (
+            <div className="h-6 w-6 animate-spin rounded-full border-2 border-accent border-t-transparent" />
+          )}
         </div>
       )}
       {selectable && (

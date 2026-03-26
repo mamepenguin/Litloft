@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import { CheckSquare, FileText, FolderPlus, Play, RefreshCw, Upload, X } from "lucide-react";
 
 import { createFolder, getDriveFiles, scanDrive } from "@/lib/api";
-import type { FileItem, FileType, PaginatedResponse, SortField, SortOrder, ViewMode } from "@/types";
+import type { FileItem, FileType, SortField, SortOrder, ViewMode } from "@/types";
 import { FileGrid } from "@/components/FileGrid";
 import { FileList } from "@/components/FileList";
 import { ViewToggle } from "@/components/ViewToggle";
@@ -14,6 +14,7 @@ import { EmptyState } from "@/components/EmptyState";
 import { UploadZone } from "@/components/UploadZone";
 import { SelectionBar } from "@/components/SelectionBar";
 import { useSelection } from "@/hooks/useSelection";
+import { useInfiniteScroll } from "@/hooks/useInfiniteScroll";
 
 interface RootFileListingProps {
   driveName: string;
@@ -24,42 +25,36 @@ interface RootFileListingProps {
 const LIMIT = 30;
 
 export function RootFileListing({ driveName, onFileAction, onFolderChange }: RootFileListingProps) {
-  const [files, setFiles] = useState<FileItem[]>([]);
-  const [total, setTotal] = useState(0);
-  const [page, setPage] = useState(1);
   const [viewMode, setViewMode] = useState<ViewMode>("grid");
   const [sort, setSort] = useState<SortField>("created_at");
   const [order, setOrder] = useState<SortOrder>("desc");
-  const [loading, setLoading] = useState(true);
   const [typeFilter, setTypeFilter] = useState<FileType | null>(null);
 
-  const fetchFiles = useCallback(() => {
-    setLoading(true);
-    getDriveFiles(driveName, {
-      path: "",
-      type: typeFilter || undefined,
-      sort,
-      order,
-      page,
-      limit: LIMIT,
-    }).then((res: PaginatedResponse) => {
-      setFiles(res.data);
-      setTotal(res.meta.total);
-      setLoading(false);
-    }).catch(() => {
-      setFiles([]);
-      setTotal(0);
-      setLoading(false);
-    });
-  }, [driveName, sort, order, page, typeFilter]);
+  const fetchPage = useCallback(
+    async (page: number, limit: number) => {
+      const res = await getDriveFiles(driveName, {
+        path: "",
+        type: typeFilter || undefined,
+        sort,
+        order,
+        page,
+        limit,
+      });
+      return { data: res.data, total: res.meta.total };
+    },
+    [driveName, sort, order, typeFilter],
+  );
 
-  useEffect(() => {
-    fetchFiles();
-  }, [fetchFiles]);
-
-  useEffect(() => {
-    setPage(1);
-  }, [driveName, typeFilter]);
+  const {
+    items: files,
+    total,
+    loading,
+    loadingMore,
+    hasMore,
+    sentinelRef,
+    reset,
+    setItems: setFiles,
+  } = useInfiniteScroll<FileItem>({ fetchPage, limit: LIMIT });
 
   const [selectable, setSelectable] = useState(false);
   const selection = useSelection();
@@ -84,8 +79,9 @@ export function RootFileListing({ driveName, onFileAction, onFolderChange }: Roo
 
   useEffect(() => {
     if (refreshKey === 0) return;
-    fetchFiles();
+    reset();
     onFileAction?.();
+  // eslint-disable-next-line react-hooks/exhaustive-deps -- intentionally triggered only by refreshKey
   }, [refreshKey]);
 
   const [creatingFolder, setCreatingFolder] = useState(false);
@@ -132,8 +128,6 @@ export function RootFileListing({ driveName, onFileAction, onFolderChange }: Roo
   const sortQuery = sort === "random"
     ? ""
     : `?sort=${sort}&order=${order}`;
-
-  const totalPages = Math.ceil(total / LIMIT);
 
   const fileInputRef = useRef<HTMLInputElement>(null);
   const router = useRouter();
@@ -252,7 +246,7 @@ export function RootFileListing({ driveName, onFileAction, onFolderChange }: Roo
             <SortButton
               sort={sort}
               order={order}
-              onChange={(s, o) => { setSort(s); setOrder(o); setPage(1); }}
+              onChange={(s, o) => { setSort(s); setOrder(o); }}
             />
 
             <button
@@ -342,28 +336,12 @@ export function RootFileListing({ driveName, onFileAction, onFolderChange }: Roo
           />
         )}
 
-        {/* Pagination */}
-        {totalPages > 1 && (
-          <div className="mt-6 flex items-center justify-center gap-2">
-            <button
-              onClick={() => setPage((p) => Math.max(1, p - 1))}
-              disabled={page === 1}
-              className="rounded-lg bg-bg-card px-3 py-2 text-sm text-text-muted disabled:opacity-40 hover:text-text-primary"
-            >
-              前へ
-            </button>
-            <span className="text-sm text-text-muted">
-              {page} / {totalPages}
-            </span>
-            <button
-              onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
-              disabled={page === totalPages}
-              className="rounded-lg bg-bg-card px-3 py-2 text-sm text-text-muted disabled:opacity-40 hover:text-text-primary"
-            >
-              次へ
-            </button>
-          </div>
-        )}
+        {/* Infinite scroll sentinel */}
+        <div ref={sentinelRef} className="flex items-center justify-center py-4">
+          {loadingMore && (
+            <div className="h-6 w-6 animate-spin rounded-full border-2 border-accent border-t-transparent" />
+          )}
+        </div>
 
         {/* Selection bar */}
         {selectable && (
