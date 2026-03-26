@@ -6,7 +6,7 @@ import { CheckSquare, FolderPlus, Play, RefreshCw, Upload, X } from "lucide-reac
 
 import { addPin, batchGetFiles, createFolder, getDriveFiles, getFolders, getPins, removePin, scanDrive } from "@/lib/api";
 import { getRecentFileIds } from "@/lib/recentlyPlayed";
-import type { FileItem, Folder, PaginatedResponse, SortField, SortOrder, ViewMode } from "@/types";
+import type { FileItem, FileType, Folder, PaginatedResponse, SortField, SortOrder, ViewMode } from "@/types";
 import { FileGrid } from "@/components/FileGrid";
 import { FileList } from "@/components/FileList";
 import { ViewToggle } from "@/components/ViewToggle";
@@ -35,6 +35,7 @@ export function FolderBrowser({ driveName, folderPath, view, tagFilter }: Folder
   const [sort, setSort] = useState<SortField>("created_at");
   const [order, setOrder] = useState<SortOrder>("desc");
   const [loading, setLoading] = useState(true);
+  const [typeFilter, setTypeFilter] = useState<FileType | null>(null);
 
   const limit = 30;
   const isFavorites = view === "favorites";
@@ -71,7 +72,9 @@ export function FolderBrowser({ driveName, folderPath, view, tagFilter }: Folder
         return;
       }
       batchGetFiles(recentIds).then((fetched) => {
-        const driveFiles = fetched.filter((f) => f.drive === driveName);
+        const driveFiles = fetched.filter((f) =>
+          f.drive === driveName && (!typeFilter || f.file_type === typeFilter)
+        );
         setFiles(driveFiles);
         setTotal(driveFiles.length);
         setLoading(false);
@@ -86,6 +89,7 @@ export function FolderBrowser({ driveName, folderPath, view, tagFilter }: Folder
       path: isSpecialView || tagFilter ? undefined : (folderPath ?? ""),
       favorite: isFavorites ? true : undefined,
       tag: tagFilter || undefined,
+      type: typeFilter || undefined,
       sort: isRecentAdded ? "created_at" : isPopular ? "likes" : sort,
       order: isRecentAdded || isPopular ? "desc" : order,
       page,
@@ -99,7 +103,7 @@ export function FolderBrowser({ driveName, folderPath, view, tagFilter }: Folder
       setTotal(0);
       setLoading(false);
     });
-  }, [driveName, folderPath, sort, order, page, isFavorites, isRecent, isRecentAdded, isPopular, isSpecialView, tagFilter, limit]);
+  }, [driveName, folderPath, sort, order, page, isFavorites, isRecent, isRecentAdded, isPopular, isSpecialView, tagFilter, typeFilter, limit]);
 
   useEffect(() => {
     if (!isSpecialView && !tagFilter) {
@@ -115,7 +119,7 @@ export function FolderBrowser({ driveName, folderPath, view, tagFilter }: Folder
 
   useEffect(() => {
     setPage(1);
-  }, [driveName, folderPath, view, tagFilter]);
+  }, [driveName, folderPath, view, tagFilter, typeFilter]);
 
   const [pinnedPaths, setPinnedPaths] = useState<Set<string>>(new Set());
   const { requestRefresh: refreshSidebar } = useSidebar();
@@ -380,9 +384,31 @@ export function FolderBrowser({ driveName, folderPath, view, tagFilter }: Folder
         </div>
       </div>
 
-      <p className="mb-4 text-sm text-text-muted">
-        {label} · {total} 件
-      </p>
+      <div className="mb-4 flex flex-wrap items-center gap-3">
+        <div className="flex items-center gap-1">
+          {([
+            { value: null, label: "すべて" },
+            { value: "video" as FileType, label: "動画" },
+            { value: "image" as FileType, label: "画像" },
+            { value: "audio" as FileType, label: "音声" },
+            { value: "document" as FileType, label: "文書" },
+            { value: "other" as FileType, label: "その他" },
+          ] as const).map((tab) => (
+            <button
+              key={tab.label}
+              onClick={() => setTypeFilter(tab.value)}
+              className={`rounded-md px-2.5 py-1 text-sm transition-colors ${
+                typeFilter === tab.value
+                  ? "bg-accent/20 font-medium text-accent"
+                  : "text-text-muted hover:text-text-primary"
+              }`}
+            >
+              {tab.label}
+            </button>
+          ))}
+        </div>
+        <span className="text-sm text-text-muted">{total} 件</span>
+      </div>
 
       {folders.length > 0 && (
         <div className="mb-6 grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
