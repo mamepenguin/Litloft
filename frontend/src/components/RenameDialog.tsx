@@ -53,10 +53,10 @@ export function RenameDialog({
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center">
       <div
-        className="absolute inset-0 bg-black/60 backdrop-blur-sm"
+        className="absolute inset-0 bg-black/60 backdrop-blur-sm animate-fade-in"
         onClick={onCancel}
       />
-      <div className="relative mx-4 w-full max-w-md rounded-xl bg-bg-card p-6 shadow-2xl">
+      <div className="relative mx-4 w-full max-w-md rounded-xl bg-bg-card p-6 shadow-2xl animate-fade-in-scale">
         <div className="mb-4 flex items-center justify-between">
           <h2 className="flex items-center gap-2 text-lg font-semibold text-text-primary">
             <Pencil size={18} />

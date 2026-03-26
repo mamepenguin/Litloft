@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Star } from "lucide-react";
 
 import { toggleFavorite } from "@/lib/api";
@@ -21,6 +21,7 @@ export function FavoriteButton({
 }) {
   const [optimistic, setOptimistic] = useState(isFavorite);
   const [pending, setPending] = useState(false);
+  const iconRef = useRef<SVGSVGElement>(null);
 
   useEffect(() => {
     if (!pending) setOptimistic(isFavorite);
@@ -36,6 +37,11 @@ export function FavoriteButton({
 
     setOptimistic(!current);
     setPending(true);
+    if (!current && iconRef.current) {
+      iconRef.current.classList.remove("animate-pop");
+      void (iconRef.current as unknown as HTMLElement).offsetWidth;
+      iconRef.current.classList.add("animate-pop");
+    }
     try {
       const updated = await toggleFavorite(fileId);
       onToggle(updated);
@@ -61,6 +67,7 @@ export function FavoriteButton({
       aria-label={current ? "お気に入り解除" : "お気に入りに追加"}
     >
       <Star
+        ref={iconRef}
         size={iconSize}
         fill={current ? "currentColor" : "none"}
         strokeWidth={current ? 0 : 2}

@@ -55,9 +55,9 @@ export function PlaylistPicker({ open, drive, fileIds, onClose }: PlaylistPicker
   }
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50" onClick={onClose}>
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 animate-fade-in" onClick={onClose}>
       <div
-        className="mx-4 w-full max-w-sm rounded-xl border border-bg-border bg-bg-primary p-4 shadow-lg"
+        className="mx-4 w-full max-w-sm rounded-xl border border-bg-border bg-bg-primary p-4 shadow-lg animate-fade-in-scale"
         onClick={(e) => e.stopPropagation()}
       >
         <div className="mb-3 flex items-center justify-between">

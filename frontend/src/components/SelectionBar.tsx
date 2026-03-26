@@ -80,7 +80,7 @@ export function SelectionBar({
 
   return (
     <>
-      <div className="fixed bottom-4 left-1/2 z-50 flex max-w-[calc(100vw-2rem)] -translate-x-1/2 items-center gap-2 sm:gap-3 rounded-xl bg-bg-elevated px-3 sm:px-4 py-3 shadow-2xl ring-1 ring-bg-border">
+      <div className="fixed bottom-4 left-1/2 z-50 flex max-w-[calc(100vw-2rem)] items-center gap-2 sm:gap-3 rounded-xl bg-bg-elevated px-3 sm:px-4 py-3 shadow-2xl ring-1 ring-bg-border animate-slide-up">
         <span className="text-sm font-medium text-text-primary">
           {count} 件選択
         </span>

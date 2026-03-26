@@ -170,7 +170,7 @@ export function GlobalSearch() {
       {open && (
         <>
           {/* Mobile: full-screen */}
-          <div className="fixed inset-0 z-50 flex flex-col bg-bg-primary sm:hidden">
+          <div className="fixed inset-0 z-50 flex flex-col bg-bg-primary sm:hidden animate-fade-in">
             {/* Header */}
             <div className="flex items-center gap-2 border-b border-bg-border px-2 py-2">
               <button
@@ -279,10 +279,10 @@ export function GlobalSearch() {
           {/* Desktop: modal */}
           <div className="fixed inset-0 z-50 hidden items-start justify-center pt-[10vh] sm:flex">
             <div
-              className="fixed inset-0 bg-black/50"
+              className="fixed inset-0 bg-black/50 animate-fade-in"
               onClick={closeSearch}
             />
-            <div className="relative z-10 w-full max-w-lg rounded-xl border border-bg-border bg-bg-primary shadow-2xl">
+            <div className="relative z-10 w-full max-w-lg rounded-xl border border-bg-border bg-bg-primary shadow-2xl animate-fade-in-scale">
               {/* Search input */}
               <div className="flex items-center gap-3 border-b border-bg-border px-4 py-3">
                 <Search size={18} className="flex-shrink-0 text-text-muted" />

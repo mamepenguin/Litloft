@@ -59,7 +59,7 @@ export function SortButton({ sort, order, onChange }: SortButtonProps) {
       </button>
 
       {open && (
-        <div className="absolute right-0 top-full z-30 mt-1 min-w-[180px] rounded-xl border border-bg-border bg-bg-primary py-1 shadow-xl">
+        <div className="absolute right-0 top-full z-30 mt-1 min-w-[180px] rounded-xl border border-bg-border bg-bg-primary py-1 shadow-xl animate-fade-in-scale origin-top-right">
           {sortOptions.map((opt) => {
             const selected = opt.sort === sort && opt.order === order;
             return (

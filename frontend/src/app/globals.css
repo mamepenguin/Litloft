@@ -87,6 +87,45 @@ body {
   }
 }
 
+/* --- Interaction animations --- */
+
+@keyframes fade-in {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes fade-in-scale {
+  from { opacity: 0; transform: scale(0.95); }
+  to { opacity: 1; transform: scale(1); }
+}
+
+@keyframes slide-up {
+  from { opacity: 0; transform: translate(-50%, 12px); }
+  to { opacity: 1; transform: translate(-50%, 0); }
+}
+
+@keyframes pop {
+  0% { transform: scale(1); }
+  50% { transform: scale(1.25); }
+  100% { transform: scale(1); }
+}
+
+@utility animate-fade-in {
+  animation: fade-in 200ms ease-out both;
+}
+
+@utility animate-fade-in-scale {
+  animation: fade-in-scale 200ms ease-out both;
+}
+
+@utility animate-slide-up {
+  animation: slide-up 250ms ease-out both;
+}
+
+@utility animate-pop {
+  animation: pop 250ms ease-out;
+}
+
 @utility scrollbar-hide {
   -ms-overflow-style: none;
   scrollbar-width: none;

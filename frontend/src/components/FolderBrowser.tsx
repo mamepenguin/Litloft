@@ -318,7 +318,7 @@ export function FolderBrowser({ driveName, folderPath, view, tagFilter }: Folder
             />
             <button
               onClick={() => fileInputRef.current?.click()}
-              className="flex items-center gap-2 rounded-lg bg-accent px-3 py-2 text-sm font-medium text-white transition-colors hover:bg-accent/80"
+              className="flex items-center gap-2 rounded-lg bg-accent px-3 py-2 text-sm font-medium text-white transition-all hover:bg-accent/80 active:scale-[0.97]"
               aria-label="アップロード"
             >
               <Upload size={16} />
@@ -372,7 +372,7 @@ export function FolderBrowser({ driveName, folderPath, view, tagFilter }: Folder
           {hasPlayableFiles && !isSpecialView && !tagFilter && (
             <button
               onClick={handlePlayAll}
-              className="flex items-center gap-1.5 rounded-lg bg-accent px-3 py-2 text-sm font-medium text-white transition-colors hover:bg-accent/80"
+              className="flex items-center gap-1.5 rounded-lg bg-accent px-3 py-2 text-sm font-medium text-white transition-all hover:bg-accent/80 active:scale-[0.97]"
               aria-label="全曲再生"
             >
               <Play size={16} />
