@@ -72,7 +72,9 @@ async def list_folders(
     if path:
         path = _validate_folder_path(path)
 
-    query = db.query(File.folder_path).filter(File.drive == drive_name)
+    query = db.query(File.folder_path, func.count(File.id)).filter(
+        File.drive == drive_name
+    )
 
     if path:
         prefix = _escape_like(path) + "/"
@@ -80,10 +82,10 @@ async def list_folders(
     else:
         query = query.filter(File.folder_path != "")
 
-    all_paths = {row[0] for row in query.all()}
+    path_counts = query.group_by(File.folder_path).all()
 
     folders: dict[str, int] = {}
-    for fp in all_paths:
+    for fp, count in path_counts:
         if path:
             remainder = fp[len(path) + 1:]
         else:
@@ -92,7 +94,7 @@ async def list_folders(
             continue
         top_segment = remainder.split("/")[0]
         folder_full_path = f"{path}/{top_segment}" if path else top_segment
-        folders[folder_full_path] = folders.get(folder_full_path, 0) + 1
+        folders[folder_full_path] = folders.get(folder_full_path, 0) + count
 
     # Merge empty folders from DB
     ef_query = db.query(EmptyFolder).filter(EmptyFolder.drive == drive_name)
