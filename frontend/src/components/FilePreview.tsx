@@ -3,6 +3,7 @@
 import type { FileItem } from "@/types";
 import { VideoPlayer } from "./VideoPlayer";
 import { AudioPlayer } from "./AudioPlayer";
+import { TextPreview, isTextPreviewable } from "./TextPreview";
 import { FileTypeIcon } from "./FileTypeIcon";
 import { formatFileSize } from "@/lib/format";
 import { getStreamUrl } from "@/lib/api";
@@ -38,6 +39,10 @@ export function FilePreview({ file, onEnded, autoPlay }: { file: FileItem; onEnd
         />
       </div>
     );
+  }
+
+  if (isTextPreviewable(file.mime_type)) {
+    return <TextPreview fileId={file.id} fileSize={file.file_size} />;
   }
 
   return (
