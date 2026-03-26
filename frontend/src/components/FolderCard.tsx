@@ -23,7 +23,7 @@ export function FolderCard({ folder, driveName, isPinned, onTogglePin, onUpdate,
     >
       <Link
         href={`/drive/${encodeURIComponent(driveName)}/${folder.path.split("/").map(encodeURIComponent).join("/")}`}
-        className="flex flex-1 items-center gap-3"
+        className="flex min-w-0 flex-1 items-center gap-3"
       >
         {folder.thumbnail_file_id ? (
           <div className="h-12 w-12 flex-shrink-0 overflow-hidden rounded-lg">
@@ -39,15 +39,15 @@ export function FolderCard({ folder, driveName, isPinned, onTogglePin, onUpdate,
             <Folder size={24} className="text-accent" />
           </div>
         )}
-        <div>
-          <h3 className="font-semibold text-text-primary group-hover:text-accent">
+        <div className="min-w-0">
+          <h3 className="truncate font-semibold text-text-primary group-hover:text-accent">
             {folder.name}
           </h3>
           <p className="text-sm text-text-muted">{folder.file_count} 件</p>
         </div>
       </Link>
       {onUpdate && (
-        <div className="opacity-0 group-hover:opacity-100 transition-opacity">
+        <div className="flex-shrink-0 md:absolute md:right-3 md:top-1/2 md:-translate-y-1/2 md:opacity-0 md:group-hover:opacity-100 transition-opacity">
           <FolderActions folder={folder} drive={driveName} isPinned={isPinned} onTogglePin={onTogglePin} onUpdate={onUpdate} />
         </div>
       )}

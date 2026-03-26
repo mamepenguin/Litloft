@@ -80,7 +80,7 @@ export function SelectionBar({
 
   return (
     <>
-      <div className="fixed bottom-4 left-1/2 z-50 flex -translate-x-1/2 items-center gap-3 rounded-xl bg-bg-elevated px-4 py-3 shadow-2xl ring-1 ring-bg-border">
+      <div className="fixed bottom-4 left-1/2 z-50 flex max-w-[calc(100vw-2rem)] -translate-x-1/2 items-center gap-2 sm:gap-3 rounded-xl bg-bg-elevated px-3 sm:px-4 py-3 shadow-2xl ring-1 ring-bg-border">
         <span className="text-sm font-medium text-text-primary">
           {count} 件選択
         </span>
@@ -108,7 +108,7 @@ export function SelectionBar({
                 if (e.key === "Escape") setTagging(false);
               }}
               placeholder="tag1, tag2..."
-              className="w-40 rounded-lg bg-bg-card px-2 py-1 text-sm text-text-primary placeholder:text-text-muted outline-none focus:ring-2 focus:ring-accent"
+              className="w-28 sm:w-40 rounded-lg bg-bg-card px-2 py-1 text-sm text-text-primary placeholder:text-text-muted outline-none focus:ring-2 focus:ring-accent"
             />
             <button
               onClick={handleBatchTag}
@@ -124,7 +124,7 @@ export function SelectionBar({
             aria-label="タグ付け"
           >
             <Tag size={16} />
-            タグ
+            <span className="hidden sm:inline">タグ</span>
           </button>
         )}
 
@@ -143,7 +143,7 @@ export function SelectionBar({
           aria-label="移動"
         >
           <Move size={16} />
-          移動
+          <span className="hidden sm:inline">移動</span>
         </button>
 
         <button
@@ -152,7 +152,7 @@ export function SelectionBar({
           aria-label="削除"
         >
           <Trash2 size={16} />
-          削除
+          <span className="hidden sm:inline">削除</span>
         </button>
 
         <div className="h-5 w-px bg-bg-border" />

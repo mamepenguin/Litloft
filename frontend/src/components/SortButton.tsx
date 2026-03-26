@@ -48,10 +48,10 @@ export function SortButton({ sort, order, onChange }: SortButtonProps) {
     <div ref={ref} className="relative">
       <button
         onClick={() => setOpen((s) => !s)}
-        className={`flex items-center gap-1.5 rounded-lg px-3 py-2 text-sm transition-colors ${
+        className={`flex items-center gap-1.5 rounded-md p-2 text-sm transition-colors ${
           isActive
             ? "bg-accent/20 text-accent"
-            : "bg-bg-card text-text-muted hover:text-text-primary"
+            : "text-text-muted hover:text-text-primary"
         }`}
         aria-label="ソート"
       >

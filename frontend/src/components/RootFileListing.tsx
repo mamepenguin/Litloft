@@ -243,40 +243,42 @@ export function RootFileListing({ driveName, onFileAction, onFolderChange }: Roo
               </button>
             )}
 
-            <SortButton
-              sort={sort}
-              order={order}
-              onChange={(s, o) => { setSort(s); setOrder(o); }}
-            />
+            <div className="flex items-center gap-1 rounded-lg bg-bg-card p-1">
+              <SortButton
+                sort={sort}
+                order={order}
+                onChange={(s, o) => { setSort(s); setOrder(o); }}
+              />
 
-            <button
-              onClick={() => {
-                setSelectable((s) => {
-                  if (s) selection.clear();
-                  return !s;
-                });
-              }}
-              className={`flex items-center gap-1.5 rounded-lg px-3 py-2 text-sm transition-colors ${
-                selectable
-                  ? "bg-accent text-white"
-                  : "bg-bg-card text-text-muted hover:text-text-primary"
-              }`}
-              aria-label="選択モード"
-            >
-              <CheckSquare size={16} />
-            </button>
+              <button
+                onClick={() => {
+                  setSelectable((s) => {
+                    if (s) selection.clear();
+                    return !s;
+                  });
+                }}
+                className={`rounded-md p-2 transition-colors ${
+                  selectable
+                    ? "bg-accent text-white"
+                    : "text-text-muted hover:text-text-primary"
+                }`}
+                aria-label="選択モード"
+              >
+                <CheckSquare size={16} />
+              </button>
 
-            <ViewToggle onChange={handleViewChange} />
+              <ViewToggle onChange={handleViewChange} />
 
-            <button
-              onClick={handleScan}
-              disabled={scanning}
-              className="flex items-center gap-1.5 rounded-lg bg-bg-card px-3 py-2 text-sm text-text-muted transition-colors hover:text-text-primary disabled:opacity-50"
-              aria-label="再スキャン"
-              title="ドライブを再スキャン"
-            >
-              <RefreshCw size={16} className={scanning ? "animate-spin" : ""} />
-            </button>
+              <button
+                onClick={handleScan}
+                disabled={scanning}
+                className="rounded-md p-2 text-text-muted transition-colors hover:text-text-primary disabled:opacity-50"
+                aria-label="再スキャン"
+                title="ドライブを再スキャン"
+              >
+                <RefreshCw size={16} className={scanning ? "animate-spin" : ""} />
+              </button>
+            </div>
           </div>
         </div>
 

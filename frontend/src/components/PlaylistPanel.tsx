@@ -293,12 +293,11 @@ function VideoTrackList({
         return (
           <div
             key={track.itemId ?? track.file.id}
-            className={`group relative flex-shrink-0 cursor-pointer overflow-hidden rounded-xl ${
+            className={`group relative w-48 sm:w-52 flex-shrink-0 cursor-pointer overflow-hidden rounded-xl ${
               isCurrent
                 ? "ring-2 ring-accent"
                 : "hover:ring-1 hover:ring-bg-border"
             }`}
-            style={{ width: 200 }}
             onClick={() => onNavigate(track.file.id)}
           >
             <div className="aspect-video bg-bg-elevated">
@@ -374,7 +373,7 @@ function AudioTrackList({
   onRemove: (index: number) => void;
 }) {
   return (
-    <div className="flex max-h-[500px] flex-col gap-1 overflow-y-auto">
+    <div className="flex max-h-[60dvh] flex-col gap-1 overflow-y-auto">
       {tracks.map((track, index) => {
         const isCurrent = track.file.id === currentFileId;
         return (
@@ -391,17 +390,17 @@ function AudioTrackList({
               onClick={() => onNavigate(track.file.id)}
               className="flex min-w-0 flex-1 items-center gap-3"
             >
-              <span className={`w-6 text-center text-sm ${isCurrent ? "text-accent" : "text-text-muted/50"}`}>
+              <span className={`w-6 text-center text-sm ${isCurrent ? "text-accent" : "text-text-muted/70"}`}>
                 {isCurrent ? "▶" : index + 1}
               </span>
-              <span className="text-text-muted/50">
+              <span className="text-text-muted/70">
                 {track.file.file_type === "video" ? <Video size={18} /> : <Music size={18} />}
               </span>
               <span className={`flex-1 truncate text-left text-sm ${isCurrent ? "font-semibold text-text-primary" : "text-text-muted"}`}>
                 {track.file.title}
               </span>
               {track.file.duration != null && (
-                <span className={`flex-shrink-0 text-sm ${isCurrent ? "text-accent" : "text-text-muted/50"}`}>
+                <span className={`flex-shrink-0 text-sm ${isCurrent ? "text-accent" : "text-text-muted/70"}`}>
                   {formatDuration(track.file.duration)}
                 </span>
               )}
@@ -409,16 +408,16 @@ function AudioTrackList({
             {isUserPlaylist && (
               <div className="hidden flex-shrink-0 items-center gap-1 group-hover:flex">
                 {index > 0 && (
-                  <button onClick={() => onMoveUp(index)} className="rounded-md p-1 text-text-muted hover:bg-bg-elevated hover:text-text-primary">
+                  <button onClick={() => onMoveUp(index)} className="rounded-md p-1.5 text-text-muted hover:bg-bg-elevated hover:text-text-primary">
                     <ChevronUp size={16} />
                   </button>
                 )}
                 {index < tracks.length - 1 && (
-                  <button onClick={() => onMoveDown(index)} className="rounded-md p-1 text-text-muted hover:bg-bg-elevated hover:text-text-primary">
+                  <button onClick={() => onMoveDown(index)} className="rounded-md p-1.5 text-text-muted hover:bg-bg-elevated hover:text-text-primary">
                     <ChevronDown size={16} />
                   </button>
                 )}
-                <button onClick={() => onRemove(index)} className="rounded-md p-1 text-red-400 hover:bg-red-400/10 hover:text-red-300">
+                <button onClick={() => onRemove(index)} className="rounded-md p-1.5 text-red-400 hover:bg-red-400/10 hover:text-red-300">
                   <Trash2 size={16} />
                 </button>
               </div>

@@ -28,7 +28,7 @@ export function ViewToggle({
   }
 
   return (
-    <div className="flex gap-1 rounded-lg bg-bg-card p-1">
+    <div className="flex gap-1">
       <button
         onClick={() => toggle("grid")}
         className={`rounded-md p-2 transition-colors ${

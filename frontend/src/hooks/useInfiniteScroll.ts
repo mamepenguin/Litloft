@@ -34,6 +34,7 @@ export function useInfiniteScroll<T>({
   const [total, setTotal] = useState(0);
   const [loading, setLoading] = useState(true);
   const [loadingMore, setLoadingMore] = useState(false);
+  const [epoch, setEpoch] = useState(0);
   const pageRef = useRef(1);
   const fetchIdRef = useRef(0);
   const sentinelRef = useRef<HTMLDivElement | null>(null);
@@ -81,6 +82,7 @@ export function useInfiniteScroll<T>({
     setTotal(0);
     setLoading(true);
     setLoadingMore(false);
+    setEpoch((e) => e + 1);
   }, []);
 
   // Initial load and reset trigger
@@ -90,7 +92,7 @@ export function useInfiniteScroll<T>({
       return;
     }
     loadPage(1, false);
-  }, [loadPage, disabled]);
+  }, [loadPage, disabled, epoch]);
 
   // IntersectionObserver for sentinel
   useEffect(() => {
