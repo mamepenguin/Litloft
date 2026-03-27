@@ -145,8 +145,8 @@ describe("ArchivePreview", () => {
     // Click "Archive" to go back to root
     fireEvent.click(screen.getByText("Archive"));
 
-    // Should navigate to root (no archivePath param)
-    expect(mockPush).toHaveBeenCalledWith("?");
+    // Should navigate to root (no query params, uses pathname)
+    expect(mockPush).toHaveBeenCalledWith(window.location.pathname);
   });
 
   it("clicking image entry opens fullscreen viewer", async () => {

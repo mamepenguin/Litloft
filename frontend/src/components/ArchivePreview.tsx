@@ -199,18 +199,28 @@ export function ArchivePreview({ fileId }: { fileId: string }) {
     })),
   ];
 
+  // Reset viewer when directory changes (e.g. browser back button)
+  useEffect(() => {
+    setViewMode("listing");
+    setViewingEntry(null);
+    setPlaying(false);
+    setShowControls(true);
+  }, [currentPath]);
+
   // Navigate within archive by updating URL (adds to browser history)
+  const searchParamsString = searchParams.toString();
   const navigateArchive = useCallback(
     (path: string) => {
-      const params = new URLSearchParams(searchParams.toString());
+      const params = new URLSearchParams(searchParamsString);
       if (path) {
         params.set("archivePath", path);
       } else {
         params.delete("archivePath");
       }
-      router.push(`?${params.toString()}`);
+      const qs = params.toString();
+      router.push(qs ? `?${qs}` : window.location.pathname);
     },
-    [router, searchParams]
+    [router, searchParamsString]
   );
 
   // Navigation handlers
