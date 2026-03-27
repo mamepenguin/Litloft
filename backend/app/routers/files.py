@@ -1,11 +1,13 @@
+import asyncio
 import os
-from pathlib import Path
+import zipfile
+from pathlib import Path, PurePosixPath
 from typing import Annotated
 from urllib.parse import quote
 
 from fastapi import APIRouter, Depends, HTTPException, Path as PathParam, Query, Request
 from fastapi.responses import FileResponse as FastAPIFileResponse
-from fastapi.responses import StreamingResponse
+from fastapi.responses import Response, StreamingResponse
 from sqlalchemy import and_, func, or_
 from sqlalchemy.orm import Session
 
@@ -14,6 +16,8 @@ from app.auth import check_drive_access, get_unlocked_groups
 from app.database import get_db
 from app.models import File, Tag, file_tags
 from app.schemas import (
+    ArchiveContentsResponse,
+    ArchiveEntryResponse,
     BatchIdsRequest,
     BatchMoveRequest,
     BatchTagRequest,
@@ -26,12 +30,22 @@ from app.schemas import (
     file_to_response,
 )
 from app.services import fileops
+from app.services.filetype import classify
 
 router = APIRouter(prefix="/api/files", tags=["files"])
 
 FileId = Annotated[str, PathParam(min_length=12, max_length=12, pattern=r"^[A-Za-z0-9_-]+$")]
 
 PLACEHOLDER_THUMBNAIL = Path(__file__).parent.parent / "static" / "placeholder.jpg"
+
+_ARCHIVE_ENTRY_MAX_SIZE = 50 * 1024 * 1024  # 50MB
+_MAX_ARCHIVE_ENTRIES = 10_000
+_archive_semaphore = asyncio.Semaphore(3)
+
+_SAFE_INLINE_TYPES = frozenset({
+    "image/jpeg", "image/png", "image/gif", "image/webp", "image/avif",
+    "image/bmp", "text/plain",
+})
 
 
 def _validate_path(file_path: str, base_dir: Path) -> Path:
@@ -418,6 +432,122 @@ async def get_thumbnail(
         )
 
     raise HTTPException(status_code=404, detail="Thumbnail not found")
+
+
+@router.get("/{file_id}/archive", response_model=ArchiveContentsResponse)
+async def get_archive_contents(
+    file_id: FileId,
+    db: Annotated[Session, Depends(get_db)],
+    unlocked_groups: Annotated[list[str], Depends(get_unlocked_groups)],
+):
+    file = _get_file_or_404(db, file_id, unlocked_groups)
+    if file.file_type != "archive":
+        raise HTTPException(status_code=404, detail="File is not an archive")
+
+    drive_path = config.get_drive_path(file.drive)
+    file_path = _validate_path(str(drive_path / file.file_path), drive_path)
+    if not file_path.exists():
+        raise HTTPException(status_code=404, detail="File not found on disk")
+
+    entries = []
+    total_size = 0
+    with zipfile.ZipFile(str(file_path), "r") as zf:
+        for info in zf.infolist():
+            if len(entries) >= _MAX_ARCHIVE_ENTRIES:
+                break
+            # Skip symlink entries
+            if info.external_attr != 0:
+                mode = info.external_attr >> 16
+                if mode != 0 and (mode & 0o170000) == 0o120000:
+                    continue
+            is_dir = info.is_dir()
+            entry_name = PurePosixPath(info.filename).name if not is_dir else ""
+            file_type, mime_type = classify(info.filename) if not is_dir else ("other", "")
+            entries.append(ArchiveEntryResponse(
+                path=info.filename,
+                filename=entry_name,
+                file_size=info.file_size,
+                compressed_size=info.compress_size,
+                file_type=file_type if not is_dir else "directory",
+                mime_type=mime_type,
+                is_dir=is_dir,
+            ))
+            total_size += info.file_size
+
+    entries_sorted = sorted(entries, key=lambda e: e.path)
+    return ArchiveContentsResponse(
+        entries=entries_sorted,
+        total_entries=len(entries_sorted),
+        total_size=total_size,
+    )
+
+
+@router.get("/{file_id}/archive/entry")
+async def get_archive_entry(
+    file_id: FileId,
+    db: Annotated[Session, Depends(get_db)],
+    unlocked_groups: Annotated[list[str], Depends(get_unlocked_groups)],
+    path: str = Query(..., min_length=1),
+):
+    clean = PurePosixPath(path)
+    if clean.is_absolute() or ".." in clean.parts:
+        raise HTTPException(status_code=400, detail="Invalid entry path")
+
+    file = _get_file_or_404(db, file_id, unlocked_groups)
+    if file.file_type != "archive":
+        raise HTTPException(status_code=404, detail="File is not an archive")
+
+    drive_path = config.get_drive_path(file.drive)
+    file_path = _validate_path(str(drive_path / file.file_path), drive_path)
+    if not file_path.exists():
+        raise HTTPException(status_code=404, detail="File not found on disk")
+
+    async with _archive_semaphore:
+        with zipfile.ZipFile(str(file_path), "r") as zf:
+            try:
+                info = zf.getinfo(path)
+            except KeyError:
+                raise HTTPException(
+                    status_code=404, detail="Entry not found in archive"
+                )
+
+            # Reject symlink entries
+            if info.external_attr != 0:
+                mode = info.external_attr >> 16
+                if mode != 0 and (mode & 0o170000) == 0o120000:
+                    raise HTTPException(
+                        status_code=400, detail="Symlink entries not supported"
+                    )
+
+            if info.file_size > _ARCHIVE_ENTRY_MAX_SIZE:
+                raise HTTPException(
+                    status_code=413,
+                    detail="Entry exceeds maximum allowed size",
+                )
+
+            # Read with size limit to defend against ZIP bombs
+            # (declared file_size can be spoofed in ZIP headers)
+            with zf.open(path) as entry_fp:
+                data = entry_fp.read(_ARCHIVE_ENTRY_MAX_SIZE + 1)
+                if len(data) > _ARCHIVE_ENTRY_MAX_SIZE:
+                    raise HTTPException(
+                        status_code=413,
+                        detail="Decompressed entry exceeds maximum allowed size",
+                    )
+
+    _, mime_type = classify(path)
+    entry_filename = PurePosixPath(path).name
+    disposition = "inline" if mime_type in _SAFE_INLINE_TYPES else "attachment"
+
+    return Response(
+        content=data,
+        media_type=mime_type,
+        headers={
+            "Content-Length": str(len(data)),
+            "Content-Disposition": f'{disposition}; filename="{entry_filename}"',
+            "X-Content-Type-Options": "nosniff",
+        },
+    )
 
 
 @router.put("/{file_id}/rename", response_model=FileResponse)

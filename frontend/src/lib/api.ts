@@ -1,4 +1,4 @@
-import type { AuthStatus, ChunkResponse, Drive, FileItem, FileType, Folder, Neighbors, PaginatedResponse, PinnedFolder, PlaylistDetail, PlaylistSummary, SortField, SortOrder, Tag, UnlockResult, UploadInitResponse } from "@/types";
+import type { ArchiveContents, AuthStatus, ChunkResponse, Drive, FileItem, FileType, Folder, Neighbors, PaginatedResponse, PinnedFolder, PlaylistDetail, PlaylistSummary, SortField, SortOrder, Tag, UnlockResult, UploadInitResponse } from "@/types";
 
 const API_BASE = "/api";
 
@@ -355,6 +355,15 @@ export async function reorderPlaylistItems(
       body: JSON.stringify({ item_ids: itemIds }),
     }
   );
+}
+
+// Archive
+export async function getArchiveContents(id: string): Promise<ArchiveContents> {
+  return fetchJSON<ArchiveContents>(`${API_BASE}/files/${id}/archive`);
+}
+
+export function getArchiveEntryUrl(id: string, entryPath: string): string {
+  return `${API_BASE}/files/${id}/archive/entry?path=${encodeURIComponent(entryPath)}`;
 }
 
 // Auth

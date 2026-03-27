@@ -1,4 +1,4 @@
-export type FileType = "video" | "image" | "audio" | "document" | "other";
+export type FileType = "video" | "image" | "audio" | "document" | "archive" | "other";
 
 export interface FileItem {
   id: string;
@@ -89,6 +89,22 @@ export interface PlaylistDetail {
   items: PlaylistItemEntry[];
   created_at: string;
   updated_at: string;
+}
+
+export interface ArchiveEntry {
+  path: string;
+  filename: string;
+  file_size: number;
+  compressed_size: number;
+  file_type: string;
+  mime_type: string;
+  is_dir: boolean;
+}
+
+export interface ArchiveContents {
+  entries: ArchiveEntry[];
+  total_entries: number;
+  total_size: number;
 }
 
 export type ViewMode = "grid" | "list";

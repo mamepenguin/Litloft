@@ -1,4 +1,4 @@
-import { File, FileAudio, FileImage, FileText, FileVideo } from "lucide-react";
+import { Archive, File, FileAudio, FileImage, FileText, FileVideo } from "lucide-react";
 import type { FileType } from "@/types";
 
 const iconMap: Record<FileType, typeof File> = {
@@ -6,6 +6,7 @@ const iconMap: Record<FileType, typeof File> = {
   image: FileImage,
   audio: FileAudio,
   document: FileText,
+  archive: Archive,
   other: File,
 };
 

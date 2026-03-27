@@ -68,6 +68,22 @@ class TagUpdate(BaseModel):
         return list(seen.values())
 
 
+class ArchiveEntryResponse(BaseModel):
+    path: str
+    filename: str
+    file_size: int
+    compressed_size: int
+    file_type: str
+    mime_type: str
+    is_dir: bool
+
+
+class ArchiveContentsResponse(BaseModel):
+    entries: list[ArchiveEntryResponse]
+    total_entries: int
+    total_size: int
+
+
 class PaginationMeta(BaseModel):
     total: int
     page: int

@@ -4,6 +4,7 @@ import type { FileItem } from "@/types";
 import { VideoPlayer } from "./VideoPlayer";
 import { AudioPlayer } from "./AudioPlayer";
 import { TextPreview, isTextPreviewable } from "./TextPreview";
+import { ArchivePreview } from "./ArchivePreview";
 import { FileTypeIcon } from "./FileTypeIcon";
 import { formatFileSize } from "@/lib/format";
 import { getStreamUrl } from "@/lib/api";
@@ -39,6 +40,10 @@ export function FilePreview({ file, onEnded, autoPlay }: { file: FileItem; onEnd
         />
       </div>
     );
+  }
+
+  if (file.file_type === "archive") {
+    return <ArchivePreview fileId={file.id} />;
   }
 
   if (isTextPreviewable(file.mime_type)) {

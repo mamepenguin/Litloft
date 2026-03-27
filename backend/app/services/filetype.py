@@ -9,6 +9,11 @@ _CATEGORY_MAP = {
     "text": "document",
 }
 
+_ARCHIVE_MIMES = frozenset({
+    "application/zip",
+    "application/x-zip-compressed",
+})
+
 _DOCUMENT_MIMES = frozenset({
     "application/pdf",
     "application/msword",
@@ -32,6 +37,7 @@ _EXTRA_MIMES = {
     ".doc": "application/msword",
     ".xls": "application/vnd.ms-excel",
     ".ppt": "application/vnd.ms-powerpoint",
+    ".zip": "application/zip",
 }
 
 
@@ -41,6 +47,9 @@ def classify(filename: str) -> tuple[str, str]:
     mime, _ = mimetypes.guess_type(filename)
     if mime is None:
         mime = _EXTRA_MIMES.get(ext, "application/octet-stream")
+
+    if mime in _ARCHIVE_MIMES:
+        return ("archive", mime)
 
     if mime in _DOCUMENT_MIMES:
         return ("document", mime)
