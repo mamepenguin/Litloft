@@ -461,7 +461,8 @@ async def get_archive_contents(
                 if mode != 0 and (mode & 0o170000) == 0o120000:
                     continue
             is_dir = info.is_dir()
-            entry_name = PurePosixPath(info.filename).name if not is_dir else ""
+            clean_path = info.filename.rstrip("/") if is_dir else info.filename
+            entry_name = PurePosixPath(clean_path).name
             file_type, mime_type = classify(info.filename) if not is_dir else ("other", "")
             entries.append(ArchiveEntryResponse(
                 path=info.filename,

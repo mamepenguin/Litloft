@@ -118,6 +118,7 @@ class TestArchiveList:
         )
         if dir_entry:
             assert dir_entry["is_dir"] is True
+            assert dir_entry["filename"] == "images"
 
         # Entries should be sorted by path
         paths = [e["path"] for e in body["entries"]]
