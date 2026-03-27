@@ -3,7 +3,7 @@
 import { Suspense, useCallback, useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
-import { Clock, FilePlus, Files, Folder, HardDrive, Home, ListMusic, Lock, LockOpen, Pencil, Plus, Star, Tag, Trash2, X } from "lucide-react";
+import { Clock, FilePlus, Files, Folder, HardDrive, Home, ListMusic, Lock, LockOpen, Pencil, Plus, Star, Tag, Trash2, Warehouse, X } from "lucide-react";
 
 import { getDrives, getDriveTags, getPins, getPlaylists, getPlaylist, createPlaylist, updatePlaylist, deletePlaylist, getAuthStatus, lock as lockApi } from "@/lib/api";
 import type { AuthStatus, Drive, PinnedFolder, PlaylistSummary, Tag as TagType } from "@/types";
@@ -176,8 +176,9 @@ function SidebarNav() {
   return (
     <nav className="flex flex-col gap-1 overflow-y-auto p-3">
       <div className="mb-2 px-3 py-2">
-        <Link href="/" onClick={close} className="text-lg font-bold text-text-primary">
-          Video Share
+        <Link href="/" onClick={close} className="flex items-center gap-2 text-lg font-bold text-text-primary">
+          <Warehouse size={20} className="text-accent-cta" />
+          HomeVault
         </Link>
       </div>
 

@@ -1,0 +1,30 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#2d1810"/>
+      <stop offset="100%" stop-color="#1a0e08"/>
+    </linearGradient>
+    <linearGradient id="roof" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#e8a04c"/>
+      <stop offset="100%" stop-color="#c47a2a"/>
+    </linearGradient>
+    <linearGradient id="wall" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#d4956e"/>
+      <stop offset="100%" stop-color="#b87a52"/>
+    </linearGradient>
+  </defs>
+  <!-- Background rounded square -->
+  <rect width="512" height="512" rx="96" fill="url(#bg)"/>
+  <!-- House roof -->
+  <path d="M256 100 L420 230 L380 230 L380 400 L132 400 L132 230 L92 230 Z" fill="url(#roof)" opacity="0.15"/>
+  <path d="M256 100 L420 230 L380 230 L380 400 L132 400 L132 230 L92 230 Z" fill="none" stroke="url(#roof)" stroke-width="16" stroke-linejoin="round"/>
+  <!-- Door / vault -->
+  <rect x="210" y="270" width="92" height="130" rx="8" fill="none" stroke="#e8a04c" stroke-width="10"/>
+  <!-- Vault circle handle -->
+  <circle cx="256" cy="335" r="28" fill="none" stroke="#e8a04c" stroke-width="8"/>
+  <!-- Vault handle cross -->
+  <line x1="256" y1="311" x2="256" y2="359" stroke="#e8a04c" stroke-width="6" stroke-linecap="round"/>
+  <line x1="232" y1="335" x2="280" y2="335" stroke="#e8a04c" stroke-width="6" stroke-linecap="round"/>
+  <!-- Play triangle (media) -->
+  <polygon points="340,148 370,168 340,188" fill="#e8a04c" opacity="0.7"/>
+</svg>
