@@ -427,6 +427,7 @@ export function FolderBrowser({ driveName, folderPath, view, tagFilter }: Folder
             { value: "image" as FileType, label: "画像" },
             { value: "audio" as FileType, label: "音声" },
             { value: "document" as FileType, label: "文書" },
+            { value: "archive" as FileType, label: "書庫" },
             { value: "other" as FileType, label: "その他" },
           ] as const).map((tab) => (
             <button
