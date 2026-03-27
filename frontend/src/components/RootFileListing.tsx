@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
-import { CheckSquare, FileText, FolderPlus, Play, RefreshCw, Upload, X } from "lucide-react";
+import { Check, CheckSquare, FileText, Filter, FolderPlus, Play, RefreshCw, Upload, X } from "lucide-react";
 
 import { createFolder, getDriveFiles, scanDrive } from "@/lib/api";
 import type { FileItem, FileType, SortField, SortOrder, ViewMode } from "@/types";
@@ -29,6 +29,19 @@ export function RootFileListing({ driveName, onFileAction, onFolderChange }: Roo
   const [sort, setSort] = useState<SortField>("created_at");
   const [order, setOrder] = useState<SortOrder>("desc");
   const [typeFilter, setTypeFilter] = useState<FileType | null>(null);
+  const [typeFilterOpen, setTypeFilterOpen] = useState(false);
+  const typeFilterRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!typeFilterOpen) return;
+    function handleClick(e: MouseEvent) {
+      if (typeFilterRef.current && !typeFilterRef.current.contains(e.target as Node)) {
+        setTypeFilterOpen(false);
+      }
+    }
+    document.addEventListener("mousedown", handleClick);
+    return () => document.removeEventListener("mousedown", handleClick);
+  }, [typeFilterOpen]);
 
   const fetchPage = useCallback(
     async (page: number, limit: number) => {
@@ -284,13 +297,60 @@ export function RootFileListing({ driveName, onFileAction, onFolderChange }: Roo
 
         {/* Type filter tabs */}
         <div className="mb-4 flex flex-wrap items-center gap-3">
-          <div className="flex items-center gap-1">
+          {/* Mobile: popover dropdown */}
+          <div ref={typeFilterRef} className="relative sm:hidden">
+            <button
+              onClick={() => setTypeFilterOpen((s) => !s)}
+              className={`flex items-center gap-1.5 rounded-md p-2 text-sm transition-colors ${
+                typeFilter
+                  ? "bg-accent/20 text-accent"
+                  : "text-text-muted hover:text-text-primary"
+              }`}
+              aria-label="ファイルタイプ"
+            >
+              <Filter size={16} />
+            </button>
+            {typeFilterOpen && (
+              <div className="absolute left-0 top-full z-30 mt-1 min-w-[140px] rounded-xl border border-bg-border bg-bg-primary py-1 shadow-xl animate-fade-in-scale origin-top-left">
+                {([
+                  { value: null, label: "すべて" },
+                  { value: "video" as FileType, label: "動画" },
+                  { value: "image" as FileType, label: "画像" },
+                  { value: "audio" as FileType, label: "音声" },
+                  { value: "document" as FileType, label: "文書" },
+                  { value: "archive" as FileType, label: "書庫" },
+                  { value: "other" as FileType, label: "その他" },
+                ] as const).map((opt) => (
+                  <button
+                    key={opt.label}
+                    onClick={() => {
+                      setTypeFilter(opt.value);
+                      setTypeFilterOpen(false);
+                    }}
+                    className={`flex w-full items-center gap-2 px-3 py-2 text-left text-sm transition-colors ${
+                      typeFilter === opt.value
+                        ? "text-accent"
+                        : "text-text-primary hover:bg-bg-elevated"
+                    }`}
+                  >
+                    <span className="w-4 flex-shrink-0">
+                      {typeFilter === opt.value && <Check size={14} />}
+                    </span>
+                    {opt.label}
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
+          {/* Desktop: tabs */}
+          <div className="hidden items-center gap-1 sm:flex">
             {([
               { value: null, label: "すべて" },
               { value: "video" as FileType, label: "動画" },
               { value: "image" as FileType, label: "画像" },
               { value: "audio" as FileType, label: "音声" },
               { value: "document" as FileType, label: "文書" },
+              { value: "archive" as FileType, label: "書庫" },
               { value: "other" as FileType, label: "その他" },
             ] as const).map((tab) => (
               <button
