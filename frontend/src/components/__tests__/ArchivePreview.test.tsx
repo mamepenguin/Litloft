@@ -77,6 +77,9 @@ vi.mock("@/lib/api", () => ({
   getArchiveEntryUrl: vi.fn(
     (id: string, path: string) => `/api/files/${id}/archive/entry?path=${encodeURIComponent(path)}`
   ),
+  getDownloadUrl: vi.fn(
+    (id: string) => `/api/files/${id}/stream?download=true`
+  ),
 }));
 
 import { getArchiveContents } from "@/lib/api";

@@ -5,6 +5,7 @@ import {
   ArrowLeft,
   ChevronLeft,
   ChevronRight,
+  Download,
   Folder,
   Pause,
   Play,
@@ -13,7 +14,7 @@ import {
 
 import { useRouter, useSearchParams } from "next/navigation";
 
-import { getArchiveContents, getArchiveEntryUrl } from "@/lib/api";
+import { getArchiveContents, getArchiveEntryUrl, getDownloadUrl } from "@/lib/api";
 import { formatFileSize } from "@/lib/format";
 import { isTextPreviewable } from "./TextPreview";
 import { FileTypeIcon } from "./FileTypeIcon";
@@ -487,6 +488,16 @@ export function ArchivePreview({ fileId }: { fileId: string }) {
                 </button>
               </>
             )}
+            {currentImage && (
+              <a
+                href={getArchiveEntryUrl(fileId, currentImage.path)}
+                download={currentImage.filename}
+                className="rounded-full p-1.5 text-white/80 transition-colors hover:bg-white/10 hover:text-white"
+                aria-label="ダウンロード"
+              >
+                <Download size={18} />
+              </a>
+            )}
             <button
               onClick={closeViewer}
               className="rounded-full p-1.5 text-white/80 transition-colors hover:bg-white/10 hover:text-white"
@@ -621,9 +632,20 @@ export function ArchivePreview({ fileId }: { fileId: string }) {
           ))}
 
           {archive && (
-            <span className="ml-auto text-xs text-text-muted">
-              {archive.total_entries} ファイル /{" "}
-              {formatFileSize(archive.total_size)}
+            <span className="ml-auto flex items-center gap-2 text-xs text-text-muted">
+              <span>
+                {archive.total_entries} ファイル /{" "}
+                {formatFileSize(archive.total_size)}
+              </span>
+              <a
+                href={getDownloadUrl(fileId)}
+                download
+                className="rounded p-1 transition-colors hover:bg-bg-card hover:text-text-primary"
+                aria-label="アーカイブをダウンロード"
+                title="アーカイブをダウンロード"
+              >
+                <Download size={14} />
+              </a>
             </span>
           )}
         </div>
@@ -685,6 +707,18 @@ export function ArchivePreview({ fileId }: { fileId: string }) {
                         <span className="shrink-0 text-xs text-text-muted">
                           {formatFileSize(entry.file_size)}
                         </span>
+                      )}
+
+                      {!entry.is_dir && (
+                        <a
+                          href={getArchiveEntryUrl(fileId, entry.path)}
+                          download={entry.filename}
+                          onClick={(e) => e.stopPropagation()}
+                          className="shrink-0 rounded p-1 text-text-muted transition-colors hover:bg-bg-card hover:text-text-primary"
+                          aria-label={`${entry.filename} をダウンロード`}
+                        >
+                          <Download size={14} />
+                        </a>
                       )}
 
                       {entry.is_dir && (
