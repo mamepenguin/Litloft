@@ -11,6 +11,8 @@ import {
   X,
 } from "lucide-react";
 
+import { useRouter, useSearchParams } from "next/navigation";
+
 import { getArchiveContents, getArchiveEntryUrl } from "@/lib/api";
 import { formatFileSize } from "@/lib/format";
 import { isTextPreviewable } from "./TextPreview";
@@ -105,10 +107,13 @@ function inferDirectories(
 }
 
 export function ArchivePreview({ fileId }: { fileId: string }) {
+  const router = useRouter();
+  const searchParams = useSearchParams();
+  const currentPath = searchParams.get("archivePath") || "";
+
   const [archive, setArchive] = useState<ArchiveContents | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [currentPath, setCurrentPath] = useState("");
   const [viewMode, setViewMode] = useState<ViewMode>("listing");
   const [viewingEntry, setViewingEntry] = useState<ArchiveEntry | null>(null);
 
@@ -194,17 +199,31 @@ export function ArchivePreview({ fileId }: { fileId: string }) {
     })),
   ];
 
+  // Navigate within archive by updating URL (adds to browser history)
+  const navigateArchive = useCallback(
+    (path: string) => {
+      const params = new URLSearchParams(searchParams.toString());
+      if (path) {
+        params.set("archivePath", path);
+      } else {
+        params.delete("archivePath");
+      }
+      router.push(`?${params.toString()}`);
+    },
+    [router, searchParams]
+  );
+
   // Navigation handlers
   const handleDirClick = useCallback((entry: ArchiveEntry) => {
     const dirPath = entry.path.endsWith("/")
       ? entry.path.slice(0, -1)
       : entry.path;
-    setCurrentPath(dirPath);
-  }, []);
+    navigateArchive(dirPath);
+  }, [navigateArchive]);
 
   const handleBreadcrumbClick = useCallback((path: string) => {
-    setCurrentPath(path);
-  }, []);
+    navigateArchive(path);
+  }, [navigateArchive]);
 
   const handleFileClick = useCallback(
     (entry: ArchiveEntry) => {

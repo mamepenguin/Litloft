@@ -64,6 +64,14 @@ const mockArchive: ArchiveContents = {
   total_size: 1140000,
 };
 
+const mockPush = vi.fn();
+const mockSearchParams = new URLSearchParams();
+
+vi.mock("next/navigation", () => ({
+  useRouter: () => ({ push: mockPush }),
+  useSearchParams: () => mockSearchParams,
+}));
+
 vi.mock("@/lib/api", () => ({
   getArchiveContents: vi.fn(),
   getArchiveEntryUrl: vi.fn(
@@ -78,6 +86,8 @@ const mockedGetArchiveContents = vi.mocked(getArchiveContents);
 beforeEach(() => {
   vi.clearAllMocks();
   mockedGetArchiveContents.mockResolvedValue(mockArchive);
+  // Reset search params
+  mockSearchParams.delete("archivePath");
 });
 
 describe("ArchivePreview", () => {
@@ -117,24 +127,14 @@ describe("ArchivePreview", () => {
 
     fireEvent.click(screen.getByText("chapter1"));
 
-    await waitFor(() => {
-      expect(screen.getByText("001.jpg")).toBeInTheDocument();
-      expect(screen.getByText("002.jpg")).toBeInTheDocument();
-    });
-
-    // Root-level files should not be visible
-    expect(screen.queryByText("readme.txt")).not.toBeInTheDocument();
+    // Should navigate via router.push with archivePath param
+    expect(mockPush).toHaveBeenCalledWith("?archivePath=chapter1");
   });
 
   it("breadcrumb navigation works", async () => {
+    // Simulate being inside chapter1
+    mockSearchParams.set("archivePath", "chapter1");
     render(<ArchivePreview fileId="test-id" />);
-
-    await waitFor(() => {
-      expect(screen.getByText("chapter1")).toBeInTheDocument();
-    });
-
-    // Navigate into chapter1
-    fireEvent.click(screen.getByText("chapter1"));
 
     await waitFor(() => {
       expect(screen.getByText("001.jpg")).toBeInTheDocument();
@@ -142,12 +142,11 @@ describe("ArchivePreview", () => {
 
     // Breadcrumb should show Archive > chapter1
     expect(screen.getByText("Archive")).toBeInTheDocument();
-    // "chapter1" appears both in breadcrumb - click "Archive" to go back
+    // Click "Archive" to go back to root
     fireEvent.click(screen.getByText("Archive"));
 
-    await waitFor(() => {
-      expect(screen.getByText("readme.txt")).toBeInTheDocument();
-    });
+    // Should navigate to root (no archivePath param)
+    expect(mockPush).toHaveBeenCalledWith("?");
   });
 
   it("clicking image entry opens fullscreen viewer", async () => {
