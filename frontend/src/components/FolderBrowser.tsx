@@ -420,7 +420,27 @@ export function FolderBrowser({ driveName, folderPath, view, tagFilter }: Folder
       </div>
 
       <div className="mb-4 flex flex-wrap items-center gap-3">
-        <div className="flex items-center gap-1">
+        {/* Mobile: dropdown */}
+        <select
+          value={typeFilter ?? ""}
+          onChange={(e) => setTypeFilter((e.target.value || null) as FileType | null)}
+          className="rounded-md bg-bg-card px-2.5 py-1.5 text-sm text-text-primary outline-none sm:hidden"
+          aria-label="ファイルタイプ"
+        >
+          {([
+            { value: "", label: "すべて" },
+            { value: "video", label: "動画" },
+            { value: "image", label: "画像" },
+            { value: "audio", label: "音声" },
+            { value: "document", label: "文書" },
+            { value: "archive", label: "書庫" },
+            { value: "other", label: "その他" },
+          ]).map((opt) => (
+            <option key={opt.value} value={opt.value}>{opt.label}</option>
+          ))}
+        </select>
+        {/* Desktop: tabs */}
+        <div className="hidden items-center gap-1 sm:flex">
           {([
             { value: null, label: "すべて" },
             { value: "video" as FileType, label: "動画" },

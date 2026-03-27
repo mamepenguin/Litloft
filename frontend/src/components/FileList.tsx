@@ -136,6 +136,7 @@ export function FileList({
                   image: "画像",
                   audio: "音声",
                   document: "文書",
+                  archive: "書庫",
                   other: "ファイル",
                 };
                 const content = (
@@ -173,6 +174,11 @@ export function FileList({
                       </div>
                       <div className="mt-0.5 flex flex-wrap items-center gap-x-1.5 gap-y-0.5 text-xs text-text-muted">
                         <span className="flex-shrink-0">{fileTypeLabel[file.file_type] ?? file.file_type}</span>
+                        {file.file_type === "other" && file.filename.includes(".") && (
+                          <span className="flex-shrink-0 rounded bg-bg-elevated px-1.5 py-0.5 text-[10px] font-medium uppercase text-text-muted">
+                            {file.filename.split(".").pop()}
+                          </span>
+                        )}
                         <span className="flex-shrink-0 sm:hidden">{formatFileSize(file.file_size)}</span>
                         <span className="flex-shrink-0 opacity-40 sm:hidden">·</span>
                         <span className="flex-shrink-0 sm:hidden">{formatRelativeDate(file.updated_at)}</span>

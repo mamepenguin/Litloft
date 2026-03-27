@@ -97,6 +97,11 @@ export function FileCard({
               {formatDuration(file.duration)}
             </span>
           )}
+          {file.file_type === "other" && file.filename.includes(".") && (
+            <span className="absolute bottom-2 right-2 rounded bg-black/70 px-1.5 py-0.5 text-[10px] font-medium uppercase text-white">
+              {file.filename.split(".").pop()}
+            </span>
+          )}
           {onFavoriteToggle && (
             <div className={`absolute top-2 right-2 ${file.is_favorite ? "opacity-100" : "opacity-0 group-hover:opacity-100"} transition-opacity`}>
               <FavoriteButton
