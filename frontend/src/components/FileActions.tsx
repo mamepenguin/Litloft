@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useRef, useState, useEffect } from "react";
+import { createPortal } from "react-dom";
 import { Download, Move, Pencil, Trash2 } from "lucide-react";
 
 import {
@@ -176,29 +177,41 @@ export function FileActions({ file, onUpdate, onDelete }: FileActionsProps) {
         )}
       </div>
 
-      <RenameDialog
-        open={renameOpen}
-        currentName={file.filename}
-        onRename={handleRename}
-        onCancel={() => setRenameOpen(false)}
-      />
+      {renameOpen &&
+        createPortal(
+          <RenameDialog
+            open={renameOpen}
+            currentName={file.filename}
+            onRename={handleRename}
+            onCancel={() => setRenameOpen(false)}
+          />,
+          document.body
+        )}
 
-      <MoveDialog
-        open={moveOpen}
-        drive={file.drive}
-        currentPath={file.folder_path}
-        onMove={handleMove}
-        onCancel={() => setMoveOpen(false)}
-      />
+      {moveOpen &&
+        createPortal(
+          <MoveDialog
+            open={moveOpen}
+            drive={file.drive}
+            currentPath={file.folder_path}
+            onMove={handleMove}
+            onCancel={() => setMoveOpen(false)}
+          />,
+          document.body
+        )}
 
-      <ConfirmDialog
-        open={deleteOpen}
-        title="ファイルを削除"
-        message={`「${file.filename}」を削除しますか？この操作は取り消せません。`}
-        confirmLabel="削除"
-        onConfirm={handleDelete}
-        onCancel={() => setDeleteOpen(false)}
-      />
+      {deleteOpen &&
+        createPortal(
+          <ConfirmDialog
+            open={deleteOpen}
+            title="ファイルを削除"
+            message={`「${file.filename}」を削除しますか？この操作は取り消せません。`}
+            confirmLabel="削除"
+            onConfirm={handleDelete}
+            onCancel={() => setDeleteOpen(false)}
+          />,
+          document.body
+        )}
     </>
   );
 }

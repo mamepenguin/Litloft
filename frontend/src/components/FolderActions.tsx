@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
+import { createPortal } from "react-dom";
 import { Pencil, Pin, PinOff, Trash2 } from "lucide-react";
 
 import { deleteFolder, renameFolder } from "@/lib/api";
@@ -107,21 +108,29 @@ export function FolderActions({
         )}
       </div>
 
-      <RenameDialog
-        open={renameOpen}
-        currentName={folder.name}
-        onRename={handleRename}
-        onCancel={() => setRenameOpen(false)}
-      />
+      {renameOpen &&
+        createPortal(
+          <RenameDialog
+            open={renameOpen}
+            currentName={folder.name}
+            onRename={handleRename}
+            onCancel={() => setRenameOpen(false)}
+          />,
+          document.body
+        )}
 
-      <ConfirmDialog
-        open={deleteOpen}
-        title="フォルダを削除"
-        message={`「${folder.name}」を削除しますか？空のフォルダのみ削除できます。`}
-        confirmLabel="削除"
-        onConfirm={handleDelete}
-        onCancel={() => setDeleteOpen(false)}
-      />
+      {deleteOpen &&
+        createPortal(
+          <ConfirmDialog
+            open={deleteOpen}
+            title="フォルダを削除"
+            message={`「${folder.name}」を削除しますか？空のフォルダのみ削除できます。`}
+            confirmLabel="削除"
+            onConfirm={handleDelete}
+            onCancel={() => setDeleteOpen(false)}
+          />,
+          document.body
+        )}
     </>
   );
 }
