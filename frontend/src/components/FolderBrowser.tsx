@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
-import { CheckSquare, FolderPlus, Play, RefreshCw, Upload, X } from "lucide-react";
+import { Check, CheckSquare, Filter, FolderPlus, Play, RefreshCw, Upload, X } from "lucide-react";
 
 import { addPin, batchGetFiles, createFolder, getDriveFiles, getFolders, getPins, removePin, scanDrive } from "@/lib/api";
 import { getRecentFileIds } from "@/lib/recentlyPlayed";
@@ -34,6 +34,19 @@ export function FolderBrowser({ driveName, folderPath, view, tagFilter }: Folder
   const [sort, setSort] = useState<SortField>("created_at");
   const [order, setOrder] = useState<SortOrder>("desc");
   const [typeFilter, setTypeFilter] = useState<FileType | null>(null);
+  const [typeFilterOpen, setTypeFilterOpen] = useState(false);
+  const typeFilterRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!typeFilterOpen) return;
+    function handleClick(e: MouseEvent) {
+      if (typeFilterRef.current && !typeFilterRef.current.contains(e.target as Node)) {
+        setTypeFilterOpen(false);
+      }
+    }
+    document.addEventListener("mousedown", handleClick);
+    return () => document.removeEventListener("mousedown", handleClick);
+  }, [typeFilterOpen]);
 
   const isFavorites = view === "favorites";
   const isRecent = view === "recent";
@@ -420,25 +433,51 @@ export function FolderBrowser({ driveName, folderPath, view, tagFilter }: Folder
       </div>
 
       <div className="mb-4 flex flex-wrap items-center gap-3">
-        {/* Mobile: dropdown */}
-        <select
-          value={typeFilter ?? ""}
-          onChange={(e) => setTypeFilter((e.target.value || null) as FileType | null)}
-          className="rounded-md bg-bg-card px-2.5 py-1.5 text-sm text-text-primary outline-none sm:hidden"
-          aria-label="ファイルタイプ"
-        >
-          {([
-            { value: "", label: "すべて" },
-            { value: "video", label: "動画" },
-            { value: "image", label: "画像" },
-            { value: "audio", label: "音声" },
-            { value: "document", label: "文書" },
-            { value: "archive", label: "書庫" },
-            { value: "other", label: "その他" },
-          ]).map((opt) => (
-            <option key={opt.value} value={opt.value}>{opt.label}</option>
-          ))}
-        </select>
+        {/* Mobile: popover dropdown (same style as SortButton) */}
+        <div ref={typeFilterRef} className="relative sm:hidden">
+          <button
+            onClick={() => setTypeFilterOpen((s) => !s)}
+            className={`flex items-center gap-1.5 rounded-md p-2 text-sm transition-colors ${
+              typeFilter
+                ? "bg-accent/20 text-accent"
+                : "text-text-muted hover:text-text-primary"
+            }`}
+            aria-label="ファイルタイプ"
+          >
+            <Filter size={16} />
+          </button>
+          {typeFilterOpen && (
+            <div className="absolute left-0 top-full z-30 mt-1 min-w-[140px] rounded-xl border border-bg-border bg-bg-primary py-1 shadow-xl animate-fade-in-scale origin-top-left">
+              {([
+                { value: null, label: "すべて" },
+                { value: "video" as FileType, label: "動画" },
+                { value: "image" as FileType, label: "画像" },
+                { value: "audio" as FileType, label: "音声" },
+                { value: "document" as FileType, label: "文書" },
+                { value: "archive" as FileType, label: "書庫" },
+                { value: "other" as FileType, label: "その他" },
+              ] as const).map((opt) => (
+                <button
+                  key={opt.label}
+                  onClick={() => {
+                    setTypeFilter(opt.value);
+                    setTypeFilterOpen(false);
+                  }}
+                  className={`flex w-full items-center gap-2 px-3 py-2 text-left text-sm transition-colors ${
+                    typeFilter === opt.value
+                      ? "text-accent"
+                      : "text-text-primary hover:bg-bg-elevated"
+                  }`}
+                >
+                  <span className="w-4 flex-shrink-0">
+                    {typeFilter === opt.value && <Check size={14} />}
+                  </span>
+                  {opt.label}
+                </button>
+              ))}
+            </div>
+          )}
+        </div>
         {/* Desktop: tabs */}
         <div className="hidden items-center gap-1 sm:flex">
           {([
