@@ -43,7 +43,7 @@ export default function FilePage() {
       setEditTitle(f.title);
       setEditDesc(f.description);
       setOverrideDrive(f.drive);
-      if (!hasPlaylist) {
+      if (!hasPlaylist && f.file_type !== "archive") {
         getFileNeighbors(fileId, sort, order)
           .then(setNeighbors)
           .catch(() => setNeighbors(null));
