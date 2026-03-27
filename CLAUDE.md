@@ -26,7 +26,7 @@ backend/
     auth.py            # JWT認証ロジック（トークン生成・検証、アクセスグループ管理）
     nanoid.py          # Nano ID生成ユーティリティ
     routers/
-      files.py         # GET/PUT /api/files/{id}, stream, thumbnail, like, tags, batch操作
+      files.py         # GET/PUT /api/files/{id}, stream, thumbnail, like, tags, batch操作, archive閲覧
       drives.py        # GET /api/drives, folders, files, tags, scan, pins
       playlists.py     # プレイリストCRUD + アイテム操作エンドポイント
       auth.py          # POST /api/auth/unlock, lock, GET status
@@ -80,6 +80,7 @@ frontend/
       ConfirmDialog.tsx  # 確認ダイアログ
       ContextMenu.tsx    # 右クリックコンテキストメニュー
       CarouselSection.tsx # カルーセルUI
+      ArchivePreview.tsx  # ZIPアーカイブ閲覧（一覧+画像ビューア+テキストプレビュー）
       EmptyState.tsx     # 空状態表示
       CurrentDriveProvider.tsx # カレントドライブ Context Provider
       SidebarProvider.tsx     # サイドバー Context Provider
@@ -171,6 +172,8 @@ docker compose logs -f backend
 | PUT | /api/files/{id} | メタデータ編集 (title, description) |
 | GET | /api/files/{id}/stream | ストリーミング (Range Request 206対応、Content-Type は mime_type から動的決定) |
 | GET | /api/files/{id}/thumbnail | サムネイル画像 (動画: ffmpeg生成、他: placeholder) |
+| GET | /api/files/{id}/archive | ZIPアーカイブの中身一覧 |
+| GET | /api/files/{id}/archive/entry?path= | ZIP内の個別ファイルをストリーム |
 | POST | /api/files/{id}/like | いいね |
 | POST | /api/files/{id}/dislike | likes - 1 |
 | POST | /api/files/{id}/favorite | お気に入りトグル |
@@ -197,12 +200,21 @@ docker compose logs -f backend
 
 ### ファイルタイプシステム
 - **File テーブル**: 全ファイルの統一モデル（旧 Video テーブルを統合）
-- **file_type**: 大分類（video/image/audio/document/other）— UIフィルタ・アイコン切替
+- **file_type**: 大分類（video/image/audio/document/archive/other）— UIフィルタ・アイコン切替
 - **mime_type**: 詳細（video/mp4 等）— Content-Type 決定・プレビュー方式判定
 - **duration**: nullable、video/audio のみ ffprobe で取得
 - **スキャン**: 隠しファイル（`.` 始まり）以外の全ファイルを登録
 - 分類ロジックは `services/filetype.py` に分離
 - 設計書: `docs/superpowers/specs/2026-03-24-file-browsing-extension-design.md`
+
+### ZIPアーカイブ閲覧
+- **対象**: ZIPファイルのみ（Python標準`zipfile`ライブラリ、外部依存なし）
+- **閲覧方式**: ZIP内のファイル一覧をツリー表示、画像は `ImageGallery` と同じフルスクリーンビューア（prefetch + スライドショー対応）
+- **API**: `GET /api/files/{id}/archive`（一覧）、`GET /api/files/{id}/archive/entry?path=`（個別ストリーム）
+- **メモリ設計**: `zipfile.infolist()` はヘッダのみ（数KB）、画像は1枚ずつ展開（~500KB）、`asyncio.Semaphore(3)` で同時展開制限
+- **セキュリティ**: パストラバーサル防止（`..`拒否）、展開サイズ上限50MB、シンボリックリンク拒否
+- **サムネイル**: 未対応（アーカイブアイコンのみ）
+- 設計書: `docs/superpowers/specs/2026-03-28-zip-archive-viewer-design.md`
 
 ### ドライブ + フォルダ階層
 - **ドライブ**: 論理的なコンテンツ領域の分離。タグもドライブ間で独立
@@ -283,3 +295,4 @@ Mac mini上にbare gitリポジトリ (`~/video-share.git`) を作成し、`post
 - `docs/superpowers/specs/2026-03-25-folder-pinning-design.md` — フォルダピン留め設計書
 - `docs/superpowers/specs/2026-03-25-like-dislike-unification-design.md` — いいね/よくないね統合設計書
 - `docs/superpowers/specs/2026-03-25-file-navigation-design.md` — ファイル前後ナビゲーション設計書
+- `docs/superpowers/specs/2026-03-28-zip-archive-viewer-design.md` — ZIPアーカイブ閲覧設計書
