@@ -97,7 +97,7 @@ export function FileCard({
               {formatDuration(file.duration)}
             </span>
           )}
-          {file.file_type === "other" && file.filename.includes(".") && (
+          {file.file_type !== "video" && file.file_type !== "audio" && file.filename.includes(".") && (
             <span className="absolute bottom-2 right-2 rounded bg-black/70 px-1.5 py-0.5 text-[10px] font-medium uppercase text-white">
               {file.filename.split(".").pop()}
             </span>
