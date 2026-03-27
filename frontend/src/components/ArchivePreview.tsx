@@ -49,6 +49,8 @@ function getEntriesInDir(
     const rest = entry.path.slice(prefix.length);
     if (entry.is_dir) {
       const cleaned = rest.endsWith("/") ? rest.slice(0, -1) : rest;
+      // Skip the directory entry that represents the current directory itself
+      if (cleaned === "") return false;
       return !cleaned.includes("/");
     }
     return !rest.includes("/");
