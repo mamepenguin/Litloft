@@ -2,6 +2,7 @@ import io
 import zipfile
 from pathlib import Path
 from unittest.mock import patch
+from urllib.parse import quote
 
 from tests.conftest import TEST_DRIVE
 
@@ -31,6 +32,97 @@ def _create_test_zip(drive_dir, filename="test.zip"):
     return zip_path
 
 
+def _build_sjis_zip_bytes() -> bytes:
+    """Build a minimal ZIP with Shift_JIS encoded filenames at byte level.
+
+    Python's zipfile always sets UTF-8 flag for non-ASCII names and stores
+    UTF-8 bytes. To simulate a Japanese Windows ZIP, we must write raw
+    Shift_JIS bytes with no UTF-8 flag, which requires manual construction.
+    """
+    import struct
+    import zlib
+
+    def deflate(data: bytes) -> bytes:
+        # Raw deflate (wbits=-15) matching ZIP's deflate format
+        obj = zlib.compressobj(zlib.Z_DEFAULT_COMPRESSION, zlib.DEFLATED, -15)
+        return obj.compress(data) + obj.flush()
+
+    def local_header(fname_bytes: bytes, data: bytes, compressed: bytes, is_dir: bool = False) -> bytes:
+        crc = zlib.crc32(data) & 0xFFFFFFFF
+        return struct.pack(
+            "<4sHHHHHIIIHH",
+            b"PK\x03\x04",  # signature
+            20,              # version needed
+            0,               # flags (NO UTF-8 flag)
+            8 if not is_dir else 0,  # compression (deflate / store)
+            0, 0,            # mod time, mod date
+            crc,
+            len(compressed) if not is_dir else 0,
+            len(data),
+            len(fname_bytes),
+            0,               # extra field length
+        ) + fname_bytes + (compressed if not is_dir else b"")
+
+    def central_dir(fname_bytes: bytes, data: bytes, compressed: bytes, offset: int, is_dir: bool = False) -> bytes:
+        crc = zlib.crc32(data) & 0xFFFFFFFF
+        ext_attr = (0x10 << 16) if is_dir else 0
+        return struct.pack(
+            "<4sHHHHHHIIIHHHHHII",
+            b"PK\x01\x02",  # signature
+            20,              # version made by
+            20,              # version needed
+            0,               # flags (NO UTF-8 flag)
+            8 if not is_dir else 0,
+            0, 0,            # mod time, mod date
+            crc,
+            len(compressed) if not is_dir else 0,
+            len(data),
+            len(fname_bytes),
+            0,               # extra field length
+            0,               # comment length
+            0,               # disk number start
+            0,               # internal attrs
+            ext_attr,
+            offset,
+        ) + fname_bytes
+
+    dir_name = "画像/".encode("cp932")
+    file_name = "画像/写真.txt".encode("cp932")
+    file_data = b"test content"
+    file_compressed = deflate(file_data)
+
+    # Build local headers
+    local1 = local_header(dir_name, b"", b"", is_dir=True)
+    local2 = local_header(file_name, file_data, file_compressed)
+
+    # Build central directory
+    cd1 = central_dir(dir_name, b"", b"", 0, is_dir=True)
+    cd2 = central_dir(file_name, file_data, file_compressed, len(local1))
+
+    cd_offset = len(local1) + len(local2)
+    cd_size = len(cd1) + len(cd2)
+
+    # End of central directory
+    eocd = struct.pack(
+        "<4sHHHHIIH",
+        b"PK\x05\x06",
+        0, 0,            # disk numbers
+        2, 2,            # entries
+        cd_size,
+        cd_offset,
+        0,               # comment length
+    )
+
+    return local1 + local2 + cd1 + cd2 + eocd
+
+
+def _create_sjis_zip(drive_dir, filename="sjis.zip"):
+    """Create a ZIP with Shift_JIS encoded filenames (simulating Japanese Windows)."""
+    zip_path = drive_dir / filename
+    zip_path.write_bytes(_build_sjis_zip_bytes())
+    return zip_path
+
+
 def _seed_zip(db, drive_dir, filename="test.zip"):
     """Seed a ZIP file into the database."""
     zip_path = _create_test_zip(drive_dir, filename)
@@ -43,6 +135,26 @@ def _seed_zip(db, drive_dir, filename="test.zip"):
         drive=TEST_DRIVE,
         folder_path="",
         file_path=filename,
+        file_size=zip_path.stat().st_size,
+        file_type="archive",
+        mime_type="application/zip",
+    )
+    db.add(file)
+    db.commit()
+    db.refresh(file)
+    return file
+
+
+def _seed_zip_raw(db, zip_path):
+    """Seed an already-created ZIP file into the database."""
+    from app.models import File
+
+    file = File(
+        filename=zip_path.name,
+        title=zip_path.stem,
+        drive=TEST_DRIVE,
+        folder_path="",
+        file_path=zip_path.name,
         file_size=zip_path.stat().st_size,
         file_type="archive",
         mime_type="application/zip",
@@ -123,6 +235,42 @@ class TestArchiveList:
         # Entries should be sorted by path
         paths = [e["path"] for e in body["entries"]]
         assert paths == sorted(paths)
+
+    def test_archive_list_sjis(self, client):
+        """Shift_JIS encoded filenames should be decoded correctly."""
+        c, db, drive_dir, data_dir = client
+        zip_path = _create_sjis_zip(drive_dir)
+        file = _seed_zip_raw(db, zip_path)
+
+        res = c.get(f"/api/files/{file.id}/archive")
+        assert res.status_code == 200
+
+        body = res.json()
+        paths = [e["path"] for e in body["entries"]]
+        filenames = [e["filename"] for e in body["entries"]]
+
+        # Verify Japanese characters are properly decoded
+        assert any("画像" in p for p in paths), f"Expected '画像' in paths: {paths}"
+        assert any("写真" in f for f in filenames), f"Expected '写真' in filenames: {filenames}"
+
+    def test_archive_entry_sjis(self, client):
+        """Accessing entries by decoded Shift_JIS path should work."""
+        c, db, drive_dir, data_dir = client
+        zip_path = _create_sjis_zip(drive_dir)
+        file = _seed_zip_raw(db, zip_path)
+
+        # First get the listing to find the decoded path
+        list_res = c.get(f"/api/files/{file.id}/archive")
+        entries = list_res.json()["entries"]
+        text_entry = next(e for e in entries if not e["is_dir"])
+
+        # Access the entry using the decoded path (URL-encode for httpx)
+        encoded_path = quote(text_entry["path"], safe="")
+        res = c.get(
+            f"/api/files/{file.id}/archive/entry?path={encoded_path}",
+        )
+        assert res.status_code == 200
+        assert res.content == b"test content"
 
     def test_archive_list_not_archive(self, client):
         c, db, drive_dir, data_dir = client

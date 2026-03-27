@@ -42,6 +42,34 @@ _ARCHIVE_ENTRY_MAX_SIZE = 50 * 1024 * 1024  # 50MB
 _MAX_ARCHIVE_ENTRIES = 10_000
 _archive_semaphore = asyncio.Semaphore(3)
 
+def _decode_zip_filename(info: zipfile.ZipInfo) -> str:
+    """Decode ZIP entry filename, handling Shift_JIS encoded names.
+
+    ZIP files created on Japanese Windows encode filenames in Shift_JIS (CP932)
+    but don't set the UTF-8 flag. Python's zipfile decodes them as CP437,
+    producing garbled text. This function detects and re-decodes as CP932.
+    """
+    # If UTF-8 flag is set, Python already decoded correctly
+    if info.flag_bits & 0x800:
+        return info.filename
+
+    # Try re-encoding from CP437 back to bytes, then decode as CP932
+    try:
+        raw = info.filename.encode("cp437")
+    except UnicodeEncodeError:
+        return info.filename
+
+    # Pure ASCII is identical in both encodings — no need to re-decode
+    if all(b < 0x80 for b in raw):
+        return info.filename
+
+    try:
+        return raw.decode("cp932")
+    except UnicodeDecodeError:
+        # Not Shift_JIS — return as-is (original CP437 decode)
+        return info.filename
+
+
 _SAFE_INLINE_TYPES = frozenset({
     "image/jpeg", "image/png", "image/gif", "image/webp", "image/avif",
     "image/bmp", "text/plain",
@@ -460,12 +488,13 @@ async def get_archive_contents(
                 mode = info.external_attr >> 16
                 if mode != 0 and (mode & 0o170000) == 0o120000:
                     continue
+            decoded_name = _decode_zip_filename(info)
             is_dir = info.is_dir()
-            clean_path = info.filename.rstrip("/") if is_dir else info.filename
+            clean_path = decoded_name.rstrip("/") if is_dir else decoded_name
             entry_name = PurePosixPath(clean_path).name
-            file_type, mime_type = classify(info.filename) if not is_dir else ("other", "")
+            file_type, mime_type = classify(decoded_name) if not is_dir else ("other", "")
             entries.append(ArchiveEntryResponse(
-                path=info.filename,
+                path=decoded_name,
                 filename=entry_name,
                 file_size=info.file_size,
                 compressed_size=info.compress_size,
@@ -505,9 +534,13 @@ async def get_archive_entry(
 
     async with _archive_semaphore:
         with zipfile.ZipFile(str(file_path), "r") as zf:
-            try:
-                info = zf.getinfo(path)
-            except KeyError:
+            # Look up entry by decoded name (handles Shift_JIS re-encoding)
+            info = None
+            for zi in zf.infolist():
+                if _decode_zip_filename(zi) == path:
+                    info = zi
+                    break
+            if info is None:
                 raise HTTPException(
                     status_code=404, detail="Entry not found in archive"
                 )
@@ -528,7 +561,7 @@ async def get_archive_entry(
 
             # Read with size limit to defend against ZIP bombs
             # (declared file_size can be spoofed in ZIP headers)
-            with zf.open(path) as entry_fp:
+            with zf.open(info) as entry_fp:
                 data = entry_fp.read(_ARCHIVE_ENTRY_MAX_SIZE + 1)
                 if len(data) > _ARCHIVE_ENTRY_MAX_SIZE:
                     raise HTTPException(
@@ -540,12 +573,16 @@ async def get_archive_entry(
     entry_filename = PurePosixPath(path).name
     disposition = "inline" if mime_type in _SAFE_INLINE_TYPES else "attachment"
 
+    # RFC 6266: use filename* for non-ASCII names
+    encoded_filename = quote(entry_filename, safe="")
+    content_disp = f"{disposition}; filename*=UTF-8''{encoded_filename}"
+
     return Response(
         content=data,
         media_type=mime_type,
         headers={
             "Content-Length": str(len(data)),
-            "Content-Disposition": f'{disposition}; filename="{entry_filename}"',
+            "Content-Disposition": content_disp,
             "X-Content-Type-Options": "nosniff",
         },
     )
