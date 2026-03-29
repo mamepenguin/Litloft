@@ -1,10 +1,11 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { Folder, Heart, Sparkles, Clock, ThumbsUp } from "lucide-react";
 import type { FileItem, Folder as FolderType } from "@/types";
 import { addPin, getDriveFiles, getFolders, getPins, removePin } from "@/lib/api";
+import { useDragAndDrop } from "@/hooks/useDragAndDrop";
 import { CarouselSection } from "./CarouselSection";
 import { FolderCard } from "./FolderCard";
 import { RootFileListing } from "./RootFileListing";
@@ -32,6 +33,32 @@ export function DriveHome({ driveName }: DriveHomeProps) {
   const [refreshing, setRefreshing] = useState(false);
   const [pinnedPaths, setPinnedPaths] = useState<Set<string>>(new Set());
   const { requestRefresh: refreshSidebar } = useSidebar();
+  const emptySelection = useMemo(() => new Set<string>(), []);
+
+  const refreshFolders = useCallback(async () => {
+    try {
+      const updated = await getFolders(driveName);
+      setFolders(updated);
+    } catch {
+      // ignore
+    }
+  }, [driveName]);
+
+  const {
+    dragState,
+    handleFolderDragStart,
+    handleDragEnd,
+    getDropTargetProps,
+    isDropTarget,
+    isDropDisabled,
+  } = useDragAndDrop({
+    drive: driveName,
+    selectedIds: emptySelection,
+    onComplete: () => {
+      refreshFolders();
+      refreshSidebar();
+    },
+  });
 
   const applyFileSections = useCallback((results: PromiseSettledResult<any>[]) => {
     setPickup({
@@ -94,15 +121,6 @@ export function DriveHome({ driveName }: DriveHomeProps) {
 
     fetchAll();
   }, [driveName, fetchFileSections, applyFileSections]);
-
-  const refreshFolders = useCallback(async () => {
-    try {
-      const updated = await getFolders(driveName);
-      setFolders(updated);
-    } catch {
-      // ignore
-    }
-  }, [driveName]);
 
   const handleTogglePin = useCallback(
     async (folderPath: string) => {
@@ -178,16 +196,25 @@ export function DriveHome({ driveName }: DriveHomeProps) {
             </div>
           ) : (
             <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-              {folders.slice(0, MAX_FOLDERS).map((folder) => (
-                <FolderCard
-                  key={folder.path}
-                  folder={folder}
-                  driveName={driveName}
-                  isPinned={pinnedPaths.has(folder.path)}
-                  onTogglePin={() => handleTogglePin(folder.path)}
-                  onUpdate={refreshFolders}
-                />
-              ))}
+              {folders.slice(0, MAX_FOLDERS).map((folder) => {
+                const disabled = isDropDisabled(folder.path);
+                return (
+                  <FolderCard
+                    key={folder.path}
+                    folder={folder}
+                    driveName={driveName}
+                    isPinned={pinnedPaths.has(folder.path)}
+                    onTogglePin={() => handleTogglePin(folder.path)}
+                    onUpdate={refreshFolders}
+                    draggable
+                    isDragging={dragState.draggedFolderPath === folder.path}
+                    onDragStart={(e) => handleFolderDragStart(e, folder.path)}
+                    onDragEnd={handleDragEnd}
+                    isDropTarget={dragState.isDragging && !disabled && isDropTarget(folder.path)}
+                    dropTargetProps={dragState.isDragging && !disabled ? getDropTargetProps(folder.path) : undefined}
+                  />
+                );
+              })}
             </div>
           )}
         </section>
