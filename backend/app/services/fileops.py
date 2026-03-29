@@ -178,6 +178,143 @@ def move_file(db: Session, file_id: str, target_drive: str | None, target_folder
     return file
 
 
+def _update_pinned_folders(
+    db: Session, drive: str, old_path: str, old_prefix: str, new_path: str, old_len: int
+) -> None:
+    db.execute(
+        text("""
+            UPDATE pinned_folders
+            SET path = :new_path || substr(path, :old_len + 1)
+            WHERE drive = :drive
+            AND (path = :old_path OR path LIKE :old_prefix)
+        """),
+        {
+            "new_path": new_path,
+            "old_len": old_len,
+            "drive": drive,
+            "old_path": old_path,
+            "old_prefix": old_prefix + "%",
+        },
+    )
+
+
+def _update_folder_paths(
+    db: Session, drive: str, old_path: str, new_path: str
+) -> None:
+    old_prefix = old_path + "/"
+    old_len = len(old_path)
+
+    # Update file records
+    db.execute(
+        text("""
+            UPDATE files
+            SET folder_path = :new_path || substr(folder_path, :old_len + 1),
+                file_path = :new_path || substr(file_path, :old_len + 1)
+            WHERE drive = :drive
+            AND (folder_path = :old_path OR folder_path LIKE :old_prefix)
+        """),
+        {
+            "new_path": new_path,
+            "old_len": old_len,
+            "drive": drive,
+            "old_path": old_path,
+            "old_prefix": old_prefix + "%",
+        },
+    )
+
+    # Update thumbnails
+    files_in_folder = (
+        db.query(File)
+        .filter(
+            File.drive == drive,
+            (File.folder_path == new_path) | File.folder_path.like(new_path + "/%"),
+        )
+        .all()
+    )
+    for f in files_in_folder:
+        if f.file_type == "video" and f.thumbnail_path:
+            old_thumb = config.THUMBNAILS_DIR / f.thumbnail_path
+            new_thumb_rel = (
+                f"{drive}/{f.folder_path}/{Path(f.filename).stem}.jpg"
+                if f.folder_path
+                else f"{drive}/{Path(f.filename).stem}.jpg"
+            )
+            new_thumb = config.THUMBNAILS_DIR / new_thumb_rel
+            if old_thumb.exists():
+                new_thumb.parent.mkdir(parents=True, exist_ok=True)
+                old_thumb.rename(new_thumb)
+            f.thumbnail_path = new_thumb_rel
+
+    # Update EmptyFolder records
+    db.execute(
+        text("""
+            UPDATE empty_folders
+            SET path = :new_path || substr(path, :old_len + 1)
+            WHERE drive = :drive
+            AND (path = :old_path OR path LIKE :old_prefix)
+        """),
+        {
+            "new_path": new_path,
+            "old_len": old_len,
+            "drive": drive,
+            "old_path": old_path,
+            "old_prefix": old_prefix + "%",
+        },
+    )
+
+    # Update PinnedFolder records
+    _update_pinned_folders(db, drive, old_path, old_prefix, new_path, old_len)
+
+
+def move_folder(drive: str, path: str, target_path: str, db: Session) -> dict:
+    path = validate_path_safe(path)
+    target_path = validate_path_safe(target_path)
+    if not path:
+        raise HTTPException(status_code=400, detail="Cannot move drive root")
+
+    folder_name = Path(path).name
+
+    # Self-reference loop detection
+    if target_path == path or target_path.startswith(path + "/"):
+        raise HTTPException(status_code=400, detail="Cannot move folder into itself")
+
+    # Compute new path
+    new_path = f"{target_path}/{folder_name}" if target_path else folder_name
+    if new_path == path:
+        raise HTTPException(status_code=400, detail="Folder is already in this location")
+
+    drive_path = validate_writable(drive)
+    old_full = drive_path / path
+    validate_within_drive(old_full, drive_path)
+
+    if not old_full.exists() or not old_full.is_dir():
+        raise HTTPException(status_code=404, detail="Folder not found")
+
+    new_full = drive_path / new_path
+    validate_within_drive(new_full, drive_path)
+
+    if new_full.exists():
+        raise HTTPException(status_code=409, detail="Target folder already exists")
+
+    # Ensure target parent exists
+    new_full.parent.mkdir(parents=True, exist_ok=True)
+
+    # Filesystem move first
+    old_full.rename(new_full)
+
+    # Update all DB records
+    _update_folder_paths(db, drive, path, new_path)
+
+    db.commit()
+
+    file_count = (
+        db.query(File)
+        .filter(File.drive == drive, File.folder_path == new_path)
+        .count()
+    )
+    return {"name": folder_name, "path": new_path, "file_count": file_count, "thumbnail_file_id": None}
+
+
 def delete_file(db: Session, file_id: str) -> None:
     file = db.query(File).filter(File.id == file_id).first()
     if not file:
@@ -243,64 +380,7 @@ def rename_folder(drive: str, path: str, new_name: str, db: Session) -> dict:
 
     old_full.rename(new_full)
 
-    old_prefix = path + "/"
-    old_len = len(path)
-    db.execute(
-        text("""
-            UPDATE files
-            SET folder_path = :new_path || substr(folder_path, :old_len + 1),
-                file_path = :new_path || substr(file_path, :old_len + 1)
-            WHERE drive = :drive
-            AND (folder_path = :old_path OR folder_path LIKE :old_prefix)
-        """),
-        {
-            "new_path": new_path,
-            "old_len": old_len,
-            "drive": drive,
-            "old_path": path,
-            "old_prefix": old_prefix + "%",
-        },
-    )
-
-    # Update thumbnails
-    files_in_folder = (
-        db.query(File)
-        .filter(
-            File.drive == drive,
-            (File.folder_path == new_path) | File.folder_path.like(new_path + "/%"),
-        )
-        .all()
-    )
-    for f in files_in_folder:
-        if f.file_type == "video" and f.thumbnail_path:
-            old_thumb = config.THUMBNAILS_DIR / f.thumbnail_path
-            new_thumb_rel = (
-                f"{drive}/{f.folder_path}/{Path(f.filename).stem}.jpg"
-                if f.folder_path
-                else f"{drive}/{Path(f.filename).stem}.jpg"
-            )
-            new_thumb = config.THUMBNAILS_DIR / new_thumb_rel
-            if old_thumb.exists():
-                new_thumb.parent.mkdir(parents=True, exist_ok=True)
-                old_thumb.rename(new_thumb)
-            f.thumbnail_path = new_thumb_rel
-
-    # Update EmptyFolder records
-    db.execute(
-        text("""
-            UPDATE empty_folders
-            SET path = :new_path || substr(path, :old_len + 1)
-            WHERE drive = :drive
-            AND (path = :old_path OR path LIKE :old_prefix)
-        """),
-        {
-            "new_path": new_path,
-            "old_len": old_len,
-            "drive": drive,
-            "old_path": path,
-            "old_prefix": old_prefix + "%",
-        },
-    )
+    _update_folder_paths(db, drive, path, new_path)
 
     db.commit()
 

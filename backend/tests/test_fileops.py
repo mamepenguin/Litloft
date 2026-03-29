@@ -151,6 +151,89 @@ class TestFolderRename:
         assert res.status_code == 409
 
 
+class TestFolderMove:
+    def test_move_to_root(self, client):
+        c, db, drive_dir, data_dir = client
+        file = _seed(db, drive_dir)  # creates 旅行/test.mp4
+        res = c.put(
+            f"/api/drives/{TEST_DRIVE}/folders/move",
+            json={"path": "旅行", "target_path": ""},
+        )
+        # Already at root level, so this is a no-op
+        assert res.status_code == 400
+
+    def test_move_to_subfolder(self, client):
+        c, db, drive_dir, data_dir = client
+        file = _seed(db, drive_dir)  # creates 旅行/test.mp4
+        (drive_dir / "アーカイブ").mkdir()
+        res = c.put(
+            f"/api/drives/{TEST_DRIVE}/folders/move",
+            json={"path": "旅行", "target_path": "アーカイブ"},
+        )
+        assert res.status_code == 200
+        assert res.json()["path"] == "アーカイブ/旅行"
+        assert (drive_dir / "アーカイブ" / "旅行" / "test.mp4").exists()
+        # Verify file paths updated
+        file_res = c.get(f"/api/files/{file.id}")
+        assert file_res.json()["folder_path"] == "アーカイブ/旅行"
+
+    def test_move_into_self(self, client):
+        c, db, drive_dir, data_dir = client
+        _seed(db, drive_dir)
+        (drive_dir / "旅行" / "sub").mkdir()
+        res = c.put(
+            f"/api/drives/{TEST_DRIVE}/folders/move",
+            json={"path": "旅行", "target_path": "旅行/sub"},
+        )
+        assert res.status_code == 400
+
+    def test_move_conflict(self, client):
+        c, db, drive_dir, data_dir = client
+        _seed(db, drive_dir)
+        (drive_dir / "dest").mkdir()
+        (drive_dir / "dest" / "旅行").mkdir()
+        res = c.put(
+            f"/api/drives/{TEST_DRIVE}/folders/move",
+            json={"path": "旅行", "target_path": "dest"},
+        )
+        assert res.status_code == 409
+
+    def test_move_updates_pinned_folders(self, client):
+        c, db, drive_dir, data_dir = client
+        _seed(db, drive_dir)
+        # Pin the folder
+        c.post(f"/api/drives/{TEST_DRIVE}/pins", json={"path": "旅行"})
+        (drive_dir / "dest").mkdir()
+        res = c.put(
+            f"/api/drives/{TEST_DRIVE}/folders/move",
+            json={"path": "旅行", "target_path": "dest"},
+        )
+        assert res.status_code == 200
+        # Verify pin updated
+        pins_res = c.get(f"/api/drives/{TEST_DRIVE}/pins")
+        pin_paths = [p["path"] for p in pins_res.json()]
+        assert "dest/旅行" in pin_paths
+        assert "旅行" not in pin_paths
+
+    def test_move_not_found(self, client):
+        c, db, drive_dir, data_dir = client
+        (drive_dir / "dest").mkdir()
+        res = c.put(
+            f"/api/drives/{TEST_DRIVE}/folders/move",
+            json={"path": "nonexistent", "target_path": "dest"},
+        )
+        assert res.status_code == 404
+
+    def test_move_path_traversal(self, client):
+        c, db, drive_dir, data_dir = client
+        _seed(db, drive_dir)
+        res = c.put(
+            f"/api/drives/{TEST_DRIVE}/folders/move",
+            json={"path": "旅行", "target_path": "../../../tmp"},
+        )
+        assert res.status_code == 400
+
+
 class TestFolderDelete:
     def test_delete_empty(self, client):
         c, db, drive_dir, data_dir = client

@@ -159,6 +159,14 @@ export async function renameFolder(drive: string, path: string, newName: string)
   });
 }
 
+export async function moveFolder(drive: string, path: string, targetPath: string): Promise<Folder> {
+  return fetchJSON<Folder>(`${API_BASE}/drives/${encodeURIComponent(drive)}/folders/move`, {
+    method: "PUT",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ path, target_path: targetPath }),
+  });
+}
+
 export async function deleteFolder(drive: string, path: string): Promise<void> {
   const res = await fetch(
     `${API_BASE}/drives/${encodeURIComponent(drive)}/folders?path=${encodeURIComponent(path)}`,

@@ -13,6 +13,7 @@ from app.schemas import (
     DriveResponse,
     FileResponse,
     FolderCreateRequest,
+    FolderMoveRequest,
     FolderRenameRequest,
     FolderResponse,
     PaginatedResponse,
@@ -247,6 +248,18 @@ async def rename_folder(
 ):
     _validate_drive(drive_name, unlocked_groups)
     result = fileops.rename_folder(drive_name, body.path, body.new_name, db)
+    return FolderResponse(**result)
+
+
+@router.put("/{drive_name}/folders/move", response_model=FolderResponse)
+async def move_folder(
+    drive_name: str,
+    body: FolderMoveRequest,
+    db: Annotated[Session, Depends(get_db)],
+    unlocked_groups: Annotated[list[str], Depends(get_unlocked_groups)],
+):
+    _validate_drive(drive_name, unlocked_groups)
+    result = fileops.move_folder(drive_name, body.path, body.target_path, db)
     return FolderResponse(**result)
 
 

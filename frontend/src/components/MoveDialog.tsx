@@ -10,6 +10,7 @@ interface MoveDialogProps {
   open: boolean;
   drive: string;
   currentPath: string;
+  excludePath?: string;
   onMove: (targetPath: string) => void;
   onCancel: () => void;
 }
@@ -18,6 +19,7 @@ export function MoveDialog({
   open,
   drive,
   currentPath,
+  excludePath,
   onMove,
   onCancel,
 }: MoveDialogProps) {
@@ -185,7 +187,9 @@ export function MoveDialog({
 
           {!loading &&
             !error &&
-            folders.map((folder) => (
+            folders
+            .filter((folder) => !excludePath || (folder.path !== excludePath && !folder.path.startsWith(excludePath + "/")))
+            .map((folder) => (
               <button
                 key={folder.path}
                 onClick={() => handleNavigate(folder.path)}

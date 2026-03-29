@@ -161,6 +161,11 @@ class FolderRenameRequest(BaseModel):
     new_name: str
 
 
+class FolderMoveRequest(BaseModel):
+    path: str
+    target_path: str
+
+
 class FileRenameRequest(BaseModel):
     new_filename: str
 

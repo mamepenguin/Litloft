@@ -2,11 +2,12 @@
 
 import { useCallback, useEffect, useState } from "react";
 import { createPortal } from "react-dom";
-import { Pencil, Pin, PinOff, Trash2 } from "lucide-react";
+import { Move, Pencil, Pin, PinOff, Trash2 } from "lucide-react";
 
-import { deleteFolder, renameFolder } from "@/lib/api";
+import { deleteFolder, moveFolder, renameFolder } from "@/lib/api";
 import type { Folder } from "@/types";
 import { ConfirmDialog } from "./ConfirmDialog";
+import { MoveDialog } from "./MoveDialog";
 import { RenameDialog } from "./RenameDialog";
 
 interface FolderActionsProps {
@@ -27,6 +28,7 @@ export function FolderActions({
   onDelete,
 }: FolderActionsProps) {
   const [renameOpen, setRenameOpen] = useState(false);
+  const [moveOpen, setMoveOpen] = useState(false);
   const [deleteOpen, setDeleteOpen] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -45,6 +47,19 @@ export function FolderActions({
         if (onUpdate) onUpdate();
       } catch {
         setError("名前の変更に失敗しました");
+      }
+    },
+    [drive, folder.path, onUpdate]
+  );
+
+  const handleMove = useCallback(
+    async (targetPath: string) => {
+      try {
+        await moveFolder(drive, folder.path, targetPath);
+        setMoveOpen(false);
+        if (onUpdate) onUpdate();
+      } catch {
+        setError("移動に失敗しました");
       }
     },
     [drive, folder.path, onUpdate]
@@ -96,6 +111,17 @@ export function FolderActions({
           onClick={(e) => {
             e.preventDefault();
             e.stopPropagation();
+            setMoveOpen(true);
+          }}
+          className="rounded-lg p-1.5 text-text-muted transition-all hover:bg-bg-elevated hover:text-text-primary"
+          aria-label="移動"
+        >
+          <Move size={14} />
+        </button>
+        <button
+          onClick={(e) => {
+            e.preventDefault();
+            e.stopPropagation();
             setDeleteOpen(true);
           }}
           className="rounded-lg p-1.5 text-text-muted transition-all hover:bg-red-400/10 hover:text-red-400"
@@ -115,6 +141,19 @@ export function FolderActions({
             currentName={folder.name}
             onRename={handleRename}
             onCancel={() => setRenameOpen(false)}
+          />,
+          document.body
+        )}
+
+      {moveOpen &&
+        createPortal(
+          <MoveDialog
+            open={moveOpen}
+            drive={drive}
+            currentPath={folder.path.split("/").slice(0, -1).join("/")}
+            excludePath={folder.path}
+            onMove={handleMove}
+            onCancel={() => setMoveOpen(false)}
           />,
           document.body
         )}
