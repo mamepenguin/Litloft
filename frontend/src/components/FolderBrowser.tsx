@@ -49,10 +49,16 @@ export function FolderBrowser({ driveName, folderPath, view, tagFilter }: Folder
   const { scanning, handleScan } = useDriveScan(driveName, refresh);
   const createFolder = useCreateFolder(driveName, folderPath, refresh);
 
+  const handleDragDropComplete = useCallback(() => {
+    selection.clear();
+    setSelectable(false);
+    refresh();
+  }, [selection, refresh]);
+
   const { dragState, handleDragStart, handleFolderDragStart, handleDragEnd, getDropTargetProps, isDropTarget, isDropDisabled } = useDragAndDrop({
     drive: driveName,
     selectedIds: selection.selectedIds,
-    onComplete: refresh,
+    onComplete: handleDragDropComplete,
   });
 
   const fileInputRef = useRef<HTMLInputElement>(null);
