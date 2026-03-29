@@ -36,6 +36,8 @@ interface FolderContentProps {
   onDragStart: (e: React.DragEvent, fileId: string) => void;
   onDragEnd: () => void;
   selectedCount: number;
+  isDropDisabled: (path: string) => boolean;
+  onFolderDragStart: (e: React.DragEvent, folderPath: string) => void;
 }
 
 export function FolderContent({
@@ -43,24 +45,31 @@ export function FolderContent({
   isRecent, isFavorites, isRecentAdded, selectable, sortQuery,
   pinnedPaths, sentinelRef, dragState, isDropTarget, getDropTargetProps,
   isSelected, onSelect, onMetaSelect, onShiftSelect, onTogglePin, onFavoriteToggle, onRefresh,
-  onDragStart, onDragEnd, selectedCount,
+  onDragStart, onDragEnd, selectedCount, isDropDisabled, onFolderDragStart,
 }: FolderContentProps) {
   return (
     <>
       {folders.length > 0 && (
         <div className="mb-6 grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-          {folders.map((folder) => (
-            <FolderCard
-              key={folder.path}
-              folder={folder}
-              driveName={driveName}
-              isPinned={pinnedPaths.has(folder.path)}
-              onTogglePin={() => onTogglePin(folder.path)}
-              onUpdate={onRefresh}
-              isDropTarget={dragState.isDragging && isDropTarget(folder.path)}
-              dropTargetProps={dragState.isDragging ? getDropTargetProps(folder.path) : undefined}
-            />
-          ))}
+          {folders.map((folder) => {
+            const disabled = isDropDisabled(folder.path);
+            return (
+              <FolderCard
+                key={folder.path}
+                folder={folder}
+                driveName={driveName}
+                isPinned={pinnedPaths.has(folder.path)}
+                onTogglePin={() => onTogglePin(folder.path)}
+                onUpdate={onRefresh}
+                isDropTarget={dragState.isDragging && !disabled && isDropTarget(folder.path)}
+                dropTargetProps={dragState.isDragging && !disabled ? getDropTargetProps(folder.path) : undefined}
+                draggable={!!onRefresh}
+                isDragging={dragState.draggedFolderPath === folder.path}
+                onDragStart={(e) => onFolderDragStart(e, folder.path)}
+                onDragEnd={onDragEnd}
+              />
+            );
+          })}
         </div>
       )}
 

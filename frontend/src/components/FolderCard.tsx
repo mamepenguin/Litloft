@@ -11,14 +11,21 @@ interface FolderCardProps {
   onUpdate?: () => void;
   isDropTarget?: boolean;
   dropTargetProps?: Record<string, (e: React.DragEvent) => void>;
+  draggable?: boolean;
+  isDragging?: boolean;
+  onDragStart?: (e: React.DragEvent) => void;
+  onDragEnd?: () => void;
 }
 
-export function FolderCard({ folder, driveName, isPinned, onTogglePin, onUpdate, isDropTarget, dropTargetProps }: FolderCardProps) {
+export function FolderCard({ folder, driveName, isPinned, onTogglePin, onUpdate, isDropTarget, dropTargetProps, draggable, isDragging, onDragStart, onDragEnd }: FolderCardProps) {
   return (
     <div
       className={`group relative flex items-center gap-3 rounded-xl bg-bg-card p-4 transition-all duration-200 hover:scale-[1.02] hover:bg-bg-elevated hover:shadow-lg active:scale-[0.98]${
         isDropTarget ? " ring-2 ring-accent bg-accent/10 scale-[1.02]" : ""
-      }`}
+      }${isDragging ? " opacity-40" : ""}`}
+      draggable={draggable}
+      onDragStart={onDragStart}
+      onDragEnd={onDragEnd}
       {...dropTargetProps}
     >
       <Link

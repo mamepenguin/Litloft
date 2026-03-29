@@ -72,7 +72,7 @@ const defaultProps = {
   sortQuery: "",
   pinnedPaths: new Set<string>(),
   sentinelRef: createRef<HTMLDivElement>(),
-  dragState: { isDragging: false, draggedFileIds: [], dropTargetPath: null },
+  dragState: { isDragging: false, dragType: null, draggedFileIds: [], draggedFolderPath: null, dropTargetPath: null },
   isDropTarget: () => false,
   getDropTargetProps: () => ({}),
   isSelected: () => false,
@@ -85,6 +85,8 @@ const defaultProps = {
   onDragStart: vi.fn(),
   onDragEnd: vi.fn(),
   selectedCount: 0,
+  isDropDisabled: () => false,
+  onFolderDragStart: vi.fn(),
 };
 
 describe("FolderContent", () => {
