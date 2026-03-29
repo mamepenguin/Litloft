@@ -52,7 +52,7 @@ describe("useDragAndDrop", () => {
 
     expect(result.current.dragState.isDragging).toBe(true);
     expect(result.current.dragState.draggedFileIds).toEqual(["file-1"]);
-    expect(e.dataTransfer.effectAllowed).toBe("move");
+    expect(e.dataTransfer.effectAllowed).toBe("copyMove");
   });
 
   it("drags all selected files when dragged file is in selection", () => {

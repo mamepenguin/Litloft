@@ -83,7 +83,7 @@ function SidebarNav() {
       <SidebarLibrarySection driveBase={driveBase} linkClass={linkClass} close={close} />
 
       {driveBase && (
-        <SidebarPlaylistsSection driveBase={driveBase} {...playlist} />
+        <SidebarPlaylistsSection driveBase={driveBase} currentDrive={currentDrive} setPlaylistList={setPlaylistList} {...playlist} />
       )}
 
       {driveBase && (

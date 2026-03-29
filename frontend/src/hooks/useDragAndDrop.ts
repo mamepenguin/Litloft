@@ -33,7 +33,7 @@ export function useDragAndDrop({ drive, selectedIds, onComplete }: UseDragAndDro
 
       draggedIdsRef.current = ids;
       e.dataTransfer.setData("application/x-file-ids", JSON.stringify(ids));
-      e.dataTransfer.effectAllowed = "move";
+      e.dataTransfer.effectAllowed = "copyMove";
 
       setDragState({
         isDragging: true,

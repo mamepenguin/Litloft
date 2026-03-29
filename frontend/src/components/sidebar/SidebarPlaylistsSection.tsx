@@ -1,11 +1,14 @@
-import type { RefObject } from "react";
+import { type RefObject, useCallback, useRef, useState } from "react";
 import { ListMusic, Pencil, Plus, Trash2 } from "lucide-react";
 
 import type { PlaylistSummary } from "@/types";
+import { addPlaylistItems, getPlaylists } from "@/lib/api";
 
 interface SidebarPlaylistsSectionProps {
+  currentDrive: string | null;
   driveBase: string;
   playlistList: PlaylistSummary[];
+  setPlaylistList: (v: PlaylistSummary[]) => void;
   creatingPlaylist: boolean;
   setCreatingPlaylist: (v: boolean) => void;
   newPlaylistName: string;
@@ -25,7 +28,9 @@ interface SidebarPlaylistsSectionProps {
 }
 
 export function SidebarPlaylistsSection({
+  currentDrive,
   playlistList,
+  setPlaylistList,
   creatingPlaylist,
   setCreatingPlaylist,
   newPlaylistName,
@@ -43,6 +48,57 @@ export function SidebarPlaylistsSection({
   handleDeletePlaylist,
   handlePlaylistClick,
 }: SidebarPlaylistsSectionProps) {
+  const [dropTargetId, setDropTargetId] = useState<string | null>(null);
+  const dragCounterRef = useRef<Map<string, number>>(new Map());
+
+  const handleDragOver = useCallback((e: React.DragEvent) => {
+    if (!e.dataTransfer.types.includes("application/x-file-ids")) return;
+    e.preventDefault();
+    e.dataTransfer.dropEffect = "copy";
+  }, []);
+
+  const handleDragEnter = useCallback((e: React.DragEvent, playlistId: string) => {
+    if (!e.dataTransfer.types.includes("application/x-file-ids")) return;
+    e.preventDefault();
+    const counter = (dragCounterRef.current.get(playlistId) ?? 0) + 1;
+    dragCounterRef.current.set(playlistId, counter);
+    setDropTargetId(playlistId);
+  }, []);
+
+  const handleDragLeave = useCallback((e: React.DragEvent, playlistId: string) => {
+    e.preventDefault();
+    const counter = (dragCounterRef.current.get(playlistId) ?? 0) - 1;
+    dragCounterRef.current.set(playlistId, Math.max(0, counter));
+    if (counter <= 0) {
+      dragCounterRef.current.delete(playlistId);
+      setDropTargetId((prev) => (prev === playlistId ? null : prev));
+    }
+  }, []);
+
+  const handleDrop = useCallback(
+    async (e: React.DragEvent, playlistId: string) => {
+      e.preventDefault();
+      dragCounterRef.current.clear();
+      setDropTargetId(null);
+
+      if (!currentDrive) return;
+
+      const raw = e.dataTransfer.getData("application/x-file-ids");
+      if (!raw) return;
+
+      try {
+        const fileIds: string[] = JSON.parse(raw);
+        if (fileIds.length === 0) return;
+        await addPlaylistItems(currentDrive, playlistId, fileIds);
+        const updated = await getPlaylists(currentDrive);
+        setPlaylistList(updated);
+      } catch {
+        // silently ignore errors (e.g. duplicate items)
+      }
+    },
+    [currentDrive, setPlaylistList],
+  );
+
   return (
     <>
       <div className="mb-1 mt-4 flex items-center justify-between px-3">
@@ -109,10 +165,16 @@ export function SidebarPlaylistsSection({
                 e.preventDefault();
                 setContextMenu({ id: pl.id, x: e.clientX, y: e.clientY });
               }}
+              onDragOver={handleDragOver}
+              onDragEnter={(e) => handleDragEnter(e, pl.id)}
+              onDragLeave={(e) => handleDragLeave(e, pl.id)}
+              onDrop={(e) => handleDrop(e, pl.id)}
               className={`flex w-full items-center gap-2.5 rounded-lg px-3 py-2 text-sm transition-colors ${
-                pl.item_count === 0
-                  ? "text-text-muted/50 cursor-default"
-                  : "text-text-muted hover:bg-bg-elevated hover:text-text-primary cursor-pointer"
+                dropTargetId === pl.id
+                  ? "bg-accent/20 text-accent ring-1 ring-accent/50"
+                  : pl.item_count === 0
+                    ? "text-text-muted/50 cursor-default"
+                    : "text-text-muted hover:bg-bg-elevated hover:text-text-primary cursor-pointer"
               }`}
             >
               <ListMusic size={16} />
