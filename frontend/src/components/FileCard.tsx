@@ -13,6 +13,8 @@ export function FileCard({
   selectable,
   selected,
   onSelect,
+  onMetaSelect,
+  onShiftSelect,
   sortQuery,
   draggable,
   isDragging,
@@ -25,6 +27,8 @@ export function FileCard({
   selectable?: boolean;
   selected?: boolean;
   onSelect?: (id: string) => void;
+  onMetaSelect?: (id: string) => void;
+  onShiftSelect?: (id: string) => void;
   sortQuery?: string;
   draggable?: boolean;
   isDragging?: boolean;
@@ -36,14 +40,29 @@ export function FileCard({
   const Wrapper = selectable ? "div" : Link;
   const wrapperProps = selectable
     ? {
-        onClick: () => onSelect?.(file.id),
+        onClick: (e: React.MouseEvent) => {
+          if (e.shiftKey && onShiftSelect) {
+            e.preventDefault();
+            onShiftSelect(file.id);
+          } else {
+            onSelect?.(file.id);
+          }
+        },
         role: "button" as const,
         tabIndex: 0,
         onKeyDown: (e: React.KeyboardEvent) => {
           if (e.key === "Enter" || e.key === " ") { e.preventDefault(); onSelect?.(file.id); }
         },
       }
-    : { href: `/files/${file.id}${sortQuery || ""}` };
+    : {
+        href: `/files/${file.id}${sortQuery || ""}`,
+        onClick: (e: React.MouseEvent) => {
+          if ((e.metaKey || e.ctrlKey) && onMetaSelect) {
+            e.preventDefault();
+            onMetaSelect(file.id);
+          }
+        },
+      };
 
   return (
     <div

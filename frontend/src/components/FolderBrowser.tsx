@@ -92,6 +92,15 @@ export function FolderBrowser({ driveName, folderPath, view, tagFilter }: Folder
     (f) => f.file_type === "audio" || f.file_type === "video"
   );
 
+  const handleMetaSelect = useCallback((id: string) => {
+    setSelectable(true);
+    selection.toggle(id);
+  }, [selection]);
+
+  const handleShiftSelect = useCallback((id: string) => {
+    selection.selectRange(files.map((f) => f.id), id);
+  }, [selection, files]);
+
   const handlePlayAll = useCallback(() => {
     const firstPlayable = files.find(
       (f) => f.file_type === "audio" || f.file_type === "video"
@@ -167,6 +176,8 @@ export function FolderBrowser({ driveName, folderPath, view, tagFilter }: Folder
         getDropTargetProps={getDropTargetProps}
         isSelected={selection.isSelected}
         onSelect={selection.toggle}
+        onMetaSelect={handleMetaSelect}
+        onShiftSelect={handleShiftSelect}
         onTogglePin={handleTogglePin}
         onFavoriteToggle={handleFavoriteToggle}
         onRefresh={refresh}

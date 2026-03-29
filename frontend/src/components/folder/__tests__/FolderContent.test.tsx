@@ -77,6 +77,8 @@ const defaultProps = {
   getDropTargetProps: () => ({}),
   isSelected: () => false,
   onSelect: vi.fn(),
+  onMetaSelect: vi.fn(),
+  onShiftSelect: vi.fn(),
   onTogglePin: vi.fn(),
   onFavoriteToggle: vi.fn(),
   onRefresh: vi.fn(),

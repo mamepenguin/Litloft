@@ -23,6 +23,8 @@ export function FileList({
   selectable,
   isSelected,
   onSelect,
+  onMetaSelect,
+  onShiftSelect,
   sortQuery,
   draggable,
   draggedFileIds,
@@ -35,6 +37,8 @@ export function FileList({
   selectable?: boolean;
   isSelected?: (id: string) => boolean;
   onSelect?: (id: string) => void;
+  onMetaSelect?: (id: string) => void;
+  onShiftSelect?: (id: string) => void;
   sortQuery?: string;
   draggable?: boolean;
   draggedFileIds?: string[];
@@ -106,7 +110,17 @@ export function FileList({
               draggable={draggable}
               onDragStart={onDragStart ? (e) => onDragStart(e, file.id) : undefined}
               onDragEnd={onDragEnd}
-              onClick={selectable ? () => onSelect?.(file.id) : undefined}
+              onClick={selectable
+                ? (e: React.MouseEvent) => {
+                    if (e.shiftKey && onShiftSelect) {
+                      e.preventDefault();
+                      onShiftSelect(file.id);
+                    } else {
+                      onSelect?.(file.id);
+                    }
+                  }
+                : undefined
+              }
               onContextMenu={selectable ? undefined : (e) => {
                 e.preventDefault();
                 e.stopPropagation();
@@ -195,7 +209,16 @@ export function FileList({
                 return selectable ? (
                   <div className="flex flex-1 items-center gap-3 min-w-0">{content}</div>
                 ) : (
-                  <Link href={`/files/${file.id}${sortQuery || ""}`} className="flex flex-1 items-center gap-3 min-w-0">{content}</Link>
+                  <Link
+                    href={`/files/${file.id}${sortQuery || ""}`}
+                    className="flex flex-1 items-center gap-3 min-w-0"
+                    onClick={(e: React.MouseEvent) => {
+                      if ((e.metaKey || e.ctrlKey) && onMetaSelect) {
+                        e.preventDefault();
+                        onMetaSelect(file.id);
+                      }
+                    }}
+                  >{content}</Link>
                 );
               })()}
               {onFavoriteToggle && (

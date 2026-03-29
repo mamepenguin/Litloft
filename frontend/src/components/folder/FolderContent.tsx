@@ -28,6 +28,8 @@ interface FolderContentProps {
   getDropTargetProps: (path: string) => Record<string, (e: React.DragEvent) => void>;
   isSelected: (id: string) => boolean;
   onSelect: (id: string) => void;
+  onMetaSelect: (id: string) => void;
+  onShiftSelect: (id: string) => void;
   onTogglePin: (path: string) => Promise<void>;
   onFavoriteToggle: (updated: FileItem) => void;
   onRefresh: () => void;
@@ -40,7 +42,7 @@ export function FolderContent({
   files, folders, driveName, viewMode, loading, loadingMore,
   isRecent, isFavorites, isRecentAdded, selectable, sortQuery,
   pinnedPaths, sentinelRef, dragState, isDropTarget, getDropTargetProps,
-  isSelected, onSelect, onTogglePin, onFavoriteToggle, onRefresh,
+  isSelected, onSelect, onMetaSelect, onShiftSelect, onTogglePin, onFavoriteToggle, onRefresh,
   onDragStart, onDragEnd, selectedCount,
 }: FolderContentProps) {
   return (
@@ -84,6 +86,8 @@ export function FolderContent({
           selectable={selectable}
           isSelected={isSelected}
           onSelect={onSelect}
+          onMetaSelect={onMetaSelect}
+          onShiftSelect={onShiftSelect}
           sortQuery={sortQuery}
           draggable={!selectable || selectedCount > 0}
           draggedFileIds={dragState.draggedFileIds}
@@ -98,6 +102,8 @@ export function FolderContent({
           selectable={selectable}
           isSelected={isSelected}
           onSelect={onSelect}
+          onMetaSelect={onMetaSelect}
+          onShiftSelect={onShiftSelect}
           sortQuery={sortQuery}
           draggable={!selectable || selectedCount > 0}
           draggedFileIds={dragState.draggedFileIds}

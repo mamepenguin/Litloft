@@ -19,6 +19,8 @@ export function FileGrid({
   selectable,
   isSelected,
   onSelect,
+  onMetaSelect,
+  onShiftSelect,
   sortQuery,
   draggable,
   draggedFileIds,
@@ -31,6 +33,8 @@ export function FileGrid({
   selectable?: boolean;
   isSelected?: (id: string) => boolean;
   onSelect?: (id: string) => void;
+  onMetaSelect?: (id: string) => void;
+  onShiftSelect?: (id: string) => void;
   sortQuery?: string;
   draggable?: boolean;
   draggedFileIds?: string[];
@@ -100,6 +104,8 @@ export function FileGrid({
             selectable={selectable}
             selected={isSelected?.(file.id)}
             onSelect={onSelect}
+            onMetaSelect={onMetaSelect}
+            onShiftSelect={onShiftSelect}
             sortQuery={sortQuery}
             draggable={draggable}
             isDragging={draggedFileIds?.includes(file.id)}
