@@ -1,7 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { render, screen, fireEvent } from "@testing-library/react";
 import { FolderToolbar } from "../FolderToolbar";
-import { createRef } from "react";
 
 vi.mock("@/components/ViewToggle", () => ({
   ViewToggle: ({ onChange }: { onChange: (mode: string) => void }) => (
@@ -28,7 +27,6 @@ const defaultProps = {
   creatingFolder: false,
   newFolderName: "",
   folderError: null,
-  fileInputRef: createRef<HTMLInputElement>(),
   onSortChange: vi.fn(),
   onTypeFilterChange: vi.fn(),
   onViewChange: vi.fn(),
@@ -39,7 +37,6 @@ const defaultProps = {
   onSetNewFolderName: vi.fn(),
   onSetFolderError: vi.fn(),
   onCreateFolder: vi.fn(),
-  onUploadClick: vi.fn(),
 };
 
 describe("FolderToolbar", () => {
@@ -47,7 +44,7 @@ describe("FolderToolbar", () => {
     vi.clearAllMocks();
   });
 
-  it("renders upload and new folder buttons", () => {
+  it("renders upload button and new folder button", () => {
     render(<FolderToolbar {...defaultProps} />);
     expect(screen.getByLabelText("アップロード")).toBeInTheDocument();
     expect(screen.getByLabelText("新規フォルダ")).toBeInTheDocument();
@@ -62,6 +59,22 @@ describe("FolderToolbar", () => {
   it("hides upload and folder buttons when tag filter active", () => {
     render(<FolderToolbar {...defaultProps} tagFilter="nature" />);
     expect(screen.queryByLabelText("アップロード")).not.toBeInTheDocument();
+  });
+
+  it("shows upload dropdown menu with Files and Folder options", () => {
+    render(<FolderToolbar {...defaultProps} />);
+    fireEvent.click(screen.getByLabelText("アップロード"));
+    expect(screen.getByText("ファイル")).toBeInTheDocument();
+    expect(screen.getByText("フォルダ")).toBeInTheDocument();
+  });
+
+  it("closes upload dropdown on second click", () => {
+    render(<FolderToolbar {...defaultProps} />);
+    const btn = screen.getByLabelText("アップロード");
+    fireEvent.click(btn);
+    expect(screen.getByText("ファイル")).toBeInTheDocument();
+    fireEvent.click(btn);
+    expect(screen.queryByText("ファイル")).not.toBeInTheDocument();
   });
 
   it("shows folder creation input when creatingFolder is true", () => {
@@ -157,12 +170,5 @@ describe("FolderToolbar", () => {
   it("renders selection mode toggle", () => {
     render(<FolderToolbar {...defaultProps} />);
     expect(screen.getByLabelText("選択モード")).toBeInTheDocument();
-  });
-
-  it("calls onUploadClick on upload button click", () => {
-    const onUploadClick = vi.fn();
-    render(<FolderToolbar {...defaultProps} onUploadClick={onUploadClick} />);
-    fireEvent.click(screen.getByLabelText("アップロード"));
-    expect(onUploadClick).toHaveBeenCalled();
   });
 });

@@ -2,9 +2,10 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
-import { Check, CheckSquare, FileText, Filter, FolderPlus, Play, RefreshCw, Upload, X } from "lucide-react";
+import { Check, CheckSquare, ChevronDown, File as FileIcon, FileText, Filter, Folder, FolderPlus, Play, RefreshCw, Upload, X } from "lucide-react";
 
 import { useTranslations } from "next-intl";
+import type { UploadFileEntry } from "@/hooks/useUpload";
 import { createFolder, getDriveFiles, scanDrive } from "@/lib/api";
 import type { FileItem, FileType, SortField, SortOrder, ViewMode } from "@/types";
 import { FileGrid } from "@/components/FileGrid";
@@ -31,12 +32,15 @@ export function RootFileListing({ driveName, onFileAction, onFolderChange }: Roo
   const tf = useTranslations("folder");
   const ts = useTranslations("selection");
   const td = useTranslations("drive");
+  const tu = useTranslations("upload");
   const [viewMode, setViewMode] = useState<ViewMode>("grid");
   const [sort, setSort] = useState<SortField>("created_at");
   const [order, setOrder] = useState<SortOrder>("desc");
   const [typeFilter, setTypeFilter] = useState<FileType | null>(null);
   const [typeFilterOpen, setTypeFilterOpen] = useState(false);
   const typeFilterRef = useRef<HTMLDivElement>(null);
+  const [uploadMenuOpen, setUploadMenuOpen] = useState(false);
+  const uploadMenuRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     if (!typeFilterOpen) return;
@@ -48,6 +52,17 @@ export function RootFileListing({ driveName, onFileAction, onFolderChange }: Roo
     document.addEventListener("mousedown", handleClick);
     return () => document.removeEventListener("mousedown", handleClick);
   }, [typeFilterOpen]);
+
+  useEffect(() => {
+    if (!uploadMenuOpen) return;
+    function handleClick(e: MouseEvent) {
+      if (uploadMenuRef.current && !uploadMenuRef.current.contains(e.target as Node)) {
+        setUploadMenuOpen(false);
+      }
+    }
+    document.addEventListener("mousedown", handleClick);
+    return () => document.removeEventListener("mousedown", handleClick);
+  }, [uploadMenuOpen]);
 
   const fetchPage = useCallback(
     async (page: number, limit: number) => {
@@ -149,6 +164,7 @@ export function RootFileListing({ driveName, onFileAction, onFolderChange }: Roo
     : `?sort=${sort}&order=${order}`;
 
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const folderInputRef = useRef<HTMLInputElement>(null);
   const router = useRouter();
 
   const hasPlayableFiles = files.some(
@@ -194,20 +210,63 @@ export function RootFileListing({ driveName, onFileAction, onFolderChange }: Roo
             onChange={(e) => {
               const uploadZone = document.querySelector<HTMLElement>("[data-upload-zone]");
               if (uploadZone && e.target.files) {
-                const event = new CustomEvent("upload-files", { detail: Array.from(e.target.files) });
-                uploadZone.dispatchEvent(event);
+                uploadZone.dispatchEvent(new CustomEvent("upload-files", { detail: Array.from(e.target.files) }));
               }
               e.target.value = "";
             }}
           />
-          <button
-            onClick={() => fileInputRef.current?.click()}
-            className="flex items-center gap-2 rounded-lg bg-accent px-3 py-2 text-sm font-medium text-white transition-all hover:bg-accent/80 active:scale-[0.97]"
-            aria-label={tc("upload")}
-          >
-            <Upload size={16} />
-            <span className="hidden sm:inline">Upload</span>
-          </button>
+          <input
+            ref={folderInputRef}
+            type="file"
+            className="hidden"
+            {...{ webkitdirectory: "", directory: "" } as React.InputHTMLAttributes<HTMLInputElement>}
+            onChange={(e) => {
+              const uploadZone = document.querySelector<HTMLElement>("[data-upload-zone]");
+              if (uploadZone && e.target.files) {
+                const entries: UploadFileEntry[] = Array.from(e.target.files).map((file) => ({
+                  file,
+                  relativePath: file.webkitRelativePath || "",
+                }));
+                uploadZone.dispatchEvent(new CustomEvent("upload-files", { detail: entries }));
+              }
+              e.target.value = "";
+            }}
+          />
+          <div ref={uploadMenuRef} className="relative">
+            <button
+              onClick={() => setUploadMenuOpen((s) => !s)}
+              className="flex items-center gap-1.5 rounded-lg bg-accent px-3 py-2 text-sm font-medium text-white transition-all hover:bg-accent/80 active:scale-[0.97]"
+              aria-label={tc("upload")}
+            >
+              <Upload size={16} />
+              <span className="hidden sm:inline">{tc("upload")}</span>
+              <ChevronDown size={14} className="opacity-70" />
+            </button>
+            {uploadMenuOpen && (
+              <div className="absolute left-0 top-full z-30 mt-1 min-w-[160px] rounded-xl border border-bg-border bg-bg-primary py-1 shadow-xl animate-fade-in-scale origin-top-left">
+                <button
+                  onClick={() => {
+                    setUploadMenuOpen(false);
+                    fileInputRef.current?.click();
+                  }}
+                  className="flex w-full items-center gap-2 px-3 py-2 text-left text-sm text-text-primary transition-colors hover:bg-bg-elevated"
+                >
+                  <FileIcon size={16} />
+                  {tu("files")}
+                </button>
+                <button
+                  onClick={() => {
+                    setUploadMenuOpen(false);
+                    folderInputRef.current?.click();
+                  }}
+                  className="flex w-full items-center gap-2 px-3 py-2 text-left text-sm text-text-primary transition-colors hover:bg-bg-elevated"
+                >
+                  <Folder size={16} />
+                  {tu("folder")}
+                </button>
+              </div>
+            )}
+          </div>
 
           {creatingFolder ? (
             <div className="flex w-full items-center gap-2 sm:w-auto">

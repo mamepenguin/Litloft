@@ -84,8 +84,8 @@ export function UploadProgress({
                 className="border-b border-bg-border px-4 py-3 last:border-b-0"
               >
                 <div className="mb-1 flex items-center justify-between gap-2">
-                  <span className="flex-1 truncate text-sm text-text-primary">
-                    {upload.filename}
+                  <span className="flex-1 truncate text-sm text-text-primary" title={upload.relativePath || upload.filename}>
+                    {upload.relativePath || upload.filename}
                   </span>
                   <div className="flex shrink-0 items-center gap-2">
                     <span

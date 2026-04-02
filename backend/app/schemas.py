@@ -145,6 +145,7 @@ class UploadInitRequest(BaseModel):
     filename: str
     file_size: int
     folder_path: str = ""
+    relative_path: str = ""
     chunk_size: int = 5_242_880
 
 

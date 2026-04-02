@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { ClipboardPaste, X } from "lucide-react";
 import { useTranslations } from "next-intl";
@@ -113,7 +113,6 @@ export function FolderBrowser({ driveName, folderPath, view, tagFilter }: Folder
     onComplete: handleDragDropComplete,
   });
 
-  const fileInputRef = useRef<HTMLInputElement>(null);
   const folderRouter = useRouter();
 
   const handleViewChange = useCallback((mode: ViewMode) => {
@@ -222,7 +221,6 @@ export function FolderBrowser({ driveName, folderPath, view, tagFilter }: Folder
         creatingFolder={createFolder.creatingFolder}
         newFolderName={createFolder.newFolderName}
         folderError={createFolder.folderError}
-        fileInputRef={fileInputRef}
         onSortChange={(s, o) => { setSort(s); setOrder(o); }}
         onTypeFilterChange={setTypeFilter}
         onViewChange={handleViewChange}
@@ -238,7 +236,6 @@ export function FolderBrowser({ driveName, folderPath, view, tagFilter }: Folder
         onSetNewFolderName={createFolder.setNewFolderName}
         onSetFolderError={createFolder.setFolderError}
         onCreateFolder={createFolder.handleCreateFolder}
-        onUploadClick={() => fileInputRef.current?.click()}
       />
 
       <FolderContent

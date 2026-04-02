@@ -186,7 +186,7 @@ export async function deleteFolder(drive: string, path: string): Promise<void> {
 // Upload
 export async function initUpload(
   drive: string,
-  params: { filename: string; file_size: number; folder_path: string; chunk_size: number }
+  params: { filename: string; file_size: number; folder_path: string; chunk_size: number; relative_path?: string }
 ): Promise<UploadInitResponse> {
   return fetchJSON<UploadInitResponse>(
     `${API_BASE}/drives/${encodeURIComponent(drive)}/upload/init`,

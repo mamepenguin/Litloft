@@ -20,9 +20,15 @@ export type UploadStatus =
   | "error"
   | "cancelled";
 
+export interface UploadFileEntry {
+  file: File;
+  relativePath: string;
+}
+
 export interface UploadState {
   id: string;
   filename: string;
+  relativePath: string;
   progress: number;
   status: UploadStatus;
   error?: string;
@@ -30,6 +36,7 @@ export interface UploadState {
 
 interface InternalUpload {
   file: File;
+  relativePath: string;
   uploadId?: string;
   aborted: boolean;
 }
@@ -81,6 +88,7 @@ export function useUpload(drive: string, folderPath: string, onFileComplete?: ()
         file_size: file.size,
         folder_path: folderPath,
         chunk_size: CHUNK_SIZE,
+        relative_path: internal.relativePath,
       });
 
       internal.uploadId = initResult.upload_id;
@@ -129,26 +137,36 @@ export function useUpload(drive: string, folderPath: string, onFileComplete?: ()
     }
   }
 
-  const addFiles = useCallback(
-    (files: File[]) => {
-      const newUploads: UploadState[] = files.map((file) => {
+  const addFileEntries = useCallback(
+    (entries: UploadFileEntry[]) => {
+      const newUploads: UploadState[] = entries.map((entry) => {
         const id = generateId();
-        internalsRef.current.set(id, { file, aborted: false });
+        internalsRef.current.set(id, {
+          file: entry.file,
+          relativePath: entry.relativePath,
+          aborted: false,
+        });
         queueRef.current.push(id);
         return {
           id,
-          filename: file.name,
+          filename: entry.file.name,
+          relativePath: entry.relativePath,
           progress: 0,
           status: "pending" as const,
         };
       });
 
       setUploads((prev) => [...prev, ...newUploads]);
-
-      // Use setTimeout to ensure state is updated before processing
       setTimeout(() => processNext(), 0);
     },
     [processNext]
+  );
+
+  const addFiles = useCallback(
+    (files: File[]) => {
+      addFileEntries(files.map((file) => ({ file, relativePath: "" })));
+    },
+    [addFileEntries]
   );
 
   const cancelUploadById = useCallback(
@@ -189,6 +207,7 @@ export function useUpload(drive: string, folderPath: string, onFileComplete?: ()
   return {
     uploads,
     addFiles,
+    addFileEntries,
     cancelUpload: cancelUploadById,
     clearCompleted,
   };

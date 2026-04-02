@@ -3,7 +3,8 @@
 import { type DragEvent, type ReactNode, useCallback, useEffect, useRef, useState } from "react";
 import { Upload } from "lucide-react";
 import { useTranslations } from "next-intl";
-import { useUpload } from "@/hooks/useUpload";
+import { useUpload, type UploadFileEntry } from "@/hooks/useUpload";
+import { readDirectoryEntries } from "@/lib/directoryReader";
 import { UploadProgress } from "./UploadProgress";
 
 interface UploadZoneProps {
@@ -23,25 +24,29 @@ export function UploadZone({
   const [isDragging, setIsDragging] = useState(false);
   const dragCounterRef = useRef(0);
   const zoneRef = useRef<HTMLDivElement>(null);
-  const { uploads, addFiles, cancelUpload, clearCompleted } = useUpload(
+  const { uploads, addFiles, addFileEntries, cancelUpload, clearCompleted } = useUpload(
     drive,
     folderPath,
     onUploadComplete,
   );
 
-  // Listen for upload-files custom event from the Upload button
+  // Listen for upload-files custom event (File[] or UploadFileEntry[])
   useEffect(() => {
     const el = zoneRef.current;
     if (!el) return;
     function handleUploadFiles(e: Event) {
-      const files = (e as CustomEvent<File[]>).detail;
-      if (files && files.length > 0) {
-        addFiles(files);
+      const detail = (e as CustomEvent).detail;
+      if (!detail || !Array.isArray(detail) || detail.length === 0) return;
+      const first = detail[0];
+      if (first instanceof File) {
+        addFiles(detail as File[]);
+      } else if (first.file && typeof first.relativePath === "string") {
+        addFileEntries(detail as UploadFileEntry[]);
       }
     }
     el.addEventListener("upload-files", handleUploadFiles);
     return () => el.removeEventListener("upload-files", handleUploadFiles);
-  }, [addFiles]);
+  }, [addFiles, addFileEntries]);
 
   const handleDragEnter = useCallback((e: DragEvent) => {
     e.preventDefault();
@@ -67,18 +72,52 @@ export function UploadZone({
   }, []);
 
   const handleDrop = useCallback(
-    (e: DragEvent) => {
+    async (e: DragEvent) => {
       e.preventDefault();
       e.stopPropagation();
       setIsDragging(false);
       dragCounterRef.current = 0;
+
+      const items = e.dataTransfer.items;
+      if (items) {
+        const webkitEntries: FileSystemEntry[] = [];
+        for (let i = 0; i < items.length; i++) {
+          const entry = items[i].webkitGetAsEntry?.();
+          if (entry) {
+            webkitEntries.push(entry);
+          }
+        }
+
+        const hasDirectory = webkitEntries.some((e) => e.isDirectory);
+        if (hasDirectory) {
+          const allEntries: UploadFileEntry[] = [];
+          for (const entry of webkitEntries) {
+            if (entry.isDirectory) {
+              const dirEntries = await readDirectoryEntries(
+                entry as FileSystemDirectoryEntry,
+                entry.name
+              );
+              allEntries.push(...dirEntries);
+            } else if (entry.isFile) {
+              const file = await new Promise<File>((resolve, reject) => {
+                (entry as FileSystemFileEntry).file(resolve, reject);
+              });
+              allEntries.push({ file, relativePath: "" });
+            }
+          }
+          if (allEntries.length > 0) {
+            addFileEntries(allEntries);
+          }
+          return;
+        }
+      }
 
       const files = Array.from(e.dataTransfer.files);
       if (files.length > 0) {
         addFiles(files);
       }
     },
-    [addFiles]
+    [addFiles, addFileEntries]
   );
 
   const handleClearCompleted = useCallback(() => {

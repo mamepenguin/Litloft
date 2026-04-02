@@ -36,6 +36,7 @@ async def init_upload(
         file_size=body.file_size,
         folder_path=body.folder_path,
         chunk_size=body.chunk_size,
+        relative_path=body.relative_path,
     )
     return UploadInitResponse(
         upload_id=session.upload_id,

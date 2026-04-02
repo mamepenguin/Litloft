@@ -1,9 +1,10 @@
 "use client";
 
-import { useEffect, useRef, useState, type RefObject } from "react";
-import { Check, CheckSquare, Filter, FolderPlus, Play, RefreshCw, Upload, X } from "lucide-react";
+import { useEffect, useRef, useState } from "react";
+import { Check, CheckSquare, ChevronDown, File as FileIcon, Filter, Folder, FolderPlus, Play, RefreshCw, Upload, X } from "lucide-react";
 
 import { useTranslations } from "next-intl";
+import type { UploadFileEntry } from "@/hooks/useUpload";
 import type { FileType, SortField, SortOrder, ViewMode } from "@/types";
 import { ViewToggle } from "@/components/ViewToggle";
 import { SortButton } from "@/components/SortButton";
@@ -21,7 +22,6 @@ interface FolderToolbarProps {
   creatingFolder: boolean;
   newFolderName: string;
   folderError: string | null;
-  fileInputRef: RefObject<HTMLInputElement | null>;
   onSortChange: (s: SortField, o: SortOrder) => void;
   onTypeFilterChange: (t: FileType | null) => void;
   onViewChange: (mode: ViewMode) => void;
@@ -32,7 +32,13 @@ interface FolderToolbarProps {
   onSetNewFolderName: (v: string) => void;
   onSetFolderError: (v: string | null) => void;
   onCreateFolder: () => void;
-  onUploadClick: () => void;
+}
+
+function dispatchUploadEvent(detail: File[] | UploadFileEntry[]) {
+  const uploadZone = document.querySelector<HTMLElement>("[data-upload-zone]");
+  if (uploadZone) {
+    uploadZone.dispatchEvent(new CustomEvent("upload-files", { detail }));
+  }
 }
 
 const TYPE_OPTION_KEYS: ReadonlyArray<{ value: FileType | null; labelKey: string }> = [
@@ -48,17 +54,22 @@ const TYPE_OPTION_KEYS: ReadonlyArray<{ value: FileType | null; labelKey: string
 export function FolderToolbar({
   isSpecialView, tagFilter, hasPlayableFiles,
   sort, order, typeFilter, total, selectable, scanning,
-  creatingFolder, newFolderName, folderError, fileInputRef,
+  creatingFolder, newFolderName, folderError,
   onSortChange, onTypeFilterChange, onViewChange, onToggleSelectable,
   onScan, onPlayAll, onSetCreatingFolder, onSetNewFolderName,
-  onSetFolderError, onCreateFolder, onUploadClick,
+  onSetFolderError, onCreateFolder,
 }: FolderToolbarProps) {
   const t = useTranslations("toolbar");
   const tc = useTranslations("common");
   const ts = useTranslations("selection");
   const tf = useTranslations("folder");
+  const tu = useTranslations("upload");
   const [typeFilterOpen, setTypeFilterOpen] = useState(false);
   const typeFilterRef = useRef<HTMLDivElement>(null);
+  const [uploadMenuOpen, setUploadMenuOpen] = useState(false);
+  const uploadMenuRef = useRef<HTMLDivElement>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const folderInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     if (!typeFilterOpen) return;
@@ -70,6 +81,17 @@ export function FolderToolbar({
     document.addEventListener("mousedown", handleClick);
     return () => document.removeEventListener("mousedown", handleClick);
   }, [typeFilterOpen]);
+
+  useEffect(() => {
+    if (!uploadMenuOpen) return;
+    function handleClick(e: MouseEvent) {
+      if (uploadMenuRef.current && !uploadMenuRef.current.contains(e.target as Node)) {
+        setUploadMenuOpen(false);
+      }
+    }
+    document.addEventListener("mousedown", handleClick);
+    return () => document.removeEventListener("mousedown", handleClick);
+  }, [uploadMenuOpen]);
 
   return (
     <>
@@ -83,22 +105,63 @@ export function FolderToolbar({
               multiple
               className="hidden"
               onChange={(e) => {
-                const uploadZone = document.querySelector<HTMLElement>("[data-upload-zone]");
-                if (uploadZone && e.target.files) {
-                  const event = new CustomEvent("upload-files", { detail: Array.from(e.target.files) });
-                  uploadZone.dispatchEvent(event);
+                if (e.target.files) {
+                  dispatchUploadEvent(Array.from(e.target.files));
                 }
                 e.target.value = "";
               }}
             />
-            <button
-              onClick={onUploadClick}
-              className="flex items-center gap-2 rounded-lg bg-accent px-3 py-2 text-sm font-medium text-white transition-all hover:bg-accent/80 active:scale-[0.97]"
-              aria-label={tc("upload")}
-            >
-              <Upload size={16} />
-              <span className="hidden sm:inline">Upload</span>
-            </button>
+            <input
+              ref={folderInputRef}
+              type="file"
+              className="hidden"
+              {...{ webkitdirectory: "", directory: "" } as React.InputHTMLAttributes<HTMLInputElement>}
+              onChange={(e) => {
+                if (e.target.files) {
+                  const entries: UploadFileEntry[] = Array.from(e.target.files).map((file) => ({
+                    file,
+                    relativePath: file.webkitRelativePath || "",
+                  }));
+                  dispatchUploadEvent(entries);
+                }
+                e.target.value = "";
+              }}
+            />
+            <div ref={uploadMenuRef} className="relative">
+              <button
+                onClick={() => setUploadMenuOpen((s) => !s)}
+                className="flex items-center gap-1.5 rounded-lg bg-accent px-3 py-2 text-sm font-medium text-white transition-all hover:bg-accent/80 active:scale-[0.97]"
+                aria-label={tc("upload")}
+              >
+                <Upload size={16} />
+                <span className="hidden sm:inline">{tc("upload")}</span>
+                <ChevronDown size={14} className="opacity-70" />
+              </button>
+              {uploadMenuOpen && (
+                <div className="absolute left-0 top-full z-30 mt-1 min-w-[160px] rounded-xl border border-bg-border bg-bg-primary py-1 shadow-xl animate-fade-in-scale origin-top-left">
+                  <button
+                    onClick={() => {
+                      setUploadMenuOpen(false);
+                      fileInputRef.current?.click();
+                    }}
+                    className="flex w-full items-center gap-2 px-3 py-2 text-left text-sm text-text-primary transition-colors hover:bg-bg-elevated"
+                  >
+                    <FileIcon size={16} />
+                    {tu("files")}
+                  </button>
+                  <button
+                    onClick={() => {
+                      setUploadMenuOpen(false);
+                      folderInputRef.current?.click();
+                    }}
+                    className="flex w-full items-center gap-2 px-3 py-2 text-left text-sm text-text-primary transition-colors hover:bg-bg-elevated"
+                  >
+                    <Folder size={16} />
+                    {tu("folder")}
+                  </button>
+                </div>
+              )}
+            </div>
 
             {creatingFolder ? (
               <div className="flex w-full items-center gap-2 sm:w-auto">

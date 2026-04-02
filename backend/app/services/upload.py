@@ -48,10 +48,17 @@ def init_upload(
     file_size: int,
     folder_path: str,
     chunk_size: int,
+    relative_path: str = "",
 ) -> UploadSession:
     validate_writable(drive)
     filename = validate_filename(filename)
     folder_path = validate_path_safe(folder_path)
+    relative_path = validate_path_safe(relative_path) if relative_path else ""
+
+    if relative_path:
+        rel_dir = str(Path(relative_path).parent)
+        if rel_dir and rel_dir != ".":
+            folder_path = f"{folder_path}/{rel_dir}".strip("/") if folder_path else rel_dir
 
     if file_size <= 0:
         raise HTTPException(status_code=400, detail="Invalid file size")
