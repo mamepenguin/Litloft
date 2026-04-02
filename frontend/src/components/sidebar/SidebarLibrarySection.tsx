@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { Clock, FilePlus, Files, Home, Star, Warehouse } from "lucide-react";
+import { useTranslations } from "next-intl";
 
 interface SidebarLibrarySectionProps {
   driveBase: string | null;
@@ -8,6 +9,7 @@ interface SidebarLibrarySectionProps {
 }
 
 export function SidebarLibrarySection({ driveBase, linkClass, close }: SidebarLibrarySectionProps) {
+  const t = useTranslations("sidebar");
   return (
     <>
       <div className="mb-2 px-3 py-2">
@@ -22,25 +24,25 @@ export function SidebarLibrarySection({ driveBase, linkClass, close }: SidebarLi
       </div>
       <Link href={driveBase ?? "/"} onClick={close} className={linkClass(driveBase ?? "/")}>
         <Home size={16} />
-        ホーム
+        {t("home")}
       </Link>
       {driveBase && (
         <>
           <Link href={`${driveBase}?view=favorites`} onClick={close} className={linkClass(`${driveBase}?view=favorites`)}>
             <Star size={16} />
-            お気に入り
+            {t("favorites")}
           </Link>
           <Link href={`${driveBase}?view=recent`} onClick={close} className={linkClass(`${driveBase}?view=recent`)}>
             <Clock size={16} />
-            最近再生
+            {t("recentPlay")}
           </Link>
           <Link href={`${driveBase}?view=recent-added`} onClick={close} className={linkClass(`${driveBase}?view=recent-added`)}>
             <FilePlus size={16} />
-            最近追加
+            {t("recentAdded")}
           </Link>
           <Link href={`${driveBase}?view=all`} onClick={close} className={linkClass(`${driveBase}?view=all`)}>
             <Files size={16} />
-            すべてのファイル
+            {t("allFiles")}
           </Link>
         </>
       )}

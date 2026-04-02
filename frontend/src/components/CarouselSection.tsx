@@ -3,6 +3,7 @@
 import { useCallback, useState } from "react";
 import Link from "next/link";
 import { Download, Move, Pencil, RefreshCw, Trash2 } from "lucide-react";
+import { useTranslations } from "next-intl";
 import { deleteFile, getDownloadUrl, moveFile, renameFile } from "@/lib/api";
 import type { FileItem } from "@/types";
 import { FileCard } from "./FileCard";
@@ -46,6 +47,8 @@ export function CarouselSection({
   refreshing,
   onFileAction,
 }: CarouselSectionProps) {
+  const t = useTranslations("file");
+  const tc = useTranslations("common");
   const handleAfterAction = useCallback(() => {
     if (onFileAction) onFileAction();
     else if (onRefresh) onRefresh();
@@ -69,22 +72,22 @@ export function CarouselSection({
   const menuItems: MenuItem[] = target ? [
     {
       icon: Download,
-      label: "ダウンロード",
+      label: tc("download"),
       onClick: () => window.open(getDownloadUrl(target.id), "_blank"),
     },
     {
       icon: Pencil,
-      label: "名前を変更",
+      label: tc("rename"),
       onClick: () => setRenameOpen(true),
     },
     {
       icon: Move,
-      label: "移動",
+      label: tc("move"),
       onClick: () => setMoveOpen(true),
     },
     {
       icon: Trash2,
-      label: "削除",
+      label: tc("delete"),
       onClick: () => setDeleteOpen(true),
       danger: true,
     },
@@ -110,7 +113,7 @@ export function CarouselSection({
               className="flex items-center gap-1.5 text-sm text-text-muted transition-colors hover:text-accent disabled:opacity-50"
             >
               <RefreshCw size={14} className={refreshing ? "animate-spin" : ""} />
-              <span className="hidden sm:inline">更新</span>
+              <span className="hidden sm:inline">{tc("refresh")}</span>
             </button>
           )}
           {seeAllHref && (
@@ -118,7 +121,7 @@ export function CarouselSection({
               href={seeAllHref}
               className="text-sm text-text-muted transition-colors hover:text-accent"
             >
-              すべて見る
+              {tc("seeAll")}
             </Link>
           )}
         </div>
@@ -182,9 +185,9 @@ export function CarouselSection({
           />
           <ConfirmDialog
             open={deleteOpen}
-            title="ファイルを削除"
-            message={`「${target.filename}」を削除しますか？この操作は取り消せません。`}
-            confirmLabel="削除"
+            title={t("deleteTitle")}
+            message={t("deleteMessage", { name: target.filename })}
+            confirmLabel={tc("delete")}
             onConfirm={async () => {
               try {
                 await deleteFile(target.id);

@@ -1,5 +1,6 @@
 "use client";
 
+import { useTranslations } from "next-intl";
 import type { FileItem } from "@/types";
 import { VideoPlayer } from "./VideoPlayer";
 import { AudioPlayer } from "./AudioPlayer";
@@ -10,6 +11,7 @@ import { formatFileSize } from "@/lib/format";
 import { getStreamUrl } from "@/lib/api";
 
 export function FilePreview({ file, onEnded, autoPlay }: { file: FileItem; onEnded?: () => void; autoPlay?: boolean }) {
+  const t = useTranslations("file");
   if (file.file_type === "video") {
     return <VideoPlayer videoId={file.id} onEnded={onEnded} autoPlay={autoPlay} />;
   }
@@ -55,7 +57,7 @@ export function FilePreview({ file, onEnded, autoPlay }: { file: FileItem; onEnd
       <FileTypeIcon fileType={file.file_type} size={64} className="mb-4 text-text-muted" />
       <p className="text-sm text-text-muted">{file.filename}</p>
       <p className="mt-1 text-xs text-text-muted">{formatFileSize(file.file_size)}</p>
-      <p className="mt-4 text-xs text-text-muted">プレビューは対応していません</p>
+      <p className="mt-4 text-xs text-text-muted">{t("noPreview")}</p>
     </div>
   );
 }

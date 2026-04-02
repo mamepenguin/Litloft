@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import { Star } from "lucide-react";
 
+import { useTranslations } from "next-intl";
 import { toggleFavorite } from "@/lib/api";
 import type { FileItem } from "@/types";
 
@@ -19,6 +20,7 @@ export function FavoriteButton({
   size?: "sm" | "md";
   showLabel?: boolean;
 }) {
+  const t = useTranslations("favorite");
   const [optimistic, setOptimistic] = useState(isFavorite);
   const [pending, setPending] = useState(false);
   const iconRef = useRef<SVGSVGElement>(null);
@@ -64,7 +66,7 @@ export function FavoriteButton({
           ? "text-accent-teal"
           : "text-text-muted/50 hover:text-accent-teal"
       }`}
-      aria-label={current ? "お気に入り解除" : "お気に入りに追加"}
+      aria-label={current ? t("remove") : t("add")}
     >
       <Star
         ref={iconRef}
@@ -73,7 +75,7 @@ export function FavoriteButton({
         strokeWidth={current ? 0 : 2}
       />
       {showLabel && (
-        <span>{current ? "お気に入り済み" : "お気に入り"}</span>
+        <span>{current ? t("added") : t("label")}</span>
       )}
     </button>
   );

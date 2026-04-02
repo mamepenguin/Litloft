@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { Folder } from "lucide-react";
+import { useTranslations } from "next-intl";
 import type { Folder as FolderType } from "@/types";
 import { FolderActions } from "./FolderActions";
 
@@ -18,6 +19,7 @@ interface FolderCardProps {
 }
 
 export function FolderCard({ folder, driveName, isPinned, onTogglePin, onUpdate, isDropTarget, dropTargetProps, draggable, isDragging, onDragStart, onDragEnd }: FolderCardProps) {
+  const t = useTranslations("folder");
   return (
     <div
       className={`group relative flex items-center gap-3 rounded-xl bg-bg-card p-4 transition-all duration-200 hover:scale-[1.02] hover:bg-bg-elevated hover:shadow-lg active:scale-[0.98]${
@@ -50,7 +52,7 @@ export function FolderCard({ folder, driveName, isPinned, onTogglePin, onUpdate,
           <h3 className="truncate font-semibold text-text-primary group-hover:text-accent">
             {folder.name}
           </h3>
-          <p className="text-sm text-text-muted">{folder.file_count} 件</p>
+          <p className="text-sm text-text-muted">{t("items", { count: folder.file_count })}</p>
         </div>
       </Link>
       {onUpdate && (

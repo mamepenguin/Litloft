@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { ChevronRight, Home } from "lucide-react";
+import { useTranslations } from "next-intl";
 
 interface BreadcrumbProps {
   driveName: string;
@@ -9,6 +10,7 @@ interface BreadcrumbProps {
 }
 
 export function Breadcrumb({ driveName, folderPath, getDropTargetProps, isDropTarget }: BreadcrumbProps) {
+  const t = useTranslations("toolbar");
   const segments = folderPath ? folderPath.split("/").filter(Boolean) : [];
 
   return (
@@ -16,7 +18,7 @@ export function Breadcrumb({ driveName, folderPath, getDropTargetProps, isDropTa
       <Link
         href="/"
         className="flex-shrink-0 hover:text-text-primary"
-        aria-label="ホーム"
+        aria-label={t("home")}
       >
         <Home size={16} />
       </Link>

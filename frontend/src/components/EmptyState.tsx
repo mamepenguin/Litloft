@@ -1,40 +1,43 @@
+"use client";
+
 import { Clock, File, FilePlus, Search, RefreshCw, Star } from "lucide-react";
+import { useTranslations } from "next-intl";
 
 type EmptyVariant = "no-files" | "no-results" | "needs-scan" | "no-favorites" | "no-recent" | "no-recent-added";
 
-const variants: Record<
+const variantConfig: Record<
   EmptyVariant,
-  { icon: typeof File; title: string; description: string }
+  { icon: typeof File; titleKey: string; descriptionKey: string }
 > = {
   "no-files": {
     icon: File,
-    title: "ファイルがありません",
-    description: "このフォルダにはまだファイルがありません。",
+    titleKey: "noFilesTitle",
+    descriptionKey: "noFilesDescription",
   },
   "no-results": {
     icon: Search,
-    title: "一致するファイルが見つかりません",
-    description: "検索条件を変更してください。",
+    titleKey: "noResultsTitle",
+    descriptionKey: "noResultsDescription",
   },
   "needs-scan": {
     icon: RefreshCw,
-    title: "スキャンを実行してください",
-    description: "ドライブのファイルを読み込みます。",
+    titleKey: "needsScanTitle",
+    descriptionKey: "needsScanDescription",
   },
   "no-favorites": {
     icon: Star,
-    title: "お気に入りのファイルがありません",
-    description: "星アイコンをクリックしてお気に入りに追加しましょう。",
+    titleKey: "noFavoritesTitle",
+    descriptionKey: "noFavoritesDescription",
   },
   "no-recent": {
     icon: Clock,
-    title: "最近再生した動画がありません",
-    description: "動画を再生すると、ここに表示されます。",
+    titleKey: "noRecentTitle",
+    descriptionKey: "noRecentDescription",
   },
   "no-recent-added": {
     icon: FilePlus,
-    title: "最近追加されたファイルがありません",
-    description: "ファイルをアップロードすると、ここに表示されます。",
+    titleKey: "noRecentAddedTitle",
+    descriptionKey: "noRecentAddedDescription",
   },
 };
 
@@ -45,13 +48,14 @@ export function EmptyState({
   variant: EmptyVariant;
   action?: { label: string; onClick: () => void };
 }) {
-  const { icon: Icon, title, description } = variants[variant];
+  const t = useTranslations("empty");
+  const { icon: Icon, titleKey, descriptionKey } = variantConfig[variant];
 
   return (
     <div className="flex flex-col items-center justify-center py-16 text-center">
       <Icon size={48} className="mb-4 text-text-muted" />
-      <h2 className="text-lg font-semibold text-text-primary">{title}</h2>
-      <p className="mt-1 text-sm text-text-muted">{description}</p>
+      <h2 className="text-lg font-semibold text-text-primary">{t(titleKey)}</h2>
+      <p className="mt-1 text-sm text-text-muted">{t(descriptionKey)}</p>
       {action && (
         <button
           onClick={action.onClick}

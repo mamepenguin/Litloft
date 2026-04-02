@@ -9,6 +9,7 @@ import {
   X,
 } from "lucide-react";
 
+import { useTranslations } from "next-intl";
 import { getArchiveEntryUrl } from "@/lib/api";
 import type { ArchiveEntry } from "@/types";
 import { INTERVAL_OPTIONS } from "./archiveUtils";
@@ -46,6 +47,8 @@ export function ArchiveImageViewer({
   handleImageAreaClick,
   closeViewer,
 }: ArchiveImageViewerProps) {
+  const t = useTranslations("archive");
+  const tc = useTranslations("common");
   return (
     <div className="fixed inset-0 z-[60] flex flex-col bg-black">
       {/* Header */}
@@ -75,18 +78,18 @@ export function ArchiveImageViewer({
                   setSlideshowInterval(Number(e.target.value))
                 }
                 className="rounded bg-white/10 px-2 py-1 text-sm text-white outline-none"
-                aria-label="スライドショー間隔"
+                aria-label={t("slideshowInterval")}
               >
                 {INTERVAL_OPTIONS.map((sec) => (
                   <option key={sec} value={sec}>
-                    {sec}秒
+                    {t("seconds", { sec })}
                   </option>
                 ))}
               </select>
               <button
                 onClick={() => setPlaying((p) => !p)}
                 className="rounded-full p-1.5 text-white/80 transition-colors hover:bg-white/10 hover:text-white"
-                aria-label={playing ? "一時停止" : "再生"}
+                aria-label={playing ? tc("pause") : tc("play")}
               >
                 {playing ? <Pause size={18} /> : <Play size={18} />}
               </button>
@@ -96,14 +99,14 @@ export function ArchiveImageViewer({
             href={getArchiveEntryUrl(fileId, currentImage.path)}
             download={currentImage.filename}
             className="rounded-full p-1.5 text-white/80 transition-colors hover:bg-white/10 hover:text-white"
-            aria-label="ダウンロード"
+            aria-label={tc("download")}
           >
             <Download size={18} />
           </a>
           <button
             onClick={closeViewer}
             className="rounded-full p-1.5 text-white/80 transition-colors hover:bg-white/10 hover:text-white"
-            aria-label="閉じる"
+            aria-label={tc("close")}
           >
             <X size={18} />
           </button>
@@ -136,7 +139,7 @@ export function ArchiveImageViewer({
             setImageIndex((prev) => prev - 1);
           }}
           className="absolute left-4 top-1/2 -translate-y-1/2 rounded-full bg-black/50 p-2 text-white/70 transition-opacity hover:text-white"
-          aria-label="前の画像"
+          aria-label={t("prevImage")}
         >
           <ChevronLeft size={32} />
         </button>
@@ -148,7 +151,7 @@ export function ArchiveImageViewer({
             setImageIndex((prev) => prev + 1);
           }}
           className="absolute right-4 top-1/2 -translate-y-1/2 rounded-full bg-black/50 p-2 text-white/70 transition-opacity hover:text-white"
-          aria-label="次の画像"
+          aria-label={t("nextImage")}
         >
           <ChevronRight size={32} />
         </button>

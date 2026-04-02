@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState, type RefObject } from "react";
 import { Check, CheckSquare, Filter, FolderPlus, Play, RefreshCw, Upload, X } from "lucide-react";
 
+import { useTranslations } from "next-intl";
 import type { FileType, SortField, SortOrder, ViewMode } from "@/types";
 import { ViewToggle } from "@/components/ViewToggle";
 import { SortButton } from "@/components/SortButton";
@@ -34,14 +35,14 @@ interface FolderToolbarProps {
   onUploadClick: () => void;
 }
 
-const TYPE_OPTIONS: ReadonlyArray<{ value: FileType | null; label: string }> = [
-  { value: null, label: "すべて" },
-  { value: "video", label: "動画" },
-  { value: "image", label: "画像" },
-  { value: "audio", label: "音声" },
-  { value: "document", label: "文書" },
-  { value: "archive", label: "書庫" },
-  { value: "other", label: "その他" },
+const TYPE_OPTION_KEYS: ReadonlyArray<{ value: FileType | null; labelKey: string }> = [
+  { value: null, labelKey: "all" },
+  { value: "video", labelKey: "video" },
+  { value: "image", labelKey: "image" },
+  { value: "audio", labelKey: "audio" },
+  { value: "document", labelKey: "document" },
+  { value: "archive", labelKey: "archiveType" },
+  { value: "other", labelKey: "other" },
 ];
 
 export function FolderToolbar({
@@ -52,6 +53,10 @@ export function FolderToolbar({
   onScan, onPlayAll, onSetCreatingFolder, onSetNewFolderName,
   onSetFolderError, onCreateFolder, onUploadClick,
 }: FolderToolbarProps) {
+  const t = useTranslations("toolbar");
+  const tc = useTranslations("common");
+  const ts = useTranslations("selection");
+  const tf = useTranslations("folder");
   const [typeFilterOpen, setTypeFilterOpen] = useState(false);
   const typeFilterRef = useRef<HTMLDivElement>(null);
 
@@ -89,7 +94,7 @@ export function FolderToolbar({
             <button
               onClick={onUploadClick}
               className="flex items-center gap-2 rounded-lg bg-accent px-3 py-2 text-sm font-medium text-white transition-all hover:bg-accent/80 active:scale-[0.97]"
-              aria-label="アップロード"
+              aria-label={tc("upload")}
             >
               <Upload size={16} />
               <span className="hidden sm:inline">Upload</span>
@@ -106,14 +111,14 @@ export function FolderToolbar({
                     if (e.key === "Enter") onCreateFolder();
                     if (e.key === "Escape") { onSetCreatingFolder(false); onSetNewFolderName(""); onSetFolderError(null); }
                   }}
-                  placeholder="フォルダ名..."
+                  placeholder={tf("namePlaceholder")}
                   className="min-w-0 flex-1 rounded-lg bg-bg-card px-3 py-2 text-sm text-text-primary placeholder:text-text-muted outline-none focus:ring-2 focus:ring-accent sm:w-40 sm:flex-initial"
                 />
                 <button
                   onClick={onCreateFolder}
                   className="rounded-lg bg-accent px-3 py-2 text-sm text-white hover:bg-accent/80"
                 >
-                  作成
+                  {tc("create")}
                 </button>
                 <button
                   onClick={() => { onSetCreatingFolder(false); onSetNewFolderName(""); onSetFolderError(null); }}
@@ -127,7 +132,7 @@ export function FolderToolbar({
               <button
                 onClick={() => onSetCreatingFolder(true)}
                 className="flex items-center gap-2 rounded-lg border border-bg-border bg-bg-card px-3 py-2 text-sm font-medium text-text-primary transition-colors hover:bg-bg-elevated"
-                aria-label="新規フォルダ"
+                aria-label={tf("newFolder")}
               >
                 <FolderPlus size={16} />
                 <span className="hidden sm:inline">New Folder</span>
@@ -143,10 +148,10 @@ export function FolderToolbar({
             <button
               onClick={onPlayAll}
               className="flex items-center gap-1.5 rounded-lg bg-accent px-3 py-2 text-sm font-medium text-white transition-all hover:bg-accent/80 active:scale-[0.97]"
-              aria-label="全曲再生"
+              aria-label={t("playAll")}
             >
               <Play size={16} />
-              <span className="hidden sm:inline">再生</span>
+              <span className="hidden sm:inline">{tc("play")}</span>
             </button>
           )}
 
@@ -160,7 +165,7 @@ export function FolderToolbar({
                   ? "bg-accent text-white"
                   : "text-text-muted hover:text-text-primary"
               }`}
-              aria-label="選択モード"
+              aria-label={ts("selectMode")}
             >
               <CheckSquare size={16} />
             </button>
@@ -171,8 +176,8 @@ export function FolderToolbar({
               onClick={onScan}
               disabled={scanning}
               className="rounded-md p-2 text-text-muted transition-colors hover:text-text-primary disabled:opacity-50"
-              aria-label="再スキャン"
-              title="ドライブを再スキャン"
+              aria-label={t("rescan")}
+              title={t("rescanTitle")}
             >
               <RefreshCw size={16} className={scanning ? "animate-spin" : ""} />
             </button>
@@ -190,15 +195,15 @@ export function FolderToolbar({
                 ? "bg-accent/20 text-accent"
                 : "text-text-muted hover:text-text-primary"
             }`}
-            aria-label="ファイルタイプ"
+            aria-label={t("fileType")}
           >
             <Filter size={16} />
           </button>
           {typeFilterOpen && (
             <div className="absolute left-0 top-full z-30 mt-1 min-w-[140px] rounded-xl border border-bg-border bg-bg-primary py-1 shadow-xl animate-fade-in-scale origin-top-left">
-              {TYPE_OPTIONS.map((opt) => (
+              {TYPE_OPTION_KEYS.map((opt) => (
                 <button
-                  key={opt.label}
+                  key={opt.labelKey}
                   onClick={() => {
                     onTypeFilterChange(opt.value);
                     setTypeFilterOpen(false);
@@ -212,7 +217,7 @@ export function FolderToolbar({
                   <span className="w-4 flex-shrink-0">
                     {typeFilter === opt.value && <Check size={14} />}
                   </span>
-                  {opt.label}
+                  {t(opt.labelKey)}
                 </button>
               ))}
             </div>
@@ -220,9 +225,9 @@ export function FolderToolbar({
         </div>
         {/* Desktop: tabs */}
         <div className="hidden items-center gap-1 sm:flex">
-          {TYPE_OPTIONS.map((tab) => (
+          {TYPE_OPTION_KEYS.map((tab) => (
             <button
-              key={tab.label}
+              key={tab.labelKey}
               onClick={() => onTypeFilterChange(tab.value)}
               className={`rounded-md px-2.5 py-1 text-sm transition-colors ${
                 typeFilter === tab.value
@@ -230,11 +235,11 @@ export function FolderToolbar({
                   : "text-text-muted hover:text-text-primary"
               }`}
             >
-              {tab.label}
+              {t(tab.labelKey)}
             </button>
           ))}
         </div>
-        <span className="text-sm text-text-muted">{total} 件</span>
+        <span className="text-sm text-text-muted">{tc("items", { count: total })}</span>
       </div>
     </>
   );

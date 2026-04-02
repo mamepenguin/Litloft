@@ -1,5 +1,6 @@
 import { type RefObject, useCallback, useRef, useState } from "react";
 import { ListMusic, Pencil, Plus, Trash2 } from "lucide-react";
+import { useTranslations } from "next-intl";
 
 import type { PlaylistSummary } from "@/types";
 import { addPlaylistItems, getPlaylists } from "@/lib/api";
@@ -48,6 +49,7 @@ export function SidebarPlaylistsSection({
   handleDeletePlaylist,
   handlePlaylistClick,
 }: SidebarPlaylistsSectionProps) {
+  const t = useTranslations("sidebar");
   const [dropTargetId, setDropTargetId] = useState<string | null>(null);
   const dragCounterRef = useRef<Map<string, number>>(new Map());
 
@@ -111,7 +113,7 @@ export function SidebarPlaylistsSection({
             setNewPlaylistName("");
           }}
           className="text-text-muted hover:text-text-primary"
-          aria-label="プレイリスト作成"
+          aria-label={t("createPlaylist")}
         >
           <Plus size={14} />
         </button>
@@ -132,7 +134,7 @@ export function SidebarPlaylistsSection({
               }
             }}
             onBlur={handleCreatePlaylist}
-            placeholder="プレイリスト名..."
+            placeholder={t("playlistNamePlaceholder")}
             className="w-full rounded-lg bg-bg-card px-2 py-1.5 text-sm text-text-primary placeholder:text-text-muted outline-none focus:ring-2 focus:ring-accent"
           />
         </div>
@@ -197,14 +199,14 @@ export function SidebarPlaylistsSection({
                 className="flex w-full items-center gap-2 px-3 py-1.5 text-sm text-text-muted hover:bg-bg-elevated hover:text-text-primary"
               >
                 <Pencil size={14} />
-                リネーム
+                {t("renamePlaylist")}
               </button>
               <button
                 onClick={() => handleDeletePlaylist(pl.id)}
                 className="flex w-full items-center gap-2 px-3 py-1.5 text-sm text-red-400 hover:bg-red-400/10"
               >
                 <Trash2 size={14} />
-                削除
+                {t("deletePlaylist")}
               </button>
             </div>
           )}

@@ -2,6 +2,7 @@
 
 import { type DragEvent, type ReactNode, useCallback, useEffect, useRef, useState } from "react";
 import { Upload } from "lucide-react";
+import { useTranslations } from "next-intl";
 import { useUpload } from "@/hooks/useUpload";
 import { UploadProgress } from "./UploadProgress";
 
@@ -18,6 +19,7 @@ export function UploadZone({
   onUploadComplete,
   children,
 }: UploadZoneProps) {
+  const t = useTranslations("upload");
   const [isDragging, setIsDragging] = useState(false);
   const dragCounterRef = useRef(0);
   const zoneRef = useRef<HTMLDivElement>(null);
@@ -106,7 +108,7 @@ export function UploadZone({
           <div className="flex flex-col items-center gap-3 rounded-2xl border-2 border-dashed border-accent bg-bg-card/90 px-12 py-10">
             <Upload size={48} className="text-accent" />
             <p className="text-lg font-medium text-text-primary">
-              ファイルをドロップしてアップロード
+              {t("dropToUpload")}
             </p>
           </div>
         </div>

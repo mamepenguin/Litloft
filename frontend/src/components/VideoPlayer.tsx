@@ -1,6 +1,7 @@
 "use client";
 
 import { useRef, useEffect, useCallback } from "react";
+import { useTranslations } from "next-intl";
 import { getStreamUrl } from "@/lib/api";
 import { addRecentlyPlayed, getSavedProgress, saveProgress, clearProgress } from "@/lib/recentlyPlayed";
 
@@ -8,6 +9,7 @@ const SAVE_INTERVAL = 5;
 const RESUME_THRESHOLD = 5;
 
 export function VideoPlayer({ videoId, onEnded, autoPlay }: { videoId: string; onEnded?: () => void; autoPlay?: boolean }) {
+  const t = useTranslations("player");
   const videoRef = useRef<HTMLVideoElement>(null);
   const lastSavedRef = useRef(0);
 
@@ -115,7 +117,7 @@ export function VideoPlayer({ videoId, onEnded, autoPlay }: { videoId: string; o
         onTimeUpdate={handleTimeUpdate}
         onEnded={handleEnded}
       >
-        お使いのブラウザは動画再生に対応していません。
+        {t("videoNotSupported")}
       </video>
     </div>
   );

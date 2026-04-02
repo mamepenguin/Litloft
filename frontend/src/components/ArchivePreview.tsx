@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 
+import { useTranslations } from "next-intl";
 import { getArchiveContents } from "@/lib/api";
 import { isTextPreviewable } from "./TextPreview";
 import type { ArchiveContents, ArchiveEntry } from "@/types";
@@ -20,6 +21,7 @@ export function ArchivePreview({ fileId }: { fileId: string }) {
   const searchParams = useSearchParams();
   const currentPath = searchParams.get("archivePath") || "";
 
+  const t = useTranslations("archive");
   const [archive, setArchive] = useState<ArchiveContents | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -141,7 +143,7 @@ export function ArchivePreview({ fileId }: { fileId: string }) {
     return (
       <div className="flex w-full items-center justify-center rounded-xl bg-bg-card py-16">
         <p className="text-sm text-red-400">
-          アーカイブの読み込みに失敗しました: {error}
+          {t("loadFailed", { error: error ?? "" })}
         </p>
       </div>
     );

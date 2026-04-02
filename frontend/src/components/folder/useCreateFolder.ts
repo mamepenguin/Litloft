@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useState } from "react";
+import { useTranslations } from "next-intl";
 
 import { createFolder } from "@/lib/api";
 
@@ -19,6 +20,7 @@ export function useCreateFolder(
   folderPath: string | undefined,
   onComplete: () => void,
 ): UseCreateFolderReturn {
+  const t = useTranslations("folder");
   const [creatingFolder, setCreatingFolder] = useState(false);
   const [newFolderName, setNewFolderName] = useState("");
   const [folderError, setFolderError] = useState<string | null>(null);
@@ -27,11 +29,11 @@ export function useCreateFolder(
     const name = newFolderName.trim();
     if (!name) return;
     if (name.includes("/") || name.includes("\\") || name === ".." || name === "." || name.startsWith(".")) {
-      setFolderError("無効なフォルダ名です");
+      setFolderError(t("invalidName"));
       return;
     }
     if (name.length > 255) {
-      setFolderError("フォルダ名が長すぎます");
+      setFolderError(t("nameTooLong"));
       return;
     }
     setFolderError(null);
@@ -41,9 +43,9 @@ export function useCreateFolder(
       setCreatingFolder(false);
       onComplete();
     } catch {
-      setFolderError("フォルダの作成に失敗しました");
+      setFolderError(t("createFailed"));
     }
-  }, [newFolderName, driveName, folderPath, onComplete]);
+  }, [newFolderName, driveName, folderPath, onComplete, t]);
 
   return {
     creatingFolder, newFolderName, folderError,

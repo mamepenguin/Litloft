@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { Folder, Heart, Sparkles, Clock, ThumbsUp } from "lucide-react";
+import { useTranslations } from "next-intl";
 import type { FileItem, Folder as FolderType } from "@/types";
 import { addPin, getDriveFiles, getFolders, getPins, removePin } from "@/lib/api";
 import { useDragAndDrop } from "@/hooks/useDragAndDrop";
@@ -24,6 +25,8 @@ const SECTION_LIMIT = 12;
 const MAX_FOLDERS = 8;
 
 export function DriveHome({ driveName }: DriveHomeProps) {
+  const t = useTranslations("drive");
+  const tc = useTranslations("common");
   const [pickup, setPickup] = useState<SectionState>({ files: [], loading: true });
   const [recent, setRecent] = useState<SectionState>({ files: [], loading: true });
   const [favorites, setFavorites] = useState<SectionState>({ files: [], loading: true });
@@ -168,14 +171,14 @@ export function DriveHome({ driveName }: DriveHomeProps) {
           <div className="mb-3 flex items-center justify-between">
             <h2 className="flex items-center gap-2 text-lg font-bold text-text-primary">
               <Folder size={20} className="text-accent" />
-              フォルダ
+              {t("folders")}
             </h2>
             {folders.length > MAX_FOLDERS && (
               <Link
                 href={`${driveBase}?view=all`}
                 className="text-sm text-text-muted transition-colors hover:text-accent"
               >
-                すべて見る
+                {tc("seeAll")}
               </Link>
             )}
           </div>
@@ -221,7 +224,7 @@ export function DriveHome({ driveName }: DriveHomeProps) {
       )}
 
       <CarouselSection
-        title="ピックアップ"
+        title={t("pickup")}
         icon={<Sparkles size={20} className="text-accent-cta" />}
         files={pickup.files}
         loading={pickup.loading}
@@ -231,7 +234,7 @@ export function DriveHome({ driveName }: DriveHomeProps) {
       />
 
       <CarouselSection
-        title="最近追加"
+        title={t("recentAdded")}
         icon={<Clock size={20} className="text-accent-teal" />}
         files={recent.files}
         loading={recent.loading}
@@ -240,7 +243,7 @@ export function DriveHome({ driveName }: DriveHomeProps) {
       />
 
       <CarouselSection
-        title="お気に入り"
+        title={t("favorites")}
         icon={<Heart size={20} className="text-red-400" />}
         files={favorites.files}
         loading={favorites.loading}
@@ -249,7 +252,7 @@ export function DriveHome({ driveName }: DriveHomeProps) {
       />
 
       <CarouselSection
-        title="人気"
+        title={t("popular")}
         icon={<ThumbsUp size={20} className="text-amber-400" />}
         files={popular.files}
         loading={popular.loading}

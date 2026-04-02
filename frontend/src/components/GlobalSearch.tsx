@@ -4,6 +4,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { ArrowLeft, ArrowUpLeft, Clock, Search, X } from "lucide-react";
 
+import { useTranslations } from "next-intl";
 import { getDriveFiles } from "@/lib/api";
 import type { FileItem } from "@/types";
 import { FileTypeIcon } from "./FileTypeIcon";
@@ -42,6 +43,8 @@ function removeFromHistory(term: string): string[] {
 }
 
 export function GlobalSearch() {
+  const t = useTranslations("search");
+  const tc = useTranslations("common");
   const router = useRouter();
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState("");
@@ -161,8 +164,8 @@ export function GlobalSearch() {
       <button
         onClick={openSearch}
         className="rounded-lg p-2 text-text-muted transition-colors hover:bg-bg-elevated hover:text-text-primary"
-        aria-label="検索"
-        title="検索 (Cmd+Shift+F)"
+        aria-label={t("label")}
+        title={t("title")}
       >
         <Search size={18} />
       </button>
@@ -176,7 +179,7 @@ export function GlobalSearch() {
               <button
                 onClick={closeSearch}
                 className="flex-shrink-0 rounded-lg p-2 text-text-muted hover:text-text-primary"
-                aria-label="閉じる"
+                aria-label={tc("close")}
               >
                 <ArrowLeft size={20} />
               </button>
@@ -189,7 +192,7 @@ export function GlobalSearch() {
                   onKeyDown={(e) => {
                     if (e.key === "Enter") handleSubmit(query);
                   }}
-                  placeholder={drive ? `${drive} 内を検索...` : "ドライブを選択してください"}
+                  placeholder={drive ? t("searchInDrive", { drive }) : t("selectDrive")}
                   disabled={!drive}
                   className="w-full rounded-full bg-bg-elevated px-4 py-2 text-base text-text-primary placeholder:text-text-muted outline-none"
                 />
@@ -208,7 +211,7 @@ export function GlobalSearch() {
             <div className="flex-1 overflow-y-auto">
               {!drive ? (
                 <div className="py-12 text-center text-sm text-text-muted">
-                  ドライブページに移動してから検索してください
+                  {t("goToDrive")}
                 </div>
               ) : showHistory ? (
                 /* History */
@@ -224,14 +227,14 @@ export function GlobalSearch() {
                       <button
                         onClick={(e) => handleFillInput(term, e)}
                         className="flex-shrink-0 rounded-lg p-1.5 text-text-muted active:bg-bg-elevated"
-                        aria-label={`「${term}」を入力欄に設定`}
+                        aria-label={t("fillInput", { term })}
                       >
                         <ArrowUpLeft size={16} />
                       </button>
                       <button
                         onClick={(e) => handleRemoveHistory(term, e)}
                         className="flex-shrink-0 rounded-lg p-1.5 text-text-muted active:bg-bg-elevated"
-                        aria-label={`「${term}」を履歴から削除`}
+                        aria-label={t("removeHistory", { term })}
                       >
                         <X size={16} />
                       </button>
@@ -246,7 +249,7 @@ export function GlobalSearch() {
                   </div>
                 ) : results.length === 0 ? (
                   <div className="py-12 text-center text-sm text-text-muted">
-                    一致するファイルが見つかりません
+                    {t("noResults")}
                   </div>
                 ) : (
                   <>
@@ -267,7 +270,7 @@ export function GlobalSearch() {
                     ))}
                     {total > 100 && (
                       <div className="border-t border-bg-border px-4 py-3 text-center text-xs text-text-muted">
-                        {total} 件中 100 件を表示
+                        {t("showingResults", { total })}
                       </div>
                     )}
                   </>
@@ -294,7 +297,7 @@ export function GlobalSearch() {
                   onKeyDown={(e) => {
                     if (e.key === "Enter") handleSubmit(query);
                   }}
-                  placeholder={drive ? `${drive} 内を検索...` : "ドライブを選択してください"}
+                  placeholder={drive ? t("searchInDrive", { drive }) : t("selectDrive")}
                   disabled={!drive}
                   className="flex-1 bg-transparent text-base text-text-primary placeholder:text-text-muted outline-none"
                 />
@@ -314,7 +317,7 @@ export function GlobalSearch() {
               {/* History or Results */}
               {!drive ? (
                 <div className="py-8 text-center text-sm text-text-muted">
-                  ドライブページに移動してから検索してください
+                  {t("goToDrive")}
                 </div>
               ) : showHistory ? (
                 <div className="max-h-[50vh] overflow-y-auto">
@@ -329,14 +332,14 @@ export function GlobalSearch() {
                       <button
                         onClick={(e) => handleFillInput(term, e)}
                         className="flex-shrink-0 rounded p-1 text-text-muted hover:text-text-primary"
-                        aria-label={`「${term}」を入力欄に設定`}
+                        aria-label={t("fillInput", { term })}
                       >
                         <ArrowUpLeft size={14} />
                       </button>
                       <button
                         onClick={(e) => handleRemoveHistory(term, e)}
                         className="flex-shrink-0 rounded p-1 text-text-muted hover:text-text-primary"
-                        aria-label={`「${term}」を履歴から削除`}
+                        aria-label={t("removeHistory", { term })}
                       >
                         <X size={14} />
                       </button>
@@ -351,7 +354,7 @@ export function GlobalSearch() {
                     </div>
                   ) : results.length === 0 ? (
                     <div className="py-8 text-center text-sm text-text-muted">
-                      一致するファイルが見つかりません
+                      {t("noResults")}
                     </div>
                   ) : (
                     <>
@@ -372,7 +375,7 @@ export function GlobalSearch() {
                       ))}
                       {total > 100 && (
                         <div className="border-t border-bg-border px-4 py-2.5 text-center text-xs text-text-muted">
-                          {total} 件中 100 件を表示
+                          {t("showingResults", { total })}
                         </div>
                       )}
                     </>

@@ -4,6 +4,7 @@ import { useCallback, useEffect, useState } from "react";
 import { useParams, useRouter, useSearchParams } from "next/navigation";
 import { ArrowLeft, ChevronLeft, ChevronRight, Maximize2, Pencil, Check, X, ThumbsUp, ThumbsDown } from "lucide-react";
 
+import { useTranslations } from "next-intl";
 import { getFile, getFileNeighbors, updateFile, likeFile, dislikeFile } from "@/lib/api";
 import { formatDuration, formatFileSize } from "@/lib/format";
 import type { FileItem, Neighbors } from "@/types";
@@ -16,6 +17,8 @@ import { PlaylistPanel, getPlaylistOnEnded } from "@/components/PlaylistPanel";
 import { useSetOverrideDrive } from "@/components/CurrentDriveProvider";
 
 export default function FilePage() {
+  const t = useTranslations("file");
+  const tc = useTranslations("common");
   const params = useParams();
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -164,10 +167,10 @@ export default function FilePage() {
           className="inline-flex cursor-pointer items-center gap-1 text-sm text-text-muted hover:text-text-primary"
         >
           <ArrowLeft size={16} />
-          {file.folder_path
-            ? file.folder_path.split("/").pop()
+          {t("backTo", { name: file.folder_path
+            ? file.folder_path.split("/").pop()!
             : file.drive
-          } に戻る
+          })}
         </button>
       </div>
 
@@ -180,7 +183,7 @@ export default function FilePage() {
               <button
                 onClick={navigatePrev}
                 className="absolute top-1/2 left-2 -translate-y-1/2 rounded-full bg-black/50 p-2 text-white opacity-70 transition-opacity hover:opacity-100 sm:opacity-0 sm:group-hover/nav:opacity-70 sm:group-hover/nav:hover:opacity-100"
-                aria-label="前のファイル"
+                aria-label={t("prevFile")}
               >
                 <ChevronLeft size={24} />
               </button>
@@ -190,7 +193,7 @@ export default function FilePage() {
               <button
                 onClick={navigateNext}
                 className="absolute top-1/2 right-2 -translate-y-1/2 rounded-full bg-black/50 p-2 text-white opacity-70 transition-opacity hover:opacity-100 sm:opacity-0 sm:group-hover/nav:opacity-70 sm:group-hover/nav:hover:opacity-100"
-                aria-label="次のファイル"
+                aria-label={t("nextFile")}
               >
                 <ChevronRight size={24} />
               </button>
@@ -209,7 +212,7 @@ export default function FilePage() {
                 <textarea
                   value={editDesc}
                   onChange={(e) => setEditDesc(e.target.value)}
-                  placeholder="説明を追加..."
+                  placeholder={t("addDescription")}
                   rows={3}
                   className="w-full rounded-lg bg-bg-card px-3 py-2 text-sm text-text-primary outline-none focus:ring-2 focus:ring-accent"
                 />
@@ -220,7 +223,7 @@ export default function FilePage() {
                     className="flex items-center gap-1 rounded-lg bg-accent px-3 py-1.5 text-sm font-medium text-white hover:bg-accent/80 disabled:opacity-50"
                   >
                     <Check size={14} />
-                    保存
+                    {tc("save")}
                   </button>
                   <button
                     onClick={() => {
@@ -231,7 +234,7 @@ export default function FilePage() {
                     className="flex items-center gap-1 rounded-lg bg-bg-card px-3 py-1.5 text-sm text-text-muted hover:text-text-primary"
                   >
                     <X size={14} />
-                    キャンセル
+                    {tc("cancel")}
                   </button>
                 </div>
               </div>
@@ -268,7 +271,7 @@ export default function FilePage() {
                     <button
                       onClick={() => setGalleryOpen(true)}
                       className="rounded-lg p-2 text-text-muted hover:bg-bg-card hover:text-text-primary"
-                      aria-label="ギャラリーモード"
+                      aria-label={t("galleryMode")}
                     >
                       <Maximize2 size={16} />
                     </button>
@@ -276,7 +279,7 @@ export default function FilePage() {
                   <button
                     onClick={() => setEditing(true)}
                     className="rounded-lg p-2 text-text-muted hover:bg-bg-card hover:text-text-primary"
-                    aria-label="編集"
+                    aria-label={t("edit")}
                   >
                     <Pencil size={16} />
                   </button>

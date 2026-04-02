@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { ListMusic, Move, Tag, Trash2, X } from "lucide-react";
+import { useTranslations } from "next-intl";
 
 import { batchDelete, batchMove, batchTag } from "@/lib/api";
 import { ConfirmDialog } from "./ConfirmDialog";
@@ -29,6 +30,9 @@ export function SelectionBar({
   onClear,
   onComplete,
 }: SelectionBarProps) {
+  const t = useTranslations("selection");
+  const tf = useTranslations("file");
+  const tc = useTranslations("common");
   const [deleteOpen, setDeleteOpen] = useState(false);
   const [moveOpen, setMoveOpen] = useState(false);
   const [tagInput, setTagInput] = useState("");
@@ -82,7 +86,7 @@ export function SelectionBar({
     <>
       <div className="fixed bottom-4 left-1/2 z-50 flex max-w-[calc(100vw-2rem)] items-center gap-2 sm:gap-3 rounded-xl bg-bg-elevated px-3 sm:px-4 py-3 shadow-2xl ring-1 ring-bg-border animate-slide-up">
         <span className="text-sm font-medium text-text-primary">
-          {count} 件選択
+          {t("selected", { count })}
         </span>
 
         {count < totalCount && (
@@ -90,7 +94,7 @@ export function SelectionBar({
             onClick={onSelectAll}
             className="text-xs text-accent hover:underline"
           >
-            すべて選択
+            {t("selectAll")}
           </button>
         )}
 
@@ -114,45 +118,45 @@ export function SelectionBar({
               onClick={handleBatchTag}
               className="rounded-lg bg-accent px-2 py-1 text-xs text-white hover:bg-accent/80"
             >
-              適用
+              {tc("apply")}
             </button>
           </div>
         ) : (
           <button
             onClick={() => setTagging(true)}
             className="flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-sm text-text-muted transition-colors hover:bg-bg-card hover:text-text-primary"
-            aria-label="タグ付け"
+            aria-label={t("tagging")}
           >
             <Tag size={16} />
-            <span className="hidden sm:inline">タグ</span>
+            <span className="hidden sm:inline">{t("tag")}</span>
           </button>
         )}
 
         <button
           onClick={() => setPlaylistPickerOpen(true)}
           className="flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-sm text-text-muted transition-colors hover:bg-bg-card hover:text-text-primary"
-          aria-label="プレイリストに追加"
+          aria-label={tf("addToPlaylist")}
         >
           <ListMusic size={16} />
-          <span className="hidden sm:inline">プレイリスト</span>
+          <span className="hidden sm:inline">{t("playlist")}</span>
         </button>
 
         <button
           onClick={() => setMoveOpen(true)}
           className="flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-sm text-text-muted transition-colors hover:bg-bg-card hover:text-text-primary"
-          aria-label="移動"
+          aria-label={tc("move")}
         >
           <Move size={16} />
-          <span className="hidden sm:inline">移動</span>
+          <span className="hidden sm:inline">{tc("move")}</span>
         </button>
 
         <button
           onClick={() => setDeleteOpen(true)}
           className="flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-sm text-red-400 transition-colors hover:bg-red-400/10"
-          aria-label="削除"
+          aria-label={tc("delete")}
         >
           <Trash2 size={16} />
-          <span className="hidden sm:inline">削除</span>
+          <span className="hidden sm:inline">{tc("delete")}</span>
         </button>
 
         <div className="h-5 w-px bg-bg-border" />
@@ -160,7 +164,7 @@ export function SelectionBar({
         <button
           onClick={onClear}
           className="rounded-lg p-1.5 text-text-muted transition-colors hover:text-text-primary"
-          aria-label="選択解除"
+          aria-label={t("deselect")}
         >
           <X size={16} />
         </button>
@@ -168,9 +172,9 @@ export function SelectionBar({
 
       <ConfirmDialog
         open={deleteOpen}
-        title="ファイルを一括削除"
-        message={`${count} 件のファイルを削除しますか？この操作は取り消せません。`}
-        confirmLabel="削除"
+        title={tf("batchDeleteTitle")}
+        message={tf("batchDeleteMessage", { count })}
+        confirmLabel={tc("delete")}
         onConfirm={handleBatchDelete}
         onCancel={() => setDeleteOpen(false)}
       />

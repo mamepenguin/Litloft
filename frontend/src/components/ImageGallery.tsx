@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { ChevronLeft, ChevronRight, Pause, Play, X } from "lucide-react";
 
+import { useTranslations } from "next-intl";
 import { getDriveFiles, getStreamUrl } from "@/lib/api";
 import type { FileItem, SortField, SortOrder } from "@/types";
 
@@ -23,6 +24,8 @@ export function ImageGallery({
   order,
   onClose,
 }: ImageGalleryProps) {
+  const t = useTranslations("gallery");
+  const tc = useTranslations("common");
   const [images, setImages] = useState<FileItem[]>([]);
   const [currentIndex, setCurrentIndex] = useState(0);
   const [loading, setLoading] = useState(true);
@@ -268,18 +271,18 @@ export function ImageGallery({
                 value={slideshowInterval}
                 onChange={(e) => setSlideshowInterval(Number(e.target.value))}
                 className="rounded bg-white/10 px-2 py-1 text-sm text-white outline-none"
-                aria-label="スライドショー間隔"
+                aria-label={t("slideshowInterval")}
               >
                 {INTERVAL_OPTIONS.map((sec) => (
                   <option key={sec} value={sec}>
-                    {sec}秒
+                    {t("seconds", { sec })}
                   </option>
                 ))}
               </select>
               <button
                 onClick={() => setPlaying((p) => !p)}
                 className="rounded-full p-1.5 text-white/80 transition-colors hover:bg-white/10 hover:text-white"
-                aria-label={playing ? "一時停止" : "再生"}
+                aria-label={playing ? tc("pause") : tc("play")}
               >
                 {playing ? <Pause size={18} /> : <Play size={18} />}
               </button>
@@ -288,7 +291,7 @@ export function ImageGallery({
           <button
             onClick={handleClose}
             className="rounded-full p-1.5 text-white/80 transition-colors hover:bg-white/10 hover:text-white"
-            aria-label="閉じる"
+            aria-label={tc("close")}
           >
             <X size={18} />
           </button>
@@ -328,7 +331,7 @@ export function ImageGallery({
             navigatePrev();
           }}
           className="absolute left-4 top-1/2 -translate-y-1/2 rounded-full bg-black/50 p-2 text-white/70 transition-opacity hover:text-white"
-          aria-label="前の画像"
+          aria-label={t("prevImage")}
         >
           <ChevronLeft size={32} />
         </button>
@@ -340,7 +343,7 @@ export function ImageGallery({
             navigateNext();
           }}
           className="absolute right-4 top-1/2 -translate-y-1/2 rounded-full bg-black/50 p-2 text-white/70 transition-opacity hover:text-white"
-          aria-label="次の画像"
+          aria-label={t("nextImage")}
         >
           <ChevronRight size={32} />
         </button>

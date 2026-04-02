@@ -3,6 +3,7 @@
 import { useCallback, useState } from "react";
 import { Download, ListMusic, Move, Pencil, Trash2 } from "lucide-react";
 
+import { useTranslations } from "next-intl";
 import { deleteFile, getDownloadUrl, moveFile, renameFile } from "@/lib/api";
 import type { FileItem } from "@/types";
 import { FileCard } from "./FileCard";
@@ -41,6 +42,8 @@ export function FileGrid({
   onDragStart?: (e: React.DragEvent, fileId: string) => void;
   onDragEnd?: () => void;
 }) {
+  const t = useTranslations("file");
+  const tc = useTranslations("common");
   const [menuPos, setMenuPos] = useState<{ open: boolean; x: number; y: number }>({
     open: false, x: 0, y: 0,
   });
@@ -61,27 +64,27 @@ export function FileGrid({
   const menuItems: MenuItem[] = target ? [
     {
       icon: Download,
-      label: "ダウンロード",
+      label: tc("download"),
       onClick: () => window.open(getDownloadUrl(target.id), "_blank"),
     },
     {
       icon: ListMusic,
-      label: "プレイリストに追加",
+      label: t("addToPlaylist"),
       onClick: () => setPlaylistPickerOpen(true),
     },
     {
       icon: Pencil,
-      label: "名前を変更",
+      label: tc("rename"),
       onClick: () => setRenameOpen(true),
     },
     {
       icon: Move,
-      label: "移動",
+      label: tc("move"),
       onClick: () => setMoveOpen(true),
     },
     {
       icon: Trash2,
-      label: "削除",
+      label: tc("delete"),
       onClick: () => setDeleteOpen(true),
       danger: true,
     },
@@ -159,9 +162,9 @@ export function FileGrid({
           />
           <ConfirmDialog
             open={deleteOpen}
-            title="ファイルを削除"
-            message={`「${target.filename}」を削除しますか？この操作は取り消せません。`}
-            confirmLabel="削除"
+            title={t("deleteTitle")}
+            message={t("deleteMessage", { name: target.filename })}
+            confirmLabel={tc("delete")}
             onConfirm={async () => {
               try {
                 await deleteFile(target.id);

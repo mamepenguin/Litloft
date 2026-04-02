@@ -2,6 +2,7 @@
 
 import { Grid3X3, List } from "lucide-react";
 import { useEffect, useState } from "react";
+import { useTranslations } from "next-intl";
 import type { ViewMode } from "@/types";
 
 const STORAGE_KEY = "video-share-view-mode";
@@ -11,6 +12,7 @@ export function ViewToggle({
 }: {
   onChange: (mode: ViewMode) => void;
 }) {
+  const t = useTranslations("view");
   const [mode, setMode] = useState<ViewMode>("grid");
 
   useEffect(() => {
@@ -36,7 +38,7 @@ export function ViewToggle({
             ? "bg-accent text-white"
             : "text-text-muted hover:text-text-primary"
         }`}
-        aria-label="グリッド表示"
+        aria-label={t("grid")}
       >
         <Grid3X3 size={18} />
       </button>
@@ -47,7 +49,7 @@ export function ViewToggle({
             ? "bg-accent text-white"
             : "text-text-muted hover:text-text-primary"
         }`}
-        aria-label="リスト表示"
+        aria-label={t("list")}
       >
         <List size={18} />
       </button>

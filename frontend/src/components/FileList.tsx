@@ -4,6 +4,7 @@ import { useCallback, useState } from "react";
 import Link from "next/link";
 import { Download, ListMusic, Move, Pencil, Trash2 } from "lucide-react";
 
+import { useTranslations } from "next-intl";
 import { deleteFile, getDownloadUrl, getThumbnailUrl, moveFile, renameFile } from "@/lib/api";
 import { formatDuration, formatFileSize, formatRelativeDate } from "@/lib/format";
 import type { FileItem } from "@/types";
@@ -45,6 +46,8 @@ export function FileList({
   onDragStart?: (e: React.DragEvent, fileId: string) => void;
   onDragEnd?: () => void;
 }) {
+  const t = useTranslations("file");
+  const tc = useTranslations("common");
   const [menuPos, setMenuPos] = useState<{ open: boolean; x: number; y: number }>({
     open: false, x: 0, y: 0,
   });
@@ -65,27 +68,27 @@ export function FileList({
   const menuItems: MenuItem[] = target ? [
     {
       icon: Download,
-      label: "ダウンロード",
+      label: tc("download"),
       onClick: () => window.open(getDownloadUrl(target.id), "_blank"),
     },
     {
       icon: ListMusic,
-      label: "プレイリストに追加",
+      label: t("addToPlaylist"),
       onClick: () => setPlaylistPickerOpen(true),
     },
     {
       icon: Pencil,
-      label: "名前を変更",
+      label: tc("rename"),
       onClick: () => setRenameOpen(true),
     },
     {
       icon: Move,
-      label: "移動",
+      label: tc("move"),
       onClick: () => setMoveOpen(true),
     },
     {
       icon: Trash2,
-      label: "削除",
+      label: tc("delete"),
       onClick: () => setDeleteOpen(true),
       danger: true,
     },
@@ -146,12 +149,12 @@ export function FileList({
               )}
               {(() => {
                 const fileTypeLabel: Record<string, string> = {
-                  video: "動画",
-                  image: "画像",
-                  audio: "音声",
-                  document: "文書",
-                  archive: "書庫",
-                  other: "ファイル",
+                  video: t("typeVideo"),
+                  image: t("typeImage"),
+                  audio: t("typeAudio"),
+                  document: t("typeDocument"),
+                  archive: t("typeArchive"),
+                  other: t("typeOther"),
                 };
                 const content = (
                   <>
@@ -277,9 +280,9 @@ export function FileList({
           />
           <ConfirmDialog
             open={deleteOpen}
-            title="ファイルを削除"
-            message={`「${target.filename}」を削除しますか？この操作は取り消せません。`}
-            confirmLabel="削除"
+            title={t("deleteTitle")}
+            message={t("deleteMessage", { name: target.filename })}
+            confirmLabel={tc("delete")}
             onConfirm={async () => {
               try {
                 await deleteFile(target.id);

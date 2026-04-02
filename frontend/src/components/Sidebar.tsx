@@ -3,6 +3,7 @@
 import { Suspense } from "react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { LockOpen, X } from "lucide-react";
+import { useTranslations } from "next-intl";
 
 import { lock as lockApi } from "@/lib/api";
 import { useSidebar } from "./SidebarProvider";
@@ -124,6 +125,7 @@ function SidebarContent() {
 
 export function Sidebar() {
   const { isOpen, close } = useSidebar();
+  const t = useTranslations("common");
 
   return (
     <>
@@ -144,7 +146,7 @@ export function Sidebar() {
             <button
               onClick={close}
               className="rounded-lg p-2 text-text-muted hover:text-text-primary"
-              aria-label="閉じる"
+              aria-label={t("close")}
             >
               <X size={20} />
             </button>

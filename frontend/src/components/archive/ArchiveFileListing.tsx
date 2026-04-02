@@ -2,6 +2,7 @@
 
 import { ChevronRight, Download, Folder } from "lucide-react";
 
+import { useTranslations } from "next-intl";
 import { getArchiveEntryUrl, getDownloadUrl } from "@/lib/api";
 import { formatFileSize } from "@/lib/format";
 import { FileTypeIcon } from "../FileTypeIcon";
@@ -30,6 +31,7 @@ export function ArchiveFileListing({
   isClickable,
   children,
 }: ArchiveFileListingProps) {
+  const t = useTranslations("archive");
   return (
     <div className="w-full">
       <div className="overflow-hidden rounded-xl bg-bg-card">
@@ -59,15 +61,14 @@ export function ArchiveFileListing({
           {archive && (
             <span className="ml-auto flex items-center gap-2 text-xs text-text-muted">
               <span>
-                {archive.total_entries} ファイル /{" "}
-                {formatFileSize(archive.total_size)}
+                {t("fileCount", { count: archive.total_entries, size: formatFileSize(archive.total_size) })}
               </span>
               <a
                 href={getDownloadUrl(fileId)}
                 download
                 className="rounded p-1 transition-colors hover:bg-bg-card hover:text-text-primary"
-                aria-label="アーカイブをダウンロード"
-                title="アーカイブをダウンロード"
+                aria-label={t("downloadArchive")}
+                title={t("downloadArchive")}
               >
                 <Download size={14} />
               </a>
@@ -79,7 +80,7 @@ export function ArchiveFileListing({
         <div className="max-h-[60vh] overflow-auto">
           {currentEntries.length === 0 ? (
             <div className="py-12 text-center text-sm text-text-muted">
-              このフォルダは空です
+              {t("emptyFolder")}
             </div>
           ) : (
             <ul role="list">
@@ -140,7 +141,7 @@ export function ArchiveFileListing({
                           download={entry.filename}
                           onClick={(e) => e.stopPropagation()}
                           className="shrink-0 rounded p-1 text-text-muted transition-colors hover:bg-bg-card hover:text-text-primary"
-                          aria-label={`${entry.filename} をダウンロード`}
+                          aria-label={t("downloadFile", { name: entry.filename })}
                         >
                           <Download size={14} />
                         </a>

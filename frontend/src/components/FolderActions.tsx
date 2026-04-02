@@ -4,6 +4,7 @@ import { useCallback, useEffect, useState } from "react";
 import { createPortal } from "react-dom";
 import { Move, Pencil, Pin, PinOff, Trash2 } from "lucide-react";
 
+import { useTranslations } from "next-intl";
 import { deleteFolder, moveFolder, renameFolder } from "@/lib/api";
 import type { Folder } from "@/types";
 import { ConfirmDialog } from "./ConfirmDialog";
@@ -27,6 +28,8 @@ export function FolderActions({
   onUpdate,
   onDelete,
 }: FolderActionsProps) {
+  const t = useTranslations("folder");
+  const tc = useTranslations("common");
   const [renameOpen, setRenameOpen] = useState(false);
   const [moveOpen, setMoveOpen] = useState(false);
   const [deleteOpen, setDeleteOpen] = useState(false);
@@ -46,7 +49,7 @@ export function FolderActions({
         setRenameOpen(false);
         if (onUpdate) onUpdate();
       } catch {
-        setError("名前の変更に失敗しました");
+        setError(t("renameFailed"));
       }
     },
     [drive, folder.path, onUpdate]
@@ -59,7 +62,7 @@ export function FolderActions({
         setMoveOpen(false);
         if (onUpdate) onUpdate();
       } catch {
-        setError("移動に失敗しました");
+        setError(t("moveFailed"));
       }
     },
     [drive, folder.path, onUpdate]
@@ -72,9 +75,9 @@ export function FolderActions({
       if (onDelete) onDelete();
       if (onUpdate) onUpdate();
     } catch {
-      setError("削除に失敗しました（フォルダが空でない可能性があります）");
+      setError(t("deleteFailed"));
     }
-  }, [drive, folder.path, onDelete, onUpdate]);
+  }, [drive, folder.path, onDelete, onUpdate, t]);
 
   return (
     <>
@@ -91,7 +94,7 @@ export function FolderActions({
                 ? "text-accent hover:bg-accent/10"
                 : "text-text-muted hover:bg-bg-elevated hover:text-text-primary"
             }`}
-            aria-label={isPinned ? "ピン留め解除" : "ピン留め"}
+            aria-label={isPinned ? t("unpin") : t("pin")}
           >
             {isPinned ? <PinOff size={14} /> : <Pin size={14} />}
           </button>
@@ -103,7 +106,7 @@ export function FolderActions({
             setRenameOpen(true);
           }}
           className="rounded-lg p-1.5 text-text-muted transition-all hover:bg-bg-elevated hover:text-text-primary"
-          aria-label="名前を変更"
+          aria-label={t("rename")}
         >
           <Pencil size={14} />
         </button>
@@ -114,7 +117,7 @@ export function FolderActions({
             setMoveOpen(true);
           }}
           className="rounded-lg p-1.5 text-text-muted transition-all hover:bg-bg-elevated hover:text-text-primary"
-          aria-label="移動"
+          aria-label={tc("move")}
         >
           <Move size={14} />
         </button>
@@ -125,7 +128,7 @@ export function FolderActions({
             setDeleteOpen(true);
           }}
           className="rounded-lg p-1.5 text-text-muted transition-all hover:bg-red-400/10 hover:text-red-400"
-          aria-label="削除"
+          aria-label={tc("delete")}
         >
           <Trash2 size={14} />
         </button>
@@ -162,9 +165,9 @@ export function FolderActions({
         createPortal(
           <ConfirmDialog
             open={deleteOpen}
-            title="フォルダを削除"
-            message={`「${folder.name}」を削除しますか？空のフォルダのみ削除できます。`}
-            confirmLabel="削除"
+            title={t("deleteTitle")}
+            message={t("deleteMessage", { name: folder.name })}
+            confirmLabel={tc("delete")}
             onConfirm={handleDelete}
             onCancel={() => setDeleteOpen(false)}
           />,

@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { useTranslations } from "next-intl";
 import { getStreamUrl } from "@/lib/api";
 import { formatFileSize } from "@/lib/format";
 
@@ -29,6 +30,7 @@ export function isTextPreviewable(mimeType: string): boolean {
 }
 
 export function TextPreview({ fileId, fileSize }: { fileId: string; fileSize: number }) {
+  const t = useTranslations("text");
   const [content, setContent] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -65,14 +67,14 @@ export function TextPreview({ fileId, fileSize }: { fileId: string; fileSize: nu
     return (
       <div className="flex w-full flex-col items-center justify-center rounded-xl bg-bg-card py-16">
         <p className="text-sm text-text-muted">
-          ファイルサイズが大きいです ({formatFileSize(fileSize)})
+          {t("fileSizeLarge", { size: formatFileSize(fileSize) })}
         </p>
         <button
           type="button"
           onClick={() => setConfirmed(true)}
           className="mt-4 rounded-lg bg-accent px-4 py-2 text-sm text-white transition-colors hover:bg-accent/80"
         >
-          読み込む
+          {t("loadContent")}
         </button>
       </div>
     );
@@ -81,7 +83,7 @@ export function TextPreview({ fileId, fileSize }: { fileId: string; fileSize: nu
   if (loading) {
     return (
       <div className="flex w-full items-center justify-center rounded-xl bg-bg-card py-16">
-        <p className="text-sm text-text-muted">読み込み中...</p>
+        <p className="text-sm text-text-muted">{t("loading")}</p>
       </div>
     );
   }
@@ -89,7 +91,7 @@ export function TextPreview({ fileId, fileSize }: { fileId: string; fileSize: nu
   if (error) {
     return (
       <div className="flex w-full items-center justify-center rounded-xl bg-bg-card py-16">
-        <p className="text-sm text-red-400">読み込みに失敗しました: {error}</p>
+        <p className="text-sm text-red-400">{t("loadFailed", { error: error ?? "" })}</p>
       </div>
     );
   }

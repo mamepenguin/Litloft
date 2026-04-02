@@ -2,6 +2,7 @@
 
 import { useEffect, useRef } from "react";
 import { X } from "lucide-react";
+import { useTranslations } from "next-intl";
 
 interface ConfirmDialogProps {
   open: boolean;
@@ -20,6 +21,7 @@ export function ConfirmDialog({
   onConfirm,
   onCancel,
 }: ConfirmDialogProps) {
+  const tc = useTranslations("common");
   const confirmRef = useRef<HTMLButtonElement>(null);
 
   useEffect(() => {
@@ -53,7 +55,7 @@ export function ConfirmDialog({
           <button
             onClick={onCancel}
             className="rounded-lg p-1 text-text-muted hover:text-text-primary"
-            aria-label="閉じる"
+            aria-label={tc("close")}
           >
             <X size={18} />
           </button>
@@ -64,7 +66,7 @@ export function ConfirmDialog({
             onClick={onCancel}
             className="rounded-lg bg-bg-elevated px-4 py-2 text-sm text-text-muted transition-colors hover:text-text-primary"
           >
-            キャンセル
+            {tc("cancel")}
           </button>
           <button
             ref={confirmRef}

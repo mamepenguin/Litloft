@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { Check, ChevronRight, X } from "lucide-react";
+import { useTranslations } from "next-intl";
 import type { UploadState } from "@/hooks/useUpload";
 
 interface UploadProgressProps {
@@ -10,23 +11,25 @@ interface UploadProgressProps {
   onClearCompleted: () => void;
 }
 
-const statusLabel: Record<UploadState["status"], string> = {
-  pending: "待機中",
-  uploading: "アップロード中",
-  processing: "処理中",
-  complete: "完了",
-  error: "エラー",
-  cancelled: "キャンセル済み",
-};
-
 export function UploadProgress({
   uploads,
   onCancel,
   onClearCompleted,
 }: UploadProgressProps) {
+  const t = useTranslations("upload");
+  const tc = useTranslations("common");
   const [collapsed, setCollapsed] = useState(false);
 
   if (uploads.length === 0) return null;
+
+  const statusLabelMap: Record<UploadState["status"], string> = {
+    pending: t("statusPending"),
+    uploading: t("statusUploading"),
+    processing: t("statusProcessing"),
+    complete: t("statusComplete"),
+    error: t("statusError"),
+    cancelled: t("statusCancelled"),
+  };
 
   const activeCount = uploads.filter(
     (u) => u.status === "uploading" || u.status === "processing" || u.status === "pending"
@@ -44,10 +47,10 @@ export function UploadProgress({
           className="flex w-full items-center justify-between px-4 py-3 text-left"
         >
           <span className="text-sm font-medium text-text-primary">
-            アップロード
+            {t("title")}
             {activeCount > 0 && (
               <span className="ml-2 text-text-muted">
-                {activeCount} 件処理中
+                {t("processing", { count: activeCount })}
               </span>
             )}
           </span>
@@ -60,7 +63,7 @@ export function UploadProgress({
                 }}
                 className="text-xs text-text-muted hover:text-text-primary"
               >
-                クリア
+                {t("clear")}
               </span>
             )}
             <ChevronRight
@@ -97,7 +100,7 @@ export function UploadProgress({
                       {upload.status === "complete" ? (
                         <Check size={14} className="text-green-400" />
                       ) : (
-                        statusLabel[upload.status]
+                        statusLabelMap[upload.status]
                       )}
                     </span>
                     {(upload.status === "pending" ||
@@ -105,7 +108,7 @@ export function UploadProgress({
                       <button
                         onClick={() => onCancel(upload.id)}
                         className="rounded p-0.5 text-text-muted hover:text-red-400"
-                        aria-label="キャンセル"
+                        aria-label={tc("cancel")}
                       >
                         <X size={14} />
                       </button>

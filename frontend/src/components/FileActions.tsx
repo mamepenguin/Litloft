@@ -4,6 +4,7 @@ import { useCallback, useRef, useState, useEffect } from "react";
 import { createPortal } from "react-dom";
 import { Download, Move, Pencil, Trash2 } from "lucide-react";
 
+import { useTranslations } from "next-intl";
 import {
   deleteFile,
   getDownloadUrl,
@@ -22,6 +23,8 @@ interface FileActionsProps {
 }
 
 export function FileActions({ file, onUpdate, onDelete }: FileActionsProps) {
+  const t = useTranslations("file");
+  const tc = useTranslations("common");
   const [menuOpen, setMenuOpen] = useState(false);
   const [renameOpen, setRenameOpen] = useState(false);
   const [moveOpen, setMoveOpen] = useState(false);
@@ -61,10 +64,10 @@ export function FileActions({ file, onUpdate, onDelete }: FileActionsProps) {
         setRenameOpen(false);
         if (onUpdate) onUpdate();
       } catch {
-        setError("名前の変更に失敗しました");
+        setError(t("renameFailed"));
       }
     },
-    [file.id, onUpdate]
+    [file.id, onUpdate, t]
   );
 
   const handleMove = useCallback(
@@ -74,10 +77,10 @@ export function FileActions({ file, onUpdate, onDelete }: FileActionsProps) {
         setMoveOpen(false);
         if (onUpdate) onUpdate();
       } catch {
-        setError("移動に失敗しました");
+        setError(t("moveFailed"));
       }
     },
-    [file.id, onUpdate]
+    [file.id, onUpdate, t]
   );
 
   const handleDelete = useCallback(async () => {
@@ -86,19 +89,19 @@ export function FileActions({ file, onUpdate, onDelete }: FileActionsProps) {
       setDeleteOpen(false);
       if (onDelete) onDelete();
     } catch {
-      setError("削除に失敗しました");
+      setError(t("deleteFailed"));
     }
-  }, [file.id, onDelete]);
+  }, [file.id, onDelete, t]);
 
   const menuItems = [
     {
       icon: Download,
-      label: "ダウンロード",
+      label: tc("download"),
       onClick: handleDownload,
     },
     {
       icon: Pencil,
-      label: "名前を変更",
+      label: tc("rename"),
       onClick: () => {
         setMenuOpen(false);
         setRenameOpen(true);
@@ -106,7 +109,7 @@ export function FileActions({ file, onUpdate, onDelete }: FileActionsProps) {
     },
     {
       icon: Move,
-      label: "移動",
+      label: tc("move"),
       onClick: () => {
         setMenuOpen(false);
         setMoveOpen(true);
@@ -114,7 +117,7 @@ export function FileActions({ file, onUpdate, onDelete }: FileActionsProps) {
     },
     {
       icon: Trash2,
-      label: "削除",
+      label: tc("delete"),
       onClick: () => {
         setMenuOpen(false);
         setDeleteOpen(true);
@@ -133,7 +136,7 @@ export function FileActions({ file, onUpdate, onDelete }: FileActionsProps) {
             setMenuOpen((prev) => !prev);
           }}
           className="rounded-lg p-1.5 text-text-muted transition-colors hover:bg-bg-elevated hover:text-text-primary"
-          aria-label="ファイル操作"
+          aria-label={t("actions")}
         >
           <svg
             width="16"
@@ -204,9 +207,9 @@ export function FileActions({ file, onUpdate, onDelete }: FileActionsProps) {
         createPortal(
           <ConfirmDialog
             open={deleteOpen}
-            title="ファイルを削除"
-            message={`「${file.filename}」を削除しますか？この操作は取り消せません。`}
-            confirmLabel="削除"
+            title={t("deleteTitle")}
+            message={t("deleteMessage", { name: file.filename })}
+            confirmLabel={tc("delete")}
             onConfirm={handleDelete}
             onCancel={() => setDeleteOpen(false)}
           />,

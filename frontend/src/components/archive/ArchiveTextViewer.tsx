@@ -1,6 +1,7 @@
 "use client";
 
 import { ArrowLeft } from "lucide-react";
+import { useTranslations } from "next-intl";
 
 import { formatFileSize } from "@/lib/format";
 import type { ArchiveEntry } from "@/types";
@@ -24,6 +25,8 @@ export function ArchiveTextViewer({
   setTextConfirmed,
   closeViewer,
 }: ArchiveTextViewerProps) {
+  const t = useTranslations("archive");
+  const tt = useTranslations("text");
   return (
     <div className="mt-4 rounded-xl bg-bg-card" data-testid="text-viewer">
       <div className="flex items-center justify-between border-b border-bg-border px-4 py-3">
@@ -32,7 +35,7 @@ export function ArchiveTextViewer({
           className="inline-flex items-center gap-1 text-sm text-text-muted hover:text-text-primary"
         >
           <ArrowLeft size={16} />
-          一覧に戻る
+          {t("backToList")}
         </button>
         <span className="text-sm text-text-muted">
           {viewingEntry.filename}
@@ -42,25 +45,24 @@ export function ArchiveTextViewer({
       {!textConfirmed ? (
         <div className="flex flex-col items-center justify-center py-16">
           <p className="text-sm text-text-muted">
-            ファイルサイズが大きいです (
-            {formatFileSize(viewingEntry.file_size)})
+            {tt("fileSizeLarge", { size: formatFileSize(viewingEntry.file_size) })}
           </p>
           <button
             type="button"
             onClick={() => setTextConfirmed(true)}
             className="mt-4 rounded-lg bg-accent px-4 py-2 text-sm text-white transition-colors hover:bg-accent/80"
           >
-            読み込む
+            {tt("loadContent")}
           </button>
         </div>
       ) : textLoading ? (
         <div className="flex items-center justify-center py-16">
-          <p className="text-sm text-text-muted">読み込み中...</p>
+          <p className="text-sm text-text-muted">{tt("loading")}</p>
         </div>
       ) : textError ? (
         <div className="flex items-center justify-center py-16">
           <p className="text-sm text-red-400">
-            読み込みに失敗しました: {textError}
+            {tt("loadFailed", { error: textError ?? "" })}
           </p>
         </div>
       ) : (

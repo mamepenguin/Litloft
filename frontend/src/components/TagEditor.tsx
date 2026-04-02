@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import { Plus, X } from "lucide-react";
 
+import { useTranslations } from "next-intl";
 import { getDriveTags, updateFileTags } from "@/lib/api";
 import type { FileItem } from "@/types";
 import { useSidebar } from "./SidebarProvider";
@@ -18,6 +19,7 @@ export function TagEditor({
   tags: string[];
   onUpdate: (file: FileItem) => void;
 }) {
+  const t = useTranslations("tag");
   const [adding, setAdding] = useState(false);
   const [input, setInput] = useState("");
   const [suggestions, setSuggestions] = useState<string[]>([]);
@@ -52,11 +54,11 @@ export function TagEditor({
     if (!trimmed) return;
 
     if (trimmed.length > 30) {
-      setError("タグは30文字以内にしてください");
+      setError(t("maxLength"));
       return;
     }
     if (!/^[\p{L}\p{N}_\-]+$/u.test(trimmed)) {
-      setError("使用できない文字が含まれています");
+      setError(t("invalidChars"));
       return;
     }
     if (tags.some((t) => t.toLowerCase() === trimmed.toLowerCase())) {
@@ -65,7 +67,7 @@ export function TagEditor({
       return;
     }
     if (tags.length >= 10) {
-      setError("タグは最大10個までです");
+      setError(t("maxCount"));
       return;
     }
 
@@ -77,7 +79,7 @@ export function TagEditor({
       setInput("");
       setAdding(false);
     } catch {
-      setError("タグの更新に失敗しました");
+      setError(t("updateFailed"));
     }
   }
 
@@ -90,7 +92,7 @@ export function TagEditor({
       onUpdate(updated);
       requestRefresh();
     } catch {
-      setError("タグの削除に失敗しました");
+      setError(t("removeFailed"));
     }
   }
 
@@ -129,7 +131,7 @@ export function TagEditor({
             <button
               onClick={() => removeTag(tag)}
               className="rounded-full p-0.5 hover:bg-bg-elevated hover:text-text-primary"
-              aria-label={`${tag} を削除`}
+              aria-label={t("removeTag", { tag })}
             >
               <X size={12} />
             </button>
@@ -154,7 +156,7 @@ export function TagEditor({
                   setError(null);
                 }, 200);
               }}
-              placeholder="タグ名..."
+              placeholder={t("placeholder")}
               className="w-32 rounded-full bg-bg-card px-2.5 py-1 text-xs text-text-primary placeholder:text-text-muted outline-none focus:ring-2 focus:ring-accent"
             />
             {suggestions.length > 0 && (
@@ -182,7 +184,7 @@ export function TagEditor({
             className="flex items-center gap-1 rounded-full bg-bg-card px-2.5 py-1 text-xs text-text-muted transition-colors hover:text-text-primary"
           >
             <Plus size={12} />
-            タグ追加
+            {t("add")}
           </button>
         )}
       </div>

@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { ListMusic, Plus, X } from "lucide-react";
 
+import { useTranslations } from "next-intl";
 import { getPlaylists, createPlaylist, addPlaylistItems } from "@/lib/api";
 import type { PlaylistSummary } from "@/types";
 
@@ -14,6 +15,8 @@ interface PlaylistPickerProps {
 }
 
 export function PlaylistPicker({ open, drive, fileIds, onClose }: PlaylistPickerProps) {
+  const t = useTranslations("playlist");
+  const tc = useTranslations("common");
   const [playlists, setPlaylists] = useState<PlaylistSummary[]>([]);
   const [creating, setCreating] = useState(false);
   const [newName, setNewName] = useState("");
@@ -61,7 +64,7 @@ export function PlaylistPicker({ open, drive, fileIds, onClose }: PlaylistPicker
         onClick={(e) => e.stopPropagation()}
       >
         <div className="mb-3 flex items-center justify-between">
-          <h3 className="text-sm font-semibold text-text-primary">プレイリストに追加</h3>
+          <h3 className="text-sm font-semibold text-text-primary">{t("addToPlaylist")}</h3>
           <button onClick={onClose} className="text-text-muted hover:text-text-primary">
             <X size={16} />
           </button>
@@ -70,7 +73,7 @@ export function PlaylistPicker({ open, drive, fileIds, onClose }: PlaylistPicker
         <div className="mb-3 max-h-[300px] overflow-y-auto">
           {playlists.length === 0 && !creating && (
             <p className="py-4 text-center text-sm text-text-muted">
-              プレイリストがありません
+              {t("noPlaylists")}
             </p>
           )}
           {playlists.map((pl) => (
@@ -98,7 +101,7 @@ export function PlaylistPicker({ open, drive, fileIds, onClose }: PlaylistPicker
                 if (e.key === "Enter") handleCreateAndAdd();
                 if (e.key === "Escape") { setCreating(false); setNewName(""); }
               }}
-              placeholder="新しいプレイリスト名..."
+              placeholder={t("newPlaylistPlaceholder")}
               className="min-w-0 flex-1 rounded-lg bg-bg-card px-2 py-1.5 text-sm text-text-primary placeholder:text-text-muted outline-none focus:ring-2 focus:ring-accent"
             />
             <button
@@ -106,7 +109,7 @@ export function PlaylistPicker({ open, drive, fileIds, onClose }: PlaylistPicker
               disabled={adding || !newName.trim()}
               className="rounded-lg bg-accent px-3 py-1.5 text-sm text-white hover:bg-accent/80 disabled:opacity-50"
             >
-              作成
+              {tc("create")}
             </button>
           </div>
         ) : (
@@ -115,7 +118,7 @@ export function PlaylistPicker({ open, drive, fileIds, onClose }: PlaylistPicker
             className="flex w-full items-center gap-2 rounded-lg border border-dashed border-bg-border px-3 py-2 text-sm text-text-muted transition-colors hover:border-accent hover:text-text-primary"
           >
             <Plus size={16} />
-            新しいプレイリスト
+            {t("newPlaylist")}
           </button>
         )}
       </div>

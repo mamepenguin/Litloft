@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { ChevronDown, ChevronUp, Music, Repeat, Trash2, Video } from "lucide-react";
 
+import { useTranslations } from "next-intl";
 import { getDriveFiles, getPlaylist, removePlaylistItem, reorderPlaylistItems } from "@/lib/api";
 import { formatDuration } from "@/lib/format";
 import { getThumbnailUrl } from "@/lib/api";
@@ -54,6 +55,7 @@ export function PlaylistPanel({
   order,
   onNavigate,
 }: PlaylistPanelProps) {
+  const t = useTranslations("playlist");
   const [tracks, setTracks] = useState<TrackEntry[]>([]);
   const [playlistName, setPlaylistName] = useState("");
   const [loop, setLoop] = useState(getLoop);
@@ -197,7 +199,7 @@ export function PlaylistPanel({
                 {playlistName}
               </div>
               <div className="text-sm text-text-muted">
-                {currentIndex >= 0 ? currentIndex + 1 : "–"}/{totalTracks} tracks
+                {t("tracks", { current: currentIndex >= 0 ? currentIndex + 1 : "–", total: totalTracks })}
               </div>
             </div>
             <div className="flex items-center gap-1.5">
@@ -208,14 +210,14 @@ export function PlaylistPanel({
                     ? "bg-accent/20 text-accent"
                     : "text-text-muted hover:bg-bg-elevated hover:text-text-primary"
                 }`}
-                aria-label={loop ? "ループOFF" : "ループON"}
+                aria-label={loop ? t("loopOff") : t("loopOn")}
               >
                 <Repeat size={18} />
               </button>
               <button
                 onClick={() => setCollapsed(!collapsed)}
                 className="rounded-lg p-2 text-text-muted hover:bg-bg-elevated hover:text-text-primary md:hidden"
-                aria-label={collapsed ? "展開" : "折りたたみ"}
+                aria-label={collapsed ? t("expand") : t("collapse")}
               >
                 {collapsed ? <ChevronDown size={18} /> : <ChevronUp size={18} />}
               </button>

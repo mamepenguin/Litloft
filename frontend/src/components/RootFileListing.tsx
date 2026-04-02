@@ -4,6 +4,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Check, CheckSquare, FileText, Filter, FolderPlus, Play, RefreshCw, Upload, X } from "lucide-react";
 
+import { useTranslations } from "next-intl";
 import { createFolder, getDriveFiles, scanDrive } from "@/lib/api";
 import type { FileItem, FileType, SortField, SortOrder, ViewMode } from "@/types";
 import { FileGrid } from "@/components/FileGrid";
@@ -25,6 +26,11 @@ interface RootFileListingProps {
 const LIMIT = 30;
 
 export function RootFileListing({ driveName, onFileAction, onFolderChange }: RootFileListingProps) {
+  const t = useTranslations("toolbar");
+  const tc = useTranslations("common");
+  const tf = useTranslations("folder");
+  const ts = useTranslations("selection");
+  const td = useTranslations("drive");
   const [viewMode, setViewMode] = useState<ViewMode>("grid");
   const [sort, setSort] = useState<SortField>("created_at");
   const [order, setOrder] = useState<SortOrder>("desc");
@@ -105,11 +111,11 @@ export function RootFileListing({ driveName, onFileAction, onFolderChange }: Roo
     const name = newFolderName.trim();
     if (!name) return;
     if (name.includes("/") || name.includes("\\") || name === ".." || name === "." || name.startsWith(".")) {
-      setFolderError("無効なフォルダ名です");
+      setFolderError(tf("invalidName"));
       return;
     }
     if (name.length > 255) {
-      setFolderError("フォルダ名が長すぎます");
+      setFolderError(tf("nameTooLong"));
       return;
     }
     setFolderError(null);
@@ -120,7 +126,7 @@ export function RootFileListing({ driveName, onFileAction, onFolderChange }: Roo
       refresh();
       onFolderChange?.();
     } catch {
-      setFolderError("フォルダの作成に失敗しました");
+      setFolderError(tf("createFailed"));
     }
   }
 
@@ -174,7 +180,7 @@ export function RootFileListing({ driveName, onFileAction, onFolderChange }: Roo
         <div className="mb-3 flex items-center gap-2">
           <h2 className="flex items-center gap-2 text-lg font-bold text-text-primary">
             <FileText size={20} className="text-accent" />
-            ファイル
+            {td("files")}
           </h2>
         </div>
 
@@ -197,7 +203,7 @@ export function RootFileListing({ driveName, onFileAction, onFolderChange }: Roo
           <button
             onClick={() => fileInputRef.current?.click()}
             className="flex items-center gap-2 rounded-lg bg-accent px-3 py-2 text-sm font-medium text-white transition-all hover:bg-accent/80 active:scale-[0.97]"
-            aria-label="アップロード"
+            aria-label={tc("upload")}
           >
             <Upload size={16} />
             <span className="hidden sm:inline">Upload</span>
@@ -214,14 +220,14 @@ export function RootFileListing({ driveName, onFileAction, onFolderChange }: Roo
                   if (e.key === "Enter") handleCreateFolder();
                   if (e.key === "Escape") { setCreatingFolder(false); setNewFolderName(""); setFolderError(null); }
                 }}
-                placeholder="フォルダ名..."
+                placeholder={tf("namePlaceholder")}
                 className="min-w-0 flex-1 rounded-lg bg-bg-card px-3 py-2 text-sm text-text-primary placeholder:text-text-muted outline-none focus:ring-2 focus:ring-accent sm:w-40 sm:flex-initial"
               />
               <button
                 onClick={handleCreateFolder}
                 className="rounded-lg bg-accent px-3 py-2 text-sm text-white hover:bg-accent/80"
               >
-                作成
+                {tc("create")}
               </button>
               <button
                 onClick={() => { setCreatingFolder(false); setNewFolderName(""); setFolderError(null); }}
@@ -235,7 +241,7 @@ export function RootFileListing({ driveName, onFileAction, onFolderChange }: Roo
             <button
               onClick={() => setCreatingFolder(true)}
               className="flex items-center gap-2 rounded-lg border border-bg-border bg-bg-card px-3 py-2 text-sm font-medium text-text-primary transition-colors hover:bg-bg-elevated"
-              aria-label="新規フォルダ"
+              aria-label={tf("newFolder")}
             >
               <FolderPlus size={16} />
               <span className="hidden sm:inline">New Folder</span>
@@ -249,10 +255,10 @@ export function RootFileListing({ driveName, onFileAction, onFolderChange }: Roo
               <button
                 onClick={handlePlayAll}
                 className="flex items-center gap-1.5 rounded-lg bg-accent px-3 py-2 text-sm font-medium text-white transition-all hover:bg-accent/80 active:scale-[0.97]"
-                aria-label="全曲再生"
+                aria-label={t("playAll")}
               >
                 <Play size={16} />
-                <span className="hidden sm:inline">再生</span>
+                <span className="hidden sm:inline">{tc("play")}</span>
               </button>
             )}
 
@@ -275,7 +281,7 @@ export function RootFileListing({ driveName, onFileAction, onFolderChange }: Roo
                     ? "bg-accent text-white"
                     : "text-text-muted hover:text-text-primary"
                 }`}
-                aria-label="選択モード"
+                aria-label={ts("selectMode")}
               >
                 <CheckSquare size={16} />
               </button>
@@ -286,8 +292,8 @@ export function RootFileListing({ driveName, onFileAction, onFolderChange }: Roo
                 onClick={handleScan}
                 disabled={scanning}
                 className="rounded-md p-2 text-text-muted transition-colors hover:text-text-primary disabled:opacity-50"
-                aria-label="再スキャン"
-                title="ドライブを再スキャン"
+                aria-label={t("rescan")}
+                title={t("rescanTitle")}
               >
                 <RefreshCw size={16} className={scanning ? "animate-spin" : ""} />
               </button>
@@ -306,23 +312,23 @@ export function RootFileListing({ driveName, onFileAction, onFolderChange }: Roo
                   ? "bg-accent/20 text-accent"
                   : "text-text-muted hover:text-text-primary"
               }`}
-              aria-label="ファイルタイプ"
+              aria-label={t("fileType")}
             >
               <Filter size={16} />
             </button>
             {typeFilterOpen && (
               <div className="absolute left-0 top-full z-30 mt-1 min-w-[140px] rounded-xl border border-bg-border bg-bg-primary py-1 shadow-xl animate-fade-in-scale origin-top-left">
                 {([
-                  { value: null, label: "すべて" },
-                  { value: "video" as FileType, label: "動画" },
-                  { value: "image" as FileType, label: "画像" },
-                  { value: "audio" as FileType, label: "音声" },
-                  { value: "document" as FileType, label: "文書" },
-                  { value: "archive" as FileType, label: "書庫" },
-                  { value: "other" as FileType, label: "その他" },
+                  { value: null, labelKey: "all" },
+                  { value: "video" as FileType, labelKey: "video" },
+                  { value: "image" as FileType, labelKey: "image" },
+                  { value: "audio" as FileType, labelKey: "audio" },
+                  { value: "document" as FileType, labelKey: "document" },
+                  { value: "archive" as FileType, labelKey: "archiveType" },
+                  { value: "other" as FileType, labelKey: "other" },
                 ] as const).map((opt) => (
                   <button
-                    key={opt.label}
+                    key={opt.labelKey}
                     onClick={() => {
                       setTypeFilter(opt.value);
                       setTypeFilterOpen(false);
@@ -336,7 +342,7 @@ export function RootFileListing({ driveName, onFileAction, onFolderChange }: Roo
                     <span className="w-4 flex-shrink-0">
                       {typeFilter === opt.value && <Check size={14} />}
                     </span>
-                    {opt.label}
+                    {t(opt.labelKey)}
                   </button>
                 ))}
               </div>
@@ -345,16 +351,16 @@ export function RootFileListing({ driveName, onFileAction, onFolderChange }: Roo
           {/* Desktop: tabs */}
           <div className="hidden items-center gap-1 sm:flex">
             {([
-              { value: null, label: "すべて" },
-              { value: "video" as FileType, label: "動画" },
-              { value: "image" as FileType, label: "画像" },
-              { value: "audio" as FileType, label: "音声" },
-              { value: "document" as FileType, label: "文書" },
-              { value: "archive" as FileType, label: "書庫" },
-              { value: "other" as FileType, label: "その他" },
+              { value: null, labelKey: "all" },
+              { value: "video" as FileType, labelKey: "video" },
+              { value: "image" as FileType, labelKey: "image" },
+              { value: "audio" as FileType, labelKey: "audio" },
+              { value: "document" as FileType, labelKey: "document" },
+              { value: "archive" as FileType, labelKey: "archiveType" },
+              { value: "other" as FileType, labelKey: "other" },
             ] as const).map((tab) => (
               <button
-                key={tab.label}
+                key={tab.labelKey}
                 onClick={() => setTypeFilter(tab.value)}
                 className={`rounded-md px-2.5 py-1 text-sm transition-colors ${
                   typeFilter === tab.value
@@ -362,11 +368,11 @@ export function RootFileListing({ driveName, onFileAction, onFolderChange }: Roo
                     : "text-text-muted hover:text-text-primary"
                 }`}
               >
-                {tab.label}
+                {t(tab.labelKey)}
               </button>
             ))}
           </div>
-          <span className="text-sm text-text-muted">{total} 件</span>
+          <span className="text-sm text-text-muted">{tc("items", { count: total })}</span>
         </div>
 
         {/* File listing */}

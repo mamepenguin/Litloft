@@ -2,23 +2,24 @@
 
 import { useEffect, useRef, useState } from "react";
 import { ArrowDownUp, Check } from "lucide-react";
+import { useTranslations } from "next-intl";
 import type { SortField, SortOrder } from "@/types";
 
 interface SortOption {
-  label: string;
+  labelKey: string;
   sort: SortField;
   order: SortOrder;
 }
 
 const sortOptions: SortOption[] = [
-  { label: "新しい順", sort: "created_at", order: "desc" },
-  { label: "古い順", sort: "created_at", order: "asc" },
-  { label: "タイトル A→Z", sort: "title", order: "asc" },
-  { label: "タイトル Z→A", sort: "title", order: "desc" },
-  { label: "サイズ 大→小", sort: "file_size", order: "desc" },
-  { label: "サイズ 小→大", sort: "file_size", order: "asc" },
-  { label: "いいね 多→少", sort: "likes", order: "desc" },
-  { label: "いいね 少→多", sort: "likes", order: "asc" },
+  { labelKey: "newestFirst", sort: "created_at", order: "desc" },
+  { labelKey: "oldestFirst", sort: "created_at", order: "asc" },
+  { labelKey: "titleAZ", sort: "title", order: "asc" },
+  { labelKey: "titleZA", sort: "title", order: "desc" },
+  { labelKey: "sizeLargest", sort: "file_size", order: "desc" },
+  { labelKey: "sizeSmallest", sort: "file_size", order: "asc" },
+  { labelKey: "likesmost", sort: "likes", order: "desc" },
+  { labelKey: "likesleast", sort: "likes", order: "asc" },
 ];
 
 interface SortButtonProps {
@@ -28,6 +29,7 @@ interface SortButtonProps {
 }
 
 export function SortButton({ sort, order, onChange }: SortButtonProps) {
+  const t = useTranslations("sort");
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
 
@@ -53,7 +55,7 @@ export function SortButton({ sort, order, onChange }: SortButtonProps) {
             ? "bg-accent/20 text-accent"
             : "text-text-muted hover:text-text-primary"
         }`}
-        aria-label="ソート"
+        aria-label={t("label")}
       >
         <ArrowDownUp size={16} />
       </button>
@@ -78,7 +80,7 @@ export function SortButton({ sort, order, onChange }: SortButtonProps) {
                 <span className="w-4 flex-shrink-0">
                   {selected && <Check size={14} />}
                 </span>
-                {opt.label}
+                {t(opt.labelKey)}
               </button>
             );
           })}

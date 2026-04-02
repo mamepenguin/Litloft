@@ -1,6 +1,7 @@
 import { cookies } from "next/headers";
 import Link from "next/link";
 import { HardDrive, Lock } from "lucide-react";
+import { getTranslations } from "next-intl/server";
 import type { Drive } from "@/types";
 
 async function fetchDrives(): Promise<Drive[]> {
@@ -22,21 +23,22 @@ async function fetchDrives(): Promise<Drive[]> {
 
 export default async function Home() {
   const drives = await fetchDrives();
+  const t = await getTranslations("drive");
 
   return (
     <div className="w-full flex-1 px-4 py-6">
       <div className="mb-6">
-        <h1 className="text-2xl font-bold text-text-primary">ドライブ</h1>
+        <h1 className="text-2xl font-bold text-text-primary">{t("title")}</h1>
       </div>
 
       {drives.length === 0 ? (
         <div className="flex flex-col items-center justify-center py-16 text-center">
           <HardDrive size={48} className="mb-4 text-text-muted" />
           <h2 className="text-lg font-semibold text-text-primary">
-            ドライブがありません
+            {t("empty")}
           </h2>
           <p className="mt-1 text-sm text-text-muted">
-            drives.json を設定してドライブを追加してください。
+            {t("emptyDescription")}
           </p>
         </div>
       ) : (

@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { ChevronRight, Folder, Move, X } from "lucide-react";
 
+import { useTranslations } from "next-intl";
 import { getFolders } from "@/lib/api";
 import type { Folder as FolderType } from "@/types";
 
@@ -23,6 +24,8 @@ export function MoveDialog({
   onMove,
   onCancel,
 }: MoveDialogProps) {
+  const t = useTranslations("dialog");
+  const tc = useTranslations("common");
   const [selectedPath, setSelectedPath] = useState("");
   const [browsePath, setBrowsePath] = useState("");
   const [folders, setFolders] = useState<FolderType[]>([]);
@@ -37,7 +40,7 @@ export function MoveDialog({
         const result = await getFolders(drive, path || undefined);
         setFolders(result);
       } catch (err) {
-        setError("フォルダの読み込みに失敗しました");
+        setError(t("moveFolderLoadFailed"));
         setFolders([]);
       } finally {
         setLoading(false);
@@ -104,12 +107,12 @@ export function MoveDialog({
         <div className="mb-4 flex items-center justify-between">
           <h2 className="flex items-center gap-2 text-lg font-semibold text-text-primary">
             <Move size={18} />
-            移動先を選択
+            {t("moveTitle")}
           </h2>
           <button
             onClick={onCancel}
             className="rounded-lg p-1 text-text-muted hover:text-text-primary"
-            aria-label="閉じる"
+            aria-label={tc("close")}
           >
             <X size={18} />
           </button>
@@ -166,16 +169,16 @@ export function MoveDialog({
           >
             <Folder size={16} />
             <span className="flex-1">
-              {browsePath ? browsePath.split("/").pop() : "(ルート)"}
+              {browsePath ? browsePath.split("/").pop() : t("moveRoot")}
             </span>
             {selectedPath === browsePath && (
-              <span className="text-xs">選択中</span>
+              <span className="text-xs">{t("moveSelected")}</span>
             )}
           </button>
 
           {loading && (
             <div className="px-3 py-4 text-center text-sm text-text-muted">
-              読み込み中...
+              {tc("loading")}
             </div>
           )}
 
@@ -207,7 +210,7 @@ export function MoveDialog({
 
           {!loading && !error && folders.length === 0 && (
             <div className="px-3 py-4 text-center text-sm text-text-muted">
-              サブフォルダなし
+              {t("moveNoSubfolders")}
             </div>
           )}
         </div>
@@ -215,21 +218,21 @@ export function MoveDialog({
         {/* Actions */}
         <div className="flex items-center justify-between">
           <span className="truncate text-xs text-text-muted">
-            移動先: {selectedPath || "(ルート)"}
+            {t("moveTarget", { path: selectedPath || t("moveRoot") })}
           </span>
           <div className="flex gap-3">
             <button
               onClick={onCancel}
               className="rounded-lg bg-bg-elevated px-4 py-2 text-sm text-text-muted transition-colors hover:text-text-primary"
             >
-              キャンセル
+              {tc("cancel")}
             </button>
             <button
               onClick={handleConfirm}
               disabled={isCurrentPath}
               className="rounded-lg bg-accent px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-accent/80 disabled:opacity-40"
             >
-              ここに移動
+              {t("moveHere")}
             </button>
           </div>
         </div>
