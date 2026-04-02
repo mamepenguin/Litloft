@@ -450,6 +450,54 @@ export async function getWatchHistory(
   return result.data;
 }
 
+// Trash
+export async function getTrash(
+  drive: string,
+  params?: { sort?: SortField; order?: SortOrder; page?: number; limit?: number }
+): Promise<PaginatedResponse> {
+  const searchParams = new URLSearchParams();
+  if (params?.sort) searchParams.set("sort", params.sort);
+  if (params?.order) searchParams.set("order", params.order);
+  if (params?.page) searchParams.set("page", String(params.page));
+  if (params?.limit) searchParams.set("limit", String(params.limit));
+  const qs = searchParams.toString();
+  return fetchJSON<PaginatedResponse>(
+    `${API_BASE}/drives/${encodeURIComponent(drive)}/trash${qs ? `?${qs}` : ""}`
+  );
+}
+
+export async function restoreFile(id: string): Promise<FileItem> {
+  return fetchJSON<FileItem>(`${API_BASE}/files/${id}/restore`, { method: "POST" });
+}
+
+export async function purgeFile(id: string): Promise<void> {
+  const res = await fetch(`${API_BASE}/files/${id}/purge`, { method: "DELETE", credentials: "include" });
+  if (!res.ok) throw new Error(`API error: ${res.status}`);
+}
+
+export async function emptyTrash(drive: string): Promise<{ purged: number }> {
+  return fetchJSON<{ purged: number }>(
+    `${API_BASE}/drives/${encodeURIComponent(drive)}/trash/empty`,
+    { method: "POST" }
+  );
+}
+
+export async function batchRestore(ids: string[]): Promise<{ restored: number; errors: { id: string; error: string }[] }> {
+  return fetchJSON(`${API_BASE}/files/batch/restore`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ ids }),
+  });
+}
+
+export async function batchPurge(ids: string[]): Promise<{ purged: number; errors: { id: string; error: string }[] }> {
+  return fetchJSON(`${API_BASE}/files/batch/purge`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ ids }),
+  });
+}
+
 // Auth
 export async function unlock(
   password: string,

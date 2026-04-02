@@ -41,6 +41,7 @@ class FileResponse(_UtcDateTimeMixin, BaseModel):
     subtitles: list[SubtitleInfo] = []
     created_at: datetime
     updated_at: datetime
+    deleted_at: datetime | None = None
 
     model_config = {"from_attributes": True}
 
@@ -473,6 +474,16 @@ class PlaylistDetailResponse(_UtcDateTimeMixin, BaseModel):
     updated_at: datetime
 
 
+class BatchRestoreResponse(BaseModel):
+    restored: int
+    errors: list[dict]
+
+
+class BatchPurgeResponse(BaseModel):
+    purged: int
+    errors: list[dict]
+
+
 def file_to_response(file, subtitles: list[SubtitleInfo] | None = None) -> FileResponse:
     return FileResponse(
         id=file.id,
@@ -492,4 +503,5 @@ def file_to_response(file, subtitles: list[SubtitleInfo] | None = None) -> FileR
         subtitles=subtitles or [],
         created_at=file.created_at,
         updated_at=file.updated_at,
+        deleted_at=file.deleted_at,
     )

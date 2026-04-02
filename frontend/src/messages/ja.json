@@ -34,6 +34,7 @@
     "recentPlay": "最近再生",
     "recentAdded": "最近追加",
     "allFiles": "すべてのファイル",
+    "trash": "ゴミ箱",
     "createPlaylist": "プレイリスト作成",
     "playlistNamePlaceholder": "プレイリスト名...",
     "renamePlaylist": "リネーム",
@@ -205,7 +206,9 @@
     "noRecentTitle": "最近再生した動画がありません",
     "noRecentDescription": "動画を再生すると、ここに表示されます。",
     "noRecentAddedTitle": "最近追加されたファイルがありません",
-    "noRecentAddedDescription": "ファイルをアップロードすると、ここに表示されます。"
+    "noRecentAddedDescription": "ファイルをアップロードすると、ここに表示されます。",
+    "noTrashTitle": "ゴミ箱は空です",
+    "noTrashDescription": "削除されたファイルはここに表示されます。"
   },
   "theme": {
     "system": "システム",
@@ -281,6 +284,26 @@
     "execute": "リネーム実行",
     "invalidRegex": "正規表現が無効です",
     "failed": "リネームに失敗しました"
+  },
+  "trash": {
+    "title": "ゴミ箱",
+    "empty": "ゴミ箱は空です",
+    "emptyDescription": "削除されたファイルはここに表示されます。",
+    "emptyTrash": "ゴミ箱を空にする",
+    "restore": "復元",
+    "purge": "完全削除",
+    "confirmPurge": "完全に削除しますか？この操作は取り消せません。",
+    "confirmEmpty": "ゴミ箱内の全ファイルを完全に削除しますか？",
+    "movedToTrash": "ゴミ箱に移動しました",
+    "restored": "復元しました",
+    "purged": "完全に削除しました",
+    "autoDelete": "30日後に自動的に削除されます",
+    "daysRemaining": "残り{days}日",
+    "moveToTrash": "ゴミ箱に移動",
+    "confirmMoveToTrash": "「{name}」をゴミ箱に移動しますか？",
+    "batchConfirmMoveToTrash": "{count} 件のファイルをゴミ箱に移動しますか？",
+    "batchPurgeTitle": "完全に削除",
+    "batchPurgeMessage": "{count} 件のファイルを完全に削除しますか？この操作は取り消せません。"
   },
   "clipboard": {
     "copy": "コピー",

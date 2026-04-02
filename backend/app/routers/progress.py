@@ -31,7 +31,7 @@ def get_viewer_id(hv_viewer: str | None = Cookie(default=None)) -> str | None:
 def _get_file_or_404(
     db: Session, file_id: str, unlocked_groups: list[str]
 ) -> File:
-    file = db.query(File).filter(File.id == file_id).first()
+    file = db.query(File).filter(File.id == file_id, File.deleted_at.is_(None)).first()
     if not file:
         raise HTTPException(status_code=404, detail="File not found")
     check_drive_access(file.drive, unlocked_groups)

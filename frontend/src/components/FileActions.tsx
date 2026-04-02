@@ -25,6 +25,7 @@ interface FileActionsProps {
 export function FileActions({ file, onUpdate, onDelete }: FileActionsProps) {
   const t = useTranslations("file");
   const tc = useTranslations("common");
+  const tt = useTranslations("trash");
   const [menuOpen, setMenuOpen] = useState(false);
   const [renameOpen, setRenameOpen] = useState(false);
   const [moveOpen, setMoveOpen] = useState(false);
@@ -117,7 +118,7 @@ export function FileActions({ file, onUpdate, onDelete }: FileActionsProps) {
     },
     {
       icon: Trash2,
-      label: tc("delete"),
+      label: tt("moveToTrash"),
       onClick: () => {
         setMenuOpen(false);
         setDeleteOpen(true);
@@ -207,11 +208,12 @@ export function FileActions({ file, onUpdate, onDelete }: FileActionsProps) {
         createPortal(
           <ConfirmDialog
             open={deleteOpen}
-            title={t("deleteTitle")}
-            message={t("deleteMessage", { name: file.filename })}
-            confirmLabel={tc("delete")}
+            title={tt("moveToTrash")}
+            message={tt("confirmMoveToTrash", { name: file.filename })}
+            confirmLabel={tt("moveToTrash")}
             onConfirm={handleDelete}
             onCancel={() => setDeleteOpen(false)}
+            note={tt("autoDelete")}
           />,
           document.body
         )}

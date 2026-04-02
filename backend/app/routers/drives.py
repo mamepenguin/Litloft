@@ -78,7 +78,8 @@ async def list_folders(
         path = _validate_folder_path(path)
 
     query = db.query(File.folder_path, func.count(File.id)).filter(
-        File.drive == drive_name
+        File.drive == drive_name,
+        File.deleted_at.is_(None),
     )
 
     if path:
@@ -126,6 +127,7 @@ async def list_folders(
     if folders:
         thumb_query = db.query(File.id, File.folder_path, File.filename).filter(
             File.drive == drive_name,
+            File.deleted_at.is_(None),
             File.file_type.in_(["video", "image"]),
         )
         if path:
@@ -177,7 +179,7 @@ async def list_drive_files(
     if path is not None and path:
         path = _validate_folder_path(path)
 
-    query = db.query(File).filter(File.drive == drive_name)
+    query = db.query(File).filter(File.drive == drive_name, File.deleted_at.is_(None))
 
     if path is not None:
         query = query.filter(File.folder_path == path)
@@ -223,7 +225,11 @@ async def list_drive_tags(
     results = (
         db.query(Tag.name, func.count(file_tags.c.file_id).label("count"))
         .outerjoin(file_tags)
-        .filter(Tag.drive == drive_name)
+        .outerjoin(File, File.id == file_tags.c.file_id)
+        .filter(
+            Tag.drive == drive_name,
+            (file_tags.c.file_id.is_(None)) | (File.deleted_at.is_(None)),
+        )
         .group_by(Tag.id)
         .order_by(Tag.name)
         .all()
@@ -375,6 +381,7 @@ async def get_watch_history(
         .filter(
             WatchHistory.viewer_id == viewer_id,
             File.drive == drive_name,
+            File.deleted_at.is_(None),
         )
     )
 
@@ -402,3 +409,49 @@ async def get_watch_history(
     ]
 
     return WatchHistoryResponse(data=items)
+
+
+@router.get("/{drive_name}/trash", response_model=PaginatedResponse)
+async def list_trash(
+    drive_name: str,
+    db: Annotated[Session, Depends(get_db)],
+    unlocked_groups: Annotated[list[str], Depends(get_unlocked_groups)],
+    sort: str = Query("deleted_at", pattern="^(deleted_at|created_at|title|file_size)$"),
+    order: str = Query("desc", pattern="^(asc|desc)$"),
+    page: int = Query(1, ge=1),
+    limit: int = Query(30, ge=1, le=500),
+):
+    _validate_drive(drive_name, unlocked_groups)
+
+    query = db.query(File).filter(
+        File.drive == drive_name,
+        File.deleted_at.isnot(None),
+    )
+
+    total = query.count()
+
+    sort_column = getattr(File, sort)
+    id_column = File.id
+    if order == "desc":
+        sort_column = sort_column.desc()
+        id_column = id_column.desc()
+    query = query.order_by(sort_column, id_column)
+
+    offset = (page - 1) * limit
+    files = query.offset(offset).limit(limit).all()
+
+    return PaginatedResponse(
+        data=[_to_response(f) for f in files],
+        meta=PaginationMeta(total=total, page=page, limit=limit),
+    )
+
+
+@router.post("/{drive_name}/trash/empty")
+async def empty_trash(
+    drive_name: str,
+    db: Annotated[Session, Depends(get_db)],
+    unlocked_groups: Annotated[list[str], Depends(get_unlocked_groups)],
+):
+    _validate_drive(drive_name, unlocked_groups)
+    count = fileops.purge_all_trash(db, drive_name)
+    return {"purged": count}

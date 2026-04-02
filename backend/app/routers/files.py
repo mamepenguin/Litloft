@@ -22,8 +22,10 @@ from app.schemas import (
     BatchCopyResponse,
     BatchIdsRequest,
     BatchMoveRequest,
+    BatchPurgeResponse,
     BatchRenameRequest,
     BatchRenameResponse,
+    BatchRestoreResponse,
     BatchTagRequest,
     FileCopyRequest,
     FileResponse,
@@ -117,9 +119,19 @@ def _is_drive_accessible(drive_name: str, unlocked_groups: list[str]) -> bool:
 def _get_file_or_404(
     db: Session, file_id: str, unlocked_groups: list[str]
 ) -> File:
-    file = db.query(File).filter(File.id == file_id).first()
+    file = db.query(File).filter(File.id == file_id, File.deleted_at.is_(None)).first()
     if not file:
         raise HTTPException(status_code=404, detail="File not found")
+    check_drive_access(file.drive, unlocked_groups)
+    return file
+
+
+def _get_trashed_file_or_404(
+    db: Session, file_id: str, unlocked_groups: list[str]
+) -> File:
+    file = db.query(File).filter(File.id == file_id, File.deleted_at.isnot(None)).first()
+    if not file:
+        raise HTTPException(status_code=404, detail="File not found in trash")
     check_drive_access(file.drive, unlocked_groups)
     return file
 
@@ -130,7 +142,7 @@ async def batch_get(
     db: Annotated[Session, Depends(get_db)],
     unlocked_groups: Annotated[list[str], Depends(get_unlocked_groups)],
 ):
-    files = db.query(File).filter(File.id.in_(body.ids)).all()
+    files = db.query(File).filter(File.id.in_(body.ids), File.deleted_at.is_(None)).all()
     file_map = {f.id: f for f in files}
     return [
         _to_response(file_map[fid])
@@ -234,6 +246,42 @@ async def batch_rename(
     return {"renamed": len(results), "results": results}
 
 
+@router.post("/batch/restore", response_model=BatchRestoreResponse)
+async def batch_restore(
+    body: BatchIdsRequest,
+    db: Annotated[Session, Depends(get_db)],
+    unlocked_groups: Annotated[list[str], Depends(get_unlocked_groups)],
+):
+    restored = 0
+    errors = []
+    for file_id in body.ids:
+        try:
+            _get_trashed_file_or_404(db, file_id, unlocked_groups)
+            fileops.restore_file(db, file_id)
+            restored += 1
+        except HTTPException as e:
+            errors.append({"id": file_id, "error": e.detail})
+    return {"restored": restored, "errors": errors}
+
+
+@router.post("/batch/purge", response_model=BatchPurgeResponse)
+async def batch_purge(
+    body: BatchIdsRequest,
+    db: Annotated[Session, Depends(get_db)],
+    unlocked_groups: Annotated[list[str], Depends(get_unlocked_groups)],
+):
+    purged = 0
+    errors = []
+    for file_id in body.ids:
+        try:
+            _get_trashed_file_or_404(db, file_id, unlocked_groups)
+            fileops.purge_file(db, file_id)
+            purged += 1
+        except HTTPException as e:
+            errors.append({"id": file_id, "error": e.detail})
+    return {"purged": purged, "errors": errors}
+
+
 @router.post("/batch/copy", response_model=BatchCopyResponse)
 async def batch_copy(
     body: BatchCopyRequest,
@@ -280,6 +328,7 @@ async def get_file_neighbors(
         File.drive == file.drive,
         File.folder_path == file.folder_path,
         File.id != file.id,
+        File.deleted_at.is_(None),
     )
 
     if order == "asc":
@@ -787,3 +836,27 @@ async def delete_file_endpoint(
     _get_file_or_404(db, file_id, unlocked_groups)
     fileops.delete_file(db, file_id)
     return {"status": "deleted"}
+
+
+@router.post("/{file_id}/restore", response_model=FileResponse)
+async def restore_file_endpoint(
+    file_id: FileId,
+    db: Annotated[Session, Depends(get_db)],
+    unlocked_groups: Annotated[list[str], Depends(get_unlocked_groups)],
+):
+    _get_trashed_file_or_404(db, file_id, unlocked_groups)
+    file = fileops.restore_file(db, file_id)
+    return _to_response(file)
+
+
+@router.delete("/{file_id}/purge")
+async def purge_file_endpoint(
+    file_id: FileId,
+    db: Annotated[Session, Depends(get_db)],
+    unlocked_groups: Annotated[list[str], Depends(get_unlocked_groups)],
+):
+    _get_trashed_file_or_404(db, file_id, unlocked_groups)
+    fileops.purge_file(db, file_id)
+    return {"status": "purged"}
+
+

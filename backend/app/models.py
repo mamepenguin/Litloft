@@ -68,6 +68,9 @@ class File(Base):
     updated_at: Mapped[datetime] = mapped_column(
         DateTime, default=lambda: datetime.now(UTC), onupdate=lambda: datetime.now(UTC)
     )
+    deleted_at: Mapped[datetime | None] = mapped_column(
+        DateTime, nullable=True, default=None
+    )
 
     tags: Mapped[list[Tag]] = relationship(
         "Tag", secondary=file_tags, back_populates="files", lazy="selectin"
@@ -78,6 +81,7 @@ class File(Base):
         Index("idx_files_title", "title"),
         Index("idx_files_is_favorite", "is_favorite"),
         Index("idx_files_file_type", "file_type"),
+        Index("idx_files_deleted_at", "deleted_at"),
     )
 
 

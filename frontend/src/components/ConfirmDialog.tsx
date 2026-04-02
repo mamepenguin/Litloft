@@ -9,6 +9,7 @@ interface ConfirmDialogProps {
   title: string;
   message: string;
   confirmLabel?: string;
+  note?: string;
   onConfirm: () => void;
   onCancel: () => void;
 }
@@ -18,6 +19,7 @@ export function ConfirmDialog({
   title,
   message,
   confirmLabel = "OK",
+  note,
   onConfirm,
   onCancel,
 }: ConfirmDialogProps) {
@@ -60,7 +62,11 @@ export function ConfirmDialog({
             <X size={18} />
           </button>
         </div>
-        <p className="mb-6 text-sm text-text-muted">{message}</p>
+        <p className="mb-2 text-sm text-text-muted">{message}</p>
+        {note && (
+          <p className="mb-4 text-xs text-text-muted/70">{note}</p>
+        )}
+        {!note && <div className="mb-4" />}
         <div className="flex justify-end gap-3">
           <button
             onClick={onCancel}

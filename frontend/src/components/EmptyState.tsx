@@ -1,9 +1,9 @@
 "use client";
 
-import { Clock, File, FilePlus, Search, RefreshCw, Star } from "lucide-react";
+import { Clock, File, FilePlus, Search, RefreshCw, Star, Trash2 } from "lucide-react";
 import { useTranslations } from "next-intl";
 
-type EmptyVariant = "no-files" | "no-results" | "needs-scan" | "no-favorites" | "no-recent" | "no-recent-added";
+type EmptyVariant = "no-files" | "no-results" | "needs-scan" | "no-favorites" | "no-recent" | "no-recent-added" | "no-trash";
 
 const variantConfig: Record<
   EmptyVariant,
@@ -38,6 +38,11 @@ const variantConfig: Record<
     icon: FilePlus,
     titleKey: "noRecentAddedTitle",
     descriptionKey: "noRecentAddedDescription",
+  },
+  "no-trash": {
+    icon: Trash2,
+    titleKey: "noTrashTitle",
+    descriptionKey: "noTrashDescription",
   },
 };
 

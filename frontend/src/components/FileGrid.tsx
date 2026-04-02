@@ -46,6 +46,7 @@ export function FileGrid({
   const t = useTranslations("file");
   const tc = useTranslations("common");
   const tcb = useTranslations("clipboard");
+  const tt = useTranslations("trash");
   const clipboard = useClipboard();
   const [menuPos, setMenuPos] = useState<{ open: boolean; x: number; y: number }>({
     open: false, x: 0, y: 0,
@@ -97,7 +98,7 @@ export function FileGrid({
     },
     {
       icon: Trash2,
-      label: tc("delete"),
+      label: tt("moveToTrash"),
       onClick: () => setDeleteOpen(true),
       danger: true,
     },
@@ -175,9 +176,10 @@ export function FileGrid({
           />
           <ConfirmDialog
             open={deleteOpen}
-            title={t("deleteTitle")}
-            message={t("deleteMessage", { name: target.filename })}
-            confirmLabel={tc("delete")}
+            title={tt("moveToTrash")}
+            message={tt("confirmMoveToTrash", { name: target.filename })}
+            confirmLabel={tt("moveToTrash")}
+            note={tt("autoDelete")}
             onConfirm={async () => {
               try {
                 await deleteFile(target.id);

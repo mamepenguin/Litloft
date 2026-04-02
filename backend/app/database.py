@@ -313,6 +313,16 @@ def _migrate(engine_) -> None:
     if "watch_history" not in tables:
         Base.metadata.tables["watch_history"].create(bind=engine_, checkfirst=True)
 
+    # === Phase 6: Add deleted_at column to files (soft delete) ===
+    tables = inspector.get_table_names()
+    if "files" in tables:
+        file_columns = {col["name"] for col in inspector.get_columns("files")}
+        if "deleted_at" not in file_columns:
+            logger.info("Migrating: adding 'deleted_at' column to files")
+            with engine_.begin() as conn:
+                conn.execute(text("ALTER TABLE files ADD COLUMN deleted_at DATETIME"))
+                conn.execute(text("CREATE INDEX idx_files_deleted_at ON files(deleted_at)"))
+
 
 def init_db() -> None:
     DATA_DIR.mkdir(parents=True, exist_ok=True)

@@ -34,6 +34,7 @@
     "recentPlay": "Recently Played",
     "recentAdded": "Recently Added",
     "allFiles": "All Files",
+    "trash": "Trash",
     "createPlaylist": "Create playlist",
     "playlistNamePlaceholder": "Playlist name...",
     "renamePlaylist": "Rename",
@@ -205,7 +206,9 @@
     "noRecentTitle": "No recently played videos",
     "noRecentDescription": "Videos you play will appear here.",
     "noRecentAddedTitle": "No recently added files",
-    "noRecentAddedDescription": "Uploaded files will appear here."
+    "noRecentAddedDescription": "Uploaded files will appear here.",
+    "noTrashTitle": "Trash is empty",
+    "noTrashDescription": "Deleted files will appear here."
   },
   "theme": {
     "system": "System",
@@ -281,6 +284,26 @@
     "execute": "Rename",
     "invalidRegex": "Invalid regular expression",
     "failed": "Rename failed"
+  },
+  "trash": {
+    "title": "Trash",
+    "empty": "Trash is empty",
+    "emptyDescription": "Deleted files will appear here.",
+    "emptyTrash": "Empty Trash",
+    "restore": "Restore",
+    "purge": "Permanently Delete",
+    "confirmPurge": "Permanently delete this file? This action cannot be undone.",
+    "confirmEmpty": "Permanently delete all files in trash?",
+    "movedToTrash": "Moved to trash",
+    "restored": "Restored",
+    "purged": "Permanently deleted",
+    "autoDelete": "Will be automatically deleted after 30 days",
+    "daysRemaining": "{days} days remaining",
+    "moveToTrash": "Move to Trash",
+    "confirmMoveToTrash": "Move \"{name}\" to trash?",
+    "batchConfirmMoveToTrash": "Move {count} files to trash?",
+    "batchPurgeTitle": "Permanently Delete",
+    "batchPurgeMessage": "Permanently delete {count} files? This action cannot be undone."
   },
   "clipboard": {
     "copy": "Copy",

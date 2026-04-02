@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { Clock, FilePlus, Files, Home, Star, Warehouse } from "lucide-react";
+import { Clock, FilePlus, Files, Home, Star, Trash2, Warehouse } from "lucide-react";
 import { useTranslations } from "next-intl";
 
 interface SidebarLibrarySectionProps {
@@ -43,6 +43,10 @@ export function SidebarLibrarySection({ driveBase, linkClass, close }: SidebarLi
           <Link href={`${driveBase}?view=all`} onClick={close} className={linkClass(`${driveBase}?view=all`)}>
             <Files size={16} />
             {t("allFiles")}
+          </Link>
+          <Link href={`${driveBase}?view=trash`} onClick={close} className={linkClass(`${driveBase}?view=trash`)}>
+            <Trash2 size={16} />
+            {t("trash")}
           </Link>
         </>
       )}

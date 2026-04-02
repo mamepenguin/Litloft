@@ -173,7 +173,13 @@ def _scan_and_register(db: Session, drive_name: str) -> dict[str, int]:
     removed_paths = set(existing.keys()) - found_paths
     removed = 0
     if removed_paths:
-        for rp in removed_paths:
+        # Filter out soft-deleted files: they are expected to remain on disk
+        # until auto-purge removes them
+        active_removed = [
+            rp for rp in removed_paths
+            if existing[rp].deleted_at is None
+        ]
+        for rp in active_removed:
             file_record = existing[rp]
             if file_record.thumbnail_path:
                 thumb = config.THUMBNAILS_DIR / file_record.thumbnail_path
@@ -183,17 +189,20 @@ def _scan_and_register(db: Session, drive_name: str) -> dict[str, int]:
             preview = config.PREVIEWS_DIR / f"{file_record.id}.jpg"
             if preview.exists():
                 preview.unlink()
-        removed = (
-            db.query(File)
-            .filter(File.drive == drive_name, File.file_path.in_(removed_paths))
-            .delete(synchronize_session="fetch")
-        )
-        logger.info("Removed %d files and their thumbnails (drive: %s)", removed, drive_name)
+        if active_removed:
+            removed = (
+                db.query(File)
+                .filter(File.drive == drive_name, File.file_path.in_(active_removed))
+                .delete(synchronize_session="fetch")
+            )
+            logger.info("Removed %d files and their thumbnails (drive: %s)", removed, drive_name)
 
     # Sync empty folders: detect filesystem dirs with no files and track them
     folders_with_files = {
         f.folder_path
-        for f in db.query(File.folder_path).filter(File.drive == drive_name).distinct().all()
+        for f in db.query(File.folder_path).filter(
+            File.drive == drive_name, File.deleted_at.is_(None)
+        ).distinct().all()
     }
     # Find all directories on the filesystem
     fs_dirs: set[str] = set()
@@ -230,7 +239,7 @@ def _scan_and_register(db: Session, drive_name: str) -> dict[str, int]:
         ).delete(synchronize_session="fetch")
 
     db.commit()
-    total = db.query(File).filter(File.drive == drive_name).count()
+    total = db.query(File).filter(File.drive == drive_name, File.deleted_at.is_(None)).count()
     if updated:
         logger.info("Updated %d file records (drive: %s)", updated, drive_name)
 

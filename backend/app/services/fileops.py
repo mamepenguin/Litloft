@@ -3,6 +3,7 @@ import logging
 import os
 import re
 import shutil
+from datetime import UTC, datetime
 from pathlib import Path
 
 from fastapi import HTTPException
@@ -107,7 +108,7 @@ def _ensure_empty_folder_tracked(db: Session, drive: str, folder_path: str) -> N
         return
     has_files = (
         db.query(File.id)
-        .filter(File.drive == drive, File.folder_path == folder_path)
+        .filter(File.drive == drive, File.folder_path == folder_path, File.deleted_at.is_(None))
         .first()
     )
     if has_files:
@@ -448,12 +449,9 @@ def move_folder(drive: str, path: str, target_path: str, db: Session) -> dict:
     return {"name": folder_name, "path": new_path, "file_count": file_count, "thumbnail_file_id": None}
 
 
-def delete_file(db: Session, file_id: str) -> None:
-    file = db.query(File).filter(File.id == file_id).first()
-    if not file:
-        raise HTTPException(status_code=404, detail="File not found")
-
-    drive_path = validate_writable(file.drive)
+def physical_delete(db: Session, file: File) -> None:
+    """Remove file from filesystem, caches, and DB. Caller must commit."""
+    drive_path = config.get_drive_path(file.drive)
     full_path = drive_path / file.file_path
 
     if full_path.exists():
@@ -476,7 +474,66 @@ def delete_file(db: Session, file_id: str) -> None:
     db.delete(file)
     db.flush()
     _ensure_empty_folder_tracked(db, drive, folder_path)
+
+
+def delete_file(db: Session, file_id: str) -> None:
+    """Soft delete: set deleted_at, keep file on disk."""
+    file = db.query(File).filter(File.id == file_id, File.deleted_at.is_(None)).first()
+    if not file:
+        raise HTTPException(status_code=404, detail="File not found")
+
+    validate_writable(file.drive)
+    file.deleted_at = datetime.now(UTC)
+    drive = file.drive
+    folder_path = file.folder_path
+    db.flush()
+    _ensure_empty_folder_tracked(db, drive, folder_path)
     db.commit()
+
+
+def restore_file(db: Session, file_id: str) -> File:
+    """Restore a file from trash: clear deleted_at."""
+    file = db.query(File).filter(File.id == file_id, File.deleted_at.isnot(None)).first()
+    if not file:
+        raise HTTPException(status_code=404, detail="File not found in trash")
+
+    drive_path = config.get_drive_path(file.drive)
+    full_path = drive_path / file.file_path
+    if not full_path.exists():
+        raise HTTPException(status_code=404, detail="File no longer exists on disk")
+
+    file.deleted_at = None
+    remove_empty_folder_if_has_files(db, file.drive, file.folder_path)
+    db.commit()
+    db.refresh(file)
+    return file
+
+
+def purge_file(db: Session, file_id: str) -> None:
+    """Permanently delete a trashed file from disk and DB."""
+    file = db.query(File).filter(File.id == file_id, File.deleted_at.isnot(None)).first()
+    if not file:
+        raise HTTPException(status_code=404, detail="File not found in trash")
+
+    validate_writable(file.drive)
+    physical_delete(db, file)
+    db.commit()
+
+
+def purge_all_trash(db: Session, drive: str) -> int:
+    """Permanently delete all trashed files for a drive. Returns count purged."""
+    validate_writable(drive)
+    trashed = (
+        db.query(File)
+        .filter(File.drive == drive, File.deleted_at.isnot(None))
+        .all()
+    )
+    count = 0
+    for file in trashed:
+        physical_delete(db, file)
+        count += 1
+    db.commit()
+    return count
 
 
 def create_folder(drive: str, parent_path: str, name: str, db: Session) -> dict:
@@ -551,6 +608,7 @@ def delete_folder(drive: str, path: str, db: Session) -> None:
         db.query(File)
         .filter(
             File.drive == drive,
+            File.deleted_at.is_(None),
             (File.folder_path == path) | File.folder_path.like(path + "/%"),
         )
         .first()
