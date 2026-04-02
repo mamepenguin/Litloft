@@ -122,3 +122,25 @@ export interface ChunkResponse {
   received_chunks: number;
   total_chunks: number;
 }
+
+export interface WebSocketEvent {
+  event: string;
+  data: Record<string, unknown>;
+}
+
+export interface ScanProgressData {
+  drive: string;
+  added: number;
+  removed: number;
+  total: number;
+}
+
+export interface ScanCompleteData extends ScanProgressData {
+  updated: number;
+}
+
+export interface UploadCompleteData {
+  drive: string;
+  file_id: string;
+  filename: string;
+}

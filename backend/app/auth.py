@@ -65,6 +65,9 @@ def load_passwords() -> list[dict]:
 
 def init_jwt_secret() -> None:
     global _jwt_secret
+    if _jwt_secret is not None:
+        return
+
     env_secret = os.getenv("JWT_SECRET")
     if env_secret:
         _jwt_secret = env_secret

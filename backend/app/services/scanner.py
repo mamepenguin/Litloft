@@ -1,5 +1,6 @@
 import asyncio
 import logging
+import time
 import unicodedata
 from pathlib import Path
 
@@ -10,10 +11,14 @@ from app.database import SessionLocal
 from app.models import File
 from app.services.filetype import classify, is_hidden
 from app.services.thumbnail import generate_image_thumbnail, generate_thumbnail, get_video_duration
+from app.services.ws import broadcast_from_thread
 
 logger = logging.getLogger(__name__)
 
 _scan_lock = asyncio.Lock()
+
+PROGRESS_BATCH_SIZE = 50
+PROGRESS_INTERVAL = 1.0  # seconds
 
 
 def _filename_to_title(filename: str) -> str:
@@ -53,6 +58,8 @@ def _scan_and_register(db: Session, drive_name: str) -> dict[str, int]:
     found_paths: set[str] = set()
     added = 0
     updated = 0
+    processed = 0
+    last_progress_time = time.monotonic()
 
     for item in drive_path.rglob("*"):
         if not item.is_file():
@@ -107,6 +114,17 @@ def _scan_and_register(db: Session, drive_name: str) -> dict[str, int]:
             if needs_update:
                 updated += 1
                 logger.info("Updated file: %s (folder: %s)", relative_path, folder_path)
+
+            processed += 1
+            now = time.monotonic()
+            if processed % PROGRESS_BATCH_SIZE == 0 or now - last_progress_time >= PROGRESS_INTERVAL:
+                broadcast_from_thread("scan:progress", {
+                    "drive": drive_name,
+                    "added": added,
+                    "removed": 0,
+                    "total": processed,
+                }, drive=drive_name)
+                last_progress_time = now
             continue
 
         # New file
@@ -138,6 +156,17 @@ def _scan_and_register(db: Session, drive_name: str) -> dict[str, int]:
         added += 1
         logger.info("Added file: %s (drive: %s, type: %s)", relative_path, drive_name, file_type)
 
+        processed += 1
+        now = time.monotonic()
+        if processed % PROGRESS_BATCH_SIZE == 0 or now - last_progress_time >= PROGRESS_INTERVAL:
+            broadcast_from_thread("scan:progress", {
+                "drive": drive_name,
+                "added": added,
+                "removed": 0,
+                "total": processed,
+            }, drive=drive_name)
+            last_progress_time = now
+
     removed_paths = set(existing.keys()) - found_paths
     removed = 0
     if removed_paths:
@@ -159,6 +188,15 @@ def _scan_and_register(db: Session, drive_name: str) -> dict[str, int]:
     total = db.query(File).filter(File.drive == drive_name).count()
     if updated:
         logger.info("Updated %d file records (drive: %s)", updated, drive_name)
+
+    broadcast_from_thread("scan:complete", {
+        "drive": drive_name,
+        "added": added,
+        "removed": removed,
+        "updated": updated,
+        "total": total,
+    }, drive=drive_name)
+
     return {"added": added, "removed": removed, "updated": updated, "total": total}
 
 

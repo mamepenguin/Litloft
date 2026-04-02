@@ -9,6 +9,7 @@ import { Sidebar } from "@/components/Sidebar";
 import { SidebarProvider } from "@/components/SidebarProvider";
 import { ThemeProvider } from "@/components/ThemeProvider";
 import { CurrentDriveProvider } from "@/components/CurrentDriveProvider";
+import { WebSocketProvider } from "@/components/WebSocketProvider";
 
 const inter = Inter({
   variable: "--font-inter",
@@ -62,17 +63,19 @@ export default async function RootLayout({
       <body className="min-h-dvh">
         <NextIntlClientProvider messages={messages}>
           <ThemeProvider>
-            <CurrentDriveProvider>
-              <SidebarProvider>
-                <div className="flex min-h-dvh">
-                  <Sidebar />
-                  <main className="flex min-w-0 flex-1 flex-col">
-                    <Header />
-                    {children}
-                  </main>
-                </div>
-              </SidebarProvider>
-            </CurrentDriveProvider>
+            <WebSocketProvider>
+              <CurrentDriveProvider>
+                <SidebarProvider>
+                  <div className="flex min-h-dvh">
+                    <Sidebar />
+                    <main className="flex min-w-0 flex-1 flex-col">
+                      <Header />
+                      {children}
+                    </main>
+                  </div>
+                </SidebarProvider>
+              </CurrentDriveProvider>
+            </WebSocketProvider>
           </ThemeProvider>
         </NextIntlClientProvider>
       </body>

@@ -21,6 +21,7 @@ from app.services.fileops import (
     validate_within_drive,
 )
 from app.services.thumbnail import generate_thumbnail, get_video_duration
+from app.services.ws import broadcast_from_thread
 
 logger = logging.getLogger(__name__)
 
@@ -175,6 +176,13 @@ def complete_upload(upload_id: str, db: Session) -> File:
     db.refresh(file_record)
 
     logger.info("Upload complete: %s → %s", upload_id, target_rel)
+
+    broadcast_from_thread("upload:complete", {
+        "drive": session.drive,
+        "file_id": file_record.id,
+        "filename": file_record.filename,
+    }, drive=session.drive)
+
     return file_record
 
 
