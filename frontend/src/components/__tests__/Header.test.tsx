@@ -16,6 +16,10 @@ vi.mock("../ThemeToggle", () => ({
   ThemeToggle: () => <div data-testid="theme-toggle" />,
 }));
 
+vi.mock("../LanguageSwitcher", () => ({
+  LanguageSwitcher: () => <div data-testid="language-switcher" />,
+}));
+
 describe("Header", () => {
   it("renders menu button", () => {
     render(<Header />);
