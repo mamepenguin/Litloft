@@ -23,7 +23,7 @@ backend/
     main.py           # FastAPIエントリーポイント、ルーター登録、startup scan
     config.py          # drives.json からドライブ設定読み取り、DATA_DIR
     database.py        # SQLAlchemy engine, SessionLocal, get_db (DI), マイグレーション
-    models.py          # File, Tag, EmptyFolder, PinnedFolder, Playlist, PlaylistItem モデル (SQLAlchemy ORM)
+    models.py          # File, Tag, EmptyFolder, PinnedFolder, Playlist, PlaylistItem, WatchHistory モデル (SQLAlchemy ORM)
     schemas.py         # Pydantic スキーマ (リクエスト/レスポンス)
     auth.py            # JWT認証ロジック（トークン生成・検証、アクセスグループ管理）
     nanoid.py          # Nano ID生成ユーティリティ
@@ -33,6 +33,7 @@ backend/
       playlists.py     # プレイリストCRUD + アイテム操作エンドポイント
       auth.py          # POST /api/auth/unlock, lock, GET status
       uploads.py       # チャンクアップロードエンドポイント
+      progress.py      # 視聴履歴・レジューム再生（再生位置保存/取得/削除、viewer_id管理）
       ws.py            # WebSocketエンドポイント（リアルタイム通知）
     services/
       scanner.py       # ドライブ単位の再帰スキャン（全ファイル対応）、DB同期、排他ロック
@@ -69,8 +70,8 @@ frontend/
       FileTypeIcon.tsx   # ファイルタイプアイコン
       FileActions.tsx    # ファイル操作メニュー（リネーム、移動、削除）
       FolderActions.tsx  # フォルダ操作メニュー
-      VideoPlayer.tsx    # 動画プレーヤー
-      AudioPlayer.tsx    # 音声プレーヤー（onEnded コールバック対応）
+      VideoPlayer.tsx    # 動画プレーヤー（サーバーサイドレジューム対応）
+      AudioPlayer.tsx    # 音声プレーヤー（サーバーサイドレジューム対応）
       PlaylistPanel.tsx # プレイリスト再生パネル（トラックリスト、レイアウト切替）
       PlaylistPicker.tsx # プレイリスト選択ダイアログ（追加先選択用）
       DriveHome.tsx      # ドライブホームページレイアウト
@@ -93,6 +94,9 @@ frontend/
       LanguageSwitcher.tsx    # 言語切替トグル（ja/en）
       ThemeToggle.tsx         # ダーク/ライトテーマ切替
       WebSocketProvider.tsx  # WebSocket接続管理 Context Provider
+      ProfileProvider.tsx    # プロファイル（ニックネーム）Context Provider
+      ProfileSetup.tsx       # プロファイル初回設定ダイアログ
+      ContinueWatchingSection.tsx # 「続きを見る」カルーセルセクション
     i18n/
       config.ts            # next-intl設定（locales, defaultLocale）
       request.ts           # getRequestConfig（Cookie→locale解決）
@@ -168,6 +172,7 @@ docker compose logs -f backend
 | POST | /api/drives/{drive}/playlists/{id}/items | アイテム追加（複数可） |
 | DELETE | /api/drives/{drive}/playlists/{id}/items/{item_id} | アイテム削除 |
 | PUT | /api/drives/{drive}/playlists/{id}/items/reorder | アイテム並び替え |
+| GET | /api/drives/{drive}/watch-history?limit= | 続きを見るリスト（viewer_id別、未完了のみ） |
 
 ### 認証
 
@@ -200,6 +205,9 @@ docker compose logs -f backend
 | POST | /api/files/batch/delete | バッチ削除 |
 | PUT | /api/files/batch/move | バッチ移動 |
 | PUT | /api/files/batch/tags | バッチタグ更新 |
+| POST | /api/files/{id}/progress | 再生位置保存（viewer_id Cookie必須、なしは204） |
+| GET | /api/files/{id}/progress | 再生位置取得 |
+| DELETE | /api/files/{id}/progress | 再生履歴削除 |
 
 ## 重要な設計判断
 
@@ -273,6 +281,18 @@ docker compose logs -f backend
 - ドライブ横断操作（検索、お気に入り）は不要。各ドライブは完全に独立
 - お気に入りURLは `?view=favorites` クエリパラメータ（フォルダ名との競合回避）
 - 設計書: `docs/superpowers/specs/2026-03-24-drives-and-folders-design.md`
+
+### 視聴履歴・レジューム再生
+- **プロファイルとアクセス制御は独立**: パスワード認証（JWT `hv_token`）はドライブアクセス制御、プロファイル（Cookie `hv_viewer`）は個人識別。2つは直交
+- **ニックネーム方式**: アカウント不要。ニックネームをCookieに保存、サーバー側でSHA-256ハッシュ→viewer_idに変換
+- **デバイス間共有**: 同じニックネームを別デバイスで入力すれば同じ履歴を共有
+- **プロファイル一覧API不在**: プライバシー保護。他人のviewer_idを知る手段がない
+- **プロファイル未設定時**: localStorageフォールバック（既存動作維持）、サーバーへの保存なし（204返却）
+- **WatchHistoryテーブル**: `(viewer_id, file_id)` 複合PK、`file_id` CASCADE DELETE
+- **「続きを見る」セクション**: ドライブホーム最上部、`playback_position < duration * 0.9` でフィルタ（未完了のみ）
+- **FileCard プログレスバー**: サムネイル下部に3px accent色バー（YouTube風）
+- **進捗保存間隔**: VideoPlayer/AudioPlayer共に10秒間隔、fire-and-forget
+- 設計書: `docs/superpowers/specs/2026-04-02-watch-history-resume-design.md`
 
 ### Backend
 - `app.config` はモジュール参照で使う (`import app.config as config`)。`from app.config import VIDEOS_DIR` するとテスト時のパス差し替えが効かない。
@@ -348,4 +368,5 @@ Mac mini上にbare gitリポジトリ (`~/video-share.git`) を作成し、`post
 - `docs/superpowers/specs/2026-04-02-heic-support-design.md` — HEIC画像ブラウザ互換性対応設計書
 - `docs/superpowers/specs/2026-04-02-i18n-foundation-design.md` — i18n基盤設計書
 - `docs/superpowers/specs/2026-04-02-websocket-foundation-design.md` — WebSocket基盤設計書
+- `docs/superpowers/specs/2026-04-02-watch-history-resume-design.md` — 視聴履歴・レジューム再生設計書
 - `docs/superpowers/specs/2026-04-02-feature-roadmap.md` — 機能拡張ロードマップ
