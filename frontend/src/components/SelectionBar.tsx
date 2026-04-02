@@ -1,7 +1,18 @@
 "use client";
 
 import { useState } from "react";
-import { ClipboardCopy, ListMusic, Move, Pencil, RotateCcw, Scissors, Tag, Trash2, X } from "lucide-react";
+import {
+  Check,
+  ClipboardCopy,
+  ListMusic,
+  Move,
+  Pencil,
+  RotateCcw,
+  Scissors,
+  Tag,
+  Trash2,
+  X,
+} from "lucide-react";
 import { useTranslations } from "next-intl";
 
 import { batchDelete, batchGetFiles, batchMove, batchPurge, batchRestore, batchTag } from "@/lib/api";
@@ -52,6 +63,7 @@ export function SelectionBar({
   if (count === 0) return null;
 
   const ids = Array.from(selectedIds);
+  const allSelected = count >= totalCount;
 
   async function handleBatchRestore() {
     try {
@@ -132,147 +144,147 @@ export function SelectionBar({
 
   return (
     <>
-      <div className="fixed bottom-4 left-1/2 z-50 flex max-w-[calc(100vw-2rem)] items-center gap-2 sm:gap-3 rounded-xl bg-bg-elevated px-3 sm:px-4 py-3 shadow-2xl ring-1 ring-bg-border animate-slide-up">
-        <span className="text-sm font-medium text-text-primary">
-          {t("selected", { count })}
-        </span>
-
-        {count < totalCount && (
-          <button
-            onClick={onSelectAll}
-            className="text-xs text-accent hover:underline"
-          >
-            {t("selectAll")}
-          </button>
-        )}
-
-        <div className="h-5 w-px bg-bg-border" />
-
-        {isTrashView ? (
-          <>
-            <button
-              onClick={handleBatchRestore}
-              className="flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-sm text-text-muted transition-colors hover:bg-bg-card hover:text-text-primary"
-              aria-label={tt("restore")}
-            >
-              <RotateCcw size={16} />
-              <span className="hidden sm:inline">{tt("restore")}</span>
-            </button>
-
-            <button
-              onClick={() => setPurgeOpen(true)}
-              className="flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-sm text-red-400 transition-colors hover:bg-red-400/10"
-              aria-label={tt("purge")}
-            >
-              <Trash2 size={16} />
-              <span className="hidden sm:inline">{tt("purge")}</span>
-            </button>
-          </>
-        ) : (
-          <>
-            {tagging ? (
+      <div className="fixed bottom-0 left-0 right-0 z-50 animate-slide-up-bar">
+        <div className="mx-auto max-w-3xl px-3 pb-3 sm:pb-4">
+          <div className="overflow-hidden rounded-2xl bg-bg-card shadow-[0_8px_40px_rgba(0,0,0,0.5)] ring-1 ring-white/[0.06]">
+            {/* Header row: count + select all + close */}
+            <div className="flex items-center gap-3 border-b border-white/[0.04] px-4 py-2.5">
               <div className="flex items-center gap-2">
-                <input
-                  type="text"
-                  autoFocus
-                  value={tagInput}
-                  onChange={(e) => setTagInput(e.target.value)}
-                  onKeyDown={(e) => {
-                    if (e.key === "Enter") handleBatchTag();
-                    if (e.key === "Escape") setTagging(false);
-                  }}
-                  placeholder="tag1, tag2..."
-                  className="w-28 sm:w-40 rounded-lg bg-bg-card px-2 py-1 text-sm text-text-primary placeholder:text-text-muted outline-none focus:ring-2 focus:ring-accent"
-                />
-                <button
-                  onClick={handleBatchTag}
-                  className="rounded-lg bg-accent px-2 py-1 text-xs text-white hover:bg-accent/80"
-                >
-                  {tc("apply")}
-                </button>
+                <span className="inline-flex h-6 min-w-6 items-center justify-center rounded-full bg-accent/15 px-2 text-xs font-semibold tabular-nums text-accent">
+                  {count}
+                </span>
+                <span className="text-sm font-medium text-text-primary">
+                  {t("selected", { count })}
+                </span>
               </div>
-            ) : (
+
+              {!allSelected && (
+                <button
+                  onClick={onSelectAll}
+                  className="flex items-center gap-1 rounded-md px-2 py-1 text-xs font-medium text-accent transition-colors hover:bg-accent/10"
+                >
+                  <Check size={12} />
+                  {t("selectAll")}
+                </button>
+              )}
+
               <button
-                onClick={() => setTagging(true)}
-                className="flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-sm text-text-muted transition-colors hover:bg-bg-card hover:text-text-primary"
-                aria-label={t("tagging")}
+                onClick={onClear}
+                className="ml-auto rounded-lg p-1.5 text-text-muted transition-colors hover:bg-white/[0.06] hover:text-text-primary"
+                aria-label={t("deselect")}
               >
-                <Tag size={16} />
-                <span className="hidden sm:inline">{t("tag")}</span>
+                <X size={16} />
               </button>
-            )}
+            </div>
 
-            <button
-              onClick={handleOpenRename}
-              className="flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-sm text-text-muted transition-colors hover:bg-bg-card hover:text-text-primary"
-              aria-label={t("rename")}
-            >
-              <Pencil size={16} />
-              <span className="hidden sm:inline">{t("rename")}</span>
-            </button>
+            {/* Actions row */}
+            <div className="scrollbar-hide flex items-center gap-1 overflow-x-auto px-2 py-2">
+              {isTrashView ? (
+                <>
+                  <ActionButton
+                    icon={<RotateCcw size={15} />}
+                    label={tt("restore")}
+                    onClick={handleBatchRestore}
+                  />
+                  <ActionDivider />
+                  <ActionButton
+                    icon={<Trash2 size={15} />}
+                    label={tt("purge")}
+                    onClick={() => setPurgeOpen(true)}
+                    variant="danger"
+                  />
+                </>
+              ) : (
+                <>
+                  {/* Edit group */}
+                  {tagging ? (
+                    <div className="flex items-center gap-1.5 rounded-xl bg-white/[0.04] px-2 py-1">
+                      <Tag size={14} className="shrink-0 text-accent" />
+                      <input
+                        type="text"
+                        autoFocus
+                        value={tagInput}
+                        onChange={(e) => setTagInput(e.target.value)}
+                        onKeyDown={(e) => {
+                          if (e.key === "Enter") handleBatchTag();
+                          if (e.key === "Escape") setTagging(false);
+                        }}
+                        placeholder="tag1, tag2..."
+                        className="w-24 bg-transparent text-sm text-text-primary placeholder:text-text-muted/60 outline-none sm:w-36"
+                      />
+                      <button
+                        onClick={handleBatchTag}
+                        className="shrink-0 rounded-md bg-accent px-2.5 py-1 text-xs font-medium text-white transition-colors hover:bg-accent/80"
+                      >
+                        {tc("apply")}
+                      </button>
+                      <button
+                        onClick={() => setTagging(false)}
+                        className="shrink-0 rounded-md p-0.5 text-text-muted hover:text-text-primary"
+                      >
+                        <X size={14} />
+                      </button>
+                    </div>
+                  ) : (
+                    <ActionButton
+                      icon={<Tag size={15} />}
+                      label={t("tagging")}
+                      displayLabel={t("tag")}
+                      onClick={() => setTagging(true)}
+                    />
+                  )}
 
-            <button
-              onClick={() => setPlaylistPickerOpen(true)}
-              className="flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-sm text-text-muted transition-colors hover:bg-bg-card hover:text-text-primary"
-              aria-label={tf("addToPlaylist")}
-            >
-              <ListMusic size={16} />
-              <span className="hidden sm:inline">{t("playlist")}</span>
-            </button>
+                  <ActionButton
+                    icon={<Pencil size={15} />}
+                    label={t("rename")}
+                    onClick={handleOpenRename}
+                  />
 
-            <button
-              onClick={() => {
-                clipboard.copy(ids, drive, currentPath ?? "");
-                onClear();
-              }}
-              className="flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-sm text-text-muted transition-colors hover:bg-bg-card hover:text-text-primary"
-              aria-label={tcb("copy")}
-            >
-              <ClipboardCopy size={16} />
-              <span className="hidden sm:inline">{tcb("copy")}</span>
-            </button>
+                  <ActionDivider />
 
-            <button
-              onClick={() => {
-                clipboard.cut(ids, drive, currentPath ?? "");
-                onClear();
-              }}
-              className="flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-sm text-text-muted transition-colors hover:bg-bg-card hover:text-text-primary"
-              aria-label={tcb("cut")}
-            >
-              <Scissors size={16} />
-              <span className="hidden sm:inline">{tcb("cut")}</span>
-            </button>
+                  {/* Organize group */}
+                  <ActionButton
+                    icon={<ListMusic size={15} />}
+                    label={tf("addToPlaylist")}
+                    displayLabel={t("playlist")}
+                    onClick={() => setPlaylistPickerOpen(true)}
+                  />
+                  <ActionButton
+                    icon={<ClipboardCopy size={15} />}
+                    label={tcb("copy")}
+                    onClick={() => {
+                      clipboard.copy(ids, drive, currentPath ?? "");
+                      onClear();
+                    }}
+                  />
+                  <ActionButton
+                    icon={<Scissors size={15} />}
+                    label={tcb("cut")}
+                    onClick={() => {
+                      clipboard.cut(ids, drive, currentPath ?? "");
+                      onClear();
+                    }}
+                  />
+                  <ActionButton
+                    icon={<Move size={15} />}
+                    label={tc("move")}
+                    onClick={() => setMoveOpen(true)}
+                  />
 
-            <button
-              onClick={() => setMoveOpen(true)}
-              className="flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-sm text-text-muted transition-colors hover:bg-bg-card hover:text-text-primary"
-              aria-label={tc("move")}
-            >
-              <Move size={16} />
-              <span className="hidden sm:inline">{tc("move")}</span>
-            </button>
+                  <ActionDivider />
 
-            <button
-              onClick={() => setDeleteOpen(true)}
-              className="flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-sm text-red-400 transition-colors hover:bg-red-400/10"
-              aria-label={tt("moveToTrash")}
-            >
-              <Trash2 size={16} />
-              <span className="hidden sm:inline">{tt("moveToTrash")}</span>
-            </button>
-          </>
-        )}
-
-        <div className="h-5 w-px bg-bg-border" />
-
-        <button
-          onClick={onClear}
-          className="rounded-lg p-1.5 text-text-muted transition-colors hover:text-text-primary"
-          aria-label={t("deselect")}
-        >
-          <X size={16} />
-        </button>
+                  {/* Destructive */}
+                  <ActionButton
+                    icon={<Trash2 size={15} />}
+                    label={tt("moveToTrash")}
+                    onClick={() => setDeleteOpen(true)}
+                    variant="danger"
+                  />
+                </>
+              )}
+            </div>
+          </div>
+        </div>
       </div>
 
       <ConfirmDialog
@@ -317,4 +329,38 @@ export function SelectionBar({
       />
     </>
   );
+}
+
+function ActionButton({
+  icon,
+  label,
+  displayLabel,
+  onClick,
+  variant = "default",
+}: {
+  icon: React.ReactNode;
+  label: string;
+  displayLabel?: string;
+  onClick: () => void;
+  variant?: "default" | "danger";
+}) {
+  const colorClass =
+    variant === "danger"
+      ? "text-red-400 hover:bg-red-400/10 active:bg-red-400/15"
+      : "text-text-muted hover:bg-white/[0.06] hover:text-text-primary active:bg-white/[0.08]";
+
+  return (
+    <button
+      onClick={onClick}
+      className={`flex shrink-0 items-center gap-1.5 rounded-lg px-3 py-2 text-sm transition-colors ${colorClass}`}
+      aria-label={label}
+    >
+      {icon}
+      <span className="hidden sm:inline">{displayLabel ?? label}</span>
+    </button>
+  );
+}
+
+function ActionDivider() {
+  return <div className="mx-0.5 h-5 w-px shrink-0 bg-white/[0.06]" />;
 }

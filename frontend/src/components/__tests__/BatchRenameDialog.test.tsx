@@ -110,8 +110,7 @@ describe("BatchRenameDialog", () => {
     render(<BatchRenameDialog {...defaultProps} />);
     fireEvent.click(screen.getByText("プレフィックス・サフィックス"));
 
-    const select = screen.getByDisplayValue("先頭に追加");
-    fireEvent.change(select, { target: { value: "remove_prefix" } });
+    fireEvent.click(screen.getByText("先頭から削除"));
 
     const valueInput = screen.getByRole("textbox");
     fireEvent.change(valueInput, { target: { value: "photo_" } });
