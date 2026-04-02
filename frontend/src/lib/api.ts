@@ -120,6 +120,10 @@ export function getThumbnailUrl(id: string): string {
   return `${API_BASE}/files/${id}/thumbnail`;
 }
 
+export function getSubtitleUrl(fileId: string, index: number): string {
+  return `${API_BASE}/files/${fileId}/subtitles/${index}`;
+}
+
 // File operations
 export async function renameFile(id: string, newFilename: string): Promise<FileItem> {
   return fetchJSON<FileItem>(`${API_BASE}/files/${id}/rename`, {

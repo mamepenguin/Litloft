@@ -80,6 +80,7 @@ const makeWatchHistoryItem = (id: string): WatchHistoryItem => ({
   likes: 0,
   is_favorite: false,
   tags: [],
+  subtitles: [],
   created_at: "2026-01-01T00:00:00",
   updated_at: "2026-01-01T00:00:00",
   watch_progress: { position: 60, duration: 300 },

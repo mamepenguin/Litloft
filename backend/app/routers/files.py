@@ -26,12 +26,14 @@ from app.schemas import (
     FileRenameRequest,
     FileUpdate,
     NeighborsResponse,
+    SubtitleInfo,
     TagUpdate,
     file_to_response,
 )
 from app.services import fileops
 from app.services.filetype import classify
 from app.services.heic import HEIC_MIME_TYPES, convert_heic_to_jpeg
+from app.services.subtitle import convert_srt_to_vtt, detect_subtitles
 
 router = APIRouter(prefix="/api/files", tags=["files"])
 
@@ -87,6 +89,17 @@ def _validate_path(file_path: str, base_dir: Path) -> Path:
 
 
 _to_response = file_to_response
+
+
+def _detect_file_subtitles(file: File) -> list[SubtitleInfo]:
+    if file.file_type != "video":
+        return []
+    drive_path = config.get_drive_path(file.drive)
+    raw = detect_subtitles(file.file_path, drive_path)
+    return [
+        SubtitleInfo(index=i, language=s["language"], format=s["format"], label=s["label"])
+        for i, s in enumerate(raw)
+    ]
 
 
 def _is_drive_accessible(drive_name: str, unlocked_groups: list[str]) -> bool:
@@ -203,7 +216,8 @@ async def get_file(
     unlocked_groups: Annotated[list[str], Depends(get_unlocked_groups)],
 ):
     file = _get_file_or_404(db, file_id, unlocked_groups)
-    return _to_response(file)
+    subtitles = _detect_file_subtitles(file)
+    return _to_response(file, subtitles=subtitles)
 
 
 @router.get("/{file_id}/neighbors", response_model=NeighborsResponse)
@@ -594,6 +608,43 @@ async def get_archive_entry(
             "Content-Disposition": content_disp,
             "X-Content-Type-Options": "nosniff",
         },
+    )
+
+
+@router.get("/{file_id}/subtitles/{index}")
+async def get_subtitle(
+    file_id: FileId,
+    index: int,
+    db: Annotated[Session, Depends(get_db)],
+    unlocked_groups: Annotated[list[str], Depends(get_unlocked_groups)],
+):
+    file = _get_file_or_404(db, file_id, unlocked_groups)
+    if file.file_type != "video":
+        raise HTTPException(status_code=404, detail="Not a video file")
+
+    drive_path = config.get_drive_path(file.drive)
+    raw = detect_subtitles(file.file_path, drive_path)
+    if index < 0 or index >= len(raw):
+        raise HTTPException(status_code=404, detail="Subtitle not found")
+
+    sub = raw[index]
+    sub_path = _validate_path(str(drive_path / sub["path"]), drive_path)
+    if not sub_path.exists():
+        raise HTTPException(status_code=404, detail="Subtitle file not found on disk")
+
+    _MAX_SUBTITLE_SIZE = 5 * 1024 * 1024  # 5MB
+    if sub_path.stat().st_size > _MAX_SUBTITLE_SIZE:
+        raise HTTPException(status_code=413, detail="Subtitle file too large")
+
+    content = sub_path.read_text(encoding="utf-8-sig")
+
+    if sub["format"] == "srt":
+        content = convert_srt_to_vtt(content)
+
+    return Response(
+        content=content,
+        media_type="text/vtt",
+        headers={"Content-Type": "text/vtt; charset=utf-8"},
     )
 
 

@@ -18,6 +18,7 @@ const mockFile: FileItem = {
   likes: 3,
   is_favorite: false,
   tags: [],
+  subtitles: [],
   created_at: "2026-03-20T10:00:00",
   updated_at: "2026-03-20T10:00:00",
 };

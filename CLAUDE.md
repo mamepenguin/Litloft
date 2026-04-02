@@ -42,6 +42,7 @@ backend/
       upload.py        # チャンクアップロード管理（セッション、結合、クリーンアップ）
       thumbnail.py     # ffmpeg/ffprobe サムネイル生成（動画+画像対応）、duration取得
       heic.py          # HEIC→JPEG変換+キャッシュ（pillow-heif使用）
+      subtitle.py      # 字幕検出（同一フォルダ内.srt/.vtt自動紐付け）+ SRT→VTT変換
       ws.py            # WebSocket接続管理（ConnectionManager、ブロードキャスト）
   tests/               # pytest (Docker内で実行: Dockerfile.test)
   static/
@@ -194,6 +195,7 @@ docker compose logs -f backend
 | GET | /api/files/{id}/thumbnail | サムネイル画像 (動画: ffmpeg生成、他: placeholder) |
 | GET | /api/files/{id}/archive | ZIPアーカイブの中身一覧 |
 | GET | /api/files/{id}/archive/entry?path= | ZIP内の個別ファイルをストリーム |
+| GET | /api/files/{id}/subtitles/{index} | 字幕ストリーム（SRT→VTT自動変換、text/vtt） |
 | POST | /api/files/{id}/like | いいね |
 | POST | /api/files/{id}/dislike | likes - 1 |
 | POST | /api/files/{id}/favorite | お気に入りトグル |
@@ -223,12 +225,22 @@ docker compose logs -f backend
 
 ### ファイルタイプシステム
 - **File テーブル**: 全ファイルの統一モデル（旧 Video テーブルを統合）
-- **file_type**: 大分類（video/image/audio/document/archive/other）— UIフィルタ・アイコン切替
+- **file_type**: 大分類（video/image/audio/document/archive/subtitle/other）— UIフィルタ・アイコン切替
 - **mime_type**: 詳細（video/mp4 等）— Content-Type 決定・プレビュー方式判定
 - **duration**: nullable、video/audio のみ ffprobe で取得
-- **スキャン**: 隠しファイル（`.` 始まり）以外の全ファイルを登録
+- **スキャン**: 隠しファイル（`.` 始まり）と字幕ファイル（`.srt`/`.vtt`）以外の全ファイルを登録
 - 分類ロジックは `services/filetype.py` に分離
 - 設計書: `docs/superpowers/specs/2026-03-24-file-browsing-extension-design.md`
+
+### 字幕・キャプション対応
+- **対象**: `.srt`（SubRip）/ `.vtt`（WebVTT）ファイル
+- **検出方式**: DBに登録せず、`GET /api/files/{id}` 時にファイルシステムから動的検出
+- **自動紐付け**: 同一フォルダ内の `{動画名}.srt` / `{動画名}.vtt` / `{動画名}.{lang}.srt` を検出
+- **言語タグ**: `{動画名}.en.srt` → language="en", label="English" のように自動解析（ISO 639-1/3対応）
+- **SRT→VTT変換**: ブラウザはVTTのみ対応のため、配信時にサーバーサイドで変換（タイムスタンプの `,` → `.` 変換）
+- **API**: `GET /api/files/{id}/subtitles/{index}` で常に `text/vtt` として配信
+- **フロント**: VideoPlayer に `<track>` タグで字幕を追加、ブラウザネイティブのCC UI で ON/OFF/言語切替
+- **スキャナー除外**: 字幕ファイルは `file_type=subtitle` に分類されるがDBには登録しない（スキャン時にスキップ）
 
 ### HEIC画像対応
 - **問題**: HEIC（iPhone撮影画像）はChrome/Firefoxで表示不可、Debian aptのffmpegはlibheif未対応でサムネイル真っ黒

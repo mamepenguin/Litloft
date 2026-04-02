@@ -1,4 +1,11 @@
-export type FileType = "video" | "image" | "audio" | "document" | "archive" | "other";
+export type FileType = "video" | "image" | "audio" | "document" | "archive" | "subtitle" | "other";
+
+export interface SubtitleInfo {
+  index: number;
+  language: string;
+  format: string;
+  label: string;
+}
 
 export interface FileItem {
   id: string;
@@ -15,6 +22,7 @@ export interface FileItem {
   likes: number;
   is_favorite: boolean;
   tags: string[];
+  subtitles: SubtitleInfo[];
   created_at: string;
   updated_at: string;
 }

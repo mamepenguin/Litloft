@@ -177,7 +177,8 @@
   },
   "player": {
     "videoNotSupported": "Your browser does not support video playback.",
-    "audioNotSupported": "Your browser does not support audio playback."
+    "audioNotSupported": "Your browser does not support audio playback.",
+    "subtitleDefault": "Subtitles"
   },
   "archive": {
     "loadFailed": "Failed to load archive: {error}",

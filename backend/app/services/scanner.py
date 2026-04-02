@@ -10,6 +10,7 @@ import app.config as config
 from app.database import SessionLocal
 from app.models import File
 from app.services.filetype import classify, is_hidden
+from app.services.subtitle import is_subtitle_file
 from app.services.thumbnail import generate_image_thumbnail, generate_thumbnail, get_video_duration
 from app.services.ws import broadcast_from_thread
 
@@ -65,6 +66,8 @@ def _scan_and_register(db: Session, drive_name: str) -> dict[str, int]:
         if not item.is_file():
             continue
         if is_hidden(item, drive_path):
+            continue
+        if is_subtitle_file(item.name):
             continue
 
         relative_path = unicodedata.normalize("NFC", str(item.relative_to(drive_path)))

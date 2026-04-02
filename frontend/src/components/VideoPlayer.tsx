@@ -2,14 +2,15 @@
 
 import { useRef, useEffect, useCallback } from "react";
 import { useTranslations } from "next-intl";
-import { getStreamUrl, saveWatchProgress, getWatchProgress, deleteWatchProgress } from "@/lib/api";
+import type { SubtitleInfo } from "@/types";
+import { getStreamUrl, getSubtitleUrl, saveWatchProgress, getWatchProgress, deleteWatchProgress } from "@/lib/api";
 import { addRecentlyPlayed, getSavedProgress, saveProgress, clearProgress } from "@/lib/recentlyPlayed";
 import { useProfile } from "./ProfileProvider";
 
 const SAVE_INTERVAL = 5;
 const RESUME_THRESHOLD = 5;
 
-export function VideoPlayer({ videoId, onEnded, autoPlay }: { videoId: string; onEnded?: () => void; autoPlay?: boolean }) {
+export function VideoPlayer({ videoId, subtitles = [], onEnded, autoPlay }: { videoId: string; subtitles?: SubtitleInfo[]; onEnded?: () => void; autoPlay?: boolean }) {
   const t = useTranslations("player");
   const { nickname } = useProfile();
   const hasProfile = nickname !== null;
@@ -145,6 +146,16 @@ export function VideoPlayer({ videoId, onEnded, autoPlay }: { videoId: string; o
         onTimeUpdate={handleTimeUpdate}
         onEnded={handleEnded}
       >
+        {subtitles.map((sub, i) => (
+          <track
+            key={sub.index}
+            src={getSubtitleUrl(videoId, sub.index)}
+            kind="subtitles"
+            srcLang={sub.language || "und"}
+            label={sub.label || t("subtitleDefault")}
+            default={i === 0}
+          />
+        ))}
         {t("videoNotSupported")}
       </video>
     </div>

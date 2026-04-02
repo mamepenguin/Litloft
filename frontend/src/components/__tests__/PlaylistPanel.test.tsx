@@ -19,6 +19,7 @@ function makeTrackFile(id: string, type: "audio" | "video" = "audio"): FileItem 
     likes: 0,
     is_favorite: false,
     tags: [],
+    subtitles: [],
     created_at: "2026-01-01T00:00:00Z",
     updated_at: "2026-01-01T00:00:00Z",
   };

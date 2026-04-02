@@ -9,6 +9,8 @@ _CATEGORY_MAP = {
     "text": "document",
 }
 
+_SUBTITLE_EXTENSIONS = frozenset({".srt", ".vtt"})
+
 _ARCHIVE_MIMES = frozenset({
     "application/zip",
     "application/x-zip-compressed",
@@ -43,6 +45,10 @@ _EXTRA_MIMES = {
 
 def classify(filename: str) -> tuple[str, str]:
     ext = Path(filename).suffix.lower()
+
+    if ext in _SUBTITLE_EXTENSIONS:
+        mime = "text/vtt" if ext == ".vtt" else "application/x-subrip"
+        return ("subtitle", mime)
 
     mime, _ = mimetypes.guess_type(filename)
     if mime is None:

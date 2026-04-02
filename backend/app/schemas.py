@@ -16,6 +16,13 @@ class _UtcDateTimeMixin:
         return self
 
 
+class SubtitleInfo(BaseModel):
+    index: int
+    language: str
+    format: str
+    label: str
+
+
 class FileResponse(_UtcDateTimeMixin, BaseModel):
     id: str
     filename: str
@@ -31,6 +38,7 @@ class FileResponse(_UtcDateTimeMixin, BaseModel):
     likes: int
     is_favorite: bool
     tags: list[str]
+    subtitles: list[SubtitleInfo] = []
     created_at: datetime
     updated_at: datetime
 
@@ -387,7 +395,7 @@ class PlaylistDetailResponse(_UtcDateTimeMixin, BaseModel):
     updated_at: datetime
 
 
-def file_to_response(file) -> FileResponse:
+def file_to_response(file, subtitles: list[SubtitleInfo] | None = None) -> FileResponse:
     return FileResponse(
         id=file.id,
         filename=file.filename,
@@ -403,6 +411,7 @@ def file_to_response(file) -> FileResponse:
         likes=file.likes,
         is_favorite=file.is_favorite,
         tags=[tag.name for tag in file.tags],
+        subtitles=subtitles or [],
         created_at=file.created_at,
         updated_at=file.updated_at,
     )
