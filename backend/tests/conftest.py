@@ -86,11 +86,13 @@ def client(tmp_path):
     orig_drives_config = config.DRIVES_CONFIG
     orig_data = config.DATA_DIR
     orig_thumbs = config.THUMBNAILS_DIR
+    orig_converted = config.CONVERTED_DIR
     orig_cache = config._drives_cache
 
     config.DRIVES_CONFIG = drives_json
     config.DATA_DIR = data_dir
     config.THUMBNAILS_DIR = data_dir / "thumbnails"
+    config.CONVERTED_DIR = data_dir / "converted"
     config._drives_cache = None  # Reset cache so new config is loaded
 
     with TestClient(app) as c:
@@ -99,6 +101,7 @@ def client(tmp_path):
     config.DRIVES_CONFIG = orig_drives_config
     config.DATA_DIR = orig_data
     config.THUMBNAILS_DIR = orig_thumbs
+    config.CONVERTED_DIR = orig_converted
     config._drives_cache = orig_cache
     app.dependency_overrides.clear()
     engine.dispose()

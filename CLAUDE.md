@@ -37,6 +37,7 @@ backend/
       fileops.py       # ファイル/フォルダ CRUD 操作（リネーム、移動、削除、作成）
       upload.py        # チャンクアップロード管理（セッション、結合、クリーンアップ）
       thumbnail.py     # ffmpeg/ffprobe サムネイル生成（動画+画像対応）、duration取得
+      heic.py          # HEIC→JPEG変換+キャッシュ（pillow-heif使用）
   tests/               # pytest (Docker内で実行: Dockerfile.test)
   static/
     placeholder.jpg    # サムネイル未生成時のフォールバック画像
@@ -207,6 +208,16 @@ docker compose logs -f backend
 - 分類ロジックは `services/filetype.py` に分離
 - 設計書: `docs/superpowers/specs/2026-03-24-file-browsing-extension-design.md`
 
+### HEIC画像対応
+- **問題**: HEIC（iPhone撮影画像）はChrome/Firefoxで表示不可、Debian aptのffmpegはlibheif未対応でサムネイル真っ黒
+- **解決**: `pillow-heif` + Pillow によるサーバーサイドJPEG変換
+- **サムネイル**: HEICの場合はffmpegの代わりにPillowで生成（EXIF Orientation適用）
+- **フル画像**: streamエンドポイントでHEIC検出時にJPEGに変換して配信（`Content-Type: image/jpeg`）
+- **キャッシュ**: 変換結果は `data/converted/{hash}.jpg` に保存、2回目以降はキャッシュから配信
+- **クリーンアップ**: ファイル削除時にキャッシュも連動削除
+- **対象MIME型**: `image/heic`, `image/heif`, `image/heic-sequence`, `image/heif-sequence`
+- 設計書: `docs/superpowers/specs/2026-04-02-heic-support-design.md`
+
 ### ZIPアーカイブ閲覧
 - **対象**: ZIPファイルのみ（Python標準`zipfile`ライブラリ、外部依存なし）
 - **閲覧方式**: ZIP内のファイル一覧をツリー表示、画像は `ImageGallery` と同じフルスクリーンビューア（prefetch + スライドショー対応）
@@ -296,3 +307,4 @@ Mac mini上にbare gitリポジトリ (`~/video-share.git`) を作成し、`post
 - `docs/superpowers/specs/2026-03-25-like-dislike-unification-design.md` — いいね/よくないね統合設計書
 - `docs/superpowers/specs/2026-03-25-file-navigation-design.md` — ファイル前後ナビゲーション設計書
 - `docs/superpowers/specs/2026-03-28-zip-archive-viewer-design.md` — ZIPアーカイブ閲覧設計書
+- `docs/superpowers/specs/2026-04-02-heic-support-design.md` — HEIC画像ブラウザ互換性対応設計書

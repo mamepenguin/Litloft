@@ -31,6 +31,7 @@ from app.schemas import (
 )
 from app.services import fileops
 from app.services.filetype import classify
+from app.services.heic import HEIC_MIME_TYPES, convert_heic_to_jpeg
 
 router = APIRouter(prefix="/api/files", tags=["files"])
 
@@ -377,8 +378,16 @@ async def stream_file(
     if not file_path.exists():
         raise HTTPException(status_code=404, detail="File not found on disk")
 
-    file_size = file_path.stat().st_size
     content_type = file.mime_type or "application/octet-stream"
+
+    # HEIC/HEIF: serve converted JPEG for browser compatibility
+    if content_type in HEIC_MIME_TYPES:
+        jpeg_path = convert_heic_to_jpeg(str(file_path), config.CONVERTED_DIR)
+        if jpeg_path is not None:
+            file_path = jpeg_path
+            content_type = "image/jpeg"
+
+    file_size = file_path.stat().st_size
     range_header = request.headers.get("range")
 
     if range_header:

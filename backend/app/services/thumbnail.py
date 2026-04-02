@@ -74,6 +74,11 @@ def generate_thumbnail(video_path: str, output_path: str) -> bool:
 
 
 def generate_image_thumbnail(image_path: str, output_path: str) -> bool:
+    from app.services.heic import is_heic_file
+
+    if is_heic_file(image_path):
+        return _generate_heic_thumbnail(image_path, output_path)
+
     output = Path(output_path)
     output.parent.mkdir(parents=True, exist_ok=True)
 
@@ -104,4 +109,32 @@ def generate_image_thumbnail(image_path: str, output_path: str) -> bool:
         return output.exists()
     except subprocess.TimeoutExpired:
         logger.error("ffmpeg timeout for image %s", image_path)
+        return False
+
+
+def _generate_heic_thumbnail(image_path: str, output_path: str) -> bool:
+    """Generate a thumbnail from a HEIC/HEIF image using Pillow."""
+    output = Path(output_path)
+    output.parent.mkdir(parents=True, exist_ok=True)
+
+    try:
+        from PIL import Image, ImageOps
+
+        # pillow_heif opener is registered at module load in heic.py
+        from app.services import heic  # noqa: F401 — ensures registration
+
+        with Image.open(image_path) as img:
+            oriented = ImageOps.exif_transpose(img)
+            oriented.thumbnail((320, 180))
+
+            thumb_w, thumb_h = oriented.size
+            canvas = Image.new("RGB", (320, 180), (0, 0, 0))
+            offset_x = (320 - thumb_w) // 2
+            offset_y = (180 - thumb_h) // 2
+            canvas.paste(oriented, (offset_x, offset_y))
+            canvas.save(output_path, format="JPEG", quality=85, exif=b"")
+
+        return output.exists()
+    except Exception as e:
+        logger.error("Pillow HEIC thumbnail failed for %s: %s", image_path, e)
         return False

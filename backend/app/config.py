@@ -7,6 +7,7 @@ DRIVES_CONFIG = Path(os.getenv("DRIVES_CONFIG", "./drives.json"))
 DATA_DIR = Path(os.getenv("DATA_DIR", "./data"))
 DATABASE_URL = f"sqlite:///{DATA_DIR}/videos.db"
 THUMBNAILS_DIR = DATA_DIR / "thumbnails"
+CONVERTED_DIR = DATA_DIR / "converted"
 UPLOAD_DIR = DATA_DIR / "uploads"
 CHUNK_SIZE = 1024 * 1024  # 1MB for streaming
 MAX_UPLOAD_SIZE = 2 * 1024 * 1024 * 1024  # 2GB

@@ -9,6 +9,7 @@ from sqlalchemy.orm import Session
 
 import app.config as config
 from app.models import EmptyFolder, File
+from app.services.heic import cleanup_heic_cache
 
 logger = logging.getLogger(__name__)
 
@@ -331,6 +332,8 @@ def delete_file(db: Session, file_id: str) -> None:
         if thumb.exists():
             thumb.unlink()
             _cleanup_empty_parents(thumb.parent, config.THUMBNAILS_DIR)
+
+    cleanup_heic_cache(str(full_path.resolve()), config.CONVERTED_DIR)
 
     db.delete(file)
     db.commit()
