@@ -123,6 +123,7 @@ frontend/
       format.ts          # formatDuration, formatFileSize
       recentlyPlayed.ts  # 最近再生した曲の管理
       renamePreview.ts   # バッチリネームのプレビュー計算（クライアント側）
+      directoryReader.ts # フォルダD&D時の再帰ディレクトリ読み取り（webkitGetAsEntry）
     types/index.ts       # FileItem, Drive, Folder, Tag, PlaylistSummary, PlaylistDetail, WebSocketEvent 等の型定義
   server.js              # Custom Server (WebSocketプロキシ、http-proxy、Docker本番用)
 
@@ -167,7 +168,7 @@ docker compose logs -f backend
 | POST | /api/drives/{drive}/folders | フォルダ作成 |
 | PUT | /api/drives/{drive}/folders | フォルダリネーム |
 | DELETE | /api/drives/{drive}/folders?path= | フォルダ削除（空のみ） |
-| POST | /api/drives/{drive}/upload/init | アップロード開始 |
+| POST | /api/drives/{drive}/upload/init | アップロード開始（relative_pathでフォルダ構造維持） |
 | POST | /api/drives/{drive}/upload/{id}/chunk | チャンク送信 |
 | POST | /api/drives/{drive}/upload/{id}/complete | アップロード完了 |
 | DELETE | /api/drives/{drive}/upload/{id} | アップロードキャンセル |
@@ -392,6 +393,14 @@ docker compose logs -f backend
 - **復元**: `deleted_at = NULL` に戻すだけ。FSにファイルが存在しない場合は復元不可（404）
 - **UI**: サイドバーLIBRARYセクションに「ゴミ箱」リンク、`?view=trash` でゴミ箱一覧表示。復元/完全削除/ゴミ箱を空にするアクション
 - 設計書: `docs/superpowers/specs/2026-04-02-trash-soft-delete-design.md`
+
+### フォルダアップロード（構造維持）
+- **方式**: 既存チャンクアップロードの拡張。`UploadInitRequest` に `relative_path` パラメータ追加
+- **relative_path**: フォルダ内のファイルの相対パス（例: `photos/2024/vacation.jpg`）。ディレクトリ部分を `folder_path` に結合してサブフォルダを自動作成
+- **フロントエンド D&D**: `DataTransferItem.webkitGetAsEntry()` でフォルダ構造を再帰取得（`directoryReader.ts`）
+- **フロントエンド ボタン**: Uploadボタンをドロップダウン化（「ファイル」/「フォルダ」選択）。フォルダ選択は `<input webkitdirectory>` で `webkitRelativePath` を取得
+- **セキュリティ**: `validate_path_safe` + `validate_within_drive`（realpath）でパストラバーサル防止
+- **空フォルダ**: ブラウザの `webkitGetAsEntry()` はファイルのみ返すため、空フォルダは作成されない
 
 ### Frontend
 - Next.js 16: `params` は `Promise` 型。Server Component では `await params`、Client Component では `use(params)` または `useParams()`
