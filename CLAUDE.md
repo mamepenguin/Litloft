@@ -86,7 +86,14 @@ frontend/
       CurrentDriveProvider.tsx # カレントドライブ Context Provider
       SidebarProvider.tsx     # サイドバー Context Provider
       ThemeProvider.tsx       # テーマ Context Provider
+      LanguageSwitcher.tsx    # 言語切替トグル（ja/en）
       ThemeToggle.tsx         # ダーク/ライトテーマ切替
+    i18n/
+      config.ts            # next-intl設定（locales, defaultLocale）
+      request.ts           # getRequestConfig（Cookie→locale解決）
+    messages/
+      ja.json              # 日本語翻訳ファイル（170+キー）
+      en.json              # 英語翻訳ファイル
     hooks/
       useContextMenu.ts  # コンテキストメニュー hook
       useSelection.ts    # 複数選択状態 hook
@@ -218,6 +225,18 @@ docker compose logs -f backend
 - **対象MIME型**: `image/heic`, `image/heif`, `image/heic-sequence`, `image/heif-sequence`
 - 設計書: `docs/superpowers/specs/2026-04-02-heic-support-design.md`
 
+### i18n（国際化）
+- **ライブラリ**: next-intl（Next.js 16 App Router + Server Component対応）
+- **ルーティング方式**: Cookie-only（`NEXT_LOCALE` Cookie）。URLにロケールプレフィックスを含めない
+- **対応言語**: `ja`（日本語、デフォルト）、`en`（英語）
+- **翻訳ファイル**: `messages/ja.json`, `messages/en.json`（170+キー、19名前空間）
+- **Client Component**: `useTranslations('namespace')` でアクセス
+- **Server Component**: `getTranslations('namespace')` でアクセス
+- **言語切替**: Header内のLanguageSwitcherトグル → Cookie設定 → `router.refresh()`
+- **バックエンド**: エラーメッセージはキー化せず、フロント側で表示文言を解決
+- **既知の制限**: `format.ts`（相対日時）と `useUpload.ts`（エラーメッセージ）はフック外のためハードコードのまま
+- 設計書: `docs/superpowers/specs/2026-04-02-i18n-foundation-design.md`
+
 ### ZIPアーカイブ閲覧
 - **対象**: ZIPファイルのみ（Python標準`zipfile`ライブラリ、外部依存なし）
 - **閲覧方式**: ZIP内のファイル一覧をツリー表示、画像は `ImageGallery` と同じフルスクリーンビューア（prefetch + スライドショー対応）
@@ -308,3 +327,5 @@ Mac mini上にbare gitリポジトリ (`~/video-share.git`) を作成し、`post
 - `docs/superpowers/specs/2026-03-25-file-navigation-design.md` — ファイル前後ナビゲーション設計書
 - `docs/superpowers/specs/2026-03-28-zip-archive-viewer-design.md` — ZIPアーカイブ閲覧設計書
 - `docs/superpowers/specs/2026-04-02-heic-support-design.md` — HEIC画像ブラウザ互換性対応設計書
+- `docs/superpowers/specs/2026-04-02-i18n-foundation-design.md` — i18n基盤設計書
+- `docs/superpowers/specs/2026-04-02-feature-roadmap.md` — 機能拡張ロードマップ
