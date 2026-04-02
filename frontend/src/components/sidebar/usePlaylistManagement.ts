@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import type { AppRouterInstance } from "next/dist/shared/lib/app-router-context.shared-runtime";
 
-import { createPlaylist, updatePlaylist, deletePlaylist, getPlaylists, getPlaylist } from "@/lib/api";
+import { createPlaylist, updatePlaylist, deletePlaylist, getPlaylists } from "@/lib/api";
 import type { PlaylistSummary } from "@/types";
 
 interface UsePlaylistManagementParams {
@@ -12,6 +12,7 @@ interface UsePlaylistManagementParams {
   setPlaylistList: React.Dispatch<React.SetStateAction<PlaylistSummary[]>>;
   close: () => void;
   router: AppRouterInstance;
+  setOverrideDrive: (drive: string | null) => void;
 }
 
 export function usePlaylistManagement({
@@ -20,6 +21,7 @@ export function usePlaylistManagement({
   setPlaylistList,
   close,
   router,
+  setOverrideDrive,
 }: UsePlaylistManagementParams) {
   const [creatingPlaylist, setCreatingPlaylist] = useState(false);
   const [newPlaylistName, setNewPlaylistName] = useState("");
@@ -95,19 +97,12 @@ export function usePlaylistManagement({
     setContextMenu(null);
   }, [currentDrive, setPlaylistList]);
 
-  const handlePlaylistClick = useCallback(async (pl: PlaylistSummary) => {
-    if (!currentDrive || pl.item_count === 0) return;
-    try {
-      const detail = await getPlaylist(currentDrive, pl.id);
-      if (detail.items.length > 0) {
-        const firstFileId = detail.items[0].file.id;
-        close();
-        router.push(`/files/${firstFileId}?playlist=${pl.id}`);
-      }
-    } catch {
-      // error
-    }
-  }, [currentDrive, close, router]);
+  const handlePlaylistClick = useCallback((pl: PlaylistSummary) => {
+    if (!pl.first_file_id) return;
+    setOverrideDrive(pl.drive);
+    close();
+    router.push(`/files/${pl.first_file_id}?playlist=${pl.id}`);
+  }, [close, router, setOverrideDrive]);
 
   return {
     creatingPlaylist,

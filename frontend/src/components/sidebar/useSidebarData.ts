@@ -30,15 +30,10 @@ export function useSidebarData(
   }, [refreshKey]);
 
   useEffect(() => {
-    if (currentDrive) {
-      getDriveTags(currentDrive).then(setTags).catch(() => setTags([]));
-      getPins(currentDrive).then(setPins).catch(() => setPins([]));
-      getPlaylists(currentDrive).then(setPlaylistList).catch(() => setPlaylistList([]));
-    } else {
-      setTags([]);
-      setPins([]);
-      setPlaylistList([]);
-    }
+    if (!currentDrive) return;
+    getDriveTags(currentDrive).then(setTags).catch(() => setTags([]));
+    getPins(currentDrive).then(setPins).catch(() => setPins([]));
+    getPlaylists(currentDrive).then(setPlaylistList).catch(() => setPlaylistList([]));
   }, [currentDrive, refreshKey]);
 
   return { drives, tags, pins, playlistList, setPlaylistList, authStatus };

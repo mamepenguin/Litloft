@@ -80,6 +80,7 @@ export interface PlaylistSummary {
   name: string;
   drive: string;
   item_count: number;
+  first_file_id: string | null;
   created_at: string;
   updated_at: string;
 }

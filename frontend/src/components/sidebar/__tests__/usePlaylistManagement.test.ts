@@ -8,10 +8,9 @@ vi.mock("@/lib/api", () => ({
   updatePlaylist: vi.fn().mockResolvedValue({}),
   deletePlaylist: vi.fn().mockResolvedValue({}),
   getPlaylists: vi.fn().mockResolvedValue([]),
-  getPlaylist: vi.fn().mockResolvedValue({ items: [] }),
 }));
 
-import { createPlaylist, updatePlaylist, deletePlaylist, getPlaylists, getPlaylist } from "@/lib/api";
+import { createPlaylist, updatePlaylist, deletePlaylist, getPlaylists } from "@/lib/api";
 
 const mockPush = vi.fn();
 const mockRouter = {
@@ -23,17 +22,19 @@ const mockRouter = {
   prefetch: vi.fn(),
 } as any;
 
-const makePl = (id: string, name: string, itemCount = 0): PlaylistSummary => ({
+const makePl = (id: string, name: string, itemCount = 0, firstFileId: string | null = null): PlaylistSummary => ({
   id,
   name,
   drive: "main",
   item_count: itemCount,
+  first_file_id: firstFileId,
   created_at: "",
   updated_at: "",
 });
 
 describe("usePlaylistManagement", () => {
   const close = vi.fn();
+  const setOverrideDrive = vi.fn();
   let playlistList: PlaylistSummary[];
   let setPlaylistList: ReturnType<typeof vi.fn>;
 
@@ -51,6 +52,7 @@ describe("usePlaylistManagement", () => {
         setPlaylistList,
         close,
         router: mockRouter,
+        setOverrideDrive,
       })
     );
   }
@@ -153,28 +155,25 @@ describe("usePlaylistManagement", () => {
     expect(result.current.contextMenu).toBeNull();
   });
 
-  it("navigates to first file on playlist click", async () => {
-    vi.mocked(getPlaylist).mockResolvedValueOnce({
-      items: [{ id: 1, position: 0, file: { id: "file-42" } as any }],
-    } as any);
+  it("navigates to first file on playlist click", () => {
     const { result } = renderPM();
 
-    await act(async () => {
-      await result.current.handlePlaylistClick(makePl("pl1", "Test", 1));
+    act(() => {
+      result.current.handlePlaylistClick(makePl("pl1", "Test", 1, "file-42"));
     });
 
+    expect(setOverrideDrive).toHaveBeenCalledWith("main");
     expect(close).toHaveBeenCalled();
     expect(mockPush).toHaveBeenCalledWith("/files/file-42?playlist=pl1");
   });
 
-  it("does not navigate for empty playlist", async () => {
+  it("does not navigate for empty playlist", () => {
     const { result } = renderPM();
 
-    await act(async () => {
-      await result.current.handlePlaylistClick(makePl("pl1", "Test", 0));
+    act(() => {
+      result.current.handlePlaylistClick(makePl("pl1", "Test", 0));
     });
 
-    expect(vi.mocked(getPlaylist)).not.toHaveBeenCalled();
     expect(mockPush).not.toHaveBeenCalled();
   });
 
@@ -186,6 +185,7 @@ describe("usePlaylistManagement", () => {
         setPlaylistList,
         close,
         router: mockRouter,
+        setOverrideDrive,
       })
     );
 

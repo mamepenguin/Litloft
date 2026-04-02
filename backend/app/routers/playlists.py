@@ -42,11 +42,13 @@ def _get_playlist_or_404(
 
 
 def _to_summary(playlist: Playlist) -> PlaylistSummaryResponse:
+    sorted_items = sorted(playlist.items, key=lambda i: i.position)
     return PlaylistSummaryResponse(
         id=playlist.id,
         name=playlist.name,
         drive=playlist.drive,
-        item_count=len(playlist.items),
+        item_count=len(sorted_items),
+        first_file_id=sorted_items[0].file_id if sorted_items else None,
         created_at=playlist.created_at,
         updated_at=playlist.updated_at,
     )

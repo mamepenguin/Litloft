@@ -459,6 +459,7 @@ class PlaylistSummaryResponse(_UtcDateTimeMixin, BaseModel):
     name: str
     drive: str
     item_count: int
+    first_file_id: str | None
     created_at: datetime
     updated_at: datetime
 

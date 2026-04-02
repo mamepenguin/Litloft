@@ -7,7 +7,7 @@ import { useTranslations } from "next-intl";
 
 import { lock as lockApi } from "@/lib/api";
 import { useSidebar } from "./SidebarProvider";
-import { useCurrentDrive } from "./CurrentDriveProvider";
+import { useCurrentDrive, useSetOverrideDrive } from "./CurrentDriveProvider";
 import { useSidebarData } from "./sidebar/useSidebarData";
 import { usePlaylistManagement } from "./sidebar/usePlaylistManagement";
 import { SidebarLibrarySection } from "./sidebar/SidebarLibrarySection";
@@ -23,6 +23,7 @@ function SidebarNav() {
   const { close, refreshKey } = useSidebar();
 
   const currentDrive = useCurrentDrive();
+  const setOverrideDrive = useSetOverrideDrive();
   const activeView = searchParams.get("view");
   const activeTag = searchParams.get("tag");
 
@@ -35,6 +36,7 @@ function SidebarNav() {
     setPlaylistList,
     close,
     router,
+    setOverrideDrive,
   });
 
   function isActive(href: string): boolean {
