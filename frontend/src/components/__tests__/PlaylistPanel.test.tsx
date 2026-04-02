@@ -31,6 +31,7 @@ vi.mock("@/lib/api", () => ({
   removePlaylistItem: vi.fn().mockResolvedValue(undefined),
   reorderPlaylistItems: vi.fn().mockResolvedValue({}),
   getThumbnailUrl: (id: string) => `/api/files/${id}/thumbnail`,
+  getPreviewUrl: (id: string) => `/api/files/${id}/preview`,
 }));
 
 vi.mock("@/lib/format", () => ({

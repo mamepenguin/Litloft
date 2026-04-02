@@ -61,4 +61,38 @@ describe("FileCard", () => {
     render(<FileCard file={{ ...mockFile, file_type: "document", mime_type: "application/pdf" }} />);
     expect(screen.queryByAltText("Test Video")).toBeNull();
   });
+
+  describe("VideoPreview", () => {
+    it("renders preview container for video files", () => {
+      render(<FileCard file={mockFile} />);
+      expect(screen.getByTestId("video-preview-container")).toBeInTheDocument();
+    });
+
+    it("does not show preview overlay for image files", () => {
+      render(
+        <FileCard
+          file={{ ...mockFile, file_type: "image", mime_type: "image/jpeg", filename: "photo.jpg" }}
+        />
+      );
+      expect(screen.queryByTestId("video-preview-container")).toBeNull();
+    });
+
+    it("does not show preview overlay for audio files", () => {
+      render(
+        <FileCard
+          file={{ ...mockFile, file_type: "audio", mime_type: "audio/mpeg", filename: "song.mp3" }}
+        />
+      );
+      expect(screen.queryByTestId("video-preview-container")).toBeNull();
+    });
+
+    it("does not show preview overlay for document files", () => {
+      render(
+        <FileCard
+          file={{ ...mockFile, file_type: "document", mime_type: "application/pdf", filename: "doc.pdf" }}
+        />
+      );
+      expect(screen.queryByTestId("video-preview-container")).toBeNull();
+    });
+  });
 });

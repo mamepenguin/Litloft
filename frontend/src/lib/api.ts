@@ -124,6 +124,10 @@ export function getSubtitleUrl(fileId: string, index: number): string {
   return `${API_BASE}/files/${fileId}/subtitles/${index}`;
 }
 
+export function getPreviewUrl(id: string): string {
+  return `${API_BASE}/files/${id}/preview`;
+}
+
 // File operations
 export async function renameFile(id: string, newFilename: string): Promise<FileItem> {
   return fetchJSON<FileItem>(`${API_BASE}/files/${id}/rename`, {

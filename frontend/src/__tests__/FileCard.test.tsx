@@ -9,6 +9,7 @@ vi.mock("next/link", () => ({
 
 vi.mock("@/lib/api", () => ({
   getThumbnailUrl: (id: string) => `/api/files/${id}/thumbnail`,
+  getPreviewUrl: (id: string) => `/api/files/${id}/preview`,
 }));
 
 import { FileCard } from "../components/FileCard";

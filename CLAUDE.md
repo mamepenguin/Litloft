@@ -43,6 +43,7 @@ backend/
       thumbnail.py     # ffmpeg/ffprobe サムネイル生成（動画+画像対応）、duration取得
       heic.py          # HEIC→JPEG変換+キャッシュ（pillow-heif使用）
       subtitle.py      # 字幕検出（同一フォルダ内.srt/.vtt自動紐付け）+ SRT→VTT変換
+      preview.py       # 動画プレビュースプライトシート生成（8フレーム、オンデマンド+キャッシュ）
       ws.py            # WebSocket接続管理（ConnectionManager、ブロードキャスト）
   tests/               # pytest (Docker内で実行: Dockerfile.test)
   static/
@@ -72,6 +73,7 @@ frontend/
       FileActions.tsx    # ファイル操作メニュー（リネーム、移動、削除）
       FolderActions.tsx  # フォルダ操作メニュー
       VideoPlayer.tsx    # 動画プレーヤー（サーバーサイドレジューム対応）
+      VideoPreview.tsx   # 動画サムネイルプレビュー（ホバー/長押しでスプライトシートアニメーション）
       AudioPlayer.tsx    # 音声プレーヤー（サーバーサイドレジューム対応）
       PlaylistPanel.tsx # プレイリスト再生パネル（トラックリスト、レイアウト切替）
       PlaylistPicker.tsx # プレイリスト選択ダイアログ（追加先選択用）
@@ -193,6 +195,7 @@ docker compose logs -f backend
 | PUT | /api/files/{id} | メタデータ編集 (title, description) |
 | GET | /api/files/{id}/stream | ストリーミング (Range Request 206対応、Content-Type は mime_type から動的決定) |
 | GET | /api/files/{id}/thumbnail | サムネイル画像 (動画: ffmpeg生成、他: placeholder) |
+| GET | /api/files/{id}/preview | 動画プレビュースプライトシート (8フレーム、2560x180 JPEG、オンデマンド生成+キャッシュ) |
 | GET | /api/files/{id}/archive | ZIPアーカイブの中身一覧 |
 | GET | /api/files/{id}/archive/entry?path= | ZIP内の個別ファイルをストリーム |
 | GET | /api/files/{id}/subtitles/{index} | 字幕ストリーム（SRT→VTT自動変換、text/vtt） |
@@ -231,6 +234,15 @@ docker compose logs -f backend
 - **スキャン**: 隠しファイル（`.` 始まり）と字幕ファイル（`.srt`/`.vtt`）以外の全ファイルを登録
 - 分類ロジックは `services/filetype.py` に分離
 - 設計書: `docs/superpowers/specs/2026-03-24-file-browsing-extension-design.md`
+
+### サムネイルプレビュー（動画ホバー/長押し）
+- **方式**: スプライトシート — 8フレーム（0%～87.5%地点）を横1列に結合した1枚のJPEG（2560×180）
+- **生成タイミング**: オンデマンド生成+キャッシュ（HEIC変換・サムネイルと同じパターン）
+- **キャッシュ**: `data/previews/{file_id}.jpg` に保存、ファイル削除時・スキャン時に連動削除
+- **同時実行制御**: `asyncio.Semaphore(2)` で最大2並列、同一ファイルの重複生成防止（in-progressセット）
+- **原子性**: Pillow書き出しは `.tmp` → `os.replace()` で原子的に完了
+- **フロントエンド**: デスクトップ=ホバー200ms後にフレーム切替（400ms間隔）、モバイル=長押し500msでプレビュー
+- **CSS**: `background-size: 800% 100%` + `background-position` でフレーム切替（HTTPリクエスト1回）
 
 ### 字幕・キャプション対応
 - **対象**: `.srt`（SubRip）/ `.vtt`（WebVTT）ファイル

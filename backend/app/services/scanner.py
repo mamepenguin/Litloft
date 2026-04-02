@@ -180,6 +180,9 @@ def _scan_and_register(db: Session, drive_name: str) -> dict[str, int]:
                 if thumb.exists():
                     thumb.unlink()
                     _cleanup_empty_parents(thumb.parent, config.THUMBNAILS_DIR)
+            preview = config.PREVIEWS_DIR / f"{file_record.id}.jpg"
+            if preview.exists():
+                preview.unlink()
         removed = (
             db.query(File)
             .filter(File.drive == drive_name, File.file_path.in_(removed_paths))

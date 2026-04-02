@@ -335,6 +335,10 @@ def delete_file(db: Session, file_id: str) -> None:
 
     cleanup_heic_cache(str(full_path.resolve()), config.CONVERTED_DIR)
 
+    preview_path = config.PREVIEWS_DIR / f"{file.id}.jpg"
+    if preview_path.exists():
+        preview_path.unlink()
+
     db.delete(file)
     db.commit()
 

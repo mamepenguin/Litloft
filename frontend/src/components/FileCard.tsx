@@ -5,6 +5,7 @@ import { getThumbnailUrl } from "@/lib/api";
 import { FavoriteButton } from "./FavoriteButton";
 import { TagList } from "./TagList";
 import { FileTypeIcon } from "./FileTypeIcon";
+import { VideoPreview } from "./VideoPreview";
 
 export function FileCard({
   file,
@@ -112,6 +113,9 @@ export function FileCard({
             <div className="flex h-full w-full items-center justify-center">
               <FileTypeIcon fileType={file.file_type} size={48} className="text-text-muted" />
             </div>
+          )}
+          {file.file_type === "video" && (
+            <VideoPreview fileId={file.id} />
           )}
           {(file.file_type === "video" || file.file_type === "audio") && file.duration != null && (
             <span className="absolute bottom-2 right-2 rounded bg-black/70 px-1.5 py-0.5 text-xs font-medium text-white">

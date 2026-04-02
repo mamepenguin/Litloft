@@ -55,6 +55,7 @@ vi.mock("@/lib/api", () => ({
   moveFile: vi.fn(),
   getThumbnailUrl: (id: string) => `/api/files/${id}/thumbnail`,
   getDownloadUrl: (id: string) => `/api/files/${id}/stream?download=true`,
+  getPreviewUrl: (id: string) => `/api/files/${id}/preview`,
 }));
 
 // Mock child components that are complex
