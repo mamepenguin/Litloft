@@ -8,7 +8,7 @@ from sqlalchemy.orm import Session
 
 import app.config as config
 from app.database import SessionLocal
-from app.models import File
+from app.models import EmptyFolder, File
 from app.services.filetype import classify, is_hidden
 from app.services.subtitle import is_subtitle_file
 from app.services.thumbnail import generate_image_thumbnail, generate_thumbnail, get_video_duration
@@ -189,6 +189,45 @@ def _scan_and_register(db: Session, drive_name: str) -> dict[str, int]:
             .delete(synchronize_session="fetch")
         )
         logger.info("Removed %d files and their thumbnails (drive: %s)", removed, drive_name)
+
+    # Sync empty folders: detect filesystem dirs with no files and track them
+    folders_with_files = {
+        f.folder_path
+        for f in db.query(File.folder_path).filter(File.drive == drive_name).distinct().all()
+    }
+    # Find all directories on the filesystem
+    fs_dirs: set[str] = set()
+    for item in drive_path.rglob("*"):
+        if item.is_dir() and not is_hidden(item, drive_path):
+            rel = unicodedata.normalize("NFC", str(item.relative_to(drive_path)))
+            fs_dirs.add(rel)
+    # Empty dirs = exist on filesystem but have no files in DB
+    empty_dirs = fs_dirs - folders_with_files
+    # Also exclude dirs that have sub-folders with files (they appear in list_folders via prefix match)
+    truly_empty: set[str] = set()
+    for d in empty_dirs:
+        has_child_with_files = any(
+            fp.startswith(d + "/") for fp in folders_with_files
+        )
+        if not has_child_with_files:
+            truly_empty.add(d)
+    # Get existing EmptyFolder records
+    existing_efs = {
+        ef.path
+        for ef in db.query(EmptyFolder).filter(EmptyFolder.drive == drive_name).all()
+    }
+    # Add missing EmptyFolder records
+    for d in truly_empty:
+        if d not in existing_efs:
+            db.add(EmptyFolder(drive=drive_name, path=d))
+    # Remove EmptyFolder records for dirs that no longer exist on filesystem
+    # or now have files
+    stale_efs = existing_efs - truly_empty
+    if stale_efs:
+        db.query(EmptyFolder).filter(
+            EmptyFolder.drive == drive_name,
+            EmptyFolder.path.in_(stale_efs),
+        ).delete(synchronize_session="fetch")
 
     db.commit()
     total = db.query(File).filter(File.drive == drive_name).count()

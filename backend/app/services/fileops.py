@@ -99,6 +99,30 @@ def remove_empty_folder_if_has_files(db: Session, drive: str, folder_path: str) 
         db.delete(existing)
 
 
+def _ensure_empty_folder_tracked(db: Session, drive: str, folder_path: str) -> None:
+    """If a folder has no more files in DB but exists on disk, track it as EmptyFolder."""
+    if not folder_path:
+        return
+    has_files = (
+        db.query(File.id)
+        .filter(File.drive == drive, File.folder_path == folder_path)
+        .first()
+    )
+    if has_files:
+        return
+    already_tracked = (
+        db.query(EmptyFolder)
+        .filter(EmptyFolder.drive == drive, EmptyFolder.path == folder_path)
+        .first()
+    )
+    if already_tracked:
+        return
+    drive_path = config.get_drive_path(drive)
+    full_path = drive_path / folder_path
+    if full_path.exists() and full_path.is_dir():
+        db.add(EmptyFolder(drive=drive, path=folder_path))
+
+
 def _resolve_copy_filename(target_dir: Path, original_filename: str) -> str:
     """Generate a unique filename for copy, adding _copy, _copy_2, etc. on collision."""
     if not (target_dir / original_filename).exists():
@@ -272,10 +296,14 @@ def move_file(db: Session, file_id: str, target_drive: str | None, target_folder
         _move_thumbnail(file, new_thumb_rel)
         file.thumbnail_path = new_thumb_rel
 
+    old_drive = file.drive
+    old_folder = file.folder_path
     file.drive = dst_drive
     file.folder_path = target_folder
     file.file_path = new_rel
     remove_empty_folder_if_has_files(db, dst_drive, target_folder)
+    db.flush()
+    _ensure_empty_folder_tracked(db, old_drive, old_folder)
     db.commit()
     db.refresh(file)
     return file
@@ -441,7 +469,11 @@ def delete_file(db: Session, file_id: str) -> None:
     if preview_path.exists():
         preview_path.unlink()
 
+    drive = file.drive
+    folder_path = file.folder_path
     db.delete(file)
+    db.flush()
+    _ensure_empty_folder_tracked(db, drive, folder_path)
     db.commit()
 
 
