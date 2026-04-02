@@ -123,7 +123,8 @@
     "selectMode": "Selection mode",
     "tag": "Tag",
     "tagging": "Tagging",
-    "playlist": "Playlist"
+    "playlist": "Playlist",
+    "rename": "Rename"
   },
   "favorite": {
     "add": "Add to favorites",
@@ -257,6 +258,29 @@
     "loadContent": "Load",
     "loading": "Loading...",
     "loadFailed": "Failed to load: {error}"
+  },
+  "batchRename": {
+    "title": "Batch Rename",
+    "modeTemplate": "Template",
+    "modeRegex": "Regex",
+    "modePrefixSuffix": "Prefix / Suffix",
+    "template": "Template",
+    "templateHelp": "{original}=original filename, {n}=sequence number",
+    "startNumber": "Start number",
+    "zeroPad": "Zero-pad digits",
+    "searchPattern": "Search pattern",
+    "replaceWith": "Replace with",
+    "regexHelp": "Use $1, $2... to reference capture groups",
+    "actionAddPrefix": "Add prefix",
+    "actionAddSuffix": "Add suffix",
+    "actionRemovePrefix": "Remove prefix",
+    "actionRemoveSuffix": "Remove suffix",
+    "value": "Value",
+    "preview": "Preview",
+    "noChanges": "No files will be changed",
+    "execute": "Rename",
+    "invalidRegex": "Invalid regular expression",
+    "failed": "Rename failed"
   },
   "clipboard": {
     "copy": "Copy",

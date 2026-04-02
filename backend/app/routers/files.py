@@ -22,6 +22,8 @@ from app.schemas import (
     BatchCopyResponse,
     BatchIdsRequest,
     BatchMoveRequest,
+    BatchRenameRequest,
+    BatchRenameResponse,
     BatchTagRequest,
     FileCopyRequest,
     FileResponse,
@@ -212,6 +214,24 @@ async def batch_tags(
         db.commit()
 
     return {"updated": updated, "errors": errors}
+
+
+@router.put("/batch/rename", response_model=BatchRenameResponse)
+async def batch_rename(
+    body: BatchRenameRequest,
+    db: Annotated[Session, Depends(get_db)],
+    unlocked_groups: Annotated[list[str], Depends(get_unlocked_groups)],
+):
+    files = []
+    for file_id in body.ids:
+        files.append(_get_file_or_404(db, file_id, unlocked_groups))
+
+    kwargs = body.model_dump(
+        exclude={"ids", "mode"},
+        exclude_none=True,
+    )
+    results = fileops.batch_rename(db, files, body.mode, **kwargs)
+    return {"renamed": len(results), "results": results}
 
 
 @router.post("/batch/copy", response_model=BatchCopyResponse)

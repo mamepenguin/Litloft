@@ -238,6 +238,62 @@ class BatchCopyResponse(BaseModel):
     errors: list[dict]
 
 
+class BatchRenameItem(BaseModel):
+    id: str
+    old_name: str
+    new_name: str
+
+
+class BatchRenameResponse(BaseModel):
+    renamed: int
+    results: list[BatchRenameItem]
+
+
+class BatchRenameRequest(BaseModel):
+    ids: list[str]
+    mode: str
+    # template mode
+    template: str | None = Field(None, max_length=500)
+    start_number: int = Field(default=1, ge=0, le=999999)
+    zero_pad: int = Field(default=1, ge=1, le=10)
+    # regex mode
+    pattern: str | None = Field(None, max_length=200)
+    replacement: str | None = Field(None, max_length=500)
+    # prefix_suffix mode
+    action: str | None = None
+    value: str | None = Field(None, max_length=500)
+
+    @field_validator("ids")
+    @classmethod
+    def validate_ids(cls, v: list[str]) -> list[str]:
+        return _validate_batch_ids(v)
+
+    @field_validator("mode")
+    @classmethod
+    def validate_mode(cls, v: str) -> str:
+        if v not in ("template", "regex", "prefix_suffix"):
+            raise ValueError("mode must be 'template', 'regex', or 'prefix_suffix'")
+        return v
+
+    @model_validator(mode="after")
+    def validate_mode_fields(self):
+        if self.mode == "template":
+            if not self.template:
+                raise ValueError("template is required for template mode")
+        elif self.mode == "regex":
+            if self.pattern is None:
+                raise ValueError("pattern is required for regex mode")
+            if self.replacement is None:
+                raise ValueError("replacement is required for regex mode")
+        elif self.mode == "prefix_suffix":
+            valid_actions = ("add_prefix", "add_suffix", "remove_prefix", "remove_suffix")
+            if self.action not in valid_actions:
+                raise ValueError(f"action must be one of {valid_actions}")
+            if self.value is None:
+                raise ValueError("value is required for prefix_suffix mode")
+        return self
+
+
 class BatchTagRequest(BaseModel):
     ids: list[str]
     tags: list[str]

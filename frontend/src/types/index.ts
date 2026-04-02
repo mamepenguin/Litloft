@@ -140,6 +140,29 @@ export interface WatchHistoryItem extends FileItem {
   watch_progress: WatchProgress;
 }
 
+export interface BatchRenameRequest {
+  ids: string[];
+  mode: "template" | "regex" | "prefix_suffix";
+  template?: string;
+  start_number?: number;
+  zero_pad?: number;
+  pattern?: string;
+  replacement?: string;
+  action?: "add_prefix" | "add_suffix" | "remove_prefix" | "remove_suffix";
+  value?: string;
+}
+
+export interface BatchRenameResult {
+  id: string;
+  old_name: string;
+  new_name: string;
+}
+
+export interface BatchRenameResponse {
+  renamed: number;
+  results: BatchRenameResult[];
+}
+
 export interface WebSocketEvent {
   event: string;
   data: Record<string, unknown>;

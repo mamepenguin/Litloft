@@ -86,6 +86,7 @@ frontend/
       TagList.tsx        # タグ一覧表示
       MoveDialog.tsx     # ファイル/フォルダ移動ダイアログ
       RenameDialog.tsx   # リネームダイアログ
+      BatchRenameDialog.tsx # バッチリネームダイアログ（テンプレート/正規表現/prefix-suffix）
       ConfirmDialog.tsx  # 確認ダイアログ
       ContextMenu.tsx    # 右クリックコンテキストメニュー
       CarouselSection.tsx # カルーセルUI
@@ -116,6 +117,7 @@ frontend/
       api.ts             # Backend API呼び出しクライアント
       format.ts          # formatDuration, formatFileSize
       recentlyPlayed.ts  # 最近再生した曲の管理
+      renamePreview.ts   # バッチリネームのプレビュー計算（クライアント側）
     types/index.ts       # FileItem, Drive, Folder, Tag, PlaylistSummary, PlaylistDetail, WebSocketEvent 等の型定義
   server.js              # Custom Server (WebSocketプロキシ、http-proxy、Docker本番用)
 
@@ -213,6 +215,7 @@ docker compose logs -f backend
 | POST | /api/files/batch/delete | バッチ削除 |
 | PUT | /api/files/batch/move | バッチ移動 |
 | PUT | /api/files/batch/tags | バッチタグ更新 |
+| PUT | /api/files/batch/rename | バッチリネーム（テンプレート/正規表現/prefix-suffix） |
 | POST | /api/files/{id}/progress | 再生位置保存（viewer_id Cookie必須、なしは204） |
 | GET | /api/files/{id}/progress | 再生位置取得 |
 | DELETE | /api/files/{id}/progress | 再生履歴削除 |
@@ -359,6 +362,14 @@ docker compose logs -f backend
 - **バックエンドAPI**: `POST /api/files/{id}/copy`（単体）、`POST /api/files/batch/copy`（バッチ）。コピー先にファイル名重複時は `filename (1).ext` 形式で自動リネーム
 - **readonlyドライブ**: コピー/カット/ペースト操作は非表示
 - 設計書: `docs/superpowers/specs/2026-04-02-clipboard-operations-design.md`
+
+### バッチリネーム
+- **3モード**: テンプレート（`{original}_{n}` で連番付与）、正規表現（pattern+replacement）、プレフィックス/サフィックス（追加/削除）
+- **プレビュー**: クライアント側で計算（`renamePreview.ts`）、サーバーAPIを叩かずにリアルタイム表示
+- **トランザクション**: サーバーで全ファイルの新名前を事前計算 → 重複チェック → FS操作+DB更新。1件でも失敗なら全件ロールバック（FS巻き戻し含む）
+- **拡張子維持**: リネームはファイル名のステム部分にのみ適用、拡張子は常に維持
+- **API**: `PUT /api/files/batch/rename` に `{ids, mode, ...モード別パラメータ}` を送信
+- **UI**: SelectionBar の「リネーム」ボタン → BatchRenameDialog（モード切替タブ+プレビューリスト）
 
 ### Frontend
 - Next.js 16: `params` は `Promise` 型。Server Component では `await params`、Client Component では `use(params)` または `useParams()`

@@ -1,5 +1,7 @@
+import concurrent.futures
 import logging
 import os
+import re
 import shutil
 from pathlib import Path
 
@@ -567,3 +569,185 @@ def delete_folder(drive: str, path: str, db: Session) -> None:
         (EmptyFolder.path == path) | EmptyFolder.path.like(path + "/%"),
     ).delete(synchronize_session="fetch")
     db.commit()
+
+
+def _compute_new_stem_template(
+    template: str, original_stem: str, index: int, zero_pad: int
+) -> str:
+    number_str = str(index).zfill(zero_pad)
+    result = template.replace("{original}", original_stem)
+    return result.replace("{n}", number_str)
+
+
+_REGEX_EXECUTOR = concurrent.futures.ThreadPoolExecutor(max_workers=2)
+_REGEX_TIMEOUT_SECONDS = 2
+
+
+def _compute_new_stem_regex(stem: str, pattern: str, replacement: str) -> str:
+    try:
+        compiled = re.compile(pattern)
+    except re.error as e:
+        raise HTTPException(status_code=400, detail=f"Invalid regex: {e}")
+    future = _REGEX_EXECUTOR.submit(compiled.sub, replacement, stem)
+    try:
+        return future.result(timeout=_REGEX_TIMEOUT_SECONDS)
+    except concurrent.futures.TimeoutError:
+        future.cancel()
+        raise HTTPException(
+            status_code=400,
+            detail="Regex pattern too complex (execution timed out)",
+        )
+
+
+def _compute_new_stem_prefix_suffix(stem: str, action: str, value: str) -> str:
+    if action == "add_prefix":
+        return value + stem
+    if action == "add_suffix":
+        return stem + value
+    if action == "remove_prefix":
+        return stem[len(value):] if stem.startswith(value) else stem
+    if action == "remove_suffix":
+        return stem[: -len(value)] if stem.endswith(value) else stem
+    raise HTTPException(status_code=400, detail=f"Unknown action: {action}")
+
+
+def _compute_new_filename(file: File, mode: str, index: int, **kwargs) -> str:
+    stem = Path(file.filename).stem
+    ext = Path(file.filename).suffix
+
+    if mode == "template":
+        new_stem = _compute_new_stem_template(
+            kwargs["template"], stem, index, kwargs["zero_pad"]
+        )
+    elif mode == "regex":
+        new_stem = _compute_new_stem_regex(
+            stem, kwargs["pattern"], kwargs["replacement"]
+        )
+    else:
+        new_stem = _compute_new_stem_prefix_suffix(
+            stem, kwargs["action"], kwargs["value"]
+        )
+
+    return new_stem + ext
+
+
+def _validate_no_duplicates(rename_plan: list[tuple[File, str]], drive_path: Path) -> None:
+    new_names = [name for _, name in rename_plan]
+    seen: set[str] = set()
+    for name in new_names:
+        lower = name.lower()
+        if lower in seen:
+            raise HTTPException(
+                status_code=409, detail=f"Duplicate filename in batch: {name}"
+            )
+        seen.add(lower)
+
+    ids_in_batch = {f.id for f, _ in rename_plan}
+    for file, new_name in rename_plan:
+        if new_name == file.filename:
+            continue
+        folder_dir = drive_path / file.folder_path if file.folder_path else drive_path
+        siblings = (
+            (folder_dir / p.name)
+            for p in folder_dir.iterdir()
+            if p.is_file()
+        ) if folder_dir.exists() else iter([])
+        for sibling_path in siblings:
+            sibling_name = sibling_path.name
+            if sibling_name.lower() == new_name.lower():
+                is_self = any(
+                    f.filename == sibling_name and f.id in ids_in_batch
+                    for f, _ in rename_plan
+                )
+                if not is_self:
+                    raise HTTPException(
+                        status_code=409,
+                        detail=f"File already exists: {new_name}",
+                    )
+
+
+def _rollback_fs_renames(completed: list[tuple[Path, Path]]) -> None:
+    for new_path, old_path in reversed(completed):
+        try:
+            new_path.rename(old_path)
+        except OSError:
+            pass
+
+
+def batch_rename(
+    db: Session,
+    files: list[File],
+    mode: str,
+    **kwargs,
+) -> list[dict]:
+    if not files:
+        return []
+
+    first_drive = files[0].drive
+    for file in files:
+        if file.drive != first_drive:
+            raise HTTPException(
+                status_code=400,
+                detail="All files must belong to the same drive",
+            )
+    drive_path = validate_writable(first_drive)
+
+    rename_plan: list[tuple[File, str]] = []
+    for i, file in enumerate(files):
+        index = kwargs.get("start_number", 1) + i
+        new_name = _compute_new_filename(file, mode, index, **kwargs)
+        new_name = validate_filename(new_name)
+        rename_plan.append((file, new_name))
+
+    _validate_no_duplicates(rename_plan, drive_path)
+
+    completed_fs: list[tuple[Path, Path]] = []
+    results: list[dict] = []
+    try:
+        for file, new_name in rename_plan:
+            old_name = file.filename
+            if new_name == old_name:
+                results.append({"id": file.id, "old_name": old_name, "new_name": new_name})
+                continue
+
+            old_full = drive_path / file.file_path
+            new_rel = (
+                f"{file.folder_path}/{new_name}" if file.folder_path else new_name
+            )
+            new_full = drive_path / new_rel
+            validate_within_drive(new_full, drive_path)
+
+            if not old_full.exists():
+                raise HTTPException(status_code=404, detail=f"File not found on disk: {old_name}")
+
+            old_full.rename(new_full)
+            completed_fs.append((new_full, old_full))
+
+            _update_file_after_rename(file, new_name, new_rel, drive_path)
+            results.append({"id": file.id, "old_name": old_name, "new_name": new_name})
+
+        db.commit()
+    except Exception:
+        _rollback_fs_renames(completed_fs)
+        db.rollback()
+        raise
+
+    return results
+
+
+def _update_file_after_rename(
+    file: File, new_name: str, new_rel: str, drive_path: Path
+) -> None:
+    if file.file_type == "video" and file.thumbnail_path:
+        new_stem = Path(new_name).stem
+        new_thumb_rel = (
+            f"{file.drive}/{file.folder_path}/{new_stem}.jpg"
+            if file.folder_path
+            else f"{file.drive}/{new_stem}.jpg"
+        )
+        _move_thumbnail(file, new_thumb_rel)
+        file.thumbnail_path = new_thumb_rel
+
+    file.filename = new_name
+    file.file_path = new_rel
+    file.title = _filename_to_title(new_name)

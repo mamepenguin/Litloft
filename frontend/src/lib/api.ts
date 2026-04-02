@@ -1,4 +1,4 @@
-import type { ArchiveContents, AuthStatus, ChunkResponse, Drive, FileItem, FileType, Folder, Neighbors, PaginatedResponse, PinnedFolder, PlaylistDetail, PlaylistSummary, SortField, SortOrder, Tag, UnlockResult, UploadInitResponse, WatchHistoryItem, WatchProgress } from "@/types";
+import type { ArchiveContents, AuthStatus, BatchRenameRequest, BatchRenameResponse, ChunkResponse, Drive, FileItem, FileType, Folder, Neighbors, PaginatedResponse, PinnedFolder, PlaylistDetail, PlaylistSummary, SortField, SortOrder, Tag, UnlockResult, UploadInitResponse, WatchHistoryItem, WatchProgress } from "@/types";
 
 const API_BASE = "/api";
 
@@ -277,6 +277,14 @@ export async function batchCopy(
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ ids, target_folder_path: targetFolderPath, target_drive: targetDrive }),
+  });
+}
+
+export async function batchRename(body: BatchRenameRequest): Promise<BatchRenameResponse> {
+  return fetchJSON<BatchRenameResponse>(`${API_BASE}/files/batch/rename`, {
+    method: "PUT",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(body),
   });
 }
 

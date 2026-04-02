@@ -1,10 +1,11 @@
 "use client";
 
 import { useState } from "react";
-import { ClipboardCopy, ListMusic, Move, Scissors, Tag, Trash2, X } from "lucide-react";
+import { ClipboardCopy, ListMusic, Move, Pencil, Scissors, Tag, Trash2, X } from "lucide-react";
 import { useTranslations } from "next-intl";
 
-import { batchDelete, batchMove, batchTag } from "@/lib/api";
+import { batchDelete, batchGetFiles, batchMove, batchTag } from "@/lib/api";
+import { BatchRenameDialog } from "./BatchRenameDialog";
 import { useClipboard } from "./ClipboardProvider";
 import { ConfirmDialog } from "./ConfirmDialog";
 import { MoveDialog } from "./MoveDialog";
@@ -38,6 +39,8 @@ export function SelectionBar({
   const clipboard = useClipboard();
   const [deleteOpen, setDeleteOpen] = useState(false);
   const [moveOpen, setMoveOpen] = useState(false);
+  const [renameOpen, setRenameOpen] = useState(false);
+  const [renameFiles, setRenameFiles] = useState<{ id: string; filename: string }[]>([]);
   const [tagInput, setTagInput] = useState("");
   const [tagging, setTagging] = useState(false);
   const [playlistPickerOpen, setPlaylistPickerOpen] = useState(false);
@@ -83,6 +86,23 @@ export function SelectionBar({
     } catch {
       // keep input open
     }
+  }
+
+  async function handleOpenRename() {
+    try {
+      const files = await batchGetFiles(ids);
+      setRenameFiles(files.map((f) => ({ id: f.id, filename: f.filename })));
+      setRenameOpen(true);
+    } catch {
+      // ignore
+    }
+  }
+
+  function handleRenameComplete() {
+    setRenameOpen(false);
+    setRenameFiles([]);
+    onClear();
+    onComplete();
   }
 
   return (
@@ -134,6 +154,15 @@ export function SelectionBar({
             <span className="hidden sm:inline">{t("tag")}</span>
           </button>
         )}
+
+        <button
+          onClick={handleOpenRename}
+          className="flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-sm text-text-muted transition-colors hover:bg-bg-card hover:text-text-primary"
+          aria-label={t("rename")}
+        >
+          <Pencil size={16} />
+          <span className="hidden sm:inline">{t("rename")}</span>
+        </button>
 
         <button
           onClick={() => setPlaylistPickerOpen(true)}
@@ -219,6 +248,13 @@ export function SelectionBar({
         drive={drive}
         fileIds={ids}
         onClose={() => setPlaylistPickerOpen(false)}
+      />
+
+      <BatchRenameDialog
+        open={renameOpen}
+        files={renameFiles}
+        onComplete={handleRenameComplete}
+        onCancel={() => setRenameOpen(false)}
       />
     </>
   );
