@@ -5,7 +5,9 @@
 ## アーキテクチャ
 
 ```
-ブラウザ → :3000 (Next.js) → rewrites /api/* → :8000 (FastAPI, Docker内部のみ)
+ブラウザ → :3000 (Next.js custom server)
+  ├─ HTTP  /api/*  → rewrites → :8000 (FastAPI, Docker内部のみ)
+  └─ WS    /api/ws → proxy   → :8000 (WebSocket, http-proxy)
 ```
 
 - **Backend**: FastAPI (Python 3.12) + SQLite (SQLAlchemy) + ffmpeg
@@ -31,6 +33,7 @@ backend/
       playlists.py     # プレイリストCRUD + アイテム操作エンドポイント
       auth.py          # POST /api/auth/unlock, lock, GET status
       uploads.py       # チャンクアップロードエンドポイント
+      ws.py            # WebSocketエンドポイント（リアルタイム通知）
     services/
       scanner.py       # ドライブ単位の再帰スキャン（全ファイル対応）、DB同期、排他ロック
       filetype.py      # ファイルタイプ分類 (classify, is_hidden)
@@ -38,6 +41,7 @@ backend/
       upload.py        # チャンクアップロード管理（セッション、結合、クリーンアップ）
       thumbnail.py     # ffmpeg/ffprobe サムネイル生成（動画+画像対応）、duration取得
       heic.py          # HEIC→JPEG変換+キャッシュ（pillow-heif使用）
+      ws.py            # WebSocket接続管理（ConnectionManager、ブロードキャスト）
   tests/               # pytest (Docker内で実行: Dockerfile.test)
   static/
     placeholder.jpg    # サムネイル未生成時のフォールバック画像
@@ -88,6 +92,7 @@ frontend/
       ThemeProvider.tsx       # テーマ Context Provider
       LanguageSwitcher.tsx    # 言語切替トグル（ja/en）
       ThemeToggle.tsx         # ダーク/ライトテーマ切替
+      WebSocketProvider.tsx  # WebSocket接続管理 Context Provider
     i18n/
       config.ts            # next-intl設定（locales, defaultLocale）
       request.ts           # getRequestConfig（Cookie→locale解決）
@@ -98,11 +103,13 @@ frontend/
       useContextMenu.ts  # コンテキストメニュー hook
       useSelection.ts    # 複数選択状態 hook
       useUpload.ts       # アップロード管理 hook
+      useWebSocket.ts    # WebSocketイベント受信 hook
     lib/
       api.ts             # Backend API呼び出しクライアント
       format.ts          # formatDuration, formatFileSize
       recentlyPlayed.ts  # 最近再生した曲の管理
-    types/index.ts       # FileItem, Drive, Folder, Tag, PlaylistSummary, PlaylistDetail 等の型定義
+    types/index.ts       # FileItem, Drive, Folder, Tag, PlaylistSummary, PlaylistDetail, WebSocketEvent 等の型定義
+  server.ts              # Custom Server (WebSocketプロキシ、http-proxy)
 
 deploy/
   post-receive         # git push → Mac mini 自動デプロイ hook
@@ -237,6 +244,17 @@ docker compose logs -f backend
 - **既知の制限**: `format.ts`（相対日時）と `useUpload.ts`（エラーメッセージ）はフック外のためハードコードのまま
 - 設計書: `docs/superpowers/specs/2026-04-02-i18n-foundation-design.md`
 
+### WebSocket基盤
+- **方式**: Next.js Custom Server（`server.ts`）で `/api/ws` をバックエンドにプロキシ（`http-proxy`使用）
+- **選定理由**: 「backendは外部非公開」の設計方針維持、インターネット公開時もシングルオリジンでCookie認証がそのまま動作
+- **接続管理**: `ConnectionManager` シングルトンで全接続を管理、ブロードキャスト時に保護ドライブのアクセスグループでフィルタ
+- **認証**: JWT Cookie を接続時に読み取り。未認証でも接続許可（全公開モード対応）、保護ドライブ通知のみフィルタ
+- **イベント**: `scan:progress`（50件 or 1秒間隔バッチ）、`scan:complete`、`upload:complete`
+- **スキャナー連携**: `_scan_and_register` は `run_in_executor` で同期実行のため、`call_soon_threadsafe` で非同期ブロードキャストに橋渡し
+- **フロントエンド**: `WebSocketProvider` + `useWebSocket` フック、指数バックオフ再接続（1s→2s→4s→最大30s）、`visibilitychange` で切断/再接続
+- **メッセージフォーマット**: `{"event": "scan:progress", "data": {...}}`
+- 設計書: `docs/superpowers/specs/2026-04-02-websocket-foundation-design.md`
+
 ### ZIPアーカイブ閲覧
 - **対象**: ZIPファイルのみ（Python標準`zipfile`ライブラリ、外部依存なし）
 - **閲覧方式**: ZIP内のファイル一覧をツリー表示、画像は `ImageGallery` と同じフルスクリーンビューア（prefetch + スライドショー対応）
@@ -289,7 +307,8 @@ docker compose logs -f backend
 - Next.js 16: `params` は `Promise` 型。Server Component では `await params`、Client Component では `use(params)` または `useParams()`
 - トップページ (`/`) は Server Component で `http://backend:8000` に直接fetch
 - ドライブ・ファイルページは Client Component で `/api/` (rewrites経由) にfetch
-- rewrites (`next.config.ts`): `/api/*` → `http://backend:8000/api/*` でプロキシ。CORSは不要。
+- rewrites (`next.config.ts`): `/api/*` → `http://backend:8000/api/*` でHTTPプロキシ。CORSは不要。
+- WebSocket: Custom Server (`server.ts`) で `/api/ws` を `http-proxy` 経由でバックエンドにプロキシ
 - ダークテーマ固定 (CSS変数 `--bg-primary: #0a0a0f` 等)
 - ViewToggle の状態は localStorage に保持
 - PWA: `manifest.json` + apple-mobile-web-app-capable
@@ -328,4 +347,5 @@ Mac mini上にbare gitリポジトリ (`~/video-share.git`) を作成し、`post
 - `docs/superpowers/specs/2026-03-28-zip-archive-viewer-design.md` — ZIPアーカイブ閲覧設計書
 - `docs/superpowers/specs/2026-04-02-heic-support-design.md` — HEIC画像ブラウザ互換性対応設計書
 - `docs/superpowers/specs/2026-04-02-i18n-foundation-design.md` — i18n基盤設計書
+- `docs/superpowers/specs/2026-04-02-websocket-foundation-design.md` — WebSocket基盤設計書
 - `docs/superpowers/specs/2026-04-02-feature-roadmap.md` — 機能拡張ロードマップ
