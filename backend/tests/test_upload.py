@@ -120,3 +120,85 @@ class TestUploadFlow:
         c, db, drive_dir, data_dir = client
         res = c.post(f"/api/drives/{TEST_DRIVE}/upload/nonexistent/complete")
         assert res.status_code == 404
+
+    def test_upload_with_relative_path(self, client):
+        c, db, drive_dir, data_dir = client
+        test_data = b"folder upload"
+
+        res = c.post(f"/api/drives/{TEST_DRIVE}/upload/init", json={
+            "filename": "file.txt",
+            "file_size": len(test_data),
+            "folder_path": "",
+            "relative_path": "subdir/file.txt",
+            "chunk_size": len(test_data),
+        })
+        assert res.status_code == 200
+        upload_id = res.json()["upload_id"]
+
+        c.post(
+            f"/api/drives/{TEST_DRIVE}/upload/{upload_id}/chunk",
+            data={"chunk_index": "0"},
+            files={"chunk": ("chunk", io.BytesIO(test_data), "application/octet-stream")},
+        )
+        res = c.post(f"/api/drives/{TEST_DRIVE}/upload/{upload_id}/complete")
+        assert res.status_code == 200
+        assert (drive_dir / "subdir" / "file.txt").exists()
+        assert (drive_dir / "subdir" / "file.txt").read_bytes() == test_data
+
+    def test_upload_with_nested_relative_path(self, client):
+        c, db, drive_dir, data_dir = client
+        test_data = b"nested"
+
+        res = c.post(f"/api/drives/{TEST_DRIVE}/upload/init", json={
+            "filename": "deep.txt",
+            "file_size": len(test_data),
+            "folder_path": "",
+            "relative_path": "a/b/c/deep.txt",
+            "chunk_size": len(test_data),
+        })
+        assert res.status_code == 200
+        upload_id = res.json()["upload_id"]
+
+        c.post(
+            f"/api/drives/{TEST_DRIVE}/upload/{upload_id}/chunk",
+            data={"chunk_index": "0"},
+            files={"chunk": ("chunk", io.BytesIO(test_data), "application/octet-stream")},
+        )
+        res = c.post(f"/api/drives/{TEST_DRIVE}/upload/{upload_id}/complete")
+        assert res.status_code == 200
+        assert (drive_dir / "a" / "b" / "c" / "deep.txt").exists()
+
+    def test_upload_with_relative_path_and_folder_path(self, client):
+        c, db, drive_dir, data_dir = client
+        (drive_dir / "existing").mkdir()
+        test_data = b"combined"
+
+        res = c.post(f"/api/drives/{TEST_DRIVE}/upload/init", json={
+            "filename": "file.txt",
+            "file_size": len(test_data),
+            "folder_path": "existing",
+            "relative_path": "sub/file.txt",
+            "chunk_size": len(test_data),
+        })
+        assert res.status_code == 200
+        upload_id = res.json()["upload_id"]
+
+        c.post(
+            f"/api/drives/{TEST_DRIVE}/upload/{upload_id}/chunk",
+            data={"chunk_index": "0"},
+            files={"chunk": ("chunk", io.BytesIO(test_data), "application/octet-stream")},
+        )
+        res = c.post(f"/api/drives/{TEST_DRIVE}/upload/{upload_id}/complete")
+        assert res.status_code == 200
+        assert (drive_dir / "existing" / "sub" / "file.txt").exists()
+
+    def test_upload_relative_path_traversal_rejected(self, client):
+        c, db, drive_dir, data_dir = client
+
+        res = c.post(f"/api/drives/{TEST_DRIVE}/upload/init", json={
+            "filename": "evil.txt",
+            "file_size": 10,
+            "relative_path": "../etc/evil.txt",
+            "chunk_size": 10,
+        })
+        assert res.status_code == 400
