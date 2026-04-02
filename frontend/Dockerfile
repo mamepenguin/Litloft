@@ -4,7 +4,6 @@ COPY package.json pnpm-lock.yaml ./
 RUN corepack enable && pnpm install --frozen-lockfile
 COPY . .
 RUN pnpm build
-RUN npx tsc server.ts --esModuleInterop --module commonjs --moduleResolution node --skipLibCheck --outDir .
 
 FROM node:20-alpine AS deps
 WORKDIR /deps
@@ -15,7 +14,11 @@ WORKDIR /app
 COPY --from=builder /app/.next/standalone ./
 COPY --from=builder /app/.next/static ./.next/static
 COPY --from=builder /app/public ./public
+RUN mv server.js server-next.js
 COPY --from=builder /app/server.js ./server.js
-COPY --from=deps /deps/node_modules ./node_modules
+COPY --from=deps /deps/node_modules/http-proxy ./node_modules/http-proxy
+COPY --from=deps /deps/node_modules/eventemitter3 ./node_modules/eventemitter3
+COPY --from=deps /deps/node_modules/requires-port ./node_modules/requires-port
+COPY --from=deps /deps/node_modules/follow-redirects ./node_modules/follow-redirects
 ENV HOSTNAME=0.0.0.0
 CMD ["node", "server.js"]

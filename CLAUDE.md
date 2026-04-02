@@ -109,7 +109,7 @@ frontend/
       format.ts          # formatDuration, formatFileSize
       recentlyPlayed.ts  # 最近再生した曲の管理
     types/index.ts       # FileItem, Drive, Folder, Tag, PlaylistSummary, PlaylistDetail, WebSocketEvent 等の型定義
-  server.ts              # Custom Server (WebSocketプロキシ、http-proxy)
+  server.js              # Custom Server (WebSocketプロキシ、http-proxy、Docker本番用)
 
 deploy/
   post-receive         # git push → Mac mini 自動デプロイ hook
@@ -308,7 +308,7 @@ docker compose logs -f backend
 - トップページ (`/`) は Server Component で `http://backend:8000` に直接fetch
 - ドライブ・ファイルページは Client Component で `/api/` (rewrites経由) にfetch
 - rewrites (`next.config.ts`): `/api/*` → `http://backend:8000/api/*` でHTTPプロキシ。CORSは不要。
-- WebSocket: Custom Server (`server.ts`) で `/api/ws` を `http-proxy` 経由でバックエンドにプロキシ
+- WebSocket: Custom Server (`server.js`) で `/api/ws` を `http-proxy` 経由でバックエンドにプロキシ（Docker本番用）
 - ダークテーマ固定 (CSS変数 `--bg-primary: #0a0a0f` 等)
 - ViewToggle の状態は localStorage に保持
 - PWA: `manifest.json` + apple-mobile-web-app-capable
