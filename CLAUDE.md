@@ -87,6 +87,11 @@ frontend/
       MoveDialog.tsx     # ファイル/フォルダ移動ダイアログ
       RenameDialog.tsx   # リネームダイアログ
       BatchRenameDialog.tsx # バッチリネームダイアログ（テンプレート/正規表現/prefix-suffix）
+      trash/
+        TrashView.tsx      # ゴミ箱ビュー（一覧+復元/完全削除/空にする）
+        TrashToolbar.tsx    # ゴミ箱ツールバー（ソート、表示切替、空にする）
+        TrashFileGrid.tsx   # ゴミ箱グリッド表示（半透明+残り日数バッジ）
+        TrashFileList.tsx   # ゴミ箱リスト表示
       ConfirmDialog.tsx  # 確認ダイアログ
       ContextMenu.tsx    # 右クリックコンテキストメニュー
       CarouselSection.tsx # カルーセルUI
@@ -179,6 +184,8 @@ docker compose logs -f backend
 | DELETE | /api/drives/{drive}/playlists/{id}/items/{item_id} | アイテム削除 |
 | PUT | /api/drives/{drive}/playlists/{id}/items/reorder | アイテム並び替え |
 | GET | /api/drives/{drive}/watch-history?limit= | 続きを見るリスト（viewer_id別、未完了のみ） |
+| GET | /api/drives/{drive}/trash?sort=&order=&page=&limit= | ゴミ箱一覧（ソフトデリート済みファイル） |
+| POST | /api/drives/{drive}/trash/empty | ゴミ箱を空にする（ドライブ内全件パージ） |
 
 ### 認証
 
@@ -209,13 +216,17 @@ docker compose logs -f backend
 | PUT | /api/files/{id}/rename | ファイルリネーム |
 | PUT | /api/files/{id}/move | ファイル移動 |
 | POST | /api/files/{id}/copy | ファイルコピー |
-| DELETE | /api/files/{id} | ファイル削除 |
+| DELETE | /api/files/{id} | ファイル削除（ソフトデリート→ゴミ箱） |
+| POST | /api/files/{id}/restore | ゴミ箱から復元 |
+| DELETE | /api/files/{id}/purge | ゴミ箱から完全削除 |
 | POST | /api/files/batch/get | バッチ取得（IDリスト） |
 | POST | /api/files/batch/copy | バッチコピー |
 | POST | /api/files/batch/delete | バッチ削除 |
 | PUT | /api/files/batch/move | バッチ移動 |
 | PUT | /api/files/batch/tags | バッチタグ更新 |
 | PUT | /api/files/batch/rename | バッチリネーム（テンプレート/正規表現/prefix-suffix） |
+| POST | /api/files/batch/restore | バッチ復元 |
+| POST | /api/files/batch/purge | バッチ完全削除 |
 | POST | /api/files/{id}/progress | 再生位置保存（viewer_id Cookie必須、なしは204） |
 | GET | /api/files/{id}/progress | 再生位置取得 |
 | DELETE | /api/files/{id}/progress | 再生履歴削除 |
@@ -371,6 +382,17 @@ docker compose logs -f backend
 - **API**: `PUT /api/files/batch/rename` に `{ids, mode, ...モード別パラメータ}` を送信
 - **UI**: SelectionBar の「リネーム」ボタン → BatchRenameDialog（モード切替タブ+プレビューリスト）
 
+### ゴミ箱（ソフトデリート）
+- **方式**: DB上の論理削除のみ。`File.deleted_at` カラム（nullable datetime）で管理
+- **FSファイルはそのまま残す**: ゴミ箱に入れてもファイルシステム上のファイルは変更しない。パージ時に初めて物理削除
+- **file_path UNIQUE制約**: FSにファイルが残るため衝突しない。追加カラムは `deleted_at` のみ
+- **既存クエリ**: 全てのファイル一覧・フォルダ集計・タグ集計・neighbors等のクエリに `File.deleted_at.is_(None)` フィルタ追加済み
+- **スキャナー**: ソフトデリート済みファイルはスキップ（removed扱いにしない）
+- **自動パージ**: 30日経過したファイルを startup 時 + 24時間ごとに物理削除（`main.py` の background task）
+- **復元**: `deleted_at = NULL` に戻すだけ。FSにファイルが存在しない場合は復元不可（404）
+- **UI**: サイドバーLIBRARYセクションに「ゴミ箱」リンク、`?view=trash` でゴミ箱一覧表示。復元/完全削除/ゴミ箱を空にするアクション
+- 設計書: `docs/superpowers/specs/2026-04-02-trash-soft-delete-design.md`
+
 ### Frontend
 - Next.js 16: `params` は `Promise` 型。Server Component では `await params`、Client Component では `use(params)` または `useParams()`
 - トップページ (`/`) は Server Component で `http://backend:8000` に直接fetch
@@ -418,4 +440,5 @@ Mac mini上にbare gitリポジトリ (`~/video-share.git`) を作成し、`post
 - `docs/superpowers/specs/2026-04-02-websocket-foundation-design.md` — WebSocket基盤設計書
 - `docs/superpowers/specs/2026-04-02-watch-history-resume-design.md` — 視聴履歴・レジューム再生設計書
 - `docs/superpowers/specs/2026-04-02-clipboard-operations-design.md` — クリップボード操作設計書
+- `docs/superpowers/specs/2026-04-02-trash-soft-delete-design.md` — ゴミ箱（ソフトデリート）設計書
 - `docs/superpowers/specs/2026-04-02-feature-roadmap.md` — 機能拡張ロードマップ
