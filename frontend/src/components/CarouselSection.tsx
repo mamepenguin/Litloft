@@ -49,6 +49,7 @@ export function CarouselSection({
 }: CarouselSectionProps) {
   const t = useTranslations("file");
   const tc = useTranslations("common");
+  const tt = useTranslations("trash");
   const handleAfterAction = useCallback(() => {
     if (onFileAction) onFileAction();
     else if (onRefresh) onRefresh();
@@ -87,7 +88,7 @@ export function CarouselSection({
     },
     {
       icon: Trash2,
-      label: tc("delete"),
+      label: tt("moveToTrash"),
       onClick: () => setDeleteOpen(true),
       danger: true,
     },
@@ -185,9 +186,10 @@ export function CarouselSection({
           />
           <ConfirmDialog
             open={deleteOpen}
-            title={t("deleteTitle")}
-            message={t("deleteMessage", { name: target.filename })}
-            confirmLabel={tc("delete")}
+            title={tt("moveToTrash")}
+            message={tt("confirmMoveToTrash", { name: target.filename })}
+            confirmLabel={tt("moveToTrash")}
+            note={tt("autoDelete")}
             onConfirm={async () => {
               try {
                 await deleteFile(target.id);
