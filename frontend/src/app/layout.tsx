@@ -1,5 +1,7 @@
 import type { Metadata, Viewport } from "next";
 import { Inter } from "next/font/google";
+import { NextIntlClientProvider } from "next-intl";
+import { getLocale, getMessages } from "next-intl/server";
 import "./globals.css";
 
 import { Header } from "@/components/Header";
@@ -16,7 +18,7 @@ const inter = Inter({
 
 export const metadata: Metadata = {
   title: "HomeVault",
-  description: "自宅LAN向けファイル管理＆メディアストリーミング",
+  description: "HomeVault - File management & media streaming",
   manifest: "/manifest.json",
   appleWebApp: {
     capable: true,
@@ -44,30 +46,35 @@ const themeInitScript = `
 })();
 `;
 
-export default function RootLayout({
+export default async function RootLayout({
   children,
 }: Readonly<{
   children: React.ReactNode;
 }>) {
+  const locale = await getLocale();
+  const messages = await getMessages();
+
   return (
-    <html lang="ja" className={`${inter.variable} h-full antialiased`} suppressHydrationWarning>
+    <html lang={locale} className={`${inter.variable} h-full antialiased`} suppressHydrationWarning>
       <head>
         <script dangerouslySetInnerHTML={{ __html: themeInitScript }} />
       </head>
       <body className="min-h-dvh">
-        <ThemeProvider>
-          <CurrentDriveProvider>
-            <SidebarProvider>
-              <div className="flex min-h-dvh">
-                <Sidebar />
-                <main className="flex min-w-0 flex-1 flex-col">
-                  <Header />
-                  {children}
-                </main>
-              </div>
-            </SidebarProvider>
-          </CurrentDriveProvider>
-        </ThemeProvider>
+        <NextIntlClientProvider messages={messages}>
+          <ThemeProvider>
+            <CurrentDriveProvider>
+              <SidebarProvider>
+                <div className="flex min-h-dvh">
+                  <Sidebar />
+                  <main className="flex min-w-0 flex-1 flex-col">
+                    <Header />
+                    {children}
+                  </main>
+                </div>
+              </SidebarProvider>
+            </CurrentDriveProvider>
+          </ThemeProvider>
+        </NextIntlClientProvider>
       </body>
     </html>
   );

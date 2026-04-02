@@ -1,0 +1,247 @@
+{
+  "common": {
+    "close": "閉じる",
+    "cancel": "キャンセル",
+    "save": "保存",
+    "delete": "削除",
+    "loading": "読み込み中...",
+    "create": "作成",
+    "apply": "適用",
+    "change": "変更",
+    "refresh": "更新",
+    "seeAll": "すべて見る",
+    "download": "ダウンロード",
+    "rename": "名前を変更",
+    "move": "移動",
+    "play": "再生",
+    "pause": "一時停止",
+    "upload": "アップロード",
+    "lock": "Lock",
+    "items": "{count} 件",
+    "loadContent": "読み込む",
+    "fileSizeLarge": "ファイルサイズが大きいです ({size})",
+    "loadFailed": "読み込みに失敗しました: {error}"
+  },
+  "metadata": {
+    "description": "自宅LAN向けファイル管理＆メディアストリーミング"
+  },
+  "header": {
+    "menu": "メニュー"
+  },
+  "sidebar": {
+    "home": "ホーム",
+    "favorites": "お気に入り",
+    "recentPlay": "最近再生",
+    "recentAdded": "最近追加",
+    "allFiles": "すべてのファイル",
+    "createPlaylist": "プレイリスト作成",
+    "playlistNamePlaceholder": "プレイリスト名...",
+    "renamePlaylist": "リネーム",
+    "deletePlaylist": "削除"
+  },
+  "drive": {
+    "title": "ドライブ",
+    "empty": "ドライブがありません",
+    "emptyDescription": "drives.json を設定してドライブを追加してください。",
+    "folders": "フォルダ",
+    "files": "ファイル",
+    "pickup": "ピックアップ",
+    "recentAdded": "最近追加",
+    "favorites": "お気に入り",
+    "popular": "人気"
+  },
+  "folder": {
+    "items": "{count} 件",
+    "namePlaceholder": "フォルダ名...",
+    "invalidName": "無効なフォルダ名です",
+    "nameTooLong": "フォルダ名が長すぎます",
+    "createFailed": "フォルダの作成に失敗しました",
+    "renameFailed": "名前の変更に失敗しました",
+    "moveFailed": "移動に失敗しました",
+    "deleteFailed": "削除に失敗しました（フォルダが空でない可能性があります）",
+    "deleteTitle": "フォルダを削除",
+    "deleteMessage": "「{name}」を削除しますか？空のフォルダのみ削除できます。",
+    "pin": "ピン留め",
+    "unpin": "ピン留め解除",
+    "newFolder": "新規フォルダ"
+  },
+  "file": {
+    "addDescription": "説明を追加...",
+    "backTo": "{name} に戻る",
+    "rename": "名前を変更",
+    "move": "移動",
+    "delete": "削除",
+    "deleteTitle": "ファイルを削除",
+    "deleteMessage": "「{name}」を削除しますか？この操作は取り消せません。",
+    "batchDeleteTitle": "ファイルを一括削除",
+    "batchDeleteMessage": "{count} 件のファイルを削除しますか？この操作は取り消せません。",
+    "actions": "ファイル操作",
+    "renameFailed": "名前の変更に失敗しました",
+    "moveFailed": "移動に失敗しました",
+    "deleteFailed": "削除に失敗しました",
+    "noPreview": "プレビューは対応していません",
+    "prevFile": "前のファイル",
+    "nextFile": "次のファイル",
+    "edit": "編集",
+    "galleryMode": "ギャラリーモード",
+    "addToPlaylist": "プレイリストに追加",
+    "typeVideo": "動画",
+    "typeImage": "画像",
+    "typeAudio": "音声",
+    "typeDocument": "文書",
+    "typeArchive": "書庫",
+    "typeOther": "ファイル"
+  },
+  "search": {
+    "label": "検索",
+    "title": "検索 (Cmd+Shift+F)",
+    "searchInDrive": "{drive} 内を検索...",
+    "selectDrive": "ドライブを選択してください",
+    "goToDrive": "ドライブページに移動してから検索してください",
+    "noResults": "一致するファイルが見つかりません",
+    "showingResults": "{total} 件中 100 件を表示",
+    "fillInput": "「{term}」を入力欄に設定",
+    "removeHistory": "「{term}」を履歴から削除"
+  },
+  "sort": {
+    "label": "ソート",
+    "newestFirst": "新しい順",
+    "oldestFirst": "古い順",
+    "titleAZ": "タイトル A→Z",
+    "titleZA": "タイトル Z→A",
+    "sizeLargest": "サイズ 大→小",
+    "sizeSmallest": "サイズ 小→大",
+    "likesmost": "いいね 多→少",
+    "likesleast": "いいね 少→多"
+  },
+  "selection": {
+    "selected": "{count} 件選択",
+    "selectAll": "すべて選択",
+    "deselect": "選択解除",
+    "selectMode": "選択モード",
+    "tag": "タグ",
+    "tagging": "タグ付け",
+    "playlist": "プレイリスト"
+  },
+  "favorite": {
+    "add": "お気に入りに追加",
+    "remove": "お気に入り解除",
+    "added": "お気に入り済み",
+    "label": "お気に入り"
+  },
+  "tag": {
+    "add": "タグ追加",
+    "placeholder": "タグ名...",
+    "maxLength": "タグは30文字以内にしてください",
+    "invalidChars": "使用できない文字が含まれています",
+    "maxCount": "タグは最大10個までです",
+    "updateFailed": "タグの更新に失敗しました",
+    "removeFailed": "タグの削除に失敗しました",
+    "removeTag": "{tag} を削除"
+  },
+  "dialog": {
+    "moveTitle": "移動先を選択",
+    "moveTarget": "移動先: {path}",
+    "moveRoot": "(ルート)",
+    "moveHere": "ここに移動",
+    "moveSelected": "選択中",
+    "moveFolderLoadFailed": "フォルダの読み込みに失敗しました",
+    "moveNoSubfolders": "サブフォルダなし",
+    "renameTitle": "名前を変更",
+    "renamePlaceholder": "新しい名前"
+  },
+  "upload": {
+    "title": "アップロード",
+    "processing": "{count} 件処理中",
+    "clear": "クリア",
+    "dropToUpload": "ファイルをドロップしてアップロード",
+    "statusPending": "待機中",
+    "statusUploading": "アップロード中",
+    "statusProcessing": "処理中",
+    "statusComplete": "完了",
+    "statusError": "エラー",
+    "statusCancelled": "キャンセル済み"
+  },
+  "playlist": {
+    "addToPlaylist": "プレイリストに追加",
+    "noPlaylists": "プレイリストがありません",
+    "newPlaylistPlaceholder": "新しいプレイリスト名...",
+    "newPlaylist": "新しいプレイリスト",
+    "tracks": "{current}/{total} tracks",
+    "loopOn": "ループON",
+    "loopOff": "ループOFF",
+    "expand": "展開",
+    "collapse": "折りたたみ"
+  },
+  "player": {
+    "videoNotSupported": "お使いのブラウザは動画再生に対応していません。",
+    "audioNotSupported": "お使いのブラウザは音声再生に対応していません。"
+  },
+  "archive": {
+    "loadFailed": "アーカイブの読み込みに失敗しました: {error}",
+    "fileCount": "{count} ファイル / {size}",
+    "downloadArchive": "アーカイブをダウンロード",
+    "emptyFolder": "このフォルダは空です",
+    "downloadFile": "{name} をダウンロード",
+    "slideshowInterval": "スライドショー間隔",
+    "seconds": "{sec}秒",
+    "prevImage": "前の画像",
+    "nextImage": "次の画像",
+    "backToList": "一覧に戻る"
+  },
+  "empty": {
+    "noFilesTitle": "ファイルがありません",
+    "noFilesDescription": "このフォルダにはまだファイルがありません。",
+    "noResultsTitle": "一致するファイルが見つかりません",
+    "noResultsDescription": "検索条件を変更してください。",
+    "needsScanTitle": "スキャンを実行してください",
+    "needsScanDescription": "ドライブのファイルを読み込みます。",
+    "noFavoritesTitle": "お気に入りのファイルがありません",
+    "noFavoritesDescription": "星アイコンをクリックしてお気に入りに追加しましょう。",
+    "noRecentTitle": "最近再生した動画がありません",
+    "noRecentDescription": "動画を再生すると、ここに表示されます。",
+    "noRecentAddedTitle": "最近追加されたファイルがありません",
+    "noRecentAddedDescription": "ファイルをアップロードすると、ここに表示されます。"
+  },
+  "theme": {
+    "system": "システム",
+    "light": "ライト",
+    "dark": "ダーク"
+  },
+  "view": {
+    "grid": "グリッド表示",
+    "list": "リスト表示"
+  },
+  "toolbar": {
+    "rescan": "再スキャン",
+    "rescanTitle": "ドライブを再スキャン",
+    "fileType": "ファイルタイプ",
+    "all": "すべて",
+    "video": "動画",
+    "image": "画像",
+    "audio": "音声",
+    "document": "文書",
+    "archiveType": "書庫",
+    "other": "その他",
+    "playAll": "全曲再生",
+    "home": "ホーム"
+  },
+  "gallery": {
+    "prevImage": "前の画像",
+    "nextImage": "次の画像",
+    "slideshowInterval": "スライドショー間隔",
+    "seconds": "{sec}秒"
+  },
+  "unlock": {
+    "title": "Unlock",
+    "passwordPlaceholder": "Password",
+    "rememberDevice": "Remember this device",
+    "submit": "Unlock"
+  },
+  "text": {
+    "fileSizeLarge": "ファイルサイズが大きいです ({size})",
+    "loadContent": "読み込む",
+    "loading": "読み込み中...",
+    "loadFailed": "読み込みに失敗しました: {error}"
+  }
+}

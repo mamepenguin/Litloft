@@ -1,0 +1,247 @@
+{
+  "common": {
+    "close": "Close",
+    "cancel": "Cancel",
+    "save": "Save",
+    "delete": "Delete",
+    "loading": "Loading...",
+    "create": "Create",
+    "apply": "Apply",
+    "change": "Change",
+    "refresh": "Refresh",
+    "seeAll": "See all",
+    "download": "Download",
+    "rename": "Rename",
+    "move": "Move",
+    "play": "Play",
+    "pause": "Pause",
+    "upload": "Upload",
+    "lock": "Lock",
+    "items": "{count} items",
+    "loadContent": "Load",
+    "fileSizeLarge": "File is large ({size})",
+    "loadFailed": "Failed to load: {error}"
+  },
+  "metadata": {
+    "description": "Home LAN file management & media streaming"
+  },
+  "header": {
+    "menu": "Menu"
+  },
+  "sidebar": {
+    "home": "Home",
+    "favorites": "Favorites",
+    "recentPlay": "Recently Played",
+    "recentAdded": "Recently Added",
+    "allFiles": "All Files",
+    "createPlaylist": "Create playlist",
+    "playlistNamePlaceholder": "Playlist name...",
+    "renamePlaylist": "Rename",
+    "deletePlaylist": "Delete"
+  },
+  "drive": {
+    "title": "Drives",
+    "empty": "No drives found",
+    "emptyDescription": "Configure drives.json to add drives.",
+    "folders": "Folders",
+    "files": "Files",
+    "pickup": "Pickup",
+    "recentAdded": "Recently Added",
+    "favorites": "Favorites",
+    "popular": "Popular"
+  },
+  "folder": {
+    "items": "{count} items",
+    "namePlaceholder": "Folder name...",
+    "invalidName": "Invalid folder name",
+    "nameTooLong": "Folder name is too long",
+    "createFailed": "Failed to create folder",
+    "renameFailed": "Failed to rename",
+    "moveFailed": "Failed to move",
+    "deleteFailed": "Failed to delete (folder may not be empty)",
+    "deleteTitle": "Delete folder",
+    "deleteMessage": "Delete \"{name}\"? Only empty folders can be deleted.",
+    "pin": "Pin",
+    "unpin": "Unpin",
+    "newFolder": "New Folder"
+  },
+  "file": {
+    "addDescription": "Add description...",
+    "backTo": "Back to {name}",
+    "rename": "Rename",
+    "move": "Move",
+    "delete": "Delete",
+    "deleteTitle": "Delete file",
+    "deleteMessage": "Delete \"{name}\"? This action cannot be undone.",
+    "batchDeleteTitle": "Delete files",
+    "batchDeleteMessage": "Delete {count} files? This action cannot be undone.",
+    "actions": "File actions",
+    "renameFailed": "Failed to rename",
+    "moveFailed": "Failed to move",
+    "deleteFailed": "Failed to delete",
+    "noPreview": "Preview not available",
+    "prevFile": "Previous file",
+    "nextFile": "Next file",
+    "edit": "Edit",
+    "galleryMode": "Gallery mode",
+    "addToPlaylist": "Add to playlist",
+    "typeVideo": "Video",
+    "typeImage": "Image",
+    "typeAudio": "Audio",
+    "typeDocument": "Document",
+    "typeArchive": "Archive",
+    "typeOther": "File"
+  },
+  "search": {
+    "label": "Search",
+    "title": "Search (Cmd+Shift+F)",
+    "searchInDrive": "Search in {drive}...",
+    "selectDrive": "Select a drive first",
+    "goToDrive": "Navigate to a drive page to search",
+    "noResults": "No matching files found",
+    "showingResults": "Showing 100 of {total}",
+    "fillInput": "Set \"{term}\" in input",
+    "removeHistory": "Remove \"{term}\" from history"
+  },
+  "sort": {
+    "label": "Sort",
+    "newestFirst": "Newest first",
+    "oldestFirst": "Oldest first",
+    "titleAZ": "Title A→Z",
+    "titleZA": "Title Z→A",
+    "sizeLargest": "Size largest",
+    "sizeSmallest": "Size smallest",
+    "likesmost": "Most liked",
+    "likesleast": "Least liked"
+  },
+  "selection": {
+    "selected": "{count} selected",
+    "selectAll": "Select all",
+    "deselect": "Deselect",
+    "selectMode": "Selection mode",
+    "tag": "Tag",
+    "tagging": "Tagging",
+    "playlist": "Playlist"
+  },
+  "favorite": {
+    "add": "Add to favorites",
+    "remove": "Remove from favorites",
+    "added": "Favorited",
+    "label": "Favorites"
+  },
+  "tag": {
+    "add": "Add tag",
+    "placeholder": "Tag name...",
+    "maxLength": "Tag must be 30 characters or less",
+    "invalidChars": "Contains invalid characters",
+    "maxCount": "Maximum 10 tags allowed",
+    "updateFailed": "Failed to update tags",
+    "removeFailed": "Failed to remove tag",
+    "removeTag": "Remove {tag}"
+  },
+  "dialog": {
+    "moveTitle": "Select destination",
+    "moveTarget": "Destination: {path}",
+    "moveRoot": "(Root)",
+    "moveHere": "Move here",
+    "moveSelected": "Selected",
+    "moveFolderLoadFailed": "Failed to load folders",
+    "moveNoSubfolders": "No subfolders",
+    "renameTitle": "Rename",
+    "renamePlaceholder": "New name"
+  },
+  "upload": {
+    "title": "Upload",
+    "processing": "{count} processing",
+    "clear": "Clear",
+    "dropToUpload": "Drop files to upload",
+    "statusPending": "Pending",
+    "statusUploading": "Uploading",
+    "statusProcessing": "Processing",
+    "statusComplete": "Complete",
+    "statusError": "Error",
+    "statusCancelled": "Cancelled"
+  },
+  "playlist": {
+    "addToPlaylist": "Add to playlist",
+    "noPlaylists": "No playlists",
+    "newPlaylistPlaceholder": "New playlist name...",
+    "newPlaylist": "New playlist",
+    "tracks": "{current}/{total} tracks",
+    "loopOn": "Loop ON",
+    "loopOff": "Loop OFF",
+    "expand": "Expand",
+    "collapse": "Collapse"
+  },
+  "player": {
+    "videoNotSupported": "Your browser does not support video playback.",
+    "audioNotSupported": "Your browser does not support audio playback."
+  },
+  "archive": {
+    "loadFailed": "Failed to load archive: {error}",
+    "fileCount": "{count} files / {size}",
+    "downloadArchive": "Download archive",
+    "emptyFolder": "This folder is empty",
+    "downloadFile": "Download {name}",
+    "slideshowInterval": "Slideshow interval",
+    "seconds": "{sec}s",
+    "prevImage": "Previous image",
+    "nextImage": "Next image",
+    "backToList": "Back to list"
+  },
+  "empty": {
+    "noFilesTitle": "No files",
+    "noFilesDescription": "This folder has no files yet.",
+    "noResultsTitle": "No matching files found",
+    "noResultsDescription": "Try changing your search criteria.",
+    "needsScanTitle": "Scan required",
+    "needsScanDescription": "Scan the drive to load files.",
+    "noFavoritesTitle": "No favorite files",
+    "noFavoritesDescription": "Click the star icon to add favorites.",
+    "noRecentTitle": "No recently played videos",
+    "noRecentDescription": "Videos you play will appear here.",
+    "noRecentAddedTitle": "No recently added files",
+    "noRecentAddedDescription": "Uploaded files will appear here."
+  },
+  "theme": {
+    "system": "System",
+    "light": "Light",
+    "dark": "Dark"
+  },
+  "view": {
+    "grid": "Grid view",
+    "list": "List view"
+  },
+  "toolbar": {
+    "rescan": "Rescan",
+    "rescanTitle": "Rescan drive",
+    "fileType": "File type",
+    "all": "All",
+    "video": "Video",
+    "image": "Image",
+    "audio": "Audio",
+    "document": "Document",
+    "archiveType": "Archive",
+    "other": "Other",
+    "playAll": "Play all",
+    "home": "Home"
+  },
+  "gallery": {
+    "prevImage": "Previous image",
+    "nextImage": "Next image",
+    "slideshowInterval": "Slideshow interval",
+    "seconds": "{sec}s"
+  },
+  "unlock": {
+    "title": "Unlock",
+    "passwordPlaceholder": "Password",
+    "rememberDevice": "Remember this device",
+    "submit": "Unlock"
+  },
+  "text": {
+    "fileSizeLarge": "File is large ({size})",
+    "loadContent": "Load",
+    "loading": "Loading...",
+    "loadFailed": "Failed to load: {error}"
+  }
+}
