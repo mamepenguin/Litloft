@@ -2,30 +2,46 @@
 
 import { useRef, useEffect, useCallback } from "react";
 import { useTranslations } from "next-intl";
-import { getStreamUrl } from "@/lib/api";
+import { getStreamUrl, saveWatchProgress, getWatchProgress, deleteWatchProgress } from "@/lib/api";
 import { addRecentlyPlayed, getSavedProgress, saveProgress, clearProgress } from "@/lib/recentlyPlayed";
+import { useProfile } from "./ProfileProvider";
 
 const SAVE_INTERVAL = 5;
 const RESUME_THRESHOLD = 5;
 
 export function VideoPlayer({ videoId, onEnded, autoPlay }: { videoId: string; onEnded?: () => void; autoPlay?: boolean }) {
   const t = useTranslations("player");
+  const { nickname } = useProfile();
+  const hasProfile = nickname !== null;
   const videoRef = useRef<HTMLVideoElement>(null);
   const lastSavedRef = useRef(0);
 
-  const handleLoadedMetadata = useCallback(() => {
+  const handleLoadedMetadata = useCallback(async () => {
     const video = videoRef.current;
     if (!video) return;
     addRecentlyPlayed(videoId);
-    const saved = getSavedProgress(videoId);
-    if (saved > RESUME_THRESHOLD && saved < video.duration - RESUME_THRESHOLD) {
-      video.currentTime = saved;
+
+    if (hasProfile) {
+      try {
+        const progress = await getWatchProgress(videoId);
+        if (progress.position > RESUME_THRESHOLD && progress.position < video.duration - RESUME_THRESHOLD) {
+          video.currentTime = progress.position;
+        }
+      } catch {
+        // Fire-and-forget: don't block playback
+      }
+    } else {
+      const saved = getSavedProgress(videoId);
+      if (saved > RESUME_THRESHOLD && saved < video.duration - RESUME_THRESHOLD) {
+        video.currentTime = saved;
+      }
     }
+
     const isPC = !("ontouchstart" in window);
     if (isPC || autoPlay) {
       video.play().catch(() => {});
     }
-  }, [videoId, autoPlay]);
+  }, [videoId, autoPlay, hasProfile]);
 
   const handleTimeUpdate = useCallback(() => {
     const video = videoRef.current;
@@ -33,14 +49,22 @@ export function VideoPlayer({ videoId, onEnded, autoPlay }: { videoId: string; o
     const current = video.currentTime;
     if (Math.abs(current - lastSavedRef.current) >= SAVE_INTERVAL) {
       lastSavedRef.current = current;
-      saveProgress(videoId, current);
+      if (hasProfile) {
+        saveWatchProgress(videoId, current, video.duration).catch(() => {});
+      } else {
+        saveProgress(videoId, current);
+      }
     }
-  }, [videoId]);
+  }, [videoId, hasProfile]);
 
   const handleEnded = useCallback(() => {
-    clearProgress(videoId);
+    if (hasProfile) {
+      deleteWatchProgress(videoId).catch(() => {});
+    } else {
+      clearProgress(videoId);
+    }
     onEnded?.();
-  }, [videoId, onEnded]);
+  }, [videoId, onEnded, hasProfile]);
 
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -99,10 +123,14 @@ export function VideoPlayer({ videoId, onEnded, autoPlay }: { videoId: string; o
       document.removeEventListener("keydown", handleKeyDown);
       const video = videoRef.current;
       if (video && video.currentTime > 0) {
-        saveProgress(videoId, video.currentTime);
+        if (hasProfile) {
+          saveWatchProgress(videoId, video.currentTime, video.duration).catch(() => {});
+        } else {
+          saveProgress(videoId, video.currentTime);
+        }
       }
     };
-  }, [videoId]);
+  }, [videoId, hasProfile]);
 
   return (
     <div className="aspect-video w-full overflow-hidden rounded-xl bg-black">

@@ -1,5 +1,5 @@
 import Link from "next/link";
-import type { FileItem } from "@/types";
+import type { FileItem, WatchProgress } from "@/types";
 import { formatDuration, formatFileSize, formatRelativeDate } from "@/lib/format";
 import { getThumbnailUrl } from "@/lib/api";
 import { FavoriteButton } from "./FavoriteButton";
@@ -20,6 +20,7 @@ export function FileCard({
   isDragging,
   onDragStart,
   onDragEnd,
+  watchProgress,
 }: {
   file: FileItem;
   onFavoriteToggle?: (file: FileItem) => void;
@@ -34,6 +35,7 @@ export function FileCard({
   isDragging?: boolean;
   onDragStart?: (e: React.DragEvent) => void;
   onDragEnd?: (e: React.DragEvent) => void;
+  watchProgress?: WatchProgress;
 }) {
   const hasThumbnail = file.file_type === "video" || file.file_type === "image";
 
@@ -127,6 +129,14 @@ export function FileCard({
                 fileId={file.id}
                 isFavorite={file.is_favorite}
                 onToggle={onFavoriteToggle}
+              />
+            </div>
+          )}
+          {watchProgress && watchProgress.duration > 0 && (
+            <div className="absolute bottom-0 left-0 right-0 h-[3px] bg-white/20">
+              <div
+                className="h-full bg-accent"
+                style={{ width: `${Math.min((watchProgress.position / watchProgress.duration) * 100, 100)}%` }}
               />
             </div>
           )}

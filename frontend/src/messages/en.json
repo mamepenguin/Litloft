@@ -48,7 +48,8 @@
     "pickup": "Pickup",
     "recentAdded": "Recently Added",
     "favorites": "Favorites",
-    "popular": "Popular"
+    "popular": "Popular",
+    "continueWatching": "Continue Watching"
   },
   "folder": {
     "items": "{count} items",
@@ -237,6 +238,17 @@
     "passwordPlaceholder": "Password",
     "rememberDevice": "Remember this device",
     "submit": "Unlock"
+  },
+  "profile": {
+    "setup": "Profile Setup",
+    "nickname": "Nickname",
+    "nicknamePlaceholder": "Enter your name",
+    "save": "Save",
+    "later": "Later",
+    "dontShowAgain": "Don't show again",
+    "change": "Change name",
+    "clear": "Clear profile",
+    "clearConfirm": "Clearing your profile will disconnect watch history from this device. Are you sure?"
   },
   "text": {
     "fileSizeLarge": "File is large ({size})",

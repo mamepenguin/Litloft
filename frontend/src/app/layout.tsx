@@ -10,6 +10,8 @@ import { SidebarProvider } from "@/components/SidebarProvider";
 import { ThemeProvider } from "@/components/ThemeProvider";
 import { CurrentDriveProvider } from "@/components/CurrentDriveProvider";
 import { WebSocketProvider } from "@/components/WebSocketProvider";
+import { ProfileProvider } from "@/components/ProfileProvider";
+import { ProfileSetup } from "@/components/ProfileSetup";
 
 const inter = Inter({
   variable: "--font-inter",
@@ -63,19 +65,22 @@ export default async function RootLayout({
       <body className="min-h-dvh">
         <NextIntlClientProvider messages={messages}>
           <ThemeProvider>
-            <WebSocketProvider>
-              <CurrentDriveProvider>
-                <SidebarProvider>
-                  <div className="flex min-h-dvh">
-                    <Sidebar />
-                    <main className="flex min-w-0 flex-1 flex-col">
-                      <Header />
-                      {children}
-                    </main>
-                  </div>
-                </SidebarProvider>
-              </CurrentDriveProvider>
-            </WebSocketProvider>
+            <ProfileProvider>
+              <WebSocketProvider>
+                <CurrentDriveProvider>
+                  <SidebarProvider>
+                    <div className="flex min-h-dvh">
+                      <Sidebar />
+                      <main className="flex min-w-0 flex-1 flex-col">
+                        <Header />
+                        {children}
+                      </main>
+                    </div>
+                    <ProfileSetup />
+                  </SidebarProvider>
+                </CurrentDriveProvider>
+              </WebSocketProvider>
+            </ProfileProvider>
           </ThemeProvider>
         </NextIntlClientProvider>
       </body>

@@ -2,15 +2,17 @@
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
-import { Folder, Heart, Sparkles, Clock, ThumbsUp } from "lucide-react";
+import { Folder, Heart, Play, Sparkles, Clock, ThumbsUp } from "lucide-react";
 import { useTranslations } from "next-intl";
-import type { FileItem, Folder as FolderType } from "@/types";
-import { addPin, getDriveFiles, getFolders, getPins, removePin } from "@/lib/api";
+import type { FileItem, Folder as FolderType, WatchHistoryItem } from "@/types";
+import { addPin, getDriveFiles, getFolders, getPins, getWatchHistory, removePin } from "@/lib/api";
 import { useDragAndDrop } from "@/hooks/useDragAndDrop";
 import { CarouselSection } from "./CarouselSection";
+import { ContinueWatchingSection } from "./ContinueWatchingSection";
 import { FolderCard } from "./FolderCard";
 import { RootFileListing } from "./RootFileListing";
 import { useSidebar } from "./SidebarProvider";
+import { useProfile } from "./ProfileProvider";
 
 interface DriveHomeProps {
   driveName: string;
@@ -27,6 +29,10 @@ const MAX_FOLDERS = 8;
 export function DriveHome({ driveName }: DriveHomeProps) {
   const t = useTranslations("drive");
   const tc = useTranslations("common");
+  const { nickname } = useProfile();
+  const hasProfile = nickname !== null;
+  const [continueWatching, setContinueWatching] = useState<WatchHistoryItem[]>([]);
+  const [continueWatchingLoading, setContinueWatchingLoading] = useState(false);
   const [pickup, setPickup] = useState<SectionState>({ files: [], loading: true });
   const [recent, setRecent] = useState<SectionState>({ files: [], loading: true });
   const [favorites, setFavorites] = useState<SectionState>({ files: [], loading: true });
@@ -108,11 +114,27 @@ export function DriveHome({ driveName }: DriveHomeProps) {
       setFavorites({ files: [], loading: true });
       setPopular({ files: [], loading: true });
       setFoldersLoading(true);
+      if (hasProfile) {
+        setContinueWatchingLoading(true);
+      }
 
-      const [fileResults, foldersResult, pinsResult] = await Promise.all([
+      const promises: [
+        Promise<PromiseSettledResult<any>[]>,
+        Promise<FolderType[]>,
+        Promise<{ path: string }[]>,
+        Promise<WatchHistoryItem[]> | null,
+      ] = [
         fetchFileSections(),
         getFolders(driveName).catch(() => [] as FolderType[]),
         getPins(driveName).catch(() => [] as { path: string }[]),
+        hasProfile ? getWatchHistory(driveName, SECTION_LIMIT).catch(() => [] as WatchHistoryItem[]) : null,
+      ];
+
+      const [fileResults, foldersResult, pinsResult, watchResult] = await Promise.all([
+        promises[0],
+        promises[1],
+        promises[2],
+        promises[3] ?? Promise.resolve([] as WatchHistoryItem[]),
       ]);
 
       applyFileSections(fileResults);
@@ -120,10 +142,14 @@ export function DriveHome({ driveName }: DriveHomeProps) {
       setFolders(foldersResult);
       setFoldersLoading(false);
       setPinnedPaths(new Set(pinsResult.map((p) => p.path)));
+      if (hasProfile) {
+        setContinueWatching(watchResult);
+        setContinueWatchingLoading(false);
+      }
     };
 
     fetchAll();
-  }, [driveName, fetchFileSections, applyFileSections]);
+  }, [driveName, fetchFileSections, applyFileSections, hasProfile]);
 
   const handleTogglePin = useCallback(
     async (folderPath: string) => {
@@ -221,6 +247,13 @@ export function DriveHome({ driveName }: DriveHomeProps) {
             </div>
           )}
         </section>
+      )}
+
+      {hasProfile && (
+        <ContinueWatchingSection
+          items={continueWatching}
+          loading={continueWatchingLoading}
+        />
       )}
 
       <CarouselSection

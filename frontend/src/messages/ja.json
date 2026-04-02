@@ -48,7 +48,8 @@
     "pickup": "ピックアップ",
     "recentAdded": "最近追加",
     "favorites": "お気に入り",
-    "popular": "人気"
+    "popular": "人気",
+    "continueWatching": "続きを見る"
   },
   "folder": {
     "items": "{count} 件",
@@ -237,6 +238,17 @@
     "passwordPlaceholder": "Password",
     "rememberDevice": "Remember this device",
     "submit": "Unlock"
+  },
+  "profile": {
+    "setup": "プロファイル設定",
+    "nickname": "ニックネーム",
+    "nicknamePlaceholder": "名前を入力",
+    "save": "保存",
+    "later": "あとで",
+    "dontShowAgain": "次回から表示しない",
+    "change": "名前を変更",
+    "clear": "プロファイルをクリア",
+    "clearConfirm": "プロファイルをクリアすると視聴履歴がこのデバイスから切り離されます。よろしいですか？"
   },
   "text": {
     "fileSizeLarge": "ファイルサイズが大きいです ({size})",

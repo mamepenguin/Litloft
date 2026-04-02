@@ -1,4 +1,4 @@
-import type { ArchiveContents, AuthStatus, ChunkResponse, Drive, FileItem, FileType, Folder, Neighbors, PaginatedResponse, PinnedFolder, PlaylistDetail, PlaylistSummary, SortField, SortOrder, Tag, UnlockResult, UploadInitResponse } from "@/types";
+import type { ArchiveContents, AuthStatus, ChunkResponse, Drive, FileItem, FileType, Folder, Neighbors, PaginatedResponse, PinnedFolder, PlaylistDetail, PlaylistSummary, SortField, SortOrder, Tag, UnlockResult, UploadInitResponse, WatchHistoryItem, WatchProgress } from "@/types";
 
 const API_BASE = "/api";
 
@@ -372,6 +372,40 @@ export async function getArchiveContents(id: string): Promise<ArchiveContents> {
 
 export function getArchiveEntryUrl(id: string, entryPath: string): string {
   return `${API_BASE}/files/${id}/archive/entry?path=${encodeURIComponent(entryPath)}`;
+}
+
+// Watch Progress
+export async function saveWatchProgress(fileId: string, position: number, duration: number): Promise<void> {
+  await fetch(`${API_BASE}/files/${fileId}/progress`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    credentials: "include",
+    body: JSON.stringify({ position, duration }),
+  });
+}
+
+export async function getWatchProgress(fileId: string): Promise<WatchProgress> {
+  return fetchJSON<WatchProgress>(`${API_BASE}/files/${fileId}/progress`);
+}
+
+export async function deleteWatchProgress(fileId: string): Promise<void> {
+  await fetch(`${API_BASE}/files/${fileId}/progress`, {
+    method: "DELETE",
+    credentials: "include",
+  });
+}
+
+export async function getWatchHistory(
+  driveName: string,
+  limit?: number
+): Promise<WatchHistoryItem[]> {
+  const params = new URLSearchParams();
+  if (limit) params.set("limit", String(limit));
+  const qs = params.toString();
+  const result = await fetchJSON<{ data: WatchHistoryItem[] }>(
+    `${API_BASE}/drives/${encodeURIComponent(driveName)}/watch-history${qs ? `?${qs}` : ""}`
+  );
+  return result.data;
 }
 
 // Auth

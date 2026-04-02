@@ -123,6 +123,15 @@ export interface ChunkResponse {
   total_chunks: number;
 }
 
+export interface WatchProgress {
+  position: number;
+  duration: number;
+}
+
+export interface WatchHistoryItem extends FileItem {
+  watch_progress: WatchProgress;
+}
+
 export interface WebSocketEvent {
   event: string;
   data: Record<string, unknown>;
