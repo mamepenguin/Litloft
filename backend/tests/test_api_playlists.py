@@ -271,7 +271,13 @@ class TestPlaylistCascadeDelete:
             json={"file_ids": [file.id]},
         )
 
+        # Soft delete keeps DB record, so cascade doesn't trigger
         c.delete(f"/api/files/{file.id}")
+        detail = c.get(f"/api/drives/{TEST_DRIVE}/playlists/{pl_id}")
+        assert len(detail.json()["items"]) == 1
+
+        # Purge permanently removes, triggering cascade
+        c.delete(f"/api/files/{file.id}/purge")
         detail = c.get(f"/api/drives/{TEST_DRIVE}/playlists/{pl_id}")
         assert len(detail.json()["items"]) == 0
 

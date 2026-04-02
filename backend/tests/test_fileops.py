@@ -88,7 +88,8 @@ class TestDeleteFile:
         file = _seed(db, drive_dir)
         res = c.delete(f"/api/files/{file.id}")
         assert res.status_code == 200
-        assert not (drive_dir / "旅行" / "test.mp4").exists()
+        # Soft delete: file stays on disk but is not accessible via API
+        assert (drive_dir / "旅行" / "test.mp4").exists()
         assert c.get(f"/api/files/{file.id}").status_code == 404
 
     def test_delete_not_found(self, client):

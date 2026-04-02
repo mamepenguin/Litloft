@@ -97,10 +97,14 @@ class TestHeicDeleteCleanup:
         cached_files = list(converted_dir.glob("*.jpg"))
         assert len(cached_files) == 1
 
-        # Delete the file
+        # Soft delete: cache stays (cleanup happens on purge)
         res = c.delete(f"/api/files/{file.id}")
         assert res.status_code == 200
+        cached_files = list(converted_dir.glob("*.jpg"))
+        assert len(cached_files) == 1
 
-        # Cache should be cleaned up
+        # Purge: cache should be cleaned up
+        res = c.delete(f"/api/files/{file.id}/purge")
+        assert res.status_code == 200
         cached_files = list(converted_dir.glob("*.jpg"))
         assert len(cached_files) == 0

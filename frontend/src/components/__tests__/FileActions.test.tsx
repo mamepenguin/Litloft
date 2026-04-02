@@ -58,6 +58,7 @@ const mockFile: FileItem = {
   is_favorite: false,
   tags: [],
   subtitles: [],
+  deleted_at: null,
   created_at: "2026-01-01T00:00:00Z",
   updated_at: "2026-01-01T00:00:00Z",
 };
@@ -78,7 +79,7 @@ describe("FileActions", () => {
     expect(screen.getByText("ダウンロード")).toBeInTheDocument();
     expect(screen.getByText("名前を変更")).toBeInTheDocument();
     expect(screen.getByText("移動")).toBeInTheDocument();
-    expect(screen.getByText("削除")).toBeInTheDocument();
+    expect(screen.getByText("ゴミ箱に移動")).toBeInTheDocument();
   });
 
   it("opens rename dialog", () => {
@@ -98,7 +99,7 @@ describe("FileActions", () => {
   it("opens delete confirmation dialog", () => {
     render(<FileActions file={mockFile} />);
     fireEvent.click(screen.getByLabelText("ファイル操作"));
-    fireEvent.click(screen.getByText("削除"));
+    fireEvent.click(screen.getByText("ゴミ箱に移動"));
     expect(screen.getByTestId("confirm-dialog")).toBeInTheDocument();
   });
 
@@ -106,7 +107,7 @@ describe("FileActions", () => {
     const onDelete = vi.fn();
     render(<FileActions file={mockFile} onDelete={onDelete} />);
     fireEvent.click(screen.getByLabelText("ファイル操作"));
-    fireEvent.click(screen.getByText("削除"));
+    fireEvent.click(screen.getByText("ゴミ箱に移動"));
     fireEvent.click(screen.getByText("確認"));
 
     await waitFor(() => {

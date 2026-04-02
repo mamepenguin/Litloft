@@ -6,6 +6,8 @@ vi.mock("@/lib/api", () => ({
   batchDelete: vi.fn().mockResolvedValue({ deleted: 2, errors: [] }),
   batchMove: vi.fn().mockResolvedValue({ moved: 2, errors: [] }),
   batchTag: vi.fn().mockResolvedValue({ updated: 2, errors: [] }),
+  batchRestore: vi.fn().mockResolvedValue({ restored: 2, errors: [] }),
+  batchPurge: vi.fn().mockResolvedValue({ purged: 2, errors: [] }),
 }));
 
 vi.mock("../ConfirmDialog", () => ({
@@ -93,7 +95,7 @@ describe("SelectionBar", () => {
 
   it("opens delete dialog", () => {
     render(<SelectionBar {...defaultProps} />);
-    fireEvent.click(screen.getByLabelText("削除"));
+    fireEvent.click(screen.getByLabelText("ゴミ箱に移動"));
     expect(screen.getByTestId("confirm-dialog")).toBeInTheDocument();
   });
 
