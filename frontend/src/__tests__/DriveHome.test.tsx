@@ -19,6 +19,18 @@ vi.mock("@/components/SidebarProvider", () => ({
   }),
 }));
 
+// Mock clipboard
+vi.mock("@/components/ClipboardProvider", () => ({
+  useClipboard: () => ({
+    clipboard: null,
+    copy: vi.fn(),
+    cut: vi.fn(),
+    paste: vi.fn(),
+    clear: vi.fn(),
+    isCut: () => false,
+  }),
+}));
+
 // Mock drag and drop
 vi.mock("@/hooks/useDragAndDrop", () => ({
   useDragAndDrop: () => ({

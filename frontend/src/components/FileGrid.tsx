@@ -1,10 +1,11 @@
 "use client";
 
 import { useCallback, useState } from "react";
-import { Download, ListMusic, Move, Pencil, Trash2 } from "lucide-react";
+import { ClipboardCopy, Download, ListMusic, Move, Pencil, Scissors, Trash2 } from "lucide-react";
 
 import { useTranslations } from "next-intl";
 import { deleteFile, getDownloadUrl, moveFile, renameFile } from "@/lib/api";
+import { useClipboard } from "./ClipboardProvider";
 import type { FileItem } from "@/types";
 import { FileCard } from "./FileCard";
 import { ContextMenu, type MenuItem } from "./ContextMenu";
@@ -44,6 +45,8 @@ export function FileGrid({
 }) {
   const t = useTranslations("file");
   const tc = useTranslations("common");
+  const tcb = useTranslations("clipboard");
+  const clipboard = useClipboard();
   const [menuPos, setMenuPos] = useState<{ open: boolean; x: number; y: number }>({
     open: false, x: 0, y: 0,
   });
@@ -71,6 +74,16 @@ export function FileGrid({
       icon: ListMusic,
       label: t("addToPlaylist"),
       onClick: () => setPlaylistPickerOpen(true),
+    },
+    {
+      icon: ClipboardCopy,
+      label: tcb("copy"),
+      onClick: () => clipboard.copy([target.id], target.drive, target.folder_path),
+    },
+    {
+      icon: Scissors,
+      label: tcb("cut"),
+      onClick: () => clipboard.cut([target.id], target.drive, target.folder_path),
     },
     {
       icon: Pencil,

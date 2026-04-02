@@ -257,5 +257,17 @@
     "loadContent": "Load",
     "loading": "Loading...",
     "loadFailed": "Failed to load: {error}"
+  },
+  "clipboard": {
+    "copy": "Copy",
+    "cut": "Cut",
+    "paste": "Paste",
+    "pasteHere": "Paste here",
+    "pasteCount": "{mode} {count} files",
+    "modeCopy": "Copy",
+    "modeCut": "Move",
+    "copied": "Copied",
+    "moved": "Moved",
+    "clear": "Clear"
   }
 }

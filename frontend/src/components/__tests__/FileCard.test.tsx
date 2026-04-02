@@ -1,5 +1,17 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import { render, screen } from "@testing-library/react";
+
+vi.mock("../ClipboardProvider", () => ({
+  useClipboard: () => ({
+    clipboard: null,
+    copy: vi.fn(),
+    cut: vi.fn(),
+    paste: vi.fn(),
+    clear: vi.fn(),
+    isCut: () => false,
+  }),
+}));
+
 import { FileCard } from "../FileCard";
 import type { FileItem } from "@/types";
 

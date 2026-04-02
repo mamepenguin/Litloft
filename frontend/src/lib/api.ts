@@ -256,6 +256,30 @@ export async function batchMove(
   });
 }
 
+export async function copyFile(
+  id: string,
+  targetPath: string,
+  targetDrive?: string
+): Promise<FileItem> {
+  return fetchJSON<FileItem>(`${API_BASE}/files/${id}/copy`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ target_folder_path: targetPath, target_drive: targetDrive }),
+  });
+}
+
+export async function batchCopy(
+  ids: string[],
+  targetFolderPath: string,
+  targetDrive?: string
+): Promise<{ copied: number; errors: string[] }> {
+  return fetchJSON(`${API_BASE}/files/batch/copy`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ ids, target_folder_path: targetFolderPath, target_drive: targetDrive }),
+  });
+}
+
 export async function batchTag(
   ids: string[],
   tags: string[]

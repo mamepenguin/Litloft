@@ -23,6 +23,17 @@ vi.mock("../MoveDialog", () => ({
     open ? <div data-testid="move-dialog" /> : null,
 }));
 
+vi.mock("../ClipboardProvider", () => ({
+  useClipboard: () => ({
+    clipboard: null,
+    copy: vi.fn(),
+    cut: vi.fn(),
+    paste: vi.fn(),
+    clear: vi.fn(),
+    isCut: () => false,
+  }),
+}));
+
 vi.mock("../PlaylistPicker", () => ({
   PlaylistPicker: ({ open }: any) =>
     open ? <div data-testid="playlist-picker" /> : null,

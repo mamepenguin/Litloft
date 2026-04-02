@@ -1,10 +1,11 @@
 "use client";
 
 import { useState } from "react";
-import { ListMusic, Move, Tag, Trash2, X } from "lucide-react";
+import { ClipboardCopy, ListMusic, Move, Scissors, Tag, Trash2, X } from "lucide-react";
 import { useTranslations } from "next-intl";
 
 import { batchDelete, batchMove, batchTag } from "@/lib/api";
+import { useClipboard } from "./ClipboardProvider";
 import { ConfirmDialog } from "./ConfirmDialog";
 import { MoveDialog } from "./MoveDialog";
 import { PlaylistPicker } from "./PlaylistPicker";
@@ -33,6 +34,8 @@ export function SelectionBar({
   const t = useTranslations("selection");
   const tf = useTranslations("file");
   const tc = useTranslations("common");
+  const tcb = useTranslations("clipboard");
+  const clipboard = useClipboard();
   const [deleteOpen, setDeleteOpen] = useState(false);
   const [moveOpen, setMoveOpen] = useState(false);
   const [tagInput, setTagInput] = useState("");
@@ -139,6 +142,30 @@ export function SelectionBar({
         >
           <ListMusic size={16} />
           <span className="hidden sm:inline">{t("playlist")}</span>
+        </button>
+
+        <button
+          onClick={() => {
+            clipboard.copy(ids, drive, currentPath ?? "");
+            onClear();
+          }}
+          className="flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-sm text-text-muted transition-colors hover:bg-bg-card hover:text-text-primary"
+          aria-label={tcb("copy")}
+        >
+          <ClipboardCopy size={16} />
+          <span className="hidden sm:inline">{tcb("copy")}</span>
+        </button>
+
+        <button
+          onClick={() => {
+            clipboard.cut(ids, drive, currentPath ?? "");
+            onClear();
+          }}
+          className="flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-sm text-text-muted transition-colors hover:bg-bg-card hover:text-text-primary"
+          aria-label={tcb("cut")}
+        >
+          <Scissors size={16} />
+          <span className="hidden sm:inline">{tcb("cut")}</span>
         </button>
 
         <button

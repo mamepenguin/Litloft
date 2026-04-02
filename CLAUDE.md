@@ -38,7 +38,7 @@ backend/
     services/
       scanner.py       # ドライブ単位の再帰スキャン（全ファイル対応）、DB同期、排他ロック
       filetype.py      # ファイルタイプ分類 (classify, is_hidden)
-      fileops.py       # ファイル/フォルダ CRUD 操作（リネーム、移動、削除、作成）
+      fileops.py       # ファイル/フォルダ CRUD 操作（リネーム、移動、コピー、削除、作成）
       upload.py        # チャンクアップロード管理（セッション、結合、クリーンアップ）
       thumbnail.py     # ffmpeg/ffprobe サムネイル生成（動画+画像対応）、duration取得
       heic.py          # HEIC→JPEG変換+キャッシュ（pillow-heif使用）
@@ -100,6 +100,7 @@ frontend/
       ProfileProvider.tsx    # プロファイル（ニックネーム）Context Provider
       ProfileSetup.tsx       # プロファイル初回設定ダイアログ
       ContinueWatchingSection.tsx # 「続きを見る」カルーセルセクション
+      ClipboardProvider.tsx    # クリップボード（コピー/カット/ペースト）Context Provider
     i18n/
       config.ts            # next-intl設定（locales, defaultLocale）
       request.ts           # getRequestConfig（Cookie→locale解決）
@@ -205,8 +206,10 @@ docker compose logs -f backend
 | PUT | /api/files/{id}/tags | タグ編集 |
 | PUT | /api/files/{id}/rename | ファイルリネーム |
 | PUT | /api/files/{id}/move | ファイル移動 |
+| POST | /api/files/{id}/copy | ファイルコピー |
 | DELETE | /api/files/{id} | ファイル削除 |
 | POST | /api/files/batch/get | バッチ取得（IDリスト） |
+| POST | /api/files/batch/copy | バッチコピー |
 | POST | /api/files/batch/delete | バッチ削除 |
 | PUT | /api/files/batch/move | バッチ移動 |
 | PUT | /api/files/batch/tags | バッチタグ更新 |
@@ -347,6 +350,16 @@ docker compose logs -f backend
 - **readonlyドライブ**: プレイリストはDBメタデータなので、readonlyドライブでもCRUD可能
 - 設計書: `docs/superpowers/specs/2026-03-25-playlist-design.md`
 
+### クリップボード（コピー/カット/ペースト）
+- **状態管理**: `ClipboardProvider`（React Context）+ `sessionStorage` でタブ間共有・リロード耐性
+- **操作モード**: コピー（`copy`）とカット（`cut`）の2モード。カットは移動操作（ペースト後にクリップボードクリア）、コピーはペースト後もクリップボード維持
+- **キーボードショートカット**: `Ctrl/Cmd+C`（コピー）、`Ctrl/Cmd+X`（カット）、`Ctrl/Cmd+V`（ペースト）。選択状態がある場合のみ有効
+- **ペーストUI**: 宛先フォルダでペーストバナー表示（件数+操作ボタン）
+- **カット視覚フィードバック**: カット中のファイルは `opacity-50` で半透明表示（FileCard/FileList）
+- **バックエンドAPI**: `POST /api/files/{id}/copy`（単体）、`POST /api/files/batch/copy`（バッチ）。コピー先にファイル名重複時は `filename (1).ext` 形式で自動リネーム
+- **readonlyドライブ**: コピー/カット/ペースト操作は非表示
+- 設計書: `docs/superpowers/specs/2026-04-02-clipboard-operations-design.md`
+
 ### Frontend
 - Next.js 16: `params` は `Promise` 型。Server Component では `await params`、Client Component では `use(params)` または `useParams()`
 - トップページ (`/`) は Server Component で `http://backend:8000` に直接fetch
@@ -393,4 +406,5 @@ Mac mini上にbare gitリポジトリ (`~/video-share.git`) を作成し、`post
 - `docs/superpowers/specs/2026-04-02-i18n-foundation-design.md` — i18n基盤設計書
 - `docs/superpowers/specs/2026-04-02-websocket-foundation-design.md` — WebSocket基盤設計書
 - `docs/superpowers/specs/2026-04-02-watch-history-resume-design.md` — 視聴履歴・レジューム再生設計書
+- `docs/superpowers/specs/2026-04-02-clipboard-operations-design.md` — クリップボード操作設計書
 - `docs/superpowers/specs/2026-04-02-feature-roadmap.md` — 機能拡張ロードマップ

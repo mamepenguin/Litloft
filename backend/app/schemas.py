@@ -1,7 +1,7 @@
 import re
 from datetime import UTC, datetime
 
-from pydantic import BaseModel, field_validator, model_validator
+from pydantic import BaseModel, Field, field_validator, model_validator
 
 
 class _UtcDateTimeMixin:
@@ -215,6 +215,27 @@ class BatchMoveRequest(BaseModel):
     @classmethod
     def validate_ids(cls, v: list[int]) -> list[int]:
         return _validate_batch_ids(v)
+
+
+class FileCopyRequest(BaseModel):
+    target_folder_path: str = Field(..., max_length=1000)
+    target_drive: str | None = Field(None, max_length=100)
+
+
+class BatchCopyRequest(BaseModel):
+    ids: list[str]
+    target_folder_path: str = Field(..., max_length=1000)
+    target_drive: str | None = Field(None, max_length=100)
+
+    @field_validator("ids")
+    @classmethod
+    def validate_ids(cls, v: list[str]) -> list[str]:
+        return _validate_batch_ids(v)
+
+
+class BatchCopyResponse(BaseModel):
+    copied: int
+    errors: list[dict]
 
 
 class BatchTagRequest(BaseModel):

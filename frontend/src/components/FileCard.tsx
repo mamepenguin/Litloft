@@ -2,6 +2,7 @@ import Link from "next/link";
 import type { FileItem, WatchProgress } from "@/types";
 import { formatDuration, formatFileSize, formatRelativeDate } from "@/lib/format";
 import { getThumbnailUrl } from "@/lib/api";
+import { useClipboard } from "./ClipboardProvider";
 import { FavoriteButton } from "./FavoriteButton";
 import { TagList } from "./TagList";
 import { FileTypeIcon } from "./FileTypeIcon";
@@ -38,6 +39,8 @@ export function FileCard({
   onDragEnd?: (e: React.DragEvent) => void;
   watchProgress?: WatchProgress;
 }) {
+  const clipboard = useClipboard();
+  const isCutFile = clipboard.isCut(file.id);
   const hasThumbnail = file.file_type === "video" || file.file_type === "image";
 
   const Wrapper = selectable ? "div" : Link;
@@ -69,7 +72,7 @@ export function FileCard({
 
   return (
     <div
-      className={`relative${isDragging ? " opacity-40" : ""}`}
+      className={`relative${isDragging ? " opacity-40" : ""}${isCutFile ? " opacity-50" : ""}`}
       draggable={draggable}
       onDragStart={onDragStart}
       onDragEnd={onDragEnd}

@@ -18,9 +18,12 @@ from app.models import File, Tag, file_tags
 from app.schemas import (
     ArchiveContentsResponse,
     ArchiveEntryResponse,
+    BatchCopyRequest,
+    BatchCopyResponse,
     BatchIdsRequest,
     BatchMoveRequest,
     BatchTagRequest,
+    FileCopyRequest,
     FileResponse,
     FileMoveRequest,
     FileRenameRequest,
@@ -209,6 +212,24 @@ async def batch_tags(
         db.commit()
 
     return {"updated": updated, "errors": errors}
+
+
+@router.post("/batch/copy", response_model=BatchCopyResponse)
+async def batch_copy(
+    body: BatchCopyRequest,
+    db: Annotated[Session, Depends(get_db)],
+    unlocked_groups: Annotated[list[str], Depends(get_unlocked_groups)],
+):
+    copied = 0
+    errors = []
+    for file_id in body.ids:
+        try:
+            _get_file_or_404(db, file_id, unlocked_groups)
+            fileops.copy_file(db, file_id, body.target_drive, body.target_folder_path)
+            copied += 1
+        except HTTPException as e:
+            errors.append({"id": file_id, "error": e.detail})
+    return {"copied": copied, "errors": errors}
 
 
 @router.get("/{file_id}", response_model=FileResponse)
@@ -723,6 +744,18 @@ async def move_file_endpoint(
     _get_file_or_404(db, file_id, unlocked_groups)
     file = fileops.move_file(db, file_id, body.target_drive, body.target_folder_path)
     return _to_response(file)
+
+
+@router.post("/{file_id}/copy", response_model=FileResponse)
+async def copy_file_endpoint(
+    file_id: FileId,
+    body: FileCopyRequest,
+    db: Annotated[Session, Depends(get_db)],
+    unlocked_groups: Annotated[list[str], Depends(get_unlocked_groups)],
+):
+    _get_file_or_404(db, file_id, unlocked_groups)
+    new_file = fileops.copy_file(db, file_id, body.target_drive, body.target_folder_path)
+    return _to_response(new_file)
 
 
 @router.delete("/{file_id}")

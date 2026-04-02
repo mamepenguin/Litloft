@@ -7,6 +7,17 @@ vi.mock("next/link", () => ({
   ),
 }));
 
+vi.mock("@/components/ClipboardProvider", () => ({
+  useClipboard: () => ({
+    clipboard: null,
+    copy: vi.fn(),
+    cut: vi.fn(),
+    paste: vi.fn(),
+    clear: vi.fn(),
+    isCut: () => false,
+  }),
+}));
+
 vi.mock("@/lib/api", () => ({
   getThumbnailUrl: (id: string) => `/api/files/${id}/thumbnail`,
   getPreviewUrl: (id: string) => `/api/files/${id}/preview`,

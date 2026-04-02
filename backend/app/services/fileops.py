@@ -9,6 +9,7 @@ from sqlalchemy.orm import Session
 
 import app.config as config
 from app.models import EmptyFolder, File
+from app.nanoid import generate_nanoid
 from app.services.heic import cleanup_heic_cache
 
 logger = logging.getLogger(__name__)
@@ -96,6 +97,107 @@ def remove_empty_folder_if_has_files(db: Session, drive: str, folder_path: str) 
     )
     if existing:
         db.delete(existing)
+
+
+def _resolve_copy_filename(target_dir: Path, original_filename: str) -> str:
+    """Generate a unique filename for copy, adding _copy, _copy_2, etc. on collision."""
+    if not (target_dir / original_filename).exists():
+        return original_filename
+
+    stem = Path(original_filename).stem
+    ext = Path(original_filename).suffix
+
+    candidate = f"{stem}_copy{ext}"
+    if not (target_dir / candidate).exists():
+        return candidate
+
+    counter = 2
+    while counter <= 1000:
+        candidate = f"{stem}_copy_{counter}{ext}"
+        if not (target_dir / candidate).exists():
+            return candidate
+        counter += 1
+    raise HTTPException(status_code=409, detail="Too many copies of this file exist")
+
+
+def copy_file(db: Session, file_id: str, target_drive: str | None, target_folder: str) -> File:
+    source = db.query(File).filter(File.id == file_id).first()
+    if not source:
+        raise HTTPException(status_code=404, detail="File not found")
+
+    src_drive = source.drive
+    dst_drive = target_drive or src_drive
+    target_folder = validate_path_safe(target_folder)
+
+    src_drive_path = config.get_drive_path(src_drive)
+    dst_drive_path = validate_writable(dst_drive)
+
+    old_full = src_drive_path / source.file_path
+    if not old_full.exists():
+        raise HTTPException(status_code=404, detail="File not found on disk")
+
+    target_dir = dst_drive_path / target_folder if target_folder else dst_drive_path
+    validate_within_drive(target_dir, dst_drive_path)
+    target_dir.mkdir(parents=True, exist_ok=True)
+
+    new_filename = _resolve_copy_filename(target_dir, source.filename)
+    new_full = target_dir / new_filename
+    validate_within_drive(new_full, dst_drive_path)
+
+    # Atomic copy: create exclusive target then copy content to prevent TOCTOU race
+    try:
+        fd = os.open(str(new_full), os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o644)
+        os.close(fd)
+    except FileExistsError:
+        raise HTTPException(status_code=409, detail="Target file already exists")
+    shutil.copy2(str(old_full), str(new_full))
+
+    new_id = generate_nanoid()
+    new_rel = f"{target_folder}/{new_filename}" if target_folder else new_filename
+
+    new_file = File(
+        id=new_id,
+        filename=new_filename,
+        title=_filename_to_title(new_filename),
+        description=source.description,
+        drive=dst_drive,
+        folder_path=target_folder,
+        file_path=new_rel,
+        file_size=source.file_size,
+        file_type=source.file_type,
+        mime_type=source.mime_type,
+        duration=source.duration,
+        likes=0,
+        is_favorite=False,
+    )
+
+    # Copy thumbnail if it exists
+    if source.thumbnail_path:
+        old_thumb = config.THUMBNAILS_DIR / source.thumbnail_path
+        if old_thumb.exists():
+            new_stem = Path(new_filename).stem
+            new_thumb_rel = (
+                f"{dst_drive}/{target_folder}/{new_stem}.jpg"
+                if target_folder
+                else f"{dst_drive}/{new_stem}.jpg"
+            )
+            new_thumb = config.THUMBNAILS_DIR / new_thumb_rel
+            new_thumb.parent.mkdir(parents=True, exist_ok=True)
+            shutil.copy2(str(old_thumb), str(new_thumb))
+            new_file.thumbnail_path = new_thumb_rel
+
+    # Copy preview spritesheet if it exists
+    old_preview = config.PREVIEWS_DIR / f"{source.id}.jpg"
+    if old_preview.exists():
+        config.PREVIEWS_DIR.mkdir(parents=True, exist_ok=True)
+        new_preview = config.PREVIEWS_DIR / f"{new_id}.jpg"
+        shutil.copy2(str(old_preview), str(new_preview))
+
+    db.add(new_file)
+    remove_empty_folder_if_has_files(db, dst_drive, target_folder)
+    db.commit()
+    db.refresh(new_file)
+    return new_file
 
 
 def rename_file(db: Session, file_id: str, new_filename: str) -> File:

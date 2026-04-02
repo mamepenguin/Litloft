@@ -4,8 +4,10 @@ import { useCallback, useState } from "react";
 import Link from "next/link";
 import { Download, ListMusic, Move, Pencil, Trash2 } from "lucide-react";
 
+import { ClipboardCopy, Scissors } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { deleteFile, getDownloadUrl, getThumbnailUrl, moveFile, renameFile } from "@/lib/api";
+import { useClipboard } from "./ClipboardProvider";
 import { formatDuration, formatFileSize, formatRelativeDate } from "@/lib/format";
 import type { FileItem } from "@/types";
 import { FavoriteButton } from "./FavoriteButton";
@@ -48,6 +50,8 @@ export function FileList({
 }) {
   const t = useTranslations("file");
   const tc = useTranslations("common");
+  const tcb = useTranslations("clipboard");
+  const clipboard = useClipboard();
   const [menuPos, setMenuPos] = useState<{ open: boolean; x: number; y: number }>({
     open: false, x: 0, y: 0,
   });
@@ -77,6 +81,16 @@ export function FileList({
       onClick: () => setPlaylistPickerOpen(true),
     },
     {
+      icon: ClipboardCopy,
+      label: tcb("copy"),
+      onClick: () => clipboard.copy([target.id], target.drive, target.folder_path),
+    },
+    {
+      icon: Scissors,
+      label: tcb("cut"),
+      onClick: () => clipboard.cut([target.id], target.drive, target.folder_path),
+    },
+    {
       icon: Pencil,
       label: tc("rename"),
       onClick: () => setRenameOpen(true),
@@ -101,6 +115,7 @@ export function FileList({
           const hasThumbnail = file.file_type === "video" || file.file_type === "image";
           const hasDuration = (file.file_type === "video" || file.file_type === "audio") && file.duration != null;
           const fileSelected = isSelected?.(file.id);
+          const isCutFile = clipboard.isCut(file.id);
 
           return (
             <div
@@ -109,7 +124,7 @@ export function FileList({
                 selectable ? "cursor-pointer select-none" : ""
               } ${fileSelected ? "ring-2 ring-accent" : ""}${
                 draggedFileIds?.includes(file.id) ? " opacity-40" : ""
-              }`}
+              }${isCutFile ? " opacity-50" : ""}`}
               draggable={draggable}
               onDragStart={onDragStart ? (e) => onDragStart(e, file.id) : undefined}
               onDragEnd={onDragEnd}
