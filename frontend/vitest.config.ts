@@ -9,6 +9,8 @@ export default defineConfig({
     setupFiles: ["./src/test/setup.ts"],
     globals: true,
     exclude: ["e2e/**", "node_modules/**"],
+    pool: "forks",
+    teardownTimeout: 5000,
   },
   resolve: {
     alias: {
