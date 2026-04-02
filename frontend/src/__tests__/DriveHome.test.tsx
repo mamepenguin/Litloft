@@ -118,6 +118,7 @@ describe("DriveHome", () => {
       expect(screen.getByText("続きを見る")).toBeInTheDocument();
     });
     expect(mockGetWatchHistory).toHaveBeenCalledWith("media", 12);
+    expect(mockGetWatchHistory).toHaveBeenCalledWith("media", 12, "all");
   });
 
   it("does not show Continue Watching when profile is set but no items", async () => {
@@ -139,7 +140,8 @@ describe("DriveHome", () => {
     render(<DriveHome driveName="media" />);
 
     await waitFor(() => {
-      expect(screen.getByText("Video v1")).toBeInTheDocument();
+      const items = screen.getAllByText("Video v1");
+      expect(items.length).toBeGreaterThanOrEqual(1);
     });
   });
 });

@@ -362,20 +362,29 @@ async def get_watch_history(
     unlocked_groups: Annotated[list[str], Depends(get_unlocked_groups)],
     viewer_id: Annotated[str | None, Depends(get_viewer_id)],
     limit: int = Query(20, ge=1, le=50),
+    filter: str = Query("unfinished", pattern=r"^(unfinished|all)$"),
 ):
     _validate_drive(drive_name, unlocked_groups)
 
     if viewer_id is None:
         return WatchHistoryResponse(data=[])
 
-    records = (
+    query = (
         db.query(WatchHistory)
         .join(File, WatchHistory.file_id == File.id)
         .filter(
             WatchHistory.viewer_id == viewer_id,
             File.drive == drive_name,
+        )
+    )
+
+    if filter == "unfinished":
+        query = query.filter(
             WatchHistory.playback_position < WatchHistory.duration * 0.9,
         )
+
+    records = (
+        query
         .order_by(WatchHistory.last_played_at.desc())
         .limit(limit)
         .all()

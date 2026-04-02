@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
-import { Folder, Heart, Play, Sparkles, Clock, ThumbsUp } from "lucide-react";
+import { Folder, Heart, History, Play, Sparkles, Clock, ThumbsUp } from "lucide-react";
 import { useTranslations } from "next-intl";
 import type { FileItem, Folder as FolderType, WatchHistoryItem } from "@/types";
 import { addPin, getDriveFiles, getFolders, getPins, getWatchHistory, removePin } from "@/lib/api";
@@ -33,6 +33,8 @@ export function DriveHome({ driveName }: DriveHomeProps) {
   const hasProfile = nickname !== null;
   const [continueWatching, setContinueWatching] = useState<WatchHistoryItem[]>([]);
   const [continueWatchingLoading, setContinueWatchingLoading] = useState(false);
+  const [recentlyPlayed, setRecentlyPlayed] = useState<WatchHistoryItem[]>([]);
+  const [recentlyPlayedLoading, setRecentlyPlayedLoading] = useState(false);
   const [pickup, setPickup] = useState<SectionState>({ files: [], loading: true });
   const [recent, setRecent] = useState<SectionState>({ files: [], loading: true });
   const [favorites, setFavorites] = useState<SectionState>({ files: [], loading: true });
@@ -116,6 +118,7 @@ export function DriveHome({ driveName }: DriveHomeProps) {
       setFoldersLoading(true);
       if (hasProfile) {
         setContinueWatchingLoading(true);
+        setRecentlyPlayedLoading(true);
       }
 
       const promises: [
@@ -123,18 +126,21 @@ export function DriveHome({ driveName }: DriveHomeProps) {
         Promise<FolderType[]>,
         Promise<{ path: string }[]>,
         Promise<WatchHistoryItem[]> | null,
+        Promise<WatchHistoryItem[]> | null,
       ] = [
         fetchFileSections(),
         getFolders(driveName).catch(() => [] as FolderType[]),
         getPins(driveName).catch(() => [] as { path: string }[]),
         hasProfile ? getWatchHistory(driveName, SECTION_LIMIT).catch(() => [] as WatchHistoryItem[]) : null,
+        hasProfile ? getWatchHistory(driveName, SECTION_LIMIT, "all").catch(() => [] as WatchHistoryItem[]) : null,
       ];
 
-      const [fileResults, foldersResult, pinsResult, watchResult] = await Promise.all([
+      const [fileResults, foldersResult, pinsResult, watchResult, recentlyPlayedResult] = await Promise.all([
         promises[0],
         promises[1],
         promises[2],
         promises[3] ?? Promise.resolve([] as WatchHistoryItem[]),
+        promises[4] ?? Promise.resolve([] as WatchHistoryItem[]),
       ]);
 
       applyFileSections(fileResults);
@@ -145,6 +151,8 @@ export function DriveHome({ driveName }: DriveHomeProps) {
       if (hasProfile) {
         setContinueWatching(watchResult);
         setContinueWatchingLoading(false);
+        setRecentlyPlayed(recentlyPlayedResult);
+        setRecentlyPlayedLoading(false);
       }
     };
 
@@ -253,6 +261,15 @@ export function DriveHome({ driveName }: DriveHomeProps) {
         <ContinueWatchingSection
           items={continueWatching}
           loading={continueWatchingLoading}
+        />
+      )}
+
+      {hasProfile && (
+        <ContinueWatchingSection
+          items={recentlyPlayed}
+          loading={recentlyPlayedLoading}
+          title={t("recentlyPlayed")}
+          icon={<History size={20} className="text-accent" />}
         />
       )}
 

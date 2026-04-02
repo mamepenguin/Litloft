@@ -397,10 +397,12 @@ export async function deleteWatchProgress(fileId: string): Promise<void> {
 
 export async function getWatchHistory(
   driveName: string,
-  limit?: number
+  limit?: number,
+  filter?: "unfinished" | "all"
 ): Promise<WatchHistoryItem[]> {
   const params = new URLSearchParams();
   if (limit) params.set("limit", String(limit));
+  if (filter) params.set("filter", filter);
   const qs = params.toString();
   const result = await fetchJSON<{ data: WatchHistoryItem[] }>(
     `${API_BASE}/drives/${encodeURIComponent(driveName)}/watch-history${qs ? `?${qs}` : ""}`

@@ -49,7 +49,8 @@
     "recentAdded": "Recently Added",
     "favorites": "Favorites",
     "popular": "Popular",
-    "continueWatching": "Continue Watching"
+    "continueWatching": "Continue Watching",
+    "recentlyPlayed": "Recently Played"
   },
   "folder": {
     "items": "{count} items",

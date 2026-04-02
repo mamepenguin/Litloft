@@ -8,6 +8,8 @@ import { FileCard } from "./FileCard";
 interface ContinueWatchingSectionProps {
   items: WatchHistoryItem[];
   loading: boolean;
+  title?: string;
+  icon?: React.ReactNode;
 }
 
 function SkeletonCard() {
@@ -24,7 +26,7 @@ function SkeletonCard() {
   );
 }
 
-export function ContinueWatchingSection({ items, loading }: ContinueWatchingSectionProps) {
+export function ContinueWatchingSection({ items, loading, title, icon }: ContinueWatchingSectionProps) {
   const t = useTranslations("drive");
 
   if (!loading && items.length === 0) {
@@ -35,8 +37,8 @@ export function ContinueWatchingSection({ items, loading }: ContinueWatchingSect
     <section>
       <div className="mb-3 flex items-center justify-between">
         <h2 className="flex items-center gap-2 text-lg font-bold text-text-primary">
-          <Play size={20} className="text-accent-teal" />
-          {t("continueWatching")}
+          {icon ?? <Play size={20} className="text-accent-teal" />}
+          {title ?? t("continueWatching")}
         </h2>
       </div>
 
