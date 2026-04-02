@@ -6,7 +6,7 @@ from fastapi import FastAPI
 
 from app.database import init_db
 from app.auth import init_jwt_secret, load_passwords
-from app.routers import auth, drives, files, playlists, uploads, ws
+from app.routers import auth, drives, files, playlists, progress, uploads, ws
 from app.services.scanner import scan_all_drives
 from app.services.upload import cleanup_abandoned_uploads
 from app.services.ws import set_event_loop
@@ -39,6 +39,7 @@ app.include_router(files.router)
 app.include_router(drives.router)
 app.include_router(uploads.router)
 app.include_router(playlists.router)
+app.include_router(progress.router)
 app.include_router(ws.router)
 
 

@@ -134,6 +134,24 @@ class Playlist(Base):
     )
 
 
+class WatchHistory(Base):
+    __tablename__ = "watch_history"
+
+    viewer_id: Mapped[str] = mapped_column(String(16), primary_key=True)
+    file_id: Mapped[str] = mapped_column(
+        String(12), ForeignKey("files.id", ondelete="CASCADE"), primary_key=True
+    )
+    playback_position: Mapped[float] = mapped_column(Float, nullable=False, default=0)
+    duration: Mapped[float] = mapped_column(Float, nullable=False, default=0)
+    last_played_at: Mapped[datetime] = mapped_column(DateTime, nullable=False)
+
+    file: Mapped["File"] = relationship("File", lazy="selectin")
+
+    __table_args__ = (
+        Index("idx_watch_history_viewer_last_played", "viewer_id", "last_played_at"),
+    )
+
+
 class PlaylistItem(Base):
     __tablename__ = "playlist_items"
 

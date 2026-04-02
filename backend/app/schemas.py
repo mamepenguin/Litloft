@@ -241,6 +241,73 @@ class BatchTagRequest(BaseModel):
         return list(seen.values())
 
 
+class ProgressUpdateRequest(BaseModel):
+    position: float
+    duration: float
+
+    @field_validator("position")
+    @classmethod
+    def validate_position(cls, v: float) -> float:
+        import math
+        if not math.isfinite(v):
+            raise ValueError("position must be a finite number")
+        if v < 0 or v > 86400:
+            raise ValueError("position must be between 0 and 86400")
+        return v
+
+    @field_validator("duration")
+    @classmethod
+    def validate_duration(cls, v: float) -> float:
+        import math
+        if not math.isfinite(v):
+            raise ValueError("duration must be a finite number")
+        if v <= 0 or v > 86400:
+            raise ValueError("duration must be between 0 and 86400")
+        return v
+
+    @model_validator(mode="after")
+    def position_within_duration(self):
+        if self.position > self.duration:
+            raise ValueError("position cannot exceed duration")
+        return self
+
+
+class ProgressResponse(BaseModel):
+    position: float
+    duration: float
+
+
+class WatchProgressInfo(BaseModel):
+    position: float
+    duration: float
+
+
+class WatchHistoryItemResponse(_UtcDateTimeMixin, BaseModel):
+    id: str
+    filename: str
+    title: str
+    description: str
+    drive: str
+    folder_path: str
+    file_type: str
+    mime_type: str
+    thumbnail_url: str
+    file_size: int
+    duration: float | None
+    likes: int
+    is_favorite: bool
+    tags: list[str]
+    created_at: datetime
+    updated_at: datetime
+    watch_progress: WatchProgressInfo
+
+    model_config = {"from_attributes": True}
+
+
+class WatchHistoryResponse(BaseModel):
+    data: list[WatchHistoryItemResponse]
+
+
 class PlaylistCreateRequest(BaseModel):
     name: str
 

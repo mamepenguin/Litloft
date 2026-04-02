@@ -8,7 +8,8 @@ from sqlalchemy.orm import Session
 import app.config as config
 from app.auth import check_drive_access, filter_drives, get_unlocked_groups
 from app.database import get_db
-from app.models import EmptyFolder, File, PinnedFolder, Tag, file_tags
+from app.models import EmptyFolder, File, PinnedFolder, Tag, WatchHistory, file_tags
+from app.routers.progress import get_viewer_id
 from app.schemas import (
     DriveResponse,
     FileResponse,
@@ -22,6 +23,9 @@ from app.schemas import (
     PinnedFolderResponse,
     ScanResponse,
     TagResponse,
+    WatchHistoryItemResponse,
+    WatchHistoryResponse,
+    WatchProgressInfo,
     file_to_response,
 )
 from app.services import fileops
@@ -349,3 +353,43 @@ async def unpin_folder(
 
     db.delete(pin)
     db.commit()
+
+
+@router.get("/{drive_name}/watch-history", response_model=WatchHistoryResponse)
+async def get_watch_history(
+    drive_name: str,
+    db: Annotated[Session, Depends(get_db)],
+    unlocked_groups: Annotated[list[str], Depends(get_unlocked_groups)],
+    viewer_id: Annotated[str | None, Depends(get_viewer_id)],
+    limit: int = Query(20, ge=1, le=50),
+):
+    _validate_drive(drive_name, unlocked_groups)
+
+    if viewer_id is None:
+        return WatchHistoryResponse(data=[])
+
+    records = (
+        db.query(WatchHistory)
+        .join(File, WatchHistory.file_id == File.id)
+        .filter(
+            WatchHistory.viewer_id == viewer_id,
+            File.drive == drive_name,
+            WatchHistory.playback_position < WatchHistory.duration * 0.9,
+        )
+        .order_by(WatchHistory.last_played_at.desc())
+        .limit(limit)
+        .all()
+    )
+
+    items = [
+        WatchHistoryItemResponse(
+            **_to_response(record.file).model_dump(),
+            watch_progress=WatchProgressInfo(
+                position=record.playback_position,
+                duration=record.duration,
+            ),
+        )
+        for record in records
+    ]
+
+    return WatchHistoryResponse(data=items)

@@ -308,6 +308,12 @@ def _migrate(engine_) -> None:
             logger.info("Migration complete: dislikes column dropped")
 
 
+    # === Phase 5: Create watch_history table ===
+    tables = inspector.get_table_names()
+    if "watch_history" not in tables:
+        Base.metadata.tables["watch_history"].create(bind=engine_, checkfirst=True)
+
+
 def init_db() -> None:
     DATA_DIR.mkdir(parents=True, exist_ok=True)
     Base.metadata.create_all(bind=engine)
