@@ -186,3 +186,31 @@ export interface UploadCompleteData {
   file_id: string;
   filename: string;
 }
+
+export interface DashboardDriveInfo {
+  name: string;
+  total_bytes: number;
+  used_bytes: number;
+  free_bytes: number;
+  file_count: number;
+  file_types: Record<string, number>;
+  last_scanned_at: string | null;
+  is_scanning: boolean;
+  readonly: boolean;
+}
+
+export interface DashboardSystemInfo {
+  db_size_bytes: number;
+  thumbnail_cache_bytes: number;
+  converted_cache_bytes: number;
+  preview_cache_bytes: number;
+  upload_temp_bytes: number;
+  total_files: number;
+  trash_count: number;
+  uptime_seconds: number;
+}
+
+export interface DashboardResponse {
+  drives: DashboardDriveInfo[];
+  system: DashboardSystemInfo;
+}

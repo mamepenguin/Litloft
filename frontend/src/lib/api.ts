@@ -1,4 +1,4 @@
-import type { ArchiveContents, AuthStatus, BatchRenameRequest, BatchRenameResponse, ChunkResponse, Drive, FileItem, FileType, Folder, Neighbors, PaginatedResponse, PinnedFolder, PlaylistDetail, PlaylistSummary, SortField, SortOrder, Tag, UnlockResult, UploadInitResponse, WatchHistoryItem, WatchProgress } from "@/types";
+import type { ArchiveContents, AuthStatus, BatchRenameRequest, BatchRenameResponse, ChunkResponse, DashboardResponse, Drive, FileItem, FileType, Folder, Neighbors, PaginatedResponse, PinnedFolder, PlaylistDetail, PlaylistSummary, SortField, SortOrder, Tag, UnlockResult, UploadInitResponse, WatchHistoryItem, WatchProgress } from "@/types";
 
 const API_BASE = "/api";
 
@@ -496,6 +496,11 @@ export async function batchPurge(ids: string[]): Promise<{ purged: number; error
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ ids }),
   });
+}
+
+// Admin
+export async function getDashboard(): Promise<DashboardResponse> {
+  return fetchJSON<DashboardResponse>(`${API_BASE}/admin/dashboard`);
 }
 
 // Auth

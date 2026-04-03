@@ -41,6 +41,7 @@ function SidebarNav() {
 
   function isActive(href: string): boolean {
     if (href === "/") return pathname === "/";
+    if (href === "/admin") return pathname === "/admin";
     if (!currentDrive) return false;
 
     const base = `/drive/${encodeURIComponent(currentDrive)}`;

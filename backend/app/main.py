@@ -10,7 +10,7 @@ from app.database import SessionLocal, init_db
 from app.auth import init_jwt_secret, load_passwords
 import app.config as config
 from app.models import File
-from app.routers import auth, drives, files, playlists, progress, uploads, ws
+from app.routers import admin, auth, drives, files, playlists, progress, uploads, ws
 from app.services.fileops import physical_delete
 from app.services.scanner import scan_all_drives
 from app.services.upload import cleanup_abandoned_uploads
@@ -115,6 +115,7 @@ async def lifespan(app: FastAPI):
 
 app = FastAPI(title="Video Share API", lifespan=lifespan)
 
+app.include_router(admin.router)
 app.include_router(auth.router)
 app.include_router(files.router)
 app.include_router(drives.router)

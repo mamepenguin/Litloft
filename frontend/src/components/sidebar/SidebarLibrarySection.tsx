@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { Clock, FilePlus, Files, Home, Star, Trash2, Warehouse } from "lucide-react";
+import { Clock, FilePlus, Files, Gauge, Home, Star, Trash2, Warehouse } from "lucide-react";
 import { useTranslations } from "next-intl";
 
 interface SidebarLibrarySectionProps {
@@ -10,6 +10,7 @@ interface SidebarLibrarySectionProps {
 
 export function SidebarLibrarySection({ driveBase, linkClass, close }: SidebarLibrarySectionProps) {
   const t = useTranslations("sidebar");
+  const tAdmin = useTranslations("admin");
   return (
     <>
       <div className="mb-2 px-3 py-2">
@@ -50,6 +51,10 @@ export function SidebarLibrarySection({ driveBase, linkClass, close }: SidebarLi
           </Link>
         </>
       )}
+      <Link href="/admin" onClick={close} className={linkClass("/admin")}>
+        <Gauge size={16} />
+        {tAdmin("title")}
+      </Link>
     </>
   );
 }

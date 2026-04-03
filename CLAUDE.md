@@ -35,6 +35,7 @@ backend/
       uploads.py       # チャンクアップロードエンドポイント
       progress.py      # 視聴履歴・レジューム再生（再生位置保存/取得/削除、viewer_id管理）
       ws.py            # WebSocketエンドポイント（リアルタイム通知）
+      admin.py         # ヘルスチェックダッシュボード API
     services/
       scanner.py       # ドライブ単位の再帰スキャン（全ファイル対応）、DB同期、排他ロック
       filetype.py      # ファイルタイプ分類 (classify, is_hidden)
@@ -57,6 +58,7 @@ frontend/
       drive/[name]/[...path]/ # サブフォルダブラウザ (Client Component)
       files/[id]/        # ファイル詳細・再生ページ (Client Component)
       unlock/            # パスワード解除ページ (UIにリンクなし)
+      admin/             # ヘルスチェックダッシュボード (Client Component)
       layout.tsx         # ルートレイアウト (Inter, PWA meta, dark theme)
       globals.css        # CSS変数 (デザイントークン), Tailwind
     components/
@@ -195,6 +197,12 @@ docker compose logs -f backend
 | POST | /api/auth/unlock | パスワード検証 → JWT Cookie 発行 |
 | POST | /api/auth/lock | Cookie 削除（ロック） |
 | GET | /api/auth/status | ロック解除状態の確認 |
+
+### 管理
+
+| メソッド | パス | 説明 |
+|---------|------|------|
+| GET | /api/admin/dashboard | ヘルスチェックダッシュボード（全ドライブ情報+システム情報集約） |
 
 ### グローバル（IDベース）
 
@@ -394,6 +402,14 @@ docker compose logs -f backend
 - **復元**: `deleted_at = NULL` に戻すだけ。FSにファイルが存在しない場合は復元不可（404）
 - **UI**: サイドバーLIBRARYセクションに「ゴミ箱」リンク、`?view=trash` でゴミ箱一覧表示。復元/完全削除/ゴミ箱を空にするアクション
 - 設計書: `docs/superpowers/specs/2026-04-02-trash-soft-delete-design.md`
+
+### ヘルスチェックダッシュボード
+- **API設計**: 1エンドポイント（`GET /api/admin/dashboard`）で全情報集約。ドライブごとのファイル数・容量・スキャン状態をN+1なしで返却
+- **認証**: 現時点で全ユーザー公開（将来的に管理者限定に制限予定）
+- **スキャン状態管理**: メモリ上で管理（`_last_scanned_at`, `_scanning_drives`, `get_scan_status()`）。DB追加不要、プロセス再起動でリセット
+- **ディスク容量**: `shutil.disk_usage()` でマウントポイント単位の使用量/空き容量を取得
+- **WebSocket連携**: `scan:complete` イベント受信時にフロントエンドが自動リフレッシュ
+- **UI**: サイドバーLIBRARYセクションに「ダッシュボード」リンク、`/admin` ページで表示
 
 ### フォルダアップロード（構造維持）
 - **方式**: 既存チャンクアップロードの拡張。`UploadInitRequest` に `relative_path` パラメータ追加

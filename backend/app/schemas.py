@@ -475,6 +475,34 @@ class PlaylistDetailResponse(_UtcDateTimeMixin, BaseModel):
     updated_at: datetime
 
 
+class DashboardDriveInfo(BaseModel):
+    name: str
+    total_bytes: int
+    used_bytes: int
+    free_bytes: int
+    file_count: int
+    file_types: dict[str, int]
+    last_scanned_at: datetime | None = None
+    is_scanning: bool
+    readonly: bool
+
+
+class DashboardSystemInfo(BaseModel):
+    db_size_bytes: int
+    thumbnail_cache_bytes: int
+    converted_cache_bytes: int
+    preview_cache_bytes: int
+    upload_temp_bytes: int
+    total_files: int
+    trash_count: int
+    uptime_seconds: float
+
+
+class DashboardResponse(_UtcDateTimeMixin, BaseModel):
+    drives: list[DashboardDriveInfo]
+    system: DashboardSystemInfo
+
+
 class BatchRestoreResponse(BaseModel):
     restored: int
     errors: list[dict]

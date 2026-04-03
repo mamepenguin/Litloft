@@ -2,6 +2,7 @@ import asyncio
 import logging
 import time
 import unicodedata
+from datetime import UTC, datetime
 from pathlib import Path
 
 from sqlalchemy.orm import Session
@@ -17,6 +18,16 @@ from app.services.ws import broadcast_from_thread
 logger = logging.getLogger(__name__)
 
 _scan_lock = asyncio.Lock()
+_last_scanned_at: dict[str, datetime] = {}
+_scanning_drives: set[str] = set()
+
+
+def get_scan_status(drive_name: str) -> dict:
+    """Return current scan status for a drive."""
+    return {
+        "is_scanning": drive_name in _scanning_drives,
+        "last_scanned_at": _last_scanned_at.get(drive_name),
+    }
 
 PROGRESS_BATCH_SIZE = 50
 PROGRESS_INTERVAL = 1.0  # seconds
@@ -259,11 +270,13 @@ async def scan_drive(drive_name: str) -> dict[str, int]:
         raise RuntimeError("Scan already in progress")
 
     async with _scan_lock:
+        _scanning_drives.add(drive_name)
         logger.info("Starting file scan for drive '%s'", drive_name)
         loop = asyncio.get_running_loop()
         db = SessionLocal()
         try:
             result = await loop.run_in_executor(None, _scan_and_register, db, drive_name)
+            _last_scanned_at[drive_name] = datetime.now(UTC)
             logger.info(
                 "Scan complete for drive '%s': added=%d, removed=%d, total=%d",
                 drive_name,
@@ -276,6 +289,7 @@ async def scan_drive(drive_name: str) -> dict[str, int]:
             db.rollback()
             raise
         finally:
+            _scanning_drives.discard(drive_name)
             db.close()
 
 
