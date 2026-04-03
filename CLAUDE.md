@@ -42,6 +42,7 @@ backend/
       fileops.py       # ファイル/フォルダ CRUD 操作（リネーム、移動、コピー、削除、作成）
       upload.py        # チャンクアップロード管理（セッション、結合、クリーンアップ）
       thumbnail.py     # ffmpeg/ffprobe サムネイル生成（動画+画像対応）、duration取得
+      hash.py          # ファイルハッシュ計算（SHA-256、先頭1MB）
       heic.py          # HEIC→JPEG変換+キャッシュ（pillow-heif使用）
       subtitle.py      # 字幕検出（同一フォルダ内.srt/.vtt自動紐付け）+ SRT→VTT変換
       preview.py       # 動画プレビュースプライトシート生成（8フレーム、オンデマンド+キャッシュ）
@@ -98,6 +99,7 @@ frontend/
       ContextMenu.tsx    # 右クリックコンテキストメニュー
       CarouselSection.tsx # カルーセルUI
       ArchivePreview.tsx  # ZIPアーカイブ閲覧（一覧+画像ビューア+テキストプレビュー）
+      DuplicatesSection.tsx # 重複ファイル検出セクション（ダッシュボード内、グループ表示+一括削除）
       EmptyState.tsx     # 空状態表示
       CurrentDriveProvider.tsx # カレントドライブ Context Provider
       SidebarProvider.tsx     # サイドバー Context Provider
@@ -189,6 +191,7 @@ docker compose logs -f backend
 | GET | /api/drives/{drive}/watch-history?limit= | 続きを見るリスト（viewer_id別、未完了のみ） |
 | GET | /api/drives/{drive}/trash?sort=&order=&page=&limit= | ゴミ箱一覧（ソフトデリート済みファイル） |
 | POST | /api/drives/{drive}/trash/empty | ゴミ箱を空にする（ドライブ内全件パージ） |
+| GET | /api/drives/{drive}/duplicates | 重複ファイルグループ一覧 |
 
 ### 認証
 
@@ -410,6 +413,15 @@ docker compose logs -f backend
 - **ディスク容量**: `shutil.disk_usage()` でマウントポイント単位の使用量/空き容量を取得
 - **WebSocket連携**: `scan:complete` イベント受信時にフロントエンドが自動リフレッシュ
 - **UI**: サイドバーLIBRARYセクションに「ダッシュボード」リンク、`/admin` ページで表示
+
+### 重複ファイル検出
+- **ハッシュ方式**: SHA-256の先頭1MB（`HASH_CHUNK_SIZE = 1_048_576`）のみ計算し高速化
+- **計算タイミング**: スキャン時（新規ファイル+未計算の既存ファイル）
+- **DB**: `File.file_hash` カラム（String(64), nullable, indexed）
+- **API**: `GET /api/drives/{drive}/duplicates` で `GROUP BY file_hash HAVING COUNT > 1`
+- **UI**: ダッシュボード（`/admin`）内の `DuplicatesSection` コンポーネント。ドライブ選択→重複グループ展開→保持するファイルを選択→残りを一括ソフトデリート
+- **wasted_bytes**: 各グループで `file_size * (count - 1)` の合計
+- 設計書: `docs/superpowers/specs/2026-04-03-duplicate-detection-design.md`
 
 ### フォルダアップロード（構造維持）
 - **方式**: 既存チャンクアップロードの拡張。`UploadInitRequest` に `relative_path` パラメータ追加
