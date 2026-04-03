@@ -183,7 +183,10 @@
   "player": {
     "videoNotSupported": "お使いのブラウザは動画再生に対応していません。",
     "audioNotSupported": "お使いのブラウザは音声再生に対応していません。",
-    "subtitleDefault": "字幕"
+    "subtitleDefault": "字幕",
+    "cast": "キャスト",
+    "castConnecting": "接続中...",
+    "castConnected": "キャスト中"
   },
   "archive": {
     "loadFailed": "アーカイブの読み込みに失敗しました: {error}",

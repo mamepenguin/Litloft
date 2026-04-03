@@ -8,6 +8,7 @@ import { getStreamUrl, saveWatchProgress, getWatchProgress, deleteWatchProgress 
 import { formatFileSize } from "@/lib/format";
 import { addRecentlyPlayed, getSavedProgress, saveProgress, clearProgress } from "@/lib/recentlyPlayed";
 import { useProfile } from "./ProfileProvider";
+import { CastButton } from "./CastButton";
 
 const SAVE_INTERVAL = 5;
 const RESUME_THRESHOLD = 3;
@@ -82,6 +83,9 @@ export function AudioPlayer({ file, onEnded, autoPlay }: { file: FileItem; onEnd
       >
         {t("audioNotSupported")}
       </audio>
+      <div className="mt-3">
+        <CastButton mediaRef={audioRef} />
+      </div>
     </div>
   );
 }

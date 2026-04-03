@@ -6,6 +6,7 @@ import type { SubtitleInfo } from "@/types";
 import { getStreamUrl, getSubtitleUrl, saveWatchProgress, getWatchProgress, deleteWatchProgress } from "@/lib/api";
 import { addRecentlyPlayed, getSavedProgress, saveProgress, clearProgress } from "@/lib/recentlyPlayed";
 import { useProfile } from "./ProfileProvider";
+import { CastButton } from "./CastButton";
 
 const SAVE_INTERVAL = 5;
 const RESUME_THRESHOLD = 5;
@@ -134,30 +135,35 @@ export function VideoPlayer({ videoId, subtitles = [], onEnded, autoPlay }: { vi
   }, [videoId, hasProfile]);
 
   return (
-    <div className="aspect-video w-full overflow-hidden rounded-xl bg-black">
-      <video
-        ref={videoRef}
-        src={getStreamUrl(videoId)}
-        controls
-        playsInline
-        preload="metadata"
-        className="h-full w-full object-contain"
-        onLoadedMetadata={handleLoadedMetadata}
-        onTimeUpdate={handleTimeUpdate}
-        onEnded={handleEnded}
-      >
-        {subtitles.map((sub, i) => (
-          <track
-            key={sub.index}
-            src={getSubtitleUrl(videoId, sub.index)}
-            kind="subtitles"
-            srcLang={sub.language || "und"}
-            label={sub.label || t("subtitleDefault")}
-            default={i === 0}
-          />
-        ))}
-        {t("videoNotSupported")}
-      </video>
+    <div>
+      <div className="aspect-video w-full overflow-hidden rounded-xl bg-black">
+        <video
+          ref={videoRef}
+          src={getStreamUrl(videoId)}
+          controls
+          playsInline
+          preload="metadata"
+          className="h-full w-full object-contain"
+          onLoadedMetadata={handleLoadedMetadata}
+          onTimeUpdate={handleTimeUpdate}
+          onEnded={handleEnded}
+        >
+          {subtitles.map((sub, i) => (
+            <track
+              key={sub.index}
+              src={getSubtitleUrl(videoId, sub.index)}
+              kind="subtitles"
+              srcLang={sub.language || "und"}
+              label={sub.label || t("subtitleDefault")}
+              default={i === 0}
+            />
+          ))}
+          {t("videoNotSupported")}
+        </video>
+      </div>
+      <div className="mt-2 flex justify-end">
+        <CastButton mediaRef={videoRef} />
+      </div>
     </div>
   );
 }
