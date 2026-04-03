@@ -339,6 +339,7 @@
     "wastedSpace": "重複による無駄: {size}",
     "keepFile": "保持",
     "deleteSelected": "選択したファイルを削除",
+    "confirmDelete": "{count} 件のファイルをゴミ箱に移動しますか？",
     "selectDrive": "ドライブを選択",
     "needsScan": "ハッシュ未計算のファイルがあります。スキャンを実行してください。",
     "filesInGroup": "{count} 件のファイル",

@@ -339,6 +339,7 @@
     "wastedSpace": "Wasted space: {size}",
     "keepFile": "Keep",
     "deleteSelected": "Delete Selected",
+    "confirmDelete": "Move {count} files to trash?",
     "selectDrive": "Select drive",
     "needsScan": "Some files have not been hashed. Please run a scan.",
     "filesInGroup": "{count} files",

@@ -14,6 +14,7 @@ import {
 
 import { batchDelete, getDrives, getDuplicates, getThumbnailUrl } from "@/lib/api";
 import { formatFileSize } from "@/lib/format";
+import { ConfirmDialog } from "@/components/ConfirmDialog";
 import type { Drive, DuplicateGroup, DuplicatesResponse, FileItem } from "@/types";
 
 function DuplicatesSkeleton() {
@@ -142,6 +143,8 @@ function DuplicateGroupCard({
   const [isExpanded, setIsExpanded] = useState(false);
   const [keptFileId, setKeptFileId] = useState(group.files[0]?.id ?? "");
   const [deleting, setDeleting] = useState(false);
+  const [confirmOpen, setConfirmOpen] = useState(false);
+  const [deleteError, setDeleteError] = useState<string | null>(null);
 
   const filesToDelete = group.files.filter((f) => f.id !== keptFileId);
   const wastedSize = filesToDelete.reduce((sum, f) => sum + f.file_size, 0);
@@ -149,13 +152,15 @@ function DuplicateGroupCard({
   const handleDelete = useCallback(async () => {
     if (filesToDelete.length === 0) return;
     setDeleting(true);
+    setDeleteError(null);
     try {
       await batchDelete(filesToDelete.map((f) => f.id));
       onDeleteComplete();
-    } catch {
-      // Error is handled by the parent refresh
+    } catch (err) {
+      setDeleteError(err instanceof Error ? err.message : "Delete failed");
     } finally {
       setDeleting(false);
+      setConfirmOpen(false);
     }
   }, [filesToDelete, onDeleteComplete]);
 
@@ -197,10 +202,16 @@ function DuplicateGroupCard({
             ))}
           </div>
 
+          {deleteError && (
+            <div className="mt-2 rounded-lg bg-red-500/10 px-3 py-2 text-xs text-red-400">
+              {deleteError}
+            </div>
+          )}
+
           {filesToDelete.length > 0 && (
             <button
               type="button"
-              onClick={handleDelete}
+              onClick={() => setConfirmOpen(true)}
               disabled={deleting}
               className="mt-3 inline-flex items-center gap-1.5 rounded-lg bg-red-500/10 px-3 py-1.5 text-xs font-medium text-red-400 hover:bg-red-500/20 transition-colors disabled:opacity-50"
             >
@@ -212,6 +223,15 @@ function DuplicateGroupCard({
               {t("deleteSelected")} ({filesToDelete.length})
             </button>
           )}
+
+          <ConfirmDialog
+            open={confirmOpen}
+            title={t("deleteSelected")}
+            message={t("confirmDelete", { count: filesToDelete.length })}
+            confirmLabel={t("deleteSelected")}
+            onConfirm={handleDelete}
+            onCancel={() => setConfirmOpen(false)}
+          />
         </div>
       )}
     </div>

@@ -421,35 +421,53 @@ async def list_duplicates(
 ):
     _validate_drive(drive_name, unlocked_groups)
 
-    # Find hashes that appear more than once
-    dup_hashes = (
-        db.query(File.file_hash, func.count(File.id))
+    # Find (hash, size) pairs that appear more than once.
+    # Grouping by both file_hash AND file_size prevents false positives
+    # from files that share the same first 1MB but differ in total size.
+    dup_keys = (
+        db.query(File.file_hash, File.file_size, func.count(File.id))
         .filter(
             File.drive == drive_name,
             File.deleted_at.is_(None),
             File.file_hash.isnot(None),
         )
-        .group_by(File.file_hash)
+        .group_by(File.file_hash, File.file_size)
         .having(func.count(File.id) > 1)
         .all()
     )
 
+    if not dup_keys:
+        return DuplicatesResponse(groups=[], total_groups=0, total_wasted_bytes=0)
+
+    # Fetch all duplicate files in one query to avoid N+1
+    hash_list = [h for h, _, _ in dup_keys]
+    all_dup_files = (
+        db.query(File)
+        .filter(
+            File.drive == drive_name,
+            File.deleted_at.is_(None),
+            File.file_hash.in_(hash_list),
+        )
+        .order_by(File.file_hash, File.created_at.asc())
+        .all()
+    )
+
+    # Group by (file_hash, file_size)
+    dup_size_set = {(h, s) for h, s, _ in dup_keys}
+    grouped: dict[tuple[str, int], list[File]] = {}
+    for f in all_dup_files:
+        key = (f.file_hash, f.file_size)
+        if key in dup_size_set:
+            grouped.setdefault(key, []).append(f)
+
     groups = []
     total_wasted = 0
 
-    for file_hash, count in dup_hashes:
-        files = (
-            db.query(File)
-            .filter(
-                File.drive == drive_name,
-                File.deleted_at.is_(None),
-                File.file_hash == file_hash,
-            )
-            .order_by(File.created_at.asc())
-            .all()
-        )
+    for (file_hash, _file_size), files in grouped.items():
+        if len(files) < 2:
+            continue
         total_size = sum(f.file_size for f in files)
-        wasted = total_size - files[0].file_size if files else 0
+        wasted = total_size - files[0].file_size
         total_wasted += wasted
 
         groups.append(DuplicateGroup(
