@@ -503,6 +503,18 @@ class DashboardResponse(_UtcDateTimeMixin, BaseModel):
     system: DashboardSystemInfo
 
 
+class DuplicateGroup(BaseModel):
+    hash: str
+    total_size: int
+    files: list[FileResponse]
+
+
+class DuplicatesResponse(BaseModel):
+    groups: list[DuplicateGroup]
+    total_groups: int
+    total_wasted_bytes: int
+
+
 class BatchRestoreResponse(BaseModel):
     restored: int
     errors: list[dict]

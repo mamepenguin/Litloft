@@ -12,6 +12,8 @@ from app.models import EmptyFolder, File, PinnedFolder, Tag, WatchHistory, file_
 from app.routers.progress import get_viewer_id
 from app.schemas import (
     DriveResponse,
+    DuplicateGroup,
+    DuplicatesResponse,
     FileResponse,
     FolderCreateRequest,
     FolderMoveRequest,
@@ -409,6 +411,58 @@ async def get_watch_history(
     ]
 
     return WatchHistoryResponse(data=items)
+
+
+@router.get("/{drive_name}/duplicates", response_model=DuplicatesResponse)
+async def list_duplicates(
+    drive_name: str,
+    db: Annotated[Session, Depends(get_db)],
+    unlocked_groups: Annotated[list[str], Depends(get_unlocked_groups)],
+):
+    _validate_drive(drive_name, unlocked_groups)
+
+    # Find hashes that appear more than once
+    dup_hashes = (
+        db.query(File.file_hash, func.count(File.id))
+        .filter(
+            File.drive == drive_name,
+            File.deleted_at.is_(None),
+            File.file_hash.isnot(None),
+        )
+        .group_by(File.file_hash)
+        .having(func.count(File.id) > 1)
+        .all()
+    )
+
+    groups = []
+    total_wasted = 0
+
+    for file_hash, count in dup_hashes:
+        files = (
+            db.query(File)
+            .filter(
+                File.drive == drive_name,
+                File.deleted_at.is_(None),
+                File.file_hash == file_hash,
+            )
+            .order_by(File.created_at.asc())
+            .all()
+        )
+        total_size = sum(f.file_size for f in files)
+        wasted = total_size - files[0].file_size if files else 0
+        total_wasted += wasted
+
+        groups.append(DuplicateGroup(
+            hash=file_hash,
+            total_size=total_size,
+            files=[_to_response(f) for f in files],
+        ))
+
+    return DuplicatesResponse(
+        groups=groups,
+        total_groups=len(groups),
+        total_wasted_bytes=total_wasted,
+    )
 
 
 @router.get("/{drive_name}/trash", response_model=PaginatedResponse)

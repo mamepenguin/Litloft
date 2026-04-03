@@ -214,3 +214,15 @@ export interface DashboardResponse {
   drives: DashboardDriveInfo[];
   system: DashboardSystemInfo;
 }
+
+export interface DuplicateGroup {
+  hash: string;
+  total_size: number;
+  files: FileItem[];
+}
+
+export interface DuplicatesResponse {
+  groups: DuplicateGroup[];
+  total_groups: number;
+  total_wasted_bytes: number;
+}

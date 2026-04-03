@@ -1,4 +1,4 @@
-import type { ArchiveContents, AuthStatus, BatchRenameRequest, BatchRenameResponse, ChunkResponse, DashboardResponse, Drive, FileItem, FileType, Folder, Neighbors, PaginatedResponse, PinnedFolder, PlaylistDetail, PlaylistSummary, SortField, SortOrder, Tag, UnlockResult, UploadInitResponse, WatchHistoryItem, WatchProgress } from "@/types";
+import type { ArchiveContents, AuthStatus, BatchRenameRequest, BatchRenameResponse, ChunkResponse, DashboardResponse, Drive, DuplicatesResponse, FileItem, FileType, Folder, Neighbors, PaginatedResponse, PinnedFolder, PlaylistDetail, PlaylistSummary, SortField, SortOrder, Tag, UnlockResult, UploadInitResponse, WatchHistoryItem, WatchProgress } from "@/types";
 
 const API_BASE = "/api";
 
@@ -496,6 +496,13 @@ export async function batchPurge(ids: string[]): Promise<{ purged: number; error
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ ids }),
   });
+}
+
+// Duplicates
+export async function getDuplicates(drive: string): Promise<DuplicatesResponse> {
+  return fetchJSON<DuplicatesResponse>(
+    `${API_BASE}/drives/${encodeURIComponent(drive)}/duplicates`
+  );
 }
 
 // Admin

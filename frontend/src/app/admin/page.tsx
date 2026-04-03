@@ -20,6 +20,7 @@ import {
 import { getDashboard } from "@/lib/api";
 import { formatFileSize } from "@/lib/format";
 import { useWebSocket } from "@/hooks/useWebSocket";
+import { DuplicatesSection } from "@/components/DuplicatesSection";
 import type { DashboardDriveInfo, DashboardResponse, DashboardSystemInfo } from "@/types";
 
 function formatUptime(
@@ -257,12 +258,14 @@ export default function AdminDashboardPage() {
         </div>
       </section>
 
-      <section>
+      <section className="mb-8">
         <h2 className="mb-3 text-sm font-semibold uppercase tracking-wider text-text-muted">
           {t("system")}
         </h2>
         {data ? <SystemCard system={data.system} /> : <SystemCardSkeleton />}
       </section>
+
+      <DuplicatesSection />
     </div>
   );
 }

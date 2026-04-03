@@ -11,6 +11,7 @@ import app.config as config
 from app.database import SessionLocal
 from app.models import EmptyFolder, File
 from app.services.filetype import classify, is_hidden
+from app.services.hash import compute_file_hash
 from app.services.subtitle import is_subtitle_file
 from app.services.thumbnail import generate_image_thumbnail, generate_thumbnail, get_video_duration
 from app.services.ws import broadcast_from_thread
@@ -105,6 +106,12 @@ def _scan_and_register(db: Session, drive_name: str) -> dict[str, int]:
                 file_record.mime_type = mime_type
                 needs_update = True
 
+            if file_record.file_hash is None:
+                file_hash = compute_file_hash(item)
+                if file_hash is not None:
+                    file_record.file_hash = file_hash
+                    needs_update = True
+
             # Thumbnail management for video and image
             if file_type in ("video", "image"):
                 expected_thumb = f"{drive_name}/{folder_path}/{nfc_stem}.jpg" if folder_path else f"{drive_name}/{nfc_stem}.jpg"
@@ -154,6 +161,8 @@ def _scan_and_register(db: Session, drive_name: str) -> dict[str, int]:
             if not gen_fn(str(item), str(thumbnail_full)):
                 thumbnail_rel = None
 
+        file_hash = compute_file_hash(item)
+
         file_record = File(
             filename=nfc_name,
             title=_filename_to_title(nfc_name),
@@ -165,6 +174,7 @@ def _scan_and_register(db: Session, drive_name: str) -> dict[str, int]:
             mime_type=mime_type,
             thumbnail_path=thumbnail_rel,
             duration=duration,
+            file_hash=file_hash,
         )
         db.add(file_record)
         added += 1

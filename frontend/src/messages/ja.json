@@ -330,7 +330,19 @@
     "days": "{count}日",
     "hours": "{count}時間",
     "minutes": "{count}分",
-    "loadError": "ダッシュボードの読み込みに失敗しました"
+    "loadError": "ダッシュボードの読み込みに失敗しました",
+    "duplicates": "重複ファイル",
+    "duplicatesDescription": "同一内容のファイルが複数存在します",
+    "noDuplicates": "重複ファイルはありません",
+    "noDuplicatesDescription": "このドライブには重複ファイルがありません。",
+    "duplicateGroups": "{count} グループ",
+    "wastedSpace": "重複による無駄: {size}",
+    "keepFile": "保持",
+    "deleteSelected": "選択したファイルを削除",
+    "selectDrive": "ドライブを選択",
+    "needsScan": "ハッシュ未計算のファイルがあります。スキャンを実行してください。",
+    "filesInGroup": "{count} 件のファイル",
+    "location": "場所"
   },
   "clipboard": {
     "copy": "コピー",

@@ -324,6 +324,17 @@ def _migrate(engine_) -> None:
                 conn.execute(text("CREATE INDEX idx_files_deleted_at ON files(deleted_at)"))
 
 
+    # === Phase 7: Add file_hash column to files (duplicate detection) ===
+    tables = inspector.get_table_names()
+    if "files" in tables:
+        file_columns = {col["name"] for col in inspector.get_columns("files")}
+        if "file_hash" not in file_columns:
+            logger.info("Migrating: adding 'file_hash' column to files")
+            with engine_.begin() as conn:
+                conn.execute(text("ALTER TABLE files ADD COLUMN file_hash VARCHAR(64)"))
+                conn.execute(text("CREATE INDEX idx_files_file_hash ON files(file_hash)"))
+
+
 def init_db() -> None:
     DATA_DIR.mkdir(parents=True, exist_ok=True)
     Base.metadata.create_all(bind=engine)

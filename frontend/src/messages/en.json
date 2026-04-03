@@ -330,7 +330,19 @@
     "days": "{count}d",
     "hours": "{count}h",
     "minutes": "{count}m",
-    "loadError": "Failed to load dashboard"
+    "loadError": "Failed to load dashboard",
+    "duplicates": "Duplicate Files",
+    "duplicatesDescription": "Files with identical content exist in multiple locations",
+    "noDuplicates": "No Duplicates",
+    "noDuplicatesDescription": "No duplicate files found in this drive.",
+    "duplicateGroups": "{count} groups",
+    "wastedSpace": "Wasted space: {size}",
+    "keepFile": "Keep",
+    "deleteSelected": "Delete Selected",
+    "selectDrive": "Select drive",
+    "needsScan": "Some files have not been hashed. Please run a scan.",
+    "filesInGroup": "{count} files",
+    "location": "Location"
   },
   "clipboard": {
     "copy": "Copy",

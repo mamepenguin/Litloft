@@ -71,6 +71,9 @@ class File(Base):
     deleted_at: Mapped[datetime | None] = mapped_column(
         DateTime, nullable=True, default=None
     )
+    file_hash: Mapped[str | None] = mapped_column(
+        String(64), nullable=True, default=None
+    )
 
     tags: Mapped[list[Tag]] = relationship(
         "Tag", secondary=file_tags, back_populates="files", lazy="selectin"
@@ -82,6 +85,7 @@ class File(Base):
         Index("idx_files_is_favorite", "is_favorite"),
         Index("idx_files_file_type", "file_type"),
         Index("idx_files_deleted_at", "deleted_at"),
+        Index("idx_files_file_hash", "file_hash"),
     )
 
 
