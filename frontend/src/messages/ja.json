@@ -345,6 +345,23 @@
     "filesInGroup": "{count} 件のファイル",
     "location": "場所"
   },
+  "comments": {
+    "title": "コメント",
+    "placeholder": "コメントを入力...",
+    "post": "投稿",
+    "edit": "編集",
+    "delete": "削除",
+    "save": "保存",
+    "cancel": "キャンセル",
+    "anonymous": "匿名",
+    "empty": "コメントはまだありません",
+    "confirmDelete": "このコメントを削除しますか？",
+    "edited": "編集済み",
+    "count": "{count}件のコメント",
+    "profileRequired": "コメントするにはプロフィール設定が必要です",
+    "rateLimited": "投稿が多すぎます。しばらくしてからお試しください",
+    "postFailed": "コメントの投稿に失敗しました"
+  },
   "clipboard": {
     "copy": "コピー",
     "cut": "カット",

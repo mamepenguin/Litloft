@@ -334,6 +334,11 @@ def _migrate(engine_) -> None:
                 conn.execute(text("ALTER TABLE files ADD COLUMN file_hash VARCHAR(64)"))
                 conn.execute(text("CREATE INDEX idx_files_file_hash ON files(file_hash)"))
 
+    # === Phase 8: Create comments table ===
+    tables = inspector.get_table_names()
+    if "comments" not in tables:
+        Base.metadata.tables["comments"].create(bind=engine_, checkfirst=True)
+
 
 def init_db() -> None:
     DATA_DIR.mkdir(parents=True, exist_ok=True)

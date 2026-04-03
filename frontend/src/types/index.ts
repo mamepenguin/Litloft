@@ -226,3 +226,17 @@ export interface DuplicatesResponse {
   total_groups: number;
   total_wasted_bytes: number;
 }
+
+export interface Comment {
+  id: string;
+  nickname: string | null;
+  body: string;
+  is_mine: boolean;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface CommentsResponse {
+  comments: Comment[];
+  total: number;
+}

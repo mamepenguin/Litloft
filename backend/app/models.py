@@ -160,6 +160,30 @@ class WatchHistory(Base):
     )
 
 
+class Comment(Base):
+    __tablename__ = "comments"
+
+    id: Mapped[str] = mapped_column(String(12), primary_key=True, default=generate_nanoid)
+    file_id: Mapped[str] = mapped_column(
+        String(12), ForeignKey("files.id", ondelete="CASCADE"), nullable=False
+    )
+    viewer_id: Mapped[str | None] = mapped_column(String(16), nullable=True)
+    nickname: Mapped[str | None] = mapped_column(String(50), nullable=True)
+    body: Mapped[str] = mapped_column(Text, nullable=False)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime, default=lambda: datetime.now(UTC)
+    )
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime, default=lambda: datetime.now(UTC), onupdate=lambda: datetime.now(UTC)
+    )
+
+    file: Mapped["File"] = relationship("File", lazy="selectin")
+
+    __table_args__ = (
+        Index("idx_comments_file_id", "file_id"),
+    )
+
+
 class PlaylistItem(Base):
     __tablename__ = "playlist_items"
 

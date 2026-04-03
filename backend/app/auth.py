@@ -1,4 +1,5 @@
 import asyncio
+import hashlib
 import hmac
 import json
 import logging
@@ -9,7 +10,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 
 import jwt
-from fastapi import HTTPException, Request
+from fastapi import Cookie, HTTPException, Request
 
 import app.config as config
 
@@ -167,3 +168,25 @@ def check_drive_access(drive_name: str, unlocked_groups: list[str]) -> None:
     access_group = config.get_drive_access_group(drive_name)
     if access_group and access_group not in unlocked_groups:
         raise HTTPException(status_code=404, detail=f"Drive not found: {drive_name}")
+
+
+def nickname_to_viewer_id(nickname: str) -> str:
+    return hashlib.sha256(nickname.strip().encode("utf-8")).hexdigest()[:16]
+
+
+def get_viewer_id(hv_viewer: str | None = Cookie(default=None)) -> str | None:
+    if not hv_viewer or not hv_viewer.strip():
+        return None
+    trimmed = hv_viewer.strip()
+    if len(trimmed) > 50:
+        return None
+    return nickname_to_viewer_id(trimmed)
+
+
+def get_nickname(hv_viewer: str | None = Cookie(default=None)) -> str | None:
+    if not hv_viewer or not hv_viewer.strip():
+        return None
+    trimmed = hv_viewer.strip()
+    if len(trimmed) > 50:
+        return None
+    return trimmed

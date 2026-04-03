@@ -525,6 +525,53 @@ class BatchPurgeResponse(BaseModel):
     errors: list[dict]
 
 
+# Strip dangerous control characters but keep newlines and tabs
+_CONTROL_CHAR_RE = re.compile(
+    r"[\x00-\x08\x0b\x0c\x0e-\x1f\x7f"
+    r"\u200b-\u200f\u202a-\u202e\u2060-\u2064\ufeff]"
+)
+
+
+def _sanitize_comment_body(v: str) -> str:
+    v = _CONTROL_CHAR_RE.sub("", v)
+    v = v.strip()
+    if not v:
+        raise ValueError("Comment body is required")
+    return v
+
+
+class CommentCreateRequest(BaseModel):
+    body: str = Field(..., min_length=1, max_length=1000)
+
+    @field_validator("body")
+    @classmethod
+    def validate_body(cls, v: str) -> str:
+        return _sanitize_comment_body(v)
+
+
+class CommentUpdateRequest(BaseModel):
+    body: str = Field(..., min_length=1, max_length=1000)
+
+    @field_validator("body")
+    @classmethod
+    def validate_body(cls, v: str) -> str:
+        return _sanitize_comment_body(v)
+
+
+class CommentResponse(_UtcDateTimeMixin, BaseModel):
+    id: str
+    nickname: str | None
+    body: str
+    is_mine: bool
+    created_at: datetime
+    updated_at: datetime
+
+
+class CommentsListResponse(BaseModel):
+    comments: list[CommentResponse]
+    total: int
+
+
 def file_to_response(file, subtitles: list[SubtitleInfo] | None = None) -> FileResponse:
     return FileResponse(
         id=file.id,

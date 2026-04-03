@@ -1,4 +1,4 @@
-import type { ArchiveContents, AuthStatus, BatchRenameRequest, BatchRenameResponse, ChunkResponse, DashboardResponse, Drive, DuplicatesResponse, FileItem, FileType, Folder, Neighbors, PaginatedResponse, PinnedFolder, PlaylistDetail, PlaylistSummary, SortField, SortOrder, Tag, UnlockResult, UploadInitResponse, WatchHistoryItem, WatchProgress } from "@/types";
+import type { ArchiveContents, AuthStatus, BatchRenameRequest, BatchRenameResponse, ChunkResponse, Comment, CommentsResponse, DashboardResponse, Drive, DuplicatesResponse, FileItem, FileType, Folder, Neighbors, PaginatedResponse, PinnedFolder, PlaylistDetail, PlaylistSummary, SortField, SortOrder, Tag, UnlockResult, UploadInitResponse, WatchHistoryItem, WatchProgress } from "@/types";
 
 const API_BASE = "/api";
 
@@ -508,6 +508,35 @@ export async function getDuplicates(drive: string): Promise<DuplicatesResponse> 
 // Admin
 export async function getDashboard(): Promise<DashboardResponse> {
   return fetchJSON<DashboardResponse>(`${API_BASE}/admin/dashboard`);
+}
+
+// Comments
+export async function getComments(fileId: string): Promise<CommentsResponse> {
+  return fetchJSON<CommentsResponse>(`${API_BASE}/files/${fileId}/comments`);
+}
+
+export async function createComment(fileId: string, body: string): Promise<Comment> {
+  return fetchJSON<Comment>(`${API_BASE}/files/${fileId}/comments`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ body }),
+  });
+}
+
+export async function updateComment(fileId: string, commentId: string, body: string): Promise<Comment> {
+  return fetchJSON<Comment>(`${API_BASE}/files/${fileId}/comments/${commentId}`, {
+    method: "PUT",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ body }),
+  });
+}
+
+export async function deleteComment(fileId: string, commentId: string): Promise<void> {
+  const res = await fetch(`${API_BASE}/files/${fileId}/comments/${commentId}`, {
+    method: "DELETE",
+    credentials: "include",
+  });
+  if (!res.ok) throw new Error(`API error: ${res.status}`);
 }
 
 // Auth

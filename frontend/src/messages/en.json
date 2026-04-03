@@ -345,6 +345,23 @@
     "filesInGroup": "{count} files",
     "location": "Location"
   },
+  "comments": {
+    "title": "Comments",
+    "placeholder": "Write a comment...",
+    "post": "Post",
+    "edit": "Edit",
+    "delete": "Delete",
+    "save": "Save",
+    "cancel": "Cancel",
+    "anonymous": "Anonymous",
+    "empty": "No comments yet",
+    "confirmDelete": "Delete this comment?",
+    "edited": "edited",
+    "count": "{count} comments",
+    "profileRequired": "Set up a profile to post comments",
+    "rateLimited": "Too many comments. Please try again later",
+    "postFailed": "Failed to post comment"
+  },
   "clipboard": {
     "copy": "Copy",
     "cut": "Cut",

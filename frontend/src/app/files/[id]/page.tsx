@@ -12,6 +12,7 @@ import { FilePreview } from "@/components/FilePreview";
 import { FavoriteButton } from "@/components/FavoriteButton";
 import { TagEditor } from "@/components/TagEditor";
 import { FileActions } from "@/components/FileActions";
+import { CommentSection } from "@/components/CommentSection";
 import { ImageGallery } from "@/components/ImageGallery";
 import { PlaylistPanel, getPlaylistOnEnded } from "@/components/PlaylistPanel";
 import { useSetOverrideDrive } from "@/components/CurrentDriveProvider";
@@ -313,6 +314,8 @@ export default function FilePage() {
               </div>
             )}
           </div>
+
+          <CommentSection fileId={fileId} />
 
           {/* Video theater: playlist below */}
           {isVideoTheater && (
