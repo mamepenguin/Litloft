@@ -23,7 +23,7 @@ backend/
     main.py           # FastAPIエントリーポイント、ルーター登録、startup scan
     config.py          # drives.json からドライブ設定読み取り、DATA_DIR
     database.py        # SQLAlchemy engine, SessionLocal, get_db (DI), マイグレーション
-    models.py          # File, Tag, EmptyFolder, PinnedFolder, Playlist, PlaylistItem, WatchHistory モデル (SQLAlchemy ORM)
+    models.py          # File, Tag, EmptyFolder, PinnedFolder, Playlist, PlaylistItem, WatchHistory, Comment モデル (SQLAlchemy ORM)
     schemas.py         # Pydantic スキーマ (リクエスト/レスポンス)
     auth.py            # JWT認証ロジック（トークン生成・検証、アクセスグループ管理）
     nanoid.py          # Nano ID生成ユーティリティ
@@ -36,6 +36,7 @@ backend/
       progress.py      # 視聴履歴・レジューム再生（再生位置保存/取得/削除、viewer_id管理）
       ws.py            # WebSocketエンドポイント（リアルタイム通知）
       admin.py         # ヘルスチェックダッシュボード API
+      comments.py      # コメント・メモ CRUD（GET/POST/PUT/DELETE /api/files/{id}/comments）
     services/
       scanner.py       # ドライブ単位の再帰スキャン（全ファイル対応）、DB同期、排他ロック
       filetype.py      # ファイルタイプ分類 (classify, is_hidden)
@@ -100,6 +101,7 @@ frontend/
       CarouselSection.tsx # カルーセルUI
       ArchivePreview.tsx  # ZIPアーカイブ閲覧（一覧+画像ビューア+テキストプレビュー）
       DuplicatesSection.tsx # 重複ファイル検出セクション（ダッシュボード内、グループ表示+一括削除）
+      CommentSection.tsx # コメント・メモセクション（投稿・編集・削除、viewer_idで所有判定）
       EmptyState.tsx     # 空状態表示
       CurrentDriveProvider.tsx # カレントドライブ Context Provider
       SidebarProvider.tsx     # サイドバー Context Provider
@@ -128,7 +130,7 @@ frontend/
       recentlyPlayed.ts  # 最近再生した曲の管理
       renamePreview.ts   # バッチリネームのプレビュー計算（クライアント側）
       directoryReader.ts # フォルダD&D時の再帰ディレクトリ読み取り（webkitGetAsEntry）
-    types/index.ts       # FileItem, Drive, Folder, Tag, PlaylistSummary, PlaylistDetail, WebSocketEvent 等の型定義
+    types/index.ts       # FileItem, Drive, Folder, Tag, PlaylistSummary, PlaylistDetail, Comment, WebSocketEvent 等の型定義
   server.js              # Custom Server (WebSocketプロキシ、http-proxy、Docker本番用)
 
 deploy/
@@ -242,6 +244,10 @@ docker compose logs -f backend
 | POST | /api/files/{id}/progress | 再生位置保存（viewer_id Cookie必須、なしは204） |
 | GET | /api/files/{id}/progress | 再生位置取得 |
 | DELETE | /api/files/{id}/progress | 再生履歴削除 |
+| GET | /api/files/{id}/comments | コメント一覧（is_mineフラグ付き） |
+| POST | /api/files/{id}/comments | コメント投稿（viewer_id+nickname紐付け） |
+| PUT | /api/files/{id}/comments/{comment_id} | コメント編集（本人のみ） |
+| DELETE | /api/files/{id}/comments/{comment_id} | コメント削除（本人のみ） |
 
 ## 重要な設計判断
 
@@ -423,6 +429,18 @@ docker compose logs -f backend
 - **wasted_bytes**: 各グループで `file_size * (count - 1)` の合計
 - 設計書: `docs/superpowers/specs/2026-04-03-duplicate-detection-design.md`
 
+### コメント・メモ
+- **用途**: ファイルに対するメモ・感想の記録（自宅LAN向けの軽量コメント機能）
+- **DBモデル**: `Comment` テーブル（nanoid主キー、`file_id` CASCADE DELETE、`viewer_id` + `nickname` で投稿者識別）
+- **所有判定**: `viewer_id`（プロファイルのニックネームからSHA-256ハッシュ）で本人判定。`is_mine` フラグをレスポンスに付与
+- **権限**: 編集・削除は本人のみ（403）。プロファイル未設定でも投稿可（`viewer_id=NULL`、ただし後から編集不可）
+- **投稿上限**: 本文1000文字（フロント+バックエンド両方でバリデーション）
+- **UI**: ファイル詳細ページ下部に `CommentSection` コンポーネント。テキストエリア+送信ボタン、インライン編集、確認ダイアログ付き削除
+- **キーボード**: `Ctrl/Cmd+Enter` で投稿・保存、`Escape` で編集キャンセル
+- **ソート**: 作成日時昇順（古い順）、IDでセカンダリソート
+- **認証関数の共通化**: `get_viewer_id`, `get_nickname`, `nickname_to_viewer_id` を `auth.py` に集約（progress.py から移動）
+- 設計書: `docs/superpowers/specs/2026-04-03-comment-notes-design.md`
+
 ### フォルダアップロード（構造維持）
 - **方式**: 既存チャンクアップロードの拡張。`UploadInitRequest` に `relative_path` パラメータ追加
 - **relative_path**: フォルダ内のファイルの相対パス（例: `photos/2024/vacation.jpg`）。ディレクトリ部分を `folder_path` に結合してサブフォルダを自動作成
@@ -480,3 +498,4 @@ Mac mini上にbare gitリポジトリ (`~/video-share.git`) を作成し、`post
 - `docs/superpowers/specs/2026-04-02-clipboard-operations-design.md` — クリップボード操作設計書
 - `docs/superpowers/specs/2026-04-02-trash-soft-delete-design.md` — ゴミ箱（ソフトデリート）設計書
 - `docs/superpowers/specs/2026-04-02-feature-roadmap.md` — 機能拡張ロードマップ
+- `docs/superpowers/specs/2026-04-03-comment-notes-design.md` — コメント・メモ設計書
