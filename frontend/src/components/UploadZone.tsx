@@ -78,38 +78,42 @@ export function UploadZone({
       setIsDragging(false);
       dragCounterRef.current = 0;
 
-      const items = e.dataTransfer.items;
-      if (items) {
-        const webkitEntries: FileSystemEntry[] = [];
-        for (let i = 0; i < items.length; i++) {
-          const entry = items[i].webkitGetAsEntry?.();
-          if (entry) {
-            webkitEntries.push(entry);
-          }
-        }
-
-        const hasDirectory = webkitEntries.some((e) => e.isDirectory);
-        if (hasDirectory) {
-          const allEntries: UploadFileEntry[] = [];
-          for (const entry of webkitEntries) {
-            if (entry.isDirectory) {
-              const dirEntries = await readDirectoryEntries(
-                entry as FileSystemDirectoryEntry,
-                entry.name
-              );
-              allEntries.push(...dirEntries);
-            } else if (entry.isFile) {
-              const file = await new Promise<File>((resolve, reject) => {
-                (entry as FileSystemFileEntry).file(resolve, reject);
-              });
-              allEntries.push({ file, relativePath: "" });
+      try {
+        const items = e.dataTransfer.items;
+        if (items) {
+          const webkitEntries: FileSystemEntry[] = [];
+          for (let i = 0; i < items.length; i++) {
+            const entry = items[i].webkitGetAsEntry?.();
+            if (entry) {
+              webkitEntries.push(entry);
             }
           }
-          if (allEntries.length > 0) {
-            addFileEntries(allEntries);
+
+          const hasDirectory = webkitEntries.some((e) => e.isDirectory);
+          if (hasDirectory) {
+            const allEntries: UploadFileEntry[] = [];
+            for (const entry of webkitEntries) {
+              if (entry.isDirectory) {
+                const dirEntries = await readDirectoryEntries(
+                  entry as FileSystemDirectoryEntry,
+                  entry.name
+                );
+                allEntries.push(...dirEntries);
+              } else if (entry.isFile) {
+                const file = await new Promise<File>((resolve, reject) => {
+                  (entry as FileSystemFileEntry).file(resolve, reject);
+                });
+                allEntries.push({ file, relativePath: "" });
+              }
+            }
+            if (allEntries.length > 0) {
+              addFileEntries(allEntries);
+            }
+            return;
           }
-          return;
         }
+      } catch {
+        // Fall through to standard file handling
       }
 
       const files = Array.from(e.dataTransfer.files);

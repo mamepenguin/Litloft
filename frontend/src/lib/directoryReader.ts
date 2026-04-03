@@ -22,10 +22,15 @@ async function readAllEntries(reader: FileSystemDirectoryReader): Promise<FileSy
   return allEntries;
 }
 
+const MAX_DEPTH = 50;
+
 export async function readDirectoryEntries(
   entry: FileSystemDirectoryEntry,
-  basePath: string
+  basePath: string,
+  depth: number = 0
 ): Promise<UploadFileEntry[]> {
+  if (depth >= MAX_DEPTH) return [];
+
   const reader = entry.createReader();
   const children = await readAllEntries(reader);
   const results: UploadFileEntry[] = [];
@@ -37,7 +42,8 @@ export async function readDirectoryEntries(
     } else if (child.isDirectory) {
       const nested = await readDirectoryEntries(
         child as FileSystemDirectoryEntry,
-        `${basePath}/${child.name}`
+        `${basePath}/${child.name}`,
+        depth + 1
       );
       results.push(...nested);
     }
