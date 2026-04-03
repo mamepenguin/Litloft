@@ -2,11 +2,13 @@ import asyncio
 import logging
 from contextlib import asynccontextmanager
 from datetime import UTC, datetime, timedelta
+from pathlib import Path
 
 from fastapi import FastAPI
 
 from app.database import SessionLocal, init_db
 from app.auth import init_jwt_secret, load_passwords
+import app.config as config
 from app.models import File
 from app.routers import auth, drives, files, playlists, progress, uploads, ws
 from app.services.fileops import physical_delete
@@ -30,6 +32,7 @@ async def purge_expired_trash() -> None:
     while True:
         cutoff = datetime.now(UTC) - timedelta(days=TRASH_RETENTION_DAYS)
         total_purged = 0
+        folders_to_check: set[tuple[str, str]] = set()
         while True:
             db = SessionLocal()
             try:
@@ -44,6 +47,8 @@ async def purge_expired_trash() -> None:
                 purged = 0
                 for file in batch:
                     try:
+                        if file.folder_path:
+                            folders_to_check.add((file.drive, file.folder_path))
                         physical_delete(db, file)
                         purged += 1
                     except Exception:
@@ -59,7 +64,37 @@ async def purge_expired_trash() -> None:
                 db.close()
         if total_purged:
             logger.info("Purged %d expired trash files", total_purged)
+        _cleanup_empty_folders_after_purge(folders_to_check)
         await asyncio.sleep(_PURGE_INTERVAL_SECONDS)
+
+
+def _cleanup_empty_folders_after_purge(
+    folders: set[tuple[str, str]],
+) -> None:
+    """Remove empty directories left after purging files, walking up to drive root."""
+    for drive_name, folder_path in folders:
+        try:
+            drive_root = config.get_drive_path(drive_name)
+            target = drive_root / folder_path
+            _rmdir_up_to_root(target, drive_root)
+        except Exception:
+            logger.exception(
+                "Failed to clean up folder %s in drive %s", folder_path, drive_name
+            )
+
+
+def _rmdir_up_to_root(directory: Path, root: Path) -> None:
+    """Remove directory and empty parents up to (but not including) root."""
+    resolved_root = root.resolve()
+    current = directory.resolve()
+    while current != resolved_root and current.is_relative_to(resolved_root):
+        if not current.is_dir():
+            break
+        try:
+            current.rmdir()  # fails if not empty
+        except OSError:
+            break
+        current = current.parent
 
 
 @asynccontextmanager

@@ -604,23 +604,12 @@ def delete_folder(drive: str, path: str, db: Session) -> None:
     if not full_path.exists() or not full_path.is_dir():
         raise HTTPException(status_code=404, detail="Folder not found")
 
-    has_files = (
-        db.query(File)
-        .filter(
-            File.drive == drive,
-            File.deleted_at.is_(None),
-            (File.folder_path == path) | File.folder_path.like(path + "/%"),
-        )
-        .first()
-    )
-    if has_files:
-        raise HTTPException(status_code=409, detail="Folder is not empty")
-
-    has_subdirs = any(full_path.iterdir())
-    if has_subdirs:
-        raise HTTPException(status_code=409, detail="Folder is not empty")
-
-    full_path.rmdir()
+    now = datetime.now(UTC)
+    db.query(File).filter(
+        File.drive == drive,
+        File.deleted_at.is_(None),
+        (File.folder_path == path) | File.folder_path.like(path + "/%"),
+    ).update({"deleted_at": now}, synchronize_session="fetch")
 
     db.query(EmptyFolder).filter(
         EmptyFolder.drive == drive,

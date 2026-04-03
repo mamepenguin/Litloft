@@ -61,9 +61,9 @@
     "createFailed": "Failed to create folder",
     "renameFailed": "Failed to rename",
     "moveFailed": "Failed to move",
-    "deleteFailed": "Failed to delete (folder may not be empty)",
+    "deleteFailed": "Failed to delete folder",
     "deleteTitle": "Delete folder",
-    "deleteMessage": "Delete \"{name}\"? Only empty folders can be deleted.",
+    "deleteMessage": "Delete \"{name}\"? Files inside will be moved to trash.",
     "pin": "Pin",
     "unpin": "Unpin",
     "newFolder": "New Folder"

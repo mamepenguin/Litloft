@@ -3,7 +3,7 @@ from datetime import UTC, datetime, timedelta
 from pathlib import Path
 from unittest.mock import patch
 
-from app.models import File
+from app.models import EmptyFolder, File
 from tests.conftest import TEST_DRIVE
 
 FIXTURES_DIR = Path(__file__).parent / "fixtures"
@@ -369,6 +369,156 @@ class TestAutoPurge:
             .all()
         )
         assert len(expired) == 0
+
+
+class TestDeleteFolderSoftDeletes:
+    def test_delete_folder_soft_deletes_contents(self, client):
+        c, db, drive_dir, _ = client
+        f1 = _seed(db, drive_dir, "a.mp4", "photos")
+        f2 = _seed(db, drive_dir, "b.mp4", "photos")
+        f3 = _seed(db, drive_dir, "c.mp4", "photos")
+
+        res = c.delete(f"/api/drives/{TEST_DRIVE}/folders?path=photos")
+        assert res.status_code == 200
+
+        # All files have deleted_at set
+        db.expire_all()
+        for fid in [f1.id, f2.id, f3.id]:
+            record = db.query(File).filter(File.id == fid).first()
+            assert record is not None
+            assert record.deleted_at is not None
+
+        # Files still exist on filesystem
+        assert (drive_dir / "photos" / "a.mp4").exists()
+        assert (drive_dir / "photos" / "b.mp4").exists()
+        assert (drive_dir / "photos" / "c.mp4").exists()
+
+    def test_delete_folder_with_subfolders(self, client):
+        c, db, drive_dir, _ = client
+        f1 = _seed(db, drive_dir, "parent.mp4", "parent")
+        f2 = _seed(db, drive_dir, "child.mp4", "parent/child")
+
+        res = c.delete(f"/api/drives/{TEST_DRIVE}/folders?path=parent")
+        assert res.status_code == 200
+
+        db.expire_all()
+        for fid in [f1.id, f2.id]:
+            record = db.query(File).filter(File.id == fid).first()
+            assert record is not None
+            assert record.deleted_at is not None
+
+    def test_delete_folder_empty_folder_entries_cleaned(self, client):
+        c, db, drive_dir, _ = client
+        # Create folder on FS
+        (drive_dir / "myfolder").mkdir(exist_ok=True)
+
+        # Add EmptyFolder entry
+        entry = EmptyFolder(drive=TEST_DRIVE, path="myfolder")
+        db.add(entry)
+        db.commit()
+
+        res = c.delete(f"/api/drives/{TEST_DRIVE}/folders?path=myfolder")
+        assert res.status_code == 200
+
+        db.expire_all()
+        remaining = (
+            db.query(EmptyFolder)
+            .filter(EmptyFolder.drive == TEST_DRIVE, EmptyFolder.path == "myfolder")
+            .count()
+        )
+        assert remaining == 0
+
+    def test_delete_folder_already_trashed_files_untouched(self, client):
+        c, db, drive_dir, _ = client
+        f1 = _seed(db, drive_dir, "active.mp4", "mixed")
+        f2 = _seed(db, drive_dir, "trashed.mp4", "mixed")
+
+        # Soft-delete f2 first with a known timestamp (5 days ago)
+        old_deleted_at = datetime.now(UTC) - timedelta(days=5)
+        db.query(File).filter(File.id == f2.id).update({"deleted_at": old_deleted_at})
+        db.commit()
+        db.expire_all()
+
+        # Record the trashed file's deleted_at before folder delete
+        r2_before = db.query(File).filter(File.id == f2.id).first()
+        original_ts = r2_before.deleted_at
+
+        res = c.delete(f"/api/drives/{TEST_DRIVE}/folders?path=mixed")
+        assert res.status_code == 200
+
+        db.expire_all()
+        # Active file should now be soft-deleted
+        r1 = db.query(File).filter(File.id == f1.id).first()
+        assert r1.deleted_at is not None
+
+        # Already-trashed file should keep its original deleted_at
+        r2 = db.query(File).filter(File.id == f2.id).first()
+        assert r2.deleted_at is not None
+        # The original deleted_at should be preserved (not updated to now)
+        assert r2.deleted_at == original_ts
+
+    def test_delete_folder_restore_files(self, client):
+        c, db, drive_dir, _ = client
+        f1 = _seed(db, drive_dir, "x.mp4", "restoreable")
+        f2 = _seed(db, drive_dir, "y.mp4", "restoreable")
+
+        c.delete(f"/api/drives/{TEST_DRIVE}/folders?path=restoreable")
+
+        # Restore each file
+        for fid in [f1.id, f2.id]:
+            res = c.post(f"/api/files/{fid}/restore")
+            assert res.status_code == 200
+
+        db.expire_all()
+        for fid in [f1.id, f2.id]:
+            record = db.query(File).filter(File.id == fid).first()
+            assert record.deleted_at is None
+
+    def test_purge_cleans_empty_folders(self, client):
+        c, db, drive_dir, _ = client
+        f1 = _seed(db, drive_dir, "old.mp4", "cleanup")
+
+        # Soft-delete via folder delete
+        c.delete(f"/api/drives/{TEST_DRIVE}/folders?path=cleanup")
+
+        # Set deleted_at to 31 days ago
+        db.expire_all()
+        record = db.query(File).filter(File.id == f1.id).first()
+        record.deleted_at = datetime.now(UTC) - timedelta(days=31)
+        db.commit()
+
+        # Run purge logic
+        from app.main import TRASH_RETENTION_DAYS
+        from app.services.fileops import physical_delete
+
+        cutoff = datetime.now(UTC) - timedelta(days=TRASH_RETENTION_DAYS)
+        expired = (
+            db.query(File)
+            .filter(File.deleted_at.isnot(None), File.deleted_at < cutoff)
+            .all()
+        )
+        assert len(expired) == 1
+
+        folders_to_check: set[tuple[str, str]] = set()
+        for f in expired:
+            if f.folder_path:
+                folders_to_check.add((f.drive, f.folder_path))
+            physical_delete(db, f)
+        db.commit()
+
+        # Clean up empty folders
+        from app.main import _cleanup_empty_folders_after_purge
+
+        _cleanup_empty_folders_after_purge(folders_to_check)
+
+        # File gone from disk
+        assert not (drive_dir / "cleanup" / "old.mp4").exists()
+        # Folder also removed (was empty after purge)
+        assert not (drive_dir / "cleanup").exists()
+
+        # DB record gone
+        db.expire_all()
+        assert db.query(File).filter(File.id == f1.id).first() is None
 
 
 class TestTagListExcludesTrashed:

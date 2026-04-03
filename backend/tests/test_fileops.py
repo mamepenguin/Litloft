@@ -241,13 +241,19 @@ class TestFolderDelete:
         c.post(f"/api/drives/{TEST_DRIVE}/folders", json={"name": "空"})
         res = c.delete(f"/api/drives/{TEST_DRIVE}/folders?path=空")
         assert res.status_code == 200
-        assert not (drive_dir / "空").exists()
+        # Folder still exists on filesystem (soft-delete does not rmdir)
+        assert (drive_dir / "空").exists()
 
     def test_delete_non_empty(self, client):
         c, db, drive_dir, data_dir = client
-        _seed(db, drive_dir)
+        file = _seed(db, drive_dir)
         res = c.delete(f"/api/drives/{TEST_DRIVE}/folders?path=旅行")
-        assert res.status_code == 409
+        assert res.status_code == 200
+        # Files are soft-deleted, not physically removed
+        from app.models import File
+        db.expire_all()
+        record = db.query(File).filter(File.id == file.id).first()
+        assert record.deleted_at is not None
 
     def test_delete_not_found(self, client):
         c, db, drive_dir, data_dir = client

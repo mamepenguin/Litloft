@@ -61,9 +61,9 @@
     "createFailed": "フォルダの作成に失敗しました",
     "renameFailed": "名前の変更に失敗しました",
     "moveFailed": "移動に失敗しました",
-    "deleteFailed": "削除に失敗しました（フォルダが空でない可能性があります）",
+    "deleteFailed": "削除に失敗しました",
     "deleteTitle": "フォルダを削除",
-    "deleteMessage": "「{name}」を削除しますか？空のフォルダのみ削除できます。",
+    "deleteMessage": "「{name}」を削除しますか？フォルダ内のファイルはゴミ箱に移動されます。",
     "pin": "ピン留め",
     "unpin": "ピン留め解除",
     "newFolder": "新規フォルダ"

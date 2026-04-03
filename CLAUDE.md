@@ -167,7 +167,7 @@ docker compose logs -f backend
 | GET | /api/drives/{drive}/tags | タグ一覧 |
 | POST | /api/drives/{drive}/folders | フォルダ作成 |
 | PUT | /api/drives/{drive}/folders | フォルダリネーム |
-| DELETE | /api/drives/{drive}/folders?path= | フォルダ削除（空のみ） |
+| DELETE | /api/drives/{drive}/folders?path= | フォルダ削除（中身を一括ソフトデリート） |
 | POST | /api/drives/{drive}/upload/init | アップロード開始（relative_pathでフォルダ構造維持） |
 | POST | /api/drives/{drive}/upload/{id}/chunk | チャンク送信 |
 | POST | /api/drives/{drive}/upload/{id}/complete | アップロード完了 |
@@ -389,7 +389,8 @@ docker compose logs -f backend
 - **file_path UNIQUE制約**: FSにファイルが残るため衝突しない。追加カラムは `deleted_at` のみ
 - **既存クエリ**: 全てのファイル一覧・フォルダ集計・タグ集計・neighbors等のクエリに `File.deleted_at.is_(None)` フィルタ追加済み
 - **スキャナー**: ソフトデリート済みファイルはスキップ（removed扱いにしない）
-- **自動パージ**: 30日経過したファイルを startup 時 + 24時間ごとに物理削除（`main.py` の background task）
+- **自動パージ**: 30日経過したファイルを startup 時 + 24時間ごとに物理削除（`main.py` の background task）。パージ後に空になったフォルダもFS上で再帰的に削除
+- **フォルダ削除**: フォルダ内の全アクティブファイルを一括ソフトデリート（`deleted_at` 設定）。FSには触らない。EmptyFolderエントリも削除
 - **復元**: `deleted_at = NULL` に戻すだけ。FSにファイルが存在しない場合は復元不可（404）
 - **UI**: サイドバーLIBRARYセクションに「ゴミ箱」リンク、`?view=trash` でゴミ箱一覧表示。復元/完全削除/ゴミ箱を空にするアクション
 - 設計書: `docs/superpowers/specs/2026-04-02-trash-soft-delete-design.md`
