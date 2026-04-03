@@ -136,6 +136,17 @@ def _get_trashed_file_or_404(
     return file
 
 
+def _get_file_any_state_or_404(
+    db: Session, file_id: str, unlocked_groups: list[str]
+) -> File:
+    """Get file regardless of deleted_at state (for thumbnail/stream access in trash)."""
+    file = db.query(File).filter(File.id == file_id).first()
+    if not file:
+        raise HTTPException(status_code=404, detail="File not found")
+    check_drive_access(file.drive, unlocked_groups)
+    return file
+
+
 @router.post("/batch/get", response_model=list[FileResponse])
 async def batch_get(
     body: BatchIdsRequest,
@@ -475,7 +486,7 @@ async def stream_file(
     unlocked_groups: Annotated[list[str], Depends(get_unlocked_groups)],
     download: bool = False,
 ):
-    file = _get_file_or_404(db, file_id, unlocked_groups)
+    file = _get_file_any_state_or_404(db, file_id, unlocked_groups)
 
     drive_path = config.get_drive_path(file.drive)
     file_path = _validate_path(
@@ -558,7 +569,7 @@ async def get_thumbnail(
     db: Annotated[Session, Depends(get_db)],
     unlocked_groups: Annotated[list[str], Depends(get_unlocked_groups)],
 ):
-    file = _get_file_or_404(db, file_id, unlocked_groups)
+    file = _get_file_any_state_or_404(db, file_id, unlocked_groups)
 
     if file.thumbnail_path:
         thumb_path = _validate_path(
