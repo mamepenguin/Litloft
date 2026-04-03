@@ -20,7 +20,7 @@ from app.services.fileops import (
     validate_writable,
     validate_within_drive,
 )
-from app.services.thumbnail import generate_thumbnail, get_video_duration
+from app.services.thumbnail import generate_image_thumbnail, generate_thumbnail, get_video_duration
 from app.services.ws import broadcast_from_thread
 
 logger = logging.getLogger(__name__)
@@ -155,14 +155,15 @@ def complete_upload(upload_id: str, db: Session) -> File:
         duration = get_video_duration(str(target_full))
 
     thumbnail_rel = None
-    if file_type == "video":
+    if file_type in ("video", "image"):
         thumbnail_rel = (
             f"{session.drive}/{session.folder_path}/{Path(session.filename).stem}.jpg"
             if session.folder_path
             else f"{session.drive}/{Path(session.filename).stem}.jpg"
         )
         thumbnail_full = config.THUMBNAILS_DIR / thumbnail_rel
-        if not generate_thumbnail(str(target_full), str(thumbnail_full)):
+        gen_fn = generate_thumbnail if file_type == "video" else generate_image_thumbnail
+        if not gen_fn(str(target_full), str(thumbnail_full)):
             thumbnail_rel = None
 
     file_record = File(
