@@ -358,7 +358,7 @@ docker compose logs -f backend
 - Range Request: Rangeヘッダーなしは200で全体配信、ありは206でPartial Content
 - パストラバーサル防止: IDベースでDBからfile_pathを取得 → `os.path.realpath()` で正規化 → base_dir配下か検証
 - スキャン排他制御: `asyncio.Lock` で同時実行防止、ロック中は 409 Conflict
-- サムネイル: 動画はffmpegで5秒目(短い動画は0秒目)を抽出、画像はリサイズ。いずれも320x180 JPEG
+- サムネイル: 動画はffmpegの`thumbnail=300`フィルタで最も代表的なフレームを自動選択（イントロ10%スキップ、フォールバックあり）、画像はリサイズ。いずれも320x180 JPEG
 
 ### ファイル前後ナビゲーション
 - **neighbors API**: `GET /api/files/{id}/neighbors?sort=&order=` で同一フォルダ内の前後ファイルIDを返す。SQLで前後1件ずつ取得（O(1)）
