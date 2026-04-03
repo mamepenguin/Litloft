@@ -58,6 +58,72 @@ def _cleanup_empty_parents(directory: Path, stop_at: Path) -> None:
             break
 
 
+def register_single_file(db: Session, drive_name: str, file_path: Path) -> str:
+    """Register a single file to the database. Returns file_id.
+
+    The caller is responsible for committing the transaction.
+
+    Raises FileNotFoundError if file doesn't exist.
+    Raises ValueError if file is hidden or a subtitle file.
+    """
+    if not file_path.exists():
+        raise FileNotFoundError(f"File does not exist: {file_path}")
+
+    drive_path = config.get_drive_path(drive_name)
+
+    if is_hidden(file_path, drive_path):
+        raise ValueError(f"Hidden file cannot be registered: {file_path.name}")
+    if is_subtitle_file(file_path.name):
+        raise ValueError(f"Subtitle file cannot be registered: {file_path.name}")
+
+    relative_path = unicodedata.normalize("NFC", str(file_path.relative_to(drive_path)))
+    folder_path = unicodedata.normalize("NFC", _get_folder_path(file_path, drive_path))
+    file_type, mime_type = classify(file_path.name)
+
+    nfc_name = unicodedata.normalize("NFC", file_path.name)
+    nfc_stem = Path(nfc_name).stem
+
+    duration = None
+    if file_type in ("video", "audio"):
+        duration = get_video_duration(str(file_path))
+
+    thumbnail_rel = None
+    if file_type in ("video", "image"):
+        thumbnail_rel = (
+            f"{drive_name}/{folder_path}/{nfc_stem}.jpg"
+            if folder_path
+            else f"{drive_name}/{nfc_stem}.jpg"
+        )
+        thumbnail_full = config.THUMBNAILS_DIR / thumbnail_rel
+        gen_fn = generate_thumbnail if file_type == "video" else generate_image_thumbnail
+        if not gen_fn(str(file_path), str(thumbnail_full)):
+            thumbnail_rel = None
+
+    file_hash = compute_file_hash(file_path)
+
+    file_record = File(
+        filename=nfc_name,
+        title=_filename_to_title(nfc_name),
+        drive=drive_name,
+        folder_path=folder_path,
+        file_path=relative_path,
+        file_size=file_path.stat().st_size,
+        file_type=file_type,
+        mime_type=mime_type,
+        thumbnail_path=thumbnail_rel,
+        duration=duration,
+        file_hash=file_hash,
+    )
+    db.add(file_record)
+    db.flush()
+
+    logger.info(
+        "Registered file: %s (drive: %s, type: %s)",
+        relative_path, drive_name, file_type,
+    )
+    return file_record.id
+
+
 def _scan_and_register(db: Session, drive_name: str) -> dict[str, int]:
     drive_path = config.get_drive_path(drive_name)
     if not drive_path.exists():

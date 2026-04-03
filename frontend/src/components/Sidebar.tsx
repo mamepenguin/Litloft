@@ -1,11 +1,12 @@
 "use client";
 
-import { Suspense } from "react";
+import { Suspense, useEffect, useState } from "react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { LockOpen, X } from "lucide-react";
 import { useTranslations } from "next-intl";
 
 import { lock as lockApi } from "@/lib/api";
+import { getEnabledAddons, type AddonMeta } from "@/lib/addons";
 import { useSidebar } from "./SidebarProvider";
 import { useCurrentDrive, useSetOverrideDrive } from "./CurrentDriveProvider";
 import { useSidebarData } from "./sidebar/useSidebarData";
@@ -27,8 +28,14 @@ function SidebarNav() {
   const activeView = searchParams.get("view");
   const activeTag = searchParams.get("tag");
 
+  const [addons, setAddons] = useState<Record<string, AddonMeta>>({});
+
   const { drives, tags, pins, playlistList, setPlaylistList, authStatus } =
     useSidebarData(currentDrive, refreshKey);
+
+  useEffect(() => {
+    getEnabledAddons().then(setAddons);
+  }, []);
 
   const playlist = usePlaylistManagement({
     currentDrive,
@@ -84,7 +91,7 @@ function SidebarNav() {
 
   return (
     <nav className="flex flex-col gap-1 overflow-y-auto p-3">
-      <SidebarLibrarySection driveBase={driveBase} linkClass={linkClass} close={close} />
+      <SidebarLibrarySection driveBase={driveBase} linkClass={linkClass} close={close} addons={addons} />
 
       {driveBase && (
         <SidebarPlaylistsSection driveBase={driveBase} currentDrive={currentDrive} setPlaylistList={setPlaylistList} {...playlist} />

@@ -1,8 +1,11 @@
 import asyncio
+import importlib
 import logging
+import pkgutil
 from contextlib import asynccontextmanager
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
+from typing import Callable, Coroutine
 
 from fastapi import FastAPI
 
@@ -97,6 +100,43 @@ def _rmdir_up_to_root(directory: Path, root: Path) -> None:
         current = current.parent
 
 
+_loaded_addons: dict[str, dict] = {}
+_addon_startup_fns: list[Callable[[], Coroutine]] = []
+
+
+def _load_addons(app: FastAPI) -> None:
+    """Discover and load addon routers from backend/addons/.
+
+    Each addon package must have a ``router`` module with:
+    - ``router``: FastAPI APIRouter instance
+    - ``ADDON_META`` (optional): dict with sidebar metadata, e.g.
+      ``{"label": "Download", "icon": "download", "href": "/download"}``
+    - ``on_startup`` (optional): async function called during lifespan
+    """
+    addons_path = Path(__file__).parent.parent / "addons"
+    if not addons_path.is_dir():
+        logger.info("No addons directory found (skipping)")
+        return
+    init_path = addons_path / "__init__.py"
+    if not init_path.exists():
+        logger.info("Addons directory has no __init__.py (skipping)")
+        return
+    for _finder, name, ispkg in pkgutil.iter_modules([str(addons_path)]):
+        if not ispkg:
+            continue
+        try:
+            mod = importlib.import_module(f"addons.{name}.router")
+            if hasattr(mod, "router"):
+                app.include_router(mod.router)
+                meta = getattr(mod, "ADDON_META", {})
+                _loaded_addons[name] = meta
+                logger.info("Addon loaded: %s", name)
+            if hasattr(mod, "on_startup"):
+                _addon_startup_fns.append(mod.on_startup)
+        except Exception:
+            logger.exception("Failed to load addon: %s", name)
+
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     init_db()
@@ -110,6 +150,8 @@ async def lifespan(app: FastAPI):
     logger.info("Background scan started for all drives")
     asyncio.create_task(purge_expired_trash())
     logger.info("Trash auto-purge task started")
+    for startup_fn in _addon_startup_fns:
+        await startup_fn()
     yield
 
 
@@ -124,6 +166,13 @@ app.include_router(uploads.router)
 app.include_router(playlists.router)
 app.include_router(progress.router)
 app.include_router(ws.router)
+
+_load_addons(app)
+
+
+@app.get("/api/addons/status")
+async def addons_status():
+    return {"addons": _loaded_addons}
 
 
 @app.get("/api/health")

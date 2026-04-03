@@ -1,16 +1,38 @@
 import Link from "next/link";
-import { Clock, FilePlus, Files, Gauge, Home, Star, Trash2, Warehouse } from "lucide-react";
+import {
+  Clock,
+  Download,
+  FilePlus,
+  Files,
+  Gauge,
+  Home,
+  Package,
+  Star,
+  Trash2,
+  Warehouse,
+  type LucideIcon,
+} from "lucide-react";
 import { useTranslations } from "next-intl";
+import type { AddonMeta } from "@/lib/addons";
+
+const ADDON_ICONS: Record<string, LucideIcon> = {
+  download: Download,
+  package: Package,
+};
 
 interface SidebarLibrarySectionProps {
   driveBase: string | null;
   linkClass: (href: string) => string;
   close: () => void;
+  addons?: Record<string, AddonMeta>;
 }
 
-export function SidebarLibrarySection({ driveBase, linkClass, close }: SidebarLibrarySectionProps) {
+export function SidebarLibrarySection({ driveBase, linkClass, close, addons }: SidebarLibrarySectionProps) {
   const t = useTranslations("sidebar");
   const tAdmin = useTranslations("admin");
+
+  const addonEntries = addons ? Object.entries(addons) : [];
+
   return (
     <>
       <div className="mb-2 px-3 py-2">
@@ -55,6 +77,23 @@ export function SidebarLibrarySection({ driveBase, linkClass, close }: SidebarLi
         <Gauge size={16} />
         {tAdmin("title")}
       </Link>
+
+      {addonEntries.length > 0 && (
+        <>
+          <div className="mb-1 mt-4 px-3 text-[11px] font-semibold uppercase tracking-wider text-text-muted">
+            Addons
+          </div>
+          {addonEntries.map(([name, meta]) => {
+            const Icon = ADDON_ICONS[meta.icon] ?? Package;
+            return (
+              <Link key={name} href={meta.href} onClick={close} className={linkClass(meta.href)}>
+                <Icon size={16} />
+                {meta.label}
+              </Link>
+            );
+          })}
+        </>
+      )}
     </>
   );
 }

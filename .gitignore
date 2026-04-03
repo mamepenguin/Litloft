@@ -25,6 +25,11 @@ docs/superpowers/
 # Claude Code local settings
 .claude/settings.local.json
 
+# Addons (personal, not for OSS distribution)
+backend/addons/
+frontend/src/addons/
+frontend/src/app/download/
+
 # IDE
 .vscode/
 .idea/
