@@ -26,6 +26,7 @@ export function VideoPreview({ fileId }: VideoPreviewProps) {
   const imageRef = useRef<HTMLImageElement | null>(null);
   const longPressActiveRef = useRef(false);
   const hoverStartRef = useRef(0);
+  const activeRef = useRef(false);
 
   const spriteUrl = getPreviewUrl(fileId);
 
@@ -45,6 +46,7 @@ export function VideoPreview({ fileId }: VideoPreviewProps) {
   }, []);
 
   const stopAnimation = useCallback(() => {
+    activeRef.current = false;
     clearAllTimers();
     setIsHovering(false);
     setIsAnimating(false);
@@ -61,12 +63,13 @@ export function VideoPreview({ fileId }: VideoPreviewProps) {
   }, []);
 
   const startPreload = useCallback(() => {
+    activeRef.current = true;
     hoverStartRef.current = Date.now();
     setIsHovering(true);
 
     if (spriteLoaded) {
       hoverTimerRef.current = setTimeout(() => {
-        startFrameAnimation();
+        if (activeRef.current) startFrameAnimation();
       }, HOVER_DELAY_MS);
       return;
     }
@@ -75,10 +78,11 @@ export function VideoPreview({ fileId }: VideoPreviewProps) {
     imageRef.current = img;
     img.onload = () => {
       setSpriteLoaded(true);
+      if (!activeRef.current) return;
       const elapsed = Date.now() - hoverStartRef.current;
       const remaining = Math.max(0, HOVER_DELAY_MS - elapsed);
       hoverTimerRef.current = setTimeout(() => {
-        startFrameAnimation();
+        if (activeRef.current) startFrameAnimation();
       }, remaining);
     };
     img.onerror = () => {
