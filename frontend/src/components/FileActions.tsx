@@ -2,7 +2,7 @@
 
 import { useCallback, useRef, useState, useEffect } from "react";
 import { createPortal } from "react-dom";
-import { Download, Move, Pencil, Trash2 } from "lucide-react";
+import { Download, Move, Pencil, SquarePen, Trash2 } from "lucide-react";
 
 import { useTranslations } from "next-intl";
 import {
@@ -20,9 +20,10 @@ interface FileActionsProps {
   file: FileItem;
   onUpdate?: () => void;
   onDelete?: () => void;
+  onEdit?: () => void;
 }
 
-export function FileActions({ file, onUpdate, onDelete }: FileActionsProps) {
+export function FileActions({ file, onUpdate, onDelete, onEdit }: FileActionsProps) {
   const t = useTranslations("file");
   const tc = useTranslations("common");
   const tt = useTranslations("trash");
@@ -95,6 +96,14 @@ export function FileActions({ file, onUpdate, onDelete }: FileActionsProps) {
   }, [file.id, onDelete, t]);
 
   const menuItems = [
+    ...(onEdit ? [{
+      icon: SquarePen,
+      label: t("edit"),
+      onClick: () => {
+        setMenuOpen(false);
+        onEdit();
+      },
+    }] : []),
     {
       icon: Download,
       label: tc("download"),

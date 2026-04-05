@@ -1,8 +1,8 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { useParams, useRouter, useSearchParams } from "next/navigation";
-import { ArrowLeft, ChevronLeft, ChevronRight, Maximize2, Pencil, Check, X, ThumbsUp, ThumbsDown } from "lucide-react";
+import { ArrowLeft, ChevronLeft, ChevronRight, Maximize2, Check, X, ThumbsUp, ThumbsDown } from "lucide-react";
 
 import { useTranslations } from "next-intl";
 import { getFile, getFileNeighbors, updateFile, likeFile, dislikeFile } from "@/lib/api";
@@ -15,6 +15,7 @@ import { FileActions } from "@/components/FileActions";
 import { CommentSection } from "@/components/CommentSection";
 import { ImageGallery } from "@/components/ImageGallery";
 import { PlaylistPanel, getPlaylistOnEnded } from "@/components/PlaylistPanel";
+import { CastButton } from "@/components/CastButton";
 import { useSetOverrideDrive } from "@/components/CurrentDriveProvider";
 
 export default function FilePage() {
@@ -38,6 +39,7 @@ export default function FilePage() {
   const [editDesc, setEditDesc] = useState("");
   const [saving, setSaving] = useState(false);
   const [galleryOpen, setGalleryOpen] = useState(false);
+  const videoRef = useRef<HTMLVideoElement>(null);
   const setOverrideDrive = useSetOverrideDrive();
 
   useEffect(() => {
@@ -178,7 +180,7 @@ export default function FilePage() {
       <div className={`${isAudioSide ? "flex flex-col gap-4 md:flex-row" : ""}`}>
         <div className={`${isAudioSide ? "min-w-0 flex-1" : ""}`}>
           <div className="group/nav relative">
-            <FilePreview file={file} onEnded={hasPlaylist ? handleMediaEnded : undefined} autoPlay={hasPlaylist} />
+            <FilePreview file={file} onEnded={hasPlaylist ? handleMediaEnded : undefined} autoPlay={hasPlaylist} videoRef={videoRef} />
 
             {!hasPlaylist && neighbors?.prev_id && (
               <button
@@ -244,6 +246,20 @@ export default function FilePage() {
                 <h1 className="text-xl font-bold text-text-primary">
                   {file.title}
                 </h1>
+                {(hasDuration || file.description) && (
+                  <div className="mt-1 text-xs text-text-muted">
+                    {hasDuration && <span>{formatDuration(file.duration)} · </span>}
+                    <span>{formatFileSize(file.file_size)}</span>
+                    {file.description && (
+                      <p className="mt-1 text-sm whitespace-pre-wrap">
+                        {file.description}
+                      </p>
+                    )}
+                  </div>
+                )}
+                {!hasDuration && !file.description && (
+                  <p className="mt-1 text-xs text-text-muted">{formatFileSize(file.file_size)}</p>
+                )}
                 <div className="mt-2 flex items-center gap-1">
                   <div className="flex items-center overflow-hidden rounded-full bg-bg-card">
                     <button
@@ -277,13 +293,9 @@ export default function FilePage() {
                       <Maximize2 size={16} />
                     </button>
                   )}
-                  <button
-                    onClick={() => setEditing(true)}
-                    className="rounded-lg p-2 text-text-muted hover:bg-bg-card hover:text-text-primary"
-                    aria-label={t("edit")}
-                  >
-                    <Pencil size={16} />
-                  </button>
+                  {file.file_type === "video" && (
+                    <CastButton mediaRef={videoRef} />
+                  )}
                   <FileActions
                     file={file}
                     onUpdate={() => getFile(fileId).then(setFile)}
@@ -293,24 +305,17 @@ export default function FilePage() {
                         : `/drive/${encodeURIComponent(file.drive)}`;
                       router.push(backPath);
                     }}
+                    onEdit={() => setEditing(true)}
                   />
                 </div>
-                {file.description && (
-                  <p className="mt-2 text-sm text-text-muted whitespace-pre-wrap">
-                    {file.description}
-                  </p>
+                {file.tags.length > 0 && (
+                  <TagEditor
+                    fileId={file.id}
+                    drive={file.drive}
+                    tags={file.tags}
+                    onUpdate={setFile}
+                  />
                 )}
-                <div className="mt-3 flex gap-4 text-xs text-text-muted">
-                  {hasDuration && <span>{formatDuration(file.duration)}</span>}
-                  <span>{formatFileSize(file.file_size)}</span>
-                  <span>{file.drive}{file.folder_path ? ` / ${file.folder_path}` : ""}</span>
-                </div>
-                <TagEditor
-                  fileId={file.id}
-                  drive={file.drive}
-                  tags={file.tags}
-                  onUpdate={setFile}
-                />
               </div>
             )}
           </div>

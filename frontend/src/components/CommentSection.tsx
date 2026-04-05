@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
-import { MessageCircle, Pencil, Send, Trash2 } from "lucide-react";
+import { ChevronRight, MessageCircle, Pencil, Send, Trash2 } from "lucide-react";
 import { useTranslations } from "next-intl";
 
 import { createComment, deleteComment, getComments, updateComment } from "@/lib/api";
@@ -24,6 +24,7 @@ export function CommentSection({ fileId }: CommentSectionProps) {
   const [editBody, setEditBody] = useState("");
   const [savingEdit, setSavingEdit] = useState(false);
   const [deleteTarget, setDeleteTarget] = useState<string | null>(null);
+  const [expanded, setExpanded] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   const fetchComments = useCallback(async () => {
@@ -126,13 +127,37 @@ export function CommentSection({ fileId }: CommentSectionProps) {
     [handleEditSave, cancelEdit]
   );
 
+  const headerButton = (
+    <button
+      onClick={() => setExpanded((v) => !v)}
+      className="flex items-center gap-2 text-text-muted transition-colors hover:text-text-primary"
+    >
+      <ChevronRight
+        size={16}
+        className={`transition-transform ${expanded ? "rotate-90" : ""}`}
+      />
+      <MessageCircle size={18} />
+      <span className="text-sm font-medium">{t("title")}</span>
+      {!loading && total > 0 && (
+        <span className="text-xs text-text-muted">
+          {t("count", { count: total })}
+        </span>
+      )}
+    </button>
+  );
+
+  if (!expanded) {
+    return (
+      <div className="mt-6">
+        {headerButton}
+      </div>
+    );
+  }
+
   if (loading) {
     return (
       <div className="mt-6">
-        <div className="flex items-center gap-2 text-text-muted">
-          <MessageCircle size={18} />
-          <span className="text-sm font-medium">{t("title")}</span>
-        </div>
+        {headerButton}
         <div className="mt-3 flex justify-center">
           <div className="h-6 w-6 animate-spin rounded-full border-2 border-accent border-t-transparent" />
         </div>
@@ -142,15 +167,7 @@ export function CommentSection({ fileId }: CommentSectionProps) {
 
   return (
     <div className="mt-6">
-      <div className="flex items-center gap-2 text-text-muted">
-        <MessageCircle size={18} />
-        <span className="text-sm font-medium">{t("title")}</span>
-        {total > 0 && (
-          <span className="text-xs text-text-muted">
-            {t("count", { count: total })}
-          </span>
-        )}
-      </div>
+      {headerButton}
 
       <div className="mt-3 flex gap-2">
         <textarea

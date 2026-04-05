@@ -1,5 +1,6 @@
 "use client";
 
+import { type Ref } from "react";
 import { useTranslations } from "next-intl";
 import type { FileItem } from "@/types";
 import { VideoPlayer } from "./VideoPlayer";
@@ -10,10 +11,10 @@ import { FileTypeIcon } from "./FileTypeIcon";
 import { formatFileSize } from "@/lib/format";
 import { getStreamUrl } from "@/lib/api";
 
-export function FilePreview({ file, onEnded, autoPlay }: { file: FileItem; onEnded?: () => void; autoPlay?: boolean }) {
+export function FilePreview({ file, onEnded, autoPlay, videoRef }: { file: FileItem; onEnded?: () => void; autoPlay?: boolean; videoRef?: Ref<HTMLVideoElement> }) {
   const t = useTranslations("file");
   if (file.file_type === "video") {
-    return <VideoPlayer videoId={file.id} subtitles={file.subtitles} onEnded={onEnded} autoPlay={autoPlay} />;
+    return <VideoPlayer ref={videoRef} videoId={file.id} subtitles={file.subtitles} onEnded={onEnded} autoPlay={autoPlay} />;
   }
 
   if (file.file_type === "image") {
