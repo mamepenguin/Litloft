@@ -44,6 +44,13 @@ vi.mock("@/hooks/useDragAndDrop", () => ({
 }));
 
 // Mock next/link
+vi.mock("next/navigation", () => ({
+  useRouter: () => ({ push: vi.fn(), replace: vi.fn(), back: vi.fn() }),
+  useParams: () => ({}),
+  useSearchParams: () => new URLSearchParams(),
+  usePathname: () => "/",
+}));
+
 vi.mock("next/link", () => ({
   default: ({ children, href, ...props }: { children: React.ReactNode; href: string; [key: string]: unknown }) => (
     <a href={href} {...props}>{children}</a>
@@ -67,7 +74,7 @@ vi.mock("@/lib/api", () => ({
   moveFile: vi.fn(),
   getThumbnailUrl: (id: string) => `/api/files/${id}/thumbnail`,
   getDownloadUrl: (id: string) => `/api/files/${id}/stream?download=true`,
-  getPreviewUrl: (id: string) => `/api/files/${id}/preview`,
+  getStreamUrl: (id: string) => `/api/files/${id}/stream`,
 }));
 
 // Mock child components that are complex

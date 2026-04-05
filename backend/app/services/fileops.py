@@ -213,12 +213,6 @@ def copy_file(db: Session, file_id: str, target_drive: str | None, target_folder
             shutil.copy2(str(old_thumb), str(new_thumb))
             new_file.thumbnail_path = new_thumb_rel
 
-    # Copy preview spritesheet if it exists
-    old_preview = config.PREVIEWS_DIR / f"{source.id}.jpg"
-    if old_preview.exists():
-        config.PREVIEWS_DIR.mkdir(parents=True, exist_ok=True)
-        new_preview = config.PREVIEWS_DIR / f"{new_id}.jpg"
-        shutil.copy2(str(old_preview), str(new_preview))
 
     db.add(new_file)
     remove_empty_folder_if_has_files(db, dst_drive, target_folder)
@@ -465,9 +459,6 @@ def physical_delete(db: Session, file: File) -> None:
 
     cleanup_heic_cache(str(full_path.resolve()), config.CONVERTED_DIR)
 
-    preview_path = config.PREVIEWS_DIR / f"{file.id}.jpg"
-    if preview_path.exists():
-        preview_path.unlink()
 
     drive = file.drive
     folder_path = file.folder_path

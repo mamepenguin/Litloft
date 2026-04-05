@@ -1,43 +1,53 @@
 "use client";
 
 import { useState, useRef, useCallback, useEffect } from "react";
-import { getPreviewUrl } from "@/lib/api";
+import { Volume2, VolumeX } from "lucide-react";
+import { getStreamUrl } from "@/lib/api";
 
-const FRAME_COUNT = 8;
-const FRAME_INTERVAL_MS = 400;
 const HOVER_DELAY_MS = 200;
 const LONG_PRESS_MS = 500;
-const SAFE_ID = /^[A-Za-z0-9_-]+$/;
+
+// Shared mute state across all cards (YouTube-style)
+let globalMuted = true;
+const muteListeners = new Set<(muted: boolean) => void>();
+function setGlobalMuted(muted: boolean) {
+  globalMuted = muted;
+  for (const listener of muteListeners) {
+    listener(muted);
+  }
+}
+
+// Singleton: only one preview plays at a time
+let activeStopFn: (() => void) | null = null;
 
 interface VideoPreviewProps {
   fileId: string;
 }
 
 export function VideoPreview({ fileId }: VideoPreviewProps) {
-  if (!SAFE_ID.test(fileId)) return null;
-  const [isHovering, setIsHovering] = useState(false);
-  const [isAnimating, setIsAnimating] = useState(false);
-  const [currentFrame, setCurrentFrame] = useState(0);
-  const [spriteLoaded, setSpriteLoaded] = useState(false);
+  const [isPlaying, setIsPlaying] = useState(false);
+  const [muted, setMuted] = useState(globalMuted);
+  const [hasError, setHasError] = useState(false);
+  const [progress, setProgress] = useState(0);
+  const [isSeeking, setIsSeeking] = useState(false);
 
-  const hoverTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const frameTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
-  const longPressTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const imageRef = useRef<HTMLImageElement | null>(null);
-  const longPressActiveRef = useRef(false);
-  const hoverStartRef = useRef(0);
   const activeRef = useRef(false);
+  const hoverTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const longPressTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const longPressActiveRef = useRef(false);
+  const videoRef = useRef<HTMLVideoElement | null>(null);
 
-  const spriteUrl = getPreviewUrl(fileId);
+  // Sync global mute state
+  useEffect(() => {
+    const listener = (m: boolean) => setMuted(m);
+    muteListeners.add(listener);
+    return () => { muteListeners.delete(listener); };
+  }, []);
 
-  const clearAllTimers = useCallback(() => {
+  const clearTimers = useCallback(() => {
     if (hoverTimerRef.current) {
       clearTimeout(hoverTimerRef.current);
       hoverTimerRef.current = null;
-    }
-    if (frameTimerRef.current) {
-      clearInterval(frameTimerRef.current);
-      frameTimerRef.current = null;
     }
     if (longPressTimerRef.current) {
       clearTimeout(longPressTimerRef.current);
@@ -45,59 +55,41 @@ export function VideoPreview({ fileId }: VideoPreviewProps) {
     }
   }, []);
 
-  const stopAnimation = useCallback(() => {
+  const stopPreview = useCallback(() => {
     activeRef.current = false;
-    clearAllTimers();
-    setIsHovering(false);
-    setIsAnimating(false);
-    setCurrentFrame(0);
+    clearTimers();
     longPressActiveRef.current = false;
-  }, [clearAllTimers]);
-
-  const startFrameAnimation = useCallback(() => {
-    setIsAnimating(true);
-    setCurrentFrame(0);
-    frameTimerRef.current = setInterval(() => {
-      setCurrentFrame((prev) => (prev + 1) % FRAME_COUNT);
-    }, FRAME_INTERVAL_MS);
-  }, []);
-
-  const startPreload = useCallback(() => {
-    activeRef.current = true;
-    hoverStartRef.current = Date.now();
-    setIsHovering(true);
-
-    if (spriteLoaded) {
-      hoverTimerRef.current = setTimeout(() => {
-        if (activeRef.current) startFrameAnimation();
-      }, HOVER_DELAY_MS);
-      return;
+    if (videoRef.current) {
+      videoRef.current.pause();
+      videoRef.current.removeAttribute("src");
+      videoRef.current.load();
     }
+    setIsPlaying(false);
+  }, [clearTimers]);
 
-    const img = new Image();
-    imageRef.current = img;
-    img.onload = () => {
-      setSpriteLoaded(true);
+  const startPreview = useCallback(() => {
+    // Stop any other active preview
+    if (activeStopFn && activeStopFn !== stopPreview) {
+      activeStopFn();
+    }
+    activeStopFn = stopPreview;
+    activeRef.current = true;
+    setHasError(false);
+
+    hoverTimerRef.current = setTimeout(() => {
       if (!activeRef.current) return;
-      const elapsed = Date.now() - hoverStartRef.current;
-      const remaining = Math.max(0, HOVER_DELAY_MS - elapsed);
-      hoverTimerRef.current = setTimeout(() => {
-        if (activeRef.current) startFrameAnimation();
-      }, remaining);
-    };
-    img.onerror = () => {
-      // Sprite sheet not available; silently do nothing
-    };
-    img.src = spriteUrl;
-  }, [spriteLoaded, spriteUrl, startFrameAnimation]);
+      setIsPlaying(true);
+    }, HOVER_DELAY_MS);
+  }, [stopPreview]);
 
   const handleMouseEnter = useCallback(() => {
-    startPreload();
-  }, [startPreload]);
+    startPreview();
+  }, [startPreview]);
 
   const handleMouseLeave = useCallback(() => {
-    stopAnimation();
-  }, [stopAnimation]);
+    stopPreview();
+    if (activeStopFn === stopPreview) activeStopFn = null;
+  }, [stopPreview]);
 
   const handleTouchStart = useCallback(
     (e: React.TouchEvent) => {
@@ -105,10 +97,10 @@ export function VideoPreview({ fileId }: VideoPreviewProps) {
       longPressTimerRef.current = setTimeout(() => {
         longPressActiveRef.current = true;
         e.preventDefault();
-        startPreload();
+        startPreview();
       }, LONG_PRESS_MS);
     },
-    [startPreload]
+    [startPreview]
   );
 
   const handleTouchMove = useCallback(() => {
@@ -117,30 +109,101 @@ export function VideoPreview({ fileId }: VideoPreviewProps) {
       longPressTimerRef.current = null;
     }
     if (longPressActiveRef.current) {
-      stopAnimation();
+      stopPreview();
+      if (activeStopFn === stopPreview) activeStopFn = null;
     }
-  }, [stopAnimation]);
+  }, [stopPreview]);
 
   const handleTouchEnd = useCallback(
     (e: React.TouchEvent) => {
       if (longPressActiveRef.current) {
         e.preventDefault();
       }
-      stopAnimation();
+      stopPreview();
+      if (activeStopFn === stopPreview) activeStopFn = null;
     },
-    [stopAnimation]
+    [stopPreview]
   );
+
+  const handleMuteToggle = useCallback((e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setGlobalMuted(!globalMuted);
+  }, []);
+
+  const handleVideoError = useCallback(() => {
+    setHasError(true);
+    setIsPlaying(false);
+  }, []);
+
+  const handleTimeUpdate = useCallback(() => {
+    const video = videoRef.current;
+    if (video && video.duration && !isSeeking) {
+      setProgress(video.currentTime / video.duration);
+    }
+  }, [isSeeking]);
+
+  const handleSeek = useCallback((e: React.MouseEvent<HTMLDivElement> | React.TouchEvent<HTMLDivElement>) => {
+    e.preventDefault();
+    e.stopPropagation();
+    const video = videoRef.current;
+    if (!video || !video.duration) return;
+
+    const rect = (e.currentTarget as HTMLDivElement).getBoundingClientRect();
+    const clientX = "touches" in e ? e.touches[0].clientX : e.clientX;
+    const ratio = Math.max(0, Math.min(1, (clientX - rect.left) / rect.width));
+    video.currentTime = ratio * video.duration;
+    setProgress(ratio);
+  }, []);
+
+  const seekCleanupRef = useRef<(() => void) | null>(null);
+
+  const handleSeekStart = useCallback((e: React.MouseEvent<HTMLDivElement>) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsSeeking(true);
+    handleSeek(e);
+
+    const rect = (e.currentTarget as HTMLDivElement).getBoundingClientRect();
+    const onMove = (ev: MouseEvent) => {
+      const video = videoRef.current;
+      if (!video || !video.duration) return;
+      const ratio = Math.max(0, Math.min(1, (ev.clientX - rect.left) / rect.width));
+      video.currentTime = ratio * video.duration;
+      setProgress(ratio);
+    };
+    const cleanup = () => {
+      setIsSeeking(false);
+      window.removeEventListener("mousemove", onMove);
+      window.removeEventListener("mouseup", cleanup);
+      seekCleanupRef.current = null;
+    };
+    seekCleanupRef.current = cleanup;
+    window.addEventListener("mousemove", onMove);
+    window.addEventListener("mouseup", cleanup);
+  }, [handleSeek]);
 
   useEffect(() => {
     return () => {
-      clearAllTimers();
+      clearTimers();
+      seekCleanupRef.current?.();
+      if (activeStopFn === stopPreview) activeStopFn = null;
     };
-  }, [clearAllTimers]);
+  }, [clearTimers, stopPreview]);
 
-  const backgroundPositionX =
-    FRAME_COUNT > 1
-      ? `${(currentFrame / (FRAME_COUNT - 1)) * 100}%`
-      : "0%";
+  if (hasError) {
+    return (
+      <div
+        className="absolute inset-0"
+        onMouseEnter={handleMouseEnter}
+        onMouseLeave={handleMouseLeave}
+        onTouchStart={handleTouchStart}
+        onTouchMove={handleTouchMove}
+        onTouchEnd={handleTouchEnd}
+        onTouchCancel={handleTouchEnd}
+      />
+    );
+  }
 
   return (
     <div
@@ -153,17 +216,41 @@ export function VideoPreview({ fileId }: VideoPreviewProps) {
       onTouchCancel={handleTouchEnd}
       data-testid="video-preview-container"
     >
-      {isAnimating && spriteLoaded && (
-        <div
-          className="absolute inset-0 z-[1]"
-          data-testid="video-preview-overlay"
-          style={{
-            backgroundImage: `url(${spriteUrl})`,
-            backgroundSize: "800% 100%",
-            backgroundPosition: `${backgroundPositionX} 0%`,
-            backgroundRepeat: "no-repeat",
-          }}
-        />
+      {isPlaying && (
+        <>
+          <video
+            ref={videoRef}
+            className="absolute inset-0 z-[1] h-full w-full object-cover"
+            src={getStreamUrl(fileId)}
+            muted={muted}
+            autoPlay
+            playsInline
+            onTimeUpdate={handleTimeUpdate}
+            onError={handleVideoError}
+            data-testid="video-preview-player"
+          />
+          <button
+            onClick={handleMuteToggle}
+            className="absolute top-2 right-2 z-[2] rounded-full bg-black/60 p-1.5 text-white transition-opacity hover:bg-black/80"
+            aria-label={muted ? "Unmute" : "Mute"}
+          >
+            {muted ? <VolumeX size={14} /> : <Volume2 size={14} />}
+          </button>
+          {/* Seek bar - tall hit area, bar floats above bottom */}
+          <div
+            className="absolute bottom-0 left-0 right-0 z-[2] h-8 cursor-pointer group/seek"
+            onMouseDown={handleSeekStart}
+            onTouchStart={(e) => { e.stopPropagation(); handleSeek(e); }}
+            onClick={(e) => { e.preventDefault(); e.stopPropagation(); }}
+          >
+            <div className="absolute bottom-1.5 left-1 right-1 h-[3px] rounded-full bg-white/30 transition-[height] group-hover/seek:h-1.5">
+              <div
+                className="h-full rounded-full bg-accent"
+                style={{ width: `${progress * 100}%` }}
+              />
+            </div>
+          </div>
+        </>
       )}
     </div>
   );

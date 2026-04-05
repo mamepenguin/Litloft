@@ -51,8 +51,6 @@ PLACEHOLDER_THUMBNAIL = Path(__file__).parent.parent / "static" / "placeholder.j
 _ARCHIVE_ENTRY_MAX_SIZE = 50 * 1024 * 1024  # 50MB
 _MAX_ARCHIVE_ENTRIES = 10_000
 _archive_semaphore = asyncio.Semaphore(3)
-_preview_semaphore = asyncio.Semaphore(2)
-_preview_in_progress: set[str] = set()
 
 def _decode_zip_filename(info: zipfile.ZipInfo) -> str:
     """Decode ZIP entry filename, handling Shift_JIS encoded names.
@@ -587,56 +585,6 @@ async def get_thumbnail(
 
     raise HTTPException(status_code=404, detail="Thumbnail not found")
 
-
-@router.get("/{file_id}/preview")
-async def get_preview_sprite(
-    file_id: FileId,
-    db: Annotated[Session, Depends(get_db)],
-    unlocked_groups: Annotated[list[str], Depends(get_unlocked_groups)],
-):
-    file = _get_file_or_404(db, file_id, unlocked_groups)
-
-    if file.file_type != "video":
-        raise HTTPException(status_code=404, detail="Preview only available for video files")
-
-    preview_path = config.PREVIEWS_DIR / f"{file.id}.jpg"
-    if preview_path.exists():
-        validated = _validate_path(str(preview_path), config.DATA_DIR)
-        return FastAPIFileResponse(
-            str(validated),
-            media_type="image/jpeg",
-            headers={"Cache-Control": "public, max-age=86400"},
-        )
-
-    drive_path = config.get_drive_path(file.drive)
-    video_path = _validate_path(str(drive_path / file.file_path), drive_path)
-    if not video_path.exists():
-        raise HTTPException(status_code=404, detail="Video file not found on disk")
-
-    if file.id in _preview_in_progress:
-        raise HTTPException(status_code=202, detail="Preview generation in progress")
-
-    from app.services.preview import generate_preview_sprite
-
-    _preview_in_progress.add(file.id)
-    try:
-        async with _preview_semaphore:
-            loop = asyncio.get_running_loop()
-            success = await loop.run_in_executor(
-                None, generate_preview_sprite, str(video_path), str(preview_path)
-            )
-    finally:
-        _preview_in_progress.discard(file.id)
-
-    if not success or not preview_path.exists():
-        raise HTTPException(status_code=404, detail="Failed to generate preview sprite")
-
-    validated = _validate_path(str(preview_path), config.DATA_DIR)
-    return FastAPIFileResponse(
-        str(validated),
-        media_type="image/jpeg",
-        headers={"Cache-Control": "public, max-age=86400"},
-    )
 
 
 @router.get("/{file_id}/archive", response_model=ArchiveContentsResponse)

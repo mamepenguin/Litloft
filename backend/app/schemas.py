@@ -491,7 +491,6 @@ class DashboardSystemInfo(BaseModel):
     db_size_bytes: int
     thumbnail_cache_bytes: int
     converted_cache_bytes: int
-    preview_cache_bytes: int
     upload_temp_bytes: int
     total_files: int
     trash_count: int

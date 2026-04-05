@@ -320,7 +320,6 @@
     "dbSize": "データベース",
     "thumbnailCache": "サムネイルキャッシュ",
     "convertedCache": "変換キャッシュ",
-    "previewCache": "プレビューキャッシュ",
     "uploadTemp": "一時ファイル",
     "uptime": "稼働時間",
     "scanning": "スキャン中...",

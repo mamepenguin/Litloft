@@ -107,7 +107,6 @@ def _build_system_info(db: Session) -> DashboardSystemInfo:
         db_size_bytes=_get_file_size(db_path),
         thumbnail_cache_bytes=_get_directory_size(config.THUMBNAILS_DIR),
         converted_cache_bytes=_get_directory_size(config.CONVERTED_DIR),
-        preview_cache_bytes=_get_directory_size(config.PREVIEWS_DIR),
         upload_temp_bytes=_get_directory_size(config.UPLOAD_DIR),
         total_files=total_files,
         trash_count=trash_count,

@@ -202,7 +202,6 @@ function SystemCard({ system }: { system: DashboardSystemInfo }) {
         <StatItem icon={Trash2} label={t("trashCount")} value={system.trash_count.toLocaleString()} />
         <StatItem icon={Database} label={t("dbSize")} value={formatFileSize(system.db_size_bytes)} />
         <StatItem icon={Image} label={t("thumbnailCache")} value={formatFileSize(system.thumbnail_cache_bytes)} />
-        <StatItem icon={Film} label={t("previewCache")} value={formatFileSize(system.preview_cache_bytes)} />
         <StatItem icon={HardDrive} label={t("convertedCache")} value={formatFileSize(system.converted_cache_bytes)} />
         <StatItem icon={Archive} label={t("uploadTemp")} value={formatFileSize(system.upload_temp_bytes)} />
         <StatItem icon={Clock} label={t("uptime")} value={formatUptime(system.uptime_seconds, t)} />

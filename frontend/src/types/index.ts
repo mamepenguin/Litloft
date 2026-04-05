@@ -203,7 +203,6 @@ export interface DashboardSystemInfo {
   db_size_bytes: number;
   thumbnail_cache_bytes: number;
   converted_cache_bytes: number;
-  preview_cache_bytes: number;
   upload_temp_bytes: number;
   total_files: number;
   trash_count: number;

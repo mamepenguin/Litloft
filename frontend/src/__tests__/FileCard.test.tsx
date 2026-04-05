@@ -20,7 +20,7 @@ vi.mock("@/components/ClipboardProvider", () => ({
 
 vi.mock("@/lib/api", () => ({
   getThumbnailUrl: (id: string) => `/api/files/${id}/thumbnail`,
-  getPreviewUrl: (id: string) => `/api/files/${id}/preview`,
+  getStreamUrl: (id: string) => `/api/files/${id}/stream`,
 }));
 
 import { FileCard } from "../components/FileCard";

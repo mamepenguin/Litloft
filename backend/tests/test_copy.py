@@ -44,16 +44,6 @@ def _seed_with_thumbnail(db, drive_dir, data_dir, filename="test.mp4", folder="�
     return file
 
 
-def _seed_with_preview(db, drive_dir, data_dir, filename="test.mp4", folder="旅行"):
-    """Seed a file and create a fake preview spritesheet for it."""
-    file = _seed(db, drive_dir, filename, folder)
-
-    import app.config as config
-    config.PREVIEWS_DIR.mkdir(parents=True, exist_ok=True)
-    preview_path = config.PREVIEWS_DIR / f"{file.id}.jpg"
-    preview_path.write_bytes(b"\xff\xd8\xff\xe0fake-preview")
-    return file
-
 
 class TestCopyFileService:
     def test_basic_copy_same_folder(self, client):
@@ -196,21 +186,6 @@ class TestCopyFileService:
         # Original thumbnail still exists
         assert (config.THUMBNAILS_DIR / file.thumbnail_path).exists()
 
-    def test_copy_preview_spritesheet(self, client):
-        c, db, drive_dir, data_dir = client
-        import app.config as config
-        file = _seed_with_preview(db, drive_dir, data_dir)
-
-        res = c.post(
-            f"/api/files/{file.id}/copy",
-            json={"target_folder_path": "旅行"},
-        )
-        assert res.status_code == 200
-        new_id = res.json()["id"]
-        # New preview should exist
-        assert (config.PREVIEWS_DIR / f"{new_id}.jpg").exists()
-        # Original preview still exists
-        assert (config.PREVIEWS_DIR / f"{file.id}.jpg").exists()
 
     def test_copy_creates_target_folder(self, client):
         c, db, drive_dir, data_dir = client

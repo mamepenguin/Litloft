@@ -159,7 +159,6 @@ class TestDashboard:
         assert isinstance(system["db_size_bytes"], int)
         assert isinstance(system["thumbnail_cache_bytes"], int)
         assert isinstance(system["converted_cache_bytes"], int)
-        assert isinstance(system["preview_cache_bytes"], int)
         assert isinstance(system["upload_temp_bytes"], int)
         assert isinstance(system["total_files"], int)
         assert isinstance(system["trash_count"], int)

@@ -320,7 +320,6 @@
     "dbSize": "Database",
     "thumbnailCache": "Thumbnail Cache",
     "convertedCache": "Converted Cache",
-    "previewCache": "Preview Cache",
     "uploadTemp": "Temp Files",
     "uptime": "Uptime",
     "scanning": "Scanning...",
