@@ -3,6 +3,8 @@ videos/
 data/
 drives.json
 passwords.json
+rclone.conf
+docker-compose.override.yml
 
 # Python
 __pycache__/
