@@ -26,6 +26,7 @@ docs/superpowers/
 .claude/settings.local.json
 
 # Addons (personal, not for OSS distribution)
+addons/
 backend/addons/
 frontend/src/addons/
 frontend/src/app/download/

@@ -1,11 +1,20 @@
 FROM python:3.12-slim
 RUN apt-get update && apt-get install -y ffmpeg libheif-dev curl && rm -rf /var/lib/apt/lists/*
 WORKDIR /app
-COPY requirements.txt .
+COPY backend/requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
-COPY app/ ./app/
-COPY addon[s]/ ./addons/
-RUN if [ -f addons/downloader/requirements.txt ]; then \
-      pip install --no-cache-dir -r addons/downloader/requirements.txt; \
-    fi
+COPY backend/app/ ./app/
+COPY backend/addon[s]/ ./addons/
+COPY addon[s]/ /tmp/_all_addons/
+RUN for addon_dir in /tmp/_all_addons/*/; do \
+      [ -d "$addon_dir/backend" ] || continue; \
+      name="$(basename "$addon_dir")"; \
+      if [ ! -d "addons/$name" ]; then \
+        cp -r "$addon_dir/backend" "addons/$name"; \
+      fi; \
+    done && rm -rf /tmp/_all_addons
+RUN if [ ! -f addons/__init__.py ]; then touch addons/__init__.py; fi
+RUN for req in addons/*/requirements.txt; do \
+      [ -f "$req" ] && pip install --no-cache-dir -r "$req"; \
+    done; true
 CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000"]

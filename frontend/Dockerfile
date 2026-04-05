@@ -1,8 +1,15 @@
 FROM node:20-alpine AS builder
 WORKDIR /app
-COPY package.json pnpm-lock.yaml ./
+COPY frontend/package.json frontend/pnpm-lock.yaml ./
 RUN corepack enable && pnpm install --frozen-lockfile
-COPY . .
+COPY frontend/ .
+COPY addon[s]/ /tmp/_all_addons/
+RUN for addon_dir in /tmp/_all_addons/*/; do \
+      [ -d "$addon_dir/frontend" ] || continue; \
+      name="$(basename "$addon_dir")"; \
+      mkdir -p "src/addons/$name"; \
+      cp -r "$addon_dir/frontend/"* "src/addons/$name/"; \
+    done && rm -rf /tmp/_all_addons
 RUN pnpm build
 
 FROM node:20-alpine AS deps
