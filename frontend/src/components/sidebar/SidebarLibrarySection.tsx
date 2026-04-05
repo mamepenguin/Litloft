@@ -7,6 +7,7 @@ import {
   Gauge,
   Home,
   Package,
+  Rss,
   Star,
   Trash2,
   Warehouse,
@@ -18,6 +19,7 @@ import type { AddonMeta } from "@/lib/addons";
 const ADDON_ICONS: Record<string, LucideIcon> = {
   download: Download,
   package: Package,
+  rss: Rss,
 };
 
 interface SidebarLibrarySectionProps {

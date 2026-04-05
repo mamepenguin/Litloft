@@ -30,6 +30,7 @@ addons/
 backend/addons/
 frontend/src/addons/
 frontend/src/app/download/
+frontend/src/app/podcast/
 
 # IDE
 .vscode/

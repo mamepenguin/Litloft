@@ -6,7 +6,8 @@ RUN pip install --no-cache-dir -r requirements.txt
 COPY backend/app/ ./app/
 COPY backend/addon[s]/ ./addons/
 COPY addon[s]/ /tmp/_all_addons/
-RUN for addon_dir in /tmp/_all_addons/*/; do \
+RUN find addons -maxdepth 1 -type l -delete 2>/dev/null; \
+    for addon_dir in /tmp/_all_addons/*/; do \
       [ -d "$addon_dir/backend" ] || continue; \
       name="$(basename "$addon_dir")"; \
       if [ ! -d "addons/$name" ]; then \

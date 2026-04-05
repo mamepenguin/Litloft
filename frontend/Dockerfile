@@ -4,7 +4,8 @@ COPY frontend/package.json frontend/pnpm-lock.yaml ./
 RUN corepack enable && pnpm install --frozen-lockfile
 COPY frontend/ .
 COPY addon[s]/ /tmp/_all_addons/
-RUN for addon_dir in /tmp/_all_addons/*/; do \
+RUN find src/addons -maxdepth 1 -type l -delete 2>/dev/null; \
+    for addon_dir in /tmp/_all_addons/*/; do \
       [ -d "$addon_dir/frontend" ] || continue; \
       name="$(basename "$addon_dir")"; \
       mkdir -p "src/addons/$name"; \
