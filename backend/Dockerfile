@@ -18,4 +18,9 @@ RUN if [ ! -f addons/__init__.py ]; then touch addons/__init__.py; fi
 RUN for req in addons/*/requirements.txt; do \
       [ -f "$req" ] && pip install --no-cache-dir -r "$req"; \
     done; true
+RUN for addon_dir in addons/*/; do \
+      if [ -f "$addon_dir/install.sh" ]; then \
+        sh "$addon_dir/install.sh"; \
+      fi; \
+    done; true
 CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000"]
