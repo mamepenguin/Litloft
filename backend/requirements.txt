@@ -6,3 +6,4 @@ python-multipart==0.0.20
 PyJWT==2.9.0
 Pillow==11.2.1
 pillow-heif==0.22.0
+httpx==0.28.1

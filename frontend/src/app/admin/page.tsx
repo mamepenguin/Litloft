@@ -21,6 +21,7 @@ import { getDashboard } from "@/lib/api";
 import { formatFileSize } from "@/lib/format";
 import { useWebSocket } from "@/hooks/useWebSocket";
 import { DuplicatesSection } from "@/components/DuplicatesSection";
+import { SearchIndexStatus } from "@/components/SearchIndexStatus";
 import type { DashboardDriveInfo, DashboardResponse, DashboardSystemInfo } from "@/types";
 
 function formatUptime(
@@ -262,6 +263,10 @@ export default function AdminDashboardPage() {
           {t("system")}
         </h2>
         {data ? <SystemCard system={data.system} /> : <SystemCardSkeleton />}
+      </section>
+
+      <section className="mb-8">
+        <SearchIndexStatus />
       </section>
 
       <DuplicatesSection />

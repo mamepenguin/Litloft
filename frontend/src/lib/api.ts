@@ -535,6 +535,92 @@ export async function deleteComment(fileId: string, commentId: string): Promise<
   if (!res.ok) throw new Error(`API error: ${res.status}`);
 }
 
+// Semantic search types
+export interface SemanticSearchMatch {
+  type: "transcript" | "clip" | "metadata" | "content";
+  text?: string;
+  score: number;
+}
+
+export interface SemanticSearchSegment {
+  time_range: [number, number];
+  matches: SemanticSearchMatch[];
+}
+
+export interface SemanticSearchResult {
+  file_id: string;
+  drive: string;
+  filename: string;
+  title: string;
+  file_type: string;
+  thumbnail_path: string | null;
+  score: number;
+  match_types: string[];
+  segments: SemanticSearchSegment[];
+}
+
+export interface SemanticSearchResponse {
+  available: boolean;
+  results: SemanticSearchResult[];
+  total: number;
+}
+
+export interface SearchServiceStatus {
+  available: boolean;
+  status?: string;
+  indexed?: { total: number; metadata: number; clip: number; whisper: number };
+  pending?: { total: number; clip: number; whisper: number };
+  queue?: { processing: number; waiting: number; paused: boolean };
+  models?: { whisper: string; clip: string; text_embedding: string };
+}
+
+// Semantic search
+export async function semanticSearch(
+  query: string,
+  params?: { limit?: number; type?: FileType; drive?: string }
+): Promise<SemanticSearchResponse> {
+  const searchParams = new URLSearchParams({ q: query });
+  if (params?.limit) searchParams.set("limit", String(params.limit));
+  if (params?.type) searchParams.set("type", params.type);
+  if (params?.drive) searchParams.set("drive", params.drive);
+  try {
+    return await fetchJSON<SemanticSearchResponse>(
+      `${API_BASE}/search?${searchParams.toString()}`
+    );
+  } catch {
+    return { available: false, results: [], total: 0 };
+  }
+}
+
+export async function getSearchStatus(): Promise<SearchServiceStatus> {
+  try {
+    return await fetchJSON<SearchServiceStatus>(`${API_BASE}/search/status`);
+  } catch {
+    return { available: false };
+  }
+}
+
+// Queue control
+export async function searchQueuePause(): Promise<void> {
+  await fetchJSON(`${API_BASE}/search/queue/pause`, { method: "POST" });
+}
+
+export async function searchQueueResume(): Promise<void> {
+  await fetchJSON(`${API_BASE}/search/queue/resume`, { method: "POST" });
+}
+
+export async function searchQueueReindex(): Promise<void> {
+  await fetchJSON(`${API_BASE}/search/queue/reindex`, { method: "POST" });
+}
+
+export async function searchQueuePrioritize(fileId: string): Promise<void> {
+  await fetchJSON(`${API_BASE}/search/queue/prioritize`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ file_id: fileId }),
+  });
+}
+
 // Auth
 export async function unlock(
   password: string,

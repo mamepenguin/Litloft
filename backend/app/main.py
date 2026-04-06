@@ -13,9 +13,10 @@ from app.database import SessionLocal, init_db
 from app.auth import init_jwt_secret, load_passwords
 import app.config as config
 from app.models import File
-from app.routers import admin, auth, comments, drives, files, playlists, progress, uploads, ws
+from app.routers import admin, auth, comments, drives, files, playlists, progress, search, uploads, ws
 from app.services.fileops import physical_delete
 from app.services.scanner import scan_all_drives
+from app.services.search_notify import notify_search_service
 from app.services.upload import cleanup_abandoned_uploads
 from app.services.ws import set_event_loop
 
@@ -35,6 +36,7 @@ async def purge_expired_trash() -> None:
     while True:
         cutoff = datetime.now(UTC) - timedelta(days=TRASH_RETENTION_DAYS)
         total_purged = 0
+        all_purged_ids: list[str] = []
         folders_to_check: set[tuple[str, str]] = set()
         while True:
             db = SessionLocal()
@@ -50,10 +52,12 @@ async def purge_expired_trash() -> None:
                 purged = 0
                 for file in batch:
                     try:
+                        file_id = file.id
                         if file.folder_path:
                             folders_to_check.add((file.drive, file.folder_path))
                         physical_delete(db, file)
                         purged += 1
+                        all_purged_ids.append(file_id)
                     except Exception:
                         logger.exception("Failed to purge file %s", file.id)
                 if purged:
@@ -67,6 +71,9 @@ async def purge_expired_trash() -> None:
                 db.close()
         if total_purged:
             logger.info("Purged %d expired trash files", total_purged)
+            asyncio.create_task(
+                notify_search_service("files-purged", {"file_ids": all_purged_ids})
+            )
         _cleanup_empty_folders_after_purge(folders_to_check)
         await asyncio.sleep(_PURGE_INTERVAL_SECONDS)
 
@@ -162,6 +169,7 @@ app.include_router(auth.router)
 app.include_router(comments.router)
 app.include_router(files.router)
 app.include_router(drives.router)
+app.include_router(search.router)
 app.include_router(uploads.router)
 app.include_router(playlists.router)
 app.include_router(progress.router)

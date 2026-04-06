@@ -104,7 +104,19 @@
     "noResults": "一致するファイルが見つかりません",
     "showingResults": "{total} 件中 100 件を表示",
     "fillInput": "「{term}」を入力欄に設定",
-    "removeHistory": "「{term}」を履歴から削除"
+    "removeHistory": "「{term}」を履歴から削除",
+    "filterAll": "すべて",
+    "filterVideo": "動画",
+    "filterImage": "画像",
+    "filterAudio": "音声",
+    "filterDocument": "ドキュメント",
+    "matchTranscript": "音声一致",
+    "matchClip": "映像一致",
+    "matchMetadata": "メタデータ",
+    "matchContent": "内容一致",
+    "semanticResults": "セマンティック検索結果",
+    "textResults": "テキスト検索結果",
+    "score": "{score}%"
   },
   "sort": {
     "label": "ソート",
@@ -375,5 +387,25 @@
     "copied": "コピーしました",
     "moved": "移動しました",
     "clear": "クリア"
+  },
+  "semanticSearch": {
+    "title": "セマンティック検索",
+    "statusRunning": "稼働中",
+    "statusStopped": "停止中",
+    "unavailable": "検索サービスが起動していません",
+    "indexed": "インデックス済み",
+    "indexedFiles": "{indexed} / {total} ファイル",
+    "whisperLabel": "文字起こし済み",
+    "whisperFiles": "{done} / {total} 動画",
+    "clipLabel": "CLIP解析済み",
+    "clipFiles": "{done} / {total} 画像・動画",
+    "queueLabel": "キュー",
+    "queueStatus": "{processing}件処理中 / {waiting}件待機",
+    "reindex": "再インデックス",
+    "pause": "一時停止",
+    "resume": "再開",
+    "paused": "一時停止中",
+    "confirmReindex": "全ファイルを再インデックスしますか？処理に時間がかかる場合があります。",
+    "models": "モデル"
   }
 }

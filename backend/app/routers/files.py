@@ -6,6 +6,8 @@ from typing import Annotated
 from urllib.parse import quote
 
 from fastapi import APIRouter, Depends, HTTPException, Path as PathParam, Query, Request
+
+from app.services.search_notify import notify_search_service
 from fastapi.responses import FileResponse as FastAPIFileResponse
 from fastapi.responses import Response, StreamingResponse
 from sqlalchemy import and_, func, or_
@@ -167,14 +169,20 @@ async def batch_delete(
     unlocked_groups: Annotated[list[str], Depends(get_unlocked_groups)],
 ):
     deleted = 0
+    deleted_ids = []
     errors = []
     for file_id in body.ids:
         try:
             _get_file_or_404(db, file_id, unlocked_groups)
             fileops.delete_file(db, file_id)
             deleted += 1
+            deleted_ids.append(file_id)
         except HTTPException as e:
             errors.append({"id": file_id, "error": e.detail})
+    if deleted_ids:
+        asyncio.create_task(
+            notify_search_service("files-deleted", {"file_ids": deleted_ids, "type": "soft_delete"})
+        )
     return {"deleted": deleted, "errors": errors}
 
 
@@ -262,14 +270,20 @@ async def batch_restore(
     unlocked_groups: Annotated[list[str], Depends(get_unlocked_groups)],
 ):
     restored = 0
+    restored_ids = []
     errors = []
     for file_id in body.ids:
         try:
             _get_trashed_file_or_404(db, file_id, unlocked_groups)
             fileops.restore_file(db, file_id)
             restored += 1
+            restored_ids.append(file_id)
         except HTTPException as e:
             errors.append({"id": file_id, "error": e.detail})
+    if restored_ids:
+        asyncio.create_task(
+            notify_search_service("files-restored", {"file_ids": restored_ids})
+        )
     return {"restored": restored, "errors": errors}
 
 
@@ -280,14 +294,20 @@ async def batch_purge(
     unlocked_groups: Annotated[list[str], Depends(get_unlocked_groups)],
 ):
     purged = 0
+    purged_ids = []
     errors = []
     for file_id in body.ids:
         try:
             _get_trashed_file_or_404(db, file_id, unlocked_groups)
             fileops.purge_file(db, file_id)
             purged += 1
+            purged_ids.append(file_id)
         except HTTPException as e:
             errors.append({"id": file_id, "error": e.detail})
+    if purged_ids:
+        asyncio.create_task(
+            notify_search_service("files-purged", {"file_ids": purged_ids})
+        )
     return {"purged": purged, "errors": errors}
 
 
@@ -794,6 +814,9 @@ async def delete_file_endpoint(
 ):
     _get_file_or_404(db, file_id, unlocked_groups)
     fileops.delete_file(db, file_id)
+    asyncio.create_task(
+        notify_search_service("files-deleted", {"file_ids": [file_id], "type": "soft_delete"})
+    )
     return {"status": "deleted"}
 
 
@@ -805,6 +828,9 @@ async def restore_file_endpoint(
 ):
     _get_trashed_file_or_404(db, file_id, unlocked_groups)
     file = fileops.restore_file(db, file_id)
+    asyncio.create_task(
+        notify_search_service("files-restored", {"file_ids": [file_id]})
+    )
     return _to_response(file)
 
 
@@ -816,6 +842,9 @@ async def purge_file_endpoint(
 ):
     _get_trashed_file_or_404(db, file_id, unlocked_groups)
     fileops.purge_file(db, file_id)
+    asyncio.create_task(
+        notify_search_service("files-purged", {"file_ids": [file_id]})
+    )
     return {"status": "purged"}
 
 

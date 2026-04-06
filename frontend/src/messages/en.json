@@ -104,7 +104,19 @@
     "noResults": "No matching files found",
     "showingResults": "Showing 100 of {total}",
     "fillInput": "Set \"{term}\" in input",
-    "removeHistory": "Remove \"{term}\" from history"
+    "removeHistory": "Remove \"{term}\" from history",
+    "filterAll": "All",
+    "filterVideo": "Video",
+    "filterImage": "Image",
+    "filterAudio": "Audio",
+    "filterDocument": "Document",
+    "matchTranscript": "Transcript",
+    "matchClip": "Visual",
+    "matchMetadata": "Metadata",
+    "matchContent": "Content",
+    "semanticResults": "Semantic search results",
+    "textResults": "Text search results",
+    "score": "{score}%"
   },
   "sort": {
     "label": "Sort",
@@ -375,5 +387,25 @@
     "copied": "Copied",
     "moved": "Moved",
     "clear": "Clear"
+  },
+  "semanticSearch": {
+    "title": "Semantic Search",
+    "statusRunning": "Running",
+    "statusStopped": "Stopped",
+    "unavailable": "Search service is not running",
+    "indexed": "Indexed",
+    "indexedFiles": "{indexed} / {total} files",
+    "whisperLabel": "Transcribed",
+    "whisperFiles": "{done} / {total} videos",
+    "clipLabel": "CLIP Analyzed",
+    "clipFiles": "{done} / {total} images & videos",
+    "queueLabel": "Queue",
+    "queueStatus": "{processing} processing / {waiting} waiting",
+    "reindex": "Reindex",
+    "pause": "Pause",
+    "resume": "Resume",
+    "paused": "Paused",
+    "confirmReindex": "Reindex all files? This may take a while.",
+    "models": "Models"
   }
 }
