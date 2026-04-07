@@ -104,7 +104,7 @@ function SemanticResultItem({
   };
 
   const timestamps = result.segments
-    .filter((seg) => seg.time_range[0] > 0)
+    .filter((seg) => seg.time_range != null && seg.time_range[0] > 0)
     .slice(0, 5);
 
   return (
@@ -112,19 +112,14 @@ function SemanticResultItem({
       onClick={() => onSelect(`/files/${result.file_id}`)}
       className="flex w-full items-start gap-3 px-4 py-2.5 text-left transition-colors hover:bg-bg-elevated"
     >
-      {result.thumbnail_path ? (
-        <img
-          src={`/api/files/${result.file_id}/thumbnail`}
-          alt=""
-          className="h-10 w-16 flex-shrink-0 rounded bg-bg-elevated object-cover"
-        />
-      ) : (
-        <div className="flex h-10 w-16 flex-shrink-0 items-center justify-center rounded bg-bg-elevated">
-          <FileTypeIcon fileType={result.file_type as FileType} size={18} className="text-text-muted" />
-        </div>
-      )}
+      <img
+        src={`/api/files/${result.file_id}/thumbnail`}
+        alt=""
+        className="h-10 w-16 flex-shrink-0 rounded bg-bg-elevated object-cover"
+        onError={(e) => { e.currentTarget.style.display = "none"; }}
+      />
       <div className="min-w-0 flex-1">
-        <p className="truncate text-sm text-text-primary">{result.title}</p>
+        <p className="truncate text-sm text-text-primary">{result.filename}</p>
         <div className="mt-0.5 flex flex-wrap items-center gap-1">
           {result.match_types.map((type) => (
             <MatchBadge

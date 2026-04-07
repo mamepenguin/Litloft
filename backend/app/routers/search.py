@@ -51,6 +51,7 @@ async def search(
 
     return {
         **data,
+        "available": True,
         "results": filtered,
         "total": len(filtered),
     }
@@ -62,7 +63,8 @@ async def search_status():
         async with httpx.AsyncClient(timeout=5.0) as client:
             resp = await client.get(f"{SEARCH_SERVICE_URL}/status")
             resp.raise_for_status()
-            return resp.json()
+            data = resp.json()
+            return {**data, "available": True}
     except Exception:
         logger.debug("Search service unavailable")
         return {"available": False}
