@@ -6,7 +6,7 @@ import { ArrowLeft, ArrowUpLeft, Clock, Search, X } from "lucide-react";
 
 import { useTranslations } from "next-intl";
 import { getDriveFiles, semanticSearch } from "@/lib/api";
-import type { SemanticSearchResult, SemanticSearchResponse } from "@/lib/api";
+import type { SemanticSearchResult, SemanticSearchResponse, SemanticSearchSegment } from "@/lib/api";
 import type { FileItem, FileType } from "@/types";
 import { formatDuration } from "@/lib/format";
 import { FileTypeIcon } from "./FileTypeIcon";
@@ -104,7 +104,9 @@ function SemanticResultItem({
   };
 
   const timestamps = result.segments
-    .filter((seg) => seg.time_range != null && seg.time_range[0] > 0)
+    .filter((seg): seg is SemanticSearchSegment & { time_range: [number, number] } =>
+      seg.time_range != null && seg.time_range[0] > 0,
+    )
     .slice(0, 5);
 
   return (

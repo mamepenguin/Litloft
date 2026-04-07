@@ -543,7 +543,7 @@ export interface SemanticSearchMatch {
 }
 
 export interface SemanticSearchSegment {
-  time_range: [number, number];
+  time_range: [number, number] | null;
   matches: SemanticSearchMatch[];
 }
 
@@ -551,9 +551,7 @@ export interface SemanticSearchResult {
   file_id: string;
   drive: string;
   filename: string;
-  title: string;
   file_type: string;
-  thumbnail_path: string | null;
   score: number;
   match_types: string[];
   segments: SemanticSearchSegment[];
