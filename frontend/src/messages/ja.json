@@ -407,5 +407,12 @@
     "paused": "一時停止中",
     "confirmReindex": "全ファイルを再インデックスしますか？処理に時間がかかる場合があります。",
     "models": "モデル"
+  },
+  "searchIndex": {
+    "transcriptTitle": "トランスクリプト",
+    "indexTitle": "インデックス詳細",
+    "clipTitle": "CLIP フレーム",
+    "more": "件以上",
+    "showMore": "もっと見る"
   }
 }

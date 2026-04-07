@@ -407,5 +407,12 @@
     "paused": "Paused",
     "confirmReindex": "Reindex all files? This may take a while.",
     "models": "Models"
+  },
+  "searchIndex": {
+    "transcriptTitle": "Transcript",
+    "indexTitle": "Index Details",
+    "clipTitle": "CLIP Frames",
+    "more": "more",
+    "showMore": "Show more"
   }
 }

@@ -619,6 +619,90 @@ export async function searchQueuePrioritize(fileId: string): Promise<void> {
   });
 }
 
+// Search inspection types
+export interface TranscriptChunkItem {
+  index: number;
+  text: string;
+  start: number;
+  end: number;
+}
+
+export interface TranscriptResponse {
+  available: boolean;
+  file_id?: string;
+  drive?: string;
+  language?: string;
+  chunks?: TranscriptChunkItem[];
+}
+
+export interface IndexDetailEmbeddingItem {
+  content_preview: string;
+  start: number | null;
+  end: number | null;
+}
+
+export interface IndexDetailType {
+  count: number;
+  items: IndexDetailEmbeddingItem[];
+}
+
+export interface IndexDetailsResponse {
+  available: boolean;
+  file_id?: string;
+  drive?: string;
+  filename?: string;
+  status?: { metadata: boolean; clip: boolean; whisper: boolean; text: boolean };
+  indexed_at?: string;
+  embeddings?: Record<string, IndexDetailType>;
+}
+
+export interface ClipTimestampItem {
+  start: number;
+  content_preview: string;
+}
+
+export interface ClipTimestampsResponse {
+  available: boolean;
+  file_id?: string;
+  drive?: string;
+  timestamps?: ClipTimestampItem[];
+}
+
+// Search inspection APIs
+export async function getFileTranscript(fileId: string): Promise<TranscriptResponse> {
+  try {
+    return await fetchJSON<TranscriptResponse>(
+      `${API_BASE}/search/files/${fileId}/transcript`
+    );
+  } catch {
+    return { available: false };
+  }
+}
+
+export async function getFileIndexDetails(fileId: string): Promise<IndexDetailsResponse> {
+  try {
+    return await fetchJSON<IndexDetailsResponse>(
+      `${API_BASE}/search/files/${fileId}/index-details`
+    );
+  } catch {
+    return { available: false };
+  }
+}
+
+export async function getClipTimestamps(fileId: string): Promise<ClipTimestampsResponse> {
+  try {
+    return await fetchJSON<ClipTimestampsResponse>(
+      `${API_BASE}/search/files/${fileId}/clip-timestamps`
+    );
+  } catch {
+    return { available: false };
+  }
+}
+
+export function getFrameUrl(fileId: string, timestamp: number): string {
+  return `${API_BASE}/search/files/${fileId}/frame?t=${timestamp}`;
+}
+
 // Auth
 export async function unlock(
   password: string,
