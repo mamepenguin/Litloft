@@ -111,6 +111,7 @@
     "filterAudio": "Audio",
     "filterDocument": "Document",
     "matchTranscript": "Transcript",
+    "matchTranscriptKeyword": "Transcript (exact)",
     "matchClip": "Visual",
     "matchMetadata": "Metadata",
     "matchContent": "Content",

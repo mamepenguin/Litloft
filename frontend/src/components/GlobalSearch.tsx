@@ -50,6 +50,7 @@ function removeFromHistory(term: string): string[] {
 
 const MATCH_TYPE_STYLES: Record<string, string> = {
   transcript: "bg-blue-500/15 text-blue-400",
+  transcript_keyword: "bg-cyan-500/15 text-cyan-400",
   clip: "bg-emerald-500/15 text-emerald-400",
   metadata: "bg-zinc-500/15 text-zinc-400",
   content: "bg-purple-500/15 text-purple-400",
@@ -98,6 +99,7 @@ function SemanticResultItem({
 }) {
   const matchLabels: Record<string, string> = {
     transcript: t("matchTranscript"),
+    transcript_keyword: t("matchTranscriptKeyword"),
     clip: t("matchClip"),
     metadata: t("matchMetadata"),
     content: t("matchContent"),
