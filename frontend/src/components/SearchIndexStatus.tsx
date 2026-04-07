@@ -83,9 +83,8 @@ function StatusContent({ status }: { status: SearchServiceStatus }) {
   const indexed = status.indexed;
   const pending = status.pending;
   const queue = status.queue;
-  const totalFiles = indexed
-    ? indexed.total + (pending?.total ?? 0)
-    : 0;
+  // indexed.total is already the count of all active files (not just indexed ones)
+  const totalFiles = indexed?.total ?? 0;
   const whisperTotal = indexed
     ? indexed.whisper + (pending?.whisper ?? 0)
     : 0;
@@ -111,10 +110,10 @@ function StatusContent({ status }: { status: SearchServiceStatus }) {
       <div className="space-y-3">
         {indexed && (
           <ProgressBar
-            done={indexed.total}
+            done={indexed.metadata}
             total={totalFiles}
             label={t("indexedFiles", {
-              indexed: indexed.total.toLocaleString(),
+              indexed: indexed.metadata.toLocaleString(),
               total: totalFiles.toLocaleString(),
             })}
           />
