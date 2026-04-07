@@ -13,6 +13,7 @@ from app.schemas import (
     file_to_response,
 )
 from app.services import upload as upload_service
+from app.services.search_notify import notify_search_service
 
 router = APIRouter(prefix="/api/drives", tags=["uploads"])
 
@@ -74,6 +75,11 @@ async def complete_upload(
     check_drive_access(drive_name, unlocked_groups)
     _validate_session_drive(upload_id, drive_name)
     file_record = upload_service.complete_upload(upload_id, db)
+    await notify_search_service("scan-complete", {
+        "drive": drive_name,
+        "added": 1,
+        "removed": 0,
+    })
     return file_to_response(file_record)
 
 
