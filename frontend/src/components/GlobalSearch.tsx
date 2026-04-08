@@ -132,9 +132,6 @@ function SemanticResultItem({
               label={matchLabels[type] ?? type}
             />
           ))}
-          <span className="text-[10px] text-text-muted">
-            {t("score", { score: Math.round(result.score * 100) })}
-          </span>
         </div>
         {timestamps.length > 0 && (
           <div className="mt-1 flex flex-wrap gap-0.5">

@@ -58,6 +58,44 @@ async def search(
     }
 
 
+@router.get("/compare")
+async def search_compare(
+    q: str = Query(..., min_length=1),
+    limit: int = Query(20, ge=1, le=100),
+    type: str | None = Query(None),
+    unlocked_groups: Annotated[list[str], Depends(get_unlocked_groups)] = [],
+):
+    """Proxy compare endpoint: RRF vs cosine side by side."""
+    try:
+        params: dict = {"q": q, "limit": limit}
+        if type is not None:
+            params["type"] = type
+
+        async with httpx.AsyncClient(timeout=15.0) as client:
+            resp = await client.get(
+                f"{SEARCH_SERVICE_URL}/search/compare", params=params
+            )
+            resp.raise_for_status()
+            data = resp.json()
+    except Exception:
+        logger.debug("Search service unavailable for compare")
+        return {"available": False}
+
+    accessible_drives = {
+        d["name"] for d in filter_drives(config.load_drives(), unlocked_groups)
+    }
+
+    for key in ("rrf", "cosine"):
+        section = data.get(key, {})
+        results = section.get("results", [])
+        section["results"] = [
+            r for r in results if r.get("drive") in accessible_drives
+        ]
+        section["total"] = len(section["results"])
+
+    return {**data, "available": True}
+
+
 @router.get("/status")
 async def search_status():
     try:

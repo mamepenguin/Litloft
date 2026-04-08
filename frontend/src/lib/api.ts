@@ -590,6 +590,45 @@ export async function semanticSearch(
   }
 }
 
+export interface SearchSourceCounts {
+  text_vector: number;
+  clip_vector: number;
+  keyword: number;
+  transcript_keyword: number;
+}
+
+export interface SearchCompareResponse {
+  available: boolean;
+  rrf: SemanticSearchResponse;
+  cosine: SemanticSearchResponse;
+  rrf_no_cutoff: SemanticSearchResponse;
+  cosine_no_cutoff: SemanticSearchResponse;
+  source_counts: SearchSourceCounts;
+}
+
+export async function searchCompare(
+  query: string,
+  params?: { limit?: number; type?: FileType }
+): Promise<SearchCompareResponse> {
+  const searchParams = new URLSearchParams({ q: query });
+  if (params?.limit) searchParams.set("limit", String(params.limit));
+  if (params?.type) searchParams.set("type", params.type);
+  try {
+    return await fetchJSON<SearchCompareResponse>(
+      `${API_BASE}/search/compare?${searchParams.toString()}`
+    );
+  } catch {
+    return {
+      available: false,
+      rrf: { available: false, results: [], total: 0 },
+      cosine: { available: false, results: [], total: 0 },
+      rrf_no_cutoff: { available: false, results: [], total: 0 },
+      cosine_no_cutoff: { available: false, results: [], total: 0 },
+      source_counts: { text_vector: 0, clip_vector: 0, keyword: 0, transcript_keyword: 0 },
+    };
+  }
+}
+
 export async function getSearchStatus(): Promise<SearchServiceStatus> {
   try {
     return await fetchJSON<SearchServiceStatus>(`${API_BASE}/search/status`);
