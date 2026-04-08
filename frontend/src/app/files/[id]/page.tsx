@@ -34,6 +34,7 @@ export default function FilePage() {
   const playlistId = searchParams.get("playlist") || undefined;
   const folderPlay = searchParams.get("folder_play") === "1";
   const hasPlaylist = !!playlistId || folderPlay;
+  const initialTime = searchParams.get("t") ? Number(searchParams.get("t")) : undefined;
 
   const [file, setFile] = useState<FileItem | null>(null);
   const [neighbors, setNeighbors] = useState<Neighbors | null>(null);
@@ -183,7 +184,7 @@ export default function FilePage() {
       <div className={`${isAudioSide ? "flex flex-col gap-4 md:flex-row" : ""}`}>
         <div className={`${isAudioSide ? "min-w-0 flex-1" : ""}`}>
           <div className="group/nav relative">
-            <FilePreview file={file} onEnded={hasPlaylist ? handleMediaEnded : undefined} autoPlay={hasPlaylist} videoRef={videoRef} />
+            <FilePreview file={file} onEnded={hasPlaylist ? handleMediaEnded : undefined} autoPlay={hasPlaylist} videoRef={videoRef} initialTime={initialTime} />
 
             {!hasPlaylist && neighbors?.prev_id && (
               <button

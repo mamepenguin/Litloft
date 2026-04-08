@@ -10,7 +10,7 @@ import { useProfile } from "./ProfileProvider";
 const SAVE_INTERVAL = 5;
 const RESUME_THRESHOLD = 5;
 
-export const VideoPlayer = forwardRef(function VideoPlayer({ videoId, subtitles = [], onEnded, autoPlay }: { videoId: string; subtitles?: SubtitleInfo[]; onEnded?: () => void; autoPlay?: boolean }, ref: Ref<HTMLVideoElement>) {
+export const VideoPlayer = forwardRef(function VideoPlayer({ videoId, subtitles = [], onEnded, autoPlay, initialTime }: { videoId: string; subtitles?: SubtitleInfo[]; onEnded?: () => void; autoPlay?: boolean; initialTime?: number }, ref: Ref<HTMLVideoElement>) {
   const t = useTranslations("player");
   const { nickname } = useProfile();
   const hasProfile = nickname !== null;
@@ -24,7 +24,9 @@ export const VideoPlayer = forwardRef(function VideoPlayer({ videoId, subtitles 
     if (!video) return;
     addRecentlyPlayed(videoId);
 
-    if (hasProfile) {
+    if (initialTime != null && initialTime > 0) {
+      video.currentTime = Math.min(initialTime, video.duration);
+    } else if (hasProfile) {
       try {
         const progress = await getWatchProgress(videoId);
         if (progress.position > RESUME_THRESHOLD && progress.position < video.duration - RESUME_THRESHOLD) {
@@ -44,7 +46,7 @@ export const VideoPlayer = forwardRef(function VideoPlayer({ videoId, subtitles 
     if (isPC || autoPlay) {
       video.play().catch(() => {});
     }
-  }, [videoId, autoPlay, hasProfile]);
+  }, [videoId, autoPlay, hasProfile, initialTime]);
 
   const handleTimeUpdate = useCallback(() => {
     const video = videoRef.current;
