@@ -16,7 +16,7 @@ from app.models import File
 from app.routers import admin, auth, comments, drives, files, playlists, progress, search, uploads, ws
 from app.services.fileops import physical_delete
 from app.services.scanner import scan_all_drives
-from app.services.search_notify import notify_search_service
+from app.services import event_hooks
 from app.services.upload import cleanup_abandoned_uploads
 from app.services.ws import set_event_loop
 
@@ -72,7 +72,7 @@ async def purge_expired_trash() -> None:
         if total_purged:
             logger.info("Purged %d expired trash files", total_purged)
             asyncio.create_task(
-                notify_search_service("files-purged", {"file_ids": all_purged_ids})
+                event_hooks.emit("files.purged", {"file_ids": all_purged_ids})
             )
         _cleanup_empty_folders_after_purge(folders_to_check)
         await asyncio.sleep(_PURGE_INTERVAL_SECONDS)
@@ -151,6 +151,7 @@ async def lifespan(app: FastAPI):
     load_passwords()
     init_jwt_secret()
     logger.info("Auth initialized")
+    event_hooks.init()
     set_event_loop(asyncio.get_running_loop())
     cleanup_abandoned_uploads()
     asyncio.create_task(scan_all_drives())

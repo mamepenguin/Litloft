@@ -1,0 +1,15 @@
+{
+  "_comment": "Event hooks configuration. Copy to event-hooks.json and customize.",
+  "_events": {
+    "files.deleted": "Files soft-deleted (body: {file_ids, type})",
+    "files.restored": "Files restored from trash (body: {file_ids})",
+    "files.purged": "Files permanently deleted (body: {file_ids})",
+    "scan.complete": "Drive scan finished (body: {drive, added, removed})"
+  },
+  "_options": {
+    "url": "Target webhook URL (required)",
+    "secret_env": "Env var name for X-Webhook-Secret header (optional)"
+  },
+  "hooks": {
+  }
+}

@@ -3,6 +3,7 @@ videos/
 data/
 drives.json
 passwords.json
+event-hooks.json
 rclone.conf
 docker-compose.override.yml
 

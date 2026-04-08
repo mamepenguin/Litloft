@@ -14,7 +14,7 @@ from app.services.filetype import classify, is_hidden
 from app.services.hash import compute_file_hash
 from app.services.subtitle import is_subtitle_file
 from app.services.thumbnail import generate_image_thumbnail, generate_thumbnail, get_video_duration
-from app.services.search_notify import notify_search_service_sync
+from app.services import event_hooks
 from app.services.ws import broadcast_from_thread
 
 logger = logging.getLogger(__name__)
@@ -282,7 +282,7 @@ def _scan_and_register(db: Session, drive_name: str) -> dict[str, int]:
                 .delete(synchronize_session="fetch")
             )
             logger.info("Removed %d files and their thumbnails (drive: %s)", removed, drive_name)
-            notify_search_service_sync("files-purged", {"file_ids": purged_ids})
+            event_hooks.emit_sync("files.purged", {"file_ids": purged_ids})
 
     # Sync empty folders: detect filesystem dirs with no files and track them
     folders_with_files = {
@@ -338,7 +338,7 @@ def _scan_and_register(db: Session, drive_name: str) -> dict[str, int]:
         "total": total,
     }, drive=drive_name)
 
-    notify_search_service_sync("scan-complete", {
+    event_hooks.emit_sync("scan.complete", {
         "drive": drive_name,
         "added": added,
         "removed": removed,
