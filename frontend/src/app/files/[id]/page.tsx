@@ -19,6 +19,7 @@ import { CastButton } from "@/components/CastButton";
 import { TranscriptPanel } from "@/components/TranscriptPanel";
 import { IndexDetailsPanel } from "@/components/IndexDetailsPanel";
 import { ClipFramesPanel } from "@/components/ClipFramesPanel";
+import { SimilarFiles } from "@/components/SimilarFiles";
 import { useSetOverrideDrive } from "@/components/CurrentDriveProvider";
 
 export default function FilePage() {
@@ -334,6 +335,8 @@ export default function FilePage() {
             )}
             <IndexDetailsPanel fileId={fileId} />
           </div>
+
+          <SimilarFiles fileId={fileId} />
 
           <CommentSection fileId={fileId} />
 

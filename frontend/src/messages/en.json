@@ -93,7 +93,8 @@
     "typeAudio": "Audio",
     "typeDocument": "Document",
     "typeArchive": "Archive",
-    "typeOther": "File"
+    "typeOther": "File",
+    "similarFiles": "Similar files"
   },
   "search": {
     "label": "Search",

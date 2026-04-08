@@ -8,6 +8,8 @@ from fastapi.responses import Response
 
 import app.config as config
 from app.auth import filter_drives, get_unlocked_groups
+from app.database import get_db
+from app.models import File
 
 logger = logging.getLogger(__name__)
 
@@ -143,6 +145,70 @@ async def queue_prioritize(body: dict):
     except Exception:
         logger.debug("Search service unavailable for queue/prioritize")
         return {"available": False}
+
+
+@router.get("/similar/{file_id}")
+async def similar_files(
+    file_id: str = Path(..., min_length=12, max_length=12),
+    limit: int = Query(6, ge=1, le=20),
+    unlocked_groups: Annotated[list[str], Depends(get_unlocked_groups)] = [],
+    db=Depends(get_db),
+):
+    """Find files similar to the given file."""
+    # Resolve drive from HomeVault DB and check access
+    file = db.query(File).filter(
+        File.id == file_id,
+        File.deleted_at.is_(None),
+    ).first()
+    if not file:
+        return {"available": False, "results": []}
+
+    accessible = _accessible_drives(unlocked_groups)
+    if file.drive not in accessible:
+        return {"available": False, "results": []}
+
+    try:
+        async with httpx.AsyncClient(timeout=10.0) as client:
+            resp = await client.get(
+                f"{SEARCH_SERVICE_URL}/similar/{file_id}",
+                params={"limit": limit, "drive": file.drive},
+            )
+            resp.raise_for_status()
+            data = resp.json()
+    except Exception:
+        logger.debug("Search service unavailable for similar/%s", file_id)
+        return {"available": False, "results": []}
+
+    # Filter results to accessible drives (should all be same drive, but safety)
+    results = [r for r in data.get("results", []) if r.get("drive") in accessible]
+    return {"available": True, "results": results}
+
+
+@router.get("/debug/similar/{file_id}")
+async def debug_similar_files(
+    file_id: str = Path(..., min_length=12, max_length=12),
+    limit: int = Query(20, ge=1, le=100),
+    db=Depends(get_db),
+):
+    """Debug similar files: raw scores from each embedding type."""
+    file = db.query(File).filter(
+        File.id == file_id,
+        File.deleted_at.is_(None),
+    ).first()
+    if not file:
+        return {"error": "File not found"}
+
+    try:
+        async with httpx.AsyncClient(timeout=15.0) as client:
+            resp = await client.get(
+                f"{SEARCH_SERVICE_URL}/debug/similar/{file_id}",
+                params={"limit": limit, "drive": file.drive},
+            )
+            resp.raise_for_status()
+            return resp.json()
+    except Exception:
+        logger.debug("Search service unavailable for debug/similar/%s", file_id)
+        return {"error": "Search service unavailable"}
 
 
 def _accessible_drives(unlocked_groups: list[str]) -> set[str]:

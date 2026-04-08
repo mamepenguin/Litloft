@@ -93,7 +93,8 @@
     "typeAudio": "音声",
     "typeDocument": "文書",
     "typeArchive": "書庫",
-    "typeOther": "ファイル"
+    "typeOther": "ファイル",
+    "similarFiles": "似たファイル"
   },
   "search": {
     "label": "検索",

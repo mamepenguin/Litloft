@@ -638,6 +638,35 @@ export async function getSearchStatus(): Promise<SearchServiceStatus> {
   }
 }
 
+// Similar files
+export interface SimilarFileItem {
+  file_id: string;
+  drive: string;
+  filename: string;
+  file_type: string;
+  mime_type: string;
+  score: number;
+  match_type: string;
+}
+
+export interface SimilarFilesResponse {
+  available: boolean;
+  results: SimilarFileItem[];
+}
+
+export async function getSimilarFiles(
+  fileId: string,
+  limit: number = 6
+): Promise<SimilarFilesResponse> {
+  try {
+    return await fetchJSON<SimilarFilesResponse>(
+      `${API_BASE}/search/similar/${fileId}?limit=${limit}`
+    );
+  } catch {
+    return { available: false, results: [] };
+  }
+}
+
 // Queue control
 export async function searchQueuePause(): Promise<void> {
   await fetchJSON(`${API_BASE}/search/queue/pause`, { method: "POST" });
