@@ -540,6 +540,7 @@ export interface SemanticSearchMatch {
   type: "transcript" | "clip" | "metadata" | "content";
   text?: string;
   score: number;
+  page?: number | null;
 }
 
 export interface SemanticSearchSegment {

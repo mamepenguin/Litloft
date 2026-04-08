@@ -115,6 +115,8 @@
     "matchClip": "Visual",
     "matchMetadata": "Metadata",
     "matchContent": "Content",
+    "matchTextContentKeyword": "Content (exact)",
+    "matchedPages": "p.{pages}",
     "semanticResults": "Semantic search results",
     "textResults": "Text search results",
     "score": "{score}%"

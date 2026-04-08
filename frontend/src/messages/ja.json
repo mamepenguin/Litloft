@@ -115,6 +115,8 @@
     "matchClip": "映像一致",
     "matchMetadata": "メタデータ",
     "matchContent": "内容一致",
+    "matchTextContentKeyword": "内容キーワード一致",
+    "matchedPages": "p.{pages}",
     "semanticResults": "セマンティック検索結果",
     "textResults": "テキスト検索結果",
     "score": "{score}%"

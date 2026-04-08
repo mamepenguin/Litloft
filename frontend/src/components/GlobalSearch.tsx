@@ -54,6 +54,7 @@ const MATCH_TYPE_STYLES: Record<string, string> = {
   clip: "bg-emerald-500/15 text-emerald-400",
   metadata: "bg-zinc-500/15 text-zinc-400",
   content: "bg-purple-500/15 text-purple-400",
+  text_content_keyword: "bg-violet-500/15 text-violet-400",
 };
 
 function MatchBadge({ type, label }: { type: string; label: string }) {
@@ -103,7 +104,18 @@ function SemanticResultItem({
     clip: t("matchClip"),
     metadata: t("matchMetadata"),
     content: t("matchContent"),
+    text_content_keyword: t("matchTextContentKeyword"),
   };
+
+  // Collect unique page numbers from text_content matches
+  const matchedPages = [
+    ...new Set(
+      result.segments
+        .flatMap((seg) => seg.matches)
+        .filter((m) => m.page != null)
+        .map((m) => m.page as number)
+    ),
+  ].sort((a, b) => a - b);
 
   const timestamps = result.segments
     .filter((seg): seg is SemanticSearchSegment & { time_range: [number, number] } =>
@@ -144,6 +156,11 @@ function SemanticResultItem({
               />
             ))}
           </div>
+        )}
+        {matchedPages.length > 0 && (
+          <p className="mt-1 text-[11px] text-text-tertiary">
+            {t("matchedPages", { pages: matchedPages.join(", ") })}
+          </p>
         )}
       </div>
     </button>
