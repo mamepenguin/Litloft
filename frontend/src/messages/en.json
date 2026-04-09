@@ -119,7 +119,7 @@
     "matchTextContentKeyword": "Content (exact)",
     "matchedPages": "p.{pages}",
     "semanticResults": "Semantic search results",
-    "textResults": "Text search results",
+    "textResults": "Filename match",
     "score": "{score}%"
   },
   "sort": {

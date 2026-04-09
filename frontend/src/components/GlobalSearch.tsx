@@ -399,16 +399,16 @@ export function GlobalSearch() {
     }
   }
 
-  // Deduplicate semantic results that are already in text results
-  const deduplicatedSemantic = useMemo(() => {
-    const textIds = new Set(results.map((f) => f.id));
-    return semanticResults.filter((r) => !textIds.has(r.file_id));
+  // Deduplicate text results that are already in semantic results
+  const deduplicatedText = useMemo(() => {
+    const semanticIds = new Set(semanticResults.map((r) => r.file_id));
+    return results.filter((f) => !semanticIds.has(f.id));
   }, [results, semanticResults]);
 
   const showHistory = !query.trim() && history.length > 0;
   const showFilters = semanticAvailable && open && drive;
   const isSearching = loading || semanticLoading;
-  const hasResults = results.length > 0 || deduplicatedSemantic.length > 0;
+  const hasResults = semanticResults.length > 0 || deduplicatedText.length > 0;
   const hasQuery = query.trim().length > 0;
 
   const searchInput = (
@@ -472,7 +472,7 @@ export function GlobalSearch() {
 
   const resultsList = (mobile: boolean) => (
     <div className={mobile ? "" : "max-h-[50vh] overflow-y-auto"}>
-      {isSearching && results.length === 0 && deduplicatedSemantic.length === 0 ? (
+      {isSearching && semanticResults.length === 0 && deduplicatedText.length === 0 ? (
         <div className={`flex items-center justify-center ${mobile ? "py-12" : "py-8"}`}>
           <div className={`${mobile ? "h-6 w-6" : "h-5 w-5"} animate-spin rounded-full border-2 border-accent border-t-transparent`} />
         </div>
@@ -482,31 +482,9 @@ export function GlobalSearch() {
         </div>
       ) : (
         <>
-          {results.length > 0 && (
+          {semanticResults.length > 0 && (
             <>
-              {results.map((file) => (
-                <TextResultItem
-                  key={file.id}
-                  file={file}
-                  onSelect={handleSelect}
-                />
-              ))}
-              {total > 100 && (
-                <div className="border-t border-bg-border px-4 py-2.5 text-center text-xs text-text-muted">
-                  {t("showingResults", { total })}
-                </div>
-              )}
-            </>
-          )}
-
-          {deduplicatedSemantic.length > 0 && (
-            <>
-              {results.length > 0 && (
-                <div className="border-t border-bg-border px-4 py-1.5 text-[10px] font-medium uppercase tracking-wider text-text-muted">
-                  {t("semanticResults")}
-                </div>
-              )}
-              {deduplicatedSemantic.map((result) => (
+              {semanticResults.map((result) => (
                 <SemanticResultItem
                   key={result.file_id}
                   result={result}
@@ -521,6 +499,26 @@ export function GlobalSearch() {
             <div className="flex items-center justify-center border-t border-bg-border py-3">
               <div className="h-4 w-4 animate-spin rounded-full border-2 border-accent border-t-transparent" />
             </div>
+          )}
+
+          {deduplicatedText.length > 0 && (
+            <>
+              <div className="border-t border-bg-border px-4 py-1.5 text-[10px] font-medium uppercase tracking-wider text-text-muted">
+                {t("textResults")}
+              </div>
+              {deduplicatedText.map((file) => (
+                <TextResultItem
+                  key={file.id}
+                  file={file}
+                  onSelect={handleSelect}
+                />
+              ))}
+              {total > 100 && (
+                <div className="border-t border-bg-border px-4 py-2.5 text-center text-xs text-text-muted">
+                  {t("showingResults", { total })}
+                </div>
+              )}
+            </>
           )}
         </>
       )}
