@@ -94,7 +94,12 @@
     "typeDocument": "Document",
     "typeArchive": "Archive",
     "typeOther": "File",
-    "similarFiles": "Similar files"
+    "similarFiles": "Similar files",
+    "suggestedTags": "AI Suggested Tags",
+    "acceptTag": "Add tag {tag}",
+    "acceptAllTags": "Accept all",
+    "dismissTags": "Dismiss",
+    "regenerateTags": "Regenerate"
   },
   "search": {
     "label": "Search",

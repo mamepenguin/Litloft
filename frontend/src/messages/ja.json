@@ -94,7 +94,12 @@
     "typeDocument": "文書",
     "typeArchive": "書庫",
     "typeOther": "ファイル",
-    "similarFiles": "似たファイル"
+    "similarFiles": "似たファイル",
+    "suggestedTags": "AIタグ提案",
+    "acceptTag": "タグ「{tag}」を追加",
+    "acceptAllTags": "すべて承認",
+    "dismissTags": "却下",
+    "regenerateTags": "再生成"
   },
   "search": {
     "label": "検索",

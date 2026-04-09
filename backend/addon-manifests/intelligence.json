@@ -7,6 +7,7 @@
             {"id": "semantic-search", "label": "Semantic Search", "priority": 10}
         ],
         "file-detail-sections": [
+            {"id": "suggested-tags", "label": "Suggested Tags", "priority": 5},
             {"id": "transcript", "label": "Transcript", "priority": 10},
             {"id": "clip-frames", "label": "CLIP Frames", "priority": 20},
             {"id": "index-details", "label": "Index Details", "priority": 30},
@@ -120,6 +121,33 @@
                 },
                 "response_filter": null,
                 "stream": true
+            },
+            {
+                "path": "/files/{file_id}/suggested-tags",
+                "methods": ["GET"],
+                "pre_check": {
+                    "type": "file_access",
+                    "param": "file_id"
+                },
+                "response_filter": null
+            },
+            {
+                "path": "/files/{file_id}/suggested-tags/dismiss",
+                "methods": ["POST"],
+                "pre_check": {
+                    "type": "file_access",
+                    "param": "file_id"
+                },
+                "response_filter": null
+            },
+            {
+                "path": "/files/{file_id}/suggested-tags/regenerate",
+                "methods": ["POST"],
+                "pre_check": {
+                    "type": "file_access",
+                    "param": "file_id"
+                },
+                "response_filter": null
             },
             {
                 "path": "/queue/pause",
