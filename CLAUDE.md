@@ -1,6 +1,6 @@
 # HomeVault
 
-自宅LAN向けファイル管理＆動画ストリーミングWebアプリ。Mac mini上でDockerで動作する。
+自宅LAN向けファイル管理＆動画ストリーミングWebアプリ。Dockerで動作する。
 
 ## アーキテクチャ
 
@@ -42,7 +42,7 @@ frontend/
   server.js          # Custom Server (WebSocketプロキシ)
 
 deploy/
-  post-receive       # git push → 自動デプロイ hook
+  post-receive       # git push 自動デプロイ hook (開発者向け、一般利用では不要)
 
 docker-compose.yml
 drives.json          # ドライブ設定 (git管理外)
@@ -75,10 +75,10 @@ docker compose logs -f backend
 - backend healthcheck → frontend は `depends_on: condition: service_healthy`
 - `data/` にSQLite DB + サムネイル画像を永続化
 
-## デプロイ
+## 更新・デプロイ
 
-Mac mini上にbare gitリポジトリ (`~/video-share.git`) を作成し、`post-receive` hookで自動デプロイ。
-`docker compose build` 成功時のみ `down` → `up` する（失敗時は現バージョンを維持）。
+`git pull && docker compose up -d --build` で更新。ビルド失敗時は現バージョンを維持。
+`deploy/` に `post-receive` hook があるが、これは開発者向けの自動デプロイ用（一般利用では不要）。
 
 ## 設計ドキュメント
 

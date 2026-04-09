@@ -15,15 +15,24 @@ A self-hosted file manager and media streaming app for your home LAN. Runs on Do
 
 - **Multi-drive** — Separate content areas by purpose (family videos, music, photos, etc.)
 - **Folder browser** — Navigate nested folder hierarchies like a file manager
-- **Video/audio streaming** — In-browser playback with Range Request support
+- **Video/audio streaming** — In-browser playback with Range Request support, subtitle/caption display, cast support
 - **Image/document viewer** — Preview with prev/next navigation
+- **Archive viewer** — Browse ZIP contents and extract individual files (Shift_JIS support)
 - **Playlists** — User-created playlists and automatic folder playback
-- **File operations** — Upload, rename, move, delete, drag-and-drop organization
+- **File operations** — Upload (incl. folder upload), rename, move, copy, delete, batch operations, clipboard (copy/cut/paste)
+- **Trash** — Soft delete with 30-day auto-purge, restore from trash
 - **Search, tags, favorites** — Quickly find files within a drive
+- **Semantic search** — Embedding-based search, Whisper transcription, CLIP frame search (addon)
 - **Pinned folders** — Shortcuts to frequently used folders
+- **Comments/notes** — Per-file comments with viewer profiles
+- **Watch history** — Resume playback, recently played, viewing progress tracking
+- **Duplicate detection** — Hash-based duplicate file detection with storage stats
 - **Access control** — Optional per-drive password protection
+- **Admin dashboard** — Drive stats, scan status, system health monitoring
 - **Dark/light theme** — Toggle between themes
+- **i18n** — Japanese / English (next-intl, cookie-based locale)
 - **PWA** — Add to home screen for a native app-like experience
+- **Addon system** — Extensible with in-process and standalone service addons
 
 <!-- TODO: Screenshots (feature gallery, 2-3 images side by side) -->
 <p align="center">
@@ -90,6 +99,12 @@ docker compose up -d --build
 
 Open `http://localhost:3000` in your browser. From other devices on your LAN, use `http://<host-ip>:3000`.
 
+#### Windows notes
+
+- Use [Docker Desktop for Windows](https://www.docker.com/products/docker-desktop/) with the WSL 2 backend enabled.
+- Volume mount paths in `docker-compose.yml` use forward slashes even on Windows (e.g. `//c/Users/you/Videos:/app/drives/videos`). Alternatively, use WSL paths (`/mnt/c/Users/you/Videos`).
+- Symlinks for in-process addons may require Developer Mode enabled or an elevated prompt. As an alternative, copy the addon directory instead of symlinking.
+
 ### 4. Access control (optional)
 
 To password-protect specific drives:
@@ -100,9 +115,15 @@ cp passwords.json.example passwords.json
 
 ```json
 [
-  { "password": "your-password", "groups": ["private"] }
+  { "password": "family-secret", "groups": ["family"] },
+  { "password": "my-master-pw", "groups": ["family", "private"] }
 ]
 ```
+
+| Field | Description |
+|-------|-------------|
+| `password` | Password to unlock drives |
+| `groups` | List of group names unlocked by this password |
 
 Add to backend volumes in `docker-compose.yml`:
 
@@ -110,7 +131,18 @@ Add to backend volumes in `docker-compose.yml`:
 - ./passwords.json:/app/passwords.json:ro
 ```
 
-If `passwords.json` is not present, all drives are publicly accessible (default behavior).
+Rebuild after changes: `docker compose up -d --build`
+
+#### Unlocking drives
+
+1. Navigate to `http://<ip>:3000/unlock` (no link in the UI)
+2. Enter the password
+3. Check "Remember this device" to persist for 1 year
+4. Click "Unlock" to be redirected to the home page with protected drives visible
+
+A "Lock" button appears in the sidebar while unlocked.
+
+> **Note:** If `passwords.json` is not present, all drives are publicly accessible (default behavior). If a drive has `access_group` set but no matching password exists in `passwords.json`, that drive will be permanently inaccessible.
 
 ## Development
 
@@ -129,34 +161,14 @@ cd frontend && pnpm test
 docker compose logs -f backend
 ```
 
-## Deployment (Mac mini)
-
-Supports automatic deployment via `git push`.
-
-### Initial setup (on Mac mini)
+## Updating
 
 ```bash
-# Create bare repository
-git init --bare ~/homevault.git
-
-# Install post-receive hook
-cp deploy/post-receive ~/homevault.git/hooks/post-receive
-chmod +x ~/homevault.git/hooks/post-receive
+git pull
+docker compose up -d --build
 ```
 
-> Edit `DEPLOY_DIR` and `GIT_DIR` in `deploy/post-receive` to match your environment.
-
-### Deploy from dev machine
-
-```bash
-# Add remote (once)
-git remote add deploy libre@<mac-mini-ip>:homevault.git
-
-# Deploy via push
-git push deploy main
-```
-
-Containers are replaced only when `docker compose build` succeeds. On failure, the current version is preserved.
+Containers are rebuilt and restarted. If the build fails, the previous containers remain running.
 
 ## License
 

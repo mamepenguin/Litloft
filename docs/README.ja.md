@@ -13,15 +13,24 @@
 
 - **マルチドライブ** — 用途別にコンテンツ領域を分離（家族ビデオ、音楽、写真など）
 - **フォルダブラウザ** — ネストしたフォルダ階層をファイラーのように辿れるUI
-- **動画/音声ストリーミング** — Range Request対応、ブラウザ内再生
+- **動画/音声ストリーミング** — Range Request対応、ブラウザ内再生、字幕/キャプション、キャスト
 - **画像/ドキュメント閲覧** — プレビュー表示、前後ナビゲーション
+- **アーカイブ閲覧** — ZIP内容一覧表示＋個別エントリ抽出（Shift_JIS対応）
 - **プレイリスト** — ユーザー作成プレイリスト＋フォルダ自動再生
-- **ファイル操作** — アップロード、リネーム、移動、削除、ドラッグ&ドロップ整理
+- **ファイル操作** — アップロード（フォルダ対応）、リネーム、移動、コピー、削除、バッチ操作、クリップボード（コピー/カット/ペースト）
+- **ゴミ箱** — ソフトデリート＋30日自動パージ、復元対応
 - **検索/タグ/お気に入り** — ドライブ内のファイルを素早く見つける
+- **セマンティック検索** — 埋め込みベース検索、Whisper文字起こし、CLIPフレーム検索（アドオン）
 - **フォルダピン留め** — よく使うフォルダへのショートカット
+- **コメント / メモ** — ファイルごとのコメント投稿（プロファイル連携）
+- **視聴履歴** — レジューム再生、最近再生した動画、視聴進捗トラッキング
+- **重複ファイル検出** — ハッシュベースの重複検出＋ストレージ統計
 - **アクセス制御** — ドライブ単位のパスワード保護（オプション）
+- **管理ダッシュボード** — ドライブ統計、スキャン状態、システムヘルス監視
 - **ダーク/ライトテーマ** — 切替対応
+- **国際化** — 日本語/英語（next-intl、Cookieベースのロケール切替）
 - **PWA** — スマホのホーム画面に追加してネイティブアプリのように使える
+- **アドオンシステム** — インプロセス/独立サービスの2種類で機能拡張
 
 <!-- TODO: スクリーンショット（機能を並べたギャラリー、2〜3枚横並び） -->
 <p align="center">
@@ -88,6 +97,12 @@ docker compose up -d --build
 
 ブラウザで `http://localhost:3000` を開く。LAN内の他デバイスからは `http://<ホストIP>:3000`。
 
+#### Windows での注意事項
+
+- [Docker Desktop for Windows](https://www.docker.com/products/docker-desktop/) の WSL 2 バックエンドを使用すること。
+- `docker-compose.yml` のボリュームマウントパスは Windows でもスラッシュを使う（例: `//c/Users/you/Videos:/app/drives/videos`）。または WSL パス（`/mnt/c/Users/you/Videos`）を使用。
+- インプロセスアドオンのシンボリックリンクは、開発者モードの有効化または管理者権限が必要。代替としてディレクトリをコピーしてもよい。
+
 ### 4. アクセス制御（オプション）
 
 特定ドライブをパスワードで保護する場合:
@@ -98,9 +113,15 @@ cp passwords.json.example passwords.json
 
 ```json
 [
-  { "password": "your-password", "groups": ["private"] }
+  { "password": "family-secret", "groups": ["family"] },
+  { "password": "my-master-pw", "groups": ["family", "private"] }
 ]
 ```
+
+| フィールド | 説明 |
+|-----------|------|
+| `password` | ロック解除に使うパスワード |
+| `groups` | このパスワードで解除されるグループ名のリスト |
 
 `docker-compose.yml` の backend volumes に追加:
 
@@ -108,7 +129,18 @@ cp passwords.json.example passwords.json
 - ./passwords.json:/app/passwords.json:ro
 ```
 
-`passwords.json` を配置しなければ全ドライブが公開される（デフォルト動作）。
+設定変更後はコンテナの再ビルドが必要: `docker compose up -d --build`
+
+#### ロック解除の使い方
+
+1. ブラウザで `http://<IP>:3000/unlock` にアクセス（UIにリンクはない）
+2. パスワードを入力
+3. 「Remember this device」にチェックを入れるとブラウザに記憶される（1年間有効）
+4. 「Unlock」をクリックするとトップページにリダイレクトされ、保護ドライブが表示される
+
+ロック解除中はサイドバーに「Lock」ボタンが表示される。
+
+> **注意:** `passwords.json` を配置しなければ全ドライブが公開される（デフォルト動作）。`access_group` が設定されたドライブに対応するパスワードが `passwords.json` にないと、そのドライブには永久にアクセスできないため注意。
 
 ## 開発
 
@@ -127,34 +159,14 @@ cd frontend && pnpm test
 docker compose logs -f backend
 ```
 
-## デプロイ（Mac mini）
-
-`git push` による自動デプロイに対応。
-
-### 初回セットアップ（Mac mini側）
+## 更新
 
 ```bash
-# bare リポジトリ作成
-git init --bare ~/homevault.git
-
-# post-receive hook を設置
-cp deploy/post-receive ~/homevault.git/hooks/post-receive
-chmod +x ~/homevault.git/hooks/post-receive
+git pull
+docker compose up -d --build
 ```
 
-> `deploy/post-receive` 内の `DEPLOY_DIR` と `GIT_DIR` を環境に合わせて編集すること。
-
-### 開発マシンからデプロイ
-
-```bash
-# リモート追加（初回のみ）
-git remote add deploy libre@<mac-mini-ip>:homevault.git
-
-# push で自動デプロイ
-git push deploy main
-```
-
-`docker compose build` 成功時のみコンテナを入れ替え、失敗時は現バージョンを維持する。
+コンテナが再ビルド・再起動される。ビルドに失敗した場合、既存のコンテナはそのまま稼働し続ける。
 
 ## ライセンス
 
