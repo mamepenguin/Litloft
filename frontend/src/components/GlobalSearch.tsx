@@ -9,7 +9,6 @@ import { getDriveFiles, semanticSearch } from "@/lib/api";
 import type { SemanticSearchResult, SemanticSearchResponse, SemanticSearchSegment } from "@/lib/api";
 import type { FileItem, FileType } from "@/types";
 import { formatDuration } from "@/lib/format";
-import { FileTypeIcon } from "./FileTypeIcon";
 import { useCurrentDrive } from "./CurrentDriveProvider";
 
 const HISTORY_KEY = "search-history";
@@ -213,9 +212,14 @@ function TextResultItem({
   return (
     <button
       onClick={() => onSelect(file)}
-      className="flex w-full items-center gap-3 px-4 py-2.5 text-left transition-colors hover:bg-bg-elevated"
+      className="flex w-full items-start gap-3 px-4 py-2.5 text-left transition-colors hover:bg-bg-elevated"
     >
-      <FileTypeIcon fileType={file.file_type} size={18} className="flex-shrink-0 text-text-muted" />
+      <img
+        src={`/api/files/${file.id}/thumbnail`}
+        alt=""
+        className="h-10 w-16 flex-shrink-0 rounded bg-bg-elevated object-cover"
+        onError={(e) => { e.currentTarget.style.display = "none"; }}
+      />
       <div className="min-w-0 flex-1">
         <p className="truncate text-sm text-text-primary">{file.title}</p>
         <p className="truncate text-xs text-text-muted">
