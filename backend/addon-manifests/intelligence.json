@@ -18,7 +18,7 @@
     },
     "proxy": {
         "target_env": "INTELLIGENCE_SERVICE_URL",
-        "target_default": "http://search:8100",
+        "target_default": "http://intelligence:8100",
         "health_check": "/health",
         "routes": [
             {
