@@ -13,6 +13,7 @@ import { WebSocketProvider } from "@/components/WebSocketProvider";
 import { ClipboardProvider } from "@/components/ClipboardProvider";
 import { ProfileProvider } from "@/components/ProfileProvider";
 import { ProfileSetup } from "@/components/ProfileSetup";
+import { AddonSlotsProvider } from "@/components/AddonSlotsProvider";
 
 const inter = Inter({
   variable: "--font-inter",
@@ -68,20 +69,22 @@ export default async function RootLayout({
           <ThemeProvider>
             <ProfileProvider>
               <WebSocketProvider>
-                <CurrentDriveProvider>
-                  <ClipboardProvider>
-                    <SidebarProvider>
-                      <div className="flex min-h-dvh">
-                        <Sidebar />
-                        <main className="flex min-w-0 flex-1 flex-col">
-                          <Header />
-                          {children}
-                        </main>
-                      </div>
-                      <ProfileSetup />
-                    </SidebarProvider>
-                  </ClipboardProvider>
-                </CurrentDriveProvider>
+                <AddonSlotsProvider>
+                  <CurrentDriveProvider>
+                    <ClipboardProvider>
+                      <SidebarProvider>
+                        <div className="flex min-h-dvh">
+                          <Sidebar />
+                          <main className="flex min-w-0 flex-1 flex-col">
+                            <Header />
+                            {children}
+                          </main>
+                        </div>
+                        <ProfileSetup />
+                      </SidebarProvider>
+                    </ClipboardProvider>
+                  </CurrentDriveProvider>
+                </AddonSlotsProvider>
               </WebSocketProvider>
             </ProfileProvider>
           </ThemeProvider>

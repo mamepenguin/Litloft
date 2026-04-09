@@ -159,22 +159,13 @@ No `.env` files are used. Configuration is managed through:
 
 ## Addon Development
 
-### In-Process Addons
+See [ADDON-DEVELOPMENT.md](ADDON-DEVELOPMENT.md) for the full addon development guide, including:
 
-1. Place code in `addons/{name}/backend/`
-2. Export `router: APIRouter` in `router.py`
-3. Optional: `ADDON_META` dict, `on_startup()` async function
-4. Create symlink at `backend/addons/{name}` to enable
-
-> **Windows**: Creating symlinks requires Developer Mode enabled or an elevated prompt. As an alternative, copy the directory instead of symlinking.
-
-### Standalone Service Addons
-
-1. Place Dockerfile in `addons/{name}/`
-2. Add service in `docker-compose.override.yml`
-3. Configure event notifications in `event-hooks.json`
-
-See the "Addon System" section in `CLAUDE.md` for details.
+- In-process vs external service addons
+- UI slot system (search-modes, file-detail-sections, dashboard-widgets)
+- Generic Addon Proxy with declarative access control filters
+- Internal API for external service addons
+- Core API surface and rules for in-process addons
 
 ## Git Workflow
 

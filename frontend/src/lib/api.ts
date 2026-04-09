@@ -584,7 +584,7 @@ export async function semanticSearch(
   if (params?.drive) searchParams.set("drive", params.drive);
   try {
     return await fetchJSON<SemanticSearchResponse>(
-      `${API_BASE}/search?${searchParams.toString()}`
+      `${API_BASE}/addons/intelligence/search?${searchParams.toString()}`
     );
   } catch {
     return { available: false, results: [], total: 0 };
@@ -616,7 +616,7 @@ export async function searchCompare(
   if (params?.type) searchParams.set("type", params.type);
   try {
     return await fetchJSON<SearchCompareResponse>(
-      `${API_BASE}/search/compare?${searchParams.toString()}`
+      `${API_BASE}/addons/intelligence/search/compare?${searchParams.toString()}`
     );
   } catch {
     return {
@@ -632,7 +632,7 @@ export async function searchCompare(
 
 export async function getSearchStatus(): Promise<SearchServiceStatus> {
   try {
-    return await fetchJSON<SearchServiceStatus>(`${API_BASE}/search/status`);
+    return await fetchJSON<SearchServiceStatus>(`${API_BASE}/addons/intelligence/status`);
   } catch {
     return { available: false };
   }
@@ -672,7 +672,7 @@ export async function getSimilarFiles(
 ): Promise<SimilarFilesResponse> {
   try {
     return await fetchJSON<SimilarFilesResponse>(
-      `${API_BASE}/search/similar/${fileId}?limit=${limit}`
+      `${API_BASE}/addons/intelligence/similar/${fileId}?limit=${limit}`
     );
   } catch {
     return { available: false, results: [], source_keywords: [] as KeywordScore[] };
@@ -681,19 +681,19 @@ export async function getSimilarFiles(
 
 // Queue control
 export async function searchQueuePause(): Promise<void> {
-  await fetchJSON(`${API_BASE}/search/queue/pause`, { method: "POST" });
+  await fetchJSON(`${API_BASE}/addons/intelligence/queue/pause`, { method: "POST" });
 }
 
 export async function searchQueueResume(): Promise<void> {
-  await fetchJSON(`${API_BASE}/search/queue/resume`, { method: "POST" });
+  await fetchJSON(`${API_BASE}/addons/intelligence/queue/resume`, { method: "POST" });
 }
 
 export async function searchQueueReindex(): Promise<void> {
-  await fetchJSON(`${API_BASE}/search/queue/reindex`, { method: "POST" });
+  await fetchJSON(`${API_BASE}/addons/intelligence/queue/reindex`, { method: "POST" });
 }
 
 export async function searchQueuePrioritize(fileId: string): Promise<void> {
-  await fetchJSON(`${API_BASE}/search/queue/prioritize`, {
+  await fetchJSON(`${API_BASE}/addons/intelligence/queue/prioritize`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ file_id: fileId }),
@@ -753,7 +753,7 @@ export interface ClipTimestampsResponse {
 export async function getFileTranscript(fileId: string): Promise<TranscriptResponse> {
   try {
     return await fetchJSON<TranscriptResponse>(
-      `${API_BASE}/search/files/${fileId}/transcript`
+      `${API_BASE}/addons/intelligence/files/${fileId}/transcript`
     );
   } catch {
     return { available: false };
@@ -763,7 +763,7 @@ export async function getFileTranscript(fileId: string): Promise<TranscriptRespo
 export async function getFileIndexDetails(fileId: string): Promise<IndexDetailsResponse> {
   try {
     return await fetchJSON<IndexDetailsResponse>(
-      `${API_BASE}/search/files/${fileId}/index-details`
+      `${API_BASE}/addons/intelligence/files/${fileId}/index-details`
     );
   } catch {
     return { available: false };
@@ -773,7 +773,7 @@ export async function getFileIndexDetails(fileId: string): Promise<IndexDetailsR
 export async function getClipTimestamps(fileId: string): Promise<ClipTimestampsResponse> {
   try {
     return await fetchJSON<ClipTimestampsResponse>(
-      `${API_BASE}/search/files/${fileId}/clip-timestamps`
+      `${API_BASE}/addons/intelligence/files/${fileId}/clip-timestamps`
     );
   } catch {
     return { available: false };
@@ -781,7 +781,7 @@ export async function getClipTimestamps(fileId: string): Promise<ClipTimestampsR
 }
 
 export function getFrameUrl(fileId: string, timestamp: number): string {
-  return `${API_BASE}/search/files/${fileId}/frame?t=${timestamp}`;
+  return `${API_BASE}/addons/intelligence/files/${fileId}/frame?t=${timestamp}`;
 }
 
 // Auth

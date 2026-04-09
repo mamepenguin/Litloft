@@ -26,8 +26,9 @@ backend/
     models.py        # ORM モデル
     schemas.py       # Pydantic スキーマ
     auth.py          # JWT認証、viewer_id管理
-    routers/         # API エンドポイント (files, drives, playlists, auth, uploads, progress, ws, admin, comments)
-    services/        # ビジネスロジック (scanner, fileops, thumbnail, upload, heic, subtitle, preview, hash, ws)
+    routers/         # API エンドポイント (files, drives, playlists, auth, uploads, progress, ws, admin, comments, addon_proxy, internal)
+    services/        # ビジネスロジック (scanner, fileops, thumbnail, upload, heic, subtitle, preview, hash, ws, addon_registry)
+  addon-manifests/   # 外部サービスアドオンのマニフェスト (intelligence.json 等)
   tests/             # pytest (Docker内で実行)
 
 frontend/

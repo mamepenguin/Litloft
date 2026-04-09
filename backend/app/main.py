@@ -13,10 +13,11 @@ from app.database import SessionLocal, init_db
 from app.auth import init_jwt_secret, load_passwords
 import app.config as config
 from app.models import File
-from app.routers import admin, auth, comments, drives, files, playlists, progress, search, uploads, ws
+from app.routers import admin, auth, comments, drives, files, playlists, progress, uploads, ws
+from app.routers import addon_proxy, internal
 from app.services.fileops import physical_delete
 from app.services.scanner import scan_all_drives
-from app.services import event_hooks
+from app.services import addon_registry, event_hooks
 from app.services.upload import cleanup_abandoned_uploads
 from app.services.ws import set_event_loop
 
@@ -137,6 +138,7 @@ def _load_addons(app: FastAPI) -> None:
                 app.include_router(mod.router)
                 meta = getattr(mod, "ADDON_META", {})
                 _loaded_addons[name] = meta
+                addon_registry.register_in_process(name, meta)
                 logger.info("Addon loaded: %s", name)
             if hasattr(mod, "on_startup"):
                 _addon_startup_fns.append(mod.on_startup)
@@ -152,6 +154,7 @@ async def lifespan(app: FastAPI):
     init_jwt_secret()
     logger.info("Auth initialized")
     event_hooks.init()
+    addon_registry.load_external_manifests()
     set_event_loop(asyncio.get_running_loop())
     cleanup_abandoned_uploads()
     asyncio.create_task(scan_all_drives())
@@ -170,18 +173,22 @@ app.include_router(auth.router)
 app.include_router(comments.router)
 app.include_router(files.router)
 app.include_router(drives.router)
-app.include_router(search.router)
 app.include_router(uploads.router)
 app.include_router(playlists.router)
 app.include_router(progress.router)
 app.include_router(ws.router)
+app.include_router(internal.router)
+app.include_router(addon_proxy.router)
 
 _load_addons(app)
 
 
 @app.get("/api/addons/status")
 async def addons_status():
-    return {"addons": _loaded_addons}
+    return {
+        "addons": addon_registry.get_all(),
+        "slots": addon_registry.get_all_slots(),
+    }
 
 
 @app.get("/api/health")

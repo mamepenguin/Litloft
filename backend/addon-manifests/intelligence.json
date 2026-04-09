@@ -1,0 +1,133 @@
+{
+    "label": "Intelligence",
+    "icon": "brain",
+    "type": "external_service",
+    "slots": {
+        "search-modes": [
+            {"id": "semantic-search", "label": "Semantic Search", "priority": 10}
+        ],
+        "file-detail-sections": [
+            {"id": "similar-files", "label": "Similar Files", "priority": 20}
+        ],
+        "dashboard-widgets": [
+            {"id": "index-status", "label": "Index Status", "priority": 10}
+        ]
+    },
+    "proxy": {
+        "target_env": "INTELLIGENCE_SERVICE_URL",
+        "target_default": "http://search:8100",
+        "health_check": "/health",
+        "routes": [
+            {
+                "path": "/search",
+                "methods": ["GET"],
+                "response_filter": {
+                    "type": "drive_access",
+                    "array_path": "results",
+                    "drive_field": "drive"
+                }
+            },
+            {
+                "path": "/search/compare",
+                "methods": ["GET"],
+                "response_filter": {
+                    "type": "drive_access_nested",
+                    "paths": {
+                        "rrf.results": "drive",
+                        "cosine.results": "drive",
+                        "rrf_no_cutoff.results": "drive",
+                        "cosine_no_cutoff.results": "drive"
+                    }
+                }
+            },
+            {
+                "path": "/status",
+                "methods": ["GET"],
+                "response_filter": null
+            },
+            {
+                "path": "/index-details",
+                "methods": ["GET"],
+                "response_filter": null
+            },
+            {
+                "path": "/similar/{file_id}",
+                "methods": ["GET"],
+                "pre_check": {
+                    "type": "file_access",
+                    "param": "file_id"
+                },
+                "response_filter": {
+                    "type": "drive_access",
+                    "array_path": "results",
+                    "drive_field": "drive"
+                }
+            },
+            {
+                "path": "/debug/similar/{file_id}",
+                "methods": ["GET"],
+                "pre_check": {
+                    "type": "file_access",
+                    "param": "file_id"
+                },
+                "response_filter": null
+            },
+            {
+                "path": "/files/{file_id}/transcript",
+                "methods": ["GET"],
+                "pre_check": {
+                    "type": "file_access",
+                    "param": "file_id"
+                },
+                "response_filter": null
+            },
+            {
+                "path": "/files/{file_id}/index-details",
+                "methods": ["GET"],
+                "pre_check": {
+                    "type": "file_access",
+                    "param": "file_id"
+                },
+                "response_filter": null
+            },
+            {
+                "path": "/files/{file_id}/clip-timestamps",
+                "methods": ["GET"],
+                "pre_check": {
+                    "type": "file_access",
+                    "param": "file_id"
+                },
+                "response_filter": null
+            },
+            {
+                "path": "/files/{file_id}/clip-analysis",
+                "methods": ["GET"],
+                "pre_check": {
+                    "type": "file_access",
+                    "param": "file_id"
+                },
+                "response_filter": null
+            },
+            {
+                "path": "/files/{file_id}/frame",
+                "methods": ["GET"],
+                "pre_check": {
+                    "type": "file_access",
+                    "param": "file_id"
+                },
+                "response_filter": null,
+                "stream": true
+            },
+            {
+                "path": "/queue/{action}",
+                "methods": ["POST"],
+                "response_filter": null
+            },
+            {
+                "path": "/queue/prioritize",
+                "methods": ["POST"],
+                "response_filter": null
+            }
+        ]
+    }
+}

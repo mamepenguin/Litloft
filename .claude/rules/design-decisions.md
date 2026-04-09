@@ -53,7 +53,21 @@
 - `docker-compose.override.yml` でサービスを追加（本体の `docker-compose.yml` は変更しない）
 - 本体DBへの読み取り専用アクセス（SQLiteファイルを `:ro` マウント）
 - イベント通知は `event-hooks.json` で設定（本体が汎用イベントを発行、リスナーURLを設定で登録）
-- 検索プロキシ（`routers/search.py`）は現状semantic-search専用。汎用化はYAGNIとして見送り
+- **Generic Addon Proxy** (`routers/addon_proxy.py`) が宣言的マニフェスト (`backend/addon-manifests/*.json`) に基づいてプロキシ+アクセス制御を実行
+- 旧 `routers/search.py` は削除済み。全エンドポイントがGeneric Proxyに移行
+
+### UIスロット機構（Progressive Enhancement）
+- 本体UIに「スロット」（拡張ポイント）を定義: `search-modes`, `file-detail-sections`, `sidebar-sections`, `dashboard-widgets`
+- アドオンは `ADDON_META` の `slots` 宣言でどのスロットに何を注入するか定義
+- `GET /api/addons/status` がアドオン情報+スロット情報を返却
+- フロントエンドは `useAddonSlots()` フックでスロット情報を取得し動的レンダリング
+- アドオンがなければスロットは非表示（UIに穴は開かない）
+
+### Internal API（外部サービスアドオン用）
+- `routers/internal.py`: Docker内部ネットワーク専用のAPI
+- `GET /api/internal/accessible-drives`: アクセス可能ドライブ一覧
+- `GET /api/internal/files/{file_id}`: ファイルメタデータ
+- `POST /api/internal/filter-file-ids`: ファイルIDのアクセス権フィルタ
 
 ### イベントフック（`event-hooks.json`）
 - 本体が発行するイベント: `files.deleted`, `files.restored`, `files.purged`, `scan.complete`
@@ -65,10 +79,11 @@
 - **アドオン → 本体**: アドオンは本体の `app.config`, `app.database`, `app.models`, `app.services.ws` 等を自由にimportできる（期待される依存方向）
 - **フロントエンド**: アドオンのUIコンポーネントは `frontend/src/addons/{name}/` に配置。Next.jsルートページ（`frontend/src/app/{name}/page.tsx`）は薄いラッパーとして本体側に手動作成が必要
 
-### semantic-search の特殊性
-- 独立サービスのため、本体に `routers/search.py`（プロキシ＋アクセス制御）が残存
-- フロントエンドにも専用コンポーネント（`GlobalSearch`, `SearchIndexStatus`, `IndexDetailsPanel`, `ClipFramesPanel`）と型定義がある
-- これらは分離コスト対効果を考慮して現状維持。過剰な汎用化はしない
+### semantic-search → intelligence への進化
+- semantic-searchは将来的にintelligenceアドオンに進化予定（フィーチャーフラグ方式）
+- `routers/search.py` は削除済み。Generic Addon Proxy + `backend/addon-manifests/intelligence.json` に移行
+- フロントエンドの検索API呼び出しは `/api/addons/intelligence/` パスに変更済み
+- フロントエンドの専用コンポーネント（`GlobalSearch`, `SearchIndexStatus`, `IndexDetailsPanel`, `ClipFramesPanel`）は段階的にスロットベースに移行予定
 
 ## HEIC画像対応
 - **問題の本質**: Debian aptのffmpegはlibheif未対応でサムネイル真っ黒になる

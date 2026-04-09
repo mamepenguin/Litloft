@@ -4,6 +4,7 @@ WORKDIR /app
 COPY backend/requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 COPY backend/app/ ./app/
+COPY backend/addon-manifest[s]/ ./addon-manifests/
 COPY backend/addon[s]/ ./addons/
 COPY addon[s]/ /tmp/_all_addons/
 RUN find addons -maxdepth 1 -type l -delete 2>/dev/null; \

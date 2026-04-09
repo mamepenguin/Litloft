@@ -33,7 +33,9 @@ export function SidebarLibrarySection({ driveBase, linkClass, close, addons }: S
   const t = useTranslations("sidebar");
   const tAdmin = useTranslations("admin");
 
-  const addonEntries = addons ? Object.entries(addons) : [];
+  const addonEntries = addons
+    ? Object.entries(addons).filter(([, meta]) => meta.href)
+    : [];
 
   return (
     <>
@@ -88,7 +90,7 @@ export function SidebarLibrarySection({ driveBase, linkClass, close, addons }: S
           {addonEntries.map(([name, meta]) => {
             const Icon = ADDON_ICONS[meta.icon] ?? Package;
             return (
-              <Link key={name} href={meta.href} onClick={close} className={linkClass(meta.href)}>
+              <Link key={name} href={meta.href!} onClick={close} className={linkClass(meta.href!)}>
                 <Icon size={16} />
                 {meta.label}
               </Link>
