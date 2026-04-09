@@ -1,15 +1,15 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { ArrowLeft, ArrowUpLeft, Clock, Search, X } from "lucide-react";
 
 import { useTranslations } from "next-intl";
-import { getDriveFiles, semanticSearch } from "@/lib/api";
-import type { SemanticSearchResult, SemanticSearchResponse, SemanticSearchSegment } from "@/lib/api";
+import { getDriveFiles } from "@/lib/api";
 import type { FileItem, FileType } from "@/types";
-import { formatDuration } from "@/lib/format";
 import { useCurrentDrive } from "./CurrentDriveProvider";
+import { AddonSlot } from "./AddonSlot";
+import { useAddonSlots } from "./AddonSlotsProvider";
 
 const HISTORY_KEY = "search-history";
 const MAX_HISTORY = 20;
@@ -45,125 +45,6 @@ function removeFromHistory(term: string): string[] {
   const next = getHistory().filter((h) => h !== term);
   saveHistory(next);
   return next;
-}
-
-const MATCH_TYPE_STYLES: Record<string, string> = {
-  transcript: "bg-blue-500/15 text-blue-400",
-  transcript_keyword: "bg-cyan-500/15 text-cyan-400",
-  clip: "bg-emerald-500/15 text-emerald-400",
-  metadata: "bg-zinc-500/15 text-zinc-400",
-  content: "bg-purple-500/15 text-purple-400",
-  text_content_keyword: "bg-violet-500/15 text-violet-400",
-};
-
-function MatchBadge({ type, label }: { type: string; label: string }) {
-  const style = MATCH_TYPE_STYLES[type] ?? "bg-zinc-500/15 text-zinc-400";
-  return (
-    <span className={`inline-flex rounded px-1.5 py-0.5 text-[10px] font-medium ${style}`}>
-      {label}
-    </span>
-  );
-}
-
-function TimestampLink({
-  seconds,
-  fileId,
-  onClick,
-}: {
-  seconds: number;
-  fileId: string;
-  onClick: (url: string) => void;
-}) {
-  const label = formatDuration(seconds);
-  return (
-    <button
-      onClick={(e) => {
-        e.stopPropagation();
-        onClick(`/files/${fileId}?t=${Math.floor(seconds)}`);
-      }}
-      className="rounded px-1 py-0.5 text-[10px] font-medium text-accent hover:bg-accent/10 transition-colors"
-    >
-      {label}
-    </button>
-  );
-}
-
-function SemanticResultItem({
-  result,
-  onSelect,
-  t,
-}: {
-  result: SemanticSearchResult;
-  onSelect: (url: string) => void;
-  t: (key: string, values?: Record<string, string | number>) => string;
-}) {
-  const matchLabels: Record<string, string> = {
-    transcript: t("matchTranscript"),
-    transcript_keyword: t("matchTranscriptKeyword"),
-    clip: t("matchClip"),
-    metadata: t("matchMetadata"),
-    content: t("matchContent"),
-    text_content_keyword: t("matchTextContentKeyword"),
-  };
-
-  // Collect unique page numbers from text_content matches
-  const matchedPages = [
-    ...new Set(
-      result.segments
-        .flatMap((seg) => seg.matches)
-        .filter((m) => m.page != null)
-        .map((m) => m.page as number)
-    ),
-  ].sort((a, b) => a - b);
-
-  const timestamps = result.segments
-    .filter((seg): seg is SemanticSearchSegment & { time_range: [number, number] } =>
-      seg.time_range != null && seg.time_range[0] > 0,
-    )
-    .slice(0, 5);
-
-  return (
-    <button
-      onClick={() => onSelect(`/files/${result.file_id}`)}
-      className="flex w-full items-start gap-3 px-4 py-2.5 text-left transition-colors hover:bg-bg-elevated"
-    >
-      <img
-        src={`/api/files/${result.file_id}/thumbnail`}
-        alt=""
-        className="h-10 w-16 flex-shrink-0 rounded bg-bg-elevated object-cover"
-        onError={(e) => { e.currentTarget.style.display = "none"; }}
-      />
-      <div className="min-w-0 flex-1">
-        <p className="truncate text-sm text-text-primary">{result.filename}</p>
-        <div className="mt-0.5 flex flex-wrap items-center gap-1">
-          {result.match_types.map((type) => (
-            <MatchBadge
-              key={type}
-              type={type}
-              label={matchLabels[type] ?? type}
-            />
-          ))}
-        </div>
-        {timestamps.length > 0 && (
-          <div className="mt-1 flex flex-wrap gap-0.5">
-            {timestamps.map((seg) => (
-              <TimestampLink
-                key={seg.time_range[0]}
-                seconds={seg.time_range[0]}
-                fileId={result.file_id}
-                onClick={onSelect}
-              />
-            ))}
-          </div>
-        )}
-        {matchedPages.length > 0 && (
-          <p className="mt-1 text-[11px] text-text-tertiary">
-            {t("matchedPages", { pages: matchedPages.join(", ") })}
-          </p>
-        )}
-      </div>
-    </button>
-  );
 }
 
 function FilterTabs({
@@ -240,30 +121,12 @@ export function GlobalSearch() {
   const [total, setTotal] = useState(0);
   const [loading, setLoading] = useState(false);
   const [history, setHistory] = useState<string[]>([]);
-  const [semanticAvailable, setSemanticAvailable] = useState<boolean | null>(null);
-  const [semanticResults, setSemanticResults] = useState<SemanticSearchResult[]>([]);
-  const [semanticTotal, setSemanticTotal] = useState(0);
-  const [semanticLoading, setSemanticLoading] = useState(false);
   const [filter, setFilter] = useState<FilterType>("all");
   const mobileInputRef = useRef<HTMLInputElement>(null);
   const desktopInputRef = useRef<HTMLInputElement>(null);
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const drive = useCurrentDrive();
-
-  // Check semantic search availability on open
-  useEffect(() => {
-    if (!open) return;
-    if (semanticAvailable !== null) return;
-
-    let cancelled = false;
-    (async () => {
-      const res = await semanticSearch("test", { limit: 1 });
-      if (!cancelled) {
-        setSemanticAvailable(res.available);
-      }
-    })();
-    return () => { cancelled = true; };
-  }, [open, semanticAvailable]);
+  const { hasSlot } = useAddonSlots();
 
   const openSearch = useCallback(() => {
     setHistory(getHistory());
@@ -283,8 +146,6 @@ export function GlobalSearch() {
     setQuery("");
     setResults([]);
     setTotal(0);
-    setSemanticResults([]);
-    setSemanticTotal(0);
     setFilter("all");
   }, []);
 
@@ -307,13 +168,11 @@ export function GlobalSearch() {
     return () => document.removeEventListener("keydown", handleKeyDown);
   }, [open, openSearch, closeSearch]);
 
-  // Debounced search
+  // Debounced text search
   useEffect(() => {
     if (!open || !drive || !query.trim()) {
       setResults([]);
       setTotal(0);
-      setSemanticResults([]);
-      setSemanticTotal(0);
       return;
     }
 
@@ -323,49 +182,26 @@ export function GlobalSearch() {
       const trimmed = query.trim();
       const filterType = filter === "all" ? undefined : filter as FileType;
 
-      // Text search
       setLoading(true);
-      const textPromise = getDriveFiles(drive, {
-        search: trimmed,
-        limit: 100,
-        type: filterType,
-      }).then((res) => {
+      try {
+        const res = await getDriveFiles(drive, {
+          search: trimmed,
+          limit: 100,
+          type: filterType,
+        });
         setResults(res.data);
         setTotal(res.meta.total);
-        setLoading(false);
-      }).catch(() => {
+      } catch {
         setResults([]);
         setTotal(0);
-        setLoading(false);
-      });
-
-      // Semantic search (only if available)
-      if (semanticAvailable) {
-        setSemanticLoading(true);
-        const semanticPromise = semanticSearch(trimmed, {
-          limit: 20,
-          type: filterType,
-          drive,
-        }).then((res) => {
-          setSemanticResults(res.results);
-          setSemanticTotal(res.total);
-          setSemanticLoading(false);
-        }).catch(() => {
-          setSemanticResults([]);
-          setSemanticTotal(0);
-          setSemanticLoading(false);
-        });
-
-        await Promise.allSettled([textPromise, semanticPromise]);
-      } else {
-        await textPromise;
       }
+      setLoading(false);
     }, 300);
 
     return () => {
       if (debounceRef.current) clearTimeout(debounceRef.current);
     };
-  }, [query, open, drive, semanticAvailable, filter]);
+  }, [query, open, drive, filter]);
 
   function handleSelect(file: FileItem) {
     setHistory(addToHistory(query));
@@ -403,17 +239,11 @@ export function GlobalSearch() {
     }
   }
 
-  // Deduplicate text results that are already in semantic results
-  const deduplicatedText = useMemo(() => {
-    const semanticIds = new Set(semanticResults.map((r) => r.file_id));
-    return results.filter((f) => !semanticIds.has(f.id));
-  }, [results, semanticResults]);
-
   const showHistory = !query.trim() && history.length > 0;
-  const showFilters = semanticAvailable && open && drive;
-  const isSearching = loading || semanticLoading;
-  const hasResults = semanticResults.length > 0 || deduplicatedText.length > 0;
+  const showFilters = hasSlot("search-modes") && open && drive;
+  const hasResults = results.length > 0;
   const hasQuery = query.trim().length > 0;
+  const hasSearchModes = hasSlot("search-modes");
 
   const searchInput = (
     ref: React.RefObject<HTMLInputElement | null>,
@@ -476,41 +306,33 @@ export function GlobalSearch() {
 
   const resultsList = (mobile: boolean) => (
     <div className={mobile ? "" : "max-h-[50vh] overflow-y-auto"}>
-      {isSearching && semanticResults.length === 0 && deduplicatedText.length === 0 ? (
+      {loading && results.length === 0 && !hasSearchModes ? (
         <div className={`flex items-center justify-center ${mobile ? "py-12" : "py-8"}`}>
           <div className={`${mobile ? "h-6 w-6" : "h-5 w-5"} animate-spin rounded-full border-2 border-accent border-t-transparent`} />
         </div>
-      ) : !hasResults ? (
-        <div className={`text-center text-sm text-text-muted ${mobile ? "py-12" : "py-8"}`}>
-          {t("noResults")}
-        </div>
       ) : (
         <>
-          {semanticResults.length > 0 && (
-            <>
-              {semanticResults.map((result) => (
-                <SemanticResultItem
-                  key={result.file_id}
-                  result={result}
-                  onSelect={handleSemanticSelect}
-                  t={t}
-                />
-              ))}
-            </>
-          )}
+          {/* Addon search results (semantic search, etc.) */}
+          <AddonSlot
+            id="search-modes"
+            layout="stack"
+            props={{
+              query,
+              drive: drive ?? "",
+              filter,
+              onSelect: handleSemanticSelect,
+            }}
+          />
 
-          {semanticLoading && results.length > 0 && (
-            <div className="flex items-center justify-center border-t border-bg-border py-3">
-              <div className="h-4 w-4 animate-spin rounded-full border-2 border-accent border-t-transparent" />
-            </div>
-          )}
-
-          {deduplicatedText.length > 0 && (
+          {/* Text results */}
+          {results.length > 0 && (
             <>
-              <div className="border-t border-bg-border px-4 py-1.5 text-[10px] font-medium uppercase tracking-wider text-text-muted">
-                {t("textResults")}
-              </div>
-              {deduplicatedText.map((file) => (
+              {hasSearchModes && (
+                <div className="border-t border-bg-border px-4 py-1.5 text-[10px] font-medium uppercase tracking-wider text-text-muted">
+                  {t("textResults")}
+                </div>
+              )}
+              {results.map((file) => (
                 <TextResultItem
                   key={file.id}
                   file={file}
@@ -524,6 +346,12 @@ export function GlobalSearch() {
               )}
             </>
           )}
+
+          {!loading && !hasResults && !hasSearchModes && (
+            <div className={`text-center text-sm text-text-muted ${mobile ? "py-12" : "py-8"}`}>
+              {t("noResults")}
+            </div>
+          )}
         </>
       )}
     </div>
@@ -533,8 +361,6 @@ export function GlobalSearch() {
     setQuery("");
     setResults([]);
     setTotal(0);
-    setSemanticResults([]);
-    setSemanticTotal(0);
     focusRef?.current?.focus();
   };
 

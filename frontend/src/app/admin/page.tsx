@@ -21,7 +21,7 @@ import { getDashboard } from "@/lib/api";
 import { formatFileSize } from "@/lib/format";
 import { useWebSocket } from "@/hooks/useWebSocket";
 import { DuplicatesSection } from "@/components/DuplicatesSection";
-import { SearchIndexStatus } from "@/components/SearchIndexStatus";
+import { AddonSlot } from "@/components/AddonSlot";
 import type { DashboardDriveInfo, DashboardResponse, DashboardSystemInfo } from "@/types";
 
 function formatUptime(
@@ -266,7 +266,7 @@ export default function AdminDashboardPage() {
       </section>
 
       <section className="mb-8">
-        <SearchIndexStatus />
+        <AddonSlot id="dashboard-widgets" layout="stack" />
       </section>
 
       <DuplicatesSection />

@@ -16,10 +16,7 @@ import { CommentSection } from "@/components/CommentSection";
 import { ImageGallery } from "@/components/ImageGallery";
 import { PlaylistPanel, getPlaylistOnEnded } from "@/components/PlaylistPanel";
 import { CastButton } from "@/components/CastButton";
-import { TranscriptPanel } from "@/components/TranscriptPanel";
-import { IndexDetailsPanel } from "@/components/IndexDetailsPanel";
-import { ClipFramesPanel } from "@/components/ClipFramesPanel";
-import { SimilarFiles } from "@/components/SimilarFiles";
+import { AddonSlot } from "@/components/AddonSlot";
 import { useSetOverrideDrive } from "@/components/CurrentDriveProvider";
 
 export default function FilePage() {
@@ -325,18 +322,14 @@ export default function FilePage() {
             )}
           </div>
 
-          {/* Search index inspection panels */}
+          {/* Addon file detail sections (transcript, clip frames, index details, similar files) */}
           <div className="mt-4 space-y-4">
-            {(file.file_type === "video" || file.file_type === "audio") && (
-              <TranscriptPanel fileId={fileId} videoRef={videoRef} />
-            )}
-            {file.file_type === "video" && (
-              <ClipFramesPanel fileId={fileId} videoRef={videoRef} />
-            )}
-            <IndexDetailsPanel fileId={fileId} />
+            <AddonSlot
+              id="file-detail-sections"
+              layout="stack"
+              props={{ fileId, videoRef }}
+            />
           </div>
-
-          <SimilarFiles fileId={fileId} />
 
           <CommentSection fileId={fileId} />
 

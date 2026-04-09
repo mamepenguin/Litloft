@@ -185,8 +185,14 @@ _load_addons(app)
 
 @app.get("/api/addons/status")
 async def addons_status():
+    # Strip internal-only fields (proxy config) before returning to clients
+    _FRONTEND_FIELDS = {"label", "icon", "href", "type", "slots"}
+    addons = {
+        name: {k: v for k, v in meta.items() if k in _FRONTEND_FIELDS}
+        for name, meta in addon_registry.get_all().items()
+    }
     return {
-        "addons": addon_registry.get_all(),
+        "addons": addons,
         "slots": addon_registry.get_all_slots(),
     }
 

@@ -7,7 +7,10 @@
             {"id": "semantic-search", "label": "Semantic Search", "priority": 10}
         ],
         "file-detail-sections": [
-            {"id": "similar-files", "label": "Similar Files", "priority": 20}
+            {"id": "transcript", "label": "Transcript", "priority": 10},
+            {"id": "clip-frames", "label": "CLIP Frames", "priority": 20},
+            {"id": "index-details", "label": "Index Details", "priority": 30},
+            {"id": "similar-files", "label": "Similar Files", "priority": 40}
         ],
         "dashboard-widgets": [
             {"id": "index-status", "label": "Index Status", "priority": 10}
@@ -119,7 +122,17 @@
                 "stream": true
             },
             {
-                "path": "/queue/{action}",
+                "path": "/queue/pause",
+                "methods": ["POST"],
+                "response_filter": null
+            },
+            {
+                "path": "/queue/resume",
+                "methods": ["POST"],
+                "response_filter": null
+            },
+            {
+                "path": "/queue/reindex",
                 "methods": ["POST"],
                 "response_filter": null
             },

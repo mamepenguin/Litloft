@@ -6,7 +6,7 @@ import {
   type SearchSourceCounts,
   type SemanticSearchResult,
   type SemanticSearchSegment,
-} from "@/lib/api";
+} from "@/addons/intelligence/api";
 import { formatDuration } from "@/lib/format";
 
 function ResultCard({ result, rank }: { result: SemanticSearchResult; rank: number }) {
