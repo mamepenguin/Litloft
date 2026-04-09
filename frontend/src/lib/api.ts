@@ -639,6 +639,14 @@ export async function getSearchStatus(): Promise<SearchServiceStatus> {
 }
 
 // Similar files
+export interface KeywordScore {
+  word: string;
+  score?: number;
+  source_tfidf?: number;
+  target_tfidf?: number;
+  relevance?: number;
+}
+
 export interface SimilarFileItem {
   file_id: string;
   drive: string;
@@ -647,11 +655,15 @@ export interface SimilarFileItem {
   mime_type: string;
   score: number;
   match_type: string;
+  primary_score: number | null;
+  secondary_score: number | null;
+  shared_keywords: KeywordScore[];
 }
 
 export interface SimilarFilesResponse {
   available: boolean;
   results: SimilarFileItem[];
+  source_keywords: KeywordScore[];
 }
 
 export async function getSimilarFiles(
@@ -663,7 +675,7 @@ export async function getSimilarFiles(
       `${API_BASE}/search/similar/${fileId}?limit=${limit}`
     );
   } catch {
-    return { available: false, results: [] };
+    return { available: false, results: [], source_keywords: [] as KeywordScore[] };
   }
 }
 

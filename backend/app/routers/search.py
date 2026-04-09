@@ -168,7 +168,7 @@ async def similar_files(
         return {"available": False, "results": []}
 
     try:
-        async with httpx.AsyncClient(timeout=10.0) as client:
+        async with httpx.AsyncClient(timeout=30.0) as client:
             resp = await client.get(
                 f"{SEARCH_SERVICE_URL}/similar/{file_id}",
                 params={"limit": limit, "drive": file.drive},
@@ -181,7 +181,11 @@ async def similar_files(
 
     # Filter results to accessible drives (should all be same drive, but safety)
     results = [r for r in data.get("results", []) if r.get("drive") in accessible]
-    return {"available": True, "results": results}
+    return {
+        "available": True,
+        "results": results,
+        "source_keywords": data.get("source_keywords", []),
+    }
 
 
 @router.get("/debug/similar/{file_id}")
