@@ -99,7 +99,9 @@
     "acceptTag": "Add tag {tag}",
     "acceptAllTags": "Accept all",
     "dismissTags": "Dismiss",
-    "regenerateTags": "Regenerate"
+    "regenerateTags": "Regenerate",
+    "generateTags": "Generate AI tags",
+    "regeneratingTags": "Generating..."
   },
   "search": {
     "label": "Search",

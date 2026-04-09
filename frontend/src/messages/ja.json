@@ -99,7 +99,9 @@
     "acceptTag": "タグ「{tag}」を追加",
     "acceptAllTags": "すべて承認",
     "dismissTags": "却下",
-    "regenerateTags": "再生成"
+    "regenerateTags": "再生成",
+    "generateTags": "AIタグを生成",
+    "regeneratingTags": "生成中..."
   },
   "search": {
     "label": "検索",
