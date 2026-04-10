@@ -150,6 +150,11 @@
                 "response_filter": null
             },
             {
+                "path": "/batch/suggested-tags",
+                "methods": ["POST"],
+                "response_filter": null
+            },
+            {
                 "path": "/queue/pause",
                 "methods": ["POST"],
                 "response_filter": null
