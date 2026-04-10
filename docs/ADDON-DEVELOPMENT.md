@@ -11,6 +11,31 @@ This guide covers how to build addons for HomeVault using the addon architecture
 
 ---
 
+## Clean Separation Principle
+
+HomeVault's addon system is designed around one core rule: **the main HomeVault repo must contain zero knowledge of any specific addon.**
+
+### What this means
+
+- **Each addon lives in its own independent Git repo** at `addons/{name}/` (gitignored by the main repo).
+- **No addon-specific files are checked into the main repo.** Not code, not manifests, not configuration. An OSS clone of HomeVault with no addons installed has no mention of `intelligence`, `downloader`, `cloud-sync`, or any other addon.
+- **Addons declare themselves at load time** — via `ADDON_META` in their own `router.py` (in-process) or `manifest.json` in their own repo directory (external service).
+- **Absence is the default.** If an addon is not present in `addons/`, the main backend has no notion of it. No phantom sidebar entries, no empty UI slots, no broken proxy routes, no 502s when someone clicks a link.
+
+### Why
+
+1. **OSS distribution** — HomeVault is designed for OSS release. A user cloning the repo and running `docker compose up` should get a clean, working core experience without any unused addon plumbing cluttering the UI.
+2. **Symmetry** — In-process and external service addons use the same self-declaration pattern. Adding a new addon never requires a PR to the main repo.
+3. **Failure isolation** — An addon that fails to load, or a container that fails to start, does not break the core. The core simply doesn't know about that addon.
+
+### Practical consequences for addon authors
+
+- **Never commit addon-specific files to the main repo.** The `backend/addon-manifests/` directory that used to hold external service manifests no longer exists; manifests live in each addon's own repo.
+- **When you rename or modify an addon, commit the changes to the addon's own repo, not the main one.**
+- **Test addon absence.** Before shipping, verify that removing `addons/{name}/` and rebuilding leaves no trace of your addon in the core UI.
+
+---
+
 ## How Addons Are Loaded
 
 Understanding the full loading flow is essential before building an addon.
@@ -122,6 +147,19 @@ When the backend starts (`main.py`):
        ├─ addons: { name → metadata } (in-process + external)
        └─ slots: { slot-id → [entries sorted by priority] }
 ```
+
+#### Manifest Discovery Details
+
+`addon_registry.load_external_manifests()` looks for `manifest.json` files by globbing two candidate directories (whichever exist):
+
+| Candidate | Purpose |
+|-----------|---------|
+| `/app/addons/*/manifest.json` | Docker runtime — Dockerfile copies each addon's `manifest.json` alongside its code into `/app/addons/{name}/` |
+| `<repo>/addons/*/manifest.json` | Local dev — each addon is checked out at the repo root, so its manifest is found in place |
+
+The **addon name is derived from the parent directory name** (e.g., `addons/intelligence/manifest.json` → addon name `intelligence`). Manifests are deduped by addon name, so if the same addon appears in both candidate directories, the first one wins (Docker path takes precedence).
+
+If neither candidate directory contains any `manifest.json` files, the registry logs `"No addon manifests found"` and proceeds with an empty external-addon set. **This is the normal case for a stock HomeVault install with no external addons** — no error, no warning, just silence.
 
 ### Frontend Discovery at Runtime
 
@@ -247,6 +285,16 @@ The manifest file is the key difference from in-process addons. Since external s
 
 ### Manifest File
 
+The manifest lives in **the addon's own Git repo**, at the top of the addon directory:
+
+```
+addons/my-service/        # ← addon's own repo root
+  manifest.json           # ← committed to the addon repo, NOT the main HomeVault repo
+  Dockerfile
+  app/
+    ...
+```
+
 `addons/{name}/manifest.json`:
 
 ```json
@@ -271,6 +319,8 @@ The manifest file is the key difference from in-process addons. Since external s
 ```
 
 The proxy exposes routes at `/api/addons/{name}/{path}`. For example, a route with `"path": "/search"` becomes `GET /api/addons/my-service/search`.
+
+**Why the manifest lives in the addon's repo**: the main HomeVault backend discovers the manifest dynamically at startup via `addons/*/manifest.json`. No file in the main repo ever needs to know that your addon exists. When you evolve the manifest (new routes, new slots, new filters), commit those changes to the addon repo — the main repo stays untouched. See [Clean Separation Principle](#clean-separation-principle) for the rationale.
 
 ### Proxy Route Configuration
 
@@ -556,20 +606,56 @@ docker compose up -d --build
 ### External Service Addon
 
 ```bash
-# 1. Create service in addons/my-service/ with Dockerfile
+# 1. Create a new Git repo for your addon at addons/my-service/
+#    This repo is independent of the main HomeVault repo.
+mkdir -p addons/my-service && cd addons/my-service
+git init
 
-# 2. Create manifest in the addon's own repo
-#    addons/my-service/manifest.json
+# 2. Write your service (Dockerfile + app code)
 
-# 3. Add service to docker-compose.override.yml
+# 3. Create manifest.json at the root of the addon repo
+#    (declares proxy routes, slots, access control)
+#    See the "Manifest File" section above for the schema.
 
-# 4. (Optional) Frontend components in addons/my-service/frontend/
+# 4. Commit to the addon's own repo
+git add manifest.json Dockerfile app/
+git commit -m "feat: initial service with manifest"
 
-# 5. (Optional) Configure event-hooks.json
+# 5. Add the service to docker-compose.override.yml (main repo, gitignored)
 
-# 6. Build and run
+# 6. (Optional) Frontend components in addons/my-service/frontend/
+
+# 7. (Optional) Configure event-hooks.json (main repo, gitignored)
+
+# 8. Build and run
+cd /path/to/homevault
 docker compose up -d --build
 ```
+
+**Key invariant**: nothing gets committed to the main HomeVault repo as part of adding your addon. The main repo discovers your manifest automatically at build time (Dockerfile copies `addons/*/manifest.json`) and at startup (`addon_registry` scans for manifests).
+
+### Verifying Clean Absence
+
+Before shipping an addon, verify that removing it leaves no trace:
+
+```bash
+# 1. Temporarily move your addon out of the way
+mv addons/my-service /tmp/
+
+# 2. Rebuild and start
+docker compose up -d --build
+
+# 3. Check /api/addons/status — your addon should not appear
+curl http://localhost:3000/api/addons/status | jq .
+
+# 4. Load the UI — no phantom sidebar link, no broken slots
+
+# 5. Restore
+mv /tmp/my-service addons/
+docker compose up -d --build
+```
+
+If anything referenced your addon after step 3, you've accidentally leaked addon-specific state into the main repo. Find it and move it into the addon's own repo.
 
 ---
 
