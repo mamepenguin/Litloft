@@ -99,7 +99,7 @@
 - **ファイル単位**: ファイル詳細ページの「Generate AI tags」ボタン
 - **フォルダ単位**: フォルダツールバーの「Generate AI tags」ボタン（`folder-actions` スロット）
 - **コンテキスト構築**: トランスクリプト（動画/音声）、BLIPキャプション（画像）、テキスト内容（文書）、メタデータ+ファイル名
-- **タグ言語制御**: `llm.tag_language` で出力言語を制御（`"auto"`, `"ja"`, `"en"` 等）
+- **出力言語制御**: `llm.output_language` でauto_tagsとsummariesの出力言語を制御（`"auto"`, `"ja"`, `"en"` 等）
 - **セキュリティ考慮**: ファイル内容（トランスクリプト、キャプション、テキスト）がLLM APIに送信される。プライバシー重視ならローカルLLM（ollama）を推奨
 
 ### BLIPキャプション（intelligenceアドオン）

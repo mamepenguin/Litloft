@@ -732,7 +732,7 @@ llm:
   model: "gemma2:9b"
   max_tokens: 2048
   temperature: 0.3
-  tag_language: "auto"           # "auto" | "ja" | "en"
+  output_language: "auto"        # "auto" | "ja" | "en" — applies to auto_tags and summaries
 ```
 
 Supports any OpenAI-compatible API: ollama, OpenAI, DeepSeek, vLLM, LM Studio. Set `LLM_API_KEY` in the environment for APIs that require authentication.

@@ -104,7 +104,16 @@
     "regeneratingTags": "生成中...",
     "generateFolderTags": "フォルダのAIタグを生成",
     "tagsBatchQueued": "{queued}件をキューに追加（{skipped}件スキップ）",
-    "tagsBatchEmpty": "すべてのファイルがタグ推薦済みです"
+    "tagsBatchEmpty": "すべてのファイルがタグ推薦済みです",
+    "summaryTitle": "AI要約",
+    "summaryGenerate": "AI要約を生成",
+    "summaryGenerating": "要約を生成中...",
+    "summaryRegenerate": "再生成",
+    "summaryHide": "非表示",
+    "summaryTruncatedNote": "（長文のため抜粋から要約）",
+    "generateFolderSummaries": "フォルダのAI要約を生成",
+    "summariesBatchQueued": "{queued}件の要約をキューに追加（{skipped}件スキップ）",
+    "summariesBatchEmpty": "すべてのファイルが要約済みです"
   },
   "search": {
     "label": "検索",

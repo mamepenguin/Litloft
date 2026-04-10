@@ -104,7 +104,16 @@
     "regeneratingTags": "Generating...",
     "generateFolderTags": "Generate AI tags for folder",
     "tagsBatchQueued": "{queued} files queued ({skipped} skipped)",
-    "tagsBatchEmpty": "All files already have suggested tags"
+    "tagsBatchEmpty": "All files already have suggested tags",
+    "summaryTitle": "AI Summary",
+    "summaryGenerate": "Generate AI summary",
+    "summaryGenerating": "Generating summary...",
+    "summaryRegenerate": "Regenerate",
+    "summaryHide": "Hide",
+    "summaryTruncatedNote": "(excerpts from long content)",
+    "generateFolderSummaries": "Generate AI summaries for folder",
+    "summariesBatchQueued": "{queued} summaries queued ({skipped} skipped)",
+    "summariesBatchEmpty": "All files already have summaries"
   },
   "search": {
     "label": "Search",
