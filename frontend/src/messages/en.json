@@ -438,5 +438,22 @@
     "clipTitle": "CLIP Frames",
     "more": "more",
     "showMore": "Show more"
+  },
+  "askSearch": {
+    "button": "Ask AI about “{query}”",
+    "loading": "Generating answer...",
+    "loadingHint": "(may take a few seconds)",
+    "answerTitle": "AI Answer",
+    "citationsTitle": "Citations",
+    "regenerate": "Regenerate",
+    "close": "Close",
+    "llmDisabled": "LLM is not configured",
+    "errorGenerate": "Failed to generate answer",
+    "noAnswer": "No answer could be found from the available files",
+    "noRetrieval": "No matching files found to base an answer on",
+    "retryHint": "Retry",
+    "queryTooShort": "Query too short (3 characters minimum)",
+    "takenMs": "Generated in {ms}ms",
+    "poweredByLlm": "AI"
   }
 }

@@ -239,6 +239,11 @@ Browser → :3000 (Next.js) → rewrites /api/* → :8000 (FastAPI)
 - Search index status and management UI
 - RRF vs cosine similarity comparison debug UI
 
+### Ask / RAG (addon)
+- Natural-language question answering over indexed files with citations
+- Reuses the semantic search engine as the retriever, then asks the LLM for an answer grounded in retrieved file excerpts
+- On-demand only (no cache, no worker); exposed as the `ask` tab in global search
+
 ---
 
 ## UI / UX
@@ -325,7 +330,7 @@ Run as separate Docker containers. Added via `docker-compose.override.yml`.
 
 | Addon | Description | Port |
 |-------|-------------|------|
-| intelligence | Semantic search, CLIP analysis, Whisper transcription, LLM auto-tags, BLIP captioning | :8100 |
+| intelligence | Semantic search, CLIP analysis, Whisper transcription, LLM auto-tags, BLIP captioning, RAG Q&A | :8100 |
 
 ### Event Hooks
 - Core emits `files.deleted`, `files.restored`, `files.purged`, `scan.complete` events

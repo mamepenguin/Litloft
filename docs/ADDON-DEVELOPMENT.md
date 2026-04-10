@@ -666,7 +666,7 @@ If anything referenced your addon after step 3, you've accidentally leaked addon
 | `downloader` | In-process | Download videos via yt-dlp |
 | `cloud-sync` | In-process | Sync drives with cloud storage via rclone |
 | `podcast` | In-process | Generate RSS feeds from folders |
-| `intelligence` | External service | Semantic search, CLIP analysis, Whisper transcription, LLM auto-tags, BLIP captioning |
+| `intelligence` | External service | Semantic search, CLIP analysis, Whisper transcription, LLM auto-tags, BLIP captioning, RAG Q&A |
 
 ---
 
@@ -761,6 +761,7 @@ Generates English text descriptions of images/video frames. Used as context for 
 | Slot | Component | Description |
 |------|-----------|-------------|
 | `search-modes` / `semantic-search` | `SemanticSearchSlot` | Semantic search tab in global search |
+| `search-modes` / `ask` | `AskSearchMode` | Natural-language Q&A over indexed files with citations |
 | `file-detail-sections` / `suggested-tags` | `SuggestedTagsSection` | AI tag suggestions with approve/dismiss |
 | `file-detail-sections` / `transcript` | `TranscriptSection` | Whisper transcription display |
 | `file-detail-sections` / `clip-frames` | `ClipFramesSection` | CLIP frame analysis |

@@ -438,5 +438,22 @@
     "clipTitle": "CLIP フレーム",
     "more": "件以上",
     "showMore": "もっと見る"
+  },
+  "askSearch": {
+    "button": "「{query}」について AI で質問応答",
+    "loading": "回答を生成中...",
+    "loadingHint": "(数秒かかることがあります)",
+    "answerTitle": "AI 回答",
+    "citationsTitle": "引用",
+    "regenerate": "再生成",
+    "close": "閉じる",
+    "llmDisabled": "LLM が設定されていません",
+    "errorGenerate": "回答の生成に失敗しました",
+    "noAnswer": "与えられたファイル情報からは答えが見つかりませんでした",
+    "noRetrieval": "回答のベースとなるファイルが見つかりませんでした",
+    "retryHint": "再試行",
+    "queryTooShort": "クエリが短すぎます (3文字以上)",
+    "takenMs": "{ms}ms で生成",
+    "poweredByLlm": "AI"
   }
 }

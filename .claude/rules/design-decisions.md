@@ -107,6 +107,18 @@
 - **用途**: 画像/動画フレームの英語テキスト記述を生成。auto_tagsの画像タグ精度向上に使用
 - **メモリ**: 追加で約1GB必要（Whisper + CLIPのみ: 4GB、+ BLIP: 6GB、+ 大型モデル: 8GB）
 
+### RAG / 質問応答（Ask）
+- **概要**: 自然言語の質問に対し、引用付きの回答を LLM で生成するオンデマンド機能
+- **フィーチャーフラグ**: `features.rag: true/false`（bool、デフォルト無効）。auto_tags/summaries の 3モードと違い、インデックス時の自動生成概念がないため単純 bool
+- **リトリーバー**: 既存 `app/search.py::search` をそのまま再利用（LLM によるクエリ書き換えなし）
+- **コンテキスト**: 検索セグメントのマッチ箇所前後を抜粋（summaries の窓サンプリングとは別戦略）
+- **引用の捏造対策**: LLM が返す citations の file_id をリトリーバー結果セットと照合、範囲外は drop
+- **アクセス制御の二重化**: 内部フィルタ（Internal API）+ マニフェストフィルタ（`drive_access_nested` で citations/sources）
+- **ステートレス**: キャッシュ/ワーカーなし、`POST /ask` の同期レスポンス1本。本体 DB にもアドオン DB にも書き込まない
+- **UI**: `search-modes` スロットに `ask` として登録。ボタンクリックの明示発動（質問判定なしで多言語耐性を確保）
+- **セキュリティ考慮**: ファイル内容（トランスクリプト、キャプション、テキスト）が質問のたびに LLM API に送信される。プライバシー重視ならローカルLLM（ollama）を推奨
+- **設計スペック**: `docs/superpowers/specs/2026-04-10-intelligence-rag.md`
+
 ## HEIC画像対応
 - **問題の本質**: Debian aptのffmpegはlibheif未対応でサムネイル真っ黒になる
 - **解決**: `pillow-heif` + Pillow によるサーバーサイドJPEG変換（ffmpegは使わない）
