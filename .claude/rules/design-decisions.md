@@ -79,7 +79,7 @@
 ### 本体との依存関係の原則
 - **本体 → アドオン**: 本体コアにアドオン固有のコードを入れない。汎用的な仕組み（アドオンローダー、イベントフック）を通じて連携
 - **アドオン → 本体**: アドオンは本体の `app.config`, `app.database`, `app.models`, `app.services.ws` 等を自由にimportできる（期待される依存方向）
-- **フロントエンド**: アドオンのUIコンポーネントは `frontend/src/addons/{name}/` に配置。Next.jsルートページ（`frontend/src/app/{name}/page.tsx`）は薄いラッパーとして本体側に手動作成が必要
+- **フロントエンド**: アドオンのUIコンポーネントは `addons/{name}/frontend/` に配置。ビルド時に `frontend/Dockerfile` が `src/addons/{name}/` にコピーし、`Page.tsx` が存在すれば `src/app/addons/{name}/page.tsx` ラッパーを自動生成する（`/addons/{name}` ルートが生える）。**独立サービスアドオンもインプロセスアドオンも同じ仕組み**。本体リポに手動ラッパーを作る必要はない。サイドバーリンクは `manifest.json`（独立型）または `addon.json`（インプロセス型）の `href` フィールドで制御
 
 ### intelligence アドオン（旧 semantic-search）
 - semantic-search から intelligence にリネーム完了。Dockerサービス名: `intelligence`、環境変数: `INTELLIGENCE_SERVICE_URL`
