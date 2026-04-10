@@ -8,6 +8,7 @@ import type { FileType, SortField, SortOrder, ViewMode } from "@/types";
 import { ViewToggle } from "@/components/ViewToggle";
 import { SortButton } from "@/components/SortButton";
 import { UploadButton } from "@/components/UploadButton";
+import { AddonSlot } from "@/components/AddonSlot";
 
 interface FolderToolbarProps {
   isSpecialView: boolean;
@@ -22,6 +23,8 @@ interface FolderToolbarProps {
   creatingFolder: boolean;
   newFolderName: string;
   folderError: string | null;
+  fileIds: string[];
+  drive: string;
   onSortChange: (s: SortField, o: SortOrder) => void;
   onTypeFilterChange: (t: FileType | null) => void;
   onViewChange: (mode: ViewMode) => void;
@@ -47,7 +50,7 @@ const TYPE_OPTION_KEYS: ReadonlyArray<{ value: FileType | null; labelKey: string
 export function FolderToolbar({
   isSpecialView, tagFilter, hasPlayableFiles,
   sort, order, typeFilter, total, selectable, scanning,
-  creatingFolder, newFolderName, folderError,
+  creatingFolder, newFolderName, folderError, fileIds, drive,
   onSortChange, onTypeFilterChange, onViewChange, onToggleSelectable,
   onScan, onPlayAll, onSetCreatingFolder, onSetNewFolderName,
   onSetFolderError, onCreateFolder,
@@ -118,6 +121,8 @@ export function FolderToolbar({
             )}
           </>
         )}
+
+        <AddonSlot id="folder-actions" layout="stack" props={{ fileIds, drive }} />
 
         <div className="flex-1" />
 

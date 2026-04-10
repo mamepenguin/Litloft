@@ -221,6 +221,8 @@ export function FolderBrowser({ driveName, folderPath, view, tagFilter }: Folder
         creatingFolder={createFolder.creatingFolder}
         newFolderName={createFolder.newFolderName}
         folderError={createFolder.folderError}
+        fileIds={files.map((f) => f.id)}
+        drive={driveName}
         onSortChange={(s, o) => { setSort(s); setOrder(o); }}
         onTypeFilterChange={setTypeFilter}
         onViewChange={handleViewChange}

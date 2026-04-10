@@ -101,7 +101,10 @@
     "dismissTags": "Dismiss",
     "regenerateTags": "Regenerate",
     "generateTags": "Generate AI tags",
-    "regeneratingTags": "Generating..."
+    "regeneratingTags": "Generating...",
+    "generateFolderTags": "Generate AI tags for folder",
+    "tagsBatchQueued": "{queued} files queued ({skipped} skipped)",
+    "tagsBatchEmpty": "All files already have suggested tags"
   },
   "search": {
     "label": "Search",

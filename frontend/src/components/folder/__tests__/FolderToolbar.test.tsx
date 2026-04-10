@@ -14,6 +14,10 @@ vi.mock("@/components/SortButton", () => ({
   SortButton: () => <button data-testid="sort-button">Sort</button>,
 }));
 
+vi.mock("@/components/AddonSlot", () => ({
+  AddonSlot: () => null,
+}));
+
 const defaultProps = {
   isSpecialView: false,
   tagFilter: null,
@@ -27,6 +31,8 @@ const defaultProps = {
   creatingFolder: false,
   newFolderName: "",
   folderError: null,
+  fileIds: ["file-1", "file-2"],
+  drive: "test-drive",
   onSortChange: vi.fn(),
   onTypeFilterChange: vi.fn(),
   onViewChange: vi.fn(),

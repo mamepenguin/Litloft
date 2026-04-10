@@ -15,6 +15,9 @@
         ],
         "dashboard-widgets": [
             {"id": "index-status", "label": "Index Status", "priority": 10}
+        ],
+        "folder-actions": [
+            {"id": "folder-auto-tags", "label": "Generate AI Tags", "priority": 10}
         ]
     },
     "proxy": {

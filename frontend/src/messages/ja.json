@@ -101,7 +101,10 @@
     "dismissTags": "却下",
     "regenerateTags": "再生成",
     "generateTags": "AIタグを生成",
-    "regeneratingTags": "生成中..."
+    "regeneratingTags": "生成中...",
+    "generateFolderTags": "フォルダのAIタグを生成",
+    "tagsBatchQueued": "{queued}件をキューに追加（{skipped}件スキップ）",
+    "tagsBatchEmpty": "すべてのファイルがタグ推薦済みです"
   },
   "search": {
     "label": "検索",
