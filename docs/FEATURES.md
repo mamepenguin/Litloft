@@ -325,7 +325,7 @@ Run as separate Docker containers. Added via `docker-compose.override.yml`.
 
 | Addon | Description | Port |
 |-------|-------------|------|
-| semantic-search | Embedding-based search + Whisper transcription + CLIP | :8100 |
+| intelligence | Semantic search, CLIP analysis, Whisper transcription, LLM auto-tags, BLIP captioning | :8100 |
 
 ### Event Hooks
 - Core emits `files.deleted`, `files.restored`, `files.purged`, `scan.complete` events

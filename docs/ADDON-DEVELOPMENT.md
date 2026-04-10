@@ -7,7 +7,7 @@ This guide covers how to build addons for HomeVault using the addon architecture
 | Type | How it runs | Use case | Example |
 |------|-------------|----------|---------|
 | **In-process** | Inside the backend Python process | Lightweight features | downloader, podcast, cloud-sync |
-| **External service** | Separate Docker container | Heavy workloads, ML models | intelligence (semantic-search) |
+| **External service** | Separate Docker container | Heavy workloads, ML models | intelligence |
 
 ---
 
@@ -389,9 +389,9 @@ Addons can inject UI components into predefined **slots** in the core applicatio
 | Slot ID | Location | Layout | Use case |
 |---------|----------|--------|----------|
 | `search-modes` | GlobalSearch modal | Tabs | Semantic search, Q&A |
-| `file-detail-sections` | File detail panel | Vertical stack | Related files, AI summary |
-| `sidebar-sections` | Sidebar | Link list | Index status |
+| `file-detail-sections` | File detail panel | Vertical stack | Related files, AI tags, transcripts |
 | `dashboard-widgets` | Admin dashboard | Cards | Index statistics |
+| `folder-actions` | Folder toolbar | Inline buttons | Batch AI tags, folder-level actions |
 
 ### Declaring Slots
 
@@ -416,30 +416,28 @@ In `ADDON_META` (in-process) or manifest JSON (external service):
 
 1. `AddonSlotsProvider` fetches `/api/addons/status` on mount
 2. The response includes a `slots` field aggregated across all addons
-3. Core components use `useAddonSlots()` to check:
+3. Core components render `AddonSlot` for each extension point:
 
 ```tsx
-import { useAddonSlots } from "@/components/AddonSlotsProvider";
+import { AddonSlot } from "@/components/AddonSlot";
 
-function FileDetail() {
-  const { hasSlot, getSlotEntries } = useAddonSlots();
-
+function FileDetail({ fileId }: { fileId: string }) {
   return (
     <div>
       {/* Core content always renders */}
       <FileMetadata />
       <TagEditor />
 
-      {/* Slot: only renders if an addon registered for it */}
-      {hasSlot("file-detail-sections") && (
-        <AddonFileDetailSections fileId={fileId} />
-      )}
+      {/* Slot: renders nothing if no addon registered for it */}
+      <AddonSlot id="file-detail-sections" props={{ fileId }} layout="stack" />
     </div>
   );
 }
 ```
 
-4. Addon components are loaded from `frontend/src/addons/{addonName}/`
+`AddonSlot` accepts a `layout` prop: `"stack"` (vertical, default), `"tabs"` (tabbed UI), or `"menu"` (inline).
+
+4. `AddonSlot` validates addon names (`/^[a-z][a-z0-9-]*$/`), then lazy-loads components from `frontend/src/addons/{addonName}/slots.ts`. Loaded modules are cached to avoid re-imports.
 
 ### Frontend Slot Components
 
@@ -577,4 +575,105 @@ docker compose up -d --build
 | `downloader` | In-process | Download videos via yt-dlp |
 | `cloud-sync` | In-process | Sync drives with cloud storage via rclone |
 | `podcast` | In-process | Generate RSS feeds from folders |
-| `intelligence` | External service | Semantic search, CLIP analysis, Whisper transcription |
+| `intelligence` | External service | Semantic search, CLIP analysis, Whisper transcription, LLM auto-tags, BLIP captioning |
+
+---
+
+## Intelligence Addon Reference
+
+The intelligence addon (formerly `semantic-search`) is the primary external service addon. It runs as a separate Docker container and provides AI-powered features through the slot system.
+
+### Docker Setup
+
+In `docker-compose.override.yml`:
+
+```yaml
+services:
+  backend:
+    environment:
+      - INTELLIGENCE_SERVICE_URL=http://intelligence:8100
+
+  intelligence:
+    build: ./addons/intelligence
+    expose: ["8100"]
+    mem_limit: 4096m
+    volumes:
+      - ./data:/data:ro
+      - ./addons/intelligence/search-data:/search-data
+      - ./addons/intelligence/search-config.yml:/app/search-config.yml:ro
+      # Mount each drive read-only:
+      - /path/to/videos:/drives/videos:ro
+    environment:
+      - HOMEVAULT_DB_PATH=/data/videos.db
+      - SEARCH_CONFIG_PATH=/app/search-config.yml
+      - ALLOWED_BASE_DIRS=/drives/
+      - DRIVE_MOUNTS=Videos=/drives/videos
+      - LLM_API_KEY=           # Optional: for external LLM APIs
+    depends_on:
+      backend:
+        condition: service_healthy
+    restart: unless-stopped
+```
+
+### Configuration (`search-config.yml`)
+
+Copy `search-config.yml.example` and customize. Key sections:
+
+#### Feature Flags
+
+```yaml
+features:
+  indexing: true          # CLIP/Whisper indexing pipeline
+  search: true            # Semantic search API
+  auto_tags: "false"      # "false" | "manual" | "on_index"
+```
+
+- `"false"`: Auto-tags disabled (default)
+- `"manual"`: Tags generated only when user clicks "Generate AI tags" in the UI
+- `"on_index"`: Tags generated automatically after each file is indexed
+
+#### LLM Configuration
+
+```yaml
+llm:
+  provider: "openai_compatible"  # "openai_compatible" | "disabled"
+  base_url: "http://host.docker.internal:11434/v1"  # ollama example
+  model: "gemma2:9b"
+  max_tokens: 2048
+  temperature: 0.3
+  tag_language: "auto"           # "auto" | "ja" | "en"
+```
+
+Supports any OpenAI-compatible API: ollama, OpenAI, DeepSeek, vLLM, LM Studio. Set `LLM_API_KEY` in the environment for APIs that require authentication.
+
+**Security note**: File content (transcripts, BLIP captions, text) is sent to the LLM API. Use a local LLM (e.g., ollama) for privacy-sensitive content.
+
+#### BLIP Captioning (Optional)
+
+```yaml
+models:
+  blip: "Salesforce/blip-image-captioning-base"  # empty = disabled
+```
+
+Generates English text descriptions of images/video frames. Used as context for auto-tags to improve image tag quality. Requires approximately 1GB additional memory.
+
+### Memory Requirements
+
+| Configuration | Recommended Memory |
+|---------------|-------------------|
+| Whisper + CLIP only | 4GB |
+| + BLIP captioning | 6GB |
+| + BLIP + large models | 8GB |
+
+### UI Slots Provided
+
+| Slot | Component | Description |
+|------|-----------|-------------|
+| `search-modes` / `semantic-search` | `SemanticSearchSlot` | Semantic search tab in global search |
+| `file-detail-sections` / `suggested-tags` | `SuggestedTagsSection` | AI tag suggestions with approve/dismiss |
+| `file-detail-sections` / `transcript` | `TranscriptSection` | Whisper transcription display |
+| `file-detail-sections` / `clip-frames` | `ClipFramesSection` | CLIP frame analysis |
+| `file-detail-sections` / `index-details` | `IndexDetailsSection` | Per-file index status |
+| `file-detail-sections` / `similar-files` | `SimilarFilesSection` | Visually similar files |
+| `dashboard-widgets` / `index-status` | `IndexStatusWidget` | Index statistics on admin dashboard |
+| `folder-actions` / `folder-auto-tags` | `FolderAutoTagsButton` | Batch AI tag generation for folder |

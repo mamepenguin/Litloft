@@ -64,7 +64,7 @@ addons/              # Addons (independent Git repositories)
   cloud-sync/
   downloader/
   podcast/
-  semantic-search/
+  intelligence/
 
 docs/                # Documentation
 deploy/              # Deploy scripts
@@ -162,7 +162,8 @@ No `.env` files are used. Configuration is managed through:
 See [ADDON-DEVELOPMENT.md](ADDON-DEVELOPMENT.md) for the full addon development guide, including:
 
 - In-process vs external service addons
-- UI slot system (search-modes, file-detail-sections, dashboard-widgets)
+- UI slot system (search-modes, file-detail-sections, dashboard-widgets, folder-actions)
+- `AddonSlot` component with lazy loading and addon name validation
 - Generic Addon Proxy with declarative access control filters
 - Internal API for external service addons
 - Core API surface and rules for in-process addons

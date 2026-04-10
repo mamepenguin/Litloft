@@ -39,7 +39,7 @@
 | 種類 | 例 | 動作方式 | 配置先 |
 |---|---|---|---|
 | **インプロセス** | cloud-sync, downloader, podcast | 本体バックエンドプロセス内で動作 | `backend/addons/{name}/` (シンボリンク → `addons/{name}/backend/`) |
-| **独立サービス** | semantic-search | 別Dockerコンテナとして動作 | `addons/{name}/` + `docker-compose.override.yml` |
+| **独立サービス** | intelligence | 別Dockerコンテナとして動作 | `addons/{name}/` + `docker-compose.override.yml` |
 
 ### インプロセスアドオンの仕組み
 - **動的発見**: `main.py` の `_load_addons()` が `backend/addons/` を `pkgutil.iter_modules` でスキャン
@@ -57,10 +57,12 @@
 - 旧 `routers/search.py` は削除済み。全エンドポイントがGeneric Proxyに移行
 
 ### UIスロット機構（Progressive Enhancement）
-- 本体UIに「スロット」（拡張ポイント）を定義: `search-modes`, `file-detail-sections`, `sidebar-sections`, `dashboard-widgets`
-- アドオンは `ADDON_META` の `slots` 宣言でどのスロットに何を注入するか定義
-- `GET /api/addons/status` がアドオン情報+スロット情報を返却
-- フロントエンドは `useAddonSlots()` フックでスロット情報を取得し動的レンダリング
+- 本体UIに「スロット」（拡張ポイント）を定義: `search-modes`, `file-detail-sections`, `dashboard-widgets`, `folder-actions`
+- アドオンは `ADDON_META` の `slots` 宣言（インプロセス）またはマニフェストJSON（外部サービス）でどのスロットに何を注入するか定義
+- `GET /api/addons/status` がアドオン情報+スロット情報を返却（proxy設定はストリップされる）
+- フロントエンドは `AddonSlotsProvider` + `useAddonSlots()` フックでスロット情報を取得し動的レンダリング
+- `AddonSlot` コンポーネントがアドオン名のバリデーション+遅延読み込みを実行
+- 各アドオンは `frontend/src/addons/{name}/slots.ts` で `slotComponents` マップをエクスポート
 - アドオンがなければスロットは非表示（UIに穴は開かない）
 
 ### Internal API（外部サービスアドオン用）
@@ -79,11 +81,31 @@
 - **アドオン → 本体**: アドオンは本体の `app.config`, `app.database`, `app.models`, `app.services.ws` 等を自由にimportできる（期待される依存方向）
 - **フロントエンド**: アドオンのUIコンポーネントは `frontend/src/addons/{name}/` に配置。Next.jsルートページ（`frontend/src/app/{name}/page.tsx`）は薄いラッパーとして本体側に手動作成が必要
 
-### semantic-search → intelligence への進化
-- semantic-searchは将来的にintelligenceアドオンに進化予定（フィーチャーフラグ方式）
+### intelligence アドオン（旧 semantic-search）
+- semantic-search から intelligence にリネーム完了。Dockerサービス名: `intelligence`、環境変数: `INTELLIGENCE_SERVICE_URL`
 - `routers/search.py` は削除済み。Generic Addon Proxy + `backend/addon-manifests/intelligence.json` に移行
 - フロントエンドの検索API呼び出しは `/api/addons/intelligence/` パスに変更済み
-- フロントエンドの専用コンポーネント（`GlobalSearch`, `SearchIndexStatus`, `IndexDetailsPanel`, `ClipFramesPanel`）は段階的にスロットベースに移行予定
+- フロントエンドの全UIコンポーネントはスロットベースに移行完了（`slots.ts` で `slotComponents` をエクスポート）
+
+### LLM基盤（intelligenceアドオン）
+- **OpenAI互換クライアント**: ollama, OpenAI, DeepSeek, vLLM, LM Studio等に対応
+- **設定**: `search-config.yml` の `llm` セクション + `LLM_API_KEY` 環境変数
+- **フィーチャーフラグ**: `features.auto_tags` で制御（`"false"`, `"manual"`, `"on_index"`）
+- **デフォルト無効**: セキュリティ上、auto_tagsはデフォルトで `"false"`
+
+### 自動タグ（Auto Tags）
+- **Suggest → Approve/Dismissワークフロー**: タグは提案であり、自動適用されない
+- **3つのモード**: `"false"`（無効）、`"manual"`（UI操作のみ）、`"on_index"`（インデックス後自動実行）
+- **ファイル単位**: ファイル詳細ページの「Generate AI tags」ボタン
+- **フォルダ単位**: フォルダツールバーの「Generate AI tags」ボタン（`folder-actions` スロット）
+- **コンテキスト構築**: トランスクリプト（動画/音声）、BLIPキャプション（画像）、テキスト内容（文書）、メタデータ+ファイル名
+- **タグ言語制御**: `llm.tag_language` で出力言語を制御（`"auto"`, `"ja"`, `"en"` 等）
+- **セキュリティ考慮**: ファイル内容（トランスクリプト、キャプション、テキスト）がLLM APIに送信される。プライバシー重視ならローカルLLM（ollama）を推奨
+
+### BLIPキャプション（intelligenceアドオン）
+- **オプション**: `models.blip` で設定。空文字で無効化
+- **用途**: 画像/動画フレームの英語テキスト記述を生成。auto_tagsの画像タグ精度向上に使用
+- **メモリ**: 追加で約1GB必要（Whisper + CLIPのみ: 4GB、+ BLIP: 6GB、+ 大型モデル: 8GB）
 
 ## HEIC画像対応
 - **問題の本質**: Debian aptのffmpegはlibheif未対応でサムネイル真っ黒になる
