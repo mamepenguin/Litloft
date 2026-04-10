@@ -111,6 +111,7 @@
     "summaryRegenerate": "Regenerate",
     "summaryHide": "Hide",
     "summaryTruncatedNote": "(excerpts from long content)",
+    "summaryInsufficientContent": "Not enough content to summarize",
     "generateFolderSummaries": "Generate AI summaries for folder",
     "summariesBatchQueued": "{queued} summaries queued ({skipped} skipped)",
     "summariesBatchEmpty": "All files already have summaries"

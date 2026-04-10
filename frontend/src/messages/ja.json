@@ -111,6 +111,7 @@
     "summaryRegenerate": "再生成",
     "summaryHide": "非表示",
     "summaryTruncatedNote": "（長文のため抜粋から要約）",
+    "summaryInsufficientContent": "要約に必要なコンテンツが不足しています",
     "generateFolderSummaries": "フォルダのAI要約を生成",
     "summariesBatchQueued": "{queued}件の要約をキューに追加（{skipped}件スキップ）",
     "summariesBatchEmpty": "すべてのファイルが要約済みです"

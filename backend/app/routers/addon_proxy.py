@@ -159,9 +159,23 @@ async def _proxy_request(
                     },
                 )
 
-            if resp.status_code == 404:
-                raise HTTPException(status_code=404, detail="Not found")
-            resp.raise_for_status()
+            # Forward client-facing errors (4xx) from the upstream addon
+            # as-is so meaningful validation / permission responses reach
+            # the browser. Previously every non-2xx became a generic 502,
+            # which hid useful error details like "insufficient_content"
+            # or "auto-tags feature disabled".
+            if 400 <= resp.status_code < 500:
+                try:
+                    body = resp.json()
+                    detail = (
+                        body.get("detail", body)
+                        if isinstance(body, dict)
+                        else body
+                    )
+                except Exception:
+                    detail = resp.text or "Addon error"
+                raise HTTPException(status_code=resp.status_code, detail=detail)
+            resp.raise_for_status()  # 5xx → fall through to 502 handler
             return resp.json()
 
     except HTTPException:
