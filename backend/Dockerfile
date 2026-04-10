@@ -4,15 +4,17 @@ WORKDIR /app
 COPY backend/requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 COPY backend/app/ ./app/
-COPY backend/addon-manifest[s]/ ./addon-manifests/
 COPY backend/addon[s]/ ./addons/
 COPY addon[s]/ /tmp/_all_addons/
 RUN find addons -maxdepth 1 -type l -delete 2>/dev/null; \
     for addon_dir in /tmp/_all_addons/*/; do \
-      [ -d "$addon_dir/backend" ] || continue; \
       name="$(basename "$addon_dir")"; \
-      if [ ! -d "addons/$name" ]; then \
+      if [ -d "$addon_dir/backend" ] && [ ! -d "addons/$name" ]; then \
         cp -r "$addon_dir/backend" "addons/$name"; \
+      fi; \
+      if [ -f "$addon_dir/manifest.json" ]; then \
+        mkdir -p "addons/$name"; \
+        cp "$addon_dir/manifest.json" "addons/$name/manifest.json"; \
       fi; \
     done && rm -rf /tmp/_all_addons
 RUN if [ ! -f addons/__init__.py ]; then touch addons/__init__.py; fi

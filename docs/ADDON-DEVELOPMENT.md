@@ -21,17 +21,16 @@ Understanding the full loading flow is essential before building an addon.
 project root/
   addons/                          # Addon source code (independent Git repos, gitignored)
     my-addon/
-      backend/                     # Python code
+      backend/                     # Python code (in-process addons)
         __init__.py
         router.py
       frontend/                    # React components
         MyAddonPage.tsx
+      manifest.json                # External service addons only (declared proxy + slots)
 
   backend/
     addons/                        # Symlinks for local dev (gitignored)
       my-addon -> ../../addons/my-addon/backend
-    addon-manifests/               # External service manifests (checked into git)
-      intelligence.json
 
   frontend/
     src/
@@ -41,6 +40,8 @@ project root/
         addons/{name}/page.tsx     # Auto-generated at Docker build (gitignored)
 ```
 
+**Nothing addon-specific is checked into the main HomeVault repo.** Each addon lives in its own git repo under `addons/{name}/`. If you don't clone an addon, the main repo has zero trace of it.
+
 ### Docker Build: How Files Get Into Containers
 
 Addons live in `addons/` at the project root. The Dockerfiles copy them into the containers at build time. **Symlinks are not used inside Docker.**
@@ -49,16 +50,20 @@ Addons live in `addons/` at the project root. The Dockerfiles copy them into the
 
 ```dockerfile
 COPY backend/app/ ./app/                    # Core app code
-COPY backend/addon-manifest[s]/ ./addon-manifests/  # External service manifests
 COPY backend/addon[s]/ ./addons/            # Local addons dir (may contain symlinks)
 COPY addon[s]/ /tmp/_all_addons/            # Top-level addons dir
 
-# Resolve symlinks: delete them, then copy actual backend code from each addon
+# Resolve symlinks: delete them, then copy each addon's backend code and manifest
 RUN find addons -maxdepth 1 -type l -delete; \
     for addon_dir in /tmp/_all_addons/*/; do \
-      [ -d "$addon_dir/backend" ] || continue; \
       name="$(basename "$addon_dir")"; \
-      cp -r "$addon_dir/backend" "addons/$name"; \
+      if [ -d "$addon_dir/backend" ] && [ ! -d "addons/$name" ]; then \
+        cp -r "$addon_dir/backend" "addons/$name"; \
+      fi; \
+      if [ -f "$addon_dir/manifest.json" ]; then \
+        mkdir -p "addons/$name"; \
+        cp "$addon_dir/manifest.json" "addons/$name/manifest.json"; \
+      fi; \
     done
 
 # Auto-install addon Python dependencies
@@ -93,7 +98,7 @@ RUN pnpm build
 - Place your addon in `addons/{name}/`. That's it.
 - The Dockerfiles handle the rest. You don't need to manually copy anything.
 - Symlinks in `backend/addons/` and `frontend/src/addons/` are only for local development convenience (IDE auto-completion, local test runs, etc).
-- `backend/addon-manifests/` is for external service addons only and IS checked into git.
+- External service addons declare themselves via `addons/{name}/manifest.json` — the manifest lives in the addon's own repo, not in the main HomeVault repo.
 - Page wrappers (`src/app/addons/{name}/page.tsx`) are auto-generated at Docker build time. You never write these manually.
 
 ### Backend Discovery at Startup
@@ -109,7 +114,7 @@ When the backend starts (`main.py`):
            └─ Collect on_startup() functions
 
 2. addon_registry.load_external_manifests()
-   └─ Read backend/addon-manifests/*.json
+   └─ Scan addons/*/manifest.json
        └─ Register each manifest in addon_registry
 
 3. GET /api/addons/status
@@ -231,18 +236,18 @@ External service addons run in separate Docker containers. The core app proxies 
 
 | File | Location | Git-tracked? | Purpose |
 |------|----------|-------------|---------|
-| Service code | `addons/{name}/` | No (separate repo) | The service itself |
-| Manifest | `backend/addon-manifests/{name}.json` | **Yes** | Proxy routes, slots, access control |
-| Frontend UI | `addons/{name}/frontend/` | No (separate repo) | UI components |
+| Service code | `addons/{name}/` | No (in addon's own repo) | The service itself |
+| Manifest | `addons/{name}/manifest.json` | No (in addon's own repo) | Proxy routes, slots, access control |
+| Frontend UI | `addons/{name}/frontend/` | No (in addon's own repo) | UI components |
 | Docker config | `docker-compose.override.yml` | No | Container configuration |
 | Event hooks | `event-hooks.json` | No | Webhook subscriptions |
 | Page wrapper | `frontend/src/app/addons/{name}/page.tsx` | Auto-generated | Created by Dockerfile if `Page.tsx` exists |
 
-The manifest file is the key difference from in-process addons. Since external services have no Python code in the backend process, the manifest tells the core app how to proxy requests and what UI slots to register.
+The manifest file is the key difference from in-process addons. Since external services have no Python code in the backend process, the manifest tells the core app how to proxy requests and what UI slots to register. The manifest lives in the addon's own repo, so the main HomeVault repo has no knowledge of any specific addon.
 
 ### Manifest File
 
-`backend/addon-manifests/{name}.json`:
+`addons/{name}/manifest.json`:
 
 ```json
 {
@@ -553,8 +558,8 @@ docker compose up -d --build
 ```bash
 # 1. Create service in addons/my-service/ with Dockerfile
 
-# 2. Create manifest (checked into main repo)
-#    backend/addon-manifests/my-service.json
+# 2. Create manifest in the addon's own repo
+#    addons/my-service/manifest.json
 
 # 3. Add service to docker-compose.override.yml
 

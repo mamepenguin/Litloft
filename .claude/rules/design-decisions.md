@@ -53,7 +53,7 @@
 - `docker-compose.override.yml` でサービスを追加（本体の `docker-compose.yml` は変更しない）
 - 本体DBへの読み取り専用アクセス（SQLiteファイルを `:ro` マウント）
 - イベント通知は `event-hooks.json` で設定（本体が汎用イベントを発行、リスナーURLを設定で登録）
-- **Generic Addon Proxy** (`routers/addon_proxy.py`) が宣言的マニフェスト (`backend/addon-manifests/*.json`) に基づいてプロキシ+アクセス制御を実行
+- **Generic Addon Proxy** (`routers/addon_proxy.py`) が宣言的マニフェスト (`addons/{name}/manifest.json`) に基づいてプロキシ+アクセス制御を実行。マニフェストはアドオン自身のリポに置かれ、本体リポには特定アドオンの痕跡を残さない
 - 旧 `routers/search.py` は削除済み。全エンドポイントがGeneric Proxyに移行
 
 ### UIスロット機構（Progressive Enhancement）
@@ -83,7 +83,7 @@
 
 ### intelligence アドオン（旧 semantic-search）
 - semantic-search から intelligence にリネーム完了。Dockerサービス名: `intelligence`、環境変数: `INTELLIGENCE_SERVICE_URL`
-- `routers/search.py` は削除済み。Generic Addon Proxy + `backend/addon-manifests/intelligence.json` に移行
+- `routers/search.py` は削除済み。Generic Addon Proxy + `addons/intelligence/manifest.json` に移行
 - フロントエンドの検索API呼び出しは `/api/addons/intelligence/` パスに変更済み
 - フロントエンドの全UIコンポーネントはスロットベースに移行完了（`slots.ts` で `slotComponents` をエクスポート）
 

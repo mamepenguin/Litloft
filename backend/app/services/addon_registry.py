@@ -2,7 +2,7 @@
 
 Loads and merges addon metadata from two sources:
 1. In-process addons: ADDON_META dicts from backend/addons/*/router.py
-2. External service addons: JSON manifests from backend/addon-manifests/*.json
+2. External service addons: manifest.json files from addons/*/manifest.json
 
 Provides a unified view of all addons including their slots and proxy config.
 """
@@ -16,26 +16,47 @@ logger = logging.getLogger(__name__)
 
 _registry: dict[str, dict[str, Any]] = {}
 
-MANIFESTS_DIR = Path(__file__).parent.parent.parent / "addon-manifests"
+# Candidate directories to scan for addon manifests.
+# - Docker: /app/addons (backend Dockerfile places manifests alongside addon code)
+# - Local dev: <repo>/addons (manifests live in each addon's own repo, checked out at repo root)
+_BACKEND_ROOT = Path(__file__).parent.parent.parent
+
+
+def _iter_manifest_files() -> list[Path]:
+    """Discover addon manifest files in known addon directories, deduped by addon name."""
+    candidates = [
+        _BACKEND_ROOT / "addons",         # Docker layout (/app/addons)
+        _BACKEND_ROOT.parent / "addons",  # Local dev layout (<repo>/addons)
+    ]
+    found: dict[str, Path] = {}
+    for base in candidates:
+        if not base.is_dir():
+            continue
+        for manifest_path in sorted(base.glob("*/manifest.json")):
+            name = manifest_path.parent.name
+            if name not in found:
+                found[name] = manifest_path
+    return list(found.values())
 
 
 def load_external_manifests() -> None:
-    """Load addon manifests from JSON files in addon-manifests/."""
-    if not MANIFESTS_DIR.is_dir():
-        logger.info("No addon-manifests directory found")
+    """Load addon manifests from addons/*/manifest.json."""
+    manifest_files = _iter_manifest_files()
+    if not manifest_files:
+        logger.info("No addon manifests found")
         return
 
-    for manifest_path in sorted(MANIFESTS_DIR.glob("*.json")):
+    for manifest_path in manifest_files:
+        addon_name = manifest_path.parent.name
         try:
             raw = json.loads(manifest_path.read_text())
-            addon_name = manifest_path.stem
             raw.setdefault("type", "external_service")
             _registry[addon_name] = raw
-            logger.info("External addon manifest loaded: %s", addon_name)
-        except Exception:
-            logger.exception(
-                "Failed to load addon manifest: %s", manifest_path.name
+            logger.info(
+                "External addon manifest loaded: %s (%s)", addon_name, manifest_path
             )
+        except Exception:
+            logger.exception("Failed to load addon manifest: %s", manifest_path)
 
 
 def register_in_process(name: str, meta: dict[str, Any]) -> None:
