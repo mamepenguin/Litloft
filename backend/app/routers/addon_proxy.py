@@ -7,6 +7,7 @@ drive access control.
 Route pattern: /api/addons/{addon_name}/{path}
 """
 
+import asyncio
 import logging
 import os
 import re
@@ -14,7 +15,14 @@ from typing import Annotated, Any
 
 import httpx
 from fastapi import APIRouter, Depends, HTTPException, Request
-from fastapi.responses import Response
+from fastapi.responses import Response, StreamingResponse
+
+# Wall-clock safety cap for streaming proxy routes. ``read=None`` on the
+# httpx timeout allows SSE streams to live for minutes at a time, but a
+# misbehaving or stalled upstream could otherwise pin a worker forever.
+# Ten minutes is well beyond any reasonable RAG answer latency (usually
+# <60s) while still terminating slowloris patterns.
+_STREAM_WALL_CLOCK_TIMEOUT_SEC = 600.0
 
 import app.config as config
 from app.auth import filter_drives, get_unlocked_groups
@@ -122,17 +130,175 @@ def _extract_path_params(
     return None
 
 
+# Headers we should never forward upstream (hop-by-hop, managed by httpx,
+# or client-spoofable metadata we don't want the addon to trust). Stripping
+# the X-Forwarded-* / Forwarded family prevents a hostile client from
+# injecting a fake upstream IP/host that downstream services might log or
+# rate-limit against.
+_HOP_BY_HOP_REQUEST_HEADERS = frozenset(
+    {
+        "host",
+        "connection",
+        "transfer-encoding",
+        "content-length",
+        "x-forwarded-for",
+        "x-forwarded-host",
+        "x-forwarded-proto",
+        "x-forwarded-port",
+        "x-forwarded-server",
+        "forwarded",
+        "x-real-ip",
+    }
+)
+
+# Headers we should never pass back to the client verbatim. We let Starlette
+# rebuild framing/encoding and we rewrite content-type ourselves.
+_STRIPPED_RESPONSE_HEADERS = frozenset(
+    {
+        "transfer-encoding",
+        "connection",
+        "content-length",
+        "content-encoding",
+        "keep-alive",
+    }
+)
+
+
+def _filter_request_headers(request: Request) -> dict[str, str]:
+    return {
+        k: v
+        for k, v in request.headers.items()
+        if k.lower() not in _HOP_BY_HOP_REQUEST_HEADERS
+    }
+
+
+def _filter_response_headers(upstream: httpx.Headers) -> dict[str, str]:
+    return {
+        k: v
+        for k, v in upstream.items()
+        if k.lower() not in _STRIPPED_RESPONSE_HEADERS
+    }
+
+
+async def _proxy_stream_request(
+    target_url: str,
+    path: str,
+    request: Request,
+) -> StreamingResponse:
+    """Forward a request to the target service as a true streaming proxy.
+
+    Used for ``stream: true`` routes (SSE, large binary blobs). Unlike the
+    buffered path, this opens an upstream connection whose body is iterated
+    lazily, so chunks flow to the client as they arrive from the addon —
+    critical for SSE (``/ask``) where the whole response may take minutes
+    but the first event must reach the browser immediately.
+
+    The httpx client is kept alive for the lifetime of the response and
+    closed in the generator's ``finally`` block so it survives both normal
+    completion and client disconnect.
+    """
+    url = f"{target_url}{path}"
+    params = dict(request.query_params)
+    body = (
+        await request.body()
+        if request.method in ("POST", "PUT", "PATCH")
+        else None
+    )
+    headers = _filter_request_headers(request)
+
+    # No read timeout: SSE streams can be long-lived. Keep a short connect
+    # timeout so a dead addon still fails fast.
+    timeout = httpx.Timeout(connect=10.0, read=None, write=30.0, pool=10.0)
+    client = httpx.AsyncClient(timeout=timeout)
+
+    try:
+        req = client.build_request(
+            method=request.method,
+            url=url,
+            params=params,
+            content=body,
+            headers=headers,
+        )
+        upstream = await client.send(req, stream=True)
+    except Exception:
+        await client.aclose()
+        logger.debug("Addon stream unavailable: %s%s", target_url, path)
+        raise HTTPException(
+            status_code=502, detail="Addon service unavailable"
+        )
+
+    async def _iterate() -> Any:
+        # Monotonic wall-clock deadline. httpx's read=None intentionally
+        # lets SSE streams run long, so we enforce a stream-wide upper
+        # bound here. Exceeding the deadline raises TimeoutError which
+        # the finally block converts into a clean connection close; the
+        # client sees a truncated response rather than a hang.
+        loop = asyncio.get_running_loop()
+        deadline = loop.time() + _STREAM_WALL_CLOCK_TIMEOUT_SEC
+
+        # aiter_bytes decodes any content-encoding (gzip/brotli) that the
+        # upstream may have applied, matching the stripped Content-
+        # Encoding response header so the client sees the uncompressed
+        # bytes.
+        iterator = upstream.aiter_bytes()
+        try:
+            while True:
+                remaining = deadline - loop.time()
+                if remaining <= 0:
+                    logger.warning(
+                        "Addon stream exceeded wall-clock cap (%.0fs): %s%s",
+                        _STREAM_WALL_CLOCK_TIMEOUT_SEC,
+                        target_url,
+                        path,
+                    )
+                    break
+                try:
+                    chunk = await asyncio.wait_for(
+                        iterator.__anext__(), timeout=remaining
+                    )
+                except StopAsyncIteration:
+                    break
+                except asyncio.TimeoutError:
+                    logger.warning(
+                        "Addon stream wall-clock timeout: %s%s",
+                        target_url,
+                        path,
+                    )
+                    break
+                yield chunk
+        finally:
+            await upstream.aclose()
+            await client.aclose()
+
+    response_headers = _filter_response_headers(upstream.headers)
+    media_type = upstream.headers.get("content-type")
+    # Starlette sets Content-Type from media_type; don't double-declare it.
+    response_headers.pop("content-type", None)
+    return StreamingResponse(
+        _iterate(),
+        status_code=upstream.status_code,
+        headers=response_headers,
+        media_type=media_type,
+    )
+
+
 async def _proxy_request(
     target_url: str,
     path: str,
     request: Request,
     stream: bool = False,
 ) -> Response | dict:
-    """Forward request to the target service."""
+    """Forward request to the target service (buffered JSON path).
+
+    For ``stream: true`` routes use ``_proxy_stream_request`` instead — it
+    keeps the upstream connection open and streams chunks as they arrive.
+    """
+    if stream:
+        return await _proxy_stream_request(target_url, path, request)
+
     url = f"{target_url}{path}"
     params = dict(request.query_params)
-
-    timeout = 30.0 if stream else 15.0
+    timeout = 15.0
 
     try:
         async with httpx.AsyncClient(timeout=timeout) as client:
@@ -141,23 +307,8 @@ async def _proxy_request(
                 url=url,
                 params=params,
                 content=await request.body() if request.method in ("POST", "PUT", "PATCH") else None,
-                headers={
-                    k: v for k, v in request.headers.items()
-                    if k.lower() not in ("host", "connection", "transfer-encoding")
-                },
+                headers=_filter_request_headers(request),
             )
-
-            if stream:
-                return Response(
-                    content=resp.content,
-                    status_code=resp.status_code,
-                    media_type=resp.headers.get("content-type", "application/octet-stream"),
-                    headers={
-                        "Cache-Control": resp.headers.get(
-                            "cache-control", "public, max-age=3600"
-                        )
-                    },
-                )
 
             # Forward client-facing errors (4xx) from the upstream addon
             # as-is so meaningful validation / permission responses reach
