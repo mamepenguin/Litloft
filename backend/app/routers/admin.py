@@ -11,7 +11,7 @@ from sqlalchemy.orm import Session
 
 import app.config as config
 from app.database import get_db
-from app.models import File
+from app.models import File, active_file_filter
 from app.schemas import DashboardDriveInfo, DashboardResponse, DashboardSystemInfo
 from app.services.scanner import get_scan_status
 
@@ -64,7 +64,7 @@ def _build_drive_info(db: Session, drive: dict) -> DashboardDriveInfo:
 
     type_counts = (
         db.query(File.file_type, func.count())
-        .filter(File.drive == name, File.deleted_at.is_(None))
+        .filter(File.drive == name, active_file_filter())
         .group_by(File.file_type)
         .all()
     )
@@ -93,13 +93,19 @@ def _build_system_info(db: Session) -> DashboardSystemInfo:
     total_files = (
         db.query(func.count())
         .select_from(File)
-        .filter(File.deleted_at.is_(None))
+        .filter(active_file_filter())
         .scalar()
     )
     trash_count = (
         db.query(func.count())
         .select_from(File)
         .filter(File.deleted_at.isnot(None))
+        .scalar()
+    )
+    missing_count = (
+        db.query(func.count())
+        .select_from(File)
+        .filter(File.missing_since.isnot(None), File.deleted_at.is_(None))
         .scalar()
     )
 
@@ -110,6 +116,7 @@ def _build_system_info(db: Session) -> DashboardSystemInfo:
         upload_temp_bytes=_get_directory_size(config.UPLOAD_DIR),
         total_files=total_files,
         trash_count=trash_count,
+        missing_count=missing_count,
         uptime_seconds=time.monotonic() - _start_time,
     )
 

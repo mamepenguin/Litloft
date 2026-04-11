@@ -30,7 +30,7 @@ function SidebarNav() {
 
   const { addons } = useAddonSlots();
 
-  const { drives, tags, pins, playlistList, setPlaylistList, authStatus } =
+  const { drives, tags, pins, playlistList, setPlaylistList, authStatus, driveSummary } =
     useSidebarData(currentDrive, refreshKey);
 
   const playlist = usePlaylistManagement({
@@ -87,7 +87,7 @@ function SidebarNav() {
 
   return (
     <nav className="flex flex-col gap-1 overflow-y-auto p-3">
-      <SidebarLibrarySection driveBase={driveBase} linkClass={linkClass} close={close} addons={addons} />
+      <SidebarLibrarySection driveBase={driveBase} linkClass={linkClass} close={close} addons={addons} driveSummary={driveSummary} />
 
       {driveBase && (
         <SidebarPlaylistsSection driveBase={driveBase} currentDrive={currentDrive} setPlaylistList={setPlaylistList} {...playlist} />

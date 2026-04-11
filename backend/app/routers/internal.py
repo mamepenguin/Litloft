@@ -14,7 +14,7 @@ from pydantic import BaseModel
 import app.config as config
 from app.auth import filter_drives, get_unlocked_groups
 from app.database import get_db
-from app.models import File
+from app.models import File, active_file_filter
 
 logger = logging.getLogger(__name__)
 
@@ -38,7 +38,7 @@ async def file_info(
     """Return basic file metadata. No access control (internal use only)."""
     file = (
         db.query(File)
-        .filter(File.id == file_id, File.deleted_at.is_(None))
+        .filter(File.id == file_id, active_file_filter())
         .first()
     )
     if not file:
@@ -75,7 +75,7 @@ async def filter_file_ids(
         db.query(File.id, File.drive)
         .filter(
             File.id.in_(body.file_ids),
-            File.deleted_at.is_(None),
+            active_file_filter(),
         )
         .all()
     )

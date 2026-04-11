@@ -15,11 +15,39 @@
 - `drives.json` に `readonly: true` で書き込み禁止
 - お気に入りURLは `?view=favorites` クエリパラメータ（フォルダ名との競合回避）
 
+## ファイル状態の3状態（Active / Missing / Trash）
+
+`File` モデルは `deleted_at` と `missing_since` という 2 つのタイムスタンプカラムで 3 つの状態を表現する。両者は相互排他:
+
+| 状態 | `deleted_at` | `missing_since` | 意味 | 自動パージ |
+|---|---|---|---|---|
+| Active | NULL | NULL | 通常 | - |
+| Missing | NULL | SET | FSにない（復活待ち） | **なし** |
+| Trash | SET | NULL | ユーザー削除 | 30日 |
+
+**共通ヘルパー**: `app.models.active_file_filter()` が `and_(deleted_at.is_(None), missing_since.is_(None))` を返す。新しいクエリでは必ずこのヘルパーを使う（22箇所の直書き `deleted_at.is_(None)` は全て移行済み）。
+
 ## ゴミ箱（ソフトデリート）
 - **FSファイルはそのまま残す**: ゴミ箱に入れてもFSは変更しない。パージ時に初めて物理削除
 - **自動パージ**: 30日経過でstartup時+24時間ごとに物理削除
-- **既存クエリ**: 全てに `File.deleted_at.is_(None)` フィルタ追加済み
-- **スキャナー**: ソフトデリート済みファイルはスキップ（removed扱いにしない）
+- **既存クエリ**: 全てに `active_file_filter()` 経由で `File.deleted_at.is_(None)` フィルタを追加
+- **スキャナー**: ソフトデリート済みファイルはスキップ（missing 扱いにしない）
+
+## 見つからないファイル（Missing）
+- **設計哲学**: DB は単なる FS のキャッシュではなく、FS から再生成不可能なユーザー/アドオン生成データ（視聴履歴・コメント・タグ・Whisper 文字起こし・CLIP embedding）を保持する独立した情報源。FS で一時的に見えなくなったからといって即座に物理削除しない
+- **スキャナーの挙動**: FS で見つからない active ファイルは物理削除せず `missing_since = now` をセットし `files.missing` イベント発行。過去の「物理削除 + `files.purged` 発行」は廃止
+- **復活判定**: 同じパスに FS 上で再出現したら `missing_since` をクリアし `files.recovered` イベント発行。ハッシュベース復活は未実装（Phase 2 で検討）
+- **自動パージしない**: ゴミ箱と異なり、ユーザーが明示的に削除するまで永久に保持。NAS の長期切断にも耐える
+- **サムネイル**: missing 化時もサムネイルは残す（復活時に再利用するため）
+- **ドライブ全体不在**: `drive_path.exists() == False` なら scanner は早期 return し missing マーキングもしない。マウントポイントごと壊れた場合の全消失を防ぐ
+- **アップロード衝突**: 同パスに missing レコードがある場合、upload は新規INSERTでなくそのレコードを復活扱いで更新（UNIQUE 制約回避）
+- **`files.purged` の意味変更**: スキャン起因の purged 発行は廃止。ユーザー明示の完全削除（purge endpoint）だけが `files.purged` を発行する
+- **intelligence アドオン連携**: missing/recovered webhook は既存 soft-delete と同じ経路で `active=False/True` を切り替え。Whisper/CLIP/embedding は保全される
+- **UI**: サイドバーには `missing_count > 0` のときだけ「見つからないファイル」リンクを表示。専用ビュー `?view=missing` から一覧確認・個別パージ・一括パージが可能。通常のファイル一覧には missing は出ない（backend 側で `active_file_filter()` が除外）
+- **アクセス制御**: missing ファイルに対して stream は 410 Gone、通常の GET も 404、変更系操作（rename/move/tag 等）は全て 404。サムネイルのみ配信可能（古いキャッシュ）
+- **プレイリスト**: 新規にプレイリストへ missing/trash ファイルを追加するのは拒否（`add_playlist_items` で `active_file_filter()` を適用）。既にプレイリストに入っている missing/trash ファイルは response に残し、frontend が `missing_since`/`deleted_at` を見て表示を調整する（trash と同じ既存パターン）
+- **restore_file の防御**: `restore_file()` は `deleted_at = None` と同時に `missing_since = None` もクリアする。相互排他はソース側で強制されるが、out-of-band DB 編集や将来のバグに対する safety net
+- **`purge_all_missing` のバッチ化**: 大量 missing ファイル purge 時の長時間 DB ロック / 部分失敗を避けるため、200 件ずつチャンク commit。各バッチは `purged_ids` を返し、router 側で TOCTOU なく webhook 発行
 
 ## 視聴履歴・プロファイル
 - **プロファイルとアクセス制御は独立**: JWT `hv_token` = ドライブアクセス制御、Cookie `hv_viewer` = 個人識別。直交する概念

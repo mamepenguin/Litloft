@@ -339,6 +339,16 @@ def _migrate(engine_) -> None:
     if "comments" not in tables:
         Base.metadata.tables["comments"].create(bind=engine_, checkfirst=True)
 
+    # === Phase 9: Add missing_since column to files (missing files tracking) ===
+    tables = inspector.get_table_names()
+    if "files" in tables:
+        file_columns = {col["name"] for col in inspector.get_columns("files")}
+        if "missing_since" not in file_columns:
+            logger.info("Migrating: adding 'missing_since' column to files")
+            with engine_.begin() as conn:
+                conn.execute(text("ALTER TABLE files ADD COLUMN missing_since DATETIME"))
+                conn.execute(text("CREATE INDEX idx_files_missing_since ON files(missing_since)"))
+
 
 def init_db() -> None:
     DATA_DIR.mkdir(parents=True, exist_ok=True)

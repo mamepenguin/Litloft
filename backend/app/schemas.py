@@ -42,6 +42,7 @@ class FileResponse(_UtcDateTimeMixin, BaseModel):
     created_at: datetime
     updated_at: datetime
     deleted_at: datetime | None = None
+    missing_since: datetime | None = None
 
     model_config = {"from_attributes": True}
 
@@ -114,6 +115,12 @@ class DriveResponse(BaseModel):
     protected: bool = False
 
 
+class DriveSummaryResponse(BaseModel):
+    name: str
+    trash_count: int
+    missing_count: int
+
+
 class FolderResponse(BaseModel):
     name: str
     path: str
@@ -136,7 +143,8 @@ class PinnedFolderCreateRequest(BaseModel):
 
 class ScanResponse(BaseModel):
     added: int
-    removed: int
+    missing: int = 0
+    recovered: int = 0
     updated: int = 0
     total: int
 
@@ -494,6 +502,7 @@ class DashboardSystemInfo(BaseModel):
     upload_temp_bytes: int
     total_files: int
     trash_count: int
+    missing_count: int = 0
     uptime_seconds: float
 
 
@@ -591,4 +600,5 @@ def file_to_response(file, subtitles: list[SubtitleInfo] | None = None) -> FileR
         created_at=file.created_at,
         updated_at=file.updated_at,
         deleted_at=file.deleted_at,
+        missing_since=file.missing_since,
     )

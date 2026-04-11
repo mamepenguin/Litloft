@@ -2,8 +2,9 @@
 
 import { useEffect, useState } from "react";
 
-import { getDrives, getDriveTags, getPins, getPlaylists, getAuthStatus } from "@/lib/api";
-import type { AuthStatus, Drive, PinnedFolder, PlaylistSummary, Tag } from "@/types";
+import { getDrives, getDriveSummary, getDriveTags, getPins, getPlaylists, getAuthStatus } from "@/lib/api";
+import { useWebSocket } from "@/hooks/useWebSocket";
+import type { AuthStatus, Drive, DriveSummary, PinnedFolder, PlaylistSummary, Tag } from "@/types";
 
 interface UseSidebarDataResult {
   drives: Drive[];
@@ -12,6 +13,7 @@ interface UseSidebarDataResult {
   playlistList: PlaylistSummary[];
   setPlaylistList: React.Dispatch<React.SetStateAction<PlaylistSummary[]>>;
   authStatus: AuthStatus | null;
+  driveSummary: DriveSummary | null;
 }
 
 export function useSidebarData(
@@ -23,6 +25,7 @@ export function useSidebarData(
   const [pins, setPins] = useState<PinnedFolder[]>([]);
   const [playlistList, setPlaylistList] = useState<PlaylistSummary[]>([]);
   const [authStatus, setAuthStatus] = useState<AuthStatus | null>(null);
+  const [driveSummary, setDriveSummary] = useState<DriveSummary | null>(null);
 
   useEffect(() => {
     getDrives().then(setDrives).catch(() => setDrives([]));
@@ -30,11 +33,23 @@ export function useSidebarData(
   }, [refreshKey]);
 
   useEffect(() => {
-    if (!currentDrive) return;
+    if (!currentDrive) {
+      setDriveSummary(null);
+      return;
+    }
     getDriveTags(currentDrive).then(setTags).catch(() => setTags([]));
     getPins(currentDrive).then(setPins).catch(() => setPins([]));
     getPlaylists(currentDrive).then(setPlaylistList).catch(() => setPlaylistList([]));
+    getDriveSummary(currentDrive).then(setDriveSummary).catch(() => setDriveSummary(null));
   }, [currentDrive, refreshKey]);
 
-  return { drives, tags, pins, playlistList, setPlaylistList, authStatus };
+  // Refresh drive summary when a scan completes so sidebar reflects
+  // newly missing / recovered counts.
+  const scanEvent = useWebSocket("scan:complete");
+  useEffect(() => {
+    if (!scanEvent || !currentDrive) return;
+    getDriveSummary(currentDrive).then(setDriveSummary).catch(() => {});
+  }, [scanEvent, currentDrive]);
+
+  return { drives, tags, pins, playlistList, setPlaylistList, authStatus, driveSummary };
 }

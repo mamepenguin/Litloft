@@ -12,6 +12,7 @@ from sqlalchemy import (
     Table,
     Text,
     UniqueConstraint,
+    and_,
 )
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
@@ -71,6 +72,9 @@ class File(Base):
     deleted_at: Mapped[datetime | None] = mapped_column(
         DateTime, nullable=True, default=None
     )
+    missing_since: Mapped[datetime | None] = mapped_column(
+        DateTime, nullable=True, default=None
+    )
     file_hash: Mapped[str | None] = mapped_column(
         String(64), nullable=True, default=None
     )
@@ -85,6 +89,7 @@ class File(Base):
         Index("idx_files_is_favorite", "is_favorite"),
         Index("idx_files_file_type", "file_type"),
         Index("idx_files_deleted_at", "deleted_at"),
+        Index("idx_files_missing_since", "missing_since"),
         Index("idx_files_file_hash", "file_hash"),
     )
 
@@ -206,3 +211,12 @@ class PlaylistItem(Base):
         UniqueConstraint("playlist_id", "file_id", name="uq_playlist_items_playlist_file"),
         Index("idx_playlist_items_playlist_id", "playlist_id"),
     )
+
+
+def active_file_filter():
+    """Filter condition matching only active files (not trashed, not missing).
+
+    Use this in queries for file lists, searches, counts, etc. where
+    soft-deleted (trash) and missing files should be excluded.
+    """
+    return and_(File.deleted_at.is_(None), File.missing_since.is_(None))

@@ -7,7 +7,7 @@ from sqlalchemy.orm import Session
 
 from app.auth import check_drive_access, get_nickname, get_unlocked_groups, get_viewer_id
 from app.database import get_db
-from app.models import Comment, File
+from app.models import Comment, File, active_file_filter
 from app.schemas import (
     CommentCreateRequest,
     CommentResponse,
@@ -42,7 +42,7 @@ def _check_comment_rate_limit(client_ip: str) -> None:
 def _get_file_or_404(
     db: Session, file_id: str, unlocked_groups: list[str]
 ) -> File:
-    file = db.query(File).filter(File.id == file_id, File.deleted_at.is_(None)).first()
+    file = db.query(File).filter(File.id == file_id, active_file_filter()).first()
     if not file:
         raise HTTPException(status_code=404, detail="File not found")
     check_drive_access(file.drive, unlocked_groups)

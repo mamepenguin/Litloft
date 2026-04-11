@@ -8,6 +8,11 @@ vi.mock("@/lib/api", () => ({
   getPins: vi.fn().mockResolvedValue([]),
   getPlaylists: vi.fn().mockResolvedValue([]),
   getAuthStatus: vi.fn().mockResolvedValue({ unlocked_groups: [], has_protected_drives: false }),
+  getDriveSummary: vi.fn().mockResolvedValue({ name: "", trash_count: 0, missing_count: 0 }),
+}));
+
+vi.mock("@/hooks/useWebSocket", () => ({
+  useWebSocket: vi.fn().mockReturnValue(null),
 }));
 
 import { getDrives, getDriveTags, getPins, getPlaylists, getAuthStatus } from "@/lib/api";

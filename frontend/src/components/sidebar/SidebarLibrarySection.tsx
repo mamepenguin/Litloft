@@ -1,5 +1,6 @@
 import Link from "next/link";
 import {
+  AlertTriangle,
   Clock,
   Download,
   FilePlus,
@@ -15,6 +16,7 @@ import {
 } from "lucide-react";
 import { useTranslations } from "next-intl";
 import type { AddonMeta } from "@/lib/addons";
+import type { DriveSummary } from "@/types";
 
 const ADDON_ICONS: Record<string, LucideIcon> = {
   download: Download,
@@ -27,10 +29,12 @@ interface SidebarLibrarySectionProps {
   linkClass: (href: string) => string;
   close: () => void;
   addons?: Record<string, AddonMeta>;
+  driveSummary?: DriveSummary | null;
 }
 
-export function SidebarLibrarySection({ driveBase, linkClass, close, addons }: SidebarLibrarySectionProps) {
+export function SidebarLibrarySection({ driveBase, linkClass, close, addons, driveSummary }: SidebarLibrarySectionProps) {
   const t = useTranslations("sidebar");
+  const tMissing = useTranslations("missing");
   const tAdmin = useTranslations("admin");
 
   const addonEntries = addons
@@ -75,6 +79,15 @@ export function SidebarLibrarySection({ driveBase, linkClass, close, addons }: S
             <Trash2 size={16} />
             {t("trash")}
           </Link>
+          {driveSummary && driveSummary.missing_count > 0 && (
+            <Link href={`${driveBase}?view=missing`} onClick={close} className={linkClass(`${driveBase}?view=missing`)}>
+              <AlertTriangle size={16} className="text-amber-500" />
+              <span className="flex-1">{tMissing("sidebar")}</span>
+              <span className="flex-shrink-0 rounded-full bg-amber-500/20 px-1.5 py-0.5 text-[10px] font-semibold text-amber-500">
+                {driveSummary.missing_count}
+              </span>
+            </Link>
+          )}
         </>
       )}
       <Link href="/admin" onClick={close} className={linkClass("/admin")}>

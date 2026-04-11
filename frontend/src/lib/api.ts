@@ -1,4 +1,4 @@
-import type { ArchiveContents, AuthStatus, BatchRenameRequest, BatchRenameResponse, ChunkResponse, Comment, CommentsResponse, DashboardResponse, Drive, DuplicatesResponse, FileItem, FileType, Folder, Neighbors, PaginatedResponse, PinnedFolder, PlaylistDetail, PlaylistSummary, SortField, SortOrder, Tag, UnlockResult, UploadInitResponse, WatchHistoryItem, WatchProgress } from "@/types";
+import type { ArchiveContents, AuthStatus, BatchRenameRequest, BatchRenameResponse, ChunkResponse, Comment, CommentsResponse, DashboardResponse, Drive, DriveSummary, DuplicatesResponse, FileItem, FileType, Folder, Neighbors, PaginatedResponse, PinnedFolder, PlaylistDetail, PlaylistSummary, SortField, SortOrder, Tag, UnlockResult, UploadInitResponse, WatchHistoryItem, WatchProgress } from "@/types";
 
 const API_BASE = "/api";
 
@@ -475,6 +475,35 @@ export async function emptyTrash(drive: string): Promise<{ purged: number }> {
   return fetchJSON<{ purged: number }>(
     `${API_BASE}/drives/${encodeURIComponent(drive)}/trash/empty`,
     { method: "POST" }
+  );
+}
+
+// Missing files
+export async function getMissing(
+  drive: string,
+  params?: { sort?: "missing_since" | SortField; order?: SortOrder; page?: number; limit?: number }
+): Promise<PaginatedResponse> {
+  const searchParams = new URLSearchParams();
+  if (params?.sort) searchParams.set("sort", params.sort);
+  if (params?.order) searchParams.set("order", params.order);
+  if (params?.page) searchParams.set("page", String(params.page));
+  if (params?.limit) searchParams.set("limit", String(params.limit));
+  const qs = searchParams.toString();
+  return fetchJSON<PaginatedResponse>(
+    `${API_BASE}/drives/${encodeURIComponent(drive)}/missing${qs ? `?${qs}` : ""}`
+  );
+}
+
+export async function purgeAllMissing(drive: string): Promise<{ purged: number }> {
+  return fetchJSON<{ purged: number }>(
+    `${API_BASE}/drives/${encodeURIComponent(drive)}/missing/purge-all`,
+    { method: "POST" }
+  );
+}
+
+export async function getDriveSummary(drive: string): Promise<DriveSummary> {
+  return fetchJSON<DriveSummary>(
+    `${API_BASE}/drives/${encodeURIComponent(drive)}/summary`
   );
 }
 

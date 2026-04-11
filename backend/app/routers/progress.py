@@ -11,7 +11,7 @@ from app.auth import (
     nickname_to_viewer_id,
 )
 from app.database import get_db
-from app.models import File, WatchHistory
+from app.models import File, WatchHistory, active_file_filter
 from app.schemas import ProgressResponse, ProgressUpdateRequest
 
 router = APIRouter(prefix="/api/files", tags=["progress"])
@@ -22,7 +22,7 @@ FileId = Annotated[str, PathParam(min_length=12, max_length=12, pattern=r"^[A-Za
 def _get_file_or_404(
     db: Session, file_id: str, unlocked_groups: list[str]
 ) -> File:
-    file = db.query(File).filter(File.id == file_id, File.deleted_at.is_(None)).first()
+    file = db.query(File).filter(File.id == file_id, active_file_filter()).first()
     if not file:
         raise HTTPException(status_code=404, detail="File not found")
     check_drive_access(file.drive, unlocked_groups)

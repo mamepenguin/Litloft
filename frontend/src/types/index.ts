@@ -24,6 +24,7 @@ export interface FileItem {
   tags: string[];
   subtitles: SubtitleInfo[];
   deleted_at: string | null;
+  missing_since: string | null;
   created_at: string;
   updated_at: string;
 }
@@ -173,12 +174,16 @@ export interface WebSocketEvent {
 export interface ScanProgressData {
   drive: string;
   added: number;
-  removed: number;
   total: number;
 }
 
-export interface ScanCompleteData extends ScanProgressData {
+export interface ScanCompleteData {
+  drive: string;
+  added: number;
+  missing: number;
+  recovered: number;
   updated: number;
+  total: number;
 }
 
 export interface UploadCompleteData {
@@ -206,7 +211,14 @@ export interface DashboardSystemInfo {
   upload_temp_bytes: number;
   total_files: number;
   trash_count: number;
+  missing_count: number;
   uptime_seconds: number;
+}
+
+export interface DriveSummary {
+  name: string;
+  trash_count: number;
+  missing_count: number;
 }
 
 export interface DashboardResponse {

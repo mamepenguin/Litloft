@@ -8,10 +8,12 @@ from sqlalchemy.orm import Session
 import app.config as config
 from app.auth import check_drive_access, filter_drives, get_unlocked_groups
 from app.database import get_db
-from app.models import EmptyFolder, File, PinnedFolder, Tag, WatchHistory, file_tags
+from app.models import EmptyFolder, File, PinnedFolder, Tag, WatchHistory, active_file_filter, file_tags
 from app.routers.progress import get_viewer_id
+from app.services import event_hooks
 from app.schemas import (
     DriveResponse,
+    DriveSummaryResponse,
     DuplicateGroup,
     DuplicatesResponse,
     FileResponse,
@@ -68,6 +70,36 @@ async def list_drives(
     ]
 
 
+@router.get("/{drive_name}/summary", response_model=DriveSummaryResponse)
+async def get_drive_summary(
+    drive_name: str,
+    db: Annotated[Session, Depends(get_db)],
+    unlocked_groups: Annotated[list[str], Depends(get_unlocked_groups)],
+):
+    _validate_drive(drive_name, unlocked_groups)
+    trash_count = (
+        db.query(func.count(File.id))
+        .filter(File.drive == drive_name, File.deleted_at.isnot(None))
+        .scalar()
+        or 0
+    )
+    missing_count = (
+        db.query(func.count(File.id))
+        .filter(
+            File.drive == drive_name,
+            File.missing_since.isnot(None),
+            File.deleted_at.is_(None),
+        )
+        .scalar()
+        or 0
+    )
+    return DriveSummaryResponse(
+        name=drive_name,
+        trash_count=trash_count,
+        missing_count=missing_count,
+    )
+
+
 @router.get("/{drive_name}/folders", response_model=list[FolderResponse])
 async def list_folders(
     drive_name: str,
@@ -81,7 +113,7 @@ async def list_folders(
 
     query = db.query(File.folder_path, func.count(File.id)).filter(
         File.drive == drive_name,
-        File.deleted_at.is_(None),
+        active_file_filter(),
     )
 
     if path:
@@ -129,7 +161,7 @@ async def list_folders(
     if folders:
         thumb_query = db.query(File.id, File.folder_path, File.filename).filter(
             File.drive == drive_name,
-            File.deleted_at.is_(None),
+            active_file_filter(),
             File.file_type.in_(["video", "image"]),
         )
         if path:
@@ -181,7 +213,7 @@ async def list_drive_files(
     if path is not None and path:
         path = _validate_folder_path(path)
 
-    query = db.query(File).filter(File.drive == drive_name, File.deleted_at.is_(None))
+    query = db.query(File).filter(File.drive == drive_name, active_file_filter())
 
     if path is not None:
         query = query.filter(File.folder_path == path)
@@ -230,7 +262,7 @@ async def list_drive_tags(
         .outerjoin(File, File.id == file_tags.c.file_id)
         .filter(
             Tag.drive == drive_name,
-            (file_tags.c.file_id.is_(None)) | (File.deleted_at.is_(None)),
+            (file_tags.c.file_id.is_(None)) | active_file_filter(),
         )
         .group_by(Tag.id)
         .order_by(Tag.name)
@@ -383,7 +415,7 @@ async def get_watch_history(
         .filter(
             WatchHistory.viewer_id == viewer_id,
             File.drive == drive_name,
-            File.deleted_at.is_(None),
+            active_file_filter(),
         )
     )
 
@@ -428,7 +460,7 @@ async def list_duplicates(
         db.query(File.file_hash, File.file_size, func.count(File.id))
         .filter(
             File.drive == drive_name,
-            File.deleted_at.is_(None),
+            active_file_filter(),
             File.file_hash.isnot(None),
         )
         .group_by(File.file_hash, File.file_size)
@@ -445,7 +477,7 @@ async def list_duplicates(
         db.query(File)
         .filter(
             File.drive == drive_name,
-            File.deleted_at.is_(None),
+            active_file_filter(),
             File.file_hash.in_(hash_list),
         )
         .order_by(File.file_hash, File.created_at.asc())
@@ -527,3 +559,52 @@ async def empty_trash(
     _validate_drive(drive_name, unlocked_groups)
     count = fileops.purge_all_trash(db, drive_name)
     return {"purged": count}
+
+
+@router.get("/{drive_name}/missing", response_model=PaginatedResponse)
+async def list_missing(
+    drive_name: str,
+    db: Annotated[Session, Depends(get_db)],
+    unlocked_groups: Annotated[list[str], Depends(get_unlocked_groups)],
+    sort: str = Query("missing_since", pattern="^(missing_since|created_at|title|file_size)$"),
+    order: str = Query("desc", pattern="^(asc|desc)$"),
+    page: int = Query(1, ge=1),
+    limit: int = Query(30, ge=1, le=500),
+):
+    _validate_drive(drive_name, unlocked_groups)
+
+    query = db.query(File).filter(
+        File.drive == drive_name,
+        File.missing_since.isnot(None),
+        File.deleted_at.is_(None),
+    )
+
+    total = query.count()
+
+    sort_column = getattr(File, sort)
+    id_column = File.id
+    if order == "desc":
+        sort_column = sort_column.desc()
+        id_column = id_column.desc()
+    query = query.order_by(sort_column, id_column)
+
+    offset = (page - 1) * limit
+    files = query.offset(offset).limit(limit).all()
+
+    return PaginatedResponse(
+        data=[_to_response(f) for f in files],
+        meta=PaginationMeta(total=total, page=page, limit=limit),
+    )
+
+
+@router.post("/{drive_name}/missing/purge-all")
+async def purge_all_missing_endpoint(
+    drive_name: str,
+    db: Annotated[Session, Depends(get_db)],
+    unlocked_groups: Annotated[list[str], Depends(get_unlocked_groups)],
+):
+    _validate_drive(drive_name, unlocked_groups)
+    purged_ids = fileops.purge_all_missing(db, drive_name)
+    if purged_ids:
+        event_hooks.emit_sync("files.purged", {"file_ids": purged_ids})
+    return {"purged": len(purged_ids)}

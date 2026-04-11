@@ -7,7 +7,7 @@ from sqlalchemy.orm import Session
 import app.config as config
 from app.auth import check_drive_access, get_unlocked_groups
 from app.database import get_db
-from app.models import File, Playlist, PlaylistItem
+from app.models import File, Playlist, PlaylistItem, active_file_filter
 from app.schemas import (
     PlaylistCreateRequest,
     PlaylistDetailResponse,
@@ -55,6 +55,10 @@ def _to_summary(playlist: Playlist) -> PlaylistSummaryResponse:
 
 
 def _to_detail(playlist: Playlist) -> PlaylistDetailResponse:
+    # Items for trashed (deleted_at) or missing (missing_since) files are
+    # intentionally kept in the response so the UI can grey them out and
+    # the user can still see the playlist history. Frontend reads
+    # ``deleted_at`` / ``missing_since`` on each file to adjust rendering.
     return PlaylistDetailResponse(
         id=playlist.id,
         name=playlist.name,
@@ -197,7 +201,11 @@ async def add_playlist_items(
     _validate_drive(drive_name, unlocked_groups)
     playlist = _get_playlist_or_404(db, playlist_id, drive_name)
 
-    files = db.query(File).filter(File.id.in_(body.file_ids)).all()
+    files = (
+        db.query(File)
+        .filter(File.id.in_(body.file_ids), active_file_filter())
+        .all()
+    )
     file_map = {f.id: f for f in files}
 
     for fid in body.file_ids:

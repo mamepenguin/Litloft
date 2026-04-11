@@ -27,7 +27,7 @@ _STREAM_WALL_CLOCK_TIMEOUT_SEC = 600.0
 import app.config as config
 from app.auth import filter_drives, get_unlocked_groups
 from app.database import get_db
-from app.models import File
+from app.models import File, active_file_filter
 from sqlalchemy.orm import Session
 from app.services import addon_registry
 
@@ -104,7 +104,7 @@ def _check_file_access(
     """Pre-check: verify file exists and user has access to its drive."""
     file = (
         db.query(File)
-        .filter(File.id == file_id, File.deleted_at.is_(None))
+        .filter(File.id == file_id, active_file_filter())
         .first()
     )
     if not file:

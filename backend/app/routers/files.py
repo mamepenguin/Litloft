@@ -16,7 +16,7 @@ from sqlalchemy.orm import Session
 import app.config as config
 from app.auth import check_drive_access, get_unlocked_groups
 from app.database import get_db
-from app.models import File, Tag, file_tags
+from app.models import File, Tag, active_file_filter, file_tags
 from app.schemas import (
     ArchiveContentsResponse,
     ArchiveEntryResponse,
@@ -119,7 +119,7 @@ def _is_drive_accessible(drive_name: str, unlocked_groups: list[str]) -> bool:
 def _get_file_or_404(
     db: Session, file_id: str, unlocked_groups: list[str]
 ) -> File:
-    file = db.query(File).filter(File.id == file_id, File.deleted_at.is_(None)).first()
+    file = db.query(File).filter(File.id == file_id, active_file_filter()).first()
     if not file:
         raise HTTPException(status_code=404, detail="File not found")
     check_drive_access(file.drive, unlocked_groups)
@@ -136,10 +136,38 @@ def _get_trashed_file_or_404(
     return file
 
 
+def _get_missing_file_or_404(
+    db: Session, file_id: str, unlocked_groups: list[str]
+) -> File:
+    file = db.query(File).filter(
+        File.id == file_id,
+        File.missing_since.isnot(None),
+        File.deleted_at.is_(None),
+    ).first()
+    if not file:
+        raise HTTPException(status_code=404, detail="File not found in missing")
+    check_drive_access(file.drive, unlocked_groups)
+    return file
+
+
+def _get_trashed_or_missing_file_or_404(
+    db: Session, file_id: str, unlocked_groups: list[str]
+) -> File:
+    """Get a file that is either trashed or missing (both purge-eligible)."""
+    file = db.query(File).filter(
+        File.id == file_id,
+        or_(File.deleted_at.isnot(None), File.missing_since.isnot(None)),
+    ).first()
+    if not file:
+        raise HTTPException(status_code=404, detail="File not found")
+    check_drive_access(file.drive, unlocked_groups)
+    return file
+
+
 def _get_file_any_state_or_404(
     db: Session, file_id: str, unlocked_groups: list[str]
 ) -> File:
-    """Get file regardless of deleted_at state (for thumbnail/stream access in trash)."""
+    """Get file regardless of state (for thumbnail/metadata access in trash or missing)."""
     file = db.query(File).filter(File.id == file_id).first()
     if not file:
         raise HTTPException(status_code=404, detail="File not found")
@@ -153,7 +181,7 @@ async def batch_get(
     db: Annotated[Session, Depends(get_db)],
     unlocked_groups: Annotated[list[str], Depends(get_unlocked_groups)],
 ):
-    files = db.query(File).filter(File.id.in_(body.ids), File.deleted_at.is_(None)).all()
+    files = db.query(File).filter(File.id.in_(body.ids), active_file_filter()).all()
     file_map = {f.id: f for f in files}
     return [
         _to_response(file_map[fid])
@@ -298,8 +326,11 @@ async def batch_purge(
     errors = []
     for file_id in body.ids:
         try:
-            _get_trashed_file_or_404(db, file_id, unlocked_groups)
-            fileops.purge_file(db, file_id)
+            file = _get_trashed_or_missing_file_or_404(db, file_id, unlocked_groups)
+            if file.missing_since is not None and file.deleted_at is None:
+                fileops.purge_missing_file(db, file_id)
+            else:
+                fileops.purge_file(db, file_id)
             purged += 1
             purged_ids.append(file_id)
         except HTTPException as e:
@@ -357,7 +388,7 @@ async def get_file_neighbors(
         File.drive == file.drive,
         File.folder_path == file.folder_path,
         File.id != file.id,
-        File.deleted_at.is_(None),
+        active_file_filter(),
     )
 
     if order == "asc":
@@ -505,6 +536,8 @@ async def stream_file(
     download: bool = False,
 ):
     file = _get_file_any_state_or_404(db, file_id, unlocked_groups)
+    if file.missing_since is not None and file.deleted_at is None:
+        raise HTTPException(status_code=410, detail="File is missing")
 
     drive_path = config.get_drive_path(file.drive)
     file_path = _validate_path(
@@ -840,8 +873,11 @@ async def purge_file_endpoint(
     db: Annotated[Session, Depends(get_db)],
     unlocked_groups: Annotated[list[str], Depends(get_unlocked_groups)],
 ):
-    _get_trashed_file_or_404(db, file_id, unlocked_groups)
-    fileops.purge_file(db, file_id)
+    file = _get_trashed_or_missing_file_or_404(db, file_id, unlocked_groups)
+    if file.missing_since is not None and file.deleted_at is None:
+        fileops.purge_missing_file(db, file_id)
+    else:
+        fileops.purge_file(db, file_id)
     asyncio.create_task(
         event_hooks.emit("files.purged", {"file_ids": [file_id]})
     )

@@ -347,6 +347,23 @@
     "batchPurgeTitle": "Permanently Delete",
     "batchPurgeMessage": "Permanently delete {count} files? This action cannot be undone."
   },
+  "missing": {
+    "title": "Missing Files",
+    "sidebar": "Missing Files",
+    "badge": "Missing",
+    "empty": "No missing files",
+    "emptyDescription": "Files that were not found on disk during scan will appear here. They will be automatically recovered if the drive is remounted and scanned.",
+    "purge": "Permanently Delete",
+    "purgeAll": "Permanently Delete All",
+    "confirmPurge": "Permanently delete this file's data (watch history, comments, tags, search index, etc.)? This action cannot be undone.",
+    "confirmPurgeAll": "Permanently delete {count} files? All associated data will be lost and this action cannot be undone.",
+    "purged": "Permanently deleted",
+    "streamError": "This file is currently missing and cannot be played. Please verify the drive is correctly mounted.",
+    "description": "Files that were not found on disk. They will be automatically recovered if they come back.",
+    "scanWarning": "{count} files are missing",
+    "scanWarningDescription": "Please verify the drive's mount state.",
+    "scanRecovered": "{count} files recovered"
+  },
   "admin": {
     "title": "Dashboard",
     "drives": "Drives",

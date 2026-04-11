@@ -5,6 +5,7 @@ import { useParams, useSearchParams } from "next/navigation";
 import { FolderBrowser } from "@/components/FolderBrowser";
 import { DriveHome } from "@/components/DriveHome";
 import { TrashView } from "@/components/trash/TrashView";
+import { MissingView } from "@/components/missing/MissingView";
 
 export default function DrivePage() {
   const params = useParams();
@@ -15,6 +16,10 @@ export default function DrivePage() {
 
   if (view === "trash") {
     return <TrashView driveName={driveName} />;
+  }
+
+  if (view === "missing") {
+    return <MissingView driveName={driveName} />;
   }
 
   if (view || tagFilter) {

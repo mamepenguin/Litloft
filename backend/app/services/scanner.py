@@ -9,7 +9,7 @@ from sqlalchemy.orm import Session
 
 import app.config as config
 from app.database import SessionLocal
-from app.models import EmptyFolder, File
+from app.models import EmptyFolder, File, active_file_filter
 from app.services.filetype import classify, is_hidden
 from app.services.hash import compute_file_hash
 from app.services.subtitle import is_subtitle_file
@@ -129,7 +129,7 @@ def _scan_and_register(db: Session, drive_name: str) -> dict[str, int]:
     drive_path = config.get_drive_path(drive_name)
     if not drive_path.exists():
         logger.warning("Drive directory does not exist: %s (%s)", drive_name, drive_path)
-        return {"added": 0, "removed": 0, "total": 0}
+        return {"added": 0, "missing": 0, "recovered": 0, "total": 0}
 
     existing: dict[str, File] = {
         f.file_path: f
@@ -138,6 +138,7 @@ def _scan_and_register(db: Session, drive_name: str) -> dict[str, int]:
     found_paths: set[str] = set()
     added = 0
     updated = 0
+    recovered_ids: list[str] = []
     processed = 0
     last_progress_time = time.monotonic()
 
@@ -160,6 +161,13 @@ def _scan_and_register(db: Session, drive_name: str) -> dict[str, int]:
         if relative_path in existing:
             file_record = existing[relative_path]
             needs_update = False
+
+            # Recovery: file was missing but reappeared on disk
+            if file_record.missing_since is not None:
+                file_record.missing_since = None
+                recovered_ids.append(file_record.id)
+                logger.info("Recovered missing file: %s (drive: %s)", relative_path, drive_name)
+                needs_update = True
 
             if file_record.filename != nfc_name:
                 file_record.filename = nfc_name
@@ -209,7 +217,6 @@ def _scan_and_register(db: Session, drive_name: str) -> dict[str, int]:
                 broadcast_from_thread("scan:progress", {
                     "drive": drive_name,
                     "added": added,
-                    "removed": 0,
                     "total": processed,
                 }, drive=drive_name)
                 last_progress_time = now
@@ -258,37 +265,40 @@ def _scan_and_register(db: Session, drive_name: str) -> dict[str, int]:
             }, drive=drive_name)
             last_progress_time = now
 
-    removed_paths = set(existing.keys()) - found_paths
-    removed = 0
-    if removed_paths:
-        # Filter out soft-deleted files: they are expected to remain on disk
-        # until auto-purge removes them
-        active_removed = [
-            rp for rp in removed_paths
+    # Files that disappeared from the filesystem: mark as missing instead
+    # of physically deleting. Thumbnails stay on disk so they can be reused
+    # if the file comes back. Trashed files are skipped (they already have
+    # no on-disk presence expected).
+    missing_count = 0
+    unseen_paths = set(existing.keys()) - found_paths
+    if unseen_paths:
+        newly_missing_ids = [
+            existing[rp].id
+            for rp in unseen_paths
             if existing[rp].deleted_at is None
+            and existing[rp].missing_since is None
         ]
-        for rp in active_removed:
-            file_record = existing[rp]
-            if file_record.thumbnail_path:
-                thumb = config.THUMBNAILS_DIR / file_record.thumbnail_path
-                if thumb.exists():
-                    thumb.unlink()
-                    _cleanup_empty_parents(thumb.parent, config.THUMBNAILS_DIR)
-        if active_removed:
-            purged_ids = [existing[rp].id for rp in active_removed]
-            removed = (
-                db.query(File)
-                .filter(File.drive == drive_name, File.file_path.in_(active_removed))
-                .delete(synchronize_session="fetch")
+        if newly_missing_ids:
+            now = datetime.now(UTC)
+            db.query(File).filter(File.id.in_(newly_missing_ids)).update(
+                {"missing_since": now}, synchronize_session="fetch"
             )
-            logger.info("Removed %d files and their thumbnails (drive: %s)", removed, drive_name)
-            event_hooks.emit_sync("files.purged", {"file_ids": purged_ids})
+            missing_count = len(newly_missing_ids)
+            logger.info(
+                "Marked %d files as missing (drive: %s)",
+                missing_count,
+                drive_name,
+            )
+            event_hooks.emit_sync("files.missing", {"file_ids": newly_missing_ids})
+
+    if recovered_ids:
+        event_hooks.emit_sync("files.recovered", {"file_ids": recovered_ids})
 
     # Sync empty folders: detect filesystem dirs with no files and track them
     folders_with_files = {
         f.folder_path
         for f in db.query(File.folder_path).filter(
-            File.drive == drive_name, File.deleted_at.is_(None)
+            File.drive == drive_name, active_file_filter()
         ).distinct().all()
     }
     # Find all directories on the filesystem
@@ -326,14 +336,16 @@ def _scan_and_register(db: Session, drive_name: str) -> dict[str, int]:
         ).delete(synchronize_session="fetch")
 
     db.commit()
-    total = db.query(File).filter(File.drive == drive_name, File.deleted_at.is_(None)).count()
+    total = db.query(File).filter(File.drive == drive_name, active_file_filter()).count()
     if updated:
         logger.info("Updated %d file records (drive: %s)", updated, drive_name)
 
+    recovered_count = len(recovered_ids)
     broadcast_from_thread("scan:complete", {
         "drive": drive_name,
         "added": added,
-        "removed": removed,
+        "missing": missing_count,
+        "recovered": recovered_count,
         "updated": updated,
         "total": total,
     }, drive=drive_name)
@@ -341,10 +353,17 @@ def _scan_and_register(db: Session, drive_name: str) -> dict[str, int]:
     event_hooks.emit_sync("scan.complete", {
         "drive": drive_name,
         "added": added,
-        "removed": removed,
+        "missing": missing_count,
+        "recovered": recovered_count,
     })
 
-    return {"added": added, "removed": removed, "updated": updated, "total": total}
+    return {
+        "added": added,
+        "missing": missing_count,
+        "recovered": recovered_count,
+        "updated": updated,
+        "total": total,
+    }
 
 
 async def scan_drive(drive_name: str) -> dict[str, int]:
@@ -360,10 +379,11 @@ async def scan_drive(drive_name: str) -> dict[str, int]:
             result = await loop.run_in_executor(None, _scan_and_register, db, drive_name)
             _last_scanned_at[drive_name] = datetime.now(UTC)
             logger.info(
-                "Scan complete for drive '%s': added=%d, removed=%d, total=%d",
+                "Scan complete for drive '%s': added=%d, missing=%d, recovered=%d, total=%d",
                 drive_name,
                 result["added"],
-                result["removed"],
+                result.get("missing", 0),
+                result.get("recovered", 0),
                 result["total"],
             )
             return result

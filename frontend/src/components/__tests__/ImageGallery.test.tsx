@@ -29,6 +29,7 @@ function makeImage(id: string, title: string): FileItem {
     tags: [],
     subtitles: [],
     deleted_at: null,
+    missing_since: null,
     created_at: "2026-03-20T10:00:00",
     updated_at: "2026-03-20T10:00:00",
   };

@@ -1,10 +1,12 @@
 {
   "_comment": "Event hooks configuration. Copy to event-hooks.json and customize.",
   "_events": {
-    "files.deleted": "Files soft-deleted (body: {file_ids, type})",
+    "files.deleted": "Files soft-deleted / moved to trash (body: {file_ids, type})",
     "files.restored": "Files restored from trash (body: {file_ids})",
-    "files.purged": "Files permanently deleted (body: {file_ids})",
-    "scan.complete": "Drive scan finished (body: {drive, added, removed})"
+    "files.missing": "Files not found on disk during scan (body: {file_ids})",
+    "files.recovered": "Previously missing files reappeared on disk (body: {file_ids})",
+    "files.purged": "Files permanently deleted by user (body: {file_ids})",
+    "scan.complete": "Drive scan finished (body: {drive, added, missing, recovered})"
   },
   "_options": {
     "url": "Target webhook URL (required)",

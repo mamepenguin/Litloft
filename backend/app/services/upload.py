@@ -11,6 +11,7 @@ from sqlalchemy.orm import Session
 
 import app.config as config
 from app.models import File
+from app.services import event_hooks
 from app.services.filetype import classify
 from app.services.fileops import (
     _filename_to_title,
@@ -166,22 +167,46 @@ def complete_upload(upload_id: str, db: Session) -> File:
         if not gen_fn(str(target_full), str(thumbnail_full)):
             thumbnail_rel = None
 
-    file_record = File(
-        filename=session.filename,
-        title=_filename_to_title(session.filename),
-        drive=session.drive,
-        folder_path=session.folder_path,
-        file_path=target_rel,
-        file_size=target_full.stat().st_size,
-        file_type=file_type,
-        mime_type=mime_type,
-        thumbnail_path=thumbnail_rel,
-        duration=duration,
+    # If a missing record exists at the same path, recover it instead of
+    # inserting a new one (prevents UNIQUE constraint violation on file_path).
+    existing = (
+        db.query(File)
+        .filter(File.drive == session.drive, File.file_path == target_rel)
+        .first()
     )
-    db.add(file_record)
+    recovered_missing = False
+    if existing is not None and existing.missing_since is not None and existing.deleted_at is None:
+        existing.missing_since = None
+        existing.filename = session.filename
+        existing.title = _filename_to_title(session.filename)
+        existing.folder_path = session.folder_path
+        existing.file_size = target_full.stat().st_size
+        existing.file_type = file_type
+        existing.mime_type = mime_type
+        existing.thumbnail_path = thumbnail_rel
+        existing.duration = duration
+        file_record = existing
+        recovered_missing = True
+    else:
+        file_record = File(
+            filename=session.filename,
+            title=_filename_to_title(session.filename),
+            drive=session.drive,
+            folder_path=session.folder_path,
+            file_path=target_rel,
+            file_size=target_full.stat().st_size,
+            file_type=file_type,
+            mime_type=mime_type,
+            thumbnail_path=thumbnail_rel,
+            duration=duration,
+        )
+        db.add(file_record)
     remove_empty_folder_if_has_files(db, session.drive, session.folder_path)
     db.commit()
     db.refresh(file_record)
+
+    if recovered_missing:
+        event_hooks.emit_sync("files.recovered", {"file_ids": [file_record.id]})
 
     logger.info("Upload complete: %s → %s", upload_id, target_rel)
 

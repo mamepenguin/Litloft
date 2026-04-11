@@ -11,7 +11,7 @@ from sqlalchemy import text
 from sqlalchemy.orm import Session
 
 import app.config as config
-from app.models import EmptyFolder, File
+from app.models import EmptyFolder, File, active_file_filter
 from app.nanoid import generate_nanoid
 from app.services.heic import cleanup_heic_cache
 
@@ -108,7 +108,7 @@ def _ensure_empty_folder_tracked(db: Session, drive: str, folder_path: str) -> N
         return
     has_files = (
         db.query(File.id)
-        .filter(File.drive == drive, File.folder_path == folder_path, File.deleted_at.is_(None))
+        .filter(File.drive == drive, File.folder_path == folder_path, active_file_filter())
         .first()
     )
     if has_files:
@@ -468,8 +468,12 @@ def physical_delete(db: Session, file: File) -> None:
 
 
 def delete_file(db: Session, file_id: str) -> None:
-    """Soft delete: set deleted_at, keep file on disk."""
-    file = db.query(File).filter(File.id == file_id, File.deleted_at.is_(None)).first()
+    """Soft delete: set deleted_at, keep file on disk.
+
+    Missing files cannot be moved to trash (the file is not on disk to
+    begin with). Callers should purge them directly instead.
+    """
+    file = db.query(File).filter(File.id == file_id, active_file_filter()).first()
     if not file:
         raise HTTPException(status_code=404, detail="File not found")
 
@@ -494,6 +498,11 @@ def restore_file(db: Session, file_id: str) -> File:
         raise HTTPException(status_code=404, detail="File no longer exists on disk")
 
     file.deleted_at = None
+    # Defensive: ensure mutual exclusion with missing_since. Under normal
+    # flows a trashed file can never also be missing, but this safety net
+    # prevents a future bug or out-of-band DB edit from leaving the file
+    # invisible after restore.
+    file.missing_since = None
     remove_empty_folder_if_has_files(db, file.drive, file.folder_path)
     db.commit()
     db.refresh(file)
@@ -525,6 +534,61 @@ def purge_all_trash(db: Session, drive: str) -> int:
         count += 1
     db.commit()
     return count
+
+
+def purge_missing_file(db: Session, file_id: str) -> None:
+    """Permanently delete a missing file from DB. The on-disk file is
+    already absent by definition. Thumbnail (if any) is also removed."""
+    file = (
+        db.query(File)
+        .filter(
+            File.id == file_id,
+            File.missing_since.isnot(None),
+            File.deleted_at.is_(None),
+        )
+        .first()
+    )
+    if not file:
+        raise HTTPException(status_code=404, detail="File not found in missing")
+
+    validate_writable(file.drive)
+    physical_delete(db, file)
+    db.commit()
+
+
+_PURGE_ALL_MISSING_BATCH_SIZE = 200
+
+
+def purge_all_missing(db: Session, drive: str) -> list[str]:
+    """Permanently delete all missing files for a drive.
+
+    Returns a list of purged file IDs (may be empty). Processes in
+    batches of ``_PURGE_ALL_MISSING_BATCH_SIZE`` so each commit releases
+    the SQLite write lock and keeps the operation interruptible.
+
+    Each batch is committed as a unit; if a batch raises, earlier
+    batches remain purged and the failure is re-raised.
+    """
+    validate_writable(drive)
+    purged_ids: list[str] = []
+    while True:
+        batch = (
+            db.query(File)
+            .filter(
+                File.drive == drive,
+                File.missing_since.isnot(None),
+                File.deleted_at.is_(None),
+            )
+            .limit(_PURGE_ALL_MISSING_BATCH_SIZE)
+            .all()
+        )
+        if not batch:
+            break
+        for file in batch:
+            purged_ids.append(file.id)
+            physical_delete(db, file)
+        db.commit()
+    return purged_ids
 
 
 def create_folder(drive: str, parent_path: str, name: str, db: Session) -> dict:
@@ -596,9 +660,12 @@ def delete_folder(drive: str, path: str, db: Session) -> None:
         raise HTTPException(status_code=404, detail="Folder not found")
 
     now = datetime.now(UTC)
+    # Only active files (not trashed, not missing) get soft-deleted.
+    # Missing files stay as-is; they already have no on-disk presence
+    # and must be purged individually from the Missing view.
     db.query(File).filter(
         File.drive == drive,
-        File.deleted_at.is_(None),
+        active_file_filter(),
         (File.folder_path == path) | File.folder_path.like(path + "/%"),
     ).update({"deleted_at": now}, synchronize_session="fetch")
 
