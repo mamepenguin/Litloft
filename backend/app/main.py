@@ -178,9 +178,8 @@ app.include_router(playlists.router)
 app.include_router(progress.router)
 app.include_router(ws.router)
 app.include_router(internal.router)
-app.include_router(addon_proxy.router)
-
 _load_addons(app)
+app.include_router(addon_proxy.router)
 
 
 @app.get("/api/addons/status")

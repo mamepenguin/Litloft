@@ -40,6 +40,7 @@ _EXTRA_MIMES = {
     ".xls": "application/vnd.ms-excel",
     ".ppt": "application/vnd.ms-powerpoint",
     ".zip": "application/zip",
+    ".hvlink": "application/vnd.homevault.link+json",
 }
 
 

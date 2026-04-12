@@ -8,6 +8,7 @@ import { AudioPlayer } from "./AudioPlayer";
 import { TextPreview, isTextPreviewable } from "./TextPreview";
 import { ArchivePreview } from "./ArchivePreview";
 import { FileTypeIcon } from "./FileTypeIcon";
+import { AddonSlot } from "./AddonSlot";
 import { formatFileSize } from "@/lib/format";
 import { getStreamUrl } from "@/lib/api";
 
@@ -31,6 +32,10 @@ export function FilePreview({ file, onEnded, autoPlay, videoRef, initialTime }: 
 
   if (file.file_type === "audio") {
     return <AudioPlayer file={file} onEnded={onEnded} autoPlay={autoPlay} />;
+  }
+
+  if (file.mime_type === "application/vnd.homevault.link+json") {
+    return <AddonSlot id="hvlink-player" props={{ fileId: file.id, file }} />;
   }
 
   if (file.mime_type === "application/pdf") {
