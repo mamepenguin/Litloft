@@ -19,6 +19,8 @@ RUN for addon_dir in src/addons/*/; do \
       printf '"use client";\nimport Page from "@/addons/%s/Page";\nexport default Page;\n' "$name" \
         > "src/app/addons/$name/page.tsx"; \
     done
+# Merge addon translation files into core messages
+RUN node scripts/merge-addon-messages.mjs
 RUN pnpm build
 
 FROM node:20-alpine AS deps

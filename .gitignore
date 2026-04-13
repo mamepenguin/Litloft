@@ -43,3 +43,4 @@ frontend/src/app/addons/
 # OS
 .DS_Store
 Thumbs.db
+test_images/
