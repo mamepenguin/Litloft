@@ -690,7 +690,7 @@ services:
     mem_limit: 4096m
     volumes:
       - ./data:/data:ro
-      - ./addons/intelligence/search-data:/search-data
+      - ./data/addons/intelligence:/intelligence-data
       - ./addons/intelligence/search-config.yml:/app/search-config.yml:ro
       # Mount each drive read-only:
       - /path/to/videos:/drives/videos:ro
