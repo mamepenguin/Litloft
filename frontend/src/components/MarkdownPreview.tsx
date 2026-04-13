@@ -1,11 +1,30 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import MarkdownIt from "markdown-it";
+// @ts-expect-error -- no bundled type definitions
+import taskLists from "markdown-it-task-lists";
+import hljs from "highlight.js";
 import DOMPurify from "isomorphic-dompurify";
 import matter from "gray-matter";
 import { useTranslations } from "next-intl";
 import { getStreamUrl } from "@/lib/api";
+
+// Mermaid is loaded lazily (≈4 MB).  Initialize only once so that calling
+// mermaid.initialize() on subsequent re-renders doesn't reset internal state.
+let mermaidRenderCount = 0;
+const getMermaid = (() => {
+  let promise: Promise<typeof import("mermaid")["default"]> | null = null;
+  return () => {
+    if (!promise) {
+      promise = import("mermaid").then(({ default: m }) => {
+        m.initialize({ startOnLoad: false, theme: "neutral", securityLevel: "loose" });
+        return m;
+      });
+    }
+    return promise;
+  };
+})();
 
 const md = new MarkdownIt({
   html: false,       // Do not trust raw HTML embedded in markdown
@@ -14,13 +33,16 @@ const md = new MarkdownIt({
   breaks: false,
 });
 
+// Task list support: - [ ] / - [x]
+md.use(taskLists, { enabled: true, label: true });
+
 // Force safe link attributes. Markdown-it fires a "link_open" renderer hook,
 // which we extend to enforce target=_blank + rel=noopener noreferrer and
 // reject javascript: / data: URIs at render time (defense in depth; DOMPurify
 // also filters these).
-const defaultLinkRender =
-  md.renderer.rules.link_open ||
-  ((tokens, idx, options, env, self) => self.renderToken(tokens, idx, options));
+const defaultLinkRender: NonNullable<typeof md.renderer.rules.link_open> =
+  md.renderer.rules.link_open ??
+  ((tokens, idx, options, _env, self) => self.renderToken(tokens, idx, options));
 md.renderer.rules.link_open = function (tokens, idx, options, env, self) {
   const token = tokens[idx];
   const href = token.attrGet("href") ?? "";
@@ -31,6 +53,31 @@ md.renderer.rules.link_open = function (tokens, idx, options, env, self) {
   token.attrSet("target", "_blank");
   token.attrSet("rel", "noopener noreferrer");
   return defaultLinkRender(tokens, idx, options, env, self);
+};
+
+// Fenced code block renderer: syntax highlighting + mermaid placeholder.
+// Mermaid blocks are rendered as <pre class="mermaid-source"> so that the
+// MarkdownPreview component can find them after mounting and replace them with
+// rendered SVG via the mermaid library (loaded lazily).
+md.renderer.rules.fence = (tokens, idx) => {
+  const token = tokens[idx];
+  const lang = token.info.trim().split(/\s+/)[0] ?? "";
+
+  if (lang === "mermaid") {
+    const escaped = md.utils.escapeHtml(token.content);
+    return `<pre class="mermaid-source">${escaped}</pre>\n`;
+  }
+
+  if (lang && hljs.getLanguage(lang)) {
+    const highlighted = hljs.highlight(token.content, {
+      language: lang,
+      ignoreIllegals: true,
+    }).value;
+    return `<pre class="code-block"><code class="hljs language-${lang}">${highlighted}</code></pre>\n`;
+  }
+
+  const escaped = md.utils.escapeHtml(token.content);
+  return `<pre class="code-block"><code class="hljs">${escaped}</code></pre>\n`;
 };
 
 function renderMarkdownToSafeHtml(source: string): {
@@ -44,7 +91,7 @@ function renderMarkdownToSafeHtml(source: string): {
     FORBID_ATTR: ["onload", "onerror", "onclick", "onmouseover"],
     // Allow target on <a> because our renderer forces rel="noopener noreferrer"
     // alongside it, so there is no tabnabbing risk.
-    ADD_ATTR: ["target"],
+    ADD_ATTR: ["target", "checked", "disabled"],
   });
   return { frontmatter: parsed.data as Record<string, unknown>, html: safeHtml };
 }
@@ -57,14 +104,65 @@ function renderMarkdownToSafeHtml(source: string): {
 export function MarkdownPreview({
   source,
   showFrontmatter = true,
+  className,
 }: {
   source: string;
   showFrontmatter?: boolean;
+  className?: string;
 }) {
   const { frontmatter, html } = useMemo(
     () => renderMarkdownToSafeHtml(source),
     [source],
   );
+
+  const containerRef = useRef<HTMLDivElement>(null);
+
+  // After every render, scan for any unprocessed mermaid placeholders and
+  // replace them with rendered SVG.  We deliberately do NOT depend on [html]
+  // because React may re-apply dangerouslySetInnerHTML when the parent
+  // re-renders (e.g. a sibling toggle), wiping out previously-rendered SVG and
+  // restoring the original <pre class="mermaid-source"> placeholders.  Running
+  // on every render with an early-return when nothing is pending keeps the
+  // preview correct without churning when nothing changed.  Mermaid itself is
+  // loaded lazily (≈4 MB) and only initialized once via getMermaid().
+  useEffect(() => {
+    const container = containerRef.current;
+    if (!container) return;
+
+    const pendingEls = Array.from(
+      container.querySelectorAll<HTMLPreElement>("pre.mermaid-source"),
+    );
+    if (pendingEls.length === 0) return;
+
+    let active = true;
+
+    getMermaid().then(async (mermaid) => {
+      for (const el of pendingEls) {
+        if (!active || !el.isConnected) continue;
+
+        const src = el.textContent ?? "";
+        const id = `mermaid-${++mermaidRenderCount}`;
+        const wrapper = document.createElement("div");
+        wrapper.className = "mermaid-diagram";
+        try {
+          const { svg } = await mermaid.render(id, src);
+          if (!active || !el.isConnected) continue;
+          wrapper.innerHTML = svg;
+          el.replaceWith(wrapper);
+        } catch (err) {
+          if (!active || !el.isConnected) continue;
+          const errEl = document.createElement("div");
+          errEl.className = "mermaid-error";
+          errEl.textContent = `Diagram error: ${err instanceof Error ? err.message : String(err)}`;
+          el.replaceWith(errEl);
+        }
+      }
+    });
+
+    return () => {
+      active = false;
+    };
+  });
 
   const frontmatterEntries = Object.entries(frontmatter);
 
@@ -87,7 +185,8 @@ export function MarkdownPreview({
         </div>
       )}
       <div
-        className="markdown-body max-h-[80vh] overflow-auto px-6 py-4 text-sm leading-relaxed text-text-primary"
+        ref={containerRef}
+        className={`markdown-body overflow-auto px-6 py-4 text-sm leading-relaxed text-text-primary${className ? ` ${className}` : " max-h-[80vh]"}`}
         dangerouslySetInnerHTML={{ __html: html }}
       />
     </div>
