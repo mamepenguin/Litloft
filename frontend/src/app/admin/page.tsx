@@ -248,7 +248,7 @@ export default function AdminDashboardPage() {
       )}
 
       <section className="mb-8">
-        <h2 className="mb-3 text-sm font-semibold uppercase tracking-wider text-text-muted">
+        <h2 className="mb-3 text-sm font-semibold uppercase text-text-muted">
           {t("drives")}
         </h2>
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
@@ -259,7 +259,7 @@ export default function AdminDashboardPage() {
       </section>
 
       <section className="mb-8">
-        <h2 className="mb-3 text-sm font-semibold uppercase tracking-wider text-text-muted">
+        <h2 className="mb-3 text-sm font-semibold uppercase text-text-muted">
           {t("system")}
         </h2>
         {data ? <SystemCard system={data.system} /> : <SystemCardSkeleton />}

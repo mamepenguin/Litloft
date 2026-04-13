@@ -132,9 +132,65 @@ body {
   background: var(--bg-primary);
   color: var(--text-primary);
   font-family: var(--font-sans);
+  line-height: 1.6;
+  text-rendering: optimizeLegibility;
   touch-action: manipulation;
   overscroll-behavior: contain;
   transition: background-color 0.2s ease, color 0.2s ease;
+}
+
+/* ===== Japanese Typography (jp-ui-contracts: base + saas profile) ===== */
+
+/* Core Japanese line-breaking rules */
+html:lang(ja) {
+  line-break: strict;
+  word-break: normal;
+  overflow-wrap: anywhere;
+  font-kerning: auto;
+  font-feature-settings: normal;
+  /* Progressive enhancement: auto-space between CJK and Latin */
+  text-autospace: normal;
+}
+
+/* Paragraph / list / definition items */
+p,
+li,
+dd {
+  line-break: strict;
+  word-break: normal;
+  overflow-wrap: anywhere;
+}
+
+/* Heading line-break and kerning */
+:lang(ja) h1,
+:lang(ja) h2,
+:lang(ja) h3,
+:lang(ja) h4 {
+  line-break: strict;
+  word-break: auto-phrase;
+  overflow-wrap: anywhere;
+  font-kerning: auto;
+}
+
+/* Japanese heading line-height scale */
+:lang(ja) h1 { line-height: 1.35; }
+:lang(ja) h2 { line-height: 1.4; }
+:lang(ja) h3 { line-height: 1.45; }
+
+/* Form elements: separate density from body text */
+:lang(ja) label,
+:lang(ja) input,
+:lang(ja) textarea,
+:lang(ja) select,
+:lang(ja) button {
+  line-break: strict;
+  word-break: normal;
+}
+
+:lang(ja) input,
+:lang(ja) textarea,
+:lang(ja) select {
+  line-height: 1.5;
 }
 
 @media (prefers-reduced-motion: reduce) {
@@ -191,6 +247,11 @@ body {
 
 @utility animate-pop {
   animation: pop 250ms ease-out;
+}
+
+@utility break-anywhere {
+  word-break: normal;
+  overflow-wrap: anywhere;
 }
 
 @utility scrollbar-hide {

@@ -298,7 +298,7 @@ export function DuplicatesSection() {
   return (
     <section className="mb-8">
       <div className="mb-3 flex items-center justify-between gap-3">
-        <h2 className="text-sm font-semibold uppercase tracking-wider text-text-muted">
+        <h2 className="text-sm font-semibold uppercase text-text-muted">
           {t("duplicates")}
         </h2>
         <DriveSelector

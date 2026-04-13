@@ -328,7 +328,7 @@ export function GlobalSearch() {
           {results.length > 0 && (
             <>
               {hasSearchModes && (
-                <div className="border-t border-bg-border px-4 py-1.5 text-[10px] font-medium uppercase tracking-wider text-text-muted">
+                <div className="border-t border-bg-border px-4 py-1.5 text-[10px] font-medium uppercase text-text-muted">
                   {t("textResults")}
                 </div>
               )}

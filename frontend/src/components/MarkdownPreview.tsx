@@ -76,7 +76,7 @@ export function MarkdownPreview({
             {frontmatterEntries.map(([key, value]) => (
               <div key={key} className="contents">
                 <dt className="text-text-muted">{key}</dt>
-                <dd className="text-text-primary break-all">
+                <dd className="text-text-primary break-anywhere">
                   {typeof value === "object"
                     ? JSON.stringify(value)
                     : String(value)}
