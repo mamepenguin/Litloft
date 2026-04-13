@@ -174,6 +174,11 @@ class FolderCreateRequest(BaseModel):
     name: str
 
 
+class TextFileCreateRequest(BaseModel):
+    path: str
+    content: str = ""
+
+
 class FolderRenameRequest(BaseModel):
     path: str
     new_name: str
