@@ -22,6 +22,7 @@ function makeImage(id: string, title: string): FileItem {
     file_type: "image",
     mime_type: "image/jpeg",
     thumbnail_url: `/api/files/${id}/thumbnail`,
+    has_thumbnail: false,
     file_size: 500000,
     duration: null,
     likes: 0,

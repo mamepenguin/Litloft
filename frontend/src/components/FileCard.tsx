@@ -41,7 +41,7 @@ export function FileCard({
 }) {
   const clipboard = useClipboard();
   const isCutFile = clipboard.isCut(file.id);
-  const hasThumbnail = file.file_type === "video" || file.file_type === "image";
+  const hasThumbnail = file.has_thumbnail || file.file_type === "video" || file.file_type === "image";
 
   const Wrapper = selectable ? "div" : Link;
   const wrapperProps = selectable

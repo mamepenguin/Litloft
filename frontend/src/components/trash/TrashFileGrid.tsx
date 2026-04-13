@@ -54,7 +54,7 @@ export function TrashFileGrid({
     <>
       <div className="grid grid-cols-1 gap-x-4 gap-y-6 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
         {files.map((file) => {
-          const hasThumbnail = file.file_type === "video" || file.file_type === "image";
+          const hasThumbnail = file.has_thumbnail || file.file_type === "video" || file.file_type === "image";
           const selected = isSelected?.(file.id);
           const daysRemaining = file.deleted_at ? getDaysRemaining(file.deleted_at) : 0;
 

@@ -17,6 +17,7 @@ export interface FileItem {
   file_type: FileType;
   mime_type: string;
   thumbnail_url: string;
+  has_thumbnail: boolean;
   file_size: number;
   duration: number | null;
   likes: number;

@@ -27,6 +27,7 @@ const makeFile = (id: string, overrides?: Partial<FileItem>): FileItem => ({
   file_type: "image",
   mime_type: "image/jpeg",
   thumbnail_url: "",
+  has_thumbnail: false,
   file_size: 1024000,
   duration: null,
   likes: 0,

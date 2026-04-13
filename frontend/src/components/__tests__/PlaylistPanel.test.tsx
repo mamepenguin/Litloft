@@ -14,6 +14,7 @@ function makeTrackFile(id: string, type: "audio" | "video" = "audio"): FileItem 
     file_type: type,
     mime_type: type === "audio" ? "audio/mp3" : "video/mp4",
     thumbnail_url: "",
+    has_thumbnail: false,
     file_size: 1000,
     duration: 180,
     likes: 0,

@@ -95,6 +95,7 @@ const makeWatchHistoryItem = (id: string): WatchHistoryItem => ({
   file_type: "video",
   mime_type: "video/mp4",
   thumbnail_url: "",
+  has_thumbnail: false,
   file_size: 1024000,
   duration: 300,
   likes: 0,

@@ -33,6 +33,7 @@ class FileResponse(_UtcDateTimeMixin, BaseModel):
     file_type: str
     mime_type: str
     thumbnail_url: str
+    has_thumbnail: bool
     file_size: int
     duration: float | None
     likes: int
@@ -392,6 +393,7 @@ class WatchHistoryItemResponse(_UtcDateTimeMixin, BaseModel):
     file_type: str
     mime_type: str
     thumbnail_url: str
+    has_thumbnail: bool
     file_size: int
     duration: float | None
     likes: int
@@ -596,6 +598,7 @@ def file_to_response(file, subtitles: list[SubtitleInfo] | None = None) -> FileR
         file_type=file.file_type,
         mime_type=file.mime_type,
         thumbnail_url=f"/api/files/{file.id}/thumbnail",
+        has_thumbnail=file.thumbnail_path is not None,
         file_size=file.file_size,
         duration=file.duration,
         likes=file.likes,

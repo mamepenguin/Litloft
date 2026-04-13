@@ -45,7 +45,7 @@ export function MissingFileList({
     <>
       <div className="flex flex-col gap-2.5 sm:gap-2">
         {files.map((file) => {
-          const hasThumbnail = file.file_type === "video" || file.file_type === "image";
+          const hasThumbnail = file.has_thumbnail || file.file_type === "video" || file.file_type === "image";
           const hasDuration = (file.file_type === "video" || file.file_type === "audio") && file.duration != null;
           const fileSelected = isSelected?.(file.id);
 

@@ -52,6 +52,7 @@ const mockFile: FileItem = {
   file_type: "video",
   mime_type: "video/mp4",
   thumbnail_url: "",
+  has_thumbnail: false,
   file_size: 1000,
   duration: 60,
   likes: 0,

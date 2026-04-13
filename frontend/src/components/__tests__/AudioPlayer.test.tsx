@@ -23,6 +23,7 @@ const mockFile: FileItem = {
   file_type: "audio",
   mime_type: "audio/mp3",
   thumbnail_url: "",
+  has_thumbnail: false,
   file_size: 5000000,
   duration: 180,
   likes: 0,

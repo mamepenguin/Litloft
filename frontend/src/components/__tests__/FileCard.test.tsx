@@ -31,6 +31,7 @@ const mockFile: FileItem = {
   file_type: "video",
   mime_type: "video/mp4",
   thumbnail_url: "/api/files/abc123def456/thumbnail",
+  has_thumbnail: false,
   file_size: 1048576,
   duration: 125.5,
   likes: 3,
