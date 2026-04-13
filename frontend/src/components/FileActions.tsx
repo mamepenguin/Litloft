@@ -172,7 +172,7 @@ export function FileActions({ file, onUpdate, onDelete, onEdit }: FileActionsPro
                 }}
                 className={`flex w-full items-center gap-2 px-3 py-2 text-left text-sm transition-colors ${
                   item.danger
-                    ? "text-red-400 hover:bg-red-400/10"
+                    ? "text-danger hover:bg-accent/10"
                     : "text-text-muted hover:bg-bg-elevated hover:text-text-primary"
                 }`}
               >
@@ -184,7 +184,7 @@ export function FileActions({ file, onUpdate, onDelete, onEdit }: FileActionsPro
         )}
 
         {error && (
-          <div className="absolute right-0 top-full z-30 mt-1 whitespace-nowrap rounded-lg bg-red-500/90 px-3 py-1.5 text-xs text-white">
+          <div className="absolute right-0 top-full z-30 mt-1 whitespace-nowrap rounded-2xl bg-danger px-3 py-1.5 text-xs text-white">
             {error}
           </div>
         )}

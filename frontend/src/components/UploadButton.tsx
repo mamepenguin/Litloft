@@ -64,7 +64,7 @@ export function UploadButton() {
       <div ref={menuRef} className="relative">
         <button
           onClick={() => setMenuOpen((s) => !s)}
-          className="flex items-center gap-1.5 rounded-lg bg-accent px-3 py-2 text-sm font-medium text-white transition-all hover:bg-accent/80 active:scale-[0.97]"
+          className="flex items-center gap-1.5 rounded-2xl bg-accent px-3 py-2 text-sm font-medium text-white transition-all hover:bg-accent-hover active:scale-[0.97]"
           aria-label={tc("upload")}
         >
           <Upload size={16} />

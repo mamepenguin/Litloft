@@ -35,7 +35,7 @@ export default function UnlockPage() {
 
   return (
     <div className="flex min-h-dvh items-center justify-center bg-bg-primary p-4">
-      <div className="w-full max-w-sm rounded-xl bg-bg-card p-6 shadow-lg">
+      <div className="w-full max-w-sm rounded-2xl bg-bg-card p-6 shadow-lg">
         <div className="mb-6 flex flex-col items-center gap-2">
           <div className="flex h-12 w-12 items-center justify-center rounded-full bg-accent/20">
             <Lock size={24} className="text-accent" />
@@ -51,11 +51,11 @@ export default function UnlockPage() {
             placeholder="Password"
             autoFocus
             required
-            className="rounded-lg border border-bg-border bg-bg-elevated px-3 py-2 text-sm text-text-primary placeholder:text-text-muted focus:border-accent focus:outline-none"
+            className="rounded-2xl border border-warm-silver/40 bg-bg-elevated px-3 py-2 text-sm text-text-primary placeholder:text-text-muted focus:border-accent focus:outline-none"
           />
 
           {error && (
-            <p className="text-center text-sm text-red-400">{error}</p>
+            <p className="text-center text-sm text-danger">{error}</p>
           )}
 
           <label className="flex items-center gap-2 text-sm text-text-muted">
@@ -71,7 +71,7 @@ export default function UnlockPage() {
           <button
             type="submit"
             disabled={loading || !password}
-            className="rounded-lg bg-accent px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-accent/80 disabled:opacity-50"
+            className="rounded-2xl bg-accent px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-accent-hover disabled:opacity-50"
           >
             {loading ? "..." : "Unlock"}
           </button>

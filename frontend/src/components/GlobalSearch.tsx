@@ -73,7 +73,7 @@ function FilterTabs({
           className={`flex-shrink-0 rounded-full px-3 py-1 text-xs font-medium transition-colors ${
             active === f
               ? "bg-accent text-white"
-              : "bg-bg-elevated text-text-muted hover:text-text-primary"
+              : "bg-sand text-text-muted hover:text-text-primary"
           }`}
         >
           {labels[f]}
@@ -261,7 +261,7 @@ export function GlobalSearch() {
       disabled={!drive}
       className={
         mobile
-          ? "w-full rounded-full bg-bg-elevated px-4 py-2 text-base text-text-primary placeholder:text-text-muted outline-none"
+          ? "w-full rounded-full bg-sand px-4 py-2 text-base text-text-primary placeholder:text-text-muted outline-none"
           : "flex-1 bg-transparent text-base text-text-primary placeholder:text-text-muted outline-none"
       }
     />
@@ -368,7 +368,7 @@ export function GlobalSearch() {
     <>
       <button
         onClick={openSearch}
-        className="rounded-lg p-2 text-text-muted transition-colors hover:bg-bg-elevated hover:text-text-primary"
+        className="rounded-2xl p-2 text-text-muted transition-colors hover:bg-bg-elevated hover:text-text-primary"
         aria-label={t("label")}
         title={t("title")}
       >
@@ -425,7 +425,7 @@ export function GlobalSearch() {
               className="fixed inset-0 bg-black/50 animate-fade-in"
               onClick={closeSearch}
             />
-            <div className="relative z-10 w-full max-w-lg rounded-xl border border-bg-border bg-bg-primary shadow-2xl animate-fade-in-scale">
+            <div className="relative z-10 w-full max-w-lg rounded-2xl border border-bg-border bg-bg-primary shadow-2xl animate-fade-in-scale">
               {/* Search input */}
               <div className="flex items-center gap-3 border-b border-bg-border px-4 py-3">
                 <Search size={18} className="flex-shrink-0 text-text-muted" />
@@ -438,7 +438,7 @@ export function GlobalSearch() {
                     <X size={16} />
                   </button>
                 )}
-                <kbd className="rounded bg-bg-card px-1.5 py-0.5 text-[10px] text-text-muted">
+                <kbd className="rounded-lg bg-bg-elevated px-1.5 py-0.5 text-[10px] text-text-muted">
                   ESC
                 </kbd>
               </div>

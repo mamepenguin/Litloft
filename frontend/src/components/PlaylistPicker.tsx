@@ -60,7 +60,7 @@ export function PlaylistPicker({ open, drive, fileIds, onClose }: PlaylistPicker
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 animate-fade-in" onClick={onClose}>
       <div
-        className="mx-4 w-full max-w-sm rounded-xl border border-bg-border bg-bg-primary p-4 shadow-lg animate-fade-in-scale"
+        className="mx-4 w-full max-w-sm rounded-2xl border border-bg-border bg-bg-primary p-4 shadow-lg animate-fade-in-scale"
         onClick={(e) => e.stopPropagation()}
       >
         <div className="mb-3 flex items-center justify-between">
@@ -107,7 +107,7 @@ export function PlaylistPicker({ open, drive, fileIds, onClose }: PlaylistPicker
             <button
               onClick={handleCreateAndAdd}
               disabled={adding || !newName.trim()}
-              className="rounded-lg bg-accent px-3 py-1.5 text-sm text-white hover:bg-accent/80 disabled:opacity-50"
+              className="rounded-2xl bg-accent px-3 py-1.5 text-sm text-white hover:bg-accent-hover disabled:opacity-50"
             >
               {tc("create")}
             </button>

@@ -194,7 +194,7 @@ export function FolderBrowser({ driveName, folderPath, view, tagFilter }: Folder
           <button
             onClick={handlePaste}
             disabled={pasting}
-            className="rounded-lg bg-accent px-3 py-1.5 text-sm font-medium text-white transition-colors hover:bg-accent/80 disabled:opacity-50"
+            className="rounded-2xl bg-accent px-3 py-1.5 text-sm font-medium text-white transition-colors hover:bg-accent-hover disabled:opacity-50"
           >
             {tcb("pasteHere")}
           </button>

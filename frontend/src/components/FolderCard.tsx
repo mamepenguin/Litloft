@@ -22,7 +22,7 @@ export function FolderCard({ folder, driveName, isPinned, onTogglePin, onUpdate,
   const t = useTranslations("folder");
   return (
     <div
-      className={`group relative flex items-center gap-3 rounded-xl bg-bg-card p-4 transition-all duration-200 hover:scale-[1.02] hover:bg-bg-elevated hover:shadow-lg active:scale-[0.98]${
+      className={`group relative flex items-center gap-3 rounded-2xl bg-bg-card p-4 transition-all duration-200 hover:bg-bg-elevated hover:shadow-md active:scale-[0.98]${
         isDropTarget ? " ring-2 ring-accent bg-accent/10 scale-[1.02]" : ""
       }${isDragging ? " opacity-40" : ""}`}
       draggable={draggable}
@@ -35,7 +35,7 @@ export function FolderCard({ folder, driveName, isPinned, onTogglePin, onUpdate,
         className="flex min-w-0 flex-1 items-center gap-3"
       >
         {folder.thumbnail_file_id ? (
-          <div className="h-12 w-12 flex-shrink-0 overflow-hidden rounded-lg">
+          <div className="h-12 w-12 flex-shrink-0 overflow-hidden rounded-xl">
             <img
               src={`/api/files/${folder.thumbnail_file_id}/thumbnail`}
               alt={folder.name}
@@ -44,7 +44,7 @@ export function FolderCard({ folder, driveName, isPinned, onTogglePin, onUpdate,
             />
           </div>
         ) : (
-          <div className="flex h-12 w-12 flex-shrink-0 items-center justify-center rounded-lg bg-accent/20">
+          <div className="flex h-12 w-12 flex-shrink-0 items-center justify-center rounded-xl bg-accent/10">
             <Folder size={24} className="text-accent" />
           </div>
         )}

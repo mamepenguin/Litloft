@@ -75,9 +75,9 @@ function SidebarNav() {
   }
 
   const linkClass = (href: string) =>
-    `flex items-center gap-2.5 rounded-lg px-3 py-2 text-sm transition-colors ${
+    `flex items-center gap-2.5 rounded-2xl px-3 py-2 text-sm transition-colors ${
       isActive(href)
-        ? "bg-accent text-white"
+        ? "bg-accent text-white font-medium"
         : "text-text-muted hover:bg-bg-elevated hover:text-text-primary"
     }`;
 
@@ -110,7 +110,7 @@ function SidebarNav() {
               await lockApi();
               window.location.href = "/";
             }}
-            className="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-xs text-text-muted transition-colors hover:bg-bg-elevated hover:text-text-primary"
+            className="flex w-full items-center gap-2 rounded-2xl px-3 py-2 text-xs text-text-muted transition-colors hover:bg-bg-elevated hover:text-text-primary"
           >
             <LockOpen size={14} />
             Lock
@@ -143,7 +143,7 @@ export function Sidebar() {
       )}
 
       <aside
-        className={`fixed top-0 left-0 z-40 h-dvh w-60 flex-shrink-0 border-r border-bg-border bg-bg-primary transition-transform md:static md:translate-x-0 ${
+        className={`fixed top-0 left-0 z-40 h-dvh w-60 flex-shrink-0 border-r border-bg-border bg-bg-sidebar transition-transform md:static md:translate-x-0 ${
           isOpen ? "translate-x-0" : "-translate-x-full"
         }`}
       >

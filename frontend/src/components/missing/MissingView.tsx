@@ -71,7 +71,7 @@ export function MissingView({ driveName }: MissingViewProps) {
       <div className="mb-4 flex items-start justify-between gap-2">
         <div className="min-w-0">
           <h1 className="flex items-center gap-2 text-xl font-bold text-text-primary">
-            <AlertTriangle size={24} className="text-amber-500" />
+            <AlertTriangle size={24} className="text-warm-silver" />
             {tm("title")}
           </h1>
           <p className="mt-1 text-sm text-text-muted">{tm("description")}</p>
@@ -79,7 +79,7 @@ export function MissingView({ driveName }: MissingViewProps) {
         {files.length > 0 && (
           <button
             onClick={() => setPurgeAllOpen(true)}
-            className="flex flex-shrink-0 items-center gap-2 rounded-lg bg-red-500/10 px-3 py-2 text-sm font-medium text-red-400 transition-colors hover:bg-red-500/20"
+            className="flex flex-shrink-0 items-center gap-2 rounded-2xl bg-danger/10 px-3 py-2 text-sm font-medium text-danger transition-colors hover:bg-danger/20"
           >
             <Trash2 size={16} />
             {tm("purgeAll")}

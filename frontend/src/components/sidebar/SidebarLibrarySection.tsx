@@ -84,9 +84,9 @@ export function SidebarLibrarySection({ driveBase, linkClass, close, addons, dri
           </Link>
           {driveSummary && driveSummary.missing_count > 0 && (
             <Link href={`${driveBase}?view=missing`} onClick={close} className={linkClass(`${driveBase}?view=missing`)}>
-              <AlertTriangle size={16} className="text-amber-500" />
+              <AlertTriangle size={16} className="text-warm-silver" />
               <span className="flex-1">{tMissing("sidebar")}</span>
-              <span className="flex-shrink-0 rounded-full bg-amber-500/20 px-1.5 py-0.5 text-[10px] font-semibold text-amber-500">
+              <span className="flex-shrink-0 rounded-full bg-warm-silver/20 px-1.5 py-0.5 text-[10px] font-semibold text-warm-silver">
                 {driveSummary.missing_count}
               </span>
             </Link>

@@ -191,7 +191,7 @@ export function PlaylistPanel({
           ? "mt-4 w-full"
           : "mt-0 w-full md:w-[360px] md:flex-shrink-0"
       }`}>
-        <div className="rounded-xl border border-bg-border bg-bg-card p-4">
+        <div className="rounded-2xl border border-bg-border bg-bg-card p-4">
           {/* Header */}
           <div className="mb-3 flex items-center justify-between">
             <div className="min-w-0 flex-1">
@@ -342,7 +342,7 @@ function VideoTrackList({
                     <ChevronDown size={14} />
                   </button>
                 )}
-                <button onClick={(e) => { e.stopPropagation(); onRemove(index); }} className="rounded-md bg-black/60 p-1 text-red-400 hover:bg-black/80">
+                <button onClick={(e) => { e.stopPropagation(); onRemove(index); }} className="rounded-md bg-black/60 p-1 text-danger hover:bg-black/80">
                   <Trash2 size={14} />
                 </button>
               </div>
@@ -419,7 +419,7 @@ function AudioTrackList({
                     <ChevronDown size={16} />
                   </button>
                 )}
-                <button onClick={() => onRemove(index)} className="rounded-md p-1.5 text-red-400 hover:bg-red-400/10 hover:text-red-300">
+                <button onClick={() => onRemove(index)} className="rounded-md p-1.5 text-danger hover:bg-danger/10 hover:text-danger">
                   <Trash2 size={16} />
                 </button>
               </div>

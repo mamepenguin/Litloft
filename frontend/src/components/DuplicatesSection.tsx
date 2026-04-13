@@ -67,7 +67,7 @@ function DuplicateStats({ data }: { data: DuplicatesResponse }) {
         <Copy size={12} />
         {t("duplicateGroups", { count: data.total_groups })}
       </span>
-      <span className="inline-flex items-center gap-1.5 rounded-md bg-red-500/10 px-2.5 py-1 text-xs text-red-400">
+      <span className="inline-flex items-center gap-1.5 rounded-md bg-danger/10 px-2.5 py-1 text-xs text-danger">
         <Trash2 size={12} />
         {t("wastedSpace", { size: formatFileSize(data.total_wasted_bytes) })}
       </span>

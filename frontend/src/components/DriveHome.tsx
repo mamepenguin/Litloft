@@ -220,7 +220,7 @@ export function DriveHome({ driveName }: DriveHomeProps) {
           {foldersLoading ? (
             <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
               {Array.from({ length: 4 }).map((_, i) => (
-                <div key={i} className="animate-pulse rounded-xl bg-bg-card p-4">
+                <div key={i} className="animate-pulse rounded-2xl bg-bg-card p-4">
                   <div className="flex items-center gap-3">
                     <div className="h-12 w-12 rounded-lg bg-bg-elevated" />
                     <div className="space-y-2">
@@ -294,7 +294,7 @@ export function DriveHome({ driveName }: DriveHomeProps) {
 
       <CarouselSection
         title={t("favorites")}
-        icon={<Heart size={20} className="text-red-400" />}
+        icon={<Heart size={20} className="text-accent" />}
         files={favorites.files}
         loading={favorites.loading}
         seeAllHref={`${driveBase}?view=favorites`}
@@ -303,7 +303,7 @@ export function DriveHome({ driveName }: DriveHomeProps) {
 
       <CarouselSection
         title={t("popular")}
-        icon={<ThumbsUp size={20} className="text-amber-400" />}
+        icon={<ThumbsUp size={20} className="text-accent-teal" />}
         files={popular.files}
         loading={popular.loading}
         seeAllHref={`${driveBase}?view=popular`}

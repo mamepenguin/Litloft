@@ -47,9 +47,9 @@ export default async function Home() {
             <Link
               key={drive.name}
               href={`/drive/${encodeURIComponent(drive.name)}`}
-              className="group flex items-center gap-3 rounded-xl bg-bg-card p-4 transition-all duration-200 hover:scale-[1.02] hover:bg-bg-elevated hover:shadow-lg"
+              className="group flex items-center gap-3 rounded-2xl bg-bg-card p-4 transition-all duration-200 hover:bg-bg-elevated hover:shadow-md"
             >
-              <div className="flex h-12 w-12 items-center justify-center rounded-lg bg-accent/20">
+              <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-accent/10">
                 <HardDrive size={24} className="text-accent" />
               </div>
               <div className="flex-1">

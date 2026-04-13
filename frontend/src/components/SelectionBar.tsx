@@ -146,9 +146,9 @@ export function SelectionBar({
     <>
       <div className="fixed bottom-0 left-0 right-0 z-50 animate-slide-up-bar">
         <div className="mx-auto max-w-3xl px-3 pb-3 sm:pb-4">
-          <div className="overflow-hidden rounded-2xl bg-bg-card shadow-[0_8px_40px_rgba(0,0,0,0.5)] ring-1 ring-white/[0.06]">
+          <div className="overflow-hidden rounded-2xl bg-bg-card shadow-[0_8px_40px_rgba(0,0,0,0.25)] ring-1 ring-bg-border">
             {/* Header row: count + select all + close */}
-            <div className="flex items-center gap-3 border-b border-white/[0.04] px-4 py-2.5">
+            <div className="flex items-center gap-3 border-b border-bg-border px-4 py-2.5">
               <div className="flex items-center gap-2">
                 <span className="inline-flex h-6 min-w-6 items-center justify-center rounded-full bg-accent/15 px-2 text-xs font-semibold tabular-nums text-accent">
                   {count}
@@ -170,7 +170,7 @@ export function SelectionBar({
 
               <button
                 onClick={onClear}
-                className="ml-auto rounded-lg p-1.5 text-text-muted transition-colors hover:bg-white/[0.06] hover:text-text-primary"
+                className="ml-auto rounded-2xl p-1.5 text-text-muted transition-colors hover:bg-bg-elevated hover:text-text-primary"
                 aria-label={t("deselect")}
               >
                 <X size={16} />
@@ -198,7 +198,7 @@ export function SelectionBar({
                 <>
                   {/* Edit group */}
                   {tagging ? (
-                    <div className="flex items-center gap-1.5 rounded-xl bg-white/[0.04] px-2 py-1">
+                    <div className="flex items-center gap-1.5 rounded-2xl bg-bg-elevated px-2 py-1">
                       <Tag size={14} className="shrink-0 text-accent" />
                       <input
                         type="text"
@@ -346,13 +346,13 @@ function ActionButton({
 }) {
   const colorClass =
     variant === "danger"
-      ? "text-red-400 hover:bg-red-400/10 active:bg-red-400/15"
-      : "text-text-muted hover:bg-white/[0.06] hover:text-text-primary active:bg-white/[0.08]";
+      ? "text-danger hover:bg-accent/10 active:bg-accent/15"
+      : "text-text-muted hover:bg-bg-elevated hover:text-text-primary active:bg-bg-elevated";
 
   return (
     <button
       onClick={onClick}
-      className={`flex shrink-0 items-center gap-1.5 rounded-lg px-3 py-2 text-sm transition-colors ${colorClass}`}
+      className={`flex shrink-0 items-center gap-1.5 rounded-2xl px-3 py-2 text-sm transition-colors ${colorClass}`}
       aria-label={label}
     >
       {icon}
@@ -362,5 +362,5 @@ function ActionButton({
 }
 
 function ActionDivider() {
-  return <div className="mx-0.5 h-5 w-px shrink-0 bg-white/[0.06]" />;
+  return <div className="mx-0.5 h-5 w-px shrink-0 bg-bg-border" />;
 }

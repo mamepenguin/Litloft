@@ -99,12 +99,12 @@ export function FileCard({
       )}
       <Wrapper
         {...wrapperProps as any}
-        className={`group block rounded-xl overflow-hidden transition-all duration-200 ease-out hover:bg-bg-card active:scale-[0.98] ${
+        className={`group block rounded-2xl overflow-hidden transition-all duration-200 ease-out hover:shadow-md active:scale-[0.98] ${
           selectable ? "cursor-pointer select-none" : ""
-        } ${selected ? "ring-2 ring-accent bg-bg-card" : ""}`}
+        } ${selected ? "ring-2 ring-accent" : ""}`}
         onContextMenu={selectable ? undefined : onContextMenu}
       >
-        <div className="relative aspect-video bg-bg-elevated">
+        <div className="relative aspect-video bg-bg-elevated rounded-2xl overflow-hidden">
           {hasThumbnail ? (
             <img
               src={getThumbnailUrl(file.id)}

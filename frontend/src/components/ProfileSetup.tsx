@@ -96,7 +96,7 @@ export function ProfileSetup({ open, onClose }: { open?: boolean; onClose?: () =
         className="absolute inset-0 bg-black/60 backdrop-blur-sm animate-fade-in"
         onClick={handleLater}
       />
-      <div className="relative mx-4 w-full max-w-sm rounded-xl bg-bg-card p-6 shadow-2xl animate-fade-in-scale">
+      <div className="relative mx-4 w-full max-w-sm rounded-2xl bg-bg-card p-6 shadow-2xl animate-fade-in-scale">
         <div className="mb-4 flex items-center justify-between">
           <h2 className="text-lg font-semibold text-text-primary">{t("setup")}</h2>
           <button
@@ -140,14 +140,14 @@ export function ProfileSetup({ open, onClose }: { open?: boolean; onClose?: () =
         <div className="flex justify-end gap-3">
           <button
             onClick={handleLater}
-            className="rounded-lg bg-bg-elevated px-4 py-2 text-sm text-text-muted transition-colors hover:text-text-primary"
+            className="rounded-2xl bg-bg-elevated px-4 py-2 text-sm text-text-muted transition-colors hover:text-text-primary"
           >
             {t("later")}
           </button>
           <button
             onClick={handleSave}
             disabled={!input.trim()}
-            className="rounded-lg bg-accent px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-accent/80 active:scale-[0.97] disabled:opacity-50"
+            className="rounded-2xl bg-accent px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-accent-hover active:scale-[0.97] disabled:opacity-50"
           >
             {t("save")}
           </button>

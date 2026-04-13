@@ -225,7 +225,7 @@ export default function FilePage() {
                   <button
                     onClick={handleSave}
                     disabled={saving}
-                    className="flex items-center gap-1 rounded-lg bg-accent px-3 py-1.5 text-sm font-medium text-white hover:bg-accent/80 disabled:opacity-50"
+                    className="flex items-center gap-1 rounded-2xl bg-accent px-3 py-1.5 text-sm font-medium text-white hover:bg-accent-hover disabled:opacity-50"
                   >
                     <Check size={14} />
                     {tc("save")}

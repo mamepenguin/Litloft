@@ -71,7 +71,7 @@ export function ContextMenu({ open, position, items, onClose }: ContextMenuProps
   return (
     <div
       ref={menuRef}
-      className="fixed z-50 w-44 overflow-hidden rounded-lg border border-bg-border bg-bg-card shadow-xl animate-fade-in-scale"
+      className="fixed z-50 w-44 overflow-hidden rounded-2xl border border-bg-border bg-bg-card shadow-xl animate-fade-in-scale"
       style={{ left: position.x, top: position.y }}
     >
       {items.map((item) => (
@@ -90,7 +90,7 @@ export function ContextMenu({ open, position, items, onClose }: ContextMenuProps
           }}
           className={`flex w-full items-center gap-2.5 px-3 py-2 text-left text-sm transition-colors ${
             item.danger
-              ? "text-red-400 hover:bg-red-400/10"
+              ? "text-danger hover:bg-accent/10"
               : "text-text-muted hover:bg-bg-elevated hover:text-text-primary"
           }`}
         >

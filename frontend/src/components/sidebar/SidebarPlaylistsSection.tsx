@@ -203,7 +203,7 @@ export function SidebarPlaylistsSection({
               </button>
               <button
                 onClick={() => handleDeletePlaylist(pl.id)}
-                className="flex w-full items-center gap-2 px-3 py-1.5 text-sm text-red-400 hover:bg-red-400/10"
+                className="flex w-full items-center gap-2 px-3 py-1.5 text-sm text-danger hover:bg-accent/10"
               >
                 <Trash2 size={14} />
                 {t("deletePlaylist")}

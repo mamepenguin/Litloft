@@ -127,13 +127,13 @@ export function FolderActions({
             e.stopPropagation();
             setDeleteOpen(true);
           }}
-          className="rounded-lg p-1.5 text-text-muted transition-all hover:bg-red-400/10 hover:text-red-400"
+          className="rounded-lg p-1.5 text-text-muted transition-all hover:bg-danger/10 hover:text-danger"
           aria-label={tc("delete")}
         >
           <Trash2 size={14} />
         </button>
         {error && (
-          <span className="ml-1 text-xs text-red-400">{error}</span>
+          <span className="ml-1 text-xs text-danger">{error}</span>
         )}
       </div>
 

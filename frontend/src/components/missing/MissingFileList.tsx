@@ -120,7 +120,7 @@ export function MissingFileList({
                   </span>
                 </div>
                 <div className="mt-0.5 flex flex-wrap items-center gap-x-1.5 gap-y-0.5 text-xs text-text-muted">
-                  <span className="rounded bg-amber-500/20 px-1.5 py-0.5 text-[10px] font-medium text-amber-500">
+                  <span className="rounded bg-warm-silver/20 px-1.5 py-0.5 text-[10px] font-medium text-warm-silver">
                     {tm("badge")}
                   </span>
                   {file.missing_since && (
@@ -137,7 +137,7 @@ export function MissingFileList({
                 <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
                   <button
                     onClick={(e) => { e.stopPropagation(); onPurge(file.id); }}
-                    className="rounded-lg p-1.5 text-text-muted transition-colors hover:bg-red-400/10 hover:text-red-400"
+                    className="rounded-2xl p-1.5 text-text-muted transition-colors hover:bg-danger/10 hover:text-danger"
                     aria-label={tm("purge")}
                   >
                     <Trash2 size={14} />

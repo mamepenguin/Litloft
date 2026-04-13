@@ -1,58 +1,103 @@
 @import "tailwindcss";
 
+/* ===== Pinterest Design System ===== */
+/* Warm white canvas · Pinterest Red (#e60023) · Plum Black (#211922) */
+/* Dark variant: warm plum dark (#1a0e10) · Bright Red (#ff2d42) */
+
 :root,
-[data-theme="dark"] {
-  --bg-primary: #130c06;
-  --bg-card: #1e1209;
-  --bg-elevated: #2a1a0e;
-  --bg-border: rgba(255, 255, 255, 0.08);
-  --text-primary: #ebe0d5;
-  --text-muted: #c4b5a6;
-  --accent: #c86020;
-  --accent-cta: #e07830;
-  --accent-teal: #00897b;
-  color-scheme: dark;
+[data-theme="light"] {
+  --bg-primary: #ffffff;
+  --bg-card: #ffffff;
+  --bg-elevated: #f6f6f3;
+  --bg-sidebar: #ffffff;
+  --bg-border: rgba(145, 145, 140, 0.2);
+  --text-primary: #211922;
+  --text-muted: #62625b;
+  --accent: #e60023;
+  --accent-hover: #ad081b;
+  --accent-cta: #e60023;
+  --accent-teal: #103c25;
+  /* Pinterest-specific tokens */
+  --sand: #e5e5e0;
+  --sand-hover: #d5d5d0;
+  --warm-light: #e0e0d9;
+  --warm-silver: #91918c;
+  --dark-surface: #33332e;
+  --focus-ring: #435ee5;
+  --danger: #9e0a0a;
+  --danger-bg: rgba(230, 0, 35, 0.08);
+  color-scheme: light;
 }
 
-[data-theme="light"] {
-  --bg-primary: #faf5f0;
-  --bg-card: #ffffff;
-  --bg-elevated: #f0e6da;
-  --bg-border: rgba(0, 0, 0, 0.08);
-  --text-primary: #2e1a0c;
-  --text-muted: #7a6b5c;
-  --accent: #d84315;
-  --accent-cta: #e65100;
-  --accent-teal: #00796b;
-  color-scheme: light;
+[data-theme="dark"] {
+  --bg-primary: #1a0e10;
+  --bg-card: #231216;
+  --bg-elevated: #2f191b;
+  --bg-sidebar: #1a0e10;
+  --bg-border: rgba(255, 255, 255, 0.08);
+  --text-primary: #f5e6e8;
+  --text-muted: #c4a0a4;
+  --accent: #ff2d42;
+  --accent-hover: #ff5060;
+  --accent-cta: #ff2d42;
+  --accent-teal: #4caf80;
+  --sand: #3d2023;
+  --sand-hover: #4a2a2e;
+  --warm-light: #3d2023;
+  --warm-silver: #7a6668;
+  --dark-surface: #0d0608;
+  --focus-ring: #617bff;
+  --danger: #ff8a8a;
+  --danger-bg: rgba(255, 45, 66, 0.12);
+  color-scheme: dark;
 }
 
 @media (prefers-color-scheme: light) {
   [data-theme="system"] {
-    --bg-primary: #faf5f0;
+    --bg-primary: #ffffff;
     --bg-card: #ffffff;
-    --bg-elevated: #f0e6da;
-    --bg-border: rgba(0, 0, 0, 0.08);
-    --text-primary: #2e1a0c;
-    --text-muted: #7a6b5c;
-    --accent: #d84315;
-    --accent-cta: #e65100;
-    --accent-teal: #00796b;
+    --bg-elevated: #f6f6f3;
+    --bg-sidebar: #ffffff;
+    --bg-border: rgba(145, 145, 140, 0.2);
+    --text-primary: #211922;
+    --text-muted: #62625b;
+    --accent: #e60023;
+    --accent-hover: #ad081b;
+    --accent-cta: #e60023;
+    --accent-teal: #103c25;
+    --sand: #e5e5e0;
+    --sand-hover: #d5d5d0;
+    --warm-light: #e0e0d9;
+    --warm-silver: #91918c;
+    --dark-surface: #33332e;
+    --focus-ring: #435ee5;
+    --danger: #9e0a0a;
+    --danger-bg: rgba(230, 0, 35, 0.08);
     color-scheme: light;
   }
 }
 
 @media (prefers-color-scheme: dark) {
   [data-theme="system"] {
-    --bg-primary: #130c06;
-    --bg-card: #1e1209;
-    --bg-elevated: #2a1a0e;
+    --bg-primary: #1a0e10;
+    --bg-card: #231216;
+    --bg-elevated: #2f191b;
+    --bg-sidebar: #1a0e10;
     --bg-border: rgba(255, 255, 255, 0.08);
-    --text-primary: #ebe0d5;
-    --text-muted: #c4b5a6;
-    --accent: #c86020;
-    --accent-cta: #e07830;
-    --accent-teal: #00897b;
+    --text-primary: #f5e6e8;
+    --text-muted: #c4a0a4;
+    --accent: #ff2d42;
+    --accent-hover: #ff5060;
+    --accent-cta: #ff2d42;
+    --accent-teal: #4caf80;
+    --sand: #3d2023;
+    --sand-hover: #4a2a2e;
+    --warm-light: #3d2023;
+    --warm-silver: #7a6668;
+    --dark-surface: #0d0608;
+    --focus-ring: #617bff;
+    --danger: #ff8a8a;
+    --danger-bg: rgba(255, 45, 66, 0.12);
     color-scheme: dark;
   }
 }
@@ -61,13 +106,26 @@
   --color-bg-primary: var(--bg-primary);
   --color-bg-card: var(--bg-card);
   --color-bg-elevated: var(--bg-elevated);
+  --color-bg-sidebar: var(--bg-sidebar);
   --color-bg-border: var(--bg-border);
   --color-text-primary: var(--text-primary);
   --color-text-muted: var(--text-muted);
   --color-accent: var(--accent);
+  --color-accent-hover: var(--accent-hover);
   --color-accent-cta: var(--accent-cta);
   --color-accent-teal: var(--accent-teal);
-  --font-sans: "Inter", sans-serif;
+  --color-sand: var(--sand);
+  --color-sand-hover: var(--sand-hover);
+  --color-warm-light: var(--warm-light);
+  --color-warm-silver: var(--warm-silver);
+  --color-dark-surface: var(--dark-surface);
+  --color-focus-ring: var(--focus-ring);
+  --color-danger: var(--danger);
+  /* Pin Sans font stack: system-ui with broad CJK fallbacks */
+  --font-sans: -apple-system, system-ui, "Segoe UI", Roboto, "Oxygen-Sans",
+    "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol", Ubuntu, Cantarell,
+    "Fira Sans", "Droid Sans", "Helvetica Neue", Helvetica,
+    "ヒラギノ角ゴ Pro W3", メイリオ, Meiryo, "ＭＳ Ｐゴシック", Arial, sans-serif;
 }
 
 body {

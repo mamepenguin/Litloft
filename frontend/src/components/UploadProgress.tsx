@@ -40,7 +40,7 @@ export function UploadProgress({
 
   return (
     <div className="fixed bottom-0 right-0 z-40 w-full max-w-md">
-      <div className="m-3 overflow-hidden rounded-xl border border-bg-border bg-bg-card shadow-2xl">
+      <div className="m-3 overflow-hidden rounded-2xl border border-bg-border bg-bg-card shadow-2xl">
         {/* Header */}
         <button
           onClick={() => setCollapsed((prev) => !prev)}
@@ -91,14 +91,14 @@ export function UploadProgress({
                     <span
                       className={`text-xs ${
                         upload.status === "error"
-                          ? "text-red-400"
+                          ? "text-danger"
                           : upload.status === "complete"
-                            ? "text-green-400"
+                            ? "text-accent-teal"
                             : "text-text-muted"
                       }`}
                     >
                       {upload.status === "complete" ? (
-                        <Check size={14} className="text-green-400" />
+                        <Check size={14} className="text-accent-teal" />
                       ) : (
                         statusLabelMap[upload.status]
                       )}
@@ -107,7 +107,7 @@ export function UploadProgress({
                       upload.status === "uploading") && (
                       <button
                         onClick={() => onCancel(upload.id)}
-                        className="rounded p-0.5 text-text-muted hover:text-red-400"
+                        className="rounded p-0.5 text-text-muted hover:text-danger"
                         aria-label={tc("cancel")}
                       >
                         <X size={14} />
@@ -128,7 +128,7 @@ export function UploadProgress({
                 )}
 
                 {upload.status === "error" && upload.error && (
-                  <p className="mt-1 text-xs text-red-400">{upload.error}</p>
+                  <p className="mt-1 text-xs text-danger">{upload.error}</p>
                 )}
               </div>
             ))}

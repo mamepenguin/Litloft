@@ -54,7 +54,7 @@ export function Header() {
     <header className="flex h-14 flex-shrink-0 items-center border-b border-bg-border bg-bg-primary px-4">
       <button
         onClick={toggle}
-        className="rounded-lg p-2 text-text-muted hover:bg-bg-elevated hover:text-text-primary md:hidden"
+        className="rounded-2xl p-2 text-text-muted hover:bg-bg-elevated hover:text-text-primary md:hidden"
         aria-label={t("menu")}
       >
         <Menu size={20} />
@@ -77,7 +77,7 @@ export function Header() {
           ) : (
             <button
               onClick={() => setProfileOpen(true)}
-              className="rounded-lg p-2 text-text-muted hover:bg-bg-elevated hover:text-text-primary"
+              className="rounded-2xl p-2 text-text-muted hover:bg-bg-elevated hover:text-text-primary"
               aria-label={tp("setup")}
             >
               <User size={20} />
@@ -85,7 +85,7 @@ export function Header() {
           )}
 
           {dropdownOpen && nickname && (
-            <div className="absolute right-0 top-full z-50 mt-1 w-48 rounded-xl border border-bg-border bg-bg-card py-1 shadow-xl">
+            <div className="absolute right-0 top-full z-50 mt-1 w-48 rounded-2xl border border-bg-border bg-bg-card py-1 shadow-xl">
               <div className="border-b border-bg-border px-3 py-2 text-sm font-medium text-text-primary truncate">
                 {nickname}
               </div>
@@ -97,7 +97,7 @@ export function Header() {
               </button>
               <button
                 onClick={handleClearProfile}
-                className="w-full px-3 py-2 text-left text-sm text-red-400 transition-colors hover:bg-bg-elevated"
+                className="w-full px-3 py-2 text-left text-sm text-danger transition-colors hover:bg-bg-elevated"
               >
                 {tp("clear")}
               </button>

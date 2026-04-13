@@ -182,7 +182,7 @@ export function CommentSection({ fileId }: CommentSectionProps) {
         <button
           onClick={handlePost}
           disabled={!body.trim() || posting}
-          className="self-end rounded-lg bg-accent px-3 py-2 text-sm font-medium text-white transition-colors hover:bg-accent/80 disabled:opacity-50"
+          className="self-end rounded-2xl bg-accent px-3 py-2 text-sm font-medium text-white transition-colors hover:bg-accent-hover disabled:opacity-50"
           aria-label={t("post")}
         >
           <Send size={16} />
@@ -190,7 +190,7 @@ export function CommentSection({ fileId }: CommentSectionProps) {
       </div>
 
       {error && (
-        <p className="mt-2 text-xs text-red-400">{error}</p>
+        <p className="mt-2 text-xs text-danger">{error}</p>
       )}
 
       {comments.length === 0 ? (
@@ -250,13 +250,13 @@ export function CommentSection({ fileId }: CommentSectionProps) {
                     <button
                       onClick={handleEditSave}
                       disabled={!editBody.trim() || savingEdit}
-                      className="rounded-lg bg-accent px-3 py-1.5 text-sm font-medium text-white transition-colors hover:bg-accent/80 disabled:opacity-50"
+                      className="rounded-2xl bg-accent px-3 py-1.5 text-sm font-medium text-white transition-colors hover:bg-accent-hover disabled:opacity-50"
                     >
                       {t("save")}
                     </button>
                     <button
                       onClick={cancelEdit}
-                      className="rounded-lg bg-bg-elevated px-3 py-1.5 text-sm text-text-muted transition-colors hover:text-text-primary"
+                      className="rounded-2xl bg-bg-elevated px-3 py-1.5 text-sm text-text-muted transition-colors hover:text-text-primary"
                     >
                       {t("cancel")}
                     </button>

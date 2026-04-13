@@ -93,11 +93,11 @@ export function FolderToolbar({
                     if (e.key === "Escape") { onSetCreatingFolder(false); onSetNewFolderName(""); onSetFolderError(null); }
                   }}
                   placeholder={tf("namePlaceholder")}
-                  className="min-w-0 flex-1 rounded-lg bg-bg-card px-3 py-2 text-sm text-text-primary placeholder:text-text-muted outline-none focus:ring-2 focus:ring-accent sm:w-40 sm:flex-initial"
+                  className="min-w-0 flex-1 rounded-2xl bg-bg-card px-3 py-2 text-sm text-text-primary placeholder:text-text-muted outline-none focus:ring-2 focus:ring-accent sm:w-40 sm:flex-initial"
                 />
                 <button
                   onClick={onCreateFolder}
-                  className="rounded-lg bg-accent px-3 py-2 text-sm text-white hover:bg-accent/80"
+                  className="rounded-2xl bg-accent px-3 py-2 text-sm font-medium text-white hover:bg-accent-hover"
                 >
                   {tc("create")}
                 </button>
@@ -112,7 +112,7 @@ export function FolderToolbar({
             ) : (
               <button
                 onClick={() => onSetCreatingFolder(true)}
-                className="flex items-center gap-2 rounded-lg border border-bg-border bg-bg-card px-3 py-2 text-sm font-medium text-text-primary transition-colors hover:bg-bg-elevated"
+                className="flex items-center gap-2 rounded-2xl border border-bg-border bg-bg-card px-3 py-2 text-sm font-medium text-text-primary transition-colors hover:bg-bg-elevated"
                 aria-label={tf("newFolder")}
               >
                 <FolderPlus size={16} />
@@ -130,7 +130,7 @@ export function FolderToolbar({
           {hasPlayableFiles && !isSpecialView && !tagFilter && (
             <button
               onClick={onPlayAll}
-              className="flex items-center gap-1.5 rounded-lg bg-accent px-3 py-2 text-sm font-medium text-white transition-all hover:bg-accent/80 active:scale-[0.97]"
+              className="flex items-center gap-1.5 rounded-2xl bg-accent px-3 py-2 text-sm font-medium text-white transition-all hover:bg-accent-hover active:scale-[0.97]"
               aria-label={t("playAll")}
             >
               <Play size={16} />
@@ -138,7 +138,7 @@ export function FolderToolbar({
             </button>
           )}
 
-          <div className="flex items-center gap-1 rounded-lg bg-bg-card p-1">
+          <div className="flex items-center gap-1 rounded-2xl bg-bg-elevated p-1">
             <SortButton sort={sort} order={order} onChange={onSortChange} />
 
             <button
@@ -183,7 +183,7 @@ export function FolderToolbar({
             <Filter size={16} />
           </button>
           {typeFilterOpen && (
-            <div className="absolute left-0 top-full z-30 mt-1 min-w-[140px] rounded-xl border border-bg-border bg-bg-primary py-1 shadow-xl animate-fade-in-scale origin-top-left">
+            <div className="absolute left-0 top-full z-30 mt-1 min-w-[140px] rounded-2xl border border-bg-border bg-bg-primary py-1 shadow-xl animate-fade-in-scale origin-top-left">
               {TYPE_OPTION_KEYS.map((opt) => (
                 <button
                   key={opt.labelKey}

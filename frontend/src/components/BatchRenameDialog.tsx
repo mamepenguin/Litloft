@@ -192,7 +192,7 @@ export function BatchRenameDialog({
         {/* Footer */}
         <div className="flex items-center justify-between border-t border-white/[0.04] px-5 py-4">
           {error ? (
-            <p className="text-sm text-red-400">{error}</p>
+            <p className="text-sm text-danger">{error}</p>
           ) : (
             <p className="text-xs text-text-muted">
               {changedCount > 0
@@ -213,7 +213,7 @@ export function BatchRenameDialog({
               type="button"
               onClick={handleSubmit}
               disabled={changedCount === 0 || submitting || !!regexError}
-              className="flex items-center gap-2 rounded-lg bg-accent px-5 py-2.5 text-sm font-medium text-white shadow-sm transition-all hover:bg-accent/85 active:scale-[0.97] disabled:opacity-30 disabled:pointer-events-none"
+              className="flex items-center gap-2 rounded-2xl bg-accent px-5 py-2.5 text-sm font-medium text-white shadow-sm transition-all hover:bg-accent-hover active:scale-[0.97] disabled:opacity-30 disabled:pointer-events-none"
             >
               {submitting && <Loader2 size={14} className="animate-spin" />}
               {t("execute")}
@@ -314,12 +314,12 @@ function RegexFields({
           onChange={(e) => onPatternChange(e.target.value)}
           className={`w-full rounded-lg border bg-bg-primary px-3 py-2.5 font-mono text-sm text-text-primary outline-none transition-colors focus:ring-1 ${
             regexError
-              ? "border-red-400/60 focus:border-red-400/80 focus:ring-red-400/25"
+              ? "border-danger/60 focus:border-danger/80 focus:ring-danger/25"
               : "border-white/[0.06] focus:border-accent/50 focus:ring-accent/25"
           }`}
         />
         {regexError && (
-          <p className="mt-1.5 text-xs text-red-400">{regexError}</p>
+          <p className="mt-1.5 text-xs text-danger">{regexError}</p>
         )}
       </div>
       <div>
