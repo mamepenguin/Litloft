@@ -46,6 +46,11 @@ vi.mock("@/lib/format", () => ({
   formatRelativeDate: () => "3 min ago",
 }));
 
+const expandSection = () => {
+  // Section is collapsed by default; click the header button to expand.
+  fireEvent.click(screen.getByRole("button", { name: /コメント/ }));
+};
+
 describe("CommentSection", () => {
   beforeEach(() => {
     vi.clearAllMocks();
@@ -55,6 +60,7 @@ describe("CommentSection", () => {
     mockGetComments.mockResolvedValue({ comments: [], total: 0 });
 
     render(<CommentSection fileId="file-1" />);
+    expandSection();
 
     await waitFor(() => {
       expect(screen.getByText("コメントはまだありません")).toBeInTheDocument();
@@ -65,6 +71,7 @@ describe("CommentSection", () => {
     mockGetComments.mockResolvedValue({ comments: mockComments, total: 3 });
 
     render(<CommentSection fileId="file-1" />);
+    expandSection();
 
     await waitFor(() => {
       expect(screen.getByText("Alice")).toBeInTheDocument();
@@ -81,6 +88,7 @@ describe("CommentSection", () => {
     });
 
     render(<CommentSection fileId="file-1" />);
+    expandSection();
 
     await waitFor(() => {
       expect(screen.getByText("匿名")).toBeInTheDocument();
@@ -95,6 +103,7 @@ describe("CommentSection", () => {
     });
 
     render(<CommentSection fileId="file-1" />);
+    expandSection();
 
     await waitFor(() => {
       expect(screen.getByLabelText("編集")).toBeInTheDocument();
@@ -109,6 +118,7 @@ describe("CommentSection", () => {
     });
 
     render(<CommentSection fileId="file-1" />);
+    expandSection();
 
     await waitFor(() => {
       expect(screen.getByText("Bob")).toBeInTheDocument();
@@ -130,6 +140,7 @@ describe("CommentSection", () => {
     });
 
     render(<CommentSection fileId="file-1" />);
+    expandSection();
 
     await waitFor(() => {
       expect(screen.getByPlaceholderText("コメントを入力...")).toBeInTheDocument();
@@ -156,6 +167,7 @@ describe("CommentSection", () => {
     });
 
     render(<CommentSection fileId="file-1" />);
+    expandSection();
 
     await waitFor(() => {
       expect(screen.getByLabelText("編集")).toBeInTheDocument();
@@ -180,6 +192,7 @@ describe("CommentSection", () => {
     mockDeleteComment.mockResolvedValue(undefined);
 
     render(<CommentSection fileId="file-1" />);
+    expandSection();
 
     await waitFor(() => {
       expect(screen.getByLabelText("削除")).toBeInTheDocument();

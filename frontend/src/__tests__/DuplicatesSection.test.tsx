@@ -263,8 +263,15 @@ describe("DuplicatesSection", () => {
       expect(screen.getByText(/選択したファイルを削除/)).toBeTruthy();
     });
 
-    // Click delete button
+    // Click delete button (opens confirmation dialog)
     fireEvent.click(screen.getByText(/選択したファイルを削除/));
+
+    // Confirm in the dialog — the last button with this label is inside the dialog
+    await waitFor(() => {
+      expect(screen.getByText(/ゴミ箱に移動しますか/)).toBeTruthy();
+    });
+    const deleteButtons = screen.getAllByText(/選択したファイルを削除/);
+    fireEvent.click(deleteButtons[deleteButtons.length - 1]);
 
     await waitFor(() => {
       // Should call batchDelete with the non-kept file IDs
