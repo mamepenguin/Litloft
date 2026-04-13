@@ -13,8 +13,11 @@
     "test:e2e:report": "playwright show-report"
   },
   "dependencies": {
+    "gray-matter": "^4.0.3",
     "http-proxy": "^1.18.1",
+    "isomorphic-dompurify": "^3.8.0",
     "lucide-react": "^0.577.0",
+    "markdown-it": "^14.1.1",
     "next": "16.2.1",
     "next-intl": "^4.9.0",
     "react": "19.2.4",
@@ -25,7 +28,8 @@
     "@tailwindcss/postcss": "^4",
     "@testing-library/jest-dom": "^6.9.1",
     "@testing-library/react": "^16.3.2",
-"@types/node": "^20",
+    "@types/markdown-it": "^14.1.2",
+    "@types/node": "^20",
     "@types/react": "^19",
     "@types/react-dom": "^19",
     "@vitejs/plugin-react": "^4.7.0",

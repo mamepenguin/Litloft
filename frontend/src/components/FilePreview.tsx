@@ -6,6 +6,7 @@ import type { FileItem } from "@/types";
 import { VideoPlayer } from "./VideoPlayer";
 import { AudioPlayer } from "./AudioPlayer";
 import { TextPreview, isTextPreviewable } from "./TextPreview";
+import { MarkdownFileViewer } from "./MarkdownPreview";
 import { ArchivePreview } from "./ArchivePreview";
 import { FileTypeIcon } from "./FileTypeIcon";
 import { AddonSlot } from "./AddonSlot";
@@ -36,6 +37,10 @@ export function FilePreview({ file, onEnded, autoPlay, videoRef, initialTime }: 
 
   if (file.mime_type === "application/vnd.homevault.link+json") {
     return <AddonSlot id="hvlink-player" props={{ fileId: file.id, file }} />;
+  }
+
+  if (file.mime_type === "text/markdown") {
+    return <MarkdownFileViewer fileId={file.id} />;
   }
 
   if (file.mime_type === "application/pdf") {

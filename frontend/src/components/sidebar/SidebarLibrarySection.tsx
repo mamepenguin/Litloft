@@ -7,6 +7,7 @@ import {
   Files,
   Gauge,
   Home,
+  NotebookPen,
   Package,
   Rss,
   Star,
@@ -15,11 +16,13 @@ import {
   type LucideIcon,
 } from "lucide-react";
 import { useTranslations } from "next-intl";
+import { AddonSlot } from "@/components/AddonSlot";
 import type { AddonMeta } from "@/lib/addons";
 import type { DriveSummary } from "@/types";
 
 const ADDON_ICONS: Record<string, LucideIcon> = {
   download: Download,
+  "notebook-pen": NotebookPen,
   package: Package,
   rss: Rss,
 };
@@ -111,6 +114,8 @@ export function SidebarLibrarySection({ driveBase, linkClass, close, addons, dri
           })}
         </>
       )}
+
+      <AddonSlot id="sidebar-sections" layout="stack" />
     </>
   );
 }
