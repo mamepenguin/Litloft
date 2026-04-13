@@ -1,6 +1,9 @@
 import asyncio
+import hashlib
 import os
+import tempfile
 import zipfile
+from collections import defaultdict
 from pathlib import Path, PurePosixPath
 from typing import Annotated
 from urllib.parse import quote
@@ -53,6 +56,10 @@ PLACEHOLDER_THUMBNAIL = Path(__file__).parent.parent / "static" / "placeholder.j
 _ARCHIVE_ENTRY_MAX_SIZE = 50 * 1024 * 1024  # 50MB
 _MAX_ARCHIVE_ENTRIES = 10_000
 _archive_semaphore = asyncio.Semaphore(3)
+
+_TEXT_WRITE_ALLOWED_MIMES = frozenset({"text/markdown", "text/plain"})
+_TEXT_WRITE_MAX_BYTES = 1 * 1024 * 1024  # 1 MB
+_text_write_locks: dict[str, asyncio.Lock] = defaultdict(asyncio.Lock)
 
 def _decode_zip_filename(info: zipfile.ZipInfo) -> str:
     """Decode ZIP entry filename, handling Shift_JIS encoded names.
@@ -865,6 +872,96 @@ async def restore_file_endpoint(
         event_hooks.emit("files.restored", {"file_ids": [file_id]})
     )
     return _to_response(file)
+
+
+def _compute_text_etag(data: bytes) -> str:
+    return hashlib.sha256(data).hexdigest()
+
+
+def _strip_etag_quotes(value: str) -> str:
+    value = value.strip()
+    if value.startswith("W/"):
+        value = value[2:].strip()
+    if len(value) >= 2 and value[0] == '"' and value[-1] == '"':
+        return value[1:-1]
+    return value
+
+
+@router.put("/{file_id}/content")
+async def put_file_content(
+    file_id: FileId,
+    request: Request,
+    db: Annotated[Session, Depends(get_db)],
+    unlocked_groups: Annotated[list[str], Depends(get_unlocked_groups)],
+):
+    """Overwrite a text file's content with optimistic-lock safety.
+
+    Body: raw UTF-8 text, Content-Type: text/plain
+    Required header: If-Match (ETag of current content)
+
+    Responses:
+    - 200 OK with new ETag on success
+    - 412 if If-Match doesn't match current content's ETag
+    - 413 if body exceeds size limit
+    - 415 if target file's mime isn't in allowlist (text/markdown, text/plain)
+    - 428 if If-Match is missing
+    - 404 if file not found, trashed, or missing
+    """
+    if_match = request.headers.get("if-match")
+    if not if_match:
+        raise HTTPException(status_code=428, detail="If-Match header is required")
+
+    body = await request.body()
+    if len(body) > _TEXT_WRITE_MAX_BYTES:
+        raise HTTPException(status_code=413, detail="Content exceeds size limit")
+
+    file = _get_file_or_404(db, file_id, unlocked_groups)
+    if (file.mime_type or "") not in _TEXT_WRITE_ALLOWED_MIMES:
+        raise HTTPException(
+            status_code=415,
+            detail=f"Mime type not writable via this endpoint: {file.mime_type}",
+        )
+
+    drive_path = config.get_drive_path(file.drive)
+    file_path = _validate_path(str(drive_path / file.file_path), drive_path)
+
+    lock = _text_write_locks[file.id]
+    async with lock:
+        # Current ETag comes from actual file bytes (ETag is strong, content-hashed)
+        try:
+            current_bytes = file_path.read_bytes()
+        except FileNotFoundError:
+            raise HTTPException(status_code=404, detail="File not found on disk")
+        current_etag = _compute_text_etag(current_bytes)
+
+        if _strip_etag_quotes(if_match) != current_etag:
+            raise HTTPException(status_code=412, detail="ETag mismatch")
+
+        # Atomic write: tmp + os.replace. Temp file is on the same FS as target
+        # so os.replace is atomic on POSIX.
+        tmp_fd, tmp_name = tempfile.mkstemp(
+            prefix=f".{file_path.name}.", suffix=".tmp", dir=str(file_path.parent)
+        )
+        try:
+            with os.fdopen(tmp_fd, "wb") as f:
+                f.write(body)
+            os.replace(tmp_name, file_path)
+        except Exception:
+            try:
+                os.unlink(tmp_name)
+            except OSError:
+                pass
+            raise
+
+        new_etag = _compute_text_etag(body)
+        # Update File.file_size (ignore mtime — FS is authoritative for mtime)
+        file.file_size = len(body)
+        db.commit()
+
+    return Response(
+        status_code=200,
+        headers={"ETag": f'"{new_etag}"'},
+    )
 
 
 @router.delete("/{file_id}/purge")
