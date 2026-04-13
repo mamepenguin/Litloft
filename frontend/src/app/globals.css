@@ -1,8 +1,8 @@
 @import "tailwindcss";
 
 /* ===== Pinterest Design System ===== */
-/* Warm white canvas · Pinterest Red (#e60023) · Plum Black (#211922) */
-/* Dark variant: warm plum dark (#1a0e10) · Bright Red (#ff2d42) */
+/* Warm white canvas · Coral Red (#d63031) · Plum Black (#211922) */
+/* Dark variant: warm plum dark (#1a0e10) · Bright Coral (#e85d5e) */
 
 :root,
 [data-theme="light"] {
@@ -13,9 +13,9 @@
   --bg-border: rgba(145, 145, 140, 0.2);
   --text-primary: #211922;
   --text-muted: #62625b;
-  --accent: #e60023;
-  --accent-hover: #ad081b;
-  --accent-cta: #e60023;
+  --accent: #d63031;
+  --accent-hover: #b52425;
+  --accent-cta: #d63031;
   --accent-teal: #103c25;
   /* Pinterest-specific tokens */
   --sand: #e5e5e0;
@@ -37,9 +37,9 @@
   --bg-border: rgba(255, 255, 255, 0.08);
   --text-primary: #f5e6e8;
   --text-muted: #c4a0a4;
-  --accent: #ff2d42;
-  --accent-hover: #ff5060;
-  --accent-cta: #ff2d42;
+  --accent: #e85d5e;
+  --accent-hover: #f07070;
+  --accent-cta: #e85d5e;
   --accent-teal: #4caf80;
   --sand: #3d2023;
   --sand-hover: #4a2a2e;
