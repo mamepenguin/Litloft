@@ -1,104 +1,107 @@
 # HomeVault Design System
 
-> Pinterest 着想のデザインシステム。  
-> 実装言語: Next.js 16 (Tailwind CSS v4)。  
-> jp-ui-contracts: base + saas プロファイル適用。
+> Pinterest-inspired design system for HomeVault.
+> Stack: Next.js 16, Tailwind CSS v4.
+> Japanese typography: jp-ui-contracts base + saas profile.
 
 ---
 
-## 0. メタデータ
+## 0. Metadata
 
-| 項目 | 値 |
+| Key | Value |
 |---|---|
 | Locale | `ja-JP` |
-| Profile | saas (メディアブラウザ) |
-| Theme | Light / Dark / System の3モード |
+| Profile | saas (media browser) |
+| Theme | Light / Dark / System |
 | CSS | Tailwind CSS v4 + CSS Custom Properties |
-| Font | System-UI CJK fallback stack (Pin Sans 相当) |
+| Font | System-UI with CJK fallback stack |
 | Last updated | 2026-04-14 |
 
 ---
 
-## 1. ビジュアルテーマ
+## 1. Visual Theme
 
-**ウォームホワイトキャンバス**に**コーラルレッド**を単一アクセントとして使う、フラットでミニマルな設計。  
-Pinterest のデザイン哲学（温かみのある中間色・ふっくらした角丸・影を使わない深度表現）を HomeVault のファイルブラウザUIに翻訳したもの。
+A **warm white canvas** with **coral red** as the single brand accent — flat, minimal, and photography-forward.
 
-**ライトモード**: 白キャンバス + プラムブラック文字 + コーラルレッドアクセント  
-**ダークモード**: ウォームプラムダーク（`#1a0e10`）+ ブライトコーラル（`#e85d5e`）  
-ダークモードは純黒ではなく赤みがかったプラム暗色を採用し、アクセントカラーとの統一感を維持する。
+Pinterest's design philosophy (warm neutrals, generous border-radius, depth without shadows) is translated into HomeVault's file-browser UI.
 
----
+**Light mode**: white canvas + plum black text + coral red accent
+**Dark mode**: warm plum dark (`#1a0e10`) + bright coral (`#e85d5e`)
 
-## 2. カラーシステム
-
-### 2.1 CSS Custom Properties（設計トークン）
-
-Tailwind `@theme inline` でユーティリティクラスとして使用可能（例: `bg-accent`, `text-text-muted`）。
-
-#### ライトモード（`:root`, `[data-theme="light"]`）
-
-| トークン | 値 | 用途 |
-|---|---|---|
-| `--bg-primary` | `#ffffff` | ページ背景 |
-| `--bg-card` | `#ffffff` | カード背景 |
-| `--bg-elevated` | `#f6f6f3` | 浮き上がったサーフェス（ツールバー等） |
-| `--bg-sidebar` | `#ffffff` | サイドバー背景 |
-| `--bg-border` | `rgba(145,145,140,0.2)` | ボーダー・区切り線 |
-| `--text-primary` | `#211922` | プライマリテキスト（プラムブラック） |
-| `--text-muted` | `#62625b` | 補助テキスト（オリーブグレー） |
-| `--accent` | `#d63031` | ブランドアクセント（コーラルレッド）|
-| `--accent-hover` | `#b52425` | アクセントホバー |
-| `--accent-cta` | `#d63031` | CTAボタン（accent と同値） |
-| `--accent-teal` | `#103c25` | 成功・自然系アクセント（グリーン） |
-| `--sand` | `#e5e5e0` | セカンダリボタン背景（ウォームサンド） |
-| `--sand-hover` | `#d5d5d0` | サンドホバー |
-| `--warm-light` | `#e0e0d9` | サークルボタン・薄いバッジ背景 |
-| `--warm-silver` | `#91918c` | ボーダー・無効テキスト（ウォームシルバー） |
-| `--dark-surface` | `#33332e` | ダークセクション背景 |
-| `--focus-ring` | `#435ee5` | フォーカスリング（ブルー） |
-| `--danger` | `#9e0a0a` | 危険・エラー色 |
-| `--danger-bg` | `rgba(230,0,35,0.08)` | エラー背景 |
-
-#### ダークモード（`[data-theme="dark"]`）
-
-| トークン | 値 | ライトとの差異 |
-|---|---|---|
-| `--bg-primary` | `#1a0e10` | ウォームプラムダーク |
-| `--bg-card` | `#231216` | やや明るいプラム |
-| `--bg-elevated` | `#2f191b` | サーフェス浮き上がり |
-| `--bg-sidebar` | `#1a0e10` | bg-primary と同値 |
-| `--bg-border` | `rgba(255,255,255,0.08)` | 白透過ボーダー |
-| `--text-primary` | `#f5e6e8` | 温かみのある明るいテキスト |
-| `--text-muted` | `#c4a0a4` | ピンクがかった補助テキスト |
-| `--accent` | `#e85d5e` | ブライトコーラル |
-| `--accent-hover` | `#f07070` | さらに明るいコーラル |
-| `--accent-teal` | `#4caf80` | 明るいグリーン |
-| `--sand` | `#3d2023` | ダーク版サンド |
-| `--sand-hover` | `#4a2a2e` | ダーク版サンドホバー |
-| `--warm-light` | `#3d2023` | sand と同値 |
-| `--warm-silver` | `#7a6668` | くすんだピンクシルバー |
-| `--dark-surface` | `#0d0608` | 最暗面 |
-| `--focus-ring` | `#617bff` | 明るいブルー |
-| `--danger` | `#ff8a8a` | 明るいコーラルエラー |
-| `--danger-bg` | `rgba(255,45,66,0.12)` | エラー背景 |
-
-#### システムモード（`[data-theme="system"]`）
-`@media (prefers-color-scheme: light/dark)` でライト/ダーク値をそれぞれ適用。
-
-### 2.2 カラー使用ルール
-
-- **`--accent`** は CTAボタン・アイコンのブランドアクセントにのみ使用。乱用しない
-- **`--sand`** はセカンダリボタン背景・タグ等の中間色として使用
-- **`--danger`** はエラー・削除・危険操作にのみ使用。`--accent` の赤と混同しない
-- **`--text-muted`** のコントラストは読める範囲に保つ。薄くしすぎない
-- 色だけで状態を伝えない（アイコン・テキストを併用）
+Dark mode uses a red-tinted plum instead of pure black, keeping the warm character consistent with the accent color.
 
 ---
 
-## 3. タイポグラフィ
+## 2. Color System
 
-### 3.1 フォントスタック
+### 2.1 CSS Custom Properties
+
+All tokens are exposed as Tailwind utility classes via `@theme inline` (e.g. `bg-accent`, `text-text-muted`).
+
+#### Light mode (`:root`, `[data-theme="light"]`)
+
+| Token | Value | Usage |
+|---|---|---|
+| `--bg-primary` | `#ffffff` | Page background |
+| `--bg-card` | `#ffffff` | Card background |
+| `--bg-elevated` | `#f6f6f3` | Elevated surface (toolbars, etc.) |
+| `--bg-sidebar` | `#ffffff` | Sidebar background |
+| `--bg-border` | `rgba(145,145,140,0.2)` | Borders and dividers |
+| `--text-primary` | `#211922` | Primary text (plum black) |
+| `--text-muted` | `#62625b` | Secondary text (olive gray) |
+| `--accent` | `#d63031` | Brand accent (coral red) |
+| `--accent-hover` | `#b52425` | Accent hover state |
+| `--accent-cta` | `#d63031` | CTA button (same as accent) |
+| `--accent-teal` | `#103c25` | Success / nature accent (green) |
+| `--sand` | `#e5e5e0` | Secondary button background (warm sand) |
+| `--sand-hover` | `#d5d5d0` | Sand hover state |
+| `--warm-light` | `#e0e0d9` | Circle buttons, subtle badge backgrounds |
+| `--warm-silver` | `#91918c` | Borders, disabled text (warm silver) |
+| `--dark-surface` | `#33332e` | Dark section backgrounds |
+| `--focus-ring` | `#435ee5` | Focus ring (blue) |
+| `--danger` | `#9e0a0a` | Danger / error color |
+| `--danger-bg` | `rgba(230,0,35,0.08)` | Error background |
+
+#### Dark mode (`[data-theme="dark"]`)
+
+| Token | Value | Notes |
+|---|---|---|
+| `--bg-primary` | `#1a0e10` | Warm plum dark |
+| `--bg-card` | `#231216` | Slightly lighter plum |
+| `--bg-elevated` | `#2f191b` | Elevated surface |
+| `--bg-sidebar` | `#1a0e10` | Same as bg-primary |
+| `--bg-border` | `rgba(255,255,255,0.08)` | White translucent border |
+| `--text-primary` | `#f5e6e8` | Warm light text |
+| `--text-muted` | `#c4a0a4` | Pinkish muted text |
+| `--accent` | `#e85d5e` | Bright coral |
+| `--accent-hover` | `#f07070` | Lighter coral |
+| `--accent-teal` | `#4caf80` | Bright green |
+| `--sand` | `#3d2023` | Dark sand |
+| `--sand-hover` | `#4a2a2e` | Dark sand hover |
+| `--warm-light` | `#3d2023` | Same as sand |
+| `--warm-silver` | `#7a6668` | Muted pink-silver |
+| `--dark-surface` | `#0d0608` | Deepest surface |
+| `--focus-ring` | `#617bff` | Bright blue |
+| `--danger` | `#ff8a8a` | Bright coral error |
+| `--danger-bg` | `rgba(255,45,66,0.12)` | Error background |
+
+#### System mode (`[data-theme="system"]`)
+
+Applies light or dark values via `@media (prefers-color-scheme: light/dark)`.
+
+### 2.2 Color Usage Rules
+
+- **`--accent`**: Use only for primary CTAs and brand highlights. Do not overuse.
+- **`--sand`**: Use for secondary button backgrounds, tags, and mid-tone surfaces.
+- **`--danger`**: Use only for errors, deletions, and destructive actions. Do not confuse with `--accent` red.
+- **`--text-muted`**: Keep contrast readable. Do not reduce opacity beyond legibility.
+- Never rely on color alone to convey state — pair with icons or text.
+
+---
+
+## 3. Typography
+
+### 3.1 Font Stack
 
 ```css
 --font-sans: -apple-system, system-ui, "Segoe UI", Roboto, "Oxygen-Sans",
@@ -107,24 +110,24 @@ Tailwind `@theme inline` でユーティリティクラスとして使用可能�
   "ヒラギノ角ゴ Pro W3", メイリオ, Meiryo, "ＭＳ Ｐゴシック", Arial, sans-serif;
 ```
 
-- 和文フォントは明示的に fallback に含める（ブラウザ既定に丸投げしない）
-- macOS・Windows 両環境で安定した日本語描画を確保
+- Japanese fonts are explicitly listed — do not leave Japanese rendering to browser defaults.
+- Stable on both macOS and Windows.
 
-### 3.2 タイプスケール
+### 3.2 Type Scale
 
-| ロール | サイズ | ウェイト | 行間 | 備考 |
+| Role | Size | Weight | Line Height | Notes |
 |---|---|---|---|---|
-| Body | 継承 (16px ベース) | 400 | 1.6 | body 既定 |
+| Body | inherited (16px base) | 400 | 1.6 | Body default |
 | H1 | — | 700 | 1.35 (`:lang(ja)`) | — |
 | H2 | — | 700 | 1.40 (`:lang(ja)`) | — |
 | H3 | — | 600–700 | 1.45 (`:lang(ja)`) | — |
-| Caption / Label | 11–12px | 400–500 | — | ナビ補助ラベル |
-| Section header | 11px | 600 | — | UPPERCASE 英語固定ラベルのみ |
+| Caption / Label | 11–12px | 400–500 | — | Nav auxiliary labels |
+| Section header | 11px | 600 | — | UPPERCASE, English-only hardcoded labels |
 
-### 3.3 Japanese Typography Rules（jp-ui-contracts 準拠）
+### 3.3 Japanese Typography Rules (jp-ui-contracts)
 
 ```css
-/* html:lang(ja) ベースルール */
+/* Base rules for Japanese */
 html:lang(ja) {
   line-break: strict;
   word-break: normal;
@@ -134,62 +137,62 @@ html:lang(ja) {
   text-autospace: normal; /* progressive enhancement */
 }
 
-/* 段落・リスト・定義リスト */
+/* Paragraphs, lists, definition terms */
 p, li, dd {
   line-break: strict;
   word-break: normal;
   overflow-wrap: anywhere;
 }
 
-/* 見出し: 自然な折り返し */
+/* Headings: natural phrase-based wrapping */
 :lang(ja) h1, :lang(ja) h2, :lang(ja) h3, :lang(ja) h4 {
   word-break: auto-phrase;
   overflow-wrap: anywhere;
 }
 
-/* フォーム要素: 本文から密度分離 */
+/* Form elements: separate density from body text */
 :lang(ja) input, :lang(ja) textarea, :lang(ja) select {
   line-height: 1.5;
 }
 ```
 
-**禁止事項:**
-- `word-break: break-all` を本文・UIラベルに全体適用しない（ログ・ハッシュ・URLなど機械的文字列には `overflow-wrap: anywhere` を使う → `break-anywhere` ユーティリティ）
-- 本文に `letter-spacing: 0.02em` を超える値を理由なく設定しない
-- i18n テキスト（日本語が出る箇所）に `tracking-wider` (`0.05em`) を適用しない
+**Prohibited:**
+- Do not apply `word-break: break-all` globally to body text or UI labels. For machine-like strings (logs, hashes, paths, URLs) use `overflow-wrap: anywhere` via the `break-anywhere` utility.
+- Do not apply `letter-spacing` beyond `0.02em` on body text without strong justification.
+- Do not apply `tracking-wider` (`0.05em`) to any element that renders i18n text (which may be Japanese).
 
-**許可されるもの:**
-- 英語固定ラベル（"Drives", "Tags" 等）への `uppercase tracking-wider` → 問題なし
-- ログ・ファイルパス等の機械的文字列への `break-anywhere` ユーティリティ
+**Allowed:**
+- `uppercase tracking-wider` on hardcoded English-only labels (e.g. "Drives", "Tags") — these are unaffected.
+- `break-anywhere` utility on machine-like strings (file paths, hashes, etc.).
 
 ---
 
-## 4. ボーダーラジウススケール
+## 4. Border Radius Scale
 
-| クラス | 値 | 用途 |
+| Class | Value | Usage |
 |---|---|---|
-| `rounded-full` | 9999px | アバター・サークルボタン・フィルターピル |
-| `rounded-2xl` | 16px | **標準** — ボタン・入力欄・モーダル・バッジ |
-| `rounded-xl` | 12px | カード・コンテナ・サブパネル |
-| `rounded-lg` | 8px | アイコンコンテナ内部の小要素 |
+| `rounded-full` | 9999px | Avatars, circle buttons, filter pills |
+| `rounded-2xl` | 16px | **Standard** — buttons, inputs, modals, badges |
+| `rounded-xl` | 12px | Cards, containers, sub-panels |
+| `rounded-lg` | 8px | Small elements inside icon containers only |
 
-- **原則**: 12px 未満を外部に露出しない。小要素のみ `rounded-lg`
-- ホバー時の `scale()` トランスフォームは使用しない（Pinterestの静的な重さを維持）
+- Do not expose less than 12px border-radius on outer surfaces.
+- Do not use `scale()` transforms on hover — maintain Pinterest's static weight.
 
 ---
 
-## 5. コンポーネントスタイリング
+## 5. Component Styling
 
-### ボタン
+### Buttons
 
-**Primary（CTA）**
-- Background: `bg-accent` (`#d63031` / `#e85d5e`)
+**Primary (CTA)**
+- Background: `bg-accent` (`#d63031` / `#e85d5e` dark)
 - Text: `text-white`
 - Hover: `hover:bg-accent-hover`
 - Radius: `rounded-2xl`
-- Padding: `px-4 py-2` 以上（日本語ラベルが窮屈にならない幅を確保）
+- Padding: at least `px-4 py-2` — ensure Japanese labels have enough room
 
-**Secondary（Sand）**
+**Secondary (Sand)**
 - Background: `bg-sand`
 - Text: `text-text-primary`
 - Hover: `hover:bg-sand-hover`
@@ -197,7 +200,7 @@ p, li, dd {
 
 **Danger**
 - Text: `text-danger`
-- Hover Background: `hover:bg-danger/10` または `hover:bg-accent/10`
+- Hover background: `hover:bg-danger/10` or `hover:bg-accent/10`
 - Radius: `rounded-2xl`
 
 **Ghost / Transparent**
@@ -208,96 +211,96 @@ p, li, dd {
 - Background: `bg-warm-light`
 - Radius: `rounded-full`
 
-### カード
+### Cards
 
 - Radius: `rounded-xl` (12px)
 - Background: `bg-bg-card`
-- Shadow: 使用しない（フラット設計）
-- ホバー: `hover:bg-bg-elevated` のようなサーフェス変化のみ。`scale()` は使わない
+- Shadow: none (flat design)
+- Hover: surface color change only (e.g. `hover:bg-bg-elevated`) — no `scale()`
 
-### 入力欄
+### Inputs
 
 - Radius: `rounded-2xl`
-- Border: `border border-bg-border` または `border border-warm-silver/40`
-- Focus: フォーカスリング `var(--focus-ring)` (#435ee5 / #617bff)
-- Line-height: `:lang(ja)` ルールで自動適用 (1.5)
+- Border: `border border-bg-border` or `border border-warm-silver/40`
+- Focus ring: `var(--focus-ring)` (`#435ee5` light / `#617bff` dark)
+- Line-height: automatically applied by `:lang(ja)` rules (1.5)
 
-### モーダル・ダイアログ
+### Modals / Dialogs
 
 - Radius: `rounded-2xl`
 - Background: `bg-bg-card`
-- ボタン配置: Cancel (`bg-sand`) → Confirm (`bg-accent`) の順
+- Button order: Cancel (`bg-sand`) then Confirm (`bg-accent`)
 
-### サイドバー
+### Sidebar
 
 - Background: `bg-bg-sidebar`
-- アクティブリンク: `bg-bg-elevated rounded-2xl font-medium`
-- セクションヘッダー: `text-[11px] font-semibold uppercase tracking-wider text-text-muted`（英語固定文字列のみ）
+- Active link: `bg-bg-elevated rounded-2xl font-medium`
+- Section headers: `text-[11px] font-semibold uppercase tracking-wider text-text-muted` — English-only hardcoded strings only
 
-### コンテキストメニュー・ドロップダウン
+### Context Menus / Dropdowns
 
 - Radius: `rounded-2xl`
 - Danger item: `text-danger hover:bg-accent/10`
 
-### セクションヘッダーラベル（i18n）
+### Section Header Labels (i18n)
 
-- `tracking-wider` を **使用しない**（日本語が描画される）
-- `text-sm font-semibold uppercase text-text-muted` に留める
+- Do **not** use `tracking-wider` — these render Japanese text
+- Use `text-sm font-semibold uppercase text-text-muted` only
 
 ---
 
-## 6. 影・深度
+## 6. Depth & Elevation
 
-| レベル | 処理 | 用途 |
+| Level | Treatment | Usage |
 |---|---|---|
-| 0 (Flat) | 影なし | カード・ボタン（標準） |
-| 1 (Elevated) | `bg-bg-elevated` サーフェス変化 | ツールバー・サブパネル |
-| 2 (Overlay) | 最小 shadow + `bg-bg-card` | モーダル・ドロップダウン |
+| 0 (Flat) | No shadow | Cards, buttons (default) |
+| 1 (Elevated) | `bg-bg-elevated` surface shift | Toolbars, sub-panels |
+| 2 (Overlay) | Minimal shadow + `bg-bg-card` | Modals, dropdowns |
 
-**Shadow Philosophy**: 影を使わず、サーフェスカラーの差と角丸で深度を表現する。
+**Shadow philosophy**: Depth is expressed through surface color differences and border-radius — not box-shadow. Keep shadows minimal and never decorative.
 
 ---
 
-## 7. アニメーション
+## 7. Animation
 
-| ユーティリティ | 動き | 使用箇所 |
+| Utility | Motion | Used on |
 |---|---|---|
-| `animate-fade-in` | 200ms fade | 一般的な要素出現 |
-| `animate-fade-in-scale` | 200ms fade + scale 0.95→1 | モーダル・ダイアログ |
-| `animate-slide-up` | 250ms slide（中央固定要素） | トースト |
-| `animate-slide-up-bar` | 300ms cubic-bezier slide | 選択バー |
-| `animate-pop` | 250ms scale 1→1.25→1 | ハート・お気に入りアイコン |
+| `animate-fade-in` | 200ms fade | General element appearance |
+| `animate-fade-in-scale` | 200ms fade + scale 0.95→1 | Modals, dialogs |
+| `animate-slide-up` | 250ms slide (center-anchored) | Toasts |
+| `animate-slide-up-bar` | 300ms cubic-bezier slide | Selection bar |
+| `animate-pop` | 250ms scale 1→1.25→1 | Heart / favorite icons |
 
-`@media (prefers-reduced-motion: reduce)` でアニメーション全停止。
+All animations are disabled via `@media (prefers-reduced-motion: reduce)`.
 
 ---
 
-## 8. テーマ切替
+## 8. Theme Switching
 
-`localStorage('theme-preference')` → `document.documentElement.setAttribute('data-theme', t)` で SSR フラッシュを防ぐインラインスクリプトを `<head>` 先頭に配置。
+An inline script in `<head>` reads `localStorage('theme-preference')` and sets `data-theme` on `<html>` before first paint to prevent flash of unstyled content.
 
-- `'light'` → `[data-theme="light"]` ルールを適用
-- `'dark'` → `[data-theme="dark"]` ルールを適用
-- `'system'` → `@media (prefers-color-scheme: *)` ルールを適用
+- `'light'` → applies `[data-theme="light"]` rules
+- `'dark'` → applies `[data-theme="dark"]` rules
+- `'system'` → defers to `@media (prefers-color-scheme: *)` rules
 
 ---
 
 ## 9. Do's and Don'ts
 
 ### Do
-- ウォームニュートラル（`--sand`, `--warm-light`, `--warm-silver`）でオリーブ/サンドトーンを維持
-- `--accent` はCTA・ブランド強調のみに使用
-- `rounded-2xl` (16px) をボタン・入力欄の標準、`rounded-xl` (12px) をカードの標準とする
-- 見出し・本文・フォームの行間を分離（jp-ui-contracts ルール）
-- 日本語が出るi18n箇所に `tracking-wider` を使わない
-- `overflow-wrap: anywhere` を長語・URLに使う（`break-all` ではなく `break-anywhere` ユーティリティ）
-- プラムブラック（`#211922` / `#f5e6e8`）をプライマリテキストに使う
+- Use warm neutrals (`--sand`, `--warm-light`, `--warm-silver`) — olive/sand tone is the identity
+- Reserve `--accent` for CTAs and brand highlights only
+- Use `rounded-2xl` (16px) for buttons and inputs, `rounded-xl` (12px) for cards
+- Separate line-height rules for headings, body, and forms (jp-ui-contracts)
+- Avoid `tracking-wider` on any element that may render Japanese text
+- Use the `break-anywhere` utility for long words and URLs — not `break-all`
+- Use plum black (`#211922` / `#f5e6e8`) for primary text
 
 ### Don't
-- `word-break: break-all` を本文・UIラベルに全体適用しない
-- `scale()` ホバーをカード・ボタンに使わない（静的な重さを維持）
-- 追加ブランドカラーを導入しない（コーラルレッド + ウォームニュートラルが完全なパレット）
-- 影（box-shadow）を装飾目的で使わない
-- 12px 未満の border-radius をカード外部に使わない
-- クールグレーを使わない（常にウォーム/オリーブトーン）
-- ダークモードに純黒を使わない（ウォームプラムダーク `#1a0e10`）
+- Do not apply `word-break: break-all` globally to body text or UI labels
+- Do not use `scale()` hover on cards or buttons — preserve the static weight
+- Do not introduce additional brand colors — coral red + warm neutrals is the complete palette
+- Do not use `box-shadow` decoratively — depth comes from surface color and radius
+- Do not use border-radius below 12px on outer surfaces
+- Do not use cool grays — always warm/olive-toned
+- Do not use pure black in dark mode — use warm plum dark (`#1a0e10`)
