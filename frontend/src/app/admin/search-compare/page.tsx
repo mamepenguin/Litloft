@@ -193,6 +193,10 @@ const EMPTY_DATA: CompareData = {
 
 export default function SearchComparePage() {
   const [query, setQuery] = useState("");
+  // Intelligence is scope=drive so /search/compare requires X-HV-Drive.
+  // Until Phase 6 moves admin search inspection to a proper drive-aware
+  // surface, the operator types the drive name explicitly here.
+  const [drive, setDrive] = useState("");
   const [loading, setLoading] = useState(false);
   const [data, setData] = useState<CompareData>(EMPTY_DATA);
   const [searched, setSearched] = useState(false);
@@ -201,12 +205,13 @@ export default function SearchComparePage() {
 
   const handleSearch = useCallback(async () => {
     const q = query.trim();
-    if (!q) return;
+    const d = drive.trim();
+    if (!q || !d) return;
 
     setLoading(true);
     setSearched(true);
     try {
-      const resp = await searchCompare(q, { limit: 30 });
+      const resp = await searchCompare(q, d, { limit: 30 });
       setData({
         rrf: resp.rrf?.results ?? [],
         cosine: resp.cosine?.results ?? [],
@@ -217,7 +222,7 @@ export default function SearchComparePage() {
     } finally {
       setLoading(false);
     }
-  }, [query]);
+  }, [query, drive]);
 
   const rrfResults = showCutoff ? data.rrf : data.rrfNoCutoff;
   const cosineResults = showCutoff ? data.cosine : data.cosineNoCutoff;
@@ -233,6 +238,13 @@ export default function SearchComparePage() {
 
       <div className="mb-6 flex gap-2">
         <input
+          type="text"
+          value={drive}
+          onChange={(e) => setDrive(e.target.value)}
+          placeholder="Drive..."
+          className="w-32 rounded-lg border border-bg-border bg-bg-primary px-3 py-2 text-sm text-text-primary placeholder-text-muted outline-none focus:border-accent"
+        />
+        <input
           ref={inputRef}
           type="text"
           value={query}
@@ -243,7 +255,7 @@ export default function SearchComparePage() {
         />
         <button
           onClick={handleSearch}
-          disabled={loading || !query.trim()}
+          disabled={loading || !query.trim() || !drive.trim()}
           className="rounded-lg bg-accent px-4 py-2 text-sm font-medium text-white disabled:opacity-50"
         >
           {loading ? "..." : "Search"}

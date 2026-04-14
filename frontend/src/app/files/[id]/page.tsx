@@ -327,7 +327,7 @@ export default function FilePage() {
             <AddonSlot
               id="file-detail-sections"
               layout="stack"
-              props={{ fileId, videoRef }}
+              props={{ fileId, drive: file.drive, videoRef }}
             />
           </div>
 

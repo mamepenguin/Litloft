@@ -407,10 +407,10 @@ async def addon_proxy(
     # Header values are ISO-8859-1 only; the frontend percent-encodes
     # drive names so non-ASCII (e.g. Japanese) names round-trip safely.
     requested_drive = unquote(raw_drive) if raw_drive else None
-    if scope == "drive" and not requested_drive:
-        raise HTTPException(
-            status_code=400, detail="Drive context required"
-        )
+    # The scope=drive blanket check is deferred until after route
+    # matching so individual routes can opt out via ``drive_optional``
+    # (e.g. <img>-loaded media that cannot send custom headers but
+    # still has a stronger access gate via ``file_access`` pre_check).
     if requested_drive:
         accessible = _accessible_drives(unlocked_groups)
         if requested_drive not in accessible:
@@ -426,6 +426,18 @@ async def addon_proxy(
         raise HTTPException(status_code=404, detail="Route not found")
 
     route_config, path_params = matched
+
+    # Routes that need to be reachable from contexts that can't set
+    # request headers (e.g. ``<img src>``) opt out of the scope=drive
+    # X-HV-Drive requirement here. They MUST still rely on a stronger
+    # access gate (typically ``file_access`` pre_check) so the absence
+    # of the header doesn't become an authorisation bypass.
+    if (
+        scope == "drive"
+        and not requested_drive
+        and not route_config.get("drive_optional")
+    ):
+        raise HTTPException(status_code=400, detail="Drive context required")
 
     # Pre-check hooks
     pre_check = route_config.get("pre_check")
