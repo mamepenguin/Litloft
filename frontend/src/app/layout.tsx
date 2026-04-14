@@ -62,8 +62,13 @@ export default async function RootLayout({
           <ThemeProvider>
             <ProfileProvider>
               <WebSocketProvider>
-                <AddonSlotsProvider>
-                  <CurrentDriveProvider>
+                {/* CurrentDriveProvider must wrap AddonSlotsProvider:
+                    the slots provider re-fetches /api/addons/status
+                    on every drive change so per-drive policy filters
+                    apply, which means it needs useCurrentDrive() in
+                    its own subtree. */}
+                <CurrentDriveProvider>
+                  <AddonSlotsProvider>
                     <ClipboardProvider>
                       <SidebarProvider>
                         <div className="flex min-h-dvh">
@@ -76,8 +81,8 @@ export default async function RootLayout({
                         <ProfileSetup />
                       </SidebarProvider>
                     </ClipboardProvider>
-                  </CurrentDriveProvider>
-                </AddonSlotsProvider>
+                  </AddonSlotsProvider>
+                </CurrentDriveProvider>
               </WebSocketProvider>
             </ProfileProvider>
           </ThemeProvider>

@@ -185,17 +185,54 @@ app.include_router(addon_proxy.router)
 
 
 @app.get("/api/addons/status")
-async def addons_status():
+async def addons_status(drive: str | None = None):
+    """Return the addon catalogue, optionally filtered by a drive.
+
+    When ``drive`` is omitted (admin / global UI) every loaded addon
+    is returned with all its slots — same as before.
+
+    When ``drive`` is provided, addons whose per-drive policy in
+    drives.json sets the umbrella ``index`` feature to false are
+    dropped entirely along with every slot they own. This is the
+    UI-side hook for the "intelligence: false" config: the sidebar
+    link disappears, the slot stays empty, no API calls fire.
+
+    A ``drive`` that is not in drives.json yields an empty addon /
+    slot map rather than 404 so the frontend can render the admin
+    surface without special-casing missing drives.
+    """
     # Strip internal-only fields (proxy config) before returning to clients
     _FRONTEND_FIELDS = {"label", "icon", "href", "type", "slots", "scope"}
     addons = {
         name: {k: v for k, v in meta.items() if k in _FRONTEND_FIELDS}
         for name, meta in addon_registry.get_all().items()
     }
-    return {
-        "addons": addons,
-        "slots": addon_registry.get_all_slots(),
+    slots = addon_registry.get_all_slots()
+
+    if drive is None:
+        return {"addons": addons, "slots": slots}
+
+    try:
+        config.get_drive_path(drive)  # validate drive exists
+    except ValueError:
+        return {"addons": {}, "slots": {}}
+
+    enabled_names = {
+        name for name in addons
+        if config.is_addon_feature_enabled(drive, name, "index")
     }
+    filtered_addons = {n: m for n, m in addons.items() if n in enabled_names}
+    filtered_slots = {
+        slot_id: [
+            entry for entry in entries
+            if entry.get("addonName") in enabled_names
+        ]
+        for slot_id, entries in slots.items()
+    }
+    # Drop slots whose entries were all stripped so the frontend
+    # doesn't allocate an empty slot UI.
+    filtered_slots = {k: v for k, v in filtered_slots.items() if v}
+    return {"addons": filtered_addons, "slots": filtered_slots}
 
 
 @app.get("/api/health")

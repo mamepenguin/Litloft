@@ -36,12 +36,19 @@ export interface AddonsStatus {
   slots: Record<string, SlotEntry[]>;
 }
 
-let _cached: AddonsStatus | null = null;
-let _fetchPromise: Promise<AddonsStatus> | null = null;
+// Cache keyed by drive (null sentinel for the global / no-drive view)
+// so switching between drives doesn't pay a round-trip per slot lookup
+// while still respecting per-drive addon policy filtering.
+const _cacheKey = (drive: string | null) => drive ?? "__global__";
+const _cached: Map<string, AddonsStatus> = new Map();
+const _fetchPromise: Map<string, Promise<AddonsStatus>> = new Map();
 
-async function fetchAddonsStatus(): Promise<AddonsStatus> {
+async function fetchAddonsStatus(drive: string | null): Promise<AddonsStatus> {
+  const url = drive
+    ? `/api/addons/status?drive=${encodeURIComponent(drive)}`
+    : "/api/addons/status";
   try {
-    const res = await fetch("/api/addons/status", { credentials: "include" });
+    const res = await fetch(url, { credentials: "include" });
     if (!res.ok) return { addons: {}, slots: {} };
     const data = await res.json();
     return {
@@ -53,25 +60,35 @@ async function fetchAddonsStatus(): Promise<AddonsStatus> {
   }
 }
 
-export async function getAddonsStatus(): Promise<AddonsStatus> {
-  if (_cached) return _cached;
-  if (!_fetchPromise) {
-    _fetchPromise = fetchAddonsStatus().then((result) => {
-      _cached = result;
-      _fetchPromise = null;
+export async function getAddonsStatus(
+  drive: string | null = null,
+): Promise<AddonsStatus> {
+  const key = _cacheKey(drive);
+  const cached = _cached.get(key);
+  if (cached) return cached;
+  let pending = _fetchPromise.get(key);
+  if (!pending) {
+    pending = fetchAddonsStatus(drive).then((result) => {
+      _cached.set(key, result);
+      _fetchPromise.delete(key);
       return result;
     });
+    _fetchPromise.set(key, pending);
   }
-  return _fetchPromise;
+  return pending;
 }
 
-export async function getEnabledAddons(): Promise<Record<string, AddonMeta>> {
-  const status = await getAddonsStatus();
+export async function getEnabledAddons(
+  drive: string | null = null,
+): Promise<Record<string, AddonMeta>> {
+  const status = await getAddonsStatus(drive);
   return status.addons;
 }
 
-export async function getSlots(): Promise<Record<string, SlotEntry[]>> {
-  const status = await getAddonsStatus();
+export async function getSlots(
+  drive: string | null = null,
+): Promise<Record<string, SlotEntry[]>> {
+  const status = await getAddonsStatus(drive);
   return status.slots;
 }
 
@@ -84,6 +101,6 @@ export function hasSlotEntries(
 }
 
 export function invalidateAddonsCache(): void {
-  _cached = null;
-  _fetchPromise = null;
+  _cached.clear();
+  _fetchPromise.clear();
 }
