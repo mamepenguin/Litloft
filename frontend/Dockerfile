@@ -11,14 +11,8 @@ RUN find src/addons -maxdepth 1 -type l -delete 2>/dev/null; \
       mkdir -p "src/addons/$name"; \
       cp -r "$addon_dir/frontend/"* "src/addons/$name/"; \
     done && rm -rf /tmp/_all_addons
-# Auto-generate page wrappers for addons that have a Page.tsx
-RUN for addon_dir in src/addons/*/; do \
-      name="$(basename "$addon_dir")"; \
-      [ -f "$addon_dir/Page.tsx" ] || continue; \
-      mkdir -p "src/app/addons/$name"; \
-      printf '"use client";\nimport Page from "@/addons/%s/Page";\nexport default Page;\n' "$name" \
-        > "src/app/addons/$name/page.tsx"; \
-    done
+# Page wrappers are handled by the generic dispatcher at
+# src/app/addons/[name]/page.tsx and src/app/drive/[name]/addons/[addon]/page.tsx.
 # Merge addon translation files into core messages
 RUN node scripts/merge-addon-messages.mjs
 RUN pnpm build

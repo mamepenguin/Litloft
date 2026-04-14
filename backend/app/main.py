@@ -137,9 +137,11 @@ def _load_addons(app: FastAPI) -> None:
             if hasattr(mod, "router"):
                 app.include_router(mod.router)
                 meta = getattr(mod, "ADDON_META", {})
-                _loaded_addons[name] = meta
-                addon_registry.register_in_process(name, meta)
-                logger.info("Addon loaded: %s", name)
+                if addon_registry.register_in_process(name, meta):
+                    _loaded_addons[name] = meta
+                    logger.info("Addon loaded: %s", name)
+                else:
+                    logger.warning("Addon %s router loaded but metadata invalid; excluded from registry", name)
             if hasattr(mod, "on_startup"):
                 _addon_startup_fns.append(mod.on_startup)
         except Exception:
@@ -185,7 +187,7 @@ app.include_router(addon_proxy.router)
 @app.get("/api/addons/status")
 async def addons_status():
     # Strip internal-only fields (proxy config) before returning to clients
-    _FRONTEND_FIELDS = {"label", "icon", "href", "type", "slots"}
+    _FRONTEND_FIELDS = {"label", "icon", "href", "type", "slots", "scope"}
     addons = {
         name: {k: v for k, v in meta.items() if k in _FRONTEND_FIELDS}
         for name, meta in addon_registry.get_all().items()

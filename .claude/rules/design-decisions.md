@@ -62,6 +62,16 @@
 
 ## アドオンシステム
 
+### アドオン scope（capability / policy の2層分離）
+- **層1 capability (scope)**: アドオン開発者が `ADDON_META` / `manifest.json` で宣言する `"drive" | "global" | "both"`。値は利用者変更不可、未指定のアドオンはロード時にエラー + スキップ
+  - `drive`: `/drive/{drive}/addons/{name}` のみ。ドライブ未選択状態では存在しない
+  - `global`: `/addons/{name}` のみ
+  - `both`: 両方の URL に生える。`currentDrive` の有無でサイドバーのリンク先が切り替わる
+- **層2 policy (enabled)**: ドライブごとの有効/無効。現在未実装（将来 `drives.json` 拡張で対応予定）
+- **Next.js ルーティング**: `src/app/addons/[name]/page.tsx` と `src/app/drive/[name]/addons/[addon]/page.tsx` の2本がジェネリックディスパッチャとして動作。`@/addons/{name}/Page` を lazy import。scope 不整合は `notFound()`
+- **サイドバー**: `addonUrlFor(name, meta, currentDrive)` で href を生成。`drive` スコープは `currentDrive` が null のとき非表示
+- **scope 割り当て**: intelligence=both / downloader=drive / podcast=drive / knowledge=global / cloud-sync=global
+
 ### 2種類のアドオン
 
 | 種類 | 例 | 動作方式 | 配置先 |

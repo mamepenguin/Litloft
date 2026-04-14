@@ -16,6 +16,22 @@ logger = logging.getLogger(__name__)
 
 _registry: dict[str, dict[str, Any]] = {}
 
+_VALID_SCOPES = {"drive", "global", "both"}
+
+
+def _validate_scope(name: str, meta: dict[str, Any]) -> bool:
+    """Return True if meta declares a valid scope, log and return False otherwise."""
+    scope = meta.get("scope")
+    if scope not in _VALID_SCOPES:
+        logger.error(
+            "Addon %r skipped: missing or invalid 'scope' field (got %r, expected one of %s)",
+            name,
+            scope,
+            sorted(_VALID_SCOPES),
+        )
+        return False
+    return True
+
 # Candidate directories to scan for addon manifests.
 # - Docker: /app/addons (backend Dockerfile places manifests alongside addon code)
 # - Local dev: <repo>/addons (manifests live in each addon's own repo, checked out at repo root)
@@ -51,6 +67,8 @@ def load_external_manifests() -> None:
         try:
             raw = json.loads(manifest_path.read_text())
             raw.setdefault("type", "external_service")
+            if not _validate_scope(addon_name, raw):
+                continue
             _registry[addon_name] = raw
             logger.info(
                 "External addon manifest loaded: %s (%s)", addon_name, manifest_path
@@ -59,10 +77,16 @@ def load_external_manifests() -> None:
             logger.exception("Failed to load addon manifest: %s", manifest_path)
 
 
-def register_in_process(name: str, meta: dict[str, Any]) -> None:
-    """Register an in-process addon's metadata."""
+def register_in_process(name: str, meta: dict[str, Any]) -> bool:
+    """Register an in-process addon's metadata.
+
+    Returns True if registered, False if skipped due to invalid metadata.
+    """
     meta_copy = {**meta, "type": meta.get("type", "in_process")}
+    if not _validate_scope(name, meta_copy):
+        return False
     _registry[name] = meta_copy
+    return True
 
 
 def get_all() -> dict[str, dict[str, Any]]:

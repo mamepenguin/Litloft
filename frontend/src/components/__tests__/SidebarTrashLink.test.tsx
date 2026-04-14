@@ -4,6 +4,7 @@ import { SidebarLibrarySection } from "../sidebar/SidebarLibrarySection";
 
 const defaultProps = {
   driveBase: "/drive/main",
+  currentDrive: "main",
   linkClass: () => "link-class",
   close: vi.fn(),
 };

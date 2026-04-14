@@ -207,6 +207,7 @@ router = APIRouter(prefix="/api/addons/{name}", tags=["{name}"])
 ADDON_META = {
     "label": "My Addon",
     "icon": "package",          # Lucide icon name
+    "scope": "global",          # Required: "drive" | "global" | "both" (see Scope section)
     "href": "/addons/my-addon",  # Must match /addons/{name}. Omit if no page
 
     # UI slot declarations (optional)
@@ -250,9 +251,14 @@ addons/{name}/
 export { default } from "./MyAddonPage";
 ```
 
-At Docker build time, the Dockerfile automatically generates `src/app/addons/{name}/page.tsx` for every addon that has a `Page.tsx`. No manual page wrapper creation needed.
+The core ships generic dispatcher routes that lazily import each addon's `Page.tsx`:
 
-The page is accessible at `/addons/{name}` (e.g., `/addons/downloader`).
+- `src/app/addons/[name]/page.tsx` — handles addons with `scope: "global"` or `scope: "both"`
+- `src/app/drive/[name]/addons/[addon]/page.tsx` — handles addons with `scope: "drive"` or `scope: "both"`
+
+No per-addon page wrapper generation is needed. Accessing the addon via the URL that doesn't match its declared scope returns 404.
+
+See the **Addon Scope** section below for how `scope` maps to URLs.
 
 ### Optional Files
 
@@ -279,7 +285,7 @@ External service addons run in separate Docker containers. The core app proxies 
 | Frontend UI | `addons/{name}/frontend/` | No (in addon's own repo) | UI components |
 | Docker config | `docker-compose.override.yml` | No | Container configuration |
 | Event hooks | `event-hooks.json` | No | Webhook subscriptions |
-| Page wrapper | `frontend/src/app/addons/{name}/page.tsx` | Auto-generated | Created by Dockerfile if `Page.tsx` exists |
+| Page wrapper | `frontend/src/app/addons/[name]/page.tsx` and `.../drive/[name]/addons/[addon]/page.tsx` | Core-provided dispatcher | Generic routes that lazy-import each addon's `Page.tsx` |
 
 The manifest file is the key difference from in-process addons. Since external services have no Python code in the backend process, the manifest tells the core app how to proxy requests and what UI slots to register. The manifest lives in the addon's own repo, so the main HomeVault repo has no knowledge of any specific addon.
 
@@ -434,6 +440,32 @@ For complex cases where declarative filters aren't sufficient, external services
 Forward the original request's cookies when calling these endpoints so access control works correctly.
 
 ---
+
+## Addon Scope
+
+Every addon must declare a `scope` field in its metadata (`ADDON_META` for in-process, `manifest.json` for external service). Scope is the addon developer's declaration of whether the addon operates in a drive context.
+
+| Scope | Meaning | URL | Sidebar visibility |
+|-------|---------|-----|--------------------|
+| `drive` | Only meaningful within a selected drive | `/drive/{drive}/addons/{name}` | Only when a drive is selected |
+| `global` | Drive-independent; the addon manages any drive concept internally | `/addons/{name}` | Always |
+| `both` | Works in either context | Both URLs resolve | Drive URL when a drive is selected, global URL otherwise |
+
+Accessing an addon via a URL that doesn't match its scope returns 404 (e.g., a `drive`-scoped addon accessed at `/addons/{name}`).
+
+### Choosing a Scope
+
+- Pick `drive` if the addon's behavior only makes sense relative to a specific drive (e.g., a downloader writes files *into* a drive; a podcast feed lists files *from* a drive). Choosing `drive` ensures the user can't wander into the addon without first picking a drive, and keeps sidebar noise down when viewing other drives.
+- Pick `global` if the addon operates across drives or has no drive concept at all (e.g., admin-only sync dashboards; Vault-based knowledge apps that manage their own drive association).
+- Pick `both` when the addon offers both a drive-scoped experience and a cross-drive experience. The core provides `currentDrive` to the addon via URL context; the addon decides how to behave in each mode.
+
+### Validation
+
+The core rejects addons without a valid `scope`. The error is logged and the addon is excluded from the registry (the router may still be mounted but the addon won't appear in `/api/addons/status`, and no UI will show it).
+
+### Per-Drive Policy (future)
+
+Scope is the addon developer's **capability** declaration. A separate runtime **policy** layer (allowing operators to enable/disable addons per drive via `drives.json`) is out of scope for now but may be added later. Scope cannot be overridden by the operator; only the enable/disable toggle will be.
 
 ## UI Slot System
 

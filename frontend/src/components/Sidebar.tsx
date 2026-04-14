@@ -87,7 +87,7 @@ function SidebarNav() {
 
   return (
     <nav className="flex flex-col gap-1 overflow-y-auto p-3">
-      <SidebarLibrarySection driveBase={driveBase} linkClass={linkClass} close={close} addons={addons} driveSummary={driveSummary} />
+      <SidebarLibrarySection driveBase={driveBase} currentDrive={currentDrive} linkClass={linkClass} close={close} addons={addons} driveSummary={driveSummary} />
 
       {driveBase && (
         <SidebarPlaylistsSection driveBase={driveBase} currentDrive={currentDrive} setPlaylistList={setPlaylistList} {...playlist} />

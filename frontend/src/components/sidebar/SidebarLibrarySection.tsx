@@ -17,7 +17,7 @@ import {
 } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { AddonSlot } from "@/components/AddonSlot";
-import type { AddonMeta } from "@/lib/addons";
+import { addonUrlFor, type AddonMeta } from "@/lib/addons";
 import type { DriveSummary } from "@/types";
 
 const ADDON_ICONS: Record<string, LucideIcon> = {
@@ -29,19 +29,22 @@ const ADDON_ICONS: Record<string, LucideIcon> = {
 
 interface SidebarLibrarySectionProps {
   driveBase: string | null;
+  currentDrive: string | null;
   linkClass: (href: string) => string;
   close: () => void;
   addons?: Record<string, AddonMeta>;
   driveSummary?: DriveSummary | null;
 }
 
-export function SidebarLibrarySection({ driveBase, linkClass, close, addons, driveSummary }: SidebarLibrarySectionProps) {
+export function SidebarLibrarySection({ driveBase, currentDrive, linkClass, close, addons, driveSummary }: SidebarLibrarySectionProps) {
   const t = useTranslations("sidebar");
   const tMissing = useTranslations("missing");
   const tAdmin = useTranslations("admin");
 
   const addonEntries = addons
-    ? Object.entries(addons).filter(([, meta]) => meta.href)
+    ? Object.entries(addons)
+        .map(([name, meta]) => ({ name, meta, href: addonUrlFor(name, meta, currentDrive) }))
+        .filter((entry): entry is { name: string; meta: AddonMeta; href: string } => entry.href !== null)
     : [];
 
   return (
@@ -103,10 +106,10 @@ export function SidebarLibrarySection({ driveBase, linkClass, close, addons, dri
           <div className="mb-1 mt-4 px-3 text-[11px] font-semibold uppercase tracking-wider text-text-muted">
             Addons
           </div>
-          {addonEntries.map(([name, meta]) => {
+          {addonEntries.map(({ name, meta, href }) => {
             const Icon = ADDON_ICONS[meta.icon] ?? Package;
             return (
-              <Link key={name} href={meta.href!} onClick={close} className={linkClass(meta.href!)}>
+              <Link key={name} href={href} onClick={close} className={linkClass(href)}>
                 <Icon size={16} />
                 {meta.label}
               </Link>

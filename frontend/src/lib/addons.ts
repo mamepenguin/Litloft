@@ -1,9 +1,27 @@
+export type AddonScope = "drive" | "global" | "both";
+
 export interface AddonMeta {
   label: string;
   icon: string;
   href?: string;
   type?: "in_process" | "external_service";
+  scope?: AddonScope;
   slots?: Record<string, SlotEntry[]>;
+}
+
+export function addonUrlFor(name: string, meta: AddonMeta, currentDrive: string | null): string | null {
+  if (!meta.href) return null;
+  const scope = meta.scope ?? "global";
+  if (scope === "drive") {
+    if (!currentDrive) return null;
+    return `/drive/${encodeURIComponent(currentDrive)}/addons/${name}`;
+  }
+  if (scope === "both") {
+    return currentDrive
+      ? `/drive/${encodeURIComponent(currentDrive)}/addons/${name}`
+      : `/addons/${name}`;
+  }
+  return `/addons/${name}`;
 }
 
 export interface SlotEntry {
