@@ -67,11 +67,21 @@
   - `drive`: `/drive/{drive}/addons/{name}` のみ。ドライブ未選択状態では存在しない
   - `global`: `/addons/{name}` のみ
   - `both`: 両方の URL に生える。`currentDrive` の有無でサイドバーのリンク先が切り替わる
-- **層2 policy (enabled)**: ドライブごとの有効/無効。現在未実装（将来 `drives.json` 拡張で対応予定）
+- **層2 policy (enabled)**: ドライブごとの有効/無効を `drives.json.addons.<name>` で運用者が選択。`bool` ショートハンド（`"intelligence": false` で全機能 OFF）または `{ feature: bool }` で feature 単位制御。未指定キーは graceful degradation で全 enable。本体は addon 名 / feature 名を解釈しない汎用辞書として扱う
 - **Next.js ルーティング**: `src/app/addons/[name]/page.tsx` と `src/app/drive/[name]/addons/[addon]/page.tsx` の2本がジェネリックディスパッチャとして動作。`@/addons/{name}/Page` を lazy import。scope 不整合は `notFound()`
 - **サイドバー**: `addonUrlFor(name, meta, currentDrive)` で href を生成。`drive` スコープは `currentDrive` が null のとき非表示
-- **scope 割り当て**: intelligence=both / downloader=drive / podcast=drive / knowledge=drive / cloud-sync=global
+- **scope 割り当て**: intelligence=drive / downloader=drive / podcast=drive / knowledge=drive / cloud-sync=global
 - **drive-scoped アドオンのコンテキスト伝達**: URL は `/drive/{drive}/addons/{name}` だが API 経路は `/api/addons/{name}/...` で drive 情報を含まない。フロントエンドが `X-HV-Drive` ヘッダで drive を明示し、本体 addon_proxy が scope=drive の場合は必須化しつつ `accessible_drives` で検証。検証済みヘッダはそのまま upstream アドオンへ forward され、アドオン側はヘッダを読むだけでよい（B1 の精神: アドオン開発者は header を読むだけ。ヘッダ付与の主体はフロント、検証は本体プロキシ）
+
+### Per-drive policy 機構（drives.json `addons` フィールド）
+- **データ防御は 2 層**: (1) host addon_proxy が `addon_feature` pre_check で route アクセスを 404 化、(2) アドオン側 worker / handler が `is_feature_enabled` で no-op
+- **イベント絞り込み**: `event-hooks.json` 各 listener に `addon` + `feature`（default `index`）を書ける。host event_hooks が payload の `drive` または `file_ids` から policy を評価し、disabled ドライブ分を drop/strip。fail open（解決失敗時は forward、addon 側 WHERE で二重防御）
+- **`/api/addons/status?drive=`**: umbrella `index` feature が off の addon を catalog から完全除外（slot entry も剥がす）。frontend `getAddonsStatus(drive?)` は drive 別 Map で cache、`AddonSlotsProvider` が `useCurrentDrive` 購読で drive 切替時再 fetch
+- **OFF 時の既存データ**: アドオン起動時に local index を distinct drive scan → host policy 確認 → `index` off ドライブのデータを物理削除（`purge_drive`）。policy 問合せ自体が失敗したドライブはスキップ（誤削除回避）。drives.json 編集 + 再起動が「purge トリガ」
+- **`current_drive_only(_nested)` レスポンスフィルタ**: 既存 `drive_access` が「accessible 集合」で絞るのに対し、`X-HV-Drive` 一致のみ通過。manifest 宣言で host が実行
+- **`drive_optional` per-route opt-out**: scope=drive の addon でも `<img>` 経路や本質的グローバル機能（admin queue, status）は header 不要化可能。ただし別経路（`file_access` pre_check, admin context 前提）で認可必須
+- **キャッシュ**: drives.json は既存挙動同様プロセス再起動まで反映されない。intelligence 側 `policy_client` は TTL 30s + fail open
+- **詳細**: `docs/superpowers/specs/2026-04-14-intelligence-drive-scope.md`
 
 ### 2種類のアドオン
 
