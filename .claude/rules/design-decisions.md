@@ -70,7 +70,8 @@
 - **層2 policy (enabled)**: ドライブごとの有効/無効。現在未実装（将来 `drives.json` 拡張で対応予定）
 - **Next.js ルーティング**: `src/app/addons/[name]/page.tsx` と `src/app/drive/[name]/addons/[addon]/page.tsx` の2本がジェネリックディスパッチャとして動作。`@/addons/{name}/Page` を lazy import。scope 不整合は `notFound()`
 - **サイドバー**: `addonUrlFor(name, meta, currentDrive)` で href を生成。`drive` スコープは `currentDrive` が null のとき非表示
-- **scope 割り当て**: intelligence=both / downloader=drive / podcast=drive / knowledge=global / cloud-sync=global
+- **scope 割り当て**: intelligence=both / downloader=drive / podcast=drive / knowledge=drive / cloud-sync=global
+- **drive-scoped アドオンのコンテキスト伝達**: URL は `/drive/{drive}/addons/{name}` だが API 経路は `/api/addons/{name}/...` で drive 情報を含まない。フロントエンドが `X-HV-Drive` ヘッダで drive を明示し、本体 addon_proxy が scope=drive の場合は必須化しつつ `accessible_drives` で検証。検証済みヘッダはそのまま upstream アドオンへ forward され、アドオン側はヘッダを読むだけでよい（B1 の精神: アドオン開発者は header を読むだけ。ヘッダ付与の主体はフロント、検証は本体プロキシ）
 
 ### 2種類のアドオン
 

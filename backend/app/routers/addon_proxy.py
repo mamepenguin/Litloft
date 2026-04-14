@@ -373,6 +373,24 @@ async def addon_proxy(
     if not target_url:
         raise HTTPException(status_code=503, detail="Addon target not configured")
 
+    # Drive-scope enforcement. Drive-scoped addons require the caller to
+    # identify which drive the request targets via the ``X-HV-Drive``
+    # header; for ``both``-scoped addons the header is optional but still
+    # validated when present. The addon itself receives the verified
+    # drive via ``X-HV-Drive`` so it can filter data by drive.
+    scope = meta.get("scope", "global")
+    requested_drive = request.headers.get("x-hv-drive")
+    if scope == "drive" and not requested_drive:
+        raise HTTPException(
+            status_code=400, detail="Drive context required"
+        )
+    if requested_drive:
+        accessible = _accessible_drives(unlocked_groups)
+        if requested_drive not in accessible:
+            raise HTTPException(
+                status_code=403, detail="Drive not accessible"
+            )
+
     routes = proxy_config.get("routes", [])
     route_path = f"/{path}"
     matched = _match_route(routes, request.method, route_path)
