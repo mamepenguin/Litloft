@@ -1,13 +1,13 @@
 import json
 
 
-def test_drive_policy_default_returns_empty_object(client):
+def test_drive_policy_default_returns_default_true(client):
     c, _, _, _ = client
     resp = c.get("/api/internal/drive-policy", params={
         "drive": "test-drive", "addon": "intelligence"
     })
     assert resp.status_code == 200
-    assert resp.json() == {}
+    assert resp.json() == {"default": True, "features": {}}
 
 
 def test_drive_policy_unknown_drive_returns_404(client):
@@ -19,7 +19,7 @@ def test_drive_policy_unknown_drive_returns_404(client):
 
 
 def test_drive_policy_bool_shorthand(tmp_path, monkeypatch):
-    """Bool shorthand surfaces as {"_all": false}."""
+    """Bool shorthand surfaces as default=False, no features."""
     import app.config as config
     path = tmp_path / "drives.json"
     path.write_text(json.dumps([
@@ -37,7 +37,7 @@ def test_drive_policy_bool_shorthand(tmp_path, monkeypatch):
         })
     monkeypatch.setattr(config, "_drives_cache", None)
     assert resp.status_code == 200
-    assert resp.json() == {"_all": False}
+    assert resp.json() == {"default": False, "features": {}}
 
 
 def test_drive_policy_per_feature_dict(tmp_path, monkeypatch):
@@ -62,6 +62,7 @@ def test_drive_policy_per_feature_dict(tmp_path, monkeypatch):
     monkeypatch.setattr(config, "_drives_cache", None)
     assert resp.status_code == 200
     body = resp.json()
-    assert body["index"] is True
-    assert body["auto_tags"] is False
-    assert body["rag"] is False
+    assert body["default"] is True
+    assert body["features"]["index"] is True
+    assert body["features"]["auto_tags"] is False
+    assert body["features"]["rag"] is False

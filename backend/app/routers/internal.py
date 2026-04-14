@@ -23,10 +23,22 @@ router = APIRouter(prefix="/api/internal", tags=["internal"])
 
 @router.get("/drive-policy")
 async def drive_policy(drive: str, addon: str):
-    """Return per-drive addon policy as a flat feature map.
+    """Return per-drive addon policy in a stable two-key shape.
 
-    Unconfigured features default to True (graceful degradation).
-    Returns 404 if the drive does not exist so addons cannot probe
+    Response::
+
+        {
+          "default": bool,           # value used for any feature not in `features`
+          "features": { "<name>": bool, ... }
+        }
+
+    Examples:
+    - drives.json silent → ``{"default": true, "features": {}}``
+    - ``"intelligence": false`` → ``{"default": false, "features": {}}``
+    - ``"intelligence": {"index": true, "rag": false}`` →
+      ``{"default": true, "features": {"index": true, "rag": false}}``
+
+    Returns 404 when the drive does not exist so addons cannot probe
     unknown drives.
     """
     try:
@@ -35,8 +47,11 @@ async def drive_policy(drive: str, addon: str):
         raise HTTPException(status_code=404, detail="Drive not found")
 
     if "_all" in policy:
-        return {"_all": bool(policy["_all"])}
-    return {k: bool(v) for k, v in policy.items()}
+        return {"default": bool(policy["_all"]), "features": {}}
+    return {
+        "default": True,
+        "features": {k: bool(v) for k, v in policy.items()},
+    }
 
 
 @router.get("/accessible-drives")
