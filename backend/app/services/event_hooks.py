@@ -9,10 +9,16 @@ Config format (event-hooks.json):
       "hooks": {
         "files.deleted": [
           {"url": "http://search:8100/webhook/files-deleted",
-           "secret_env": "SEARCH_WEBHOOK_SECRET"}
+           "secret_env": "SEARCH_WEBHOOK_SECRET",
+           "addon": "intelligence",
+           "feature": "index"}
         ]
       }
     }
+
+Per-listener ``addon``/``feature`` keys (optional) enable per-drive policy
+filtering: events whose payload references drives where the addon feature
+is disabled are silently dropped or stripped before dispatch.
 """
 
 import json
@@ -60,6 +66,84 @@ def init(config_path: str | None = None) -> None:
         _hooks = {}
 
 
+def _is_feature_enabled(drive: str, addon: str, feature: str) -> bool:
+    try:
+        import app.config as config
+        return config.is_addon_feature_enabled(drive, addon, feature)
+    except ValueError:
+        return False
+    except Exception:
+        logger.exception(
+            "Failed to evaluate addon policy for drive=%s addon=%s feature=%s",
+            drive, addon, feature,
+        )
+        return True
+
+
+def _file_ids_to_drives(file_ids: list[str]) -> dict[str, str]:
+    """Resolve file_id → drive via the DB. Returns {} on any failure.
+
+    Missing/trashed file ids are still resolved (we want their owning drive
+    to apply policy correctly when notifying about purges).
+    """
+    if not file_ids:
+        return {}
+    try:
+        from app.database import SessionLocal
+        from app.models import File
+        with SessionLocal() as db:
+            rows = (
+                db.query(File.id, File.drive)
+                .filter(File.id.in_(file_ids))
+                .all()
+            )
+            return {row.id: row.drive for row in rows}
+    except Exception:
+        logger.exception("Failed to resolve file→drive for policy filter")
+        return {}
+
+
+def _filter_payload_for_listener(
+    data: dict[str, Any], hook: dict[str, str]
+) -> dict[str, Any] | None:
+    """Apply per-listener policy. Returns None to drop the event entirely.
+
+    - When ``data["drive"]`` is set: drop the event if the listener's
+      (addon, feature) is disabled for that drive.
+    - When ``data["file_ids"]`` is set: filter file_ids by per-file drive
+      policy. Drop the event if no ids remain.
+    - Listeners without ``addon`` configured pass through unchanged.
+    """
+    addon = hook.get("addon")
+    if not addon:
+        return data
+    feature = hook.get("feature", "index")
+
+    drive = data.get("drive")
+    if isinstance(drive, str):
+        if not _is_feature_enabled(drive, addon, feature):
+            return None
+        return data
+
+    file_ids = data.get("file_ids")
+    if isinstance(file_ids, list) and file_ids:
+        drives = _file_ids_to_drives(file_ids)
+        if not drives:
+            return data
+        allowed = [
+            fid for fid in file_ids
+            if fid in drives
+            and _is_feature_enabled(drives[fid], addon, feature)
+        ]
+        if not allowed:
+            return None
+        if len(allowed) == len(file_ids):
+            return data
+        return {**data, "file_ids": allowed}
+
+    return data
+
+
 def _build_headers(hook: dict[str, str]) -> dict[str, str]:
     headers = {"Content-Type": "application/json"}
     secret_env = hook.get("secret_env")
@@ -81,10 +165,13 @@ async def emit(event: str, data: dict[str, Any]) -> None:
 
         async with httpx.AsyncClient(timeout=5.0) as client:
             for hook in listeners:
+                payload = _filter_payload_for_listener(data, hook)
+                if payload is None:
+                    continue
                 try:
                     await client.post(
                         hook["url"],
-                        json=data,
+                        json=payload,
                         headers=_build_headers(hook),
                     )
                 except Exception:
@@ -103,8 +190,11 @@ def emit_sync(event: str, data: dict[str, Any]) -> None:
     if not listeners:
         return
 
-    payload = json.dumps(data).encode("utf-8")
     for hook in listeners:
+        payload_data = _filter_payload_for_listener(data, hook)
+        if payload_data is None:
+            continue
+        payload = json.dumps(payload_data).encode("utf-8")
         try:
             req = urllib.request.Request(
                 hook["url"],

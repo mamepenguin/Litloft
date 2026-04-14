@@ -28,6 +28,18 @@ def load_drives() -> list[dict]:
                 raise ValueError(f"drives.json entry {i} must have 'name' and 'path'")
             if "/" in entry["name"] or "\\" in entry["name"]:
                 raise ValueError(f"Drive name must not contain path separators: {entry['name']}")
+            addons = entry.get("addons")
+            if addons is not None and not isinstance(addons, dict):
+                raise ValueError(
+                    f"drives.json entry {i} 'addons' must be an object"
+                )
+            if isinstance(addons, dict):
+                for addon_name, policy in addons.items():
+                    if not isinstance(policy, (dict, bool)):
+                        raise ValueError(
+                            f"drives.json entry {i} addons.{addon_name} "
+                            "must be a bool or object"
+                        )
         _drives_cache = raw
     return list(_drives_cache)
 
@@ -55,3 +67,41 @@ def get_drive_access_group(drive_name: str) -> str | None:
         if drive["name"] == drive_name:
             return drive.get("access_group")
     raise ValueError(f"Drive not found: {drive_name}")
+
+
+def get_drive_addon_policy(drive_name: str, addon_name: str) -> dict:
+    """Return the per-drive policy dict for an addon.
+
+    drives.json schema:
+        { "name": "...", "addons": { "<addon>": { "<feature>": bool, ... } } }
+
+    Returns empty dict if no policy is configured (= all features enabled).
+    A bool value (e.g. ``"intelligence": false``) is normalised to a dict
+    where the implicit feature ``enabled`` carries that value, and any
+    feature lookup falls back to it.
+    """
+    for drive in load_drives():
+        if drive["name"] == drive_name:
+            addons = drive.get("addons", {})
+            policy = addons.get(addon_name, {})
+            if isinstance(policy, bool):
+                return {"_all": policy}
+            if not isinstance(policy, dict):
+                return {}
+            return policy
+    raise ValueError(f"Drive not found: {drive_name}")
+
+
+def is_addon_feature_enabled(
+    drive_name: str, addon_name: str, feature: str
+) -> bool:
+    """Return True if a per-drive addon feature is enabled.
+
+    Default is True (graceful degradation: missing config = full enable).
+    Bool shorthand ``"<addon>": false`` disables every feature.
+    """
+    policy = get_drive_addon_policy(drive_name, addon_name)
+    if "_all" in policy:
+        return bool(policy["_all"])
+    value = policy.get(feature, True)
+    return bool(value)

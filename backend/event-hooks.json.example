@@ -10,7 +10,9 @@
   },
   "_options": {
     "url": "Target webhook URL (required)",
-    "secret_env": "Env var name for X-Webhook-Secret header (optional)"
+    "secret_env": "Env var name for X-Webhook-Secret header (optional)",
+    "addon": "Addon name for per-drive policy filtering (optional, e.g. 'intelligence')",
+    "feature": "Feature key in drives.json addon policy (default 'index'). Events for drives where this feature is disabled are dropped or stripped before dispatch."
   },
   "hooks": {
   }

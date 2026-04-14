@@ -21,6 +21,24 @@ logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/api/internal", tags=["internal"])
 
 
+@router.get("/drive-policy")
+async def drive_policy(drive: str, addon: str):
+    """Return per-drive addon policy as a flat feature map.
+
+    Unconfigured features default to True (graceful degradation).
+    Returns 404 if the drive does not exist so addons cannot probe
+    unknown drives.
+    """
+    try:
+        policy = config.get_drive_addon_policy(drive, addon)
+    except ValueError:
+        raise HTTPException(status_code=404, detail="Drive not found")
+
+    if "_all" in policy:
+        return {"_all": bool(policy["_all"])}
+    return {k: bool(v) for k, v in policy.items()}
+
+
 @router.get("/accessible-drives")
 async def accessible_drives(
     unlocked_groups: Annotated[list[str], Depends(get_unlocked_groups)] = [],
