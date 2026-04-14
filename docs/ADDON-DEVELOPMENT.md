@@ -698,7 +698,7 @@ If anything referenced your addon after step 3, you've accidentally leaked addon
 | `downloader` | In-process | Download videos via yt-dlp |
 | `cloud-sync` | In-process | Sync drives with cloud storage via rclone |
 | `podcast` | In-process | Generate RSS feeds from folders |
-| `intelligence` | External service | Semantic search, CLIP analysis, Whisper transcription, LLM auto-tags, BLIP captioning, RAG Q&A |
+| `intelligence` | External service | Semantic search, CLIP analysis, Whisper transcription, LLM auto-tags, BLIP captioning, Ask |
 
 ---
 

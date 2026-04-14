@@ -156,9 +156,9 @@
 - **用途**: 画像/動画フレームの英語テキスト記述を生成。auto_tagsの画像タグ精度向上に使用
 - **メモリ**: 追加で約1GB必要（Whisper + CLIPのみ: 4GB、+ BLIP: 6GB、+ 大型モデル: 8GB）
 
-### RAG / 質問応答（Ask）
-- **概要**: 自然言語の質問に対し、引用付きの回答を LLM で生成するオンデマンド機能
-- **フィーチャーフラグ**: `features.rag: true/false`（bool、デフォルト無効）。auto_tags/summaries の 3モードと違い、インデックス時の自動生成概念がないため単純 bool
+### Ask（自然言語の質問応答）
+- **概要**: 自然言語の質問に対し、引用付きの回答を LLM で生成するオンデマンド機能。内部実装は RAG（retrieval-augmented generation）
+- **フィーチャーフラグ**: `features.rag: true/false`（bool、デフォルト無効。内部フラグ名は歴史的経緯で `rag` のまま）。auto_tags/summaries の 3モードと違い、インデックス時の自動生成概念がないため単純 bool
 - **リトリーバー**: 既存 `app/search.py::search` をそのまま再利用（LLM によるクエリ書き換えなし）
 - **コンテキスト**: 検索セグメントのマッチ箇所前後を抜粋（summaries の窓サンプリングとは別戦略）
 - **引用の捏造対策**: LLM が返す citations の file_id をリトリーバー結果セットと照合、範囲外は drop
