@@ -55,17 +55,36 @@ def _apply_drive_access_filter(
     data: dict[str, Any],
     filter_config: dict[str, Any],
     accessible: set[str],
+    current_drive: str | None = None,
 ) -> dict[str, Any]:
-    """Filter response data by drive access control."""
+    """Filter response data by drive access control.
+
+    Filter types:
+    - ``drive_access`` / ``drive_access_nested``: keep items whose drive is
+      in the user's *accessible* set. Two items from two unlocked drives
+      can both pass — useful for global/admin views.
+    - ``current_drive_only`` / ``current_drive_only_nested``: stricter,
+      keeps only items whose drive matches the *current* request drive
+      (``X-HV-Drive`` header). Required for drive-scoped addons where
+      cross-drive bleed is a privacy violation.
+    """
     filter_type = filter_config.get("type")
 
-    if filter_type == "drive_access":
+    if filter_type in ("drive_access", "current_drive_only"):
+        if filter_type == "current_drive_only":
+            if not current_drive:
+                # No drive context → return nothing rather than leak.
+                allowed: set[str] = set()
+            else:
+                allowed = {current_drive}
+        else:
+            allowed = accessible
         array_path = filter_config["array_path"]
         drive_field = filter_config["drive_field"]
         items = data.get(array_path, [])
         filtered = [
             item for item in items
-            if item.get(drive_field) in accessible
+            if item.get(drive_field) in allowed
         ]
         return {
             **data,
@@ -73,7 +92,11 @@ def _apply_drive_access_filter(
             "total": len(filtered),
         }
 
-    if filter_type == "drive_access_nested":
+    if filter_type in ("drive_access_nested", "current_drive_only_nested"):
+        if filter_type == "current_drive_only_nested":
+            allowed = {current_drive} if current_drive else set()
+        else:
+            allowed = accessible
         paths = filter_config.get("paths", {})
         result = dict(data)
         for dotted_path, drive_field in paths.items():
@@ -88,7 +111,7 @@ def _apply_drive_access_filter(
                 items = obj.get(array_key, [])
                 filtered = [
                     item for item in items
-                    if item.get(drive_field) in accessible
+                    if item.get(drive_field) in allowed
                 ]
                 obj[array_key] = filtered
                 obj["total"] = len(filtered)
@@ -413,6 +436,17 @@ async def addon_proxy(
             file_id = path_params.get(param_name)
             if file_id:
                 _check_file_access(file_id, unlocked_groups, db)
+        elif check_type == "addon_feature":
+            # Per-drive policy gate. Requires X-HV-Drive (already enforced
+            # for scope=drive; for scope=both we treat absence as 404 to
+            # avoid surfacing the route in a global context).
+            feature = pre_check.get("feature", "index")
+            if not requested_drive:
+                raise HTTPException(status_code=404, detail="Route not found")
+            if not config.is_addon_feature_enabled(
+                requested_drive, addon_name, feature
+            ):
+                raise HTTPException(status_code=404, detail="Route not found")
 
     # Proxy the request
     is_stream = route_config.get("stream", False)
@@ -434,7 +468,10 @@ async def addon_proxy(
     response_filter = route_config.get("response_filter")
     if response_filter:
         accessible = _accessible_drives(unlocked_groups)
-        result = _apply_drive_access_filter(result, response_filter, accessible)
+        result = _apply_drive_access_filter(
+            result, response_filter, accessible,
+            current_drive=requested_drive,
+        )
 
     # Add available flag for consistency with current API
     if isinstance(result, dict) and "available" not in result:

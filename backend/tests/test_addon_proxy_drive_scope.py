@@ -179,3 +179,158 @@ def test_global_scope_still_validates_drive_if_provided(
         headers={"X-HV-Drive": "does-not-exist"},
     )
     assert r.status_code == 403
+
+
+# ---------------------------------------------------------------------------
+# current_drive_only response filter
+# ---------------------------------------------------------------------------
+
+
+class _JsonClient:
+    """Captures requests and returns a configurable JSON body."""
+
+    last_request: dict[str, Any] = {}
+    next_body: dict[str, Any] = {}
+
+    def __init__(self, *a, **kw):
+        pass
+
+    async def __aenter__(self):
+        return self
+
+    async def __aexit__(self, *a):
+        return None
+
+    async def request(self, *, method, url, params, content, headers):
+        _JsonClient.last_request = {
+            "method": method, "url": url, "headers": headers,
+        }
+
+        class _R:
+            status_code = 200
+            text = ""
+            headers = httpx.Headers({"content-type": "application/json"})
+            def json(self_inner):
+                return _JsonClient.next_body
+            def raise_for_status(self_inner):
+                pass
+
+        return _R()
+
+
+@pytest.fixture()
+def filter_addon(monkeypatch):
+    meta = {
+        "label": "Filter",
+        "icon": "search",
+        "type": "external_service",
+        "scope": "drive",
+        "href": "/drive/{drive}/addons/_filter",
+        "proxy": {
+            "target_default": "http://_filter:9999",
+            "routes": [
+                {
+                    "path": "/search",
+                    "methods": ["GET"],
+                    "response_filter": {
+                        "type": "current_drive_only",
+                        "array_path": "results",
+                        "drive_field": "drive",
+                    },
+                },
+                {
+                    "path": "/ask",
+                    "methods": ["POST"],
+                    "response_filter": {
+                        "type": "current_drive_only_nested",
+                        "paths": {"citations": "drive"},
+                    },
+                },
+                {
+                    "path": "/heavy",
+                    "methods": ["GET"],
+                    "pre_check": {
+                        "type": "addon_feature",
+                        "feature": "rag",
+                    },
+                },
+            ],
+        },
+    }
+    prev = addon_registry._registry.get("_filter")
+    addon_registry._registry["_filter"] = meta
+    import app.routers.addon_proxy as proxy_module
+    monkeypatch.setattr(proxy_module.httpx, "AsyncClient", _JsonClient)
+    yield meta
+    if prev is None:
+        addon_registry._registry.pop("_filter", None)
+    else:
+        addon_registry._registry["_filter"] = prev
+
+
+def test_current_drive_only_strips_other_drives(client, filter_addon):
+    c, _s, _d, _dat = client
+    _JsonClient.next_body = {
+        "results": [
+            {"id": "a", "drive": "test-drive"},
+            {"id": "b", "drive": "other-drive"},
+        ],
+        "total": 2,
+    }
+    r = c.get(
+        "/api/addons/_filter/search",
+        headers={"X-HV-Drive": "test-drive"},
+    )
+    assert r.status_code == 200
+    body = r.json()
+    assert [item["id"] for item in body["results"]] == ["a"]
+    assert body["total"] == 1
+
+
+def test_current_drive_only_nested_strips_other_drives(client, filter_addon):
+    c, _s, _d, _dat = client
+    _JsonClient.next_body = {
+        "answer": "...",
+        "citations": [
+            {"id": "1", "drive": "test-drive"},
+            {"id": "2", "drive": "other-drive"},
+        ],
+    }
+    r = c.post(
+        "/api/addons/_filter/ask",
+        headers={"X-HV-Drive": "test-drive"},
+        json={"q": "hi"},
+    )
+    assert r.status_code == 200
+    cits = r.json()["citations"]
+    assert len(cits) == 1
+    assert cits[0]["drive"] == "test-drive"
+
+
+def test_addon_feature_pre_check_404_when_disabled(
+    client, filter_addon, monkeypatch
+):
+    """When the per-drive policy disables a feature, the route 404s without
+    revealing whether it exists."""
+    import app.config as config
+
+    def fake(drive, addon, feature):
+        return not (addon == "_filter" and feature == "rag")
+
+    monkeypatch.setattr(config, "is_addon_feature_enabled", fake)
+    c, _s, _d, _dat = client
+    r = c.get(
+        "/api/addons/_filter/heavy",
+        headers={"X-HV-Drive": "test-drive"},
+    )
+    assert r.status_code == 404
+
+
+def test_addon_feature_pre_check_passes_when_enabled(client, filter_addon):
+    c, _s, _d, _dat = client
+    _JsonClient.next_body = {"ok": True}
+    r = c.get(
+        "/api/addons/_filter/heavy",
+        headers={"X-HV-Drive": "test-drive"},
+    )
+    assert r.status_code == 200
