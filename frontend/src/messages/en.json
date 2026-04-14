@@ -356,6 +356,7 @@
     "hours": "{count}h",
     "minutes": "{count}m",
     "loadError": "Failed to load dashboard",
+    "forbidden": "This dashboard is only visible to users with access to every protected drive. Use the sidebar's Unlock action to enter the required passwords.",
     "duplicates": "Duplicate Files",
     "duplicatesDescription": "Files with identical content exist in multiple locations",
     "noDuplicates": "No Duplicates",

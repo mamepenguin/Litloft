@@ -215,6 +215,12 @@ export default function AdminDashboardPage() {
   const t = useTranslations("admin");
   const [data, setData] = useState<DashboardResponse | null>(null);
   const [error, setError] = useState<string | null>(null);
+  // Surfaces the 403 returned by /api/admin/* when the caller is not
+  // an admin (i.e. doesn't hold every protected access_group). We
+  // hide the dashboard widgets slot in that state too — the addon
+  // status route is admin-gated server-side, but rendering an empty
+  // panel just to have it 403 in the network tab is bad UX.
+  const [forbidden, setForbidden] = useState(false);
   const scanEvent = useWebSocket("scan:complete");
 
   const fetchData = useCallback(async () => {
@@ -222,8 +228,11 @@ export default function AdminDashboardPage() {
       const result = await getDashboard();
       setData(result);
       setError(null);
+      setForbidden(false);
     } catch (err) {
-      setError(err instanceof Error ? err.message : t("loadError"));
+      const message = err instanceof Error ? err.message : t("loadError");
+      setError(message);
+      setForbidden(/\b403\b/.test(message));
     }
   }, [t]);
 
@@ -236,6 +245,19 @@ export default function AdminDashboardPage() {
       fetchData();
     }
   }, [scanEvent, fetchData]);
+
+  if (forbidden) {
+    return (
+      <div className="mx-auto max-w-2xl px-4 py-12 sm:px-6">
+        <h1 className="mb-2 text-xl font-bold text-text-primary">
+          {t("title")}
+        </h1>
+        <p className="text-sm text-text-muted">
+          {t("forbidden")}
+        </p>
+      </div>
+    );
+  }
 
   return (
     <div className="mx-auto max-w-5xl px-4 py-6 sm:px-6">

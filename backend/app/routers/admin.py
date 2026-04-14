@@ -10,6 +10,7 @@ from sqlalchemy import func
 from sqlalchemy.orm import Session
 
 import app.config as config
+from app.auth import require_admin
 from app.database import get_db
 from app.models import File, active_file_filter
 from app.schemas import DashboardDriveInfo, DashboardResponse, DashboardSystemInfo
@@ -17,9 +18,14 @@ from app.services.scanner import get_scan_status
 
 logger = logging.getLogger(__name__)
 
-# NOTE: No authentication — intentionally public for now.
-# Future: restrict to users who have access to all drives.
-router = APIRouter(prefix="/api/admin", tags=["admin"])
+# Admin-only: every endpoint here exposes system-wide aggregates
+# (disk usage, indexed totals across all drives, scan status). Callers
+# must hold every protected access_group — see auth.is_admin docstring.
+router = APIRouter(
+    prefix="/api/admin",
+    tags=["admin"],
+    dependencies=[Depends(require_admin)],
+)
 
 _start_time = time.monotonic()
 

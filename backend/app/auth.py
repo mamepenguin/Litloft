@@ -170,6 +170,41 @@ def check_drive_access(drive_name: str, unlocked_groups: list[str]) -> None:
         raise HTTPException(status_code=404, detail=f"Drive not found: {drive_name}")
 
 
+def is_admin(unlocked_groups: list[str]) -> bool:
+    """A caller is "admin" iff they can see every protected drive.
+
+    Rationale: an admin surface (queue control, system-wide index
+    counters, disk usage, etc.) leaks aggregate information across
+    drives. Restricting it to callers who already hold every
+    access_group keeps the drive-isolation principle from being
+    side-stepped by a meta channel.
+
+    When no drive is protected (passwords.json absent or empty)
+    everyone is admin — same graceful-degradation posture as the rest
+    of the auth layer.
+    """
+    required = {
+        d["access_group"]
+        for d in config.load_drives()
+        if d.get("access_group")
+    }
+    if not required:
+        return True
+    return required.issubset(set(unlocked_groups))
+
+
+def require_admin(request: Request) -> None:
+    """Dependency that 403s the caller when they aren't admin.
+
+    Intended for routers/routes that expose system-wide aggregates
+    (admin dashboard, intelligence queue/status, etc.) where leaking
+    cross-drive metadata would violate the project's drive-isolation
+    principle.
+    """
+    if not is_admin(get_unlocked_groups(request)):
+        raise HTTPException(status_code=403, detail="Admin access required")
+
+
 def nickname_to_viewer_id(nickname: str) -> str:
     return hashlib.sha256(nickname.strip().encode("utf-8")).hexdigest()[:16]
 

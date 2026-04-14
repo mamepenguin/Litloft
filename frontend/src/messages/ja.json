@@ -356,6 +356,7 @@
     "hours": "{count}時間",
     "minutes": "{count}分",
     "loadError": "ダッシュボードの読み込みに失敗しました",
+    "forbidden": "このダッシュボードはすべての保護ドライブのアクセス権を持つユーザーのみ閲覧できます。サイドバーの「解錠」から必要なパスワードを入力してください。",
     "duplicates": "重複ファイル",
     "duplicatesDescription": "同一内容のファイルが複数存在します",
     "noDuplicates": "重複ファイルはありません",

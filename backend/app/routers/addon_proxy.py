@@ -26,7 +26,7 @@ from fastapi.responses import Response, StreamingResponse
 _STREAM_WALL_CLOCK_TIMEOUT_SEC = 600.0
 
 import app.config as config
-from app.auth import filter_drives, get_unlocked_groups
+from app.auth import filter_drives, get_unlocked_groups, is_admin
 from app.database import get_db
 from app.models import File, active_file_filter
 from sqlalchemy.orm import Session
@@ -459,6 +459,15 @@ async def addon_proxy(
                 requested_drive, addon_name, feature
             ):
                 raise HTTPException(status_code=404, detail="Route not found")
+        elif check_type == "admin":
+            # Admin gate for routes that expose system-wide aggregates
+            # (queue control, total indexed counters, etc.). Same
+            # definition as the host's /api/admin router: the caller
+            # must hold every protected access_group.
+            if not is_admin(unlocked_groups):
+                raise HTTPException(
+                    status_code=403, detail="Admin access required"
+                )
 
     # Proxy the request
     is_stream = route_config.get("stream", False)
