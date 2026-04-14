@@ -12,6 +12,7 @@ import logging
 import os
 import re
 from typing import Annotated, Any
+from urllib.parse import unquote
 
 import httpx
 from fastapi import APIRouter, Depends, HTTPException, Request
@@ -379,7 +380,10 @@ async def addon_proxy(
     # validated when present. The addon itself receives the verified
     # drive via ``X-HV-Drive`` so it can filter data by drive.
     scope = meta.get("scope", "global")
-    requested_drive = request.headers.get("x-hv-drive")
+    raw_drive = request.headers.get("x-hv-drive")
+    # Header values are ISO-8859-1 only; the frontend percent-encodes
+    # drive names so non-ASCII (e.g. Japanese) names round-trip safely.
+    requested_drive = unquote(raw_drive) if raw_drive else None
     if scope == "drive" and not requested_drive:
         raise HTTPException(
             status_code=400, detail="Drive context required"
