@@ -168,6 +168,14 @@
 - **セキュリティ考慮**: ファイル内容（トランスクリプト、キャプション、テキスト）が質問のたびに LLM API に送信される。プライバシー重視ならローカルLLM（ollama）を推奨
 - **設計スペック**: `docs/superpowers/specs/2026-04-10-intelligence-rag.md`
 
+### トランスクリプト AI 修正（Transcript Refine）
+- **概要**: Whisper / HvLink 由来の ASR トランスクリプトの誤認識を LLM でバッチ修正。原文は `TranscriptChunk.text_original` に保持し、いつでも revert 可能
+- **フィーチャーフラグ**: `features.transcript_refine` の 3モード（`"false"` / `"manual"` / `"on_index"`）。デフォルト無効
+- **粒度**: chunks 単位で LLM を適用 → words は元の区間内で時間比例に再アライメント → embedding は修正後テキストで同期再計算
+- **UI**: ファイル詳細の TranscriptSection に refine/revert ボタン + 修正済み badge。フォルダツールバーには `folder-refine-transcripts` スロット経由でバッチ実行ボタン
+- **セキュリティ考慮**: トランスクリプト全文が LLM API に送信される。プライバシー重視ならローカル LLM（ollama）推奨
+- **設計スペック**: `docs/superpowers/specs/2026-04-15-intelligence-transcript-refine.md`
+
 ## HEIC画像対応
 - **問題の本質**: Debian aptのffmpegはlibheif未対応でサムネイル真っ黒になる
 - **解決**: `pillow-heif` + Pillow によるサーバーサイドJPEG変換（ffmpegは使わない）

@@ -93,7 +93,23 @@
     "typeAudio": "Audio",
     "typeDocument": "Document",
     "typeArchive": "Archive",
-    "typeOther": "File"
+    "typeOther": "File",
+    "generateFolderTranscriptRefine": "Refine folder transcripts with AI",
+    "refineBatchQueued": "{queued} queued"
+  },
+  "searchIndex": {
+    "transcriptTitle": "Transcript",
+    "transcriptSourceChunks": "Chunks",
+    "transcriptSourceWords": "Words",
+    "transcriptSourceExternal": "External",
+    "transcriptRefine": "Refine with AI",
+    "transcriptRevert": "Undo AI refinement",
+    "transcriptRefinedBadge": "AI refined",
+    "transcriptOriginalLabel": "Original",
+    "indexTitle": "Index Details",
+    "clipTitle": "CLIP Frames",
+    "more": "more",
+    "showMore": "Show more"
   },
   "search": {
     "label": "Search",

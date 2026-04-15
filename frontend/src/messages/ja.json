@@ -93,7 +93,23 @@
     "typeAudio": "音声",
     "typeDocument": "文書",
     "typeArchive": "書庫",
-    "typeOther": "ファイル"
+    "typeOther": "ファイル",
+    "generateFolderTranscriptRefine": "このフォルダのトランスクリプトを AI 修正",
+    "refineBatchQueued": "{queued} 件をキューに追加"
+  },
+  "searchIndex": {
+    "transcriptTitle": "トランスクリプト",
+    "transcriptSourceChunks": "チャンク",
+    "transcriptSourceWords": "単語",
+    "transcriptSourceExternal": "外部字幕",
+    "transcriptRefine": "AI で修正",
+    "transcriptRevert": "AI 修正を取り消す",
+    "transcriptRefinedBadge": "AI 修正済み",
+    "transcriptOriginalLabel": "原文",
+    "indexTitle": "インデックス詳細",
+    "clipTitle": "CLIP フレーム",
+    "more": "件以上",
+    "showMore": "もっと見る"
   },
   "search": {
     "label": "検索",
