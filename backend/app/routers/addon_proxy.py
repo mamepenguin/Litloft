@@ -351,6 +351,22 @@ async def _proxy_request(
                     detail = resp.text or "Addon error"
                 raise HTTPException(status_code=resp.status_code, detail=detail)
             resp.raise_for_status()  # 5xx → fall through to 502 handler
+
+            # Non-JSON upstream responses (e.g. text/vtt subtitles) bypass
+            # resp.json() and are forwarded verbatim. response_filter only
+            # applies to JSON payloads; manifests that configure a filter on
+            # a non-JSON route would silently no-op, which is acceptable
+            # since the proxy can't introspect opaque bodies anyway.
+            content_type = resp.headers.get("content-type", "")
+            if "application/json" not in content_type.lower():
+                response_headers = _filter_response_headers(resp.headers)
+                response_headers.pop("content-type", None)
+                return Response(
+                    content=resp.content,
+                    status_code=resp.status_code,
+                    headers=response_headers,
+                    media_type=content_type or None,
+                )
             return resp.json()
 
     except HTTPException:
