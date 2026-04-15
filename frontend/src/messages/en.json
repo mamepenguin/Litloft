@@ -190,6 +190,7 @@
     "videoNotSupported": "Your browser does not support video playback.",
     "audioNotSupported": "Your browser does not support audio playback.",
     "subtitleDefault": "Subtitles",
+    "subtitleAuto": "Auto-generated",
     "cast": "Cast",
     "castConnecting": "Connecting...",
     "castConnected": "Casting"

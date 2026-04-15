@@ -160,6 +160,16 @@ export const VideoPlayer = forwardRef(function VideoPlayer({ videoId, subtitles 
             default={i === 0}
           />
         ))}
+        {subtitles.length === 0 && (
+          <track
+            key="intelligence-auto"
+            src={`/api/addons/intelligence/files/${videoId}/subtitles.vtt`}
+            kind="subtitles"
+            srcLang="und"
+            label={t("subtitleAuto")}
+            default
+          />
+        )}
         {t("videoNotSupported")}
       </video>
     </div>

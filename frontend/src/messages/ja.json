@@ -190,6 +190,7 @@
     "videoNotSupported": "お使いのブラウザは動画再生に対応していません。",
     "audioNotSupported": "お使いのブラウザは音声再生に対応していません。",
     "subtitleDefault": "字幕",
+    "subtitleAuto": "自動生成",
     "cast": "キャスト",
     "castConnecting": "接続中...",
     "castConnected": "キャスト中"
