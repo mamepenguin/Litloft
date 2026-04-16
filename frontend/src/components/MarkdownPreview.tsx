@@ -26,65 +26,68 @@ const getMermaid = (() => {
   };
 })();
 
-const md = new MarkdownIt({
-  html: false,       // Do not trust raw HTML embedded in markdown
-  linkify: true,     // Auto-link plain URLs
-  typographer: false,
-  breaks: false,
-});
+function createMarkdownRenderer({ withMermaid }: { withMermaid: boolean }): MarkdownIt {
+  const md = new MarkdownIt({
+    html: false,       // Do not trust raw HTML embedded in markdown
+    linkify: true,     // Auto-link plain URLs
+    typographer: false,
+    breaks: false,
+  });
 
-// Task list support: - [ ] / - [x]
-md.use(taskLists, { enabled: true, label: true });
+  md.use(taskLists, { enabled: true, label: true });
 
-// Force safe link attributes. Markdown-it fires a "link_open" renderer hook,
-// which we extend to enforce target=_blank + rel=noopener noreferrer and
-// reject javascript: / data: URIs at render time (defense in depth; DOMPurify
-// also filters these).
-const defaultLinkRender: NonNullable<typeof md.renderer.rules.link_open> =
-  md.renderer.rules.link_open ??
-  ((tokens, idx, options, _env, self) => self.renderToken(tokens, idx, options));
-md.renderer.rules.link_open = function (tokens, idx, options, env, self) {
-  const token = tokens[idx];
-  const href = token.attrGet("href") ?? "";
-  const lower = href.trim().toLowerCase();
-  if (lower.startsWith("javascript:") || lower.startsWith("data:")) {
-    token.attrSet("href", "#");
-  }
-  token.attrSet("target", "_blank");
-  token.attrSet("rel", "noopener noreferrer");
-  return defaultLinkRender(tokens, idx, options, env, self);
-};
+  const defaultLinkRender: NonNullable<typeof md.renderer.rules.link_open> =
+    md.renderer.rules.link_open ??
+    ((tokens, idx, options, _env, self) => self.renderToken(tokens, idx, options));
+  md.renderer.rules.link_open = function (tokens, idx, options, env, self) {
+    const token = tokens[idx];
+    const href = token.attrGet("href") ?? "";
+    const lower = href.trim().toLowerCase();
+    if (lower.startsWith("javascript:") || lower.startsWith("data:")) {
+      token.attrSet("href", "#");
+    }
+    token.attrSet("target", "_blank");
+    token.attrSet("rel", "noopener noreferrer");
+    return defaultLinkRender(tokens, idx, options, env, self);
+  };
 
-// Fenced code block renderer: syntax highlighting + mermaid placeholder.
-// Mermaid blocks are rendered as <pre class="mermaid-source"> so that the
-// MarkdownPreview component can find them after mounting and replace them with
-// rendered SVG via the mermaid library (loaded lazily).
-md.renderer.rules.fence = (tokens, idx) => {
-  const token = tokens[idx];
-  const lang = token.info.trim().split(/\s+/)[0] ?? "";
+  // Mermaid blocks are only emitted as hydratable placeholders when the caller
+  // opts in. Untrusted sources (e.g. LLM answers) run with withMermaid=false so
+  // mermaid's securityLevel:"loose" click directives can't bypass DOMPurify via
+  // post-sanitize SVG injection.
+  md.renderer.rules.fence = (tokens, idx) => {
+    const token = tokens[idx];
+    const lang = token.info.trim().split(/\s+/)[0] ?? "";
 
-  if (lang === "mermaid") {
+    if (withMermaid && lang === "mermaid") {
+      const escaped = md.utils.escapeHtml(token.content);
+      return `<pre class="mermaid-source">${escaped}</pre>\n`;
+    }
+
+    if (lang && hljs.getLanguage(lang)) {
+      const highlighted = hljs.highlight(token.content, {
+        language: lang,
+        ignoreIllegals: true,
+      }).value;
+      return `<pre class="code-block"><code class="hljs language-${lang}">${highlighted}</code></pre>\n`;
+    }
+
     const escaped = md.utils.escapeHtml(token.content);
-    return `<pre class="mermaid-source">${escaped}</pre>\n`;
-  }
+    return `<pre class="code-block"><code class="hljs">${escaped}</code></pre>\n`;
+  };
 
-  if (lang && hljs.getLanguage(lang)) {
-    const highlighted = hljs.highlight(token.content, {
-      language: lang,
-      ignoreIllegals: true,
-    }).value;
-    return `<pre class="code-block"><code class="hljs language-${lang}">${highlighted}</code></pre>\n`;
-  }
+  return md;
+}
 
-  const escaped = md.utils.escapeHtml(token.content);
-  return `<pre class="code-block"><code class="hljs">${escaped}</code></pre>\n`;
-};
+const mdWithMermaid = createMarkdownRenderer({ withMermaid: true });
+const mdPlain = createMarkdownRenderer({ withMermaid: false });
 
-function renderMarkdownToSafeHtml(source: string): {
+function renderMarkdownToSafeHtml(source: string, withMermaid: boolean): {
   frontmatter: Record<string, unknown>;
   html: string;
 } {
   const parsed = matter(source);
+  const md = withMermaid ? mdWithMermaid : mdPlain;
   const rawHtml = md.render(parsed.content);
   const safeHtml = DOMPurify.sanitize(rawHtml, {
     FORBID_TAGS: ["script", "iframe", "object", "embed", "form"],
@@ -100,19 +103,31 @@ function renderMarkdownToSafeHtml(source: string): {
  * Render markdown content as sanitized HTML with optional frontmatter
  * metadata. Used by FilePreview for `text/markdown` files and intended
  * for reuse by the knowledge addon's editor preview pane.
+ *
+ * - `chrome` (default true): wrap the body in a card (rounded/bg) and render
+ *   the frontmatter panel. Set false when the parent already provides chrome
+ *   (e.g. the Ask answer panel).
+ * - `mermaid` (default true): process ```mermaid fences into rendered SVG
+ *   diagrams. Disable for untrusted content — mermaid's securityLevel:"loose"
+ *   click directives can bypass DOMPurify since mermaid injects SVG via
+ *   innerHTML after the sanitizer runs.
  */
 export function MarkdownPreview({
   source,
   showFrontmatter = true,
+  chrome = true,
+  mermaid = true,
   className,
 }: {
   source: string;
   showFrontmatter?: boolean;
+  chrome?: boolean;
+  mermaid?: boolean;
   className?: string;
 }) {
   const { frontmatter, html } = useMemo(
-    () => renderMarkdownToSafeHtml(source),
-    [source],
+    () => renderMarkdownToSafeHtml(source, mermaid),
+    [source, mermaid],
   );
 
   const containerRef = useRef<HTMLDivElement>(null);
@@ -126,6 +141,7 @@ export function MarkdownPreview({
   // preview correct without churning when nothing changed.  Mermaid itself is
   // loaded lazily (≈4 MB) and only initialized once via getMermaid().
   useEffect(() => {
+    if (!mermaid) return;
     const container = containerRef.current;
     if (!container) return;
 
@@ -165,6 +181,23 @@ export function MarkdownPreview({
   });
 
   const frontmatterEntries = Object.entries(frontmatter);
+  const bodyClass = `markdown-body ${
+    chrome
+      ? `overflow-auto px-6 py-4 text-sm leading-relaxed text-text-primary${className ? ` ${className}` : " max-h-[80vh]"}`
+      : className ?? ""
+  }`.trim();
+
+  const body = (
+    <div
+      ref={containerRef}
+      className={bodyClass}
+      dangerouslySetInnerHTML={{ __html: html }}
+    />
+  );
+
+  if (!chrome) {
+    return body;
+  }
 
   return (
     <div className="w-full overflow-hidden rounded-xl bg-bg-card">
@@ -184,11 +217,7 @@ export function MarkdownPreview({
           </dl>
         </div>
       )}
-      <div
-        ref={containerRef}
-        className={`markdown-body overflow-auto px-6 py-4 text-sm leading-relaxed text-text-primary${className ? ` ${className}` : " max-h-[80vh]"}`}
-        dangerouslySetInnerHTML={{ __html: html }}
-      />
+      {body}
     </div>
   );
 }
