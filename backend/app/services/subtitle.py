@@ -1,6 +1,7 @@
 """Subtitle detection and SRT-to-VTT conversion."""
 
 import re
+import unicodedata
 from pathlib import Path
 
 _SUBTITLE_EXTENSIONS = frozenset({".srt", ".vtt"})
@@ -40,10 +41,15 @@ def _parse_subtitle_filename(video_stem: str, subtitle_path: Path) -> str | None
       video.ja.vtt        -> "ja"
       video.eng.srt       -> "eng"
     """
-    sub_stem = subtitle_path.stem  # e.g. "video.en"
     sub_ext = subtitle_path.suffix.lower()
     if sub_ext not in _SUBTITLE_EXTENSIONS:
         return None
+
+    # Scanner stores DB paths in NFC, but iterdir() may yield NFD on
+    # some filesystems (notably APFS). Normalize both sides so CJK
+    # names with dakuten/handakuten compare equal.
+    video_stem = unicodedata.normalize("NFC", video_stem)
+    sub_stem = unicodedata.normalize("NFC", subtitle_path.stem)
 
     if sub_stem == video_stem:
         return ""

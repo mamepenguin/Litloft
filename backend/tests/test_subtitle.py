@@ -123,6 +123,42 @@ class TestDetectSubtitles:
         result = detect_subtitles("nonexistent.mp4", tmp_path)
         assert result == []
 
+    def test_dots_in_filename(self, tmp_path):
+        """File stem containing dots (e.g. 'Ver.3.0.2') must still match."""
+        video = tmp_path / "title Ver.3.0.2 extra.hvlink"
+        video.write_text("{}")
+        sub = tmp_path / "title Ver.3.0.2 extra.vtt"
+        sub.write_text("WEBVTT\n")
+
+        result = detect_subtitles("title Ver.3.0.2 extra.hvlink", tmp_path)
+        assert len(result) == 1
+        assert result[0]["path"] == "title Ver.3.0.2 extra.vtt"
+        assert result[0]["language"] == ""
+
+    def test_cjk_nfc_nfd_match(self, tmp_path):
+        """DB NFC stem must match an FS entry returned in NFD form.
+
+        Simulates the APFS/Docker scenario: scanner stored NFC in DB but
+        iterdir() yields NFD. Only the subtitle side is written NFD here
+        because the caller already normalizes the video side before
+        calling (via `drive_path / video_file_path`).
+        """
+        import unicodedata
+
+        nfc_stem = "動画が濁点"
+        # Video itself must exist at the NFC path, because detect_subtitles
+        # does a .exists() check on the caller-supplied NFC path.
+        (tmp_path / f"{nfc_stem}.mp4").write_bytes(b"fake video")
+        # Subtitle written in NFD: what pathlib returns from iterdir()
+        # on APFS-style filesystems.
+        nfd_sub = unicodedata.normalize("NFD", f"{nfc_stem}.vtt")
+        assert nfd_sub != f"{nfc_stem}.vtt"  # sanity: forms differ
+        (tmp_path / nfd_sub).write_text("WEBVTT\n")
+
+        result = detect_subtitles(f"{nfc_stem}.mp4", tmp_path)
+        assert len(result) == 1
+        assert result[0]["language"] == ""
+
 
 class TestConvertSrtToVtt:
     def test_basic_conversion(self):
