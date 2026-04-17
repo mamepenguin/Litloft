@@ -9,13 +9,16 @@ const makePl = (id: string, name: string, count = 3): PlaylistSummary => ({
   name,
   drive: "main",
   item_count: count,
+  first_file_id: null,
   created_at: "",
   updated_at: "",
 });
 
 const defaultProps = {
+  currentDrive: "main",
   driveBase: "/drive/main",
   playlistList: [makePl("pl1", "Rock"), makePl("pl2", "Jazz", 0)],
+  setPlaylistList: vi.fn(),
   creatingPlaylist: false,
   setCreatingPlaylist: vi.fn(),
   newPlaylistName: "",

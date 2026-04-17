@@ -39,7 +39,7 @@ describe("useSidebarData", () => {
     vi.mocked(getDriveTags).mockResolvedValueOnce([{ name: "nature", count: 5 }]);
     vi.mocked(getPins).mockResolvedValueOnce([{ path: "photos" }]);
     vi.mocked(getPlaylists).mockResolvedValueOnce([
-      { id: "pl1", name: "My Playlist", drive: "main", item_count: 3, created_at: "", updated_at: "" },
+      { id: "pl1", name: "My Playlist", drive: "main", item_count: 3, first_file_id: null, created_at: "", updated_at: "" },
     ]);
 
     const { result } = renderHook(() => useSidebarData("main", 0));
