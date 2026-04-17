@@ -104,7 +104,18 @@
     "typeArchive": "Archive",
     "typeOther": "File",
     "generateFolderTranscriptRefine": "Refine folder transcripts with AI",
-    "refineBatchQueued": "{queued} queued"
+    "refineBatchQueued": "{queued} queued",
+    "detailedSummaryTitle": "AI Detailed Summary",
+    "detailedSummaryGenerate": "Generate detailed summary",
+    "detailedSummaryGenerating": "Generating detailed summary…",
+    "detailedSummaryRegenerate": "Regenerate",
+    "detailedSummaryDownload": "Download as Markdown",
+    "detailedSummaryShow": "Expand",
+    "detailedSummaryHide": "Collapse",
+    "detailedSummaryInsufficientContent": "Not enough content for a detailed summary",
+    "detailedSummaryFailed": "Detailed summary generation failed",
+    "detailedSummaryRetry": "Retry",
+    "detailedSummaryTruncatedNote": "(excerpts from long content)"
   },
   "searchIndex": {
     "transcriptTitle": "Transcript",

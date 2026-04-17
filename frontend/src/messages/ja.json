@@ -104,7 +104,18 @@
     "typeArchive": "書庫",
     "typeOther": "ファイル",
     "generateFolderTranscriptRefine": "このフォルダのトランスクリプトを AI 修正",
-    "refineBatchQueued": "{queued} 件をキューに追加"
+    "refineBatchQueued": "{queued} 件をキューに追加",
+    "detailedSummaryTitle": "AI 詳細要約",
+    "detailedSummaryGenerate": "詳細要約を生成",
+    "detailedSummaryGenerating": "詳細要約を生成中…",
+    "detailedSummaryRegenerate": "再生成",
+    "detailedSummaryDownload": "Markdown としてダウンロード",
+    "detailedSummaryShow": "展開",
+    "detailedSummaryHide": "折りたたむ",
+    "detailedSummaryInsufficientContent": "詳細要約に必要なコンテンツが不足しています",
+    "detailedSummaryFailed": "詳細要約の生成に失敗しました",
+    "detailedSummaryRetry": "再試行",
+    "detailedSummaryTruncatedNote": "（長文のため抜粋から要約）"
   },
   "searchIndex": {
     "transcriptTitle": "トランスクリプト",
