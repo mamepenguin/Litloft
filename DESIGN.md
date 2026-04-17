@@ -53,6 +53,7 @@ All tokens are exposed as Tailwind utility classes via `@theme inline` (e.g. `bg
 | `--accent-hover` | `#b52425` | Accent hover state |
 | `--accent-cta` | `#d63031` | CTA button (same as accent) |
 | `--accent-teal` | `#103c25` | Success / nature accent (green) |
+| `--accent-amber` | `#78350f` | AI-generated / suggestion pending state (deep warm brown) |
 | `--sand` | `#e5e5e0` | Secondary button background (warm sand) |
 | `--sand-hover` | `#d5d5d0` | Sand hover state |
 | `--warm-light` | `#e0e0d9` | Circle buttons, subtle badge backgrounds |
@@ -76,6 +77,7 @@ All tokens are exposed as Tailwind utility classes via `@theme inline` (e.g. `bg
 | `--accent` | `#e85d5e` | Bright coral |
 | `--accent-hover` | `#f07070` | Lighter coral |
 | `--accent-teal` | `#4caf80` | Bright green |
+| `--accent-amber` | `#f4c674` | AI-generated / suggestion pending state (warm honey) |
 | `--sand` | `#3d2023` | Dark sand |
 | `--sand-hover` | `#4a2a2e` | Dark sand hover |
 | `--warm-light` | `#3d2023` | Same as sand |
@@ -93,6 +95,8 @@ Applies light or dark values via `@media (prefers-color-scheme: light/dark)`.
 
 - **`--accent`**: Use only for primary CTAs and brand highlights. Do not overuse.
 - **`--sand`**: Use for secondary button backgrounds, tags, and mid-tone surfaces.
+- **`--accent-teal`**: Semantic status color for success / accepted state (e.g. confirmed tag).
+- **`--accent-amber`**: Semantic status color for AI-generated / suggestion-pending state (e.g. AI-suggested tag awaiting user approval). Pair with a dashed border to convey "pending". Do not use as a brand accent.
 - **`--danger`**: Use only for errors, deletions, and destructive actions. Do not confuse with `--accent` red.
 - **`--text-muted`**: Keep contrast readable. Do not reduce opacity beyond legibility.
 - Never rely on color alone to convey state — pair with icons or text.

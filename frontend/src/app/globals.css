@@ -17,6 +17,7 @@
   --accent-hover: #b52425;
   --accent-cta: #d63031;
   --accent-teal: #103c25;
+  --accent-amber: #78350f;
   /* Pinterest-specific tokens */
   --sand: #e5e5e0;
   --sand-hover: #d5d5d0;
@@ -41,6 +42,7 @@
   --accent-hover: #f07070;
   --accent-cta: #e85d5e;
   --accent-teal: #4caf80;
+  --accent-amber: #f4c674;
   --sand: #3d2023;
   --sand-hover: #4a2a2e;
   --warm-light: #3d2023;
@@ -65,6 +67,7 @@
     --accent-hover: #ad081b;
     --accent-cta: #e60023;
     --accent-teal: #103c25;
+    --accent-amber: #78350f;
     --sand: #e5e5e0;
     --sand-hover: #d5d5d0;
     --warm-light: #e0e0d9;
@@ -90,6 +93,7 @@
     --accent-hover: #ff5060;
     --accent-cta: #ff2d42;
     --accent-teal: #4caf80;
+    --accent-amber: #f4c674;
     --sand: #3d2023;
     --sand-hover: #4a2a2e;
     --warm-light: #3d2023;
@@ -114,6 +118,7 @@
   --color-accent-hover: var(--accent-hover);
   --color-accent-cta: var(--accent-cta);
   --color-accent-teal: var(--accent-teal);
+  --color-accent-amber: var(--accent-amber);
   --color-sand: var(--sand);
   --color-sand-hover: var(--sand-hover);
   --color-warm-light: var(--warm-light);
