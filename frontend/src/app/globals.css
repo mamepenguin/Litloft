@@ -378,6 +378,19 @@ dd {
   margin: 1.5em 0;
 }
 
+/* Segment-level MarkdownPreview variant used by the detailed-summary
+   citation-anchored view. Each ``data-citation-section-path`` wrapper
+   renders one segment (paragraph / bullet body / table row) through
+   MarkdownPreview. The only difference from a normal MarkdownPreview
+   render is that we strip the first/last-child outer margins so each
+   segment stacks tightly next to the citation marker — otherwise the
+   inherited ``.markdown-body`` rules add phantom top/bottom gutters
+   that would break the segment-aligned layout. Typography (color,
+   line-height, headings, code, quotes, tables, etc.) stays identical
+   to the rest of the app. */
+.markdown-segment > *:first-child { margin-top: 0; }
+.markdown-segment > *:last-child { margin-bottom: 0; }
+
 .markdown-body > :first-child { margin-top: 0; }
 .markdown-body > :last-child { margin-bottom: 0; }
 
