@@ -420,6 +420,15 @@ dd {
   box-shadow: var(--kbd-shadow);
 }
 
+/* Reset the UA-default yellow on ``<mark>`` so Tailwind utilities
+   (e.g. ``bg-accent-teal/20``) apply cleanly wherever a mark is used
+   outside MarkdownPreview. ``.markdown-body mark`` below wins via
+   specificity inside the Markdown pipeline. */
+mark {
+  background-color: transparent;
+  color: inherit;
+}
+
 .markdown-body mark {
   background: var(--highlight-bg);
   color: inherit;
