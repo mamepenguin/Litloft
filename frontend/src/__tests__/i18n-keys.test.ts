@@ -2,7 +2,12 @@ import { describe, it, expect } from "vitest";
 import jaMessages from "../messages/ja.json";
 import enMessages from "../messages/en.json";
 
-type MessageObject = Record<string, string | Record<string, string>>;
+// Recursive type: keys may point to strings or nested objects of
+// arbitrary depth. Before this was `Record<string, string | Record<…>>`
+// which only tolerated 2 levels — the addon message catalogues grew
+// 3-level nesting (e.g. `detailedSummary.citations.linkLabel`) when the
+// intelligence detailed-summary feature landed.
+type MessageObject = { [key: string]: string | MessageObject };
 
 function getAllKeys(obj: MessageObject, prefix = ""): string[] {
   const keys: string[] = [];

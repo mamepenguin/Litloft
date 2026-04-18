@@ -117,6 +117,29 @@
     "detailedSummaryRetry": "Retry",
     "detailedSummaryTruncatedNote": "(excerpts from long content)"
   },
+  "detailedSummary": {
+    "citations": {
+      "linkLabel": "Show citation",
+      "noCitation": "No strong source match found. This may be inaccurate.",
+      "popoverLabel": "Citation preview",
+      "loading": "Loading…",
+      "error": "Failed to load excerpt",
+      "noExcerpt": "No excerpt available",
+      "pageLabel": "p.{page}",
+      "jump": "Jump"
+    },
+    "edit": {
+      "button": "Edit",
+      "save": "Save",
+      "cancel": "Cancel",
+      "badge": "Edited",
+      "textareaLabel": "Edit section content",
+      "recomputing": "Recomputing citations…",
+      "revertButton": "Revert to AI version",
+      "revertConfirm": "Discard your edits and restore the AI-generated summary?",
+      "regenerateConfirm": "Your edits will be lost. Continue and regenerate?"
+    }
+  },
   "searchIndex": {
     "transcriptTitle": "Transcript",
     "transcriptSourceChunks": "Chunks",
@@ -227,7 +250,9 @@
     "subtitleAuto": "Auto-generated",
     "cast": "Cast",
     "castConnecting": "Connecting...",
-    "castConnected": "Casting"
+    "castConnected": "Casting",
+    "autoplayOn": "Autoplay ON",
+    "autoplayOff": "Autoplay OFF"
   },
   "archive": {
     "loadFailed": "Failed to load archive: {error}",

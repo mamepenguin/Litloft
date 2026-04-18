@@ -16,23 +16,27 @@ A self-hosted file manager and media streaming app for your home LAN. Runs on Do
 - **Multi-drive** — Separate content areas by purpose (family videos, music, photos, etc.)
 - **Folder browser** — Navigate nested folder hierarchies like a file manager
 - **Video/audio streaming** — In-browser playback with Range Request support, subtitle/caption display, cast support
-- **Image/document viewer** — Preview with prev/next navigation
+- **Image/document viewer** — Preview with prev/next navigation, Markdown rendering (syntax highlighting, task lists, Mermaid)
 - **Archive viewer** — Browse ZIP contents and extract individual files (Shift_JIS support)
 - **Playlists** — User-created playlists and automatic folder playback
-- **File operations** — Upload (incl. folder upload), rename, move, copy, delete, batch operations, clipboard (copy/cut/paste)
+- **File operations** — Upload (incl. folder upload), rename, move, copy, delete, in-browser text file editing, batch operations, clipboard (copy/cut/paste)
 - **Trash** — Soft delete with 30-day auto-purge, restore from trash
+- **Missing files** — Gracefully track files removed from the filesystem without losing viewer history, tags, or AI data
 - **Search, tags, favorites** — Quickly find files within a drive
-- **Semantic search** — Embedding-based search, Whisper transcription, CLIP frame search (addon)
+- **Semantic search + Ask** — Embedding-based search and natural-language Q&A with citations, Whisper transcription, CLIP frame search, AI summaries (including editable long-form Markdown summaries with auto-linked citations for hallucination detection), auto-tag suggestions, transcript refine (intelligence addon)
+- **Knowledge notes** — Per-drive Markdown Vaults and web clipping (knowledge addon)
+- **URL downloads** — yt-dlp downloads and HvLink external-URL references (downloader addon)
 - **Pinned folders** — Shortcuts to frequently used folders
 - **Comments/notes** — Per-file comments with viewer profiles
 - **Watch history** — Resume playback, recently played, viewing progress tracking
 - **Duplicate detection** — Hash-based duplicate file detection with storage stats
 - **Access control** — Optional per-drive password protection
-- **Admin dashboard** — Drive stats, scan status, system health monitoring
+- **Per-drive addon policy** — Enable or disable individual addon features per drive via `drives.json`
+- **Admin dashboard** — Drive stats, scan status, system health monitoring, addon widgets
 - **Dark/light theme** — Toggle between themes
 - **i18n** — Japanese / English (next-intl, cookie-based locale)
 - **PWA** — Add to home screen for a native app-like experience
-- **Addon system** — Extensible with in-process and standalone service addons
+- **Addon system** — Extensible with in-process and standalone service addons, drive-scoped or global
 
 <!-- TODO: Screenshots (feature gallery, 2-3 images side by side) -->
 <p align="center">
@@ -77,6 +81,7 @@ cp drives.json.example drives.json
 | `path` | Container path (mounted via `docker-compose.yml` volumes) |
 | `readonly` | Set `true` to disable file operations (default: writable) |
 | `access_group` | Access control group name (omit for public drives) |
+| `addons` | Per-drive addon policy (see [Per-Drive Addon Policy](docs/DRIVE-POLICY.md)) |
 
 ### 2. Mount drives in docker-compose.yml
 

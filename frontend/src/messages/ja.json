@@ -117,6 +117,29 @@
     "detailedSummaryRetry": "再試行",
     "detailedSummaryTruncatedNote": "（長文のため抜粋から要約）"
   },
+  "detailedSummary": {
+    "citations": {
+      "linkLabel": "出典を表示",
+      "noCitation": "原文に強い根拠が見つかりませんでした。誤情報の可能性があります",
+      "popoverLabel": "出典プレビュー",
+      "loading": "読み込み中…",
+      "error": "抜粋の取得に失敗しました",
+      "noExcerpt": "抜粋はありません",
+      "pageLabel": "p.{page}",
+      "jump": "ジャンプ"
+    },
+    "edit": {
+      "button": "編集",
+      "save": "保存",
+      "cancel": "キャンセル",
+      "badge": "編集済み",
+      "textareaLabel": "セクション内容を編集",
+      "recomputing": "出典を再計算中…",
+      "revertButton": "AI生成版に戻す",
+      "revertConfirm": "編集内容を破棄して AI 生成版に戻しますか？",
+      "regenerateConfirm": "編集内容は失われます。続行して再生成しますか？"
+    }
+  },
   "searchIndex": {
     "transcriptTitle": "トランスクリプト",
     "transcriptSourceChunks": "チャンク",
@@ -227,7 +250,9 @@
     "subtitleAuto": "自動生成",
     "cast": "キャスト",
     "castConnecting": "接続中...",
-    "castConnected": "キャスト中"
+    "castConnected": "キャスト中",
+    "autoplayOn": "自動再生 ON",
+    "autoplayOff": "自動再生 OFF"
   },
   "archive": {
     "loadFailed": "アーカイブの読み込みに失敗しました: {error}",

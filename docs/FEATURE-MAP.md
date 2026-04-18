@@ -1,219 +1,147 @@
 # HomeVault 機能マップ
 
-全体像を俯瞰し、拡張・整理の判断に使うためのマインドマップ。
-Mermaid 形式なので、MarkdownPreview でそのまま閲覧できる。
-
-粒度は「ユーザーが認知できる機能」「開発者がディレクトリ単位で認識するモジュール」レベル。
-内部実装の細部（関数名など）は含めない。
+「このシステムに何ができるか」を俯瞰するための資料。
+内部実装の詳細（ファイル名・関数名・モジュール名など）は含めない。
 
 ---
 
-## 1. レイヤー軸マップ
+## 1. 全体構成
 
-実装構造に沿った配置。拡張時に「どこを触るか」を素早く特定するための地図。
+ブラウザからアクセスする単一のエントリーポイントの背後に本体とアドオン群が並ぶ。
+本体はファイル管理・再生・基本検索を担当し、AI・ノート・同期などの付加機能は
+アドオンとして独立して差し込む構造になっている。
 
 ```mermaid
-mindmap
-  root((HomeVault))
-    Frontend
-      Pages
-        ホーム ドライブ選択
-        ドライブホーム
-        フォルダビュー
-        ファイル詳細
-        ダッシュボード admin
-        アンロック unlock
-        アドオンページ
-        ドライブ別アドオンページ
-      Components
-        ファイル表示 FileGrid/List/Card
-        メディア再生 Video/Audio/Gallery
-        プレビュー Text/Markdown/Archive
-        操作 Move/Rename/Batch/Favorite
-        フォルダ Browser/Toolbar
-        アップロード Zone/Button/Progress
-        サイドバー Pins/Playlists/Tags
-        タグ TagEditor/TagList
-        コメント CommentSection
-        検索 GlobalSearch
-        選択 SelectionBar
-        状態 Trash/Missing
-        拡張点 AddonSlot
-      Hooks
-        useUpload
-        useSelection
-        useDragAndDrop
-        useContextMenu
-        useWebSocket
-        useInfiniteScroll
-      i18n
-        next-intl Cookie方式
-        ja / en
-    Backend
-      Routers
-        auth JWT/unlock/lock
-        files メタ/削除/タグ/編集
-        drives 一覧/フォルダ/重複/pin
-        uploads チャンク式
-        comments 投稿/編集/削除
-        playlists 作成/並べ替え
-        progress 視聴進度
-        admin ダッシュボード
-        ws WebSocket配信
-        internal アドオン向け内部API
-        addon_proxy 汎用アドオンプロキシ
-      Services
-        scanner ドライブスキャン
-        thumbnail サムネ生成
-        upload チャンク結合
-        fileops 移動/コピー/削除
-        hash ファイルハッシュ
-        subtitle SRT→VTT
-        filetype タイプ分類
-        heic HEIC変換
-        safepath パス検証
-        preview プレビュー生成
-        ws ブロードキャスタ
-        event_hooks イベント配信
-        addon_registry メタ/スロット
-      Lifecycle
-        startup 全ドライブスキャン
-        scheduled Trash自動purge 24h
-        自動アドオンロード
-      Data
-        SQLite /data/app.db
-        models File/Tag/Playlist
-        models WatchHistory/Comment
-        active_file_filter 3状態
-    Addons
-      intelligence scope=both
-        セマンティック検索
-        AI要約
-        AutoTags
-        Ask
-        Whisper/CLIP/BLIP
-      downloader scope=drive
-        yt-dlp
-        キュー管理
-      podcast scope=drive
-        購読/再生
-      knowledge scope=drive
-        Markdownノート
-        Webクリップ
-      cloud-sync scope=global
-        rclone
-        スケジュール同期
-    Infra
-      Docker
-        backend 非公開 :8000
-        frontend エントリ :3000
-        override でアドオン追加
-      Config
-        drives.json ドライブ定義
-        passwords.json アクセス制御
-        event-hooks.json イベント購読
-      Volumes
-        /data 永続化
-        /drives/* マウント
-      Deploy
-        git pull + compose build
-        post-receive hook
+flowchart LR
+  U[ユーザー<br/>ブラウザ / PWA]
+  U --> FE[HomeVault 本体<br/>ファイル一覧・再生<br/>検索・アップロード<br/>タグ・お気に入り<br/>視聴履歴]
+
+  FE <--> D[(ドライブ<br/>家族ビデオ / 仕事 / ...)]
+  FE <--> S[(ファイル情報<br/>タグ・コメント・履歴)]
+
+  FE -.拡張.-> I[intelligence<br/>AI検索・要約・Ask]
+  FE -.拡張.-> K[knowledge<br/>Markdownノート<br/>Webクリップ]
+  FE -.拡張.-> DL[downloader<br/>URL取り込み]
+  FE -.拡張.-> P[podcast<br/>RSS配信]
+  FE -.拡張.-> C[cloud-sync<br/>クラウドバックアップ]
+
+  classDef core fill:#dbeafe,stroke:#2563eb
+  classDef addon fill:#fef3c7,stroke:#d97706
+  classDef data fill:#d1fae5,stroke:#059669
+  class FE core
+  class I,K,DL,P,C addon
+  class D,S data
 ```
+
+- **ドライブ**: コンテンツ領域の単位。各ドライブは完全に独立しており、アクセス制御・AI機能の有効/無効もドライブごとに設定する。
+- **アドオン**: 本体を拡張する独立モジュール。クローン直後の状態ではすべて無効で、必要なものだけを追加する。AI機能を使うかどうかはドライブごとに選べる。
 
 ---
 
 ## 2. ユーザー動線軸マップ
 
-「ユーザーが何をしたいか」に沿った配置。機能の重複・抜けを発見したり、
-同じ動線に関わる複数モジュールを束ねて見直すのに使う。
+「ユーザーが何をしたいか」に沿って機能を並べたマインドマップ。
+機能の抜け・重複を見るのに使う。
 
 ```mermaid
 mindmap
   root((ユーザー動線))
     閲覧
       ドライブ選択
-      フォルダツリー
+      フォルダナビゲーション
       ファイル一覧 Grid/List
-      サムネイル表示
-      パンくず
-      メディア再生
-        動画 シーク/速度/字幕
-        音声
-        画像ギャラリー
-      プレビュー
-        Text/Markdown
-        PDF
-        ZIPアーカイブ
+      メディア再生 動画/音声/画像
+      プレビュー Text/Markdown/PDF/ZIP
       視聴進度の自動復元
     アップロード
       ドラッグ&ドロップ
-      チャンク式（大容量）
+      チャンク式の大容量対応
       フォルダ丸ごと
       進捗リアルタイム
-      missing 復活上書き
     検索発見
-      グローバル検索 ファイル名/説明
+      キーワード検索
       タグ検索
-      タイプ/フォルダ絞り込み
       重複検出
-      Semantic Search intelligence
+      Semantic Search 意味近似
       Ask 自然言語質問
-      サジェスト/履歴
     整理
       タグ付け 単体/一括
       プレイリスト
-        作成/並べ替え
-        再生
-      お気に入り
-      ピンフォルダ
+      お気に入り/ピン
       リネーム/移動 単体/一括
-      フォルダ作成
-      テキストファイル作成
-      ゴミ箱 30日パージ
-      Missing 手動パージ
+      テキストファイル作成/編集
+      ゴミ箱 30日で自動削除
+      Missing 手動削除
       AutoTags 提案/承認
     共有コラボ
-      コメント 投稿/編集/削除
-      レート制限
-      Like 👍👎
-      視聴履歴 viewer別
-      プロファイル ニックネーム
+      コメント
+      Like / Dislike
+      プロファイル別の視聴履歴
     管理
-      パスワード認証 JWT
-      ドライブアクセス制御
-      保護ドライブの不可視化
+      パスワード認証
+      ドライブ別アクセス制御
       readonly ドライブ
-      ダッシュボード
-        ディスク使用量
-        タイプ別統計
-        スキャン状態
+      ダッシュボード 統計/スキャン/ヘルス
       手動スキャン
-      WebSocket ライブ通知
     AI拡張
-      AI要約 intelligence
+      AI要約 short/long
+      Detailed Summary Markdown
+        出典リンク自動付与 ⚠ハルシネーション検出
+        セクション単位の編集/revert
       AutoTags 画像/動画/文書
       Ask 引用付き回答
+      Transcript Refine 修正/revert
       Transcription Whisper
       Frame Caption BLIP
-      Knowledge ノート/クリップ
+      Knowledge ノート/Webクリップ
       Downloader URL取込
+      HvLink 外部URLソース
       Cloud Sync クラウドバックアップ
-      Podcast 購読
+      Podcast RSS配信
     設定
-      言語切替 ja/en
-      テーマ
+      言語 ja/en
+      テーマ light/dark
       プロファイル ニックネーム
       ロック/アンロック
 ```
 
 ---
 
-## 3. Intelligence アドオン 検索の仕組み
+## 3. ファイル状態モデル
 
-`intelligence` アドオンは HomeVault の AI 軸の中核。5 チャネル並列検索とスコア融合、
-Ask による引用付き回答を提供する。
+ファイルは FS とユーザー操作の両方に影響を受けるため、3 つの状態を持つ。
+AI 生成データ（書き起こし・埋め込みベクトル・キャプション）は FS から再生成できないので、
+FS で一時的に見えなくなっても即削除しない設計になっている。
 
-### 3-1. インデックス時の流れ
+```mermaid
+stateDiagram-v2
+  [*] --> Active: アップロード / スキャンで発見
+  Active --> Trash: ユーザーが削除
+  Active --> Missing: スキャン時にFSで見つからない
+  Missing --> Active: FSに再出現（復活）
+  Missing --> [*]: ユーザーが明示的にパージ
+  Trash --> Active: 復元
+  Trash --> [*]: 30日経過で自動パージ or 手動パージ
+
+  note right of Missing
+    視聴履歴・タグ・AI生成データは保持
+    自動削除されない
+  end note
+  note right of Trash
+    FS上のファイルはそのまま残る
+    パージ時に初めて物理削除
+  end note
+```
+
+---
+
+## 4. Intelligence アドオン 検索の仕組み
+
+以降は技術者向けの詳細。`intelligence` アドオンは HomeVault の AI 軸の中核で、
+5 チャネル並列検索とスコア融合、Ask による引用付き回答を提供する。
+外部の技術者やオンボーディング向けに、採用技術と内部フローを示す。
+
+### 4-1. インデックス時の流れ
 
 ファイルが HomeVault にスキャンされると、webhook 経由で intelligence にタスクが流れ、
 優先度付きキュー＋種別ごとのワーカーで処理される。
@@ -250,7 +178,7 @@ flowchart TD
 
 **関連ファイル**: `addons/intelligence/app/indexer.py`, `workers/whisper.py`, `workers/clip.py`, `workers/metadata.py`, `database.py`
 
-### 3-2. 検索時の流れ（/search）
+### 4-2. 検索時の流れ（/search）
 
 クエリを 2 種類のベクトル化＋3 種類の FTS で並列検索し、モード別にスコア融合する。
 
@@ -283,7 +211,7 @@ flowchart TD
 
 **関連ファイル**: `addons/intelligence/app/search.py`, `embedder.py`
 
-### 3-3. Ask の流れ（/ask）
+### 4-3. Ask の流れ（/ask）
 
 `/search` の recall モードを内部で使い、LLM で引用付き回答を生成。
 citation は必ずホワイトリスト検証でハルシネーションを防ぐ。
@@ -315,7 +243,7 @@ flowchart TD
 
 **関連ファイル**: `addons/intelligence/app/rag/service.py`, `retriever.py`, `query_transform.py`, `parser.py`, `context.py`, `prompt.py`
 
-### 3-4. 使われている構成要素まとめ
+### 4-4. 使われている構成要素まとめ
 
 | 種別 | 採用技術 | 用途 |
 |---|---|---|
@@ -334,9 +262,9 @@ flowchart TD
 
 ## 使い方
 
-- **新機能追加の設計時**: 動線軸で似た機能がないか確認 → レイヤー軸でどのモジュールを触るか特定
-- **リファクタリング時**: レイヤー軸で肥大化したノードを探し、分割候補を議論
-- **アドオン設計時**: 動線軸の AI拡張 / 検索発見 に既存アドオンとの重複がないか確認
-- **ドキュメント更新時**: 新機能をここに 1 行追加 → `docs/FEATURES.md` 本文も更新
+- **このシステムで何ができるか知りたい**: セクション 1・2 を見れば十分。
+- **AI 検索の仕組みを知りたい（技術者・オンボーディング）**: セクション 4 を参照。
+- **新機能追加時**: セクション 2（動線軸）に既存と重複がないか確認し、あれば葉を 1 つ追加する。
 
-メンテのヒント: 機能を足したら葉を 1 つ追加するだけでよい。構造（ブランチ）は滅多に変えない。
+メンテのヒント: 構造（ブランチ）は滅多に変えない。機能を足したら葉を 1 つ追加するだけでよい。
+実装詳細は `docs/FEATURES.md` / `docs/ADDON-DEVELOPMENT.md` の側に置く。

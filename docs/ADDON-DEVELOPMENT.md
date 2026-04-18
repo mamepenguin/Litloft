@@ -354,7 +354,7 @@ Each route in the `routes` array:
 
 The core applies access control **after** proxying the response. Your service returns all results; the proxy removes unauthorized items.
 
-**`drive_access`** — Filter an array by drive name:
+**`drive_access`** — Filter an array by the caller's accessible-drive set:
 
 ```json
 {
@@ -364,7 +364,7 @@ The core applies access control **after** proxying the response. Your service re
 }
 ```
 
-Removes items from `response.results[]` where `item.drive` is not accessible.
+Removes items from `response.results[]` where `item.drive` is not in the caller's accessible set.
 
 **`drive_access_nested`** — Multiple nested arrays:
 
@@ -377,6 +377,18 @@ Removes items from `response.results[]` where `item.drive` is not accessible.
     }
 }
 ```
+
+**`current_drive_only`** — Strictly filter to the drive the caller is currently in. The proxy reads the validated `X-HV-Drive` header and keeps only items whose `drive_field` matches. Used by `scope=drive` addons to prevent cross-drive leakage even when the user has access to multiple drives:
+
+```json
+{
+    "type": "current_drive_only",
+    "array_path": "results",
+    "drive_field": "drive"
+}
+```
+
+**`current_drive_only_nested`** — Same as above but for multiple nested arrays (e.g. `citations` + `sources` for Ask).
 
 **`null`** — No filtering (status endpoints, etc.)
 
@@ -392,6 +404,28 @@ Removes items from `response.results[]` where `item.drive` is not accessible.
 ```
 
 Returns 404 before the request is proxied if the file doesn't exist or the drive is inaccessible.
+
+**`addon_feature`** — Gate a route behind a per-drive feature flag from `drives.json`:
+
+```json
+{
+    "type": "addon_feature",
+    "feature": "rag"
+}
+```
+
+Returns 404 if the drive's `addons.{addon_name}.{feature}` is `false` (or the umbrella `addons.{addon_name}` is `false`). The check reads the same data the core returns from `GET /api/internal/drive-policy` (see [Per-Drive Policy](#per-drive-policy)). Omitting the `drives.json` entry is treated as enabled (graceful degradation).
+
+**`admin`** — Require the caller's JWT to have every protected `access_group` declared in `drives.json` unlocked. Used for administrative endpoints like queue control and index status.
+
+### Route-Level Options
+
+| Field | Default | Meaning |
+|-------|---------|---------|
+| `drive_optional` | `false` for `scope=drive` addons, `true` for `scope=global` | Skip `X-HV-Drive` enforcement for this route (e.g. `<img>` tags that can't attach headers, or admin-context queries). Authorization must still be enforced via another pre_check |
+| `require_drive` | Inferred from scope | Force `X-HV-Drive` presence even when the route would otherwise be drive-optional |
+| `stream` | `false` | Binary passthrough (images, SSE, file streams) — the proxy forwards bytes verbatim without JSON filtering |
+| `addon_feature` | — | Shorthand for an `addon_feature` pre_check attached alongside a `file_access` pre_check on the same route |
 
 ### Docker Compose
 
@@ -425,7 +459,34 @@ services:
 }
 ```
 
-Available events: `scan.complete`, `files.deleted`, `files.restored`, `files.purged`
+Available events:
+
+| Event | When | Payload |
+|-------|------|---------|
+| `scan.complete` | Scanner finishes a drive scan | `{drive, stats}` |
+| `files.deleted` | File moved to trash | `{file_ids, drive}` |
+| `files.restored` | File restored from trash (also clears missing state) | `{file_ids, drive}` |
+| `files.missing` | Scanner detects a previously-indexed file is gone from FS | `{file_ids, drive}` |
+| `files.recovered` | Missing file reappears on FS | `{file_ids, drive}` |
+| `files.purged` | User explicitly deletes a file permanently (or 30-day trash auto-purge) — scan-triggered purges no longer fire this event | `{file_ids, drive}` |
+
+Event hooks are **drive-aware**: each listener entry may declare an `addon` + `feature`, and the core drops or strips payloads for drives whose policy disables that feature before forwarding:
+
+```json
+{
+    "hooks": {
+        "scan.complete": [
+            {
+                "url": "http://intelligence:8100/webhook/scan-complete",
+                "addon": "intelligence",
+                "feature": "index"
+            }
+        ]
+    }
+}
+```
+
+If the policy lookup fails, the event is forwarded (fail open); the addon-side worker should double-check with `GET /api/internal/drive-policy` for correctness.
 
 ### Internal API
 
@@ -434,10 +495,28 @@ For complex cases where declarative filters aren't sufficient, external services
 | Endpoint | Description |
 |----------|-------------|
 | `GET backend:8000/api/internal/accessible-drives` | Accessible drive names for the given auth token |
-| `GET backend:8000/api/internal/files/{file_id}` | File metadata (id, drive, filename, file_type) |
+| `GET backend:8000/api/internal/files/{file_id}` | File metadata (id, drive, filename, file_type, folder_path) |
 | `POST backend:8000/api/internal/filter-file-ids` | Filter file IDs by access control |
+| `GET backend:8000/api/internal/drive-policy?drive=&addon=` | Per-drive policy in `{default, features}` shape |
 
-Forward the original request's cookies when calling these endpoints so access control works correctly.
+Forward the original request's cookies (`hv_token`) when calling access-controlled endpoints so the core can evaluate the caller's unlocked groups correctly.
+
+#### Drive policy shape
+
+```json
+{
+    "default": true,
+    "features": { "rag": false, "auto_tags": true }
+}
+```
+
+- `default` is the fallback for any feature name not in `features`
+- `features[name]` overrides `default` for that specific feature
+- Silent drives (`drives.json` has no `addons` entry) → `{"default": true, "features": {}}`
+- Boolean shorthand (`"intelligence": false`) → `{"default": false, "features": {}}`
+- Returns 404 for unknown drive names (so addons can't probe via this endpoint)
+
+Cache the response for 30 seconds with fail-open semantics; drives.json changes require a container restart anyway.
 
 ---
 
@@ -463,9 +542,39 @@ Accessing an addon via a URL that doesn't match its scope returns 404 (e.g., a `
 
 The core rejects addons without a valid `scope`. The error is logged and the addon is excluded from the registry (the router may still be mounted but the addon won't appear in `/api/addons/status`, and no UI will show it).
 
-### Per-Drive Policy (future)
+### Drive Context Header (`X-HV-Drive`)
 
-Scope is the addon developer's **capability** declaration. A separate runtime **policy** layer (allowing operators to enable/disable addons per drive via `drives.json`) is out of scope for now but may be added later. Scope cannot be overridden by the operator; only the enable/disable toggle will be.
+For `scope=drive` (and `scope=both` routes invoked from a drive context), the frontend attaches an `X-HV-Drive: {drive-name}` header to every `/api/addons/{name}/...` call. The Generic Addon Proxy:
+
+1. Rejects requests missing the header with 400 when the route is not `drive_optional`.
+2. Percent-decodes the header value, then verifies the drive is in the caller's accessible set. Unknown or forbidden drives → 404.
+3. Forwards the validated header to the upstream service.
+
+Addon-side workers and handlers read the header directly — **addon developers never re-validate drive access themselves**. The header is authoritative because the host checked it. See `addons/intelligence/app/drive_context.py` for a reference implementation of `require_drive()` / `assert_file_in_drive()`.
+
+### Per-Drive Policy
+
+Operators disable addon features per drive in `drives.json`:
+
+```json
+{
+    "name": "Family",
+    "path": "/app/drives/family",
+    "addons": {
+        "intelligence": { "rag": false, "auto_tags": false },
+        "downloader": false
+    }
+}
+```
+
+The system enforces policy at two layers so a misconfigured addon cannot leak data:
+
+1. **Host-side proxy** — `addon_feature` pre_check short-circuits disabled routes as 404; `/api/addons/status?drive=` strips slot entries for disabled addons.
+2. **Addon-side workers** — Query `GET /api/internal/drive-policy?drive=&addon=` and no-op. Addon owners should also purge locally-stored data for drives whose umbrella `index` feature (by convention) is turned off — intelligence does this at startup by scanning its own index's distinct drives and calling `purge_drive()` for any the host reports as disabled.
+
+Silent entries default to enabled. drives.json is read once per process; a restart is required for policy changes to take effect.
+
+Scope is the addon developer's **capability** declaration and cannot be overridden by the operator — only the per-feature enable/disable toggle is configurable.
 
 ## UI Slot System
 
@@ -475,10 +584,12 @@ Addons can inject UI components into predefined **slots** in the core applicatio
 
 | Slot ID | Location | Layout | Use case |
 |---------|----------|--------|----------|
-| `search-modes` | GlobalSearch modal | Tabs | Semantic search, Q&A |
-| `file-detail-sections` | File detail panel | Vertical stack | Related files, AI tags, transcripts |
-| `dashboard-widgets` | Admin dashboard | Cards | Index statistics |
-| `folder-actions` | Folder toolbar | Inline buttons | Batch AI tags, folder-level actions |
+| `search-modes` | GlobalSearch modal | Tabs | Semantic search, Ask, other custom retrievers |
+| `file-detail-sections` | File detail panel | Vertical stack | Transcripts, similar files, suggested tags, summaries, knowledge notes |
+| `dashboard-widgets` | Admin dashboard | Cards | Index statistics, cloud sync status |
+| `folder-actions` | Folder toolbar | Inline buttons | Batch AI tags, batch summaries, batch transcript refine |
+| `sidebar-sections` | Sidebar | Stack | Knowledge Vault summary, per-addon shortcuts |
+| `hvlink-player` | File detail (external-source files) | Stack | Embedded player for URL-only files |
 
 ### Declaring Slots
 
@@ -593,6 +704,42 @@ async def on_startup() -> None:
     init_table()
 ```
 
+### WebSocket Event Naming
+
+When addons broadcast real-time state changes to the frontend via `manager.broadcast()` (in-process) or the core's WebSocket bridge (external service), use a stable dotted namespace so frontend subscribers can filter cleanly:
+
+```
+{addon_name}.{domain}.{verb}
+```
+
+Examples:
+
+| Event | Payload | Meaning |
+|-------|---------|---------|
+| `intelligence.suggested_tags.ready` | `{file_id, count}` | Auto-tag suggestions finished for a file |
+| `intelligence.detailed_summary.updated` | `{file_id, edited_at}` | User edited / reverted / regenerated the detailed summary |
+| `intelligence.detailed_summary.citations_ready` | `{file_id, citation_count, no_citation_count}` | Citation linking pass finished (after generation or edit) |
+
+Rules of thumb:
+- Prefix with the addon name so multiple addons can coexist without colliding.
+- Use **domain** (`detailed_summary`, `transcript`, `suggested_tags`) not route paths.
+- Use **verb** (`updated`, `ready`, `failed`) not HTTP methods. Past-tense is conventional.
+- Keep payload fields minimal and stable — prefer `{file_id}` over echoing the full resource; the frontend refetches if it needs details.
+
+### Per-Drive Policy Gating for State-Mutating Routes
+
+When an addon route writes or mutates addon state (edit, revert, regenerate, backfill, etc.), put the operation behind an `addon_feature` pre-check in the manifest rather than a bare `file_access` check. This ensures that turning the feature off in `drives.json` short-circuits writes with 404 before they reach the addon.
+
+Example from the intelligence manifest — detailed-summary edit / revert / regenerate all guard on `detailed_summaries`:
+
+```json
+{"path": "/files/{file_id}/summary/detailed/section",   "methods": ["PUT"],  "pre_check": {"type": "addon_feature", "feature": "detailed_summaries"}}
+{"path": "/files/{file_id}/summary/detailed/revert",    "methods": ["POST"], "pre_check": {"type": "addon_feature", "feature": "detailed_summaries"}}
+{"path": "/files/{file_id}/summary/detailed/regenerate","methods": ["POST"], "pre_check": {"type": "addon_feature", "feature": "detailed_summaries"}}
+```
+
+Read-only observation routes on the same resource (`GET /files/{id}/summary/detailed/citations`, `GET /files/{id}/summary/detailed`) can use `file_access` alone so existing cached data remains visible if the feature is later disabled — in that case the addon-side purge-on-startup (see [DRIVE-POLICY.md](DRIVE-POLICY.md)) is the source of truth for eventual cleanup.
+
 ---
 
 ## Sidebar Icon Reference
@@ -693,12 +840,13 @@ If anything referenced your addon after step 3, you've accidentally leaked addon
 
 ## Existing Addons
 
-| Addon | Type | Description |
-|-------|------|-------------|
-| `downloader` | In-process | Download videos via yt-dlp |
-| `cloud-sync` | In-process | Sync drives with cloud storage via rclone |
-| `podcast` | In-process | Generate RSS feeds from folders |
-| `intelligence` | External service | Semantic search, CLIP analysis, Whisper transcription, LLM auto-tags, BLIP captioning, Ask |
+| Addon | Type | Scope | Description |
+|-------|------|-------|-------------|
+| `downloader` | In-process | `drive` | yt-dlp downloads + HvLink external-URL mode |
+| `cloud-sync` | In-process | `global` | rclone backup to cloud storage (admin-only) |
+| `podcast` | In-process | `drive` | Generate RSS feeds from folders |
+| `intelligence` | External service | `drive` | Semantic search, Ask, AI summaries, transcript refine, Whisper, CLIP, BLIP, auto-tags |
+| `knowledge` | External service | `drive` | Markdown note Vaults, web clipping, per-file notes |
 
 ---
 
@@ -795,9 +943,55 @@ Generates English text descriptions of images/video frames. Used as context for 
 | `search-modes` / `semantic-search` | `SemanticSearchSlot` | Semantic search tab in global search |
 | `search-modes` / `ask` | `AskSearchMode` | Natural-language Q&A over indexed files with citations |
 | `file-detail-sections` / `suggested-tags` | `SuggestedTagsSection` | AI tag suggestions with approve/dismiss |
-| `file-detail-sections` / `transcript` | `TranscriptSection` | Whisper transcription display |
+| `file-detail-sections` / `summary` | `SummarySection` | Short + long AI summary with edit/revert |
+| `file-detail-sections` / `detailed-summary` | `DetailedSummarySection` | Long-form Markdown summary (manual trigger) with auto-linked citations and inline section editing |
+| `file-detail-sections` / `transcript` | `TranscriptSection` | Whisper transcript with per-file refine / revert |
 | `file-detail-sections` / `clip-frames` | `ClipFramesSection` | CLIP frame analysis |
 | `file-detail-sections` / `index-details` | `IndexDetailsSection` | Per-file index status |
 | `file-detail-sections` / `similar-files` | `SimilarFilesSection` | Visually similar files |
 | `dashboard-widgets` / `index-status` | `IndexStatusWidget` | Index statistics on admin dashboard |
 | `folder-actions` / `folder-auto-tags` | `FolderAutoTagsButton` | Batch AI tag generation for folder |
+| `folder-actions` / `folder-summaries` | `FolderSummariesButton` | Batch summary generation for folder |
+| `folder-actions` / `folder-refine-transcripts` | `FolderRefineButton` | Batch transcript refine for folder |
+
+For a narrative operator-focused walkthrough (feature flags, LLM providers, memory tuning, eval harness), see [INTELLIGENCE.md](INTELLIGENCE.md).
+
+---
+
+## Knowledge Addon Reference
+
+External service (`./addons/knowledge`, port 8200, scope=drive).
+
+### Docker Setup
+
+```yaml
+services:
+  knowledge:
+    build: ./addons/knowledge
+    expose: ["8200"]
+    volumes:
+      - ./data/addons/knowledge:/knowledge-data
+    environment:
+      - HOMEVAULT_INTERNAL_URL=http://backend:8000
+    depends_on:
+      backend:
+        condition: service_healthy
+    restart: unless-stopped
+
+  backend:
+    environment:
+      - KNOWLEDGE_SERVICE_URL=http://knowledge:8200
+```
+
+### UI Slots Provided
+
+| Slot | Component | Description |
+|------|-----------|-------------|
+| `sidebar-sections` / `knowledge-vault-summary` | `KnowledgeVaultSummary` | Active Vault badge + quick actions |
+| `file-detail-sections` / `knowledge-edit` | `KnowledgeEditSection` | Inline Markdown editor for per-file notes |
+
+### Data Model
+
+- **Vaults**: named collections of notes (one active per drive at a time)
+- **Notes**: Markdown documents, optionally attached to a core `File` row
+- **Clips**: web-clipped pages saved from the browser extension or `/clips/pasted` endpoint
