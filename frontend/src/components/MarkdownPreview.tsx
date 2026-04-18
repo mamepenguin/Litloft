@@ -183,7 +183,7 @@ export function MarkdownPreview({
   const frontmatterEntries = Object.entries(frontmatter);
   const bodyClass = `markdown-body ${
     chrome
-      ? `overflow-auto px-6 py-4 text-sm leading-relaxed text-text-primary${className ? ` ${className}` : " max-h-[80vh]"}`
+      ? `mx-auto max-w-[860px] overflow-auto px-6 py-6 text-sm leading-relaxed text-text-primary${className ? ` ${className}` : " max-h-[80vh]"}`
       : className ?? ""
   }`.trim();
 
