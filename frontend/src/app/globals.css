@@ -53,7 +53,7 @@
   --focus-ring: #617bff;
   --danger: #ff8a8a;
   --danger-bg: rgba(255, 45, 66, 0.12);
-  --highlight-bg: rgba(244, 198, 116, 0.22);
+  --highlight-bg: rgba(244, 198, 116, 0.55);
   --kbd-shadow: inset 0 -1px 0 rgba(255, 255, 255, 0.2);
   color-scheme: dark;
 }
@@ -108,7 +108,7 @@
     --focus-ring: #617bff;
     --danger: #ff8a8a;
     --danger-bg: rgba(255, 45, 66, 0.12);
-    --highlight-bg: rgba(244, 198, 116, 0.22);
+    --highlight-bg: rgba(244, 198, 116, 0.55);
     --kbd-shadow: inset 0 -1px 0 rgba(255, 255, 255, 0.2);
     color-scheme: dark;
   }

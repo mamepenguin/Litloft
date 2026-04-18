@@ -128,6 +128,10 @@
       "pageLabel": "p.{page}",
       "jump": "ジャンプ"
     },
+    "inline": {
+      "label": "引用の抜粋",
+      "close": "閉じる"
+    },
     "edit": {
       "button": "編集",
       "save": "保存",
