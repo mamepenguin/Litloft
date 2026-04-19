@@ -453,3 +453,37 @@ a per-segment-type breakdown.
 - **Headings beyond H3.** The parser tracks H2 + H3 only. H4+
   are flattened into paragraphs (intentional — prevents
   `section_path` churn).
+- **Claim paragraph vs its own example bullets.** When an H3
+  section contains a generalising paragraph followed by example
+  bullets (e.g. "リメイクでは直前作のシステムを流用する傾向がある"
+  followed by year-by-year example bullets), the paragraph itself
+  tends to land on the first example chunk instead of the claim
+  chunk. Dense embeddings prefer chunks with concrete proper nouns
+  / numbers over abstract claims, so a summary claim ends up
+  citing the same chunk as its sibling example bullet — producing
+  UI redundancy. The intra-H3 "claim → example" hierarchy is not
+  modelled; DP only separates sibling H3s. Observable in the
+  citation eval at `詳細内容/6 → chunk 5` instead of the expected
+  `chunk 4` (case 004).
+- **Compound bullets with many sub-anchors.** A bullet that
+  summarises multiple instructions / facts (e.g.
+  "洗って芯を切り落とし、葉と芯を分けて千切りにする" — four
+  kitchen operations) forces top-1 to choose one of the
+  sub-anchors arbitrarily. Even when dense retrieval finds the
+  correct section, which specific chunk wins is under-determined;
+  it often snaps to a neighbouring "theme" chunk whose register
+  (declarative) matches the summary, rather than the instructional
+  chunks in imperative register. Fix requires either multi-anchor
+  UI (show top-k of a segment, each pointing at a different
+  sub-concept) or a parser that splits compound bullets into
+  sub-segments.
+- **Score-based thresholding alone can't fix location errors.**
+  In the current eval (2026-04-19), 5/6 location errors fall in
+  the 0.88–0.93 `top_score` band — the same band that contains
+  the majority of *correct* citations. Raising `citation_threshold`
+  would discard real citations without catching the wrong-location
+  ones. Moving beyond the two-state citation/⚠ UI requires either
+  fixing retrieval structurally (above points) or exposing
+  confidence as a multi-level signal in the UI so the user can see
+  "strongly sourced" vs "weakly sourced" citations. Baseline
+  reference: `addons/intelligence/evals/citations/reports/baseline.md`.
