@@ -282,7 +282,10 @@ punctuation (``、 。 ・ ， , ； ;``) and keeps each fragment that has
 at least `citation_multi_anchor_min_len` characters AND one salient
 token. When the split yields two or more usable fragments,
 `_multi_anchor_retrieve` runs retrieval **per sub-segment** inside
-the same `section_range` and unions the results by max score.
+the same `section_range`. The multi-anchor pool is then unioned
+with the baseline joined-text retrieval by **max score** — each
+chunk keeps the higher of "its rank in baseline" and "its rank in
+multi" — and the top-K of the union is taken.
 
 ```
 bullet: "洗って芯を切り落とし、千切りにする"
@@ -290,16 +293,23 @@ bullet: "洗って芯を切り落とし、千切りにする"
   ├── sub1: "洗って芯を切り落とし"  → retrieve → [ch10@0.85, ch9@0.82]
   └── sub2: "千切りにする"          → retrieve → [ch13@0.82, ch15@0.80]
 
-baseline joined retrieve (kept for padding) → [ch9@0.93]
+baseline joined retrieve                       → [ch9@0.93]
 
-multi wins the top slots (its top-1 is each sub-anchor's best match):
-  final = [ch10, ch9 (from baseline/multi), ch13, ch15][:top_k]
+union by max:  ch9  = max(0.93, 0.82) = 0.93
+               ch10 = 0.85
+               ch13 = 0.82
+               ch15 = 0.80
+top-K:         [ch9, ch10, ch13]
 ```
 
-Multi's ordering takes precedence so the top-1 goes to the best per-
-sub-segment match; baseline-only chunks fill any leftover top-K slot
-so recall@3 doesn't regress when the joined embed found a weak
-multi-anchor signal no single sub-segment ranks highly.
+Max-score union is the approach that measured no per-segment
+regression on the curated eval cases: the priority-padding variant
+(multi's ordering fully occupying the top slots, baseline chunks
+padding tail) gave a higher top-1 but pushed a correctly-found
+baseline chunk out of the top-K on one bullet whose 「」-bracketed
+sub-anchors weren't captured by the CJK-punctuation split. Union
+keeps both signals in the pool and lets score ordering arbitrate —
+less aggressive but additive in practice.
 
 Skipped unconditionally:
 
