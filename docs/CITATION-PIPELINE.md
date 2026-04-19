@@ -277,10 +277,25 @@ dense retrieval ends up matching a neighbouring "theme" chunk whose
 register (declarative summary) matches rather than the imperative
 chunks where each individual sub-anchor lives.
 
-**Fix.** `_split_compound_segment` splits the bullet on CJK
-punctuation (``、 。 ・ ， , ； ;``) and keeps each fragment that has
-at least `citation_multi_anchor_min_len` characters AND one salient
-token. When the split yields two or more usable fragments,
+**Fix.** `_split_compound_segment` tries two extraction strategies
+in order:
+
+1. **Corner-bracket extraction (strong signal).** When the bullet
+   contains two or more 「...」 pairs, the inner text of each pair
+   is extracted as its own sub-anchor. 「」is the marker the summary
+   author explicitly chose to delimit parallel anchors with — it's
+   a stronger signal than any sentence-level punctuation, so it
+   takes precedence. The inner-content filter is intentionally
+   looser (length ≥ 2 chars, no salient-token requirement) because
+   「」itself validates anchor-hood; a hiragana adjective like
+   「わかりやすさ」 enumerated beside 「明るさ」「清潔感」is a valid
+   anchor even without kanji/katakana tokens.
+
+2. **Punctuation split (fallback).** When fewer than two 「...」 pairs
+   exist, the bullet is split on CJK punctuation
+   (``、 。 ・ ， , ； ;``) and each fragment is kept when it has
+   at least `citation_multi_anchor_min_len` characters AND one
+   salient token. When the split yields two or more usable fragments,
 `_multi_anchor_retrieve` runs retrieval **per sub-segment** inside
 the same `section_range`. The multi-anchor pool is then unioned
 with the baseline joined-text retrieval by **max score** — each
