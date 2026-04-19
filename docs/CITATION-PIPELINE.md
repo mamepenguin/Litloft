@@ -397,6 +397,66 @@ Bypass: if top1 is already strong (≥ bypass), a close runner-up
 just means the segment has multiple legitimate sources and we keep
 the citation.
 
+## Stage 5: Multi-tier confidence display (UI)
+
+The pipeline above decides *whether* a segment has a citation
+(`has_citation`) and *what* it cites (`chunk_ids`). Stage 5 exposes
+*how confident* that citation is, by splitting the surviving
+`has_citation=True` bucket into two tiers based on `top_score`.
+
+```
+has_citation = True
+    ├── top_score ≥ 0.90  → "strong"  (solid Link2 icon)
+    └── top_score < 0.90  → "weak"    (dashed Link2 icon)
+has_citation = False      → "missing" (AlertTriangle icon)
+```
+
+The threshold `0.90` is hard-coded in the frontend at
+`CITATION_STRONG_THRESHOLD` (see
+`addons/intelligence/frontend/DetailedSummaryCitationPopover.tsx`).
+It is not a `SummariesConfig` key because the calibration it
+encodes is tied to the embedding model, not to per-drive policy.
+
+### Why two tiers, not three
+
+Eval baseline 2026-04-19 (N=69, ruri-v3-30m) showed that the
+distribution of `offset_at_top1` by `top_score` band is roughly:
+
+| top_score band | n | hit@0 | mean offset |
+|---|---:|---:|---:|
+| ≥0.90 | 43 | 86.0% | 0.44 |
+| [0.85, 0.90) | 16 | 68.8% | 0.62 |
+| [0.80, 0.85) | 9 | 66.7% | 2.22 |
+| [0.70, 0.80) | 1 | 0.0% | 9.00 |
+
+The jump from `<0.90` to `≥0.90` is ~17 pp. The two sub-bands
+under 0.90 differ by only 2 pp, so separating them as distinct
+tiers buys no decision-relevant signal. Two tiers (strong / weak)
+capture the calibration; three (strong / medium / weak) just
+multiply UI states without giving the reader more to act on.
+
+### Why a shape difference and not a new colour
+
+`--accent-amber` is already reserved for the "AI-generated,
+suggestion-pending" state token (hako
+`t99NRFCPB31kJMqtwgFH9`). Reusing it for "weak citation" would
+erode the semantic. `--accent-teal` continues to mean "citation",
+and the weak/strong split is carried entirely by stroke shape
+(`[stroke-dasharray:2_1.5]` on the Link2 icon). This keeps the
+colour palette stable and lets colour-vision-variant users
+distinguish tiers by shape alone.
+
+### What this doesn't solve
+
+Score-based UI cannot fix retrieval location errors that live at
+*high* top_score. Case `010_press_weather_agency_numeric 2./3`
+has `top_score=0.90` but `offset=11` — it is a *strong*-tier
+citation that still points at the wrong chunk. The remaining
+structural fixes (intro-applause snap, claim-vs-example) are the
+channel for those. Stage 5 is for surfacing information the
+retriever already has, not for inventing accuracy the retriever
+doesn't.
+
 ## End-to-end walkthrough
 
 Consider segment *"と続き、リメイクの評価も回を重ねるごとに高まっていると述べている"*
@@ -565,9 +625,10 @@ a per-segment-type breakdown.
   remaining location errors sit in the 0.88–0.93 `top_score` band —
   the same band that contains the majority of *correct* citations.
   Raising `citation_threshold` would discard real citations without
-  catching the wrong-location ones. Moving beyond the two-state
-  citation/⚠ UI requires either fixing retrieval structurally
-  (above points) or exposing confidence as a multi-level signal in
-  the UI so the user can see "strongly sourced" vs "weakly sourced"
-  citations. Baseline reference:
+  catching the wrong-location ones. Stage 5 (multi-tier confidence
+  UI, shipped 2026-04-20) exposes the strong/weak split to the
+  reader so they can triage, but it cannot invent accuracy the
+  retriever doesn't have. Structural retrieval fixes
+  (intro-applause snap, claim-vs-example) are the channel for
+  cutting high-score location errors. Baseline reference:
   `addons/intelligence/evals/citations/reports/baseline.md`.
