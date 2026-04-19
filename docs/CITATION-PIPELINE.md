@@ -263,6 +263,55 @@ With margin 2:    [── sec1 ──]
 The cost is a few more candidate chunks per segment, which the
 per-segment retrieval still ranks cleanly.
 
+## Stage 2c: Compound-bullet multi-anchor split
+
+Some bullets carry several sub-anchors on one line:
+
+```
+- 洗って芯を切り落とし、葉と芯を分けて千切りにする。
+- にんじんは3本、手元の分量でもよい。
+```
+
+A single embedding of the joined text blurs across the sub-anchors;
+dense retrieval ends up matching a neighbouring "theme" chunk whose
+register (declarative summary) matches rather than the imperative
+chunks where each individual sub-anchor lives.
+
+**Fix.** `_split_compound_segment` splits the bullet on CJK
+punctuation (``、 。 ・ ， , ； ;``) and keeps each fragment that has
+at least `citation_multi_anchor_min_len` characters AND one salient
+token. When the split yields two or more usable fragments,
+`_multi_anchor_retrieve` runs retrieval **per sub-segment** inside
+the same `section_range` and unions the results by max score.
+
+```
+bullet: "洗って芯を切り落とし、千切りにする"
+  │
+  ├── sub1: "洗って芯を切り落とし"  → retrieve → [ch10@0.85, ch9@0.82]
+  └── sub2: "千切りにする"          → retrieve → [ch13@0.82, ch15@0.80]
+
+baseline joined retrieve (kept for padding) → [ch9@0.93]
+
+multi wins the top slots (its top-1 is each sub-anchor's best match):
+  final = [ch10, ch9 (from baseline/multi), ch13, ch15][:top_k]
+```
+
+Multi's ordering takes precedence so the top-1 goes to the best per-
+sub-segment match; baseline-only chunks fill any leftover top-K slot
+so recall@3 doesn't regress when the joined embed found a weak
+multi-anchor signal no single sub-segment ranks highly.
+
+Skipped unconditionally:
+
+- **Table rows** (`segment.cells is not None`) — per-cell pooling in
+  `_pool_cell_vectors` already handles multi-cell semantics.
+- **Paragraphs** — claim-vs-example bias on paragraphs is a separate
+  structural problem and a list-style `、` in a paragraph should not
+  fire the split.
+
+When the split yields 0-1 usable fragments, the caller falls through
+to the single-embedding path and nothing changes.
+
 ## Stage 3: Per-segment retrieval (hybrid)
 
 Given a segment and its section range, retrieve candidate chunks.
@@ -390,6 +439,13 @@ These all live in `SummariesConfig`. Defaults are what you get if
 | `citation_section_alignment_enabled` | `true` | DP master switch. `false` = pool + cluster detection always. |
 | `citation_section_boundary_margin` | 2 | DP-assigned ranges get expanded by this many chunks on each side. |
 
+### Stage 2c (compound-bullet split)
+
+| Key | Default | Role |
+|---|---|---|
+| `citation_multi_anchor_enabled` | `true` | Master switch for the bullet split. `false` = always use the joined-text embedding. |
+| `citation_multi_anchor_min_len` | 4 | Minimum character length for a sub-fragment to survive the split. Shorter fragments over-match; dropping them means the parent bullet's full text stays the sole anchor for that content. |
+
 ### Stage 3 (per-segment retrieval)
 
 | Key | Default | Role |
@@ -468,22 +524,25 @@ a per-segment-type breakdown.
 - **Compound bullets with many sub-anchors.** A bullet that
   summarises multiple instructions / facts (e.g.
   "洗って芯を切り落とし、葉と芯を分けて千切りにする" — four
-  kitchen operations) forces top-1 to choose one of the
-  sub-anchors arbitrarily. Even when dense retrieval finds the
-  correct section, which specific chunk wins is under-determined;
-  it often snaps to a neighbouring "theme" chunk whose register
-  (declarative) matches the summary, rather than the instructional
-  chunks in imperative register. Fix requires either multi-anchor
-  UI (show top-k of a segment, each pointing at a different
-  sub-concept) or a parser that splits compound bullets into
-  sub-segments.
+  kitchen operations) used to force top-1 to choose one sub-anchor
+  arbitrarily. Stage 2c now splits on CJK punctuation and retrieves
+  per sub-segment, which recovers compound bullets that use explicit
+  list separators. The remaining failure mode is compound bullets
+  that hold their sub-anchors inside corner brackets 「 」 or rely
+  on non-punctuation connectives (conjunctive particles, parallel
+  助詞); those are not split and still hit the under-determined
+  top-1. Also note that when the correct chunk's wording diverges
+  heavily from the summary wording (e.g. ASR mis-transcribed a
+  proper noun), splitting doesn't help — the issue is retrieval-
+  side script / orthography mismatch, not multi-anchor.
 - **Score-based thresholding alone can't fix location errors.**
-  In the current eval (2026-04-19), 5/6 location errors fall in
-  the 0.88–0.93 `top_score` band — the same band that contains
-  the majority of *correct* citations. Raising `citation_threshold`
-  would discard real citations without catching the wrong-location
-  ones. Moving beyond the two-state citation/⚠ UI requires either
-  fixing retrieval structurally (above points) or exposing
-  confidence as a multi-level signal in the UI so the user can see
-  "strongly sourced" vs "weakly sourced" citations. Baseline
-  reference: `addons/intelligence/evals/citations/reports/baseline.md`.
+  In the current eval (baseline 2026-04-19, post-Stage-2c), most
+  remaining location errors sit in the 0.88–0.93 `top_score` band —
+  the same band that contains the majority of *correct* citations.
+  Raising `citation_threshold` would discard real citations without
+  catching the wrong-location ones. Moving beyond the two-state
+  citation/⚠ UI requires either fixing retrieval structurally
+  (above points) or exposing confidence as a multi-level signal in
+  the UI so the user can see "strongly sourced" vs "weakly sourced"
+  citations. Baseline reference:
+  `addons/intelligence/evals/citations/reports/baseline.md`.
