@@ -179,19 +179,43 @@ summaries:
   window_count: 3              # first / middle / last (odd numbers recommended)
   citation_threshold: 0.55     # detailed-summary citation similarity floor
   citation_top_k: 3            # detailed-summary citation candidates per segment
+  citation_hybrid_enabled: true  # BM25 rerank over dense KNN candidates
+  citation_top_k_internal: 10    # candidate pool size for hybrid retrieval
+  citation_rrf_k: 60             # RRF fusion constant (standard IR value)
+  citation_section_anchor_enabled: true   # hierarchical top-down narrowing via section content
+  citation_section_range_top_m: 12        # chunks defining the range at each level
+  citation_section_narrow_threshold: 0.5  # cosine floor for narrowing deeper
+  citation_section_cluster_gap: 5         # split top-M into clusters by this index gap
+  citation_section_cluster_union_ratio: 0.8  # union runner-up cluster when this close
+  citation_section_discriminative_enabled: true  # rank chunks by edge over sibling sections
+  citation_section_disc_margin: 0.01      # minimum edge over best sibling to keep a chunk
+  citation_section_alignment_enabled: true  # Viterbi monotonic DP for 2+ sibling sections
+  citation_section_boundary_margin: 2     # expand each DP section range by N chunks each side
+  citation_margin_gate: 0.05              # flip ⚠ when top1-top2 gap is this small
+  citation_margin_bypass_score: 0.75      # top1 >= this skips margin gate
 ```
 
 Detailed summaries (`detailed_summaries`) are generated asynchronously and polled via `GET /files/{id}/summary/detailed` (status `generating` → `generated`). The generated Markdown is also downloadable at `/files/{id}/summary/detailed.md`.
 
 ### Detailed-summary citations (hallucination guard)
 
-Every detailed summary is parsed into bullets / paragraphs and each segment is embedded and matched against transcript / document chunks of the **same file** using the existing `text_embedding` model:
+Every detailed summary is parsed into bullets / paragraphs / table rows and each segment is matched against transcript / document chunks of the **same file** using a three-layer hybrid retrieval:
+
+1. **Section anchoring (DP alignment + discriminative scoring)** — when `citation_section_anchor_enabled: true`, every `##` / `###` prefix above the segment defines a section. For each prefix the embeddings of all segments under it are pooled. Each chunk's score for that section is then computed as **discriminative cosine** (`citation_section_discriminative_enabled: true`): `cos(chunk, this_pool) - max(cos(chunk, sibling_pool))`. This is the fix for "the whole video shares one topic" (e.g. a recipe video where every chunk mentions cooking): absolute cosine can't distinguish sibling recipes, but the relative edge over the best sibling can. When a parent prefix has **two or more sibling prefixes with usable pools** (`citation_section_alignment_enabled: true`), the discriminative emissions feed a **monotonic Viterbi DP** that assigns each chunk to exactly one section subject to the summary's section order (no backward, no skip). Each section's range is `[min, max]` of its DP-assigned chunks, expanded by `citation_section_boundary_margin` on each side so transition chunks are shared with neighbors. For single-sibling or disabled DP, the code falls back to pool + cluster detection: surviving top-M chunks are split into contiguous clusters by `citation_section_cluster_gap`; the strongest cluster by total score defines the range, with runners-up within `citation_section_cluster_union_ratio` merged. Each prefix resolves **independently of its parent** — a parent prefix does not constrain its children. This keeps a structural parent like `## 詳細内容` (a container of unrelated recipe H3s) from dragging every child section into whichever zone its average pool happens to score on. Segments look up the deepest prefix's range directly; prefixes don't inherit from one another. A prefix whose pool fails to match distinctively maps to `None` (full-file search for its segments). Files without `##` / `###` structure degrade gracefully to full-file retrieval.
+2. **Dense candidate pool** — the segment is embedded with the shared `text_embedding` model and a pool of `citation_top_k_internal` (default 10) chunks is pulled via sqlite-vec KNN, limited to the anchored chunk range when one is available. Table rows with two or more cells pool per-cell embeddings so header labels don't drown out numeric values (the "保存期間 | 3 日" case). If the anchored range produces zero candidates (heading anchored wrong), retry without the range so no segment is dropped solely because of bad anchoring.
+3. **BM25 rerank** — when `citation_hybrid_enabled: true`, salient tokens from the segment (kanji runs, katakana, proper nouns, `<number><unit>` pairs) are fed to FTS5 over `fts_transcripts` / `fts_text_content`, same anchored range. The BM25 ranks are RRF-fused with the dense ranks (constant `citation_rrf_k`) and the dense pool is reordered; BM25-only candidates are dropped so the stored `top_score` is still the dense cosine.
+
+**Margin gate**: after fusion, if `top1_score - top2_score < citation_margin_gate` (and `top1_score < citation_margin_bypass_score`), the segment flips to `has_citation = False`. This catches low-confidence picks where several candidates look comparably close — typical when an abstract bullet doesn't really match any single chunk, or when a table row's content spans multiple transcript locations (material mentioned at 5:30, storage at 12:40, variation at 18:00) and no single chunk covers the whole row. Showing ⚠ is more honest than pointing at one of them confidently.
+
+Final interpretation:
 
 - Top-1 cosine similarity `>= citation_threshold` → surfaced as a clickable link badge in the UI; the hover-card shows a ±100 char excerpt (served from `GET /files/{id}/chunks/{chunk_id}/excerpt`) and a "jump" control that reuses the existing transcript seek integration for video/audio
 - Top-1 `< citation_threshold` → rendered with a ⚠ "no strong source" marker, giving the user a visible hallucination warning
 - `citation_top_k` (default 3) candidates are stored per segment; the UI can cycle through them
 
-Tuning tips: if ⚠ appears on obviously grounded bullets, lower `citation_threshold`; if hallucinated bullets have no warning, raise it. The threshold is embedding-model dependent — re-tune when swapping `models.text_embedding`.
+Tuning tips: if ⚠ appears on obviously grounded bullets, lower `citation_threshold`; if hallucinated bullets have no warning, raise it. The threshold is embedding-model dependent — re-tune when swapping `models.text_embedding`. Disable `citation_hybrid_enabled` if BM25 introduces lexically-close-but-semantically-wrong hits on a specific corpus.
+
+Precision is measurable via the citation eval harness: `python -m app.evals_citations` scores curated ground-truth cases and reports per-segment-type top-1 accuracy + recall@3 + has_citation precision. See `addons/intelligence/evals/citations/README.md`.
 
 A one-off backfill script (`addons/intelligence/scripts/backfill_detailed_citations.py`) regenerates citations for summaries created before this feature shipped.
 
