@@ -60,11 +60,12 @@ frontend/
     addons/          # Addon frontend components
   server.js          # Custom Server (WebSocket proxy)
 
-addons/              # Addons (independent Git repositories)
-  cloud-sync/
-  downloader/
-  podcast/
-  intelligence/
+addons/              # Addons (independent Git repositories, not tracked here)
+  cloud-sync/        # rclone-based cloud backup (scope=global)
+  downloader/        # yt-dlp + HvLink external URLs (scope=drive)
+  podcast/           # RSS feed generation (scope=drive)
+  intelligence/      # Semantic search, Ask, summaries, Whisper (external service, scope=drive)
+  knowledge/         # Markdown Vaults + web clipping (external service, scope=drive)
 
 docs/                # Documentation
 deploy/              # Deploy scripts
@@ -132,10 +133,13 @@ No `.env` files are used. Configuration is managed through:
 
 | Config | Method | Description |
 |--------|--------|-------------|
-| Drives | `drives.json` | Storage paths, names, readonly, access_group |
+| Drives | `drives.json` | Storage paths, names, readonly, access_group, per-drive addon policy |
 | Access control | `passwords.json` | Password-to-group mappings |
-| Event hooks | `event-hooks.json` | Addon event notification URLs |
+| Event hooks | `event-hooks.json` | Addon event notification URLs (listener may declare `addon`/`feature` for drive-aware filtering) |
 | Docker env | `docker-compose.yml` | `DRIVES_CONFIG`, `PASSWORDS_CONFIG`, `DATA_DIR` |
+| Addon services | `docker-compose.override.yml` | External addon containers and per-container env (e.g. `INTELLIGENCE_SERVICE_URL`, `KNOWLEDGE_SERVICE_URL`) |
+
+See [DRIVE-POLICY.md](DRIVE-POLICY.md) for the `drives.json` `addons` field and how per-drive toggles propagate through the system.
 
 ## Coding Conventions
 
@@ -161,12 +165,32 @@ No `.env` files are used. Configuration is managed through:
 
 See [ADDON-DEVELOPMENT.md](ADDON-DEVELOPMENT.md) for the full addon development guide, including:
 
-- In-process vs external service addons
-- UI slot system (search-modes, file-detail-sections, dashboard-widgets, folder-actions)
+- In-process vs external service addons and the clean-separation principle
+- Scope capability (`drive` / `global` / `both`) and per-drive policy
+- UI slot system (search-modes, file-detail-sections, dashboard-widgets, folder-actions, sidebar-sections, hvlink-player)
 - `AddonSlot` component with lazy loading and addon name validation
-- Generic Addon Proxy with declarative access control filters
-- Internal API for external service addons
+- Generic Addon Proxy: `drive_access` / `current_drive_only` / `addon_feature` / `file_access` / `admin`
+- `X-HV-Drive` header contract
+- Internal API for external service addons (accessible-drives, files, filter-file-ids, drive-policy)
 - Core API surface and rules for in-process addons
+
+For operator-side documentation on per-drive policy, see [DRIVE-POLICY.md](DRIVE-POLICY.md). For an intelligence-addon operations walkthrough (feature flags, LLM providers, memory tuning, eval harness), see [INTELLIGENCE.md](INTELLIGENCE.md).
+
+### Addon Test Runs
+
+Each external addon ships its own `Dockerfile.test` and can be tested in isolation:
+
+```bash
+# Intelligence addon tests
+docker build -f addons/intelligence/Dockerfile.test -t intelligence-test addons/intelligence
+docker run --rm intelligence-test
+
+# Knowledge addon tests
+docker build -f addons/knowledge/Dockerfile.test -t knowledge-test addons/knowledge
+docker run --rm knowledge-test
+```
+
+In-process addons are exercised by the core backend test image (`backend/Dockerfile.test`) because their code is copied alongside `app/`.
 
 ## Git Workflow
 

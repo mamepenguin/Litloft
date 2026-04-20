@@ -171,7 +171,7 @@
 ### トランスクリプト AI 修正（Transcript Refine）
 - **概要**: Whisper / HvLink 由来の ASR トランスクリプトの誤認識を LLM でバッチ修正。原文は `TranscriptChunk.text_original` に保持し、いつでも revert 可能
 - **フィーチャーフラグ**: `features.transcript_refine` の 3モード（`"false"` / `"manual"` / `"on_index"`）。デフォルト無効
-- **粒度**: chunks 単位で LLM を適用 → words は元の区間内で時間比例に再アライメント → embedding は修正後テキストで同期再計算
+- **粒度**: chunks 単位で LLM を適用 → words は WhisperX の wav2vec2 forced alignment で音響ベース再アライメント（CJK は文字単位、他は単語単位） → embedding は修正後テキストで同期再計算。aligner 失敗時（音声欠損 / 言語非対応 / OOM）は words 旧行を保持するフォールバック（時間比例版は廃止）
 - **UI**: ファイル詳細の TranscriptSection に refine/revert ボタン + 修正済み badge。フォルダツールバーには `folder-refine-transcripts` スロット経由でバッチ実行ボタン
 - **セキュリティ考慮**: トランスクリプト全文が LLM API に送信される。プライバシー重視ならローカル LLM（ollama）推奨
 - **設計スペック**: `docs/superpowers/specs/2026-04-15-intelligence-transcript-refine.md`

@@ -169,10 +169,15 @@ frontend:
 | Target | Contents | Priority |
 |--------|----------|----------|
 | `data/` | SQLite DB + thumbnails + JWT secret | Required |
-| `drives.json` | Drive configuration | Required |
+| `data/addons/intelligence/` | Whisper transcripts, CLIP vectors, suggested tags, summaries | If using intelligence addon |
+| `data/addons/knowledge/` | Markdown Vaults and notes | If using knowledge addon |
+| `drives.json` | Drive configuration (incl. per-drive addon policy) | Required |
 | `passwords.json` | Access control config | If configured |
 | `event-hooks.json` | Event hook config | If using addons |
 | `docker-compose.override.yml` | Addon Docker config | If using addons |
+| `addons/intelligence/search-config.yml` | Intelligence feature flags + LLM config | If using intelligence addon |
+| `addons/cloud-sync/sync-config.json` | Cloud Sync drive→remote mappings | If using cloud-sync |
+| `rclone.conf` | rclone remotes | If using cloud-sync |
 
 Drive contents (video files, etc.) must be backed up separately.
 
@@ -181,7 +186,10 @@ Drive contents (video files, etc.) must be backed up separately.
 ```bash
 tar czf homevault-backup-$(date +%Y%m%d).tar.gz \
   data/ drives.json passwords.json event-hooks.json \
-  docker-compose.override.yml 2>/dev/null
+  docker-compose.override.yml \
+  addons/intelligence/search-config.yml \
+  addons/cloud-sync/sync-config.json \
+  rclone.conf 2>/dev/null
 ```
 
 ### Restore
@@ -215,17 +223,58 @@ rm backend/addons/cloud-sync
 docker compose up -d --build
 ```
 
-### Semantic Search (Standalone Service)
+### Intelligence (Standalone Service)
 
-Configured via `docker-compose.override.yml`. Runs on port 8100.
+Configured via `docker-compose.override.yml`. Runs on port 8100 (internal-only). See [INTELLIGENCE.md](INTELLIGENCE.md) for the full operations guide (feature flags, LLM providers, eval harness).
 
 ```bash
-# Check status
-curl http://localhost:3000/api/search/status
+# Check status (admin only)
+curl -b "hv_token=..." "http://localhost:3000/api/addons/intelligence/status"
 
 # Reindex
-curl -X POST http://localhost:3000/api/search/queue/reindex
+curl -X POST -b "hv_token=..." "http://localhost:3000/api/addons/intelligence/queue/reindex"
+
+# Pause / resume queue
+curl -X POST -b "hv_token=..." "http://localhost:3000/api/addons/intelligence/queue/pause"
+curl -X POST -b "hv_token=..." "http://localhost:3000/api/addons/intelligence/queue/resume"
 ```
+
+### Knowledge (Standalone Service)
+
+Runs on port 8200 (internal-only). Data lives in `data/addons/knowledge/` (persist as part of normal backups).
+
+```bash
+# Check service health
+docker compose exec knowledge curl http://localhost:8200/health
+```
+
+### Per-Drive Addon Policy
+
+The `addons` field in `drives.json` toggles addon features per drive. See [DRIVE-POLICY.md](DRIVE-POLICY.md) for the schema and operational notes.
+
+```bash
+# After editing drives.json, restart the core and the affected addons
+docker compose up -d --build
+
+# Verify policy is applied (intelligence example)
+curl -b "hv_token=..." "http://localhost:3000/api/internal/drive-policy?drive=Family&addon=intelligence"
+```
+
+Changes to `drives.json` require a container restart. Addon-side workers cache policy for 30s and fail open on lookup failures.
+
+### Missing Files Cleanup
+
+Files that disappear from the filesystem are marked `missing` rather than purged, preserving viewer history and AI-generated data. Review and purge via the UI (`?view=missing`) or the API:
+
+```bash
+# List missing files in a drive
+curl -b "hv_token=..." "http://localhost:3000/api/drives/{drive}/missing"
+
+# Bulk purge (chunked 200 at a time)
+curl -X POST -b "hv_token=..." "http://localhost:3000/api/drives/{drive}/missing/purge-all"
+```
+
+If a NAS is temporarily offline, do **not** run purge-all — the scanner already short-circuits on drive-level absence (`drive_path.exists() == False`) to avoid mass-missing events.
 
 ## Scheduled Maintenance
 
