@@ -94,7 +94,7 @@
     "summaryShortLabel": "Short summary",
     "summaryLongLabel": "Detailed summary",
     "summaryShow": "Show summary",
-    "summaryHide": "Hide summary",
+    "summaryHide": "Hide",
     "galleryMode": "Gallery mode",
     "addToPlaylist": "Add to playlist",
     "typeVideo": "Video",
@@ -115,7 +115,27 @@
     "detailedSummaryInsufficientContent": "Not enough content for a detailed summary",
     "detailedSummaryFailed": "Detailed summary generation failed",
     "detailedSummaryRetry": "Retry",
-    "detailedSummaryTruncatedNote": "(excerpts from long content)"
+    "detailedSummaryTruncatedNote": "(excerpts from long content)",
+    "similarFiles": "Similar files",
+    "suggestedTags": "AI Suggested Tags",
+    "acceptTag": "Add tag {tag}",
+    "acceptAllTags": "Accept all",
+    "dismissTags": "Dismiss",
+    "regenerateTags": "Regenerate",
+    "generateTags": "Generate AI tags",
+    "regeneratingTags": "Generating...",
+    "generateFolderTags": "Generate AI tags for folder",
+    "tagsBatchQueued": "{queued} files queued ({skipped} skipped)",
+    "tagsBatchEmpty": "All files already have suggested tags",
+    "summaryTitle": "AI Summary",
+    "summaryGenerate": "Generate AI summary",
+    "summaryGenerating": "Generating summary...",
+    "summaryRegenerate": "Regenerate",
+    "summaryTruncatedNote": "(excerpts from long content)",
+    "summaryInsufficientContent": "Not enough content to summarize",
+    "generateFolderSummaries": "Generate AI summaries for folder",
+    "summariesBatchQueued": "{queued} summaries queued ({skipped} skipped)",
+    "summariesBatchEmpty": "All files already have summaries"
   },
   "detailedSummary": {
     "citations": {
@@ -126,7 +146,8 @@
       "error": "Failed to load excerpt",
       "noExcerpt": "No excerpt available",
       "pageLabel": "p.{page}",
-      "jump": "Jump"
+      "jump": "Jump",
+      "weakLinkLabel": "Weak source match — verify"
     },
     "inline": {
       "label": "Citation excerpt",
@@ -171,7 +192,16 @@
     "filterImage": "Image",
     "filterAudio": "Audio",
     "filterDocument": "Document",
-    "textResults": "Filename match"
+    "textResults": "Filename match",
+    "matchTranscript": "Transcript",
+    "matchTranscriptKeyword": "Transcript (exact)",
+    "matchClip": "Visual",
+    "matchMetadata": "Metadata",
+    "matchContent": "Content",
+    "matchTextContentKeyword": "Content (exact)",
+    "matchedPages": "p.{pages}",
+    "semanticResults": "Semantic search results",
+    "score": "{score}%"
   },
   "sort": {
     "label": "Sort",
@@ -463,5 +493,130 @@
     "copied": "Copied",
     "moved": "Moved",
     "clear": "Clear"
+  },
+  "semanticSearch": {
+    "title": "Semantic Search",
+    "statusRunning": "Running",
+    "statusStopped": "Stopped",
+    "unavailable": "Search service is not running",
+    "indexed": "Indexed",
+    "indexedFiles": "{indexed} / {total} files",
+    "whisperLabel": "Transcribed",
+    "whisperFiles": "{done} / {total} videos",
+    "clipLabel": "CLIP Analyzed",
+    "clipFiles": "{done} / {total} images & videos",
+    "queueLabel": "Queue",
+    "queueStatus": "{processing} processing / {waiting} waiting",
+    "reindex": "Reindex",
+    "pause": "Pause",
+    "resume": "Resume",
+    "paused": "Paused",
+    "confirmReindex": "Reindex all files? This may take a while.",
+    "models": "Models"
+  },
+  "askSearch": {
+    "button": "Ask AI about “{query}”",
+    "loading": "Generating answer...",
+    "thinking": "Thinking…",
+    "loadingHint": "(may take a few seconds)",
+    "answerTitle": "AI Answer",
+    "citationsTitle": "Citations",
+    "regenerate": "Regenerate",
+    "close": "Close",
+    "llmDisabled": "LLM is not configured",
+    "errorGenerate": "Failed to generate answer",
+    "noAnswer": "No answer could be found from the available files",
+    "noRetrieval": "No matching files found to base an answer on",
+    "retryHint": "Retry",
+    "queryTooShort": "Query too short (3 characters minimum)",
+    "takenMs": "Generated in {ms}ms",
+    "poweredByLlm": "AI"
+  },
+  "knowledge": {
+    "title": "Knowledge",
+    "loading": "Loading...",
+    "empty": {
+      "title": "Select a note",
+      "description": "Pick a note from the sidebar, or create a new one to start writing."
+    },
+    "setup": {
+      "title": "Create a Vault",
+      "description": "The Knowledge addon organizes notes inside a Vault (a folder on one of your drives). Let's create your first Vault.",
+      "labelField": "Label",
+      "labelPlaceholder": "e.g. Personal notes",
+      "driveField": "Drive",
+      "pathField": "Folder path (relative to drive root)",
+      "create": "Create",
+      "creating": "Creating...",
+      "cancel": "Cancel"
+    },
+    "switcher": {
+      "none": "No Vault selected",
+      "addNew": "Add new Vault"
+    },
+    "fileList": {
+      "loading": "Loading files...",
+      "empty": "Nothing in this folder yet.",
+      "newFile": "New note",
+      "newFilePlaceholder": "Note title…",
+      "newFolder": "New folder",
+      "newFolderPlaceholder": "Folder name…",
+      "folderUp": "Up one level",
+      "newFileHere": "New note here",
+      "newFolderHere": "New folder here"
+    },
+    "search": {
+      "placeholder": "Search…",
+      "clear": "Clear",
+      "searching": "Searching…",
+      "noResults": "No notes match.",
+      "truncated": "Too many results — try a more specific query."
+    },
+    "sidebar": {
+      "activePrefix": "Active: {label}"
+    },
+    "editSection": {
+      "title": "Knowledge",
+      "description": "Open this note in the Markdown editor.",
+      "openEditor": "Open editor"
+    },
+    "editor": {
+      "loading": "Loading...",
+      "loadFailed": "Failed to load: {error}",
+      "back": "Back to list",
+      "editArea": "Markdown editor",
+      "placeholder": "Start writing here…",
+      "title": {
+        "label": "Note title",
+        "editHint": "Click to rename"
+      },
+      "view": {
+        "edit": "Edit",
+        "split": "Split",
+        "preview": "Preview"
+      },
+      "toolbar": {
+        "label": "Formatting toolbar",
+        "h1": "Heading 1",
+        "h2": "Heading 2",
+        "h3": "Heading 3",
+        "bold": "Bold",
+        "list": "List",
+        "link": "Link",
+        "code": "Code block"
+      },
+      "status": {
+        "saving": "Saving...",
+        "saved": "Saved",
+        "conflict": "Conflict detected"
+      },
+      "conflict": {
+        "title": "Changes detected on another device",
+        "description": "This file was modified elsewhere. What would you like to do?",
+        "reload": "Reload from server (discard my changes)",
+        "overwrite": "Overwrite with my changes",
+        "dismiss": "Dismiss"
+      }
+    }
   }
 }

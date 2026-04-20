@@ -94,7 +94,7 @@
     "summaryShortLabel": "短い要約",
     "summaryLongLabel": "詳しい要約",
     "summaryShow": "要約を表示",
-    "summaryHide": "要約を隠す",
+    "summaryHide": "非表示",
     "galleryMode": "ギャラリーモード",
     "addToPlaylist": "プレイリストに追加",
     "typeVideo": "動画",
@@ -115,7 +115,27 @@
     "detailedSummaryInsufficientContent": "詳細要約に必要なコンテンツが不足しています",
     "detailedSummaryFailed": "詳細要約の生成に失敗しました",
     "detailedSummaryRetry": "再試行",
-    "detailedSummaryTruncatedNote": "（長文のため抜粋から要約）"
+    "detailedSummaryTruncatedNote": "（長文のため抜粋から要約）",
+    "similarFiles": "似たファイル",
+    "suggestedTags": "AIタグ提案",
+    "acceptTag": "タグ「{tag}」を追加",
+    "acceptAllTags": "すべて承認",
+    "dismissTags": "却下",
+    "regenerateTags": "再生成",
+    "generateTags": "AIタグを生成",
+    "regeneratingTags": "生成中...",
+    "generateFolderTags": "フォルダのAIタグを生成",
+    "tagsBatchQueued": "{queued}件をキューに追加（{skipped}件スキップ）",
+    "tagsBatchEmpty": "すべてのファイルがタグ推薦済みです",
+    "summaryTitle": "AI要約",
+    "summaryGenerate": "AI要約を生成",
+    "summaryGenerating": "要約を生成中...",
+    "summaryRegenerate": "再生成",
+    "summaryTruncatedNote": "（長文のため抜粋から要約）",
+    "summaryInsufficientContent": "要約に必要なコンテンツが不足しています",
+    "generateFolderSummaries": "フォルダのAI要約を生成",
+    "summariesBatchQueued": "{queued}件の要約をキューに追加（{skipped}件スキップ）",
+    "summariesBatchEmpty": "すべてのファイルが要約済みです"
   },
   "detailedSummary": {
     "citations": {
@@ -126,7 +146,8 @@
       "error": "抜粋の取得に失敗しました",
       "noExcerpt": "抜粋はありません",
       "pageLabel": "p.{page}",
-      "jump": "ジャンプ"
+      "jump": "ジャンプ",
+      "weakLinkLabel": "弱い出典マッチ — 要確認"
     },
     "inline": {
       "label": "引用の抜粋",
@@ -171,7 +192,16 @@
     "filterImage": "画像",
     "filterAudio": "音声",
     "filterDocument": "ドキュメント",
-    "textResults": "ファイル名一致"
+    "textResults": "ファイル名一致",
+    "matchTranscript": "音声一致",
+    "matchTranscriptKeyword": "音声キーワード一致",
+    "matchClip": "映像一致",
+    "matchMetadata": "メタデータ",
+    "matchContent": "内容一致",
+    "matchTextContentKeyword": "内容キーワード一致",
+    "matchedPages": "p.{pages}",
+    "semanticResults": "セマンティック検索結果",
+    "score": "{score}%"
   },
   "sort": {
     "label": "ソート",
@@ -463,5 +493,130 @@
     "copied": "コピーしました",
     "moved": "移動しました",
     "clear": "クリア"
+  },
+  "semanticSearch": {
+    "title": "セマンティック検索",
+    "statusRunning": "稼働中",
+    "statusStopped": "停止中",
+    "unavailable": "検索サービスが起動していません",
+    "indexed": "インデックス済み",
+    "indexedFiles": "{indexed} / {total} ファイル",
+    "whisperLabel": "文字起こし済み",
+    "whisperFiles": "{done} / {total} 動画",
+    "clipLabel": "CLIP解析済み",
+    "clipFiles": "{done} / {total} 画像・動画",
+    "queueLabel": "キュー",
+    "queueStatus": "{processing}件処理中 / {waiting}件待機",
+    "reindex": "再インデックス",
+    "pause": "一時停止",
+    "resume": "再開",
+    "paused": "一時停止中",
+    "confirmReindex": "全ファイルを再インデックスしますか？処理に時間がかかる場合があります。",
+    "models": "モデル"
+  },
+  "askSearch": {
+    "button": "「{query}」について AI に質問する",
+    "loading": "回答を生成中...",
+    "thinking": "回答を生成中…",
+    "loadingHint": "(数秒かかることがあります)",
+    "answerTitle": "AI 回答",
+    "citationsTitle": "引用",
+    "regenerate": "再生成",
+    "close": "閉じる",
+    "llmDisabled": "LLM が設定されていません",
+    "errorGenerate": "回答の生成に失敗しました",
+    "noAnswer": "与えられたファイル情報からは答えが見つかりませんでした",
+    "noRetrieval": "回答のベースとなるファイルが見つかりませんでした",
+    "retryHint": "再試行",
+    "queryTooShort": "クエリが短すぎます (3文字以上)",
+    "takenMs": "{ms}ms で生成",
+    "poweredByLlm": "AI"
+  },
+  "knowledge": {
+    "title": "Knowledge",
+    "loading": "読み込み中...",
+    "empty": {
+      "title": "ノートを選択してください",
+      "description": "左のサイドバーからノートを選ぶか、新しいノートを作成して書き始めましょう。"
+    },
+    "setup": {
+      "title": "Vault を作成",
+      "description": "Knowledge アドオンは「Vault」（ドライブ内のフォルダ）を基点にノートを管理します。最初の Vault を作成しましょう。",
+      "labelField": "ラベル",
+      "labelPlaceholder": "例: 個人メモ",
+      "driveField": "ドライブ",
+      "pathField": "フォルダパス（ドライブ直下からの相対パス）",
+      "create": "作成",
+      "creating": "作成中...",
+      "cancel": "キャンセル"
+    },
+    "switcher": {
+      "none": "Vault 未選択",
+      "addNew": "新しい Vault を追加"
+    },
+    "fileList": {
+      "loading": "ファイルを読み込み中...",
+      "empty": "このフォルダには何もありません。",
+      "newFile": "新規ノート",
+      "newFilePlaceholder": "ノートのタイトル...",
+      "newFolder": "新規フォルダ",
+      "newFolderPlaceholder": "フォルダ名...",
+      "folderUp": "上の階層へ",
+      "newFileHere": "ここに新規ノート",
+      "newFolderHere": "ここに新規フォルダ"
+    },
+    "search": {
+      "placeholder": "検索...",
+      "clear": "クリア",
+      "searching": "検索中...",
+      "noResults": "該当するノートがありません。",
+      "truncated": "結果が多すぎます — 検索語を絞ってください。"
+    },
+    "sidebar": {
+      "activePrefix": "アクティブ: {label}"
+    },
+    "editSection": {
+      "title": "Knowledge",
+      "description": "このファイルを Markdown エディタで編集します。",
+      "openEditor": "エディタを開く"
+    },
+    "editor": {
+      "loading": "読み込み中...",
+      "loadFailed": "読み込みに失敗しました: {error}",
+      "back": "一覧に戻る",
+      "editArea": "Markdown エディタ",
+      "placeholder": "ここに書き始めましょう...",
+      "title": {
+        "label": "ノートのタイトル",
+        "editHint": "クリックして名前を変更"
+      },
+      "view": {
+        "edit": "編集",
+        "split": "分割表示",
+        "preview": "プレビュー"
+      },
+      "toolbar": {
+        "label": "書式ツールバー",
+        "h1": "見出し 1",
+        "h2": "見出し 2",
+        "h3": "見出し 3",
+        "bold": "太字",
+        "list": "リスト",
+        "link": "リンク",
+        "code": "コードブロック"
+      },
+      "status": {
+        "saving": "保存中...",
+        "saved": "保存済み",
+        "conflict": "競合を検知"
+      },
+      "conflict": {
+        "title": "別のデバイスで変更あり",
+        "description": "このファイルは別の場所で更新されています。どうしますか？",
+        "reload": "サーバーから読み込み直す（自分の変更は破棄）",
+        "overwrite": "自分の変更で上書きする",
+        "dismiss": "閉じる"
+      }
+    }
   }
 }
