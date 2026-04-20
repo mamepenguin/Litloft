@@ -29,8 +29,14 @@ Given a summary like:
 and a transcript split into chunks 0..N, the pipeline answers, for
 each bullet / paragraph / table row in the summary: *"which
 transcript chunk(s) is this segment citing?"* The answer is stored
-per segment in `detailed_summary_citations` and rendered in the UI
-as the `🔗` / `⚠` badges you see under each summary line.
+per segment in `detailed_summary_citations`. Segments that resolve
+to a confident single chunk render a 🔗 link badge under the line;
+segments where the pipeline refuses to pin one chunk
+(`has_citation=False`) render nothing — the line appears as plain
+summary prose. The "no strong source" warning icon that lived here
+earlier was removed: it correlated poorly with real hallucination
+risk (see Stage 5 below) and the plain-prose fallback is the honest
+UI state for "the retriever didn't find a single source".
 
 ## Ten-second view
 
@@ -65,6 +71,11 @@ as the `🔗` / `⚠` badges you see under each summary line.
                              ▼
                 ┌─────────────────────────┐
                 │ Margin gate → has_citation│
+                └─────────────┬────────────┘
+                              ▼
+                ┌──────────────────────────┐
+                │ Paragraph spread gate    │
+                │ (paragraphs only)        │
                 └─────────────┬────────────┘
                               ▼
              detailed_summary_citations rows
@@ -390,12 +401,63 @@ segment to `has_citation=False`:
 ```
 top1 - top2 < citation_margin_gate   AND
 top1       < citation_margin_bypass_score
-    → flip to ⚠, clear chunk ids
+    → has_citation=False, clear chunk ids
 ```
+
+`has_citation=False` means **no marker renders in the UI**. The
+link badge disappears and the bullet reads as plain prose. This
+used to flip to an alert-triangle marker, but the marker proved
+uncorrelated with actual hallucination (Stage 5 discussion) and was
+removed — plain prose is the honest signal for "retriever declined
+to pin a single chunk".
 
 Bypass: if top1 is already strong (≥ bypass), a close runner-up
 just means the segment has multiple legitimate sources and we keep
 the citation.
+
+## Stage 4b: Paragraph synthesis gate
+
+Stage 4 catches the "several chunks score nearly identically" failure.
+Stage 4b catches a different failure mode specific to paragraph-type
+segments: the LLM synthesises a claim from distant parts of the file
+and the top-K chunks end up *scattered* across the whole timeline.
+None of them is really "the source" — picking any one (even if it
+wins the margin gate) implies a single-source provenance that isn't
+there. The segment is demoted to `has_citation=False` and the UI
+renders no marker (same fallthrough as Stage 4 — the line reads as
+plain prose, not as a flagged warning).
+
+```
+paragraph segment: "番組全体では年代順にドラクエリメイクの流れをたどる"
+  passing chunks: [chunk 5, chunk 50, chunk 95]   # file has 100 chunks
+  spread_norm   = (95 - 5) / 100 = 0.90
+  gate          = 0.30
+  → spread > gate  → has_citation=False, clear chunks, no UI marker
+```
+
+**Applies to.** `segment_type == "paragraph"` only. Bullets (fact-level
+items) and table rows are almost always single-source, so the gate
+would fire false positives on them.
+
+**Size guard.** Files with fewer than
+`citation_paragraph_spread_min_chunks` chunks skip the gate entirely.
+A 3-chunk song whose chorus recurs in chunks 0 and 2 has
+`spread_norm = 1.0` but is genuinely single-source; normalised spread
+loses its meaning below ~20 chunks.
+
+**Why a separate gate, not an extension of Stage 4.** The margin
+gate looks at *score gaps* — "are these chunks comparable?" The
+spread gate looks at *index distance* — "are these chunks
+geographically consistent?" A segment can pass the margin gate (top-1
+decisively higher than top-2) while still having a top-1 that sits
+200 chunks away from top-2 and top-3. That pattern signals synthesis,
+not confident localisation, and Stage 4's score-only view cannot see
+it.
+
+**Language/LLM agnostic.** The gate consults only the chunk-index
+distribution. No embedding, no text, no heuristic on the summary
+prose — so it carries no risk of regressing on a new language or
+summary style.
 
 ## Stage 5: Multi-tier confidence display (UI)
 
@@ -408,7 +470,7 @@ The pipeline above decides *whether* a segment has a citation
 has_citation = True
     ├── top_score ≥ 0.90  → "strong"  (solid Link2 icon)
     └── top_score < 0.90  → "weak"    (dashed Link2 icon)
-has_citation = False      → "missing" (AlertTriangle icon)
+has_citation = False      → no marker (plain prose)
 ```
 
 The threshold `0.90` is hard-coded in the frontend at
@@ -416,6 +478,29 @@ The threshold `0.90` is hard-coded in the frontend at
 `addons/intelligence/frontend/DetailedSummaryCitationPopover.tsx`).
 It is not a `SummariesConfig` key because the calibration it
 encodes is tied to the embedding model, not to per-drive policy.
+
+**Why `has_citation=False` renders nothing (not an alert-triangle).**
+Early versions rendered a `⚠` AlertTriangle marker on the
+citation-missing branch, framed as a hallucination indicator. Two
+problems emerged:
+
+1. The marker didn't correlate with actual hallucination risk. Real
+   fabrications (digit swaps, nuance shifts, LLM paraphrasing an
+   unsourced claim) routinely sit at high cosine similarity to a
+   legitimate chunk — they land inside `has_citation=True`, not
+   outside. The `⚠` was firing on "retriever couldn't pin one
+   chunk", which is usually synthesis or abstract rephrasing, not
+   fabrication.
+2. Visually, every margin-gated or spread-gated paragraph (which is
+   common — synthesis paragraphs in the opening/closing sections
+   show up in most detailed summaries) carried a warning. Readers
+   learned to ignore it; the signal value dropped to zero and the
+   UI noise remained.
+
+Removing the marker entirely gives a cleaner split: **the presence
+of a Link2 icon means "we found a source"; its absence means
+"this line reads on its own merits, no single chunk backs it."**
+No false "warning" semantics attached.
 
 ### Why two tiers, not three
 
@@ -598,7 +683,8 @@ actually discussed, which is where chunk 2 lives.
 | Prefix's pool fails the narrow threshold | `range = None` | Segments hanging off it fall back to full-file retrieval |
 | Section with generic content (結論, まとめ) | depends on pool strength | Weak pool → None → full file; decent pool → DP puts it late in the timeline |
 | Table rows | per-cell max-pool embed | Header noun doesn't dominate |
-| Abstract bullet ("保存方法は冷蔵庫で") | margin gate demotes to ⚠ | Several chunks look equally plausible; refuse to pick one confidently |
+| Abstract bullet ("保存方法は冷蔵庫で") | margin gate → `has_citation=False`, no marker | Several chunks look equally plausible; refuse to pick one confidently |
+| Synthesising paragraph ("番組全体では …") | spread gate → `has_citation=False`, no marker | Top chunks scattered across the file — the claim is LLM synthesis, not a single source |
 
 ## Config reference
 
@@ -640,8 +726,15 @@ These all live in `SummariesConfig`. Defaults are what you get if
 
 | Key | Default | Role |
 |---|---|---|
-| `citation_margin_gate` | 0.05 | Demote to ⚠ when `top1 - top2` is below this. |
+| `citation_margin_gate` | 0.05 | Flip `has_citation=False` (no marker in UI) when `top1 - top2` is below this. |
 | `citation_margin_bypass_score` | 0.75 | Skip the gate entirely when `top1` is already this strong. |
+
+### Stage 4b (paragraph synthesis gate)
+
+| Key | Default | Role |
+|---|---|---|
+| `citation_paragraph_spread_gate` | 0.3 | Paragraph segments whose passing chunks span more than this fraction of the file flip to `has_citation=False` (no marker; synthesis, not single-source). `0` disables the gate. |
+| `citation_paragraph_spread_min_chunks` | 20 | Files with fewer chunks than this skip the gate — normalised spread is unstable on short files. |
 
 ## Troubleshooting
 

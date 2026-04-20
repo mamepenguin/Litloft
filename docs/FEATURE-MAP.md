@@ -86,7 +86,8 @@ mindmap
     AI拡張
       AI要約 short/long
       Detailed Summary Markdown
-        出典リンク自動付与 ⚠ハルシネーション検出
+        出典リンク自動付与 strong/weak tier
+        単一出典がない段落は無印（ノイズ回避）
         セクション単位の編集/revert
       AutoTags 画像/動画/文書
       Ask 引用付き回答

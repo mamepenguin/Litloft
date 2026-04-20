@@ -12,7 +12,7 @@ External Docker service (`./addons/intelligence/`, port 8100). Scope: `drive`. P
 | **Semantic Search** | `features.search: true/false` | on | 5-channel retrieval with two fusion modes |
 | **Auto Tags** | `features.auto_tags: "false" / "manual" / "on_index"` | `"false"` | Suggested tags with approve/dismiss |
 | **Summaries** | `features.summaries: "false" / "manual" / "on_index"` | `"false"` | Short sentence + paragraph |
-| **Detailed Summaries** | `features.detailed_summaries: "false" / "manual"` | `"false"` | Long-form Markdown with auto-linked citations and per-section editing |
+| **Detailed Summaries** | `features.detailed_summaries: "false" / "manual" / "on_index"` | `"false"` | Long-form Markdown with auto-linked citations and per-section editing |
 | **Ask (RAG)** | `features.rag: true/false` | `false` | Natural-language Q&A with citations |
 | **Transcript Refine** | `features.transcript_refine: "false" / "manual" / "on_index"` | `"false"` | LLM-corrected transcripts with revert |
 
@@ -20,7 +20,7 @@ All LLM-dependent features require `llm.provider != "disabled"`.
 
 ## Feature flag semantics
 
-Three-mode string flags (`auto_tags`, `summaries`, `transcript_refine`):
+Three-mode string flags (`auto_tags`, `summaries`, `detailed_summaries`, `transcript_refine`):
 
 | Value | Behavior |
 |-------|----------|
@@ -28,7 +28,7 @@ Three-mode string flags (`auto_tags`, `summaries`, `transcript_refine`):
 | `"manual"` | Generation only on explicit user action (UI button, folder batch) |
 | `"on_index"` | Generated automatically whenever the file completes indexing |
 
-Boolean flags (`rag`, `indexing`, `search`, `detailed_summaries`) are plain on/off.
+Boolean flags (`rag`, `indexing`, `search`) are plain on/off.
 
 ## Setup
 
@@ -191,13 +191,17 @@ summaries:
   citation_section_disc_margin: 0.01      # minimum edge over best sibling to keep a chunk
   citation_section_alignment_enabled: true  # Viterbi monotonic DP for 2+ sibling sections
   citation_section_boundary_margin: 2     # expand each DP section range by N chunks each side
-  citation_margin_gate: 0.05              # flip ⚠ when top1-top2 gap is this small
+  citation_margin_gate: 0.05              # drop link marker when top1-top2 gap is this small
   citation_margin_bypass_score: 0.75      # top1 >= this skips margin gate
+  citation_multi_anchor_enabled: true     # split compound bullets (「」 / CJK punctuation) and retrieve per sub-anchor
+  citation_multi_anchor_min_len: 4        # minimum char length per punctuation-split fragment
+  citation_paragraph_spread_gate: 0.3     # paragraph segments whose top chunks span > this fraction of file → no link (synthesis)
+  citation_paragraph_spread_min_chunks: 20  # files smaller than this skip the spread gate
 ```
 
 Detailed summaries (`detailed_summaries`) are generated asynchronously and polled via `GET /files/{id}/summary/detailed` (status `generating` → `generated`). The generated Markdown is also downloadable at `/files/{id}/summary/detailed.md`.
 
-### Detailed-summary citations (hallucination guard)
+### Detailed-summary citations
 
 > **Deeper reference**: `docs/CITATION-PIPELINE.md` is the engineering design doc — diagrams, worked example, decision matrix, troubleshooting. Start there when touching `addons/intelligence/app/citations.py`.
 
@@ -207,15 +211,17 @@ Every detailed summary is parsed into bullets / paragraphs / table rows and each
 2. **Dense candidate pool** — the segment is embedded with the shared `text_embedding` model and a pool of `citation_top_k_internal` (default 10) chunks is pulled via sqlite-vec KNN, limited to the anchored chunk range when one is available. Table rows with two or more cells pool per-cell embeddings so header labels don't drown out numeric values (the "保存期間 | 3 日" case). If the anchored range produces zero candidates (heading anchored wrong), retry without the range so no segment is dropped solely because of bad anchoring.
 3. **BM25 rerank** — when `citation_hybrid_enabled: true`, salient tokens from the segment (kanji runs, katakana, proper nouns, `<number><unit>` pairs) are fed to FTS5 over `fts_transcripts` / `fts_text_content`, same anchored range. The BM25 ranks are RRF-fused with the dense ranks (constant `citation_rrf_k`) and the dense pool is reordered; BM25-only candidates are dropped so the stored `top_score` is still the dense cosine.
 
-**Margin gate**: after fusion, if `top1_score - top2_score < citation_margin_gate` (and `top1_score < citation_margin_bypass_score`), the segment flips to `has_citation = False`. This catches low-confidence picks where several candidates look comparably close — typical when an abstract bullet doesn't really match any single chunk, or when a table row's content spans multiple transcript locations (material mentioned at 5:30, storage at 12:40, variation at 18:00) and no single chunk covers the whole row. Showing ⚠ is more honest than pointing at one of them confidently.
+**Margin gate**: after fusion, if `top1_score - top2_score < citation_margin_gate` (and `top1_score < citation_margin_bypass_score`), the segment flips to `has_citation = False`. This catches low-confidence picks where several candidates look comparably close — typical when an abstract bullet doesn't really match any single chunk, or when a table row's content spans multiple transcript locations (material mentioned at 5:30, storage at 12:40, variation at 18:00) and no single chunk covers the whole row. Dropping the marker entirely is more honest than pointing at one of them confidently.
+
+**Paragraph synthesis gate**: paragraph-type segments whose passing chunks span more than `citation_paragraph_spread_gate` (default `0.3`) of the file's chunk count also flip to `has_citation = False` — the LLM has synthesised the claim from distant parts of the file and no single chunk is the source. Only applied when the file has at least `citation_paragraph_spread_min_chunks` (default `20`) chunks; below that, normalised spread isn't meaningful. Bullets and table rows are unaffected.
 
 Final interpretation:
 
-- Top-1 cosine similarity `>= citation_threshold` → surfaced as a clickable link badge in the UI; the hover-card shows a ±100 char excerpt (served from `GET /files/{id}/chunks/{chunk_id}/excerpt`) and a "jump" control that reuses the existing transcript seek integration for video/audio
-- Top-1 `< citation_threshold` → rendered with a ⚠ "no strong source" marker, giving the user a visible hallucination warning
+- Top-1 cosine similarity `>= citation_threshold` (and surviving both gates) → surfaced as a clickable link badge in the UI; tier is `strong` (solid) when `top_score >= 0.90`, otherwise `weak` (dashed). The hover-card shows a ±100 char excerpt (served from `GET /files/{id}/chunks/{chunk_id}/excerpt`) and a "jump" control that reuses the existing transcript seek integration for video/audio
+- `has_citation=False` (below threshold, margin-gated, or spread-gated) → **no marker is rendered**; the line reads as plain summary prose. The earlier ⚠ "no strong source" marker was removed because it fired on synthesis / abstraction far more often than on actual hallucination, training readers to ignore it
 - `citation_top_k` (default 3) candidates are stored per segment; the UI can cycle through them
 
-Tuning tips: if ⚠ appears on obviously grounded bullets, lower `citation_threshold`; if hallucinated bullets have no warning, raise it. The threshold is embedding-model dependent — re-tune when swapping `models.text_embedding`. Disable `citation_hybrid_enabled` if BM25 introduces lexically-close-but-semantically-wrong hits on a specific corpus.
+Tuning tips: if link badges disappear from obviously grounded bullets, lower `citation_threshold` (or raise `citation_margin_bypass_score` so the margin gate demotes fewer strong picks). The threshold is embedding-model dependent — re-tune when swapping `models.text_embedding`. Disable `citation_hybrid_enabled` if BM25 introduces lexically-close-but-semantically-wrong hits on a specific corpus. If paragraphs with legitimately scattered anchors (e.g. truly cross-cutting introductions) lose their links, raise `citation_paragraph_spread_gate` toward `1.0` or set it to `0` to disable the spread gate.
 
 Precision is measurable via the citation eval harness: `python -m app.evals_citations` scores curated ground-truth cases and reports per-segment-type top-1 accuracy + recall@3 + has_citation precision. See `addons/intelligence/evals/citations/README.md`.
 

@@ -308,12 +308,12 @@ Runs as a separate Docker container (`./addons/intelligence`). All features belo
 - Never writes to the core HomeVault DB — lives in the intelligence addon's own store
 
 ### Detailed Summaries (long-form Markdown)
-- Modes: `"false"` | `"manual"` — manual-only trigger (generation is expensive)
+- Modes: `"false"` | `"manual"` | `"on_index"` — manual is the safe default (generation is expensive); `"on_index"` auto-generates after indexing completes
 - Independent of `summaries` (can be enabled alone)
 - Background task generation with polling status (`generating` / `generated`)
 - Markdown download endpoint (`/files/{id}/summary/detailed.md`)
 - Rendered in `detailed-summary` slot via the same MarkdownPreview (chrome/mermaid opt-outs available)
-- **Auto-linked citations**: each bullet / paragraph is embedded after generation and matched against transcript / document chunks of the same file. Matches above `summaries.citation_threshold` (default 0.55) surface as a clickable link badge; segments below the threshold render a ⚠ "no strong source" marker, which doubles as a hallucination signal. Top-k is controlled by `summaries.citation_top_k` (default 3). Citation hover-cards show an excerpt from the source chunk and (for video/audio) a "jump" button that seeks the player via the existing transcript integration
+- **Auto-linked citations**: each bullet / paragraph is embedded after generation and matched against transcript / document chunks of the same file. Matches above `summaries.citation_threshold` (default 0.55) surface as a clickable link badge (solid `Link2` icon for `top_score ≥ 0.90`, dashed for weaker). Segments the retriever can't confidently pin (below threshold, margin-gated, or paragraph-spread-gated) render **no marker** — the line reads as plain summary prose. The earlier ⚠ "no strong source" badge was removed: it didn't correlate with real hallucination (fabrications live at high cosine too) and fired on ordinary synthesis paragraphs, training readers to ignore it. Top-k is controlled by `summaries.citation_top_k` (default 3). Citation hover-cards show an excerpt from the source chunk and (for video/audio) a "jump" button that seeks the player via the existing transcript integration
 - **Section-level edit / revert**: each `## ` heading section can be edited inline; on first edit the AI-generated version is copied to `detailed_original` so the user can revert globally ("Restore AI version"). Edits re-run citation linking automatically
 - **Regenerate conflict guard**: regenerating an edited summary requires an explicit confirmation (API returns 409 without `force: true`), preventing accidental loss of hand-edits
 - WebSocket events: `intelligence.detailed_summary.updated` (edit / revert / regenerate) and `intelligence.detailed_summary.citations_ready` (citations pass complete) let the UI refresh without polling
