@@ -16,7 +16,7 @@ import { getStreamUrl } from "@/lib/api";
 export function FilePreview({ file, onEnded, autoPlay, videoRef, initialTime }: { file: FileItem; onEnded?: () => void; autoPlay?: boolean; videoRef?: Ref<HTMLVideoElement>; initialTime?: number }) {
   const t = useTranslations("file");
   if (file.file_type === "video") {
-    return <VideoPlayer ref={videoRef} videoId={file.id} subtitles={file.subtitles} onEnded={onEnded} autoPlay={autoPlay} initialTime={initialTime} />;
+    return <VideoPlayer ref={videoRef} videoId={file.id} subtitles={file.subtitles} onEnded={onEnded} autoPlay={autoPlay} initialTime={initialTime} title={file.title || file.filename} subtitleText={file.folder_path || file.drive} />;
   }
 
   if (file.file_type === "image") {

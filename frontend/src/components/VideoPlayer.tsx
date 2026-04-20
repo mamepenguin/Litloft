@@ -3,14 +3,18 @@
 import { useRef, useEffect, useCallback, useImperativeHandle, forwardRef, type Ref } from "react";
 import { useTranslations } from "next-intl";
 import type { SubtitleInfo } from "@/types";
-import { getStreamUrl, getSubtitleUrl, saveWatchProgress, getWatchProgress, deleteWatchProgress } from "@/lib/api";
+import { getStreamUrl, getSubtitleUrl, getThumbnailUrl, saveWatchProgress, getWatchProgress, deleteWatchProgress } from "@/lib/api";
 import { addRecentlyPlayed, getSavedProgress, saveProgress, clearProgress } from "@/lib/recentlyPlayed";
+import { readAutoplayPreference } from "@/lib/autoplay";
+import { setupBackgroundPiP } from "@/lib/backgroundPiP";
+import { setupMediaSession } from "@/lib/mediaSession";
+import { AutoplayToggle } from "./AutoplayToggle";
 import { useProfile } from "./ProfileProvider";
 
 const SAVE_INTERVAL = 5;
 const RESUME_THRESHOLD = 5;
 
-export const VideoPlayer = forwardRef(function VideoPlayer({ videoId, subtitles = [], onEnded, autoPlay, initialTime }: { videoId: string; subtitles?: SubtitleInfo[]; onEnded?: () => void; autoPlay?: boolean; initialTime?: number }, ref: Ref<HTMLVideoElement>) {
+export const VideoPlayer = forwardRef(function VideoPlayer({ videoId, subtitles = [], onEnded, autoPlay, initialTime, title, subtitleText }: { videoId: string; subtitles?: SubtitleInfo[]; onEnded?: () => void; autoPlay?: boolean; initialTime?: number; title?: string; subtitleText?: string }, ref: Ref<HTMLVideoElement>) {
   const t = useTranslations("player");
   const { nickname } = useProfile();
   const hasProfile = nickname !== null;
@@ -42,8 +46,7 @@ export const VideoPlayer = forwardRef(function VideoPlayer({ videoId, subtitles 
       }
     }
 
-    const isPC = !("ontouchstart" in window);
-    if (isPC || autoPlay) {
+    if (autoPlay || readAutoplayPreference()) {
       video.play().catch(() => {});
     }
   }, [videoId, autoPlay, hasProfile, initialTime]);
@@ -70,6 +73,27 @@ export const VideoPlayer = forwardRef(function VideoPlayer({ videoId, subtitles 
     }
     onEnded?.();
   }, [videoId, onEnded, hasProfile]);
+
+  useEffect(() => {
+    const video = videoRef.current;
+    if (!video) return;
+    video.setAttribute("autoPictureInPicture", "");
+    return setupBackgroundPiP(video);
+  }, []);
+
+  useEffect(() => {
+    const video = videoRef.current;
+    if (!video || !title) return;
+    return setupMediaSession(
+      video,
+      {
+        title,
+        artist: subtitleText ?? "",
+        artwork: [{ src: getThumbnailUrl(videoId) }],
+      },
+      { onNextTrack: onEnded },
+    );
+  }, [videoId, title, subtitleText, onEnded]);
 
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -138,7 +162,7 @@ export const VideoPlayer = forwardRef(function VideoPlayer({ videoId, subtitles 
   }, [videoId, hasProfile]);
 
   return (
-    <div className="aspect-video w-full overflow-hidden rounded-xl bg-black">
+    <div className="group/player relative aspect-video w-full overflow-hidden rounded-xl bg-black">
       <video
         ref={videoRef}
         src={getStreamUrl(videoId)}
@@ -172,6 +196,11 @@ export const VideoPlayer = forwardRef(function VideoPlayer({ videoId, subtitles 
         )}
         {t("videoNotSupported")}
       </video>
+      <div className="pointer-events-none absolute right-2 top-2 opacity-40 transition-opacity duration-200 md:opacity-0 md:group-hover/player:opacity-100 md:focus-within:opacity-100">
+        <div className="pointer-events-auto">
+          <AutoplayToggle />
+        </div>
+      </div>
     </div>
   );
 });

@@ -1,14 +1,17 @@
 "use client";
 
-import { useRef, useCallback } from "react";
+import { useRef, useCallback, useEffect } from "react";
 import { useTranslations } from "next-intl";
 import type { FileItem } from "@/types";
 import { FileTypeIcon } from "./FileTypeIcon";
-import { getStreamUrl, saveWatchProgress, getWatchProgress, deleteWatchProgress } from "@/lib/api";
+import { getStreamUrl, getThumbnailUrl, saveWatchProgress, getWatchProgress, deleteWatchProgress } from "@/lib/api";
 import { formatFileSize } from "@/lib/format";
 import { addRecentlyPlayed, getSavedProgress, saveProgress, clearProgress } from "@/lib/recentlyPlayed";
+import { useAutoplayPreference } from "@/lib/autoplay";
+import { setupMediaSession } from "@/lib/mediaSession";
 import { useProfile } from "./ProfileProvider";
 import { CastButton } from "./CastButton";
+import { AutoplayToggle } from "./AutoplayToggle";
 
 const SAVE_INTERVAL = 5;
 const RESUME_THRESHOLD = 3;
@@ -17,6 +20,7 @@ export function AudioPlayer({ file, onEnded, autoPlay }: { file: FileItem; onEnd
   const t = useTranslations("player");
   const { nickname } = useProfile();
   const hasProfile = nickname !== null;
+  const [preferAutoplay] = useAutoplayPreference();
   const audioRef = useRef<HTMLAudioElement>(null);
   const lastSavedRef = useRef(0);
 
@@ -65,6 +69,20 @@ export function AudioPlayer({ file, onEnded, autoPlay }: { file: FileItem; onEnd
     onEnded?.();
   }, [file.id, onEnded, hasProfile]);
 
+  useEffect(() => {
+    const audio = audioRef.current;
+    if (!audio) return;
+    return setupMediaSession(
+      audio,
+      {
+        title: file.title || file.filename,
+        artist: file.folder_path || file.drive,
+        artwork: [{ src: getThumbnailUrl(file.id) }],
+      },
+      { onNextTrack: onEnded },
+    );
+  }, [file.id, file.title, file.filename, file.folder_path, file.drive, onEnded]);
+
   return (
     <div className="flex w-full flex-col items-center justify-center rounded-xl bg-bg-card py-12">
       <FileTypeIcon fileType="audio" size={64} className="mb-4 text-text-muted" />
@@ -74,7 +92,7 @@ export function AudioPlayer({ file, onEnded, autoPlay }: { file: FileItem; onEnd
         ref={audioRef}
         src={getStreamUrl(file.id)}
         controls
-        autoPlay={autoPlay}
+        autoPlay={autoPlay || preferAutoplay}
         preload="metadata"
         className="w-full max-w-md"
         onLoadedMetadata={handleLoadedMetadata}
@@ -83,8 +101,9 @@ export function AudioPlayer({ file, onEnded, autoPlay }: { file: FileItem; onEnd
       >
         {t("audioNotSupported")}
       </audio>
-      <div className="mt-3">
+      <div className="mt-3 flex items-center gap-3">
         <CastButton mediaRef={audioRef} />
+        <AutoplayToggle />
       </div>
     </div>
   );

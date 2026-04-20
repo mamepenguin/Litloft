@@ -5,6 +5,10 @@ import type { FileItem } from "@/types";
 
 vi.mock("@/lib/api", () => ({
   getStreamUrl: (id: string) => `/api/files/${id}/stream`,
+  getThumbnailUrl: (id: string) => `/api/files/${id}/thumbnail`,
+  saveWatchProgress: vi.fn().mockResolvedValue(undefined),
+  getWatchProgress: vi.fn().mockResolvedValue({ position: 0 }),
+  deleteWatchProgress: vi.fn().mockResolvedValue(undefined),
 }));
 
 vi.mock("../FileTypeIcon", () => ({
