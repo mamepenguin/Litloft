@@ -388,7 +388,17 @@ dd {
   text-align: left;
 }
 
-.markdown-body th {
+/* thead: no fill, just an amber accent bottom-border per DESIGN.md
+   table H3 convention. Keeps the header visually quiet so the body
+   rows and their citation dots read as the primary affordance. */
+.markdown-body thead th {
+  background: transparent;
+  font-weight: 600;
+  border: none;
+  border-bottom: 1px solid var(--bg-border);
+}
+
+.markdown-body tbody th {
   background: var(--bg-elevated);
   font-weight: 600;
 }

@@ -139,19 +139,35 @@
   },
   "detailedSummary": {
     "citations": {
-      "linkLabel": "出典を表示",
-      "noCitation": "原文に強い根拠が見つかりませんでした。誤情報の可能性があります",
-      "popoverLabel": "出典プレビュー",
+      "markerStrong": "根拠が明確な citation",
+      "markerWeak": "要確認 citation — 弱い出典マッチ",
+      "tierStrong": "明確",
+      "tierWeak": "要確認",
+      "sourceTranscript": "トランスクリプト",
+      "sourceDocument": "文書",
+      "sourceTable": "表",
+      "sourceExcerpt": "抜粋",
       "loading": "読み込み中…",
       "error": "抜粋の取得に失敗しました",
       "noExcerpt": "抜粋はありません",
       "pageLabel": "p.{page}",
       "jump": "ジャンプ",
-      "weakLinkLabel": "弱い出典マッチ — 要確認"
+      "copyExcerpt": "抜粋をコピー",
+      "openFile": "元ファイルを開く"
+    },
+    "verify": {
+      "toggle": {
+        "label": "照合",
+        "on": "照合中",
+        "off": "照合オフ"
+      },
+      "expandAll": "全て展開",
+      "collapseAll": "折りたたむ",
+      "weakOnly": "要確認 {n}",
+      "keyboardHints": "v: ON/OFF | ↑↓: 行移動 | Enter: 展開 | Esc: 閉じる"
     },
     "inline": {
-      "label": "引用の抜粋",
-      "close": "閉じる"
+      "label": "引用の抜粋"
     },
     "edit": {
       "button": "編集",

@@ -101,4 +101,19 @@ text`;
     renderWithIntl(<MarkdownPreview source={"- one\n- two\n- three"} />);
     expect(document.querySelectorAll("li").length).toBe(3);
   });
+
+  it("applies text-base typography to the chrome body for 16px reading", () => {
+    // Phase 1 typography upgrade: the chrome body now renders at
+    // ``text-base`` (16px) with leading-relaxed (1.625) so long-form
+    // summary prose matches the mockup design (DESIGN.md §3.2). The
+    // old ``text-sm`` rendered at 14px and felt cramped.
+    const { container } = renderWithIntl(
+      <MarkdownPreview source={"# Hello\n\nWorld"} />,
+    );
+    const body = container.querySelector(".markdown-body");
+    expect(body).not.toBeNull();
+    expect(body!.className).toContain("text-base");
+    expect(body!.className).toContain("leading-relaxed");
+    expect(body!.className).not.toMatch(/\btext-sm\b/);
+  });
 });

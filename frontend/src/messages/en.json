@@ -139,19 +139,35 @@
   },
   "detailedSummary": {
     "citations": {
-      "linkLabel": "Show citation",
-      "noCitation": "No strong source match found. This may be inaccurate.",
-      "popoverLabel": "Citation preview",
+      "markerStrong": "Strong source citation",
+      "markerWeak": "Weak source citation — verify",
+      "tierStrong": "strong",
+      "tierWeak": "weak",
+      "sourceTranscript": "transcript",
+      "sourceDocument": "document",
+      "sourceTable": "table",
+      "sourceExcerpt": "excerpt",
       "loading": "Loading…",
       "error": "Failed to load excerpt",
       "noExcerpt": "No excerpt available",
       "pageLabel": "p.{page}",
       "jump": "Jump",
-      "weakLinkLabel": "Weak source match — verify"
+      "copyExcerpt": "Copy excerpt",
+      "openFile": "Open file"
+    },
+    "verify": {
+      "toggle": {
+        "label": "Verify",
+        "on": "Verify ON",
+        "off": "Verify OFF"
+      },
+      "expandAll": "All expanded",
+      "collapseAll": "Collapse all",
+      "weakOnly": "Needs check {n}",
+      "keyboardHints": "v: ON/OFF | ↑↓: move | Enter: expand | Esc: close"
     },
     "inline": {
-      "label": "Citation excerpt",
-      "close": "Close"
+      "label": "Citation excerpt"
     },
     "edit": {
       "button": "Edit",
