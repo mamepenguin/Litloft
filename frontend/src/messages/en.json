@@ -163,7 +163,9 @@
       },
       "expandAll": "All expanded",
       "collapseAll": "Collapse all",
-      "weakOnly": "Needs check {n}",
+      "weakOnly": {
+        "label": "Needs check"
+      },
       "keyboardHints": "v: ON/OFF | ↑↓: move | Enter: expand | Esc: close"
     },
     "inline": {

@@ -163,7 +163,9 @@
       },
       "expandAll": "全て展開",
       "collapseAll": "折りたたむ",
-      "weakOnly": "要確認 {n}",
+      "weakOnly": {
+        "label": "要確認"
+      },
       "keyboardHints": "v: ON/OFF | ↑↓: 行移動 | Enter: 展開 | Esc: 閉じる"
     },
     "inline": {

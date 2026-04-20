@@ -264,59 +264,83 @@ dd {
 
 /* ===== Markdown Preview Styles ===== */
 
+/* Reading typography — candidate A per docs/citation-ui-mockup.html §3.
+   16px base (inherited from html), line-height 1.625, heading scale
+   1.75em / 1.35em / 1.15em / 1.03em with phrase-wrapping-friendly
+   margins. Applied to MarkdownPreview (FilePreview .md, Ask answers,
+   knowledge preview) AND the detailed-summary segment wrappers so the
+   reading surface is consistent across all long-form markdown. */
 .markdown-body {
   color: var(--text-primary);
-  line-height: 1.8;
+  line-height: 1.625;
   -webkit-font-smoothing: antialiased;
   text-rendering: optimizeLegibility;
   word-wrap: break-word;
   overflow-wrap: break-word;
 }
 
-.markdown-body h1,
-.markdown-body h2,
-.markdown-body h3,
-.markdown-body h4,
-.markdown-body h5,
-.markdown-body h6 {
-  font-weight: 600;
+.markdown-body h1 {
+  font-size: 1.75em;
+  font-weight: 700;
   line-height: 1.35;
-  margin-top: 1.8em;
-  margin-bottom: 0.7em;
+  margin: 1.8em 0 0.55em;
   color: var(--text-primary);
 }
-
-.markdown-body h1 { font-size: 2em; border-bottom: 1px solid var(--bg-border); padding-bottom: 0.3em; }
-.markdown-body h2 { font-size: 1.5em; border-bottom: 1px solid var(--bg-border); padding-bottom: 0.25em; }
-.markdown-body h3 { font-size: 1.25em; }
-.markdown-body h4 { font-size: 1.05em; }
-.markdown-body h5 { font-size: 0.95em; }
-.markdown-body h6 { font-size: 0.9em; color: var(--text-muted); }
+.markdown-body h2 {
+  font-size: 1.35em;
+  font-weight: 700;
+  line-height: 1.4;
+  margin: 1.6em 0 0.5em;
+  color: var(--text-primary);
+}
+.markdown-body h3 {
+  font-size: 1.15em;
+  font-weight: 650;
+  line-height: 1.45;
+  margin: 1.4em 0 0.4em;
+  color: var(--text-primary);
+}
+.markdown-body h4 {
+  font-size: 1.03em;
+  font-weight: 650;
+  line-height: 1.45;
+  margin: 1.2em 0 0.35em;
+  color: var(--text-primary);
+}
+.markdown-body h5 {
+  font-size: 0.95em;
+  font-weight: 650;
+  line-height: 1.45;
+  margin: 1.1em 0 0.3em;
+  color: var(--text-primary);
+}
+.markdown-body h6 {
+  font-size: 0.9em;
+  font-weight: 650;
+  line-height: 1.45;
+  margin: 1.1em 0 0.3em;
+  color: var(--text-muted);
+}
 
 .markdown-body p {
-  margin-top: 0;
-  margin-bottom: 1.15em;
+  margin: 0 0 1em;
 }
 
 .markdown-body ul,
 .markdown-body ol {
   padding-left: 1.75em;
-  margin-bottom: 1.15em;
+  margin: 0.6em 0 1em;
 }
 
 .markdown-body ul { list-style-type: disc; }
 .markdown-body ol { list-style-type: decimal; }
 
 .markdown-body li {
-  margin-bottom: 0.25em;
-}
-
-.markdown-body li + li {
-  margin-top: 0.35em;
+  margin-bottom: 4px;
 }
 
 .markdown-body li > p {
-  margin-bottom: 0.6em;
+  margin-bottom: 0.5em;
 }
 
 .markdown-body li > ul,
@@ -325,13 +349,15 @@ dd {
   margin-bottom: 0.35em;
 }
 
+/* blockquote — accent left bar + soft elevated fill, rounded-xl at
+   the trailing edges per DESIGN.md card radius. */
 .markdown-body blockquote {
   border-left: 3px solid var(--accent);
   margin: 1em 0;
-  padding: 0.5em 1em;
+  padding: 0.55em 1em;
   color: var(--text-muted);
   background: var(--bg-elevated);
-  border-radius: 0 6px 6px 0;
+  border-radius: 0 12px 12px 0;
 }
 
 .markdown-body blockquote > :first-child { margin-top: 0; }
@@ -343,20 +369,20 @@ dd {
 
 .markdown-body code {
   font-family: ui-monospace, "SFMono-Regular", Menlo, Monaco, Consolas, monospace;
-  font-size: 0.9em;
+  font-size: 0.85em;
   background: var(--bg-elevated);
   border-radius: 4px;
-  padding: 0.18em 0.4em;
+  padding: 0.12em 0.38em;
 }
 
 .markdown-body pre {
   background: var(--bg-elevated);
   border: 1px solid var(--bg-border);
-  border-radius: 8px;
+  border-radius: 12px;
   padding: 1em 1.1em;
   overflow-x: auto;
-  margin-bottom: 1.15em;
-  font-size: 0.9em;
+  margin: 1em 0 1.15em;
+  font-size: 0.85em;
   line-height: 1.6;
 }
 
@@ -374,41 +400,38 @@ dd {
 
 .markdown-body a:hover { color: var(--accent-hover); }
 
+/* Table — "quiet reading table" per H3 variant (docs/citation-ui-mockup.html §4.5).
+   border-collapse: separate so individual cells can carry their own
+   border-left accent (weak tier) without colliding with neighbour cell
+   borders. No zebra stripes; no cell side-borders; thead has no fill —
+   the bottom rule + font-weight carries the header role. Matches the
+   "divider + weight only" editorial table aesthetic. */
 .markdown-body table {
-  border-collapse: collapse;
+  border-collapse: separate;
+  border-spacing: 0;
   width: 100%;
-  margin-bottom: 1.15em;
+  margin: 1em 0;
   font-size: 0.95em;
 }
 
 .markdown-body th,
 .markdown-body td {
-  border: 1px solid var(--bg-border);
-  padding: 0.55em 0.85em;
+  border-bottom: 1px solid var(--bg-border);
+  padding: 0.6em 0.85em;
   text-align: left;
+  vertical-align: top;
 }
 
-/* thead: no fill, just an amber accent bottom-border per DESIGN.md
-   table H3 convention. Keeps the header visually quiet so the body
-   rows and their citation dots read as the primary affordance. */
 .markdown-body thead th {
   background: transparent;
-  font-weight: 600;
-  border: none;
+  font-weight: 650;
   border-bottom: 1px solid var(--bg-border);
 }
-
-.markdown-body tbody th {
-  background: var(--bg-elevated);
-  font-weight: 600;
-}
-
-.markdown-body tr:nth-child(even) { background: var(--bg-elevated); }
 
 .markdown-body img {
   max-width: 100%;
   height: auto;
-  border-radius: 6px;
+  border-radius: 12px;
 }
 
 .markdown-body hr {
@@ -471,6 +494,72 @@ mark {
 
 .markdown-body > :first-child { margin-top: 0; }
 .markdown-body > :last-child { margin-bottom: 0; }
+
+/* =====================================================================
+   Citation segment host (docs/citation-ui-mockup.html §4 `.segment`).
+
+   Each paragraph / bullet / table-row that carries a citation marker is
+   wrapped with ``data-citation-section-path``. The host paints a quiet
+   sand tint on hover (Verify ON only) and a stronger tint when the
+   accordion is expanded. A 12px border-radius keeps the tint rounded
+   off against the surrounding prose.
+
+   scroll-margin-top anchors the segment at ~20vh so expanding pins the
+   clicked line to the top of the viewport instead of the very edge. */
+[data-citation-section-path] {
+  scroll-margin-top: 20vh;
+  transition: background-color 120ms ease;
+}
+
+/* Hover / expanded tint — applied only when Verify is ON. The global
+   data-citation-verify attribute is hoisted onto the ``[data-citation-host]``
+   wrapper that surrounds the whole summary so a single DOM attribute
+   gates every segment below it without per-segment duplication. */
+[data-citation-host="on"]
+  [data-citation-section-path]:not(tr):not(:focus-visible):hover {
+  background: color-mix(in srgb, var(--sand) 55%, transparent);
+}
+[data-citation-host="on"]
+  [data-citation-section-path]:not(tr)[aria-expanded="true"] {
+  background: color-mix(in srgb, var(--sand) 70%, transparent);
+}
+
+/* Table rows can't carry the tint themselves because a cell's border
+   paints over the row background; we tint the cells instead, matching
+   the mockup rule ``tr.segment[aria-expanded="true"] > td``. */
+[data-citation-host="on"]
+  tr[data-citation-section-path]:hover > td {
+  background: color-mix(in srgb, var(--sand) 40%, transparent);
+}
+[data-citation-host="on"]
+  tr[data-citation-section-path][aria-expanded="true"] > td {
+  background: color-mix(in srgb, var(--sand) 55%, transparent);
+}
+
+/* Paragraph / bullet segments breathe with -8px horizontal negative
+   margin + 8px horizontal padding so the hover / expanded tint
+   extends a hair past the text box. A symmetric 4px vertical padding
+   lets the tint have a small halo above/below the text even when
+   collapsed; because every segment (citation-bearing or not) sits
+   inside the same wrapper, the 4px applies uniformly and doesn't
+   shift the text baseline relative to neighbouring non-citation
+   content. Table rows skip this entirely — the cell padding already
+   carries the inset. */
+[data-citation-section-path]:not(tr):not(td):not(th) {
+  border-radius: 12px;
+}
+li[data-citation-section-path]:not(tr),
+div[data-citation-section-path]:not(tr) {
+  margin-left: -8px;
+  margin-right: -8px;
+  padding: 4px 8px;
+}
+
+/* Keep focus outline visible over the tint. */
+[data-citation-section-path]:focus-visible {
+  outline: 2px solid var(--focus-ring);
+  outline-offset: 2px;
+}
 
 /* Task lists */
 .markdown-body .task-list-item {
@@ -563,12 +652,9 @@ mark {
   margin-bottom: 1em;
 }
 
-/* Mobile adjustments: tighter heading hierarchy and slightly smaller body. */
+/* Mobile adjustments — keep the reading-A heading scale, only trim
+   table font-size to avoid horizontal overflow on narrow viewports. */
 @media (max-width: 767px) {
-  .markdown-body { line-height: 1.75; }
-  .markdown-body h1 { font-size: 1.75em; }
-  .markdown-body h2 { font-size: 1.35em; }
-  .markdown-body h3 { font-size: 1.15em; }
   .markdown-body table { font-size: 0.93em; }
 }
 
