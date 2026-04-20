@@ -457,6 +457,101 @@ channel for those. Stage 5 is for surfacing information the
 retriever already has, not for inventing accuracy the retriever
 doesn't.
 
+## Stage 6: Adjacent-chunk highlight extension (UI)
+
+Stages 1–4 pick top-K chunks per segment and store the top-1 score.
+Stage 5 splits the top-1 into strong/weak tiers. Stage 6 uses the
+other chunks in `chunk_ids` (top-2, top-3) for a different purpose:
+detecting when a citation's true source spans an ASR chunk
+boundary, so the UI can render one contiguous highlight instead of
+leaving half of the source as "muted context".
+
+### When it fires
+
+For each citation rendered:
+
+```
+top1_idx = parse(chunk_ids[0])
+for chunk_id in chunk_ids[1:3]:
+    idx = parse(chunk_id)
+    if idx == top1_idx + 1: extend the suffix highlight
+    if idx == top1_idx - 1: extend the prefix highlight
+```
+
+Strictly `idx_gap == 1`. Neither `idx_gap == 2` nor large gaps
+qualify.
+
+### Why strictly idx_gap == 1
+
+An N=138 cross-reference against curated GT (69 pinned segments ×
+top-2 + top-3) showed:
+
+| idx_gap | n | in_gt |
+|---|---:|---:|
+| 1 | 52 | **46.2%** |
+| 2 | 24 | 25.0% |
+| > 10 | 16 | **0.0%** |
+
+- `idx_gap == 1` has ~46% in-GT rate, and the false positives are
+  low-harm: the adjacent chunk's text is already visible as the
+  excerpt's muted prefix / suffix context, so the "extension" just
+  re-styles what the reader already sees.
+- `idx_gap == 2` drops to 25% in-GT with no noticeable precision
+  gain from a score filter (27% with `score_gap < 0.02`). Not
+  worth the signal.
+- `idx_gap > 10` is 0% in GT regardless of position (opening,
+  closing, middle) or score gap. An earlier hypothesis that
+  synthesis-style paragraphs (`導入/0`, `結論/0`) would have
+  distributed anchors was not borne out by the curated GT —
+  curators consistently GT the compact region where the paragraph
+  is actually spoken, not the regions it conceptually summarises.
+
+### Why no score-gap filter
+
+Within `idx_gap == 1`, tightening by `score_gap < 0.01` raises
+precision to 75% but misses 18 of 24 real adjacencies. The
+product's loss function values recall over precision here — a
+highlight that spans one extra ASR chunk is only a minor visual
+over-reach, whereas a citation whose real source boundary falls on
+the muted side of the `<mark>` is a confusing UX. So all
+`idx_gap == 1` neighbours extend regardless of `score_gap`.
+
+### What the UI actually changes
+
+Only the colouring of the existing excerpt:
+
+```
+Before (current):          After (forward extension):
+prefix  → muted span       prefix  → muted span (unchanged)
+target  → <mark>           target  → <mark>
+suffix  → muted span       suffix  → <mark> (same highlight colour)
+```
+
+No additional fetch, no extra panel, no structural difference in
+the excerpt — the adjacent chunk's text was always in the prefix /
+suffix as muted neighbour context. The extension just promotes one
+side to the same background colour as the target, so the reader
+sees one contiguous cited region instead of a cited region abutting
+a dimmer "similar but separate" region.
+
+### What this does not solve
+
+- **Long adjacent chunks**: the excerpt only carries ±100 chars of
+  the neighbour (`_EXCERPT_CONTEXT_CHARS` in `routers/files.py`).
+  When the real adjacent chunk is longer, only the first/last 100
+  chars get `<mark>`'d and the rest is not shown at all. Widening
+  the context is a separate concern.
+- **idx_gap 2+ synthesis**: the summary paragraph *might*
+  legitimately synthesise distant anchors (intro, conclusion
+  sections do this in principle). Data says GT curators don't
+  accept those as citations, so the UI doesn't either. If the loss
+  function changes, revisit this stage.
+- **Table rows**: `segment_type = "bullet (row)"` uses per-cell
+  max-pool embeddings (Stage 3), and the chunk-adjacency concept
+  doesn't apply to table cells the same way. Table row citations
+  pass through this stage unchanged because their `chunk_ids` don't
+  typically include adjacent transcript indices.
+
 ## End-to-end walkthrough
 
 Consider segment *"と続き、リメイクの評価も回を重ねるごとに高まっていると述べている"*
