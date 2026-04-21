@@ -15,7 +15,7 @@
 | Theme | Light / Dark / System |
 | CSS | Tailwind CSS v4 + CSS Custom Properties |
 | Font | System-UI with CJK fallback stack |
-| Last updated | 2026-04-14 |
+| Last updated | 2026-04-21 |
 
 ---
 
@@ -62,6 +62,8 @@ All tokens are exposed as Tailwind utility classes via `@theme inline` (e.g. `bg
 | `--focus-ring` | `#435ee5` | Focus ring (blue) |
 | `--danger` | `#9e0a0a` | Danger / error color |
 | `--danger-bg` | `rgba(230,0,35,0.08)` | Error background |
+| `--highlight-bg` | `#fff8c5` | `<mark>` highlight background (warm butter) |
+| `--kbd-shadow` | `inset 0 -1px 0 #b8c0c8` | `<kbd>` bottom bevel |
 
 #### Dark mode (`[data-theme="dark"]`)
 
@@ -86,6 +88,8 @@ All tokens are exposed as Tailwind utility classes via `@theme inline` (e.g. `bg
 | `--focus-ring` | `#617bff` | Bright blue |
 | `--danger` | `#ff8a8a` | Bright coral error |
 | `--danger-bg` | `rgba(255,45,66,0.12)` | Error background |
+| `--highlight-bg` | `rgba(244,198,116,0.55)` | Mark highlight — opacity lifted from 0.22 so it reads against the dark canvas |
+| `--kbd-shadow` | `inset 0 -1px 0 rgba(255,255,255,0.2)` | `<kbd>` bottom bevel |
 
 #### System mode (`[data-theme="system"]`)
 
@@ -100,6 +104,7 @@ Applies light or dark values via `@media (prefers-color-scheme: light/dark)`.
 - **`--danger`**: Use only for errors, deletions, and destructive actions. Do not confuse with `--accent` red.
 - **`--text-muted`**: Keep contrast readable. Do not reduce opacity beyond legibility.
 - Never rely on color alone to convey state — pair with icons or text.
+- **`<mark>` UA default is reset globally** (`background: transparent; color: inherit`) so Tailwind utilities (e.g. `bg-accent-teal/20`) apply wherever `<mark>` is used outside the Markdown pipeline. Inside `.markdown-body`, `--highlight-bg` wins via specificity. Do not re-introduce the browser-default yellow.
 
 ---
 
@@ -128,7 +133,33 @@ Applies light or dark values via `@media (prefers-color-scheme: light/dark)`.
 | Caption / Label | 11–12px | 400–500 | — | Nav auxiliary labels |
 | Section header | 11px | 600 | — | UPPERCASE, English-only hardcoded labels |
 
-### 3.3 Japanese Typography Rules (jp-ui-contracts)
+### 3.3 Long-form Prose (MarkdownPreview / "reading-A")
+
+Applies wherever `.markdown-body` renders — `MarkdownPreview` (FilePreview `.md`, Ask answers, knowledge preview) and the `detailed_summary` segment wrappers. Keep these values identical across those surfaces so the reading experience is consistent.
+
+| Element | Size | Weight | Line Height | Margin (top/bottom) |
+|---|---|---|---|---|
+| Body | 16px (inherited) | 400 | 1.625 | `0 0 1em` |
+| h1 | 1.75em | 700 | 1.35 | `1.8em / 0.55em` |
+| h2 | 1.35em | 700 | 1.4 | `1.6em / 0.5em` |
+| h3 | 1.15em | 650 | 1.45 | `1.4em / 0.4em` |
+| h4 | 1.03em | 650 | 1.45 | `1.2em / 0.35em` |
+| Inline `code` | 0.85em | — | — | — |
+| `pre` / code block | 0.85em | — | 1.6 | `1em 0 1.15em` |
+
+- `blockquote`, `pre`, `img`, and fenced code blocks all use **12px radius** (matches §4 card radius — they are the same "long-form content block" family).
+- `blockquote`: `border-left: 3px solid var(--accent)`, `background: var(--bg-elevated)`, radius `0 12px 12px 0`.
+- `.markdown-body > :first-child` / `:last-child` strip outer margins so the first/last block never paints a phantom gutter against its host container.
+- `.markdown-segment` variant does the same strip on the **immediate** children only — use it when MarkdownPreview is rendered inside a wrapper that already owns vertical rhythm (e.g. citation-anchored segments).
+
+### 3.4 Reading Measure
+
+Long-form prose has a 860px max-width cap, applied only when MarkdownPreview is rendered in `chrome=true` mode (FilePreview, Ask panel full view, knowledge preview).
+
+- **Embedded contexts drop the cap** — `chrome=false` usage (detailed-summary segments, inline citation panels, any host that already controls its own measure) lets the parent decide width.
+- Do not hard-code a max-width on MarkdownPreview callers; flip `chrome` instead.
+
+### 3.5 Japanese Typography Rules (jp-ui-contracts)
 
 ```css
 /* Base rules for Japanese */
@@ -246,6 +277,17 @@ p, li, dd {
 - Radius: `rounded-2xl`
 - Danger item: `text-danger hover:bg-accent/10`
 
+### Tables ("quiet editorial" style)
+
+Default table aesthetic for MarkdownPreview and any other reading-surface table. The idea: **dividers and font-weight alone carry structure** — no fills, no zebra, no cell grid.
+
+- `border-collapse: separate; border-spacing: 0` (so individual cells can carry their own accent border without colliding with neighbour cells).
+- `th`, `td`: `border-bottom: 1px solid var(--bg-border)`, padding `0.6em 0.85em`, `text-align: left`, `vertical-align: top`.
+- `thead th`: **no background fill** — the bottom rule + `font-weight: 650` carries the header role.
+- No zebra stripes, no cell side-borders.
+- **Exception**: vertical-header tables (`tbody th`) may keep a subtle fill on the header column to distinguish the axis.
+- Mobile (`max-width: 767px`): trim table `font-size` to `0.93em`. Do not reflow — horizontal scroll is preferred to structure loss.
+
 ### Section Header Labels (i18n)
 
 - Do **not** use `tracking-wider` — these render Japanese text
@@ -299,6 +341,9 @@ An inline script in `<head>` reads `localStorage('theme-preference')` and sets `
 - Avoid `tracking-wider` on any element that may render Japanese text
 - Use the `break-anywhere` utility for long words and URLs — not `break-all`
 - Use plum black (`#211922` / `#f5e6e8`) for primary text
+- Apply 12px radius uniformly to long-form content blocks (`blockquote`, `pre`, `img`, fenced code)
+- Let tables carry structure via `border-bottom` + `font-weight` only — no zebra, no fills
+- Toggle `chrome` on MarkdownPreview to switch between "page reading surface" (860px cap) and "embedded segment" (inherit width)
 
 ### Don't
 - Do not apply `word-break: break-all` globally to body text or UI labels
@@ -308,3 +353,6 @@ An inline script in `<head>` reads `localStorage('theme-preference')` and sets `
 - Do not use border-radius below 12px on outer surfaces
 - Do not use cool grays — always warm/olive-toned
 - Do not use pure black in dark mode — use warm plum dark (`#1a0e10`)
+- Do not re-introduce the UA default yellow on `<mark>` — it is reset globally so utilities and `--highlight-bg` stay in control
+- Do not add zebra stripes or cell grid borders to reading-surface tables
+- Do not hard-code `max-width` on MarkdownPreview callers — flip `chrome` instead so the cap stays centralised
