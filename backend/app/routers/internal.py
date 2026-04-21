@@ -122,6 +122,58 @@ async def filter_file_ids(
     return {"accessible": accessible}
 
 
+class BulkStateRequest(BaseModel):
+    file_ids: list[str]
+
+
+@router.post("/files/bulk-state")
+async def files_bulk_state(
+    body: BulkStateRequest,
+    db=Depends(get_db),
+):
+    """Return the lifecycle state of each file ID in bulk.
+
+    Used by addons (e.g. knowledge) that need to reconcile cached
+    references to core files after lifecycle webhooks. No access
+    control — this is an internal endpoint for service-to-service use.
+
+    Each returned status reports one of three states:
+
+    * ``"active"``   — ``deleted_at IS NULL`` and ``missing_since IS NULL``
+    * ``"missing"``  — ``missing_since IS NOT NULL``
+    * ``"trash"``    — ``deleted_at IS NOT NULL`` (soft-deleted)
+
+    IDs that no longer exist in the ``files`` table (user-triggered
+    physical purge) are reported in ``not_found`` so callers can treat
+    them as permanently gone.
+    """
+    if not body.file_ids:
+        return {"statuses": [], "not_found": []}
+
+    rows = (
+        db.query(File.id, File.drive, File.deleted_at, File.missing_since)
+        .filter(File.id.in_(body.file_ids))
+        .all()
+    )
+
+    by_id = {row.id: row for row in rows}
+    statuses: list[dict] = []
+    for fid in body.file_ids:
+        row = by_id.get(fid)
+        if row is None:
+            continue
+        if row.deleted_at is not None:
+            state = "trash"
+        elif row.missing_since is not None:
+            state = "missing"
+        else:
+            state = "active"
+        statuses.append({"id": row.id, "drive": row.drive, "state": state})
+
+    not_found = [fid for fid in body.file_ids if fid not in by_id]
+    return {"statuses": statuses, "not_found": not_found}
+
+
 # ---------------------------------------------------------------------------
 # file_relations / file_active_summaries (Step A of knowledge promotion)
 # ---------------------------------------------------------------------------

@@ -15,5 +15,13 @@
     "feature": "Feature key in drives.json addon policy (default 'index'). Events for drives where this feature is disabled are dropped or stripped before dispatch."
   },
   "hooks": {
+    "_knowledge_example_files.missing": [
+      {
+        "url": "http://knowledge:8200/webhook/files-missing",
+        "secret_env": "KNOWLEDGE_WEBHOOK_SECRET",
+        "addon": "knowledge",
+        "feature": "index"
+      }
+    ]
   }
 }
