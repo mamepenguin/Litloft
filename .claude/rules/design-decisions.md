@@ -49,6 +49,17 @@
 - **restore_file の防御**: `restore_file()` は `deleted_at = None` と同時に `missing_since = None` もクリアする。相互排他はソース側で強制されるが、out-of-band DB 編集や将来のバグに対する safety net
 - **`purge_all_missing` のバッチ化**: 大量 missing ファイル purge 時の長時間 DB ロック / 部分失敗を避けるため、200 件ずつチャンク commit。各バッチは `purged_ids` を返し、router 側で TOCTOU なく webhook 発行
 
+## ファイル関連付けとアクティブ要約（`file_relations` / `file_active_summaries`）
+
+Phase 3 の detailed_summary → knowledge 昇格（`docs/superpowers/specs/2026-04-18-detailed-summary-knowledge-promotion.md`）の基盤として、コアに 2 テーブルを新設（Step A）。
+
+- **関連 (relation) と役割 (role) の 2 テーブル分離**: `file_relations` は静的事実（ファイル同士の `kind` 付き関連、双方向 OR で query）、`file_active_summaries` は「現在どのノートがこのファイルのアクティブ要約か」を表すポインタ（file_id PK の 1:1）。役割を別テーブルにしたので、要約を差し替えても relation は壊れず、過去の summary を `related` として残せる（hako `DyF-M8I5jPBbUMFpNLcQ3`）
+- **`kind` 値**: v1 は `"related"` のみ。将来 `derived_from` / `sequel_of` / `transcript_of` 等を追加。DB 制約ではなくアプリ層で値範囲を管理（アドオンが拡張可能）
+- **ドライブ境界**: 関連の 2 ファイルは同ドライブでなければならない。`POST /api/internal/file_relations` と `POST /api/internal/file_active_summary` がアプリケーション層で両ファイルの drive を比較し、違反は 400（spec R4）
+- **FK cascade**: `files.id` への FK は両テーブル両カラムに `ON DELETE CASCADE`。ファイル物理削除（purge）時に関連行は自動消滅
+- **API**: Internal に CRUD 6 本（`/api/internal/file_relations`、`/api/internal/file_active_summary`）、公開に `GET /api/files/{file_id}/active_summary`（アクセス制御で locked 保護ドライブは 404 を返す）
+- **Step A はインフラのみ**: summary slot ディスパッチ、knowledge `/distill`、intelligence regenerate 連動は Step B / Step C で別コミット。現状はテーブルと API は存在するが誰も書き込まない
+
 ## 視聴履歴・プロファイル
 - **プロファイルとアクセス制御は独立**: JWT `hv_token` = ドライブアクセス制御、Cookie `hv_viewer` = 個人識別。直交する概念
 - **ニックネーム方式**: アカウント不要。サーバー側でSHA-256ハッシュ→viewer_id

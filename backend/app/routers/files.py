@@ -19,7 +19,7 @@ from sqlalchemy.orm import Session
 import app.config as config
 from app.auth import check_drive_access, get_unlocked_groups
 from app.database import get_db
-from app.models import File, Tag, active_file_filter, file_tags
+from app.models import File, FileActiveSummary, Tag, active_file_filter, file_tags
 from app.schemas import (
     ArchiveContentsResponse,
     ArchiveEntryResponse,
@@ -376,6 +376,49 @@ async def get_file(
     file = _get_file_or_404(db, file_id, unlocked_groups)
     subtitles = _detect_file_subtitles(file)
     return _to_response(file, subtitles=subtitles)
+
+
+@router.get("/{file_id}/active_summary")
+async def get_file_active_summary(
+    file_id: str,
+    db: Annotated[Session, Depends(get_db)],
+    unlocked_groups: Annotated[list[str], Depends(get_unlocked_groups)],
+):
+    """Return the knowledge-note active summary (if any) for this file.
+
+    Access control: protected drives locked to the caller return 404
+    so the drive's existence is not leaked (same pattern as comments).
+    Missing or trashed files also return 404 via active_file_filter().
+    """
+    file = _get_file_or_404(db, file_id, unlocked_groups)
+
+    row = (
+        db.query(FileActiveSummary)
+        .filter(FileActiveSummary.file_id == file.id)
+        .first()
+    )
+    if row is None:
+        return {"has_active_summary": False, "file_id": file.id}
+
+    note = (
+        db.query(File)
+        .filter(File.id == row.summary_file_id, active_file_filter())
+        .first()
+    )
+    if note is None:
+        # Summary note is missing/trashed/gone — surface as no active summary.
+        return {"has_active_summary": False, "file_id": file.id}
+
+    return {
+        "has_active_summary": True,
+        "file_id": file.id,
+        "summary_note": {
+            "file_id": note.id,
+            "drive": note.drive,
+            "path": note.file_path,
+            "title": note.title,
+        },
+    }
 
 
 @router.get("/{file_id}/neighbors", response_model=NeighborsResponse)

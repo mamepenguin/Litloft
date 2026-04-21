@@ -349,6 +349,17 @@ def _migrate(engine_) -> None:
                 conn.execute(text("ALTER TABLE files ADD COLUMN missing_since DATETIME"))
                 conn.execute(text("CREATE INDEX idx_files_missing_since ON files(missing_since)"))
 
+    # === Phase 10: Create file_relations + file_active_summaries tables ===
+    tables = inspector.get_table_names()
+    if "file_relations" not in tables:
+        logger.info("Migrating: creating 'file_relations' table")
+        Base.metadata.tables["file_relations"].create(bind=engine_, checkfirst=True)
+    if "file_active_summaries" not in tables:
+        logger.info("Migrating: creating 'file_active_summaries' table")
+        Base.metadata.tables["file_active_summaries"].create(
+            bind=engine_, checkfirst=True
+        )
+
 
 def init_db() -> None:
     DATA_DIR.mkdir(parents=True, exist_ok=True)

@@ -2,6 +2,7 @@ from datetime import UTC, datetime
 
 from sqlalchemy import (
     Boolean,
+    CheckConstraint,
     Column,
     DateTime,
     Float,
@@ -210,6 +211,52 @@ class PlaylistItem(Base):
     __table_args__ = (
         UniqueConstraint("playlist_id", "file_id", name="uq_playlist_items_playlist_file"),
         Index("idx_playlist_items_playlist_id", "playlist_id"),
+    )
+
+
+class FileRelation(Base):
+    __tablename__ = "file_relations"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    file_id_a: Mapped[str] = mapped_column(
+        String(12), ForeignKey("files.id", ondelete="CASCADE"), nullable=False
+    )
+    file_id_b: Mapped[str] = mapped_column(
+        String(12), ForeignKey("files.id", ondelete="CASCADE"), nullable=False
+    )
+    kind: Mapped[str] = mapped_column(String(32), nullable=False)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime, default=lambda: datetime.now(UTC)
+    )
+    created_by: Mapped[str | None] = mapped_column(String(16), nullable=True)
+
+    __table_args__ = (
+        UniqueConstraint(
+            "file_id_a", "file_id_b", "kind", name="uq_file_relations_a_b_kind"
+        ),
+        CheckConstraint("file_id_a != file_id_b", name="ck_file_relations_not_self"),
+        Index("idx_file_relations_a", "file_id_a", "kind"),
+        Index("idx_file_relations_b", "file_id_b", "kind"),
+    )
+
+
+class FileActiveSummary(Base):
+    __tablename__ = "file_active_summaries"
+
+    file_id: Mapped[str] = mapped_column(
+        String(12), ForeignKey("files.id", ondelete="CASCADE"), primary_key=True
+    )
+    summary_file_id: Mapped[str] = mapped_column(
+        String(12), ForeignKey("files.id", ondelete="CASCADE"), nullable=False
+    )
+    set_at: Mapped[datetime] = mapped_column(
+        DateTime,
+        default=lambda: datetime.now(UTC),
+        onupdate=lambda: datetime.now(UTC),
+    )
+
+    __table_args__ = (
+        Index("idx_active_summaries_summary", "summary_file_id"),
     )
 
 
