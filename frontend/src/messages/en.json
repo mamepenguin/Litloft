@@ -183,7 +183,40 @@
       "recomputing": "Recomputing citations…",
       "revertButton": "Revert to AI version",
       "revertConfirm": "Discard your edits and restore the AI-generated summary?",
-      "regenerateConfirm": "Your edits will be lost. Continue and regenerate?"
+      "regenerateConfirm": "Your edits will be lost. Continue and regenerate?",
+      "regenerateConfirmWithNote": "Regenerating the AI version. Your saved knowledge note will remain, but the file detail page will switch back to the AI summary. Continue?",
+      "saveToKnowledge": "Save to knowledge",
+      "saveSuccess": "Saved to knowledge: {path}"
+    },
+    "dormant": {
+      "badge": "Dormant",
+      "hint": "Knowledge note is the active summary; this is the dormant AI draft"
+    }
+  },
+  "knowledgeSave": {
+    "title": "Save to knowledge",
+    "loading": "Loading…",
+    "createVault": {
+      "description": "No Vault is registered for this drive. Create one to continue?",
+      "labelField": "Vault label",
+      "pathField": "Vault folder path",
+      "submit": "Create and continue",
+      "submitting": "Creating…"
+    },
+    "existing": {
+      "description": "This file has already been saved to knowledge:",
+      "moreNotes": "Show {count} other note(s)",
+      "openExisting": "Open existing",
+      "createNew": "Create new with different name"
+    },
+    "form": {
+      "vault": "Target Vault",
+      "folder": "Folder",
+      "filename": "Filename",
+      "noteTitle": "Title",
+      "defaultTitle": "Detailed summary of {filename}",
+      "submit": "Save",
+      "submitting": "Saving…"
     }
   },
   "searchIndex": {

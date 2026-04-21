@@ -17,6 +17,7 @@ import app.config as config
 from app.auth import filter_drives, get_unlocked_groups
 from app.database import get_db
 from app.models import File, FileActiveSummary, FileRelation, active_file_filter
+from app.services.ws import manager as ws_manager
 
 logger = logging.getLogger(__name__)
 
@@ -283,6 +284,24 @@ async def upsert_file_active_summary(
         row.set_at = datetime.now(UTC)
     db.commit()
     db.refresh(row)
+
+    # Notify connected clients that this file's summary-view pointer
+    # changed. The drive scope scopes access filtering in the WS
+    # broadcaster — other drives' viewers never see it. Broadcast
+    # failure is swallowed because the persisted row is the source of
+    # truth; any reload will pick up the new state.
+    try:
+        await ws_manager.broadcast(
+            "core.file_active_summary.changed",
+            {
+                "file_id": body.file_id,
+                "summary_file_id": body.summary_file_id,
+            },
+            drive=by_id[body.file_id].drive,
+        )
+    except Exception as exc:  # noqa: BLE001
+        logger.warning("broadcast file_active_summary.changed failed: %s", exc)
+
     return _active_summary_to_dict(row)
 
 
@@ -315,4 +334,51 @@ async def delete_file_active_summary(
         raise HTTPException(status_code=404, detail="active summary not found")
     db.delete(row)
     db.commit()
+
+    # Resolve the file's drive for access-filtered broadcast. Looking
+    # up post-delete is safe because the FK cascade only fires on the
+    # File row (not this row), so the File still exists for an active
+    # pointer. If the file was already gone (race against soft-delete),
+    # fall back to a broadcast with no drive — every connected client
+    # gets it but the payload is harmless (file_id they can't see in
+    # any list).
+    drive: str | None = None
+    file_row = db.query(File.drive).filter(File.id == file_id).first()
+    if file_row is not None:
+        drive = file_row.drive
+    try:
+        await ws_manager.broadcast(
+            "core.file_active_summary.changed",
+            {"file_id": file_id, "summary_file_id": None},
+            drive=drive,
+        )
+    except Exception as exc:  # noqa: BLE001
+        logger.warning("broadcast file_active_summary.changed failed: %s", exc)
+
+    return Response(status_code=204)
+
+
+class AddonEventRequest(BaseModel):
+    event: Annotated[
+        str, StringConstraints(min_length=1, max_length=128, pattern=r"^[a-z][a-z0-9_.]*$")
+    ]
+    data: dict
+    drive: str | None = None
+
+
+@router.post("/addon-events", status_code=204)
+async def broadcast_addon_event(body: AddonEventRequest):
+    """Forward an addon-generated WebSocket event to connected clients.
+
+    External-service addons (intelligence, knowledge) cannot reach the
+    host's WS broadcaster directly, so they POST here and the core
+    process relays the payload. When ``drive`` is set, the broadcast is
+    access-filtered by the drive's access group so protected-drive
+    viewers are the only receivers. Public drives pass through to
+    everyone, matching the rest of the broadcaster's behaviour.
+    """
+    try:
+        await ws_manager.broadcast(body.event, body.data, drive=body.drive)
+    except Exception as exc:  # noqa: BLE001
+        logger.warning("broadcast_addon_event %s failed: %s", body.event, exc)
     return Response(status_code=204)

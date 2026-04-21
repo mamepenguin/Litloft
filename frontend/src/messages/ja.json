@@ -183,7 +183,40 @@
       "recomputing": "出典を再計算中…",
       "revertButton": "AI生成版に戻す",
       "revertConfirm": "編集内容を破棄して AI 生成版に戻しますか？",
-      "regenerateConfirm": "編集内容は失われます。続行して再生成しますか？"
+      "regenerateConfirm": "編集内容は失われます。続行して再生成しますか？",
+      "regenerateConfirmWithNote": "AI 版を再生成します。現在 knowledge に保存されているノートは残りますが、ファイル詳細ページでは AI 要約の表示に戻ります。続行しますか？",
+      "saveToKnowledge": "knowledge に保存",
+      "saveSuccess": "knowledge に保存しました：{path}"
+    },
+    "dormant": {
+      "badge": "非アクティブ",
+      "hint": "knowledge ノートがアクティブな要約として表示されています。これは非アクティブな AI 下書きです"
+    }
+  },
+  "knowledgeSave": {
+    "title": "knowledge に保存",
+    "loading": "読み込み中…",
+    "createVault": {
+      "description": "このドライブに Vault が登録されていません。作成して続けますか？",
+      "labelField": "Vault 名",
+      "pathField": "Vault フォルダパス",
+      "submit": "作成して続行",
+      "submitting": "作成中…"
+    },
+    "existing": {
+      "description": "このファイルは既に knowledge に保存済みです：",
+      "moreNotes": "その他のノート {count} 件を表示",
+      "openExisting": "既存を開く",
+      "createNew": "別名で新規作成"
+    },
+    "form": {
+      "vault": "保存先 Vault",
+      "folder": "フォルダ",
+      "filename": "ファイル名",
+      "noteTitle": "タイトル",
+      "defaultTitle": "{filename} の詳細要約",
+      "submit": "保存",
+      "submitting": "保存中…"
     }
   },
   "searchIndex": {

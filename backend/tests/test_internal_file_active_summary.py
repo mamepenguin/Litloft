@@ -186,3 +186,98 @@ class TestDeleteFileActiveSummary:
 
         res = c.delete(f"/api/internal/file_active_summary/{f.id}")
         assert res.status_code == 404
+
+
+class TestFileActiveSummaryBroadcasts:
+    """UPSERT/DELETE emit ``core.file_active_summary.changed`` so the
+    frontend can flip the summary view without polling."""
+
+    def test_upsert_broadcasts_changed_event(self, client, monkeypatch):
+        c, db, _, _ = client
+        f = _seed_file(db, TEST_DRIVE, "f.mp4")
+        s = _seed_file(db, TEST_DRIVE, "s.md")
+
+        captured: list[dict] = []
+
+        async def fake_broadcast(event, data, drive=None):
+            captured.append({"event": event, "data": data, "drive": drive})
+
+        from app.routers import internal as internal_router
+
+        monkeypatch.setattr(internal_router.ws_manager, "broadcast", fake_broadcast)
+
+        res = c.post(
+            "/api/internal/file_active_summary",
+            json={"file_id": f.id, "summary_file_id": s.id},
+        )
+        assert res.status_code == 200, res.text
+        assert len(captured) == 1
+        assert captured[0]["event"] == "core.file_active_summary.changed"
+        assert captured[0]["data"]["file_id"] == f.id
+        assert captured[0]["data"]["summary_file_id"] == s.id
+        assert captured[0]["drive"] == TEST_DRIVE
+
+    def test_delete_broadcasts_changed_event(self, client, monkeypatch):
+        c, db, _, _ = client
+        f = _seed_file(db, TEST_DRIVE, "f.mp4")
+        s = _seed_file(db, TEST_DRIVE, "s.md")
+        c.post(
+            "/api/internal/file_active_summary",
+            json={"file_id": f.id, "summary_file_id": s.id},
+        )
+
+        captured: list[dict] = []
+
+        async def fake_broadcast(event, data, drive=None):
+            captured.append({"event": event, "data": data, "drive": drive})
+
+        from app.routers import internal as internal_router
+
+        monkeypatch.setattr(internal_router.ws_manager, "broadcast", fake_broadcast)
+
+        res = c.delete(f"/api/internal/file_active_summary/{f.id}")
+        assert res.status_code == 204
+        assert len(captured) == 1
+        assert captured[0]["event"] == "core.file_active_summary.changed"
+        assert captured[0]["data"]["file_id"] == f.id
+        assert captured[0]["data"]["summary_file_id"] is None
+
+
+class TestAddonEventsEndpoint:
+    """``POST /api/internal/addon-events`` relays addon WS events."""
+
+    def test_forwards_to_broadcaster(self, client, monkeypatch):
+        c, _, _, _ = client
+        captured: list[dict] = []
+
+        async def fake_broadcast(event, data, drive=None):
+            captured.append({"event": event, "data": data, "drive": drive})
+
+        from app.routers import internal as internal_router
+
+        monkeypatch.setattr(internal_router.ws_manager, "broadcast", fake_broadcast)
+
+        res = c.post(
+            "/api/internal/addon-events",
+            json={
+                "event": "knowledge.distilled.created",
+                "data": {"vault_id": 1, "note_file_id": "n1", "source_file_id": "f1"},
+                "drive": TEST_DRIVE,
+            },
+        )
+        assert res.status_code == 204
+        assert captured == [
+            {
+                "event": "knowledge.distilled.created",
+                "data": {"vault_id": 1, "note_file_id": "n1", "source_file_id": "f1"},
+                "drive": TEST_DRIVE,
+            }
+        ]
+
+    def test_rejects_invalid_event_name(self, client):
+        c, _, _, _ = client
+        res = c.post(
+            "/api/internal/addon-events",
+            json={"event": "Bad Event", "data": {}},
+        )
+        assert res.status_code == 422
