@@ -71,7 +71,14 @@ async def file_info(
     file_id: str,
     db=Depends(get_db),
 ):
-    """Return basic file metadata. No access control (internal use only)."""
+    """Return basic file metadata. No access control (internal use only).
+
+    ``updated_at`` is the core's last-touched timestamp for the row
+    (text content edits, rescan, etc.). Addons use it as a
+    mtime-equivalent when reconciling their own cached state — e.g.
+    the knowledge frontmatter scanner compares it against the note's
+    ``last_synced_at`` to skip untouched rows.
+    """
     file = (
         db.query(File)
         .filter(File.id == file_id, active_file_filter())
@@ -86,6 +93,7 @@ async def file_info(
         "filename": file.filename,
         "file_type": file.file_type,
         "folder_path": file.folder_path,
+        "updated_at": file.updated_at.isoformat() if file.updated_at else None,
     }
 
 
