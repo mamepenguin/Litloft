@@ -7,10 +7,17 @@ interface FetchResult<T> {
   total: number;
 }
 
+interface InitialHydration<T> {
+  items: T[];
+  total: number;
+  page: number;
+}
+
 interface UseInfiniteScrollOptions<T> {
   fetchPage: (page: number, limit: number) => Promise<FetchResult<T>>;
   limit?: number;
   disabled?: boolean;
+  initial?: InitialHydration<T> | null;
 }
 
 interface UseInfiniteScrollReturn<T> {
@@ -19,6 +26,7 @@ interface UseInfiniteScrollReturn<T> {
   loading: boolean;
   loadingMore: boolean;
   hasMore: boolean;
+  pagesLoaded: number;
   sentinelRef: RefObject<HTMLDivElement | null>;
   reset: () => void;
   setItems: Dispatch<SetStateAction<T[]>>;
@@ -29,13 +37,16 @@ export function useInfiniteScroll<T>({
   fetchPage,
   limit = 30,
   disabled = false,
+  initial = null,
 }: UseInfiniteScrollOptions<T>): UseInfiniteScrollReturn<T> {
-  const [items, setItems] = useState<T[]>([]);
-  const [total, setTotal] = useState(0);
-  const [loading, setLoading] = useState(true);
+  const [items, setItems] = useState<T[]>(() => initial?.items ?? []);
+  const [total, setTotal] = useState(() => initial?.total ?? 0);
+  const [loading, setLoading] = useState(() => initial == null);
   const [loadingMore, setLoadingMore] = useState(false);
+  const [pagesLoaded, setPagesLoaded] = useState(() => initial?.page ?? 0);
   const [epoch, setEpoch] = useState(0);
-  const pageRef = useRef(1);
+  const pageRef = useRef(initial?.page ?? 1);
+  const hydratedRef = useRef(initial != null);
   const fetchIdRef = useRef(0);
   const sentinelRef = useRef<HTMLDivElement | null>(null);
 
@@ -59,6 +70,7 @@ export function useInfiniteScroll<T>({
         }
         setTotal(result.total);
         pageRef.current = pageNum;
+        setPagesLoaded(pageNum);
       } catch {
         if (fetchIdRef.current !== id) return;
         if (!append) {
@@ -78,23 +90,29 @@ export function useInfiniteScroll<T>({
   const reset = useCallback(() => {
     fetchIdRef.current++;
     pageRef.current = 1;
+    hydratedRef.current = false;
     setItems([]);
     setTotal(0);
+    setPagesLoaded(0);
     setLoading(true);
     setLoadingMore(false);
     setEpoch((e) => e + 1);
   }, []);
 
-  // Initial load and reset trigger
   useEffect(() => {
     if (disabled) {
       setLoading(false);
       return;
     }
+    if (hydratedRef.current && epoch === 0) {
+      // First render after hydration from a snapshot — skip the initial fetch
+      // so we don't clobber the restored items. Subsequent reset() calls set
+      // hydratedRef=false and bump epoch, which re-enables fetching.
+      return;
+    }
     loadPage(1, false);
   }, [loadPage, disabled, epoch]);
 
-  // IntersectionObserver for sentinel
   useEffect(() => {
     if (disabled || !hasMore || loadingMore || loading) return;
     const el = sentinelRef.current;
@@ -112,5 +130,5 @@ export function useInfiniteScroll<T>({
     return () => observer.disconnect();
   }, [disabled, hasMore, loadingMore, loading, loadPage]);
 
-  return { items, total, loading, loadingMore, hasMore, sentinelRef, reset, setItems, setTotal };
+  return { items, total, loading, loadingMore, hasMore, pagesLoaded, sentinelRef, reset, setItems, setTotal };
 }

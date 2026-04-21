@@ -1,9 +1,14 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState, type Dispatch, type SetStateAction } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, type Dispatch, type SetStateAction } from "react";
 
 import { batchGetFiles, getDriveFiles, getFolders } from "@/lib/api";
 import { getRecentFileIds } from "@/lib/recentlyPlayed";
+import {
+  buildListSnapshotKey,
+  clearListSnapshot,
+  type ListSnapshot,
+} from "@/lib/listSnapshot";
 import type { FileItem, FileType, Folder, SortField, SortOrder } from "@/types";
 import { useInfiniteScroll } from "@/hooks/useInfiniteScroll";
 
@@ -16,6 +21,8 @@ interface UseFolderFilesParams {
   sort: SortField;
   order: SortOrder;
   refreshKey: number;
+  /** Snapshot loaded once by the parent; used only on initial mount. */
+  initialSnapshot?: ListSnapshot | null;
 }
 
 interface UseFolderFilesReturn {
@@ -25,16 +32,32 @@ interface UseFolderFilesReturn {
   loading: boolean;
   loadingMore: boolean;
   hasMore: boolean;
+  pagesLoaded: number;
   sentinelRef: React.RefObject<HTMLDivElement | null>;
   reset: () => void;
   setFiles: Dispatch<SetStateAction<FileItem[]>>;
   setPaginatedTotal: Dispatch<SetStateAction<number>>;
   setFolders: Dispatch<SetStateAction<Folder[]>>;
   isRecent: boolean;
+  snapshotKey: string;
+  hydratedScrollY: number | null;
+}
+
+function filtersMatchSnapshot(
+  snap: ListSnapshot,
+  typeFilter: FileType | null,
+  sort: SortField,
+  order: SortOrder,
+): boolean {
+  return (
+    snap.filters.sort === sort &&
+    snap.filters.order === order &&
+    (snap.filters.typeFilter ?? null) === (typeFilter ?? null)
+  );
 }
 
 export function useFolderFiles({
-  driveName, folderPath, view, tagFilter, typeFilter, sort, order, refreshKey,
+  driveName, folderPath, view, tagFilter, typeFilter, sort, order, refreshKey, initialSnapshot,
 }: UseFolderFilesParams): UseFolderFilesReturn {
   const isFavorites = view === "favorites";
   const isRecent = view === "recent";
@@ -43,7 +66,39 @@ export function useFolderFiles({
   const isAll = view === "all";
   const isSpecialView = isFavorites || isRecent || isRecentAdded || isPopular || isAll;
 
-  const [folders, setFolders] = useState<Folder[]>([]);
+  const snapshotKey = useMemo(
+    () => buildListSnapshotKey({ driveName, folderPath, view, tagFilter }),
+    [driveName, folderPath, view, tagFilter],
+  );
+
+  // Freeze hydration snapshot at mount via useState initializer; subsequent
+  // prop changes cannot retroactively change what we hydrate with.
+  const [hydration] = useState<{
+    initial: { items: FileItem[]; total: number; page: number } | null;
+    folders: Folder[] | null;
+    scrollY: number | null;
+  }>(() => {
+    const snap = initialSnapshot;
+    if (
+      snap &&
+      !isRecent &&
+      snap.key === snapshotKey &&
+      filtersMatchSnapshot(snap, typeFilter, sort, order)
+    ) {
+      return {
+        initial: {
+          items: snap.items,
+          total: snap.total,
+          page: Math.max(1, snap.pagesLoaded),
+        },
+        folders: snap.folders,
+        scrollY: snap.scrollY,
+      };
+    }
+    return { initial: null, folders: null, scrollY: null };
+  });
+
+  const [folders, setFolders] = useState<Folder[]>(() => hydration.folders ?? []);
 
   const fetchPage = useCallback(
     async (page: number, limit: number) => {
@@ -68,11 +123,17 @@ export function useFolderFiles({
     loading: paginatedLoading,
     loadingMore,
     hasMore,
+    pagesLoaded,
     sentinelRef,
     reset,
     setItems: setPaginatedFiles,
     setTotal: setPaginatedTotal,
-  } = useInfiniteScroll<FileItem>({ fetchPage, limit: 30, disabled: isRecent });
+  } = useInfiniteScroll<FileItem>({
+    fetchPage,
+    limit: 30,
+    disabled: isRecent,
+    initial: hydration.initial,
+  });
 
   // Recent view uses localStorage, managed separately
   const [recentFiles, setRecentFiles] = useState<FileItem[]>([]);
@@ -107,20 +168,30 @@ export function useFolderFiles({
   const loading = isRecent ? recentLoading : paginatedLoading;
   const setFiles = isRecent ? setRecentFiles : setPaginatedFiles;
 
+  const hydratedFoldersRef = useRef(hydration.folders != null);
   useEffect(() => {
     if (!isSpecialView && !tagFilter) {
+      if (hydratedFoldersRef.current) {
+        // Skip the initial folder fetch right after snapshot hydration —
+        // subsequent refreshes / filter changes will still refetch below.
+        hydratedFoldersRef.current = false;
+        return;
+      }
       getFolders(driveName, folderPath).then(setFolders).catch(() => setFolders([]));
     } else {
       setFolders([]);
     }
   }, [driveName, folderPath, isSpecialView, tagFilter]);
 
-  // Reset infinite scroll on filter/sort/drive changes (scroll to top)
+  // Reset infinite scroll on filter/sort/drive changes (scroll to top).
+  // On first render after hydration the key matches, so neither reset nor the
+  // scrollTo fires — which is exactly what we want for restoration.
   const prevResetKeyRef = useRef("");
   useEffect(() => {
     const key = `${driveName}|${folderPath}|${view}|${tagFilter}|${typeFilter}|${sort}|${order}`;
     if (prevResetKeyRef.current && prevResetKeyRef.current !== key) {
       reset();
+      clearListSnapshot();
       window.scrollTo({ top: 0 });
     }
     prevResetKeyRef.current = key;
@@ -136,12 +207,15 @@ export function useFolderFiles({
       fetchRecentFiles();
     } else {
       reset();
+      clearListSnapshot();
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps -- intentionally triggered only by refreshKey
   }, [refreshKey]);
 
   return {
-    files, folders, total, loading, loadingMore, hasMore, sentinelRef,
+    files, folders, total, loading, loadingMore, hasMore, pagesLoaded, sentinelRef,
     reset, setFiles, setPaginatedTotal, setFolders, isRecent,
+    snapshotKey,
+    hydratedScrollY: hydration.scrollY,
   };
 }

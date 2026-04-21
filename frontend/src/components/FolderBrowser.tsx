@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { ClipboardPaste, X } from "lucide-react";
 import { useTranslations } from "next-intl";
@@ -12,6 +12,7 @@ import { SelectionBar } from "@/components/SelectionBar";
 import { useClipboard } from "@/components/ClipboardProvider";
 import { useSelection } from "@/hooks/useSelection";
 import { useDragAndDrop } from "@/hooks/useDragAndDrop";
+import { buildListSnapshotKey, loadListSnapshot, saveListSnapshot } from "@/lib/listSnapshot";
 
 import { useFolderFiles } from "@/components/folder/useFolderFiles";
 import { usePinnedFolders } from "@/components/folder/usePinnedFolders";
@@ -28,10 +29,17 @@ interface FolderBrowserProps {
 }
 
 export function FolderBrowser({ driveName, folderPath, view, tagFilter }: FolderBrowserProps) {
-  const [viewMode, setViewMode] = useState<ViewMode>("grid");
-  const [sort, setSort] = useState<SortField>("created_at");
-  const [order, setOrder] = useState<SortOrder>("desc");
-  const [typeFilter, setTypeFilter] = useState<FileType | null>(null);
+  // Load the snapshot exactly once via useState's lazy initializer. We pass
+  // the same reference down to useFolderFiles so that both its filter tuple
+  // and the hydrated items originate from a single parse of sessionStorage.
+  const [initialSnapshot] = useState(() =>
+    loadListSnapshot(buildListSnapshotKey({ driveName, folderPath, view, tagFilter })),
+  );
+
+  const [viewMode, setViewMode] = useState<ViewMode>(initialSnapshot?.filters.viewMode ?? "grid");
+  const [sort, setSort] = useState<SortField>(initialSnapshot?.filters.sort ?? "created_at");
+  const [order, setOrder] = useState<SortOrder>(initialSnapshot?.filters.order ?? "desc");
+  const [typeFilter, setTypeFilter] = useState<FileType | null>(initialSnapshot?.filters.typeFilter ?? null);
   const [selectable, setSelectable] = useState(false);
   const [refreshKey, setRefreshKey] = useState(0);
   const refresh = useCallback(() => setRefreshKey((k) => k + 1), []);
@@ -43,9 +51,65 @@ export function FolderBrowser({ driveName, folderPath, view, tagFilter }: Folder
   const isSpecialView = isFavorites || view === "recent" || isRecentAdded || isPopular || isAll;
 
   const {
-    files, folders, total, loading, loadingMore, hasMore, sentinelRef,
-    reset, setFiles, setPaginatedTotal, setFolders, isRecent,
-  } = useFolderFiles({ driveName, folderPath, view, tagFilter, typeFilter, sort, order, refreshKey });
+    files, folders, total, loading, loadingMore, hasMore, pagesLoaded, sentinelRef,
+    setFiles, setPaginatedTotal, setFolders, isRecent,
+    snapshotKey, hydratedScrollY,
+  } = useFolderFiles({ driveName, folderPath, view, tagFilter, typeFilter, sort, order, refreshKey, initialSnapshot });
+
+  const didRestoreScrollRef = useRef(false);
+  useLayoutEffect(() => {
+    if (didRestoreScrollRef.current) return;
+    didRestoreScrollRef.current = true;
+    if (hydratedScrollY == null) return;
+    // Thumbnails use aspect-video so container heights are stable before
+    // images load — a synchronous scrollTo lands on the correct row. The rAF
+    // follow-up corrects any late layout shifts (e.g. folder chips resolving).
+    window.scrollTo({ top: hydratedScrollY });
+    requestAnimationFrame(() => window.scrollTo({ top: hydratedScrollY }));
+  }, [hydratedScrollY]);
+
+  const isInitialSnapshotSaveRef = useRef(true);
+  useEffect(() => {
+    let frame: number | null = null;
+
+    const save = () => {
+      frame = null;
+      if (isRecent) return;
+      if (files.length === 0) return;
+      saveListSnapshot({
+        key: snapshotKey,
+        scrollY: window.scrollY,
+        pagesLoaded,
+        items: files,
+        total,
+        folders,
+        filters: { sort, order, typeFilter, viewMode },
+      });
+    };
+
+    const scheduleSave = () => {
+      if (frame != null) return;
+      frame = requestAnimationFrame(save);
+    };
+
+    // Skip the very first effect pass so we don't overwrite a freshly loaded
+    // snapshot with scrollY=0 before the restore layout effect has run.
+    if (isInitialSnapshotSaveRef.current) {
+      isInitialSnapshotSaveRef.current = false;
+    } else {
+      scheduleSave();
+    }
+
+    window.addEventListener("scroll", scheduleSave, { passive: true });
+    // pagehide fires at the last moment the page is alive; skip the rAF so
+    // the synchronous write still lands before the document is torn down.
+    window.addEventListener("pagehide", save);
+    return () => {
+      window.removeEventListener("scroll", scheduleSave);
+      window.removeEventListener("pagehide", save);
+      if (frame != null) cancelAnimationFrame(frame);
+    };
+  }, [files, folders, total, pagesLoaded, sort, order, typeFilter, viewMode, isRecent, snapshotKey]);
 
   const { pinnedPaths, handleTogglePin } = usePinnedFolders(driveName);
   const selection = useSelection();
