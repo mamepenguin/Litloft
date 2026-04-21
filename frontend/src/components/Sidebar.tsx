@@ -2,8 +2,7 @@
 
 import { Suspense, useCallback, useEffect } from "react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
-import { LockOpen, X } from "lucide-react";
-import { useTranslations } from "next-intl";
+import { LockOpen } from "lucide-react";
 
 import { lock as lockApi } from "@/lib/api";
 import { useAddonSlots } from "./AddonSlotsProvider";
@@ -136,7 +135,6 @@ function SidebarContent() {
 
 export function Sidebar() {
   const { isOpen, isOverlay, close } = useSidebar();
-  const t = useTranslations("common");
 
   useEffect(() => {
     if (!(isOverlay && isOpen)) return;
@@ -158,9 +156,9 @@ export function Sidebar() {
 
   return (
     <>
-      {isOpen && (
+      {isOpen && isOverlay && (
         <div
-          className={`fixed inset-0 z-30 bg-black/50 ${isOverlay ? "" : "min-[1200px]:hidden"}`}
+          className="fixed inset-0 z-30 bg-black/50"
           onClick={close}
           aria-hidden
         />
@@ -174,18 +172,7 @@ export function Sidebar() {
         aria-modal={isOverlay && isOpen ? true : undefined}
         role={isOverlay ? "dialog" : undefined}
       >
-        <div className="flex h-full flex-col">
-          <div className={`flex justify-end p-2 ${isOverlay ? "" : "min-[1200px]:hidden"}`}>
-            <button
-              onClick={close}
-              className="rounded-lg p-2 text-text-muted hover:text-text-primary"
-              aria-label={t("close")}
-            >
-              <X size={20} />
-            </button>
-          </div>
-          <SidebarContent />
-        </div>
+        <SidebarContent />
       </aside>
     </>
   );

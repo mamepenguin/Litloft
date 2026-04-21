@@ -1,10 +1,9 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
-import { Menu, User } from "lucide-react";
+import { User } from "lucide-react";
 import { useTranslations } from "next-intl";
 
-import { useSidebar } from "./SidebarProvider";
 import { useProfile } from "./ProfileProvider";
 import { ProfileSetup } from "./ProfileSetup";
 import { GlobalSearch } from "./GlobalSearch";
@@ -13,8 +12,6 @@ import { LanguageSwitcher } from "./LanguageSwitcher";
 import { ConfirmDialog } from "./ConfirmDialog";
 
 export function Header() {
-  const { toggle } = useSidebar();
-  const t = useTranslations("header");
   const tp = useTranslations("profile");
   const { nickname, clearNickname } = useProfile();
   const [dropdownOpen, setDropdownOpen] = useState(false);
@@ -51,15 +48,7 @@ export function Header() {
   }, [clearNickname]);
 
   return (
-    <header className="flex h-14 flex-shrink-0 items-center border-b border-bg-border bg-bg-primary px-4">
-      <button
-        onClick={toggle}
-        className="rounded-2xl p-2 text-text-muted hover:bg-bg-elevated hover:text-text-primary"
-        aria-label={t("menu")}
-      >
-        <Menu size={20} />
-      </button>
-
+    <header className="sticky top-0 z-20 flex h-14 flex-shrink-0 items-center border-b border-bg-border bg-bg-primary px-4">
       <div className="flex-1" />
 
       <div className="flex items-center gap-1">

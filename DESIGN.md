@@ -266,6 +266,12 @@ p, li, dd {
 - Background: `bg-bg-card`
 - Button order: Cancel (`bg-sand`) then Confirm (`bg-accent`)
 
+### Header
+
+- Height: `h-14` (56px)
+- Position: **`sticky top-0 z-20`** — stays pinned to the viewport top during body scroll. The sidebar floats above at `z-40`; the floating menu button sits at `z-50`.
+- Contains no menu/hamburger of its own; see §Sidebar for the shared floating menu button.
+
 ### Sidebar
 
 - Background: `bg-bg-sidebar`
@@ -276,7 +282,8 @@ p, li, dd {
   - **Inline** (viewport ≥ 1200px, non-overlay routes): no backdrop. The outer layout adds `min-[1200px]:pl-60` to reserve space so content sits beside the sidebar. Toggling persists to `localStorage["sidebar-open"]`.
   - **Overlay** (viewport < 1200px, **or** file detail / knowledge addon at any width): slides over content with a `z-30 bg-black/50` backdrop. Closes on backdrop click and `ESC`. Body scroll is locked while open. State is ephemeral — not persisted.
 - Transitioning into overlay mode forces closed initial state; transitioning out restores the persisted global preference.
-- Nav-item click behavior: **inline mode keeps the sidebar open** across navigations; **overlay mode closes it** before the route change so the backdrop is gone on arrival. Header hamburger, in-sidebar `X`, backdrop click, and `ESC` always close regardless of mode.
+- Nav-item click behavior: **inline mode keeps the sidebar open** across navigations; **overlay mode closes it** before the route change so the backdrop is gone on arrival. The hamburger, backdrop click, and `ESC` always close regardless of mode. Overlay mode and inline mode share the same sidebar layout — no empty top bar; the first visible row is the logo.
+- Menu (hamburger) button lives outside the sidebar as a `fixed top-3 left-3 z-50` floating control, visible in all states (sidebar open or closed, inline or overlay). The sidebar's logo row uses `pl-12` so the button visually sits in the sidebar's top-left without overlap.
 - Transform transition: `duration-150 ease-out`. Layout padding transition: `duration-150 ease-out`.
 
 ### Context Menus / Dropdowns
