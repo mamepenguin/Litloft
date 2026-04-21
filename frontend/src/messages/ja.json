@@ -135,7 +135,10 @@
     "summaryInsufficientContent": "要約に必要なコンテンツが不足しています",
     "generateFolderSummaries": "フォルダのAI要約を生成",
     "summariesBatchQueued": "{queued}件の要約をキューに追加（{skipped}件スキップ）",
-    "summariesBatchEmpty": "すべてのファイルが要約済みです"
+    "summariesBatchEmpty": "すべてのファイルが要約済みです",
+    "activeSummaryFallbackTitle": "承認済みの要約ノートがあります",
+    "activeSummaryFallbackBody": "このファイルには knowledge に昇格された要約ノートが存在しますが、ノートを表示できるアドオンが導入されていません。ノート本体にアクセスするには下記リンクから直接ファイルを開いてください。",
+    "activeSummaryFallbackOpen": "ノートファイルを開く"
   },
   "detailedSummary": {
     "citations": {

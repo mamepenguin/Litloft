@@ -135,7 +135,10 @@
     "summaryInsufficientContent": "Not enough content to summarize",
     "generateFolderSummaries": "Generate AI summaries for folder",
     "summariesBatchQueued": "{queued} summaries queued ({skipped} skipped)",
-    "summariesBatchEmpty": "All files already have summaries"
+    "summariesBatchEmpty": "All files already have summaries",
+    "activeSummaryFallbackTitle": "An approved summary note exists",
+    "activeSummaryFallbackBody": "This file has a summary note promoted to knowledge, but no addon is installed to render it. Open the note file directly via the link below.",
+    "activeSummaryFallbackOpen": "Open note file"
   },
   "detailedSummary": {
     "citations": {

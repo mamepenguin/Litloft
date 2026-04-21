@@ -113,6 +113,56 @@ class TestActiveSummaryPublicGet:
         res = c.get("/api/files/does-not-xx/active_summary")
         assert res.status_code == 404
 
+    def test_summary_note_trashed_returns_false_flag(self, client):
+        """Spec Case 11: summary note が trash に入っている場合は has_active_summary=false。
+
+        file_active_summaries レコードは残すが、UI からは見えなくする。
+        note 復活時はそのまま再表示される。
+        """
+        c, db, _, _ = client
+        f = _seed_file(db, drive=TEST_DRIVE, filename="vid.mp4",
+                       file_path="vid.mp4")
+        note = _seed_file(
+            db,
+            drive=TEST_DRIVE,
+            filename="vid-summary.md",
+            file_path="AI-Drafts/vid-summary.md",
+            folder_path="AI-Drafts",
+            file_type="text",
+        )
+        _set_active_summary(c, f.id, note.id)
+
+        note.deleted_at = datetime.now(UTC)
+        db.commit()
+
+        res = c.get(f"/api/files/{f.id}/active_summary")
+        assert res.status_code == 200
+        body = res.json()
+        assert body["has_active_summary"] is False
+
+    def test_summary_note_missing_returns_false_flag(self, client):
+        """Spec Case 12: summary note が missing 状態でも has_active_summary=false。"""
+        c, db, _, _ = client
+        f = _seed_file(db, drive=TEST_DRIVE, filename="vid.mp4",
+                       file_path="vid.mp4")
+        note = _seed_file(
+            db,
+            drive=TEST_DRIVE,
+            filename="vid-summary.md",
+            file_path="AI-Drafts/vid-summary.md",
+            folder_path="AI-Drafts",
+            file_type="text",
+        )
+        _set_active_summary(c, f.id, note.id)
+
+        note.missing_since = datetime.now(UTC)
+        db.commit()
+
+        res = c.get(f"/api/files/{f.id}/active_summary")
+        assert res.status_code == 200
+        body = res.json()
+        assert body["has_active_summary"] is False
+
 
 class TestActiveSummaryAccessControl:
     """Drive access control: protected drive is invisible when locked.

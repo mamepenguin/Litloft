@@ -96,6 +96,23 @@ export async function updateFileTags(id: string, tags: string[]): Promise<FileIt
   });
 }
 
+export interface ActiveSummaryNote {
+  file_id: string;
+  drive: string;
+  path: string;
+  title: string;
+}
+
+export interface ActiveSummaryResponse {
+  has_active_summary: boolean;
+  file_id: string;
+  summary_note?: ActiveSummaryNote;
+}
+
+export async function getActiveSummary(id: string): Promise<ActiveSummaryResponse> {
+  return fetchJSON<ActiveSummaryResponse>(`${API_BASE}/files/${id}/active_summary`);
+}
+
 export async function getFileNeighbors(
   id: string,
   sort?: string,
