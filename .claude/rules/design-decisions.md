@@ -130,6 +130,7 @@ Phase 3 の detailed_summary → knowledge 昇格（`docs/superpowers/specs/2026
 - `GET /api/internal/accessible-drives`: アクセス可能ドライブ一覧
 - `GET /api/internal/files/{file_id}`: ファイルメタデータ
 - `POST /api/internal/filter-file-ids`: ファイルIDのアクセス権フィルタ
+- `GET /api/internal/files/{file_id}/content`: text mime 限定の本文取得。**`CORE_INTERNAL_SECRET` shared secret で gating**（未設定時 no-op）。knowledge scanner が保護ドライブの `.md` を cookie なしで読むための escape hatch。他の internal endpoint は state/meta だけなので secret 無しだが、本文は情報量が桁違いなので個別に secret + `_CONTENT_READ_ALLOWED_MIMES` + サイズ上限（`CORE_INTERNAL_CONTENT_MAX_BYTES` 既定 10 MB）の 3 層防御
 
 ### イベントフック（`event-hooks.json`）
 - 本体が発行するイベント: `files.deleted`, `files.restored`, `files.purged`, `scan.complete`

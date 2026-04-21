@@ -5,10 +5,14 @@ External service addons (e.g. intelligence) call these to query
 core application data such as accessible drives and file metadata.
 """
 
+import hmac
 import logging
+import os
+from pathlib import Path
 from typing import Annotated
 
-from fastapi import APIRouter, Depends, HTTPException, Query, Response
+from fastapi import APIRouter, Depends, Header, HTTPException, Query, Response
+from fastapi.responses import PlainTextResponse
 from pydantic import BaseModel, StringConstraints
 from sqlalchemy import or_
 from sqlalchemy.exc import IntegrityError
@@ -22,6 +26,36 @@ from app.services.ws import manager as ws_manager
 logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/api/internal", tags=["internal"])
+
+# Text-content endpoint configuration. Mirrors the ``PUT /api/files/{id}/content``
+# allowlist (``backend/app/routers/files.py``) so read and write agree on what
+# "text" means. 10 MB is generous for Vault ``.md`` (typically KB-range) and
+# leaves headroom for future PDF sidecar text; tweak via env for outlier
+# deployments without code change.
+_CONTENT_READ_ALLOWED_MIMES = frozenset({"text/markdown", "text/plain"})
+_CONTENT_READ_MAX_BYTES = int(
+    os.environ.get("CORE_INTERNAL_CONTENT_MAX_BYTES", 10 * 1024 * 1024)
+)
+
+
+async def verify_internal_secret(
+    x_internal_secret: str = Header(default=""),
+) -> None:
+    """Gate internal endpoints behind the shared-secret header.
+
+    When ``CORE_INTERNAL_SECRET`` is unset the gate is a no-op, matching
+    the ``KNOWLEDGE_WEBHOOK_SECRET`` pattern for dev parity. Production
+    deployments must set the same secret on both the core and the addon
+    service so the Docker-network boundary is not the sole defence.
+
+    Constant-time comparison avoids leaking token length/prefix via
+    timing — cheap insurance even though the Docker network is trusted.
+    """
+    expected = os.environ.get("CORE_INTERNAL_SECRET", "")
+    if not expected:
+        return
+    if not hmac.compare_digest(x_internal_secret, expected):
+        raise HTTPException(status_code=403, detail="Invalid internal secret")
 
 
 @router.get("/drive-policy")
@@ -95,6 +129,94 @@ async def file_info(
         "folder_path": file.folder_path,
         "updated_at": file.updated_at.isoformat() if file.updated_at else None,
     }
+
+
+def _resolve_text_content_path(file: File) -> Path:
+    """Resolve ``file`` to an absolute path inside its drive.
+
+    Reuses the realpath-based containment check from ``files.py`` so a
+    compromised ``file_path`` (e.g. symlink escape) cannot be read via
+    this endpoint either. Kept local to avoid a cross-router import that
+    would pull ``files.py``'s FastAPI surface into this module.
+    """
+    drive_path = config.get_drive_path(file.drive)
+    real_path = Path(os.path.realpath(str(drive_path / file.file_path)))
+    real_base = Path(os.path.realpath(drive_path))
+    base_str = str(real_base)
+    if not (
+        str(real_path) == base_str
+        or str(real_path).startswith(base_str + os.sep)
+    ):
+        raise HTTPException(status_code=403, detail="Path escape detected")
+    return real_path
+
+
+@router.get(
+    "/files/{file_id}/content",
+    dependencies=[Depends(verify_internal_secret)],
+    response_class=PlainTextResponse,
+)
+async def file_text_content(
+    file_id: str,
+    db=Depends(get_db),
+) -> PlainTextResponse:
+    """Return the raw UTF-8 text content of a file.
+
+    Docker-internal only. Unlike ``/api/files/{id}/stream`` this endpoint
+    is not subject to ``hv_token`` drive-unlock checks, which is the
+    whole point: the knowledge addon's frontmatter scanner runs without
+    any user context and must be able to read ``.md`` files on protected
+    drives to keep the ``note_origins`` cache in sync.
+
+    Blast radius is limited by three layers:
+
+    1. Shared secret (``CORE_INTERNAL_SECRET``) — optional in dev, set
+       symmetrically on core and addon in production. See
+       ``verify_internal_secret``.
+    2. Mime allowlist — only ``text/markdown`` and ``text/plain``.
+       Binaries and media never travel through this endpoint.
+    3. Size cap (``CORE_INTERNAL_CONTENT_MAX_BYTES``, default 10 MB) —
+       rejects oversized files before we read them off disk.
+
+    Returns 404 for missing / trashed / unknown files so the endpoint
+    behaves like ``/api/internal/files/{id}`` for those states.
+    """
+    file = (
+        db.query(File)
+        .filter(File.id == file_id, active_file_filter())
+        .first()
+    )
+    if not file:
+        raise HTTPException(status_code=404, detail="File not found")
+
+    mime = file.mime_type or ""
+    if mime not in _CONTENT_READ_ALLOWED_MIMES:
+        raise HTTPException(
+            status_code=415,
+            detail=f"Mime type not readable via this endpoint: {mime}",
+        )
+
+    file_path = _resolve_text_content_path(file)
+    try:
+        size = file_path.stat().st_size
+    except FileNotFoundError:
+        raise HTTPException(status_code=404, detail="File not found on disk")
+
+    if size > _CONTENT_READ_MAX_BYTES:
+        raise HTTPException(
+            status_code=413,
+            detail=f"File exceeds internal read limit of {_CONTENT_READ_MAX_BYTES} bytes",
+        )
+
+    try:
+        text = file_path.read_text(encoding="utf-8")
+    except UnicodeDecodeError:
+        raise HTTPException(
+            status_code=415,
+            detail="File is not valid UTF-8 text",
+        )
+
+    return PlainTextResponse(text, media_type="text/plain; charset=utf-8")
 
 
 class FilterFileIdsRequest(BaseModel):
