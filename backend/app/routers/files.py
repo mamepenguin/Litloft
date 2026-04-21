@@ -19,7 +19,14 @@ from sqlalchemy.orm import Session
 import app.config as config
 from app.auth import check_drive_access, get_unlocked_groups
 from app.database import get_db
-from app.models import File, FileActiveSummary, Tag, active_file_filter, file_tags
+from app.models import (
+    File,
+    FileActiveSummary,
+    FileRelation,
+    Tag,
+    active_file_filter,
+    file_tags,
+)
 from app.schemas import (
     ArchiveContentsResponse,
     ArchiveEntryResponse,
@@ -33,11 +40,14 @@ from app.schemas import (
     BatchRestoreResponse,
     BatchTagRequest,
     FileCopyRequest,
+    FileRelationItem,
+    FileRelationsResponse,
     FileResponse,
     FileMoveRequest,
     FileRenameRequest,
     FileUpdate,
     NeighborsResponse,
+    RelatedFileSummary,
     SubtitleInfo,
     TagUpdate,
     file_to_response,
@@ -1022,5 +1032,92 @@ async def purge_file_endpoint(
         event_hooks.emit("files.purged", {"file_ids": [file_id]})
     )
     return {"status": "purged"}
+
+
+def _related_file_summary(file: File) -> RelatedFileSummary:
+    return RelatedFileSummary(
+        id=file.id,
+        drive=file.drive,
+        filename=file.filename,
+        folder_path=file.folder_path,
+        file_type=file.file_type,
+        mime_type=file.mime_type,
+        thumbnail_url=f"/api/files/{file.id}/thumbnail",
+        has_thumbnail=file.thumbnail_path is not None,
+        file_size=file.file_size,
+        missing_since=file.missing_since,
+        created_at=file.created_at,
+        updated_at=file.updated_at,
+    )
+
+
+@router.get("/{file_id}/relations", response_model=FileRelationsResponse)
+async def list_file_relations(
+    file_id: FileId,
+    db: Annotated[Session, Depends(get_db)],
+    unlocked_groups: Annotated[list[str], Depends(get_unlocked_groups)],
+    kind: Annotated[str | None, Query(max_length=32)] = None,
+) -> FileRelationsResponse:
+    """List files related to ``file_id`` via ``file_relations`` rows.
+
+    The source file must be accessible to the caller (drive unlock).
+    Results exclude related files that have been trashed; missing files
+    are included so the UI can grey them out without dropping history.
+    Related files live on the same drive as the source (spec R4), so
+    access already covers both sides.
+    """
+    source = _get_file_or_404(db, file_id, unlocked_groups)
+
+    q = db.query(FileRelation).filter(
+        or_(
+            FileRelation.file_id_a == file_id,
+            FileRelation.file_id_b == file_id,
+        )
+    )
+    if kind is not None:
+        q = q.filter(FileRelation.kind == kind)
+    q = q.order_by(FileRelation.created_at.desc())
+    relations = q.all()
+    if not relations:
+        return FileRelationsResponse(relations=[])
+
+    other_ids: list[str] = []
+    relation_other: dict[int, str] = {}
+    for rel in relations:
+        other = rel.file_id_b if rel.file_id_a == file_id else rel.file_id_a
+        relation_other[rel.id] = other
+        other_ids.append(other)
+
+    # Include missing files (missing_since set, deleted_at null) but drop
+    # trashed ones. The UI wants a stable history with a greyed-out tile
+    # rather than silent removal.
+    other_files = (
+        db.query(File)
+        .filter(
+            File.id.in_(other_ids),
+            File.deleted_at.is_(None),
+            File.drive == source.drive,
+        )
+        .all()
+    )
+    by_id = {f.id: f for f in other_files}
+
+    items: list[FileRelationItem] = []
+    for rel in relations:
+        other_id = relation_other[rel.id]
+        other = by_id.get(other_id)
+        if other is None:
+            continue
+        items.append(
+            FileRelationItem(
+                relation_id=rel.id,
+                kind=rel.kind,
+                created_at=rel.created_at,
+                created_by=rel.created_by,
+                file=_related_file_summary(other),
+            )
+        )
+
+    return FileRelationsResponse(relations=items)
 
 

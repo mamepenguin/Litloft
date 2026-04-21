@@ -587,6 +587,40 @@ class CommentsListResponse(BaseModel):
     total: int
 
 
+class RelatedFileSummary(_UtcDateTimeMixin, BaseModel):
+    """Compact view of a file shown in the Related Files section.
+
+    Intentionally slimmer than ``FileResponse`` — no tags, subtitles, or
+    description — because this payload is rendered as a compact card
+    grid rather than a full detail panel.
+    """
+
+    id: str
+    drive: str
+    filename: str
+    folder_path: str
+    file_type: str
+    mime_type: str
+    thumbnail_url: str
+    has_thumbnail: bool
+    file_size: int
+    missing_since: datetime | None = None
+    created_at: datetime
+    updated_at: datetime
+
+
+class FileRelationItem(_UtcDateTimeMixin, BaseModel):
+    relation_id: int
+    kind: str
+    created_at: datetime
+    created_by: str | None = None
+    file: RelatedFileSummary
+
+
+class FileRelationsResponse(BaseModel):
+    relations: list[FileRelationItem]
+
+
 def file_to_response(file, subtitles: list[SubtitleInfo] | None = None) -> FileResponse:
     return FileResponse(
         id=file.id,

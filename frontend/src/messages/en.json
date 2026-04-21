@@ -138,7 +138,10 @@
     "summariesBatchEmpty": "All files already have summaries",
     "activeSummaryFallbackTitle": "An approved summary note exists",
     "activeSummaryFallbackBody": "This file has a summary note promoted to knowledge, but no addon is installed to render it. Open the note file directly via the link below.",
-    "activeSummaryFallbackOpen": "Open note file"
+    "activeSummaryFallbackOpen": "Open note file",
+    "relatedFilesTitle": "Related files",
+    "relatedFileMissing": "missing",
+    "relatedFileSizeBytes": "{size} bytes"
   },
   "detailedSummary": {
     "citations": {

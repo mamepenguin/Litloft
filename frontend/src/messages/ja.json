@@ -138,7 +138,10 @@
     "summariesBatchEmpty": "すべてのファイルが要約済みです",
     "activeSummaryFallbackTitle": "承認済みの要約ノートがあります",
     "activeSummaryFallbackBody": "このファイルには knowledge に昇格された要約ノートが存在しますが、ノートを表示できるアドオンが導入されていません。ノート本体にアクセスするには下記リンクから直接ファイルを開いてください。",
-    "activeSummaryFallbackOpen": "ノートファイルを開く"
+    "activeSummaryFallbackOpen": "ノートファイルを開く",
+    "relatedFilesTitle": "関連ファイル",
+    "relatedFileMissing": "見つからない",
+    "relatedFileSizeBytes": "{size} バイト"
   },
   "detailedSummary": {
     "citations": {

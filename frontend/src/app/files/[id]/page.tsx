@@ -18,6 +18,7 @@ import { PlaylistPanel, getPlaylistOnEnded } from "@/components/PlaylistPanel";
 import { CastButton } from "@/components/CastButton";
 import { AddonSlot } from "@/components/AddonSlot";
 import { ActiveSummaryHost } from "@/components/ActiveSummaryHost";
+import { RelatedFilesSection } from "@/components/RelatedFilesSection";
 import { useSetOverrideDrive } from "@/components/CurrentDriveProvider";
 
 export default function FilePage() {
@@ -326,6 +327,7 @@ export default function FilePage() {
           {/* Addon file detail sections (transcript, clip frames, index details, similar files) */}
           <div className="mt-4 space-y-4">
             <ActiveSummaryHost fileId={fileId} drive={file.drive} />
+            <RelatedFilesSection fileId={fileId} />
             <AddonSlot
               id="file-detail-sections"
               layout="stack"

@@ -113,6 +113,43 @@ export async function getActiveSummary(id: string): Promise<ActiveSummaryRespons
   return fetchJSON<ActiveSummaryResponse>(`${API_BASE}/files/${id}/active_summary`);
 }
 
+export interface RelatedFileSummary {
+  id: string;
+  drive: string;
+  filename: string;
+  folder_path: string;
+  file_type: string;
+  mime_type: string;
+  thumbnail_url: string;
+  has_thumbnail: boolean;
+  file_size: number;
+  missing_since: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface FileRelationItem {
+  relation_id: number;
+  kind: string;
+  created_at: string;
+  created_by: string | null;
+  file: RelatedFileSummary;
+}
+
+export interface FileRelationsResponse {
+  relations: FileRelationItem[];
+}
+
+export async function getFileRelations(
+  id: string,
+  kind?: string,
+): Promise<FileRelationsResponse> {
+  const qs = kind ? `?kind=${encodeURIComponent(kind)}` : "";
+  return fetchJSON<FileRelationsResponse>(
+    `${API_BASE}/files/${id}/relations${qs}`,
+  );
+}
+
 export async function getFileNeighbors(
   id: string,
   sort?: string,
