@@ -3,8 +3,7 @@ import { NextIntlClientProvider } from "next-intl";
 import { getLocale, getMessages } from "next-intl/server";
 import "./globals.css";
 
-import { Header } from "@/components/Header";
-import { Sidebar } from "@/components/Sidebar";
+import { AppShell } from "@/components/AppShell";
 import { SidebarProvider } from "@/components/SidebarProvider";
 import { ThemeProvider } from "@/components/ThemeProvider";
 import { CurrentDriveProvider } from "@/components/CurrentDriveProvider";
@@ -73,13 +72,7 @@ export default async function RootLayout({
                   <AddonSlotsProvider>
                     <ClipboardProvider>
                       <SidebarProvider>
-                        <div className="flex min-h-dvh">
-                          <Sidebar />
-                          <main className="flex min-w-0 flex-1 flex-col">
-                            <Header />
-                            {children}
-                          </main>
-                        </div>
+                        <AppShell>{children}</AppShell>
                         <ProfileSetup />
                       </SidebarProvider>
                     </ClipboardProvider>

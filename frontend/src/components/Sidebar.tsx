@@ -1,6 +1,6 @@
 "use client";
 
-import { Suspense } from "react";
+import { Suspense, useCallback, useEffect } from "react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { LockOpen, X } from "lucide-react";
 import { useTranslations } from "next-intl";
@@ -21,7 +21,12 @@ function SidebarNav() {
   const pathname = usePathname();
   const searchParams = useSearchParams();
   const router = useRouter();
-  const { close, refreshKey } = useSidebar();
+  const { isOverlay, close, refreshKey } = useSidebar();
+  // In inline mode the sidebar stays open across navigations.
+  // In overlay mode each nav click dismisses the overlay.
+  const closeIfOverlay = useCallback(() => {
+    if (isOverlay) close();
+  }, [isOverlay, close]);
 
   const currentDrive = useCurrentDrive();
   const setOverrideDrive = useSetOverrideDrive();
@@ -37,7 +42,7 @@ function SidebarNav() {
     currentDrive,
     playlistList,
     setPlaylistList,
-    close,
+    close: closeIfOverlay,
     router,
     setOverrideDrive,
   });
@@ -87,21 +92,21 @@ function SidebarNav() {
 
   return (
     <nav className="flex flex-col gap-1 overflow-y-auto p-3">
-      <SidebarLibrarySection driveBase={driveBase} currentDrive={currentDrive} linkClass={linkClass} close={close} addons={addons} driveSummary={driveSummary} />
+      <SidebarLibrarySection driveBase={driveBase} currentDrive={currentDrive} linkClass={linkClass} close={closeIfOverlay} addons={addons} driveSummary={driveSummary} />
 
       {driveBase && (
         <SidebarPlaylistsSection driveBase={driveBase} currentDrive={currentDrive} setPlaylistList={setPlaylistList} {...playlist} />
       )}
 
       {driveBase && (
-        <SidebarPinsSection driveBase={driveBase} pins={pins} linkClass={linkClass} close={close} />
+        <SidebarPinsSection driveBase={driveBase} pins={pins} linkClass={linkClass} close={closeIfOverlay} />
       )}
 
       {driveBase && (
-        <SidebarTagsSection driveBase={driveBase} tags={tags} linkClass={linkClass} close={close} />
+        <SidebarTagsSection driveBase={driveBase} tags={tags} linkClass={linkClass} close={closeIfOverlay} />
       )}
 
-      <SidebarDrivesSection drives={drives} currentDrive={currentDrive} close={close} />
+      <SidebarDrivesSection drives={drives} currentDrive={currentDrive} close={closeIfOverlay} />
 
       {authStatus?.has_protected_drives && authStatus.unlocked_groups.length > 0 && (
         <div className="mt-4 px-3">
@@ -130,25 +135,47 @@ function SidebarContent() {
 }
 
 export function Sidebar() {
-  const { isOpen, close } = useSidebar();
+  const { isOpen, isOverlay, close } = useSidebar();
   const t = useTranslations("common");
+
+  useEffect(() => {
+    if (!(isOverlay && isOpen)) return;
+    const handler = (e: KeyboardEvent) => {
+      if (e.key === "Escape") close();
+    };
+    window.addEventListener("keydown", handler);
+    return () => window.removeEventListener("keydown", handler);
+  }, [isOverlay, isOpen, close]);
+
+  useEffect(() => {
+    if (!(isOverlay && isOpen)) return;
+    const previous = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    return () => {
+      document.body.style.overflow = previous;
+    };
+  }, [isOverlay, isOpen]);
 
   return (
     <>
       {isOpen && (
         <div
-          className="fixed inset-0 z-40 bg-black/50 md:hidden"
+          className={`fixed inset-0 z-30 bg-black/50 ${isOverlay ? "" : "min-[1200px]:hidden"}`}
           onClick={close}
+          aria-hidden
         />
       )}
 
       <aside
-        className={`fixed top-0 left-0 z-40 h-dvh w-60 flex-shrink-0 border-r border-bg-border bg-bg-sidebar transition-transform md:static md:translate-x-0 ${
+        className={`fixed top-0 left-0 z-40 h-dvh w-60 flex-shrink-0 border-r border-bg-border bg-bg-sidebar transition-transform duration-150 ease-out ${
           isOpen ? "translate-x-0" : "-translate-x-full"
         }`}
+        aria-hidden={!isOpen}
+        aria-modal={isOverlay && isOpen ? true : undefined}
+        role={isOverlay ? "dialog" : undefined}
       >
-        <div className="flex h-full flex-col md:hidden">
-          <div className="flex justify-end p-2">
+        <div className="flex h-full flex-col">
+          <div className={`flex justify-end p-2 ${isOverlay ? "" : "min-[1200px]:hidden"}`}>
             <button
               onClick={close}
               className="rounded-lg p-2 text-text-muted hover:text-text-primary"
@@ -157,9 +184,6 @@ export function Sidebar() {
               <X size={20} />
             </button>
           </div>
-          <SidebarContent />
-        </div>
-        <div className="hidden h-full flex-col md:flex">
           <SidebarContent />
         </div>
       </aside>

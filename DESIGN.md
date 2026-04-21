@@ -271,6 +271,13 @@ p, li, dd {
 - Background: `bg-bg-sidebar`
 - Active link: `bg-bg-elevated rounded-2xl font-medium`
 - Section headers: `text-[11px] font-semibold uppercase tracking-wider text-text-muted` — English-only hardcoded strings only
+- Position: **always `position: fixed top-0 left-0 h-dvh z-40 w-60`**. Does not scroll with page content, independent of breakpoint.
+- Two display modes (derived state, `isOverlay = routeOverlay || narrowViewport`):
+  - **Inline** (viewport ≥ 1200px, non-overlay routes): no backdrop. The outer layout adds `min-[1200px]:pl-60` to reserve space so content sits beside the sidebar. Toggling persists to `localStorage["sidebar-open"]`.
+  - **Overlay** (viewport < 1200px, **or** file detail / knowledge addon at any width): slides over content with a `z-30 bg-black/50` backdrop. Closes on backdrop click and `ESC`. Body scroll is locked while open. State is ephemeral — not persisted.
+- Transitioning into overlay mode forces closed initial state; transitioning out restores the persisted global preference.
+- Nav-item click behavior: **inline mode keeps the sidebar open** across navigations; **overlay mode closes it** before the route change so the backdrop is gone on arrival. Header hamburger, in-sidebar `X`, backdrop click, and `ESC` always close regardless of mode.
+- Transform transition: `duration-150 ease-out`. Layout padding transition: `duration-150 ease-out`.
 
 ### Context Menus / Dropdowns
 

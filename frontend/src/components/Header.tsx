@@ -54,7 +54,7 @@ export function Header() {
     <header className="flex h-14 flex-shrink-0 items-center border-b border-bg-border bg-bg-primary px-4">
       <button
         onClick={toggle}
-        className="rounded-2xl p-2 text-text-muted hover:bg-bg-elevated hover:text-text-primary md:hidden"
+        className="rounded-2xl p-2 text-text-muted hover:bg-bg-elevated hover:text-text-primary"
         aria-label={t("menu")}
       >
         <Menu size={20} />

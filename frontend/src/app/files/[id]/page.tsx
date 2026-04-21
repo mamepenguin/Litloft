@@ -20,8 +20,10 @@ import { AddonSlot } from "@/components/AddonSlot";
 import { ActiveSummaryHost } from "@/components/ActiveSummaryHost";
 import { RelatedFilesSection } from "@/components/RelatedFilesSection";
 import { useSetOverrideDrive } from "@/components/CurrentDriveProvider";
+import { useOverlaySidebar } from "@/components/SidebarProvider";
 
 export default function FilePage() {
+  useOverlaySidebar();
   const t = useTranslations("file");
   const tc = useTranslations("common");
   const params = useParams();
