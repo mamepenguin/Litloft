@@ -630,7 +630,9 @@
       "truncated": "Too many results — try a more specific query."
     },
     "sidebar": {
-      "activePrefix": "Active: {label}"
+      "activePrefix": "Active: {label}",
+      "hide": "Hide sidebar",
+      "show": "Show sidebar"
     },
     "editSection": {
       "title": "Knowledge",

@@ -630,7 +630,9 @@
       "truncated": "結果が多すぎます — 検索語を絞ってください。"
     },
     "sidebar": {
-      "activePrefix": "アクティブ: {label}"
+      "activePrefix": "アクティブ: {label}",
+      "hide": "サイドバーを隠す",
+      "show": "サイドバーを表示"
     },
     "editSection": {
       "title": "Knowledge",
