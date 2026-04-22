@@ -1,3 +1,4 @@
+import hashlib
 import shutil
 from pathlib import Path
 
@@ -66,6 +67,38 @@ class TestStreamFile:
         c, db, drive_dir, data_dir = client
         res = c.get("/api/files/zzNOTFOUNDzz/stream")
         assert res.status_code == 404
+
+    def test_text_file_returns_etag(self, client):
+        """Small text files should include an ETag header so editors can
+        use optimistic locking without client-side hashing (crypto.subtle
+        is unavailable outside secure contexts)."""
+        c, db, drive_dir, _ = client
+        content = "# hello\nworld\n"
+        note_path = drive_dir / "note.md"
+        note_path.write_text(content)
+
+        from app.models import File
+
+        file = File(
+            filename="note.md",
+            title="note",
+            drive=TEST_DRIVE,
+            folder_path="",
+            file_path="note.md",
+            file_size=len(content.encode("utf-8")),
+            file_type="document",
+            mime_type="text/markdown",
+        )
+        db.add(file)
+        db.commit()
+        db.refresh(file)
+
+        res = c.get(f"/api/files/{file.id}/stream")
+        assert res.status_code == 200
+        assert res.headers["content-type"] == "text/markdown"
+        assert res.text == content
+        expected = hashlib.sha256(content.encode("utf-8")).hexdigest()
+        assert res.headers.get("etag") == f'"{expected}"'
 
 
 class TestThumbnail:

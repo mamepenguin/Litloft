@@ -658,6 +658,25 @@ async def stream_file(
 
         return StreamingResponse(iter_chunks(), status_code=206, headers=headers)
 
+    # Small text files: serve as full body with ETag so clients can use
+    # the content-hash for optimistic locking on PUT /content without having
+    # to hash on the client (crypto.subtle is unavailable in non-secure contexts
+    # like HTTP over LAN IPs).
+    if (
+        (file.mime_type or "") in _TEXT_WRITE_ALLOWED_MIMES
+        and file_size <= _TEXT_WRITE_MAX_BYTES
+    ):
+        data = file_path.read_bytes()
+        headers = {
+            "Accept-Ranges": "bytes",
+            "Content-Length": str(len(data)),
+            "Content-Type": content_type,
+            "ETag": f'"{_compute_text_etag(data)}"',
+        }
+        if download:
+            headers["Content-Disposition"] = f"attachment; filename*=UTF-8''{quote(file.filename, safe='')}"
+        return Response(content=data, headers=headers)
+
     def iter_full():
         with open(file_path, "rb") as f:
             while chunk := f.read(config.CHUNK_SIZE):
