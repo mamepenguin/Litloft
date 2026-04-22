@@ -321,6 +321,18 @@ describe("createYouTubeController", () => {
       const player = fakeYTPlayer({ getPlayerState: vi.fn().mockReturnValue(1) });
       expect(createYouTubeController(player, makeContainer()).isPaused()).toBe(false);
     });
+
+    it("isPaused returns false when state is buffering (3) — a seek-in-progress is not a pause", () => {
+      const player = fakeYTPlayer({ getPlayerState: vi.fn().mockReturnValue(3) });
+      expect(createYouTubeController(player, makeContainer()).isPaused()).toBe(false);
+    });
+
+    it("isPaused returns true for ended (0), cued (5), unstarted (-1)", () => {
+      for (const state of [0, 5, -1]) {
+        const player = fakeYTPlayer({ getPlayerState: vi.fn().mockReturnValue(state) });
+        expect(createYouTubeController(player, makeContainer()).isPaused()).toBe(true);
+      }
+    });
   });
 });
 

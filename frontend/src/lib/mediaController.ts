@@ -53,6 +53,7 @@ export interface YouTubePlayerLike {
 }
 
 const YT_STATE_PLAYING = 1;
+const YT_STATE_BUFFERING = 3;
 
 function clampSeek(seconds: number, duration: number): number {
   if (seconds < 0) return 0;
@@ -153,7 +154,13 @@ export function createYouTubeController(
       return player.getDuration();
     },
     isPaused() {
-      return player.getPlayerState() !== YT_STATE_PLAYING;
+      // BUFFERING (3) happens transiently during a seek: the user is
+      // not pausing, the player is just catching up. Report it as
+      // "still playing" so observers (e.g. the floating mini-player)
+      // don't flicker out on every scrub. PAUSED (2), ENDED (0),
+      // CUED (5), UNSTARTED (-1) remain paused.
+      const state = player.getPlayerState();
+      return state !== YT_STATE_PLAYING && state !== YT_STATE_BUFFERING;
     },
   };
 }

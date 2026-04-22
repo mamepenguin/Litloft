@@ -345,7 +345,10 @@
     "castConnecting": "接続中...",
     "castConnected": "キャスト中",
     "autoplayOn": "自動再生 ON",
-    "autoplayOff": "自動再生 OFF"
+    "autoplayOff": "自動再生 OFF",
+    "miniPlayerClose": "ミニプレーヤーを閉じる（再生停止）",
+    "miniPlayerRestore": "プレーヤーを元の位置に戻す",
+    "miniPlayerAnnounced": "プレーヤーを画面右下に移動しました"
   },
   "archive": {
     "loadFailed": "アーカイブの読み込みに失敗しました: {error}",

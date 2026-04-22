@@ -1,6 +1,13 @@
 "use client";
 
-import { useEffect, useImperativeHandle, useRef, type Ref } from "react";
+import {
+  useCallback,
+  useEffect,
+  useImperativeHandle,
+  useRef,
+  useState,
+  type Ref,
+} from "react";
 import { useTranslations } from "next-intl";
 import type { FileItem } from "@/types";
 import { VideoPlayer } from "./VideoPlayer";
@@ -10,6 +17,7 @@ import { MarkdownFileViewer } from "./MarkdownPreview";
 import { ArchivePreview } from "./ArchivePreview";
 import { FileTypeIcon } from "./FileTypeIcon";
 import { AddonSlot } from "./AddonSlot";
+import { MiniPlayerContainer } from "./MiniPlayerContainer";
 import { formatFileSize } from "@/lib/format";
 import { getStreamUrl } from "@/lib/api";
 import {
@@ -136,16 +144,32 @@ export function FilePreview({
   onMediaController,
 }: FilePreviewProps) {
   const t = useTranslations("file");
+  // Mirror the published MediaController locally so MiniPlayerContainer
+  // can react to play/pause without requiring every caller of
+  // FilePreview to thread the controller back down. The relay still
+  // forwards to the parent's `onMediaController` so nothing above
+  // loses the handle.
+  const [localMc, setLocalMc] = useState<MediaController | null>(null);
+  const relayMc = useCallback(
+    (mc: MediaController | null) => {
+      setLocalMc(mc);
+      onMediaController?.(mc);
+    },
+    [onMediaController],
+  );
+
   if (file.file_type === "video") {
     return (
-      <NativeVideoWithController
-        file={file}
-        onEnded={onEnded}
-        autoPlay={autoPlay}
-        initialTime={initialTime}
-        videoRef={videoRef}
-        onMediaController={onMediaController}
-      />
+      <MiniPlayerContainer mc={localMc}>
+        <NativeVideoWithController
+          file={file}
+          onEnded={onEnded}
+          autoPlay={autoPlay}
+          initialTime={initialTime}
+          videoRef={videoRef}
+          onMediaController={relayMc}
+        />
+      </MiniPlayerContainer>
     );
   }
 
@@ -177,12 +201,16 @@ export function FilePreview({
     // Forward the controller setter so the addon can publish its
     // YouTube-backed MediaController upward (citation jump + keyboard
     // shortcuts go through the same MediaController plumbing as the
-    // native VideoPlayer above).
+    // native VideoPlayer above). Wrapped in MiniPlayerContainer so
+    // the embedded YouTube iframe also reflows into a floating mini
+    // window when it scrolls out of view.
     return (
-      <AddonSlot
-        id="hvlink-player"
-        props={{ fileId: file.id, file, onMediaController }}
-      />
+      <MiniPlayerContainer mc={localMc}>
+        <AddonSlot
+          id="hvlink-player"
+          props={{ fileId: file.id, file, onMediaController: relayMc }}
+        />
+      </MiniPlayerContainer>
     );
   }
 

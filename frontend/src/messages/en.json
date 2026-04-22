@@ -345,7 +345,10 @@
     "castConnecting": "Connecting...",
     "castConnected": "Casting",
     "autoplayOn": "Autoplay ON",
-    "autoplayOff": "Autoplay OFF"
+    "autoplayOff": "Autoplay OFF",
+    "miniPlayerClose": "Close mini player (stops playback)",
+    "miniPlayerRestore": "Return player to original position",
+    "miniPlayerAnnounced": "Player moved to bottom-right corner"
   },
   "archive": {
     "loadFailed": "Failed to load archive: {error}",
