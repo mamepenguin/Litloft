@@ -38,7 +38,9 @@
     "createPlaylist": "プレイリスト作成",
     "playlistNamePlaceholder": "プレイリスト名...",
     "renamePlaylist": "リネーム",
-    "deletePlaylist": "削除"
+    "deletePlaylist": "削除",
+    "sectionCollapse": "折りたたむ",
+    "sectionExpand": "展開する"
   },
   "drive": {
     "title": "ドライブ",

@@ -1,8 +1,39 @@
-import { describe, it, expect, vi, beforeEach } from "vitest";
+import { describe, it, expect, vi, beforeEach, afterAll } from "vitest";
 import { render, screen, fireEvent } from "@testing-library/react";
 import { SidebarPlaylistsSection } from "../SidebarPlaylistsSection";
 import type { PlaylistSummary } from "@/types";
 import { createRef } from "react";
+
+function makeLocalStorageMock(): Storage {
+  const store = new Map<string, string>();
+  return {
+    get length() {
+      return store.size;
+    },
+    clear: () => store.clear(),
+    getItem: (k: string) => store.get(k) ?? null,
+    key: (i: number) => Array.from(store.keys())[i] ?? null,
+    removeItem: (k: string) => {
+      store.delete(k);
+    },
+    setItem: (k: string, v: string) => {
+      store.set(k, String(v));
+    },
+  };
+}
+
+const originalLocalStorageDescriptor = Object.getOwnPropertyDescriptor(window, "localStorage");
+const mockStorage = makeLocalStorageMock();
+Object.defineProperty(window, "localStorage", {
+  configurable: true,
+  value: mockStorage,
+});
+
+afterAll(() => {
+  if (originalLocalStorageDescriptor) {
+    Object.defineProperty(window, "localStorage", originalLocalStorageDescriptor);
+  }
+});
 
 const makePl = (id: string, name: string, count = 3): PlaylistSummary => ({
   id,
@@ -40,6 +71,7 @@ const defaultProps = {
 describe("SidebarPlaylistsSection", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    mockStorage.clear();
   });
 
   it("renders playlist items", () => {
@@ -127,5 +159,37 @@ describe("SidebarPlaylistsSection", () => {
     );
     fireEvent.click(screen.getByText("削除"));
     expect(handleDeletePlaylist).toHaveBeenCalledWith("pl1");
+  });
+
+  it("hides playlist items when collapsed and persists state", () => {
+    render(<SidebarPlaylistsSection {...defaultProps} />);
+    const toggle = screen.getByRole("button", { name: "折りたたむ" });
+    fireEvent.click(toggle);
+    expect(screen.queryByText("Rock")).not.toBeInTheDocument();
+    expect(screen.queryByText("Jazz")).not.toBeInTheDocument();
+    expect(mockStorage.getItem("sidebar:section:playlists:collapsed")).toBe("1");
+    expect(screen.getByRole("button", { name: "展開する" })).toBeInTheDocument();
+  });
+
+  it("starts collapsed when localStorage flag is set", () => {
+    mockStorage.setItem("sidebar:section:playlists:collapsed", "1");
+    render(<SidebarPlaylistsSection {...defaultProps} />);
+    expect(screen.queryByText("Rock")).not.toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "展開する" })).toBeInTheDocument();
+  });
+
+  it("create button auto-expands collapsed section", () => {
+    mockStorage.setItem("sidebar:section:playlists:collapsed", "1");
+    const setCreatingPlaylist = vi.fn();
+    render(
+      <SidebarPlaylistsSection
+        {...defaultProps}
+        setCreatingPlaylist={setCreatingPlaylist}
+      />
+    );
+    fireEvent.click(screen.getByLabelText("プレイリスト作成"));
+    expect(setCreatingPlaylist).toHaveBeenCalledWith(true);
+    expect(mockStorage.getItem("sidebar:section:playlists:collapsed")).toBeNull();
+    expect(screen.getByText("Rock")).toBeInTheDocument();
   });
 });

@@ -38,7 +38,9 @@
     "createPlaylist": "Create playlist",
     "playlistNamePlaceholder": "Playlist name...",
     "renamePlaylist": "Rename",
-    "deletePlaylist": "Delete"
+    "deletePlaylist": "Delete",
+    "sectionCollapse": "Collapse",
+    "sectionExpand": "Expand"
   },
   "drive": {
     "title": "Drives",

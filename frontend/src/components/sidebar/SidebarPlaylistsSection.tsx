@@ -1,9 +1,10 @@
 import { type RefObject, useCallback, useRef, useState } from "react";
-import { ListMusic, Pencil, Plus, Trash2 } from "lucide-react";
+import { ChevronDown, ChevronRight, ListMusic, Pencil, Plus, Trash2 } from "lucide-react";
 import { useTranslations } from "next-intl";
 
 import type { PlaylistSummary } from "@/types";
 import { addPlaylistItems, getPlaylists } from "@/lib/api";
+import { useSidebarSectionCollapsed } from "./useSidebarSectionCollapsed";
 
 interface SidebarPlaylistsSectionProps {
   currentDrive: string | null;
@@ -50,6 +51,7 @@ export function SidebarPlaylistsSection({
   handlePlaylistClick,
 }: SidebarPlaylistsSectionProps) {
   const t = useTranslations("sidebar");
+  const { collapsed, toggle, expand } = useSidebarSectionCollapsed("playlists");
   const [dropTargetId, setDropTargetId] = useState<string | null>(null);
   const dragCounterRef = useRef<Map<string, number>>(new Map());
 
@@ -101,14 +103,24 @@ export function SidebarPlaylistsSection({
     [currentDrive, setPlaylistList],
   );
 
+  const Chevron = collapsed ? ChevronRight : ChevronDown;
+
   return (
     <>
-      <div className="mb-1 mt-4 flex items-center justify-between px-3">
-        <span className="text-[11px] font-semibold uppercase tracking-wider text-text-muted">
-          Playlists
-        </span>
+      <div className="mb-1 mt-4 flex items-center justify-between pr-3">
+        <button
+          type="button"
+          onClick={toggle}
+          aria-expanded={!collapsed}
+          aria-label={collapsed ? t("sectionExpand") : t("sectionCollapse")}
+          className="flex flex-1 items-center gap-1.5 rounded-md px-3 text-[11px] font-semibold uppercase tracking-wider text-text-muted transition-colors hover:text-text-primary"
+        >
+          <Chevron size={12} />
+          <span>Playlists</span>
+        </button>
         <button
           onClick={() => {
+            expand();
             setCreatingPlaylist(true);
             setNewPlaylistName("");
           }}
@@ -119,7 +131,7 @@ export function SidebarPlaylistsSection({
         </button>
       </div>
 
-      {creatingPlaylist && (
+      {!collapsed && creatingPlaylist && (
         <div className="px-3">
           <input
             ref={createInputRef}
@@ -140,7 +152,7 @@ export function SidebarPlaylistsSection({
         </div>
       )}
 
-      {playlistList.map((pl) => (
+      {!collapsed && playlistList.map((pl) => (
         <div key={pl.id} className="relative">
           {renamingId === pl.id ? (
             <div className="px-3">
