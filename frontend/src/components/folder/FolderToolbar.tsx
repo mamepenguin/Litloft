@@ -25,6 +25,7 @@ interface FolderToolbarProps {
   folderError: string | null;
   fileIds: string[];
   drive: string;
+  folderPath?: string;
   onSortChange: (s: SortField, o: SortOrder) => void;
   onTypeFilterChange: (t: FileType | null) => void;
   onViewChange: (mode: ViewMode) => void;
@@ -50,7 +51,7 @@ const TYPE_OPTION_KEYS: ReadonlyArray<{ value: FileType | null; labelKey: string
 export function FolderToolbar({
   isSpecialView, tagFilter, hasPlayableFiles,
   sort, order, typeFilter, total, selectable, scanning,
-  creatingFolder, newFolderName, folderError, fileIds, drive,
+  creatingFolder, newFolderName, folderError, fileIds, drive, folderPath,
   onSortChange, onTypeFilterChange, onViewChange, onToggleSelectable,
   onScan, onPlayAll, onSetCreatingFolder, onSetNewFolderName,
   onSetFolderError, onCreateFolder,
@@ -122,7 +123,7 @@ export function FolderToolbar({
           </>
         )}
 
-        <AddonSlot id="folder-actions" layout="stack" props={{ fileIds, drive }} />
+        <AddonSlot id="folder-actions" layout="stack" props={{ fileIds, drive, path: folderPath ?? "" }} />
 
         <div className="flex-1" />
 
