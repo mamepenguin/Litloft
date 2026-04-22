@@ -21,6 +21,7 @@ import { ActiveSummaryHost } from "@/components/ActiveSummaryHost";
 import { RelatedFilesSection } from "@/components/RelatedFilesSection";
 import { useSetOverrideDrive } from "@/components/CurrentDriveProvider";
 import { useOverlaySidebar } from "@/components/SidebarProvider";
+import type { MediaController } from "@/lib/mediaController";
 
 export default function FilePage() {
   useOverlaySidebar();
@@ -46,6 +47,13 @@ export default function FilePage() {
   const [saving, setSaving] = useState(false);
   const [galleryOpen, setGalleryOpen] = useState(false);
   const videoRef = useRef<HTMLVideoElement>(null);
+  // Decoupled from videoRef on purpose: HvLink (YouTube) supplies its
+  // own MediaController via FilePreview's onMediaController callback,
+  // and the underlying playback element is an iframe — there is no
+  // HTMLVideoElement to point a ref at. AddonSlot consumers (citation
+  // jump etc.) should prefer mediaController and fall back to videoRef.
+  const [mediaController, setMediaController] =
+    useState<MediaController | null>(null);
   const setOverrideDrive = useSetOverrideDrive();
 
   useEffect(() => {
@@ -100,6 +108,9 @@ export default function FilePage() {
   useEffect(() => {
     if (!file || !neighbors) return;
     if (file.file_type === "video" || file.file_type === "audio") return;
+    // HvLink (YouTube embed) installs its own ←/→ seek shortcuts via
+    // HvlinkPlayer; double-binding here would seek AND navigate.
+    if (file.mime_type === "application/vnd.homevault.link+json") return;
 
     function handleKeyDown(e: KeyboardEvent) {
       const target = e.target as HTMLElement;
@@ -186,7 +197,14 @@ export default function FilePage() {
       <div className={`${isAudioSide ? "flex flex-col gap-4 md:flex-row" : ""}`}>
         <div className={`${isAudioSide ? "min-w-0 flex-1" : ""}`}>
           <div className="group/nav relative">
-            <FilePreview file={file} onEnded={hasPlaylist ? handleMediaEnded : undefined} autoPlay={hasPlaylist} videoRef={videoRef} initialTime={initialTime} />
+            <FilePreview
+              file={file}
+              onEnded={hasPlaylist ? handleMediaEnded : undefined}
+              autoPlay={hasPlaylist}
+              videoRef={videoRef}
+              initialTime={initialTime}
+              onMediaController={setMediaController}
+            />
 
             {!hasPlaylist && neighbors?.prev_id && (
               <button
@@ -333,7 +351,7 @@ export default function FilePage() {
             <AddonSlot
               id="file-detail-sections"
               layout="stack"
-              props={{ fileId, drive: file.drive, videoRef, subtitles: file.subtitles }}
+              props={{ fileId, drive: file.drive, videoRef, mediaController, subtitles: file.subtitles }}
             />
           </div>
 

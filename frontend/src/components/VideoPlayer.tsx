@@ -8,6 +8,7 @@ import { addRecentlyPlayed, getSavedProgress, saveProgress, clearProgress } from
 import { readAutoplayPreference } from "@/lib/autoplay";
 import { setupBackgroundPiP } from "@/lib/backgroundPiP";
 import { setupMediaSession } from "@/lib/mediaSession";
+import { createNativeVideoController, handleMediaShortcut } from "@/lib/mediaController";
 import { AutoplayToggle } from "./AutoplayToggle";
 import { useProfile } from "./ProfileProvider";
 
@@ -99,52 +100,8 @@ export const VideoPlayer = forwardRef(function VideoPlayer({ videoId, subtitles 
     const handleKeyDown = (e: KeyboardEvent) => {
       const video = videoRef.current;
       if (!video) return;
-
-      const target = e.target as HTMLElement;
-      const tag = target?.tagName;
-      if (tag === "INPUT" || tag === "TEXTAREA" || tag === "SELECT") return;
-      if (target?.isContentEditable) return;
-
-      switch (e.key) {
-        case "ArrowLeft":
-          e.preventDefault();
-          video.currentTime = Math.max(0, video.currentTime - 10);
-          break;
-        case "ArrowRight":
-          e.preventDefault();
-          video.currentTime = Math.min(video.duration, video.currentTime + 10);
-          break;
-        case "ArrowUp":
-          e.preventDefault();
-          video.currentTime = Math.min(video.duration, video.currentTime + 60);
-          break;
-        case "ArrowDown":
-          e.preventDefault();
-          video.currentTime = Math.max(0, video.currentTime - 60);
-          break;
-        case " ":
-          e.preventDefault();
-          if (video.paused) {
-            video.play();
-          } else {
-            video.pause();
-          }
-          break;
-        case "m":
-        case "M":
-          e.preventDefault();
-          video.muted = !video.muted;
-          break;
-        case "f":
-        case "F":
-          e.preventDefault();
-          if (document.fullscreenElement) {
-            document.exitFullscreen();
-          } else {
-            video.requestFullscreen();
-          }
-          break;
-      }
+      const mc = createNativeVideoController(video);
+      handleMediaShortcut(e, mc);
     };
 
     document.addEventListener("keydown", handleKeyDown);
