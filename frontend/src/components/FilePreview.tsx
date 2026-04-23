@@ -196,7 +196,7 @@ export function FilePreview({
     );
   }
 
-  if (file.mime_type === "application/vnd.homevault.link+json") {
+  if (file.mime_type === "application/vnd.litloft.link+json") {
     // HvLink delegates the actual player UI to the downloader addon.
     // Forward the controller setter so the addon can publish its
     // YouTube-backed MediaController upward (citation jump + keyboard

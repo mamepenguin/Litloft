@@ -103,8 +103,8 @@ deploy/              # Deploy scripts
 Run inside Docker (local Python is incompatible with pydantic).
 
 ```bash
-docker build -f backend/Dockerfile.test -t homevault-test backend/
-docker run --rm homevault-test
+docker build -f backend/Dockerfile.test -t litloft-test backend/
+docker run --rm litloft-test
 ```
 
 ### Frontend Unit Tests

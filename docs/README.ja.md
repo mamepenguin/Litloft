@@ -1,13 +1,13 @@
-# HomeVault
+# Litloft
 
 自宅LAN向けファイル管理＆メディアストリーミングWebアプリ。Docker で動かし、ブラウザ（PWA対応）からアクセスする。
 
 > **Note:** このプロジェクトは個人用途で開発しています。Issue/PRは歓迎しますが、対応・サポートは保証しません。
 
-> **Warning:** HomeVaultは信頼できる家庭内ネットワークでの使用を前提としています。インターネットに公開するのに十分なセキュリティは備えていません。外部公開する場合は、リバースプロキシによるHTTPS化やVPN等を自身で構成してください。
+> **Warning:** Litloftは信頼できる家庭内ネットワークでの使用を前提としています。インターネットに公開するのに十分なセキュリティは備えていません。外部公開する場合は、リバースプロキシによるHTTPS化やVPN等を自身で構成してください。
 
 <!-- TODO: スクリーンショット（ドライブ一覧 or フォルダブラウザのメイン画面） -->
-![HomeVault メイン画面](screenshots/main.png)
+![Litloft メイン画面](screenshots/main.png)
 
 ## 主な機能
 
@@ -154,8 +154,8 @@ cp passwords.json.example passwords.json
 docker compose up -d --build
 
 # Backend テスト（Docker内で実行）
-docker build -f backend/Dockerfile.test -t homevault-test backend/
-docker run --rm homevault-test
+docker build -f backend/Dockerfile.test -t litloft-test backend/
+docker run --rm litloft-test
 
 # Frontend テスト
 cd frontend && pnpm test

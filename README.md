@@ -1,15 +1,15 @@
-# HomeVault
+# Litloft
 
 A self-hosted file manager and media streaming app for your home LAN. Runs on Docker, accessed via browser (PWA).
 
 > **Note:** This project is developed for personal use. Issues and PRs are welcome, but response and support are not guaranteed.
 
-> **Warning:** HomeVault is designed for trusted home networks only. It does not provide the level of security required for internet-facing deployments. Do not expose it to the public internet without adding your own authentication and encryption layer (e.g. reverse proxy with HTTPS and VPN).
+> **Warning:** Litloft is designed for trusted home networks only. It does not provide the level of security required for internet-facing deployments. Do not expose it to the public internet without adding your own authentication and encryption layer (e.g. reverse proxy with HTTPS and VPN).
 
 > Japanese documentation: [docs/README.ja.md](docs/README.ja.md)
 
 <!-- TODO: Screenshot (drive list or folder browser main screen) -->
-![HomeVault main screen](docs/screenshots/main.png)
+![Litloft main screen](docs/screenshots/main.png)
 
 ## Features
 
@@ -156,8 +156,8 @@ A "Lock" button appears in the sidebar while unlocked.
 docker compose up -d --build
 
 # Backend tests (run inside Docker)
-docker build -f backend/Dockerfile.test -t homevault-test backend/
-docker run --rm homevault-test
+docker build -f backend/Dockerfile.test -t litloft-test backend/
+docker run --rm litloft-test
 
 # Frontend tests
 cd frontend && pnpm test

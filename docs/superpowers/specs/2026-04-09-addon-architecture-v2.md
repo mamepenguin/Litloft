@@ -2,7 +2,7 @@
 
 ## 概要
 
-HomeVaultのアドオン機構をリファクタリングし、Progressive Enhancement + スロット機構 + Generic Proxyによる新しいアドオン統合方式を導入する。これにより:
+Litloftのアドオン機構をリファクタリングし、Progressive Enhancement + スロット機構 + Generic Proxyによる新しいアドオン統合方式を導入する。これにより:
 
 1. **本体UIにアドオン固有コードを書かない** — スロット機構でアドオンがUI拡張を宣言的に注入
 2. **本体にアドオン固有プロキシを書かない** — Generic Proxy + 宣言的フィルタで汎用的に転送

@@ -184,7 +184,7 @@ Drive contents (video files, etc.) must be backed up separately.
 ### Backup Command
 
 ```bash
-tar czf homevault-backup-$(date +%Y%m%d).tar.gz \
+tar czf litloft-backup-$(date +%Y%m%d).tar.gz \
   data/ drives.json passwords.json event-hooks.json \
   docker-compose.override.yml \
   addons/intelligence/search-config.yml \
@@ -195,7 +195,7 @@ tar czf homevault-backup-$(date +%Y%m%d).tar.gz \
 ### Restore
 
 ```bash
-tar xzf homevault-backup-YYYYMMDD.tar.gz
+tar xzf litloft-backup-YYYYMMDD.tar.gz
 docker compose up -d --build
 ```
 

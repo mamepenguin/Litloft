@@ -52,7 +52,7 @@ export function SidebarLibrarySection({ driveBase, currentDrive, linkClass, clos
       <div className="mb-2 py-2 pr-3 pl-12">
         <Link href="/" onClick={close} className="flex items-center gap-2 text-lg font-bold text-text-primary">
           <Warehouse size={20} className="text-accent-cta" />
-          HomeVault
+          Litloft
         </Link>
       </div>
 

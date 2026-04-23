@@ -1,4 +1,4 @@
-# HomeVault — Feature List
+# Litloft — Feature List
 
 A self-hosted file manager and media streaming web app for home LAN.
 
@@ -57,7 +57,7 @@ Each `File` row can be in one of three mutually-exclusive states, expressed via 
 | State | `deleted_at` | `missing_since` | Meaning | Auto-purge |
 |-------|--------------|-----------------|---------|------------|
 | Active | NULL | NULL | Normal | — |
-| Missing | NULL | SET | Not present on FS (NAS disconnected, file moved outside HomeVault) | Never |
+| Missing | NULL | SET | Not present on FS (NAS disconnected, file moved outside Litloft) | Never |
 | Trash | SET | NULL | User-deleted, recoverable | 30 days |
 
 All list queries filter via `active_file_filter()` so missing/trash files are invisible to the browser by default.
@@ -305,7 +305,7 @@ Runs as a separate Docker container (`./addons/intelligence`). All features belo
 - Manual edit + revert-to-AI supported (`SummaryEditRequest` / `summary/revert`)
 - Batch generation per folder (`folder-summaries` slot)
 - Window sampling for long content (configurable size/count)
-- Never writes to the core HomeVault DB — lives in the intelligence addon's own store
+- Never writes to the core Litloft DB — lives in the intelligence addon's own store
 
 ### Detailed Summaries (long-form Markdown)
 - Modes: `"false"` | `"manual"` | `"on_index"` — manual is the safe default (generation is expensive); `"on_index"` auto-generates after indexing completes
@@ -339,7 +339,7 @@ Runs as a separate Docker container (`./addons/intelligence`). All features belo
 - Frame search + timestamp hovercards in file detail
 
 ### HvLink (external source)
-- Downloader addon's "link" mode creates a HomeVault file row that references an external URL
+- Downloader addon's "link" mode creates a Litloft file row that references an external URL
 - Intelligence addon ingests HvLink transcripts when available, so YouTube-style links can participate in search, Ask, and summaries without downloading the media
 
 ### LLM Providers
@@ -371,7 +371,7 @@ External service (`./addons/knowledge`, port 8200). Scope: `drive`.
 In-process. Scope: `drive`.
 
 - Queue-based yt-dlp downloads with cancel support
-- **HvLink mode**: register an external URL as a HomeVault file without downloading the media, with a background fetcher populating metadata/transcripts
+- **HvLink mode**: register an external URL as a Litloft file without downloading the media, with a background fetcher populating metadata/transcripts
 - HvLink player slot (`hvlink-player`) for embedded playback of external sources
 
 ---

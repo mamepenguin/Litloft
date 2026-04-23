@@ -110,7 +110,7 @@ export default function FilePage() {
     if (file.file_type === "video" || file.file_type === "audio") return;
     // HvLink (YouTube embed) installs its own ←/→ seek shortcuts via
     // HvlinkPlayer; double-binding here would seek AND navigate.
-    if (file.mime_type === "application/vnd.homevault.link+json") return;
+    if (file.mime_type === "application/vnd.litloft.link+json") return;
 
     function handleKeyDown(e: KeyboardEvent) {
       const target = e.target as HTMLElement;

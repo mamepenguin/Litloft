@@ -14,13 +14,13 @@ import { ProfileSetup } from "@/components/ProfileSetup";
 import { AddonSlotsProvider } from "@/components/AddonSlotsProvider";
 
 export const metadata: Metadata = {
-  title: "HomeVault",
-  description: "HomeVault - File management & media streaming",
+  title: "Litloft",
+  description: "Litloft - File management & media streaming",
   manifest: "/manifest.json",
   appleWebApp: {
     capable: true,
     statusBarStyle: "default",
-    title: "HomeVault",
+    title: "Litloft",
   },
   icons: {
     apple: "/apple-touch-icon.png",

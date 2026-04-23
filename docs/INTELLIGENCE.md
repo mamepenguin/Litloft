@@ -62,7 +62,7 @@ services:
     restart: unless-stopped
 ```
 
-`DRIVE_MOUNTS` maps HomeVault drive names (as they appear in `drives.json`) to paths inside the addon container. Use one entry per drive, comma-separated. Unmapped drives are indexed from the core DB only (no transcripts/CLIP).
+`DRIVE_MOUNTS` maps Litloft drive names (as they appear in `drives.json`) to paths inside the addon container. Use one entry per drive, comma-separated. Unmapped drives are indexed from the core DB only (no transcripts/CLIP).
 
 ### event-hooks.json
 

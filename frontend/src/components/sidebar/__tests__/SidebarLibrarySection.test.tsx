@@ -12,9 +12,9 @@ const linkClass = (href: string) =>
   href.includes("favorites") ? "active" : "inactive";
 
 describe("SidebarLibrarySection", () => {
-  it("renders HomeVault logo link", () => {
+  it("renders Litloft logo link", () => {
     render(<SidebarLibrarySection driveBase={null} currentDrive={null} linkClass={linkClass} close={vi.fn()} />);
-    expect(screen.getByText("HomeVault")).toBeInTheDocument();
+    expect(screen.getByText("Litloft")).toBeInTheDocument();
   });
 
   it("renders home link", () => {
