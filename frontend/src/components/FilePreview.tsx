@@ -207,7 +207,7 @@ export function FilePreview({
     return (
       <MiniPlayerContainer mc={localMc}>
         <AddonSlot
-          id="hvlink-player"
+          id="loft-player"
           props={{ fileId: file.id, file, onMediaController: relayMc }}
         />
       </MiniPlayerContainer>

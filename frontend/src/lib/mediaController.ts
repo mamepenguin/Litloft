@@ -167,7 +167,7 @@ export function createYouTubeController(
 
 /**
  * Shared keyboard handler for video-style media controllers. Used by
- * VideoPlayer (native HTMLVideoElement) and HvlinkPlayer (YouTube
+ * VideoPlayer (native HTMLVideoElement) and LoftPlayer (YouTube
  * IFrame Player) so both surface the same shortcut behaviour.
  *
  * Bindings:
