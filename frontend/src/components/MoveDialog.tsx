@@ -4,6 +4,7 @@ import { useCallback, useEffect, useState } from "react";
 import { ChevronRight, Folder, Move, X } from "lucide-react";
 
 import { useTranslations } from "next-intl";
+import { useShortcuts } from "@/hooks/useShortcuts";
 import { getFolders } from "@/lib/api";
 import type { Folder as FolderType } from "@/types";
 
@@ -57,16 +58,12 @@ export function MoveDialog({
     }
   }, [open, loadFolders]);
 
-  useEffect(() => {
-    if (!open) return;
-    function handleKeyDown(e: KeyboardEvent) {
-      if (e.key === "Escape") {
-        onCancel();
-      }
-    }
-    window.addEventListener("keydown", handleKeyDown);
-    return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [open, onCancel]);
+  useShortcuts(
+    "move-dialog",
+    "ダイアログ",
+    [{ key: "escape", label: "キャンセル", handler: onCancel, hidden: true }],
+    open,
+  );
 
   function handleNavigate(folderPath: string) {
     setBrowsePath(folderPath);

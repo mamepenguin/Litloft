@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { ArrowRight, FileText, Loader2, Pencil, X } from "lucide-react";
 import { useTranslations } from "next-intl";
+import { useShortcuts } from "@/hooks/useShortcuts";
 
 import { batchRename } from "@/lib/api";
 import {
@@ -41,14 +42,12 @@ export function BatchRenameDialog({
   const [error, setError] = useState("");
   const [submitting, setSubmitting] = useState(false);
 
-  useEffect(() => {
-    if (!open) return;
-    function handleKeyDown(e: KeyboardEvent) {
-      if (e.key === "Escape") onCancel();
-    }
-    window.addEventListener("keydown", handleKeyDown);
-    return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [open, onCancel]);
+  useShortcuts(
+    "batch-rename-dialog",
+    "ダイアログ",
+    [{ key: "escape", label: "キャンセル", handler: onCancel, hidden: true }],
+    open,
+  );
 
   const regexError = useMemo(() => {
     if (mode !== "regex" || !pattern) return "";

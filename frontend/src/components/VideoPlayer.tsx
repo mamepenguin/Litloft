@@ -11,6 +11,7 @@ import { setupMediaSession } from "@/lib/mediaSession";
 import { createNativeVideoController, handleMediaShortcut } from "@/lib/mediaController";
 import { AutoplayToggle } from "./AutoplayToggle";
 import { useProfile } from "./ProfileProvider";
+import { useShortcuts } from "@/hooks/useShortcuts";
 
 const SAVE_INTERVAL = 5;
 const RESUME_THRESHOLD = 5;
@@ -94,17 +95,80 @@ export const VideoPlayer = forwardRef(function VideoPlayer({ videoId, subtitles 
     );
   }, [videoId, title, subtitleText, onEnded]);
 
-  useEffect(() => {
-    const handleKeyDown = (e: KeyboardEvent) => {
-      const video = videoRef.current;
-      if (!video) return;
-      const mc = createNativeVideoController(video);
-      handleMediaShortcut(e, mc);
-    };
+  const tShortcuts = useTranslations("shortcuts");
 
-    document.addEventListener("keydown", handleKeyDown);
+  useShortcuts("video-player", tShortcuts("videoPlayer"), [
+    {
+      key: "space",
+      label: tShortcuts("play"),
+      handler: () => {
+        const video = videoRef.current;
+        if (!video) return;
+        createNativeVideoController(video).togglePlay();
+      },
+    },
+    {
+      key: "arrowleft",
+      label: tShortcuts("seekBack10"),
+      handler: () => {
+        const video = videoRef.current;
+        if (!video) return;
+        const mc = createNativeVideoController(video);
+        mc.seek(mc.getCurrentTime() - 10);
+      },
+    },
+    {
+      key: "arrowright",
+      label: tShortcuts("seekForward10"),
+      handler: () => {
+        const video = videoRef.current;
+        if (!video) return;
+        const mc = createNativeVideoController(video);
+        mc.seek(mc.getCurrentTime() + 10);
+      },
+    },
+    {
+      key: "arrowup",
+      label: tShortcuts("seekForward60"),
+      handler: () => {
+        const video = videoRef.current;
+        if (!video) return;
+        const mc = createNativeVideoController(video);
+        mc.seek(mc.getCurrentTime() + 60);
+      },
+    },
+    {
+      key: "arrowdown",
+      label: tShortcuts("seekBack60"),
+      handler: () => {
+        const video = videoRef.current;
+        if (!video) return;
+        const mc = createNativeVideoController(video);
+        mc.seek(mc.getCurrentTime() - 60);
+      },
+    },
+    {
+      key: "m",
+      label: tShortcuts("mute"),
+      handler: () => {
+        const video = videoRef.current;
+        if (!video) return;
+        createNativeVideoController(video).toggleMute();
+      },
+    },
+    {
+      key: "f",
+      label: tShortcuts("fullscreen"),
+      handler: () => {
+        const video = videoRef.current;
+        if (!video) return;
+        createNativeVideoController(video).toggleFullscreen();
+      },
+    },
+  ]);
+
+  useEffect(() => {
     return () => {
-      document.removeEventListener("keydown", handleKeyDown);
       const video = videoRef.current;
       if (video && video.currentTime > 0) {
         if (hasProfile) {

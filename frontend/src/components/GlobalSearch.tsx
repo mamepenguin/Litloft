@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { ArrowLeft, ArrowUpLeft, Clock, Search, X } from "lucide-react";
+import { useShortcuts } from "@/hooks/useShortcuts";
 
 import { useTranslations } from "next-intl";
 import { getDriveFiles } from "@/lib/api";
@@ -113,6 +114,7 @@ function TextResultItem({
 
 export function GlobalSearch() {
   const t = useTranslations("search");
+  const tsc = useTranslations("shortcuts");
   const tc = useTranslations("common");
   const router = useRouter();
   const [open, setOpen] = useState(false);
@@ -149,24 +151,31 @@ export function GlobalSearch() {
     setFilter("all");
   }, []);
 
-  // Global keyboard shortcut
-  useEffect(() => {
-    function handleKeyDown(e: KeyboardEvent) {
-      if ((e.metaKey || e.ctrlKey) && e.shiftKey && e.key === "f") {
-        e.preventDefault();
+  useShortcuts("global", tsc("global"), [
+    {
+      key: "ctrl+shift+f",
+      label: tsc("search"),
+      handler: () => {
         if (open) {
           closeSearch();
         } else {
           openSearch();
         }
-      }
-      if (e.key === "Escape" && open) {
+      },
+    },
+  ]);
+
+  // Handle Escape to close search (processed by ShortcutsProvider when open)
+  useEffect(() => {
+    if (!open) return;
+    function handleKeyDown(e: KeyboardEvent) {
+      if (e.key === "Escape") {
         closeSearch();
       }
     }
     document.addEventListener("keydown", handleKeyDown);
     return () => document.removeEventListener("keydown", handleKeyDown);
-  }, [open, openSearch, closeSearch]);
+  }, [open, closeSearch]);
 
   // Debounced text search
   useEffect(() => {

@@ -695,5 +695,29 @@
         "dismiss": "閉じる"
       }
     }
+  },
+  "shortcuts": {
+    "title": "ショートカット",
+    "close": "閉じる",
+    "global": "グローバル",
+    "videoPlayer": "動画プレーヤー",
+    "fileBrowser": "ファイルブラウザ",
+    "imageGallery": "画像ギャラリー",
+    "noShortcuts": "このコンテキストにショートカットはありません",
+    "openHint": "でいつでも開けます",
+    "play": "再生 / 一時停止",
+    "seekBack10": "−10秒",
+    "seekForward10": "+10秒",
+    "seekForward60": "+60秒",
+    "seekBack60": "−60秒",
+    "mute": "ミュート切替",
+    "fullscreen": "フルスクリーン",
+    "prevImage": "前の画像",
+    "nextImage": "次の画像",
+    "slideshow": "スライドショー切替",
+    "copy": "コピー",
+    "cut": "カット",
+    "paste": "ペースト",
+    "search": "検索"
   }
 }

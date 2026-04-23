@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, type ComponentType } from "react";
+import { useShortcuts } from "@/hooks/useShortcuts";
 
 export interface MenuItem {
   icon: ComponentType<{ size?: number }>;
@@ -20,6 +21,13 @@ export function ContextMenu({ open, position, items, onClose }: ContextMenuProps
   const menuRef = useRef<HTMLDivElement>(null);
   const adjustedRef = useRef(position);
 
+  useShortcuts(
+    "context-menu",
+    "",
+    [{ key: "escape", label: "閉じる", handler: onClose, hidden: true }],
+    open,
+  );
+
   useEffect(() => {
     if (!open) return;
 
@@ -27,9 +35,6 @@ export function ContextMenu({ open, position, items, onClose }: ContextMenuProps
       if (menuRef.current && !menuRef.current.contains(e.target as Node)) {
         onClose();
       }
-    }
-    function handleKey(e: KeyboardEvent) {
-      if (e.key === "Escape") onClose();
     }
     function handleContextMenu(e: MouseEvent) {
       if (menuRef.current && !menuRef.current.contains(e.target as Node)) {
@@ -42,13 +47,11 @@ export function ContextMenu({ open, position, items, onClose }: ContextMenuProps
       document.addEventListener("mousedown", handleClickOutside);
       document.addEventListener("contextmenu", handleContextMenu);
     }, 0);
-    document.addEventListener("keydown", handleKey);
 
     return () => {
       clearTimeout(timer);
       document.removeEventListener("mousedown", handleClickOutside);
       document.removeEventListener("contextmenu", handleContextMenu);
-      document.removeEventListener("keydown", handleKey);
     };
   }, [open, onClose]);
 

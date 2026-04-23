@@ -1,6 +1,12 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { render, screen, fireEvent } from "@testing-library/react";
+import type { ReactNode } from "react";
 import { GlobalSearch } from "../GlobalSearch";
+import { ShortcutsProvider } from "../ShortcutsProvider";
+
+function renderWithShortcuts(ui: ReactNode) {
+  return render(<ShortcutsProvider>{ui}</ShortcutsProvider>);
+}
 
 vi.mock("next/navigation", () => ({
   useRouter: () => ({
@@ -85,7 +91,7 @@ describe("GlobalSearch", () => {
   });
 
   it("opens on Cmd+Shift+F", () => {
-    render(<GlobalSearch />);
+    renderWithShortcuts(<GlobalSearch />);
     fireEvent.keyDown(document, { key: "f", metaKey: true, shiftKey: true });
     const inputs = screen.getAllByRole("textbox");
     expect(inputs.length).toBeGreaterThanOrEqual(1);

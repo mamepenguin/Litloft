@@ -4,6 +4,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { ChevronLeft, ChevronRight, Pause, Play, X } from "lucide-react";
 
 import { useTranslations } from "next-intl";
+import { useShortcuts } from "@/hooks/useShortcuts";
 import { getDriveFiles, getStreamUrl } from "@/lib/api";
 import type { FileItem, SortField, SortOrder } from "@/types";
 
@@ -158,50 +159,43 @@ export function ImageGallery({
     return () => window.clearTimeout(timer);
   }, [playing, currentIndex, slideshowInterval, images.length]);
 
-  // Keyboard handling (capture phase to override page.tsx)
-  useEffect(() => {
-    if (!open) return;
+  const t_sc = useTranslations("shortcuts");
 
-    function handleKeyDown(e: KeyboardEvent) {
-      const target = e.target as HTMLElement;
-      if (
-        target.tagName === "INPUT" ||
-        target.tagName === "TEXTAREA" ||
-        target.tagName === "SELECT" ||
-        target.isContentEditable
-      ) {
-        return;
-      }
-
-      switch (e.key) {
-        case "ArrowLeft":
-          e.preventDefault();
-          e.stopPropagation();
-          setCurrentIndex((prev) => (prev > 0 ? prev - 1 : prev));
-          break;
-        case "ArrowRight":
-          e.preventDefault();
-          e.stopPropagation();
+  useShortcuts(
+    "image-gallery",
+    t_sc("imageGallery"),
+    [
+      {
+        key: "arrowleft",
+        label: t_sc("prevImage"),
+        handler: () =>
+          setCurrentIndex((prev) => (prev > 0 ? prev - 1 : prev)),
+      },
+      {
+        key: "arrowright",
+        label: t_sc("nextImage"),
+        handler: () =>
           setCurrentIndex((prev) =>
             prev < images.length - 1 ? prev + 1 : prev
-          );
-          break;
-        case "Escape":
-          e.preventDefault();
-          handleClose();
-          break;
-        case " ":
-          e.preventDefault();
+          ),
+      },
+      {
+        key: "escape",
+        label: t_sc("close"),
+        handler: handleClose,
+      },
+      {
+        key: "space",
+        label: t_sc("slideshow"),
+        handler: () => {
           if (images.length > 1) {
             setPlaying((p) => !p);
           }
-          break;
-      }
-    }
-
-    window.addEventListener("keydown", handleKeyDown, true);
-    return () => window.removeEventListener("keydown", handleKeyDown, true);
-  }, [open, images.length, handleClose]);
+        },
+      },
+    ],
+    open,
+  );
 
   // Auto-hide controls during slideshow
   useEffect(() => {

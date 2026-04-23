@@ -3,6 +3,7 @@
 import { Suspense, useCallback, useEffect } from "react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { LockOpen } from "lucide-react";
+import { useShortcuts } from "@/hooks/useShortcuts";
 
 import { lock as lockApi } from "@/lib/api";
 import { useAddonSlots } from "./AddonSlotsProvider";
@@ -133,17 +134,22 @@ function SidebarContent() {
   );
 }
 
+function SidebarShortcuts() {
+  const { isOpen, isOverlay, close } = useSidebar();
+  const isOverlayOpen = isOverlay && isOpen;
+
+  useShortcuts(
+    "sidebar-overlay",
+    "",
+    [{ key: "escape", label: "閉じる", handler: close, hidden: true }],
+    isOverlayOpen,
+  );
+
+  return null;
+}
+
 export function Sidebar() {
   const { isOpen, isOverlay, close } = useSidebar();
-
-  useEffect(() => {
-    if (!(isOverlay && isOpen)) return;
-    const handler = (e: KeyboardEvent) => {
-      if (e.key === "Escape") close();
-    };
-    window.addEventListener("keydown", handler);
-    return () => window.removeEventListener("keydown", handler);
-  }, [isOverlay, isOpen, close]);
 
   useEffect(() => {
     if (!(isOverlay && isOpen)) return;
@@ -156,6 +162,8 @@ export function Sidebar() {
 
   return (
     <>
+      <SidebarShortcuts />
+
       {isOpen && isOverlay && (
         <div
           className="fixed inset-0 z-30 bg-black/50"

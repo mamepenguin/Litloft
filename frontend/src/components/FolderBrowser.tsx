@@ -4,6 +4,7 @@ import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react
 import { useRouter } from "next/navigation";
 import { ClipboardPaste, X } from "lucide-react";
 import { useTranslations } from "next-intl";
+import { useShortcuts } from "@/hooks/useShortcuts";
 
 import type { FileItem, FileType, SortField, SortOrder, ViewMode } from "@/types";
 import { Breadcrumb } from "@/components/Breadcrumb";
@@ -115,6 +116,7 @@ export function FolderBrowser({ driveName, folderPath, view, tagFilter }: Folder
   const selection = useSelection();
   const clipboard = useClipboard();
   const tcb = useTranslations("clipboard");
+  const tsc = useTranslations("shortcuts");
   const { scanning, handleScan } = useDriveScan(driveName, refresh);
   const createFolder = useCreateFolder(driveName, folderPath, refresh);
   const [pasting, setPasting] = useState(false);
@@ -132,38 +134,36 @@ export function FolderBrowser({ driveName, folderPath, view, tagFilter }: Folder
     }
   }, [clipboard, driveName, folderPath, pasting, refresh]);
 
-  useEffect(() => {
-    const handler = (e: KeyboardEvent) => {
-      const target = e.target as HTMLElement;
-      if (
-        target.tagName === "INPUT" ||
-        target.tagName === "TEXTAREA" ||
-        target.isContentEditable
-      ) {
-        return;
-      }
-
-      const mod = e.metaKey || e.ctrlKey;
-      if (mod && e.key === "c" && selection.selectedIds.size > 0) {
-        e.preventDefault();
+  useShortcuts("file-browser", tsc("fileBrowser"), [
+    {
+      key: "ctrl+c",
+      label: tsc("copy"),
+      handler: () => {
+        if (selection.selectedIds.size === 0) return;
         clipboard.copy([...selection.selectedIds], driveName, folderPath ?? "");
         selection.clear();
         setSelectable(false);
-      }
-      if (mod && e.key === "x" && selection.selectedIds.size > 0) {
-        e.preventDefault();
+      },
+    },
+    {
+      key: "ctrl+x",
+      label: tsc("cut"),
+      handler: () => {
+        if (selection.selectedIds.size === 0) return;
         clipboard.cut([...selection.selectedIds], driveName, folderPath ?? "");
         selection.clear();
         setSelectable(false);
-      }
-      if (mod && e.key === "v" && clipboard.clipboard) {
-        e.preventDefault();
+      },
+    },
+    {
+      key: "ctrl+v",
+      label: tsc("paste"),
+      handler: () => {
+        if (!clipboard.clipboard) return;
         handlePaste();
-      }
-    };
-    document.addEventListener("keydown", handler);
-    return () => document.removeEventListener("keydown", handler);
-  }, [selection, clipboard, driveName, folderPath, handlePaste]);
+      },
+    },
+  ]);
 
   const handleDragDropComplete = useCallback(() => {
     selection.clear();

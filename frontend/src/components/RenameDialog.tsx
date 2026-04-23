@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import { Pencil, X } from "lucide-react";
 import { useTranslations } from "next-intl";
+import { useShortcuts } from "@/hooks/useShortcuts";
 
 interface RenameDialogProps {
   open: boolean;
@@ -32,16 +33,12 @@ export function RenameDialog({
     }
   }, [open, currentName]);
 
-  useEffect(() => {
-    if (!open) return;
-    function handleKeyDown(e: KeyboardEvent) {
-      if (e.key === "Escape") {
-        onCancel();
-      }
-    }
-    window.addEventListener("keydown", handleKeyDown);
-    return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [open, onCancel]);
+  useShortcuts(
+    "rename-dialog",
+    "ダイアログ",
+    [{ key: "escape", label: "キャンセル", handler: onCancel, hidden: true }],
+    open,
+  );
 
   function handleSubmit(e: React.FormEvent) {
     e.preventDefault();

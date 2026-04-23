@@ -1,7 +1,13 @@
 import { describe, expect, it, vi, beforeEach, afterEach } from "vitest";
 import { render, screen, fireEvent, act } from "@testing-library/react";
+import type { ReactNode } from "react";
 import { ImageGallery } from "../ImageGallery";
+import { ShortcutsProvider } from "../ShortcutsProvider";
 import type { FileItem } from "@/types";
+
+function renderWithShortcuts(ui: ReactNode) {
+  return render(<ShortcutsProvider>{ui}</ShortcutsProvider>);
+}
 
 vi.mock("@/lib/api", () => ({
   getDriveFiles: vi.fn(),
@@ -135,32 +141,32 @@ describe("ImageGallery", () => {
   });
 
   it("calls onClose on Escape key", async () => {
-    render(<ImageGallery {...defaultProps} />);
+    renderWithShortcuts(<ImageGallery {...defaultProps} />);
 
     await act(async () => {
       await vi.runAllTimersAsync();
     });
 
-    fireEvent.keyDown(window, { key: "Escape" });
+    fireEvent.keyDown(document, { key: "Escape" });
     expect(defaultProps.onClose).toHaveBeenCalledOnce();
   });
 
   it("navigates with arrow keys", async () => {
-    render(<ImageGallery {...defaultProps} />);
+    renderWithShortcuts(<ImageGallery {...defaultProps} />);
 
     await act(async () => {
       await vi.runAllTimersAsync();
     });
 
-    fireEvent.keyDown(window, { key: "ArrowRight" });
+    fireEvent.keyDown(document, { key: "ArrowRight" });
     expect(screen.getByText("2 / 3")).toBeInTheDocument();
 
-    fireEvent.keyDown(window, { key: "ArrowLeft" });
+    fireEvent.keyDown(document, { key: "ArrowLeft" });
     expect(screen.getByText("1 / 3")).toBeInTheDocument();
   });
 
   it("toggles slideshow with space key", async () => {
-    render(<ImageGallery {...defaultProps} />);
+    renderWithShortcuts(<ImageGallery {...defaultProps} />);
 
     await act(async () => {
       await vi.runAllTimersAsync();
@@ -168,10 +174,10 @@ describe("ImageGallery", () => {
 
     expect(screen.getByLabelText("再生")).toBeInTheDocument();
 
-    fireEvent.keyDown(window, { key: " " });
+    fireEvent.keyDown(document, { key: " " });
     expect(screen.getByLabelText("一時停止")).toBeInTheDocument();
 
-    fireEvent.keyDown(window, { key: " " });
+    fireEvent.keyDown(document, { key: " " });
     expect(screen.getByLabelText("再生")).toBeInTheDocument();
   });
 

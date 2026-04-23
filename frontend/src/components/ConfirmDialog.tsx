@@ -3,6 +3,7 @@
 import { useEffect, useRef } from "react";
 import { X } from "lucide-react";
 import { useTranslations } from "next-intl";
+import { useShortcuts } from "@/hooks/useShortcuts";
 
 interface ConfirmDialogProps {
   open: boolean;
@@ -32,16 +33,12 @@ export function ConfirmDialog({
     }
   }, [open]);
 
-  useEffect(() => {
-    if (!open) return;
-    function handleKeyDown(e: KeyboardEvent) {
-      if (e.key === "Escape") {
-        onCancel();
-      }
-    }
-    window.addEventListener("keydown", handleKeyDown);
-    return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [open, onCancel]);
+  useShortcuts(
+    "confirm-dialog",
+    "ダイアログ",
+    [{ key: "escape", label: "キャンセル", handler: onCancel, hidden: true }],
+    open,
+  );
 
   if (!open) return null;
 

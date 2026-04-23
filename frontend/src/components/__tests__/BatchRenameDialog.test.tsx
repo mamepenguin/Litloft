@@ -1,6 +1,12 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { render, screen, fireEvent, waitFor } from "@testing-library/react";
+import type { ReactNode } from "react";
 import { BatchRenameDialog } from "../BatchRenameDialog";
+import { ShortcutsProvider } from "../ShortcutsProvider";
+
+function renderWithShortcuts(ui: ReactNode) {
+  return render(<ShortcutsProvider>{ui}</ShortcutsProvider>);
+}
 
 const mockBatchRename = vi.fn().mockResolvedValue({ renamed: 2, results: [] });
 
@@ -156,8 +162,8 @@ describe("BatchRenameDialog", () => {
 
   it("calls onCancel on Escape key", () => {
     const onCancel = vi.fn();
-    render(<BatchRenameDialog {...defaultProps} onCancel={onCancel} />);
-    fireEvent.keyDown(window, { key: "Escape" });
+    renderWithShortcuts(<BatchRenameDialog {...defaultProps} onCancel={onCancel} />);
+    fireEvent.keyDown(document, { key: "Escape" });
     expect(onCancel).toHaveBeenCalled();
   });
 

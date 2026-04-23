@@ -695,5 +695,29 @@
         "dismiss": "Dismiss"
       }
     }
+  },
+  "shortcuts": {
+    "title": "Keyboard Shortcuts",
+    "close": "Close",
+    "global": "Global",
+    "videoPlayer": "Video Player",
+    "fileBrowser": "File Browser",
+    "imageGallery": "Image Gallery",
+    "noShortcuts": "No shortcuts available in this context",
+    "openHint": "to open anytime",
+    "play": "Play / Pause",
+    "seekBack10": "−10 sec",
+    "seekForward10": "+10 sec",
+    "seekForward60": "+60 sec",
+    "seekBack60": "−60 sec",
+    "mute": "Toggle mute",
+    "fullscreen": "Toggle fullscreen",
+    "prevImage": "Previous image",
+    "nextImage": "Next image",
+    "slideshow": "Toggle slideshow",
+    "copy": "Copy",
+    "cut": "Cut",
+    "paste": "Paste",
+    "search": "Search"
   }
 }
