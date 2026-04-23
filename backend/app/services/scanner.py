@@ -176,7 +176,7 @@ def _scan_and_register(db: Session, drive_name: str) -> dict[str, int]:
             if file_record.folder_path != folder_path:
                 file_record.folder_path = folder_path
                 needs_update = True
-            if file_record.file_type != file_type:
+            if file_record.file_type != file_type or file_record.mime_type != mime_type:
                 file_record.file_type = file_type
                 file_record.mime_type = mime_type
                 needs_update = True

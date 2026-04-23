@@ -22,12 +22,14 @@ import { ActiveSummaryHost } from "@/components/ActiveSummaryHost";
 import { RelatedFilesSection } from "@/components/RelatedFilesSection";
 import { useSetOverrideDrive } from "@/components/CurrentDriveProvider";
 import { useOverlaySidebar } from "@/components/SidebarProvider";
+import { useShortcuts } from "@/hooks/useShortcuts";
 import type { MediaController } from "@/lib/mediaController";
 
 export default function FilePage() {
   useOverlaySidebar();
   const t = useTranslations("file");
   const tc = useTranslations("common");
+  const tsc = useTranslations("shortcuts");
   const params = useParams();
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -107,34 +109,17 @@ export default function FilePage() {
     if (onEnded) onEnded();
   }, []);
 
-  useEffect(() => {
-    if (!file || !neighbors) return;
-    if (file.file_type === "video" || file.file_type === "audio") return;
-    // LoftRef (YouTube embed) installs its own ←/→ seek shortcuts via
-    // HvlinkPlayer; double-binding here would seek AND navigate.
-    if (file.mime_type === "application/vnd.litloft.link+json") return;
+  // Arrow-key file navigation: active only for non-media, non-loft files.
+  // Video/audio use these keys for seeking; loft-player registers its own.
+  const fileNavEnabled =
+    !!file && !!neighbors &&
+    file.file_type !== "video" && file.file_type !== "audio" &&
+    file.mime_type !== "application/vnd.litloft.loft+json";
 
-    function handleKeyDown(e: KeyboardEvent) {
-      const target = e.target as HTMLElement;
-      if (
-        target.tagName === "INPUT" ||
-        target.tagName === "TEXTAREA" ||
-        target.isContentEditable
-      ) {
-        return;
-      }
-      if (e.key === "ArrowLeft") {
-        e.preventDefault();
-        navigatePrev();
-      } else if (e.key === "ArrowRight") {
-        e.preventDefault();
-        navigateNext();
-      }
-    }
-
-    window.addEventListener("keydown", handleKeyDown);
-    return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [file, neighbors, navigatePrev, navigateNext]);
+  useShortcuts("file-nav", tsc("fileBrowser"), [
+    { key: "arrowleft",  label: tsc("prevFile"), handler: navigatePrev },
+    { key: "arrowright", label: tsc("nextFile"), handler: navigateNext },
+  ], fileNavEnabled);
 
   async function handleLike() {
     if (!file) return;
