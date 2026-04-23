@@ -25,7 +25,7 @@ describe("SidebarLibrarySection", () => {
   it("shows library links when driveBase is set", () => {
     render(<SidebarLibrarySection driveBase="/drive/main" currentDrive="main" linkClass={linkClass} close={vi.fn()} />);
     expect(screen.getByText("お気に入り")).toBeInTheDocument();
-    expect(screen.getByText("最近再生")).toBeInTheDocument();
+    expect(screen.getByText("最近見た")).toBeInTheDocument();
     expect(screen.getByText("最近追加")).toBeInTheDocument();
     expect(screen.getByText("すべてのファイル")).toBeInTheDocument();
   });
@@ -33,7 +33,7 @@ describe("SidebarLibrarySection", () => {
   it("hides library links when driveBase is null", () => {
     render(<SidebarLibrarySection driveBase={null} currentDrive={null} linkClass={linkClass} close={vi.fn()} />);
     expect(screen.queryByText("お気に入り")).not.toBeInTheDocument();
-    expect(screen.queryByText("最近再生")).not.toBeInTheDocument();
+    expect(screen.queryByText("最近見た")).not.toBeInTheDocument();
   });
 
   it("calls close on link click", () => {

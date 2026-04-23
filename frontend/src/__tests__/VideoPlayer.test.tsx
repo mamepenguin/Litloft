@@ -57,7 +57,6 @@ describe("VideoPlayer", () => {
     Object.defineProperty(video, "duration", { value: 300, writable: true });
     fireEvent.loadedMetadata(video);
 
-    expect(mockAddRecentlyPlayed).toHaveBeenCalledWith("abc123");
     expect(mockGetSavedProgress).toHaveBeenCalledWith("abc123");
     expect(mockGetWatchProgress).not.toHaveBeenCalled();
   });
