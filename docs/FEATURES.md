@@ -436,12 +436,12 @@ In-process. Scope: `global`. Admin-only.
 - **Password protection**: per-drive access control via `passwords.json`
 - **Protected drive invisibility**: completely excluded from API responses when locked (404, not 403)
 - **`/unlock` page**: no UI link, accessible only by URL
-- **JWT authentication**: `hv_token` cookie for drive access control
+- **JWT authentication**: `lit_token` cookie for drive access control
 - **Remember option**: "Remember this device" valid for 1 year
 - **Admin endpoint gating**: `/admin` requires an unlocked token for every `access_group` declared in `drives.json` (owner-only)
 
 ### Addon Access Boundaries
-- Host-side Generic Addon Proxy validates `X-HV-Drive` header against the caller's accessible drive set before forwarding
+- Host-side Generic Addon Proxy validates `X-Lit-Drive` header against the caller's accessible drive set before forwarding
 - Proxy response filters: `drive_access`, `drive_access_nested`, `current_drive_only`, `current_drive_only_nested`, `null`
 - Proxy pre-checks: `file_access`, `addon_feature`, `admin`
 - Per-drive policy: `drives.json` `addons` field disables features per drive (either by boolean shorthand or `{feature: bool}` map); matching entries are stripped from `/api/addons/status` and blocked at the proxy
@@ -722,7 +722,7 @@ Operators toggle features per drive in `drives.json`:
 | Method | Path | Description |
 |--------|------|-------------|
 | GET | /api/addons/status?drive= | List enabled addons (drive-aware catalog) |
-| * | /api/addons/{name}/... | Generic proxy to in-process or external addon (headers: `X-HV-Drive` for drive-scoped addons) |
+| * | /api/addons/{name}/... | Generic proxy to in-process or external addon (headers: `X-Lit-Drive` for drive-scoped addons) |
 
 ### Internal API (Docker-internal)
 

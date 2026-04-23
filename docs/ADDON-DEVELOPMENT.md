@@ -378,7 +378,7 @@ Removes items from `response.results[]` where `item.drive` is not in the caller'
 }
 ```
 
-**`current_drive_only`** — Strictly filter to the drive the caller is currently in. The proxy reads the validated `X-HV-Drive` header and keeps only items whose `drive_field` matches. Used by `scope=drive` addons to prevent cross-drive leakage even when the user has access to multiple drives:
+**`current_drive_only`** — Strictly filter to the drive the caller is currently in. The proxy reads the validated `X-Lit-Drive` header and keeps only items whose `drive_field` matches. Used by `scope=drive` addons to prevent cross-drive leakage even when the user has access to multiple drives:
 
 ```json
 {
@@ -422,8 +422,8 @@ Returns 404 if the drive's `addons.{addon_name}.{feature}` is `false` (or the um
 
 | Field | Default | Meaning |
 |-------|---------|---------|
-| `drive_optional` | `false` for `scope=drive` addons, `true` for `scope=global` | Skip `X-HV-Drive` enforcement for this route (e.g. `<img>` tags that can't attach headers, or admin-context queries). Authorization must still be enforced via another pre_check |
-| `require_drive` | Inferred from scope | Force `X-HV-Drive` presence even when the route would otherwise be drive-optional |
+| `drive_optional` | `false` for `scope=drive` addons, `true` for `scope=global` | Skip `X-Lit-Drive` enforcement for this route (e.g. `<img>` tags that can't attach headers, or admin-context queries). Authorization must still be enforced via another pre_check |
+| `require_drive` | Inferred from scope | Force `X-Lit-Drive` presence even when the route would otherwise be drive-optional |
 | `stream` | `false` | Binary passthrough (images, SSE, file streams) — the proxy forwards bytes verbatim without JSON filtering |
 | `addon_feature` | — | Shorthand for an `addon_feature` pre_check attached alongside a `file_access` pre_check on the same route |
 
@@ -499,7 +499,7 @@ For complex cases where declarative filters aren't sufficient, external services
 | `POST backend:8000/api/internal/filter-file-ids` | Filter file IDs by access control |
 | `GET backend:8000/api/internal/drive-policy?drive=&addon=` | Per-drive policy in `{default, features}` shape |
 
-Forward the original request's cookies (`hv_token`) when calling access-controlled endpoints so the core can evaluate the caller's unlocked groups correctly.
+Forward the original request's cookies (`lit_token`) when calling access-controlled endpoints so the core can evaluate the caller's unlocked groups correctly.
 
 #### Drive policy shape
 
@@ -542,9 +542,9 @@ Accessing an addon via a URL that doesn't match its scope returns 404 (e.g., a `
 
 The core rejects addons without a valid `scope`. The error is logged and the addon is excluded from the registry (the router may still be mounted but the addon won't appear in `/api/addons/status`, and no UI will show it).
 
-### Drive Context Header (`X-HV-Drive`)
+### Drive Context Header (`X-Lit-Drive`)
 
-For `scope=drive` (and `scope=both` routes invoked from a drive context), the frontend attaches an `X-HV-Drive: {drive-name}` header to every `/api/addons/{name}/...` call. The Generic Addon Proxy:
+For `scope=drive` (and `scope=both` routes invoked from a drive context), the frontend attaches an `X-Lit-Drive: {drive-name}` header to every `/api/addons/{name}/...` call. The Generic Addon Proxy:
 
 1. Rejects requests missing the header with 400 when the route is not `drive_optional`.
 2. Percent-decodes the header value, then verifies the drive is in the caller's accessible set. Unknown or forbidden drives → 404.

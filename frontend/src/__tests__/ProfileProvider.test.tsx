@@ -15,7 +15,7 @@ function TestConsumer() {
 
 describe("ProfileProvider", () => {
   beforeEach(() => {
-    document.cookie = "hv_viewer=; path=/; max-age=0";
+    document.cookie = "lit_viewer=; path=/; max-age=0";
   });
 
   it("reads null when no cookie is set", () => {
@@ -28,7 +28,7 @@ describe("ProfileProvider", () => {
   });
 
   it("reads existing cookie value", () => {
-    document.cookie = "hv_viewer=Bob; path=/; SameSite=Strict";
+    document.cookie = "lit_viewer=Bob; path=/; SameSite=Strict";
     render(
       <ProfileProvider>
         <TestConsumer />
@@ -46,11 +46,11 @@ describe("ProfileProvider", () => {
 
     fireEvent.click(screen.getByText("Set Alice"));
     expect(screen.getByTestId("nickname").textContent).toBe("Alice");
-    expect(document.cookie).toContain("hv_viewer=Alice");
+    expect(document.cookie).toContain("lit_viewer=Alice");
   });
 
   it("clears nickname and removes cookie", () => {
-    document.cookie = "hv_viewer=Bob; path=/; SameSite=Strict";
+    document.cookie = "lit_viewer=Bob; path=/; SameSite=Strict";
     render(
       <ProfileProvider>
         <TestConsumer />
@@ -89,7 +89,7 @@ describe("ProfileProvider", () => {
   });
 
   it("decodes URL-encoded cookie values", () => {
-    document.cookie = "hv_viewer=%E5%A4%AA%E9%83%8E; path=/; SameSite=Strict";
+    document.cookie = "lit_viewer=%E5%A4%AA%E9%83%8E; path=/; SameSite=Strict";
     render(
       <ProfileProvider>
         <TestConsumer />

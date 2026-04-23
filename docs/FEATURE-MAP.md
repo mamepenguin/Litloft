@@ -185,7 +185,7 @@ flowchart TD
 
 ```mermaid
 flowchart TD
-  Q[User Query] --> H{X-HV-Drive header}
+  Q[User Query] --> H{X-Lit-Drive header}
   H --> E[embed_query]
   E --> ET[Text Embedding<br/>multilingual-e5 / Ruri]
   E --> EC[CLIP Embedding<br/>OpenAI/llm-jp CLIP]

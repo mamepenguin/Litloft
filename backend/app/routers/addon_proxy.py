@@ -65,7 +65,7 @@ def _apply_drive_access_filter(
       can both pass — useful for global/admin views.
     - ``current_drive_only`` / ``current_drive_only_nested``: stricter,
       keeps only items whose drive matches the *current* request drive
-      (``X-HV-Drive`` header). Required for drive-scoped addons where
+      (``X-Lit-Drive`` header). Required for drive-scoped addons where
       cross-drive bleed is a privacy violation.
     """
     filter_type = filter_config.get("type")
@@ -414,12 +414,12 @@ async def addon_proxy(
         raise HTTPException(status_code=503, detail="Addon target not configured")
 
     # Drive-scope enforcement. Drive-scoped addons require the caller to
-    # identify which drive the request targets via the ``X-HV-Drive``
+    # identify which drive the request targets via the ``X-Lit-Drive``
     # header; for ``both``-scoped addons the header is optional but still
     # validated when present. The addon itself receives the verified
-    # drive via ``X-HV-Drive`` so it can filter data by drive.
+    # drive via ``X-Lit-Drive`` so it can filter data by drive.
     scope = meta.get("scope", "global")
-    raw_drive = request.headers.get("x-hv-drive")
+    raw_drive = request.headers.get("x-lit-drive")
     # Header values are ISO-8859-1 only; the frontend percent-encodes
     # drive names so non-ASCII (e.g. Japanese) names round-trip safely.
     requested_drive = unquote(raw_drive) if raw_drive else None
@@ -445,7 +445,7 @@ async def addon_proxy(
 
     # Routes that need to be reachable from contexts that can't set
     # request headers (e.g. ``<img src>``) opt out of the scope=drive
-    # X-HV-Drive requirement here. They MUST still rely on a stronger
+    # X-Lit-Drive requirement here. They MUST still rely on a stronger
     # access gate (typically ``file_access`` pre_check) so the absence
     # of the header doesn't become an authorisation bypass.
     if (
@@ -465,7 +465,7 @@ async def addon_proxy(
             if file_id:
                 _check_file_access(file_id, unlocked_groups, db)
         elif check_type == "addon_feature":
-            # Per-drive policy gate. Requires X-HV-Drive (already enforced
+            # Per-drive policy gate. Requires X-Lit-Drive (already enforced
             # for scope=drive; for scope=both we treat absence as 404 to
             # avoid surfacing the route in a global context).
             feature = pre_check.get("feature", "index")

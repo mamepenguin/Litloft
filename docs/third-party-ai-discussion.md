@@ -173,9 +173,9 @@ Obsidian 界隈で流行している **「Task-as-a-Note（1 つのタスク＝1
 
 #### 1. Profile + PIN への移行には賛成、ただし既存基盤と段差なく接続できる
 
-現行実装では `auth.py` が JWT `hv_token`（ドライブ解錠）と Cookie `hv_viewer`（viewer_id = ニックネームの SHA-256）を完全分離している。この「二刀流」は第三者 AI が絶賛する Step-up Authentication と Capability-based Security の実装そのもの。
+現行実装では `auth.py` が JWT `lit_token`（ドライブ解錠）と Cookie `lit_viewer`（viewer_id = ニックネームの SHA-256）を完全分離している。この「二刀流」は第三者 AI が絶賛する Step-up Authentication と Capability-based Security の実装そのもの。
 
-Profile + PIN への移行は、**`hv_viewer` を「手入力 → サーバー登録済プロファイル ID」に差し替えるだけ** で済む。これは以下の既存文書と完全に整合する:
+Profile + PIN への移行は、**`lit_viewer` を「手入力 → サーバー登録済プロファイル ID」に差し替えるだけ** で済む。これは以下の既存文書と完全に整合する:
 - `.claude/rules/design-decisions.md` の「プロファイルとアクセス制御は独立」
 - 「プロファイル一覧 API 不在（プライバシー保護）」は、**PIN 導入後も維持可能** — UI 上は「登録プロファイルのアイコン一覧」を返すが、これはアクセス制御とは無関係。
 
@@ -188,7 +188,7 @@ Profile + PIN への移行は、**`hv_viewer` を「手入力 → サーバー�
 実装時のガードレール:
 - Personalized RAG のスコープは **「現在ロック解除済みのドライブ集合 ∩ 現在のプロファイル」** に限定する。
 - 「私が見た動画」という問いへの回答は、アクセス権のないドライブのファイルを含めない。
-- 既存の `accessible_drives` + `X-HV-Drive` の二重ガードを、プロファイル由来データ（履歴、コメント）にも拡張する。
+- 既存の `accessible_drives` + `X-Lit-Drive` の二重ガードを、プロファイル由来データ（履歴、コメント）にも拡張する。
 
 これは技術的に難しくない。intelligence アドオンの manifest に `current_drive_only` フィルタが既にあり、同じパターンで `current_profile_only` を追加すれば足りる。
 

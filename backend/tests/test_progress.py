@@ -89,7 +89,7 @@ class TestUpdateProgress:
         res = c.post(
             f"/api/files/{file.id}/progress",
             json={"position": 30.5, "duration": 120.0},
-            cookies={"hv_viewer": "alice"},
+            cookies={"lit_viewer": "alice"},
         )
         assert res.status_code == 200
         assert res.json()["status"] == "ok"
@@ -100,16 +100,16 @@ class TestUpdateProgress:
         c.post(
             f"/api/files/{file.id}/progress",
             json={"position": 10.0, "duration": 120.0},
-            cookies={"hv_viewer": "alice"},
+            cookies={"lit_viewer": "alice"},
         )
         c.post(
             f"/api/files/{file.id}/progress",
             json={"position": 60.0, "duration": 120.0},
-            cookies={"hv_viewer": "alice"},
+            cookies={"lit_viewer": "alice"},
         )
         res = c.get(
             f"/api/files/{file.id}/progress",
-            cookies={"hv_viewer": "alice"},
+            cookies={"lit_viewer": "alice"},
         )
         assert res.json()["position"] == 60.0
 
@@ -127,7 +127,7 @@ class TestUpdateProgress:
         res = c.post(
             "/api/files/zzNOTFOUNDzz/progress",
             json={"position": 30.0, "duration": 120.0},
-            cookies={"hv_viewer": "alice"},
+            cookies={"lit_viewer": "alice"},
         )
         assert res.status_code == 404
 
@@ -137,7 +137,7 @@ class TestUpdateProgress:
         res = c.post(
             f"/api/files/{file.id}/progress",
             json={"position": -1.0, "duration": 120.0},
-            cookies={"hv_viewer": "alice"},
+            cookies={"lit_viewer": "alice"},
         )
         assert res.status_code == 422
 
@@ -147,7 +147,7 @@ class TestUpdateProgress:
         res = c.post(
             f"/api/files/{file.id}/progress",
             json={"position": 10.0, "duration": 0},
-            cookies={"hv_viewer": "alice"},
+            cookies={"lit_viewer": "alice"},
         )
         assert res.status_code == 422
 
@@ -157,7 +157,7 @@ class TestUpdateProgress:
         res = c.post(
             f"/api/files/{file.id}/progress",
             json={"position": 10.0, "duration": -5.0},
-            cookies={"hv_viewer": "alice"},
+            cookies={"lit_viewer": "alice"},
         )
         assert res.status_code == 422
 
@@ -169,11 +169,11 @@ class TestGetProgress:
         c.post(
             f"/api/files/{file.id}/progress",
             json={"position": 45.0, "duration": 120.0},
-            cookies={"hv_viewer": "alice"},
+            cookies={"lit_viewer": "alice"},
         )
         res = c.get(
             f"/api/files/{file.id}/progress",
-            cookies={"hv_viewer": "alice"},
+            cookies={"lit_viewer": "alice"},
         )
         assert res.status_code == 200
         assert res.json() == {"position": 45.0, "duration": 120.0}
@@ -190,7 +190,7 @@ class TestGetProgress:
         file = _seed_file(db, drive_dir)
         res = c.get(
             f"/api/files/{file.id}/progress",
-            cookies={"hv_viewer": "alice"},
+            cookies={"lit_viewer": "alice"},
         )
         assert res.status_code == 200
         assert res.json() == {"position": 0, "duration": 0}
@@ -201,20 +201,20 @@ class TestGetProgress:
         c.post(
             f"/api/files/{file.id}/progress",
             json={"position": 30.0, "duration": 120.0},
-            cookies={"hv_viewer": "alice"},
+            cookies={"lit_viewer": "alice"},
         )
         c.post(
             f"/api/files/{file.id}/progress",
             json={"position": 90.0, "duration": 120.0},
-            cookies={"hv_viewer": "bob"},
+            cookies={"lit_viewer": "bob"},
         )
         res_alice = c.get(
             f"/api/files/{file.id}/progress",
-            cookies={"hv_viewer": "alice"},
+            cookies={"lit_viewer": "alice"},
         )
         res_bob = c.get(
             f"/api/files/{file.id}/progress",
-            cookies={"hv_viewer": "bob"},
+            cookies={"lit_viewer": "bob"},
         )
         assert res_alice.json()["position"] == 30.0
         assert res_bob.json()["position"] == 90.0
@@ -223,7 +223,7 @@ class TestGetProgress:
         c, db, drive_dir, data_dir = client
         res = c.get(
             "/api/files/zzNOTFOUNDzz/progress",
-            cookies={"hv_viewer": "alice"},
+            cookies={"lit_viewer": "alice"},
         )
         assert res.status_code == 404
 
@@ -235,18 +235,18 @@ class TestDeleteProgress:
         c.post(
             f"/api/files/{file.id}/progress",
             json={"position": 30.0, "duration": 120.0},
-            cookies={"hv_viewer": "alice"},
+            cookies={"lit_viewer": "alice"},
         )
         res = c.delete(
             f"/api/files/{file.id}/progress",
-            cookies={"hv_viewer": "alice"},
+            cookies={"lit_viewer": "alice"},
         )
         assert res.status_code == 204
 
         # Verify it's gone
         res = c.get(
             f"/api/files/{file.id}/progress",
-            cookies={"hv_viewer": "alice"},
+            cookies={"lit_viewer": "alice"},
         )
         assert res.json() == {"position": 0, "duration": 0}
 
@@ -255,7 +255,7 @@ class TestDeleteProgress:
         file = _seed_file(db, drive_dir)
         res = c.delete(
             f"/api/files/{file.id}/progress",
-            cookies={"hv_viewer": "alice"},
+            cookies={"lit_viewer": "alice"},
         )
         assert res.status_code == 204
 
@@ -269,7 +269,7 @@ class TestDeleteProgress:
         c, db, drive_dir, data_dir = client
         res = c.delete(
             "/api/files/zzNOTFOUNDzz/progress",
-            cookies={"hv_viewer": "alice"},
+            cookies={"lit_viewer": "alice"},
         )
         assert res.status_code == 404
 
@@ -282,13 +282,13 @@ class TestCascadeDelete:
         c.post(
             f"/api/files/{file_id}/progress",
             json={"position": 50.0, "duration": 120.0},
-            cookies={"hv_viewer": "alice"},
+            cookies={"lit_viewer": "alice"},
         )
 
         # Verify progress was saved
         res = c.get(
             f"/api/files/{file_id}/progress",
-            cookies={"hv_viewer": "alice"},
+            cookies={"lit_viewer": "alice"},
         )
         assert res.json()["position"] == 50.0
 
@@ -299,7 +299,7 @@ class TestCascadeDelete:
         # File no longer exists, so progress endpoint should 404
         res = c.get(
             f"/api/files/{file_id}/progress",
-            cookies={"hv_viewer": "alice"},
+            cookies={"lit_viewer": "alice"},
         )
         assert res.status_code == 404
 
@@ -317,11 +317,11 @@ class TestWatchHistoryList:
         c.post(
             f"/api/files/{file.id}/progress",
             json={"position": 30.0, "duration": 120.0},
-            cookies={"hv_viewer": "alice"},
+            cookies={"lit_viewer": "alice"},
         )
         res = c.get(
             f"/api/drives/{TEST_DRIVE}/watch-history",
-            cookies={"hv_viewer": "alice"},
+            cookies={"lit_viewer": "alice"},
         )
         assert res.status_code == 200
         data = res.json()["data"]
@@ -337,11 +337,11 @@ class TestWatchHistoryList:
         c.post(
             f"/api/files/{file.id}/progress",
             json={"position": 108.0, "duration": 120.0},
-            cookies={"hv_viewer": "alice"},
+            cookies={"lit_viewer": "alice"},
         )
         res = c.get(
             f"/api/drives/{TEST_DRIVE}/watch-history",
-            cookies={"hv_viewer": "alice"},
+            cookies={"lit_viewer": "alice"},
         )
         assert res.status_code == 200
         assert len(res.json()["data"]) == 0
@@ -353,11 +353,11 @@ class TestWatchHistoryList:
         c.post(
             f"/api/files/{file.id}/progress",
             json={"position": 108.0, "duration": 120.0},
-            cookies={"hv_viewer": "alice"},
+            cookies={"lit_viewer": "alice"},
         )
         res = c.get(
             f"/api/drives/{TEST_DRIVE}/watch-history",
-            cookies={"hv_viewer": "alice"},
+            cookies={"lit_viewer": "alice"},
         )
         assert len(res.json()["data"]) == 0
 
@@ -367,11 +367,11 @@ class TestWatchHistoryList:
         c.post(
             f"/api/files/{file.id}/progress",
             json={"position": 107.9, "duration": 120.0},
-            cookies={"hv_viewer": "alice"},
+            cookies={"lit_viewer": "alice"},
         )
         res = c.get(
             f"/api/drives/{TEST_DRIVE}/watch-history",
-            cookies={"hv_viewer": "alice"},
+            cookies={"lit_viewer": "alice"},
         )
         assert len(res.json()["data"]) == 1
 
@@ -383,16 +383,16 @@ class TestWatchHistoryList:
         c.post(
             f"/api/files/{file1.id}/progress",
             json={"position": 10.0, "duration": 120.0},
-            cookies={"hv_viewer": "alice"},
+            cookies={"lit_viewer": "alice"},
         )
         c.post(
             f"/api/files/{file2.id}/progress",
             json={"position": 20.0, "duration": 120.0},
-            cookies={"hv_viewer": "alice"},
+            cookies={"lit_viewer": "alice"},
         )
         res = c.get(
             f"/api/drives/{TEST_DRIVE}/watch-history",
-            cookies={"hv_viewer": "alice"},
+            cookies={"lit_viewer": "alice"},
         )
         data = res.json()["data"]
         assert len(data) == 2
@@ -408,11 +408,11 @@ class TestWatchHistoryList:
             c.post(
                 f"/api/files/{f.id}/progress",
                 json={"position": 10.0, "duration": 120.0},
-                cookies={"hv_viewer": "alice"},
+                cookies={"lit_viewer": "alice"},
             )
         res = c.get(
             f"/api/drives/{TEST_DRIVE}/watch-history?limit=3",
-            cookies={"hv_viewer": "alice"},
+            cookies={"lit_viewer": "alice"},
         )
         assert len(res.json()["data"]) == 3
 
@@ -420,7 +420,7 @@ class TestWatchHistoryList:
         c, db, drive_dir, data_dir = client
         res = c.get(
             f"/api/drives/{TEST_DRIVE}/watch-history?limit=100",
-            cookies={"hv_viewer": "alice"},
+            cookies={"lit_viewer": "alice"},
         )
         assert res.status_code == 422
 
@@ -428,7 +428,7 @@ class TestWatchHistoryList:
         c, db, drive_dir, data_dir = client
         res = c.get(
             "/api/drives/nonexistent/watch-history",
-            cookies={"hv_viewer": "alice"},
+            cookies={"lit_viewer": "alice"},
         )
         assert res.status_code == 404
 
@@ -440,7 +440,7 @@ class TestWatchHistoryList:
         c.post(
             f"/api/files/{file.id}/progress",
             json={"position": 30.0, "duration": 120.0},
-            cookies={"hv_viewer": "alice"},
+            cookies={"lit_viewer": "alice"},
         )
 
         # Now move the file to a different drive in DB directly
@@ -453,7 +453,7 @@ class TestWatchHistoryList:
         # Watch history for TEST_DRIVE should not include the file
         res = c.get(
             f"/api/drives/{TEST_DRIVE}/watch-history",
-            cookies={"hv_viewer": "alice"},
+            cookies={"lit_viewer": "alice"},
         )
         assert len(res.json()["data"]) == 0
 
@@ -463,11 +463,11 @@ class TestWatchHistoryList:
         c.post(
             f"/api/files/{file.id}/progress",
             json={"position": 30.0, "duration": 120.0},
-            cookies={"hv_viewer": "alice"},
+            cookies={"lit_viewer": "alice"},
         )
         res = c.get(
             f"/api/drives/{TEST_DRIVE}/watch-history",
-            cookies={"hv_viewer": "bob"},
+            cookies={"lit_viewer": "bob"},
         )
         assert len(res.json()["data"]) == 0
 
@@ -506,7 +506,7 @@ class TestAccessControl:
             res = c.post(
                 f"/api/files/{file.id}/progress",
                 json={"position": 30.0, "duration": 120.0},
-                cookies={"hv_viewer": "alice"},
+                cookies={"lit_viewer": "alice"},
             )
             assert res.status_code == 404
         finally:
@@ -521,7 +521,7 @@ class TestAccessControl:
         try:
             res = c.get(
                 f"/api/drives/{TEST_DRIVE}/watch-history",
-                cookies={"hv_viewer": "alice"},
+                cookies={"lit_viewer": "alice"},
             )
             assert res.status_code == 404
         finally:

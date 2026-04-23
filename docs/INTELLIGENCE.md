@@ -252,27 +252,27 @@ Use the `/eval-rag` slash command (also `addons/intelligence/evals/` directly) t
 
 ```bash
 # Service status (admin-gated)
-curl -b "hv_token=..." http://localhost:3000/api/addons/intelligence/status
+curl -b "lit_token=..." http://localhost:3000/api/addons/intelligence/status
 
 # Index details across drives
-curl -b "hv_token=..." http://localhost:3000/api/addons/intelligence/index-details
+curl -b "lit_token=..." http://localhost:3000/api/addons/intelligence/index-details
 ```
 
 ### Control queue
 
 ```bash
 # Pause / resume indexing
-curl -X POST -b "hv_token=..." http://localhost:3000/api/addons/intelligence/queue/pause
-curl -X POST -b "hv_token=..." http://localhost:3000/api/addons/intelligence/queue/resume
+curl -X POST -b "lit_token=..." http://localhost:3000/api/addons/intelligence/queue/pause
+curl -X POST -b "lit_token=..." http://localhost:3000/api/addons/intelligence/queue/resume
 
 # Full reindex for the current drive
-curl -X POST -b "hv_token=..." \
-  -H "X-HV-Drive: Videos" \
+curl -X POST -b "lit_token=..." \
+  -H "X-Lit-Drive: Videos" \
   http://localhost:3000/api/addons/intelligence/queue/reindex
 
 # Prioritize a single file
-curl -X POST -b "hv_token=..." \
-  -H "X-HV-Drive: Videos" \
+curl -X POST -b "lit_token=..." \
+  -H "X-Lit-Drive: Videos" \
   -d '{"file_id": "..."}' \
   http://localhost:3000/api/addons/intelligence/queue/prioritize
 ```

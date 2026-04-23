@@ -170,7 +170,7 @@ See [ADDON-DEVELOPMENT.md](ADDON-DEVELOPMENT.md) for the full addon development 
 - UI slot system (search-modes, file-detail-sections, dashboard-widgets, folder-actions, sidebar-sections, loftref-player)
 - `AddonSlot` component with lazy loading and addon name validation
 - Generic Addon Proxy: `drive_access` / `current_drive_only` / `addon_feature` / `file_access` / `admin`
-- `X-HV-Drive` header contract
+- `X-Lit-Drive` header contract
 - Internal API for external service addons (accessible-drives, files, filter-file-ids, drive-policy)
 - Core API surface and rules for in-process addons
 

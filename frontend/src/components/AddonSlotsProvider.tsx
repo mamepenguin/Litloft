@@ -75,7 +75,7 @@ export function AddonSlotsProvider({ children }: { children: ReactNode }) {
     const controller = new AbortController();
     fetch(`/api/addons/intelligence/status`, {
       credentials: "include",
-      headers: { "X-HV-Drive": encodeURIComponent(drive) },
+      headers: { "X-Lit-Drive": encodeURIComponent(drive) },
       signal: controller.signal,
     })
       .then((r) => (r.ok ? r.json() : null))
