@@ -1,8 +1,10 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
+import { useTranslations } from "next-intl";
 
 import { getArchiveEntryUrl } from "@/lib/api";
+import { useShortcuts } from "@/hooks/useShortcuts";
 import type { ArchiveEntry } from "@/types";
 import type { ArchiveViewMode } from "./archiveUtils";
 
@@ -77,51 +79,31 @@ export function useImageViewer(
     return () => window.clearTimeout(timer);
   }, [playing, imageIndex, slideshowInterval, imageEntries.length, viewMode]);
 
-  // Image viewer: keyboard
-  useEffect(() => {
-    if (viewMode !== "image") return;
+  const tsc = useTranslations("shortcuts");
 
-    function handleKeyDown(e: KeyboardEvent) {
-      const target = e.target as HTMLElement;
-      if (
-        target.tagName === "INPUT" ||
-        target.tagName === "TEXTAREA" ||
-        target.tagName === "SELECT" ||
-        target.isContentEditable
-      ) {
-        return;
-      }
-
-      switch (e.key) {
-        case "ArrowLeft":
-          e.preventDefault();
-          e.stopPropagation();
-          setImageIndex((prev) => (prev > 0 ? prev - 1 : prev));
-          break;
-        case "ArrowRight":
-          e.preventDefault();
-          e.stopPropagation();
-          setImageIndex((prev) =>
-            prev < imageEntries.length - 1 ? prev + 1 : prev
-          );
-          break;
-        case "Escape":
-          e.preventDefault();
-          e.stopPropagation();
-          closeViewer();
-          break;
-        case " ":
-          e.preventDefault();
-          if (imageEntries.length > 1) {
-            setPlaying((p) => !p);
-          }
-          break;
-      }
-    }
-
-    window.addEventListener("keydown", handleKeyDown, true);
-    return () => window.removeEventListener("keydown", handleKeyDown, true);
-  }, [viewMode, imageEntries.length, closeViewer]);
+  useShortcuts("archive-image-viewer", tsc("archiveViewer"), [
+    {
+      key: "arrowleft",
+      label: tsc("prevImage"),
+      handler: () => setImageIndex((prev) => (prev > 0 ? prev - 1 : prev)),
+    },
+    {
+      key: "arrowright",
+      label: tsc("nextImage"),
+      handler: () =>
+        setImageIndex((prev) =>
+          prev < imageEntries.length - 1 ? prev + 1 : prev
+        ),
+    },
+    { key: "escape", label: tsc("close"), handler: closeViewer },
+    {
+      key: "space",
+      label: tsc("slideshow"),
+      handler: () => {
+        if (imageEntries.length > 1) setPlaying((p) => !p);
+      },
+    },
+  ], viewMode === "image");
 
   // Auto-hide controls during slideshow
   useEffect(() => {

@@ -718,6 +718,10 @@
     "copy": "Copy",
     "cut": "Cut",
     "paste": "Paste",
-    "search": "Search"
+    "search": "Search",
+    "prevFile": "Previous file",
+    "nextFile": "Next file",
+    "loftPlayer": "Video Player (LoftRef)",
+    "archiveViewer": "Archive Viewer"
   }
 }

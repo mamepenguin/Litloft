@@ -718,6 +718,10 @@
     "copy": "コピー",
     "cut": "カット",
     "paste": "ペースト",
-    "search": "検索"
+    "search": "検索",
+    "prevFile": "前のファイル",
+    "nextFile": "次のファイル",
+    "loftPlayer": "動画プレーヤー（LoftRef）",
+    "archiveViewer": "アーカイブビューア"
   }
 }

@@ -1,6 +1,12 @@
 import { render, screen, waitFor, fireEvent } from "@testing-library/react";
 import { describe, it, expect, vi, beforeEach } from "vitest";
+import type { ReactNode } from "react";
 import { ArchivePreview } from "../ArchivePreview";
+import { ShortcutsProvider } from "../ShortcutsProvider";
+
+function renderWithShortcuts(ui: ReactNode) {
+  return render(<ShortcutsProvider>{ui}</ShortcutsProvider>);
+}
 import type { ArchiveContents } from "@/types";
 
 const mockArchive: ArchiveContents = {
@@ -170,7 +176,7 @@ describe("ArchivePreview", () => {
   });
 
   it("escape key closes fullscreen viewer", async () => {
-    render(<ArchivePreview fileId="test-id" />);
+    renderWithShortcuts(<ArchivePreview fileId="test-id" />);
 
     await waitFor(() => {
       expect(screen.getByText("cover.jpg")).toBeInTheDocument();
@@ -182,7 +188,7 @@ describe("ArchivePreview", () => {
       expect(screen.getByAltText("cover.jpg")).toBeInTheDocument();
     });
 
-    fireEvent.keyDown(window, { key: "Escape" });
+    fireEvent.keyDown(document, { key: "Escape" });
 
     await waitFor(() => {
       // Should be back to listing

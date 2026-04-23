@@ -1,7 +1,13 @@
 import { renderHook, act } from "@testing-library/react";
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
+import type { ReactNode } from "react";
+import { createElement } from "react";
 import { useImageViewer } from "../useImageViewer";
+import { ShortcutsProvider } from "@/components/ShortcutsProvider";
 import type { ArchiveEntry } from "@/types";
+
+const wrapper = ({ children }: { children: ReactNode }) =>
+  createElement(ShortcutsProvider, null, children);
 
 vi.mock("@/lib/api", () => ({
   getArchiveEntryUrl: (fileId: string, path: string) =>
@@ -39,8 +45,9 @@ describe("useImageViewer", () => {
   });
 
   it("initializes with default state", () => {
-    const { result } = renderHook(() =>
-      useImageViewer("listing", imageEntries, "file-1", onClose)
+    const { result } = renderHook(
+      () => useImageViewer("listing", imageEntries, "file-1", onClose),
+      { wrapper },
     );
     expect(result.current.imageIndex).toBe(0);
     expect(result.current.imageLoading).toBe(false);
@@ -50,15 +57,17 @@ describe("useImageViewer", () => {
   });
 
   it("sets imageLoading when viewMode is image", () => {
-    const { result } = renderHook(() =>
-      useImageViewer("image", imageEntries, "file-1", onClose)
+    const { result } = renderHook(
+      () => useImageViewer("image", imageEntries, "file-1", onClose),
+      { wrapper },
     );
     expect(result.current.imageLoading).toBe(true);
   });
 
   it("navigates images with setImageIndex", () => {
-    const { result } = renderHook(() =>
-      useImageViewer("image", imageEntries, "file-1", onClose)
+    const { result } = renderHook(
+      () => useImageViewer("image", imageEntries, "file-1", onClose),
+      { wrapper },
     );
     act(() => {
       result.current.setImageIndex(2);
@@ -67,11 +76,12 @@ describe("useImageViewer", () => {
   });
 
   it("handles ArrowRight key to advance image", () => {
-    const { result } = renderHook(() =>
-      useImageViewer("image", imageEntries, "file-1", onClose)
+    const { result } = renderHook(
+      () => useImageViewer("image", imageEntries, "file-1", onClose),
+      { wrapper },
     );
     act(() => {
-      window.dispatchEvent(
+      document.dispatchEvent(
         new KeyboardEvent("keydown", { key: "ArrowRight", bubbles: true })
       );
     });
@@ -79,14 +89,15 @@ describe("useImageViewer", () => {
   });
 
   it("handles ArrowLeft key to go back", () => {
-    const { result } = renderHook(() =>
-      useImageViewer("image", imageEntries, "file-1", onClose)
+    const { result } = renderHook(
+      () => useImageViewer("image", imageEntries, "file-1", onClose),
+      { wrapper },
     );
     act(() => {
       result.current.setImageIndex(2);
     });
     act(() => {
-      window.dispatchEvent(
+      document.dispatchEvent(
         new KeyboardEvent("keydown", { key: "ArrowLeft", bubbles: true })
       );
     });
@@ -94,11 +105,12 @@ describe("useImageViewer", () => {
   });
 
   it("does not go below 0 on ArrowLeft at first image", () => {
-    const { result } = renderHook(() =>
-      useImageViewer("image", imageEntries, "file-1", onClose)
+    const { result } = renderHook(
+      () => useImageViewer("image", imageEntries, "file-1", onClose),
+      { wrapper },
     );
     act(() => {
-      window.dispatchEvent(
+      document.dispatchEvent(
         new KeyboardEvent("keydown", { key: "ArrowLeft", bubbles: true })
       );
     });
@@ -106,14 +118,15 @@ describe("useImageViewer", () => {
   });
 
   it("does not exceed last index on ArrowRight", () => {
-    const { result } = renderHook(() =>
-      useImageViewer("image", imageEntries, "file-1", onClose)
+    const { result } = renderHook(
+      () => useImageViewer("image", imageEntries, "file-1", onClose),
+      { wrapper },
     );
     act(() => {
       result.current.setImageIndex(2);
     });
     act(() => {
-      window.dispatchEvent(
+      document.dispatchEvent(
         new KeyboardEvent("keydown", { key: "ArrowRight", bubbles: true })
       );
     });
@@ -121,11 +134,12 @@ describe("useImageViewer", () => {
   });
 
   it("calls onClose on Escape key", () => {
-    renderHook(() =>
-      useImageViewer("image", imageEntries, "file-1", onClose)
+    renderHook(
+      () => useImageViewer("image", imageEntries, "file-1", onClose),
+      { wrapper },
     );
     act(() => {
-      window.dispatchEvent(
+      document.dispatchEvent(
         new KeyboardEvent("keydown", { key: "Escape", bubbles: true })
       );
     });
@@ -133,17 +147,18 @@ describe("useImageViewer", () => {
   });
 
   it("toggles playing on Space key", () => {
-    const { result } = renderHook(() =>
-      useImageViewer("image", imageEntries, "file-1", onClose)
+    const { result } = renderHook(
+      () => useImageViewer("image", imageEntries, "file-1", onClose),
+      { wrapper },
     );
     act(() => {
-      window.dispatchEvent(
+      document.dispatchEvent(
         new KeyboardEvent("keydown", { key: " ", bubbles: true })
       );
     });
     expect(result.current.playing).toBe(true);
     act(() => {
-      window.dispatchEvent(
+      document.dispatchEvent(
         new KeyboardEvent("keydown", { key: " ", bubbles: true })
       );
     });
@@ -151,8 +166,9 @@ describe("useImageViewer", () => {
   });
 
   it("advances image during slideshow after interval", () => {
-    const { result } = renderHook(() =>
-      useImageViewer("image", imageEntries, "file-1", onClose)
+    const { result } = renderHook(
+      () => useImageViewer("image", imageEntries, "file-1", onClose),
+      { wrapper },
     );
     act(() => {
       result.current.setPlaying(true);
@@ -164,8 +180,9 @@ describe("useImageViewer", () => {
   });
 
   it("wraps around to first image at end of slideshow", () => {
-    const { result } = renderHook(() =>
-      useImageViewer("image", imageEntries, "file-1", onClose)
+    const { result } = renderHook(
+      () => useImageViewer("image", imageEntries, "file-1", onClose),
+      { wrapper },
     );
     act(() => {
       result.current.setImageIndex(2);
@@ -180,8 +197,9 @@ describe("useImageViewer", () => {
   });
 
   it("auto-hides controls after 3 seconds when playing", () => {
-    const { result } = renderHook(() =>
-      useImageViewer("image", imageEntries, "file-1", onClose)
+    const { result } = renderHook(
+      () => useImageViewer("image", imageEntries, "file-1", onClose),
+      { wrapper },
     );
     act(() => {
       result.current.setPlaying(true);
@@ -194,8 +212,9 @@ describe("useImageViewer", () => {
   });
 
   it("toggles controls on handleImageAreaClick", () => {
-    const { result } = renderHook(() =>
-      useImageViewer("image", imageEntries, "file-1", onClose)
+    const { result } = renderHook(
+      () => useImageViewer("image", imageEntries, "file-1", onClose),
+      { wrapper },
     );
     act(() => {
       result.current.setShowControls(false);
@@ -207,11 +226,12 @@ describe("useImageViewer", () => {
   });
 
   it("does not respond to keys when viewMode is not image", () => {
-    const { result } = renderHook(() =>
-      useImageViewer("listing", imageEntries, "file-1", onClose)
+    const { result } = renderHook(
+      () => useImageViewer("listing", imageEntries, "file-1", onClose),
+      { wrapper },
     );
     act(() => {
-      window.dispatchEvent(
+      document.dispatchEvent(
         new KeyboardEvent("keydown", { key: "ArrowRight", bubbles: true })
       );
     });
