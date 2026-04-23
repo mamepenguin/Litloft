@@ -6,6 +6,7 @@ import { ArrowLeft, ChevronLeft, ChevronRight, Maximize2, Check, X, ThumbsUp, Th
 
 import { useTranslations } from "next-intl";
 import { getFile, getFileNeighbors, updateFile, likeFile, dislikeFile } from "@/lib/api";
+import { addRecentlyPlayed } from "@/lib/recentlyPlayed";
 import { formatDuration, formatFileSize } from "@/lib/format";
 import type { FileItem, Neighbors } from "@/types";
 import { FilePreview } from "@/components/FilePreview";
@@ -63,6 +64,7 @@ export default function FilePage() {
       setEditTitle(f.title);
       setEditDesc(f.description);
       setOverrideDrive(f.drive);
+      addRecentlyPlayed(fileId);
       if (!hasPlaylist && f.file_type !== "archive") {
         getFileNeighbors(fileId, sort, order)
           .then(setNeighbors)

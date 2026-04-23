@@ -6,7 +6,7 @@ import type { FileItem } from "@/types";
 import { FileTypeIcon } from "./FileTypeIcon";
 import { getStreamUrl, getThumbnailUrl, saveWatchProgress, getWatchProgress, deleteWatchProgress } from "@/lib/api";
 import { formatFileSize } from "@/lib/format";
-import { addRecentlyPlayed, getSavedProgress, saveProgress, clearProgress } from "@/lib/recentlyPlayed";
+import { getSavedProgress, saveProgress, clearProgress } from "@/lib/recentlyPlayed";
 import { useAutoplayPreference } from "@/lib/autoplay";
 import { setupMediaSession } from "@/lib/mediaSession";
 import { useProfile } from "./ProfileProvider";
@@ -27,8 +27,6 @@ export function AudioPlayer({ file, onEnded, autoPlay }: { file: FileItem; onEnd
   const handleLoadedMetadata = useCallback(async () => {
     const audio = audioRef.current;
     if (!audio) return;
-    addRecentlyPlayed(file.id);
-
     if (hasProfile) {
       try {
         const progress = await getWatchProgress(file.id);

@@ -31,7 +31,7 @@
   "sidebar": {
     "home": "Home",
     "favorites": "Favorites",
-    "recentPlay": "Recently Played",
+    "recentPlay": "Recently Viewed",
     "recentAdded": "Recently Added",
     "allFiles": "All Files",
     "trash": "Trash",
@@ -53,7 +53,7 @@
     "favorites": "Favorites",
     "popular": "Popular",
     "continueWatching": "Continue Watching",
-    "recentlyPlayed": "Recently Played"
+    "recentlyPlayed": "Recently Viewed"
   },
   "folder": {
     "items": "{count} items",
@@ -384,8 +384,8 @@
     "needsScanDescription": "Scan the drive to load files.",
     "noFavoritesTitle": "No favorite files",
     "noFavoritesDescription": "Click the star icon to add favorites.",
-    "noRecentTitle": "No recently played videos",
-    "noRecentDescription": "Videos you play will appear here.",
+    "noRecentTitle": "No recently viewed files",
+    "noRecentDescription": "Files you open will appear here.",
     "noRecentAddedTitle": "No recently added files",
     "noRecentAddedDescription": "Uploaded files will appear here.",
     "noTrashTitle": "Trash is empty",

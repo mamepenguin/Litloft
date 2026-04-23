@@ -31,7 +31,7 @@
   "sidebar": {
     "home": "ホーム",
     "favorites": "お気に入り",
-    "recentPlay": "最近再生",
+    "recentPlay": "最近見た",
     "recentAdded": "最近追加",
     "allFiles": "すべてのファイル",
     "trash": "ゴミ箱",
@@ -53,7 +53,7 @@
     "favorites": "お気に入り",
     "popular": "人気",
     "continueWatching": "続きを見る",
-    "recentlyPlayed": "最近再生"
+    "recentlyPlayed": "最近見た"
   },
   "folder": {
     "items": "{count} 件",
@@ -384,8 +384,8 @@
     "needsScanDescription": "ドライブのファイルを読み込みます。",
     "noFavoritesTitle": "お気に入りのファイルがありません",
     "noFavoritesDescription": "星アイコンをクリックしてお気に入りに追加しましょう。",
-    "noRecentTitle": "最近再生した動画がありません",
-    "noRecentDescription": "動画を再生すると、ここに表示されます。",
+    "noRecentTitle": "最近見たファイルがありません",
+    "noRecentDescription": "ファイルを開くと、ここに表示されます。",
     "noRecentAddedTitle": "最近追加されたファイルがありません",
     "noRecentAddedDescription": "ファイルをアップロードすると、ここに表示されます。",
     "noTrashTitle": "ゴミ箱は空です",

@@ -4,7 +4,7 @@ import { useRef, useEffect, useCallback, useImperativeHandle, forwardRef, type R
 import { useTranslations } from "next-intl";
 import type { SubtitleInfo } from "@/types";
 import { getStreamUrl, getSubtitleUrl, getThumbnailUrl, saveWatchProgress, getWatchProgress, deleteWatchProgress } from "@/lib/api";
-import { addRecentlyPlayed, getSavedProgress, saveProgress, clearProgress } from "@/lib/recentlyPlayed";
+import { getSavedProgress, saveProgress, clearProgress } from "@/lib/recentlyPlayed";
 import { readAutoplayPreference } from "@/lib/autoplay";
 import { setupBackgroundPiP } from "@/lib/backgroundPiP";
 import { setupMediaSession } from "@/lib/mediaSession";
@@ -27,8 +27,6 @@ export const VideoPlayer = forwardRef(function VideoPlayer({ videoId, subtitles 
   const handleLoadedMetadata = useCallback(async () => {
     const video = videoRef.current;
     if (!video) return;
-    addRecentlyPlayed(videoId);
-
     if (initialTime != null && initialTime > 0) {
       video.currentTime = Math.min(initialTime, video.duration);
     } else if (hasProfile) {
