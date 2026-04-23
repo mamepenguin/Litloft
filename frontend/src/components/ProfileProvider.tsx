@@ -17,7 +17,7 @@ interface ProfileContextValue {
 
 const ProfileContext = createContext<ProfileContextValue | null>(null);
 
-const COOKIE_NAME = "hv_viewer";
+const COOKIE_NAME = "lit_viewer";
 const COOKIE_MAX_AGE = 60 * 60 * 24 * 365; // 1 year
 
 function readCookie(name: string): string | null {

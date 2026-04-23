@@ -100,7 +100,7 @@ docker inspect --format='{{json .State.Health}}' video_share-backend-1
 
 1. Verify `passwords.json` `groups` match `drives.json` `access_group`
 2. Ensure browser cookies are enabled
-3. Check JWT token: browser DevTools → Application → Cookies → `hv_token`
+3. Check JWT token: browser DevTools → Application → Cookies → `lit_token`
 4. Restart container to reload config
 
 ### Thumbnails Not Displaying
@@ -184,7 +184,7 @@ Drive contents (video files, etc.) must be backed up separately.
 ### Backup Command
 
 ```bash
-tar czf homevault-backup-$(date +%Y%m%d).tar.gz \
+tar czf litloft-backup-$(date +%Y%m%d).tar.gz \
   data/ drives.json passwords.json event-hooks.json \
   docker-compose.override.yml \
   addons/intelligence/search-config.yml \
@@ -195,7 +195,7 @@ tar czf homevault-backup-$(date +%Y%m%d).tar.gz \
 ### Restore
 
 ```bash
-tar xzf homevault-backup-YYYYMMDD.tar.gz
+tar xzf litloft-backup-YYYYMMDD.tar.gz
 docker compose up -d --build
 ```
 
@@ -229,14 +229,14 @@ Configured via `docker-compose.override.yml`. Runs on port 8100 (internal-only).
 
 ```bash
 # Check status (admin only)
-curl -b "hv_token=..." "http://localhost:3000/api/addons/intelligence/status"
+curl -b "lit_token=..." "http://localhost:3000/api/addons/intelligence/status"
 
 # Reindex
-curl -X POST -b "hv_token=..." "http://localhost:3000/api/addons/intelligence/queue/reindex"
+curl -X POST -b "lit_token=..." "http://localhost:3000/api/addons/intelligence/queue/reindex"
 
 # Pause / resume queue
-curl -X POST -b "hv_token=..." "http://localhost:3000/api/addons/intelligence/queue/pause"
-curl -X POST -b "hv_token=..." "http://localhost:3000/api/addons/intelligence/queue/resume"
+curl -X POST -b "lit_token=..." "http://localhost:3000/api/addons/intelligence/queue/pause"
+curl -X POST -b "lit_token=..." "http://localhost:3000/api/addons/intelligence/queue/resume"
 ```
 
 ### Knowledge (Standalone Service)
@@ -257,7 +257,7 @@ The `addons` field in `drives.json` toggles addon features per drive. See [DRIVE
 docker compose up -d --build
 
 # Verify policy is applied (intelligence example)
-curl -b "hv_token=..." "http://localhost:3000/api/internal/drive-policy?drive=Family&addon=intelligence"
+curl -b "lit_token=..." "http://localhost:3000/api/internal/drive-policy?drive=Family&addon=intelligence"
 ```
 
 Changes to `drives.json` require a container restart. Addon-side workers cache policy for 30s and fail open on lookup failures.
@@ -268,10 +268,10 @@ Files that disappear from the filesystem are marked `missing` rather than purged
 
 ```bash
 # List missing files in a drive
-curl -b "hv_token=..." "http://localhost:3000/api/drives/{drive}/missing"
+curl -b "lit_token=..." "http://localhost:3000/api/drives/{drive}/missing"
 
 # Bulk purge (chunked 200 at a time)
-curl -X POST -b "hv_token=..." "http://localhost:3000/api/drives/{drive}/missing/purge-all"
+curl -X POST -b "lit_token=..." "http://localhost:3000/api/drives/{drive}/missing/purge-all"
 ```
 
 If a NAS is temporarily offline, do **not** run purge-all — the scanner already short-circuits on drive-level absence (`drive_path.exists() == False`) to avoid mass-missing events.

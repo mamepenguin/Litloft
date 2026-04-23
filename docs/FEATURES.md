@@ -1,4 +1,4 @@
-# HomeVault — Feature List
+# Litloft — Feature List
 
 A self-hosted file manager and media streaming web app for home LAN.
 
@@ -57,7 +57,7 @@ Each `File` row can be in one of three mutually-exclusive states, expressed via 
 | State | `deleted_at` | `missing_since` | Meaning | Auto-purge |
 |-------|--------------|-----------------|---------|------------|
 | Active | NULL | NULL | Normal | — |
-| Missing | NULL | SET | Not present on FS (NAS disconnected, file moved outside HomeVault) | Never |
+| Missing | NULL | SET | Not present on FS (NAS disconnected, file moved outside Litloft) | Never |
 | Trash | SET | NULL | User-deleted, recoverable | 30 days |
 
 All list queries filter via `active_file_filter()` so missing/trash files are invisible to the browser by default.
@@ -305,7 +305,7 @@ Runs as a separate Docker container (`./addons/intelligence`). All features belo
 - Manual edit + revert-to-AI supported (`SummaryEditRequest` / `summary/revert`)
 - Batch generation per folder (`folder-summaries` slot)
 - Window sampling for long content (configurable size/count)
-- Never writes to the core HomeVault DB — lives in the intelligence addon's own store
+- Never writes to the core Litloft DB — lives in the intelligence addon's own store
 
 ### Detailed Summaries (long-form Markdown)
 - Modes: `"false"` | `"manual"` | `"on_index"` — manual is the safe default (generation is expensive); `"on_index"` auto-generates after indexing completes
@@ -319,7 +319,7 @@ Runs as a separate Docker container (`./addons/intelligence`). All features belo
 - WebSocket events: `intelligence.detailed_summary.updated` (edit / revert / regenerate) and `intelligence.detailed_summary.citations_ready` (citations pass complete) let the UI refresh without polling
 
 ### Transcript Refine
-- LLM-based ASR transcript correction for Whisper / HvLink content
+- LLM-based ASR transcript correction for Whisper / LoftRef content
 - Modes: `"false"` | `"manual"` | `"on_index"`
 - Originals preserved in `TranscriptChunk.text_original` — revert anytime
 - **Word-level re-alignment**: chunk-level LLM edit → WhisperX wav2vec2 forced alignment to recompute word timings (CJK per-character, other per-word). Embeddings recomputed on corrected text
@@ -338,9 +338,9 @@ Runs as a separate Docker container (`./addons/intelligence`). All features belo
 - Optional BLIP captioning for frames (English descriptions; used as auto-tag context)
 - Frame search + timestamp hovercards in file detail
 
-### HvLink (external source)
-- Downloader addon's "link" mode creates a HomeVault file row that references an external URL
-- Intelligence addon ingests HvLink transcripts when available, so YouTube-style links can participate in search, Ask, and summaries without downloading the media
+### LoftRef (external source)
+- Downloader addon's "link" mode creates a Litloft file row that references an external URL
+- Intelligence addon ingests LoftRef transcripts when available, so YouTube-style links can participate in search, Ask, and summaries without downloading the media
 
 ### LLM Providers
 - `ollama` — native `/api/chat`; sends `think: false` to skip chain-of-thought on reasoning models (Gemma 4, DeepSeek-R1, QwQ)
@@ -371,8 +371,8 @@ External service (`./addons/knowledge`, port 8200). Scope: `drive`.
 In-process. Scope: `drive`.
 
 - Queue-based yt-dlp downloads with cancel support
-- **HvLink mode**: register an external URL as a HomeVault file without downloading the media, with a background fetcher populating metadata/transcripts
-- HvLink player slot (`hvlink-player`) for embedded playback of external sources
+- **LoftRef mode**: register an external URL as a Litloft file without downloading the media, with a background fetcher populating metadata/transcripts
+- LoftRef player slot (`loftref-player`) for embedded playback of external sources
 
 ---
 
@@ -436,12 +436,12 @@ In-process. Scope: `global`. Admin-only.
 - **Password protection**: per-drive access control via `passwords.json`
 - **Protected drive invisibility**: completely excluded from API responses when locked (404, not 403)
 - **`/unlock` page**: no UI link, accessible only by URL
-- **JWT authentication**: `hv_token` cookie for drive access control
+- **JWT authentication**: `lit_token` cookie for drive access control
 - **Remember option**: "Remember this device" valid for 1 year
 - **Admin endpoint gating**: `/admin` requires an unlocked token for every `access_group` declared in `drives.json` (owner-only)
 
 ### Addon Access Boundaries
-- Host-side Generic Addon Proxy validates `X-HV-Drive` header against the caller's accessible drive set before forwarding
+- Host-side Generic Addon Proxy validates `X-Lit-Drive` header against the caller's accessible drive set before forwarding
 - Proxy response filters: `drive_access`, `drive_access_nested`, `current_drive_only`, `current_drive_only_nested`, `null`
 - Proxy pre-checks: `file_access`, `addon_feature`, `admin`
 - Per-drive policy: `drives.json` `addons` field disables features per drive (either by boolean shorthand or `{feature: bool}` map); matching entries are stripped from `/api/addons/status` and blocked at the proxy
@@ -523,7 +523,7 @@ Operators toggle features per drive in `drives.json`:
 | `dashboard-widgets` | Admin dashboard | Cards | Index status, cloud sync status |
 | `folder-actions` | Folder toolbar | Inline buttons | Batch AI tags, batch summaries, batch refine |
 | `sidebar-sections` | Sidebar | Stack | Knowledge Vault summary |
-| `hvlink-player` | File detail (external source) | Stack | External URL player |
+| `loftref-player` | File detail (external source) | Stack | External URL player |
 
 ---
 
@@ -722,7 +722,7 @@ Operators toggle features per drive in `drives.json`:
 | Method | Path | Description |
 |--------|------|-------------|
 | GET | /api/addons/status?drive= | List enabled addons (drive-aware catalog) |
-| * | /api/addons/{name}/... | Generic proxy to in-process or external addon (headers: `X-HV-Drive` for drive-scoped addons) |
+| * | /api/addons/{name}/... | Generic proxy to in-process or external addon (headers: `X-Lit-Drive` for drive-scoped addons) |
 
 ### Internal API (Docker-internal)
 

@@ -118,7 +118,7 @@ _to_response = file_to_response
 
 
 def _detect_file_subtitles(file: File) -> list[SubtitleInfo]:
-    if file.file_type != "video" and file.mime_type != "application/vnd.homevault.link+json":
+    if file.file_type != "video" and file.mime_type != "application/vnd.litloft.loft+json":
         return []
     drive_path = config.get_drive_path(file.drive)
     raw = detect_subtitles(file.file_path, drive_path)
@@ -853,7 +853,7 @@ async def get_subtitle(
     unlocked_groups: Annotated[list[str], Depends(get_unlocked_groups)],
 ):
     file = _get_file_or_404(db, file_id, unlocked_groups)
-    if file.file_type != "video" and file.mime_type != "application/vnd.homevault.link+json":
+    if file.file_type != "video" and file.mime_type != "application/vnd.litloft.loft+json":
         raise HTTPException(status_code=404, detail="Not a video file")
 
     drive_path = config.get_drive_path(file.drive)

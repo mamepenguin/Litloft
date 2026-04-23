@@ -209,19 +209,19 @@ def nickname_to_viewer_id(nickname: str) -> str:
     return hashlib.sha256(nickname.strip().encode("utf-8")).hexdigest()[:16]
 
 
-def get_viewer_id(hv_viewer: str | None = Cookie(default=None)) -> str | None:
-    if not hv_viewer or not hv_viewer.strip():
+def get_viewer_id(lit_viewer: str | None = Cookie(default=None)) -> str | None:
+    if not lit_viewer or not lit_viewer.strip():
         return None
-    trimmed = hv_viewer.strip()
+    trimmed = lit_viewer.strip()
     if len(trimmed) > 50:
         return None
     return nickname_to_viewer_id(trimmed)
 
 
-def get_nickname(hv_viewer: str | None = Cookie(default=None)) -> str | None:
-    if not hv_viewer or not hv_viewer.strip():
+def get_nickname(lit_viewer: str | None = Cookie(default=None)) -> str | None:
+    if not lit_viewer or not lit_viewer.strip():
         return None
-    trimmed = hv_viewer.strip()
+    trimmed = lit_viewer.strip()
     if len(trimmed) > 50:
         return None
     return trimmed

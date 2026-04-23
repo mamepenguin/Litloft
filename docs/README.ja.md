@@ -1,13 +1,13 @@
-# HomeVault
+# Litloft
 
 自宅LAN向けファイル管理＆メディアストリーミングWebアプリ。Docker で動かし、ブラウザ（PWA対応）からアクセスする。
 
 > **Note:** このプロジェクトは個人用途で開発しています。Issue/PRは歓迎しますが、対応・サポートは保証しません。
 
-> **Warning:** HomeVaultは信頼できる家庭内ネットワークでの使用を前提としています。インターネットに公開するのに十分なセキュリティは備えていません。外部公開する場合は、リバースプロキシによるHTTPS化やVPN等を自身で構成してください。
+> **Warning:** Litloftは信頼できる家庭内ネットワークでの使用を前提としています。インターネットに公開するのに十分なセキュリティは備えていません。外部公開する場合は、リバースプロキシによるHTTPS化やVPN等を自身で構成してください。
 
 <!-- TODO: スクリーンショット（ドライブ一覧 or フォルダブラウザのメイン画面） -->
-![HomeVault メイン画面](screenshots/main.png)
+![Litloft メイン画面](screenshots/main.png)
 
 ## 主な機能
 
@@ -23,7 +23,7 @@
 - **検索/タグ/お気に入り** — ドライブ内のファイルを素早く見つける
 - **セマンティック検索 + Ask** — 埋め込み検索と引用付きの自然言語 Q&A、Whisper 文字起こし、CLIP フレーム検索、AI 要約（長文 Markdown の詳細要約は出典リンク自動付与＋セクション編集対応。単一チャンクに結び付かない行はリンクを出さずプレーン表示）、タグ提案、トランスクリプト AI 修正（intelligence アドオン）
 - **ナレッジノート** — ドライブ別の Markdown Vault と Web クリッピング（knowledge アドオン）
-- **URL ダウンロード** — yt-dlp ダウンロードと HvLink 外部 URL 参照（downloader アドオン）
+- **URL ダウンロード** — yt-dlp ダウンロードと LoftRef 外部 URL 参照（downloader アドオン）
 - **フォルダピン留め** — よく使うフォルダへのショートカット
 - **コメント / メモ** — ファイルごとのコメント投稿（プロファイル連携）
 - **視聴履歴** — レジューム再生、最近再生した動画、視聴進捗トラッキング
@@ -154,8 +154,8 @@ cp passwords.json.example passwords.json
 docker compose up -d --build
 
 # Backend テスト（Docker内で実行）
-docker build -f backend/Dockerfile.test -t homevault-test backend/
-docker run --rm homevault-test
+docker build -f backend/Dockerfile.test -t litloft-test backend/
+docker run --rm litloft-test
 
 # Frontend テスト
 cd frontend && pnpm test

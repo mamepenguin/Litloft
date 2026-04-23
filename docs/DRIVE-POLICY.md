@@ -2,7 +2,7 @@
 
 How operators enable or disable specific addon features per drive via `drives.json`.
 
-HomeVault treats **drives as the primary security boundary**. The addon system supports a two-layer model:
+Litloft treats **drives as the primary security boundary**. The addon system supports a two-layer model:
 
 | Layer | Owner | Mechanism |
 |-------|-------|-----------|
@@ -43,7 +43,7 @@ This document covers the second layer.
 | `"<addon>": true` | All features enabled (same as omitting) |
 | `"<addon>": { "<feature>": bool }` | Per-feature overrides. Unlisted features default to enabled |
 
-The feature names are addon-defined. HomeVault treats the `addons` field as an opaque dictionary and never interprets feature names itself — the addon author defines what `rag`, `auto_tags`, `index`, etc. mean.
+The feature names are addon-defined. Litloft treats the `addons` field as an opaque dictionary and never interprets feature names itself — the addon author defines what `rag`, `auto_tags`, `index`, etc. mean.
 
 ## Conventional feature names
 
@@ -88,7 +88,7 @@ Policy is enforced at multiple layers so a mistake in one doesn't leak data:
 3. For intelligence, locally-indexed data for newly-disabled drives is purged on addon startup
 4. Verify:
    ```bash
-   curl -b "hv_token=..." \
+   curl -b "lit_token=..." \
      "http://localhost:3000/api/internal/drive-policy?drive=Family&addon=intelligence"
    ```
 
@@ -97,8 +97,8 @@ Policy is enforced at multiple layers so a mistake in one doesn't leak data:
 Re-enabling does **not** automatically re-index. Trigger a reindex manually:
 
 ```bash
-curl -X POST -b "hv_token=..." \
-  -H "X-HV-Drive: Family" \
+curl -X POST -b "lit_token=..." \
+  -H "X-Lit-Drive: Family" \
   "http://localhost:3000/api/addons/intelligence/queue/reindex"
 ```
 
@@ -106,7 +106,7 @@ curl -X POST -b "hv_token=..." \
 
 ```bash
 # Catalog as visible to an unlocked token for this drive
-curl -b "hv_token=..." "http://localhost:3000/api/addons/status?drive=Family"
+curl -b "lit_token=..." "http://localhost:3000/api/addons/status?drive=Family"
 ```
 
 The response strips addons whose umbrella feature is off for that drive.
@@ -114,8 +114,8 @@ The response strips addons whose umbrella feature is off for that drive.
 ## Why this design
 
 - **Security by default**: AI features process file content (transcripts, captions, text) and may send it to an LLM API. Per-drive policy lets an operator keep AI off for sensitive drives (legal, HR, private photos) while enabling it for public ones.
-- **No cross-drive leakage**: Combined with the `current_drive_only` proxy filter and `X-HV-Drive` header enforcement, a disabled drive is invisible to the addon at every layer — catalog, routes, webhooks, and UI.
-- **Opaque feature names**: HomeVault core doesn't need to evolve when an addon adds a feature. Operators learn feature names from the addon's docs and set them in the dictionary.
+- **No cross-drive leakage**: Combined with the `current_drive_only` proxy filter and `X-Lit-Drive` header enforcement, a disabled drive is invisible to the addon at every layer — catalog, routes, webhooks, and UI.
+- **Opaque feature names**: Litloft core doesn't need to evolve when an addon adds a feature. Operators learn feature names from the addon's docs and set them in the dictionary.
 - **Silent drives remain enabled**: Dropping policy into a previously-unaware deployment never breaks existing features for drives that don't opt in.
 
 ## Caveats

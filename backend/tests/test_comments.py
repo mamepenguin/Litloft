@@ -112,7 +112,7 @@ class TestCreateComment:
         res = c.post(
             f"/api/files/{file.id}/comments",
             json={"body": "Great video!"},
-            cookies={"hv_viewer": "alice"},
+            cookies={"lit_viewer": "alice"},
         )
         assert res.status_code == 201
         data = res.json()
@@ -139,7 +139,7 @@ class TestCreateComment:
         res = c.post(
             "/api/files/zzNOTFOUNDzz/comments",
             json={"body": "Hello"},
-            cookies={"hv_viewer": "alice"},
+            cookies={"lit_viewer": "alice"},
         )
         assert res.status_code == 404
 
@@ -150,7 +150,7 @@ class TestCreateComment:
         res = c.post(
             f"/api/files/{file.id}/comments",
             json={"body": ""},
-            cookies={"hv_viewer": "alice"},
+            cookies={"lit_viewer": "alice"},
         )
         assert res.status_code == 422
 
@@ -161,7 +161,7 @@ class TestCreateComment:
         res = c.post(
             f"/api/files/{file.id}/comments",
             json={"body": "x" * 1001},
-            cookies={"hv_viewer": "alice"},
+            cookies={"lit_viewer": "alice"},
         )
         assert res.status_code == 422
 
@@ -172,7 +172,7 @@ class TestCreateComment:
         res = c.post(
             f"/api/files/{file.id}/comments",
             json={"body": "x" * 1000},
-            cookies={"hv_viewer": "alice"},
+            cookies={"lit_viewer": "alice"},
         )
         assert res.status_code == 201
 
@@ -183,7 +183,7 @@ class TestCreateComment:
         res = c.post(
             f"/api/files/{file.id}/comments",
             json={"body": "   "},
-            cookies={"hv_viewer": "alice"},
+            cookies={"lit_viewer": "alice"},
         )
         assert res.status_code == 422
 
@@ -205,16 +205,16 @@ class TestListComments:
         c.post(
             f"/api/files/{file.id}/comments",
             json={"body": "First"},
-            cookies={"hv_viewer": "alice"},
+            cookies={"lit_viewer": "alice"},
         )
         c.post(
             f"/api/files/{file.id}/comments",
             json={"body": "Second"},
-            cookies={"hv_viewer": "bob"},
+            cookies={"lit_viewer": "bob"},
         )
         res = c.get(
             f"/api/files/{file.id}/comments",
-            cookies={"hv_viewer": "alice"},
+            cookies={"lit_viewer": "alice"},
         )
         assert res.status_code == 200
         data = res.json()
@@ -231,16 +231,16 @@ class TestListComments:
         c.post(
             f"/api/files/{file.id}/comments",
             json={"body": "Alice's comment"},
-            cookies={"hv_viewer": "alice"},
+            cookies={"lit_viewer": "alice"},
         )
         c.post(
             f"/api/files/{file.id}/comments",
             json={"body": "Bob's comment"},
-            cookies={"hv_viewer": "bob"},
+            cookies={"lit_viewer": "bob"},
         )
         res = c.get(
             f"/api/files/{file.id}/comments",
-            cookies={"hv_viewer": "alice"},
+            cookies={"lit_viewer": "alice"},
         )
         comments = res.json()["comments"]
         assert comments[0]["is_mine"] is True
@@ -268,7 +268,7 @@ class TestListComments:
         c.post(
             f"/api/files/{file.id}/comments",
             json={"body": "Test"},
-            cookies={"hv_viewer": "alice"},
+            cookies={"lit_viewer": "alice"},
         )
         res = c.get(f"/api/files/{file.id}/comments")
         comment = res.json()["comments"][0]
@@ -283,14 +283,14 @@ class TestUpdateComment:
         create_res = c.post(
             f"/api/files/{file.id}/comments",
             json={"body": "Original"},
-            cookies={"hv_viewer": "alice"},
+            cookies={"lit_viewer": "alice"},
         )
         comment_id = create_res.json()["id"]
 
         res = c.put(
             f"/api/files/{file.id}/comments/{comment_id}",
             json={"body": "Updated"},
-            cookies={"hv_viewer": "alice"},
+            cookies={"lit_viewer": "alice"},
         )
         assert res.status_code == 200
         assert res.json()["body"] == "Updated"
@@ -302,14 +302,14 @@ class TestUpdateComment:
         create_res = c.post(
             f"/api/files/{file.id}/comments",
             json={"body": "Alice's comment"},
-            cookies={"hv_viewer": "alice"},
+            cookies={"lit_viewer": "alice"},
         )
         comment_id = create_res.json()["id"]
 
         res = c.put(
             f"/api/files/{file.id}/comments/{comment_id}",
             json={"body": "Bob tries to edit"},
-            cookies={"hv_viewer": "bob"},
+            cookies={"lit_viewer": "bob"},
         )
         assert res.status_code == 403
 
@@ -335,7 +335,7 @@ class TestUpdateComment:
         res = c.put(
             f"/api/files/{file.id}/comments/{comment.id}",
             json={"body": "Try to edit"},
-            cookies={"hv_viewer": "alice"},
+            cookies={"lit_viewer": "alice"},
         )
         assert res.status_code == 403
 
@@ -345,7 +345,7 @@ class TestUpdateComment:
         res = c.put(
             f"/api/files/{file.id}/comments/zzNOTFOUNDzz",
             json={"body": "Updated"},
-            cookies={"hv_viewer": "alice"},
+            cookies={"lit_viewer": "alice"},
         )
         assert res.status_code == 404
 
@@ -356,14 +356,14 @@ class TestUpdateComment:
         create_res = c.post(
             f"/api/files/{file.id}/comments",
             json={"body": "Original"},
-            cookies={"hv_viewer": "alice"},
+            cookies={"lit_viewer": "alice"},
         )
         comment_id = create_res.json()["id"]
 
         res = c.put(
             f"/api/files/{file.id}/comments/{comment_id}",
             json={"body": ""},
-            cookies={"hv_viewer": "alice"},
+            cookies={"lit_viewer": "alice"},
         )
         assert res.status_code == 422
 
@@ -374,14 +374,14 @@ class TestUpdateComment:
         create_res = c.post(
             f"/api/files/{file.id}/comments",
             json={"body": "Original"},
-            cookies={"hv_viewer": "alice"},
+            cookies={"lit_viewer": "alice"},
         )
         comment_id = create_res.json()["id"]
 
         res = c.put(
             f"/api/files/{file.id}/comments/{comment_id}",
             json={"body": "x" * 1001},
-            cookies={"hv_viewer": "alice"},
+            cookies={"lit_viewer": "alice"},
         )
         assert res.status_code == 422
 
@@ -394,20 +394,20 @@ class TestDeleteComment:
         create_res = c.post(
             f"/api/files/{file.id}/comments",
             json={"body": "To be deleted"},
-            cookies={"hv_viewer": "alice"},
+            cookies={"lit_viewer": "alice"},
         )
         comment_id = create_res.json()["id"]
 
         res = c.delete(
             f"/api/files/{file.id}/comments/{comment_id}",
-            cookies={"hv_viewer": "alice"},
+            cookies={"lit_viewer": "alice"},
         )
         assert res.status_code == 204
 
         # Verify it's gone
         res = c.get(
             f"/api/files/{file.id}/comments",
-            cookies={"hv_viewer": "alice"},
+            cookies={"lit_viewer": "alice"},
         )
         assert res.json()["total"] == 0
 
@@ -418,13 +418,13 @@ class TestDeleteComment:
         create_res = c.post(
             f"/api/files/{file.id}/comments",
             json={"body": "Alice's comment"},
-            cookies={"hv_viewer": "alice"},
+            cookies={"lit_viewer": "alice"},
         )
         comment_id = create_res.json()["id"]
 
         res = c.delete(
             f"/api/files/{file.id}/comments/{comment_id}",
-            cookies={"hv_viewer": "bob"},
+            cookies={"lit_viewer": "bob"},
         )
         assert res.status_code == 403
 
@@ -447,7 +447,7 @@ class TestDeleteComment:
 
         res = c.delete(
             f"/api/files/{file.id}/comments/{comment.id}",
-            cookies={"hv_viewer": "alice"},
+            cookies={"lit_viewer": "alice"},
         )
         assert res.status_code == 403
 
@@ -456,7 +456,7 @@ class TestDeleteComment:
         file = _seed_file(db, drive_dir)
         res = c.delete(
             f"/api/files/{file.id}/comments/zzNOTFOUNDzz",
-            cookies={"hv_viewer": "alice"},
+            cookies={"lit_viewer": "alice"},
         )
         assert res.status_code == 404
 
@@ -471,12 +471,12 @@ class TestCascadeDelete:
         c.post(
             f"/api/files/{file_id}/comments",
             json={"body": "Comment 1"},
-            cookies={"hv_viewer": "alice"},
+            cookies={"lit_viewer": "alice"},
         )
         c.post(
             f"/api/files/{file_id}/comments",
             json={"body": "Comment 2"},
-            cookies={"hv_viewer": "bob"},
+            cookies={"lit_viewer": "bob"},
         )
 
         # Verify comments exist
@@ -530,7 +530,7 @@ class TestAccessControl:
             res = c.post(
                 f"/api/files/{file.id}/comments",
                 json={"body": "Hello"},
-                cookies={"hv_viewer": "alice"},
+                cookies={"lit_viewer": "alice"},
             )
             assert res.status_code == 404
         finally:

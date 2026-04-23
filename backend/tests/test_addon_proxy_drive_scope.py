@@ -4,10 +4,10 @@ Covers the scope=drive behaviour added for drive-scoped addons
 (originally motivated by the knowledge addon).
 
 What we guard:
-- scope=drive addons require ``X-HV-Drive`` → 400 otherwise
+- scope=drive addons require ``X-Lit-Drive`` → 400 otherwise
 - scope=drive addons reject inaccessible drives → 403
 - scope=global addons ignore the header (back-compat)
-- When allowed, ``X-HV-Drive`` is forwarded to the upstream addon
+- When allowed, ``X-Lit-Drive`` is forwarded to the upstream addon
 
 We stub httpx.AsyncClient so no real network calls happen.
 """
@@ -140,7 +140,7 @@ def test_drive_scope_rejects_inaccessible_drive(client, drive_scope_addon):
     c, _s, _d, _dat = client
     r = c.get(
         "/api/addons/_test/ping",
-        headers={"X-HV-Drive": "does-not-exist"},
+        headers={"X-Lit-Drive": "does-not-exist"},
     )
     assert r.status_code == 403
 
@@ -151,14 +151,14 @@ def test_drive_scope_forwards_header_on_accessible_drive(
     c, _s, _d, _dat = client
     r = c.get(
         "/api/addons/_test/ping",
-        headers={"X-HV-Drive": "test-drive"},
+        headers={"X-Lit-Drive": "test-drive"},
     )
     assert r.status_code == 200
     forwarded = _CapturingClient.last_request["headers"]
     # Header names are lowercased by httpx/starlette depending on source;
     # compare case-insensitively.
     lowered = {k.lower(): v for k, v in forwarded.items()}
-    assert lowered.get("x-hv-drive") == "test-drive"
+    assert lowered.get("x-lit-drive") == "test-drive"
 
 
 def test_global_scope_does_not_require_header(client, global_scope_addon):
@@ -176,7 +176,7 @@ def test_global_scope_still_validates_drive_if_provided(
     c, _s, _d, _dat = client
     r = c.get(
         "/api/addons/_testg/ping",
-        headers={"X-HV-Drive": "does-not-exist"},
+        headers={"X-Lit-Drive": "does-not-exist"},
     )
     assert r.status_code == 403
 
@@ -279,7 +279,7 @@ def test_current_drive_only_strips_other_drives(client, filter_addon):
     }
     r = c.get(
         "/api/addons/_filter/search",
-        headers={"X-HV-Drive": "test-drive"},
+        headers={"X-Lit-Drive": "test-drive"},
     )
     assert r.status_code == 200
     body = r.json()
@@ -298,7 +298,7 @@ def test_current_drive_only_nested_strips_other_drives(client, filter_addon):
     }
     r = c.post(
         "/api/addons/_filter/ask",
-        headers={"X-HV-Drive": "test-drive"},
+        headers={"X-Lit-Drive": "test-drive"},
         json={"q": "hi"},
     )
     assert r.status_code == 200
@@ -321,7 +321,7 @@ def test_addon_feature_pre_check_404_when_disabled(
     c, _s, _d, _dat = client
     r = c.get(
         "/api/addons/_filter/heavy",
-        headers={"X-HV-Drive": "test-drive"},
+        headers={"X-Lit-Drive": "test-drive"},
     )
     assert r.status_code == 404
 
@@ -331,6 +331,6 @@ def test_addon_feature_pre_check_passes_when_enabled(client, filter_addon):
     _JsonClient.next_body = {"ok": True}
     r = c.get(
         "/api/addons/_filter/heavy",
-        headers={"X-HV-Drive": "test-drive"},
+        headers={"X-Lit-Drive": "test-drive"},
     )
     assert r.status_code == 200

@@ -2,7 +2,7 @@
  * MediaController abstracts away the differences between a native
  * `<video>`/`<audio>` element and an embedded YouTube IFrame Player.
  *
- * Why: HvLink files render YouTube via the IFrame Player API (rather
+ * Why: LoftRef files render YouTube via the IFrame Player API (rather
  * than a native HTMLMediaElement). VideoPlayer keyboard shortcuts and
  * the intelligence addon's citation jump used to bind directly to
  * `HTMLVideoElement`. By talking to a `MediaController` instead, the

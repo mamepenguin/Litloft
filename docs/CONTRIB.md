@@ -62,7 +62,7 @@ frontend/
 
 addons/              # Addons (independent Git repositories, not tracked here)
   cloud-sync/        # rclone-based cloud backup (scope=global)
-  downloader/        # yt-dlp + HvLink external URLs (scope=drive)
+  downloader/        # yt-dlp + LoftRef external URLs (scope=drive)
   podcast/           # RSS feed generation (scope=drive)
   intelligence/      # Semantic search, Ask, summaries, Whisper (external service, scope=drive)
   knowledge/         # Markdown Vaults + web clipping (external service, scope=drive)
@@ -103,8 +103,8 @@ deploy/              # Deploy scripts
 Run inside Docker (local Python is incompatible with pydantic).
 
 ```bash
-docker build -f backend/Dockerfile.test -t homevault-test backend/
-docker run --rm homevault-test
+docker build -f backend/Dockerfile.test -t litloft-test backend/
+docker run --rm litloft-test
 ```
 
 ### Frontend Unit Tests
@@ -167,10 +167,10 @@ See [ADDON-DEVELOPMENT.md](ADDON-DEVELOPMENT.md) for the full addon development 
 
 - In-process vs external service addons and the clean-separation principle
 - Scope capability (`drive` / `global` / `both`) and per-drive policy
-- UI slot system (search-modes, file-detail-sections, dashboard-widgets, folder-actions, sidebar-sections, hvlink-player)
+- UI slot system (search-modes, file-detail-sections, dashboard-widgets, folder-actions, sidebar-sections, loftref-player)
 - `AddonSlot` component with lazy loading and addon name validation
 - Generic Addon Proxy: `drive_access` / `current_drive_only` / `addon_feature` / `file_access` / `admin`
-- `X-HV-Drive` header contract
+- `X-Lit-Drive` header contract
 - Internal API for external service addons (accessible-drives, files, filter-file-ids, drive-policy)
 - Core API surface and rules for in-process addons
 

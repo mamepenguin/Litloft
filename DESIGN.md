@@ -1,6 +1,6 @@
-# HomeVault Design System
+# Litloft Design System
 
-> Pinterest-inspired design system for HomeVault.
+> Pinterest-inspired design system for Litloft.
 > Stack: Next.js 16, Tailwind CSS v4.
 > Japanese typography: jp-ui-contracts base + saas profile.
 
@@ -23,7 +23,7 @@
 
 A **warm white canvas** with **coral red** as the single brand accent — flat, minimal, and photography-forward.
 
-Pinterest's design philosophy (warm neutrals, generous border-radius, depth without shadows) is translated into HomeVault's file-browser UI.
+Pinterest's design philosophy (warm neutrals, generous border-radius, depth without shadows) is translated into Litloft's file-browser UI.
 
 **Light mode**: white canvas + plum black text + coral red accent
 **Dark mode**: warm plum dark (`#1a0e10`) + bright coral (`#e85d5e`)

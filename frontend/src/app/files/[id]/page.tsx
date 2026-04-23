@@ -47,7 +47,7 @@ export default function FilePage() {
   const [saving, setSaving] = useState(false);
   const [galleryOpen, setGalleryOpen] = useState(false);
   const videoRef = useRef<HTMLVideoElement>(null);
-  // Decoupled from videoRef on purpose: HvLink (YouTube) supplies its
+  // Decoupled from videoRef on purpose: LoftRef (YouTube) supplies its
   // own MediaController via FilePreview's onMediaController callback,
   // and the underlying playback element is an iframe — there is no
   // HTMLVideoElement to point a ref at. AddonSlot consumers (citation
@@ -108,9 +108,9 @@ export default function FilePage() {
   useEffect(() => {
     if (!file || !neighbors) return;
     if (file.file_type === "video" || file.file_type === "audio") return;
-    // HvLink (YouTube embed) installs its own ←/→ seek shortcuts via
+    // LoftRef (YouTube embed) installs its own ←/→ seek shortcuts via
     // HvlinkPlayer; double-binding here would seek AND navigate.
-    if (file.mime_type === "application/vnd.homevault.link+json") return;
+    if (file.mime_type === "application/vnd.litloft.link+json") return;
 
     function handleKeyDown(e: KeyboardEvent) {
       const target = e.target as HTMLElement;

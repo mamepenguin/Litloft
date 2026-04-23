@@ -163,7 +163,7 @@ async def file_text_content(
     """Return the raw UTF-8 text content of a file.
 
     Docker-internal only. Unlike ``/api/files/{id}/stream`` this endpoint
-    is not subject to ``hv_token`` drive-unlock checks, which is the
+    is not subject to ``lit_token`` drive-unlock checks, which is the
     whole point: the knowledge addon's frontmatter scanner runs without
     any user context and must be able to read ``.md`` files on protected
     drives to keep the ``note_origins`` cache in sync.

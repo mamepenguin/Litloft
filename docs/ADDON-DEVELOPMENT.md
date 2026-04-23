@@ -1,6 +1,6 @@
 # Addon Development Guide
 
-This guide covers how to build addons for HomeVault using the addon architecture v2 (slot-based, declarative proxy).
+This guide covers how to build addons for Litloft using the addon architecture v2 (slot-based, declarative proxy).
 
 ## Addon Types
 
@@ -13,18 +13,18 @@ This guide covers how to build addons for HomeVault using the addon architecture
 
 ## Clean Separation Principle
 
-HomeVault's addon system is designed around one core rule: **the main HomeVault repo must contain zero knowledge of any specific addon.**
+Litloft's addon system is designed around one core rule: **the main Litloft repo must contain zero knowledge of any specific addon.**
 
 ### What this means
 
 - **Each addon lives in its own independent Git repo** at `addons/{name}/` (gitignored by the main repo).
-- **No addon-specific files are checked into the main repo.** Not code, not manifests, not configuration. An OSS clone of HomeVault with no addons installed has no mention of `intelligence`, `downloader`, `cloud-sync`, or any other addon.
+- **No addon-specific files are checked into the main repo.** Not code, not manifests, not configuration. An OSS clone of Litloft with no addons installed has no mention of `intelligence`, `downloader`, `cloud-sync`, or any other addon.
 - **Addons declare themselves at load time** — via `ADDON_META` in their own `router.py` (in-process) or `manifest.json` in their own repo directory (external service).
 - **Absence is the default.** If an addon is not present in `addons/`, the main backend has no notion of it. No phantom sidebar entries, no empty UI slots, no broken proxy routes, no 502s when someone clicks a link.
 
 ### Why
 
-1. **OSS distribution** — HomeVault is designed for OSS release. A user cloning the repo and running `docker compose up` should get a clean, working core experience without any unused addon plumbing cluttering the UI.
+1. **OSS distribution** — Litloft is designed for OSS release. A user cloning the repo and running `docker compose up` should get a clean, working core experience without any unused addon plumbing cluttering the UI.
 2. **Symmetry** — In-process and external service addons use the same self-declaration pattern. Adding a new addon never requires a PR to the main repo.
 3. **Failure isolation** — An addon that fails to load, or a container that fails to start, does not break the core. The core simply doesn't know about that addon.
 
@@ -65,7 +65,7 @@ project root/
         addons/{name}/page.tsx     # Auto-generated at Docker build (gitignored)
 ```
 
-**Nothing addon-specific is checked into the main HomeVault repo.** Each addon lives in its own git repo under `addons/{name}/`. If you don't clone an addon, the main repo has zero trace of it.
+**Nothing addon-specific is checked into the main Litloft repo.** Each addon lives in its own git repo under `addons/{name}/`. If you don't clone an addon, the main repo has zero trace of it.
 
 ### Docker Build: How Files Get Into Containers
 
@@ -123,7 +123,7 @@ RUN pnpm build
 - Place your addon in `addons/{name}/`. That's it.
 - The Dockerfiles handle the rest. You don't need to manually copy anything.
 - Symlinks in `backend/addons/` and `frontend/src/addons/` are only for local development convenience (IDE auto-completion, local test runs, etc).
-- External service addons declare themselves via `addons/{name}/manifest.json` — the manifest lives in the addon's own repo, not in the main HomeVault repo.
+- External service addons declare themselves via `addons/{name}/manifest.json` — the manifest lives in the addon's own repo, not in the main Litloft repo.
 - Page wrappers (`src/app/addons/{name}/page.tsx`) are auto-generated at Docker build time. You never write these manually.
 
 ### Backend Discovery at Startup
@@ -159,7 +159,7 @@ When the backend starts (`main.py`):
 
 The **addon name is derived from the parent directory name** (e.g., `addons/intelligence/manifest.json` → addon name `intelligence`). Manifests are deduped by addon name, so if the same addon appears in both candidate directories, the first one wins (Docker path takes precedence).
 
-If neither candidate directory contains any `manifest.json` files, the registry logs `"No addon manifests found"` and proceeds with an empty external-addon set. **This is the normal case for a stock HomeVault install with no external addons** — no error, no warning, just silence.
+If neither candidate directory contains any `manifest.json` files, the registry logs `"No addon manifests found"` and proceeds with an empty external-addon set. **This is the normal case for a stock Litloft install with no external addons** — no error, no warning, just silence.
 
 ### Frontend Discovery at Runtime
 
@@ -287,7 +287,7 @@ External service addons run in separate Docker containers. The core app proxies 
 | Event hooks | `event-hooks.json` | No | Webhook subscriptions |
 | Page wrapper | `frontend/src/app/addons/[name]/page.tsx` and `.../drive/[name]/addons/[addon]/page.tsx` | Core-provided dispatcher | Generic routes that lazy-import each addon's `Page.tsx` |
 
-The manifest file is the key difference from in-process addons. Since external services have no Python code in the backend process, the manifest tells the core app how to proxy requests and what UI slots to register. The manifest lives in the addon's own repo, so the main HomeVault repo has no knowledge of any specific addon.
+The manifest file is the key difference from in-process addons. Since external services have no Python code in the backend process, the manifest tells the core app how to proxy requests and what UI slots to register. The manifest lives in the addon's own repo, so the main Litloft repo has no knowledge of any specific addon.
 
 ### Manifest File
 
@@ -295,7 +295,7 @@ The manifest lives in **the addon's own Git repo**, at the top of the addon dire
 
 ```
 addons/my-service/        # ← addon's own repo root
-  manifest.json           # ← committed to the addon repo, NOT the main HomeVault repo
+  manifest.json           # ← committed to the addon repo, NOT the main Litloft repo
   Dockerfile
   app/
     ...
@@ -326,7 +326,7 @@ addons/my-service/        # ← addon's own repo root
 
 The proxy exposes routes at `/api/addons/{name}/{path}`. For example, a route with `"path": "/search"` becomes `GET /api/addons/my-service/search`.
 
-**Why the manifest lives in the addon's repo**: the main HomeVault backend discovers the manifest dynamically at startup via `addons/*/manifest.json`. No file in the main repo ever needs to know that your addon exists. When you evolve the manifest (new routes, new slots, new filters), commit those changes to the addon repo — the main repo stays untouched. See [Clean Separation Principle](#clean-separation-principle) for the rationale.
+**Why the manifest lives in the addon's repo**: the main Litloft backend discovers the manifest dynamically at startup via `addons/*/manifest.json`. No file in the main repo ever needs to know that your addon exists. When you evolve the manifest (new routes, new slots, new filters), commit those changes to the addon repo — the main repo stays untouched. See [Clean Separation Principle](#clean-separation-principle) for the rationale.
 
 ### Proxy Route Configuration
 
@@ -378,7 +378,7 @@ Removes items from `response.results[]` where `item.drive` is not in the caller'
 }
 ```
 
-**`current_drive_only`** — Strictly filter to the drive the caller is currently in. The proxy reads the validated `X-HV-Drive` header and keeps only items whose `drive_field` matches. Used by `scope=drive` addons to prevent cross-drive leakage even when the user has access to multiple drives:
+**`current_drive_only`** — Strictly filter to the drive the caller is currently in. The proxy reads the validated `X-Lit-Drive` header and keeps only items whose `drive_field` matches. Used by `scope=drive` addons to prevent cross-drive leakage even when the user has access to multiple drives:
 
 ```json
 {
@@ -422,8 +422,8 @@ Returns 404 if the drive's `addons.{addon_name}.{feature}` is `false` (or the um
 
 | Field | Default | Meaning |
 |-------|---------|---------|
-| `drive_optional` | `false` for `scope=drive` addons, `true` for `scope=global` | Skip `X-HV-Drive` enforcement for this route (e.g. `<img>` tags that can't attach headers, or admin-context queries). Authorization must still be enforced via another pre_check |
-| `require_drive` | Inferred from scope | Force `X-HV-Drive` presence even when the route would otherwise be drive-optional |
+| `drive_optional` | `false` for `scope=drive` addons, `true` for `scope=global` | Skip `X-Lit-Drive` enforcement for this route (e.g. `<img>` tags that can't attach headers, or admin-context queries). Authorization must still be enforced via another pre_check |
+| `require_drive` | Inferred from scope | Force `X-Lit-Drive` presence even when the route would otherwise be drive-optional |
 | `stream` | `false` | Binary passthrough (images, SSE, file streams) — the proxy forwards bytes verbatim without JSON filtering |
 | `addon_feature` | — | Shorthand for an `addon_feature` pre_check attached alongside a `file_access` pre_check on the same route |
 
@@ -499,7 +499,7 @@ For complex cases where declarative filters aren't sufficient, external services
 | `POST backend:8000/api/internal/filter-file-ids` | Filter file IDs by access control |
 | `GET backend:8000/api/internal/drive-policy?drive=&addon=` | Per-drive policy in `{default, features}` shape |
 
-Forward the original request's cookies (`hv_token`) when calling access-controlled endpoints so the core can evaluate the caller's unlocked groups correctly.
+Forward the original request's cookies (`lit_token`) when calling access-controlled endpoints so the core can evaluate the caller's unlocked groups correctly.
 
 #### Drive policy shape
 
@@ -542,9 +542,9 @@ Accessing an addon via a URL that doesn't match its scope returns 404 (e.g., a `
 
 The core rejects addons without a valid `scope`. The error is logged and the addon is excluded from the registry (the router may still be mounted but the addon won't appear in `/api/addons/status`, and no UI will show it).
 
-### Drive Context Header (`X-HV-Drive`)
+### Drive Context Header (`X-Lit-Drive`)
 
-For `scope=drive` (and `scope=both` routes invoked from a drive context), the frontend attaches an `X-HV-Drive: {drive-name}` header to every `/api/addons/{name}/...` call. The Generic Addon Proxy:
+For `scope=drive` (and `scope=both` routes invoked from a drive context), the frontend attaches an `X-Lit-Drive: {drive-name}` header to every `/api/addons/{name}/...` call. The Generic Addon Proxy:
 
 1. Rejects requests missing the header with 400 when the route is not `drive_optional`.
 2. Percent-decodes the header value, then verifies the drive is in the caller's accessible set. Unknown or forbidden drives → 404.
@@ -589,7 +589,7 @@ Addons can inject UI components into predefined **slots** in the core applicatio
 | `dashboard-widgets` | Admin dashboard | Cards | Index statistics, cloud sync status |
 | `folder-actions` | Folder toolbar | Inline buttons | Batch AI tags, batch summaries, batch transcript refine |
 | `sidebar-sections` | Sidebar | Stack | Knowledge Vault summary, per-addon shortcuts |
-| `hvlink-player` | File detail (external-source files) | Stack | Embedded player for URL-only files |
+| `loftref-player` | File detail (external-source files) | Stack | Embedded player for URL-only files |
 
 ### Declaring Slots
 
@@ -786,7 +786,7 @@ docker compose up -d --build
 
 ```bash
 # 1. Create a new Git repo for your addon at addons/my-service/
-#    This repo is independent of the main HomeVault repo.
+#    This repo is independent of the main Litloft repo.
 mkdir -p addons/my-service && cd addons/my-service
 git init
 
@@ -807,11 +807,11 @@ git commit -m "feat: initial service with manifest"
 # 7. (Optional) Configure event-hooks.json (main repo, gitignored)
 
 # 8. Build and run
-cd /path/to/homevault
+cd /path/to/litloft
 docker compose up -d --build
 ```
 
-**Key invariant**: nothing gets committed to the main HomeVault repo as part of adding your addon. The main repo discovers your manifest automatically at build time (Dockerfile copies `addons/*/manifest.json`) and at startup (`addon_registry` scans for manifests).
+**Key invariant**: nothing gets committed to the main Litloft repo as part of adding your addon. The main repo discovers your manifest automatically at build time (Dockerfile copies `addons/*/manifest.json`) and at startup (`addon_registry` scans for manifests).
 
 ### Verifying Clean Absence
 
@@ -842,7 +842,7 @@ If anything referenced your addon after step 3, you've accidentally leaked addon
 
 | Addon | Type | Scope | Description |
 |-------|------|-------|-------------|
-| `downloader` | In-process | `drive` | yt-dlp downloads + HvLink external-URL mode |
+| `downloader` | In-process | `drive` | yt-dlp downloads + LoftRef external-URL mode |
 | `cloud-sync` | In-process | `global` | rclone backup to cloud storage (admin-only) |
 | `podcast` | In-process | `drive` | Generate RSS feeds from folders |
 | `intelligence` | External service | `drive` | Semantic search, Ask, AI summaries, transcript refine, Whisper, CLIP, BLIP, auto-tags |

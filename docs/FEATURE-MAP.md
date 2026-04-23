@@ -1,4 +1,4 @@
-# HomeVault 機能マップ
+# Litloft 機能マップ
 
 「このシステムに何ができるか」を俯瞰するための資料。
 内部実装の詳細（ファイル名・関数名・モジュール名など）は含めない。
@@ -14,7 +14,7 @@
 ```mermaid
 flowchart LR
   U[ユーザー<br/>ブラウザ / PWA]
-  U --> FE[HomeVault 本体<br/>ファイル一覧・再生<br/>検索・アップロード<br/>タグ・お気に入り<br/>視聴履歴]
+  U --> FE[Litloft 本体<br/>ファイル一覧・再生<br/>検索・アップロード<br/>タグ・お気に入り<br/>視聴履歴]
 
   FE <--> D[(ドライブ<br/>家族ビデオ / 仕事 / ...)]
   FE <--> S[(ファイル情報<br/>タグ・コメント・履歴)]
@@ -96,7 +96,7 @@ mindmap
       Frame Caption BLIP
       Knowledge ノート/Webクリップ
       Downloader URL取込
-      HvLink 外部URLソース
+      LoftRef 外部URLソース
       Cloud Sync クラウドバックアップ
       Podcast RSS配信
     設定
@@ -138,18 +138,18 @@ stateDiagram-v2
 
 ## 4. Intelligence アドオン 検索の仕組み
 
-以降は技術者向けの詳細。`intelligence` アドオンは HomeVault の AI 軸の中核で、
+以降は技術者向けの詳細。`intelligence` アドオンは Litloft の AI 軸の中核で、
 5 チャネル並列検索とスコア融合、Ask による引用付き回答を提供する。
 外部の技術者やオンボーディング向けに、採用技術と内部フローを示す。
 
 ### 4-1. インデックス時の流れ
 
-ファイルが HomeVault にスキャンされると、webhook 経由で intelligence にタスクが流れ、
+ファイルが Litloft にスキャンされると、webhook 経由で intelligence にタスクが流れ、
 優先度付きキュー＋種別ごとのワーカーで処理される。
 
 ```mermaid
 flowchart TD
-  A[HomeVault スキャン完了] -->|scan-complete webhook| B[reconcile 差分抽出]
+  A[Litloft スキャン完了] -->|scan-complete webhook| B[reconcile 差分抽出]
   B --> Q[Priority Queue]
 
   Q --> M[metadata_worker]
@@ -185,7 +185,7 @@ flowchart TD
 
 ```mermaid
 flowchart TD
-  Q[User Query] --> H{X-HV-Drive header}
+  Q[User Query] --> H{X-Lit-Drive header}
   H --> E[embed_query]
   E --> ET[Text Embedding<br/>multilingual-e5 / Ruri]
   E --> EC[CLIP Embedding<br/>OpenAI/llm-jp CLIP]

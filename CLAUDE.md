@@ -1,4 +1,4 @@
-# HomeVault
+# Litloft
 
 自宅LAN向けファイル管理＆動画ストリーミングWebアプリ。Dockerで動作する。
 

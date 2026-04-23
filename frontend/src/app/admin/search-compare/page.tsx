@@ -193,7 +193,7 @@ const EMPTY_DATA: CompareData = {
 
 export default function SearchComparePage() {
   const [query, setQuery] = useState("");
-  // Intelligence is scope=drive so /search/compare requires X-HV-Drive.
+  // Intelligence is scope=drive so /search/compare requires X-Lit-Drive.
   // Until Phase 6 moves admin search inspection to a proper drive-aware
   // surface, the operator types the drive name explicitly here.
   const [drive, setDrive] = useState("");

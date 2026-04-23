@@ -125,12 +125,12 @@ class TestDetectSubtitles:
 
     def test_dots_in_filename(self, tmp_path):
         """File stem containing dots (e.g. 'Ver.3.0.2') must still match."""
-        video = tmp_path / "title Ver.3.0.2 extra.hvlink"
+        video = tmp_path / "title Ver.3.0.2 extra.loft"
         video.write_text("{}")
         sub = tmp_path / "title Ver.3.0.2 extra.vtt"
         sub.write_text("WEBVTT\n")
 
-        result = detect_subtitles("title Ver.3.0.2 extra.hvlink", tmp_path)
+        result = detect_subtitles("title Ver.3.0.2 extra.loft", tmp_path)
         assert len(result) == 1
         assert result[0]["path"] == "title Ver.3.0.2 extra.vtt"
         assert result[0]["language"] == ""
