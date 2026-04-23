@@ -348,7 +348,7 @@ Open Notebook の citation 検証は **prompt-level のみ**（"これらの id 
 
 公平のため書き残す:
 
-- **視聴体験・プレイヤー連動**: Open Notebook はテキスト中心で、動画タイムコード引用や HvLink のような Deep Link は未実装
+- **視聴体験・プレイヤー連動**: Open Notebook はテキスト中心で、動画タイムコード引用や LoftRef のような Deep Link は未実装
 - **FS との双方向同期**: Open Notebook は DB 中心で、FS に書き戻す発想はない。Litloft の「小サイズテキストファイルは ETag 付きでストリーミング（最近の commit `8143b5a`）」のような FS 一次ソース思想は固有
 - **マルチドライブ / パスワード保護**: セキュリティ境界の概念が薄い（単一テナント前提）
 - **スキャナーの missing/recovered ライフサイクル**: Litloft の「NAS 断で消えても DB は残す」という運用現実への対応は固有

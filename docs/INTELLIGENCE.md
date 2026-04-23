@@ -238,7 +238,7 @@ Each `## ` heading section is editable inline in the UI. The addon stores the AI
 
 ## Transcript Refine
 
-LLM-corrects Whisper/HvLink transcripts chunk-by-chunk. Word-level timings are re-derived via WhisperX wav2vec2 forced alignment (CJK per-character, others per-word). Embeddings are recomputed on corrected text.
+LLM-corrects Whisper/LoftRef transcripts chunk-by-chunk. Word-level timings are re-derived via WhisperX wav2vec2 forced alignment (CJK per-character, others per-word). Embeddings are recomputed on corrected text.
 
 On alignment failure (audio missing, unsupported language, OOM) the addon preserves the prior word rows rather than producing time-proportional fallbacks — revert is always available because originals are kept in `text_original`.
 

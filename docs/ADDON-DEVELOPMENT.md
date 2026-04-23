@@ -589,7 +589,7 @@ Addons can inject UI components into predefined **slots** in the core applicatio
 | `dashboard-widgets` | Admin dashboard | Cards | Index statistics, cloud sync status |
 | `folder-actions` | Folder toolbar | Inline buttons | Batch AI tags, batch summaries, batch transcript refine |
 | `sidebar-sections` | Sidebar | Stack | Knowledge Vault summary, per-addon shortcuts |
-| `hvlink-player` | File detail (external-source files) | Stack | Embedded player for URL-only files |
+| `loftref-player` | File detail (external-source files) | Stack | Embedded player for URL-only files |
 
 ### Declaring Slots
 
@@ -842,7 +842,7 @@ If anything referenced your addon after step 3, you've accidentally leaked addon
 
 | Addon | Type | Scope | Description |
 |-------|------|-------|-------------|
-| `downloader` | In-process | `drive` | yt-dlp downloads + HvLink external-URL mode |
+| `downloader` | In-process | `drive` | yt-dlp downloads + LoftRef external-URL mode |
 | `cloud-sync` | In-process | `global` | rclone backup to cloud storage (admin-only) |
 | `podcast` | In-process | `drive` | Generate RSS feeds from folders |
 | `intelligence` | External service | `drive` | Semantic search, Ask, AI summaries, transcript refine, Whisper, CLIP, BLIP, auto-tags |

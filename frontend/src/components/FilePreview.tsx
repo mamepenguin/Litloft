@@ -35,7 +35,7 @@ interface FilePreviewProps {
    * Notified whenever the active media controller changes.
    *  - native video / audio: controller bound to the underlying media
    *    element on mount, null on unmount.
-   *  - HvLink (YouTube): the addon-supplied controller is forwarded
+   *  - LoftRef (YouTube): the addon-supplied controller is forwarded
    *    here once the YouTube IFrame Player is ready.
    *  - non-media file types: never invoked.
    *
@@ -197,7 +197,7 @@ export function FilePreview({
   }
 
   if (file.mime_type === "application/vnd.litloft.link+json") {
-    // HvLink delegates the actual player UI to the downloader addon.
+    // LoftRef delegates the actual player UI to the downloader addon.
     // Forward the controller setter so the addon can publish its
     // YouTube-backed MediaController upward (citation jump + keyboard
     // shortcuts go through the same MediaController plumbing as the

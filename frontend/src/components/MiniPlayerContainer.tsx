@@ -10,7 +10,7 @@ interface MiniPlayerContainerProps {
   mc: MediaController | null;
   /**
    * Underlying native media element, if any. Enables precise OS PiP
-   * detection (document.pictureInPictureElement comparison). HvLink
+   * detection (document.pictureInPictureElement comparison). LoftRef
    * callers pass null/undefined.
    */
   mediaEl?: HTMLMediaElement | null;
@@ -38,7 +38,7 @@ interface MiniPlayerContainerProps {
  * Why we do NOT use createPortal to move the player element:
  * React Portal mounts children under a different parent via
  * appendChild, which reloads any <iframe> in the subtree (browser
- * spec, not a React bug). HvLink (YouTube IFrame Player) loses its
+ * spec, not a React bug). LoftRef (YouTube IFrame Player) loses its
  * current time, player state, and API binding on reload. By instead
  * applying position:fixed to the existing wrapper, the element stays
  * in the React tree and the DOM, so both <video> currentTime and

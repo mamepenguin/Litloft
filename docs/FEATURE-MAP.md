@@ -96,7 +96,7 @@ mindmap
       Frame Caption BLIP
       Knowledge ノート/Webクリップ
       Downloader URL取込
-      HvLink 外部URLソース
+      LoftRef 外部URLソース
       Cloud Sync クラウドバックアップ
       Podcast RSS配信
     設定

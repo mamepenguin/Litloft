@@ -319,7 +319,7 @@ Runs as a separate Docker container (`./addons/intelligence`). All features belo
 - WebSocket events: `intelligence.detailed_summary.updated` (edit / revert / regenerate) and `intelligence.detailed_summary.citations_ready` (citations pass complete) let the UI refresh without polling
 
 ### Transcript Refine
-- LLM-based ASR transcript correction for Whisper / HvLink content
+- LLM-based ASR transcript correction for Whisper / LoftRef content
 - Modes: `"false"` | `"manual"` | `"on_index"`
 - Originals preserved in `TranscriptChunk.text_original` — revert anytime
 - **Word-level re-alignment**: chunk-level LLM edit → WhisperX wav2vec2 forced alignment to recompute word timings (CJK per-character, other per-word). Embeddings recomputed on corrected text
@@ -338,9 +338,9 @@ Runs as a separate Docker container (`./addons/intelligence`). All features belo
 - Optional BLIP captioning for frames (English descriptions; used as auto-tag context)
 - Frame search + timestamp hovercards in file detail
 
-### HvLink (external source)
+### LoftRef (external source)
 - Downloader addon's "link" mode creates a Litloft file row that references an external URL
-- Intelligence addon ingests HvLink transcripts when available, so YouTube-style links can participate in search, Ask, and summaries without downloading the media
+- Intelligence addon ingests LoftRef transcripts when available, so YouTube-style links can participate in search, Ask, and summaries without downloading the media
 
 ### LLM Providers
 - `ollama` — native `/api/chat`; sends `think: false` to skip chain-of-thought on reasoning models (Gemma 4, DeepSeek-R1, QwQ)
@@ -371,8 +371,8 @@ External service (`./addons/knowledge`, port 8200). Scope: `drive`.
 In-process. Scope: `drive`.
 
 - Queue-based yt-dlp downloads with cancel support
-- **HvLink mode**: register an external URL as a Litloft file without downloading the media, with a background fetcher populating metadata/transcripts
-- HvLink player slot (`hvlink-player`) for embedded playback of external sources
+- **LoftRef mode**: register an external URL as a Litloft file without downloading the media, with a background fetcher populating metadata/transcripts
+- LoftRef player slot (`loftref-player`) for embedded playback of external sources
 
 ---
 
@@ -523,7 +523,7 @@ Operators toggle features per drive in `drives.json`:
 | `dashboard-widgets` | Admin dashboard | Cards | Index status, cloud sync status |
 | `folder-actions` | Folder toolbar | Inline buttons | Batch AI tags, batch summaries, batch refine |
 | `sidebar-sections` | Sidebar | Stack | Knowledge Vault summary |
-| `hvlink-player` | File detail (external source) | Stack | External URL player |
+| `loftref-player` | File detail (external source) | Stack | External URL player |
 
 ---
 

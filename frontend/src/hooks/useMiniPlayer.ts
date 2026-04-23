@@ -47,7 +47,7 @@ interface UseMiniPlayerOpts {
   /**
    * Optional underlying <video>/<audio> element. Used to detect OS
    * Picture-in-Picture precisely (document.pictureInPictureElement
-   * is compared to this element). Pass undefined for HvLink (iframe)
+   * is compared to this element). Pass undefined for LoftRef (iframe)
    * — OS PiP can't target iframes so the check becomes a no-op.
    */
   mediaEl?: HTMLMediaElement | null;
