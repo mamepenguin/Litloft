@@ -650,7 +650,10 @@
     "sidebar": {
       "activePrefix": "アクティブ: {label}",
       "hide": "サイドバーを隠す",
-      "show": "サイドバーを表示"
+      "show": "サイドバーを表示",
+      "clipAction": "Webクリップ",
+      "clipBadge": "{count} 件取得中",
+      "helpAction": "ブックマークレットのヘルプ"
     },
     "editSection": {
       "title": "Knowledge",
@@ -694,6 +697,59 @@
         "overwrite": "自分の変更で上書きする",
         "dismiss": "閉じる"
       }
+    },
+    "toast": {
+      "deleted": "{name} をゴミ箱に移動しました",
+      "undo": "元に戻す",
+      "error": "エラー: {error}",
+      "dismiss": "閉じる"
+    },
+    "contextMenu": {
+      "open": "開く",
+      "openNewTab": "新しいタブで開く",
+      "rename": "名前を変更",
+      "move": "移動先を選択...",
+      "pin": "ピン留め",
+      "unpin": "ピン留めを解除",
+      "tags": "タグを管理...",
+      "trash": "ゴミ箱に移動",
+      "newNoteHere": "ここに新規ノート",
+      "newFolderHere": "ここに新規フォルダ",
+      "deleteFolder": "フォルダを削除",
+      "deleteFolderNotEmpty": "フォルダに中身があります"
+    },
+    "pins": {
+      "section": "ピン留め",
+      "empty": "ピン留めしたノートがここに表示されます"
+    },
+    "folderView": {
+      "back": "戻る",
+      "newNote": "新規ノート",
+      "emptyFolder": "このフォルダには何もありません",
+      "subfolders": "サブフォルダ",
+      "notes": "ノート",
+      "sortUpdated": "更新日順",
+      "sortCreated": "作成日順",
+      "sortName": "名前順"
+    },
+    "tags": {
+      "manage": "タグを管理",
+      "addPlaceholder": "タグを追加...",
+      "add": "追加",
+      "loading": "読み込み中...",
+      "empty": "タグなし"
+    },
+    "move": {
+      "title": "移動先を選択",
+      "confirm": "移動",
+      "cancel": "キャンセル",
+      "currentLocation": "（現在の場所）",
+      "loading": "読み込み中..."
+    },
+    "rename": {
+      "placeholder": "新しい名前...",
+      "confirm": "確定",
+      "cancel": "キャンセル"
     }
   },
   "shortcuts": {

@@ -650,7 +650,10 @@
     "sidebar": {
       "activePrefix": "Active: {label}",
       "hide": "Hide sidebar",
-      "show": "Show sidebar"
+      "show": "Show sidebar",
+      "clipAction": "Web Clip",
+      "clipBadge": "Fetching {count}",
+      "helpAction": "Bookmarklet help"
     },
     "editSection": {
       "title": "Knowledge",
@@ -694,6 +697,59 @@
         "overwrite": "Overwrite with my changes",
         "dismiss": "Dismiss"
       }
+    },
+    "toast": {
+      "deleted": "Moved {name} to trash",
+      "undo": "Undo",
+      "error": "Error: {error}",
+      "dismiss": "Dismiss"
+    },
+    "contextMenu": {
+      "open": "Open",
+      "openNewTab": "Open in new tab",
+      "rename": "Rename",
+      "move": "Move to...",
+      "pin": "Pin",
+      "unpin": "Unpin",
+      "tags": "Manage tags...",
+      "trash": "Move to trash",
+      "newNoteHere": "New note here",
+      "newFolderHere": "New folder here",
+      "deleteFolder": "Delete folder",
+      "deleteFolderNotEmpty": "Folder is not empty"
+    },
+    "pins": {
+      "section": "Pinned",
+      "empty": "Pinned notes will appear here"
+    },
+    "folderView": {
+      "back": "Back",
+      "newNote": "New note",
+      "emptyFolder": "Nothing in this folder yet",
+      "subfolders": "Subfolders",
+      "notes": "Notes",
+      "sortUpdated": "Updated",
+      "sortCreated": "Created",
+      "sortName": "Name"
+    },
+    "tags": {
+      "manage": "Manage tags",
+      "addPlaceholder": "Add a tag...",
+      "add": "Add",
+      "loading": "Loading...",
+      "empty": "No tags"
+    },
+    "move": {
+      "title": "Move to",
+      "confirm": "Move",
+      "cancel": "Cancel",
+      "currentLocation": "(current location)",
+      "loading": "Loading..."
+    },
+    "rename": {
+      "placeholder": "New name...",
+      "confirm": "Confirm",
+      "cancel": "Cancel"
     }
   },
   "shortcuts": {
