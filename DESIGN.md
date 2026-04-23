@@ -1,3 +1,130 @@
+---
+version: alpha
+name: Litloft
+description: Pinterest-inspired warm design system for Litloft media browser. Next.js 16 + Tailwind CSS v4, Japanese-first typography.
+colors:
+  primary: "#211922"
+  secondary: "#62625b"
+  accent: "#d63031"
+  accent-hover: "#b52425"
+  accent-teal: "#103c25"
+  accent-amber: "#78350f"
+  danger: "#9e0a0a"
+  sand: "#e5e5e0"
+  sand-hover: "#d5d5d0"
+  warm-light: "#e0e0d9"
+  warm-silver: "#91918c"
+  surface: "#ffffff"
+  surface-elevated: "#f6f6f3"
+  dark-surface: "#33332e"
+  focus-ring: "#435ee5"
+  highlight-bg: "#fff8c5"
+typography:
+  body:
+    fontFamily: system-ui
+    fontSize: 16px
+    fontWeight: 400
+    lineHeight: 1.6
+  h1:
+    fontFamily: system-ui
+    fontWeight: 700
+    lineHeight: 1.35
+  h2:
+    fontFamily: system-ui
+    fontWeight: 700
+    lineHeight: 1.4
+  h3:
+    fontFamily: system-ui
+    fontWeight: 650
+    lineHeight: 1.45
+  caption:
+    fontFamily: system-ui
+    fontSize: 12px
+    fontWeight: 400
+  section-header:
+    fontFamily: system-ui
+    fontSize: 11px
+    fontWeight: 600
+  prose-body:
+    fontFamily: system-ui
+    fontSize: 16px
+    fontWeight: 400
+    lineHeight: 1.625
+  prose-h1:
+    fontFamily: system-ui
+    fontSize: 1.75em
+    fontWeight: 700
+    lineHeight: 1.35
+  prose-h2:
+    fontFamily: system-ui
+    fontSize: 1.35em
+    fontWeight: 700
+    lineHeight: 1.4
+  prose-h3:
+    fontFamily: system-ui
+    fontSize: 1.15em
+    fontWeight: 650
+    lineHeight: 1.45
+rounded:
+  full: 9999px
+  lg: 16px
+  md: 12px
+  sm: 8px
+spacing:
+  xs: 4px
+  sm: 8px
+  md: 16px
+  lg: 24px
+  xl: 32px
+components:
+  button-primary:
+    backgroundColor: "{colors.accent}"
+    textColor: "#ffffff"
+    rounded: "{rounded.lg}"
+    padding: 12px
+  button-primary-hover:
+    backgroundColor: "{colors.accent-hover}"
+  button-secondary:
+    backgroundColor: "{colors.sand}"
+    textColor: "{colors.primary}"
+    rounded: "{rounded.lg}"
+  button-secondary-hover:
+    backgroundColor: "{colors.sand-hover}"
+  button-danger:
+    textColor: "{colors.danger}"
+    rounded: "{rounded.lg}"
+  card:
+    backgroundColor: "{colors.surface}"
+    rounded: "{rounded.md}"
+  input:
+    rounded: "{rounded.lg}"
+  input-focus:
+    outlineColor: "{colors.focus-ring}"
+  modal:
+    backgroundColor: "{colors.surface}"
+    rounded: "{rounded.lg}"
+  circle-button:
+    backgroundColor: "{colors.warm-light}"
+    rounded: "{rounded.full}"
+  card-hover:
+    backgroundColor: "{colors.surface-elevated}"
+  tag-confirmed:
+    backgroundColor: "{colors.accent-teal}"
+    textColor: "#ffffff"
+    rounded: "{rounded.full}"
+  tag-pending:
+    backgroundColor: "{colors.accent-amber}"
+    rounded: "{rounded.full}"
+  text-muted:
+    textColor: "{colors.secondary}"
+  text-silver:
+    textColor: "{colors.warm-silver}"
+  highlight:
+    backgroundColor: "{colors.highlight-bg}"
+  dark-panel:
+    backgroundColor: "{colors.dark-surface}"
+---
+
 # Litloft Design System
 
 > Pinterest-inspired design system for Litloft.
@@ -15,7 +142,7 @@
 | Theme | Light / Dark / System |
 | CSS | Tailwind CSS v4 + CSS Custom Properties |
 | Font | System-UI with CJK fallback stack |
-| Last updated | 2026-04-21 |
+| Last updated | 2026-04-23 |
 
 ---
 
@@ -147,7 +274,7 @@ Applies wherever `.markdown-body` renders — `MarkdownPreview` (FilePreview `.m
 | Inline `code` | 0.85em | — | — | — |
 | `pre` / code block | 0.85em | — | 1.6 | `1em 0 1.15em` |
 
-- `blockquote`, `pre`, `img`, and fenced code blocks all use **12px radius** (matches §4 card radius — they are the same "long-form content block" family).
+- `blockquote`, `pre`, `img`, and fenced code blocks all use **12px radius** (matches §5 card radius — they are the same "long-form content block" family).
 - `blockquote`: `border-left: 3px solid var(--accent)`, `background: var(--bg-elevated)`, radius `0 12px 12px 0`.
 - `.markdown-body > :first-child` / `:last-child` strip outer margins so the first/last block never paints a phantom gutter against its host container.
 - `.markdown-segment` variant does the same strip on the **immediate** children only — use it when MarkdownPreview is rendered inside a wrapper that already owns vertical rhythm (e.g. citation-anchored segments).
@@ -202,7 +329,19 @@ p, li, dd {
 
 ---
 
-## 4. Border Radius Scale
+## 4. Depth & Elevation
+
+| Level | Treatment | Usage |
+|---|---|---|
+| 0 (Flat) | No shadow | Cards, buttons (default) |
+| 1 (Elevated) | `bg-bg-elevated` surface shift | Toolbars, sub-panels |
+| 2 (Overlay) | Minimal shadow + `bg-bg-card` | Modals, dropdowns |
+
+**Shadow philosophy**: Depth is expressed through surface color differences and border-radius — not box-shadow. Keep shadows minimal and never decorative.
+
+---
+
+## 5. Border Radius Scale
 
 | Class | Value | Usage |
 |---|---|---|
@@ -216,7 +355,7 @@ p, li, dd {
 
 ---
 
-## 5. Component Styling
+## 6. Component Styling
 
 ### Buttons
 
@@ -306,18 +445,6 @@ Default table aesthetic for MarkdownPreview and any other reading-surface table.
 
 - Do **not** use `tracking-wider` — these render Japanese text
 - Use `text-sm font-semibold uppercase text-text-muted` only
-
----
-
-## 6. Depth & Elevation
-
-| Level | Treatment | Usage |
-|---|---|---|
-| 0 (Flat) | No shadow | Cards, buttons (default) |
-| 1 (Elevated) | `bg-bg-elevated` surface shift | Toolbars, sub-panels |
-| 2 (Overlay) | Minimal shadow + `bg-bg-card` | Modals, dropdowns |
-
-**Shadow philosophy**: Depth is expressed through surface color differences and border-radius — not box-shadow. Keep shadows minimal and never decorative.
 
 ---
 
