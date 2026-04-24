@@ -90,6 +90,15 @@ export function EditableTagChips(props: EditableTagChipsProps) {
   const [error, setError] = useState<string | null>(null);
   const [composing, setComposing] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
+  // Track the latest ``content`` so ``commit`` can read the current
+  // value at click time rather than the value captured by its
+  // useCallback closure. Without this, a chip click that races a
+  // keystroke in the parent's textarea would run withTags on
+  // pre-keystroke content and overwrite the typed chars via
+  // onContentChange. Ref is assigned during render so the click
+  // handler always sees the most recent prop.
+  const contentRef = useRef<string | undefined>(content);
+  contentRef.current = content;
   // Parent re-renders often hand us a fresh array ref even when the
   // contents haven't changed (e.g. the parent just memoised a slice).
   // Resyncing on ref-identity would clobber optimistic local state
@@ -185,13 +194,20 @@ export function EditableTagChips(props: EditableTagChipsProps) {
         // Rewrite the full ``.md`` source via withTags and flow it
         // back through the parent. The parent (Knowledge editor) owns
         // the save; we never PUT content from here in this mode.
-        const nextContent = withTags(content!, next);
+        // Read from ref so a keystroke that raced the click doesn't
+        // get lost (see contentRef comment above).
+        const latest = contentRef.current ?? "";
+        const nextContent = withTags(latest, next);
         onContentChange!(nextContent);
       } else {
         saver!.schedule(next);
       }
     },
-    [contentMode, content, onContentChange, onTagsChange, saver],
+    // ``content`` intentionally excluded from deps: we read its
+    // latest value via contentRef.current to avoid the TOCTOU where
+    // a stale closure overwrites concurrent parent-side edits.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [contentMode, onContentChange, onTagsChange, saver],
   );
 
   const suggestions = useMemo(() => {
