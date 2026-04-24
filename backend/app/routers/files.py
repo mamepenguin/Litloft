@@ -1,5 +1,6 @@
 import asyncio
 import hashlib
+import logging
 import os
 import tempfile
 import zipfile
@@ -54,8 +55,14 @@ from app.schemas import (
 )
 from app.services import fileops
 from app.services.filetype import classify
+from app.services.frontmatter import (
+    extract_valid_tags,
+    parse as parse_frontmatter,
+)
 from app.services.heic import HEIC_MIME_TYPES, convert_heic_to_jpeg
 from app.services.subtitle import convert_srt_to_vtt, detect_subtitles
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/api/files", tags=["files"])
 
@@ -70,6 +77,21 @@ _archive_semaphore = asyncio.Semaphore(3)
 _TEXT_WRITE_ALLOWED_MIMES = frozenset({"text/markdown", "text/plain"})
 _TEXT_WRITE_MAX_BYTES = 1 * 1024 * 1024  # 1 MB
 _text_write_locks: dict[str, asyncio.Lock] = defaultdict(asyncio.Lock)
+
+
+def _is_markdown_file(file: File) -> bool:
+    """Whether frontmatter should be parsed on content writes for ``file``.
+
+    Mirrors the frontend ``isMarkdown`` heuristic (frontend/src/lib/tags.ts):
+    trust ``text/markdown`` first, fall back to the ``.md`` extension
+    because some older rows still report ``text/plain`` for ``.md``.
+    Keeping the two sides aligned is a spec §D1 requirement — a file
+    that the UI treats as markdown must project frontmatter on the
+    backend, and vice versa.
+    """
+    if (file.mime_type or "") == "text/markdown":
+        return True
+    return file.filename.lower().endswith(".md")
 
 
 def replace_file_tags(db: Session, file: File, tag_names: list[str]) -> None:
@@ -1052,6 +1074,36 @@ async def put_file_content(
         # Update File.file_size (ignore mtime — FS is authoritative for mtime)
         file.file_size = len(body)
         db.commit()
+
+        # β canonical rule (spec 2026-04-24, Phase 11): for .md files,
+        # the frontmatter's ``tags:`` is the source of truth for
+        # ``File.tags``. Project synchronously so UI edits see the
+        # effect without waiting for the knowledge scanner's hourly
+        # pass and without a core → knowledge round-trip.
+        #
+        # Separate transaction so a projection failure (broken YAML,
+        # invalid UTF-8, DB error on the tag write) cannot roll back
+        # the content write that already landed on disk. Worst case
+        # we log the error, the file bytes stay correct, and the
+        # scanner reconciles ``File.tags`` within the hour.
+        if _is_markdown_file(file):
+            try:
+                parsed = parse_frontmatter(body.decode("utf-8"))
+                tags = extract_valid_tags(parsed.metadata)
+                replace_file_tags(db, file, tags)
+                cleanup_orphan_tags(db)
+                db.commit()
+            except UnicodeDecodeError:
+                db.rollback()
+                logger.warning(
+                    "put_content: %s is not valid UTF-8; skipping tag projection",
+                    file_id,
+                )
+            except Exception:
+                db.rollback()
+                logger.exception(
+                    "put_content: tag projection failed for %s", file_id
+                )
 
     return Response(
         status_code=200,

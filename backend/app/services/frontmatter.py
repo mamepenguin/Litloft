@@ -30,10 +30,18 @@ projection, succeed the write" — broken YAML should not block a save.
 """
 from __future__ import annotations
 
+import re
 from dataclasses import dataclass
 from typing import Any
 
 import yaml
+
+# Mirror ``TagUpdate`` (app/schemas.py) so extraction here yields names
+# that ``replace_file_tags`` will accept without a 422 round-trip. Keep
+# the regex and caps in sync with that validator.
+_TAG_RE = re.compile(r"^[\w\-]+$", re.UNICODE)
+_MAX_TAGS = 10
+_MAX_TAG_LEN = 30
 
 
 @dataclass(frozen=True)
@@ -103,3 +111,48 @@ def parse(content: str) -> ParsedMarkdown:
 def strip(content: str) -> str:
     """Return the body of a Markdown document, discarding frontmatter."""
     return parse(content).body
+
+
+def extract_valid_tags(metadata: dict[str, Any]) -> list[str]:
+    """Pull a list of core-valid tag names from parsed frontmatter.
+
+    Silently drops entries that would be rejected by ``TagUpdate``
+    (non-string, empty, over-length, invalid chars) and caps at
+    ``_MAX_TAGS``. Case-insensitive dedup keeps the first occurrence.
+
+    Why silent-drop rather than raise: the caller is ``PUT /content``,
+    and the write must succeed even if a user put an invalid tag in
+    their frontmatter. Surfacing a 422 would block the save and
+    surprise the editor. The scanner does the same (spec §D1).
+
+    Returns an empty list when the ``tags`` key is absent or not a
+    list — per the β canonical rule, absence of ``tags:`` in the
+    frontmatter means ``File.tags`` should be cleared.
+
+    Hostile ``.md`` with a pathologically large ``tags:`` list is
+    capped to ``_MAX_TAGS * 10`` entries up front so the regex loop
+    can't be weaponised into a stall. Legitimate usage never exceeds
+    a handful.
+    """
+    raw = metadata.get("tags") or []
+    if not isinstance(raw, list):
+        return []
+    raw = raw[: _MAX_TAGS * 10]
+    out: list[str] = []
+    seen: set[str] = set()
+    for item in raw:
+        if not isinstance(item, (str, int)):
+            continue
+        tag = str(item).strip()
+        if not tag or len(tag) > _MAX_TAG_LEN:
+            continue
+        if not _TAG_RE.match(tag):
+            continue
+        key = tag.lower()
+        if key in seen:
+            continue
+        seen.add(key)
+        out.append(tag)
+        if len(out) >= _MAX_TAGS:
+            break
+    return out
