@@ -779,5 +779,23 @@
     "nextFile": "Next file",
     "loftPlayer": "Video Player (LoftRef)",
     "archiveViewer": "Archive Viewer"
+  },
+  "propertiesPanel": {
+    "labels": {
+      "tags": "Tags",
+      "aliases": "Aliases",
+      "description": "Description",
+      "created": "Created",
+      "url": "URL",
+      "origin": "Origin",
+      "sources": "Sources"
+    },
+    "origin": {
+      "webclip": "Web clip",
+      "detailed_summary": "AI summary",
+      "manual": "Manual"
+    },
+    "sourcesMore": "{n} more",
+    "sourceMissing": "Deleted or inaccessible"
   }
 }

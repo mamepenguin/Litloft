@@ -66,7 +66,9 @@ describe("MarkdownPreview", () => {
     expect(screen.getByText(/const x = 1;/)).toBeInTheDocument();
   });
 
-  it("displays frontmatter metadata when present", () => {
+  it("displays frontmatter metadata when present via the Properties Panel", () => {
+    // Unknown keys fall through to plain text rendering (label = raw key).
+    // Recognised keys get typed renderers; see PropertiesPanel.test.tsx.
     const md = `---
 source_url: https://example.com
 author: Tarou

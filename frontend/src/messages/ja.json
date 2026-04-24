@@ -779,5 +779,23 @@
     "nextFile": "次のファイル",
     "loftPlayer": "動画プレーヤー（LoftRef）",
     "archiveViewer": "アーカイブビューア"
+  },
+  "propertiesPanel": {
+    "labels": {
+      "tags": "タグ",
+      "aliases": "別名",
+      "description": "説明",
+      "created": "作成",
+      "url": "URL",
+      "origin": "由来",
+      "sources": "情報源"
+    },
+    "origin": {
+      "webclip": "Web クリップ",
+      "detailed_summary": "AI 要約",
+      "manual": "手動作成"
+    },
+    "sourcesMore": "他 {n} 件",
+    "sourceMissing": "削除済みまたはアクセス不可"
   }
 }

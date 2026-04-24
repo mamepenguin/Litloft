@@ -446,6 +446,21 @@ Default table aesthetic for MarkdownPreview and any other reading-surface table.
 - Do **not** use `tracking-wider` — these render Japanese text
 - Use `text-sm font-semibold uppercase text-text-muted` only
 
+### Properties Panel (Obsidian-style frontmatter display)
+
+Machine-readable frontmatter of a Markdown note (`---\nkey: value\n---`) is presented above the rendered body as a compact label-value table. See spec `2026-04-24-knowledge-frontmatter-schema-and-display.md`.
+
+- **Container**: `rounded-xl border border-bg-border bg-bg-elevated`, rows separated by `divide-y divide-bg-border/60`
+- **Row**: `grid grid-cols-[minmax(80px,auto)_1fr] gap-x-4 px-4 py-2.5`
+- **Label column (`dt`)**: `text-xs uppercase tracking-wide text-text-muted` — matches the section-header label style but stays terse (one token)
+- **Value column (`dd`)**: `text-sm text-text-primary break-anywhere`, `min-w-0` so long values wrap inside the cell
+- **Empty frontmatter** → the Panel renders nothing; no stray chrome on notes that have no metadata
+- **Recognised keys** get typed renderers; unknown keys fall through to plain text. See spec for the list of recognised keys (`tags` / `aliases` / `description` / `created` / `url` / `origin` / `source_file_ids`)
+- **Value truncation** happens at the value level only (never collapse the whole Panel):
+  - `description`: `line-clamp-3 hover:line-clamp-none`
+  - `source_file_ids`: first 5 cards + a "more" button to expand the rest
+- **Origin badge colour**: `webclip` uses `--accent`, `detailed_summary` uses `--accent-teal`, `manual` uses the muted elevated fill. Reuses existing semantic tokens — no dedicated `--origin-*` token is introduced (keeps the semantic-token contract intact)
+
 ---
 
 ## 7. Animation

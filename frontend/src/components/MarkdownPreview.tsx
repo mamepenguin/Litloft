@@ -9,6 +9,7 @@ import DOMPurify from "isomorphic-dompurify";
 import matter from "gray-matter";
 import { useTranslations } from "next-intl";
 import { getStreamUrl } from "@/lib/api";
+import { PropertiesPanel } from "@/components/PropertiesPanel";
 
 // Mermaid is loaded lazily (≈4 MB).  Initialize only once so that calling
 // mermaid.initialize() on subsequent re-renders doesn't reset internal state.
@@ -180,7 +181,6 @@ export function MarkdownPreview({
     };
   });
 
-  const frontmatterEntries = Object.entries(frontmatter);
   const bodyClass = `markdown-body ${
     chrome
       ? `mx-auto max-w-[860px] overflow-auto px-6 py-6 text-base leading-relaxed text-text-primary${className ? ` ${className}` : " max-h-[80vh]"}`
@@ -201,20 +201,9 @@ export function MarkdownPreview({
 
   return (
     <div className="w-full overflow-hidden rounded-xl bg-bg-card">
-      {showFrontmatter && frontmatterEntries.length > 0 && (
-        <div className="border-b border-bg-border bg-bg-elevated px-4 py-3 text-xs">
-          <dl className="grid grid-cols-[auto_1fr] gap-x-3 gap-y-1">
-            {frontmatterEntries.map(([key, value]) => (
-              <div key={key} className="contents">
-                <dt className="text-text-muted">{key}</dt>
-                <dd className="text-text-primary break-anywhere">
-                  {typeof value === "object"
-                    ? JSON.stringify(value)
-                    : String(value)}
-                </dd>
-              </div>
-            ))}
-          </dl>
+      {showFrontmatter && (
+        <div className="border-b border-bg-border bg-bg-card px-4 pt-4">
+          <PropertiesPanel frontmatter={frontmatter} />
         </div>
       )}
       {body}
