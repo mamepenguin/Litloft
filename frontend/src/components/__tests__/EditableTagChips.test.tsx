@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 
@@ -181,6 +182,52 @@ describe("EditableTagChips", () => {
     await waitFor(() => {
       expect(onChange).toHaveBeenLastCalledWith(["日本語"]);
     });
+  });
+
+  describe("save-cancel regression (2026-04-24 bug)", () => {
+    it("debounced save still fires after parent passes a new onTagsChange ref", async () => {
+      // Reproduces the symptom-2 bug: our own onTagsChange optimistic
+      // update causes the parent to re-render with a fresh inline
+      // lambda. If the saver useMemo re-creates on that, the previous
+      // saver's useEffect cleanup cancels the pending timer before it
+      // fires — the save gets dropped. Fix: callbacks go through refs
+      // and are NOT saver useMemo deps.
+      function Harness() {
+        const [rerenderKey, setRerenderKey] = useState(0);
+        return (
+          <EditableTagChips
+            file={file}
+            initialTags={[]}
+            // Fresh lambda ref every render — simulates parent's
+            // setState-triggered re-render handing us new refs.
+            onTagsChange={() => {
+              setRerenderKey((k) => k + 1);
+            }}
+            onSaveSuccess={() => {
+              void rerenderKey;
+            }}
+          />
+        );
+      }
+
+      render(<Harness />);
+      fireEvent.click(screen.getByRole("button", { name: /タグ追加/ }));
+      const input = screen.getByPlaceholderText("タグ名...") as HTMLInputElement;
+      fireEvent.change(input, { target: { value: "typed" } });
+      fireEvent.keyDown(input, { key: "Enter" });
+
+      // saveFileTags routes to updateFileTags (mocked). Wait for the
+      // 2s debounce to flush; if the saver was cancelled by a parent
+      // re-render, updateFileTags never gets called and this times
+      // out.
+      await waitFor(
+        () => {
+          expect(updateFileTags).toHaveBeenCalled();
+        },
+        { timeout: 5000 },
+      );
+      expect(updateFileTags).toHaveBeenLastCalledWith(file.id, ["typed"]);
+    }, 10000);
   });
 
   describe("content mode", () => {

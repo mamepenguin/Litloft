@@ -99,6 +99,22 @@ export function EditableTagChips(props: EditableTagChipsProps) {
   // handler always sees the most recent prop.
   const contentRef = useRef<string | undefined>(content);
   contentRef.current = content;
+  // Route callbacks through refs so the debounced saver's useMemo
+  // doesn't re-create when the parent passes inline lambdas. Without
+  // this, our own ``onTagsChange`` optimistic-update fires the
+  // parent's setState, which re-renders with fresh lambda refs,
+  // which invalidates the saver useMemo, which triggers the effect
+  // cleanup → ``saver.cancel()`` → the debounced save gets dropped
+  // before it can fire. Symptom 2 / symptom 3 in the 2026-04-24
+  // user-reported bug.
+  const onTagsChangeRef = useRef(onTagsChange);
+  onTagsChangeRef.current = onTagsChange;
+  const onSaveSuccessRef = useRef(onSaveSuccess);
+  onSaveSuccessRef.current = onSaveSuccess;
+  const seedTagsRef = useRef<string[]>(seedTags);
+  seedTagsRef.current = seedTags;
+  const tRef = useRef(t);
+  tRef.current = t;
   // Parent re-renders often hand us a fresh array ref even when the
   // contents haven't changed (e.g. the parent just memoised a slice).
   // Resyncing on ref-identity would clobber optimistic local state
@@ -148,6 +164,10 @@ export function EditableTagChips(props: EditableTagChipsProps) {
   // Debounced saver is only built in standalone mode — content mode
   // delegates saving to the parent (e.g. Knowledge editor's textarea
   // auto-save), so a second writer here would race.
+  //
+  // Deps: ONLY the file identity + contentMode flag. Callbacks are
+  // read through refs (see above) so parent-side inline lambdas
+  // never invalidate this memo.
   const saver = useMemo(
     () =>
       contentMode
@@ -155,18 +175,16 @@ export function EditableTagChips(props: EditableTagChipsProps) {
         : createDebouncedTagSaver(file, {
             delayMs: TAG_SAVE_DEBOUNCE_MS,
             onError: () => {
-              setError(t("updateFailed"));
+              setError(tRef.current("updateFailed"));
               // Roll back to the last-known-good tag list so the user and
               // any ``onTagsChange`` consumer can recover.
-              setTags(seedTags);
-              onTagsChange?.(seedTags);
+              setTags(seedTagsRef.current);
+              onTagsChangeRef.current?.(seedTagsRef.current);
             },
-            onSaveSuccess,
+            onSaveSuccess: (tags) => onSaveSuccessRef.current?.(tags),
           }),
-    // next-intl's ``t`` is referentially stable across re-renders at
-    // the same locale, so including it does not churn the saver.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [contentMode, file.id, file.mime_type, file.filename, file.drive, t, onTagsChange, onSaveSuccess],
+    [contentMode, file.id, file.mime_type, file.filename, file.drive],
   );
 
   // Flush pending saves on unmount and when the file reference
