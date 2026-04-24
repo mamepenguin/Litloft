@@ -308,13 +308,13 @@ export function EditableTagChips(props: EditableTagChipsProps) {
         {tags.map((tag) => (
           <span
             key={tag}
-            className="inline-flex items-center gap-1 rounded-full bg-accent-teal/15 px-2 py-0.5 text-xs text-accent-teal"
+            className="inline-flex max-w-[14rem] items-center gap-1 rounded-full bg-accent-teal/15 px-2 py-0.5 text-xs text-accent-teal"
           >
-            {tag}
+            <span className="truncate" title={tag}>{tag}</span>
             <button
               type="button"
               onClick={() => removeTag(tag)}
-              className="rounded-full p-0.5 hover:bg-bg-elevated"
+              className="flex-shrink-0 rounded-full p-0.5 hover:bg-bg-elevated"
               aria-label={t("removeTag", { tag })}
             >
               <X size={11} />

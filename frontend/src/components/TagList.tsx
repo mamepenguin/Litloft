@@ -28,12 +28,13 @@ export function TagList({
         <button
           key={tag}
           type="button"
+          title={tag}
           onClick={(e) => {
             e.preventDefault();
             e.stopPropagation();
             router.push(`${getDriveBase()}?tag=${encodeURIComponent(tag)}`);
           }}
-          className="cursor-pointer rounded-full bg-accent-teal/15 px-2.5 py-0.5 text-xs font-medium text-accent-teal transition-colors hover:bg-accent-teal/25"
+          className="block max-w-[12rem] cursor-pointer truncate rounded-full bg-accent-teal/15 px-2.5 py-0.5 text-xs font-medium text-accent-teal transition-colors hover:bg-accent-teal/25"
         >
           {tag}
         </button>
