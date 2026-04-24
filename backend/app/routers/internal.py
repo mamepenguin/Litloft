@@ -21,6 +21,8 @@ import app.config as config
 from app.auth import filter_drives, get_unlocked_groups
 from app.database import get_db
 from app.models import File, FileActiveSummary, FileRelation, active_file_filter
+from app.routers.files import cleanup_orphan_tags, replace_file_tags
+from app.schemas import TagUpdate
 from app.services.ws import manager as ws_manager
 
 logger = logging.getLogger(__name__)
@@ -129,6 +131,47 @@ async def file_info(
         "folder_path": file.folder_path,
         "updated_at": file.updated_at.isoformat() if file.updated_at else None,
     }
+
+
+@router.post(
+    "/files/{file_id}/tags",
+    dependencies=[Depends(verify_internal_secret)],
+    status_code=204,
+)
+async def replace_file_tags_internal(
+    file_id: str,
+    update: TagUpdate,
+    db=Depends(get_db),
+) -> Response:
+    """Replace a file's tags via trusted internal caller.
+
+    Used by the knowledge scanner to project ``frontmatter.tags`` onto
+    ``File.tags`` for ``.md`` files (spec
+    ``2026-04-24-knowledge-tag-unification.md``). No viewer cookie is
+    required — the scanner has no ``hv_token`` — so the shared
+    ``CORE_INTERNAL_SECRET`` is the sole defence beyond the Docker
+    network boundary, matching the precedent set by
+    ``GET /files/{id}/content``.
+
+    Same Tag ensure + orphan cleanup semantics as the public
+    ``PUT /api/files/{id}/tags`` (implementation shared via
+    ``replace_file_tags`` / ``cleanup_orphan_tags``). Returns 204
+    instead of echoing the full ``FileResponse`` because internal
+    callers do not need it and skipping the serialisation saves a
+    round-trip of tag ORM refreshes.
+    """
+    file = (
+        db.query(File)
+        .filter(File.id == file_id, active_file_filter())
+        .first()
+    )
+    if not file:
+        raise HTTPException(status_code=404, detail="File not found")
+
+    replace_file_tags(db, file, update.tags)
+    db.commit()
+    cleanup_orphan_tags(db)
+    return Response(status_code=204)
 
 
 def _resolve_text_content_path(file: File) -> Path:

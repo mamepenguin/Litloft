@@ -71,6 +71,54 @@ _TEXT_WRITE_ALLOWED_MIMES = frozenset({"text/markdown", "text/plain"})
 _TEXT_WRITE_MAX_BYTES = 1 * 1024 * 1024  # 1 MB
 _text_write_locks: dict[str, asyncio.Lock] = defaultdict(asyncio.Lock)
 
+
+def replace_file_tags(db: Session, file: File, tag_names: list[str]) -> None:
+    """Replace ``file.tags`` with the given names, reusing existing Tag rows.
+
+    Shared by ``PUT /api/files/{id}/tags``, ``PUT /api/files/batch/tags`` and
+    the internal ``POST /api/internal/files/{id}/tags`` (spec
+    ``2026-04-24-knowledge-tag-unification.md``). Case-insensitive dedup
+    via ``func.lower(Tag.name)``; the ``Tag`` namespace is per-drive
+    (``uq_tags_drive_name``). Caller is responsible for ``db.commit()``
+    and post-commit orphan cleanup via ``cleanup_orphan_tags``.
+    """
+    tag_objects: list[Tag] = []
+    for tag_name in tag_names:
+        tag = (
+            db.query(Tag)
+            .filter(
+                func.lower(Tag.name) == tag_name.lower(),
+                Tag.drive == file.drive,
+            )
+            .first()
+        )
+        if not tag:
+            tag = Tag(name=tag_name, drive=file.drive)
+        elif tag.name != tag_name:
+            tag.name = tag_name
+            db.add(tag)
+            db.flush()
+        tag_objects.append(tag)
+    file.tags = tag_objects
+
+
+def cleanup_orphan_tags(db: Session) -> int:
+    """Remove Tag rows no longer referenced by any file. Returns count deleted."""
+    orphans = (
+        db.query(Tag)
+        .outerjoin(file_tags)
+        .filter(file_tags.c.file_id.is_(None))
+        .all()
+    )
+    for orphan in orphans:
+        db.delete(orphan)
+    if orphans:
+        db.commit()
+    return len(orphans)
+
+
+
+
 def _decode_zip_filename(info: zipfile.ZipInfo) -> str:
     """Decode ZIP entry filename, handling Shift_JIS encoded names.
 
@@ -260,32 +308,12 @@ async def batch_tags(
     for file_id in body.ids:
         try:
             file = _get_file_or_404(db, file_id, unlocked_groups)
-            tag_objects = []
-            for tag_name in body.tags:
-                tag = db.query(Tag).filter(func.lower(Tag.name) == tag_name.lower(), Tag.drive == file.drive).first()
-                if not tag:
-                    tag = Tag(name=tag_name, drive=file.drive)
-                elif tag.name != tag_name:
-                    tag.name = tag_name
-                    db.add(tag)
-                    db.flush()
-                tag_objects.append(tag)
-            file.tags = tag_objects
+            replace_file_tags(db, file, body.tags)
             updated += 1
         except HTTPException as e:
             errors.append({"id": file_id, "error": e.detail})
     db.commit()
-
-    orphans = (
-        db.query(Tag)
-        .outerjoin(file_tags)
-        .filter(file_tags.c.file_id.is_(None))
-        .all()
-    )
-    for orphan in orphans:
-        db.delete(orphan)
-    if orphans:
-        db.commit()
+    cleanup_orphan_tags(db)
 
     return {"updated": updated, "errors": errors}
 
@@ -557,32 +585,9 @@ async def update_file_tags(
     unlocked_groups: Annotated[list[str], Depends(get_unlocked_groups)],
 ):
     file = _get_file_or_404(db, file_id, unlocked_groups)
-
-    tag_objects = []
-    for tag_name in update.tags:
-        tag = db.query(Tag).filter(func.lower(Tag.name) == tag_name.lower(), Tag.drive == file.drive).first()
-        if not tag:
-            tag = Tag(name=tag_name, drive=file.drive)
-        elif tag.name != tag_name:
-            tag.name = tag_name
-            db.add(tag)
-            db.flush()
-        tag_objects.append(tag)
-
-    file.tags = tag_objects
+    replace_file_tags(db, file, update.tags)
     db.commit()
-
-    orphans = (
-        db.query(Tag)
-        .outerjoin(file_tags)
-        .filter(file_tags.c.file_id.is_(None))
-        .all()
-    )
-    for orphan in orphans:
-        db.delete(orphan)
-    if orphans:
-        db.commit()
-
+    cleanup_orphan_tags(db)
     db.refresh(file)
     return _to_response(file)
 
