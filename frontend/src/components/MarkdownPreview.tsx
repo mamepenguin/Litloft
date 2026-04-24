@@ -202,7 +202,7 @@ export function MarkdownPreview({
   return (
     <div className="w-full overflow-hidden rounded-xl bg-bg-card">
       {showFrontmatter && (
-        <div className="border-b border-bg-border bg-bg-card px-4 pt-4">
+        <div className="bg-bg-card px-4 pt-4 pb-4">
           <PropertiesPanel frontmatter={frontmatter} />
         </div>
       )}

@@ -185,7 +185,7 @@ function OriginRenderer({ value }: { value: unknown }) {
   }
   return (
     <span
-      className={`inline-flex items-center rounded px-2 py-0.5 text-xs font-medium ${tone}`}
+      className={`inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium ${tone}`}
     >
       {label}
     </span>
@@ -223,7 +223,7 @@ function SourceFileCard({ fileId }: { fileId: string }) {
 
   if (state.kind === "loading") {
     return (
-      <div className="inline-flex items-center gap-1.5 rounded-md border border-bg-border bg-bg-card px-2 py-1 text-xs text-text-muted">
+      <div className="inline-flex items-center gap-1.5 rounded-lg border border-bg-border bg-bg-card px-2 py-1 text-xs text-text-muted">
         <span className="inline-block h-3 w-3 animate-pulse rounded-sm bg-bg-elevated" />
         <span className="inline-block h-3 w-20 animate-pulse rounded bg-bg-elevated" />
       </div>
@@ -234,7 +234,7 @@ function SourceFileCard({ fileId }: { fileId: string }) {
     return (
       <span
         title={t("sourceMissing")}
-        className="inline-flex items-center gap-1.5 rounded-md border border-bg-border bg-bg-card px-2 py-1 text-xs text-text-muted opacity-70"
+        className="inline-flex items-center gap-1.5 rounded-lg border border-bg-border bg-bg-card px-2 py-1 text-xs text-text-muted opacity-70"
       >
         <FileText size={12} className="shrink-0" />
         <span className="truncate max-w-[14ch]">{fileId}</span>
@@ -246,7 +246,7 @@ function SourceFileCard({ fileId }: { fileId: string }) {
   return (
     <Link
       href={`/files/${file.id}`}
-      className="group inline-flex max-w-full items-center gap-1.5 rounded-md border border-bg-border bg-bg-card px-2 py-1 text-xs text-text-primary transition hover:border-accent hover:bg-bg-elevated"
+      className="group inline-flex max-w-full items-center gap-1.5 rounded-lg border border-bg-border bg-bg-card px-2 py-1 text-xs text-text-primary transition hover:border-warm-silver/60 hover:bg-bg-elevated"
       title={file.filename}
     >
       {file.has_thumbnail ? (
@@ -284,7 +284,7 @@ function SourcesRenderer({ value }: { value: unknown }) {
         <button
           type="button"
           onClick={() => setExpanded(true)}
-          className="rounded-md px-2 py-1 text-xs text-text-muted hover:bg-bg-elevated hover:text-text-primary"
+          className="rounded-lg px-2 py-1 text-xs text-text-muted hover:bg-bg-card hover:text-text-primary"
         >
           {t("sourcesMore", { n: hidden })}
         </button>
@@ -378,7 +378,7 @@ export function PropertiesPanel({
   if (entries.length === 0) return null;
 
   return (
-    <dl className="divide-y divide-bg-border/60 overflow-hidden rounded-xl border border-bg-border bg-bg-elevated text-sm">
+    <dl className="overflow-hidden rounded-xl border border-bg-border bg-bg-elevated text-sm">
       {entries.map((entry) => (
         <div
           key={entry.key}

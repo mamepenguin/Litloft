@@ -450,7 +450,8 @@ Default table aesthetic for MarkdownPreview and any other reading-surface table.
 
 Machine-readable frontmatter of a Markdown note (`---\nkey: value\n---`) is presented above the rendered body as a compact label-value table. See spec `2026-04-24-knowledge-frontmatter-schema-and-display.md`.
 
-- **Container**: `rounded-xl border border-bg-border bg-bg-elevated`, rows separated by `divide-y divide-bg-border/60`
+- **Container**: `rounded-xl overflow-hidden border border-bg-border bg-bg-elevated` — **matches `.markdown-body pre` exactly** (same 12px radius, same 1px border, same elevated fill). Properties Panel is the metadata counterpart to code blocks in the "long-form content block" family described in §3.3, so the two visually echo each other when both appear in the same note.
+- **No row dividers**: rows are separated by `py-2.5` padding alone. A fine inner rule would compete with the outer border and clutter the already-dense label/value grid — the uppercase label column already carries enough vertical rhythm.
 - **Row**: `grid grid-cols-[minmax(80px,auto)_1fr] gap-x-4 px-4 py-2.5`
 - **Label column (`dt`)**: `text-xs uppercase tracking-wide text-text-muted` — matches the section-header label style but stays terse (one token)
 - **Value column (`dd`)**: `text-sm text-text-primary break-anywhere`, `min-w-0` so long values wrap inside the cell
@@ -459,7 +460,9 @@ Machine-readable frontmatter of a Markdown note (`---\nkey: value\n---`) is pres
 - **Value truncation** happens at the value level only (never collapse the whole Panel):
   - `description`: `line-clamp-3 hover:line-clamp-none`
   - `source_file_ids`: first 5 cards + a "more" button to expand the rest
-- **Origin badge colour**: `webclip` uses `--accent`, `detailed_summary` uses `--accent-teal`, `manual` uses the muted elevated fill. Reuses existing semantic tokens — no dedicated `--origin-*` token is introduced (keeps the semantic-token contract intact)
+- **Origin badge**: `rounded-full` pill (matches tag pills for height consistency inside the row). `webclip` uses `--accent`, `detailed_summary` uses `--accent-teal`, `manual` uses the muted elevated fill. Reuses existing semantic tokens — no dedicated `--origin-*` token is introduced (keeps the semantic-token contract intact)
+- **Internal radius**: the outer Panel is `rounded-xl` (12px). All inner chips/cards inside value cells use `rounded-lg` (8px) — source-file cards, the "more" button, loading/missing placeholders — keeping the radius scale unified. Tag and origin chips use `rounded-full`. Do not introduce `rounded`/`rounded-md` here; they are outside the §5 scale.
+- **Hover affordance**: interactive inner chips (source-file cards, "more" button) use warm neutrals on hover — `hover:border-warm-silver/60 hover:bg-bg-elevated` on cards, `hover:bg-bg-card` on the "more" button. Do **not** use `hover:border-accent` here — §2.2 reserves `--accent` for CTAs and brand highlights, which these inline chips are not.
 
 ---
 
