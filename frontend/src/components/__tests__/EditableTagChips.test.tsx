@@ -182,4 +182,98 @@ describe("EditableTagChips", () => {
       expect(onChange).toHaveBeenLastCalledWith(["日本語"]);
     });
   });
+
+  describe("content mode", () => {
+    it("seeds tags from frontmatter when in content mode", () => {
+      const content = "---\ntags:\n  - a\n  - b\n---\nbody\n";
+      render(
+        <EditableTagChips
+          file={file}
+          content={content}
+          onContentChange={vi.fn()}
+        />,
+      );
+      expect(screen.getByText("a")).toBeInTheDocument();
+      expect(screen.getByText("b")).toBeInTheDocument();
+    });
+
+    it("adds a tag by rewriting source via onContentChange", async () => {
+      const onContentChange = vi.fn();
+      const content = "---\ntags: [a]\n---\nbody\n";
+      render(
+        <EditableTagChips
+          file={file}
+          content={content}
+          onContentChange={onContentChange}
+        />,
+      );
+      clickAdd();
+      typeAndEnter("b");
+
+      await waitFor(() => {
+        expect(onContentChange).toHaveBeenCalled();
+      });
+      const next = onContentChange.mock.calls[onContentChange.mock.calls.length - 1][0];
+      expect(next).toContain("tags:");
+      expect(next).toContain("a");
+      expect(next).toContain("b");
+      expect(next).toContain("body");
+    });
+
+    it("removes a tag by rewriting source via onContentChange", async () => {
+      const onContentChange = vi.fn();
+      const content = "---\ntags:\n  - keep\n  - drop\n---\nbody\n";
+      render(
+        <EditableTagChips
+          file={file}
+          content={content}
+          onContentChange={onContentChange}
+        />,
+      );
+      fireEvent.click(screen.getByLabelText("drop を削除"));
+
+      await waitFor(() => {
+        expect(onContentChange).toHaveBeenCalled();
+      });
+      const next = onContentChange.mock.calls[onContentChange.mock.calls.length - 1][0];
+      expect(next).toContain("keep");
+      expect(next).not.toContain("drop");
+    });
+
+    it("NEVER triggers a network save in content mode", async () => {
+      const onContentChange = vi.fn();
+      const fetchSpy = vi.fn();
+      vi.stubGlobal("fetch", fetchSpy);
+
+      render(
+        <EditableTagChips
+          file={file}
+          content="---\ntags: [a]\n---\nbody\n"
+          onContentChange={onContentChange}
+        />,
+      );
+      clickAdd();
+      typeAndEnter("b");
+      // Wait for the content-mode path; no fetch should fire.
+      await waitFor(() => expect(onContentChange).toHaveBeenCalled());
+
+      // getDriveTags is mocked at module level so never hits fetch.
+      // The only possible fetch would be from a debounced save path
+      // (stream + content PUT + resync) — content mode must not do
+      // any of those.
+      const saveCalls = fetchSpy.mock.calls.filter(([url, init]) => {
+        if (typeof url !== "string") return false;
+        const method =
+          typeof init === "object" && (init as RequestInit | undefined)?.method;
+        return (
+          method === "PUT" ||
+          method === "POST" && url.includes("resync-tags")
+        );
+      });
+      expect(saveCalls).toHaveLength(0);
+
+      vi.unstubAllGlobals();
+    });
+
+  });
 });

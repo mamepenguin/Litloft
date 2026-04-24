@@ -334,10 +334,21 @@ function renderValue(
   entry: NormalisedEntry,
   editable: EditableRef | null,
   onTagsChange: ((tags: string[]) => void) | undefined,
+  contentMode: { source: string; onChange: (next: string) => void } | null,
 ) {
   switch (entry.kind) {
     case "tags":
       if (editable) {
+        if (contentMode) {
+          return (
+            <EditableTagChips
+              file={editable}
+              content={contentMode.source}
+              onContentChange={contentMode.onChange}
+              onTagsChange={onTagsChange}
+            />
+          );
+        }
         return (
           <EditableTagChips
             file={editable}
@@ -387,6 +398,8 @@ export function PropertiesPanel({
   frontmatter,
   editable,
   onTagsChange,
+  source,
+  onSourceChange,
 }: {
   frontmatter: Record<string, unknown>;
   /**
@@ -401,6 +414,15 @@ export function PropertiesPanel({
    * backend round-trip.
    */
   onTagsChange?: (tags: string[]) => void;
+  /**
+   * Content-mode opt-in (see ``MarkdownPreview.onSourceChange``). When
+   * ``source`` + ``onSourceChange`` are both supplied, chip edits
+   * rewrite the full ``.md`` source and flow back out — the panel
+   * never writes on its own. Intended for surfaces like the Knowledge
+   * editor where a sibling textarea already owns the save path.
+   */
+  source?: string;
+  onSourceChange?: (next: string) => void;
 }) {
   const t = useTranslations("propertiesPanel.labels");
   const labels = (key: string) => {
@@ -435,7 +457,14 @@ export function PropertiesPanel({
             {entry.label}
           </dt>
           <dd className="min-w-0 break-anywhere text-text-primary">
-            {renderValue(entry, editable ?? null, onTagsChange)}
+            {renderValue(
+              entry,
+              editable ?? null,
+              onTagsChange,
+              source !== undefined && onSourceChange
+                ? { source, onChange: onSourceChange }
+                : null,
+            )}
           </dd>
         </div>
       ))}

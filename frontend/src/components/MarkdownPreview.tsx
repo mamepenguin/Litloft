@@ -122,6 +122,7 @@ export function MarkdownPreview({
   className,
   editable,
   onTagsChange,
+  onSourceChange,
 }: {
   source: string;
   showFrontmatter?: boolean;
@@ -132,7 +133,8 @@ export function MarkdownPreview({
    * When provided, the frontmatter's ``tags`` row renders as an
    * editable chip group (spec §D4). The caller must refetch
    * ``source`` after a successful save to see the new frontmatter;
-   * the component itself does not mutate ``source``.
+   * the component itself does not mutate ``source`` unless
+   * ``onSourceChange`` is also provided (content mode).
    */
   editable?: {
     id: string;
@@ -141,6 +143,16 @@ export function MarkdownPreview({
     drive: string;
   };
   onTagsChange?: (tags: string[]) => void;
+  /**
+   * Content-mode opt-in: when provided together with ``editable``,
+   * chip edits rewrite ``source`` in-place via ``withTags`` and flow
+   * the new string back through this callback. The Properties Panel
+   * becomes a write-through editor on the parent's content state
+   * (used by Knowledge editor to avoid a second writer racing its
+   * own textarea auto-save). Without this, chip edits use the
+   * standalone debounced save path.
+   */
+  onSourceChange?: (nextSource: string) => void;
 }) {
   const { frontmatter, html } = useMemo(
     () => renderMarkdownToSafeHtml(source, mermaid),
@@ -223,6 +235,8 @@ export function MarkdownPreview({
             frontmatter={frontmatter}
             editable={editable}
             onTagsChange={onTagsChange}
+            source={onSourceChange ? source : undefined}
+            onSourceChange={onSourceChange}
           />
         </div>
       )}

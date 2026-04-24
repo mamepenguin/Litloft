@@ -5,6 +5,7 @@ import { Plus, X } from "lucide-react";
 import { useTranslations } from "next-intl";
 
 import { getDriveTags } from "@/lib/api";
+import { extractValidTags, parseNote, withTags } from "@/lib/frontmatter";
 import {
   createDebouncedTagSaver,
   TAG_SAVE_DEBOUNCE_MS,
@@ -34,32 +35,54 @@ const MAX_TAG_LEN = 30;
  * Spec: ``docs/superpowers/specs/2026-04-24-knowledge-tag-unification.md``
  * §D4 (Properties Panel chip edit) and §D7 (debounce).
  */
-export function EditableTagChips({
-  file,
-  initialTags,
-  onTagsChange,
-  onSaveSuccess,
-}: {
+export interface EditableTagChipsProps {
   file: FileRef;
-  initialTags: string[];
   /**
-   * Optimistic: fires with the desired tag list as soon as the user
-   * edits. NOT rolled back automatically on save failure — on error
-   * the component surfaces an inline message and ``onTagsChange`` is
-   * fired again with ``initialTags`` so the parent can reconcile its
-   * own optimistic state to the last-known-good value.
+   * Standalone mode: initial tag list that the component owns and
+   * persists via its own debounced ``saveFileTags`` path. Required
+   * unless ``content`` + ``onContentChange`` are provided (content
+   * mode).
+   */
+  initialTags?: string[];
+  /**
+   * Content mode: the full ``.md`` source including frontmatter. When
+   * provided along with ``onContentChange``, chip edits rewrite the
+   * source string via ``withTags`` and flow out through
+   * ``onContentChange`` — the component performs no save of its own.
+   *
+   * Content mode exists so the Knowledge editor (which has its own
+   * textarea auto-save on the same file) doesn't race a second
+   * writer. Spec §D5 / hako note.
+   */
+  content?: string;
+  onContentChange?: (nextContent: string) => void;
+  /**
+   * Standalone mode only: fires with the desired tag list as soon as
+   * the user edits. NOT rolled back automatically on save failure —
+   * on error the component surfaces an inline message and fires
+   * ``onTagsChange`` again with ``initialTags`` so the parent can
+   * reconcile its own optimistic state to the last-known-good value.
+   * Ignored in content mode.
    */
   onTagsChange?: (tags: string[]) => void;
   /**
-   * Fires once per debounced save after the backend confirms. Use
-   * this for effects that should reflect server state (e.g.
-   * refreshing a drive-wide tag list in the sidebar) so rapid edits
-   * don't thrash downstream caches.
+   * Standalone mode only: fires once per debounced save after the
+   * backend confirms. Use this for effects that should reflect
+   * server state (e.g. refreshing a drive-wide tag list in the
+   * sidebar) so rapid edits don't thrash downstream caches.
    */
   onSaveSuccess?: (tags: string[]) => void;
-}) {
+}
+
+export function EditableTagChips(props: EditableTagChipsProps) {
+  const { file, initialTags, content, onContentChange, onTagsChange, onSaveSuccess } = props;
+  const contentMode = content !== undefined && onContentChange !== undefined;
+  // Derive the current tags from whichever source of truth is active.
+  const seedTags = contentMode
+    ? extractValidTags(parseNote(content!).metadata)
+    : initialTags ?? [];
   const t = useTranslations("tag");
-  const [tags, setTags] = useState<string[]>(initialTags);
+  const [tags, setTags] = useState<string[]>(seedTags);
   const [adding, setAdding] = useState(false);
   const [input, setInput] = useState("");
   const [allTags, setAllTags] = useState<string[]>([]);
@@ -72,20 +95,24 @@ export function EditableTagChips({
   // Resyncing on ref-identity would clobber optimistic local state
   // between commit() and the debounced save landing, so compare the
   // serialised values instead.
-  const lastInitialTagsKey = useRef(JSON.stringify(initialTags));
+  const lastSeedKey = useRef(JSON.stringify(seedTags));
 
   useEffect(() => {
-    const key = JSON.stringify(initialTags);
-    if (key !== lastInitialTagsKey.current) {
-      lastInitialTagsKey.current = key;
-      setTags(initialTags);
+    const key = JSON.stringify(seedTags);
+    if (key !== lastSeedKey.current) {
+      lastSeedKey.current = key;
+      setTags(seedTags);
     }
-  }, [initialTags]);
+    // seedTags is derived from props every render; depending on it via
+    // JSON.stringify equality keeps the effect stable even when the
+    // parent reformats frontmatter (gray-matter reserialisation).
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [JSON.stringify(seedTags)]);
 
   // Always hard-reset when navigating to a different file.
   useEffect(() => {
-    lastInitialTagsKey.current = JSON.stringify(initialTags);
-    setTags(initialTags);
+    lastSeedKey.current = JSON.stringify(seedTags);
+    setTags(seedTags);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [file.id]);
 
@@ -109,22 +136,28 @@ export function EditableTagChips({
     };
   }, [file.drive]);
 
+  // Debounced saver is only built in standalone mode — content mode
+  // delegates saving to the parent (e.g. Knowledge editor's textarea
+  // auto-save), so a second writer here would race.
   const saver = useMemo(
     () =>
-      createDebouncedTagSaver(file, {
-        delayMs: TAG_SAVE_DEBOUNCE_MS,
-        onError: () => {
-          setError(t("updateFailed"));
-          // Roll back to the last-known-good tag list so the user and
-          // any ``onTagsChange`` consumer can recover.
-          setTags(initialTags);
-          onTagsChange?.(initialTags);
-        },
-        onSaveSuccess,
-      }),
+      contentMode
+        ? null
+        : createDebouncedTagSaver(file, {
+            delayMs: TAG_SAVE_DEBOUNCE_MS,
+            onError: () => {
+              setError(t("updateFailed"));
+              // Roll back to the last-known-good tag list so the user and
+              // any ``onTagsChange`` consumer can recover.
+              setTags(seedTags);
+              onTagsChange?.(seedTags);
+            },
+            onSaveSuccess,
+          }),
     // next-intl's ``t`` is referentially stable across re-renders at
     // the same locale, so including it does not churn the saver.
-    [file.id, file.mime_type, file.filename, file.drive, t, initialTags, onTagsChange, onSaveSuccess],
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [contentMode, file.id, file.mime_type, file.filename, file.drive, t, onTagsChange, onSaveSuccess],
   );
 
   // Flush pending saves on unmount and when the file reference
@@ -132,7 +165,7 @@ export function EditableTagChips({
   // user has navigated away.
   useEffect(() => {
     return () => {
-      saver.cancel();
+      saver?.cancel();
     };
   }, [saver]);
 
@@ -148,9 +181,17 @@ export function EditableTagChips({
         const toAdd = next.filter((x) => !existing.has(x.toLowerCase()));
         return toAdd.length === 0 ? prev : [...prev, ...toAdd];
       });
-      saver.schedule(next);
+      if (contentMode) {
+        // Rewrite the full ``.md`` source via withTags and flow it
+        // back through the parent. The parent (Knowledge editor) owns
+        // the save; we never PUT content from here in this mode.
+        const nextContent = withTags(content!, next);
+        onContentChange!(nextContent);
+      } else {
+        saver!.schedule(next);
+      }
     },
-    [onTagsChange, saver],
+    [contentMode, content, onContentChange, onTagsChange, saver],
   );
 
   const suggestions = useMemo(() => {
