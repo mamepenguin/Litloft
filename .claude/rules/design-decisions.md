@@ -51,14 +51,17 @@
 
 ## タグの canonical 分岐（β rule）
 
-Spec: `docs/superpowers/specs/2026-04-24-knowledge-tag-unification.md`。
+Spec: `docs/superpowers/specs/2026-04-24-knowledge-tag-unification.md`。Phase 11（2026-04-25）以降は投影主体が core に移動。
 
-- **`.md` ファイル**: `frontmatter.tags` が canonical。`File.tags` は knowledge scanner が片方向投影するキャッシュ。UI からの chip 編集は `PUT /api/files/{id}/content` で frontmatter を書き換える → scanner が projection
+- **`.md` ファイル**: `frontmatter.tags` が canonical。`File.tags` は frontmatter の片方向投影キャッシュ。UI からの chip 編集は `PUT /api/files/{id}/content` で frontmatter を書き換えると、core の content handler が**同一ハンドラ内で**同期的に `File.tags` を更新する（`backend/app/services/frontmatter.py::parse + extract_valid_tags` → `replace_file_tags`）。Content write と tag projection は separate commit で、projection 失敗時も content write は durable
 - **非 `.md` ファイル（動画 / 画像 / PDF 等）**: `File.tags` が canonical。従来通り `PUT /api/files/{id}/tags` 直接
-- **dispatch**: frontend の `saveFileTags(file, tags)` が mime_type / ファイル名拡張子で分岐。UI 側は一切気にしない
+- **dispatch**: frontend の `saveFileTags(file, tags)` が mime_type / ファイル名拡張子で分岐。UI 側は一切気にしない。`.md` 経路は `fetch content → rewrite frontmatter → PUT content` の 2 リクエストのみ（resync 呼び出しは Phase 11 で削除済み）
 - **2s debounce**: chip 編集の content PUT は `createDebouncedTagSaver` で畳む（editor auto-save と同じ window）。保存成功後に sidebar refresh 等の side effect は `onSaveSuccess` コールバック経由で post-save に遅延
 - **auto_tags approve**: intelligence の suggested_tags approve も `saveFileTags` 経由で `.md` は frontmatter に書く。ConflictError は一度 retry（scanner が間に割り込んだケース）
-- **Internal API**: `POST /api/internal/files/{id}/tags`（`CORE_INTERNAL_SECRET` gated）で knowledge scanner が core に tags を書く。secret 未設定時は startup WARNING、write endpoint は Docker network 境界頼み
+- **Knowledge scanner の責務**: Phase 11 以降、hourly reconcile は「外部編集（Obsidian など API を経由しない書き込み）の追従役」に絞る。UI 由来の書き込みは core が同期投影するので scanner 待ちは発生しない。`note_origins.tags_synced_at` 更新は引き続き scanner 単独
+- **Internal API**: `POST /api/internal/files/{id}/tags`（`CORE_INTERNAL_SECRET` gated）は knowledge scanner 専用のまま。Phase 11 で frontend は使わなくなったが、scanner の外部編集追従に必要なので残す
+- **Knowledge `/resync-tags/{file_id}` endpoint**: manual-only utility として knowledge addon 内に残る（Obsidian 編集直後の即時反映用）。frontend は呼ばない
+- **Parser の二重実装**: `backend/app/services/frontmatter.py` と `addons/knowledge/app/services/frontmatter.py` は独立した PyYAML ベース実装。knowledge が別コンテナで import 共有できないため両方が spec を満たす必要あり。drift は PR レビューで監視
 - **マイグレーション（案 II）**: Phase 2 稼働時 `note_origins.tags_synced_at IS NULL` の行は scanner が強制 content fetch → projection。DB 側にしかなかったタグは silently ロス（個人ツール前提で許容）。scanner ログに `tags_projected` 件数
 
 ## ファイル関連付けとアクティブ要約（`file_relations` / `file_active_summaries`）

@@ -163,7 +163,7 @@ All list queries filter via `active_file_filter()` so missing/trash files are in
 - Autocomplete from existing tags (drive-scoped, drive = security boundary)
 - Orphan tag auto-cleanup
 - Tags can be proposed by the intelligence addon (Suggested Tags slot, approve/dismiss workflow — never auto-applied)
-- **`.md` files use frontmatter `tags:` as the canonical store** (β rule, spec `2026-04-24-knowledge-tag-unification.md`). UI edits the chip group in place and rewrites the frontmatter; the knowledge addon's scanner projects those tags onto `File.tags` for search / sidebar. Obsidian-style external edits to `.md` are picked up on the next scanner pass.
+- **`.md` files use frontmatter `tags:` as the canonical store** (β rule, spec `2026-04-24-knowledge-tag-unification.md`). UI edits the chip group in place and rewrites the frontmatter; core's `PUT /content` handler projects those tags onto `File.tags` synchronously in the same transaction (Phase 11). Obsidian-style external edits to `.md` are picked up on the next knowledge-addon scanner pass.
 - Non-`.md` files (video, image, PDF, etc.) continue to write `File.tags` directly via `PUT /api/files/{id}/tags`.
 
 ### Like / Dislike
