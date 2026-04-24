@@ -50,18 +50,18 @@ describe("saveFileTags dispatcher", () => {
     expect(JSON.parse(init.body)).toEqual({ tags: ["keep"] });
   });
 
-  it(".md files round-trip content → rewrite frontmatter → PUT content → resync", async () => {
+  it(".md files round-trip content → rewrite frontmatter → PUT content", async () => {
+    // Since Phase 11, core projects frontmatter tags in the content
+    // PUT handler. Frontend flow is exactly two requests: fetch + PUT.
     fetchSpy
       // 1. getFileTextContent
       .mockResolvedValueOnce(textResponse("---\ntags: [old]\n---\nbody\n"))
       // 2. putFileTextContent
-      .mockResolvedValueOnce(new Response("", { status: 200, headers: { etag: '"new"' } }))
-      // 3. resync trigger (best-effort)
-      .mockResolvedValueOnce(new Response("", { status: 200 }));
+      .mockResolvedValueOnce(new Response("", { status: 200, headers: { etag: '"new"' } }));
 
     await saveFileTags(mdFile(), ["new1", "new2"]);
 
-    expect(fetchSpy).toHaveBeenCalledTimes(3);
+    expect(fetchSpy).toHaveBeenCalledTimes(2);
     const [, putInit] = fetchSpy.mock.calls[1];
     expect(putInit.method).toBe("PUT");
     expect(putInit.headers["If-Match"]).toBe('"abc"');
@@ -70,17 +70,28 @@ describe("saveFileTags dispatcher", () => {
     expect(body).toContain("new1");
     expect(body).toContain("new2");
     expect(body).not.toContain("old");
+  });
 
-    const [resyncUrl, resyncInit] = fetchSpy.mock.calls[2];
-    expect(resyncUrl).toBe("/api/addons/knowledge/resync-tags/fMd000000001");
-    expect(resyncInit.method).toBe("POST");
+  it(".md: does not call the knowledge resync endpoint", async () => {
+    // Guard rail — a regression that re-introduces the resync call
+    // would re-couple core to the knowledge addon and break .md tag
+    // saves on knowledge-less deployments.
+    fetchSpy
+      .mockResolvedValueOnce(textResponse("---\ntags: [old]\n---\nbody\n"))
+      .mockResolvedValueOnce(new Response("", { status: 200, headers: { etag: '"new"' } }));
+
+    await saveFileTags(mdFile(), ["new"]);
+
+    const urls = fetchSpy.mock.calls.map((c) => c[0] as string);
+    expect(urls.some((u) => u.includes("resync-tags"))).toBe(false);
+    expect(urls.some((u) => u.includes("/api/addons/knowledge/"))).toBe(false);
   });
 
   it(".md: no-op when the new frontmatter matches current content", async () => {
     fetchSpy.mockResolvedValueOnce(
       textResponse("---\ntags: [a, b]\n---\nbody\n")
     );
-    // No PUT / resync — saveFileTags detects the body would be unchanged.
+    // No PUT — saveFileTags detects the body would be unchanged.
     await saveFileTags(mdFile(), ["a", "b"]);
     expect(fetchSpy).toHaveBeenCalledTimes(1);
   });
@@ -95,33 +106,17 @@ describe("saveFileTags dispatcher", () => {
     );
   });
 
-  it(".md: resync failure does NOT surface to the caller", async () => {
-    const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
-    fetchSpy
-      .mockResolvedValueOnce(textResponse("body\n"))
-      .mockResolvedValueOnce(
-        new Response("", { status: 200, headers: { etag: '"new"' } })
-      )
-      .mockRejectedValueOnce(new Error("net down"));
-
-    // Should resolve cleanly — the content PUT succeeded and the
-    // scanner will converge within the hour.
-    await saveFileTags(mdFile(), ["eventual"]);
-    expect(warn).toHaveBeenCalled();
-  });
-
   it(".md dispatch falls back to filename ext when mime is text/plain", async () => {
     fetchSpy
       .mockResolvedValueOnce(textResponse("body\n"))
       .mockResolvedValueOnce(
         new Response("", { status: 200, headers: { etag: '"new"' } })
-      )
-      .mockResolvedValueOnce(new Response("", { status: 200 }));
+      );
     await saveFileTags(
       mdFile({ mime: "text/plain", name: "note.md" }),
       ["ok"]
     );
-    expect(fetchSpy).toHaveBeenCalledTimes(3);
+    expect(fetchSpy).toHaveBeenCalledTimes(2);
     expect(fetchSpy.mock.calls[0][0]).toContain("/stream");
   });
 });

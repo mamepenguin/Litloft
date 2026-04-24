@@ -306,16 +306,13 @@ describe("EditableTagChips", () => {
 
       // getDriveTags is mocked at module level so never hits fetch.
       // The only possible fetch would be from a debounced save path
-      // (stream + content PUT + resync) — content mode must not do
-      // any of those.
+      // (stream + content PUT) — content mode must not do any of
+      // those.
       const saveCalls = fetchSpy.mock.calls.filter(([url, init]) => {
         if (typeof url !== "string") return false;
         const method =
           typeof init === "object" && (init as RequestInit | undefined)?.method;
-        return (
-          method === "PUT" ||
-          method === "POST" && url.includes("resync-tags")
-        );
+        return method === "PUT";
       });
       expect(saveCalls).toHaveLength(0);
 

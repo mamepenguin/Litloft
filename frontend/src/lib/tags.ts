@@ -8,6 +8,12 @@
  * scanner pass. This module hides that split so UI code can just say
  * "save these tags for this file" and the right path is chosen.
  *
+ * Since Phase 11, core's ``PUT /api/files/{id}/content`` projects
+ * frontmatter tags onto ``File.tags`` inside the same transaction, so
+ * the ``.md`` path is just: fetch → rewrite → PUT. No separate resync
+ * call is needed, and the frontend no longer depends on the knowledge
+ * addon being installed for the tag-save flow to work.
+ *
  * Callers should debounce — every Properties Panel chip edit triggers
  * a save. ``createDebouncedTagSaver`` packages the 2s window agreed in
  * §D7; tests use ``saveFileTags`` directly to skip the timer.
@@ -37,9 +43,9 @@ function isMarkdown(file: Pick<FileItem, "mime_type" | "filename">): boolean {
  * Write ``tags`` for ``file`` via the path that matches its type.
  *
  * - ``.md``: fetch current content, rewrite the frontmatter
- *   ``tags:``, PUT back with ``If-Match`` optimistic concurrency,
- *   then ping the knowledge resync endpoint so ``File.tags`` reflects
- *   the change without waiting for the scanner.
+ *   ``tags:``, PUT back with ``If-Match`` optimistic concurrency.
+ *   Core's content handler projects the new tags onto ``File.tags``
+ *   synchronously in the same transaction (Phase 11).
  * - Non-``.md``: PUT ``File.tags`` directly (existing API).
  *
  * Errors propagate to the caller. Expect ``ConflictError`` on
@@ -73,37 +79,15 @@ async function saveMarkdownTags(fileId: string, tags: string[]): Promise<void> {
   // rewritten body: gray-matter may reformat YAML on write (block vs
   // inline list, quoting changes) even when tags haven't semantically
   // changed. Without this check every "chip edit that ended up no-op"
-  // would still eat a PUT and resync round-trip.
+  // would still eat a PUT round-trip.
   const currentTags = extractValidTags(parseNote(content).metadata);
   const desired = extractValidTags({ tags });
   if (tagsEqual(currentTags, desired)) return;
   const next = withTags(content, tags);
   await putFileTextContent(fileId, next, etag);
-  // Best-effort: the periodic scanner will also project tags within an
-  // hour, so a failure here is not fatal — but surface it loudly so
-  // deployment issues (stale manifest without /resync-tags, missing
-  // knowledge addon, misaligned CORE_INTERNAL_SECRET) don't hide as
-  // silent data loss on the user's File.tags.
-  try {
-    const res = await fetch(
-      `/api/addons/knowledge/resync-tags/${encodeURIComponent(fileId)}`,
-      { method: "POST", credentials: "include" }
-    );
-    if (!res.ok && typeof console !== "undefined") {
-      console.warn(
-        `resync-tags returned ${res.status}; File.tags will not reflect ` +
-        `frontmatter until the knowledge scanner runs its hourly pass. ` +
-        `Check that the knowledge addon is deployed and the manifest ` +
-        `has /resync-tags/{file_id} (addons/knowledge/manifest.json).`
-      );
-    }
-  } catch (err) {
-    if (typeof console !== "undefined") {
-      const msg = err instanceof Error ? err.message : String(err);
-      console.warn("resync-tags trigger network error");
-      console.warn(msg);
-    }
-  }
+  // Core projects frontmatter tags onto File.tags inside the content
+  // PUT transaction (Phase 11). No separate resync call needed — the
+  // knowledge scanner only reconciles external (Obsidian) edits now.
 }
 
 export interface DebouncedTagSaver {
