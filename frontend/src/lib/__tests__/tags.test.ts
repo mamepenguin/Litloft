@@ -1,0 +1,190 @@
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+
+import { ConflictError, createDebouncedTagSaver, saveFileTags } from "@/lib/tags";
+
+function mdFile(overrides: Partial<{ id: string; mime: string; name: string }> = {}) {
+  return {
+    id: overrides.id ?? "fMd000000001",
+    mime_type: overrides.mime ?? "text/markdown",
+    filename: overrides.name ?? "note.md",
+  };
+}
+
+function videoFile() {
+  return { id: "fVid00000001", mime_type: "video/mp4", filename: "movie.mp4" };
+}
+
+function textResponse(body: string, headers: Record<string, string> = {}) {
+  return new Response(body, { status: 200, headers: { etag: '"abc"', ...headers } });
+}
+
+function jsonResponse(data: unknown, status = 200, headers: Record<string, string> = {}) {
+  return new Response(JSON.stringify(data), {
+    status,
+    headers: { "content-type": "application/json", ...headers },
+  });
+}
+
+describe("saveFileTags dispatcher", () => {
+  let fetchSpy: ReturnType<typeof vi.fn>;
+
+  beforeEach(() => {
+    fetchSpy = vi.fn();
+    vi.stubGlobal("fetch", fetchSpy);
+  });
+
+  afterEach(() => {
+    vi.unstubAllGlobals();
+    vi.restoreAllMocks();
+  });
+
+  it("non-.md files PUT /api/files/{id}/tags directly", async () => {
+    fetchSpy.mockResolvedValueOnce(
+      jsonResponse({ id: "fVid00000001", tags: ["keep"] })
+    );
+    await saveFileTags(videoFile(), ["keep"]);
+    expect(fetchSpy).toHaveBeenCalledTimes(1);
+    const [url, init] = fetchSpy.mock.calls[0];
+    expect(url).toBe("/api/files/fVid00000001/tags");
+    expect(init.method).toBe("PUT");
+    expect(JSON.parse(init.body)).toEqual({ tags: ["keep"] });
+  });
+
+  it(".md files round-trip content → rewrite frontmatter → PUT content → resync", async () => {
+    fetchSpy
+      // 1. getFileTextContent
+      .mockResolvedValueOnce(textResponse("---\ntags: [old]\n---\nbody\n"))
+      // 2. putFileTextContent
+      .mockResolvedValueOnce(new Response("", { status: 200, headers: { etag: '"new"' } }))
+      // 3. resync trigger (best-effort)
+      .mockResolvedValueOnce(new Response("", { status: 200 }));
+
+    await saveFileTags(mdFile(), ["new1", "new2"]);
+
+    expect(fetchSpy).toHaveBeenCalledTimes(3);
+    const [, putInit] = fetchSpy.mock.calls[1];
+    expect(putInit.method).toBe("PUT");
+    expect(putInit.headers["If-Match"]).toBe('"abc"');
+    const body = putInit.body as string;
+    expect(body).toContain("tags:");
+    expect(body).toContain("new1");
+    expect(body).toContain("new2");
+    expect(body).not.toContain("old");
+
+    const [resyncUrl, resyncInit] = fetchSpy.mock.calls[2];
+    expect(resyncUrl).toBe("/api/addons/knowledge/resync-tags/fMd000000001");
+    expect(resyncInit.method).toBe("POST");
+  });
+
+  it(".md: no-op when the new frontmatter matches current content", async () => {
+    fetchSpy.mockResolvedValueOnce(
+      textResponse("---\ntags: [a, b]\n---\nbody\n")
+    );
+    // No PUT / resync — saveFileTags detects the body would be unchanged.
+    await saveFileTags(mdFile(), ["a", "b"]);
+    expect(fetchSpy).toHaveBeenCalledTimes(1);
+  });
+
+  it(".md: 412 ETag collision surfaces as ConflictError", async () => {
+    fetchSpy
+      .mockResolvedValueOnce(textResponse("---\ntags: [a]\n---\nbody\n"))
+      .mockResolvedValueOnce(new Response("", { status: 412 }));
+
+    await expect(saveFileTags(mdFile(), ["changed"])).rejects.toBeInstanceOf(
+      ConflictError
+    );
+  });
+
+  it(".md: resync failure does NOT surface to the caller", async () => {
+    const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
+    fetchSpy
+      .mockResolvedValueOnce(textResponse("body\n"))
+      .mockResolvedValueOnce(
+        new Response("", { status: 200, headers: { etag: '"new"' } })
+      )
+      .mockRejectedValueOnce(new Error("net down"));
+
+    // Should resolve cleanly — the content PUT succeeded and the
+    // scanner will converge within the hour.
+    await saveFileTags(mdFile(), ["eventual"]);
+    expect(warn).toHaveBeenCalled();
+  });
+
+  it(".md dispatch falls back to filename ext when mime is text/plain", async () => {
+    fetchSpy
+      .mockResolvedValueOnce(textResponse("body\n"))
+      .mockResolvedValueOnce(
+        new Response("", { status: 200, headers: { etag: '"new"' } })
+      )
+      .mockResolvedValueOnce(new Response("", { status: 200 }));
+    await saveFileTags(
+      mdFile({ mime: "text/plain", name: "note.md" }),
+      ["ok"]
+    );
+    expect(fetchSpy).toHaveBeenCalledTimes(3);
+    expect(fetchSpy.mock.calls[0][0]).toContain("/stream");
+  });
+});
+
+describe("createDebouncedTagSaver", () => {
+  let fetchSpy: ReturnType<typeof vi.fn>;
+
+  beforeEach(() => {
+    vi.useFakeTimers();
+    fetchSpy = vi.fn();
+    vi.stubGlobal("fetch", fetchSpy);
+  });
+
+  afterEach(() => {
+    vi.useRealTimers();
+    vi.unstubAllGlobals();
+  });
+
+  it("coalesces rapid calls into a single save", async () => {
+    fetchSpy.mockResolvedValue(jsonResponse({ ok: true }));
+    const saver = createDebouncedTagSaver(videoFile(), { delayMs: 100 });
+
+    saver.schedule(["a"]);
+    saver.schedule(["a", "b"]);
+    saver.schedule(["a", "b", "c"]);
+    expect(fetchSpy).not.toHaveBeenCalled();
+
+    await vi.advanceTimersByTimeAsync(100);
+    expect(fetchSpy).toHaveBeenCalledTimes(1);
+    expect(JSON.parse(fetchSpy.mock.calls[0][1].body)).toEqual({
+      tags: ["a", "b", "c"],
+    });
+  });
+
+  it("flush() fires immediately and awaits completion", async () => {
+    fetchSpy.mockResolvedValue(jsonResponse({ ok: true }));
+    const saver = createDebouncedTagSaver(videoFile(), { delayMs: 10000 });
+    saver.schedule(["x"]);
+    await saver.flush();
+    expect(fetchSpy).toHaveBeenCalledTimes(1);
+  });
+
+  it("cancel() drops a pending save", async () => {
+    fetchSpy.mockResolvedValue(jsonResponse({ ok: true }));
+    const saver = createDebouncedTagSaver(videoFile(), { delayMs: 100 });
+    saver.schedule(["x"]);
+    saver.cancel();
+    await vi.advanceTimersByTimeAsync(100);
+    expect(fetchSpy).not.toHaveBeenCalled();
+  });
+
+  it("onError receives failures", async () => {
+    fetchSpy.mockResolvedValueOnce(
+      new Response("", { status: 500 })
+    );
+    const errors: Error[] = [];
+    const saver = createDebouncedTagSaver(videoFile(), {
+      delayMs: 10,
+      onError: (e) => errors.push(e),
+    });
+    saver.schedule(["x"]);
+    await vi.advanceTimersByTimeAsync(10);
+    await saver.flush();
+    expect(errors).toHaveLength(1);
+  });
+});
