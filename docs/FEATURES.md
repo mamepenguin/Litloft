@@ -156,13 +156,15 @@ All list queries filter via `active_file_filter()` so missing/trash files are in
 
 ### Tags
 - Up to 10 tags per file
-- Tag names: max 30 chars, alphanumeric + underscore + hyphen
+- Tag names: max 30 chars, alphanumeric (incl. CJK) + underscore + hyphen
 - Auto-lowercase normalization, deduplication
 - Tag list with counts in sidebar
 - Click to filter by tag
-- Autocomplete from existing tags
+- Autocomplete from existing tags (drive-scoped, drive = security boundary)
 - Orphan tag auto-cleanup
 - Tags can be proposed by the intelligence addon (Suggested Tags slot, approve/dismiss workflow — never auto-applied)
+- **`.md` files use frontmatter `tags:` as the canonical store** (β rule, spec `2026-04-24-knowledge-tag-unification.md`). UI edits the chip group in place and rewrites the frontmatter; the knowledge addon's scanner projects those tags onto `File.tags` for search / sidebar. Obsidian-style external edits to `.md` are picked up on the next scanner pass.
+- Non-`.md` files (video, image, PDF, etc.) continue to write `File.tags` directly via `PUT /api/files/{id}/tags`.
 
 ### Like / Dislike
 - Vote on file detail page
