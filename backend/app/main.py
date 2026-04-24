@@ -1,6 +1,7 @@
 import asyncio
 import importlib
 import logging
+import os
 import pkgutil
 from contextlib import asynccontextmanager
 from datetime import UTC, datetime, timedelta
@@ -155,6 +156,18 @@ async def lifespan(app: FastAPI):
     load_passwords()
     init_jwt_secret()
     logger.info("Auth initialized")
+    if not os.environ.get("CORE_INTERNAL_SECRET"):
+        # Surface the unset secret at startup so the ops-time implication
+        # is visible without grep. Docker network isolation is still the
+        # primary defence, but any container on the network can hit write
+        # endpoints like POST /api/internal/files/{id}/tags unauthenticated
+        # (spec 2026-04-24-knowledge-tag-unification.md).
+        logger.warning(
+            "CORE_INTERNAL_SECRET is unset — internal write endpoints "
+            "(e.g. POST /api/internal/files/{id}/tags) are reachable from "
+            "any Docker-network peer without authentication. Set the env "
+            "var in production to add a second line of defence."
+        )
     event_hooks.init()
     addon_registry.load_external_manifests()
     set_event_loop(asyncio.get_running_loop())

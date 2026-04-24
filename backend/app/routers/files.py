@@ -79,8 +79,16 @@ def replace_file_tags(db: Session, file: File, tag_names: list[str]) -> None:
     the internal ``POST /api/internal/files/{id}/tags`` (spec
     ``2026-04-24-knowledge-tag-unification.md``). Case-insensitive dedup
     via ``func.lower(Tag.name)``; the ``Tag`` namespace is per-drive
-    (``uq_tags_drive_name``). Caller is responsible for ``db.commit()``
-    and post-commit orphan cleanup via ``cleanup_orphan_tags``.
+    (``uq_tags_drive_name``).
+
+    SECURITY: callers MUST verify drive access before invoking this
+    helper. It performs no authorisation check — it trusts that
+    ``_get_file_or_404`` or equivalent was called upstream.
+
+    Transactional contract: the caller is responsible for ``db.commit()``
+    and for invoking ``cleanup_orphan_tags`` afterwards. Kept
+    commit-free so batch callers can replace tags on many files in a
+    single transaction.
     """
     tag_objects: list[Tag] = []
     for tag_name in tag_names:
@@ -103,7 +111,19 @@ def replace_file_tags(db: Session, file: File, tag_names: list[str]) -> None:
 
 
 def cleanup_orphan_tags(db: Session) -> int:
-    """Remove Tag rows no longer referenced by any file. Returns count deleted."""
+    """Remove Tag rows no longer referenced by any file. Returns count deleted.
+
+    Transactional contract: caller commits. Symmetric with
+    ``replace_file_tags`` so the two helpers always compose inside a
+    single transaction.
+
+    ``db.flush()`` first so pending ``file.tags = [...]`` reassignments
+    from ``replace_file_tags`` are written to the ``file_tags`` table
+    before the OUTER JOIN query runs. Without the flush, SQLAlchemy
+    keeps the association change in the session and the orphan query
+    reads a stale snapshot.
+    """
+    db.flush()
     orphans = (
         db.query(Tag)
         .outerjoin(file_tags)
@@ -112,8 +132,6 @@ def cleanup_orphan_tags(db: Session) -> int:
     )
     for orphan in orphans:
         db.delete(orphan)
-    if orphans:
-        db.commit()
     return len(orphans)
 
 
@@ -312,8 +330,8 @@ async def batch_tags(
             updated += 1
         except HTTPException as e:
             errors.append({"id": file_id, "error": e.detail})
-    db.commit()
     cleanup_orphan_tags(db)
+    db.commit()
 
     return {"updated": updated, "errors": errors}
 
@@ -586,8 +604,8 @@ async def update_file_tags(
 ):
     file = _get_file_or_404(db, file_id, unlocked_groups)
     replace_file_tags(db, file, update.tags)
-    db.commit()
     cleanup_orphan_tags(db)
+    db.commit()
     db.refresh(file)
     return _to_response(file)
 

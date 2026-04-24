@@ -169,8 +169,8 @@ async def replace_file_tags_internal(
         raise HTTPException(status_code=404, detail="File not found")
 
     replace_file_tags(db, file, update.tags)
-    db.commit()
     cleanup_orphan_tags(db)
+    db.commit()
     return Response(status_code=204)
 
 

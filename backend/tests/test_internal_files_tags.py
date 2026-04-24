@@ -222,3 +222,49 @@ class TestInternalFileTagsReplace:
         assert r.status_code == 200
         data = r.json()
         assert data["tags"] == ["public-api"]
+
+    def test_unicode_tag_names_accepted(self, client):
+        """TagUpdate validator uses re.UNICODE so CJK word chars pass."""
+        c, db, drive_dir, _ = client
+        f = _seed_file(db, drive_dir)
+        r = c.post(
+            f"/api/internal/files/{f.id}/tags",
+            json={"tags": ["料理", "和食", "レシピ"]},
+        )
+        assert r.status_code == 204, r.text
+        db.expire_all()
+        refreshed = db.query(File).filter(File.id == f.id).one()
+        assert {t.name for t in refreshed.tags} == {"料理", "和食", "レシピ"}
+
+    def test_tags_are_drive_scoped(self, client):
+        """Same tag name on different drives creates separate Tag rows.
+
+        Guards the uq_tags_drive_name constraint + per-drive namespace
+        assumption. Prevents accidental cross-drive tag merge when
+        multiple drives use the same common label ("recipe", "work").
+        """
+        c, db, drive_dir, _ = client
+        f1 = _seed_file(db, drive_dir, "notes/a.md")
+        # Seed a second file on a different drive directly in DB
+        f2 = File(
+            filename="b.md",
+            title="b.md",
+            drive="other-drive",
+            folder_path="notes",
+            file_path="other/notes/b.md",
+            file_size=5,
+            file_type="document",
+            mime_type="text/markdown",
+        )
+        db.add(f2)
+        db.commit()
+        db.refresh(f2)
+
+        c.post(f"/api/internal/files/{f1.id}/tags", json={"tags": ["shared"]})
+        c.post(f"/api/internal/files/{f2.id}/tags", json={"tags": ["shared"]})
+
+        # Two separate Tag rows, one per drive
+        rows = db.query(Tag).filter(Tag.name == "shared").all()
+        drives = {r.drive for r in rows}
+        assert drives == {TEST_DRIVE, "other-drive"}
+        assert len(rows) == 2
