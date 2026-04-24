@@ -11,7 +11,7 @@ import { formatDuration, formatFileSize } from "@/lib/format";
 import type { FileItem, Neighbors } from "@/types";
 import { FilePreview } from "@/components/FilePreview";
 import { FavoriteButton } from "@/components/FavoriteButton";
-import { TagEditor } from "@/components/TagEditor";
+import { EditableTagChips } from "@/components/EditableTagChips";
 import { FileActions } from "@/components/FileActions";
 import { CommentSection } from "@/components/CommentSection";
 import { ImageGallery } from "@/components/ImageGallery";
@@ -21,12 +21,13 @@ import { AddonSlot } from "@/components/AddonSlot";
 import { ActiveSummaryHost } from "@/components/ActiveSummaryHost";
 import { RelatedFilesSection } from "@/components/RelatedFilesSection";
 import { useSetOverrideDrive } from "@/components/CurrentDriveProvider";
-import { useOverlaySidebar } from "@/components/SidebarProvider";
+import { useOverlaySidebar, useSidebar } from "@/components/SidebarProvider";
 import { useShortcuts } from "@/hooks/useShortcuts";
 import type { MediaController } from "@/lib/mediaController";
 
 export default function FilePage() {
   useOverlaySidebar();
+  const { requestRefresh: refreshSidebar } = useSidebar();
   const t = useTranslations("file");
   const tc = useTranslations("common");
   const tsc = useTranslations("shortcuts");
@@ -319,14 +320,22 @@ export default function FilePage() {
                     onEdit={() => setEditing(true)}
                   />
                 </div>
-                {file.tags.length > 0 && (
-                  <TagEditor
-                    fileId={file.id}
-                    drive={file.drive}
-                    tags={file.tags}
-                    onUpdate={setFile}
+                <div className="mt-3">
+                  <EditableTagChips
+                    file={file}
+                    initialTags={file.tags}
+                    onTagsChange={(nextTags) => {
+                      // Optimistic local update — the debounced save
+                      // inside EditableTagChips will push to the server
+                      // within 2s. Refresh the sidebar so the drive's
+                      // tag list stays in sync.
+                      setFile((prev) =>
+                        prev ? { ...prev, tags: nextTags } : prev,
+                      );
+                      refreshSidebar();
+                    }}
                   />
-                )}
+                </div>
               </div>
             )}
           </div>
