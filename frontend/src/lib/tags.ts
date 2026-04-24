@@ -80,19 +80,27 @@ async function saveMarkdownTags(fileId: string, tags: string[]): Promise<void> {
   const next = withTags(content, tags);
   await putFileTextContent(fileId, next, etag);
   // Best-effort: the periodic scanner will also project tags within an
-  // hour, so a failure here is not fatal. Logged for debugging.
+  // hour, so a failure here is not fatal — but surface it loudly so
+  // deployment issues (stale manifest without /resync-tags, missing
+  // knowledge addon, misaligned CORE_INTERNAL_SECRET) don't hide as
+  // silent data loss on the user's File.tags.
   try {
-    await fetch(
+    const res = await fetch(
       `/api/addons/knowledge/resync-tags/${encodeURIComponent(fileId)}`,
       { method: "POST", credentials: "include" }
     );
+    if (!res.ok && typeof console !== "undefined") {
+      console.warn(
+        `resync-tags returned ${res.status}; File.tags will not reflect ` +
+        `frontmatter until the knowledge scanner runs its hourly pass. ` +
+        `Check that the knowledge addon is deployed and the manifest ` +
+        `has /resync-tags/{file_id} (addons/knowledge/manifest.json).`
+      );
+    }
   } catch (err) {
     if (typeof console !== "undefined") {
-      // Log only the message — the raw Error object has a stack with
-      // URL fragments that may embed path-sensitive metadata. The
-      // content PUT succeeded; the scanner will converge.
       const msg = err instanceof Error ? err.message : String(err);
-      console.warn("resync-tags trigger failed");
+      console.warn("resync-tags trigger network error");
       console.warn(msg);
     }
   }
