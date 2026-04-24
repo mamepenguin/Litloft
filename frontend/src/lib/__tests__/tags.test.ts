@@ -173,6 +173,41 @@ describe("createDebouncedTagSaver", () => {
     expect(fetchSpy).not.toHaveBeenCalled();
   });
 
+  it("onSaveSuccess fires once per debounced save, AFTER the request lands", async () => {
+    fetchSpy.mockResolvedValue(jsonResponse({ ok: true }));
+    const onSuccess = vi.fn();
+    const saver = createDebouncedTagSaver(videoFile(), {
+      delayMs: 10,
+      onSaveSuccess: onSuccess,
+    });
+    saver.schedule(["a"]);
+    saver.schedule(["a", "b"]);
+    saver.schedule(["a", "b", "c"]);
+    // Not fired pre-save
+    expect(onSuccess).not.toHaveBeenCalled();
+    await vi.advanceTimersByTimeAsync(10);
+    await saver.flush();
+    // Coalesces to exactly one call with the final tag list
+    expect(onSuccess).toHaveBeenCalledTimes(1);
+    expect(onSuccess).toHaveBeenCalledWith(["a", "b", "c"]);
+  });
+
+  it("onSaveSuccess does NOT fire when the save fails", async () => {
+    fetchSpy.mockResolvedValueOnce(new Response("", { status: 500 }));
+    const onSuccess = vi.fn();
+    const onError = vi.fn();
+    const saver = createDebouncedTagSaver(videoFile(), {
+      delayMs: 10,
+      onSaveSuccess: onSuccess,
+      onError,
+    });
+    saver.schedule(["x"]);
+    await vi.advanceTimersByTimeAsync(10);
+    await saver.flush();
+    expect(onError).toHaveBeenCalled();
+    expect(onSuccess).not.toHaveBeenCalled();
+  });
+
   it("onError receives failures", async () => {
     fetchSpy.mockResolvedValueOnce(
       new Response("", { status: 500 })

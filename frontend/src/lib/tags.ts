@@ -127,6 +127,14 @@ export function createDebouncedTagSaver(
   file: Pick<FileItem, "id" | "mime_type" | "filename">,
   opts: {
     onError?: (err: Error) => void;
+    /**
+     * Fires after a debounced save round-trip succeeds. Use this for
+     * side effects that should reflect server state (e.g. refetching
+     * a drive-wide tag list), not optimistic UI — ``onTagsChange``
+     * on the component is still the place for immediate local
+     * updates.
+     */
+    onSaveSuccess?: (tags: string[]) => void;
     delayMs?: number;
   } = {}
 ): DebouncedTagSaver {
@@ -138,6 +146,7 @@ export function createDebouncedTagSaver(
   async function run(tags: string[]): Promise<void> {
     try {
       await saveFileTags(file, tags);
+      opts.onSaveSuccess?.(tags);
     } catch (err) {
       opts.onError?.(err as Error);
     }

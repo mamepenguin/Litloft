@@ -325,13 +325,15 @@ export default function FilePage() {
                     file={file}
                     initialTags={file.tags}
                     onTagsChange={(nextTags) => {
-                      // Optimistic local update — the debounced save
-                      // inside EditableTagChips will push to the server
-                      // within 2s. Refresh the sidebar so the drive's
-                      // tag list stays in sync.
+                      // Optimistic local update only — the sidebar
+                      // refresh waits until the debounced save lands
+                      // so rapid chip edits don't thrash the drive
+                      // tag list between pre-save optimistic states.
                       setFile((prev) =>
                         prev ? { ...prev, tags: nextTags } : prev,
                       );
+                    }}
+                    onSaveSuccess={() => {
                       refreshSidebar();
                     }}
                   />

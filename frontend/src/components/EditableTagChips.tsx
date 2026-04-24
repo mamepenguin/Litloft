@@ -38,6 +38,7 @@ export function EditableTagChips({
   file,
   initialTags,
   onTagsChange,
+  onSaveSuccess,
 }: {
   file: FileRef;
   initialTags: string[];
@@ -49,6 +50,13 @@ export function EditableTagChips({
    * own optimistic state to the last-known-good value.
    */
   onTagsChange?: (tags: string[]) => void;
+  /**
+   * Fires once per debounced save after the backend confirms. Use
+   * this for effects that should reflect server state (e.g.
+   * refreshing a drive-wide tag list in the sidebar) so rapid edits
+   * don't thrash downstream caches.
+   */
+  onSaveSuccess?: (tags: string[]) => void;
 }) {
   const t = useTranslations("tag");
   const [tags, setTags] = useState<string[]>(initialTags);
@@ -112,10 +120,11 @@ export function EditableTagChips({
           setTags(initialTags);
           onTagsChange?.(initialTags);
         },
+        onSaveSuccess,
       }),
     // next-intl's ``t`` is referentially stable across re-renders at
     // the same locale, so including it does not churn the saver.
-    [file.id, file.mime_type, file.filename, file.drive, t, initialTags, onTagsChange],
+    [file.id, file.mime_type, file.filename, file.drive, t, initialTags, onTagsChange, onSaveSuccess],
   );
 
   // Flush pending saves on unmount and when the file reference
