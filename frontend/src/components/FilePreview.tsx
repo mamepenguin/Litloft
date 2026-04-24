@@ -43,6 +43,18 @@ interface FilePreviewProps {
    * setter or a useCallback).
    */
   onMediaController?: (mc: MediaController | null) => void;
+  /**
+   * ``.md`` only: bump to force the Properties Panel source to
+   * refetch (keeps frontmatter display in sync when the outer
+   * ``File.tags`` chip row saves).
+   */
+  markdownReloadKey?: number;
+  /**
+   * ``.md`` only: fires after a Properties Panel chip save lands,
+   * so the parent can refetch the outer chip row and refresh the
+   * sidebar tag list.
+   */
+  onMarkdownTagsSaved?: (tags: string[]) => void;
 }
 
 /**
@@ -142,6 +154,8 @@ export function FilePreview({
   videoRef,
   initialTime,
   onMediaController,
+  markdownReloadKey,
+  onMarkdownTagsSaved,
 }: FilePreviewProps) {
   const t = useTranslations("file");
   // Mirror the published MediaController locally so MiniPlayerContainer
@@ -223,6 +237,8 @@ export function FilePreview({
           filename: file.filename,
           drive: file.drive,
         }}
+        externalReloadKey={markdownReloadKey}
+        onTagsSaved={onMarkdownTagsSaved}
       />
     );
   }

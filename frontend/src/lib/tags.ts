@@ -15,8 +15,13 @@
  * addon being installed for the tag-save flow to work.
  *
  * Callers should debounce — every Properties Panel chip edit triggers
- * a save. ``createDebouncedTagSaver`` packages the 2s window agreed in
- * §D7; tests use ``saveFileTags`` directly to skip the timer.
+ * a save. ``createDebouncedTagSaver`` packages a 500ms window: chip
+ * edits are punctuated user actions (Enter / × click), not streaming
+ * keystrokes, so the original 2s (spec §D7, aligned with Knowledge
+ * editor textarea auto-save) is longer than needed here. 500ms still
+ * coalesces typical correction sequences (add → realise typo → remove
+ * → re-add) while feeling immediate on LAN. Tests use ``saveFileTags``
+ * directly to skip the timer.
  */
 
 import type { FileItem } from "@/types";
@@ -30,7 +35,7 @@ import { extractValidTags, parseNote, withTags } from "@/lib/frontmatter";
 
 export { ConflictError } from "@/lib/fileContent";
 
-export const TAG_SAVE_DEBOUNCE_MS = 2000;
+export const TAG_SAVE_DEBOUNCE_MS = 500;
 
 function isMarkdown(file: Pick<FileItem, "mime_type" | "filename">): boolean {
   if (file.mime_type === "text/markdown") return true;

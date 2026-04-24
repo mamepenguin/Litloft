@@ -50,6 +50,12 @@ export default function FilePage() {
   const [editDesc, setEditDesc] = useState("");
   const [saving, setSaving] = useState(false);
   const [galleryOpen, setGalleryOpen] = useState(false);
+  // Bumped after every tag save (from either the outer File.tags chip
+  // row or the .md Properties Panel chip row). The .md MarkdownFileViewer
+  // watches this to refetch ``source`` so its frontmatter display
+  // matches the server-projected state. For non-.md files this is
+  // unused but harmless.
+  const [tagSaveVersion, setTagSaveVersion] = useState(0);
   const videoRef = useRef<HTMLVideoElement>(null);
   // Decoupled from videoRef on purpose: LoftRef (YouTube) supplies its
   // own MediaController via FilePreview's onMediaController callback,
@@ -109,6 +115,28 @@ export default function FilePage() {
     const onEnded = getPlaylistOnEnded();
     if (onEnded) onEnded();
   }, []);
+
+  // Called when either chip row's debounced save lands. Keeps both
+  // surfaces on the page in sync with the backend's post-projection
+  // state (Phase 11 makes core rewrite File.tags synchronously on
+  // .md content PUT):
+  //   - getFile() refreshes file.tags so the outer chip row shows
+  //     what the server actually persisted (handles reformats,
+  //     silent-drop of invalid tags, etc.).
+  //   - bumping tagSaveVersion forces MarkdownFileViewer to refetch
+  //     ``source`` so the Properties Panel's frontmatter display
+  //     matches disk.
+  //   - refreshSidebar() updates the drive-wide tag list.
+  const handleTagsSaved = useCallback(() => {
+    getFile(fileId)
+      .then(setFile)
+      .catch(() => {
+        // Swallow — the optimistic state in each chip is still
+        // correct, and the next navigation will refetch anyway.
+      });
+    setTagSaveVersion((v) => v + 1);
+    refreshSidebar();
+  }, [fileId, refreshSidebar]);
 
   // Arrow-key file navigation: active only for non-media, non-loft files.
   // Video/audio use these keys for seeking; loft-player registers its own.
@@ -192,6 +220,8 @@ export default function FilePage() {
               videoRef={videoRef}
               initialTime={initialTime}
               onMediaController={setMediaController}
+              markdownReloadKey={tagSaveVersion}
+              onMarkdownTagsSaved={handleTagsSaved}
             />
 
             {!hasPlaylist && neighbors?.prev_id && (
@@ -333,9 +363,7 @@ export default function FilePage() {
                         prev ? { ...prev, tags: nextTags } : prev,
                       );
                     }}
-                    onSaveSuccess={() => {
-                      refreshSidebar();
-                    }}
+                    onSaveSuccess={handleTagsSaved}
                   />
                 </div>
               </div>

@@ -334,12 +334,16 @@ function renderValue(
   entry: NormalisedEntry,
   editable: EditableRef | null,
   onTagsChange: ((tags: string[]) => void) | undefined,
+  onSaveSuccess: ((tags: string[]) => void) | undefined,
   contentMode: { source: string; onChange: (next: string) => void } | null,
 ) {
   switch (entry.kind) {
     case "tags":
       if (editable) {
         if (contentMode) {
+          // Content mode delegates saving to the parent's writer
+          // (Knowledge editor textarea auto-save); onSaveSuccess has
+          // no save to hook onto, so we don't forward it.
           return (
             <EditableTagChips
               file={editable}
@@ -354,6 +358,7 @@ function renderValue(
             file={editable}
             initialTags={toStringArray(entry.value)}
             onTagsChange={onTagsChange}
+            onSaveSuccess={onSaveSuccess}
           />
         );
       }
@@ -398,6 +403,7 @@ export function PropertiesPanel({
   frontmatter,
   editable,
   onTagsChange,
+  onTagsSaved,
   source,
   onSourceChange,
 }: {
@@ -414,6 +420,16 @@ export function PropertiesPanel({
    * backend round-trip.
    */
   onTagsChange?: (tags: string[]) => void;
+  /**
+   * Fires once per debounced save after the backend confirms.
+   * Intended for cross-surface sync: the file detail page uses this
+   * to refetch ``file`` (so the outer ``File.tags`` chip row matches
+   * the freshly-projected state) and bump the Markdown source reload
+   * key (so this same panel's frontmatter display is authoritative).
+   * Only forwarded in standalone mode — content mode has no save to
+   * hook onto.
+   */
+  onTagsSaved?: (tags: string[]) => void;
   /**
    * Content-mode opt-in (see ``MarkdownPreview.onSourceChange``). When
    * ``source`` + ``onSourceChange`` are both supplied, chip edits
@@ -461,6 +477,7 @@ export function PropertiesPanel({
               entry,
               editable ?? null,
               onTagsChange,
+              onTagsSaved,
               source !== undefined && onSourceChange
                 ? { source, onChange: onSourceChange }
                 : null,

@@ -1,6 +1,6 @@
-import { describe, it, expect } from "vitest";
-import { render, screen } from "@testing-library/react";
-import { MarkdownPreview } from "@/components/MarkdownPreview";
+import { afterEach, beforeEach, describe, it, expect, vi } from "vitest";
+import { render, screen, waitFor } from "@testing-library/react";
+import { MarkdownFileViewer, MarkdownPreview } from "@/components/MarkdownPreview";
 import { NextIntlClientProvider } from "next-intl";
 
 function renderWithIntl(ui: React.ReactElement) {
@@ -104,6 +104,32 @@ text`;
     expect(document.querySelectorAll("li").length).toBe(3);
   });
 
+  it("forwards onTagsSaved to the Properties Panel in standalone mode", () => {
+    // Smoke test: the prop is piped through MarkdownPreview →
+    // PropertiesPanel → EditableTagChips.onSaveSuccess. Rendering the
+    // component tree without errors is enough for this layer; the
+    // actual save-callback wiring is exercised in
+    // EditableTagChips.test.tsx.
+    const md = `---
+tags: [a]
+---
+body`;
+    renderWithIntl(
+      <MarkdownPreview
+        source={md}
+        editable={{
+          id: "fMd000000001",
+          mime_type: "text/markdown",
+          filename: "n.md",
+          drive: "d",
+        }}
+        onTagsSaved={() => {}}
+      />,
+    );
+    // The editable chip group renders an Add button.
+    expect(screen.getByText(/a/)).toBeInTheDocument();
+  });
+
   it("applies text-base typography to the chrome body for 16px reading", () => {
     // Phase 1 typography upgrade: the chrome body now renders at
     // ``text-base`` (16px) with leading-relaxed (1.625) so long-form
@@ -117,5 +143,94 @@ text`;
     expect(body!.className).toContain("text-base");
     expect(body!.className).toContain("leading-relaxed");
     expect(body!.className).not.toMatch(/\btext-sm\b/);
+  });
+});
+
+describe("MarkdownFileViewer", () => {
+  let fetchSpy: ReturnType<typeof vi.fn>;
+
+  beforeEach(() => {
+    fetchSpy = vi.fn();
+    vi.stubGlobal("fetch", fetchSpy);
+  });
+
+  afterEach(() => {
+    vi.unstubAllGlobals();
+  });
+
+  function makeResp(body: string, contentType = "text/plain") {
+    return new Response(body, { status: 200, headers: { "content-type": contentType } });
+  }
+
+  // Route fetches by URL so the editable chip's getDriveTags side
+  // effect doesn't consume our stream mocks. Returns a counter of
+  // stream-URL hits for the assertions below.
+  function routeByUrl() {
+    let streamCalls = 0;
+    fetchSpy.mockImplementation((url: string) => {
+      const href = typeof url === "string" ? url : (url as URL).toString();
+      if (href.includes("/tags")) {
+        return Promise.resolve(makeResp("[]", "application/json"));
+      }
+      streamCalls += 1;
+      return Promise.resolve(makeResp(`---\ntags: [v${streamCalls}]\n---\nbody\n`));
+    });
+    return () => streamCalls;
+  }
+
+  it("refetches source when externalReloadKey changes", async () => {
+    // Regression guard for the bilateral chip-sync wiring: bumping the
+    // parent's reload key must refetch the .md so the Properties
+    // Panel's frontmatter display matches the post-save disk state.
+    // Without this, editing the outer File.tags chip row on the file
+    // detail page leaves the inner frontmatter chips stale until the
+    // user navigates away.
+    const getStreamCalls = routeByUrl();
+
+    const { rerender } = renderWithIntl(
+      <MarkdownFileViewer
+        fileId="fMd000000001"
+        editable={{ mime_type: "text/markdown", filename: "n.md", drive: "d" }}
+        externalReloadKey={0}
+      />,
+    );
+    await waitFor(() => expect(getStreamCalls()).toBe(1));
+
+    rerender(
+      <NextIntlClientProvider
+        locale="en"
+        messages={{ text: { loading: "Loading...", loadFailed: "Failed {error}" } }}
+      >
+        <MarkdownFileViewer
+          fileId="fMd000000001"
+          editable={{ mime_type: "text/markdown", filename: "n.md", drive: "d" }}
+          externalReloadKey={1}
+        />
+      </NextIntlClientProvider>,
+    );
+    await waitFor(() => expect(getStreamCalls()).toBe(2));
+  });
+
+  it("does not refetch when externalReloadKey stays the same", async () => {
+    const getStreamCalls = routeByUrl();
+
+    const { rerender } = renderWithIntl(
+      <MarkdownFileViewer fileId="f1" externalReloadKey={5} />,
+    );
+    await waitFor(() => expect(getStreamCalls()).toBe(1));
+
+    // Re-render with the same key + identical props: useEffect deps
+    // unchanged, so no second request.
+    rerender(
+      <NextIntlClientProvider
+        locale="en"
+        messages={{ text: { loading: "Loading...", loadFailed: "Failed {error}" } }}
+      >
+        <MarkdownFileViewer fileId="f1" externalReloadKey={5} />
+      </NextIntlClientProvider>,
+    );
+    // Give any potential effect a tick.
+    await new Promise((r) => setTimeout(r, 20));
+    expect(getStreamCalls()).toBe(1);
   });
 });

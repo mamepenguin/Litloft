@@ -10,7 +10,6 @@ import matter from "gray-matter";
 import { useTranslations } from "next-intl";
 import { getStreamUrl } from "@/lib/api";
 import { PropertiesPanel } from "@/components/PropertiesPanel";
-import { TAG_SAVE_DEBOUNCE_MS } from "@/lib/tags";
 
 // Mermaid is loaded lazily (≈4 MB).  Initialize only once so that calling
 // mermaid.initialize() on subsequent re-renders doesn't reset internal state.
@@ -122,6 +121,7 @@ export function MarkdownPreview({
   className,
   editable,
   onTagsChange,
+  onTagsSaved,
   onSourceChange,
 }: {
   source: string;
@@ -143,6 +143,13 @@ export function MarkdownPreview({
     drive: string;
   };
   onTagsChange?: (tags: string[]) => void;
+  /**
+   * Fires after the standalone-mode debounced save lands. Intended
+   * for the file-detail page to refetch its own ``file.tags`` and
+   * bump its source reload key so both chip rows on the page stay in
+   * sync with the backend's projection.
+   */
+  onTagsSaved?: (tags: string[]) => void;
   /**
    * Content-mode opt-in: when provided together with ``editable``,
    * chip edits rewrite ``source`` in-place via ``withTags`` and flow
@@ -235,6 +242,7 @@ export function MarkdownPreview({
             frontmatter={frontmatter}
             editable={editable}
             onTagsChange={onTagsChange}
+            onTagsSaved={onTagsSaved}
             source={onSourceChange ? source : undefined}
             onSourceChange={onSourceChange}
           />
@@ -250,13 +258,20 @@ export function MarkdownPreview({
  * then pipes it through MarkdownPreview.
  *
  * When ``editable`` is provided the Properties Panel becomes a tag
- * editor (spec §D4). We refetch ``source`` after an edit via the
- * internal ``onTagsChange`` bump so the rendered frontmatter stays in
- * sync with disk without the caller having to wire a reload.
+ * editor (spec §D4). Sync after edits is driven externally now:
+ * callers pass ``externalReloadKey`` (e.g. bumped by the file detail
+ * page when any chip save lands) and this component refetches
+ * ``source`` so the frontmatter display matches the backend's
+ * projection. ``onTagsSaved`` bubbles the save-success signal back up
+ * so the file detail page can also refetch ``File.tags`` for its
+ * outer chip row — both chip instances on the same page thus stay
+ * synchronised after either side saves.
  */
 export function MarkdownFileViewer({
   fileId,
   editable,
+  externalReloadKey,
+  onTagsSaved,
 }: {
   fileId: string;
   editable?: {
@@ -264,12 +279,22 @@ export function MarkdownFileViewer({
     filename: string;
     drive: string;
   };
+  /**
+   * Bump this from the parent to force a source refetch. Combined
+   * with ``fileId`` so a change to either triggers the reload.
+   */
+  externalReloadKey?: number;
+  /**
+   * Fires after the Properties Panel chip's debounced save lands.
+   * The parent is responsible for bumping ``externalReloadKey`` and
+   * refreshing any sibling state (outer ``File.tags`` chip row,
+   * sidebar tag list).
+   */
+  onTagsSaved?: (tags: string[]) => void;
 }) {
   const t = useTranslations("text");
   const [source, setSource] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const [reloadKey, setReloadKey] = useState(0);
-  const reloadTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -287,19 +312,7 @@ export function MarkdownFileViewer({
     return () => {
       cancelled = true;
     };
-  }, [fileId, reloadKey]);
-
-  // Clear any pending refetch timer when the file changes or the
-  // component unmounts so a stale reload doesn't fire on an unrelated
-  // file (L2) or stomp a fresh post-save state (M1).
-  useEffect(() => {
-    return () => {
-      if (reloadTimerRef.current !== null) {
-        clearTimeout(reloadTimerRef.current);
-        reloadTimerRef.current = null;
-      }
-    };
-  }, [fileId]);
+  }, [fileId, externalReloadKey]);
 
   if (error) {
     return (
@@ -330,19 +343,7 @@ export function MarkdownFileViewer({
     <MarkdownPreview
       source={source}
       editable={edit}
-      onTagsChange={() => {
-        // Coalesce rapid edits into a single refetch: each edit resets
-        // the timer so only the last one fires the reload. Gives the
-        // debounced save the full 2s window + a fetch RTT to land
-        // before we ask the server for fresh bytes.
-        if (reloadTimerRef.current !== null) {
-          clearTimeout(reloadTimerRef.current);
-        }
-        reloadTimerRef.current = setTimeout(() => {
-          reloadTimerRef.current = null;
-          setReloadKey((k) => k + 1);
-        }, TAG_SAVE_DEBOUNCE_MS + 500);
-      }}
+      onTagsSaved={onTagsSaved}
     />
   );
 }
