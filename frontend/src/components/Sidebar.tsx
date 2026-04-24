@@ -91,7 +91,7 @@ function SidebarNav() {
     : null;
 
   return (
-    <nav className="flex flex-col gap-1 overflow-y-auto p-3">
+    <nav className="scrollbar-hover flex h-full flex-col gap-1 overflow-y-auto p-3">
       <SidebarLibrarySection driveBase={driveBase} currentDrive={currentDrive} linkClass={linkClass} close={closeIfOverlay} addons={addons} driveSummary={driveSummary} />
 
       {driveBase && (

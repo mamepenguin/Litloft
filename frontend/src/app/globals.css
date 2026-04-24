@@ -670,3 +670,32 @@ div[data-citation-section-path]:not(tr) {
     display: none;
   }
 }
+
+@utility scrollbar-hover {
+  scrollbar-width: thin;
+  scrollbar-color: transparent transparent;
+  transition: scrollbar-color 150ms ease;
+
+  &:hover {
+    scrollbar-color: var(--bg-border) transparent;
+  }
+
+  &::-webkit-scrollbar {
+    width: 6px;
+    height: 6px;
+  }
+  &::-webkit-scrollbar-track {
+    background: transparent;
+  }
+  &::-webkit-scrollbar-thumb {
+    background-color: transparent;
+    border-radius: 3px;
+    transition: background-color 150ms ease;
+  }
+  &:hover::-webkit-scrollbar-thumb {
+    background-color: var(--bg-border);
+  }
+  &::-webkit-scrollbar-thumb:hover {
+    background-color: var(--text-muted);
+  }
+}
