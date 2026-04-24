@@ -10,6 +10,7 @@ import matter from "gray-matter";
 import { useTranslations } from "next-intl";
 import { getStreamUrl } from "@/lib/api";
 import { PropertiesPanel } from "@/components/PropertiesPanel";
+import { TAG_SAVE_DEBOUNCE_MS } from "@/lib/tags";
 
 // Mermaid is loaded lazily (≈4 MB).  Initialize only once so that calling
 // mermaid.initialize() on subsequent re-renders doesn't reset internal state.
@@ -119,12 +120,27 @@ export function MarkdownPreview({
   chrome = true,
   mermaid = true,
   className,
+  editable,
+  onTagsChange,
 }: {
   source: string;
   showFrontmatter?: boolean;
   chrome?: boolean;
   mermaid?: boolean;
   className?: string;
+  /**
+   * When provided, the frontmatter's ``tags`` row renders as an
+   * editable chip group (spec §D4). The caller must refetch
+   * ``source`` after a successful save to see the new frontmatter;
+   * the component itself does not mutate ``source``.
+   */
+  editable?: {
+    id: string;
+    mime_type: string;
+    filename: string;
+    drive: string;
+  };
+  onTagsChange?: (tags: string[]) => void;
 }) {
   const { frontmatter, html } = useMemo(
     () => renderMarkdownToSafeHtml(source, mermaid),
@@ -203,7 +219,11 @@ export function MarkdownPreview({
     <div className="w-full overflow-hidden rounded-xl bg-bg-card">
       {showFrontmatter && (
         <div className="bg-bg-card px-4 pt-4 pb-4">
-          <PropertiesPanel frontmatter={frontmatter} />
+          <PropertiesPanel
+            frontmatter={frontmatter}
+            editable={editable}
+            onTagsChange={onTagsChange}
+          />
         </div>
       )}
       {body}
@@ -214,11 +234,27 @@ export function MarkdownPreview({
 /**
  * Fetch-and-render wrapper for use in FilePreview. Loads the file content
  * then pipes it through MarkdownPreview.
+ *
+ * When ``editable`` is provided the Properties Panel becomes a tag
+ * editor (spec §D4). We refetch ``source`` after an edit via the
+ * internal ``onTagsChange`` bump so the rendered frontmatter stays in
+ * sync with disk without the caller having to wire a reload.
  */
-export function MarkdownFileViewer({ fileId }: { fileId: string }) {
+export function MarkdownFileViewer({
+  fileId,
+  editable,
+}: {
+  fileId: string;
+  editable?: {
+    mime_type: string;
+    filename: string;
+    drive: string;
+  };
+}) {
   const t = useTranslations("text");
   const [source, setSource] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [reloadKey, setReloadKey] = useState(0);
 
   useEffect(() => {
     let cancelled = false;
@@ -236,7 +272,7 @@ export function MarkdownFileViewer({ fileId }: { fileId: string }) {
     return () => {
       cancelled = true;
     };
-  }, [fileId]);
+  }, [fileId, reloadKey]);
 
   if (error) {
     return (
@@ -254,5 +290,27 @@ export function MarkdownFileViewer({ fileId }: { fileId: string }) {
     );
   }
 
-  return <MarkdownPreview source={source} />;
+  const edit = editable
+    ? {
+        id: fileId,
+        mime_type: editable.mime_type,
+        filename: editable.filename,
+        drive: editable.drive,
+      }
+    : undefined;
+
+  return (
+    <MarkdownPreview
+      source={source}
+      editable={edit}
+      onTagsChange={() => {
+        // Bump the reload key so the useEffect above refetches the
+        // file after the debounced save lands. The refetch runs a
+        // moment after onTagsChange fires (since the save is
+        // debounced), so we give it the full 2s + a fetch RTT before
+        // expecting fresh bytes.
+        setTimeout(() => setReloadKey((k) => k + 1), TAG_SAVE_DEBOUNCE_MS + 500);
+      }}
+    />
+  );
 }

@@ -7,6 +7,7 @@ import { ExternalLink, FileText, Film, Image as ImageIcon, Music } from "lucide-
 import { formatRelativeDate } from "@/lib/format";
 import { getFile } from "@/lib/api";
 import type { FileItem } from "@/types";
+import { EditableTagChips } from "@/components/EditableTagChips";
 
 // Recommended keys — rendered with typed renderers in a fixed order.
 // Unknown keys (including legacy ``approved_at`` / ``clipped_at`` left
@@ -327,9 +328,24 @@ function toStringArray(value: unknown): string[] {
   return [];
 }
 
-function renderValue(entry: NormalisedEntry) {
+type EditableRef = Pick<FileItem, "id" | "mime_type" | "filename" | "drive">;
+
+function renderValue(
+  entry: NormalisedEntry,
+  editable: EditableRef | null,
+  onTagsChange: ((tags: string[]) => void) | undefined,
+) {
   switch (entry.kind) {
     case "tags":
+      if (editable) {
+        return (
+          <EditableTagChips
+            file={editable}
+            initialTags={toStringArray(entry.value)}
+            onTagsChange={onTagsChange}
+          />
+        );
+      }
       return <TagsRenderer value={entry.value} tone="tag" />;
     case "aliases":
       return <TagsRenderer value={entry.value} tone="alias" />;
@@ -357,14 +373,34 @@ function renderValue(entry: NormalisedEntry) {
  * - Legacy date keys (`approved_at`, `clipped_at`) are read as
  *   aliases of `created` so older `.md` files render naturally.
  * - Renders `null` when the frontmatter is empty so `.md` files without
- *   frontmatter do not get a stray panel.
+ *   frontmatter do not get a stray panel — unless ``editable`` is
+ *   passed, in which case an empty-tags chip row is shown so the user
+ *   has a surface to add tags on.
+ * - When ``editable`` is passed, the `tags` row becomes an in-place
+ *   editor backed by ``saveFileTags`` (spec §D3/D4). Other rows stay
+ *   read-only in v1.
  *
- * Spec: 2026-04-24-knowledge-frontmatter-schema-and-display.md
+ * Spec: 2026-04-24-knowledge-frontmatter-schema-and-display.md and
+ * 2026-04-24-knowledge-tag-unification.md.
  */
 export function PropertiesPanel({
   frontmatter,
+  editable,
+  onTagsChange,
 }: {
   frontmatter: Record<string, unknown>;
+  /**
+   * When provided, the ``tags`` row becomes an editable chip group
+   * backed by ``saveFileTags`` for the file.
+   */
+  editable?: EditableRef;
+  /**
+   * Optional callback fired with the desired tag list as soon as the
+   * user edits a chip — lets the parent update its own optimistic
+   * state (e.g. a file list's chip column) without waiting for the
+   * backend round-trip.
+   */
+  onTagsChange?: (tags: string[]) => void;
 }) {
   const t = useTranslations("propertiesPanel.labels");
   const labels = (key: string) => {
@@ -374,7 +410,18 @@ export function PropertiesPanel({
       return key;
     }
   };
-  const entries = normalise(frontmatter, labels);
+  let entries = normalise(frontmatter, labels);
+
+  // Edit affordance: ensure there's always a ``tags`` row to click
+  // when the caller wants editing. Without this, a ``.md`` that has
+  // never been tagged would show no panel at all and the user would
+  // have no surface to start from.
+  if (editable && !entries.some((e) => e.key === "tags")) {
+    entries = [
+      { key: "tags", label: labels("tags"), kind: "tags", value: [] },
+      ...entries,
+    ];
+  }
   if (entries.length === 0) return null;
 
   return (
@@ -388,7 +435,7 @@ export function PropertiesPanel({
             {entry.label}
           </dt>
           <dd className="min-w-0 break-anywhere text-text-primary">
-            {renderValue(entry)}
+            {renderValue(entry, editable ?? null, onTagsChange)}
           </dd>
         </div>
       ))}

@@ -215,7 +215,16 @@ export function FilePreview({
   }
 
   if (file.mime_type === "text/markdown") {
-    return <MarkdownFileViewer fileId={file.id} />;
+    return (
+      <MarkdownFileViewer
+        fileId={file.id}
+        editable={{
+          mime_type: file.mime_type,
+          filename: file.filename,
+          drive: file.drive,
+        }}
+      />
+    );
   }
 
   if (file.mime_type === "application/pdf") {

@@ -464,6 +464,21 @@ Machine-readable frontmatter of a Markdown note (`---\nkey: value\n---`) is pres
 - **Internal radius**: the outer Panel is `rounded-xl` (12px). All inner chips/cards inside value cells use `rounded-lg` (8px) — source-file cards, the "more" button, loading/missing placeholders — keeping the radius scale unified. Tag and origin chips use `rounded-full`. Do not introduce `rounded`/`rounded-md` here; they are outside the §5 scale.
 - **Hover affordance**: interactive inner chips (source-file cards, "more" button) use warm neutrals on hover — `hover:border-warm-silver/60 hover:bg-bg-elevated` on cards, `hover:bg-bg-card` on the "more" button. Do **not** use `hover:border-accent` here — §2.2 reserves `--accent` for CTAs and brand highlights, which these inline chips are not.
 
+### Editable Tag Chips (EditableTagChips)
+
+When the Properties Panel is in editable mode (spec `2026-04-24-knowledge-tag-unification.md` §D4), the `tags` row becomes an in-place chip editor. The same component is also the canonical tag-editing surface in the plain file-detail page for non-`.md` files (spec §D3 dispatch unifies the save path).
+
+- **Chip style**: inline-flex `rounded-full bg-accent-teal/15 text-accent-teal px-2 py-0.5 text-xs` — matches the read-only `TagPill` exactly so read and edit modes don't visually shift
+- **Per-chip remove**: trailing `<X size={11}/>` inside a round button, `hover:bg-bg-elevated` — do not introduce an `--accent-danger` hover here; deletion is cheap and undo-able via re-add
+- **"Add tag" affordance**: bare `+ タグ追加` button styled as a muted chip (`bg-bg-card text-text-muted hover:text-text-primary`) — distinguishable from real chips by the absence of the teal fill
+- **Input**: `rounded-full bg-bg-card px-2 py-0.5 text-xs` with `focus:ring-2 focus:ring-accent` — sits in the same row as the chips so the chip/input boundary feels continuous
+- **Autocomplete popover**: `absolute top-full left-0 z-10 mt-1 w-40 rounded-lg bg-bg-card py-1 shadow-lg`. Suggestions come from `GET /api/drives/{drive}/tags` scoped to the current drive. Max 5 rows
+- **Selected suggestion**: keyboard-highlighted row uses `bg-accent text-white` — this is the only place `--accent` is applied on a chip surface because the highlight follows a specific user action (arrow-key selection) and therefore counts as a CTA-equivalent per §2.2
+- **Keyboard**: Enter commits / arrow keys navigate suggestions / Backspace on empty input drops the last chip / Escape cancels. Matches Gmail, GitHub, Obsidian conventions so the affordance is discoverable
+- **Inline validation error**: `mt-1 text-xs text-danger` line, only shown when the user triggers it — never pre-emptively
+- **Persistence**: 2s debounce via `createDebouncedTagSaver`; edits coalesce into a single backend write. Do not surface saving/saved state in the chip row — the latency is imperceptible in the happy path and the error line handles failures
+- **Internal radius**: chips stay `rounded-full` (§5 `full`), input stays `rounded-full`, popover `rounded-lg` (8 px). Do not introduce `rounded-md` here
+
 ---
 
 ## 7. Animation

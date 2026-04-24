@@ -253,4 +253,39 @@ describe("PropertiesPanel", () => {
     // Reserved order: origin, tags — then the unknown customKey last
     expect(dts).toEqual(["由来", "タグ", "customKey"]);
   });
+
+  describe("editable mode", () => {
+    const editable = {
+      id: "fId000000001",
+      mime_type: "text/markdown",
+      filename: "note.md",
+      drive: "media",
+    };
+
+    it("shows an Add button even when frontmatter has no tags", () => {
+      const { container } = render(
+        <PropertiesPanel frontmatter={{}} editable={editable} />,
+      );
+      // Empty frontmatter + editable still renders a panel with a tags row.
+      expect(container.firstChild).not.toBeNull();
+      expect(screen.getByText("タグ")).toBeInTheDocument();
+      expect(screen.getByRole("button", { name: /タグ追加/ })).toBeInTheDocument();
+    });
+
+    it("renders remove buttons on existing chips when editable", () => {
+      render(
+        <PropertiesPanel
+          frontmatter={{ tags: ["foo", "bar"] }}
+          editable={editable}
+        />,
+      );
+      expect(screen.getByLabelText("foo を削除")).toBeInTheDocument();
+      expect(screen.getByLabelText("bar を削除")).toBeInTheDocument();
+    });
+
+    it("does NOT show remove buttons in read-only mode", () => {
+      render(<PropertiesPanel frontmatter={{ tags: ["foo"] }} />);
+      expect(screen.queryByLabelText("foo を削除")).toBeNull();
+    });
+  });
 });
