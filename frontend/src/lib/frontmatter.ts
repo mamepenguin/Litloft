@@ -84,6 +84,14 @@ export function withTags(content: string, newTags: string[]): string {
   const parsed = parseNote(content);
   const filtered = extractValidTags({ tags: newTags });
   const nextMeta = { ...parsed.metadata };
+  // Belt-and-braces prototype pollution guard: js-yaml 4 defends by
+  // default, but relying on dependency behaviour for a security
+  // property is risky. Strip the well-known dangerous keys before we
+  // re-serialise so a malicious upstream ``.md`` can't round-trip
+  // ``__proto__: {admin: true}`` through our editor.
+  delete (nextMeta as Record<string, unknown>)["__proto__"];
+  delete nextMeta["constructor"];
+  delete nextMeta["prototype"];
 
   if (filtered.length === 0) {
     if (!("tags" in nextMeta)) {

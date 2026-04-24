@@ -111,4 +111,17 @@ describe("withTags", () => {
     expect(out.startsWith("---")).toBe(false);
     expect(out.trim()).toBe("body");
   });
+
+  it("strips __proto__ / constructor from frontmatter on write", () => {
+    // Defence in depth against a malicious upstream ``.md`` carrying
+    // a prototype-polluting key. gray-matter's js-yaml 4 defends by
+    // default, but withTags removes these explicitly.
+    const malicious =
+      "---\n__proto__: {admin: true}\nconstructor: hack\nfoo: bar\n---\nbody\n";
+    const out = withTags(malicious, ["ok"]);
+    expect(out).not.toContain("__proto__");
+    expect(out).not.toContain("constructor:");
+    expect(out).toContain("foo:");
+    expect(out).toContain("ok");
+  });
 });

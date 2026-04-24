@@ -37,10 +37,18 @@ function parseEtagHeader(res: Response): string {
   return raw.replace(/^W\//, "").replace(/^"|"$/g, "");
 }
 
+// Cap the browser-side body read so a compromised upstream or a MITM
+// with a multi-GB response can't exhaust memory before we bail. Core
+// already enforces 10 MB on the content read endpoint; 16 MB gives
+// headroom without letting anything pathological through.
+const MAX_TEXT_BYTES = 16 * 1024 * 1024;
+
 /**
  * Fetch a text file's content + current ETag. Suitable for ``.md`` and
- * ``.txt``; binary streams are rejected at the server (wrong MIME →
- * ``fetchText`` will still return bytes which the caller should handle).
+ * ``.txt``. Throws if the server advertises an oversized body via
+ * ``Content-Length``. Binary streams (wrong MIME on disk) still decode
+ * via ``res.text()`` — the caller is expected to validate on their end
+ * if round-tripping matters.
  */
 export async function getFileTextContent(
   fileId: string
@@ -51,6 +59,12 @@ export async function getFileTextContent(
   );
   if (!res.ok) {
     throw new Error(`Failed to load file: ${res.status}`);
+  }
+  const declared = res.headers.get("content-length");
+  if (declared !== null && Number(declared) > MAX_TEXT_BYTES) {
+    throw new Error(
+      `File too large for in-browser edit (${declared} bytes > ${MAX_TEXT_BYTES})`
+    );
   }
   const content = await res.text();
   const etag = parseEtagHeader(res);

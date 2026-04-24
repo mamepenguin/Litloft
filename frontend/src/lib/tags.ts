@@ -49,11 +49,16 @@ export async function saveFileTags(
   file: Pick<FileItem, "id" | "mime_type" | "filename">,
   tags: string[]
 ): Promise<void> {
+  // Filter here for symmetry with the .md path (which goes through
+  // extractValidTags inside withTags). Without this, a caller that
+  // forgot to pre-filter would get a 422 from core for non-.md files
+  // instead of the silent-drop semantics the UI expects.
+  const cleaned = extractValidTags({ tags });
   if (isMarkdown(file)) {
-    await saveMarkdownTags(file.id, tags);
+    await saveMarkdownTags(file.id, cleaned);
     return;
   }
-  await updateFileTagsFlat(file.id, tags);
+  await updateFileTagsFlat(file.id, cleaned);
 }
 
 function tagsEqual(a: string[], b: string[]): boolean {
@@ -83,9 +88,12 @@ async function saveMarkdownTags(fileId: string, tags: string[]): Promise<void> {
     );
   } catch (err) {
     if (typeof console !== "undefined") {
-      // Don't surface to the user — the content PUT succeeded; the
-      // scanner will converge. Logging keeps the issue debuggable.
-      console.warn("resync-tags trigger failed:", err);
+      // Log only the message — the raw Error object has a stack with
+      // URL fragments that may embed path-sensitive metadata. The
+      // content PUT succeeded; the scanner will converge.
+      const msg = err instanceof Error ? err.message : String(err);
+      console.warn("resync-tags trigger failed");
+      console.warn(msg);
     }
   }
 }
@@ -107,6 +115,13 @@ export interface DebouncedTagSaver {
  * Failure handling is delegated to the caller via ``onError``. The
  * saver is stateful and bound to a single file; if the caller
  * switches files it should ``cancel`` the old one and create a new.
+ *
+ * **React usage**: wrap the saver in a ``useMemo`` keyed on ``file.id``
+ * and return ``saver.cancel`` from a ``useEffect`` cleanup. Forgetting
+ * the cleanup lets a debounced save land after the component has
+ * unmounted — harmless for the request itself (errors route through
+ * ``onError``) but the resolved save touches a file the user has
+ * already navigated away from.
  */
 export function createDebouncedTagSaver(
   file: Pick<FileItem, "id" | "mime_type" | "filename">,
