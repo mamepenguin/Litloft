@@ -41,6 +41,13 @@ export function EditableTagChips({
 }: {
   file: FileRef;
   initialTags: string[];
+  /**
+   * Optimistic: fires with the desired tag list as soon as the user
+   * edits. NOT rolled back automatically on save failure — on error
+   * the component surfaces an inline message and ``onTagsChange`` is
+   * fired again with ``initialTags`` so the parent can reconcile its
+   * own optimistic state to the last-known-good value.
+   */
   onTagsChange?: (tags: string[]) => void;
 }) {
   const t = useTranslations("tag");
@@ -52,17 +59,32 @@ export function EditableTagChips({
   const [error, setError] = useState<string | null>(null);
   const [composing, setComposing] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
+  // Parent re-renders often hand us a fresh array ref even when the
+  // contents haven't changed (e.g. the parent just memoised a slice).
+  // Resyncing on ref-identity would clobber optimistic local state
+  // between commit() and the debounced save landing, so compare the
+  // serialised values instead.
+  const lastInitialTagsKey = useRef(JSON.stringify(initialTags));
 
-  // Resync the local tag state when the file (or its seed tags)
-  // changes — e.g. after navigating between files, or after an
-  // external scanner pass bumps File.tags on disk.
   useEffect(() => {
-    setTags(initialTags);
-  }, [file.id, initialTags]);
+    const key = JSON.stringify(initialTags);
+    if (key !== lastInitialTagsKey.current) {
+      lastInitialTagsKey.current = key;
+      setTags(initialTags);
+    }
+  }, [initialTags]);
 
-  // Drive-scoped autocomplete source. Refetched on drive change;
-  // inside a drive we refetch when the tag list changes so a fresh
-  // tag the user just added becomes a suggestion on subsequent edits.
+  // Always hard-reset when navigating to a different file.
+  useEffect(() => {
+    lastInitialTagsKey.current = JSON.stringify(initialTags);
+    setTags(initialTags);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [file.id]);
+
+  // Drive-scoped autocomplete source. Refetched only on drive change;
+  // within a drive, newly-added tags are appended to ``allTags``
+  // locally inside ``commit()`` so the autocomplete stays fresh
+  // without a per-edit round-trip.
   useEffect(() => {
     let cancelled = false;
     getDriveTags(file.drive)
@@ -77,21 +99,23 @@ export function EditableTagChips({
     return () => {
       cancelled = true;
     };
-  }, [file.drive, tags]);
+  }, [file.drive]);
 
   const saver = useMemo(
     () =>
       createDebouncedTagSaver(file, {
         delayMs: TAG_SAVE_DEBOUNCE_MS,
         onError: () => {
-          // ConflictError and generic errors show the same message —
-          // the user's next action (edit chip again) will reload the
-          // current state via the containing panel's refetch.
           setError(t("updateFailed"));
+          // Roll back to the last-known-good tag list so the user and
+          // any ``onTagsChange`` consumer can recover.
+          setTags(initialTags);
+          onTagsChange?.(initialTags);
         },
       }),
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    [file.id, file.mime_type, file.filename, file.drive],
+    // next-intl's ``t`` is referentially stable across re-renders at
+    // the same locale, so including it does not churn the saver.
+    [file.id, file.mime_type, file.filename, file.drive, t, initialTags, onTagsChange],
   );
 
   // Flush pending saves on unmount and when the file reference
@@ -108,6 +132,13 @@ export function EditableTagChips({
       setTags(next);
       setError(null);
       onTagsChange?.(next);
+      // Keep autocomplete fresh for this drive without a round-trip:
+      // a tag the user just added should be a suggestion next time.
+      setAllTags((prev) => {
+        const existing = new Set(prev.map((x) => x.toLowerCase()));
+        const toAdd = next.filter((x) => !existing.has(x.toLowerCase()));
+        return toAdd.length === 0 ? prev : [...prev, ...toAdd];
+      });
       saver.schedule(next);
     },
     [onTagsChange, saver],

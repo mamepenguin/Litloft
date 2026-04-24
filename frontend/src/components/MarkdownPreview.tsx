@@ -255,6 +255,7 @@ export function MarkdownFileViewer({
   const [source, setSource] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [reloadKey, setReloadKey] = useState(0);
+  const reloadTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -273,6 +274,18 @@ export function MarkdownFileViewer({
       cancelled = true;
     };
   }, [fileId, reloadKey]);
+
+  // Clear any pending refetch timer when the file changes or the
+  // component unmounts so a stale reload doesn't fire on an unrelated
+  // file (L2) or stomp a fresh post-save state (M1).
+  useEffect(() => {
+    return () => {
+      if (reloadTimerRef.current !== null) {
+        clearTimeout(reloadTimerRef.current);
+        reloadTimerRef.current = null;
+      }
+    };
+  }, [fileId]);
 
   if (error) {
     return (
@@ -304,12 +317,17 @@ export function MarkdownFileViewer({
       source={source}
       editable={edit}
       onTagsChange={() => {
-        // Bump the reload key so the useEffect above refetches the
-        // file after the debounced save lands. The refetch runs a
-        // moment after onTagsChange fires (since the save is
-        // debounced), so we give it the full 2s + a fetch RTT before
-        // expecting fresh bytes.
-        setTimeout(() => setReloadKey((k) => k + 1), TAG_SAVE_DEBOUNCE_MS + 500);
+        // Coalesce rapid edits into a single refetch: each edit resets
+        // the timer so only the last one fires the reload. Gives the
+        // debounced save the full 2s window + a fetch RTT to land
+        // before we ask the server for fresh bytes.
+        if (reloadTimerRef.current !== null) {
+          clearTimeout(reloadTimerRef.current);
+        }
+        reloadTimerRef.current = setTimeout(() => {
+          reloadTimerRef.current = null;
+          setReloadKey((k) => k + 1);
+        }, TAG_SAVE_DEBOUNCE_MS + 500);
       }}
     />
   );
