@@ -19,27 +19,50 @@ export interface ShortcutContextDef {
   shortcuts: ShortcutDef[]
 }
 
+function isMacPlatform(): boolean {
+  return (
+    typeof navigator !== "undefined" &&
+    /Mac|iPhone|iPad|iPod/.test(navigator.platform)
+  )
+}
+
 /**
  * Normalize a KeyboardEvent into a canonical key string.
- * Examples:
- *   Ctrl+C        → 'ctrl+c'
- *   Space         → 'space'
- *   ArrowLeft     → 'arrowleft'
- *   Shift+/       → '?'          (e.key already encodes the shift)
- *   Ctrl+Shift+F  → 'ctrl+shift+f'
- *   Meta+Shift+F  → 'ctrl+shift+f'  (metaKey treated as ctrlKey)
  *
- * Rule for Shift: include "shift+" only when another modifier (Ctrl/Meta/Alt)
- * is also held, OR when the key is a named key (length > 1, e.g. ArrowLeft).
- * For plain Shift+printable (Shift+/ → "?"), e.key already returns the final
- * character, so prepending "shift+" would break matching against shortcut
- * definitions like { key: "?" }.
+ * Shortcuts are declared with the canonical "ctrl+X" form regardless of
+ * platform. The actual hardware modifier required depends on the OS:
+ *
+ *   - macOS:        Cmd (metaKey) is the primary modifier.
+ *                   A bare Ctrl press does NOT match a "ctrl+X" shortcut —
+ *                   that follows the platform convention (Mac apps use Cmd
+ *                   for shortcuts; Ctrl is the OS literal Control key for
+ *                   emacs-style cursor moves and chorded keys we shouldn't
+ *                   shadow).
+ *   - Windows/Linux: Ctrl (ctrlKey) is the primary modifier. Meta (Win/Super
+ *                   key) is OS-reserved and won't fire our shortcuts.
+ *
+ * Examples (rendering as "ctrl+X" regardless of which physical key was held):
+ *   Win   Ctrl+C       → 'ctrl+c'
+ *   Win   Win+C        → 'c'              (Meta on non-Mac doesn't qualify)
+ *   Mac   Cmd+C        → 'ctrl+c'
+ *   Mac   Ctrl+C       → 'c'              (Ctrl alone on Mac doesn't qualify)
+ *   Both  Space        → 'space'
+ *   Both  ArrowLeft    → 'arrowleft'
+ *   Both  Shift+/      → '?'              (e.key already encodes the shift)
+ *   Both  Ctrl+Shift+F → 'ctrl+shift+f'   (Mac substitutes Cmd here)
+ *
+ * Rule for Shift: include "shift+" only when another modifier (the platform
+ * primary or Alt) is also held, OR when the key is a named key (length > 1,
+ * e.g. ArrowLeft). For plain Shift+printable (Shift+/ → "?"), e.key already
+ * returns the final character, so prepending "shift+" would break matching
+ * against shortcut definitions like { key: "?" }.
  */
 export function normalizeKey(e: KeyboardEvent): string {
   const parts: string[] = []
-  const hasOtherModifier = e.ctrlKey || e.metaKey || e.altKey
+  const primaryMod = isMacPlatform() ? e.metaKey : e.ctrlKey
+  const hasOtherModifier = primaryMod || e.altKey
 
-  if (e.ctrlKey || e.metaKey) parts.push("ctrl")
+  if (primaryMod) parts.push("ctrl")
   if (e.altKey) parts.push("alt")
   if (e.shiftKey && (hasOtherModifier || e.key.length > 1)) parts.push("shift")
 

@@ -92,7 +92,7 @@ describe("GlobalSearch", () => {
 
   it("opens on Cmd+Shift+F", () => {
     renderWithShortcuts(<GlobalSearch />);
-    fireEvent.keyDown(document, { key: "f", metaKey: true, shiftKey: true });
+    fireEvent.keyDown(document, { key: "f", ctrlKey: true, shiftKey: true });
     const inputs = screen.getAllByRole("textbox");
     expect(inputs.length).toBeGreaterThanOrEqual(1);
   });
