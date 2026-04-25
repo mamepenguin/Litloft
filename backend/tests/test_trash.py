@@ -306,6 +306,14 @@ class TestBatchRestorePurge:
 class TestScannerSkipsTrashed:
     def test_scanner_skips_soft_deleted(self, client):
         c, db, drive_dir, _ = client
+        # Wait for background scan to finish (started at app startup)
+        import time
+        from app.services.scanner import _scan_lock
+        for _ in range(50):
+            if not _scan_lock.locked():
+                break
+            time.sleep(0.1)
+
         file = _seed(db, drive_dir)
         c.delete(f"/api/files/{file.id}")
 
