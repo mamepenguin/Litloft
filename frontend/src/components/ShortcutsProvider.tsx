@@ -92,6 +92,10 @@ export function ShortcutsProvider({ children }: { children: ReactNode }): ReactE
         const ctx = currentStack[i];
         const match = ctx.shortcuts.find((s) => {
           if (s.key !== normalized) return false;
+          // editingOnly === false: fires regardless of focus state.
+          // editingOnly === true: only when an editing element has focus.
+          // editingOnly === undefined: only when no editing element has focus.
+          if (s.editingOnly === false) return true;
           return Boolean(s.editingOnly) === isEditing;
         });
         if (match) {

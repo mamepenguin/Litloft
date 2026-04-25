@@ -145,7 +145,7 @@
     "visionRetry": "Retry",
     "visionRegenerateConfirm": "Regenerate the AI description? The current description will be overwritten.",
     "visionFailed": "Description generation failed. Try again or check the intelligence logs.",
-    "visionUnsupported": "No vision-capable LLM is configured. Set llm.vision_model in search-config.yml to enable this feature.",
+    "visionUnsupported": "No vision-capable LLM is configured. Set `llm.vision_model` in search-config.yml to enable this feature.",
     "visionFolderButton": "Generate AI descriptions for folder images",
     "visionFolderConfirm": "Generate AI descriptions for every image in this folder? This may incur LLM costs.",
     "visionFolderQueued": "{queued} images queued",
@@ -611,8 +611,15 @@
     "title": "Knowledge",
     "loading": "Loading...",
     "empty": {
-      "title": "Select a note",
-      "description": "Pick a note from the sidebar, or create a new one to start writing."
+      "title": "Pick a note to start reading",
+      "description": "Pick a note from the sidebar, or create a new one to start writing.",
+      "eyebrow": "Knowledge vault",
+      "recentHeading": "Recently edited",
+      "recentEmpty": "No notes yet.",
+      "statsNotes": "{count} notes",
+      "statsEmpty": "Empty vault",
+      "shortcutSearch": "Search",
+      "vaultLabel": "Vault"
     },
     "setup": {
       "title": "Create a Vault",
@@ -651,9 +658,9 @@
       "activePrefix": "Active: {label}",
       "hide": "Hide sidebar",
       "show": "Show sidebar",
-      "clipAction": "Web Clip",
-      "clipBadge": "Fetching {count}",
-      "helpAction": "Bookmarklet help"
+      "clipAction": "Web clip",
+      "clipBadge": "{count} fetching",
+      "helpAction": "Clip help"
     },
     "editSection": {
       "title": "Knowledge",
@@ -696,12 +703,13 @@
         "reload": "Reload from server (discard my changes)",
         "overwrite": "Overwrite with my changes",
         "dismiss": "Dismiss"
-      }
+      },
+      "delete": "Move to trash"
     },
     "toast": {
-      "deleted": "Moved {name} to trash",
+      "deleted": "Moved \"{name}\" to trash",
       "undo": "Undo",
-      "error": "Error: {error}",
+      "error": "Delete failed: {error}",
       "dismiss": "Dismiss"
     },
     "contextMenu": {
@@ -730,7 +738,8 @@
       "notes": "Notes",
       "sortUpdated": "Updated",
       "sortCreated": "Created",
-      "sortName": "Name"
+      "sortName": "Name",
+      "loading": "Loading..."
     },
     "tags": {
       "manage": "Manage tags",
@@ -750,6 +759,76 @@
       "placeholder": "New name...",
       "confirm": "Confirm",
       "cancel": "Cancel"
+    },
+    "quickSwitcher": {
+      "title": "Open note",
+      "placeholder": "Search notes...",
+      "searching": "Searching...",
+      "emptyRecents": "No recently opened notes. Type to search.",
+      "noMatches": "No matching notes."
+    },
+    "shortcuts": {
+      "knowledge": "Knowledge",
+      "knowledgeEditor": "Knowledge Editor",
+      "focusSearch": "Focus search",
+      "quickSwitcher": "Quick switcher",
+      "newNote": "New note",
+      "save": "Save",
+      "bold": "Bold",
+      "italic": "Italic",
+      "insertLink": "Insert link",
+      "inlineCode": "Inline code",
+      "codeBlock": "Code block",
+      "cycleViewMode": "Cycle view mode"
+    },
+    "activeSummary": {
+      "title": "Summary note",
+      "badge": "knowledge",
+      "description": "An approved summary note for this file lives in knowledge.",
+      "openEditor": "Edit in Knowledge",
+      "loading": "Loading...",
+      "loadFailed": "Failed to load the note"
+    },
+    "clip": {
+      "title": "Web clip",
+      "formLabel": "Clip from a URL",
+      "urlPlaceholder": "https://example.com/article",
+      "subfolderLabel": "Save to subfolder",
+      "rootFolder": "No subfolder",
+      "submit": "Clip",
+      "duplicate": {
+        "title": "A clip for this URL already exists",
+        "description": "This URL has already been clipped. What would you like to do?",
+        "openExisting": "Open existing",
+        "createNew": "Create new",
+        "cancel": "Cancel"
+      },
+      "status": {
+        "fetching": "Fetching",
+        "failed": "Failed",
+        "ready": "Ready"
+      },
+      "toast": {
+        "ready": "Clip ready: {title}",
+        "failed": "Clip failed: {error}"
+      },
+      "paste": {
+        "title": "Paste HTML to retry",
+        "description": "Server-side fetch failed. You can paste the page's HTML to convert it manually.",
+        "placeholder": "Paste HTML here…",
+        "submit": "Convert and save",
+        "submitting": "Converting…"
+      },
+      "bookmarklet": {
+        "title": "Bookmarklet",
+        "description": "Drag this link to your browser's bookmark bar. One click clips the current page into Litloft.",
+        "dragLabel": "Clip to Litloft"
+      },
+      "modalTitle": "Web clip",
+      "modalClose": "Close",
+      "recentHeading": "Recent clips",
+      "helpModalTitle": "About clipping",
+      "helpDescription": "Use the Clip button in the sidebar to send a URL, or drag the bookmarklet below to clip the page you're currently viewing."
     }
   },
   "shortcuts": {

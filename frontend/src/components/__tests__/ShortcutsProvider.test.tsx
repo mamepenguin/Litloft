@@ -121,6 +121,33 @@ describe("ShortcutsProvider editingOnly partition", () => {
     expect(switcher).toHaveBeenCalledTimes(1);
   });
 
+  it("editingOnly:false fires regardless of focus state", () => {
+    const handler = vi.fn();
+    const textarea = document.createElement("textarea");
+    document.body.appendChild(textarea);
+    render(
+      <ShortcutsProvider>
+        <Harness
+          shortcuts={[
+            {
+              key: "ctrl+shift+\\",
+              label: "cycle",
+              handler,
+              editingOnly: false,
+            },
+          ]}
+        />
+      </ShortcutsProvider>,
+    );
+    // Without focus
+    fireEvent.keyDown(document, { key: "\\", ctrlKey: true, shiftKey: true });
+    expect(handler).toHaveBeenCalledTimes(1);
+    // With textarea focus
+    textarea.focus();
+    fireEvent.keyDown(textarea, { key: "\\", ctrlKey: true, shiftKey: true });
+    expect(handler).toHaveBeenCalledTimes(2);
+  });
+
   it("walks down the stack to find a match in mid layers", () => {
     const middleHandler = vi.fn();
     render(

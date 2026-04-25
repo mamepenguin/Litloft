@@ -145,7 +145,7 @@
     "visionRetry": "再試行",
     "visionRegenerateConfirm": "AI 記述を再生成しますか？現在の記述は上書きされます。",
     "visionFailed": "記述の生成に失敗しました。再試行するか intelligence のログを確認してください。",
-    "visionUnsupported": "vision 対応 LLM が設定されていません。search-config.yml の llm.vision_model を設定してください。",
+    "visionUnsupported": "vision 対応 LLM が設定されていません。search-config.yml の `llm.vision_model` を設定してください。",
     "visionFolderButton": "フォルダ内の画像に AI 記述を生成",
     "visionFolderConfirm": "このフォルダ内の全画像に AI 記述を生成しますか？LLM の利用料が発生する場合があります。",
     "visionFolderQueued": "{queued} 件の画像をキューに追加",
@@ -178,9 +178,9 @@
     },
     "verify": {
       "toggle": {
-        "label": "照合",
-        "on": "照合中",
-        "off": "照合オフ"
+        "label": "Verify",
+        "on": "Verify ON",
+        "off": "Verify OFF"
       },
       "expandAll": "全て展開",
       "collapseAll": "折りたたむ",
@@ -611,8 +611,15 @@
     "title": "Knowledge",
     "loading": "読み込み中...",
     "empty": {
-      "title": "ノートを選択してください",
-      "description": "左のサイドバーからノートを選ぶか、新しいノートを作成して書き始めましょう。"
+      "title": "ノートを選んで読み始める",
+      "description": "左のサイドバーからノートを選ぶか、新しいノートを作成して書き始めましょう。",
+      "eyebrow": "Knowledge vault",
+      "recentHeading": "最近のノート",
+      "recentEmpty": "まだノートがありません。",
+      "statsNotes": "{count} 件のノート",
+      "statsEmpty": "空の Vault",
+      "shortcutSearch": "検索",
+      "vaultLabel": "Vault"
     },
     "setup": {
       "title": "Vault を作成",
@@ -651,9 +658,9 @@
       "activePrefix": "アクティブ: {label}",
       "hide": "サイドバーを隠す",
       "show": "サイドバーを表示",
-      "clipAction": "Webクリップ",
+      "clipAction": "Web クリップ",
       "clipBadge": "{count} 件取得中",
-      "helpAction": "ブックマークレットのヘルプ"
+      "helpAction": "クリップのヘルプ"
     },
     "editSection": {
       "title": "Knowledge",
@@ -696,12 +703,13 @@
         "reload": "サーバーから読み込み直す（自分の変更は破棄）",
         "overwrite": "自分の変更で上書きする",
         "dismiss": "閉じる"
-      }
+      },
+      "delete": "ゴミ箱に移動"
     },
     "toast": {
-      "deleted": "{name} をゴミ箱に移動しました",
+      "deleted": "「{name}」をゴミ箱に移動しました",
       "undo": "元に戻す",
-      "error": "エラー: {error}",
+      "error": "削除に失敗しました: {error}",
       "dismiss": "閉じる"
     },
     "contextMenu": {
@@ -730,7 +738,8 @@
       "notes": "ノート",
       "sortUpdated": "更新日順",
       "sortCreated": "作成日順",
-      "sortName": "名前順"
+      "sortName": "名前順",
+      "loading": "読み込み中..."
     },
     "tags": {
       "manage": "タグを管理",
@@ -750,6 +759,76 @@
       "placeholder": "新しい名前...",
       "confirm": "確定",
       "cancel": "キャンセル"
+    },
+    "quickSwitcher": {
+      "title": "ノートを開く",
+      "placeholder": "ノートを検索...",
+      "searching": "検索中...",
+      "emptyRecents": "最近開いたノートはありません。検索を入力してください。",
+      "noMatches": "一致するノートがありません。"
+    },
+    "shortcuts": {
+      "knowledge": "Knowledge",
+      "knowledgeEditor": "Knowledge エディタ",
+      "focusSearch": "検索にフォーカス",
+      "quickSwitcher": "クイックスイッチャー",
+      "newNote": "新規ノート",
+      "save": "保存",
+      "bold": "太字",
+      "italic": "斜体",
+      "insertLink": "リンクを挿入",
+      "inlineCode": "インラインコード",
+      "codeBlock": "コードブロック",
+      "cycleViewMode": "表示モード切替"
+    },
+    "activeSummary": {
+      "title": "要約ノート",
+      "badge": "knowledge",
+      "description": "このファイルに対して承認済みの要約ノートが knowledge に保存されています。",
+      "openEditor": "Knowledge で編集",
+      "loading": "読み込み中...",
+      "loadFailed": "ノートの読み込みに失敗しました"
+    },
+    "clip": {
+      "title": "Web クリップ",
+      "formLabel": "URL からクリップを作成",
+      "urlPlaceholder": "https://example.com/article",
+      "subfolderLabel": "保存先サブフォルダ",
+      "rootFolder": "フォルダ分けなし",
+      "submit": "クリップ",
+      "duplicate": {
+        "title": "同じ URL のクリップが見つかりました",
+        "description": "この URL は既にクリップされています。どうしますか？",
+        "openExisting": "既存を開く",
+        "createNew": "新規作成",
+        "cancel": "キャンセル"
+      },
+      "status": {
+        "fetching": "取得中",
+        "failed": "失敗",
+        "ready": "完了"
+      },
+      "toast": {
+        "ready": "クリップが完了しました: {title}",
+        "failed": "クリップに失敗しました: {error}"
+      },
+      "paste": {
+        "title": "HTML を貼り付けて再挑戦",
+        "description": "サーバー側での取得に失敗しました。対象ページの HTML を貼り付けて変換をやり直せます。",
+        "placeholder": "ここに HTML を貼り付けてください...",
+        "submit": "変換して保存",
+        "submitting": "変換中..."
+      },
+      "bookmarklet": {
+        "title": "ブックマークレット",
+        "description": "このリンクをブラウザのブックマークバーにドラッグしてください。閲覧中のページをワンクリックで Litloft にクリップできます。",
+        "dragLabel": "Litloft にクリップ"
+      },
+      "modalTitle": "Web クリップ",
+      "modalClose": "閉じる",
+      "recentHeading": "最近のクリップ",
+      "helpModalTitle": "クリップについて",
+      "helpDescription": "サイドバーのクリップボタンから URL を送信するか、下のブックマークレットを使うと閲覧中のページを Vault に保存できます。"
     }
   },
   "shortcuts": {

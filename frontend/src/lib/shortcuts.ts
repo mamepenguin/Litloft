@@ -5,6 +5,8 @@ export interface ShortcutDef {
   hidden?: boolean
   // editingOnly partitions shortcuts by focus state:
   //   true      → fires ONLY when an input/textarea/select/contenteditable has focus
+  //   false     → fires REGARDLESS of focus state (use for shortcuts that
+  //               should work everywhere, like cycling a view mode)
   //   undefined → fires ONLY when no editing element has focus (legacy default)
   // This lets the same key be bound to different handlers in editor vs non-editor
   // contexts (e.g. Cmd+K = link insert in textarea, switcher elsewhere).
