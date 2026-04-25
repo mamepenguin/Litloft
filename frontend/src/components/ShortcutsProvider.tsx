@@ -56,12 +56,13 @@ export function ShortcutsProvider({ children }: { children: ReactNode }): ReactE
 
   useEffect(() => {
     function handleKeyDown(e: KeyboardEvent) {
-      const target = e.target as HTMLElement;
+      const target = e.target as HTMLElement | null;
+      const tag = target?.tagName;
       const isEditing =
-        target.tagName === "INPUT" ||
-        target.tagName === "TEXTAREA" ||
-        target.tagName === "SELECT" ||
-        target.isContentEditable;
+        tag === "INPUT" ||
+        tag === "TEXTAREA" ||
+        tag === "SELECT" ||
+        target?.isContentEditable === true;
 
       const normalized = normalizeKey(e);
 
@@ -72,11 +73,8 @@ export function ShortcutsProvider({ children }: { children: ReactNode }): ReactE
         return;
       }
 
-      // Skip all other shortcuts when typing in form elements
-      if (isEditing) return;
-
-      // Toggle cheat sheet with '?'
-      if (normalized === "?") {
+      // Toggle cheat sheet with '?' (suppressed while editing so users can type)
+      if (normalized === "?" && !isEditing) {
         e.preventDefault();
         setCheatSheetOpen((prev) => !prev);
         return;
@@ -85,26 +83,21 @@ export function ShortcutsProvider({ children }: { children: ReactNode }): ReactE
       // If cheat sheet is open, ignore other shortcuts
       if (cheatSheetOpen) return;
 
+      // Walk the stack top-to-bottom and pick the first shortcut whose
+      // editingOnly flag matches the current focus state. Partitioning by
+      // focus lets the same key bind to different handlers in editor vs
+      // non-editor contexts without needing to toggle layers manually.
       const currentStack = stackRef.current;
-
-      // Search from top of stack downward
-      const top = currentStack[currentStack.length - 1];
-      if (top) {
-        const match = top.shortcuts.find((s) => s.key === normalized);
+      for (let i = currentStack.length - 1; i >= 0; i--) {
+        const ctx = currentStack[i];
+        const match = ctx.shortcuts.find((s) => {
+          if (s.key !== normalized) return false;
+          return Boolean(s.editingOnly) === isEditing;
+        });
         if (match) {
           e.preventDefault();
           match.handler();
           return;
-        }
-      }
-
-      // Fall back to global context
-      const globalCtx = currentStack.find((c) => c.id === "global");
-      if (globalCtx && globalCtx !== top) {
-        const match = globalCtx.shortcuts.find((s) => s.key === normalized);
-        if (match) {
-          e.preventDefault();
-          match.handler();
         }
       }
     }

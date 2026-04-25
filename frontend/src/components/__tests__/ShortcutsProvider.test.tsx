@@ -1,0 +1,166 @@
+import { describe, it, expect, vi, beforeEach } from "vitest";
+import { render, fireEvent, act } from "@testing-library/react";
+import { ShortcutsProvider } from "../ShortcutsProvider";
+import { useShortcuts } from "@/hooks/useShortcuts";
+
+function Harness({
+  contextId = "test",
+  shortcuts,
+}: {
+  contextId?: string;
+  shortcuts: Parameters<typeof useShortcuts>[2];
+}) {
+  useShortcuts(contextId, contextId, shortcuts);
+  return null;
+}
+
+function StackHarness({
+  layers,
+}: {
+  layers: { id: string; shortcuts: Parameters<typeof useShortcuts>[2] }[];
+}) {
+  return (
+    <>
+      {layers.map((l) => (
+        <Harness key={l.id} contextId={l.id} shortcuts={l.shortcuts} />
+      ))}
+    </>
+  );
+}
+
+describe("ShortcutsProvider editingOnly partition", () => {
+  beforeEach(() => {
+    document.body.innerHTML = "";
+  });
+
+  it("fires non-editingOnly shortcut when no input has focus", () => {
+    const handler = vi.fn();
+    render(
+      <ShortcutsProvider>
+        <Harness shortcuts={[{ key: "k", label: "k", handler }]} />
+      </ShortcutsProvider>,
+    );
+    fireEvent.keyDown(document, { key: "k" });
+    expect(handler).toHaveBeenCalledTimes(1);
+  });
+
+  it("does NOT fire non-editingOnly shortcut when textarea has focus", () => {
+    const handler = vi.fn();
+    const textarea = document.createElement("textarea");
+    document.body.appendChild(textarea);
+    textarea.focus();
+    render(
+      <ShortcutsProvider>
+        <Harness shortcuts={[{ key: "k", label: "k", handler }]} />
+      </ShortcutsProvider>,
+    );
+    fireEvent.keyDown(textarea, { key: "k" });
+    expect(handler).not.toHaveBeenCalled();
+  });
+
+  it("fires editingOnly shortcut ONLY when an input element has focus", () => {
+    const handler = vi.fn();
+    const input = document.createElement("input");
+    document.body.appendChild(input);
+    render(
+      <ShortcutsProvider>
+        <Harness
+          shortcuts={[
+            { key: "ctrl+s", label: "save", handler, editingOnly: true },
+          ]}
+        />
+      </ShortcutsProvider>,
+    );
+    // Not editing: should not fire
+    fireEvent.keyDown(document, { key: "s", ctrlKey: true });
+    expect(handler).not.toHaveBeenCalled();
+    // Editing: should fire
+    input.focus();
+    fireEvent.keyDown(input, { key: "s", ctrlKey: true });
+    expect(handler).toHaveBeenCalledTimes(1);
+  });
+
+  it("partitions same key across stack layers by editingOnly", () => {
+    const switcher = vi.fn();
+    const linkInsert = vi.fn();
+    const textarea = document.createElement("textarea");
+    document.body.appendChild(textarea);
+    render(
+      <ShortcutsProvider>
+        <StackHarness
+          layers={[
+            {
+              id: "addon-global",
+              shortcuts: [
+                { key: "ctrl+k", label: "switcher", handler: switcher },
+              ],
+            },
+            {
+              id: "addon-editor",
+              shortcuts: [
+                {
+                  key: "ctrl+k",
+                  label: "link",
+                  handler: linkInsert,
+                  editingOnly: true,
+                },
+              ],
+            },
+          ]}
+        />
+      </ShortcutsProvider>,
+    );
+    // Without focus: switcher fires (editor's editingOnly skipped, falls to lower layer)
+    fireEvent.keyDown(document, { key: "k", ctrlKey: true });
+    expect(switcher).toHaveBeenCalledTimes(1);
+    expect(linkInsert).not.toHaveBeenCalled();
+    // With textarea focus: link fires
+    textarea.focus();
+    fireEvent.keyDown(textarea, { key: "k", ctrlKey: true });
+    expect(linkInsert).toHaveBeenCalledTimes(1);
+    expect(switcher).toHaveBeenCalledTimes(1);
+  });
+
+  it("walks down the stack to find a match in mid layers", () => {
+    const middleHandler = vi.fn();
+    render(
+      <ShortcutsProvider>
+        <StackHarness
+          layers={[
+            {
+              id: "lower",
+              shortcuts: [{ key: "x", label: "x", handler: middleHandler }],
+            },
+            {
+              id: "upper",
+              shortcuts: [{ key: "y", label: "y", handler: vi.fn() }],
+            },
+          ]}
+        />
+      </ShortcutsProvider>,
+    );
+    fireEvent.keyDown(document, { key: "x" });
+    expect(middleHandler).toHaveBeenCalledTimes(1);
+  });
+
+  it("? toggles cheat sheet when not editing, ignored when editing", () => {
+    const input = document.createElement("input");
+    document.body.appendChild(input);
+    const { container } = render(
+      <ShortcutsProvider>
+        <Harness shortcuts={[]} />
+      </ShortcutsProvider>,
+    );
+    // Not editing: opens cheat sheet (a dialog appears in the DOM)
+    fireEvent.keyDown(document, { key: "?", shiftKey: true });
+    expect(document.querySelector('[role="dialog"]')).toBeTruthy();
+    // Close with Escape
+    fireEvent.keyDown(document, { key: "Escape" });
+    expect(document.querySelector('[role="dialog"]')).toBeFalsy();
+    // Editing: ignored
+    input.focus();
+    fireEvent.keyDown(input, { key: "?", shiftKey: true });
+    expect(document.querySelector('[role="dialog"]')).toBeFalsy();
+    void container;
+  });
+});

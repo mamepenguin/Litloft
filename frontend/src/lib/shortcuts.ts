@@ -3,6 +3,12 @@ export interface ShortcutDef {
   label: string
   handler: () => void
   hidden?: boolean
+  // editingOnly partitions shortcuts by focus state:
+  //   true      → fires ONLY when an input/textarea/select/contenteditable has focus
+  //   undefined → fires ONLY when no editing element has focus (legacy default)
+  // This lets the same key be bound to different handlers in editor vs non-editor
+  // contexts (e.g. Cmd+K = link insert in textarea, switcher elsewhere).
+  editingOnly?: boolean
 }
 
 export interface ShortcutContextDef {

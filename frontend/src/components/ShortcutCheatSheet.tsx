@@ -79,16 +79,16 @@ export function ShortcutCheatSheet({ open, stack, onClose }: ShortcutCheatSheetP
 
   if (!open) return null;
 
+  // Show every non-global layer (top of stack first), then global at the
+  // bottom. Walking the full stack lets a mid-stack context (e.g. an addon
+  // root that also has an editor pushed on top) keep its shortcuts visible.
   const globalCtx = stack.find((c) => c.id === "global");
-  const topCtx =
-    stack.length > 0
-      ? stack[stack.length - 1]
-      : null;
-  // Don't show global twice
-  const showTop = topCtx && topCtx.id !== "global";
-
   const sections: ShortcutContextDef[] = [];
-  if (showTop) sections.push(topCtx);
+  for (let i = stack.length - 1; i >= 0; i--) {
+    const ctx = stack[i];
+    if (ctx.id === "global") continue;
+    sections.push(ctx);
+  }
   if (globalCtx) sections.push(globalCtx);
 
   return (
