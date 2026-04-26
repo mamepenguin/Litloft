@@ -174,16 +174,18 @@ export function FilePreview({
 
   if (file.file_type === "video") {
     return (
-      <MiniPlayerContainer mc={localMc}>
-        <NativeVideoWithController
-          file={file}
-          onEnded={onEnded}
-          autoPlay={autoPlay}
-          initialTime={initialTime}
-          videoRef={videoRef}
-          onMediaController={relayMc}
-        />
-      </MiniPlayerContainer>
+      <div className="-mx-4 md:mx-0">
+        <MiniPlayerContainer mc={localMc}>
+          <NativeVideoWithController
+            file={file}
+            onEnded={onEnded}
+            autoPlay={autoPlay}
+            initialTime={initialTime}
+            videoRef={videoRef}
+            onMediaController={relayMc}
+          />
+        </MiniPlayerContainer>
+      </div>
     );
   }
 
@@ -219,12 +221,14 @@ export function FilePreview({
     // the embedded YouTube iframe also reflows into a floating mini
     // window when it scrolls out of view.
     return (
-      <MiniPlayerContainer mc={localMc}>
-        <AddonSlot
-          id="loft-player"
-          props={{ fileId: file.id, file, onMediaController: relayMc }}
-        />
-      </MiniPlayerContainer>
+      <div className="-mx-4 md:mx-0">
+        <MiniPlayerContainer mc={localMc}>
+          <AddonSlot
+            id="loft-player"
+            props={{ fileId: file.id, file, onMediaController: relayMc }}
+          />
+        </MiniPlayerContainer>
+      </div>
     );
   }
 

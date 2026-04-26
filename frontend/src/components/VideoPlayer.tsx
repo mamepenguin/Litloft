@@ -181,7 +181,7 @@ export const VideoPlayer = forwardRef(function VideoPlayer({ videoId, subtitles 
   }, [videoId, hasProfile]);
 
   return (
-    <div className="group/player relative aspect-video w-full overflow-hidden rounded-xl bg-black">
+    <div className="group/player relative aspect-video w-full overflow-hidden bg-black md:rounded-xl">
       <video
         ref={videoRef}
         src={getStreamUrl(videoId)}

@@ -353,6 +353,8 @@ p, li, dd {
 - Do not expose less than 12px border-radius on outer surfaces.
 - Do not use `scale()` transforms on hover — maintain Pinterest's static weight.
 
+**Exception — Mobile media frames**: Video / Loft (YouTube) playback frames render edge-to-edge with **0px radius on mobile** (`<md`) to maximize the viewable frame and match platform expectations (YouTube / Netflix / standard mobile players). Desktop (`md+`) keeps `rounded-xl`. Use `md:rounded-xl` on the player wrapper and `-mx-4 md:mx-0` on the parent slot to escape the page's horizontal padding. This exception applies only to the primary playback surface, not to thumbnails, mini-player placeholders, or cards listing media.
+
 ---
 
 ## 6. Component Styling
