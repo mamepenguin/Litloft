@@ -882,6 +882,8 @@
     "rateLimited": "Retrying caption download (temporary error)",
     "permanent": "Captions unavailable (video may be private, removed, or region-locked)",
     "failed": "Failed to download captions",
-    "notAttempted": "Caption status not yet checked"
+    "notAttempted": "Caption status not yet checked",
+    "retryHint": "Click to retry",
+    "retrying": "Retrying..."
   }
 }
