@@ -876,5 +876,12 @@
     },
     "sourcesMore": "{n} more",
     "sourceMissing": "Deleted or inaccessible"
+  },
+  "captionStatus": {
+    "noCaptions": "YouTube has no captions for this video",
+    "rateLimited": "Retrying caption download (temporary error)",
+    "permanent": "Captions unavailable (video may be private, removed, or region-locked)",
+    "failed": "Failed to download captions",
+    "notAttempted": "Caption status not yet checked"
   }
 }
