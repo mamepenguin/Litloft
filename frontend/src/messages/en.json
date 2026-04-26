@@ -437,6 +437,28 @@
     "clear": "Clear profile",
     "clearConfirm": "Clearing your profile will disconnect watch history from this device. Are you sure?"
   },
+  "settings": {
+    "title": "Settings",
+    "profile": {
+      "title": "Profile",
+      "nicknamePlaceholder": "Enter your name",
+      "save": "Save",
+      "clear": "Clear profile",
+      "clearConfirm": "Clearing your profile will disconnect watch history from this device. Are you sure?",
+      "edit": "Edit"
+    },
+    "appearance": {
+      "title": "Appearance",
+      "system": "System",
+      "light": "Light",
+      "dark": "Dark"
+    },
+    "language": {
+      "title": "Language",
+      "ja": "Japanese",
+      "en": "English"
+    }
+  },
   "text": {
     "fileSizeLarge": "File is large ({size})",
     "loadContent": "Load",

@@ -10,7 +10,6 @@ import { CurrentDriveProvider } from "@/components/CurrentDriveProvider";
 import { WebSocketProvider } from "@/components/WebSocketProvider";
 import { ClipboardProvider } from "@/components/ClipboardProvider";
 import { ProfileProvider } from "@/components/ProfileProvider";
-import { ProfileSetup } from "@/components/ProfileSetup";
 import { AddonSlotsProvider } from "@/components/AddonSlotsProvider";
 
 export const metadata: Metadata = {
@@ -77,7 +76,6 @@ export default async function RootLayout({
                     <ClipboardProvider>
                       <SidebarProvider>
                         <AppShell>{children}</AppShell>
-                        <ProfileSetup />
                       </SidebarProvider>
                     </ClipboardProvider>
                   </AddonSlotsProvider>
