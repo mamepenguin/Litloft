@@ -450,7 +450,30 @@
       "switchHelp": "Switching to a different name will not carry over watch history or comments. If you've used the same name before, you'll return to that profile.",
       "switchConfirmTitle": "Switch profile",
       "switchConfirmMessage": "Switch profile from \"{from}\" to \"{to}\"? Your current history will not be carried over.",
-      "switchConfirm": "Switch"
+      "switchConfirm": "Switch",
+      "guide": {
+        "title": "What is a profile?",
+        "intro": "Setting a nickname keeps your viewing experience consistent across devices.",
+        "items": {
+          "resume": {
+            "title": "Resume videos where you left off",
+            "description": "Continue from the last position you watched."
+          },
+          "history": {
+            "title": "Keep a watch history",
+            "description": "See your recent files for each drive."
+          },
+          "comments": {
+            "title": "Post comments",
+            "description": "You can edit or delete the comments you've written."
+          },
+          "sync": {
+            "title": "Share history across devices",
+            "description": "Enter the same nickname on your phone and PC to share history between them."
+          }
+        },
+        "privacy": "No account registration required — no email or password needed. You can change or clear your nickname at any time, and other users cannot see your watch history."
+      }
     },
     "appearance": {
       "title": "Appearance",
