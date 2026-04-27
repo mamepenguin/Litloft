@@ -446,7 +446,11 @@
       "cancel": "Cancel",
       "clear": "Clear profile",
       "clearConfirm": "Clearing your profile will disconnect watch history from this device. Are you sure?",
-      "edit": "Edit"
+      "switch": "Switch to a different name",
+      "switchHelp": "Switching to a different name will not carry over watch history or comments. If you've used the same name before, you'll return to that profile.",
+      "switchConfirmTitle": "Switch profile",
+      "switchConfirmMessage": "Switch profile from \"{from}\" to \"{to}\"? Your current history will not be carried over.",
+      "switchConfirm": "Switch"
     },
     "appearance": {
       "title": "Appearance",

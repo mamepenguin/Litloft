@@ -56,9 +56,11 @@ describe("ProfileSection", () => {
       expect(screen.getByText("Bob")).toBeInTheDocument();
     });
 
-    it("renders edit and clear buttons", () => {
+    it("renders switch and clear buttons", () => {
       render(<ProfileSection />);
-      expect(screen.getByRole("button", { name: "編集" })).toBeInTheDocument();
+      expect(
+        screen.getByRole("button", { name: "別の名前に切り替え" }),
+      ).toBeInTheDocument();
       expect(
         screen.getByRole("button", { name: "プロファイルをクリア" }),
       ).toBeInTheDocument();
@@ -66,15 +68,47 @@ describe("ProfileSection", () => {
 
     it("shows a cancel button when editing and exits edit mode without saving", () => {
       render(<ProfileSection />);
-      fireEvent.click(screen.getByRole("button", { name: "編集" }));
+      fireEvent.click(screen.getByRole("button", { name: "別の名前に切り替え" }));
       const cancel = screen.getByRole("button", { name: "キャンセル" });
       expect(cancel).toBeInTheDocument();
       fireEvent.click(cancel);
-      // Returned to display mode: nickname visible, edit button back, no input
+      // Returned to display mode: nickname visible, switch button back, no input
       expect(screen.getByText("Bob")).toBeInTheDocument();
-      expect(screen.getByRole("button", { name: "編集" })).toBeInTheDocument();
+      expect(
+        screen.getByRole("button", { name: "別の名前に切り替え" }),
+      ).toBeInTheDocument();
       expect(screen.queryByPlaceholderText("名前を入力")).not.toBeInTheDocument();
       expect(setNicknameMock).not.toHaveBeenCalled();
+    });
+
+    it("opens a switch confirmation dialog before applying a different name", () => {
+      render(<ProfileSection />);
+      fireEvent.click(screen.getByRole("button", { name: "別の名前に切り替え" }));
+      const input = screen.getByPlaceholderText("名前を入力") as HTMLInputElement;
+      fireEvent.change(input, { target: { value: "Carol" } });
+      fireEvent.click(screen.getByRole("button", { name: "保存" }));
+      // Dialog should be open; setNickname not yet called
+      expect(setNicknameMock).not.toHaveBeenCalled();
+      expect(
+        screen.getByText(
+          /プロファイルを「Bob」から「Carol」に切り替えます/,
+        ),
+      ).toBeInTheDocument();
+      // Confirm
+      fireEvent.click(screen.getByRole("button", { name: "切り替える" }));
+      expect(setNicknameMock).toHaveBeenCalledWith("Carol");
+    });
+
+    it("does not open the switch dialog when input matches the current name", () => {
+      render(<ProfileSection />);
+      fireEvent.click(screen.getByRole("button", { name: "別の名前に切り替え" }));
+      // Input is prefilled with current nickname (Bob)
+      fireEvent.click(screen.getByRole("button", { name: "保存" }));
+      // No confirmation needed; saves directly
+      expect(setNicknameMock).toHaveBeenCalledWith("Bob");
+      expect(
+        screen.queryByText(/プロファイルを「Bob」から/),
+      ).not.toBeInTheDocument();
     });
 
     it("opens confirm dialog and calls clearNickname on confirm", () => {
