@@ -27,6 +27,11 @@ export function ProfileSection() {
     setEditing(true);
   }, [nickname]);
 
+  const handleCancel = useCallback(() => {
+    setEditing(false);
+    setInput("");
+  }, []);
+
   const handleConfirmClear = useCallback(() => {
     clearNickname();
     setConfirmClear(false);
@@ -86,19 +91,31 @@ export function ProfileSection() {
             onChange={(e) => setInput(e.target.value)}
             onKeyDown={(e) => {
               if (e.key === "Enter") handleSave();
+              else if (e.key === "Escape" && nickname) handleCancel();
             }}
             placeholder={t("nicknamePlaceholder")}
             maxLength={50}
             className="flex-1 rounded-2xl border border-bg-border bg-bg-elevated px-3 py-2 text-sm text-text-primary placeholder:text-text-muted/50 focus:border-accent focus:outline-none"
           />
-          <button
-            type="button"
-            onClick={handleSave}
-            disabled={!input.trim()}
-            className="rounded-2xl bg-accent px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-accent-hover disabled:opacity-50"
-          >
-            {t("save")}
-          </button>
+          <div className="flex items-center gap-2">
+            <button
+              type="button"
+              onClick={handleSave}
+              disabled={!input.trim()}
+              className="rounded-2xl bg-accent px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-accent-hover disabled:opacity-50"
+            >
+              {t("save")}
+            </button>
+            {nickname && editing && (
+              <button
+                type="button"
+                onClick={handleCancel}
+                className="rounded-2xl px-4 py-2 text-sm font-medium text-text-muted transition-colors hover:bg-bg-elevated hover:text-text-primary"
+              >
+                {t("cancel")}
+              </button>
+            )}
+          </div>
         </div>
       )}
 

@@ -6,8 +6,19 @@ import { type Locale, locales } from "@/i18n/config";
 
 const COOKIE_MAX_AGE = 60 * 60 * 24 * 365; // 1 year
 
+// Native names so each option remains recognizable regardless of the
+// currently active UI language. Intentionally not localized.
+const LOCALE_LABELS: Record<Locale, string> = {
+  ja: "日本語",
+  en: "English",
+};
+
 function writeLocaleCookie(next: Locale): void {
-  document.cookie = `NEXT_LOCALE=${next};path=/;max-age=${COOKIE_MAX_AGE};SameSite=Strict`;
+  const secure =
+    typeof window !== "undefined" && window.location.protocol === "https:"
+      ? " Secure;"
+      : "";
+  document.cookie = `NEXT_LOCALE=${encodeURIComponent(next)};path=/;max-age=${COOKIE_MAX_AGE};SameSite=Strict;${secure}`;
 }
 
 export function LanguageSection() {
@@ -47,7 +58,7 @@ export function LanguageSection() {
                   : "border-bg-border bg-bg-card text-text-muted hover:bg-bg-elevated hover:text-text-primary"
               }`}
             >
-              {t(value)}
+              {LOCALE_LABELS[value]}
             </button>
           );
         })}

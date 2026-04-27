@@ -443,6 +443,7 @@
       "title": "Profile",
       "nicknamePlaceholder": "Enter your name",
       "save": "Save",
+      "cancel": "Cancel",
       "clear": "Clear profile",
       "clearConfirm": "Clearing your profile will disconnect watch history from this device. Are you sure?",
       "edit": "Edit"
@@ -454,9 +455,7 @@
       "dark": "Dark"
     },
     "language": {
-      "title": "Language",
-      "ja": "Japanese",
-      "en": "English"
+      "title": "Language"
     }
   },
   "text": {

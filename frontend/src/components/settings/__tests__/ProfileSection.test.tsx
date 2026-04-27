@@ -64,6 +64,19 @@ describe("ProfileSection", () => {
       ).toBeInTheDocument();
     });
 
+    it("shows a cancel button when editing and exits edit mode without saving", () => {
+      render(<ProfileSection />);
+      fireEvent.click(screen.getByRole("button", { name: "編集" }));
+      const cancel = screen.getByRole("button", { name: "キャンセル" });
+      expect(cancel).toBeInTheDocument();
+      fireEvent.click(cancel);
+      // Returned to display mode: nickname visible, edit button back, no input
+      expect(screen.getByText("Bob")).toBeInTheDocument();
+      expect(screen.getByRole("button", { name: "編集" })).toBeInTheDocument();
+      expect(screen.queryByPlaceholderText("名前を入力")).not.toBeInTheDocument();
+      expect(setNicknameMock).not.toHaveBeenCalled();
+    });
+
     it("opens confirm dialog and calls clearNickname on confirm", () => {
       render(<ProfileSection />);
       fireEvent.click(screen.getByRole("button", { name: "プロファイルをクリア" }));
