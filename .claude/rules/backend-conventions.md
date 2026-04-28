@@ -24,3 +24,6 @@ from app.config import DATA_DIR
 - スプライトシート生成: `asyncio.Semaphore(2)` + in-progressセットで重複防止
 - ZIP展開: `asyncio.Semaphore(3)` で同時展開制限
 - 原子的ファイル書き出し: `.tmp` → `os.replace()` パターン
+
+## 禁止事項
+- LLMや文字列処理に言語依存のロジックを含めてはならない（"タイトル"で検索してタイトルを検出するなど）
