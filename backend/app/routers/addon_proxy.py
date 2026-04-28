@@ -26,7 +26,12 @@ from fastapi.responses import Response, StreamingResponse
 _STREAM_WALL_CLOCK_TIMEOUT_SEC = 600.0
 
 import app.config as config
-from app.auth import filter_drives, get_unlocked_groups, is_admin
+from app.auth import (
+    filter_drives,
+    get_unlocked_groups,
+    is_admin,
+    nickname_to_viewer_id,
+)
 from app.database import get_db
 from app.models import File, active_file_filter
 from sqlalchemy.orm import Session
@@ -188,12 +193,61 @@ _STRIPPED_RESPONSE_HEADERS = frozenset(
 )
 
 
+# Maximum nickname length we will hash. Mirrors the cap in ``get_viewer_id``
+# (``app.auth``) so a pathological cookie value cannot make the proxy spend
+# unbounded CPU on SHA-256. Anything longer is treated as "no viewer" — the
+# auth helper does the same.
+_VIEWER_NICKNAME_MAX_LEN = 50
+
+# Header that carries the SHA-256-prefixed viewer_id from the host to
+# downstream addons. Set by the proxy from the ``lit_viewer`` cookie so
+# clients cannot spoof another viewer's identity by injecting the header
+# themselves; addons read this header instead of the raw cookie so the
+# nickname (which the cookie holds in plaintext) never crosses the
+# Docker boundary.
+_VIEWER_ID_HEADER = "x-lit-viewer-id"
+
+
+def _resolve_viewer_id(request: Request) -> str | None:
+    """Return the 16-char viewer_id for the request, or None when absent.
+
+    Mirrors ``app.auth.get_viewer_id`` rather than calling it as a
+    FastAPI dependency: this code path runs from a plain helper, not a
+    router parameter, so we re-do the same length-bounded SHA-256 here.
+    """
+    raw = request.cookies.get("lit_viewer")
+    if not raw:
+        return None
+    trimmed = raw.strip()
+    if not trimmed or len(trimmed) > _VIEWER_NICKNAME_MAX_LEN:
+        return None
+    return nickname_to_viewer_id(trimmed)
+
+
 def _filter_request_headers(request: Request) -> dict[str, str]:
-    return {
+    """Build the upstream header map.
+
+    Two transforms beyond the hop-by-hop strip:
+
+    1. ``X-Lit-Viewer-Id`` is *replaced* with a host-computed value
+       (or removed if no nickname cookie). Trusting a client-supplied
+       value here would let any browser tab impersonate another viewer
+       just by injecting the header — the cookie path is the single
+       source of truth so we drop whatever the client sent first.
+    2. The replacement is keyed by ``x-lit-viewer-id`` (lowercase) on
+       the way *out* because httpx's case-insensitive header map lets
+       a stray uppercase entry leak through if both forms exist.
+    """
+    headers = {
         k: v
         for k, v in request.headers.items()
         if k.lower() not in _HOP_BY_HOP_REQUEST_HEADERS
+        and k.lower() != _VIEWER_ID_HEADER
     }
+    viewer_id = _resolve_viewer_id(request)
+    if viewer_id is not None:
+        headers[_VIEWER_ID_HEADER] = viewer_id
+    return headers
 
 
 def _filter_response_headers(upstream: httpx.Headers) -> dict[str, str]:

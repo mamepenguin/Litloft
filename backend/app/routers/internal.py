@@ -8,6 +8,8 @@ core application data such as accessible drives and file metadata.
 import hmac
 import logging
 import os
+import re
+from datetime import UTC, datetime
 from pathlib import Path
 from typing import Annotated
 
@@ -20,7 +22,13 @@ from sqlalchemy.exc import IntegrityError
 import app.config as config
 from app.auth import filter_drives, get_unlocked_groups
 from app.database import get_db
-from app.models import File, FileActiveSummary, FileRelation, active_file_filter
+from app.models import (
+    File,
+    FileActiveSummary,
+    FileRelation,
+    WatchHistory,
+    active_file_filter,
+)
 from app.routers.files import cleanup_orphan_tags, replace_file_tags
 from app.schemas import TagUpdate
 from app.services.ws import manager as ws_manager
@@ -260,6 +268,171 @@ async def file_text_content(
         )
 
     return PlainTextResponse(text, media_type="text/plain; charset=utf-8")
+
+
+# ---------------------------------------------------------------------------
+# /viewer-history — drive-scoped personal history lookup for intelligence Ask
+# ---------------------------------------------------------------------------
+
+
+# viewer_id is a 16-char SHA-256 prefix produced by ``nickname_to_viewer_id``
+# (see ``app.auth``). Validated server-side so a malformed query parameter
+# never reaches the WatchHistory.viewer_id filter as wildcard input.
+_VIEWER_ID_PATTERN = re.compile(r"^[a-f0-9]{16}$")
+
+
+def _parse_iso8601_or_400(value: str | None, field_name: str) -> datetime | None:
+    """Parse an ISO-8601 datetime string or raise 400.
+
+    Returns None when ``value`` is None/empty so the caller can use it
+    as an "unbounded" sentinel. ``fromisoformat`` accepts the standard
+    ``YYYY-MM-DDTHH:MM:SS`` form plus ``+00:00`` / ``Z`` (Python 3.11+).
+
+    The returned datetime is *naive* (no ``tzinfo``). ``WatchHistory.last_played_at``
+    is stored without a timezone and SQLite compares naive datetimes as
+    text — feeding an aware datetime into the same filter would compare
+    against the row's text form (``YYYY-MM-DD HH:MM:SS``) using a string
+    that carries an ``+00:00`` offset and silently mis-rank the boundary.
+    Aware inputs (``...Z`` / ``...+09:00``) are converted to UTC and the
+    offset stripped so the comparison stays apples-to-apples regardless
+    of which form the caller chose.
+    """
+    if not value:
+        return None
+    # ``fromisoformat`` rejects a trailing ``Z`` on Python < 3.11; we
+    # target 3.12 so accept it directly. Wrap into a generic try so any
+    # malformed input becomes a single 400, not an opaque 500.
+    try:
+        parsed = datetime.fromisoformat(value)
+    except ValueError as exc:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Invalid {field_name} (expected ISO-8601): {exc}",
+        ) from exc
+    if parsed.tzinfo is not None:
+        parsed = parsed.astimezone(UTC).replace(tzinfo=None)
+    return parsed
+
+
+@router.get(
+    "/viewer-history",
+    dependencies=[Depends(verify_internal_secret)],
+)
+async def viewer_history(
+    viewer_id: Annotated[str, Query(...)],
+    drive: Annotated[str, Query(...)],
+    after: Annotated[str | None, Query()] = None,
+    before: Annotated[str | None, Query()] = None,
+    kind: Annotated[str, Query()] = "viewed",
+    db=Depends(get_db),
+):
+    """Return file_ids the viewer has touched in this drive within a window.
+
+    Spec: ``2026-04-26-intelligence-ask-personal-history-query.md`` §4.2 Stage B.
+    Used by the intelligence Ask pipeline to narrow retrieval to "what
+    this person actually opened" before chunk-level search runs.
+
+    Query parameters:
+
+    * ``viewer_id`` — required; the 16-char SHA-256 prefix produced by
+      ``nickname_to_viewer_id``. A malformed value 400s rather than
+      silently returning empty so callers can distinguish "no history"
+      from "wrong shape".
+    * ``drive`` — required; the access boundary. Unknown drives 404 to
+      avoid leaking existence (mirrors ``/drive-policy``).
+    * ``after`` / ``before`` — optional ISO-8601 instants. Half-open
+      window ``[after, before)``. Either side may be omitted to leave
+      the bound unconstrained.
+    * ``kind`` — ``"viewed"`` (default) returns the file_ids that have
+      a ``WatchHistory`` row for ``viewer_id`` in the time window;
+      ``"not_viewed"`` returns the complementary set within the drive
+      (every active file in the drive minus the viewed-in-window set).
+      Anything else 400s.
+
+    Drive isolation: WatchHistory rows are joined to the ``files`` table
+    so the response is naturally scoped to the requested drive even
+    though watch_history itself is drive-agnostic. This honours the
+    "ドライブはセキュリティ境界" rule (see
+    ``.claude/rules/design-decisions.md``). Soft-deleted rows
+    (``deleted_at`` set) and missing rows (``missing_since`` set) are
+    excluded via ``active_file_filter`` — the personal-history view
+    only surfaces files the user could otherwise interact with today.
+
+    Authentication: gated by ``CORE_INTERNAL_SECRET`` like other
+    internal routes; the addon proxy is responsible for ensuring the
+    upstream caller has already passed drive-unlock checks before
+    hitting this endpoint.
+
+    Returns ``{"file_ids": [...]}`` with no guaranteed ordering.
+    """
+    if not _VIEWER_ID_PATTERN.fullmatch(viewer_id):
+        raise HTTPException(status_code=400, detail="Invalid viewer_id")
+
+    if kind not in {"viewed", "not_viewed"}:
+        raise HTTPException(
+            status_code=400, detail="kind must be 'viewed' or 'not_viewed'"
+        )
+
+    drive_names = {d["name"] for d in config.load_drives()}
+    if drive not in drive_names:
+        # 404, not 403 — mirrors the existence-hiding pattern used by
+        # ``/drive-policy`` so an attacker cannot enumerate drive names
+        # via this endpoint either.
+        raise HTTPException(status_code=404, detail="Drive not found")
+
+    after_dt = _parse_iso8601_or_400(after, "after")
+    before_dt = _parse_iso8601_or_400(before, "before")
+
+    if after_dt and before_dt and after_dt >= before_dt:
+        # Empty window. Return early so callers do not have to special-case
+        # "before <= after" — and so the not_viewed branch below does not
+        # silently degenerate into "every active file in the drive".
+        raise HTTPException(
+            status_code=400, detail="'after' must be earlier than 'before'"
+        )
+
+    # Sub-select of file_ids the viewer touched in the window. Used as
+    # the answer for kind=viewed and as the exclusion set for kind=not_viewed.
+    viewed_q = (
+        db.query(WatchHistory.file_id)
+        .join(File, WatchHistory.file_id == File.id)
+        .filter(
+            WatchHistory.viewer_id == viewer_id,
+            File.drive == drive,
+            active_file_filter(),
+        )
+    )
+    if after_dt is not None:
+        viewed_q = viewed_q.filter(WatchHistory.last_played_at >= after_dt)
+    if before_dt is not None:
+        viewed_q = viewed_q.filter(WatchHistory.last_played_at < before_dt)
+
+    if kind == "viewed":
+        return {"file_ids": [row.file_id for row in viewed_q.all()]}
+
+    # not_viewed: every active file in the drive minus the viewed set.
+    # SQL anti-join is preferred over Python set difference because a
+    # well-populated drive can hold tens of thousands of rows; a single
+    # NOT IN scan inside SQLite is cheaper than ferrying that many IDs
+    # over the DB-API boundary just to subtract the small viewed slice.
+    excluded = (
+        db.query(WatchHistory.file_id)
+        .filter(WatchHistory.viewer_id == viewer_id)
+    )
+    if after_dt is not None:
+        excluded = excluded.filter(WatchHistory.last_played_at >= after_dt)
+    if before_dt is not None:
+        excluded = excluded.filter(WatchHistory.last_played_at < before_dt)
+
+    not_viewed_q = (
+        db.query(File.id)
+        .filter(
+            File.drive == drive,
+            active_file_filter(),
+            File.id.notin_(excluded),
+        )
+    )
+    return {"file_ids": [row.id for row in not_viewed_q.all()]}
 
 
 class FilterFileIdsRequest(BaseModel):
