@@ -1,18 +1,10 @@
 "use client";
 
-import { useCallback, useState } from "react";
-import { ClipboardCopy, Download, ListMusic, Move, Pencil, Scissors, Trash2 } from "lucide-react";
-
-import { useTranslations } from "next-intl";
-import { deleteFile, getDownloadUrl, moveFile, renameFile } from "@/lib/api";
-import { useClipboard } from "./ClipboardProvider";
+import { useState } from "react";
 import type { FileItem } from "@/types";
+import { useContextMenu } from "@/hooks/useContextMenu";
 import { FileCard } from "./FileCard";
-import { ContextMenu, type MenuItem } from "./ContextMenu";
-import { ConfirmDialog } from "./ConfirmDialog";
-import { RenameDialog } from "./RenameDialog";
-import { MoveDialog } from "./MoveDialog";
-import { PlaylistPicker } from "./PlaylistPicker";
+import { FileContextMenu } from "./FileContextMenu";
 
 export function FileGrid({
   files,
@@ -43,66 +35,8 @@ export function FileGrid({
   onDragStart?: (e: React.DragEvent, fileId: string) => void;
   onDragEnd?: () => void;
 }) {
-  const t = useTranslations("file");
-  const tc = useTranslations("common");
-  const tcb = useTranslations("clipboard");
-  const tt = useTranslations("trash");
-  const clipboard = useClipboard();
-  const [menuPos, setMenuPos] = useState<{ open: boolean; x: number; y: number }>({
-    open: false, x: 0, y: 0,
-  });
+  const { menuState, close, handlers } = useContextMenu();
   const [target, setTarget] = useState<FileItem | null>(null);
-  const [renameOpen, setRenameOpen] = useState(false);
-  const [moveOpen, setMoveOpen] = useState(false);
-  const [deleteOpen, setDeleteOpen] = useState(false);
-  const [playlistPickerOpen, setPlaylistPickerOpen] = useState(false);
-
-  const closeMenu = useCallback(() => {
-    setMenuPos({ open: false, x: 0, y: 0 });
-  }, []);
-
-  const clearTarget = useCallback(() => {
-    setTarget(null);
-  }, []);
-
-  const menuItems: MenuItem[] = target ? [
-    {
-      icon: Download,
-      label: tc("download"),
-      onClick: () => window.open(getDownloadUrl(target.id), "_blank"),
-    },
-    {
-      icon: ListMusic,
-      label: t("addToPlaylist"),
-      onClick: () => setPlaylistPickerOpen(true),
-    },
-    {
-      icon: ClipboardCopy,
-      label: tcb("copy"),
-      onClick: () => clipboard.copy([target.id], target.drive, target.folder_path),
-    },
-    {
-      icon: Scissors,
-      label: tcb("cut"),
-      onClick: () => clipboard.cut([target.id], target.drive, target.folder_path),
-    },
-    {
-      icon: Pencil,
-      label: tc("rename"),
-      onClick: () => setRenameOpen(true),
-    },
-    {
-      icon: Move,
-      label: tc("move"),
-      onClick: () => setMoveOpen(true),
-    },
-    {
-      icon: Trash2,
-      label: tt("moveToTrash"),
-      onClick: () => setDeleteOpen(true),
-      danger: true,
-    },
-  ] : [];
 
   return (
     <>
@@ -113,11 +47,15 @@ export function FileGrid({
             file={file}
             onFavoriteToggle={onFavoriteToggle}
             onContextMenu={(e) => {
-              e.preventDefault();
-              e.stopPropagation();
               setTarget(file);
-              setMenuPos({ open: true, x: e.clientX, y: e.clientY });
+              handlers.onContextMenu(e);
             }}
+            onTouchStart={(e) => {
+              setTarget(file);
+              handlers.onTouchStart(e);
+            }}
+            onTouchEnd={handlers.onTouchEnd}
+            onTouchMove={handlers.onTouchMove}
             selectable={selectable}
             selected={isSelected?.(file.id)}
             onSelect={onSelect}
@@ -132,66 +70,13 @@ export function FileGrid({
         ))}
       </div>
 
-      <ContextMenu
-        open={menuPos.open}
-        position={{ x: menuPos.x, y: menuPos.y }}
-        items={menuItems}
-        onClose={closeMenu}
+      <FileContextMenu
+        open={menuState.open}
+        position={menuState.position}
+        target={target}
+        onClose={close}
+        onUpdate={onRefresh}
       />
-
-      {target && (
-        <>
-          <RenameDialog
-            open={renameOpen}
-            currentName={target.filename}
-            onRename={async (name) => {
-              try {
-                await renameFile(target.id, name);
-                setRenameOpen(false);
-                clearTarget();
-                if (onRefresh) onRefresh();
-              } catch { /* dialog stays open on error */ }
-            }}
-            onCancel={() => { setRenameOpen(false); clearTarget(); }}
-          />
-          <MoveDialog
-            open={moveOpen}
-            drive={target.drive}
-            currentPath={target.folder_path}
-            onMove={async (path) => {
-              try {
-                await moveFile(target.id, path);
-                setMoveOpen(false);
-                clearTarget();
-                if (onRefresh) onRefresh();
-              } catch { /* dialog stays open on error */ }
-            }}
-            onCancel={() => { setMoveOpen(false); clearTarget(); }}
-          />
-          <PlaylistPicker
-            open={playlistPickerOpen}
-            drive={target.drive}
-            fileIds={[target.id]}
-            onClose={() => { setPlaylistPickerOpen(false); clearTarget(); }}
-          />
-          <ConfirmDialog
-            open={deleteOpen}
-            title={tt("moveToTrash")}
-            message={tt("confirmMoveToTrash", { name: target.filename })}
-            confirmLabel={tt("moveToTrash")}
-            note={tt("autoDelete")}
-            onConfirm={async () => {
-              try {
-                await deleteFile(target.id);
-                setDeleteOpen(false);
-                clearTarget();
-                if (onRefresh) onRefresh();
-              } catch { /* dialog stays open on error */ }
-            }}
-            onCancel={() => { setDeleteOpen(false); clearTarget(); }}
-          />
-        </>
-      )}
     </>
   );
 }

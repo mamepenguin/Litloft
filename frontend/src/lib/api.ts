@@ -498,10 +498,11 @@ export async function getWatchProgress(fileId: string): Promise<WatchProgress> {
 }
 
 export async function deleteWatchProgress(fileId: string): Promise<void> {
-  await fetch(`${API_BASE}/files/${fileId}/progress`, {
+  const res = await fetch(`${API_BASE}/files/${fileId}/progress`, {
     method: "DELETE",
     credentials: "include",
   });
+  if (!res.ok) throw new Error(`Failed to delete watch progress (${res.status})`);
 }
 
 export async function getWatchHistory(

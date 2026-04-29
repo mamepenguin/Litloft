@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
-import { render, screen } from "@testing-library/react";
+import { fireEvent, render, screen } from "@testing-library/react";
 
 vi.mock("next/link", () => ({
   default: ({ children, href, ...props }: { children: React.ReactNode; href: string; [key: string]: unknown }) => (
@@ -114,6 +114,79 @@ describe("FileCard", () => {
         />
       );
       expect(screen.queryByTestId("video-preview-container")).toBeNull();
+    });
+  });
+
+  describe("touch handlers", () => {
+    it("forwards onTouchStart when not selectable", () => {
+      const onTouchStart = vi.fn();
+      render(
+        <FileCard
+          file={mockFile}
+          onTouchStart={onTouchStart}
+        />
+      );
+      const link = screen.getAllByRole("link").find(
+        (l) => l.getAttribute("href") === "/files/abc123def456",
+      );
+      expect(link).toBeTruthy();
+      fireEvent.touchStart(link!, { touches: [{ clientX: 10, clientY: 10 }] });
+      expect(onTouchStart).toHaveBeenCalledTimes(1);
+    });
+
+    it("forwards onTouchEnd when not selectable", () => {
+      const onTouchEnd = vi.fn();
+      render(
+        <FileCard
+          file={mockFile}
+          onTouchEnd={onTouchEnd}
+        />
+      );
+      const link = screen.getAllByRole("link").find(
+        (l) => l.getAttribute("href") === "/files/abc123def456",
+      );
+      fireEvent.touchEnd(link!);
+      expect(onTouchEnd).toHaveBeenCalledTimes(1);
+    });
+
+    it("forwards onTouchMove when not selectable", () => {
+      const onTouchMove = vi.fn();
+      render(
+        <FileCard
+          file={mockFile}
+          onTouchMove={onTouchMove}
+        />
+      );
+      const link = screen.getAllByRole("link").find(
+        (l) => l.getAttribute("href") === "/files/abc123def456",
+      );
+      fireEvent.touchMove(link!, { touches: [{ clientX: 30, clientY: 30 }] });
+      expect(onTouchMove).toHaveBeenCalledTimes(1);
+    });
+
+    it("does NOT attach touch handlers when selectable", () => {
+      const onTouchStart = vi.fn();
+      const onTouchEnd = vi.fn();
+      const onTouchMove = vi.fn();
+      render(
+        <FileCard
+          file={mockFile}
+          selectable
+          selected={false}
+          onSelect={vi.fn()}
+          onTouchStart={onTouchStart}
+          onTouchEnd={onTouchEnd}
+          onTouchMove={onTouchMove}
+        />
+      );
+      // selectable mode renders a div with role=button instead of a link
+      const button = screen.getByRole("button");
+      fireEvent.touchStart(button, { touches: [{ clientX: 10, clientY: 10 }] });
+      fireEvent.touchEnd(button);
+      fireEvent.touchMove(button, { touches: [{ clientX: 20, clientY: 20 }] });
+      expect(onTouchStart).not.toHaveBeenCalled();
+      expect(onTouchEnd).not.toHaveBeenCalled();
+      expect(onTouchMove).not.toHaveBeenCalled();
     });
   });
 });

@@ -191,6 +191,11 @@ export function DriveHome({ driveName }: DriveHomeProps) {
     applyFileSections(results);
   }, [fetchFileSections, applyFileSections]);
 
+  const handleRemoveWatchItem = useCallback((fileId: string) => {
+    setContinueWatching((prev) => prev.filter((item) => item.id !== fileId));
+    setRecentlyPlayed((prev) => prev.filter((item) => item.id !== fileId));
+  }, []);
+
   const handleRefreshPickup = async () => {
     setRefreshing(true);
     try {
@@ -272,6 +277,7 @@ export function DriveHome({ driveName }: DriveHomeProps) {
         <ContinueWatchingSection
           items={continueWatching}
           loading={continueWatchingLoading}
+          onRemoveItem={handleRemoveWatchItem}
         />
       )}
 
@@ -281,6 +287,7 @@ export function DriveHome({ driveName }: DriveHomeProps) {
           loading={recentlyPlayedLoading}
           title={t("recentlyPlayed")}
           icon={<History size={20} className="text-accent" />}
+          onRemoveItem={handleRemoveWatchItem}
         />
       )}
 

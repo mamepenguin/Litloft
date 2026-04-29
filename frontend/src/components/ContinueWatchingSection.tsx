@@ -1,15 +1,20 @@
 "use client";
 
+import { useState } from "react";
 import { Play } from "lucide-react";
 import { useTranslations } from "next-intl";
-import type { WatchHistoryItem } from "@/types";
+import type { FileItem, WatchHistoryItem } from "@/types";
+import { deleteWatchProgress } from "@/lib/api";
+import { useContextMenu } from "@/hooks/useContextMenu";
 import { FileCard } from "./FileCard";
+import { FileContextMenu } from "./FileContextMenu";
 
 interface ContinueWatchingSectionProps {
   items: WatchHistoryItem[];
   loading: boolean;
   title?: string;
   icon?: React.ReactNode;
+  onRemoveItem?: (fileId: string) => void;
 }
 
 function SkeletonCard() {
@@ -26,8 +31,16 @@ function SkeletonCard() {
   );
 }
 
-export function ContinueWatchingSection({ items, loading, title, icon }: ContinueWatchingSectionProps) {
+export function ContinueWatchingSection({
+  items,
+  loading,
+  title,
+  icon,
+  onRemoveItem,
+}: ContinueWatchingSectionProps) {
   const t = useTranslations("drive");
+  const { menuState, close, handlers } = useContextMenu();
+  const [target, setTarget] = useState<FileItem | null>(null);
 
   if (!loading && items.length === 0) {
     return null;
@@ -51,11 +64,33 @@ export function ContinueWatchingSection({ items, loading, title, icon }: Continu
                   <FileCard
                     file={item}
                     watchProgress={item.watch_progress}
+                    onContextMenu={(e) => {
+                      setTarget(item);
+                      handlers.onContextMenu(e);
+                    }}
+                    onTouchStart={(e) => {
+                      setTarget(item);
+                      handlers.onTouchStart(e);
+                    }}
+                    onTouchEnd={handlers.onTouchEnd}
+                    onTouchMove={handlers.onTouchMove}
                   />
                 </div>
               ))}
         </div>
       </div>
+
+      <FileContextMenu
+        open={menuState.open}
+        position={menuState.position}
+        target={target}
+        onClose={close}
+        onRemoveFromHistory={async () => {
+          if (!target) return;
+          await deleteWatchProgress(target.id);
+          onRemoveItem?.(target.id);
+        }}
+      />
     </section>
   );
 }

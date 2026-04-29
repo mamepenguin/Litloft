@@ -2,15 +2,12 @@
 
 import { useCallback, useState } from "react";
 import Link from "next/link";
-import { Download, Move, Pencil, RefreshCw, Trash2 } from "lucide-react";
+import { RefreshCw } from "lucide-react";
 import { useTranslations } from "next-intl";
-import { deleteFile, getDownloadUrl, moveFile, renameFile } from "@/lib/api";
 import type { FileItem } from "@/types";
+import { useContextMenu } from "@/hooks/useContextMenu";
 import { FileCard } from "./FileCard";
-import { ContextMenu, type MenuItem } from "./ContextMenu";
-import { ConfirmDialog } from "./ConfirmDialog";
-import { RenameDialog } from "./RenameDialog";
-import { MoveDialog } from "./MoveDialog";
+import { FileContextMenu } from "./FileContextMenu";
 
 interface CarouselSectionProps {
   title: string;
@@ -47,52 +44,13 @@ export function CarouselSection({
   refreshing,
   onFileAction,
 }: CarouselSectionProps) {
-  const t = useTranslations("file");
   const tc = useTranslations("common");
-  const tt = useTranslations("trash");
   const handleAfterAction = useCallback(() => {
     if (onFileAction) onFileAction();
     else if (onRefresh) onRefresh();
   }, [onFileAction, onRefresh]);
-  const [menuPos, setMenuPos] = useState<{ open: boolean; x: number; y: number }>({
-    open: false, x: 0, y: 0,
-  });
+  const { menuState, close, handlers } = useContextMenu();
   const [target, setTarget] = useState<FileItem | null>(null);
-  const [renameOpen, setRenameOpen] = useState(false);
-  const [moveOpen, setMoveOpen] = useState(false);
-  const [deleteOpen, setDeleteOpen] = useState(false);
-
-  const closeMenu = useCallback(() => {
-    setMenuPos({ open: false, x: 0, y: 0 });
-  }, []);
-
-  const clearTarget = useCallback(() => {
-    setTarget(null);
-  }, []);
-
-  const menuItems: MenuItem[] = target ? [
-    {
-      icon: Download,
-      label: tc("download"),
-      onClick: () => window.open(getDownloadUrl(target.id), "_blank"),
-    },
-    {
-      icon: Pencil,
-      label: tc("rename"),
-      onClick: () => setRenameOpen(true),
-    },
-    {
-      icon: Move,
-      label: tc("move"),
-      onClick: () => setMoveOpen(true),
-    },
-    {
-      icon: Trash2,
-      label: tt("moveToTrash"),
-      onClick: () => setDeleteOpen(true),
-      danger: true,
-    },
-  ] : [];
 
   if (!loading && files.length === 0) {
     return null;
@@ -137,71 +95,28 @@ export function CarouselSection({
                   <FileCard
                     file={file}
                     onContextMenu={(e) => {
-                      e.preventDefault();
-                      e.stopPropagation();
                       setTarget(file);
-                      setMenuPos({ open: true, x: e.clientX, y: e.clientY });
+                      handlers.onContextMenu(e);
                     }}
+                    onTouchStart={(e) => {
+                      setTarget(file);
+                      handlers.onTouchStart(e);
+                    }}
+                    onTouchEnd={handlers.onTouchEnd}
+                    onTouchMove={handlers.onTouchMove}
                   />
                 </div>
               ))}
         </div>
       </div>
 
-      <ContextMenu
-        open={menuPos.open}
-        position={{ x: menuPos.x, y: menuPos.y }}
-        items={menuItems}
-        onClose={closeMenu}
+      <FileContextMenu
+        open={menuState.open}
+        position={menuState.position}
+        target={target}
+        onClose={close}
+        onUpdate={handleAfterAction}
       />
-
-      {target && (
-        <>
-          <RenameDialog
-            open={renameOpen}
-            currentName={target.filename}
-            onRename={async (name) => {
-              try {
-                await renameFile(target.id, name);
-                setRenameOpen(false);
-                clearTarget();
-                handleAfterAction();
-              } catch { /* dialog stays open on error */ }
-            }}
-            onCancel={() => { setRenameOpen(false); clearTarget(); }}
-          />
-          <MoveDialog
-            open={moveOpen}
-            drive={target.drive}
-            currentPath={target.folder_path}
-            onMove={async (path) => {
-              try {
-                await moveFile(target.id, path);
-                setMoveOpen(false);
-                clearTarget();
-                handleAfterAction();
-              } catch { /* dialog stays open on error */ }
-            }}
-            onCancel={() => { setMoveOpen(false); clearTarget(); }}
-          />
-          <ConfirmDialog
-            open={deleteOpen}
-            title={tt("moveToTrash")}
-            message={tt("confirmMoveToTrash", { name: target.filename })}
-            confirmLabel={tt("moveToTrash")}
-            note={tt("autoDelete")}
-            onConfirm={async () => {
-              try {
-                await deleteFile(target.id);
-                setDeleteOpen(false);
-                clearTarget();
-                handleAfterAction();
-              } catch { /* dialog stays open on error */ }
-            }}
-            onCancel={() => { setDeleteOpen(false); clearTarget(); }}
-          />
-        </>
-      )}
     </section>
   );
 }

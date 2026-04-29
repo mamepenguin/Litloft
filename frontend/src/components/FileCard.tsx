@@ -12,6 +12,9 @@ export function FileCard({
   file,
   onFavoriteToggle,
   onContextMenu,
+  onTouchStart,
+  onTouchEnd,
+  onTouchMove,
   selectable,
   selected,
   onSelect,
@@ -27,6 +30,9 @@ export function FileCard({
   file: FileItem;
   onFavoriteToggle?: (file: FileItem) => void;
   onContextMenu?: (e: React.MouseEvent) => void;
+  onTouchStart?: (e: React.TouchEvent) => void;
+  onTouchEnd?: (e: React.TouchEvent) => void;
+  onTouchMove?: (e: React.TouchEvent) => void;
   selectable?: boolean;
   selected?: boolean;
   onSelect?: (id: string) => void;
@@ -103,6 +109,9 @@ export function FileCard({
           selectable ? "cursor-pointer select-none" : ""
         } ${selected ? "ring-2 ring-accent" : ""}`}
         onContextMenu={selectable ? undefined : onContextMenu}
+        onTouchStart={selectable ? undefined : onTouchStart}
+        onTouchEnd={selectable ? undefined : onTouchEnd}
+        onTouchMove={selectable ? undefined : onTouchMove}
       >
         <div className="relative aspect-video bg-bg-elevated rounded-2xl overflow-hidden">
           {hasThumbnail ? (
