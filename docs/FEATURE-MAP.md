@@ -100,10 +100,12 @@ mindmap
       Cloud Sync クラウドバックアップ
       Podcast RSS配信
     設定
-      言語 ja/en
-      テーマ light/dark
-      プロファイル ニックネーム
+      設定ページ /settings
+        プロファイル ニックネーム
+        テーマ light/dark/system
+        言語 ja/en
       ロック/アンロック
+      キーボードショートカット ⌘ or Ctrl
 ```
 
 ---

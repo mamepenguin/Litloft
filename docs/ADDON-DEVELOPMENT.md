@@ -33,6 +33,7 @@ Litloft's addon system is designed around one core rule: **the main Litloft repo
 - **Never commit addon-specific files to the main repo.** The `backend/addon-manifests/` directory that used to hold external service manifests no longer exists; manifests live in each addon's own repo.
 - **When you rename or modify an addon, commit the changes to the addon's own repo, not the main one.**
 - **Test addon absence.** Before shipping, verify that removing `addons/{name}/` and rebuilding leaves no trace of your addon in the core UI.
+- **The host never imports addon code or names addons in core paths.** Generic dynamic loaders pick up addon subpages: any non-`Page.tsx` route under an addon's frontend directory is reachable at `/addons/{name}/{slug}` (global) or `/drive/{drive}/addons/{addon}/{slug}` (drive-scoped). Status data is fetched on-demand through a generic `useAddonStatus(addonName)` hook with a per-(addon, drive) cache — the host has no compile-time list of addon names.
 
 ---
 
@@ -498,8 +499,9 @@ For complex cases where declarative filters aren't sufficient, external services
 | `GET backend:8000/api/internal/files/{file_id}` | File metadata (id, drive, filename, file_type, folder_path) |
 | `POST backend:8000/api/internal/filter-file-ids` | Filter file IDs by access control |
 | `GET backend:8000/api/internal/drive-policy?drive=&addon=` | Per-drive policy in `{default, features}` shape |
+| `GET backend:8000/api/internal/viewer-history?viewer_id=&drive=&after=&before=&kind=` | File IDs the viewer touched in the drive within `[after, before)`. `kind=viewed` (default) or `not_viewed`. Gated by `CORE_INTERNAL_SECRET`. Drive isolation is enforced via JOIN to `files` so cross-drive viewer history never leaks |
 
-Forward the original request's cookies (`lit_token`) when calling access-controlled endpoints so the core can evaluate the caller's unlocked groups correctly.
+Forward the original request's cookies (`lit_token`) when calling access-controlled endpoints so the core can evaluate the caller's unlocked groups correctly. Endpoints gated by `CORE_INTERNAL_SECRET` (viewer-history, internal content read, internal tag write) need the `X-Internal-Secret` header set to the matching value on both sides.
 
 #### Drive policy shape
 
@@ -551,6 +553,16 @@ For `scope=drive` (and `scope=both` routes invoked from a drive context), the fr
 3. Forwards the validated header to the upstream service.
 
 Addon-side workers and handlers read the header directly — **addon developers never re-validate drive access themselves**. The header is authoritative because the host checked it. See `addons/intelligence/app/drive_context.py` for a reference implementation of `require_drive()` / `assert_file_in_drive()`.
+
+### Viewer Identity Header (`X-Lit-Viewer-Id`)
+
+For features that depend on "who is asking" (e.g. intelligence Ask's personal-history retrieval), the addon proxy injects an `X-Lit-Viewer-Id` header derived from the caller's `lit_viewer` cookie:
+
+1. The proxy **strips any client-supplied `X-Lit-Viewer-Id` first** so a malicious tab cannot impersonate another viewer by injecting the header itself.
+2. The cookie value is trimmed and SHA-256-hashed (16-char prefix), matching `nickname_to_viewer_id` on the auth side. Nicknames longer than 50 chars or empty are treated as "no viewer".
+3. The resulting header is forwarded to the upstream addon.
+
+Addons consume the header read-only. The plaintext nickname never crosses the Docker boundary — only the hashed viewer_id does. When no profile is set, the header is absent (do not fall back to a synthetic value).
 
 ### Per-Drive Policy
 

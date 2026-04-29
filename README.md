@@ -28,7 +28,8 @@ A self-hosted file manager and media streaming app for your home LAN. Runs on Do
 - **URL downloads** — yt-dlp downloads and HvLink external-URL references (downloader addon)
 - **Pinned folders** — Shortcuts to frequently used folders
 - **Comments/notes** — Per-file comments with viewer profiles
-- **Watch history** — Resume playback, recently played, viewing progress tracking
+- **Watch history** — Resume playback, recently played, viewing progress tracking. Page views (text/markdown/PDF/image too) are recorded alongside playback markers
+- **Settings page** — Global `/settings` for profile nickname, theme (light/dark/system), and language (ja/en); accessible regardless of drive lock state
 - **Duplicate detection** — Hash-based duplicate file detection with storage stats
 - **Access control** — Optional per-drive password protection
 - **Per-drive addon policy** — Enable or disable individual addon features per drive via `drives.json`

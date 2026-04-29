@@ -164,6 +164,7 @@ All list queries filter via `active_file_filter()` so missing/trash files are in
 - Orphan tag auto-cleanup
 - Tags can be proposed by the intelligence addon (Suggested Tags slot, approve/dismiss workflow — never auto-applied)
 - **`.md` files use frontmatter `tags:` as the canonical store** (β rule, spec `2026-04-24-knowledge-tag-unification.md`). UI edits the chip group in place and rewrites the frontmatter; core's `PUT /content` handler projects those tags onto `File.tags` synchronously in the same transaction (Phase 11). Obsidian-style external edits to `.md` are picked up on the next knowledge-addon scanner pass.
+- On `.md` file detail pages, the outer `File.tags` chip row and the inner Properties Panel frontmatter chip row stay in sync on every save — saving from either chip refetches both the file metadata and the markdown source so they never diverge.
 - Non-`.md` files (video, image, PDF, etc.) continue to write `File.tags` directly via `PUT /api/files/{id}/tags`.
 
 ### Like / Dislike
@@ -241,14 +242,20 @@ All list queries filter via `active_file_filter()` so missing/trash files are in
 
 ### Profiles
 - **Nickname-based**: no account required, server-side SHA-256 hash to viewer_id
+- Nicknames are sanitized (control / bidi / zero-width chars stripped) before hashing
+- The viewer cookie (`lit_viewer`) gets the `Secure` flag automatically over HTTPS
 - Without profile: localStorage fallback (no server storage)
+- Changing the nickname is a **profile switch**, not a rename: history is keyed to the hash, so a new nickname starts (or returns to) a different profile. The settings UI confirms this with an explicit dialog before applying
 - No profile listing API (privacy by design)
 
 ### Watch History
-- Auto-save/restore playback position (resume playback)
+- `WatchHistory` records both **page views** (any file detail page open — text / markdown / image / PDF / media) and **playback markers** (position / duration; media only)
+- The same row's `last_played_at` is bumped by either path; view-only POSTs never overwrite playback markers, and view-only rows (`playback_position=0` / `duration=0`) are excluded from continue-watching by the 90% completion gate
+- Auto-save / restore playback position (resume playback)
 - Recently played files on drive home
 - Unfinished video filter
 - Manual progress clearing
+- Watch history is the canonical source for "what this viewer touched", consumed by intelligence Ask's personal-history retrieval via the Internal API (`/api/internal/viewer-history`)
 
 ---
 
@@ -375,6 +382,7 @@ In-process. Scope: `drive`.
 - Queue-based yt-dlp downloads with cancel support
 - **LoftRef mode**: register an external URL as a Litloft file without downloading the media, with a background fetcher populating metadata/transcripts
 - LoftRef player slot (`loftref-player`) for embedded playback of external sources
+- **Caption status badge** under the Loft player: surfaces "not attempted" / "no captions" / "rate-limited (will retry)" / "permanent failure" / "generic failure" so a missing subtitle track is distinguishable from a YouTube-side absence vs. a transient DL failure. Successful downloads render no badge (noise minimization). The badge is clickable to retry on rate-limited / generic failures (`captionStatus.retryHint` / `captionStatus.retrying` i18n keys)
 
 ---
 
@@ -418,8 +426,26 @@ In-process. Scope: `global`. Admin-only.
 
 ### Theme
 - Light / Dark / System-follow (3-mode toggle)
+- System mode resolves to `light` / `dark` in JS and writes the resolved value to `data-theme`, so a single token set covers both forced and OS-followed dark modes (no separate `[data-theme="system"]` block)
 - CSS variable-based design tokens (Pinterest-inspired palette, coral accent)
 - Japanese typography contracts applied in `jp-ui-contracts`
+
+### Settings Page (`/settings`)
+- Global, drive-independent (accessible even when no drive is unlocked)
+- Sections: Profile (nickname), Appearance (theme), Language (ja/en)
+- The header profile button always navigates here — `LanguageSwitcher` / `ThemeToggle` / `ProfileSetup` modal have been removed from the header
+- Language options render as native labels (`日本語` / `English`) so each is recognizable in either UI language
+- Profile editing has Cancel (Esc) and a confirmation dialog when switching to a different nickname (since that switches profile rather than renaming)
+
+### Mobile UX
+- Video and Loft (YouTube) playback frames render edge-to-edge on phones (0px radius, escapes the page horizontal padding via `-mx-4 md:mx-0`); desktop keeps `rounded-xl`
+- Viewport meta sets `interactive-widget=resizes-content` so `dvh` shrinks to the keyboard-excluded area on supporting browsers — the sticky header stays visible while an input is focused
+- Sidebar navigation gets a thin scrollbar that fades in on hover (no layout shift; 6px track always reserved)
+
+### Keyboard Shortcuts
+- Platform-aware primary modifier: `ctrl+X` shortcuts fire on **Cmd** on macOS and **Ctrl** on Windows / Linux. Definitions stay in the canonical `ctrl+X` form; the cheat sheet renders `⌘` on Mac
+- `editingOnly` partition: a shortcut can declare it fires only while an input/textarea has focus (`true`), only when none does (`undefined`), or always (`false`). Lets the same key bind to different handlers in editor vs non-editor contexts (e.g. Knowledge view-mode cycle works in both preview and edit modes)
+- The cheat sheet walks the entire shortcut layer stack top-to-bottom, so a mid-stack context's shortcuts are reachable when an upper layer only handles the editing partition
 
 ### PWA
 - `manifest.json` + apple-mobile-web-app-capable
@@ -734,6 +760,18 @@ Operators toggle features per drive in `drives.json`:
 | GET | /api/internal/files/{id} | File metadata (id, drive, filename, file_type, folder_path) |
 | POST | /api/internal/filter-file-ids | Filter file IDs by access control |
 | GET | /api/internal/drive-policy?drive=&addon= | Per-drive addon policy (`{default, features}` shape) |
+| GET | /api/internal/viewer-history?viewer_id=&drive=&after=&before=&kind= | File IDs the viewer touched in this drive within a time window (gated by `CORE_INTERNAL_SECRET`; `kind=viewed` / `not_viewed`) |
+| GET | /api/internal/files/{id}/content | Internal text-content read (text mime allowlist + `CORE_INTERNAL_SECRET` + `CORE_INTERNAL_CONTENT_MAX_BYTES`, default 10MB) |
+| POST | /api/internal/files/{id}/tags | Tag projection from knowledge addon scanner (gated by `CORE_INTERNAL_SECRET`) |
+
+### Addon Proxy Headers
+
+The Generic Addon Proxy injects two headers when forwarding `/api/addons/{name}/...` to upstream addons:
+
+| Header | Source | Purpose |
+|--------|--------|---------|
+| `X-Lit-Drive` | Frontend (drive-scoped routes) | Drive context. The proxy validates against the caller's accessible set; unknown / forbidden drives → 404 |
+| `X-Lit-Viewer-Id` | Host-derived from the `lit_viewer` cookie (SHA-256 prefix) | Viewer identity for personal-history features. Any client-supplied value is **stripped** first to prevent spoofing; only the cookie path is authoritative |
 
 ### WebSocket
 
