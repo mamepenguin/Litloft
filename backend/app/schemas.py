@@ -343,12 +343,21 @@ class BatchTagRequest(BaseModel):
 
 
 class ProgressUpdateRequest(BaseModel):
-    position: float
-    duration: float
+    # Both fields Optional so the same endpoint serves two use cases:
+    # media playback (position+duration required) and "page-opened"
+    # view records for non-media files (both omitted, only
+    # last_played_at advances). Mixing — sending only one — is rejected
+    # to keep WatchHistory rows consistent. See spec
+    # ``2026-04-26-intelligence-ask-personal-history-query.md`` §4.2
+    # Stage B for why text/image/PDF files must also surface here.
+    position: float | None = None
+    duration: float | None = None
 
     @field_validator("position")
     @classmethod
-    def validate_position(cls, v: float) -> float:
+    def validate_position(cls, v: float | None) -> float | None:
+        if v is None:
+            return v
         import math
         if not math.isfinite(v):
             raise ValueError("position must be a finite number")
@@ -358,7 +367,9 @@ class ProgressUpdateRequest(BaseModel):
 
     @field_validator("duration")
     @classmethod
-    def validate_duration(cls, v: float) -> float:
+    def validate_duration(cls, v: float | None) -> float | None:
+        if v is None:
+            return v
         import math
         if not math.isfinite(v):
             raise ValueError("duration must be a finite number")
@@ -368,8 +379,18 @@ class ProgressUpdateRequest(BaseModel):
 
     @model_validator(mode="after")
     def position_within_duration(self):
-        if self.position > self.duration:
-            raise ValueError("position cannot exceed duration")
+        # All-or-nothing: sending only one of {position, duration}
+        # leaves the WatchHistory row in an undefined state (e.g. a
+        # position with no duration cannot be checked against the
+        # 90% completion gate in drives.py:570). Reject early so the
+        # endpoint contract stays explicit.
+        if (self.position is None) != (self.duration is None):
+            raise ValueError(
+                "position and duration must be sent together or both omitted"
+            )
+        if self.position is not None and self.duration is not None:
+            if self.position > self.duration:
+                raise ValueError("position cannot exceed duration")
         return self
 
 

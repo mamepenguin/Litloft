@@ -85,6 +85,12 @@ canonical は拡張子で分岐する:
 - ニックネームは SHA-256 ハッシュ → viewer_id。アカウント管理はしない
 - プロファイル未設定時は localStorage フォールバックで、サーバーには保存しない（204 を返す）
 - プロファイル一覧 API は作らない（プライバシー保護）
+- `WatchHistory` は「閲覧履歴」（ファイル詳細ページ表示）と「再生進捗」（player の position/duration）の両方を担う:
+  - ファイル詳細ページを開いた時点で `POST /api/files/{file_id}/progress` を空 body で発行し `last_played_at` を更新する。媒体問わず（text / markdown / image / PDF も対象）
+  - 媒体ファイルは player 起動後に position/duration 付きで再 POST し、playback markers を更新する
+  - 両経路で `last_played_at` は常に最新化。view-only POST が media の playback markers を上書きすることはない
+  - `playback_position=0`/`duration=0` の view-only レコードは continue-watching フィルタ (`drives.py` の 90% 完了ゲート) で自然除外される
+  - 視聴履歴をクライアント間で同期したい場合の唯一のソースであり、`personal_history`（intelligence Ask）はこのテーブルを canonical として参照する
 
 ## WebSocket
 

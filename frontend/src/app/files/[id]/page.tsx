@@ -5,7 +5,7 @@ import { useParams, useRouter, useSearchParams } from "next/navigation";
 import { ArrowLeft, ChevronLeft, ChevronRight, Maximize2, Check, X, ThumbsUp, ThumbsDown } from "lucide-react";
 
 import { useTranslations } from "next-intl";
-import { getFile, getFileNeighbors, updateFile, likeFile, dislikeFile } from "@/lib/api";
+import { getFile, getFileNeighbors, updateFile, likeFile, dislikeFile, recordFileView } from "@/lib/api";
 import { addRecentlyPlayed } from "@/lib/recentlyPlayed";
 import { formatDuration, formatFileSize } from "@/lib/format";
 import type { FileItem, Neighbors } from "@/types";
@@ -74,6 +74,9 @@ export default function FilePage() {
       setEditDesc(f.description);
       setOverrideDrive(f.drive);
       addRecentlyPlayed(fileId);
+      // Server-side mirror of the localStorage record so personal_history
+      // (Ask Stage B) can find non-media files. Fire-and-forget.
+      recordFileView(fileId);
       if (!hasPlaylist && f.file_type !== "archive") {
         getFileNeighbors(fileId, sort, order)
           .then(setNeighbors)

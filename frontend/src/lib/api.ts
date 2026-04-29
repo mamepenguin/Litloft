@@ -474,6 +474,25 @@ export async function saveWatchProgress(fileId: string, position: number, durati
   });
 }
 
+// "Page-opened" record for non-media files. Hits the same endpoint as
+// saveWatchProgress with both fields omitted; backend bumps last_played_at
+// only and leaves playback_position/duration untouched on existing rows.
+// Spec: 2026-04-26-intelligence-ask-personal-history-query.md §4.2.
+export async function recordFileView(fileId: string): Promise<void> {
+  try {
+    await fetch(`${API_BASE}/files/${fileId}/progress`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      credentials: "include",
+      body: JSON.stringify({}),
+    });
+  } catch {
+    // Fire-and-forget. Network failure must not break the file detail
+    // page render — the personal_history filter degrades gracefully when
+    // the row is missing.
+  }
+}
+
 export async function getWatchProgress(fileId: string): Promise<WatchProgress> {
   return fetchJSON<WatchProgress>(`${API_BASE}/files/${fileId}/progress`);
 }

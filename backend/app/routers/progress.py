@@ -48,17 +48,25 @@ async def update_progress(
         .first()
     )
 
+    # Two valid call shapes (enforced by ProgressUpdateRequest):
+    #   1. Media playback   — position+duration both set; bumps last_played_at
+    #      and updates the playback markers. Issued by VideoPlayer/AudioPlayer.
+    #   2. View-only record — both omitted; only last_played_at advances.
+    #      Issued by the file detail page on open so text/PDF/image files
+    #      surface in personal_history queries (spec
+    #      ``2026-04-26-intelligence-ask-personal-history-query.md`` §4.2).
     now = datetime.now(UTC)
     if existing:
-        existing.playback_position = body.position
-        existing.duration = body.duration
+        if body.position is not None and body.duration is not None:
+            existing.playback_position = body.position
+            existing.duration = body.duration
         existing.last_played_at = now
     else:
         record = WatchHistory(
             viewer_id=viewer_id,
             file_id=file_id,
-            playback_position=body.position,
-            duration=body.duration,
+            playback_position=body.position if body.position is not None else 0.0,
+            duration=body.duration if body.duration is not None else 0.0,
             last_played_at=now,
         )
         db.add(record)

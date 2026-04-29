@@ -161,6 +161,121 @@ class TestUpdateProgress:
         )
         assert res.status_code == 422
 
+    def test_view_only_records_last_played(self, client):
+        # Empty body POST = "page-opened" record for non-media files. Must
+        # insert a WatchHistory row with playback_position=0/duration=0 and
+        # last_played_at = now so personal_history's Stage B can surface
+        # the file. Spec: 2026-04-26-intelligence-ask-personal-history-query.md.
+        c, db, drive_dir, data_dir = client
+        file = _seed_file(
+            db, drive_dir, filename="note.md", file_type="text",
+            mime_type="text/markdown", duration=0.0,
+        )
+        res = c.post(
+            f"/api/files/{file.id}/progress",
+            json={},
+            cookies={"lit_viewer": "alice"},
+        )
+        assert res.status_code == 200
+
+        from app.models import WatchHistory
+        from app.routers.progress import nickname_to_viewer_id
+        row = (
+            db.query(WatchHistory)
+            .filter(
+                WatchHistory.viewer_id == nickname_to_viewer_id("alice"),
+                WatchHistory.file_id == file.id,
+            )
+            .one()
+        )
+        assert row.playback_position == 0.0
+        assert row.duration == 0.0
+        assert row.last_played_at is not None
+
+    def test_partial_body_rejected(self, client):
+        # Sending only one of {position, duration} leaves the row in an
+        # ambiguous state (e.g. position w/o duration cannot be checked
+        # against the 90% completion gate). Reject with 422.
+        c, db, drive_dir, data_dir = client
+        file = _seed_file(db, drive_dir)
+        res = c.post(
+            f"/api/files/{file.id}/progress",
+            json={"position": 30.0},
+            cookies={"lit_viewer": "alice"},
+        )
+        assert res.status_code == 422
+
+        res = c.post(
+            f"/api/files/{file.id}/progress",
+            json={"duration": 120.0},
+            cookies={"lit_viewer": "alice"},
+        )
+        assert res.status_code == 422
+
+    def test_view_only_then_media_preserves_last_played(self, client):
+        # media → view-only → media sequence on the same file must:
+        # - never roll back position/duration on the view-only POST
+        # - always advance last_played_at on every POST
+        # This protects the case where a video has been partially watched,
+        # then the user opens the detail page (without restarting playback),
+        # then watches more. The view-only ping in the middle should bump
+        # last_played_at without corrupting the resume position.
+        import time
+        c, db, drive_dir, data_dir = client
+        file = _seed_file(db, drive_dir)
+        viewer_cookie = {"lit_viewer": "alice"}
+
+        c.post(
+            f"/api/files/{file.id}/progress",
+            json={"position": 45.0, "duration": 120.0},
+            cookies=viewer_cookie,
+        )
+
+        from app.models import WatchHistory
+        from app.routers.progress import nickname_to_viewer_id
+        viewer_id = nickname_to_viewer_id("alice")
+        first = (
+            db.query(WatchHistory)
+            .filter(WatchHistory.viewer_id == viewer_id, WatchHistory.file_id == file.id)
+            .one()
+        )
+        first_played_at = first.last_played_at
+
+        time.sleep(0.05)
+        c.post(
+            f"/api/files/{file.id}/progress",
+            json={},
+            cookies=viewer_cookie,
+        )
+        db.expire_all()
+        mid = (
+            db.query(WatchHistory)
+            .filter(WatchHistory.viewer_id == viewer_id, WatchHistory.file_id == file.id)
+            .one()
+        )
+        # Snapshot the timestamp before the next POST refreshes the
+        # ORM instance (identity map returns the same object).
+        mid_played_at = mid.last_played_at
+        # View-only ping must NOT clobber position/duration.
+        assert mid.playback_position == 45.0
+        assert mid.duration == 120.0
+        assert mid_played_at > first_played_at
+
+        time.sleep(0.05)
+        c.post(
+            f"/api/files/{file.id}/progress",
+            json={"position": 75.0, "duration": 120.0},
+            cookies=viewer_cookie,
+        )
+        db.expire_all()
+        final = (
+            db.query(WatchHistory)
+            .filter(WatchHistory.viewer_id == viewer_id, WatchHistory.file_id == file.id)
+            .one()
+        )
+        assert final.playback_position == 75.0
+        assert final.last_played_at > mid_played_at
+
 
 class TestGetProgress:
     def test_saved_position(self, client):
