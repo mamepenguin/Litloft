@@ -1,5 +1,5 @@
-import { describe, expect, it } from "vitest";
-import { render, screen } from "@testing-library/react";
+import { describe, expect, it, vi } from "vitest";
+import { fireEvent, render, screen } from "@testing-library/react";
 import { FolderCard } from "../FolderCard";
 import type { Folder } from "@/types";
 
@@ -80,5 +80,34 @@ describe("FolderCard", () => {
       "href",
       "/drive/test-drive/Music%20Collection"
     );
+  });
+
+  it("calls onContextMenu when right-clicked", () => {
+    const onContextMenu = vi.fn();
+    const { container } = render(
+      <FolderCard
+        folder={folderWithThumbnail}
+        {...baseFolderProps}
+        onContextMenu={onContextMenu}
+      />
+    );
+    const card = container.firstChild as HTMLElement;
+    fireEvent.contextMenu(card);
+    expect(onContextMenu).toHaveBeenCalledTimes(1);
+  });
+
+  it("does not render legacy hover action buttons", () => {
+    render(
+      <FolderCard
+        folder={folderWithThumbnail}
+        {...baseFolderProps}
+        onContextMenu={vi.fn()}
+      />
+    );
+    expect(screen.queryByLabelText("ピン留め")).not.toBeInTheDocument();
+    expect(screen.queryByLabelText("ピン留め解除")).not.toBeInTheDocument();
+    expect(screen.queryByLabelText("名前を変更")).not.toBeInTheDocument();
+    expect(screen.queryByLabelText("移動")).not.toBeInTheDocument();
+    expect(screen.queryByLabelText("削除")).not.toBeInTheDocument();
   });
 });

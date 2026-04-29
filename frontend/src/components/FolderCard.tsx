@@ -2,23 +2,36 @@ import Link from "next/link";
 import { Folder } from "lucide-react";
 import { useTranslations } from "next-intl";
 import type { Folder as FolderType } from "@/types";
-import { FolderActions } from "./FolderActions";
 
 interface FolderCardProps {
   folder: FolderType;
   driveName: string;
-  isPinned?: boolean;
-  onTogglePin?: () => void;
-  onUpdate?: () => void;
   isDropTarget?: boolean;
   dropTargetProps?: Record<string, (e: React.DragEvent) => void>;
   draggable?: boolean;
   isDragging?: boolean;
   onDragStart?: (e: React.DragEvent) => void;
   onDragEnd?: () => void;
+  onContextMenu?: (e: React.MouseEvent) => void;
+  onTouchStart?: (e: React.TouchEvent) => void;
+  onTouchEnd?: (e: React.TouchEvent) => void;
+  onTouchMove?: (e: React.TouchEvent) => void;
 }
 
-export function FolderCard({ folder, driveName, isPinned, onTogglePin, onUpdate, isDropTarget, dropTargetProps, draggable, isDragging, onDragStart, onDragEnd }: FolderCardProps) {
+export function FolderCard({
+  folder,
+  driveName,
+  isDropTarget,
+  dropTargetProps,
+  draggable,
+  isDragging,
+  onDragStart,
+  onDragEnd,
+  onContextMenu,
+  onTouchStart,
+  onTouchEnd,
+  onTouchMove,
+}: FolderCardProps) {
   const t = useTranslations("folder");
   return (
     <div
@@ -28,6 +41,10 @@ export function FolderCard({ folder, driveName, isPinned, onTogglePin, onUpdate,
       draggable={draggable}
       onDragStart={onDragStart}
       onDragEnd={onDragEnd}
+      onContextMenu={onContextMenu}
+      onTouchStart={onTouchStart}
+      onTouchEnd={onTouchEnd}
+      onTouchMove={onTouchMove}
       {...dropTargetProps}
     >
       <Link
@@ -55,11 +72,6 @@ export function FolderCard({ folder, driveName, isPinned, onTogglePin, onUpdate,
           <p className="text-sm text-text-muted">{t("items", { count: folder.file_count })}</p>
         </div>
       </Link>
-      {onUpdate && (
-        <div className="flex-shrink-0 md:absolute md:right-3 md:top-1/2 md:-translate-y-1/2 md:opacity-0 md:group-hover:opacity-100 transition-opacity">
-          <FolderActions folder={folder} drive={driveName} isPinned={isPinned} onTogglePin={onTogglePin} onUpdate={onUpdate} />
-        </div>
-      )}
     </div>
   );
 }

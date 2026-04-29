@@ -1,13 +1,15 @@
 "use client";
 
-import type { RefObject } from "react";
+import { useState, type RefObject } from "react";
 
+import { useContextMenu } from "@/hooks/useContextMenu";
 import type { DragState } from "@/hooks/useDragAndDrop";
 import type { FileItem, Folder, ViewMode } from "@/types";
 import { FileGrid } from "@/components/FileGrid";
 import { FileList } from "@/components/FileList";
 import { EmptyState } from "@/components/EmptyState";
 import { FolderCard } from "@/components/FolderCard";
+import { FolderContextMenu } from "@/components/FolderContextMenu";
 
 interface FolderContentProps {
   files: FileItem[];
@@ -47,6 +49,8 @@ export function FolderContent({
   isSelected, onSelect, onMetaSelect, onShiftSelect, onTogglePin, onFavoriteToggle, onRefresh,
   onDragStart, onDragEnd, selectedCount, isDropDisabled, onFolderDragStart,
 }: FolderContentProps) {
+  const [menuTarget, setMenuTarget] = useState<Folder | null>(null);
+  const { menuState: folderMenuState, close: closeFolderMenu, handlers: folderMenuHandlers } = useContextMenu();
   return (
     <>
       {folders.length > 0 && (
@@ -58,20 +62,38 @@ export function FolderContent({
                 key={folder.path}
                 folder={folder}
                 driveName={driveName}
-                isPinned={pinnedPaths.has(folder.path)}
-                onTogglePin={() => onTogglePin(folder.path)}
-                onUpdate={onRefresh}
                 isDropTarget={dragState.isDragging && !disabled && isDropTarget(folder.path)}
                 dropTargetProps={dragState.isDragging && !disabled ? getDropTargetProps(folder.path) : undefined}
                 draggable={!!onRefresh}
                 isDragging={dragState.draggedFolderPath === folder.path}
                 onDragStart={(e) => onFolderDragStart(e, folder.path)}
                 onDragEnd={onDragEnd}
+                onContextMenu={(e) => {
+                  setMenuTarget(folder);
+                  folderMenuHandlers.onContextMenu(e);
+                }}
+                onTouchStart={(e) => {
+                  setMenuTarget(folder);
+                  folderMenuHandlers.onTouchStart(e);
+                }}
+                onTouchEnd={folderMenuHandlers.onTouchEnd}
+                onTouchMove={folderMenuHandlers.onTouchMove}
               />
             );
           })}
         </div>
       )}
+
+      <FolderContextMenu
+        open={folderMenuState.open}
+        position={folderMenuState.position}
+        target={menuTarget}
+        drive={driveName}
+        isPinned={menuTarget ? pinnedPaths.has(menuTarget.path) : false}
+        onTogglePin={menuTarget ? () => onTogglePin(menuTarget.path) : undefined}
+        onUpdate={onRefresh}
+        onClose={closeFolderMenu}
+      />
 
       {loading ? (
         <div className="flex items-center justify-center py-16">

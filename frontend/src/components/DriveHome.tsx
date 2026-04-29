@@ -7,9 +7,11 @@ import { useTranslations } from "next-intl";
 import type { FileItem, Folder as FolderType, WatchHistoryItem } from "@/types";
 import { addPin, getDriveFiles, getFolders, getPins, getWatchHistory, removePin } from "@/lib/api";
 import { useDragAndDrop } from "@/hooks/useDragAndDrop";
+import { useContextMenu } from "@/hooks/useContextMenu";
 import { CarouselSection } from "./CarouselSection";
 import { ContinueWatchingSection } from "./ContinueWatchingSection";
 import { FolderCard } from "./FolderCard";
+import { FolderContextMenu } from "./FolderContextMenu";
 import { RootFileListing } from "./RootFileListing";
 import { useSidebar } from "./SidebarProvider";
 import { useProfile } from "./ProfileProvider";
@@ -43,6 +45,8 @@ export function DriveHome({ driveName }: DriveHomeProps) {
   const [foldersLoading, setFoldersLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [pinnedPaths, setPinnedPaths] = useState<Set<string>>(new Set());
+  const [menuTarget, setMenuTarget] = useState<FolderType | null>(null);
+  const { menuState: folderMenuState, close: closeFolderMenu, handlers: folderMenuHandlers } = useContextMenu();
   const { requestRefresh: refreshSidebar } = useSidebar();
   const emptySelection = useMemo(() => new Set<string>(), []);
 
@@ -240,15 +244,22 @@ export function DriveHome({ driveName }: DriveHomeProps) {
                     key={folder.path}
                     folder={folder}
                     driveName={driveName}
-                    isPinned={pinnedPaths.has(folder.path)}
-                    onTogglePin={() => handleTogglePin(folder.path)}
-                    onUpdate={refreshFolders}
                     draggable
                     isDragging={dragState.draggedFolderPath === folder.path}
                     onDragStart={(e) => handleFolderDragStart(e, folder.path)}
                     onDragEnd={handleDragEnd}
                     isDropTarget={dragState.isDragging && !disabled && isDropTarget(folder.path)}
                     dropTargetProps={dragState.isDragging && !disabled ? getDropTargetProps(folder.path) : undefined}
+                    onContextMenu={(e) => {
+                      setMenuTarget(folder);
+                      folderMenuHandlers.onContextMenu(e);
+                    }}
+                    onTouchStart={(e) => {
+                      setMenuTarget(folder);
+                      folderMenuHandlers.onTouchStart(e);
+                    }}
+                    onTouchEnd={folderMenuHandlers.onTouchEnd}
+                    onTouchMove={folderMenuHandlers.onTouchMove}
                   />
                 );
               })}
@@ -314,6 +325,17 @@ export function DriveHome({ driveName }: DriveHomeProps) {
         driveName={driveName}
         onFileAction={refetchAllSections}
         onFolderChange={refreshFolders}
+      />
+
+      <FolderContextMenu
+        open={folderMenuState.open}
+        position={folderMenuState.position}
+        target={menuTarget}
+        drive={driveName}
+        isPinned={menuTarget ? pinnedPaths.has(menuTarget.path) : false}
+        onTogglePin={menuTarget ? () => handleTogglePin(menuTarget.path) : undefined}
+        onUpdate={refreshFolders}
+        onClose={closeFolderMenu}
       />
     </div>
   );
