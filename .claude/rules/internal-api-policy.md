@@ -81,6 +81,7 @@ API surface (パス・パラメータ・レスポンス形状) が特定アド�
 
 ## 関連
 
+- **Internal API リファレンス**: [`docs/ADDON-DEVELOPMENT.md` の Internal API セクション](../../docs/ADDON-DEVELOPMENT.md#internal-api) — 全 endpoint の wire shape / 認証 / 用途
 - 契約テストパターン (新規 endpoint 追加時必須): hako `VHE7K0KWjIzV3M1CyfDAN` (wire shape + validator parity の 2 層)
 - write endpoint の secret gating: hako `6sC7Td2hvp_0IpEF1t4tb` (read より厳しい threat model)
 - 本判定基準の確立: hako `749bxgygHt3YyvvFlFeQA`

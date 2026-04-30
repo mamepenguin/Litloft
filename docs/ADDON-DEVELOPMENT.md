@@ -491,17 +491,49 @@ If the policy lookup fails, the event is forwarded (fail open); the addon-side w
 
 ### Internal API
 
-For complex cases where declarative filters aren't sufficient, external services can call the core's Internal API on the Docker network:
+For complex cases where declarative filters aren't sufficient, external services can call the core's Internal API on the Docker network. **Before adding a new Internal API endpoint, read the policy rules** at [`.claude/rules/internal-api-policy.md`](../.claude/rules/internal-api-policy.md) (R1〜R5) — most "the core needs to expose X for my addon" requests should resolve as "addon owns X locally."
+
+Base path for all routes: `http://backend:8000/api/internal`.
+
+#### Read endpoints (no secret)
 
 | Endpoint | Description |
 |----------|-------------|
-| `GET backend:8000/api/internal/accessible-drives` | Accessible drive names for the given auth token |
-| `GET backend:8000/api/internal/files/{file_id}` | File metadata (id, drive, filename, file_type, folder_path) |
-| `POST backend:8000/api/internal/filter-file-ids` | Filter file IDs by access control |
-| `GET backend:8000/api/internal/drive-policy?drive=&addon=` | Per-drive policy in `{default, features}` shape |
-| `GET backend:8000/api/internal/viewer-history?viewer_id=&drive=&after=&before=&kind=` | File IDs the viewer touched in the drive within `[after, before)`. `kind=viewed` (default) or `not_viewed`. Gated by `CORE_INTERNAL_SECRET`. Drive isolation is enforced via JOIN to `files` so cross-drive viewer history never leaks |
+| `GET /accessible-drives` | Accessible drive names for the given auth token (forwards `lit_token` cookie). |
+| `GET /drive-policy?drive=&addon=` | Per-drive addon policy in `{default, features}` shape. 404 for unknown drive (no enumeration). |
+| `GET /files/{file_id}` | File metadata: `{id, drive, filename, file_type, folder_path, updated_at}`. |
+| `POST /filter-file-ids` | Body `{file_ids: []}` → `{accessible: []}`. Drops IDs the caller can't see. |
+| `POST /files/bulk-state` | Body `{file_ids: []}` → `{statuses: [{id, drive, state}], not_found: []}`. State is `active`/`missing`/`trash`. Service-to-service (no auth). |
+| `GET /file_relations?file_id=&kind=` | List relations where `file_id` appears on either side. `kind` filter optional. |
 
-Forward the original request's cookies (`lit_token`) when calling access-controlled endpoints so the core can evaluate the caller's unlocked groups correctly. Endpoints gated by `CORE_INTERNAL_SECRET` (viewer-history, internal content read, internal tag write) need the `X-Internal-Secret` header set to the matching value on both sides.
+#### Write endpoints (no secret)
+
+| Endpoint | Description |
+|----------|-------------|
+| `POST /file_relations` | Body `{file_id_a, file_id_b, kind, viewer_id?}`. Creates a relation (same drive only). 400 self / cross-drive, 404 missing files, 409 duplicate. |
+| `DELETE /file_relations/{relation_id}` | Removes a relation by id. |
+
+#### Secret-gated endpoints (`X-Internal-Secret` matches `CORE_INTERNAL_SECRET`)
+
+The header is required when `CORE_INTERNAL_SECRET` is set on both sides. When unset (dev) the gate is a no-op; production deployments should always set it.
+
+| Endpoint | Description |
+|----------|-------------|
+| `GET /files/{file_id}/content` | Raw text body. Mime allowlist (`text/markdown`, `text/plain`); size cap (`CORE_INTERNAL_CONTENT_MAX_BYTES`, default 10 MB). 415 on non-text or non-UTF-8. |
+| `POST /files/{file_id}/tags` | Body `{tags: []}` → 204. Same validation as `PUT /api/files/{id}/tags`. Used by the knowledge scanner to project frontmatter onto core `File.tags`. |
+| `GET /viewer-history?viewer_id=&drive=&after=&before=&kind=` | File IDs the viewer touched in the drive within `[after, before)`. `kind=viewed` (default) or `not_viewed`. Drive isolation via JOIN to `files` so cross-drive viewer history never leaks. |
+
+#### WS bridge
+
+| Endpoint | Description |
+|----------|-------------|
+| `POST /addon-events` | Body `{event, data, drive?}` → 204. Core relays the payload to its WS broadcaster. Drive-scoped broadcasts are access-filtered (other-drive viewers don't receive). Use this from external-service addons that can't reach the core's broadcaster directly. |
+
+#### Auth conventions
+
+- **Cookies**: forward the original request's `Cookie` header (`lit_token`, `lit_viewer`) when calling access-controlled endpoints (`accessible-drives`, `filter-file-ids`, `files/{id}`). The core evaluates the caller's unlocked groups from `lit_token`.
+- **Shared secret**: send `X-Internal-Secret: <value>` for the secret-gated endpoints. Mismatch is 403; constant-time compared so token length / prefix never leaks via timing.
+- **Service-to-service**: `bulk-state` and `addon-events` need no auth — they're service convenience routes intended for Docker-internal traffic only.
 
 #### Drive policy shape
 
@@ -601,7 +633,8 @@ Addons can inject UI components into predefined **slots** in the core applicatio
 | `dashboard-widgets` | Admin dashboard | Cards | Index statistics, cloud sync status |
 | `folder-actions` | Folder toolbar | Inline buttons | Batch AI tags, batch summaries, batch transcript refine |
 | `sidebar-sections` | Sidebar | Stack | Knowledge Vault summary, per-addon shortcuts |
-| `loftref-player` | File detail (external-source files) | Stack | Embedded player for URL-only files |
+| `loft-player` | File detail (external-source files) | Stack | Embedded player for URL-only files |
+| `active-summary-view` | File detail | Stack | Knowledge-promoted summary note rendering. Hidden when no addon registers — file detail page falls back to the AI summary section. |
 
 ### Declaring Slots
 
