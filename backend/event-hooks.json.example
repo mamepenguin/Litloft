@@ -6,6 +6,7 @@
     "files.missing": "Files not found on disk during scan (body: {file_ids})",
     "files.recovered": "Previously missing files reappeared on disk (body: {file_ids})",
     "files.purged": "Files permanently deleted by user (body: {file_ids})",
+    "files.moved": "File path / filename changed via rename / move / folder ops (body: {file_ids})",
     "scan.complete": "Drive scan finished (body: {drive, added, missing, recovered})"
   },
   "_options": {

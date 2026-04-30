@@ -472,6 +472,7 @@ Available events:
 | `files.missing` | Scanner detects a previously-indexed file is gone from FS | `{file_ids, drive}` |
 | `files.recovered` | Missing file reappears on FS | `{file_ids, drive}` |
 | `files.purged` | User explicitly deletes a file permanently (or 30-day trash auto-purge) — scan-triggered purges no longer fire this event | `{file_ids, drive}` |
+| `files.moved` | File path / filename changed via rename / move / folder rename / folder move (single covering event for all 6 mutation routes) | `{file_ids}` |
 
 Event hooks are **drive-aware**: each listener entry may declare an `addon` + `feature`, and the core drops or strips payloads for drives whose policy disables that feature before forwarding:
 
