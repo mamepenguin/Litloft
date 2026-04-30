@@ -419,6 +419,8 @@ Returns 404 if the drive's `addons.{addon_name}.{feature}` is `false` (or the um
 
 **`admin`** — Require the caller's JWT to have every protected `access_group` declared in `drives.json` unlocked. Used for administrative endpoints like queue control and index status.
 
+> **Note on path collisions:** the core admin gate is also enforced on `/api/admin/*` (admin dashboard) and `/api/admin/config/*` (config GUI for drives/passwords/addon-policy). **Addons must not mount their proxy routes under `/api/admin/...`** — pick a path under `/api/addons/{name}/...` instead. The admin gate on these core paths is independent of the addon proxy and would block addon traffic before it reaches your service.
+
 ### Route-Level Options
 
 | Field | Default | Meaning |

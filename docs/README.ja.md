@@ -32,6 +32,7 @@
 - **アクセス制御** — ドライブ単位のパスワード保護（オプション）
 - **ドライブ別アドオンポリシー** — `drives.json` でドライブごとにアドオン機能を個別 ON/OFF
 - **管理ダッシュボード** — ドライブ統計、スキャン状態、システムヘルス監視、アドオンウィジェット
+- **初回セットアップウィザード / 管理設定 GUI** — `/setup`（初回）と `/admin/settings`（以降）からブラウザでドライブ・マスターパスワード・アドオンポリシーを編集。JSON 直書きも引き続き可能
 - **ダーク/ライトテーマ** — 切替対応
 - **国際化** — 日本語/英語（next-intl、Cookieベースのロケール切替）
 - **PWA** — スマホのホーム画面に追加してネイティブアプリのように使える
@@ -58,15 +59,82 @@
 
 ## セットアップ
 
-### 1. ドライブ設定
+### 1. docker-compose.yml にドライブディレクトリをマウント
 
-`drives.json.example` を参考に `drives.json` を作成:
+公開したいホスト側ディレクトリを backend にマウントする。マウントしていないディレクトリは backend から見えない。
+
+```yaml
+services:
+  backend:
+    volumes:
+      - /path/to/family-videos:/app/drives/family:ro
+      - /path/to/tv-recordings:/app/drives/tv:ro
+      - /path/to/private:/app/drives/private
+      - ./data:/app/data
+```
+
+`drives.json` と `passwords.json` は GUI（手順 3）で管理されるため、自分でマウントする必要はない。JSON 直書き派の場合は後述の[手動設定（上級者向け）](#手動設定上級者向け)を参照。
+
+### 2. 起動
+
+```bash
+docker compose up -d --build
+```
+
+ブラウザで `http://localhost:3000` を開く。LAN内の他デバイスからは `http://<ホストIP>:3000`。
+
+#### Windows での注意事項
+
+- [Docker Desktop for Windows](https://www.docker.com/products/docker-desktop/) の WSL 2 バックエンドを使用すること。
+- `docker-compose.yml` のボリュームマウントパスは Windows でもスラッシュを使う（例: `//c/Users/you/Videos:/app/drives/videos`）。または WSL パス（`/mnt/c/Users/you/Videos`）を使用。
+- インプロセスアドオンのシンボリックリンクは、開発者モードの有効化または管理者権限が必要。代替としてディレクトリをコピーしてもよい。
+
+### 3. 初回セットアップウィザード
+
+初回起動時、ブラウザは `/setup` にリダイレクトされる。ウィザードは以下のステップで進む:
+
+1. **言語** — ja / en
+2. **ドライブ** — 1 件以上追加（表示名、`/app/drives/...` 配下のコンテナ内パス、任意のアクセスグループ）。コンテナ内にパスが存在するかその場で検証する。
+3. **アクセスモード** — 「全公開」または「パスワード保護」を選択。
+4. **マスターパスワード** — パスワード保護を選んだ場合、手順 2 で使った全グループを含むマスターパスワードを作成する。これでロック解除した viewer が **admin**（以降の設定編集権限を持つ唯一の viewer）になる。
+5. **アドオンポリシー** — 各アドオンをドライブごとに ON/OFF（任意。デフォルトは有効）。
+6. **完了** — 完了で `/admin` に遷移し、backend コンテナを再起動して反映する。
+
+ウィザードで保存すると、`/admin/*` 配下に **再起動バナー** が表示される。次のコマンドで反映する:
+
+```bash
+docker compose restart backend
+```
+
+backend が再起動するとバナーは自動的に消える。
+
+### 4. 後から設定を変更する
+
+`/admin/settings`（admin viewer のみアクセス可能）でドライブの追加・削除、パスワード変更、アドオンポリシー切替ができる。保存するたびに restart-pending フラグが立ち、バナーが表示される — 設定反映には `docker compose restart backend` が必要。
+
+> **注意:** `passwords.json` が無い（全公開モード）場合、誰でも `/admin/settings` にアクセスできる。`access_group` を設定したドライブに対応するパスワードが `passwords.json` にないと、そのドライブには永久にアクセスできない。
+
+### 5. LLM 機能（オプション）
+
+intelligence アドオンの LLM 機能（Ask、AI 要約、auto-tags、transcript refine）を使うには `.env` にクレデンシャルを設定:
+
+```bash
+LLM_API_KEY=sk-...
+```
+
+その後 1 回だけ再ビルド: `docker compose up -d --build`。以降の GUI 設定変更は `docker compose restart backend` で反映できる。
+
+### 手動設定（上級者向け）
+
+JSON を直接編集したい場合、GUI は完全に任意:
 
 ```bash
 cp drives.json.example drives.json
+cp passwords.json.example passwords.json   # 任意
 ```
 
 ```json
+// drives.json
 [
   { "name": "家族ビデオ", "path": "/app/drives/family" },
   { "name": "テレビ番組", "path": "/app/drives/tv" },
@@ -81,42 +149,8 @@ cp drives.json.example drives.json
 | `access_group` | アクセス制御グループ名（省略で公開ドライブ） |
 | `addons` | ドライブ別アドオンポリシー（詳細は [DRIVE-POLICY.md](DRIVE-POLICY.md)） |
 
-### 2. docker-compose.yml にドライブをマウント
-
-```yaml
-services:
-  backend:
-    volumes:
-      - ./drives.json:/app/drives.json:ro
-      - /path/to/family-videos:/app/drives/family:ro
-      - /path/to/tv-recordings:/app/drives/tv:ro
-      - /path/to/private:/app/drives/private
-      - ./data:/app/data
-```
-
-### 3. 起動
-
-```bash
-docker compose up -d --build
-```
-
-ブラウザで `http://localhost:3000` を開く。LAN内の他デバイスからは `http://<ホストIP>:3000`。
-
-#### Windows での注意事項
-
-- [Docker Desktop for Windows](https://www.docker.com/products/docker-desktop/) の WSL 2 バックエンドを使用すること。
-- `docker-compose.yml` のボリュームマウントパスは Windows でもスラッシュを使う（例: `//c/Users/you/Videos:/app/drives/videos`）。または WSL パス（`/mnt/c/Users/you/Videos`）を使用。
-- インプロセスアドオンのシンボリックリンクは、開発者モードの有効化または管理者権限が必要。代替としてディレクトリをコピーしてもよい。
-
-### 4. アクセス制御（オプション）
-
-特定ドライブをパスワードで保護する場合:
-
-```bash
-cp passwords.json.example passwords.json
-```
-
 ```json
+// passwords.json
 [
   { "password": "family-secret", "groups": ["family"] },
   { "password": "my-master-pw", "groups": ["family", "private"] }
@@ -131,10 +165,14 @@ cp passwords.json.example passwords.json
 `docker-compose.yml` の backend volumes に追加:
 
 ```yaml
-- ./passwords.json:/app/passwords.json:ro
+services:
+  backend:
+    volumes:
+      - ./drives.json:/app/drives.json
+      - ./passwords.json:/app/passwords.json
 ```
 
-設定変更後はコンテナの再ビルドが必要: `docker compose up -d --build`
+その後 `docker compose up -d --build`。`drives.json` が既に存在する状態で起動した場合、backend は自動的に `data/setup_completed` を作成するため、初回ウィザードはスキップされる。
 
 #### ロック解除の使い方
 
@@ -144,8 +182,6 @@ cp passwords.json.example passwords.json
 4. 「Unlock」をクリックするとトップページにリダイレクトされ、保護ドライブが表示される
 
 ロック解除中はサイドバーに「Lock」ボタンが表示される。
-
-> **注意:** `passwords.json` を配置しなければ全ドライブが公開される（デフォルト動作）。`access_group` が設定されたドライブに対応するパスワードが `passwords.json` にないと、そのドライブには永久にアクセスできないため注意。
 
 ## 開発
 

@@ -14,28 +14,32 @@
 - **Frontend**: Next.js 16 (App Router, TypeScript, Tailwind CSS v4)
 - **インフラ**: Docker Compose (2コンテナ、backendは外部非公開)
 - **認証**: オプショナルなパスワード保護（`passwords.json` によるドライブ単位のアクセス制御）
+- **設定 GUI**: 初回起動は `/setup` first-run wizard、以降は `/admin/settings` でドライブ・パスワード・アドオン policy を編集（マスター viewer = 全 group を持つパスワードでロック解除した viewer のみ。`passwords.json` 未配置時は誰でも admin）。`data/setup_completed` sentinel でウィザード表示を判定し、`data/restart_pending` flag で「保留中の変更あり」バナーを `/admin` 配下に表示
 
 ## ディレクトリ構成
 
 ```
 backend/
   app/
-    main.py          # エントリーポイント、startup scan
-    config.py        # drives.json 読み取り、DATA_DIR
+    main.py          # エントリーポイント、startup scan、setup_completed sentinel migration、restart_pending flag clear
+    config.py        # drives.json 読み取り、DATA_DIR、sentinel/flag path helpers
     database.py      # SQLAlchemy, マイグレーション
     models.py        # ORM モデル
     schemas.py       # Pydantic スキーマ
-    auth.py          # JWT認証、viewer_id管理
-    routers/         # API エンドポイント (files, drives, playlists, auth, uploads, progress, ws, admin, comments, addon_proxy, internal)
-    services/        # ビジネスロジック (scanner, fileops, thumbnail, upload, heic, subtitle, preview, hash, ws, addon_registry)
+    auth.py          # JWT認証、viewer_id管理、is_admin_viewer helper
+    routers/         # API エンドポイント (files, drives, playlists, auth, uploads, progress, ws, admin, admin_config, comments, addon_proxy, internal)
+    services/        # ビジネスロジック (scanner, fileops, thumbnail, upload, heic, subtitle, preview, hash, ws, addon_registry, config_writer)
   tests/             # pytest (Docker内で実行)
 
 frontend/
   src/
     app/             # Next.js App Router ページ
-    components/      # React コンポーネント
+      admin/         # 管理ダッシュボード。layout.tsx で admin gate + RestartBanner
+        settings/    # 設定編集 UI (Drives / Passwords / AddonPolicy セクション)
+      setup/         # first-run wizard (6 ステップ)
+    components/      # React コンポーネント (RestartBanner, SetupRedirector 含む)
     hooks/           # カスタムフック
-    lib/             # ユーティリティ (api.ts, format.ts 等)
+    lib/             # ユーティリティ (api.ts, format.ts, adminConfig.ts 等)
     i18n/            # next-intl 設定
     messages/        # 翻訳ファイル (ja.json, en.json)
     types/           # TypeScript 型定義
@@ -47,7 +51,7 @@ deploy/
 docker-compose.yml
 drives.json          # ドライブ設定 (git管理外)
 passwords.json       # アクセス制御設定 (git管理外)
-data/                # SQLite DB + サムネイル + キャッシュ (git管理外)
+data/                # SQLite DB + サムネイル + キャッシュ + setup_completed sentinel + restart_pending flag (git管理外)
 ```
 
 ## Git

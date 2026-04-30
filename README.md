@@ -34,6 +34,7 @@ A self-hosted file manager and media streaming app for your home LAN. Runs on Do
 - **Access control** — Optional per-drive password protection
 - **Per-drive addon policy** — Enable or disable individual addon features per drive via `drives.json`
 - **Admin dashboard** — Drive stats, scan status, system health monitoring, addon widgets
+- **First-run wizard & admin settings GUI** — Configure drives, master password, and addon policy from the browser at `/setup` (initial) and `/admin/settings` (later); JSON files still work for advanced users
 - **Dark/light theme** — Toggle between themes
 - **i18n** — Japanese / English (next-intl, cookie-based locale)
 - **PWA** — Add to home screen for a native app-like experience
@@ -60,15 +61,82 @@ Browser → :3000 (Next.js) → rewrites /api/* → :8000 (FastAPI, internal onl
 
 ## Getting Started
 
-### 1. Configure drives
+### 1. Mount drive directories in docker-compose.yml
 
-Create `drives.json` from the example:
+Mount the host directories you want to expose as drives. The backend cannot see directories that are not mounted.
+
+```yaml
+services:
+  backend:
+    volumes:
+      - /path/to/family-videos:/app/drives/family:ro
+      - /path/to/tv-shows:/app/drives/tv:ro
+      - /path/to/private:/app/drives/private
+      - ./data:/app/data
+```
+
+`drives.json` and `passwords.json` are managed via the GUI in step 3 — no need to mount them yourself for the typical setup. (Manual JSON editing is still supported; see [Manual config (advanced)](#manual-config-advanced) below.)
+
+### 2. Start
+
+```bash
+docker compose up -d --build
+```
+
+Open `http://localhost:3000` in your browser. From other devices on your LAN, use `http://<host-ip>:3000`.
+
+#### Windows notes
+
+- Use [Docker Desktop for Windows](https://www.docker.com/products/docker-desktop/) with the WSL 2 backend enabled.
+- Volume mount paths in `docker-compose.yml` use forward slashes even on Windows (e.g. `//c/Users/you/Videos:/app/drives/videos`). Alternatively, use WSL paths (`/mnt/c/Users/you/Videos`).
+- Symlinks for in-process addons may require Developer Mode enabled or an elevated prompt. As an alternative, copy the addon directory instead of symlinking.
+
+### 3. First-run wizard
+
+On first launch, the browser is redirected to `/setup`. The wizard walks you through:
+
+1. **Language** — ja / en
+2. **Drives** — Add at least one drive (display name, container path under `/app/drives/...`, optional access group). The wizard validates the path exists inside the container.
+3. **Access mode** — Choose "public" (no password) or "password protected".
+4. **Master password** — When password protection is enabled, create a master password that covers every group used in step 2. The viewer who unlocks with this password becomes the **admin** (the only one allowed to edit config later).
+5. **Addon policy** — Toggle each addon ON/OFF per drive (optional; defaults to enabled).
+6. **Done** — Click finish to land on `/admin` and apply the changes by restarting the backend container.
+
+After the wizard saves, a **Restart Banner** appears across `/admin/*`. Run the suggested command to apply changes:
+
+```bash
+docker compose restart backend
+```
+
+The banner disappears automatically once the backend comes back up.
+
+### 4. Editing config later
+
+Visit `/admin/settings` (admin viewer only) to add/remove drives, change passwords, or toggle addon policy. Every save flips the restart-pending flag and shows the banner — config changes take effect after `docker compose restart backend`.
+
+> **Note:** If `passwords.json` is not present (public mode), every viewer can access `/admin/settings`. If a drive has `access_group` set but no matching password exists, that drive will be permanently inaccessible.
+
+### 5. LLM features (optional)
+
+For intelligence-addon features that call an LLM (Ask, AI summaries, auto-tags, transcript refine), set credentials in `.env`:
+
+```bash
+LLM_API_KEY=sk-...
+```
+
+Then rebuild once: `docker compose up -d --build`. Subsequent config edits via the GUI only need `docker compose restart backend`.
+
+### Manual config (advanced)
+
+If you prefer editing JSON by hand, the GUI is fully optional:
 
 ```bash
 cp drives.json.example drives.json
+cp passwords.json.example passwords.json   # optional
 ```
 
 ```json
+// drives.json
 [
   { "name": "Family Videos", "path": "/app/drives/family" },
   { "name": "TV Shows", "path": "/app/drives/tv", "readonly": true },
@@ -84,42 +152,8 @@ cp drives.json.example drives.json
 | `access_group` | Access control group name (omit for public drives) |
 | `addons` | Per-drive addon policy (see [Per-Drive Addon Policy](docs/DRIVE-POLICY.md)) |
 
-### 2. Mount drives in docker-compose.yml
-
-```yaml
-services:
-  backend:
-    volumes:
-      - ./drives.json:/app/drives.json:ro
-      - /path/to/family-videos:/app/drives/family:ro
-      - /path/to/tv-shows:/app/drives/tv:ro
-      - /path/to/private:/app/drives/private
-      - ./data:/app/data
-```
-
-### 3. Start
-
-```bash
-docker compose up -d --build
-```
-
-Open `http://localhost:3000` in your browser. From other devices on your LAN, use `http://<host-ip>:3000`.
-
-#### Windows notes
-
-- Use [Docker Desktop for Windows](https://www.docker.com/products/docker-desktop/) with the WSL 2 backend enabled.
-- Volume mount paths in `docker-compose.yml` use forward slashes even on Windows (e.g. `//c/Users/you/Videos:/app/drives/videos`). Alternatively, use WSL paths (`/mnt/c/Users/you/Videos`).
-- Symlinks for in-process addons may require Developer Mode enabled or an elevated prompt. As an alternative, copy the addon directory instead of symlinking.
-
-### 4. Access control (optional)
-
-To password-protect specific drives:
-
-```bash
-cp passwords.json.example passwords.json
-```
-
 ```json
+// passwords.json
 [
   { "password": "family-secret", "groups": ["family"] },
   { "password": "my-master-pw", "groups": ["family", "private"] }
@@ -131,15 +165,19 @@ cp passwords.json.example passwords.json
 | `password` | Password to unlock drives |
 | `groups` | List of group names unlocked by this password |
 
-Add to backend volumes in `docker-compose.yml`:
+Mount both files into the backend container:
 
 ```yaml
-- ./passwords.json:/app/passwords.json:ro
+services:
+  backend:
+    volumes:
+      - ./drives.json:/app/drives.json
+      - ./passwords.json:/app/passwords.json
 ```
 
-Rebuild after changes: `docker compose up -d --build`
+Then `docker compose up -d --build`. To skip the first-run wizard for an existing JSON setup, the backend creates `data/setup_completed` automatically on startup when `drives.json` already exists.
 
-#### Unlocking drives
+#### Unlocking protected drives
 
 1. Navigate to `http://<ip>:3000/unlock` (no link in the UI)
 2. Enter the password
@@ -147,8 +185,6 @@ Rebuild after changes: `docker compose up -d --build`
 4. Click "Unlock" to be redirected to the home page with protected drives visible
 
 A "Lock" button appears in the sidebar while unlocked.
-
-> **Note:** If `passwords.json` is not present, all drives are publicly accessible (default behavior). If a drive has `access_group` set but no matching password exists in `passwords.json`, that drive will be permanently inaccessible.
 
 ## Development
 
