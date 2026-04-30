@@ -656,6 +656,11 @@
     "takenMs": "{ms}ms で生成",
     "poweredByLlm": "AI"
   },
+  "modeTabs": {
+    "ariaLabel": "回答モード",
+    "ask": "Ask",
+    "find": "Find"
+  },
   "find": {
     "button": "「{query}」でファイルを探す",
     "title": "ファイルを探す",

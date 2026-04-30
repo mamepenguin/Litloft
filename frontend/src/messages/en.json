@@ -656,6 +656,11 @@
     "takenMs": "Generated in {ms}ms",
     "poweredByLlm": "AI"
   },
+  "modeTabs": {
+    "ariaLabel": "Answer mode",
+    "ask": "Ask",
+    "find": "Find"
+  },
   "find": {
     "button": "Find files for “{query}”",
     "title": "Find files",
