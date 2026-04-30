@@ -325,14 +325,23 @@ async def batch_move(
     unlocked_groups: Annotated[list[str], Depends(get_unlocked_groups)],
 ):
     moved = 0
+    moved_ids: list[str] = []
     errors = []
-    for file_id in body.ids:
-        try:
-            _get_file_or_404(db, file_id, unlocked_groups)
-            fileops.move_file(db, file_id, body.target_drive, body.target_folder_path)
-            moved += 1
-        except HTTPException as e:
-            errors.append({"id": file_id, "error": e.detail})
+    try:
+        for file_id in body.ids:
+            try:
+                _get_file_or_404(db, file_id, unlocked_groups)
+                fileops.move_file(db, file_id, body.target_drive, body.target_folder_path)
+                moved += 1
+                moved_ids.append(file_id)
+            except HTTPException as e:
+                errors.append({"id": file_id, "error": e.detail})
+    finally:
+        # Emit even if an unexpected exception aborts the loop: per-file
+        # ``move_file`` commits individually, so ids already in ``moved_ids``
+        # are durable on disk and need to reach addons regardless.
+        if moved_ids:
+            event_hooks.emit_sync("files.moved", {"file_ids": moved_ids})
     return {"moved": moved, "errors": errors}
 
 
@@ -372,6 +381,11 @@ async def batch_rename(
         exclude_none=True,
     )
     results = fileops.batch_rename(db, files, body.mode, **kwargs)
+    renamed_ids = [
+        r["id"] for r in results if r.get("old_name") != r.get("new_name")
+    ]
+    if renamed_ids:
+        event_hooks.emit_sync("files.moved", {"file_ids": renamed_ids})
     return {"renamed": len(results), "results": results}
 
 
@@ -892,6 +906,7 @@ async def rename_file_endpoint(
 ):
     _get_file_or_404(db, file_id, unlocked_groups)
     file = fileops.rename_file(db, file_id, body.new_filename)
+    event_hooks.emit_sync("files.moved", {"file_ids": [file.id]})
     return _to_response(file)
 
 
@@ -904,6 +919,7 @@ async def move_file_endpoint(
 ):
     _get_file_or_404(db, file_id, unlocked_groups)
     file = fileops.move_file(db, file_id, body.target_drive, body.target_folder_path)
+    event_hooks.emit_sync("files.moved", {"file_ids": [file.id]})
     return _to_response(file)
 
 

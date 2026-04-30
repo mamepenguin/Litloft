@@ -434,6 +434,9 @@ async def rename_folder(
 ):
     _validate_drive(drive_name, unlocked_groups)
     result = fileops.rename_folder(drive_name, body.path, body.new_name, db)
+    file_ids = result.get("file_ids") or []
+    if file_ids:
+        event_hooks.emit_sync("files.moved", {"file_ids": file_ids})
     return FolderResponse(**result)
 
 
@@ -446,6 +449,9 @@ async def move_folder(
 ):
     _validate_drive(drive_name, unlocked_groups)
     result = fileops.move_folder(drive_name, body.path, body.target_path, db)
+    file_ids = result.get("file_ids") or []
+    if file_ids:
+        event_hooks.emit_sync("files.moved", {"file_ids": file_ids})
     return FolderResponse(**result)
 
 

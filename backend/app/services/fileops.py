@@ -326,9 +326,31 @@ def _update_pinned_folders(
 
 def _update_folder_paths(
     db: Session, drive: str, old_path: str, new_path: str
-) -> None:
+) -> list[str]:
+    """Move all file/empty-folder/pin records under ``old_path`` to ``new_path``.
+
+    Returns the list of File ids whose path changed, so callers can emit a
+    ``files.moved`` event for downstream addons (Intelligence indexed_files
+    snapshot keeps a stale absolute path otherwise).
+    """
     old_prefix = old_path + "/"
     old_len = len(old_path)
+
+    affected_ids = [
+        row[0]
+        for row in db.execute(
+            text("""
+                SELECT id FROM files
+                WHERE drive = :drive
+                AND (folder_path = :old_path OR folder_path LIKE :old_prefix)
+            """),
+            {
+                "drive": drive,
+                "old_path": old_path,
+                "old_prefix": old_prefix + "%",
+            },
+        ).fetchall()
+    ]
 
     # Update file records
     db.execute(
@@ -391,6 +413,8 @@ def _update_folder_paths(
     # Update PinnedFolder records
     _update_pinned_folders(db, drive, old_path, old_prefix, new_path, old_len)
 
+    return affected_ids
+
 
 def move_folder(drive: str, path: str, target_path: str, db: Session) -> dict:
     path = validate_path_safe(path)
@@ -429,7 +453,7 @@ def move_folder(drive: str, path: str, target_path: str, db: Session) -> dict:
     old_full.rename(new_full)
 
     # Update all DB records
-    _update_folder_paths(db, drive, path, new_path)
+    affected_ids = _update_folder_paths(db, drive, path, new_path)
 
     db.commit()
 
@@ -438,7 +462,13 @@ def move_folder(drive: str, path: str, target_path: str, db: Session) -> dict:
         .filter(File.drive == drive, File.folder_path == new_path)
         .count()
     )
-    return {"name": folder_name, "path": new_path, "file_count": file_count, "thumbnail_file_id": None}
+    return {
+        "name": folder_name,
+        "path": new_path,
+        "file_count": file_count,
+        "thumbnail_file_id": None,
+        "file_ids": affected_ids,
+    }
 
 
 def physical_delete(db: Session, file: File) -> None:
@@ -633,7 +663,7 @@ def rename_folder(drive: str, path: str, new_name: str, db: Session) -> dict:
 
     old_full.rename(new_full)
 
-    _update_folder_paths(db, drive, path, new_path)
+    affected_ids = _update_folder_paths(db, drive, path, new_path)
 
     db.commit()
 
@@ -642,7 +672,13 @@ def rename_folder(drive: str, path: str, new_name: str, db: Session) -> dict:
         .filter(File.drive == drive, File.folder_path == new_path)
         .count()
     )
-    return {"name": new_name, "path": new_path, "file_count": file_count, "thumbnail_file_id": None}
+    return {
+        "name": new_name,
+        "path": new_path,
+        "file_count": file_count,
+        "thumbnail_file_id": None,
+        "file_ids": affected_ids,
+    }
 
 
 def delete_folder(drive: str, path: str, db: Session) -> None:
