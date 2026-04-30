@@ -397,6 +397,13 @@ async def scan_drive(drive_name: str) -> dict[str, int]:
 
 async def scan_all_drives() -> dict[str, dict[str, int]]:
     results = {}
-    for drive_name in config.get_drive_names():
+    try:
+        drive_names = config.get_drive_names()
+    except (FileNotFoundError, ValueError):
+        # drives.json may be missing (fresh install before first-run wizard
+        # has been completed) or malformed. Either way, skip the background
+        # scan rather than crashing the lifespan.
+        return results
+    for drive_name in drive_names:
         results[drive_name] = await scan_drive(drive_name)
     return results

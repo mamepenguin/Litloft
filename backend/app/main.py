@@ -15,7 +15,7 @@ from app.auth import init_jwt_secret, load_passwords
 import app.config as config
 from app.models import File
 from app.routers import admin, auth, comments, drives, files, playlists, progress, uploads, ws
-from app.routers import addon_proxy, internal
+from app.routers import addon_proxy, admin_config, internal
 from app.services.fileops import physical_delete
 from app.services.scanner import scan_all_drives
 from app.services import addon_registry, event_hooks
@@ -151,6 +151,37 @@ def _load_addons(app: FastAPI) -> None:
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
+    # Setup-completion sentinel migration: any existing user with a
+    # drives.json predates the GUI wizard. Touch the sentinel so they aren't
+    # redirected to /setup (which would clobber their config) on the first
+    # frontend load after upgrade.
+    #
+    # The correct discriminator for "fresh install vs upgrade" is
+    # ``drives.json`` alone — a fresh install has no drives.json. The
+    # previous gate also required ``not passwords.json.exists()`` which
+    # incorrectly excluded users who set up protected mode before this
+    # feature shipped (they have BOTH files) and bricked them into the
+    # wizard's overwrite path.
+    try:
+        sentinel = config.DATA_DIR / "setup_completed"
+        if config.DRIVES_CONFIG.exists() and not sentinel.exists():
+            config.DATA_DIR.mkdir(parents=True, exist_ok=True)
+            sentinel.touch()
+            logger.info("Setup sentinel auto-created for existing user")
+    except OSError:
+        logger.exception("Failed to evaluate setup sentinel migration")
+
+    # The restart-pending flag is set by admin_config writes. Once we've
+    # restarted the backend, the new config is in effect, so the banner
+    # must disappear — we clear the flag here.
+    try:
+        flag = config.DATA_DIR / "restart_pending"
+        if flag.exists():
+            flag.unlink()
+            logger.info("Cleared restart_pending flag on startup")
+    except OSError:
+        logger.exception("Failed to clear restart_pending flag")
+
     init_db()
     logger.info("Database initialized")
     load_passwords()
@@ -184,6 +215,7 @@ async def lifespan(app: FastAPI):
 app = FastAPI(title="Video Share API", lifespan=lifespan)
 
 app.include_router(admin.router)
+app.include_router(admin_config.router)
 app.include_router(auth.router)
 app.include_router(comments.router)
 app.include_router(files.router)

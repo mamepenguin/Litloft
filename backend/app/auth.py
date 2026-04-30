@@ -183,9 +183,17 @@ def is_admin(unlocked_groups: list[str]) -> bool:
     everyone is admin — same graceful-degradation posture as the rest
     of the auth layer.
     """
+    try:
+        drives = config.load_drives()
+    except FileNotFoundError:
+        # No drives.json yet (fresh install / first-run wizard window).
+        # Nobody has set up authentication, so everybody is admin —
+        # consistent with the rest of the auth layer's graceful-degradation
+        # posture.
+        return True
     required = {
         d["access_group"]
-        for d in config.load_drives()
+        for d in drives
         if d.get("access_group")
     }
     if not required:

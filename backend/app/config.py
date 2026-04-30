@@ -13,6 +13,16 @@ CHUNK_SIZE = 1024 * 1024  # 1MB for streaming
 MAX_UPLOAD_SIZE = 2 * 1024 * 1024 * 1024  # 2GB
 DEFAULT_CHUNK_SIZE = 5 * 1024 * 1024  # 5MB
 
+
+def _restart_pending_flag() -> Path:
+    """Path to the restart-pending flag (re-evaluated each call so tests can monkeypatch DATA_DIR)."""
+    return DATA_DIR / "restart_pending"
+
+
+def _setup_completed_sentinel() -> Path:
+    """Path to the setup-completed sentinel (re-evaluated each call)."""
+    return DATA_DIR / "setup_completed"
+
 _drives_cache: list[dict] | None = None
 
 
