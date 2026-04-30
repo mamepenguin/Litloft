@@ -48,12 +48,27 @@ function jsonResponse(data: unknown, status = 200) {
 }
 
 function fillDriveStep() {
-  const name = screen.getByLabelText(/名前|name/i);
-  const path = screen.getByLabelText(/パス|path/i);
-  const group = screen.getByLabelText(/group|グループ/i);
+  // The DriveStep redesign nests a helper `<p>` inside each `<label>`,
+  // so labelText now bundles the helper. The group helper mentions
+  // "パスワード", so the more naive `/パス|path/` would match both the
+  // path and group inputs — disambiguate by anchoring to the start of
+  // the label text where the field name lives.
+  const name = screen.getByLabelText(/^名前|^\s*name\b/i);
+  const path = screen.getByLabelText(/^パス|^\s*path\b/i);
+  const group = screen.getByLabelText(/^グループ|^\s*group\b/i);
   fireEvent.change(name, { target: { value: "main" } });
   fireEvent.change(path, { target: { value: "/data/main" } });
   fireEvent.change(group, { target: { value: "default" } });
+}
+
+// Advance past the new Welcome step (inserted between Language and Drive
+// by the 2026-04-30 redesign). The button is matched against the
+// localized "はじめる" or the i18n fallback path.
+async function passWelcomeStep() {
+  const start =
+    screen.queryByRole("button", { name: /はじめる|start|begin/i }) ??
+    screen.queryByRole("button", { name: /setup\.welcome\.startButton/i });
+  if (start) fireEvent.click(start);
 }
 
 describe("SetupWizard", () => {
@@ -73,6 +88,9 @@ describe("SetupWizard", () => {
     // Step 1: Language
     fireEvent.click(screen.getByRole("button", { name: /日本語|ja/i }));
     fireEvent.click(screen.getByRole("button", { name: /次へ|next/i }));
+
+    // Welcome (new, inserted before Drive)
+    await passWelcomeStep();
 
     // Step 2: Drive
     fillDriveStep();
@@ -97,6 +115,9 @@ describe("SetupWizard", () => {
     fireEvent.click(screen.getByRole("button", { name: /日本語|ja/i }));
     fireEvent.click(screen.getByRole("button", { name: /次へ|next/i }));
 
+    // Welcome
+    await passWelcomeStep();
+
     // Step 2: fill, Next
     fillDriveStep();
     fireEvent.click(screen.getByRole("button", { name: /次へ|next/i }));
@@ -104,12 +125,18 @@ describe("SetupWizard", () => {
     // On AccessMode now, go Back
     fireEvent.click(screen.getByRole("button", { name: /戻る|back/i }));
 
-    // Drive fields should still be filled
+    // Drive fields should still be filled. The DriveStep redesign added
+    // helper text inside each `<label>`; the group helper mentions
+    // "パスワード", so we anchor "パス" to the start of the label.
     await waitFor(() => {
-      const nameInput = screen.getByLabelText(/名前|name/i) as HTMLInputElement;
+      const nameInput = screen.getByLabelText(
+        /^名前|^\s*name\b/i,
+      ) as HTMLInputElement;
       expect(nameInput.value).toBe("main");
     });
-    const pathInput = screen.getByLabelText(/パス|path/i) as HTMLInputElement;
+    const pathInput = screen.getByLabelText(
+      /^パス|^\s*path\b/i,
+    ) as HTMLInputElement;
     expect(pathInput.value).toBe("/data/main");
   });
 
@@ -127,6 +154,9 @@ describe("SetupWizard", () => {
     // Language
     fireEvent.click(screen.getByRole("button", { name: /日本語|ja/i }));
     fireEvent.click(screen.getByRole("button", { name: /次へ|next/i }));
+
+    // Welcome (new, inserted before Drive)
+    await passWelcomeStep();
 
     // Drive
     fillDriveStep();
@@ -176,5 +206,122 @@ describe("SetupWizard", () => {
       ([url]) => url === "/api/admin/config/passwords",
     );
     expect(passwordCall).toBeUndefined();
+  });
+});
+
+// Additional tests (RED phase) for the redesigned wizard step order with the
+// new Welcome step inserted between Language and Drive.
+//
+// New flow (public):
+//   Language -> Welcome -> Drive -> AccessMode -> AddonPolicy -> Complete
+//
+// New flow (protected):
+//   Language -> Welcome -> Drive -> AccessMode -> Password -> AddonPolicy -> Complete
+//
+// We detect the Welcome screen by its primary CTA, which is matched against
+// the localized text "はじめる" or the i18n fallback path
+// "setup.welcome.startButton".
+
+function findWelcomeStartButton(): HTMLElement | null {
+  return (
+    screen.queryByRole("button", { name: /はじめる|start|begin/i }) ??
+    screen.queryByRole("button", { name: /setup\.welcome\.startButton/i })
+  );
+}
+
+describe("SetupWizard with WelcomeStep", () => {
+  it("shows Welcome step right after Language (before Drive) in public mode", async () => {
+    mockFetch.mockResolvedValue(jsonResponse({ addons: {}, slots: {} }));
+    render(<SetupWizard />);
+
+    // Step 1: Language -> Next
+    fireEvent.click(screen.getByRole("button", { name: /日本語|ja/i }));
+    fireEvent.click(screen.getByRole("button", { name: /次へ|next/i }));
+
+    // Welcome should now be visible — the start button must exist.
+    await waitFor(() => {
+      expect(findWelcomeStartButton()).not.toBeNull();
+    });
+
+    // The Drive step's "名前" input should NOT yet be visible.
+    expect(screen.queryByLabelText(/名前|name/i)).toBeNull();
+  });
+
+  it('clicking "はじめる" on Welcome advances to the Drive step', async () => {
+    mockFetch.mockResolvedValue(jsonResponse({ addons: {}, slots: {} }));
+    render(<SetupWizard />);
+
+    fireEvent.click(screen.getByRole("button", { name: /日本語|ja/i }));
+    fireEvent.click(screen.getByRole("button", { name: /次へ|next/i }));
+
+    await waitFor(() => {
+      expect(findWelcomeStartButton()).not.toBeNull();
+    });
+
+    // Click the start button on Welcome.
+    const start = findWelcomeStartButton()!;
+    fireEvent.click(start);
+
+    // We should be on DriveStep -> the "名前" / "name" input must appear.
+    await waitFor(() => {
+      expect(screen.getByLabelText(/名前|name/i)).toBeInTheDocument();
+    });
+  });
+
+  it('clicking "戻る" on Welcome returns to the Language step', async () => {
+    mockFetch.mockResolvedValue(jsonResponse({ addons: {}, slots: {} }));
+    render(<SetupWizard />);
+
+    fireEvent.click(screen.getByRole("button", { name: /日本語|ja/i }));
+    fireEvent.click(screen.getByRole("button", { name: /次へ|next/i }));
+
+    await waitFor(() => {
+      expect(findWelcomeStartButton()).not.toBeNull();
+    });
+
+    fireEvent.click(screen.getByRole("button", { name: /戻る|back/i }));
+
+    // Welcome should be gone, the language buttons should be re-visible.
+    await waitFor(() => {
+      expect(findWelcomeStartButton()).toBeNull();
+      // Re-rendered language step shows the 日本語 / English buttons.
+      expect(
+        screen.getByRole("button", { name: /日本語|ja/i }),
+      ).toBeInTheDocument();
+      expect(
+        screen.getByRole("button", { name: /english|en/i }),
+      ).toBeInTheDocument();
+    });
+  });
+
+  it("Welcome appears between Language and Drive even in protected mode flow", async () => {
+    mockFetch.mockResolvedValue(jsonResponse({ addons: {}, slots: {} }));
+    render(<SetupWizard />);
+
+    // Language -> Next
+    fireEvent.click(screen.getByRole("button", { name: /日本語|ja/i }));
+    fireEvent.click(screen.getByRole("button", { name: /次へ|next/i }));
+
+    // Welcome -> はじめる
+    await waitFor(() => {
+      expect(findWelcomeStartButton()).not.toBeNull();
+    });
+    fireEvent.click(findWelcomeStartButton()!);
+
+    // Drive
+    await waitFor(() => {
+      expect(screen.getByLabelText(/名前|name/i)).toBeInTheDocument();
+    });
+    fillDriveStep();
+    fireEvent.click(screen.getByRole("button", { name: /次へ|next/i }));
+
+    // AccessMode -> protected
+    fireEvent.click(screen.getByLabelText(/パスワード保護|protected/i));
+    fireEvent.click(screen.getByRole("button", { name: /次へ|next/i }));
+
+    // Now Password should be visible (AccessMode order is unchanged).
+    await waitFor(() => {
+      expect(screen.getByLabelText(/^パスワード$|password/i)).toBeInTheDocument();
+    });
   });
 });

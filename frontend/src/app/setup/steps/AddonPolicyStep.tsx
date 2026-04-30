@@ -1,8 +1,13 @@
 "use client";
 
 // AddonPolicyStep: optional first-run step. Loads the addon manifest list
-// from /api/addons/status and shows a (drive × addon) toggle matrix. The
-// drives come from props (the wizard owns them; they aren't persisted yet).
+// from /api/addons/status and shows per-drive cards with switch-style
+// toggles (one row per addon). The drives come from props (the wizard
+// owns them; they aren't persisted yet).
+//
+// Each toggle is rendered as a sr-only checkbox inside a clickable
+// switch row to preserve the `role="checkbox"` semantics existing tests
+// rely on, while presenting an iOS-style switch visually.
 
 import { useCallback, useEffect, useState } from "react";
 import { useTranslations } from "next-intl";
@@ -31,6 +36,54 @@ function readToggle(
     return Object.values(value).some(Boolean);
   }
   return false;
+}
+
+interface AddonRowProps {
+  drive: string;
+  addon: AddonStatusEntry;
+  enabled: boolean;
+  noDescription: string;
+  onToggle: () => void;
+}
+
+function AddonRow({
+  drive,
+  addon,
+  enabled,
+  noDescription,
+  onToggle,
+}: AddonRowProps): React.ReactElement {
+  return (
+    <label className="flex cursor-pointer items-start gap-3 rounded-xl p-2 hover:bg-bg-elevated">
+      <input
+        type="checkbox"
+        checked={enabled}
+        onChange={onToggle}
+        className="sr-only"
+        aria-label={`${drive} / ${addon.name}`}
+      />
+      <span
+        aria-hidden="true"
+        className={`relative mt-1 inline-block h-6 w-11 flex-shrink-0 rounded-full transition-colors ${
+          enabled ? "bg-accent" : "bg-warm-light"
+        }`}
+      >
+        <span
+          className={`absolute top-0.5 left-0.5 block h-5 w-5 rounded-full bg-white shadow transition-transform ${
+            enabled ? "translate-x-5" : "translate-x-0"
+          }`}
+        />
+      </span>
+      <span className="flex-1">
+        <span className="block font-medium text-text-primary">
+          {addon.name}
+        </span>
+        <span className="block text-xs text-text-muted">
+          {addon.description ?? noDescription}
+        </span>
+      </span>
+    </label>
+  );
 }
 
 export function AddonPolicyStep({
@@ -82,6 +135,10 @@ export function AddonPolicyStep({
     [onChange, value],
   );
 
+  const hasAnyToggleOn = drives.some((d) =>
+    addons.some((a) => readToggle(value, d.name, a.name)),
+  );
+
   return (
     <div className="space-y-4">
       <h2 className="text-lg font-semibold text-text-primary">
@@ -89,44 +146,34 @@ export function AddonPolicyStep({
       </h2>
       <p className="text-sm text-text-muted">{tAddon("description")}</p>
 
+      <div className="rounded-xl bg-warm-light/40 p-4 text-sm text-text-muted">
+        {tAddon("skipNote")}
+      </div>
+
       {drives.length > 0 && addons.length > 0 ? (
-        <div className="overflow-x-auto">
-          <table className="min-w-full text-sm">
-            <thead>
-              <tr>
-                <th className="px-3 py-2 text-left text-xs uppercase tracking-wide text-text-muted">
-                  drive
-                </th>
+        <div className="space-y-4">
+          {drives.map((drive) => (
+            <div
+              key={drive.name}
+              className="rounded-xl border border-bg-border bg-bg-card p-5"
+            >
+              <h3 className="font-semibold text-text-primary">
+                {drive.name}
+              </h3>
+              <div className="mt-3 space-y-1">
                 {addons.map((addon) => (
-                  <th
+                  <AddonRow
                     key={addon.name}
-                    className="px-3 py-2 text-left text-xs font-semibold text-text-primary"
-                  >
-                    {addon.name}
-                  </th>
+                    drive={drive.name}
+                    addon={addon}
+                    enabled={readToggle(value, drive.name, addon.name)}
+                    noDescription={tAddon("noDescription")}
+                    onToggle={() => toggle(drive.name, addon.name)}
+                  />
                 ))}
-              </tr>
-            </thead>
-            <tbody>
-              {drives.map((drive) => (
-                <tr key={drive.name}>
-                  <td className="px-3 py-2 text-sm font-medium text-text-primary">
-                    {drive.name}
-                  </td>
-                  {addons.map((addon) => (
-                    <td key={addon.name} className="px-3 py-2">
-                      <input
-                        type="checkbox"
-                        checked={readToggle(value, drive.name, addon.name)}
-                        onChange={() => toggle(drive.name, addon.name)}
-                        aria-label={`${drive.name} / ${addon.name}`}
-                      />
-                    </td>
-                  ))}
-                </tr>
-              ))}
-            </tbody>
-          </table>
+              </div>
+            </div>
+          ))}
         </div>
       ) : (
         <p className="text-sm text-text-muted">{tAddon("skipDescription")}</p>
@@ -145,7 +192,7 @@ export function AddonPolicyStep({
           onClick={onNext}
           className="rounded-2xl bg-accent px-4 py-2 text-sm font-medium text-white hover:bg-accent-hover"
         >
-          {t("skip")}
+          {hasAnyToggleOn ? t("next") : t("skip")}
         </button>
       </div>
     </div>

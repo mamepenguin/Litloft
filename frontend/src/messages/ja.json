@@ -1024,6 +1024,7 @@
   },
   "setup": {
     "title": "Litloft 初期設定",
+    "subtitle": "初期設定",
     "next": "次へ",
     "back": "戻る",
     "skip": "スキップ",
@@ -1033,6 +1034,27 @@
       "japanese": "日本語",
       "english": "English"
     },
+    "welcome": {
+      "greeting": "ようこそ、Litloft へ",
+      "intro": "自宅のメディアを家族で楽しむための、シンプルなセルフホスト型の動画 / ファイルブラウザです。",
+      "stepsTitle": "これから設定する項目",
+      "steps": {
+        "drive": "ドライブの追加",
+        "accessMode": "アクセス制御の選択",
+        "password": "管理者パスワードの設定",
+        "passwordCondition": "（パスワード保護を選んだ場合のみ）",
+        "addonPolicy": "アドオンの有効化",
+        "complete": "設定の保存"
+      },
+      "startButton": "はじめる"
+    },
+    "stepper": {
+      "drive": "ドライブ",
+      "accessMode": "アクセス制御",
+      "password": "パスワード",
+      "addonPolicy": "アドオン",
+      "complete": "完了"
+    },
     "drive": {
       "title": "ドライブを追加",
       "description": "最低 1 つ追加してください。docker-compose.yml の volumes でホストにマウントされたパスを入力します。",
@@ -1040,16 +1062,36 @@
         "name": "名前",
         "path": "パス",
         "group": "グループ"
+      },
+      "helpers": {
+        "name": "サイドバーや URL に使われる識別子。英数字とハイフン推奨。例: media",
+        "path": "コンテナ内のパスを入力します。docker-compose.yml の volumes でマウント済みであることが前提です。例: /data/media",
+        "group": "アクセス制御の単位。後でグループ単位でパスワードを設定できます。例: family"
+      },
+      "troubleshootingTitle": "うまくいかないときは",
+      "troubleshooting": {
+        "dockerVolume": "パスはホスト側ではなく、コンテナ内のパスです。",
+        "containerPath": "docker-compose.yml の backend.volumes に '- /host/path:/data/media' を追加し、'docker compose up -d --build' してから登録してください。"
       }
     },
     "accessMode": {
       "title": "アクセス制御モード",
       "public": "全公開（自宅 LAN 向け、認証なし）",
-      "protected": "パスワード保護"
+      "publicDescription": "家庭内 LAN 限定で誰でも閲覧できます。",
+      "publicUseCase": "推奨: 家族のみで使う場合",
+      "publicBenefit1": "パスワード設定不要",
+      "publicBenefit2": "すぐ使い始められる",
+      "protected": "パスワード保護",
+      "protectedDescription": "ドライブ単位でアクセス制御をかけます。",
+      "protectedUseCase": "推奨: ゲストや複数家族で使い分ける場合",
+      "protectedBenefit1": "ドライブごとに視聴範囲を制限",
+      "protectedBenefit2": "あとで /admin から追加・変更可能"
     },
     "password": {
       "title": "マスターパスワードを設定",
       "description": "管理者として設定画面にアクセスするには、すべてのグループに属するパスワードが必要です。",
+      "adminExplanation": "Litloft では「すべてのグループに属するパスワード = 管理者」と判定するため、ここで作るパスワードはすべてのグループにチェックを入れる必要があります。あとで /admin から、特定のグループだけアクセスできる別パスワードも追加できます。",
+      "weakPassword": "短いパスワードです（6 文字以上を推奨）",
       "fields": {
         "password": "パスワード",
         "groups": "対象グループ"
@@ -1059,12 +1101,31 @@
     "addonPolicy": {
       "title": "アドオン設定",
       "description": "ドライブごとにアドオンを有効化できます。あとで変更可能です。",
-      "skipDescription": "今は設定せずに次へ進めます。"
+      "skipDescription": "今は設定せずに次へ進めます。",
+      "skipNote": "今は決めずに進めて構いません。あとで /admin から変更できます。",
+      "noDescription": "（このアドオンの説明はありません）"
     },
     "complete": {
       "title": "設定完了",
       "description": "保存して /admin に移動します。",
-      "errorMessage": "完了処理に失敗しました"
+      "errorMessage": "完了処理に失敗しました",
+      "submitting": "保存中...",
+      "summary": {
+        "title": "入力内容",
+        "drives": "ドライブ",
+        "driveUnit": " 件",
+        "accessMode": "アクセス制御",
+        "public": "全公開",
+        "protected": "パスワード保護",
+        "addons": "有効なアドオン",
+        "addonUnit": " 件"
+      },
+      "nextSteps": {
+        "title": "次の手順",
+        "save": "ドライブ・パスワード・アドオン設定を保存します",
+        "redirect": "管理ダッシュボード（/admin）へ移動します",
+        "lan": "家庭内 LAN の他のデバイスからもアクセスできます"
+      }
     }
   }
 }

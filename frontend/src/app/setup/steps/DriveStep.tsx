@@ -90,6 +90,7 @@ export function DriveStep({
             onChange={(e) => onChange({ ...value, name: e.target.value })}
             className="w-full rounded-2xl border border-warm-silver/40 bg-bg-card px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-focus-ring"
           />
+          <p className="mt-1 text-xs text-text-muted">{tDrive("helpers.name")}</p>
         </label>
         <label className="block text-sm">
           <span className="mb-1 block font-medium text-text-primary">
@@ -101,6 +102,7 @@ export function DriveStep({
             onChange={(e) => onChange({ ...value, path: e.target.value })}
             className="w-full rounded-2xl border border-warm-silver/40 bg-bg-card px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-focus-ring"
           />
+          <p className="mt-1 text-xs text-text-muted">{tDrive("helpers.path")}</p>
         </label>
         <label className="block text-sm">
           <span className="mb-1 block font-medium text-text-primary">
@@ -114,8 +116,19 @@ export function DriveStep({
             }
             className="w-full rounded-2xl border border-warm-silver/40 bg-bg-card px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-focus-ring"
           />
+          <p className="mt-1 text-xs text-text-muted">{tDrive("helpers.group")}</p>
         </label>
       </div>
+
+      <details className="rounded-xl bg-bg-elevated p-4 text-sm">
+        <summary className="cursor-pointer font-medium text-text-primary">
+          {tDrive("troubleshootingTitle")}
+        </summary>
+        <div className="mt-3 space-y-2 text-text-muted">
+          <p>{tDrive("troubleshooting.dockerVolume")}</p>
+          <p>{tDrive("troubleshooting.containerPath")}</p>
+        </div>
+      </details>
 
       {error && <p className="text-xs text-danger">{error}</p>}
 

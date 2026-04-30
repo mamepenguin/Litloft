@@ -33,6 +33,8 @@ export interface AddonStatusEntry {
   name: string;
   scope?: string;
   enabled?: boolean;
+  description?: string;
+  label?: string;
 }
 
 export interface ValidationError {

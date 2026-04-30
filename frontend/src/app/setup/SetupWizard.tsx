@@ -4,12 +4,15 @@
 // (locale, drive draft, access mode, master password, addon policy)
 // and orchestrates the final submit.
 //
-// Step order: Language -> Drive -> AccessMode -> [Password] -> AddonPolicy -> Complete
+// Step order: Language -> Welcome -> Drive -> AccessMode -> [Password] -> AddonPolicy -> Complete
 // Password is skipped when access mode is "public".
+// Stepper is shown for Drive..Complete only (Language/Welcome are intro screens).
 
 import { useCallback, useMemo, useState } from "react";
+import { useTranslations } from "next-intl";
 
 import { LanguageStep } from "./steps/LanguageStep";
+import { WelcomeStep } from "./steps/WelcomeStep";
 import { DriveStep, type DriveDraft } from "./steps/DriveStep";
 import {
   AccessModeStep,
@@ -21,11 +24,14 @@ import {
 } from "./steps/PasswordStep";
 import { AddonPolicyStep } from "./steps/AddonPolicyStep";
 import { CompleteStep } from "./steps/CompleteStep";
+import { SetupShell } from "./components/SetupShell";
+import { Stepper } from "./components/Stepper";
 import type { Locale } from "@/i18n/config";
 import type { AddonPolicy } from "@/lib/adminConfig";
 
 type StepId =
   | "language"
+  | "welcome"
   | "drive"
   | "accessMode"
   | "password"
@@ -34,6 +40,7 @@ type StepId =
 
 const ORDER_PROTECTED: StepId[] = [
   "language",
+  "welcome",
   "drive",
   "accessMode",
   "password",
@@ -43,14 +50,48 @@ const ORDER_PROTECTED: StepId[] = [
 
 const ORDER_PUBLIC: StepId[] = [
   "language",
+  "welcome",
   "drive",
   "accessMode",
   "addonPolicy",
   "complete",
 ];
 
+// Steps that appear in the visual Stepper. Language and Welcome are
+// intentionally excluded because they are pre-progress screens.
+const STEPPER_PROTECTED: Exclude<StepId, "language" | "welcome">[] = [
+  "drive",
+  "accessMode",
+  "password",
+  "addonPolicy",
+  "complete",
+];
+
+const STEPPER_PUBLIC: Exclude<StepId, "language" | "welcome">[] = [
+  "drive",
+  "accessMode",
+  "addonPolicy",
+  "complete",
+];
+
+function readToggle(
+  policy: AddonPolicy,
+  drive: string,
+  addon: string,
+): boolean {
+  const driveEntry = policy[drive];
+  if (!driveEntry) return false;
+  const value = driveEntry[addon];
+  if (typeof value === "boolean") return value;
+  if (typeof value === "object" && value !== null) {
+    return Object.values(value).some(Boolean);
+  }
+  return false;
+}
+
 export function SetupWizard(): React.ReactElement {
-  const [stepIndex, setStepIndex] = useState(0);
+  const tStepper = useTranslations("setup.stepper");
+  const [internalStepIndex, setInternalStepIndex] = useState(0);
   const [locale, setLocaleState] = useState<Locale>("ja");
 
   // Persist locale to the NEXT_LOCALE cookie so next-intl picks it up
@@ -81,14 +122,20 @@ export function SetupWizard(): React.ReactElement {
     [accessMode],
   );
 
-  const current = order[Math.min(stepIndex, order.length - 1)];
+  const stepperOrder = useMemo(
+    () =>
+      accessMode === "protected" ? STEPPER_PROTECTED : STEPPER_PUBLIC,
+    [accessMode],
+  );
+
+  const current = order[Math.min(internalStepIndex, order.length - 1)];
 
   const goNext = useCallback(() => {
-    setStepIndex((idx) => Math.min(idx + 1, order.length - 1));
+    setInternalStepIndex((idx) => Math.min(idx + 1, order.length - 1));
   }, [order.length]);
 
   const goBack = useCallback(() => {
-    setStepIndex((idx) => Math.max(idx - 1, 0));
+    setInternalStepIndex((idx) => Math.max(idx - 1, 0));
   }, []);
 
   // Sync the master password's groups with the drive group so the UI can
@@ -110,6 +157,32 @@ export function SetupWizard(): React.ReactElement {
   // currently collects exactly one drive entry — keep this as a list for
   // future expansion.
   const drivesForSubmit = useMemo(() => [drive], [drive]);
+
+  // Summary values for the Complete step.
+  const driveCount = useMemo(
+    () => drivesForSubmit.filter((d) => d.name.trim().length > 0).length,
+    [drivesForSubmit],
+  );
+  const addonOnCount = useMemo(() => {
+    let count = 0;
+    for (const drv of drivesForSubmit) {
+      const entry = addonPolicy[drv.name];
+      if (!entry) continue;
+      for (const addonName of Object.keys(entry)) {
+        if (readToggle(addonPolicy, drv.name, addonName)) count += 1;
+      }
+    }
+    return count;
+  }, [addonPolicy, drivesForSubmit]);
+
+  const summary = useMemo(
+    () => ({
+      driveCount: Math.max(driveCount, drivesForSubmit.length > 0 ? 1 : 0),
+      accessMode,
+      addonOnCount,
+    }),
+    [accessMode, addonOnCount, driveCount, drivesForSubmit.length],
+  );
 
   const handleBeforeSubmit = useCallback(async () => {
     // Re-PUT drives to make sure the on-disk state matches the wizard
@@ -141,8 +214,33 @@ export function SetupWizard(): React.ReactElement {
     });
   }, [accessMode, addonPolicy, drivesForSubmit, password, passwordValue.groups]);
 
+  const stepperSteps = useMemo(
+    () =>
+      stepperOrder.map((id) => ({
+        id,
+        label: tStepper(id as Parameters<typeof tStepper>[0]),
+      })),
+    [stepperOrder, tStepper],
+  );
+
+  const stepperIndex = useMemo(() => {
+    if (current === "language" || current === "welcome") return -1;
+    const idx = stepperOrder.indexOf(
+      current as Exclude<StepId, "language" | "welcome">,
+    );
+    return idx >= 0 ? idx : 0;
+  }, [current, stepperOrder]);
+
+  const showStepper = stepperIndex >= 0;
+  const showHeaderSubtitle = current !== "language";
+
   return (
-    <div className="mx-auto max-w-xl px-4 py-8 sm:px-6">
+    <SetupShell showHeaderSubtitle={showHeaderSubtitle}>
+      {showStepper && (
+        <div className="mt-2">
+          <Stepper steps={stepperSteps} currentIndex={stepperIndex} />
+        </div>
+      )}
       {current === "language" && (
         <LanguageStep
           value={locale}
@@ -150,48 +248,62 @@ export function SetupWizard(): React.ReactElement {
           onNext={goNext}
         />
       )}
+      {current === "welcome" && (
+        <WelcomeStep onNext={goNext} onBack={goBack} />
+      )}
       {current === "drive" && (
-        <DriveStep
-          value={drive}
-          onChange={setDrive}
-          onNext={goNext}
-          onBack={goBack}
-          skipValidate
-        />
+        <div className="mt-6 rounded-2xl border border-bg-border bg-bg-card p-6 sm:p-8">
+          <DriveStep
+            value={drive}
+            onChange={setDrive}
+            onNext={goNext}
+            onBack={goBack}
+            skipValidate
+          />
+        </div>
       )}
       {current === "accessMode" && (
-        <AccessModeStep
-          value={accessMode}
-          onChange={setAccessMode}
-          onNext={goNext}
-          onBack={goBack}
-        />
+        <div className="mt-6 rounded-2xl border border-bg-border bg-bg-card p-6 sm:p-8">
+          <AccessModeStep
+            value={accessMode}
+            onChange={setAccessMode}
+            onNext={goNext}
+            onBack={goBack}
+          />
+        </div>
       )}
       {current === "password" && (
-        <PasswordStep
-          groups={groupsForPassword}
-          value={passwordValue}
-          onChange={setPassword}
-          onNext={goNext}
-          onBack={goBack}
-        />
+        <div className="mt-6 rounded-2xl border border-bg-border bg-bg-card p-6 sm:p-8">
+          <PasswordStep
+            groups={groupsForPassword}
+            value={passwordValue}
+            onChange={setPassword}
+            onNext={goNext}
+            onBack={goBack}
+          />
+        </div>
       )}
       {current === "addonPolicy" && (
-        <AddonPolicyStep
-          drives={drivesForSubmit}
-          value={addonPolicy}
-          onChange={setAddonPolicy}
-          onNext={goNext}
-          onBack={goBack}
-        />
+        <div className="mt-6 rounded-2xl border border-bg-border bg-bg-card p-6 sm:p-8">
+          <AddonPolicyStep
+            drives={drivesForSubmit}
+            value={addonPolicy}
+            onChange={setAddonPolicy}
+            onNext={goNext}
+            onBack={goBack}
+          />
+        </div>
       )}
       {current === "complete" && (
-        <CompleteStep
-          onBack={goBack}
-          onBeforeSubmit={handleBeforeSubmit}
-        />
+        <div className="mt-6 rounded-2xl border border-bg-border bg-bg-card p-6 sm:p-8">
+          <CompleteStep
+            onBack={goBack}
+            onBeforeSubmit={handleBeforeSubmit}
+            summary={summary}
+          />
+        </div>
       )}
-    </div>
+    </SetupShell>
   );
 }
 

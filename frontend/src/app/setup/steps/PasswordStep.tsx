@@ -1,8 +1,11 @@
 "use client";
 
 // PasswordStep: collects the master password. The master entry must
-// cover every group present in the setup, so we render a checkbox per
-// group and disable Next while any group is unchecked.
+// cover every group present in the setup, so we render a chip per
+// group (visually a tonal pill, structurally a checkbox label) and
+// disable Next while any group is unchecked. A short admin-authorisation
+// explainer above the input clarifies *why* every group must be
+// covered.
 
 import { useTranslations } from "next-intl";
 
@@ -19,6 +22,8 @@ interface Props {
   onBack: () => void;
 }
 
+const WEAK_PASSWORD_THRESHOLD = 6;
+
 export function PasswordStep({
   groups,
   value,
@@ -33,6 +38,9 @@ export function PasswordStep({
     groups.length > 0 &&
     groups.every((g) => value.groups.includes(g));
   const isValid = value.password.trim().length > 0 && allCovered;
+  const showWeakHint =
+    value.password.length > 0 &&
+    value.password.length < WEAK_PASSWORD_THRESHOLD;
 
   const toggleGroup = (group: string) => {
     if (value.groups.includes(group)) {
@@ -52,6 +60,10 @@ export function PasswordStep({
       </h2>
       <p className="text-sm text-text-muted">{tPw("description")}</p>
 
+      <div className="rounded-xl bg-bg-elevated p-4 text-sm text-text-muted">
+        {tPw("adminExplanation")}
+      </div>
+
       <label className="block text-sm">
         <span className="mb-1 block font-medium text-text-primary">
           {tPw("fields.password")}
@@ -63,24 +75,46 @@ export function PasswordStep({
             onChange({ ...value, password: e.target.value })
           }
           autoComplete="new-password"
-          className="w-full rounded-2xl border border-warm-silver/40 bg-bg-card px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-focus-ring"
+          className="w-full rounded-2xl border border-warm-silver/40 bg-bg-card px-3 py-3 text-base focus:outline-none focus:ring-2 focus:ring-focus-ring"
         />
+        {showWeakHint && (
+          <p className="mt-1 text-xs text-accent-amber">
+            {tPw("weakPassword")}
+          </p>
+        )}
       </label>
 
-      <fieldset className="space-y-1">
+      <fieldset className="space-y-2">
         <legend className="mb-1 block text-sm font-medium text-text-primary">
           {tPw("fields.groups")}
         </legend>
-        {groups.map((group) => (
-          <label key={group} className="flex items-center gap-2 text-sm">
-            <input
-              type="checkbox"
-              checked={value.groups.includes(group)}
-              onChange={() => toggleGroup(group)}
-            />
-            <span>{group}</span>
-          </label>
-        ))}
+        <div className="flex flex-wrap gap-2">
+          {groups.map((group) => {
+            const checked = value.groups.includes(group);
+            return (
+              <label
+                key={group}
+                className={`inline-flex cursor-pointer items-center rounded-full px-3 py-1.5 text-sm transition-colors ${
+                  checked
+                    ? "bg-accent-teal/10 text-accent-teal"
+                    : "bg-warm-light text-text-muted hover:bg-sand"
+                }`}
+              >
+                <input
+                  type="checkbox"
+                  className="sr-only"
+                  checked={checked}
+                  onChange={() => toggleGroup(group)}
+                  aria-label={group}
+                />
+                <span aria-hidden="true">
+                  {checked ? "✓ " : ""}
+                  {group}
+                </span>
+              </label>
+            );
+          })}
+        </div>
         {!allCovered && (
           <p className="text-xs text-danger">{tPw("groupsRequired")}</p>
         )}

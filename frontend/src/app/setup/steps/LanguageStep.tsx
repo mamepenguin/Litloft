@@ -1,5 +1,11 @@
 "use client";
 
+// LanguageStep: language-agnostic intro screen. Renders the brand mark
+// and a tiny bilingual subtitle ("Setup / 初期設定") only — no localized
+// copy here, because the user has not yet chosen a language. Two large
+// language buttons drive the locale selection and a small arrow advances
+// to the Welcome step.
+
 import { useTranslations } from "next-intl";
 
 import type { Locale } from "@/i18n/config";
@@ -18,45 +24,51 @@ export function LanguageStep({
   const t = useTranslations("setup");
   const tLang = useTranslations("setup.language");
   return (
-    <div className="space-y-4">
-      <h2 className="text-lg font-semibold text-text-primary">
-        {tLang("title")}
-      </h2>
-      <div className="flex flex-col gap-2">
-        <button
-          type="button"
-          onClick={() => onChange("ja")}
-          aria-pressed={value === "ja"}
-          className={`rounded-2xl border px-4 py-3 text-left text-sm ${
-            value === "ja"
-              ? "border-accent bg-accent/10"
-              : "border-bg-border bg-bg-card hover:bg-bg-elevated"
-          }`}
-        >
-          {tLang("japanese")}
-        </button>
-        <button
-          type="button"
-          onClick={() => onChange("en")}
-          aria-pressed={value === "en"}
-          className={`rounded-2xl border px-4 py-3 text-left text-sm ${
-            value === "en"
-              ? "border-accent bg-accent/10"
-              : "border-bg-border bg-bg-card hover:bg-bg-elevated"
-          }`}
-        >
-          {tLang("english")}
-        </button>
-      </div>
-      <div className="flex justify-end">
-        <button
-          type="button"
-          onClick={onNext}
-          disabled={!value}
-          className="rounded-2xl bg-accent px-4 py-2 text-sm font-medium text-white hover:bg-accent-hover disabled:cursor-not-allowed disabled:opacity-50"
-        >
-          {t("next")}
-        </button>
+    <div className="mt-6 rounded-2xl border border-bg-border bg-bg-card p-6 sm:p-8">
+      <div className="space-y-8 text-center">
+        <div>
+          <h1 className="text-4xl font-bold text-accent">Litloft</h1>
+          <p className="mt-2 text-sm text-text-muted">Setup / 初期設定</p>
+        </div>
+
+        <div className="grid grid-cols-2 gap-3">
+          <button
+            type="button"
+            onClick={() => onChange("ja")}
+            aria-pressed={value === "ja"}
+            className={`rounded-2xl border px-6 py-5 text-base font-medium transition-colors ${
+              value === "ja"
+                ? "border-accent bg-accent/10 text-text-primary"
+                : "border-bg-border bg-bg-card text-text-primary hover:bg-bg-elevated"
+            }`}
+          >
+            {tLang("japanese")}
+          </button>
+          <button
+            type="button"
+            onClick={() => onChange("en")}
+            aria-pressed={value === "en"}
+            className={`rounded-2xl border px-6 py-5 text-base font-medium transition-colors ${
+              value === "en"
+                ? "border-accent bg-accent/10 text-text-primary"
+                : "border-bg-border bg-bg-card text-text-primary hover:bg-bg-elevated"
+            }`}
+          >
+            {tLang("english")}
+          </button>
+        </div>
+
+        <div className="flex justify-end">
+          <button
+            type="button"
+            onClick={onNext}
+            disabled={!value}
+            aria-label={t("next")}
+            className="rounded-2xl bg-accent px-5 py-2.5 text-base font-medium text-white hover:bg-accent-hover disabled:cursor-not-allowed disabled:opacity-50"
+          >
+            →
+          </button>
+        </div>
       </div>
     </div>
   );

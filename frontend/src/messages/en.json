@@ -1024,6 +1024,7 @@
   },
   "setup": {
     "title": "Litloft setup",
+    "subtitle": "Initial setup",
     "next": "Next",
     "back": "Back",
     "skip": "Skip",
@@ -1033,6 +1034,27 @@
       "japanese": "日本語",
       "english": "English"
     },
+    "welcome": {
+      "greeting": "Welcome to Litloft",
+      "intro": "A simple self-hosted video and file browser for enjoying media at home with your family.",
+      "stepsTitle": "What you'll set up",
+      "steps": {
+        "drive": "Add a drive",
+        "accessMode": "Choose access control",
+        "password": "Set the admin password",
+        "passwordCondition": "(only if you choose password protection)",
+        "addonPolicy": "Enable addons",
+        "complete": "Save the configuration"
+      },
+      "startButton": "Get started"
+    },
+    "stepper": {
+      "drive": "Drive",
+      "accessMode": "Access",
+      "password": "Password",
+      "addonPolicy": "Addons",
+      "complete": "Done"
+    },
     "drive": {
       "title": "Add a drive",
       "description": "Add at least one. The path must be mounted by docker-compose.yml volumes.",
@@ -1040,16 +1062,36 @@
         "name": "Name",
         "path": "Path",
         "group": "Group"
+      },
+      "helpers": {
+        "name": "Identifier used in the sidebar and URL. Letters, numbers and hyphens recommended. Example: media",
+        "path": "The path inside the container. It must be mounted via docker-compose.yml volumes. Example: /data/media",
+        "group": "Access-control unit. You can later set passwords per group. Example: family"
+      },
+      "troubleshootingTitle": "Having trouble?",
+      "troubleshooting": {
+        "dockerVolume": "The path is the path inside the container, not on the host.",
+        "containerPath": "Add '- /host/path:/data/media' to backend.volumes in docker-compose.yml, run 'docker compose up -d --build', then register the drive."
       }
     },
     "accessMode": {
       "title": "Access control mode",
       "public": "Public (LAN-only, no auth)",
-      "protected": "Password protected"
+      "publicDescription": "Anyone on your home LAN can browse.",
+      "publicUseCase": "Recommended: family-only use",
+      "publicBenefit1": "No password to set up",
+      "publicBenefit2": "Get started immediately",
+      "protected": "Password protected",
+      "protectedDescription": "Apply per-drive access control.",
+      "protectedUseCase": "Recommended: when sharing with guests or multiple households",
+      "protectedBenefit1": "Restrict viewing per drive",
+      "protectedBenefit2": "Add or change later from /admin"
     },
     "password": {
       "title": "Set master password",
       "description": "The master password must cover every group to access settings as administrator.",
+      "adminExplanation": "Litloft treats 'a password covering all groups' as the administrator, so the password you create here must check every group. You can later add other passwords scoped to specific groups from /admin.",
+      "weakPassword": "Short password (6 characters or more recommended)",
       "fields": {
         "password": "Password",
         "groups": "Groups"
@@ -1059,12 +1101,31 @@
     "addonPolicy": {
       "title": "Addon policy",
       "description": "Enable per-drive addons. You can change this later.",
-      "skipDescription": "You can skip and configure later."
+      "skipDescription": "You can skip and configure later.",
+      "skipNote": "You can skip this step and decide later from /admin.",
+      "noDescription": "(No description for this addon)"
     },
     "complete": {
       "title": "Setup complete",
       "description": "Save and go to /admin.",
-      "errorMessage": "Failed to complete setup"
+      "errorMessage": "Failed to complete setup",
+      "submitting": "Saving...",
+      "summary": {
+        "title": "Summary",
+        "drives": "Drives",
+        "driveUnit": " drive(s)",
+        "accessMode": "Access control",
+        "public": "Public",
+        "protected": "Password protected",
+        "addons": "Enabled addons",
+        "addonUnit": " addon(s)"
+      },
+      "nextSteps": {
+        "title": "Next steps",
+        "save": "Save drives, passwords and addon policy",
+        "redirect": "Go to the admin dashboard (/admin)",
+        "lan": "Other devices on your home LAN can also access"
+      }
     }
   }
 }
