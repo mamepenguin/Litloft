@@ -23,7 +23,6 @@ Browser → :3000 (Next.js) → rewrites /api/* → :8000 (FastAPI, internal onl
 ### Multi-Drive Support
 - Register multiple storage locations as logical drives via `drives.json`
 - Each drive is fully independent (tags, favorites, search are scoped per drive)
-- Per-drive `readonly: true` to disable write operations
 - Per-drive `access_group` for password-gated access
 - Per-drive `addons: { <name>: bool | { <feature>: bool } }` for granular addon policy
 - Drive list displayed on the home page (`/`)
@@ -93,7 +92,6 @@ All list queries filter via `active_file_filter()` so missing/trash files are in
 ### Text File Editing
 - Inline editor for text files (`.md`, `.txt`, etc.) via `PUT /api/files/{id}/content`
 - Atomic write pattern (`.tmp` → `os.replace`)
-- Rejected on readonly drives
 
 ### Clipboard Operations
 - Copy / Cut / Paste for file organization
@@ -570,7 +568,7 @@ Operators toggle features per drive in `drives.json`:
 - **backend**: FastAPI (expose 8000, internal only)
 - **frontend**: Next.js (ports 3000, sole entry point)
 - Backend healthcheck → frontend uses `depends_on: condition: service_healthy`
-- Drive directories mounted via volumes (readonly controlled by drives.json)
+- Drive directories mounted via volumes
 - `data/` persists SQLite DB + thumbnail images + JWT secret
 - Addon containers added via `docker-compose.override.yml` (not tracked by main repo)
 

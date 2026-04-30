@@ -16,9 +16,9 @@ from app.services.filetype import classify
 from app.services.fileops import (
     _filename_to_title,
     remove_empty_folder_if_has_files,
+    resolve_drive_path,
     validate_filename,
     validate_path_safe,
-    validate_writable,
     validate_within_drive,
 )
 from app.services.thumbnail import generate_image_thumbnail, generate_thumbnail, get_video_duration
@@ -51,7 +51,7 @@ def init_upload(
     chunk_size: int,
     relative_path: str = "",
 ) -> UploadSession:
-    validate_writable(drive)
+    resolve_drive_path(drive)
     filename = validate_filename(filename)
     folder_path = validate_path_safe(folder_path)
     relative_path = validate_path_safe(relative_path) if relative_path else ""

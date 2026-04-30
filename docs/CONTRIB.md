@@ -133,7 +133,7 @@ No `.env` files are used. Configuration is managed through:
 
 | Config | Method | Description |
 |--------|--------|-------------|
-| Drives | `drives.json` | Storage paths, names, readonly, access_group, per-drive addon policy |
+| Drives | `drives.json` | Storage paths, names, access_group, per-drive addon policy |
 | Access control | `passwords.json` | Password-to-group mappings |
 | Event hooks | `event-hooks.json` | Addon event notification URLs (listener may declare `addon`/`feature` for drive-aware filtering) |
 | Docker env | `docker-compose.yml` | `DRIVES_CONFIG`, `PASSWORDS_CONFIG`, `DATA_DIR` |

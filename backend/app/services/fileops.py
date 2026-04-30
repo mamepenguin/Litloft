@@ -21,11 +21,9 @@ FORBIDDEN_CHARS = set('<>:"/\\|?*\x00')
 MAX_FILENAME_LENGTH = 255
 
 
-def validate_writable(drive_name: str) -> Path:
+def resolve_drive_path(drive_name: str) -> Path:
     if drive_name not in config.get_drive_names():
         raise HTTPException(status_code=404, detail=f"Drive not found: {drive_name}")
-    if config.is_drive_readonly(drive_name):
-        raise HTTPException(status_code=403, detail="Drive is read-only")
     return config.get_drive_path(drive_name)
 
 
@@ -157,7 +155,7 @@ def copy_file(db: Session, file_id: str, target_drive: str | None, target_folder
     target_folder = validate_path_safe(target_folder)
 
     src_drive_path = config.get_drive_path(src_drive)
-    dst_drive_path = validate_writable(dst_drive)
+    dst_drive_path = resolve_drive_path(dst_drive)
 
     old_full = src_drive_path / source.file_path
     if not old_full.exists():
@@ -227,7 +225,7 @@ def rename_file(db: Session, file_id: str, new_filename: str) -> File:
         raise HTTPException(status_code=404, detail="File not found")
 
     new_filename = validate_filename(new_filename)
-    drive_path = validate_writable(file.drive)
+    drive_path = resolve_drive_path(file.drive)
 
     old_full = drive_path / file.file_path
     new_rel = f"{file.folder_path}/{new_filename}" if file.folder_path else new_filename
@@ -268,8 +266,8 @@ def move_file(db: Session, file_id: str, target_drive: str | None, target_folder
     dst_drive = target_drive or src_drive
     target_folder = validate_path_safe(target_folder)
 
-    src_drive_path = validate_writable(src_drive)
-    dst_drive_path = validate_writable(dst_drive) if dst_drive != src_drive else src_drive_path
+    src_drive_path = resolve_drive_path(src_drive)
+    dst_drive_path = resolve_drive_path(dst_drive) if dst_drive != src_drive else src_drive_path
 
     old_full = src_drive_path / file.file_path
     new_rel = f"{target_folder}/{file.filename}" if target_folder else file.filename
@@ -411,7 +409,7 @@ def move_folder(drive: str, path: str, target_path: str, db: Session) -> dict:
     if new_path == path:
         raise HTTPException(status_code=400, detail="Folder is already in this location")
 
-    drive_path = validate_writable(drive)
+    drive_path = resolve_drive_path(drive)
     old_full = drive_path / path
     validate_within_drive(old_full, drive_path)
 
@@ -477,7 +475,7 @@ def delete_file(db: Session, file_id: str) -> None:
     if not file:
         raise HTTPException(status_code=404, detail="File not found")
 
-    validate_writable(file.drive)
+    resolve_drive_path(file.drive)
     file.deleted_at = datetime.now(UTC)
     drive = file.drive
     folder_path = file.folder_path
@@ -515,14 +513,14 @@ def purge_file(db: Session, file_id: str) -> None:
     if not file:
         raise HTTPException(status_code=404, detail="File not found in trash")
 
-    validate_writable(file.drive)
+    resolve_drive_path(file.drive)
     physical_delete(db, file)
     db.commit()
 
 
 def purge_all_trash(db: Session, drive: str) -> int:
     """Permanently delete all trashed files for a drive. Returns count purged."""
-    validate_writable(drive)
+    resolve_drive_path(drive)
     trashed = (
         db.query(File)
         .filter(File.drive == drive, File.deleted_at.isnot(None))
@@ -551,7 +549,7 @@ def purge_missing_file(db: Session, file_id: str) -> None:
     if not file:
         raise HTTPException(status_code=404, detail="File not found in missing")
 
-    validate_writable(file.drive)
+    resolve_drive_path(file.drive)
     physical_delete(db, file)
     db.commit()
 
@@ -569,7 +567,7 @@ def purge_all_missing(db: Session, drive: str) -> list[str]:
     Each batch is committed as a unit; if a batch raises, earlier
     batches remain purged and the failure is re-raised.
     """
-    validate_writable(drive)
+    resolve_drive_path(drive)
     purged_ids: list[str] = []
     while True:
         batch = (
@@ -594,7 +592,7 @@ def purge_all_missing(db: Session, drive: str) -> list[str]:
 def create_folder(drive: str, parent_path: str, name: str, db: Session) -> dict:
     name = validate_filename(name)
     parent_path = validate_path_safe(parent_path)
-    drive_path = validate_writable(drive)
+    drive_path = resolve_drive_path(drive)
 
     folder_path = f"{parent_path}/{name}" if parent_path else name
     full_path = drive_path / folder_path
@@ -618,7 +616,7 @@ def rename_folder(drive: str, path: str, new_name: str, db: Session) -> dict:
     if not path:
         raise HTTPException(status_code=400, detail="Cannot rename drive root")
 
-    drive_path = validate_writable(drive)
+    drive_path = resolve_drive_path(drive)
     old_full = drive_path / path
     validate_within_drive(old_full, drive_path)
 
@@ -652,7 +650,7 @@ def delete_folder(drive: str, path: str, db: Session) -> None:
     if not path:
         raise HTTPException(status_code=400, detail="Cannot delete drive root")
 
-    drive_path = validate_writable(drive)
+    drive_path = resolve_drive_path(drive)
     full_path = drive_path / path
     validate_within_drive(full_path, drive_path)
 
@@ -795,7 +793,7 @@ def batch_rename(
                 status_code=400,
                 detail="All files must belong to the same drive",
             )
-    drive_path = validate_writable(first_drive)
+    drive_path = resolve_drive_path(first_drive)
 
     rename_plan: list[tuple[File, str]] = []
     for i, file in enumerate(files):

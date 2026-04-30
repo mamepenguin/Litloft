@@ -245,34 +245,6 @@ class TestErrorCases:
         })
         assert res.status_code == 409
 
-    def test_readonly_drive(self, client):
-        c, db, drive_dir, data_dir = client
-        files = _seed_multiple(db, drive_dir, ["a.mp4"])
-        ids = [f.id for f in files]
-
-        import app.config as config
-        orig_cache = config._drives_cache
-        config._drives_cache = None
-
-        import json
-        drives_json = config.DRIVES_CONFIG
-        drives_json.write_text(json.dumps([
-            {"name": TEST_DRIVE, "path": str(drive_dir), "readonly": True}
-        ]))
-
-        try:
-            res = c.put("/api/files/batch/rename", json={
-                "ids": ids,
-                "mode": "template",
-                "template": "new_{n}",
-            })
-            assert res.status_code == 403
-        finally:
-            drives_json.write_text(json.dumps([
-                {"name": TEST_DRIVE, "path": str(drive_dir)}
-            ]))
-            config._drives_cache = None
-
     def test_invalid_mode(self, client):
         c, db, drive_dir, data_dir = client
         files = _seed_multiple(db, drive_dir, ["a.mp4"])

@@ -69,7 +69,7 @@ cp drives.json.example drives.json
 ```json
 [
   { "name": "家族ビデオ", "path": "/app/drives/family" },
-  { "name": "テレビ番組", "path": "/app/drives/tv", "readonly": true },
+  { "name": "テレビ番組", "path": "/app/drives/tv" },
   { "name": "プライベート", "path": "/app/drives/private", "access_group": "private" }
 ]
 ```
@@ -78,7 +78,6 @@ cp drives.json.example drives.json
 |-----------|------|
 | `name` | UI上の表示名 |
 | `path` | コンテナ内パス（`docker-compose.yml` の volumes でマウント） |
-| `readonly` | `true` でファイル操作を禁止（デフォルト: 書き込み可能） |
 | `access_group` | アクセス制御グループ名（省略で公開ドライブ） |
 | `addons` | ドライブ別アドオンポリシー（詳細は [DRIVE-POLICY.md](DRIVE-POLICY.md)） |
 

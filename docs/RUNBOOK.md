@@ -124,9 +124,8 @@ docker compose restart backend
 ### Upload Failures
 
 1. File size limit: 2GB
-2. Cannot upload to readonly drives
-3. Duplicate filenames are rejected
-4. Stale uploads are auto-cleaned after 24 hours
+2. Duplicate filenames are rejected
+3. Stale uploads are auto-cleaned after 24 hours
 
 ### Database Issues
 

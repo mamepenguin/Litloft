@@ -317,10 +317,6 @@ async def create_text_file(
     """
     _validate_drive(drive_name, unlocked_groups)
 
-    # Check drive is writable (not readonly) before any other work
-    if config.is_drive_readonly(drive_name):
-        raise HTTPException(status_code=403, detail="Drive is read-only")
-
     # Body size check first (before touching FS)
     content_bytes = body.content.encode("utf-8")
     if len(content_bytes) > _TEXT_CREATE_MAX_BYTES:

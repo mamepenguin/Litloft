@@ -520,7 +520,6 @@ class DashboardDriveInfo(BaseModel):
     file_types: dict[str, int]
     last_scanned_at: datetime | None = None
     is_scanning: bool
-    readonly: bool
 
 
 class DashboardSystemInfo(BaseModel):

@@ -88,7 +88,6 @@ def _build_drive_info(db: Session, drive: dict) -> DashboardDriveInfo:
         file_types=file_types,
         last_scanned_at=scan_status["last_scanned_at"],
         is_scanning=scan_status["is_scanning"],
-        readonly=drive.get("readonly", False),
     )
 
 

@@ -55,13 +55,6 @@ def get_drive_names() -> list[str]:
     return [d["name"] for d in load_drives()]
 
 
-def is_drive_readonly(drive_name: str) -> bool:
-    for drive in load_drives():
-        if drive["name"] == drive_name:
-            return drive.get("readonly", False)
-    raise ValueError(f"Drive not found: {drive_name}")
-
-
 def get_drive_access_group(drive_name: str) -> str | None:
     for drive in load_drives():
         if drive["name"] == drive_name:

@@ -198,29 +198,6 @@ class TestCopyFileService:
         assert (drive_dir / "新しいフォルダ" / "test.mp4").exists()
 
 
-class TestCopyFileReadonlyDrive:
-    def test_copy_to_readonly_drive(self, client):
-        c, db, drive_dir, data_dir = client
-        import app.config as config
-
-        # Add a readonly drive to the config
-        ro_dir = drive_dir.parent / "readonly-drive"
-        ro_dir.mkdir(parents=True)
-        drives_json = config.DRIVES_CONFIG
-        drives_json.write_text(json.dumps([
-            {"name": TEST_DRIVE, "path": str(drive_dir)},
-            {"name": "ro-drive", "path": str(ro_dir), "readonly": True},
-        ]))
-        config._drives_cache = None
-
-        file = _seed(db, drive_dir)
-        res = c.post(
-            f"/api/files/{file.id}/copy",
-            json={"target_folder_path": "", "target_drive": "ro-drive"},
-        )
-        assert res.status_code == 403
-
-
 class TestCopyFileCrossDrive:
     def test_cross_drive_copy(self, client):
         c, db, drive_dir, data_dir = client

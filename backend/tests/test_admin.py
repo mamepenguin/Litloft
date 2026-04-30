@@ -124,7 +124,6 @@ class TestDashboard:
         assert isinstance(drive["file_count"], int)
         assert isinstance(drive["file_types"], dict)
         assert isinstance(drive["is_scanning"], bool)
-        assert isinstance(drive["readonly"], bool)
 
     def test_drive_file_type_counts(self, client):
         c, db, drive_dir, data_dir = client
@@ -183,38 +182,6 @@ class TestDashboard:
 
         assert drive["file_count"] == 0
         assert drive["file_types"] == {}
-
-    def test_readonly_drive(self, client, tmp_path):
-        """Readonly flag from drives.json is reflected in dashboard."""
-        import json
-
-        import app.config as config
-
-        c, db, drive_dir, data_dir = client
-
-        ro_dir = tmp_path / "ro_drive"
-        ro_dir.mkdir()
-        drives_json = tmp_path / "drives_ro.json"
-        drives_json.write_text(json.dumps([
-            {"name": TEST_DRIVE, "path": str(drive_dir)},
-            {"name": "readonly-drive", "path": str(ro_dir), "readonly": True},
-        ]))
-
-        orig_config = config.DRIVES_CONFIG
-        orig_cache = config._drives_cache
-        config.DRIVES_CONFIG = drives_json
-        config._drives_cache = None
-        try:
-            res = c.get("/api/admin/dashboard")
-            body = res.json()
-            assert len(body["drives"]) == 2
-
-            drive_map = {d["name"]: d for d in body["drives"]}
-            assert drive_map[TEST_DRIVE]["readonly"] is False
-            assert drive_map["readonly-drive"]["readonly"] is True
-        finally:
-            config.DRIVES_CONFIG = orig_config
-            config._drives_cache = orig_cache
 
     def test_cache_size_calculation(self, client):
         """Cache directories with files report non-zero sizes."""
