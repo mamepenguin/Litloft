@@ -484,6 +484,69 @@
     },
     "language": {
       "title": "Language"
+    },
+    "drives": {
+      "title": "Drives",
+      "addButton": "Add drive",
+      "editButton": "Edit",
+      "deleteButton": "Delete",
+      "confirmButton": "Confirm delete",
+      "cancelButton": "Cancel",
+      "saveButton": "Save",
+      "deleteConfirmTitle": "Delete drive?",
+      "deleteConfirmBody": "Removes {name} from drives.json. The data itself is not affected.",
+      "fields": {
+        "name": "Name",
+        "path": "Path",
+        "group": "Group"
+      },
+      "errors": {
+        "loadFailed": "Failed to load drives",
+        "saveFailed": "Failed to save",
+        "path_not_found": "Path not found in container. Check docker-compose.yml volumes.",
+        "not_absolute_path": "Path must be absolute",
+        "duplicate_name": "Drive name already in use",
+        "missing_field": "Required field",
+        "json_syntax": "JSON syntax error"
+      }
+    },
+    "passwords": {
+      "title": "Passwords",
+      "addButton": "Add password",
+      "deleteButton": "Delete",
+      "saveButton": "Save",
+      "cancelButton": "Cancel",
+      "publicMode": "Public mode (no passwords.json)",
+      "enableProtection": "Enable password protection",
+      "fields": {
+        "password": "Password",
+        "groups": "Groups (comma-separated)"
+      },
+      "errors": {
+        "loadFailed": "Failed to load passwords",
+        "saveFailed": "Failed to save",
+        "unknown_group": "Group does not exist",
+        "duplicate_password": "Password already registered",
+        "masked_password": "Enter a new password",
+        "missing_field": "Required field",
+        "json_syntax": "JSON syntax error"
+      }
+    },
+    "addonPolicy": {
+      "title": "Addon policy",
+      "drive": "Drive",
+      "errors": {
+        "loadFailed": "Failed to load addon policy",
+        "saveFailed": "Failed to save",
+        "unknown_addon": "Addon does not exist in manifest"
+      }
+    },
+    "restartBanner": {
+      "title": "Pending changes — restart required",
+      "fileLabel": "{name} ({count})",
+      "copyCommand": "docker compose restart backend",
+      "copyButton": "Copy",
+      "copied": "Copied"
     }
   },
   "text": {
@@ -587,7 +650,13 @@
     "selectDrive": "Select drive",
     "needsScan": "Some files have not been hashed. Please run a scan.",
     "filesInGroup": "{count} files",
-    "location": "Location"
+    "location": "Location",
+    "forbiddenTitle": "403 Forbidden",
+    "forbiddenMessage": "Only administrators can access this page. Unlock with a password that covers every access group.",
+    "restartTitle": "Pending changes — restart required",
+    "restartCopyCommand": "docker compose restart backend",
+    "restartCopyButton": "Copy",
+    "restartCopied": "Copied"
   },
   "comments": {
     "title": "Comments",
@@ -952,5 +1021,50 @@
     "notAttempted": "Caption status not yet checked",
     "retryHint": "Click to retry",
     "retrying": "Retrying..."
+  },
+  "setup": {
+    "title": "Litloft setup",
+    "next": "Next",
+    "back": "Back",
+    "skip": "Skip",
+    "complete": "Complete",
+    "language": {
+      "title": "Choose language",
+      "japanese": "日本語",
+      "english": "English"
+    },
+    "drive": {
+      "title": "Add a drive",
+      "description": "Add at least one. The path must be mounted by docker-compose.yml volumes.",
+      "fields": {
+        "name": "Name",
+        "path": "Path",
+        "group": "Group"
+      }
+    },
+    "accessMode": {
+      "title": "Access control mode",
+      "public": "Public (LAN-only, no auth)",
+      "protected": "Password protected"
+    },
+    "password": {
+      "title": "Set master password",
+      "description": "The master password must cover every group to access settings as administrator.",
+      "fields": {
+        "password": "Password",
+        "groups": "Groups"
+      },
+      "groupsRequired": "All groups must be checked"
+    },
+    "addonPolicy": {
+      "title": "Addon policy",
+      "description": "Enable per-drive addons. You can change this later.",
+      "skipDescription": "You can skip and configure later."
+    },
+    "complete": {
+      "title": "Setup complete",
+      "description": "Save and go to /admin.",
+      "errorMessage": "Failed to complete setup"
+    }
   }
 }

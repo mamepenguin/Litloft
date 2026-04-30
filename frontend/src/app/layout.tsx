@@ -11,6 +11,7 @@ import { WebSocketProvider } from "@/components/WebSocketProvider";
 import { ClipboardProvider } from "@/components/ClipboardProvider";
 import { ProfileProvider } from "@/components/ProfileProvider";
 import { AddonSlotsProvider } from "@/components/AddonSlotsProvider";
+import { SetupRedirector } from "@/components/SetupRedirector";
 
 export const metadata: Metadata = {
   title: "Litloft",
@@ -75,6 +76,7 @@ export default async function RootLayout({
                   <AddonSlotsProvider>
                     <ClipboardProvider>
                       <SidebarProvider>
+                        <SetupRedirector />
                         <AppShell>{children}</AppShell>
                       </SidebarProvider>
                     </ClipboardProvider>

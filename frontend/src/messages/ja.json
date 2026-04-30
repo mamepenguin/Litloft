@@ -484,6 +484,69 @@
     },
     "language": {
       "title": "言語"
+    },
+    "drives": {
+      "title": "ドライブ",
+      "addButton": "ドライブを追加",
+      "editButton": "編集",
+      "deleteButton": "削除",
+      "confirmButton": "削除を確認",
+      "cancelButton": "キャンセル",
+      "saveButton": "保存",
+      "deleteConfirmTitle": "ドライブを削除しますか？",
+      "deleteConfirmBody": "{name} を drives.json から削除します。データそのものは消えません。",
+      "fields": {
+        "name": "名前",
+        "path": "パス",
+        "group": "グループ"
+      },
+      "errors": {
+        "loadFailed": "ドライブ一覧の読み込みに失敗しました",
+        "saveFailed": "保存に失敗しました",
+        "path_not_found": "パスが見つかりません。docker-compose.yml の volumes に追加されているか確認してください",
+        "not_absolute_path": "絶対パスを指定してください",
+        "duplicate_name": "このドライブ名はすでに使われています",
+        "missing_field": "必須項目です",
+        "json_syntax": "JSON 構文エラーです"
+      }
+    },
+    "passwords": {
+      "title": "パスワード",
+      "addButton": "パスワードを追加",
+      "deleteButton": "削除",
+      "saveButton": "保存",
+      "cancelButton": "キャンセル",
+      "publicMode": "全公開モードです（passwords.json は未設定）",
+      "enableProtection": "パスワード保護を有効化",
+      "fields": {
+        "password": "パスワード",
+        "groups": "グループ（カンマ区切り）"
+      },
+      "errors": {
+        "loadFailed": "パスワード一覧の読み込みに失敗しました",
+        "saveFailed": "保存に失敗しました",
+        "unknown_group": "存在しないグループです",
+        "duplicate_password": "このパスワードはすでに登録されています",
+        "masked_password": "新しいパスワードを入力してください",
+        "missing_field": "必須項目です",
+        "json_syntax": "JSON 構文エラーです"
+      }
+    },
+    "addonPolicy": {
+      "title": "アドオン設定",
+      "drive": "ドライブ",
+      "errors": {
+        "loadFailed": "アドオン設定の読み込みに失敗しました",
+        "saveFailed": "保存に失敗しました",
+        "unknown_addon": "存在しないアドオンです"
+      }
+    },
+    "restartBanner": {
+      "title": "保留中の変更があります。反映には再起動が必要です",
+      "fileLabel": "{name} ({count} 件)",
+      "copyCommand": "docker compose restart backend",
+      "copyButton": "コピー",
+      "copied": "コピーしました"
     }
   },
   "text": {
@@ -587,7 +650,13 @@
     "selectDrive": "ドライブを選択",
     "needsScan": "ハッシュ未計算のファイルがあります。スキャンを実行してください。",
     "filesInGroup": "{count} 件のファイル",
-    "location": "場所"
+    "location": "場所",
+    "forbiddenTitle": "403 権限がありません",
+    "forbiddenMessage": "管理者のみがこのページにアクセスできます。すべてのアクセスグループに属するパスワードでロック解除してください。",
+    "restartTitle": "保留中の変更があります。反映には再起動が必要です",
+    "restartCopyCommand": "docker compose restart backend",
+    "restartCopyButton": "コピー",
+    "restartCopied": "コピーしました"
   },
   "comments": {
     "title": "コメント",
@@ -952,5 +1021,50 @@
     "notAttempted": "字幕情報を取得していません",
     "retryHint": "クリックで再試行",
     "retrying": "再試行中..."
+  },
+  "setup": {
+    "title": "Litloft 初期設定",
+    "next": "次へ",
+    "back": "戻る",
+    "skip": "スキップ",
+    "complete": "完了",
+    "language": {
+      "title": "言語を選択",
+      "japanese": "日本語",
+      "english": "English"
+    },
+    "drive": {
+      "title": "ドライブを追加",
+      "description": "最低 1 つ追加してください。docker-compose.yml の volumes でホストにマウントされたパスを入力します。",
+      "fields": {
+        "name": "名前",
+        "path": "パス",
+        "group": "グループ"
+      }
+    },
+    "accessMode": {
+      "title": "アクセス制御モード",
+      "public": "全公開（自宅 LAN 向け、認証なし）",
+      "protected": "パスワード保護"
+    },
+    "password": {
+      "title": "マスターパスワードを設定",
+      "description": "管理者として設定画面にアクセスするには、すべてのグループに属するパスワードが必要です。",
+      "fields": {
+        "password": "パスワード",
+        "groups": "対象グループ"
+      },
+      "groupsRequired": "すべてのグループにチェックが必要です"
+    },
+    "addonPolicy": {
+      "title": "アドオン設定",
+      "description": "ドライブごとにアドオンを有効化できます。あとで変更可能です。",
+      "skipDescription": "今は設定せずに次へ進めます。"
+    },
+    "complete": {
+      "title": "設定完了",
+      "description": "保存して /admin に移動します。",
+      "errorMessage": "完了処理に失敗しました"
+    }
   }
 }
