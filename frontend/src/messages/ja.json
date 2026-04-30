@@ -656,6 +656,19 @@
     "takenMs": "{ms}ms で生成",
     "poweredByLlm": "AI"
   },
+  "find": {
+    "button": "「{query}」でファイルを探す",
+    "title": "ファイルを探す",
+    "placeholder": "例: 先週観た映画でSFっぽいの",
+    "submit": "探す",
+    "loading": "検索中…",
+    "error": "検索に失敗しました",
+    "empty": "該当するファイルが見つかりませんでした",
+    "totalCount": "{count} 件見つかりました",
+    "categoryExpansion": "意味展開: {terms}",
+    "chipPersonalViewed": "視聴済み",
+    "chipPersonalNotViewed": "未視聴"
+  },
   "knowledge": {
     "title": "Knowledge",
     "loading": "読み込み中...",

@@ -628,7 +628,7 @@ Addons can inject UI components into predefined **slots** in the core applicatio
 
 | Slot ID | Location | Layout | Use case |
 |---------|----------|--------|----------|
-| `search-modes` | GlobalSearch modal | Tabs | Semantic search, Ask, other custom retrievers |
+| `search-modes` | GlobalSearch modal | Tabs | Semantic search, Ask, Find (file-list result variant), other custom retrievers |
 | `file-detail-sections` | File detail panel | Vertical stack | Transcripts, similar files, suggested tags, summaries, knowledge notes |
 | `dashboard-widgets` | Admin dashboard | Cards | Index statistics, cloud sync status |
 | `folder-actions` | Folder toolbar | Inline buttons | Batch AI tags, batch summaries, batch transcript refine |
@@ -987,6 +987,7 @@ Generates English text descriptions of images/video frames. Used as context for 
 |------|-----------|-------------|
 | `search-modes` / `semantic-search` | `SemanticSearchSlot` | Semantic search tab in global search |
 | `search-modes` / `ask` | `AskSearchMode` | Natural-language Q&A over indexed files with citations |
+| `search-modes` / `find-mode` | `FindModeSlot` | Exploratory natural-language queries that return a ranked file list (Stage A-D reuse, no LLM answer generation). LLM-decomposed query slots shown as dismissible chips |
 | `file-detail-sections` / `suggested-tags` | `SuggestedTagsSection` | AI tag suggestions with approve/dismiss |
 | `file-detail-sections` / `summary` | `SummarySection` | Short + long AI summary with edit/revert |
 | `file-detail-sections` / `detailed-summary` | `DetailedSummarySection` | Long-form Markdown summary (manual trigger) with auto-linked citations and inline section editing |

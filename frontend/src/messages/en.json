@@ -656,6 +656,19 @@
     "takenMs": "Generated in {ms}ms",
     "poweredByLlm": "AI"
   },
+  "find": {
+    "button": "Find files for “{query}”",
+    "title": "Find files",
+    "placeholder": "e.g. SF movies I watched last week",
+    "submit": "Find",
+    "loading": "Searching…",
+    "error": "Search failed",
+    "empty": "No files matched",
+    "totalCount": "{count} results",
+    "categoryExpansion": "Expanded: {terms}",
+    "chipPersonalViewed": "viewed",
+    "chipPersonalNotViewed": "not viewed"
+  },
   "knowledge": {
     "title": "Knowledge",
     "loading": "Loading...",

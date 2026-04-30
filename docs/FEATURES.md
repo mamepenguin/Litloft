@@ -266,7 +266,7 @@ All list queries filter via `active_file_filter()` so missing/trash files are in
 - Up to 200 results (file type icon + path + thumbnail)
 - Click to navigate to file detail page
 - Escape to close
-- Modes added by addons appear as tabs (`search-modes` slot) — e.g. Semantic Search, Ask
+- Modes added by addons appear as tabs (`search-modes` slot) — e.g. Semantic Search, Ask, Find
 
 ### Semantic Search (intelligence addon)
 - Embedding-based retrieval combining 5 parallel channels:
@@ -287,6 +287,15 @@ All list queries filter via `active_file_filter()` so missing/trash files are in
   2. Whitelist validator: any citation file_id not in the retriever's candidate set is dropped (blocks hallucinated IDs)
 - On-demand only (no cache, no worker); exposed as the `ask` tab in global search
 - Feature-flagged via `features.rag` — default disabled
+
+### Find (intelligence addon)
+- Sibling output path of Ask for **exploratory file-listing queries** like "先週観た映画で SF っぽいのどれ？"
+- Reuses the same Stage A-D pipeline as Ask (query decompose → personal history filter → category expand → scoped retrieve), but **skips LLM answer generation** — returns a ranked file list with thumbnails, scores, and the retrieve hit chunk per result
+- LLM-decomposed query slots (`time_range` / `personal_scope` / `file_type_hint` / `semantic_query`) are shown as **dismissible chips**; clicking × on a chip re-POSTs with `overrides` to relax that axis (透明化, ステートレス)
+- Endpoint: `POST /api/addons/intelligence/find` — single JSON response (not SSE; no LLM streaming)
+- No new Internal API endpoints — reuses existing `/api/internal/viewer-history` and `/filter-file-ids`
+- Same gating as Ask: `features.rag` must be on, drive scope via `X-HV-Drive` header
+- Exposed as the `find` tab in global search
 
 ---
 
@@ -544,7 +553,7 @@ Operators toggle features per drive in `drives.json`:
 
 | Slot ID | Location | Layout | Example use |
 |---------|----------|--------|-------------|
-| `search-modes` | Global search modal | Tabs | Semantic search, Ask |
+| `search-modes` | Global search modal | Tabs | Semantic search, Ask, Find |
 | `file-detail-sections` | File detail panel | Stack | Transcript, similar files, suggested tags, summaries, knowledge note |
 | `dashboard-widgets` | Admin dashboard | Cards | Index status, cloud sync status |
 | `folder-actions` | Folder toolbar | Inline buttons | Batch AI tags, batch summaries, batch refine |

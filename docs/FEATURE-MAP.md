@@ -64,6 +64,7 @@ mindmap
       重複検出
       Semantic Search 意味近似
       Ask 自然言語質問
+      Find ファイル列挙クエリ チップ編集
     整理
       タグ付け 単体/一括
       プレイリスト
@@ -213,9 +214,17 @@ flowchart TD
 
 **関連ファイル**: `addons/intelligence/app/search.py`, `embedder.py`
 
-### 4-3. Ask の流れ（/ask）
+### 4-3. Ask / Find の流れ（/ask, /find）
 
-`/search` の recall モードを内部で使い、LLM で引用付き回答を生成。
+`/search` の recall モードを内部で使い、Stage A-D（query decompose → personal history filter → category expand → scoped retrieve）を共通基盤として 2 系統の出力経路を持つ。
+
+- **E_ask (`POST /ask`)**: Stage A-D の retrieve 結果を LLM に流し、引用付き文章をストリーム返却（既存）
+- **E_find (`POST /find`)**: Stage A-D の retrieve 結果をそのままファイルカード列 + 透明化チップとして返却（LLM 文章生成なし、SSE なし、単発 JSON）
+
+Find モードは「先週観た映画で SF っぽいのどれ？」のようなファイル列挙意図のクエリを Ask の文章回答ではなくランク付きファイルリストで返す。LLM 解釈はチップとしてユーザーに見せ、× クリックで個別軸を緩めて再 retrieve できる（ステートレス、`overrides` を再 POST するだけ）。詳細は spec [`2026-04-30-intelligence-find-mode.md`](superpowers/specs/2026-04-30-intelligence-find-mode.md)。
+
+以下は Ask（E_ask）のシーケンス。Find は最後の LLM Stream 以降を「retrieve 結果を JSON 整形して返却」に置き換えるだけで、citation 検証は走らない（tier 1 の retrieve hit chunk をそのまま見せる）。
+
 citation は必ずホワイトリスト検証でハルシネーションを防ぐ。
 
 ```mermaid
@@ -243,7 +252,7 @@ flowchart TD
 1. 内部フィルタ: `access_token` cookie → 本体 `/api/internal/filter-file-ids` で権限チェック
 2. citation 検証: LLM が捏造した file_id は retriever 結果セットに無ければ drop
 
-**関連ファイル**: `addons/intelligence/app/rag/service.py`, `retriever.py`, `query_transform.py`, `parser.py`, `context.py`, `prompt.py`
+**関連ファイル**: `addons/intelligence/app/rag/service.py` (`stream_answer` for Ask, `find_files` for Find), `addons/intelligence/app/routers/rag.py` (`/ask`, `/find`), `retriever.py`, `query_transform.py`, `query_decomposer.py`, `category_expander.py`, `history_client.py`, `parser.py`, `context.py`, `prompt.py`. Frontend: `addons/intelligence/frontend/pages/find.tsx`, `FindModeSlot.tsx`, `FindChip.tsx`, `api.ts`
 
 ### 4-4. 使われている構成要素まとめ
 
