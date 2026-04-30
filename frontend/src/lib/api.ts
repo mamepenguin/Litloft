@@ -100,17 +100,38 @@ export interface ActiveSummaryNote {
   file_id: string;
   drive: string;
   path: string;
-  title: string;
+  title: string | null;
 }
 
 export interface ActiveSummaryResponse {
   has_active_summary: boolean;
   file_id: string;
-  summary_note?: ActiveSummaryNote;
+  summary_note?: ActiveSummaryNote | null;
 }
 
-export async function getActiveSummary(id: string): Promise<ActiveSummaryResponse> {
-  return fetchJSON<ActiveSummaryResponse>(`${API_BASE}/files/${id}/active_summary`);
+// Spec 2026-04-30-file-active-summary-to-knowledge: the pointer was
+// moved from core into the knowledge addon. The route is drive-scoped
+// (X-Lit-Drive required) and a 404 from the addon proxy means knowledge
+// isn't installed — surface as has_active_summary: false so the file
+// detail page falls back to the AI summary instead of erroring out.
+export async function getActiveSummary(
+  id: string,
+  drive: string,
+): Promise<ActiveSummaryResponse> {
+  const res = await fetch(
+    `${API_BASE}/addons/knowledge/file_active_summary/${id}/note`,
+    {
+      credentials: "include",
+      headers: { "X-Lit-Drive": encodeURIComponent(drive) },
+    },
+  );
+  if (res.status === 404) {
+    return { has_active_summary: false, file_id: id };
+  }
+  if (!res.ok) {
+    throw new Error(`API error: ${res.status} ${res.statusText}`);
+  }
+  return res.json();
 }
 
 export interface RelatedFileSummary {

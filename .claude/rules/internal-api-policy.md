@@ -63,7 +63,7 @@ API surface (パス・パラメータ・レスポンス形状) が特定アド�
 | 7 | `POST /filter-file-ids` | KEEP | access control filter |
 | 8 | `POST /files/bulk-state` | KEEP | lifecycle bulk read |
 | 9 | `/file_relations` (POST/GET/DELETE) | KEEP | コア UI で表示する commitment 前提。撤回時は再評価 |
-| 10 | `/file_active_summary` (POST/GET/DELETE) | REMOVE → knowledge へ移送 | 2026-04-30 決定。spec `2026-04-30-file-active-summary-to-knowledge.md` |
+| 10 | ~~`/file_active_summary` (POST/GET/DELETE)~~ | REMOVED → knowledge へ移送済み | 2026-04-30 完了。spec `2026-04-30-file-active-summary-to-knowledge.md` |
 | 11 | `POST /addon-events` | KEEP | WS bridge、universal |
 
 ## 新規 endpoint 追加判定フロー

@@ -70,13 +70,13 @@ canonical は拡張子で分岐する:
 - frontmatter parser は `backend/app/services/frontmatter.py` と `addons/knowledge/app/services/frontmatter.py` の 2 実装を独立に維持する（別コンテナで共有不可）。drift は PR レビューで検知
 - `POST /api/internal/files/{id}/tags`（`CORE_INTERNAL_SECRET` gated）は knowledge scanner 専用。frontend から呼ばない
 
-## ファイル関連付け / アクティブ要約
+## ファイル関連付け
 
-- `file_relations`（静的関連、`kind` 付き、双方向 OR で query）と `file_active_summaries`（file_id PK の 1:1 ポインタ）を分離する。要約差し替えで relation を壊さないため
+- `file_relations`（静的関連、`kind` 付き、双方向 OR で query）は core テーブル。コア UI で表示・設定する commitment 前提（`.claude/rules/internal-api-policy.md` R1/R4）
 - `kind` の値範囲は DB 制約ではなくアプリ層で管理する（アドオン拡張のため）
 - 関連の両端は同一ドライブでなければならない。違反は 400 を返す
-- `files.id` への FK は両テーブル両カラムで `ON DELETE CASCADE`
-- `GET /api/files/{file_id}/active_summary` は locked 保護ドライブでは 404 を返す
+- `files.id` への FK は `ON DELETE CASCADE`
+- 「アクティブ要約」ポインタ（`file_active_summaries`）は **knowledge アドオン側** に配置する。core には置かない（spec `2026-04-30-file-active-summary-to-knowledge`、Internal API ポリシー R1/R3 違反のため）
 
 ## 視聴履歴・プロファイル
 

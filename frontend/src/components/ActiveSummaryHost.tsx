@@ -12,7 +12,7 @@ export function ActiveSummaryHost({
   fileId: string;
   drive: string;
 }) {
-  const { data } = useActiveSummary(fileId);
+  const { data } = useActiveSummary(fileId, drive);
   const { hasSlot } = useAddonSlots();
 
   if (!data?.has_active_summary || !data.summary_note) return null;

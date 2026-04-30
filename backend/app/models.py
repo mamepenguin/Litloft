@@ -240,26 +240,6 @@ class FileRelation(Base):
     )
 
 
-class FileActiveSummary(Base):
-    __tablename__ = "file_active_summaries"
-
-    file_id: Mapped[str] = mapped_column(
-        String(12), ForeignKey("files.id", ondelete="CASCADE"), primary_key=True
-    )
-    summary_file_id: Mapped[str] = mapped_column(
-        String(12), ForeignKey("files.id", ondelete="CASCADE"), nullable=False
-    )
-    set_at: Mapped[datetime] = mapped_column(
-        DateTime,
-        default=lambda: datetime.now(UTC),
-        onupdate=lambda: datetime.now(UTC),
-    )
-
-    __table_args__ = (
-        Index("idx_active_summaries_summary", "summary_file_id"),
-    )
-
-
 def active_file_filter():
     """Filter condition matching only active files (not trashed, not missing).
 

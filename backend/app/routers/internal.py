@@ -24,7 +24,6 @@ from app.auth import filter_drives, get_unlocked_groups
 from app.database import get_db
 from app.models import (
     File,
-    FileActiveSummary,
     FileRelation,
     WatchHistory,
     active_file_filter,
@@ -521,7 +520,9 @@ async def files_bulk_state(
 
 
 # ---------------------------------------------------------------------------
-# file_relations / file_active_summaries (Step A of knowledge promotion)
+# file_relations (Step A of knowledge promotion). The companion
+# file_active_summaries pointer was moved to the knowledge addon by
+# spec 2026-04-30-file-active-summary-to-knowledge.
 # ---------------------------------------------------------------------------
 
 
@@ -542,14 +543,6 @@ def _relation_to_dict(rel: FileRelation) -> dict:
         "kind": rel.kind,
         "created_at": rel.created_at.isoformat() if rel.created_at else None,
         "created_by": rel.created_by,
-    }
-
-
-def _active_summary_to_dict(row: FileActiveSummary) -> dict:
-    return {
-        "file_id": row.file_id,
-        "summary_file_id": row.summary_file_id,
-        "set_at": row.set_at.isoformat() if row.set_at else None,
     }
 
 
@@ -628,131 +621,6 @@ async def delete_file_relation(
         raise HTTPException(status_code=404, detail="relation not found")
     db.delete(rel)
     db.commit()
-    return Response(status_code=204)
-
-
-class FileActiveSummaryUpsert(BaseModel):
-    file_id: str
-    summary_file_id: str
-
-
-@router.post("/file_active_summary")
-async def upsert_file_active_summary(
-    body: FileActiveSummaryUpsert,
-    db=Depends(get_db),
-):
-    """UPSERT the active summary pointer for file_id → summary_file_id.
-
-    Returns 400 when file_id == summary_file_id,
-    400 when the two files live on different drives,
-    404 when either file does not exist (active files only).
-    """
-    if body.file_id == body.summary_file_id:
-        raise HTTPException(status_code=400, detail="files must differ")
-
-    files = (
-        db.query(File)
-        .filter(File.id.in_([body.file_id, body.summary_file_id]))
-        .all()
-    )
-    by_id = {f.id: f for f in files}
-    if body.file_id not in by_id or body.summary_file_id not in by_id:
-        raise HTTPException(status_code=404, detail="file not found")
-
-    if by_id[body.file_id].drive != by_id[body.summary_file_id].drive:
-        raise HTTPException(
-            status_code=400, detail="files must be in the same drive"
-        )
-
-    row = (
-        db.query(FileActiveSummary)
-        .filter(FileActiveSummary.file_id == body.file_id)
-        .first()
-    )
-    if row is None:
-        row = FileActiveSummary(
-            file_id=body.file_id, summary_file_id=body.summary_file_id
-        )
-        db.add(row)
-    else:
-        row.summary_file_id = body.summary_file_id
-        # Force onupdate to fire even when summary_file_id is unchanged.
-        from datetime import UTC, datetime
-
-        row.set_at = datetime.now(UTC)
-    db.commit()
-    db.refresh(row)
-
-    # Notify connected clients that this file's summary-view pointer
-    # changed. The drive scope scopes access filtering in the WS
-    # broadcaster — other drives' viewers never see it. Broadcast
-    # failure is swallowed because the persisted row is the source of
-    # truth; any reload will pick up the new state.
-    try:
-        await ws_manager.broadcast(
-            "core.file_active_summary.changed",
-            {
-                "file_id": body.file_id,
-                "summary_file_id": body.summary_file_id,
-            },
-            drive=by_id[body.file_id].drive,
-        )
-    except Exception as exc:  # noqa: BLE001
-        logger.warning("broadcast file_active_summary.changed failed: %s", exc)
-
-    return _active_summary_to_dict(row)
-
-
-@router.get("/file_active_summary/{file_id}")
-async def get_file_active_summary(
-    file_id: str,
-    db=Depends(get_db),
-):
-    row = (
-        db.query(FileActiveSummary)
-        .filter(FileActiveSummary.file_id == file_id)
-        .first()
-    )
-    if row is None:
-        raise HTTPException(status_code=404, detail="active summary not found")
-    return _active_summary_to_dict(row)
-
-
-@router.delete("/file_active_summary/{file_id}", status_code=204)
-async def delete_file_active_summary(
-    file_id: str,
-    db=Depends(get_db),
-):
-    row = (
-        db.query(FileActiveSummary)
-        .filter(FileActiveSummary.file_id == file_id)
-        .first()
-    )
-    if row is None:
-        raise HTTPException(status_code=404, detail="active summary not found")
-    db.delete(row)
-    db.commit()
-
-    # Resolve the file's drive for access-filtered broadcast. Looking
-    # up post-delete is safe because the FK cascade only fires on the
-    # File row (not this row), so the File still exists for an active
-    # pointer. If the file was already gone (race against soft-delete),
-    # fall back to a broadcast with no drive — every connected client
-    # gets it but the payload is harmless (file_id they can't see in
-    # any list).
-    drive: str | None = None
-    file_row = db.query(File.drive).filter(File.id == file_id).first()
-    if file_row is not None:
-        drive = file_row.drive
-    try:
-        await ws_manager.broadcast(
-            "core.file_active_summary.changed",
-            {"file_id": file_id, "summary_file_id": None},
-            drive=drive,
-        )
-    except Exception as exc:  # noqa: BLE001
-        logger.warning("broadcast file_active_summary.changed failed: %s", exc)
-
     return Response(status_code=204)
 
 

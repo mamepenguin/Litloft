@@ -80,7 +80,10 @@ class TestMigrationIdempotent:
                 )
             }
         assert "file_relations" in tables
-        assert "file_active_summaries" in tables
+        # file_active_summaries was moved to the knowledge addon; the
+        # core schema no longer creates it (spec
+        # 2026-04-30-file-active-summary-to-knowledge).
+        assert "file_active_summaries" not in tables
 
 
 class TestFileRelationsConstraints:
@@ -178,72 +181,6 @@ class TestFileRelationsConstraints:
         )
 
 
-class TestFileActiveSummaries:
-    def test_pk_is_file_id_one_to_one(self, session):
-        """file_id is PK → inserting a second row for the same file_id raises."""
-        db, _ = session
-        from app.models import FileActiveSummary
-
-        a = _mk_file(db, filename="a.mp4", path="a.mp4")
-        s1 = _mk_file(db, filename="s1.md", path="s1.md")
-        s2 = _mk_file(db, filename="s2.md", path="s2.md")
-
-        db.add(FileActiveSummary(file_id=a.id, summary_file_id=s1.id))
-        db.commit()
-
-        db.add(FileActiveSummary(file_id=a.id, summary_file_id=s2.id))
-        with pytest.raises(IntegrityError):
-            db.commit()
-        db.rollback()
-
-    def test_fk_cascade_from_file_id(self, session):
-        db, _ = session
-        from app.models import FileActiveSummary
-
-        a = _mk_file(db, filename="a.mp4", path="a.mp4")
-        s1 = _mk_file(db, filename="s1.md", path="s1.md")
-        db.add(FileActiveSummary(file_id=a.id, summary_file_id=s1.id))
-        db.commit()
-
-        a_id = a.id
-        db.delete(a)
-        db.commit()
-
-        assert (
-            db.query(FileActiveSummary)
-            .filter(FileActiveSummary.file_id == a_id)
-            .first()
-            is None
-        )
-
-    def test_fk_cascade_from_summary_file_id(self, session):
-        db, _ = session
-        from app.models import FileActiveSummary
-
-        a = _mk_file(db, filename="a.mp4", path="a.mp4")
-        s1 = _mk_file(db, filename="s1.md", path="s1.md")
-        db.add(FileActiveSummary(file_id=a.id, summary_file_id=s1.id))
-        db.commit()
-
-        a_id = a.id
-        db.delete(s1)
-        db.commit()
-
-        assert (
-            db.query(FileActiveSummary)
-            .filter(FileActiveSummary.file_id == a_id)
-            .first()
-            is None
-        )
-
-    def test_set_at_default(self, session):
-        db, _ = session
-        from app.models import FileActiveSummary
-
-        a = _mk_file(db, filename="a.mp4", path="a.mp4")
-        s1 = _mk_file(db, filename="s1.md", path="s1.md")
-        row = FileActiveSummary(file_id=a.id, summary_file_id=s1.id)
-        db.add(row)
-        db.commit()
-        db.refresh(row)
-        assert row.set_at is not None
+# FileActiveSummary tests removed: spec
+# 2026-04-30-file-active-summary-to-knowledge moved the table to the
+# knowledge addon. See addons/knowledge/tests/test_active_summary.py.

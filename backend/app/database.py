@@ -349,16 +349,23 @@ def _migrate(engine_) -> None:
                 conn.execute(text("ALTER TABLE files ADD COLUMN missing_since DATETIME"))
                 conn.execute(text("CREATE INDEX idx_files_missing_since ON files(missing_since)"))
 
-    # === Phase 10: Create file_relations + file_active_summaries tables ===
+    # === Phase 10: Create file_relations table ===
     tables = inspector.get_table_names()
     if "file_relations" not in tables:
         logger.info("Migrating: creating 'file_relations' table")
         Base.metadata.tables["file_relations"].create(bind=engine_, checkfirst=True)
-    if "file_active_summaries" not in tables:
-        logger.info("Migrating: creating 'file_active_summaries' table")
-        Base.metadata.tables["file_active_summaries"].create(
-            bind=engine_, checkfirst=True
+    # === Spec 2026-04-30-file-active-summary-to-knowledge: drop core
+    # table; the pointer is owned by the knowledge addon now. Existing
+    # data is allowed to be lost (personal-tool migration policy,
+    # mirrors the tag-unification migration in hako fcuA0T0Qr739yVHCNzrbc).
+    # Idempotent: if the table is already gone the DROP is skipped.
+    if "file_active_summaries" in tables:
+        logger.info(
+            "Migrating: dropping legacy 'file_active_summaries' table "
+            "(moved to knowledge addon)"
         )
+        with engine_.begin() as conn:
+            conn.execute(text("DROP TABLE file_active_summaries"))
 
 
 def init_db() -> None:
