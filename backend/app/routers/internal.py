@@ -29,7 +29,7 @@ from app.models import (
     active_file_filter,
 )
 from app.routers.files import cleanup_orphan_tags, replace_file_tags
-from app.schemas import TagUpdate
+from app.schemas import TagUpdate, file_to_response
 from app.services.ws import manager as ws_manager
 
 logger = logging.getLogger(__name__)
@@ -517,6 +517,56 @@ async def files_bulk_state(
 
     not_found = [fid for fid in body.file_ids if fid not in by_id]
     return {"statuses": statuses, "not_found": not_found}
+
+
+class BulkFilesRequest(BaseModel):
+    file_ids: list[str]
+
+
+@router.post("/files/bulk")
+async def files_bulk(
+    body: BulkFilesRequest,
+    db=Depends(get_db),
+):
+    """Return full file metadata in bulk for a list of IDs.
+
+    Used by addons (e.g. intelligence) that need to enrich semantic
+    search results into full ``FileResponse`` shape without doing N+1
+    single-file lookups.
+
+    Active filter is always applied: rows in trash (``deleted_at``)
+    or missing (``missing_since``) are returned in ``not_found``. The
+    caller's UI represents semantic results as live-active files, and
+    surfacing missing/trash here would require lifecycle-aware rendering
+    that the search result UI does not currently express.
+
+    No access control — Internal API ポリシー §通常 state/meta endpoint。
+    Callers that need access filtering should pre-filter via
+    ``POST /api/internal/filter-file-ids``.
+
+    Performance: ``subtitles`` is returned as ``[]`` to avoid per-file
+    ffprobe (the FileCard surface that consumes this endpoint does not
+    display subtitles). Callers that need subtitles should fall through
+    to ``GET /api/internal/files/{id}`` per-file.
+    """
+    if not body.file_ids:
+        return {"files": [], "not_found": []}
+
+    rows = (
+        db.query(File)
+        .filter(File.id.in_(body.file_ids), active_file_filter())
+        .all()
+    )
+    by_id = {row.id: row for row in rows}
+
+    files = [
+        file_to_response(by_id[fid])
+        for fid in body.file_ids
+        if fid in by_id
+    ]
+    not_found = [fid for fid in body.file_ids if fid not in by_id]
+
+    return {"files": files, "not_found": not_found}
 
 
 # ---------------------------------------------------------------------------
