@@ -9,7 +9,23 @@ import {
   clearListSnapshot,
   type ListSnapshot,
 } from "@/lib/listSnapshot";
-import type { FileItem, FileType, Folder, SortField, SortOrder } from "@/types";
+import {
+  mergeResults,
+  sortMerged,
+  type SemanticHit,
+} from "@/lib/searchMerge";
+import {
+  fetchSemanticHits,
+  isSemanticSearchAvailable,
+} from "@/lib/semanticSearch";
+import type {
+  FileItem,
+  FileItemWithMatch,
+  FileType,
+  Folder,
+  SortField,
+  SortOrder,
+} from "@/types";
 import { useInfiniteScroll } from "@/hooks/useInfiniteScroll";
 
 interface UseFolderFilesParams {
@@ -32,7 +48,7 @@ interface UseFolderFilesParams {
 }
 
 interface UseFolderFilesReturn {
-  files: FileItem[];
+  files: FileItemWithMatch[];
   folders: Folder[];
   total: number;
   loading: boolean;
@@ -115,11 +131,16 @@ export function useFolderFiles({
   const fetchPage = useCallback(
     async (page: number, limit: number) => {
       if (isSearch) {
+        // The filename-match backend doesn't understand "relevance" — fall
+        // back to created_at desc on the server and let `sortMerged` reorder
+        // by hybrid score on the client.
+        const backendSort: SortField = sort === "relevance" ? "created_at" : sort;
+        const backendOrder: SortOrder = sort === "relevance" ? "desc" : order;
         const res = await getDriveFiles(driveName, {
           search: searchQuery!.trim(),
           type: typeFilter || undefined,
-          sort,
-          order,
+          sort: backendSort,
+          order: backendOrder,
           page,
           limit,
         });
@@ -158,6 +179,43 @@ export function useFolderFiles({
     initial: hydration.initial,
   });
 
+  // Semantic search hits — loaded once per search query/drive/typeFilter.
+  // The intelligence addon is the canonical provider; absence of the
+  // addon (or the search feature) means filename-only fallback.
+  const [semanticHits, setSemanticHits] = useState<SemanticHit[]>([]);
+  const [semanticLoading, setSemanticLoading] = useState(false);
+
+  useEffect(() => {
+    if (!isSearch) {
+      setSemanticHits([]);
+      setSemanticLoading(false);
+      return;
+    }
+    const trimmed = searchQuery!.trim();
+    if (!trimmed) return;
+    let cancelled = false;
+    setSemanticLoading(true);
+    (async () => {
+      const available = await isSemanticSearchAvailable(driveName);
+      if (cancelled) return;
+      if (!available) {
+        setSemanticHits([]);
+        setSemanticLoading(false);
+        return;
+      }
+      const hits = await fetchSemanticHits(trimmed, driveName, {
+        limit: 50,
+        type: typeFilter,
+      });
+      if (cancelled) return;
+      setSemanticHits(hits);
+      setSemanticLoading(false);
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [isSearch, searchQuery, driveName, typeFilter]);
+
   // Recent view uses localStorage, managed separately
   const [recentFiles, setRecentFiles] = useState<FileItem[]>([]);
   const [recentLoading, setRecentLoading] = useState(false);
@@ -185,10 +243,38 @@ export function useFolderFiles({
     if (isRecent) fetchRecentFiles();
   }, [isRecent, fetchRecentFiles]);
 
-  // Merge: pick the right source
-  const files = isRecent ? recentFiles : paginatedFiles;
-  const total = isRecent ? recentFiles.length : paginatedTotal;
-  const loading = isRecent ? recentLoading : paginatedLoading;
+  // Merged list for search mode: filename matches + semantic hits with
+  // per-file `match_meta`. Sort applied client-side because the two
+  // result sources can't be combined server-side.
+  const mergedSearch = useMemo(() => {
+    if (!isSearch) return null;
+    const merged = mergeResults({
+      filenameMatches: paginatedFiles,
+      semanticHits,
+      filenameTotal: paginatedTotal,
+    });
+    return {
+      files: sortMerged(merged.files, sort, order),
+      total: merged.total,
+    };
+  }, [isSearch, paginatedFiles, semanticHits, paginatedTotal, sort, order]);
+
+  // Pick the right source.
+  const files: FileItemWithMatch[] = isRecent
+    ? (recentFiles as FileItemWithMatch[])
+    : mergedSearch
+      ? mergedSearch.files
+      : (paginatedFiles as FileItemWithMatch[]);
+  const total = isRecent
+    ? recentFiles.length
+    : mergedSearch
+      ? mergedSearch.total
+      : paginatedTotal;
+  const loading = isRecent
+    ? recentLoading
+    : isSearch
+      ? paginatedLoading || semanticLoading
+      : paginatedLoading;
   const setFiles = isRecent ? setRecentFiles : setPaginatedFiles;
 
   const hydratedFoldersRef = useRef(hydration.folders != null);

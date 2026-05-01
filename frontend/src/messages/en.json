@@ -267,6 +267,7 @@
     "filterAudio": "Audio",
     "filterDocument": "Document",
     "textResults": "Filename match",
+    "matchFilename": "Filename match",
     "matchTranscript": "Transcript",
     "matchTranscriptKeyword": "Transcript (exact)",
     "matchClip": "Visual",
@@ -308,6 +309,7 @@
   },
   "sort": {
     "label": "Sort",
+    "relevance": "Relevance",
     "newestFirst": "Newest first",
     "oldestFirst": "Oldest first",
     "titleAZ": "Title A→Z",

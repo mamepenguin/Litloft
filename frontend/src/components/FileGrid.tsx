@@ -1,10 +1,11 @@
 "use client";
 
 import { useState } from "react";
-import type { FileItem } from "@/types";
+import type { FileItem, FileItemWithMatch } from "@/types";
 import { useContextMenu } from "@/hooks/useContextMenu";
 import { FileCard } from "./FileCard";
 import { FileContextMenu } from "./FileContextMenu";
+import { MatchOverlay } from "./MatchOverlay";
 
 export function FileGrid({
   files,
@@ -21,7 +22,7 @@ export function FileGrid({
   onDragStart,
   onDragEnd,
 }: {
-  files: FileItem[];
+  files: FileItemWithMatch[];
   onFavoriteToggle?: (file: FileItem) => void;
   onRefresh?: () => void;
   selectable?: boolean;
@@ -66,6 +67,11 @@ export function FileGrid({
             isDragging={draggedFileIds?.includes(file.id)}
             onDragStart={onDragStart ? (e) => onDragStart(e, file.id) : undefined}
             onDragEnd={onDragEnd}
+            matchOverlay={
+              file.match_meta ? (
+                <MatchOverlay match={file.match_meta} fileId={file.id} />
+              ) : undefined
+            }
           />
         ))}
       </div>

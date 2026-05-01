@@ -267,6 +267,7 @@
     "filterAudio": "音声",
     "filterDocument": "ドキュメント",
     "textResults": "ファイル名一致",
+    "matchFilename": "ファイル名一致",
     "matchTranscript": "音声一致",
     "matchTranscriptKeyword": "音声キーワード一致",
     "matchClip": "映像一致",
@@ -308,6 +309,7 @@
   },
   "sort": {
     "label": "ソート",
+    "relevance": "関連度順",
     "newestFirst": "新しい順",
     "oldestFirst": "古い順",
     "titleAZ": "タイトル A→Z",

@@ -120,8 +120,52 @@ export interface ArchiveContents {
 }
 
 export type ViewMode = "grid" | "list";
-export type SortField = "created_at" | "title" | "file_size" | "likes" | "random";
+export type SortField =
+  | "created_at"
+  | "title"
+  | "file_size"
+  | "likes"
+  | "random"
+  | "relevance";
 export type SortOrder = "asc" | "desc";
+
+/**
+ * Per-file match metadata in the unified search results list.
+ *
+ * Phase 3 (`2026-05-02-search-results-unification-phase3.md`) folds
+ * filename match and semantic results into one list; each card carries
+ * the engines that hit alongside the FileItem. Engines are independent
+ * — multiple may be set for a single file ("filename + transcript +
+ * clip" is a stronger result than any one alone).
+ */
+export interface MatchTimestamp {
+  time_range: [number, number];
+  score: number;
+  text?: string;
+}
+
+export interface MatchMeta {
+  /** Filename / metadata search hit (backend has no real score, set to 1). */
+  filename?: { score: number };
+  /** Whisper transcript / transcript-keyword segment matches. */
+  transcript?: MatchTimestamp[];
+  /** CLIP frame matches. */
+  clip?: MatchTimestamp[];
+  /** Metadata embedding hit (filename + title + description + tags). */
+  metadata?: { score: number };
+  /** Long-form text content hit (markdown / pdf / etc.). */
+  content?: { score: number };
+  /** Keyword exact match in text content. */
+  text_content_keyword?: { score: number };
+  /** Page references for paginated documents (PDF). */
+  matched_pages?: number[];
+}
+
+export interface FileItemWithMatch extends FileItem {
+  match_meta?: MatchMeta;
+  /** Hybrid score for sorting by relevance. Higher = better. */
+  match_score?: number;
+}
 
 export interface UploadInitResponse {
   upload_id: string;

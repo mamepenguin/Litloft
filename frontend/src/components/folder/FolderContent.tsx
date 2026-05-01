@@ -4,7 +4,7 @@ import { useState, type RefObject } from "react";
 
 import { useContextMenu } from "@/hooks/useContextMenu";
 import type { DragState } from "@/hooks/useDragAndDrop";
-import type { FileItem, Folder, ViewMode } from "@/types";
+import type { FileItem, FileItemWithMatch, Folder, ViewMode } from "@/types";
 import { FileGrid } from "@/components/FileGrid";
 import { FileList } from "@/components/FileList";
 import { EmptyState } from "@/components/EmptyState";
@@ -12,7 +12,7 @@ import { FolderCard } from "@/components/FolderCard";
 import { FolderContextMenu } from "@/components/FolderContextMenu";
 
 interface FolderContentProps {
-  files: FileItem[];
+  files: FileItemWithMatch[];
   folders: Folder[];
   driveName: string;
   viewMode: ViewMode;

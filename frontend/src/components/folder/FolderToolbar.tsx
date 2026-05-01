@@ -145,7 +145,12 @@ export function FolderToolbar({
           )}
 
           <div className="flex items-center gap-1 rounded-2xl bg-bg-elevated p-1">
-            <SortButton sort={sort} order={order} onChange={onSortChange} />
+            <SortButton
+              sort={sort}
+              order={order}
+              onChange={onSortChange}
+              allowRelevance={isSearch}
+            />
 
             <button
               onClick={onToggleSelectable}

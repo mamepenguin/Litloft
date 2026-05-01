@@ -9,7 +9,8 @@ import { useTranslations } from "next-intl";
 import { deleteFile, getDownloadUrl, getThumbnailUrl, moveFile, renameFile } from "@/lib/api";
 import { useClipboard } from "./ClipboardProvider";
 import { formatDuration, formatFileSize, formatRelativeDate } from "@/lib/format";
-import type { FileItem } from "@/types";
+import type { FileItem, FileItemWithMatch } from "@/types";
+import { MatchOverlay } from "./MatchOverlay";
 import { FavoriteButton } from "./FavoriteButton";
 import { TagList } from "./TagList";
 import { FileTypeIcon } from "./FileTypeIcon";
@@ -34,7 +35,7 @@ export function FileList({
   onDragStart,
   onDragEnd,
 }: {
-  files: FileItem[];
+  files: FileItemWithMatch[];
   onFavoriteToggle?: (file: FileItem) => void;
   onRefresh?: () => void;
   selectable?: boolean;
@@ -222,6 +223,19 @@ export function FileList({
                           </>
                         )}
                       </div>
+                      {file.match_meta && (
+                        <div
+                          className="mt-1.5"
+                          onClick={(e) => e.stopPropagation()}
+                          onKeyDown={(e) => e.stopPropagation()}
+                          role="presentation"
+                        >
+                          <MatchOverlay
+                            match={file.match_meta}
+                            fileId={file.id}
+                          />
+                        </div>
+                      )}
                     </div>
                   </>
                 );

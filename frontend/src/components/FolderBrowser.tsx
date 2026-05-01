@@ -12,7 +12,6 @@ import { UploadZone } from "@/components/UploadZone";
 import { SelectionBar } from "@/components/SelectionBar";
 import { SmartFolderSaveButton } from "@/components/SmartFolderSaveButton";
 import { AddonSlot } from "@/components/AddonSlot";
-import { useAddonSlots } from "@/components/AddonSlotsProvider";
 import { EmptyState } from "@/components/EmptyState";
 import { useClipboard } from "@/components/ClipboardProvider";
 import { useSelection } from "@/hooks/useSelection";
@@ -57,7 +56,11 @@ export function FolderBrowser({
   );
 
   const [viewMode, setViewMode] = useState<ViewMode>(initialSnapshot?.filters.viewMode ?? "grid");
-  const [sort, setSort] = useState<SortField>(initialSnapshot?.filters.sort ?? "created_at");
+  // Search mode defaults to relevance (hybrid score on the merged
+  // filename + semantic list); folder/view browsing keeps created_at.
+  const [sort, setSort] = useState<SortField>(
+    initialSnapshot?.filters.sort ?? (isSearch ? "relevance" : "created_at"),
+  );
   const [order, setOrder] = useState<SortOrder>(initialSnapshot?.filters.order ?? "desc");
   const [typeFilter, setTypeFilter] = useState<FileType | null>(
     typeFilterProp ?? initialSnapshot?.filters.typeFilter ?? null,
@@ -139,7 +142,6 @@ export function FolderBrowser({
 
   const tSearch = useTranslations("search");
   const tCommon = useTranslations("common");
-  const { hasSlot } = useAddonSlots();
   const { pinnedPaths, handleTogglePin } = usePinnedFolders(driveName);
   const selection = useSelection();
   const clipboard = useClipboard();
@@ -208,13 +210,15 @@ export function FolderBrowser({
   const folderRouter = useRouter();
 
   // URL sync for search mode: typeFilter / sort / order changes update the URL
-  // via replace (no history pollution per filter tweak).
+  // via replace (no history pollution per filter tweak). Default sort
+  // for search is "relevance" (hybrid score) so omit it from the URL
+  // to keep the canonical search URL clean.
   useEffect(() => {
     if (!isSearch || !searchQuery) return;
     const params = new URLSearchParams();
     params.set("q", searchQuery);
     if (typeFilter) params.set("type", typeFilter);
-    if (sort !== "created_at") params.set("sort", sort);
+    if (sort !== "relevance") params.set("sort", sort);
     if (order !== "desc") params.set("order", order);
     if (smartFolderId) params.set("smart_folder_id", smartFolderId);
     const next = `/drive/${encodeURIComponent(driveName)}/search?${params.toString()}`;
@@ -302,12 +306,25 @@ export function FolderBrowser({
               </p>
             )}
           </div>
-          <SmartFolderSaveButton
-            drive={driveName}
-            query={searchQuery ?? ""}
-            typeFilter={typeFilter}
-            smartFolderId={smartFolderId ?? null}
-          />
+          <div className="flex flex-shrink-0 flex-wrap items-center gap-2">
+            <SmartFolderSaveButton
+              drive={driveName}
+              query={searchQuery ?? ""}
+              typeFilter={typeFilter}
+              smartFolderId={smartFolderId ?? null}
+            />
+            <AddonSlot
+              id="search-modes"
+              layout="stack"
+              props={{
+                context: "page",
+                query: searchQuery ?? "",
+                drive: driveName,
+                filter: typeFilter ?? "all",
+                onSelect: handleSemanticSelect,
+              }}
+            />
+          </div>
         </header>
       ) : (
         <Breadcrumb
@@ -378,29 +395,11 @@ export function FolderBrowser({
         onCreateFolder={createFolder.handleCreateFolder}
       />
 
-      {isSearch && (
-        <div className="mb-8 mt-2 space-y-4">
-          <AddonSlot
-            id="search-modes"
-            layout="stack"
-            props={{
-              context: "page",
-              query: searchQuery ?? "",
-              drive: driveName,
-              filter: typeFilter ?? "all",
-              onSelect: handleSemanticSelect,
-              textResultIds: files.map((f) => f.id),
-            }}
-          />
-        </div>
-      )}
-
-      {/* Holistic empty state for search mode: only render when no
-          search-modes slot exists (e.g., intelligence not installed)
-          AND the filename/metadata search returned 0 results.
-          When intelligence IS installed, its slot owns the
-          empty-state messaging so we don't double up here. */}
-      {isSearch && !loading && files.length === 0 && !hasSlot("search-modes") && (
+      {/* Phase 3 unified results: filename-match and semantic hits live
+          in the same FolderContent list (sourced via useFolderFiles +
+          searchMerge). The search-modes slot now contributes header
+          chips (e.g. Find handoff) only — no full-width section. */}
+      {isSearch && !loading && files.length === 0 && (
         <EmptyState variant="no-results" />
       )}
 

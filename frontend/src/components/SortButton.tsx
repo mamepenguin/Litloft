@@ -11,7 +11,13 @@ interface SortOption {
   order: SortOrder;
 }
 
-const sortOptions: SortOption[] = [
+const RELEVANCE_OPTION: SortOption = {
+  labelKey: "relevance",
+  sort: "relevance",
+  order: "desc",
+};
+
+const baseSortOptions: SortOption[] = [
   { labelKey: "newestFirst", sort: "created_at", order: "desc" },
   { labelKey: "oldestFirst", sort: "created_at", order: "asc" },
   { labelKey: "titleAZ", sort: "title", order: "asc" },
@@ -26,9 +32,15 @@ interface SortButtonProps {
   sort: SortField;
   order: SortOrder;
   onChange: (sort: SortField, order: SortOrder) => void;
+  /**
+   * When true, expose the search-only "relevance" option at the top
+   * of the menu. Kept opt-in because relevance is meaningless outside
+   * a search query.
+   */
+  allowRelevance?: boolean;
 }
 
-export function SortButton({ sort, order, onChange }: SortButtonProps) {
+export function SortButton({ sort, order, onChange, allowRelevance }: SortButtonProps) {
   const t = useTranslations("sort");
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
@@ -44,7 +56,17 @@ export function SortButton({ sort, order, onChange }: SortButtonProps) {
     return () => document.removeEventListener("mousedown", handleClick);
   }, [open]);
 
-  const isActive = sort !== "created_at" || order !== "desc";
+  const sortOptions: SortOption[] = allowRelevance
+    ? [RELEVANCE_OPTION, ...baseSortOptions]
+    : baseSortOptions;
+
+  // Relevance is the search-mode default, so only treat it as
+  // "active highlighting" when the toolbar is in non-search mode.
+  const defaultIsRelevance = allowRelevance;
+  const isDefaultActive = defaultIsRelevance
+    ? sort === "relevance" && order === "desc"
+    : sort === "created_at" && order === "desc";
+  const isActive = !isDefaultActive;
 
   return (
     <div ref={ref} className="relative">
