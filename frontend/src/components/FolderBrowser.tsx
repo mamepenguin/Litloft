@@ -10,6 +10,10 @@ import type { FileItem, FileType, SortField, SortOrder, ViewMode } from "@/types
 import { Breadcrumb } from "@/components/Breadcrumb";
 import { UploadZone } from "@/components/UploadZone";
 import { SelectionBar } from "@/components/SelectionBar";
+import { SmartFolderSaveButton } from "@/components/SmartFolderSaveButton";
+import { AddonSlot } from "@/components/AddonSlot";
+import { useAddonSlots } from "@/components/AddonSlotsProvider";
+import { EmptyState } from "@/components/EmptyState";
 import { useClipboard } from "@/components/ClipboardProvider";
 import { useSelection } from "@/hooks/useSelection";
 import { useDragAndDrop } from "@/hooks/useDragAndDrop";
@@ -27,9 +31,24 @@ interface FolderBrowserProps {
   folderPath?: string;
   view?: string | null;
   tagFilter?: string | null;
+  /** When set (non-empty), the browser renders search-mode UI. */
+  searchQuery?: string;
+  /** Optional pre-set type filter (used by SearchPage from URL). */
+  typeFilter?: FileType | null;
+  /** When set, the active search came from a saved Smart Folder. */
+  smartFolderId?: string | null;
 }
 
-export function FolderBrowser({ driveName, folderPath, view, tagFilter }: FolderBrowserProps) {
+export function FolderBrowser({
+  driveName,
+  folderPath,
+  view,
+  tagFilter,
+  searchQuery,
+  typeFilter: typeFilterProp,
+  smartFolderId,
+}: FolderBrowserProps) {
+  const isSearch = !!(searchQuery && searchQuery.trim());
   // Load the snapshot exactly once via useState's lazy initializer. We pass
   // the same reference down to useFolderFiles so that both its filter tuple
   // and the hydrated items originate from a single parse of sessionStorage.
@@ -40,7 +59,9 @@ export function FolderBrowser({ driveName, folderPath, view, tagFilter }: Folder
   const [viewMode, setViewMode] = useState<ViewMode>(initialSnapshot?.filters.viewMode ?? "grid");
   const [sort, setSort] = useState<SortField>(initialSnapshot?.filters.sort ?? "created_at");
   const [order, setOrder] = useState<SortOrder>(initialSnapshot?.filters.order ?? "desc");
-  const [typeFilter, setTypeFilter] = useState<FileType | null>(initialSnapshot?.filters.typeFilter ?? null);
+  const [typeFilter, setTypeFilter] = useState<FileType | null>(
+    typeFilterProp ?? initialSnapshot?.filters.typeFilter ?? null,
+  );
   const [selectable, setSelectable] = useState(false);
   const [refreshKey, setRefreshKey] = useState(0);
   const refresh = useCallback(() => setRefreshKey((k) => k + 1), []);
@@ -55,7 +76,7 @@ export function FolderBrowser({ driveName, folderPath, view, tagFilter }: Folder
     files, folders, total, loading, loadingMore, hasMore, pagesLoaded, sentinelRef,
     setFiles, setPaginatedTotal, setFolders, isRecent,
     snapshotKey, hydratedScrollY,
-  } = useFolderFiles({ driveName, folderPath, view, tagFilter, typeFilter, sort, order, refreshKey, initialSnapshot });
+  } = useFolderFiles({ driveName, folderPath, view, tagFilter, typeFilter, sort, order, refreshKey, searchQuery, initialSnapshot });
 
   const didRestoreScrollRef = useRef(false);
   useLayoutEffect(() => {
@@ -76,6 +97,10 @@ export function FolderBrowser({ driveName, folderPath, view, tagFilter }: Folder
     const save = () => {
       frame = null;
       if (isRecent) return;
+      // Don't persist search results into the folder/view snapshot —
+      // snapshotKey doesn't include searchQuery, so saving here would
+      // corrupt the root drive page's hydration.
+      if (isSearch) return;
       if (files.length === 0) return;
       saveListSnapshot({
         key: snapshotKey,
@@ -110,8 +135,10 @@ export function FolderBrowser({ driveName, folderPath, view, tagFilter }: Folder
       window.removeEventListener("pagehide", save);
       if (frame != null) cancelAnimationFrame(frame);
     };
-  }, [files, folders, total, pagesLoaded, sort, order, typeFilter, viewMode, isRecent, snapshotKey]);
+  }, [files, folders, total, pagesLoaded, sort, order, typeFilter, viewMode, isRecent, isSearch, snapshotKey]);
 
+  const tSearch = useTranslations("search");
+  const { hasSlot } = useAddonSlots();
   const { pinnedPaths, handleTogglePin } = usePinnedFolders(driveName);
   const selection = useSelection();
   const clipboard = useClipboard();
@@ -179,9 +206,30 @@ export function FolderBrowser({ driveName, folderPath, view, tagFilter }: Folder
 
   const folderRouter = useRouter();
 
+  // URL sync for search mode: typeFilter / sort / order changes update the URL
+  // via replace (no history pollution per filter tweak).
+  useEffect(() => {
+    if (!isSearch || !searchQuery) return;
+    const params = new URLSearchParams();
+    params.set("q", searchQuery);
+    if (typeFilter) params.set("type", typeFilter);
+    if (sort !== "created_at") params.set("sort", sort);
+    if (order !== "desc") params.set("order", order);
+    if (smartFolderId) params.set("smart_folder_id", smartFolderId);
+    const next = `/drive/${encodeURIComponent(driveName)}/search?${params.toString()}`;
+    folderRouter.replace(next);
+  }, [isSearch, searchQuery, typeFilter, sort, order, smartFolderId, driveName, folderRouter]);
+
   const handleViewChange = useCallback((mode: ViewMode) => {
     setViewMode(mode);
   }, []);
+
+  const handleSemanticSelect = useCallback(
+    (url: string) => {
+      folderRouter.push(url);
+    },
+    [folderRouter],
+  );
 
   const handleFavoriteToggle = useCallback(
     (updated: FileItem) => {
@@ -236,17 +284,33 @@ export function FolderBrowser({ driveName, folderPath, view, tagFilter }: Folder
     folderRouter.push(`/files/${firstPlayable.id}?${params.toString()}`);
   }, [files, sort, effectiveSort, effectiveOrder, folderRouter]);
 
-  return (
-    <UploadZone drive={driveName} folderPath={folderPath ?? ""} onUploadComplete={refresh}>
+  // Search mode renders a virtual folder view: skip the UploadZone
+  // wrapper (you can't drop files into search results) and the
+  // clipboard paste banner (paste targets a folder path).
+  const inner = (
     <div className="min-w-0 w-full flex-1 px-2 py-4 sm:px-4 sm:py-6">
-      <Breadcrumb
-        driveName={driveName}
-        folderPath={folderPath}
-        getDropTargetProps={dragState.isDragging ? getDropTargetProps : undefined}
-        isDropTarget={dragState.isDragging ? isDropTarget : undefined}
-      />
+      {isSearch ? (
+        <div className="mb-3 flex items-center justify-between gap-3">
+          <h1 className="truncate text-xl font-semibold text-text-primary">
+            {tSearch("heading", { query: searchQuery ?? "" })}
+          </h1>
+          <SmartFolderSaveButton
+            drive={driveName}
+            query={searchQuery ?? ""}
+            typeFilter={typeFilter}
+            smartFolderId={smartFolderId ?? null}
+          />
+        </div>
+      ) : (
+        <Breadcrumb
+          driveName={driveName}
+          folderPath={folderPath}
+          getDropTargetProps={dragState.isDragging ? getDropTargetProps : undefined}
+          isDropTarget={dragState.isDragging ? isDropTarget : undefined}
+        />
+      )}
 
-      {clipboard.clipboard && (
+      {!isSearch && clipboard.clipboard && (
         <div className="mb-3 flex items-center gap-3 rounded-lg bg-accent/10 px-4 py-2.5 ring-1 ring-accent/20">
           <ClipboardPaste size={18} className="flex-shrink-0 text-accent" />
           <span className="flex-1 text-sm text-text-primary">
@@ -274,6 +338,7 @@ export function FolderBrowser({ driveName, folderPath, view, tagFilter }: Folder
 
       <FolderToolbar
         isSpecialView={isSpecialView}
+        isSearch={isSearch}
         tagFilter={tagFilter}
         hasPlayableFiles={hasPlayableFiles}
         sort={sort}
@@ -305,6 +370,30 @@ export function FolderBrowser({ driveName, folderPath, view, tagFilter }: Folder
         onCreateFolder={createFolder.handleCreateFolder}
       />
 
+      {isSearch && (
+        <AddonSlot
+          id="search-modes"
+          layout="stack"
+          props={{
+            context: "page",
+            query: searchQuery ?? "",
+            drive: driveName,
+            filter: typeFilter ?? "all",
+            onSelect: handleSemanticSelect,
+            textResultIds: files.map((f) => f.id),
+          }}
+        />
+      )}
+
+      {/* Holistic empty state for search mode: only render when no
+          search-modes slot exists (e.g., intelligence not installed)
+          AND the filename/metadata search returned 0 results.
+          When intelligence IS installed, its slot owns the
+          empty-state messaging so we don't double up here. */}
+      {isSearch && !loading && files.length === 0 && !hasSlot("search-modes") && (
+        <EmptyState variant="no-results" />
+      )}
+
       <FolderContent
         files={files}
         folders={folders}
@@ -315,6 +404,7 @@ export function FolderBrowser({ driveName, folderPath, view, tagFilter }: Folder
         isRecent={isRecent}
         isFavorites={isFavorites}
         isRecentAdded={isRecentAdded}
+        isSearch={isSearch}
         selectable={selectable}
         sortQuery={sortQuery}
         pinnedPaths={pinnedPaths}
@@ -352,6 +442,12 @@ export function FolderBrowser({ driveName, folderPath, view, tagFilter }: Folder
         />
       )}
     </div>
+  );
+
+  if (isSearch) return inner;
+  return (
+    <UploadZone drive={driveName} folderPath={folderPath ?? ""} onUploadComplete={refresh}>
+      {inner}
     </UploadZone>
   );
 }

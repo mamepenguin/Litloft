@@ -21,6 +21,7 @@ interface FolderContentProps {
   isRecent: boolean;
   isFavorites: boolean;
   isRecentAdded: boolean;
+  isSearch?: boolean;
   selectable: boolean;
   sortQuery: string;
   pinnedPaths: Set<string>;
@@ -44,7 +45,7 @@ interface FolderContentProps {
 
 export function FolderContent({
   files, folders, driveName, viewMode, loading, loadingMore,
-  isRecent, isFavorites, isRecentAdded, selectable, sortQuery,
+  isRecent, isFavorites, isRecentAdded, isSearch, selectable, sortQuery,
   pinnedPaths, sentinelRef, dragState, isDropTarget, getDropTargetProps,
   isSelected, onSelect, onMetaSelect, onShiftSelect, onTogglePin, onFavoriteToggle, onRefresh,
   onDragStart, onDragEnd, selectedCount, isDropDisabled, onFolderDragStart,
@@ -100,7 +101,14 @@ export function FolderContent({
           <div className="h-8 w-8 animate-spin rounded-full border-2 border-accent border-t-transparent" />
         </div>
       ) : files.length === 0 && folders.length === 0 ? (
-        isFavorites ? (
+        // In search mode the FolderContent represents only the
+        // filename/metadata-text match axis. The intelligence
+        // semantic-search section above is a separate result axis,
+        // so showing an empty state here would contradict it when
+        // semantic matches exist. Render nothing instead — the page
+        // header already conveys the search context, and the
+        // semantic section communicates its own emptiness.
+        isSearch ? null : isFavorites ? (
           <EmptyState variant="no-favorites" />
         ) : isRecent ? (
           <EmptyState variant="no-recent" />

@@ -259,14 +259,36 @@ All list queries filter via `active_file_filter()` so missing/trash files are in
 
 ## Search
 
-### Global Search
+### Two-Layer Search UX
+
+Search is split into a **quick launcher popup** and a dedicated **search results page** that behaves like a virtual folder.
+
+**Quick Launcher Popup** (`GlobalSearch.tsx`):
 - **Cmd+Shift+F** or sidebar search icon to open
-- Recursive filename search across entire drive
+- Recursive filename search across the current drive (drive = security boundary)
 - 300ms debounce for API calls
-- Up to 200 results (file type icon + path + thumbnail)
-- Click to navigate to file detail page
+- Top **5** quick-preview results (file type icon + path + thumbnail)
+- Click a result to jump straight to its file detail page (quick navigation preserved)
+- Press **Enter** or click "全件表示 →" to open `/drive/{drive}/search?q=...` (full results page)
 - Escape to close
-- Modes added by addons appear as tabs (`search-modes` slot) — e.g. Semantic Search, Ask, Find
+- Search history shown when query is empty
+
+**Search Results Page** (`/drive/{drive}/search`):
+- Full results rendered through the same `FolderBrowser` used by regular folders, so file preview, context menus, multi-select, batch operations, and drag selection all work identically
+- "検索: \"q\"" heading replaces the breadcrumb when in search mode
+- `type` / `sort` / `order` are URL-synced (`router.replace`) so refresh and deep-links preserve state
+- Addon-injected `search-modes` slot (e.g. intelligence Semantic Search, Find, Ask) renders **above** the file grid in `context: "page"` layout — richer than the popup variant, sized for grid display
+- Smart Folder save / update controls appear next to the heading
+
+### Smart Folder (保存済み検索)
+- Save the current search (`q` + optional `type` + optional `sort` / `order`) as a named entry, scoped to the drive
+- Sidebar **Smart Folders** section lists saved entries; click to reopen with `?smart_folder_id=...` and the saved query
+- Right-click / long-press on a sidebar entry for Rename / Delete
+- The save button on the search page becomes "Saved: {name}" with Update / Rename / Delete dropdown when opened via `smart_folder_id`
+- Drive-scoped: Smart Folders created on drive A are invisible from drive B (drive = security boundary)
+- Sidebar section auto-hides on drives with zero entries
+- Stored as core table `smart_folders`. `viewer_id` is recorded at write time (forward compatibility) but **not** used in list queries today (all viewers in the drive see the same Smart Folders)
+- Distinct from Pinned Folders: Pinned Folders are shortcuts to a real folder path; Smart Folders are shortcuts to a search query
 
 ### Semantic Search (intelligence addon)
 - Embedding-based retrieval combining 5 parallel channels:
@@ -553,7 +575,7 @@ Operators toggle features per drive in `drives.json`:
 
 | Slot ID | Location | Layout | Example use |
 |---------|----------|--------|-------------|
-| `search-modes` | Global search modal | Tabs | Semantic search, Ask, Find |
+| `search-modes` | Search results page (`/drive/{drive}/search`) | Stack (`context: "page"`) | Semantic search, Ask, Find. The popup launcher no longer mounts this slot — it lives on the results page only |
 | `file-detail-sections` | File detail panel | Stack | Transcript, similar files, suggested tags, summaries, knowledge note |
 | `dashboard-widgets` | Admin dashboard | Cards | Index status, cloud sync status |
 | `folder-actions` | Folder toolbar | Inline buttons | Batch AI tags, batch summaries, batch refine |
@@ -638,6 +660,15 @@ Operators toggle features per drive in `drives.json`:
 | GET | /api/drives/{drive}/pins | List pinned folders |
 | POST | /api/drives/{drive}/pins | Pin a folder |
 | DELETE | /api/drives/{drive}/pins | Unpin a folder |
+
+### Smart Folders (saved searches)
+
+| Method | Path | Description |
+|--------|------|-------------|
+| GET | /api/drives/{drive}/smart-folders | List smart folders for the drive |
+| POST | /api/drives/{drive}/smart-folders | Create `{ name, query, file_type?, sort_by?, sort_order? }` |
+| PATCH | /api/drives/{drive}/smart-folders/{id} | Partial update |
+| DELETE | /api/drives/{drive}/smart-folders/{id} | Delete |
 
 ### Trash & Missing
 

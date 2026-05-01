@@ -631,7 +631,7 @@ Addons can inject UI components into predefined **slots** in the core applicatio
 
 | Slot ID | Location | Layout | Use case |
 |---------|----------|--------|----------|
-| `search-modes` | GlobalSearch modal | Tabs | Semantic search, Ask, Find (file-list result variant), other custom retrievers |
+| `search-modes` | Search results page (`/drive/{drive}/search`); not the GlobalSearch popup | Stack | Semantic search, Ask, Find (file-list result variant), other custom retrievers. Receives a `context: "popup" \| "page"` prop (default `"popup"`); core mounts the slot only on the results page with `context: "page"` today, but the prop is reserved so addons may render a compact popup layout in the future without breaking compatibility |
 | `file-detail-sections` | File detail panel | Vertical stack | Transcripts, similar files, suggested tags, summaries, knowledge notes |
 | `dashboard-widgets` | Admin dashboard | Cards | Index statistics, cloud sync status |
 | `folder-actions` | Folder toolbar | Inline buttons | Batch AI tags, batch summaries, batch transcript refine |

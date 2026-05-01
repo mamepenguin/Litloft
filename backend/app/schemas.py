@@ -641,6 +641,122 @@ class FileRelationsResponse(BaseModel):
     relations: list[FileRelationItem]
 
 
+_SMART_FOLDER_FILE_TYPES = {"video", "image", "audio", "document"}
+_SMART_FOLDER_SORT_ORDERS = {"asc", "desc"}
+
+
+def _validate_smart_folder_name(v: str) -> str:
+    v = v.strip()
+    if not v:
+        raise ValueError("Smart folder name is required")
+    if len(v) > 100:
+        raise ValueError("Smart folder name exceeds 100 characters")
+    return v
+
+
+def _validate_smart_folder_query(v: str) -> str:
+    v = v.strip()
+    if not v:
+        raise ValueError("Smart folder query is required")
+    if len(v) > 1000:
+        raise ValueError("Smart folder query exceeds 1000 characters")
+    return v
+
+
+def _validate_optional_file_type(v: str | None) -> str | None:
+    if v is None:
+        return v
+    if v not in _SMART_FOLDER_FILE_TYPES:
+        raise ValueError(
+            f"file_type must be one of {sorted(_SMART_FOLDER_FILE_TYPES)}"
+        )
+    return v
+
+
+def _validate_optional_sort_order(v: str | None) -> str | None:
+    if v is None:
+        return v
+    if v not in _SMART_FOLDER_SORT_ORDERS:
+        raise ValueError(
+            f"sort_order must be one of {sorted(_SMART_FOLDER_SORT_ORDERS)}"
+        )
+    return v
+
+
+class SmartFolderCreate(BaseModel):
+    name: str
+    query: str
+    file_type: str | None = None
+    sort_by: str | None = Field(default=None, max_length=100)
+    sort_order: str | None = None
+
+    @field_validator("name")
+    @classmethod
+    def _v_name(cls, v: str) -> str:
+        return _validate_smart_folder_name(v)
+
+    @field_validator("query")
+    @classmethod
+    def _v_query(cls, v: str) -> str:
+        return _validate_smart_folder_query(v)
+
+    @field_validator("file_type")
+    @classmethod
+    def _v_file_type(cls, v: str | None) -> str | None:
+        return _validate_optional_file_type(v)
+
+    @field_validator("sort_order")
+    @classmethod
+    def _v_sort_order(cls, v: str | None) -> str | None:
+        return _validate_optional_sort_order(v)
+
+
+class SmartFolderUpdate(BaseModel):
+    name: str | None = None
+    query: str | None = None
+    file_type: str | None = None
+    sort_by: str | None = Field(default=None, max_length=100)
+    sort_order: str | None = None
+
+    @field_validator("name")
+    @classmethod
+    def _v_name(cls, v: str | None) -> str | None:
+        if v is None:
+            return v
+        return _validate_smart_folder_name(v)
+
+    @field_validator("query")
+    @classmethod
+    def _v_query(cls, v: str | None) -> str | None:
+        if v is None:
+            return v
+        return _validate_smart_folder_query(v)
+
+    @field_validator("file_type")
+    @classmethod
+    def _v_file_type(cls, v: str | None) -> str | None:
+        return _validate_optional_file_type(v)
+
+    @field_validator("sort_order")
+    @classmethod
+    def _v_sort_order(cls, v: str | None) -> str | None:
+        return _validate_optional_sort_order(v)
+
+
+class SmartFolderResponse(_UtcDateTimeMixin, BaseModel):
+    id: str
+    drive: str
+    name: str
+    query: str
+    file_type: str | None
+    sort_by: str | None
+    sort_order: str | None
+    created_at: datetime
+    updated_at: datetime | None
+
+    model_config = {"from_attributes": True}
+
+
 def file_to_response(file, subtitles: list[SubtitleInfo] | None = None) -> FileResponse:
     return FileResponse(
         id=file.id,

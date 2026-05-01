@@ -12,6 +12,7 @@ import { AddonSlot } from "@/components/AddonSlot";
 
 interface FolderToolbarProps {
   isSpecialView: boolean;
+  isSearch?: boolean;
   tagFilter?: string | null;
   hasPlayableFiles: boolean;
   sort: SortField;
@@ -49,13 +50,17 @@ const TYPE_OPTION_KEYS: ReadonlyArray<{ value: FileType | null; labelKey: string
 ];
 
 export function FolderToolbar({
-  isSpecialView, tagFilter, hasPlayableFiles,
+  isSpecialView, isSearch, tagFilter, hasPlayableFiles,
   sort, order, typeFilter, total, selectable, scanning,
   creatingFolder, newFolderName, folderError, fileIds, drive, folderPath,
   onSortChange, onTypeFilterChange, onViewChange, onToggleSelectable,
   onScan, onPlayAll, onSetCreatingFolder, onSetNewFolderName,
   onSetFolderError, onCreateFolder,
 }: FolderToolbarProps) {
+  // In search mode the file list is a virtual folder: upload / create
+  // folder / scan / play-all don't make sense there. We treat search
+  // mode as "read-only special view" for toolbar gating.
+  const hideMutatingActions = isSpecialView || !!tagFilter || !!isSearch;
   const t = useTranslations("toolbar");
   const tc = useTranslations("common");
   const ts = useTranslations("selection");
@@ -78,7 +83,7 @@ export function FolderToolbar({
     <>
       {/* Toolbar row */}
       <div className="mb-4 flex flex-wrap items-center gap-2">
-        {!isSpecialView && !tagFilter && (
+        {!hideMutatingActions && (
           <>
             <UploadButton />
 
@@ -128,7 +133,7 @@ export function FolderToolbar({
         <div className="flex-1" />
 
         <div className="flex items-center gap-2">
-          {hasPlayableFiles && !isSpecialView && !tagFilter && (
+          {hasPlayableFiles && !hideMutatingActions && (
             <button
               onClick={onPlayAll}
               className="flex items-center gap-1.5 rounded-2xl bg-accent px-3 py-2 text-sm font-medium text-white transition-all hover:bg-accent-hover active:scale-[0.97]"
@@ -156,15 +161,17 @@ export function FolderToolbar({
 
             <ViewToggle onChange={onViewChange} />
 
-            <button
-              onClick={onScan}
-              disabled={scanning}
-              className="rounded-md p-2 text-text-muted transition-colors hover:text-text-primary disabled:opacity-50"
-              aria-label={t("rescan")}
-              title={t("rescanTitle")}
-            >
-              <RefreshCw size={16} className={scanning ? "animate-spin" : ""} />
-            </button>
+            {!isSearch && (
+              <button
+                onClick={onScan}
+                disabled={scanning}
+                className="rounded-md p-2 text-text-muted transition-colors hover:text-text-primary disabled:opacity-50"
+                aria-label={t("rescan")}
+                title={t("rescanTitle")}
+              >
+                <RefreshCw size={16} className={scanning ? "animate-spin" : ""} />
+              </button>
+            )}
           </div>
         </div>
       </div>

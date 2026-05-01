@@ -21,6 +21,12 @@ interface UseFolderFilesParams {
   sort: SortField;
   order: SortOrder;
   refreshKey: number;
+  /**
+   * When set (non-empty), the hook fetches results from the search
+   * endpoint (`getDriveFiles({ search })`) instead of the
+   * folder/view endpoints. Folders are not fetched in this mode.
+   */
+  searchQuery?: string;
   /** Snapshot loaded once by the parent; used only on initial mount. */
   initialSnapshot?: ListSnapshot | null;
 }
@@ -57,10 +63,11 @@ function filtersMatchSnapshot(
 }
 
 export function useFolderFiles({
-  driveName, folderPath, view, tagFilter, typeFilter, sort, order, refreshKey, initialSnapshot,
+  driveName, folderPath, view, tagFilter, typeFilter, sort, order, refreshKey, searchQuery, initialSnapshot,
 }: UseFolderFilesParams): UseFolderFilesReturn {
+  const isSearch = !!(searchQuery && searchQuery.trim());
   const isFavorites = view === "favorites";
-  const isRecent = view === "recent";
+  const isRecent = view === "recent" && !isSearch;
   const isRecentAdded = view === "recent-added";
   const isPopular = view === "popular";
   const isAll = view === "all";
@@ -79,9 +86,14 @@ export function useFolderFiles({
     scrollY: number | null;
   }>(() => {
     const snap = initialSnapshot;
+    // Search mode must never hydrate from a folder/view snapshot:
+    // snapshotKey doesn't include searchQuery, so the root drive
+    // page's snapshot would otherwise hydrate the search page with
+    // stale (non-matching) items.
     if (
       snap &&
       !isRecent &&
+      !isSearch &&
       snap.key === snapshotKey &&
       filtersMatchSnapshot(snap, typeFilter, sort, order)
     ) {
@@ -102,6 +114,17 @@ export function useFolderFiles({
 
   const fetchPage = useCallback(
     async (page: number, limit: number) => {
+      if (isSearch) {
+        const res = await getDriveFiles(driveName, {
+          search: searchQuery!.trim(),
+          type: typeFilter || undefined,
+          sort,
+          order,
+          page,
+          limit,
+        });
+        return { data: res.data, total: res.meta.total };
+      }
       const res = await getDriveFiles(driveName, {
         path: isSpecialView || tagFilter ? undefined : (folderPath ?? ""),
         favorite: isFavorites ? true : undefined,
@@ -114,7 +137,7 @@ export function useFolderFiles({
       });
       return { data: res.data, total: res.meta.total };
     },
-    [driveName, folderPath, sort, order, isFavorites, isSpecialView, isRecentAdded, isPopular, tagFilter, typeFilter],
+    [isSearch, searchQuery, driveName, folderPath, sort, order, isFavorites, isSpecialView, isRecentAdded, isPopular, tagFilter, typeFilter],
   );
 
   const {
@@ -170,6 +193,10 @@ export function useFolderFiles({
 
   const hydratedFoldersRef = useRef(hydration.folders != null);
   useEffect(() => {
+    if (isSearch) {
+      setFolders([]);
+      return;
+    }
     if (!isSpecialView && !tagFilter) {
       if (hydratedFoldersRef.current) {
         // Skip the initial folder fetch right after snapshot hydration —
@@ -181,26 +208,26 @@ export function useFolderFiles({
     } else {
       setFolders([]);
     }
-  }, [driveName, folderPath, isSpecialView, tagFilter]);
+  }, [driveName, folderPath, isSpecialView, tagFilter, isSearch]);
 
   // Reset infinite scroll on filter/sort/drive changes (scroll to top).
   // On first render after hydration the key matches, so neither reset nor the
   // scrollTo fires — which is exactly what we want for restoration.
   const prevResetKeyRef = useRef("");
   useEffect(() => {
-    const key = `${driveName}|${folderPath}|${view}|${tagFilter}|${typeFilter}|${sort}|${order}`;
+    const key = `${driveName}|${folderPath}|${view}|${tagFilter}|${typeFilter}|${sort}|${order}|${searchQuery ?? ""}`;
     if (prevResetKeyRef.current && prevResetKeyRef.current !== key) {
       reset();
       clearListSnapshot();
       window.scrollTo({ top: 0 });
     }
     prevResetKeyRef.current = key;
-  }, [driveName, folderPath, view, tagFilter, typeFilter, sort, order, reset]);
+  }, [driveName, folderPath, view, tagFilter, typeFilter, sort, order, searchQuery, reset]);
 
   // Refresh effect
   useEffect(() => {
     if (refreshKey === 0) return;
-    if (!isSpecialView && !tagFilter) {
+    if (!isSearch && !isSpecialView && !tagFilter) {
       getFolders(driveName, folderPath).then(setFolders).catch(() => setFolders([]));
     }
     if (isRecent) {

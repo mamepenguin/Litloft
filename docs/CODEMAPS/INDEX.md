@@ -1,6 +1,6 @@
 # Litloft Codemaps
 
-**Last Updated:** 2026-04-30
+**Last Updated:** 2026-05-01
 
 Architectural codemaps for navigating the Litloft codebase. Each map lists the files that participate in a feature area with a one-line description, so you can land on the right entry point without grep'ing.
 
@@ -9,6 +9,7 @@ For project-wide rules and rationale, see `.claude/rules/` and `docs/superpowers
 ## Maps
 
 - [config-gui.md](./config-gui.md) — First-run wizard, admin settings GUI, atomic config writes, restart-pending flag
+- [search.md](./search.md) — GlobalSearch popup launcher, `/drive/{drive}/search` virtual-folder result page, Smart Folder DB / API / UI, intelligence `search-modes` page-context
 
 ## Conventions
 

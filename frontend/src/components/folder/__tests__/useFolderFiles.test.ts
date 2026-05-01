@@ -283,4 +283,74 @@ describe("useFolderFiles", () => {
     expect(result.current.files).toHaveLength(0);
     expect(result.current.total).toBe(0);
   });
+
+  it("calls getDriveFiles with search param when searchQuery is set", async () => {
+    const { result } = renderHook(() =>
+      useFolderFiles({
+        driveName: "main",
+        folderPath: "",
+        view: null,
+        tagFilter: null,
+        typeFilter: null,
+        sort: "created_at",
+        order: "desc",
+        refreshKey: 0,
+        searchQuery: "vacation",
+      })
+    );
+
+    await waitFor(() => {
+      expect(result.current.loading).toBe(false);
+    });
+
+    expect(mockGetDriveFiles).toHaveBeenCalledWith(
+      "main",
+      expect.objectContaining({ search: "vacation" })
+    );
+  });
+
+  it("does not pass search param when searchQuery is undefined", async () => {
+    const { result } = renderHook(() =>
+      useFolderFiles({
+        driveName: "main",
+        folderPath: "",
+        view: null,
+        tagFilter: null,
+        typeFilter: null,
+        sort: "created_at",
+        order: "desc",
+        refreshKey: 0,
+      })
+    );
+
+    await waitFor(() => {
+      expect(result.current.loading).toBe(false);
+    });
+
+    const call = mockGetDriveFiles.mock.calls[0];
+    expect(call?.[1]?.search).toBeUndefined();
+  });
+
+  it("does not fetch folders when searchQuery is set", async () => {
+    const { result } = renderHook(() =>
+      useFolderFiles({
+        driveName: "main",
+        folderPath: "",
+        view: null,
+        tagFilter: null,
+        typeFilter: null,
+        sort: "created_at",
+        order: "desc",
+        refreshKey: 0,
+        searchQuery: "vacation",
+      })
+    );
+
+    await waitFor(() => {
+      expect(result.current.loading).toBe(false);
+    });
+
+    expect(result.current.folders).toHaveLength(0);
+    expect(mockGetFolders).not.toHaveBeenCalled();
+  });
 });

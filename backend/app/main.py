@@ -15,7 +15,7 @@ from app.auth import init_jwt_secret, load_passwords
 import app.config as config
 from app.models import File
 from app.routers import admin, auth, comments, drives, files, playlists, progress, uploads, ws
-from app.routers import addon_proxy, admin_config, internal
+from app.routers import addon_proxy, admin_config, internal, smart_folders
 from app.services.fileops import physical_delete
 from app.services.scanner import scan_all_drives
 from app.services import addon_registry, event_hooks
@@ -222,6 +222,7 @@ app.include_router(files.router)
 app.include_router(drives.router)
 app.include_router(uploads.router)
 app.include_router(playlists.router)
+app.include_router(smart_folders.router)
 app.include_router(progress.router)
 app.include_router(ws.router)
 app.include_router(internal.router)

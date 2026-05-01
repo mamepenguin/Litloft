@@ -14,6 +14,7 @@ import { usePlaylistManagement } from "./sidebar/usePlaylistManagement";
 import { SidebarLibrarySection } from "./sidebar/SidebarLibrarySection";
 import { SidebarPlaylistsSection } from "./sidebar/SidebarPlaylistsSection";
 import { SidebarPinsSection } from "./sidebar/SidebarPinsSection";
+import { SidebarSmartFoldersSection } from "./sidebar/SidebarSmartFoldersSection";
 import { SidebarTagsSection } from "./sidebar/SidebarTagsSection";
 import { SidebarDrivesSection } from "./sidebar/SidebarDrivesSection";
 
@@ -100,6 +101,10 @@ function SidebarNav() {
 
       {driveBase && (
         <SidebarPinsSection driveBase={driveBase} pins={pins} linkClass={linkClass} close={closeIfOverlay} />
+      )}
+
+      {currentDrive && (
+        <SidebarSmartFoldersSection drive={currentDrive} close={closeIfOverlay} />
       )}
 
       {driveBase && (

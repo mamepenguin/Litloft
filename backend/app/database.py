@@ -354,6 +354,12 @@ def _migrate(engine_) -> None:
     if "file_relations" not in tables:
         logger.info("Migrating: creating 'file_relations' table")
         Base.metadata.tables["file_relations"].create(bind=engine_, checkfirst=True)
+
+    # === Phase 11: Create smart_folders table ===
+    tables = inspector.get_table_names()
+    if "smart_folders" not in tables:
+        logger.info("Migrating: creating 'smart_folders' table")
+        Base.metadata.tables["smart_folders"].create(bind=engine_, checkfirst=True)
     # === Spec 2026-04-30-file-active-summary-to-knowledge: drop core
     # table; the pointer is owned by the knowledge addon now. Existing
     # data is allowed to be lost (personal-tool migration policy,

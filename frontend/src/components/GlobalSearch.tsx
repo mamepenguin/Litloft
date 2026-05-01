@@ -2,22 +2,17 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
-import { ArrowLeft, ArrowUpLeft, Clock, Search, X } from "lucide-react";
+import { ArrowLeft, ArrowRight, ArrowUpLeft, Clock, Search, X } from "lucide-react";
 import { useShortcuts } from "@/hooks/useShortcuts";
 
 import { useTranslations } from "next-intl";
 import { getDriveFiles } from "@/lib/api";
-import type { FileItem, FileType } from "@/types";
+import type { FileItem } from "@/types";
 import { useCurrentDrive } from "./CurrentDriveProvider";
-import { AddonSlot } from "./AddonSlot";
-import { useAddonSlots } from "./AddonSlotsProvider";
 
 const HISTORY_KEY = "search-history";
 const MAX_HISTORY = 20;
-
-type FilterType = "all" | "video" | "image" | "audio" | "document";
-
-const FILTER_TYPES: FilterType[] = ["all", "video", "image", "audio", "document"];
+const QUICK_RESULTS_LIMIT = 5;
 
 function getHistory(): string[] {
   if (typeof window === "undefined") return [];
@@ -46,42 +41,6 @@ function removeFromHistory(term: string): string[] {
   const next = getHistory().filter((h) => h !== term);
   saveHistory(next);
   return next;
-}
-
-function FilterTabs({
-  active,
-  onChange,
-  t,
-}: {
-  active: FilterType;
-  onChange: (f: FilterType) => void;
-  t: (key: string) => string;
-}) {
-  const labels: Record<FilterType, string> = {
-    all: t("filterAll"),
-    video: t("filterVideo"),
-    image: t("filterImage"),
-    audio: t("filterAudio"),
-    document: t("filterDocument"),
-  };
-
-  return (
-    <div className="flex gap-1 overflow-x-auto px-4 py-2 border-b border-bg-border">
-      {FILTER_TYPES.map((f) => (
-        <button
-          key={f}
-          onClick={() => onChange(f)}
-          className={`flex-shrink-0 rounded-full px-3 py-1 text-xs font-medium transition-colors ${
-            active === f
-              ? "bg-accent text-white"
-              : "bg-sand text-text-muted hover:text-text-primary"
-          }`}
-        >
-          {labels[f]}
-        </button>
-      ))}
-    </div>
-  );
 }
 
 function TextResultItem({
@@ -123,12 +82,11 @@ export function GlobalSearch() {
   const [total, setTotal] = useState(0);
   const [loading, setLoading] = useState(false);
   const [history, setHistory] = useState<string[]>([]);
-  const [filter, setFilter] = useState<FilterType>("all");
+  const [composing, setComposing] = useState(false);
   const mobileInputRef = useRef<HTMLInputElement>(null);
   const desktopInputRef = useRef<HTMLInputElement>(null);
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const drive = useCurrentDrive();
-  const { hasSlot } = useAddonSlots();
 
   const openSearch = useCallback(() => {
     setHistory(getHistory());
@@ -148,7 +106,6 @@ export function GlobalSearch() {
     setQuery("");
     setResults([]);
     setTotal(0);
-    setFilter("all");
   }, []);
 
   useShortcuts("global", tsc("global"), [
@@ -177,7 +134,7 @@ export function GlobalSearch() {
     return () => document.removeEventListener("keydown", handleKeyDown);
   }, [open, closeSearch]);
 
-  // Debounced text search
+  // Debounced quick-preview search (top 5 filename matches only)
   useEffect(() => {
     if (!open || !drive || !query.trim()) {
       setResults([]);
@@ -189,14 +146,11 @@ export function GlobalSearch() {
 
     debounceRef.current = setTimeout(async () => {
       const trimmed = query.trim();
-      const filterType = filter === "all" ? undefined : filter as FileType;
-
       setLoading(true);
       try {
         const res = await getDriveFiles(drive, {
           search: trimmed,
-          limit: 100,
-          type: filterType,
+          limit: QUICK_RESULTS_LIMIT,
         });
         setResults(res.data);
         setTotal(res.meta.total);
@@ -210,7 +164,20 @@ export function GlobalSearch() {
     return () => {
       if (debounceRef.current) clearTimeout(debounceRef.current);
     };
-  }, [query, open, drive, filter]);
+  }, [query, open, drive]);
+
+  const navigateToSearchPage = useCallback(
+    (term: string) => {
+      const normalized = term.trim();
+      if (!normalized || !drive) return;
+      setHistory(addToHistory(normalized));
+      closeSearch();
+      router.push(
+        `/drive/${encodeURIComponent(drive)}/search?q=${encodeURIComponent(normalized)}`,
+      );
+    },
+    [drive, router, closeSearch],
+  );
 
   function handleSelect(file: FileItem) {
     setHistory(addToHistory(query));
@@ -218,18 +185,13 @@ export function GlobalSearch() {
     router.push(`/files/${file.id}`);
   }
 
-  function handleSemanticSelect(url: string) {
-    setHistory(addToHistory(query));
-    closeSearch();
-    router.push(url);
+  function handleSubmit(term: string) {
+    navigateToSearchPage(term);
   }
 
-  function handleSubmit(term: string) {
-    const normalized = term.trim();
-    if (normalized) {
-      setQuery(normalized);
-      setHistory(addToHistory(normalized));
-    }
+  function handleHistorySubmit(term: string) {
+    setQuery(term);
+    navigateToSearchPage(term);
   }
 
   function handleRemoveHistory(term: string, e: React.MouseEvent) {
@@ -249,10 +211,8 @@ export function GlobalSearch() {
   }
 
   const showHistory = !query.trim() && history.length > 0;
-  const showFilters = hasSlot("search-modes") && open && drive;
   const hasResults = results.length > 0;
   const hasQuery = query.trim().length > 0;
-  const hasSearchModes = hasSlot("search-modes");
 
   const searchInput = (
     ref: React.RefObject<HTMLInputElement | null>,
@@ -263,8 +223,13 @@ export function GlobalSearch() {
       type="text"
       value={query}
       onChange={(e) => setQuery(e.target.value)}
+      onCompositionStart={() => setComposing(true)}
+      onCompositionEnd={() => setComposing(false)}
       onKeyDown={(e) => {
-        if (e.key === "Enter") handleSubmit(query);
+        // Skip Enter while IME composition is active (e.g. Japanese
+        // conversion), otherwise the conversion-confirming Enter would
+        // navigate to the search page.
+        if (e.key === "Enter" && !composing) handleSubmit(query);
       }}
       placeholder={drive ? t("searchInDrive", { drive }) : t("selectDrive")}
       disabled={!drive}
@@ -281,7 +246,7 @@ export function GlobalSearch() {
       {history.map((term) => (
         <button
           key={term}
-          onClick={() => handleSubmit(term)}
+          onClick={() => handleHistorySubmit(term)}
           className={`flex w-full items-center gap-3 px-4 text-left transition-colors ${
             mobile
               ? "py-3 active:bg-bg-elevated"
@@ -315,32 +280,14 @@ export function GlobalSearch() {
 
   const resultsList = (mobile: boolean) => (
     <div className={mobile ? "" : "max-h-[50vh] overflow-y-auto"}>
-      {loading && results.length === 0 && !hasSearchModes ? (
+      {loading && results.length === 0 ? (
         <div className={`flex items-center justify-center ${mobile ? "py-12" : "py-8"}`}>
           <div className={`${mobile ? "h-6 w-6" : "h-5 w-5"} animate-spin rounded-full border-2 border-accent border-t-transparent`} />
         </div>
       ) : (
         <>
-          {/* Addon search results (semantic search, etc.) */}
-          <AddonSlot
-            id="search-modes"
-            layout="stack"
-            props={{
-              query,
-              drive: drive ?? "",
-              filter,
-              onSelect: handleSemanticSelect,
-            }}
-          />
-
-          {/* Text results */}
           {results.length > 0 && (
             <>
-              {hasSearchModes && (
-                <div className="border-t border-bg-border px-4 py-1.5 text-[10px] font-medium uppercase text-text-muted">
-                  {t("textResults")}
-                </div>
-              )}
               {results.map((file) => (
                 <TextResultItem
                   key={file.id}
@@ -348,15 +295,19 @@ export function GlobalSearch() {
                   onSelect={handleSelect}
                 />
               ))}
-              {total > 100 && (
-                <div className="border-t border-bg-border px-4 py-2.5 text-center text-xs text-text-muted">
-                  {t("showingResults", { total })}
-                </div>
-              )}
+              <button
+                onClick={() => handleSubmit(query)}
+                className="flex w-full items-center justify-between gap-3 border-t border-bg-border px-4 py-2.5 text-left transition-colors hover:bg-bg-elevated"
+              >
+                <span className="truncate text-sm font-medium text-accent">
+                  {t("viewAllResults", { total })}
+                </span>
+                <ArrowRight size={16} className="flex-shrink-0 text-accent" />
+              </button>
             </>
           )}
 
-          {!loading && !hasResults && !hasSearchModes && (
+          {!loading && !hasResults && (
             <div className={`text-center text-sm text-text-muted ${mobile ? "py-12" : "py-8"}`}>
               {t("noResults")}
             </div>
@@ -410,10 +361,6 @@ export function GlobalSearch() {
               </div>
             </div>
 
-            {showFilters && hasQuery && (
-              <FilterTabs active={filter} onChange={setFilter} t={t} />
-            )}
-
             {/* Body */}
             <div className="flex-1 overflow-y-auto">
               {!drive ? (
@@ -451,10 +398,6 @@ export function GlobalSearch() {
                   ESC
                 </kbd>
               </div>
-
-              {showFilters && hasQuery && (
-                <FilterTabs active={filter} onChange={setFilter} t={t} />
-              )}
 
               {/* History or Results */}
               {!drive ? (

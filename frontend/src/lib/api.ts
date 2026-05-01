@@ -1,4 +1,5 @@
 import type { ArchiveContents, AuthStatus, BatchRenameRequest, BatchRenameResponse, ChunkResponse, Comment, CommentsResponse, DashboardResponse, Drive, DriveSummary, DuplicatesResponse, FileItem, FileType, Folder, Neighbors, PaginatedResponse, PinnedFolder, PlaylistDetail, PlaylistSummary, SortField, SortOrder, Tag, UnlockResult, UploadInitResponse, WatchHistoryItem, WatchProgress } from "@/types";
+import type { SmartFolder, SmartFolderCreate, SmartFolderUpdate } from "@/types/smartFolder";
 
 const API_BASE = "/api";
 
@@ -387,6 +388,50 @@ export async function removePin(drive: string, path: string): Promise<void> {
   const res = await fetch(
     `${API_BASE}/drives/${encodeURIComponent(drive)}/pins?path=${encodeURIComponent(path)}`,
     { method: "DELETE", credentials: "include" }
+  );
+  if (!res.ok) throw new Error(`API error: ${res.status}`);
+}
+
+// Smart Folders
+export async function getSmartFolders(drive: string): Promise<SmartFolder[]> {
+  return fetchJSON<SmartFolder[]>(
+    `${API_BASE}/drives/${encodeURIComponent(drive)}/smart-folders`,
+  );
+}
+
+export async function createSmartFolder(
+  drive: string,
+  payload: SmartFolderCreate,
+): Promise<SmartFolder> {
+  return fetchJSON<SmartFolder>(
+    `${API_BASE}/drives/${encodeURIComponent(drive)}/smart-folders`,
+    {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload),
+    },
+  );
+}
+
+export async function updateSmartFolder(
+  drive: string,
+  id: string,
+  payload: SmartFolderUpdate,
+): Promise<SmartFolder> {
+  return fetchJSON<SmartFolder>(
+    `${API_BASE}/drives/${encodeURIComponent(drive)}/smart-folders/${encodeURIComponent(id)}`,
+    {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload),
+    },
+  );
+}
+
+export async function deleteSmartFolder(drive: string, id: string): Promise<void> {
+  const res = await fetch(
+    `${API_BASE}/drives/${encodeURIComponent(drive)}/smart-folders/${encodeURIComponent(id)}`,
+    { method: "DELETE", credentials: "include" },
   );
   if (!res.ok) throw new Error(`API error: ${res.status}`);
 }

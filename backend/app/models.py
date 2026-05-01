@@ -214,6 +214,29 @@ class PlaylistItem(Base):
     )
 
 
+class SmartFolder(Base):
+    __tablename__ = "smart_folders"
+
+    id: Mapped[str] = mapped_column(String(12), primary_key=True, default=generate_nanoid)
+    drive: Mapped[str] = mapped_column(String, nullable=False)
+    viewer_id: Mapped[str | None] = mapped_column(String(16), nullable=True, default=None)
+    name: Mapped[str] = mapped_column(String, nullable=False)
+    query: Mapped[str] = mapped_column(Text, nullable=False)
+    file_type: Mapped[str | None] = mapped_column(String, nullable=True, default=None)
+    sort_by: Mapped[str | None] = mapped_column(String, nullable=True, default=None)
+    sort_order: Mapped[str | None] = mapped_column(String, nullable=True, default=None)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime, default=lambda: datetime.now(UTC)
+    )
+    updated_at: Mapped[datetime | None] = mapped_column(
+        DateTime, nullable=True, default=None, onupdate=lambda: datetime.now(UTC)
+    )
+
+    __table_args__ = (
+        Index("idx_smart_folders_drive", "drive"),
+    )
+
+
 class FileRelation(Base):
     __tablename__ = "file_relations"
 
