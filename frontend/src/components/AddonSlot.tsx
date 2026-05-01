@@ -13,7 +13,7 @@ type SlotModule = {
 const moduleCache = new Map<string, SlotModule>();
 const modulePromiseCache = new Map<string, Promise<SlotModule>>();
 
-const VALID_ADDON_NAME = /^[a-z][a-z0-9-]*$/;
+const VALID_ADDON_NAME = /^[a-z][a-z0-9_-]*$/;
 
 function loadAddonSlotModule(addonName: string): Promise<SlotModule> {
   if (!VALID_ADDON_NAME.test(addonName)) {

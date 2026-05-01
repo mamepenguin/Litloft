@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import { useParams, notFound } from "next/navigation";
 import { useAddonSlots } from "@/components/AddonSlotsProvider";
 
-const VALID_ADDON_NAME = /^[a-z][a-z0-9-]*$/;
+const VALID_ADDON_NAME = /^[a-z][a-z0-9_-]*$/;
 const VALID_SLUG = /^[a-z][a-z0-9-]*$/;
 
 type AddonModule = { default: React.ComponentType };

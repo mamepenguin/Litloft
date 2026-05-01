@@ -30,6 +30,10 @@ interface AddonSlotsContextValue {
   hasSlot: (slotId: string) => boolean;
 }
 
+// Mirror of the regex used by the dynamic-import call sites; keeps the
+// preloader aligned with what's a legal addon directory name.
+const VALID_ADDON_NAME_FOR_PRELOAD = /^[a-z][a-z0-9_-]*$/;
+
 const AddonSlotsContext = createContext<AddonSlotsContextValue>({
   addons: {},
   slots: {},
@@ -56,6 +60,15 @@ export function AddonSlotsProvider({ children }: { children: ReactNode }) {
       setAddons(status.addons);
       setSlots(status.slots);
       setLoading(false);
+      // Eagerly preload each active addon's slot module. Some addons
+      // (e.g. media_import) rely on side-effect imports inside slots.ts
+      // to register .loft players before LoftPlayer dispatches; without
+      // this preload, the registration would only fire after the user
+      // hits a file detail page, racing the LoftPlayer mount.
+      Object.keys(status.addons).forEach((name) => {
+        if (!VALID_ADDON_NAME_FOR_PRELOAD.test(name)) return;
+        import(`@/addons/${name}/slots.ts`).catch(() => {});
+      });
     });
     return () => {
       cancelled = true;
