@@ -1,5 +1,6 @@
 # Videos & data
 videos/
+private/
 data/
 drives.json
 passwords.json
