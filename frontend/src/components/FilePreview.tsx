@@ -17,6 +17,7 @@ import { MarkdownFileViewer } from "./MarkdownPreview";
 import { ArchivePreview } from "./ArchivePreview";
 import { FileTypeIcon } from "./FileTypeIcon";
 import { AddonSlot } from "./AddonSlot";
+import LoftPlayer from "./loft/LoftPlayer";
 import { MiniPlayerContainer } from "./MiniPlayerContainer";
 import { formatFileSize } from "@/lib/format";
 import { getStreamUrl } from "@/lib/api";
@@ -213,21 +214,18 @@ export function FilePreview({
   }
 
   if (file.mime_type === "application/vnd.litloft.loft+json") {
-    // LoftRef delegates the actual player UI to the downloader addon.
-    // Forward the controller setter so the addon can publish its
-    // YouTube-backed MediaController upward (citation jump + keyboard
-    // shortcuts go through the same MediaController plumbing as the
-    // native VideoPlayer above). Wrapped in MiniPlayerContainer so
-    // the embedded YouTube iframe also reflows into a floating mini
-    // window when it scrolls out of view.
+    // Core renders the .loft player via the provider/player registry
+    // (Phase 0 ships YouTube + Vimeo). The MiniPlayerContainer reflows
+    // the player into a floating window when it scrolls out of view;
+    // metadata UI (channel / captions status) is a separate addon slot
+    // rendered below so the floating mini-player only carries the
+    // playable surface.
     return (
       <div className="-mx-4 md:mx-0">
         <MiniPlayerContainer mc={localMc}>
-          <AddonSlot
-            id="loft-player"
-            props={{ fileId: file.id, file, onMediaController: relayMc }}
-          />
+          <LoftPlayer fileId={file.id} onMediaController={relayMc} />
         </MiniPlayerContainer>
+        <AddonSlot id="loft-metadata" props={{ fileId: file.id }} />
       </div>
     );
   }

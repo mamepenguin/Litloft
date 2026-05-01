@@ -18,7 +18,7 @@ from app.routers import admin, auth, comments, drives, files, playlists, progres
 from app.routers import addon_proxy, admin_config, internal, smart_folders
 from app.services.fileops import physical_delete
 from app.services.scanner import scan_all_drives
-from app.services import addon_registry, event_hooks
+from app.services import addon_registry, event_hooks, provider_registry
 from app.services.upload import cleanup_abandoned_uploads
 from app.services.ws import set_event_loop
 
@@ -200,6 +200,7 @@ async def lifespan(app: FastAPI):
             "var in production to add a second line of defence."
         )
     event_hooks.init()
+    provider_registry.register_core_providers()
     addon_registry.load_external_manifests()
     set_event_loop(asyncio.get_running_loop())
     cleanup_abandoned_uploads()

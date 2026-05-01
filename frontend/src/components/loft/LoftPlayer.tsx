@@ -1,0 +1,62 @@
+"use client";
+
+import { useEffect, useState } from "react";
+import { getStreamUrl } from "@/lib/api";
+import type { MediaController } from "@/lib/mediaController";
+import GenericLinkCard from "./GenericLinkCard";
+import { getLoftPlayer } from "./playerRegistry";
+import "./registerCorePlayers";
+
+interface LoftContent {
+  provider: string;
+  url: string;
+}
+
+export interface LoftPlayerProps {
+  fileId: string;
+  onMediaController?: (mc: MediaController | null) => void;
+}
+
+export default function LoftPlayer({
+  fileId,
+  onMediaController,
+}: LoftPlayerProps) {
+  const [content, setContent] = useState<LoftContent | null>(null);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    fetch(getStreamUrl(fileId), { credentials: "include" })
+      .then((res) => res.json())
+      .then(setContent)
+      .catch(() => setError("Failed to read .loft file"));
+  }, [fileId]);
+
+  if (error) {
+    return (
+      <div className="flex w-full flex-col items-center justify-center rounded-xl bg-bg-card py-16">
+        <p className="text-sm text-red-500">{error}</p>
+      </div>
+    );
+  }
+
+  if (!content) {
+    return (
+      <div className="flex w-full items-center justify-center rounded-xl bg-bg-card py-16">
+        <div className="h-8 w-8 animate-spin rounded-full border-2 border-accent border-t-transparent" />
+      </div>
+    );
+  }
+
+  const Player = getLoftPlayer(content.provider);
+  if (!Player) {
+    return <GenericLinkCard fileId={fileId} url={content.url} />;
+  }
+
+  return (
+    <Player
+      fileId={fileId}
+      url={content.url}
+      onMediaController={onMediaController}
+    />
+  );
+}
