@@ -230,7 +230,9 @@ export function FolderToolbar({
             </button>
           ))}
         </div>
-        <span className="text-sm text-text-muted">{tc("items", { count: total })}</span>
+        {!isSearch && (
+          <span className="text-sm text-text-muted">{tc("items", { count: total })}</span>
+        )}
       </div>
     </>
   );

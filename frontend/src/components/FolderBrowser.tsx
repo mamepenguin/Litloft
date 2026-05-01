@@ -138,6 +138,7 @@ export function FolderBrowser({
   }, [files, folders, total, pagesLoaded, sort, order, typeFilter, viewMode, isRecent, isSearch, snapshotKey]);
 
   const tSearch = useTranslations("search");
+  const tCommon = useTranslations("common");
   const { hasSlot } = useAddonSlots();
   const { pinnedPaths, handleTogglePin } = usePinnedFolders(driveName);
   const selection = useSelection();
@@ -288,19 +289,26 @@ export function FolderBrowser({
   // wrapper (you can't drop files into search results) and the
   // clipboard paste banner (paste targets a folder path).
   const inner = (
-    <div className="min-w-0 w-full flex-1 px-2 py-4 sm:px-4 sm:py-6">
+    <div className="min-w-0 w-full flex-1 px-2 py-4 sm:px-4 sm:py-8">
       {isSearch ? (
-        <div className="mb-3 flex items-center justify-between gap-3">
-          <h1 className="truncate text-xl font-semibold text-text-primary">
-            {tSearch("heading", { query: searchQuery ?? "" })}
-          </h1>
+        <header className="mb-6 flex flex-wrap items-start justify-between gap-3">
+          <div className="min-w-0">
+            <h1 className="truncate text-2xl font-bold text-text-primary">
+              {tSearch("heading", { query: searchQuery ?? "" })}
+            </h1>
+            {!loading && (
+              <p className="mt-1 text-sm text-text-muted">
+                {tCommon("items", { count: total })}
+              </p>
+            )}
+          </div>
           <SmartFolderSaveButton
             drive={driveName}
             query={searchQuery ?? ""}
             typeFilter={typeFilter}
             smartFolderId={smartFolderId ?? null}
           />
-        </div>
+        </header>
       ) : (
         <Breadcrumb
           driveName={driveName}
@@ -371,18 +379,20 @@ export function FolderBrowser({
       />
 
       {isSearch && (
-        <AddonSlot
-          id="search-modes"
-          layout="stack"
-          props={{
-            context: "page",
-            query: searchQuery ?? "",
-            drive: driveName,
-            filter: typeFilter ?? "all",
-            onSelect: handleSemanticSelect,
-            textResultIds: files.map((f) => f.id),
-          }}
-        />
+        <div className="mb-8 mt-2 space-y-4">
+          <AddonSlot
+            id="search-modes"
+            layout="stack"
+            props={{
+              context: "page",
+              query: searchQuery ?? "",
+              drive: driveName,
+              filter: typeFilter ?? "all",
+              onSelect: handleSemanticSelect,
+              textResultIds: files.map((f) => f.id),
+            }}
+          />
+        </div>
       )}
 
       {/* Holistic empty state for search mode: only render when no
