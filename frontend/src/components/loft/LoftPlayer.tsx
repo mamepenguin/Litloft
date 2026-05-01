@@ -5,7 +5,6 @@ import { getStreamUrl } from "@/lib/api";
 import type { MediaController } from "@/lib/mediaController";
 import GenericLinkCard from "./GenericLinkCard";
 import { getLoftPlayer } from "./playerRegistry";
-import "./registerCorePlayers";
 
 interface LoftContent {
   provider: string;

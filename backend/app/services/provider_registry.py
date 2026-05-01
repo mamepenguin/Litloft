@@ -99,21 +99,3 @@ def registered_providers() -> list[str]:
 def _reset_for_tests() -> None:
     """Clear all registrations. Test-only helper."""
     _providers.clear()
-
-
-def register_core_providers() -> None:
-    """Register the providers Core ships with.
-
-    Called from app startup. Idempotent: re-registering ``youtube``/``vimeo``
-    overwrites the prior entries with the same compiled patterns, which is
-    safe for tests that import this module multiple times.
-    """
-    register_provider("youtube", re.compile(r"(?:youtube\.com|youtu\.be)"))
-    register_provider("vimeo", re.compile(r"vimeo\.com"))
-    # Preserved from the prior Downloader-owned _PROVIDER_PATTERNS table:
-    # existing .loft files written before Phase 0 may already carry
-    # provider="soundcloud", and we don't ship a SoundCloud player yet,
-    # so this entry only ensures URL→name dispatch stays stable. The
-    # frontend has no soundcloud player registered, so dispatch falls
-    # through to the GenericLinkCard fallback (same as before).
-    register_provider("soundcloud", re.compile(r"soundcloud\.com"))
