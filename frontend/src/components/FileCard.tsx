@@ -1,4 +1,5 @@
 import Link from "next/link";
+import type { ReactNode } from "react";
 import type { FileItem, WatchProgress } from "@/types";
 import { formatDuration, formatFileSize, formatRelativeDate } from "@/lib/format";
 import { getThumbnailUrl } from "@/lib/api";
@@ -26,6 +27,7 @@ export function FileCard({
   onDragStart,
   onDragEnd,
   watchProgress,
+  matchOverlay,
 }: {
   file: FileItem;
   onFavoriteToggle?: (file: FileItem) => void;
@@ -44,6 +46,13 @@ export function FileCard({
   onDragStart?: (e: React.DragEvent) => void;
   onDragEnd?: (e: React.DragEvent) => void;
   watchProgress?: WatchProgress;
+  /**
+   * Optional content rendered below the meta row inside the card body.
+   * Used by addons (e.g. intelligence semantic search) to surface
+   * match metadata such as timestamp pills or page references. Kept
+   * generic — the core card has no awareness of its caller's domain.
+   */
+  matchOverlay?: ReactNode;
 }) {
   const clipboard = useClipboard();
   const isCutFile = clipboard.isCut(file.id);
@@ -172,6 +181,16 @@ export function FileCard({
               </>
             )}
           </div>
+          {matchOverlay && (
+            <div
+              className="mt-2 border-t border-bg-border pt-2"
+              onClick={(e) => e.stopPropagation()}
+              onKeyDown={(e) => e.stopPropagation()}
+              role="presentation"
+            >
+              {matchOverlay}
+            </div>
+          )}
         </div>
       </Wrapper>
     </div>
