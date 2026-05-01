@@ -136,6 +136,7 @@ async def file_info(
         "filename": file.filename,
         "file_type": file.file_type,
         "folder_path": file.folder_path,
+        "thumbnail_path": file.thumbnail_path,
         "updated_at": file.updated_at.isoformat() if file.updated_at else None,
     }
 
