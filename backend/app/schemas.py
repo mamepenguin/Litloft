@@ -44,6 +44,11 @@ class FileResponse(_UtcDateTimeMixin, BaseModel):
     updated_at: datetime
     deleted_at: datetime | None = None
     missing_since: datetime | None = None
+    # Set only by /api/drives/{name}/files when ``search`` matches: tells
+    # the frontend whether the hit came from the title (filename engine),
+    # the folder_path, or both — drives the per-card "ファイル名 / パス"
+    # badge mix. Spec ``2026-05-02-search-path-match.md``.
+    match_source: str | None = None
 
     model_config = {"from_attributes": True}
 
@@ -757,7 +762,11 @@ class SmartFolderResponse(_UtcDateTimeMixin, BaseModel):
     model_config = {"from_attributes": True}
 
 
-def file_to_response(file, subtitles: list[SubtitleInfo] | None = None) -> FileResponse:
+def file_to_response(
+    file,
+    subtitles: list[SubtitleInfo] | None = None,
+    match_source: str | None = None,
+) -> FileResponse:
     return FileResponse(
         id=file.id,
         filename=file.filename,
@@ -779,4 +788,5 @@ def file_to_response(file, subtitles: list[SubtitleInfo] | None = None) -> FileR
         updated_at=file.updated_at,
         deleted_at=file.deleted_at,
         missing_since=file.missing_since,
+        match_source=match_source,
     )

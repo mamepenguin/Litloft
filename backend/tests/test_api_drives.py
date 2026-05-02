@@ -259,6 +259,85 @@ class TestListDriveFiles:
         res = c.get(f"/api/drives/{TEST_DRIVE}/files?search=nonexistent")
         assert len(res.json()["data"]) == 0
 
+    def test_search_matches_folder_path_only(self, client):
+        # spec 2026-05-02-search-path-match: "旅行" は folder_path のみに含まれ
+        # title "V" には含まれない。filename match SQL の WHERE が title OR
+        # folder_path に拡張されたことで初めてヒットする。
+        c, db, drive_dir, data_dir = client
+        _seed(db, drive_dir)
+        res = c.get(f"/api/drives/{TEST_DRIVE}/files?search=旅行")
+        assert res.status_code == 200
+        body = res.json()["data"]
+        assert len(body) == 1
+        assert body[0]["folder_path"] == "旅行"
+        assert body[0]["match_source"] == "path"
+
+    def test_search_match_source_filename(self, client):
+        # title "V" にヒットし folder_path には無いケース。
+        c, db, drive_dir, data_dir = client
+        _seed(db, drive_dir)
+        res = c.get(f"/api/drives/{TEST_DRIVE}/files?search=V")
+        assert res.status_code == 200
+        for item in res.json()["data"]:
+            assert item["match_source"] == "filename"
+
+    def test_search_match_source_both(self, client):
+        # title と folder_path の両方にクエリ語が含まれる場合は "both"。
+        from app.models import File
+        c, db, drive_dir, data_dir = client
+        _seed(db, drive_dir)
+        d = drive_dir / "旅行"
+        (d / "kyoto.mp4").write_bytes(b"x")
+        db.add(File(
+            filename="kyoto.mp4",
+            title="旅行のメモ",
+            drive=TEST_DRIVE,
+            folder_path="旅行",
+            file_path="旅行/kyoto.mp4",
+            file_size=1,
+            file_type="video",
+            mime_type="video/mp4",
+        ))
+        db.commit()
+        res = c.get(f"/api/drives/{TEST_DRIVE}/files?search=旅行")
+        assert res.status_code == 200
+        items = res.json()["data"]
+        sources = {item["title"]: item["match_source"] for item in items}
+        assert sources["旅行のメモ"] == "both"
+        assert sources["V"] == "path"
+
+    def test_search_no_match_source_when_unsearched(self, client):
+        c, db, drive_dir, data_dir = client
+        _seed(db, drive_dir)
+        res = c.get(f"/api/drives/{TEST_DRIVE}/files")
+        for item in res.json()["data"]:
+            assert item["match_source"] is None
+
+    def test_search_escapes_like_special_chars(self, client):
+        # "%" / "_" がリテラル扱いされ、無関係なファイルがヒットしないこと。
+        from app.models import File
+        c, db, drive_dir, data_dir = client
+        _seed(db, drive_dir)
+        d = drive_dir / "discounts"
+        d.mkdir()
+        (d / "literal.mp4").write_bytes(b"x")
+        db.add(File(
+            filename="literal.mp4",
+            title="50% off sale",
+            drive=TEST_DRIVE,
+            folder_path="discounts",
+            file_path="discounts/literal.mp4",
+            file_size=1,
+            file_type="video",
+            mime_type="video/mp4",
+        ))
+        db.commit()
+        res = c.get(f"/api/drives/{TEST_DRIVE}/files?search=50%25")  # URL-encoded %
+        assert res.status_code == 200
+        items = res.json()["data"]
+        assert len(items) == 1
+        assert items[0]["title"] == "50% off sale"
+
     def test_sort(self, client):
         c, db, drive_dir, data_dir = client
         _seed(db, drive_dir)

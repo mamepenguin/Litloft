@@ -240,6 +240,22 @@ describe("computeHybridScore", () => {
     });
     expect(score).toBeCloseTo(0.5 * 0.8);
   });
+
+  it("adds path match with low weight (0.3)", () => {
+    // spec 2026-05-02-search-path-match: path-only ヒットは noise を抑える
+    // ため filename×2.0 / metadata×1.0 より低い 0.3 で加算する。
+    const score = computeHybridScore({ path: { score: 1 } });
+    expect(score).toBeCloseTo(0.3);
+  });
+
+  it("stacks filename and path when both engines hit", () => {
+    const score = computeHybridScore({
+      filename: { score: 1 },
+      path: { score: 1 },
+    });
+    // 1*2.0 + 1*0.3 = 2.3
+    expect(score).toBeCloseTo(2.3);
+  });
 });
 
 describe("mergeResults", () => {
@@ -314,6 +330,43 @@ describe("mergeResults", () => {
     expect(files[0].id).toBe("f9");
     expect(files[0].filename).toBe("snap.mp4");
     expect(files[0].file_size).toBe(0);
+  });
+
+  it("sets match_meta.path when filename API reports match_source=path", () => {
+    // spec 2026-05-02-search-path-match: backend が match_source="path" を
+    // 返したファイルは "ファイル名" バッジではなく "パス" バッジに分類する。
+    const f = makeFile({ id: "p1", match_source: "path" });
+    const { files } = mergeResults({
+      filenameMatches: [f],
+      semanticHits: [],
+      filenameTotal: 1,
+    });
+    expect(files[0].match_meta?.path).toEqual({ score: 1 });
+    expect(files[0].match_meta?.filename).toBeUndefined();
+  });
+
+  it("sets both filename and path when match_source=both", () => {
+    const f = makeFile({ id: "p2", match_source: "both" });
+    const { files } = mergeResults({
+      filenameMatches: [f],
+      semanticHits: [],
+      filenameTotal: 1,
+    });
+    expect(files[0].match_meta?.filename).toEqual({ score: 1 });
+    expect(files[0].match_meta?.path).toEqual({ score: 1 });
+    // 1*2.0 + 1*0.3 = 2.3
+    expect(files[0].match_score).toBeCloseTo(2.3);
+  });
+
+  it("treats missing match_source as filename (backwards compat)", () => {
+    const f = makeFile({ id: "p3" });
+    const { files } = mergeResults({
+      filenameMatches: [f],
+      semanticHits: [],
+      filenameTotal: 1,
+    });
+    expect(files[0].match_meta?.filename).toEqual({ score: 1 });
+    expect(files[0].match_meta?.path).toBeUndefined();
   });
 
   it("computes match_score for sorting", () => {

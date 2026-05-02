@@ -28,6 +28,13 @@ export interface FileItem {
   missing_since: string | null;
   created_at: string;
   updated_at: string;
+  /**
+   * Backend サーチ経路でのみセットされ、検索クエリが title 側 / folder_path
+   * 側 / 両方 のどれにヒットしたかを示す。`searchMerge.ts` が「ファイル名」
+   * vs 「パス」バッジに振り分ける。検索以外の経路では `null`。Spec
+   * `2026-05-02-search-path-match.md`.
+   */
+  match_source?: "filename" | "path" | "both" | null;
 }
 
 export interface PaginationMeta {
@@ -147,6 +154,15 @@ export interface MatchTimestamp {
 export interface MatchMeta {
   /** Filename / metadata search hit (backend has no real score, set to 1). */
   filename?: { score: number };
+  /**
+   * Folder-path substring match from the filename engine. Carried as a
+   * separate channel so the card can label "パス" distinctly from
+   * "ファイル名" — both can be set when the query hits both fields.
+   * Hybrid score weight is intentionally low (0.3) to keep noise from
+   * broad-folder matches like "/Music/" out of the top ranks. Spec
+   * `2026-05-02-search-path-match.md`.
+   */
+  path?: { score: number };
   /**
    * Audio bucket — collapses whisper / transcript / transcript_keyword
    * into a single channel so the card shows one "音声" badge instead

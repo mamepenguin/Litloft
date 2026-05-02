@@ -2,7 +2,7 @@ import unicodedata
 from typing import Annotated
 
 from fastapi import APIRouter, Depends, HTTPException, Query
-from sqlalchemy import func
+from sqlalchemy import func, or_
 from sqlalchemy.orm import Session
 
 import app.config as config
@@ -203,7 +203,7 @@ async def list_drive_files(
     db: Annotated[Session, Depends(get_db)],
     unlocked_groups: Annotated[list[str], Depends(get_unlocked_groups)],
     path: str | None = None,
-    search: str | None = None,
+    search: str | None = Query(None, max_length=200),
     favorite: bool | None = None,
     tag: str | None = None,
     type: str | None = None,
@@ -220,9 +220,19 @@ async def list_drive_files(
 
     if path is not None:
         query = query.filter(File.folder_path == path)
+    normalized_search: str | None = None
     if search:
-        escaped_search = _escape_like(unicodedata.normalize("NFC", search))
-        query = query.filter(File.title.ilike(f"%{escaped_search}%", escape="\\"))
+        normalized_search = unicodedata.normalize("NFC", search)
+        escaped_search = _escape_like(normalized_search)
+        pattern = f"%{escaped_search}%"
+        # spec 2026-05-02-search-path-match: title だけでなく folder_path も
+        # マッチ対象。フォルダ名による分類が活きるユースケース（旅行/京都/...
+        # を「京都」で検索）を拾う。per-card のバッジ振り分けは下の
+        # _classify_match_source で title/folder_path 個別ヒットを判定する。
+        query = query.filter(or_(
+            File.title.ilike(pattern, escape="\\"),
+            File.folder_path.ilike(pattern, escape="\\"),
+        ))
     if favorite is not None:
         query = query.filter(File.is_favorite == favorite)
     if tag:
@@ -246,9 +256,28 @@ async def list_drive_files(
     files = query.offset(offset).limit(limit).all()
 
     return PaginatedResponse(
-        data=[_to_response(f) for f in files],
+        data=[
+            _to_response(f, match_source=_classify_match_source(f, normalized_search))
+            for f in files
+        ],
         meta=PaginationMeta(total=total, page=page, limit=limit),
     )
+
+
+def _classify_match_source(file_obj, normalized_search: str | None) -> str | None:
+    if not normalized_search:
+        return None
+    needle = normalized_search.casefold()
+    in_title = needle in (file_obj.title or "").casefold()
+    in_path = needle in (file_obj.folder_path or "").casefold()
+    if in_title and in_path:
+        return "both"
+    if in_path:
+        return "path"
+    # default: filename. SQL OR が拾った以上 title/path のどちらかには必ず
+    # 含まれるが、casefold での substring 判定が SQL ilike と完全一致しない
+    # 場面（Unicode の equivalence 違い等）への safety net としても機能する。
+    return "filename"
 
 
 @router.get("/{drive_name}/tags", response_model=list[TagResponse])

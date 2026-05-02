@@ -24,6 +24,9 @@ import { formatDuration } from "@/lib/format";
 
 const MATCH_TYPE_STYLES: Record<string, string> = {
   filename: "bg-accent/15 text-accent",
+  // path はファイル系（filename / metadata = accent）と同系で淡め。
+  // `2026-05-02-search-path-match.md` のラベル方針。
+  path: "bg-accent/5 text-accent",
   metadata: "bg-accent/10 text-accent",
   transcript: "bg-accent-teal/15 text-accent-teal",
   clip: "bg-accent-amber/15 text-accent-amber",
@@ -79,6 +82,7 @@ export function MatchOverlay({
 
   const labels: Record<string, string> = {
     filename: t("matchFilename"),
+    path: t("matchPath"),
     metadata: t("matchMetadata"),
     transcript: t("matchTranscript"),
     clip: t("matchClip"),
@@ -92,6 +96,10 @@ export function MatchOverlay({
   const activeTypes: string[] = [];
   if (match.filename) activeTypes.push("filename");
   else if (match.metadata) activeTypes.push("metadata");
+  // path は filename / metadata と独立に立つ（spec
+  // 2026-05-02-search-path-match）— title にも folder_path にもヒットした
+  // ケースで両バッジを並べることでユーザーに「どこで当たったか」を可視化。
+  if (match.path) activeTypes.push("path");
   if (match.transcript && match.transcript.length > 0) {
     activeTypes.push("transcript");
   }

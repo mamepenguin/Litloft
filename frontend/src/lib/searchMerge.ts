@@ -36,6 +36,12 @@ export interface SemanticHit {
 
 const FILENAME_BOOST = 2.0;
 const CLIP_WEIGHT = 0.8;
+// Folder-path substring matches are noisier than filename hits ("/Music/"
+// matching every file under it on the query "music"), so they ride at a
+// deliberately low weight — surfaces the file in the list but keeps it
+// out of the top ranks unless another channel also fires. Spec
+// `2026-05-02-search-path-match.md` §D2.
+const PATH_WEIGHT = 0.3;
 
 /**
  * Compose a `MatchMeta` from a single semantic engine hit.
@@ -155,6 +161,7 @@ export function computeHybridScore(meta: MatchMeta): number {
     score += meta.clip_thumbnail.score * CLIP_WEIGHT;
   }
   if (meta.content) score += meta.content.score;
+  if (meta.path) score += meta.path.score * PATH_WEIGHT;
   return score;
 }
 
@@ -222,10 +229,20 @@ export function mergeResults({
 
   for (const f of filenameMatches) {
     filenameIds.add(f.id);
-    byId.set(f.id, {
-      ...f,
-      match_meta: { filename: { score: 1 } },
-    });
+    // spec 2026-05-02-search-path-match: backend は title / folder_path /
+    // 両方 のどれにヒットしたかを `match_source` で返す。"path" のみのとき
+    // は filename badge を立てず path badge のみ。`match_source` 未指定
+    // (旧 backend / 検索なし経路) は従来通り filename badge にフォール
+    // バックして後方互換を保つ。
+    const initialMeta: MatchMeta = {};
+    const src = f.match_source ?? "filename";
+    if (src === "filename" || src === "both") {
+      initialMeta.filename = { score: 1 };
+    }
+    if (src === "path" || src === "both") {
+      initialMeta.path = { score: 1 };
+    }
+    byId.set(f.id, { ...f, match_meta: initialMeta });
   }
 
   for (const hit of semanticHits) {
