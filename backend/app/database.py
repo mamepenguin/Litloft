@@ -373,6 +373,24 @@ def _migrate(engine_) -> None:
         with engine_.begin() as conn:
             conn.execute(text("DROP TABLE file_active_summaries"))
 
+    # === Spec 2026-05-03-hash-based-move-detection: reset file_hash to
+    # force recomputation under the new (head256KB || tail256KB) SHA-256
+    # algorithm. Idempotent via a sentinel file in DATA_DIR.
+    if "files" in tables:
+        sentinel = DATA_DIR / "hash_format_v2_done"
+        if not sentinel.exists():
+            logger.info(
+                "Migrating: resetting files.file_hash for new "
+                "(head+tail 256KB) hash format"
+            )
+            with engine_.begin() as conn:
+                conn.execute(text(
+                    "UPDATE files SET file_hash = NULL "
+                    "WHERE file_hash IS NOT NULL"
+                ))
+            DATA_DIR.mkdir(parents=True, exist_ok=True)
+            sentinel.touch()
+
 
 def init_db() -> None:
     DATA_DIR.mkdir(parents=True, exist_ok=True)

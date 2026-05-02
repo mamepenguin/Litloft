@@ -38,63 +38,6 @@ def _seed_file(db, drive_dir, filename="test.mp4", folder="", file_hash=None):
     return file
 
 
-class TestComputeFileHash:
-    def test_hash_small_file(self, tmp_path):
-        """compute_file_hash returns SHA-256 of file content for small files."""
-        from app.services.hash import compute_file_hash
-
-        test_file = tmp_path / "small.txt"
-        content = b"hello world"
-        test_file.write_bytes(content)
-
-        result = compute_file_hash(test_file)
-        expected = hashlib.sha256(content).hexdigest()
-        assert result == expected
-
-    def test_hash_large_file_only_first_1mb(self, tmp_path):
-        """compute_file_hash only hashes first 1MB for large files."""
-        from app.services.hash import HASH_CHUNK_SIZE, compute_file_hash
-
-        test_file = tmp_path / "large.bin"
-        # Write 2MB of data
-        data = b"A" * (HASH_CHUNK_SIZE * 2)
-        test_file.write_bytes(data)
-
-        result = compute_file_hash(test_file)
-        expected = hashlib.sha256(b"A" * HASH_CHUNK_SIZE).hexdigest()
-        assert result == expected
-
-    def test_hash_nonexistent_file(self, tmp_path):
-        """compute_file_hash returns None for non-existent files."""
-        from app.services.hash import compute_file_hash
-
-        result = compute_file_hash(tmp_path / "does_not_exist.txt")
-        assert result is None
-
-    def test_hash_empty_file(self, tmp_path):
-        """compute_file_hash handles empty files correctly."""
-        from app.services.hash import compute_file_hash
-
-        test_file = tmp_path / "empty.txt"
-        test_file.write_bytes(b"")
-
-        result = compute_file_hash(test_file)
-        expected = hashlib.sha256(b"").hexdigest()
-        assert result == expected
-
-    def test_hash_exactly_1mb(self, tmp_path):
-        """compute_file_hash handles a file exactly 1MB in size."""
-        from app.services.hash import HASH_CHUNK_SIZE, compute_file_hash
-
-        test_file = tmp_path / "exact.bin"
-        data = b"B" * HASH_CHUNK_SIZE
-        test_file.write_bytes(data)
-
-        result = compute_file_hash(test_file)
-        expected = hashlib.sha256(data).hexdigest()
-        assert result == expected
-
-
 class TestDuplicatesAPI:
     def test_no_duplicates_returns_empty(self, client):
         """When no duplicates exist, return empty groups."""
