@@ -1,15 +1,18 @@
 /**
- * Thin core-side wrapper around the intelligence addon's `/search` and
- * `/status` HTTP endpoints.
+ * Thin core-side wrapper around the intelligence addon's `/search`
+ * HTTP endpoint, plus a per-drive availability probe driven by the
+ * core addon registry.
  *
- * Core needs to call these for the unified search results page (spec
- * `2026-05-02-search-results-unification-phase3.md`) without importing
- * the addon's TypeScript module — the HTTP routes are the public
- * contract the addon publishes. When the addon is uninstalled, both
- * helpers return "unavailable" / "no hits" so the search page falls
- * back to filename-only.
+ * Availability is read from the core's ``/api/addons/status?drive=…``
+ * (already filtered by ``drives.json`` per-drive policy) rather than
+ * from the addon's own ``/status``. The addon's ``/status`` is
+ * admin-gated because it surfaces process-global queue counters;
+ * using it as an availability probe meant a viewer who had not
+ * unlocked every protected drive saw semantic search disabled
+ * everywhere, including drives they could fully access.
  */
 
+import { getEnabledAddons } from "./addons";
 import type { FileType } from "@/types";
 import type { SemanticHit } from "./searchMerge";
 
@@ -21,17 +24,8 @@ function driveHeaders(drive: string): HeadersInit {
 
 export async function isSemanticSearchAvailable(drive: string): Promise<boolean> {
   if (!drive) return false;
-  try {
-    const res = await fetch(`${API_BASE}/addons/intelligence/status`, {
-      credentials: "include",
-      headers: driveHeaders(drive),
-    });
-    if (!res.ok) return false;
-    const data = (await res.json()) as { available?: boolean };
-    return !!data?.available;
-  } catch {
-    return false;
-  }
+  const addons = await getEnabledAddons(drive);
+  return Boolean(addons["intelligence"]);
 }
 
 export async function fetchSemanticHits(
