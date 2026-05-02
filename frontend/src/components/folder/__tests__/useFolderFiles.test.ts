@@ -50,6 +50,31 @@ vi.mock("@/lib/recentlyPlayed", () => ({
   getRecentFileIds: () => [],
 }));
 
+const mockReadSearchCache = vi.fn();
+const mockWriteSearchCache = vi.fn();
+const mockSearchCacheKey = vi.fn(
+  (k: { drive: string; query: string; type: unknown; includeSceneClip: boolean }) =>
+    `${k.drive}::${k.query}::${k.type ?? "all"}::${k.includeSceneClip ? 1 : 0}`,
+);
+const mockClearSearchCache = vi.fn();
+
+vi.mock("@/lib/searchCache", () => ({
+  readSearchCache: (...args: unknown[]) => mockReadSearchCache(...args),
+  writeSearchCache: (...args: unknown[]) => mockWriteSearchCache(...args),
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  searchCacheKey: (...args: unknown[]) => (mockSearchCacheKey as any)(...args),
+  clearSearchCache: (...args: unknown[]) => mockClearSearchCache(...args),
+}));
+
+const mockFetchSemanticHits = vi.fn().mockResolvedValue([]);
+const mockIsSemanticSearchAvailable = vi.fn().mockResolvedValue(false);
+
+vi.mock("@/lib/semanticSearch", () => ({
+  fetchSemanticHits: (...args: unknown[]) => mockFetchSemanticHits(...args),
+  isSemanticSearchAvailable: (...args: unknown[]) =>
+    mockIsSemanticSearchAvailable(...args),
+}));
+
 describe("useFolderFiles", () => {
   beforeEach(() => {
     vi.clearAllMocks();
@@ -58,6 +83,9 @@ describe("useFolderFiles", () => {
       meta: { total: 2, page: 1, limit: 30 },
     });
     mockGetFolders.mockResolvedValue([mockFolder("photos")]);
+    mockReadSearchCache.mockReturnValue(null);
+    mockFetchSemanticHits.mockResolvedValue([]);
+    mockIsSemanticSearchAvailable.mockResolvedValue(false);
   });
 
   it("fetches files and folders on mount", async () => {
@@ -352,5 +380,137 @@ describe("useFolderFiles", () => {
 
     expect(result.current.folders).toHaveLength(0);
     expect(mockGetFolders).not.toHaveBeenCalled();
+  });
+
+  describe("searchCache hydration", () => {
+    it("search mode + cache hit → useInfiniteScroll receives initial from cache (mount fetch is skipped)", async () => {
+      const cachedFile = mockFile("cached-1");
+      mockReadSearchCache.mockReturnValue({
+        filenameMatches: [cachedFile],
+        filenameTotal: 42,
+        semanticHits: [],
+        ts: Date.now(),
+      });
+
+      const { result } = renderHook(() =>
+        useFolderFiles({
+          driveName: "main",
+          folderPath: "",
+          view: null,
+          tagFilter: null,
+          typeFilter: null,
+          sort: "created_at",
+          order: "desc",
+          refreshKey: 0,
+          searchQuery: "vacation",
+        }),
+      );
+
+      // Initial render should already include the cached items without
+      // a network round-trip.
+      expect(result.current.files.map((f) => f.id)).toContain("cached-1");
+      expect(result.current.total).toBeGreaterThanOrEqual(42);
+
+      // useInfiniteScroll's initial-skip behavior means no filename
+      // fetch is issued on mount.
+      expect(mockGetDriveFiles).not.toHaveBeenCalled();
+    });
+
+    it("search mode + cache hit → semanticHits is initialized from cache (revalidation still runs)", async () => {
+      const semanticHit = {
+        file_id: "sem-1",
+        drive: "main",
+        filename: "sem.mp4",
+        file_type: "video",
+        score: 0.9,
+        match_types: ["transcript"],
+        segments: [
+          {
+            time_range: [10, 20] as [number, number],
+            matches: [{ type: "transcript", score: 0.7 }],
+          },
+        ],
+        file: null,
+      };
+      mockReadSearchCache.mockReturnValue({
+        filenameMatches: [],
+        filenameTotal: 0,
+        semanticHits: [semanticHit],
+        ts: Date.now(),
+      });
+      mockIsSemanticSearchAvailable.mockResolvedValue(true);
+      mockFetchSemanticHits.mockResolvedValue([]);
+
+      const { result } = renderHook(() =>
+        useFolderFiles({
+          driveName: "main",
+          folderPath: "",
+          view: null,
+          tagFilter: null,
+          typeFilter: null,
+          sort: "created_at",
+          order: "desc",
+          refreshKey: 0,
+          searchQuery: "vacation",
+        }),
+      );
+
+      // Cached semantic hit must appear in the merged list immediately.
+      expect(result.current.files.map((f) => f.id)).toContain("sem-1");
+
+      // Stale-while-revalidate: the hook should still call
+      // fetchSemanticHits to refresh in the background.
+      await waitFor(() => {
+        expect(mockFetchSemanticHits).toHaveBeenCalled();
+      });
+    });
+
+    it("search mode + cache miss → previous behavior preserved (filename fetch on mount)", async () => {
+      mockReadSearchCache.mockReturnValue(null);
+
+      const { result } = renderHook(() =>
+        useFolderFiles({
+          driveName: "main",
+          folderPath: "",
+          view: null,
+          tagFilter: null,
+          typeFilter: null,
+          sort: "created_at",
+          order: "desc",
+          refreshKey: 0,
+          searchQuery: "vacation",
+        }),
+      );
+
+      await waitFor(() => {
+        expect(result.current.loading).toBe(false);
+      });
+
+      expect(mockGetDriveFiles).toHaveBeenCalledWith(
+        "main",
+        expect.objectContaining({ search: "vacation" }),
+      );
+    });
+
+    it("non-search mode → cache is ignored (readSearchCache not called)", async () => {
+      const { result } = renderHook(() =>
+        useFolderFiles({
+          driveName: "main",
+          folderPath: "",
+          view: null,
+          tagFilter: null,
+          typeFilter: null,
+          sort: "created_at",
+          order: "desc",
+          refreshKey: 0,
+        }),
+      );
+
+      await waitFor(() => {
+        expect(result.current.loading).toBe(false);
+      });
+
+      expect(mockReadSearchCache).not.toHaveBeenCalled();
+    });
   });
 });

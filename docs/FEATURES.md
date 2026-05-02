@@ -265,11 +265,12 @@ Search is split into a **quick launcher popup** and a dedicated **search results
 
 **Quick Launcher Popup** (`GlobalSearch.tsx`):
 - **Cmd+Shift+F** or sidebar search icon to open
-- Recursive filename search across the current drive (drive = security boundary)
-- 300ms debounce for API calls
-- Top **5** quick-preview results (file type icon + path + thumbnail)
-- Click a result to jump straight to its file detail page (quick navigation preserved)
-- Press **Enter** or click "全件表示 →" to open `/drive/{drive}/search?q=...` (full results page)
+- Recursive filename search **and semantic search run in parallel** across the current drive (drive = security boundary)
+- 300ms debounce, AbortController cancels in-flight requests on query change
+- Filename + semantic hits are merged into a single relevance-sorted list (`mergeResults` + `sortMerged`); top **8** rows shown with match-type badges (filename / path / audio / video / metadata / text) and timestamp pills for transcript/clip hits
+- Click a result to jump straight to its file detail page (quick navigation preserved); click a timestamp pill to deep-link with `?t=N`
+- Press **Enter** or click "全件表示 →" to open `/drive/{drive}/search?q=...`. Results are handed off via in-memory `searchCache` (TTL 60s, keyed by drive+query+type+sceneClip) so the results page hydrates instantly without re-fetching; on cache miss it falls through to the normal fetch path
+- Semantic gracefully degrades to filename-only when the intelligence addon is uninstalled or `policy off` for the drive (`isSemanticSearchAvailable` gate)
 - Escape to close
 - Search history shown when query is empty
 

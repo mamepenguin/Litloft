@@ -2,6 +2,18 @@ import "@testing-library/jest-dom/vitest";
 import { vi } from "vitest";
 import jaMessages from "../messages/ja.json";
 
+// @testing-library/dom's waitFor() detects fake timers by checking
+// `typeof jest !== 'undefined'`. Without that, it falls back to
+// real-timer polling via setInterval — which vitest's vi.useFakeTimers()
+// has globally faked, so the polling never fires and waitFor hangs even
+// when its first synchronous check would pass. Aliasing `jest` to `vi`
+// makes testing-library use its jest-fake-timers branch, which advances
+// the fake clock between polls. See
+// https://github.com/testing-library/dom-testing-library/blob/main/src/wait-for.ts
+// (`jestFakeTimersAreEnabled`).
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+(globalThis as any).jest = vi;
+
 // Messages may be arbitrarily nested (e.g. "knowledge.editor.toolbar.h1").
 // Walk dot-separated namespace + key paths against the full tree instead
 // of indexing a single level.

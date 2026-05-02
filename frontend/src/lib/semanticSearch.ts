@@ -48,6 +48,7 @@ export async function fetchSemanticHits(
      * `2026-05-02-thumbnail-clip-default-shallow-search.md`.
      */
     includeSceneClip?: boolean;
+    signal?: AbortSignal;
   },
 ): Promise<SemanticHit[]> {
   if (!query.trim() || !drive) return [];
@@ -58,7 +59,11 @@ export async function fetchSemanticHits(
   try {
     const res = await fetch(
       `${API_BASE}/addons/intelligence/search?${params.toString()}`,
-      { credentials: "include", headers: driveHeaders(drive) },
+      {
+        credentials: "include",
+        headers: driveHeaders(drive),
+        signal: options?.signal,
+      },
     );
     if (!res.ok) return [];
     const data = (await res.json()) as {

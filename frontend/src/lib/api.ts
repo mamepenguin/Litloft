@@ -11,6 +11,10 @@ export async function fetchJSON<T>(url: string, options?: RequestInit): Promise<
   return res.json();
 }
 
+export interface RequestOptions {
+  signal?: AbortSignal;
+}
+
 export async function getDrives(): Promise<Drive[]> {
   return fetchJSON<Drive[]>(`${API_BASE}/drives`);
 }
@@ -36,7 +40,8 @@ export async function getDriveFiles(
     order?: SortOrder;
     page?: number;
     limit?: number;
-  }
+  },
+  options?: RequestOptions,
 ): Promise<PaginatedResponse> {
   const searchParams = new URLSearchParams();
   if (params.path !== undefined) searchParams.set("path", params.path);
@@ -50,7 +55,8 @@ export async function getDriveFiles(
   if (params.limit) searchParams.set("limit", String(params.limit));
 
   return fetchJSON<PaginatedResponse>(
-    `${API_BASE}/drives/${encodeURIComponent(drive)}/files?${searchParams.toString()}`
+    `${API_BASE}/drives/${encodeURIComponent(drive)}/files?${searchParams.toString()}`,
+    options?.signal ? { signal: options.signal } : undefined,
   );
 }
 

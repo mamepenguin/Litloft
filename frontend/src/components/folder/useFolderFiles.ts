@@ -18,6 +18,10 @@ import {
   fetchSemanticHits,
   isSemanticSearchAvailable,
 } from "@/lib/semanticSearch";
+import {
+  readSearchCache,
+  type SearchCacheEntry,
+} from "@/lib/searchCache";
 import type {
   FileItem,
   FileItemWithMatch,
@@ -107,7 +111,34 @@ export function useFolderFiles({
     initial: { items: FileItem[]; total: number; page: number } | null;
     folders: Folder[] | null;
     scrollY: number | null;
+    searchCache: SearchCacheEntry | null;
   }>(() => {
+    // Search mode hydrates from searchCache (popup → page handoff)
+    // before falling through to the folder snapshot path. The cache key
+    // includes searchQuery, so it can't be confused with the root
+    // drive page snapshot bug from spec
+    // 2026-05-01-search-ui-rich-redesign Phase 1.
+    if (isSearch && searchQuery) {
+      const cached = readSearchCache({
+        drive: driveName,
+        query: searchQuery.trim(),
+        type: typeFilter,
+        includeSceneClip: !!includeSceneClip,
+      });
+      if (cached) {
+        return {
+          initial: {
+            items: cached.filenameMatches,
+            total: cached.filenameTotal,
+            page: 1,
+          },
+          folders: null,
+          scrollY: null,
+          searchCache: cached,
+        };
+      }
+    }
+
     const snap = initialSnapshot;
     // Search mode must never hydrate from a folder/view snapshot:
     // snapshotKey doesn't include searchQuery, so the root drive
@@ -128,9 +159,10 @@ export function useFolderFiles({
         },
         folders: snap.folders,
         scrollY: snap.scrollY,
+        searchCache: null,
       };
     }
-    return { initial: null, folders: null, scrollY: null };
+    return { initial: null, folders: null, scrollY: null, searchCache: null };
   });
 
   const [folders, setFolders] = useState<Folder[]>(() => hydration.folders ?? []);
@@ -189,7 +221,12 @@ export function useFolderFiles({
   // Semantic search hits — loaded once per search query/drive/typeFilter.
   // The intelligence addon is the canonical provider; absence of the
   // addon (or the search feature) means filename-only fallback.
-  const [semanticHits, setSemanticHits] = useState<SemanticHit[]>([]);
+  // Hydrated from searchCache when the popup just handed off; otherwise
+  // empty until the effect below resolves (stale-while-revalidate when
+  // the cache hit is stale).
+  const [semanticHits, setSemanticHits] = useState<SemanticHit[]>(
+    () => hydration.searchCache?.semanticHits ?? [],
+  );
   const [semanticLoading, setSemanticLoading] = useState(false);
 
   useEffect(() => {

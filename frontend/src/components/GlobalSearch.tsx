@@ -7,12 +7,27 @@ import { useShortcuts } from "@/hooks/useShortcuts";
 
 import { useTranslations } from "next-intl";
 import { getDriveFiles } from "@/lib/api";
-import type { FileItem } from "@/types";
+import {
+  fetchSemanticHits,
+  isSemanticSearchAvailable,
+} from "@/lib/semanticSearch";
+import {
+  mergeResults,
+  sortMerged,
+  type SemanticHit,
+} from "@/lib/searchMerge";
+import {
+  readSearchCache,
+  writeSearchCache,
+  type SearchCacheKey,
+} from "@/lib/searchCache";
+import type { FileItemWithMatch } from "@/types";
 import { useCurrentDrive } from "./CurrentDriveProvider";
+import { MergedResultItem } from "./search/MergedResultItem";
 
 const HISTORY_KEY = "search-history";
 const MAX_HISTORY = 20;
-const QUICK_RESULTS_LIMIT = 5;
+const POPUP_LIMIT = 8;
 
 function getHistory(): string[] {
   if (typeof window === "undefined") return [];
@@ -25,7 +40,12 @@ function getHistory(): string[] {
 }
 
 function saveHistory(history: string[]): void {
-  localStorage.setItem(HISTORY_KEY, JSON.stringify(history));
+  try {
+    localStorage.setItem(HISTORY_KEY, JSON.stringify(history));
+  } catch {
+    // jsdom test envs / Safari private mode can throw on localStorage; the
+    // history list is best-effort UX, not a correctness requirement.
+  }
 }
 
 function addToHistory(term: string): string[] {
@@ -43,34 +63,6 @@ function removeFromHistory(term: string): string[] {
   return next;
 }
 
-function TextResultItem({
-  file,
-  onSelect,
-}: {
-  file: FileItem;
-  onSelect: (file: FileItem) => void;
-}) {
-  return (
-    <button
-      onClick={() => onSelect(file)}
-      className="flex w-full items-start gap-3 px-4 py-2.5 text-left transition-colors hover:bg-bg-elevated"
-    >
-      <img
-        src={`/api/files/${file.id}/thumbnail`}
-        alt=""
-        className="h-10 w-16 flex-shrink-0 rounded bg-bg-elevated object-cover"
-        onError={(e) => { e.currentTarget.style.display = "none"; }}
-      />
-      <div className="min-w-0 flex-1">
-        <p className="truncate text-sm text-text-primary">{file.title}</p>
-        <p className="truncate text-xs text-text-muted">
-          {file.folder_path ? `${file.folder_path}/` : ""}{file.filename}
-        </p>
-      </div>
-    </button>
-  );
-}
-
 export function GlobalSearch() {
   const t = useTranslations("search");
   const tsc = useTranslations("shortcuts");
@@ -78,15 +70,31 @@ export function GlobalSearch() {
   const router = useRouter();
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState("");
-  const [results, setResults] = useState<FileItem[]>([]);
+  const [merged, setMerged] = useState<FileItemWithMatch[]>([]);
   const [total, setTotal] = useState(0);
   const [loading, setLoading] = useState(false);
   const [history, setHistory] = useState<string[]>([]);
   const [composing, setComposing] = useState(false);
+  // Render mobile fullscreen vs. desktop modal based on viewport width.
+  // Prior versions dual-rendered both DOM trees and relied on Tailwind
+  // `sm:*` classes to hide one — but that surfaces both copies in
+  // testing environments without CSS, and forces every consumer of
+  // `getByText` to switch to `getAllByText`. The viewport check stays
+  // simple (resize listener) and SSR-safe (defaults to desktop).
+  const [isMobileViewport, setIsMobileViewport] = useState(false);
   const mobileInputRef = useRef<HTMLInputElement>(null);
   const desktopInputRef = useRef<HTMLInputElement>(null);
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const drive = useCurrentDrive();
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const mql = window.matchMedia("(max-width: 639px)");
+    const apply = () => setIsMobileViewport(mql.matches);
+    apply();
+    mql.addEventListener?.("change", apply);
+    return () => mql.removeEventListener?.("change", apply);
+  }, []);
 
   const openSearch = useCallback(() => {
     setHistory(getHistory());
@@ -104,7 +112,7 @@ export function GlobalSearch() {
   const closeSearch = useCallback(() => {
     setOpen(false);
     setQuery("");
-    setResults([]);
+    setMerged([]);
     setTotal(0);
   }, []);
 
@@ -134,34 +142,88 @@ export function GlobalSearch() {
     return () => document.removeEventListener("keydown", handleKeyDown);
   }, [open, closeSearch]);
 
-  // Debounced quick-preview search (top 5 filename matches only)
+  // Debounced merged search: filename + semantic in parallel.
+  // - Cache lookup is synchronous at the top of the effect so a re-opened
+  //   popup with the same query renders instantly before the debounce.
+  // - AbortController cancels the prior request when the query changes.
   useEffect(() => {
     if (!open || !drive || !query.trim()) {
-      setResults([]);
+      setMerged([]);
       setTotal(0);
       return;
     }
 
-    if (debounceRef.current) clearTimeout(debounceRef.current);
+    const trimmed = query.trim();
+    const cacheKey: SearchCacheKey = {
+      drive,
+      query: trimmed,
+      type: null,
+      includeSceneClip: false,
+    };
 
-    debounceRef.current = setTimeout(async () => {
-      const trimmed = query.trim();
+    const cached = readSearchCache(cacheKey);
+    if (cached) {
+      const m = mergeResults({
+        filenameMatches: cached.filenameMatches,
+        semanticHits: cached.semanticHits,
+        filenameTotal: cached.filenameTotal,
+      });
+      const sorted = sortMerged(m.files, "relevance", "desc");
+      setMerged(sorted.slice(0, POPUP_LIMIT));
+      setTotal(m.total);
+    }
+
+    if (debounceRef.current) clearTimeout(debounceRef.current);
+    const ctrl = new AbortController();
+
+    debounceRef.current = setTimeout(() => {
       setLoading(true);
-      try {
-        const res = await getDriveFiles(drive, {
-          search: trimmed,
-          limit: QUICK_RESULTS_LIMIT,
+      const filenameP = getDriveFiles(
+        drive,
+        { search: trimmed, limit: POPUP_LIMIT },
+        { signal: ctrl.signal },
+      );
+      const semanticP = isSemanticSearchAvailable(drive).then((available) =>
+        available
+          ? fetchSemanticHits(trimmed, drive, {
+              limit: POPUP_LIMIT,
+              signal: ctrl.signal,
+            })
+          : ([] as SemanticHit[]),
+      );
+      Promise.all([filenameP, semanticP])
+        .then(([filenameRes, semanticHits]) => {
+          if (ctrl.signal.aborted) return;
+          const m = mergeResults({
+            filenameMatches: filenameRes.data,
+            semanticHits,
+            filenameTotal: filenameRes.meta.total,
+          });
+          const sorted = sortMerged(m.files, "relevance", "desc");
+          setMerged(sorted.slice(0, POPUP_LIMIT));
+          setTotal(m.total);
+          writeSearchCache(cacheKey, {
+            filenameMatches: filenameRes.data,
+            filenameTotal: filenameRes.meta.total,
+            semanticHits,
+          });
+        })
+        .catch(() => {
+          // Stale-while-revalidate: keep the cached snapshot rendered
+          // when revalidation fails on a transient network blip. Only
+          // wipe state when there was nothing cached to fall back on.
+          if (!ctrl.signal.aborted && !cached) {
+            setMerged([]);
+            setTotal(0);
+          }
+        })
+        .finally(() => {
+          if (!ctrl.signal.aborted) setLoading(false);
         });
-        setResults(res.data);
-        setTotal(res.meta.total);
-      } catch {
-        setResults([]);
-        setTotal(0);
-      }
-      setLoading(false);
     }, 300);
 
     return () => {
+      ctrl.abort();
       if (debounceRef.current) clearTimeout(debounceRef.current);
     };
   }, [query, open, drive]);
@@ -170,7 +232,11 @@ export function GlobalSearch() {
     (term: string) => {
       const normalized = term.trim();
       if (!normalized || !drive) return;
-      setHistory(addToHistory(normalized));
+      try {
+        setHistory(addToHistory(normalized));
+      } catch {
+        // see saveHistory comment
+      }
       closeSearch();
       router.push(
         `/drive/${encodeURIComponent(drive)}/search?q=${encodeURIComponent(normalized)}`,
@@ -179,10 +245,14 @@ export function GlobalSearch() {
     [drive, router, closeSearch],
   );
 
-  function handleSelect(file: FileItem) {
-    setHistory(addToHistory(query));
+  function handleSelect(url: string) {
+    try {
+      setHistory(addToHistory(query));
+    } catch {
+      // see saveHistory comment
+    }
     closeSearch();
-    router.push(`/files/${file.id}`);
+    router.push(url);
   }
 
   function handleSubmit(term: string) {
@@ -211,7 +281,7 @@ export function GlobalSearch() {
   }
 
   const showHistory = !query.trim() && history.length > 0;
-  const hasResults = results.length > 0;
+  const hasResults = merged.length > 0;
   const hasQuery = query.trim().length > 0;
 
   const searchInput = (
@@ -280,16 +350,16 @@ export function GlobalSearch() {
 
   const resultsList = (mobile: boolean) => (
     <div className={mobile ? "" : "max-h-[50vh] overflow-y-auto"}>
-      {loading && results.length === 0 ? (
+      {loading && merged.length === 0 ? (
         <div className={`flex items-center justify-center ${mobile ? "py-12" : "py-8"}`}>
           <div className={`${mobile ? "h-6 w-6" : "h-5 w-5"} animate-spin rounded-full border-2 border-accent border-t-transparent`} />
         </div>
       ) : (
         <>
-          {results.length > 0 && (
+          {merged.length > 0 && (
             <>
-              {results.map((file) => (
-                <TextResultItem
+              {merged.map((file) => (
+                <MergedResultItem
                   key={file.id}
                   file={file}
                   onSelect={handleSelect}
@@ -319,7 +389,7 @@ export function GlobalSearch() {
 
   const clearQuery = (focusRef?: React.RefObject<HTMLInputElement | null>) => {
     setQuery("");
-    setResults([]);
+    setMerged([]);
     setTotal(0);
     focusRef?.current?.focus();
   };
@@ -335,83 +405,83 @@ export function GlobalSearch() {
         <Search size={18} />
       </button>
 
-      {open && (
-        <>
-          {/* Mobile: full-screen */}
-          <div className="fixed inset-0 z-50 flex flex-col bg-bg-primary sm:hidden animate-fade-in">
-            {/* Header */}
-            <div className="flex items-center gap-2 border-b border-bg-border px-2 py-2">
-              <button
-                onClick={closeSearch}
-                className="flex-shrink-0 rounded-lg p-2 text-text-muted hover:text-text-primary"
-                aria-label={tc("close")}
-              >
-                <ArrowLeft size={20} />
-              </button>
-              <div className="relative flex-1">
-                {searchInput(mobileInputRef, true)}
-                {query && (
-                  <button
-                    onClick={() => clearQuery(mobileInputRef)}
-                    className="absolute right-3 top-1/2 -translate-y-1/2 text-text-muted hover:text-text-primary"
-                  >
-                    <X size={18} />
-                  </button>
-                )}
-              </div>
-            </div>
-
-            {/* Body */}
-            <div className="flex-1 overflow-y-auto">
-              {!drive ? (
-                <div className="py-12 text-center text-sm text-text-muted">
-                  {t("goToDrive")}
-                </div>
-              ) : showHistory ? (
-                historyList(true)
-              ) : hasQuery ? (
-                resultsList(true)
-              ) : null}
-            </div>
-          </div>
-
-          {/* Desktop: modal */}
-          <div className="fixed inset-0 z-50 hidden items-start justify-center pt-[10vh] sm:flex">
-            <div
-              className="fixed inset-0 bg-black/50 animate-fade-in"
+      {open && isMobileViewport && (
+        // Mobile: full-screen
+        <div className="fixed inset-0 z-50 flex flex-col bg-bg-primary animate-fade-in">
+          {/* Header */}
+          <div className="flex items-center gap-2 border-b border-bg-border px-2 py-2">
+            <button
               onClick={closeSearch}
-            />
-            <div className="relative z-10 w-full max-w-lg rounded-2xl border border-bg-border bg-bg-primary shadow-2xl animate-fade-in-scale">
-              {/* Search input */}
-              <div className="flex items-center gap-3 border-b border-bg-border px-4 py-3">
-                <Search size={18} className="flex-shrink-0 text-text-muted" />
-                {searchInput(desktopInputRef, false)}
-                {query && (
-                  <button
-                    onClick={() => clearQuery()}
-                    className="text-text-muted hover:text-text-primary"
-                  >
-                    <X size={16} />
-                  </button>
-                )}
-                <kbd className="rounded-lg bg-bg-elevated px-1.5 py-0.5 text-[10px] text-text-muted">
-                  ESC
-                </kbd>
-              </div>
-
-              {/* History or Results */}
-              {!drive ? (
-                <div className="py-8 text-center text-sm text-text-muted">
-                  {t("goToDrive")}
-                </div>
-              ) : showHistory ? (
-                historyList(false)
-              ) : hasQuery ? (
-                resultsList(false)
-              ) : null}
+              className="flex-shrink-0 rounded-lg p-2 text-text-muted hover:text-text-primary"
+              aria-label={tc("close")}
+            >
+              <ArrowLeft size={20} />
+            </button>
+            <div className="relative flex-1">
+              {searchInput(mobileInputRef, true)}
+              {query && (
+                <button
+                  onClick={() => clearQuery(mobileInputRef)}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-text-muted hover:text-text-primary"
+                >
+                  <X size={18} />
+                </button>
+              )}
             </div>
           </div>
-        </>
+
+          {/* Body */}
+          <div className="flex-1 overflow-y-auto">
+            {!drive ? (
+              <div className="py-12 text-center text-sm text-text-muted">
+                {t("goToDrive")}
+              </div>
+            ) : showHistory ? (
+              historyList(true)
+            ) : hasQuery ? (
+              resultsList(true)
+            ) : null}
+          </div>
+        </div>
+      )}
+
+      {open && !isMobileViewport && (
+        // Desktop: centered modal
+        <div className="fixed inset-0 z-50 flex items-start justify-center pt-[10vh]">
+          <div
+            className="fixed inset-0 bg-black/50 animate-fade-in"
+            onClick={closeSearch}
+          />
+          <div className="relative z-10 w-full max-w-lg rounded-2xl border border-bg-border bg-bg-primary shadow-2xl animate-fade-in-scale">
+            {/* Search input */}
+            <div className="flex items-center gap-3 border-b border-bg-border px-4 py-3">
+              <Search size={18} className="flex-shrink-0 text-text-muted" />
+              {searchInput(desktopInputRef, false)}
+              {query && (
+                <button
+                  onClick={() => clearQuery()}
+                  className="text-text-muted hover:text-text-primary"
+                >
+                  <X size={16} />
+                </button>
+              )}
+              <kbd className="rounded-lg bg-bg-elevated px-1.5 py-0.5 text-[10px] text-text-muted">
+                ESC
+              </kbd>
+            </div>
+
+            {/* History or Results */}
+            {!drive ? (
+              <div className="py-8 text-center text-sm text-text-muted">
+                {t("goToDrive")}
+              </div>
+            ) : showHistory ? (
+              historyList(false)
+            ) : hasQuery ? (
+              resultsList(false)
+            ) : null}
+          </div>
+        </div>
       )}
     </>
   );
