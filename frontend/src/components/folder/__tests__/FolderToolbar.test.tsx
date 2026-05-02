@@ -2,14 +2,6 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
 import { render, screen, fireEvent } from "@testing-library/react";
 import { FolderToolbar } from "../FolderToolbar";
 
-vi.mock("@/components/ViewToggle", () => ({
-  ViewToggle: ({ onChange }: { onChange: (mode: string) => void }) => (
-    <button data-testid="view-toggle" onClick={() => onChange("list")}>
-      ViewToggle
-    </button>
-  ),
-}));
-
 vi.mock("@/components/SortButton", () => ({
   SortButton: () => <button data-testid="sort-button">Sort</button>,
 }));
@@ -138,17 +130,19 @@ describe("FolderToolbar", () => {
     expect(screen.getByText("42 件")).toBeInTheDocument();
   });
 
-  it("renders type filter tabs on desktop", () => {
+  it("opens type filter popover and lists options", () => {
     render(<FolderToolbar {...defaultProps} />);
+    fireEvent.click(screen.getByLabelText("ファイルタイプ"));
     expect(screen.getByText("すべて")).toBeInTheDocument();
     expect(screen.getByText("動画")).toBeInTheDocument();
     expect(screen.getByText("画像")).toBeInTheDocument();
     expect(screen.getByText("音声")).toBeInTheDocument();
   });
 
-  it("calls onTypeFilterChange on tab click", () => {
+  it("calls onTypeFilterChange when picking from popover", () => {
     const onTypeFilterChange = vi.fn();
     render(<FolderToolbar {...defaultProps} onTypeFilterChange={onTypeFilterChange} />);
+    fireEvent.click(screen.getByLabelText("ファイルタイプ"));
     fireEvent.click(screen.getByText("動画"));
     expect(onTypeFilterChange).toHaveBeenCalledWith("video");
   });
@@ -163,18 +157,33 @@ describe("FolderToolbar", () => {
     expect(screen.queryByLabelText("全曲再生")).not.toBeInTheDocument();
   });
 
-  it("renders scan button", () => {
+  it("opens overflow menu and exposes rescan + select mode", () => {
     render(<FolderToolbar {...defaultProps} />);
-    expect(screen.getByLabelText("再スキャン")).toBeInTheDocument();
+    fireEvent.click(screen.getByLabelText("その他の操作"));
+    expect(screen.getByText("再スキャン")).toBeInTheDocument();
+    expect(screen.getByText("選択モード")).toBeInTheDocument();
   });
 
-  it("disables scan button when scanning", () => {
-    render(<FolderToolbar {...defaultProps} scanning={true} />);
-    expect(screen.getByLabelText("再スキャン")).toBeDisabled();
+  it("calls onScan from overflow menu", () => {
+    const onScan = vi.fn();
+    render(<FolderToolbar {...defaultProps} onScan={onScan} />);
+    fireEvent.click(screen.getByLabelText("その他の操作"));
+    fireEvent.click(screen.getByText("再スキャン"));
+    expect(onScan).toHaveBeenCalled();
   });
 
-  it("renders selection mode toggle", () => {
-    render(<FolderToolbar {...defaultProps} />);
-    expect(screen.getByLabelText("選択モード")).toBeInTheDocument();
+  it("calls onToggleSelectable from overflow menu", () => {
+    const onToggleSelectable = vi.fn();
+    render(<FolderToolbar {...defaultProps} onToggleSelectable={onToggleSelectable} />);
+    fireEvent.click(screen.getByLabelText("その他の操作"));
+    fireEvent.click(screen.getByText("選択モード"));
+    expect(onToggleSelectable).toHaveBeenCalled();
+  });
+
+  it("hides rescan in search mode", () => {
+    render(<FolderToolbar {...defaultProps} isSearch={true} />);
+    fireEvent.click(screen.getByLabelText("その他の操作"));
+    expect(screen.queryByText("再スキャン")).not.toBeInTheDocument();
+    expect(screen.getByText("選択モード")).toBeInTheDocument();
   });
 });

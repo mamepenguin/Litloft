@@ -439,6 +439,7 @@
     "rescan": "再スキャン",
     "rescanTitle": "ドライブを再スキャン",
     "fileType": "ファイルタイプ",
+    "filter": "フィルタ",
     "all": "すべて",
     "video": "動画",
     "image": "画像",
@@ -447,7 +448,8 @@
     "archiveType": "書庫",
     "other": "その他",
     "playAll": "全曲再生",
-    "home": "ホーム"
+    "home": "ホーム",
+    "more": "その他の操作"
   },
   "gallery": {
     "prevImage": "前の画像",

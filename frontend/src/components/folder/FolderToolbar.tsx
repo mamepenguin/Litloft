@@ -1,14 +1,26 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { Check, CheckSquare, Filter, FolderPlus, Play, RefreshCw, X } from "lucide-react";
+import {
+  Check,
+  CheckSquare,
+  Filter,
+  FolderPlus,
+  Grid3X3,
+  List,
+  MoreHorizontal,
+  Play,
+  RefreshCw,
+  X,
+} from "lucide-react";
 
 import { useTranslations } from "next-intl";
 import type { FileType, SortField, SortOrder, ViewMode } from "@/types";
-import { ViewToggle } from "@/components/ViewToggle";
 import { SortButton } from "@/components/SortButton";
 import { UploadButton } from "@/components/UploadButton";
 import { AddonSlot } from "@/components/AddonSlot";
+
+const VIEW_MODE_STORAGE_KEY = "video-share-view-mode";
 
 interface FolderToolbarProps {
   isSpecialView: boolean;
@@ -65,8 +77,36 @@ export function FolderToolbar({
   const tc = useTranslations("common");
   const ts = useTranslations("selection");
   const tf = useTranslations("folder");
+  const tv = useTranslations("view");
+
   const [typeFilterOpen, setTypeFilterOpen] = useState(false);
   const typeFilterRef = useRef<HTMLDivElement>(null);
+  const [moreOpen, setMoreOpen] = useState(false);
+  const moreRef = useRef<HTMLDivElement>(null);
+
+  const [viewMode, setViewMode] = useState<ViewMode>("grid");
+  useEffect(() => {
+    try {
+      const saved = localStorage.getItem(VIEW_MODE_STORAGE_KEY) as ViewMode | null;
+      if (saved === "grid" || saved === "list") {
+        setViewMode(saved);
+        onViewChange(saved);
+      }
+    } catch {
+      // localStorage unavailable (SSR / test env) — keep default "grid"
+    }
+  }, [onViewChange]);
+
+  const toggleViewMode = () => {
+    const next: ViewMode = viewMode === "grid" ? "list" : "grid";
+    setViewMode(next);
+    try {
+      localStorage.setItem(VIEW_MODE_STORAGE_KEY, next);
+    } catch {
+      // ignore storage failure
+    }
+    onViewChange(next);
+  };
 
   useEffect(() => {
     if (!typeFilterOpen) return;
@@ -79,166 +119,213 @@ export function FolderToolbar({
     return () => document.removeEventListener("mousedown", handleClick);
   }, [typeFilterOpen]);
 
+  useEffect(() => {
+    if (!moreOpen) return;
+    function handleClick(e: MouseEvent) {
+      if (moreRef.current && !moreRef.current.contains(e.target as Node)) {
+        setMoreOpen(false);
+      }
+    }
+    document.addEventListener("mousedown", handleClick);
+    return () => document.removeEventListener("mousedown", handleClick);
+  }, [moreOpen]);
+
+  const activeTypeOption = TYPE_OPTION_KEYS.find((opt) => opt.value === typeFilter);
+  const activeTypeLabel = activeTypeOption ? t(activeTypeOption.labelKey) : t("all");
+  const isTypeFiltered = typeFilter !== null;
+
   return (
-    <>
-      {/* Toolbar row */}
-      <div className="mb-4 flex flex-wrap items-center gap-2">
-        {!hideMutatingActions && (
-          <>
-            <UploadButton />
+    <div className="mb-4 flex flex-wrap items-center gap-2">
+      {/* LEFT: mutating actions */}
+      {!hideMutatingActions && (
+        <>
+          <UploadButton />
 
-            {creatingFolder ? (
-              <div className="flex w-full items-center gap-2 sm:w-auto">
-                <input
-                  type="text"
-                  autoFocus
-                  value={newFolderName}
-                  onChange={(e) => onSetNewFolderName(e.target.value)}
-                  onKeyDown={(e) => {
-                    if (e.key === "Enter") onCreateFolder();
-                    if (e.key === "Escape") { onSetCreatingFolder(false); onSetNewFolderName(""); onSetFolderError(null); }
-                  }}
-                  placeholder={tf("namePlaceholder")}
-                  className="min-w-0 flex-1 rounded-2xl bg-bg-card px-3 py-2 text-sm text-text-primary placeholder:text-text-muted outline-none focus:ring-2 focus:ring-accent sm:w-40 sm:flex-initial"
-                />
-                <button
-                  onClick={onCreateFolder}
-                  className="rounded-2xl bg-accent px-3 py-2 text-sm font-medium text-white hover:bg-accent-hover"
-                >
-                  {tc("create")}
-                </button>
-                <button
-                  onClick={() => { onSetCreatingFolder(false); onSetNewFolderName(""); onSetFolderError(null); }}
-                  className="rounded-lg p-2 text-text-muted hover:text-text-primary"
-                >
-                  <X size={16} />
-                </button>
-                {folderError && <span className="text-xs text-red-400">{folderError}</span>}
-              </div>
-            ) : (
+          {creatingFolder ? (
+            <div className="flex w-full items-center gap-2 sm:w-auto">
+              <input
+                type="text"
+                autoFocus
+                value={newFolderName}
+                onChange={(e) => onSetNewFolderName(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") onCreateFolder();
+                  if (e.key === "Escape") { onSetCreatingFolder(false); onSetNewFolderName(""); onSetFolderError(null); }
+                }}
+                placeholder={tf("namePlaceholder")}
+                className="min-w-0 flex-1 rounded-2xl bg-bg-card px-3 py-2 text-sm text-text-primary placeholder:text-text-muted outline-none focus:ring-2 focus:ring-accent sm:w-40 sm:flex-initial"
+              />
               <button
-                onClick={() => onSetCreatingFolder(true)}
-                className="flex items-center gap-2 rounded-2xl border border-bg-border bg-bg-card px-3 py-2 text-sm font-medium text-text-primary transition-colors hover:bg-bg-elevated"
-                aria-label={tf("newFolder")}
+                onClick={onCreateFolder}
+                className="rounded-2xl bg-accent px-3 py-2 text-sm font-medium text-white hover:bg-accent-hover"
               >
-                <FolderPlus size={16} />
-                <span className="hidden sm:inline">New Folder</span>
+                {tc("create")}
               </button>
-            )}
-          </>
-        )}
-
-        <AddonSlot id="folder-actions" layout="stack" props={{ fileIds, drive, path: folderPath ?? "" }} />
-
-        <div className="flex-1" />
-
-        <div className="flex items-center gap-2">
-          {hasPlayableFiles && !hideMutatingActions && (
+              <button
+                onClick={() => { onSetCreatingFolder(false); onSetNewFolderName(""); onSetFolderError(null); }}
+                className="rounded-lg p-2 text-text-muted hover:text-text-primary"
+              >
+                <X size={16} />
+              </button>
+              {folderError && <span className="text-xs text-red-400">{folderError}</span>}
+            </div>
+          ) : (
             <button
-              onClick={onPlayAll}
-              className="flex items-center gap-1.5 rounded-2xl bg-accent px-3 py-2 text-sm font-medium text-white transition-all hover:bg-accent-hover active:scale-[0.97]"
-              aria-label={t("playAll")}
+              onClick={() => onSetCreatingFolder(true)}
+              className="flex items-center gap-2 rounded-2xl border border-bg-border bg-bg-card px-3 py-2 text-sm font-medium text-text-primary transition-colors hover:bg-bg-elevated"
+              aria-label={tf("newFolder")}
             >
-              <Play size={16} />
-              <span className="hidden sm:inline">{tc("play")}</span>
+              <FolderPlus size={16} />
+              <span className="hidden sm:inline">{tf("newFolder")}</span>
             </button>
           )}
+        </>
+      )}
 
-          <div className="flex items-center gap-1 rounded-2xl bg-bg-elevated p-1">
-            <SortButton
-              sort={sort}
-              order={order}
-              onChange={onSortChange}
-              allowRelevance={isSearch}
-            />
+      <AddonSlot id="folder-actions" layout="stack" props={{ fileIds, drive, path: folderPath ?? "" }} />
 
-            <button
-              onClick={onToggleSelectable}
-              className={`rounded-md p-2 transition-colors ${
-                selectable
-                  ? "bg-accent text-white"
-                  : "text-text-muted hover:text-text-primary"
-              }`}
-              aria-label={ts("selectMode")}
-            >
-              <CheckSquare size={16} />
-            </button>
+      <div className="flex-1" />
 
-            <ViewToggle onChange={onViewChange} />
+      {/* RIGHT: view controls */}
+      {hasPlayableFiles && !hideMutatingActions && (
+        <button
+          onClick={onPlayAll}
+          className="flex items-center gap-1.5 rounded-2xl bg-accent px-3 py-2 text-sm font-medium text-white transition-all hover:bg-accent-hover active:scale-[0.97]"
+          aria-label={t("playAll")}
+        >
+          <Play size={16} />
+          <span className="hidden sm:inline">{tc("play")}</span>
+        </button>
+      )}
 
-            {!isSearch && (
+      {/* Type filter — single chip + popover (replaces 7-tab row) */}
+      <div ref={typeFilterRef} className="relative">
+        <button
+          onClick={() => setTypeFilterOpen((s) => !s)}
+          className={`flex items-center gap-1.5 rounded-2xl border px-3 py-2 text-sm transition-colors ${
+            isTypeFiltered
+              ? "border-accent/30 bg-accent/10 text-accent"
+              : "border-bg-border bg-bg-card text-text-muted hover:text-text-primary"
+          }`}
+          aria-haspopup="menu"
+          aria-expanded={typeFilterOpen}
+          aria-label={t("fileType")}
+        >
+          <Filter size={16} />
+          {isTypeFiltered && (
+            <span className="text-sm font-medium">{activeTypeLabel}</span>
+          )}
+        </button>
+        {typeFilterOpen && (
+          <div
+            role="menu"
+            className="fixed inset-x-2 bottom-4 z-40 max-h-[60vh] overflow-y-auto rounded-2xl border border-bg-border bg-bg-primary py-1 shadow-xl animate-fade-in-scale sm:absolute sm:inset-x-auto sm:bottom-auto sm:right-0 sm:top-full sm:mt-1 sm:max-h-none sm:min-w-[160px] sm:overflow-visible sm:origin-top-right"
+          >
+            {TYPE_OPTION_KEYS.map((opt) => (
               <button
-                onClick={onScan}
-                disabled={scanning}
-                className="rounded-md p-2 text-text-muted transition-colors hover:text-text-primary disabled:opacity-50"
-                aria-label={t("rescan")}
-                title={t("rescanTitle")}
+                key={opt.labelKey}
+                role="menuitem"
+                onClick={() => {
+                  onTypeFilterChange(opt.value);
+                  setTypeFilterOpen(false);
+                }}
+                className={`flex w-full items-center gap-2 px-3 py-2 text-left text-sm transition-colors ${
+                  typeFilter === opt.value
+                    ? "text-accent"
+                    : "text-text-primary hover:bg-bg-elevated"
+                }`}
               >
-                <RefreshCw size={16} className={scanning ? "animate-spin" : ""} />
+                <span className="w-4 flex-shrink-0">
+                  {typeFilter === opt.value && <Check size={14} />}
+                </span>
+                {t(opt.labelKey)}
               </button>
-            )}
+            ))}
           </div>
-        </div>
+        )}
       </div>
 
-      <div className="mb-4 flex flex-wrap items-center gap-3">
-        {/* Mobile: popover dropdown */}
-        <div ref={typeFilterRef} className="relative sm:hidden">
+      {/* Sort + view toggle + overflow grouped in a single pill */}
+      <div className="flex items-center gap-1 rounded-2xl bg-bg-elevated p-1">
+        <SortButton
+          sort={sort}
+          order={order}
+          onChange={onSortChange}
+          allowRelevance={isSearch}
+        />
+
+        <button
+          onClick={toggleViewMode}
+          className="rounded-md p-2 text-text-muted transition-colors hover:text-text-primary"
+          aria-label={viewMode === "grid" ? tv("list") : tv("grid")}
+          title={viewMode === "grid" ? tv("list") : tv("grid")}
+        >
+          {viewMode === "grid" ? <Grid3X3 size={16} /> : <List size={16} />}
+        </button>
+
+        {/* Overflow: select-mode + rescan (low-frequency, not search-mode) */}
+        <div ref={moreRef} className="relative">
           <button
-            onClick={() => setTypeFilterOpen((s) => !s)}
-            className={`flex items-center gap-1.5 rounded-md p-2 text-sm transition-colors ${
-              typeFilter
+            onClick={() => setMoreOpen((s) => !s)}
+            className={`rounded-md p-2 transition-colors ${
+              selectable
                 ? "bg-accent/20 text-accent"
                 : "text-text-muted hover:text-text-primary"
             }`}
-            aria-label={t("fileType")}
+            aria-haspopup="menu"
+            aria-expanded={moreOpen}
+            aria-label={t("more")}
+            title={t("more")}
           >
-            <Filter size={16} />
+            <MoreHorizontal size={16} />
           </button>
-          {typeFilterOpen && (
-            <div className="absolute left-0 top-full z-30 mt-1 min-w-[140px] rounded-2xl border border-bg-border bg-bg-primary py-1 shadow-xl animate-fade-in-scale origin-top-left">
-              {TYPE_OPTION_KEYS.map((opt) => (
+          {moreOpen && (
+            <div
+              role="menu"
+              className="fixed inset-x-2 bottom-4 z-40 max-h-[60vh] overflow-y-auto rounded-2xl border border-bg-border bg-bg-primary py-1 shadow-xl animate-fade-in-scale sm:absolute sm:inset-x-auto sm:bottom-auto sm:right-0 sm:top-full sm:mt-1 sm:max-h-none sm:min-w-[200px] sm:overflow-visible sm:origin-top-right"
+            >
+              <button
+                role="menuitem"
+                onClick={() => {
+                  onToggleSelectable();
+                  setMoreOpen(false);
+                }}
+                className={`flex w-full items-center gap-2.5 px-3 py-2 text-left text-sm transition-colors ${
+                  selectable
+                    ? "text-accent"
+                    : "text-text-primary hover:bg-bg-elevated"
+                }`}
+              >
+                <CheckSquare size={16} className="flex-shrink-0" />
+                <span className="flex-1">{ts("selectMode")}</span>
+              </button>
+              {!isSearch && (
                 <button
-                  key={opt.labelKey}
+                  role="menuitem"
                   onClick={() => {
-                    onTypeFilterChange(opt.value);
-                    setTypeFilterOpen(false);
+                    if (!scanning) onScan();
+                    setMoreOpen(false);
                   }}
-                  className={`flex w-full items-center gap-2 px-3 py-2 text-left text-sm transition-colors ${
-                    typeFilter === opt.value
-                      ? "text-accent"
-                      : "text-text-primary hover:bg-bg-elevated"
-                  }`}
+                  disabled={scanning}
+                  className="flex w-full items-center gap-2.5 px-3 py-2 text-left text-sm text-text-primary transition-colors hover:bg-bg-elevated disabled:opacity-50"
                 >
-                  <span className="w-4 flex-shrink-0">
-                    {typeFilter === opt.value && <Check size={14} />}
-                  </span>
-                  {t(opt.labelKey)}
+                  <RefreshCw
+                    size={16}
+                    className={`flex-shrink-0 ${scanning ? "animate-spin" : ""}`}
+                  />
+                  <span className="flex-1">{t("rescan")}</span>
                 </button>
-              ))}
+              )}
             </div>
           )}
         </div>
-        {/* Desktop: tabs */}
-        <div className="hidden items-center gap-1 sm:flex">
-          {TYPE_OPTION_KEYS.map((tab) => (
-            <button
-              key={tab.labelKey}
-              onClick={() => onTypeFilterChange(tab.value)}
-              className={`rounded-md px-2.5 py-1 text-sm transition-colors ${
-                typeFilter === tab.value
-                  ? "bg-accent/20 font-medium text-accent"
-                  : "text-text-muted hover:text-text-primary"
-              }`}
-            >
-              {t(tab.labelKey)}
-            </button>
-          ))}
-        </div>
-        {!isSearch && (
-          <span className="text-sm text-text-muted">{tc("items", { count: total })}</span>
-        )}
       </div>
-    </>
+
+      {!isSearch && (
+        <span className="text-sm text-text-muted whitespace-nowrap">
+          {tc("items", { count: total })}
+        </span>
+      )}
+    </div>
   );
 }

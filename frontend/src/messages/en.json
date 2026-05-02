@@ -439,6 +439,7 @@
     "rescan": "Rescan",
     "rescanTitle": "Rescan drive",
     "fileType": "File type",
+    "filter": "Filter",
     "all": "All",
     "video": "Video",
     "image": "Image",
@@ -447,7 +448,8 @@
     "archiveType": "Archive",
     "other": "Other",
     "playAll": "Play all",
-    "home": "Home"
+    "home": "Home",
+    "more": "More actions"
   },
   "gallery": {
     "prevImage": "Previous image",
