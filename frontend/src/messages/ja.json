@@ -271,6 +271,7 @@
     "matchTranscript": "音声一致",
     "matchTranscriptKeyword": "音声キーワード一致",
     "matchClip": "映像一致",
+    "matchClipThumbnail": "サムネイル一致",
     "matchMetadata": "メタデータ",
     "matchContent": "内容一致",
     "matchTextContentKeyword": "内容キーワード一致",

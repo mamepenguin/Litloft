@@ -149,8 +149,15 @@ export interface MatchMeta {
   filename?: { score: number };
   /** Whisper transcript / transcript-keyword segment matches. */
   transcript?: MatchTimestamp[];
-  /** CLIP frame matches. */
+  /** Scene-frame CLIP matches (time-ranged). */
   clip?: MatchTimestamp[];
+  /**
+   * Representative-frame CLIP match (one per file, no timestamp).
+   * Distinct from ``clip`` so the UI can label "video about X"
+   * (thumbnail) vs. "scene with X" (scene CLIP) separately. Spec
+   * `2026-05-02-thumbnail-clip-default-shallow-search.md`.
+   */
+  clip_thumbnail?: { score: number };
   /** Metadata embedding hit (filename + title + description + tags). */
   metadata?: { score: number };
   /** Long-form text content hit (markdown / pdf / etc.). */

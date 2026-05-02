@@ -83,6 +83,7 @@ export function MatchOverlay({
     transcript: t("matchTranscript"),
     transcript_keyword: t("matchTranscriptKeyword"),
     clip: t("matchClip"),
+    clip_thumbnail: t("matchClipThumbnail"),
     metadata: t("matchMetadata"),
     content: t("matchContent"),
     text_content_keyword: t("matchTextContentKeyword"),
@@ -94,6 +95,7 @@ export function MatchOverlay({
   if (match.transcript && match.transcript.length > 0) {
     activeTypes.push("transcript");
   }
+  if (match.clip_thumbnail) activeTypes.push("clip_thumbnail");
   if (match.clip && match.clip.length > 0) activeTypes.push("clip");
   if (match.content) activeTypes.push("content");
   if (match.text_content_keyword) activeTypes.push("text_content_keyword");

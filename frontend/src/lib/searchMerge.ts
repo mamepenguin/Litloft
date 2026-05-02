@@ -63,6 +63,12 @@ export function buildMatchMeta(hit: SemanticHit): MatchMeta {
         if (seg.time_range && seg.time_range[0] >= 0) {
           (meta.clip ??= []).push({ time_range: seg.time_range, score });
         }
+      } else if (m.type === "clip_thumbnail") {
+        // Representative-frame CLIP: 1 vector per file, no timestamp.
+        // Spec 2026-05-02-thumbnail-clip-default-shallow-search.md.
+        if (!meta.clip_thumbnail || meta.clip_thumbnail.score < score) {
+          meta.clip_thumbnail = { score };
+        }
       } else if (m.type === "metadata") {
         if (!meta.metadata || meta.metadata.score < score) {
           meta.metadata = { score };
@@ -102,6 +108,15 @@ export function computeHybridScore(meta: MatchMeta): number {
   }
   if (meta.clip && meta.clip.length > 0) {
     score += Math.max(...meta.clip.map((s) => s.score)) * CLIP_WEIGHT;
+  }
+  if (meta.clip_thumbnail) {
+    // Thumbnail CLIP carries the same per-file weight as scene CLIP;
+    // the addon already differentiates the two via separate
+    // ``rrf_weight_clip*`` knobs (spec
+    // 2026-05-02-thumbnail-clip-default-shallow-search.md), so the
+    // hybrid layer just rebroadcasts the score with the shared
+    // visual-channel weight.
+    score += meta.clip_thumbnail.score * CLIP_WEIGHT;
   }
   if (meta.content) score += meta.content.score;
   if (meta.text_content_keyword) {

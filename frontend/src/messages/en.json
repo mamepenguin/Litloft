@@ -271,6 +271,7 @@
     "matchTranscript": "Transcript",
     "matchTranscriptKeyword": "Transcript (exact)",
     "matchClip": "Visual",
+    "matchClipThumbnail": "Thumbnail",
     "matchMetadata": "Metadata",
     "matchContent": "Content",
     "matchTextContentKeyword": "Content (exact)",

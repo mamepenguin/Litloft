@@ -107,6 +107,43 @@ describe("buildMatchMeta", () => {
     expect(meta.matched_pages).toEqual([2, 5]);
   });
 
+  it("collects clip_thumbnail score (no timestamp)", () => {
+    // Spec 2026-05-02-thumbnail-clip-default-shallow-search.md:
+    // representative-frame CLIP carries no time_range — surface as a
+    // score-only field distinct from the time-ranged ``clip`` array.
+    const meta = buildMatchMeta(
+      makeHit({
+        match_types: ["clip_thumbnail"],
+        segments: [
+          {
+            time_range: null,
+            matches: [{ type: "clip_thumbnail", score: 0.42 }],
+          },
+        ],
+      }),
+    );
+    expect(meta.clip_thumbnail?.score).toBe(0.42);
+    expect(meta.clip).toBeUndefined();
+  });
+
+  it("uses max score across multiple clip_thumbnail hits", () => {
+    const meta = buildMatchMeta(
+      makeHit({
+        match_types: ["clip_thumbnail"],
+        segments: [
+          {
+            time_range: null,
+            matches: [
+              { type: "clip_thumbnail", score: 0.3 },
+              { type: "clip_thumbnail", score: 0.7 },
+            ],
+          },
+        ],
+      }),
+    );
+    expect(meta.clip_thumbnail?.score).toBe(0.7);
+  });
+
   it("ignores transcript segments without time_range", () => {
     const meta = buildMatchMeta(
       makeHit({
@@ -147,6 +184,13 @@ describe("computeHybridScore", () => {
     });
     // 1*2 + 0.5 + 0.5*0.8 = 2 + 0.5 + 0.4 = 2.9
     expect(score).toBeCloseTo(2.9);
+  });
+
+  it("includes clip_thumbnail with the same visual-channel weight", () => {
+    const score = computeHybridScore({
+      clip_thumbnail: { score: 0.5 },
+    });
+    expect(score).toBeCloseTo(0.5 * 0.8);
   });
 });
 
