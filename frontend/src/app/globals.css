@@ -643,3 +643,14 @@ div[data-citation-section-path]:not(tr) {
     background-color: var(--text-muted);
   }
 }
+
+/* Ask citation jump — temporary highlight applied by useHighlightPassage
+   when the user clicks a citation card. Uses the existing --highlight-bg
+   token so the colour adapts to light/dark theme automatically. */
+.ask-citation-highlight {
+  background-color: var(--highlight-bg);
+  color: inherit;
+  padding: 0.05em 0.15em;
+  border-radius: 0.15em;
+  box-shadow: 0 0 0 1px var(--highlight-bg);
+}

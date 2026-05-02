@@ -33,6 +33,20 @@ interface FilePreviewProps {
   videoRef?: Ref<HTMLVideoElement>;
   initialTime?: number;
   /**
+   * PDF: when set, the embedded viewer opens at this page
+   * (PDF.js / Chromium / Firefox all honour `#page=N` in the iframe
+   * URL fragment). Ignored for non-PDF files.
+   */
+  initialPage?: number;
+  /**
+   * Text / Markdown: a passage to scroll into view and visually
+   * highlight after the previewer mounts. Used by the intelligence Ask
+   * citation cards so clicking a citation lands the user on the cited
+   * sentence rather than the top of the file. Ignored for media files
+   * (those have precise t / page locators instead).
+   */
+  highlight?: string;
+  /**
    * Notified whenever the active media controller changes.
    *  - native video / audio: controller bound to the underlying media
    *    element on mount, null on unmount.
@@ -154,6 +168,8 @@ export function FilePreview({
   autoPlay,
   videoRef,
   initialTime,
+  initialPage,
+  highlight,
   onMediaController,
   markdownReloadKey,
   onMarkdownTagsSaved,
@@ -223,7 +239,11 @@ export function FilePreview({
     return (
       <div className="-mx-4 md:mx-0">
         <MiniPlayerContainer mc={localMc}>
-          <LoftPlayer fileId={file.id} onMediaController={relayMc} />
+          <LoftPlayer
+            fileId={file.id}
+            onMediaController={relayMc}
+            initialTime={initialTime}
+          />
         </MiniPlayerContainer>
         <AddonSlot id="loft-metadata" props={{ fileId: file.id }} />
       </div>
@@ -241,15 +261,36 @@ export function FilePreview({
         }}
         externalReloadKey={markdownReloadKey}
         onTagsSaved={onMarkdownTagsSaved}
+        highlight={highlight}
       />
     );
   }
 
   if (file.mime_type === "application/pdf") {
+    // `#page=N` is the PDF Open Parameters fragment honoured by
+    // Chromium's built-in viewer, Firefox's PDF.js, and Safari's
+    // PDFKit. Falls back to page 1 when the fragment is absent.
+    //
+    // The `key` prop forces a fresh iframe element when initialPage
+    // changes — Chromium's PDF viewer ignores fragment updates on a
+    // live iframe, and React would otherwise keep the existing
+    // element and only patch the `src` attribute (which doesn't
+    // re-trigger the viewer's page-on-load logic). Tying the key to
+    // (file.id, page) makes a citation jump always present a freshly
+    // initialised viewer at the requested page.
+    const hasPage =
+      initialPage != null &&
+      Number.isFinite(initialPage) &&
+      initialPage > 0;
+    const pdfSrc = hasPage
+      ? `${getStreamUrl(file.id)}#page=${initialPage}`
+      : getStreamUrl(file.id);
+    const pdfKey = `${file.id}:p${hasPage ? initialPage : 1}`;
     return (
       <div className="w-full overflow-hidden rounded-xl bg-bg-card">
         <iframe
-          src={getStreamUrl(file.id)}
+          key={pdfKey}
+          src={pdfSrc}
           title={file.title}
           className="h-[80vh] w-full border-0"
         />
@@ -262,7 +303,13 @@ export function FilePreview({
   }
 
   if (isTextPreviewable(file.mime_type)) {
-    return <TextPreview fileId={file.id} fileSize={file.file_size} />;
+    return (
+      <TextPreview
+        fileId={file.id}
+        fileSize={file.file_size}
+        highlight={highlight}
+      />
+    );
   }
 
   return (

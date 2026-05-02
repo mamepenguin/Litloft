@@ -14,11 +14,14 @@ interface LoftContent {
 export interface LoftPlayerProps {
   fileId: string;
   onMediaController?: (mc: MediaController | null) => void;
+  /** Forwarded to the resolved embed component (citation jump). */
+  initialTime?: number;
 }
 
 export default function LoftPlayer({
   fileId,
   onMediaController,
+  initialTime,
 }: LoftPlayerProps) {
   const [content, setContent] = useState<LoftContent | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -56,6 +59,7 @@ export default function LoftPlayer({
       fileId={fileId}
       url={content.url}
       onMediaController={onMediaController}
+      initialTime={initialTime}
     />
   );
 }

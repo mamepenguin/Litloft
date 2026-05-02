@@ -1,9 +1,10 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useTranslations } from "next-intl";
 import { getStreamUrl } from "@/lib/api";
 import { formatFileSize } from "@/lib/format";
+import { useHighlightPassage } from "@/hooks/useHighlightPassage";
 
 const MAX_AUTO_LOAD_SIZE = 1024 * 1024; // 1MB
 
@@ -29,12 +30,22 @@ export function isTextPreviewable(mimeType: string): boolean {
   return TEXT_MIME_EXACT.has(mimeType);
 }
 
-export function TextPreview({ fileId, fileSize }: { fileId: string; fileSize: number }) {
+export function TextPreview({
+  fileId,
+  fileSize,
+  highlight,
+}: {
+  fileId: string;
+  fileSize: number;
+  highlight?: string;
+}) {
   const t = useTranslations("text");
   const [content, setContent] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [confirmed, setConfirmed] = useState(fileSize <= MAX_AUTO_LOAD_SIZE);
+  const preRef = useRef<HTMLPreElement>(null);
+  useHighlightPassage(preRef, highlight, content !== null);
 
   useEffect(() => {
     if (!confirmed) return;
@@ -97,8 +108,11 @@ export function TextPreview({ fileId, fileSize }: { fileId: string; fileSize: nu
   }
 
   return (
-    <div className="w-full overflow-hidden rounded-xl bg-bg-card">
-      <pre className="max-h-[80vh] overflow-auto p-4 text-sm leading-relaxed text-text-primary font-mono whitespace-pre-wrap break-words">
+    <div className="w-full rounded-xl bg-bg-card">
+      <pre
+        ref={preRef}
+        className="p-4 text-sm leading-relaxed text-text-primary font-mono whitespace-pre-wrap break-words"
+      >
         {content}
       </pre>
     </div>

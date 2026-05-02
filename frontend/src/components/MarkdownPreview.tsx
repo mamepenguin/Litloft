@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
+import { useHighlightPassage } from "@/hooks/useHighlightPassage";
 import MarkdownIt from "markdown-it";
 // @ts-expect-error -- no bundled type definitions
 import taskLists from "markdown-it-task-lists";
@@ -123,6 +124,7 @@ export function MarkdownPreview({
   onTagsChange,
   onTagsSaved,
   onSourceChange,
+  highlight,
 }: {
   source: string;
   showFrontmatter?: boolean;
@@ -160,6 +162,14 @@ export function MarkdownPreview({
    * standalone debounced save path.
    */
   onSourceChange?: (nextSource: string) => void;
+  /**
+   * Optional passage to scroll-and-highlight after render, used by
+   * intelligence Ask citation cards. The hook locates the quote in
+   * the rendered DOM (whitespace-tolerant) and wraps the first match
+   * in a `<mark class="ask-citation-highlight">`. No-op when the
+   * quote is absent or cannot be located.
+   */
+  highlight?: string;
 }) {
   const { frontmatter, html } = useMemo(
     () => renderMarkdownToSafeHtml(source, mermaid),
@@ -167,6 +177,9 @@ export function MarkdownPreview({
   );
 
   const containerRef = useRef<HTMLDivElement>(null);
+  // The hook is wired to the rendered body. It runs after the html
+  // is set, and re-runs when source or highlight changes.
+  useHighlightPassage(containerRef, highlight, html.length > 0);
 
   // After every render, scan for any unprocessed mermaid placeholders and
   // replace them with rendered SVG.  We deliberately do NOT depend on [html]
@@ -216,9 +229,17 @@ export function MarkdownPreview({
     };
   });
 
+  // chrome mode renders the file detail Markdown viewer, the Ask
+  // answer panel, and the knowledge editor preview. We deliberately
+  // *do not* clamp the body with `max-h-[80vh] overflow-auto` here —
+  // having a nested scroll container inside the page broke citation
+  // jump (the highlight target was inside an off-screen scroll
+  // viewport that the page-level scroll could not reach). Letting the
+  // page itself scroll keeps `scrollIntoView` deterministic and
+  // matches how PDF / text previews now behave.
   const bodyClass = `markdown-body ${
     chrome
-      ? `mx-auto max-w-[860px] overflow-auto px-6 py-6 text-base leading-relaxed text-text-primary${className ? ` ${className}` : " max-h-[80vh]"}`
+      ? `mx-auto max-w-[860px] px-6 py-6 text-base leading-relaxed text-text-primary${className ? ` ${className}` : ""}`
       : className ?? ""
   }`.trim();
 
@@ -272,6 +293,7 @@ export function MarkdownFileViewer({
   editable,
   externalReloadKey,
   onTagsSaved,
+  highlight,
 }: {
   fileId: string;
   editable?: {
@@ -291,6 +313,8 @@ export function MarkdownFileViewer({
    * sidebar tag list).
    */
   onTagsSaved?: (tags: string[]) => void;
+  /** Forwarded to MarkdownPreview for citation jump. */
+  highlight?: string;
 }) {
   const t = useTranslations("text");
   const [source, setSource] = useState<string | null>(null);
@@ -344,6 +368,7 @@ export function MarkdownFileViewer({
       source={source}
       editable={edit}
       onTagsSaved={onTagsSaved}
+      highlight={highlight}
     />
   );
 }

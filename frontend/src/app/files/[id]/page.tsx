@@ -42,6 +42,9 @@ export default function FilePage() {
   const folderPlay = searchParams.get("folder_play") === "1";
   const hasPlaylist = !!playlistId || folderPlay;
   const initialTime = searchParams.get("t") ? Number(searchParams.get("t")) : undefined;
+  const initialPageParam = searchParams.get("page");
+  const initialPage = initialPageParam ? Number(initialPageParam) : undefined;
+  const highlight = searchParams.get("highlight") || undefined;
 
   const [file, setFile] = useState<FileItem | null>(null);
   const [neighbors, setNeighbors] = useState<Neighbors | null>(null);
@@ -222,6 +225,8 @@ export default function FilePage() {
               autoPlay={hasPlaylist}
               videoRef={videoRef}
               initialTime={initialTime}
+              initialPage={initialPage}
+              highlight={highlight}
               onMediaController={setMediaController}
               markdownReloadKey={tagSaveVersion}
               onMarkdownTagsSaved={handleTagsSaved}
