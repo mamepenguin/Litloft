@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useState } from "react";
 import { ArrowDownUp, Check } from "lucide-react";
 import { useTranslations } from "next-intl";
 import type { SortField, SortOrder } from "@/types";
@@ -43,18 +43,6 @@ interface SortButtonProps {
 export function SortButton({ sort, order, onChange, allowRelevance }: SortButtonProps) {
   const t = useTranslations("sort");
   const [open, setOpen] = useState(false);
-  const ref = useRef<HTMLDivElement>(null);
-
-  useEffect(() => {
-    if (!open) return;
-    function handleClick(e: MouseEvent) {
-      if (ref.current && !ref.current.contains(e.target as Node)) {
-        setOpen(false);
-      }
-    }
-    document.addEventListener("mousedown", handleClick);
-    return () => document.removeEventListener("mousedown", handleClick);
-  }, [open]);
 
   const sortOptions: SortOption[] = allowRelevance
     ? [RELEVANCE_OPTION, ...baseSortOptions]
@@ -69,7 +57,7 @@ export function SortButton({ sort, order, onChange, allowRelevance }: SortButton
   const isActive = !isDefaultActive;
 
   return (
-    <div ref={ref} className="relative">
+    <div className="relative">
       <button
         onClick={() => setOpen((s) => !s)}
         className={`flex items-center gap-1.5 rounded-md p-2 text-sm transition-colors ${
@@ -83,7 +71,13 @@ export function SortButton({ sort, order, onChange, allowRelevance }: SortButton
       </button>
 
       {open && (
-        <div className="fixed inset-x-2 bottom-4 z-40 max-h-[60vh] overflow-y-auto rounded-2xl border border-bg-border bg-bg-primary py-1 shadow-xl animate-fade-in-scale sm:absolute sm:inset-x-auto sm:bottom-auto sm:right-0 sm:top-full sm:mt-1 sm:max-h-none sm:min-w-[180px] sm:overflow-visible sm:origin-top-right">
+        <>
+          <div
+            className="fixed inset-0 z-30 bg-black/30 sm:bg-transparent"
+            aria-hidden="true"
+            onClick={() => setOpen(false)}
+          />
+          <div className="fixed inset-x-2 bottom-4 z-40 max-h-[60vh] overflow-y-auto rounded-2xl border border-bg-border bg-bg-primary py-1 shadow-xl animate-fade-in-scale sm:absolute sm:inset-x-auto sm:bottom-auto sm:right-0 sm:top-full sm:mt-1 sm:max-h-none sm:min-w-[180px] sm:overflow-visible sm:origin-top-right">
           {sortOptions.map((opt) => {
             const selected = opt.sort === sort && opt.order === order;
             return (
@@ -106,7 +100,8 @@ export function SortButton({ sort, order, onChange, allowRelevance }: SortButton
               </button>
             );
           })}
-        </div>
+          </div>
+        </>
       )}
     </div>
   );

@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useState } from "react";
 import {
   Check,
   CheckSquare,
@@ -80,9 +80,7 @@ export function FolderToolbar({
   const tv = useTranslations("view");
 
   const [typeFilterOpen, setTypeFilterOpen] = useState(false);
-  const typeFilterRef = useRef<HTMLDivElement>(null);
   const [moreOpen, setMoreOpen] = useState(false);
-  const moreRef = useRef<HTMLDivElement>(null);
 
   const [viewMode, setViewMode] = useState<ViewMode>("grid");
   useEffect(() => {
@@ -107,28 +105,6 @@ export function FolderToolbar({
     }
     onViewChange(next);
   };
-
-  useEffect(() => {
-    if (!typeFilterOpen) return;
-    function handleClick(e: MouseEvent) {
-      if (typeFilterRef.current && !typeFilterRef.current.contains(e.target as Node)) {
-        setTypeFilterOpen(false);
-      }
-    }
-    document.addEventListener("mousedown", handleClick);
-    return () => document.removeEventListener("mousedown", handleClick);
-  }, [typeFilterOpen]);
-
-  useEffect(() => {
-    if (!moreOpen) return;
-    function handleClick(e: MouseEvent) {
-      if (moreRef.current && !moreRef.current.contains(e.target as Node)) {
-        setMoreOpen(false);
-      }
-    }
-    document.addEventListener("mousedown", handleClick);
-    return () => document.removeEventListener("mousedown", handleClick);
-  }, [moreOpen]);
 
   const activeTypeOption = TYPE_OPTION_KEYS.find((opt) => opt.value === typeFilter);
   const activeTypeLabel = activeTypeOption ? t(activeTypeOption.labelKey) : t("all");
@@ -199,7 +175,7 @@ export function FolderToolbar({
       )}
 
       {/* Type filter — single chip + popover (replaces 7-tab row) */}
-      <div ref={typeFilterRef} className="relative">
+      <div className="relative">
         <button
           onClick={() => setTypeFilterOpen((s) => !s)}
           className={`flex items-center gap-1.5 rounded-2xl border px-3 py-2 text-sm transition-colors ${
@@ -217,10 +193,16 @@ export function FolderToolbar({
           )}
         </button>
         {typeFilterOpen && (
-          <div
-            role="menu"
-            className="fixed inset-x-2 bottom-4 z-40 max-h-[60vh] overflow-y-auto rounded-2xl border border-bg-border bg-bg-primary py-1 shadow-xl animate-fade-in-scale sm:absolute sm:inset-x-auto sm:bottom-auto sm:right-0 sm:top-full sm:mt-1 sm:max-h-none sm:min-w-[160px] sm:overflow-visible sm:origin-top-right"
-          >
+          <>
+            <div
+              className="fixed inset-0 z-30 bg-black/30 sm:bg-transparent"
+              aria-hidden="true"
+              onClick={() => setTypeFilterOpen(false)}
+            />
+            <div
+              role="menu"
+              className="fixed inset-x-2 bottom-4 z-40 max-h-[60vh] overflow-y-auto rounded-2xl border border-bg-border bg-bg-primary py-1 shadow-xl animate-fade-in-scale sm:absolute sm:inset-x-auto sm:bottom-auto sm:right-0 sm:top-full sm:mt-1 sm:max-h-none sm:min-w-[160px] sm:overflow-visible sm:origin-top-right"
+            >
             {TYPE_OPTION_KEYS.map((opt) => (
               <button
                 key={opt.labelKey}
@@ -241,7 +223,8 @@ export function FolderToolbar({
                 {t(opt.labelKey)}
               </button>
             ))}
-          </div>
+            </div>
+          </>
         )}
       </div>
 
@@ -264,7 +247,7 @@ export function FolderToolbar({
         </button>
 
         {/* Overflow: select-mode + rescan (low-frequency, not search-mode) */}
-        <div ref={moreRef} className="relative">
+        <div className="relative">
           <button
             onClick={() => setMoreOpen((s) => !s)}
             className={`rounded-md p-2 transition-colors ${
@@ -280,10 +263,16 @@ export function FolderToolbar({
             <MoreHorizontal size={16} />
           </button>
           {moreOpen && (
-            <div
-              role="menu"
-              className="fixed inset-x-2 bottom-4 z-40 max-h-[60vh] overflow-y-auto rounded-2xl border border-bg-border bg-bg-primary py-1 shadow-xl animate-fade-in-scale sm:absolute sm:inset-x-auto sm:bottom-auto sm:right-0 sm:top-full sm:mt-1 sm:max-h-none sm:min-w-[200px] sm:overflow-visible sm:origin-top-right"
-            >
+            <>
+              <div
+                className="fixed inset-0 z-30 bg-black/30 sm:bg-transparent"
+                aria-hidden="true"
+                onClick={() => setMoreOpen(false)}
+              />
+              <div
+                role="menu"
+                className="fixed inset-x-2 bottom-4 z-40 max-h-[60vh] overflow-y-auto rounded-2xl border border-bg-border bg-bg-primary py-1 shadow-xl animate-fade-in-scale sm:absolute sm:inset-x-auto sm:bottom-auto sm:right-0 sm:top-full sm:mt-1 sm:max-h-none sm:min-w-[200px] sm:overflow-visible sm:origin-top-right"
+              >
               <button
                 role="menuitem"
                 onClick={() => {
@@ -316,7 +305,8 @@ export function FolderToolbar({
                   <span className="flex-1">{t("rescan")}</span>
                 </button>
               )}
-            </div>
+              </div>
+            </>
           )}
         </div>
       </div>
