@@ -36,22 +36,44 @@ export interface SemanticHit {
 
 const FILENAME_BOOST = 2.0;
 const CLIP_WEIGHT = 0.8;
-const KEYWORD_BOOST = 1.2;
 
 /**
  * Compose a `MatchMeta` from a single semantic engine hit.
  *
- * Multiple segment matches collapse into a single overlay so the card
- * shows one badge per match-type rather than one per segment. Pages
- * are unioned across the hit and sorted ascending.
+ * Backend `seg.matches[].type` is the raw embedding/match label from
+ * intelligence (`whisper`, `text_content`, `metadata`, `clip`,
+ * `clip_thumbnail`, plus `transcript` from the keyword path that
+ * already aliases whisper). UI collapses to four buckets so a single
+ * card never shows "音声" + "音声キーワード" as two badges:
+ *   audio-class      → meta.transcript    (whisper / transcript / transcript_keyword)
+ *   text-class       → meta.content       (text_content / content / text_content_keyword)
+ *   metadata-class   → meta.metadata
+ *   visual-class     → meta.clip / meta.clip_thumbnail (kept distinct;
+ *                      the シーン検索 toggle drives them differently)
+ *
+ * `hit.match_types` is the authoritative top-level summary the addon
+ * publishes — we fall back to it so a hit that only has a `keyword`
+ * (filename-keyword) channel without per-segment MatchInfo still
+ * surfaces the right badge instead of an empty overlay.
  */
+const AUDIO_TYPES = new Set(["transcript", "transcript_keyword", "whisper"]);
+const CONTENT_TYPES = new Set(["content", "text_content", "text_content_keyword"]);
+
 export function buildMatchMeta(hit: SemanticHit): MatchMeta {
   const meta: MatchMeta = {};
   const pageSet = new Set<number>();
+  const upsertScore = (
+    key: "metadata" | "content" | "clip_thumbnail",
+    score: number,
+  ) => {
+    const cur = meta[key];
+    if (!cur || cur.score < score) meta[key] = { score };
+  };
+
   for (const seg of hit.segments) {
     for (const m of seg.matches) {
       const score = m.score ?? 0;
-      if (m.type === "transcript" || m.type === "transcript_keyword") {
+      if (AUDIO_TYPES.has(m.type)) {
         if (seg.time_range && seg.time_range[0] >= 0) {
           (meta.transcript ??= []).push({
             time_range: seg.time_range,
@@ -64,30 +86,44 @@ export function buildMatchMeta(hit: SemanticHit): MatchMeta {
           (meta.clip ??= []).push({ time_range: seg.time_range, score });
         }
       } else if (m.type === "clip_thumbnail") {
-        // Representative-frame CLIP: 1 vector per file, no timestamp.
-        // Spec 2026-05-02-thumbnail-clip-default-shallow-search.md.
-        if (!meta.clip_thumbnail || meta.clip_thumbnail.score < score) {
-          meta.clip_thumbnail = { score };
-        }
+        upsertScore("clip_thumbnail", score);
       } else if (m.type === "metadata") {
-        if (!meta.metadata || meta.metadata.score < score) {
-          meta.metadata = { score };
-        }
-      } else if (m.type === "content") {
-        if (!meta.content || meta.content.score < score) {
-          meta.content = { score };
-        }
-      } else if (m.type === "text_content_keyword") {
-        if (
-          !meta.text_content_keyword ||
-          meta.text_content_keyword.score < score
-        ) {
-          meta.text_content_keyword = { score };
-        }
+        upsertScore("metadata", score);
+      } else if (CONTENT_TYPES.has(m.type)) {
+        upsertScore("content", score);
       }
       if (typeof m.page === "number") pageSet.add(m.page);
     }
   }
+
+  // Top-level fallback: if the addon declared a match channel but the
+  // per-segment MatchInfo list didn't expose a usable timestamp/score
+  // entry (happens for `keyword` filename-side hits, and for
+  // segment-less channels in some addon versions), we still want a
+  // badge to render. Use the hit-level score as a coarse proxy.
+  const fallbackScore = hit.score ?? 0;
+  for (const t of hit.match_types ?? []) {
+    if (AUDIO_TYPES.has(t) && !meta.transcript) {
+      // No timestamp available — synthesise an audio badge with a
+      // placeholder time_range that the timestamp-pill renderer will
+      // skip (it filters seconds < 0).
+      meta.transcript = [{ time_range: [-1, -1], score: fallbackScore }];
+    } else if (CONTENT_TYPES.has(t) && !meta.content) {
+      upsertScore("content", fallbackScore);
+    } else if (t === "metadata" && !meta.metadata) {
+      upsertScore("metadata", fallbackScore);
+    } else if (t === "clip_thumbnail" && !meta.clip_thumbnail) {
+      upsertScore("clip_thumbnail", fallbackScore);
+    } else if (t === "clip" && !meta.clip) {
+      meta.clip = [{ time_range: [-1, -1], score: fallbackScore }];
+    } else if (t === "keyword" && !meta.filename) {
+      // Filename-keyword hit from the semantic engine. The filename
+      // engine usually sets `meta.filename` during merge, but if a hit
+      // came back semantic-only we still want a ファイル名 badge.
+      meta.filename = { score: fallbackScore };
+    }
+  }
+
   if (pageSet.size > 0) {
     meta.matched_pages = [...pageSet].sort((a, b) => a - b);
   }
@@ -119,9 +155,6 @@ export function computeHybridScore(meta: MatchMeta): number {
     score += meta.clip_thumbnail.score * CLIP_WEIGHT;
   }
   if (meta.content) score += meta.content.score;
-  if (meta.text_content_keyword) {
-    score += meta.text_content_keyword.score * KEYWORD_BOOST;
-  }
   return score;
 }
 

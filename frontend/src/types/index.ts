@@ -147,7 +147,11 @@ export interface MatchTimestamp {
 export interface MatchMeta {
   /** Filename / metadata search hit (backend has no real score, set to 1). */
   filename?: { score: number };
-  /** Whisper transcript / transcript-keyword segment matches. */
+  /**
+   * Audio bucket — collapses whisper / transcript / transcript_keyword
+   * into a single channel so the card shows one "音声" badge instead
+   * of stacking semantic + keyword variants.
+   */
   transcript?: MatchTimestamp[];
   /** Scene-frame CLIP matches (time-ranged). */
   clip?: MatchTimestamp[];
@@ -160,10 +164,11 @@ export interface MatchMeta {
   clip_thumbnail?: { score: number };
   /** Metadata embedding hit (filename + title + description + tags). */
   metadata?: { score: number };
-  /** Long-form text content hit (markdown / pdf / etc.). */
+  /**
+   * Long-form text content bucket — collapses semantic text_content
+   * and text_content_keyword (FTS5) hits.
+   */
   content?: { score: number };
-  /** Keyword exact match in text content. */
-  text_content_keyword?: { score: number };
   /** Page references for paginated documents (PDF). */
   matched_pages?: number[];
 }

@@ -5,16 +5,16 @@
  *
  * Spec: `2026-05-02-search-results-unification-phase3.md`. Filename
  * match and semantic hits live in one list now; each card surfaces a
- * `MatchMeta` describing why it matched (filename, transcript,
- * clip, metadata, content, text-keyword, matched pages). Multiple
- * engines stack — a file that hits filename + transcript + clip
- * shows three badges in one row.
+ * `MatchMeta` describing why it matched. Backend channels are
+ * collapsed by `buildMatchMeta` into 6 user-facing buckets so a card
+ * never shows e.g. "音声" + "音声キーワード" side by side:
+ *   filename / metadata / 音声 / 内容 / シーン / サムネイル
  *
  * Color usage follows DESIGN.md §2.2 (warm palette only):
- *   filename                        → accent (primary surface)
- *   transcript / transcript_keyword → accent-teal (audio = nature)
- *   clip                            → accent-amber (visual = focus)
- *   metadata / content / text_..._keyword → sand / warm-light (neutral)
+ *   filename / metadata → accent (primary surface, file-level)
+ *   transcript          → accent-teal (audio = nature)
+ *   clip / clip_thumbnail → accent-amber (visual = focus)
+ *   content             → warm-light (neutral, body text)
  */
 
 import Link from "next/link";
@@ -24,12 +24,11 @@ import { formatDuration } from "@/lib/format";
 
 const MATCH_TYPE_STYLES: Record<string, string> = {
   filename: "bg-accent/15 text-accent",
+  metadata: "bg-accent/10 text-accent",
   transcript: "bg-accent-teal/15 text-accent-teal",
-  transcript_keyword: "bg-accent-teal/10 text-accent-teal",
   clip: "bg-accent-amber/15 text-accent-amber",
-  metadata: "bg-sand text-text-primary",
+  clip_thumbnail: "bg-accent-amber/10 text-accent-amber",
   content: "bg-warm-light text-text-primary",
-  text_content_keyword: "bg-warm-light/60 text-text-primary",
 };
 
 function MatchBadge({ type, label }: { type: string; label: string }) {
@@ -80,25 +79,25 @@ export function MatchOverlay({
 
   const labels: Record<string, string> = {
     filename: t("matchFilename"),
+    metadata: t("matchMetadata"),
     transcript: t("matchTranscript"),
-    transcript_keyword: t("matchTranscriptKeyword"),
     clip: t("matchClip"),
     clip_thumbnail: t("matchClipThumbnail"),
-    metadata: t("matchMetadata"),
     content: t("matchContent"),
-    text_content_keyword: t("matchTextContentKeyword"),
   };
 
+  // ファイル名 (substring) と メタデータ (embedding) は実体が近く、
+  // 両方 true の場合は片方に集約してカードがうるさくならないようにする。
+  // semantic-only ヒットで filename badge が無いときのみ metadata を出す。
   const activeTypes: string[] = [];
   if (match.filename) activeTypes.push("filename");
-  if (match.metadata) activeTypes.push("metadata");
+  else if (match.metadata) activeTypes.push("metadata");
   if (match.transcript && match.transcript.length > 0) {
     activeTypes.push("transcript");
   }
   if (match.clip_thumbnail) activeTypes.push("clip_thumbnail");
   if (match.clip && match.clip.length > 0) activeTypes.push("clip");
   if (match.content) activeTypes.push("content");
-  if (match.text_content_keyword) activeTypes.push("text_content_keyword");
 
   // Tag each segment with its source so the React key stays unique
   // when a transcript hit and a clip hit happen to share the same

@@ -144,7 +144,10 @@ describe("buildMatchMeta", () => {
     expect(meta.clip_thumbnail?.score).toBe(0.7);
   });
 
-  it("ignores transcript segments without time_range", () => {
+  it("falls back to a placeholder transcript entry when match_types declares audio but no segment has a usable time_range", () => {
+    // Without the fallback the badge row would be empty even though
+    // intelligence reported a transcript hit. Using time_range=[-1,-1]
+    // surfaces the badge while the timestamp-pill renderer skips it.
     const meta = buildMatchMeta(
       makeHit({
         match_types: ["transcript"],
@@ -156,7 +159,52 @@ describe("buildMatchMeta", () => {
         ],
       }),
     );
-    expect(meta.transcript).toBeUndefined();
+    expect(meta.transcript).toHaveLength(1);
+    expect(meta.transcript?.[0].time_range[0]).toBe(-1);
+  });
+
+  it("recognises whisper as audio (real backend embedding_type)", () => {
+    const meta = buildMatchMeta(
+      makeHit({
+        match_types: ["whisper"],
+        segments: [
+          {
+            time_range: [5, 9],
+            matches: [{ type: "whisper", score: 0.6, text: "ok" }],
+          },
+        ],
+      }),
+    );
+    expect(meta.transcript?.[0].time_range).toEqual([5, 9]);
+  });
+
+  it("folds text_content (semantic) and text_content_keyword into content", () => {
+    const meta = buildMatchMeta(
+      makeHit({
+        match_types: ["text_content", "text_content_keyword"],
+        segments: [
+          {
+            time_range: null,
+            matches: [
+              { type: "text_content", score: 0.4 },
+              { type: "text_content_keyword", score: 0.7 },
+            ],
+          },
+        ],
+      }),
+    );
+    expect(meta.content?.score).toBe(0.7);
+  });
+
+  it("synthesises a filename badge for keyword-only semantic hits", () => {
+    const meta = buildMatchMeta(
+      makeHit({
+        match_types: ["keyword"],
+        score: 0.5,
+        segments: [],
+      }),
+    );
+    expect(meta.filename?.score).toBe(0.5);
   });
 });
 
