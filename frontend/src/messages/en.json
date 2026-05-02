@@ -1056,6 +1056,193 @@
     "retryHint": "Click to retry",
     "retrying": "Retrying..."
   },
+  "mediaImport": {
+    "title": "Media Import",
+    "driveLabel": "drive: {drive}",
+    "loadingDrive": "Loading drive...",
+    "composer": {
+      "addSourceCollapsed": "Add a source — paste a URL or drop a link",
+      "heading": "Add a source",
+      "collapse": "Collapse",
+      "urlPlaceholder": "https://...",
+      "dropOverlay": "Drop URL to import",
+      "kind": {
+        "detecting": "Detecting URL type...",
+        "video": "Single video — will create a single .loft",
+        "channel": "YouTube channel — subscribe to track new uploads",
+        "playlist": "YouTube playlist — subscribe to track all items",
+        "feed": "Feed — subscribe",
+        "unknown": "Single import (unrecognised provider)"
+      },
+      "saveTo": "Save to:",
+      "driveRoot": "drive root",
+      "noSubfolders": "No subfolders",
+      "advanced": "Advanced",
+      "backfill": "Backfill (initial import count)",
+      "backfillHintChannel": "Most-recent N uploads.",
+      "backfillHintPlaylist": "Items from the start of the playlist.",
+      "includeNoTranscript": "Try to fetch transcripts even when none reported",
+      "submitImport": "Import",
+      "submitSubscribe": "Subscribe",
+      "submitting": "...",
+      "errorFallback": "Failed to import",
+      "justImportedHeading": "Just imported"
+    },
+    "dashboard": {
+      "filter": {
+        "all": "All",
+        "channel": "Channels",
+        "playlist": "Playlists",
+        "attention": "Needs attention",
+        "paused": "Paused"
+      },
+      "searchPlaceholder": "Search subscriptions...",
+      "loading": "Loading subscriptions...",
+      "loadFailed": "Failed to load",
+      "emptyAll": "No subscriptions yet. Paste a YouTube channel or playlist URL above to start tracking it.",
+      "emptyFiltered": "No subscriptions match this filter ({filter}).",
+      "summary": {
+        "subscriptions": "{count, plural, one {# subscription} other {# subscriptions}}",
+        "imported": "{count} imported",
+        "attentionPlural": "{count, plural, one {# needs attention} other {# need attention}}",
+        "paused": "{count} paused",
+        "syncing": "{count} syncing"
+      }
+    },
+    "card": {
+      "imported": "{count} imported",
+      "failed": "{count} failed",
+      "nextSync": {
+        "paused": "Paused",
+        "backoff": "Backoff active",
+        "pendingFirst": "Pending first sync",
+        "due": "Sync due",
+        "minutes": "Next: {n}m",
+        "hours": "Next: {n}h",
+        "days": "Next: {n}d"
+      }
+    },
+    "status": {
+      "healthy": "Healthy",
+      "attention": "Needs attention",
+      "paused": "Paused",
+      "syncing": "Syncing"
+    },
+    "detail": {
+      "close": "Close",
+      "actions": {
+        "pause": "Pause",
+        "resume": "Resume",
+        "syncNow": "Sync now",
+        "refreshMetadata": "Refresh metadata"
+      },
+      "schedule": {
+        "heading": "Schedule",
+        "paused": "Paused — automatic sync disabled",
+        "backoffUntil": "Backoff until {when}",
+        "willSyncNext": "Will sync on the next cron sweep",
+        "nextAround": "Next sync around {when}",
+        "cooldownLabel": "Cooldown (min):",
+        "cooldownSave": "Save"
+      },
+      "destination": {
+        "heading": "Destination"
+      },
+      "options": {
+        "heading": "Options",
+        "includeNoTranscript": "Try to fetch transcripts even when none reported"
+      },
+      "items": {
+        "heading": "Items",
+        "loading": "Loading...",
+        "empty": "No items yet. Run a sync.",
+        "groupAttention": "Needs attention ({count})",
+        "groupImported": "Imported ({count})",
+        "groupSkipped": "Skipped ({count})"
+      },
+      "danger": {
+        "heading": "Danger zone",
+        "delete": "Delete subscription",
+        "confirm": "Delete \"{title}\" subscription? {count, plural, one {# imported file} other {# imported files}} will stay; new uploads will stop being tracked."
+      },
+      "errors": {
+        "updateFailed": "Update failed",
+        "syncFailed": "Sync failed",
+        "refreshFailed": "Refresh failed",
+        "deleteFailed": "Delete failed",
+        "retryFailed": "Retry failed"
+      }
+    },
+    "item": {
+      "statusImported": "Imported",
+      "statusPending": "Pending",
+      "statusFailed": "Failed",
+      "untitled": "Untitled video",
+      "openFile": "Open file",
+      "retry": "Retry",
+      "resolveConflict": "Resolve…"
+    },
+    "errorKind": {
+      "rate_limited": {
+        "label": "Rate limited",
+        "hint": "The provider throttled the request. It will retry automatically after a delay."
+      },
+      "permanent": {
+        "label": "Unavailable",
+        "hint": "Likely private, removed, or region-locked."
+      },
+      "path_conflict": {
+        "label": "Path conflict",
+        "hint": "A file with the same name already exists. Choose how to resolve."
+      },
+      "no_transcript": {
+        "label": "No transcript",
+        "hint": "This video has no transcript available."
+      },
+      "dismissed": {
+        "label": "Skipped",
+        "hint": "You chose to skip this item."
+      },
+      "fetch_failed": {
+        "label": "Fetch failed",
+        "hint": "Metadata fetch failed. You can retry."
+      },
+      "unknown": {
+        "label": "Failed",
+        "hint": "Unknown error. You can retry."
+      }
+    },
+    "conflict": {
+      "title": "Resolve path conflict",
+      "description": "A file with the same name already exists at the destination. Choose how to proceed.",
+      "rename": {
+        "label": "Rename",
+        "hint": "Add a (1) suffix to the new file so both copies coexist. Recommended."
+      },
+      "overwrite": {
+        "label": "Overwrite",
+        "hint": "Accept overwriting if the conflict re-occurs. Today this behaves the same as Rename."
+      },
+      "skip": {
+        "label": "Skip",
+        "hint": "Stop trying. The item is marked dismissed and will not be retried unless you re-enable it."
+      },
+      "cancel": "Cancel",
+      "errorFallback": "Failed to resolve"
+    },
+    "activity": {
+      "heading": "Recent activity",
+      "loading": "Loading recent activity...",
+      "empty": "No imports on this drive yet.",
+      "loadFailed": "Failed to load activity",
+      "today": "Today",
+      "yesterday": "Yesterday",
+      "source": {
+        "subscription": "Subscription",
+        "single": "Single import"
+      }
+    }
+  },
   "setup": {
     "title": "Litloft setup",
     "subtitle": "Initial setup",
