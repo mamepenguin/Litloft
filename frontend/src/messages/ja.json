@@ -278,7 +278,9 @@
     "semanticResults": "セマンティック検索結果",
     "score": "{score}%",
     "heading": "検索: \"{query}\"",
-    "emptyQuery": "検索ワードを入力してください"
+    "emptyQuery": "検索ワードを入力してください",
+    "sceneSearchToggle": "シーン検索",
+    "sceneSearchHint": "動画の中で特定のシーンが映っている箇所を探す（既定はオフ：動画全体の主題で検索）"
   },
   "smartFolder": {
     "sectionTitle": "スマートフォルダ",

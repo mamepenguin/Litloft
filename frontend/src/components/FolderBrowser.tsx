@@ -36,6 +36,13 @@ interface FolderBrowserProps {
   typeFilter?: FileType | null;
   /** When set, the active search came from a saved Smart Folder. */
   smartFolderId?: string | null;
+  /**
+   * Search-only flag. When `true`, semantic search includes scene-frame
+   * CLIP embeddings alongside the default representative-frame route.
+   * Driven by the "シーン検索" toggle on `SearchPage`. Spec
+   * `2026-05-02-thumbnail-clip-default-shallow-search.md`.
+   */
+  includeSceneClip?: boolean;
 }
 
 export function FolderBrowser({
@@ -46,6 +53,7 @@ export function FolderBrowser({
   searchQuery,
   typeFilter: typeFilterProp,
   smartFolderId,
+  includeSceneClip,
 }: FolderBrowserProps) {
   const isSearch = !!(searchQuery && searchQuery.trim());
   // Load the snapshot exactly once via useState's lazy initializer. We pass
@@ -79,7 +87,7 @@ export function FolderBrowser({
     files, folders, total, loading, loadingMore, hasMore, pagesLoaded, sentinelRef,
     setFiles, setPaginatedTotal, setFolders, isRecent,
     snapshotKey, hydratedScrollY,
-  } = useFolderFiles({ driveName, folderPath, view, tagFilter, typeFilter, sort, order, refreshKey, searchQuery, initialSnapshot });
+  } = useFolderFiles({ driveName, folderPath, view, tagFilter, typeFilter, sort, order, refreshKey, searchQuery, includeSceneClip, initialSnapshot });
 
   const didRestoreScrollRef = useRef(false);
   useLayoutEffect(() => {

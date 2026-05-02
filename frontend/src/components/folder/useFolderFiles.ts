@@ -43,6 +43,13 @@ interface UseFolderFilesParams {
    * folder/view endpoints. Folders are not fetched in this mode.
    */
   searchQuery?: string;
+  /**
+   * When `true`, semantic-search includes scene-frame CLIP embeddings
+   * alongside the default representative-frame route. Driven by the
+   * "シーン検索" toggle on the search page. Spec
+   * `2026-05-02-thumbnail-clip-default-shallow-search.md`.
+   */
+  includeSceneClip?: boolean;
   /** Snapshot loaded once by the parent; used only on initial mount. */
   initialSnapshot?: ListSnapshot | null;
 }
@@ -79,7 +86,7 @@ function filtersMatchSnapshot(
 }
 
 export function useFolderFiles({
-  driveName, folderPath, view, tagFilter, typeFilter, sort, order, refreshKey, searchQuery, initialSnapshot,
+  driveName, folderPath, view, tagFilter, typeFilter, sort, order, refreshKey, searchQuery, includeSceneClip, initialSnapshot,
 }: UseFolderFilesParams): UseFolderFilesReturn {
   const isSearch = !!(searchQuery && searchQuery.trim());
   const isFavorites = view === "favorites";
@@ -206,6 +213,7 @@ export function useFolderFiles({
       const hits = await fetchSemanticHits(trimmed, driveName, {
         limit: 50,
         type: typeFilter,
+        includeSceneClip,
       });
       if (cancelled) return;
       setSemanticHits(hits);
@@ -214,7 +222,7 @@ export function useFolderFiles({
     return () => {
       cancelled = true;
     };
-  }, [isSearch, searchQuery, driveName, typeFilter]);
+  }, [isSearch, searchQuery, driveName, typeFilter, includeSceneClip]);
 
   // Recent view uses localStorage, managed separately
   const [recentFiles, setRecentFiles] = useState<FileItem[]>([]);

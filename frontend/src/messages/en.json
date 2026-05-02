@@ -278,7 +278,9 @@
     "semanticResults": "Semantic search results",
     "score": "{score}%",
     "heading": "Search: \"{query}\"",
-    "emptyQuery": "Enter a search query"
+    "emptyQuery": "Enter a search query",
+    "sceneSearchToggle": "Scene search",
+    "sceneSearchHint": "Find specific moments inside videos (off by default: searches by overall subject)"
   },
   "smartFolder": {
     "sectionTitle": "Smart Folders",

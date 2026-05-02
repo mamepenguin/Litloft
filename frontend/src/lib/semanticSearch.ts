@@ -37,12 +37,24 @@ export async function isSemanticSearchAvailable(drive: string): Promise<boolean>
 export async function fetchSemanticHits(
   query: string,
   drive: string,
-  options?: { limit?: number; type?: FileType | null },
+  options?: {
+    limit?: number;
+    type?: FileType | null;
+    /**
+     * When `true`, the addon unions in scene-frame CLIP embeddings
+     * (`embedding_type="clip"`) alongside the default representative-
+     * frame route (`embedding_type="clip_thumbnail"`). The "シーン検索"
+     * toggle on the search page drives this flag. Spec
+     * `2026-05-02-thumbnail-clip-default-shallow-search.md`.
+     */
+    includeSceneClip?: boolean;
+  },
 ): Promise<SemanticHit[]> {
   if (!query.trim() || !drive) return [];
   const params = new URLSearchParams({ q: query.trim() });
   if (options?.limit) params.set("limit", String(options.limit));
   if (options?.type) params.set("type", options.type);
+  if (options?.includeSceneClip) params.set("include_scene_clip", "true");
   try {
     const res = await fetch(
       `${API_BASE}/addons/intelligence/search?${params.toString()}`,
