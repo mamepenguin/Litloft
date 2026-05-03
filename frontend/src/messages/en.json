@@ -157,7 +157,13 @@
     "activeSummaryFallbackOpen": "Open note file",
     "relatedFilesTitle": "Related files",
     "relatedFileMissing": "missing",
-    "relatedFileSizeBytes": "{size} bytes"
+    "relatedFileSizeBytes": "{size} bytes",
+    "similarFilesDetect": "Find similar files",
+    "similarFilesDetecting": "Searching...",
+    "similarFilesEmpty": "No similar files found",
+    "similarFilesUnavailable": "Similar file detection unavailable",
+    "similarFilesRetry": "Search again",
+    "aiFolderActions": "AI"
   },
   "detailedSummary": {
     "citations": {
@@ -269,18 +275,21 @@
     "textResults": "Filename match",
     "matchFilename": "Filename",
     "matchPath": "Path",
-    "matchTranscript": "Audio",
-    "matchClip": "Scene",
+    "matchTranscript": "Transcript",
+    "matchClip": "Visual",
     "matchClipThumbnail": "Thumbnail",
-    "matchMetadata": "Title / description",
-    "matchContent": "Text",
+    "matchMetadata": "Metadata",
+    "matchContent": "Content",
     "matchedPages": "p.{pages}",
     "semanticResults": "Semantic search results",
     "score": "{score}%",
     "heading": "Search: \"{query}\"",
     "emptyQuery": "Enter a search query",
     "sceneSearchToggle": "Scene search",
-    "sceneSearchHint": "Find specific moments inside videos (off by default: searches by overall subject)"
+    "sceneSearchHint": "Find specific moments inside videos (off by default: searches by overall subject)",
+    "matchTranscriptKeyword": "Transcript (exact)",
+    "matchTextContentKeyword": "Content (exact)",
+    "semanticResultsDescription": "Files whose meaning is close to your query"
   },
   "smartFolder": {
     "sectionTitle": "Smart Folders",
@@ -729,19 +738,51 @@
     "statusStopped": "Stopped",
     "unavailable": "Search service is not running",
     "indexed": "Indexed",
-    "indexedFiles": "{indexed} / {total} files",
+    "indexedFiles": "{indexed} / {total} files registered",
     "whisperLabel": "Transcribed",
-    "whisperFiles": "{done} / {total} videos",
-    "clipLabel": "CLIP Analyzed",
-    "clipFiles": "{done} / {total} images & videos",
-    "queueLabel": "Queue",
+    "whisperFiles": "Transcription {done} / {total}",
+    "clipLabel": "Image Analyzed",
+    "clipFiles": "Image analysis {done} / {total}",
+    "queueLabel": "Queue (all tasks)",
     "queueStatus": "{processing} processing / {waiting} waiting",
     "reindex": "Reindex",
     "pause": "Pause",
     "resume": "Resume",
     "paused": "Paused",
     "confirmReindex": "Reindex all files? This may take a while.",
-    "models": "Models"
+    "models": "Models",
+    "textLabel": "Text Analyzed",
+    "textFiles": "Text analysis {done} / {total}",
+    "tasks": {
+      "heading": "Current activity",
+      "queueCounts": "{processing} running / {waiting} waiting",
+      "waitingHint": "{waiting} waiting",
+      "idle": "Idle",
+      "metadata": {
+        "label": "Metadata extraction"
+      },
+      "clip": {
+        "label": "Image analysis (CLIP)"
+      },
+      "whisper": {
+        "label": "Transcription (Whisper)"
+      },
+      "text_content": {
+        "label": "Text extraction"
+      },
+      "auto_tags": {
+        "label": "AI tag suggestions"
+      },
+      "summaries": {
+        "label": "AI summaries"
+      },
+      "vision_describe": {
+        "label": "AI image description"
+      },
+      "transcript_refine": {
+        "label": "AI transcript refine"
+      }
+    }
   },
   "askSearch": {
     "button": "Ask AI about “{query}”",
@@ -759,7 +800,28 @@
     "retryHint": "Retry",
     "queryTooShort": "Query too short (3 characters minimum)",
     "takenMs": "Generated in {ms}ms",
-    "poweredByLlm": "AI"
+    "poweredByLlm": "AI",
+    "personalHistoryViewed": "Searching {count} files you viewed",
+    "personalHistoryNotViewed": "Searching {count} unwatched files",
+    "personalHistoryFallback": "No matching history; searching all files",
+    "categoryExpanded": "Expanded: {terms}",
+    "timeRange": {
+      "today": "today",
+      "yesterday": "yesterday",
+      "this_week": "this week",
+      "last_week": "last week",
+      "this_month": "this month",
+      "last_month": "last month",
+      "this_year": "this year",
+      "last_year": "last year",
+      "recent": "recent"
+    },
+    "fileTypeHint": {
+      "video": "video",
+      "audio": "audio",
+      "image": "image",
+      "text": "text"
+    }
   },
   "modeTabs": {
     "ariaLabel": "Answer mode",
@@ -777,7 +839,10 @@
     "totalCount": "{count} results",
     "categoryExpansion": "Expanded: {terms}",
     "chipPersonalViewed": "viewed",
-    "chipPersonalNotViewed": "not viewed"
+    "chipPersonalNotViewed": "not viewed",
+    "pageHeading": "Find: file suggestion mode",
+    "pageDescription": "AI suggests files matching “{query}”",
+    "pageCta": "Open Find page"
   },
   "knowledge": {
     "title": "Knowledge",
@@ -1251,7 +1316,28 @@
     "next": "Next",
     "back": "Back",
     "skip": "Skip",
-    "complete": "Complete",
+    "complete": {
+      "title": "Setup complete",
+      "description": "Save and go to /admin.",
+      "errorMessage": "Failed to complete setup",
+      "submitting": "Saving...",
+      "summary": {
+        "title": "Summary",
+        "drives": "Drives",
+        "driveUnit": " drive(s)",
+        "accessMode": "Access control",
+        "public": "Public",
+        "protected": "Password protected",
+        "addons": "Enabled addons",
+        "addonUnit": " addon(s)"
+      },
+      "nextSteps": {
+        "title": "Next steps",
+        "save": "Save drives, passwords and addon policy",
+        "redirect": "Go to the admin dashboard (/admin)",
+        "lan": "Other devices on your home LAN can also access"
+      }
+    },
     "language": {
       "title": "Choose language",
       "japanese": "日本語",
@@ -1327,28 +1413,6 @@
       "skipDescription": "You can skip and configure later.",
       "skipNote": "You can skip this step and decide later from /admin.",
       "noDescription": "(No description for this addon)"
-    },
-    "complete": {
-      "title": "Setup complete",
-      "description": "Save and go to /admin.",
-      "errorMessage": "Failed to complete setup",
-      "submitting": "Saving...",
-      "summary": {
-        "title": "Summary",
-        "drives": "Drives",
-        "driveUnit": " drive(s)",
-        "accessMode": "Access control",
-        "public": "Public",
-        "protected": "Password protected",
-        "addons": "Enabled addons",
-        "addonUnit": " addon(s)"
-      },
-      "nextSteps": {
-        "title": "Next steps",
-        "save": "Save drives, passwords and addon policy",
-        "redirect": "Go to the admin dashboard (/admin)",
-        "lan": "Other devices on your home LAN can also access"
-      }
     }
   }
 }

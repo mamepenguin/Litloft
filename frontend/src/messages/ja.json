@@ -157,7 +157,13 @@
     "activeSummaryFallbackOpen": "ノートファイルを開く",
     "relatedFilesTitle": "関連ファイル",
     "relatedFileMissing": "見つからない",
-    "relatedFileSizeBytes": "{size} バイト"
+    "relatedFileSizeBytes": "{size} バイト",
+    "similarFilesDetect": "似たファイルを検出",
+    "similarFilesDetecting": "検出中...",
+    "similarFilesEmpty": "似たファイルは見つかりませんでした",
+    "similarFilesUnavailable": "似たファイル検出は利用できません",
+    "similarFilesRetry": "再検出",
+    "aiFolderActions": "AI"
   },
   "detailedSummary": {
     "citations": {
@@ -269,18 +275,21 @@
     "textResults": "ファイル名一致",
     "matchFilename": "ファイル名",
     "matchPath": "パス",
-    "matchTranscript": "音声",
-    "matchClip": "シーン",
+    "matchTranscript": "音声一致",
+    "matchClip": "映像一致",
     "matchClipThumbnail": "サムネイル",
-    "matchMetadata": "タイトル・説明",
-    "matchContent": "本文",
+    "matchMetadata": "メタデータ",
+    "matchContent": "内容一致",
     "matchedPages": "p.{pages}",
     "semanticResults": "セマンティック検索結果",
     "score": "{score}%",
     "heading": "検索: \"{query}\"",
     "emptyQuery": "検索ワードを入力してください",
     "sceneSearchToggle": "シーン検索",
-    "sceneSearchHint": "動画の中で特定のシーンが映っている箇所を探す（既定はオフ：動画全体の主題で検索）"
+    "sceneSearchHint": "動画の中で特定のシーンが映っている箇所を探す（既定はオフ：動画全体の主題で検索）",
+    "matchTranscriptKeyword": "音声キーワード一致",
+    "matchTextContentKeyword": "内容キーワード一致",
+    "semanticResultsDescription": "クエリの意味に近いファイルを AI が推測して提示します"
   },
   "smartFolder": {
     "sectionTitle": "スマートフォルダ",
@@ -729,19 +738,51 @@
     "statusStopped": "停止中",
     "unavailable": "検索サービスが起動していません",
     "indexed": "インデックス済み",
-    "indexedFiles": "{indexed} / {total} ファイル",
+    "indexedFiles": "{indexed} / {total} ファイル登録済み",
     "whisperLabel": "文字起こし済み",
-    "whisperFiles": "{done} / {total} 動画",
-    "clipLabel": "CLIP解析済み",
-    "clipFiles": "{done} / {total} 画像・動画",
-    "queueLabel": "キュー",
+    "whisperFiles": "文字起こし完了 {done} / {total} 件",
+    "clipLabel": "画像分析済み",
+    "clipFiles": "画像分析完了 {done} / {total} 件",
+    "queueLabel": "キュー全体",
     "queueStatus": "{processing}件処理中 / {waiting}件待機",
     "reindex": "再インデックス",
     "pause": "一時停止",
     "resume": "再開",
     "paused": "一時停止中",
     "confirmReindex": "全ファイルを再インデックスしますか？処理に時間がかかる場合があります。",
-    "models": "モデル"
+    "models": "モデル",
+    "textLabel": "テキスト解析済み",
+    "textFiles": "テキスト解析完了 {done} / {total} 件",
+    "tasks": {
+      "heading": "現在の処理状況",
+      "queueCounts": "{processing}件処理中 / {waiting}件待機",
+      "waitingHint": "{waiting}件が処理待ち",
+      "idle": "待機中",
+      "metadata": {
+        "label": "メタデータ抽出"
+      },
+      "clip": {
+        "label": "画像分析（CLIP）"
+      },
+      "whisper": {
+        "label": "文字起こし（Whisper）"
+      },
+      "text_content": {
+        "label": "テキスト抽出"
+      },
+      "auto_tags": {
+        "label": "AIタグ提案"
+      },
+      "summaries": {
+        "label": "AI要約生成"
+      },
+      "vision_describe": {
+        "label": "AI画像記述"
+      },
+      "transcript_refine": {
+        "label": "AI文字起こし校正"
+      }
+    }
   },
   "askSearch": {
     "button": "「{query}」について AI に質問する",
@@ -759,7 +800,28 @@
     "retryHint": "再試行",
     "queryTooShort": "クエリが短すぎます (3文字以上)",
     "takenMs": "{ms}ms で生成",
-    "poweredByLlm": "AI"
+    "poweredByLlm": "AI",
+    "personalHistoryViewed": "視聴履歴 {count} 件を対象に検索",
+    "personalHistoryNotViewed": "未視聴 {count} 件を対象に検索",
+    "personalHistoryFallback": "視聴履歴が見つからないため全件検索",
+    "categoryExpanded": "意味展開: {terms}",
+    "timeRange": {
+      "today": "今日",
+      "yesterday": "昨日",
+      "this_week": "今週",
+      "last_week": "先週",
+      "this_month": "今月",
+      "last_month": "先月",
+      "this_year": "今年",
+      "last_year": "去年",
+      "recent": "最近"
+    },
+    "fileTypeHint": {
+      "video": "動画",
+      "audio": "音声",
+      "image": "画像",
+      "text": "文書"
+    }
   },
   "modeTabs": {
     "ariaLabel": "回答モード",
@@ -777,7 +839,10 @@
     "totalCount": "{count} 件見つかりました",
     "categoryExpansion": "意味展開: {terms}",
     "chipPersonalViewed": "視聴済み",
-    "chipPersonalNotViewed": "未視聴"
+    "chipPersonalNotViewed": "未視聴",
+    "pageHeading": "Find: ファイル提示モード",
+    "pageDescription": "AI が「{query}」に合致するファイルを推測して一覧化します",
+    "pageCta": "Find ページを開く"
   },
   "knowledge": {
     "title": "Knowledge",
@@ -1251,7 +1316,28 @@
     "next": "次へ",
     "back": "戻る",
     "skip": "スキップ",
-    "complete": "完了",
+    "complete": {
+      "title": "設定完了",
+      "description": "保存して /admin に移動します。",
+      "errorMessage": "完了処理に失敗しました",
+      "submitting": "保存中...",
+      "summary": {
+        "title": "入力内容",
+        "drives": "ドライブ",
+        "driveUnit": " 件",
+        "accessMode": "アクセス制御",
+        "public": "全公開",
+        "protected": "パスワード保護",
+        "addons": "有効なアドオン",
+        "addonUnit": " 件"
+      },
+      "nextSteps": {
+        "title": "次の手順",
+        "save": "ドライブ・パスワード・アドオン設定を保存します",
+        "redirect": "管理ダッシュボード（/admin）へ移動します",
+        "lan": "家庭内 LAN の他のデバイスからもアクセスできます"
+      }
+    },
     "language": {
       "title": "言語を選択",
       "japanese": "日本語",
@@ -1327,28 +1413,6 @@
       "skipDescription": "今は設定せずに次へ進めます。",
       "skipNote": "今は決めずに進めて構いません。あとで /admin から変更できます。",
       "noDescription": "（このアドオンの説明はありません）"
-    },
-    "complete": {
-      "title": "設定完了",
-      "description": "保存して /admin に移動します。",
-      "errorMessage": "完了処理に失敗しました",
-      "submitting": "保存中...",
-      "summary": {
-        "title": "入力内容",
-        "drives": "ドライブ",
-        "driveUnit": " 件",
-        "accessMode": "アクセス制御",
-        "public": "全公開",
-        "protected": "パスワード保護",
-        "addons": "有効なアドオン",
-        "addonUnit": " 件"
-      },
-      "nextSteps": {
-        "title": "次の手順",
-        "save": "ドライブ・パスワード・アドオン設定を保存します",
-        "redirect": "管理ダッシュボード（/admin）へ移動します",
-        "lan": "家庭内 LAN の他のデバイスからもアクセスできます"
-      }
     }
   }
 }
