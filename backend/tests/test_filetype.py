@@ -44,6 +44,17 @@ class TestClassify:
         file_type, mime_type = classify("report.docx")
         assert file_type == "document"
 
+    def test_loft_classified_as_video(self):
+        """``.loft`` (media_import wrapper for non-downloadable media)
+        is treated as ``video`` for file_type filtering — every
+        currently-registered provider (youtube / vimeo / soundcloud)
+        wraps a video, and search-time queries like "料理に関する動画"
+        would otherwise exclude .loft hits via file_type=video filter.
+        """
+        assert classify("recipe.loft") == (
+            "video", "application/vnd.litloft.loft+json"
+        )
+
 
 class TestIsHidden:
     def test_hidden_file(self):

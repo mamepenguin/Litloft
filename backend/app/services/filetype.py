@@ -26,6 +26,18 @@ _DOCUMENT_MIMES = frozenset({
     "application/vnd.openxmlformats-officedocument.presentationml.presentation",
 })
 
+# Mime → file_type override for vendor wrapper formats whose major
+# component (``application``) doesn't reflect what the file actually
+# contains. ``.loft`` is the media_import addon's link wrapper for
+# media that can't be downloaded; today every registered provider
+# (youtube / vimeo / soundcloud) wraps a video, so .loft is treated
+# as ``video`` for search-time file_type filtering. If a future
+# provider wraps audio / image, add the per-provider dispatch here
+# (peek into the .loft JSON for ``provider`` and look it up).
+_MIME_TYPE_OVERRIDES = {
+    "application/vnd.litloft.loft+json": "video",
+}
+
 _EXTRA_MIMES = {
     ".mkv": "video/x-matroska",
     ".avi": "video/x-msvideo",
@@ -60,6 +72,9 @@ def classify(filename: str) -> tuple[str, str]:
 
     if mime in _DOCUMENT_MIMES:
         return ("document", mime)
+
+    if mime in _MIME_TYPE_OVERRIDES:
+        return (_MIME_TYPE_OVERRIDES[mime], mime)
 
     major = mime.split("/")[0]
     file_type = _CATEGORY_MAP.get(major, "other")
