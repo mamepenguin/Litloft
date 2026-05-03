@@ -38,6 +38,16 @@ vi.mock("../FileTypeIcon", () => ({
   ),
 }));
 
+vi.mock("../loft/LoftPlayer", () => ({
+  default: ({ fileId }: { fileId: string }) => (
+    <div data-testid="loft-player">{fileId}</div>
+  ),
+}));
+
+vi.mock("../AddonSlot", () => ({
+  AddonSlot: () => null,
+}));
+
 function makeFile(overrides: Partial<FileItem> = {}): FileItem {
   return {
     id: "file-1",
@@ -100,6 +110,20 @@ describe("FilePreview", () => {
     const file = makeFile({ file_type: "document", mime_type: "text/plain", filename: "readme.txt" });
     render(<FilePreview file={file} />);
     expect(screen.getByTestId("text-preview")).toBeInTheDocument();
+  });
+
+  it("renders LoftPlayer for .loft even though file_type is video", () => {
+    // .loft is classified as file_type=video for search filtering, but
+    // playback must use the iframe-based LoftPlayer (e.g. YouTube embed)
+    // — a native <video> can't load a YouTube URL.
+    const file = makeFile({
+      file_type: "video",
+      mime_type: "application/vnd.litloft.loft+json",
+      filename: "clip.loft",
+    });
+    render(<FilePreview file={file} />);
+    expect(screen.getByTestId("loft-player")).toBeInTheDocument();
+    expect(screen.queryByTestId("video-player")).not.toBeInTheDocument();
   });
 
   it("renders fallback for unsupported files", () => {

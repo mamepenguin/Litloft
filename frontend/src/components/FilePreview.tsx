@@ -189,6 +189,31 @@ export function FilePreview({
     [onMediaController],
   );
 
+  // .loft must be checked BEFORE the file_type branches: filetype
+  // classification reports .loft as ``video`` (so search file_type
+  // filters include it), but playback has to go through the iframe
+  // provider registry — a native <video> can't load a YouTube URL.
+  if (file.mime_type === "application/vnd.litloft.loft+json") {
+    // Core renders the .loft player via the provider/player registry
+    // (Phase 0 ships YouTube + Vimeo). The MiniPlayerContainer reflows
+    // the player into a floating window when it scrolls out of view;
+    // metadata UI (channel / captions status) is a separate addon slot
+    // rendered below so the floating mini-player only carries the
+    // playable surface.
+    return (
+      <div className="-mx-4 md:mx-0">
+        <MiniPlayerContainer mc={localMc}>
+          <LoftPlayer
+            fileId={file.id}
+            onMediaController={relayMc}
+            initialTime={initialTime}
+          />
+        </MiniPlayerContainer>
+        <AddonSlot id="loft-metadata" props={{ fileId: file.id }} />
+      </div>
+    );
+  }
+
   if (file.file_type === "video") {
     return (
       <div className="-mx-4 md:mx-0">
@@ -226,27 +251,6 @@ export function FilePreview({
         autoPlay={autoPlay}
         onMediaController={onMediaController}
       />
-    );
-  }
-
-  if (file.mime_type === "application/vnd.litloft.loft+json") {
-    // Core renders the .loft player via the provider/player registry
-    // (Phase 0 ships YouTube + Vimeo). The MiniPlayerContainer reflows
-    // the player into a floating window when it scrolls out of view;
-    // metadata UI (channel / captions status) is a separate addon slot
-    // rendered below so the floating mini-player only carries the
-    // playable surface.
-    return (
-      <div className="-mx-4 md:mx-0">
-        <MiniPlayerContainer mc={localMc}>
-          <LoftPlayer
-            fileId={file.id}
-            onMediaController={relayMc}
-            initialTime={initialTime}
-          />
-        </MiniPlayerContainer>
-        <AddonSlot id="loft-metadata" props={{ fileId: file.id }} />
-      </div>
     );
   }
 
