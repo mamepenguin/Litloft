@@ -11,6 +11,7 @@ import {
 } from "lucide-react";
 
 import { useTranslations } from "next-intl";
+import { useImageAreaGestures } from "@/hooks/useImageAreaGestures";
 import { useShortcuts } from "@/hooks/useShortcuts";
 import { getDriveFiles, getStreamUrl } from "@/lib/api";
 import type { FileItem, SortField, SortOrder } from "@/types";
@@ -321,6 +322,13 @@ export function ImageGallery({
     }
   }
 
+  const gestureHandlers = useImageAreaGestures({
+    readingDirection,
+    navigatePrev,
+    navigateNext,
+    toggleControls: handleImageAreaClick,
+  });
+
   // Reset state on close
   useEffect(() => {
     if (!open) {
@@ -406,8 +414,8 @@ export function ImageGallery({
 
       {/* Main image area */}
       <div
-        className="flex flex-1 cursor-pointer items-center overflow-hidden"
-        onClick={handleImageAreaClick}
+        className="flex flex-1 cursor-pointer items-center overflow-hidden touch-none"
+        {...gestureHandlers}
       >
         {loading ? (
           <div className="flex w-full items-center justify-center">

@@ -11,6 +11,7 @@ import {
 } from "lucide-react";
 
 import { useTranslations } from "next-intl";
+import { useImageAreaGestures } from "@/hooks/useImageAreaGestures";
 import { getArchiveEntryUrl } from "@/lib/api";
 import type { ArchiveEntry } from "@/types";
 import { INTERVAL_OPTIONS } from "./archiveUtils";
@@ -75,6 +76,13 @@ export function ArchiveImageViewer({
   const canGoPrev = imageIndex > 0 || (activeSplit && !isFirstSubPage);
   const canGoNext =
     imageIndex < imageEntries.length - 1 || (activeSplit && isFirstSubPage);
+
+  const gestureHandlers = useImageAreaGestures({
+    readingDirection,
+    navigatePrev,
+    navigateNext,
+    toggleControls: handleImageAreaClick,
+  });
 
   return (
     <div className="fixed inset-0 z-[60] flex flex-col bg-black">
@@ -161,8 +169,8 @@ export function ArchiveImageViewer({
 
       {/* Main image area */}
       <div
-        className="flex flex-1 cursor-pointer items-center overflow-hidden"
-        onClick={handleImageAreaClick}
+        className="flex flex-1 cursor-pointer items-center overflow-hidden touch-none"
+        {...gestureHandlers}
       >
         {imageLoading && (
           <div className="absolute h-8 w-8 animate-spin rounded-full border-2 border-white border-t-transparent" />
