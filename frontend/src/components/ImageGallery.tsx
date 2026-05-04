@@ -73,8 +73,6 @@ export function ImageGallery({
 
   const hideTimerRef = useRef<number | null>(null);
 
-  // バグ3: prevで前画像に移動する時、最後のサブページを表示するためのref
-  const wantLastSubPageRef = useRef(false);
   const readingDirectionRef = useRef(readingDirection);
 
   // Persist splitMode to localStorage
@@ -82,7 +80,7 @@ export function ImageGallery({
     try {
       localStorage.setItem("image-viewer:split-mode", String(splitMode));
     } catch {}
-    setShowRightHalf(false);
+    setShowRightHalf(readingDirectionRef.current === "rtl");
   }, [splitMode]);
 
   // Persist readingDirection to localStorage
@@ -93,20 +91,6 @@ export function ImageGallery({
     readingDirectionRef.current = readingDirection;
     setShowRightHalf(readingDirection === "rtl");
   }, [readingDirection]);
-
-  // Reset landscape + subpage when currentIndex changes
-  useEffect(() => {
-    setIsCurrentLandscape(false);
-    if (wantLastSubPageRef.current) {
-      // 前の画像の最後のサブページ: LTR=右(true), RTL=左(false)
-      setShowRightHalf(readingDirectionRef.current === "ltr");
-      wantLastSubPageRef.current = false;
-    } else {
-      // 通常の最初のサブページ: LTR=左(false), RTL=右(true)
-      setShowRightHalf(readingDirectionRef.current === "rtl");
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [currentIndex]);
 
   // Capture file info at open time to avoid re-fetching on parent re-renders
   const openFileRef = useRef(file);
@@ -191,15 +175,17 @@ export function ImageGallery({
 
     if (inActiveSplit && isOnFirstSubPage) {
       setShowRightHalf(readingDirection === "ltr");
-    } else {
-      setIsCurrentLandscape(false);
-      setCurrentIndex((prev) => Math.min(prev + 1, images.length - 1));
+    } else if (currentIndex < images.length - 1) {
+      // 次画像の最初のサブページを即座にセット（旧画像が正しい位置を保持）
+      setShowRightHalf(readingDirection === "rtl");
+      setCurrentIndex((prev) => prev + 1);
     }
   }, [
     splitMode,
     isCurrentLandscape,
     readingDirection,
     showRightHalf,
+    currentIndex,
     images.length,
   ]);
 
@@ -210,12 +196,10 @@ export function ImageGallery({
 
     if (inActiveSplit && !isOnFirstSubPage) {
       setShowRightHalf(readingDirection === "rtl");
-    } else {
-      if (currentIndex > 0) {
-        wantLastSubPageRef.current = splitMode;
-      }
-      setIsCurrentLandscape(false);
-      setCurrentIndex((prev) => Math.max(prev - 1, 0));
+    } else if (currentIndex > 0) {
+      // 前画像の最後のサブページ(B)を即座にセット: LTR=右(true), RTL=左(false)
+      setShowRightHalf(splitMode && readingDirection === "ltr");
+      setCurrentIndex((prev) => prev - 1);
     }
   }, [splitMode, isCurrentLandscape, readingDirection, showRightHalf, currentIndex]);
 
@@ -446,7 +430,6 @@ export function ImageGallery({
               }}
             >
               <img
-                key={currentImage.id}
                 src={getStreamUrl(currentImage.id)}
                 alt={currentImage.title}
                 className="max-h-full max-w-full select-none object-contain"

@@ -72,8 +72,6 @@ export function useImageViewer(
   const [isCurrentLandscape, setIsCurrentLandscape] = useState(false);
   const [showRightHalf, setShowRightHalf] = useState(false);
 
-  // バグ3: prevで前画像に移動する時、最後のサブページを表示するためのref
-  const wantLastSubPageRef = useRef(false);
   const readingDirectionRef = useRef(readingDirection);
 
   // Persist splitMode to localStorage
@@ -81,7 +79,7 @@ export function useImageViewer(
     try {
       localStorage.setItem("image-viewer:split-mode", String(splitMode));
     } catch {}
-    setShowRightHalf(false);
+    setShowRightHalf(readingDirectionRef.current === "rtl");
   }, [splitMode]);
 
   // Persist readingDirection to localStorage
@@ -93,20 +91,6 @@ export function useImageViewer(
     setShowRightHalf(readingDirection === "rtl");
   }, [readingDirection]);
 
-  // Reset landscape + subpage when imageIndex changes
-  useEffect(() => {
-    setIsCurrentLandscape(false);
-    if (wantLastSubPageRef.current) {
-      // 前の画像の最後のサブページ: LTR=右(true), RTL=左(false)
-      setShowRightHalf(readingDirectionRef.current === "ltr");
-      wantLastSubPageRef.current = false;
-    } else {
-      // 通常の最初のサブページ: LTR=左(false), RTL=右(true)
-      setShowRightHalf(readingDirectionRef.current === "rtl");
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [imageIndex]);
-
   // Navigation with split mode awareness
   const navigateNext = useCallback(() => {
     const inActiveSplit = splitMode && isCurrentLandscape;
@@ -115,15 +99,16 @@ export function useImageViewer(
 
     if (inActiveSplit && isOnFirstSubPage) {
       setShowRightHalf(readingDirection === "ltr");
-    } else {
-      setIsCurrentLandscape(false);
-      setImageIndex((prev) => Math.min(prev + 1, imageEntries.length - 1));
+    } else if (imageIndex < imageEntries.length - 1) {
+      setShowRightHalf(readingDirection === "rtl");
+      setImageIndex((prev) => prev + 1);
     }
   }, [
     splitMode,
     isCurrentLandscape,
     readingDirection,
     showRightHalf,
+    imageIndex,
     imageEntries.length,
   ]);
 
@@ -134,12 +119,9 @@ export function useImageViewer(
 
     if (inActiveSplit && !isOnFirstSubPage) {
       setShowRightHalf(readingDirection === "rtl");
-    } else {
-      if (imageIndex > 0) {
-        wantLastSubPageRef.current = splitMode;
-      }
-      setIsCurrentLandscape(false);
-      setImageIndex((prev) => Math.max(prev - 1, 0));
+    } else if (imageIndex > 0) {
+      setShowRightHalf(splitMode && readingDirection === "ltr");
+      setImageIndex((prev) => prev - 1);
     }
   }, [splitMode, isCurrentLandscape, readingDirection, showRightHalf, imageIndex]);
 

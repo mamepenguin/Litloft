@@ -177,7 +177,6 @@ export function ArchiveImageViewer({
           }}
         >
           <img
-            key={currentImage.path}
             src={getArchiveEntryUrl(fileId, currentImage.path)}
             alt={currentImage.filename}
             className="max-h-full max-w-full select-none object-contain"
