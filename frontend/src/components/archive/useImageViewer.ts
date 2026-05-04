@@ -72,6 +72,10 @@ export function useImageViewer(
   const [isCurrentLandscape, setIsCurrentLandscape] = useState(false);
   const [showRightHalf, setShowRightHalf] = useState(false);
 
+  // バグ3: prevで前画像に移動する時、最後のサブページを表示するためのref
+  const wantLastSubPageRef = useRef(false);
+  const readingDirectionRef = useRef(readingDirection);
+
   // Persist splitMode to localStorage
   useEffect(() => {
     try {
@@ -85,13 +89,21 @@ export function useImageViewer(
     try {
       localStorage.setItem("image-viewer:reading-direction", readingDirection);
     } catch {}
+    readingDirectionRef.current = readingDirection;
     setShowRightHalf(readingDirection === "rtl");
   }, [readingDirection]);
 
   // Reset landscape + subpage when imageIndex changes
   useEffect(() => {
     setIsCurrentLandscape(false);
-    setShowRightHalf(readingDirection === "rtl");
+    if (wantLastSubPageRef.current) {
+      // 前の画像の最後のサブページ: LTR=右(true), RTL=左(false)
+      setShowRightHalf(readingDirectionRef.current === "ltr");
+      wantLastSubPageRef.current = false;
+    } else {
+      // 通常の最初のサブページ: LTR=左(false), RTL=右(true)
+      setShowRightHalf(readingDirectionRef.current === "rtl");
+    }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [imageIndex]);
 
@@ -122,9 +134,12 @@ export function useImageViewer(
     if (inActiveSplit && !isOnFirstSubPage) {
       setShowRightHalf(readingDirection === "rtl");
     } else {
+      if (imageIndex > 0) {
+        wantLastSubPageRef.current = splitMode;
+      }
       setImageIndex((prev) => Math.max(prev - 1, 0));
     }
-  }, [splitMode, isCurrentLandscape, readingDirection, showRightHalf]);
+  }, [splitMode, isCurrentLandscape, readingDirection, showRightHalf, imageIndex]);
 
   // Wrap onClose to also reset image viewer state
   const closeViewer = useCallback(() => {
@@ -172,6 +187,12 @@ export function useImageViewer(
 
   const tsc = useTranslations("shortcuts");
 
+  // バグ2: RTLモードでキーボードの左右を方向に応じて切り替えるためref経由でアクセス
+  const navigatePrevRef = useRef<() => void>(() => {});
+  const navigateNextRef = useRef<() => void>(() => {});
+  navigatePrevRef.current = navigatePrev;
+  navigateNextRef.current = navigateNext;
+
   useShortcuts(
     "archive-image-viewer",
     tsc("archiveViewer"),
@@ -179,12 +200,18 @@ export function useImageViewer(
       {
         key: "arrowleft",
         label: tsc("prevImage"),
-        handler: navigatePrev,
+        handler: () =>
+          readingDirectionRef.current === "ltr"
+            ? navigatePrevRef.current()
+            : navigateNextRef.current(),
       },
       {
         key: "arrowright",
         label: tsc("nextImage"),
-        handler: navigateNext,
+        handler: () =>
+          readingDirectionRef.current === "ltr"
+            ? navigateNextRef.current()
+            : navigatePrevRef.current(),
       },
       { key: "escape", label: tsc("close"), handler: closeViewer },
       {

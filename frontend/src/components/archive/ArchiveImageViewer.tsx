@@ -72,9 +72,6 @@ export function ArchiveImageViewer({
     readingDirection === "ltr" ? !showRightHalf : showRightHalf;
   const subPageLabel = activeSplit ? (isFirstSubPage ? "A" : "B") : null;
 
-  // Translate value for split rendering
-  const translateX = activeSplit ? (showRightHalf ? "-50%" : "0%") : undefined;
-
   const canGoPrev = imageIndex > 0 || (activeSplit && !isFirstSubPage);
   const canGoNext =
     imageIndex < imageEntries.length - 1 || (activeSplit && isFirstSubPage);
@@ -172,18 +169,18 @@ export function ArchiveImageViewer({
         )}
         <div
           className="flex h-full items-center justify-center"
-          style={{ width: activeSplit ? "200%" : "100%" }}
+          style={{
+            width: activeSplit ? "200%" : "100%",
+            flexShrink: activeSplit ? 0 : undefined,
+            transform:
+              activeSplit && showRightHalf ? "translateX(-50%)" : undefined,
+          }}
         >
           <img
             key={currentImage.path}
             src={getArchiveEntryUrl(fileId, currentImage.path)}
             alt={currentImage.filename}
             className="max-h-full max-w-full select-none object-contain"
-            style={
-              activeSplit
-                ? { transform: `translateX(${translateX})` }
-                : undefined
-            }
             onLoad={(e) => {
               setImageLoading(false);
               const img = e.currentTarget;
@@ -195,30 +192,36 @@ export function ArchiveImageViewer({
       </div>
 
       {/* Navigation buttons */}
-      {showControls && canGoPrev && (
-        <button
-          onClick={(e) => {
-            e.stopPropagation();
-            navigatePrev();
-          }}
-          className="absolute left-4 top-1/2 -translate-y-1/2 rounded-full bg-black/50 p-2 text-white/70 transition-opacity hover:text-white"
-          aria-label={t("prevImage")}
-        >
-          <ChevronLeft size={32} />
-        </button>
-      )}
-      {showControls && canGoNext && (
-        <button
-          onClick={(e) => {
-            e.stopPropagation();
-            navigateNext();
-          }}
-          className="absolute right-4 top-1/2 -translate-y-1/2 rounded-full bg-black/50 p-2 text-white/70 transition-opacity hover:text-white"
-          aria-label={t("nextImage")}
-        >
-          <ChevronRight size={32} />
-        </button>
-      )}
+      {showControls &&
+        (readingDirection === "ltr" ? canGoPrev : canGoNext) && (
+          <button
+            onClick={(e) => {
+              e.stopPropagation();
+              readingDirection === "ltr" ? navigatePrev() : navigateNext();
+            }}
+            className="absolute left-4 top-1/2 -translate-y-1/2 rounded-full bg-black/50 p-2 text-white/70 transition-opacity hover:text-white"
+            aria-label={
+              readingDirection === "ltr" ? t("prevImage") : t("nextImage")
+            }
+          >
+            <ChevronLeft size={32} />
+          </button>
+        )}
+      {showControls &&
+        (readingDirection === "ltr" ? canGoNext : canGoPrev) && (
+          <button
+            onClick={(e) => {
+              e.stopPropagation();
+              readingDirection === "ltr" ? navigateNext() : navigatePrev();
+            }}
+            className="absolute right-4 top-1/2 -translate-y-1/2 rounded-full bg-black/50 p-2 text-white/70 transition-opacity hover:text-white"
+            aria-label={
+              readingDirection === "ltr" ? t("nextImage") : t("prevImage")
+            }
+          >
+            <ChevronRight size={32} />
+          </button>
+        )}
     </div>
   );
 }
