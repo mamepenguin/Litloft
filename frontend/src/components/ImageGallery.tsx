@@ -192,6 +192,7 @@ export function ImageGallery({
     if (inActiveSplit && isOnFirstSubPage) {
       setShowRightHalf(readingDirection === "ltr");
     } else {
+      setIsCurrentLandscape(false);
       setCurrentIndex((prev) => Math.min(prev + 1, images.length - 1));
     }
   }, [
@@ -213,6 +214,7 @@ export function ImageGallery({
       if (currentIndex > 0) {
         wantLastSubPageRef.current = splitMode;
       }
+      setIsCurrentLandscape(false);
       setCurrentIndex((prev) => Math.max(prev - 1, 0));
     }
   }, [splitMode, isCurrentLandscape, readingDirection, showRightHalf, currentIndex]);

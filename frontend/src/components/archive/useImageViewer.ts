@@ -116,6 +116,7 @@ export function useImageViewer(
     if (inActiveSplit && isOnFirstSubPage) {
       setShowRightHalf(readingDirection === "ltr");
     } else {
+      setIsCurrentLandscape(false);
       setImageIndex((prev) => Math.min(prev + 1, imageEntries.length - 1));
     }
   }, [
@@ -137,6 +138,7 @@ export function useImageViewer(
       if (imageIndex > 0) {
         wantLastSubPageRef.current = splitMode;
       }
+      setIsCurrentLandscape(false);
       setImageIndex((prev) => Math.max(prev - 1, 0));
     }
   }, [splitMode, isCurrentLandscape, readingDirection, showRightHalf, imageIndex]);
