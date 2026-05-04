@@ -41,9 +41,9 @@ export function useImageAreaGestures({
       const adx = Math.abs(dx);
       const ady = Math.abs(dy);
 
-      // 水平スワイプ: 物理方向で統一（RTL/LTR 問わず左スワイプ=next）
+      // 水平スワイプ: 右スワイプ=next、左スワイプ=prev
       if (adx > SWIPE_MIN_PX && adx > ady) {
-        if (dx < 0) {
+        if (dx > 0) {
           navigateNext();
         } else {
           navigatePrev();
