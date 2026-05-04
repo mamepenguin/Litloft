@@ -417,7 +417,12 @@
     "seconds": "{sec}秒",
     "prevImage": "前の画像",
     "nextImage": "次の画像",
-    "backToList": "一覧に戻る"
+    "backToList": "一覧に戻る",
+    "splitMode": "見開きモード",
+    "splitModeToggle": "見開きモード切り替え",
+    "ltr": "LTR",
+    "rtl": "RTL",
+    "readingDirection": "読み方向"
   },
   "empty": {
     "noFilesTitle": "ファイルがありません",
@@ -464,7 +469,12 @@
     "prevImage": "前の画像",
     "nextImage": "次の画像",
     "slideshowInterval": "スライドショー間隔",
-    "seconds": "{sec}秒"
+    "seconds": "{sec}秒",
+    "splitMode": "見開きモード",
+    "splitModeToggle": "見開きモード切り替え",
+    "ltr": "LTR",
+    "rtl": "RTL",
+    "readingDirection": "読み方向"
   },
   "unlock": {
     "title": "Unlock",

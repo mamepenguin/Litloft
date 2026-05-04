@@ -27,7 +27,6 @@ const defaultProps = {
   currentImage: images[1],
   imageEntries: images,
   imageIndex: 1,
-  setImageIndex: vi.fn(),
   imageLoading: false,
   setImageLoading: vi.fn(),
   playing: false,
@@ -37,6 +36,15 @@ const defaultProps = {
   showControls: true,
   handleImageAreaClick: vi.fn(),
   closeViewer: vi.fn(),
+  splitMode: false,
+  setSplitMode: vi.fn(),
+  readingDirection: "ltr" as const,
+  setReadingDirection: vi.fn(),
+  isCurrentLandscape: false,
+  setIsCurrentLandscape: vi.fn(),
+  showRightHalf: false,
+  navigatePrev: vi.fn(),
+  navigateNext: vi.fn(),
 };
 
 describe("ArchiveImageViewer", () => {

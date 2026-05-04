@@ -157,7 +157,6 @@ export function ArchivePreview({ fileId }: { fileId: string }) {
         currentImage={currentImage}
         imageEntries={imageEntries}
         imageIndex={imageViewer.imageIndex}
-        setImageIndex={imageViewer.setImageIndex}
         imageLoading={imageViewer.imageLoading}
         setImageLoading={imageViewer.setImageLoading}
         playing={imageViewer.playing}
@@ -167,6 +166,15 @@ export function ArchivePreview({ fileId }: { fileId: string }) {
         showControls={imageViewer.showControls}
         handleImageAreaClick={imageViewer.handleImageAreaClick}
         closeViewer={closeViewerFull}
+        splitMode={imageViewer.splitMode}
+        setSplitMode={imageViewer.setSplitMode}
+        readingDirection={imageViewer.readingDirection}
+        setReadingDirection={imageViewer.setReadingDirection}
+        isCurrentLandscape={imageViewer.isCurrentLandscape}
+        setIsCurrentLandscape={imageViewer.setIsCurrentLandscape}
+        showRightHalf={imageViewer.showRightHalf}
+        navigatePrev={imageViewer.navigatePrev}
+        navigateNext={imageViewer.navigateNext}
       />
     );
   }

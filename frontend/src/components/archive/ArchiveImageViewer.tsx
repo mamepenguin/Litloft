@@ -1,6 +1,7 @@
 "use client";
 
 import {
+  BookOpen,
   ChevronLeft,
   ChevronRight,
   Download,
@@ -19,7 +20,6 @@ interface ArchiveImageViewerProps {
   currentImage: ArchiveEntry;
   imageEntries: ArchiveEntry[];
   imageIndex: number;
-  setImageIndex: React.Dispatch<React.SetStateAction<number>>;
   imageLoading: boolean;
   setImageLoading: React.Dispatch<React.SetStateAction<boolean>>;
   playing: boolean;
@@ -29,6 +29,15 @@ interface ArchiveImageViewerProps {
   showControls: boolean;
   handleImageAreaClick: () => void;
   closeViewer: () => void;
+  splitMode: boolean;
+  setSplitMode: React.Dispatch<React.SetStateAction<boolean>>;
+  readingDirection: "ltr" | "rtl";
+  setReadingDirection: React.Dispatch<React.SetStateAction<"ltr" | "rtl">>;
+  isCurrentLandscape: boolean;
+  setIsCurrentLandscape: React.Dispatch<React.SetStateAction<boolean>>;
+  showRightHalf: boolean;
+  navigatePrev: () => void;
+  navigateNext: () => void;
 }
 
 export function ArchiveImageViewer({
@@ -36,7 +45,6 @@ export function ArchiveImageViewer({
   currentImage,
   imageEntries,
   imageIndex,
-  setImageIndex,
   imageLoading,
   setImageLoading,
   playing,
@@ -46,9 +54,31 @@ export function ArchiveImageViewer({
   showControls,
   handleImageAreaClick,
   closeViewer,
+  splitMode,
+  setSplitMode,
+  readingDirection,
+  setReadingDirection,
+  isCurrentLandscape,
+  setIsCurrentLandscape,
+  showRightHalf,
+  navigatePrev,
+  navigateNext,
 }: ArchiveImageViewerProps) {
   const t = useTranslations("archive");
   const tc = useTranslations("common");
+
+  const activeSplit = splitMode && isCurrentLandscape;
+  const isFirstSubPage =
+    readingDirection === "ltr" ? !showRightHalf : showRightHalf;
+  const subPageLabel = activeSplit ? (isFirstSubPage ? "A" : "B") : null;
+
+  // Translate value for split rendering
+  const translateX = activeSplit ? (showRightHalf ? "-50%" : "0%") : undefined;
+
+  const canGoPrev = imageIndex > 0 || (activeSplit && !isFirstSubPage);
+  const canGoNext =
+    imageIndex < imageEntries.length - 1 || (activeSplit && isFirstSubPage);
+
   return (
     <div className="fixed inset-0 z-[60] flex flex-col bg-black">
       {/* Header */}
@@ -66,6 +96,7 @@ export function ArchiveImageViewer({
         {imageEntries.length > 0 && (
           <span className="text-sm text-white/60">
             {imageIndex + 1} / {imageEntries.length}
+            {subPageLabel !== null ? ` ${subPageLabel}` : ""}
           </span>
         )}
 
@@ -95,6 +126,24 @@ export function ArchiveImageViewer({
               </button>
             </>
           )}
+          {splitMode && (
+            <button
+              onClick={() =>
+                setReadingDirection((d) => (d === "ltr" ? "rtl" : "ltr"))
+              }
+              className="rounded bg-white/10 px-2 py-1 text-xs text-white/80 transition-colors hover:bg-white/20 hover:text-white"
+              aria-label={t("readingDirection")}
+            >
+              {readingDirection === "ltr" ? t("ltr") : t("rtl")}
+            </button>
+          )}
+          <button
+            onClick={() => setSplitMode((m) => !m)}
+            className={`rounded-full p-1.5 transition-colors hover:bg-white/10 ${splitMode ? "text-white" : "text-white/60 hover:text-white"}`}
+            aria-label={t("splitModeToggle")}
+          >
+            <BookOpen size={18} />
+          </button>
           <a
             href={getArchiveEntryUrl(fileId, currentImage.path)}
             download={currentImage.filename}
@@ -115,28 +164,42 @@ export function ArchiveImageViewer({
 
       {/* Main image area */}
       <div
-        className="flex flex-1 cursor-pointer items-center justify-center"
+        className="flex flex-1 cursor-pointer items-center overflow-hidden"
         onClick={handleImageAreaClick}
       >
         {imageLoading && (
           <div className="absolute h-8 w-8 animate-spin rounded-full border-2 border-white border-t-transparent" />
         )}
-        <img
-          key={currentImage.path}
-          src={getArchiveEntryUrl(fileId, currentImage.path)}
-          alt={currentImage.filename}
-          className="max-h-full max-w-full select-none object-contain"
-          onLoad={() => setImageLoading(false)}
-          draggable={false}
-        />
+        <div
+          className="flex h-full items-center justify-center"
+          style={{ width: activeSplit ? "200%" : "100%" }}
+        >
+          <img
+            key={currentImage.path}
+            src={getArchiveEntryUrl(fileId, currentImage.path)}
+            alt={currentImage.filename}
+            className="max-h-full max-w-full select-none object-contain"
+            style={
+              activeSplit
+                ? { transform: `translateX(${translateX})` }
+                : undefined
+            }
+            onLoad={(e) => {
+              setImageLoading(false);
+              const img = e.currentTarget;
+              setIsCurrentLandscape(img.naturalWidth > img.naturalHeight);
+            }}
+            draggable={false}
+          />
+        </div>
       </div>
 
       {/* Navigation buttons */}
-      {showControls && imageIndex > 0 && (
+      {showControls && canGoPrev && (
         <button
           onClick={(e) => {
             e.stopPropagation();
-            setImageIndex((prev) => prev - 1);
+            navigatePrev();
           }}
           className="absolute left-4 top-1/2 -translate-y-1/2 rounded-full bg-black/50 p-2 text-white/70 transition-opacity hover:text-white"
           aria-label={t("prevImage")}
@@ -144,11 +207,11 @@ export function ArchiveImageViewer({
           <ChevronLeft size={32} />
         </button>
       )}
-      {showControls && imageIndex < imageEntries.length - 1 && (
+      {showControls && canGoNext && (
         <button
           onClick={(e) => {
             e.stopPropagation();
-            setImageIndex((prev) => prev + 1);
+            navigateNext();
           }}
           className="absolute right-4 top-1/2 -translate-y-1/2 rounded-full bg-black/50 p-2 text-white/70 transition-opacity hover:text-white"
           aria-label={t("nextImage")}

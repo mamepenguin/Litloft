@@ -1,7 +1,14 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
-import { ChevronLeft, ChevronRight, Pause, Play, X } from "lucide-react";
+import {
+  BookOpen,
+  ChevronLeft,
+  ChevronRight,
+  Pause,
+  Play,
+  X,
+} from "lucide-react";
 
 import { useTranslations } from "next-intl";
 import { useShortcuts } from "@/hooks/useShortcuts";
@@ -17,6 +24,25 @@ interface ImageGalleryProps {
 }
 
 const INTERVAL_OPTIONS = [3, 5, 10] as const;
+
+function readLocalBool(key: string, def: boolean): boolean {
+  try {
+    const val = localStorage.getItem(key);
+    if (val === "true") return true;
+    if (val === "false") return false;
+    return def;
+  } catch {
+    return def;
+  }
+}
+
+function readLocalString<T extends string>(key: string, def: T): T {
+  try {
+    return (localStorage.getItem(key) as T | null) ?? def;
+  } catch {
+    return def;
+  }
+}
 
 export function ImageGallery({
   open,
@@ -36,7 +62,39 @@ export function ImageGallery({
   const [slideshowInterval, setSlideshowInterval] = useState(5);
   const [showControls, setShowControls] = useState(true);
 
+  const [splitMode, setSplitMode] = useState(() =>
+    readLocalBool("image-viewer:split-mode", false)
+  );
+  const [readingDirection, setReadingDirection] = useState<"ltr" | "rtl">(() =>
+    readLocalString("image-viewer:reading-direction", "ltr")
+  );
+  const [isCurrentLandscape, setIsCurrentLandscape] = useState(false);
+  const [showRightHalf, setShowRightHalf] = useState(false);
+
   const hideTimerRef = useRef<number | null>(null);
+
+  // Persist splitMode to localStorage
+  useEffect(() => {
+    try {
+      localStorage.setItem("image-viewer:split-mode", String(splitMode));
+    } catch {}
+    setShowRightHalf(false);
+  }, [splitMode]);
+
+  // Persist readingDirection to localStorage
+  useEffect(() => {
+    try {
+      localStorage.setItem("image-viewer:reading-direction", readingDirection);
+    } catch {}
+    setShowRightHalf(readingDirection === "rtl");
+  }, [readingDirection]);
+
+  // Reset landscape + subpage when currentIndex changes
+  useEffect(() => {
+    setIsCurrentLandscape(false);
+    setShowRightHalf(readingDirection === "rtl");
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [currentIndex]);
 
   // Capture file info at open time to avoid re-fetching on parent re-renders
   const openFileRef = useRef(file);
@@ -108,20 +166,47 @@ export function ImageGallery({
 
   const currentImage = images[currentIndex] ?? file;
 
-  // Navigation
-  const navigatePrev = useCallback(() => {
-    setCurrentIndex((prev) => {
-      if (prev <= 0) return prev;
-      return prev - 1;
-    });
-  }, []);
+  const activeSplit = splitMode && isCurrentLandscape;
+  const isFirstSubPage =
+    readingDirection === "ltr" ? !showRightHalf : showRightHalf;
+  const subPageLabel = activeSplit ? (isFirstSubPage ? "A" : "B") : null;
+  const translateX = activeSplit ? (showRightHalf ? "-50%" : "0%") : undefined;
 
+  // Navigation with split mode awareness
   const navigateNext = useCallback(() => {
-    setCurrentIndex((prev) => {
-      if (prev >= images.length - 1) return prev;
-      return prev + 1;
-    });
-  }, [images.length]);
+    const inActiveSplit = splitMode && isCurrentLandscape;
+    const isOnFirstSubPage =
+      readingDirection === "ltr" ? !showRightHalf : showRightHalf;
+
+    if (inActiveSplit && isOnFirstSubPage) {
+      setShowRightHalf(readingDirection === "ltr");
+    } else {
+      setCurrentIndex((prev) => Math.min(prev + 1, images.length - 1));
+    }
+  }, [
+    splitMode,
+    isCurrentLandscape,
+    readingDirection,
+    showRightHalf,
+    images.length,
+  ]);
+
+  const navigatePrev = useCallback(() => {
+    const inActiveSplit = splitMode && isCurrentLandscape;
+    const isOnFirstSubPage =
+      readingDirection === "ltr" ? !showRightHalf : showRightHalf;
+
+    if (inActiveSplit && !isOnFirstSubPage) {
+      setShowRightHalf(readingDirection === "rtl");
+    } else {
+      setCurrentIndex((prev) => Math.max(prev - 1, 0));
+    }
+  }, [splitMode, isCurrentLandscape, readingDirection, showRightHalf]);
+
+  const canGoPrev =
+    currentIndex > 0 || (activeSplit && !isFirstSubPage);
+  const canGoNext =
+    currentIndex < images.length - 1 || (activeSplit && isFirstSubPage);
 
   // Close handler: notify parent of the current image
   const handleClose = useCallback(() => {
@@ -168,16 +253,12 @@ export function ImageGallery({
       {
         key: "arrowleft",
         label: t_sc("prevImage"),
-        handler: () =>
-          setCurrentIndex((prev) => (prev > 0 ? prev - 1 : prev)),
+        handler: navigatePrev,
       },
       {
         key: "arrowright",
         label: t_sc("nextImage"),
-        handler: () =>
-          setCurrentIndex((prev) =>
-            prev < images.length - 1 ? prev + 1 : prev
-          ),
+        handler: navigateNext,
       },
       {
         key: "escape",
@@ -255,6 +336,7 @@ export function ImageGallery({
         {images.length > 0 && (
           <span className="text-sm text-white/60">
             {currentIndex + 1} / {images.length}
+            {subPageLabel !== null ? ` ${subPageLabel}` : ""}
           </span>
         )}
 
@@ -282,6 +364,24 @@ export function ImageGallery({
               </button>
             </>
           )}
+          {splitMode && (
+            <button
+              onClick={() =>
+                setReadingDirection((d) => (d === "ltr" ? "rtl" : "ltr"))
+              }
+              className="rounded bg-white/10 px-2 py-1 text-xs text-white/80 transition-colors hover:bg-white/20 hover:text-white"
+              aria-label={t("readingDirection")}
+            >
+              {readingDirection === "ltr" ? t("ltr") : t("rtl")}
+            </button>
+          )}
+          <button
+            onClick={() => setSplitMode((m) => !m)}
+            className={`rounded-full p-1.5 transition-colors hover:bg-white/10 ${splitMode ? "text-white" : "text-white/60 hover:text-white"}`}
+            aria-label={t("splitModeToggle")}
+          >
+            <BookOpen size={18} />
+          </button>
           <button
             onClick={handleClose}
             className="rounded-full p-1.5 text-white/80 transition-colors hover:bg-white/10 hover:text-white"
@@ -294,31 +394,47 @@ export function ImageGallery({
 
       {/* Main image area */}
       <div
-        className="flex flex-1 cursor-pointer items-center justify-center"
+        className="flex flex-1 cursor-pointer items-center overflow-hidden"
         onClick={handleImageAreaClick}
       >
         {loading ? (
-          <div className="h-8 w-8 animate-spin rounded-full border-2 border-white border-t-transparent" />
+          <div className="flex w-full items-center justify-center">
+            <div className="h-8 w-8 animate-spin rounded-full border-2 border-white border-t-transparent" />
+          </div>
         ) : (
           <>
             {imageLoading && (
               <div className="absolute h-8 w-8 animate-spin rounded-full border-2 border-white border-t-transparent" />
             )}
-            <img
-              key={currentImage.id}
-              src={getStreamUrl(currentImage.id)}
-              alt={currentImage.title}
-              className="max-h-full max-w-full select-none object-contain"
-              onLoad={() => setImageLoading(false)}
-              onLoadStart={() => setImageLoading(true)}
-              draggable={false}
-            />
+            <div
+              className="flex h-full items-center justify-center"
+              style={{ width: activeSplit ? "200%" : "100%" }}
+            >
+              <img
+                key={currentImage.id}
+                src={getStreamUrl(currentImage.id)}
+                alt={currentImage.title}
+                className="max-h-full max-w-full select-none object-contain"
+                style={
+                  activeSplit
+                    ? { transform: `translateX(${translateX})` }
+                    : undefined
+                }
+                onLoad={(e) => {
+                  setImageLoading(false);
+                  const img = e.currentTarget;
+                  setIsCurrentLandscape(img.naturalWidth > img.naturalHeight);
+                }}
+                onLoadStart={() => setImageLoading(true)}
+                draggable={false}
+              />
+            </div>
           </>
         )}
       </div>
 
       {/* Navigation buttons */}
-      {showControls && !loading && currentIndex > 0 && (
+      {showControls && !loading && canGoPrev && (
         <button
           onClick={(e) => {
             e.stopPropagation();
@@ -330,7 +446,7 @@ export function ImageGallery({
           <ChevronLeft size={32} />
         </button>
       )}
-      {showControls && !loading && currentIndex < images.length - 1 && (
+      {showControls && !loading && canGoNext && (
         <button
           onClick={(e) => {
             e.stopPropagation();

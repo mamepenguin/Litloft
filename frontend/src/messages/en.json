@@ -417,7 +417,12 @@
     "seconds": "{sec}s",
     "prevImage": "Previous image",
     "nextImage": "Next image",
-    "backToList": "Back to list"
+    "backToList": "Back to list",
+    "splitMode": "Spread mode",
+    "splitModeToggle": "Toggle spread mode",
+    "ltr": "LTR",
+    "rtl": "RTL",
+    "readingDirection": "Reading direction"
   },
   "empty": {
     "noFilesTitle": "No files",
@@ -464,7 +469,12 @@
     "prevImage": "Previous image",
     "nextImage": "Next image",
     "slideshowInterval": "Slideshow interval",
-    "seconds": "{sec}s"
+    "seconds": "{sec}s",
+    "splitMode": "Spread mode",
+    "splitModeToggle": "Toggle spread mode",
+    "ltr": "LTR",
+    "rtl": "RTL",
+    "readingDirection": "Reading direction"
   },
   "unlock": {
     "title": "Unlock",

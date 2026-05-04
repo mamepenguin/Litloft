@@ -8,6 +8,25 @@ import { useShortcuts } from "@/hooks/useShortcuts";
 import type { ArchiveEntry } from "@/types";
 import type { ArchiveViewMode } from "./archiveUtils";
 
+function readLocalBool(key: string, def: boolean): boolean {
+  try {
+    const val = localStorage.getItem(key);
+    if (val === "true") return true;
+    if (val === "false") return false;
+    return def;
+  } catch {
+    return def;
+  }
+}
+
+function readLocalString<T extends string>(key: string, def: T): T {
+  try {
+    return (localStorage.getItem(key) as T | null) ?? def;
+  } catch {
+    return def;
+  }
+}
+
 interface ImageViewerResult {
   imageIndex: number;
   setImageIndex: React.Dispatch<React.SetStateAction<number>>;
@@ -20,6 +39,15 @@ interface ImageViewerResult {
   showControls: boolean;
   setShowControls: React.Dispatch<React.SetStateAction<boolean>>;
   handleImageAreaClick: () => void;
+  splitMode: boolean;
+  setSplitMode: React.Dispatch<React.SetStateAction<boolean>>;
+  readingDirection: "ltr" | "rtl";
+  setReadingDirection: React.Dispatch<React.SetStateAction<"ltr" | "rtl">>;
+  isCurrentLandscape: boolean;
+  setIsCurrentLandscape: React.Dispatch<React.SetStateAction<boolean>>;
+  showRightHalf: boolean;
+  navigatePrev: () => void;
+  navigateNext: () => void;
 }
 
 export function useImageViewer(
@@ -34,6 +62,69 @@ export function useImageViewer(
   const [slideshowInterval, setSlideshowInterval] = useState(5);
   const [showControls, setShowControls] = useState(true);
   const hideTimerRef = useRef<number | null>(null);
+
+  const [splitMode, setSplitMode] = useState(() =>
+    readLocalBool("image-viewer:split-mode", false)
+  );
+  const [readingDirection, setReadingDirection] = useState<"ltr" | "rtl">(() =>
+    readLocalString("image-viewer:reading-direction", "ltr")
+  );
+  const [isCurrentLandscape, setIsCurrentLandscape] = useState(false);
+  const [showRightHalf, setShowRightHalf] = useState(false);
+
+  // Persist splitMode to localStorage
+  useEffect(() => {
+    try {
+      localStorage.setItem("image-viewer:split-mode", String(splitMode));
+    } catch {}
+    setShowRightHalf(false);
+  }, [splitMode]);
+
+  // Persist readingDirection to localStorage
+  useEffect(() => {
+    try {
+      localStorage.setItem("image-viewer:reading-direction", readingDirection);
+    } catch {}
+    setShowRightHalf(readingDirection === "rtl");
+  }, [readingDirection]);
+
+  // Reset landscape + subpage when imageIndex changes
+  useEffect(() => {
+    setIsCurrentLandscape(false);
+    setShowRightHalf(readingDirection === "rtl");
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [imageIndex]);
+
+  // Navigation with split mode awareness
+  const navigateNext = useCallback(() => {
+    const inActiveSplit = splitMode && isCurrentLandscape;
+    const isOnFirstSubPage =
+      readingDirection === "ltr" ? !showRightHalf : showRightHalf;
+
+    if (inActiveSplit && isOnFirstSubPage) {
+      setShowRightHalf(readingDirection === "ltr");
+    } else {
+      setImageIndex((prev) => Math.min(prev + 1, imageEntries.length - 1));
+    }
+  }, [
+    splitMode,
+    isCurrentLandscape,
+    readingDirection,
+    showRightHalf,
+    imageEntries.length,
+  ]);
+
+  const navigatePrev = useCallback(() => {
+    const inActiveSplit = splitMode && isCurrentLandscape;
+    const isOnFirstSubPage =
+      readingDirection === "ltr" ? !showRightHalf : showRightHalf;
+
+    if (inActiveSplit && !isOnFirstSubPage) {
+      setShowRightHalf(readingDirection === "rtl");
+    } else {
+      setImageIndex((prev) => Math.max(prev - 1, 0));
+    }
+  }, [splitMode, isCurrentLandscape, readingDirection, showRightHalf]);
 
   // Wrap onClose to also reset image viewer state
   const closeViewer = useCallback(() => {
@@ -81,29 +172,31 @@ export function useImageViewer(
 
   const tsc = useTranslations("shortcuts");
 
-  useShortcuts("archive-image-viewer", tsc("archiveViewer"), [
-    {
-      key: "arrowleft",
-      label: tsc("prevImage"),
-      handler: () => setImageIndex((prev) => (prev > 0 ? prev - 1 : prev)),
-    },
-    {
-      key: "arrowright",
-      label: tsc("nextImage"),
-      handler: () =>
-        setImageIndex((prev) =>
-          prev < imageEntries.length - 1 ? prev + 1 : prev
-        ),
-    },
-    { key: "escape", label: tsc("close"), handler: closeViewer },
-    {
-      key: "space",
-      label: tsc("slideshow"),
-      handler: () => {
-        if (imageEntries.length > 1) setPlaying((p) => !p);
+  useShortcuts(
+    "archive-image-viewer",
+    tsc("archiveViewer"),
+    [
+      {
+        key: "arrowleft",
+        label: tsc("prevImage"),
+        handler: navigatePrev,
       },
-    },
-  ], viewMode === "image");
+      {
+        key: "arrowright",
+        label: tsc("nextImage"),
+        handler: navigateNext,
+      },
+      { key: "escape", label: tsc("close"), handler: closeViewer },
+      {
+        key: "space",
+        label: tsc("slideshow"),
+        handler: () => {
+          if (imageEntries.length > 1) setPlaying((p) => !p);
+        },
+      },
+    ],
+    viewMode === "image"
+  );
 
   // Auto-hide controls during slideshow
   useEffect(() => {
@@ -148,5 +241,14 @@ export function useImageViewer(
     showControls,
     setShowControls,
     handleImageAreaClick,
+    splitMode,
+    setSplitMode,
+    readingDirection,
+    setReadingDirection,
+    isCurrentLandscape,
+    setIsCurrentLandscape,
+    showRightHalf,
+    navigatePrev,
+    navigateNext,
   };
 }
