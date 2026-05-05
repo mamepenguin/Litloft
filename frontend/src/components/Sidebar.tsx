@@ -146,7 +146,7 @@ function SidebarShortcuts() {
   useShortcuts(
     "sidebar-overlay",
     "",
-    [{ key: "escape", label: "閉じる", handler: close, hidden: true }],
+    [{ key: "escape", label: "Close", handler: close, hidden: true }],
     isOverlayOpen,
   );
 

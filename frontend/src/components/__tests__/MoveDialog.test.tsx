@@ -31,7 +31,7 @@ describe("MoveDialog", () => {
 
   it("renders dialog when open", async () => {
     render(<MoveDialog {...defaultProps} />);
-    expect(screen.getByText("移動先を選択")).toBeInTheDocument();
+    expect(screen.getByText("Select destination")).toBeInTheDocument();
     await waitFor(() => {
       expect(screen.getByText("photos")).toBeInTheDocument();
     });
@@ -52,7 +52,7 @@ describe("MoveDialog", () => {
   it("calls onCancel on close button", () => {
     const onCancel = vi.fn();
     render(<MoveDialog {...defaultProps} onCancel={onCancel} />);
-    fireEvent.click(screen.getByLabelText("閉じる"));
+    fireEvent.click(screen.getByLabelText("Close"));
     expect(onCancel).toHaveBeenCalled();
   });
 
@@ -70,14 +70,14 @@ describe("MoveDialog", () => {
       expect(getFolders).toHaveBeenCalledWith("main", "photos");
     });
 
-    fireEvent.click(screen.getByText("ここに移動"));
+    fireEvent.click(screen.getByText("Move here"));
     expect(onMove).toHaveBeenCalledWith("photos");
   });
 
   it("disables move button when selecting current path", () => {
     render(<MoveDialog {...defaultProps} currentPath="" />);
     // Default selected path is "" which equals currentPath ""
-    const moveButton = screen.getByText("ここに移動");
+    const moveButton = screen.getByText("Move here");
     expect(moveButton).toBeDisabled();
   });
 });

@@ -1,11 +1,11 @@
 "use client";
 
+import { useRelativeDate } from "@/hooks/useRelativeDate";
 import { useCallback, useEffect, useState } from "react";
 import { ChevronRight, MessageCircle, Pencil, Send, Trash2 } from "lucide-react";
 import { useTranslations } from "next-intl";
 
 import { createComment, deleteComment, getComments, updateComment } from "@/lib/api";
-import { formatRelativeDate } from "@/lib/format";
 import type { Comment } from "@/types";
 import { ConfirmDialog } from "./ConfirmDialog";
 
@@ -14,6 +14,7 @@ interface CommentSectionProps {
 }
 
 export function CommentSection({ fileId }: CommentSectionProps) {
+  const formatRelativeDate = useRelativeDate();
   const t = useTranslations("comments");
   const [comments, setComments] = useState<Comment[]>([]);
   const [total, setTotal] = useState(0);

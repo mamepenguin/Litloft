@@ -26,28 +26,28 @@ const defaultProps = {
 describe("ArchiveTextViewer", () => {
   it("shows confirmation prompt when not confirmed", () => {
     render(<ArchiveTextViewer {...defaultProps} />);
-    expect(screen.getByText("読み込む")).toBeInTheDocument();
-    expect(screen.getByText(/ファイルサイズが大きいです/)).toBeInTheDocument();
+    expect(screen.getByText("Load")).toBeInTheDocument();
+    expect(screen.getByText(/File is large/)).toBeInTheDocument();
     expect(screen.getByText(/2.0 KB/)).toBeInTheDocument();
   });
 
   it("calls setTextConfirmed on confirm button click", () => {
     const setTextConfirmed = vi.fn();
     render(<ArchiveTextViewer {...defaultProps} setTextConfirmed={setTextConfirmed} />);
-    fireEvent.click(screen.getByText("読み込む"));
+    fireEvent.click(screen.getByText("Load"));
     expect(setTextConfirmed).toHaveBeenCalledWith(true);
   });
 
   it("shows loading state when textLoading is true", () => {
     render(<ArchiveTextViewer {...defaultProps} textConfirmed={true} textLoading={true} />);
-    expect(screen.getByText("読み込み中...")).toBeInTheDocument();
+    expect(screen.getByText("Loading...")).toBeInTheDocument();
   });
 
   it("shows error message when textError is set", () => {
     render(
       <ArchiveTextViewer {...defaultProps} textConfirmed={true} textError="500 Server Error" />
     );
-    expect(screen.getByText(/読み込みに失敗しました/)).toBeInTheDocument();
+    expect(screen.getByText(/Failed to load/)).toBeInTheDocument();
     expect(screen.getByText(/500 Server Error/)).toBeInTheDocument();
   });
 
@@ -70,7 +70,7 @@ describe("ArchiveTextViewer", () => {
   it("calls closeViewer on back button click", () => {
     const closeViewer = vi.fn();
     render(<ArchiveTextViewer {...defaultProps} closeViewer={closeViewer} />);
-    fireEvent.click(screen.getByText("一覧に戻る"));
+    fireEvent.click(screen.getByText("Back to list"));
     expect(closeViewer).toHaveBeenCalled();
   });
 });

@@ -41,7 +41,7 @@ export function useImageAreaGestures({
       const adx = Math.abs(dx);
       const ady = Math.abs(dy);
 
-      // 水平スワイプ: 右スワイプ=next、左スワイプ=prev
+      // Horizontal swipe: right=next, left=prev.
       if (adx > SWIPE_MIN_PX && adx > ady) {
         if (dx > 0) {
           navigateNext();
@@ -51,7 +51,7 @@ export function useImageAreaGestures({
         return;
       }
 
-      // タップ: 短時間・小移動
+      // Tap: short duration, small movement.
       if (
         Date.now() - s.t < TAP_MAX_MS &&
         adx < TAP_MAX_MOVE_PX &&
@@ -62,13 +62,13 @@ export function useImageAreaGestures({
         const w = rect.width;
 
         if (rx < w * EDGE_RATIO) {
-          // 左端タップ: ボタンと同じ方向論理
+          // Left edge tap: same direction logic as buttons.
           readingDirection === "ltr" ? navigatePrev() : navigateNext();
         } else if (rx > w * (1 - EDGE_RATIO)) {
-          // 右端タップ
+          // Right edge tap.
           readingDirection === "ltr" ? navigateNext() : navigatePrev();
         } else {
-          // 中央タップ: controls トグル
+          // Center tap: toggle controls.
           toggleControls();
         }
       }

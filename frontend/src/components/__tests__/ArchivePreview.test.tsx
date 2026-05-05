@@ -204,7 +204,7 @@ describe("ArchivePreview", () => {
 
     await waitFor(() => {
       expect(
-        screen.getByText(/アーカイブの読み込みに失敗しました/)
+        screen.getByText(/Failed to load archive/)
       ).toBeInTheDocument();
     });
   });

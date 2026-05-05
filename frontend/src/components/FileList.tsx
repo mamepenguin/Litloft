@@ -1,5 +1,6 @@
 "use client";
 
+import { useRelativeDate } from "@/hooks/useRelativeDate";
 import { useCallback, useState } from "react";
 import Link from "next/link";
 import { Download, ListMusic, Move, Pencil, Trash2 } from "lucide-react";
@@ -8,7 +9,7 @@ import { ClipboardCopy, Scissors } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { deleteFile, getDownloadUrl, getThumbnailUrl, moveFile, renameFile } from "@/lib/api";
 import { useClipboard } from "./ClipboardProvider";
-import { formatDuration, formatFileSize, formatRelativeDate } from "@/lib/format";
+import { formatDuration, formatFileSize } from "@/lib/format";
 import type { FileItem, FileItemWithMatch } from "@/types";
 import { MatchOverlay } from "./MatchOverlay";
 import { FavoriteButton } from "./FavoriteButton";
@@ -50,6 +51,7 @@ export function FileList({
   onDragStart?: (e: React.DragEvent, fileId: string) => void;
   onDragEnd?: () => void;
 }) {
+  const formatRelativeDate = useRelativeDate();
   const t = useTranslations("file");
   const tc = useTranslations("common");
   const tcb = useTranslations("clipboard");

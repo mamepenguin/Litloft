@@ -18,7 +18,7 @@ describe("Breadcrumb", () => {
 
   it("renders home link", () => {
     render(<Breadcrumb driveName="main" />);
-    expect(screen.getByLabelText("ホーム")).toBeInTheDocument();
+    expect(screen.getByLabelText("Home")).toBeInTheDocument();
   });
 
   it("renders folder segments", () => {

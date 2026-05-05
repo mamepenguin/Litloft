@@ -1,7 +1,8 @@
+import { useRelativeDate } from "@/hooks/useRelativeDate";
 import Link from "next/link";
 import type { ReactNode } from "react";
 import type { FileItem, WatchProgress } from "@/types";
-import { formatDuration, formatFileSize, formatRelativeDate } from "@/lib/format";
+import { formatDuration, formatFileSize } from "@/lib/format";
 import { getThumbnailUrl } from "@/lib/api";
 import { useClipboard } from "./ClipboardProvider";
 import { FavoriteButton } from "./FavoriteButton";
@@ -55,6 +56,7 @@ export function FileCard({
    */
   matchOverlay?: ReactNode;
 }) {
+  const formatRelativeDate = useRelativeDate();
   const clipboard = useClipboard();
   const isCutFile = clipboard.isCut(file.id);
   const hasThumbnail = file.has_thumbnail || file.file_type === "video" || file.file_type === "image";

@@ -43,7 +43,7 @@ describe("VideoPlayer", () => {
 
   it("renders video element", () => {
     render(<VideoPlayer videoId="abc123" />);
-    const video = screen.getByText("お使いのブラウザは動画再生に対応していません。").closest("video");
+    const video = screen.getByText("Your browser does not support video playback.").closest("video");
     expect(video).toBeTruthy();
     expect(video?.getAttribute("src")).toBe("/api/files/abc123/stream");
   });

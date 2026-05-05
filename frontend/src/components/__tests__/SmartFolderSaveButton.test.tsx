@@ -98,7 +98,7 @@ describe("SmartFolderSaveButton", () => {
         smartFolderId={null}
       />,
     );
-    expect(screen.getByText("Smart Folder に保存")).toBeInTheDocument();
+    expect(screen.getByText("Save as Smart Folder")).toBeInTheDocument();
   });
 
   it("renders nothing visually meaningful when query is empty", () => {
@@ -123,7 +123,7 @@ describe("SmartFolderSaveButton", () => {
         smartFolderId="sf1"
       />,
     );
-    expect(screen.getByText(/保存中: My Folder/)).toBeInTheDocument();
+    expect(screen.getByText(/Saved: My Folder/)).toBeInTheDocument();
   });
 
   it("falls back to 'save' mode if smartFolderId does not match any SF", () => {
@@ -136,7 +136,7 @@ describe("SmartFolderSaveButton", () => {
         smartFolderId="missing-id"
       />,
     );
-    expect(screen.getByText("Smart Folder に保存")).toBeInTheDocument();
+    expect(screen.getByText("Save as Smart Folder")).toBeInTheDocument();
   });
 
   it("opens save dialog on save button click", () => {
@@ -148,7 +148,7 @@ describe("SmartFolderSaveButton", () => {
         smartFolderId={null}
       />,
     );
-    fireEvent.click(screen.getByText("Smart Folder に保存"));
+    fireEvent.click(screen.getByText("Save as Smart Folder"));
     expect(screen.getByTestId("save-dialog-save")).toBeInTheDocument();
   });
 
@@ -162,7 +162,7 @@ describe("SmartFolderSaveButton", () => {
         smartFolderId={null}
       />,
     );
-    fireEvent.click(screen.getByText("Smart Folder に保存"));
+    fireEvent.click(screen.getByText("Save as Smart Folder"));
     fireEvent.click(screen.getByTestId("dialog-submit"));
     await waitFor(() => {
       expect(createMock).toHaveBeenCalledWith({
@@ -186,10 +186,10 @@ describe("SmartFolderSaveButton", () => {
         smartFolderId="sf1"
       />,
     );
-    fireEvent.click(screen.getByText(/保存中: My Folder/));
-    expect(screen.getByText("更新")).toBeInTheDocument();
-    expect(screen.getByText("名前変更")).toBeInTheDocument();
-    expect(screen.getByText("削除")).toBeInTheDocument();
+    fireEvent.click(screen.getByText(/Saved: My Folder/));
+    expect(screen.getByText("Update")).toBeInTheDocument();
+    expect(screen.getByText("Rename")).toBeInTheDocument();
+    expect(screen.getByText("Delete")).toBeInTheDocument();
   });
 
   it("calls update with current query when 'update' is confirmed", async () => {
@@ -203,9 +203,9 @@ describe("SmartFolderSaveButton", () => {
         smartFolderId="sf1"
       />,
     );
-    fireEvent.click(screen.getByText(/保存中: My Folder/));
+    fireEvent.click(screen.getByText(/Saved: My Folder/));
     await act(async () => {
-      fireEvent.click(screen.getByText("更新"));
+      fireEvent.click(screen.getByText("Update"));
     });
     fireEvent.click(screen.getByTestId("confirm-ok"));
     await waitFor(() => {
@@ -227,9 +227,9 @@ describe("SmartFolderSaveButton", () => {
         smartFolderId="sf1"
       />,
     );
-    fireEvent.click(screen.getByText(/保存中: My Folder/));
+    fireEvent.click(screen.getByText(/Saved: My Folder/));
     await act(async () => {
-      fireEvent.click(screen.getByText("削除"));
+      fireEvent.click(screen.getByText("Delete"));
     });
     fireEvent.click(screen.getByTestId("confirm-ok"));
     await waitFor(() => {
@@ -248,9 +248,9 @@ describe("SmartFolderSaveButton", () => {
         smartFolderId="sf1"
       />,
     );
-    fireEvent.click(screen.getByText(/保存中: My Folder/));
+    fireEvent.click(screen.getByText(/Saved: My Folder/));
     await act(async () => {
-      fireEvent.click(screen.getByText("名前変更"));
+      fireEvent.click(screen.getByText("Rename"));
     });
     expect(screen.getByTestId("save-dialog-rename")).toBeInTheDocument();
   });

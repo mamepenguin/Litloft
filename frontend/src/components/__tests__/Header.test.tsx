@@ -63,14 +63,14 @@ describe("Header", () => {
     const button = screen.getByRole("button", { name: "Alice" });
     fireEvent.click(button);
     // Dropdown items should not appear
-    expect(screen.queryByText("名前を変更")).not.toBeInTheDocument();
-    expect(screen.queryByText("プロファイルをクリア")).not.toBeInTheDocument();
+    expect(screen.queryByText("Rename")).not.toBeInTheDocument();
+    expect(screen.queryByText("Clear profile")).not.toBeInTheDocument();
   });
 
   it("does NOT render the ProfileSetup modal", () => {
     render(<Header />);
     // ProfileSetup modal contains a heading with profile.setup text
-    expect(screen.queryByRole("heading", { name: "プロファイル設定" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("heading", { name: "Profile Setup" })).not.toBeInTheDocument();
   });
 
   describe("when nickname is set (avatar mode)", () => {
@@ -96,14 +96,14 @@ describe("Header", () => {
   describe("when nickname is unset (User icon mode)", () => {
     it("renders a profile button with User icon", () => {
       render(<Header />);
-      // profile.setup translation = "プロファイル設定"
-      const button = screen.getByRole("button", { name: "プロファイル設定" });
+      // profile.setup translation = "Profile Setup"
+      const button = screen.getByRole("button", { name: "Profile Setup" });
       expect(button).toBeInTheDocument();
     });
 
     it("navigates to /settings when User icon is clicked", () => {
       render(<Header />);
-      const button = screen.getByRole("button", { name: "プロファイル設定" });
+      const button = screen.getByRole("button", { name: "Profile Setup" });
       fireEvent.click(button);
       expect(pushMock).toHaveBeenCalledWith("/settings");
     });

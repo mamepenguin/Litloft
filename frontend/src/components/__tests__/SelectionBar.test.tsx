@@ -14,8 +14,8 @@ vi.mock("../ConfirmDialog", () => ({
   ConfirmDialog: ({ open, onConfirm, onCancel }: any) =>
     open ? (
       <div data-testid="confirm-dialog">
-        <button onClick={onConfirm}>確認</button>
-        <button onClick={onCancel}>キャンセル</button>
+        <button onClick={onConfirm}>Confirm</button>
+        <button onClick={onCancel}>Cancel</button>
       </div>
     ) : null,
 }));
@@ -59,7 +59,7 @@ describe("SelectionBar", () => {
 
   it("renders selection count", () => {
     render(<SelectionBar {...defaultProps} />);
-    expect(screen.getByText("3 件選択")).toBeInTheDocument();
+    expect(screen.getByText("3 selected")).toBeInTheDocument();
   });
 
   it("returns null when count is 0", () => {
@@ -71,49 +71,49 @@ describe("SelectionBar", () => {
 
   it("shows select all button when count < total", () => {
     render(<SelectionBar {...defaultProps} />);
-    expect(screen.getByText("すべて選択")).toBeInTheDocument();
+    expect(screen.getByText("Select all")).toBeInTheDocument();
   });
 
   it("hides select all when count equals total", () => {
     render(<SelectionBar {...defaultProps} count={10} totalCount={10} />);
-    expect(screen.queryByText("すべて選択")).not.toBeInTheDocument();
+    expect(screen.queryByText("Select all")).not.toBeInTheDocument();
   });
 
   it("calls onSelectAll on click", () => {
     const onSelectAll = vi.fn();
     render(<SelectionBar {...defaultProps} onSelectAll={onSelectAll} />);
-    fireEvent.click(screen.getByText("すべて選択"));
+    fireEvent.click(screen.getByText("Select all"));
     expect(onSelectAll).toHaveBeenCalled();
   });
 
   it("calls onClear on deselect button", () => {
     const onClear = vi.fn();
     render(<SelectionBar {...defaultProps} onClear={onClear} />);
-    fireEvent.click(screen.getByLabelText("選択解除"));
+    fireEvent.click(screen.getByLabelText("Deselect"));
     expect(onClear).toHaveBeenCalled();
   });
 
   it("opens delete dialog", () => {
     render(<SelectionBar {...defaultProps} />);
-    fireEvent.click(screen.getByLabelText("ゴミ箱に移動"));
+    fireEvent.click(screen.getByLabelText("Move to Trash"));
     expect(screen.getByTestId("confirm-dialog")).toBeInTheDocument();
   });
 
   it("opens move dialog", () => {
     render(<SelectionBar {...defaultProps} />);
-    fireEvent.click(screen.getByLabelText("移動"));
+    fireEvent.click(screen.getByLabelText("Move"));
     expect(screen.getByTestId("move-dialog")).toBeInTheDocument();
   });
 
   it("opens playlist picker", () => {
     render(<SelectionBar {...defaultProps} />);
-    fireEvent.click(screen.getByLabelText("プレイリストに追加"));
+    fireEvent.click(screen.getByLabelText("Add to playlist"));
     expect(screen.getByTestId("playlist-picker")).toBeInTheDocument();
   });
 
   it("shows tag input on tag button click", () => {
     render(<SelectionBar {...defaultProps} />);
-    fireEvent.click(screen.getByLabelText("タグ付け"));
+    fireEvent.click(screen.getByLabelText("Tagging"));
     expect(screen.getByPlaceholderText("tag1, tag2...")).toBeInTheDocument();
   });
 });

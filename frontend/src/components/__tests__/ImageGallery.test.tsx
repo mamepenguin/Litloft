@@ -82,7 +82,7 @@ describe("ImageGallery", () => {
 
   it("shows loading spinner initially", () => {
     render(<ImageGallery {...defaultProps} />);
-    expect(screen.getByLabelText("閉じる")).toBeInTheDocument();
+    expect(screen.getByLabelText("Close")).toBeInTheDocument();
   });
 
   it("shows counter after loading", async () => {
@@ -112,7 +112,7 @@ describe("ImageGallery", () => {
       await vi.runAllTimersAsync();
     });
 
-    const nextBtn = screen.getByLabelText("次の画像");
+    const nextBtn = screen.getByLabelText("Next image");
     fireEvent.click(nextBtn);
 
     expect(screen.getByText("2 / 3")).toBeInTheDocument();
@@ -125,8 +125,8 @@ describe("ImageGallery", () => {
       await vi.runAllTimersAsync();
     });
 
-    expect(screen.queryByLabelText("前の画像")).toBeNull();
-    expect(screen.getByLabelText("次の画像")).toBeInTheDocument();
+    expect(screen.queryByLabelText("Previous image")).toBeNull();
+    expect(screen.getByLabelText("Next image")).toBeInTheDocument();
   });
 
   it("hides next button on last image", async () => {
@@ -136,8 +136,8 @@ describe("ImageGallery", () => {
       await vi.runAllTimersAsync();
     });
 
-    expect(screen.getByLabelText("前の画像")).toBeInTheDocument();
-    expect(screen.queryByLabelText("次の画像")).toBeNull();
+    expect(screen.getByLabelText("Previous image")).toBeInTheDocument();
+    expect(screen.queryByLabelText("Next image")).toBeNull();
   });
 
   it("calls onClose on Escape key", async () => {
@@ -172,13 +172,13 @@ describe("ImageGallery", () => {
       await vi.runAllTimersAsync();
     });
 
-    expect(screen.getByLabelText("再生")).toBeInTheDocument();
+    expect(screen.getByLabelText("Play")).toBeInTheDocument();
 
     fireEvent.keyDown(document, { key: " " });
-    expect(screen.getByLabelText("一時停止")).toBeInTheDocument();
+    expect(screen.getByLabelText("Pause")).toBeInTheDocument();
 
     fireEvent.keyDown(document, { key: " " });
-    expect(screen.getByLabelText("再生")).toBeInTheDocument();
+    expect(screen.getByLabelText("Play")).toBeInTheDocument();
   });
 
   it("calls onClose on close button click", async () => {
@@ -188,7 +188,7 @@ describe("ImageGallery", () => {
       await vi.runAllTimersAsync();
     });
 
-    fireEvent.click(screen.getByLabelText("閉じる"));
+    fireEvent.click(screen.getByLabelText("Close"));
     expect(defaultProps.onClose).toHaveBeenCalledOnce();
   });
 
@@ -200,8 +200,8 @@ describe("ImageGallery", () => {
       await vi.runAllTimersAsync();
     });
 
-    expect(screen.queryByLabelText("再生")).toBeNull();
-    expect(screen.queryByLabelText("スライドショー間隔")).toBeNull();
+    expect(screen.queryByLabelText("Play")).toBeNull();
+    expect(screen.queryByLabelText("Slideshow interval")).toBeNull();
   });
 
   it("shows interval selector", async () => {
@@ -211,7 +211,7 @@ describe("ImageGallery", () => {
       await vi.runAllTimersAsync();
     });
 
-    const select = screen.getByLabelText("スライドショー間隔");
+    const select = screen.getByLabelText("Slideshow interval");
     expect(select).toBeInTheDocument();
     expect(select).toHaveValue("5");
   });

@@ -50,12 +50,12 @@ const PATH_WEIGHT = 0.3;
  * intelligence (`whisper`, `text_content`, `metadata`, `clip`,
  * `clip_thumbnail`, plus `transcript` from the keyword path that
  * already aliases whisper). UI collapses to four buckets so a single
- * card never shows "音声" + "音声キーワード" as two badges:
+ * card never shows "audio" + "audio keyword" as two badges:
  *   audio-class      → meta.transcript    (whisper / transcript / transcript_keyword)
  *   text-class       → meta.content       (text_content / content / text_content_keyword)
  *   metadata-class   → meta.metadata
  *   visual-class     → meta.clip / meta.clip_thumbnail (kept distinct;
- *                      the シーン検索 toggle drives them differently)
+ *                      the scene-search toggle drives them differently)
  *
  * `hit.match_types` is the authoritative top-level summary the addon
  * publishes — we fall back to it so a hit that only has a `keyword`
@@ -125,7 +125,7 @@ export function buildMatchMeta(hit: SemanticHit): MatchMeta {
     } else if (t === "keyword" && !meta.filename) {
       // Filename-keyword hit from the semantic engine. The filename
       // engine usually sets `meta.filename` during merge, but if a hit
-      // came back semantic-only we still want a ファイル名 badge.
+      // came back semantic-only we still want a filename badge.
       meta.filename = { score: fallbackScore };
     }
   }
@@ -229,11 +229,11 @@ export function mergeResults({
 
   for (const f of filenameMatches) {
     filenameIds.add(f.id);
-    // spec 2026-05-02-search-path-match: backend は title / folder_path /
-    // 両方 のどれにヒットしたかを `match_source` で返す。"path" のみのとき
-    // は filename badge を立てず path badge のみ。`match_source` 未指定
-    // (旧 backend / 検索なし経路) は従来通り filename badge にフォール
-    // バックして後方互換を保つ。
+    // spec 2026-05-02-search-path-match: backend returns which of title /
+    // folder_path / both was hit via `match_source`. When "path" only, skip
+    // the filename badge and show only the path badge. When `match_source` is
+    // absent (older backend / non-search path), fall back to filename badge
+    // for backward compatibility.
     const initialMeta: MatchMeta = {};
     const src = f.match_source ?? "filename";
     if (src === "filename" || src === "both") {

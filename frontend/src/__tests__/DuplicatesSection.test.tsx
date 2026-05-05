@@ -90,7 +90,7 @@ describe("DuplicatesSection", () => {
     fireEvent.change(screen.getByRole("combobox"), { target: { value: "media" } });
 
     await waitFor(() => {
-      expect(screen.getByText("重複ファイル")).toBeTruthy();
+      expect(screen.getByText("Duplicate Files")).toBeTruthy();
     });
 
     // Verify the skeleton is shown (animate-pulse class)
@@ -113,10 +113,10 @@ describe("DuplicatesSection", () => {
     fireEvent.change(screen.getByRole("combobox"), { target: { value: "media" } });
 
     await waitFor(() => {
-      expect(screen.getByText("重複ファイルはありません")).toBeTruthy();
+      expect(screen.getByText("No Duplicates")).toBeTruthy();
     });
 
-    expect(screen.getByText("このドライブには重複ファイルがありません。")).toBeTruthy();
+    expect(screen.getByText("No duplicate files found in this drive.")).toBeTruthy();
   });
 
   it("renders duplicate groups with stats", async () => {
@@ -141,12 +141,12 @@ describe("DuplicatesSection", () => {
     fireEvent.change(screen.getByRole("combobox"), { target: { value: "media" } });
 
     await waitFor(() => {
-      expect(screen.getByText("1 グループ")).toBeTruthy();
+      expect(screen.getByText("1 groups")).toBeTruthy();
     });
 
     // Group header shows filename and file count
     expect(screen.getByText("photo.jpg")).toBeTruthy();
-    expect(screen.getByText(/2 件のファイル/)).toBeTruthy();
+    expect(screen.getByText(/2 files/)).toBeTruthy();
   });
 
   it("expands group and shows file list with checkbox selection", async () => {
@@ -184,7 +184,7 @@ describe("DuplicatesSection", () => {
     });
 
     // First file should be marked as "keep" by default
-    expect(screen.getByText("保持")).toBeTruthy();
+    expect(screen.getByText("Keep")).toBeTruthy();
 
     // Checkboxes should exist
     const checkboxes = screen.getAllByRole("checkbox");
@@ -228,7 +228,7 @@ describe("DuplicatesSection", () => {
     fireEvent.click(checkboxes[1]);
 
     // The "Keep" badge should still exist (now on the second file)
-    expect(screen.getByText("保持")).toBeTruthy();
+    expect(screen.getByText("Keep")).toBeTruthy();
   });
 
   it("delete button triggers batch delete API", async () => {
@@ -260,17 +260,17 @@ describe("DuplicatesSection", () => {
     fireEvent.click(screen.getByText("photo.jpg"));
 
     await waitFor(() => {
-      expect(screen.getByText(/選択したファイルを削除/)).toBeTruthy();
+      expect(screen.getByText(/Delete Selected/)).toBeTruthy();
     });
 
     // Click delete button (opens confirmation dialog)
-    fireEvent.click(screen.getByText(/選択したファイルを削除/));
+    fireEvent.click(screen.getByText(/Delete Selected/));
 
     // Confirm in the dialog — the last button with this label is inside the dialog
     await waitFor(() => {
-      expect(screen.getByText(/ゴミ箱に移動しますか/)).toBeTruthy();
+      expect(screen.getByText(/Move.*to trash/i)).toBeTruthy();
     });
-    const deleteButtons = screen.getAllByText(/選択したファイルを削除/);
+    const deleteButtons = screen.getAllByText(/Delete Selected/);
     fireEvent.click(deleteButtons[deleteButtons.length - 1]);
 
     await waitFor(() => {

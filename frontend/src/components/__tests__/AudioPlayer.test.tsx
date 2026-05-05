@@ -69,6 +69,6 @@ describe("AudioPlayer", () => {
 
   it("renders fallback text", () => {
     render(<AudioPlayer file={mockFile} />);
-    expect(screen.getByText("お使いのブラウザは音声再生に対応していません。")).toBeInTheDocument();
+    expect(screen.getByText("Your browser does not support audio playback.")).toBeInTheDocument();
   });
 });

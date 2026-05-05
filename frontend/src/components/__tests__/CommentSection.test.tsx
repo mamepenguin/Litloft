@@ -48,7 +48,7 @@ vi.mock("@/lib/format", () => ({
 
 const expandSection = () => {
   // Section is collapsed by default; click the header button to expand.
-  fireEvent.click(screen.getByRole("button", { name: /コメント/ }));
+  fireEvent.click(screen.getByRole("button", { name: /Comments/ }));
 };
 
 describe("CommentSection", () => {
@@ -63,7 +63,7 @@ describe("CommentSection", () => {
     expandSection();
 
     await waitFor(() => {
-      expect(screen.getByText("コメントはまだありません")).toBeInTheDocument();
+      expect(screen.getByText("No comments yet")).toBeInTheDocument();
     });
   });
 
@@ -91,7 +91,7 @@ describe("CommentSection", () => {
     expandSection();
 
     await waitFor(() => {
-      expect(screen.getByText("匿名")).toBeInTheDocument();
+      expect(screen.getByText("Anonymous")).toBeInTheDocument();
       expect(screen.getByText("Anonymous comment")).toBeInTheDocument();
     });
   });
@@ -106,8 +106,8 @@ describe("CommentSection", () => {
     expandSection();
 
     await waitFor(() => {
-      expect(screen.getByLabelText("編集")).toBeInTheDocument();
-      expect(screen.getByLabelText("削除")).toBeInTheDocument();
+      expect(screen.getByLabelText("Edit")).toBeInTheDocument();
+      expect(screen.getByLabelText("Delete")).toBeInTheDocument();
     });
   });
 
@@ -124,8 +124,8 @@ describe("CommentSection", () => {
       expect(screen.getByText("Bob")).toBeInTheDocument();
     });
 
-    expect(screen.queryByLabelText("編集")).not.toBeInTheDocument();
-    expect(screen.queryByLabelText("削除")).not.toBeInTheDocument();
+    expect(screen.queryByLabelText("Edit")).not.toBeInTheDocument();
+    expect(screen.queryByLabelText("Delete")).not.toBeInTheDocument();
   });
 
   it("calls createComment on post", async () => {
@@ -143,12 +143,12 @@ describe("CommentSection", () => {
     expandSection();
 
     await waitFor(() => {
-      expect(screen.getByPlaceholderText("コメントを入力...")).toBeInTheDocument();
+      expect(screen.getByPlaceholderText("Write a comment...")).toBeInTheDocument();
     });
 
-    const textarea = screen.getByPlaceholderText("コメントを入力...");
+    const textarea = screen.getByPlaceholderText("Write a comment...");
     fireEvent.change(textarea, { target: { value: "Hello" } });
-    fireEvent.click(screen.getByLabelText("投稿"));
+    fireEvent.click(screen.getByLabelText("Post"));
 
     await waitFor(() => {
       expect(mockCreateComment).toHaveBeenCalledWith("file-1", "Hello");
@@ -170,14 +170,14 @@ describe("CommentSection", () => {
     expandSection();
 
     await waitFor(() => {
-      expect(screen.getByLabelText("編集")).toBeInTheDocument();
+      expect(screen.getByLabelText("Edit")).toBeInTheDocument();
     });
 
-    fireEvent.click(screen.getByLabelText("編集"));
+    fireEvent.click(screen.getByLabelText("Edit"));
 
     const editTextarea = screen.getByDisplayValue("Great video!");
     fireEvent.change(editTextarea, { target: { value: "Updated!" } });
-    fireEvent.click(screen.getByText("保存"));
+    fireEvent.click(screen.getByText("Save"));
 
     await waitFor(() => {
       expect(mockUpdateComment).toHaveBeenCalledWith("file-1", "c1", "Updated!");
@@ -195,17 +195,17 @@ describe("CommentSection", () => {
     expandSection();
 
     await waitFor(() => {
-      expect(screen.getByLabelText("削除")).toBeInTheDocument();
+      expect(screen.getByLabelText("Delete")).toBeInTheDocument();
     });
 
-    fireEvent.click(screen.getByLabelText("削除"));
+    fireEvent.click(screen.getByLabelText("Delete"));
 
     await waitFor(() => {
-      expect(screen.getByText("このコメントを削除しますか？")).toBeInTheDocument();
+      expect(screen.getByText("Delete this comment?")).toBeInTheDocument();
     });
 
-    // Click the confirm button in the dialog (the one with text "削除" that is inside the dialog)
-    const deleteButtons = screen.getAllByText("削除");
+    // Click the confirm button in the dialog (the one with text "Delete" that is inside the dialog)
+    const deleteButtons = screen.getAllByText("Delete");
     const confirmButton = deleteButtons[deleteButtons.length - 1];
     fireEvent.click(confirmButton);
 

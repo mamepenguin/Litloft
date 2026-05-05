@@ -60,7 +60,7 @@ describe("useCreateFolder", () => {
     await act(async () => {
       await result.current.handleCreateFolder();
     });
-    expect(result.current.folderError).toBe("無効なフォルダ名です");
+    expect(result.current.folderError).toBe("Invalid folder name");
     expect(createFolder).not.toHaveBeenCalled();
   });
 
@@ -74,7 +74,7 @@ describe("useCreateFolder", () => {
     await act(async () => {
       await result.current.handleCreateFolder();
     });
-    expect(result.current.folderError).toBe("無効なフォルダ名です");
+    expect(result.current.folderError).toBe("Invalid folder name");
   });
 
   it("rejects dot-dot name", async () => {
@@ -87,7 +87,7 @@ describe("useCreateFolder", () => {
     await act(async () => {
       await result.current.handleCreateFolder();
     });
-    expect(result.current.folderError).toBe("無効なフォルダ名です");
+    expect(result.current.folderError).toBe("Invalid folder name");
   });
 
   it("rejects hidden folder name starting with dot", async () => {
@@ -100,7 +100,7 @@ describe("useCreateFolder", () => {
     await act(async () => {
       await result.current.handleCreateFolder();
     });
-    expect(result.current.folderError).toBe("無効なフォルダ名です");
+    expect(result.current.folderError).toBe("Invalid folder name");
   });
 
   it("rejects name longer than 255 chars", async () => {
@@ -113,7 +113,7 @@ describe("useCreateFolder", () => {
     await act(async () => {
       await result.current.handleCreateFolder();
     });
-    expect(result.current.folderError).toBe("フォルダ名が長すぎます");
+    expect(result.current.folderError).toBe("Folder name is too long");
   });
 
   it("sets error on API failure", async () => {
@@ -127,7 +127,7 @@ describe("useCreateFolder", () => {
     await act(async () => {
       await result.current.handleCreateFolder();
     });
-    expect(result.current.folderError).toBe("フォルダの作成に失敗しました");
+    expect(result.current.folderError).toBe("Failed to create folder");
   });
 
   it("trims whitespace from folder name", async () => {

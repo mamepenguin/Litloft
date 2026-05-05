@@ -23,7 +23,7 @@ export function ContextMenu({ open, position, items, onClose }: ContextMenuProps
   useShortcuts(
     "context-menu",
     "",
-    [{ key: "escape", label: "閉じる", handler: onClose, hidden: true }],
+    [{ key: "escape", label: "Close", handler: onClose, hidden: true }],
     open,
   );
 

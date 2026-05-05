@@ -31,7 +31,7 @@ const BADGE_STYLES: Record<string, string> = {
 function selectActiveBadgeKeys(meta: MatchMeta | undefined): string[] {
   if (!meta) return [];
   const keys: string[] = [];
-  // filename と metadata は実体が近いので片方に集約（MatchOverlay と同じ規則）。
+  // filename and metadata are semantically close — collapse to one (same rule as MatchOverlay).
   if (meta.filename) keys.push("filename");
   else if (meta.metadata) keys.push("metadata");
   if (meta.path) keys.push("path");

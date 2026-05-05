@@ -1,6 +1,6 @@
 import "@testing-library/jest-dom/vitest";
 import { vi } from "vitest";
-import jaMessages from "../messages/ja.json";
+import enMessages from "../messages/en.json";
 
 // @testing-library/dom's waitFor() detects fake timers by checking
 // `typeof jest !== 'undefined'`. Without that, it falls back to
@@ -29,9 +29,9 @@ function lookup(tree: MessageTree, path: string): unknown {
 }
 
 // Global mock for next-intl
-// Returns actual Japanese translations so existing tests continue to work
+// Returns actual English translations so tests run in English locale
 vi.mock("next-intl", () => {
-  const messages = jaMessages as unknown as MessageTree;
+  const messages = enMessages as unknown as MessageTree;
 
   const useTranslations = (namespace: string) => {
     const t = (key: string, values?: Record<string, unknown>) => {
@@ -48,7 +48,7 @@ vi.mock("next-intl", () => {
     return t;
   };
 
-  const useLocale = () => "ja";
+  const useLocale = () => "en";
 
   return {
     useTranslations,

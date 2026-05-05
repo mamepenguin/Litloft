@@ -127,7 +127,7 @@ body`;
       />,
     );
     // The editable chip group renders an Add button.
-    expect(screen.getByText(/a/)).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /Add tag/ })).toBeInTheDocument();
   });
 
   it("applies text-base typography to the chrome body for 16px reading", () => {

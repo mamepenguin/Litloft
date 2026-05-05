@@ -40,7 +40,7 @@ describe("DriveStep", () => {
         onBack={vi.fn()}
       />,
     );
-    const next = screen.getByRole("button", { name: /次へ|next/i });
+    const next = screen.getByRole("button", { name: /next/i });
     expect(next).toBeDisabled();
   });
 
@@ -53,7 +53,7 @@ describe("DriveStep", () => {
         onBack={vi.fn()}
       />,
     );
-    const next = screen.getByRole("button", { name: /次へ|next/i });
+    const next = screen.getByRole("button", { name: /next/i });
     expect(next).not.toBeDisabled();
   });
 
@@ -74,15 +74,15 @@ describe("DriveStep", () => {
             code: "path_not_found",
             field: "path",
             message:
-              "コンテナ内で見つかりません。docker-compose.yml の volumes を確認してください",
+              "Path not found in container. Check docker-compose.yml volumes.",
           },
         },
         422,
       ),
     );
-    fireEvent.click(screen.getByRole("button", { name: /次へ|next/i }));
+    fireEvent.click(screen.getByRole("button", { name: /next/i }));
     await waitFor(() => {
-      expect(screen.getByText(/見つかりません|path_not_found/)).toBeInTheDocument();
+      expect(screen.getByText(/not found in container|path_not_found/i)).toBeInTheDocument();
     });
     expect(onNext).not.toHaveBeenCalled();
   });
@@ -97,7 +97,7 @@ describe("DriveStep", () => {
         onBack={vi.fn()}
       />,
     );
-    const nameInput = screen.getByLabelText(/名前|name/i);
+    const nameInput = screen.getByLabelText(/name/i);
     fireEvent.change(nameInput, { target: { value: "main" } });
     expect(onChange).toHaveBeenCalledWith(
       expect.objectContaining({ name: "main" }),

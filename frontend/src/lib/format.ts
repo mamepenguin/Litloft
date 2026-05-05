@@ -18,7 +18,7 @@ export function formatFileSize(bytes: number): string {
   return `${(bytes / (1024 * 1024 * 1024)).toFixed(1)} GB`;
 }
 
-export function formatRelativeDate(isoString: string): string {
+export function formatRelativeDate(isoString: string, locale = "en"): string {
   const date = new Date(isoString);
   const now = new Date();
   const diffMs = now.getTime() - date.getTime();
@@ -26,10 +26,12 @@ export function formatRelativeDate(isoString: string): string {
   const diffHour = Math.floor(diffMs / 3600000);
   const diffDay = Math.floor(diffMs / 86400000);
 
-  if (diffMin < 1) return "たった今";
-  if (diffMin < 60) return `${diffMin}分前`;
-  if (diffHour < 24) return `${diffHour}時間前`;
-  if (diffDay < 7) return `${diffDay}日前`;
+  const rtf = new Intl.RelativeTimeFormat(locale, { numeric: "auto" });
+
+  if (diffMin < 1) return rtf.format(0, "second");
+  if (diffMin < 60) return rtf.format(-diffMin, "minute");
+  if (diffHour < 24) return rtf.format(-diffHour, "hour");
+  if (diffDay < 7) return rtf.format(-diffDay, "day");
 
   const y = date.getFullYear();
   const m = String(date.getMonth() + 1).padStart(2, "0");

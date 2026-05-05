@@ -31,7 +31,7 @@ function makeFile(overrides: Partial<FileItemWithMatch> = {}): FileItemWithMatch
 }
 
 describe("MergedResultItem", () => {
-  it("filename-only match shows ファイル名 badge and no timestamp pills", () => {
+  it("filename-only match shows Filename badge and no timestamp pills", () => {
     const file = makeFile({
       id: "f1",
       match_meta: { filename: { score: 1 } },
@@ -39,13 +39,13 @@ describe("MergedResultItem", () => {
     const onSelect = vi.fn();
     render(<MergedResultItem file={file} onSelect={onSelect} />);
 
-    expect(screen.getByText("ファイル名")).toBeInTheDocument();
-    expect(screen.queryByText("音声")).not.toBeInTheDocument();
+    expect(screen.getByText("Filename")).toBeInTheDocument();
+    expect(screen.queryByText("Transcript")).not.toBeInTheDocument();
     // No "M:SS" formatted time pill in DOM
     expect(screen.queryByText(/^\d+:\d{2}$/)).not.toBeInTheDocument();
   });
 
-  it("semantic-only transcript hit at [120, 150] shows 音声 badge + 2:00 timestamp pill", () => {
+  it("semantic-only transcript hit at [120, 150] shows Transcript badge + 2:00 timestamp pill", () => {
     const file = makeFile({
       id: "f1",
       match_meta: {
@@ -55,8 +55,8 @@ describe("MergedResultItem", () => {
     const onSelect = vi.fn();
     render(<MergedResultItem file={file} onSelect={onSelect} />);
 
-    expect(screen.getByText("音声")).toBeInTheDocument();
-    expect(screen.queryByText("ファイル名")).not.toBeInTheDocument();
+    expect(screen.getByText("Transcript")).toBeInTheDocument();
+    expect(screen.queryByText("Filename")).not.toBeInTheDocument();
     // formatDuration(120) → "2:00"
     expect(screen.getByText("2:00")).toBeInTheDocument();
   });
@@ -73,12 +73,12 @@ describe("MergedResultItem", () => {
     const onSelect = vi.fn();
     render(<MergedResultItem file={file} onSelect={onSelect} />);
 
-    expect(screen.getByText("ファイル名")).toBeInTheDocument();
-    expect(screen.getByText("音声")).toBeInTheDocument();
-    expect(screen.getByText("シーン")).toBeInTheDocument();
+    expect(screen.getByText("Filename")).toBeInTheDocument();
+    expect(screen.getByText("Transcript")).toBeInTheDocument();
+    expect(screen.getByText("Visual")).toBeInTheDocument();
   });
 
-  it("path-only match shows パス badge but not ファイル名 badge", () => {
+  it("path-only match shows Path badge but not ファイル名 badge", () => {
     const file = makeFile({
       id: "f1",
       match_meta: { path: { score: 1 } },
@@ -86,8 +86,8 @@ describe("MergedResultItem", () => {
     const onSelect = vi.fn();
     render(<MergedResultItem file={file} onSelect={onSelect} />);
 
-    expect(screen.getByText("パス")).toBeInTheDocument();
-    expect(screen.queryByText("ファイル名")).not.toBeInTheDocument();
+    expect(screen.getByText("Path")).toBeInTheDocument();
+    expect(screen.queryByText("Filename")).not.toBeInTheDocument();
   });
 
   it("clicking the row fires onSelect with /files/{id}", () => {
@@ -138,7 +138,7 @@ describe("MergedResultItem", () => {
     render(<MergedResultItem file={file} onSelect={onSelect} />);
 
     // Badge visible, pill suppressed.
-    expect(screen.getByText("音声")).toBeInTheDocument();
+    expect(screen.getByText("Transcript")).toBeInTheDocument();
     expect(screen.queryByText(/^-?\d+:\d{2}$/)).not.toBeInTheDocument();
   });
 

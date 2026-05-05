@@ -55,10 +55,10 @@ describe("DrivesSection", () => {
     await waitFor(() => {
       expect(screen.getByText("main")).toBeInTheDocument();
     });
-    fireEvent.click(screen.getByRole("button", { name: /追加|add/i }));
-    expect(screen.getByLabelText(/名前|name/i)).toBeInTheDocument();
-    expect(screen.getByLabelText(/パス|path/i)).toBeInTheDocument();
-    expect(screen.getByLabelText(/group|グループ/i)).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: /add/i }));
+    expect(screen.getByLabelText(/name/i)).toBeInTheDocument();
+    expect(screen.getByLabelText(/path/i)).toBeInTheDocument();
+    expect(screen.getByLabelText(/group/i)).toBeInTheDocument();
   });
 
   it("submitting a valid drive PUTs the new array", async () => {
@@ -68,19 +68,19 @@ describe("DrivesSection", () => {
       expect(screen.getByText("main")).toBeInTheDocument();
     });
 
-    fireEvent.click(screen.getByRole("button", { name: /追加|add/i }));
-    fireEvent.change(screen.getByLabelText(/名前|name/i), {
+    fireEvent.click(screen.getByRole("button", { name: /add/i }));
+    fireEvent.change(screen.getByLabelText(/name/i), {
       target: { value: "media" },
     });
-    fireEvent.change(screen.getByLabelText(/パス|path/i), {
+    fireEvent.change(screen.getByLabelText(/path/i), {
       target: { value: "/data/media" },
     });
-    fireEvent.change(screen.getByLabelText(/group|グループ/i), {
+    fireEvent.change(screen.getByLabelText(/group/i), {
       target: { value: "default" },
     });
 
     mockFetch.mockResolvedValueOnce(jsonResponse({ ok: true }));
-    fireEvent.click(screen.getByRole("button", { name: /保存|save/i }));
+    fireEvent.click(screen.getByRole("button", { name: /save/i }));
 
     await waitFor(() => {
       expect(mockFetch).toHaveBeenCalledWith(
@@ -104,21 +104,21 @@ describe("DrivesSection", () => {
     );
   });
 
-  it("server validation error renders inline error in 日本語", async () => {
+  it("server validation error renders inline error in English", async () => {
     mockFetch.mockResolvedValueOnce(jsonResponse(initialDrives));
     render(<DrivesSection />);
     await waitFor(() => {
       expect(screen.getByText("main")).toBeInTheDocument();
     });
 
-    fireEvent.click(screen.getByRole("button", { name: /追加|add/i }));
-    fireEvent.change(screen.getByLabelText(/名前|name/i), {
+    fireEvent.click(screen.getByRole("button", { name: /add/i }));
+    fireEvent.change(screen.getByLabelText(/name/i), {
       target: { value: "ghost" },
     });
-    fireEvent.change(screen.getByLabelText(/パス|path/i), {
+    fireEvent.change(screen.getByLabelText(/path/i), {
       target: { value: "/missing/path" },
     });
-    fireEvent.change(screen.getByLabelText(/group|グループ/i), {
+    fireEvent.change(screen.getByLabelText(/group/i), {
       target: { value: "default" },
     });
 
@@ -129,16 +129,16 @@ describe("DrivesSection", () => {
             code: "path_not_found",
             field: "path",
             message:
-              "コンテナ内で見つかりません。docker-compose.yml の volumes を確認してください",
+              "Path not found in container. Check docker-compose.yml volumes.",
           },
         },
         422,
       ),
     );
-    fireEvent.click(screen.getByRole("button", { name: /保存|save/i }));
+    fireEvent.click(screen.getByRole("button", { name: /save/i }));
 
     await waitFor(() => {
-      expect(screen.getByText(/見つかりません|path_not_found/)).toBeInTheDocument();
+      expect(screen.getByText(/not found in container|path_not_found/i)).toBeInTheDocument();
     });
   });
 
@@ -153,12 +153,12 @@ describe("DrivesSection", () => {
     const editButtons = screen.getAllByRole("button", { name: /編集|edit/i });
     fireEvent.click(editButtons[0]);
 
-    const nameInput = screen.getByLabelText(/名前|name/i) as HTMLInputElement;
+    const nameInput = screen.getByLabelText(/name/i) as HTMLInputElement;
     expect(nameInput.value).toBe("main");
 
     fireEvent.change(nameInput, { target: { value: "main2" } });
     mockFetch.mockResolvedValueOnce(jsonResponse({ ok: true }));
-    fireEvent.click(screen.getByRole("button", { name: /保存|save/i }));
+    fireEvent.click(screen.getByRole("button", { name: /save/i }));
 
     await waitFor(() => {
       expect(mockFetch).toHaveBeenCalledWith(

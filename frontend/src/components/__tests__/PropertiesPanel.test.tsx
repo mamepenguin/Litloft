@@ -53,7 +53,7 @@ describe("PropertiesPanel", () => {
 
   it("renders tags as pills", () => {
     render(<PropertiesPanel frontmatter={{ tags: ["foo", "bar"] }} />);
-    expect(screen.getByText("タグ")).toBeInTheDocument();
+    expect(screen.getByText("Tags")).toBeInTheDocument();
     expect(screen.getByText("foo")).toBeInTheDocument();
     expect(screen.getByText("bar")).toBeInTheDocument();
   });
@@ -64,7 +64,7 @@ describe("PropertiesPanel", () => {
         frontmatter={{ aliases: ["alt1", "alt2"] }}
       />,
     );
-    expect(screen.getByText("別名")).toBeInTheDocument();
+    expect(screen.getByText("Aliases")).toBeInTheDocument();
     expect(screen.getByText("alt1")).toBeInTheDocument();
     expect(screen.getByText("alt2")).toBeInTheDocument();
   });
@@ -73,7 +73,7 @@ describe("PropertiesPanel", () => {
     const { container } = render(
       <PropertiesPanel frontmatter={{ description: "hello world" }} />,
     );
-    expect(screen.getByText("説明")).toBeInTheDocument();
+    expect(screen.getByText("Description")).toBeInTheDocument();
     const p = container.querySelector("p");
     expect(p).not.toBeNull();
     expect(p!.className).toContain("line-clamp-3");
@@ -85,7 +85,7 @@ describe("PropertiesPanel", () => {
     const { container } = render(
       <PropertiesPanel frontmatter={{ created: iso }} />,
     );
-    expect(screen.getByText("作成")).toBeInTheDocument();
+    expect(screen.getByText("Created")).toBeInTheDocument();
     const time = container.querySelector("time");
     expect(time).not.toBeNull();
     expect(time!.getAttribute("datetime")).toBe(iso);
@@ -102,7 +102,7 @@ describe("PropertiesPanel", () => {
         frontmatter={{ approved_at: "2026-01-15T00:00:00Z" }}
       />,
     );
-    expect(screen.queryByText("作成")).toBeNull();
+    expect(screen.queryByText("Created")).toBeNull();
     expect(container.querySelector("time")).toBeNull();
     expect(screen.getByText("approved_at")).toBeInTheDocument();
     expect(screen.getByText("2026-01-15T00:00:00Z")).toBeInTheDocument();
@@ -114,7 +114,7 @@ describe("PropertiesPanel", () => {
         frontmatter={{ clipped_at: "2026-02-01T00:00:00Z" }}
       />,
     );
-    expect(screen.queryByText("作成")).toBeNull();
+    expect(screen.queryByText("Created")).toBeNull();
     expect(container.querySelector("time")).toBeNull();
     expect(screen.getByText("clipped_at")).toBeInTheDocument();
   });
@@ -152,8 +152,8 @@ describe("PropertiesPanel", () => {
 
   it("renders origin as a localised badge for known values", () => {
     render(<PropertiesPanel frontmatter={{ origin: "webclip" }} />);
-    expect(screen.getByText("由来")).toBeInTheDocument();
-    expect(screen.getByText("Web クリップ")).toBeInTheDocument();
+    expect(screen.getByText("Origin")).toBeInTheDocument();
+    expect(screen.getByText("Web clip")).toBeInTheDocument();
   });
 
   it("renders unknown origin values verbatim", () => {
@@ -205,7 +205,7 @@ describe("PropertiesPanel", () => {
         }}
       />,
     );
-    expect(screen.getByText("情報源")).toBeInTheDocument();
+    expect(screen.getByText("Sources")).toBeInTheDocument();
     // At first only 5 cards resolve
     await waitFor(() => {
       expect(screen.getByText("name-a.mp4")).toBeInTheDocument();
@@ -213,7 +213,7 @@ describe("PropertiesPanel", () => {
     });
     // f, g are hidden behind "more"
     expect(screen.queryByText("name-f.mp4")).toBeNull();
-    const more = screen.getByRole("button", { name: /他\s*2\s*件/ });
+    const more = screen.getByRole("button", { name: /2 more/ });
     expect(more).toBeInTheDocument();
   });
 
@@ -251,7 +251,7 @@ describe("PropertiesPanel", () => {
       (el) => el.textContent,
     );
     // Reserved order: origin, tags — then the unknown customKey last
-    expect(dts).toEqual(["由来", "タグ", "customKey"]);
+    expect(dts).toEqual(["Origin", "Tags", "customKey"]);
   });
 
   describe("editable mode", () => {
@@ -268,8 +268,8 @@ describe("PropertiesPanel", () => {
       );
       // Empty frontmatter + editable still renders a panel with a tags row.
       expect(container.firstChild).not.toBeNull();
-      expect(screen.getByText("タグ")).toBeInTheDocument();
-      expect(screen.getByRole("button", { name: /タグ追加/ })).toBeInTheDocument();
+      expect(screen.getByText("Tags")).toBeInTheDocument();
+      expect(screen.getByRole("button", { name: /Add tag/ })).toBeInTheDocument();
     });
 
     it("renders remove buttons on existing chips when editable", () => {
@@ -279,13 +279,13 @@ describe("PropertiesPanel", () => {
           editable={editable}
         />,
       );
-      expect(screen.getByLabelText("foo を削除")).toBeInTheDocument();
-      expect(screen.getByLabelText("bar を削除")).toBeInTheDocument();
+      expect(screen.getByLabelText("Remove foo")).toBeInTheDocument();
+      expect(screen.getByLabelText("Remove bar")).toBeInTheDocument();
     });
 
     it("does NOT show remove buttons in read-only mode", () => {
       render(<PropertiesPanel frontmatter={{ tags: ["foo"] }} />);
-      expect(screen.queryByLabelText("foo を削除")).toBeNull();
+      expect(screen.queryByLabelText("Remove foo")).toBeNull();
     });
   });
 });

@@ -6,8 +6,8 @@ import type { FileRelationsResponse } from "@/lib/api";
 
 // Test setup (src/test/setup.ts) globally mocks next-intl to return the
 // Japanese messages file, so assertions check the ja strings directly.
-const TITLE = "関連ファイル";
-const MISSING_BADGE = "見つからない";
+const TITLE = "Related files";
+const MISSING_BADGE = "missing";
 
 const getFileRelations = vi.fn<(id: string) => Promise<FileRelationsResponse>>();
 

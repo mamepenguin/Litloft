@@ -130,6 +130,6 @@ describe("FilePreview", () => {
     const file = makeFile({ file_type: "other", mime_type: "application/octet-stream", filename: "data.bin" });
     render(<FilePreview file={file} />);
     expect(screen.getByText("data.bin")).toBeInTheDocument();
-    expect(screen.getByText("プレビューは対応していません")).toBeInTheDocument();
+    expect(screen.getByText("Preview not available")).toBeInTheDocument();
   });
 });

@@ -144,7 +144,7 @@ describe("PlaylistPanel", () => {
     );
 
     await waitFor(() => {
-      expect(screen.getByLabelText("ループON")).toBeInTheDocument();
+      expect(screen.getByLabelText("Loop ON")).toBeInTheDocument();
     });
   });
 
@@ -161,11 +161,11 @@ describe("PlaylistPanel", () => {
     );
 
     await waitFor(() => {
-      expect(screen.getByLabelText("ループON")).toBeInTheDocument();
+      expect(screen.getByLabelText("Loop ON")).toBeInTheDocument();
     });
 
-    fireEvent.click(screen.getByLabelText("ループON"));
-    expect(screen.getByLabelText("ループOFF")).toBeInTheDocument();
+    fireEvent.click(screen.getByLabelText("Loop ON"));
+    expect(screen.getByLabelText("Loop OFF")).toBeInTheDocument();
   });
 
   it("shows duration for tracks", async () => {

@@ -44,6 +44,6 @@ describe("VideoPlayer", () => {
 
   it("renders fallback text", () => {
     render(<VideoPlayer videoId="vid-1" />);
-    expect(screen.getByText("お使いのブラウザは動画再生に対応していません。")).toBeInTheDocument();
+    expect(screen.getByText("Your browser does not support video playback.")).toBeInTheDocument();
   });
 });

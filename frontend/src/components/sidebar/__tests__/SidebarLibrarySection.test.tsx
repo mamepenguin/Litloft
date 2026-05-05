@@ -19,33 +19,33 @@ describe("SidebarLibrarySection", () => {
 
   it("renders home link", () => {
     render(<SidebarLibrarySection driveBase="/drive/main" currentDrive="main" linkClass={linkClass} close={vi.fn()} />);
-    expect(screen.getByText("ホーム")).toBeInTheDocument();
+    expect(screen.getByText("Home")).toBeInTheDocument();
   });
 
   it("shows library links when driveBase is set", () => {
     render(<SidebarLibrarySection driveBase="/drive/main" currentDrive="main" linkClass={linkClass} close={vi.fn()} />);
-    expect(screen.getByText("お気に入り")).toBeInTheDocument();
-    expect(screen.getByText("最近見た")).toBeInTheDocument();
-    expect(screen.getByText("最近追加")).toBeInTheDocument();
-    expect(screen.getByText("すべてのファイル")).toBeInTheDocument();
+    expect(screen.getByText("Favorites")).toBeInTheDocument();
+    expect(screen.getByText("Recently Viewed")).toBeInTheDocument();
+    expect(screen.getByText("Recently Added")).toBeInTheDocument();
+    expect(screen.getByText("All Files")).toBeInTheDocument();
   });
 
   it("hides library links when driveBase is null", () => {
     render(<SidebarLibrarySection driveBase={null} currentDrive={null} linkClass={linkClass} close={vi.fn()} />);
-    expect(screen.queryByText("お気に入り")).not.toBeInTheDocument();
-    expect(screen.queryByText("最近見た")).not.toBeInTheDocument();
+    expect(screen.queryByText("Favorites")).not.toBeInTheDocument();
+    expect(screen.queryByText("Recently Viewed")).not.toBeInTheDocument();
   });
 
   it("calls close on link click", () => {
     const close = vi.fn();
     render(<SidebarLibrarySection driveBase="/drive/main" currentDrive="main" linkClass={linkClass} close={close} />);
-    fireEvent.click(screen.getByText("お気に入り"));
+    fireEvent.click(screen.getByText("Favorites"));
     expect(close).toHaveBeenCalled();
   });
 
   it("applies linkClass to links", () => {
     render(<SidebarLibrarySection driveBase="/drive/main" currentDrive="main" linkClass={linkClass} close={vi.fn()} />);
-    const favLink = screen.getByText("お気に入り").closest("a");
+    const favLink = screen.getByText("Favorites").closest("a");
     expect(favLink?.className).toBe("active");
   });
 });

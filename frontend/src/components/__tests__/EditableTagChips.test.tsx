@@ -19,11 +19,11 @@ vi.mock("@/lib/api", () => ({
 import { getDriveTags, updateFileTags } from "@/lib/api";
 
 function clickAdd() {
-  fireEvent.click(screen.getByRole("button", { name: /タグ追加/ }));
+  fireEvent.click(screen.getByRole("button", { name: /Add tag/ }));
 }
 
 function typeAndEnter(text: string) {
-  const input = screen.getByPlaceholderText("タグ名...") as HTMLInputElement;
+  const input = screen.getByPlaceholderText("Tag name...") as HTMLInputElement;
   fireEvent.change(input, { target: { value: text } });
   fireEvent.keyDown(input, { key: "Enter" });
 }
@@ -49,8 +49,8 @@ describe("EditableTagChips", () => {
     render(<EditableTagChips file={file} initialTags={["foo", "bar"]} />);
     expect(screen.getByText("foo")).toBeInTheDocument();
     expect(screen.getByText("bar")).toBeInTheDocument();
-    expect(screen.getByLabelText("foo を削除")).toBeInTheDocument();
-    expect(screen.getByLabelText("bar を削除")).toBeInTheDocument();
+    expect(screen.getByLabelText("Remove foo")).toBeInTheDocument();
+    expect(screen.getByLabelText("Remove bar")).toBeInTheDocument();
   });
 
   it("adds a valid tag and calls onTagsChange", async () => {
@@ -77,7 +77,7 @@ describe("EditableTagChips", () => {
     typeAndEnter("bad name");
 
     await waitFor(() => {
-      expect(screen.getByText(/使用できない文字/)).toBeInTheDocument();
+      expect(screen.getByText(/Contains invalid characters/)).toBeInTheDocument();
     });
   });
 
@@ -87,7 +87,7 @@ describe("EditableTagChips", () => {
     typeAndEnter("x".repeat(31));
 
     await waitFor(() => {
-      expect(screen.getByText(/30文字/)).toBeInTheDocument();
+      expect(screen.getByText(/30 characters/)).toBeInTheDocument();
     });
   });
 
@@ -98,7 +98,7 @@ describe("EditableTagChips", () => {
     typeAndEnter("overflow");
 
     await waitFor(() => {
-      expect(screen.getByText(/最大10個/)).toBeInTheDocument();
+      expect(screen.getByText(/Maximum 10/)).toBeInTheDocument();
     });
   });
 
@@ -111,7 +111,7 @@ describe("EditableTagChips", () => {
         onTagsChange={onChange}
       />,
     );
-    fireEvent.click(screen.getByLabelText("drop を削除"));
+    fireEvent.click(screen.getByLabelText("Remove drop"));
 
     await waitFor(() => {
       expect(onChange).toHaveBeenLastCalledWith(["keep"]);
@@ -133,7 +133,7 @@ describe("EditableTagChips", () => {
 
     // Brief flush — the submitTag path returns early without onChange.
     await waitFor(() => {
-      expect(screen.queryByPlaceholderText("タグ名...")).toBeNull();
+      expect(screen.queryByPlaceholderText("Tag name...")).toBeNull();
     });
     expect(onChange).not.toHaveBeenCalled();
   });
@@ -148,7 +148,7 @@ describe("EditableTagChips", () => {
       />,
     );
     clickAdd();
-    const input = screen.getByPlaceholderText("タグ名...");
+    const input = screen.getByPlaceholderText("Tag name...");
     fireEvent.keyDown(input, { key: "Backspace" });
 
     await waitFor(() => {
@@ -159,11 +159,11 @@ describe("EditableTagChips", () => {
   it("Escape closes the input without committing", () => {
     render(<EditableTagChips file={file} initialTags={[]} />);
     clickAdd();
-    const input = screen.getByPlaceholderText("タグ名...");
+    const input = screen.getByPlaceholderText("Tag name...");
     fireEvent.change(input, { target: { value: "typed" } });
     fireEvent.keyDown(input, { key: "Escape" });
 
-    expect(screen.queryByPlaceholderText("タグ名...")).toBeNull();
+    expect(screen.queryByPlaceholderText("Tag name...")).toBeNull();
     expect(screen.queryByText("typed")).toBeNull();
   });
 
@@ -211,8 +211,8 @@ describe("EditableTagChips", () => {
       }
 
       render(<Harness />);
-      fireEvent.click(screen.getByRole("button", { name: /タグ追加/ }));
-      const input = screen.getByPlaceholderText("タグ名...") as HTMLInputElement;
+      fireEvent.click(screen.getByRole("button", { name: /Add tag/ }));
+      const input = screen.getByPlaceholderText("Tag name...") as HTMLInputElement;
       fireEvent.change(input, { target: { value: "typed" } });
       fireEvent.keyDown(input, { key: "Enter" });
 
@@ -277,7 +277,7 @@ describe("EditableTagChips", () => {
           onContentChange={onContentChange}
         />,
       );
-      fireEvent.click(screen.getByLabelText("drop を削除"));
+      fireEvent.click(screen.getByLabelText("Remove drop"));
 
       await waitFor(() => {
         expect(onContentChange).toHaveBeenCalled();

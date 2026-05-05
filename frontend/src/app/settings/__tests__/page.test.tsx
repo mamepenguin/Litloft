@@ -32,27 +32,27 @@ vi.mock("@/components/ThemeProvider", () => ({
 describe("SettingsPage (/settings)", () => {
   it("renders the page title from settings.title", () => {
     render(<SettingsPage />);
-    // ja: "設定"
+    // en: "Settings"
     expect(
-      screen.getByRole("heading", { level: 1, name: "設定" }),
+      screen.getByRole("heading", { level: 1, name: "Settings" }),
     ).toBeInTheDocument();
   });
 
   it("renders the Profile section heading", () => {
     render(<SettingsPage />);
-    // ja: "プロフィール"
-    expect(screen.getByRole("heading", { name: "プロフィール" })).toBeInTheDocument();
+    // en: "Profile"
+    expect(screen.getByRole("heading", { name: "Profile" })).toBeInTheDocument();
   });
 
   it("renders the Appearance section heading", () => {
     render(<SettingsPage />);
-    // ja: "表示"
-    expect(screen.getByRole("heading", { name: "表示" })).toBeInTheDocument();
+    // en: "Appearance"
+    expect(screen.getByRole("heading", { name: "Appearance" })).toBeInTheDocument();
   });
 
   it("renders the Language section heading", () => {
     render(<SettingsPage />);
-    // ja: "言語"
-    expect(screen.getByRole("heading", { name: "言語" })).toBeInTheDocument();
+    // en: "Language"
+    expect(screen.getByRole("heading", { name: "Language" })).toBeInTheDocument();
   });
 });

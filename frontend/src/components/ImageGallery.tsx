@@ -177,7 +177,7 @@ export function ImageGallery({
     if (inActiveSplit && isOnFirstSubPage) {
       setShowRightHalf(readingDirection === "ltr");
     } else if (currentIndex < images.length - 1) {
-      // 次画像の最初のサブページを即座にセット（旧画像が正しい位置を保持）
+      // Immediately set the first sub-page of the next image (old image retains its position).
       setShowRightHalf(readingDirection === "rtl");
       setCurrentIndex((prev) => prev + 1);
     }
@@ -198,7 +198,7 @@ export function ImageGallery({
     if (inActiveSplit && !isOnFirstSubPage) {
       setShowRightHalf(readingDirection === "rtl");
     } else if (currentIndex > 0) {
-      // 前画像の最後のサブページ(B)を即座にセット: LTR=右(true), RTL=左(false)
+      // Immediately set the last sub-page (B) of the previous image: LTR=right(true), RTL=left(false).
       setShowRightHalf(splitMode && readingDirection === "ltr");
       setCurrentIndex((prev) => prev - 1);
     }
@@ -247,7 +247,7 @@ export function ImageGallery({
 
   const t_sc = useTranslations("shortcuts");
 
-  // バグ2: RTLモードでキーボードの左右を方向に応じて切り替えるためref経由でアクセス
+  // Access via ref to flip keyboard left/right directions in RTL mode.
   const navigatePrevRef = useRef(navigatePrev);
   const navigateNextRef = useRef(navigateNext);
   navigatePrevRef.current = navigatePrev;

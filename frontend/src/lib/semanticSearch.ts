@@ -37,7 +37,7 @@ export async function fetchSemanticHits(
     /**
      * When `true`, the addon unions in scene-frame CLIP embeddings
      * (`embedding_type="clip"`) alongside the default representative-
-     * frame route (`embedding_type="clip_thumbnail"`). The "シーン検索"
+     * frame route (`embedding_type="clip_thumbnail"`). The scene-search
      * toggle on the search page drives this flag. Spec
      * `2026-05-02-thumbnail-clip-default-shallow-search.md`.
      */

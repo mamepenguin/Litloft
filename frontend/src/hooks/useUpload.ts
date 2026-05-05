@@ -128,7 +128,7 @@ export function useUpload(drive: string, folderPath: string, onFileComplete?: ()
     } catch (err) {
       if (!internal.aborted) {
         const message =
-          err instanceof Error ? err.message : "アップロードに失敗しました";
+          err instanceof Error ? err.message : "Upload failed";
         updateUpload(id, { status: "error", error: message });
       }
     } finally {

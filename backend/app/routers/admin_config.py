@@ -141,7 +141,7 @@ def _validate_drives_payload(payload: Any) -> list[dict[str, Any]]:
         if not os.path.isdir(path_str):
             raise _validation_error(
                 "path_not_found",
-                "コンテナ内で見つかりません。docker-compose.yml の volumes を確認してください",
+                "Path not found in container. Check docker-compose.yml volumes.",
                 field="path",
             )
 

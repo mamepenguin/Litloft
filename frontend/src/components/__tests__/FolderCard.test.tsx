@@ -60,7 +60,7 @@ describe("FolderCard", () => {
       <FolderCard folder={folderWithoutThumbnail} {...baseFolderProps} />
     );
     expect(screen.getByText("Travel Photos")).toBeInTheDocument();
-    expect(screen.getByText("42 件")).toBeInTheDocument();
+    expect(screen.getByText("42 items")).toBeInTheDocument();
   });
 
   it("renders folder name and file count when thumbnail_file_id is set", () => {
@@ -68,7 +68,7 @@ describe("FolderCard", () => {
       <FolderCard folder={folderWithThumbnail} {...baseFolderProps} />
     );
     expect(screen.getByText("Music Collection")).toBeInTheDocument();
-    expect(screen.getByText("15 件")).toBeInTheDocument();
+    expect(screen.getByText("15 items")).toBeInTheDocument();
   });
 
   it("links to correct folder path", () => {
@@ -104,10 +104,10 @@ describe("FolderCard", () => {
         onContextMenu={vi.fn()}
       />
     );
-    expect(screen.queryByLabelText("ピン留め")).not.toBeInTheDocument();
-    expect(screen.queryByLabelText("ピン留め解除")).not.toBeInTheDocument();
-    expect(screen.queryByLabelText("名前を変更")).not.toBeInTheDocument();
-    expect(screen.queryByLabelText("移動")).not.toBeInTheDocument();
-    expect(screen.queryByLabelText("削除")).not.toBeInTheDocument();
+    expect(screen.queryByLabelText("Pin")).not.toBeInTheDocument();
+    expect(screen.queryByLabelText("Unpin")).not.toBeInTheDocument();
+    expect(screen.queryByLabelText("Rename")).not.toBeInTheDocument();
+    expect(screen.queryByLabelText("Move")).not.toBeInTheDocument();
+    expect(screen.queryByLabelText("Delete")).not.toBeInTheDocument();
   });
 });

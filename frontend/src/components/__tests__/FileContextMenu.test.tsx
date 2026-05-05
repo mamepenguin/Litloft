@@ -103,18 +103,18 @@ describe("FileContextMenu", () => {
 
   it("renders all default menu items", () => {
     render(<FileContextMenu {...makeProps()} />);
-    expect(screen.getByText("ダウンロード")).toBeInTheDocument();
-    expect(screen.getByText("プレイリストに追加")).toBeInTheDocument();
-    expect(screen.getByText("コピー")).toBeInTheDocument();
-    expect(screen.getByText("カット")).toBeInTheDocument();
-    expect(screen.getByText("名前を変更")).toBeInTheDocument();
-    expect(screen.getByText("移動")).toBeInTheDocument();
-    expect(screen.getByText("ゴミ箱に移動")).toBeInTheDocument();
+    expect(screen.getByText("Download")).toBeInTheDocument();
+    expect(screen.getByText("Add to playlist")).toBeInTheDocument();
+    expect(screen.getByText("Copy")).toBeInTheDocument();
+    expect(screen.getByText("Cut")).toBeInTheDocument();
+    expect(screen.getByText("Rename")).toBeInTheDocument();
+    expect(screen.getByText("Move")).toBeInTheDocument();
+    expect(screen.getByText("Move to Trash")).toBeInTheDocument();
   });
 
   it("does not render Remove from history when onRemoveFromHistory is undefined", () => {
     render(<FileContextMenu {...makeProps()} />);
-    expect(screen.queryByText("履歴から削除")).not.toBeInTheDocument();
+    expect(screen.queryByText("Remove from history")).not.toBeInTheDocument();
   });
 
   it("renders Remove from history when onRemoveFromHistory is provided", () => {
@@ -123,7 +123,7 @@ describe("FileContextMenu", () => {
         {...makeProps({ onRemoveFromHistory: vi.fn(() => Promise.resolve()) })}
       />,
     );
-    expect(screen.getByText("履歴から削除")).toBeInTheDocument();
+    expect(screen.getByText("Remove from history")).toBeInTheDocument();
   });
 
   it("does not render any dialog initially", () => {
@@ -136,7 +136,7 @@ describe("FileContextMenu", () => {
 
   it("opens rename dialog when Rename clicked", async () => {
     render(<FileContextMenu {...makeProps()} />);
-    fireEvent.click(screen.getByText("名前を変更"));
+    fireEvent.click(screen.getByText("Rename"));
     await waitFor(() => {
       expect(screen.getByTestId("rename-dialog")).toBeInTheDocument();
     });
@@ -144,7 +144,7 @@ describe("FileContextMenu", () => {
 
   it("opens move dialog when Move clicked", async () => {
     render(<FileContextMenu {...makeProps()} />);
-    fireEvent.click(screen.getByText("移動"));
+    fireEvent.click(screen.getByText("Move"));
     await waitFor(() => {
       expect(screen.getByTestId("move-dialog")).toBeInTheDocument();
     });
@@ -152,7 +152,7 @@ describe("FileContextMenu", () => {
 
   it("opens confirm dialog when Move to Trash clicked", async () => {
     render(<FileContextMenu {...makeProps()} />);
-    fireEvent.click(screen.getByText("ゴミ箱に移動"));
+    fireEvent.click(screen.getByText("Move to Trash"));
     await waitFor(() => {
       expect(screen.getByTestId("confirm-dialog")).toBeInTheDocument();
     });
@@ -166,7 +166,7 @@ describe("FileContextMenu", () => {
         {...makeProps({ onRemoveFromHistory, onClose })}
       />,
     );
-    fireEvent.click(screen.getByText("履歴から削除"));
+    fireEvent.click(screen.getByText("Remove from history"));
     await waitFor(() => {
       expect(onRemoveFromHistory).toHaveBeenCalledTimes(1);
     });
@@ -206,7 +206,7 @@ describe("FileContextMenu", () => {
 
     const onUpdate = vi.fn();
     render(<FileContextMenu {...makeProps({ onUpdate })} />);
-    fireEvent.click(screen.getByText("名前を変更"));
+    fireEvent.click(screen.getByText("Rename"));
     const trigger = await screen.findByTestId("trigger-rename");
     fireEvent.click(trigger);
     await waitFor(() => {
@@ -236,7 +236,7 @@ describe("FileContextMenu", () => {
 
     const onUpdate = vi.fn();
     render(<FileContextMenu {...makeProps({ onUpdate })} />);
-    fireEvent.click(screen.getByText("移動"));
+    fireEvent.click(screen.getByText("Move"));
     const trigger = await screen.findByTestId("trigger-move");
     fireEvent.click(trigger);
     await waitFor(() => {
@@ -266,7 +266,7 @@ describe("FileContextMenu", () => {
 
     const onUpdate = vi.fn();
     render(<FileContextMenu {...makeProps({ onUpdate })} />);
-    fireEvent.click(screen.getByText("ゴミ箱に移動"));
+    fireEvent.click(screen.getByText("Move to Trash"));
     const trigger = await screen.findByTestId("trigger-confirm");
     fireEvent.click(trigger);
     await waitFor(() => {
@@ -280,7 +280,7 @@ describe("FileContextMenu", () => {
 
   it("calls clipboard.copy when Copy clicked", async () => {
     render(<FileContextMenu {...makeProps()} />);
-    fireEvent.click(screen.getByText("コピー"));
+    fireEvent.click(screen.getByText("Copy"));
     await waitFor(() => {
       expect(copyMock).toHaveBeenCalled();
     });
@@ -288,7 +288,7 @@ describe("FileContextMenu", () => {
 
   it("calls clipboard.cut when Cut clicked", async () => {
     render(<FileContextMenu {...makeProps()} />);
-    fireEvent.click(screen.getByText("カット"));
+    fireEvent.click(screen.getByText("Cut"));
     await waitFor(() => {
       expect(cutMock).toHaveBeenCalled();
     });

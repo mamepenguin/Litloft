@@ -7,8 +7,8 @@
  * match and semantic hits live in one list now; each card surfaces a
  * `MatchMeta` describing why it matched. Backend channels are
  * collapsed by `buildMatchMeta` into 6 user-facing buckets so a card
- * never shows e.g. "音声" + "音声キーワード" side by side:
- *   filename / metadata / 音声 / 内容 / シーン / サムネイル
+ * never shows e.g. "audio" + "audio keyword" side by side:
+ *   filename / metadata / audio / content / scene / thumbnail
  *
  * Color usage follows DESIGN.md §2.2 (warm palette only):
  *   filename / metadata → accent (primary surface, file-level)
@@ -24,8 +24,8 @@ import { formatDuration } from "@/lib/format";
 
 const MATCH_TYPE_STYLES: Record<string, string> = {
   filename: "bg-accent/15 text-accent",
-  // path はファイル系（filename / metadata = accent）と同系で淡め。
-  // `2026-05-02-search-path-match.md` のラベル方針。
+  // path uses the same accent family as filename/metadata but at lower opacity.
+  // Label policy: spec `2026-05-02-search-path-match.md`.
   path: "bg-accent/5 text-accent",
   metadata: "bg-accent/10 text-accent",
   transcript: "bg-accent-teal/15 text-accent-teal",
@@ -90,15 +90,15 @@ export function MatchOverlay({
     content: t("matchContent"),
   };
 
-  // ファイル名 (substring) と メタデータ (embedding) は実体が近く、
-  // 両方 true の場合は片方に集約してカードがうるさくならないようにする。
-  // semantic-only ヒットで filename badge が無いときのみ metadata を出す。
+  // filename (substring) and metadata (embedding) are semantically close;
+  // collapse to one when both are true so the card doesn't get cluttered.
+  // Show metadata only when there is no filename badge (semantic-only hit).
   const activeTypes: string[] = [];
   if (match.filename) activeTypes.push("filename");
   else if (match.metadata) activeTypes.push("metadata");
-  // path は filename / metadata と独立に立つ（spec
-  // 2026-05-02-search-path-match）— title にも folder_path にもヒットした
-  // ケースで両バッジを並べることでユーザーに「どこで当たったか」を可視化。
+  // path stands independently from filename/metadata (spec
+  // 2026-05-02-search-path-match) — show both badges when the query hit both
+  // title and folder_path so the user can see where it matched.
   if (match.path) activeTypes.push("path");
   if (match.transcript && match.transcript.length > 0) {
     activeTypes.push("transcript");

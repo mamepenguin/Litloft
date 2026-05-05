@@ -16,8 +16,8 @@ vi.mock("../ConfirmDialog", () => ({
     open ? (
       <div data-testid="confirm-dialog">
         <span>{message}</span>
-        <button onClick={onConfirm}>確認</button>
-        <button onClick={onCancel}>キャンセル</button>
+        <button onClick={onConfirm}>Confirm</button>
+        <button onClick={onCancel}>Cancel</button>
       </div>
     ) : null,
 }));
@@ -26,8 +26,8 @@ vi.mock("../RenameDialog", () => ({
   RenameDialog: ({ open, onRename, onCancel }: any) =>
     open ? (
       <div data-testid="rename-dialog">
-        <button onClick={() => onRename("new-name.mp4")}>リネーム実行</button>
-        <button onClick={onCancel}>キャンセル</button>
+        <button onClick={() => onRename("new-name.mp4")}>Rename</button>
+        <button onClick={onCancel}>Cancel</button>
       </div>
     ) : null,
 }));
@@ -36,8 +36,8 @@ vi.mock("../MoveDialog", () => ({
   MoveDialog: ({ open, onMove, onCancel }: any) =>
     open ? (
       <div data-testid="move-dialog">
-        <button onClick={() => onMove("target/path")}>移動実行</button>
-        <button onClick={onCancel}>キャンセル</button>
+        <button onClick={() => onMove("target/path")}>Move</button>
+        <button onClick={onCancel}>Cancel</button>
       </div>
     ) : null,
 }));
@@ -72,45 +72,45 @@ describe("FileActions", () => {
 
   it("renders menu button", () => {
     render(<FileActions file={mockFile} />);
-    expect(screen.getByLabelText("ファイル操作")).toBeInTheDocument();
+    expect(screen.getByLabelText("File actions")).toBeInTheDocument();
   });
 
   it("opens menu on click", () => {
     render(<FileActions file={mockFile} />);
-    fireEvent.click(screen.getByLabelText("ファイル操作"));
-    expect(screen.getByText("ダウンロード")).toBeInTheDocument();
-    expect(screen.getByText("名前を変更")).toBeInTheDocument();
-    expect(screen.getByText("移動")).toBeInTheDocument();
-    expect(screen.getByText("ゴミ箱に移動")).toBeInTheDocument();
+    fireEvent.click(screen.getByLabelText("File actions"));
+    expect(screen.getByText("Download")).toBeInTheDocument();
+    expect(screen.getByText("Rename")).toBeInTheDocument();
+    expect(screen.getByText("Move")).toBeInTheDocument();
+    expect(screen.getByText("Move to Trash")).toBeInTheDocument();
   });
 
   it("opens rename dialog", () => {
     render(<FileActions file={mockFile} />);
-    fireEvent.click(screen.getByLabelText("ファイル操作"));
-    fireEvent.click(screen.getByText("名前を変更"));
+    fireEvent.click(screen.getByLabelText("File actions"));
+    fireEvent.click(screen.getByText("Rename"));
     expect(screen.getByTestId("rename-dialog")).toBeInTheDocument();
   });
 
   it("opens move dialog", () => {
     render(<FileActions file={mockFile} />);
-    fireEvent.click(screen.getByLabelText("ファイル操作"));
-    fireEvent.click(screen.getByText("移動"));
+    fireEvent.click(screen.getByLabelText("File actions"));
+    fireEvent.click(screen.getByText("Move"));
     expect(screen.getByTestId("move-dialog")).toBeInTheDocument();
   });
 
   it("opens delete confirmation dialog", () => {
     render(<FileActions file={mockFile} />);
-    fireEvent.click(screen.getByLabelText("ファイル操作"));
-    fireEvent.click(screen.getByText("ゴミ箱に移動"));
+    fireEvent.click(screen.getByLabelText("File actions"));
+    fireEvent.click(screen.getByText("Move to Trash"));
     expect(screen.getByTestId("confirm-dialog")).toBeInTheDocument();
   });
 
   it("calls onDelete after successful deletion", async () => {
     const onDelete = vi.fn();
     render(<FileActions file={mockFile} onDelete={onDelete} />);
-    fireEvent.click(screen.getByLabelText("ファイル操作"));
-    fireEvent.click(screen.getByText("ゴミ箱に移動"));
-    fireEvent.click(screen.getByText("確認"));
+    fireEvent.click(screen.getByLabelText("File actions"));
+    fireEvent.click(screen.getByText("Move to Trash"));
+    fireEvent.click(screen.getByText("Confirm"));
 
     await waitFor(() => {
       expect(onDelete).toHaveBeenCalled();
@@ -120,9 +120,9 @@ describe("FileActions", () => {
   it("calls onUpdate after successful rename", async () => {
     const onUpdate = vi.fn();
     render(<FileActions file={mockFile} onUpdate={onUpdate} />);
-    fireEvent.click(screen.getByLabelText("ファイル操作"));
-    fireEvent.click(screen.getByText("名前を変更"));
-    fireEvent.click(screen.getByText("リネーム実行"));
+    fireEvent.click(screen.getByLabelText("File actions"));
+    fireEvent.click(screen.getByText("Rename"));
+    fireEvent.click(screen.getByText("Rename"));
 
     await waitFor(() => {
       expect(onUpdate).toHaveBeenCalled();

@@ -225,10 +225,10 @@ async def list_drive_files(
         normalized_search = unicodedata.normalize("NFC", search)
         escaped_search = _escape_like(normalized_search)
         pattern = f"%{escaped_search}%"
-        # spec 2026-05-02-search-path-match: title だけでなく folder_path も
-        # マッチ対象。フォルダ名による分類が活きるユースケース（旅行/京都/...
-        # を「京都」で検索）を拾う。per-card のバッジ振り分けは下の
-        # _classify_match_source で title/folder_path 個別ヒットを判定する。
+        # spec 2026-05-02-search-path-match: match both title and folder_path.
+        # Catches use cases where folder-name classification is useful (e.g.
+        # searching "kyoto" under travel/kyoto/...). Per-card badge routing
+        # is handled by _classify_match_source below.
         query = query.filter(or_(
             File.title.ilike(pattern, escape="\\"),
             File.folder_path.ilike(pattern, escape="\\"),
@@ -274,9 +274,9 @@ def _classify_match_source(file_obj, normalized_search: str | None) -> str | Non
         return "both"
     if in_path:
         return "path"
-    # default: filename. SQL OR が拾った以上 title/path のどちらかには必ず
-    # 含まれるが、casefold での substring 判定が SQL ilike と完全一致しない
-    # 場面（Unicode の equivalence 違い等）への safety net としても機能する。
+    # default: filename. The SQL OR guarantees a match in title or path,
+    # but the casefold substring check may diverge from SQL ilike in edge cases
+    # (e.g. Unicode equivalence differences) — this also acts as a safety net.
     return "filename"
 
 

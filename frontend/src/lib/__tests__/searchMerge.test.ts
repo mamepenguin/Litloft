@@ -242,8 +242,8 @@ describe("computeHybridScore", () => {
   });
 
   it("adds path match with low weight (0.3)", () => {
-    // spec 2026-05-02-search-path-match: path-only ヒットは noise を抑える
-    // ため filename×2.0 / metadata×1.0 より低い 0.3 で加算する。
+    // spec 2026-05-02-search-path-match: path-only hits use a lower weight
+    // (0.3) than filename×2.0 / metadata×1.0 to suppress noise.
     const score = computeHybridScore({ path: { score: 1 } });
     expect(score).toBeCloseTo(0.3);
   });
@@ -333,8 +333,8 @@ describe("mergeResults", () => {
   });
 
   it("sets match_meta.path when filename API reports match_source=path", () => {
-    // spec 2026-05-02-search-path-match: backend が match_source="path" を
-    // 返したファイルは "ファイル名" バッジではなく "パス" バッジに分類する。
+    // spec 2026-05-02-search-path-match: files where backend returns
+    // match_source="path" are classified with the path badge, not filename.
     const f = makeFile({ id: "p1", match_source: "path" });
     const { files } = mergeResults({
       filenameMatches: [f],

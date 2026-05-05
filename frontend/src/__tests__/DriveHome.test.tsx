@@ -124,7 +124,7 @@ describe("DriveHome", () => {
     render(<DriveHome driveName="media" />);
 
     await waitFor(() => {
-      expect(screen.queryByText("続きを見る")).toBeNull();
+      expect(screen.queryByText("Continue Watching")).toBeNull();
     });
     expect(mockGetWatchHistory).not.toHaveBeenCalled();
   });
@@ -139,7 +139,7 @@ describe("DriveHome", () => {
     render(<DriveHome driveName="media" />);
 
     await waitFor(() => {
-      expect(screen.getByText("続きを見る")).toBeInTheDocument();
+      expect(screen.getByText("Continue Watching")).toBeInTheDocument();
     });
     expect(mockGetWatchHistory).toHaveBeenCalledWith("media", 12);
     expect(mockGetWatchHistory).toHaveBeenCalledWith("media", 12, "all");
@@ -154,7 +154,7 @@ describe("DriveHome", () => {
     await waitFor(() => {
       expect(screen.getByTestId("root-file-listing")).toBeInTheDocument();
     });
-    expect(screen.queryByText("続きを見る")).toBeNull();
+    expect(screen.queryByText("Continue Watching")).toBeNull();
   });
 
   it("renders file titles from watch history", async () => {

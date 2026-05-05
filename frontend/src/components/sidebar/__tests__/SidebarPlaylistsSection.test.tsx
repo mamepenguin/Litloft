@@ -88,12 +88,12 @@ describe("SidebarPlaylistsSection", () => {
 
   it("renders create button", () => {
     render(<SidebarPlaylistsSection {...defaultProps} />);
-    expect(screen.getByLabelText("プレイリスト作成")).toBeInTheDocument();
+    expect(screen.getByLabelText("Create playlist")).toBeInTheDocument();
   });
 
   it("shows create input when creatingPlaylist is true", () => {
     render(<SidebarPlaylistsSection {...defaultProps} creatingPlaylist={true} />);
-    expect(screen.getByPlaceholderText("プレイリスト名...")).toBeInTheDocument();
+    expect(screen.getByPlaceholderText("Playlist name...")).toBeInTheDocument();
   });
 
   it("calls handleCreatePlaylist on Enter", () => {
@@ -105,7 +105,7 @@ describe("SidebarPlaylistsSection", () => {
         handleCreatePlaylist={handleCreatePlaylist}
       />
     );
-    fireEvent.keyDown(screen.getByPlaceholderText("プレイリスト名..."), { key: "Enter" });
+    fireEvent.keyDown(screen.getByPlaceholderText("Playlist name..."), { key: "Enter" });
     expect(handleCreatePlaylist).toHaveBeenCalled();
   });
 
@@ -118,7 +118,7 @@ describe("SidebarPlaylistsSection", () => {
         setCreatingPlaylist={setCreatingPlaylist}
       />
     );
-    fireEvent.keyDown(screen.getByPlaceholderText("プレイリスト名..."), { key: "Escape" });
+    fireEvent.keyDown(screen.getByPlaceholderText("Playlist name..."), { key: "Escape" });
     expect(setCreatingPlaylist).toHaveBeenCalledWith(false);
   });
 
@@ -144,8 +144,8 @@ describe("SidebarPlaylistsSection", () => {
         contextMenu={{ id: "pl1", x: 100, y: 200 }}
       />
     );
-    expect(screen.getByText("リネーム")).toBeInTheDocument();
-    expect(screen.getByText("削除")).toBeInTheDocument();
+    expect(screen.getByText("Rename")).toBeInTheDocument();
+    expect(screen.getByText("Delete")).toBeInTheDocument();
   });
 
   it("calls handleDeletePlaylist from context menu", () => {
@@ -157,25 +157,25 @@ describe("SidebarPlaylistsSection", () => {
         handleDeletePlaylist={handleDeletePlaylist}
       />
     );
-    fireEvent.click(screen.getByText("削除"));
+    fireEvent.click(screen.getByText("Delete"));
     expect(handleDeletePlaylist).toHaveBeenCalledWith("pl1");
   });
 
   it("hides playlist items when collapsed and persists state", () => {
     render(<SidebarPlaylistsSection {...defaultProps} />);
-    const toggle = screen.getByRole("button", { name: "折りたたむ" });
+    const toggle = screen.getByRole("button", { name: "Collapse" });
     fireEvent.click(toggle);
     expect(screen.queryByText("Rock")).not.toBeInTheDocument();
     expect(screen.queryByText("Jazz")).not.toBeInTheDocument();
     expect(mockStorage.getItem("sidebar:section:playlists:collapsed")).toBe("1");
-    expect(screen.getByRole("button", { name: "展開する" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Expand" })).toBeInTheDocument();
   });
 
   it("starts collapsed when localStorage flag is set", () => {
     mockStorage.setItem("sidebar:section:playlists:collapsed", "1");
     render(<SidebarPlaylistsSection {...defaultProps} />);
     expect(screen.queryByText("Rock")).not.toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "展開する" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Expand" })).toBeInTheDocument();
   });
 
   it("create button auto-expands collapsed section", () => {
@@ -187,7 +187,7 @@ describe("SidebarPlaylistsSection", () => {
         setCreatingPlaylist={setCreatingPlaylist}
       />
     );
-    fireEvent.click(screen.getByLabelText("プレイリスト作成"));
+    fireEvent.click(screen.getByLabelText("Create playlist"));
     expect(setCreatingPlaylist).toHaveBeenCalledWith(true);
     expect(mockStorage.getItem("sidebar:section:playlists:collapsed")).toBeNull();
     expect(screen.getByText("Rock")).toBeInTheDocument();

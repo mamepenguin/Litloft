@@ -58,21 +58,21 @@ describe("FolderContextMenu", () => {
 
   it("renders Pin item when not pinned", () => {
     render(<FolderContextMenu {...makeProps({ isPinned: false })} />);
-    expect(screen.getByText("ピン留め")).toBeInTheDocument();
-    expect(screen.queryByText("ピン留め解除")).not.toBeInTheDocument();
+    expect(screen.getByText("Pin")).toBeInTheDocument();
+    expect(screen.queryByText("Unpin")).not.toBeInTheDocument();
   });
 
   it("renders Unpin item when pinned", () => {
     render(<FolderContextMenu {...makeProps({ isPinned: true })} />);
-    expect(screen.getByText("ピン留め解除")).toBeInTheDocument();
-    expect(screen.queryByText("ピン留め")).not.toBeInTheDocument();
+    expect(screen.getByText("Unpin")).toBeInTheDocument();
+    expect(screen.queryByText("Pin")).not.toBeInTheDocument();
   });
 
   it("renders Rename / Move / Delete items", () => {
     render(<FolderContextMenu {...makeProps()} />);
-    expect(screen.getByText("名前を変更")).toBeInTheDocument();
-    expect(screen.getByText("移動")).toBeInTheDocument();
-    expect(screen.getByText("削除")).toBeInTheDocument();
+    expect(screen.getByText("Rename")).toBeInTheDocument();
+    expect(screen.getByText("Move")).toBeInTheDocument();
+    expect(screen.getByText("Delete")).toBeInTheDocument();
   });
 
   it("does not render any dialog initially", () => {
@@ -84,7 +84,7 @@ describe("FolderContextMenu", () => {
 
   it("opens rename dialog when Rename clicked", async () => {
     render(<FolderContextMenu {...makeProps()} />);
-    fireEvent.click(screen.getByText("名前を変更"));
+    fireEvent.click(screen.getByText("Rename"));
     await waitFor(() => {
       expect(screen.getByTestId("rename-dialog")).toBeInTheDocument();
     });
@@ -92,7 +92,7 @@ describe("FolderContextMenu", () => {
 
   it("opens move dialog when Move clicked", async () => {
     render(<FolderContextMenu {...makeProps()} />);
-    fireEvent.click(screen.getByText("移動"));
+    fireEvent.click(screen.getByText("Move"));
     await waitFor(() => {
       expect(screen.getByTestId("move-dialog")).toBeInTheDocument();
     });
@@ -100,7 +100,7 @@ describe("FolderContextMenu", () => {
 
   it("opens confirm dialog when Delete clicked", async () => {
     render(<FolderContextMenu {...makeProps()} />);
-    fireEvent.click(screen.getByText("削除"));
+    fireEvent.click(screen.getByText("Delete"));
     await waitFor(() => {
       expect(screen.getByTestId("confirm-dialog")).toBeInTheDocument();
     });
@@ -109,7 +109,7 @@ describe("FolderContextMenu", () => {
   it("calls onTogglePin when Pin clicked", async () => {
     const onTogglePin = vi.fn();
     render(<FolderContextMenu {...makeProps({ onTogglePin })} />);
-    fireEvent.click(screen.getByText("ピン留め"));
+    fireEvent.click(screen.getByText("Pin"));
     await waitFor(() => {
       expect(onTogglePin).toHaveBeenCalledTimes(1);
     });
@@ -117,7 +117,7 @@ describe("FolderContextMenu", () => {
 
   it("hides Pin item when onTogglePin is undefined", () => {
     render(<FolderContextMenu {...makeProps({ onTogglePin: undefined })} />);
-    expect(screen.queryByText("ピン留め")).not.toBeInTheDocument();
-    expect(screen.queryByText("ピン留め解除")).not.toBeInTheDocument();
+    expect(screen.queryByText("Pin")).not.toBeInTheDocument();
+    expect(screen.queryByText("Unpin")).not.toBeInTheDocument();
   });
 });

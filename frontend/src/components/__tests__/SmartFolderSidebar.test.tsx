@@ -139,7 +139,7 @@ describe("SidebarSmartFoldersSection", () => {
     render(<SidebarSmartFoldersSection drive="main" close={vi.fn()} />);
     expect(screen.getByText("Recent videos")).toBeInTheDocument();
     expect(screen.getByText("Photos")).toBeInTheDocument();
-    expect(screen.getByText("スマートフォルダ")).toBeInTheDocument();
+    expect(screen.getByText("Smart Folders")).toBeInTheDocument();
   });
 
   it("navigates to /drive/{drive}/search?... on click", () => {
@@ -166,8 +166,8 @@ describe("SidebarSmartFoldersSection", () => {
     mockSmartFolders = [SF1];
     render(<SidebarSmartFoldersSection drive="main" close={vi.fn()} />);
     fireEvent.contextMenu(screen.getByText("Recent videos"));
-    expect(screen.getByText("名前変更")).toBeInTheDocument();
-    expect(screen.getByText("削除")).toBeInTheDocument();
+    expect(screen.getByText("Rename")).toBeInTheDocument();
+    expect(screen.getByText("Delete")).toBeInTheDocument();
   });
 
   it("renames smart folder via the rename dialog", async () => {
@@ -175,7 +175,7 @@ describe("SidebarSmartFoldersSection", () => {
     updateMock.mockResolvedValueOnce({ ...SF1, name: "Renamed" });
     render(<SidebarSmartFoldersSection drive="main" close={vi.fn()} />);
     fireEvent.contextMenu(screen.getByText("Recent videos"));
-    fireEvent.click(screen.getByText("名前変更"));
+    fireEvent.click(screen.getByText("Rename"));
     // ContextMenu wraps onClick in requestAnimationFrame, so wait for the
     // dialog to mount before submitting.
     const dialog = await screen.findByTestId("rename-dialog");
@@ -191,7 +191,7 @@ describe("SidebarSmartFoldersSection", () => {
     removeMock.mockResolvedValueOnce(undefined);
     render(<SidebarSmartFoldersSection drive="main" close={vi.fn()} />);
     fireEvent.contextMenu(screen.getByText("Recent videos"));
-    fireEvent.click(screen.getByText("削除"));
+    fireEvent.click(screen.getByText("Delete"));
     const ok = await screen.findByTestId("confirm-ok");
     fireEvent.click(ok);
     await waitFor(() => {
@@ -202,7 +202,7 @@ describe("SidebarSmartFoldersSection", () => {
   it("collapses entries when section toggle is clicked", () => {
     mockSmartFolders = [SF1, SF2];
     render(<SidebarSmartFoldersSection drive="main" close={vi.fn()} />);
-    const toggle = screen.getByRole("button", { name: "折りたたむ" });
+    const toggle = screen.getByRole("button", { name: "Collapse" });
     fireEvent.click(toggle);
     expect(screen.queryByText("Recent videos")).not.toBeInTheDocument();
     expect(screen.queryByText("Photos")).not.toBeInTheDocument();

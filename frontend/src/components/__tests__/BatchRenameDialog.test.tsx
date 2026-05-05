@@ -41,19 +41,19 @@ describe("BatchRenameDialog", () => {
 
   it("renders dialog when open", () => {
     render(<BatchRenameDialog {...defaultProps} />);
-    expect(screen.getByText("一括リネーム")).toBeInTheDocument();
+    expect(screen.getByText("Batch Rename")).toBeInTheDocument();
   });
 
   it("switches modes", () => {
     render(<BatchRenameDialog {...defaultProps} />);
-    fireEvent.click(screen.getByText("正規表現"));
-    expect(screen.getByText("検索パターン")).toBeInTheDocument();
+    fireEvent.click(screen.getByText("Regex"));
+    expect(screen.getByText("Search pattern")).toBeInTheDocument();
 
-    fireEvent.click(screen.getByText("プレフィックス・サフィックス"));
-    expect(screen.getByText("値")).toBeInTheDocument();
+    fireEvent.click(screen.getByText("Prefix / Suffix"));
+    expect(screen.getByText("Value")).toBeInTheDocument();
 
-    fireEvent.click(screen.getByText("テンプレート"));
-    expect(screen.getByText("開始番号")).toBeInTheDocument();
+    fireEvent.click(screen.getByText("Template"));
+    expect(screen.getByText("Start number")).toBeInTheDocument();
   });
 
   it("shows template preview with default settings", () => {
@@ -77,7 +77,7 @@ describe("BatchRenameDialog", () => {
 
   it("shows regex preview", () => {
     render(<BatchRenameDialog {...defaultProps} />);
-    fireEvent.click(screen.getByText("正規表現"));
+    fireEvent.click(screen.getByText("Regex"));
 
     const inputs = screen.getAllByRole("textbox");
     const patternInput = inputs[0];
@@ -92,17 +92,17 @@ describe("BatchRenameDialog", () => {
 
   it("shows invalid regex error", () => {
     render(<BatchRenameDialog {...defaultProps} />);
-    fireEvent.click(screen.getByText("正規表現"));
+    fireEvent.click(screen.getByText("Regex"));
 
     const inputs = screen.getAllByRole("textbox");
     fireEvent.change(inputs[0], { target: { value: "[invalid" } });
 
-    expect(screen.getByText("正規表現が無効です")).toBeInTheDocument();
+    expect(screen.getByText("Invalid regular expression")).toBeInTheDocument();
   });
 
   it("shows prefix_suffix preview for add_prefix", () => {
     render(<BatchRenameDialog {...defaultProps} />);
-    fireEvent.click(screen.getByText("プレフィックス・サフィックス"));
+    fireEvent.click(screen.getByText("Prefix / Suffix"));
 
     const valueInput = screen.getByRole("textbox");
     fireEvent.change(valueInput, { target: { value: "new_" } });
@@ -114,9 +114,9 @@ describe("BatchRenameDialog", () => {
 
   it("shows prefix_suffix preview for remove_prefix", () => {
     render(<BatchRenameDialog {...defaultProps} />);
-    fireEvent.click(screen.getByText("プレフィックス・サフィックス"));
+    fireEvent.click(screen.getByText("Prefix / Suffix"));
 
-    fireEvent.click(screen.getByText("先頭から削除"));
+    fireEvent.click(screen.getByText("Remove prefix"));
 
     const valueInput = screen.getByRole("textbox");
     fireEvent.change(valueInput, { target: { value: "photo_" } });
@@ -128,7 +128,7 @@ describe("BatchRenameDialog", () => {
   it("calls batchRename API on execute", async () => {
     render(<BatchRenameDialog {...defaultProps} />);
 
-    fireEvent.click(screen.getByText("リネーム実行"));
+    fireEvent.click(screen.getByText("Rename"));
 
     await waitFor(() => {
       expect(mockBatchRename).toHaveBeenCalledWith({
@@ -146,17 +146,17 @@ describe("BatchRenameDialog", () => {
     mockBatchRename.mockRejectedValueOnce(new Error("fail"));
     render(<BatchRenameDialog {...defaultProps} />);
 
-    fireEvent.click(screen.getByText("リネーム実行"));
+    fireEvent.click(screen.getByText("Rename"));
 
     await waitFor(() => {
-      expect(screen.getByText("リネームに失敗しました")).toBeInTheDocument();
+      expect(screen.getByText("Rename failed")).toBeInTheDocument();
     });
   });
 
   it("calls onCancel on close button", () => {
     const onCancel = vi.fn();
     render(<BatchRenameDialog {...defaultProps} onCancel={onCancel} />);
-    fireEvent.click(screen.getByLabelText("閉じる"));
+    fireEvent.click(screen.getByLabelText("Close"));
     expect(onCancel).toHaveBeenCalled();
   });
 
@@ -169,9 +169,9 @@ describe("BatchRenameDialog", () => {
 
   it("disables execute when no changes", () => {
     render(<BatchRenameDialog {...defaultProps} />);
-    fireEvent.click(screen.getByText("正規表現"));
+    fireEvent.click(screen.getByText("Regex"));
     // No pattern entered, so no changes
-    const button = screen.getByText("リネーム実行");
+    const button = screen.getByText("Rename");
     expect(button).toBeDisabled();
   });
 });

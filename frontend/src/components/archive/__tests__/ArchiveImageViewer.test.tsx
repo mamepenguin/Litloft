@@ -66,38 +66,38 @@ describe("ArchiveImageViewer", () => {
 
   it("shows prev and next buttons when controls visible", () => {
     render(<ArchiveImageViewer {...defaultProps} />);
-    expect(screen.getByLabelText("前の画像")).toBeInTheDocument();
-    expect(screen.getByLabelText("次の画像")).toBeInTheDocument();
+    expect(screen.getByLabelText("Previous image")).toBeInTheDocument();
+    expect(screen.getByLabelText("Next image")).toBeInTheDocument();
   });
 
   it("hides prev button at first image", () => {
     render(<ArchiveImageViewer {...defaultProps} imageIndex={0} currentImage={images[0]} />);
-    expect(screen.queryByLabelText("前の画像")).not.toBeInTheDocument();
-    expect(screen.getByLabelText("次の画像")).toBeInTheDocument();
+    expect(screen.queryByLabelText("Previous image")).not.toBeInTheDocument();
+    expect(screen.getByLabelText("Next image")).toBeInTheDocument();
   });
 
   it("hides next button at last image", () => {
     render(<ArchiveImageViewer {...defaultProps} imageIndex={2} currentImage={images[2]} />);
-    expect(screen.getByLabelText("前の画像")).toBeInTheDocument();
-    expect(screen.queryByLabelText("次の画像")).not.toBeInTheDocument();
+    expect(screen.getByLabelText("Previous image")).toBeInTheDocument();
+    expect(screen.queryByLabelText("Next image")).not.toBeInTheDocument();
   });
 
   it("hides navigation when controls are hidden", () => {
     render(<ArchiveImageViewer {...defaultProps} showControls={false} />);
-    expect(screen.queryByLabelText("前の画像")).not.toBeInTheDocument();
-    expect(screen.queryByLabelText("次の画像")).not.toBeInTheDocument();
+    expect(screen.queryByLabelText("Previous image")).not.toBeInTheDocument();
+    expect(screen.queryByLabelText("Next image")).not.toBeInTheDocument();
   });
 
   it("calls closeViewer on close button click", () => {
     const closeViewer = vi.fn();
     render(<ArchiveImageViewer {...defaultProps} closeViewer={closeViewer} />);
-    fireEvent.click(screen.getByLabelText("閉じる"));
+    fireEvent.click(screen.getByLabelText("Close"));
     expect(closeViewer).toHaveBeenCalled();
   });
 
   it("renders download link with correct href", () => {
     render(<ArchiveImageViewer {...defaultProps} />);
-    const link = screen.getByLabelText("ダウンロード");
+    const link = screen.getByLabelText("Download");
     expect(link).toHaveAttribute(
       "href",
       "/api/files/file-1/archive/entry?path=img2.jpg"
@@ -107,12 +107,12 @@ describe("ArchiveImageViewer", () => {
 
   it("shows play/pause button for multiple images", () => {
     render(<ArchiveImageViewer {...defaultProps} />);
-    expect(screen.getByLabelText("再生")).toBeInTheDocument();
+    expect(screen.getByLabelText("Play")).toBeInTheDocument();
   });
 
   it("shows pause label when playing", () => {
     render(<ArchiveImageViewer {...defaultProps} playing={true} />);
-    expect(screen.getByLabelText("一時停止")).toBeInTheDocument();
+    expect(screen.getByLabelText("Pause")).toBeInTheDocument();
   });
 
   it("shows loading spinner when imageLoading is true", () => {
@@ -124,6 +124,6 @@ describe("ArchiveImageViewer", () => {
 
   it("renders slideshow interval selector", () => {
     render(<ArchiveImageViewer {...defaultProps} />);
-    expect(screen.getByLabelText("スライドショー間隔")).toBeInTheDocument();
+    expect(screen.getByLabelText("Slideshow interval")).toBeInTheDocument();
   });
 });

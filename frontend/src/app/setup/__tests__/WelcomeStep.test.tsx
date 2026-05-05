@@ -4,12 +4,12 @@
 // - WelcomeStep is a localized intro screen between LanguageStep and DriveStep.
 // - Props: { onNext: () => void; onBack: () => void }.
 // - It uses i18n keys under `setup.welcome.*`. The global next-intl mock in
-//   src/test/setup.ts looks values up against messages/ja.json; missing keys
+//   src/test/setup.ts looks values up against messages/en.json; missing keys
 //   fall back to the dotted path string (e.g. "setup.welcome.greeting"),
 //   which is sufficient to assert structural rendering even before the JSON
 //   keys are added.
 // - The "5 setup items" must be rendered inside an <ol>.
-// - "戻る" calls onBack; "はじめる" calls onNext.
+// - "Back" calls onBack; "Get started" calls onNext.
 
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { render, screen, fireEvent } from "@testing-library/react";
@@ -30,7 +30,7 @@ describe("WelcomeStep", () => {
     // Greeting is the only h1/h2 in this step. We accept either an actual
     // localized greeting (after ja.json is updated) or the fallback key path.
     const heading =
-      screen.queryByRole("heading", { name: /ようこそ|welcome/i }) ??
+      screen.queryByRole("heading", { name: /welcome/i }) ??
       screen.queryByRole("heading", { name: /setup\.welcome\.greeting/i });
     expect(heading).not.toBeNull();
   });
@@ -40,7 +40,7 @@ describe("WelcomeStep", () => {
     // The intro paragraph either contains the localized text or the fallback
     // key path.
     const intro =
-      screen.queryByText(/セルフホスト|self-host|ファイル|file/i) ??
+      screen.queryByText(/self-host|file/i) ??
       screen.queryByText(/setup\.welcome\.intro/i);
     expect(intro).not.toBeNull();
   });
@@ -58,7 +58,7 @@ describe("WelcomeStep", () => {
   it('has a "back" button that invokes onBack', () => {
     const onBack = vi.fn();
     render(<WelcomeStep onNext={vi.fn()} onBack={onBack} />);
-    const backBtn = screen.getByRole("button", { name: /戻る|back/i });
+    const backBtn = screen.getByRole("button", { name: /back/i });
     fireEvent.click(backBtn);
     expect(onBack).toHaveBeenCalledTimes(1);
   });
@@ -66,9 +66,9 @@ describe("WelcomeStep", () => {
   it('has a primary "start" button that invokes onNext', () => {
     const onNext = vi.fn();
     render(<WelcomeStep onNext={onNext} onBack={vi.fn()} />);
-    // Match either the localized "はじめる" or the i18n fallback key string.
+    // Match either the localized "Get started" or the i18n fallback key string.
     const startBtn =
-      screen.queryByRole("button", { name: /はじめる|start|begin/i }) ??
+      screen.queryByRole("button", { name: /get started|start|begin/i }) ??
       screen.getByRole("button", { name: /setup\.welcome\.startButton/i });
     fireEvent.click(startBtn);
     expect(onNext).toHaveBeenCalledTimes(1);

@@ -29,10 +29,10 @@ export interface FileItem {
   created_at: string;
   updated_at: string;
   /**
-   * Backend サーチ経路でのみセットされ、検索クエリが title 側 / folder_path
-   * 側 / 両方 のどれにヒットしたかを示す。`searchMerge.ts` が「ファイル名」
-   * vs 「パス」バッジに振り分ける。検索以外の経路では `null`。Spec
-   * `2026-05-02-search-path-match.md`.
+   * Set only on the backend search path. Indicates whether the query matched
+   * the title, folder_path, or both. `searchMerge.ts` routes this to the
+   * filename vs path badge. `null` on non-search paths.
+   * Spec `2026-05-02-search-path-match.md`.
    */
   match_source?: "filename" | "path" | "both" | null;
 }

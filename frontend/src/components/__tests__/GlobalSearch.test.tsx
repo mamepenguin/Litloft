@@ -139,12 +139,12 @@ describe("GlobalSearch", () => {
 
   it("renders search button", () => {
     render(<GlobalSearch />);
-    expect(screen.getByLabelText("検索")).toBeInTheDocument();
+    expect(screen.getByLabelText("Search")).toBeInTheDocument();
   });
 
   it("opens search panel on click", () => {
     render(<GlobalSearch />);
-    fireEvent.click(screen.getByLabelText("検索"));
+    fireEvent.click(screen.getByLabelText("Search"));
     // Both mobile and desktop inputs should exist
     const inputs = screen.getAllByRole("textbox");
     expect(inputs.length).toBeGreaterThanOrEqual(1);
@@ -152,19 +152,19 @@ describe("GlobalSearch", () => {
 
   it("shows placeholder with drive name", () => {
     render(<GlobalSearch />);
-    fireEvent.click(screen.getByLabelText("検索"));
-    const inputs = screen.getAllByPlaceholderText("main 内を検索...");
+    fireEvent.click(screen.getByLabelText("Search"));
+    const inputs = screen.getAllByPlaceholderText("Search in main...");
     expect(inputs.length).toBeGreaterThanOrEqual(1);
   });
 
   it("closes on Escape key", () => {
     render(<GlobalSearch />);
-    fireEvent.click(screen.getByLabelText("検索"));
+    fireEvent.click(screen.getByLabelText("Search"));
     expect(screen.getAllByRole("textbox").length).toBeGreaterThanOrEqual(1);
 
     fireEvent.keyDown(document, { key: "Escape" });
     // Search button should still be visible
-    expect(screen.getByLabelText("検索")).toBeInTheDocument();
+    expect(screen.getByLabelText("Search")).toBeInTheDocument();
   });
 
   it("opens on Cmd+Shift+F", () => {
@@ -198,7 +198,7 @@ describe("GlobalSearch", () => {
       mockFetchSemanticHits.mockResolvedValue([]);
 
       render(<GlobalSearch />);
-      fireEvent.click(screen.getByLabelText("検索"));
+      fireEvent.click(screen.getByLabelText("Search"));
       await typeQuery("video");
 
       // availability should be checked
@@ -234,7 +234,7 @@ describe("GlobalSearch", () => {
       ]);
 
       render(<GlobalSearch />);
-      fireEvent.click(screen.getByLabelText("検索"));
+      fireEvent.click(screen.getByLabelText("Search"));
       await typeQuery("video");
 
       await waitFor(() => {
@@ -252,7 +252,7 @@ describe("GlobalSearch", () => {
       mockFetchSemanticHits.mockResolvedValue([makeHit({ file_id: "f2" })]);
 
       render(<GlobalSearch />);
-      fireEvent.click(screen.getByLabelText("検索"));
+      fireEvent.click(screen.getByLabelText("Search"));
       await typeQuery("video");
 
       await waitFor(() => {
@@ -276,7 +276,7 @@ describe("GlobalSearch", () => {
       });
 
       render(<GlobalSearch />);
-      fireEvent.click(screen.getByLabelText("検索"));
+      fireEvent.click(screen.getByLabelText("Search"));
       await typeQuery("video");
 
       await waitFor(() => {
@@ -300,7 +300,7 @@ describe("GlobalSearch", () => {
       mockFetchSemanticHits.mockResolvedValue([]);
 
       render(<GlobalSearch />);
-      fireEvent.click(screen.getByLabelText("検索"));
+      fireEvent.click(screen.getByLabelText("Search"));
 
       const input = screen.getAllByRole("textbox")[0];
       fireEvent.change(input, { target: { value: "vid" } });
@@ -338,7 +338,7 @@ describe("GlobalSearch", () => {
       });
 
       render(<GlobalSearch />);
-      fireEvent.click(screen.getByLabelText("検索"));
+      fireEvent.click(screen.getByLabelText("Search"));
 
       const input = screen.getAllByRole("textbox")[0];
       // Synchronous render: cache should populate before any debounce.
@@ -363,7 +363,7 @@ describe("GlobalSearch", () => {
       });
 
       render(<GlobalSearch />);
-      fireEvent.click(screen.getByLabelText("検索"));
+      fireEvent.click(screen.getByLabelText("Search"));
 
       const input = screen.getAllByRole("textbox")[0];
       fireEvent.change(input, { target: { value: "vacation" } });

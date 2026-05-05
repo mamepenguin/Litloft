@@ -1,12 +1,13 @@
 "use client";
 
+import { useRelativeDate } from "@/hooks/useRelativeDate";
 import { useCallback, useState } from "react";
 import { Trash2 } from "lucide-react";
 import { useTranslations } from "next-intl";
 
 import type { FileItem } from "@/types";
 import { getThumbnailUrl } from "@/lib/api";
-import { formatDuration, formatFileSize, formatRelativeDate } from "@/lib/format";
+import { formatDuration, formatFileSize } from "@/lib/format";
 import { FileTypeIcon } from "@/components/FileTypeIcon";
 import { ContextMenu, type MenuItem } from "@/components/ContextMenu";
 
@@ -22,6 +23,7 @@ interface MissingFileListProps {
 export function MissingFileList({
   files, selectable, isSelected, onSelect, onShiftSelect, onPurge,
 }: MissingFileListProps) {
+  const formatRelativeDate = useRelativeDate();
   const tm = useTranslations("missing");
   const [menuPos, setMenuPos] = useState<{ open: boolean; x: number; y: number }>({
     open: false, x: 0, y: 0,

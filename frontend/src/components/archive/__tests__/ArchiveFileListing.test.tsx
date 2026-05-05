@@ -110,24 +110,24 @@ describe("ArchiveFileListing", () => {
   it("shows download links for files", () => {
     render(<ArchiveFileListing {...defaultProps} />);
     // Per-file download links (excluding the archive-level download button)
-    expect(screen.getByLabelText("readme.txt をダウンロード")).toBeInTheDocument();
-    expect(screen.getByLabelText("image.jpg をダウンロード")).toBeInTheDocument();
+    expect(screen.getByLabelText("Download readme.txt")).toBeInTheDocument();
+    expect(screen.getByLabelText("Download image.jpg")).toBeInTheDocument();
   });
 
   it("shows archive stats", () => {
     render(<ArchiveFileListing {...defaultProps} />);
-    expect(screen.getByText(/5 ファイル/)).toBeInTheDocument();
+    expect(screen.getByText(/5 files/)).toBeInTheDocument();
     expect(screen.getByText(/10.0 KB/)).toBeInTheDocument();
   });
 
   it("shows archive download button", () => {
     render(<ArchiveFileListing {...defaultProps} />);
-    expect(screen.getByLabelText("アーカイブをダウンロード")).toBeInTheDocument();
+    expect(screen.getByLabelText("Download archive")).toBeInTheDocument();
   });
 
   it("shows empty message when no entries", () => {
     render(<ArchiveFileListing {...defaultProps} currentEntries={[]} />);
-    expect(screen.getByText("このフォルダは空です")).toBeInTheDocument();
+    expect(screen.getByText("This folder is empty")).toBeInTheDocument();
   });
 
   it("disables non-clickable entries", () => {

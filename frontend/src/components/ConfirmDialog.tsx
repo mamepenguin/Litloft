@@ -35,8 +35,8 @@ export function ConfirmDialog({
 
   useShortcuts(
     "confirm-dialog",
-    "ダイアログ",
-    [{ key: "escape", label: "キャンセル", handler: onCancel, hidden: true }],
+    "Dialog",
+    [{ key: "escape", label: "Cancel", handler: onCancel, hidden: true }],
     open,
   );
 

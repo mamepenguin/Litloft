@@ -154,7 +154,7 @@ describe("TrashView", () => {
   it("renders trash title", async () => {
     render(<TrashView driveName="main" />);
     await waitFor(() => {
-      expect(screen.getByText("ゴミ箱")).toBeInTheDocument();
+      expect(screen.getByText("Trash")).toBeInTheDocument();
     });
   });
 
@@ -170,7 +170,7 @@ describe("TrashView", () => {
   it("shows empty trash button when files exist", async () => {
     render(<TrashView driveName="main" />);
     await waitFor(() => {
-      expect(screen.getByText("ゴミ箱を空にする")).toBeInTheDocument();
+      expect(screen.getByText("Empty Trash")).toBeInTheDocument();
     });
   });
 
@@ -199,9 +199,9 @@ describe("TrashView", () => {
   it("empty trash button shows confirmation dialog", async () => {
     render(<TrashView driveName="main" />);
     await waitFor(() => {
-      expect(screen.getByText("ゴミ箱を空にする")).toBeInTheDocument();
+      expect(screen.getByText("Empty Trash")).toBeInTheDocument();
     });
-    fireEvent.click(screen.getByText("ゴミ箱を空にする"));
+    fireEvent.click(screen.getByText("Empty Trash"));
     await waitFor(() => {
       expect(screen.getByTestId("confirm-dialog")).toBeInTheDocument();
     });
@@ -210,9 +210,9 @@ describe("TrashView", () => {
   it("confirms empty trash calls emptyTrash API", async () => {
     render(<TrashView driveName="main" />);
     await waitFor(() => {
-      expect(screen.getByText("ゴミ箱を空にする")).toBeInTheDocument();
+      expect(screen.getByText("Empty Trash")).toBeInTheDocument();
     });
-    fireEvent.click(screen.getByText("ゴミ箱を空にする"));
+    fireEvent.click(screen.getByText("Empty Trash"));
     await waitFor(() => {
       expect(screen.getByTestId("confirm-btn")).toBeInTheDocument();
     });

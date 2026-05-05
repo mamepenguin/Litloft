@@ -1,10 +1,10 @@
 "use client";
 
+import { useRelativeDate } from "@/hooks/useRelativeDate";
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useTranslations } from "next-intl";
 import { ExternalLink, FileText, Film, Image as ImageIcon, Music } from "lucide-react";
-import { formatRelativeDate } from "@/lib/format";
 import { getFile } from "@/lib/api";
 import type { FileItem } from "@/types";
 import { EditableTagChips } from "@/components/EditableTagChips";
@@ -114,6 +114,7 @@ function DescriptionRenderer({ value }: { value: unknown }) {
 }
 
 function DateRenderer({ value }: { value: unknown }) {
+  const formatRelativeDate = useRelativeDate();
   const raw = typeof value === "string" ? value : String(value ?? "");
   if (!raw) return <span className="text-text-muted">—</span>;
   const date = new Date(raw);

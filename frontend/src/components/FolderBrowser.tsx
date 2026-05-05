@@ -39,7 +39,7 @@ interface FolderBrowserProps {
   /**
    * Search-only flag. When `true`, semantic search includes scene-frame
    * CLIP embeddings alongside the default representative-frame route.
-   * Driven by the "シーン検索" toggle on `SearchPage`. Spec
+   * Driven by the scene-search toggle on `SearchPage`. Spec
    * `2026-05-02-thumbnail-clip-default-shallow-search.md`.
    */
   includeSceneClip?: boolean;

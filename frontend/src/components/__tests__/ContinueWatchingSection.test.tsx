@@ -138,10 +138,10 @@ describe("ContinueWatchingSection", () => {
     const card = screen.getByText("Video One");
     fireEvent.contextMenu(card);
     await waitFor(() => {
-      expect(screen.getByText("履歴から削除")).toBeInTheDocument();
+      expect(screen.getByText("Remove from history")).toBeInTheDocument();
     });
-    expect(screen.getByText("ダウンロード")).toBeInTheDocument();
-    expect(screen.getByText("ゴミ箱に移動")).toBeInTheDocument();
+    expect(screen.getByText("Download")).toBeInTheDocument();
+    expect(screen.getByText("Move to Trash")).toBeInTheDocument();
   });
 
   it("opens context menu after 500ms long-press", async () => {
@@ -159,7 +159,7 @@ describe("ContinueWatchingSection", () => {
       act(() => {
         vi.advanceTimersByTime(500);
       });
-      expect(screen.getByText("履歴から削除")).toBeInTheDocument();
+      expect(screen.getByText("Remove from history")).toBeInTheDocument();
     } finally {
       vi.useRealTimers();
     }
@@ -176,7 +176,7 @@ describe("ContinueWatchingSection", () => {
     );
     const card = screen.getByText("Video One");
     fireEvent.contextMenu(card);
-    const removeBtn = await screen.findByText("履歴から削除");
+    const removeBtn = await screen.findByText("Remove from history");
     fireEvent.click(removeBtn);
     await waitFor(() => {
       expect(deleteWatchProgress).toHaveBeenCalledWith("file-1");
@@ -200,7 +200,7 @@ describe("ContinueWatchingSection", () => {
     );
     const card = screen.getByText("Video One");
     fireEvent.contextMenu(card);
-    const removeBtn = await screen.findByText("履歴から削除");
+    const removeBtn = await screen.findByText("Remove from history");
     fireEvent.click(removeBtn);
     await waitFor(() => {
       expect(deleteWatchProgress).toHaveBeenCalled();

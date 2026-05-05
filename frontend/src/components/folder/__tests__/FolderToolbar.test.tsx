@@ -44,41 +44,41 @@ describe("FolderToolbar", () => {
 
   it("renders upload button and new folder button", () => {
     render(<FolderToolbar {...defaultProps} />);
-    expect(screen.getByLabelText("アップロード")).toBeInTheDocument();
-    expect(screen.getByLabelText("新規フォルダ")).toBeInTheDocument();
+    expect(screen.getByLabelText("Upload")).toBeInTheDocument();
+    expect(screen.getByLabelText("New Folder")).toBeInTheDocument();
   });
 
   it("hides upload and folder buttons in special view", () => {
     render(<FolderToolbar {...defaultProps} isSpecialView={true} />);
-    expect(screen.queryByLabelText("アップロード")).not.toBeInTheDocument();
-    expect(screen.queryByLabelText("新規フォルダ")).not.toBeInTheDocument();
+    expect(screen.queryByLabelText("Upload")).not.toBeInTheDocument();
+    expect(screen.queryByLabelText("New Folder")).not.toBeInTheDocument();
   });
 
   it("hides upload and folder buttons when tag filter active", () => {
     render(<FolderToolbar {...defaultProps} tagFilter="nature" />);
-    expect(screen.queryByLabelText("アップロード")).not.toBeInTheDocument();
+    expect(screen.queryByLabelText("Upload")).not.toBeInTheDocument();
   });
 
   it("shows upload dropdown menu with Files and Folder options", () => {
     render(<FolderToolbar {...defaultProps} />);
-    fireEvent.click(screen.getByLabelText("アップロード"));
-    expect(screen.getByText("ファイル")).toBeInTheDocument();
-    expect(screen.getByText("フォルダ")).toBeInTheDocument();
+    fireEvent.click(screen.getByLabelText("Upload"));
+    expect(screen.getByText("Files")).toBeInTheDocument();
+    expect(screen.getByText("Folder")).toBeInTheDocument();
   });
 
   it("closes upload dropdown on second click", () => {
     render(<FolderToolbar {...defaultProps} />);
-    const btn = screen.getByLabelText("アップロード");
+    const btn = screen.getByLabelText("Upload");
     fireEvent.click(btn);
-    expect(screen.getByText("ファイル")).toBeInTheDocument();
+    expect(screen.getByText("Files")).toBeInTheDocument();
     fireEvent.click(btn);
-    expect(screen.queryByText("ファイル")).not.toBeInTheDocument();
+    expect(screen.queryByText("Files")).not.toBeInTheDocument();
   });
 
   it("shows folder creation input when creatingFolder is true", () => {
     render(<FolderToolbar {...defaultProps} creatingFolder={true} />);
-    expect(screen.getByPlaceholderText("フォルダ名...")).toBeInTheDocument();
-    expect(screen.getByText("作成")).toBeInTheDocument();
+    expect(screen.getByPlaceholderText("Folder name...")).toBeInTheDocument();
+    expect(screen.getByText("Create")).toBeInTheDocument();
   });
 
   it("calls onCreateFolder on create button click", () => {
@@ -86,7 +86,7 @@ describe("FolderToolbar", () => {
     render(
       <FolderToolbar {...defaultProps} creatingFolder={true} onCreateFolder={onCreateFolder} />
     );
-    fireEvent.click(screen.getByText("作成"));
+    fireEvent.click(screen.getByText("Create"));
     expect(onCreateFolder).toHaveBeenCalled();
   });
 
@@ -95,7 +95,7 @@ describe("FolderToolbar", () => {
     render(
       <FolderToolbar {...defaultProps} creatingFolder={true} onCreateFolder={onCreateFolder} />
     );
-    fireEvent.keyDown(screen.getByPlaceholderText("フォルダ名..."), { key: "Enter" });
+    fireEvent.keyDown(screen.getByPlaceholderText("Folder name..."), { key: "Enter" });
     expect(onCreateFolder).toHaveBeenCalled();
   });
 
@@ -112,7 +112,7 @@ describe("FolderToolbar", () => {
         onSetFolderError={onSetFolderError}
       />
     );
-    fireEvent.keyDown(screen.getByPlaceholderText("フォルダ名..."), { key: "Escape" });
+    fireEvent.keyDown(screen.getByPlaceholderText("Folder name..."), { key: "Escape" });
     expect(onSetCreatingFolder).toHaveBeenCalledWith(false);
     expect(onSetNewFolderName).toHaveBeenCalledWith("");
     expect(onSetFolderError).toHaveBeenCalledWith(null);
@@ -120,70 +120,70 @@ describe("FolderToolbar", () => {
 
   it("shows folder error message", () => {
     render(
-      <FolderToolbar {...defaultProps} creatingFolder={true} folderError="無効なフォルダ名です" />
+      <FolderToolbar {...defaultProps} creatingFolder={true} folderError="Invalid folder name" />
     );
-    expect(screen.getByText("無効なフォルダ名です")).toBeInTheDocument();
+    expect(screen.getByText("Invalid folder name")).toBeInTheDocument();
   });
 
   it("shows total count", () => {
     render(<FolderToolbar {...defaultProps} />);
-    expect(screen.getByText("42 件")).toBeInTheDocument();
+    expect(screen.getByText("42 items")).toBeInTheDocument();
   });
 
   it("opens type filter popover and lists options", () => {
     render(<FolderToolbar {...defaultProps} />);
-    fireEvent.click(screen.getByLabelText("ファイルタイプ"));
-    expect(screen.getByText("すべて")).toBeInTheDocument();
-    expect(screen.getByText("動画")).toBeInTheDocument();
-    expect(screen.getByText("画像")).toBeInTheDocument();
-    expect(screen.getByText("音声")).toBeInTheDocument();
+    fireEvent.click(screen.getByLabelText("File type"));
+    expect(screen.getByText("All")).toBeInTheDocument();
+    expect(screen.getByText("Video")).toBeInTheDocument();
+    expect(screen.getByText("Image")).toBeInTheDocument();
+    expect(screen.getByText("Audio")).toBeInTheDocument();
   });
 
   it("calls onTypeFilterChange when picking from popover", () => {
     const onTypeFilterChange = vi.fn();
     render(<FolderToolbar {...defaultProps} onTypeFilterChange={onTypeFilterChange} />);
-    fireEvent.click(screen.getByLabelText("ファイルタイプ"));
-    fireEvent.click(screen.getByText("動画"));
+    fireEvent.click(screen.getByLabelText("File type"));
+    fireEvent.click(screen.getByText("Video"));
     expect(onTypeFilterChange).toHaveBeenCalledWith("video");
   });
 
   it("shows play all button when hasPlayableFiles", () => {
     render(<FolderToolbar {...defaultProps} hasPlayableFiles={true} />);
-    expect(screen.getByLabelText("全曲再生")).toBeInTheDocument();
+    expect(screen.getByLabelText("Play all")).toBeInTheDocument();
   });
 
   it("hides play all in special view", () => {
     render(<FolderToolbar {...defaultProps} hasPlayableFiles={true} isSpecialView={true} />);
-    expect(screen.queryByLabelText("全曲再生")).not.toBeInTheDocument();
+    expect(screen.queryByLabelText("Play all")).not.toBeInTheDocument();
   });
 
   it("opens overflow menu and exposes rescan + select mode", () => {
     render(<FolderToolbar {...defaultProps} />);
-    fireEvent.click(screen.getByLabelText("その他の操作"));
-    expect(screen.getByText("再スキャン")).toBeInTheDocument();
-    expect(screen.getByText("選択モード")).toBeInTheDocument();
+    fireEvent.click(screen.getByLabelText("More actions"));
+    expect(screen.getByText("Rescan")).toBeInTheDocument();
+    expect(screen.getByText("Selection mode")).toBeInTheDocument();
   });
 
   it("calls onScan from overflow menu", () => {
     const onScan = vi.fn();
     render(<FolderToolbar {...defaultProps} onScan={onScan} />);
-    fireEvent.click(screen.getByLabelText("その他の操作"));
-    fireEvent.click(screen.getByText("再スキャン"));
+    fireEvent.click(screen.getByLabelText("More actions"));
+    fireEvent.click(screen.getByText("Rescan"));
     expect(onScan).toHaveBeenCalled();
   });
 
   it("calls onToggleSelectable from overflow menu", () => {
     const onToggleSelectable = vi.fn();
     render(<FolderToolbar {...defaultProps} onToggleSelectable={onToggleSelectable} />);
-    fireEvent.click(screen.getByLabelText("その他の操作"));
-    fireEvent.click(screen.getByText("選択モード"));
+    fireEvent.click(screen.getByLabelText("More actions"));
+    fireEvent.click(screen.getByText("Selection mode"));
     expect(onToggleSelectable).toHaveBeenCalled();
   });
 
   it("hides rescan in search mode", () => {
     render(<FolderToolbar {...defaultProps} isSearch={true} />);
-    fireEvent.click(screen.getByLabelText("その他の操作"));
-    expect(screen.queryByText("再スキャン")).not.toBeInTheDocument();
-    expect(screen.getByText("選択モード")).toBeInTheDocument();
+    fireEvent.click(screen.getByLabelText("More actions"));
+    expect(screen.queryByText("Rescan")).not.toBeInTheDocument();
+    expect(screen.getByText("Selection mode")).toBeInTheDocument();
   });
 });

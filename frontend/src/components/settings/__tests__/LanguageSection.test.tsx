@@ -29,27 +29,27 @@ describe("LanguageSection", () => {
     expect(screen.getByRole("button", { name: "English" })).toBeInTheDocument();
   });
 
-  it("writes NEXT_LOCALE cookie and refreshes router when switching to English", () => {
+  it("writes NEXT_LOCALE cookie and refreshes router when switching locale", () => {
     render(<LanguageSection />);
-    fireEvent.click(screen.getByRole("button", { name: "English" }));
-    expect(document.cookie).toContain("NEXT_LOCALE=en");
+    fireEvent.click(screen.getByRole("button", { name: "日本語" }));
+    expect(document.cookie).toContain("NEXT_LOCALE=ja");
     expect(refreshMock).toHaveBeenCalledTimes(1);
   });
 
-  it("marks the current locale (ja from setup mock) as pressed", () => {
+  it("marks the current locale (en from setup mock) as pressed", () => {
     render(<LanguageSection />);
     const ja = screen.getByRole("button", { name: "日本語" });
     const en = screen.getByRole("button", { name: "English" });
     const isActive = (el: HTMLElement) =>
       el.getAttribute("aria-pressed") === "true" ||
       el.getAttribute("aria-checked") === "true";
-    expect(isActive(ja)).toBe(true);
-    expect(isActive(en)).toBe(false);
+    expect(isActive(ja)).toBe(false);
+    expect(isActive(en)).toBe(true);
   });
 
   it("does not refresh when clicking the already-active locale", () => {
     render(<LanguageSection />);
-    fireEvent.click(screen.getByRole("button", { name: "日本語" }));
+    fireEvent.click(screen.getByRole("button", { name: "English" }));
     expect(refreshMock).not.toHaveBeenCalled();
   });
 });
