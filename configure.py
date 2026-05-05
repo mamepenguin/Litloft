@@ -282,7 +282,7 @@ def main():
             has_intelligence = True
 
             print("  Whisper transcription model:")
-            print("    1) small       — 244 M, ~500 MB RAM  (default, fast)")
+            print("    1) small       — 244 M, ~500 MB RAM  (fast)")
             print("    2) turbo       — 809 M, ~1.0–1.2 GB RAM  (best accuracy/speed)")
             print("    3) large-v3    — 1550 M, ~2–3 GB RAM  (highest accuracy)")
             wc = ask("  Choice", ex.whisper_choice)
