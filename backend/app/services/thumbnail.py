@@ -143,6 +143,47 @@ def generate_image_thumbnail(image_path: str, output_path: str) -> bool:
         return False
 
 
+def generate_pdf_thumbnail(pdf_path: str, output_path: str) -> bool:
+    output = Path(output_path)
+    output.parent.mkdir(parents=True, exist_ok=True)
+
+    try:
+        import fitz  # PyMuPDF
+        from PIL import Image
+
+        doc = fitz.open(pdf_path)
+        if len(doc) == 0:
+            return False
+
+        page = doc[0]
+        mat = fitz.Matrix(1.5, 1.5)
+        pix = page.get_pixmap(matrix=mat)
+
+        img = Image.frombytes("RGB", [pix.width, pix.height], pix.samples)
+        img.thumbnail((320, 180))
+
+        thumb_w, thumb_h = img.size
+        canvas = Image.new("RGB", (320, 180), (255, 255, 255))
+        canvas.paste(img, ((320 - thumb_w) // 2, (180 - thumb_h) // 2))
+        canvas.save(output_path, format="JPEG", quality=85)
+
+        return output.exists()
+    except Exception as e:
+        logger.error("PDF thumbnail failed for %s: %s", pdf_path, e)
+        return False
+
+
+def get_thumbnail_generator(file_type: str, mime_type: str | None):
+    """Return the thumbnail generator for this file type, or None if not thumbnailable."""
+    if file_type == "video":
+        return generate_thumbnail
+    if file_type == "image":
+        return generate_image_thumbnail
+    if file_type == "document" and mime_type == "application/pdf":
+        return generate_pdf_thumbnail
+    return None
+
+
 def _generate_heic_thumbnail(image_path: str, output_path: str) -> bool:
     """Generate a thumbnail from a HEIC/HEIF image using Pillow."""
     output = Path(output_path)

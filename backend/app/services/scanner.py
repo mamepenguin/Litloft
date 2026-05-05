@@ -13,7 +13,7 @@ from app.models import EmptyFolder, File, active_file_filter
 from app.services.filetype import classify, is_hidden
 from app.services.hash import compute_file_hash
 from app.services.subtitle import is_subtitle_file
-from app.services.thumbnail import generate_image_thumbnail, generate_thumbnail, get_video_duration
+from app.services.thumbnail import get_thumbnail_generator, get_video_duration
 from app.services import event_hooks
 from app.services.ws import broadcast_from_thread
 
@@ -90,8 +90,8 @@ def _relocate_thumbnail(
             file_record.thumbnail_path = new_thumb_rel
             return
 
-    gen_fn = generate_thumbnail if file_type == "video" else generate_image_thumbnail
-    if gen_fn(str(item_path), str(new_thumb_full)):
+    gen_fn = get_thumbnail_generator(file_type, file_record.mime_type)
+    if gen_fn and gen_fn(str(item_path), str(new_thumb_full)):
         file_record.thumbnail_path = new_thumb_rel
     else:
         file_record.thumbnail_path = None
@@ -127,10 +127,10 @@ def register_single_file(db: Session, drive_name: str, file_path: Path) -> str:
         duration = get_video_duration(str(file_path))
 
     thumbnail_rel = None
-    if file_type in ("video", "image"):
+    gen_fn = get_thumbnail_generator(file_type, mime_type)
+    if gen_fn is not None:
         thumbnail_rel = _expected_thumbnail_path(drive_name, folder_path, nfc_stem)
         thumbnail_full = config.THUMBNAILS_DIR / thumbnail_rel
-        gen_fn = generate_thumbnail if file_type == "video" else generate_image_thumbnail
         if not gen_fn(str(file_path), str(thumbnail_full)):
             thumbnail_rel = None
 
@@ -225,7 +225,7 @@ def _scan_and_register(db: Session, drive_name: str) -> dict[str, int]:
                     file_record.file_hash = file_hash
                     needs_update = True
 
-            if file_type in ("video", "image"):
+            if get_thumbnail_generator(file_type, mime_type) is not None:
                 expected_thumb = _expected_thumbnail_path(drive_name, folder_path, nfc_stem)
                 if file_record.thumbnail_path != expected_thumb or not (
                     config.THUMBNAILS_DIR / expected_thumb
@@ -344,7 +344,7 @@ def _scan_and_register(db: Session, drive_name: str) -> dict[str, int]:
             candidate.mime_type = mime_type
             candidate.missing_since = None
 
-            if file_type in ("video", "image"):
+            if get_thumbnail_generator(file_type, mime_type) is not None:
                 new_thumb_rel = _expected_thumbnail_path(drive_name, folder_path, nfc_stem)
                 _relocate_thumbnail(candidate, new_thumb_rel, file_type, item)
             else:
@@ -365,10 +365,10 @@ def _scan_and_register(db: Session, drive_name: str) -> dict[str, int]:
             duration = get_video_duration(str(item))
 
         thumbnail_rel = None
-        if file_type in ("video", "image"):
+        gen_fn = get_thumbnail_generator(file_type, mime_type)
+        if gen_fn is not None:
             thumbnail_rel = _expected_thumbnail_path(drive_name, folder_path, nfc_stem)
             thumbnail_full = config.THUMBNAILS_DIR / thumbnail_rel
-            gen_fn = generate_thumbnail if file_type == "video" else generate_image_thumbnail
             if not gen_fn(str(item), str(thumbnail_full)):
                 thumbnail_rel = None
 
