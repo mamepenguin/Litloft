@@ -389,7 +389,7 @@ def main():
                 "    expose:", '      - "8100"', "    volumes:",
                 "      - ./addons/intelligence/search-config.yml:/app/search-config.yml:ro",
                 "      - ./data/addons/intelligence:/intelligence-data",
-                *[f"      - {d['host_path']}:/drives/{d['slug']}" for d in drives],
+                *[f"      - {d['host_path']}:/drives/{d['slug']}:ro" for d in drives],
                 "    environment:", f"      - DRIVE_MOUNTS={mounts}",
                 "    depends_on:", "      backend:", "        condition: service_healthy",
                 "    restart: unless-stopped",
