@@ -116,7 +116,7 @@ export function FileCard({
       )}
       <Wrapper
         {...wrapperProps as any}
-        className={`group block rounded-2xl overflow-hidden transition-all duration-200 ease-out hover:shadow-md active:scale-[0.98] ${
+        className={`group block rounded-2xl overflow-hidden shadow-[0_2px_16px_rgba(0,0,0,0.06)] transition-all duration-200 ease-out hover:shadow-[0_4px_24px_rgba(0,0,0,0.10)] active:scale-[0.98] ${
           selectable ? "cursor-pointer select-none" : ""
         } ${selected ? "ring-2 ring-accent" : ""}`}
         onContextMenu={selectable ? undefined : onContextMenu}

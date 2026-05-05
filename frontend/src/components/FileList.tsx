@@ -124,7 +124,7 @@ export function FileList({
           return (
             <div
               key={file.id}
-              className={`flex items-center gap-3 rounded-lg bg-bg-card p-2.5 sm:p-2 transition-colors hover:bg-bg-elevated ${
+              className={`flex items-center gap-3 rounded-lg bg-bg-card p-2.5 sm:p-2 shadow-[0_2px_16px_rgba(0,0,0,0.06)] transition-colors hover:bg-bg-elevated ${
                 selectable ? "cursor-pointer select-none" : ""
               } ${fileSelected ? "ring-2 ring-accent" : ""}${
                 draggedFileIds?.includes(file.id) ? " opacity-40" : ""

@@ -2,7 +2,6 @@
 
 import { useEffect, useRef, useState } from "react";
 import type { FileItem } from "@/types";
-import { FileTypeIcon } from "./FileTypeIcon";
 
 function stripPreviewText(raw: string): string {
   return raw
@@ -15,7 +14,7 @@ function stripPreviewText(raw: string): string {
     .trim();
 }
 
-export function TextThumbnail({ file, textClassName = "text-base" }: { file: FileItem; textClassName?: string }) {
+export function TextThumbnail({ file }: { file: FileItem }) {
   const [text, setText] = useState<string | null>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   const observerRef = useRef<IntersectionObserver | null>(null);
@@ -56,19 +55,18 @@ export function TextThumbnail({ file, textClassName = "text-base" }: { file: Fil
   }, [file.id]);
 
   return (
-    <div ref={containerRef} className="h-full w-full relative overflow-hidden">
-      {text ? (
-        <>
-          <div className={`${textClassName} leading-snug font-mono text-text-muted p-2 select-none whitespace-pre-wrap break-all`}>
+    <div ref={containerRef} className="h-full w-full relative overflow-hidden bg-bg-elevated">
+      <div className="p-3 h-full">
+        <p className="text-[13px] font-bold leading-tight tracking-tight text-text-primary select-none line-clamp-3">
+          {file.title}
+        </p>
+        {text && (
+          <p className="mt-1.5 text-[6px] leading-[1.7] text-text-secondary select-none break-words whitespace-pre-line">
             {text}
-          </div>
-          <div className="absolute inset-x-0 bottom-0 h-4 bg-gradient-to-t from-bg-elevated to-transparent pointer-events-none" />
-        </>
-      ) : (
-        <div className="flex h-full w-full items-center justify-center">
-          <FileTypeIcon fileType={file.file_type} size={22} className="text-text-muted" />
-        </div>
-      )}
+          </p>
+        )}
+      </div>
+      <div className="absolute inset-x-0 bottom-0 h-10 bg-gradient-to-t from-bg-elevated to-transparent pointer-events-none" />
     </div>
   );
 }
