@@ -44,13 +44,14 @@ export function useInfiniteScroll<T>({
   const [loading, setLoading] = useState(() => initial == null);
   const [loadingMore, setLoadingMore] = useState(false);
   const [pagesLoaded, setPagesLoaded] = useState(() => initial?.page ?? 0);
+  const [reachedEnd, setReachedEnd] = useState(false);
   const [epoch, setEpoch] = useState(0);
   const pageRef = useRef(initial?.page ?? 1);
   const hydratedRef = useRef(initial != null);
   const fetchIdRef = useRef(0);
   const sentinelRef = useRef<HTMLDivElement | null>(null);
 
-  const hasMore = items.length < total;
+  const hasMore = !reachedEnd && items.length < total;
 
   const loadPage = useCallback(
     async (pageNum: number, append: boolean) => {
@@ -65,8 +66,17 @@ export function useInfiniteScroll<T>({
         if (fetchIdRef.current !== id) return;
         if (append) {
           setItems((prev) => [...prev, ...result.data]);
+          // An empty append means the server has no more pages, even if
+          // items.length < total. This can happen when the initial hydration
+          // used a different page size (e.g. search popup limit=8 vs page
+          // limit=30), causing a gap that prevents items.length from ever
+          // reaching total.
+          if (result.data.length === 0) {
+            setReachedEnd(true);
+          }
         } else {
           setItems(result.data);
+          setReachedEnd(false);
         }
         setTotal(result.total);
         pageRef.current = pageNum;
@@ -96,6 +106,7 @@ export function useInfiniteScroll<T>({
     setPagesLoaded(0);
     setLoading(true);
     setLoadingMore(false);
+    setReachedEnd(false);
     setEpoch((e) => e + 1);
   }, []);
 
