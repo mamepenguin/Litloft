@@ -48,7 +48,9 @@ frontend/
 deploy/
   post-receive       # git push 自動デプロイ hook (開発者向け、一般利用では不要)
 
-docker-compose.yml
+docker-compose.yml                    # ベース設定。編集しない
+docker-compose.override.yml.example  # ユーザー設定テンプレート（git管理）
+docker-compose.override.yml          # ユーザー設定（git管理外）
 drives.json          # ドライブ設定 (git管理外)
 passwords.json       # アクセス制御設定 (git管理外)
 data/                # SQLite DB + サムネイル + キャッシュ + setup_completed sentinel + restart_pending flag (git管理外)
@@ -78,6 +80,10 @@ docker compose logs -f backend
 - backend は `expose` のみ (外部からアクセス不可)、frontend が唯一のエントリーポイント
 - backend healthcheck → frontend は `depends_on: condition: service_healthy`
 - `data/` にSQLite DB + サムネイル画像を永続化
+- **`docker-compose.yml` は編集しない**。ユーザー固有の設定（ドライブマウント・passwords.json・ポート）は `docker-compose.override.yml` に記述する
+- テンプレート: `cp docker-compose.override.yml.example docker-compose.override.yml` してから編集
+- ポート変更は `.env` に `LITLOFT_PORT=8080` を追記するだけでも可
+- 独立サービスアドオンも同様に `docker-compose.override.yml` で追加する
 
 ## 更新・デプロイ
 

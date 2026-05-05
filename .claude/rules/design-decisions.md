@@ -7,7 +7,7 @@
 - 保護ドライブが locked の場合は API 応答から完全除外する。403 ではなく 404 を返し、存在自体を隠す
 - `/unlock` は UI 上にリンクを置かない。URL 直打ちのみでアクセスさせる
 - `passwords.json` 未配置時は全ドライブ公開（graceful degradation）。エラーにしない
-- `passwords.json` を使う構成では `docker-compose.yml` の backend volumes に `./passwords.json:/app/passwords.json:ro` を追加する
+- `passwords.json` を使う構成では `docker-compose.override.yml` の backend volumes に `./passwords.json:/app/passwords.json:ro` を追加する（`docker-compose.yml` は編集しない）
 
 ## ドライブ
 

@@ -7,9 +7,6 @@ services:
       - "8000"
     volumes:
       - ./drives.json:/app/drives.json:ro
-      - ./passwords.json:/app/passwords.json:ro
-      - ./videos:/app/drives/default
-      - ./private:/app/drives/private
       - ./data:/app/data
     environment:
       - DRIVES_CONFIG=/app/drives.json
@@ -28,7 +25,7 @@ services:
       context: .
       dockerfile: frontend/Dockerfile
     ports:
-      - "3000:3000"
+      - "${LITLOFT_PORT:-3000}:3000"
     depends_on:
       backend:
         condition: service_healthy

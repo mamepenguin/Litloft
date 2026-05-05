@@ -1,0 +1,35 @@
+# Litloft user configuration template
+#
+# Copy this file to docker-compose.override.yml and edit it for your environment.
+#   cp docker-compose.override.yml.example docker-compose.override.yml
+#
+# Do NOT edit docker-compose.yml directly.
+# docker-compose.override.yml is .gitignored and is local to your machine.
+
+services:
+  backend:
+    volumes:
+      # ── Drive mounts ────────────────────────────────────────────────────
+      # Map each drive defined in drives.json to a host directory.
+      #
+      # Format: <host path>:<container path>
+      # The container path must match the value of paths.<drive_name> in drives.json.
+      #
+      # Example (default drive):
+      - ./videos:/app/drives/default
+      # Example (additional drives):
+      # - /mnt/nas/media:/app/drives/media
+      # - /mnt/nas/archive:/app/drives/archive
+
+      # ── Password protection (optional) ──────────────────────────────────
+      # Without this, all drives are publicly accessible (graceful degradation).
+      # Uncomment if you have a passwords.json file.
+      # - ./passwords.json:/app/passwords.json:ro
+
+  # ── Port (optional) ─────────────────────────────────────────────────────
+  # Default port is 3000.
+  # The easiest way to change it is to add LITLOFT_PORT=8080 to a .env file.
+  # Alternatively, uncomment below (note: this adds a port, not replaces it).
+  # frontend:
+  #   ports:
+  #     - "8080:3000"
