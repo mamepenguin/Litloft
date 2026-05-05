@@ -2,12 +2,13 @@
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
-import { Folder, Heart, History, Play, Sparkles, Clock, ThumbsUp } from "lucide-react";
+import { Folder, Heart, History, Play, Clock, ThumbsUp } from "lucide-react";
 import { useTranslations } from "next-intl";
 import type { FileItem, Folder as FolderType, WatchHistoryItem } from "@/types";
 import { addPin, getDriveFiles, getFolders, getPins, getWatchHistory, removePin } from "@/lib/api";
 import { useDragAndDrop } from "@/hooks/useDragAndDrop";
 import { useContextMenu } from "@/hooks/useContextMenu";
+import { AddonSlot } from "./AddonSlot";
 import { CarouselSection } from "./CarouselSection";
 import { ContinueWatchingSection } from "./ContinueWatchingSection";
 import { FolderCard } from "./FolderCard";
@@ -37,13 +38,11 @@ export function DriveHome({ driveName }: DriveHomeProps) {
   const [continueWatchingLoading, setContinueWatchingLoading] = useState(false);
   const [recentlyPlayed, setRecentlyPlayed] = useState<WatchHistoryItem[]>([]);
   const [recentlyPlayedLoading, setRecentlyPlayedLoading] = useState(false);
-  const [pickup, setPickup] = useState<SectionState>({ files: [], loading: true });
   const [recent, setRecent] = useState<SectionState>({ files: [], loading: true });
   const [favorites, setFavorites] = useState<SectionState>({ files: [], loading: true });
   const [popular, setPopular] = useState<SectionState>({ files: [], loading: true });
   const [folders, setFolders] = useState<FolderType[]>([]);
   const [foldersLoading, setFoldersLoading] = useState(true);
-  const [refreshing, setRefreshing] = useState(false);
   const [pinnedPaths, setPinnedPaths] = useState<Set<string>>(new Set());
   const [menuTarget, setMenuTarget] = useState<FolderType | null>(null);
   const { menuState: folderMenuState, close: closeFolderMenu, handlers: folderMenuHandlers } = useContextMenu();
@@ -76,19 +75,15 @@ export function DriveHome({ driveName }: DriveHomeProps) {
   });
 
   const applyFileSections = useCallback((results: PromiseSettledResult<any>[]) => {
-    setPickup({
+    setRecent({
       files: results[0].status === "fulfilled" ? results[0].value.data : [],
       loading: false,
     });
-    setRecent({
+    setFavorites({
       files: results[1].status === "fulfilled" ? results[1].value.data : [],
       loading: false,
     });
-    setFavorites({
-      files: results[2].status === "fulfilled" ? results[2].value.data : [],
-      loading: false,
-    });
-    const popularFiles = results[3].status === "fulfilled" ? results[3].value.data : [];
+    const popularFiles = results[2].status === "fulfilled" ? results[2].value.data : [];
     setPopular({
       files: popularFiles.filter((f: FileItem) => f.likes > 0),
       loading: false,
@@ -97,25 +92,14 @@ export function DriveHome({ driveName }: DriveHomeProps) {
 
   const fetchFileSections = useCallback(() => {
     return Promise.allSettled([
-      getDriveFiles(driveName, { sort: "random", limit: SECTION_LIMIT }),
       getDriveFiles(driveName, { sort: "created_at", order: "desc", limit: SECTION_LIMIT }),
       getDriveFiles(driveName, { favorite: true, sort: "created_at", order: "desc", limit: SECTION_LIMIT }),
       getDriveFiles(driveName, { sort: "likes", order: "desc", limit: SECTION_LIMIT }),
     ]);
   }, [driveName]);
 
-  const fetchPickup = useCallback(async () => {
-    try {
-      const res = await getDriveFiles(driveName, { sort: "random", limit: SECTION_LIMIT });
-      setPickup({ files: res.data, loading: false });
-    } catch {
-      setPickup((prev) => ({ ...prev, loading: false }));
-    }
-  }, [driveName]);
-
   useEffect(() => {
     const fetchAll = async () => {
-      setPickup({ files: [], loading: true });
       setRecent({ files: [], loading: true });
       setFavorites({ files: [], loading: true });
       setPopular({ files: [], loading: true });
@@ -195,15 +179,6 @@ export function DriveHome({ driveName }: DriveHomeProps) {
     setContinueWatching((prev) => prev.filter((item) => item.id !== fileId));
     setRecentlyPlayed((prev) => prev.filter((item) => item.id !== fileId));
   }, []);
-
-  const handleRefreshPickup = async () => {
-    setRefreshing(true);
-    try {
-      await fetchPickup();
-    } finally {
-      setRefreshing(false);
-    }
-  };
 
   const driveBase = `/drive/${encodeURIComponent(driveName)}`;
 
@@ -291,15 +266,7 @@ export function DriveHome({ driveName }: DriveHomeProps) {
         />
       )}
 
-      <CarouselSection
-        title={t("pickup")}
-        icon={<Sparkles size={20} className="text-accent-cta" />}
-        files={pickup.files}
-        loading={pickup.loading}
-        onRefresh={handleRefreshPickup}
-        refreshing={refreshing}
-        onFileAction={refetchAllSections}
-      />
+      <AddonSlot id="drive-home-sections" props={{ drive: driveName }} />
 
       <CarouselSection
         title={t("recentAdded")}
