@@ -15,7 +15,7 @@ function stripPreviewText(raw: string): string {
     .trim();
 }
 
-export function TextThumbnail({ file }: { file: FileItem }) {
+export function TextThumbnail({ file, textClassName = "text-base" }: { file: FileItem; textClassName?: string }) {
   const [text, setText] = useState<string | null>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   const observerRef = useRef<IntersectionObserver | null>(null);
@@ -59,7 +59,7 @@ export function TextThumbnail({ file }: { file: FileItem }) {
     <div ref={containerRef} className="h-full w-full relative overflow-hidden">
       {text ? (
         <>
-          <div className="text-[7px] leading-snug font-mono text-text-muted p-1 select-none whitespace-pre-wrap break-all">
+          <div className={`${textClassName} leading-snug font-mono text-text-muted p-2 select-none whitespace-pre-wrap break-all`}>
             {text}
           </div>
           <div className="absolute inset-x-0 bottom-0 h-4 bg-gradient-to-t from-bg-elevated to-transparent pointer-events-none" />

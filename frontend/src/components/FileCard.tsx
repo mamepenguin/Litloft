@@ -8,6 +8,7 @@ import { FavoriteButton } from "./FavoriteButton";
 import { TagList } from "./TagList";
 import { FileTypeIcon } from "./FileTypeIcon";
 import { VideoPreview } from "./VideoPreview";
+import { TextThumbnail } from "./TextThumbnail";
 
 export function FileCard({
   file,
@@ -57,6 +58,7 @@ export function FileCard({
   const clipboard = useClipboard();
   const isCutFile = clipboard.isCut(file.id);
   const hasThumbnail = file.has_thumbnail || file.file_type === "video" || file.file_type === "image";
+  const isTextPreviewable = !hasThumbnail && file.file_type === "document" && (file.mime_type?.startsWith('text/') ?? false);
 
   const Wrapper = selectable ? "div" : Link;
   const wrapperProps = selectable
@@ -130,6 +132,8 @@ export function FileCard({
               className="h-full w-full object-cover"
               loading="lazy"
             />
+          ) : isTextPreviewable ? (
+            <TextThumbnail file={file} />
           ) : (
             <div className="flex h-full w-full items-center justify-center">
               <FileTypeIcon fileType={file.file_type} size={48} className="text-text-muted" />
