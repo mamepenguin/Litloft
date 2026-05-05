@@ -93,6 +93,7 @@ body {
   text-rendering: optimizeLegibility;
   touch-action: manipulation;
   overscroll-behavior: contain;
+  -webkit-touch-callout: none;
   transition: background-color 0.2s ease, color 0.2s ease;
 }
 
