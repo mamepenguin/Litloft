@@ -42,3 +42,6 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# generated: merged translation files (built by scripts/merge-addon-messages.mjs)
+/src/messages/

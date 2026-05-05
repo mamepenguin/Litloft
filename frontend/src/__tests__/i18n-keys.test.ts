@@ -1,6 +1,6 @@
 import { describe, it, expect } from "vitest";
-import jaMessages from "../messages/ja.json";
-import enMessages from "../messages/en.json";
+import jaMessages from "../messages-core/ja.json";
+import enMessages from "../messages-core/en.json";
 
 // Recursive type: keys may point to strings or nested objects of
 // arbitrary depth. Before this was `Record<string, string | Record<…>>`
