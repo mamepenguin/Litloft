@@ -62,6 +62,30 @@ def write_env_key(key, value, env_path):
     with env_path.open('a') as f:
         f.write(f'{key}={value}\n')
 
+# ── YAML helpers ─────────────────────────────────────────────────────────────
+
+def _set_yaml_scalar(content, key, value, quoted=False):
+    """Replace a YAML scalar value in-place, preserving inline comments."""
+    if quoted:
+        pattern = rf'^(\s+{re.escape(key)}:\s*)"[^"]*"'
+        repl    = rf'\g<1>"{value}"'
+    else:
+        pattern = rf'^(\s+{re.escape(key)}:\s*)\S+'
+        repl    = rf'\g<1>{value}'
+    return re.sub(pattern, repl, content, flags=re.MULTILINE)
+
+def _ask_feature_mode(label, hint, current='false'):
+    """Ask for a 3-mode feature flag: false / manual / on_index."""
+    print(f"  {label}:")
+    if hint:
+        print(f"    {hint}")
+    print("    1) false    — disabled")
+    print("    2) manual   — generate on request")
+    print("    3) on_index — run automatically during indexing")
+    num = {'false': '1', 'manual': '2', 'on_index': '3'}.get(current, '1')
+    choice = ask("  Choice", num)
+    return {'1': 'false', '2': 'manual', '3': 'on_index'}.get(choice, 'false')
+
 # ── Read existing config ──────────────────────────────────────────────────────
 
 def _yaml_section_value(content, section, key):
@@ -90,10 +114,14 @@ class ExistingConfig:
         self.llm_model = ''
         self.llm_api_key = ''
         self.llm_output_lang = 'auto'
-        self.feat_auto_tags = 'false'
-        self.feat_summaries = 'false'
-        self.feat_rag = 'false'
-        self.whisper_model = 'openai/whisper-small'
+        self.feat_auto_tags          = 'false'
+        self.feat_summaries          = 'false'
+        self.feat_detailed_summaries = 'false'
+        self.feat_rag                = 'false'
+        self.feat_transcript_refine  = 'false'
+        self.feat_vision_describe    = 'false'
+        self.llm_vision_model        = ''
+        self.whisper_model           = 'openai/whisper-small'
         self._load(base)
 
     def _load(self, base: Path):
@@ -156,10 +184,14 @@ class ExistingConfig:
                 ('llm_base_url',    'llm',      'base_url'),
                 ('llm_output_lang', 'llm',      'output_language'),
                 ('llm_model',       'llm',      'model'),
-                ('feat_auto_tags',  'features', 'auto_tags'),
-                ('feat_summaries',  'features', 'summaries'),
-                ('feat_rag',        'features', 'rag'),
-                ('whisper_model',   'models',   'whisper'),
+                ('feat_auto_tags',          'features', 'auto_tags'),
+                ('feat_summaries',          'features', 'summaries'),
+                ('feat_detailed_summaries', 'features', 'detailed_summaries'),
+                ('feat_rag',                'features', 'rag'),
+                ('feat_transcript_refine',  'features', 'transcript_refine'),
+                ('feat_vision_describe',    'features', 'vision_describe'),
+                ('llm_vision_model',        'llm',      'vision_model'),
+                ('whisper_model',           'models',   'whisper'),
             ]:
                 val = _yaml_section_value(content, section, key)
                 if val:
@@ -265,16 +297,20 @@ def main():
 
     # ── Step 4: Intelligence Addon ────────────────────────────────────────────
 
-    has_intelligence = False
-    whisper_model    = 'openai/whisper-small'
-    llm_provider     = 'disabled'
-    llm_base_url     = ''
-    llm_model        = ''
-    llm_api_key_val  = ''
-    feat_auto_tags   = 'false'
-    feat_summaries   = 'false'
-    feat_rag         = 'false'
-    llm_output_lang  = 'auto'
+    has_intelligence         = False
+    whisper_model            = 'openai/whisper-small'
+    llm_provider             = 'disabled'
+    llm_base_url             = ''
+    llm_model                = ''
+    llm_api_key_val          = ''
+    llm_vision_model         = ''
+    feat_auto_tags           = 'false'
+    feat_summaries           = 'false'
+    feat_detailed_summaries  = 'false'
+    feat_rag                 = 'false'
+    feat_transcript_refine   = 'false'
+    feat_vision_describe     = 'false'
+    llm_output_lang          = 'auto'
 
     if (base / 'addons/intelligence').exists():
         heading("Step 4: Intelligence Addon (Semantic Search + AI)")
@@ -310,10 +346,38 @@ def main():
 
             if llm_provider != 'disabled':
                 print()
-                print("  AI features (can be changed later in search-config.yml):")
-                if ask_yn("  Auto-tags?",                  ex.feat_yn('auto_tags')):  feat_auto_tags  = 'manual'
-                if ask_yn("  AI summaries?",               ex.feat_yn('summaries')):  feat_summaries  = 'manual'
-                if ask_yn("  Ask / RAG (Q&A over files)?", ex.feat_yn('rag')):        feat_rag        = 'true'
+                print("  AI features — can be changed later in search-config.yml")
+                print()
+                feat_auto_tags = _ask_feature_mode(
+                    "Auto-tags", "suggest tags from file content",
+                    ex.feat_auto_tags)
+                print()
+                feat_summaries = _ask_feature_mode(
+                    "Summaries", "1-sentence + paragraph summary for videos, audio, documents",
+                    ex.feat_summaries)
+                print()
+                feat_detailed_summaries = _ask_feature_mode(
+                    "Detailed summaries",
+                    "long-form Markdown — on_index costs ~10K-15K tokens per new file",
+                    ex.feat_detailed_summaries)
+                print()
+                feat_transcript_refine = _ask_feature_mode(
+                    "Transcript refine", "LLM-based ASR correction (originals kept for revert)",
+                    ex.feat_transcript_refine)
+                print()
+                feat_vision_describe = _ask_feature_mode(
+                    "Vision describe",
+                    "image description — on_index sends image bytes to LLM on each new file",
+                    ex.feat_vision_describe)
+                if feat_vision_describe != 'false':
+                    print()
+                    llm_vision_model = ask(
+                        "    vision_model (e.g. llava:13b, gpt-4o-mini)",
+                        ex.llm_vision_model)
+                print()
+                feat_rag = 'true' if ask_yn(
+                    "Ask / RAG (Q&A over files)?  ⚠ file content sent to LLM on every ask",
+                    ex.feat_yn('rag')) else 'false'
                 print()
                 llm_output_lang = ask("  Output language for AI (auto/ja/en)", ex.llm_output_lang)
 
@@ -434,85 +498,43 @@ def main():
     # ── Generate search-config.yml ────────────────────────────────────────────
 
     if has_intelligence:
-        sc_file = base / 'addons/intelligence/search-config.yml'
+        sc_file  = base / 'addons/intelligence/search-config.yml'
+        ex_file  = base / 'addons/intelligence/search-config.yml.example'
         if check_overwrite(sc_file):
-            api_key_line = (f'  api_key: "{llm_api_key_val}"' if llm_api_key_val
-                            else '  api_key: ""  # or set LLM_API_KEY in .env')
-            sc_file.write_text(f"""\
-# Litloft intelligence addon configuration
-# Generated by configure.py — edit freely.
-# Full reference: search-config.yml.example
-
-features:
-  indexing: true
-  search: true
-  auto_tags: {feat_auto_tags}
-  summaries: {feat_summaries}
-  detailed_summaries: false
-  rag: {feat_rag}
-  transcript_refine: false
-  vision_describe: false
-
-llm:
-  provider: "{llm_provider}"
-  base_url: "{llm_base_url}"
-{api_key_line}
-  model: "{llm_model}"
-  max_tokens: 2048
-  temperature: 0.3
-  output_language: "{llm_output_lang}"
-  retry_attempts: 3
-  retry_base_delay: 1.0
-  retry_max_delay: 30.0
-  min_request_interval_ms: 0
-  request_timeout_seconds: 90.0
-  request_connect_timeout_seconds: 10.0
-  vision_model: ""
-
-models:
-  whisper: "{whisper_model}"
-  text_embedding: "intfloat/multilingual-e5-small"
-  clip: "llm-jp/waon-siglip2-base-patch16-256"
-  blip: ""
-
-search:
-  alpha: 0.7
-  default_limit: 20
-  max_limit: 100
-  min_score_clip: 0.05
-  min_score_clip_thumbnail: 0.05
-
-indexing:
-  reconciliation_interval: 3600
-  frame_extraction:
-    scene_threshold: 0.3
-    min_interval: 30
-    max_frames: 500
-  whisper:
-    min_segment_duration: 30
-    max_segment_duration: 60
-    beam_size: 1
-    batch_size: 0
-    condition_on_previous_text: true
-    compression_ratio_threshold: 2.0
-    no_speech_threshold: 0.45
-    log_prob_threshold: -1.0
-    initial_prompt: ""
-  text_chunking:
-    max_chunk_size: 400
-    overlap: 80
-
-workers:
-  whisper_parallel: 1
-  clip_parallel: 2
-  metadata_batch_size: 32
-  clip_frame_batch_size: 50
-
-memory:
-  whisper_idle_unload: 300
-  blip_idle_unload: 300
-""")
-            ok("addons/intelligence/search-config.yml")
+            if not ex_file.exists():
+                warn("search-config.yml.example not found — skipping")
+            else:
+                content = ex_file.read_text()
+                # Update header comment
+                content = content.replace(
+                    '# Copy to search-config.yml and customize as needed.',
+                    '# Generated by configure.py — edit freely.')
+                # Feature flags (unquoted)
+                for key, val in [
+                    ('auto_tags',          feat_auto_tags),
+                    ('summaries',          feat_summaries),
+                    ('detailed_summaries', feat_detailed_summaries),
+                    ('rag',                feat_rag),
+                    ('transcript_refine',  feat_transcript_refine),
+                    ('vision_describe',    feat_vision_describe),
+                ]:
+                    content = _set_yaml_scalar(content, key, val)
+                # LLM settings (quoted strings)
+                for key, val in [
+                    ('provider',        llm_provider),
+                    ('base_url',        llm_base_url),
+                    ('model',           llm_model),
+                    ('output_language', llm_output_lang),
+                ]:
+                    content = _set_yaml_scalar(content, key, val, quoted=True)
+                if llm_api_key_val:
+                    content = _set_yaml_scalar(content, 'api_key', llm_api_key_val, quoted=True)
+                if llm_vision_model:
+                    content = _set_yaml_scalar(content, 'vision_model', llm_vision_model, quoted=True)
+                # Whisper model under models: section (quoted)
+                content = _set_yaml_scalar(content, 'whisper', whisper_model, quoted=True)
+                sc_file.write_text(content)
+                ok("addons/intelligence/search-config.yml")
 
     # ── Update .env ───────────────────────────────────────────────────────────
 
