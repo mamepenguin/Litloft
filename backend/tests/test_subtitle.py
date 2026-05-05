@@ -1,4 +1,5 @@
 import json
+import unicodedata
 from pathlib import Path
 
 import pytest
@@ -143,8 +144,6 @@ class TestDetectSubtitles:
         because the caller already normalizes the video side before
         calling (via `drive_path / video_file_path`).
         """
-        import unicodedata
-
         nfc_stem = "動画が濁点"
         # Video itself must exist at the NFC path, because detect_subtitles
         # does a .exists() check on the caller-supplied NFC path.
@@ -158,6 +157,8 @@ class TestDetectSubtitles:
         result = detect_subtitles(f"{nfc_stem}.mp4", tmp_path)
         assert len(result) == 1
         assert result[0]["language"] == ""
+        # Returned path must be NFC even when iterdir() yielded NFD
+        assert unicodedata.is_normalized("NFC", result[0]["path"])
 
 
 class TestConvertSrtToVtt:

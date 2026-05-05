@@ -10,6 +10,7 @@ Validates that path resolution is safe against:
 """
 import json
 import os
+import unicodedata
 from pathlib import Path
 
 import pytest
@@ -218,3 +219,18 @@ class TestValidateFilename:
 
         # 250 char name within 255 limit
         validate_filename("a" * 250 + ".md")
+
+    def test_normalizes_nfd_to_nfc(self):
+        from app.services.safepath import validate_filename
+
+        # NFD: "が" decomposed as か + combining dakuten
+        nfd_name = unicodedata.normalize("NFD", "がっこう.md")
+        result = validate_filename(nfd_name)
+        assert result == unicodedata.normalize("NFC", "がっこう.md")
+        assert unicodedata.is_normalized("NFC", result)
+
+    def test_returns_normalized_string(self):
+        from app.services.safepath import validate_filename
+
+        result = validate_filename("memo.md")
+        assert result == "memo.md"

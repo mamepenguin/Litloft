@@ -3,6 +3,7 @@ import logging
 import os
 import re
 import shutil
+import unicodedata
 from datetime import UTC, datetime
 from pathlib import Path
 
@@ -42,7 +43,7 @@ def validate_path_safe(path: str) -> str:
 def validate_filename(filename: str) -> str:
     if not filename or not filename.strip():
         raise HTTPException(status_code=400, detail="Empty filename")
-    filename = filename.strip()
+    filename = unicodedata.normalize("NFC", filename.strip())
     if any(c in filename for c in FORBIDDEN_CHARS):
         raise HTTPException(status_code=400, detail="Filename contains forbidden characters")
     if filename.startswith("."):

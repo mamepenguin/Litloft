@@ -88,7 +88,7 @@ def detect_subtitles(video_file_path: str, drive_path: Path) -> list[dict]:
             label = _LANG_NAMES.get(lang, lang.upper() if lang else "")
 
             subtitles.append({
-                "path": str(item.relative_to(drive_path)),
+                "path": unicodedata.normalize("NFC", str(item.relative_to(drive_path))),
                 "language": lang,
                 "format": fmt,
                 "label": label,

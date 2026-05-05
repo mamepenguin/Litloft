@@ -19,6 +19,7 @@ Design notes:
 - Length limits follow POSIX filename (255) and path (~4096) conventions.
 """
 import os
+import unicodedata
 from pathlib import Path
 
 from fastapi import HTTPException
@@ -54,8 +55,10 @@ def _is_reserved_name(name: str) -> bool:
     return stem in _WINDOWS_RESERVED_NAMES
 
 
-def validate_filename(name: str) -> None:
+def validate_filename(name: str) -> str:
     """Validate a single filename component (no slashes allowed).
+
+    Returns the NFC-normalized name.
 
     Raises HTTPException(400) on any of:
     - empty string
@@ -67,6 +70,7 @@ def validate_filename(name: str) -> None:
     """
     if not name:
         raise HTTPException(status_code=400, detail="Filename is empty")
+    name = unicodedata.normalize("NFC", name)
     if name in (".", ".."):
         raise HTTPException(status_code=400, detail="Invalid filename")
     if "/" in name or "\\" in name:
@@ -77,6 +81,7 @@ def validate_filename(name: str) -> None:
         raise HTTPException(status_code=400, detail="Filename too long")
     if _is_reserved_name(name):
         raise HTTPException(status_code=400, detail="Filename uses a reserved name")
+    return name
 
 
 def _contains_symlink(path: Path, base: Path) -> bool:
@@ -128,13 +133,14 @@ def resolve_safe_path(drive_name: str, rel_path: str) -> Path:
     if rel_path.startswith("/") or rel_path.startswith("\\"):
         raise HTTPException(status_code=400, detail="Absolute paths not allowed")
 
-    # Validate each non-empty component
-    # Normalize separators (but don't allow backslash bypass)
-    parts = [p for p in rel_path.replace("\\", "/").split("/") if p and p != "."]
-    for part in parts:
+    # Normalize separators (but don't allow backslash bypass), then validate each
+    # component; validate_filename returns the NFC-normalized name.
+    raw_parts = [p for p in rel_path.replace("\\", "/").split("/") if p and p != "."]
+    parts = []
+    for part in raw_parts:
         if part == "..":
             raise HTTPException(status_code=400, detail="Parent directory traversal not allowed")
-        validate_filename(part)
+        parts.append(validate_filename(part))
 
     drive_root = Path(drive_path).resolve()
     target = drive_root
