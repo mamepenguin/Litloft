@@ -232,7 +232,7 @@ export default function FilePage() {
               onMarkdownTagsSaved={handleTagsSaved}
             />
 
-            {!hasPlaylist && neighbors?.prev_id && (
+            {fileNavEnabled && !hasPlaylist && neighbors?.prev_id && (
               <button
                 onClick={navigatePrev}
                 className="absolute top-1/2 left-2 -translate-y-1/2 rounded-full bg-black/50 p-2 text-white opacity-70 transition-opacity hover:opacity-100 sm:opacity-0 sm:group-hover/nav:opacity-70 sm:group-hover/nav:hover:opacity-100"
@@ -242,7 +242,7 @@ export default function FilePage() {
               </button>
             )}
 
-            {!hasPlaylist && neighbors?.next_id && (
+            {fileNavEnabled && !hasPlaylist && neighbors?.next_id && (
               <button
                 onClick={navigateNext}
                 className="absolute top-1/2 right-2 -translate-y-1/2 rounded-full bg-black/50 p-2 text-white opacity-70 transition-opacity hover:opacity-100 sm:opacity-0 sm:group-hover/nav:opacity-70 sm:group-hover/nav:hover:opacity-100"
