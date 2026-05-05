@@ -14,6 +14,7 @@ import { MatchOverlay } from "./MatchOverlay";
 import { FavoriteButton } from "./FavoriteButton";
 import { TagList } from "./TagList";
 import { FileTypeIcon } from "./FileTypeIcon";
+import { TextThumbnail } from "./TextThumbnail";
 import { ContextMenu, type MenuItem } from "./ContextMenu";
 import { ConfirmDialog } from "./ConfirmDialog";
 import { RenameDialog } from "./RenameDialog";
@@ -115,6 +116,7 @@ export function FileList({
       <div className="flex flex-col gap-2.5 sm:gap-2">
         {files.map((file) => {
           const hasThumbnail = file.has_thumbnail || file.file_type === "video" || file.file_type === "image";
+          const isTextPreviewable = !hasThumbnail && file.file_type === "document" && (file.mime_type?.startsWith('text/') ?? false);
           const hasDuration = (file.file_type === "video" || file.file_type === "audio") && file.duration != null;
           const fileSelected = isSelected?.(file.id);
           const isCutFile = clipboard.isCut(file.id);
@@ -183,6 +185,8 @@ export function FileList({
                           className="h-full w-full object-cover"
                           loading="lazy"
                         />
+                      ) : isTextPreviewable ? (
+                        <TextThumbnail file={file} />
                       ) : (
                         <div className="flex h-full w-full items-center justify-center">
                           <FileTypeIcon fileType={file.file_type} size={22} className="text-text-muted" />
