@@ -526,6 +526,13 @@ memory:
     if wrote_env:
         ok(".env")
 
+    # ── Mark setup as complete (skip web wizard on first launch) ─────────────
+
+    sentinel = base / 'data' / 'setup_completed'
+    sentinel.parent.mkdir(parents=True, exist_ok=True)
+    sentinel.touch()
+    ok("data/setup_completed  (web wizard will be skipped)")
+
     # ── Done ──────────────────────────────────────────────────────────────────
 
     print(f"\n{BOLD}{GREEN}Done.{RESET}")
