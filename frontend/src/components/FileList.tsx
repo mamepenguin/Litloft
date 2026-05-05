@@ -116,7 +116,12 @@ export function FileList({
       <div className="flex flex-col gap-2.5 sm:gap-2">
         {files.map((file) => {
           const hasThumbnail = file.has_thumbnail || file.file_type === "video" || file.file_type === "image";
-          const isTextPreviewable = !hasThumbnail && file.file_type === "document" && (file.mime_type?.startsWith('text/') ?? false);
+          const isTextPreviewable = !hasThumbnail && file.file_type === "document" && (
+            (file.mime_type?.startsWith('text/') ?? false) ||
+            file.mime_type === "application/vnd.openxmlformats-officedocument.wordprocessingml.document" ||
+            file.mime_type === "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" ||
+            file.mime_type === "application/vnd.openxmlformats-officedocument.presentationml.presentation"
+          );
           const hasDuration = (file.file_type === "video" || file.file_type === "audio") && file.duration != null;
           const fileSelected = isSelected?.(file.id);
           const isCutFile = clipboard.isCut(file.id);

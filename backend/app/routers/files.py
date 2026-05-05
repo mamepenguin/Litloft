@@ -708,6 +708,85 @@ async def stream_file(
     return StreamingResponse(iter_full(), headers=headers)
 
 
+_OFFICE_MIME_EXTENSIONS = {
+    "application/vnd.openxmlformats-officedocument.wordprocessingml.document": ".docx",
+    "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet": ".xlsx",
+    "application/vnd.openxmlformats-officedocument.presentationml.presentation": ".pptx",
+}
+_PREVIEW_TEXT_MAX_CHARS = 400
+
+
+def _extract_office_preview(file_path: Path, mime_type: str) -> str:
+    ext = _OFFICE_MIME_EXTENSIONS.get(mime_type, "")
+    try:
+        if ext == ".docx":
+            import docx
+            doc = docx.Document(str(file_path))
+            parts: list[str] = []
+            for para in doc.paragraphs:
+                text = para.text.strip()
+                if text:
+                    parts.append(text)
+                if sum(len(p) for p in parts) >= _PREVIEW_TEXT_MAX_CHARS:
+                    break
+            return "\n".join(parts)[:_PREVIEW_TEXT_MAX_CHARS]
+
+        if ext == ".xlsx":
+            import openpyxl
+            wb = openpyxl.load_workbook(str(file_path), read_only=True, data_only=True)
+            lines: list[str] = []
+            ws = wb.worksheets[0] if wb.worksheets else None
+            if ws:
+                for row in ws.iter_rows(values_only=True, max_row=20):
+                    cells = [str(c) for c in row if c is not None and str(c).strip()]
+                    if cells:
+                        lines.append(" ".join(cells))
+                    if sum(len(l) for l in lines) >= _PREVIEW_TEXT_MAX_CHARS:
+                        break
+            wb.close()
+            return "\n".join(lines)[:_PREVIEW_TEXT_MAX_CHARS]
+
+        if ext == ".pptx":
+            from pptx import Presentation
+            prs = Presentation(str(file_path))
+            parts = []
+            for slide in prs.slides:
+                for shape in slide.shapes:
+                    if shape.has_text_frame:
+                        for para in shape.text_frame.paragraphs:
+                            text = para.text.strip()
+                            if text:
+                                parts.append(text)
+                if sum(len(p) for p in parts) >= _PREVIEW_TEXT_MAX_CHARS:
+                    break
+            return "\n".join(parts)[:_PREVIEW_TEXT_MAX_CHARS]
+    except Exception as e:
+        logger.warning("Office preview extraction failed for %s: %s", file_path, e)
+    return ""
+
+
+@router.get("/{file_id}/preview-text")
+async def get_preview_text(
+    file_id: FileId,
+    db: Annotated[Session, Depends(get_db)],
+    unlocked_groups: Annotated[list[str], Depends(get_unlocked_groups)],
+):
+    file = _get_file_any_state_or_404(db, file_id, unlocked_groups)
+    if file.mime_type not in _OFFICE_MIME_EXTENSIONS:
+        raise HTTPException(status_code=400, detail="Not an Office document")
+
+    if file.missing_since is not None and file.deleted_at is None:
+        raise HTTPException(status_code=410, detail="File is missing")
+
+    drive_path = config.get_drive_path(file.drive)
+    file_path = _validate_path(str(drive_path / file.file_path), drive_path)
+    if not file_path.exists():
+        raise HTTPException(status_code=404, detail="File not found on disk")
+
+    text = _extract_office_preview(file_path, file.mime_type)
+    return Response(content=text, media_type="text/plain; charset=utf-8")
+
+
 @router.get("/{file_id}/thumbnail")
 async def get_thumbnail(
     file_id: FileId,

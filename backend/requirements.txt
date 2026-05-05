@@ -9,3 +9,6 @@ pillow-heif==0.22.0
 httpx==0.28.1
 PyYAML==6.0.2
 PyMuPDF==1.25.5
+python-docx>=1.1.0
+openpyxl>=3.1.0
+python-pptx>=1.0.0
