@@ -81,7 +81,7 @@ def _yaml_section_value(content, section, key):
 
 class ExistingConfig:
     def __init__(self, base: Path):
-        self.drives: list[dict] = []   # name, slug, group, readonly, host_path
+        self.drives: list[dict] = []   # name, slug, group, host_path
         self.passwords: list[dict] = []  # password, group
         self.port = '3000'
         self.use_passwords = False
@@ -112,7 +112,6 @@ class ExistingConfig:
                         'name': d.get('name', ''),
                         'slug': slug,
                         'group': d.get('access_group', ''),
-                        'readonly': bool(d.get('readonly')),
                         'host_path': '',
                     })
             except Exception:
@@ -211,9 +210,8 @@ def main():
         ex_d = ex.drives[idx] if idx < len(ex.drives) else {}
         print(f"\n  {BOLD}Drive {i}{RESET}")
 
-        name     = ask("  Display name",       ex_d.get('name', 'Videos'))
-        host     = ask("  Host path (absolute)", ex_d.get('host_path') or str(base / 'videos'))
-        readonly = ask_yn("  Read-only?",       'y' if ex_d.get('readonly') else 'n')
+        name = ask("  Display name",       ex_d.get('name', 'Videos'))
+        host = ask("  Host path (absolute)", ex_d.get('host_path') or str(base / 'videos'))
 
         # Reuse existing slug if name unchanged; otherwise compute a new one
         if ex_d and name == ex_d.get('name') and ex_d.get('slug'):
@@ -224,8 +222,7 @@ def main():
             slug = f'{slug}_{i}'
         used_slugs.add(slug)
 
-        drives.append({'name': name, 'host_path': host, 'slug': slug,
-                       'readonly': readonly, 'group': ''})
+        drives.append({'name': name, 'host_path': host, 'slug': slug, 'group': ''})
 
     # ── Step 2: Port ──────────────────────────────────────────────────────────
 
@@ -347,10 +344,7 @@ def main():
     print()
     print("  Drives:")
     for d in drives:
-        flags = []
-        if d['readonly']:  flags.append('readonly')
-        if d['group']:     flags.append(f"group={d['group']}")
-        suffix = f"  ({', '.join(flags)})" if flags else ''
+        suffix = f"  (group={d['group']})" if d['group'] else ''
         print(f"    {d['name']}  →  {d['host_path']}{suffix}")
 
     print()
@@ -369,8 +363,7 @@ def main():
             "", "services:", "  backend:", "    volumes:",
         ]
         for d in drives:
-            ro = ':ro' if d['readonly'] else ''
-            lines.append(f"      - {d['host_path']}:/app/drives/{d['slug']}{ro}")
+            lines.append(f"      - {d['host_path']}:/app/drives/{d['slug']}")
         if use_passwords:
             lines.append("      - ./passwords.json:/app/passwords.json:ro")
 
@@ -396,7 +389,7 @@ def main():
                 "    expose:", '      - "8100"', "    volumes:",
                 "      - ./addons/intelligence/search-config.yml:/app/search-config.yml:ro",
                 "      - ./data/addons/intelligence:/intelligence-data",
-                *[f"      - {d['host_path']}:/drives/{d['slug']}:ro" for d in drives],
+                *[f"      - {d['host_path']}:/drives/{d['slug']}" for d in drives],
                 "    environment:", f"      - DRIVE_MOUNTS={mounts}",
                 "    depends_on:", "      backend:", "        condition: service_healthy",
                 "    restart: unless-stopped",
@@ -424,8 +417,7 @@ def main():
         data = []
         for d in drives:
             entry: dict = {"name": d['name'], "path": f"/app/drives/{d['slug']}"}
-            if d['readonly']: entry['readonly'] = True
-            if d['group']:    entry['access_group'] = d['group']
+            if d['group']: entry['access_group'] = d['group']
             data.append(entry)
         drives_file.write_text(json.dumps(data, ensure_ascii=False, indent=2) + '\n')
         ok("drives.json")
