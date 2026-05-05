@@ -15,6 +15,18 @@
 - Client Component: `useTranslations('namespace')`
 - Server Component: `getTranslations('namespace')`
 
+## 翻訳ファイルの管理方針
+
+| ファイル | 役割 | git 管理 |
+|---|---|---|
+| `frontend/src/messages-core/{locale}.json` | コア定義（編集対象） | ✅ 管理する |
+| `frontend/src/messages/{locale}.json` | マージ済み自動生成 | ❌ gitignore |
+| `addons/{name}/frontend/messages/{locale}.json` | アドオン定義（編集対象） | ✅ 管理する（アドオン repo） |
+
+- **コアの翻訳キーは `messages-core/` にのみ記載する**。`messages/` は `scripts/merge-addon-messages.mjs` が生成するため直接編集しない
+- **アドオンの翻訳キーはそのアドオンの `frontend/messages/` にのみ記載する**。コア側に混入させない
+- マージスクリプトは `messages-core/` + `src/addons/*/messages/` を deep merge して `messages/` を生成する（Dockerfile ビルド時・`pnpm dev` 前に実行）
+
 ## テストライブラリ制約
 - Vitest 4はrolldownネイティブバインディング問題あり → **3.x を使うこと**
 - jsdom 29はESM互換性問題あり → **25.x を使うこと**
