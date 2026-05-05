@@ -121,7 +121,8 @@ class ExistingConfig:
         self.feat_transcript_refine  = 'false'
         self.feat_vision_describe    = 'false'
         self.llm_vision_model        = ''
-        self.whisper_model           = 'openai/whisper-small'
+        self.whisper_model           = 'openai/whisper-large-v3-turbo'
+        self.text_embedding_model    = 'intfloat/multilingual-e5-small'
         self._load(base)
 
     def _load(self, base: Path):
@@ -192,6 +193,7 @@ class ExistingConfig:
                 ('feat_vision_describe',    'features', 'vision_describe'),
                 ('llm_vision_model',        'llm',      'vision_model'),
                 ('whisper_model',           'models',   'whisper'),
+                ('text_embedding_model',    'models',   'text_embedding'),
             ]:
                 val = _yaml_section_value(content, section, key)
                 if val:
@@ -298,7 +300,8 @@ def main():
     # ── Step 4: Intelligence Addon ────────────────────────────────────────────
 
     has_intelligence         = False
-    whisper_model            = 'openai/whisper-small'
+    whisper_model            = 'openai/whisper-large-v3-turbo'
+    text_embedding_model     = 'intfloat/multilingual-e5-small'
     llm_provider             = 'disabled'
     llm_base_url             = ''
     llm_model                = ''
@@ -324,6 +327,23 @@ def main():
             wc = ask("  Choice", ex.whisper_choice)
             if wc == '2': whisper_model = 'openai/whisper-large-v3-turbo'
             elif wc == '3': whisper_model = 'openai/whisper-large-v3'
+            else:          whisper_model = 'openai/whisper-small'
+
+            print()
+            _te_options = [
+                ('1', 'intfloat/multilingual-e5-small', '384d, ~120 MB  (fast)'),
+                ('2', 'intfloat/multilingual-e5-base',  '768d, ~470 MB  (recommended balance)'),
+                ('3', 'cl-nagoya/ruri-v3-30m',          '256d, ~150 MB  (Japanese-optimised, fast)'),
+                ('4', 'cl-nagoya/ruri-v3-130m',         '768d, ~520 MB  (Japanese, highest accuracy)'),
+            ]
+            _te_to_num = {model: num for num, model, _ in _te_options}
+            print("  Text embedding model  (re-index required on change):")
+            for num, model, desc in _te_options:
+                print(f"    {num}) {model.split('/')[-1]:<30} — {desc}")
+            tc = ask("  Choice", _te_to_num.get(ex.text_embedding_model, '1'))
+            text_embedding_model = next(
+                (m for n, m, _ in _te_options if n == tc),
+                'intfloat/multilingual-e5-small')
 
             print()
             print("  LLM provider (for auto-tags, summaries, Ask):")
@@ -531,8 +551,9 @@ def main():
                     content = _set_yaml_scalar(content, 'api_key', llm_api_key_val, quoted=True)
                 if llm_vision_model:
                     content = _set_yaml_scalar(content, 'vision_model', llm_vision_model, quoted=True)
-                # Whisper model under models: section (quoted)
-                content = _set_yaml_scalar(content, 'whisper', whisper_model, quoted=True)
+                # models: section (quoted)
+                content = _set_yaml_scalar(content, 'whisper',         whisper_model,        quoted=True)
+                content = _set_yaml_scalar(content, 'text_embedding',  text_embedding_model, quoted=True)
                 sc_file.write_text(content)
                 ok("addons/intelligence/search-config.yml")
 
