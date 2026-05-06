@@ -494,6 +494,9 @@ def main():
             lines.append("      - ./passwords.json:/app/passwords.json:ro")
         if (base / 'event-hooks.json').exists():
             lines.append("      - ./event-hooks.json:/app/event-hooks.json:ro")
+        _cs_cfg = base / 'addons/cloud-sync/sync-config.json'
+        if _cs_cfg.exists():
+            lines.append("      - ./addons/cloud-sync/sync-config.json:/app/addons/cloud-sync/sync-config.json:ro")
 
         backend_env = []
         if has_intelligence: backend_env.append("- INTELLIGENCE_SERVICE_URL=http://intelligence:8100")
