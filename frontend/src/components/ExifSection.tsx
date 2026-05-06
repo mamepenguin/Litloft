@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useTranslations } from "next-intl";
-import { ExternalLink } from "lucide-react";
+import { Camera, ExternalLink, MapPin } from "lucide-react";
 import { getFileExif } from "@/lib/api";
 import type { FileExif } from "@/types";
 import type { FileType } from "@/types";
@@ -22,21 +22,27 @@ function formatDatetime(raw: string): string {
   return raw.replace("T", " ").slice(0, 16);
 }
 
-function ExifRow({ label, value }: { label: string; value: string }) {
+function ExifRow({ label, value, numeric = false }: { label: string; value: string; numeric?: boolean }) {
   return (
     <div className="grid grid-cols-[minmax(80px,auto)_1fr] gap-x-4 px-4 py-2.5">
       <dt className="self-start pt-0.5 text-xs uppercase tracking-wide text-text-muted">
         {label}
       </dt>
-      <dd className="text-sm text-text-primary">{value}</dd>
+      <dd
+        className="text-sm text-text-primary"
+        style={numeric ? { fontVariantNumeric: "tabular-nums" } : undefined}
+      >
+        {value}
+      </dd>
     </div>
   );
 }
 
-function SectionDivider({ label }: { label: string }) {
+function GroupLabel({ label }: { label: string }) {
   return (
-    <div className="flex items-center gap-2 border-t border-bg-border bg-bg-card px-4 py-1.5">
-      <span className="text-xs text-text-muted">{label}</span>
+    <div className="flex items-center gap-3 border-t border-bg-border px-4 pt-3 pb-1">
+      <span className="text-[11px] font-semibold text-text-muted">{label}</span>
+      <div className="flex-1 border-t border-bg-border" />
     </div>
   );
 }
@@ -76,13 +82,14 @@ export function ExifSection({ fileId, fileType }: ExifSectionProps) {
     : null;
 
   return (
-    <div className="overflow-hidden rounded-xl border border-bg-border bg-bg-elevated text-sm">
-      <div className="border-b border-bg-border px-4 py-2.5">
-        <h3 className="text-xs font-semibold uppercase tracking-wide text-text-muted">
+    <div className="animate-fade-in overflow-hidden rounded-xl border border-bg-border bg-bg-elevated text-sm">
+      <div className="flex items-center gap-2 border-b border-bg-border px-4 py-2.5">
+        <Camera size={13} className="shrink-0 text-text-muted" />
+        <h3 className="text-xs font-semibold text-text-muted">
           {t("sectionTitle")}
         </h3>
       </div>
-      <dl>
+      <dl className="pb-1">
         {exif.datetime_original && (
           <ExifRow label={t("datetime")} value={formatDatetime(exif.datetime_original)} />
         )}
@@ -91,38 +98,44 @@ export function ExifSection({ fileId, fileType }: ExifSectionProps) {
         )}
         {hasExposure && (
           <>
-            <SectionDivider label={t("exposureSection")} />
+            <GroupLabel label={t("exposureSection")} />
             {exif.f_number != null && (
-              <ExifRow label={t("aperture")} value={`f/${parseFloat(exif.f_number.toFixed(1))}`} />
+              <ExifRow label={t("aperture")} value={`f/${parseFloat(exif.f_number.toFixed(1))}`} numeric />
             )}
             {exif.exposure_time != null && (
-              <ExifRow label={t("shutter")} value={`${exif.exposure_time}s`} />
+              <ExifRow label={t("shutter")} value={`${exif.exposure_time}s`} numeric />
             )}
             {exif.iso_speed != null && (
-              <ExifRow label={t("iso")} value={String(exif.iso_speed)} />
+              <ExifRow label={t("iso")} value={String(exif.iso_speed)} numeric />
             )}
             {exif.focal_length != null && (
-              <ExifRow label={t("focalLength")} value={`${Math.round(exif.focal_length)}mm`} />
+              <ExifRow label={t("focalLength")} value={`${Math.round(exif.focal_length)}mm`} numeric />
             )}
           </>
         )}
         {hasGps && mapUrl && (
           <>
-            <SectionDivider label={t("locationSection")} />
+            <GroupLabel label={t("locationSection")} />
             <div className="grid grid-cols-[minmax(80px,auto)_1fr] gap-x-4 px-4 py-2.5">
               <dt className="self-start pt-0.5 text-xs uppercase tracking-wide text-text-muted">
                 {t("gps")}
               </dt>
-              <dd className="flex flex-wrap items-center gap-2 text-text-primary">
-                <span className="text-sm">{formatGpsCoord(exif.gps_lat!, exif.gps_lon!)}</span>
+              <dd className="flex flex-wrap items-center gap-2">
+                <span
+                  className="text-sm text-text-primary"
+                  style={{ fontVariantNumeric: "tabular-nums" }}
+                >
+                  {formatGpsCoord(exif.gps_lat!, exif.gps_lon!)}
+                </span>
                 <a
                   href={mapUrl}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="inline-flex items-center gap-1 text-xs text-accent hover:underline"
+                  className="inline-flex items-center gap-1 rounded-full bg-sand px-2 py-0.5 text-xs text-text-muted transition-colors hover:bg-sand-hover hover:text-text-primary"
                 >
+                  <MapPin size={10} />
                   {t("openMap")}
-                  <ExternalLink size={12} />
+                  <ExternalLink size={10} />
                 </a>
               </dd>
             </div>
