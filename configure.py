@@ -52,6 +52,40 @@ def check_overwrite(path):
         return ask_yn(f"{YELLOW}{path.name}{RESET} already exists. Overwrite?", 'n')
     return True
 
+def generate_event_hooks(base: Path, enabled_addons: list) -> bool:
+    """Build event-hooks.json from the event_hooks field in each enabled addon's manifest.
+
+    Returns True if the file was written (at least one hook was found).
+    URL uniqueness is the dedup key — the same URL cannot appear twice across addons.
+    """
+    hooks: dict = {}
+    seen_urls: set = set()
+
+    for addon_name in enabled_addons:
+        manifest_path = base / 'addons' / addon_name / 'manifest.json'
+        if not manifest_path.exists():
+            continue
+        try:
+            manifest = json.loads(manifest_path.read_text())
+        except Exception:
+            continue
+        for entry in manifest.get('event_hooks', []):
+            event = entry.get('event')
+            url   = entry.get('url')
+            if not event or not url or url in seen_urls:
+                continue
+            seen_urls.add(url)
+            hook = {k: v for k, v in entry.items() if k != 'event'}
+            hooks.setdefault(event, []).append(hook)
+
+    if not hooks:
+        return False
+
+    hook_file = base / 'event-hooks.json'
+    hook_file.write_text(json.dumps({'hooks': hooks}, ensure_ascii=False, indent=2) + '\n')
+    return True
+
+
 def write_env_key(key, value, env_path):
     if env_path.exists():
         content = env_path.read_text()
@@ -424,6 +458,7 @@ def main():
     if port != '3000':        print(f"    .env  (LITLOFT_PORT={port})")
     if use_passwords:         print("    passwords.json")
     if has_intelligence:      print("    addons/intelligence/search-config.yml")
+    if has_intelligence or has_knowledge: print("    event-hooks.json")
     if has_knowledge or llm_api_key_val: print("    .env  (secrets / API key)")
     print()
     print("  Drives:")
@@ -435,6 +470,13 @@ def main():
     if not ask_yn("Generate files?", 'y'):
         print("\nAborted.")
         return
+
+    # ── Generate event-hooks.json ─────────────────────────────────────────────
+
+    enabled_addons = (['intelligence'] if has_intelligence else []) + \
+                     (['knowledge']    if has_knowledge    else [])
+    if generate_event_hooks(base, enabled_addons):
+        ok("event-hooks.json")
 
     # ── Generate docker-compose.override.yml ──────────────────────────────────
 
@@ -450,6 +492,8 @@ def main():
             lines.append(f"      - {d['host_path']}:/app/drives/{d['slug']}")
         if use_passwords:
             lines.append("      - ./passwords.json:/app/passwords.json:ro")
+        if (base / 'event-hooks.json').exists():
+            lines.append("      - ./event-hooks.json:/app/event-hooks.json:ro")
 
         backend_env = []
         if has_intelligence: backend_env.append("- INTELLIGENCE_SERVICE_URL=http://intelligence:8100")
