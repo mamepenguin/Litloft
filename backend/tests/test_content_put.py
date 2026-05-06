@@ -8,12 +8,13 @@ Covers:
 - 415 Unsupported Media Type for non-allowlisted mime types
 - 404 for missing / trashed files
 - Frontmatter → File.tags projection for .md writes (spec 2026-04-24, Phase 11)
+- loft:// links → file_relations sync for .md writes (spec 2026-05-06)
 """
 import hashlib
 
 import pytest
 
-from app.models import File, Tag
+from app.models import File, FileRelation, Tag
 from tests.conftest import TEST_DRIVE
 
 
@@ -394,3 +395,130 @@ class TestFrontmatterTagProjection:
         assert r.status_code == 200, r.text
         session.expire_all()
         assert self._tag_names(session, file.id) == ["a"]
+
+
+class TestLoftLinkRelationsSync:
+    """PUT /content on a .md syncs loft:// links to file_relations.
+
+    Spec: docs/superpowers/specs/2026-05-06-knowledge-ask-citation-links.md
+    .md body is source of truth for file_relations (same pattern as
+    frontmatter.tags for tags). kind='related' rows are added/removed
+    to match the set of valid loft:// link targets in the body.
+    """
+
+    def _relation_ids(self, session, file_id: str) -> set[str]:
+        rels = (
+            session.query(FileRelation)
+            .filter(
+                (FileRelation.file_id_a == file_id)
+                | (FileRelation.file_id_b == file_id),
+                FileRelation.kind == "related",
+            )
+            .all()
+        )
+        result = set()
+        for r in rels:
+            other = r.file_id_b if r.file_id_a == file_id else r.file_id_a
+            result.add(other)
+        return result
+
+    def _put(self, api, file_id, content, old_content):
+        return api.put(
+            f"/api/files/{file_id}/content",
+            content=content.encode("utf-8"),
+            headers={
+                "Content-Type": "text/plain; charset=utf-8",
+                "If-Match": f'"{_etag_of(old_content)}"',
+            },
+        )
+
+    def test_loft_link_creates_file_relation(self, client):
+        api, session, drive_dir, _ = client
+        note = _seed_md(session, drive_dir, "note.md", "initial\n")
+        target = _seed_video(session, drive_dir, "video.mp4")
+
+        content = f"See [video](loft://{target.id}?t=30)\n"
+        r = self._put(api, note.id, content, "initial\n")
+        assert r.status_code == 200, r.text
+        session.expire_all()
+        assert self._relation_ids(session, note.id) == {target.id}
+
+    def test_removing_link_deletes_file_relation(self, client):
+        api, session, drive_dir, _ = client
+        note = _seed_md(session, drive_dir, "note.md", "initial\n")
+        target = _seed_video(session, drive_dir, "video.mp4")
+
+        # First write: add link
+        content_with = f"[video](loft://{target.id})\n"
+        r = self._put(api, note.id, content_with, "initial\n")
+        assert r.status_code == 200, r.text
+        session.expire_all()
+        assert target.id in self._relation_ids(session, note.id)
+
+        # Second write: remove link
+        content_without = "no links here\n"
+        r = self._put(api, note.id, content_without, content_with)
+        assert r.status_code == 200, r.text
+        session.expire_all()
+        assert self._relation_ids(session, note.id) == set()
+
+    def test_self_reference_is_skipped(self, client):
+        api, session, drive_dir, _ = client
+        note = _seed_md(session, drive_dir, "note.md", "initial\n")
+
+        content = f"[self](loft://{note.id})\n"
+        r = self._put(api, note.id, content, "initial\n")
+        assert r.status_code == 200, r.text
+        session.expire_all()
+        assert self._relation_ids(session, note.id) == set()
+
+    def test_nonexistent_file_id_is_skipped(self, client):
+        api, session, drive_dir, _ = client
+        note = _seed_md(session, drive_dir, "note.md", "initial\n")
+
+        content = "See [ghost](loft://000000000000)\n"
+        r = self._put(api, note.id, content, "initial\n")
+        assert r.status_code == 200, r.text
+        session.expire_all()
+        assert self._relation_ids(session, note.id) == set()
+
+    def test_non_markdown_file_not_synced(self, client):
+        api, session, drive_dir, _ = client
+        target = _seed_video(session, drive_dir, "video.mp4")
+
+        # A .txt file that happens to contain a loft:// link must NOT create relations
+        txt_path = drive_dir / "plain.txt"
+        txt_path.write_text("initial\n")
+        txt_file = File(
+            filename="plain.txt",
+            title="plain.txt",
+            drive=TEST_DRIVE,
+            folder_path="",
+            file_path="plain.txt",
+            file_size=8,
+            file_type="document",
+            mime_type="text/plain",
+        )
+        session.add(txt_file)
+        session.commit()
+        session.refresh(txt_file)
+
+        content = f"[video](loft://{target.id})\n"
+        r = self._put(api, txt_file.id, content, "initial\n")
+        assert r.status_code == 200, r.text
+        session.expire_all()
+        assert self._relation_ids(session, txt_file.id) == set()
+
+    def test_multiple_links_all_synced(self, client):
+        api, session, drive_dir, _ = client
+        note = _seed_md(session, drive_dir, "note.md", "initial\n")
+        target_a = _seed_video(session, drive_dir, "a.mp4")
+        target_b = _seed_video(session, drive_dir, "b.mp4")
+
+        content = (
+            f"[A](loft://{target_a.id}) and [B](loft://{target_b.id}?page=2)\n"
+        )
+        r = self._put(api, note.id, content, "initial\n")
+        assert r.status_code == 200, r.text
+        session.expire_all()
+        assert self._relation_ids(session, note.id) == {target_a.id, target_b.id}

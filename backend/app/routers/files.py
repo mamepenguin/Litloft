@@ -2,9 +2,11 @@ import asyncio
 import hashlib
 import logging
 import os
+import re
 import tempfile
 import zipfile
 from collections import defaultdict
+from datetime import UTC, datetime
 from pathlib import Path, PurePosixPath
 from typing import Annotated
 from urllib.parse import quote
@@ -76,6 +78,66 @@ _archive_semaphore = asyncio.Semaphore(3)
 _TEXT_WRITE_ALLOWED_MIMES = frozenset({"text/markdown", "text/plain"})
 _TEXT_WRITE_MAX_BYTES = 1 * 1024 * 1024  # 1 MB
 _text_write_locks: dict[str, asyncio.Lock] = defaultdict(asyncio.Lock)
+
+# Matches loft://file_id with optional query string; captures only the file_id.
+_LOFT_LINK_RE = re.compile(r"loft://([A-Za-z0-9_-]{12})(?:[?#][^\s\)\"']*)?")
+
+
+def _sync_md_file_relations(
+    db: Session, file_id: str, drive: str, content: str
+) -> None:
+    """Sync file_relations for a .md file based on loft:// links in its content.
+
+    .md files use their body as source of truth for file_relations (same
+    pattern as frontmatter.tags for tags). Relations are added for newly
+    appearing loft:// links and removed for links no longer present.
+    Only same-drive, non-trashed targets are valid.
+    """
+    extracted = {m for m in _LOFT_LINK_RE.findall(content) if m != file_id}
+
+    # Resolve which extracted ids actually exist in the same drive and aren't trashed
+    if extracted:
+        valid_files = (
+            db.query(File.id)
+            .filter(
+                File.id.in_(extracted),
+                File.drive == drive,
+                File.deleted_at.is_(None),
+            )
+            .all()
+        )
+        valid_ids = {row.id for row in valid_files}
+    else:
+        valid_ids = set()
+
+    # Current file_relations for this file (kind='related', both directions)
+    existing_rels = db.query(FileRelation).filter(
+        or_(
+            FileRelation.file_id_a == file_id,
+            FileRelation.file_id_b == file_id,
+        ),
+        FileRelation.kind == "related",
+    ).all()
+    existing_map: dict[str, FileRelation] = {}
+    for rel in existing_rels:
+        other = rel.file_id_b if rel.file_id_a == file_id else rel.file_id_a
+        existing_map[other] = rel
+
+    existing_ids = set(existing_map)
+    to_add = valid_ids - existing_ids
+    to_remove = existing_ids - valid_ids
+
+    for tid in to_add:
+        db.add(
+            FileRelation(
+                file_id_a=file_id,
+                file_id_b=tid,
+                kind="related",
+                created_at=datetime.now(UTC),
+            )
+        )
+    for tid in to_remove:
+        db.delete(existing_map[tid])
 
 
 def _is_markdown_file(file: File) -> bool:
@@ -1154,6 +1216,24 @@ async def put_file_content(
                 db.rollback()
                 logger.exception(
                     "put_content: tag projection failed for %s", file_id
+                )
+
+            # Sync loft:// links → file_relations. Same isolation pattern:
+            # a sync failure must not roll back the content write.
+            try:
+                content_str = body.decode("utf-8")
+                _sync_md_file_relations(db, file_id, file.drive, content_str)
+                db.commit()
+            except UnicodeDecodeError:
+                db.rollback()
+                logger.warning(
+                    "put_content: %s is not valid UTF-8; skipping loft link sync",
+                    file_id,
+                )
+            except Exception:
+                db.rollback()
+                logger.exception(
+                    "put_content: loft link sync failed for %s", file_id
                 )
 
     return Response(

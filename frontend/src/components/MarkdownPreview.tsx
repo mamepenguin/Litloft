@@ -45,6 +45,29 @@ function createMarkdownRenderer({ withMermaid }: { withMermaid: boolean }): Mark
     const token = tokens[idx];
     const href = token.attrGet("href") ?? "";
     const lower = href.trim().toLowerCase();
+
+    // loft://file_id[?params] — resolve to the internal file detail URL.
+    // file_ids are globally unique so no drive context is needed.
+    // Validate file_id matches the backend 12-char pattern to prevent
+    // path traversal (e.g. loft://../../admin becoming /files/../../admin).
+    if (lower.startsWith("loft://")) {
+      const rest = href.slice("loft://".length);
+      const qIdx = rest.indexOf("?");
+      const fileId = qIdx >= 0 ? rest.slice(0, qIdx) : rest;
+      if (!/^[A-Za-z0-9_-]{12}$/.test(fileId)) {
+        token.attrSet("href", "#");
+        return defaultLinkRender(tokens, idx, options, env, self);
+      }
+      // Whitelist query string to t= and page= params only.
+      const rawQs = qIdx >= 0 ? rest.slice(qIdx) : "";
+      const safeQs = rawQs.replace(/[^?&=A-Za-z0-9_.\-]/g, "");
+      const resolved = `/files/${fileId}${safeQs}`;
+      token.attrSet("href", resolved);
+      token.attrSet("target", "_self");
+      token.attrSet("rel", "");
+      return defaultLinkRender(tokens, idx, options, env, self);
+    }
+
     if (lower.startsWith("javascript:") || lower.startsWith("data:")) {
       token.attrSet("href", "#");
     }
@@ -84,7 +107,11 @@ function createMarkdownRenderer({ withMermaid }: { withMermaid: boolean }): Mark
 const mdWithMermaid = createMarkdownRenderer({ withMermaid: true });
 const mdPlain = createMarkdownRenderer({ withMermaid: false });
 
-function renderMarkdownToSafeHtml(source: string, withMermaid: boolean): {
+function renderMarkdownToSafeHtml(
+  source: string,
+  withMermaid: boolean,
+  _drive?: string,
+): {
   frontmatter: Record<string, unknown>;
   html: string;
 } {
@@ -120,6 +147,7 @@ export function MarkdownPreview({
   chrome = true,
   mermaid = true,
   className,
+  drive,
   editable,
   onTagsChange,
   onTagsSaved,
@@ -131,6 +159,11 @@ export function MarkdownPreview({
   chrome?: boolean;
   mermaid?: boolean;
   className?: string;
+  /**
+   * Drive name used to resolve ``loft://file_id`` internal file links.
+   * Required for Knowledge editor preview; optional elsewhere.
+   */
+  drive?: string;
   /**
    * When provided, the frontmatter's ``tags`` row renders as an
    * editable chip group (spec §D4). The caller must refetch
@@ -172,8 +205,8 @@ export function MarkdownPreview({
   highlight?: string;
 }) {
   const { frontmatter, html } = useMemo(
-    () => renderMarkdownToSafeHtml(source, mermaid),
-    [source, mermaid],
+    () => renderMarkdownToSafeHtml(source, mermaid, drive),
+    [source, mermaid, drive],
   );
 
   const containerRef = useRef<HTMLDivElement>(null);
