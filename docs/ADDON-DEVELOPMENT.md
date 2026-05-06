@@ -285,7 +285,7 @@ External service addons run in separate Docker containers. The core app proxies 
 | Manifest | `addons/{name}/manifest.json` | No (in addon's own repo) | Proxy routes, slots, access control |
 | Frontend UI | `addons/{name}/frontend/` | No (in addon's own repo) | UI components |
 | Docker config | `docker-compose.override.yml` | No | Container configuration |
-| Event hooks | `event-hooks.json` | No | Webhook subscriptions |
+| Event hooks | `addons/{name}/manifest.json` → `event_hooks` field | No (addon repo) | Webhook subscriptions — declared in manifest, auto-generated into `event-hooks.json` by `configure.py` |
 | Page wrapper | `frontend/src/app/addons/[name]/page.tsx` and `.../drive/[name]/addons/[addon]/page.tsx` | Core-provided dispatcher | Generic routes that lazy-import each addon's `Page.tsx` |
 
 The manifest file is the key difference from in-process addons. Since external services have no Python code in the backend process, the manifest tells the core app how to proxy requests and what UI slots to register. The manifest lives in the addon's own repo, so the main Litloft repo has no knowledge of any specific addon.
@@ -315,6 +315,11 @@ addons/my-service/        # ← addon's own repo root
             {"id": "my-search", "label": "My Search", "priority": 10}
         ]
     },
+
+    "event_hooks": [
+        {"event": "scan.complete", "url": "http://my-service:8100/webhook/scan-complete", "addon": "my-service", "feature": "index"},
+        {"event": "files.deleted", "url": "http://my-service:8100/webhook/files-deleted",  "addon": "my-service", "feature": "index"}
+    ],
 
     "proxy": {
         "target_env": "MY_SERVICE_URL",
@@ -447,26 +452,50 @@ services:
 
 ### Event Hooks
 
-`event-hooks.json` (not tracked by git):
+The core fires lifecycle events (scan complete, file deleted, …) to registered webhook URLs. Instead of asking users to hand-edit a JSON file, **declare the webhooks your addon needs inside `manifest.json`**. `configure.py` reads every enabled addon's manifest and writes `event-hooks.json` automatically.
+
+#### Declaring hooks in manifest.json
+
+Add an `event_hooks` array at the top level of your manifest:
 
 ```json
 {
-    "hooks": {
-        "scan.complete": [
-            {"url": "http://my-service:8100/webhook/scan-complete", "secret_env": "MY_WEBHOOK_SECRET"}
-        ],
-        "files.deleted": [
-            {"url": "http://my-service:8100/webhook/files-deleted", "secret_env": "MY_WEBHOOK_SECRET"}
-        ]
-    }
+    "label": "My Service",
+    "event_hooks": [
+        {
+            "event": "scan.complete",
+            "url": "http://my-service:8100/webhook/scan-complete",
+            "addon": "my-service",
+            "feature": "index"
+        },
+        {
+            "event": "files.deleted",
+            "url": "http://my-service:8100/webhook/files-deleted",
+            "addon": "my-service",
+            "feature": "index"
+        }
+    ],
+    "proxy": { ... }
 }
 ```
 
-Available events:
+Each entry:
+
+| Field | Required | Description |
+|-------|----------|-------------|
+| `event` | Yes | Event name (see table below) |
+| `url` | Yes | Webhook URL reachable from the backend container |
+| `addon` | Recommended | Addon name — used for per-drive policy filtering |
+| `feature` | Recommended | Feature key in `drives.json` addon policy; events for drives where this feature is disabled are silently dropped before dispatch |
+| `secret_env` | No | Name of the env var whose value is sent as `X-Webhook-Secret` |
+
+`configure.py` deduplicates by URL, so it is safe to have multiple addons subscribe to the same event.
+
+#### Available events
 
 | Event | When | Payload |
 |-------|------|---------|
-| `scan.complete` | Scanner finishes a drive scan | `{drive, stats}` |
+| `scan.complete` | Scanner finishes a drive scan | `{drive, added, missing, recovered}` |
 | `files.deleted` | File moved to trash | `{file_ids, drive}` |
 | `files.restored` | File restored from trash (also clears missing state) | `{file_ids, drive}` |
 | `files.missing` | Scanner detects a previously-indexed file is gone from FS | `{file_ids, drive}` |
@@ -474,23 +503,15 @@ Available events:
 | `files.purged` | User explicitly deletes a file permanently (or 30-day trash auto-purge) — scan-triggered purges no longer fire this event | `{file_ids, drive}` |
 | `files.moved` | File path / filename changed via rename / move / folder rename / folder move (single covering event for all 6 mutation routes) | `{file_ids}` |
 
-Event hooks are **drive-aware**: each listener entry may declare an `addon` + `feature`, and the core drops or strips payloads for drives whose policy disables that feature before forwarding:
+#### Drive-aware filtering
 
-```json
-{
-    "hooks": {
-        "scan.complete": [
-            {
-                "url": "http://intelligence:8100/webhook/scan-complete",
-                "addon": "intelligence",
-                "feature": "index"
-            }
-        ]
-    }
-}
-```
+When `addon` + `feature` are declared, the core checks `drives.json` before each dispatch and drops payloads for drives where that feature is disabled. If the policy lookup fails the event is forwarded (fail open); your webhook handler should double-check with `GET /api/internal/drive-policy` when correctness matters.
 
-If the policy lookup fails, the event is forwarded (fail open); the addon-side worker should double-check with `GET /api/internal/drive-policy` for correctness.
+#### How event-hooks.json is generated
+
+`configure.py` collects `event_hooks` from every manifest of every addon the user enables, merges them (dedup by URL), and writes `event-hooks.json`. The backend mounts this file at startup. Users never need to touch the file manually.
+
+> **For AI agents**: when adding a new event hook to an addon, add an entry to `manifest.json` → `event_hooks`. Do **not** edit `event-hooks.json` directly — it is auto-generated and gitignored. Remind the developer to re-run `configure.py` (or update the file manually if `configure.py` has already been run) to propagate the change.
 
 ### Internal API
 
@@ -852,7 +873,10 @@ git commit -m "feat: initial service with manifest"
 
 # 6. (Optional) Frontend components in addons/my-service/frontend/
 
-# 7. (Optional) Configure event-hooks.json (main repo, gitignored)
+# 7. (Optional) Declare event hooks in manifest.json
+#    Add an "event_hooks" array (see "Event Hooks" section above).
+#    configure.py generates event-hooks.json automatically from these declarations.
+#    Do NOT edit event-hooks.json directly.
 
 # 8. Build and run
 cd /path/to/litloft
