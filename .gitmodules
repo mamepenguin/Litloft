@@ -1,0 +1,12 @@
+[submodule "addons/intelligence"]
+	path = addons/intelligence
+	url = https://github.com/mamepenguin/Litloft-Intelligence-addon.git
+[submodule "addons/knowledge"]
+	path = addons/knowledge
+	url = https://github.com/mamepenguin/Litloft-knowledge-addon.git
+[submodule "addons/cloud-sync"]
+	path = addons/cloud-sync
+	url = https://github.com/mamepenguin/Litloft-cloud-sync-addon.git
+[submodule "addons/media_import"]
+	path = addons/media_import
+	url = https://github.com/mamepenguin/Litloft-media-import-addon.git
