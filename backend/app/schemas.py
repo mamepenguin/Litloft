@@ -762,6 +762,20 @@ class SmartFolderResponse(_UtcDateTimeMixin, BaseModel):
     model_config = {"from_attributes": True}
 
 
+class ExifResponse(BaseModel):
+    datetime_original: str | None
+    make: str | None
+    model: str | None
+    f_number: float | None
+    exposure_time: str | None
+    iso_speed: int | None
+    focal_length: float | None
+    gps_lat: float | None
+    gps_lon: float | None
+
+    model_config = {"from_attributes": True}
+
+
 def file_to_response(
     file,
     subtitles: list[SubtitleInfo] | None = None,

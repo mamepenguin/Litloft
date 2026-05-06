@@ -1,4 +1,4 @@
-import type { ArchiveContents, AuthStatus, BatchRenameRequest, BatchRenameResponse, ChunkResponse, Comment, CommentsResponse, DashboardResponse, Drive, DriveSummary, DuplicatesResponse, FileItem, FileType, Folder, Neighbors, PaginatedResponse, PinnedFolder, PlaylistDetail, PlaylistSummary, SortField, SortOrder, Tag, UnlockResult, UploadInitResponse, WatchHistoryItem, WatchProgress } from "@/types";
+import type { ArchiveContents, AuthStatus, BatchRenameRequest, BatchRenameResponse, ChunkResponse, Comment, CommentsResponse, DashboardResponse, Drive, DriveSummary, DuplicatesResponse, FileExif, FileItem, FileType, Folder, Neighbors, PaginatedResponse, PinnedFolder, PlaylistDetail, PlaylistSummary, SortField, SortOrder, Tag, UnlockResult, UploadInitResponse, WatchHistoryItem, WatchProgress } from "@/types";
 import type { SmartFolder, SmartFolderCreate, SmartFolderUpdate } from "@/types/smartFolder";
 
 const API_BASE = "/api";
@@ -70,6 +70,10 @@ export async function scanDrive(drive: string): Promise<{ added: number; removed
 
 export async function getFile(id: string): Promise<FileItem> {
   return fetchJSON<FileItem>(`${API_BASE}/files/${id}`);
+}
+
+export async function getFileExif(id: string): Promise<FileExif> {
+  return fetchJSON<FileExif>(`${API_BASE}/files/${id}/exif`);
 }
 
 export async function updateFile(

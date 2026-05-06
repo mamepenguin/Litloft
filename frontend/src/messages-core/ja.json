@@ -70,6 +70,19 @@
     "unpin": "ピン留め解除",
     "newFolder": "新規フォルダ"
   },
+  "exif": {
+    "sectionTitle": "撮影情報",
+    "datetime": "撮影日時",
+    "camera": "カメラ",
+    "exposureSection": "露出",
+    "aperture": "絞り",
+    "shutter": "シャッター",
+    "iso": "ISO",
+    "focalLength": "焦点距離",
+    "locationSection": "位置情報",
+    "gps": "GPS",
+    "openMap": "地図で開く"
+  },
   "file": {
     "addDescription": "説明を追加...",
     "backTo": "{name} に戻る",

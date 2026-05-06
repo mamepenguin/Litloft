@@ -70,6 +70,19 @@
     "unpin": "Unpin",
     "newFolder": "New Folder"
   },
+  "exif": {
+    "sectionTitle": "Photo Info",
+    "datetime": "Date taken",
+    "camera": "Camera",
+    "exposureSection": "Exposure",
+    "aperture": "Aperture",
+    "shutter": "Shutter",
+    "iso": "ISO",
+    "focalLength": "Focal length",
+    "locationSection": "Location",
+    "gps": "GPS",
+    "openMap": "Open map"
+  },
   "file": {
     "addDescription": "Add description...",
     "backTo": "Back to {name}",

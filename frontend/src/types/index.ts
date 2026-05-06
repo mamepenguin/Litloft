@@ -324,3 +324,15 @@ export interface CommentsResponse {
   comments: Comment[];
   total: number;
 }
+
+export interface FileExif {
+  datetime_original: string | null;
+  make: string | null;
+  model: string | null;
+  f_number: number | null;
+  exposure_time: string | null;
+  iso_speed: number | null;
+  focal_length: number | null;
+  gps_lat: number | null;
+  gps_lon: number | null;
+}

@@ -20,6 +20,7 @@ import { CastButton } from "@/components/CastButton";
 import { AddonSlot } from "@/components/AddonSlot";
 import { ActiveSummaryHost } from "@/components/ActiveSummaryHost";
 import { RelatedFilesSection } from "@/components/RelatedFilesSection";
+import { ExifSection } from "@/components/ExifSection";
 import { useSetOverrideDrive } from "@/components/CurrentDriveProvider";
 import { useOverlaySidebar, useSidebar } from "@/components/SidebarProvider";
 import { useShortcuts } from "@/hooks/useShortcuts";
@@ -382,6 +383,7 @@ export default function FilePage() {
           <div className="mt-4 space-y-4">
             <ActiveSummaryHost fileId={fileId} drive={file.drive} />
             <RelatedFilesSection fileId={fileId} />
+            <ExifSection fileId={fileId} fileType={file.file_type} />
             <AddonSlot
               id="file-detail-sections"
               layout="stack"

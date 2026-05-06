@@ -9,7 +9,8 @@ from sqlalchemy.orm import Session
 
 import app.config as config
 from app.database import SessionLocal
-from app.models import EmptyFolder, File, active_file_filter
+from app.models import EmptyFolder, File, FileExif, active_file_filter
+from app.services.exif import extract_exif
 from app.services.filetype import classify, is_hidden
 from app.services.hash import compute_file_hash
 from app.services.subtitle import is_subtitle_file
@@ -152,6 +153,11 @@ def register_single_file(db: Session, drive_name: str, file_path: Path) -> str:
     db.add(file_record)
     db.flush()
 
+    if file_type == "image":
+        exif = extract_exif(file_path)
+        if exif is not None:
+            db.add(FileExif(file_id=file_record.id, **exif))
+
     logger.info(
         "Registered file: %s (drive: %s, type: %s)",
         relative_path, drive_name, file_type,
@@ -232,6 +238,11 @@ def _scan_and_register(db: Session, drive_name: str) -> dict[str, int]:
                 ).exists():
                     _relocate_thumbnail(file_record, expected_thumb, file_type, item)
                     needs_update = True
+
+            if file_type == "image" and db.get(FileExif, file_record.id) is None:
+                exif = extract_exif(item)
+                if exif is not None:
+                    db.merge(FileExif(file_id=file_record.id, **exif))
 
             if needs_update:
                 updated += 1
@@ -392,6 +403,13 @@ def _scan_and_register(db: Session, drive_name: str) -> dict[str, int]:
             file_hash=file_hash,
         )
         db.add(file_record)
+        db.flush()
+
+        if file_type == "image":
+            exif = extract_exif(item)
+            if exif is not None:
+                db.add(FileExif(file_id=file_record.id, **exif))
+
         added += 1
         logger.info("Added file: %s (drive: %s, type: %s)", relative_path, drive_name, file_type)
 

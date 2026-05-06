@@ -24,6 +24,7 @@ from app.auth import check_drive_access, get_unlocked_groups
 from app.database import get_db
 from app.models import (
     File,
+    FileExif,
     FileRelation,
     Tag,
     active_file_filter,
@@ -41,6 +42,7 @@ from app.schemas import (
     BatchRenameResponse,
     BatchRestoreResponse,
     BatchTagRequest,
+    ExifResponse,
     FileCopyRequest,
     FileRelationItem,
     FileRelationsResponse,
@@ -1345,4 +1347,18 @@ async def list_file_relations(
 
     return FileRelationsResponse(relations=items)
 
+
+@router.get("/{file_id}/exif", response_model=ExifResponse)
+async def get_file_exif(
+    file_id: FileId,
+    db: Annotated[Session, Depends(get_db)],
+    unlocked_groups: Annotated[list[str], Depends(get_unlocked_groups)],
+):
+    file = _get_file_or_404(db, file_id, unlocked_groups)
+    if file.file_type != "image":
+        raise HTTPException(status_code=404, detail="No EXIF data")
+    exif = db.get(FileExif, file_id)
+    if not exif:
+        raise HTTPException(status_code=404, detail="No EXIF data")
+    return ExifResponse.model_validate(exif)
 

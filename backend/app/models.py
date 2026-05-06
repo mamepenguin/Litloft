@@ -263,6 +263,22 @@ class FileRelation(Base):
     )
 
 
+class FileExif(Base):
+    __tablename__ = "file_exif"
+
+    file_id: Mapped[str] = mapped_column(String(12), ForeignKey("files.id", ondelete="CASCADE"), primary_key=True)
+    datetime_original: Mapped[str | None] = mapped_column(String, nullable=True)
+    make: Mapped[str | None] = mapped_column(String, nullable=True)
+    model: Mapped[str | None] = mapped_column(String, nullable=True)
+    f_number: Mapped[float | None] = mapped_column(Float, nullable=True)
+    exposure_time: Mapped[str | None] = mapped_column(String, nullable=True)
+    iso_speed: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    focal_length: Mapped[float | None] = mapped_column(Float, nullable=True)
+    gps_lat: Mapped[float | None] = mapped_column(Float, nullable=True)
+    gps_lon: Mapped[float | None] = mapped_column(Float, nullable=True)
+    extracted_at: Mapped[datetime] = mapped_column(DateTime, default=lambda: datetime.now(UTC))
+
+
 def active_file_filter():
     """Filter condition matching only active files (not trashed, not missing).
 

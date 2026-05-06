@@ -391,6 +391,12 @@ def _migrate(engine_) -> None:
             DATA_DIR.mkdir(parents=True, exist_ok=True)
             sentinel.touch()
 
+    # === Phase 12: Create file_exif table ===
+    tables = inspector.get_table_names()
+    if "file_exif" not in tables:
+        logger.info("Migrating: creating 'file_exif' table")
+        Base.metadata.tables["file_exif"].create(bind=engine_, checkfirst=True)
+
 
 def init_db() -> None:
     DATA_DIR.mkdir(parents=True, exist_ok=True)
