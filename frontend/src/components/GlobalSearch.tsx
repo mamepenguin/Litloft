@@ -7,10 +7,7 @@ import { useShortcuts } from "@/hooks/useShortcuts";
 
 import { useTranslations } from "next-intl";
 import { getDriveFiles } from "@/lib/api";
-import {
-  fetchSemanticHits,
-  isSemanticSearchAvailable,
-} from "@/lib/semanticSearch";
+import { fetchSemanticHits } from "@/lib/semanticSearch";
 import {
   mergeResults,
   sortMerged,
@@ -183,14 +180,10 @@ export function GlobalSearch() {
         { search: trimmed, limit: POPUP_LIMIT },
         { signal: ctrl.signal },
       );
-      const semanticP = isSemanticSearchAvailable(drive).then((available) =>
-        available
-          ? fetchSemanticHits(trimmed, drive, {
-              limit: POPUP_LIMIT,
-              signal: ctrl.signal,
-            })
-          : ([] as SemanticHit[]),
-      );
+      const semanticP = fetchSemanticHits(trimmed, drive, {
+        limit: POPUP_LIMIT,
+        signal: ctrl.signal,
+      });
       Promise.all([filenameP, semanticP])
         .then(([filenameRes, semanticHits]) => {
           if (ctrl.signal.aborted) return;
