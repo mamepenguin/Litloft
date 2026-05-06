@@ -9,8 +9,8 @@ A self-hosted media server and file manager for your home LAN — with AI-powere
 **[Landing page](https://mamepenguin.github.io/Litloft/)** · [Japanese docs](docs/README.ja.md)
 
 <p align="center">
-  <img src="website/screenshot_home.png" width="49%" alt="Litloft home screen" />
-  <img src="website/screenshot_ask.png" width="49%" alt="Litloft AI Ask" />
+  <img src="docs/screenshot_home.png" width="49%" alt="Litloft home screen" />
+  <img src="docs/screenshot_ask.png" width="49%" alt="Litloft AI Ask" />
 </p>
 
 ---
