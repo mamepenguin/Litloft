@@ -17,13 +17,19 @@ git clone <repository-url>
 cd video_share
 ```
 
-### 2. Configure drives
+### 2. Configure
 
+**Quick (recommended)**:
 ```bash
-cp drives.json.example drives.json
+python configure.py
 ```
+Generates `docker-compose.override.yml`, `drives.json`, optional `passwords.json`, and `search-config.yml` interactively.
 
-Edit `docker-compose.yml` volume mounts as needed.
+**Manual**:
+```bash
+cp docker-compose.override.yml.example docker-compose.override.yml
+# Edit docker-compose.override.yml to mount your drive directories
+```
 
 ### 3. Start
 

@@ -49,9 +49,10 @@ mindmap
     閲覧
       ドライブ選択
       フォルダナビゲーション
-      ファイル一覧 Grid/List
+      ファイル一覧 Grid/List ドキュメントlazy preview付き
       メディア再生 動画/音声/画像
-      プレビュー Text/Markdown/PDF/ZIP
+      プレビュー Text/Markdown/PDF/Office/ZIP
+      画像ビューア スワイプ/タップゾーン/見開き分割 LTR・RTL
       視聴進度の自動復元
     アップロード
       ドラッグ&ドロップ
@@ -69,7 +70,7 @@ mindmap
       タグ付け 単体/一括
       プレイリスト
       お気に入り/ピン
-      リネーム/移動 単体/一括
+      リネーム/移動 単体/一括 移動時ハッシュ照合でAIデータ引継ぎ
       テキストファイル作成/編集
       ゴミ箱 30日で自動削除
       Missing 手動削除
@@ -94,7 +95,7 @@ mindmap
       Transcript Refine 修正/revert
       Transcription Whisper
       Frame Caption BLIP
-      Knowledge ノート/Webクリップ
+      Knowledge ノート/Webクリップ/loft://ファイルリンク/Ask回答保存
       Downloader URL取込
       LoftRef 外部URLソース
       Cloud Sync クラウドバックアップ

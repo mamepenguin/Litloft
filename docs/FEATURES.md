@@ -40,13 +40,16 @@ Browser → :3000 (Next.js) → rewrites /api/* → :8000 (FastAPI, internal onl
 - Pagination (30 items/page)
 - File type icons (video / image / audio / document / other)
 - Duration badge for video and audio files
+- **Lazy text preview**: document files (text, Markdown, PDF, Office) show a mini content preview in both grid and list view (loaded lazily on scroll)
 
 ### File Type System
 - All files managed in a unified `File` table
 - Two-column classification: `file_type` (category) and `mime_type` (detail)
 - Auto-scan all drives on startup (hidden files excluded)
-- Video: ffprobe for duration + ffmpeg for thumbnail generation
+- Video: ffprobe for duration + ffmpeg for thumbnail generation (representative frame, skips intro 10%)
 - Audio: ffprobe for duration
+- PDF: first-page thumbnail via PyMuPDF (fallback to text thumbnail when `pdf2image` unavailable)
+- Office documents (Word, Excel, PowerPoint): thumbnail via LibreOffice headless rendering
 - `mimetypes` + custom mappings for extension-based classification
 
 ### File State Model (Active / Missing / Trash)
@@ -182,6 +185,10 @@ All list queries filter via `active_file_filter()` so missing/trash files are in
 - Grouped duplicate list
 - Wasted storage calculation
 
+### Hash-Based Move Detection
+- Scanner computes SHA-256 (first 64KB) fingerprints of files on scan
+- When a file disappears at path A and a file with the same fingerprint appears at path B within the same drive, the DB row is migrated to path B instead of creating a new row — viewer history, tags, and AI data survive the move
+
 ---
 
 ## Media Playback
@@ -205,9 +212,12 @@ All list queries filter via `active_file_filter()` so missing/trash files are in
 ### Preview System
 - `FilePreview` component branches by file_type
 - Video: VideoPlayer with live preview on hover
-- Image: preview with prev/next navigation
-- Archive: ZIP content listing + individual entry extraction
+- Image: `ImageGallery` viewer with full-screen display, prev/next navigation, swipe (mobile), and tap-zone navigation
+  - **Page split mode**: landscape images split into left/right halves shown as individual pages — for manga/comics. Toggle via BookOpen icon; LTR/RTL direction switchable; persisted in localStorage
+  - Tap left/right edge of screen (30% zones) or swipe left/right to navigate
+- Archive: ZIP content listing + individual entry extraction; archive image entries open in the same ImageGallery viewer
 - Markdown: `MarkdownPreview` with syntax highlighting (highlight.js), GitHub-flavored task lists, and Mermaid diagrams
+- Office documents (Word, Excel, PowerPoint): server-side text extraction rendered as preview
 - Other: file info display
 
 ### Prev/Next Navigation
@@ -402,6 +412,8 @@ External service (`./addons/knowledge`, port 8200). Scope: `drive`.
 - Web clipping (`/clips` and `/clips/pasted` endpoints) for saving external pages
 - Vault summary in the sidebar via `sidebar-sections` slot
 - Full-text search over notes
+- **`loft://` file links**: insert `loft://{drive}/{file_id}` links in Markdown notes to reference drive files. On `.md` save, the knowledge addon parses all `loft://` links and syncs `file_relations` accordingly (removes stale relations, adds new ones). Core UI renders `loft://` links as clickable file cards.
+- **Ask → Knowledge save**: save an intelligence Ask answer (with citations) as a Markdown note into a Vault via the same `KnowledgeSaveDialog`
 
 ---
 
@@ -603,6 +615,13 @@ Operators toggle features per drive in `drives.json`:
 - Drive directories mounted via volumes
 - `data/` persists SQLite DB + thumbnail images + JWT secret
 - Addon containers added via `docker-compose.override.yml` (not tracked by main repo)
+
+### Interactive Setup (`configure.py`)
+- Cross-platform Python 3 script (`python configure.py`) for pre-startup configuration
+- Interactively configures drives, passwords, addon settings (LLM provider, Whisper model, feature flags)
+- Generates `docker-compose.override.yml`, `drives.json`, `passwords.json`, `search-config.yml`, `.env`
+- Touches `data/setup_completed` sentinel so the in-browser `/setup` wizard is skipped on first boot
+- Re-running is idempotent: reads existing config as defaults and only updates specified fields
 
 ### Updating
 - `git pull && docker compose up -d --build`
