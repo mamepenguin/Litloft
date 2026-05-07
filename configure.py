@@ -523,6 +523,11 @@ def main():
                 "      - ./data/videos.db:/data/litloft.db:ro",
                 *[f"      - {d['host_path']}:/drives/{d['slug']}:ro" for d in drives],
                 "    environment:", f"      - DRIVE_MOUNTS={mounts}",
+                "      - LLM_API_KEY=${LLM_API_KEY:-}",
+                "      - DEEPGRAM_API_KEY=${DEEPGRAM_API_KEY:-}",
+                "      - ELEVENLABS_API_KEY=${ELEVENLABS_API_KEY:-}",
+                "      - OPENAI_API_KEY=${OPENAI_API_KEY:-}",
+                "      - CORE_INTERNAL_SECRET=${CORE_INTERNAL_SECRET:-}",
                 "    depends_on:", "      backend:", "        condition: service_healthy",
                 "    restart: unless-stopped",
             ]
