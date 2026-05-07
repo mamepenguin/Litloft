@@ -527,6 +527,8 @@ def main():
                 "      - DEEPGRAM_API_KEY=${DEEPGRAM_API_KEY:-}",
                 "      - ELEVENLABS_API_KEY=${ELEVENLABS_API_KEY:-}",
                 "      - OPENAI_API_KEY=${OPENAI_API_KEY:-}",
+                "      - ASSEMBLYAI_API_KEY=${ASSEMBLYAI_API_KEY:-}",
+                "      - GEMINI_API_KEY=${GEMINI_API_KEY:-}",
                 "      - CORE_INTERNAL_SECRET=${CORE_INTERNAL_SECRET:-}",
                 "    depends_on:", "      backend:", "        condition: service_healthy",
                 "    restart: unless-stopped",
