@@ -21,6 +21,8 @@ Set env: `OPENAI_API_KEY=sk-...`. For Groq: set `transcription.openai_compatible
 
 > **Warning:** Official OpenAI Whisper API has a 25MB file size limit. Use Deepgram / ElevenLabs / Groq / self-hosted for long-form audio.
 
+> **Warning:** OpenAI Whisper API determines format strictly from the filename extension. If the extension does not match the actual container (e.g. an M4A audio file saved with a `.mp4` extension, common with iTunes / GarageBand exports), the API responds with `400 Invalid file format` even though both extensions appear in their supported list. **Workaround:** rename the file so the extension matches the actual container (use `file path/to/file.mp4` to detect), or route the drive to Deepgram / ElevenLabs / `whisper_local`, all of which sniff the format from content rather than extension. A future release may add ffprobe-based extension normalization.
+
 ### deepgram
 Set env: `DEEPGRAM_API_KEY=...`. Configure `transcription.deepgram.model` (default `nova-3`).
 
