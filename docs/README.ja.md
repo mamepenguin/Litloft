@@ -124,6 +124,20 @@ LLM_API_KEY=sk-...
 
 その後 1 回だけ再ビルド: `docker compose up -d --build`。以降の GUI 設定変更は `docker compose restart backend` で反映できる。
 
+### 6. クラウド文字起こしプロバイダー (cloud STT)
+
+Litloft はローカル Whisper（faster-whisper、CPU 動作）に加えて、以下のクラウド STT プロバイダーに対応します:
+
+| Provider | 強み | 注意 |
+|---|---|---|
+| OpenAI 互換（Groq / Fireworks 等） | OSS Whisper の延長、API 親和性 | 公式 OpenAI API は 25MB ファイル制限 |
+| Deepgram Nova-3 | WER トップクラス、diarization 強力 | 課金別系統 |
+| ElevenLabs Scribe | diarization、長尺対応 | 課金別系統 |
+
+設定は `addons/intelligence/search-config.yml` の `transcription` セクション + 各 provider の API key env (`DEEPGRAM_API_KEY` / `ELEVENLABS_API_KEY` / `OPENAI_API_KEY`)。詳細は [PROVIDERS.md](PROVIDERS.md) を参照。
+
+**プライバシー注意**: クラウド STT を選択すると音声ファイルがプロバイダーに送信されます。プライバシー重視ドライブは `drives.json` の `addons.intelligence.transcription_cloud: false` で **強制ローカル fallback** できます。
+
 ### 手動設定（上級者向け）
 
 JSON を直接編集したい場合、GUI は完全に任意:

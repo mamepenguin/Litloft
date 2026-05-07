@@ -121,6 +121,20 @@ Use OpenAI, DeepSeek, or any OpenAI-compatible endpoint. Enter your base URL and
 
 > Semantic search and transcription work without an LLM — only the text-generation features require one.
 
+### Cloud transcription providers (cloud STT)
+
+In addition to local Whisper (`faster-whisper`, CPU), Litloft supports several cloud STT providers:
+
+| Provider | Strengths | Notes |
+|---|---|---|
+| OpenAI-compatible (Groq / Fireworks / etc) | OSS Whisper lineage, familiar API | The official OpenAI API enforces a 25 MB per-file limit |
+| Deepgram Nova-3 | Top-class WER, strong diarization | Separate billing |
+| ElevenLabs Scribe | Diarization, long-form audio | Separate billing |
+
+Configure via the `transcription` section in `addons/intelligence/search-config.yml` plus the relevant API key env (`DEEPGRAM_API_KEY` / `ELEVENLABS_API_KEY` / `OPENAI_API_KEY`). See [docs/PROVIDERS.md](docs/PROVIDERS.md) for the full matrix.
+
+**Privacy note:** selecting a cloud provider sends audio bytes to that provider. Privacy-sensitive drives can pin **forced local fallback** by setting `addons.intelligence.transcription_cloud: false` in `drives.json` for that drive — even when the global provider is a cloud one.
+
 ---
 
 ## Addons
