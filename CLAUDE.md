@@ -1,96 +1,96 @@
 # Litloft
 
-自宅LAN向けファイル管理＆動画ストリーミングWebアプリ。Dockerで動作する。
+A file management and video streaming web app for the home LAN. Runs on Docker.
 
-## アーキテクチャ
+## Architecture
 
 ```
-ブラウザ → :3000 (Next.js custom server)
-  ├─ HTTP  /api/*  → rewrites → :8000 (FastAPI, Docker内部のみ)
+Browser → :3000 (Next.js custom server)
+  ├─ HTTP  /api/*  → rewrites → :8000 (FastAPI, Docker-internal only)
   └─ WS    /api/ws → proxy   → :8000 (WebSocket, http-proxy)
 ```
 
 - **Backend**: FastAPI (Python 3.12) + SQLite (SQLAlchemy) + ffmpeg
 - **Frontend**: Next.js 16 (App Router, TypeScript, Tailwind CSS v4)
-- **インフラ**: Docker Compose (2コンテナ、backendは外部非公開)
-- **認証**: オプショナルなパスワード保護（`passwords.json` によるドライブ単位のアクセス制御）
-- **設定 GUI**: 初回起動は `/setup` first-run wizard、以降は `/admin/settings` でドライブ・パスワード・アドオン policy を編集（マスター viewer = 全 group を持つパスワードでロック解除した viewer のみ。`passwords.json` 未配置時は誰でも admin）。`data/setup_completed` sentinel でウィザード表示を判定し、`data/restart_pending` flag で「保留中の変更あり」バナーを `/admin` 配下に表示
+- **Infrastructure**: Docker Compose (2 containers; backend is not exposed externally)
+- **Authentication**: optional password protection (per-drive access control via `passwords.json`)
+- **Settings GUI**: first launch shows the `/setup` first-run wizard; afterward, drives, passwords, and addon policy are edited at `/admin/settings` (master viewer = a viewer who unlocked with a password that holds all groups; when `passwords.json` is absent, anyone is an admin). The `data/setup_completed` sentinel decides whether to show the wizard, and the `data/restart_pending` flag drives the "pending changes" banner under `/admin`.
 
-## ディレクトリ構成
+## Directory layout
 
 ```
 backend/
   app/
-    main.py          # エントリーポイント、startup scan、setup_completed sentinel migration、restart_pending flag clear
-    config.py        # drives.json 読み取り、DATA_DIR、sentinel/flag path helpers
-    database.py      # SQLAlchemy, マイグレーション
-    models.py        # ORM モデル
-    schemas.py       # Pydantic スキーマ
-    auth.py          # JWT認証、viewer_id管理、is_admin_viewer helper
-    routers/         # API エンドポイント (files, drives, playlists, auth, uploads, progress, ws, admin, admin_config, comments, addon_proxy, internal)
-    services/        # ビジネスロジック (scanner, fileops, thumbnail, upload, heic, subtitle, preview, hash, ws, addon_registry, config_writer)
-  tests/             # pytest (Docker内で実行)
+    main.py          # entry point, startup scan, setup_completed sentinel migration, restart_pending flag clear
+    config.py        # drives.json reader, DATA_DIR, sentinel/flag path helpers
+    database.py      # SQLAlchemy, migrations
+    models.py        # ORM models
+    schemas.py       # Pydantic schemas
+    auth.py          # JWT auth, viewer_id management, is_admin_viewer helper
+    routers/         # API endpoints (files, drives, playlists, auth, uploads, progress, ws, admin, admin_config, comments, addon_proxy, internal)
+    services/        # business logic (scanner, fileops, thumbnail, upload, heic, subtitle, preview, hash, ws, addon_registry, config_writer)
+  tests/             # pytest (run inside Docker)
 
 frontend/
   src/
-    app/             # Next.js App Router ページ
-      admin/         # 管理ダッシュボード。layout.tsx で admin gate + RestartBanner
-        settings/    # 設定編集 UI (Drives / Passwords / AddonPolicy セクション)
-      setup/         # first-run wizard (6 ステップ)
-    components/      # React コンポーネント (RestartBanner, SetupRedirector 含む)
-    hooks/           # カスタムフック
-    lib/             # ユーティリティ (api.ts, format.ts, adminConfig.ts 等)
-    i18n/            # next-intl 設定
-    messages/        # 翻訳ファイル (ja.json, en.json)
-    types/           # TypeScript 型定義
-  server.js          # Custom Server (WebSocketプロキシ)
+    app/             # Next.js App Router pages
+      admin/         # admin dashboard; layout.tsx applies the admin gate + RestartBanner
+        settings/    # settings editor UI (Drives / Passwords / AddonPolicy sections)
+      setup/         # first-run wizard (6 steps)
+    components/      # React components (includes RestartBanner, SetupRedirector)
+    hooks/           # custom hooks
+    lib/             # utilities (api.ts, format.ts, adminConfig.ts, etc.)
+    i18n/            # next-intl configuration
+    messages/        # translation files (ja.json, en.json)
+    types/           # TypeScript type definitions
+  server.js          # Custom Server (WebSocket proxy)
 
 deploy/
-  post-receive       # git push 自動デプロイ hook (開発者向け、一般利用では不要)
+  post-receive       # git push auto-deploy hook (for developers; not needed for general use)
 
-docker-compose.yml                    # ベース設定。編集しない
-docker-compose.override.yml.example  # ユーザー設定テンプレート（git管理）
-docker-compose.override.yml          # ユーザー設定（git管理外）
-drives.json          # ドライブ設定 (git管理外)
-passwords.json       # アクセス制御設定 (git管理外)
-data/                # SQLite DB + サムネイル + キャッシュ + setup_completed sentinel + restart_pending flag (git管理外)
+docker-compose.yml                    # base configuration. Do not edit.
+docker-compose.override.yml.example  # user-config template (git-tracked)
+docker-compose.override.yml          # user config (not tracked by git)
+drives.json          # drive configuration (not tracked by git)
+passwords.json       # access-control configuration (not tracked by git)
+data/                # SQLite DB + thumbnails + cache + setup_completed sentinel + restart_pending flag (not tracked by git)
 ```
 
 ## Git
 The addons within the addons directory are independent Git repositories. Therefore, they are not tracked by the main repository. When making changes, you must also commit them within the respective addon.
 
-## 開発コマンド
+## Development commands
 
 ```bash
-# 起動
+# Start
 docker compose up -d --build
 
-# Backend テスト (Docker内で実行、ローカルPython 3.14ではpydantic非対応)
+# Backend tests (run inside Docker; pydantic is not compatible with local Python 3.14)
 docker build -f backend/Dockerfile.test -t video-share-test backend/
 docker run --rm video-share-test
 
-# Frontend テスト
+# Frontend tests
 cd frontend && pnpm test
 
-# ログ確認
+# Logs
 docker compose logs -f backend
 ```
 
 ## Docker
-- backend は `expose` のみ (外部からアクセス不可)、frontend が唯一のエントリーポイント
-- backend healthcheck → frontend は `depends_on: condition: service_healthy`
-- `data/` にSQLite DB + サムネイル画像を永続化
-- **`docker-compose.yml` は編集しない**。ユーザー固有の設定（ドライブマウント・passwords.json・ポート）は `docker-compose.override.yml` に記述する
-- テンプレート: `cp docker-compose.override.yml.example docker-compose.override.yml` してから編集
-- ポート変更は `.env` に `LITLOFT_PORT=8080` を追記するだけでも可
-- 独立サービスアドオンも同様に `docker-compose.override.yml` で追加する
+- The backend is `expose`-only (not reachable from outside); the frontend is the only entry point.
+- Backend healthcheck → frontend uses `depends_on: condition: service_healthy`.
+- `data/` persists the SQLite DB and thumbnail images.
+- **Do not edit `docker-compose.yml`.** User-specific configuration (drive mounts, passwords.json, ports) goes in `docker-compose.override.yml`.
+- Template: `cp docker-compose.override.yml.example docker-compose.override.yml`, then edit.
+- For just changing the port, adding `LITLOFT_PORT=8080` to `.env` is enough.
+- Independent-service addons are added the same way through `docker-compose.override.yml`.
 
-## 更新・デプロイ
+## Update and deployment
 
-`git pull && docker compose up -d --build` で更新。ビルド失敗時は現バージョンを維持。
-`deploy/` に `post-receive` hook があるが、これは開発者向けの自動デプロイ用（一般利用では不要）。
+Update with `git pull && docker compose up -d --build`. If the build fails, the running version is kept.
+A `post-receive` hook lives under `deploy/`, but it's an auto-deploy helper for developers (not needed for general use).
 
-## 設計ドキュメント
+## Design documents
 
-詳細な設計書は `docs/superpowers/specs/` にある。
-Backend/Frontend の規約・注意点は `.claude/rules/` にある。
+Detailed design specs live under `docs/superpowers/specs/`.
+Backend/Frontend conventions and gotchas live under `.claude/rules/`.

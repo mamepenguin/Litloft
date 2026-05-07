@@ -97,6 +97,6 @@ Validation error codes are stable identifiers (`json_syntax`, `missing_field`, `
 ## Related
 
 - Spec: `docs/superpowers/specs/2026-04-30-config-gui.md`
-- Auth model: `.claude/rules/design-decisions.md` (sections "アクセス制御", "視聴履歴・プロファイル")
+- Auth model: `.claude/rules/design-decisions.md` (sections "Access control", "Watch history and profiles")
 - Backend conventions (atomic write pattern): `.claude/rules/backend-conventions.md`
 - Frontend conventions (Next.js 16 params, i18n): `.claude/rules/frontend-conventions.md`

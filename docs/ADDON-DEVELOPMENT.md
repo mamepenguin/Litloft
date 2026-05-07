@@ -515,7 +515,7 @@ When `addon` + `feature` are declared, the core checks `drives.json` before each
 
 ### Internal API
 
-For complex cases where declarative filters aren't sufficient, external services can call the core's Internal API on the Docker network. **Before adding a new Internal API endpoint, read the policy rules** at [`.claude/rules/internal-api-policy.md`](../.claude/rules/internal-api-policy.md) (R1〜R5) — most "the core needs to expose X for my addon" requests should resolve as "addon owns X locally."
+For complex cases where declarative filters aren't sufficient, external services can call the core's Internal API on the Docker network. **Before adding a new Internal API endpoint, read the policy rules** at [`.claude/rules/internal-api-policy.md`](../.claude/rules/internal-api-policy.md) (R1-R5) — most "the core needs to expose X for my addon" requests should resolve as "addon owns X locally."
 
 Base path for all routes: `http://backend:8000/api/internal`.
 

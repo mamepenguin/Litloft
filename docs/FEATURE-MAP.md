@@ -1,29 +1,29 @@
-# Litloft 機能マップ
+# Litloft feature map
 
-「このシステムに何ができるか」を俯瞰するための資料。
-内部実装の詳細（ファイル名・関数名・モジュール名など）は含めない。
+A bird's-eye view of "what this system can do".
+Internal implementation details (file names, function names, module names, etc.) are out of scope.
 
 ---
 
-## 1. 全体構成
+## 1. Big picture
 
-ブラウザからアクセスする単一のエントリーポイントの背後に本体とアドオン群が並ぶ。
-本体はファイル管理・再生・基本検索を担当し、AI・ノート・同期などの付加機能は
-アドオンとして独立して差し込む構造になっている。
+Behind a single browser-facing entry point sit the core and a set of addons.
+The core handles file management, playback, and basic search. AI, notes, sync, and other extra features
+are plugged in as independent addons.
 
 ```mermaid
 flowchart LR
-  U[ユーザー<br/>ブラウザ / PWA]
-  U --> FE[Litloft 本体<br/>ファイル一覧・再生<br/>検索・アップロード<br/>タグ・お気に入り<br/>視聴履歴]
+  U[User<br/>Browser / PWA]
+  U --> FE[Litloft core<br/>file listing & playback<br/>search & uploads<br/>tags & favorites<br/>watch history]
 
-  FE <--> D[(ドライブ<br/>家族ビデオ / 仕事 / ...)]
-  FE <--> S[(ファイル情報<br/>タグ・コメント・履歴)]
+  FE <--> D[(Drives<br/>Family videos / Work / ...)]
+  FE <--> S[(File metadata<br/>tags / comments / history)]
 
-  FE -.拡張.-> I[intelligence<br/>AI検索・要約・Ask]
-  FE -.拡張.-> K[knowledge<br/>Markdownノート<br/>Webクリップ]
-  FE -.拡張.-> DL[downloader<br/>URL取り込み]
-  FE -.拡張.-> P[podcast<br/>RSS配信]
-  FE -.拡張.-> C[cloud-sync<br/>クラウドバックアップ]
+  FE -.extension.-> I[intelligence<br/>AI search / summary / Ask]
+  FE -.extension.-> K[knowledge<br/>Markdown notes<br/>Web clippings]
+  FE -.extension.-> DL[downloader<br/>URL ingest]
+  FE -.extension.-> P[podcast<br/>RSS distribution]
+  FE -.extension.-> C[cloud-sync<br/>cloud backup]
 
   classDef core fill:#dbeafe,stroke:#2563eb
   classDef addon fill:#fef3c7,stroke:#d97706
@@ -33,130 +33,130 @@ flowchart LR
   class D,S data
 ```
 
-- **ドライブ**: コンテンツ領域の単位。各ドライブは完全に独立しており、アクセス制御・AI機能の有効/無効もドライブごとに設定する。
-- **アドオン**: 本体を拡張する独立モジュール。クローン直後の状態ではすべて無効で、必要なものだけを追加する。AI機能を使うかどうかはドライブごとに選べる。
+- **Drive**: the unit of content. Each drive is fully independent — access control and the AI on/off state are configured per drive.
+- **Addon**: an independent module that extends the core. Right after cloning, every addon is disabled; you opt in to the ones you need. Whether to use AI features is a per-drive choice.
 
 ---
 
-## 2. ユーザー動線軸マップ
+## 2. User-flow axis map
 
-「ユーザーが何をしたいか」に沿って機能を並べたマインドマップ。
-機能の抜け・重複を見るのに使う。
+A mind map laid out along "what the user wants to do".
+Use it to spot missing or duplicated features.
 
 ```mermaid
 mindmap
-  root((ユーザー動線))
-    閲覧
-      ドライブ選択
-      フォルダナビゲーション
-      ファイル一覧 Grid/List ドキュメントlazy preview付き
-      メディア再生 動画/音声/画像
-      プレビュー Text/Markdown/PDF/Office/ZIP
-      画像ビューア スワイプ/タップゾーン/見開き分割 LTR・RTL
-      視聴進度の自動復元
-    アップロード
-      ドラッグ&ドロップ
-      チャンク式の大容量対応
-      フォルダ丸ごと
-      進捗リアルタイム
-    検索発見
-      キーワード検索
-      タグ検索
-      重複検出
-      Semantic Search 意味近似
-      Ask 自然言語質問
-      Find ファイル列挙クエリ チップ編集
-    整理
-      タグ付け 単体/一括
-      プレイリスト
-      お気に入り/ピン
-      リネーム/移動 単体/一括 移動時ハッシュ照合でAIデータ引継ぎ
-      テキストファイル作成/編集
-      ゴミ箱 30日で自動削除
-      Missing 手動削除
-      AutoTags 提案/承認
-    共有コラボ
-      コメント
+  root((User flows))
+    Browse
+      Choose drive
+      Folder navigation
+      File listing Grid/List with lazy preview for documents
+      Media playback video / audio / image
+      Preview Text / Markdown / PDF / Office / ZIP
+      Image viewer swipe / tap zones / spread split LTR / RTL
+      Auto-resume of playback position
+    Upload
+      Drag & drop
+      Chunked uploads for large files
+      Whole-folder upload
+      Realtime progress
+    Search & discover
+      Keyword search
+      Tag search
+      Duplicate detection
+      Semantic Search
+      Ask (natural-language Q&A)
+      Find (file-listing query, chip editing)
+    Organize
+      Tagging single / bulk
+      Playlists
+      Favorites / pin
+      Rename / move single / bulk; hash matching carries AI data forward on move
+      Create / edit text files
+      Trash with 30-day auto-delete
+      Manual deletion of Missing
+      AutoTags suggest / approve
+    Share & collaborate
+      Comments
       Like / Dislike
-      プロファイル別の視聴履歴
-    管理
-      パスワード認証
-      ドライブ別アクセス制御
-      ダッシュボード 統計/スキャン/ヘルス
-      手動スキャン
-    AI拡張
-      AI要約 short/long
+      Per-profile watch history
+    Admin
+      Password authentication
+      Per-drive access control
+      Dashboard stats / scan / health
+      Manual scan
+    AI extensions
+      AI summary short / long
       Detailed Summary Markdown
-        出典リンク自動付与 strong/weak tier
-        単一出典がない段落は無印（ノイズ回避）
-        セクション単位の編集/revert
-      AutoTags 画像/動画/文書
-      Ask 引用付き回答
-      Transcript Refine 修正/revert
+        Auto-attached citations strong / weak tier
+        Paragraphs without a single source remain unmarked (noise avoidance)
+        Per-section edit / revert
+      AutoTags image / video / document
+      Ask with citations
+      Transcript Refine fix / revert
       Transcription Whisper
       Frame Caption BLIP
-      Knowledge ノート/Webクリップ/loft://ファイルリンク/Ask回答保存
-      Downloader URL取込
-      LoftRef 外部URLソース
-      Cloud Sync クラウドバックアップ
-      Podcast RSS配信
-    設定
-      設定ページ /settings
-        プロファイル ニックネーム
-        テーマ light/dark/system
-        言語 ja/en
-      ロック/アンロック
-      キーボードショートカット ⌘ or Ctrl
+      Knowledge notes / Web clippings / loft:// file links / save Ask answers
+      Downloader URL ingest
+      LoftRef external URL sources
+      Cloud Sync cloud backup
+      Podcast RSS feed
+    Settings
+      Settings page /settings
+        Profile nickname
+        Theme light / dark / system
+        Language ja / en
+      Lock / Unlock
+      Keyboard shortcuts ⌘ or Ctrl
 ```
 
 ---
 
-## 3. ファイル状態モデル
+## 3. File-state model
 
-ファイルは FS とユーザー操作の両方に影響を受けるため、3 つの状態を持つ。
-AI 生成データ（書き起こし・埋め込みベクトル・キャプション）は FS から再生成できないので、
-FS で一時的に見えなくなっても即削除しない設計になっている。
+A file is shaped by both the FS and user actions, so it has three states.
+AI-generated data (transcripts, embedding vectors, captions) cannot be regenerated from the FS,
+so even when a file temporarily disappears from the FS the system does not delete immediately.
 
 ```mermaid
 stateDiagram-v2
-  [*] --> Active: アップロード / スキャンで発見
-  Active --> Trash: ユーザーが削除
-  Active --> Missing: スキャン時にFSで見つからない
-  Missing --> Active: FSに再出現（復活）
-  Missing --> [*]: ユーザーが明示的にパージ
-  Trash --> Active: 復元
-  Trash --> [*]: 30日経過で自動パージ or 手動パージ
+  [*] --> Active: Upload / discovered by scan
+  Active --> Trash: User deletes
+  Active --> Missing: Not found on FS during scan
+  Missing --> Active: Reappears on FS (recovered)
+  Missing --> [*]: User explicitly purges
+  Trash --> Active: Restore
+  Trash --> [*]: Auto-purge after 30 days, or manual purge
 
   note right of Missing
-    視聴履歴・タグ・AI生成データは保持
-    自動削除されない
+    Watch history, tags, AI-generated data are kept.
+    No auto-deletion.
   end note
   note right of Trash
-    FS上のファイルはそのまま残る
-    パージ時に初めて物理削除
+    File on FS stays in place.
+    Physical delete happens only on purge.
   end note
 ```
 
 ---
 
-## 4. Intelligence アドオン 検索の仕組み
+## 4. Intelligence addon — how search works
 
-以降は技術者向けの詳細。`intelligence` アドオンは Litloft の AI 軸の中核で、
-5 チャネル並列検索とスコア融合、Ask による引用付き回答を提供する。
-外部の技術者やオンボーディング向けに、採用技術と内部フローを示す。
+Below is the engineer-facing detail. The `intelligence` addon is the heart of Litloft's AI axis,
+providing a 5-channel parallel search with score fusion and Ask-style answers with citations.
+The diagrams below describe the internal flow and the technologies used, for outside engineers and onboarding.
 
-### 4-1. インデックス時の流れ
+### 4-1. Indexing flow
 
-ファイルが Litloft にスキャンされると、webhook 経由で intelligence にタスクが流れ、
-優先度付きキュー＋種別ごとのワーカーで処理される。
+When a file is scanned by Litloft, a webhook drops a task into intelligence,
+which is processed by a priority queue plus per-kind workers.
 
 ```mermaid
 flowchart TD
-  A[Litloft スキャン完了] -->|scan-complete webhook| B[reconcile 差分抽出]
+  A[Litloft scan complete] -->|scan-complete webhook| B[reconcile diff extraction]
   B --> Q[Priority Queue]
 
   Q --> M[metadata_worker]
-  Q --> W[whisper_worker セマフォ1]
+  Q --> W[whisper_worker semaphore=1]
   Q --> C[clip_worker x N]
   Q --> T[text_content_worker]
 
@@ -168,9 +168,9 @@ flowchart TD
 
   C -->|ffmpeg + scenedetect| F[key frames]
   F -->|CLIP ViT| V2[(vec_clip)]
-  F -.BLIP 任意.-> CAP[caption] --> DB3[(fts_clip_analysis)]
+  F -.BLIP optional.-> CAP[caption] --> DB3[(fts_clip_analysis)]
 
-  T -->|PDF/Text/字幕 抽出| TS[segments]
+  T -->|extract from PDF / text / subtitles| TS[segments]
   TS -->|embed_passages| V1
   TS --> DB4[(fts_text_content)]
 
@@ -180,11 +180,11 @@ flowchart TD
   class DB1,DB2,DB3,DB4,V1,V2 db
 ```
 
-**関連ファイル**: `addons/intelligence/app/indexer.py`, `workers/whisper.py`, `workers/clip.py`, `workers/metadata.py`, `database.py`
+**Related files**: `addons/intelligence/app/indexer.py`, `workers/whisper.py`, `workers/clip.py`, `workers/metadata.py`, `database.py`
 
-### 4-2. 検索時の流れ（/search）
+### 4-2. Search flow (/search)
 
-クエリを 2 種類のベクトル化＋3 種類の FTS で並列検索し、モード別にスコア融合する。
+A query is vectorized two ways and run through three FTS indexes in parallel; scores are fused per mode.
 
 ```mermaid
 flowchart TD
@@ -200,10 +200,10 @@ flowchart TD
   Q --> S5[FTS5 text_content]
 
   S1 & S2 & S3 & S4 & S5 --> MODE{mode?}
-  MODE -->|precision UI用| P[重み付きコサイン合成<br/>厳密カットオフ]
-  MODE -->|recall RAG用| R[Weighted RRF<br/>text 1.0 / transcript 1.5 / clip 0.2]
+  MODE -->|precision for UI| P[Weighted cosine fusion<br/>strict cutoff]
+  MODE -->|recall for RAG| R[Weighted RRF<br/>text 1.0 / transcript 1.5 / clip 0.2]
 
-  P & R --> G[file-level グループ化]
+  P & R --> G[file-level grouping]
   G --> F[drive scope filter]
   F --> OUT[SearchResponse]
 
@@ -213,29 +213,29 @@ flowchart TD
   class S3,S4,S5 fts
 ```
 
-**関連ファイル**: `addons/intelligence/app/search.py`, `embedder.py`
+**Related files**: `addons/intelligence/app/search.py`, `embedder.py`
 
-### 4-3. Ask / Find の流れ（/ask, /find）
+### 4-3. Ask / Find flow (/ask, /find)
 
-`/search` の recall モードを内部で使い、Stage A-D（query decompose → personal history filter → category expand → scoped retrieve）を共通基盤として 2 系統の出力経路を持つ。
+Both reuse `/search` recall mode internally and share the Stage A-D pipeline (query decompose → personal history filter → category expand → scoped retrieve), with two output paths:
 
-- **E_ask (`POST /ask`)**: Stage A-D の retrieve 結果を LLM に流し、引用付き文章をストリーム返却（既存）
-- **E_find (`POST /find`)**: Stage A-D の retrieve 結果をそのままファイルカード列 + 透明化チップとして返却（LLM 文章生成なし、SSE なし、単発 JSON）
+- **E_ask (`POST /ask`)**: feeds the Stage A-D retrieve into the LLM and streams an answer with citations (existing).
+- **E_find (`POST /find`)**: returns the Stage A-D retrieve as a file-card list plus transparent chips (no LLM text generation, no SSE; a single JSON response).
 
-Find モードは「先週観た映画で SF っぽいのどれ？」のようなファイル列挙意図のクエリを Ask の文章回答ではなくランク付きファイルリストで返す。LLM 解釈はチップとしてユーザーに見せ、× クリックで個別軸を緩めて再 retrieve できる（ステートレス、`overrides` を再 POST するだけ）。詳細は spec [`2026-04-30-intelligence-find-mode.md`](superpowers/specs/2026-04-30-intelligence-find-mode.md)。
+Find mode handles file-listing intent ("Which of the movies I watched last week were sci-fi?") by returning a ranked file list rather than an Ask-style narrative answer. The LLM's interpretation is exposed to the user as chips; clicking × on a chip relaxes that one axis and re-retrieves (stateless — just re-POST with `overrides`). See spec [`2026-04-30-intelligence-find-mode.md`](superpowers/specs/2026-04-30-intelligence-find-mode.md) for details.
 
-以下は Ask（E_ask）のシーケンス。Find は最後の LLM Stream 以降を「retrieve 結果を JSON 整形して返却」に置き換えるだけで、citation 検証は走らない（tier 1 の retrieve hit chunk をそのまま見せる）。
+The sequence below is for Ask (E_ask). Find replaces everything from "LLM Stream" onward with "format the retrieve result as JSON and return"; citation validation does not run (the tier-1 retrieve hit chunk is shown directly).
 
-citation は必ずホワイトリスト検証でハルシネーションを防ぐ。
+Citations always go through whitelist validation to block hallucinations.
 
 ```mermaid
 flowchart TD
-  U[User Question] --> QT[Query Transform<br/>LLM でキーワード抽出]
+  U[User Question] --> QT[Query Transform<br/>extract keywords via LLM]
   QT --> RT[retrieve_with_keywords<br/>= search recall mode]
-  RT --> AF[Access Filter<br/>本体 Internal API<br/>POST /filter-file-ids]
-  AF --> CA[Context Assembly<br/>transcript ±30s / BLIP caption<br/>budget 超過分は drop]
-  CA --> PR[Prompt 構築<br/>system + file blocks + question]
-  PR --> LLM[LLM Stream<br/>AsyncOpenAI 互換]
+  RT --> AF[Access Filter<br/>core Internal API<br/>POST /filter-file-ids]
+  AF --> CA[Context Assembly<br/>transcript ±30s / BLIP caption<br/>drop overflow beyond budget]
+  CA --> PR[Prompt assembly<br/>system + file blocks + question]
+  PR --> LLM[LLM Stream<br/>AsyncOpenAI compatible]
   LLM --> SSE[SSE token stream]
   LLM --> JSON[answer + citations JSON]
   JSON --> CV{Citation Validator}
@@ -249,34 +249,34 @@ flowchart TD
   class AF,CV safe
 ```
 
-**セキュリティ 2 層**:
-1. 内部フィルタ: `access_token` cookie → 本体 `/api/internal/filter-file-ids` で権限チェック
-2. citation 検証: LLM が捏造した file_id は retriever 結果セットに無ければ drop
+**Two layers of safety**:
+1. Internal filter: `access_token` cookie → permission check via the core's `/api/internal/filter-file-ids`.
+2. Citation validation: any LLM-fabricated file_id absent from the retriever's result set is dropped.
 
-**関連ファイル**: `addons/intelligence/app/rag/service.py` (`stream_answer` for Ask, `find_files` for Find), `addons/intelligence/app/routers/rag.py` (`/ask`, `/find`), `retriever.py`, `query_transform.py`, `query_decomposer.py`, `category_expander.py`, `history_client.py`, `parser.py`, `context.py`, `prompt.py`. Frontend: `addons/intelligence/frontend/pages/find.tsx`, `FindModeSlot.tsx`, `FindChip.tsx`, `api.ts`
+**Related files**: `addons/intelligence/app/rag/service.py` (`stream_answer` for Ask, `find_files` for Find), `addons/intelligence/app/routers/rag.py` (`/ask`, `/find`), `retriever.py`, `query_transform.py`, `query_decomposer.py`, `category_expander.py`, `history_client.py`, `parser.py`, `context.py`, `prompt.py`. Frontend: `addons/intelligence/frontend/pages/find.tsx`, `FindModeSlot.tsx`, `FindChip.tsx`, `api.ts`
 
-### 4-4. 使われている構成要素まとめ
+### 4-4. Building blocks
 
-| 種別 | 採用技術 | 用途 |
+| Kind | Tech | Purpose |
 |---|---|---|
-| テキスト埋め込み | multilingual-e5 / Ruri | クエリ・文書の共通ベクトル空間 |
-| 画像埋め込み | CLIP ViT (OpenAI / llm-jp) | 画像・動画フレームの検索 |
-| 画像記述 (任意) | BLIP | auto-tags 精度向上、Ask コンテキスト |
-| 音声書き起こし | faster-whisper (CTranslate2) | transcript + タイムスタンプ |
-| フレーム抽出 | ffmpeg + scenedetect | 代表フレーム選択 |
-| ベクトル検索 | sqlite-vec (L2 距離) | 低依存で同プロセス |
-| 全文検索 | SQLite FTS5 | metadata / transcript / text_content |
-| スコア融合 | Weighted RRF / Cosine 合成 | recall / precision モード |
-| LLM | OpenAI 互換 API (ollama / vLLM / OpenAI / DeepSeek) | Ask 回答・クエリ変換 |
-| 権限境界 | 本体 Internal API + addon_proxy | 二重のアクセス制御 |
+| Text embedding | multilingual-e5 / Ruri | Shared vector space for queries and documents |
+| Image embedding | CLIP ViT (OpenAI / llm-jp) | Search over images and video frames |
+| Image description (optional) | BLIP | Improves auto-tag accuracy, augments Ask context |
+| Speech transcription | faster-whisper (CTranslate2) | Transcript with timestamps |
+| Frame extraction | ffmpeg + scenedetect | Picks representative frames |
+| Vector search | sqlite-vec (L2 distance) | In-process, low-dependency |
+| Full-text search | SQLite FTS5 | metadata / transcript / text_content |
+| Score fusion | Weighted RRF / cosine fusion | recall / precision modes |
+| LLM | OpenAI-compatible API (ollama / vLLM / OpenAI / DeepSeek) | Ask answers, query transform |
+| Permission boundary | Core Internal API + addon_proxy | Two-layer access control |
 
 ---
 
-## 使い方
+## How to use this document
 
-- **このシステムで何ができるか知りたい**: セクション 1・2 を見れば十分。
-- **AI 検索の仕組みを知りたい（技術者・オンボーディング）**: セクション 4 を参照。
-- **新機能追加時**: セクション 2（動線軸）に既存と重複がないか確認し、あれば葉を 1 つ追加する。
+- **Want to know what this system can do**: sections 1 and 2 are enough.
+- **Want to understand AI search (engineers, onboarding)**: see section 4.
+- **Adding a new feature**: check section 2 (the user-flow axis) for overlap with what already exists; if there's no overlap, add a single leaf.
 
-メンテのヒント: 構造（ブランチ）は滅多に変えない。機能を足したら葉を 1 つ追加するだけでよい。
-実装詳細は `docs/FEATURES.md` / `docs/ADDON-DEVELOPMENT.md` の側に置く。
+Maintenance tip: the structure (the branches) rarely changes. When you add a feature, just append one leaf.
+Implementation details belong in `docs/FEATURES.md` / `docs/ADDON-DEVELOPMENT.md`.

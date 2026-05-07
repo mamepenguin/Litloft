@@ -6,4 +6,4 @@ This version has breaking changes — APIs, conventions, and file structure may 
 
 # Design System
 
-UI に関わる変更（色・タイポグラフィ・radius・テーブル・MarkdownPreview・長文プロース全般）は必ずリポジトリ直下の `DESIGN.md` に従うこと。新しいトークンやスケールを追加する場合は、実装と同時に `DESIGN.md` を更新する。
+All UI-related changes (colors, typography, radius, tables, MarkdownPreview, long-form prose in general) must follow `DESIGN.md` at the repository root. When adding new tokens or scales, update `DESIGN.md` together with the implementation.

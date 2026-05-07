@@ -279,19 +279,19 @@ Search is split into a **quick launcher popup** and a dedicated **search results
 - 300ms debounce, AbortController cancels in-flight requests on query change
 - Filename + semantic hits are merged into a single relevance-sorted list (`mergeResults` + `sortMerged`); top **8** rows shown with match-type badges (filename / path / audio / video / metadata / text) and timestamp pills for transcript/clip hits
 - Click a result to jump straight to its file detail page (quick navigation preserved); click a timestamp pill to deep-link with `?t=N`
-- Press **Enter** or click "全件表示 →" to open `/drive/{drive}/search?q=...`. Results are handed off via in-memory `searchCache` (TTL 60s, keyed by drive+query+type+sceneClip) so the results page hydrates instantly without re-fetching; on cache miss it falls through to the normal fetch path
+- Press **Enter** or click "Show all →" to open `/drive/{drive}/search?q=...`. Results are handed off via in-memory `searchCache` (TTL 60s, keyed by drive+query+type+sceneClip) so the results page hydrates instantly without re-fetching; on cache miss it falls through to the normal fetch path
 - Semantic gracefully degrades to filename-only when the intelligence addon is uninstalled or `policy off` for the drive (`isSemanticSearchAvailable` gate)
 - Escape to close
 - Search history shown when query is empty
 
 **Search Results Page** (`/drive/{drive}/search`):
 - Full results rendered through the same `FolderBrowser` used by regular folders, so file preview, context menus, multi-select, batch operations, and drag selection all work identically
-- "検索: \"q\"" heading replaces the breadcrumb when in search mode
+- "Search: \"q\"" heading replaces the breadcrumb when in search mode
 - `type` / `sort` / `order` are URL-synced (`router.replace`) so refresh and deep-links preserve state
 - Addon-injected `search-modes` slot (e.g. intelligence Semantic Search, Find, Ask) renders **above** the file grid in `context: "page"` layout — richer than the popup variant, sized for grid display
 - Smart Folder save / update controls appear next to the heading
 
-### Smart Folder (保存済み検索)
+### Smart Folder (saved searches)
 - Save the current search (`q` + optional `type` + optional `sort` / `order`) as a named entry, scoped to the drive
 - Sidebar **Smart Folders** section lists saved entries; click to reopen with `?smart_folder_id=...` and the saved query
 - Right-click / long-press on a sidebar entry for Rename / Delete
@@ -322,9 +322,9 @@ Search is split into a **quick launcher popup** and a dedicated **search results
 - Feature-flagged via `features.rag` — default disabled
 
 ### Find (intelligence addon)
-- Sibling output path of Ask for **exploratory file-listing queries** like "先週観た映画で SF っぽいのどれ？"
+- Sibling output path of Ask for **exploratory file-listing queries** like "Which of the movies I watched last week were sci-fi?"
 - Reuses the same Stage A-D pipeline as Ask (query decompose → personal history filter → category expand → scoped retrieve), but **skips LLM answer generation** — returns a ranked file list with thumbnails, scores, and the retrieve hit chunk per result
-- LLM-decomposed query slots (`time_range` / `personal_scope` / `file_type_hint` / `semantic_query`) are shown as **dismissible chips**; clicking × on a chip re-POSTs with `overrides` to relax that axis (透明化, ステートレス)
+- LLM-decomposed query slots (`time_range` / `personal_scope` / `file_type_hint` / `semantic_query`) are shown as **dismissible chips**; clicking × on a chip re-POSTs with `overrides` to relax that axis (transparent, stateless)
 - Endpoint: `POST /api/addons/intelligence/find` — single JSON response (not SSE; no LLM streaming)
 - No new Internal API endpoints — reuses existing `/api/internal/viewer-history` and `/filter-file-ids`
 - Same gating as Ask: `features.rag` must be on, drive scope via `X-HV-Drive` header

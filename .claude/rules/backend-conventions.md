@@ -1,29 +1,29 @@
-# Backend 規約
+# Backend Conventions
 
-## config インポート
-`app.config` はモジュール参照で使う。テスト時のパス差し替えが効かなくなるため、直接importは禁止:
+## config import
+Use `app.config` as a module reference. Direct imports break test-time path patching, so they are prohibited:
 ```python
 # CORRECT
 import app.config as config
 config.DATA_DIR
 
-# WRONG - テスト時にパッチが効かない
+# WRONG - test-time patches don't take effect
 from app.config import DATA_DIR
 ```
 
-## セキュリティパターン
-- パストラバーサル防止: IDベースでDBからfile_path取得 → `os.path.realpath()` で正規化 → base_dir配下か検証
-- スキャン排他制御: `asyncio.Lock` で同時実行防止、ロック中は 409 Conflict
+## Security patterns
+- Path traversal prevention: look up `file_path` from the DB by ID → normalize with `os.path.realpath()` → verify it lives under `base_dir`.
+- Scanner exclusion: prevent concurrent runs with `asyncio.Lock`; while held, return 409 Conflict.
 
-## サムネイル生成
-- 動画: ffmpegの`thumbnail=300`フィルタで代表フレーム自動選択（イントロ10%スキップ）
-- 画像: Pillowリサイズ。HEICはffmpegではなくPillowで生成
-- いずれも320x180 JPEG
+## Thumbnail generation
+- Video: ffmpeg's `thumbnail=300` filter picks a representative frame automatically (skipping the first 10% intro).
+- Image: resize via Pillow. HEIC must be generated through Pillow rather than ffmpeg.
+- All thumbnails are 320x180 JPEG.
 
-## 同時実行制御パターン
-- スプライトシート生成: `asyncio.Semaphore(2)` + in-progressセットで重複防止
-- ZIP展開: `asyncio.Semaphore(3)` で同時展開制限
-- 原子的ファイル書き出し: `.tmp` → `os.replace()` パターン
+## Concurrency control patterns
+- Sprite sheet generation: `asyncio.Semaphore(2)` plus an in-progress set to prevent duplication.
+- ZIP extraction: `asyncio.Semaphore(3)` to cap concurrent extractions.
+- Atomic file writes: write to `.tmp` then `os.replace()`.
 
-## 禁止事項
-- LLMや文字列処理に言語依存のロジックを含めてはならない（"タイトル"で検索してタイトルを検出するなど）
+## Prohibitions
+- LLM and string-processing logic must not embed language-dependent rules (e.g. searching for the literal word "タイトル" to detect a title).

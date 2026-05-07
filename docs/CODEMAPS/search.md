@@ -2,101 +2,101 @@
 
 **Last Updated:** 2026-05-03
 **Specs:**
-- [docs/superpowers/specs/2026-05-01-search-ui-rich-redesign.md](../superpowers/specs/2026-05-01-search-ui-rich-redesign.md) — 2 層 UX 原典
-- [docs/superpowers/specs/2026-05-02-search-results-unification-phase3.md](../superpowers/specs/2026-05-02-search-results-unification-phase3.md) — 結果ページ 1 list 統合
+- [docs/superpowers/specs/2026-05-01-search-ui-rich-redesign.md](../superpowers/specs/2026-05-01-search-ui-rich-redesign.md) — origin of the two-layer UX
+- [docs/superpowers/specs/2026-05-02-search-results-unification-phase3.md](../superpowers/specs/2026-05-02-search-results-unification-phase3.md) — unification of the results page into a single list
 - [docs/superpowers/specs/2026-05-03-search-popup-semantic-merge.md](../superpowers/specs/2026-05-03-search-popup-semantic-merge.md) — popup semantic merge + cache handoff
 
-**Scope:** 検索の 2 層 UX。`Cmd/Ctrl+Shift+F` のクイックランチャーポップアップ（filename + semantic 並列マージ）と、`/drive/{drive}/search` の仮想フォルダ風結果ページ（ポップアップからの cache hydrate を含む）。Smart Folder（保存済み検索）の DB / API / UI。intelligence アドオンの `search-modes` スロットの page-context 拡張。
+**Scope:** the two-layer search UX. The `Cmd/Ctrl+Shift+F` quick-launcher popup (filename + semantic merged in parallel), and the virtual-folder-style results page at `/drive/{drive}/search` (including cache hydrate from the popup). The Smart Folder (saved searches) DB / API / UI. Page-context extensions for the intelligence addon's `search-modes` slot.
 
-## アーキテクチャ
+## Architecture
 
 ```
-ユーザー入力
+User input
   │
   ▼
-GlobalSearch (popup)               ── filename + semantic 並列 → mergeResults → 上位 8 件
+GlobalSearch (popup)               ── filename + semantic in parallel → mergeResults → top 8
   ├─ filename:  getDriveFiles({search, limit: 8}, {signal})        ← 300ms debounce
   ├─ semantic:  isSemanticSearchAvailable(drive)
   │             → fetchSemanticHits(query, drive, {limit: 8, signal})
-  │             （アドオン無し / policy off は no-op で空配列）
-  ├─ MergedResultItem 行: サムネ + パス + match badges + timestamp pills
+  │             (no-op empty array when the addon is absent / policy off)
+  ├─ MergedResultItem row: thumbnail + path + match badges + timestamp pills
   ├─ writeSearchCache({drive, query, type, sceneClip}, {filenameMatches, semanticHits, filenameTotal})
-  ├─ クリック → /drive/{drive}/files/{id}                  （クイックナビ、従来通り）
-  └─ Enter / 「全件表示 →」
+  ├─ click → /drive/{drive}/files/{id}                  (quick-nav, unchanged)
+  └─ Enter / "Show all →"
         │
         ▼
 /drive/{drive}/search?q=...       ── SearchPage
         │
         ▼
 FolderBrowser (searchQuery=q)
-  ├─ Breadcrumb の代わりに「検索: "q"」見出し + SmartFolderSaveButton
+  ├─ "Search: \"q\"" heading + SmartFolderSaveButton replace the breadcrumb
   ├─ <AddonSlot id="search-modes" props={{ context: "page", ... }} />
   │     intelligence: SemanticSearchSlot / FindModeSlot / AskSearchMode
-  └─ FileGrid (= 通常フォルダと同じ。プレビュー / 右クリック / 複数選択 / バッチが効く)
+  └─ FileGrid (= same as a regular folder; preview / right-click / multi-select / batch all work)
         │
         ▼
 useFolderFiles({ searchQuery })
-  ├─ mount 時に readSearchCache(...) → hit なら filenameMatches/total/semanticHits を初期 state に注入（fetch スキップ）
-  ├─ miss なら従来通り getDriveFiles + fetchSemanticHits
-  └─ hit でも semantic は revalidate（stale-while-revalidate）
+  ├─ on mount, readSearchCache(...) → on hit, inject filenameMatches/total/semanticHits into initial state (skip fetch)
+  ├─ on miss, fall through to the normal getDriveFiles + fetchSemanticHits path
+  └─ even on hit, semantic is revalidated (stale-while-revalidate)
         │
         ▼
 GET /api/drives/{drive}/files?search=q&type=&sort=&order=&page=&limit=
 ```
 
-Smart Folder は `/drive/{drive}/search?q=...&smart_folder_id=...` の形で URL に閉じ、サイドバーから呼び出される。
+Smart Folders are self-contained in `/drive/{drive}/search?q=...&smart_folder_id=...` URLs and reached from the sidebar.
 
-### Popup → 結果ページ handoff の理由
+### Why the popup → results page handoff
 
-Phase 3 で結果ページが filename + semantic を 1 list に統合済み（`useFolderFiles` 内で `fetchSemanticHits` を直接呼び `mergeResults` + `sortMerged`）。ポップアップでも同じ統合を行うことで体感遅延を消し、`searchCache`（TTL 60s, partial write 対応）で再フェッチを省く。本体↔アドオン依存規律は維持される: popup も結果ページも intelligence の HTTP routes を `frontend/src/lib/semanticSearch.ts` の薄いラッパー経由で呼び出すのみで、アドオン slot 経由のデータパイプは不要（`semanticSearch.ts` 冒頭コメントに「HTTP-routes は addon の公開契約」と明記済み）。
+In Phase 3, the results page already merged filename + semantic into one list (`useFolderFiles` calls `fetchSemanticHits` directly and runs `mergeResults` + `sortMerged`). Doing the same merge in the popup eliminates perceived latency, and `searchCache` (TTL 60 s, partial-write safe) avoids a second fetch. The core/addon dependency rule still holds: the popup and the results page both call intelligence's HTTP routes only through the thin wrapper in `frontend/src/lib/semanticSearch.ts`, with no addon-slot data pipe required (the leading comment in `semanticSearch.ts` states that "HTTP routes are the addon's public contract").
 
-2026-05-01 spec の「semantic を popup に出さない」判断は**「結果ページが 2 list 並立だった頃の前提」**に依存していたため、Phase 3 統合により前提が消えた段階で反転（spec `2026-05-03-search-popup-semantic-merge`）。
+The 2026-05-01 spec's "do not surface semantic in the popup" decision **rested on the assumption that the results page had two parallel lists**. Phase 3 collapsed that into one, so the assumption disappeared and the decision was reversed (spec `2026-05-03-search-popup-semantic-merge`).
 
 ## Frontend
 
 | Path | Purpose |
 |---|---|
-| `frontend/src/components/GlobalSearch.tsx` | クイックランチャーポップアップ。filename + semantic を AbortController 付きで並列発火 → `mergeResults` + `sortMerged("relevance","desc")` で 1 list 化 → 上位 8 件 (`POPUP_LIMIT`) を `MergedResultItem` でレンダ。結果は `searchCache` に書き込み。Enter で `router.push('/drive/{drive}/search?q=...')`、結果末尾に「全件表示 →」リンク。`AddonSlot` / `FilterTabs` は呼ばない（slot は結果ページのみ） |
-| `frontend/src/components/search/MergedResultItem.tsx` | popup 用統合 list の行 component。サムネ + タイトル + パス + match badge 行（filename / path / audio / video / metadata / text）+ timestamp pill 行（transcript / clip 時のみ最大 5 個）。pill クリックで `?t=N` deep-link、行クリックで file detail へ |
-| `frontend/src/components/search/__tests__/MergedResultItem.test.tsx` | filename only / semantic only / 両方ヒット / クリック遷移 / timestamp pill の検証 |
-| `frontend/src/lib/searchCache.ts` | popup → 結果ページの handoff 用 in-memory cache。`Map<string, SearchCacheEntry>` + TTL 60s。key = `{drive}::{query}::{type ?? "all"}::{scene ? 1 : 0}`。partial write 対応（filename と semantic はタイミングが違うため、片方ずつ書いても他方を消さない）。subscribe API なし（popup は自前 state、結果ページは初期 hydrate のみ） |
-| `frontend/src/lib/searchCache.test.ts` | TTL / partial write / read / key 同一性 |
-| `frontend/src/lib/searchMerge.ts` | filename + semantic の merge / sort（既存、popup と結果ページで共通使用） |
-| `frontend/src/lib/semanticSearch.ts` | intelligence の semantic search HTTP routes 薄ラッパー。`isSemanticSearchAvailable(drive)`、`fetchSemanticHits(query, drive, {limit?, signal?})`。冒頭コメントに「HTTP routes は addon の公開契約」明記。AbortSignal 対応（2026-05-03） |
-| `frontend/src/lib/api.ts` | `getDriveFiles(drive, params, {signal?})` が AbortSignal を受領（2026-05-03 拡張）。Smart Folder CRUD は別関数 |
-| `frontend/src/app/drive/[name]/search/page.tsx` | 検索結果ページのルート。`useSearchParams` から `q` / `type` / `sort` / `order` / `smart_folder_id` を読み、`FolderBrowser` に渡すだけの薄いラッパー |
-| `frontend/src/components/FolderBrowser.tsx` | 既存の汎用ブラウザ。`searchQuery` / `typeFilter` / `smartFolderId` プロップを受ける。`searchQuery` セット時は Breadcrumb を隠し「検索: "q"」見出しと `<AddonSlot id="search-modes" props={{ context: "page", ... }} />` を上部に描画。FileGrid は通常フォルダと共有 |
-| `frontend/src/components/folder/useFolderFiles.ts` | データフェッチ。`searchQuery` セット時は mount で `readSearchCache` し、hit なら `useInfiniteScroll` の initial に `filenameMatches`/`filenameTotal`/page=1 を注入し `semanticHits` も初期 state にセット（fetch スキップ）。miss なら従来通り fetch。hit でも semantic は revalidate |
-| `frontend/src/components/SmartFolderSaveButton.tsx` | 「検索: ...」見出し横のボタン。`smart_folder_id` URL パラメータ未指定なら「★ Smart Folder に保存」、指定済みなら「Saved: {name}」+ Update / Rename / Delete ドロップダウン |
-| `frontend/src/components/SmartFolderSaveDialog.tsx` | 名前入力ダイアログ（POST 用） |
-| `frontend/src/components/SidebarSmartFoldersSection.tsx` | サイドバーの「スマートフォルダ」セクション。0 件時は自動的に非表示。右クリック / 長押しで Rename / Delete |
-| `frontend/src/hooks/useSmartFolders.ts` | CRUD + ドライブスコープのキャッシュ |
-| `frontend/src/test/setup.ts` | Vitest setup。2026-05-03 で `globalThis.jest = vi` polyfill 追加（fake timers + testing-library `waitFor` の互換のため） |
-| `frontend/src/components/__tests__/GlobalSearch.test.tsx` | popup の merge シナリオ（filename only / semantic only / 両方ヒット / availability false）、cache 書き込み spy、AbortController による前リクエスト中断、Enter で push の検証 |
-| `frontend/src/components/__tests__/SmartFolderSaveButton.test.tsx` | 10 tests: save / saved / update / rename / delete モードの状態遷移 |
-| `frontend/src/components/__tests__/SidebarSmartFoldersSection.test.tsx` | 8 tests: 一覧、空時非表示、コンテキストメニュー |
+| `frontend/src/components/GlobalSearch.tsx` | Quick-launcher popup. Fires filename + semantic in parallel with AbortController → unifies into one list via `mergeResults` + `sortMerged("relevance","desc")` → renders the top 8 (`POPUP_LIMIT`) using `MergedResultItem`. Writes results to `searchCache`. Enter does `router.push('/drive/{drive}/search?q=...')`; appends a "Show all →" link at the end of the result list. Does not call `AddonSlot` / `FilterTabs` (the slot is for the results page only). |
+| `frontend/src/components/search/MergedResultItem.tsx` | Row component for the popup's unified list. Thumbnail + title + path + match-badge row (filename / path / audio / video / metadata / text) + timestamp-pill row (only for transcript / clip, up to 5). Pill click does a `?t=N` deep link; row click goes to the file detail page. |
+| `frontend/src/components/search/__tests__/MergedResultItem.test.tsx` | Verifies filename only / semantic only / both / click navigation / timestamp pills. |
+| `frontend/src/lib/searchCache.ts` | In-memory cache for the popup → results page handoff. `Map<string, SearchCacheEntry>` + TTL 60 s. Key = `{drive}::{query}::{type ?? "all"}::{scene ? 1 : 0}`. Partial-write safe (filename and semantic arrive at different times, so writing one side never erases the other). No subscribe API (the popup keeps its own state; the results page uses cache only as initial hydrate). |
+| `frontend/src/lib/searchCache.test.ts` | TTL / partial write / read / key identity. |
+| `frontend/src/lib/searchMerge.ts` | filename + semantic merge / sort (preexisting; shared by the popup and the results page). |
+| `frontend/src/lib/semanticSearch.ts` | Thin wrapper over intelligence's semantic-search HTTP routes. Exposes `isSemanticSearchAvailable(drive)` and `fetchSemanticHits(query, drive, {limit?, signal?})`. Leading comment makes explicit that "HTTP routes are the addon's public contract". AbortSignal-aware (2026-05-03). |
+| `frontend/src/lib/api.ts` | `getDriveFiles(drive, params, {signal?})` accepts an AbortSignal (extended 2026-05-03). Smart Folder CRUD lives in separate functions. |
+| `frontend/src/app/drive/[name]/search/page.tsx` | Route for the search results page. Reads `q` / `type` / `sort` / `order` / `smart_folder_id` from `useSearchParams` and passes them through to `FolderBrowser` — a thin wrapper. |
+| `frontend/src/components/FolderBrowser.tsx` | The shared generic browser. Accepts the `searchQuery` / `typeFilter` / `smartFolderId` props. When `searchQuery` is set, it hides the breadcrumb and renders the "Search: \"q\"" heading plus `<AddonSlot id="search-modes" props={{ context: "page", ... }} />` at the top. The FileGrid is shared with regular folders. |
+| `frontend/src/components/folder/useFolderFiles.ts` | Data-fetching hook. With `searchQuery` set, it calls `readSearchCache` on mount; on hit, it seeds `useInfiniteScroll`'s initial state with `filenameMatches` / `filenameTotal` / page=1 and primes `semanticHits` (fetch is skipped). On miss, it fetches normally. Even on hit, semantic is revalidated. |
+| `frontend/src/components/SmartFolderSaveButton.tsx` | The button next to the "Search: ..." heading. With no `smart_folder_id` URL param, it shows "★ Save as Smart Folder"; with one, it shows "Saved: {name}" plus an Update / Rename / Delete dropdown. |
+| `frontend/src/components/SmartFolderSaveDialog.tsx` | Name-entry dialog (used for POST). |
+| `frontend/src/components/SidebarSmartFoldersSection.tsx` | The "Smart Folders" sidebar section. Auto-hides at zero entries. Right-click / long-press for Rename / Delete. |
+| `frontend/src/hooks/useSmartFolders.ts` | CRUD plus a drive-scoped cache. |
+| `frontend/src/test/setup.ts` | Vitest setup. As of 2026-05-03, adds a `globalThis.jest = vi` polyfill (for fake-timers / testing-library `waitFor` compatibility). |
+| `frontend/src/components/__tests__/GlobalSearch.test.tsx` | Popup merge scenarios (filename only / semantic only / both / availability false), spies on cache writes, verifies AbortController cancellation of the prior request, and verifies Enter triggers a push. |
+| `frontend/src/components/__tests__/SmartFolderSaveButton.test.tsx` | 10 tests: state transitions across save / saved / update / rename / delete modes. |
+| `frontend/src/components/__tests__/SidebarSmartFoldersSection.test.tsx` | 8 tests: listing, hidden when empty, context menu. |
 
 ## Backend
 
 | Path | Purpose |
 |---|---|
-| `backend/app/database.py` | Phase 11 マイグレーション: `smart_folders` テーブル作成 |
-| `backend/app/models.py` | `SmartFolder` ORM モデル |
-| `backend/app/schemas.py` | `SmartFolderCreate` / `SmartFolderUpdate` / `SmartFolderResponse` Pydantic スキーマ |
-| `backend/app/routers/smart_folders.py` | `/api/drives/{drive}/smart-folders` の CRUD（GET / POST / PATCH / DELETE）。`require_drive_access` 配下、locked drive は 404、cross-drive は wrong-drive 404 |
-| `backend/tests/test_smart_folders.py` | 17 tests: CRUD 全パターン、drive 越境ブロック、locked → 404、`viewer_id` の write-only 仕様、同名重複作成許可 |
+| `backend/app/database.py` | Phase 11 migration: creates the `smart_folders` table. |
+| `backend/app/models.py` | The `SmartFolder` ORM model. |
+| `backend/app/schemas.py` | `SmartFolderCreate` / `SmartFolderUpdate` / `SmartFolderResponse` Pydantic schemas. |
+| `backend/app/routers/smart_folders.py` | CRUD for `/api/drives/{drive}/smart-folders` (GET / POST / PATCH / DELETE). Sits under `require_drive_access`; locked drives return 404; cross-drive access returns wrong-drive 404. |
+| `backend/tests/test_smart_folders.py` | 17 tests: every CRUD path, cross-drive blocking, locked → 404, the `viewer_id` write-only contract, allowing duplicate names. |
 
-## Smart Folder DB スキーマ
+## Smart Folder DB schema
 
 ```sql
 CREATE TABLE smart_folders (
   id TEXT PRIMARY KEY,                       -- nanoid
-  drive TEXT NOT NULL,                       -- ドライブ名（孤立行は許容）
-  viewer_id TEXT,                            -- 作成者の viewer_id（NULL 許容）
-  name TEXT NOT NULL,                        -- 表示名
-  query TEXT NOT NULL,                       -- 検索クエリ
+  drive TEXT NOT NULL,                       -- drive name (orphan rows allowed)
+  viewer_id TEXT,                            -- creator's viewer_id (nullable)
+  name TEXT NOT NULL,                        -- display name
+  query TEXT NOT NULL,                       -- search query
   file_type TEXT,                            -- 'video' | 'image' | 'audio' | 'document' | NULL
-  sort_by TEXT,                              -- ソートフィールド（NULL = デフォルト）
+  sort_by TEXT,                              -- sort field (NULL = default)
   sort_order TEXT,                           -- 'asc' | 'desc' | NULL
   created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
   updated_at DATETIME
@@ -104,74 +104,74 @@ CREATE TABLE smart_folders (
 CREATE INDEX idx_smart_folders_drive ON smart_folders(drive);
 ```
 
-### viewer_id の扱い
+### How `viewer_id` is handled
 
-- `lit_viewer` cookie が存在する場合は SHA-256 prefix を保存、未設定なら NULL
-- **list クエリでは viewer_id を WHERE 句で使わない**（現状 UX: ドライブ内で共有）
-- 将来「自分の Smart Folder のみ表示」トグルを追加するときに既存データへ後付けできるよう、書き込み時点で記録だけしておく forward-compat 措置
-- 詳細は `.claude/rules/internal-api-policy.md` の R4（write asymmetry）と矛盾しない設計（コアテーブル、コア UI が読む）
+- When the `lit_viewer` cookie is present, store its SHA-256 prefix; when absent, store NULL.
+- **List queries do not use `viewer_id` in the WHERE clause** (current UX: shared within the drive).
+- This is a forward-compat measure: the value is recorded at write time so a future "show only my Smart Folders" toggle can be retrofitted onto existing data.
+- The design does not violate `.claude/rules/internal-api-policy.md` R4 (write asymmetry): the table is core, and the core UI reads it.
 
 ## API Endpoints
 
-すべて `require_drive_access` 配下。drive スコープのアクセス制御ルールに従う。
+All sit under `require_drive_access` and follow the drive-scope access-control rules.
 
 | Method | Path | Purpose |
 |---|---|---|
-| GET | `/api/drives/{drive}/smart-folders` | ドライブ内 Smart Folder 一覧 |
-| POST | `/api/drives/{drive}/smart-folders` | 作成 `{ name, query, file_type?, sort_by?, sort_order? }` |
-| PATCH | `/api/drives/{drive}/smart-folders/{id}` | 部分更新 |
-| DELETE | `/api/drives/{drive}/smart-folders/{id}` | 削除 |
+| GET | `/api/drives/{drive}/smart-folders` | List Smart Folders inside the drive. |
+| POST | `/api/drives/{drive}/smart-folders` | Create. `{ name, query, file_type?, sort_by?, sort_order? }` |
+| PATCH | `/api/drives/{drive}/smart-folders/{id}` | Partial update. |
+| DELETE | `/api/drives/{drive}/smart-folders/{id}` | Delete. |
 
-### Drive スコープルール
+### Drive-scope rules
 
-- **Locked drive**: API は 404 を返す（403 ではなく存在自体を隠す `.claude/rules/design-decisions.md` 「アクセス制御」）
-- **Cross-drive**: ドライブ A の `id` をドライブ B のパスで触ろうとしても 404
-- **同名重複作成**: 許可（ID は別、UI で区別）
-- ドライブ削除と Smart Folder の削除は同期しない（孤立行を許容）。drives.json から消えた drive 名で作られた Smart Folder は API レスポンスから除外される
+- **Locked drive**: API returns 404 (existence is hidden, not 403; see `.claude/rules/design-decisions.md` "Access control").
+- **Cross-drive**: trying to touch drive A's `id` through drive B's path returns 404.
+- **Duplicate names**: allowed (different IDs; the UI distinguishes them).
+- Drive deletion does not cascade to Smart Folders (orphan rows are allowed). Smart Folders that point at a drive removed from `drives.json` are filtered out of API responses.
 
-## URL コントラクト
+## URL contract
 
 ```
 /drive/{drive}/search?q={query}&type={file_type}&sort={field}&order={asc|desc}&smart_folder_id={id}
 ```
 
-| パラメータ | 必須 | 用途 |
+| Parameter | Required | Purpose |
 |---|---|---|
-| `q` | Yes | 検索クエリ |
+| `q` | Yes | Search query. |
 | `type` | No | `video` / `image` / `audio` / `document` |
-| `sort` | No | ソートフィールド（未指定 = デフォルト） |
+| `sort` | No | Sort field (omitted = default). |
 | `order` | No | `asc` / `desc` |
-| `smart_folder_id` | No | この URL が Smart Folder 由来であることを示す（ボタンを Update / Rename / Delete モードに切り替える） |
+| `smart_folder_id` | No | Marks the URL as originating from a Smart Folder (switches the button to Update / Rename / Delete mode). |
 
-`type` / `sort` / `order` の変更は `router.replace`（履歴に追加しない）。`q` の変更は `router.push`（戻るで前のクエリに戻れる）。
+Changes to `type` / `sort` / `order` use `router.replace` (no history entry). Changes to `q` use `router.push` (so Back returns to the previous query).
 
-## Intelligence アドオン統合
+## Intelligence addon integration
 
-`search-modes` スロットは popup と page の両 context をサポート。
+The `search-modes` slot supports both the popup and page contexts.
 
 | Path | Purpose |
 |---|---|
-| `addons/intelligence/frontend/src/components/SemanticSearchSlot.tsx` | `context: "popup" \| "page"` プロップ（既定 `"popup"`、後方互換）。`page` ではグリッドにふさわしいカードレイアウト、`popup` では従来のコンパクト縦積み |
-| `addons/intelligence/frontend/src/components/FindModeSlot.tsx` | 同上。Find モードの page-context レイアウト対応 |
-| `addons/intelligence/manifest.json` | `slots["search-modes"]` に `semantic-search` / `ask` / `find-mode` を登録 |
+| `addons/intelligence/frontend/src/components/SemanticSearchSlot.tsx` | Accepts a `context: "popup" \| "page"` prop (default `"popup"`, back-compat). For `page`, renders a card layout suited to the grid; for `popup`, the original compact vertical stack. |
+| `addons/intelligence/frontend/src/components/FindModeSlot.tsx` | Same pattern. Find mode supports the page-context layout. |
+| `addons/intelligence/manifest.json` | Registers `semantic-search` / `ask` / `find-mode` under `slots["search-modes"]`. |
 
-ポップアップ側からは Phase 3 で `AddonSlot` 呼び出しを撤去したため、`search-modes` スロットは検索結果ページ（context="page"）でのみレンダリングされる。intelligence 未インストール環境では `AddonSlot` が何も描画しないだけで、page も popup も正常に動く。
+Phase 3 removed the `AddonSlot` call from the popup, so the `search-modes` slot only renders on the search results page (context="page"). When intelligence is not installed, `AddonSlot` simply renders nothing; both the page and the popup work normally.
 
-詳細なスロットメカニズムは `docs/ADDON-DEVELOPMENT.md` の "UI Slot System" を参照。`context` プロップは page で richer なレイアウトを返すための 1 ビットフラグであり、wire 形状の変更ではない（後方互換維持）。
+For the slot mechanism in detail, see "UI Slot System" in `docs/ADDON-DEVELOPMENT.md`. The `context` prop is a single bit that lets the slot return a richer layout on the page; it is not a wire-shape change (back-compat is preserved).
 
-## 関連ルール
+## Related rules
 
-- ドライブ = セキュリティ境界（`.claude/rules/design-decisions.md` 「ドライブ」）。Smart Folder もドライブ単位、横断不可
-- `passwords.json` 未配置時は drive スコープ制御が graceful degradation（全公開）
-- アドオンの `search-modes` スロットは fail-open（intelligence 未インストールで何も描画しないだけ）
+- Drive = security boundary (`.claude/rules/design-decisions.md` "Drives"). Smart Folders are also per-drive — no crossover.
+- When `passwords.json` is absent, drive-scope control gracefully degrades (everything public).
+- The `search-modes` slot is fail-open (when intelligence is not installed, it simply renders nothing).
 
 ## Related
 
 - Specs:
-  - `docs/superpowers/specs/2026-05-01-search-ui-rich-redesign.md` (2 層 UX 原典)
-  - `docs/superpowers/specs/2026-05-02-search-results-unification-phase3.md` (結果ページ 1 list 統合)
+  - `docs/superpowers/specs/2026-05-01-search-ui-rich-redesign.md` (origin of the two-layer UX)
+  - `docs/superpowers/specs/2026-05-02-search-results-unification-phase3.md` (results-page unification into one list)
   - `docs/superpowers/specs/2026-05-03-search-popup-semantic-merge.md` (popup semantic merge + cache handoff)
 - Slot system: `docs/ADDON-DEVELOPMENT.md` "UI Slot System"
-- Drive policy: `.claude/rules/design-decisions.md` "ドライブ" / "アクセス制御"
-- Internal API policy（Smart Folder は core write が正当な理由）: `.claude/rules/internal-api-policy.md` R1 / R4
-- Hako: `5rzHwstzWuhtYn6olkz2Y` (popup semantic 復活の判断根拠 — 前提反転), `C6TXG5dX4chBj5TnmCiTO` (`searchCache` 設計), `tUEIFDp-0k-S-fik8jZa1` (snapshot 汚染バグの教訓 — searchCache が `searchQuery` を key に含むので folder snapshot とは独立)
+- Drive policy: `.claude/rules/design-decisions.md` "Drives" / "Access control"
+- Internal API policy (why a core write is justified for Smart Folders): `.claude/rules/internal-api-policy.md` R1 / R4
+- Hako: `5rzHwstzWuhtYn6olkz2Y` (rationale for re-introducing semantic in the popup — assumption inversion), `C6TXG5dX4chBj5TnmCiTO` (`searchCache` design), `tUEIFDp-0k-S-fik8jZa1` (lessons from the snapshot-pollution bug — `searchCache` keys on `searchQuery`, so it stays independent from folder snapshots)

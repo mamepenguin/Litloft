@@ -1,157 +1,157 @@
-# 設計ルール
+# Design rules
 
-コードを編集するときに必ず守るべき不変のルール。過去の経緯ではなく「今後もこうする」宣言として読むこと。一般的な命名規約やパターンは `backend-conventions.md` / `frontend-conventions.md` にある。
+Invariant rules to follow whenever you edit code. Read these as a "this is how we will keep doing it" declaration, not as a record of past circumstances. General naming conventions and patterns live in `backend-conventions.md` / `frontend-conventions.md`.
 
-## アクセス制御
+## Access control
 
-- 保護ドライブが locked の場合は API 応答から完全除外する。403 ではなく 404 を返し、存在自体を隠す
-- `/unlock` は UI 上にリンクを置かない。URL 直打ちのみでアクセスさせる
-- `passwords.json` 未配置時は全ドライブ公開（graceful degradation）。エラーにしない
-- `passwords.json` を使う構成では `docker-compose.override.yml` の backend volumes に `./passwords.json:/app/passwords.json:ro` を追加する（`docker-compose.yml` は編集しない）
+- When a protected drive is locked, exclude it from API responses entirely. Return 404 (not 403) so its existence stays hidden.
+- Do not link to `/unlock` from the UI. It is reachable only by typing the URL directly.
+- When `passwords.json` is absent, every drive is public (graceful degradation). Do not raise errors.
+- For setups using `passwords.json`, add `./passwords.json:/app/passwords.json:ro` to the backend volumes in `docker-compose.override.yml` (do not edit `docker-compose.yml`).
 
-## ドライブ
+## Drives
 
-- **ドライブはセキュリティ境界**。ドライブ横断の検索・お気に入り・タグ集計などの機能を作らない
-- お気に入り等の特別ビューは `?view=<name>` クエリで表現する（フォルダ名との衝突を避ける）
-- ドライブ設定は `drives.json`（DB 外）で管理する。変更はコンテナ再起動で反映
+- **A drive is a security boundary.** Do not build cross-drive features such as cross-drive search, favorites, or tag aggregation.
+- Special views like favorites are expressed via the `?view=<name>` query (to avoid clashing with folder names).
+- Drive configuration lives in `drives.json` (outside the DB). Changes take effect on container restart.
 
-## ファイル状態（Active / Missing / Trash）
+## File state (Active / Missing / Trash)
 
-3 状態を `deleted_at` と `missing_since` の 2 カラムで表現し、両者は相互排他:
+The three states are encoded in two columns, `deleted_at` and `missing_since`, which are mutually exclusive:
 
-| 状態 | `deleted_at` | `missing_since` | 自動パージ |
+| State | `deleted_at` | `missing_since` | Auto-purge |
 |---|---|---|---|
 | Active | NULL | NULL | - |
-| Missing | NULL | SET | なし |
-| Trash | SET | NULL | 30 日 |
+| Missing | NULL | SET | none |
+| Trash | SET | NULL | 30 days |
 
-- ファイル一覧系クエリでは必ず `app.models.active_file_filter()` を使う。`deleted_at.is_(None)` を直書きしない
-- `restore_file()` は `deleted_at` と `missing_since` を両方 NULL に戻す（out-of-band 編集や将来のバグに対する safety net）
-- scanner はソフトデリート済みファイルをスキップする（missing 扱いにしない）
+- File-listing queries must always go through `app.models.active_file_filter()`. Do not write `deleted_at.is_(None)` directly.
+- `restore_file()` clears both `deleted_at` and `missing_since` (a safety net for out-of-band edits and future bugs).
+- The scanner skips soft-deleted files (does not flip them to missing).
 
-## Missing の取り扱い
+## Handling missing files
 
-DB は FS のキャッシュではなく、FS から再生成不可能なデータ（視聴履歴・コメント・タグ・文字起こし・embedding）を保持する独立した情報源として扱う。
+Treat the DB not as an FS cache, but as an independent source of truth that holds data which cannot be regenerated from the filesystem (watch history, comments, tags, transcripts, embeddings).
 
-- FS に無い active ファイルは削除せず `missing_since = now` をセットして `files.missing` を発行する
-- 同パス再出現で `missing_since = NULL` + `files.recovered` を発行する
-- `drive_path.exists() == False` のとき scanner は早期 return する（マウント障害で全件 missing 化させない）
-- 同パスへの upload は missing レコードを復活更新する（新規 INSERT しない、UNIQUE 制約回避）
-- missing に対して stream は 410 Gone、GET と変更系は 404、サムネイルのみ配信可
-- `files.purged` はユーザー明示の完全削除時のみ発行する。scanner からは発行しない
-- missing のサムネイルは残す（復活時に再利用する）
-- missing の自動パージはしない。ユーザーが明示的に削除するまで永久保持
-- `purge_all_missing` は 200 件ずつチャンク commit し、各バッチごとに webhook を発行する
+- An active file that is no longer present on the FS is not deleted; set `missing_since = now` and emit `files.missing`.
+- When the same path reappears, set `missing_since = NULL` and emit `files.recovered`.
+- If `drive_path.exists() == False`, the scanner returns early (so a mount failure does not flip every file to missing).
+- An upload to the same path revives the missing record (do not INSERT a new row; this avoids the UNIQUE constraint).
+- For missing files: stream returns 410 Gone, GET and mutating endpoints return 404, only thumbnails can still be served.
+- `files.purged` is emitted only on an explicit user-driven hard delete. The scanner never emits it.
+- Keep thumbnails for missing files (they are reused on recovery).
+- Missing files are not auto-purged. They are kept indefinitely until the user explicitly deletes them.
+- `purge_all_missing` commits in chunks of 200 and emits a webhook per batch.
 
-## ゴミ箱
+## Trash
 
-- ゴミ箱投入では FS を変更しない。パージ時に初めて物理削除する
-- 自動パージは 30 日経過で startup + 24h ごとに実行する
+- Moving to trash does not touch the FS. Physical deletion happens only on purge.
+- Auto-purge runs at startup and every 24 h, removing items older than 30 days.
 
-## プレイリスト
+## Playlists
 
-- missing/trash ファイルの新規追加は拒否する（`active_file_filter()` を適用）
-- 既に入っている missing/trash はレスポンスに残し、frontend 側で状態に応じた表示調整をする
+- Reject adding missing/trash files (apply `active_file_filter()`).
+- Missing/trash files already in a playlist remain in the response; the frontend adjusts the rendering based on state.
 
-## タグ編集
+## Tag editing
 
-canonical は拡張子で分岐する:
+The canonical store depends on the file extension:
 
-- **`.md`**: `frontmatter.tags` が canonical。`File.tags` は投影キャッシュ
-- **非 `.md`**: `File.tags` が canonical
+- **`.md`**: `frontmatter.tags` is canonical. `File.tags` is a projection cache.
+- **non-`.md`**: `File.tags` is canonical.
 
-ルール:
+Rules:
 
-- frontend は必ず `saveFileTags(file, tags)` 経由で保存する。mime_type / 拡張子分岐は同関数内で行い、UI 層で判定しない
-- `.md` は `PUT /api/files/{id}/content` で frontmatter を書き換え、core が同一ハンドラ内で `File.tags` を同期投影する
-- content write と tag projection は別 commit。projection 失敗時も content write は durable にする
-- chip 編集の content PUT は 500ms debounce でまとめる（2s は長すぎる、100ms 未満は冗長）
-- auto_tags approve も `saveFileTags` 経由。ConflictError は 1 回だけ retry する
-- frontmatter parser は `backend/app/services/frontmatter.py` と `addons/knowledge/app/services/frontmatter.py` の 2 実装を独立に維持する（別コンテナで共有不可）。drift は PR レビューで検知
-- `POST /api/internal/files/{id}/tags`（`CORE_INTERNAL_SECRET` gated）は knowledge scanner 専用。frontend から呼ばない
+- The frontend must always save through `saveFileTags(file, tags)`. The mime_type / extension branching lives inside that function; the UI layer must not decide.
+- For `.md`, rewrite the frontmatter via `PUT /api/files/{id}/content`; the core syncs `File.tags` as a projection inside the same handler.
+- The content write and the tag projection commit separately. If the projection fails, the content write must still be durable.
+- Content PUTs from chip editing are coalesced with a 500 ms debounce (2 s is too long; under 100 ms is wasteful).
+- Auto_tags Approve also goes through `saveFileTags`. Retry on `ConflictError` exactly once.
+- The frontmatter parser exists as two independent implementations — `backend/app/services/frontmatter.py` and `addons/knowledge/app/services/frontmatter.py` — because they live in different containers and cannot share code. Drift is caught in PR review.
+- `POST /api/internal/files/{id}/tags` (gated by `CORE_INTERNAL_SECRET`) is exclusively for the knowledge scanner. The frontend must not call it.
 
-## ファイル関連付け
+## File relations
 
-- `file_relations`（静的関連、`kind` 付き、双方向 OR で query）は core テーブル。コア UI で表示・設定する commitment 前提（`.claude/rules/internal-api-policy.md` R1/R4）
-- `kind` の値範囲は DB 制約ではなくアプリ層で管理する（アドオン拡張のため）
-- 関連の両端は同一ドライブでなければならない。違反は 400 を返す
-- `files.id` への FK は `ON DELETE CASCADE`
-- 「アクティブ要約」ポインタ（`file_active_summaries`）は **knowledge アドオン側** に配置する。core には置かない（spec `2026-04-30-file-active-summary-to-knowledge`、Internal API ポリシー R1/R3 違反のため）
+- `file_relations` (static relations with a `kind`, queryable via bidirectional OR) is a core table. It is premised on the core UI displaying and configuring it (`.claude/rules/internal-api-policy.md` R1/R4).
+- The set of valid `kind` values is enforced at the application layer, not by a DB constraint (so addons can extend it).
+- Both ends of a relation must be in the same drive. Violations return 400.
+- The FK to `files.id` is `ON DELETE CASCADE`.
+- The "active summary" pointer (`file_active_summaries`) lives **inside the knowledge addon**. It does not live in core (spec `2026-04-30-file-active-summary-to-knowledge`; would violate Internal API policy R1/R3).
 
-## 視聴履歴・プロファイル
+## Watch history and profiles
 
-- JWT `hv_token`（ドライブアクセス制御）と Cookie `hv_viewer`（個人識別）を直交させる。混ぜない
-- ニックネームは SHA-256 ハッシュ → viewer_id。アカウント管理はしない
-- プロファイル未設定時は localStorage フォールバックで、サーバーには保存しない（204 を返す）
-- プロファイル一覧 API は作らない（プライバシー保護）
-- `WatchHistory` は「閲覧履歴」（ファイル詳細ページ表示）と「再生進捗」（player の position/duration）の両方を担う:
-  - ファイル詳細ページを開いた時点で `POST /api/files/{file_id}/progress` を空 body で発行し `last_played_at` を更新する。媒体問わず（text / markdown / image / PDF も対象）
-  - 媒体ファイルは player 起動後に position/duration 付きで再 POST し、playback markers を更新する
-  - 両経路で `last_played_at` は常に最新化。view-only POST が media の playback markers を上書きすることはない
-  - `playback_position=0`/`duration=0` の view-only レコードは continue-watching フィルタ (`drives.py` の 90% 完了ゲート) で自然除外される
-  - 視聴履歴をクライアント間で同期したい場合の唯一のソースであり、`personal_history`（intelligence Ask）はこのテーブルを canonical として参照する
+- Keep the JWT `hv_token` (drive access control) and the `hv_viewer` cookie (personal identity) orthogonal. Do not mix them.
+- The nickname is hashed with SHA-256 → viewer_id. There is no account management.
+- When no profile is set, fall back to localStorage and do not persist server-side (return 204).
+- Do not build a profile-listing API (privacy).
+- `WatchHistory` covers both "view history" (file-detail page open) and "playback progress" (player position/duration):
+  - On opening the file-detail page, POST an empty body to `/api/files/{file_id}/progress` to update `last_played_at`. This applies regardless of media type (text / markdown / image / PDF included).
+  - For media files, after the player starts, re-POST with position/duration to update playback markers.
+  - Both paths always refresh `last_played_at`. A view-only POST never overwrites the playback markers of media.
+  - View-only records with `playback_position=0` / `duration=0` are filtered out naturally by the continue-watching gate (the 90% completion gate in `drives.py`).
+  - This table is the single source of truth for syncing watch history across clients; `personal_history` (intelligence Ask) reads it as canonical.
 
 ## WebSocket
 
-- backend は外部非公開。WS も Next.js Custom Server 経由でプロキシする
-- 未認証でも接続は許可する（全公開モード対応）。保護ドライブ通知のみフィルタする
-- scanner からの ws broadcast は `run_in_executor` → `call_soon_threadsafe` で橋渡しする
+- The backend is not externally exposed. WS is also proxied through the Next.js Custom Server.
+- Connections are accepted even when unauthenticated (so a fully public mode works); only protected-drive notifications are filtered.
+- WS broadcasts from the scanner are bridged with `run_in_executor` → `call_soon_threadsafe`.
 
-## アドオン: scope と policy
+## Addons: scope and policy
 
-capability scope と per-drive policy を 2 層に分離する:
+Capability scope and per-drive policy are split into two layers:
 
-- **capability scope**: `ADDON_META` / `manifest.json` の `"drive" | "global" | "both"`。未宣言はロードエラー + スキップ（推定しない）
-- **policy**: `drives.json.addons.<name>`（bool または `{feature: bool}`）。本体は addon 名 / feature 名を解釈しない汎用辞書として扱う
-- 未指定キーは graceful degradation で enable する
+- **Capability scope**: `"drive" | "global" | "both"` declared in `ADDON_META` / `manifest.json`. An undeclared scope is a load error and the addon is skipped (do not infer it).
+- **Policy**: `drives.json.addons.<name>` (a bool, or `{feature: bool}`). The core treats it as a generic dictionary; it does not interpret addon names or feature names.
+- Unspecified keys are enabled by graceful degradation.
 
-ルール:
+Rules:
 
-- policy off のデータ防御は 2 層にする: host proxy の pre_check（404 化）+ addon 側 worker の `is_feature_enabled`（no-op 化）
-- event-hooks の絞り込みは fail open にする（解決失敗時は forward、addon 側 WHERE で二重防御）
-- policy off ドライブの既存データは addon 起動時に `purge_drive` する。policy 問合せ失敗時はスキップして誤削除を避ける
-- drives.json 反映はプロセス再起動が前提。intelligence 側の `policy_client` は TTL 30s + fail open
+- Defense for policy-off data is two layers: pre_check in the host proxy (returns 404) plus `is_feature_enabled` in the addon worker (turns into a no-op).
+- Filtering of event-hooks is fail-open (forward on lookup failure; the addon-side WHERE provides the second layer).
+- When an addon starts up, run `purge_drive` on existing data for policy-off drives. If the policy lookup fails, skip the purge to avoid accidental deletion.
+- Reflecting `drives.json` requires a process restart. The `policy_client` on the intelligence side caches with TTL 30 s + fail-open.
 
-## アドオン: drive scope のコンテキスト伝達
+## Addons: drive-scope context propagation
 
-- URL は `/drive/{drive}/addons/{name}` だが、API は `/api/addons/{name}/...`
-- frontend が `X-HV-Drive` ヘッダを付与する
-- 本体 addon_proxy が scope=drive のとき必須化 + `accessible_drives` で検証 → upstream に forward
-- addon 側は header を読むだけ。検証はしない
-- `drive_optional` は本質的グローバル経路（`<img>`、admin queue 等）のみに限定する。別経路で認可を必須化する
+- The URL is `/drive/{drive}/addons/{name}`, but the API is `/api/addons/{name}/...`.
+- The frontend attaches the `X-HV-Drive` header.
+- The core's addon_proxy makes it required when scope=drive, validates against `accessible_drives`, and forwards upstream.
+- The addon side just reads the header. It does not validate.
+- `drive_optional` is restricted to inherently global paths (`<img>`, admin queue, etc.). Authorization for those paths is enforced through a separate route.
 
-## アドオン: 実装規律
+## Addons: implementation discipline
 
-- **本体 → アドオンの依存を作らない**。本体コアにアドオン固有のコードを入れない
-- アドオン → 本体は自由（`app.config`, `app.database`, `app.models`, `app.services.ws` 等を使える）
-- UI はスロット（`search-modes`, `file-detail-sections`, `dashboard-widgets`, `folder-actions` 等）経由で注入する。アドオンがなければスロットは非表示（UI に穴を開けない）
-- アドオンの UI は `addons/{name}/frontend/` に置く。`Page.tsx` があれば `/addons/{name}` ルートは自動生成される（手動ラッパーを書かない）
-- インプロセスアドオンの有効化/無効化はシンボリックリンクの追加/削除で制御する。本体コードを変更しない
-- 独立サービスアドオンは `docker-compose.override.yml` で追加する。本体の `docker-compose.yml` は変更しない。本体 DB は読み取り専用マウント（`:ro`）
+- **No core-to-addon dependencies.** Do not add addon-specific code to the core.
+- Addon-to-core is fine (an addon may use `app.config`, `app.database`, `app.models`, `app.services.ws`, etc.).
+- The UI is injected through slots (`search-modes`, `file-detail-sections`, `dashboard-widgets`, `folder-actions`, etc.). When no addon is installed, the slot is hidden (no holes in the UI).
+- An addon's UI lives under `addons/{name}/frontend/`. If `Page.tsx` exists, the `/addons/{name}` route is auto-generated (do not write a manual wrapper).
+- In-process addon enable/disable is controlled by adding/removing a symlink. Do not modify core code.
+- Independent-service addons are added via `docker-compose.override.yml`. Do not modify the core's `docker-compose.yml`. The core DB is mounted read-only (`:ro`).
 
 ## Internal API
 
-- `routers/internal.py` は Docker 内部ネットワーク専用
-- 通常の state/meta endpoint は secret 不要
-- `GET /api/internal/files/{id}/content` だけは別扱い: text mime 限定 + `CORE_INTERNAL_SECRET` 必須 + `_CONTENT_READ_ALLOWED_MIMES` + `CORE_INTERNAL_CONTENT_MAX_BYTES`（既定 10MB）の 3 層防御。本文は情報量が桁違いに大きいため
+- `routers/internal.py` is for the Docker-internal network only.
+- Normal state/meta endpoints do not require a secret.
+- `GET /api/internal/files/{id}/content` is the exception: a three-layer defense of text-mime allowlist + required `CORE_INTERNAL_SECRET` + `_CONTENT_READ_ALLOWED_MIMES` + `CORE_INTERNAL_CONTENT_MAX_BYTES` (default 10 MB), because file bodies carry orders of magnitude more information than metadata.
 
-## LLM 機能（intelligence アドオン）
+## LLM features (intelligence addon)
 
-- OpenAI 互換クライアントを使う。設定は `search-config.yml` の `llm` セクション + `LLM_API_KEY`
-- auto_tags / summaries / transcript_refine は 3 モード（`"false"` / `"manual"` / `"on_index"`）。デフォルトは `"false"`
-- Ask は bool フラグ（内部名 `features.rag`）。デフォルト無効。ステートレス（本体 DB にもアドオン DB にも書かない）
-- auto_tags は Suggest → Approve/Dismiss ワークフロー。自動適用しない
-- 出力言語は `llm.output_language` で統一制御する
-- ファイル内容（transcript / caption / text / frontmatter）が LLM API に送信される機能はプライバシー注意。ローカル LLM（ollama）を推奨する
-- Ask の citations は retriever 結果セットと照合し、範囲外は drop する（捏造対策）
-- Ask は内部フィルタ（Internal API）と `drive_access_nested` の二重アクセス制御
+- Use the OpenAI-compatible client. Configuration is the `llm` section in `search-config.yml` plus `LLM_API_KEY`.
+- `auto_tags` / `summaries` / `transcript_refine` each have three modes (`"false"` / `"manual"` / `"on_index"`). The default is `"false"`.
+- Ask is a bool flag (internally `features.rag`). Disabled by default. Stateless: it does not write to the core DB or to the addon DB.
+- `auto_tags` follows a Suggest → Approve/Dismiss workflow. It is never auto-applied.
+- The output language is controlled centrally by `llm.output_language`.
+- Features that send file content (transcript / caption / text / frontmatter) to the LLM API are privacy-sensitive. A local LLM (ollama) is recommended.
+- Ask citations are matched against the retriever's result set; anything outside that set is dropped (anti-hallucination).
+- Ask applies access control twice: the internal filter (Internal API) and `drive_access_nested`.
 
 ## Transcript Refine
 
-- 原文は `TranscriptChunk.text_original` に保持する（revert 可能にする）
-- chunks 単位で LLM を適用 → words は WhisperX の forced alignment で再構築 → embedding を修正後テキストで再計算
-- aligner 失敗時（音声欠損 / 言語非対応 / OOM）は words 旧行を保持する。時間比例フォールバックは作らない
+- The original text is preserved in `TranscriptChunk.text_original` (so it can be reverted).
+- The LLM is applied per chunk → words are rebuilt by WhisperX forced alignment → embeddings are recomputed from the refined text.
+- If the aligner fails (missing audio / unsupported language / OOM), keep the old word rows. Do not introduce a time-proportional fallback.
 
-## HEIC 画像
+## HEIC images
 
-- HEIC のサムネイルは Pillow（`pillow-heif`）で生成する。ffmpeg は libheif 未対応で真っ黒になるため使わない
+- Generate HEIC thumbnails with Pillow (`pillow-heif`). Do not use ffmpeg — it lacks libheif support and produces black thumbnails.

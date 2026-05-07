@@ -1,89 +1,89 @@
-# Internal API ポリシー
+# Internal API policy
 
-`backend/app/routers/internal.py` に endpoint を追加・削除・変更するときに必ず守るルール。新規追加時はこのルールを通過させる。判定が割れたら hako の関連 entry を引いて再評価する。
+Rules to follow whenever you add, remove, or change an endpoint in `backend/app/routers/internal.py`. New additions must pass these rules. If reasonable people disagree, pull the related hako entries and re-evaluate.
 
-## 目的
+## Goal
 
-コアがアドオンに公開する API の膨張を防ぐ。アドオンに新機能を追加するたびに Internal API が増える状況は、コアとアドオンの開発を実質的に依存関係にする。R1〜R5 を満たす API のみを公開し、満たさないものはアドオン側に閉じる。
+Prevent the API the core exposes to addons from sprawling. If the Internal API grows every time a new addon feature lands, core and addon development become effectively coupled. Only expose APIs that satisfy R1-R5; everything else stays inside the addon.
 
-## R1: First-class core entity ルール
+## R1: First-class core entity rule
 
-Internal API はコア自身が管理・描画するエンティティに対する操作だけを公開する。
+The Internal API only exposes operations on entities the core itself owns and renders.
 
-コアが管理するエンティティ:
+Entities the core owns:
 
 - drive / file / tag / comment / playlist / watch history / profile
-- ファイルライフサイクル (active / missing / trash)
-- ファイルメタデータ (mime, size, folder_path 等の物理事実)
+- File lifecycle (active / missing / trash)
+- File metadata (mime, size, folder_path, and other physical facts)
 
-**コア UI に登場しない概念は Internal API の対象外**。アドオン側ドメインに閉じる。
+**Concepts that never appear in the core UI are out of scope for the Internal API.** They stay inside the addon's own domain.
 
-## R2: Generic shape ルール
+## R2: Generic-shape rule
 
-API surface (パス・パラメータ・レスポンス形状) が特定アドオン名 / 機能名を含まない。
+The API surface (path, parameters, response shape) must not include the name of any specific addon or feature.
 
-- ✅ `kind: str` を opaque に受ける (例: `file_relations.kind`)
-- ❌ `kind=not_viewed` のように特定アドオンのワークフロー名を直接出す
-- `drives.json.addons` の「本体は addon 名 / feature 名を解釈しない汎用辞書」と同じ精神
+- ✅ Accept `kind: str` opaquely (e.g. `file_relations.kind`).
+- ❌ Surface workflow names from a specific addon directly, like `kind=not_viewed`.
+- Same spirit as the "core does not interpret addon name / feature name; it's a generic dictionary" treatment of `drives.json.addons`.
 
-## R3: Multi-addon viability テスト
+## R3: Multi-addon viability test
 
-**「このエンドポイントを使う 2 個目のアドオンが具体的に思いつくか？」を自問する。**
+**Ask yourself: "Can I name a concrete second addon that would use this endpoint?"**
 
-- 思いつく → コア適格 (汎用基盤)
-- 思いつかない → 1 アドオン専用の漏出。アドオン側 DB に持つべき
-- 「思いつかないけど概念的に generic」は赤信号。具体例がない汎用化は理論武装でしかない
+- Yes → eligible for core (a generic foundation).
+- No → it's leakage from a single addon. Keep it in that addon's DB.
+- "I can't think of one but it feels conceptually generic" is a red flag. Generalization without concrete examples is just rationalization.
 
-## R4: Write asymmetry ルール
+## R4: Write-asymmetry rule
 
-読み取りはアドオンに広く開く。書き込みは「コア自身の UI / 検索 / アクセス制御がそのデータを使うか」をテストする。
+Reads can be open to addons broadly. For writes, test "does the core's own UI / search / access control consume this data?"
 
-- ✅ `tag` write: コア検索・フィルタ UI が tag を読む → write 公開正当
-- ✅ `WatchHistory` progress: コアの continue-watching UI が読む → write 公開正当
-- ❌ アドオンが書いてアドオンしか読まない → core write を作らずアドオン側 DB に書く
+- ✅ `tag` write: core search/filter UI reads tags → exposing the write is justified.
+- ✅ `WatchHistory` progress: core's continue-watching UI reads it → exposing the write is justified.
+- ❌ The addon writes and only the addon reads → don't add a core write; have the addon write to its own DB.
 
-## R5: Promotion target ルール
+## R5: Promotion-target rule
 
-アドオンが「候補・推測・suggestion」を出し、ユーザー操作で昇格させるとき、昇格先は次のいずれか。
+When an addon emits "candidates / guesses / suggestions" that the user can promote, the promotion target must be one of:
 
-- **コア UI に登場するエンティティ** → core で受ける (例: `auto_tags` Approve → `File.tags`、`suggested_relations` → `file_relations`)
-- **特定アドオンのドメイン概念** → そのアドオンに昇格させる (例: AI 要約 → knowledge note)
-- **どちらでもない** → 候補のままアドオン側 DB に留める。core write を作らない
+- **An entity that appears in the core UI** → receive it in core (e.g. `auto_tags` Approve → `File.tags`, `suggested_relations` → `file_relations`).
+- **A concept owned by a specific addon** → promote into that addon (e.g. AI summary → knowledge note).
+- **Neither** → leave it in the addon DB as a candidate. Don't add a core write.
 
-## 既存 13 endpoint の判定（2026-04-30 監査）
+## Audit of the existing 13 endpoints (2026-04-30)
 
-| # | Endpoint | 判定 | 備考 |
+| # | Endpoint | Verdict | Notes |
 |---|---|---|---|
-| 1 | `GET /accessible-drives` | KEEP | drive 列挙、universal |
+| 1 | `GET /accessible-drives` | KEEP | drive enumeration, universal |
 | 2 | `GET /drive-policy` | KEEP | drives.json policy lookup |
 | 3 | `GET /files/{id}` | KEEP | file metadata |
 | 4 | `GET /files/{id}/content` | KEEP | text mime allowlist + secret + size cap |
-| 5 | `POST /files/{id}/tags` | KEEP | tag は core 検索が読む |
-| 6 | `GET /viewer-history` | KEEP（要監視） | `kind=viewed/not_viewed` は概念上 generic だが用途が intelligence 寄り。次の用途が出るまで境界事例 |
+| 5 | `POST /files/{id}/tags` | KEEP | core search consumes tags |
+| 6 | `GET /viewer-history` | KEEP (watch closely) | `kind=viewed/not_viewed` is conceptually generic but the use case skews toward intelligence. Borderline until a second use case appears. |
 | 7 | `POST /filter-file-ids` | KEEP | access control filter |
 | 8 | `POST /files/bulk-state` | KEEP | lifecycle bulk read |
-| 9 | `/file_relations` (POST/GET/DELETE) | KEEP | コア UI で表示する commitment 前提。撤回時は再評価 |
-| 10 | ~~`/file_active_summary` (POST/GET/DELETE)~~ | REMOVED → knowledge へ移送済み | 2026-04-30 完了。spec `2026-04-30-file-active-summary-to-knowledge.md` |
-| 11 | `POST /addon-events` | KEEP | WS bridge、universal |
+| 9 | `/file_relations` (POST/GET/DELETE) | KEEP | premised on the core UI displaying it; re-evaluate if that commitment is rolled back |
+| 10 | ~~`/file_active_summary` (POST/GET/DELETE)~~ | REMOVED → moved to knowledge | Completed 2026-04-30. Spec `2026-04-30-file-active-summary-to-knowledge.md` |
+| 11 | `POST /addon-events` | KEEP | WS bridge, universal |
 
-## 新規 endpoint 追加判定フロー
+## Decision flow for adding a new endpoint
 
-新しい Internal API endpoint を追加したくなったら、次の順序で確認する。
+When you want to add a new Internal API endpoint, walk through this in order:
 
-1. **R1 First-class core entity**: そのエンティティはコアが管理しているか。コア UI に登場するか
-2. **R3 Multi-addon viability**: 別のアドオンも具体的に使う場面が思いつくか
-3. **R2 Generic shape**: パス・パラメータ・レスポンスにアドオン名や機能名が混入していないか
-4. **R4 Write asymmetry** (write の場合): コア UI / 検索 / access control がそのデータを読むか
-5. **R5 Promotion target** (アドオン由来データの場合): 昇格先がコアエンティティか
+1. **R1 First-class core entity**: Is the entity owned by the core? Does it appear in the core UI?
+2. **R3 Multi-addon viability**: Can you name a concrete second addon that would use it?
+3. **R2 Generic shape**: Does the path/parameter/response leak any addon name or feature name?
+4. **R4 Write asymmetry** (for writes): Does the core's UI / search / access control read this data?
+5. **R5 Promotion target** (for addon-derived data): Is the promotion target a core entity?
 
-**全部 YES** → 追加してよい。spec ドキュメント / hako に判定根拠を残す。
-**1 つでも NO** → アドオン側 DB に閉じる。アドオン同士の通信は addon-to-addon proxy 経由で行う。
+**All YES** → fine to add. Record the rationale in the spec doc / hako.
+**Any NO** → keep it in the addon's DB. Use the addon-to-addon proxy for cross-addon communication.
 
-## 関連
+## References
 
-- **Internal API リファレンス**: [`docs/ADDON-DEVELOPMENT.md` の Internal API セクション](../../docs/ADDON-DEVELOPMENT.md#internal-api) — 全 endpoint の wire shape / 認証 / 用途
-- 契約テストパターン (新規 endpoint 追加時必須): hako `VHE7K0KWjIzV3M1CyfDAN` (wire shape + validator parity の 2 層)
-- write endpoint の secret gating: hako `6sC7Td2hvp_0IpEF1t4tb` (read より厳しい threat model)
-- 本判定基準の確立: hako `749bxgygHt3YyvvFlFeQA`
-- `file_active_summary` 移送決定: hako `G_9Og26IADKqz74fnIicu`
-- 完全分離 (Phase 2) は今やらない方針: hako `UIST7-3m8VovTAZ0ioarn`
+- **Internal API reference**: [`docs/ADDON-DEVELOPMENT.md` Internal API section](../../docs/ADDON-DEVELOPMENT.md#internal-api) — wire shape, auth, and use case for every endpoint.
+- Contract-test pattern (required when adding a new endpoint): hako `VHE7K0KWjIzV3M1CyfDAN` (two layers: wire shape + validator parity).
+- Secret gating for write endpoints: hako `6sC7Td2hvp_0IpEF1t4tb` (stricter threat model than reads).
+- Origin of these criteria: hako `749bxgygHt3YyvvFlFeQA`.
+- `file_active_summary` migration decision: hako `G_9Og26IADKqz74fnIicu`.
+- Why we are not pursuing full separation (Phase 2) right now: hako `UIST7-3m8VovTAZ0ioarn`.

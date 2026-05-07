@@ -472,7 +472,7 @@ When the Properties Panel is in editable mode (spec `2026-04-24-knowledge-tag-un
 
 - **Chip style**: inline-flex `rounded-full bg-accent-teal/15 text-accent-teal px-2 py-0.5 text-xs` — matches the read-only `TagPill` exactly so read and edit modes don't visually shift
 - **Per-chip remove**: trailing `<X size={11}/>` inside a round button, `hover:bg-bg-elevated` — do not introduce an `--accent-danger` hover here; deletion is cheap and undo-able via re-add
-- **"Add tag" affordance**: bare `+ タグ追加` button styled as a muted chip (`bg-bg-card text-text-muted hover:text-text-primary`) — distinguishable from real chips by the absence of the teal fill
+- **"Add tag" affordance**: bare `+ Add tag` button styled as a muted chip (`bg-bg-card text-text-muted hover:text-text-primary`) — distinguishable from real chips by the absence of the teal fill
 - **Input**: `rounded-full bg-bg-card px-2 py-0.5 text-xs` with `focus:ring-2 focus:ring-accent` — sits in the same row as the chips so the chip/input boundary feels continuous
 - **Autocomplete popover**: `absolute top-full left-0 z-10 mt-1 w-40 rounded-lg bg-bg-card py-1 shadow-lg`. Suggestions come from `GET /api/drives/{drive}/tags` scoped to the current drive. Max 5 rows
 - **Selected suggestion**: keyboard-highlighted row uses `bg-accent text-white` — this is the only place `--accent` is applied on a chip surface because the highlight follows a specific user action (arrow-key selection) and therefore counts as a CTA-equivalent per §2.2
