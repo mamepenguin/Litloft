@@ -1,0 +1,107 @@
+# Contributing
+
+Litloft is developed primarily for personal use, but pull requests are welcome. The maintainer reviews on a best-effort basis. If you are unsure whether a feature fits, open an issue first.
+
+## Before you start
+
+- Read the [architecture](architecture.md) and the [Internal API policy](addon-dev.md#internal-api-policy). Most "no, not in core" decisions trace back to those rules.
+- Skim the design rules in `.claude/rules/design-decisions.md` (in the repo root). They capture invariants — "drives are a security boundary", "tag canonical store split", "missing files are not auto-purged" — that pre-empt large redesigns.
+- Check the existing issues and the `legacy/` docs for context on past decisions.
+
+## Branch and commit conventions
+
+- Branch off `main`. Descriptive name (`feat/scene-search-toggle`, `fix/upload-resume-race`).
+- Conventional Commits message format:
+
+  ```
+  <type>: <short summary>
+
+  <body — what changed and why, not how>
+  ```
+
+  Types: `feat`, `fix`, `refactor`, `docs`, `test`, `chore`, `perf`, `ci`. `BREAKING:` prefix in the body for breaking changes.
+
+- Small, focused commits. Squashing on merge is fine; *during review* prefer separate commits per concern so reviewers can read the diff.
+
+## Pull request
+
+Open a PR against `main`. The PR description should:
+
+- State what the PR changes and why.
+- Link the issue (if any).
+- Note any test plan items the reviewer should verify.
+
+The maintainer may ask for changes; small tightening (rename a function, add a test) is normal. For larger redirection, expect a discussion before more code.
+
+## Code style
+
+- **Backend**: `ruff` + `black` formatting. PEP 8. Type hints on public functions.
+- **Frontend**: `eslint` + `prettier`. Tailwind utility classes; new tokens go in `DESIGN.md` first.
+- Prefer many small files over a few large ones. 200–400 lines per file is typical, 800 is the soft cap.
+- Immutable patterns: never mutate inputs; return new objects.
+
+See `.claude/rules/coding-style.md` for the full style guide.
+
+## Testing requirements
+
+Every PR includes tests for the behaviour it changes:
+
+- Bug fix → a regression test that fails on `main` and passes on the branch.
+- New feature → unit + integration tests; e2e if user-visible.
+- Refactor → existing tests must still pass. Coverage cannot drop.
+
+Run the full suite locally before opening the PR. CI will run it again.
+
+## Documentation
+
+Docs are part of the deliverable, not an afterthought.
+
+- New endpoint → add it to [HTTP API reference](../reference/api.md).
+- New environment variable → [environment variables](../reference/env-variables.md).
+- New configuration field → [configuration reference](../reference/configuration.md) and the relevant addon page.
+- New user-facing feature → user guide page.
+- Behaviour change → update the page that describes it; do not bolt new behaviour onto a stale doc.
+
+## Addon contributions
+
+If you are adding a new addon, follow [addon development](addon-dev.md). Each addon is its own Git repo under `addons/`; PRs that add a new addon should:
+
+- Land the addon in its own repo first, with its own README and tests.
+- Open a PR to the core repo adding the symlink (in-process) or the example compose block.
+- Document the addon in the addons section of the docs.
+
+## Security
+
+If you find a security issue, do **not** open a public issue. Email or DM the maintainer. Reasonable disclosure timeframes apply.
+
+## License
+
+By contributing, you agree your changes are licensed under the project's existing license. See `LICENSE` at the repo root.
+
+## Useful commands
+
+```bash
+# Format
+ruff format backend/
+prettier --write 'frontend/**/*.{ts,tsx,json,css}'
+
+# Lint
+ruff check backend/
+eslint frontend/src
+
+# Type-check
+mypy backend/app
+cd frontend && tsc --noEmit
+
+# Tests
+docker run --rm litloft-test
+cd frontend && pnpm test
+cd frontend && pnpm e2e
+```
+
+## See also
+
+- [Architecture](architecture.md)
+- [Backend development](backend-dev.md)
+- [Frontend development](frontend-dev.md)
+- [Testing](testing.md)
