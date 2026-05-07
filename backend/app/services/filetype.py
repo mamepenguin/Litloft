@@ -1,5 +1,8 @@
+import logging
 import mimetypes
 from pathlib import Path
+
+logger = logging.getLogger(__name__)
 
 _CATEGORY_MAP = {
     "video": "video",
@@ -88,6 +91,53 @@ def classify(filename: str) -> tuple[str, str]:
     file_type = _CATEGORY_MAP.get(major, "other")
 
     return (file_type, mime)
+
+
+# Containers that frequently wrap audio-only payloads despite a
+# "video/*" mime guess from the extension. Apple's iTunes ALAC/AAC-LC
+# downloads sometimes ship with a ``.mp4`` extension instead of
+# ``.m4a`` (hako 4t5FWrH4IpLUlGDXxh7cO); ``.mov`` containers can also
+# be audio-only. When ffprobe confirms zero video streams we downgrade
+# the classification so the UI shows the file as audio and cloud STT
+# providers don't reject it as a malformed video.
+_SNIFF_AUDIO_DOWNGRADE = {
+    "video/mp4": "audio/mp4",
+    "video/quicktime": "audio/mp4",
+}
+
+
+def refine_classification_with_probe(
+    file_path: Path,
+    file_type: str,
+    mime_type: str,
+) -> tuple[str, str]:
+    """Sniff media containers that may be audio-only and downgrade if so.
+
+    Conservative: only downgrades when ffprobe finds ``audio`` streams
+    and no ``video`` streams. Probe failures and zero-stream files (e.g.
+    truncated or non-media binaries written with a ``.mp4`` extension)
+    leave the classification unchanged so existing video records keep
+    their thumbnail / duration pipeline.
+    """
+    target_mime = _SNIFF_AUDIO_DOWNGRADE.get(mime_type)
+    if target_mime is None:
+        return (file_type, mime_type)
+
+    from app.services.thumbnail import is_recognized_mp4_family, probe_stream_kinds
+
+    info = probe_stream_kinds(str(file_path))
+    if (
+        info is not None
+        and is_recognized_mp4_family(info["format"])
+        and not info["video"]
+        and info["audio"]
+    ):
+        logger.info(
+            "Audio-only container detected: %s (%s -> %s)",
+            file_path.name, mime_type, target_mime,
+        )
+        return ("audio", target_mime)
+    return (file_type, mime_type)
 
 
 def is_hidden(path: Path, base_dir: Path) -> bool:

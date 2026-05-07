@@ -1,6 +1,11 @@
 from pathlib import Path
+from unittest.mock import patch
 
-from app.services.filetype import classify, is_hidden
+from app.services.filetype import (
+    classify,
+    is_hidden,
+    refine_classification_with_probe,
+)
 
 
 class TestClassify:
@@ -70,6 +75,92 @@ class TestClassify:
         assert classify("recipe.loft") == (
             "video", "application/vnd.litloft.loft+json"
         )
+
+
+class TestRefineClassificationWithProbe:
+    """Audio-only ``.mp4`` / ``.mov`` containers (e.g. iTunes ALAC/AAC-LC
+    saved with a ``.mp4`` extension, hako 4t5FWrH4IpLUlGDXxh7cO) get
+    downgraded to ``audio/mp4`` so the UI shows them as audio and cloud
+    STT providers don't reject them as malformed video."""
+
+    _MP4_FORMAT = "mov,mp4,m4a,3gp,3g2,mj2"
+
+    def test_mp4_with_video_stream_unchanged(self):
+        with patch(
+            "app.services.thumbnail.probe_stream_kinds",
+            return_value={"video": True, "audio": True, "format": self._MP4_FORMAT},
+        ):
+            result = refine_classification_with_probe(
+                Path("/tmp/movie.mp4"), "video", "video/mp4"
+            )
+        assert result == ("video", "video/mp4")
+
+    def test_mp4_audio_only_downgraded(self):
+        with patch(
+            "app.services.thumbnail.probe_stream_kinds",
+            return_value={"video": False, "audio": True, "format": self._MP4_FORMAT},
+        ):
+            result = refine_classification_with_probe(
+                Path("/tmp/podcast.mp4"), "video", "video/mp4"
+            )
+        assert result == ("audio", "audio/mp4")
+
+    def test_mov_audio_only_downgraded(self):
+        with patch(
+            "app.services.thumbnail.probe_stream_kinds",
+            return_value={"video": False, "audio": True, "format": self._MP4_FORMAT},
+        ):
+            result = refine_classification_with_probe(
+                Path("/tmp/voice.mov"), "video", "video/quicktime"
+            )
+        assert result == ("audio", "audio/mp4")
+
+    def test_probe_failure_keeps_original(self):
+        """ffprobe failures are inconclusive — never downgrade on None."""
+        with patch(
+            "app.services.thumbnail.probe_stream_kinds", return_value=None
+        ):
+            result = refine_classification_with_probe(
+                Path("/tmp/broken.mp4"), "video", "video/mp4"
+            )
+        assert result == ("video", "video/mp4")
+
+    def test_zero_streams_keeps_original(self):
+        """Garbage binary written with a ``.mp4`` extension may parse
+        without errors but report zero streams. Keep original
+        classification rather than incorrectly downgrading."""
+        with patch(
+            "app.services.thumbnail.probe_stream_kinds",
+            return_value={"video": False, "audio": False, "format": self._MP4_FORMAT},
+        ):
+            result = refine_classification_with_probe(
+                Path("/tmp/garbage.mp4"), "video", "video/mp4"
+            )
+        assert result == ("video", "video/mp4")
+
+    def test_unrecognized_format_keeps_original(self):
+        """Random bytes with a ``.mp4`` extension may yield spurious
+        audio-stream hits in ffprobe. Without a recognized MP4-family
+        ``format_name`` we refuse to downgrade."""
+        with patch(
+            "app.services.thumbnail.probe_stream_kinds",
+            return_value={"video": False, "audio": True, "format": "data"},
+        ):
+            result = refine_classification_with_probe(
+                Path("/tmp/junk.mp4"), "video", "video/mp4"
+            )
+        assert result == ("video", "video/mp4")
+
+    def test_non_candidate_mime_skipped(self):
+        """Other mimes (e.g. webm, mkv, real audio) bypass the sniff."""
+        with patch(
+            "app.services.thumbnail.probe_stream_kinds"
+        ) as mock_probe:
+            result = refine_classification_with_probe(
+                Path("/tmp/song.mp3"), "audio", "audio/mpeg"
+            )
+        assert result == ("audio", "audio/mpeg")
+        mock_probe.assert_not_called()
 
 
 class TestIsHidden:

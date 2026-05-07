@@ -5,6 +5,7 @@ import pytest
 from app.services.thumbnail import (
     generate_thumbnail,
     get_video_duration,
+    has_video_stream,
     _calculate_seek_time,
 )
 
@@ -160,6 +161,37 @@ class TestGetVideoDuration:
     def test_nonexistent(self):
         duration = get_video_duration("/nonexistent/video.mp4")
         assert duration is None
+
+
+class TestHasVideoStream:
+    def test_real_video_fixture_returns_true(self, sample_video):
+        """Sample fixture is a real video container with a video stream."""
+        assert has_video_stream(str(sample_video)) is True
+
+    def test_audio_only_mp4_returns_false(self, tmp_path):
+        """A ``.mp4`` container holding only AAC audio (e.g. iTunes
+        ALAC/AAC-LC saved with the wrong extension) must return False
+        so the scanner can downgrade it to ``audio/mp4``."""
+        import subprocess
+        audio_only = tmp_path / "audio_only.mp4"
+        result = subprocess.run(
+            [
+                "ffmpeg", "-y", "-v", "quiet",
+                "-f", "lavfi", "-i", "sine=frequency=440:duration=1",
+                "-c:a", "aac", str(audio_only),
+            ],
+            check=False,
+        )
+        assert result.returncode == 0, "ffmpeg fixture generation failed"
+        assert has_video_stream(str(audio_only)) is False
+
+    def test_nonexistent_returns_none(self):
+        assert has_video_stream("/nonexistent/file.mp4") is None
+
+    @patch("app.services.thumbnail.subprocess.run")
+    def test_ffprobe_failure_returns_none(self, mock_run):
+        mock_run.return_value = MagicMock(returncode=1, stderr="probe error")
+        assert has_video_stream("/fake/path.mp4") is None
 
 
 class TestGenerateThumbnail:

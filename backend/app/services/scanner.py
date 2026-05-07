@@ -11,7 +11,7 @@ import app.config as config
 from app.database import SessionLocal
 from app.models import EmptyFolder, File, FileExif, active_file_filter
 from app.services.exif import extract_exif
-from app.services.filetype import classify, is_hidden
+from app.services.filetype import classify, is_hidden, refine_classification_with_probe
 from app.services.hash import compute_file_hash
 from app.services.subtitle import is_subtitle_file
 from app.services.thumbnail import get_thumbnail_generator, get_video_duration
@@ -119,6 +119,7 @@ def register_single_file(db: Session, drive_name: str, file_path: Path) -> str:
     relative_path = unicodedata.normalize("NFC", str(file_path.relative_to(drive_path)))
     folder_path = unicodedata.normalize("NFC", _get_folder_path(file_path, drive_path))
     file_type, mime_type = classify(file_path.name)
+    file_type, mime_type = refine_classification_with_probe(file_path, file_type, mime_type)
 
     nfc_name = unicodedata.normalize("NFC", file_path.name)
     nfc_stem = Path(nfc_name).stem
@@ -199,6 +200,7 @@ def _scan_and_register(db: Session, drive_name: str) -> dict[str, int]:
         found_paths.add(relative_path)
         folder_path = unicodedata.normalize("NFC", _get_folder_path(item, drive_path))
         file_type, mime_type = classify(item.name)
+        file_type, mime_type = refine_classification_with_probe(item, file_type, mime_type)
 
         nfc_name = unicodedata.normalize("NFC", item.name)
         nfc_stem = Path(nfc_name).stem

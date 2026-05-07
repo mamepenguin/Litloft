@@ -35,6 +35,74 @@ def get_video_duration(video_path: str) -> float | None:
         return None
 
 
+# Recognized ISO BMFF / QuickTime container format names reported by
+# ffprobe. We only trust a stream sniff when the format is one of these
+# — random binaries that happen to parse partially can otherwise produce
+# spurious audio-stream hits.
+_MP4_FAMILY_FORMATS = frozenset({
+    "mov,mp4,m4a,3gp,3g2,mj2",
+    "mp4",
+    "m4a",
+    "mov",
+    "isom",
+})
+
+
+def probe_stream_kinds(media_path: str) -> dict | None:
+    """Return ``{"video": bool, "audio": bool, "format": str}`` or None
+    on probe failure.
+
+    Returning None means ffprobe could not parse the file at all (treat
+    as unknown — callers should not draw conclusions about content).
+    """
+    try:
+        result = subprocess.run(
+            [
+                "ffprobe",
+                "-v", "quiet",
+                "-show_entries", "format=format_name:stream=codec_type",
+                "-print_format", "json",
+                media_path,
+            ],
+            capture_output=True,
+            text=True,
+            check=False,
+            timeout=30,
+        )
+        if result.returncode != 0:
+            logger.error("ffprobe streams failed for %s: %s", media_path, result.stderr)
+            return None
+
+        data = json.loads(result.stdout)
+        format_name = (data.get("format", {}) or {}).get("format_name", "") or ""
+        streams = data.get("streams", []) or []
+        kinds = {s.get("codec_type") for s in streams}
+        return {
+            "video": "video" in kinds,
+            "audio": "audio" in kinds,
+            "format": format_name,
+        }
+    except (subprocess.TimeoutExpired, json.JSONDecodeError, ValueError) as e:
+        logger.error("Failed to probe streams for %s: %s", media_path, e)
+        return None
+
+
+def is_recognized_mp4_family(format_name: str) -> bool:
+    """Return True when ffprobe identified an MP4/M4A/MOV-family container."""
+    return format_name in _MP4_FAMILY_FORMATS
+
+
+def has_video_stream(media_path: str) -> bool | None:
+    """Return True if the container holds at least one video stream.
+
+    Returns None on probe failure.
+    """
+    info = probe_stream_kinds(media_path)
+    if info is None:
+        return None
+    return info["video"]
+
+
 SCALE_FILTER = (
     "scale=320:180:force_original_aspect_ratio=decrease,"
     "pad=320:180:(ow-iw)/2:(oh-ih)/2"
