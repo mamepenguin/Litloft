@@ -453,6 +453,13 @@
         "loadFailed": "アドオン設定の読み込みに失敗しました",
         "saveFailed": "保存に失敗しました",
         "unknown_addon": "存在しないアドオンです"
+      },
+      "intelligence": {
+        "transcriptionCloud": {
+          "label": "クラウド文字起こしを許可",
+          "help": "外部 STT プロバイダー（Deepgram / OpenAI / ElevenLabs Scribe 等）に音声を送信します。OFF にするとこのドライブだけローカル Whisper に強制 fallback",
+          "warning": "OFF に切替後、進行中のクラウド転写ジョブは継続されます。即時反映には container restart が必要"
+        }
       }
     },
     "restartBanner": {
@@ -750,6 +757,12 @@
       "skipDescription": "今は設定せずに次へ進めます。",
       "skipNote": "今は決めずに進めて構いません。あとで /admin から変更できます。",
       "noDescription": "（このアドオンの説明はありません）"
+    }
+  },
+  "errors": {
+    "transcription": {
+      "providerFailed": "文字起こしプロバイダーが失敗しました: {error}",
+      "openaiFileTooLarge": "OpenAI Whisper API は 25MB 制限があります。長尺は Deepgram / ElevenLabs Scribe / Groq / セルフホスト推奨"
     }
   }
 }
