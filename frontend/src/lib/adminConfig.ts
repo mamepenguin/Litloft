@@ -29,12 +29,19 @@ export interface SetupStatus {
   completed: boolean;
 }
 
+export interface AddonPolicyFeature {
+  name: string;
+  default: boolean;
+  i18n_key: string;
+}
+
 export interface AddonStatusEntry {
   name: string;
   scope?: string;
   enabled?: boolean;
   description?: string;
   label?: string;
+  policy_features?: AddonPolicyFeature[];
 }
 
 export interface ValidationError {

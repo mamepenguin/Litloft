@@ -38,7 +38,16 @@ const initialPolicy = {
 
 const addonsStatusResponse = {
   addons: {
-    intelligence: { scope: "drive" },
+    intelligence: {
+      scope: "drive",
+      policy_features: [
+        {
+          name: "transcription_cloud",
+          default: true,
+          i18n_key: "intelligence.policyFeatures.transcriptionCloud",
+        },
+      ],
+    },
     knowledge: { scope: "drive" },
   },
   slots: {},

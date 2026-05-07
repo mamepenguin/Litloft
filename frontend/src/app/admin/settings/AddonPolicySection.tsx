@@ -5,11 +5,16 @@
 // /api/addons/status, displays a checkbox grid, PUTs the full updated
 // policy on every toggle change.
 //
-// Feature sub-toggles: when an addon ships per-feature flags (currently
-// only intelligence.transcription_cloud), they render as a sub-row
-// underneath the matrix row when the addon is enabled. Storing them
-// requires the policy value to be a feature dict {feature: bool} rather
-// than a plain bool.
+// Feature sub-toggles: when an addon's manifest declares ``policy_features``
+// — e.g. intelligence ships ``{name: "transcription_cloud", default: true,
+// i18n_key: "intelligence.policyFeatures.transcriptionCloud"}`` — the
+// matrix renders a sub-row underneath the addon column when that addon is
+// enabled. Storing the flag requires the drive's addon policy value to be
+// a feature dict {feature: bool} rather than a plain bool.
+//
+// Core treats the manifest's policy_features list as an opaque dictionary:
+// it does not interpret addon names or feature names. Adding or changing
+// per-feature toggles is a manifest + addon-i18n change, no core edits.
 
 import { Fragment, useCallback, useEffect, useMemo, useState } from "react";
 import { useTranslations } from "next-intl";
@@ -20,29 +25,9 @@ import {
   getAddonsStatus,
   putAddonPolicy,
   type AddonPolicy,
+  type AddonPolicyFeature,
   type AddonStatusEntry,
 } from "@/lib/adminConfig";
-
-// Per-addon feature definitions. Adding a new feature here surfaces a
-// sub-toggle below the addon column; the i18n keys must exist under
-// `settings.addonPolicy.<addon>.<feature>.{label,help,warning}`.
-const ADDON_FEATURES: Record<string, readonly string[]> = {
-  intelligence: ["transcription_cloud"],
-};
-
-// Default value for a feature when the policy doesn't pin it explicitly.
-// `transcription_cloud` defaults to true (cloud transmission allowed) —
-// flipping to false forces local Whisper fallback for that drive.
-const FEATURE_DEFAULTS: Record<string, boolean> = {
-  transcription_cloud: true,
-};
-
-// snake_case → camelCase, used to map policy feature names (snake_case
-// per drives.json convention) to nested i18n keys (camelCase per the
-// project's nested-key convention).
-function toCamelFeature(feature: string): string {
-  return feature.replace(/_([a-z])/g, (_match, ch: string) => ch.toUpperCase());
-}
 
 function describeError(
   err: unknown,
@@ -83,24 +68,30 @@ function readToggle(
 }
 
 // Read a feature flag with default-fallback. When the policy value is a
-// bool (addon-level on/off only) we fall back to the feature default.
+// bool (addon-level on/off only) we fall back to the manifest-declared
+// default carried in ``feature.default``.
 function readFeature(
   policy: AddonPolicy,
   drive: string,
   addon: string,
-  feature: string,
+  feature: AddonPolicyFeature,
 ): boolean {
   const driveEntry = policy[drive];
-  if (!driveEntry) return FEATURE_DEFAULTS[feature] ?? true;
+  if (!driveEntry) return feature.default;
   const value = driveEntry[addon];
   if (typeof value === "object" && value !== null) {
-    if (feature in value) return Boolean(value[feature]);
+    if (feature.name in value) return Boolean(value[feature.name]);
   }
-  return FEATURE_DEFAULTS[feature] ?? true;
+  return feature.default;
 }
 
 export function AddonPolicySection(): React.ReactElement {
   const t = useTranslations("settings.addonPolicy");
+  // Root translator used to resolve manifest-supplied feature i18n keys
+  // (e.g. ``intelligence.policyFeatures.transcriptionCloud.label``). We
+  // can't pass a dynamic namespace to ``useTranslations`` so we look up
+  // the full key path here.
+  const tRoot = useTranslations();
   const [policy, setPolicy] = useState<AddonPolicy>({});
   const [addons, setAddons] = useState<AddonStatusEntry[]>([]);
   const [loaded, setLoaded] = useState(false);
@@ -153,7 +144,7 @@ export function AddonPolicySection(): React.ReactElement {
   );
 
   const toggleFeature = useCallback(
-    async (drive: string, addon: string, feature: string) => {
+    async (drive: string, addon: string, feature: AddonPolicyFeature) => {
       const current = readFeature(policy, drive, addon, feature);
       const driveEntry = { ...(policy[drive] ?? {}) };
       const existing = driveEntry[addon];
@@ -163,7 +154,7 @@ export function AddonPolicySection(): React.ReactElement {
         typeof existing === "object" && existing !== null
           ? { ...existing }
           : {};
-      featureMap[feature] = !current;
+      featureMap[feature.name] = !current;
       driveEntry[addon] = featureMap;
       const next: AddonPolicy = { ...policy, [drive]: driveEntry };
       setPolicy(next);
@@ -214,13 +205,12 @@ export function AddonPolicySection(): React.ReactElement {
                 // Collect feature sub-toggles to render below the row.
                 const featureRows: Array<{
                   addon: string;
-                  feature: string;
+                  feature: AddonPolicyFeature;
                 }> = [];
                 addons.forEach((addon) => {
-                  const features = ADDON_FEATURES[addon.name];
-                  if (!features) return;
+                  if (!addon.policy_features?.length) return;
                   if (!readToggle(policy, drive, addon.name)) return;
-                  features.forEach((feature) => {
+                  addon.policy_features.forEach((feature) => {
                     featureRows.push({ addon: addon.name, feature });
                   });
                 });
@@ -249,21 +239,21 @@ export function AddonPolicySection(): React.ReactElement {
                     </tr>
                     {featureRows.map(({ addon, feature }) => {
                       const checked = readFeature(policy, drive, addon, feature);
-                      const labelKey = `${addon}.${toCamelFeature(feature)}.label`;
-                      const helpKey = `${addon}.${toCamelFeature(feature)}.help`;
-                      const warningKey = `${addon}.${toCamelFeature(feature)}.warning`;
-                      const ariaLabel = `${drive} / ${addon} / ${feature}`;
+                      const labelKey = `${feature.i18n_key}.label`;
+                      const helpKey = `${feature.i18n_key}.help`;
+                      const warningKey = `${feature.i18n_key}.warning`;
+                      const ariaLabel = `${drive} / ${addon} / ${feature.name}`;
                       return (
                         <tr
-                          key={`${drive}-${addon}-${feature}`}
+                          key={`${drive}-${addon}-${feature.name}`}
                           className="bg-bg-elevated"
-                          data-testid={`feature-row-${drive}-${addon}-${feature}`}
+                          data-testid={`feature-row-${drive}-${addon}-${feature.name}`}
                         >
                           <td className="px-3 py-2 pl-8 text-xs text-text-muted">
                             <span className="mr-1" aria-hidden="true">
                               ↳
                             </span>
-                            {t(labelKey)}
+                            {tRoot(labelKey)}
                           </td>
                           {addons.map((a) => (
                             <td key={a.name} className="px-3 py-2">
@@ -279,12 +269,12 @@ export function AddonPolicySection(): React.ReactElement {
                                       aria-label={ariaLabel}
                                     />
                                     <span className="text-xs text-text-muted">
-                                      {t(helpKey)}
+                                      {tRoot(helpKey)}
                                     </span>
                                   </span>
                                   {!checked && (
                                     <span className="text-xs text-accent-amber">
-                                      {t(warningKey)}
+                                      {tRoot(warningKey)}
                                     </span>
                                   )}
                                 </label>

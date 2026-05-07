@@ -453,13 +453,6 @@
         "loadFailed": "アドオン設定の読み込みに失敗しました",
         "saveFailed": "保存に失敗しました",
         "unknown_addon": "存在しないアドオンです"
-      },
-      "intelligence": {
-        "transcriptionCloud": {
-          "label": "クラウド文字起こしを許可",
-          "help": "外部 STT プロバイダー（Deepgram / OpenAI / ElevenLabs Scribe 等）に音声を送信します。OFF にするとこのドライブだけローカル Whisper に強制 fallback",
-          "warning": "OFF に切替後、進行中のクラウド転写ジョブは継続されます。即時反映には container restart が必要"
-        }
       }
     },
     "restartBanner": {

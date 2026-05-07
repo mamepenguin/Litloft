@@ -453,13 +453,6 @@
         "loadFailed": "Failed to load addon policy",
         "saveFailed": "Failed to save",
         "unknown_addon": "Addon does not exist in manifest"
-      },
-      "intelligence": {
-        "transcriptionCloud": {
-          "label": "Allow cloud transcription",
-          "help": "Sends audio to external STT providers (Deepgram / OpenAI / ElevenLabs Scribe etc). When OFF, this drive falls back to local Whisper only",
-          "warning": "After turning OFF, in-progress cloud transcription jobs continue. Container restart is required for immediate effect"
-        }
       }
     },
     "restartBanner": {
