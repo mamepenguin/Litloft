@@ -91,6 +91,51 @@ describe("AddonPolicySection", () => {
     });
   });
 
+  it("renders transcription_cloud sub-toggle when intelligence is enabled", async () => {
+    setupSuccessfulLoads();
+    render(<AddonPolicySection />);
+    await waitFor(() => {
+      expect(screen.getByText("intelligence")).toBeInTheDocument();
+    });
+
+    // main has intelligence: true → sub-toggle present
+    const mainSubToggle = screen.queryByTestId(
+      "feature-row-main-intelligence-transcription_cloud",
+    );
+    expect(mainSubToggle).toBeInTheDocument();
+
+    // private has intelligence: false → no sub-toggle
+    const privateSubToggle = screen.queryByTestId(
+      "feature-row-private-intelligence-transcription_cloud",
+    );
+    expect(privateSubToggle).toBeNull();
+  });
+
+  it("toggling transcription_cloud PUTs feature dict policy", async () => {
+    setupSuccessfulLoads();
+    render(<AddonPolicySection />);
+    await waitFor(() => {
+      expect(screen.getByText("intelligence")).toBeInTheDocument();
+    });
+
+    const subToggle = screen.getByLabelText(
+      "main / intelligence / transcription_cloud",
+    );
+    fireEvent.click(subToggle);
+
+    await waitFor(() => {
+      const putCall = mockFetch.mock.calls.find(
+        ([url, opts]) =>
+          url === "/api/admin/config/addon-policy" && opts?.method === "PUT",
+      );
+      expect(putCall).toBeTruthy();
+      const body = JSON.parse(putCall![1].body);
+      // Default of transcription_cloud is true; clicking flips it to false
+      // and promotes intelligence to a feature dict.
+      expect(body.main.intelligence).toEqual({ transcription_cloud: false });
+    });
+  });
+
   it("server unknown_addon error shows inline error", async () => {
     mockFetch.mockImplementation((url: string, opts?: RequestInit) => {
       if (url === "/api/admin/config/addon-policy" && opts?.method === "PUT") {
