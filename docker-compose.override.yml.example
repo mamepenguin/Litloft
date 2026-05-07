@@ -33,3 +33,23 @@ services:
   # frontend:
   #   ports:
   #     - "8080:3000"
+
+  # ── Intelligence addon (optional) ───────────────────────────────────────
+  # The intelligence addon talks to the backend's internal API (policy
+  # lookups, addon-events bridge, file content fetch). On a cold start,
+  # the addon container can race past backend boot and receive
+  # ConnectionRefused on its first policy_client lookups.
+  #
+  # The addon already handles this gracefully — it has a 60-second cold-
+  # start grace period that fails open on policy lookup failures — but
+  # the recommended infrastructure-level fix is to gate addon startup on
+  # the backend healthcheck. This is required when you use cloud
+  # transcription providers (Deepgram / ElevenLabs Scribe / OpenAI-
+  # compatible) because their job records depend on a synchronous policy
+  # lookup at enqueue time.
+  #
+  # Uncomment this block if you run the intelligence addon:
+  # intelligence:
+  #   depends_on:
+  #     backend:
+  #       condition: service_healthy
