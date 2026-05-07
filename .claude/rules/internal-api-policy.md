@@ -65,6 +65,7 @@ When an addon emits "candidates / guesses / suggestions" that the user can promo
 | 9 | `/file_relations` (POST/GET/DELETE) | KEEP | premised on the core UI displaying it; re-evaluate if that commitment is rolled back |
 | 10 | ~~`/file_active_summary` (POST/GET/DELETE)~~ | REMOVED → moved to knowledge | Completed 2026-04-30. Spec `2026-04-30-file-active-summary-to-knowledge.md` |
 | 11 | `POST /addon-events` | KEEP | WS bridge, universal |
+| 12 | `POST /restart-pending` | KEEP | Phase 2D (2026-05-08): addons notify the core that user-visible config changed. Phase 1 R1 (sentinel is core's), R2 (generic source/reason), R3 (knowledge note_scanner GUI / media_import config UI / intelligence transcription UI), R4 (RestartBanner reads), R5 (addon intent → core sentinel) all pass. |
 
 ## Decision flow for adding a new endpoint
 

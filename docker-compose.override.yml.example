@@ -51,6 +51,9 @@ services:
   # Uncomment this block if you run the intelligence addon:
   # intelligence:
   #   environment:
+  #     # Lets the addon notify the core of restart-pending events
+  #     # (Phase 2D: settings GUI for transcription provider).
+  #     - HOMEVAULT_INTERNAL_URL=http://backend:8000
   #     # Pass cloud provider API keys from .env into the container.
   #     # Required when transcription.provider is set to a cloud provider.
   #     - LLM_API_KEY=${LLM_API_KEY:-}

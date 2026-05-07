@@ -523,6 +523,7 @@ def main():
                 "      - ./data/videos.db:/data/litloft.db:ro",
                 *[f"      - {d['host_path']}:/drives/{d['slug']}:ro" for d in drives],
                 "    environment:", f"      - DRIVE_MOUNTS={mounts}",
+                "      - HOMEVAULT_INTERNAL_URL=http://backend:8000",
                 "      - LLM_API_KEY=${LLM_API_KEY:-}",
                 "      - DEEPGRAM_API_KEY=${DEEPGRAM_API_KEY:-}",
                 "      - ELEVENLABS_API_KEY=${ELEVENLABS_API_KEY:-}",

@@ -683,6 +683,65 @@ class AddonEventRequest(BaseModel):
     drive: str | None = None
 
 
+class RestartPendingRequest(BaseModel):
+    """Notice from an addon that user-visible config has changed.
+
+    ``source`` is the addon name (free-form string, opaque to the
+    core). ``reason`` is a short human-readable note rendered nowhere
+    today but recorded in logs for postmortems. Internal-API-policy
+    R2 (generic shape): no addon-name dispatch on the core side.
+    """
+
+    source: Annotated[
+        str,
+        StringConstraints(min_length=1, max_length=64, pattern=r"^[a-z][a-z0-9_.-]*$"),
+    ]
+    reason: str | None = None
+
+
+@router.post(
+    "/restart-pending",
+    status_code=204,
+    dependencies=[Depends(verify_internal_secret)],
+)
+async def set_restart_pending(body: RestartPendingRequest) -> Response:
+    """Touch ``data/restart_pending`` on behalf of an addon.
+
+    Phase 2D introduces the GUI-driven transcription provider switch
+    in the intelligence addon. When that flow saves the user's
+    choice, the addon container POSTs here so the core's
+    ``RestartBanner`` can prompt the user to ``docker compose
+    restart`` and pick up the change.
+
+    Internal-API-policy compliance:
+      - R1 first-class core entity: ``restart_pending`` is the
+        core's sentinel; addons cannot reach ``data/`` directly.
+      - R2 generic shape: ``source`` / ``reason`` are opaque, no
+        addon-specific branching here.
+      - R3 multi-addon viability: knowledge will use the same path
+        once its note_scanner config GUI lands; media_import
+        likewise for any future global config UI.
+      - R4 write asymmetry: the core's ``RestartBanner`` reads the
+        sentinel, so the write side is justified.
+      - R5 promotion target: an addon's intent is promoted to a
+        first-class core sentinel.
+    """
+    flag = config.DATA_DIR / "restart_pending"
+    try:
+        flag.parent.mkdir(parents=True, exist_ok=True)
+        flag.touch()
+        logger.info(
+            "restart_pending touched by addon %s: %s",
+            body.source, body.reason or "(no reason given)",
+        )
+    except OSError as exc:
+        logger.exception("Failed to touch restart_pending flag: %s", exc)
+        raise HTTPException(
+            status_code=500, detail="Cannot write restart_pending sentinel"
+        ) from exc
+    return Response(status_code=204)
+
+
 @router.post("/addon-events", status_code=204)
 async def broadcast_addon_event(body: AddonEventRequest):
     """Forward an addon-generated WebSocket event to connected clients.
