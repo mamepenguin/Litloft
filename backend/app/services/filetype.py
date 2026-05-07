@@ -45,6 +45,14 @@ _EXTRA_MIMES = {
     ".aac": "audio/aac",
     ".ogg": "audio/ogg",
     ".webm": "video/webm",
+    # Phase 2F: Linux Docker's mimetypes DB lacks .m4a / .opus
+    # entries (hako BDffxf4IyuwzRiZDnZuBZ + A-gF1mK3kDjRjS_dfuq1B).
+    # ``audio/mp4`` is the IANA-registered MIME for AAC-in-MP4 audio
+    # — choosing it over Apple's ``audio/m4a`` / ``audio/x-m4a``
+    # de-facto values keeps macOS and Linux registrations identical
+    # (macOS ``mimetypes.guess_type`` already returns ``audio/mp4``).
+    ".m4a": "audio/mp4",
+    ".opus": "audio/opus",
     ".docx": "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
     ".xlsx": "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
     ".pptx": "application/vnd.openxmlformats-officedocument.presentationml.presentation",

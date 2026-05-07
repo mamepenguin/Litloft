@@ -29,6 +29,22 @@ class TestClassify:
         file_type, mime_type = classify("track.flac")
         assert file_type == "audio"
 
+    def test_audio_m4a_uses_iana_mp4_mime(self):
+        """Phase 2F: Linux Docker's mimetypes DB lacks .m4a; the
+        extension fallback must register it as the IANA-standard
+        ``audio/mp4`` so the intelligence transcriber recognises it
+        (hako A-gF1mK3kDjRjS_dfuq1B + BDffxf4IyuwzRiZDnZuBZ)."""
+        file_type, mime_type = classify("podcast.m4a")
+        assert file_type == "audio"
+        assert mime_type == "audio/mp4"
+
+    def test_audio_opus_uses_iana_mime(self):
+        """Phase 2F: same fix for Opus, which Linux Docker also
+        misses in its mimetypes DB."""
+        file_type, mime_type = classify("call.opus")
+        assert file_type == "audio"
+        assert mime_type == "audio/opus"
+
     def test_document_pdf(self):
         assert classify("doc.pdf") == ("document", "application/pdf")
 
