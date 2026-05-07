@@ -462,34 +462,6 @@
         }
       }
     },
-    "transcription": {
-      "title": "Transcription provider",
-      "description": "Switches the provider the Intelligence addon uses for new transcription jobs. Changes take effect on next container restart. Provider-specific tuning (model / base_url / etc.) still lives in search-config.yml.",
-      "provider": "Provider",
-      "languageHint": "Language hint",
-      "languageHintHelp": "BCP-47 tag (e.g. ja, en-US, zh-Hant-HK). Leave empty for auto-detect.",
-      "hotwords": "Hotwords",
-      "hotwordsHelp": "One per line. Honoured by AssemblyAI and Whisper-family providers only.",
-      "apiKeyStatus": "API key status",
-      "apiKeyPresent": "set",
-      "apiKeyMissing": "missing",
-      "subconfigSummary": "search-config.yml view (read-only)",
-      "save": "Save",
-      "saving": "Saving...",
-      "saved": "Saved — restart required for the change to take effect",
-      "loadFailed": "Failed to load",
-      "saveFailed": "Failed to save",
-      "providerNeedsKey": "This provider needs {env}. Add it to .env, run `docker compose up -d`, then resave.",
-      "notWhisperHint": "Hotwords are honoured only by Whisper-family (whisper_local / openai_compatible) and AssemblyAI.",
-      "providers": {
-        "whisper_local": "Whisper local (faster-whisper)",
-        "openai_compatible": "OpenAI-compatible (Whisper API / Groq / Fireworks)",
-        "deepgram": "Deepgram (Nova)",
-        "elevenlabs_scribe": "ElevenLabs Scribe",
-        "assemblyai": "AssemblyAI (Universal-2)",
-        "gemini": "Google Gemini"
-      }
-    },
     "restartBanner": {
       "title": "Pending changes — restart required",
       "fileLabel": "{name} ({count})",
@@ -787,10 +759,5 @@
       "noDescription": "(No description for this addon)"
     }
   },
-  "errors": {
-    "transcription": {
-      "providerFailed": "Transcription provider failed: {error}",
-      "openaiFileTooLarge": "OpenAI Whisper API has a 25MB file limit. For long-form audio, use Deepgram / ElevenLabs Scribe / Groq / self-hosted Whisper"
-    }
-  }
+  "errors": {}
 }

@@ -462,34 +462,6 @@
         }
       }
     },
-    "transcription": {
-      "title": "文字起こしプロバイダー",
-      "description": "Intelligence アドオンが新規ジョブで使うプロバイダーを切り替えます。設定は次回起動時に反映されます。プロバイダー固有の細かいパラメータ（モデル / base_url 等）は手動編集のままです。",
-      "provider": "プロバイダー",
-      "languageHint": "言語ヒント",
-      "languageHintHelp": "BCP-47 タグ（例: ja, en-US, zh-Hant-HK）。空欄なら自動検出",
-      "hotwords": "ホットワード",
-      "hotwordsHelp": "固有名詞や専門用語を 1 行 1 件で。AssemblyAI と Whisper 系のみ反映",
-      "apiKeyStatus": "API キー状態",
-      "apiKeyPresent": "設定済",
-      "apiKeyMissing": "未設定",
-      "subconfigSummary": "search-config.yml の設定（読み取り専用）",
-      "save": "保存",
-      "saving": "保存中...",
-      "saved": "保存しました — 反映には再起動が必要",
-      "loadFailed": "読み込みに失敗しました",
-      "saveFailed": "保存に失敗しました",
-      "providerNeedsKey": "このプロバイダーは {env} を必要とします。.env に追加して `docker compose up -d` 後に再保存してください",
-      "notWhisperHint": "ホットワードは Whisper 系（whisper_local / openai_compatible）と AssemblyAI のみで使われます",
-      "providers": {
-        "whisper_local": "Whisper local (faster-whisper)",
-        "openai_compatible": "OpenAI 互換 (Whisper API / Groq / Fireworks)",
-        "deepgram": "Deepgram (Nova)",
-        "elevenlabs_scribe": "ElevenLabs Scribe",
-        "assemblyai": "AssemblyAI (Universal-2)",
-        "gemini": "Google Gemini"
-      }
-    },
     "restartBanner": {
       "title": "保留中の変更があります。反映には再起動が必要です",
       "fileLabel": "{name} ({count} 件)",
@@ -787,10 +759,5 @@
       "noDescription": "（このアドオンの説明はありません）"
     }
   },
-  "errors": {
-    "transcription": {
-      "providerFailed": "文字起こしプロバイダーが失敗しました: {error}",
-      "openaiFileTooLarge": "OpenAI Whisper API は 25MB 制限があります。長尺は Deepgram / ElevenLabs Scribe / Groq / セルフホスト推奨"
-    }
-  }
+  "errors": {}
 }

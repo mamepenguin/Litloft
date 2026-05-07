@@ -2,10 +2,10 @@
 
 import { useTranslations } from "next-intl";
 
+import { AddonSlot } from "@/components/AddonSlot";
 import { DrivesSection } from "./DrivesSection";
 import { PasswordsSection } from "./PasswordsSection";
 import { AddonPolicySection } from "./AddonPolicySection";
-import { TranscriptionSettingsSection } from "./TranscriptionSettingsSection";
 
 export default function AdminSettingsPage(): React.ReactElement {
   const t = useTranslations("settings");
@@ -15,7 +15,7 @@ export default function AdminSettingsPage(): React.ReactElement {
       <DrivesSection />
       <PasswordsSection />
       <AddonPolicySection />
-      <TranscriptionSettingsSection />
+      <AddonSlot id="admin-settings-sections" layout="stack" />
     </div>
   );
 }
