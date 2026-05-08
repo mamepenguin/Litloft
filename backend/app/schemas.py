@@ -1,5 +1,6 @@
 import re
 from datetime import UTC, datetime
+from typing import Literal
 
 from pydantic import BaseModel, Field, field_validator, model_validator
 
@@ -127,11 +128,30 @@ class DriveSummaryResponse(BaseModel):
     missing_count: int
 
 
+FolderKind = Literal[
+    "markdown", "video", "image", "pdf", "audio", "document", "other"
+]
+
+
 class FolderResponse(BaseModel):
     name: str
     path: str
     file_count: int
     thumbnail_file_id: str | None
+    dominant_kind: FolderKind | None = None
+
+
+class FolderTreeNode(BaseModel):
+    kind: Literal["folder", "file"]
+    name: str
+    path: str
+
+    file_count: int | None = None
+    has_children: bool | None = None
+
+    file_id: str | None = None
+    file_type: str | None = None
+    mime_type: str | None = None
 
 
 class TagResponse(BaseModel):

@@ -1,5 +1,5 @@
 import unicodedata
-from typing import Annotated
+from typing import Annotated, Literal
 
 from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy import func, or_
@@ -21,6 +21,7 @@ from app.schemas import (
     FolderMoveRequest,
     FolderRenameRequest,
     FolderResponse,
+    FolderTreeNode,
     PaginatedResponse,
     PaginationMeta,
     PinnedFolderCreateRequest,
@@ -57,6 +58,42 @@ def _validate_folder_path(path: str) -> str:
     if ".." in path.split("/") or path.startswith("/"):
         raise HTTPException(status_code=400, detail="Invalid folder path")
     return path
+
+
+# Kind taxonomy used by Topic 2-C type filter chips (Markdown / Video / Image / PDF)
+# and Topic 9 dominant_kind for the layered viewMode fallback.
+TreeKind = Literal["markdown", "video", "image", "pdf"]
+
+
+def _classify_kind(file_type: str | None, mime_type: str | None) -> str:
+    """Map a File row's (file_type, mime_type) to the user-facing kind taxonomy."""
+    if mime_type == "text/markdown":
+        return "markdown"
+    if mime_type == "application/pdf":
+        return "pdf"
+    if file_type == "video":
+        return "video"
+    if file_type == "image":
+        return "image"
+    if file_type == "audio":
+        return "audio"
+    if file_type == "document":
+        return "document"
+    return "other"
+
+
+def _apply_kind_filter(query, kind: TreeKind | None):
+    if kind is None:
+        return query
+    if kind == "markdown":
+        return query.filter(File.mime_type == "text/markdown")
+    if kind == "pdf":
+        return query.filter(File.mime_type == "application/pdf")
+    if kind == "video":
+        return query.filter(File.file_type == "video")
+    if kind == "image":
+        return query.filter(File.file_type == "image")
+    return query
 
 
 _to_response = file_to_response
@@ -186,15 +223,183 @@ async def list_folders(
             if len(thumbnail_map) == len(folders):
                 break
 
+    # Compute dominant_kind per top-level folder (recursive).
+    # Topic 9: ".md 過半 → two-pane / video/image 過半 → grid" の判定材料。
+    dominant_kind_map: dict[str, str | None] = {fp: None for fp in folders}
+    if folders:
+        kind_query = db.query(
+            File.folder_path,
+            File.file_type,
+            File.mime_type,
+            func.count(File.id),
+        ).filter(
+            File.drive == drive_name,
+            active_file_filter(),
+        )
+        if path:
+            kind_query = kind_query.filter(
+                File.folder_path.like(_escape_like(path) + "/%", escape="\\")
+            )
+        else:
+            kind_query = kind_query.filter(File.folder_path != "")
+        kind_query = kind_query.group_by(File.folder_path, File.file_type, File.mime_type)
+
+        # Rows describe per-(folder_path, kind) totals. Roll up into the top-level
+        # folder (depth-1 segment under `path`) so each row hits one bucket in O(1).
+        kind_counts: dict[str, dict[str, int]] = {}
+        for fp, ft, mt, count in kind_query.all():
+            remainder = fp[len(path) + 1:] if path else fp
+            if not remainder:
+                continue
+            top_segment = remainder.split("/")[0]
+            top = f"{path}/{top_segment}" if path else top_segment
+            if top not in folders:
+                continue
+            kind = _classify_kind(ft, mt)
+            bucket = kind_counts.setdefault(top, {})
+            bucket[kind] = bucket.get(kind, 0) + count
+
+        for top, counts in kind_counts.items():
+            dominant_kind_map[top] = max(counts.items(), key=lambda kv: kv[1])[0]
+
     return [
         FolderResponse(
             name=fp.split("/")[-1],
             path=fp,
             file_count=count,
             thumbnail_file_id=thumbnail_map.get(fp),
+            dominant_kind=dominant_kind_map.get(fp),
         )
         for fp, count in sorted(folders.items())
     ]
+
+
+@router.get("/{drive_name}/folder-tree", response_model=list[FolderTreeNode])
+async def list_folder_tree(
+    drive_name: str,
+    db: Annotated[Session, Depends(get_db)],
+    unlocked_groups: Annotated[list[str], Depends(get_unlocked_groups)],
+    root: str = "",
+    type_filter: TreeKind | None = None,
+    depth: int = Query(1, ge=1, le=1),
+):
+    """Lazy-expandable folder tree for the 2-pane left tree (spec topic 10).
+
+    Returns one level (depth=1) of children under ``root``:
+
+    - subfolders (always shown so the user can navigate even when filtered)
+    - files at depth 1 whose ``mime_type`` / ``file_type`` matches ``type_filter``
+
+    Folders carry ``file_count`` (recursive count after filter) and
+    ``has_children`` (any subfolder OR file_count > 0) so the tree can
+    decide whether to render an expand caret.
+    """
+    _validate_drive(drive_name, unlocked_groups)
+    if root:
+        root = _validate_folder_path(root)
+
+    # Files at depth 1 directly under root
+    file_query = db.query(File).filter(
+        File.drive == drive_name,
+        active_file_filter(),
+        File.folder_path == root,
+    )
+    file_query = _apply_kind_filter(file_query, type_filter)
+    direct_files = file_query.order_by(File.filename.asc()).all()
+
+    # Subfolder enumeration: collect distinct first-segment names under root.
+    # Folder visibility is independent of type_filter (Topic 2-A).
+    subfolder_names: set[str] = set()
+
+    folder_query = db.query(File.folder_path).filter(
+        File.drive == drive_name,
+        active_file_filter(),
+    )
+    if root:
+        prefix = _escape_like(root) + "/"
+        folder_query = folder_query.filter(File.folder_path.like(prefix + "%", escape="\\"))
+    else:
+        folder_query = folder_query.filter(File.folder_path != "")
+
+    for (fp,) in folder_query.distinct().all():
+        remainder = fp[len(root) + 1:] if root else fp
+        if not remainder:
+            continue
+        subfolder_names.add(remainder.split("/")[0])
+
+    ef_query = db.query(EmptyFolder.path).filter(EmptyFolder.drive == drive_name)
+    if root:
+        ef_query = ef_query.filter(EmptyFolder.path.like(_escape_like(root) + "/%", escape="\\"))
+    else:
+        ef_query = ef_query.filter(EmptyFolder.path != "")
+
+    for (ef_path,) in ef_query.all():
+        remainder = ef_path[len(root) + 1:] if root else ef_path
+        if not remainder:
+            continue
+        subfolder_names.add(remainder.split("/")[0])
+
+    # For each subfolder, compute file_count (recursive, with filter) and has_children.
+    folder_nodes: list[FolderTreeNode] = []
+    for name in sorted(subfolder_names):
+        full_path = f"{root}/{name}" if root else name
+        prefix = _escape_like(full_path)
+
+        count_q = db.query(func.count(File.id)).filter(
+            File.drive == drive_name,
+            active_file_filter(),
+            or_(
+                File.folder_path == full_path,
+                File.folder_path.like(prefix + "/%", escape="\\"),
+            ),
+        )
+        count_q = _apply_kind_filter(count_q, type_filter)
+        file_count = count_q.scalar() or 0
+
+        # has_children: any descendant subfolder, OR file_count > 0 under filter
+        has_subfolder = (
+            db.query(File.id)
+            .filter(
+                File.drive == drive_name,
+                active_file_filter(),
+                File.folder_path.like(prefix + "/%", escape="\\"),
+            )
+            .first()
+            is not None
+        )
+        if not has_subfolder:
+            has_subfolder = (
+                db.query(EmptyFolder.id)
+                .filter(
+                    EmptyFolder.drive == drive_name,
+                    EmptyFolder.path.like(prefix + "/%", escape="\\"),
+                )
+                .first()
+                is not None
+            )
+
+        folder_nodes.append(FolderTreeNode(
+            kind="folder",
+            name=name,
+            path=full_path,
+            file_count=file_count,
+            has_children=has_subfolder or file_count > 0,
+        ))
+
+    file_nodes = [
+        FolderTreeNode(
+            kind="file",
+            name=f.filename,
+            path=f.file_path,
+            file_id=f.id,
+            file_type=f.file_type,
+            mime_type=f.mime_type,
+        )
+        for f in direct_files
+    ]
+
+    # Folders before files (Topic 2: folder structure first, files as leaves).
+    return folder_nodes + file_nodes
 
 
 @router.get("/{drive_name}/files", response_model=PaginatedResponse)
