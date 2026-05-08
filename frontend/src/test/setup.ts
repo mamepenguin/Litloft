@@ -2,6 +2,35 @@ import "@testing-library/jest-dom/vitest";
 import { vi } from "vitest";
 import enMessages from "../messages/en.json";
 
+// jsdom 25 + vitest 3 + vite 6 ships an empty `{}` for localStorage on
+// some platforms instead of a Storage instance. Replace it with a tiny
+// Map-backed shim so tests can exercise persistence code paths.
+if (typeof window !== "undefined") {
+  const installShim = (key: "localStorage" | "sessionStorage") => {
+    const target = (window as unknown as Record<string, unknown>)[key];
+    if (target && typeof (target as Storage).getItem === "function") return;
+    const store = new Map<string, string>();
+    const shim: Storage = {
+      get length() {
+        return store.size;
+      },
+      clear: () => store.clear(),
+      getItem: (k) => (store.has(k) ? store.get(k)! : null),
+      key: (i) => Array.from(store.keys())[i] ?? null,
+      removeItem: (k) => {
+        store.delete(k);
+      },
+      setItem: (k, v) => {
+        store.set(k, String(v));
+      },
+    };
+    Object.defineProperty(window, key, { value: shim, writable: false, configurable: true });
+    Object.defineProperty(globalThis, key, { value: shim, writable: false, configurable: true });
+  };
+  installShim("localStorage");
+  installShim("sessionStorage");
+}
+
 // @testing-library/dom's waitFor() detects fake timers by checking
 // `typeof jest !== 'undefined'`. Without that, it falls back to
 // real-timer polling via setInterval — which vitest's vi.useFakeTimers()

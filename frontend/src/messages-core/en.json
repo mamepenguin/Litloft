@@ -306,7 +306,8 @@
   },
   "view": {
     "grid": "Grid view",
-    "list": "List view"
+    "list": "List view",
+    "twoPane": "Two-pane view"
   },
   "toolbar": {
     "rescan": "Rescan",
