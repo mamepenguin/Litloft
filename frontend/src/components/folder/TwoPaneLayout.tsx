@@ -1,11 +1,13 @@
 "use client";
 
+import { X } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { usePathname, useRouter } from "next/navigation";
 import { useCallback } from "react";
 import type { ReactNode } from "react";
 
 import { useSelectedFile } from "@/hooks/useSelectedFile";
+import { useTreeEnabled } from "@/hooks/useTreeEnabled";
 
 import { FolderTreePane } from "./FolderTreePane";
 import { RightPaneFile } from "./RightPaneFile";
@@ -38,9 +40,11 @@ interface TwoPaneLayoutProps {
  */
 export function TwoPaneLayout({ drive, folderPath, children }: TwoPaneLayoutProps) {
   const t = useTranslations("rightPane");
+  const tView = useTranslations("view");
   const router = useRouter();
   const pathname = usePathname();
   const { fileId, selectFile } = useSelectedFile();
+  const { setEnabled: setTreeEnabled } = useTreeEnabled(drive);
 
   const driveBase = `/drive/${encodeURIComponent(drive)}`;
 
@@ -72,6 +76,16 @@ export function TwoPaneLayout({ drive, folderPath, children }: TwoPaneLayoutProp
         } w-full flex-col md:w-[280px] md:flex-shrink-0`}
         aria-label="Folder tree"
       >
+        <div className="flex items-center justify-end border-b border-bg-border p-1 md:hidden">
+          <button
+            type="button"
+            onClick={() => setTreeEnabled(false)}
+            aria-label={tView("treeOff")}
+            className="rounded-md p-2 text-text-muted hover:text-text-primary"
+          >
+            <X size={18} />
+          </button>
+        </div>
         <FolderTreePane
           drive={drive}
           selectedPath={selectedTreePath}

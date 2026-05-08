@@ -29,7 +29,6 @@ import { useDriveScan } from "@/components/folder/useDriveScan";
 import { useCreateFolder } from "@/components/folder/useCreateFolder";
 import { FolderToolbar } from "@/components/folder/FolderToolbar";
 import { FolderContent } from "@/components/folder/FolderContent";
-import { TwoPaneLayout } from "@/components/folder/TwoPaneLayout";
 
 interface FolderBrowserProps {
   driveName: string;
@@ -87,9 +86,11 @@ export function FolderBrowser({
   const isPopular = view === "popular";
   const isAll = view === "all";
   const isSpecialView = isFavorites || view === "recent" || isRecentAdded || isPopular || isAll;
-  // Topic 2-B: flat virtual views (favorites/recent/etc.), search, and
-  // tag-filtered views have no folder hierarchy → tree pane is hidden.
-  const treeAllowed = !isSpecialView && !isSearch && !tagFilter;
+  // True for "real" folder browsing (drive root or a sub folder, no tag).
+  // The flat virtual views (favorites/recent/etc.), search, and tag
+  // filters use the global default for view mode rather than the
+  // per-folder override, since they don't render a single folder.
+  const isFolderContext = !isSpecialView && !isSearch && !tagFilter;
 
   const {
     files, folders, total, loading, loadingMore, hasMore, pagesLoaded, sentinelRef,
@@ -106,7 +107,6 @@ export function FolderBrowser({
     drive: driveName,
     folderPath: folderPath ?? "",
     dominantKind,
-    twoPaneAllowed: false,
   });
   // Clamp snapshot-restored viewMode to grid|list. Snapshots may carry
   // legacy "two-pane" strings from prior sessions; defensively coerce
@@ -115,14 +115,13 @@ export function FolderBrowser({
   const [globalViewMode, setGlobalViewMode] = useState<ViewMode>(
     snapshotMode === "grid" || snapshotMode === "list" ? snapshotMode : "grid",
   );
-  const viewMode: ViewMode = treeAllowed ? folderViewMode.viewMode : globalViewMode;
+  const viewMode: ViewMode = isFolderContext ? folderViewMode.viewMode : globalViewMode;
   const { enabled: treeEnabled } = useTreeEnabled(driveName);
-  const treeVisible = treeAllowed && treeEnabled;
   const { fileId: selectedFileId } = useSelectedFile();
   // While the user is reading a file in the tree's right pane, the
   // FolderToolbar's folder-targeted actions (upload, new folder, sort, ...)
   // are noise — hide on every viewport.
-  const hideToolbar = treeVisible && selectedFileId !== null && selectedFileId.length > 0;
+  const hideToolbar = treeEnabled && selectedFileId !== null && selectedFileId.length > 0;
 
   const didRestoreScrollRef = useRef(false);
   useLayoutEffect(() => {
@@ -270,10 +269,10 @@ export function FolderBrowser({
 
   const handleViewChange = useCallback(
     (mode: ViewMode) => {
-      if (treeAllowed) folderViewMode.setViewMode(mode);
+      if (isFolderContext) folderViewMode.setViewMode(mode);
       else setGlobalViewMode(mode);
     },
-    [treeAllowed, folderViewMode],
+    [isFolderContext, folderViewMode],
   );
 
   const handleSemanticSelect = useCallback(
@@ -425,8 +424,7 @@ export function FolderBrowser({
         fileIds={files.map((f) => f.id)}
         drive={driveName}
         folderPath={folderPath}
-        viewMode={treeAllowed ? viewMode : undefined}
-        treeAllowed={treeAllowed}
+        viewMode={isFolderContext ? viewMode : undefined}
         onSortChange={(s, o) => { setSort(s); setOrder(o); }}
         onTypeFilterChange={setTypeFilter}
         onViewChange={handleViewChange}
@@ -452,75 +450,37 @@ export function FolderBrowser({
         <EmptyState variant="no-results" />
       )}
 
-      {treeVisible ? (
-        <div className="-mx-2 sm:-mx-4">
-          <TwoPaneLayout drive={driveName} folderPath={folderPath ?? ""}>
-            <FolderContent
-              files={files}
-              folders={folders}
-              driveName={driveName}
-              viewMode={viewMode}
-              loading={loading}
-              loadingMore={loadingMore}
-              isRecent={isRecent}
-              isFavorites={isFavorites}
-              isRecentAdded={isRecentAdded}
-              isSearch={isSearch}
-              selectable={selectable}
-              sortQuery={sortQuery}
-              pinnedPaths={pinnedPaths}
-              sentinelRef={sentinelRef}
-              dragState={dragState}
-              isDropTarget={isDropTarget}
-              getDropTargetProps={getDropTargetProps}
-              isSelected={selection.isSelected}
-              onSelect={selection.toggle}
-              onMetaSelect={handleMetaSelect}
-              onShiftSelect={handleShiftSelect}
-              onTogglePin={handleTogglePin}
-              onFavoriteToggle={handleFavoriteToggle}
-              onRefresh={refresh}
-              onDragStart={handleDragStart}
-              onDragEnd={handleDragEnd}
-              selectedCount={selection.count}
-              isDropDisabled={isDropDisabled}
-              onFolderDragStart={handleFolderDragStart}
-            />
-          </TwoPaneLayout>
-        </div>
-      ) : (
-        <FolderContent
-          files={files}
-          folders={folders}
-          driveName={driveName}
-          viewMode={viewMode}
-          loading={loading}
-          loadingMore={loadingMore}
-          isRecent={isRecent}
-          isFavorites={isFavorites}
-          isRecentAdded={isRecentAdded}
-          isSearch={isSearch}
-          selectable={selectable}
-          sortQuery={sortQuery}
-          pinnedPaths={pinnedPaths}
-          sentinelRef={sentinelRef}
-          dragState={dragState}
-          isDropTarget={isDropTarget}
-          getDropTargetProps={getDropTargetProps}
-          isSelected={selection.isSelected}
-          onSelect={selection.toggle}
-          onMetaSelect={handleMetaSelect}
-          onShiftSelect={handleShiftSelect}
-          onTogglePin={handleTogglePin}
-          onFavoriteToggle={handleFavoriteToggle}
-          onRefresh={refresh}
-          onDragStart={handleDragStart}
-          onDragEnd={handleDragEnd}
-          selectedCount={selection.count}
-          isDropDisabled={isDropDisabled}
-          onFolderDragStart={handleFolderDragStart}
-        />
-      )}
+      <FolderContent
+        files={files}
+        folders={folders}
+        driveName={driveName}
+        viewMode={viewMode}
+        loading={loading}
+        loadingMore={loadingMore}
+        isRecent={isRecent}
+        isFavorites={isFavorites}
+        isRecentAdded={isRecentAdded}
+        isSearch={isSearch}
+        selectable={selectable}
+        sortQuery={sortQuery}
+        pinnedPaths={pinnedPaths}
+        sentinelRef={sentinelRef}
+        dragState={dragState}
+        isDropTarget={isDropTarget}
+        getDropTargetProps={getDropTargetProps}
+        isSelected={selection.isSelected}
+        onSelect={selection.toggle}
+        onMetaSelect={handleMetaSelect}
+        onShiftSelect={handleShiftSelect}
+        onTogglePin={handleTogglePin}
+        onFavoriteToggle={handleFavoriteToggle}
+        onRefresh={refresh}
+        onDragStart={handleDragStart}
+        onDragEnd={handleDragEnd}
+        selectedCount={selection.count}
+        isDropDisabled={isDropDisabled}
+        onFolderDragStart={handleFolderDragStart}
+      />
 
       {selectable && (
         <SelectionBar

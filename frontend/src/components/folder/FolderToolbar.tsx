@@ -38,18 +38,12 @@ interface FolderToolbarProps {
   drive: string;
   folderPath?: string;
   /**
-   * Current viewMode. When `treeAllowed` is true the toolbar is
-   * controlled (FolderBrowser owns persistence via useFolderViewMode);
-   * when false, ViewToggle falls back to its uncontrolled mode and
+   * Current viewMode. When provided, ViewToggle is controlled
+   * (FolderBrowser owns persistence via useFolderViewMode); when
+   * omitted, ViewToggle falls back to its uncontrolled mode and
    * persists to the global default key.
    */
   viewMode?: ViewMode;
-  /**
-   * When true, the TreeToggle button is rendered. Hidden for flat
-   * virtual views (favorites/recent/search/tag) where there is no
-   * folder tree to surface.
-   */
-  treeAllowed?: boolean;
   onSortChange: (s: SortField, o: SortOrder) => void;
   onTypeFilterChange: (t: FileType | null) => void;
   onViewChange: (mode: ViewMode) => void;
@@ -76,7 +70,7 @@ export function FolderToolbar({
   isSpecialView, isSearch, tagFilter, hasPlayableFiles,
   sort, order, typeFilter, total, selectable, scanning,
   creatingFolder, newFolderName, folderError, fileIds, drive, folderPath,
-  viewMode, treeAllowed,
+  viewMode,
   onSortChange, onTypeFilterChange, onViewChange, onToggleSelectable,
   onScan, onPlayAll, onSetCreatingFolder, onSetNewFolderName,
   onSetFolderError, onCreateFolder,
@@ -226,7 +220,7 @@ export function FolderToolbar({
 
         <ViewToggle mode={viewMode} onChange={onViewChange} />
 
-        {treeAllowed && <TreeToggle drive={drive} />}
+        <TreeToggle drive={drive} />
 
         {/* Overflow: select-mode + rescan (low-frequency, not search-mode) */}
         <div className="relative">
