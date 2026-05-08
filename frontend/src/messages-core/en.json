@@ -321,6 +321,12 @@
     "errorRetry": "Retry",
     "empty": "No files in this folder"
   },
+  "rightPane": {
+    "openDetails": "Open details",
+    "loading": "Loading...",
+    "notFound": "File not found",
+    "noSelection": "Select a file from the tree"
+  },
   "toolbar": {
     "rescan": "Rescan",
     "rescanTitle": "Rescan drive",
