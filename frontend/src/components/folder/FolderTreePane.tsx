@@ -15,11 +15,16 @@ import { TypeFilterChips } from "./TypeFilterChips";
 interface FolderTreePaneProps {
   drive: string;
   /**
-   * Currently selected node path. Folders highlight when their `path`
-   * matches; files use their full file path. Used for visual highlight
-   * only — selection itself is owned by the URL state hook upstream.
+   * Currently selected folder path. Used to highlight the matching
+   * folder row. Selection itself is owned by the URL state hook
+   * upstream.
    */
   selectedPath?: string | null;
+  /**
+   * Currently selected file id. When set, the matching file row is
+   * highlighted instead of any folder.
+   */
+  selectedFileId?: string | null;
   /**
    * Current folder path the user is browsing (URL path). The tree
    * automatically expands all ancestors so the user's location is
@@ -66,6 +71,7 @@ function gatherPathsToLoad(expanded: Set<string>): Set<string> {
 export function FolderTreePane({
   drive,
   selectedPath,
+  selectedFileId,
   currentFolderPath,
   onSelectFolder,
   onSelectFile,
@@ -140,7 +146,10 @@ export function FolderTreePane({
             {virtualizer.getVirtualItems().map((virtualRow) => {
               const row = flatList[virtualRow.index];
               if (!row) return null;
-              const rowPath = row.node.path;
+              const isSelected =
+                row.node.kind === "file"
+                  ? selectedFileId != null && row.node.file_id === selectedFileId
+                  : selectedPath != null && selectedPath === row.node.path;
               return (
                 <div
                   key={virtualRow.key}
@@ -156,7 +165,7 @@ export function FolderTreePane({
                 >
                   <FolderTreeRow
                     row={row}
-                    selected={selectedPath === rowPath}
+                    selected={isSelected}
                     onSelect={handleSelect}
                   />
                 </div>

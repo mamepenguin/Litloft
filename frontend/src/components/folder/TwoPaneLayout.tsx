@@ -43,9 +43,10 @@ export function TwoPaneLayout({ drive, folderPath, children }: TwoPaneLayoutProp
   const tView = useTranslations("view");
   const router = useRouter();
   const pathname = usePathname();
-  const { fileId, selectFile } = useSelectedFile();
+  const { fileId, selectFile, clearFile } = useSelectedFile();
   const { setEnabled: setTreeEnabled } = useTreeEnabled(drive);
 
+  const hasFile = fileId !== null && fileId.length > 0;
   const driveBase = `/drive/${encodeURIComponent(drive)}`;
 
   const handleSelectFolder = useCallback(
@@ -56,9 +57,15 @@ export function TwoPaneLayout({ drive, folderPath, children }: TwoPaneLayoutProp
       // on the tree (typically deep into the list), the right pane is
       // about to swap to a new page, but jumping the viewport back to
       // the top would feel like the tree itself collapsed.
-      if (target !== pathname) router.push(target, { scroll: false });
+      if (target !== pathname) {
+        router.push(target, { scroll: false });
+      } else if (hasFile) {
+        // Same folder, but a file is open — clear ?file so the click
+        // "returns" the user to the folder view.
+        clearFile();
+      }
     },
-    [driveBase, pathname, router],
+    [driveBase, pathname, router, hasFile, clearFile],
   );
 
   const handleSelectFile = useCallback(
@@ -68,7 +75,6 @@ export function TwoPaneLayout({ drive, folderPath, children }: TwoPaneLayoutProp
     [selectFile],
   );
 
-  const hasFile = fileId !== null && fileId.length > 0;
   const selectedTreePath = hasFile ? null : folderPath || null;
 
   return (
@@ -92,6 +98,7 @@ export function TwoPaneLayout({ drive, folderPath, children }: TwoPaneLayoutProp
         <FolderTreePane
           drive={drive}
           selectedPath={selectedTreePath}
+          selectedFileId={fileId}
           currentFolderPath={folderPath}
           onSelectFolder={handleSelectFolder}
           onSelectFile={handleSelectFile}
