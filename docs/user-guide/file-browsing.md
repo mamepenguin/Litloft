@@ -15,8 +15,32 @@ A toolbar above the grid lets you:
 
 - Toggle **grid** / **list** view (preference is per-folder, persisted in localStorage).
 - Sort by **name**, **created**, **modified**, **size**, **duration**.
-- Filter by **type**: video, audio, image, document, archive, other.
 - Multi-select files with click+shift, then run batch operations (move, copy, delete, tag).
+
+## In-folder filter
+
+Below the toolbar there is an always-visible **filter row** with two inputs combined as AND:
+
+- A free-text field (placeholder *Filter in this folder…*) that does case-insensitive substring match against the filename, including the extension.
+- A type dropdown (All / Markdown / Video / Image / PDF).
+
+Scope and behaviour:
+
+- Filters only the **direct files of the current folder**. Subfolder contents are not searched. Folder entries themselves are always shown — the filter does not hide folders.
+- **No persistence.** Navigating to another folder, reloading, or re-opening the pane clears the filter (this is intentional — to avoid "I am secretly being filtered" surprises).
+- When zero files match, an empty-state with a **Clear filters** button appears.
+- The text input is debounced ~300 ms and combines with the existing virtual scroller, so it stays responsive on folders with thousands of files.
+
+This is the lightest of three search layers. For drive-wide search use the global search popup; for natural-language questions use intelligence Ask. See [Search](search.md).
+
+### Tree pane filter
+
+When the folder tree pane is open, it has its own filter row at the top, identical in shape (text + type dropdown) but different in scope:
+
+- Matches against **file and folder names** across the whole tree of the current drive.
+- Tree structure is preserved: matched items are highlighted, ancestors are shown in a dimmed style as path context, non-matching siblings are hidden.
+- The **type filter** is persisted per drive in localStorage (so a photo drive can default to *Image*); the **text filter** is not — it clears when the tree pane is closed or the page is reloaded.
+- Switching the tree filter on triggers a one-shot full-tree fetch (the tree is normally lazy-expanded), so the first keystroke on a very large drive may take a moment.
 
 Each file card shows:
 

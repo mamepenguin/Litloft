@@ -93,6 +93,16 @@ For `.md` Approve auto_tags, retry once on `ConflictError` (the projection may h
 
 Page transitions use `router.push()` / `<Link>`. **No full reloads** — `window.location.href = ...` is allowed only for the post-unlock redirect because the JWT cookie has just been set and SPA caches need to be invalidated.
 
+## Filter UI
+
+Both the folder tree pane and the right-hand content pane use the same shared filter component:
+
+```tsx
+import { FilterField } from '@/components/folder/FilterField';
+```
+
+`<FilterField>` is a text input plus a type dropdown (All / Markdown / Video / Image / PDF) plus a clear button. It is the single point of truth for filter UX — the right-pane and the tree-pane only differ in *which* state hook they wire to and how that state is persisted (see `useFolderFilter` and `useTreeTextFilter` / `useTreeTypeFilter`). When you add a new filter surface, reuse `<FilterField>` rather than building a new control. Drive-level browser details live in [docs/CODEMAPS/folder-browser.md](../CODEMAPS/folder-browser.md).
+
 ## Addon slots
 
 Slots are typed React components rendered with `<AddonSlot name="..." />`. The current slots:
