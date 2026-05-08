@@ -16,14 +16,22 @@ const IDLE: FetchState = { status: "idle", nodes: [], error: null };
 interface UseFolderTreeQueryOpts {
   drive: string;
   typeFilter: TreeTypeFilter | null;
-  /** Paths whose children should be loaded. Drive root is "". */
+  /** Paths whose children should be loaded. Drive root is "". Ignored when ``flatLoad`` is true. */
   pathsToLoad: ReadonlySet<string>;
+  /**
+   * When true, fetch the entire drive tree once via ``?flat=true`` and
+   * expose every returned node under ``childrenByPath.get("")``. The
+   * tree pane groups them by parent path itself. Used by the spec
+   * 2026-05-09 tree filter to evaluate matches deeper than the root.
+   */
+  flatLoad?: boolean;
 }
 
 interface UseFolderTreeQueryResult {
   /**
    * Map of folder path -> child nodes. Drive root children are stored
-   * under the empty string key.
+   * under the empty string key. In ``flatLoad`` mode the full tree is
+   * stored under "" and the tree pane groups it itself.
    */
   childrenByPath: Map<string, FolderTreeNode[]>;
   loading: Set<string>;
@@ -32,17 +40,17 @@ interface UseFolderTreeQueryResult {
 
 /**
  * Lazy-loads folder-tree children for each folder path requested in
- * `pathsToLoad`. Cached per (drive, typeFilter, path); when typeFilter
- * changes the cache is dropped because counts and visibility differ.
+ * `pathsToLoad`. Cached per (drive, typeFilter, mode, path); when any of
+ * those change the cache is dropped because counts and visibility differ.
  */
 export function useFolderTreeQuery(opts: UseFolderTreeQueryOpts): UseFolderTreeQueryResult {
-  const { drive, typeFilter, pathsToLoad } = opts;
+  const { drive, typeFilter, pathsToLoad, flatLoad = false } = opts;
   const [byPath, setByPath] = useState<Map<string, FetchState>>(new Map());
   const inflight = useRef<Map<string, AbortController>>(new Map());
-  const cacheKey = `${drive}::${typeFilter ?? ""}`;
+  const cacheKey = `${drive}::${typeFilter ?? ""}::${flatLoad ? "flat" : "lazy"}`;
   const cacheKeyRef = useRef(cacheKey);
 
-  // Drop cache + cancel inflight when drive or typeFilter changes.
+  // Drop cache + cancel inflight when drive, typeFilter, or mode changes.
   useEffect(() => {
     if (cacheKeyRef.current === cacheKey) return;
     cacheKeyRef.current = cacheKey;
@@ -61,7 +69,10 @@ export function useFolderTreeQuery(opts: UseFolderTreeQueryOpts): UseFolderTreeQ
         next.set(path, { status: "loading", nodes: [], error: null });
         return next;
       });
-      getFolderTree(drive, { root: path, type_filter: typeFilter, depth: 1 }, { signal: controller.signal })
+      const params = flatLoad
+        ? { type_filter: typeFilter, flat: true }
+        : { root: path, type_filter: typeFilter, depth: 1 };
+      getFolderTree(drive, params, { signal: controller.signal })
         .then((nodes) => {
           if (controller.signal.aborted) return;
           setByPath((prev) => {
@@ -83,16 +94,22 @@ export function useFolderTreeQuery(opts: UseFolderTreeQueryOpts): UseFolderTreeQ
           inflight.current.delete(path);
         });
     },
-    [drive, typeFilter],
+    [drive, typeFilter, flatLoad],
   );
 
-  // Trigger fetch for any requested path that we haven't loaded yet.
+  // Trigger fetch for any requested path that we haven't loaded yet. In
+  // flatLoad mode we only ever load the synthetic "" key (the whole tree).
   useEffect(() => {
+    if (flatLoad) {
+      const state = byPath.get("") ?? IDLE;
+      if (state.status === "idle") fetchPath("");
+      return;
+    }
     for (const path of pathsToLoad) {
       const state = byPath.get(path) ?? IDLE;
       if (state.status === "idle") fetchPath(path);
     }
-  }, [pathsToLoad, byPath, fetchPath]);
+  }, [pathsToLoad, byPath, fetchPath, flatLoad]);
 
   // Cleanup inflight requests on unmount.
   useEffect(() => {

@@ -323,6 +323,25 @@
     "errorRetry": "Retry",
     "empty": "No files in this folder"
   },
+  "filter": {
+    "placeholder": {
+      "tree": "Filter by name...",
+      "folder": "Filter in this folder..."
+    },
+    "type": {
+      "all": "All",
+      "markdown": "Markdown",
+      "video": "Video",
+      "image": "Image",
+      "pdf": "PDF"
+    },
+    "empty": {
+      "tree": "No matching files or folders",
+      "folder": "No matching files in this folder"
+    },
+    "clear": "Clear filters",
+    "clearInput": "Clear input"
+  },
   "rightPane": {
     "openDetails": "Open details",
     "loading": "Loading...",

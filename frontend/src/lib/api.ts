@@ -30,13 +30,14 @@ export async function getFolders(drive: string, path?: string): Promise<Folder[]
 
 export async function getFolderTree(
   drive: string,
-  params: { root?: string; type_filter?: TreeTypeFilter | null; depth?: number } = {},
+  params: { root?: string; type_filter?: TreeTypeFilter | null; depth?: number; flat?: boolean } = {},
   options?: RequestOptions,
 ): Promise<FolderTreeNode[]> {
   const search = new URLSearchParams();
   if (params.root) search.set("root", params.root);
   if (params.type_filter) search.set("type_filter", params.type_filter);
   if (params.depth !== undefined) search.set("depth", String(params.depth));
+  if (params.flat) search.set("flat", "true");
   const qs = search.toString();
   return fetchJSON<FolderTreeNode[]>(
     `${API_BASE}/drives/${encodeURIComponent(drive)}/folder-tree${qs ? `?${qs}` : ""}`,

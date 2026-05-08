@@ -11,6 +11,12 @@ export interface FlatTreeRow {
   depth: number;
   isExpanded: boolean;
   isLoading: boolean;
+  /**
+   * When the tree filter is active, ancestor rows are dimmed so the
+   * matched leaf still reads cleanly. The tree pane sets this on rows
+   * that are visible only as path context.
+   */
+  isAncestor?: boolean;
 }
 
 interface FolderTreeRowProps {
@@ -33,13 +39,15 @@ export function FolderTreeRow({ row, selected, onSelect }: FolderTreeRowProps) {
   const stateClass = selected
     ? "bg-accent/15 text-text-primary"
     : "text-text-muted hover:bg-bg-elevated hover:text-text-primary";
+  const ancestorClass = row.isAncestor ? "opacity-60" : "";
 
   return (
     <button
       type="button"
       onClick={() => onSelect(row)}
-      className={`${baseClass} ${stateClass}`}
+      className={`${baseClass} ${stateClass} ${ancestorClass}`.trim()}
       style={{ paddingLeft: padLeft }}
+      data-state={row.isAncestor ? "ancestor" : undefined}
       aria-expanded={isFolder ? isExpanded : undefined}
       aria-current={selected ? "true" : undefined}
       aria-label={node.name}

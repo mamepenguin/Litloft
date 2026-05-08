@@ -83,6 +83,72 @@ describe("useFolderTreeQuery", () => {
     );
   });
 
+  it("flatLoad mode hits the endpoint once with flat=true and stores everything under ''", async () => {
+    mockGetFolderTree.mockResolvedValue([
+      { kind: "folder", name: "Q1", path: "Q1", file_count: 0, has_children: true },
+      { kind: "folder", name: "sub", path: "Q1/sub", file_count: 0, has_children: true },
+      { kind: "file", name: "deep.md", path: "Q1/sub/deep.md", file_id: "fd", file_type: "document", mime_type: "text/markdown" },
+    ]);
+
+    const { result } = renderHook(() =>
+      useFolderTreeQuery({
+        drive: "work",
+        typeFilter: null,
+        pathsToLoad: new Set([""]),
+        flatLoad: true,
+      }),
+    );
+
+    await waitFor(() => {
+      expect(result.current.childrenByPath.has("")).toBe(true);
+    });
+
+    // Single fetch in flat mode, even though pathsToLoad would normally
+    // ask for more.
+    expect(mockGetFolderTree).toHaveBeenCalledTimes(1);
+    expect(mockGetFolderTree).toHaveBeenCalledWith(
+      "work",
+      { type_filter: null, flat: true },
+      expect.objectContaining({ signal: expect.any(AbortSignal) }),
+    );
+    // All three nodes (including the deep one) live under "".
+    expect(result.current.childrenByPath.get("")).toHaveLength(3);
+  });
+
+  it("flatLoad mode drops cache and refetches when toggled off", async () => {
+    mockGetFolderTree
+      .mockResolvedValueOnce([
+        { kind: "folder", name: "Q1", path: "Q1", file_count: 0, has_children: true },
+        { kind: "file", name: "deep.md", path: "Q1/deep.md", file_id: "fd", file_type: "document", mime_type: "text/markdown" },
+      ])
+      .mockResolvedValueOnce([
+        { kind: "folder", name: "Q1", path: "Q1", file_count: 1, has_children: true },
+      ]);
+
+    const { result, rerender } = renderHook(
+      ({ flatLoad }: { flatLoad: boolean }) =>
+        useFolderTreeQuery({
+          drive: "work",
+          typeFilter: null,
+          pathsToLoad: new Set([""]),
+          flatLoad,
+        }),
+      { initialProps: { flatLoad: true } },
+    );
+
+    await waitFor(() => expect(result.current.childrenByPath.get("")).toHaveLength(2));
+
+    rerender({ flatLoad: false });
+
+    await waitFor(() => expect(mockGetFolderTree).toHaveBeenCalledTimes(2));
+    // The second call is the lazy-load form (root + depth).
+    expect(mockGetFolderTree).toHaveBeenLastCalledWith(
+      "work",
+      { root: "", type_filter: null, depth: 1 },
+      expect.any(Object),
+    );
+  });
+
   it("captures error message on fetch failure", async () => {
     mockGetFolderTree.mockRejectedValue(new Error("boom"));
 

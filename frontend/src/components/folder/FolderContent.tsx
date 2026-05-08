@@ -1,8 +1,10 @@
 "use client";
 
 import { useState, type RefObject } from "react";
+import { useTranslations } from "next-intl";
 
 import { useContextMenu } from "@/hooks/useContextMenu";
+import { useFolderFilter } from "@/hooks/useFolderFilter";
 import type { DragState } from "@/hooks/useDragAndDrop";
 import type { FileItem, FileItemWithMatch, Folder, ViewMode } from "@/types";
 import { FileGrid } from "@/components/FileGrid";
@@ -10,6 +12,8 @@ import { FileList } from "@/components/FileList";
 import { EmptyState } from "@/components/EmptyState";
 import { FolderCard } from "@/components/FolderCard";
 import { FolderContextMenu } from "@/components/FolderContextMenu";
+
+import { FilterField } from "./FilterField";
 
 interface FolderContentProps {
   files: FileItemWithMatch[];
@@ -50,12 +54,25 @@ export function FolderContent({
   isSelected, onSelect, onMetaSelect, onShiftSelect, onTogglePin, onFavoriteToggle, onRefresh,
   onDragStart, onDragEnd, selectedCount, isDropDisabled, onFolderDragStart,
 }: FolderContentProps) {
+  const tFilter = useTranslations("filter");
   const [menuTarget, setMenuTarget] = useState<Folder | null>(null);
   const { menuState: folderMenuState, close: closeFolderMenu, handlers: folderMenuHandlers } = useContextMenu();
+  const filter = useFolderFilter<FileItemWithMatch>(files);
+  const filteredFiles = filter.files;
+  const isFilterEmpty = filter.isActive && filteredFiles.length === 0;
   return (
     <>
+      <FilterField
+        text={filter.text}
+        onTextChange={filter.setText}
+        placeholder={tFilter("placeholder.folder")}
+        typeFilter={filter.typeFilter}
+        onTypeFilterChange={filter.setTypeFilter}
+        onClear={filter.clear}
+      />
+
       {folders.length > 0 && (
-        <div className="mb-6 grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+        <div className="mb-6 mt-4 grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
           {folders.map((folder) => {
             const disabled = isDropDisabled(folder.path);
             return (
@@ -100,6 +117,17 @@ export function FolderContent({
         <div className="flex items-center justify-center py-16">
           <div className="h-8 w-8 animate-spin rounded-full border-2 border-accent border-t-transparent" />
         </div>
+      ) : isFilterEmpty ? (
+        <div className="flex flex-col items-center justify-center gap-3 py-12 text-sm text-text-muted">
+          <p>{tFilter("empty.folder")}</p>
+          <button
+            type="button"
+            onClick={filter.clear}
+            className="rounded-2xl border border-bg-border bg-bg-card px-4 py-2 text-sm text-text-primary transition-colors hover:bg-bg-elevated"
+          >
+            {tFilter("clear")}
+          </button>
+        </div>
       ) : files.length === 0 && folders.length === 0 ? (
         // In search mode the FolderContent represents only the
         // filename/metadata-text match axis. The intelligence
@@ -119,7 +147,7 @@ export function FolderContent({
         )
       ) : viewMode === "grid" ? (
         <FileGrid
-          files={files}
+          files={filteredFiles}
           onFavoriteToggle={onFavoriteToggle}
           onRefresh={onRefresh}
           selectable={selectable}
@@ -135,7 +163,7 @@ export function FolderContent({
         />
       ) : (
         <FileList
-          files={files}
+          files={filteredFiles}
           onFavoriteToggle={onFavoriteToggle}
           onRefresh={onRefresh}
           selectable={selectable}

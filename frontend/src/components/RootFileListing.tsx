@@ -1,12 +1,12 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { Check, CheckSquare, FileText, Filter, FolderPlus, Play, RefreshCw, X } from "lucide-react";
+import { CheckSquare, FileText, FolderPlus, Play, RefreshCw, X } from "lucide-react";
 
 import { useTranslations } from "next-intl";
 import { createFolder, getDriveFiles, scanDrive } from "@/lib/api";
-import type { FileItem, FileType, SortField, SortOrder, ViewMode } from "@/types";
+import type { FileItem, SortField, SortOrder, ViewMode } from "@/types";
 import { FileGrid } from "@/components/FileGrid";
 import { FileList } from "@/components/FileList";
 import { TreeToggle } from "@/components/TreeToggle";
@@ -16,6 +16,8 @@ import { EmptyState } from "@/components/EmptyState";
 import { UploadButton } from "@/components/UploadButton";
 import { UploadZone } from "@/components/UploadZone";
 import { SelectionBar } from "@/components/SelectionBar";
+import { FilterField } from "@/components/folder/FilterField";
+import { useFolderFilter } from "@/hooks/useFolderFilter";
 import { useSelection } from "@/hooks/useSelection";
 import { useInfiniteScroll } from "@/hooks/useInfiniteScroll";
 
@@ -33,28 +35,15 @@ export function RootFileListing({ driveName, onFileAction, onFolderChange }: Roo
   const tf = useTranslations("folder");
   const ts = useTranslations("selection");
   const td = useTranslations("drive");
+  const tFilter = useTranslations("filter");
   const [viewMode, setViewMode] = useState<ViewMode>("grid");
   const [sort, setSort] = useState<SortField>("created_at");
   const [order, setOrder] = useState<SortOrder>("desc");
-  const [typeFilter, setTypeFilter] = useState<FileType | null>(null);
-  const [typeFilterOpen, setTypeFilterOpen] = useState(false);
-  const typeFilterRef = useRef<HTMLDivElement>(null);
-  useEffect(() => {
-    if (!typeFilterOpen) return;
-    function handleClick(e: MouseEvent) {
-      if (typeFilterRef.current && !typeFilterRef.current.contains(e.target as Node)) {
-        setTypeFilterOpen(false);
-      }
-    }
-    document.addEventListener("mousedown", handleClick);
-    return () => document.removeEventListener("mousedown", handleClick);
-  }, [typeFilterOpen]);
 
   const fetchPage = useCallback(
     async (page: number, limit: number) => {
       const res = await getDriveFiles(driveName, {
         path: "",
-        type: typeFilter || undefined,
         sort,
         order,
         page,
@@ -62,7 +51,7 @@ export function RootFileListing({ driveName, onFileAction, onFolderChange }: Roo
       });
       return { data: res.data, total: res.meta.total };
     },
-    [driveName, sort, order, typeFilter],
+    [driveName, sort, order],
   );
 
   const {
@@ -70,11 +59,14 @@ export function RootFileListing({ driveName, onFileAction, onFolderChange }: Roo
     total,
     loading,
     loadingMore,
-    hasMore,
     sentinelRef,
     reset,
     setItems: setFiles,
   } = useInfiniteScroll<FileItem>({ fetchPage, limit: LIMIT });
+
+  const filter = useFolderFilter<FileItem>(files);
+  const visibleFiles = filter.files;
+  const isFilterEmpty = filter.isActive && visibleFiles.length === 0;
 
   const [selectable, setSelectable] = useState(false);
   const selection = useSelection();
@@ -142,7 +134,7 @@ export function RootFileListing({ driveName, onFileAction, onFolderChange }: Roo
       );
       onFileAction?.();
     },
-    [onFileAction],
+    [onFileAction, setFiles],
   );
 
   const sortQuery = sort === "random"
@@ -151,12 +143,12 @@ export function RootFileListing({ driveName, onFileAction, onFolderChange }: Roo
 
   const router = useRouter();
 
-  const hasPlayableFiles = files.some(
+  const hasPlayableFiles = visibleFiles.some(
     (f) => f.file_type === "audio" || f.file_type === "video"
   );
 
   const handlePlayAll = useCallback(() => {
-    const firstPlayable = files.find(
+    const firstPlayable = visibleFiles.find(
       (f) => f.file_type === "audio" || f.file_type === "video"
     );
     if (!firstPlayable) return;
@@ -167,7 +159,7 @@ export function RootFileListing({ driveName, onFileAction, onFolderChange }: Roo
       params.set("order", order);
     }
     router.push(`/files/${firstPlayable.id}?${params.toString()}`);
-  }, [files, sort, order, router]);
+  }, [visibleFiles, sort, order, router]);
 
   const handleUploadComplete = useCallback(() => {
     refresh();
@@ -282,78 +274,17 @@ export function RootFileListing({ driveName, onFileAction, onFolderChange }: Roo
           </div>
         </div>
 
-        {/* Type filter tabs */}
-        <div className="mb-4 flex flex-wrap items-center gap-3">
-          {/* Mobile: popover dropdown */}
-          <div ref={typeFilterRef} className="relative sm:hidden">
-            <button
-              onClick={() => setTypeFilterOpen((s) => !s)}
-              className={`flex items-center gap-1.5 rounded-md p-2 text-sm transition-colors ${
-                typeFilter
-                  ? "bg-accent/20 text-accent"
-                  : "text-text-muted hover:text-text-primary"
-              }`}
-              aria-label={t("fileType")}
-            >
-              <Filter size={16} />
-            </button>
-            {typeFilterOpen && (
-              <div className="absolute left-0 top-full z-30 mt-1 min-w-[140px] rounded-xl border border-bg-border bg-bg-primary py-1 shadow-xl animate-fade-in-scale origin-top-left">
-                {([
-                  { value: null, labelKey: "all" },
-                  { value: "video" as FileType, labelKey: "video" },
-                  { value: "image" as FileType, labelKey: "image" },
-                  { value: "audio" as FileType, labelKey: "audio" },
-                  { value: "document" as FileType, labelKey: "document" },
-                  { value: "archive" as FileType, labelKey: "archiveType" },
-                  { value: "other" as FileType, labelKey: "other" },
-                ] as const).map((opt) => (
-                  <button
-                    key={opt.labelKey}
-                    onClick={() => {
-                      setTypeFilter(opt.value);
-                      setTypeFilterOpen(false);
-                    }}
-                    className={`flex w-full items-center gap-2 px-3 py-2 text-left text-sm transition-colors ${
-                      typeFilter === opt.value
-                        ? "text-accent"
-                        : "text-text-primary hover:bg-bg-elevated"
-                    }`}
-                  >
-                    <span className="w-4 flex-shrink-0">
-                      {typeFilter === opt.value && <Check size={14} />}
-                    </span>
-                    {t(opt.labelKey)}
-                  </button>
-                ))}
-              </div>
-            )}
-          </div>
-          {/* Desktop: tabs */}
-          <div className="hidden items-center gap-1 sm:flex">
-            {([
-              { value: null, labelKey: "all" },
-              { value: "video" as FileType, labelKey: "video" },
-              { value: "image" as FileType, labelKey: "image" },
-              { value: "audio" as FileType, labelKey: "audio" },
-              { value: "document" as FileType, labelKey: "document" },
-              { value: "archive" as FileType, labelKey: "archiveType" },
-              { value: "other" as FileType, labelKey: "other" },
-            ] as const).map((tab) => (
-              <button
-                key={tab.labelKey}
-                onClick={() => setTypeFilter(tab.value)}
-                className={`rounded-md px-2.5 py-1 text-sm transition-colors ${
-                  typeFilter === tab.value
-                    ? "bg-accent/20 font-medium text-accent"
-                    : "text-text-muted hover:text-text-primary"
-                }`}
-              >
-                {t(tab.labelKey)}
-              </button>
-            ))}
-          </div>
-          <span className="text-sm text-text-muted">{tc("items", { count: total })}</span>
+        {/* Filter row (client-side) */}
+        <div className="mb-4">
+          <FilterField
+            text={filter.text}
+            onTextChange={filter.setText}
+            placeholder={tFilter("placeholder.folder")}
+            typeFilter={filter.typeFilter}
+            onTypeFilterChange={filter.setTypeFilter}
+            onClear={filter.clear}
+          />
+          <div className="mt-2 text-sm text-text-muted">{tc("items", { count: total })}</div>
         </div>
 
         {/* File listing */}
@@ -361,11 +292,22 @@ export function RootFileListing({ driveName, onFileAction, onFolderChange }: Roo
           <div className="flex items-center justify-center py-16">
             <div className="h-8 w-8 animate-spin rounded-full border-2 border-accent border-t-transparent" />
           </div>
+        ) : isFilterEmpty ? (
+          <div className="flex flex-col items-center justify-center gap-3 py-12 text-sm text-text-muted">
+            <p>{tFilter("empty.folder")}</p>
+            <button
+              type="button"
+              onClick={filter.clear}
+              className="rounded-2xl border border-bg-border bg-bg-card px-4 py-2 text-sm text-text-primary transition-colors hover:bg-bg-elevated"
+            >
+              {tFilter("clear")}
+            </button>
+          </div>
         ) : files.length === 0 ? (
           <EmptyState variant="no-files" />
         ) : viewMode === "grid" ? (
           <FileGrid
-            files={files}
+            files={visibleFiles}
             onFavoriteToggle={handleFavoriteToggle}
             onRefresh={refresh}
             selectable={selectable}
@@ -375,7 +317,7 @@ export function RootFileListing({ driveName, onFileAction, onFolderChange }: Roo
           />
         ) : (
           <FileList
-            files={files}
+            files={visibleFiles}
             onFavoriteToggle={handleFavoriteToggle}
             onRefresh={refresh}
             selectable={selectable}
@@ -397,10 +339,10 @@ export function RootFileListing({ driveName, onFileAction, onFolderChange }: Roo
           <SelectionBar
             count={selection.count}
             selectedIds={selection.selectedIds}
-            totalCount={files.length}
+            totalCount={visibleFiles.length}
             drive={driveName}
             currentPath=""
-            onSelectAll={() => selection.selectAll(files.map((f) => f.id))}
+            onSelectAll={() => selection.selectAll(visibleFiles.map((f) => f.id))}
             onClear={() => {
               selection.clear();
               setSelectable(false);

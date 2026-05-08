@@ -1,5 +1,5 @@
 import { describe, it, expect, vi } from "vitest";
-import { render, screen } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { FolderContent } from "../FolderContent";
 import type { FileItem, Folder } from "@/types";
 import { createRef } from "react";
@@ -163,5 +163,192 @@ describe("FolderContent", () => {
     );
     const spinners = container.querySelectorAll(".animate-spin");
     expect(spinners.length).toBeGreaterThan(0);
+  });
+});
+
+/**
+ * Phase 4 — right-pane filter tests.
+ * Spec: docs/superpowers/specs/2026-05-09-folder-filter-and-tree-filter.md §2.
+ *
+ * RED phase — these assertions exercise the FilterField wiring that ships
+ * with phase 4.4.
+ */
+describe("FolderContent right-pane filter (Phase 4)", () => {
+  const mdFile: FileItem = {
+    ...mockFile("doc"),
+    filename: "spec.md",
+    file_type: "document",
+    mime_type: "text/markdown",
+  };
+  const videoFile: FileItem = {
+    ...mockFile("vid"),
+    filename: "intro.mp4",
+    file_type: "video",
+    mime_type: "video/mp4",
+  };
+  const imgFile: FileItem = {
+    ...mockFile("img"),
+    filename: "photo.jpg",
+    file_type: "image",
+    mime_type: "image/jpeg",
+  };
+
+  it("renders the FilterField input above the listing", () => {
+    render(
+      <FolderContent
+        {...defaultProps}
+        files={[mdFile, videoFile, imgFile]}
+      />,
+    );
+    expect(
+      screen.getByPlaceholderText(
+        /filter in this folder|filter\.placeholder\.folder|このフォルダで絞り込み/i,
+      ),
+    ).toBeInTheDocument();
+  });
+
+  it("with empty filter, all files pass through (regression)", () => {
+    render(
+      <FolderContent
+        {...defaultProps}
+        files={[mdFile, videoFile, imgFile]}
+      />,
+    );
+    expect(screen.getByTestId("file-grid")).toHaveTextContent("3 files");
+  });
+
+  it("text filter narrows the file list (case-insensitive substring)", async () => {
+    render(
+      <FolderContent
+        {...defaultProps}
+        files={[mdFile, videoFile, imgFile]}
+      />,
+    );
+    const input = screen.getByPlaceholderText(
+      /filter in this folder|filter\.placeholder\.folder|このフォルダで絞り込み/i,
+    );
+    fireEvent.change(input, { target: { value: "INTRO" } });
+
+    await waitFor(() => {
+      expect(screen.getByTestId("file-grid")).toHaveTextContent("1 files");
+    });
+  });
+
+  it("type filter narrows the file list", async () => {
+    render(
+      <FolderContent
+        {...defaultProps}
+        files={[mdFile, videoFile, imgFile]}
+      />,
+    );
+    // Open the type dropdown and pick "Image".
+    const trigger = screen.getByRole("button", {
+      name: /all|filter\.type\.all|すべて/i,
+    });
+    fireEvent.click(trigger);
+    const imageOption = await screen.findByRole("menuitem", { name: /image|画像/i });
+    fireEvent.click(imageOption);
+
+    await waitFor(() => {
+      expect(screen.getByTestId("file-grid")).toHaveTextContent("1 files");
+    });
+  });
+
+  it("text + type combined are AND'd", async () => {
+    render(
+      <FolderContent
+        {...defaultProps}
+        files={[
+          { ...mdFile, filename: "spec-alpha.md" },
+          { ...mdFile, id: "doc2", filename: "notes.md" },
+          { ...videoFile, filename: "spec-vid.mp4" },
+        ]}
+      />,
+    );
+
+    const trigger = screen.getByRole("button", {
+      name: /all|filter\.type\.all|すべて/i,
+    });
+    fireEvent.click(trigger);
+    const mdOption = await screen.findByRole("menuitem", { name: /markdown/i });
+    fireEvent.click(mdOption);
+
+    const input = screen.getByPlaceholderText(
+      /filter in this folder|filter\.placeholder\.folder|このフォルダで絞り込み/i,
+    );
+    fireEvent.change(input, { target: { value: "spec" } });
+
+    await waitFor(() => {
+      // Only the markdown file with "spec" in the name remains.
+      expect(screen.getByTestId("file-grid")).toHaveTextContent("1 files");
+    });
+  });
+
+  it("shows empty-filter message and a clear button when no files match", async () => {
+    render(
+      <FolderContent
+        {...defaultProps}
+        files={[mdFile, videoFile]}
+      />,
+    );
+    const input = screen.getByPlaceholderText(
+      /filter in this folder|filter\.placeholder\.folder|このフォルダで絞り込み/i,
+    );
+    fireEvent.change(input, { target: { value: "zzz-no-match" } });
+
+    await waitFor(() => {
+      expect(
+        screen.getByText(
+          /no matching files in this folder|filter\.empty\.folder|このフォルダに該当するファイルはありません/i,
+        ),
+      ).toBeInTheDocument();
+    });
+
+    const clearBtn = screen.getByRole("button", {
+      name: /clear filters|filter\.clear|解除/i,
+    });
+    expect(clearBtn).toBeInTheDocument();
+  });
+
+  it("clicking the empty-state clear button restores all files", async () => {
+    render(
+      <FolderContent
+        {...defaultProps}
+        files={[mdFile, videoFile]}
+      />,
+    );
+    const input = screen.getByPlaceholderText(
+      /filter in this folder|filter\.placeholder\.folder|このフォルダで絞り込み/i,
+    );
+    fireEvent.change(input, { target: { value: "zzz-no-match" } });
+
+    const clearBtn = await screen.findByRole("button", {
+      name: /clear filters|filter\.clear|解除/i,
+    });
+    fireEvent.click(clearBtn);
+
+    await waitFor(() => {
+      expect(screen.getByTestId("file-grid")).toHaveTextContent("2 files");
+    });
+  });
+
+  it("folder cards stay visible regardless of file filter", async () => {
+    const folder: Folder = mockFolder("photos");
+    render(
+      <FolderContent
+        {...defaultProps}
+        files={[mdFile]}
+        folders={[folder]}
+      />,
+    );
+    const input = screen.getByPlaceholderText(
+      /filter in this folder|filter\.placeholder\.folder|このフォルダで絞り込み/i,
+    );
+    fireEvent.change(input, { target: { value: "zzz" } });
+
+    await waitFor(() => {
+      // Folder card still renders even when file list is empty.
+      expect(screen.getByTestId("folder-card")).toBeInTheDocument();
+    });
   });
 });

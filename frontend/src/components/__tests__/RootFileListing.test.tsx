@@ -1,0 +1,201 @@
+/**
+ * Tests for the right-pane filter wiring in RootFileListing.
+ * Spec: docs/superpowers/specs/2026-05-09-folder-filter-and-tree-filter.md §2.
+ *
+ * RED phase — RootFileListing currently uses a bespoke type-filter row;
+ * after Phase 4.4 it should host the shared <FilterField>. These tests
+ * exercise the post-migration shape and are expected to fail until then.
+ */
+import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+
+import type { FileItem } from "@/types";
+
+vi.mock("next/navigation", () => ({
+  useRouter: () => ({ push: vi.fn(), replace: vi.fn() }),
+}));
+
+vi.mock("next/link", () => ({
+  default: ({ children, ...props }: any) => <a {...props}>{children}</a>,
+}));
+
+vi.mock("@/components/UploadZone", () => ({
+  UploadZone: ({ children }: { children: React.ReactNode }) => <>{children}</>,
+}));
+vi.mock("@/components/UploadButton", () => ({
+  UploadButton: () => <button>upload</button>,
+}));
+vi.mock("@/components/SortButton", () => ({
+  SortButton: () => <button>sort</button>,
+}));
+vi.mock("@/components/ViewToggle", () => ({
+  ViewToggle: () => <button>view</button>,
+}));
+vi.mock("@/components/TreeToggle", () => ({
+  TreeToggle: () => <button>tree</button>,
+}));
+vi.mock("@/components/SelectionBar", () => ({
+  SelectionBar: () => null,
+}));
+vi.mock("@/components/EmptyState", () => ({
+  EmptyState: () => <div data-testid="empty-state" />,
+}));
+
+// Capture how many files reach FileGrid.
+vi.mock("@/components/FileGrid", () => ({
+  FileGrid: ({ files }: { files: FileItem[] }) => (
+    <div data-testid="file-grid">{files.length} files</div>
+  ),
+}));
+vi.mock("@/components/FileList", () => ({
+  FileList: ({ files }: { files: FileItem[] }) => (
+    <div data-testid="file-list">{files.length} files</div>
+  ),
+}));
+
+const mockGetDriveFiles = vi.fn();
+const mockScanDrive = vi.fn();
+const mockCreateFolder = vi.fn();
+vi.mock("@/lib/api", () => ({
+  getDriveFiles: (...args: unknown[]) => mockGetDriveFiles(...args),
+  scanDrive: (...args: unknown[]) => mockScanDrive(...args),
+  createFolder: (...args: unknown[]) => mockCreateFolder(...args),
+}));
+
+import { RootFileListing } from "../RootFileListing";
+
+function makeFile(id: string, filename: string, mime: string, type: FileItem["file_type"]): FileItem {
+  return {
+    id,
+    filename,
+    title: filename,
+    description: "",
+    drive: "main",
+    folder_path: "",
+    file_type: type,
+    mime_type: mime,
+    thumbnail_url: "",
+    has_thumbnail: false,
+    file_size: 1,
+    duration: null,
+    likes: 0,
+    is_favorite: false,
+    tags: [],
+    subtitles: [],
+    deleted_at: null,
+    missing_since: null,
+    created_at: "2026-01-01T00:00:00Z",
+    updated_at: "2026-01-01T00:00:00Z",
+  };
+}
+
+beforeEach(() => {
+  mockGetDriveFiles.mockReset();
+  mockScanDrive.mockReset();
+  mockCreateFolder.mockReset();
+});
+
+afterEach(() => {
+  vi.useRealTimers();
+});
+
+describe("RootFileListing right-pane filter (Phase 4)", () => {
+  it("renders the FilterField input below the toolbar", async () => {
+    mockGetDriveFiles.mockResolvedValue({
+      data: [
+        makeFile("1", "spec.md", "text/markdown", "document"),
+        makeFile("2", "intro.mp4", "video/mp4", "video"),
+      ],
+      meta: { total: 2, page: 1, limit: 30 },
+    });
+
+    render(<RootFileListing driveName="main" />);
+
+    expect(
+      await screen.findByPlaceholderText(
+        /filter in this folder|filter\.placeholder\.folder|このフォルダで絞り込み/i,
+      ),
+    ).toBeInTheDocument();
+  });
+
+  it("text filter narrows the visible files (client-side)", async () => {
+    mockGetDriveFiles.mockResolvedValue({
+      data: [
+        makeFile("1", "spec.md", "text/markdown", "document"),
+        makeFile("2", "intro.mp4", "video/mp4", "video"),
+        makeFile("3", "photo.jpg", "image/jpeg", "image"),
+      ],
+      meta: { total: 3, page: 1, limit: 30 },
+    });
+
+    render(<RootFileListing driveName="main" />);
+
+    await waitFor(() => {
+      expect(screen.getByTestId("file-grid")).toHaveTextContent("3 files");
+    });
+
+    const input = await screen.findByPlaceholderText(
+      /filter in this folder|filter\.placeholder\.folder|このフォルダで絞り込み/i,
+    );
+    fireEvent.change(input, { target: { value: "intro" } });
+
+    await waitFor(() => {
+      expect(screen.getByTestId("file-grid")).toHaveTextContent("1 files");
+    });
+  });
+
+  it("shows the empty-filter message and a clear button when no files match", async () => {
+    mockGetDriveFiles.mockResolvedValue({
+      data: [makeFile("1", "spec.md", "text/markdown", "document")],
+      meta: { total: 1, page: 1, limit: 30 },
+    });
+
+    render(<RootFileListing driveName="main" />);
+
+    const input = await screen.findByPlaceholderText(
+      /filter in this folder|filter\.placeholder\.folder|このフォルダで絞り込み/i,
+    );
+    fireEvent.change(input, { target: { value: "no-such-thing" } });
+
+    await waitFor(() => {
+      expect(
+        screen.getByText(
+          /no matching files in this folder|filter\.empty\.folder|このフォルダに該当するファイルはありません/i,
+        ),
+      ).toBeInTheDocument();
+    });
+    expect(
+      screen.getByRole("button", { name: /clear filters|filter\.clear|解除/i }),
+    ).toBeInTheDocument();
+  });
+
+  it("empty-state clear button resets the filter and restores the file list", async () => {
+    mockGetDriveFiles.mockResolvedValue({
+      data: [
+        makeFile("1", "spec.md", "text/markdown", "document"),
+        makeFile("2", "intro.mp4", "video/mp4", "video"),
+      ],
+      meta: { total: 2, page: 1, limit: 30 },
+    });
+
+    render(<RootFileListing driveName="main" />);
+
+    const input = await screen.findByPlaceholderText(
+      /filter in this folder|filter\.placeholder\.folder|このフォルダで絞り込み/i,
+    );
+    // Filter to a non-matching string so the empty-state UI (which now
+    // owns the "Clear filters" button per spec §2.7 / H1) appears. The
+    // X clear-input button is now labeled differently and is no longer
+    // the universal global-clear affordance.
+    fireEvent.change(input, { target: { value: "zzz-no-match" } });
+
+    const clearBtn = await screen.findByRole("button", {
+      name: /clear filters|filter\.clear|解除$/i,
+    });
+    fireEvent.click(clearBtn);
+
+    await waitFor(() => {
+      expect(screen.getByTestId("file-grid")).toHaveTextContent("2 files");
+    });
+  });
+});
