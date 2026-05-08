@@ -1,6 +1,7 @@
 import { act, renderHook } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 
+import { folderViewModeStickyStore } from "@/lib/folderViewModeSticky";
 import type { FolderKind } from "@/types";
 
 import { resolveFolderViewMode, useFolderViewMode } from "../useFolderViewMode";
@@ -12,6 +13,7 @@ function resetStorage() {
   localStorage.removeItem(GLOBAL_KEY);
   localStorage.removeItem(driveKey("work"));
   localStorage.removeItem(driveKey("photos"));
+  folderViewModeStickyStore.set(null);
 }
 
 beforeEach(resetStorage);
@@ -396,5 +398,34 @@ describe("session sticky (B1: 2pane mode persists across folder navigation)", ()
 
     const stored = JSON.parse(localStorage.getItem(driveKey("work"))!);
     expect(stored).toEqual({ Q1: { viewMode: "two-pane" } });
+  });
+
+  it("sticky survives hook unmount/remount (page boundary crossing)", () => {
+    const { result, unmount } = renderHook(() =>
+      useFolderViewMode({
+        drive: "work",
+        folderPath: "Q1",
+        dominantKind: null,
+        twoPaneAllowed: true,
+      }),
+    );
+
+    act(() => result.current.setViewMode("two-pane"));
+    expect(result.current.viewMode).toBe("two-pane");
+    unmount();
+
+    // Simulate Next.js navigating to a different page file (drive root
+    // → sub folder route) where the FolderBrowser unmounts and a new
+    // instance mounts at a different folder path.
+    const { result: result2 } = renderHook(() =>
+      useFolderViewMode({
+        drive: "work",
+        folderPath: "videos",
+        dominantKind: "video",
+        twoPaneAllowed: true,
+      }),
+    );
+
+    expect(result2.current.viewMode).toBe("two-pane");
   });
 });

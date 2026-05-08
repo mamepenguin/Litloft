@@ -1,7 +1,8 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useMemo, useSyncExternalStore } from "react";
 
+import { folderViewModeStickyStore } from "@/lib/folderViewModeSticky";
 import type { FolderKind, ViewMode } from "@/types";
 
 const GLOBAL_KEY = "video-share-view-mode";
@@ -90,15 +91,12 @@ interface UseFolderViewModeResult {
 
 export function useFolderViewMode(opts: ResolveOpts): UseFolderViewModeResult {
   const { drive, folderPath, dominantKind, twoPaneAllowed } = opts;
-  const [sessionSticky, setSessionSticky] = useState<ViewMode | null>(null);
-  const lastDriveRef = useRef(drive);
-
-  useEffect(() => {
-    if (lastDriveRef.current !== drive) {
-      setSessionSticky(null);
-      lastDriveRef.current = drive;
-    }
-  }, [drive]);
+  const sticky = useSyncExternalStore(
+    folderViewModeStickyStore.subscribe,
+    folderViewModeStickyStore.get,
+    () => null,
+  );
+  const sessionSticky = sticky?.drive === drive ? sticky.mode : null;
 
   const viewMode = useMemo<ViewMode>(() => {
     if (sessionSticky === "two-pane" && twoPaneAllowed) return "two-pane";
@@ -108,7 +106,7 @@ export function useFolderViewMode(opts: ResolveOpts): UseFolderViewModeResult {
   const setViewMode = useCallback(
     (mode: ViewMode) => {
       if (mode === "two-pane" && !twoPaneAllowed) return;
-      setSessionSticky(mode === "two-pane" ? "two-pane" : null);
+      folderViewModeStickyStore.set(mode === "two-pane" ? { drive, mode: "two-pane" } : null);
       const prefs = loadFolderPrefs(drive);
       const next: FolderPrefs = {
         ...prefs,
