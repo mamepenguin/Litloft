@@ -20,6 +20,13 @@ interface FolderTreePaneProps {
    * only — selection itself is owned by the URL state hook upstream.
    */
   selectedPath?: string | null;
+  /**
+   * Current folder path the user is browsing (URL path). The tree
+   * automatically expands all ancestors so the user's location is
+   * always visible — this is the wire that lets sidebar Pin clicks
+   * "scroll+expand" the tree (Topic 2 補遺, hako cVr6PsM2BqLUa-Cr63y6M).
+   */
+  currentFolderPath?: string;
   onSelectFolder: (path: string) => void;
   onSelectFile: (fileId: string, path: string) => void;
 }
@@ -59,12 +66,26 @@ function gatherPathsToLoad(expanded: Set<string>): Set<string> {
 export function FolderTreePane({
   drive,
   selectedPath,
+  currentFolderPath,
   onSelectFolder,
   onSelectFile,
 }: FolderTreePaneProps) {
   const t = useTranslations("tree");
   const expansion = useTreeExpansion(drive);
   const { filter, setFilter } = useTreeTypeFilter(drive);
+
+  // Expand every ancestor (and the leaf itself) of the active folder so
+  // the user's URL location is always visible. Topic 2 補遺 — sidebar Pin
+  // click navigates and the tree follows here.
+  const expandRef = useRef(expansion.expand);
+  expandRef.current = expansion.expand;
+  useEffect(() => {
+    if (!currentFolderPath) return;
+    const parts = currentFolderPath.split("/").filter(Boolean);
+    for (let i = 1; i <= parts.length; i++) {
+      expandRef.current(parts.slice(0, i).join("/"));
+    }
+  }, [currentFolderPath]);
 
   const pathsToLoad = useMemo(() => gatherPathsToLoad(expansion.expanded), [expansion.expanded]);
   const { childrenByPath, loading } = useFolderTreeQuery({

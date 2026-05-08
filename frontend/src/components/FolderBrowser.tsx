@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { ClipboardPaste, X } from "lucide-react";
 import { useTranslations } from "next-intl";
@@ -13,10 +13,13 @@ import { SelectionBar } from "@/components/SelectionBar";
 import { SmartFolderSaveButton } from "@/components/SmartFolderSaveButton";
 import { AddonSlot } from "@/components/AddonSlot";
 import { EmptyState } from "@/components/EmptyState";
+import { ViewToggle } from "@/components/ViewToggle";
 import { useClipboard } from "@/components/ClipboardProvider";
 import { useSelection } from "@/hooks/useSelection";
 import { useDragAndDrop } from "@/hooks/useDragAndDrop";
+import { useFolderViewMode } from "@/hooks/useFolderViewMode";
 import { buildListSnapshotKey, loadListSnapshot, saveListSnapshot } from "@/lib/listSnapshot";
+import { deriveDominantKind } from "@/lib/dominantKind";
 
 import { useFolderFiles } from "@/components/folder/useFolderFiles";
 import { usePinnedFolders } from "@/components/folder/usePinnedFolders";
@@ -24,6 +27,7 @@ import { useDriveScan } from "@/components/folder/useDriveScan";
 import { useCreateFolder } from "@/components/folder/useCreateFolder";
 import { FolderToolbar } from "@/components/folder/FolderToolbar";
 import { FolderContent } from "@/components/folder/FolderContent";
+import { TwoPaneLayout } from "@/components/folder/TwoPaneLayout";
 
 interface FolderBrowserProps {
   driveName: string;
@@ -63,7 +67,6 @@ export function FolderBrowser({
     loadListSnapshot(buildListSnapshotKey({ driveName, folderPath, view, tagFilter })),
   );
 
-  const [viewMode, setViewMode] = useState<ViewMode>(initialSnapshot?.filters.viewMode ?? "grid");
   // Search mode defaults to relevance (hybrid score on the merged
   // filename + semantic list); folder/view browsing keeps created_at.
   const [sort, setSort] = useState<SortField>(
@@ -82,12 +85,30 @@ export function FolderBrowser({
   const isPopular = view === "popular";
   const isAll = view === "all";
   const isSpecialView = isFavorites || view === "recent" || isRecentAdded || isPopular || isAll;
+  // Topic 2-B: flat virtual views (favorites/recent/etc.), search, and
+  // tag-filtered views have no folder hierarchy → 2-pane is disabled.
+  const twoPaneAllowed = !isSpecialView && !isSearch && !tagFilter;
 
   const {
     files, folders, total, loading, loadingMore, hasMore, pagesLoaded, sentinelRef,
     setFiles, setPaginatedTotal, setFolders, isRecent,
     snapshotKey, hydratedScrollY,
   } = useFolderFiles({ driveName, folderPath, view, tagFilter, typeFilter, sort, order, refreshKey, searchQuery, includeSceneClip, initialSnapshot });
+
+  // Topic 9 layered fallback. We approximate the parent folder's
+  // dominant_kind from loaded files because the listing endpoint only
+  // carries it for child folders (Phase 1 surface). Re-derives as
+  // pages stream in.
+  const dominantKind = useMemo(() => deriveDominantKind(files), [files]);
+  const folderViewMode = useFolderViewMode({
+    drive: driveName,
+    folderPath: folderPath ?? "",
+    dominantKind,
+    twoPaneAllowed,
+  });
+  const [globalViewMode, setGlobalViewMode] = useState<ViewMode>(initialSnapshot?.filters.viewMode ?? "grid");
+  const viewMode: ViewMode = twoPaneAllowed ? folderViewMode.viewMode : globalViewMode;
+  const isTwoPane = twoPaneAllowed && viewMode === "two-pane";
 
   const didRestoreScrollRef = useRef(false);
   useLayoutEffect(() => {
@@ -233,9 +254,13 @@ export function FolderBrowser({
     folderRouter.replace(next);
   }, [isSearch, searchQuery, typeFilter, sort, order, smartFolderId, driveName, folderRouter]);
 
-  const handleViewChange = useCallback((mode: ViewMode) => {
-    setViewMode(mode);
-  }, []);
+  const handleViewChange = useCallback(
+    (mode: ViewMode) => {
+      if (twoPaneAllowed) folderViewMode.setViewMode(mode);
+      else setGlobalViewMode(mode);
+    },
+    [twoPaneAllowed, folderViewMode],
+  );
 
   const handleSemanticSelect = useCallback(
     (url: string) => {
@@ -386,6 +411,8 @@ export function FolderBrowser({
         fileIds={files.map((f) => f.id)}
         drive={driveName}
         folderPath={folderPath}
+        viewMode={twoPaneAllowed ? viewMode : undefined}
+        enableTwoPane={twoPaneAllowed}
         onSortChange={(s, o) => { setSort(s); setOrder(o); }}
         onTypeFilterChange={setTypeFilter}
         onViewChange={handleViewChange}
@@ -411,37 +438,43 @@ export function FolderBrowser({
         <EmptyState variant="no-results" />
       )}
 
-      <FolderContent
-        files={files}
-        folders={folders}
-        driveName={driveName}
-        viewMode={viewMode}
-        loading={loading}
-        loadingMore={loadingMore}
-        isRecent={isRecent}
-        isFavorites={isFavorites}
-        isRecentAdded={isRecentAdded}
-        isSearch={isSearch}
-        selectable={selectable}
-        sortQuery={sortQuery}
-        pinnedPaths={pinnedPaths}
-        sentinelRef={sentinelRef}
-        dragState={dragState}
-        isDropTarget={isDropTarget}
-        getDropTargetProps={getDropTargetProps}
-        isSelected={selection.isSelected}
-        onSelect={selection.toggle}
-        onMetaSelect={handleMetaSelect}
-        onShiftSelect={handleShiftSelect}
-        onTogglePin={handleTogglePin}
-        onFavoriteToggle={handleFavoriteToggle}
-        onRefresh={refresh}
-        onDragStart={handleDragStart}
-        onDragEnd={handleDragEnd}
-        selectedCount={selection.count}
-        isDropDisabled={isDropDisabled}
-        onFolderDragStart={handleFolderDragStart}
-      />
+      {isTwoPane ? (
+        <div className="-mx-2 -my-4 sm:-mx-4 sm:-my-8">
+          <TwoPaneLayout drive={driveName} folderPath={folderPath ?? ""} />
+        </div>
+      ) : (
+        <FolderContent
+          files={files}
+          folders={folders}
+          driveName={driveName}
+          viewMode={viewMode}
+          loading={loading}
+          loadingMore={loadingMore}
+          isRecent={isRecent}
+          isFavorites={isFavorites}
+          isRecentAdded={isRecentAdded}
+          isSearch={isSearch}
+          selectable={selectable}
+          sortQuery={sortQuery}
+          pinnedPaths={pinnedPaths}
+          sentinelRef={sentinelRef}
+          dragState={dragState}
+          isDropTarget={isDropTarget}
+          getDropTargetProps={getDropTargetProps}
+          isSelected={selection.isSelected}
+          onSelect={selection.toggle}
+          onMetaSelect={handleMetaSelect}
+          onShiftSelect={handleShiftSelect}
+          onTogglePin={handleTogglePin}
+          onFavoriteToggle={handleFavoriteToggle}
+          onRefresh={refresh}
+          onDragStart={handleDragStart}
+          onDragEnd={handleDragEnd}
+          selectedCount={selection.count}
+          isDropDisabled={isDropDisabled}
+          onFolderDragStart={handleFolderDragStart}
+        />
+      )}
 
       {selectable && (
         <SelectionBar

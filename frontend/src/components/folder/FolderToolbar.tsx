@@ -1,13 +1,11 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import {
   Check,
   CheckSquare,
   Filter,
   FolderPlus,
-  Grid3X3,
-  List,
   MoreHorizontal,
   Play,
   RefreshCw,
@@ -18,9 +16,8 @@ import { useTranslations } from "next-intl";
 import type { FileType, SortField, SortOrder, ViewMode } from "@/types";
 import { SortButton } from "@/components/SortButton";
 import { UploadButton } from "@/components/UploadButton";
+import { ViewToggle } from "@/components/ViewToggle";
 import { AddonSlot } from "@/components/AddonSlot";
-
-const VIEW_MODE_STORAGE_KEY = "video-share-view-mode";
 
 interface FolderToolbarProps {
   isSpecialView: boolean;
@@ -39,6 +36,14 @@ interface FolderToolbarProps {
   fileIds: string[];
   drive: string;
   folderPath?: string;
+  /**
+   * Current viewMode. When `enableTwoPane` is true the toolbar is
+   * controlled (FolderBrowser owns persistence via useFolderViewMode);
+   * when false, ViewToggle falls back to its uncontrolled mode and
+   * persists to the global default key.
+   */
+  viewMode?: ViewMode;
+  enableTwoPane?: boolean;
   onSortChange: (s: SortField, o: SortOrder) => void;
   onTypeFilterChange: (t: FileType | null) => void;
   onViewChange: (mode: ViewMode) => void;
@@ -65,6 +70,7 @@ export function FolderToolbar({
   isSpecialView, isSearch, tagFilter, hasPlayableFiles,
   sort, order, typeFilter, total, selectable, scanning,
   creatingFolder, newFolderName, folderError, fileIds, drive, folderPath,
+  viewMode, enableTwoPane,
   onSortChange, onTypeFilterChange, onViewChange, onToggleSelectable,
   onScan, onPlayAll, onSetCreatingFolder, onSetNewFolderName,
   onSetFolderError, onCreateFolder,
@@ -77,34 +83,9 @@ export function FolderToolbar({
   const tc = useTranslations("common");
   const ts = useTranslations("selection");
   const tf = useTranslations("folder");
-  const tv = useTranslations("view");
 
   const [typeFilterOpen, setTypeFilterOpen] = useState(false);
   const [moreOpen, setMoreOpen] = useState(false);
-
-  const [viewMode, setViewMode] = useState<ViewMode>("grid");
-  useEffect(() => {
-    try {
-      const saved = localStorage.getItem(VIEW_MODE_STORAGE_KEY) as ViewMode | null;
-      if (saved === "grid" || saved === "list") {
-        setViewMode(saved);
-        onViewChange(saved);
-      }
-    } catch {
-      // localStorage unavailable (SSR / test env) — keep default "grid"
-    }
-  }, [onViewChange]);
-
-  const toggleViewMode = () => {
-    const next: ViewMode = viewMode === "grid" ? "list" : "grid";
-    setViewMode(next);
-    try {
-      localStorage.setItem(VIEW_MODE_STORAGE_KEY, next);
-    } catch {
-      // ignore storage failure
-    }
-    onViewChange(next);
-  };
 
   const activeTypeOption = TYPE_OPTION_KEYS.find((opt) => opt.value === typeFilter);
   const activeTypeLabel = activeTypeOption ? t(activeTypeOption.labelKey) : t("all");
@@ -237,14 +218,11 @@ export function FolderToolbar({
           allowRelevance={isSearch}
         />
 
-        <button
-          onClick={toggleViewMode}
-          className="rounded-md p-2 text-text-muted transition-colors hover:text-text-primary"
-          aria-label={viewMode === "grid" ? tv("list") : tv("grid")}
-          title={viewMode === "grid" ? tv("list") : tv("grid")}
-        >
-          {viewMode === "grid" ? <Grid3X3 size={16} /> : <List size={16} />}
-        </button>
+        <ViewToggle
+          mode={viewMode}
+          onChange={onViewChange}
+          enableTwoPane={enableTwoPane ?? false}
+        />
 
         {/* Overflow: select-mode + rescan (low-frequency, not search-mode) */}
         <div className="relative">
