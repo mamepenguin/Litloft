@@ -29,6 +29,7 @@ const folder: Folder = {
   path: "Travel Photos",
   file_count: 12,
   thumbnail_file_id: null,
+  dominant_kind: null,
 };
 
 function makeProps(overrides: Partial<React.ComponentProps<typeof FolderContextMenu>> = {}) {

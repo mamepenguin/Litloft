@@ -64,12 +64,41 @@ export interface AuthStatus {
   has_protected_drives: boolean;
 }
 
+export type FolderKind =
+  | "markdown"
+  | "video"
+  | "image"
+  | "pdf"
+  | "audio"
+  | "document"
+  | "other";
+
 export interface Folder {
   name: string;
   path: string;
   file_count: number;
   thumbnail_file_id: string | null;
+  dominant_kind: FolderKind | null;
 }
+
+export type TreeTypeFilter = "markdown" | "video" | "image" | "pdf";
+
+export type FolderTreeNode =
+  | {
+      kind: "folder";
+      name: string;
+      path: string;
+      file_count: number;
+      has_children: boolean;
+    }
+  | {
+      kind: "file";
+      name: string;
+      path: string;
+      file_id: string;
+      file_type: FileType;
+      mime_type: string;
+    };
 
 export interface Tag {
   name: string;
@@ -126,7 +155,7 @@ export interface ArchiveContents {
   total_size: number;
 }
 
-export type ViewMode = "grid" | "list";
+export type ViewMode = "grid" | "list" | "two-pane";
 export type SortField =
   | "created_at"
   | "title"

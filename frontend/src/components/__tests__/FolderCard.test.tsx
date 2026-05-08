@@ -12,6 +12,7 @@ const folderWithoutThumbnail: Folder = {
   path: "Travel Photos",
   file_count: 42,
   thumbnail_file_id: null,
+  dominant_kind: null,
 };
 
 const folderWithThumbnail: Folder = {
@@ -19,6 +20,7 @@ const folderWithThumbnail: Folder = {
   path: "Music Collection",
   file_count: 15,
   thumbnail_file_id: "thumb123abc",
+  dominant_kind: null,
 };
 
 describe("FolderCard", () => {

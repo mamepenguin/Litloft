@@ -2,6 +2,7 @@ import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import {
   getDrives,
   getFolders,
+  getFolderTree,
   getDriveFiles,
   getFile,
   updateFile,
@@ -78,6 +79,42 @@ describe("api", () => {
         "/api/drives/main/folders?path=photos",
         expect.any(Object)
       );
+    });
+  });
+
+  describe("getFolderTree", () => {
+    it("fetches drive root with no params", async () => {
+      mockFetch.mockResolvedValueOnce(jsonResponse([]));
+      await getFolderTree("main");
+      expect(mockFetch).toHaveBeenCalledWith(
+        "/api/drives/main/folder-tree",
+        expect.any(Object)
+      );
+    });
+
+    it("includes root, type_filter, depth", async () => {
+      mockFetch.mockResolvedValueOnce(jsonResponse([]));
+      await getFolderTree("main", { root: "photos", type_filter: "markdown", depth: 1 });
+      const url = mockFetch.mock.calls[0][0] as string;
+      expect(url).toContain("root=photos");
+      expect(url).toContain("type_filter=markdown");
+      expect(url).toContain("depth=1");
+    });
+
+    it("encodes drive name", async () => {
+      mockFetch.mockResolvedValueOnce(jsonResponse([]));
+      await getFolderTree("my drive");
+      expect(mockFetch).toHaveBeenCalledWith(
+        "/api/drives/my%20drive/folder-tree",
+        expect.any(Object)
+      );
+    });
+
+    it("omits null type_filter", async () => {
+      mockFetch.mockResolvedValueOnce(jsonResponse([]));
+      await getFolderTree("main", { type_filter: null });
+      const url = mockFetch.mock.calls[0][0] as string;
+      expect(url).not.toContain("type_filter");
     });
   });
 

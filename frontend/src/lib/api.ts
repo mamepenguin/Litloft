@@ -1,4 +1,4 @@
-import type { ArchiveContents, AuthStatus, BatchRenameRequest, BatchRenameResponse, ChunkResponse, Comment, CommentsResponse, DashboardResponse, Drive, DriveSummary, DuplicatesResponse, FileExif, FileItem, FileType, Folder, Neighbors, PaginatedResponse, PinnedFolder, PlaylistDetail, PlaylistSummary, SortField, SortOrder, Tag, UnlockResult, UploadInitResponse, WatchHistoryItem, WatchProgress } from "@/types";
+import type { ArchiveContents, AuthStatus, BatchRenameRequest, BatchRenameResponse, ChunkResponse, Comment, CommentsResponse, DashboardResponse, Drive, DriveSummary, DuplicatesResponse, FileExif, FileItem, FileType, Folder, FolderTreeNode, Neighbors, PaginatedResponse, PinnedFolder, PlaylistDetail, PlaylistSummary, SortField, SortOrder, Tag, TreeTypeFilter, UnlockResult, UploadInitResponse, WatchHistoryItem, WatchProgress } from "@/types";
 import type { SmartFolder, SmartFolderCreate, SmartFolderUpdate } from "@/types/smartFolder";
 
 const API_BASE = "/api";
@@ -25,6 +25,22 @@ export async function getFolders(drive: string, path?: string): Promise<Folder[]
   const qs = params.toString();
   return fetchJSON<Folder[]>(
     `${API_BASE}/drives/${encodeURIComponent(drive)}/folders${qs ? `?${qs}` : ""}`
+  );
+}
+
+export async function getFolderTree(
+  drive: string,
+  params: { root?: string; type_filter?: TreeTypeFilter | null; depth?: number } = {},
+  options?: RequestOptions,
+): Promise<FolderTreeNode[]> {
+  const search = new URLSearchParams();
+  if (params.root) search.set("root", params.root);
+  if (params.type_filter) search.set("type_filter", params.type_filter);
+  if (params.depth !== undefined) search.set("depth", String(params.depth));
+  const qs = search.toString();
+  return fetchJSON<FolderTreeNode[]>(
+    `${API_BASE}/drives/${encodeURIComponent(drive)}/folder-tree${qs ? `?${qs}` : ""}`,
+    { signal: options?.signal },
   );
 }
 

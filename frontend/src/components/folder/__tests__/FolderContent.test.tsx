@@ -60,6 +60,7 @@ const mockFolder = (name: string): Folder => ({
   path: name,
   file_count: 5,
   thumbnail_file_id: null,
+  dominant_kind: null,
 });
 
 const defaultProps = {
