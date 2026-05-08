@@ -41,6 +41,7 @@ export function FolderTreeRow({ row, selected, onSelect }: FolderTreeRowProps) {
       className={`${baseClass} ${stateClass}`}
       style={{ paddingLeft: padLeft }}
       aria-expanded={isFolder ? isExpanded : undefined}
+      aria-current={selected ? "true" : undefined}
       aria-label={node.name}
       title={node.path}
     >

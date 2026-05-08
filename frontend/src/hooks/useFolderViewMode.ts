@@ -63,13 +63,6 @@ interface ResolveOpts {
   drive: string;
   folderPath: string;
   dominantKind: FolderKind | null;
-  /**
-   * Kept for backward call-site compatibility. Phase 3 redesign moved
-   * tree visibility out of ViewMode (Topic 1 補正, hako
-   * w4zVT8-dyYwshLNiJ5REY) so this flag no longer participates in mode
-   * resolution. Callers should pass `false` or omit at refactor time.
-   */
-  twoPaneAllowed?: boolean;
 }
 
 export function resolveFolderViewMode(opts: ResolveOpts): ViewMode {

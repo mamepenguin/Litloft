@@ -1,6 +1,6 @@
 "use client";
 
-import { useParams, usePathname } from "next/navigation";
+import { useParams, usePathname, useSearchParams } from "next/navigation";
 import type { ReactNode } from "react";
 
 import { TwoPaneLayout } from "@/components/folder/TwoPaneLayout";
@@ -22,19 +22,25 @@ import { useTreeEnabled } from "@/hooks/useTreeEnabled";
 export default function DriveLayout({ children }: { children: ReactNode }) {
   const params = useParams();
   const pathname = usePathname();
+  const searchParams = useSearchParams();
   const driveName = decodeURIComponent(params.name as string);
   const { enabled } = useTreeEnabled(driveName);
 
   const drivePart = `/drive/${encodeURIComponent(driveName)}`;
   const isAddonRoute = pathname.startsWith(`${drivePart}/addons/`);
   const isSearchRoute = pathname.startsWith(`${drivePart}/search`);
+  // Trash and missing-files are recovery views — they list items
+  // detached from any folder, so the folder tree adds no value and
+  // could mislead the user. Opt out the same way addon routes do.
+  const view = searchParams.get("view");
+  const isRecoveryView = view === "trash" || view === "missing";
 
   const folderPath =
     !isSearchRoute && pathname.startsWith(`${drivePart}/`)
       ? decodeURIComponent(pathname.slice(drivePart.length + 1))
       : "";
 
-  if (enabled && !isAddonRoute) {
+  if (enabled && !isAddonRoute && !isRecoveryView) {
     return (
       <TwoPaneLayout drive={driveName} folderPath={folderPath}>
         {children}
