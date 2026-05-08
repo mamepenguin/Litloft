@@ -8,12 +8,14 @@ import type { FileItem, Folder as FolderType, WatchHistoryItem } from "@/types";
 import { addPin, getDriveFiles, getFolders, getPins, getWatchHistory, removePin } from "@/lib/api";
 import { useDragAndDrop } from "@/hooks/useDragAndDrop";
 import { useContextMenu } from "@/hooks/useContextMenu";
+import { useTreeEnabled } from "@/hooks/useTreeEnabled";
 import { AddonSlot } from "./AddonSlot";
 import { CarouselSection } from "./CarouselSection";
 import { ContinueWatchingSection } from "./ContinueWatchingSection";
 import { FolderCard } from "./FolderCard";
 import { FolderContextMenu } from "./FolderContextMenu";
 import { RootFileListing } from "./RootFileListing";
+import { TwoPaneLayout } from "./folder/TwoPaneLayout";
 import { useSidebar } from "./SidebarProvider";
 import { useProfile } from "./ProfileProvider";
 
@@ -181,8 +183,9 @@ export function DriveHome({ driveName }: DriveHomeProps) {
   }, []);
 
   const driveBase = `/drive/${encodeURIComponent(driveName)}`;
+  const { enabled: treeEnabled } = useTreeEnabled(driveName);
 
-  return (
+  const content = (
     <div className="space-y-8 p-4 sm:p-6">
       {(foldersLoading || folders.length > 0) && (
         <section>
@@ -313,4 +316,13 @@ export function DriveHome({ driveName }: DriveHomeProps) {
       />
     </div>
   );
+
+  if (treeEnabled) {
+    return (
+      <TwoPaneLayout drive={driveName} folderPath="">
+        {content}
+      </TwoPaneLayout>
+    );
+  }
+  return content;
 }

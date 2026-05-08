@@ -9,6 +9,7 @@ import { createFolder, getDriveFiles, scanDrive } from "@/lib/api";
 import type { FileItem, FileType, SortField, SortOrder, ViewMode } from "@/types";
 import { FileGrid } from "@/components/FileGrid";
 import { FileList } from "@/components/FileList";
+import { TreeToggle } from "@/components/TreeToggle";
 import { ViewToggle } from "@/components/ViewToggle";
 import { SortButton } from "@/components/SortButton";
 import { EmptyState } from "@/components/EmptyState";
@@ -265,6 +266,8 @@ export function RootFileListing({ driveName, onFileAction, onFolderChange }: Roo
               </button>
 
               <ViewToggle onChange={handleViewChange} />
+
+              <TreeToggle drive={driveName} />
 
               <button
                 onClick={handleScan}
