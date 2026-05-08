@@ -307,7 +307,9 @@
   "view": {
     "grid": "グリッド表示",
     "list": "リスト表示",
-    "twoPane": "2ペイン表示"
+    "tree": "ツリー",
+    "treeOn": "ツリーを表示",
+    "treeOff": "ツリーを隠す"
   },
   "tree": {
     "filterAll": "すべて",

@@ -15,6 +15,7 @@ import {
 import { useTranslations } from "next-intl";
 import type { FileType, SortField, SortOrder, ViewMode } from "@/types";
 import { SortButton } from "@/components/SortButton";
+import { TreeToggle } from "@/components/TreeToggle";
 import { UploadButton } from "@/components/UploadButton";
 import { ViewToggle } from "@/components/ViewToggle";
 import { AddonSlot } from "@/components/AddonSlot";
@@ -37,13 +38,18 @@ interface FolderToolbarProps {
   drive: string;
   folderPath?: string;
   /**
-   * Current viewMode. When `enableTwoPane` is true the toolbar is
+   * Current viewMode. When `treeAllowed` is true the toolbar is
    * controlled (FolderBrowser owns persistence via useFolderViewMode);
    * when false, ViewToggle falls back to its uncontrolled mode and
    * persists to the global default key.
    */
   viewMode?: ViewMode;
-  enableTwoPane?: boolean;
+  /**
+   * When true, the TreeToggle button is rendered. Hidden for flat
+   * virtual views (favorites/recent/search/tag) where there is no
+   * folder tree to surface.
+   */
+  treeAllowed?: boolean;
   onSortChange: (s: SortField, o: SortOrder) => void;
   onTypeFilterChange: (t: FileType | null) => void;
   onViewChange: (mode: ViewMode) => void;
@@ -70,7 +76,7 @@ export function FolderToolbar({
   isSpecialView, isSearch, tagFilter, hasPlayableFiles,
   sort, order, typeFilter, total, selectable, scanning,
   creatingFolder, newFolderName, folderError, fileIds, drive, folderPath,
-  viewMode, enableTwoPane,
+  viewMode, treeAllowed,
   onSortChange, onTypeFilterChange, onViewChange, onToggleSelectable,
   onScan, onPlayAll, onSetCreatingFolder, onSetNewFolderName,
   onSetFolderError, onCreateFolder,
@@ -218,11 +224,9 @@ export function FolderToolbar({
           allowRelevance={isSearch}
         />
 
-        <ViewToggle
-          mode={viewMode}
-          onChange={onViewChange}
-          enableTwoPane={enableTwoPane ?? false}
-        />
+        <ViewToggle mode={viewMode} onChange={onViewChange} />
+
+        {treeAllowed && <TreeToggle drive={drive} />}
 
         {/* Overflow: select-mode + rescan (low-frequency, not search-mode) */}
         <div className="relative">

@@ -155,7 +155,7 @@ export interface ArchiveContents {
   total_size: number;
 }
 
-export type ViewMode = "grid" | "list" | "two-pane";
+export type ViewMode = "grid" | "list";
 export type SortField =
   | "created_at"
   | "title"

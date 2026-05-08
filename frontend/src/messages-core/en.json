@@ -307,7 +307,9 @@
   "view": {
     "grid": "Grid view",
     "list": "List view",
-    "twoPane": "Two-pane view"
+    "tree": "Tree",
+    "treeOn": "Show tree",
+    "treeOff": "Hide tree"
   },
   "tree": {
     "filterAll": "All",

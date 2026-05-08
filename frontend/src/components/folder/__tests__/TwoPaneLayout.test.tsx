@@ -31,22 +31,6 @@ vi.mock("@/components/FilePreview", () => ({
   ),
 }));
 
-vi.mock("@/components/FileGrid", () => ({
-  FileGrid: ({ files }: { files: Array<{ id: string }> }) => (
-    <div data-testid="file-grid">{files.map((f) => f.id).join(",")}</div>
-  ),
-}));
-
-vi.mock("@/components/FileList", () => ({
-  FileList: () => <div data-testid="file-list" />,
-}));
-
-vi.mock("@/components/FolderCard", () => ({
-  FolderCard: ({ folder }: { folder: { name: string } }) => (
-    <div data-testid="folder-card">{folder.name}</div>
-  ),
-}));
-
 // Stub virtualizer (jsdom layout) — keep parity with FolderTreePane test.
 vi.mock("@tanstack/react-virtual", () => ({
   useVirtualizer: ({ count, estimateSize }: { count: number; estimateSize: (i: number) => number }) => {
@@ -109,27 +93,31 @@ afterEach(() => {
 });
 
 describe("TwoPaneLayout", () => {
-  it("renders folder right pane when no ?file param", async () => {
+  it("renders children on the right when no ?file param", async () => {
     mockGetFolderTree.mockResolvedValue([]);
-    mockGetFolders.mockResolvedValue([]);
-    mockGetDriveFiles.mockResolvedValue({
-      data: [baseFile("v1")],
-      meta: { total: 1, page: 1, limit: 100 },
-    });
 
-    render(<TwoPaneLayout drive="work" folderPath="" />);
+    render(
+      <TwoPaneLayout drive="work" folderPath="">
+        <div data-testid="host-content">drive home content</div>
+      </TwoPaneLayout>,
+    );
 
-    await waitFor(() => expect(screen.getByTestId("file-grid")).toHaveTextContent("v1"));
+    expect(screen.getByTestId("host-content")).toHaveTextContent("drive home content");
   });
 
-  it("renders file right pane when ?file is present", async () => {
+  it("renders file right pane when ?file is present (overrides children)", async () => {
     mockSearchParams = new URLSearchParams("file=abc");
     mockGetFolderTree.mockResolvedValue([]);
     mockGetFile.mockResolvedValue(baseFile("abc"));
 
-    render(<TwoPaneLayout drive="work" folderPath="" />);
+    render(
+      <TwoPaneLayout drive="work" folderPath="">
+        <div data-testid="host-content">should be hidden</div>
+      </TwoPaneLayout>,
+    );
 
     await waitFor(() => expect(screen.getByTestId("file-preview")).toHaveTextContent("preview:abc"));
+    expect(screen.queryByTestId("host-content")).not.toBeInTheDocument();
   });
 
   it("folder click in tree pushes to drive path (not replace)", async () => {
@@ -141,10 +129,12 @@ describe("TwoPaneLayout", () => {
       }
       return Promise.resolve([]);
     });
-    mockGetFolders.mockResolvedValue([]);
-    mockGetDriveFiles.mockResolvedValue({ data: [], meta: { total: 0, page: 1, limit: 100 } });
 
-    render(<TwoPaneLayout drive="work" folderPath="" />);
+    render(
+      <TwoPaneLayout drive="work" folderPath="">
+        <div />
+      </TwoPaneLayout>,
+    );
 
     await waitFor(() => expect(screen.getByText("Q1")).toBeInTheDocument());
     fireEvent.click(screen.getByText("Q1"));
@@ -157,16 +147,16 @@ describe("TwoPaneLayout", () => {
     mockGetFolderTree.mockResolvedValue([
       { kind: "file", name: "doc.md", path: "doc.md", file_id: "fid42", file_type: "document", mime_type: "text/markdown" },
     ]);
-    mockGetFolders.mockResolvedValue([]);
-    mockGetDriveFiles.mockResolvedValue({ data: [], meta: { total: 0, page: 1, limit: 100 } });
 
-    render(<TwoPaneLayout drive="work" folderPath="" />);
+    render(
+      <TwoPaneLayout drive="work" folderPath="">
+        <div />
+      </TwoPaneLayout>,
+    );
 
     await waitFor(() => expect(screen.getByText("doc.md")).toBeInTheDocument());
     fireEvent.click(screen.getByText("doc.md"));
 
-    // First selection (tree-mode → file-mode) earns a history entry so swipe
-    // back returns to the tree once (B6, hako l3PpLicBu_d9s7zzYIla-).
     expect(mockPush).toHaveBeenCalledWith("/drive/work?file=fid42");
     expect(mockReplace).not.toHaveBeenCalled();
   });
@@ -176,11 +166,13 @@ describe("TwoPaneLayout", () => {
     mockGetFolderTree.mockResolvedValue([
       { kind: "file", name: "doc.md", path: "doc.md", file_id: "fid42", file_type: "document", mime_type: "text/markdown" },
     ]);
-    mockGetFolders.mockResolvedValue([]);
     mockGetFile.mockResolvedValue(baseFile("fid01"));
-    mockGetDriveFiles.mockResolvedValue({ data: [], meta: { total: 0, page: 1, limit: 100 } });
 
-    render(<TwoPaneLayout drive="work" folderPath="" />);
+    render(
+      <TwoPaneLayout drive="work" folderPath="">
+        <div />
+      </TwoPaneLayout>,
+    );
 
     await waitFor(() => expect(screen.getByText("doc.md")).toBeInTheDocument());
     fireEvent.click(screen.getByText("doc.md"));
@@ -198,10 +190,12 @@ describe("TwoPaneLayout", () => {
       }
       return Promise.resolve([]);
     });
-    mockGetFolders.mockResolvedValue([]);
-    mockGetDriveFiles.mockResolvedValue({ data: [], meta: { total: 0, page: 1, limit: 100 } });
 
-    render(<TwoPaneLayout drive="my drive" folderPath="" />);
+    render(
+      <TwoPaneLayout drive="my drive" folderPath="">
+        <div />
+      </TwoPaneLayout>,
+    );
 
     await waitFor(() => expect(screen.getByText("Q1")).toBeInTheDocument());
     fireEvent.click(screen.getByText("Q1"));

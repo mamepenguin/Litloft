@@ -1,12 +1,12 @@
 "use client";
 
-import { Columns2, Grid3X3, List } from "lucide-react";
+import { Grid3X3, List } from "lucide-react";
 import { useEffect, useState } from "react";
 import { useTranslations } from "next-intl";
 import type { ViewMode } from "@/types";
 
 const STORAGE_KEY = "video-share-view-mode";
-const VALID_MODES: ViewMode[] = ["grid", "list", "two-pane"];
+const VALID_MODES: ViewMode[] = ["grid", "list"];
 
 function isViewMode(value: unknown): value is ViewMode {
   return typeof value === "string" && (VALID_MODES as string[]).includes(value);
@@ -21,11 +21,16 @@ interface ViewToggleProps {
    */
   mode?: ViewMode;
   onChange: (mode: ViewMode) => void;
-  /** When false, the two-pane button is hidden (e.g. flat virtual views). */
-  enableTwoPane?: boolean;
 }
 
-export function ViewToggle({ mode: controlledMode, onChange, enableTwoPane = true }: ViewToggleProps) {
+/**
+ * Grid/list view toggle.
+ *
+ * Phase 3 redesign (Topic 1 補正, hako w4zVT8-dyYwshLNiJ5REY): the
+ * tree-pane visibility lives in a separate `<TreeToggle>` button, no
+ * longer mixed in here.
+ */
+export function ViewToggle({ mode: controlledMode, onChange }: ViewToggleProps) {
   const t = useTranslations("view");
   const isControlled = controlledMode !== undefined;
   const [uncontrolledMode, setUncontrolledMode] = useState<ViewMode>("grid");
@@ -35,13 +40,11 @@ export function ViewToggle({ mode: controlledMode, onChange, enableTwoPane = tru
     if (isControlled) return;
     const saved = localStorage.getItem(STORAGE_KEY);
     if (!isViewMode(saved)) return;
-    if (saved === "two-pane" && !enableTwoPane) return;
     setUncontrolledMode(saved);
     onChange(saved);
-  }, [isControlled, enableTwoPane, onChange]);
+  }, [isControlled, onChange]);
 
   function toggle(newMode: ViewMode) {
-    if (newMode === "two-pane" && !enableTwoPane) return;
     if (!isControlled) {
       setUncontrolledMode(newMode);
       localStorage.setItem(STORAGE_KEY, newMode);
@@ -70,15 +73,6 @@ export function ViewToggle({ mode: controlledMode, onChange, enableTwoPane = tru
       >
         <List size={18} />
       </button>
-      {enableTwoPane && (
-        <button
-          onClick={() => toggle("two-pane")}
-          className={buttonClass(mode === "two-pane")}
-          aria-label={t("twoPane")}
-        >
-          <Columns2 size={18} />
-        </button>
-      )}
     </div>
   );
 }

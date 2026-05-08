@@ -3,30 +3,40 @@
 import { useTranslations } from "next-intl";
 import { usePathname, useRouter } from "next/navigation";
 import { useCallback } from "react";
+import type { ReactNode } from "react";
 
 import { useSelectedFile } from "@/hooks/useSelectedFile";
 
 import { FolderTreePane } from "./FolderTreePane";
 import { RightPaneFile } from "./RightPaneFile";
-import { RightPaneFolder } from "./RightPaneFolder";
 
 interface TwoPaneLayoutProps {
   drive: string;
+  /**
+   * The folder path the host page is currently rendering. Used so the
+   * tree expands all ancestors of the user's location.
+   */
   folderPath: string;
+  /**
+   * The host page's normal content. Rendered on the right when no file
+   * is selected. Replaced by `<RightPaneFile>` when `?file=` is set.
+   */
+  children: ReactNode;
 }
 
 /**
- * 2-pane folder view: left tree + right preview/folder.
+ * Generic tree + right-pane wrapper.
+ *
+ * Phase 3 redesign (Topic 1 補正, hako w4zVT8-dyYwshLNiJ5REY): the tree
+ * pane is now an orthogonal toggle independent of grid/list view mode.
+ * This component accepts arbitrary children for the right pane so it
+ * can wrap any host page (DriveHome, FolderBrowser, search results...).
  *
  * Wide (≥md): side-by-side. Narrow (<md): screen-swap — tree fills the
- * viewport when no file is selected, preview fills it once a file is
- * selected (Topic 11, hako dI84vvqdYv4-t5SipKVd9).
- *
- * Selection model (Topic 3, hako tP8wYvAB9qEDQmrjsdtGQ):
- *   - Folder click in tree → router.push to that folder URL
- *   - File click in tree   → ?file=id via router.replace
+ * viewport when no file is selected, the file preview fills it once a
+ * file is selected (Topic 11).
  */
-export function TwoPaneLayout({ drive, folderPath }: TwoPaneLayoutProps) {
+export function TwoPaneLayout({ drive, folderPath, children }: TwoPaneLayoutProps) {
   const t = useTranslations("rightPane");
   const router = useRouter();
   const pathname = usePathname();
@@ -71,14 +81,8 @@ export function TwoPaneLayout({ drive, folderPath }: TwoPaneLayoutProps) {
         />
       </aside>
       <section className={`${hasFile ? "flex" : "hidden md:flex"} min-w-0 flex-1 flex-col`}>
-        {hasFile && fileId ? (
-          <RightPaneFile fileId={fileId} />
-        ) : (
-          <RightPaneFolder drive={drive} folderPath={folderPath} />
-        )}
-        {!hasFile && (
-          <span className="sr-only">{t("noSelection")}</span>
-        )}
+        {hasFile && fileId ? <RightPaneFile fileId={fileId} /> : children}
+        {!hasFile && <span className="sr-only">{t("noSelection")}</span>}
       </section>
     </div>
   );

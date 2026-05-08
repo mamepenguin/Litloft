@@ -1,13 +1,12 @@
 "use client";
 
-import { useCallback, useMemo, useSyncExternalStore } from "react";
+import { useCallback, useEffect, useState } from "react";
 
-import { folderViewModeStickyStore } from "@/lib/folderViewModeSticky";
 import type { FolderKind, ViewMode } from "@/types";
 
 const GLOBAL_KEY = "video-share-view-mode";
 const PER_DRIVE_PREFIX = "folderPrefs:";
-const VALID_MODES: ViewMode[] = ["grid", "list", "two-pane"];
+const VALID_MODES: ViewMode[] = ["grid", "list"];
 
 interface FolderPrefsEntry {
   viewMode?: ViewMode;
@@ -50,7 +49,7 @@ function loadGlobalDefault(): ViewMode | null {
 function autoDetectMode(kind: FolderKind | null): ViewMode | null {
   switch (kind) {
     case "markdown":
-      return "two-pane";
+      return "list";
     case "video":
     case "image":
     case "audio":
@@ -64,22 +63,23 @@ interface ResolveOpts {
   drive: string;
   folderPath: string;
   dominantKind: FolderKind | null;
-  twoPaneAllowed: boolean;
-}
-
-function clampToAllowed(mode: ViewMode | null, twoPaneAllowed: boolean): ViewMode | null {
-  if (mode === "two-pane" && !twoPaneAllowed) return null;
-  return mode;
+  /**
+   * Kept for backward call-site compatibility. Phase 3 redesign moved
+   * tree visibility out of ViewMode (Topic 1 補正, hako
+   * w4zVT8-dyYwshLNiJ5REY) so this flag no longer participates in mode
+   * resolution. Callers should pass `false` or omit at refactor time.
+   */
+  twoPaneAllowed?: boolean;
 }
 
 export function resolveFolderViewMode(opts: ResolveOpts): ViewMode {
-  const { drive, folderPath, dominantKind, twoPaneAllowed } = opts;
+  const { drive, folderPath, dominantKind } = opts;
   const prefs = loadFolderPrefs(drive);
-  const override = clampToAllowed(prefs[folderPath]?.viewMode ?? null, twoPaneAllowed);
-  if (override) return override;
-  const auto = clampToAllowed(autoDetectMode(dominantKind), twoPaneAllowed);
+  const stored = prefs[folderPath]?.viewMode;
+  if (isViewMode(stored)) return stored;
+  const auto = autoDetectMode(dominantKind);
   if (auto) return auto;
-  const global = clampToAllowed(loadGlobalDefault(), twoPaneAllowed);
+  const global = loadGlobalDefault();
   if (global) return global;
   return "grid";
 }
@@ -90,31 +90,24 @@ interface UseFolderViewModeResult {
 }
 
 export function useFolderViewMode(opts: ResolveOpts): UseFolderViewModeResult {
-  const { drive, folderPath, dominantKind, twoPaneAllowed } = opts;
-  const sticky = useSyncExternalStore(
-    folderViewModeStickyStore.subscribe,
-    folderViewModeStickyStore.get,
-    () => null,
-  );
-  const sessionSticky = sticky?.drive === drive ? sticky.mode : null;
+  const { drive, folderPath, dominantKind } = opts;
+  const [viewMode, setViewModeState] = useState<ViewMode>(() => resolveFolderViewMode(opts));
 
-  const viewMode = useMemo<ViewMode>(() => {
-    if (sessionSticky === "two-pane" && twoPaneAllowed) return "two-pane";
-    return resolveFolderViewMode({ drive, folderPath, dominantKind, twoPaneAllowed });
-  }, [sessionSticky, drive, folderPath, dominantKind, twoPaneAllowed]);
+  useEffect(() => {
+    setViewModeState(resolveFolderViewMode({ drive, folderPath, dominantKind }));
+  }, [drive, folderPath, dominantKind]);
 
   const setViewMode = useCallback(
     (mode: ViewMode) => {
-      if (mode === "two-pane" && !twoPaneAllowed) return;
-      folderViewModeStickyStore.set(mode === "two-pane" ? { drive, mode: "two-pane" } : null);
       const prefs = loadFolderPrefs(drive);
       const next: FolderPrefs = {
         ...prefs,
         [folderPath]: { ...prefs[folderPath], viewMode: mode },
       };
       saveFolderPrefs(drive, next);
+      setViewModeState(mode);
     },
-    [drive, folderPath, twoPaneAllowed],
+    [drive, folderPath],
   );
 
   return { viewMode, setViewMode };

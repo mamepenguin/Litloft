@@ -19,6 +19,7 @@ import { useSelection } from "@/hooks/useSelection";
 import { useDragAndDrop } from "@/hooks/useDragAndDrop";
 import { useFolderViewMode } from "@/hooks/useFolderViewMode";
 import { useSelectedFile } from "@/hooks/useSelectedFile";
+import { useTreeEnabled } from "@/hooks/useTreeEnabled";
 import { buildListSnapshotKey, loadListSnapshot, saveListSnapshot } from "@/lib/listSnapshot";
 import { deriveDominantKind } from "@/lib/dominantKind";
 
@@ -87,8 +88,8 @@ export function FolderBrowser({
   const isAll = view === "all";
   const isSpecialView = isFavorites || view === "recent" || isRecentAdded || isPopular || isAll;
   // Topic 2-B: flat virtual views (favorites/recent/etc.), search, and
-  // tag-filtered views have no folder hierarchy → 2-pane is disabled.
-  const twoPaneAllowed = !isSpecialView && !isSearch && !tagFilter;
+  // tag-filtered views have no folder hierarchy → tree pane is hidden.
+  const treeAllowed = !isSpecialView && !isSearch && !tagFilter;
 
   const {
     files, folders, total, loading, loadingMore, hasMore, pagesLoaded, sentinelRef,
@@ -96,33 +97,32 @@ export function FolderBrowser({
     snapshotKey, hydratedScrollY,
   } = useFolderFiles({ driveName, folderPath, view, tagFilter, typeFilter, sort, order, refreshKey, searchQuery, includeSceneClip, initialSnapshot });
 
-  // Topic 9 layered fallback. We approximate the parent folder's
-  // dominant_kind from loaded files because the listing endpoint only
-  // carries it for child folders (Phase 1 surface). Re-derives as
-  // pages stream in.
+  // Topic 9 layered fallback (grid|list only — tree visibility is now a
+  // separate axis, hako w4zVT8-dyYwshLNiJ5REY). We approximate the
+  // parent folder's dominant_kind from loaded files because the listing
+  // endpoint only carries it for child folders (Phase 1 surface).
   const dominantKind = useMemo(() => deriveDominantKind(files), [files]);
   const folderViewMode = useFolderViewMode({
     drive: driveName,
     folderPath: folderPath ?? "",
     dominantKind,
-    twoPaneAllowed,
+    twoPaneAllowed: false,
   });
   // Clamp snapshot-restored viewMode to grid|list. Snapshots may carry
-  // "two-pane" from a prior folder browsing session, but globalViewMode
-  // only feeds non-folder views (favorites/recent/search/tag) where
-  // two-pane is disabled — leaking it would render FileList while the
-  // ViewToggle still shows grid/list (UI inconsistency).
+  // legacy "two-pane" strings from prior sessions; defensively coerce
+  // to grid since the type is no longer valid.
   const snapshotMode = initialSnapshot?.filters.viewMode;
   const [globalViewMode, setGlobalViewMode] = useState<ViewMode>(
     snapshotMode === "grid" || snapshotMode === "list" ? snapshotMode : "grid",
   );
-  const viewMode: ViewMode = twoPaneAllowed ? folderViewMode.viewMode : globalViewMode;
-  const isTwoPane = twoPaneAllowed && viewMode === "two-pane";
+  const viewMode: ViewMode = treeAllowed ? folderViewMode.viewMode : globalViewMode;
+  const { enabled: treeEnabled } = useTreeEnabled(driveName);
+  const treeVisible = treeAllowed && treeEnabled;
   const { fileId: selectedFileId } = useSelectedFile();
-  // In two-pane mode, the FolderToolbar's actions (upload, new folder, sort,
-  // ...) target the active folder. While the user is reading a file in the
-  // right pane, those controls are noise — hide them on every viewport.
-  const hideToolbar = isTwoPane && selectedFileId !== null && selectedFileId.length > 0;
+  // While the user is reading a file in the tree's right pane, the
+  // FolderToolbar's folder-targeted actions (upload, new folder, sort, ...)
+  // are noise — hide on every viewport.
+  const hideToolbar = treeVisible && selectedFileId !== null && selectedFileId.length > 0;
 
   const didRestoreScrollRef = useRef(false);
   useLayoutEffect(() => {
@@ -270,10 +270,10 @@ export function FolderBrowser({
 
   const handleViewChange = useCallback(
     (mode: ViewMode) => {
-      if (twoPaneAllowed) folderViewMode.setViewMode(mode);
+      if (treeAllowed) folderViewMode.setViewMode(mode);
       else setGlobalViewMode(mode);
     },
-    [twoPaneAllowed, folderViewMode],
+    [treeAllowed, folderViewMode],
   );
 
   const handleSemanticSelect = useCallback(
@@ -425,8 +425,8 @@ export function FolderBrowser({
         fileIds={files.map((f) => f.id)}
         drive={driveName}
         folderPath={folderPath}
-        viewMode={twoPaneAllowed ? viewMode : undefined}
-        enableTwoPane={twoPaneAllowed}
+        viewMode={treeAllowed ? viewMode : undefined}
+        treeAllowed={treeAllowed}
         onSortChange={(s, o) => { setSort(s); setOrder(o); }}
         onTypeFilterChange={setTypeFilter}
         onViewChange={handleViewChange}
@@ -452,9 +452,41 @@ export function FolderBrowser({
         <EmptyState variant="no-results" />
       )}
 
-      {isTwoPane ? (
+      {treeVisible ? (
         <div className="-mx-2 sm:-mx-4">
-          <TwoPaneLayout drive={driveName} folderPath={folderPath ?? ""} />
+          <TwoPaneLayout drive={driveName} folderPath={folderPath ?? ""}>
+            <FolderContent
+              files={files}
+              folders={folders}
+              driveName={driveName}
+              viewMode={viewMode}
+              loading={loading}
+              loadingMore={loadingMore}
+              isRecent={isRecent}
+              isFavorites={isFavorites}
+              isRecentAdded={isRecentAdded}
+              isSearch={isSearch}
+              selectable={selectable}
+              sortQuery={sortQuery}
+              pinnedPaths={pinnedPaths}
+              sentinelRef={sentinelRef}
+              dragState={dragState}
+              isDropTarget={isDropTarget}
+              getDropTargetProps={getDropTargetProps}
+              isSelected={selection.isSelected}
+              onSelect={selection.toggle}
+              onMetaSelect={handleMetaSelect}
+              onShiftSelect={handleShiftSelect}
+              onTogglePin={handleTogglePin}
+              onFavoriteToggle={handleFavoriteToggle}
+              onRefresh={refresh}
+              onDragStart={handleDragStart}
+              onDragEnd={handleDragEnd}
+              selectedCount={selection.count}
+              isDropDisabled={isDropDisabled}
+              onFolderDragStart={handleFolderDragStart}
+            />
+          </TwoPaneLayout>
         </div>
       ) : (
         <FolderContent

@@ -15,24 +15,19 @@ afterEach(() => {
 });
 
 describe("ViewToggle (uncontrolled)", () => {
-  it("renders all three buttons by default", () => {
+  it("renders only grid and list buttons (Phase 3 redesign — no two-pane)", () => {
     render(<ViewToggle onChange={vi.fn()} />);
     expect(screen.getByLabelText("Grid view")).toBeInTheDocument();
     expect(screen.getByLabelText("List view")).toBeInTheDocument();
-    expect(screen.getByLabelText("Two-pane view")).toBeInTheDocument();
-  });
-
-  it("hides two-pane button when enableTwoPane=false", () => {
-    render(<ViewToggle onChange={vi.fn()} enableTwoPane={false} />);
-    expect(screen.queryByLabelText("Two-pane view")).toBeNull();
+    expect(screen.queryByLabelText(/two.pane/i)).toBeNull();
   });
 
   it("persists clicks to global localStorage and notifies parent", () => {
     const onChange = vi.fn();
     render(<ViewToggle onChange={onChange} />);
-    fireEvent.click(screen.getByLabelText("Two-pane view"));
-    expect(localStorage.getItem(STORAGE_KEY)).toBe("two-pane");
-    expect(onChange).toHaveBeenCalledWith("two-pane");
+    fireEvent.click(screen.getByLabelText("List view"));
+    expect(localStorage.getItem(STORAGE_KEY)).toBe("list");
+    expect(onChange).toHaveBeenCalledWith("list");
   });
 
   it("loads saved mode on mount in uncontrolled mode", () => {
@@ -42,10 +37,10 @@ describe("ViewToggle (uncontrolled)", () => {
     expect(onChange).toHaveBeenCalledWith("list");
   });
 
-  it("ignores saved two-pane when enableTwoPane=false", () => {
+  it("ignores legacy 'two-pane' value in localStorage", () => {
     localStorage.setItem(STORAGE_KEY, "two-pane");
     const onChange = vi.fn();
-    render(<ViewToggle onChange={onChange} enableTwoPane={false} />);
+    render(<ViewToggle onChange={onChange} />);
     expect(onChange).not.toHaveBeenCalled();
   });
 });
@@ -60,8 +55,8 @@ describe("ViewToggle (controlled)", () => {
   it("does not write to localStorage when controlled", () => {
     const onChange = vi.fn();
     render(<ViewToggle mode="grid" onChange={onChange} />);
-    fireEvent.click(screen.getByLabelText("Two-pane view"));
+    fireEvent.click(screen.getByLabelText("List view"));
     expect(localStorage.getItem(STORAGE_KEY)).toBeNull();
-    expect(onChange).toHaveBeenCalledWith("two-pane");
+    expect(onChange).toHaveBeenCalledWith("list");
   });
 });
