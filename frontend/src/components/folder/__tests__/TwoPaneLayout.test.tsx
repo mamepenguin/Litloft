@@ -139,7 +139,7 @@ describe("TwoPaneLayout", () => {
     await waitFor(() => expect(screen.getByText("Q1")).toBeInTheDocument());
     fireEvent.click(screen.getByText("Q1"));
 
-    expect(mockPush).toHaveBeenCalledWith("/drive/work/Q1");
+    expect(mockPush).toHaveBeenCalledWith("/drive/work/Q1", { scroll: false });
     expect(mockReplace).not.toHaveBeenCalled();
   });
 
@@ -157,7 +157,7 @@ describe("TwoPaneLayout", () => {
     await waitFor(() => expect(screen.getByText("doc.md")).toBeInTheDocument());
     fireEvent.click(screen.getByText("doc.md"));
 
-    expect(mockPush).toHaveBeenCalledWith("/drive/work?file=fid42");
+    expect(mockPush).toHaveBeenCalledWith("/drive/work?file=fid42", { scroll: false });
     expect(mockReplace).not.toHaveBeenCalled();
   });
 
@@ -177,7 +177,7 @@ describe("TwoPaneLayout", () => {
     await waitFor(() => expect(screen.getByText("doc.md")).toBeInTheDocument());
     fireEvent.click(screen.getByText("doc.md"));
 
-    expect(mockReplace).toHaveBeenCalledWith("/drive/work?file=fid42");
+    expect(mockReplace).toHaveBeenCalledWith("/drive/work?file=fid42", { scroll: false });
     expect(mockPush).not.toHaveBeenCalled();
   });
 
@@ -200,6 +200,6 @@ describe("TwoPaneLayout", () => {
     await waitFor(() => expect(screen.getByText("Q1")).toBeInTheDocument());
     fireEvent.click(screen.getByText("Q1"));
 
-    expect(mockPush).toHaveBeenCalledWith("/drive/my%20drive/Q1");
+    expect(mockPush).toHaveBeenCalledWith("/drive/my%20drive/Q1", { scroll: false });
   });
 });

@@ -42,7 +42,7 @@ describe("useSelectedFile", () => {
     act(() => result.current.selectFile("xyz789"));
     expect(mockPush).toHaveBeenCalledTimes(1);
     expect(mockReplace).not.toHaveBeenCalled();
-    expect(mockPush).toHaveBeenCalledWith("/drive/work/Q1?file=xyz789");
+    expect(mockPush).toHaveBeenCalledWith("/drive/work/Q1?file=xyz789", { scroll: false });
   });
 
   it("switching files (file id → other file id) uses router.replace", () => {
@@ -51,7 +51,7 @@ describe("useSelectedFile", () => {
     act(() => result.current.selectFile("xyz789"));
     expect(mockReplace).toHaveBeenCalledTimes(1);
     expect(mockPush).not.toHaveBeenCalled();
-    expect(mockReplace).toHaveBeenCalledWith("/drive/work/Q1?file=xyz789");
+    expect(mockReplace).toHaveBeenCalledWith("/drive/work/Q1?file=xyz789", { scroll: false });
   });
 
   it("selectFile preserves other query params", () => {
@@ -67,7 +67,7 @@ describe("useSelectedFile", () => {
     mockSearchParams = new URLSearchParams("file=abc&tag=foo");
     const { result } = renderHook(() => useSelectedFile());
     act(() => result.current.clearFile());
-    expect(mockReplace).toHaveBeenCalledWith("/drive/work/Q1?tag=foo");
+    expect(mockReplace).toHaveBeenCalledWith("/drive/work/Q1?tag=foo", { scroll: false });
     expect(mockPush).not.toHaveBeenCalled();
   });
 

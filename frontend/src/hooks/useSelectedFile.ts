@@ -47,8 +47,10 @@ export function useSelectedFile(): SelectedFileApi {
       const params = new URLSearchParams(searchParams.toString());
       params.set(FILE_PARAM, id);
       const href = buildHref(params);
-      if (wasFileSelected) router.replace(href);
-      else router.push(href);
+      // The tree pane stays put across this navigation — keep the
+      // window scroll where the user was reading from.
+      if (wasFileSelected) router.replace(href, { scroll: false });
+      else router.push(href, { scroll: false });
     },
     [router, searchParams, buildHref],
   );
@@ -57,7 +59,7 @@ export function useSelectedFile(): SelectedFileApi {
     const params = new URLSearchParams(searchParams.toString());
     if (!params.has(FILE_PARAM)) return;
     params.delete(FILE_PARAM);
-    router.replace(buildHref(params));
+    router.replace(buildHref(params), { scroll: false });
   }, [router, searchParams, buildHref]);
 
   return { fileId, selectFile, clearFile };

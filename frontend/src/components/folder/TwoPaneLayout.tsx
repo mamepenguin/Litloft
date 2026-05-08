@@ -52,8 +52,11 @@ export function TwoPaneLayout({ drive, folderPath, children }: TwoPaneLayoutProp
     (path: string) => {
       const segments = path.split("/").filter(Boolean).map(encodeURIComponent);
       const target = segments.length === 0 ? driveBase : `${driveBase}/${segments.join("/")}`;
-      // ?file param is intentionally dropped — folder navigation is push state.
-      if (target !== pathname) router.push(target);
+      // Tree navigation preserves the window scroll: the user is focused
+      // on the tree (typically deep into the list), the right pane is
+      // about to swap to a new page, but jumping the viewport back to
+      // the top would feel like the tree itself collapsed.
+      if (target !== pathname) router.push(target, { scroll: false });
     },
     [driveBase, pathname, router],
   );
