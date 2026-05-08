@@ -447,7 +447,7 @@ export function FolderBrowser({
       )}
 
       {isTwoPane ? (
-        <div className="-mx-2 -my-4 sm:-mx-4 sm:-my-8">
+        <div className="-mx-2 sm:-mx-4">
           <TwoPaneLayout drive={driveName} folderPath={folderPath ?? ""} />
         </div>
       ) : (

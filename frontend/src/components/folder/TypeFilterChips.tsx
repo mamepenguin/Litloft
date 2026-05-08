@@ -20,7 +20,11 @@ const OPTIONS: Array<{ value: TreeTypeFilter | null; key: string }> = [
 export function TypeFilterChips({ filter, onChange }: TypeFilterChipsProps) {
   const t = useTranslations("tree");
   return (
-    <div className="flex flex-wrap gap-1 px-2 py-2" role="radiogroup" aria-label={t("filterAll")}>
+    <div
+      className="flex flex-wrap gap-1.5 border-b border-bg-border px-3 py-2.5"
+      role="radiogroup"
+      aria-label={t("filterAll")}
+    >
       {OPTIONS.map((opt) => {
         const active = opt.value === filter;
         return (

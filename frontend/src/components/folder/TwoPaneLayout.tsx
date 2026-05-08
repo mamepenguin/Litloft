@@ -15,8 +15,6 @@ interface TwoPaneLayoutProps {
   folderPath: string;
 }
 
-const TREE_WIDTH = 280;
-
 /**
  * 2-pane folder view: left tree + right preview/folder.
  *
@@ -59,8 +57,9 @@ export function TwoPaneLayout({ drive, folderPath }: TwoPaneLayoutProps) {
   return (
     <div className="flex min-h-[calc(100dvh-4rem)] w-full">
       <aside
-        className={`${hasFile ? "hidden md:flex" : "flex"} flex-shrink-0 flex-col`}
-        style={{ width: TREE_WIDTH }}
+        className={`${
+          hasFile ? "hidden md:flex" : "flex"
+        } w-full flex-col md:w-[280px] md:flex-shrink-0`}
         aria-label="Folder tree"
       >
         <FolderTreePane

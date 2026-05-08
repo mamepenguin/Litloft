@@ -94,13 +94,13 @@ function PaneShell({
 }) {
   return (
     <div className="flex h-full flex-col bg-bg-base">
-      <div className="flex items-center justify-between gap-2 border-b border-bg-border px-4 py-2">
+      <div className="flex items-center justify-between gap-2 border-b border-bg-border px-4 py-3">
         <h2 className="min-w-0 flex-1 truncate text-sm font-medium text-text-primary" title={title}>
           {title}
         </h2>
         {rightPane}
       </div>
-      <div className="flex-1 overflow-auto">{children}</div>
+      <div className="flex-1 overflow-auto p-4">{children}</div>
     </div>
   );
 }
