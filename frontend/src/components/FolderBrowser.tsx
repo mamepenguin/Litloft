@@ -106,7 +106,15 @@ export function FolderBrowser({
     dominantKind,
     twoPaneAllowed,
   });
-  const [globalViewMode, setGlobalViewMode] = useState<ViewMode>(initialSnapshot?.filters.viewMode ?? "grid");
+  // Clamp snapshot-restored viewMode to grid|list. Snapshots may carry
+  // "two-pane" from a prior folder browsing session, but globalViewMode
+  // only feeds non-folder views (favorites/recent/search/tag) where
+  // two-pane is disabled — leaking it would render FileList while the
+  // ViewToggle still shows grid/list (UI inconsistency).
+  const snapshotMode = initialSnapshot?.filters.viewMode;
+  const [globalViewMode, setGlobalViewMode] = useState<ViewMode>(
+    snapshotMode === "grid" || snapshotMode === "list" ? snapshotMode : "grid",
+  );
   const viewMode: ViewMode = twoPaneAllowed ? folderViewMode.viewMode : globalViewMode;
   const isTwoPane = twoPaneAllowed && viewMode === "two-pane";
 

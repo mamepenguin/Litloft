@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 import { getFolderTree } from "@/lib/api";
 import type { FolderTreeNode, TreeTypeFilter } from "@/types";
@@ -102,13 +102,18 @@ export function useFolderTreeQuery(opts: UseFolderTreeQueryOpts): UseFolderTreeQ
     };
   }, []);
 
-  const childrenByPath = new Map<string, FolderTreeNode[]>();
-  const loading = new Set<string>();
-  const errors = new Map<string, string>();
-  for (const [path, state] of byPath.entries()) {
-    if (state.status === "loaded") childrenByPath.set(path, state.nodes);
-    else if (state.status === "loading") loading.add(path);
-    else if (state.status === "error" && state.error) errors.set(path, state.error);
-  }
-  return { childrenByPath, loading, errors };
+  // Derive immutable views once per byPath update. Stable identity lets
+  // downstream memoization (e.g. FolderTreePane.flatList) skip work
+  // when nothing actually changed.
+  return useMemo(() => {
+    const childrenByPath = new Map<string, FolderTreeNode[]>();
+    const loading = new Set<string>();
+    const errors = new Map<string, string>();
+    for (const [path, state] of byPath.entries()) {
+      if (state.status === "loaded") childrenByPath.set(path, state.nodes);
+      else if (state.status === "loading") loading.add(path);
+      else if (state.status === "error" && state.error) errors.set(path, state.error);
+    }
+    return { childrenByPath, loading, errors };
+  }, [byPath]);
 }

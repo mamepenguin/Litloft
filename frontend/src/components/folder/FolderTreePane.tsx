@@ -140,7 +140,7 @@ export function FolderTreePane({
             {virtualizer.getVirtualItems().map((virtualRow) => {
               const row = flatList[virtualRow.index];
               if (!row) return null;
-              const rowPath = row.node.kind === "folder" ? row.node.path : row.node.path;
+              const rowPath = row.node.path;
               return (
                 <div
                   key={virtualRow.key}
