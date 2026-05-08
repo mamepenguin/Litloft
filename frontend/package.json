@@ -13,6 +13,7 @@
     "test:e2e:report": "playwright show-report"
   },
   "dependencies": {
+    "@tanstack/react-virtual": "^3.13.24",
     "gray-matter": "^4.0.3",
     "highlight.js": "^11.11.1",
     "http-proxy": "^1.18.1",

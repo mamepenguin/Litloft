@@ -309,6 +309,18 @@
     "list": "List view",
     "twoPane": "Two-pane view"
   },
+  "tree": {
+    "filterAll": "All",
+    "filterMarkdown": "Markdown",
+    "filterVideo": "Video",
+    "filterImage": "Image",
+    "filterPdf": "PDF",
+    "expand": "Expand",
+    "collapse": "Collapse",
+    "loading": "Loading...",
+    "errorRetry": "Retry",
+    "empty": "No files in this folder"
+  },
   "toolbar": {
     "rescan": "Rescan",
     "rescanTitle": "Rescan drive",
