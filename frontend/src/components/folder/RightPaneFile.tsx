@@ -1,11 +1,12 @@
 "use client";
 
-import { ArrowUpRight } from "lucide-react";
+import { ArrowLeft, ArrowUpRight } from "lucide-react";
 import Link from "next/link";
 import { useEffect, useState } from "react";
 import { useTranslations } from "next-intl";
 
 import { FilePreview } from "@/components/FilePreview";
+import { useSelectedFile } from "@/hooks/useSelectedFile";
 import { getFile } from "@/lib/api";
 import type { FileItem } from "@/types";
 
@@ -92,9 +93,19 @@ function PaneShell({
   rightPane: React.ReactNode;
   children: React.ReactNode;
 }) {
+  const t = useTranslations("rightPane");
+  const { clearFile } = useSelectedFile();
   return (
     <div className="flex h-full flex-col bg-bg-base">
-      <div className="flex items-center justify-between gap-2 border-b border-bg-border px-4 py-3">
+      <div className="flex items-center gap-2 border-b border-bg-border px-4 py-3">
+        <button
+          type="button"
+          onClick={clearFile}
+          className="inline-flex items-center gap-1 rounded-2xl px-2 py-1 text-xs text-text-secondary transition-colors hover:bg-bg-elevated hover:text-text-primary md:hidden"
+        >
+          <ArrowLeft size={14} />
+          {t("backToTree")}
+        </button>
         <h2 className="min-w-0 flex-1 truncate text-sm font-medium text-text-primary" title={title}>
           {title}
         </h2>

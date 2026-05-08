@@ -325,7 +325,8 @@
     "openDetails": "Open details",
     "loading": "Loading...",
     "notFound": "File not found",
-    "noSelection": "Select a file from the tree"
+    "noSelection": "Select a file from the tree",
+    "backToTree": "Back to tree"
   },
   "toolbar": {
     "rescan": "Rescan",

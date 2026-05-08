@@ -18,6 +18,7 @@ import { useClipboard } from "@/components/ClipboardProvider";
 import { useSelection } from "@/hooks/useSelection";
 import { useDragAndDrop } from "@/hooks/useDragAndDrop";
 import { useFolderViewMode } from "@/hooks/useFolderViewMode";
+import { useSelectedFile } from "@/hooks/useSelectedFile";
 import { buildListSnapshotKey, loadListSnapshot, saveListSnapshot } from "@/lib/listSnapshot";
 import { deriveDominantKind } from "@/lib/dominantKind";
 
@@ -117,6 +118,11 @@ export function FolderBrowser({
   );
   const viewMode: ViewMode = twoPaneAllowed ? folderViewMode.viewMode : globalViewMode;
   const isTwoPane = twoPaneAllowed && viewMode === "two-pane";
+  const { fileId: selectedFileId } = useSelectedFile();
+  // In two-pane mode, the FolderToolbar's actions (upload, new folder, sort,
+  // ...) target the active folder. While the user is reading a file in the
+  // right pane, those controls are noise — hide them on every viewport.
+  const hideToolbar = isTwoPane && selectedFileId !== null && selectedFileId.length > 0;
 
   const didRestoreScrollRef = useRef(false);
   useLayoutEffect(() => {
@@ -402,7 +408,7 @@ export function FolderBrowser({
         </div>
       )}
 
-      <FolderToolbar
+      {!hideToolbar && <FolderToolbar
         isSpecialView={isSpecialView}
         isSearch={isSearch}
         tagFilter={tagFilter}
@@ -436,7 +442,7 @@ export function FolderBrowser({
         onSetNewFolderName={createFolder.setNewFolderName}
         onSetFolderError={createFolder.setFolderError}
         onCreateFolder={createFolder.handleCreateFolder}
-      />
+      />}
 
       {/* Phase 3 unified results: filename-match and semantic hits live
           in the same FolderContent list (sourced via useFolderFiles +

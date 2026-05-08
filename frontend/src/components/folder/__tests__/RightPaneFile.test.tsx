@@ -1,4 +1,4 @@
-import { render, screen, waitFor } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 const mockGetFile = vi.fn();
@@ -13,6 +13,11 @@ vi.mock("@/components/FilePreview", () => ({
   FilePreview: ({ file }: { file: { id: string } }) => (
     <div data-testid="file-preview">preview:{file.id}</div>
   ),
+}));
+
+const mockClearFile = vi.fn();
+vi.mock("@/hooks/useSelectedFile", () => ({
+  useSelectedFile: () => ({ fileId: null, selectFile: vi.fn(), clearFile: mockClearFile }),
 }));
 
 import { RightPaneFile } from "../RightPaneFile";
@@ -42,6 +47,7 @@ const baseFile = {
 
 beforeEach(() => {
   mockGetFile.mockReset();
+  mockClearFile.mockReset();
 });
 
 afterEach(() => {
@@ -86,5 +92,16 @@ describe("RightPaneFile", () => {
     rerender(<RightPaneFile fileId="z9" />);
     await waitFor(() => expect(screen.getByText("Other")).toBeInTheDocument());
     expect(mockGetFile).toHaveBeenCalledTimes(2);
+  });
+
+  it("renders 'Back to tree' button that calls clearFile", async () => {
+    mockGetFile.mockResolvedValue(baseFile);
+    render(<RightPaneFile fileId="abc123" />);
+    await waitFor(() => expect(screen.getByText("My Document")).toBeInTheDocument());
+
+    const backBtn = screen.getByRole("button", { name: /back to tree/i });
+    expect(backBtn).toBeInTheDocument();
+    fireEvent.click(backBtn);
+    expect(mockClearFile).toHaveBeenCalledTimes(1);
   });
 });
