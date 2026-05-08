@@ -99,6 +99,84 @@ def _apply_kind_filter(query, kind: TreeKind | None):
 _to_response = file_to_response
 
 
+def _list_folder_tree_flat(
+    db: Session,
+    drive_name: str,
+    type_filter: "TreeKind | None",
+) -> list[FolderTreeNode]:
+    """Return the entire drive tree (folders + files) as a flat list.
+
+    Used by the tree filter (spec 2026-05-09) which must evaluate matches
+    against the whole drive, not just the root level. Folders are emitted
+    irrespective of ``type_filter`` so the filter can fall back to
+    name-only matching on folders. Files honor ``type_filter`` exactly
+    like the lazy-load path. Soft-deleted / missing files are excluded
+    via ``active_file_filter()``.
+
+    Caps the response at ``_FLAT_TREE_MAX_ENTRIES`` so a runaway drive
+    cannot blow up the frontend.
+    """
+    file_query = db.query(File).filter(
+        File.drive == drive_name,
+        active_file_filter(),
+    )
+    file_query = _apply_kind_filter(file_query, type_filter)
+    files = file_query.order_by(File.folder_path.asc(), File.filename.asc()).limit(
+        _FLAT_TREE_MAX_ENTRIES,
+    ).all()
+
+    # Collect every folder path that contains visible content.
+    folder_paths: set[str] = set()
+
+    folder_path_query = db.query(File.folder_path).filter(
+        File.drive == drive_name,
+        active_file_filter(),
+    ).distinct()
+    for (fp,) in folder_path_query.all():
+        if not fp:
+            continue
+        # Add the folder itself plus every ancestor segment.
+        parts = fp.split("/")
+        for i in range(1, len(parts) + 1):
+            folder_paths.add("/".join(parts[:i]))
+
+    ef_query = db.query(EmptyFolder.path).filter(EmptyFolder.drive == drive_name)
+    for (ef_path,) in ef_query.all():
+        if not ef_path:
+            continue
+        parts = ef_path.split("/")
+        for i in range(1, len(parts) + 1):
+            folder_paths.add("/".join(parts[:i]))
+
+    folder_nodes = [
+        FolderTreeNode(
+            kind="folder",
+            name=path.split("/")[-1],
+            path=path,
+            file_count=0,
+            has_children=False,
+        )
+        for path in sorted(folder_paths)
+    ]
+
+    file_nodes = [
+        FolderTreeNode(
+            kind="file",
+            name=f.filename,
+            path=f.file_path,
+            file_id=f.id,
+            file_type=f.file_type,
+            mime_type=f.mime_type,
+        )
+        for f in files
+    ]
+
+    combined = folder_nodes + file_nodes
+    if len(combined) > _FLAT_TREE_MAX_ENTRIES:
+        combined = combined[:_FLAT_TREE_MAX_ENTRIES]
+    return combined
+
+
 @router.get("", response_model=list[DriveResponse])
 async def list_drives(
     unlocked_groups: Annotated[list[str], Depends(get_unlocked_groups)],
@@ -274,6 +352,9 @@ async def list_folders(
     ]
 
 
+_FLAT_TREE_MAX_ENTRIES = 50_000
+
+
 @router.get("/{drive_name}/folder-tree", response_model=list[FolderTreeNode])
 async def list_folder_tree(
     drive_name: str,
@@ -282,10 +363,12 @@ async def list_folder_tree(
     root: str = "",
     type_filter: TreeKind | None = None,
     depth: int = Query(1, ge=1, le=1),
+    flat: bool = False,
 ):
     """Lazy-expandable folder tree for the 2-pane left tree (spec topic 10).
 
-    Returns one level (depth=1) of children under ``root``:
+    Default mode (``flat=false``): returns one level (depth=1) of children
+    under ``root``:
 
     - subfolders (always shown so the user can navigate even when filtered)
     - files at depth 1 whose ``mime_type`` / ``file_type`` matches ``type_filter``
@@ -293,10 +376,20 @@ async def list_folder_tree(
     Folders carry ``file_count`` (recursive count after filter) and
     ``has_children`` (any subfolder OR file_count > 0) so the tree can
     decide whether to render an expand caret.
+
+    Flat mode (``flat=true``, spec 2026-05-09 tree filter): returns the
+    *entire* drive tree as a single flat list of folder + file nodes
+    bypassing the depth cap. Used by the tree filter to evaluate matches
+    deeper than the root level. Capped at ``_FLAT_TREE_MAX_ENTRIES`` (50k)
+    entries; larger drives are out of scope for this phase. Access control
+    filters (``active_file_filter``, drive permission) still apply.
     """
     _validate_drive(drive_name, unlocked_groups)
     if root:
         root = _validate_folder_path(root)
+
+    if flat:
+        return _list_folder_tree_flat(db, drive_name, type_filter)
 
     # Files at depth 1 directly under root
     file_query = db.query(File).filter(

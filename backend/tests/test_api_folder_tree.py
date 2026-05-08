@@ -232,6 +232,65 @@ class TestFolderTree:
         assert "gone.md" not in names
 
 
+class TestFolderTreeFlat:
+    """Spec 2026-05-09 tree filter: ``flat=true`` returns the entire tree."""
+
+    def test_flat_returns_all_folders_and_files(self, client):
+        c, db, drive_dir, data_dir = client
+        _add_file(db, drive_dir, folder_path="", filename="root.md", file_type="document", mime_type="text/markdown")
+        _add_file(db, drive_dir, folder_path="docs", filename="a.md", file_type="document", mime_type="text/markdown")
+        _add_file(db, drive_dir, folder_path="docs/specs", filename="spec1.md", file_type="document", mime_type="text/markdown")
+        _add_file(db, drive_dir, folder_path="media", filename="v.mp4", file_type="video", mime_type="video/mp4")
+
+        res = c.get(f"/api/drives/{TEST_DRIVE}/folder-tree?flat=true")
+        assert res.status_code == 200
+        nodes = res.json()
+        # Folders + files all returned regardless of depth.
+        names = {n["name"] for n in nodes}
+        assert "root.md" in names
+        assert "a.md" in names
+        assert "spec1.md" in names
+        assert "v.mp4" in names
+        # Folder entries for every ancestor.
+        folder_paths = {n["path"] for n in nodes if n["kind"] == "folder"}
+        assert "docs" in folder_paths
+        assert "docs/specs" in folder_paths
+        assert "media" in folder_paths
+
+    def test_flat_excludes_trash_and_missing(self, client):
+        from datetime import datetime, timezone
+        c, db, drive_dir, data_dir = client
+        keep = _add_file(db, drive_dir, folder_path="", filename="ok.md", file_type="document", mime_type="text/markdown")
+        trashed = _add_file(db, drive_dir, folder_path="", filename="trashed.md", file_type="document", mime_type="text/markdown")
+        gone = _add_file(db, drive_dir, folder_path="", filename="gone.md", file_type="document", mime_type="text/markdown")
+        trashed.deleted_at = datetime.now(timezone.utc)
+        gone.missing_since = datetime.now(timezone.utc)
+        db.commit()
+
+        res = c.get(f"/api/drives/{TEST_DRIVE}/folder-tree?flat=true")
+        names = {n["name"] for n in res.json()}
+        assert "ok.md" in names
+        assert "trashed.md" not in names
+        assert "gone.md" not in names
+
+    def test_flat_respects_type_filter_for_files(self, client):
+        c, db, drive_dir, data_dir = client
+        _add_file(db, drive_dir, folder_path="docs", filename="a.md", file_type="document", mime_type="text/markdown")
+        _add_file(db, drive_dir, folder_path="docs", filename="movie.mp4", file_type="video", mime_type="video/mp4")
+
+        res = c.get(f"/api/drives/{TEST_DRIVE}/folder-tree?flat=true&type_filter=markdown")
+        names = {(n["kind"], n["name"]) for n in res.json()}
+        assert ("file", "a.md") in names
+        assert ("file", "movie.mp4") not in names
+        # Folder still listed (filter does not hide folders).
+        assert ("folder", "docs") in names
+
+    def test_flat_invalid_drive(self, client):
+        c, db, drive_dir, data_dir = client
+        res = c.get("/api/drives/nonexistent/folder-tree?flat=true")
+        assert res.status_code == 404
+
+
 class TestFolderResponseDominantKind:
     """Topic 9: dominant_kind on FolderResponse for layered viewMode fallback."""
 
