@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 import type { FolderKind, ViewMode } from "@/types";
 
@@ -90,22 +90,31 @@ interface UseFolderViewModeResult {
 
 export function useFolderViewMode(opts: ResolveOpts): UseFolderViewModeResult {
   const { drive, folderPath, dominantKind, twoPaneAllowed } = opts;
-  const [viewMode, setViewModeState] = useState<ViewMode>(() => resolveFolderViewMode(opts));
+  const [sessionSticky, setSessionSticky] = useState<ViewMode | null>(null);
+  const lastDriveRef = useRef(drive);
 
   useEffect(() => {
-    setViewModeState(resolveFolderViewMode({ drive, folderPath, dominantKind, twoPaneAllowed }));
-  }, [drive, folderPath, dominantKind, twoPaneAllowed]);
+    if (lastDriveRef.current !== drive) {
+      setSessionSticky(null);
+      lastDriveRef.current = drive;
+    }
+  }, [drive]);
+
+  const viewMode = useMemo<ViewMode>(() => {
+    if (sessionSticky === "two-pane" && twoPaneAllowed) return "two-pane";
+    return resolveFolderViewMode({ drive, folderPath, dominantKind, twoPaneAllowed });
+  }, [sessionSticky, drive, folderPath, dominantKind, twoPaneAllowed]);
 
   const setViewMode = useCallback(
     (mode: ViewMode) => {
       if (mode === "two-pane" && !twoPaneAllowed) return;
+      setSessionSticky(mode === "two-pane" ? "two-pane" : null);
       const prefs = loadFolderPrefs(drive);
       const next: FolderPrefs = {
         ...prefs,
         [folderPath]: { ...prefs[folderPath], viewMode: mode },
       };
       saveFolderPrefs(drive, next);
-      setViewModeState(mode);
     },
     [drive, folderPath, twoPaneAllowed],
   );

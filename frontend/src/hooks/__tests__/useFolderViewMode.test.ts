@@ -1,6 +1,8 @@
 import { act, renderHook } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 
+import type { FolderKind } from "@/types";
+
 import { resolveFolderViewMode, useFolderViewMode } from "../useFolderViewMode";
 
 const GLOBAL_KEY = "video-share-view-mode";
@@ -225,5 +227,174 @@ describe("useFolderViewMode setter", () => {
 
     rerender({ folderPath: "photos" });
     expect(result.current.viewMode).toBe("grid");
+  });
+});
+
+describe("session sticky (B1: 2pane mode persists across folder navigation)", () => {
+  it("two-pane selection persists when navigating to a folder where auto-detect would prefer grid", () => {
+    const { result, rerender } = renderHook(
+      ({
+        folderPath,
+        dominantKind,
+      }: {
+        folderPath: string;
+        dominantKind: FolderKind | null;
+      }) =>
+        useFolderViewMode({
+          drive: "work",
+          folderPath,
+          dominantKind,
+          twoPaneAllowed: true,
+        }),
+      { initialProps: { folderPath: "Q1", dominantKind: null as FolderKind | null } },
+    );
+
+    act(() => result.current.setViewMode("two-pane"));
+    expect(result.current.viewMode).toBe("two-pane");
+
+    rerender({ folderPath: "videos", dominantKind: "video" });
+    expect(result.current.viewMode).toBe("two-pane");
+
+    rerender({ folderPath: "photos", dominantKind: "image" });
+    expect(result.current.viewMode).toBe("two-pane");
+  });
+
+  it("two-pane sticky overrides another folder's per-folder list override", () => {
+    localStorage.setItem(
+      driveKey("work"),
+      JSON.stringify({ photos: { viewMode: "list" } }),
+    );
+
+    const { result, rerender } = renderHook(
+      ({ folderPath }: { folderPath: string }) =>
+        useFolderViewMode({
+          drive: "work",
+          folderPath,
+          dominantKind: null,
+          twoPaneAllowed: true,
+        }),
+      { initialProps: { folderPath: "Q1" } },
+    );
+
+    act(() => result.current.setViewMode("two-pane"));
+    rerender({ folderPath: "photos" });
+    expect(result.current.viewMode).toBe("two-pane");
+  });
+
+  it("selecting list clears session sticky and lets auto-detect take over again", () => {
+    const { result, rerender } = renderHook(
+      ({
+        folderPath,
+        dominantKind,
+      }: {
+        folderPath: string;
+        dominantKind: FolderKind | null;
+      }) =>
+        useFolderViewMode({
+          drive: "work",
+          folderPath,
+          dominantKind,
+          twoPaneAllowed: true,
+        }),
+      {
+        initialProps: {
+          folderPath: "Q1",
+          dominantKind: null as FolderKind | null,
+        },
+      },
+    );
+
+    act(() => result.current.setViewMode("two-pane"));
+    expect(result.current.viewMode).toBe("two-pane");
+
+    act(() => result.current.setViewMode("list"));
+    expect(result.current.viewMode).toBe("list");
+
+    rerender({ folderPath: "videos", dominantKind: "video" });
+    expect(result.current.viewMode).toBe("grid");
+  });
+
+  it("selecting grid clears session sticky", () => {
+    const { result, rerender } = renderHook(
+      ({
+        folderPath,
+        dominantKind,
+      }: {
+        folderPath: string;
+        dominantKind: FolderKind | null;
+      }) =>
+        useFolderViewMode({
+          drive: "work",
+          folderPath,
+          dominantKind,
+          twoPaneAllowed: true,
+        }),
+      {
+        initialProps: {
+          folderPath: "Q1",
+          dominantKind: null as FolderKind | null,
+        },
+      },
+    );
+
+    act(() => result.current.setViewMode("two-pane"));
+    act(() => result.current.setViewMode("grid"));
+
+    rerender({ folderPath: "notes", dominantKind: "markdown" });
+    expect(result.current.viewMode).toBe("two-pane");
+  });
+
+  it("changing drive clears session sticky", () => {
+    const { result, rerender } = renderHook(
+      ({ drive }: { drive: string }) =>
+        useFolderViewMode({
+          drive,
+          folderPath: "Q1",
+          dominantKind: null,
+          twoPaneAllowed: true,
+        }),
+      { initialProps: { drive: "work" } },
+    );
+
+    act(() => result.current.setViewMode("two-pane"));
+    expect(result.current.viewMode).toBe("two-pane");
+
+    rerender({ drive: "photos" });
+    expect(result.current.viewMode).toBe("grid");
+  });
+
+  it("twoPaneAllowed=false clamps session sticky to next layer", () => {
+    const { result, rerender } = renderHook(
+      ({ twoPaneAllowed }: { twoPaneAllowed: boolean }) =>
+        useFolderViewMode({
+          drive: "work",
+          folderPath: "Q1",
+          dominantKind: null,
+          twoPaneAllowed,
+        }),
+      { initialProps: { twoPaneAllowed: true } },
+    );
+
+    act(() => result.current.setViewMode("two-pane"));
+    expect(result.current.viewMode).toBe("two-pane");
+
+    rerender({ twoPaneAllowed: false });
+    expect(result.current.viewMode).toBe("grid");
+  });
+
+  it("two-pane selection still writes per-folder override for next session", () => {
+    const { result } = renderHook(() =>
+      useFolderViewMode({
+        drive: "work",
+        folderPath: "Q1",
+        dominantKind: null,
+        twoPaneAllowed: true,
+      }),
+    );
+
+    act(() => result.current.setViewMode("two-pane"));
+
+    const stored = JSON.parse(localStorage.getItem(driveKey("work"))!);
+    expect(stored).toEqual({ Q1: { viewMode: "two-pane" } });
   });
 });
