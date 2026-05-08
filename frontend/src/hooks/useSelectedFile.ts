@@ -17,11 +17,15 @@ export interface SelectedFileApi {
 /**
  * URL-state for the right-pane file selection in 2ペイン mode.
  *
- * Topic 3 (vault-core merger 2026-05-08, hako tP8wYvAB9qEDQmrjsdtGQ):
- *   フォルダ移動 = push、ファイル選択 = replace。
+ * History-control rule (B6, hako l3PpLicBu_d9s7zzYIla-):
+ *   - first selection (no ?file → file)        → router.push
+ *   - switching files (file → other file)      → router.replace
+ *   - clearing the selection (file → no ?file) → router.replace
  *
- * This hook owns only the `?file` parameter; folder navigation lives
- * elsewhere because path changes go through `router.push`.
+ * Tree browsing and reading-a-file are distinct user states, so the
+ * first selection earns a history entry. Hopping between files is
+ * the same "reading mode" so we coalesce. Mobile swipe-back from a
+ * file lands on the tree once (B6), not two folders up.
  */
 export function useSelectedFile(): SelectedFileApi {
   const router = useRouter();
@@ -39,9 +43,12 @@ export function useSelectedFile(): SelectedFileApi {
 
   const selectFile = useCallback(
     (id: string) => {
+      const wasFileSelected = searchParams.has(FILE_PARAM);
       const params = new URLSearchParams(searchParams.toString());
       params.set(FILE_PARAM, id);
-      router.replace(buildHref(params));
+      const href = buildHref(params);
+      if (wasFileSelected) router.replace(href);
+      else router.push(href);
     },
     [router, searchParams, buildHref],
   );

@@ -153,11 +153,31 @@ describe("TwoPaneLayout", () => {
     expect(mockReplace).not.toHaveBeenCalled();
   });
 
-  it("file click in tree replaces ?file (not push)", async () => {
+  it("first file click in tree pushes ?file (history entry)", async () => {
     mockGetFolderTree.mockResolvedValue([
       { kind: "file", name: "doc.md", path: "doc.md", file_id: "fid42", file_type: "document", mime_type: "text/markdown" },
     ]);
     mockGetFolders.mockResolvedValue([]);
+    mockGetDriveFiles.mockResolvedValue({ data: [], meta: { total: 0, page: 1, limit: 100 } });
+
+    render(<TwoPaneLayout drive="work" folderPath="" />);
+
+    await waitFor(() => expect(screen.getByText("doc.md")).toBeInTheDocument());
+    fireEvent.click(screen.getByText("doc.md"));
+
+    // First selection (tree-mode → file-mode) earns a history entry so swipe
+    // back returns to the tree once (B6, hako l3PpLicBu_d9s7zzYIla-).
+    expect(mockPush).toHaveBeenCalledWith("/drive/work?file=fid42");
+    expect(mockReplace).not.toHaveBeenCalled();
+  });
+
+  it("switching to another file in tree replaces ?file (no extra history)", async () => {
+    mockSearchParams = new URLSearchParams("file=fid01");
+    mockGetFolderTree.mockResolvedValue([
+      { kind: "file", name: "doc.md", path: "doc.md", file_id: "fid42", file_type: "document", mime_type: "text/markdown" },
+    ]);
+    mockGetFolders.mockResolvedValue([]);
+    mockGetFile.mockResolvedValue(baseFile("fid01"));
     mockGetDriveFiles.mockResolvedValue({ data: [], meta: { total: 0, page: 1, limit: 100 } });
 
     render(<TwoPaneLayout drive="work" folderPath="" />);

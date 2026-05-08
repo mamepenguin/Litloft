@@ -37,7 +37,16 @@ describe("useSelectedFile", () => {
     expect(result.current.fileId).toBe("abc123");
   });
 
-  it("selectFile uses router.replace (not push)", () => {
+  it("first selection (?file goes from absent → present) uses router.push", () => {
+    const { result } = renderHook(() => useSelectedFile());
+    act(() => result.current.selectFile("xyz789"));
+    expect(mockPush).toHaveBeenCalledTimes(1);
+    expect(mockReplace).not.toHaveBeenCalled();
+    expect(mockPush).toHaveBeenCalledWith("/drive/work/Q1?file=xyz789");
+  });
+
+  it("switching files (file id → other file id) uses router.replace", () => {
+    mockSearchParams = new URLSearchParams("file=abc123");
     const { result } = renderHook(() => useSelectedFile());
     act(() => result.current.selectFile("xyz789"));
     expect(mockReplace).toHaveBeenCalledTimes(1);
@@ -49,16 +58,17 @@ describe("useSelectedFile", () => {
     mockSearchParams = new URLSearchParams("tag=foo");
     const { result } = renderHook(() => useSelectedFile());
     act(() => result.current.selectFile("xyz"));
-    const target = mockReplace.mock.calls[0][0] as string;
+    const target = mockPush.mock.calls[0][0] as string;
     expect(target).toContain("tag=foo");
     expect(target).toContain("file=xyz");
   });
 
-  it("clearFile removes only the file param", () => {
+  it("clearFile uses router.replace", () => {
     mockSearchParams = new URLSearchParams("file=abc&tag=foo");
     const { result } = renderHook(() => useSelectedFile());
     act(() => result.current.clearFile());
     expect(mockReplace).toHaveBeenCalledWith("/drive/work/Q1?tag=foo");
+    expect(mockPush).not.toHaveBeenCalled();
   });
 
   it("clearFile is a no-op when no ?file present", () => {
