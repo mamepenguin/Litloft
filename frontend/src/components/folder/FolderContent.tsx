@@ -62,16 +62,18 @@ export function FolderContent({
   const isFilterEmpty = filter.isActive && filteredFiles.length === 0;
   return (
     <>
-      <FilterField
-        text={filter.text}
-        onTextChange={filter.setText}
-        placeholder={tFilter("placeholder.folder")}
-        typeFilter={filter.typeFilter}
-        onTypeFilterChange={filter.setTypeFilter}
-      />
+      <div className="mb-6">
+        <FilterField
+          text={filter.text}
+          onTextChange={filter.setText}
+          placeholder={tFilter("placeholder.folder")}
+          typeFilter={filter.typeFilter}
+          onTypeFilterChange={filter.setTypeFilter}
+        />
+      </div>
 
       {folders.length > 0 && (
-        <div className="mb-6 mt-4 grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+        <div className="mb-6 grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
           {folders.map((folder) => {
             const disabled = isDropDisabled(folder.path);
             return (

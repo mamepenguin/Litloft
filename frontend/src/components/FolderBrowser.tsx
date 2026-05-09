@@ -406,7 +406,7 @@ export function FolderBrowser({
         </div>
       )}
 
-      <div className="px-2 pb-4 pt-2 sm:px-4 sm:pb-8 sm:pt-4">
+      <div className="px-4 pb-6 pt-2 sm:pb-8 sm:pt-4">
       {!isSearch && clipboard.clipboard && (
         <div className="mb-3 flex items-center gap-3 rounded-lg bg-accent/10 px-4 py-2.5 ring-1 ring-accent/20">
           <ClipboardPaste size={18} className="flex-shrink-0 text-accent" />

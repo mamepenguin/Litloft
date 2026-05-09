@@ -261,7 +261,7 @@ export function FilterField({
   );
 
   return (
-    <div className="flex items-center gap-2 px-3 py-2">
+    <div className="flex items-center gap-2">
       <div className="relative flex flex-1 items-center">
         <Search
           size={14}

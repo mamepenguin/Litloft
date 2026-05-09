@@ -371,13 +371,15 @@ export function FolderTreePane({
 
   return (
     <div className="flex h-full flex-col border-r border-bg-border bg-bg-card">
-      <FilterField
-        text={text.text}
-        onTextChange={(next) => text.setText(next)}
-        placeholder={tFilter("placeholder.tree")}
-        typeFilter={filter}
-        onTypeFilterChange={setFilter}
-      />
+      <div className="px-3 py-2">
+        <FilterField
+          text={text.text}
+          onTextChange={(next) => text.setText(next)}
+          placeholder={tFilter("placeholder.tree")}
+          typeFilter={filter}
+          onTypeFilterChange={setFilter}
+        />
+      </div>
       {/* Root drop band — only renders while a drag is in progress, so it
           doesn't take vertical space in the resting layout. */}
       {dnd.dragState.isDragging && rootDropProps && (
