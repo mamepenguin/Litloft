@@ -114,15 +114,14 @@ export function FolderTreeRow({
     onToggle(row);
   };
 
+  // Critical structure: the draggable container <div> must NOT carry the
+  // primary click handler. When `draggable=true` and `onClick` live on
+  // the same element AND the visible click area is inline text in a
+  // <span>, browsers prefer the click gesture and the native HTML5
+  // dragstart never fires. Knowledge's working sidebar wraps the
+  // selectable area in an inner <button>, leaving the outer container
+  // as a pure drag/drop surface; we mirror that pattern.
   return (
-    // NOTE: do NOT add role="button" / tabIndex={0} here. The
-    // combination of `role="button" tabindex="0" draggable="true"`
-    // makes browsers treat mousedown as a button-press waiting for
-    // mouseup, and the native HTML5 drag never starts. The right pane's
-    // FileList row is also a draggable <div> without role/tabIndex; we
-    // match that pattern so the gesture works consistently. Keyboard
-    // navigation across tree rows is not currently a feature; if/when
-    // it is added, use arrow keys (the standard tree pattern), not tab.
     <div
       draggable={draggable}
       onDragStart={
@@ -137,7 +136,6 @@ export function FolderTreeRow({
       onDragLeave={dropTargetProps?.onDragLeave}
       onDragOver={dropTargetProps?.onDragOver}
       onDrop={dropTargetProps?.onDrop}
-      onClick={() => onSelect(row)}
       onContextMenu={
         onContextMenu
           ? (e) => {
@@ -169,21 +167,30 @@ export function FolderTreeRow({
       ) : (
         <span aria-hidden className="flex h-7 w-6 flex-shrink-0" />
       )}
-      <span className="flex h-4 w-4 flex-shrink-0 items-center justify-center">
-        {isFolder ? (
-          <Folder
-            size={14}
-            className={`flex-shrink-0 ${selected ? "text-accent" : "text-accent/70"}`}
-          />
-        ) : (
-          <FileTypeIcon
-            fileType={node.file_type}
-            size={14}
-            className={selected ? "text-accent" : "text-text-muted"}
-          />
-        )}
-      </span>
-      <span className="flex-1 truncate py-1.5">{node.name}</span>
+      {/* Body button: the actual clickable selection target. Carrying
+          onClick here (not on the draggable parent) lets the native
+          drag system claim mousedown gestures over the row. */}
+      <button
+        type="button"
+        onClick={() => onSelect(row)}
+        className="flex flex-1 items-center gap-1 overflow-hidden rounded-md text-left"
+      >
+        <span className="flex h-4 w-4 flex-shrink-0 items-center justify-center">
+          {isFolder ? (
+            <Folder
+              size={14}
+              className={`flex-shrink-0 ${selected ? "text-accent" : "text-accent/70"}`}
+            />
+          ) : (
+            <FileTypeIcon
+              fileType={node.file_type}
+              size={14}
+              className={selected ? "text-accent" : "text-text-muted"}
+            />
+          )}
+        </span>
+        <span className="flex-1 truncate py-1.5">{node.name}</span>
+      </button>
       {isFolder && (
         <span className="ml-1 flex-shrink-0 text-xs text-text-muted">
           {isLoading ? t("loading") : node.file_count > 0 ? node.file_count : ""}
