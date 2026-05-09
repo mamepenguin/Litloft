@@ -4,8 +4,9 @@
 **Specs:**
 - [docs/superpowers/specs/2026-05-08-vault-core-merger-phase3.md](../superpowers/specs/2026-05-08-vault-core-merger-phase3.md) — two-pane layout (drive-level tree + content)
 - [docs/superpowers/specs/2026-05-09-folder-filter-and-tree-filter.md](../superpowers/specs/2026-05-09-folder-filter-and-tree-filter.md) — `<FilterField>` introduction, right-pane filter, tree filter (chips replacement)
+- [docs/superpowers/specs/2026-05-09-new-file-creation-core.md](../superpowers/specs/2026-05-09-new-file-creation-core.md) — Phase 4 new-file creation in Core (toolbar button + Cmd/Ctrl+N), backend mime-allowlist removal, suffix numbering on collision
 
-**Scope:** the drive-level browser at `/drive/{drive}` and `/drive/{drive}/{path}`. Two-pane layout (folder tree on the left, content on the right), per-pane filter UIs, virtual scroll, and the lazy / full-load tree fetch strategy. The filter pair introduced in Phase 4 (right-pane in-folder filter + tree filter that replaces the old type-filter chips) is the focus of this map.
+**Scope:** the drive-level browser at `/drive/{drive}` and `/drive/{drive}/{path}`. Two-pane layout (folder tree on the left, content on the right), per-pane filter UIs, virtual scroll, the lazy / full-load tree fetch strategy, and the toolbar/shortcut surface for creating new folders and files in the current folder. The filter pair introduced in Phase 4 (right-pane in-folder filter + tree filter that replaces the old type-filter chips) and the new-file creation flow (also Phase 4) are the focus of this map.
 
 ## Architecture
 
@@ -27,10 +28,13 @@
        │         └─ data-state="ancestor" + opacity-60 for path-context rows
        │
        └─ FolderContent  /  RootFileListing (right)
-            ├─ FolderToolbar (sort / view-mode / batch / addons)
+            ├─ FolderToolbar (sort / view-mode / batch / addons / New Folder / New File)
+            │    ├─ onCreateFolder  → useCreateFolder
+            │    └─ onCreateFile    → useCreateFile  (new in Phase 4; omitted in special views)
             ├─ FilterField (text + type dropdown)      ── always-on, never persisted
             │    └─ useFolderFilter                    (in-memory, cleared on folder navigation)
             ├─ fileTypeFilter                          (shared type-match utility)
+            ├─ useShortcuts                            (Cmd/Ctrl+N → onCreateFile, file-browser scope)
             └─ FileGrid / FileList                     (virtual scroll preserved)
 ```
 
@@ -61,6 +65,22 @@ For very large drives (10k+ files) this strategy is acceptable as a Phase 4 ceil
 | `frontend/src/lib/fileTypeFilter.ts` | Shared utility. Maps a file → one of `markdown` / `video` / `image` / `pdf` / `other` based on mime + extension, then matches against the active `TreeTypeFilter`. Used by both filter hooks. |
 | `frontend/src/lib/treeFilterTransform.ts` | Pure transformation pipeline for the tree filter: `groupByParent` rebuilds parent → children edges from the flat tree, `computeMatchTables` produces match / ancestor / descendant flag tables (a folder match cascades to descendants, a file/folder match marks its ancestors), `buildFilteredRows` flattens the resulting tree into virtual-scroll rows preserving order. Pure & deterministic — keeps `FolderTreePane` thin. |
 
+### New file creation (Phase 4, 2026-05-09)
+
+| Path | Purpose |
+|---|---|
+| `frontend/src/lib/api.ts` (`createTextFile`) | Public wrapper over `POST /api/drives/{drive}/files` with body `{ path, content }`. Throws `ApiError` on non-2xx, returns the created `FileItem`. Replaces what was previously only available inside the knowledge addon. |
+| `frontend/src/hooks/useCreateFile.ts` | Mirrors `useCreateFolder`. Accepts `{ drive, currentPath }`, returns `{ createFile, isCreating }`. `createFile()` posts `untitled-{YYYYMMDD-HHMMSS}.md` to the current folder (drive root when `currentPath` is empty), then `router.push(/files/{id}?edit=1)`. Reentrancy-guarded by `isCreating`. Backend handles same-name collisions by suffixing `(1)`, `(2)`, etc., so the timestamped name is fire-and-forget. |
+| `frontend/src/hooks/__tests__/useCreateFile.test.ts` | Success, error path, drive-root vs nested folder. |
+
+### New file creation — wired call sites
+
+| Path | Change |
+|---|---|
+| `frontend/src/components/folder/FolderToolbar.tsx` | Added optional `onCreateFile?: () => void` prop. When provided, renders a "新規ファイル / New File" button next to the existing "新規フォルダ / New Folder". When omitted (special views) the button is not rendered. |
+| `frontend/src/components/FolderBrowser.tsx` | Calls `useCreateFile(drive, currentPath)` and passes `createFile` into both `FolderToolbar.onCreateFile` and a `useShortcuts` registration of `Cmd+N` / `Ctrl+N` (scope `file-browser`). In special views (favorites, search results, tag view) it passes `undefined` to `FolderToolbar` and registers the shortcut with `enabled: false`, so neither surface fires. |
+| `frontend/src/messages-core/{ja,en}.json` | New keys: `folder.newFile` and `shortcuts.newFile` (both `"新規ファイル"` / `"New File"`). After editing, run `node frontend/scripts/merge-addon-messages.mjs` to regenerate `frontend/src/messages/{ja,en}.json`. |
+
 ### Modified call sites
 
 | Path | Change |
@@ -89,6 +109,16 @@ For very large drives (10k+ files) this strategy is acceptable as a Phase 4 ceil
 | `frontend/src/hooks/useTreeExpansion.ts` | Per-drive expanded-folder set in localStorage (`tree:expanded:{drive}`). |
 | `frontend/src/hooks/useTreeTypeFilter.ts` | Per-drive type filter in localStorage (`tree:typeFilter:{drive}`). |
 | `frontend/src/components/folder/useFolderFiles.ts` | Right-pane file list. The right-pane filter sits on top of this hook's output; this hook itself is unchanged by Phase 4. |
+
+## Backend
+
+### New file creation endpoint (Phase 4, 2026-05-09)
+
+| Path | Change |
+|---|---|
+| `backend/app/routers/drives.py` (`POST /api/drives/{drive_name}/files`, `create_text_file`) | (1) `_TEXT_CREATE_ALLOWED_MIMES` removed — accepts any extension (or none). 415 is no longer returned. The body is JSON `{ path, content }` and `content` is treated as opaque UTF-8 text regardless of extension. `classify(filename)` still runs to populate `File.mime_type`. (2) Path traversal check (400) now runs before classification. (3) On same-name collision with an *active* or *trashed* file, the endpoint auto-suffixes the basename: `foo.md` → `foo (1).md` → `foo (2).md` … up to 99. 409 is now reserved for the "too many collisions" edge case. *missing*-state files at the same path still UPSERT (revive the existing row). (4) The 1 MB body cap is unchanged. |
+| `backend/app/routers/drives.py` (`_next_unique_path` helper) | Computes the next unused suffixed name by checking the DB for both active and trashed entries. Trashed entries are deliberately included so users do not see "trash exists" via name conflicts. |
+| `backend/tests/test_drives_create_text_file.py` | Covers non-allowlisted extensions (`.json`, `.py`, `.html`, `.yaml`, no extension), suffix numbering on collision, missing-state UPSERT, 1 MB cap, traversal rejection. |
 
 ## E2E
 

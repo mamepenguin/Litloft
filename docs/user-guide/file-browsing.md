@@ -16,6 +16,23 @@ A toolbar above the grid lets you:
 - Toggle **grid** / **list** view (preference is per-folder, persisted in localStorage).
 - Sort by **name**, **created**, **modified**, **size**, **duration**.
 - Multi-select files with click+shift, then run batch operations (move, copy, delete, tag).
+- **New folder** — create a folder inside the current one.
+- **New file** — create an empty `untitled-{timestamp}.md` in the current folder and jump straight into the editor (see below).
+
+## Creating a new file
+
+From any folder view you can create a blank Markdown file in one click:
+
+- Click **新規ファイル / New File** in the toolbar, or
+- Press **`Cmd+N`** (macOS) / **`Ctrl+N`** (Windows / Linux) anywhere on the page.
+
+Behaviour:
+
+- The file is created at `untitled-{YYYYMMDD-HHMMSS}.md` inside the **current folder** (the drive root if you are at `/drive/<name>` with no path). No name dialog is shown — the timestamp guarantees uniqueness, and if it ever does collide the backend automatically suffixes the name (`untitled-… (1).md`, `(2)`, …).
+- After creation you are navigated straight to the file in edit mode. Start typing.
+- To use a different extension or rename the file, use the rename action on the file once it is open.
+- The button and the shortcut are **disabled in special views** that do not have a folder context: favourites (`?view=favorites`), search results, tag views, and the global search popup. In those views, navigate into a regular folder first.
+- For drives marked `readonly: true` in `drives.json`, creation fails with an error toast (server returns 403). Use a writable drive for notes.
 
 ## In-folder filter
 

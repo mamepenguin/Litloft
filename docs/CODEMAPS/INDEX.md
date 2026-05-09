@@ -10,7 +10,7 @@ For project-wide rules and rationale, see `.claude/rules/` and `docs/superpowers
 
 - [config-gui.md](./config-gui.md) — First-run wizard, admin settings GUI, atomic config writes, restart-pending flag
 - [search.md](./search.md) — GlobalSearch popup (filename + semantic merged inline, popup→page `searchCache` handoff), `/drive/{drive}/search` virtual-folder result page, Smart Folder DB / API / UI, intelligence `search-modes` page-context
-- [folder-browser.md](./folder-browser.md) — Drive-level two-pane layout, `<FilterField>` (right-pane in-folder filter + tree-pane filter that replaces the old type-filter chips), tree lazy-vs-full-load fetch strategy, `treeFilterTransform`
+- [folder-browser.md](./folder-browser.md) — Drive-level two-pane layout, `<FilterField>` (right-pane in-folder filter + tree-pane filter that replaces the old type-filter chips), tree lazy-vs-full-load fetch strategy, `treeFilterTransform`, new-file creation (FolderToolbar button + `Cmd/Ctrl+N`, `useCreateFile`, backend mime-allowlist removal + suffix numbering)
 
 ## Conventions
 

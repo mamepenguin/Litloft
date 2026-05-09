@@ -9,6 +9,14 @@ Single-character shortcuts only fire when no input is focused.
 | `?` | Open the shortcut cheat sheet for the current page |
 | `Esc` | Close the topmost modal / dialog |
 
+## File browsing
+
+These fire on `/drive/<name>` and `/drive/<name>/<path>` pages. They are disabled in special views without a folder context (favourites, search results, tag views).
+
+| Key | Action |
+|---|---|
+| `Cmd+N` / `Ctrl+N` | Create an empty `untitled-{timestamp}.md` in the current folder and open it in the editor (see [Browsing files → Creating a new file](file-browsing.md#creating-a-new-file)) |
+
 ## Video and audio player
 
 | Key | Action |
