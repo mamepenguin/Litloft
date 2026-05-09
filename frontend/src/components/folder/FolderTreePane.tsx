@@ -319,7 +319,13 @@ export function FolderTreePane({
 
   const computeDropTargetProps = useCallback(
     (row: FlatTreeRow) => {
-      // Only folders are drop targets; files cannot receive a move.
+      // Drop handlers are wired ONLY while a drag is in progress.
+      // Permanently attaching dragenter/dragover/dragleave/drop to the
+      // same element that is also a draggable source confuses the
+      // browser's drag-intent detection — the source element never
+      // initiates dragstart. FolderContent uses the same gate (line 83)
+      // and dragging works there.
+      if (!dnd.dragState.isDragging) return null;
       if (row.node.kind !== "folder") return null;
       // Refuse drops onto self or onto a descendant of the dragged folder.
       if (dnd.isDropDisabled(row.node.path)) return null;
@@ -339,12 +345,13 @@ export function FolderTreePane({
   );
 
   // Root drop band — separate path "" so users can drop into the drive
-  // root without an explicit row. Disabled when the dragged folder is
-  // already at root (no-op move) or when a filter shrinks the view (the
-  // drag source itself is gated above).
-  const rootDropProps = dnd.isDropDisabled("")
-    ? null
-    : dnd.getDropTargetProps("");
+  // root without an explicit row. Same gate as the per-row drop props:
+  // only wire handlers while a drag is in progress, so they don't
+  // interfere with future drag sources.
+  const rootDropProps =
+    dnd.dragState.isDragging && !dnd.isDropDisabled("")
+      ? dnd.getDropTargetProps("")
+      : null;
   const rootDropHover = dnd.isDropTarget("");
 
   const isRootLoading = loading.has("") && !childrenByPath.has("");
