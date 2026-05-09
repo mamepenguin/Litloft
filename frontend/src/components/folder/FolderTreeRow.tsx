@@ -96,6 +96,18 @@ export function FolderTreeRow({
   const dragSourceClass = isDragSource ? "opacity-40" : "";
   const ancestorClass = row.isAncestor && !isDropHover ? "opacity-60" : "";
   const draggable = !!onDragStart;
+  // `select-none` is required for the native HTML5 drag to actually
+  // start: without it the browser interprets a mousedown-and-move on
+  // the inner <span> text as a text-selection gesture instead of a
+  // drag, even though the parent has draggable=true. (FolderCard
+  // doesn't need this because its text lives inside an <a>, which
+  // suppresses text selection naturally.) The cursor classes are
+  // visual hints — `grab` invites the gesture, `grabbing` confirms it.
+  const dragInteractClass = draggable
+    ? isDragSource
+      ? "cursor-grabbing select-none"
+      : "cursor-grab select-none"
+    : "";
 
   const handleChevronClick = (e: React.MouseEvent) => {
     e.stopPropagation();
@@ -135,7 +147,7 @@ export function FolderTreeRow({
           onSelect(row);
         }
       }}
-      className={`mx-2 flex items-center gap-1 rounded-md pr-2 text-left text-sm transition-colors ${stateClass} ${dropHoverClass} ${dragSourceClass} ${ancestorClass}`.replace(/\s+/g, " ").trim()}
+      className={`mx-2 flex items-center gap-1 rounded-md pr-2 text-left text-sm transition-colors ${stateClass} ${dropHoverClass} ${dragSourceClass} ${ancestorClass} ${dragInteractClass}`.replace(/\s+/g, " ").trim()}
       style={{ paddingLeft: padLeft }}
       data-state={row.isAncestor ? "ancestor" : undefined}
       aria-current={selected ? "true" : undefined}
