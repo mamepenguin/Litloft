@@ -70,6 +70,15 @@ interface FilePreviewProps {
    * sidebar tag list.
    */
   onMarkdownTagsSaved?: (tags: string[]) => void;
+  /**
+   * IntersectionObserver root for the wrapping ``MiniPlayerContainer``.
+   * When the player lives inside a host whose own ``overflow-y: auto``
+   * handles scrolling (the 2-pane right pane) the host must pass its
+   * scroll container here; document-scroll hosts can omit it. Forwarded
+   * down to ``MiniPlayerContainer`` for video / .loft players; ignored
+   * for image / audio / text previews that have no mini player.
+   */
+  miniPlayerRoot?: Element | null;
 }
 
 /**
@@ -173,6 +182,7 @@ export function FilePreview({
   onMediaController,
   markdownReloadKey,
   onMarkdownTagsSaved,
+  miniPlayerRoot,
 }: FilePreviewProps) {
   const t = useTranslations("file");
   // Mirror the published MediaController locally so MiniPlayerContainer
@@ -202,7 +212,7 @@ export function FilePreview({
     // playable surface.
     return (
       <div className="-mx-4 md:mx-0">
-        <MiniPlayerContainer mc={localMc}>
+        <MiniPlayerContainer mc={localMc} root={miniPlayerRoot}>
           <LoftPlayer
             fileId={file.id}
             onMediaController={relayMc}
@@ -217,7 +227,7 @@ export function FilePreview({
   if (file.file_type === "video") {
     return (
       <div className="-mx-4 md:mx-0">
-        <MiniPlayerContainer mc={localMc}>
+        <MiniPlayerContainer mc={localMc} root={miniPlayerRoot}>
           <NativeVideoWithController
             file={file}
             onEnded={onEnded}
