@@ -6,12 +6,14 @@ import { useEffect, useState } from "react";
 import { useTranslations } from "next-intl";
 
 import { FilePreview } from "@/components/FilePreview";
+import { TreeToggle } from "@/components/TreeToggle";
 import { useSelectedFile } from "@/hooks/useSelectedFile";
 import { getFile } from "@/lib/api";
 import type { FileItem } from "@/types";
 
 interface RightPaneFileProps {
   fileId: string;
+  drive: string;
 }
 
 /**
@@ -24,7 +26,7 @@ interface RightPaneFileProps {
  * This component therefore deliberately omits FileActions, tag editing,
  * comments, related files, and any WatchHistory recording.
  */
-export function RightPaneFile({ fileId }: RightPaneFileProps) {
+export function RightPaneFile({ fileId, drive }: RightPaneFileProps) {
   const t = useTranslations("rightPane");
   const [state, setState] = useState<
     | { status: "loading" }
@@ -48,7 +50,7 @@ export function RightPaneFile({ fileId }: RightPaneFileProps) {
   }, [fileId]);
 
   if (state.status === "loading") {
-    return <PaneShell title="" rightPane={null}>
+    return <PaneShell title="" drive={drive} rightPane={null}>
       <div className="flex h-full items-center justify-center text-sm text-text-muted">
         {t("loading")}
       </div>
@@ -56,7 +58,7 @@ export function RightPaneFile({ fileId }: RightPaneFileProps) {
   }
 
   if (state.status === "error") {
-    return <PaneShell title="" rightPane={null}>
+    return <PaneShell title="" drive={drive} rightPane={null}>
       <div className="flex h-full items-center justify-center text-sm text-text-muted">
         {t("notFound")}
       </div>
@@ -69,6 +71,7 @@ export function RightPaneFile({ fileId }: RightPaneFileProps) {
   return (
     <PaneShell
       title={title}
+      drive={drive}
       rightPane={
         <Link
           href={`/files/${file.id}`}
@@ -86,10 +89,12 @@ export function RightPaneFile({ fileId }: RightPaneFileProps) {
 
 function PaneShell({
   title,
+  drive,
   rightPane,
   children,
 }: {
   title: string;
+  drive: string;
   rightPane: React.ReactNode;
   children: React.ReactNode;
 }) {
@@ -98,6 +103,11 @@ function PaneShell({
   return (
     <div className="flex h-full flex-col bg-bg-base">
       <div className="flex items-center gap-2 border-b border-bg-border px-4 py-3">
+        {/* Tree-pane toggle, leftmost — same role as the breadcrumb's
+            leading toggle in the folder view: it lives at the outermost
+            level of the main pane, not inside a content-specific
+            toolbar. */}
+        <TreeToggle drive={drive} />
         <button
           type="button"
           onClick={clearFile}

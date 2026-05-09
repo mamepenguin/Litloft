@@ -57,7 +57,7 @@ afterEach(() => {
 describe("RightPaneFile", () => {
   it("shows loading then file content", async () => {
     mockGetFile.mockResolvedValue(baseFile);
-    render(<RightPaneFile fileId="abc123" />);
+    render(<RightPaneFile fileId="abc123" drive="main" />);
     expect(screen.getByText("Loading...")).toBeInTheDocument();
     await waitFor(() => expect(screen.getByText("My Document")).toBeInTheDocument());
     expect(screen.getByTestId("file-preview")).toHaveTextContent("preview:abc123");
@@ -65,13 +65,13 @@ describe("RightPaneFile", () => {
 
   it("falls back to filename when title is empty", async () => {
     mockGetFile.mockResolvedValue({ ...baseFile, title: "" });
-    render(<RightPaneFile fileId="abc123" />);
+    render(<RightPaneFile fileId="abc123" drive="main" />);
     await waitFor(() => expect(screen.getByText("doc.md")).toBeInTheDocument());
   });
 
   it("renders 'Open details' link to /files/{id}", async () => {
     mockGetFile.mockResolvedValue(baseFile);
-    render(<RightPaneFile fileId="abc123" />);
+    render(<RightPaneFile fileId="abc123" drive="main" />);
     await waitFor(() => {
       const link = screen.getByText("Open details").closest("a");
       expect(link).toHaveAttribute("href", "/files/abc123");
@@ -80,23 +80,23 @@ describe("RightPaneFile", () => {
 
   it("shows error state when fetch fails", async () => {
     mockGetFile.mockRejectedValue(new Error("404"));
-    render(<RightPaneFile fileId="abc123" />);
+    render(<RightPaneFile fileId="abc123" drive="main" />);
     await waitFor(() => expect(screen.getByText("File not found")).toBeInTheDocument());
   });
 
   it("re-fetches when fileId prop changes", async () => {
     mockGetFile.mockResolvedValueOnce(baseFile).mockResolvedValueOnce({ ...baseFile, id: "z9", title: "Other" });
-    const { rerender } = render(<RightPaneFile fileId="abc123" />);
+    const { rerender } = render(<RightPaneFile fileId="abc123" drive="main" />);
     await waitFor(() => expect(screen.getByText("My Document")).toBeInTheDocument());
 
-    rerender(<RightPaneFile fileId="z9" />);
+    rerender(<RightPaneFile fileId="z9" drive="main" />);
     await waitFor(() => expect(screen.getByText("Other")).toBeInTheDocument());
     expect(mockGetFile).toHaveBeenCalledTimes(2);
   });
 
   it("renders 'Back to tree' button that calls clearFile", async () => {
     mockGetFile.mockResolvedValue(baseFile);
-    render(<RightPaneFile fileId="abc123" />);
+    render(<RightPaneFile fileId="abc123" drive="main" />);
     await waitFor(() => expect(screen.getByText("My Document")).toBeInTheDocument());
 
     const backBtn = screen.getByRole("button", { name: /back to tree/i });

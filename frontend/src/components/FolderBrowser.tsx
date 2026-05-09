@@ -8,6 +8,7 @@ import { useShortcuts } from "@/hooks/useShortcuts";
 
 import type { FileItem, FileType, SortField, SortOrder, ViewMode } from "@/types";
 import { Breadcrumb } from "@/components/Breadcrumb";
+import { TreeToggle } from "@/components/TreeToggle";
 import { UploadZone } from "@/components/UploadZone";
 import { SelectionBar } from "@/components/SelectionBar";
 import { SmartFolderSaveButton } from "@/components/SmartFolderSaveButton";
@@ -355,10 +356,15 @@ export function FolderBrowser({
   // wrapper (you can't drop files into search results) and the
   // clipboard paste banner (paste targets a folder path).
   const inner = (
-    <div className="min-w-0 w-full flex-1 px-2 py-4 sm:px-4 sm:py-8">
+    <div className="flex min-w-0 w-full flex-1 flex-col">
+      {/* Outermost header row — Y-aligned with the file preview's
+          PaneShell header (px-4 py-3) so TreeToggle sits at the same
+          height regardless of folder/file/search mode. The breadcrumb
+          / search title share this row; TreeToggle is leftmost. */}
       {isSearch ? (
-        <header className="mb-6 flex flex-wrap items-start justify-between gap-3">
-          <div className="min-w-0">
+        <header className="flex flex-wrap items-start gap-2 px-4 py-3">
+          <TreeToggle drive={driveName} />
+          <div className="min-w-0 flex-1">
             <h1 className="truncate text-2xl font-bold text-text-primary">
               {tSearch("heading", { query: searchQuery ?? "" })}
             </h1>
@@ -389,14 +395,18 @@ export function FolderBrowser({
           </div>
         </header>
       ) : (
-        <Breadcrumb
-          driveName={driveName}
-          folderPath={folderPath}
-          getDropTargetProps={dragState.isDragging ? getDropTargetProps : undefined}
-          isDropTarget={dragState.isDragging ? isDropTarget : undefined}
-        />
+        <div className="flex items-center gap-2 px-4 py-3">
+          <TreeToggle drive={driveName} />
+          <Breadcrumb
+            driveName={driveName}
+            folderPath={folderPath}
+            getDropTargetProps={dragState.isDragging ? getDropTargetProps : undefined}
+            isDropTarget={dragState.isDragging ? isDropTarget : undefined}
+          />
+        </div>
       )}
 
+      <div className="px-2 pb-4 pt-2 sm:px-4 sm:pb-8 sm:pt-4">
       {!isSearch && clipboard.clipboard && (
         <div className="mb-3 flex items-center gap-3 rounded-lg bg-accent/10 px-4 py-2.5 ring-1 ring-accent/20">
           <ClipboardPaste size={18} className="flex-shrink-0 text-accent" />
@@ -514,6 +524,7 @@ export function FolderBrowser({
           onComplete={refresh}
         />
       )}
+      </div>
     </div>
   );
 

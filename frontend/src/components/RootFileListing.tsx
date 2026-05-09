@@ -170,6 +170,7 @@ export function RootFileListing({ driveName, onFileAction, onFolderChange }: Roo
     <UploadZone drive={driveName} folderPath="" onUploadComplete={handleUploadComplete}>
       <section>
         <div className="mb-3 flex items-center gap-2">
+          <TreeToggle drive={driveName} />
           <h2 className="flex items-center gap-2 text-lg font-bold text-text-primary">
             <FileText size={20} className="text-accent" />
             {td("files")}
@@ -258,8 +259,6 @@ export function RootFileListing({ driveName, onFileAction, onFolderChange }: Roo
               </button>
 
               <ViewToggle onChange={handleViewChange} />
-
-              <TreeToggle drive={driveName} />
 
               <button
                 onClick={handleScan}

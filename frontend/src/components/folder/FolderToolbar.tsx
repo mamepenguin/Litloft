@@ -16,7 +16,6 @@ import {
 import { useTranslations } from "next-intl";
 import type { FileType, SortField, SortOrder, ViewMode } from "@/types";
 import { SortButton } from "@/components/SortButton";
-import { TreeToggle } from "@/components/TreeToggle";
 import { UploadButton } from "@/components/UploadButton";
 import { ViewToggle } from "@/components/ViewToggle";
 import { AddonSlot } from "@/components/AddonSlot";
@@ -239,8 +238,6 @@ export function FolderToolbar({
         />
 
         <ViewToggle mode={viewMode} onChange={onViewChange} />
-
-        <TreeToggle drive={drive} />
 
         {/* Overflow: select-mode + rescan (low-frequency, not search-mode) */}
         <div className="relative">

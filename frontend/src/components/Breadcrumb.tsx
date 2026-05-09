@@ -14,7 +14,7 @@ export function Breadcrumb({ driveName, folderPath, getDropTargetProps, isDropTa
   const segments = folderPath ? folderPath.split("/").filter(Boolean) : [];
 
   return (
-    <nav className="mb-4 flex items-center gap-1 text-sm text-text-muted overflow-x-auto">
+    <nav className="flex min-w-0 flex-1 items-center gap-1 text-sm text-text-muted overflow-x-auto">
       <Link
         href="/"
         className="flex-shrink-0 hover:text-text-primary"

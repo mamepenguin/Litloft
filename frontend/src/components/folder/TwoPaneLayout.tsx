@@ -107,7 +107,7 @@ export function TwoPaneLayout({ drive, folderPath, children }: TwoPaneLayoutProp
       <section
         className={`${hasFile ? "flex" : "hidden md:flex"} scrollbar-hover h-full min-w-0 flex-1 flex-col overflow-y-auto`}
       >
-        {hasFile && fileId ? <RightPaneFile fileId={fileId} /> : children}
+        {hasFile && fileId ? <RightPaneFile fileId={fileId} drive={drive} /> : children}
         {!hasFile && <span className="sr-only">{t("noSelection")}</span>}
       </section>
     </div>
