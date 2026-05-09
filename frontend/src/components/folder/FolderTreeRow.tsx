@@ -115,9 +115,15 @@ export function FolderTreeRow({
   };
 
   return (
+    // NOTE: do NOT add role="button" / tabIndex={0} here. The
+    // combination of `role="button" tabindex="0" draggable="true"`
+    // makes browsers treat mousedown as a button-press waiting for
+    // mouseup, and the native HTML5 drag never starts. The right pane's
+    // FileList row is also a draggable <div> without role/tabIndex; we
+    // match that pattern so the gesture works consistently. Keyboard
+    // navigation across tree rows is not currently a feature; if/when
+    // it is added, use arrow keys (the standard tree pattern), not tab.
     <div
-      role="button"
-      tabIndex={0}
       draggable={draggable}
       onDragStart={
         onDragStart
@@ -141,12 +147,6 @@ export function FolderTreeRow({
             }
           : undefined
       }
-      onKeyDown={(e) => {
-        if (e.key === "Enter" || e.key === " ") {
-          e.preventDefault();
-          onSelect(row);
-        }
-      }}
       className={`mx-2 flex items-center gap-1 rounded-md pr-2 text-left text-sm transition-colors ${stateClass} ${dropHoverClass} ${dragSourceClass} ${ancestorClass} ${dragInteractClass}`.replace(/\s+/g, " ").trim()}
       style={{ paddingLeft: padLeft }}
       data-state={row.isAncestor ? "ancestor" : undefined}

@@ -129,7 +129,7 @@ describe("FolderTreeRow — drag and drop", () => {
         isDragSource
       />,
     );
-    const row = container.querySelector('[role="button"]');
+    const row = container.querySelector('div[title]');
     expect(row?.className).toMatch(/opacity-40/);
   });
 
@@ -143,7 +143,7 @@ describe("FolderTreeRow — drag and drop", () => {
         isDropHover
       />,
     );
-    const row = container.querySelector('[role="button"]');
+    const row = container.querySelector('div[title]');
     expect(row?.className).toMatch(/ring-2/);
   });
 
