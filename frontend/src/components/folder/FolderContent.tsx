@@ -68,7 +68,6 @@ export function FolderContent({
         placeholder={tFilter("placeholder.folder")}
         typeFilter={filter.typeFilter}
         onTypeFilterChange={filter.setTypeFilter}
-        onClear={filter.clear}
       />
 
       {folders.length > 0 && (

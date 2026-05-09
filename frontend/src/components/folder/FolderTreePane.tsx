@@ -192,7 +192,6 @@ export function FolderTreePane({
         placeholder={tFilter("placeholder.tree")}
         typeFilter={filter}
         onTypeFilterChange={setFilter}
-        onClear={handleClear}
       />
       <div ref={scrollRef} className="scrollbar-hover flex-1 overflow-y-auto">
         {isRootLoading ? (

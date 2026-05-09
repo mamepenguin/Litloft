@@ -340,7 +340,10 @@
       "folder": "No matching files in this folder"
     },
     "clear": "Clear filters",
-    "clearInput": "Clear input"
+    "clearInput": "Clear input",
+    "chipChange": "{type} filter. Click to change",
+    "chipRemove": "Remove {type} filter",
+    "openTypeFilter": "Filter by type"
   },
   "rightPane": {
     "openDetails": "Open details",

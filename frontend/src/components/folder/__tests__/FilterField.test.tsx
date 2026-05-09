@@ -1,9 +1,7 @@
 /**
  * Tests for the shared <FilterField> component (right-pane + tree-pane filter UI).
- * Spec: docs/superpowers/specs/2026-05-09-folder-filter-and-tree-filter.md §4.
- *
- * RED phase — the component does not exist yet. These tests must fail with
- * a "Cannot find module" error until 4.2 lands.
+ * Spec: docs/superpowers/specs/2026-05-09-folder-filter-and-tree-filter.md §4
+ * (chip inline 化、2026-05-09 改訂版).
  */
 import { act, fireEvent, render, screen } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
@@ -34,7 +32,7 @@ describe("FilterField", () => {
     ).toBeInTheDocument();
   });
 
-  it("renders a type dropdown with default 'All' label when typeFilter is null", () => {
+  it("renders the funnel-style type filter trigger when no type is selected", () => {
     render(
       <FilterField
         text=""
@@ -44,10 +42,49 @@ describe("FilterField", () => {
         onTypeFilterChange={vi.fn()}
       />,
     );
-    // The type dropdown trigger is a button; default label is "All" / "すべて"
-    // Tolerate either the translated string or the i18n key fallback.
-    const trigger = screen.getByRole("button", { name: /all|filter\.type\.all|すべて/i });
-    expect(trigger).toBeInTheDocument();
+    // The trigger now reads "Filter by type" — chip replaces the labeled
+    // dropdown when a type is selected.
+    expect(
+      screen.getByRole("button", {
+        name: /filter by type|filter\.openTypeFilter|型でフィルタ/i,
+      }),
+    ).toBeInTheDocument();
+  });
+
+  it("hides the funnel trigger when a type is selected (chip replaces it)", () => {
+    render(
+      <FilterField
+        text=""
+        onTextChange={vi.fn()}
+        placeholder="..."
+        typeFilter="video"
+        onTypeFilterChange={vi.fn()}
+      />,
+    );
+    expect(
+      screen.queryByRole("button", {
+        name: /filter by type|filter\.openTypeFilter|型でフィルタ/i,
+      }),
+    ).not.toBeInTheDocument();
+  });
+
+  it("renders an inline chip displaying the selected type with an icon and label", () => {
+    render(
+      <FilterField
+        text=""
+        onTextChange={vi.fn()}
+        placeholder="..."
+        typeFilter="video"
+        onTypeFilterChange={vi.fn()}
+      />,
+    );
+    // The chip body is a button advertising "click to change".
+    const chip = screen.getByRole("button", {
+      name: /click to change|filter\.chipChange|クリックで変更/i,
+    });
+    expect(chip).toBeInTheDocument();
+    // The chip label includes the translated type name.
+    expect(chip.textContent ?? "").toMatch(/video|動画/i);
   });
 
   it("debounces text input with a 300ms delay", () => {
@@ -67,10 +104,8 @@ describe("FilterField", () => {
     const input = screen.getByPlaceholderText("search...");
     fireEvent.change(input, { target: { value: "spec" } });
 
-    // Before the debounce window elapses, the parent should not see "spec".
     expect(onTextChange).not.toHaveBeenCalledWith("spec");
 
-    // Advance past the 300ms debounce.
     act(() => {
       vi.advanceTimersByTime(300);
     });
@@ -78,7 +113,7 @@ describe("FilterField", () => {
     expect(onTextChange).toHaveBeenLastCalledWith("spec");
   });
 
-  it("fires onTypeFilterChange immediately when a type option is selected", async () => {
+  it("fires onTypeFilterChange immediately when a type option is selected from the funnel", async () => {
     const onTypeFilterChange = vi.fn();
 
     render(
@@ -91,11 +126,11 @@ describe("FilterField", () => {
       />,
     );
 
-    // Open the dropdown.
-    const trigger = screen.getByRole("button", { name: /all|filter\.type\.all|すべて/i });
+    const trigger = screen.getByRole("button", {
+      name: /filter by type|filter\.openTypeFilter|型でフィルタ/i,
+    });
     fireEvent.click(trigger);
 
-    // Pick "Markdown" from the menu.
     const markdownOption = await screen.findByRole("menuitem", {
       name: /markdown/i,
     });
@@ -104,76 +139,215 @@ describe("FilterField", () => {
     expect(onTypeFilterChange).toHaveBeenCalledWith("markdown");
   });
 
-  it("shows a clear button when text is non-empty and clears both text and type when clicked", () => {
-    const onClear = vi.fn();
-
-    render(
-      <FilterField
-        text="abc"
-        onTextChange={vi.fn()}
-        placeholder="search..."
-        typeFilter="markdown"
-        onTypeFilterChange={vi.fn()}
-        onClear={onClear}
-      />,
-    );
-
-    const clearBtn = screen.getByRole("button", { name: /clear|filter\.clear|解除/i });
-    expect(clearBtn).toBeInTheDocument();
-
-    fireEvent.click(clearBtn);
-    expect(onClear).toHaveBeenCalledTimes(1);
-  });
-
-  it("hides the clear button when text is empty and no type filter is set", () => {
-    render(
-      <FilterField
-        text=""
-        onTextChange={vi.fn()}
-        placeholder="search..."
-        typeFilter={null}
-        onTypeFilterChange={vi.fn()}
-        onClear={vi.fn()}
-      />,
-    );
-
-    expect(
-      screen.queryByRole("button", { name: /clear|filter\.clear|解除/i }),
-    ).not.toBeInTheDocument();
-  });
-
-  it("uses the 'clearInput' i18n label for the X icon-only button", () => {
-    render(
-      <FilterField
-        text="abc"
-        onTextChange={vi.fn()}
-        placeholder="search..."
-        typeFilter={null}
-        onTypeFilterChange={vi.fn()}
-      />,
-    );
-
-    // The X clear button now reads the input-only label, not the global
-    // filter clear copy.
-    const clearBtn = screen.getByRole("button", {
-      name: /clear input|filter\.clearInput|入力をクリア/i,
-    });
-    expect(clearBtn).toBeInTheDocument();
-  });
-
-  it("Escape closes the dropdown and refocuses the trigger", async () => {
+  it("re-opens the dropdown when the chip body is clicked", async () => {
     const onTypeFilterChange = vi.fn();
     render(
       <FilterField
         text=""
         onTextChange={vi.fn()}
         placeholder="..."
-        typeFilter={null}
+        typeFilter="video"
         onTypeFilterChange={onTypeFilterChange}
       />,
     );
 
-    const trigger = screen.getByRole("button", { name: /all|filter\.type\.all|すべて/i });
+    const chip = screen.getByRole("button", {
+      name: /click to change|filter\.chipChange|クリックで変更/i,
+    });
+    fireEvent.click(chip);
+
+    // The dropdown opens and the user can pick a different type.
+    const imageOption = await screen.findByRole("menuitem", {
+      name: /image|画像/i,
+    });
+    fireEvent.click(imageOption);
+
+    expect(onTypeFilterChange).toHaveBeenCalledWith("image");
+  });
+
+  it("clears only the type filter when the chip × button is clicked (text preserved)", () => {
+    const onTypeFilterChange = vi.fn();
+    const onTextChange = vi.fn();
+
+    render(
+      <FilterField
+        text="vacation"
+        onTextChange={onTextChange}
+        placeholder="..."
+        typeFilter="video"
+        onTypeFilterChange={onTypeFilterChange}
+      />,
+    );
+
+    const removeBtn = screen.getByRole("button", {
+      name: /remove video filter|filter\.chipRemove|動画 フィルタを解除/i,
+    });
+    fireEvent.click(removeBtn);
+
+    expect(onTypeFilterChange).toHaveBeenCalledWith(null);
+    expect(onTextChange).not.toHaveBeenCalledWith("");
+  });
+
+  it("clicking the chip × does not also re-open the dropdown (stopPropagation)", async () => {
+    const onTypeFilterChange = vi.fn();
+    render(
+      <FilterField
+        text=""
+        onTextChange={vi.fn()}
+        placeholder="..."
+        typeFilter="video"
+        onTypeFilterChange={onTypeFilterChange}
+      />,
+    );
+
+    const removeBtn = screen.getByRole("button", {
+      name: /remove video filter|filter\.chipRemove|動画 フィルタを解除/i,
+    });
+    fireEvent.click(removeBtn);
+
+    expect(screen.queryByRole("menu")).not.toBeInTheDocument();
+  });
+
+  it("clears only the text when the input × button is clicked (type preserved)", () => {
+    const onTypeFilterChange = vi.fn();
+    const onTextChange = vi.fn();
+
+    render(
+      <FilterField
+        text="abc"
+        onTextChange={onTextChange}
+        placeholder="search..."
+        typeFilter="video"
+        onTypeFilterChange={onTypeFilterChange}
+      />,
+    );
+
+    const clearInputBtn = screen.getByRole("button", {
+      name: /clear input|filter\.clearInput|入力をクリア/i,
+    });
+    fireEvent.click(clearInputBtn);
+
+    expect(onTextChange).toHaveBeenCalledWith("");
+    expect(onTypeFilterChange).not.toHaveBeenCalled();
+  });
+
+  it("hides the input × when text is empty (type alone does not show it)", () => {
+    render(
+      <FilterField
+        text=""
+        onTextChange={vi.fn()}
+        placeholder="search..."
+        typeFilter="video"
+        onTypeFilterChange={vi.fn()}
+      />,
+    );
+
+    expect(
+      screen.queryByRole("button", {
+        name: /clear input|filter\.clearInput|入力をクリア/i,
+      }),
+    ).not.toBeInTheDocument();
+  });
+
+  it("Backspace at input start removes the chip when the input is empty", () => {
+    const onTypeFilterChange = vi.fn();
+    render(
+      <FilterField
+        text=""
+        onTextChange={vi.fn()}
+        placeholder="search..."
+        typeFilter="video"
+        onTypeFilterChange={onTypeFilterChange}
+      />,
+    );
+
+    const input = screen.getByPlaceholderText("search...") as HTMLInputElement;
+    input.focus();
+    input.setSelectionRange(0, 0);
+    fireEvent.keyDown(input, { key: "Backspace" });
+
+    expect(onTypeFilterChange).toHaveBeenCalledWith(null);
+  });
+
+  it("Backspace at non-zero caret position does not remove the chip", () => {
+    const onTypeFilterChange = vi.fn();
+    render(
+      <FilterField
+        text="abc"
+        onTextChange={vi.fn()}
+        placeholder="search..."
+        typeFilter="video"
+        onTypeFilterChange={onTypeFilterChange}
+      />,
+    );
+
+    const input = screen.getByPlaceholderText("search...") as HTMLInputElement;
+    input.focus();
+    // Caret in the middle of the text.
+    input.setSelectionRange(2, 2);
+    fireEvent.keyDown(input, { key: "Backspace" });
+
+    expect(onTypeFilterChange).not.toHaveBeenCalled();
+  });
+
+  it("Backspace at caret-0 with non-empty text does NOT remove the chip (Linear convention)", () => {
+    // The chip should only disappear via Backspace when the input is fully
+    // empty. Otherwise users who deliberately moved the caret to the start
+    // would lose their type filter unexpectedly.
+    const onTypeFilterChange = vi.fn();
+    render(
+      <FilterField
+        text="abc"
+        onTextChange={vi.fn()}
+        placeholder="search..."
+        typeFilter="video"
+        onTypeFilterChange={onTypeFilterChange}
+      />,
+    );
+
+    const input = screen.getByPlaceholderText("search...") as HTMLInputElement;
+    input.focus();
+    input.setSelectionRange(0, 0);
+    fireEvent.keyDown(input, { key: "Backspace" });
+
+    expect(onTypeFilterChange).not.toHaveBeenCalled();
+  });
+
+  it("Backspace with a selection range does not remove the chip", () => {
+    const onTypeFilterChange = vi.fn();
+    render(
+      <FilterField
+        text="abc"
+        onTextChange={vi.fn()}
+        placeholder="search..."
+        typeFilter="video"
+        onTypeFilterChange={onTypeFilterChange}
+      />,
+    );
+
+    const input = screen.getByPlaceholderText("search...") as HTMLInputElement;
+    input.focus();
+    // Selection from 0 to 2 — caret is at start but a range is highlighted.
+    input.setSelectionRange(0, 2);
+    fireEvent.keyDown(input, { key: "Backspace" });
+
+    expect(onTypeFilterChange).not.toHaveBeenCalled();
+  });
+
+  it("Escape closes the dropdown and refocuses the trigger", async () => {
+    render(
+      <FilterField
+        text=""
+        onTextChange={vi.fn()}
+        placeholder="..."
+        typeFilter={null}
+        onTypeFilterChange={vi.fn()}
+      />,
+    );
+
+    const trigger = screen.getByRole("button", {
+      name: /filter by type|filter\.openTypeFilter|型でフィルタ/i,
+    });
     fireEvent.click(trigger);
     const menu = await screen.findByRole("menu");
 
@@ -195,12 +369,12 @@ describe("FilterField", () => {
       />,
     );
 
-    const trigger = screen.getByRole("button", { name: /all|filter\.type\.all|すべて/i });
+    const trigger = screen.getByRole("button", {
+      name: /filter by type|filter\.openTypeFilter|型でフィルタ/i,
+    });
     fireEvent.click(trigger);
     const menu = await screen.findByRole("menu");
 
-    // Initial focus is on the currently selected entry (null → index 0 = All).
-    // ArrowDown → index 1 (markdown). Press Enter → onTypeFilterChange("markdown").
     fireEvent.keyDown(menu, { key: "ArrowDown" });
     fireEvent.keyDown(menu, { key: "Enter" });
 
@@ -219,32 +393,20 @@ describe("FilterField", () => {
       />,
     );
 
-    const trigger = screen.getByRole("button", { name: /all|filter\.type\.all|すべて/i });
+    const trigger = screen.getByRole("button", {
+      name: /filter by type|filter\.openTypeFilter|型でフィルタ/i,
+    });
     fireEvent.click(trigger);
     const menu = await screen.findByRole("menu");
 
-    // From index 0 (All), ArrowUp wraps to index 4 (pdf).
     fireEvent.keyDown(menu, { key: "ArrowUp" });
     fireEvent.keyDown(menu, { key: "Enter" });
 
     expect(onTypeFilterChange).toHaveBeenCalledWith("pdf");
   });
 
-  it("applies an accent-colored label on the type trigger when type is non-null", () => {
-    const { rerender } = render(
-      <FilterField
-        text=""
-        onTextChange={vi.fn()}
-        placeholder="..."
-        typeFilter={null}
-        onTypeFilterChange={vi.fn()}
-      />,
-    );
-
-    const inactive = screen.getByRole("button", { name: /all|filter\.type\.all|すべて/i });
-    expect(inactive.className).not.toMatch(/accent/);
-
-    rerender(
+  it("applies an accent-colored class to the chip when a type is selected", () => {
+    render(
       <FilterField
         text=""
         onTextChange={vi.fn()}
@@ -254,10 +416,9 @@ describe("FilterField", () => {
       />,
     );
 
-    // The trigger label now reflects the current selection (video / 動画) and
-    // wears an accent color class — exact token may vary per DESIGN.md, so we
-    // assert that *some* accent-* class is present.
-    const active = screen.getByRole("button", { name: /video|動画/i });
-    expect(active.className).toMatch(/accent/);
+    const chip = screen.getByRole("button", {
+      name: /click to change|filter\.chipChange|クリックで変更/i,
+    });
+    expect(chip.className).toMatch(/accent/);
   });
 });

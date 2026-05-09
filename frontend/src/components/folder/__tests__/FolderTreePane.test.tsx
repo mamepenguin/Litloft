@@ -201,8 +201,10 @@ describe("FolderTreePane", () => {
 
     await waitFor(() => expect(mockGetFolderTree).toHaveBeenCalledTimes(1));
 
-    // The type filter now lives inside the FilterField dropdown.
-    const trigger = screen.getByRole("button", { name: /all|filter\.type\.all|すべて/i });
+    // The type filter is now opened via the funnel icon (chip inline UI).
+    const trigger = screen.getByRole("button", {
+      name: /filter by type|filter\.openTypeFilter|型でフィルタ/i,
+    });
     fireEvent.click(trigger);
     const markdownItem = await screen.findByRole("menuitem", { name: /markdown/i });
     fireEvent.click(markdownItem);

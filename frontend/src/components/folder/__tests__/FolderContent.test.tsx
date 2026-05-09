@@ -243,7 +243,7 @@ describe("FolderContent right-pane filter (Phase 4)", () => {
     );
     // Open the type dropdown and pick "Image".
     const trigger = screen.getByRole("button", {
-      name: /all|filter\.type\.all|すべて/i,
+      name: /filter by type|filter\.openTypeFilter|型でフィルタ/i,
     });
     fireEvent.click(trigger);
     const imageOption = await screen.findByRole("menuitem", { name: /image|画像/i });
@@ -267,7 +267,7 @@ describe("FolderContent right-pane filter (Phase 4)", () => {
     );
 
     const trigger = screen.getByRole("button", {
-      name: /all|filter\.type\.all|すべて/i,
+      name: /filter by type|filter\.openTypeFilter|型でフィルタ/i,
     });
     fireEvent.click(trigger);
     const mdOption = await screen.findByRole("menuitem", { name: /markdown/i });
