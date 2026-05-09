@@ -7,6 +7,7 @@ import { useTranslations } from "next-intl";
 import { FileContextMenu } from "@/components/FileContextMenu";
 import { FolderContextMenu } from "@/components/FolderContextMenu";
 import { useCreateFile } from "@/hooks/useCreateFile";
+import { useDragAndDrop } from "@/hooks/useDragAndDrop";
 import { useFolderTreeQuery } from "@/hooks/useFolderTreeQuery";
 import { useInitialReveal } from "@/hooks/useInitialReveal";
 import { useTreeExpansion } from "@/hooks/useTreeExpansion";
@@ -183,6 +184,19 @@ export function FolderTreePane({
   // request is pending is a no-op.
   const { createFile } = useCreateFile(drive, "");
 
+  // Drag-and-drop. Tree has no multi-select UI, so we hand the hook an
+  // empty selectedIds set; it degrades cleanly to single-item drags.
+  // Cross-pane drops (drag a card from the right pane → drop on a tree
+  // row) work via the DataTransfer fallback inside the hook, so we
+  // don't need to share state with the right pane's instance.
+  const dnd = useDragAndDrop({
+    drive,
+    selectedIds: useMemo(() => new Set<string>(), []),
+    onComplete: refresh,
+  });
+  const draggedFolderPath = dnd.dragState.draggedFolderPath;
+  const draggedFileIds = dnd.dragState.draggedFileIds;
+
   // Both context menus are always mounted; only `open` and `target` flip
   // when the user right-clicks a row. Conditionally rendering them would
   // unmount the dialog state (renameOpen / moveOpen / ...) the moment the
@@ -263,6 +277,53 @@ export function FolderTreePane({
     }
   };
 
+  // Drag wiring per row. While a filter is active the visible list mixes
+  // ancestor-context rows with matched rows; dragging in that mode would
+  // be ambiguous, so we disable the drag source until the filter is
+  // cleared. Drop targets stay live (the user might drop a card from
+  // outside the tree).
+  const handleRowDragStart = useCallback(
+    (row: FlatTreeRow, event: React.DragEvent) => {
+      if (filterActive) return;
+      if (row.node.kind === "file") {
+        dnd.handleDragStart(event, row.node.file_id);
+      } else {
+        dnd.handleFolderDragStart(event, row.node.path);
+      }
+    },
+    [dnd, filterActive],
+  );
+
+  const computeDropTargetProps = useCallback(
+    (row: FlatTreeRow) => {
+      // Only folders are drop targets; files cannot receive a move.
+      if (row.node.kind !== "folder") return null;
+      // Refuse drops onto self or onto a descendant of the dragged folder.
+      if (dnd.isDropDisabled(row.node.path)) return null;
+      return dnd.getDropTargetProps(row.node.path);
+    },
+    [dnd],
+  );
+
+  const isRowDragSource = useCallback(
+    (row: FlatTreeRow) => {
+      if (row.node.kind === "folder") {
+        return draggedFolderPath === row.node.path;
+      }
+      return draggedFileIds.includes(row.node.file_id);
+    },
+    [draggedFolderPath, draggedFileIds],
+  );
+
+  // Root drop band — separate path "" so users can drop into the drive
+  // root without an explicit row. Disabled when the dragged folder is
+  // already at root (no-op move) or when a filter shrinks the view (the
+  // drag source itself is gated above).
+  const rootDropProps = dnd.isDropDisabled("")
+    ? null
+    : dnd.getDropTargetProps("");
+  const rootDropHover = dnd.isDropTarget("");
+
   const isRootLoading = loading.has("") && !childrenByPath.has("");
   const isEmpty = !isRootLoading && flatList.length === 0;
   const isFilterEmpty = filterActive && isEmpty;
@@ -287,6 +348,21 @@ export function FolderTreePane({
         typeFilter={filter}
         onTypeFilterChange={setFilter}
       />
+      {/* Root drop band — only renders while a drag is in progress, so it
+          doesn't take vertical space in the resting layout. */}
+      {dnd.dragState.isDragging && rootDropProps && (
+        <div
+          {...rootDropProps}
+          aria-label={t("dropToRoot")}
+          className={`mx-2 mt-1 rounded-md border border-dashed px-2 py-1.5 text-xs transition-colors ${
+            rootDropHover
+              ? "border-accent bg-accent/10 text-text-primary"
+              : "border-bg-border text-text-muted"
+          }`}
+        >
+          {t("dropToRoot")}
+        </div>
+      )}
       <FolderContextMenu
         open={menuOpen && folderTarget !== null}
         position={menuPosition}
@@ -366,6 +442,14 @@ export function FolderTreePane({
                     onSelect={handleSelect}
                     onToggle={handleToggle}
                     onContextMenu={handleContextMenu}
+                    onDragStart={filterActive ? undefined : handleRowDragStart}
+                    onDragEnd={dnd.handleDragEnd}
+                    dropTargetProps={computeDropTargetProps(row)}
+                    isDragSource={isRowDragSource(row)}
+                    isDropHover={
+                      row.node.kind === "folder" &&
+                      dnd.isDropTarget(row.node.path)
+                    }
                   />
                 </div>
               );

@@ -6,6 +6,7 @@
 - [docs/superpowers/specs/2026-05-09-folder-filter-and-tree-filter.md](../superpowers/specs/2026-05-09-folder-filter-and-tree-filter.md) — `<FilterField>` introduction, right-pane filter, tree filter (chips replacement)
 - [docs/superpowers/specs/2026-05-09-new-file-creation-core.md](../superpowers/specs/2026-05-09-new-file-creation-core.md) — Phase 4 new-file creation in Core (toolbar button + Cmd/Ctrl+N), backend mime-allowlist removal, suffix numbering on collision
 - [docs/superpowers/specs/2026-05-09-tree-context-menu.md](../superpowers/specs/2026-05-09-tree-context-menu.md) — tree-pane right-click menu (ports the Knowledge addon's row context menu to the core)
+- [docs/superpowers/specs/2026-05-09-tree-pane-drag-drop.md](../superpowers/specs/2026-05-09-tree-pane-drag-drop.md) — tree-pane drag-and-drop (ports the Knowledge sidebar's move gesture; reuses the core `useDragAndDrop` hook with a DataTransfer fallback for cross-pane drops)
 
 **Scope:** the drive-level browser at `/drive/{drive}` and `/drive/{drive}/{path}`. Two-pane layout (folder tree on the left, content on the right), per-pane filter UIs, virtual scroll, the lazy / full-load tree fetch strategy, and the toolbar/shortcut surface for creating new folders and files in the current folder. The filter pair introduced in Phase 4 (right-pane in-folder filter + tree filter that replaces the old type-filter chips) and the new-file creation flow (also Phase 4) are the focus of this map.
 
@@ -88,6 +89,19 @@ The `FolderTreePane` ports the Knowledge sidebar's right-click menu to the core,
 | `frontend/src/hooks/useCreateFile.ts` | `createFile()` now accepts an optional override path. The toolbar / Cmd+N call sites pass nothing and behave identically; the tree menu passes the row's path so the new file lands in that folder regardless of the URL location. |
 | `frontend/src/hooks/useFolderTreeQuery.ts` | Accepts `refreshKey?: number` as a fourth dimension of the cache key. Bumping it drops the cache and forces a refetch — the way the tree pane invalidates after a context-menu mutation. |
 | `frontend/src/messages-core/{ja,en}.json` | New keys: `folder.open`, `folder.newFileHere`, `folder.newFolderHere`, `folder.newFolderTitle`, `file.openInNewTab`. After editing, run `node frontend/scripts/merge-addon-messages.mjs` to regenerate `frontend/src/messages/{ja,en}.json`. |
+
+### Tree-pane drag-and-drop (2026-05-09)
+
+The `FolderTreePane` reuses the existing core `useDragAndDrop` hook (DataTransfer-based, MIMEs `application/x-file-ids` / `application/x-folder-path`) instead of duplicating the Knowledge sidebar's internal-state pattern. That choice gives cross-pane drops (drag a card from the right pane → drop on a tree row) for free.
+
+| Path | Change |
+|---|---|
+| `frontend/src/hooks/useDragAndDrop.ts` | `handleDrop` now reads `e.dataTransfer.getData(...)` as a fallback when the internal `draggedIdsRef` / `draggedFolderRef` are empty. Two panes mounting their own hook instance can't see each other's refs, so the DataTransfer payload is the only thing both ends agree on. Malformed JSON is rejected without an API call. |
+| `frontend/src/components/folder/FolderTreeRow.tsx` | New optional `onDragStart` / `onDragEnd` / `dropTargetProps` / `isDragSource` / `isDropHover`. The row is `draggable` only when `onDragStart` is supplied; drop handlers attach only when `dropTargetProps` is non-null. Source rows render at `opacity-40`; drop-hover rows render `ring-2 ring-accent ring-inset bg-accent/10`. |
+| `frontend/src/components/folder/FolderTreePane.tsx` | Instantiates `useDragAndDrop({ drive, selectedIds: empty Set, onComplete: refresh })` (the same `refresh` callback that the context menu uses, so both gestures invalidate the tree via the same `refreshKey` bump). Wires per-row drag/drop props: file rows are drag sources only, folder rows are drag sources *and* drop targets — except `isDropDisabled(node.path)` returns true for self/descendant of the active drag, in which case the drop props are `null`. Adds a thin **root drop band** under `<FilterField>` that only renders while a drag is in progress, so the resting layout is unchanged. **Drag is disabled while a filter is active** because the filtered list mixes ancestor-context rows that look identical to children but live at different real paths. |
+| `frontend/src/messages-core/{ja,en}.json` | New key `tree.dropToRoot`. After editing, run `node frontend/scripts/merge-addon-messages.mjs`. |
+
+Out of scope: auto-expand on drag-over hover, external OS file drop on tree rows (handled separately by `UploadZone` over the right pane), multi-select drags from the tree.
 
 ### New file creation — wired call sites
 

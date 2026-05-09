@@ -19,6 +19,18 @@ export interface FlatTreeRow {
   isAncestor?: boolean;
 }
 
+/**
+ * Drag-and-drop event handlers exactly matching what
+ * `useDragAndDrop.getDropTargetProps()` returns. The tree pane decides
+ * whether to attach them per row (folders only, not self/descendant).
+ */
+export interface DropTargetEventProps {
+  onDragEnter: (e: React.DragEvent) => void;
+  onDragLeave: (e: React.DragEvent) => void;
+  onDragOver: (e: React.DragEvent) => void;
+  onDrop: (e: React.DragEvent) => void;
+}
+
 interface FolderTreeRowProps {
   row: FlatTreeRow;
   selected: boolean;
@@ -30,6 +42,24 @@ interface FolderTreeRowProps {
    * which mounts the appropriate FileContextMenu / FolderContextMenu.
    */
   onContextMenu?: (row: FlatTreeRow, event: React.MouseEvent) => void;
+  /**
+   * Drag-source callbacks. When both are set the row is `draggable`.
+   * The pane decides between file-id and folder-path payloads based on
+   * the row's node kind.
+   */
+  onDragStart?: (row: FlatTreeRow, event: React.DragEvent) => void;
+  onDragEnd?: () => void;
+  /**
+   * Drop target wiring. When non-null, the row attaches the drop
+   * handlers and is eligible to receive a drop. The pane returns null
+   * for rows that are not folders or that would create an invalid move
+   * (self / descendant of the dragged folder).
+   */
+  dropTargetProps?: DropTargetEventProps | null;
+  /** True for the row currently being dragged — render at opacity 40. */
+  isDragSource?: boolean;
+  /** True for the row that holds the current drop highlight. */
+  isDropHover?: boolean;
 }
 
 const INDENT_PX = 12;
@@ -40,6 +70,11 @@ export function FolderTreeRow({
   onSelect,
   onToggle,
   onContextMenu,
+  onDragStart,
+  onDragEnd,
+  dropTargetProps,
+  isDragSource,
+  isDropHover,
 }: FolderTreeRowProps) {
   const t = useTranslations("tree");
   const { node, depth, isExpanded, isLoading } = row;
@@ -52,7 +87,15 @@ export function FolderTreeRow({
       ? "bg-bg-elevated font-medium text-text-primary"
       : "bg-accent/15 text-text-primary"
     : "text-text-primary hover:bg-bg-elevated";
-  const ancestorClass = row.isAncestor ? "opacity-60" : "";
+  // Drop hover wins over the resting hover style: the accent ring +
+  // tinted background must be visible regardless of the row's
+  // selection or ancestor state.
+  const dropHoverClass = isDropHover
+    ? "ring-2 ring-accent ring-inset bg-accent/10"
+    : "";
+  const dragSourceClass = isDragSource ? "opacity-40" : "";
+  const ancestorClass = row.isAncestor && !isDropHover ? "opacity-60" : "";
+  const draggable = !!onDragStart;
 
   const handleChevronClick = (e: React.MouseEvent) => {
     e.stopPropagation();
@@ -63,6 +106,19 @@ export function FolderTreeRow({
     <div
       role="button"
       tabIndex={0}
+      draggable={draggable}
+      onDragStart={
+        onDragStart
+          ? (e) => {
+              onDragStart(row, e);
+            }
+          : undefined
+      }
+      onDragEnd={onDragEnd}
+      onDragEnter={dropTargetProps?.onDragEnter}
+      onDragLeave={dropTargetProps?.onDragLeave}
+      onDragOver={dropTargetProps?.onDragOver}
+      onDrop={dropTargetProps?.onDrop}
       onClick={() => onSelect(row)}
       onContextMenu={
         onContextMenu
@@ -79,7 +135,7 @@ export function FolderTreeRow({
           onSelect(row);
         }
       }}
-      className={`mx-2 flex items-center gap-1 rounded-md pr-2 text-left text-sm transition-colors ${stateClass} ${ancestorClass}`.trim()}
+      className={`mx-2 flex items-center gap-1 rounded-md pr-2 text-left text-sm transition-colors ${stateClass} ${dropHoverClass} ${dragSourceClass} ${ancestorClass}`.replace(/\s+/g, " ").trim()}
       style={{ paddingLeft: padLeft }}
       data-state={row.isAncestor ? "ancestor" : undefined}
       aria-current={selected ? "true" : undefined}

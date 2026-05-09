@@ -4,10 +4,11 @@ import { useDragAndDrop } from "../useDragAndDrop";
 
 vi.mock("@/lib/api", () => ({
   moveFile: vi.fn().mockResolvedValue({}),
+  moveFolder: vi.fn().mockResolvedValue({}),
   batchMove: vi.fn().mockResolvedValue({ moved: 2, errors: [] }),
 }));
 
-import { moveFile, batchMove } from "@/lib/api";
+import { moveFile, moveFolder, batchMove } from "@/lib/api";
 
 function createDragEvent(overrides: Partial<React.DragEvent> = {}): React.DragEvent {
   const dataStore = new Map<string, string>();
@@ -181,5 +182,84 @@ describe("useDragAndDrop", () => {
 
     expect(moveFile).not.toHaveBeenCalled();
     expect(batchMove).not.toHaveBeenCalled();
+  });
+
+  describe("DataTransfer fallback (cross-pane drops)", () => {
+    it("falls back to DataTransfer file ids when refs are empty", async () => {
+      const { result } = renderHook(() =>
+        useDragAndDrop({ drive: "main", selectedIds: new Set(), onComplete }),
+      );
+
+      // No handleDragStart() — simulates the drop coming from a different
+      // hook instance (e.g. the right pane). DataTransfer carries the ids.
+      const dropEvent = createDragEvent();
+      dropEvent.dataTransfer.setData(
+        "application/x-file-ids",
+        JSON.stringify(["x1"]),
+      );
+      const props = result.current.getDropTargetProps("target-folder");
+      await act(async () => {
+        await props.onDrop(dropEvent);
+      });
+
+      expect(moveFile).toHaveBeenCalledWith("x1", "target-folder");
+      expect(onComplete).toHaveBeenCalled();
+    });
+
+    it("falls back to DataTransfer for batch file move", async () => {
+      const { result } = renderHook(() =>
+        useDragAndDrop({ drive: "main", selectedIds: new Set(), onComplete }),
+      );
+
+      const dropEvent = createDragEvent();
+      dropEvent.dataTransfer.setData(
+        "application/x-file-ids",
+        JSON.stringify(["a", "b", "c"]),
+      );
+      const props = result.current.getDropTargetProps("dst");
+      await act(async () => {
+        await props.onDrop(dropEvent);
+      });
+
+      expect(batchMove).toHaveBeenCalledWith(
+        expect.arrayContaining(["a", "b", "c"]),
+        "dst",
+      );
+    });
+
+    it("falls back to DataTransfer for folder move", async () => {
+      const { result } = renderHook(() =>
+        useDragAndDrop({ drive: "main", selectedIds: new Set(), onComplete }),
+      );
+
+      const dropEvent = createDragEvent();
+      dropEvent.dataTransfer.setData(
+        "application/x-folder-path",
+        "src/folder",
+      );
+      const props = result.current.getDropTargetProps("dst-parent");
+      await act(async () => {
+        await props.onDrop(dropEvent);
+      });
+
+      expect(moveFolder).toHaveBeenCalledWith("main", "src/folder", "dst-parent");
+    });
+
+    it("ignores DataTransfer payload that fails to parse", async () => {
+      const { result } = renderHook(() =>
+        useDragAndDrop({ drive: "main", selectedIds: new Set(), onComplete }),
+      );
+
+      const dropEvent = createDragEvent();
+      dropEvent.dataTransfer.setData("application/x-file-ids", "not json");
+      const props = result.current.getDropTargetProps("dst");
+      await act(async () => {
+        await props.onDrop(dropEvent);
+      });
+
+      expect(moveFile).not.toHaveBeenCalled();
+      expect(batchMove).not.toHaveBeenCalled();
+      expect(moveFolder).not.toHaveBeenCalled();
+    });
   });
 });

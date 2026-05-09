@@ -329,7 +329,8 @@
     "collapse": "Collapse",
     "loading": "Loading...",
     "errorRetry": "Retry",
-    "empty": "No files in this folder"
+    "empty": "No files in this folder",
+    "dropToRoot": "Drop here to move to drive root"
   },
   "filter": {
     "placeholder": {

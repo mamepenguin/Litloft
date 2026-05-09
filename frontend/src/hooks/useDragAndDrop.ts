@@ -3,6 +3,33 @@
 import { useCallback, useRef, useState } from "react";
 import { batchMove, moveFile, moveFolder } from "@/lib/api";
 
+/**
+ * Read the dragged payload from the DataTransfer object as a fallback
+ * for cross-pane drops. Two panes mounting their own `useDragAndDrop`
+ * instance can't see each other's internal refs; the MIMEs that the
+ * source pane wrote during `dragstart` are the only thing both ends
+ * agree on.
+ */
+function readDataTransfer(dt: DataTransfer): {
+  ids: string[];
+  folderPath: string | null;
+  parseError: boolean;
+} {
+  const folderRaw = dt.getData("application/x-folder-path");
+  if (folderRaw) return { ids: [], folderPath: folderRaw, parseError: false };
+  const idsRaw = dt.getData("application/x-file-ids");
+  if (!idsRaw) return { ids: [], folderPath: null, parseError: false };
+  try {
+    const parsed = JSON.parse(idsRaw);
+    if (Array.isArray(parsed) && parsed.every((v) => typeof v === "string")) {
+      return { ids: parsed, folderPath: null, parseError: false };
+    }
+    return { ids: [], folderPath: null, parseError: true };
+  } catch {
+    return { ids: [], folderPath: null, parseError: true };
+  }
+}
+
 export interface DragState {
   isDragging: boolean;
   dragType: "file" | "folder" | null;
@@ -120,12 +147,25 @@ export function useDragAndDrop({ drive, selectedIds, onComplete }: UseDragAndDro
       e.stopPropagation();
       dragCounterRef.current.clear();
 
-      const folderPath = draggedFolderRef.current;
-      const ids = draggedIdsRef.current;
+      // Prefer internal refs (set by handleDragStart on this same hook
+      // instance). When empty — the typical cross-pane case — fall back
+      // to the DataTransfer payload that any source pane sets during
+      // dragstart.
+      let folderPath = draggedFolderRef.current;
+      let ids = draggedIdsRef.current;
+      let parseError = false;
+      if (folderPath === null && ids.length === 0) {
+        const fromDT = readDataTransfer(e.dataTransfer);
+        folderPath = fromDT.folderPath;
+        ids = fromDT.ids;
+        parseError = fromDT.parseError;
+      }
 
       draggedIdsRef.current = [];
       draggedFolderRef.current = null;
       setDragState(INITIAL_STATE);
+
+      if (parseError) return; // malformed payload — bail without API call
 
       try {
         if (folderPath !== null) {
@@ -134,6 +174,8 @@ export function useDragAndDrop({ drive, selectedIds, onComplete }: UseDragAndDro
           await moveFile(ids[0], targetPath);
         } else if (ids.length > 1) {
           await batchMove(ids, targetPath);
+        } else {
+          return; // nothing to move
         }
         onComplete();
       } catch {
