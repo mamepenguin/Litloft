@@ -52,7 +52,19 @@ async function fetchFile(id: string): Promise<FileItem | null> {
   return res.json();
 }
 
-const CARRIED_QUERY_KEYS = ["t", "page", "highlight", "sort", "order"] as const;
+const CARRIED_QUERY_KEYS = [
+  "t",
+  "page",
+  "highlight",
+  "sort",
+  "order",
+  // Phase 2 Pre-PR: Knowledge editor auto-start signal. ``useCreateFile``
+  // (Topic 12) navigates to ``/files/{id}?edit=1`` after creating a new
+  // note; the canonical 2-pane URL needs to keep this so the editor
+  // (inline mode in Phase 2.1+, fullscreen route otherwise) opens
+  // straight into edit mode rather than read-only preview.
+  "edit",
+] as const;
 
 function buildCanonicalUrl(
   file: FileItem,
