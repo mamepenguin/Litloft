@@ -14,6 +14,14 @@ interface MiniPlayerContainerProps {
    * callers pass null/undefined.
    */
   mediaEl?: HTMLMediaElement | null;
+  /**
+   * Optional scroll container that owns the IntersectionObserver
+   * viewport. Forwarded to ``useMiniPlayer``. Hosts whose own
+   * ``overflow-y: auto`` handles scrolling (e.g. the 2-pane right
+   * pane) must pass their scroll element here; document-scroll
+   * hosts (existing /files/{id} fullscreen route) can omit it.
+   */
+  root?: Element | null;
   children: ReactNode;
 }
 
@@ -47,6 +55,7 @@ interface MiniPlayerContainerProps {
 export function MiniPlayerContainer({
   mc,
   mediaEl,
+  root,
   children,
 }: MiniPlayerContainerProps) {
   const anchorRef = useRef<HTMLDivElement>(null);
@@ -55,6 +64,7 @@ export function MiniPlayerContainer({
     containerRef: anchorRef as RefObject<HTMLElement | null>,
     mc,
     mediaEl,
+    root,
   });
 
   return (

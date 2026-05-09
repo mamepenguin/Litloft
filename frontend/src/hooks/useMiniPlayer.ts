@@ -51,6 +51,20 @@ interface UseMiniPlayerOpts {
    * — OS PiP can't target iframes so the check becomes a no-op.
    */
   mediaEl?: HTMLMediaElement | null;
+  /**
+   * Scroll container that owns the viewport. When the player is
+   * embedded in a host whose own ``overflow-y: auto`` (e.g. the
+   * 2-pane right pane) handles scrolling instead of the document
+   * itself, the IntersectionObserver must observe relative to that
+   * container — otherwise the anchor's viewport-relative position
+   * never changes when the user scrolls and ``isIntersecting``
+   * never flips, so the mini player never appears.
+   *
+   * Pass ``null`` or omit for callers that scroll at the document
+   * level (existing /files/{id} fullscreen route, where the document
+   * is the scroll container).
+   */
+  root?: Element | null;
 }
 
 export interface UseMiniPlayerResult {
@@ -65,6 +79,7 @@ export function useMiniPlayer({
   containerRef,
   mc,
   mediaEl,
+  root,
 }: UseMiniPlayerOpts): UseMiniPlayerResult {
   const [intersecting, setIntersecting] = useState(true);
   const [paused, setPaused] = useState(true);
@@ -84,11 +99,11 @@ export function useMiniPlayer({
         const entry = entries[entries.length - 1];
         if (entry) setIntersecting(entry.isIntersecting);
       },
-      { threshold: 0 },
+      { threshold: 0, root: root ?? null },
     );
     io.observe(el);
     return () => io.disconnect();
-  }, [containerRef]);
+  }, [containerRef, root]);
 
   // Poll paused state via mc.isPaused(). Polling (rather than event
   // subscription) avoids asymmetry between native <video> DOM events

@@ -43,6 +43,7 @@ describe("shouldShowMini", () => {
 interface IOInstance {
   cb: IntersectionObserverCallback;
   target?: Element;
+  options?: IntersectionObserverInit;
   disconnect: () => void;
   observe: (el: Element) => void;
   unobserve: () => void;
@@ -56,12 +57,18 @@ function installIntersectionObserverMock() {
     class {
       cb: IntersectionObserverCallback;
       target?: Element;
+      options?: IntersectionObserverInit;
       disconnect = vi.fn();
       unobserve = vi.fn();
-      constructor(cb: IntersectionObserverCallback) {
+      constructor(
+        cb: IntersectionObserverCallback,
+        options?: IntersectionObserverInit,
+      ) {
         this.cb = cb;
+        this.options = options;
         const inst: IOInstance = {
           cb,
+          options,
           disconnect: this.disconnect,
           unobserve: this.unobserve,
           observe: (el: Element) => {
@@ -216,5 +223,53 @@ describe("useMiniPlayer", () => {
       result.current.hook.closeAndStop();
     });
     expect(mc.pause).toHaveBeenCalled();
+  });
+
+  // ---------- root option (PR-1, B1) ----------
+
+  it("creates IntersectionObserver with viewport root when no root option is provided", () => {
+    const mc = makeMc(false);
+    renderWithRef(mc);
+    const inst = ioInstances[ioInstances.length - 1];
+    // Default = viewport (root undefined or null in init dict).
+    expect(inst.options?.root ?? null).toBeNull();
+  });
+
+  it("creates IntersectionObserver with the provided root element", () => {
+    const mc = makeMc(false);
+    const customRoot = document.createElement("section");
+    renderHook(() => {
+      const containerRef = useRef<HTMLDivElement>(null);
+      if (!containerRef.current) {
+        (containerRef as { current: HTMLDivElement }).current =
+          document.createElement("div");
+      }
+      return useMiniPlayer({ containerRef, mc, root: customRoot });
+    });
+    const inst = ioInstances[ioInstances.length - 1];
+    expect(inst.options?.root).toBe(customRoot);
+  });
+
+  it("re-creates IntersectionObserver when root option changes", () => {
+    const mc = makeMc(false);
+    const rootA = document.createElement("section");
+    const rootB = document.createElement("article");
+    const { rerender } = renderHook(
+      ({ root }: { root: Element | null }) => {
+        const containerRef = useRef<HTMLDivElement>(null);
+        if (!containerRef.current) {
+          (containerRef as { current: HTMLDivElement }).current =
+            document.createElement("div");
+        }
+        return useMiniPlayer({ containerRef, mc, root });
+      },
+      { initialProps: { root: rootA } },
+    );
+    const initialCount = ioInstances.length;
+    expect(ioInstances[initialCount - 1].options?.root).toBe(rootA);
+
+    rerender({ root: rootB });
+    expect(ioInstances.length).toBeGreaterThan(initialCount);
+    expect(ioInstances[ioInstances.length - 1].options?.root).toBe(rootB);
   });
 });
