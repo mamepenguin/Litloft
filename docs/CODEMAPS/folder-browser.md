@@ -7,6 +7,7 @@
 - [docs/superpowers/specs/2026-05-09-new-file-creation-core.md](../superpowers/specs/2026-05-09-new-file-creation-core.md) — Phase 4 new-file creation in Core (toolbar button + Cmd/Ctrl+N), backend mime-allowlist removal, suffix numbering on collision
 - [docs/superpowers/specs/2026-05-09-tree-context-menu.md](../superpowers/specs/2026-05-09-tree-context-menu.md) — tree-pane right-click menu (ports the Knowledge addon's row context menu to the core)
 - [docs/superpowers/specs/2026-05-09-tree-pane-drag-drop.md](../superpowers/specs/2026-05-09-tree-pane-drag-drop.md) — tree-pane drag-and-drop (ports the Knowledge sidebar's move gesture; reuses the core `useDragAndDrop` hook with a DataTransfer fallback for cross-pane drops)
+- [docs/superpowers/specs/2026-05-09-tree-and-pane-refresh-sync.md](../superpowers/specs/2026-05-09-tree-and-pane-refresh-sync.md) — both panes auto-refresh on WS events emitted by structure-changing operations (no more siloed `refreshKey` between tree and right pane)
 
 **Scope:** the drive-level browser at `/drive/{drive}` and `/drive/{drive}/{path}`. Two-pane layout (folder tree on the left, content on the right), per-pane filter UIs, virtual scroll, the lazy / full-load tree fetch strategy, and the toolbar/shortcut surface for creating new folders and files in the current folder. The filter pair introduced in Phase 4 (right-pane in-folder filter + tree filter that replaces the old type-filter chips) and the new-file creation flow (also Phase 4) are the focus of this map.
 
@@ -89,6 +90,33 @@ The `FolderTreePane` ports the Knowledge sidebar's right-click menu to the core,
 | `frontend/src/hooks/useCreateFile.ts` | `createFile()` now accepts an optional override path. The toolbar / Cmd+N call sites pass nothing and behave identically; the tree menu passes the row's path so the new file lands in that folder regardless of the URL location. |
 | `frontend/src/hooks/useFolderTreeQuery.ts` | Accepts `refreshKey?: number` as a fourth dimension of the cache key. Bumping it drops the cache and forces a refetch — the way the tree pane invalidates after a context-menu mutation. |
 | `frontend/src/messages-core/{ja,en}.json` | New keys: `folder.open`, `folder.newFileHere`, `folder.newFolderHere`, `folder.newFolderTitle`, `file.openInNewTab`. After editing, run `node frontend/scripts/merge-addon-messages.mjs` to regenerate `frontend/src/messages/{ja,en}.json`. |
+
+### Refresh synchronisation across panes (2026-05-09)
+
+Both the tree pane and the right pane subscribe to the same set of WebSocket events and bump their refresh key on any match. This replaces the previous siloed `refreshKey` model where a mutation in one pane left the other stale until something else triggered it.
+
+| Event | Emitted by |
+|---|---|
+| `files.created` | `POST /api/drives/{drive}/files` (text file create) |
+| `files.moved` | file rename / move (single + batch), folder rename / move when files are involved |
+| `files.deleted` | file trash (single + batch) |
+| `files.restored` | file restore from trash |
+| `files.recovered` | scanner finds a previously-missing file again, *and* `POST /api/drives/{drive}/files` recovery branch |
+| `files.purged` | file hard delete (single + batch + folder hard purge) |
+| `folders.created` | `POST /api/drives/{drive}/folders` |
+| `folders.deleted` | `DELETE /api/drives/{drive}/folders` (empty folder) |
+| `folders.moved` | `PUT /api/drives/{drive}/folders` (rename) and `PUT /api/drives/{drive}/folders/move` — emitted unconditionally so empty-folder rename/move is observable too |
+| `scan.complete` | scanner finished |
+
+| Path | Change |
+|---|---|
+| `backend/app/routers/drives.py` | New `event_hooks.emit_sync` calls in `create_folder`, `delete_folder`, `rename_folder`, `move_folder`, `create_text_file` (incl. the missing-file recovery branch which emits `files.recovered`). |
+| `backend/tests/test_folder_and_file_create_events.py` | New: asserts each emit fires once with the right payload, including a recovery test that verifies `files.recovered` (not `files.created`) is emitted on the missing-file UPSERT path. |
+| `frontend/src/hooks/useWebSocketRefresh.ts` | New helper hook. `useWebSocket(filter)` only takes a single string; this one accepts an array, deduplicates same-reference re-renders, and coalesces synchronous bursts into a single callback via a microtask. |
+| `frontend/src/components/folder/useFolderFiles.ts` | Subscribes to the structure-events list. Keeps the parent's `refreshKey` semantics and combines it with an internal `wsRefreshKey` so both signals drive the same refresh effect. |
+| `frontend/src/components/folder/FolderTreePane.tsx` | Subscribes to the same events and calls the existing `refresh` callback (which bumps the tree's `refreshKey` and re-fires `useFolderTreeQuery`). |
+
+Out of scope: targeted invalidation (refetching only the changed rows), optimistic UI updates, per-pane drive filtering of WS events (the manager already filters by drive group).
 
 ### Tree-pane drag-and-drop (2026-05-09)
 

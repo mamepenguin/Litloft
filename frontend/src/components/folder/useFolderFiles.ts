@@ -31,6 +31,25 @@ import type {
   SortOrder,
 } from "@/types";
 import { useInfiniteScroll } from "@/hooks/useInfiniteScroll";
+import { useWebSocketRefresh } from "@/hooks/useWebSocketRefresh";
+
+/**
+ * WS events that signal the file list (or folder list) might have
+ * changed. Both the right pane and the tree pane subscribe to the same
+ * set so they stay in sync after any structure-changing operation.
+ */
+const STRUCTURE_EVENTS = [
+  "files.created",
+  "files.moved",
+  "files.deleted",
+  "files.restored",
+  "files.recovered",
+  "files.purged",
+  "folders.created",
+  "folders.deleted",
+  "folders.moved",
+  "scan.complete",
+];
 
 interface UseFolderFilesParams {
   driveName: string;
@@ -355,9 +374,18 @@ export function useFolderFiles({
     prevResetKeyRef.current = key;
   }, [driveName, folderPath, view, tagFilter, typeFilter, sort, order, searchQuery, reset]);
 
-  // Refresh effect
+  // Refresh effect — driven by the parent's refreshKey *and* by an
+  // internal counter the WS subscription below bumps. Keeping the WS
+  // signal local to this hook means every consumer (FolderBrowser,
+  // RootFileListing, …) gets auto-sync without each parent threading
+  // WS plumbing.
+  const [wsRefreshKey, setWsRefreshKey] = useState(0);
+  useWebSocketRefresh(STRUCTURE_EVENTS, () => {
+    setWsRefreshKey((k) => k + 1);
+  });
+  const combinedRefreshKey = refreshKey + wsRefreshKey;
   useEffect(() => {
-    if (refreshKey === 0) return;
+    if (combinedRefreshKey === 0) return;
     if (!isSearch && !isSpecialView && !tagFilter) {
       getFolders(driveName, folderPath).then(setFolders).catch(() => setFolders([]));
     }
@@ -367,8 +395,8 @@ export function useFolderFiles({
       reset();
       clearListSnapshot();
     }
-  // eslint-disable-next-line react-hooks/exhaustive-deps -- intentionally triggered only by refreshKey
-  }, [refreshKey]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps -- intentionally triggered only by combinedRefreshKey
+  }, [combinedRefreshKey]);
 
   return {
     files, folders, total, loading, loadingMore, hasMore, pagesLoaded, sentinelRef,

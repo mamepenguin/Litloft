@@ -13,6 +13,24 @@ import { useInitialReveal } from "@/hooks/useInitialReveal";
 import { useTreeExpansion } from "@/hooks/useTreeExpansion";
 import { useTreeTextFilter } from "@/hooks/useTreeTextFilter";
 import { useTreeTypeFilter } from "@/hooks/useTreeTypeFilter";
+import { useWebSocketRefresh } from "@/hooks/useWebSocketRefresh";
+
+/**
+ * WS events that imply the folder tree's shape may have changed. The
+ * right pane subscribes to the same set inside `useFolderFiles`.
+ */
+const TREE_STRUCTURE_EVENTS = [
+  "files.created",
+  "files.moved",
+  "files.deleted",
+  "files.restored",
+  "files.recovered",
+  "files.purged",
+  "folders.created",
+  "folders.deleted",
+  "folders.moved",
+  "scan.complete",
+];
 import {
   buildFilteredRows,
   computeMatchTables,
@@ -165,6 +183,11 @@ export function FolderTreePane({
 
   const [refreshKey, setRefreshKey] = useState(0);
   const refresh = useCallback(() => setRefreshKey((k) => k + 1), []);
+
+  // Auto-refresh on any structural WS event so the tree stays in sync
+  // with mutations from the right pane, other clients, and the
+  // scanner. Spec 2026-05-09-tree-and-pane-refresh-sync.
+  useWebSocketRefresh(TREE_STRUCTURE_EVENTS, refresh);
 
   const pathsToLoad = useMemo(
     () => gatherPathsToLoad(expansion.expanded),
