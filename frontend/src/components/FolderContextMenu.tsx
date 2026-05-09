@@ -1,14 +1,24 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
-import { Move, Pencil, Pin, PinOff, Trash2 } from "lucide-react";
+import {
+  FilePlus,
+  FolderOpen,
+  FolderPlus,
+  Move,
+  Pencil,
+  Pin,
+  PinOff,
+  Trash2,
+} from "lucide-react";
 import { useTranslations } from "next-intl";
 
-import { deleteFolder, moveFolder, renameFolder } from "@/lib/api";
+import { createFolder, deleteFolder, moveFolder, renameFolder } from "@/lib/api";
 import type { Folder } from "@/types";
 import { ConfirmDialog } from "./ConfirmDialog";
 import { ContextMenu, type MenuItem } from "./ContextMenu";
 import { MoveDialog } from "./MoveDialog";
+import { NameInputDialog } from "./NameInputDialog";
 import { RenameDialog } from "./RenameDialog";
 
 interface FolderContextMenuProps {
@@ -20,6 +30,19 @@ interface FolderContextMenuProps {
   onTogglePin?: () => void;
   onUpdate?: () => void;
   onClose: () => void;
+  /**
+   * Tree-pane opt-ins. Each callback adds a corresponding menu item; the
+   * right pane (FolderContent / DriveHome) leaves them unset and the
+   * surface shape stays unchanged.
+   */
+  onOpen?: () => void;
+  onCreateFileHere?: () => void;
+  /**
+   * When provided, the menu shows "New folder here" and creates the
+   * folder via the core createFolder API. The callback is invoked after
+   * a successful creation so the caller can refresh its tree/list.
+   */
+  onCreateFolderHere?: () => void;
 }
 
 export function FolderContextMenu({
@@ -31,12 +54,16 @@ export function FolderContextMenu({
   onTogglePin,
   onUpdate,
   onClose,
+  onOpen,
+  onCreateFileHere,
+  onCreateFolderHere,
 }: FolderContextMenuProps) {
   const t = useTranslations("folder");
   const tc = useTranslations("common");
   const [renameOpen, setRenameOpen] = useState(false);
   const [moveOpen, setMoveOpen] = useState(false);
   const [deleteOpen, setDeleteOpen] = useState(false);
+  const [newFolderOpen, setNewFolderOpen] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
@@ -84,9 +111,45 @@ export function FolderContextMenu({
     }
   }, [drive, target, onUpdate, t]);
 
+  const handleNewFolder = useCallback(
+    async (name: string) => {
+      if (!target) return;
+      try {
+        await createFolder(drive, target.path, name);
+        setNewFolderOpen(false);
+        onCreateFolderHere?.();
+        if (onUpdate) onUpdate();
+      } catch {
+        setError(t("createFailed"));
+      }
+    },
+    [drive, target, onUpdate, onCreateFolderHere, t],
+  );
+
   if (!target) return null;
 
   const items: MenuItem[] = [];
+  if (onOpen) {
+    items.push({
+      icon: FolderOpen,
+      label: t("open"),
+      onClick: onOpen,
+    });
+  }
+  if (onCreateFileHere) {
+    items.push({
+      icon: FilePlus,
+      label: t("newFileHere"),
+      onClick: onCreateFileHere,
+    });
+  }
+  if (onCreateFolderHere) {
+    items.push({
+      icon: FolderPlus,
+      label: t("newFolderHere"),
+      onClick: () => setNewFolderOpen(true),
+    });
+  }
   if (onTogglePin) {
     items.push({
       icon: isPinned ? PinOff : Pin,
@@ -145,6 +208,16 @@ export function FolderContextMenu({
           confirmLabel={tc("delete")}
           onConfirm={handleDelete}
           onCancel={() => setDeleteOpen(false)}
+        />
+      )}
+      {newFolderOpen && (
+        <NameInputDialog
+          open={newFolderOpen}
+          title={t("newFolderTitle")}
+          placeholder={t("namePlaceholder")}
+          submitLabel={tc("create")}
+          onSubmit={handleNewFolder}
+          onCancel={() => setNewFolderOpen(false)}
         />
       )}
       {error && (

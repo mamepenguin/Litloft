@@ -121,4 +121,45 @@ describe("FolderContextMenu", () => {
     expect(screen.queryByText("Pin")).not.toBeInTheDocument();
     expect(screen.queryByText("Unpin")).not.toBeInTheDocument();
   });
+
+  describe("opt-in tree-pane items", () => {
+    it("does not render Open / New file here / New folder here by default", () => {
+      render(<FolderContextMenu {...makeProps()} />);
+      expect(screen.queryByText("Open")).not.toBeInTheDocument();
+      expect(screen.queryByText("New file here")).not.toBeInTheDocument();
+      expect(screen.queryByText("New folder here")).not.toBeInTheDocument();
+    });
+
+    it("renders Open and dispatches when clicked", async () => {
+      const onOpen = vi.fn();
+      render(<FolderContextMenu {...makeProps({ onOpen })} />);
+      fireEvent.click(screen.getByText("Open"));
+      await waitFor(() => expect(onOpen).toHaveBeenCalledTimes(1));
+    });
+
+    it("renders New file here and dispatches when clicked", async () => {
+      const onCreateFileHere = vi.fn();
+      render(<FolderContextMenu {...makeProps({ onCreateFileHere })} />);
+      fireEvent.click(screen.getByText("New file here"));
+      await waitFor(() =>
+        expect(onCreateFileHere).toHaveBeenCalledTimes(1),
+      );
+    });
+
+    it("renders New folder here and opens an inline name dialog", async () => {
+      const onCreateFolderHere = vi.fn();
+      render(
+        <FolderContextMenu {...makeProps({ onCreateFolderHere })} />,
+      );
+      fireEvent.click(screen.getByText("New folder here"));
+      // The component opens a NameInputDialog; we don't assert internals,
+      // only that the click is wired (the dialog itself is unit-tested
+      // separately).
+      await waitFor(() => {
+        expect(
+          screen.getByText(/New folder|newFolderTitle|新規フォルダ/),
+        ).toBeInTheDocument();
+      });
+    });
+  });
 });

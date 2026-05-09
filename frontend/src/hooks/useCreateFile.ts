@@ -7,7 +7,14 @@ import { useTranslations } from "next-intl";
 import { createTextFile } from "@/lib/api";
 
 interface UseCreateFileReturn {
-  createFile: () => Promise<void>;
+  /**
+   * Create a blank Markdown file. By default the file lands in the
+   * folder the hook was constructed with, but callers can override the
+   * path on a per-call basis (e.g. the tree pane's "new file here"
+   * context menu, where the row's path differs from the URL location).
+   * Pass an empty string to create at the drive root.
+   */
+  createFile: (targetPath?: string) => Promise<void>;
   isCreating: boolean;
 }
 
@@ -53,18 +60,18 @@ export function useCreateFile(drive: string, currentPath: string): UseCreateFile
   // the next React render.
   const inFlightRef = useRef(false);
 
-  const createFile = useCallback(async () => {
+  const createFile = useCallback(async (targetPath?: string) => {
     if (inFlightRef.current) return;
     inFlightRef.current = true;
     setIsCreating(true);
     try {
       const ts = formatTimestamp(new Date());
       const fileName = `untitled-${ts}.md`;
-      const path = currentPath ? `${currentPath}/${fileName}` : fileName;
+      const folder = targetPath ?? currentPath;
+      const path = folder ? `${folder}/${fileName}` : fileName;
       const file = await createTextFile(drive, { path, content: "" });
       router.push(`/files/${file.id}?edit=1`);
     } catch (err) {
-      // eslint-disable-next-line no-console
       console.error("createFile failed:", err);
       const msg = err instanceof Error ? err.message : "";
       const message = /\b403\b/.test(msg)

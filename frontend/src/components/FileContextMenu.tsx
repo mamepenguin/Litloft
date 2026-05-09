@@ -4,6 +4,7 @@ import { useCallback, useEffect, useState } from "react";
 import {
   ClipboardCopy,
   Download,
+  ExternalLink,
   ListMusic,
   Move,
   Pencil,
@@ -29,6 +30,13 @@ interface FileContextMenuProps {
   onClose: () => void;
   onUpdate?: () => void;
   onRemoveFromHistory?: () => Promise<void>;
+  /**
+   * Tree-pane opt-in. When provided the menu shows "Open in new tab"
+   * and dispatches the callback (typically `window.open('/files/{id}',
+   * '_blank')`). The right pane omits this since it already lives on
+   * the file's own page.
+   */
+  onOpenInNewTab?: () => void;
 }
 
 export function FileContextMenu({
@@ -38,6 +46,7 @@ export function FileContextMenu({
   onClose,
   onUpdate,
   onRemoveFromHistory,
+  onOpenInNewTab,
 }: FileContextMenuProps) {
   const tc = useTranslations("common");
   const tcb = useTranslations("clipboard");
@@ -110,7 +119,15 @@ export function FileContextMenu({
 
   if (!target) return null;
 
-  const items: MenuItem[] = [
+  const items: MenuItem[] = [];
+  if (onOpenInNewTab) {
+    items.push({
+      icon: ExternalLink,
+      label: tf("openInNewTab"),
+      onClick: onOpenInNewTab,
+    });
+  }
+  items.push(
     {
       icon: Download,
       label: tc("download"),
@@ -143,7 +160,7 @@ export function FileContextMenu({
       label: tc("move"),
       onClick: () => setMoveOpen(true),
     },
-  ];
+  );
 
   if (onRemoveFromHistory) {
     items.push({

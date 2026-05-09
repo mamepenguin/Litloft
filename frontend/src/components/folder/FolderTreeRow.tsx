@@ -24,11 +24,23 @@ interface FolderTreeRowProps {
   selected: boolean;
   onSelect: (row: FlatTreeRow) => void;
   onToggle: (row: FlatTreeRow) => void;
+  /**
+   * Optional right-click handler. When provided, the row swallows the
+   * browser context menu and bubbles a typed event up to the tree pane,
+   * which mounts the appropriate FileContextMenu / FolderContextMenu.
+   */
+  onContextMenu?: (row: FlatTreeRow, event: React.MouseEvent) => void;
 }
 
 const INDENT_PX = 12;
 
-export function FolderTreeRow({ row, selected, onSelect, onToggle }: FolderTreeRowProps) {
+export function FolderTreeRow({
+  row,
+  selected,
+  onSelect,
+  onToggle,
+  onContextMenu,
+}: FolderTreeRowProps) {
   const t = useTranslations("tree");
   const { node, depth, isExpanded, isLoading } = row;
   const isFolder = node.kind === "folder";
@@ -52,6 +64,15 @@ export function FolderTreeRow({ row, selected, onSelect, onToggle }: FolderTreeR
       role="button"
       tabIndex={0}
       onClick={() => onSelect(row)}
+      onContextMenu={
+        onContextMenu
+          ? (e) => {
+              e.preventDefault();
+              e.stopPropagation();
+              onContextMenu(row, e);
+            }
+          : undefined
+      }
       onKeyDown={(e) => {
         if (e.key === "Enter" || e.key === " ") {
           e.preventDefault();

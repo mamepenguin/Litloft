@@ -71,7 +71,11 @@
     "newFolder": "New Folder",
     "newFile": "New File",
     "createFileFailed": "Failed to create file",
-    "createFileForbidden": "This drive is not writable"
+    "createFileForbidden": "This drive is not writable",
+    "open": "Open",
+    "newFileHere": "New file here",
+    "newFolderHere": "New folder here",
+    "newFolderTitle": "New folder"
   },
   "exif": {
     "sectionTitle": "Photo Info",
@@ -115,6 +119,7 @@
     "galleryMode": "Gallery mode",
     "addToPlaylist": "Add to playlist",
     "removeFromHistory": "Remove from history",
+    "openInNewTab": "Open in new tab",
     "typeVideo": "Video",
     "typeImage": "Image",
     "typeAudio": "Audio",

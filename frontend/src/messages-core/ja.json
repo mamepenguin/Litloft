@@ -71,7 +71,11 @@
     "newFolder": "新規フォルダ",
     "newFile": "新規ファイル",
     "createFileFailed": "ファイルの作成に失敗しました",
-    "createFileForbidden": "このドライブには書き込めません"
+    "createFileForbidden": "このドライブには書き込めません",
+    "open": "開く",
+    "newFileHere": "ここに新規ファイル",
+    "newFolderHere": "ここに新規フォルダ",
+    "newFolderTitle": "新規フォルダ"
   },
   "exif": {
     "sectionTitle": "撮影情報",
@@ -115,6 +119,7 @@
     "galleryMode": "ギャラリーモード",
     "addToPlaylist": "プレイリストに追加",
     "removeFromHistory": "履歴から削除",
+    "openInNewTab": "新しいタブで開く",
     "typeVideo": "動画",
     "typeImage": "画像",
     "typeAudio": "音声",

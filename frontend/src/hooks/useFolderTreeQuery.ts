@@ -25,6 +25,12 @@ interface UseFolderTreeQueryOpts {
    * 2026-05-09 tree filter to evaluate matches deeper than the root.
    */
   flatLoad?: boolean;
+  /**
+   * Bump to force a cache drop and refetch (e.g. after a context-menu
+   * mutation renames / moves / deletes a node). Treated like a fourth
+   * dimension of the cache key.
+   */
+  refreshKey?: number;
 }
 
 interface UseFolderTreeQueryResult {
@@ -44,10 +50,10 @@ interface UseFolderTreeQueryResult {
  * those change the cache is dropped because counts and visibility differ.
  */
 export function useFolderTreeQuery(opts: UseFolderTreeQueryOpts): UseFolderTreeQueryResult {
-  const { drive, typeFilter, pathsToLoad, flatLoad = false } = opts;
+  const { drive, typeFilter, pathsToLoad, flatLoad = false, refreshKey = 0 } = opts;
   const [byPath, setByPath] = useState<Map<string, FetchState>>(new Map());
   const inflight = useRef<Map<string, AbortController>>(new Map());
-  const cacheKey = `${drive}::${typeFilter ?? ""}::${flatLoad ? "flat" : "lazy"}`;
+  const cacheKey = `${drive}::${typeFilter ?? ""}::${flatLoad ? "flat" : "lazy"}::${refreshKey}`;
   const cacheKeyRef = useRef(cacheKey);
 
   // Drop cache + cancel inflight when drive, typeFilter, or mode changes.

@@ -23,6 +23,39 @@ vi.mock("@/lib/api", () => ({
   getFile: (...args: unknown[]) => mockGetFile(...args),
   getStreamUrl: (id: string) => `/api/files/${id}/stream`,
   getThumbnailUrl: (id: string) => `/api/files/${id}/thumbnail`,
+  // Tree pane now mounts FolderContextMenu / FileContextMenu and reads
+  // pinned folders. The TwoPaneLayout tests don't exercise the menus.
+  // Use plain functions so afterEach's vi.restoreAllMocks() can't strip
+  // their resolved values mid-suite.
+  getPins: () => Promise.resolve([]),
+  addPin: () => Promise.resolve(undefined),
+  removePin: () => Promise.resolve(undefined),
+  createTextFile: () => Promise.resolve({}),
+  createFolder: () => Promise.resolve({}),
+  renameFolder: () => Promise.resolve({}),
+  moveFolder: () => Promise.resolve({}),
+  deleteFolder: () => Promise.resolve(undefined),
+  renameFile: () => Promise.resolve({}),
+  moveFile: () => Promise.resolve({}),
+  deleteFile: () => Promise.resolve(undefined),
+  getDownloadUrl: (id: string) => `/api/files/${id}/download`,
+}));
+
+// SidebarProvider is consumed by usePinnedFolders.
+vi.mock("@/components/SidebarProvider", () => ({
+  useSidebar: () => ({ requestRefresh: vi.fn() }),
+}));
+
+// Clipboard provider is consumed by FileContextMenu.
+vi.mock("@/components/ClipboardProvider", () => ({
+  useClipboard: () => ({
+    clipboard: null,
+    copy: vi.fn(),
+    cut: vi.fn(),
+    paste: vi.fn(),
+    clear: vi.fn(),
+    isCut: () => false,
+  }),
 }));
 
 vi.mock("@/components/FilePreview", () => ({

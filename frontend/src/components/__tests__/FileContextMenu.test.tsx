@@ -87,6 +87,22 @@ describe("FileContextMenu", () => {
     vi.clearAllMocks();
   });
 
+  describe("Open in new tab", () => {
+    it("does not render the item by default", () => {
+      render(<FileContextMenu {...makeProps()} />);
+      expect(screen.queryByText("Open in new tab")).not.toBeInTheDocument();
+    });
+
+    it("renders the item when onOpenInNewTab is provided and dispatches on click", async () => {
+      const onOpenInNewTab = vi.fn();
+      render(<FileContextMenu {...makeProps({ onOpenInNewTab })} />);
+      fireEvent.click(screen.getByText("Open in new tab"));
+      await waitFor(() =>
+        expect(onOpenInNewTab).toHaveBeenCalledTimes(1),
+      );
+    });
+  });
+
   it("renders nothing when closed", () => {
     const { container } = render(
       <FileContextMenu {...makeProps({ open: false })} />,

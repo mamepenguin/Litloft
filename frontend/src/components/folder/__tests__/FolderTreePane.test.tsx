@@ -4,6 +4,41 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 const mockGetFolderTree = vi.fn();
 vi.mock("@/lib/api", () => ({
   getFolderTree: (...args: unknown[]) => mockGetFolderTree(...args),
+  // Pin and mutation surfaces consumed by the new context menus on the
+  // tree rows. afterEach calls vi.restoreAllMocks() which would erase
+  // mockResolvedValue from a `vi.fn()`, so we use plain functions for
+  // anything that *must* return a promise.
+  getPins: () => Promise.resolve([]),
+  addPin: () => Promise.resolve(undefined),
+  removePin: () => Promise.resolve(undefined),
+  createTextFile: () => Promise.resolve({}),
+  createFolder: () => Promise.resolve({}),
+  renameFolder: () => Promise.resolve({}),
+  moveFolder: () => Promise.resolve({}),
+  deleteFolder: () => Promise.resolve(undefined),
+  renameFile: () => Promise.resolve({}),
+  moveFile: () => Promise.resolve({}),
+  deleteFile: () => Promise.resolve(undefined),
+  getDownloadUrl: (id: string) => `/api/files/${id}/download`,
+}));
+
+vi.mock("next/navigation", () => ({
+  useRouter: () => ({ push: vi.fn(), replace: vi.fn(), prefetch: vi.fn() }),
+}));
+
+vi.mock("@/components/SidebarProvider", () => ({
+  useSidebar: () => ({ requestRefresh: vi.fn() }),
+}));
+
+vi.mock("@/components/ClipboardProvider", () => ({
+  useClipboard: () => ({
+    clipboard: null,
+    copy: vi.fn(),
+    cut: vi.fn(),
+    paste: vi.fn(),
+    clear: vi.fn(),
+    isCut: () => false,
+  }),
 }));
 
 // jsdom doesn't compute layout, so @tanstack/react-virtual never marks

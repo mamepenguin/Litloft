@@ -5,6 +5,7 @@
 - [docs/superpowers/specs/2026-05-08-vault-core-merger-phase3.md](../superpowers/specs/2026-05-08-vault-core-merger-phase3.md) — two-pane layout (drive-level tree + content)
 - [docs/superpowers/specs/2026-05-09-folder-filter-and-tree-filter.md](../superpowers/specs/2026-05-09-folder-filter-and-tree-filter.md) — `<FilterField>` introduction, right-pane filter, tree filter (chips replacement)
 - [docs/superpowers/specs/2026-05-09-new-file-creation-core.md](../superpowers/specs/2026-05-09-new-file-creation-core.md) — Phase 4 new-file creation in Core (toolbar button + Cmd/Ctrl+N), backend mime-allowlist removal, suffix numbering on collision
+- [docs/superpowers/specs/2026-05-09-tree-context-menu.md](../superpowers/specs/2026-05-09-tree-context-menu.md) — tree-pane right-click menu (ports the Knowledge addon's row context menu to the core)
 
 **Scope:** the drive-level browser at `/drive/{drive}` and `/drive/{drive}/{path}`. Two-pane layout (folder tree on the left, content on the right), per-pane filter UIs, virtual scroll, the lazy / full-load tree fetch strategy, and the toolbar/shortcut surface for creating new folders and files in the current folder. The filter pair introduced in Phase 4 (right-pane in-folder filter + tree filter that replaces the old type-filter chips) and the new-file creation flow (also Phase 4) are the focus of this map.
 
@@ -72,6 +73,21 @@ For very large drives (10k+ files) this strategy is acceptable as a Phase 4 ceil
 | `frontend/src/lib/api.ts` (`createTextFile`) | Public wrapper over `POST /api/drives/{drive}/files` with body `{ path, content }`. Throws `ApiError` on non-2xx, returns the created `FileItem`. Replaces what was previously only available inside the knowledge addon. |
 | `frontend/src/hooks/useCreateFile.ts` | Mirrors `useCreateFolder`. Accepts `{ drive, currentPath }`, returns `{ createFile, isCreating }`. `createFile()` posts `untitled-{YYYYMMDD-HHMMSS}.md` to the current folder (drive root when `currentPath` is empty), then `router.push(/files/{id}?edit=1)`. Reentrancy-guarded by `isCreating`. Backend handles same-name collisions by suffixing `(1)`, `(2)`, etc., so the timestamped name is fire-and-forget. |
 | `frontend/src/hooks/__tests__/useCreateFile.test.ts` | Success, error path, drive-root vs nested folder. |
+
+### Tree-pane context menu (2026-05-09)
+
+The `FolderTreePane` ports the Knowledge sidebar's right-click menu to the core, reusing the existing `FolderContextMenu` and `FileContextMenu` (mounted by `FolderContent` / `DriveHome` for the right pane). The menus accept new opt-in callback props that the right pane leaves unset — call sites that don't pass them keep the original menu.
+
+| Path | Change |
+|---|---|
+| `frontend/src/components/folder/FolderTreeRow.tsx` | New optional `onContextMenu(row, event)` prop. The row swallows the browser context menu only when the prop is provided so the right pane's row (no menu wired) keeps the default behaviour. |
+| `frontend/src/components/folder/FolderTreePane.tsx` | Holds menu state (`{kind: "folder"\|"file", row, position}`), reads pin state via `usePinnedFolders(drive)`, drives `useCreateFile(drive, "")` for "new file here" (per-call path override), and bumps an internal `refreshKey` to force `useFolderTreeQuery` to refetch after a successful mutation. Stub-builds a `Folder` / `FileItem` from the tree node so the existing menus mutate without a metadata round-trip. |
+| `frontend/src/components/FolderContextMenu.tsx` | New optional props `onOpen`, `onCreateFileHere`, `onCreateFolderHere`. The "new folder here" item opens an inline `NameInputDialog`, calls `createFolder(drive, target.path, name)` on submit, then invokes `onCreateFolderHere?.()` for the caller to refresh. The right pane omits all three opt-ins; its surface is unchanged. |
+| `frontend/src/components/FileContextMenu.tsx` | New optional `onOpenInNewTab` prop. When provided, the menu shows "Open in new tab" above "Download". Right-pane callers (FileGrid, etc.) leave it unset. |
+| `frontend/src/components/NameInputDialog.tsx` | New: name-only input dialog mirroring `RenameDialog`. Used by "new folder here" inside `FolderContextMenu`; reusable for other "create with a name" flows. |
+| `frontend/src/hooks/useCreateFile.ts` | `createFile()` now accepts an optional override path. The toolbar / Cmd+N call sites pass nothing and behave identically; the tree menu passes the row's path so the new file lands in that folder regardless of the URL location. |
+| `frontend/src/hooks/useFolderTreeQuery.ts` | Accepts `refreshKey?: number` as a fourth dimension of the cache key. Bumping it drops the cache and forces a refetch — the way the tree pane invalidates after a context-menu mutation. |
+| `frontend/src/messages-core/{ja,en}.json` | New keys: `folder.open`, `folder.newFileHere`, `folder.newFolderHere`, `folder.newFolderTitle`, `file.openInNewTab`. After editing, run `node frontend/scripts/merge-addon-messages.mjs` to regenerate `frontend/src/messages/{ja,en}.json`. |
 
 ### New file creation — wired call sites
 

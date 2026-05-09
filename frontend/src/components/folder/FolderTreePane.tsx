@@ -1,9 +1,12 @@
 "use client";
 
 import { useVirtualizer } from "@tanstack/react-virtual";
-import { useEffect, useMemo, useRef } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useTranslations } from "next-intl";
 
+import { FileContextMenu } from "@/components/FileContextMenu";
+import { FolderContextMenu } from "@/components/FolderContextMenu";
+import { useCreateFile } from "@/hooks/useCreateFile";
 import { useFolderTreeQuery } from "@/hooks/useFolderTreeQuery";
 import { useInitialReveal } from "@/hooks/useInitialReveal";
 import { useTreeExpansion } from "@/hooks/useTreeExpansion";
@@ -15,10 +18,11 @@ import {
   groupByParent,
   type FilteredTreeRow,
 } from "@/lib/treeFilterTransform";
-import type { FolderTreeNode } from "@/types";
+import type { FileItem, Folder, FolderTreeNode } from "@/types";
 
 import { FilterField } from "./FilterField";
 import { FolderTreeRow, type FlatTreeRow } from "./FolderTreeRow";
+import { usePinnedFolders } from "./usePinnedFolders";
 
 interface FolderTreePaneProps {
   drive: string;
@@ -82,6 +86,59 @@ function gatherPathsToLoad(expanded: Set<string>): Set<string> {
   return paths;
 }
 
+/**
+ * Build a minimal {@link Folder} from a tree node so the existing
+ * {@link FolderContextMenu} can mutate it without us touching its
+ * surface. Fields the menu does not consume (`thumbnail_file_id`,
+ * `dominant_kind`, full `file_count` accuracy) are stubbed.
+ */
+function nodeToFolder(node: Extract<FolderTreeNode, { kind: "folder" }>): Folder {
+  return {
+    name: node.name,
+    path: node.path,
+    file_count: node.file_count,
+    thumbnail_file_id: null,
+    dominant_kind: null,
+  };
+}
+
+/**
+ * Build a minimal {@link FileItem} from a tree node so the existing
+ * {@link FileContextMenu} can mutate it without a metadata fetch. The
+ * menu only reads `id`, `filename`, `drive`, `folder_path` for its
+ * mutating actions; we leave the rest as safe defaults.
+ */
+function nodeToFile(
+  node: Extract<FolderTreeNode, { kind: "file" }>,
+  drive: string,
+): FileItem {
+  const folderPath = node.path.includes("/")
+    ? node.path.split("/").slice(0, -1).join("/")
+    : "";
+  return {
+    id: node.file_id,
+    filename: node.name,
+    title: node.name,
+    description: "",
+    drive,
+    folder_path: folderPath,
+    file_type: node.file_type,
+    mime_type: node.mime_type,
+    thumbnail_url: "",
+    has_thumbnail: false,
+    file_size: 0,
+    duration: null,
+    likes: 0,
+    is_favorite: false,
+    tags: [],
+    subtitles: [],
+    deleted_at: null,
+    missing_since: null,
+    created_at: "",
+    updated_at: "",
+  };
+}
+
 export function FolderTreePane({
   drive,
   selectedPath,
@@ -95,6 +152,7 @@ export function FolderTreePane({
   const expansion = useTreeExpansion(drive);
   const { filter, setFilter } = useTreeTypeFilter(drive);
   const text = useTreeTextFilter(drive, true);
+  const { pinnedPaths, handleTogglePin } = usePinnedFolders(drive);
 
   const filterActive = text.debouncedText.length > 0 || filter !== null;
 
@@ -103,6 +161,9 @@ export function FolderTreePane({
   // docs/superpowers/specs/2026-05-09-tree-pane-separated-interaction.md
   // and hako 1m4EhzyjWms6nUimi_0sO.
   useInitialReveal(currentFolderPath, expansion.expand);
+
+  const [refreshKey, setRefreshKey] = useState(0);
+  const refresh = useCallback(() => setRefreshKey((k) => k + 1), []);
 
   const pathsToLoad = useMemo(
     () => gatherPathsToLoad(expansion.expanded),
@@ -113,7 +174,40 @@ export function FolderTreePane({
     typeFilter: filter,
     pathsToLoad,
     flatLoad: filterActive,
+    refreshKey,
   });
+
+  // Tree-pane "new file here" creates a Markdown file at the row's path
+  // (not the URL location), then navigates to the editor. The hook owns
+  // its own in-flight latch so a second right-click while the first
+  // request is pending is a no-op.
+  const { createFile } = useCreateFile(drive, "");
+
+  // Both context menus are always mounted; only `open` and `target` flip
+  // when the user right-clicks a row. Conditionally rendering them would
+  // unmount the dialog state (renameOpen / moveOpen / ...) the moment the
+  // outer ContextMenu calls onClose right before invoking the menu item's
+  // handler, swallowing the click. The right pane (FolderContent) uses the
+  // same always-mounted pattern.
+  const [menuRow, setMenuRow] = useState<FlatTreeRow | null>(null);
+  const [menuPosition, setMenuPosition] = useState({ x: 0, y: 0 });
+  const [menuOpen, setMenuOpen] = useState(false);
+
+  const closeMenu = useCallback(() => setMenuOpen(false), []);
+
+  const handleContextMenu = useCallback(
+    (row: FlatTreeRow, event: React.MouseEvent) => {
+      setMenuRow(row);
+      setMenuPosition({ x: event.clientX, y: event.clientY });
+      setMenuOpen(true);
+    },
+    [],
+  );
+
+  const folderTarget =
+    menuRow?.node.kind === "folder" ? nodeToFolder(menuRow.node) : null;
+  const fileTarget =
+    menuRow?.node.kind === "file" ? nodeToFile(menuRow.node, drive) : null;
 
   const rootNodes = childrenByPath.get("") ?? [];
 
@@ -193,6 +287,41 @@ export function FolderTreePane({
         typeFilter={filter}
         onTypeFilterChange={setFilter}
       />
+      <FolderContextMenu
+        open={menuOpen && folderTarget !== null}
+        position={menuPosition}
+        target={folderTarget}
+        drive={drive}
+        isPinned={folderTarget ? pinnedPaths.has(folderTarget.path) : false}
+        onTogglePin={
+          folderTarget ? () => handleTogglePin(folderTarget.path) : undefined
+        }
+        onUpdate={refresh}
+        onClose={closeMenu}
+        onOpen={folderTarget ? () => onSelectFolder(folderTarget.path) : undefined}
+        onCreateFileHere={
+          folderTarget
+            ? () => {
+                void createFile(folderTarget.path);
+              }
+            : undefined
+        }
+        onCreateFolderHere={folderTarget ? refresh : undefined}
+      />
+      <FileContextMenu
+        open={menuOpen && fileTarget !== null}
+        position={menuPosition}
+        target={fileTarget}
+        onClose={closeMenu}
+        onUpdate={refresh}
+        onOpenInNewTab={
+          fileTarget
+            ? () => {
+                window.open(`/files/${fileTarget.id}`, "_blank");
+              }
+            : undefined
+        }
+      />
       <div ref={scrollRef} className="scrollbar-hover flex-1 overflow-y-auto py-2">
         {isRootLoading ? (
           <div className="px-3 py-4 text-xs text-text-muted">{t("loading")}</div>
@@ -236,6 +365,7 @@ export function FolderTreePane({
                     selected={isSelected}
                     onSelect={handleSelect}
                     onToggle={handleToggle}
+                    onContextMenu={handleContextMenu}
                   />
                 </div>
               );
