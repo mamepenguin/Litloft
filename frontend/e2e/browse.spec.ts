@@ -36,6 +36,20 @@ test.describe("Browse", () => {
   test("click file navigates to detail page", async ({ page }) => {
     test.skip(!hasFiles, "No files in drive");
 
+    // PR-5 of the right-pane spec made /files/{id} a 307 redirect to
+    // the canonical 2-pane URL when the tree pane is enabled. With
+    // the tree disabled the 2-pane wrapper never mounts, so we'd
+    // land on a folder view rather than a detail page. Seed the
+    // tree-enabled flag so the click lands on a real detail surface
+    // (RightPaneFile + FileDetailContent).
+    await page.addInitScript((d: string) => {
+      try {
+        localStorage.setItem(`tree:enabled:${d}`, "true");
+      } catch {
+        /* ignored */
+      }
+    }, driveName);
+
     await page.goto(`/drive/${encodeURIComponent(driveName)}`);
     await waitForApp(page);
 
@@ -44,10 +58,11 @@ test.describe("Browse", () => {
     await fileLink.waitFor({ timeout: 10_000 });
     await fileLink.click();
 
-    // Should navigate to file detail page
-    await page.waitForURL(/\/files\//, { timeout: 10_000 });
-    const title = page.locator("main h1");
-    await expect(title).toBeVisible();
+    // Either /files/{id} (e.g. playlist-exception fullscreen) or the
+    // canonical 2-pane URL with ?file=… is acceptable.
+    await page.waitForURL(/\/files\/|\?(?:.*&)?file=/, { timeout: 10_000 });
+    const title = page.locator("main h1").first();
+    await expect(title).toBeVisible({ timeout: 10_000 });
   });
 
   test("breadcrumb navigation works", async ({ page }) => {
