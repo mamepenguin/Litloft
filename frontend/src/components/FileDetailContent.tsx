@@ -76,6 +76,15 @@ interface FileDetailContentProps {
    * back to clearing ``?file=``.
    */
   onAfterDelete?: () => void;
+  /**
+   * Forwarded to ``FilePreview``: callback when video / audio playback
+   * ends. The playlist-exception fullscreen route uses this to
+   * advance to the next item; the 2-pane right pane omits it (playlist
+   * mode lives on the fullscreen route per §4.6).
+   */
+  onEnded?: () => void;
+  /** Forwarded to ``FilePreview``: kick off playback on mount. */
+  autoPlay?: boolean;
 }
 
 /**
@@ -108,6 +117,8 @@ export function FileDetailContent({
   miniPlayerRoot,
   onRequestImageGallery,
   onAfterDelete,
+  onEnded,
+  autoPlay,
 }: FileDetailContentProps) {
   const t = useTranslations("file");
   const tc = useTranslations("common");
@@ -223,6 +234,8 @@ export function FileDetailContent({
         markdownReloadKey={tagSaveVersion}
         onMarkdownTagsSaved={handleTagsSaved}
         miniPlayerRoot={miniPlayerRoot}
+        onEnded={onEnded}
+        autoPlay={autoPlay}
       />
 
       <div className="mt-4">

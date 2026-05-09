@@ -1,442 +1,110 @@
-"use client";
+import { redirect, notFound } from "next/navigation";
+import { cookies } from "next/headers";
 
-import { useCallback, useEffect, useRef, useState } from "react";
-import { useParams, useRouter, useSearchParams } from "next/navigation";
-import { ArrowLeft, ChevronLeft, ChevronRight, Maximize2, Check, X, ThumbsUp, ThumbsDown } from "lucide-react";
+import { FileDetailFullScreen } from "@/components/FileDetailFullScreen";
+import type { FileItem } from "@/types";
 
-import { useTranslations } from "next-intl";
-import { getFile, getFileNeighbors, updateFile, likeFile, dislikeFile, recordFileView } from "@/lib/api";
-import { addRecentlyPlayed } from "@/lib/recentlyPlayed";
-import { formatDuration, formatFileSize } from "@/lib/format";
-import type { FileItem, Neighbors } from "@/types";
-import { FilePreview } from "@/components/FilePreview";
-import { FavoriteButton } from "@/components/FavoriteButton";
-import { EditableTagChips } from "@/components/EditableTagChips";
-import { FileActions } from "@/components/FileActions";
-import { CommentSection } from "@/components/CommentSection";
-import { ImageGallery } from "@/components/ImageGallery";
-import { PlaylistPanel, getPlaylistOnEnded } from "@/components/PlaylistPanel";
-import { CastButton } from "@/components/CastButton";
-import { AddonSlot } from "@/components/AddonSlot";
-import { ActiveSummaryHost } from "@/components/ActiveSummaryHost";
-import { RelatedFilesSection } from "@/components/RelatedFilesSection";
-import { ExifSection } from "@/components/ExifSection";
-import { useSetOverrideDrive } from "@/components/CurrentDriveProvider";
-import { useOverlaySidebar, useSidebar } from "@/components/SidebarProvider";
-import { useShortcuts } from "@/hooks/useShortcuts";
-import type { MediaController } from "@/lib/mediaController";
+/**
+ * PR-5 of the right-pane full-detail merger spec
+ * (docs/superpowers/specs/2026-05-09-right-pane-full-detail.md, hako
+ * HI8TFfXzwyPVtgBqlR6P1, §4.7).
+ *
+ * Two paths through this Server Component:
+ *
+ * 1. ``?playlist=`` / ``?folder_play=1`` is set → render the legacy
+ *    fullscreen surface via FileDetailFullScreen. Playlist mode is
+ *    intentionally 2-pane-exempt (§4.6) — the PlaylistPanel and the
+ *    player share the same column, which the right pane can't host
+ *    cleanly.
+ *
+ * 2. Otherwise → 307 redirect to the canonical 2-pane URL
+ *    ``/drive/{drive}/{folder}?file={id}``. ``redirect()`` from
+ *    ``next/navigation`` returns 307 by default (Reality Checker B2:
+ *    the spec previously claimed 302; the actual status is 307,
+ *    which is fine for our use case — file moves invalidate the
+ *    redirect target so we don't want 308/permanent caching).
+ *
+ * Internal links (PropertiesPanel, RelatedFiles, MarkdownPreview wiki
+ * links, MatchOverlay, etc., 16+ sites) keep using ``/files/{id}`` —
+ * they land here, get redirected to the canonical URL, and end up in
+ * the correct 2-pane host without any link-site changes.
+ */
 
-export default function FilePage() {
-  useOverlaySidebar();
-  const { requestRefresh: refreshSidebar } = useSidebar();
-  const t = useTranslations("file");
-  const tc = useTranslations("common");
-  const tsc = useTranslations("shortcuts");
-  const params = useParams();
-  const router = useRouter();
-  const searchParams = useSearchParams();
-  const fileId = params.id as string;
+async function fetchFile(id: string): Promise<FileItem | null> {
+  // Use the Docker-internal backend URL directly from the Server
+  // Component — same pattern as src/app/page.tsx's fetchDrives.
+  const cookieStore = await cookies();
+  const accessToken = cookieStore.get("access_token");
 
-  const sort = searchParams.get("sort") || undefined;
-  const order = searchParams.get("order") || undefined;
-  const playlistId = searchParams.get("playlist") || undefined;
-  const folderPlay = searchParams.get("folder_play") === "1";
-  const hasPlaylist = !!playlistId || folderPlay;
-  const initialTime = searchParams.get("t") ? Number(searchParams.get("t")) : undefined;
-  const initialPageParam = searchParams.get("page");
-  const initialPage = initialPageParam ? Number(initialPageParam) : undefined;
-  const highlight = searchParams.get("highlight") || undefined;
+  const headers: HeadersInit = {};
+  if (accessToken) {
+    headers["Cookie"] = `access_token=${accessToken.value}`;
+  }
 
-  const [file, setFile] = useState<FileItem | null>(null);
-  const [neighbors, setNeighbors] = useState<Neighbors | null>(null);
-  const [editing, setEditing] = useState(false);
-  const [editTitle, setEditTitle] = useState("");
-  const [editDesc, setEditDesc] = useState("");
-  const [saving, setSaving] = useState(false);
-  const [galleryOpen, setGalleryOpen] = useState(false);
-  // Bumped after every tag save (from either the outer File.tags chip
-  // row or the .md Properties Panel chip row). The .md MarkdownFileViewer
-  // watches this to refetch ``source`` so its frontmatter display
-  // matches the server-projected state. For non-.md files this is
-  // unused but harmless.
-  const [tagSaveVersion, setTagSaveVersion] = useState(0);
-  const videoRef = useRef<HTMLVideoElement>(null);
-  // Decoupled from videoRef on purpose: LoftRef (YouTube) supplies its
-  // own MediaController via FilePreview's onMediaController callback,
-  // and the underlying playback element is an iframe — there is no
-  // HTMLVideoElement to point a ref at. AddonSlot consumers (citation
-  // jump etc.) should prefer mediaController and fall back to videoRef.
-  const [mediaController, setMediaController] =
-    useState<MediaController | null>(null);
-  const setOverrideDrive = useSetOverrideDrive();
-
-  useEffect(() => {
-    setNeighbors(null);
-    getFile(fileId).then((f) => {
-      setFile(f);
-      setEditTitle(f.title);
-      setEditDesc(f.description);
-      setOverrideDrive(f.drive);
-      addRecentlyPlayed(fileId);
-      // Server-side mirror of the localStorage record so personal_history
-      // (Ask Stage B) can find non-media files. Fire-and-forget.
-      recordFileView(fileId);
-      if (!hasPlaylist && f.file_type !== "archive") {
-        getFileNeighbors(fileId, sort, order)
-          .then(setNeighbors)
-          .catch(() => setNeighbors(null));
-      }
-    });
-    return () => setOverrideDrive(null);
-  }, [fileId, sort, order, setOverrideDrive, hasPlaylist]);
-
-  const buildNavUrl = useCallback(
-    (id: string) => {
-      const params = new URLSearchParams();
-      if (playlistId) params.set("playlist", playlistId);
-      if (folderPlay) params.set("folder_play", "1");
-      if (sort) params.set("sort", sort);
-      if (order) params.set("order", order);
-      const qs = params.toString();
-      return `/files/${id}${qs ? `?${qs}` : ""}`;
+  const res = await fetch(
+    `http://backend:8000/api/files/${encodeURIComponent(id)}`,
+    {
+      cache: "no-store",
+      headers,
     },
-    [playlistId, folderPlay, sort, order]
   );
+  if (!res.ok) return null;
+  return res.json();
+}
 
-  const navigatePrev = useCallback(() => {
-    if (neighbors?.prev_id) router.replace(buildNavUrl(neighbors.prev_id));
-  }, [neighbors, router, buildNavUrl]);
+const CARRIED_QUERY_KEYS = ["t", "page", "highlight", "sort", "order"] as const;
 
-  const navigateNext = useCallback(() => {
-    if (neighbors?.next_id) router.replace(buildNavUrl(neighbors.next_id));
-  }, [neighbors, router, buildNavUrl]);
+function buildCanonicalUrl(
+  file: FileItem,
+  fileId: string,
+  sp: Record<string, string | string[] | undefined>,
+): string {
+  const carried = new URLSearchParams();
+  carried.set("file", fileId);
+  for (const key of CARRIED_QUERY_KEYS) {
+    const v = sp[key];
+    if (typeof v === "string" && v.length > 0) {
+      carried.set(key, v);
+    }
+  }
+  const drivePart = encodeURIComponent(file.drive);
+  const folderPart = file.folder_path
+    ? "/" +
+      file.folder_path
+        .split("/")
+        .filter(Boolean)
+        .map(encodeURIComponent)
+        .join("/")
+    : "";
+  return `/drive/${drivePart}${folderPart}?${carried.toString()}`;
+}
 
-  const handlePlaylistNavigate = useCallback(
-    (nextFileId: string) => {
-      router.replace(buildNavUrl(nextFileId));
-    },
-    [router, buildNavUrl]
-  );
+interface PageProps {
+  params: Promise<{ id: string }>;
+  searchParams: Promise<Record<string, string | string[] | undefined>>;
+}
 
-  const handleMediaEnded = useCallback(() => {
-    const onEnded = getPlaylistOnEnded();
-    if (onEnded) onEnded();
-  }, []);
+export default async function FileRoute({ params, searchParams }: PageProps) {
+  const { id } = await params;
+  const sp = await searchParams;
 
-  // Called when either chip row's debounced save lands. Keeps both
-  // surfaces on the page in sync with the backend's post-projection
-  // state (Phase 11 makes core rewrite File.tags synchronously on
-  // .md content PUT):
-  //   - getFile() refreshes file.tags so the outer chip row shows
-  //     what the server actually persisted (handles reformats,
-  //     silent-drop of invalid tags, etc.).
-  //   - bumping tagSaveVersion forces MarkdownFileViewer to refetch
-  //     ``source`` so the Properties Panel's frontmatter display
-  //     matches disk.
-  //   - refreshSidebar() updates the drive-wide tag list.
-  const handleTagsSaved = useCallback(() => {
-    getFile(fileId)
-      .then(setFile)
-      .catch(() => {
-        // Swallow — the optimistic state in each chip is still
-        // correct, and the next navigation will refetch anyway.
-      });
-    setTagSaveVersion((v) => v + 1);
-    refreshSidebar();
-  }, [fileId, refreshSidebar]);
-
-  // Arrow-key file navigation: active only for non-media, non-loft files.
-  // Video/audio use these keys for seeking; loft-player registers its own.
-  const fileNavEnabled =
-    !!file && !!neighbors &&
-    file.file_type !== "video" && file.file_type !== "audio" &&
-    file.mime_type !== "application/vnd.litloft.loft+json";
-
-  useShortcuts("file-nav", tsc("fileBrowser"), [
-    { key: "arrowleft",  label: tsc("prevFile"), handler: navigatePrev },
-    { key: "arrowright", label: tsc("nextFile"), handler: navigateNext },
-  ], fileNavEnabled);
-
-  async function handleLike() {
-    if (!file) return;
-    const updated = await likeFile(file.id);
-    setFile(updated);
+  // Playlist mode: stay on /files/{id} as the legacy fullscreen
+  // surface. We still render <FileDetailContent> internally — the
+  // right pane equivalence applies to the body, not the surrounding
+  // chrome (PlaylistPanel + back button + overlay sidebar).
+  const hasPlaylist =
+    typeof sp.playlist === "string" || sp.folder_play === "1";
+  if (hasPlaylist) {
+    return <FileDetailFullScreen fileId={id} />;
   }
 
-  async function handleDislike() {
-    if (!file) return;
-    const updated = await dislikeFile(file.id);
-    setFile(updated);
-  }
+  // Resolve the file's drive + folder_path so we can hand the user
+  // the canonical 2-pane URL. Failure surfaces as 404 — the legacy
+  // page also failed gracefully with a loading-then-blank state, but
+  // a hard 404 is a better signal here since the route's only job
+  // is redirection.
+  const file = await fetchFile(id);
+  if (!file) notFound();
 
-  async function handleSave() {
-    if (!file) return;
-    setSaving(true);
-    const updated = await updateFile(file.id, {
-      title: editTitle,
-      description: editDesc,
-    });
-    setFile(updated);
-    setEditing(false);
-    setSaving(false);
-  }
-
-  if (!file) {
-    return (
-      <div className="flex flex-1 items-center justify-center">
-        <div className="h-8 w-8 animate-spin rounded-full border-2 border-accent border-t-transparent" />
-      </div>
-    );
-  }
-
-  const hasDuration = (file.file_type === "video" || file.file_type === "audio") && file.duration != null;
-  const isVideoTheater = hasPlaylist && file.file_type === "video";
-  const isAudioSide = hasPlaylist && file.file_type !== "video";
-
-  return (
-    <div className={`mx-auto w-full flex-1 px-4 py-6 ${hasPlaylist ? "max-w-6xl" : "max-w-5xl"}`}>
-      <div className="mb-4">
-        <button
-          onClick={() => {
-            if (window.history.length > 1) {
-              router.back();
-            } else {
-              const backPath = file.folder_path
-                ? `/drive/${encodeURIComponent(file.drive)}/${file.folder_path}`
-                : `/drive/${encodeURIComponent(file.drive)}`;
-              router.push(backPath);
-            }
-          }}
-          className="inline-flex cursor-pointer items-center gap-1 text-sm text-text-muted hover:text-text-primary"
-        >
-          <ArrowLeft size={16} />
-          {t("backTo", { name: file.folder_path
-            ? file.folder_path.split("/").pop()!
-            : file.drive
-          })}
-        </button>
-      </div>
-
-      <div className={`${isAudioSide ? "flex flex-col gap-4 md:flex-row" : ""}`}>
-        <div className={`${isAudioSide ? "min-w-0 flex-1" : ""}`}>
-          <div className="group/nav relative">
-            <FilePreview
-              file={file}
-              onEnded={hasPlaylist ? handleMediaEnded : undefined}
-              autoPlay={hasPlaylist}
-              videoRef={videoRef}
-              initialTime={initialTime}
-              initialPage={initialPage}
-              highlight={highlight}
-              onMediaController={setMediaController}
-              markdownReloadKey={tagSaveVersion}
-              onMarkdownTagsSaved={handleTagsSaved}
-            />
-
-            {fileNavEnabled && !hasPlaylist && neighbors?.prev_id && (
-              <button
-                onClick={navigatePrev}
-                className="absolute top-1/2 left-2 -translate-y-1/2 rounded-full bg-black/50 p-2 text-white opacity-70 transition-opacity hover:opacity-100 sm:opacity-0 sm:group-hover/nav:opacity-70 sm:group-hover/nav:hover:opacity-100"
-                aria-label={t("prevFile")}
-              >
-                <ChevronLeft size={24} />
-              </button>
-            )}
-
-            {fileNavEnabled && !hasPlaylist && neighbors?.next_id && (
-              <button
-                onClick={navigateNext}
-                className="absolute top-1/2 right-2 -translate-y-1/2 rounded-full bg-black/50 p-2 text-white opacity-70 transition-opacity hover:opacity-100 sm:opacity-0 sm:group-hover/nav:opacity-70 sm:group-hover/nav:hover:opacity-100"
-                aria-label={t("nextFile")}
-              >
-                <ChevronRight size={24} />
-              </button>
-            )}
-          </div>
-
-          <div className="mt-4">
-            {editing ? (
-              <div className="space-y-3">
-                <input
-                  type="text"
-                  value={editTitle}
-                  onChange={(e) => setEditTitle(e.target.value)}
-                  className="w-full rounded-lg bg-bg-card px-3 py-2 text-lg font-bold text-text-primary outline-none focus:ring-2 focus:ring-accent"
-                />
-                <textarea
-                  value={editDesc}
-                  onChange={(e) => setEditDesc(e.target.value)}
-                  placeholder={t("addDescription")}
-                  rows={3}
-                  className="w-full rounded-lg bg-bg-card px-3 py-2 text-sm text-text-primary outline-none focus:ring-2 focus:ring-accent"
-                />
-                <div className="flex gap-2">
-                  <button
-                    onClick={handleSave}
-                    disabled={saving}
-                    className="flex items-center gap-1 rounded-2xl bg-accent px-3 py-1.5 text-sm font-medium text-white hover:bg-accent-hover disabled:opacity-50"
-                  >
-                    <Check size={14} />
-                    {tc("save")}
-                  </button>
-                  <button
-                    onClick={() => {
-                      setEditing(false);
-                      setEditTitle(file.title);
-                      setEditDesc(file.description);
-                    }}
-                    className="flex items-center gap-1 rounded-lg bg-bg-card px-3 py-1.5 text-sm text-text-muted hover:text-text-primary"
-                  >
-                    <X size={14} />
-                    {tc("cancel")}
-                  </button>
-                </div>
-              </div>
-            ) : (
-              <div>
-                <h1 className="text-xl font-bold text-text-primary">
-                  {file.title}
-                </h1>
-                {(hasDuration || file.description) && (
-                  <div className="mt-1 text-xs text-text-muted">
-                    {hasDuration && <span>{formatDuration(file.duration)} · </span>}
-                    <span>{formatFileSize(file.file_size)}</span>
-                    {file.description && (
-                      <p className="mt-1 text-sm whitespace-pre-wrap">
-                        {file.description}
-                      </p>
-                    )}
-                  </div>
-                )}
-                {!hasDuration && !file.description && (
-                  <p className="mt-1 text-xs text-text-muted">{formatFileSize(file.file_size)}</p>
-                )}
-                <div className="mt-2 flex items-center gap-1">
-                  <div className="flex items-center overflow-hidden rounded-full bg-bg-card">
-                    <button
-                      onClick={handleLike}
-                      className="px-2.5 py-1.5 text-sm text-text-muted transition-colors hover:text-text-primary"
-                      aria-label="Like"
-                    >
-                      <ThumbsUp size={16} />
-                    </button>
-                    <span className="min-w-[1.5rem] text-center text-sm text-text-muted">{file.likes}</span>
-                    <button
-                      onClick={handleDislike}
-                      className="px-2.5 py-1.5 text-sm text-text-muted transition-colors hover:text-text-primary"
-                      aria-label="Dislike"
-                    >
-                      <ThumbsDown size={16} />
-                    </button>
-                  </div>
-                  <FavoriteButton
-                    fileId={file.id}
-                    isFavorite={file.is_favorite}
-                    onToggle={setFile}
-                    showLabel
-                  />
-                  {file.file_type === "image" && (
-                    <button
-                      onClick={() => setGalleryOpen(true)}
-                      className="rounded-lg p-2 text-text-muted hover:bg-bg-card hover:text-text-primary"
-                      aria-label={t("galleryMode")}
-                    >
-                      <Maximize2 size={16} />
-                    </button>
-                  )}
-                  {file.file_type === "video" && (
-                    <CastButton mediaRef={videoRef} />
-                  )}
-                  <FileActions
-                    file={file}
-                    onUpdate={() => getFile(fileId).then(setFile)}
-                    onDelete={() => {
-                      const backPath = file.folder_path
-                        ? `/drive/${encodeURIComponent(file.drive)}/${file.folder_path}`
-                        : `/drive/${encodeURIComponent(file.drive)}`;
-                      router.push(backPath);
-                    }}
-                    onEdit={() => setEditing(true)}
-                  />
-                </div>
-                <div className="mt-3">
-                  <EditableTagChips
-                    file={file}
-                    initialTags={file.tags}
-                    onTagsChange={(nextTags) => {
-                      // Optimistic local update only — the sidebar
-                      // refresh waits until the debounced save lands
-                      // so rapid chip edits don't thrash the drive
-                      // tag list between pre-save optimistic states.
-                      setFile((prev) =>
-                        prev ? { ...prev, tags: nextTags } : prev,
-                      );
-                    }}
-                    onSaveSuccess={handleTagsSaved}
-                  />
-                </div>
-              </div>
-            )}
-          </div>
-
-          {/* Addon file detail sections (transcript, clip frames, index details, similar files) */}
-          <div className="mt-4 space-y-4">
-            <ActiveSummaryHost fileId={fileId} drive={file.drive} />
-            <RelatedFilesSection fileId={fileId} />
-            <ExifSection fileId={fileId} fileType={file.file_type} />
-            <AddonSlot
-              id="file-detail-sections"
-              layout="stack"
-              props={{ fileId, drive: file.drive, videoRef, mediaController, subtitles: file.subtitles }}
-            />
-          </div>
-
-          <CommentSection fileId={fileId} />
-
-          {/* Video theater: playlist below */}
-          {isVideoTheater && (
-            <PlaylistPanel
-              playlistId={playlistId}
-              folderPlay={folderPlay}
-              currentFileId={fileId}
-              currentFileType={file.file_type}
-              drive={file.drive}
-              folderPath={file.folder_path}
-              sort={sort}
-              order={order}
-              onNavigate={handlePlaylistNavigate}
-            />
-          )}
-        </div>
-
-        {/* Audio side panel */}
-        {isAudioSide && (
-          <PlaylistPanel
-            playlistId={playlistId}
-            folderPlay={folderPlay}
-            currentFileId={fileId}
-            currentFileType={file.file_type}
-            drive={file.drive}
-            folderPath={file.folder_path}
-            sort={sort}
-            order={order}
-            onNavigate={handlePlaylistNavigate}
-          />
-        )}
-      </div>
-
-      <ImageGallery
-        open={galleryOpen}
-        file={file}
-        sort={sort}
-        order={order}
-        onClose={(currentFileId) => {
-          setGalleryOpen(false);
-          if (currentFileId && currentFileId !== fileId) {
-            router.replace(buildNavUrl(currentFileId));
-          }
-        }}
-      />
-    </div>
-  );
+  redirect(buildCanonicalUrl(file, id, sp));
 }
