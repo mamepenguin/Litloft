@@ -43,7 +43,7 @@ interface FolderTreePaneProps {
   onSelectFile: (fileId: string, path: string) => void;
 }
 
-const ROW_HEIGHT = 28;
+const ROW_HEIGHT = 32;
 
 function buildFlatList(
   rootNodes: FolderTreeNode[],
@@ -185,7 +185,7 @@ export function FolderTreePane({
   };
 
   return (
-    <div className="flex h-full flex-col border-r border-bg-border bg-bg-sidebar">
+    <div className="flex h-full flex-col border-r border-bg-border bg-bg-card">
       <FilterField
         text={text.text}
         onTextChange={(next) => text.setText(next)}
@@ -193,7 +193,7 @@ export function FolderTreePane({
         typeFilter={filter}
         onTypeFilterChange={setFilter}
       />
-      <div ref={scrollRef} className="scrollbar-hover flex-1 overflow-y-auto">
+      <div ref={scrollRef} className="scrollbar-hover flex-1 overflow-y-auto py-2">
         {isRootLoading ? (
           <div className="px-3 py-4 text-xs text-text-muted">{t("loading")}</div>
         ) : isFilterEmpty ? (

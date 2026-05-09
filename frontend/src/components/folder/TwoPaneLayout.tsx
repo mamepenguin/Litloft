@@ -78,11 +78,11 @@ export function TwoPaneLayout({ drive, folderPath, children }: TwoPaneLayoutProp
   const selectedTreePath = hasFile ? null : folderPath || null;
 
   return (
-    <div className="flex min-h-[calc(100dvh-4rem)] w-full">
+    <div className="flex h-[calc(100dvh-3.5rem)] w-full overflow-hidden">
       <aside
         className={`${
           hasFile ? "hidden md:flex" : "flex"
-        } w-full flex-col md:w-[280px] md:flex-shrink-0`}
+        } h-full w-full flex-col md:w-[280px] md:flex-shrink-0`}
         aria-label="Folder tree"
       >
         <div className="flex items-center justify-end border-b border-bg-border p-1 md:hidden">
@@ -104,7 +104,9 @@ export function TwoPaneLayout({ drive, folderPath, children }: TwoPaneLayoutProp
           onSelectFile={handleSelectFile}
         />
       </aside>
-      <section className={`${hasFile ? "flex" : "hidden md:flex"} min-w-0 flex-1 flex-col`}>
+      <section
+        className={`${hasFile ? "flex" : "hidden md:flex"} scrollbar-hover h-full min-w-0 flex-1 flex-col overflow-y-auto`}
+      >
         {hasFile && fileId ? <RightPaneFile fileId={fileId} /> : children}
         {!hasFile && <span className="sr-only">{t("noSelection")}</span>}
       </section>

@@ -1,6 +1,6 @@
 "use client";
 
-import { ChevronDown, ChevronRight } from "lucide-react";
+import { ChevronDown, ChevronRight, Folder } from "lucide-react";
 import { useTranslations } from "next-intl";
 
 import { FileTypeIcon } from "@/components/FileTypeIcon";
@@ -26,8 +26,7 @@ interface FolderTreeRowProps {
   onToggle: (row: FlatTreeRow) => void;
 }
 
-const INDENT_PX = 16;
-const CHEVRON_HIT_PX = 24;
+const INDENT_PX = 12;
 
 export function FolderTreeRow({ row, selected, onSelect, onToggle }: FolderTreeRowProps) {
   const t = useTranslations("tree");
@@ -36,11 +35,11 @@ export function FolderTreeRow({ row, selected, onSelect, onToggle }: FolderTreeR
   const hasChildren = isFolder && node.has_children;
   const padLeft = depth * INDENT_PX;
 
-  const baseClass =
-    "flex w-full items-center gap-1 pr-2 text-left text-sm transition-colors";
   const stateClass = selected
-    ? "bg-accent/15 text-text-primary"
-    : "text-text-muted hover:bg-bg-elevated hover:text-text-primary";
+    ? isFolder
+      ? "bg-bg-elevated font-medium text-text-primary"
+      : "bg-accent/15 text-text-primary"
+    : "text-text-primary hover:bg-bg-elevated";
   const ancestorClass = row.isAncestor ? "opacity-60" : "";
 
   const handleChevronClick = (e: React.MouseEvent) => {
@@ -59,7 +58,7 @@ export function FolderTreeRow({ row, selected, onSelect, onToggle }: FolderTreeR
           onSelect(row);
         }
       }}
-      className={`${baseClass} ${stateClass} ${ancestorClass}`.trim()}
+      className={`mx-2 flex items-center gap-1 rounded-md pr-2 text-left text-sm transition-colors ${stateClass} ${ancestorClass}`.trim()}
       style={{ paddingLeft: padLeft }}
       data-state={row.isAncestor ? "ancestor" : undefined}
       aria-current={selected ? "true" : undefined}
@@ -74,26 +73,28 @@ export function FolderTreeRow({ row, selected, onSelect, onToggle }: FolderTreeR
           onClick={handleChevronClick}
           aria-label={isExpanded ? t("collapse") : t("expand")}
           aria-expanded={isExpanded}
-          className="flex flex-shrink-0 items-center justify-center text-text-muted hover:text-text-primary"
-          style={{ width: CHEVRON_HIT_PX, height: CHEVRON_HIT_PX }}
+          className="flex h-7 w-6 flex-shrink-0 items-center justify-center text-text-muted hover:text-text-primary"
         >
           {isExpanded ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
         </button>
       ) : (
-        <span
-          aria-hidden
-          className="flex flex-shrink-0 items-center justify-center"
-          style={{ width: CHEVRON_HIT_PX, height: CHEVRON_HIT_PX }}
-        />
+        <span aria-hidden className="flex h-7 w-6 flex-shrink-0" />
       )}
       <span className="flex h-4 w-4 flex-shrink-0 items-center justify-center">
         {isFolder ? (
-          <span aria-hidden className="text-base leading-none">📁</span>
+          <Folder
+            size={14}
+            className={`flex-shrink-0 ${selected ? "text-accent" : "text-accent/70"}`}
+          />
         ) : (
-          <FileTypeIcon fileType={node.file_type} size={14} />
+          <FileTypeIcon
+            fileType={node.file_type}
+            size={14}
+            className={selected ? "text-accent" : "text-text-muted"}
+          />
         )}
       </span>
-      <span className="flex-1 truncate">{node.name}</span>
+      <span className="flex-1 truncate py-1.5">{node.name}</span>
       {isFolder && (
         <span className="ml-1 flex-shrink-0 text-xs text-text-muted">
           {isLoading ? t("loading") : node.file_count > 0 ? node.file_count : ""}
