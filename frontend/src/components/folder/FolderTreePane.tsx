@@ -5,6 +5,7 @@ import { useEffect, useMemo, useRef } from "react";
 import { useTranslations } from "next-intl";
 
 import { useFolderTreeQuery } from "@/hooks/useFolderTreeQuery";
+import { useInitialReveal } from "@/hooks/useInitialReveal";
 import { useTreeExpansion } from "@/hooks/useTreeExpansion";
 import { useTreeTextFilter } from "@/hooks/useTreeTextFilter";
 import { useTreeTypeFilter } from "@/hooks/useTreeTypeFilter";
@@ -97,17 +98,11 @@ export function FolderTreePane({
 
   const filterActive = text.debouncedText.length > 0 || filter !== null;
 
-  // Expand every ancestor (and the leaf itself) of the active folder so
-  // the user's URL location is always visible. Topic 2 補遺.
-  const expandRef = useRef(expansion.expand);
-  expandRef.current = expansion.expand;
-  useEffect(() => {
-    if (!currentFolderPath) return;
-    const parts = currentFolderPath.split("/").filter(Boolean);
-    for (let i = 1; i <= parts.length; i++) {
-      expandRef.current(parts.slice(0, i).join("/"));
-    }
-  }, [currentFolderPath]);
+  // Reveal-in-tree: expand ancestors of the URL location only on first
+  // mount. Subsequent navigation must NOT reshape the tree — see
+  // docs/superpowers/specs/2026-05-09-tree-pane-separated-interaction.md
+  // and hako 1m4EhzyjWms6nUimi_0sO.
+  useInitialReveal(currentFolderPath, expansion.expand);
 
   const pathsToLoad = useMemo(
     () => gatherPathsToLoad(expansion.expanded),
@@ -162,10 +157,15 @@ export function FolderTreePane({
 
   const handleSelect = (row: FlatTreeRow) => {
     if (row.node.kind === "folder") {
-      expansion.toggle(row.node.path);
       onSelectFolder(row.node.path);
     } else {
       onSelectFile(row.node.file_id, row.node.path);
+    }
+  };
+
+  const handleToggle = (row: FlatTreeRow) => {
+    if (row.node.kind === "folder") {
+      expansion.toggle(row.node.path);
     }
   };
 
@@ -236,6 +236,7 @@ export function FolderTreePane({
                     row={row}
                     selected={isSelected}
                     onSelect={handleSelect}
+                    onToggle={handleToggle}
                   />
                 </div>
               );

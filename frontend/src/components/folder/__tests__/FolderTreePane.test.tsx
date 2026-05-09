@@ -73,7 +73,9 @@ describe("FolderTreePane", () => {
     expect(screen.getByText("readme.md")).toBeInTheDocument();
   });
 
-  it("expanding a folder loads its children", async () => {
+  it("row click selects a folder but does NOT expand it", async () => {
+    // Spec 2026-05-09-tree-pane-separated-interaction.md: row click =
+    // selection only. Expansion is the chevron's exclusive job.
     mockGetFolderTree.mockImplementation((_drive: string, params: { root?: string }) => {
       if (params.root === "" || params.root === undefined) {
         return Promise.resolve([
@@ -103,6 +105,49 @@ describe("FolderTreePane", () => {
     fireEvent.click(screen.getByText("Q1"));
     expect(onSelectFolder).toHaveBeenCalledWith("Q1");
 
+    // Row click MUST NOT trigger child loading — the child fetch only
+    // runs when the chevron toggles expansion.
+    await new Promise((r) => setTimeout(r, 50));
+    expect(screen.queryByText("a.md")).not.toBeInTheDocument();
+  });
+
+  it("chevron click expands folder and loads children, without selecting", async () => {
+    mockGetFolderTree.mockImplementation((_drive: string, params: { root?: string }) => {
+      if (params.root === "" || params.root === undefined) {
+        return Promise.resolve([
+          { kind: "folder", name: "Q1", path: "Q1", file_count: 3, has_children: true },
+        ]);
+      }
+      if (params.root === "Q1") {
+        return Promise.resolve([
+          { kind: "file", name: "a.md", path: "Q1/a.md", file_id: "fa", file_type: "document", mime_type: "text/markdown" },
+        ]);
+      }
+      return Promise.resolve([]);
+    });
+
+    const onSelectFolder = vi.fn();
+    render(
+      <FolderTreePane
+        drive="work"
+        selectedPath={null}
+        onSelectFolder={onSelectFolder}
+        onSelectFile={vi.fn()}
+      />,
+    );
+
+    await waitFor(() => expect(screen.getByText("Q1")).toBeInTheDocument());
+
+    // Chevron carries the i18n aria-label "expand" / "collapse" /
+    // tree.expand / 展開. Pick whichever matches.
+    const chevron = screen.getByRole("button", {
+      name: /^expand$|tree\.expand|展開/i,
+    });
+    fireEvent.click(chevron);
+
+    // Selection must NOT have changed — the chevron is expansion-only.
+    expect(onSelectFolder).not.toHaveBeenCalled();
+    // Children must now load.
     await waitFor(() => expect(screen.getByText("a.md")).toBeInTheDocument());
   });
 
