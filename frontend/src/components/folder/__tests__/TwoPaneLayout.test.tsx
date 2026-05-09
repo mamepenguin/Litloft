@@ -64,6 +64,26 @@ vi.mock("@/components/FilePreview", () => ({
   ),
 }));
 
+// PR-4: RightPaneFile now renders FileDetailContent (not FilePreview
+// directly). Stub FileDetailContent + ImageGallery + useFileNav + TreeToggle
+// so the TwoPaneLayout tests focus on host-level wiring (folder click
+// pushes / file click replaces / chrome composition) rather than the
+// per-file detail body, which has its own tests in PR-3.
+vi.mock("@/components/FileDetailContent", () => ({
+  FileDetailContent: ({ fileId }: { fileId: string }) => (
+    <div data-testid="file-detail-content">detail:{fileId}</div>
+  ),
+}));
+vi.mock("@/components/ImageGallery", () => ({
+  ImageGallery: () => <div data-testid="image-gallery" />,
+}));
+vi.mock("@/components/TreeToggle", () => ({
+  TreeToggle: () => <button data-testid="tree-toggle">tree</button>,
+}));
+vi.mock("@/hooks/useFileNav", () => ({
+  useFileNav: vi.fn(() => ({ prevId: null, nextId: null })),
+}));
+
 // Stub virtualizer (jsdom layout) — keep parity with FolderTreePane test.
 vi.mock("@tanstack/react-virtual", () => ({
   useVirtualizer: ({ count, estimateSize }: { count: number; estimateSize: (i: number) => number }) => {
@@ -149,7 +169,11 @@ describe("TwoPaneLayout", () => {
       </TwoPaneLayout>,
     );
 
-    await waitFor(() => expect(screen.getByTestId("file-preview")).toHaveTextContent("preview:abc"));
+    await waitFor(() =>
+      expect(screen.getByTestId("file-detail-content")).toHaveTextContent(
+        "detail:abc",
+      ),
+    );
     expect(screen.queryByTestId("host-content")).not.toBeInTheDocument();
   });
 
