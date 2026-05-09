@@ -27,6 +27,7 @@ import { useFolderFiles } from "@/components/folder/useFolderFiles";
 import { usePinnedFolders } from "@/components/folder/usePinnedFolders";
 import { useDriveScan } from "@/components/folder/useDriveScan";
 import { useCreateFolder } from "@/components/folder/useCreateFolder";
+import { useCreateFile } from "@/hooks/useCreateFile";
 import { FolderToolbar } from "@/components/folder/FolderToolbar";
 import { FolderContent } from "@/components/folder/FolderContent";
 
@@ -191,6 +192,11 @@ export function FolderBrowser({
   const tsc = useTranslations("shortcuts");
   const { scanning, handleScan } = useDriveScan(driveName, refresh);
   const createFolder = useCreateFolder(driveName, folderPath, refresh);
+  // Phase 4: Cmd+N / "New File" only meaningful in a real folder
+  // context. Special views (favorites, search, tag) have no concrete
+  // target folder; we pass undefined to FolderToolbar and disable the
+  // shortcut below so neither path can fire.
+  const { createFile } = useCreateFile(driveName, folderPath ?? "");
   const [pasting, setPasting] = useState(false);
 
   const handlePaste = useCallback(async () => {
@@ -233,6 +239,16 @@ export function FolderBrowser({
       handler: () => {
         if (!clipboard.clipboard) return;
         handlePaste();
+      },
+    },
+    {
+      key: "ctrl+n",
+      label: tsc("newFile"),
+      handler: () => {
+        // Special views (favorites, search, tag filter) don't have a
+        // concrete folder target — Cmd+N is a no-op there.
+        if (!isFolderContext) return;
+        createFile();
       },
     },
   ]);
@@ -440,6 +456,7 @@ export function FolderBrowser({
         onSetNewFolderName={createFolder.setNewFolderName}
         onSetFolderError={createFolder.setFolderError}
         onCreateFolder={createFolder.handleCreateFolder}
+        onCreateFile={isFolderContext ? createFile : undefined}
       />}
 
       {/* Phase 3 unified results: filename-match and semantic hits live

@@ -68,7 +68,10 @@
     "deleteMessage": "「{name}」を削除しますか？フォルダ内のファイルはゴミ箱に移動されます。",
     "pin": "ピン留め",
     "unpin": "ピン留め解除",
-    "newFolder": "新規フォルダ"
+    "newFolder": "新規フォルダ",
+    "newFile": "新規ファイル",
+    "createFileFailed": "ファイルの作成に失敗しました",
+    "createFileForbidden": "このドライブには書き込めません"
   },
   "exif": {
     "sectionTitle": "撮影情報",
@@ -667,6 +670,7 @@
     "copy": "コピー",
     "cut": "カット",
     "paste": "ペースト",
+    "newFile": "新規ファイル",
     "search": "検索",
     "prevFile": "前のファイル",
     "nextFile": "次のファイル",

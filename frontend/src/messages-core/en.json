@@ -68,7 +68,10 @@
     "deleteMessage": "Delete \"{name}\"? Files inside will be moved to trash.",
     "pin": "Pin",
     "unpin": "Unpin",
-    "newFolder": "New Folder"
+    "newFolder": "New Folder",
+    "newFile": "New File",
+    "createFileFailed": "Failed to create file",
+    "createFileForbidden": "This drive is not writable"
   },
   "exif": {
     "sectionTitle": "Photo Info",
@@ -667,6 +670,7 @@
     "copy": "Copy",
     "cut": "Cut",
     "paste": "Paste",
+    "newFile": "New File",
     "search": "Search",
     "prevFile": "Previous file",
     "nextFile": "Next file",

@@ -48,6 +48,32 @@ describe("FolderToolbar", () => {
     expect(screen.getByLabelText("New Folder")).toBeInTheDocument();
   });
 
+  it("renders new file button when onCreateFile is provided", () => {
+    const onCreateFile = vi.fn();
+    render(<FolderToolbar {...defaultProps} onCreateFile={onCreateFile} />);
+    expect(screen.getByLabelText("New File")).toBeInTheDocument();
+  });
+
+  it("does not render new file button when onCreateFile is omitted", () => {
+    render(<FolderToolbar {...defaultProps} />);
+    expect(screen.queryByLabelText("New File")).not.toBeInTheDocument();
+  });
+
+  it("clicking new file calls onCreateFile", () => {
+    const onCreateFile = vi.fn();
+    render(<FolderToolbar {...defaultProps} onCreateFile={onCreateFile} />);
+    fireEvent.click(screen.getByLabelText("New File"));
+    expect(onCreateFile).toHaveBeenCalledTimes(1);
+  });
+
+  it("hides new file button in special view even if onCreateFile is provided", () => {
+    const onCreateFile = vi.fn();
+    render(
+      <FolderToolbar {...defaultProps} isSpecialView={true} onCreateFile={onCreateFile} />,
+    );
+    expect(screen.queryByLabelText("New File")).not.toBeInTheDocument();
+  });
+
   it("hides upload and folder buttons in special view", () => {
     render(<FolderToolbar {...defaultProps} isSpecialView={true} />);
     expect(screen.queryByLabelText("Upload")).not.toBeInTheDocument();

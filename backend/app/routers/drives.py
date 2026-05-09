@@ -613,8 +613,8 @@ async def create_folder(
     return FolderResponse(**result)
 
 
-_TEXT_CREATE_ALLOWED_MIMES = frozenset({"text/markdown", "text/plain"})
 _TEXT_CREATE_MAX_BYTES = 1 * 1024 * 1024  # 1 MB
+_SUFFIX_MAX_ATTEMPTS = 99
 
 
 @router.post("/{drive_name}/files", response_model=FileResponse)
@@ -624,19 +624,22 @@ async def create_text_file(
     db: Annotated[Session, Depends(get_db)],
     unlocked_groups: Annotated[list[str], Depends(get_unlocked_groups)],
 ):
-    """Create a new text file (`.md` / `.txt`) with initial content.
+    """Create a new file with initial UTF-8 text content.
 
     Lightweight JSON alternative to multipart upload, intended for text
-    editors and content creators (e.g., the knowledge addon). Handles
-    missing-file recovery: if the same path is in the missing state,
-    the existing File row is reused (UPSERT semantics) rather than
-    rejected.
+    editors and content creators (e.g., quick notes from the FolderToolbar
+    "New File" button or the Cmd+N shortcut).
+
+    Phase 4 of the Vault-Core merger removed the extension allowlist —
+    any extension is creatable. Name conflicts with active or trashed
+    files are auto-resolved by appending `` (n)`` before the extension.
+    Conflicts with a *missing* row at the same path are still treated as
+    UPSERT recovery (the existing row's content is replaced) and return
+    200.
 
     Responses:
-    - 201 on new file creation
+    - 201 on new file creation (incl. suffix-numbered fallback)
     - 200 on recovery of a missing file (same File.id reused)
-    - 409 on existing active or trashed file
-    - 415 on non-text extension
     - 413 on oversize body (> 1 MB)
     - 400 on unsafe path
     - 404 on unknown drive
@@ -649,8 +652,6 @@ async def create_text_file(
     if len(content_bytes) > _TEXT_CREATE_MAX_BYTES:
         raise HTTPException(status_code=413, detail="Content exceeds size limit")
 
-    # Classify by filename to reject non-text types upfront
-    # (safepath.resolve_safe_path validates structure, classify checks extension)
     import unicodedata
     from pathlib import Path as _Path
 
@@ -658,92 +659,150 @@ async def create_text_file(
     if not rel_path:
         raise HTTPException(status_code=400, detail="Path is required")
 
-    filename = _Path(rel_path.replace("\\", "/")).name
-    file_type, mime_type = classify(filename)
-    if mime_type not in _TEXT_CREATE_ALLOWED_MIMES:
-        raise HTTPException(
-            status_code=415,
-            detail=f"Mime type not creatable via this endpoint: {mime_type}",
-        )
-
-    # Safe path resolution — rejects traversal, NUL, symlinks, etc.
+    # Safe path resolution FIRST — rejects traversal, NUL, symlinks, etc.
+    # We do this before classify() so that path validation errors are
+    # surfaced as 400 (not 415 / mime), matching test expectations.
     resolved = resolve_safe_path(drive_name, rel_path)
     drive_path = config.get_drive_path(drive_name)
+    drive_root = _Path(drive_path).resolve()
 
-    # Check for existing DB record at this path (active, trashed, or missing)
     normalized_rel = unicodedata.normalize(
-        "NFC", str(resolved.relative_to(_Path(drive_path).resolve()))
+        "NFC", str(resolved.relative_to(drive_root))
     )
-    existing = (
+
+    # Missing-state precedence: if a row exists with missing_since set,
+    # reuse it (UPSERT) rather than falling through to suffix numbering.
+    existing_missing = (
         db.query(File)
         .filter(File.drive == drive_name, File.file_path == normalized_rel)
+        .filter(File.missing_since.isnot(None))
+        .filter(File.deleted_at.is_(None))
         .first()
     )
 
-    recovery = False
-    if existing is not None:
-        if existing.deleted_at is not None:
-            raise HTTPException(
-                status_code=409,
-                detail="File exists in trash; purge it before recreating",
-            )
-        if existing.missing_since is None:
-            raise HTTPException(status_code=409, detail="File already exists")
-        # Missing — recovery path
-        recovery = True
-
-    # Create parent directory, then atomically write content
     import os as _os
-    import tempfile as _tempfile
-    resolved.parent.mkdir(parents=True, exist_ok=True)
-    if resolved.exists() and not recovery:
-        # FS has a file we don't know about (e.g., created out-of-band).
-        # Reject to avoid surprising overwrites.
-        raise HTTPException(status_code=409, detail="File already exists on disk")
+    from sqlalchemy.exc import IntegrityError
 
-    tmp_fd, tmp_name = _tempfile.mkstemp(
-        prefix=f".{resolved.name}.", suffix=".tmp", dir=str(resolved.parent)
-    )
-    try:
-        with _os.fdopen(tmp_fd, "wb") as f:
-            f.write(content_bytes)
-        _os.replace(tmp_name, resolved)
-    except Exception:
+    if existing_missing is not None:
+        # Missing-state recovery: the existing row already owns this
+        # path (UNIQUE constraint), so we are not racing for the slot.
+        # Use os.replace via a same-dir tmp for atomic content swap.
+        import tempfile as _tempfile
+
+        resolved.parent.mkdir(parents=True, exist_ok=True)
+        filename = resolved.name
+        file_type, mime_type = classify(filename)
+
+        tmp_fd, tmp_name = _tempfile.mkstemp(
+            prefix=f".{resolved.name}.", suffix=".tmp", dir=str(resolved.parent)
+        )
         try:
-            _os.unlink(tmp_name)
-        except OSError:
-            pass
-        raise
+            with _os.fdopen(tmp_fd, "wb") as f:
+                f.write(content_bytes)
+            _os.replace(tmp_name, resolved)
+        except Exception:
+            try:
+                _os.unlink(tmp_name)
+            except OSError:
+                pass
+            raise
 
-    # Build folder_path + filename from the resolved relative path
-    nfc_name = unicodedata.normalize("NFC", resolved.name)
-    parent_rel = str(_Path(normalized_rel).parent)
-    folder_path = "" if parent_rel in (".", "") else unicodedata.normalize("NFC", parent_rel)
-
-    if recovery:
-        existing.missing_since = None
-        existing.file_size = len(content_bytes)
-        existing.file_type = file_type
-        existing.mime_type = mime_type
-        existing.filename = nfc_name
-        existing.folder_path = folder_path
+        nfc_name = unicodedata.normalize("NFC", resolved.name)
+        parent_rel = str(_Path(normalized_rel).parent)
+        folder_path = (
+            "" if parent_rel in (".", "")
+            else unicodedata.normalize("NFC", parent_rel)
+        )
+        existing_missing.missing_since = None
+        existing_missing.file_size = len(content_bytes)
+        existing_missing.file_type = file_type
+        existing_missing.mime_type = mime_type
+        existing_missing.filename = nfc_name
+        existing_missing.folder_path = folder_path
         db.commit()
-        db.refresh(existing)
-        return _to_response(existing)
+        db.refresh(existing_missing)
+        return _to_response(existing_missing)
 
-    new_file = File(
-        filename=nfc_name,
-        title=_Path(nfc_name).stem,
-        drive=drive_name,
-        folder_path=folder_path,
-        file_path=normalized_rel,
-        file_size=len(content_bytes),
-        file_type=file_type,
-        mime_type=mime_type,
-    )
-    db.add(new_file)
-    db.commit()
-    db.refresh(new_file)
+    base, ext = _os.path.splitext(normalized_rel)
+    candidate_rel = normalized_rel
+    candidate_resolved = resolved
+
+    def _row_taken(rel: str) -> bool:
+        return (
+            db.query(File)
+            .filter(File.drive == drive_name, File.file_path == rel)
+            .first()
+            is not None
+        )
+
+    new_file = None
+    for attempt in range(0, _SUFFIX_MAX_ATTEMPTS + 1):
+        if attempt > 0:
+            candidate_rel = f"{base} ({attempt}){ext}"
+            try:
+                candidate_resolved = resolve_safe_path(drive_name, candidate_rel)
+            except HTTPException:
+                continue
+
+        if _row_taken(candidate_rel):
+            continue
+
+        candidate_resolved.parent.mkdir(parents=True, exist_ok=True)
+        try:
+            fd = _os.open(
+                str(candidate_resolved),
+                _os.O_CREAT | _os.O_EXCL | _os.O_WRONLY,
+                0o644,
+            )
+        except FileExistsError:
+            continue
+        try:
+            with _os.fdopen(fd, "wb") as f:
+                f.write(content_bytes)
+        except Exception:
+            try:
+                _os.unlink(candidate_resolved)
+            except OSError:
+                pass
+            raise
+
+        nfc_candidate_rel = unicodedata.normalize(
+            "NFC", str(candidate_resolved.relative_to(drive_root))
+        )
+        nfc_name = unicodedata.normalize("NFC", candidate_resolved.name)
+        parent_rel = str(_Path(nfc_candidate_rel).parent)
+        folder_path = (
+            "" if parent_rel in (".", "")
+            else unicodedata.normalize("NFC", parent_rel)
+        )
+        file_type, mime_type = classify(candidate_resolved.name)
+
+        new_file = File(
+            filename=nfc_name,
+            title=_Path(nfc_name).stem,
+            drive=drive_name,
+            folder_path=folder_path,
+            file_path=nfc_candidate_rel,
+            file_size=len(content_bytes),
+            file_type=file_type,
+            mime_type=mime_type,
+        )
+        db.add(new_file)
+        try:
+            db.commit()
+        except IntegrityError:
+            db.rollback()
+            try:
+                _os.unlink(candidate_resolved)
+            except OSError:
+                pass
+            new_file = None
+            continue
+        db.refresh(new_file)
+        break
+
+    if new_file is None:
+        raise HTTPException(status_code=409, detail="Too many naming conflicts")
 
     from fastapi.responses import JSONResponse
     return JSONResponse(

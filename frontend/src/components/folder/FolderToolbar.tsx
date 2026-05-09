@@ -5,6 +5,7 @@ import {
   Check,
   CheckSquare,
   Filter,
+  FilePlus,
   FolderPlus,
   MoreHorizontal,
   Play,
@@ -54,6 +55,14 @@ interface FolderToolbarProps {
   onSetNewFolderName: (v: string) => void;
   onSetFolderError: (v: string | null) => void;
   onCreateFolder: () => void;
+  /**
+   * When provided, render a "New File" button that creates a blank
+   * Markdown file in the current folder. Omitting the prop hides the
+   * button — used by FolderBrowser to disable file creation in
+   * special views (favorites, search, tag filters) where there's no
+   * concrete folder to write into.
+   */
+  onCreateFile?: () => void;
 }
 
 const TYPE_OPTION_KEYS: ReadonlyArray<{ value: FileType | null; labelKey: string }> = [
@@ -73,7 +82,7 @@ export function FolderToolbar({
   viewMode,
   onSortChange, onTypeFilterChange, onViewChange, onToggleSelectable,
   onScan, onPlayAll, onSetCreatingFolder, onSetNewFolderName,
-  onSetFolderError, onCreateFolder,
+  onSetFolderError, onCreateFolder, onCreateFile,
 }: FolderToolbarProps) {
   // In search mode the file list is a virtual folder: upload / create
   // folder / scan / play-all don't make sense there. We treat search
@@ -134,6 +143,17 @@ export function FolderToolbar({
             >
               <FolderPlus size={16} />
               <span className="hidden sm:inline">{tf("newFolder")}</span>
+            </button>
+          )}
+
+          {onCreateFile && !creatingFolder && (
+            <button
+              onClick={onCreateFile}
+              className="flex items-center gap-2 rounded-2xl border border-bg-border bg-bg-card px-3 py-2 text-sm font-medium text-text-primary transition-colors hover:bg-bg-elevated"
+              aria-label={tf("newFile")}
+            >
+              <FilePlus size={16} />
+              <span className="hidden sm:inline">{tf("newFile")}</span>
             </button>
           )}
         </>

@@ -249,6 +249,21 @@ export async function deleteFile(id: string): Promise<void> {
   if (!res.ok) throw new Error(`API error: ${res.status}`);
 }
 
+// File creation (lightweight JSON alternative to multipart upload).
+// Backend auto-suffixes the filename on collision; on missing-state
+// recovery the same FileItem.id is returned with a 200 status (the
+// caller doesn't see status here — only the parsed body).
+export async function createTextFile(
+  drive: string,
+  body: { path: string; content: string },
+): Promise<FileItem> {
+  return fetchJSON<FileItem>(`${API_BASE}/drives/${encodeURIComponent(drive)}/files`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(body),
+  });
+}
+
 // Folder operations
 export async function createFolder(drive: string, path: string, name: string): Promise<Folder> {
   return fetchJSON<Folder>(`${API_BASE}/drives/${encodeURIComponent(drive)}/folders`, {
