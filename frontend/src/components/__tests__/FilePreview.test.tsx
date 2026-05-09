@@ -87,6 +87,25 @@ describe("FilePreview", () => {
     expect(img).toHaveAttribute("src", "/api/files/file-1/stream");
   });
 
+  it("renders SVG file via img tag with stream URL", () => {
+    // Regression guard for the stream XSS hardening
+    // (docs/superpowers/specs/2026-05-09-stream-xss-hardening.md):
+    // SVG must keep going through <img> so that
+    // ``Content-Disposition: attachment`` on the stream endpoint is
+    // ignored as a sub-resource (browsers honour attachment only on
+    // top-level navigation). Swapping to <iframe> would break SVG
+    // display because attachment IS honoured on iframe loads.
+    const file = makeFile({
+      file_type: "image",
+      mime_type: "image/svg+xml",
+      filename: "logo.svg",
+    });
+    render(<FilePreview file={file} />);
+    const img = screen.getByAltText("Test");
+    expect(img.tagName).toBe("IMG");
+    expect(img).toHaveAttribute("src", "/api/files/file-1/stream");
+  });
+
   it("renders AudioPlayer for audio files", () => {
     const file = makeFile({ file_type: "audio", mime_type: "audio/mp3", filename: "song.mp3" });
     render(<FilePreview file={file} />);

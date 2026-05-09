@@ -81,6 +81,15 @@ _TEXT_WRITE_ALLOWED_MIMES = frozenset({"text/markdown", "text/plain"})
 _TEXT_WRITE_MAX_BYTES = 1 * 1024 * 1024  # 1 MB
 _text_write_locks: dict[str, asyncio.Lock] = defaultdict(asyncio.Lock)
 
+_DANGEROUS_INLINE_MIMES = frozenset({
+    "text/html",
+    "application/xhtml+xml",
+    "image/svg+xml",
+    "text/xml",
+    "application/xml",
+    "application/xslt+xml",
+})
+
 # Matches loft://file_id with optional query string; captures only the file_id.
 _LOFT_LINK_RE = re.compile(r"loft://([A-Za-z0-9_-]{12})(?:[?#][^\s\)\"']*)?")
 
@@ -731,8 +740,9 @@ async def stream_file(
             "Accept-Ranges": "bytes",
             "Content-Length": str(end - start + 1),
             "Content-Type": content_type,
+            "X-Content-Type-Options": "nosniff",
         }
-        if download:
+        if download or content_type in _DANGEROUS_INLINE_MIMES:
             headers["Content-Disposition"] = f"attachment; filename*=UTF-8''{quote(file.filename, safe='')}"
 
         return StreamingResponse(iter_chunks(), status_code=206, headers=headers)
@@ -751,8 +761,9 @@ async def stream_file(
             "Content-Length": str(len(data)),
             "Content-Type": content_type,
             "ETag": f'"{_compute_text_etag(data)}"',
+            "X-Content-Type-Options": "nosniff",
         }
-        if download:
+        if download or content_type in _DANGEROUS_INLINE_MIMES:
             headers["Content-Disposition"] = f"attachment; filename*=UTF-8''{quote(file.filename, safe='')}"
         return Response(content=data, headers=headers)
 
@@ -765,8 +776,9 @@ async def stream_file(
         "Accept-Ranges": "bytes",
         "Content-Length": str(file_size),
         "Content-Type": content_type,
+        "X-Content-Type-Options": "nosniff",
     }
-    if download:
+    if download or content_type in _DANGEROUS_INLINE_MIMES:
         headers["Content-Disposition"] = f"attachment; filename*=UTF-8''{quote(file.filename, safe='')}"
 
     return StreamingResponse(iter_full(), headers=headers)

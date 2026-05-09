@@ -34,7 +34,7 @@ A high-level catalogue of Litloft's HTTP API. The browser uses these endpoints; 
 | Method | Path | Purpose |
 |---|---|---|
 | `GET` | `/api/files/{id}` | File metadata. |
-| `GET` | `/api/files/{id}/stream` | Range-requested media stream. Returns 410 for missing files. |
+| `GET` | `/api/files/{id}/stream` | Range-requested media stream. Returns 410 for missing files. All responses carry `X-Content-Type-Options: nosniff`. HTML / SVG / XML mimes (`text/html`, `application/xhtml+xml`, `image/svg+xml`, `text/xml`, `application/xml`) are forced to `Content-Disposition: attachment` to block top-level navigation XSS; `<img src>` SVG rendering is unaffected since browsers ignore the header on sub-resources. |
 | `GET` | `/api/files/{id}/thumbnail` | Lazy-generated 320x180 JPEG. |
 | `GET` | `/api/files/{id}/sprite` | Sprite preview sheet (videos). |
 | `GET` | `/api/files/{id}/exif` | EXIF data (images). |
