@@ -20,7 +20,12 @@
     "items": "{count} 件",
     "loadContent": "読み込む",
     "fileSizeLarge": "ファイルサイズが大きいです ({size})",
-    "loadFailed": "読み込みに失敗しました: {error}"
+    "loadFailed": "読み込みに失敗しました: {error}",
+    "discardUnsaved": {
+      "title": "未保存の変更があります",
+      "message": "このファイルには保存されていない編集があります。移動すると失われる可能性があります。",
+      "confirmLabel": "破棄して移動"
+    }
   },
   "metadata": {
     "description": "自宅LAN向けファイル管理＆メディアストリーミング"

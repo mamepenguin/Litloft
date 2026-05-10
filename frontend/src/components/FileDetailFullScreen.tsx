@@ -5,6 +5,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { ArrowLeft } from "lucide-react";
 import { useTranslations } from "next-intl";
 
+import { ConfirmDialog } from "@/components/ConfirmDialog";
 import { FileDetailContent } from "@/components/FileDetailContent";
 import { ImageGallery } from "@/components/ImageGallery";
 import {
@@ -43,6 +44,7 @@ export function FileDetailFullScreen({ fileId }: FileDetailFullScreenProps) {
   useOverlaySidebar();
 
   const t = useTranslations("file");
+  const tCommon = useTranslations("common");
   const router = useRouter();
   const searchParams = useSearchParams();
   const setOverrideDrive = useSetOverrideDrive();
@@ -101,7 +103,14 @@ export function FileDetailFullScreen({ fileId }: FileDetailFullScreenProps) {
 
   // Arrow-key navigation. Disabled in playlist mode — the playlist
   // owns "next" semantics there; ArrowLeft/Right would conflict.
-  useFileNav({
+  // PR-4: useFileNav also surfaces a ``pendingNavigation`` when the
+  // current file is dirty (per dirtyRegistry); we render a confirm
+  // dialog below so the user can keep editing or discard.
+  const {
+    pendingNavigation,
+    confirmPendingNavigation,
+    cancelPendingNavigation,
+  } = useFileNav({
     fileId: !hasPlaylist && file ? fileId : null,
     sort,
     order,
@@ -223,6 +232,14 @@ export function FileDetailFullScreen({ fileId }: FileDetailFullScreenProps) {
           }}
         />
       )}
+      <ConfirmDialog
+        open={pendingNavigation !== null}
+        title={tCommon("discardUnsaved.title")}
+        message={tCommon("discardUnsaved.message")}
+        confirmLabel={tCommon("discardUnsaved.confirmLabel")}
+        onConfirm={confirmPendingNavigation}
+        onCancel={cancelPendingNavigation}
+      />
     </div>
   );
 }

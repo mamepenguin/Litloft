@@ -20,7 +20,12 @@
     "items": "{count} items",
     "loadContent": "Load",
     "fileSizeLarge": "File is large ({size})",
-    "loadFailed": "Failed to load: {error}"
+    "loadFailed": "Failed to load: {error}",
+    "discardUnsaved": {
+      "title": "Unsaved changes",
+      "message": "This file has unsaved edits. Navigating away may discard them.",
+      "confirmLabel": "Discard and navigate"
+    }
   },
   "metadata": {
     "description": "Home LAN file management & media streaming"

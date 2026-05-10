@@ -1,5 +1,11 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { cleanup, render, screen, waitFor } from "@testing-library/react";
+import {
+  cleanup,
+  fireEvent,
+  render,
+  screen,
+  waitFor,
+} from "@testing-library/react";
 
 const mockGetFile = vi.fn();
 vi.mock("@/lib/api", () => ({
@@ -76,8 +82,23 @@ vi.mock("@/components/PlaylistPanel", () => ({
   getPlaylistOnEnded: () => null,
 }));
 
+// PR-4 expanded useFileNav's return shape with the dirty-navigation
+// guard. Expose a mutable ref so individual tests can flip it.
+let useFileNavReturn: {
+  prevId: string | null;
+  nextId: string | null;
+  pendingNavigation: { targetId: string } | null;
+  confirmPendingNavigation: () => void;
+  cancelPendingNavigation: () => void;
+} = {
+  prevId: null,
+  nextId: null,
+  pendingNavigation: null,
+  confirmPendingNavigation: vi.fn(),
+  cancelPendingNavigation: vi.fn(),
+};
 vi.mock("@/hooks/useFileNav", () => ({
-  useFileNav: vi.fn(() => ({ prevId: null, nextId: null })),
+  useFileNav: vi.fn(() => useFileNavReturn),
 }));
 
 import { FileDetailFullScreen } from "../FileDetailFullScreen";
@@ -118,6 +139,13 @@ beforeEach(() => {
   for (const k of Array.from(mockSearchParams.keys())) {
     mockSearchParams.delete(k);
   }
+  useFileNavReturn = {
+    prevId: null,
+    nextId: null,
+    pendingNavigation: null,
+    confirmPendingNavigation: vi.fn(),
+    cancelPendingNavigation: vi.fn(),
+  };
 });
 
 afterEach(() => {
@@ -226,5 +254,25 @@ describe("FileDetailFullScreen", () => {
     await waitFor(() =>
       expect(driveMocks.setOverrideDriveSpy).toHaveBeenCalledWith("main"),
     );
+  });
+
+  it("renders the discard-changes dialog when useFileNav reports pendingNavigation (PR-4)", async () => {
+    mockGetFile.mockResolvedValue(baseFile);
+    const confirmSpy = vi.fn();
+    const cancelSpy = vi.fn();
+    useFileNavReturn = {
+      prevId: "prev1",
+      nextId: "next1",
+      pendingNavigation: { targetId: "next1" },
+      confirmPendingNavigation: confirmSpy,
+      cancelPendingNavigation: cancelSpy,
+    };
+    render(<FileDetailFullScreen fileId="abc" />);
+    await waitFor(() =>
+      expect(screen.getByText("Unsaved changes")).toBeInTheDocument(),
+    );
+    fireEvent.click(screen.getByRole("button", { name: "Cancel" }));
+    expect(cancelSpy).toHaveBeenCalledTimes(1);
+    expect(confirmSpy).not.toHaveBeenCalled();
   });
 });
