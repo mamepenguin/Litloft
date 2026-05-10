@@ -4,6 +4,7 @@ import { getLocale, getMessages } from "next-intl/server";
 import "./globals.css";
 
 import { AppShell } from "@/components/AppShell";
+import { DirtyBlocker } from "@/components/DirtyBlocker";
 import { SidebarProvider } from "@/components/SidebarProvider";
 import { ThemeProvider } from "@/components/ThemeProvider";
 import { CurrentDriveProvider } from "@/components/CurrentDriveProvider";
@@ -78,6 +79,7 @@ export default async function RootLayout({
                       <SidebarProvider>
                         <SetupRedirector />
                         <AppShell>{children}</AppShell>
+                        <DirtyBlocker />
                       </SidebarProvider>
                     </ClipboardProvider>
                   </AddonSlotsProvider>
