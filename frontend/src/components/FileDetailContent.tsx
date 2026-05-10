@@ -414,7 +414,7 @@ export function FileDetailContent({
               props={{ ...addonSlotProps, fillHeight: true }}
             />
           </div>
-          <div className="relative isolate max-h-[50vh] space-y-6 overflow-auto border-t border-bg-border bg-bg-primary px-6 py-8">
+          <div className="relative isolate space-y-6 border-t border-bg-border bg-bg-primary px-6 py-8">
             <ActiveSummaryHost fileId={fileId} drive={drive} />
             <AddonSlot
               id="file-detail-sections"
