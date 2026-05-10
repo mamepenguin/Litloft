@@ -9,9 +9,11 @@
  * each call rather than caching at module load.
  */
 
-function readBoolEnv(name: string): boolean {
+function readBoolEnv(name: string, defaultValue: boolean): boolean {
   const raw = process.env[name];
-  return raw === "true" || raw === "1";
+  if (raw === "false" || raw === "0") return false;
+  if (raw === "true" || raw === "1") return true;
+  return defaultValue;
 }
 
 /**
@@ -20,8 +22,14 @@ function readBoolEnv(name: string): boolean {
  * When true, the Knowledge ``KnowledgeEditSection`` slot mounts the
  * editor inline inside ``FileDetailContent`` and the legacy Knowledge
  * route ``/addons/knowledge?edit={id}`` redirects to the canonical
- * 2-pane URL. Default false until PR-7 flips it.
+ * 2-pane URL.
+ *
+ * Default flipped to ``true`` in PR-7 once the inline editor, dirty
+ * navigation guard (PR-4/PR-5), and conflict modal portal (PR-6) had
+ * landed. Setting ``NEXT_PUBLIC_INLINE_KNOWLEDGE_EDITOR=false`` (or
+ * ``0``) is the rollback hatch — handy if a regression shows up
+ * post-deploy.
  */
 export function isInlineKnowledgeEditorEnabled(): boolean {
-  return readBoolEnv("NEXT_PUBLIC_INLINE_KNOWLEDGE_EDITOR");
+  return readBoolEnv("NEXT_PUBLIC_INLINE_KNOWLEDGE_EDITOR", true);
 }

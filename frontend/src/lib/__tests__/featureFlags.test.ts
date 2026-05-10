@@ -7,9 +7,9 @@ afterEach(() => {
 });
 
 describe("isInlineKnowledgeEditorEnabled", () => {
-  it("returns false when the env var is unset", () => {
+  it("defaults to true when the env var is unset (PR-7 ship default)", () => {
     vi.stubEnv("NEXT_PUBLIC_INLINE_KNOWLEDGE_EDITOR", "");
-    expect(isInlineKnowledgeEditorEnabled()).toBe(false);
+    expect(isInlineKnowledgeEditorEnabled()).toBe(true);
   });
 
   it("returns true for the literal 'true' string", () => {
@@ -22,10 +22,18 @@ describe("isInlineKnowledgeEditorEnabled", () => {
     expect(isInlineKnowledgeEditorEnabled()).toBe(true);
   });
 
-  it("returns false for any other value (e.g. 'false', 'yes')", () => {
+  it("returns false for the explicit opt-out 'false'", () => {
     vi.stubEnv("NEXT_PUBLIC_INLINE_KNOWLEDGE_EDITOR", "false");
     expect(isInlineKnowledgeEditorEnabled()).toBe(false);
-    vi.stubEnv("NEXT_PUBLIC_INLINE_KNOWLEDGE_EDITOR", "yes");
+  });
+
+  it("returns false for the explicit opt-out '0'", () => {
+    vi.stubEnv("NEXT_PUBLIC_INLINE_KNOWLEDGE_EDITOR", "0");
     expect(isInlineKnowledgeEditorEnabled()).toBe(false);
+  });
+
+  it("falls through to the default for ambiguous values (e.g. 'yes')", () => {
+    vi.stubEnv("NEXT_PUBLIC_INLINE_KNOWLEDGE_EDITOR", "yes");
+    expect(isInlineKnowledgeEditorEnabled()).toBe(true);
   });
 });
