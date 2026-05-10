@@ -630,6 +630,18 @@
     "restartCopyButton": "コピー",
     "restartCopied": "コピーしました"
   },
+  "inspector": {
+    "title": "プロパティ",
+    "close": "閉じる",
+    "toggleShortcut": "Inspector の開閉",
+    "openShortcut": "Inspector を開く",
+    "sections": {
+      "tags": "タグ",
+      "related": "関連ファイル",
+      "aiSummary": "AI 要約",
+      "comments": "コメント"
+    }
+  },
   "comments": {
     "title": "コメント",
     "placeholder": "コメントを入力...",

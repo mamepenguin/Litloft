@@ -630,6 +630,18 @@
     "restartCopyButton": "Copy",
     "restartCopied": "Copied"
   },
+  "inspector": {
+    "title": "Properties",
+    "close": "Close",
+    "toggleShortcut": "Toggle inspector",
+    "openShortcut": "Open inspector",
+    "sections": {
+      "tags": "Tags",
+      "related": "Related files",
+      "aiSummary": "AI summary",
+      "comments": "Comments"
+    }
+  },
   "comments": {
     "title": "Comments",
     "placeholder": "Write a comment...",
