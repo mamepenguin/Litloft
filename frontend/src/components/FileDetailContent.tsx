@@ -389,7 +389,11 @@ export function FileDetailContent({
         <AddonSlot
           id="file-detail-sections"
           layout="stack"
-          excludeIds={["knowledge-edit", "similar-files"]}
+          excludeIds={[
+            "knowledge-edit",
+            "similar-files",
+            "detailed-summary",
+          ]}
           props={addonSlotProps}
         />
       </div>
@@ -402,12 +406,12 @@ export function FileDetailContent({
     return (
       <MarkdownDocumentLayout drive={drive} inspector={inspectorNode}>
         <div className="flex flex-1 min-h-0 flex-col">
-          <div className="flex-1 min-h-0">
+          <div className="flex flex-1 min-h-0 flex-col">
             <AddonSlot
               id="file-detail-sections"
               layout="stack"
               includeIds={["knowledge-edit"]}
-              props={addonSlotProps}
+              props={{ ...addonSlotProps, fillHeight: true }}
             />
           </div>
           <div className="space-y-6 border-t border-bg-border px-6 py-8">
@@ -415,7 +419,7 @@ export function FileDetailContent({
             <AddonSlot
               id="file-detail-sections"
               layout="stack"
-              includeIds={["similar-files"]}
+              includeIds={["detailed-summary", "similar-files"]}
               props={addonSlotProps}
             />
             <CommentSection fileId={fileId} />

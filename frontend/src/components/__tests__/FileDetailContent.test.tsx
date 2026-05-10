@@ -306,15 +306,18 @@ describe("FileDetailContent", () => {
       canvas.querySelector('[data-testid="active-summary-host"]'),
     ).not.toBeNull();
     expect(
-      canvas.querySelector('[data-testid="addon-slot-include:similar-files"]'),
+      canvas.querySelector(
+        '[data-testid="addon-slot-include:detailed-summary,similar-files"]',
+      ),
     ).not.toBeNull();
     expect(canvas.querySelector('[data-testid="comments"]')).not.toBeNull();
-    // Inspector hosts the residual file-detail-sections (knowledge-edit
-    // and similar-files excluded so they don't double-render in canvas).
+    // Inspector hosts the residual file-detail-sections (knowledge-edit,
+    // similar-files, detailed-summary excluded so they don't
+    // double-render in canvas).
     const inspector = screen.getByTestId("md-inspector");
     expect(
       inspector.querySelector(
-        '[data-testid="addon-slot-exclude:knowledge-edit,similar-files"]',
+        '[data-testid="addon-slot-exclude:knowledge-edit,similar-files,detailed-summary"]',
       ),
     ).not.toBeNull();
     // Heavy content moved to canvas → must NOT also live in inspector.
