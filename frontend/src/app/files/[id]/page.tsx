@@ -2,6 +2,7 @@ import { redirect, notFound } from "next/navigation";
 import { cookies } from "next/headers";
 
 import { FileDetailFullScreen } from "@/components/FileDetailFullScreen";
+import { buildCanonicalFileUrl } from "@/lib/canonicalFileUrl";
 import type { FileItem } from "@/types";
 
 /**
@@ -52,45 +53,6 @@ async function fetchFile(id: string): Promise<FileItem | null> {
   return res.json();
 }
 
-const CARRIED_QUERY_KEYS = [
-  "t",
-  "page",
-  "highlight",
-  "sort",
-  "order",
-  // Phase 2 Pre-PR: Knowledge editor auto-start signal. ``useCreateFile``
-  // (Topic 12) navigates to ``/files/{id}?edit=1`` after creating a new
-  // note; the canonical 2-pane URL needs to keep this so the editor
-  // (inline mode in Phase 2.1+, fullscreen route otherwise) opens
-  // straight into edit mode rather than read-only preview.
-  "edit",
-] as const;
-
-function buildCanonicalUrl(
-  file: FileItem,
-  fileId: string,
-  sp: Record<string, string | string[] | undefined>,
-): string {
-  const carried = new URLSearchParams();
-  carried.set("file", fileId);
-  for (const key of CARRIED_QUERY_KEYS) {
-    const v = sp[key];
-    if (typeof v === "string" && v.length > 0) {
-      carried.set(key, v);
-    }
-  }
-  const drivePart = encodeURIComponent(file.drive);
-  const folderPart = file.folder_path
-    ? "/" +
-      file.folder_path
-        .split("/")
-        .filter(Boolean)
-        .map(encodeURIComponent)
-        .join("/")
-    : "";
-  return `/drive/${drivePart}${folderPart}?${carried.toString()}`;
-}
-
 interface PageProps {
   params: Promise<{ id: string }>;
   searchParams: Promise<Record<string, string | string[] | undefined>>;
@@ -118,5 +80,5 @@ export default async function FileRoute({ params, searchParams }: PageProps) {
   const file = await fetchFile(id);
   if (!file) notFound();
 
-  redirect(buildCanonicalUrl(file, id, sp));
+  redirect(buildCanonicalFileUrl(file, id, sp));
 }
