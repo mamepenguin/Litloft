@@ -405,8 +405,8 @@ export function FileDetailContent({
     // footer below the editor carries the heavy content listed above.
     return (
       <MarkdownDocumentLayout drive={drive} inspector={inspectorNode}>
-        <div className="flex flex-1 min-h-0 flex-col">
-          <div className="relative isolate flex flex-1 min-h-0 flex-col bg-bg-primary">
+        <div className="flex flex-col">
+          <div className="relative isolate flex flex-col bg-bg-primary">
             <AddonSlot
               id="file-detail-sections"
               layout="stack"
