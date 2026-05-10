@@ -1,5 +1,14 @@
-import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import {
+  act,
+  fireEvent,
+  render,
+  screen,
+  waitFor,
+} from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+
+import { dirtyRegistry } from "@/lib/dirtyRegistry";
+import { navigationGuard } from "@/lib/navigationGuard";
 
 const mockReplace = vi.fn();
 const mockPush = vi.fn();
@@ -139,10 +148,14 @@ beforeEach(() => {
   localStorage.removeItem("tree:expanded:work");
   localStorage.removeItem("tree:typeFilter:work");
   localStorage.removeItem("rightPaneFolder:viewMode");
+  navigationGuard.reset();
+  dirtyRegistry.reset();
 });
 
 afterEach(() => {
   vi.restoreAllMocks();
+  navigationGuard.reset();
+  dirtyRegistry.reset();
 });
 
 describe("TwoPaneLayout", () => {
@@ -236,6 +249,37 @@ describe("TwoPaneLayout", () => {
 
     expect(mockReplace).toHaveBeenCalledWith("/drive/work?file=fid42", { scroll: false });
     expect(mockPush).not.toHaveBeenCalled();
+  });
+
+  it("dirty editor defers folder click via navigationGuard (PR-5)", async () => {
+    mockGetFolderTree.mockImplementation(
+      (_drive: string, params: { root?: string }) => {
+        if (params.root === "" || params.root === undefined) {
+          return Promise.resolve([
+            { kind: "folder", name: "Q1", path: "Q1", file_count: 1, has_children: false },
+          ]);
+        }
+        return Promise.resolve([]);
+      },
+    );
+    dirtyRegistry.set("any-file", "knowledge-editor", true);
+
+    render(
+      <TwoPaneLayout drive="work" folderPath="">
+        <div />
+      </TwoPaneLayout>,
+    );
+
+    await waitFor(() => expect(screen.getByText("Q1")).toBeInTheDocument());
+    fireEvent.click(screen.getByText("Q1"));
+
+    // router.push held back until confirm fires
+    expect(mockPush).not.toHaveBeenCalled();
+    expect(navigationGuard.getPending()).not.toBeNull();
+    act(() => {
+      navigationGuard.confirm();
+    });
+    expect(mockPush).toHaveBeenCalledWith("/drive/work/Q1", { scroll: false });
   });
 
   it("encodes drive name with spaces in folder navigation", async () => {

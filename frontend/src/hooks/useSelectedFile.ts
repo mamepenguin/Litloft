@@ -3,6 +3,8 @@
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useCallback } from "react";
 
+import { navigationGuard } from "@/lib/navigationGuard";
+
 const FILE_PARAM = "file";
 
 export interface SelectedFileApi {
@@ -43,23 +45,30 @@ export function useSelectedFile(): SelectedFileApi {
 
   const selectFile = useCallback(
     (id: string) => {
-      const wasFileSelected = searchParams.has(FILE_PARAM);
-      const params = new URLSearchParams(searchParams.toString());
-      params.set(FILE_PARAM, id);
-      const href = buildHref(params);
       // The tree pane stays put across this navigation — keep the
-      // window scroll where the user was reading from.
-      if (wasFileSelected) router.replace(href, { scroll: false });
-      else router.push(href, { scroll: false });
+      // window scroll where the user was reading from. The whole
+      // ?file swap is wrapped in ``navigationGuard.request`` so a
+      // dirty editor on the previous file gets a chance to ask
+      // "discard?" via ``<DirtyBlocker />`` (PR-5).
+      navigationGuard.request(() => {
+        const wasFileSelected = searchParams.has(FILE_PARAM);
+        const params = new URLSearchParams(searchParams.toString());
+        params.set(FILE_PARAM, id);
+        const href = buildHref(params);
+        if (wasFileSelected) router.replace(href, { scroll: false });
+        else router.push(href, { scroll: false });
+      });
     },
     [router, searchParams, buildHref],
   );
 
   const clearFile = useCallback(() => {
-    const params = new URLSearchParams(searchParams.toString());
-    if (!params.has(FILE_PARAM)) return;
-    params.delete(FILE_PARAM);
-    router.replace(buildHref(params), { scroll: false });
+    if (!searchParams.has(FILE_PARAM)) return;
+    navigationGuard.request(() => {
+      const params = new URLSearchParams(searchParams.toString());
+      params.delete(FILE_PARAM);
+      router.replace(buildHref(params), { scroll: false });
+    });
   }, [router, searchParams, buildHref]);
 
   return { fileId, selectFile, clearFile };

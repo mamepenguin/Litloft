@@ -2,10 +2,11 @@
 
 import { X } from "lucide-react";
 import { useTranslations } from "next-intl";
-import { usePathname, useRouter } from "next/navigation";
+import { usePathname } from "next/navigation";
 import { useCallback } from "react";
 import type { ReactNode } from "react";
 
+import { useGuardedRouter } from "@/hooks/useGuardedRouter";
 import { useSelectedFile } from "@/hooks/useSelectedFile";
 import { useTreeEnabled } from "@/hooks/useTreeEnabled";
 
@@ -41,7 +42,11 @@ interface TwoPaneLayoutProps {
 export function TwoPaneLayout({ drive, folderPath, children }: TwoPaneLayoutProps) {
   const t = useTranslations("rightPane");
   const tView = useTranslations("view");
-  const router = useRouter();
+  // PR-5: useGuardedRouter wraps router.push/replace through
+  // navigationGuard so a dirty editor can interrupt folder
+  // navigation. selectFile / clearFile go through the same guard
+  // via useSelectedFile.
+  const router = useGuardedRouter();
   const pathname = usePathname();
   const { fileId, selectFile, clearFile } = useSelectedFile();
   const { setEnabled: setTreeEnabled } = useTreeEnabled(drive);

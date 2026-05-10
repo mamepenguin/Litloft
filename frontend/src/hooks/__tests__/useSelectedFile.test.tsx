@@ -1,6 +1,9 @@
 import { act, renderHook } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
+import { dirtyRegistry } from "@/lib/dirtyRegistry";
+import { navigationGuard } from "@/lib/navigationGuard";
+
 const mockReplace = vi.fn();
 const mockPush = vi.fn();
 let mockPathname = "/drive/work/Q1";
@@ -19,10 +22,14 @@ beforeEach(() => {
   mockPush.mockReset();
   mockPathname = "/drive/work/Q1";
   mockSearchParams = new URLSearchParams();
+  navigationGuard.reset();
+  dirtyRegistry.reset();
 });
 
 afterEach(() => {
   vi.restoreAllMocks();
+  navigationGuard.reset();
+  dirtyRegistry.reset();
 });
 
 describe("useSelectedFile", () => {
@@ -75,5 +82,41 @@ describe("useSelectedFile", () => {
     const { result } = renderHook(() => useSelectedFile());
     act(() => result.current.clearFile());
     expect(mockReplace).not.toHaveBeenCalled();
+  });
+
+  describe("navigationGuard integration (PR-5)", () => {
+    it("selectFile defers via navigationGuard when a source is dirty", () => {
+      dirtyRegistry.set("any-file", "knowledge-editor", true);
+      const { result } = renderHook(() => useSelectedFile());
+      act(() => result.current.selectFile("xyz"));
+      expect(mockPush).not.toHaveBeenCalled();
+      expect(navigationGuard.getPending()).not.toBeNull();
+      act(() => navigationGuard.confirm());
+      expect(mockPush).toHaveBeenCalledWith(
+        "/drive/work/Q1?file=xyz",
+        { scroll: false },
+      );
+    });
+
+    it("selectFile cancel drops the navigation", () => {
+      dirtyRegistry.set("any-file", "knowledge-editor", true);
+      const { result } = renderHook(() => useSelectedFile());
+      act(() => result.current.selectFile("xyz"));
+      act(() => navigationGuard.cancel());
+      expect(mockPush).not.toHaveBeenCalled();
+      expect(mockReplace).not.toHaveBeenCalled();
+    });
+
+    it("clearFile defers via navigationGuard when a source is dirty", () => {
+      mockSearchParams = new URLSearchParams("file=abc");
+      dirtyRegistry.set("any-file", "knowledge-editor", true);
+      const { result } = renderHook(() => useSelectedFile());
+      act(() => result.current.clearFile());
+      expect(mockReplace).not.toHaveBeenCalled();
+      act(() => navigationGuard.confirm());
+      expect(mockReplace).toHaveBeenCalledWith("/drive/work/Q1", {
+        scroll: false,
+      });
+    });
   });
 });
