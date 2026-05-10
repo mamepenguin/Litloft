@@ -24,7 +24,9 @@ services:
       # ── Password protection (optional) ──────────────────────────────────
       # Without this, all drives are publicly accessible (graceful degradation).
       # Uncomment if you have a passwords.json file.
-      # - ./passwords.json:/app/passwords.json:ro
+      # NOTE: must be writable — /admin/settings rewrites passwords.json via
+      # the same atomic writer used for drives.json. Do not add ":ro".
+      # - ./passwords.json:/app/passwords.json
 
   # ── Port (optional) ─────────────────────────────────────────────────────
   # Default port is 3000.

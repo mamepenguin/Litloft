@@ -10,9 +10,19 @@ passwords.json without leaving partial files behind. The pattern is:
 5. On success, touch the restart-pending flag in DATA_DIR so the GUI can
    surface the "config has been changed, please restart" banner. The flag
    is cleared on the next backend startup (lifespan in ``main.py``).
+
+Bind-mounted single-file fallback:
+    On Linux, ``rename(2)`` over a path that is itself a bind-mount target
+    returns ``EBUSY`` because the kernel cannot swap the inode while the
+    mount holds it. This is the case for ``./drives.json:/app/drives.json``
+    in our docker-compose.yml. When ``os.replace`` raises ``EBUSY`` we fall
+    back to in-place truncate+write of the destination. Atomicity is
+    weakened (a crash mid-write leaves a half-written file), but the
+    pre-write ``.bak`` copy remains the safety net for recovery.
 """
 from __future__ import annotations
 
+import errno
 import json
 import logging
 import os
@@ -63,7 +73,27 @@ def atomic_write_json(
         with tmp.open("w", encoding="utf-8") as f:
             json.dump(data, f, indent=2, ensure_ascii=False)
             f.write("\n")
-        os.replace(tmp, path)
+        try:
+            os.replace(tmp, path)
+        except OSError as exc:
+            if exc.errno != errno.EBUSY:
+                raise
+            # Bind-mounted single-file destination: rename(2) fails with
+            # EBUSY. Fall back to in-place truncate+write. The .bak copy
+            # taken above is the recovery point if the in-place write is
+            # interrupted.
+            logger.warning(
+                "%s appears to be a bind-mounted file (rename returned EBUSY); "
+                "falling back to in-place write",
+                path,
+            )
+            with path.open("w", encoding="utf-8") as f:
+                json.dump(data, f, indent=2, ensure_ascii=False)
+                f.write("\n")
+            try:
+                tmp.unlink()
+            except OSError:
+                logger.debug("Could not remove %s after fallback write", tmp)
     except Exception:
         # Atomicity: never leave a half-written .tmp behind, and keep the
         # original destination intact so callers can retry safely.
