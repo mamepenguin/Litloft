@@ -67,24 +67,10 @@ vi.mock("@/components/TreeToggle", () => ({
 
 // useFileNav fetches neighbors and registers shortcuts; stub it so
 // RightPaneFile's host wiring is what we test, not the hook's internals
-// (PR-2 has its own tests). PR-4 added the dirty-navigation guard
-// shape — we expose mutable refs so individual tests can simulate
-// "dialog open" state.
-let useFileNavReturn: {
-  prevId: string | null;
-  nextId: string | null;
-  pendingNavigation: { targetId: string } | null;
-  confirmPendingNavigation: () => void;
-  cancelPendingNavigation: () => void;
-} = {
-  prevId: null,
-  nextId: null,
-  pendingNavigation: null,
-  confirmPendingNavigation: vi.fn(),
-  cancelPendingNavigation: vi.fn(),
-};
+// (PR-2 has its own tests). PR-5 dropped the per-host dirty dialog —
+// the global ``<DirtyBlocker />`` owns it now.
 vi.mock("@/hooks/useFileNav", () => ({
-  useFileNav: vi.fn(() => useFileNavReturn),
+  useFileNav: vi.fn(() => ({ prevId: null, nextId: null })),
 }));
 
 const mockClearFile = vi.fn();
@@ -132,15 +118,6 @@ beforeEach(() => {
   for (const k of Array.from(mockSearchParams.keys())) {
     mockSearchParams.delete(k);
   }
-  // Reset useFileNav mock return to clean defaults so the dirty
-  // dialog stays closed unless a test opts in.
-  useFileNavReturn = {
-    prevId: null,
-    nextId: null,
-    pendingNavigation: null,
-    confirmPendingNavigation: vi.fn(),
-    cancelPendingNavigation: vi.fn(),
-  };
 });
 
 afterEach(() => {
@@ -288,34 +265,5 @@ describe("RightPaneFile", () => {
     const onAfterDelete = lastProps.onAfterDelete as () => void;
     onAfterDelete();
     expect(mockClearFile).toHaveBeenCalledTimes(1);
-  });
-
-  it("does not render the discard-changes dialog when no navigation is pending (PR-4)", async () => {
-    mockGetFile.mockResolvedValue(baseFile);
-    render(<RightPaneFile fileId="abc123" drive="work" />);
-    await waitFor(() =>
-      expect(screen.getByTestId("file-detail-content")).toBeInTheDocument(),
-    );
-    expect(screen.queryByText("Unsaved changes")).not.toBeInTheDocument();
-  });
-
-  it("renders the discard-changes dialog when useFileNav reports pendingNavigation (PR-4)", async () => {
-    mockGetFile.mockResolvedValue(baseFile);
-    const confirmSpy = vi.fn();
-    const cancelSpy = vi.fn();
-    useFileNavReturn = {
-      prevId: "prev1",
-      nextId: "next1",
-      pendingNavigation: { targetId: "next1" },
-      confirmPendingNavigation: confirmSpy,
-      cancelPendingNavigation: cancelSpy,
-    };
-    render(<RightPaneFile fileId="abc123" drive="work" />);
-    await waitFor(() =>
-      expect(screen.getByText("Unsaved changes")).toBeInTheDocument(),
-    );
-    fireEvent.click(screen.getByRole("button", { name: "Discard and navigate" }));
-    expect(confirmSpy).toHaveBeenCalledTimes(1);
-    expect(cancelSpy).not.toHaveBeenCalled();
   });
 });

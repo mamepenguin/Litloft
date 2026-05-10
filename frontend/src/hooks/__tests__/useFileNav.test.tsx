@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
+import { describe, it, expect, vi, beforeEach } from "vitest";
 import { renderHook, waitFor } from "@testing-library/react";
 import { act } from "react";
 import type { ReactNode } from "react";
@@ -7,7 +7,6 @@ import { NextIntlClientProvider } from "next-intl";
 import { useFileNav } from "../useFileNav";
 import { ShortcutsProvider } from "@/components/ShortcutsProvider";
 import * as api from "@/lib/api";
-import { dirtyRegistry } from "@/lib/dirtyRegistry";
 import type { Neighbors } from "@/types";
 
 vi.mock("@/lib/api", () => ({
@@ -46,10 +45,6 @@ describe("useFileNav", () => {
     (api.getFileNeighbors as ReturnType<typeof vi.fn>).mockResolvedValue(
       sampleNeighbors,
     );
-  });
-
-  afterEach(() => {
-    dirtyRegistry.reset();
   });
 
   it("fetches neighbors with the given fileId/sort/order on mount", async () => {
@@ -269,164 +264,5 @@ describe("useFileNav", () => {
       expect(result.current.prevId).toBe("prev1"),
     );
     expect(result.current.nextId).toBe("next1");
-  });
-
-  describe("dirty navigation guard (PR-4)", () => {
-    it("navigates immediately when no source is dirty", async () => {
-      const onNavigate = vi.fn();
-      const { result } = renderHook(
-        () =>
-          useFileNav({
-            fileId: "current",
-            fileType: "document",
-            enabled: true,
-            onNavigate,
-          }),
-        { wrapper: Wrapper },
-      );
-      await waitFor(() => expect(result.current.nextId).toBe("next1"));
-      dispatchKey("ArrowRight");
-      expect(onNavigate).toHaveBeenCalledWith("next1");
-      expect(result.current.pendingNavigation).toBeNull();
-    });
-
-    it("defers navigation and sets pendingNavigation when current file is dirty", async () => {
-      const onNavigate = vi.fn();
-      const { result } = renderHook(
-        () =>
-          useFileNav({
-            fileId: "current",
-            fileType: "document",
-            enabled: true,
-            onNavigate,
-          }),
-        { wrapper: Wrapper },
-      );
-      await waitFor(() => expect(result.current.nextId).toBe("next1"));
-      act(() => {
-        dirtyRegistry.set("current", "knowledge-editor", true);
-      });
-      dispatchKey("ArrowRight");
-      expect(onNavigate).not.toHaveBeenCalled();
-      expect(result.current.pendingNavigation).toEqual({ targetId: "next1" });
-    });
-
-    it("confirmPendingNavigation calls onNavigate with the target and clears the dialog", async () => {
-      const onNavigate = vi.fn();
-      const { result } = renderHook(
-        () =>
-          useFileNav({
-            fileId: "current",
-            fileType: "document",
-            enabled: true,
-            onNavigate,
-          }),
-        { wrapper: Wrapper },
-      );
-      await waitFor(() => expect(result.current.prevId).toBe("prev1"));
-      act(() => {
-        dirtyRegistry.set("current", "knowledge-editor", true);
-      });
-      dispatchKey("ArrowLeft");
-      expect(result.current.pendingNavigation).toEqual({ targetId: "prev1" });
-      act(() => {
-        result.current.confirmPendingNavigation();
-      });
-      expect(onNavigate).toHaveBeenCalledWith("prev1");
-      expect(result.current.pendingNavigation).toBeNull();
-    });
-
-    it("cancelPendingNavigation clears the dialog without navigating", async () => {
-      const onNavigate = vi.fn();
-      const { result } = renderHook(
-        () =>
-          useFileNav({
-            fileId: "current",
-            fileType: "document",
-            enabled: true,
-            onNavigate,
-          }),
-        { wrapper: Wrapper },
-      );
-      await waitFor(() => expect(result.current.nextId).toBe("next1"));
-      act(() => {
-        dirtyRegistry.set("current", "knowledge-editor", true);
-      });
-      dispatchKey("ArrowRight");
-      expect(result.current.pendingNavigation).not.toBeNull();
-      act(() => {
-        result.current.cancelPendingNavigation();
-      });
-      expect(onNavigate).not.toHaveBeenCalled();
-      expect(result.current.pendingNavigation).toBeNull();
-    });
-
-    it("clears pendingNavigation when fileId changes (host navigated by other means)", async () => {
-      const onNavigate = vi.fn();
-      const { result, rerender } = renderHook(
-        ({ fileId }: { fileId: string }) =>
-          useFileNav({
-            fileId,
-            fileType: "document",
-            enabled: true,
-            onNavigate,
-          }),
-        { wrapper: Wrapper, initialProps: { fileId: "current" } },
-      );
-      await waitFor(() => expect(result.current.nextId).toBe("next1"));
-      act(() => {
-        dirtyRegistry.set("current", "knowledge-editor", true);
-      });
-      dispatchKey("ArrowRight");
-      expect(result.current.pendingNavigation).not.toBeNull();
-      act(() => {
-        rerender({ fileId: "different" });
-      });
-      expect(result.current.pendingNavigation).toBeNull();
-    });
-
-    it("uses the latest pressed direction when arrow keys are dispatched while a dialog is open", async () => {
-      const onNavigate = vi.fn();
-      const { result } = renderHook(
-        () =>
-          useFileNav({
-            fileId: "current",
-            fileType: "document",
-            enabled: true,
-            onNavigate,
-          }),
-        { wrapper: Wrapper },
-      );
-      await waitFor(() => expect(result.current.prevId).toBe("prev1"));
-      act(() => {
-        dirtyRegistry.set("current", "knowledge-editor", true);
-      });
-      dispatchKey("ArrowLeft");
-      expect(result.current.pendingNavigation).toEqual({ targetId: "prev1" });
-      dispatchKey("ArrowRight");
-      expect(result.current.pendingNavigation).toEqual({ targetId: "next1" });
-      expect(onNavigate).not.toHaveBeenCalled();
-    });
-
-    it("ignores dirty state for other files", async () => {
-      const onNavigate = vi.fn();
-      const { result } = renderHook(
-        () =>
-          useFileNav({
-            fileId: "current",
-            fileType: "document",
-            enabled: true,
-            onNavigate,
-          }),
-        { wrapper: Wrapper },
-      );
-      await waitFor(() => expect(result.current.nextId).toBe("next1"));
-      act(() => {
-        dirtyRegistry.set("some-other-file", "knowledge-editor", true);
-      });
-      dispatchKey("ArrowRight");
-      expect(onNavigate).toHaveBeenCalledWith("next1");
-      expect(result.current.pendingNavigation).toBeNull();
-    });
   });
 });

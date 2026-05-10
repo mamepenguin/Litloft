@@ -5,7 +5,6 @@ import { useSearchParams } from "next/navigation";
 import { ArrowLeft } from "lucide-react";
 import { useTranslations } from "next-intl";
 
-import { ConfirmDialog } from "@/components/ConfirmDialog";
 import { FileDetailContent } from "@/components/FileDetailContent";
 import { ImageGallery } from "@/components/ImageGallery";
 import { TreeToggle } from "@/components/TreeToggle";
@@ -88,14 +87,10 @@ export function RightPaneFile({ fileId, drive }: RightPaneFileProps) {
   // swaps ``?file=id`` so FileDetailContent re-mounts with the
   // neighbor's id. Sort / order from the URL keep the nav order in
   // sync with what the folder view used before the user dove in.
-  // PR-4: useFileNav also surfaces a ``pendingNavigation`` when the
-  // current file is dirty (per dirtyRegistry); we render a confirm
-  // dialog below so the user can keep editing or discard.
-  const {
-    pendingNavigation,
-    confirmPendingNavigation,
-    cancelPendingNavigation,
-  } = useFileNav({
+  // PR-5: ``selectFile`` itself routes through ``navigationGuard`` so
+  // a dirty editor on the current file gets the global ``DirtyBlocker``
+  // dialog before the swap fires; this hook stays surface-agnostic.
+  useFileNav({
     fileId: file ? fileId : null,
     sort: searchParams.get("sort") ?? undefined,
     order: searchParams.get("order") ?? undefined,
@@ -104,7 +99,6 @@ export function RightPaneFile({ fileId, drive }: RightPaneFileProps) {
     enabled: true,
     onNavigate: selectFile,
   });
-  const tCommon = useTranslations("common");
 
   // Forward URL hints into FilePreview via FileDetailContent. ``t`` /
   // ``page`` / ``highlight`` are deep-link locators (citation jumps,
@@ -170,14 +164,6 @@ export function RightPaneFile({ fileId, drive }: RightPaneFileProps) {
           }}
         />
       )}
-      <ConfirmDialog
-        open={pendingNavigation !== null}
-        title={tCommon("discardUnsaved.title")}
-        message={tCommon("discardUnsaved.message")}
-        confirmLabel={tCommon("discardUnsaved.confirmLabel")}
-        onConfirm={confirmPendingNavigation}
-        onCancel={cancelPendingNavigation}
-      />
     </>
   );
 }
