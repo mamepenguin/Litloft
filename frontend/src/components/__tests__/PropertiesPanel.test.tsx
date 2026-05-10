@@ -288,4 +288,71 @@ describe("PropertiesPanel", () => {
       expect(screen.queryByLabelText("Remove foo")).toBeNull();
     });
   });
+
+  describe("hideTags mode (Phase 3 fm-card)", () => {
+    // Spec 2026-05-10 §D2 / hako B5QG4AcZjbn47MDErmQAO: in the document
+    // layout canvas, frontmatter.tags is edited via the inspector
+    // metadataNode (EditableTagChips on File.tags). The canvas
+    // PropertiesPanel suppresses the tags row to avoid a duplicate
+    // editing surface.
+
+    it("suppresses the tags row when hideTags is set", () => {
+      render(
+        <PropertiesPanel
+          frontmatter={{ tags: ["foo", "bar"] }}
+          hideTags
+        />,
+      );
+      expect(screen.queryByText("Tags")).toBeNull();
+      expect(screen.queryByText("foo")).toBeNull();
+      expect(screen.queryByText("bar")).toBeNull();
+    });
+
+    it("still renders other reserved keys when hideTags is set", () => {
+      render(
+        <PropertiesPanel
+          frontmatter={{
+            tags: ["foo"],
+            origin: "webclip",
+            description: "hello",
+          }}
+          hideTags
+        />,
+      );
+      expect(screen.queryByText("Tags")).toBeNull();
+      expect(screen.getByText("Origin")).toBeInTheDocument();
+      expect(screen.getByText("Description")).toBeInTheDocument();
+    });
+
+    it("renders null when only tags are present and hideTags is set", () => {
+      // With nothing but tags, suppressing them leaves no entries at
+      // all → the panel collapses to null so the canvas does not get
+      // a stray empty card.
+      const { container } = render(
+        <PropertiesPanel frontmatter={{ tags: ["foo"] }} hideTags />,
+      );
+      expect(container.firstChild).toBeNull();
+    });
+
+    it("does not auto-add an empty tags row in editable+hideTags", () => {
+      const editable = {
+        id: "fId000000001",
+        mime_type: "text/markdown",
+        filename: "note.md",
+        drive: "media",
+      };
+      // Without hideTags this would inject an empty tags row so the
+      // user has somewhere to add tags. With hideTags, the canvas
+      // PropertiesPanel should NOT inject one — the inspector owns
+      // tag editing.
+      const { container } = render(
+        <PropertiesPanel frontmatter={{}} editable={editable} hideTags />,
+      );
+      expect(container.firstChild).toBeNull();
+      expect(screen.queryByText("Tags")).toBeNull();
+      expect(
+        screen.queryByRole("button", { name: /Add tag/ }),
+      ).toBeNull();
+    });
+  });
 });

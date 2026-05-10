@@ -61,20 +61,37 @@ vi.mock("@/hooks/usePolicy", () => ({
 vi.mock("../CommentSection", () => ({
   CommentSection: () => <div data-testid="comments" />,
 }));
+const editableTagChipsCalls = vi.hoisted(
+  () => [] as Array<Record<string, unknown>>,
+);
 vi.mock("../EditableTagChips", () => ({
-  EditableTagChips: ({
-    onSaveSuccess,
-  }: {
-    onSaveSuccess?: () => void;
-  }) => (
-    <button
-      type="button"
-      data-testid="tag-save-trigger"
-      onClick={() => onSaveSuccess?.()}
-    >
-      tags
-    </button>
-  ),
+  EditableTagChips: (props: Record<string, unknown>) => {
+    editableTagChipsCalls.push(props);
+    const { onSaveSuccess, onContentChange } = props as {
+      onSaveSuccess?: () => void;
+      onContentChange?: (next: string) => void;
+    };
+    return (
+      <div data-testid="tag-chips-stub">
+        <button
+          type="button"
+          data-testid="tag-save-trigger"
+          onClick={() => onSaveSuccess?.()}
+        >
+          tags
+        </button>
+        <button
+          type="button"
+          data-testid="tag-content-write"
+          onClick={() =>
+            onContentChange?.("---\ntags: [via-chips]\n---\nbody")
+          }
+        >
+          content-write
+        </button>
+      </div>
+    );
+  },
 }));
 vi.mock("../FavoriteButton", () => ({
   FavoriteButton: () => <div data-testid="favorite" />,
@@ -147,6 +164,7 @@ function setApiResponses(file: FileItem) {
 describe("FileDetailContent", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    editableTagChipsCalls.length = 0;
     // Default: policy resolved as enabled (the "common" case for any
     // drive that hasn't opted out). Tests that need the legacy stack
     // override this either by selecting a non-Markdown mime type or
@@ -374,5 +392,115 @@ describe("FileDetailContent", () => {
     expect(
       screen.queryByTestId("markdown-document-layout"),
     ).not.toBeInTheDocument();
+  });
+
+  // ---------- Phase 3.5: inspector content-mode wiring ----------
+
+  it("wires inspector EditableTagChips in content-mode when the editor has registered for the .md file", async () => {
+    // Phase 3.5 spec 2026-05-10 §D2 / hako ZWLqXgdTwt9le4dAI3U8C: when
+    // the Knowledge Editor is mounted (and has registered itself in
+    // markdownContentRegistry), the inspector's tag chips must run
+    // in content-mode against the editor's shared `content` state —
+    // not standalone — to eliminate the etag race.
+    const { markdownContentRegistry } = await import(
+      "@/lib/markdownContentRegistry"
+    );
+    markdownContentRegistry.reset();
+    let editorContent = "---\ntags: [a, b]\n---\nbody";
+    const setContentSpy = vi.fn((next: string) => {
+      editorContent = next;
+    });
+    markdownContentRegistry.register("f1", {
+      getContent: () => editorContent,
+      setContent: setContentSpy,
+    });
+
+    setApiResponses(
+      makeFile({
+        file_type: "document",
+        mime_type: "text/markdown",
+        filename: "note.md",
+        tags: ["a", "b"],
+      }),
+    );
+    render(<FileDetailContent fileId="f1" drive="work" />);
+    await waitFor(() => expect(api.getFile).toHaveBeenCalled());
+
+    const inspectorChipProps = editableTagChipsCalls.at(-1);
+    expect(inspectorChipProps).toBeDefined();
+    expect(typeof inspectorChipProps!.content).toBe("string");
+    expect(inspectorChipProps!.content).toContain("body");
+    expect(typeof inspectorChipProps!.onContentChange).toBe("function");
+    // Standalone-mode plumbing must NOT be active simultaneously —
+    // mixed mode would still let saveFileTags fire its own GET/PUT.
+    expect(inspectorChipProps!.initialTags).toBeUndefined();
+
+    // The forwarded onContentChange routes through the registry's
+    // setContent — single writer.
+    screen.getByTestId("tag-content-write").click();
+    expect(setContentSpy).toHaveBeenCalledTimes(1);
+    expect(setContentSpy).toHaveBeenCalledWith(
+      "---\ntags: [via-chips]\n---\nbody",
+    );
+
+    markdownContentRegistry.reset();
+  });
+
+  it("falls back to standalone-mode chips when no editor is registered for the file", async () => {
+    // Defensive: if for any reason the editor never mounts (e.g. the
+    // Knowledge addon is still loading, or the inline flag is off but
+    // the layout fork still triggered), the inspector must keep
+    // working as a standalone tag editor.
+    const { markdownContentRegistry } = await import(
+      "@/lib/markdownContentRegistry"
+    );
+    markdownContentRegistry.reset();
+
+    setApiResponses(
+      makeFile({
+        file_type: "document",
+        mime_type: "text/markdown",
+        filename: "note.md",
+        tags: ["a"],
+      }),
+    );
+    render(<FileDetailContent fileId="f1" drive="work" />);
+    await waitFor(() => expect(api.getFile).toHaveBeenCalled());
+
+    const inspectorChipProps = editableTagChipsCalls.at(-1);
+    expect(inspectorChipProps).toBeDefined();
+    expect(inspectorChipProps!.content).toBeUndefined();
+    expect(inspectorChipProps!.onContentChange).toBeUndefined();
+    expect(Array.isArray(inspectorChipProps!.initialTags)).toBe(true);
+  });
+
+  it("keeps standalone-mode chips for non-Markdown files even when something is registered (defensive)", async () => {
+    // The registry is keyed by fileId, not mime — but the document
+    // layout fork is the only consumer. Non-Markdown files use the
+    // legacy vertical stack and must always be standalone.
+    const { markdownContentRegistry } = await import(
+      "@/lib/markdownContentRegistry"
+    );
+    markdownContentRegistry.reset();
+    markdownContentRegistry.register("f1", {
+      getContent: () => "anything",
+      setContent: vi.fn(),
+    });
+
+    setApiResponses(
+      makeFile({
+        file_type: "video",
+        mime_type: "video/mp4",
+      }),
+    );
+    render(<FileDetailContent fileId="f1" drive="work" />);
+    await waitFor(() => expect(api.getFile).toHaveBeenCalled());
+
+    const chipsProps = editableTagChipsCalls.at(-1);
+    expect(chipsProps).toBeDefined();
+    expect(chipsProps!.content).toBeUndefined();
+    expect(chipsProps!.onContentChange).toBeUndefined();
+
+    markdownContentRegistry.reset();
   });
 });

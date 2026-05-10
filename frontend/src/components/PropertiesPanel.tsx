@@ -44,11 +44,20 @@ interface NormalisedEntry {
 function normalise(
   frontmatter: Record<string, unknown>,
   labels: (key: string) => string,
+  hideTags: boolean,
 ): NormalisedEntry[] {
   const entries: NormalisedEntry[] = [];
   const consumed = new Set<string>();
 
   for (const key of RESERVED_KEYS) {
+    if (hideTags && key === "tags") {
+      // Mark consumed so the unknown-key fallback does not pick it
+      // back up. The canvas fm-card delegates tag editing to the
+      // inspector's EditableTagChips (spec 2026-05-10 §D2 / hako
+      // B5QG4AcZjbn47MDErmQAO).
+      consumed.add("tags");
+      continue;
+    }
     // ``source_file_ids`` is written by distill but we present it under
     // the friendlier label "sources".
     const actualKey = key === "sources" ? "source_file_ids" : key;
@@ -403,12 +412,20 @@ function renderValue(
 export function PropertiesPanel({
   frontmatter,
   editable,
+  hideTags = false,
   onTagsChange,
   onTagsSaved,
   source,
   onSourceChange,
 }: {
   frontmatter: Record<string, unknown>;
+  /**
+   * Suppress the ``tags`` row entirely. Used by the document-layout
+   * canvas fm-card so tag editing stays in the inspector's
+   * ``EditableTagChips`` and does not appear in two surfaces at once
+   * (spec 2026-05-10 §D2, hako B5QG4AcZjbn47MDErmQAO).
+   */
+  hideTags?: boolean;
   /**
    * When provided, the ``tags`` row becomes an editable chip group
    * backed by ``saveFileTags`` for the file.
@@ -449,13 +466,14 @@ export function PropertiesPanel({
       return key;
     }
   };
-  let entries = normalise(frontmatter, labels);
+  let entries = normalise(frontmatter, labels, hideTags);
 
   // Edit affordance: ensure there's always a ``tags`` row to click
   // when the caller wants editing. Without this, a ``.md`` that has
   // never been tagged would show no panel at all and the user would
-  // have no surface to start from.
-  if (editable && !entries.some((e) => e.key === "tags")) {
+  // have no surface to start from. Skipped when ``hideTags`` is set —
+  // the inspector owns tag editing in that surface.
+  if (editable && !hideTags && !entries.some((e) => e.key === "tags")) {
     entries = [
       { key: "tags", label: labels("tags"), kind: "tags", value: [] },
       ...entries,

@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState, useSyncExternalStore } from "react";
 import { useTranslations } from "next-intl";
 import {
   Check,
@@ -22,6 +22,7 @@ import { formatDuration, formatFileSize } from "@/lib/format";
 import type { FileItem } from "@/types";
 import type { MediaController } from "@/lib/mediaController";
 
+import { markdownContentRegistry } from "@/lib/markdownContentRegistry";
 import { ActiveSummaryHost } from "./ActiveSummaryHost";
 import { AddonSlot } from "./AddonSlot";
 import { CastButton } from "./CastButton";
@@ -220,6 +221,20 @@ export function FileDetailContent({
   // fail-open default).
   const knowledgeEditorPolicy = usePolicy(drive, "knowledge", "editor");
 
+  // Phase 3.5 (spec 2026-05-10 §D2 / hako ZWLqXgdTwt9le4dAI3U8C):
+  // subscribe to the markdown content registry so the inspector's
+  // EditableTagChips can run in content-mode against the editor's
+  // shared `content` state. Re-renders on register/unregister AND
+  // on every editor content pulse, so the chip always sees the
+  // freshest snapshot at click time (closing the etag race that
+  // Phase 3 inherited from the standalone two-writer design).
+  useSyncExternalStore(
+    markdownContentRegistry.subscribe,
+    () => markdownContentRegistry.lookup(fileId)?.getContent() ?? null,
+    () => null,
+  );
+  const mdEntry = markdownContentRegistry.lookup(fileId);
+
   if (!file) {
     return (
       <div className="flex flex-1 items-center justify-center">
@@ -231,6 +246,42 @@ export function FileDetailContent({
   const hasDuration =
     (file.file_type === "video" || file.file_type === "audio") &&
     file.duration != null;
+
+  // DocumentLayout fork: only when the file is Markdown, the policy
+  // resolved (not loading), and the policy says editor=true. Computed
+  // before ``metadataNode`` so the inspector chip group can pick
+  // content-mode (Phase 3.5) when the registry has an entry for the
+  // file. Anything else falls through to the legacy vertical stack.
+  const useDocumentLayout =
+    file.mime_type === "text/markdown" &&
+    !knowledgeEditorPolicy.isLoading &&
+    knowledgeEditorPolicy.enabled;
+
+  // Wire the inspector's EditableTagChips through the editor's shared
+  // content state when both (a) we're in the DocumentLayout fork and
+  // (b) the editor has registered an entry. Falls back to standalone
+  // mode otherwise — non-Markdown files have no editor, and a brief
+  // gap before the editor mounts must not leave the chip group
+  // unable to save.
+  const useChipContentMode = useDocumentLayout && mdEntry !== null;
+  const tagChipNode = useChipContentMode ? (
+    <EditableTagChips
+      file={file}
+      content={mdEntry!.getContent()}
+      onContentChange={mdEntry!.setContent}
+    />
+  ) : (
+    <EditableTagChips
+      file={file}
+      initialTags={file.tags}
+      onTagsChange={(nextTags) => {
+        // Optimistic local update only — the sidebar refresh waits
+        // until the debounced save lands.
+        setFile((prev) => (prev ? { ...prev, tags: nextTags } : prev));
+      }}
+      onSaveSuccess={handleTagsSaved}
+    />
+  );
 
   const metadataNode = (
     <div className="mt-4">
@@ -337,20 +388,7 @@ export function FileDetailContent({
               onEdit={() => setEditing(true)}
             />
           </div>
-          <div className="mt-3">
-            <EditableTagChips
-              file={file}
-              initialTags={file.tags}
-              onTagsChange={(nextTags) => {
-                // Optimistic local update only — the sidebar refresh
-                // waits until the debounced save lands.
-                setFile((prev) =>
-                  prev ? { ...prev, tags: nextTags } : prev,
-                );
-              }}
-              onSaveSuccess={handleTagsSaved}
-            />
-          </div>
+          <div className="mt-3">{tagChipNode}</div>
         </div>
       )}
     </div>
@@ -365,15 +403,6 @@ export function FileDetailContent({
     mediaController,
     subtitles: file.subtitles,
   };
-
-  // DocumentLayout fork: only when the file is Markdown, the policy
-  // resolved (not loading), and the policy says editor=true. Anything
-  // else falls through to the legacy vertical stack — pixel-identical
-  // to before this change.
-  const useDocumentLayout =
-    file.mime_type === "text/markdown" &&
-    !knowledgeEditorPolicy.isLoading &&
-    knowledgeEditorPolicy.enabled;
 
   if (useDocumentLayout) {
     // O3 split (spec §D3): heavy content (detailed summary, similar
