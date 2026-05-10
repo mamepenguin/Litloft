@@ -128,6 +128,30 @@ class DriveSummaryResponse(BaseModel):
     missing_count: int
 
 
+class AddonPolicy(BaseModel):
+    """Per-drive addon policy snapshot for the public addon-policies endpoint.
+
+    ``default`` is the bool shorthand (or the implicit-True default when a
+    feature dict is provided). ``features`` is the per-feature override map
+    (empty when only the bool shorthand is configured). See
+    spec ``2026-05-10-markdown-document-layout`` §4 D4.
+    """
+
+    default: bool
+    features: dict[str, bool]
+
+
+class DriveAddonPoliciesResponse(BaseModel):
+    """``GET /api/drives/{drive}/addon-policies`` response envelope.
+
+    Generic dictionary keyed by addon name (Internal API Policy R2 spirit:
+    no addon name leaks into the path/parameters; the response is a generic
+    map). Empty dict when the drive has no ``addons`` configured.
+    """
+
+    addons: dict[str, AddonPolicy]
+
+
 FolderKind = Literal[
     "markdown", "video", "image", "pdf", "audio", "document", "other"
 ]
