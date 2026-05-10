@@ -287,7 +287,11 @@ async def _proxy_stream_request(
     # No read timeout: SSE streams can be long-lived. Keep a short connect
     # timeout so a dead addon still fails fast.
     timeout = httpx.Timeout(connect=10.0, read=None, write=30.0, pool=10.0)
-    client = httpx.AsyncClient(timeout=timeout)
+    # trust_env=False: addon traffic is Docker-internal (intelligence:8100,
+    # knowledge:8200, ...). Honoring HTTP(S)_PROXY would route those names
+    # through a host-side proxy (e.g. OrbStack's proxyproxy.orb.internal)
+    # that cannot resolve Docker DNS, yielding 502 Bad Gateway.
+    client = httpx.AsyncClient(timeout=timeout, trust_env=False)
 
     try:
         req = client.build_request(
@@ -379,7 +383,7 @@ async def _proxy_request(
     timeout = 15.0
 
     try:
-        async with httpx.AsyncClient(timeout=timeout) as client:
+        async with httpx.AsyncClient(timeout=timeout, trust_env=False) as client:
             resp = await client.request(
                 method=request.method,
                 url=url,

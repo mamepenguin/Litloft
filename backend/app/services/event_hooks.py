@@ -163,7 +163,11 @@ async def emit(event: str, data: dict[str, Any]) -> None:
     try:
         import httpx
 
-        async with httpx.AsyncClient(timeout=5.0) as client:
+        # trust_env=False: hook URLs target Docker-internal addon services
+        # (e.g. http://intelligence:8100/...). Honoring HTTP(S)_PROXY env
+        # would route those through a host-side proxy that cannot resolve
+        # Docker DNS.
+        async with httpx.AsyncClient(timeout=5.0, trust_env=False) as client:
             for hook in listeners:
                 payload = _filter_payload_for_listener(data, hook)
                 if payload is None:
