@@ -376,38 +376,50 @@ export function FileDetailContent({
     knowledgeEditorPolicy.enabled;
 
   if (useDocumentLayout) {
-    // Inspector body: every section that used to live below the preview,
-    // minus the Knowledge editor (which is promoted to the canvas via
-    // includeIds={["knowledge-edit"]}). Comments are kept here because
-    // they are a tier-1 read surface (spec §D3 ordering).
+    // O3 split (spec §D3): heavy content (detailed summary, similar
+    // files, comments) moves into the canvas footer so it scrolls
+    // naturally as a continuation of the editor preview. The inspector
+    // keeps the lightweight tier-1 chrome (tags via metadataNode,
+    // related files, exif, residual addon sections).
     const inspectorNode = (
       <div className="space-y-4 p-4">
         {metadataNode}
-        <ActiveSummaryHost fileId={fileId} drive={drive} />
         <RelatedFilesSection fileId={fileId} />
         <ExifSection fileId={fileId} fileType={file.file_type} />
         <AddonSlot
           id="file-detail-sections"
           layout="stack"
-          excludeIds={["knowledge-edit"]}
+          excludeIds={["knowledge-edit", "similar-files"]}
           props={addonSlotProps}
         />
-        <CommentSection fileId={fileId} />
       </div>
     );
 
-    // Canvas: the Knowledge editor takes over (its three-mode toggle
-    // owns its own preview). FilePreview is intentionally omitted so
-    // we don't render the Markdown twice.
+    // Canvas: the Knowledge editor occupies the top region (its
+    // three-mode toggle owns its own preview, so FilePreview is
+    // intentionally omitted to avoid double-rendering Markdown). The
+    // footer below the editor carries the heavy content listed above.
     return (
       <MarkdownDocumentLayout drive={drive} inspector={inspectorNode}>
-        <div className="h-full w-full">
-          <AddonSlot
-            id="file-detail-sections"
-            layout="stack"
-            includeIds={["knowledge-edit"]}
-            props={addonSlotProps}
-          />
+        <div className="flex flex-1 min-h-0 flex-col">
+          <div className="flex-1 min-h-0">
+            <AddonSlot
+              id="file-detail-sections"
+              layout="stack"
+              includeIds={["knowledge-edit"]}
+              props={addonSlotProps}
+            />
+          </div>
+          <div className="space-y-6 border-t border-bg-border px-6 py-8">
+            <ActiveSummaryHost fileId={fileId} drive={drive} />
+            <AddonSlot
+              id="file-detail-sections"
+              layout="stack"
+              includeIds={["similar-files"]}
+              props={addonSlotProps}
+            />
+            <CommentSection fileId={fileId} />
+          </div>
         </div>
       </MarkdownDocumentLayout>
     );

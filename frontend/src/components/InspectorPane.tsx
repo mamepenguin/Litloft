@@ -1,13 +1,10 @@
 "use client";
 
-import { useMemo, type ReactElement, type ReactNode } from "react";
+import type { ReactElement, ReactNode } from "react";
 import { useTranslations } from "next-intl";
-
-import { useShortcuts } from "@/hooks/useShortcuts";
 
 interface InspectorPaneProps {
   onClose: () => void;
-  onToggle: () => void;
   children: ReactNode;
 }
 
@@ -18,29 +15,19 @@ interface InspectorPaneProps {
  *
  * - Header bar (`inspector.title` label + close button). The close button
  *   invokes `onClose`.
- * - Registers a global `Ctrl+\` (Cmd+\ on macOS, normalized by
- *   {@link useShortcuts}) shortcut that fires `onToggle`.
  * - Children are the section stack (tags / related / AI / similar /
  *   comments). Phase 1 leaves layout of those sections to the caller.
+ *
+ * The `Cmd+\` / `Ctrl+\` shortcut that toggles the inspector is registered
+ * by `MarkdownDocumentLayout` (the parent that survives both states), so
+ * the binding remains live while the pane is collapsed. Keeping it here
+ * would tie the keystroke to mount lifetime and break the open path.
  */
 export function InspectorPane({
   onClose,
-  onToggle,
   children,
 }: InspectorPaneProps): ReactElement {
   const t = useTranslations("inspector");
-  const shortcuts = useMemo(
-    () => [
-      {
-        key: "ctrl+\\",
-        label: t("toggleShortcut"),
-        handler: onToggle,
-        editingOnly: false as const,
-      },
-    ],
-    [onToggle, t],
-  );
-  useShortcuts("inspector-pane", "Inspector", shortcuts);
 
   return (
     <aside

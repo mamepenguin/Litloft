@@ -3,7 +3,7 @@
  * shell for `.md` file detail.
  *
  * Spec: `docs/superpowers/specs/2026-05-10-markdown-document-layout.md`
- * §3 / §D3 / §6 (Phase 1).
+ * §3 / §D3 / §6 (Phase 1 + B6 fix-up).
  *
  * Layout (mock §"layout"):
  *   sidebar (56) | tree (280) | canvas (flex-1) | inspector (300 | 36 | 0)
@@ -14,10 +14,17 @@
  * - Inspector closed → InspectorStrip (36px) shown instead.
  * - Mobile (< 768px) → graceful degradation: single column, inspector
  *   slot is NOT rendered (Phase 4 lifts it into a Bottom Sheet).
+ *
+ * B6 fix-up: the `Cmd+\` / `Ctrl+\` toggle shortcut now lives at this
+ * layout root (was previously inside `InspectorPane`, which made the
+ * binding disappear together with the pane on collapse, breaking the
+ * "open it again" path). The shortcut must work both when the pane
+ * is open (closes it) and when it is collapsed (reopens it).
  */
 import { describe, it, expect, beforeEach, vi } from "vitest";
 import { render, screen, fireEvent } from "@testing-library/react";
 
+import { ShortcutsProvider } from "@/components/ShortcutsProvider";
 import { MarkdownDocumentLayout } from "../MarkdownDocumentLayout";
 
 // Avoid pulling in real children: stub the Inspector subcomponents that
@@ -58,6 +65,16 @@ const CanvasContent = () => (
   <div data-testid="canvas-content">Canvas body</div>
 );
 
+function renderLayout(drive = "work") {
+  return render(
+    <ShortcutsProvider>
+      <MarkdownDocumentLayout drive={drive} inspector={<InspectorContent />}>
+        <CanvasContent />
+      </MarkdownDocumentLayout>
+    </ShortcutsProvider>,
+  );
+}
+
 beforeEach(() => {
   localStorage.clear();
   setViewportWidth(1440);
@@ -66,31 +83,19 @@ beforeEach(() => {
 describe("MarkdownDocumentLayout — desktop (>= 768px)", () => {
   it("renders the canvas children inside the layout", () => {
     setViewportWidth(1440);
-    render(
-      <MarkdownDocumentLayout drive="work" inspector={<InspectorContent />}>
-        <CanvasContent />
-      </MarkdownDocumentLayout>,
-    );
+    renderLayout();
     expect(screen.getByTestId("canvas-content")).toBeInTheDocument();
   });
 
   it("renders the inspector slot when open (wide viewport default)", () => {
     setViewportWidth(1440);
-    render(
-      <MarkdownDocumentLayout drive="work" inspector={<InspectorContent />}>
-        <CanvasContent />
-      </MarkdownDocumentLayout>,
-    );
+    renderLayout();
     expect(screen.getByTestId("inspector-content")).toBeInTheDocument();
   });
 
   it("exposes a layout root with a recognizable test id", () => {
     setViewportWidth(1440);
-    render(
-      <MarkdownDocumentLayout drive="work" inspector={<InspectorContent />}>
-        <CanvasContent />
-      </MarkdownDocumentLayout>,
-    );
+    renderLayout();
     // The root is the only element responsible for column geometry; tag
     // it for inspection so visual-regression-style assertions can hook.
     expect(screen.getByTestId("markdown-document-layout")).toBeInTheDocument();
@@ -98,11 +103,7 @@ describe("MarkdownDocumentLayout — desktop (>= 768px)", () => {
 
   it("shows the InspectorStrip (not full inspector) when narrow viewport defaults to closed", () => {
     setViewportWidth(1100); // < 1280 → default closed
-    render(
-      <MarkdownDocumentLayout drive="work" inspector={<InspectorContent />}>
-        <CanvasContent />
-      </MarkdownDocumentLayout>,
-    );
+    renderLayout();
     expect(screen.queryByTestId("inspector-content")).not.toBeInTheDocument();
     expect(screen.getByTestId("inspector-strip")).toBeInTheDocument();
   });
@@ -110,22 +111,14 @@ describe("MarkdownDocumentLayout — desktop (>= 768px)", () => {
   it("respects persisted localStorage state over viewport default", () => {
     setViewportWidth(1100); // narrow → would default closed
     localStorage.setItem("inspector-open:work", "true");
-    render(
-      <MarkdownDocumentLayout drive="work" inspector={<InspectorContent />}>
-        <CanvasContent />
-      </MarkdownDocumentLayout>,
-    );
+    renderLayout();
     expect(screen.getByTestId("inspector-content")).toBeInTheDocument();
     expect(screen.queryByTestId("inspector-strip")).not.toBeInTheDocument();
   });
 
   it("clicking the strip toggles the inspector open", () => {
     setViewportWidth(1100); // narrow → closed by default
-    render(
-      <MarkdownDocumentLayout drive="work" inspector={<InspectorContent />}>
-        <CanvasContent />
-      </MarkdownDocumentLayout>,
-    );
+    renderLayout();
     expect(screen.queryByTestId("inspector-content")).not.toBeInTheDocument();
 
     // Any of the strip's icon buttons should reopen the inspector.
@@ -137,16 +130,33 @@ describe("MarkdownDocumentLayout — desktop (>= 768px)", () => {
 
     expect(screen.getByTestId("inspector-content")).toBeInTheDocument();
   });
+
+  it("Ctrl+\\ closes the inspector when it is open", () => {
+    setViewportWidth(1440); // open by default
+    renderLayout();
+    expect(screen.getByTestId("inspector-content")).toBeInTheDocument();
+    fireEvent.keyDown(document, { key: "\\", ctrlKey: true });
+    expect(screen.queryByTestId("inspector-content")).not.toBeInTheDocument();
+    expect(screen.getByTestId("inspector-strip")).toBeInTheDocument();
+  });
+
+  it("Ctrl+\\ reopens the inspector after it has been collapsed (B6 regression)", () => {
+    // Start narrow → default closed → strip is shown. Pressing Ctrl+\
+    // here exercises the binding when InspectorPane is unmounted, which
+    // is exactly the path that used to be broken (the shortcut lived
+    // on the pane and therefore vanished with it).
+    setViewportWidth(1100);
+    renderLayout();
+    expect(screen.queryByTestId("inspector-content")).not.toBeInTheDocument();
+    fireEvent.keyDown(document, { key: "\\", ctrlKey: true });
+    expect(screen.getByTestId("inspector-content")).toBeInTheDocument();
+  });
 });
 
 describe("MarkdownDocumentLayout — mobile (< 768px graceful degradation)", () => {
   it("renders the canvas only; inspector slot is omitted on mobile", () => {
     setViewportWidth(420);
-    render(
-      <MarkdownDocumentLayout drive="work" inspector={<InspectorContent />}>
-        <CanvasContent />
-      </MarkdownDocumentLayout>,
-    );
+    renderLayout();
     expect(screen.getByTestId("canvas-content")).toBeInTheDocument();
     // Phase 1: mobile is not handled — Inspector content and strip both
     // hidden, single-column degrade.

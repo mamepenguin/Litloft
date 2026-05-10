@@ -3,12 +3,15 @@
 import {
   useCallback,
   useEffect,
+  useMemo,
   useState,
   type ReactElement,
   type ReactNode,
 } from "react";
+import { useTranslations } from "next-intl";
 
 import { useInspectorOpen } from "@/hooks/useInspectorOpen";
+import { useShortcuts } from "@/hooks/useShortcuts";
 import { inspectorOpenStore } from "@/lib/inspectorOpenStore";
 import { InspectorPane } from "./InspectorPane";
 import { InspectorStrip } from "./InspectorStrip";
@@ -33,19 +36,25 @@ function getIsMobile(): boolean {
  * §3 / §D3 / §6 Phase 1.
  *
  * Layout (>= 768px):
- *   canvas (flex-1) | inspector (300px open / 36px collapsed)
+ *   canvas (flex-1, flex-col, min-h-0) | inspector (300px open / 36px collapsed)
  *
  * Mobile (< 768px) Phase 1: graceful degradation — single column, the
  * inspector slot is not rendered. Phase 4 lifts it into a Bottom Sheet.
  *
  * Sidebar / tree columns are owned by the page shell; this component
  * only renders the canvas + inspector portion.
+ *
+ * The `Cmd+\` / `Ctrl+\` toggle shortcut is registered here (not inside
+ * `InspectorPane`) so the binding survives the pane unmount when the
+ * user collapses the inspector — otherwise the keystroke would only
+ * close the pane and never reopen it (B6 fix-up).
  */
 export function MarkdownDocumentLayout({
   drive,
   inspector,
   children,
 }: MarkdownDocumentLayoutProps): ReactElement {
+  const t = useTranslations("inspector");
   const { open, setOpen } = useInspectorOpen(drive);
   const [isMobile, setIsMobile] = useState<boolean>(getIsMobile);
 
@@ -72,13 +81,31 @@ export function MarkdownDocumentLayout({
   const reopen = useCallback(() => setOpen(true), [setOpen]);
   const toggle = useCallback(() => setOpen(!open), [open, setOpen]);
 
+  // Always-on shortcut binding. Lives at the layout root (which never
+  // unmounts while the user stays on the document) so collapsing the
+  // pane does not strip the binding.
+  const shortcuts = useMemo(
+    () => [
+      {
+        key: "ctrl+\\",
+        label: t("toggleShortcut"),
+        handler: toggle,
+        editingOnly: false as const,
+      },
+    ],
+    [toggle, t],
+  );
+  useShortcuts("markdown-doc-layout", "Inspector", shortcuts, !isMobile);
+
   if (isMobile) {
     return (
       <div
         data-testid="markdown-document-layout"
         className="flex h-full w-full flex-col"
       >
-        <main className="flex-1 overflow-auto">{children}</main>
+        <main className="flex flex-1 min-h-0 flex-col overflow-auto">
+          {children}
+        </main>
       </div>
     );
   }
@@ -88,11 +115,11 @@ export function MarkdownDocumentLayout({
       data-testid="markdown-document-layout"
       className="flex h-full w-full"
     >
-      <main className="min-w-0 flex-1 overflow-auto">{children}</main>
+      <main className="flex min-w-0 min-h-0 flex-1 flex-col overflow-auto">
+        {children}
+      </main>
       {open ? (
-        <InspectorPane onClose={close} onToggle={toggle}>
-          {inspector}
-        </InspectorPane>
+        <InspectorPane onClose={close}>{inspector}</InspectorPane>
       ) : (
         <InspectorStrip onOpen={reopen} />
       )}

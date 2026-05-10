@@ -295,16 +295,33 @@ describe("FileDetailContent", () => {
     render(<FileDetailContent fileId="f1" drive="work" />);
     await waitFor(() => expect(api.getFile).toHaveBeenCalled());
     expect(screen.getByTestId("markdown-document-layout")).toBeInTheDocument();
-    // Canvas hosts only the knowledge-edit slot
+    // Canvas hosts the knowledge-edit slot ...
     const canvas = screen.getByTestId("md-canvas");
     expect(
       canvas.querySelector('[data-testid="addon-slot-include:knowledge-edit"]'),
     ).not.toBeNull();
-    // Inspector hosts the rest of the file-detail-sections (knowledge-edit excluded)
+    // ... plus the heavy-content footer (O3 split, spec §D3): detailed
+    // summary + similar files + comments.
+    expect(
+      canvas.querySelector('[data-testid="active-summary-host"]'),
+    ).not.toBeNull();
+    expect(
+      canvas.querySelector('[data-testid="addon-slot-include:similar-files"]'),
+    ).not.toBeNull();
+    expect(canvas.querySelector('[data-testid="comments"]')).not.toBeNull();
+    // Inspector hosts the residual file-detail-sections (knowledge-edit
+    // and similar-files excluded so they don't double-render in canvas).
     const inspector = screen.getByTestId("md-inspector");
     expect(
-      inspector.querySelector('[data-testid="addon-slot-exclude:knowledge-edit"]'),
+      inspector.querySelector(
+        '[data-testid="addon-slot-exclude:knowledge-edit,similar-files"]',
+      ),
     ).not.toBeNull();
+    // Heavy content moved to canvas → must NOT also live in inspector.
+    expect(
+      inspector.querySelector('[data-testid="active-summary-host"]'),
+    ).toBeNull();
+    expect(inspector.querySelector('[data-testid="comments"]')).toBeNull();
   });
 
   it("does not render MarkdownDocumentLayout for non-Markdown files", async () => {
