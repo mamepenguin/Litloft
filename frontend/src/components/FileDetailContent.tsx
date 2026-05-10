@@ -31,8 +31,10 @@ import { ExifSection } from "./ExifSection";
 import { FavoriteButton } from "./FavoriteButton";
 import { FileActions } from "./FileActions";
 import { FilePreview } from "./FilePreview";
+import { MarkdownDocumentLayout } from "./MarkdownDocumentLayout";
 import { RelatedFilesSection } from "./RelatedFilesSection";
 import { useSidebar } from "./SidebarProvider";
+import { usePolicy } from "@/hooks/usePolicy";
 
 interface FileDetailContentProps {
   fileId: string;
@@ -210,6 +212,14 @@ export function FileDetailContent({
     setSaving(false);
   }, [file, editTitle, editDesc]);
 
+  // Drive-scope policy lookup for the Knowledge editor. The DocumentLayout
+  // fork below only takes effect when the policy resolved to enabled,
+  // which prevents a layout flicker on first paint (during loading the
+  // hook reports `enabled=true / isLoading=true`; we explicitly require
+  // `!isLoading` so we never speculatively swap layouts based on the
+  // fail-open default).
+  const knowledgeEditorPolicy = usePolicy(drive, "knowledge", "editor");
+
   if (!file) {
     return (
       <div className="flex flex-1 items-center justify-center">
@@ -222,6 +232,189 @@ export function FileDetailContent({
     (file.file_type === "video" || file.file_type === "audio") &&
     file.duration != null;
 
+  const metadataNode = (
+    <div className="mt-4">
+      {editing ? (
+        <div className="space-y-3">
+          <input
+            type="text"
+            value={editTitle}
+            onChange={(e) => setEditTitle(e.target.value)}
+            className="w-full rounded-lg bg-bg-card px-3 py-2 text-lg font-bold text-text-primary outline-none focus:ring-2 focus:ring-accent"
+          />
+          <textarea
+            value={editDesc}
+            onChange={(e) => setEditDesc(e.target.value)}
+            placeholder={t("addDescription")}
+            rows={3}
+            className="w-full rounded-lg bg-bg-card px-3 py-2 text-sm text-text-primary outline-none focus:ring-2 focus:ring-accent"
+          />
+          <div className="flex gap-2">
+            <button
+              onClick={handleSave}
+              disabled={saving}
+              className="flex items-center gap-1 rounded-2xl bg-accent px-3 py-1.5 text-sm font-medium text-white hover:bg-accent-hover disabled:opacity-50"
+            >
+              <Check size={14} />
+              {tc("save")}
+            </button>
+            <button
+              onClick={() => {
+                setEditing(false);
+                setEditTitle(file.title);
+                setEditDesc(file.description);
+              }}
+              className="flex items-center gap-1 rounded-lg bg-bg-card px-3 py-1.5 text-sm text-text-muted hover:text-text-primary"
+            >
+              <X size={14} />
+              {tc("cancel")}
+            </button>
+          </div>
+        </div>
+      ) : (
+        <div>
+          <h1 className="text-xl font-bold text-text-primary">
+            {file.title}
+          </h1>
+          {(hasDuration || file.description) && (
+            <div className="mt-1 text-xs text-text-muted">
+              {hasDuration && <span>{formatDuration(file.duration)} · </span>}
+              <span>{formatFileSize(file.file_size)}</span>
+              {file.description && (
+                <p className="mt-1 text-sm whitespace-pre-wrap">
+                  {file.description}
+                </p>
+              )}
+            </div>
+          )}
+          {!hasDuration && !file.description && (
+            <p className="mt-1 text-xs text-text-muted">
+              {formatFileSize(file.file_size)}
+            </p>
+          )}
+          <div className="mt-2 flex items-center gap-1">
+            <div className="flex items-center overflow-hidden rounded-full bg-bg-card">
+              <button
+                onClick={handleLike}
+                className="px-2.5 py-1.5 text-sm text-text-muted transition-colors hover:text-text-primary"
+                aria-label="Like"
+              >
+                <ThumbsUp size={16} />
+              </button>
+              <span className="min-w-[1.5rem] text-center text-sm text-text-muted">
+                {file.likes}
+              </span>
+              <button
+                onClick={handleDislike}
+                className="px-2.5 py-1.5 text-sm text-text-muted transition-colors hover:text-text-primary"
+                aria-label="Dislike"
+              >
+                <ThumbsDown size={16} />
+              </button>
+            </div>
+            <FavoriteButton
+              fileId={file.id}
+              isFavorite={file.is_favorite}
+              onToggle={setFile}
+              showLabel
+            />
+            {file.file_type === "image" && onRequestImageGallery && (
+              <button
+                onClick={onRequestImageGallery}
+                className="rounded-lg p-2 text-text-muted hover:bg-bg-card hover:text-text-primary"
+                aria-label={t("galleryMode")}
+              >
+                <Maximize2 size={16} />
+              </button>
+            )}
+            {file.file_type === "video" && (
+              <CastButton mediaRef={videoRef} />
+            )}
+            <FileActions
+              file={file}
+              onUpdate={() => getFile(fileId).then(setFile)}
+              onDelete={() => onAfterDelete?.()}
+              onEdit={() => setEditing(true)}
+            />
+          </div>
+          <div className="mt-3">
+            <EditableTagChips
+              file={file}
+              initialTags={file.tags}
+              onTagsChange={(nextTags) => {
+                // Optimistic local update only — the sidebar refresh
+                // waits until the debounced save lands.
+                setFile((prev) =>
+                  prev ? { ...prev, tags: nextTags } : prev,
+                );
+              }}
+              onSaveSuccess={handleTagsSaved}
+            />
+          </div>
+        </div>
+      )}
+    </div>
+  );
+
+  // Shared addon slot props. Same shape regardless of layout fork so
+  // every slot entry receives an identical context.
+  const addonSlotProps = {
+    fileId,
+    drive,
+    videoRef,
+    mediaController,
+    subtitles: file.subtitles,
+  };
+
+  // DocumentLayout fork: only when the file is Markdown, the policy
+  // resolved (not loading), and the policy says editor=true. Anything
+  // else falls through to the legacy vertical stack — pixel-identical
+  // to before this change.
+  const useDocumentLayout =
+    file.mime_type === "text/markdown" &&
+    !knowledgeEditorPolicy.isLoading &&
+    knowledgeEditorPolicy.enabled;
+
+  if (useDocumentLayout) {
+    // Inspector body: every section that used to live below the preview,
+    // minus the Knowledge editor (which is promoted to the canvas via
+    // includeIds={["knowledge-edit"]}). Comments are kept here because
+    // they are a tier-1 read surface (spec §D3 ordering).
+    const inspectorNode = (
+      <div className="space-y-4 p-4">
+        {metadataNode}
+        <ActiveSummaryHost fileId={fileId} drive={drive} />
+        <RelatedFilesSection fileId={fileId} />
+        <ExifSection fileId={fileId} fileType={file.file_type} />
+        <AddonSlot
+          id="file-detail-sections"
+          layout="stack"
+          excludeIds={["knowledge-edit"]}
+          props={addonSlotProps}
+        />
+        <CommentSection fileId={fileId} />
+      </div>
+    );
+
+    // Canvas: the Knowledge editor takes over (its three-mode toggle
+    // owns its own preview). FilePreview is intentionally omitted so
+    // we don't render the Markdown twice.
+    return (
+      <MarkdownDocumentLayout drive={drive} inspector={inspectorNode}>
+        <div className="h-full w-full">
+          <AddonSlot
+            id="file-detail-sections"
+            layout="stack"
+            includeIds={["knowledge-edit"]}
+            props={addonSlotProps}
+          />
+        </div>
+      </MarkdownDocumentLayout>
+    );
+  }
+
+  // Legacy vertical stack — preserved verbatim for non-Markdown files
+  // and for drives where the Knowledge editor is policy-disabled.
   return (
     <div className="w-full">
       <FilePreview
@@ -238,127 +431,7 @@ export function FileDetailContent({
         autoPlay={autoPlay}
       />
 
-      <div className="mt-4">
-        {editing ? (
-          <div className="space-y-3">
-            <input
-              type="text"
-              value={editTitle}
-              onChange={(e) => setEditTitle(e.target.value)}
-              className="w-full rounded-lg bg-bg-card px-3 py-2 text-lg font-bold text-text-primary outline-none focus:ring-2 focus:ring-accent"
-            />
-            <textarea
-              value={editDesc}
-              onChange={(e) => setEditDesc(e.target.value)}
-              placeholder={t("addDescription")}
-              rows={3}
-              className="w-full rounded-lg bg-bg-card px-3 py-2 text-sm text-text-primary outline-none focus:ring-2 focus:ring-accent"
-            />
-            <div className="flex gap-2">
-              <button
-                onClick={handleSave}
-                disabled={saving}
-                className="flex items-center gap-1 rounded-2xl bg-accent px-3 py-1.5 text-sm font-medium text-white hover:bg-accent-hover disabled:opacity-50"
-              >
-                <Check size={14} />
-                {tc("save")}
-              </button>
-              <button
-                onClick={() => {
-                  setEditing(false);
-                  setEditTitle(file.title);
-                  setEditDesc(file.description);
-                }}
-                className="flex items-center gap-1 rounded-lg bg-bg-card px-3 py-1.5 text-sm text-text-muted hover:text-text-primary"
-              >
-                <X size={14} />
-                {tc("cancel")}
-              </button>
-            </div>
-          </div>
-        ) : (
-          <div>
-            <h1 className="text-xl font-bold text-text-primary">
-              {file.title}
-            </h1>
-            {(hasDuration || file.description) && (
-              <div className="mt-1 text-xs text-text-muted">
-                {hasDuration && <span>{formatDuration(file.duration)} · </span>}
-                <span>{formatFileSize(file.file_size)}</span>
-                {file.description && (
-                  <p className="mt-1 text-sm whitespace-pre-wrap">
-                    {file.description}
-                  </p>
-                )}
-              </div>
-            )}
-            {!hasDuration && !file.description && (
-              <p className="mt-1 text-xs text-text-muted">
-                {formatFileSize(file.file_size)}
-              </p>
-            )}
-            <div className="mt-2 flex items-center gap-1">
-              <div className="flex items-center overflow-hidden rounded-full bg-bg-card">
-                <button
-                  onClick={handleLike}
-                  className="px-2.5 py-1.5 text-sm text-text-muted transition-colors hover:text-text-primary"
-                  aria-label="Like"
-                >
-                  <ThumbsUp size={16} />
-                </button>
-                <span className="min-w-[1.5rem] text-center text-sm text-text-muted">
-                  {file.likes}
-                </span>
-                <button
-                  onClick={handleDislike}
-                  className="px-2.5 py-1.5 text-sm text-text-muted transition-colors hover:text-text-primary"
-                  aria-label="Dislike"
-                >
-                  <ThumbsDown size={16} />
-                </button>
-              </div>
-              <FavoriteButton
-                fileId={file.id}
-                isFavorite={file.is_favorite}
-                onToggle={setFile}
-                showLabel
-              />
-              {file.file_type === "image" && onRequestImageGallery && (
-                <button
-                  onClick={onRequestImageGallery}
-                  className="rounded-lg p-2 text-text-muted hover:bg-bg-card hover:text-text-primary"
-                  aria-label={t("galleryMode")}
-                >
-                  <Maximize2 size={16} />
-                </button>
-              )}
-              {file.file_type === "video" && (
-                <CastButton mediaRef={videoRef} />
-              )}
-              <FileActions
-                file={file}
-                onUpdate={() => getFile(fileId).then(setFile)}
-                onDelete={() => onAfterDelete?.()}
-                onEdit={() => setEditing(true)}
-              />
-            </div>
-            <div className="mt-3">
-              <EditableTagChips
-                file={file}
-                initialTags={file.tags}
-                onTagsChange={(nextTags) => {
-                  // Optimistic local update only — the sidebar refresh
-                  // waits until the debounced save lands.
-                  setFile((prev) =>
-                    prev ? { ...prev, tags: nextTags } : prev,
-                  );
-                }}
-                onSaveSuccess={handleTagsSaved}
-              />
-            </div>
-          </div>
-        )}
-      </div>
+      {metadataNode}
 
       <div className="mt-4 space-y-4">
         <ActiveSummaryHost fileId={fileId} drive={drive} />
@@ -367,13 +440,7 @@ export function FileDetailContent({
         <AddonSlot
           id="file-detail-sections"
           layout="stack"
-          props={{
-            fileId,
-            drive,
-            videoRef,
-            mediaController,
-            subtitles: file.subtitles,
-          }}
+          props={addonSlotProps}
         />
       </div>
 

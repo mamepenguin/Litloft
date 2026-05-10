@@ -36,6 +36,24 @@ interface AddonSlotProps {
   id: string;
   props?: Record<string, unknown>;
   layout?: "tabs" | "stack" | "menu";
+  /**
+   * Optional allowlist by entry id. When provided, only entries whose
+   * `id` is in the list are rendered. Both filters are applied before
+   * sorting / tab activation, so an empty resulting set still hides the
+   * entire slot (matches the `sorted.length === 0` early return).
+   *
+   * Used by the Markdown DocumentLayout split (spec
+   * `2026-05-10-markdown-document-layout.md`) to send `knowledge-edit`
+   * to the canvas while the rest go to the Inspector. Both undefined →
+   * full back-compat (every entry rendered, original behaviour).
+   */
+  includeIds?: string[];
+  /**
+   * Optional denylist by entry id. Applied after `includeIds`. Same use
+   * case as `includeIds`: the Inspector excludes `knowledge-edit` so
+   * the editor doesn't render twice.
+   */
+  excludeIds?: string[];
 }
 
 function SlotEntryRenderer({
@@ -77,14 +95,26 @@ function SlotEntryRenderer({
   );
 }
 
-export function AddonSlot({ id, props = {}, layout = "stack" }: AddonSlotProps) {
+export function AddonSlot({
+  id,
+  props = {},
+  layout = "stack",
+  includeIds,
+  excludeIds,
+}: AddonSlotProps) {
   const { getSlotEntries } = useAddonSlots();
   const entries = getSlotEntries(id);
 
-  const sorted = useMemo(
-    () => [...entries].sort((a, b) => a.priority - b.priority),
-    [entries]
-  );
+  const sorted = useMemo(() => {
+    const includeSet = includeIds ? new Set(includeIds) : null;
+    const excludeSet = excludeIds ? new Set(excludeIds) : null;
+    const filtered = entries.filter((entry) => {
+      if (includeSet && !includeSet.has(entry.id)) return false;
+      if (excludeSet && excludeSet.has(entry.id)) return false;
+      return true;
+    });
+    return filtered.sort((a, b) => a.priority - b.priority);
+  }, [entries, includeIds, excludeIds]);
 
   const [activeTab, setActiveTab] = useState(0);
 

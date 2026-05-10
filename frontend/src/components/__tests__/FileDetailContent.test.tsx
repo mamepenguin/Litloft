@@ -23,7 +23,40 @@ vi.mock("../ExifSection", () => ({
   ExifSection: () => <div data-testid="exif" />,
 }));
 vi.mock("../AddonSlot", () => ({
-  AddonSlot: () => <div data-testid="addon-slot" />,
+  AddonSlot: ({
+    includeIds,
+    excludeIds,
+  }: {
+    includeIds?: string[];
+    excludeIds?: string[];
+  }) => {
+    // Surface the filter intent to the DOM so tests can assert which
+    // copy of the slot (canvas vs. inspector) ran.
+    const tag = includeIds
+      ? `include:${includeIds.join(",")}`
+      : excludeIds
+        ? `exclude:${excludeIds.join(",")}`
+        : "all";
+    return <div data-testid={`addon-slot-${tag}`} />;
+  },
+}));
+vi.mock("../MarkdownDocumentLayout", () => ({
+  MarkdownDocumentLayout: ({
+    inspector,
+    children,
+  }: {
+    inspector: React.ReactNode;
+    children: React.ReactNode;
+  }) => (
+    <div data-testid="markdown-document-layout">
+      <div data-testid="md-canvas">{children}</div>
+      <div data-testid="md-inspector">{inspector}</div>
+    </div>
+  ),
+}));
+const usePolicyMock = vi.hoisted(() => vi.fn());
+vi.mock("@/hooks/usePolicy", () => ({
+  usePolicy: usePolicyMock,
 }));
 vi.mock("../CommentSection", () => ({
   CommentSection: () => <div data-testid="comments" />,
@@ -114,6 +147,11 @@ function setApiResponses(file: FileItem) {
 describe("FileDetailContent", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    // Default: policy resolved as enabled (the "common" case for any
+    // drive that hasn't opted out). Tests that need the legacy stack
+    // override this either by selecting a non-Markdown mime type or
+    // by remocking before render.
+    usePolicyMock.mockReturnValue({ enabled: true, isLoading: false });
   });
 
   it("calls recordFileView exactly once when mounted with a fileId", async () => {
@@ -242,5 +280,79 @@ describe("FileDetailContent", () => {
       miniPlayerRoot?: Element | null;
     };
     expect(lastProps.miniPlayerRoot).toBe(root);
+  });
+
+  // ---------- Markdown DocumentLayout fork (spec 2026-05-10) ----------
+
+  it("renders MarkdownDocumentLayout when mime=text/markdown and policy is enabled", async () => {
+    setApiResponses(
+      makeFile({
+        file_type: "document",
+        mime_type: "text/markdown",
+        filename: "note.md",
+      }),
+    );
+    render(<FileDetailContent fileId="f1" drive="work" />);
+    await waitFor(() => expect(api.getFile).toHaveBeenCalled());
+    expect(screen.getByTestId("markdown-document-layout")).toBeInTheDocument();
+    // Canvas hosts only the knowledge-edit slot
+    const canvas = screen.getByTestId("md-canvas");
+    expect(
+      canvas.querySelector('[data-testid="addon-slot-include:knowledge-edit"]'),
+    ).not.toBeNull();
+    // Inspector hosts the rest of the file-detail-sections (knowledge-edit excluded)
+    const inspector = screen.getByTestId("md-inspector");
+    expect(
+      inspector.querySelector('[data-testid="addon-slot-exclude:knowledge-edit"]'),
+    ).not.toBeNull();
+  });
+
+  it("does not render MarkdownDocumentLayout for non-Markdown files", async () => {
+    setApiResponses(
+      makeFile({
+        file_type: "video",
+        mime_type: "video/mp4",
+      }),
+    );
+    render(<FileDetailContent fileId="f1" drive="work" />);
+    await waitFor(() => expect(api.getFile).toHaveBeenCalled());
+    expect(
+      screen.queryByTestId("markdown-document-layout"),
+    ).not.toBeInTheDocument();
+    // Legacy stack: full slot (no include/exclude)
+    expect(screen.getByTestId("addon-slot-all")).toBeInTheDocument();
+  });
+
+  it("falls back to legacy stack when usePolicy reports editor disabled", async () => {
+    usePolicyMock.mockReturnValue({ enabled: false, isLoading: false });
+    setApiResponses(
+      makeFile({
+        file_type: "document",
+        mime_type: "text/markdown",
+        filename: "note.md",
+      }),
+    );
+    render(<FileDetailContent fileId="f1" drive="work" />);
+    await waitFor(() => expect(api.getFile).toHaveBeenCalled());
+    expect(
+      screen.queryByTestId("markdown-document-layout"),
+    ).not.toBeInTheDocument();
+    expect(screen.getByTestId("addon-slot-all")).toBeInTheDocument();
+  });
+
+  it("falls back to legacy stack while usePolicy is still loading (no flicker)", async () => {
+    usePolicyMock.mockReturnValue({ enabled: true, isLoading: true });
+    setApiResponses(
+      makeFile({
+        file_type: "document",
+        mime_type: "text/markdown",
+        filename: "note.md",
+      }),
+    );
+    render(<FileDetailContent fileId="f1" drive="work" />);
+    await waitFor(() => expect(api.getFile).toHaveBeenCalled());
+    expect(
+      screen.queryByTestId("markdown-document-layout"),
+    ).not.toBeInTheDocument();
   });
 });
