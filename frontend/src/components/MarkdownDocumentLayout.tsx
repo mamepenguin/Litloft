@@ -103,7 +103,7 @@ export function MarkdownDocumentLayout({
         data-testid="markdown-document-layout"
         className="flex h-full w-full flex-col"
       >
-        <main className="flex flex-1 min-h-0 flex-col overflow-auto">
+        <main className="flex flex-1 min-h-0 flex-col">
           {children}
         </main>
       </div>
@@ -115,7 +115,7 @@ export function MarkdownDocumentLayout({
       data-testid="markdown-document-layout"
       className="flex h-full w-full"
     >
-      <main className="flex min-w-0 min-h-0 flex-1 flex-col overflow-auto">
+      <main className="flex min-w-0 min-h-0 flex-1 flex-col">
         {children}
       </main>
       {open ? (
