@@ -406,7 +406,7 @@ export function FileDetailContent({
     return (
       <MarkdownDocumentLayout drive={drive} inspector={inspectorNode}>
         <div className="flex flex-1 min-h-0 flex-col">
-          <div className="flex flex-1 min-h-0 flex-col">
+          <div className="relative isolate flex flex-1 min-h-0 flex-col bg-bg-primary">
             <AddonSlot
               id="file-detail-sections"
               layout="stack"
@@ -414,7 +414,7 @@ export function FileDetailContent({
               props={{ ...addonSlotProps, fillHeight: true }}
             />
           </div>
-          <div className="space-y-6 border-t border-bg-border px-6 py-8">
+          <div className="relative isolate space-y-6 border-t border-bg-border bg-bg-primary px-6 py-8">
             <ActiveSummaryHost fileId={fileId} drive={drive} />
             <AddonSlot
               id="file-detail-sections"
