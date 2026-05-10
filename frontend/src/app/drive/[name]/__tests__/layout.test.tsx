@@ -20,6 +20,13 @@ vi.mock("@/components/folder/FolderTreePane", () => ({
 vi.mock("@/components/FilePreview", () => ({
   FilePreview: () => null,
 }));
+vi.mock("@/components/folder/RightPaneFile", () => ({
+  RightPaneFile: ({ fileId, drive }: { fileId: string; drive: string }) => (
+    <div data-testid="right-pane">
+      file:{fileId}/drive:{drive}
+    </div>
+  ),
+}));
 
 import DriveLayout from "../layout";
 
@@ -124,5 +131,44 @@ describe("DriveLayout", () => {
       </DriveLayout>,
     );
     expect(screen.getByTestId("tree-pane")).toBeInTheDocument();
+  });
+
+  it("renders RightPaneFile standalone when tree is disabled but ?file= is set", () => {
+    // Tree opt-out preserved (no tree-pane mounted), but the file
+    // detail is what the user navigated to — show it directly.
+    mockSearchParams = new URLSearchParams("file=abc123");
+    render(
+      <DriveLayout>
+        <div data-testid="page">folder behind</div>
+      </DriveLayout>,
+    );
+    expect(screen.getByTestId("right-pane")).toHaveTextContent(
+      "file:abc123/drive:work",
+    );
+    expect(screen.queryByTestId("tree-pane")).not.toBeInTheDocument();
+    expect(screen.queryByTestId("page")).not.toBeInTheDocument();
+  });
+
+  it("does NOT mount RightPaneFile on addon routes even with ?file=", () => {
+    mockPathname = "/drive/work/addons/intelligence";
+    mockSearchParams = new URLSearchParams("file=abc123");
+    render(
+      <DriveLayout>
+        <div data-testid="page">addon</div>
+      </DriveLayout>,
+    );
+    expect(screen.queryByTestId("right-pane")).not.toBeInTheDocument();
+    expect(screen.getByTestId("page")).toBeInTheDocument();
+  });
+
+  it("does NOT mount RightPaneFile on recovery views even with ?file=", () => {
+    mockSearchParams = new URLSearchParams("view=trash&file=abc123");
+    render(
+      <DriveLayout>
+        <div data-testid="page">trash</div>
+      </DriveLayout>,
+    );
+    expect(screen.queryByTestId("right-pane")).not.toBeInTheDocument();
+    expect(screen.getByTestId("page")).toBeInTheDocument();
   });
 });

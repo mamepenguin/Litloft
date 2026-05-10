@@ -3,6 +3,7 @@
 import { useParams, usePathname, useSearchParams } from "next/navigation";
 import type { ReactNode } from "react";
 
+import { RightPaneFile } from "@/components/folder/RightPaneFile";
 import { TwoPaneLayout } from "@/components/folder/TwoPaneLayout";
 import { useTreeEnabled } from "@/hooks/useTreeEnabled";
 
@@ -47,5 +48,20 @@ export default function DriveLayout({ children }: { children: ReactNode }) {
       </TwoPaneLayout>
     );
   }
+
+  // Tree disabled but a file is selected (typically via the
+  // ``/files/{id}`` 307 redirect from Phase 1 PR-5, or any other
+  // ``?file=`` link). Without this branch, ``RightPaneFile`` never
+  // mounts and the user sees the folder grid behind the file URL,
+  // which is jarring. Mount the right pane standalone so the file
+  // detail actually shows up. The user can leave via the in-pane
+  // chrome (``TreeToggle`` flips the tree on, mobile back button
+  // calls ``clearFile`` to drop the ``?file=`` query) or browser
+  // back. (Bug found during PR-7 manual QA, fixed alongside.)
+  const fileId = searchParams.get("file");
+  if (fileId && !isAddonRoute && !isRecoveryView) {
+    return <RightPaneFile fileId={fileId} drive={driveName} />;
+  }
+
   return <>{children}</>;
 }
