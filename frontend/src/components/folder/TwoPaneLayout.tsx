@@ -3,7 +3,7 @@
 import { X } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { usePathname } from "next/navigation";
-import { useCallback } from "react";
+import { useCallback, useEffect, useState } from "react";
 import type { ReactNode } from "react";
 
 import { useGuardedRouter } from "@/hooks/useGuardedRouter";
@@ -49,7 +49,7 @@ export function TwoPaneLayout({ drive, folderPath, children }: TwoPaneLayoutProp
   const router = useGuardedRouter();
   const pathname = usePathname();
   const { fileId, selectFile, clearFile } = useSelectedFile();
-  const { setEnabled: setTreeEnabled } = useTreeEnabled(drive);
+  const { enabled: treeEnabled, setEnabled: setTreeEnabled } = useTreeEnabled(drive);
 
   const hasFile = fileId !== null && fileId.length > 0;
   const driveBase = `/drive/${encodeURIComponent(drive)}`;
@@ -82,35 +82,66 @@ export function TwoPaneLayout({ drive, folderPath, children }: TwoPaneLayoutProp
 
   const selectedTreePath = hasFile ? null : folderPath || null;
 
+  // Tree pane visibility is driven by CSS width transitions instead of
+  // conditional mount/unmount, so toggling the pane never re-mounts
+  // `children` (FolderBrowser / DriveHome) on the right. Outer `<aside>`
+  // animates its width; the inner wrapper keeps an intrinsic width so
+  // content doesn't reflow during the transition, it just gets clipped
+  // by `overflow-hidden`.
+  //
+  // `FolderTreePane` itself is lazy-mounted — we don't want to run its
+  // folder-tree fetch and WebSocket subscription for users who never
+  // open the tree. Once they enable it for the first time we keep it
+  // mounted, so the close→reopen animation has content to slide and
+  // the tree's expansion / scroll state survives toggles.
+  const [hasEverEnabled, setHasEverEnabled] = useState(treeEnabled);
+  useEffect(() => {
+    if (treeEnabled && !hasEverEnabled) setHasEverEnabled(true);
+  }, [treeEnabled, hasEverEnabled]);
+  const treeAsideWidth = treeEnabled
+    ? hasFile
+      ? "w-0 md:w-[280px]"
+      : "w-[100vw] md:w-[280px]"
+    : "w-0";
+  const showSectionOnMobile = !treeEnabled || hasFile;
+
   return (
     <div className="flex h-[calc(100dvh-3.5rem)] w-full overflow-hidden">
       <aside
-        className={`${
-          hasFile ? "hidden md:flex" : "flex"
-        } h-full w-full flex-col md:w-[280px] md:flex-shrink-0`}
+        className={`h-full flex-shrink-0 overflow-hidden transition-[width] duration-150 ease-out ${treeAsideWidth}`}
         aria-label="Folder tree"
+        aria-hidden={!treeEnabled}
+        // `inert` removes the subtree from tab order and pointer events
+        // while the tree is closed. aria-hidden alone hides it from
+        // screen readers but lets keyboard focus still land on the
+        // (visually clipped) tree rows underneath.
+        inert={!treeEnabled}
       >
-        <div className="flex items-center justify-end border-b border-bg-border p-1 md:hidden">
-          <button
-            type="button"
-            onClick={() => setTreeEnabled(false)}
-            aria-label={tView("treeOff")}
-            className="rounded-lg p-2 text-text-muted hover:text-text-primary"
-          >
-            <X size={18} />
-          </button>
+        <div className="flex h-full w-[100vw] flex-col md:w-[280px]">
+          <div className="flex items-center justify-end border-b border-bg-border p-1 md:hidden">
+            <button
+              type="button"
+              onClick={() => setTreeEnabled(false)}
+              aria-label={tView("treeOff")}
+              className="rounded-lg p-2 text-text-muted hover:text-text-primary"
+            >
+              <X size={18} />
+            </button>
+          </div>
+          {hasEverEnabled ? (
+            <FolderTreePane
+              drive={drive}
+              selectedPath={selectedTreePath}
+              selectedFileId={fileId}
+              currentFolderPath={folderPath}
+              onSelectFolder={handleSelectFolder}
+              onSelectFile={handleSelectFile}
+            />
+          ) : null}
         </div>
-        <FolderTreePane
-          drive={drive}
-          selectedPath={selectedTreePath}
-          selectedFileId={fileId}
-          currentFolderPath={folderPath}
-          onSelectFolder={handleSelectFolder}
-          onSelectFile={handleSelectFile}
-        />
       </aside>
       <section
-        className={`${hasFile ? "flex" : "hidden md:flex"} scrollbar-hover h-full min-w-0 flex-1 flex-col overflow-y-auto`}
+        className={`${showSectionOnMobile ? "flex" : "hidden md:flex"} scrollbar-hover h-full min-w-0 flex-1 flex-col overflow-y-auto`}
       >
         {hasFile && fileId ? <RightPaneFile fileId={fileId} drive={drive} /> : children}
         {!hasFile && <span className="sr-only">{t("noSelection")}</span>}

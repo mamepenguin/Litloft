@@ -44,7 +44,12 @@ afterEach(() => {
 });
 
 describe("DriveLayout", () => {
-  it("renders children unwrapped when tree is disabled", () => {
+  it("keeps children mounted with tree hidden when tree is disabled", () => {
+    // Tree toggle is now a CSS-driven show/hide so children (FolderBrowser /
+    // DriveHome / search) survive the toggle without re-mounting. The
+    // `<aside>` wrapper is always mounted but aria-hidden, and the
+    // `FolderTreePane` is lazy-mounted on first enable so we don't pay
+    // for its tree fetch while the user has the tree closed.
     render(
       <DriveLayout>
         <div data-testid="page">drive home</div>
@@ -52,6 +57,10 @@ describe("DriveLayout", () => {
     );
     expect(screen.getByTestId("page")).toBeInTheDocument();
     expect(screen.queryByTestId("tree-pane")).not.toBeInTheDocument();
+    expect(screen.getByLabelText("Folder tree")).toHaveAttribute(
+      "aria-hidden",
+      "true",
+    );
   });
 
   it("wraps children in TwoPaneLayout when tree is enabled at drive root", () => {
@@ -63,6 +72,10 @@ describe("DriveLayout", () => {
     );
     expect(screen.getByTestId("tree-pane")).toBeInTheDocument();
     expect(screen.getByTestId("page")).toBeInTheDocument();
+    expect(screen.getByLabelText("Folder tree")).toHaveAttribute(
+      "aria-hidden",
+      "false",
+    );
   });
 
   it("wraps children in TwoPaneLayout in sub folders", () => {
@@ -133,9 +146,10 @@ describe("DriveLayout", () => {
     expect(screen.getByTestId("tree-pane")).toBeInTheDocument();
   });
 
-  it("renders RightPaneFile standalone when tree is disabled but ?file= is set", () => {
-    // Tree opt-out preserved (no tree-pane mounted), but the file
-    // detail is what the user navigated to — show it directly.
+  it("renders RightPaneFile in section when tree is disabled but ?file= is set", () => {
+    // The right pane swap is owned by TwoPaneLayout (hasFile branch);
+    // the tree aside stays mounted but aria-hidden, and FolderTreePane
+    // stays lazy-mounted until the user opens the tree.
     mockSearchParams = new URLSearchParams("file=abc123");
     render(
       <DriveLayout>
@@ -144,6 +158,10 @@ describe("DriveLayout", () => {
     );
     expect(screen.getByTestId("right-pane")).toHaveTextContent(
       "file:abc123/drive:work",
+    );
+    expect(screen.getByLabelText("Folder tree")).toHaveAttribute(
+      "aria-hidden",
+      "true",
     );
     expect(screen.queryByTestId("tree-pane")).not.toBeInTheDocument();
     expect(screen.queryByTestId("page")).not.toBeInTheDocument();

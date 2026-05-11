@@ -9,6 +9,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { dirtyRegistry } from "@/lib/dirtyRegistry";
 import { navigationGuard } from "@/lib/navigationGuard";
+import { treeEnabledStore } from "@/lib/treeEnabledStore";
 
 const mockReplace = vi.fn();
 const mockPush = vi.fn();
@@ -150,12 +151,19 @@ beforeEach(() => {
   localStorage.removeItem("rightPaneFolder:viewMode");
   navigationGuard.reset();
   dirtyRegistry.reset();
+  // TwoPaneLayout now lazy-mounts FolderTreePane (DriveLayout keeps the
+  // wrapper mounted regardless of tree state). Enable the tree by default
+  // so existing host-level wiring tests still get a rendered tree pane.
+  treeEnabledStore.reset();
+  treeEnabledStore.set("work", true);
+  treeEnabledStore.set("my drive", true);
 });
 
 afterEach(() => {
   vi.restoreAllMocks();
   navigationGuard.reset();
   dirtyRegistry.reset();
+  treeEnabledStore.reset();
 });
 
 describe("TwoPaneLayout", () => {
