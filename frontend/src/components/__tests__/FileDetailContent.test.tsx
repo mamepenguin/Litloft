@@ -42,25 +42,22 @@ vi.mock("../AddonSlot", () => ({
 }));
 vi.mock("../MarkdownDocumentLayout", () => ({
   MarkdownDocumentLayout: ({
+    title,
     inspector,
+    mobileSheet,
     children,
-    sheetSections,
   }: {
+    title: string;
     inspector: React.ReactNode;
+    mobileSheet?: React.ReactNode;
     children: React.ReactNode;
-    sheetSections?: Record<string, React.ReactNode>;
   }) => (
     <div data-testid="markdown-document-layout">
+      <div data-testid="md-title">{title}</div>
       <div data-testid="md-canvas">{children}</div>
       <div data-testid="md-inspector">{inspector}</div>
-      {sheetSections && (
-        <div data-testid="md-sheet-sections">
-          {Object.entries(sheetSections).map(([key, node]) => (
-            <div key={key} data-testid={`md-sheet-${key}`}>
-              {node}
-            </div>
-          ))}
-        </div>
+      {mobileSheet !== undefined && (
+        <div data-testid="md-mobile-sheet">{mobileSheet}</div>
       )}
     </div>
   ),
@@ -329,77 +326,87 @@ describe("FileDetailContent", () => {
     expect(
       canvas.querySelector('[data-testid="addon-slot-include:knowledge-edit"]'),
     ).not.toBeNull();
-    // ... plus the heavy-content footer (O3 split, spec §D3): detailed
-    // summary + similar files + comments.
+    // 2026-05-12 inspector consolidation: the canvas footer keeps
+    // only the table-heavy summary surfaces (ActiveSummaryHost +
+    // intelligence's `detailed-summary`). Everything else — including
+    // similar-files and comments — moved into the inspector.
     expect(
       canvas.querySelector('[data-testid="active-summary-host"]'),
     ).not.toBeNull();
     expect(
-      canvas.querySelector(
-        '[data-testid="addon-slot-include:detailed-summary,similar-files"]',
-      ),
+      canvas.querySelector('[data-testid="addon-slot-include:detailed-summary"]'),
     ).not.toBeNull();
-    expect(canvas.querySelector('[data-testid="comments"]')).not.toBeNull();
-    // Inspector hosts the residual file-detail-sections (knowledge-edit,
-    // similar-files, detailed-summary excluded so they don't
-    // double-render in canvas).
+    expect(canvas.querySelector('[data-testid="comments"]')).toBeNull();
+    // Inspector hosts everything except the editor itself and the
+    // table-heavy summary slot.
     const inspector = screen.getByTestId("md-inspector");
     expect(
       inspector.querySelector(
-        '[data-testid="addon-slot-exclude:knowledge-edit,similar-files,detailed-summary"]',
+        '[data-testid="addon-slot-exclude:knowledge-edit,detailed-summary"]',
       ),
     ).not.toBeNull();
-    // Heavy content moved to canvas → must NOT also live in inspector.
+    expect(inspector.querySelector('[data-testid="comments"]')).not.toBeNull();
+    // The heavy summary belongs to the canvas footer on desktop — it
+    // must NOT also live in the inspector (no double mount).
     expect(
       inspector.querySelector('[data-testid="active-summary-host"]'),
     ).toBeNull();
-    expect(inspector.querySelector('[data-testid="comments"]')).toBeNull();
+    expect(
+      inspector.querySelector(
+        '[data-testid="addon-slot-include:detailed-summary"]',
+      ),
+    ).toBeNull();
   });
 
-  it("separates the AI Sheet tab (summary slot) from the canvas footer (detailed-summary / similar-files) on the same fileId (Phase 5)", async () => {
-    // Phase 5 edge-case verification: the inspector / Sheet AI tab
-    // shows intelligence's `summary` slot (short_summary + long_summary
-    // + regenerate). The canvas footer shows `detailed-summary` and
-    // `similar-files`. These are distinct slot ids served by the same
-    // addon — the host must funnel them into the right surface so
-    // neither appears twice.
-    setApiResponses(
-      makeFile({
-        file_type: "document",
-        mime_type: "text/markdown",
-        filename: "note.md",
-      }),
-    );
-    render(<FileDetailContent fileId="f1" drive="work" />);
-    await waitFor(() => expect(api.getFile).toHaveBeenCalled());
+  it("on mobile, suppresses the canvas footer and folds heavy summaries into the mobile sheet (2026-05-12)", async () => {
+    // Drop the viewport below the 768px breakpoint so `useIsMobile`
+    // returns true. FileDetailContent must then mount
+    // ActiveSummaryHost + detailed-summary inside the mobile sheet
+    // (alongside the regular inspector content) and skip rendering
+    // them in the canvas footer — single mount across both surfaces.
+    const originalWidth = window.innerWidth;
+    Object.defineProperty(window, "innerWidth", {
+      configurable: true,
+      writable: true,
+      value: 420,
+    });
+    window.dispatchEvent(new Event("resize"));
+    try {
+      setApiResponses(
+        makeFile({
+          file_type: "document",
+          mime_type: "text/markdown",
+          filename: "note.md",
+        }),
+      );
+      render(<FileDetailContent fileId="f1" drive="work" />);
+      await waitFor(() => expect(api.getFile).toHaveBeenCalled());
 
-    // AI Sheet tab carries ONLY the summary slot.
-    const aiSheet = screen.getByTestId("md-sheet-ai");
-    expect(
-      aiSheet.querySelector('[data-testid="addon-slot-include:summary"]'),
-    ).not.toBeNull();
-    expect(
-      aiSheet.querySelector(
-        '[data-testid="addon-slot-include:detailed-summary,similar-files"]',
-      ),
-    ).toBeNull();
+      const sheet = screen.getByTestId("md-mobile-sheet");
+      expect(sheet.querySelector('[data-testid="active-summary-host"]'))
+        .not.toBeNull();
+      expect(
+        sheet.querySelector('[data-testid="addon-slot-include:detailed-summary"]'),
+      ).not.toBeNull();
+      // Inspector content is also folded in (single source of truth).
+      expect(sheet.querySelector('[data-testid="comments"]')).not.toBeNull();
 
-    // Canvas footer carries the detailed-summary / similar-files slot
-    // but NOT the AI tab's `summary` slot.
-    const canvas = screen.getByTestId("md-canvas");
-    expect(
-      canvas.querySelector(
-        '[data-testid="addon-slot-include:detailed-summary,similar-files"]',
-      ),
-    ).not.toBeNull();
-    expect(
-      canvas.querySelector('[data-testid="addon-slot-include:summary"]'),
-    ).toBeNull();
-
-    // Tags Sheet tab carries the EditableTagChips stub (the same
-    // content-mode chip the inspector uses on desktop).
-    const tagsSheet = screen.getByTestId("md-sheet-tags");
-    expect(tagsSheet.querySelector('[data-testid="tag-chips-stub"]')).not.toBeNull();
+      // Canvas footer must NOT render the heavy summaries on mobile.
+      const canvas = screen.getByTestId("md-canvas");
+      expect(
+        canvas.querySelector('[data-testid="active-summary-host"]'),
+      ).toBeNull();
+      expect(
+        canvas.querySelector('[data-testid="addon-slot-include:detailed-summary"]'),
+      ).toBeNull();
+    } finally {
+      Object.defineProperty(window, "innerWidth", {
+        configurable: true,
+        writable: true,
+        value: originalWidth,
+      });
+      window.dispatchEvent(new Event("resize"));
+    }
   });
 
   it("does not render MarkdownDocumentLayout for non-Markdown files", async () => {

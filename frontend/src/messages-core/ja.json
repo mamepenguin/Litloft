@@ -363,8 +363,7 @@
     "openDetails": "詳細を開く",
     "loading": "読み込み中...",
     "notFound": "ファイルが見つかりません",
-    "noSelection": "ツリーからファイルを選択してください",
-    "backToTree": "ツリーへ戻る"
+    "noSelection": "ツリーからファイルを選択してください"
   },
   "toolbar": {
     "rescan": "再スキャン",
@@ -632,20 +631,22 @@
   },
   "inspector": {
     "title": "プロパティ",
-    "close": "閉じる",
+    "close": "Inspector を閉じる",
     "toggleShortcut": "Inspector の開閉",
     "openShortcut": "Inspector を開く",
+    "sheetDescription": "このファイルのタグ・関連情報・コメント・AI 要約をまとめて表示します。",
     "sections": {
       "tags": "タグ",
       "related": "関連ファイル",
       "aiSummary": "AI 要約",
       "comments": "コメント"
     },
-    "actionBar": {
-      "tabsAria": "Markdown アクション",
-      "tags": "タグ",
-      "related": "関連",
-      "ai": "AI"
+    "saveDot": {
+      "idle": "保存状態",
+      "saving": "保存中",
+      "saved": "保存済み",
+      "conflict": "競合を検知",
+      "error": "保存に失敗しました"
     }
   },
   "comments": {

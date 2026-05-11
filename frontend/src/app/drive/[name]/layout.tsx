@@ -58,9 +58,21 @@ export default function DriveLayout({ children }: { children: ReactNode }) {
   // chrome (``TreeToggle`` flips the tree on, mobile back button
   // calls ``clearFile`` to drop the ``?file=`` query) or browser
   // back. (Bug found during PR-7 manual QA, fixed alongside.)
+  //
+  // The wrapper mirrors `TwoPaneLayout`'s outer
+  // `h-[calc(100dvh-3.5rem)]` box so `PaneShell`'s `h-full` chain
+  // (and the `MarkdownDocumentLayout` inspector / canvas split
+  // nested below it) has a definite height to resolve against.
+  // Without it, the inner `overflow-auto` containers can't bound
+  // themselves and Markdown's inspector + canvas scroll together
+  // with the page instead of independently.
   const fileId = searchParams.get("file");
   if (fileId && !isAddonRoute && !isRecoveryView) {
-    return <RightPaneFile fileId={fileId} drive={driveName} />;
+    return (
+      <div className="h-[calc(100dvh-3.5rem)] w-full overflow-hidden">
+        <RightPaneFile fileId={fileId} drive={driveName} />
+      </div>
+    );
   }
 
   return <>{children}</>;

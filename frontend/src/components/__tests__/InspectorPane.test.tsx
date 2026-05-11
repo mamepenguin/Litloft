@@ -1,28 +1,20 @@
 /**
  * Tests for `InspectorPane` — the open/expanded Inspector column.
  *
- * Spec: `docs/superpowers/specs/2026-05-10-markdown-document-layout.md`
- * §D3.
- *
- * Contract:
- * - Renders arbitrary child sections (children prop).
- * - Has a header with a collapse/close button. Clicking it invokes the
- *   `onClose` prop.
- *
- * The `Cmd+\` toggle shortcut is registered by the parent
- * `MarkdownDocumentLayout` (which survives both open and collapsed
- * states), so this component no longer owns the binding. See
- * `MarkdownDocumentLayout.test.tsx` for the keyboard contract.
+ * 2026-05-11 chrome consolidation: the pane no longer owns its own
+ * header / close button — the unified top chrome in
+ * `MarkdownDocumentLayout` exposes the toggle instead. The pane is now
+ * a thin scrollable wrapper around the section stack.
  */
-import { describe, it, expect, vi } from "vitest";
-import { fireEvent, render, screen } from "@testing-library/react";
+import { describe, it, expect } from "vitest";
+import { render, screen } from "@testing-library/react";
 
 import { InspectorPane } from "../InspectorPane";
 
 describe("InspectorPane", () => {
   it("renders provided children", () => {
     render(
-      <InspectorPane onClose={vi.fn()}>
+      <InspectorPane>
         <div data-testid="tags-section">tags</div>
         <div data-testid="related-section">related</div>
       </InspectorPane>,
@@ -31,24 +23,23 @@ describe("InspectorPane", () => {
     expect(screen.getByTestId("related-section")).toBeInTheDocument();
   });
 
-  it("calls onClose when the collapse button is clicked", () => {
-    const onClose = vi.fn();
-    render(
-      <InspectorPane onClose={onClose}>
-        <div>content</div>
-      </InspectorPane>,
-    );
-    const button = screen.getByRole("button", { name: /collapse|close/i });
-    fireEvent.click(button);
-    expect(onClose).toHaveBeenCalledTimes(1);
-  });
-
   it("exposes the pane with a recognizable test id for layout assertions", () => {
     render(
-      <InspectorPane onClose={vi.fn()}>
+      <InspectorPane>
         <div>content</div>
       </InspectorPane>,
     );
     expect(screen.getByTestId("inspector-pane")).toBeInTheDocument();
+  });
+
+  it("does not render its own header / close button (chrome owns the toggle)", () => {
+    render(
+      <InspectorPane>
+        <div>content</div>
+      </InspectorPane>,
+    );
+    expect(
+      screen.queryByRole("button", { name: /close|collapse/i }),
+    ).not.toBeInTheDocument();
   });
 });

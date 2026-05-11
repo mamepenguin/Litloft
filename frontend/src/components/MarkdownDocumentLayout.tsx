@@ -8,149 +8,157 @@ import {
   type ReactElement,
   type ReactNode,
 } from "react";
+import { useSearchParams } from "next/navigation";
 import { useTranslations } from "next-intl";
+import { PanelRight, PanelRightClose } from "lucide-react";
 
 import { useInspectorOpen } from "@/hooks/useInspectorOpen";
+import { useIsMobile } from "@/hooks/useIsMobile";
 import { useShortcuts } from "@/hooks/useShortcuts";
 import { inspectorOpenStore } from "@/lib/inspectorOpenStore";
+import {
+  MarkdownChromeProvider,
+  type MarkdownChromeContextValue,
+  type MarkdownSaveState,
+  type MarkdownViewMode,
+} from "@/lib/markdownChromeContext";
 import { InspectorPane } from "./InspectorPane";
-import { InspectorStrip } from "./InspectorStrip";
-import {
-  MarkdownActionBar,
-  type MarkdownActionTab,
-} from "./MarkdownActionBar";
-import {
-  MobileInspectorSheet,
-  type MobileInspectorSections,
-} from "./MobileInspectorSheet";
+import { MarkdownViewModeToggle } from "./MarkdownViewModeToggle";
+import { MobileInspectorSheet } from "./MobileInspectorSheet";
+import { TreeToggle } from "./TreeToggle";
 
 interface MarkdownDocumentLayoutProps {
   drive: string;
+  /**
+   * Plain-text title shown in the chrome. Rename remains accessible
+   * through the folder tree / file actions; the chrome title itself
+   * stays read-only to honour the "edit-mode + Inspector toggle only"
+   * affordance set the design discussion landed on.
+   */
+  title: string;
+  /**
+   * Sections shown in the desktop Inspector pane. On mobile, this
+   * stack is shown inside the Bottom Sheet unless `mobileSheet` is
+   * provided, in which case the Sheet uses that instead.
+   */
   inspector: ReactNode;
+  /**
+   * Optional override for the Bottom Sheet content on mobile. Lets
+   * the host include items that live in the desktop canvas footer
+   * (e.g. detailed-summary, ActiveSummary — sections whose tables /
+   * structured content need width that the desktop Inspector cannot
+   * provide). When omitted, falls back to `inspector`.
+   */
+  mobileSheet?: ReactNode;
   children: ReactNode;
   /**
-   * Phase 4 (spec §D5 / hako sFXCwZDluTPZZkbYuozwJ): per-section
-   * payload for the mobile Bottom Sheet. When provided, the mobile
-   * branch renders a 5-tab Action Bar + vaul Drawer; the desktop
-   * branch ignores it. When omitted, mobile falls back to a single
-   * canvas column (graceful degrade — matches Phase 1 behaviour and
-   * keeps non-Markdown hosts that don't pass sections from breaking).
-   */
-  sheetSections?: MobileInspectorSections;
-  /**
-   * Identifier of the file being shown. Used to reset the mobile
-   * Action Bar / Sheet state on file change — the two-pane folder
-   * host re-uses one `<FileDetailContent>` mount as the user clicks
-   * through files, so without an explicit reset the previously
-   * opened sheet would persist into the next file (review HIGH H1,
-   * hako 5rtHKXzQd9VJY7WNU5Deg). Optional because non-Markdown
-   * hosts don't need it.
+   * Identifier of the file being shown. Used as the chrome / mobile
+   * Sheet reset key so a host that re-uses one `<MarkdownDocumentLayout>`
+   * mount across files (e.g. the 2-pane right pane) starts each file in
+   * a fresh state.
    */
   resetKey?: string;
 }
 
-const MOBILE_BREAKPOINT = 768;
-
-function getIsMobile(): boolean {
-  if (typeof window === "undefined") return false;
-  return window.innerWidth < MOBILE_BREAKPOINT;
-}
-
 /**
- * 3-column document-centric shell for Markdown file detail.
+ * Document-centric shell for Markdown file detail.
  *
- * Spec: `docs/superpowers/specs/2026-05-10-markdown-document-layout.md`
- * §3 / §D3 / §6 Phase 1.
+ * Layout (spec `2026-05-10-markdown-document-layout.md`, with the
+ * 2026-05-11 chrome-consolidation revision):
  *
- * Layout (>= 768px):
- *   canvas (flex-1, flex-col, min-h-0) | inspector (300px open / 36px collapsed)
+ *   ┌──────────────────────────────────────────────────────────┐
+ *   │ [▤] ● title              [ Edit Split Preview ]    [▭] │  ← h-12 chrome
+ *   ├───────────────────────────────────┬──────────────────────┤
+ *   │ canvas (children)                 │ inspector (300px)    │
+ *   └───────────────────────────────────┴──────────────────────┘
  *
- * Mobile (< 768px) Phase 1: graceful degradation — single column, the
- * inspector slot is not rendered. Phase 4 lifts it into a Bottom Sheet.
+ * Chrome is a single 48px (`h-12`) row matching the non-Markdown
+ * `PaneShell` header so the two surfaces look visually unified.
+ * Contents:
+ *   - `TreeToggle` (folder tree show/hide; hidden on mobile)
+ *   - Save-state dot (8px circle reflecting the editor's save lifecycle)
+ *   - Title (read-only truncating text)
+ *   - View-mode segmented toggle (edit / split / preview; split hidden
+ *     on mobile)
+ *   - Inspector show/hide button
  *
- * Sidebar / tree columns are owned by the page shell; this component
- * only renders the canvas + inspector portion.
+ * View-mode state is owned here and exposed to the Knowledge Editor via
+ * `MarkdownChromeContext`. The Editor pushes its save state back through
+ * the same context so the chrome dot can reflect it without the layout
+ * needing to know about the editor's save plumbing.
  *
- * The `Cmd+\` / `Ctrl+\` toggle shortcut is registered here (not inside
- * `InspectorPane`) so the binding survives the pane unmount when the
- * user collapses the inspector — otherwise the keystroke would only
- * close the pane and never reopen it (B6 fix-up).
+ * Mobile (<768px): the Inspector toggle opens the Inspector content
+ * as a single Bottom Sheet (no per-section tabs). The legacy floating
+ * action bar was retired with this revision.
+ *
+ * The `Cmd+\` / `Ctrl+\` shortcut toggles the inspector and is bound
+ * here so it survives the pane unmount when collapsed (the binding has
+ * to outlive both states or the keystroke would only close the pane
+ * and never reopen it — B6 fix-up, retained from Phase 1).
  */
 export function MarkdownDocumentLayout({
   drive,
+  title,
   inspector,
+  mobileSheet,
   children,
-  sheetSections,
   resetKey,
 }: MarkdownDocumentLayoutProps): ReactElement {
   const t = useTranslations("inspector");
   const { open, setOpen } = useInspectorOpen(drive);
-  const [isMobile, setIsMobile] = useState<boolean>(getIsMobile);
-  const [mobileTab, setMobileTab] = useState<MarkdownActionTab>("main");
-  const [actionBarHidden, setActionBarHidden] = useState(false);
+  const searchParams = useSearchParams();
+  const isMobile = useIsMobile();
+  // Default to "preview" so a user navigating to an existing note sees
+  // the rendered output first. `useCreateFile` carries `?edit=1` through
+  // the canonical-URL redirect for freshly created notes; that's the one
+  // case where landing in "edit" is the desired UX.
+  const [viewMode, setViewMode] = useState<MarkdownViewMode>(() =>
+    searchParams?.get("edit") === "1" ? "edit" : "preview",
+  );
+  const [saveState, setSaveState] = useState<MarkdownSaveState>({
+    status: "idle",
+  });
+  const [mobileSheetOpen, setMobileSheetOpen] = useState(false);
 
-  // Reset Sheet state on file change so the previously-open tab
-  // doesn't bleed into the next file's surface (review HIGH H1).
-  // The 2-pane folder host re-uses one FileDetailContent mount as
-  // the user picks files, so this layout's state outlives the file
-  // it belongs to without an explicit reset.
+  // Reset transient UI on file change so the previously-open Sheet /
+  // view-mode doesn't bleed into the next file when the host re-uses
+  // one mounted layout (review HIGH H1, hako 5rtHKXzQd9VJY7WNU5Deg).
+  // viewMode is re-derived from `?edit=1` so each new file starts in
+  // preview unless it was opened via `useCreateFile` (which carries
+  // `?edit=1` through the canonical-URL redirect).
   useEffect(() => {
-    setMobileTab("main");
+    setMobileSheetOpen(false);
+    setSaveState({ status: "idle" });
+    setViewMode(searchParams?.get("edit") === "1" ? "edit" : "preview");
+    // Intentionally only re-runs on resetKey: search-params changes
+    // unrelated to file navigation (e.g. ?sort, ?page) must not snap
+    // the user back out of a manually-selected edit/split mode.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [resetKey]);
 
+  // Re-evaluate the inspector default-open derivation on resize.
+  // Without this, resizing across the 1280px boundary leaves
+  // `useInspectorOpen` reading a stale viewport-derived snapshot when
+  // the user has no persisted localStorage value. The actual mobile
+  // breakpoint tracking is owned by `useIsMobile`.
   useEffect(() => {
-    // Sync `isMobile` immediately on mount: the initial render uses
-    // `getIsMobile()` which is `false` during SSR. On a mobile device
-    // this would briefly flash the desktop layout before the first
-    // resize event fires. Calling `setIsMobile(getIsMobile())` here
-    // resolves the correct value as soon as the client mounts.
-    setIsMobile(getIsMobile());
     function handleResize() {
-      setIsMobile(getIsMobile());
-      // Re-evaluate the inspector default-open derivation. Without
-      // this, resizing across the 1280px boundary leaves
-      // `useInspectorOpen` reading a stale viewport-derived snapshot
-      // when the user has no persisted localStorage value.
       inspectorOpenStore.notifyViewportChange();
     }
     window.addEventListener("resize", handleResize);
     return () => window.removeEventListener("resize", handleResize);
   }, []);
 
-  // Phase 4: track textarea focus document-wide so we can hide the
-  // mobile Action Bar while the soft keyboard is up (spec §D5 / hako
-  // sFXCwZDluTPZZkbYuozwJ — Visual Viewport API is fiddly per-OS, so
-  // we take the simpler "hide on focus, restore on blur" path). Lives
-  // at the layout level rather than inside ActionBar so the listener
-  // is bound exactly once per mounted page. Reads `event.target` to
-  // avoid races with `document.activeElement` (in some browsers /
-  // jsdom focusout fires before the new active element is settled).
+  // Snap viewMode out of "split" whenever the viewport drops below the
+  // mobile threshold (mirrors the Editor's own one-way snap; we keep
+  // both because the Editor is the source of truth when mounted
+  // standalone, and the chrome owns it when mounted under us).
   useEffect(() => {
-    if (!isMobile) return;
-    function isTextarea(target: EventTarget | null): boolean {
-      return target instanceof HTMLElement && target.tagName === "TEXTAREA";
-    }
-    function handleFocusIn(e: FocusEvent) {
-      if (isTextarea(e.target)) setActionBarHidden(true);
-    }
-    function handleFocusOut(e: FocusEvent) {
-      if (isTextarea(e.target)) setActionBarHidden(false);
-    }
-    document.addEventListener("focusin", handleFocusIn);
-    document.addEventListener("focusout", handleFocusOut);
-    return () => {
-      document.removeEventListener("focusin", handleFocusIn);
-      document.removeEventListener("focusout", handleFocusOut);
-    };
-  }, [isMobile]);
+    if (isMobile && viewMode === "split") setViewMode("preview");
+  }, [isMobile, viewMode]);
 
-  const close = useCallback(() => setOpen(false), [setOpen]);
-  const reopen = useCallback(() => setOpen(true), [setOpen]);
   const toggle = useCallback(() => setOpen(!open), [open, setOpen]);
 
-  // Always-on shortcut binding. Lives at the layout root (which never
-  // unmounts while the user stays on the document) so collapsing the
-  // pane does not strip the binding.
   const shortcuts = useMemo(
     () => [
       {
@@ -164,73 +172,140 @@ export function MarkdownDocumentLayout({
   );
   useShortcuts("markdown-doc-layout", "Inspector", shortcuts, !isMobile);
 
-  if (isMobile) {
-    // Phase 4: only enable the Action Bar + Sheet when the host
-    // supplied sheetSections. Hosts that don't pass it (or that pass
-    // a falsy value during boot) fall back to the Phase 1 single-
-    // column behaviour so non-Markdown surfaces don't accidentally
-    // spawn a Sheet.
-    const mobileEnhanced = sheetSections !== undefined;
-    return (
+  const chromeValue: MarkdownChromeContextValue = useMemo(
+    () => ({
+      viewMode,
+      setViewMode,
+      publishSaveState: setSaveState,
+      isMobile,
+    }),
+    [viewMode, isMobile],
+  );
+
+  const inspectorOpenOnDesktop = !isMobile && open;
+  const handleInspectorButton = () => {
+    if (isMobile) setMobileSheetOpen((prev) => !prev);
+    else toggle();
+  };
+
+  const chrome = (
+    <div
+      data-testid="markdown-document-chrome"
+      className="flex h-12 shrink-0 items-center gap-2 border-b border-bg-border bg-bg-card px-3"
+    >
+      {/* TreeToggle is desktop-only — on mobile the layout uses a tree
+          ⇄ file-detail screen swap, so the toggle has no visible effect
+          here. Mobile users navigate back via the browser / OS back
+          gesture. The folder view's TreeToggle still handles enabling
+          the tree when it's been switched off. */}
+      <div className="hidden md:flex">
+        <TreeToggle drive={drive} />
+      </div>
+      <SaveDot state={saveState} />
+      <h2
+        className="min-w-0 flex-1 truncate text-sm font-medium text-text-primary"
+        title={title}
+      >
+        {title}
+      </h2>
+      <MarkdownViewModeToggle
+        mode={viewMode}
+        onChange={setViewMode}
+        hideSplit={isMobile}
+      />
+      <button
+        type="button"
+        onClick={handleInspectorButton}
+        aria-pressed={isMobile ? mobileSheetOpen : open}
+        aria-label={
+          (isMobile ? mobileSheetOpen : open) ? t("close") : t("openShortcut")
+        }
+        title={
+          (isMobile ? mobileSheetOpen : open) ? t("close") : t("openShortcut")
+        }
+        data-testid="inspector-toggle"
+        className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-md text-text-muted transition-colors hover:bg-bg-elevated hover:text-text-primary"
+      >
+        {(isMobile ? mobileSheetOpen : open) ? (
+          <PanelRightClose size={16} />
+        ) : (
+          <PanelRight size={16} />
+        )}
+      </button>
+    </div>
+  );
+
+  return (
+    <MarkdownChromeProvider value={chromeValue}>
       <div
         data-testid="markdown-document-layout"
         className="flex h-full w-full flex-col"
       >
-        <main
-          className="flex flex-1 min-h-0 flex-col overflow-auto"
-          // Phase 4 4th PWA pass: reserve scroll clearance for the
-          // floating Action Bar so the last line of the body
-          // doesn't tuck behind the pill. Pill is ~50px tall + 4px
-          // gap + safe-area inset; add another 16px of breathing
-          // room. Only applied when the bar is actually present.
-          style={
-            mobileEnhanced
-              ? {
-                  paddingBottom:
-                    "calc(env(safe-area-inset-bottom, 0px) + 70px)",
-                }
-              : undefined
-          }
-        >
-          {children}
-        </main>
-        {mobileEnhanced && (
-          <>
-            <MarkdownActionBar
-              activeTab={mobileTab}
-              onTabSelect={(tab) => {
-                // Re-tapping the active tab closes the Sheet — the
-                // body button was dropped so this is the primary
-                // close affordance from the bar itself (backdrop
-                // tap / drag-down still work via vaul).
-                setMobileTab((prev) => (prev === tab ? "main" : tab));
-              }}
-              hidden={actionBarHidden}
-            />
-            <MobileInspectorSheet
-              activeTab={mobileTab}
-              onClose={() => setMobileTab("main")}
-              sections={sheetSections}
-            />
-          </>
+        {chrome}
+        <div className="flex min-h-0 flex-1">
+          <main className="flex min-w-0 min-h-0 flex-1 flex-col overflow-auto">
+            {children}
+          </main>
+          {inspectorOpenOnDesktop && (
+            <InspectorPane>{inspector}</InspectorPane>
+          )}
+        </div>
+        {isMobile && (
+          <MobileInspectorSheet
+            open={mobileSheetOpen}
+            onClose={() => setMobileSheetOpen(false)}
+          >
+            {mobileSheet ?? inspector}
+          </MobileInspectorSheet>
         )}
       </div>
-    );
-  }
+    </MarkdownChromeProvider>
+  );
+}
 
+/**
+ * Tiny status dot. Replaces the previous "Saving... / Saved" label
+ * with an 8px (`h-2 w-2`) circle so the chrome stays at 48px without
+ * the busy text reflow on every keystroke.
+ *
+ *   idle    → transparent (aria-hidden so screen readers skip the dead pixel)
+ *   saving  → accent, pulsing
+ *   saved   → teal accent
+ *   conflict → red
+ *   error    → red (title carries the underlying error message)
+ */
+function SaveDot({ state }: { state: MarkdownSaveState }) {
+  const t = useTranslations("inspector.saveDot");
+  const isIdle = state.status === "idle";
+  let toneClass = "bg-transparent";
+  let labelKey = "idle";
+  if (state.status === "saving") {
+    toneClass = "bg-accent animate-pulse";
+    labelKey = "saving";
+  } else if (state.status === "saved") {
+    toneClass = "bg-accent-teal";
+    labelKey = "saved";
+  } else if (state.status === "conflict") {
+    toneClass = "bg-red-500";
+    labelKey = "conflict";
+  } else if (state.status === "error") {
+    toneClass = "bg-red-500";
+    labelKey = "error";
+  }
+  // Idle: the dot is visually invisible and carries no useful info,
+  // so we drop it from the accessibility tree entirely. Non-idle: we
+  // expose it as a polite live region so AT users hear the state
+  // transition without us having to manage focus.
+  const a11yProps = isIdle
+    ? ({ "aria-hidden": true } as const)
+    : ({ role: "status" as const, "aria-live": "polite" as const, "aria-label": t(labelKey) });
   return (
-    <div
-      data-testid="markdown-document-layout"
-      className="flex h-full w-full"
-    >
-      <main className="flex min-w-0 min-h-0 flex-1 flex-col overflow-auto">
-        {children}
-      </main>
-      {open ? (
-        <InspectorPane onClose={close}>{inspector}</InspectorPane>
-      ) : (
-        <InspectorStrip onOpen={reopen} />
-      )}
-    </div>
+    <span
+      {...a11yProps}
+      title={state.status === "error" && state.message ? state.message : t(labelKey)}
+      data-testid="save-dot"
+      data-state={state.status}
+      className={`inline-block h-2 w-2 flex-shrink-0 rounded-full ${toneClass}`}
+    />
   );
 }

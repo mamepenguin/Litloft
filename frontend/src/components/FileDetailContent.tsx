@@ -23,6 +23,7 @@ import type { FileItem } from "@/types";
 import type { MediaController } from "@/lib/mediaController";
 
 import { markdownContentRegistry } from "@/lib/markdownContentRegistry";
+import { useIsMobile } from "@/hooks/useIsMobile";
 import { ActiveSummaryHost } from "./ActiveSummaryHost";
 import { AddonSlot } from "./AddonSlot";
 import { CastButton } from "./CastButton";
@@ -126,6 +127,7 @@ export function FileDetailContent({
   const t = useTranslations("file");
   const tc = useTranslations("common");
   const { requestRefresh: refreshSidebar } = useSidebar();
+  const isMobile = useIsMobile();
 
   const [file, setFile] = useState<FileItem | null>(null);
   const [editing, setEditing] = useState(false);
@@ -419,73 +421,72 @@ export function FileDetailContent({
   };
 
   if (useDocumentLayout) {
-    // O3 split (spec §D3): heavy content (detailed summary, similar
-    // files, comments) moves into the canvas footer so it scrolls
-    // naturally as a continuation of the editor preview. The inspector
-    // keeps the lightweight tier-1 chrome (tags via metadataNode,
-    // related files, exif, residual addon sections).
-    const inspectorNode = (
-      <div className="space-y-4 p-4">
+    // 2026-05-12 inspector consolidation:
+    //
+    // - The Inspector (and the mobile Bottom Sheet) hosts every
+    //   section that fits comfortably in a ~300px column: file meta,
+    //   tags, related files, exif, similar-files, comments, plus
+    //   residual addon sections (everything except `knowledge-edit`
+    //   and `detailed-summary`).
+    // - The canvas footer keeps only the **table-/structure-heavy**
+    //   summary surface — `ActiveSummaryHost` + intelligence's
+    //   `detailed-summary` slot. Both can carry markdown tables that
+    //   need canvas width to render without horizontal scroll.
+    // - On mobile, the canvas footer is suppressed entirely and the
+    //   heavy summaries move into the Bottom Sheet as well: the
+    //   90vh × viewport-width drawer is wide enough that tables
+    //   degrade gracefully (or scroll horizontally inside the drawer)
+    //   without the narrow-inspector problem. This avoids the
+    //   "long markdown body keeps the user from finding metadata"
+    //   pattern the previous canvas-footer layout had on phones.
+    const inspectorSections = (
+      <>
         {metadataNode}
         <RelatedFilesSection fileId={fileId} />
         <ExifSection fileId={fileId} fileType={file.file_type} />
         <AddonSlot
           id="file-detail-sections"
           layout="stack"
-          excludeIds={[
-            "knowledge-edit",
-            "similar-files",
-            "detailed-summary",
-          ]}
+          excludeIds={["knowledge-edit", "detailed-summary"]}
           props={addonSlotProps}
         />
-      </div>
+        <CommentSection fileId={fileId} />
+      </>
     );
 
-    // Phase 4 (spec §D5 / hako sFXCwZDluTPZZkbYuozwJ): the mobile
-    // Bottom Sheet redistributes the inspector + canvas footer
-    // sections across three Action Bar tabs. Comments are already
-    // shown directly below the body in the canvas footer, so a
-    // dedicated comments tab would be redundant — dropped in the
-    // 2nd PWA pass. The AI tab shows the `ActiveSummaryHost` (which
-    // picks the active knowledge note or falls back to the
-    // intelligence summary) — the heavier "AI 詳細要約" /
-    // similar-files slots stay in the canvas footer to avoid
-    // duplicate rendering.
-    const sheetSections = {
-      tags: <div className="space-y-4 py-2">{tagChipNode}</div>,
-      related: (
-        <div className="space-y-4 py-2">
-          <RelatedFilesSection fileId={fileId} />
-          <ExifSection fileId={fileId} fileType={file.file_type} />
-        </div>
-      ),
-      ai: (
-        <div className="py-2">
-          {/* The drawer's AI tab mirrors the desktop inspector's
-              "AI 要約" surface: short_summary + long_summary +
-              regenerate, served by intelligence's `summary` slot.
-              Distinct from `detailed-summary` (the long sectional
-              breakdown) which lives in the canvas footer. */}
-          <AddonSlot
-            id="file-detail-sections"
-            layout="stack"
-            includeIds={["summary"]}
-            props={addonSlotProps}
-          />
-        </div>
-      ),
-    };
+    const heavySummarySections = (
+      <>
+        <ActiveSummaryHost fileId={fileId} drive={drive} />
+        <AddonSlot
+          id="file-detail-sections"
+          layout="stack"
+          includeIds={["detailed-summary"]}
+          props={addonSlotProps}
+        />
+      </>
+    );
 
-    // Canvas: the Knowledge editor occupies the top region (its
-    // three-mode toggle owns its own preview, so FilePreview is
-    // intentionally omitted to avoid double-rendering Markdown). The
-    // footer below the editor carries the heavy content listed above.
+    const inspectorPaneContent = (
+      <div className="space-y-4 p-4">{inspectorSections}</div>
+    );
+
+    // Mobile Bottom Sheet content: inspector + heavy summaries inline.
+    // Built only when actually on mobile so the underlying AddonSlot /
+    // CommentSection components mount exactly once across the two
+    // surfaces (desktop pane *or* mobile sheet, never both).
+    const mobileSheetContent = isMobile ? (
+      <div className="space-y-4 p-4">
+        {inspectorSections}
+        {heavySummarySections}
+      </div>
+    ) : undefined;
+
     return (
       <MarkdownDocumentLayout
         drive={drive}
-        inspector={inspectorNode}
-        sheetSections={sheetSections}
+        title={file.title || file.filename}
+        inspector={inspectorPaneContent}
+        mobileSheet={mobileSheetContent}
         resetKey={fileId}
       >
         <div className="flex flex-col">
@@ -497,16 +498,15 @@ export function FileDetailContent({
               props={{ ...addonSlotProps, fillHeight: true }}
             />
           </div>
-          <div className="relative isolate space-y-6 border-t border-bg-border bg-bg-primary px-6 py-8">
-            <ActiveSummaryHost fileId={fileId} drive={drive} />
-            <AddonSlot
-              id="file-detail-sections"
-              layout="stack"
-              includeIds={["detailed-summary", "similar-files"]}
-              props={addonSlotProps}
-            />
-            <CommentSection fileId={fileId} />
-          </div>
+          {/* Canvas footer carries the table-heavy summaries on
+              desktop only; on mobile the same sections live in the
+              Bottom Sheet so the user does not have to scroll past a
+              long note to reach them. */}
+          {!isMobile && (
+            <div className="relative isolate space-y-6 border-t border-bg-border bg-bg-primary px-6 py-8">
+              {heavySummarySections}
+            </div>
+          )}
         </div>
       </MarkdownDocumentLayout>
     );

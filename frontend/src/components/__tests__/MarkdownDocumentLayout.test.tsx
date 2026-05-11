@@ -1,36 +1,39 @@
 /**
- * Tests for `MarkdownDocumentLayout` — the 3-column document-centric
- * shell for `.md` file detail.
+ * Tests for `MarkdownDocumentLayout` — the document-centric shell for
+ * `.md` file detail with the 2026-05-11 chrome consolidation.
  *
- * Spec: `docs/superpowers/specs/2026-05-10-markdown-document-layout.md`
- * §3 / §D3 / §6 (Phase 1 + B6 fix-up).
- *
- * Layout (mock §"layout"):
- *   sidebar (56) | tree (280) | canvas (flex-1) | inspector (300 | 36 | 0)
- *
- * Phase 1 scope:
- * - Renders `children` (canvas content) and `inspector` slot.
- * - Inspector open  → 3-column layout, full Inspector visible.
- * - Inspector closed → InspectorStrip (36px) shown instead.
- * - Mobile (< 768px) → graceful degradation: single column, inspector
- *   slot is NOT rendered (Phase 4 lifts it into a Bottom Sheet).
- *
- * B6 fix-up: the `Cmd+\` / `Ctrl+\` toggle shortcut now lives at this
- * layout root (was previously inside `InspectorPane`, which made the
- * binding disappear together with the pane on collapse, breaking the
- * "open it again" path). The shortcut must work both when the pane
- * is open (closes it) and when it is collapsed (reopens it).
+ * Contract:
+ *   - Renders a single 36px top chrome containing TreeToggle, save dot,
+ *     title, view-mode segmented toggle, and an Inspector toggle.
+ *   - Desktop (>=768px): Inspector pane sits beside the canvas when
+ *     open. When closed, nothing replaces it (the previous
+ *     `InspectorStrip` rail was retired).
+ *   - Mobile (<768px): the Inspector toggle opens a single Bottom
+ *     Sheet that hosts the same inspector content the desktop pane
+ *     would. The legacy floating Action Bar (tags/related/AI tabs) is
+ *     gone.
+ *   - `Ctrl+\` toggles the inspector on desktop. The binding lives at
+ *     the layout root so it survives the pane's unmount when closed
+ *     (B6 regression).
  */
 import { describe, it, expect, beforeEach, vi } from "vitest";
 import { render, screen, fireEvent } from "@testing-library/react";
 
 import { ShortcutsProvider } from "@/components/ShortcutsProvider";
-import { MarkdownDocumentLayout } from "../MarkdownDocumentLayout";
 
-// Avoid pulling in real children: stub the Inspector subcomponents that
-// the layout might compose. The contract is that the host passes a
-// rendered `inspector` node; the layout's job is positioning, not what
-// goes inside.
+// `useSearchParams()` is the new gate for "did the user create this
+// file?" — `?edit=1` is carried through `useCreateFile`'s canonical
+// redirect, and the layout uses it to decide whether to land the user
+// in edit or preview mode. The hoisted mock lets each test set its own
+// params before importing.
+const searchParamsRef = vi.hoisted(() => ({
+  current: new URLSearchParams() as URLSearchParams | null,
+}));
+vi.mock("next/navigation", () => ({
+  useSearchParams: () => searchParamsRef.current,
+}));
+
+import { MarkdownDocumentLayout } from "../MarkdownDocumentLayout";
 
 function setViewportWidth(width: number) {
   Object.defineProperty(window, "innerWidth", {
@@ -65,10 +68,14 @@ const CanvasContent = () => (
   <div data-testid="canvas-content">Canvas body</div>
 );
 
-function renderLayout(drive = "work") {
+function renderLayout(drive = "work", title = "my-note.md") {
   return render(
     <ShortcutsProvider>
-      <MarkdownDocumentLayout drive={drive} inspector={<InspectorContent />}>
+      <MarkdownDocumentLayout
+        drive={drive}
+        title={title}
+        inspector={<InspectorContent />}
+      >
         <CanvasContent />
       </MarkdownDocumentLayout>
     </ShortcutsProvider>,
@@ -78,6 +85,44 @@ function renderLayout(drive = "work") {
 beforeEach(() => {
   localStorage.clear();
   setViewportWidth(1440);
+  searchParamsRef.current = new URLSearchParams();
+});
+
+describe("MarkdownDocumentLayout — chrome", () => {
+  it("renders the unified top chrome with title, mode toggle and Inspector toggle", () => {
+    renderLayout("work", "my-note.md");
+    expect(screen.getByTestId("markdown-document-chrome")).toBeInTheDocument();
+    expect(screen.getByText("my-note.md")).toBeInTheDocument();
+    expect(screen.getByTestId("view-mode-edit")).toBeInTheDocument();
+    expect(screen.getByTestId("inspector-toggle")).toBeInTheDocument();
+  });
+
+  it("renders a save-state dot (idle by default)", () => {
+    renderLayout();
+    const dot = screen.getByTestId("save-dot");
+    expect(dot.getAttribute("data-state")).toBe("idle");
+  });
+
+  it("defaults to preview mode when no ?edit=1 is present", () => {
+    renderLayout();
+    expect(
+      screen.getByTestId("view-mode-preview").getAttribute("aria-pressed"),
+    ).toBe("true");
+    expect(
+      screen.getByTestId("view-mode-edit").getAttribute("aria-pressed"),
+    ).toBe("false");
+  });
+
+  it("defaults to edit mode when ?edit=1 is present (new-file signal)", () => {
+    searchParamsRef.current = new URLSearchParams("edit=1");
+    renderLayout();
+    expect(
+      screen.getByTestId("view-mode-edit").getAttribute("aria-pressed"),
+    ).toBe("true");
+    expect(
+      screen.getByTestId("view-mode-preview").getAttribute("aria-pressed"),
+    ).toBe("false");
+  });
 });
 
 describe("MarkdownDocumentLayout — desktop (>= 768px)", () => {
@@ -96,55 +141,41 @@ describe("MarkdownDocumentLayout — desktop (>= 768px)", () => {
   it("exposes a layout root with a recognizable test id", () => {
     setViewportWidth(1440);
     renderLayout();
-    // The root is the only element responsible for column geometry; tag
-    // it for inspection so visual-regression-style assertions can hook.
     expect(screen.getByTestId("markdown-document-layout")).toBeInTheDocument();
   });
 
-  it("shows the InspectorStrip (not full inspector) when narrow viewport defaults to closed", () => {
+  it("hides the inspector content (no strip rail) when collapsed by default at narrow widths", () => {
     setViewportWidth(1100); // < 1280 → default closed
     renderLayout();
     expect(screen.queryByTestId("inspector-content")).not.toBeInTheDocument();
-    expect(screen.getByTestId("inspector-strip")).toBeInTheDocument();
-  });
-
-  it("respects persisted localStorage state over viewport default", () => {
-    setViewportWidth(1100); // narrow → would default closed
-    localStorage.setItem("inspector-open:work", "true");
-    renderLayout();
-    expect(screen.getByTestId("inspector-content")).toBeInTheDocument();
+    // The InspectorStrip rail was retired in the consolidation.
     expect(screen.queryByTestId("inspector-strip")).not.toBeInTheDocument();
   });
 
-  it("clicking the strip toggles the inspector open", () => {
-    setViewportWidth(1100); // narrow → closed by default
+  it("respects persisted localStorage state over viewport default", () => {
+    setViewportWidth(1100);
+    localStorage.setItem("inspector-open:work", "true");
+    renderLayout();
+    expect(screen.getByTestId("inspector-content")).toBeInTheDocument();
+  });
+
+  it("Inspector toggle button reopens the pane when collapsed", () => {
+    setViewportWidth(1100);
     renderLayout();
     expect(screen.queryByTestId("inspector-content")).not.toBeInTheDocument();
-
-    // Any of the strip's icon buttons should reopen the inspector.
-    const stripButton = screen
-      .getByTestId("inspector-strip")
-      .querySelector("button");
-    expect(stripButton).not.toBeNull();
-    fireEvent.click(stripButton!);
-
+    fireEvent.click(screen.getByTestId("inspector-toggle"));
     expect(screen.getByTestId("inspector-content")).toBeInTheDocument();
   });
 
   it("Ctrl+\\ closes the inspector when it is open", () => {
-    setViewportWidth(1440); // open by default
+    setViewportWidth(1440);
     renderLayout();
     expect(screen.getByTestId("inspector-content")).toBeInTheDocument();
     fireEvent.keyDown(document, { key: "\\", ctrlKey: true });
     expect(screen.queryByTestId("inspector-content")).not.toBeInTheDocument();
-    expect(screen.getByTestId("inspector-strip")).toBeInTheDocument();
   });
 
   it("Ctrl+\\ reopens the inspector after it has been collapsed (B6 regression)", () => {
-    // Start narrow → default closed → strip is shown. Pressing Ctrl+\
-    // here exercises the binding when InspectorPane is unmounted, which
-    // is exactly the path that used to be broken (the shortcut lived
-    // on the pane and therefore vanished with it).
     setViewportWidth(1100);
     renderLayout();
     expect(screen.queryByTestId("inspector-content")).not.toBeInTheDocument();
@@ -153,141 +184,56 @@ describe("MarkdownDocumentLayout — desktop (>= 768px)", () => {
   });
 });
 
-describe("MarkdownDocumentLayout — mobile (< 768px Phase 4: action bar + sheet)", () => {
-  const sheetSections = {
-    tags: <div data-testid="section-tags">tags-content</div>,
-    related: <div data-testid="section-related">related-content</div>,
-    ai: <div data-testid="section-ai">ai-content</div>,
-  };
-
-  function renderMobile() {
-    return render(
-      <ShortcutsProvider>
-        <MarkdownDocumentLayout
-          drive="work"
-          inspector={<InspectorContent />}
-          sheetSections={sheetSections}
-        >
-          <CanvasContent />
-          <textarea data-testid="probe-textarea" />
-        </MarkdownDocumentLayout>
-      </ShortcutsProvider>,
-    );
-  }
-
-  it("renders the action bar with 5 tabs on mobile", () => {
+describe("MarkdownDocumentLayout — mobile (< 768px)", () => {
+  it("does NOT render the desktop inspector pane on mobile", () => {
     setViewportWidth(420);
-    renderMobile();
-    expect(screen.getByTestId("markdown-action-bar")).toBeInTheDocument();
-    // Default activeTab=main → Sheet closed → no section visible.
-    expect(screen.queryByTestId("section-tags")).toBeNull();
-  });
-
-  it("does NOT render the desktop inspector slot on mobile", () => {
-    // The desktop inspector and Phase 4 sheet sections may both be
-    // provided by the host (FileDetailContent is one shared codepath).
-    // On mobile only the Sheet path renders; the desktop inspector
-    // is dropped so duplicate sections don't show up.
-    setViewportWidth(420);
-    renderMobile();
+    renderLayout();
     expect(screen.queryByTestId("inspector-content")).toBeNull();
-    expect(screen.queryByTestId("inspector-strip")).toBeNull();
   });
 
-  it("opens the Sheet with the matching section when a non-main tab is tapped", async () => {
+  it("opens the Bottom Sheet with the inspector content when the chrome toggle is tapped", async () => {
     setViewportWidth(420);
-    renderMobile();
-    fireEvent.click(screen.getByTestId("action-tab-tags"));
-    expect(await screen.findByTestId("section-tags")).toBeInTheDocument();
-    // Switching tab swaps the rendered section.
-    fireEvent.click(screen.getByTestId("action-tab-related"));
-    expect(await screen.findByTestId("section-related")).toBeInTheDocument();
-    expect(screen.queryByTestId("section-tags")).toBeNull();
+    renderLayout();
+    fireEvent.click(screen.getByTestId("inspector-toggle"));
+    expect(await screen.findByTestId("inspector-content")).toBeInTheDocument();
   });
 
-  it("re-tapping the active tab closes the Sheet (Body tab dropped)", async () => {
-    // Phase 4 3rd PWA pass: there's no "Body" tab anymore. Closing
-    // the Sheet from the bar is done by re-tapping whichever tab is
-    // currently open. Re vaul + jsdom: the close animation isn't
-    // simulated, but the drawer's `data-state` flips synchronously.
+  it("hides the split option in the view-mode toggle on mobile", () => {
     setViewportWidth(420);
-    renderMobile();
-    fireEvent.click(screen.getByTestId("action-tab-tags"));
-    const sheet = await screen.findByTestId("mobile-inspector-sheet");
-    expect(sheet.getAttribute("data-state")).toBe("open");
-    expect(screen.getByTestId("section-tags")).toBeInTheDocument();
-
-    // Re-tap the active tab → closes.
-    fireEvent.click(screen.getByTestId("action-tab-tags"));
-    expect(
-      screen.queryByTestId("mobile-inspector-sheet")?.getAttribute(
-        "data-state",
-      ),
-    ).toBe("closed");
+    renderLayout();
+    expect(screen.queryByTestId("view-mode-split")).toBeNull();
+    expect(screen.getByTestId("view-mode-edit")).toBeInTheDocument();
+    expect(screen.getByTestId("view-mode-preview")).toBeInTheDocument();
   });
 
-  it("hides the action bar when a textarea is focused", () => {
+  it("does not render the retired floating Action Bar", () => {
     setViewportWidth(420);
-    renderMobile();
-    const bar = screen.getByTestId("markdown-action-bar");
-    expect(bar.classList.contains("hidden")).toBe(false);
-
-    const textarea = screen.getByTestId("probe-textarea");
-    fireEvent.focusIn(textarea);
-    expect(bar.classList.contains("hidden")).toBe(true);
-
-    fireEvent.focusOut(textarea);
-    expect(bar.classList.contains("hidden")).toBe(false);
+    renderLayout();
+    expect(screen.queryByTestId("markdown-action-bar")).toBeNull();
   });
 
-  it("reserves safe-area-inset-bottom clearance on <main> for the floating Action Bar (L3)", () => {
-    // Phase 4 review L3 / hako 5rtHKXzQd9VJY7WNU5Deg: the floating
-    // pill sits above the body with safe-area padding, so the body
-    // needs matching scroll-bottom clearance or the last line tucks
-    // behind the pill. Without this, scrolling to the bottom of a
-    // long note leaves the user unable to read the final paragraph
-    // on PWA where `safe-area-inset-bottom` is non-zero.
-    setViewportWidth(420);
-    const { container } = renderMobile();
-    const main = container.querySelector("main");
-    expect(main).not.toBeNull();
-    expect(main!.style.paddingBottom).toMatch(/safe-area-inset-bottom/);
-  });
-
-  it("does NOT add bottom clearance when sheetSections is absent (legacy fallback)", () => {
-    // Counterpart to the L3 test: the padding is only applied when
-    // the Action Bar is actually present. Hosts that don't pass
-    // sheetSections must not pay for the clearance.
-    setViewportWidth(420);
-    const { container } = render(
-      <ShortcutsProvider>
-        <MarkdownDocumentLayout
-          drive="work"
-          inspector={<InspectorContent />}
-        >
-          <CanvasContent />
-        </MarkdownDocumentLayout>
-      </ShortcutsProvider>,
-    );
-    const main = container.querySelector("main");
-    expect(main).not.toBeNull();
-    expect(main!.style.paddingBottom).toBe("");
-  });
-
-  it("falls back to canvas-only when sheetSections is not provided (graceful degrade)", () => {
+  it("uses `mobileSheet` content in the Sheet when the host provides it", async () => {
+    // The host (FileDetailContent) opts into a richer mobile sheet by
+    // passing `mobileSheet` that includes the canvas-footer heavy
+    // summaries. The desktop pane keeps the lighter `inspector`
+    // content; only the Sheet branch picks up the override.
     setViewportWidth(420);
     render(
       <ShortcutsProvider>
         <MarkdownDocumentLayout
           drive="work"
-          inspector={<InspectorContent />}
+          title="note.md"
+          inspector={<div data-testid="inspector-only">inspector only</div>}
+          mobileSheet={<div data-testid="sheet-extra">sheet extra</div>}
         >
           <CanvasContent />
         </MarkdownDocumentLayout>
       </ShortcutsProvider>,
     );
-    expect(screen.getByTestId("canvas-content")).toBeInTheDocument();
-    expect(screen.queryByTestId("markdown-action-bar")).toBeNull();
-    expect(screen.queryByTestId("inspector-content")).toBeNull();
+    fireEvent.click(screen.getByTestId("inspector-toggle"));
+    expect(await screen.findByTestId("sheet-extra")).toBeInTheDocument();
+    // The desktop-only inspector content must NOT appear in the
+    // sheet when the override is provided.
+    expect(screen.queryByTestId("inspector-only")).toBeNull();
   });
 });

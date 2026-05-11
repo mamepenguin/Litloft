@@ -363,8 +363,7 @@
     "openDetails": "Open details",
     "loading": "Loading...",
     "notFound": "File not found",
-    "noSelection": "Select a file from the tree",
-    "backToTree": "Back to tree"
+    "noSelection": "Select a file from the tree"
   },
   "toolbar": {
     "rescan": "Rescan",
@@ -632,20 +631,22 @@
   },
   "inspector": {
     "title": "Properties",
-    "close": "Close",
+    "close": "Close inspector",
     "toggleShortcut": "Toggle inspector",
     "openShortcut": "Open inspector",
+    "sheetDescription": "Tags, related files, comments, and AI summary for this file.",
     "sections": {
       "tags": "Tags",
       "related": "Related files",
       "aiSummary": "AI summary",
       "comments": "Comments"
     },
-    "actionBar": {
-      "tabsAria": "Markdown actions",
-      "tags": "Tags",
-      "related": "Related",
-      "ai": "AI"
+    "saveDot": {
+      "idle": "Save state",
+      "saving": "Saving",
+      "saved": "Saved",
+      "conflict": "Conflict detected",
+      "error": "Save failed"
     }
   },
   "comments": {

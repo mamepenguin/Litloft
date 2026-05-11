@@ -85,15 +85,19 @@ vi.mock("@/hooks/useSelectedFile", () => ({
 
 import { RightPaneFile } from "../RightPaneFile";
 
+// Default fixture is a non-Markdown document so the PaneShell header
+// still renders. (The MarkdownDocumentLayout fork suppresses the
+// PaneShell header for `.md` because its own unified chrome takes
+// over — the dedicated test below covers that path.)
 const baseFile = {
   id: "abc123",
-  filename: "doc.md",
+  filename: "doc.pdf",
   title: "My Document",
   description: "",
   drive: "work",
   folder_path: "Q1",
   file_type: "document" as const,
-  mime_type: "text/markdown",
+  mime_type: "application/pdf",
   thumbnail_url: "",
   has_thumbnail: false,
   file_size: 100,
@@ -142,8 +146,30 @@ describe("RightPaneFile", () => {
     mockGetFile.mockResolvedValue({ ...baseFile, title: "" });
     render(<RightPaneFile fileId="abc123" drive="work" />);
     await waitFor(() =>
-      expect(screen.getByText("doc.md")).toBeInTheDocument(),
+      expect(screen.getByText("doc.pdf")).toBeInTheDocument(),
     );
+  });
+
+  it("suppresses the PaneShell header for Markdown files (DocumentLayout owns chrome)", async () => {
+    // 2026-05-11 chrome consolidation: when the file is text/markdown
+    // and the Knowledge editor policy is enabled (fail-open default),
+    // FileDetailContent will mount MarkdownDocumentLayout whose own
+    // unified chrome renders the title. PaneShell hides its own
+    // header to avoid a duplicate title row.
+    mockGetFile.mockResolvedValue({
+      ...baseFile,
+      filename: "note.md",
+      mime_type: "text/markdown",
+    });
+    render(<RightPaneFile fileId="abc123" drive="work" />);
+    await waitFor(() =>
+      expect(screen.getByTestId("file-detail-content")).toBeInTheDocument(),
+    );
+    // Header title (PaneShell) must NOT be rendered for markdown.
+    expect(screen.queryByText("My Document")).toBeNull();
+    expect(
+      screen.queryByRole("button", { name: /back to tree/i }),
+    ).toBeNull();
   });
 
   it("does NOT render an 'Open details' link (the right pane IS the detail page now)", async () => {
@@ -181,15 +207,19 @@ describe("RightPaneFile", () => {
     expect(mockGetFile).toHaveBeenCalledTimes(2);
   });
 
-  it("renders 'Back to tree' button that calls clearFile", async () => {
+  it("does NOT render a 'Back to tree' affordance (mobile back-gesture replaces it)", async () => {
+    // 2026-05-12 chrome polish: the previous floating "back to tree"
+    // button briefly flashed before the markdown layout suppressed
+    // the PaneShell header; it was redundant with the browser / OS
+    // back gesture so we dropped it.
     mockGetFile.mockResolvedValue(baseFile);
     render(<RightPaneFile fileId="abc123" drive="work" />);
     await waitFor(() =>
       expect(screen.getByText("My Document")).toBeInTheDocument(),
     );
-    const backBtn = screen.getByRole("button", { name: /back to tree/i });
-    fireEvent.click(backBtn);
-    expect(mockClearFile).toHaveBeenCalledTimes(1);
+    expect(
+      screen.queryByRole("button", { name: /back to tree/i }),
+    ).toBeNull();
   });
 
   it("forwards URL deep-link hints (?t=, ?page=, ?highlight=) to FileDetailContent", async () => {

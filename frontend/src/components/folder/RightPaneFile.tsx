@@ -2,13 +2,13 @@
 
 import { useCallback, useEffect, useState } from "react";
 import { useSearchParams } from "next/navigation";
-import { ArrowLeft } from "lucide-react";
 import { useTranslations } from "next-intl";
 
 import { FileDetailContent } from "@/components/FileDetailContent";
 import { ImageGallery } from "@/components/ImageGallery";
 import { TreeToggle } from "@/components/TreeToggle";
 import { useFileNav } from "@/hooks/useFileNav";
+import { usePolicy } from "@/hooks/usePolicy";
 import { useSelectedFile } from "@/hooks/useSelectedFile";
 import { getFile } from "@/lib/api";
 import type { FileItem } from "@/types";
@@ -83,6 +83,18 @@ export function RightPaneFile({ fileId, drive }: RightPaneFileProps) {
 
   const file = state.status === "loaded" ? state.file : null;
 
+  // 2026-05-11 chrome consolidation: when FileDetailContent will mount
+  // the MarkdownDocumentLayout fork, that layout renders its own unified
+  // chrome (TreeToggle + title + view mode + Inspector toggle). The
+  // PaneShell header would duplicate the title bar, so we suppress it
+  // here. Mirror the same predicate used inside FileDetailContent for
+  // ``useDocumentLayout`` (mime_type + Knowledge editor policy).
+  const knowledgeEditorPolicy = usePolicy(drive, "knowledge", "editor");
+  const willUseDocumentLayout =
+    file?.mime_type === "text/markdown" &&
+    !knowledgeEditorPolicy.isLoading &&
+    knowledgeEditorPolicy.enabled;
+
   // Drive arrow-key navigation through useFileNav (PR-2). selectFile
   // swaps ``?file=id`` so FileDetailContent re-mounts with the
   // neighbor's id. Sort / order from the URL keep the nav order in
@@ -135,7 +147,12 @@ export function RightPaneFile({ fileId, drive }: RightPaneFileProps) {
 
   return (
     <>
-      <PaneShell title={title} drive={drive} scrollRef={setScrollRootCb}>
+      <PaneShell
+        title={title}
+        drive={drive}
+        scrollRef={setScrollRootCb}
+        hideHeader={willUseDocumentLayout}
+      >
         <FileDetailContent
           fileId={fileId}
           drive={drive}
@@ -172,6 +189,7 @@ function PaneShell({
   title,
   drive,
   scrollRef,
+  hideHeader,
   children,
 }: {
   title: string;
@@ -182,33 +200,44 @@ function PaneShell({
    * its IntersectionObserver root.
    */
   scrollRef?: (el: HTMLDivElement | null) => void;
+  /**
+   * Skip the pane's own title bar. Used when the inner content (e.g.
+   * MarkdownDocumentLayout) supplies its own unified chrome and the
+   * default TreeToggle / title row would duplicate it.
+   */
+  hideHeader?: boolean;
   children: React.ReactNode;
 }) {
-  const t = useTranslations("rightPane");
-  const { clearFile } = useSelectedFile();
   return (
     <div className="flex h-full flex-col bg-bg-base">
-      <div className="flex items-center gap-2 border-b border-bg-border px-4 py-3">
-        {/* TreeToggle leftmost: same role as the breadcrumb's leading
-            toggle in the folder view — outermost level of the main
-            pane, not inside a content-specific toolbar. */}
-        <TreeToggle drive={drive} />
-        <button
-          type="button"
-          onClick={clearFile}
-          className="inline-flex items-center gap-1 rounded-2xl px-2 py-1 text-xs text-text-secondary transition-colors hover:bg-bg-elevated hover:text-text-primary md:hidden"
-        >
-          <ArrowLeft size={14} />
-          {t("backToTree")}
-        </button>
-        <h2
-          className="min-w-0 flex-1 truncate text-sm font-medium text-text-primary"
-          title={title}
-        >
-          {title}
-        </h2>
-      </div>
-      <div ref={scrollRef} className="flex-1 overflow-auto p-4">
+      {!hideHeader && (
+        // Mirror the MarkdownDocumentLayout chrome shell (h-12, bg-bg-card,
+        // px-3, gap-2, border-b) so the file detail surface stays
+        // visually consistent regardless of whether the file is a
+        // Markdown note with its own document layout chrome or a
+        // generic non-Markdown file using this header.
+        <div className="flex h-12 shrink-0 items-center gap-2 border-b border-bg-border bg-bg-card px-3">
+          {/* TreeToggle leftmost. Hidden on mobile because the mobile
+              layout uses a tree ⇄ file-detail screen swap (no 2-pane
+              split), which makes the toggle visually a no-op while a
+              file is open. Mobile users can navigate back via the
+              browser / OS back gesture and re-enable the tree from the
+              folder view's TreeToggle. */}
+          <div className="hidden md:flex">
+            <TreeToggle drive={drive} />
+          </div>
+          <h2
+            className="min-w-0 flex-1 truncate text-sm font-medium text-text-primary"
+            title={title}
+          >
+            {title}
+          </h2>
+        </div>
+      )}
+      <div
+        ref={scrollRef}
+        className={hideHeader ? "flex-1 overflow-auto" : "flex-1 overflow-auto p-4"}
+      >
         {children}
       </div>
     </div>
