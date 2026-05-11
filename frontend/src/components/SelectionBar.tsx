@@ -144,7 +144,14 @@ export function SelectionBar({
 
   return (
     <>
-      <div className="fixed bottom-0 left-0 right-0 z-50 animate-slide-up-bar">
+      <div
+        className="fixed bottom-0 left-0 right-0 z-50 animate-slide-up-bar"
+        // PWA safe-area: viewport-fit=cover (layout.tsx) means the
+        // viewport extends under the iOS home indicator. Without
+        // this padding the bulk-action bar would tuck partially
+        // under the home-bar and become unreachable.
+        style={{ paddingBottom: "env(safe-area-inset-bottom, 0px)" }}
+      >
         <div className="mx-auto max-w-3xl px-3 pb-3 sm:pb-4">
           <div className="overflow-hidden rounded-2xl bg-bg-card shadow-[0_8px_40px_rgba(0,0,0,0.25)] ring-1 ring-bg-border">
             {/* Header row: count + select all + close */}

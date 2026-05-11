@@ -153,14 +153,107 @@ describe("MarkdownDocumentLayout — desktop (>= 768px)", () => {
   });
 });
 
-describe("MarkdownDocumentLayout — mobile (< 768px graceful degradation)", () => {
-  it("renders the canvas only; inspector slot is omitted on mobile", () => {
+describe("MarkdownDocumentLayout — mobile (< 768px Phase 4: action bar + sheet)", () => {
+  const sheetSections = {
+    tags: <div data-testid="section-tags">tags-content</div>,
+    related: <div data-testid="section-related">related-content</div>,
+    ai: <div data-testid="section-ai">ai-content</div>,
+  };
+
+  function renderMobile() {
+    return render(
+      <ShortcutsProvider>
+        <MarkdownDocumentLayout
+          drive="work"
+          inspector={<InspectorContent />}
+          sheetSections={sheetSections}
+        >
+          <CanvasContent />
+          <textarea data-testid="probe-textarea" />
+        </MarkdownDocumentLayout>
+      </ShortcutsProvider>,
+    );
+  }
+
+  it("renders the action bar with 5 tabs on mobile", () => {
     setViewportWidth(420);
-    renderLayout();
+    renderMobile();
+    expect(screen.getByTestId("markdown-action-bar")).toBeInTheDocument();
+    // Default activeTab=main → Sheet closed → no section visible.
+    expect(screen.queryByTestId("section-tags")).toBeNull();
+  });
+
+  it("does NOT render the desktop inspector slot on mobile", () => {
+    // The desktop inspector and Phase 4 sheet sections may both be
+    // provided by the host (FileDetailContent is one shared codepath).
+    // On mobile only the Sheet path renders; the desktop inspector
+    // is dropped so duplicate sections don't show up.
+    setViewportWidth(420);
+    renderMobile();
+    expect(screen.queryByTestId("inspector-content")).toBeNull();
+    expect(screen.queryByTestId("inspector-strip")).toBeNull();
+  });
+
+  it("opens the Sheet with the matching section when a non-main tab is tapped", async () => {
+    setViewportWidth(420);
+    renderMobile();
+    fireEvent.click(screen.getByTestId("action-tab-tags"));
+    expect(await screen.findByTestId("section-tags")).toBeInTheDocument();
+    // Switching tab swaps the rendered section.
+    fireEvent.click(screen.getByTestId("action-tab-related"));
+    expect(await screen.findByTestId("section-related")).toBeInTheDocument();
+    expect(screen.queryByTestId("section-tags")).toBeNull();
+  });
+
+  it("re-tapping the active tab closes the Sheet (Body tab dropped)", async () => {
+    // Phase 4 3rd PWA pass: there's no "Body" tab anymore. Closing
+    // the Sheet from the bar is done by re-tapping whichever tab is
+    // currently open. Re vaul + jsdom: the close animation isn't
+    // simulated, but the drawer's `data-state` flips synchronously.
+    setViewportWidth(420);
+    renderMobile();
+    fireEvent.click(screen.getByTestId("action-tab-tags"));
+    const sheet = await screen.findByTestId("mobile-inspector-sheet");
+    expect(sheet.getAttribute("data-state")).toBe("open");
+    expect(screen.getByTestId("section-tags")).toBeInTheDocument();
+
+    // Re-tap the active tab → closes.
+    fireEvent.click(screen.getByTestId("action-tab-tags"));
+    expect(
+      screen.queryByTestId("mobile-inspector-sheet")?.getAttribute(
+        "data-state",
+      ),
+    ).toBe("closed");
+  });
+
+  it("hides the action bar when a textarea is focused", () => {
+    setViewportWidth(420);
+    renderMobile();
+    const bar = screen.getByTestId("markdown-action-bar");
+    expect(bar.classList.contains("hidden")).toBe(false);
+
+    const textarea = screen.getByTestId("probe-textarea");
+    fireEvent.focusIn(textarea);
+    expect(bar.classList.contains("hidden")).toBe(true);
+
+    fireEvent.focusOut(textarea);
+    expect(bar.classList.contains("hidden")).toBe(false);
+  });
+
+  it("falls back to canvas-only when sheetSections is not provided (graceful degrade)", () => {
+    setViewportWidth(420);
+    render(
+      <ShortcutsProvider>
+        <MarkdownDocumentLayout
+          drive="work"
+          inspector={<InspectorContent />}
+        >
+          <CanvasContent />
+        </MarkdownDocumentLayout>
+      </ShortcutsProvider>,
+    );
     expect(screen.getByTestId("canvas-content")).toBeInTheDocument();
-    // Phase 1: mobile is not handled — Inspector content and strip both
-    // hidden, single-column degrade.
-    expect(screen.queryByTestId("inspector-content")).not.toBeInTheDocument();
-    expect(screen.queryByTestId("inspector-strip")).not.toBeInTheDocument();
+    expect(screen.queryByTestId("markdown-action-bar")).toBeNull();
+    expect(screen.queryByTestId("inspector-content")).toBeNull();
   });
 });

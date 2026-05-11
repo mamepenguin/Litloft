@@ -34,6 +34,11 @@ export const viewport: Viewport = {
   maximumScale: 1,
   userScalable: false,
   interactiveWidget: "resizes-content",
+  // PWA safe-area: extend the viewport under the iOS status bar /
+  // home indicator so `env(safe-area-inset-*)` reports real values.
+  // Without this, standalone iOS Safari clamps insets to 0 and
+  // safe-area-aware components silently no-op.
+  viewportFit: "cover",
   themeColor: [
     { media: "(prefers-color-scheme: dark)", color: "#1a0e10" },
     { media: "(prefers-color-scheme: light)", color: "#ffffff" },

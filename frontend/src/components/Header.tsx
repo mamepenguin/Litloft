@@ -18,7 +18,16 @@ export function Header() {
   }, [router]);
 
   return (
-    <header className="sticky top-0 z-20 flex h-14 flex-shrink-0 items-center border-b border-bg-border bg-bg-primary px-4">
+    <header
+      // PWA safe-area: keep the 56px chrome height (min-h-14) and
+      // pad above by the iOS status-bar inset so the avatar / search
+      // / menu button never tuck under the notch. Regular browsers
+      // report `safe-area-inset-top: 0` and the layout is unchanged.
+      // `min-h-14` rather than `h-14` so the header grows by the
+      // inset amount instead of clipping its content.
+      style={{ paddingTop: "env(safe-area-inset-top, 0px)" }}
+      className="sticky top-0 z-20 flex min-h-14 flex-shrink-0 items-center border-b border-bg-border bg-bg-primary px-4"
+    >
       <div className="flex-1" />
 
       <div className="flex items-center gap-1">

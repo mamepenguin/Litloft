@@ -640,6 +640,13 @@
       "related": "Related files",
       "aiSummary": "AI summary",
       "comments": "Comments"
+    },
+    "actionBar": {
+      "main": "Body",
+      "tags": "Tags",
+      "related": "Related",
+      "ai": "AI",
+      "comments": "Comments"
     }
   },
   "comments": {

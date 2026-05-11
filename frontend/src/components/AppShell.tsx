@@ -16,7 +16,15 @@ function MenuButton() {
     <button
       onClick={toggle}
       aria-label={t("menu")}
-      className="fixed top-3 left-3 z-50 flex h-10 w-10 items-center justify-center rounded-2xl text-text-muted transition-colors hover:bg-bg-elevated hover:text-text-primary"
+      // PWA safe-area: when iOS runs in standalone mode the viewport
+      // can extend under the status bar, so anchor the fixed menu
+      // button to the safe-area top + 12px instead of a raw 12px
+      // offset. In a regular browser `safe-area-inset-top` resolves
+      // to 0 so the visual offset is unchanged.
+      style={{
+        top: "calc(env(safe-area-inset-top, 0px) + 12px)",
+      }}
+      className="fixed left-3 z-50 flex h-10 w-10 items-center justify-center rounded-2xl text-text-muted transition-colors hover:bg-bg-elevated hover:text-text-primary"
     >
       <Menu size={20} />
     </button>

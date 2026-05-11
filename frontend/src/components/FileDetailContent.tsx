@@ -428,12 +428,52 @@ export function FileDetailContent({
       </div>
     );
 
+    // Phase 4 (spec §D5 / hako sFXCwZDluTPZZkbYuozwJ): the mobile
+    // Bottom Sheet redistributes the inspector + canvas footer
+    // sections across three Action Bar tabs. Comments are already
+    // shown directly below the body in the canvas footer, so a
+    // dedicated comments tab would be redundant — dropped in the
+    // 2nd PWA pass. The AI tab shows the `ActiveSummaryHost` (which
+    // picks the active knowledge note or falls back to the
+    // intelligence summary) — the heavier "AI 詳細要約" /
+    // similar-files slots stay in the canvas footer to avoid
+    // duplicate rendering.
+    const sheetSections = {
+      tags: <div className="space-y-4 py-2">{tagChipNode}</div>,
+      related: (
+        <div className="space-y-4 py-2">
+          <RelatedFilesSection fileId={fileId} />
+          <ExifSection fileId={fileId} fileType={file.file_type} />
+        </div>
+      ),
+      ai: (
+        <div className="py-2">
+          {/* The drawer's AI tab mirrors the desktop inspector's
+              "AI 要約" surface: short_summary + long_summary +
+              regenerate, served by intelligence's `summary` slot.
+              Distinct from `detailed-summary` (the long sectional
+              breakdown) which lives in the canvas footer. */}
+          <AddonSlot
+            id="file-detail-sections"
+            layout="stack"
+            includeIds={["summary"]}
+            props={addonSlotProps}
+          />
+        </div>
+      ),
+    };
+
     // Canvas: the Knowledge editor occupies the top region (its
     // three-mode toggle owns its own preview, so FilePreview is
     // intentionally omitted to avoid double-rendering Markdown). The
     // footer below the editor carries the heavy content listed above.
     return (
-      <MarkdownDocumentLayout drive={drive} inspector={inspectorNode}>
+      <MarkdownDocumentLayout
+        drive={drive}
+        inspector={inspectorNode}
+        sheetSections={sheetSections}
+        resetKey={fileId}
+      >
         <div className="flex flex-col">
           <div className="relative isolate flex flex-col bg-bg-primary">
             <AddonSlot

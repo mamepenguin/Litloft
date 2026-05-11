@@ -640,6 +640,13 @@
       "related": "関連ファイル",
       "aiSummary": "AI 要約",
       "comments": "コメント"
+    },
+    "actionBar": {
+      "main": "本文",
+      "tags": "タグ",
+      "related": "関連",
+      "ai": "AI",
+      "comments": "会話"
     }
   },
   "comments": {

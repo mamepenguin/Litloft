@@ -80,8 +80,17 @@ export function MiniPlayerContainer({
       <div
         className={
           isMini
-            ? "group/mini fixed bottom-4 right-4 z-40 h-[180px] w-[min(320px,calc(100vw-2rem))] overflow-hidden rounded-xl bg-black shadow-2xl ring-1 ring-black/20"
+            ? "group/mini fixed right-4 z-40 h-[180px] w-[min(320px,calc(100vw-2rem))] overflow-hidden rounded-xl bg-black shadow-2xl ring-1 ring-black/20"
             : "w-full"
+        }
+        // PWA safe-area: viewport-fit=cover means the home indicator
+        // sits at the bottom of the viewport. The 16px breathing
+        // strip is layered on top of the safe-area inset so the
+        // mini player clears the home-bar gesture region.
+        style={
+          isMini
+            ? { bottom: "calc(env(safe-area-inset-bottom, 0px) + 16px)" }
+            : undefined
         }
       >
         {children}
