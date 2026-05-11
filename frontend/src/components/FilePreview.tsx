@@ -14,6 +14,7 @@ import { VideoPlayer } from "./VideoPlayer";
 import { AudioPlayer } from "./AudioPlayer";
 import { TextPreview, isTextPreviewable } from "./TextPreview";
 import { MarkdownFileViewer } from "./MarkdownPreview";
+import { HtmlPreview } from "./HtmlPreview";
 import { ArchivePreview } from "./ArchivePreview";
 import { FileTypeIcon } from "./FileTypeIcon";
 import { AddonSlot } from "./AddonSlot";
@@ -278,6 +279,10 @@ export function FilePreview({
         highlight={highlight}
       />
     );
+  }
+
+  if (file.mime_type === "text/html") {
+    return <HtmlPreview fileId={file.id} />;
   }
 
   if (file.mime_type === "application/pdf") {

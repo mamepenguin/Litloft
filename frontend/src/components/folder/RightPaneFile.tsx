@@ -85,15 +85,19 @@ export function RightPaneFile({ fileId, drive }: RightPaneFileProps) {
 
   // 2026-05-11 chrome consolidation: when FileDetailContent will mount
   // the MarkdownDocumentLayout fork, that layout renders its own unified
-  // chrome (TreeToggle + title + view mode + Inspector toggle). The
-  // PaneShell header would duplicate the title bar, so we suppress it
-  // here. Mirror the same predicate used inside FileDetailContent for
-  // ``useDocumentLayout`` (mime_type + Knowledge editor policy).
+  // chrome (TreeToggle + title + Inspector toggle, plus editor-only
+  // controls when applicable). The PaneShell header would duplicate the
+  // title bar, so we suppress it here. Mirror the same predicate used
+  // inside FileDetailContent for ``useDocumentLayout`` — Markdown when
+  // the Knowledge editor policy is enabled, *or* any HTML file (HTML
+  // preview unconditionally uses the document layout for single-scroll
+  // mobile UX).
   const knowledgeEditorPolicy = usePolicy(drive, "knowledge", "editor");
   const willUseDocumentLayout =
-    file?.mime_type === "text/markdown" &&
-    !knowledgeEditorPolicy.isLoading &&
-    knowledgeEditorPolicy.enabled;
+    file?.mime_type === "text/html" ||
+    (file?.mime_type === "text/markdown" &&
+      !knowledgeEditorPolicy.isLoading &&
+      knowledgeEditorPolicy.enabled);
 
   // Drive arrow-key navigation through useFileNav (PR-2). selectFile
   // swaps ``?file=id`` so FileDetailContent re-mounts with the

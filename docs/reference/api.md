@@ -35,6 +35,7 @@ A high-level catalogue of Litloft's HTTP API. The browser uses these endpoints; 
 |---|---|---|
 | `GET` | `/api/files/{id}` | File metadata. |
 | `GET` | `/api/files/{id}/stream` | Range-requested media stream. Returns 410 for missing files. All responses carry `X-Content-Type-Options: nosniff`. HTML / SVG / XML mimes (`text/html`, `application/xhtml+xml`, `image/svg+xml`, `text/xml`, `application/xml`) are forced to `Content-Disposition: attachment` to block top-level navigation XSS; `<img src>` SVG rendering is unaffected since browsers ignore the header on sub-resources. |
+| `GET` | `/api/files/{id}/render` | Inline HTML preview for AI artifacts. `text/html` only (404 otherwise). Returns a sandboxed document with `Content-Security-Policy: sandbox; default-src 'none'; ...` plus a small bootstrap script that reports `scrollHeight` to the parent via `postMessage`. UTF-8 only (415 for other encodings), 5 MB cap (413). Companion to `/stream`: `/stream` forces attachment for HTML; `/render` is the iframe path. |
 | `GET` | `/api/files/{id}/thumbnail` | Lazy-generated 320x180 JPEG. |
 | `GET` | `/api/files/{id}/sprite` | Sprite preview sheet (videos). |
 | `GET` | `/api/files/{id}/exif` | EXIF data (images). |

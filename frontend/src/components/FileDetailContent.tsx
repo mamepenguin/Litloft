@@ -263,15 +263,19 @@ export function FileDetailContent({
     (file.file_type === "video" || file.file_type === "audio") &&
     file.duration != null;
 
-  // DocumentLayout fork: only when the file is Markdown, the policy
-  // resolved (not loading), and the policy says editor=true. Computed
-  // before ``metadataNode`` so the inspector chip group can pick
-  // content-mode (Phase 3.5) when the registry has an entry for the
-  // file. Anything else falls through to the legacy vertical stack.
+  // DocumentLayout fork: rides the Markdown-document layout shell for
+  // long-form readable content. Eligible when the file is either:
+  //   (a) Markdown with the per-drive Knowledge editor policy enabled,
+  //       which is the original use case (inline editor + AI sections)
+  //   (b) text/html, which uses the same layout for AI artifact preview
+  //       and reuses the inspector but never mounts the editor slot
+  // Anything else falls through to the legacy vertical stack.
+  const isHtmlPreview = file.mime_type === "text/html";
   const useDocumentLayout =
-    file.mime_type === "text/markdown" &&
-    !knowledgeEditorPolicy.isLoading &&
-    knowledgeEditorPolicy.enabled;
+    isHtmlPreview ||
+    (file.mime_type === "text/markdown" &&
+      !knowledgeEditorPolicy.isLoading &&
+      knowledgeEditorPolicy.enabled);
 
   // Wire the inspector's EditableTagChips through the editor's shared
   // content state when both (a) we're in the DocumentLayout fork and
@@ -441,17 +445,26 @@ export function FileDetailContent({
     //   without the narrow-inspector problem. This avoids the
     //   "long markdown body keeps the user from finding metadata"
     //   pattern the previous canvas-footer layout had on phones.
+    // HTML preview is a pure renderer: intelligence has no concept of
+    // "indexing" an HTML artifact, and exposing the empty Suggested-Tags
+    // / Summary / Transcript / Index-Details / CLIP-Frames placeholders
+    // (plus their global keyboard hint chrome from DetailedSummarySection's
+    // Verify mode) would only add noise. Skip the file-detail-sections
+    // AddonSlot entirely in HTML mode — the inspector keeps the universal
+    // file meta + tags + related + exif + comments stack.
     const inspectorSections = (
       <>
         {metadataNode}
         <RelatedFilesSection fileId={fileId} />
         <ExifSection fileId={fileId} fileType={file.file_type} />
-        <AddonSlot
-          id="file-detail-sections"
-          layout="stack"
-          excludeIds={["knowledge-edit", "detailed-summary"]}
-          props={addonSlotProps}
-        />
+        {!isHtmlPreview && (
+          <AddonSlot
+            id="file-detail-sections"
+            layout="stack"
+            excludeIds={["knowledge-edit", "detailed-summary"]}
+            props={addonSlotProps}
+          />
+        )}
         <CommentSection fileId={fileId} />
       </>
     );
@@ -479,7 +492,7 @@ export function FileDetailContent({
     const mobileSheetContent = isMobile ? (
       <div className="space-y-4 p-4">
         {inspectorSections}
-        {heavySummarySections}
+        {!isHtmlPreview && heavySummarySections}
       </div>
     ) : undefined;
 
@@ -490,21 +503,28 @@ export function FileDetailContent({
         inspector={inspectorPaneContent}
         mobileSheet={mobileSheetContent}
         resetKey={fileId}
+        previewOnly={isHtmlPreview}
       >
         <div className="flex flex-col">
           <div className="relative isolate flex flex-col bg-bg-primary">
-            <AddonSlot
-              id="file-detail-sections"
-              layout="stack"
-              includeIds={["knowledge-edit"]}
-              props={{ ...addonSlotProps, fillHeight: true }}
-            />
+            {isHtmlPreview ? (
+              <FilePreview file={file} />
+            ) : (
+              <AddonSlot
+                id="file-detail-sections"
+                layout="stack"
+                includeIds={["knowledge-edit"]}
+                props={{ ...addonSlotProps, fillHeight: true }}
+              />
+            )}
           </div>
           {/* Canvas footer carries the table-heavy summaries on
               desktop only; on mobile the same sections live in the
               Bottom Sheet so the user does not have to scroll past a
-              long note to reach them. */}
-          {!isMobile && (
+              long note to reach them. HTML preview skips the heavy
+              summary slot — intelligence does not index HTML and the
+              placeholder UI would be misleading. */}
+          {!isMobile && !isHtmlPreview && (
             <div className="relative isolate space-y-6 border-t border-bg-border bg-bg-primary px-6 py-8">
               {heavySummarySections}
             </div>

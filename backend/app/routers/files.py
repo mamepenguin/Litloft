@@ -784,6 +784,118 @@ async def stream_file(
     return StreamingResponse(iter_full(), headers=headers)
 
 
+_RENDER_MAX_BYTES = 5 * 1024 * 1024  # 5 MB
+
+# Inline script appended to HTML responses so the iframe can report its
+# rendered height to the parent window via postMessage. The parent listens
+# for `litloft:height` messages and resizes the iframe accordingly, which
+# yields a single-scroll layout (the page scrolls, the iframe does not).
+# Skipped in fullscreen mode (#litloft-fullscreen hash), where the iframe
+# already occupies the viewport.
+_RENDER_BOOTSTRAP = (
+    b"<script>(function(){"
+    b"if(location.hash==='#litloft-fullscreen')return;"
+    b"function s(){parent.postMessage({type:'litloft:height',"
+    b"value:Math.ceil(document.documentElement.scrollHeight)},'*');}"
+    b"new ResizeObserver(s).observe(document.documentElement);s();"
+    b"})();</script>"
+)
+
+# CSP for /render responses. The `sandbox` directive forces a null origin
+# even on top-level navigation, so the document cannot read parent cookies
+# or storage. The token list mirrors the iframe `sandbox` attribute:
+# without `allow-scripts` the document cannot run any JS, so both the
+# bootstrap resize script and the AI artifact's own code would silently
+# fail. `allow-popups` keeps `<a target="_blank">` working. We intentionally
+# omit `allow-same-origin`, `allow-top-navigation`, and
+# `allow-popups-to-escape-sandbox` to keep the document in an opaque origin.
+# `default-src 'none'` blocks all network egress (fetch, WebSocket, beacon,
+# EventSource); the explicit allowlists let common AI artifact CDNs load
+# scripts/styles/fonts without opening generic exfil paths.
+_RENDER_CSP = (
+    "sandbox allow-scripts allow-popups; "
+    "default-src 'none'; "
+    "script-src 'unsafe-inline' 'unsafe-eval' "
+    "https://cdn.jsdelivr.net https://unpkg.com https://esm.sh "
+    "https://cdnjs.cloudflare.com https://cdn.tailwindcss.com; "
+    "style-src 'unsafe-inline' https://cdn.jsdelivr.net https://fonts.googleapis.com; "
+    "img-src 'self' data: blob:; "
+    "font-src https://fonts.gstatic.com data:; "
+    "connect-src 'none'; "
+    "form-action 'none'; "
+    "frame-ancestors 'self'"
+)
+
+# Case-insensitive locator for </body>. Falls back to end-of-document
+# append when absent. The regex consumes the literal </body> so we can
+# splice the bootstrap immediately before it.
+_BODY_CLOSE_RE = re.compile(rb"</body\s*>", re.IGNORECASE)
+
+
+def _inject_render_bootstrap(html_bytes: bytes) -> bytes:
+    """Inject the height-reporting bootstrap script into an HTML response.
+
+    Inserts before the final </body> when present (case-insensitive),
+    otherwise appends to the end. Returns the modified bytes; callers
+    must ensure the input decodes as UTF-8 before reaching this helper.
+    """
+    match = None
+    for m in _BODY_CLOSE_RE.finditer(html_bytes):
+        match = m
+    if match is None:
+        return html_bytes + _RENDER_BOOTSTRAP
+    return html_bytes[: match.start()] + _RENDER_BOOTSTRAP + html_bytes[match.start() :]
+
+
+@router.get("/{file_id}/render")
+async def render_file(
+    file_id: FileId,
+    db: Annotated[Session, Depends(get_db)],
+    unlocked_groups: Annotated[list[str], Depends(get_unlocked_groups)],
+):
+    """Serve text/html in a sandboxed iframe with strict CSP.
+
+    Companion to /stream which forces `Content-Disposition: attachment`
+    for HTML to block top-level XSS via link luring. /render is a
+    separate path intended only for the in-app file detail iframe;
+    even on direct navigation, the CSP `sandbox` directive forces a
+    null origin so parent cookies and storage stay isolated.
+    """
+    file = _get_file_any_state_or_404(db, file_id, unlocked_groups)
+    if file.missing_since is not None and file.deleted_at is None:
+        raise HTTPException(status_code=410, detail="File is missing")
+    if (file.mime_type or "") != "text/html":
+        raise HTTPException(status_code=404, detail="Not an HTML file")
+
+    drive_path = config.get_drive_path(file.drive)
+    file_path = _validate_path(str(drive_path / file.file_path), drive_path)
+    if not file_path.exists():
+        raise HTTPException(status_code=404, detail="File not found on disk")
+
+    file_size = file_path.stat().st_size
+    if file_size > _RENDER_MAX_BYTES:
+        raise HTTPException(status_code=413, detail="HTML file too large to render")
+
+    raw = file_path.read_bytes()
+    try:
+        raw.decode("utf-8")
+    except UnicodeDecodeError:
+        raise HTTPException(
+            status_code=415,
+            detail="Only UTF-8 encoded HTML is supported",
+        )
+
+    body = _inject_render_bootstrap(raw)
+    headers = {
+        "Content-Type": "text/html; charset=utf-8",
+        "Content-Disposition": "inline",
+        "X-Content-Type-Options": "nosniff",
+        "Content-Security-Policy": _RENDER_CSP,
+        "Cache-Control": "no-store",
+    }
+    return Response(content=body, headers=headers)
+
+
 _OFFICE_MIME_EXTENSIONS = {
     "application/vnd.openxmlformats-officedocument.wordprocessingml.document": ".docx",
     "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet": ".xlsx",

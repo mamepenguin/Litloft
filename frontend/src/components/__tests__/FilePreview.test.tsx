@@ -25,6 +25,12 @@ vi.mock("../ArchivePreview", () => ({
   ),
 }));
 
+vi.mock("../HtmlPreview", () => ({
+  HtmlPreview: ({ fileId }: { fileId: string }) => (
+    <div data-testid="html-preview">{fileId}</div>
+  ),
+}));
+
 vi.mock("../TextPreview", () => ({
   TextPreview: ({ fileId }: { fileId: string }) => (
     <div data-testid="text-preview">{fileId}</div>
@@ -129,6 +135,20 @@ describe("FilePreview", () => {
     const file = makeFile({ file_type: "document", mime_type: "text/plain", filename: "readme.txt" });
     render(<FilePreview file={file} />);
     expect(screen.getByTestId("text-preview")).toBeInTheDocument();
+  });
+
+  it("renders HtmlPreview for text/html files", () => {
+    const file = makeFile({
+      id: "html-1",
+      file_type: "document",
+      mime_type: "text/html",
+      filename: "artifact.html",
+    });
+    render(<FilePreview file={file} />);
+    expect(screen.getByTestId("html-preview")).toBeInTheDocument();
+    expect(screen.getByTestId("html-preview")).toHaveTextContent("html-1");
+    // The text/html branch must beat the generic text fallback.
+    expect(screen.queryByTestId("text-preview")).not.toBeInTheDocument();
   });
 
   it("renders LoftPlayer for .loft even though file_type is video", () => {

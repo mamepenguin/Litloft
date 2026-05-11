@@ -58,6 +58,14 @@ interface MarkdownDocumentLayoutProps {
    * a fresh state.
    */
   resetKey?: string;
+  /**
+   * Hide the editor-only chrome elements (save state dot and the
+   * Edit/Split/Preview view-mode toggle). HTML preview rides this
+   * shell for the single-scroll inspector layout but has no editor,
+   * so the toggle would be inert and the save dot meaningless. Other
+   * read-only file types could reuse this flag later.
+   */
+  previewOnly?: boolean;
 }
 
 /**
@@ -103,6 +111,7 @@ export function MarkdownDocumentLayout({
   mobileSheet,
   children,
   resetKey,
+  previewOnly = false,
 }: MarkdownDocumentLayoutProps): ReactElement {
   const t = useTranslations("inspector");
   const { open, setOpen } = useInspectorOpen(drive);
@@ -201,18 +210,20 @@ export function MarkdownDocumentLayout({
       <div className="hidden md:flex">
         <TreeToggle drive={drive} />
       </div>
-      <SaveDot state={saveState} />
+      {!previewOnly && <SaveDot state={saveState} />}
       <h2
         className="min-w-0 flex-1 truncate text-sm font-medium text-text-primary"
         title={title}
       >
         {title}
       </h2>
-      <MarkdownViewModeToggle
-        mode={viewMode}
-        onChange={setViewMode}
-        hideSplit={isMobile}
-      />
+      {!previewOnly && (
+        <MarkdownViewModeToggle
+          mode={viewMode}
+          onChange={setViewMode}
+          hideSplit={isMobile}
+        />
+      )}
       <button
         type="button"
         onClick={handleInspectorButton}

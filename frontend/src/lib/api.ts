@@ -223,6 +223,10 @@ export function getThumbnailUrl(id: string): string {
   return `${API_BASE}/files/${id}/thumbnail`;
 }
 
+export function getRenderUrl(id: string): string {
+  return `${API_BASE}/files/${id}/render`;
+}
+
 export function getSubtitleUrl(fileId: string, index: number): string {
   return `${API_BASE}/files/${fileId}/subtitles/${index}`;
 }
