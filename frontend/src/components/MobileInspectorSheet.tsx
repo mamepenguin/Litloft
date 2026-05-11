@@ -12,8 +12,10 @@ export type MobileInspectorSections = Record<SheetSectionKey, ReactNode>;
 
 /**
  * Bottom Sheet for the mobile Markdown layout (spec §D5 / hako
- * sFXCwZDluTPZZkbYuozwJ). Hosts the four non-body sections from the
- * desktop inspector + canvas footer (tags / related / AI / comments).
+ * sFXCwZDluTPZZkbYuozwJ). Hosts the three Sheet sections that mirror
+ * a slice of the desktop inspector: tags / related / AI summary.
+ * Comments stays on the canvas footer below the body — see
+ * MarkdownActionBar JSDoc for why that fourth tab was dropped.
  *
  * Open state is derived from `activeTab`:
  *   - `"main"` → drawer closed.

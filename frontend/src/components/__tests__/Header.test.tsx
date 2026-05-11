@@ -93,6 +93,24 @@ describe("Header", () => {
     });
   });
 
+  describe("PWA safe-area reservation (Phase 4 L1, hako 5rtHKXzQd9VJY7WNU5Deg)", () => {
+    it("reserves status-bar inset and grows minHeight to keep a stable 56px content area", () => {
+      const { container } = render(<Header />);
+      const header = container.querySelector("header");
+      expect(header).not.toBeNull();
+      // jsdom's CSS parser drops a bare `env(...)` from inline styles
+      // but preserves it inside `calc(...)`. We assert only what
+      // survives the round-trip: the min-height growing with the
+      // inset is the structural fix (chrome stays 56px after padding).
+      // Padding-top is still emitted in the rendered HTML — we trust
+      // the source file for that.
+      const style = header!.getAttribute("style") ?? "";
+      expect(style).toMatch(
+        /min-height:\s*calc\(3\.5rem\s*\+\s*env\(safe-area-inset-top/,
+      );
+    });
+  });
+
   describe("when nickname is unset (User icon mode)", () => {
     it("renders a profile button with User icon", () => {
       render(<Header />);

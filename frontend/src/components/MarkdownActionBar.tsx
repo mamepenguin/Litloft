@@ -10,17 +10,18 @@ import {
 } from "lucide-react";
 
 /**
- * The four tabs of the mobile Markdown action bar.
+ * Tab keys for the mobile Markdown action bar.
  *
- * "main" is not a Sheet section — it represents the closed-Sheet
- * state (= "I'm reading / editing the body"). Switching to "main"
- * collapses the inspector Sheet. The other three open the Sheet
- * with the corresponding section active.
+ * Three buttons render (tags / related / ai). "main" is not a button
+ * — it represents the closed-Sheet state ("I'm reading / editing the
+ * body"). The host flips activeTab back to "main" to collapse the
+ * Sheet; re-tapping the currently active tab is the user-facing
+ * close affordance.
  *
- * Comments was a fifth tab in the original spec (§D5) but the
+ * Originally the spec proposed a fourth "comments" tab, but the
  * canvas footer already shows the `CommentSection` directly below
- * the body, so a dedicated comments Sheet tab is redundant. Dropped
- * after PWA testing (hako follow-up).
+ * the body, so a dedicated comments Sheet tab was dropped after
+ * PWA testing.
  *
  * Spec: 2026-05-10-markdown-document-layout.md §D5.
  * hako: sFXCwZDluTPZZkbYuozwJ.
@@ -43,8 +44,10 @@ const TABS: TabDescriptor[] = [
 ];
 
 /**
- * Fixed-bottom 5-tab action bar shown on mobile widths. Tap a tab to
- * open the Bottom Sheet at that section; tap "main" to close it.
+ * Floating pill action bar shown on mobile widths. Three buttons
+ * (tags / related / ai) open the Bottom Sheet at the matching
+ * section; re-tapping the active button collapses the Sheet via the
+ * host flipping `activeTab` back to "main".
  *
  * The host (MarkdownDocumentLayout) owns the active-tab state; this
  * component is purely controlled.

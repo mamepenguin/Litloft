@@ -19,14 +19,22 @@ export function Header() {
 
   return (
     <header
-      // PWA safe-area: keep the 56px chrome height (min-h-14) and
-      // pad above by the iOS status-bar inset so the avatar / search
-      // / menu button never tuck under the notch. Regular browsers
-      // report `safe-area-inset-top: 0` and the layout is unchanged.
-      // `min-h-14` rather than `h-14` so the header grows by the
-      // inset amount instead of clipping its content.
-      style={{ paddingTop: "env(safe-area-inset-top, 0px)" }}
-      className="sticky top-0 z-20 flex min-h-14 flex-shrink-0 items-center border-b border-bg-border bg-bg-primary px-4"
+      // PWA safe-area: reserve the iOS status-bar inset above and
+      // keep a stable 56px content area so the avatar / search /
+      // menu button stay visually centred independently of the inset.
+      //
+      // The previous shape (`min-h-14 + padding-top`) measured against
+      // a 56px box total: with `box-sizing: border-box` the content
+      // area collapsed to (56 - inset) under PWA, then re-expanded
+      // to natural content height. `items-center` then centred against
+      // that drifting box and the chrome appeared subtly lower on PWA
+      // than in a regular browser tab. Phase 4 review L1, hako
+      // 5rtHKXzQd9VJY7WNU5Deg.
+      style={{
+        paddingTop: "env(safe-area-inset-top, 0px)",
+        minHeight: "calc(3.5rem + env(safe-area-inset-top, 0px))",
+      }}
+      className="sticky top-0 z-20 flex flex-shrink-0 items-center border-b border-bg-border bg-bg-primary px-4"
     >
       <div className="flex-1" />
 

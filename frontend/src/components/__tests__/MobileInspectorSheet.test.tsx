@@ -55,14 +55,13 @@ describe("MobileInspectorSheet", () => {
     }
   });
 
-  it("invokes onClose when the Sheet drags down to dismiss", () => {
-    // vaul's <Drawer.Root onOpenChange={(open) => !open && onClose()}>
-    // path: when the drawer closes for any reason (drag, backdrop tap,
-    // ESC), the host gets notified. We assert the wiring by simulating
-    // the close affordance: vaul renders a close button (the backdrop
-    // is a separate overlay element). Since vaul's internals are
-    // unstable, this test simply confirms the prop reaches the Sheet
-    // and an internal close handler exists.
+  it("invokes onClose when ESC is pressed (vaul's default keyboard close)", () => {
+    // vaul's `<Drawer.Root onOpenChange={(open) => !open && onClose()}>`
+    // path is exercised by any close affordance — drag-down, backdrop
+    // tap, or ESC. JSDom doesn't simulate pointer drag well, so we
+    // cover the wiring through the keyboard handler vaul attaches to
+    // `document`. (The drag-to-dismiss path is exercised in real-
+    // device QA, not here.)
     const onClose = vi.fn();
     render(
       <MobileInspectorSheet
@@ -71,9 +70,7 @@ describe("MobileInspectorSheet", () => {
         sections={SECTIONS}
       />,
     );
-    // Press ESC — vaul's default keyboard handler closes the drawer.
     fireEvent.keyDown(document, { key: "Escape" });
-    // Allow the close handler microtask to drain.
     return waitFor(() => {
       expect(onClose).toHaveBeenCalled();
     });
