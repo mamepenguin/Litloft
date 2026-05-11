@@ -1,32 +1,29 @@
 "use client";
 
-import { useEffect, useRef } from "react";
-
 /**
- * Expands every ancestor (and the leaf) of `currentFolderPath` exactly
- * once, on first mount. Subsequent changes to `currentFolderPath` do
- * NOT trigger further expansion — the tree is the user's hand-built
- * map after that point.
+ * Strict-separation (Craft-style) mode: the tree is the user's
+ * hand-built map. We never auto-expand ancestors of the URL location,
+ * not on first mount and not on navigation. The tree's expansion state
+ * is whatever `useTreeExpansion` has persisted in localStorage from
+ * the user's own clicks.
  *
- * Drop-in replacement for the previous "expand on every navigation"
- * effect (hako `dIUr0KGPRCGiAPTtkG-LO`). Kept as an isolated hook so
- * the body can be swapped to a no-op to enter the strict-separation
- * mode (Craft-style: localStorage-only) without touching FolderTreePane.
+ * Rationale (brainstorm 2026-05-12): auto-expanding on first visit
+ * to a deep path "occupies" the tree with large sibling folders the
+ * user did not ask to see. The breadcrumb above the right pane shows
+ * the current location, and `useTreeAutoReveal` scrolls the matching
+ * row into view *when its ancestors happen to be expanded* — so the
+ * orientation signal is preserved without imposing a structural
+ * change on the tree.
+ *
+ * The hook is kept (with this no-op body) so the call site in
+ * `FolderTreePane` stays untouched: reverting to auto-expansion is a
+ * one-file change here, not a structural edit. See
+ * docs/superpowers/specs/2026-05-09-tree-pane-separated-interaction.md
+ * and hako `1m4EhzyjWms6nUimi_0sO` for the longer history.
  */
 export function useInitialReveal(
-  currentFolderPath: string | undefined,
-  expand: (path: string) => void,
+  _currentFolderPath: string | undefined,
+  _expand: (path: string) => void,
 ): void {
-  const expandRef = useRef(expand);
-  expandRef.current = expand;
-
-  useEffect(() => {
-    if (!currentFolderPath) return;
-    const parts = currentFolderPath.split("/").filter(Boolean);
-    for (let i = 1; i <= parts.length; i++) {
-      expandRef.current(parts.slice(0, i).join("/"));
-    }
-    // Mount-only: intentionally exclude `currentFolderPath` from deps.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  // intentional no-op
 }

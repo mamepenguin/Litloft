@@ -58,9 +58,10 @@ interface FolderTreePaneProps {
    */
   selectedFileId?: string | null;
   /**
-   * Current folder path the user is browsing (URL path). The tree
-   * automatically expands all ancestors so the user's location is
-   * always visible.
+   * Current folder path the user is browsing (URL path). Used so the
+   * matching row is auto-scrolled into view when its ancestors are
+   * already expanded; the tree itself is never re-shaped by this
+   * value (Craft-style strict separation — see `useInitialReveal`).
    */
   currentFolderPath?: string;
   onSelectFolder: (path: string) => void;
@@ -176,10 +177,12 @@ export function FolderTreePane({
 
   const filterActive = text.debouncedText.length > 0 || filter !== null;
 
-  // Reveal-in-tree: expand ancestors of the URL location only on first
-  // mount. Subsequent navigation must NOT reshape the tree — see
-  // docs/superpowers/specs/2026-05-09-tree-pane-separated-interaction.md
-  // and hako 1m4EhzyjWms6nUimi_0sO.
+  // Craft-style strict separation: the URL location never re-shapes
+  // the tree. The hook is a no-op kept in place so reviving auto-
+  // expansion is a single-file change there. The current location
+  // still gets surfaced — `useTreeAutoReveal` below scrolls to the
+  // matching row when its ancestors happen to be expanded, and the
+  // breadcrumb above the right pane confirms the path either way.
   useInitialReveal(currentFolderPath, expansion.expand);
 
   const [refreshKey, setRefreshKey] = useState(0);
