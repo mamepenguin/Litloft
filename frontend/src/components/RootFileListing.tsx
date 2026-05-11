@@ -9,7 +9,6 @@ import { createFolder, getDriveFiles, scanDrive } from "@/lib/api";
 import type { FileItem, SortField, SortOrder, ViewMode } from "@/types";
 import { FileGrid } from "@/components/FileGrid";
 import { FileList } from "@/components/FileList";
-import { TreeToggle } from "@/components/TreeToggle";
 import { ViewToggle } from "@/components/ViewToggle";
 import { SortButton } from "@/components/SortButton";
 import { EmptyState } from "@/components/EmptyState";
@@ -170,7 +169,6 @@ export function RootFileListing({ driveName, onFileAction, onFolderChange }: Roo
     <UploadZone drive={driveName} folderPath="" onUploadComplete={handleUploadComplete}>
       <section>
         <div className="mb-3 flex items-center gap-2">
-          <TreeToggle drive={driveName} />
           <h2 className="flex items-center gap-2 text-lg font-bold text-text-primary">
             <FileText size={20} className="text-accent" />
             {td("files")}

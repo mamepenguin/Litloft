@@ -3,7 +3,14 @@
 import { useParams, usePathname, useSearchParams } from "next/navigation";
 import type { ReactNode } from "react";
 
+import { RightPaneFile } from "@/components/folder/RightPaneFile";
 import { TwoPaneLayout } from "@/components/folder/TwoPaneLayout";
+import {
+  isCrossFolderView,
+  isDriveAddonPath,
+  isDriveSearchPath,
+  isStandaloneView,
+} from "@/lib/driveViews";
 
 /**
  * Persistent two-pane wrapper for everything under /drive/[name]/.
@@ -15,15 +22,22 @@ import { TwoPaneLayout } from "@/components/folder/TwoPaneLayout";
  * across those routes, so the tree's mounted instance, scroll
  * position, fetch cache and expansion state all carry over.
  *
- * Tree on/off is now handled inside `TwoPaneLayout` via CSS width
- * transitions instead of branching the layout tree here. Branching at
- * the layout level would unmount `children` (FolderBrowser / DriveHome /
- * search results) on every toggle, losing scroll position and any
- * in-flight UI state. Keeping the wrapper node stable lets React
- * preserve those subtrees through the toggle.
+ * Tree on/off is handled inside `TwoPaneLayout` via CSS width
+ * transitions, so toggling the tree never unmounts `children`
+ * (FolderBrowser / DriveHome / search results).
  *
- * Addon routes (`/drive/{name}/addons/...`) own their own layout, so
- * we pass through unchanged there.
+ * The tree is intentionally suppressed on routes that cross the
+ * folder hierarchy (see `lib/driveViews.ts`):
+ *
+ * - addon routes (`/drive/{name}/addons/...`) own their own layout.
+ * - recovery views (`?view=trash | missing`) own their own layout.
+ * - cross-folder virtual views (`?view=favorites | recent-added |
+ *   popular | all | recent`) and the search / smart-folder route
+ *   list files detached from the folder tree — showing the tree
+ *   would mislead about where each file lives. The host page
+ *   (FolderBrowser) renders directly; if a file is selected via
+ *   `?file=`, a standalone RightPaneFile is mounted instead so the
+ *   detail view still appears.
  */
 export default function DriveLayout({ children }: { children: ReactNode }) {
   const params = useParams();
@@ -32,22 +46,36 @@ export default function DriveLayout({ children }: { children: ReactNode }) {
   const driveName = decodeURIComponent(params.name as string);
 
   const drivePart = `/drive/${encodeURIComponent(driveName)}`;
-  const isAddonRoute = pathname.startsWith(`${drivePart}/addons/`);
-  const isSearchRoute = pathname.startsWith(`${drivePart}/search`);
-  // Trash and missing-files are recovery views — they list items
-  // detached from any folder, so the folder tree adds no value and
-  // could mislead the user. Opt out the same way addon routes do.
   const view = searchParams.get("view");
-  const isRecoveryView = view === "trash" || view === "missing";
+  const isAddonRoute = isDriveAddonPath(pathname);
+  const isStandalone = isStandaloneView(view);
+  const isCrossFolderRoute = isCrossFolderView(view) || isDriveSearchPath(pathname);
 
-  const folderPath =
-    !isSearchRoute && pathname.startsWith(`${drivePart}/`)
-      ? decodeURIComponent(pathname.slice(drivePart.length + 1))
-      : "";
-
-  if (isAddonRoute || isRecoveryView) {
+  // Addon routes and recovery views own their own page chrome.
+  if (isAddonRoute || isStandalone) {
     return <>{children}</>;
   }
+
+  // Cross-folder / search / smart-folder routes: no tree, but still
+  // honour ``?file=`` so file detail links keep working. The wrapper
+  // div mirrors `TwoPaneLayout`'s outer `h-[calc(100dvh-3.5rem)]` box
+  // so PaneShell's `h-full` chain and Markdown's inspector / canvas
+  // split have a definite height to resolve against.
+  if (isCrossFolderRoute) {
+    const fileId = searchParams.get("file");
+    if (fileId) {
+      return (
+        <div className="h-[calc(100dvh-3.5rem)] w-full overflow-hidden">
+          <RightPaneFile fileId={fileId} drive={driveName} />
+        </div>
+      );
+    }
+    return <>{children}</>;
+  }
+
+  const folderPath = pathname.startsWith(`${drivePart}/`)
+    ? decodeURIComponent(pathname.slice(drivePart.length + 1))
+    : "";
 
   return (
     <TwoPaneLayout drive={driveName} folderPath={folderPath}>

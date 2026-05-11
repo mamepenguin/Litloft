@@ -31,6 +31,10 @@ const searchParamsRef = vi.hoisted(() => ({
 }));
 vi.mock("next/navigation", () => ({
   useSearchParams: () => searchParamsRef.current,
+  // TreeToggle (rendered inside MarkdownDocumentLayout) now consults the
+  // route to auto-hide on cross-folder views — provide a stub pathname
+  // so the hook doesn't crash inside this layout-focused suite.
+  usePathname: () => "/drive/work/foo.md",
 }));
 
 import { MarkdownDocumentLayout } from "../MarkdownDocumentLayout";

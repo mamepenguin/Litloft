@@ -9,11 +9,13 @@ import { addPin, getDriveFiles, getFolders, getPins, getWatchHistory, removePin 
 import { useDragAndDrop } from "@/hooks/useDragAndDrop";
 import { useContextMenu } from "@/hooks/useContextMenu";
 import { AddonSlot } from "./AddonSlot";
+import { Breadcrumb } from "./Breadcrumb";
 import { CarouselSection } from "./CarouselSection";
 import { ContinueWatchingSection } from "./ContinueWatchingSection";
 import { FolderCard } from "./FolderCard";
 import { FolderContextMenu } from "./FolderContextMenu";
 import { RootFileListing } from "./RootFileListing";
+import { TreeToggle } from "./TreeToggle";
 import { useSidebar } from "./SidebarProvider";
 import { useProfile } from "./ProfileProvider";
 
@@ -183,7 +185,17 @@ export function DriveHome({ driveName }: DriveHomeProps) {
   const driveBase = `/drive/${encodeURIComponent(driveName)}`;
 
   return (
-    <div className="space-y-8 p-4 sm:p-6">
+    <div className="flex w-full min-w-0 flex-1 flex-col">
+      {/* Top header — Y-aligned with FolderBrowser's header so the tree
+          toggle sits at the same height regardless of whether the user
+          is on the drive root, a sub folder, or a file. The toggle is
+          leftmost (consistent with folder browsing); the breadcrumb
+          confirms which drive the user is on. */}
+      <div className="flex items-center gap-2 px-4 py-3">
+        <TreeToggle drive={driveName} />
+        <Breadcrumb driveName={driveName} folderPath="" />
+      </div>
+      <div className="space-y-8 px-4 pb-6 pt-2 sm:px-6 sm:pb-8 sm:pt-4">
       {(foldersLoading || folders.length > 0) && (
         <section>
           <div className="mb-3 flex items-center justify-between">
@@ -311,6 +323,7 @@ export function DriveHome({ driveName }: DriveHomeProps) {
         onUpdate={refreshFolders}
         onClose={closeFolderMenu}
       />
+      </div>
     </div>
   );
 }

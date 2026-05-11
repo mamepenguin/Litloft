@@ -1,13 +1,26 @@
 import { fireEvent, render, screen } from "@testing-library/react";
-import { afterEach, beforeEach, describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { treeEnabledStore } from "@/lib/treeEnabledStore";
+
+// The toggle auto-hides on cross-folder routes (favorites / search / …)
+// so the route hooks must return a folder-style pathname. Each test
+// can override the pathname / searchParams to exercise the auto-hide.
+let mockPathname = "/drive/work";
+let mockSearchParams = new URLSearchParams();
+
+vi.mock("next/navigation", () => ({
+  usePathname: () => mockPathname,
+  useSearchParams: () => mockSearchParams,
+}));
 
 import { TreeToggle } from "../TreeToggle";
 
 beforeEach(() => {
   localStorage.clear();
   treeEnabledStore.reset();
+  mockPathname = "/drive/work";
+  mockSearchParams = new URLSearchParams();
 });
 
 afterEach(() => {
@@ -52,5 +65,24 @@ describe("TreeToggle", () => {
     treeEnabledStore.set("photos", true);
     render(<TreeToggle drive="work" />);
     expect(screen.getByRole("button")).toHaveAttribute("aria-pressed", "false");
+  });
+
+  it.each([
+    ["?view=favorites", "favorites"],
+    ["?view=recent-added", "recent-added"],
+    ["?view=popular", "popular"],
+    ["?view=all", "all"],
+    ["?view=recent", "recent"],
+  ])("auto-hides on cross-folder view %s", (_label, view) => {
+    mockSearchParams = new URLSearchParams(`view=${view}`);
+    const { container } = render(<TreeToggle drive="work" />);
+    expect(container.firstChild).toBeNull();
+  });
+
+  it("auto-hides on the search route (smart folders)", () => {
+    mockPathname = "/drive/work/search";
+    mockSearchParams = new URLSearchParams("q=foo");
+    const { container } = render(<TreeToggle drive="work" />);
+    expect(container.firstChild).toBeNull();
   });
 });

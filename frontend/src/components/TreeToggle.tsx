@@ -2,15 +2,18 @@
 
 import { PanelLeft, PanelLeftClose } from "lucide-react";
 import { useTranslations } from "next-intl";
+import { usePathname, useSearchParams } from "next/navigation";
 
 import { useTreeEnabled } from "@/hooks/useTreeEnabled";
+import { routeHidesTree } from "@/lib/driveViews";
 
 interface TreeToggleProps {
   drive: string;
   /**
-   * When false, the toggle is hidden (e.g. flat virtual views like
-   * favorites/recent/search where there is no folder tree to surface).
-   * Default true.
+   * Caller-side override. When false the toggle is hidden regardless
+   * of route. Default true. The toggle also auto-hides on routes that
+   * suppress the tree (cross-folder views, search / smart folder) —
+   * see `lib/driveViews.ts`.
    */
   visible?: boolean;
 }
@@ -25,8 +28,15 @@ interface TreeToggleProps {
  */
 export function TreeToggle({ drive, visible = true }: TreeToggleProps) {
   const t = useTranslations("view");
+  const pathname = usePathname();
+  const searchParams = useSearchParams();
   const { enabled, setEnabled } = useTreeEnabled(drive);
+
+  // Suppress on routes where the tree is unavailable (DriveLayout
+  // doesn't mount TwoPaneLayout there, so clicking the toggle would
+  // do nothing visible).
   if (!visible) return null;
+  if (routeHidesTree({ pathname, view: searchParams.get("view") })) return null;
 
   return (
     <button

@@ -135,7 +135,9 @@ describe("DriveLayout", () => {
     expect(screen.getByTestId("tree-pane")).toBeInTheDocument();
   });
 
-  it("uses empty folderPath on the search route", () => {
+  it("does NOT wrap on the search / smart folder route", () => {
+    // Search results cross the folder hierarchy — the tree would
+    // mislead about where the matched files actually live.
     treeEnabledStore.set("work", true);
     mockPathname = "/drive/work/search";
     render(
@@ -143,7 +145,42 @@ describe("DriveLayout", () => {
         <div data-testid="page">search</div>
       </DriveLayout>,
     );
-    expect(screen.getByTestId("tree-pane")).toBeInTheDocument();
+    expect(screen.queryByLabelText("Folder tree")).not.toBeInTheDocument();
+    expect(screen.getByTestId("page")).toBeInTheDocument();
+  });
+
+  it.each([
+    ["favorites"],
+    ["recent-added"],
+    ["popular"],
+    ["all"],
+    ["recent"],
+  ])("does NOT wrap on the %s cross-folder view", (view) => {
+    treeEnabledStore.set("work", true);
+    mockSearchParams = new URLSearchParams(`view=${view}`);
+    render(
+      <DriveLayout>
+        <div data-testid="page">cross folder view</div>
+      </DriveLayout>,
+    );
+    expect(screen.queryByLabelText("Folder tree")).not.toBeInTheDocument();
+    expect(screen.getByTestId("page")).toBeInTheDocument();
+  });
+
+  it("mounts RightPaneFile on cross-folder views when ?file= is set", () => {
+    // Cross-folder views suppress the tree, but file links inside them
+    // (e.g. clicking a file in favorites) should still surface the
+    // detail pane.
+    mockSearchParams = new URLSearchParams("view=favorites&file=abc123");
+    render(
+      <DriveLayout>
+        <div data-testid="page">favorites grid</div>
+      </DriveLayout>,
+    );
+    expect(screen.getByTestId("right-pane")).toHaveTextContent(
+      "file:abc123/drive:work",
+    );
+    expect(screen.queryByLabelText("Folder tree")).not.toBeInTheDocument();
   });
 
   it("renders RightPaneFile in section when tree is disabled but ?file= is set", () => {
