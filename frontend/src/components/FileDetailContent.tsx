@@ -418,6 +418,8 @@ export function FileDetailContent({
     videoRef,
     mediaController,
     subtitles: file.subtitles,
+    fileType: file.file_type,
+    mimeType: file.mime_type,
   };
 
   if (useDocumentLayout) {
