@@ -187,7 +187,7 @@ export function AddonPolicySection(): React.ReactElement {
           <table className="min-w-full text-sm">
             <thead>
               <tr>
-                <th className="px-3 py-2 text-left text-xs uppercase tracking-wide text-text-muted">
+                <th className="px-3 py-2 text-left text-xs uppercase text-text-muted">
                   {t("drive")}
                 </th>
                 {addons.map((addon) => (
@@ -273,7 +273,7 @@ export function AddonPolicySection(): React.ReactElement {
                                     </span>
                                   </span>
                                   {!checked && (
-                                    <span className="text-xs text-accent-amber">
+                                    <span className="text-xs text-text-muted">
                                       {tRoot(warningKey)}
                                     </span>
                                   )}

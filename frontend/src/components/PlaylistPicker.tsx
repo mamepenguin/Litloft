@@ -102,7 +102,7 @@ export function PlaylistPicker({ open, drive, fileIds, onClose }: PlaylistPicker
                 if (e.key === "Escape") { setCreating(false); setNewName(""); }
               }}
               placeholder={t("newPlaylistPlaceholder")}
-              className="min-w-0 flex-1 rounded-lg bg-bg-card px-2 py-1.5 text-sm text-text-primary placeholder:text-text-muted outline-none focus:ring-2 focus:ring-accent"
+              className="min-w-0 flex-1 rounded-2xl bg-bg-card px-2 py-1.5 text-sm text-text-primary placeholder:text-text-muted outline-none focus:ring-2 focus:ring-focus-ring"
             />
             <button
               onClick={handleCreateAndAdd}
@@ -115,7 +115,7 @@ export function PlaylistPicker({ open, drive, fileIds, onClose }: PlaylistPicker
         ) : (
           <button
             onClick={() => setCreating(true)}
-            className="flex w-full items-center gap-2 rounded-lg border border-dashed border-bg-border px-3 py-2 text-sm text-text-muted transition-colors hover:border-accent hover:text-text-primary"
+            className="flex w-full items-center gap-2 rounded-lg border border-dashed border-bg-border px-3 py-2 text-sm text-text-muted transition-colors hover:border-warm-silver/60 hover:bg-bg-elevated hover:text-text-primary"
           >
             <Plus size={16} />
             {t("newPlaylist")}

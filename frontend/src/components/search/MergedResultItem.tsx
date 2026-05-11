@@ -91,7 +91,7 @@ export function MergedResultItem({ file, onSelect }: Props) {
       <img
         src={`/api/files/${file.id}/thumbnail`}
         alt=""
-        className="h-10 w-16 flex-shrink-0 rounded bg-bg-elevated object-cover"
+        className="h-10 w-16 flex-shrink-0 rounded-lg bg-bg-elevated object-cover"
         onError={(e) => {
           e.currentTarget.style.display = "none";
         }}
@@ -109,7 +109,7 @@ export function MergedResultItem({ file, onSelect }: Props) {
             {badgeKeys.map((key) => (
               <span
                 key={key}
-                className={`inline-flex rounded-md px-1.5 py-0.5 text-[10px] font-medium ${BADGE_STYLES[key]}`}
+                className={`inline-flex rounded-lg px-1.5 py-0.5 text-[10px] font-medium ${BADGE_STYLES[key]}`}
               >
                 {labels[key]}
               </span>
@@ -134,7 +134,7 @@ export function MergedResultItem({ file, onSelect }: Props) {
                     onSelect(`/files/${file.id}?t=${Math.floor(ts.seconds)}`);
                   }
                 }}
-                className="cursor-pointer rounded-md px-1.5 py-0.5 text-[10px] font-medium text-accent transition-colors hover:bg-accent/10"
+                className="cursor-pointer rounded-lg px-1.5 py-0.5 text-[10px] font-medium text-accent transition-colors hover:bg-accent/10"
               >
                 {formatDuration(ts.seconds)}
               </span>

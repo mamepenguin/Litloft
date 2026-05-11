@@ -87,7 +87,7 @@ export function TrashFileList({
             >
               {selectable && (
                 <div
-                  className={`flex h-5 w-5 flex-shrink-0 items-center justify-center rounded border-2 transition-colors pointer-events-none ${
+                  className={`flex h-5 w-5 flex-shrink-0 items-center justify-center rounded-lg border-2 transition-colors pointer-events-none ${
                     fileSelected
                       ? "border-accent bg-accent text-white"
                       : "border-text-muted/50"
@@ -102,7 +102,7 @@ export function TrashFileList({
                 </div>
               )}
 
-              <div className="relative h-14 w-24 flex-shrink-0 overflow-hidden rounded-md bg-bg-elevated sm:h-14 sm:w-24">
+              <div className="relative h-14 w-24 flex-shrink-0 overflow-hidden rounded-lg bg-bg-elevated sm:h-14 sm:w-24">
                 {hasThumbnail ? (
                   <img
                     src={getThumbnailUrl(file.id)}
@@ -116,7 +116,7 @@ export function TrashFileList({
                   </div>
                 )}
                 {hasDuration && (
-                  <span className="absolute bottom-0.5 right-0.5 rounded bg-black/70 px-1 py-0.5 text-[10px] text-white">
+                  <span className="absolute bottom-0.5 right-0.5 rounded-lg bg-black/70 px-1 py-0.5 text-[10px] text-white">
                     {formatDuration(file.duration)}
                   </span>
                 )}
@@ -150,7 +150,7 @@ export function TrashFileList({
                   </button>
                   <button
                     onClick={(e) => { e.stopPropagation(); onPurge(file.id); }}
-                    className="rounded-lg p-1.5 text-text-muted transition-colors hover:bg-red-400/10 hover:text-red-400"
+                    className="rounded-lg p-1.5 text-text-muted transition-colors hover:bg-danger/10 hover:text-danger"
                     aria-label={tt("purge")}
                   >
                     <Trash2 size={14} />

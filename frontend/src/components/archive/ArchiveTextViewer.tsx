@@ -50,7 +50,7 @@ export function ArchiveTextViewer({
           <button
             type="button"
             onClick={() => setTextConfirmed(true)}
-            className="mt-4 rounded-lg bg-accent px-4 py-2 text-sm text-white transition-colors hover:bg-accent/80"
+            className="mt-4 rounded-2xl bg-accent px-4 py-2 text-sm text-white transition-colors hover:bg-accent-hover"
           >
             {tt("loadContent")}
           </button>
@@ -61,7 +61,7 @@ export function ArchiveTextViewer({
         </div>
       ) : textError ? (
         <div className="flex items-center justify-center py-16">
-          <p className="text-sm text-red-400">
+          <p className="text-sm text-danger">
             {tt("loadFailed", { error: textError ?? "" })}
           </p>
         </div>

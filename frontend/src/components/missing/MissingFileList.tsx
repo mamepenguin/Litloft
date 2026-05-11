@@ -77,7 +77,7 @@ export function MissingFileList({
             >
               {selectable && (
                 <div
-                  className={`flex h-5 w-5 flex-shrink-0 items-center justify-center rounded border-2 transition-colors pointer-events-none ${
+                  className={`flex h-5 w-5 flex-shrink-0 items-center justify-center rounded-lg border-2 transition-colors pointer-events-none ${
                     fileSelected
                       ? "border-accent bg-accent text-white"
                       : "border-text-muted/50"
@@ -92,7 +92,7 @@ export function MissingFileList({
                 </div>
               )}
 
-              <div className="relative h-14 w-24 flex-shrink-0 overflow-hidden rounded-md bg-bg-elevated sm:h-14 sm:w-24">
+              <div className="relative h-14 w-24 flex-shrink-0 overflow-hidden rounded-lg bg-bg-elevated sm:h-14 sm:w-24">
                 {hasThumbnail ? (
                   <img
                     src={getThumbnailUrl(file.id)}
@@ -106,7 +106,7 @@ export function MissingFileList({
                   </div>
                 )}
                 {hasDuration && (
-                  <span className="absolute bottom-0.5 right-0.5 rounded bg-black/70 px-1 py-0.5 text-[10px] text-white">
+                  <span className="absolute bottom-0.5 right-0.5 rounded-lg bg-black/70 px-1 py-0.5 text-[10px] text-white">
                     {formatDuration(file.duration)}
                   </span>
                 )}
@@ -122,7 +122,7 @@ export function MissingFileList({
                   </span>
                 </div>
                 <div className="mt-0.5 flex flex-wrap items-center gap-x-1.5 gap-y-0.5 text-xs text-text-muted">
-                  <span className="rounded bg-warm-silver/20 px-1.5 py-0.5 text-[10px] font-medium text-warm-silver">
+                  <span className="rounded-lg bg-warm-silver/20 px-1.5 py-0.5 text-[10px] font-medium text-warm-silver">
                     {tm("badge")}
                   </span>
                   {file.missing_since && (

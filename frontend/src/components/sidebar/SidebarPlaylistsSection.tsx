@@ -113,7 +113,7 @@ export function SidebarPlaylistsSection({
           onClick={toggle}
           aria-expanded={!collapsed}
           aria-label={collapsed ? t("sectionExpand") : t("sectionCollapse")}
-          className="flex flex-1 items-center gap-1.5 rounded-md px-3 text-[11px] font-semibold uppercase tracking-wider text-text-muted transition-colors hover:text-text-primary"
+          className="flex flex-1 items-center gap-1.5 rounded-lg px-3 text-[11px] font-semibold uppercase tracking-wider text-text-muted transition-colors hover:text-text-primary"
         >
           <Chevron size={12} />
           <span>Playlists</span>
@@ -147,7 +147,7 @@ export function SidebarPlaylistsSection({
             }}
             onBlur={handleCreatePlaylist}
             placeholder={t("playlistNamePlaceholder")}
-            className="w-full rounded-lg bg-bg-card px-2 py-1.5 text-sm text-text-primary placeholder:text-text-muted outline-none focus:ring-2 focus:ring-accent"
+            className="w-full rounded-lg bg-bg-card px-2 py-1.5 text-sm text-text-primary placeholder:text-text-muted outline-none focus:ring-2 focus:ring-focus-ring"
           />
         </div>
       )}
@@ -169,7 +169,7 @@ export function SidebarPlaylistsSection({
                   }
                 }}
                 onBlur={handleRenamePlaylist}
-                className="w-full rounded-lg bg-bg-card px-2 py-1.5 text-sm text-text-primary outline-none focus:ring-2 focus:ring-accent"
+                className="w-full rounded-lg bg-bg-card px-2 py-1.5 text-sm text-text-primary outline-none focus:ring-2 focus:ring-focus-ring"
               />
             </div>
           ) : (

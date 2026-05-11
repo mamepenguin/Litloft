@@ -38,7 +38,7 @@ function MatchBadge({ type, label }: { type: string; label: string }) {
   const style = MATCH_TYPE_STYLES[type] ?? "bg-sand text-text-primary";
   return (
     <span
-      className={`inline-flex rounded-md px-1.5 py-0.5 text-[10px] font-medium ${style}`}
+      className={`inline-flex rounded-lg px-1.5 py-0.5 text-[10px] font-medium ${style}`}
     >
       {label}
     </span>
@@ -62,7 +62,7 @@ function TimestampLink({
         // browser doesn't double-fire with the wrapping <a>.
         e.stopPropagation();
       }}
-      className="rounded-md px-1.5 py-0.5 text-[10px] font-medium text-accent transition-colors hover:bg-accent/10"
+      className="rounded-lg px-1.5 py-0.5 text-[10px] font-medium text-accent transition-colors hover:bg-accent/10"
     >
       {formatDuration(seconds)}
     </Link>

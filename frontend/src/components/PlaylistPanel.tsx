@@ -333,16 +333,16 @@ function VideoTrackList({
             {isUserPlaylist && (
               <div className="absolute top-1 right-1 hidden gap-1 group-hover:flex">
                 {index > 0 && (
-                  <button onClick={(e) => { e.stopPropagation(); onMoveUp(index); }} className="rounded-md bg-black/60 p-1 text-white hover:bg-black/80">
+                  <button onClick={(e) => { e.stopPropagation(); onMoveUp(index); }} className="rounded-lg bg-black/60 p-1 text-white hover:bg-black/80">
                     <ChevronUp size={14} />
                   </button>
                 )}
                 {index < tracks.length - 1 && (
-                  <button onClick={(e) => { e.stopPropagation(); onMoveDown(index); }} className="rounded-md bg-black/60 p-1 text-white hover:bg-black/80">
+                  <button onClick={(e) => { e.stopPropagation(); onMoveDown(index); }} className="rounded-lg bg-black/60 p-1 text-white hover:bg-black/80">
                     <ChevronDown size={14} />
                   </button>
                 )}
-                <button onClick={(e) => { e.stopPropagation(); onRemove(index); }} className="rounded-md bg-black/60 p-1 text-danger hover:bg-black/80">
+                <button onClick={(e) => { e.stopPropagation(); onRemove(index); }} className="rounded-lg bg-black/60 p-1 text-danger hover:bg-black/80">
                   <Trash2 size={14} />
                 </button>
               </div>
@@ -410,16 +410,16 @@ function AudioTrackList({
             {isUserPlaylist && (
               <div className="hidden flex-shrink-0 items-center gap-1 group-hover:flex">
                 {index > 0 && (
-                  <button onClick={() => onMoveUp(index)} className="rounded-md p-1.5 text-text-muted hover:bg-bg-elevated hover:text-text-primary">
+                  <button onClick={() => onMoveUp(index)} className="rounded-lg p-1.5 text-text-muted hover:bg-bg-elevated hover:text-text-primary">
                     <ChevronUp size={16} />
                   </button>
                 )}
                 {index < tracks.length - 1 && (
-                  <button onClick={() => onMoveDown(index)} className="rounded-md p-1.5 text-text-muted hover:bg-bg-elevated hover:text-text-primary">
+                  <button onClick={() => onMoveDown(index)} className="rounded-lg p-1.5 text-text-muted hover:bg-bg-elevated hover:text-text-primary">
                     <ChevronDown size={16} />
                   </button>
                 )}
-                <button onClick={() => onRemove(index)} className="rounded-md p-1.5 text-danger hover:bg-danger/10 hover:text-danger">
+                <button onClick={() => onRemove(index)} className="rounded-lg p-1.5 text-danger hover:bg-danger/10 hover:text-danger">
                   <Trash2 size={16} />
                 </button>
               </div>

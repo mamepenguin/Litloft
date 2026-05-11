@@ -69,11 +69,11 @@ export function TextThumbnail({ file }: { file: FileItem }) {
   return (
     <div ref={containerRef} className="h-full w-full relative overflow-hidden bg-bg-elevated">
       <div className="p-3 h-full">
-        <p className="text-[13px] font-bold leading-tight tracking-tight text-text-primary select-none line-clamp-3">
+        <p className="text-[13px] font-bold leading-tight text-text-primary select-none line-clamp-3">
           {file.title}
         </p>
         {text && (
-          <p className="mt-1.5 text-[6px] leading-[1.7] text-text-secondary select-none break-words whitespace-pre-line">
+          <p className="mt-1.5 text-[6px] leading-[1.7] text-text-muted select-none break-words whitespace-pre-line">
             {text}
           </p>
         )}

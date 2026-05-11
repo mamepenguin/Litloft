@@ -77,7 +77,7 @@ export function MissingFileGrid({
               {selectable && (
                 <div className="absolute top-2 left-2 z-10">
                   <div
-                    className={`flex h-5 w-5 items-center justify-center rounded border-2 transition-colors pointer-events-none ${
+                    className={`flex h-5 w-5 items-center justify-center rounded-lg border-2 transition-colors pointer-events-none ${
                       selected
                         ? "border-accent bg-accent text-white"
                         : "border-text-muted/50 bg-black/40"
@@ -107,7 +107,7 @@ export function MissingFileGrid({
                   </div>
                 )}
 
-                <div className="absolute bottom-2 left-2 rounded bg-amber-500/90 px-1.5 py-0.5 text-xs font-medium text-white">
+                <div className="absolute bottom-2 left-2 rounded-lg bg-warm-silver/80 px-1.5 py-0.5 text-xs font-medium text-white">
                   {tm("badge")}
                 </div>
 
@@ -115,7 +115,7 @@ export function MissingFileGrid({
                   <div className="absolute top-2 right-2 flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
                     <button
                       onClick={(e) => { e.stopPropagation(); onPurge(file.id); }}
-                      className="rounded-lg bg-black/60 p-1.5 text-white transition-colors hover:bg-red-500"
+                      className="rounded-lg bg-black/60 p-1.5 text-white transition-colors hover:bg-danger"
                       aria-label={tm("purge")}
                     >
                       <Trash2 size={14} />

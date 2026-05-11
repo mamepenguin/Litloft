@@ -106,9 +106,9 @@ export function BatchRenameDialog({
         onClick={onCancel}
       />
 
-      <div className="relative mx-0 flex w-full max-w-2xl flex-col rounded-t-2xl bg-bg-card shadow-[0_-8px_40px_rgba(0,0,0,0.4)] ring-1 ring-white/[0.06] animate-fade-in-scale sm:mx-4 sm:rounded-2xl sm:shadow-[0_8px_40px_rgba(0,0,0,0.5)] max-h-[90vh]">
+      <div className="relative mx-0 flex w-full max-w-2xl flex-col rounded-t-2xl bg-bg-card shadow-lg ring-1 ring-bg-border animate-fade-in-scale sm:mx-4 sm:rounded-2xl max-h-[90vh]">
         {/* Header */}
-        <div className="flex items-center justify-between border-b border-white/[0.04] px-5 py-4">
+        <div className="flex items-center justify-between border-b border-bg-border px-5 py-4">
           <div className="flex items-center gap-3">
             <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-accent/15">
               <Pencil size={16} className="text-accent" />
@@ -118,13 +118,13 @@ export function BatchRenameDialog({
                 {t("title")}
               </h2>
               <p className="text-xs text-text-muted">
-                {files.length} {files.length === 1 ? "file" : "files"}
+                {t("filesCount", { count: files.length })}
               </p>
             </div>
           </div>
           <button
             onClick={onCancel}
-            className="rounded-lg p-1.5 text-text-muted transition-colors hover:bg-white/[0.06] hover:text-text-primary"
+            className="rounded-lg p-1.5 text-text-muted transition-colors hover:bg-bg-elevated hover:text-text-primary"
             aria-label={tc("close")}
           >
             <X size={18} />
@@ -134,15 +134,15 @@ export function BatchRenameDialog({
         {/* Body */}
         <div className="flex-1 overflow-y-auto px-5 py-4">
           {/* Mode selector - segmented control */}
-          <div className="flex gap-1 rounded-xl bg-white/[0.03] p-1 ring-1 ring-white/[0.04]">
+          <div className="flex gap-1 rounded-xl bg-bg-elevated p-1 ring-1 ring-bg-border">
             {modes.map((m) => (
               <button
                 key={m.key}
                 onClick={() => setMode(m.key)}
                 className={`flex-1 rounded-lg px-3 py-2 text-sm font-medium transition-all ${
                   mode === m.key
-                    ? "bg-accent text-white shadow-sm"
-                    : "text-text-muted hover:bg-white/[0.04] hover:text-text-primary"
+                    ? "bg-accent text-white"
+                    : "text-text-muted hover:bg-bg-elevated hover:text-text-primary"
                 }`}
               >
                 {m.label}
@@ -151,7 +151,7 @@ export function BatchRenameDialog({
           </div>
 
           {/* Fields */}
-          <div className="mt-5 rounded-xl bg-white/[0.02] p-4 ring-1 ring-white/[0.04]">
+          <div className="mt-5 rounded-xl bg-bg-elevated p-4 ring-1 ring-bg-border">
             {mode === "template" && (
               <TemplateFields
                 template={template}
@@ -189,7 +189,7 @@ export function BatchRenameDialog({
         </div>
 
         {/* Footer */}
-        <div className="flex items-center justify-between border-t border-white/[0.04] px-5 py-4">
+        <div className="flex items-center justify-between border-t border-bg-border px-5 py-4">
           {error ? (
             <p className="text-sm text-danger">{error}</p>
           ) : (
@@ -204,7 +204,7 @@ export function BatchRenameDialog({
             <button
               type="button"
               onClick={onCancel}
-              className="rounded-lg px-4 py-2.5 text-sm font-medium text-text-muted transition-colors hover:bg-white/[0.06] hover:text-text-primary"
+              className="rounded-lg px-4 py-2.5 text-sm font-medium text-text-muted transition-colors hover:bg-bg-elevated hover:text-text-primary"
             >
               {tc("cancel")}
             </button>
@@ -212,7 +212,7 @@ export function BatchRenameDialog({
               type="button"
               onClick={handleSubmit}
               disabled={changedCount === 0 || submitting || !!regexError}
-              className="flex items-center gap-2 rounded-2xl bg-accent px-5 py-2.5 text-sm font-medium text-white shadow-sm transition-all hover:bg-accent-hover active:scale-[0.97] disabled:opacity-30 disabled:pointer-events-none"
+              className="flex items-center gap-2 rounded-2xl bg-accent px-5 py-2.5 text-sm font-medium text-white transition-colors hover:bg-accent-hover disabled:opacity-30 disabled:pointer-events-none"
             >
               {submitting && <Loader2 size={14} className="animate-spin" />}
               {t("execute")}
@@ -251,7 +251,7 @@ function TemplateFields({
           type="text"
           value={template}
           onChange={(e) => onTemplateChange(e.target.value)}
-          className="w-full rounded-lg border border-white/[0.06] bg-bg-primary px-3 py-2.5 font-mono text-sm text-text-primary outline-none transition-colors focus:border-accent/50 focus:ring-1 focus:ring-accent/25"
+          className="w-full rounded-2xl border border-bg-border bg-bg-primary px-3 py-2.5 font-mono text-sm text-text-primary outline-none transition-colors focus:border-focus-ring/50 focus:ring-1 focus:ring-focus-ring/25"
         />
         <p className="mt-1.5 text-xs text-text-muted/70">{t("templateHelp")}</p>
       </div>
@@ -265,7 +265,7 @@ function TemplateFields({
             value={startNumber}
             onChange={(e) => onStartNumberChange(Number(e.target.value))}
             min={0}
-            className="w-full rounded-lg border border-white/[0.06] bg-bg-primary px-3 py-2.5 text-sm tabular-nums text-text-primary outline-none transition-colors focus:border-accent/50 focus:ring-1 focus:ring-accent/25"
+            className="w-full rounded-2xl border border-bg-border bg-bg-primary px-3 py-2.5 text-sm tabular-nums text-text-primary outline-none transition-colors focus:border-focus-ring/50 focus:ring-1 focus:ring-focus-ring/25"
           />
         </div>
         <div className="flex-1">
@@ -278,7 +278,7 @@ function TemplateFields({
             onChange={(e) => onZeroPadChange(Number(e.target.value))}
             min={1}
             max={10}
-            className="w-full rounded-lg border border-white/[0.06] bg-bg-primary px-3 py-2.5 text-sm tabular-nums text-text-primary outline-none transition-colors focus:border-accent/50 focus:ring-1 focus:ring-accent/25"
+            className="w-full rounded-2xl border border-bg-border bg-bg-primary px-3 py-2.5 text-sm tabular-nums text-text-primary outline-none transition-colors focus:border-focus-ring/50 focus:ring-1 focus:ring-focus-ring/25"
           />
         </div>
       </div>
@@ -311,10 +311,10 @@ function RegexFields({
           type="text"
           value={pattern}
           onChange={(e) => onPatternChange(e.target.value)}
-          className={`w-full rounded-lg border bg-bg-primary px-3 py-2.5 font-mono text-sm text-text-primary outline-none transition-colors focus:ring-1 ${
+          className={`w-full rounded-2xl border bg-bg-primary px-3 py-2.5 font-mono text-sm text-text-primary outline-none transition-colors focus:ring-1 ${
             regexError
               ? "border-danger/60 focus:border-danger/80 focus:ring-danger/25"
-              : "border-white/[0.06] focus:border-accent/50 focus:ring-accent/25"
+              : "border-bg-border focus:border-focus-ring/50 focus:ring-focus-ring/25"
           }`}
         />
         {regexError && (
@@ -329,7 +329,7 @@ function RegexFields({
           type="text"
           value={replacement}
           onChange={(e) => onReplacementChange(e.target.value)}
-          className="w-full rounded-lg border border-white/[0.06] bg-bg-primary px-3 py-2.5 font-mono text-sm text-text-primary outline-none transition-colors focus:border-accent/50 focus:ring-1 focus:ring-accent/25"
+          className="w-full rounded-2xl border border-bg-border bg-bg-primary px-3 py-2.5 font-mono text-sm text-text-primary outline-none transition-colors focus:border-focus-ring/50 focus:ring-1 focus:ring-focus-ring/25"
         />
         <p className="mt-1.5 text-xs text-text-muted/70">{t("regexHelp")}</p>
       </div>
@@ -371,7 +371,7 @@ function PrefixSuffixFields({
               className={`rounded-lg px-3 py-2 text-sm transition-colors ${
                 action === a.key
                   ? "bg-accent/15 text-accent ring-1 ring-accent/25"
-                  : "bg-bg-primary text-text-muted ring-1 ring-white/[0.04] hover:bg-white/[0.04] hover:text-text-primary"
+                  : "bg-bg-primary text-text-muted ring-1 ring-bg-border hover:bg-bg-elevated hover:text-text-primary"
               }`}
             >
               {a.label}
@@ -387,7 +387,7 @@ function PrefixSuffixFields({
           type="text"
           value={value}
           onChange={(e) => onValueChange(e.target.value)}
-          className="w-full rounded-lg border border-white/[0.06] bg-bg-primary px-3 py-2.5 text-sm text-text-primary outline-none transition-colors focus:border-accent/50 focus:ring-1 focus:ring-accent/25"
+          className="w-full rounded-2xl border border-bg-border bg-bg-primary px-3 py-2.5 text-sm text-text-primary outline-none transition-colors focus:border-focus-ring/50 focus:ring-1 focus:ring-focus-ring/25"
         />
       </div>
     </div>
@@ -422,16 +422,16 @@ function PreviewList({
       </div>
 
       {!hasChanges ? (
-        <p className="rounded-xl bg-white/[0.02] py-6 text-center text-sm text-text-muted ring-1 ring-white/[0.04]">
+        <p className="rounded-xl bg-bg-elevated py-6 text-center text-sm text-text-muted ring-1 ring-bg-border">
           {t("noChanges")}
         </p>
       ) : (
-        <div className="max-h-48 overflow-y-auto rounded-xl ring-1 ring-white/[0.04]">
+        <div className="max-h-48 overflow-y-auto rounded-xl ring-1 ring-bg-border">
           {preview.map((item, i) => (
             <div
               key={i}
               className={`flex items-center gap-2 px-3 py-2 text-xs ${
-                i % 2 === 0 ? "bg-white/[0.015]" : "bg-transparent"
+                i % 2 === 0 ? "bg-bg-elevated" : "bg-transparent"
               } ${!item.changed ? "opacity-40" : ""}`}
             >
               <span className="min-w-0 flex-1 truncate text-text-muted">

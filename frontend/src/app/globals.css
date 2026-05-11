@@ -29,6 +29,7 @@
   --danger-bg: rgba(230, 0, 35, 0.08);
   --highlight-bg: #fff8c5;
   --kbd-shadow: inset 0 -1px 0 #b8c0c8;
+  --shadow-card: 0 1px 2px rgba(33, 25, 34, 0.04), 0 1px 3px rgba(33, 25, 34, 0.04);
   color-scheme: light;
 }
 
@@ -55,6 +56,7 @@
   --danger-bg: rgba(255, 45, 66, 0.12);
   --highlight-bg: rgba(244, 198, 116, 0.55);
   --kbd-shadow: inset 0 -1px 0 rgba(255, 255, 255, 0.2);
+  --shadow-card: 0 1px 2px rgba(0, 0, 0, 0.35), 0 1px 3px rgba(0, 0, 0, 0.25);
   color-scheme: dark;
 }
 
@@ -78,6 +80,7 @@
   --color-dark-surface: var(--dark-surface);
   --color-focus-ring: var(--focus-ring);
   --color-danger: var(--danger);
+  --shadow-card: var(--shadow-card);
   /* Pin Sans font stack: system-ui with broad CJK fallbacks */
   --font-sans: -apple-system, system-ui, "Segoe UI", Roboto, "Oxygen-Sans",
     "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol", Ubuntu, Cantarell,

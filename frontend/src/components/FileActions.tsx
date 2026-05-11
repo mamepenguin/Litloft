@@ -161,7 +161,7 @@ export function FileActions({ file, onUpdate, onDelete, onEdit }: FileActionsPro
         </button>
 
         {menuOpen && (
-          <div className="absolute right-0 top-full z-30 mt-1 w-40 overflow-hidden rounded-lg border border-bg-border bg-bg-card shadow-xl">
+          <div className="absolute right-0 top-full z-30 mt-1 w-40 overflow-hidden rounded-lg border border-bg-border bg-bg-card shadow-lg">
             {menuItems.map((item) => (
               <button
                 key={item.label}

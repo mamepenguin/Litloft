@@ -80,7 +80,7 @@ export function MiniPlayerContainer({
       <div
         className={
           isMini
-            ? "group/mini fixed right-4 z-40 h-[180px] w-[min(320px,calc(100vw-2rem))] overflow-hidden rounded-xl bg-black shadow-2xl ring-1 ring-black/20"
+            ? "group/mini fixed right-4 z-40 h-[180px] w-[min(320px,calc(100vw-2rem))] overflow-hidden rounded-xl bg-black shadow-card ring-1 ring-bg-border"
             : "w-full"
         }
         // PWA safe-area: viewport-fit=cover means the home indicator
@@ -105,7 +105,7 @@ export function MiniPlayerContainer({
                 aria-label={t("miniPlayerClose")}
                 title={t("miniPlayerClose")}
                 onClick={closeAndStop}
-                className="rounded-full bg-black/70 p-1.5 text-white hover:bg-black/90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent"
+                className="rounded-full bg-black/70 p-1.5 text-white hover:bg-black/90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus-ring"
               >
                 <X size={14} />
               </button>
@@ -114,7 +114,7 @@ export function MiniPlayerContainer({
                 aria-label={t("miniPlayerRestore")}
                 title={t("miniPlayerRestore")}
                 onClick={restore}
-                className="rounded-full bg-black/70 p-1.5 text-white hover:bg-black/90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent"
+                className="rounded-full bg-black/70 p-1.5 text-white hover:bg-black/90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus-ring"
               >
                 <CornerUpLeft size={14} />
               </button>

@@ -547,7 +547,8 @@
     "noChanges": "変更されるファイルがありません",
     "execute": "リネーム実行",
     "invalidRegex": "正規表現が無効です",
-    "failed": "リネームに失敗しました"
+    "failed": "リネームに失敗しました",
+    "filesCount": "{count} ファイル"
   },
   "trash": {
     "title": "ゴミ箱",

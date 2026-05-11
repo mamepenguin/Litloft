@@ -153,7 +153,7 @@ export function SelectionBar({
         style={{ paddingBottom: "env(safe-area-inset-bottom, 0px)" }}
       >
         <div className="mx-auto max-w-3xl px-3 pb-3 sm:pb-4">
-          <div className="overflow-hidden rounded-2xl bg-bg-card shadow-[0_8px_40px_rgba(0,0,0,0.25)] ring-1 ring-bg-border">
+          <div className="overflow-hidden rounded-2xl bg-bg-card shadow-lg ring-1 ring-bg-border">
             {/* Header row: count + select all + close */}
             <div className="flex items-center gap-3 border-b border-bg-border px-4 py-2.5">
               <div className="flex items-center gap-2">
@@ -168,7 +168,7 @@ export function SelectionBar({
               {!allSelected && (
                 <button
                   onClick={onSelectAll}
-                  className="flex items-center gap-1 rounded-md px-2 py-1 text-xs font-medium text-accent transition-colors hover:bg-accent/10"
+                  className="flex items-center gap-1 rounded-lg px-2 py-1 text-xs font-medium text-accent transition-colors hover:bg-accent/10"
                 >
                   <Check size={12} />
                   {t("selectAll")}
@@ -206,7 +206,7 @@ export function SelectionBar({
                   {/* Edit group */}
                   {tagging ? (
                     <div className="flex items-center gap-1.5 rounded-2xl bg-bg-elevated px-2 py-1">
-                      <Tag size={14} className="shrink-0 text-accent" />
+                      <Tag size={14} className="shrink-0 text-text-muted" />
                       <input
                         type="text"
                         autoFocus
@@ -221,13 +221,13 @@ export function SelectionBar({
                       />
                       <button
                         onClick={handleBatchTag}
-                        className="shrink-0 rounded-md bg-accent px-2.5 py-1 text-xs font-medium text-white transition-colors hover:bg-accent/80"
+                        className="shrink-0 rounded-2xl bg-accent px-2.5 py-1 text-xs font-medium text-white transition-colors hover:bg-accent-hover"
                       >
                         {tc("apply")}
                       </button>
                       <button
                         onClick={() => setTagging(false)}
-                        className="shrink-0 rounded-md p-0.5 text-text-muted hover:text-text-primary"
+                        className="shrink-0 rounded-lg p-0.5 text-text-muted hover:text-text-primary"
                       >
                         <X size={14} />
                       </button>

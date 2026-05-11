@@ -76,7 +76,7 @@ export function RightPaneFolder({ drive, folderPath }: RightPaneFolderProps) {
 
   const isEmpty = !loading && folders.length === 0 && files.length === 0;
   const buttonClass = (active: boolean) =>
-    `rounded-md p-1.5 transition-colors ${
+    `rounded-lg p-1.5 transition-colors ${
       active ? "bg-accent text-white" : "text-text-muted hover:text-text-primary"
     }`;
 

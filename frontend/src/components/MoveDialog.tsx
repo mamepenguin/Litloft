@@ -100,7 +100,7 @@ export function MoveDialog({
         className="absolute inset-0 bg-black/60 backdrop-blur-sm animate-fade-in"
         onClick={onCancel}
       />
-      <div className="relative mx-4 flex w-full max-w-lg flex-col rounded-2xl bg-bg-card p-6 shadow-2xl animate-fade-in-scale">
+      <div className="relative mx-4 flex w-full max-w-lg flex-col rounded-2xl bg-bg-card p-6 shadow-lg animate-fade-in-scale">
         <div className="mb-4 flex items-center justify-between">
           <h2 className="flex items-center gap-2 text-lg font-semibold text-text-primary">
             <Move size={18} />
@@ -123,7 +123,7 @@ export function MoveDialog({
               setSelectedPath("");
               loadFolders("");
             }}
-            className="rounded px-1 py-0.5 hover:text-text-primary"
+            className="rounded-lg px-1 py-0.5 hover:text-text-primary"
           >
             {drive}
           </button>
@@ -134,7 +134,7 @@ export function MoveDialog({
                 <ChevronRight size={12} />
                 <button
                   onClick={() => handleNavigate(path)}
-                  className="rounded px-1 py-0.5 hover:text-text-primary"
+                  className="rounded-lg px-1 py-0.5 hover:text-text-primary"
                 >
                   {part}
                 </button>
@@ -160,7 +160,7 @@ export function MoveDialog({
             onClick={handleSelectRoot}
             className={`flex w-full items-center gap-2 border-b border-bg-border px-3 py-2 text-left text-sm transition-colors ${
               selectedPath === browsePath
-                ? "bg-accent/20 text-accent"
+                ? "bg-bg-elevated text-text-primary font-medium"
                 : "text-text-muted hover:bg-bg-card"
             }`}
           >
@@ -195,11 +195,11 @@ export function MoveDialog({
                 onClick={() => handleNavigate(folder.path)}
                 className={`flex w-full items-center gap-2 border-b border-bg-border px-3 py-2 text-left text-sm transition-colors last:border-b-0 ${
                   selectedPath === folder.path
-                    ? "bg-accent/20 text-accent"
+                    ? "bg-bg-elevated text-text-primary font-medium"
                     : "text-text-primary hover:bg-bg-card"
                 }`}
               >
-                <Folder size={16} className="shrink-0 text-accent/60" />
+                <Folder size={16} className="shrink-0 text-text-muted" />
                 <span className="flex-1 truncate">{folder.name}</span>
                 <ChevronRight size={14} className="shrink-0 text-text-muted" />
               </button>

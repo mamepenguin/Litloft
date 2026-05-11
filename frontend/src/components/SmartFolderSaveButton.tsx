@@ -166,7 +166,7 @@ export function SmartFolderSaveButton({
           {menuOpen && (
             <div
               role="menu"
-              className="absolute right-0 z-40 mt-1 w-44 overflow-hidden rounded-2xl border border-bg-border bg-bg-card shadow-xl animate-fade-in-scale"
+              className="absolute right-0 z-40 mt-1 w-44 overflow-hidden rounded-2xl border border-bg-border bg-bg-card shadow-lg animate-fade-in-scale"
             >
               <button
                 type="button"
@@ -246,7 +246,7 @@ export function SmartFolderSaveButton({
         onCancel={() => setDeleteConfirmOpen(false)}
       />
       {error && (
-        <div className="fixed bottom-4 right-4 z-50 rounded-lg bg-danger px-4 py-2 text-sm text-white shadow-lg">
+        <div className="fixed bottom-4 right-4 z-50 rounded-2xl bg-danger px-4 py-2 text-sm text-white shadow-lg">
           {error}
         </div>
       )}

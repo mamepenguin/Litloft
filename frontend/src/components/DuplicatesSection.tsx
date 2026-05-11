@@ -20,7 +20,7 @@ import type { Drive, DuplicateGroup, DuplicatesResponse, FileItem } from "@/type
 function DuplicatesSkeleton() {
   return (
     <div className="rounded-xl border border-bg-border bg-bg-card p-5 animate-pulse">
-      <div className="mb-4 h-5 w-48 rounded bg-bg-elevated" />
+      <div className="mb-4 h-5 w-48 rounded-lg bg-bg-elevated" />
       <div className="space-y-3">
         {[1, 2, 3].map((i) => (
           <div key={i} className="h-16 w-full rounded-lg bg-bg-elevated" />
@@ -63,11 +63,11 @@ function DuplicateStats({ data }: { data: DuplicatesResponse }) {
 
   return (
     <div className="mb-4 flex flex-wrap gap-3">
-      <span className="inline-flex items-center gap-1.5 rounded-md bg-bg-elevated px-2.5 py-1 text-xs text-text-muted">
+      <span className="inline-flex items-center gap-1.5 rounded-lg bg-bg-elevated px-2.5 py-1 text-xs text-text-muted">
         <Copy size={12} />
         {t("duplicateGroups", { count: data.total_groups })}
       </span>
-      <span className="inline-flex items-center gap-1.5 rounded-md bg-danger/10 px-2.5 py-1 text-xs text-danger">
+      <span className="inline-flex items-center gap-1.5 rounded-lg bg-danger/10 px-2.5 py-1 text-xs text-danger">
         <Trash2 size={12} />
         {t("wastedSpace", { size: formatFileSize(data.total_wasted_bytes) })}
       </span>
@@ -90,9 +90,9 @@ function FileRow({
 
   return (
     <label
-      className={`flex items-center gap-3 rounded-lg px-3 py-2 transition-colors ${
+      className={`flex items-center gap-3 rounded-xl px-3 py-2 transition-colors ${
         isKept
-          ? "bg-emerald-500/10 border border-emerald-500/30"
+          ? "bg-accent-teal/10 border border-accent-teal/30"
           : "hover:bg-bg-elevated"
       }`}
     >
@@ -100,12 +100,12 @@ function FileRow({
         type="checkbox"
         checked={isSelected}
         onChange={onToggle}
-        className="h-4 w-4 shrink-0 rounded border-bg-border accent-accent"
+        className="h-4 w-4 shrink-0 rounded-lg border-bg-border accent-accent"
       />
       <img
         src={getThumbnailUrl(file.id)}
         alt=""
-        className="h-10 w-10 shrink-0 rounded object-cover bg-bg-elevated"
+        className="h-10 w-10 shrink-0 rounded-lg object-cover bg-bg-elevated"
         loading="lazy"
       />
       <div className="min-w-0 flex-1">
@@ -123,7 +123,7 @@ function FileRow({
         </div>
       </div>
       {isKept && (
-        <span className="shrink-0 rounded bg-emerald-500/20 px-2 py-0.5 text-[10px] font-medium text-emerald-400">
+        <span className="shrink-0 rounded-full bg-accent-teal/20 px-2 py-0.5 text-[10px] font-medium text-accent-teal">
           <Shield size={10} className="mr-0.5 inline" />
           {t("keepFile")}
         </span>
@@ -203,7 +203,7 @@ function DuplicateGroupCard({
           </div>
 
           {deleteError && (
-            <div className="mt-2 rounded-lg bg-red-500/10 px-3 py-2 text-xs text-red-400">
+            <div className="mt-2 rounded-lg bg-danger/10 px-3 py-2 text-xs text-danger">
               {deleteError}
             </div>
           )}
@@ -213,7 +213,7 @@ function DuplicateGroupCard({
               type="button"
               onClick={() => setConfirmOpen(true)}
               disabled={deleting}
-              className="mt-3 inline-flex items-center gap-1.5 rounded-lg bg-red-500/10 px-3 py-1.5 text-xs font-medium text-red-400 hover:bg-red-500/20 transition-colors disabled:opacity-50"
+              className="mt-3 inline-flex items-center gap-1.5 rounded-lg bg-danger/10 px-3 py-1.5 text-xs font-medium text-danger hover:bg-danger/20 transition-colors disabled:opacity-50"
             >
               {deleting ? (
                 <Loader2 size={12} className="animate-spin" />
@@ -318,7 +318,7 @@ export function DuplicatesSection() {
       {selectedDrive && loading && <DuplicatesSkeleton />}
 
       {selectedDrive && error && (
-        <div className="rounded-lg bg-red-500/10 px-4 py-3 text-sm text-red-400">
+        <div className="rounded-lg bg-danger/10 px-4 py-3 text-sm text-danger">
           {error}
         </div>
       )}

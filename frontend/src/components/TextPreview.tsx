@@ -83,7 +83,7 @@ export function TextPreview({
         <button
           type="button"
           onClick={() => setConfirmed(true)}
-          className="mt-4 rounded-lg bg-accent px-4 py-2 text-sm text-white transition-colors hover:bg-accent/80"
+          className="mt-4 rounded-2xl bg-accent px-4 py-2 text-sm text-white transition-colors hover:bg-accent-hover"
         >
           {t("loadContent")}
         </button>
@@ -102,7 +102,7 @@ export function TextPreview({
   if (error) {
     return (
       <div className="flex w-full items-center justify-center rounded-xl bg-bg-card py-16">
-        <p className="text-sm text-red-400">{t("loadFailed", { error: error ?? "" })}</p>
+        <p className="text-sm text-danger">{t("loadFailed", { error: error ?? "" })}</p>
       </div>
     );
   }

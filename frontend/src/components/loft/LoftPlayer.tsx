@@ -36,7 +36,7 @@ export default function LoftPlayer({
   if (error) {
     return (
       <div className="flex w-full flex-col items-center justify-center rounded-xl bg-bg-card py-16">
-        <p className="text-sm text-red-500">{error}</p>
+        <p className="text-sm text-danger">{error}</p>
       </div>
     );
   }

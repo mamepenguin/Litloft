@@ -66,7 +66,7 @@ export function ArchiveFileListing({
               <a
                 href={getDownloadUrl(fileId)}
                 download
-                className="rounded p-1 transition-colors hover:bg-bg-card hover:text-text-primary"
+                className="rounded-lg p-1 transition-colors hover:bg-bg-card hover:text-text-primary"
                 aria-label={t("downloadArchive")}
                 title={t("downloadArchive")}
               >
@@ -140,7 +140,7 @@ export function ArchiveFileListing({
                           href={getArchiveEntryUrl(fileId, entry.path)}
                           download={entry.filename}
                           onClick={(e) => e.stopPropagation()}
-                          className="shrink-0 rounded p-1 text-text-muted transition-colors hover:bg-bg-card hover:text-text-primary"
+                          className="shrink-0 rounded-lg p-1 text-text-muted transition-colors hover:bg-bg-card hover:text-text-primary"
                           aria-label={t("downloadFile", { name: entry.filename })}
                         >
                           <Download size={14} />

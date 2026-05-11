@@ -386,7 +386,7 @@ export function FolderTreePane({
         <div
           {...rootDropProps}
           aria-label={t("dropToRoot")}
-          className={`mx-2 mt-1 rounded-md border border-dashed px-2 py-1.5 text-xs transition-colors ${
+          className={`mx-2 mt-1 rounded-lg border border-dashed px-2 py-1.5 text-xs transition-colors ${
             rootDropHover
               ? "border-accent bg-accent/10 text-text-primary"
               : "border-bg-border text-text-muted"

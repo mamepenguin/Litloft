@@ -106,7 +106,7 @@ export function FileCard({
           className="absolute top-2 left-2 z-10 opacity-100 transition-opacity"
         >
           <div
-            className={`flex h-5 w-5 items-center justify-center rounded border-2 transition-colors pointer-events-none ${
+            className={`flex h-5 w-5 items-center justify-center rounded-lg border-2 transition-colors pointer-events-none ${
               selected
                 ? "border-accent bg-accent text-white"
                 : "border-text-muted/50 bg-black/40"
@@ -123,7 +123,7 @@ export function FileCard({
       )}
       <Wrapper
         {...wrapperProps as any}
-        className={`group block rounded-2xl overflow-hidden shadow-[0_2px_16px_rgba(0,0,0,0.06)] transition-all duration-200 ease-out hover:shadow-[0_4px_24px_rgba(0,0,0,0.10)] active:scale-[0.98] ${
+        className={`group block rounded-2xl overflow-hidden shadow-card transition-colors duration-200 ease-out ${
           selectable ? "cursor-pointer select-none" : ""
         } ${selected ? "ring-2 ring-accent" : ""}`}
         onContextMenu={selectable ? undefined : onContextMenu}
@@ -150,12 +150,12 @@ export function FileCard({
             <VideoPreview fileId={file.id} />
           )}
           {(file.file_type === "video" || file.file_type === "audio") && file.duration != null && (
-            <span className="absolute bottom-2 right-2 rounded bg-black/70 px-1.5 py-0.5 text-xs font-medium text-white">
+            <span className="absolute bottom-2 right-2 rounded-lg bg-black/70 px-1.5 py-0.5 text-xs font-medium text-white">
               {formatDuration(file.duration)}
             </span>
           )}
           {file.file_type !== "video" && file.file_type !== "audio" && file.filename.includes(".") && (
-            <span className="absolute bottom-2 right-2 rounded bg-black/70 px-1.5 py-0.5 text-[10px] font-medium uppercase text-white">
+            <span className="absolute bottom-2 right-2 rounded-lg bg-black/70 px-1.5 py-0.5 text-[10px] font-medium uppercase text-white">
               {file.filename.split(".").pop()}
             </span>
           )}
@@ -178,7 +178,7 @@ export function FileCard({
           )}
         </div>
         <div className="p-3">
-          <h3 className="line-clamp-2 text-sm font-semibold text-text-primary group-hover:text-accent">
+          <h3 className="line-clamp-2 text-sm font-semibold text-text-primary">
             {file.title}
           </h3>
           <div className="mt-1 flex flex-wrap items-center gap-x-1.5 gap-y-0.5 text-xs text-text-muted">

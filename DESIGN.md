@@ -333,11 +333,26 @@ p, li, dd {
 
 | Level | Treatment | Usage |
 |---|---|---|
-| 0 (Flat) | No shadow | Cards, buttons (default) |
-| 1 (Elevated) | `bg-bg-elevated` surface shift | Toolbars, sub-panels |
-| 2 (Overlay) | Minimal shadow + `bg-bg-card` | Modals, dropdowns |
+| 0 (Flat) | No shadow | Buttons, inline chrome, dense list rows |
+| 1 (Card resting) | `shadow-card` token only | Media cards (FileCard / FolderCard / Pinterest-style grid items), MiniPlayer, mid-page floating affordances |
+| 2 (Elevated surface) | `bg-bg-elevated` surface shift | Toolbars, sub-panels, banners |
+| 3 (Overlay) | `shadow-lg` + `bg-bg-card` | Modals, dropdowns, context menus, command bars |
 
-**Shadow philosophy**: Depth is expressed through surface color differences and border-radius — not box-shadow. Keep shadows minimal and never decorative.
+**Shadow philosophy**: Depth comes first from surface color and border-radius. Shadow is allowed only as a **single resting elevation** on media-bearing cards (Level 1) and as a **minimal overlay shadow** on dialogs and dropdowns (Level 3).
+
+**Forbidden:**
+
+- **Hover-shadow expansion** — hover state must change the surface color (e.g. `hover:bg-bg-elevated`), never grow or darken the shadow. The card's resting shadow stays exactly the same on hover.
+- **Decorative large-offset shadows** — `shadow-2xl`, custom `shadow-[0_8px_40px_*]` / `shadow-[0_-8px_40px_*]`, or any shadow with blur ≥ 24px / opacity ≥ 0.2. Overlays (modals, command bars) use at most `shadow-lg`.
+- **Stacked shadow + ring** — do not pair `shadow-2xl` with `ring-1 ring-black/*` to fake depth.
+- **Decorative use on flat-surface components** — sidebars, properties panels, markdown blocks, inline chips, and ghost buttons stay Level 0 (no shadow).
+
+**`--shadow-card` token (Level 1):**
+
+- Light mode: `0 1px 2px rgba(33, 25, 34, 0.04), 0 1px 3px rgba(33, 25, 34, 0.04)` — barely-there separation against the warm white canvas.
+- Dark mode: `0 1px 2px rgba(0, 0, 0, 0.35), 0 1px 3px rgba(0, 0, 0, 0.25)` — slightly lifted so cards read against the warm-plum canvas.
+
+Use it via the Tailwind utility `shadow-card`. Do not handroll arbitrary shadow values for cards; always reference the token so every card sits at the same elevation.
 
 ---
 
@@ -391,8 +406,8 @@ p, li, dd {
 
 - Radius: `rounded-xl` (12px)
 - Background: `bg-bg-card`
-- Shadow: none (flat design)
-- Hover: surface color change only (e.g. `hover:bg-bg-elevated`) — no `scale()`
+- Shadow: `shadow-card` resting only on media-bearing cards (FileCard, FolderCard, MiniPlayer). Dense list rows and inline cards stay flat (no shadow).
+- Hover: surface color change only (e.g. `hover:bg-bg-elevated`). **Never expand or darken the shadow on hover, and never use `scale()`.**
 
 ### Inputs
 
@@ -523,9 +538,10 @@ An inline script in `<head>` reads `localStorage('theme-preference')` and sets `
 
 ### Don't
 - Do not apply `word-break: break-all` globally to body text or UI labels
-- Do not use `scale()` hover on cards or buttons — preserve the static weight
+- Do not use `scale()` hover or active on cards / buttons — preserve the static weight
 - Do not introduce additional brand colors — coral red + warm neutrals is the complete palette
-- Do not use `box-shadow` decoratively — depth comes from surface color and radius
+- Do not grow / darken `box-shadow` on hover. Resting `shadow-card` stays constant; hover changes surface color only
+- Do not handroll arbitrary `shadow-[0_*]` values, or stack `shadow-2xl` with `ring-*` — use the `shadow-card` (Level 1) or `shadow-lg` (Level 3) tokens
 - Do not use border-radius below 12px on outer surfaces
 - Do not use cool grays — always warm/olive-toned
 - Do not use pure black in dark mode — use warm plum dark (`#1a0e10`)

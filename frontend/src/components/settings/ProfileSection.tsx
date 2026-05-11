@@ -114,7 +114,7 @@ export function ProfileSection() {
               }}
               placeholder={t("nicknamePlaceholder")}
               maxLength={50}
-              className="flex-1 rounded-2xl border border-bg-border bg-bg-elevated px-3 py-2 text-sm text-text-primary placeholder:text-text-muted/50 focus:border-accent focus:outline-none"
+              className="flex-1 rounded-2xl border border-bg-border bg-bg-elevated px-3 py-2 text-sm text-text-primary placeholder:text-text-muted/50 focus:border-focus-ring focus:outline-none"
             />
             <div className="flex items-center gap-2">
               <button

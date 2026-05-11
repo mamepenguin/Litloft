@@ -231,8 +231,8 @@ export function FilterField({
       onKeyDown={handleMenuKeyDown}
       className={
         typeFilter === null
-          ? "absolute right-0 top-full z-30 mt-1 min-w-[140px] rounded-2xl border border-bg-border bg-bg-primary py-1 shadow-xl"
-          : "absolute left-7 top-full z-30 mt-1 min-w-[140px] rounded-2xl border border-bg-border bg-bg-primary py-1 shadow-xl"
+          ? "absolute right-0 top-full z-30 mt-1 min-w-[140px] rounded-2xl border border-bg-border bg-bg-primary py-1 shadow-lg"
+          : "absolute left-7 top-full z-30 mt-1 min-w-[140px] rounded-2xl border border-bg-border bg-bg-primary py-1 shadow-lg"
       }
     >
       {menuValues.map((value, idx) => {
@@ -249,7 +249,7 @@ export function FilterField({
             tabIndex={focusedIndex === idx ? 0 : -1}
             onClick={() => handleSelect(value)}
             className={`flex w-full items-center gap-2 px-3 py-1.5 text-left text-sm transition-colors ${
-              isSelected ? "text-accent" : "text-text-primary hover:bg-bg-elevated"
+              isSelected ? "bg-bg-elevated text-text-primary font-medium" : "text-text-primary hover:bg-bg-elevated"
             }`}
           >
             <span className="w-4 flex-shrink-0">{isSelected && <Check size={14} />}</span>
@@ -281,9 +281,9 @@ export function FilterField({
               aria-expanded={open}
               aria-controls={open ? menuId : undefined}
               aria-label={t("chipChange", { type: typeLabel })}
-              className="flex items-center gap-1 px-2 py-0.5 text-text-primary transition-colors hover:bg-bg-elevated focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-accent"
+              className="flex items-center gap-1 px-2 py-0.5 text-text-primary transition-colors hover:bg-bg-elevated focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-focus-ring"
             >
-              <TypeIcon size={12} className="text-accent" aria-hidden />
+              <TypeIcon size={12} className="text-text-muted" aria-hidden />
               <span>{typeLabel}</span>
             </button>
             <button
@@ -293,7 +293,7 @@ export function FilterField({
               // Visible icon stays at 10px to keep the chip compact, but the
               // button itself is padded to ~20×20 so the click/touch target
               // is large enough without enlarging the chip footprint.
-              className="flex items-center justify-center px-1.5 py-1 text-text-muted transition-colors hover:bg-bg-elevated hover:text-text-primary focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-accent"
+              className="flex items-center justify-center px-1.5 py-1 text-text-muted transition-colors hover:bg-bg-elevated hover:text-text-primary focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-focus-ring"
             >
               <X size={10} aria-hidden />
             </button>
@@ -315,7 +315,7 @@ export function FilterField({
                 }
               : undefined
           }
-          className="w-full rounded-2xl border border-bg-border bg-bg-card pl-7 pr-7 py-1.5 text-sm text-text-primary placeholder:text-text-muted outline-none focus:border-accent focus:ring-1 focus:ring-accent"
+          className="w-full rounded-2xl border border-bg-border bg-bg-card pl-7 pr-7 py-1.5 text-sm text-text-primary placeholder:text-text-muted outline-none focus:border-focus-ring focus:ring-1 focus:ring-focus-ring"
         />
         {localText.length > 0 && (
           <button
@@ -341,7 +341,7 @@ export function FilterField({
             aria-expanded={open}
             aria-controls={open ? menuId : undefined}
             aria-label={t("openTypeFilter")}
-            className="flex items-center justify-center rounded-2xl border border-bg-border bg-bg-card p-1.5 text-text-muted transition-colors hover:bg-bg-elevated hover:text-text-primary focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-accent"
+            className="flex items-center justify-center rounded-2xl border border-bg-border bg-bg-card p-1.5 text-text-muted transition-colors hover:bg-bg-elevated hover:text-text-primary focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-focus-ring"
           >
             <SlidersHorizontal size={14} aria-hidden />
           </button>

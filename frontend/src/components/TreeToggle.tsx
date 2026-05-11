@@ -35,7 +35,7 @@ export function TreeToggle({ drive, visible = true }: TreeToggleProps) {
       aria-pressed={enabled}
       aria-label={enabled ? t("treeOff") : t("treeOn")}
       title={enabled ? t("treeOff") : t("treeOn")}
-      className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-md text-text-muted transition-colors hover:bg-bg-elevated hover:text-text-primary"
+      className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-lg text-text-muted transition-colors hover:bg-bg-elevated hover:text-text-primary"
     >
       {enabled ? <PanelLeftClose size={16} /> : <PanelLeft size={16} />}
     </button>

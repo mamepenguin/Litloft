@@ -145,7 +145,7 @@ export function FolderTreeRow({
             }
           : undefined
       }
-      className={`mx-2 flex items-center gap-1 rounded-md pr-2 text-left text-sm transition-colors ${stateClass} ${dropHoverClass} ${dragSourceClass} ${ancestorClass} ${dragInteractClass}`.replace(/\s+/g, " ").trim()}
+      className={`mx-2 flex items-center gap-1 rounded-lg pr-2 text-left text-sm transition-colors ${stateClass} ${dropHoverClass} ${dragSourceClass} ${ancestorClass} ${dragInteractClass}`.replace(/\s+/g, " ").trim()}
       style={{ paddingLeft: padLeft }}
       data-state={row.isAncestor ? "ancestor" : undefined}
       aria-current={selected ? "true" : undefined}
@@ -173,7 +173,7 @@ export function FolderTreeRow({
       <button
         type="button"
         onClick={() => onSelect(row)}
-        className="flex flex-1 items-center gap-1 overflow-hidden rounded-md text-left"
+        className="flex flex-1 items-center gap-1 overflow-hidden rounded-lg text-left"
       >
         <span className="flex h-4 w-4 flex-shrink-0 items-center justify-center">
           {isFolder ? (

@@ -95,7 +95,7 @@ export function TwoPaneLayout({ drive, folderPath, children }: TwoPaneLayoutProp
             type="button"
             onClick={() => setTreeEnabled(false)}
             aria-label={tView("treeOff")}
-            className="rounded-md p-2 text-text-muted hover:text-text-primary"
+            className="rounded-lg p-2 text-text-muted hover:text-text-primary"
           >
             <X size={18} />
           </button>

@@ -133,7 +133,7 @@ function renderMarkdownToSafeHtml(
  * metadata. Used by FilePreview for `text/markdown` files and intended
  * for reuse by the knowledge addon's editor preview pane.
  *
- * - `chrome` (default true): wrap the body in a card (rounded/bg) and render
+ * - `chrome` (default true): wrap the body in a card (rounded-lg/bg) and render
  *   the frontmatter panel. Set false when the parent already provides chrome
  *   (e.g. the Ask answer panel).
  * - `mermaid` (default true): process ```mermaid fences into rendered SVG
@@ -374,7 +374,7 @@ export function MarkdownFileViewer({
   if (error) {
     return (
       <div className="flex w-full items-center justify-center rounded-xl bg-bg-card py-16">
-        <p className="text-sm text-red-400">{t("loadFailed", { error })}</p>
+        <p className="text-sm text-danger">{t("loadFailed", { error })}</p>
       </div>
     );
   }

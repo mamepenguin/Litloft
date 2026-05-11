@@ -307,14 +307,14 @@ export function FileDetailContent({
             type="text"
             value={editTitle}
             onChange={(e) => setEditTitle(e.target.value)}
-            className="w-full rounded-lg bg-bg-card px-3 py-2 text-lg font-bold text-text-primary outline-none focus:ring-2 focus:ring-accent"
+            className="w-full rounded-2xl bg-bg-card px-3 py-2 text-lg font-bold text-text-primary outline-none focus:ring-2 focus:ring-focus-ring"
           />
           <textarea
             value={editDesc}
             onChange={(e) => setEditDesc(e.target.value)}
             placeholder={t("addDescription")}
             rows={3}
-            className="w-full rounded-lg bg-bg-card px-3 py-2 text-sm text-text-primary outline-none focus:ring-2 focus:ring-accent"
+            className="w-full rounded-2xl bg-bg-card px-3 py-2 text-sm text-text-primary outline-none focus:ring-2 focus:ring-focus-ring"
           />
           <div className="flex gap-2">
             <button

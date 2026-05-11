@@ -39,7 +39,7 @@ export function MarkdownViewModeToggle({
     ? ALL_OPTIONS.filter((o) => o.id !== "split")
     : ALL_OPTIONS;
   return (
-    <div className="flex items-center gap-0.5 rounded-md border border-bg-border bg-bg-card p-0.5">
+    <div className="flex items-center gap-0.5 rounded-lg border border-bg-border bg-bg-card p-0.5">
       {options.map((o) => {
         const Icon = o.icon;
         const isActive = mode === o.id;
@@ -53,7 +53,7 @@ export function MarkdownViewModeToggle({
             title={label}
             aria-pressed={isActive}
             data-testid={`view-mode-${o.id}`}
-            className={`flex h-7 w-7 items-center justify-center rounded transition-colors ${
+            className={`flex h-7 w-7 items-center justify-center rounded-lg transition-colors ${
               isActive
                 ? "bg-bg-elevated text-text-primary"
                 : "text-text-muted hover:text-text-primary"

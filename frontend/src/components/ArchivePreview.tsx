@@ -142,7 +142,7 @@ export function ArchivePreview({ fileId }: { fileId: string }) {
   if (error) {
     return (
       <div className="flex w-full items-center justify-center rounded-xl bg-bg-card py-16">
-        <p className="text-sm text-red-400">
+        <p className="text-sm text-danger">
           {t("loadFailed", { error: error ?? "" })}
         </p>
       </div>

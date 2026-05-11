@@ -40,9 +40,9 @@ function formatUptime(
 }
 
 function usageColorClass(percent: number): string {
-  if (percent >= 90) return "bg-red-500";
-  if (percent >= 70) return "bg-yellow-500";
-  return "bg-emerald-500";
+  if (percent >= 90) return "bg-danger";
+  if (percent >= 70) return "bg-accent-amber";
+  return "bg-accent-teal";
 }
 
 const FILE_TYPE_ICONS: Record<string, typeof Film> = {
@@ -57,12 +57,12 @@ const FILE_TYPE_ICONS: Record<string, typeof Film> = {
 function DriveCardSkeleton() {
   return (
     <div className="rounded-xl border border-bg-border bg-bg-card p-5 animate-pulse">
-      <div className="mb-4 h-5 w-32 rounded bg-bg-elevated" />
+      <div className="mb-4 h-5 w-32 rounded-lg bg-bg-elevated" />
       <div className="mb-3 h-3 w-full rounded-full bg-bg-elevated" />
-      <div className="mb-4 h-4 w-48 rounded bg-bg-elevated" />
+      <div className="mb-4 h-4 w-48 rounded-lg bg-bg-elevated" />
       <div className="flex gap-3">
         {[1, 2, 3].map((i) => (
-          <div key={i} className="h-4 w-16 rounded bg-bg-elevated" />
+          <div key={i} className="h-4 w-16 rounded-lg bg-bg-elevated" />
         ))}
       </div>
     </div>
@@ -72,10 +72,10 @@ function DriveCardSkeleton() {
 function SystemCardSkeleton() {
   return (
     <div className="rounded-xl border border-bg-border bg-bg-card p-5 animate-pulse">
-      <div className="mb-4 h-5 w-24 rounded bg-bg-elevated" />
+      <div className="mb-4 h-5 w-24 rounded-lg bg-bg-elevated" />
       <div className="grid grid-cols-2 gap-3">
         {[1, 2, 3, 4, 5, 6].map((i) => (
-          <div key={i} className="h-10 rounded bg-bg-elevated" />
+          <div key={i} className="h-10 rounded-lg bg-bg-elevated" />
         ))}
       </div>
     </div>
@@ -116,7 +116,7 @@ function FileTypeBadges({ fileTypes }: { fileTypes: Record<string, number> }) {
         return (
           <span
             key={type}
-            className="inline-flex items-center gap-1 rounded-md bg-bg-elevated px-2 py-0.5 text-xs text-text-muted"
+            className="inline-flex items-center gap-1 rounded-lg bg-bg-elevated px-2 py-0.5 text-xs text-text-muted"
           >
             <Icon size={12} />
             {count}
@@ -136,7 +136,7 @@ function DriveCard({ drive }: { drive: DashboardDriveInfo }) {
         <HardDrive size={18} className="text-accent" />
         <h3 className="text-sm font-semibold text-text-primary">{drive.name}</h3>
         {drive.readonly && (
-          <span className="rounded bg-bg-elevated px-1.5 py-0.5 text-[10px] font-medium text-text-muted">
+          <span className="rounded-lg bg-bg-elevated px-1.5 py-0.5 text-[10px] font-medium text-text-muted">
             {t("readonly")}
           </span>
         )}
@@ -264,7 +264,7 @@ export default function AdminDashboardPage() {
       <h1 className="mb-6 text-xl font-bold text-text-primary">{t("title")}</h1>
 
       {error && (
-        <div className="mb-4 rounded-lg bg-red-500/10 px-4 py-3 text-sm text-red-400">
+        <div className="mb-4 rounded-xl bg-danger/10 px-4 py-3 text-sm text-danger">
           {error}
         </div>
       )}

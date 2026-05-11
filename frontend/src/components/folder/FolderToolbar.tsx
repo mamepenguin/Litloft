@@ -118,7 +118,7 @@ export function FolderToolbar({
                   if (e.key === "Escape") { onSetCreatingFolder(false); onSetNewFolderName(""); onSetFolderError(null); }
                 }}
                 placeholder={tf("namePlaceholder")}
-                className="min-w-0 flex-1 rounded-2xl bg-bg-card px-3 py-2 text-sm text-text-primary placeholder:text-text-muted outline-none focus:ring-2 focus:ring-accent sm:w-40 sm:flex-initial"
+                className="min-w-0 flex-1 rounded-2xl bg-bg-card px-3 py-2 text-sm text-text-primary placeholder:text-text-muted outline-none focus:ring-2 focus:ring-focus-ring sm:w-40 sm:flex-initial"
               />
               <button
                 onClick={onCreateFolder}
@@ -132,7 +132,7 @@ export function FolderToolbar({
               >
                 <X size={16} />
               </button>
-              {folderError && <span className="text-xs text-red-400">{folderError}</span>}
+              {folderError && <span className="text-xs text-danger">{folderError}</span>}
             </div>
           ) : (
             <button
@@ -166,7 +166,7 @@ export function FolderToolbar({
       {hasPlayableFiles && !hideMutatingActions && (
         <button
           onClick={onPlayAll}
-          className="flex items-center gap-1.5 rounded-2xl bg-accent px-3 py-2 text-sm font-medium text-white transition-all hover:bg-accent-hover active:scale-[0.97]"
+          className="flex items-center gap-1.5 rounded-2xl bg-accent px-3 py-2 text-sm font-medium text-white transition-all hover:bg-accent-hover"
           aria-label={t("playAll")}
         >
           <Play size={16} />
@@ -180,7 +180,7 @@ export function FolderToolbar({
           onClick={() => setTypeFilterOpen((s) => !s)}
           className={`flex items-center gap-1.5 rounded-2xl border px-3 py-2 text-sm transition-colors ${
             isTypeFiltered
-              ? "border-accent/30 bg-accent/10 text-accent"
+              ? "border-bg-border bg-bg-elevated text-text-primary font-medium"
               : "border-bg-border bg-bg-card text-text-muted hover:text-text-primary"
           }`}
           aria-haspopup="menu"
@@ -201,7 +201,7 @@ export function FolderToolbar({
             />
             <div
               role="menu"
-              className="fixed inset-x-2 bottom-4 z-40 max-h-[60vh] overflow-y-auto rounded-2xl border border-bg-border bg-bg-primary py-1 shadow-xl animate-fade-in-scale sm:absolute sm:inset-x-auto sm:bottom-auto sm:right-0 sm:top-full sm:mt-1 sm:max-h-none sm:min-w-[160px] sm:overflow-visible sm:origin-top-right"
+              className="fixed inset-x-2 bottom-4 z-40 max-h-[60vh] overflow-y-auto rounded-2xl border border-bg-border bg-bg-primary py-1 shadow-lg animate-fade-in-scale sm:absolute sm:inset-x-auto sm:bottom-auto sm:right-0 sm:top-full sm:mt-1 sm:max-h-none sm:min-w-[160px] sm:overflow-visible sm:origin-top-right"
             >
             {TYPE_OPTION_KEYS.map((opt) => (
               <button
@@ -213,7 +213,7 @@ export function FolderToolbar({
                 }}
                 className={`flex w-full items-center gap-2 px-3 py-2 text-left text-sm transition-colors ${
                   typeFilter === opt.value
-                    ? "text-accent"
+                    ? "bg-bg-elevated text-text-primary font-medium"
                     : "text-text-primary hover:bg-bg-elevated"
                 }`}
               >
@@ -243,9 +243,9 @@ export function FolderToolbar({
         <div className="relative">
           <button
             onClick={() => setMoreOpen((s) => !s)}
-            className={`rounded-md p-2 transition-colors ${
+            className={`rounded-lg p-2 transition-colors ${
               selectable
-                ? "bg-accent/20 text-accent"
+                ? "bg-bg-card text-text-primary"
                 : "text-text-muted hover:text-text-primary"
             }`}
             aria-haspopup="menu"
@@ -264,7 +264,7 @@ export function FolderToolbar({
               />
               <div
                 role="menu"
-                className="fixed inset-x-2 bottom-4 z-40 max-h-[60vh] overflow-y-auto rounded-2xl border border-bg-border bg-bg-primary py-1 shadow-xl animate-fade-in-scale sm:absolute sm:inset-x-auto sm:bottom-auto sm:right-0 sm:top-full sm:mt-1 sm:max-h-none sm:min-w-[200px] sm:overflow-visible sm:origin-top-right"
+                className="fixed inset-x-2 bottom-4 z-40 max-h-[60vh] overflow-y-auto rounded-2xl border border-bg-border bg-bg-primary py-1 shadow-lg animate-fade-in-scale sm:absolute sm:inset-x-auto sm:bottom-auto sm:right-0 sm:top-full sm:mt-1 sm:max-h-none sm:min-w-[200px] sm:overflow-visible sm:origin-top-right"
               >
               <button
                 role="menuitem"
@@ -274,7 +274,7 @@ export function FolderToolbar({
                 }}
                 className={`flex w-full items-center gap-2.5 px-3 py-2 text-left text-sm transition-colors ${
                   selectable
-                    ? "text-accent"
+                    ? "bg-bg-elevated text-text-primary font-medium"
                     : "text-text-primary hover:bg-bg-elevated"
                 }`}
               >

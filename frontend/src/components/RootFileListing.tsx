@@ -193,11 +193,11 @@ export function RootFileListing({ driveName, onFileAction, onFolderChange }: Roo
                   if (e.key === "Escape") { setCreatingFolder(false); setNewFolderName(""); setFolderError(null); }
                 }}
                 placeholder={tf("namePlaceholder")}
-                className="min-w-0 flex-1 rounded-lg bg-bg-card px-3 py-2 text-sm text-text-primary placeholder:text-text-muted outline-none focus:ring-2 focus:ring-accent sm:w-40 sm:flex-initial"
+                className="min-w-0 flex-1 rounded-2xl bg-bg-card px-3 py-2 text-sm text-text-primary placeholder:text-text-muted outline-none focus:ring-2 focus:ring-focus-ring sm:w-40 sm:flex-initial"
               />
               <button
                 onClick={handleCreateFolder}
-                className="rounded-lg bg-accent px-3 py-2 text-sm text-white hover:bg-accent/80"
+                className="rounded-2xl bg-accent px-3 py-2 text-sm text-white hover:bg-accent-hover"
               >
                 {tc("create")}
               </button>
@@ -207,12 +207,12 @@ export function RootFileListing({ driveName, onFileAction, onFolderChange }: Roo
               >
                 <X size={16} />
               </button>
-              {folderError && <span className="text-xs text-red-400">{folderError}</span>}
+              {folderError && <span className="text-xs text-danger">{folderError}</span>}
             </div>
           ) : (
             <button
               onClick={() => setCreatingFolder(true)}
-              className="flex items-center gap-2 rounded-lg border border-bg-border bg-bg-card px-3 py-2 text-sm font-medium text-text-primary transition-colors hover:bg-bg-elevated"
+              className="flex items-center gap-2 rounded-2xl border border-bg-border bg-bg-card px-3 py-2 text-sm font-medium text-text-primary transition-colors hover:bg-bg-elevated"
               aria-label={tf("newFolder")}
             >
               <FolderPlus size={16} />
@@ -226,7 +226,7 @@ export function RootFileListing({ driveName, onFileAction, onFolderChange }: Roo
             {hasPlayableFiles && (
               <button
                 onClick={handlePlayAll}
-                className="flex items-center gap-1.5 rounded-lg bg-accent px-3 py-2 text-sm font-medium text-white transition-all hover:bg-accent/80 active:scale-[0.97]"
+                className="flex items-center gap-1.5 rounded-2xl bg-accent px-3 py-2 text-sm font-medium text-white transition-colors hover:bg-accent-hover"
                 aria-label={t("playAll")}
               >
                 <Play size={16} />
@@ -234,7 +234,7 @@ export function RootFileListing({ driveName, onFileAction, onFolderChange }: Roo
               </button>
             )}
 
-            <div className="flex items-center gap-1 rounded-lg bg-bg-card p-1">
+            <div className="flex items-center gap-1 rounded-xl bg-bg-card p-1">
               <SortButton
                 sort={sort}
                 order={order}
@@ -248,7 +248,7 @@ export function RootFileListing({ driveName, onFileAction, onFolderChange }: Roo
                     return !s;
                   });
                 }}
-                className={`rounded-md p-2 transition-colors ${
+                className={`rounded-lg p-2 transition-colors ${
                   selectable
                     ? "bg-accent text-white"
                     : "text-text-muted hover:text-text-primary"
@@ -263,7 +263,7 @@ export function RootFileListing({ driveName, onFileAction, onFolderChange }: Roo
               <button
                 onClick={handleScan}
                 disabled={scanning}
-                className="rounded-md p-2 text-text-muted transition-colors hover:text-text-primary disabled:opacity-50"
+                className="rounded-lg p-2 text-text-muted transition-colors hover:text-text-primary disabled:opacity-50"
                 aria-label={t("rescan")}
                 title={t("rescanTitle")}
               >

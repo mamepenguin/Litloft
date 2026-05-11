@@ -405,7 +405,7 @@ describe("FilterField", () => {
     expect(onTypeFilterChange).toHaveBeenCalledWith("pdf");
   });
 
-  it("applies an accent-colored class to the chip when a type is selected", () => {
+  it("renders a chip button when a type is selected", () => {
     render(
       <FilterField
         text=""
@@ -419,6 +419,7 @@ describe("FilterField", () => {
     const chip = screen.getByRole("button", {
       name: /click to change|filter\.chipChange|クリックで変更/i,
     });
-    expect(chip.className).toMatch(/accent/);
+    expect(chip).toBeInTheDocument();
+    expect(chip.className).toMatch(/text-text-primary/);
   });
 });

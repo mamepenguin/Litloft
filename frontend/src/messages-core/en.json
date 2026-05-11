@@ -547,7 +547,8 @@
     "noChanges": "No files will be changed",
     "execute": "Rename",
     "invalidRegex": "Invalid regular expression",
-    "failed": "Rename failed"
+    "failed": "Rename failed",
+    "filesCount": "{count, plural, one {# file} other {# files}}"
   },
   "trash": {
     "title": "Trash",

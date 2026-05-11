@@ -59,7 +59,7 @@ export function TrashToolbar({
           <SortButton sort={sort} order={order} onChange={onSortChange} />
           <button
             onClick={onToggleSelectable}
-            className={`rounded-md p-2 transition-colors ${
+            className={`rounded-lg p-2 transition-colors ${
               selectable
                 ? "bg-accent text-white"
                 : "text-text-muted hover:text-text-primary"
@@ -76,7 +76,7 @@ export function TrashToolbar({
         <div ref={typeFilterRef} className="relative sm:hidden">
           <button
             onClick={() => setTypeFilterOpen((s) => !s)}
-            className={`flex items-center gap-1.5 rounded-md p-2 text-sm transition-colors ${
+            className={`flex items-center gap-1.5 rounded-lg p-2 text-sm transition-colors ${
               typeFilter
                 ? "bg-accent/20 text-accent"
                 : "text-text-muted hover:text-text-primary"
@@ -86,7 +86,7 @@ export function TrashToolbar({
             <Filter size={16} />
           </button>
           {typeFilterOpen && (
-            <div className="absolute left-0 top-full z-30 mt-1 min-w-[140px] rounded-xl border border-bg-border bg-bg-primary py-1 shadow-xl animate-fade-in-scale origin-top-left">
+            <div className="absolute left-0 top-full z-30 mt-1 min-w-[140px] rounded-xl border border-bg-border bg-bg-primary py-1 shadow-lg animate-fade-in-scale origin-top-left">
               {TYPE_OPTION_KEYS.map((opt) => (
                 <button
                   key={opt.labelKey}
@@ -114,7 +114,7 @@ export function TrashToolbar({
             <button
               key={tab.labelKey}
               onClick={() => onTypeFilterChange(tab.value)}
-              className={`rounded-md px-2.5 py-1 text-sm transition-colors ${
+              className={`rounded-lg px-2.5 py-1 text-sm transition-colors ${
                 typeFilter === tab.value
                   ? "bg-accent/20 font-medium text-accent"
                   : "text-text-muted hover:text-text-primary"

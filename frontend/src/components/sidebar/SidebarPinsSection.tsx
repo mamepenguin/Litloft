@@ -27,7 +27,7 @@ export function SidebarPinsSection({ driveBase, pins, linkClass, close }: Sideba
         onClick={toggle}
         aria-expanded={!collapsed}
         aria-label={collapsed ? t("sectionExpand") : t("sectionCollapse")}
-        className="mb-1 mt-4 flex w-full items-center gap-1.5 rounded-md px-3 text-[11px] font-semibold uppercase tracking-wider text-text-muted transition-colors hover:text-text-primary"
+        className="mb-1 mt-4 flex w-full items-center gap-1.5 rounded-lg px-3 text-[11px] font-semibold uppercase tracking-wider text-text-muted transition-colors hover:text-text-primary"
       >
         <Chevron size={12} />
         <span>Pins</span>

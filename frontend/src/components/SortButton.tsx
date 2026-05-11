@@ -60,9 +60,9 @@ export function SortButton({ sort, order, onChange, allowRelevance }: SortButton
     <div className="relative">
       <button
         onClick={() => setOpen((s) => !s)}
-        className={`flex items-center gap-1.5 rounded-md p-2 text-sm transition-colors ${
+        className={`flex items-center gap-1.5 rounded-lg p-2 text-sm transition-colors ${
           isActive
-            ? "bg-accent/20 text-accent"
+            ? "bg-bg-card text-text-primary"
             : "text-text-muted hover:text-text-primary"
         }`}
         aria-label={t("label")}
@@ -77,7 +77,7 @@ export function SortButton({ sort, order, onChange, allowRelevance }: SortButton
             aria-hidden="true"
             onClick={() => setOpen(false)}
           />
-          <div className="fixed inset-x-2 bottom-4 z-40 max-h-[60vh] overflow-y-auto rounded-2xl border border-bg-border bg-bg-primary py-1 shadow-xl animate-fade-in-scale sm:absolute sm:inset-x-auto sm:bottom-auto sm:right-0 sm:top-full sm:mt-1 sm:max-h-none sm:min-w-[180px] sm:overflow-visible sm:origin-top-right">
+          <div className="fixed inset-x-2 bottom-4 z-40 max-h-[60vh] overflow-y-auto rounded-2xl border border-bg-border bg-bg-primary py-1 shadow-lg animate-fade-in-scale sm:absolute sm:inset-x-auto sm:bottom-auto sm:right-0 sm:top-full sm:mt-1 sm:max-h-none sm:min-w-[180px] sm:overflow-visible sm:origin-top-right">
           {sortOptions.map((opt) => {
             const selected = opt.sort === sort && opt.order === order;
             return (
@@ -89,7 +89,7 @@ export function SortButton({ sort, order, onChange, allowRelevance }: SortButton
                 }}
                 className={`flex w-full items-center gap-2 px-3 py-2 text-left text-sm transition-colors ${
                   selected
-                    ? "text-accent"
+                    ? "bg-bg-elevated text-text-primary font-medium"
                     : "text-text-primary hover:bg-bg-elevated"
                 }`}
               >

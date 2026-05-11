@@ -29,7 +29,7 @@ export function Breadcrumb({ driveName, folderPath, getDropTargetProps, isDropTa
       ) : (
         <Link
           href={`/drive/${encodeURIComponent(driveName)}`}
-          className={`hover:text-text-primary truncate rounded px-1 transition-colors${
+          className={`hover:text-text-primary truncate rounded-lg px-1 transition-colors${
             isDropTarget?.("") ? " ring-2 ring-accent bg-accent/10 text-accent" : ""
           }`}
           {...getDropTargetProps?.("")}
@@ -50,7 +50,7 @@ export function Breadcrumb({ driveName, folderPath, getDropTargetProps, isDropTa
             ) : (
               <Link
                 href={`/drive/${encodeURIComponent(driveName)}/${encodedPath}`}
-                className={`hover:text-text-primary truncate rounded px-1 transition-colors${
+                className={`hover:text-text-primary truncate rounded-lg px-1 transition-colors${
                   isDropTarget?.(path) ? " ring-2 ring-accent bg-accent/10 text-accent" : ""
                 }`}
                 {...getDropTargetProps?.(path)}

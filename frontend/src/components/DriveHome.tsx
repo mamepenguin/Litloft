@@ -188,13 +188,13 @@ export function DriveHome({ driveName }: DriveHomeProps) {
         <section>
           <div className="mb-3 flex items-center justify-between">
             <h2 className="flex items-center gap-2 text-lg font-bold text-text-primary">
-              <Folder size={20} className="text-accent" />
+              <Folder size={20} className="text-text-muted" />
               {t("folders")}
             </h2>
             {folders.length > MAX_FOLDERS && (
               <Link
                 href={`${driveBase}?view=all`}
-                className="text-sm text-text-muted transition-colors hover:text-accent"
+                className="text-sm text-text-muted transition-colors hover:text-text-primary"
               >
                 {tc("seeAll")}
               </Link>
@@ -208,8 +208,8 @@ export function DriveHome({ driveName }: DriveHomeProps) {
                   <div className="flex items-center gap-3">
                     <div className="h-12 w-12 rounded-lg bg-bg-elevated" />
                     <div className="space-y-2">
-                      <div className="h-4 w-24 rounded bg-bg-elevated" />
-                      <div className="h-3 w-16 rounded bg-bg-elevated" />
+                      <div className="h-4 w-24 rounded-lg bg-bg-elevated" />
+                      <div className="h-3 w-16 rounded-lg bg-bg-elevated" />
                     </div>
                   </div>
                 </div>
@@ -261,7 +261,7 @@ export function DriveHome({ driveName }: DriveHomeProps) {
           items={recentlyPlayed}
           loading={recentlyPlayedLoading}
           title={t("recentlyPlayed")}
-          icon={<History size={20} className="text-accent" />}
+          icon={<History size={20} className="text-text-muted" />}
           onRemoveItem={handleRemoveWatchItem}
         />
       )}
@@ -279,7 +279,7 @@ export function DriveHome({ driveName }: DriveHomeProps) {
 
       <CarouselSection
         title={t("favorites")}
-        icon={<Heart size={20} className="text-accent" />}
+        icon={<Heart size={20} className="text-text-muted" />}
         files={favorites.files}
         loading={favorites.loading}
         seeAllHref={`${driveBase}?view=favorites`}

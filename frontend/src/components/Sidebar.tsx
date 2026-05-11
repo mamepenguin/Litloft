@@ -83,7 +83,7 @@ function SidebarNav() {
   const linkClass = (href: string) =>
     `flex items-center gap-2.5 rounded-2xl px-3 py-2 text-sm transition-colors ${
       isActive(href)
-        ? "bg-accent text-white font-medium"
+        ? "bg-bg-elevated text-text-primary font-medium"
         : "text-text-muted hover:bg-bg-elevated hover:text-text-primary"
     }`;
 

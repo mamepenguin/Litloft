@@ -224,7 +224,7 @@ export function MarkdownDocumentLayout({
           (isMobile ? mobileSheetOpen : open) ? t("close") : t("openShortcut")
         }
         data-testid="inspector-toggle"
-        className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-md text-text-muted transition-colors hover:bg-bg-elevated hover:text-text-primary"
+        className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-lg text-text-muted transition-colors hover:bg-bg-elevated hover:text-text-primary"
       >
         {(isMobile ? mobileSheetOpen : open) ? (
           <PanelRightClose size={16} />
@@ -286,10 +286,10 @@ function SaveDot({ state }: { state: MarkdownSaveState }) {
     toneClass = "bg-accent-teal";
     labelKey = "saved";
   } else if (state.status === "conflict") {
-    toneClass = "bg-red-500";
+    toneClass = "bg-danger";
     labelKey = "conflict";
   } else if (state.status === "error") {
-    toneClass = "bg-red-500";
+    toneClass = "bg-danger";
     labelKey = "error";
   }
   // Idle: the dot is visually invisible and carries no useful info,

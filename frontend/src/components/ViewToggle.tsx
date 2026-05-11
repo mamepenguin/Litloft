@@ -53,7 +53,7 @@ export function ViewToggle({ mode: controlledMode, onChange }: ViewToggleProps) 
   }
 
   const buttonClass = (active: boolean) =>
-    `rounded-md p-2 transition-colors ${
+    `rounded-lg p-2 transition-colors ${
       active ? "bg-accent text-white" : "text-text-muted hover:text-text-primary"
     }`;
 

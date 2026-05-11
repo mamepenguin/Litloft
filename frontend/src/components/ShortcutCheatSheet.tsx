@@ -102,7 +102,7 @@ export function ShortcutCheatSheet({ open, stack, onClose }: ShortcutCheatSheetP
 
       {/* Panel */}
       <div
-        className="relative z-10 mx-4 w-full max-w-sm rounded-2xl bg-bg-card p-6 shadow-2xl animate-fade-in-scale"
+        className="relative z-10 mx-4 w-full max-w-sm rounded-2xl bg-bg-card p-6 shadow-lg animate-fade-in-scale"
         role="dialog"
         aria-modal
         aria-label={t("title")}
@@ -129,7 +129,7 @@ export function ShortcutCheatSheet({ open, stack, onClose }: ShortcutCheatSheetP
               return (
                 <section key={ctx.id}>
                   {ctx.label && (
-                    <h3 className="mb-2 text-xs font-medium uppercase tracking-wider text-text-muted">
+                    <h3 className="mb-2 text-xs font-medium uppercase text-text-muted">
                       {ctx.label}
                     </h3>
                   )}

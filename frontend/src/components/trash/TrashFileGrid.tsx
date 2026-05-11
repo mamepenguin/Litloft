@@ -87,7 +87,7 @@ export function TrashFileGrid({
               {selectable && (
                 <div className="absolute top-2 left-2 z-10">
                   <div
-                    className={`flex h-5 w-5 items-center justify-center rounded border-2 transition-colors pointer-events-none ${
+                    className={`flex h-5 w-5 items-center justify-center rounded-lg border-2 transition-colors pointer-events-none ${
                       selected
                         ? "border-accent bg-accent text-white"
                         : "border-text-muted/50 bg-black/40"
@@ -117,7 +117,7 @@ export function TrashFileGrid({
                   </div>
                 )}
 
-                <div className="absolute bottom-2 right-2 rounded bg-black/70 px-1.5 py-0.5 text-xs font-medium text-text-muted">
+                <div className="absolute bottom-2 right-2 rounded-lg bg-black/70 px-1.5 py-0.5 text-xs font-medium text-text-muted">
                   {tt("daysRemaining", { days: daysRemaining })}
                 </div>
 
@@ -132,7 +132,7 @@ export function TrashFileGrid({
                     </button>
                     <button
                       onClick={(e) => { e.stopPropagation(); onPurge(file.id); }}
-                      className="rounded-lg bg-black/60 p-1.5 text-white transition-colors hover:bg-red-500"
+                      className="rounded-lg bg-black/60 p-1.5 text-white transition-colors hover:bg-danger"
                       aria-label={tt("purge")}
                     >
                       <Trash2 size={14} />

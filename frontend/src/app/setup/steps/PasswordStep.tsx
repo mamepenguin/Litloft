@@ -78,7 +78,7 @@ export function PasswordStep({
           className="w-full rounded-2xl border border-warm-silver/40 bg-bg-card px-3 py-3 text-base focus:outline-none focus:ring-2 focus:ring-focus-ring"
         />
         {showWeakHint && (
-          <p className="mt-1 text-xs text-accent-amber">
+          <p className="mt-1 text-xs text-danger">
             {tPw("weakPassword")}
           </p>
         )}

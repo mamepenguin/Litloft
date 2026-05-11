@@ -366,7 +366,7 @@ export function ImageGallery({
               <select
                 value={slideshowInterval}
                 onChange={(e) => setSlideshowInterval(Number(e.target.value))}
-                className="rounded bg-white/10 px-2 py-1 text-sm text-white outline-none"
+                className="rounded-lg bg-white/10 px-2 py-1 text-sm text-white outline-none"
                 aria-label={t("slideshowInterval")}
               >
                 {INTERVAL_OPTIONS.map((sec) => (
@@ -389,7 +389,7 @@ export function ImageGallery({
               onClick={() =>
                 setReadingDirection((d) => (d === "ltr" ? "rtl" : "ltr"))
               }
-              className="rounded bg-white/10 px-2 py-1 text-xs text-white/80 transition-colors hover:bg-white/20 hover:text-white"
+              className="rounded-lg bg-white/10 px-2 py-1 text-xs text-white/80 transition-colors hover:bg-white/20 hover:text-white"
               aria-label={t("readingDirection")}
             >
               {readingDirection === "ltr" ? t("ltr") : t("rtl")}

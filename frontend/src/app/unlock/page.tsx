@@ -51,7 +51,7 @@ export default function UnlockPage() {
             placeholder="Password"
             autoFocus
             required
-            className="rounded-2xl border border-warm-silver/40 bg-bg-elevated px-3 py-2 text-sm text-text-primary placeholder:text-text-muted focus:border-accent focus:outline-none"
+            className="rounded-2xl border border-warm-silver/40 bg-bg-elevated px-3 py-2 text-sm text-text-primary placeholder:text-text-muted focus:border-focus-ring focus:outline-none"
           />
 
           {error && (
@@ -63,7 +63,7 @@ export default function UnlockPage() {
               type="checkbox"
               checked={remember}
               onChange={(e) => setRemember(e.target.checked)}
-              className="rounded accent-accent"
+              className="rounded-lg accent-accent"
             />
             Remember this device
           </label>

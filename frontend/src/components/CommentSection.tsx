@@ -178,7 +178,7 @@ export function CommentSection({ fileId }: CommentSectionProps) {
           placeholder={t("placeholder")}
           rows={2}
           maxLength={1000}
-          className="flex-1 resize-none rounded-lg border border-border bg-bg-card px-3 py-2 text-sm text-text-primary placeholder:text-text-muted outline-none focus:ring-2 focus:ring-accent"
+          className="flex-1 resize-none rounded-2xl border border-bg-border bg-bg-card px-3 py-2 text-sm text-text-primary placeholder:text-text-muted outline-none focus:ring-2 focus:ring-focus-ring"
         />
         <button
           onClick={handlePost}
@@ -201,7 +201,7 @@ export function CommentSection({ fileId }: CommentSectionProps) {
           {comments.map((comment) => (
             <div
               key={comment.id}
-              className="rounded-lg bg-bg-card px-4 py-3"
+              className="rounded-xl bg-bg-card px-4 py-3"
             >
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-2">
@@ -221,14 +221,14 @@ export function CommentSection({ fileId }: CommentSectionProps) {
                   <div className="flex items-center gap-1">
                     <button
                       onClick={() => startEdit(comment)}
-                      className="rounded p-1 text-text-muted transition-colors hover:text-text-primary"
+                      className="rounded-lg p-1 text-text-muted transition-colors hover:text-text-primary"
                       aria-label={t("edit")}
                     >
                       <Pencil size={14} />
                     </button>
                     <button
                       onClick={() => setDeleteTarget(comment.id)}
-                      className="rounded p-1 text-text-muted transition-colors hover:text-text-primary"
+                      className="rounded-lg p-1 text-text-muted transition-colors hover:text-text-primary"
                       aria-label={t("delete")}
                     >
                       <Trash2 size={14} />
@@ -245,7 +245,7 @@ export function CommentSection({ fileId }: CommentSectionProps) {
                     rows={2}
                     maxLength={1000}
                     autoFocus
-                    className="w-full resize-none rounded-lg border border-border bg-bg-card px-3 py-2 text-sm text-text-primary outline-none focus:ring-2 focus:ring-accent"
+                    className="w-full resize-none rounded-2xl border border-bg-border bg-bg-card px-3 py-2 text-sm text-text-primary outline-none focus:ring-2 focus:ring-focus-ring"
                   />
                   <div className="mt-2 flex gap-2">
                     <button

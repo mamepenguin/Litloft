@@ -35,8 +35,8 @@ export function FolderCard({
   const t = useTranslations("folder");
   return (
     <div
-      className={`group relative flex items-center gap-3 rounded-2xl bg-bg-card p-4 transition-all duration-200 hover:bg-bg-elevated hover:shadow-md active:scale-[0.98]${
-        isDropTarget ? " ring-2 ring-accent bg-accent/10 scale-[1.02]" : ""
+      className={`group relative flex items-center gap-3 rounded-2xl bg-bg-card p-4 shadow-card transition-colors duration-200 hover:bg-bg-elevated${
+        isDropTarget ? " ring-2 ring-accent bg-bg-elevated" : ""
       }${isDragging ? " opacity-40" : ""}`}
       draggable={draggable}
       onDragStart={onDragStart}
@@ -61,12 +61,12 @@ export function FolderCard({
             />
           </div>
         ) : (
-          <div className="flex h-12 w-12 flex-shrink-0 items-center justify-center rounded-xl bg-accent/10">
-            <Folder size={24} className="text-accent" />
+          <div className="flex h-12 w-12 flex-shrink-0 items-center justify-center rounded-xl bg-bg-elevated">
+            <Folder size={24} className="text-text-muted" />
           </div>
         )}
         <div className="min-w-0">
-          <h3 className="truncate font-semibold text-text-primary group-hover:text-accent">
+          <h3 className="truncate font-semibold text-text-primary">
             {folder.name}
           </h3>
           <p className="text-sm text-text-muted">{t("items", { count: folder.file_count })}</p>

@@ -320,7 +320,7 @@ export function GlobalSearch() {
           <span className="min-w-0 flex-1 truncate text-sm text-text-primary">{term}</span>
           <button
             onClick={(e) => handleFillInput(term, e)}
-            className={`flex-shrink-0 rounded text-text-muted ${
+            className={`flex-shrink-0 rounded-lg text-text-muted ${
               mobile ? "p-1.5 active:bg-bg-elevated" : "p-1 hover:text-text-primary"
             }`}
             aria-label={t("fillInput", { term })}
@@ -329,7 +329,7 @@ export function GlobalSearch() {
           </button>
           <button
             onClick={(e) => handleRemoveHistory(term, e)}
-            className={`flex-shrink-0 rounded text-text-muted ${
+            className={`flex-shrink-0 rounded-lg text-text-muted ${
               mobile ? "p-1.5 active:bg-bg-elevated" : "p-1 hover:text-text-primary"
             }`}
             aria-label={t("removeHistory", { term })}
@@ -445,7 +445,7 @@ export function GlobalSearch() {
             className="fixed inset-0 bg-black/50 animate-fade-in"
             onClick={closeSearch}
           />
-          <div className="relative z-10 w-full max-w-lg rounded-2xl border border-bg-border bg-bg-primary shadow-2xl animate-fade-in-scale">
+          <div className="relative z-10 w-full max-w-lg rounded-2xl border border-bg-border bg-bg-primary shadow-lg animate-fade-in-scale">
             {/* Search input */}
             <div className="flex items-center gap-3 border-b border-bg-border px-4 py-3">
               <Search size={18} className="flex-shrink-0 text-text-muted" />

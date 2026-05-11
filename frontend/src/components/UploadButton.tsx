@@ -64,7 +64,7 @@ export function UploadButton() {
       <div ref={menuRef} className="relative">
         <button
           onClick={() => setMenuOpen((s) => !s)}
-          className="flex items-center gap-1.5 rounded-2xl bg-accent px-3 py-2 text-sm font-medium text-white transition-all hover:bg-accent-hover active:scale-[0.97]"
+          className="flex items-center gap-1.5 rounded-2xl bg-accent px-3 py-2 text-sm font-medium text-white transition-all hover:bg-accent-hover"
           aria-label={tc("upload")}
         >
           <Upload size={16} />
@@ -72,7 +72,7 @@ export function UploadButton() {
           <ChevronDown size={14} className="opacity-70" />
         </button>
         {menuOpen && (
-          <div className="absolute left-0 top-full z-30 mt-1 min-w-[160px] rounded-xl border border-bg-border bg-bg-primary py-1 shadow-xl animate-fade-in-scale origin-top-left">
+          <div className="absolute left-0 top-full z-30 mt-1 min-w-[160px] rounded-xl border border-bg-border bg-bg-primary py-1 shadow-lg animate-fade-in-scale origin-top-left">
             <button
               onClick={() => {
                 setMenuOpen(false);

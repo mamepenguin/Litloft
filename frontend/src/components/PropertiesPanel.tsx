@@ -167,7 +167,7 @@ function UrlRenderer({ value }: { value: unknown }) {
         alt=""
         width={14}
         height={14}
-        className="shrink-0 rounded-sm"
+        className="shrink-0 rounded-lg"
         loading="lazy"
       />
       <span className="truncate">{host}</span>
@@ -235,8 +235,8 @@ function SourceFileCard({ fileId }: { fileId: string }) {
   if (state.kind === "loading") {
     return (
       <div className="inline-flex items-center gap-1.5 rounded-lg border border-bg-border bg-bg-card px-2 py-1 text-xs text-text-muted">
-        <span className="inline-block h-3 w-3 animate-pulse rounded-sm bg-bg-elevated" />
-        <span className="inline-block h-3 w-20 animate-pulse rounded bg-bg-elevated" />
+        <span className="inline-block h-3 w-3 animate-pulse rounded-lg bg-bg-elevated" />
+        <span className="inline-block h-3 w-20 animate-pulse rounded-lg bg-bg-elevated" />
       </div>
     );
   }
@@ -267,7 +267,7 @@ function SourceFileCard({ fileId }: { fileId: string }) {
           alt=""
           width={16}
           height={16}
-          className="h-4 w-4 shrink-0 rounded-sm object-cover"
+          className="h-4 w-4 shrink-0 rounded-lg object-cover"
           loading="lazy"
         />
       ) : (

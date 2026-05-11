@@ -40,7 +40,7 @@ export function UploadProgress({
 
   return (
     <div className="fixed bottom-0 right-0 z-40 w-full max-w-md">
-      <div className="m-3 overflow-hidden rounded-2xl border border-bg-border bg-bg-card shadow-2xl">
+      <div className="m-3 overflow-hidden rounded-2xl border border-bg-border bg-bg-card shadow-lg">
         {/* Header */}
         <button
           onClick={() => setCollapsed((prev) => !prev)}
@@ -107,7 +107,7 @@ export function UploadProgress({
                       upload.status === "uploading") && (
                       <button
                         onClick={() => onCancel(upload.id)}
-                        className="rounded p-0.5 text-text-muted hover:text-danger"
+                        className="rounded-lg p-0.5 text-text-muted hover:text-danger"
                         aria-label={tc("cancel")}
                       >
                         <X size={14} />

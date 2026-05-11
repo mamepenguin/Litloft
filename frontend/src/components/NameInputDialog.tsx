@@ -60,7 +60,7 @@ export function NameInputDialog({
         className="absolute inset-0 bg-black/60 backdrop-blur-sm animate-fade-in"
         onClick={onCancel}
       />
-      <div className="relative mx-4 w-full max-w-md rounded-2xl bg-bg-card p-6 shadow-2xl animate-fade-in-scale">
+      <div className="relative mx-4 w-full max-w-md rounded-2xl bg-bg-card p-6 shadow-lg animate-fade-in-scale">
         <div className="mb-4 flex items-center justify-between">
           <h2 className="flex items-center gap-2 text-lg font-semibold text-text-primary">
             <FolderPlus size={18} />
@@ -80,7 +80,7 @@ export function NameInputDialog({
             type="text"
             value={name}
             onChange={(e) => setName(e.target.value)}
-            className="mb-6 w-full rounded-lg border border-bg-border bg-bg-elevated px-3 py-2 text-sm text-text-primary outline-none focus:border-accent"
+            className="mb-6 w-full rounded-2xl border border-bg-border bg-bg-elevated px-3 py-2 text-sm text-text-primary outline-none focus:border-focus-ring"
             placeholder={placeholder}
           />
           <div className="flex justify-end gap-3">
