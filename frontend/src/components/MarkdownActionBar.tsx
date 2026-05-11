@@ -77,7 +77,7 @@ export function MarkdownActionBar({
   return (
     <nav
       data-testid="markdown-action-bar"
-      aria-label={t("main")}
+      aria-label={t("tabsAria")}
       className={`fixed left-3 right-3 z-30 flex items-stretch justify-around overflow-hidden rounded-full border border-bg-border bg-bg-card/85 shadow-[0_2px_8px_rgba(0,0,0,0.18)] backdrop-blur-lg ${
         hidden ? "hidden" : ""
       }`}

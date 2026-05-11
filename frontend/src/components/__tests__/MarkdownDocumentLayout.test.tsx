@@ -240,6 +240,40 @@ describe("MarkdownDocumentLayout — mobile (< 768px Phase 4: action bar + sheet
     expect(bar.classList.contains("hidden")).toBe(false);
   });
 
+  it("reserves safe-area-inset-bottom clearance on <main> for the floating Action Bar (L3)", () => {
+    // Phase 4 review L3 / hako 5rtHKXzQd9VJY7WNU5Deg: the floating
+    // pill sits above the body with safe-area padding, so the body
+    // needs matching scroll-bottom clearance or the last line tucks
+    // behind the pill. Without this, scrolling to the bottom of a
+    // long note leaves the user unable to read the final paragraph
+    // on PWA where `safe-area-inset-bottom` is non-zero.
+    setViewportWidth(420);
+    const { container } = renderMobile();
+    const main = container.querySelector("main");
+    expect(main).not.toBeNull();
+    expect(main!.style.paddingBottom).toMatch(/safe-area-inset-bottom/);
+  });
+
+  it("does NOT add bottom clearance when sheetSections is absent (legacy fallback)", () => {
+    // Counterpart to the L3 test: the padding is only applied when
+    // the Action Bar is actually present. Hosts that don't pass
+    // sheetSections must not pay for the clearance.
+    setViewportWidth(420);
+    const { container } = render(
+      <ShortcutsProvider>
+        <MarkdownDocumentLayout
+          drive="work"
+          inspector={<InspectorContent />}
+        >
+          <CanvasContent />
+        </MarkdownDocumentLayout>
+      </ShortcutsProvider>,
+    );
+    const main = container.querySelector("main");
+    expect(main).not.toBeNull();
+    expect(main!.style.paddingBottom).toBe("");
+  });
+
   it("falls back to canvas-only when sheetSections is not provided (graceful degrade)", () => {
     setViewportWidth(420);
     render(

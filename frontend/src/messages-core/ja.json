@@ -642,11 +642,10 @@
       "comments": "コメント"
     },
     "actionBar": {
-      "main": "本文",
+      "tabsAria": "Markdown アクション",
       "tags": "タグ",
       "related": "関連",
-      "ai": "AI",
-      "comments": "会話"
+      "ai": "AI"
     }
   },
   "comments": {

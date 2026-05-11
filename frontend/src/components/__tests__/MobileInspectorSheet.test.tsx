@@ -1,5 +1,5 @@
 import { describe, it, expect, vi } from "vitest";
-import { render, screen, fireEvent, waitFor } from "@testing-library/react";
+import { act, render, screen, fireEvent, waitFor } from "@testing-library/react";
 
 import { MobileInspectorSheet } from "@/components/MobileInspectorSheet";
 import type { MarkdownActionTab } from "@/components/MarkdownActionBar";
@@ -77,6 +77,46 @@ describe("MobileInspectorSheet", () => {
     return waitFor(() => {
       expect(onClose).toHaveBeenCalled();
     });
+  });
+
+  it("pins the displayed section during the close animation (L2)", async () => {
+    // Phase 4 review L2 / hako 5rtHKXzQd9VJY7WNU5Deg: vaul keeps
+    // Drawer.Content mounted while the slide-down animation plays. If
+    // we cleared the child the instant `activeTab` flips to "main",
+    // the user would see an empty drawer slide away. The Sheet pins
+    // the last non-main tab to `displayedTab` and only clears it
+    // ~350ms later so the section content stays visible through the
+    // close. This test asserts that contract.
+    vi.useFakeTimers();
+    try {
+      const { rerender } = render(
+        <MobileInspectorSheet
+          activeTab="related"
+          onClose={() => undefined}
+          sections={SECTIONS}
+        />,
+      );
+      expect(screen.getByTestId("section-related")).toBeInTheDocument();
+
+      // Flip to "main" — the related section must still be mounted so
+      // the close animation has something to fade out.
+      rerender(
+        <MobileInspectorSheet
+          activeTab="main"
+          onClose={() => undefined}
+          sections={SECTIONS}
+        />,
+      );
+      expect(screen.getByTestId("section-related")).toBeInTheDocument();
+
+      // Advance past the 350ms pinning window — the section unmounts.
+      await act(async () => {
+        vi.advanceTimersByTime(360);
+      });
+      expect(screen.queryByTestId("section-related")).toBeNull();
+    } finally {
+      vi.useRealTimers();
+    }
   });
 
   it("renders a heading matching the active tab", () => {

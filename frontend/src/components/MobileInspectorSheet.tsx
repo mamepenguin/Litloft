@@ -84,13 +84,16 @@ export function MobileInspectorSheet({
     <Drawer.Root
       open={open}
       onOpenChange={handleOpenChange}
+      modal
       // Modal: vaul locks page scroll, traps focus, and overlays the
       // Action Bar so swipes inside the drawer never propagate to
       // the underlying markdown body (user feedback from PWA test:
       // "ドロワーの上でスワイプした時にコンテンツがスクロールする
       // のを防いでほしい"). Switching tabs while open is a
       // close-then-reopen flow, which matches iOS bottom-sheet
-      // expectations.
+      // expectations. Pass `modal` explicitly even though vaul's
+      // default is true — the contract is durable across version
+      // bumps (Phase 4 review L5, hako 5rtHKXzQd9VJY7WNU5Deg).
     >
       <Drawer.Portal>
         <Drawer.Overlay

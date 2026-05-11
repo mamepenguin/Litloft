@@ -420,10 +420,14 @@ export function PropertiesPanel({
 }: {
   frontmatter: Record<string, unknown>;
   /**
-   * Suppress the ``tags`` row entirely. Used by the document-layout
-   * canvas fm-card so tag editing stays in the inspector's
-   * ``EditableTagChips`` and does not appear in two surfaces at once
-   * (spec 2026-05-10 §D2, hako B5QG4AcZjbn47MDErmQAO).
+   * Suppress the ``tags`` row entirely **and** disable the
+   * editable-mode auto-injection of an empty ``tags`` row. Used by the
+   * document-layout canvas fm-card so tag editing stays in the
+   * inspector's ``EditableTagChips`` and does not appear in two
+   * surfaces at once (spec 2026-05-10 §D2, hako
+   * B5QG4AcZjbn47MDErmQAO). In practice this means: even when
+   * ``editable`` is also passed, no tag chip surface is rendered here
+   * — the caller is expected to own that surface elsewhere.
    */
   hideTags?: boolean;
   /**
