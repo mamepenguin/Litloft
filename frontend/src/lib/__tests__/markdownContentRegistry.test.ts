@@ -114,6 +114,52 @@ describe("markdownContentRegistry", () => {
     expect(listener).not.toHaveBeenCalled();
   });
 
+  describe("save-success channel (Phase 3 follow-up hako 0RnZ1KdtomAfIJPLAGIHA)", () => {
+    it("calls every subscriber for a fileId when notifySaved fires", () => {
+      const a = vi.fn();
+      const b = vi.fn();
+      markdownContentRegistry.subscribeSaved("f1", a);
+      markdownContentRegistry.subscribeSaved("f1", b);
+      markdownContentRegistry.notifySaved("f1");
+      expect(a).toHaveBeenCalledTimes(1);
+      expect(b).toHaveBeenCalledTimes(1);
+    });
+
+    it("does not call subscribers of a different fileId", () => {
+      const a = vi.fn();
+      const b = vi.fn();
+      markdownContentRegistry.subscribeSaved("f1", a);
+      markdownContentRegistry.subscribeSaved("f2", b);
+      markdownContentRegistry.notifySaved("f1");
+      expect(a).toHaveBeenCalledTimes(1);
+      expect(b).not.toHaveBeenCalled();
+    });
+
+    it("notifySaved on an unsubscribed fileId is a no-op", () => {
+      // No throws / no listeners involved — just exercising the
+      // empty-map branch.
+      expect(() =>
+        markdownContentRegistry.notifySaved("never-subscribed"),
+      ).not.toThrow();
+    });
+
+    it("dispose function removes the subscriber and cleans up the slot", () => {
+      const fn = vi.fn();
+      const dispose = markdownContentRegistry.subscribeSaved("f1", fn);
+      dispose();
+      markdownContentRegistry.notifySaved("f1");
+      expect(fn).not.toHaveBeenCalled();
+    });
+
+    it("reset() drops save subscribers too", () => {
+      const fn = vi.fn();
+      markdownContentRegistry.subscribeSaved("f1", fn);
+      markdownContentRegistry.reset();
+      markdownContentRegistry.notifySaved("f1");
+      expect(fn).not.toHaveBeenCalled();
+    });
+  });
+
   it("reset() drops every registration AND every subscriber", () => {
     const listener = vi.fn();
     markdownContentRegistry.subscribe(listener);

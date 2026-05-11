@@ -474,6 +474,79 @@ describe("FileDetailContent", () => {
     expect(Array.isArray(inspectorChipProps!.initialTags)).toBe(true);
   });
 
+  it("refetches the file when the editor signals save-success via the registry (hako 0RnZ1KdtomAfIJPLAGIHA)", async () => {
+    // Phase 3 follow-up: in content-mode the inspector chip group does
+    // not own the save path, so its onSaveSuccess is unwired. The host
+    // (FileDetailContent) subscribes to the registry's save channel so
+    // that an editor-driven PUT still triggers File.tags refetch.
+    const { markdownContentRegistry } = await import(
+      "@/lib/markdownContentRegistry"
+    );
+    markdownContentRegistry.reset();
+
+    const initialFile = makeFile({
+      file_type: "document",
+      mime_type: "text/markdown",
+      filename: "note.md",
+      tags: ["a"],
+    });
+    const refreshedFile = { ...initialFile, tags: ["a", "b"] };
+    (api.getFile as ReturnType<typeof vi.fn>).mockResolvedValueOnce(
+      initialFile,
+    );
+    (api.getFile as ReturnType<typeof vi.fn>).mockResolvedValueOnce(
+      refreshedFile,
+    );
+    (api.recordFileView as ReturnType<typeof vi.fn>).mockResolvedValue(
+      undefined,
+    );
+
+    render(<FileDetailContent fileId="f1" drive="work" />);
+    await waitFor(() => expect(api.getFile).toHaveBeenCalledTimes(1));
+
+    // Editor reports a successful PUT.
+    act(() => {
+      markdownContentRegistry.notifySaved("f1");
+    });
+
+    // The host refetches so the inspector's tags catch up to the new
+    // server state without waiting for navigation.
+    await waitFor(() => {
+      expect(api.getFile).toHaveBeenCalledTimes(2);
+    });
+
+    markdownContentRegistry.reset();
+  });
+
+  it("does not refetch on save notifications for a different fileId", async () => {
+    // The subscription is per-fileId; another file's editor saving
+    // must not poke this host into a refetch loop.
+    const { markdownContentRegistry } = await import(
+      "@/lib/markdownContentRegistry"
+    );
+    markdownContentRegistry.reset();
+
+    setApiResponses(
+      makeFile({
+        file_type: "document",
+        mime_type: "text/markdown",
+        filename: "note.md",
+      }),
+    );
+    render(<FileDetailContent fileId="f1" drive="work" />);
+    await waitFor(() => expect(api.getFile).toHaveBeenCalledTimes(1));
+
+    act(() => {
+      markdownContentRegistry.notifySaved("other-file");
+    });
+
+    // Give React a tick to apply any (incorrect) refetch effect.
+    await new Promise((r) => setTimeout(r, 10));
+    expect(api.getFile).toHaveBeenCalledTimes(1);
+
+    markdownContentRegistry.reset();
+  });
+
   it("keeps standalone-mode chips for non-Markdown files even when something is registered (defensive)", async () => {
     // The registry is keyed by fileId, not mime — but the document
     // layout fork is the only consumer. Non-Markdown files use the

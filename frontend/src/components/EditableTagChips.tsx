@@ -78,9 +78,18 @@ export function EditableTagChips(props: EditableTagChipsProps) {
   const { file, initialTags, content, onContentChange, onTagsChange, onSaveSuccess } = props;
   const contentMode = content !== undefined && onContentChange !== undefined;
   // Derive the current tags from whichever source of truth is active.
-  const seedTags = contentMode
-    ? extractValidTags(parseNote(content!).metadata)
-    : initialTags ?? [];
+  // Memoised on the source so a parent re-render that doesn't actually
+  // change `content` (or `initialTags`) skips the gray-matter parse.
+  // For typical notes the parse is sub-ms; the memo matters for the
+  // long-note + dense frontmatter tail (Phase 3 review follow-up, hako
+  // ZWLqXgdTwt9le4dAI3U8C).
+  const seedTags = useMemo(
+    () =>
+      contentMode
+        ? extractValidTags(parseNote(content!).metadata)
+        : initialTags ?? [],
+    [contentMode, content, initialTags],
+  );
   const t = useTranslations("tag");
   const [tags, setTags] = useState<string[]>(seedTags);
   const [adding, setAdding] = useState(false);

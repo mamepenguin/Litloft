@@ -189,6 +189,20 @@ export function FileDetailContent({
     refreshSidebar();
   }, [fileId, refreshSidebar]);
 
+  // Phase 3 follow-up (hako 0RnZ1KdtomAfIJPLAGIHA): in content-mode the
+  // inspector chip group does not own the save path, so its
+  // `onSaveSuccess` was unwired. Subscribe to the registry's
+  // save-success channel instead — the editor signals after every
+  // successful PUT, and we refetch `file.tags` so the file detail UI
+  // does not sit on a stale array if the user navigates away
+  // immediately after editing chips.
+  useEffect(() => {
+    const dispose = markdownContentRegistry.subscribeSaved(fileId, () => {
+      handleTagsSaved();
+    });
+    return dispose;
+  }, [fileId, handleTagsSaved]);
+
   const handleLike = useCallback(async () => {
     if (!file) return;
     const updated = await likeFile(file.id);
