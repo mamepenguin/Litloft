@@ -10,6 +10,7 @@ import { useCreateFile } from "@/hooks/useCreateFile";
 import { useDragAndDrop } from "@/hooks/useDragAndDrop";
 import { useFolderTreeQuery } from "@/hooks/useFolderTreeQuery";
 import { useInitialReveal } from "@/hooks/useInitialReveal";
+import { useTreeAutoReveal } from "@/hooks/useTreeAutoReveal";
 import { useTreeExpansion } from "@/hooks/useTreeExpansion";
 import { useTreeTextFilter } from "@/hooks/useTreeTextFilter";
 import { useTreeTypeFilter } from "@/hooks/useTreeTypeFilter";
@@ -284,6 +285,18 @@ export function FolderTreePane({
     estimateSize: () => ROW_HEIGHT,
     overscan: 8,
     getItemKey: (index) => flatList[index]?.node.path ?? index,
+  });
+
+  // Auto-reveal: when the URL location changes from outside the tree
+  // (file click in the right pane, deep link, …) scroll the matching
+  // row into view if it is currently off-screen.
+  useTreeAutoReveal({
+    flatList,
+    virtualizer,
+    scrollElement: scrollRef.current,
+    selectedPath,
+    selectedFileId,
+    rowHeight: ROW_HEIGHT,
   });
 
   const handleSelect = (row: FlatTreeRow) => {
