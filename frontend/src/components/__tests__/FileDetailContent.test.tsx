@@ -44,13 +44,24 @@ vi.mock("../MarkdownDocumentLayout", () => ({
   MarkdownDocumentLayout: ({
     inspector,
     children,
+    sheetSections,
   }: {
     inspector: React.ReactNode;
     children: React.ReactNode;
+    sheetSections?: Record<string, React.ReactNode>;
   }) => (
     <div data-testid="markdown-document-layout">
       <div data-testid="md-canvas">{children}</div>
       <div data-testid="md-inspector">{inspector}</div>
+      {sheetSections && (
+        <div data-testid="md-sheet-sections">
+          {Object.entries(sheetSections).map(([key, node]) => (
+            <div key={key} data-testid={`md-sheet-${key}`}>
+              {node}
+            </div>
+          ))}
+        </div>
+      )}
     </div>
   ),
 }));
@@ -345,6 +356,52 @@ describe("FileDetailContent", () => {
     expect(inspector.querySelector('[data-testid="comments"]')).toBeNull();
   });
 
+  it("separates the AI Sheet tab (summary slot) from the canvas footer (detailed-summary / similar-files) on the same fileId (Phase 5)", async () => {
+    // Phase 5 edge-case verification: the inspector / Sheet AI tab
+    // shows intelligence's `summary` slot (short_summary + long_summary
+    // + regenerate). The canvas footer shows `detailed-summary` and
+    // `similar-files`. These are distinct slot ids served by the same
+    // addon — the host must funnel them into the right surface so
+    // neither appears twice.
+    setApiResponses(
+      makeFile({
+        file_type: "document",
+        mime_type: "text/markdown",
+        filename: "note.md",
+      }),
+    );
+    render(<FileDetailContent fileId="f1" drive="work" />);
+    await waitFor(() => expect(api.getFile).toHaveBeenCalled());
+
+    // AI Sheet tab carries ONLY the summary slot.
+    const aiSheet = screen.getByTestId("md-sheet-ai");
+    expect(
+      aiSheet.querySelector('[data-testid="addon-slot-include:summary"]'),
+    ).not.toBeNull();
+    expect(
+      aiSheet.querySelector(
+        '[data-testid="addon-slot-include:detailed-summary,similar-files"]',
+      ),
+    ).toBeNull();
+
+    // Canvas footer carries the detailed-summary / similar-files slot
+    // but NOT the AI tab's `summary` slot.
+    const canvas = screen.getByTestId("md-canvas");
+    expect(
+      canvas.querySelector(
+        '[data-testid="addon-slot-include:detailed-summary,similar-files"]',
+      ),
+    ).not.toBeNull();
+    expect(
+      canvas.querySelector('[data-testid="addon-slot-include:summary"]'),
+    ).toBeNull();
+
+    // Tags Sheet tab carries the EditableTagChips stub (the same
+    // content-mode chip the inspector uses on desktop).
+    const tagsSheet = screen.getByTestId("md-sheet-tags");
+    expect(tagsSheet.querySelector('[data-testid="tag-chips-stub"]')).not.toBeNull();
+  });
+
   it("does not render MarkdownDocumentLayout for non-Markdown files", async () => {
     setApiResponses(
       makeFile({
@@ -358,6 +415,50 @@ describe("FileDetailContent", () => {
       screen.queryByTestId("markdown-document-layout"),
     ).not.toBeInTheDocument();
     // Legacy stack: full slot (no include/exclude)
+    expect(screen.getByTestId("addon-slot-all")).toBeInTheDocument();
+  });
+
+  it("hot-switches between DocumentLayout and legacy stack when usePolicy flips mid-session (Phase 5)", async () => {
+    // Phase 5 edge-case verification: drives.json edits propagate via
+    // usePolicy's TTL cache. When the resolved enabled-ness flips
+    // (false → true or vice versa), the same FileDetailContent mount
+    // must cleanly swap layouts. The two forks rely on disjoint mounts
+    // (Editor lives under DocumentLayout; legacy slot is full
+    // <AddonSlot>) — there's no graceful in-place transition, and
+    // that's fine as long as the swap doesn't crash or stack two
+    // copies of the layout.
+    usePolicyMock.mockReturnValue({ enabled: false, isLoading: false });
+    setApiResponses(
+      makeFile({
+        file_type: "document",
+        mime_type: "text/markdown",
+        filename: "note.md",
+      }),
+    );
+    const { rerender } = render(
+      <FileDetailContent fileId="f1" drive="work" />,
+    );
+    await waitFor(() => expect(api.getFile).toHaveBeenCalled());
+    // Phase 1: legacy stack.
+    expect(
+      screen.queryByTestId("markdown-document-layout"),
+    ).not.toBeInTheDocument();
+
+    // Server-side toggle: knowledge.editor flips to true. After the
+    // policy hook's TTL the next render returns enabled=true.
+    usePolicyMock.mockReturnValue({ enabled: true, isLoading: false });
+    rerender(<FileDetailContent fileId="f1" drive="work" />);
+
+    // Phase 2: DocumentLayout fork is now active; legacy slot gone.
+    expect(screen.getByTestId("markdown-document-layout")).toBeInTheDocument();
+    expect(screen.queryByTestId("addon-slot-all")).toBeNull();
+
+    // And back again: policy flips off.
+    usePolicyMock.mockReturnValue({ enabled: false, isLoading: false });
+    rerender(<FileDetailContent fileId="f1" drive="work" />);
+    expect(
+      screen.queryByTestId("markdown-document-layout"),
+    ).not.toBeInTheDocument();
     expect(screen.getByTestId("addon-slot-all")).toBeInTheDocument();
   });
 
@@ -436,8 +537,13 @@ describe("FileDetailContent", () => {
     expect(inspectorChipProps!.initialTags).toBeUndefined();
 
     // The forwarded onContentChange routes through the registry's
-    // setContent — single writer.
-    screen.getByTestId("tag-content-write").click();
+    // setContent — single writer. The same tagChipNode renders in
+    // both the inspector and the mobile Sheet's "tags" tab, so scope
+    // the click to the inspector copy.
+    const inspector = screen.getByTestId("md-inspector");
+    inspector
+      .querySelector<HTMLButtonElement>('[data-testid="tag-content-write"]')!
+      .click();
     expect(setContentSpy).toHaveBeenCalledTimes(1);
     expect(setContentSpy).toHaveBeenCalledWith(
       "---\ntags: [via-chips]\n---\nbody",
