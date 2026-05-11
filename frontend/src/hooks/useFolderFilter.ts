@@ -2,13 +2,14 @@
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 
-import type { FileItem, TreeTypeFilter } from "@/types";
+import type { FileItem, Folder, TreeTypeFilter } from "@/types";
 import { fileMatchesTypeFilter } from "@/lib/fileTypeFilter";
 
 const DEBOUNCE_MS = 300;
 
 export interface FolderFilterApi<T extends FileItem> {
   files: T[];
+  folders: Folder[];
   text: string;
   setText: (next: string) => void;
   typeFilter: TreeTypeFilter | null;
@@ -19,11 +20,17 @@ export interface FolderFilterApi<T extends FileItem> {
 
 /**
  * Right-pane filter for the current folder. Applies a case-insensitive
- * substring match on filename plus an optional type filter.
+ * substring match on filename plus an optional type filter. The text
+ * filter also hides folders whose name does not contain the substring;
+ * the type filter leaves folders untouched (folder.dominant_kind is a
+ * separate axis from FileItem.file_type).
  *
  * Spec: docs/superpowers/specs/2026-05-09-folder-filter-and-tree-filter.md §2.
  */
-export function useFolderFilter<T extends FileItem>(files: T[]): FolderFilterApi<T> {
+export function useFolderFilter<T extends FileItem>(
+  files: T[],
+  folders: Folder[] = [],
+): FolderFilterApi<T> {
   const [text, setTextState] = useState("");
   const [debouncedText, setDebouncedText] = useState("");
   const [typeFilter, setTypeFilterState] = useState<TreeTypeFilter | null>(null);
@@ -63,6 +70,12 @@ export function useFolderFilter<T extends FileItem>(files: T[]): FolderFilterApi
     });
   }, [files, debouncedText, typeFilter]);
 
+  const filteredFolders = useMemo(() => {
+    if (debouncedText.length === 0) return folders;
+    const lowered = debouncedText.toLowerCase();
+    return folders.filter((folder) => folder.name.toLowerCase().includes(lowered));
+  }, [folders, debouncedText]);
+
   // Use debouncedText so the empty-state UI reflects the same view the
   // filter is actually showing — typing without the debounce settling
   // would otherwise flash the empty state for one render.
@@ -70,6 +83,7 @@ export function useFolderFilter<T extends FileItem>(files: T[]): FolderFilterApi
 
   return {
     files: filteredFiles,
+    folders: filteredFolders,
     text,
     setText,
     typeFilter,

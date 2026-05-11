@@ -7,9 +7,19 @@
 import { act, renderHook } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-import type { FileItem } from "@/types";
+import type { FileItem, Folder } from "@/types";
 
 import { useFolderFilter } from "../useFolderFilter";
+
+function makeFolder(name: string): Folder {
+  return {
+    name,
+    path: name,
+    file_count: 0,
+    thumbnail_file_id: null,
+    dominant_kind: null,
+  };
+}
 
 function makeFile(overrides: Partial<FileItem>): FileItem {
   return {
@@ -166,6 +176,35 @@ describe("useFolderFilter", () => {
 
     expect(result.current.isActive).toBe(true);
     vi.useRealTimers();
+  });
+
+  it("filters folders by case-insensitive substring match on folder name", () => {
+    vi.useFakeTimers({ shouldAdvanceTime: false });
+    const folders = [makeFolder("Recipes"), makeFolder("Notes"), makeFolder("photos")];
+    const { result } = renderHook(() => useFolderFilter(sampleFiles, folders));
+    act(() => {
+      result.current.setText("note");
+    });
+    act(() => {
+      vi.advanceTimersByTime(300);
+    });
+    expect(result.current.folders.map((f) => f.name)).toEqual(["Notes"]);
+    vi.useRealTimers();
+  });
+
+  it("returns folders unchanged when text is empty", () => {
+    const folders = [makeFolder("a"), makeFolder("b")];
+    const { result } = renderHook(() => useFolderFilter(sampleFiles, folders));
+    expect(result.current.folders).toEqual(folders);
+  });
+
+  it("type filter does not hide folders", () => {
+    const folders = [makeFolder("Misc"), makeFolder("Other")];
+    const { result } = renderHook(() => useFolderFilter(sampleFiles, folders));
+    act(() => {
+      result.current.setTypeFilter("video");
+    });
+    expect(result.current.folders).toEqual(folders);
   });
 
   it("clear() resets both text and type", () => {

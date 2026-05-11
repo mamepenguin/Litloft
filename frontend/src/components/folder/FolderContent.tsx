@@ -57,9 +57,11 @@ export function FolderContent({
   const tFilter = useTranslations("filter");
   const [menuTarget, setMenuTarget] = useState<Folder | null>(null);
   const { menuState: folderMenuState, close: closeFolderMenu, handlers: folderMenuHandlers } = useContextMenu();
-  const filter = useFolderFilter<FileItemWithMatch>(files);
+  const filter = useFolderFilter<FileItemWithMatch>(files, folders);
   const filteredFiles = filter.files;
-  const isFilterEmpty = filter.isActive && filteredFiles.length === 0;
+  const filteredFolders = filter.folders;
+  const isFilterEmpty =
+    filter.isActive && filteredFiles.length === 0 && filteredFolders.length === 0;
   return (
     <>
       <div className="mb-6">
@@ -72,9 +74,9 @@ export function FolderContent({
         />
       </div>
 
-      {folders.length > 0 && (
+      {filteredFolders.length > 0 && (
         <div className="mb-6 grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-          {folders.map((folder) => {
+          {filteredFolders.map((folder) => {
             const disabled = isDropDisabled(folder.path);
             return (
               <FolderCard
