@@ -428,6 +428,23 @@ def _migrate(engine_) -> None:
             conn.execute(text("DROP TABLE playlists"))
         logger.info("Migration complete: playlists data copied to collections")
 
+    # === Spec 2026-05-12-markdown-link-three-forms: add md_id column to files ===
+    inspector_md = inspect(engine_)
+    tables_md = inspector_md.get_table_names()
+    if "files" in tables_md:
+        file_columns = {col["name"] for col in inspector_md.get_columns("files")}
+        if "md_id" not in file_columns:
+            logger.info("Migrating: adding 'md_id' column to files")
+            with engine_.begin() as conn:
+                conn.execute(text("ALTER TABLE files ADD COLUMN md_id VARCHAR(32)"))
+        existing_indexes = {i["name"] for i in inspector_md.get_indexes("files")}
+        if "idx_files_drive_md_id" not in existing_indexes:
+            with engine_.begin() as conn:
+                conn.execute(text(
+                    "CREATE INDEX IF NOT EXISTS idx_files_drive_md_id "
+                    "ON files(drive, md_id)"
+                ))
+
 
 def init_db() -> None:
     DATA_DIR.mkdir(parents=True, exist_ok=True)

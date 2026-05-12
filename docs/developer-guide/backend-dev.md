@@ -102,6 +102,14 @@ q = session.query(File).filter(active_file_filter())
 - HEIC: **Pillow with pillow-heif**, never ffmpeg (ffmpeg lacks libheif and produces black thumbnails).
 - All thumbnails: 320x180 JPEG.
 
+### Markdown frontmatter helpers
+
+`app.services.frontmatter` exposes `parse`, `compose`, and `ensure_id`. They are all pure / immutable — never mutate the `metadata` dict in place; use the returned dict.
+
+For `.md` writes, run `ensure_id(metadata, existing_id=file.md_id, now=...)` **before** writing bytes to disk so the `File.md_id` projection and the on-disk frontmatter agree. Same-second collision disambiguation (3-digit ms suffix → 17 chars) is the caller's job; `ensure_id` itself stays pure. The canonical example is `_inject_md_id` in `routers/files.py`.
+
+A sibling implementation lives at `addons/knowledge/app/services/frontmatter.py` (cross-container duplication, drift caught in PR review). Change them together. See spec `2026-05-12-markdown-link-three-forms.md` §3.1 and the "Markdown frontmatter `id:`" section of `.claude/rules/design-decisions.md`.
+
 ## Adding an endpoint
 
 1. Add the route to the appropriate router under `backend/app/routers/`.

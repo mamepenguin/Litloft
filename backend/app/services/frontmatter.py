@@ -32,6 +32,7 @@ from __future__ import annotations
 
 import re
 from dataclasses import dataclass
+from datetime import datetime, timezone
 from typing import Any
 
 import yaml
@@ -51,6 +52,68 @@ class ParsedMarkdown:
 
 
 _DELIM = "---"
+
+_ID_RE = re.compile(r"^\d{12,17}$")
+
+
+def _coerce_valid_id(value: Any) -> str | None:
+    if isinstance(value, str):
+        candidate = value
+    elif isinstance(value, int) and not isinstance(value, bool):
+        candidate = str(value)
+    else:
+        return None
+    return candidate if _ID_RE.match(candidate) else None
+
+
+def ensure_id(
+    metadata: dict[str, Any],
+    existing_id: str | None = None,
+    now: datetime | None = None,
+) -> tuple[dict[str, Any], str]:
+    """Return ``(new_metadata, id_value)`` with a valid ``id:`` key.
+
+    Pure / immutable: ``metadata`` is never mutated; a new dict is
+    returned with ``id`` as the first key. Validation regex is
+    ``^\\d{12,17}$``. Order of precedence:
+
+    1. ``metadata['id']`` if already valid.
+    2. ``existing_id`` (e.g. ``File.md_id`` from the DB) if valid.
+    3. A fresh ``YYYYMMDDhhmmss`` timestamp from ``now`` (UTC).
+
+    Collision disambiguation (3-digit ms suffix → 17 chars) is the
+    caller's job — this function is pure.
+    """
+    preserved = _coerce_valid_id(metadata.get("id"))
+    if preserved is not None:
+        new_id = preserved
+    elif (reused := _coerce_valid_id(existing_id)) is not None:
+        new_id = reused
+    else:
+        moment = now if now is not None else datetime.now(timezone.utc)
+        new_id = moment.strftime("%Y%m%d%H%M%S")
+
+    rest = {k: v for k, v in metadata.items() if k != "id"}
+    new_metadata = {"id": new_id, **rest}
+    return new_metadata, new_id
+
+
+def compose(metadata: dict[str, Any], body: str) -> str:
+    """Join frontmatter and body. Mirrors the knowledge-addon helper.
+
+    Uses ``yaml.safe_dump`` with ``sort_keys=False`` so the caller
+    controls ordering (humans scan frontmatter top-down; the ``id``
+    key should appear first when present).
+    """
+    if not metadata:
+        return body
+    dumped = yaml.safe_dump(
+        metadata,
+        sort_keys=False,
+        allow_unicode=True,
+        default_flow_style=False,
+    ).rstrip()
+    return f"{_DELIM}\n{dumped}\n{_DELIM}\n\n{body}"
 
 
 def parse(content: str) -> ParsedMarkdown:

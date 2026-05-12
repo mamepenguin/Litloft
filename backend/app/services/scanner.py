@@ -12,11 +12,15 @@ from app.database import SessionLocal
 from app.models import EmptyFolder, File, FileExif, active_file_filter
 from app.services.exif import extract_exif
 from app.services.filetype import classify, is_hidden, refine_classification_with_probe
+from app.services.frontmatter import compose as compose_frontmatter
+from app.services.frontmatter import ensure_id, parse as parse_frontmatter
 from app.services.hash import compute_file_hash
 from app.services.subtitle import is_subtitle_file
 from app.services.thumbnail import get_thumbnail_generator, get_video_duration
 from app.services import event_hooks
 from app.services.ws import broadcast_from_thread
+
+_MD_READ_MAX_BYTES = 1 * 1024 * 1024
 
 logger = logging.getLogger(__name__)
 
@@ -98,6 +102,68 @@ def _relocate_thumbnail(
         file_record.thumbnail_path = None
 
 
+def _ensure_md_id_for_new_file(
+    db: Session,
+    file_record: File,
+    file_path: Path,
+) -> None:
+    """For ``.md`` files: read frontmatter, ensure ``id:`` and project to
+    ``File.md_id``.
+
+    No-op when the file is not markdown, has no frontmatter, or is too
+    large to safely parse. When the frontmatter has no ``id:``, generate
+    one and write the file back atomically. Same collision rule as
+    ``put_file_content._inject_md_id`` (spec §3.1).
+
+    Called from both ``register_single_file`` and ``_scan_and_register``.
+    Failures (read errors, malformed YAML, write errors) are swallowed so
+    a hostile file cannot break scan / upload registration.
+    """
+    if file_record.mime_type != "text/markdown" and not file_record.filename.lower().endswith(".md"):
+        return
+    try:
+        stat = file_path.stat()
+        if stat.st_size > _MD_READ_MAX_BYTES:
+            return
+        content = file_path.read_text(encoding="utf-8")
+    except (OSError, UnicodeDecodeError):
+        return
+
+    parsed = parse_frontmatter(content)
+    if not parsed.metadata:
+        return
+
+    fm_id_raw = parsed.metadata.get("id")
+    now = datetime.now(UTC)
+    new_meta, new_id = ensure_id(parsed.metadata, existing_id=None, now=now)
+
+    came_from_fm = isinstance(fm_id_raw, (str, int)) and str(fm_id_raw) == new_id
+    if not came_from_fm:
+        collision = (
+            db.query(File.id)
+            .filter(
+                File.drive == file_record.drive,
+                File.id != file_record.id,
+                File.md_id == new_id,
+            )
+            .first()
+        )
+        if collision is not None:
+            new_id = f"{new_id}{(now.microsecond // 1000):03d}"
+            new_meta = {"id": new_id, **{k: v for k, v in new_meta.items() if k != "id"}}
+
+        new_content = compose_frontmatter(new_meta, parsed.body)
+        try:
+            tmp = file_path.with_suffix(file_path.suffix + ".tmp")
+            tmp.write_text(new_content, encoding="utf-8")
+            tmp.replace(file_path)
+            file_record.file_size = file_path.stat().st_size
+        except OSError:
+            return
+
+    file_record.md_id = new_id
+
+
 def register_single_file(db: Session, drive_name: str, file_path: Path) -> str:
     """Register a single file to the database. Returns file_id.
 
@@ -153,6 +219,8 @@ def register_single_file(db: Session, drive_name: str, file_path: Path) -> str:
     )
     db.add(file_record)
     db.flush()
+
+    _ensure_md_id_for_new_file(db, file_record, file_path)
 
     if file_type == "image":
         exif = extract_exif(file_path)
@@ -406,6 +474,8 @@ def _scan_and_register(db: Session, drive_name: str) -> dict[str, int]:
         )
         db.add(file_record)
         db.flush()
+
+        _ensure_md_id_for_new_file(db, file_record, item)
 
         if file_type == "image":
             exif = extract_exif(item)

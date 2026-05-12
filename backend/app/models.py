@@ -79,6 +79,9 @@ class File(Base):
     file_hash: Mapped[str | None] = mapped_column(
         String(64), nullable=True, default=None
     )
+    md_id: Mapped[str | None] = mapped_column(
+        String(32), nullable=True, default=None
+    )
 
     tags: Mapped[list[Tag]] = relationship(
         "Tag", secondary=file_tags, back_populates="files", lazy="selectin"
@@ -92,6 +95,7 @@ class File(Base):
         Index("idx_files_deleted_at", "deleted_at"),
         Index("idx_files_missing_since", "missing_since"),
         Index("idx_files_file_hash", "file_hash"),
+        Index("idx_files_drive_md_id", "drive", "md_id"),
     )
 
 

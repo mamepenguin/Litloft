@@ -98,6 +98,8 @@ Markdown files use frontmatter as the canonical store; everything else uses the 
 
 The frontmatter parser is implemented twice (core + knowledge) because they live in separate containers. Drift caught in PR review.
 
+The same canonical / projection split applies to the Markdown `id:` field added in Phase A of spec `2026-05-12-markdown-link-three-forms.md`: the frontmatter `id:` is canonical, `File.md_id` is the projection cache. Injection sites today are `PUT /api/files/{id}/content` and the knowledge `note_scanner` reconcile loop; the shared helper is `ensure_id` (duplicated in core and knowledge for the same cross-container reason).
+
 ## Addon model
 
 Two flavours:

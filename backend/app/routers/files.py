@@ -59,6 +59,8 @@ from app.schemas import (
 from app.services import fileops
 from app.services.filetype import classify
 from app.services.frontmatter import (
+    compose as compose_frontmatter,
+    ensure_id,
     extract_valid_tags,
     parse as parse_frontmatter,
 )
@@ -1234,6 +1236,62 @@ def _compute_text_etag(data: bytes) -> str:
     return hashlib.sha256(data).hexdigest()
 
 
+def _inject_md_id(
+    db: Session,
+    file: File,
+    body: bytes,
+) -> tuple[bytes, str | None]:
+    """Inject a frontmatter ``id:`` into ``body`` if missing.
+
+    Returns ``(possibly_rewritten_body, new_md_id)``. ``new_md_id`` is
+    ``None`` when no injection happened (malformed UTF-8/YAML, or the
+    body already had a valid id — in which case ``new_md_id`` is still
+    returned for projection so ``File.md_id`` stays in sync).
+
+    Spec: docs/superpowers/specs/2026-05-12-markdown-link-three-forms.md §3.1.
+    """
+    try:
+        body_str = body.decode("utf-8")
+    except UnicodeDecodeError:
+        return body, None
+
+    parsed = parse_frontmatter(body_str)
+    if not parsed.metadata:
+        return body, None
+
+    fm_id_raw = parsed.metadata.get("id")
+    now = datetime.now(UTC)
+    new_meta, new_id = ensure_id(
+        parsed.metadata, existing_id=file.md_id, now=now
+    )
+
+    came_from_fm = isinstance(fm_id_raw, (str, int)) and str(fm_id_raw) == new_id
+    came_from_db = (not came_from_fm) and file.md_id == new_id
+    if not came_from_fm and not came_from_db:
+        # Same-second collision insurance (spec §3.1): when the freshly
+        # generated 14-digit id already exists as another file's md_id
+        # in the same drive, append the millisecond component to extend
+        # to 17 digits. 14-digit ids remain the common case.
+        collision = (
+            db.query(File.id)
+            .filter(
+                File.drive == file.drive,
+                File.id != file.id,
+                File.md_id == new_id,
+            )
+            .first()
+        )
+        if collision is not None:
+            new_id = f"{new_id}{(now.microsecond // 1000):03d}"
+            new_meta = {"id": new_id, **{k: v for k, v in new_meta.items() if k != "id"}}
+
+    if str(parsed.metadata.get("id", "")) == new_id and "id" in parsed.metadata:
+        return body, new_id
+
+    new_body_str = compose_frontmatter(new_meta, parsed.body)
+    return new_body_str.encode("utf-8"), new_id
+
+
 def _strip_etag_quotes(value: str) -> str:
     value = value.strip()
     if value.startswith("W/"):
@@ -1293,6 +1351,18 @@ async def put_file_content(
         if _strip_etag_quotes(if_match) != current_etag:
             raise HTTPException(status_code=412, detail="ETag mismatch")
 
+        # Spec 2026-05-12-markdown-link-three-forms §3.1: inject frontmatter
+        # ``id:`` for .md writes so wiki-link resolution has a stable handle.
+        # Skipped silently on UnicodeDecodeError / malformed YAML — id is
+        # never blocked on the write path.
+        injected_md_id: str | None = None
+        if _is_markdown_file(file):
+            body, injected_md_id = _inject_md_id(db, file, body)
+            if len(body) > _TEXT_WRITE_MAX_BYTES:
+                raise HTTPException(
+                    status_code=413, detail="Content exceeds size limit after id injection"
+                )
+
         # Atomic write: tmp + os.replace. Temp file is on the same FS as target
         # so os.replace is atomic on POSIX.
         tmp_fd, tmp_name = tempfile.mkstemp(
@@ -1326,6 +1396,15 @@ async def put_file_content(
         # we log the error, the file bytes stay correct, and the
         # scanner reconciles ``File.tags`` within the hour.
         if _is_markdown_file(file):
+            if injected_md_id is not None:
+                try:
+                    file.md_id = injected_md_id
+                    db.commit()
+                except Exception:
+                    db.rollback()
+                    logger.exception(
+                        "put_content: md_id projection failed for %s", file_id
+                    )
             try:
                 parsed = parse_frontmatter(body.decode("utf-8"))
                 tags = extract_valid_tags(parsed.metadata)
