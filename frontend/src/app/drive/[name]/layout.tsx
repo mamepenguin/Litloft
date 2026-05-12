@@ -8,6 +8,7 @@ import { TwoPaneLayout } from "@/components/folder/TwoPaneLayout";
 import {
   isCrossFolderView,
   isDriveAddonPath,
+  isDriveCollectionPath,
   isDriveSearchPath,
   isStandaloneView,
 } from "@/lib/driveViews";
@@ -48,11 +49,14 @@ export default function DriveLayout({ children }: { children: ReactNode }) {
   const drivePart = `/drive/${encodeURIComponent(driveName)}`;
   const view = searchParams.get("view");
   const isAddonRoute = isDriveAddonPath(pathname);
+  const isCollectionRoute = isDriveCollectionPath(pathname);
   const isStandalone = isStandaloneView(view);
   const isCrossFolderRoute = isCrossFolderView(view) || isDriveSearchPath(pathname);
 
-  // Addon routes and recovery views own their own page chrome.
-  if (isAddonRoute || isStandalone) {
+  // Addon, recovery, and collection detail routes own their own page
+  // chrome (incl. their own ``<TwoPaneLayout>`` wrapper where they want
+  // a left pane with non-folder-tree content).
+  if (isAddonRoute || isStandalone || isCollectionRoute) {
     return <>{children}</>;
   }
 

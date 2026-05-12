@@ -12,11 +12,11 @@ import type { FileItem } from "@/types";
  *
  * Two paths through this Server Component:
  *
- * 1. ``?playlist=`` / ``?folder_play=1`` is set → render the legacy
- *    fullscreen surface via FileDetailFullScreen. Playlist mode is
- *    intentionally 2-pane-exempt (§4.6) — the PlaylistPanel and the
- *    player share the same column, which the right pane can't host
- *    cleanly.
+ * 1. ``?collection=`` (or the legacy alias ``?playlist=``) /
+ *    ``?folder_play=1`` is set → render the legacy fullscreen surface
+ *    via FileDetailFullScreen. Collection mode is intentionally
+ *    2-pane-exempt (§4.6) — the CollectionPanel and the player share
+ *    the same column, which the right pane can't host cleanly.
  *
  * 2. Otherwise → 307 redirect to the canonical 2-pane URL
  *    ``/drive/{drive}/{folder}?file={id}``. ``redirect()`` from
@@ -62,13 +62,17 @@ export default async function FileRoute({ params, searchParams }: PageProps) {
   const { id } = await params;
   const sp = await searchParams;
 
-  // Playlist mode: stay on /files/{id} as the legacy fullscreen
+  // Collection mode: stay on /files/{id} as the legacy fullscreen
   // surface. We still render <FileDetailContent> internally — the
   // right pane equivalence applies to the body, not the surrounding
-  // chrome (PlaylistPanel + back button + overlay sidebar).
-  const hasPlaylist =
-    typeof sp.playlist === "string" || sp.folder_play === "1";
-  if (hasPlaylist) {
+  // chrome (CollectionPanel + back button + overlay sidebar).
+  // Spec 2026-05-12-playlist-to-collection §6.4: ``?playlist=`` is
+  // kept as a transitional alias for one release.
+  const hasCollection =
+    typeof sp.collection === "string" ||
+    typeof sp.playlist === "string" ||
+    sp.folder_play === "1";
+  if (hasCollection) {
     return <FileDetailFullScreen fileId={id} />;
   }
 

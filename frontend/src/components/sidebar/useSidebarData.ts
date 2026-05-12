@@ -2,16 +2,16 @@
 
 import { useEffect, useState } from "react";
 
-import { getDrives, getDriveSummary, getDriveTags, getPins, getPlaylists, getAuthStatus } from "@/lib/api";
+import { getCollections, getDrives, getDriveSummary, getDriveTags, getPins, getAuthStatus } from "@/lib/api";
 import { useWebSocket } from "@/hooks/useWebSocket";
-import type { AuthStatus, Drive, DriveSummary, PinnedFolder, PlaylistSummary, Tag } from "@/types";
+import type { AuthStatus, CollectionSummary, Drive, DriveSummary, PinnedFolder, Tag } from "@/types";
 
 interface UseSidebarDataResult {
   drives: Drive[];
   tags: Tag[];
   pins: PinnedFolder[];
-  playlistList: PlaylistSummary[];
-  setPlaylistList: React.Dispatch<React.SetStateAction<PlaylistSummary[]>>;
+  collectionList: CollectionSummary[];
+  setCollectionList: React.Dispatch<React.SetStateAction<CollectionSummary[]>>;
   authStatus: AuthStatus | null;
   driveSummary: DriveSummary | null;
 }
@@ -23,7 +23,7 @@ export function useSidebarData(
   const [drives, setDrives] = useState<Drive[]>([]);
   const [tags, setTags] = useState<Tag[]>([]);
   const [pins, setPins] = useState<PinnedFolder[]>([]);
-  const [playlistList, setPlaylistList] = useState<PlaylistSummary[]>([]);
+  const [collectionList, setCollectionList] = useState<CollectionSummary[]>([]);
   const [authStatus, setAuthStatus] = useState<AuthStatus | null>(null);
   const [driveSummary, setDriveSummary] = useState<DriveSummary | null>(null);
 
@@ -39,7 +39,7 @@ export function useSidebarData(
     }
     getDriveTags(currentDrive).then(setTags).catch(() => setTags([]));
     getPins(currentDrive).then(setPins).catch(() => setPins([]));
-    getPlaylists(currentDrive).then(setPlaylistList).catch(() => setPlaylistList([]));
+    getCollections(currentDrive).then(setCollectionList).catch(() => setCollectionList([]));
     getDriveSummary(currentDrive).then(setDriveSummary).catch(() => setDriveSummary(null));
   }, [currentDrive, refreshKey]);
 
@@ -51,5 +51,5 @@ export function useSidebarData(
     getDriveSummary(currentDrive).then(setDriveSummary).catch(() => {});
   }, [scanEvent, currentDrive]);
 
-  return { drives, tags, pins, playlistList, setPlaylistList, authStatus, driveSummary };
+  return { drives, tags, pins, collectionList, setCollectionList, authStatus, driveSummary };
 }

@@ -18,7 +18,7 @@ import {
   batchDelete,
   getPins,
   addPin,
-  getPlaylists,
+  getCollections,
   getArchiveContents,
   getArchiveEntryUrl,
   unlock,
@@ -285,12 +285,12 @@ describe("api", () => {
     });
   });
 
-  describe("playlists", () => {
-    it("getPlaylists fetches list", async () => {
+  describe("collections", () => {
+    it("getCollections fetches list", async () => {
       mockFetch.mockResolvedValueOnce(jsonResponse([]));
-      await getPlaylists("main");
+      await getCollections("main");
       expect(mockFetch).toHaveBeenCalledWith(
-        "/api/drives/main/playlists",
+        "/api/drives/main/collections",
         expect.any(Object)
       );
     });

@@ -10,9 +10,9 @@ import { useAddonSlots } from "./AddonSlotsProvider";
 import { useSidebar } from "./SidebarProvider";
 import { useCurrentDrive, useSetOverrideDrive } from "./CurrentDriveProvider";
 import { useSidebarData } from "./sidebar/useSidebarData";
-import { usePlaylistManagement } from "./sidebar/usePlaylistManagement";
+import { useCollectionManagement } from "./sidebar/useCollectionManagement";
 import { SidebarLibrarySection } from "./sidebar/SidebarLibrarySection";
-import { SidebarPlaylistsSection } from "./sidebar/SidebarPlaylistsSection";
+import { SidebarCollectionsSection } from "./sidebar/SidebarCollectionsSection";
 import { SidebarPinsSection } from "./sidebar/SidebarPinsSection";
 import { SidebarSmartFoldersSection } from "./sidebar/SidebarSmartFoldersSection";
 import { SidebarTagsSection } from "./sidebar/SidebarTagsSection";
@@ -36,13 +36,13 @@ function SidebarNav() {
 
   const { addons } = useAddonSlots();
 
-  const { drives, tags, pins, playlistList, setPlaylistList, authStatus, driveSummary } =
+  const { drives, tags, pins, collectionList, setCollectionList, authStatus, driveSummary } =
     useSidebarData(currentDrive, refreshKey);
 
-  const playlist = usePlaylistManagement({
+  const collection = useCollectionManagement({
     currentDrive,
-    playlistList,
-    setPlaylistList,
+    collectionList,
+    setCollectionList,
     close: closeIfOverlay,
     router,
     setOverrideDrive,
@@ -96,7 +96,7 @@ function SidebarNav() {
       <SidebarLibrarySection driveBase={driveBase} currentDrive={currentDrive} linkClass={linkClass} close={closeIfOverlay} addons={addons} driveSummary={driveSummary} />
 
       {driveBase && (
-        <SidebarPlaylistsSection driveBase={driveBase} currentDrive={currentDrive} setPlaylistList={setPlaylistList} {...playlist} />
+        <SidebarCollectionsSection driveBase={driveBase} currentDrive={currentDrive} setCollectionList={setCollectionList} {...collection} />
       )}
 
       {driveBase && (

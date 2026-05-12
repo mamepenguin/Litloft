@@ -480,35 +480,59 @@ class WatchHistoryResponse(BaseModel):
     data: list[WatchHistoryItemResponse]
 
 
-class PlaylistCreateRequest(BaseModel):
+def _validate_collection_name(v: str) -> str:
+    v = v.strip()
+    if not v:
+        raise ValueError("Collection name is required")
+    if len(v) > 100:
+        raise ValueError("Collection name exceeds 100 characters")
+    return v
+
+
+def _validate_collection_description(v: str | None) -> str | None:
+    if v is None:
+        return v
+    v = v.strip()
+    if not v:
+        return None
+    if len(v) > 1000:
+        raise ValueError("Collection description exceeds 1000 characters")
+    return v
+
+
+class CollectionCreateRequest(BaseModel):
     name: str
+    description: str | None = None
 
     @field_validator("name")
     @classmethod
     def validate_name(cls, v: str) -> str:
-        v = v.strip()
-        if not v:
-            raise ValueError("Playlist name is required")
-        if len(v) > 100:
-            raise ValueError("Playlist name exceeds 100 characters")
-        return v
+        return _validate_collection_name(v)
+
+    @field_validator("description")
+    @classmethod
+    def validate_description(cls, v: str | None) -> str | None:
+        return _validate_collection_description(v)
 
 
-class PlaylistUpdateRequest(BaseModel):
-    name: str
+class CollectionUpdateRequest(BaseModel):
+    name: str | None = None
+    description: str | None = None
 
     @field_validator("name")
     @classmethod
-    def validate_name(cls, v: str) -> str:
-        v = v.strip()
-        if not v:
-            raise ValueError("Playlist name is required")
-        if len(v) > 100:
-            raise ValueError("Playlist name exceeds 100 characters")
-        return v
+    def validate_name(cls, v: str | None) -> str | None:
+        if v is None:
+            return v
+        return _validate_collection_name(v)
+
+    @field_validator("description")
+    @classmethod
+    def validate_description(cls, v: str | None) -> str | None:
+        return _validate_collection_description(v)
 
 
-class PlaylistItemAddRequest(BaseModel):
+class CollectionItemAddRequest(BaseModel):
     file_ids: list[str]
 
     @field_validator("file_ids")
@@ -524,7 +548,7 @@ class PlaylistItemAddRequest(BaseModel):
         return v
 
 
-class PlaylistItemReorderRequest(BaseModel):
+class CollectionItemReorderRequest(BaseModel):
     item_ids: list[int]
 
     @field_validator("item_ids")
@@ -535,15 +559,16 @@ class PlaylistItemReorderRequest(BaseModel):
         return v
 
 
-class PlaylistItemResponse(BaseModel):
+class CollectionItemResponse(BaseModel):
     id: int
     position: int
     file: FileResponse
 
 
-class PlaylistSummaryResponse(_UtcDateTimeMixin, BaseModel):
+class CollectionSummaryResponse(_UtcDateTimeMixin, BaseModel):
     id: str
     name: str
+    description: str | None
     drive: str
     item_count: int
     first_file_id: str | None
@@ -551,11 +576,12 @@ class PlaylistSummaryResponse(_UtcDateTimeMixin, BaseModel):
     updated_at: datetime
 
 
-class PlaylistDetailResponse(_UtcDateTimeMixin, BaseModel):
+class CollectionDetailResponse(_UtcDateTimeMixin, BaseModel):
     id: str
     name: str
+    description: str | None
     drive: str
-    items: list[PlaylistItemResponse]
+    items: list[CollectionItemResponse]
     created_at: datetime
     updated_at: datetime
 

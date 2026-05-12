@@ -8,9 +8,9 @@ import { useTranslations } from "next-intl";
 import { FileDetailContent } from "@/components/FileDetailContent";
 import { ImageGallery } from "@/components/ImageGallery";
 import {
-  PlaylistPanel,
-  getPlaylistOnEnded,
-} from "@/components/PlaylistPanel";
+  CollectionPanel,
+  getCollectionOnEnded,
+} from "@/components/CollectionPanel";
 import { useSetOverrideDrive } from "@/components/CurrentDriveProvider";
 import { useOverlaySidebar } from "@/components/SidebarProvider";
 import { useFileNav } from "@/hooks/useFileNav";
@@ -25,16 +25,17 @@ interface FileDetailFullScreenProps {
  * Fullscreen route host for ``/files/{id}``. Used in two situations
  * (per spec §4.6 / §4.7):
  *
- * 1. ``?playlist=`` / ``?folder_play=1`` is set — the spec keeps the
- *    playlist-exception route fullscreen (2-pane离脱) so the
- *    PlaylistPanel and the player share the same visual focus.
+ * 1. ``?collection=`` (legacy alias: ``?playlist=``) / ``?folder_play=1``
+ *    is set — the spec keeps the collection-exception route fullscreen
+ *    (2-pane离脱) so the CollectionPanel and the player share the same
+ *    visual focus.
  * 2. (Future) any URL the Server Component decides not to redirect.
  *
  * Composes ``<FileDetailContent>`` with the chrome the legacy
  * `/files/[id]/page.tsx` carried: a back button, ImageGallery on
- * Maximize, PlaylistPanel when in playlist mode, useOverlaySidebar
+ * Maximize, CollectionPanel when in collection mode, useOverlaySidebar
  * to collapse the global sidebar to overlay, and useFileNav for
- * arrow-key navigation in non-playlist mode.
+ * arrow-key navigation in non-collection mode.
  */
 export function FileDetailFullScreen({ fileId }: FileDetailFullScreenProps) {
   // Unlike RightPaneFile, the fullscreen host DOES collapse the
@@ -49,9 +50,13 @@ export function FileDetailFullScreen({ fileId }: FileDetailFullScreenProps) {
 
   const sort = searchParams.get("sort") || undefined;
   const order = searchParams.get("order") || undefined;
-  const playlistId = searchParams.get("playlist") || undefined;
+  // Spec 2026-05-12-playlist-to-collection §6.4: prefer ``?collection=``
+  // but accept the legacy ``?playlist=`` for one release so bookmarks
+  // and external links keep working. Phase 4 removes the legacy alias.
+  const collectionId =
+    searchParams.get("collection") || searchParams.get("playlist") || undefined;
   const folderPlay = searchParams.get("folder_play") === "1";
-  const hasPlaylist = !!playlistId || folderPlay;
+  const hasCollection = !!collectionId || folderPlay;
   const tParam = searchParams.get("t");
   const initialTime = tParam ? Number(tParam) : undefined;
   const pageParam = searchParams.get("page");
@@ -89,17 +94,17 @@ export function FileDetailFullScreen({ fileId }: FileDetailFullScreenProps) {
   const buildNavUrl = useCallback(
     (id: string) => {
       const params = new URLSearchParams();
-      if (playlistId) params.set("playlist", playlistId);
+      if (collectionId) params.set("collection", collectionId);
       if (folderPlay) params.set("folder_play", "1");
       if (sort) params.set("sort", sort);
       if (order) params.set("order", order);
       const qs = params.toString();
       return `/files/${id}${qs ? `?${qs}` : ""}`;
     },
-    [playlistId, folderPlay, sort, order],
+    [collectionId, folderPlay, sort, order],
   );
 
-  // Arrow-key navigation. Disabled in playlist mode — the playlist
+  // Arrow-key navigation. Disabled in collection mode — the collection
   // owns "next" semantics there; ArrowLeft/Right would conflict.
   // PR-5: ``router.replace`` here is the legacy router (no
   // useGuardedRouter wrapper) but it doesn't matter — the dirty
@@ -107,16 +112,16 @@ export function FileDetailFullScreen({ fileId }: FileDetailFullScreenProps) {
   // global popstate / beforeunload listeners in ``<DirtyBlocker />``
   // catch any escape paths.
   useFileNav({
-    fileId: !hasPlaylist && file ? fileId : null,
+    fileId: !hasCollection && file ? fileId : null,
     sort,
     order,
     fileType: file?.file_type ?? null,
     mimeType: file?.mime_type ?? null,
-    enabled: !hasPlaylist,
+    enabled: !hasCollection,
     onNavigate: (id) => router.replace(buildNavUrl(id)),
   });
 
-  const handlePlaylistNavigate = useCallback(
+  const handleCollectionNavigate = useCallback(
     (nextFileId: string) => {
       router.replace(buildNavUrl(nextFileId));
     },
@@ -124,7 +129,7 @@ export function FileDetailFullScreen({ fileId }: FileDetailFullScreenProps) {
   );
 
   const handleMediaEnded = useCallback(() => {
-    const onEnded = getPlaylistOnEnded();
+    const onEnded = getCollectionOnEnded();
     if (onEnded) onEnded();
   }, []);
 
@@ -149,12 +154,12 @@ export function FileDetailFullScreen({ fileId }: FileDetailFullScreenProps) {
     router.push(backPath);
   }, [router, file]);
 
-  const isVideoTheater = hasPlaylist && file?.file_type === "video";
-  const isAudioSide = hasPlaylist && file?.file_type !== "video";
+  const isVideoTheater = hasCollection && file?.file_type === "video";
+  const isAudioSide = hasCollection && file?.file_type !== "video";
 
   return (
     <div
-      className={`mx-auto w-full flex-1 px-4 py-6 ${hasPlaylist ? "max-w-6xl" : "max-w-5xl"}`}
+      className={`mx-auto w-full flex-1 px-4 py-6 ${hasCollection ? "max-w-6xl" : "max-w-5xl"}`}
     >
       <div className="mb-4">
         <button
@@ -178,15 +183,15 @@ export function FileDetailFullScreen({ fileId }: FileDetailFullScreenProps) {
             initialTime={initialTime}
             initialPage={initialPage}
             highlight={highlight}
-            onEnded={hasPlaylist ? handleMediaEnded : undefined}
-            autoPlay={hasPlaylist}
+            onEnded={hasCollection ? handleMediaEnded : undefined}
+            autoPlay={hasCollection}
             onRequestImageGallery={() => setGalleryOpen(true)}
             onAfterDelete={handleAfterDelete}
           />
 
           {isVideoTheater && (
-            <PlaylistPanel
-              playlistId={playlistId}
+            <CollectionPanel
+              collectionId={collectionId}
               folderPlay={folderPlay}
               currentFileId={fileId}
               currentFileType={file!.file_type}
@@ -194,14 +199,14 @@ export function FileDetailFullScreen({ fileId }: FileDetailFullScreenProps) {
               folderPath={file!.folder_path}
               sort={sort}
               order={order}
-              onNavigate={handlePlaylistNavigate}
+              onNavigate={handleCollectionNavigate}
             />
           )}
         </div>
 
         {isAudioSide && file && (
-          <PlaylistPanel
-            playlistId={playlistId}
+          <CollectionPanel
+            collectionId={collectionId}
             folderPlay={folderPlay}
             currentFileId={fileId}
             currentFileType={file.file_type}
@@ -209,7 +214,7 @@ export function FileDetailFullScreen({ fileId }: FileDetailFullScreenProps) {
             folderPath={file.folder_path}
             sort={sort}
             order={order}
-            onNavigate={handlePlaylistNavigate}
+            onNavigate={handleCollectionNavigate}
           />
         )}
       </div>

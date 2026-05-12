@@ -8,6 +8,7 @@ import { Download, ListMusic, Move, Pencil, Trash2 } from "lucide-react";
 import { ClipboardCopy, Scissors } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { deleteFile, getDownloadUrl, getThumbnailUrl, moveFile, renameFile } from "@/lib/api";
+import { useFileNavigationOverride } from "@/lib/fileNavigationOverride";
 import { useClipboard } from "./ClipboardProvider";
 import { formatDuration, formatFileSize } from "@/lib/format";
 import type { FileItem, FileItemWithMatch } from "@/types";
@@ -20,7 +21,7 @@ import { ContextMenu, type MenuItem } from "./ContextMenu";
 import { ConfirmDialog } from "./ConfirmDialog";
 import { RenameDialog } from "./RenameDialog";
 import { MoveDialog } from "./MoveDialog";
-import { PlaylistPicker } from "./PlaylistPicker";
+import { CollectionPicker } from "./CollectionPicker";
 
 export function FileList({
   files,
@@ -57,6 +58,7 @@ export function FileList({
   const tcb = useTranslations("clipboard");
   const tt = useTranslations("trash");
   const clipboard = useClipboard();
+  const fileNavigationOverride = useFileNavigationOverride();
   const [menuPos, setMenuPos] = useState<{ open: boolean; x: number; y: number }>({
     open: false, x: 0, y: 0,
   });
@@ -64,7 +66,7 @@ export function FileList({
   const [renameOpen, setRenameOpen] = useState(false);
   const [moveOpen, setMoveOpen] = useState(false);
   const [deleteOpen, setDeleteOpen] = useState(false);
-  const [playlistPickerOpen, setPlaylistPickerOpen] = useState(false);
+  const [collectionPickerOpen, setCollectionPickerOpen] = useState(false);
 
   const closeMenu = useCallback(() => {
     setMenuPos({ open: false, x: 0, y: 0 });
@@ -82,8 +84,8 @@ export function FileList({
     },
     {
       icon: ListMusic,
-      label: t("addToPlaylist"),
-      onClick: () => setPlaylistPickerOpen(true),
+      label: t("addToCollection"),
+      onClick: () => setCollectionPickerOpen(true),
     },
     {
       icon: ClipboardCopy,
@@ -252,6 +254,31 @@ export function FileList({
                 );
                 return selectable ? (
                   <div className="flex flex-1 items-center gap-3 min-w-0">{content}</div>
+                ) : fileNavigationOverride ? (
+                  // Override host (currently CollectionDetail) absorbs the
+                  // click into a local ?file= selection so the user stays
+                  // on the current page instead of being redirected to
+                  // the file's containing folder.
+                  <div
+                    role="button"
+                    tabIndex={0}
+                    className="flex flex-1 cursor-pointer items-center gap-3 min-w-0"
+                    onClick={(e: React.MouseEvent) => {
+                      if ((e.metaKey || e.ctrlKey) && onMetaSelect) {
+                        e.preventDefault();
+                        onMetaSelect(file.id);
+                        return;
+                      }
+                      e.preventDefault();
+                      fileNavigationOverride(file.id);
+                    }}
+                    onKeyDown={(e: React.KeyboardEvent) => {
+                      if (e.key === "Enter" || e.key === " ") {
+                        e.preventDefault();
+                        fileNavigationOverride(file.id);
+                      }
+                    }}
+                  >{content}</div>
                 ) : (
                   <Link
                     href={`/files/${file.id}${sortQuery || ""}`}
@@ -313,11 +340,11 @@ export function FileList({
             }}
             onCancel={() => { setMoveOpen(false); clearTarget(); }}
           />
-          <PlaylistPicker
-            open={playlistPickerOpen}
+          <CollectionPicker
+            open={collectionPickerOpen}
             drive={target.drive}
             fileIds={[target.id]}
-            onClose={() => { setPlaylistPickerOpen(false); clearTarget(); }}
+            onClose={() => { setCollectionPickerOpen(false); clearTarget(); }}
           />
           <ConfirmDialog
             open={deleteOpen}

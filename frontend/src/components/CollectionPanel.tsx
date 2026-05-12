@@ -4,16 +4,31 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { ChevronDown, ChevronUp, Music, Repeat, Trash2, Video } from "lucide-react";
 
 import { useTranslations } from "next-intl";
-import { getDriveFiles, getPlaylist, removePlaylistItem, reorderPlaylistItems } from "@/lib/api";
+import {
+  getCollection,
+  getDriveFiles,
+  removeCollectionItem,
+  reorderCollectionItems,
+} from "@/lib/api";
 import { formatDuration } from "@/lib/format";
 import { getThumbnailUrl } from "@/lib/api";
-import type { FileItem, FileType, PlaylistDetail, PlaylistItemEntry, SortField, SortOrder } from "@/types";
+import type { FileItem, FileType, SortField, SortOrder } from "@/types";
 
-const LOOP_KEY = "playlist-loop";
+const LOOP_KEY = "collection-loop";
+const LEGACY_LOOP_KEY = "playlist-loop";
 
 function getLoop(): boolean {
   try {
-    return localStorage.getItem(LOOP_KEY) === "1";
+    const v = localStorage.getItem(LOOP_KEY);
+    if (v !== null) return v === "1";
+    // One-time migration from the legacy key.
+    const legacy = localStorage.getItem(LEGACY_LOOP_KEY);
+    if (legacy !== null) {
+      localStorage.setItem(LOOP_KEY, legacy);
+      localStorage.removeItem(LEGACY_LOOP_KEY);
+      return legacy === "1";
+    }
+    return false;
   } catch {
     return false;
   }
@@ -27,8 +42,8 @@ function setLoopStorage(v: boolean): void {
   }
 }
 
-interface PlaylistPanelProps {
-  playlistId?: string;
+interface CollectionPanelProps {
+  collectionId?: string;
   folderPlay?: boolean;
   currentFileId: string;
   currentFileType: FileType;
@@ -44,8 +59,8 @@ interface TrackEntry {
   file: FileItem;
 }
 
-export function PlaylistPanel({
-  playlistId,
+export function CollectionPanel({
+  collectionId,
   folderPlay,
   currentFileId,
   currentFileType,
@@ -54,20 +69,20 @@ export function PlaylistPanel({
   sort,
   order,
   onNavigate,
-}: PlaylistPanelProps) {
-  const t = useTranslations("playlist");
+}: CollectionPanelProps) {
+  const t = useTranslations("playback");
   const [tracks, setTracks] = useState<TrackEntry[]>([]);
-  const [playlistName, setPlaylistName] = useState("");
+  const [queueName, setQueueName] = useState("");
   const [loop, setLoop] = useState(getLoop);
   const [collapsed, setCollapsed] = useState(false);
   const activeRef = useRef<HTMLDivElement>(null);
-  const isUserPlaylist = !!playlistId;
+  const isUserCollection = !!collectionId;
 
-  const loadPlaylist = useCallback(async () => {
-    if (playlistId) {
+  const loadQueue = useCallback(async () => {
+    if (collectionId) {
       try {
-        const detail = await getPlaylist(drive, playlistId);
-        setPlaylistName(detail.name);
+        const detail = await getCollection(drive, collectionId);
+        setQueueName(detail.name);
         setTracks(detail.items.map((item) => ({ itemId: item.id, file: item.file })));
       } catch {
         setTracks([]);
@@ -93,17 +108,17 @@ export function PlaylistPanel({
           }
         }
         const folderName = folderPath ? folderPath.split("/").pop() || drive : drive;
-        setPlaylistName(folderName);
+        setQueueName(folderName);
         setTracks(allFiles.map((f) => ({ file: f })));
       } catch {
         setTracks([]);
       }
     }
-  }, [playlistId, folderPlay, drive, folderPath, sort, order]);
+  }, [collectionId, folderPlay, drive, folderPath, sort, order]);
 
   useEffect(() => {
-    loadPlaylist();
-  }, [loadPlaylist]);
+    loadQueue();
+  }, [loadQueue]);
 
   useEffect(() => {
     if (activeRef.current) {
@@ -137,45 +152,45 @@ export function PlaylistPanel({
   }, [getNextFileId, onNavigate]);
 
   const handleMoveUp = useCallback(async (index: number) => {
-    if (index <= 0 || !playlistId) return;
+    if (index <= 0 || !collectionId) return;
     const newTracks = [...tracks];
     const [item] = newTracks.splice(index, 1);
     newTracks.splice(index - 1, 0, item);
     setTracks(newTracks);
     const itemIds = newTracks.map((t) => t.itemId!);
     try {
-      await reorderPlaylistItems(drive, playlistId, itemIds);
+      await reorderCollectionItems(drive, collectionId, itemIds);
     } catch {
-      loadPlaylist();
+      loadQueue();
     }
-  }, [tracks, playlistId, drive, loadPlaylist]);
+  }, [tracks, collectionId, drive, loadQueue]);
 
   const handleMoveDown = useCallback(async (index: number) => {
-    if (index >= tracks.length - 1 || !playlistId) return;
+    if (index >= tracks.length - 1 || !collectionId) return;
     const newTracks = [...tracks];
     const [item] = newTracks.splice(index, 1);
     newTracks.splice(index + 1, 0, item);
     setTracks(newTracks);
     const itemIds = newTracks.map((t) => t.itemId!);
     try {
-      await reorderPlaylistItems(drive, playlistId, itemIds);
+      await reorderCollectionItems(drive, collectionId, itemIds);
     } catch {
-      loadPlaylist();
+      loadQueue();
     }
-  }, [tracks, playlistId, drive, loadPlaylist]);
+  }, [tracks, collectionId, drive, loadQueue]);
 
   const handleRemoveItem = useCallback(async (index: number) => {
-    if (!playlistId) return;
+    if (!collectionId) return;
     const track = tracks[index];
     if (!track.itemId) return;
     const newTracks = tracks.filter((_, i) => i !== index);
     setTracks(newTracks);
     try {
-      await removePlaylistItem(drive, playlistId, track.itemId);
+      await removeCollectionItem(drive, collectionId, track.itemId);
     } catch {
-      loadPlaylist();
+      loadQueue();
     }
-  }, [tracks, playlistId, drive, loadPlaylist]);
+  }, [tracks, collectionId, drive, loadQueue]);
 
   if (tracks.length === 0) return null;
 
@@ -184,7 +199,7 @@ export function PlaylistPanel({
   return (
     <>
       {/* Expose handleEnded for parent to call */}
-      <PlaylistEndedHandler onEnded={handleEnded} />
+      <CollectionEndedHandler onEnded={handleEnded} />
 
       <div className={`${
         isVideoLayout
@@ -196,7 +211,7 @@ export function PlaylistPanel({
           <div className="mb-3 flex items-center justify-between">
             <div className="min-w-0 flex-1">
               <div className="truncate text-base font-semibold text-text-primary">
-                {playlistName}
+                {queueName}
               </div>
               <div className="text-sm text-text-muted">
                 {t("tracks", { current: currentIndex >= 0 ? currentIndex + 1 : "–", total: totalTracks })}
@@ -230,7 +245,7 @@ export function PlaylistPanel({
               <VideoTrackList
                 tracks={tracks}
                 currentFileId={currentFileId}
-                isUserPlaylist={isUserPlaylist}
+                isUserCollection={isUserCollection}
                 onNavigate={onNavigate}
                 onMoveUp={handleMoveUp}
                 onMoveDown={handleMoveDown}
@@ -240,7 +255,7 @@ export function PlaylistPanel({
               <AudioTrackList
                 tracks={tracks}
                 currentFileId={currentFileId}
-                isUserPlaylist={isUserPlaylist}
+                isUserCollection={isUserCollection}
                 activeRef={activeRef}
                 onNavigate={onNavigate}
                 onMoveUp={handleMoveUp}
@@ -256,25 +271,25 @@ export function PlaylistPanel({
 }
 
 // Invisible component to expose onEnded callback to parent via ref pattern
-function PlaylistEndedHandler({ onEnded }: { onEnded: () => void }) {
+function CollectionEndedHandler({ onEnded }: { onEnded: () => void }) {
   useEffect(() => {
-    (window as unknown as Record<string, unknown>).__playlistOnEnded = onEnded;
+    (window as unknown as Record<string, unknown>).__collectionOnEnded = onEnded;
     return () => {
-      delete (window as unknown as Record<string, unknown>).__playlistOnEnded;
+      delete (window as unknown as Record<string, unknown>).__collectionOnEnded;
     };
   }, [onEnded]);
   return null;
 }
 
-export function getPlaylistOnEnded(): (() => void) | undefined {
-  return (window as unknown as Record<string, unknown>).__playlistOnEnded as (() => void) | undefined;
+export function getCollectionOnEnded(): (() => void) | undefined {
+  return (window as unknown as Record<string, unknown>).__collectionOnEnded as (() => void) | undefined;
 }
 
 // Video layout: horizontal scroll thumbnail cards
 function VideoTrackList({
   tracks,
   currentFileId,
-  isUserPlaylist,
+  isUserCollection,
   onNavigate,
   onMoveUp,
   onMoveDown,
@@ -282,7 +297,7 @@ function VideoTrackList({
 }: {
   tracks: TrackEntry[];
   currentFileId: string;
-  isUserPlaylist: boolean;
+  isUserCollection: boolean;
   onNavigate: (fileId: string) => void;
   onMoveUp: (index: number) => void;
   onMoveDown: (index: number) => void;
@@ -330,7 +345,7 @@ function VideoTrackList({
                 </div>
               )}
             </div>
-            {isUserPlaylist && (
+            {isUserCollection && (
               <div className="absolute top-1 right-1 hidden gap-1 group-hover:flex">
                 {index > 0 && (
                   <button onClick={(e) => { e.stopPropagation(); onMoveUp(index); }} className="rounded-lg bg-black/60 p-1 text-white hover:bg-black/80">
@@ -358,7 +373,7 @@ function VideoTrackList({
 function AudioTrackList({
   tracks,
   currentFileId,
-  isUserPlaylist,
+  isUserCollection,
   activeRef,
   onNavigate,
   onMoveUp,
@@ -367,7 +382,7 @@ function AudioTrackList({
 }: {
   tracks: TrackEntry[];
   currentFileId: string;
-  isUserPlaylist: boolean;
+  isUserCollection: boolean;
   activeRef: React.RefObject<HTMLDivElement | null>;
   onNavigate: (fileId: string) => void;
   onMoveUp: (index: number) => void;
@@ -407,7 +422,7 @@ function AudioTrackList({
                 </span>
               )}
             </button>
-            {isUserPlaylist && (
+            {isUserCollection && (
               <div className="hidden flex-shrink-0 items-center gap-1 group-hover:flex">
                 {index > 0 && (
                   <button onClick={() => onMoveUp(index)} className="rounded-lg p-1.5 text-text-muted hover:bg-bg-elevated hover:text-text-primary">

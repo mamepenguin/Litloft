@@ -7,6 +7,7 @@ import { AppShell } from "@/components/AppShell";
 import { DirtyBlocker } from "@/components/DirtyBlocker";
 import { SidebarProvider } from "@/components/SidebarProvider";
 import { ThemeProvider } from "@/components/ThemeProvider";
+import { ToastProvider } from "@/components/ToastProvider";
 import { CurrentDriveProvider } from "@/components/CurrentDriveProvider";
 import { WebSocketProvider } from "@/components/WebSocketProvider";
 import { ClipboardProvider } from "@/components/ClipboardProvider";
@@ -71,26 +72,28 @@ export default async function RootLayout({
       <body className="min-h-dvh">
         <NextIntlClientProvider messages={messages}>
           <ThemeProvider>
-            <ProfileProvider>
-              <WebSocketProvider>
-                {/* CurrentDriveProvider must wrap AddonSlotsProvider:
-                    the slots provider re-fetches /api/addons/status
-                    on every drive change so per-drive policy filters
-                    apply, which means it needs useCurrentDrive() in
-                    its own subtree. */}
-                <CurrentDriveProvider>
-                  <AddonSlotsProvider>
-                    <ClipboardProvider>
-                      <SidebarProvider>
-                        <SetupRedirector />
-                        <AppShell>{children}</AppShell>
-                        <DirtyBlocker />
-                      </SidebarProvider>
-                    </ClipboardProvider>
-                  </AddonSlotsProvider>
-                </CurrentDriveProvider>
-              </WebSocketProvider>
-            </ProfileProvider>
+            <ToastProvider>
+              <ProfileProvider>
+                <WebSocketProvider>
+                  {/* CurrentDriveProvider must wrap AddonSlotsProvider:
+                      the slots provider re-fetches /api/addons/status
+                      on every drive change so per-drive policy filters
+                      apply, which means it needs useCurrentDrive() in
+                      its own subtree. */}
+                  <CurrentDriveProvider>
+                    <AddonSlotsProvider>
+                      <ClipboardProvider>
+                        <SidebarProvider>
+                          <SetupRedirector />
+                          <AppShell>{children}</AppShell>
+                          <DirtyBlocker />
+                        </SidebarProvider>
+                      </ClipboardProvider>
+                    </AddonSlotsProvider>
+                  </CurrentDriveProvider>
+                </WebSocketProvider>
+              </ProfileProvider>
+            </ToastProvider>
           </ThemeProvider>
         </NextIntlClientProvider>
       </body>

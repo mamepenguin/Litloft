@@ -19,40 +19,51 @@ def _seed_file(db, filename="song.mp4", drive=TEST_DRIVE, folder_path=""):
     return file
 
 
-class TestPlaylistCRUD:
+class TestCollectionCRUD:
     def test_list_empty(self, client):
         c, *_ = client
-        res = c.get(f"/api/drives/{TEST_DRIVE}/playlists")
+        res = c.get(f"/api/drives/{TEST_DRIVE}/collections")
         assert res.status_code == 200
         assert res.json() == []
 
     def test_create(self, client):
         c, *_ = client
         res = c.post(
-            f"/api/drives/{TEST_DRIVE}/playlists",
-            json={"name": "My Playlist"},
+            f"/api/drives/{TEST_DRIVE}/collections",
+            json={"name": "My Collection"},
         )
         assert res.status_code == 201
         data = res.json()
-        assert data["name"] == "My Playlist"
+        assert data["name"] == "My Collection"
         assert data["drive"] == TEST_DRIVE
         assert data["item_count"] == 0
+        assert data["description"] is None
+
+    def test_create_with_description(self, client):
+        c, *_ = client
+        res = c.post(
+            f"/api/drives/{TEST_DRIVE}/collections",
+            json={"name": "With Desc", "description": "A curated bundle"},
+        )
+        assert res.status_code == 201
+        data = res.json()
+        assert data["description"] == "A curated bundle"
 
     def test_create_duplicate_name(self, client):
         c, *_ = client
-        c.post(f"/api/drives/{TEST_DRIVE}/playlists", json={"name": "Dup"})
-        res = c.post(f"/api/drives/{TEST_DRIVE}/playlists", json={"name": "Dup"})
+        c.post(f"/api/drives/{TEST_DRIVE}/collections", json={"name": "Dup"})
+        res = c.post(f"/api/drives/{TEST_DRIVE}/collections", json={"name": "Dup"})
         assert res.status_code == 409
 
     def test_create_empty_name(self, client):
         c, *_ = client
-        res = c.post(f"/api/drives/{TEST_DRIVE}/playlists", json={"name": "   "})
+        res = c.post(f"/api/drives/{TEST_DRIVE}/collections", json={"name": "   "})
         assert res.status_code == 422
 
     def test_create_long_name(self, client):
         c, *_ = client
         res = c.post(
-            f"/api/drives/{TEST_DRIVE}/playlists",
+            f"/api/drives/{TEST_DRIVE}/collections",
             json={"name": "x" * 101},
         )
         assert res.status_code == 422
@@ -60,45 +71,75 @@ class TestPlaylistCRUD:
     def test_get_detail(self, client):
         c, *_ = client
         create_res = c.post(
-            f"/api/drives/{TEST_DRIVE}/playlists",
-            json={"name": "Detail"},
+            f"/api/drives/{TEST_DRIVE}/collections",
+            json={"name": "Detail", "description": "d"},
         )
-        pl_id = create_res.json()["id"]
-        res = c.get(f"/api/drives/{TEST_DRIVE}/playlists/{pl_id}")
+        cid = create_res.json()["id"]
+        res = c.get(f"/api/drives/{TEST_DRIVE}/collections/{cid}")
         assert res.status_code == 200
         data = res.json()
         assert data["name"] == "Detail"
+        assert data["description"] == "d"
         assert data["items"] == []
 
     def test_get_not_found(self, client):
         c, *_ = client
-        res = c.get(f"/api/drives/{TEST_DRIVE}/playlists/nonexistent1")
+        res = c.get(f"/api/drives/{TEST_DRIVE}/collections/nonexistent1")
         assert res.status_code == 404
 
     def test_rename(self, client):
         c, *_ = client
         create_res = c.post(
-            f"/api/drives/{TEST_DRIVE}/playlists",
+            f"/api/drives/{TEST_DRIVE}/collections",
             json={"name": "Old Name"},
         )
-        pl_id = create_res.json()["id"]
+        cid = create_res.json()["id"]
         res = c.put(
-            f"/api/drives/{TEST_DRIVE}/playlists/{pl_id}",
+            f"/api/drives/{TEST_DRIVE}/collections/{cid}",
             json={"name": "New Name"},
         )
         assert res.status_code == 200
         assert res.json()["name"] == "New Name"
 
+    def test_update_description(self, client):
+        c, *_ = client
+        create_res = c.post(
+            f"/api/drives/{TEST_DRIVE}/collections",
+            json={"name": "Desc"},
+        )
+        cid = create_res.json()["id"]
+        res = c.put(
+            f"/api/drives/{TEST_DRIVE}/collections/{cid}",
+            json={"description": "Added later"},
+        )
+        assert res.status_code == 200
+        assert res.json()["description"] == "Added later"
+        assert res.json()["name"] == "Desc"
+
+    def test_clear_description(self, client):
+        c, *_ = client
+        create_res = c.post(
+            f"/api/drives/{TEST_DRIVE}/collections",
+            json={"name": "C", "description": "x"},
+        )
+        cid = create_res.json()["id"]
+        res = c.put(
+            f"/api/drives/{TEST_DRIVE}/collections/{cid}",
+            json={"description": None},
+        )
+        assert res.status_code == 200
+        assert res.json()["description"] is None
+
     def test_rename_duplicate(self, client):
         c, *_ = client
-        c.post(f"/api/drives/{TEST_DRIVE}/playlists", json={"name": "A"})
+        c.post(f"/api/drives/{TEST_DRIVE}/collections", json={"name": "A"})
         create_b = c.post(
-            f"/api/drives/{TEST_DRIVE}/playlists",
+            f"/api/drives/{TEST_DRIVE}/collections",
             json={"name": "B"},
         )
-        pl_id = create_b.json()["id"]
+        cid = create_b.json()["id"]
         res = c.put(
-            f"/api/drives/{TEST_DRIVE}/playlists/{pl_id}",
+            f"/api/drives/{TEST_DRIVE}/collections/{cid}",
             json={"name": "A"},
         )
         assert res.status_code == 409
@@ -106,41 +147,41 @@ class TestPlaylistCRUD:
     def test_delete(self, client):
         c, *_ = client
         create_res = c.post(
-            f"/api/drives/{TEST_DRIVE}/playlists",
+            f"/api/drives/{TEST_DRIVE}/collections",
             json={"name": "ToDelete"},
         )
-        pl_id = create_res.json()["id"]
-        res = c.delete(f"/api/drives/{TEST_DRIVE}/playlists/{pl_id}")
+        cid = create_res.json()["id"]
+        res = c.delete(f"/api/drives/{TEST_DRIVE}/collections/{cid}")
         assert res.status_code == 204
-        res = c.get(f"/api/drives/{TEST_DRIVE}/playlists")
+        res = c.get(f"/api/drives/{TEST_DRIVE}/collections")
         assert len(res.json()) == 0
 
     def test_invalid_drive(self, client):
         c, *_ = client
-        res = c.get("/api/drives/no-such-drive/playlists")
+        res = c.get("/api/drives/no-such-drive/collections")
         assert res.status_code == 404
 
     def test_list_order_by_updated(self, client):
         c, *_ = client
-        c.post(f"/api/drives/{TEST_DRIVE}/playlists", json={"name": "First"})
-        c.post(f"/api/drives/{TEST_DRIVE}/playlists", json={"name": "Second"})
-        res = c.get(f"/api/drives/{TEST_DRIVE}/playlists")
+        c.post(f"/api/drives/{TEST_DRIVE}/collections", json={"name": "First"})
+        c.post(f"/api/drives/{TEST_DRIVE}/collections", json={"name": "Second"})
+        res = c.get(f"/api/drives/{TEST_DRIVE}/collections")
         names = [p["name"] for p in res.json()]
         assert names == ["Second", "First"]
 
 
-class TestPlaylistItems:
+class TestCollectionItems:
     def test_add_items(self, client):
         c, db, *_ = client
         file = _seed_file(db, "song.mp3")
         create_res = c.post(
-            f"/api/drives/{TEST_DRIVE}/playlists",
+            f"/api/drives/{TEST_DRIVE}/collections",
             json={"name": "Songs"},
         )
-        pl_id = create_res.json()["id"]
+        cid = create_res.json()["id"]
 
         res = c.post(
-            f"/api/drives/{TEST_DRIVE}/playlists/{pl_id}/items",
+            f"/api/drives/{TEST_DRIVE}/collections/{cid}/items",
             json={"file_ids": [file.id]},
         )
         assert res.status_code == 200
@@ -153,17 +194,17 @@ class TestPlaylistItems:
         c, db, *_ = client
         file = _seed_file(db, "dup.mp3")
         create_res = c.post(
-            f"/api/drives/{TEST_DRIVE}/playlists",
+            f"/api/drives/{TEST_DRIVE}/collections",
             json={"name": "DupTest"},
         )
-        pl_id = create_res.json()["id"]
+        cid = create_res.json()["id"]
 
         c.post(
-            f"/api/drives/{TEST_DRIVE}/playlists/{pl_id}/items",
+            f"/api/drives/{TEST_DRIVE}/collections/{cid}/items",
             json={"file_ids": [file.id]},
         )
         res = c.post(
-            f"/api/drives/{TEST_DRIVE}/playlists/{pl_id}/items",
+            f"/api/drives/{TEST_DRIVE}/collections/{cid}/items",
             json={"file_ids": [file.id]},
         )
         assert res.status_code == 200
@@ -172,12 +213,12 @@ class TestPlaylistItems:
     def test_add_file_not_found(self, client):
         c, *_ = client
         create_res = c.post(
-            f"/api/drives/{TEST_DRIVE}/playlists",
+            f"/api/drives/{TEST_DRIVE}/collections",
             json={"name": "NotFound"},
         )
-        pl_id = create_res.json()["id"]
+        cid = create_res.json()["id"]
         res = c.post(
-            f"/api/drives/{TEST_DRIVE}/playlists/{pl_id}/items",
+            f"/api/drives/{TEST_DRIVE}/collections/{cid}/items",
             json={"file_ids": ["abcdefghijkl"]},
         )
         assert res.status_code == 404
@@ -186,30 +227,30 @@ class TestPlaylistItems:
         c, db, *_ = client
         file = _seed_file(db, "remove.mp3")
         create_res = c.post(
-            f"/api/drives/{TEST_DRIVE}/playlists",
+            f"/api/drives/{TEST_DRIVE}/collections",
             json={"name": "RemoveTest"},
         )
-        pl_id = create_res.json()["id"]
+        cid = create_res.json()["id"]
         add_res = c.post(
-            f"/api/drives/{TEST_DRIVE}/playlists/{pl_id}/items",
+            f"/api/drives/{TEST_DRIVE}/collections/{cid}/items",
             json={"file_ids": [file.id]},
         )
         item_id = add_res.json()["items"][0]["id"]
 
-        res = c.delete(f"/api/drives/{TEST_DRIVE}/playlists/{pl_id}/items/{item_id}")
+        res = c.delete(f"/api/drives/{TEST_DRIVE}/collections/{cid}/items/{item_id}")
         assert res.status_code == 204
 
-        detail = c.get(f"/api/drives/{TEST_DRIVE}/playlists/{pl_id}")
+        detail = c.get(f"/api/drives/{TEST_DRIVE}/collections/{cid}")
         assert len(detail.json()["items"]) == 0
 
     def test_remove_item_not_found(self, client):
         c, *_ = client
         create_res = c.post(
-            f"/api/drives/{TEST_DRIVE}/playlists",
+            f"/api/drives/{TEST_DRIVE}/collections",
             json={"name": "RemoveNF"},
         )
-        pl_id = create_res.json()["id"]
-        res = c.delete(f"/api/drives/{TEST_DRIVE}/playlists/{pl_id}/items/99999")
+        cid = create_res.json()["id"]
+        res = c.delete(f"/api/drives/{TEST_DRIVE}/collections/{cid}/items/99999")
         assert res.status_code == 404
 
     def test_reorder(self, client):
@@ -217,19 +258,19 @@ class TestPlaylistItems:
         f1 = _seed_file(db, "a.mp3")
         f2 = _seed_file(db, "b.mp3")
         create_res = c.post(
-            f"/api/drives/{TEST_DRIVE}/playlists",
+            f"/api/drives/{TEST_DRIVE}/collections",
             json={"name": "Reorder"},
         )
-        pl_id = create_res.json()["id"]
+        cid = create_res.json()["id"]
         add_res = c.post(
-            f"/api/drives/{TEST_DRIVE}/playlists/{pl_id}/items",
+            f"/api/drives/{TEST_DRIVE}/collections/{cid}/items",
             json={"file_ids": [f1.id, f2.id]},
         )
         items = add_res.json()["items"]
         item_ids = [items[1]["id"], items[0]["id"]]  # reverse
 
         res = c.put(
-            f"/api/drives/{TEST_DRIVE}/playlists/{pl_id}/items/reorder",
+            f"/api/drives/{TEST_DRIVE}/collections/{cid}/items/reorder",
             json={"item_ids": item_ids},
         )
         assert res.status_code == 200
@@ -241,59 +282,59 @@ class TestPlaylistItems:
         c, db, *_ = client
         f1 = _seed_file(db, "mis.mp3")
         create_res = c.post(
-            f"/api/drives/{TEST_DRIVE}/playlists",
+            f"/api/drives/{TEST_DRIVE}/collections",
             json={"name": "Mismatch"},
         )
-        pl_id = create_res.json()["id"]
+        cid = create_res.json()["id"]
         c.post(
-            f"/api/drives/{TEST_DRIVE}/playlists/{pl_id}/items",
+            f"/api/drives/{TEST_DRIVE}/collections/{cid}/items",
             json={"file_ids": [f1.id]},
         )
 
         res = c.put(
-            f"/api/drives/{TEST_DRIVE}/playlists/{pl_id}/items/reorder",
+            f"/api/drives/{TEST_DRIVE}/collections/{cid}/items/reorder",
             json={"item_ids": [99999]},
         )
         assert res.status_code == 409
 
 
-class TestPlaylistCascadeDelete:
-    def test_file_delete_removes_from_playlist(self, client):
+class TestCollectionCascadeDelete:
+    def test_file_delete_removes_from_collection(self, client):
         c, db, *_ = client
         file = _seed_file(db, "cascade.mp3")
         create_res = c.post(
-            f"/api/drives/{TEST_DRIVE}/playlists",
+            f"/api/drives/{TEST_DRIVE}/collections",
             json={"name": "Cascade"},
         )
-        pl_id = create_res.json()["id"]
+        cid = create_res.json()["id"]
         c.post(
-            f"/api/drives/{TEST_DRIVE}/playlists/{pl_id}/items",
+            f"/api/drives/{TEST_DRIVE}/collections/{cid}/items",
             json={"file_ids": [file.id]},
         )
 
         # Soft delete keeps DB record, so cascade doesn't trigger
         c.delete(f"/api/files/{file.id}")
-        detail = c.get(f"/api/drives/{TEST_DRIVE}/playlists/{pl_id}")
+        detail = c.get(f"/api/drives/{TEST_DRIVE}/collections/{cid}")
         assert len(detail.json()["items"]) == 1
 
         # Purge permanently removes, triggering cascade
         c.delete(f"/api/files/{file.id}/purge")
-        detail = c.get(f"/api/drives/{TEST_DRIVE}/playlists/{pl_id}")
+        detail = c.get(f"/api/drives/{TEST_DRIVE}/collections/{cid}")
         assert len(detail.json()["items"]) == 0
 
-    def test_playlist_delete_removes_items(self, client):
+    def test_collection_delete_removes_items(self, client):
         c, db, *_ = client
-        file = _seed_file(db, "pldelete.mp3")
+        file = _seed_file(db, "cdelete.mp3")
         create_res = c.post(
-            f"/api/drives/{TEST_DRIVE}/playlists",
-            json={"name": "PlDelete"},
+            f"/api/drives/{TEST_DRIVE}/collections",
+            json={"name": "CDelete"},
         )
-        pl_id = create_res.json()["id"]
+        cid = create_res.json()["id"]
         c.post(
-            f"/api/drives/{TEST_DRIVE}/playlists/{pl_id}/items",
+            f"/api/drives/{TEST_DRIVE}/collections/{cid}/items",
             json={"file_ids": [file.id]},
         )
 
-        c.delete(f"/api/drives/{TEST_DRIVE}/playlists/{pl_id}")
-        res = c.get(f"/api/drives/{TEST_DRIVE}/playlists/{pl_id}")
+        c.delete(f"/api/drives/{TEST_DRIVE}/collections/{cid}")
+        res = c.get(f"/api/drives/{TEST_DRIVE}/collections/{cid}")
         assert res.status_code == 404

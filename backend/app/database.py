@@ -166,10 +166,10 @@ def _migrate(engine_) -> None:
         Base.metadata.tables["empty_folders"].create(bind=engine_, checkfirst=True)
     if "pinned_folders" not in tables:
         Base.metadata.tables["pinned_folders"].create(bind=engine_, checkfirst=True)
-    if "playlists" not in tables:
-        Base.metadata.tables["playlists"].create(bind=engine_, checkfirst=True)
-    if "playlist_items" not in tables:
-        Base.metadata.tables["playlist_items"].create(bind=engine_, checkfirst=True)
+    if "collections" not in tables:
+        Base.metadata.tables["collections"].create(bind=engine_, checkfirst=True)
+    if "collection_items" not in tables:
+        Base.metadata.tables["collection_items"].create(bind=engine_, checkfirst=True)
 
     # === Phase 3: Migrate files.id from INTEGER to nanoid VARCHAR(12) ===
     tables = inspector.get_table_names()
@@ -396,6 +396,37 @@ def _migrate(engine_) -> None:
     if "file_exif" not in tables:
         logger.info("Migrating: creating 'file_exif' table")
         Base.metadata.tables["file_exif"].create(bind=engine_, checkfirst=True)
+
+    # === Spec 2026-05-12-playlist-to-collection: playlists → collections rename ===
+    # Old tables ``playlists`` and ``playlist_items`` are renamed to
+    # ``collections`` and ``collection_items``. The new schema also adds a
+    # ``description`` column on ``collections``. ``create_all`` in
+    # ``init_db`` already created the empty new tables for us; we just
+    # need to copy old data over and drop the legacy tables.
+    inspector_after = inspect(engine_)
+    tables_after = inspector_after.get_table_names()
+    if "playlists" in tables_after:
+        logger.info("Migrating: copying 'playlists' → 'collections'")
+        with engine_.begin() as conn:
+            # Defensive: only copy when the new tables are empty. This
+            # avoids merging data if a previous migration partially ran.
+            existing = conn.execute(text("SELECT COUNT(*) FROM collections")).scalar()
+            if existing == 0:
+                conn.execute(text("""
+                    INSERT INTO collections (id, drive, name, description, created_at, updated_at)
+                    SELECT id, drive, name, NULL, created_at, updated_at FROM playlists
+                """))
+                conn.execute(text("""
+                    INSERT INTO collection_items (id, collection_id, file_id, position, created_at)
+                    SELECT id, playlist_id, file_id, position, created_at FROM playlist_items
+                """))
+            else:
+                logger.warning(
+                    "'collections' already populated; skipping playlist copy"
+                )
+            conn.execute(text("DROP TABLE playlist_items"))
+            conn.execute(text("DROP TABLE playlists"))
+        logger.info("Migration complete: playlists data copied to collections")
 
 
 def init_db() -> None:

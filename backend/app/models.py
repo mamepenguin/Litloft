@@ -125,12 +125,13 @@ class PinnedFolder(Base):
     )
 
 
-class Playlist(Base):
-    __tablename__ = "playlists"
+class Collection(Base):
+    __tablename__ = "collections"
 
     id: Mapped[str] = mapped_column(String(12), primary_key=True, default=generate_nanoid)
     drive: Mapped[str] = mapped_column(String, nullable=False)
     name: Mapped[str] = mapped_column(String(100), nullable=False)
+    description: Mapped[str | None] = mapped_column(Text, nullable=True, default=None)
     created_at: Mapped[datetime] = mapped_column(
         DateTime, default=lambda: datetime.now(UTC)
     )
@@ -138,13 +139,13 @@ class Playlist(Base):
         DateTime, default=lambda: datetime.now(UTC), onupdate=lambda: datetime.now(UTC)
     )
 
-    items: Mapped[list["PlaylistItem"]] = relationship(
-        "PlaylistItem", back_populates="playlist", cascade="all, delete-orphan",
-        lazy="selectin", order_by="PlaylistItem.position"
+    items: Mapped[list["CollectionItem"]] = relationship(
+        "CollectionItem", back_populates="collection", cascade="all, delete-orphan",
+        lazy="selectin", order_by="CollectionItem.position"
     )
 
     __table_args__ = (
-        UniqueConstraint("drive", "name", name="uq_playlists_drive_name"),
+        UniqueConstraint("drive", "name", name="uq_collections_drive_name"),
     )
 
 
@@ -190,12 +191,12 @@ class Comment(Base):
     )
 
 
-class PlaylistItem(Base):
-    __tablename__ = "playlist_items"
+class CollectionItem(Base):
+    __tablename__ = "collection_items"
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
-    playlist_id: Mapped[str] = mapped_column(
-        String(12), ForeignKey("playlists.id", ondelete="CASCADE"), nullable=False
+    collection_id: Mapped[str] = mapped_column(
+        String(12), ForeignKey("collections.id", ondelete="CASCADE"), nullable=False
     )
     file_id: Mapped[str] = mapped_column(
         String(12), ForeignKey("files.id", ondelete="CASCADE"), nullable=False
@@ -205,12 +206,12 @@ class PlaylistItem(Base):
         DateTime, default=lambda: datetime.now(UTC)
     )
 
-    playlist: Mapped["Playlist"] = relationship("Playlist", back_populates="items")
+    collection: Mapped["Collection"] = relationship("Collection", back_populates="items")
     file: Mapped["File"] = relationship("File", lazy="selectin")
 
     __table_args__ = (
-        UniqueConstraint("playlist_id", "file_id", name="uq_playlist_items_playlist_file"),
-        Index("idx_playlist_items_playlist_id", "playlist_id"),
+        UniqueConstraint("collection_id", "file_id", name="uq_collection_items_collection_file"),
+        Index("idx_collection_items_collection_id", "collection_id"),
     )
 
 

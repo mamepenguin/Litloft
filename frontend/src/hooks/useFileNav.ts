@@ -24,8 +24,8 @@ interface UseFileNavOpts {
   /**
    * Caller-supplied gate. When ``false`` the hook does not fetch
    * neighbors and does not register the keyboard shortcuts (e.g. the
-   * playlist-mode host disables it because navigation is owned by
-   * PlaylistPanel instead).
+   * collection-mode host disables it because navigation is owned by
+   * CollectionPanel instead).
    */
   enabled?: boolean;
   /**
@@ -53,7 +53,7 @@ const LOFT_MIME = "application/vnd.litloft.loft+json";
  *
  * Replaces the inline arrow-key handler that the legacy
  * ``/files/[id]/page.tsx`` carried, so both the 2-pane right pane
- * (RightPaneFile) and the playlist-exception fullscreen route
+ * (RightPaneFile) and the collection-exception fullscreen route
  * (FileDetailFullScreen) can share a single implementation.
  *
  * Hosts pass ``onNavigate`` to decide what "navigate" means in their

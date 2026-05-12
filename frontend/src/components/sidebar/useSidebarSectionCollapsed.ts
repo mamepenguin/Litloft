@@ -2,6 +2,13 @@ import { useCallback, useEffect, useState } from "react";
 
 const storageKey = (section: string) => `sidebar:section:${section}:collapsed`;
 
+// Spec 2026-05-12-playlist-to-collection: copy the old "playlists" collapse
+// state across once so users who collapsed Playlists keep Collections
+// collapsed.
+const SECTION_MIGRATIONS: Record<string, string> = {
+  collections: "playlists",
+};
+
 function persist(section: string, collapsed: boolean) {
   try {
     if (collapsed) {
@@ -24,7 +31,17 @@ export function useSidebarSectionCollapsed(section: string): {
   useEffect(() => {
     if (typeof window === "undefined") return;
     try {
-      const raw = window.localStorage.getItem(storageKey(section));
+      const key = storageKey(section);
+      let raw = window.localStorage.getItem(key);
+      const legacy = SECTION_MIGRATIONS[section];
+      if (raw === null && legacy) {
+        const legacyRaw = window.localStorage.getItem(storageKey(legacy));
+        if (legacyRaw !== null) {
+          window.localStorage.setItem(key, legacyRaw);
+          window.localStorage.removeItem(storageKey(legacy));
+          raw = legacyRaw;
+        }
+      }
       if (raw === "1") setCollapsed(true);
     } catch {
       // localStorage unavailable — keep default

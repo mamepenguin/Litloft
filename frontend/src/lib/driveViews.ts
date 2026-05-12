@@ -48,6 +48,19 @@ export function isDriveAddonPath(pathname: string): boolean {
 }
 
 /**
+ * Matches the collection detail route ``/drive/{name}/collections/{id}``.
+ *
+ * The detail page owns its own two-pane wrapper (so the left aside can
+ * surface the collection's ordered item list instead of the folder
+ * tree), so ``DriveLayout`` bypasses its default ``<TwoPaneLayout>`` for
+ * this route — same pattern as addon routes. Spec
+ * ``2026-05-12-playlist-to-collection.md`` PR-B redo.
+ */
+export function isDriveCollectionPath(pathname: string): boolean {
+  return /^\/drive\/[^/]+\/collections\/[^/]+\/?$/.test(pathname);
+}
+
+/**
  * True when the current route is a cross-folder / search / smart-folder
  * view where the folder tree should not be available. Both the
  * TwoPaneLayout wrapper and the TreeToggle button consult this.

@@ -20,7 +20,7 @@ import { useClipboard } from "./ClipboardProvider";
 import { ConfirmDialog } from "./ConfirmDialog";
 import { ContextMenu, type MenuItem } from "./ContextMenu";
 import { MoveDialog } from "./MoveDialog";
-import { PlaylistPicker } from "./PlaylistPicker";
+import { CollectionPicker } from "./CollectionPicker";
 import { RenameDialog } from "./RenameDialog";
 
 interface FileContextMenuProps {
@@ -56,14 +56,14 @@ export function FileContextMenu({
   const [renameOpen, setRenameOpen] = useState(false);
   const [moveOpen, setMoveOpen] = useState(false);
   const [deleteOpen, setDeleteOpen] = useState(false);
-  const [playlistPickerOpen, setPlaylistPickerOpen] = useState(false);
+  const [collectionPickerOpen, setCollectionPickerOpen] = useState(false);
 
   useEffect(() => {
     if (!target) {
       setRenameOpen(false);
       setMoveOpen(false);
       setDeleteOpen(false);
-      setPlaylistPickerOpen(false);
+      setCollectionPickerOpen(false);
     }
   }, [target]);
 
@@ -137,8 +137,8 @@ export function FileContextMenu({
     },
     {
       icon: ListMusic,
-      label: tf("addToPlaylist"),
-      onClick: () => setPlaylistPickerOpen(true),
+      label: tf("addToCollection"),
+      onClick: () => setCollectionPickerOpen(true),
     },
     {
       icon: ClipboardCopy,
@@ -200,11 +200,11 @@ export function FileContextMenu({
         onMove={handleMove}
         onCancel={() => setMoveOpen(false)}
       />
-      <PlaylistPicker
-        open={playlistPickerOpen}
+      <CollectionPicker
+        open={collectionPickerOpen}
         drive={target.drive}
         fileIds={[target.id]}
-        onClose={() => setPlaylistPickerOpen(false)}
+        onClose={() => setCollectionPickerOpen(false)}
       />
       <ConfirmDialog
         open={deleteOpen}

@@ -114,9 +114,10 @@ export interface Neighbors {
   next_id: string | null;
 }
 
-export interface PlaylistSummary {
+export interface CollectionSummary {
   id: string;
   name: string;
+  description: string | null;
   drive: string;
   item_count: number;
   first_file_id: string | null;
@@ -124,17 +125,18 @@ export interface PlaylistSummary {
   updated_at: string;
 }
 
-export interface PlaylistItemEntry {
+export interface CollectionItemEntry {
   id: number;
   position: number;
   file: FileItem;
 }
 
-export interface PlaylistDetail {
+export interface CollectionDetail {
   id: string;
   name: string;
+  description: string | null;
   drive: string;
-  items: PlaylistItemEntry[];
+  items: CollectionItemEntry[];
   created_at: string;
   updated_at: string;
 }

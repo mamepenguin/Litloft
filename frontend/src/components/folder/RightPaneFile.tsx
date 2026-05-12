@@ -38,9 +38,9 @@ interface RightPaneFileProps {
  *
  * Per §3.4 the right pane intentionally **does not** call
  * ``useOverlaySidebar``; the global sidebar stays inline because the
- * tree pane already owns the left-of-content slot. Playlist mode is
+ * tree pane already owns the left-of-content slot. Collection mode is
  * 2-pane-exempt (§4.6) and lives in the PR-5 fullscreen route, so we
- * never need ``<PlaylistPanel>`` here.
+ * never need ``<CollectionPanel>`` here.
  */
 export function RightPaneFile({ fileId, drive }: RightPaneFileProps) {
   const t = useTranslations("rightPane");

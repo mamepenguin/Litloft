@@ -67,13 +67,13 @@ vi.mock("@/components/ImageGallery", () => ({
   },
 }));
 
-const playlistPanelProps: Array<Record<string, unknown>> = [];
-vi.mock("@/components/PlaylistPanel", () => ({
-  PlaylistPanel: (props: Record<string, unknown>) => {
-    playlistPanelProps.push(props);
-    return <div data-testid="playlist-panel" />;
+const collectionPanelProps: Array<Record<string, unknown>> = [];
+vi.mock("@/components/CollectionPanel", () => ({
+  CollectionPanel: (props: Record<string, unknown>) => {
+    collectionPanelProps.push(props);
+    return <div data-testid="collection-panel" />;
   },
-  getPlaylistOnEnded: () => null,
+  getCollectionOnEnded: () => null,
 }));
 
 // useFileNav is stubbed: PR-2 has its own tests; PR-5 moved the
@@ -116,7 +116,7 @@ beforeEach(() => {
   driveMocks.setOverrideDriveSpy.mockClear();
   fileDetailContentProps.length = 0;
   imageGalleryProps.length = 0;
-  playlistPanelProps.length = 0;
+  collectionPanelProps.length = 0;
   for (const k of Array.from(mockSearchParams.keys())) {
     mockSearchParams.delete(k);
   }
@@ -157,27 +157,37 @@ describe("FileDetailFullScreen", () => {
     expect(last.highlight).toBe("phrase");
   });
 
-  it("does NOT mount PlaylistPanel when no playlist params are set", async () => {
+  it("does NOT mount CollectionPanel when no collection params are set", async () => {
     mockGetFile.mockResolvedValue(baseFile);
     render(<FileDetailFullScreen fileId="abc" />);
     await waitFor(() =>
       expect(screen.getByTestId("file-detail-content")).toBeInTheDocument(),
     );
-    expect(screen.queryByTestId("playlist-panel")).toBeNull();
-    expect(playlistPanelProps.length).toBe(0);
+    expect(screen.queryByTestId("collection-panel")).toBeNull();
+    expect(collectionPanelProps.length).toBe(0);
   });
 
-  it("mounts PlaylistPanel for video theater when ?playlist= is set", async () => {
+  it("mounts CollectionPanel for video theater when ?collection= is set", async () => {
+    mockSearchParams.set("collection", "c1");
+    mockGetFile.mockResolvedValue(baseFile);
+    render(<FileDetailFullScreen fileId="abc" />);
+    await waitFor(() =>
+      expect(screen.getByTestId("collection-panel")).toBeInTheDocument(),
+    );
+    expect(collectionPanelProps[0].collectionId).toBe("c1");
+  });
+
+  it("accepts the legacy ?playlist= alias and mounts CollectionPanel", async () => {
     mockSearchParams.set("playlist", "pl1");
     mockGetFile.mockResolvedValue(baseFile);
     render(<FileDetailFullScreen fileId="abc" />);
     await waitFor(() =>
-      expect(screen.getByTestId("playlist-panel")).toBeInTheDocument(),
+      expect(screen.getByTestId("collection-panel")).toBeInTheDocument(),
     );
-    expect(playlistPanelProps[0].playlistId).toBe("pl1");
+    expect(collectionPanelProps[0].collectionId).toBe("pl1");
   });
 
-  it("mounts PlaylistPanel for audio side mode when playlist is set on audio file", async () => {
+  it("mounts CollectionPanel for audio side mode when collection is set on audio file", async () => {
     mockSearchParams.set("folder_play", "1");
     mockGetFile.mockResolvedValue({
       ...baseFile,
@@ -186,12 +196,12 @@ describe("FileDetailFullScreen", () => {
     });
     render(<FileDetailFullScreen fileId="abc" />);
     await waitFor(() =>
-      expect(screen.getByTestId("playlist-panel")).toBeInTheDocument(),
+      expect(screen.getByTestId("collection-panel")).toBeInTheDocument(),
     );
   });
 
-  it("passes autoPlay=true and onEnded to FileDetailContent in playlist mode", async () => {
-    mockSearchParams.set("playlist", "pl1");
+  it("passes autoPlay=true and onEnded to FileDetailContent in collection mode", async () => {
+    mockSearchParams.set("collection", "c1");
     mockGetFile.mockResolvedValue(baseFile);
     render(<FileDetailFullScreen fileId="abc" />);
     await waitFor(() => expect(fileDetailContentProps.length).toBeGreaterThan(0));
@@ -200,7 +210,7 @@ describe("FileDetailFullScreen", () => {
     expect(typeof last.onEnded).toBe("function");
   });
 
-  it("passes autoPlay=false (no onEnded) when no playlist", async () => {
+  it("passes autoPlay=false (no onEnded) when no collection", async () => {
     mockGetFile.mockResolvedValue(baseFile);
     render(<FileDetailFullScreen fileId="abc" />);
     await waitFor(() => expect(fileDetailContentProps.length).toBeGreaterThan(0));

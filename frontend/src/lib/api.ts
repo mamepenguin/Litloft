@@ -1,4 +1,4 @@
-import type { ArchiveContents, AuthStatus, BatchRenameRequest, BatchRenameResponse, ChunkResponse, Comment, CommentsResponse, DashboardResponse, Drive, DriveSummary, DuplicatesResponse, FileExif, FileItem, FileType, Folder, FolderTreeNode, Neighbors, PaginatedResponse, PinnedFolder, PlaylistDetail, PlaylistSummary, SortField, SortOrder, Tag, TreeTypeFilter, UnlockResult, UploadInitResponse, WatchHistoryItem, WatchProgress } from "@/types";
+import type { ArchiveContents, AuthStatus, BatchRenameRequest, BatchRenameResponse, ChunkResponse, CollectionDetail, CollectionSummary, Comment, CommentsResponse, DashboardResponse, Drive, DriveSummary, DuplicatesResponse, FileExif, FileItem, FileType, Folder, FolderTreeNode, Neighbors, PaginatedResponse, PinnedFolder, SortField, SortOrder, Tag, TreeTypeFilter, UnlockResult, UploadInitResponse, WatchHistoryItem, WatchProgress } from "@/types";
 import type { SmartFolder, SmartFolderCreate, SmartFolderUpdate } from "@/types/smartFolder";
 
 const API_BASE = "/api";
@@ -482,56 +482,69 @@ export async function deleteSmartFolder(drive: string, id: string): Promise<void
   if (!res.ok) throw new Error(`API error: ${res.status}`);
 }
 
-// Playlists
-export async function getPlaylists(drive: string): Promise<PlaylistSummary[]> {
-  return fetchJSON<PlaylistSummary[]>(
-    `${API_BASE}/drives/${encodeURIComponent(drive)}/playlists`
+// Collections
+export async function getCollections(drive: string): Promise<CollectionSummary[]> {
+  return fetchJSON<CollectionSummary[]>(
+    `${API_BASE}/drives/${encodeURIComponent(drive)}/collections`
   );
 }
 
-export async function createPlaylist(drive: string, name: string): Promise<PlaylistSummary> {
-  return fetchJSON<PlaylistSummary>(
-    `${API_BASE}/drives/${encodeURIComponent(drive)}/playlists`,
+export async function createCollection(
+  drive: string,
+  name: string,
+  description?: string | null,
+): Promise<CollectionSummary> {
+  return fetchJSON<CollectionSummary>(
+    `${API_BASE}/drives/${encodeURIComponent(drive)}/collections`,
     {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ name }),
+      body: JSON.stringify({ name, description: description ?? null }),
     }
   );
 }
 
-export async function getPlaylist(drive: string, id: string): Promise<PlaylistDetail> {
-  return fetchJSON<PlaylistDetail>(
-    `${API_BASE}/drives/${encodeURIComponent(drive)}/playlists/${id}`
+export async function getCollection(drive: string, id: string): Promise<CollectionDetail> {
+  return fetchJSON<CollectionDetail>(
+    `${API_BASE}/drives/${encodeURIComponent(drive)}/collections/${id}`
   );
 }
 
-export async function updatePlaylist(drive: string, id: string, name: string): Promise<PlaylistSummary> {
-  return fetchJSON<PlaylistSummary>(
-    `${API_BASE}/drives/${encodeURIComponent(drive)}/playlists/${id}`,
+export interface CollectionUpdate {
+  name?: string;
+  description?: string | null;
+}
+
+export async function updateCollection(
+  drive: string,
+  id: string,
+  patch: CollectionUpdate,
+): Promise<CollectionSummary> {
+  return fetchJSON<CollectionSummary>(
+    `${API_BASE}/drives/${encodeURIComponent(drive)}/collections/${id}`,
     {
       method: "PUT",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ name }),
+      body: JSON.stringify(patch),
     }
   );
 }
 
-export async function deletePlaylist(drive: string, id: string): Promise<void> {
+export async function deleteCollection(drive: string, id: string): Promise<void> {
   const res = await fetch(
-    `${API_BASE}/drives/${encodeURIComponent(drive)}/playlists/${id}`,
+    `${API_BASE}/drives/${encodeURIComponent(drive)}/collections/${id}`,
     { method: "DELETE", credentials: "include" }
   );
   if (!res.ok) throw new Error(`API error: ${res.status}`);
 }
 
-export async function addPlaylistItems(
+export async function addCollectionItems(
   drive: string,
-  playlistId: string,
+  collectionId: string,
   fileIds: string[]
-): Promise<PlaylistDetail> {
-  return fetchJSON<PlaylistDetail>(
-    `${API_BASE}/drives/${encodeURIComponent(drive)}/playlists/${playlistId}/items`,
+): Promise<CollectionDetail> {
+  return fetchJSON<CollectionDetail>(
+    `${API_BASE}/drives/${encodeURIComponent(drive)}/collections/${collectionId}/items`,
     {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -540,25 +553,25 @@ export async function addPlaylistItems(
   );
 }
 
-export async function removePlaylistItem(
+export async function removeCollectionItem(
   drive: string,
-  playlistId: string,
+  collectionId: string,
   itemId: number
 ): Promise<void> {
   const res = await fetch(
-    `${API_BASE}/drives/${encodeURIComponent(drive)}/playlists/${playlistId}/items/${itemId}`,
+    `${API_BASE}/drives/${encodeURIComponent(drive)}/collections/${collectionId}/items/${itemId}`,
     { method: "DELETE", credentials: "include" }
   );
   if (!res.ok) throw new Error(`API error: ${res.status}`);
 }
 
-export async function reorderPlaylistItems(
+export async function reorderCollectionItems(
   drive: string,
-  playlistId: string,
+  collectionId: string,
   itemIds: number[]
-): Promise<PlaylistDetail> {
-  return fetchJSON<PlaylistDetail>(
-    `${API_BASE}/drives/${encodeURIComponent(drive)}/playlists/${playlistId}/items/reorder`,
+): Promise<CollectionDetail> {
+  return fetchJSON<CollectionDetail>(
+    `${API_BASE}/drives/${encodeURIComponent(drive)}/collections/${collectionId}/items/reorder`,
     {
       method: "PUT",
       headers: { "Content-Type": "application/json" },

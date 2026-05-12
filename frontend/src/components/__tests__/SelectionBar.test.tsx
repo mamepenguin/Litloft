@@ -36,9 +36,9 @@ vi.mock("../ClipboardProvider", () => ({
   }),
 }));
 
-vi.mock("../PlaylistPicker", () => ({
-  PlaylistPicker: ({ open }: any) =>
-    open ? <div data-testid="playlist-picker" /> : null,
+vi.mock("../CollectionPicker", () => ({
+  CollectionPicker: ({ open }: any) =>
+    open ? <div data-testid="collection-picker" /> : null,
 }));
 
 const defaultProps = {
@@ -105,10 +105,10 @@ describe("SelectionBar", () => {
     expect(screen.getByTestId("move-dialog")).toBeInTheDocument();
   });
 
-  it("opens playlist picker", () => {
+  it("opens collection picker", () => {
     render(<SelectionBar {...defaultProps} />);
-    fireEvent.click(screen.getByLabelText("Add to playlist"));
-    expect(screen.getByTestId("playlist-picker")).toBeInTheDocument();
+    fireEvent.click(screen.getByLabelText("Add to collection"));
+    expect(screen.getByTestId("collection-picker")).toBeInTheDocument();
   });
 
   it("shows tag input on tag button click", () => {

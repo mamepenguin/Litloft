@@ -7,11 +7,30 @@ interface BreadcrumbProps {
   folderPath?: string;
   getDropTargetProps?: (targetPath: string) => Record<string, (e: React.DragEvent) => void>;
   isDropTarget?: (targetPath: string) => boolean;
+  /**
+   * Optional non-navigable trailing label rendered as the last
+   * breadcrumb segment. Used by virtual-folder hosts (e.g. the
+   * collection detail page) to surface a name that lives outside
+   * the folder hierarchy without abusing ``folderPath``'s ``/``
+   * splitting. When set, the drive name becomes a Link (since this
+   * trailing label is the actual current location).
+   */
+  trailingSegment?: string;
 }
 
-export function Breadcrumb({ driveName, folderPath, getDropTargetProps, isDropTarget }: BreadcrumbProps) {
+export function Breadcrumb({
+  driveName,
+  folderPath,
+  getDropTargetProps,
+  isDropTarget,
+  trailingSegment,
+}: BreadcrumbProps) {
   const t = useTranslations("toolbar");
   const segments = folderPath ? folderPath.split("/").filter(Boolean) : [];
+  // When a trailing virtual segment is provided, the drive itself is no
+  // longer the leaf — render it as a Link, the same way it behaves when
+  // ``folderPath`` carries real segments.
+  const driveIsLeaf = segments.length === 0 && !trailingSegment;
 
   return (
     <nav className="flex min-w-0 flex-1 items-center gap-1 text-sm text-text-muted overflow-x-auto">
@@ -24,7 +43,7 @@ export function Breadcrumb({ driveName, folderPath, getDropTargetProps, isDropTa
       </Link>
 
       <ChevronRight size={14} className="flex-shrink-0" />
-      {segments.length === 0 ? (
+      {driveIsLeaf ? (
         <span className="font-medium text-text-primary truncate">{driveName}</span>
       ) : (
         <Link
@@ -41,7 +60,7 @@ export function Breadcrumb({ driveName, folderPath, getDropTargetProps, isDropTa
       {segments.map((segment, i) => {
         const path = segments.slice(0, i + 1).join("/");
         const encodedPath = segments.slice(0, i + 1).map(encodeURIComponent).join("/");
-        const isLast = i === segments.length - 1;
+        const isLast = i === segments.length - 1 && !trailingSegment;
         return (
           <span key={path} className="flex items-center gap-1">
             <ChevronRight size={14} className="flex-shrink-0" />
@@ -61,6 +80,15 @@ export function Breadcrumb({ driveName, folderPath, getDropTargetProps, isDropTa
           </span>
         );
       })}
+
+      {trailingSegment && (
+        <span className="flex items-center gap-1">
+          <ChevronRight size={14} className="flex-shrink-0" />
+          <span className="font-medium text-text-primary truncate">
+            {trailingSegment}
+          </span>
+        </span>
+      )}
     </nav>
   );
 }

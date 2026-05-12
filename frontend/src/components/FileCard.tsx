@@ -4,6 +4,7 @@ import type { ReactNode } from "react";
 import type { FileItem, WatchProgress } from "@/types";
 import { formatDuration, formatFileSize } from "@/lib/format";
 import { getThumbnailUrl } from "@/lib/api";
+import { useFileNavigationOverride } from "@/lib/fileNavigationOverride";
 import { useClipboard } from "./ClipboardProvider";
 import { FavoriteButton } from "./FavoriteButton";
 import { TagList } from "./TagList";
@@ -58,6 +59,12 @@ export function FileCard({
 }) {
   const formatRelativeDate = useRelativeDate();
   const clipboard = useClipboard();
+  // Optional override set by hosts that want to absorb the click into
+  // a local ``?file=`` selection rather than letting the canonical
+  // ``/files/{id}`` redirect take over (currently: ``CollectionDetail``
+  // — see ``lib/fileNavigationOverride.tsx``). ``null`` when no provider
+  // is mounted, in which case the default ``<Link>`` flow is preserved.
+  const fileNavigationOverride = useFileNavigationOverride();
   const isCutFile = clipboard.isCut(file.id);
   const hasThumbnail = file.has_thumbnail || file.file_type === "video" || file.file_type === "image";
   const isTextPreviewable = !hasThumbnail && file.file_type === "document" && (
@@ -67,7 +74,12 @@ export function FileCard({
     file.mime_type === "application/vnd.openxmlformats-officedocument.presentationml.presentation"
   );
 
-  const Wrapper = selectable ? "div" : Link;
+  // ``selectable`` (multi-select mode) wins over the navigation
+  // override because the user's intent is selection, not opening.
+  // Cmd/Ctrl-click still escapes to ``onMetaSelect`` so power users
+  // can multi-select from override hosts.
+  const useOverride = !selectable && fileNavigationOverride !== null;
+  const Wrapper = selectable || useOverride ? "div" : Link;
   const wrapperProps = selectable
     ? {
         onClick: (e: React.MouseEvent) => {
@@ -84,15 +96,39 @@ export function FileCard({
           if (e.key === "Enter" || e.key === " ") { e.preventDefault(); onSelect?.(file.id); }
         },
       }
-    : {
-        href: `/files/${file.id}${sortQuery || ""}`,
-        onClick: (e: React.MouseEvent) => {
-          if ((e.metaKey || e.ctrlKey) && onMetaSelect) {
+    : useOverride
+      ? {
+          onClick: (e: React.MouseEvent) => {
+            if ((e.metaKey || e.ctrlKey) && onMetaSelect) {
+              e.preventDefault();
+              onMetaSelect(file.id);
+              return;
+            }
             e.preventDefault();
-            onMetaSelect(file.id);
-          }
-        },
-      };
+            fileNavigationOverride!(file.id);
+          },
+          role: "button" as const,
+          tabIndex: 0,
+          onKeyDown: (e: React.KeyboardEvent) => {
+            if (e.key === "Enter" || e.key === " ") {
+              e.preventDefault();
+              fileNavigationOverride!(file.id);
+            }
+          },
+          // ``cursor-pointer`` so the override host looks clickable
+          // even though the underlying element is a ``<div>`` rather
+          // than a ``<Link>``.
+          className: "cursor-pointer",
+        }
+      : {
+          href: `/files/${file.id}${sortQuery || ""}`,
+          onClick: (e: React.MouseEvent) => {
+            if ((e.metaKey || e.ctrlKey) && onMetaSelect) {
+              e.preventDefault();
+              onMetaSelect(file.id);
+            }
+          },
+        };
 
   return (
     <div

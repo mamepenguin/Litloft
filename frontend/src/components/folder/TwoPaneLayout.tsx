@@ -17,7 +17,8 @@ interface TwoPaneLayoutProps {
   drive: string;
   /**
    * The folder path the host page is currently rendering. Used so the
-   * tree expands all ancestors of the user's location.
+   * tree expands all ancestors of the user's location. Ignored when
+   * ``leftPane`` is supplied.
    */
   folderPath: string;
   /**
@@ -25,6 +26,23 @@ interface TwoPaneLayoutProps {
    * is selected. Replaced by `<RightPaneFile>` when `?file=` is set.
    */
   children: ReactNode;
+  /**
+   * Optional override for the left-pane content. When provided, the
+   * default ``FolderTreePane`` is replaced with whatever the host
+   * supplies — used by the collection detail page to show the
+   * collection's ordered item list in the same shell (spec
+   * ``2026-05-12-playlist-to-collection.md`` PR-B redo).
+   *
+   * Leaving this undefined preserves the existing folder behaviour
+   * (selection wiring, ``selectedTreePath`` computation, etc.).
+   */
+  leftPane?: ReactNode;
+  /**
+   * aria-label for the left ``<aside>``. Defaults to "Folder tree".
+   * Used by alternative left-pane hosts (e.g. collection items) to
+   * surface a more accurate accessible name.
+   */
+  leftPaneAriaLabel?: string;
 }
 
 /**
@@ -39,7 +57,13 @@ interface TwoPaneLayoutProps {
  * viewport when no file is selected, the file preview fills it once a
  * file is selected (Topic 11).
  */
-export function TwoPaneLayout({ drive, folderPath, children }: TwoPaneLayoutProps) {
+export function TwoPaneLayout({
+  drive,
+  folderPath,
+  children,
+  leftPane,
+  leftPaneAriaLabel,
+}: TwoPaneLayoutProps) {
   const t = useTranslations("rightPane");
   const tView = useTranslations("view");
   // PR-5: useGuardedRouter wraps router.push/replace through
@@ -109,7 +133,7 @@ export function TwoPaneLayout({ drive, folderPath, children }: TwoPaneLayoutProp
     <div className="flex h-[calc(100dvh-3.5rem)] w-full overflow-hidden">
       <aside
         className={`h-full flex-shrink-0 overflow-hidden transition-[width] duration-150 ease-out ${treeAsideWidth}`}
-        aria-label="Folder tree"
+        aria-label={leftPaneAriaLabel ?? "Folder tree"}
         aria-hidden={!treeEnabled}
         // `inert` removes the subtree from tab order and pointer events
         // while the tree is closed. aria-hidden alone hides it from
@@ -128,16 +152,18 @@ export function TwoPaneLayout({ drive, folderPath, children }: TwoPaneLayoutProp
               <X size={18} />
             </button>
           </div>
-          {hasEverEnabled ? (
-            <FolderTreePane
-              drive={drive}
-              selectedPath={selectedTreePath}
-              selectedFileId={fileId}
-              currentFolderPath={folderPath}
-              onSelectFolder={handleSelectFolder}
-              onSelectFile={handleSelectFile}
-            />
-          ) : null}
+          {hasEverEnabled
+            ? leftPane ?? (
+                <FolderTreePane
+                  drive={drive}
+                  selectedPath={selectedTreePath}
+                  selectedFileId={fileId}
+                  currentFolderPath={folderPath}
+                  onSelectFolder={handleSelectFolder}
+                  onSelectFile={handleSelectFile}
+                />
+              )
+            : null}
         </div>
       </aside>
       <section

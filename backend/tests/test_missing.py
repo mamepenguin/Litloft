@@ -348,20 +348,20 @@ class TestRestoreClearsMissingDefensively:
         assert record.missing_since is None
 
 
-class TestPlaylistAddRejectsMissing:
-    def test_cannot_add_missing_file_to_playlist(self, client):
+class TestCollectionAddRejectsMissing:
+    def test_cannot_add_missing_file_to_collection(self, client):
         c, db, drive_dir, _ = client
         missing = _make_missing_file(client, "pl_missing.mp4")
 
         create = c.post(
-            f"/api/drives/{TEST_DRIVE}/playlists",
-            json={"name": "test-playlist"},
+            f"/api/drives/{TEST_DRIVE}/collections",
+            json={"name": "test-collection"},
         )
         assert create.status_code == 201
-        pl_id = create.json()["id"]
+        cid = create.json()["id"]
 
         res = c.post(
-            f"/api/drives/{TEST_DRIVE}/playlists/{pl_id}/items",
+            f"/api/drives/{TEST_DRIVE}/collections/{cid}/items",
             json={"file_ids": [missing.id]},
         )
         assert res.status_code == 404

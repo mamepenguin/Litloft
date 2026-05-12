@@ -53,9 +53,9 @@ vi.mock("../ConfirmDialog", () => ({
     open ? <div data-testid="confirm-dialog" /> : null,
 }));
 
-vi.mock("../PlaylistPicker", () => ({
-  PlaylistPicker: ({ open }: { open: boolean }) =>
-    open ? <div data-testid="playlist-picker" /> : null,
+vi.mock("../CollectionPicker", () => ({
+  CollectionPicker: ({ open }: { open: boolean }) =>
+    open ? <div data-testid="collection-picker" /> : null,
 }));
 
 import { ContinueWatchingSection } from "../ContinueWatchingSection";

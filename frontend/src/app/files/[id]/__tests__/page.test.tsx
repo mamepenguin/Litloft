@@ -20,7 +20,7 @@ vi.mock("next/headers", () => ({
   cookies: () => mocks.cookies(),
 }));
 
-// Stub the FileDetailFullScreen so the playlist path can be exercised
+// Stub the FileDetailFullScreen so the collection path can be exercised
 // without pulling in the entire client-side tree.
 vi.mock("@/components/FileDetailFullScreen", () => ({
   FileDetailFullScreen: ({ fileId }: { fileId: string }) => ({
@@ -49,7 +49,7 @@ afterEach(() => {
 });
 
 describe("/files/[id] Server Component", () => {
-  it("redirects to canonical URL when no playlist params are present", async () => {
+  it("redirects to canonical URL when no collection params are present", async () => {
     fetchSpy.mockResolvedValue({
       ok: true,
       json: async () => ({
@@ -155,7 +155,19 @@ describe("/files/[id] Server Component", () => {
     expect(url.searchParams.get("order")).toBe("desc");
   });
 
-  it("renders FileDetailFullScreen instead of redirecting when ?playlist= is set", async () => {
+  it("renders FileDetailFullScreen instead of redirecting when ?collection= is set", async () => {
+    const result = await FileRoute({
+      params: Promise.resolve({ id: "abc" }),
+      searchParams: Promise.resolve({ collection: "c1" }),
+    });
+    expect(mocks.redirect).not.toHaveBeenCalled();
+    expect(fetchSpy).not.toHaveBeenCalled();
+    expect(
+      (result as { props: { fileId: string } }).props.fileId,
+    ).toBe("abc");
+  });
+
+  it("renders FileDetailFullScreen for the legacy ?playlist= alias", async () => {
     const result = await FileRoute({
       params: Promise.resolve({ id: "abc" }),
       searchParams: Promise.resolve({ playlist: "pl1" }),

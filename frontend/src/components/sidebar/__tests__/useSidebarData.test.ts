@@ -6,7 +6,7 @@ vi.mock("@/lib/api", () => ({
   getDrives: vi.fn().mockResolvedValue([]),
   getDriveTags: vi.fn().mockResolvedValue([]),
   getPins: vi.fn().mockResolvedValue([]),
-  getPlaylists: vi.fn().mockResolvedValue([]),
+  getCollections: vi.fn().mockResolvedValue([]),
   getAuthStatus: vi.fn().mockResolvedValue({ unlocked_groups: [], has_protected_drives: false }),
   getDriveSummary: vi.fn().mockResolvedValue({ name: "", trash_count: 0, missing_count: 0 }),
 }));
@@ -15,7 +15,7 @@ vi.mock("@/hooks/useWebSocket", () => ({
   useWebSocket: vi.fn().mockReturnValue(null),
 }));
 
-import { getDrives, getDriveTags, getPins, getPlaylists, getAuthStatus } from "@/lib/api";
+import { getDrives, getDriveTags, getPins, getCollections, getAuthStatus } from "@/lib/api";
 
 describe("useSidebarData", () => {
   beforeEach(() => {
@@ -35,11 +35,11 @@ describe("useSidebarData", () => {
     expect(getAuthStatus).toHaveBeenCalled();
   });
 
-  it("fetches tags, pins, playlists when currentDrive is set", async () => {
+  it("fetches tags, pins, collections when currentDrive is set", async () => {
     vi.mocked(getDriveTags).mockResolvedValueOnce([{ name: "nature", count: 5 }]);
     vi.mocked(getPins).mockResolvedValueOnce([{ path: "photos" }]);
-    vi.mocked(getPlaylists).mockResolvedValueOnce([
-      { id: "pl1", name: "My Playlist", drive: "main", item_count: 3, first_file_id: null, created_at: "", updated_at: "" },
+    vi.mocked(getCollections).mockResolvedValueOnce([
+      { id: "c1", name: "My Collection", description: null, drive: "main", item_count: 3, first_file_id: null, created_at: "", updated_at: "" },
     ]);
 
     const { result } = renderHook(() => useSidebarData("main", 0));
@@ -48,7 +48,7 @@ describe("useSidebarData", () => {
       expect(result.current.tags).toHaveLength(1);
     });
     expect(result.current.pins).toHaveLength(1);
-    expect(result.current.playlistList).toHaveLength(1);
+    expect(result.current.collectionList).toHaveLength(1);
   });
 
   it("clears drive-specific data when currentDrive is null", async () => {
@@ -60,7 +60,7 @@ describe("useSidebarData", () => {
 
     expect(result.current.tags).toHaveLength(0);
     expect(result.current.pins).toHaveLength(0);
-    expect(result.current.playlistList).toHaveLength(0);
+    expect(result.current.collectionList).toHaveLength(0);
     expect(getDriveTags).not.toHaveBeenCalled();
   });
 

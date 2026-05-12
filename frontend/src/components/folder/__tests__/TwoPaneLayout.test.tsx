@@ -311,4 +311,28 @@ describe("TwoPaneLayout", () => {
 
     expect(mockPush).toHaveBeenCalledWith("/drive/my%20drive/Q1", { scroll: false });
   });
+
+  it("renders the leftPane prop instead of FolderTreePane when provided", async () => {
+    // Spec ``2026-05-12-playlist-to-collection.md`` PR-B redo: the
+    // optional ``leftPane`` prop lets the collection detail page swap
+    // the left aside content without forking the layout shell.
+    render(
+      <TwoPaneLayout
+        drive="work"
+        folderPath=""
+        leftPane={<div data-testid="custom-left">custom left content</div>}
+        leftPaneAriaLabel="Custom items"
+      >
+        <div data-testid="host-content">main</div>
+      </TwoPaneLayout>,
+    );
+
+    expect(screen.getByTestId("custom-left")).toHaveTextContent(
+      "custom left content",
+    );
+    // FolderTreePane fetch must not happen because the default left
+    // pane was overridden.
+    expect(mockGetFolderTree).not.toHaveBeenCalled();
+    expect(screen.getByLabelText("Custom items")).toBeInTheDocument();
+  });
 });

@@ -25,9 +25,9 @@ vi.mock("../ConfirmDialog", () => ({
     open ? <div data-testid="confirm-dialog" /> : null,
 }));
 
-vi.mock("../PlaylistPicker", () => ({
-  PlaylistPicker: ({ open }: { open: boolean }) =>
-    open ? <div data-testid="playlist-picker" /> : null,
+vi.mock("../CollectionPicker", () => ({
+  CollectionPicker: ({ open }: { open: boolean }) =>
+    open ? <div data-testid="collection-picker" /> : null,
 }));
 
 const copyMock = vi.fn();
@@ -120,7 +120,7 @@ describe("FileContextMenu", () => {
   it("renders all default menu items", () => {
     render(<FileContextMenu {...makeProps()} />);
     expect(screen.getByText("Download")).toBeInTheDocument();
-    expect(screen.getByText("Add to playlist")).toBeInTheDocument();
+    expect(screen.getByText("Add to collection")).toBeInTheDocument();
     expect(screen.getByText("Copy")).toBeInTheDocument();
     expect(screen.getByText("Cut")).toBeInTheDocument();
     expect(screen.getByText("Rename")).toBeInTheDocument();
@@ -147,7 +147,7 @@ describe("FileContextMenu", () => {
     expect(screen.queryByTestId("rename-dialog")).not.toBeInTheDocument();
     expect(screen.queryByTestId("move-dialog")).not.toBeInTheDocument();
     expect(screen.queryByTestId("confirm-dialog")).not.toBeInTheDocument();
-    expect(screen.queryByTestId("playlist-picker")).not.toBeInTheDocument();
+    expect(screen.queryByTestId("collection-picker")).not.toBeInTheDocument();
   });
 
   it("opens rename dialog when Rename clicked", async () => {

@@ -1,20 +1,20 @@
 import { type RefObject, useCallback, useRef, useState } from "react";
-import { ChevronDown, ChevronRight, ListMusic, Pencil, Plus, Trash2 } from "lucide-react";
+import { ChevronDown, ChevronRight, Library, Pencil, Plus, Trash2 } from "lucide-react";
 import { useTranslations } from "next-intl";
 
-import type { PlaylistSummary } from "@/types";
-import { addPlaylistItems, getPlaylists } from "@/lib/api";
+import type { CollectionSummary } from "@/types";
+import { addCollectionItems, getCollections } from "@/lib/api";
 import { useSidebarSectionCollapsed } from "./useSidebarSectionCollapsed";
 
-interface SidebarPlaylistsSectionProps {
+interface SidebarCollectionsSectionProps {
   currentDrive: string | null;
   driveBase: string;
-  playlistList: PlaylistSummary[];
-  setPlaylistList: (v: PlaylistSummary[]) => void;
-  creatingPlaylist: boolean;
-  setCreatingPlaylist: (v: boolean) => void;
-  newPlaylistName: string;
-  setNewPlaylistName: (v: string) => void;
+  collectionList: CollectionSummary[];
+  setCollectionList: (v: CollectionSummary[]) => void;
+  creatingCollection: boolean;
+  setCreatingCollection: (v: boolean) => void;
+  newCollectionName: string;
+  setNewCollectionName: (v: string) => void;
   renamingId: string | null;
   setRenamingId: (v: string | null) => void;
   renameValue: string;
@@ -23,20 +23,20 @@ interface SidebarPlaylistsSectionProps {
   setContextMenu: (v: { id: string; x: number; y: number } | null) => void;
   createInputRef: RefObject<HTMLInputElement | null>;
   renameInputRef: RefObject<HTMLInputElement | null>;
-  handleCreatePlaylist: () => void;
-  handleRenamePlaylist: () => void;
-  handleDeletePlaylist: (id: string) => void;
-  handlePlaylistClick: (pl: PlaylistSummary) => void;
+  handleCreateCollection: () => void;
+  handleRenameCollection: () => void;
+  handleDeleteCollection: (id: string) => void;
+  handleCollectionClick: (c: CollectionSummary) => void;
 }
 
-export function SidebarPlaylistsSection({
+export function SidebarCollectionsSection({
   currentDrive,
-  playlistList,
-  setPlaylistList,
-  creatingPlaylist,
-  setCreatingPlaylist,
-  newPlaylistName,
-  setNewPlaylistName,
+  collectionList,
+  setCollectionList,
+  creatingCollection,
+  setCreatingCollection,
+  newCollectionName,
+  setNewCollectionName,
   renamingId,
   setRenamingId,
   renameValue,
@@ -45,13 +45,13 @@ export function SidebarPlaylistsSection({
   setContextMenu,
   createInputRef,
   renameInputRef,
-  handleCreatePlaylist,
-  handleRenamePlaylist,
-  handleDeletePlaylist,
-  handlePlaylistClick,
-}: SidebarPlaylistsSectionProps) {
+  handleCreateCollection,
+  handleRenameCollection,
+  handleDeleteCollection,
+  handleCollectionClick,
+}: SidebarCollectionsSectionProps) {
   const t = useTranslations("sidebar");
-  const { collapsed, toggle, expand } = useSidebarSectionCollapsed("playlists");
+  const { collapsed, toggle, expand } = useSidebarSectionCollapsed("collections");
   const [dropTargetId, setDropTargetId] = useState<string | null>(null);
   const dragCounterRef = useRef<Map<string, number>>(new Map());
 
@@ -61,26 +61,26 @@ export function SidebarPlaylistsSection({
     e.dataTransfer.dropEffect = "copy";
   }, []);
 
-  const handleDragEnter = useCallback((e: React.DragEvent, playlistId: string) => {
+  const handleDragEnter = useCallback((e: React.DragEvent, collectionId: string) => {
     if (!e.dataTransfer.types.includes("application/x-file-ids")) return;
     e.preventDefault();
-    const counter = (dragCounterRef.current.get(playlistId) ?? 0) + 1;
-    dragCounterRef.current.set(playlistId, counter);
-    setDropTargetId(playlistId);
+    const counter = (dragCounterRef.current.get(collectionId) ?? 0) + 1;
+    dragCounterRef.current.set(collectionId, counter);
+    setDropTargetId(collectionId);
   }, []);
 
-  const handleDragLeave = useCallback((e: React.DragEvent, playlistId: string) => {
+  const handleDragLeave = useCallback((e: React.DragEvent, collectionId: string) => {
     e.preventDefault();
-    const counter = (dragCounterRef.current.get(playlistId) ?? 0) - 1;
-    dragCounterRef.current.set(playlistId, Math.max(0, counter));
+    const counter = (dragCounterRef.current.get(collectionId) ?? 0) - 1;
+    dragCounterRef.current.set(collectionId, Math.max(0, counter));
     if (counter <= 0) {
-      dragCounterRef.current.delete(playlistId);
-      setDropTargetId((prev) => (prev === playlistId ? null : prev));
+      dragCounterRef.current.delete(collectionId);
+      setDropTargetId((prev) => (prev === collectionId ? null : prev));
     }
   }, []);
 
   const handleDrop = useCallback(
-    async (e: React.DragEvent, playlistId: string) => {
+    async (e: React.DragEvent, collectionId: string) => {
       e.preventDefault();
       dragCounterRef.current.clear();
       setDropTargetId(null);
@@ -93,14 +93,14 @@ export function SidebarPlaylistsSection({
       try {
         const fileIds: string[] = JSON.parse(raw);
         if (fileIds.length === 0) return;
-        await addPlaylistItems(currentDrive, playlistId, fileIds);
-        const updated = await getPlaylists(currentDrive);
-        setPlaylistList(updated);
+        await addCollectionItems(currentDrive, collectionId, fileIds);
+        const updated = await getCollections(currentDrive);
+        setCollectionList(updated);
       } catch {
         // silently ignore errors (e.g. duplicate items)
       }
     },
-    [currentDrive, setPlaylistList],
+    [currentDrive, setCollectionList],
   );
 
   const Chevron = collapsed ? ChevronRight : ChevronDown;
@@ -116,45 +116,45 @@ export function SidebarPlaylistsSection({
           className="flex flex-1 items-center gap-1.5 rounded-lg px-3 text-[11px] font-semibold uppercase tracking-wider text-text-muted transition-colors hover:text-text-primary"
         >
           <Chevron size={12} />
-          <span>Playlists</span>
+          <span>{t("collections")}</span>
         </button>
         <button
           onClick={() => {
             expand();
-            setCreatingPlaylist(true);
-            setNewPlaylistName("");
+            setCreatingCollection(true);
+            setNewCollectionName("");
           }}
           className="text-text-muted hover:text-text-primary"
-          aria-label={t("createPlaylist")}
+          aria-label={t("createCollection")}
         >
           <Plus size={14} />
         </button>
       </div>
 
-      {!collapsed && creatingPlaylist && (
+      {!collapsed && creatingCollection && (
         <div className="px-3">
           <input
             ref={createInputRef}
             type="text"
-            value={newPlaylistName}
-            onChange={(e) => setNewPlaylistName(e.target.value)}
+            value={newCollectionName}
+            onChange={(e) => setNewCollectionName(e.target.value)}
             onKeyDown={(e) => {
-              if (e.key === "Enter") handleCreatePlaylist();
+              if (e.key === "Enter") handleCreateCollection();
               if (e.key === "Escape") {
-                setCreatingPlaylist(false);
-                setNewPlaylistName("");
+                setCreatingCollection(false);
+                setNewCollectionName("");
               }
             }}
-            onBlur={handleCreatePlaylist}
-            placeholder={t("playlistNamePlaceholder")}
+            onBlur={handleCreateCollection}
+            placeholder={t("collectionNamePlaceholder")}
             className="w-full rounded-lg bg-bg-card px-2 py-1.5 text-sm text-text-primary placeholder:text-text-muted outline-none focus:ring-2 focus:ring-focus-ring"
           />
         </div>
       )}
 
-      {!collapsed && playlistList.map((pl) => (
-        <div key={pl.id} className="relative">
-          {renamingId === pl.id ? (
+      {!collapsed && collectionList.map((c) => (
+        <div key={c.id} className="relative">
+          {renamingId === c.id ? (
             <div className="px-3">
               <input
                 ref={renameInputRef}
@@ -162,63 +162,61 @@ export function SidebarPlaylistsSection({
                 value={renameValue}
                 onChange={(e) => setRenameValue(e.target.value)}
                 onKeyDown={(e) => {
-                  if (e.key === "Enter") handleRenamePlaylist();
+                  if (e.key === "Enter") handleRenameCollection();
                   if (e.key === "Escape") {
                     setRenamingId(null);
                     setRenameValue("");
                   }
                 }}
-                onBlur={handleRenamePlaylist}
+                onBlur={handleRenameCollection}
                 className="w-full rounded-lg bg-bg-card px-2 py-1.5 text-sm text-text-primary outline-none focus:ring-2 focus:ring-focus-ring"
               />
             </div>
           ) : (
             <button
-              onClick={() => handlePlaylistClick(pl)}
+              onClick={() => handleCollectionClick(c)}
               onContextMenu={(e) => {
                 e.preventDefault();
-                setContextMenu({ id: pl.id, x: e.clientX, y: e.clientY });
+                setContextMenu({ id: c.id, x: e.clientX, y: e.clientY });
               }}
               onDragOver={handleDragOver}
-              onDragEnter={(e) => handleDragEnter(e, pl.id)}
-              onDragLeave={(e) => handleDragLeave(e, pl.id)}
-              onDrop={(e) => handleDrop(e, pl.id)}
+              onDragEnter={(e) => handleDragEnter(e, c.id)}
+              onDragLeave={(e) => handleDragLeave(e, c.id)}
+              onDrop={(e) => handleDrop(e, c.id)}
               className={`flex w-full items-center gap-2.5 rounded-lg px-3 py-2 text-sm transition-colors ${
-                dropTargetId === pl.id
+                dropTargetId === c.id
                   ? "bg-accent/20 text-accent ring-1 ring-accent/50"
-                  : pl.item_count === 0
-                    ? "text-text-muted/50 cursor-default"
-                    : "text-text-muted hover:bg-bg-elevated hover:text-text-primary cursor-pointer"
+                  : "text-text-muted hover:bg-bg-elevated hover:text-text-primary cursor-pointer"
               }`}
             >
-              <ListMusic size={16} />
-              <span className="flex-1 truncate text-left">{pl.name}</span>
-              <span className="text-xs opacity-60">{pl.item_count}</span>
+              <Library size={16} />
+              <span className="flex-1 truncate text-left">{c.name}</span>
+              <span className="text-xs opacity-60">{c.item_count}</span>
             </button>
           )}
 
-          {contextMenu?.id === pl.id && (
+          {contextMenu?.id === c.id && (
             <div
               className="fixed z-50 min-w-[140px] rounded-lg border border-bg-border bg-bg-primary py-1 shadow-lg"
               style={{ left: contextMenu.x, top: contextMenu.y }}
             >
               <button
                 onClick={() => {
-                  setRenamingId(pl.id);
-                  setRenameValue(pl.name);
+                  setRenamingId(c.id);
+                  setRenameValue(c.name);
                   setContextMenu(null);
                 }}
                 className="flex w-full items-center gap-2 px-3 py-1.5 text-sm text-text-muted hover:bg-bg-elevated hover:text-text-primary"
               >
                 <Pencil size={14} />
-                {t("renamePlaylist")}
+                {t("renameCollection")}
               </button>
               <button
-                onClick={() => handleDeletePlaylist(pl.id)}
+                onClick={() => handleDeleteCollection(c.id)}
                 className="flex w-full items-center gap-2 px-3 py-1.5 text-sm text-danger hover:bg-accent/10"
               >
                 <Trash2 size={14} />
-                {t("deletePlaylist")}
+                {t("deleteCollection")}
               </button>
             </div>
           )}

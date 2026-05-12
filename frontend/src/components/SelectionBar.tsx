@@ -20,7 +20,7 @@ import { BatchRenameDialog } from "./BatchRenameDialog";
 import { useClipboard } from "./ClipboardProvider";
 import { ConfirmDialog } from "./ConfirmDialog";
 import { MoveDialog } from "./MoveDialog";
-import { PlaylistPicker } from "./PlaylistPicker";
+import { CollectionPicker } from "./CollectionPicker";
 
 interface SelectionBarProps {
   count: number;
@@ -57,7 +57,7 @@ export function SelectionBar({
   const [renameFiles, setRenameFiles] = useState<{ id: string; filename: string }[]>([]);
   const [tagInput, setTagInput] = useState("");
   const [tagging, setTagging] = useState(false);
-  const [playlistPickerOpen, setPlaylistPickerOpen] = useState(false);
+  const [collectionPickerOpen, setCollectionPickerOpen] = useState(false);
   const [purgeOpen, setPurgeOpen] = useState(false);
 
   if (count === 0) return null;
@@ -252,9 +252,9 @@ export function SelectionBar({
                   {/* Organize group */}
                   <ActionButton
                     icon={<ListMusic size={15} />}
-                    label={tf("addToPlaylist")}
-                    displayLabel={t("playlist")}
-                    onClick={() => setPlaylistPickerOpen(true)}
+                    label={tf("addToCollection")}
+                    displayLabel={t("collection")}
+                    onClick={() => setCollectionPickerOpen(true)}
                   />
                   <ActionButton
                     icon={<ClipboardCopy size={15} />}
@@ -321,11 +321,11 @@ export function SelectionBar({
         onCancel={() => setMoveOpen(false)}
       />
 
-      <PlaylistPicker
-        open={playlistPickerOpen}
+      <CollectionPicker
+        open={collectionPickerOpen}
         drive={drive}
         fileIds={ids}
-        onClose={() => setPlaylistPickerOpen(false)}
+        onClose={() => setCollectionPickerOpen(false)}
       />
 
       <BatchRenameDialog

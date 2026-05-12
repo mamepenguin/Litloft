@@ -189,4 +189,68 @@ describe("FileCard", () => {
       expect(onTouchMove).not.toHaveBeenCalled();
     });
   });
+
+  describe("FileNavigationOverride", () => {
+    it("renders <Link> by default (no provider in tree)", () => {
+      render(<FileCard file={mockFile} />);
+      expect(screen.getByRole("link")).toHaveAttribute(
+        "href",
+        "/files/abc123def456",
+      );
+    });
+
+    it("absorbs the click and invokes the override when a provider is present", async () => {
+      const onNavigate = vi.fn();
+      const { FileNavigationOverrideProvider } = await import(
+        "@/lib/fileNavigationOverride"
+      );
+      render(
+        <FileNavigationOverrideProvider onNavigate={onNavigate}>
+          <FileCard file={mockFile} />
+        </FileNavigationOverrideProvider>,
+      );
+      // With the override, the card renders a <div role="button">
+      // instead of a <Link>, so there is no anchor to follow.
+      expect(screen.queryByRole("link")).toBeNull();
+      fireEvent.click(screen.getByRole("button"));
+      expect(onNavigate).toHaveBeenCalledWith("abc123def456");
+    });
+
+    it("Cmd/Ctrl-click still escapes to onMetaSelect even with an override", async () => {
+      const onNavigate = vi.fn();
+      const onMetaSelect = vi.fn();
+      const { FileNavigationOverrideProvider } = await import(
+        "@/lib/fileNavigationOverride"
+      );
+      render(
+        <FileNavigationOverrideProvider onNavigate={onNavigate}>
+          <FileCard file={mockFile} onMetaSelect={onMetaSelect} />
+        </FileNavigationOverrideProvider>,
+      );
+      fireEvent.click(screen.getByRole("button"), { metaKey: true });
+      expect(onMetaSelect).toHaveBeenCalledWith("abc123def456");
+      expect(onNavigate).not.toHaveBeenCalled();
+    });
+
+    it("selectable mode wins over the override (selection beats navigation)", async () => {
+      const onSelect = vi.fn();
+      const onNavigate = vi.fn();
+      const { FileNavigationOverrideProvider } = await import(
+        "@/lib/fileNavigationOverride"
+      );
+      render(
+        <FileNavigationOverrideProvider onNavigate={onNavigate}>
+          <FileCard
+            file={mockFile}
+            selectable
+            selected={false}
+            onSelect={onSelect}
+          />
+        </FileNavigationOverrideProvider>,
+      );
+      fireEvent.click(screen.getByRole("button"));
+      expect(onSelect).toHaveBeenCalledWith("abc123def456");
+      expect(onNavigate).not.toHaveBeenCalled();
+    });
+  });
 });

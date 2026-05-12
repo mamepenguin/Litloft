@@ -42,7 +42,7 @@ interface FileDetailContentProps {
   fileId: string;
   /**
    * Drive name passed in from the host. Both hosts (the 2-pane right
-   * pane and the playlist-exception fullscreen route) already know
+   * pane and the collection-exception fullscreen route) already know
    * the drive — passing it as a prop avoids waiting for ``getFile``
    * to resolve before AddonSlot / EditableTagChips can render. The
    * resolved file's ``drive`` matches this prop in practice (the API
@@ -82,9 +82,9 @@ interface FileDetailContentProps {
   onAfterDelete?: () => void;
   /**
    * Forwarded to ``FilePreview``: callback when video / audio playback
-   * ends. The playlist-exception fullscreen route uses this to
-   * advance to the next item; the 2-pane right pane omits it (playlist
-   * mode lives on the fullscreen route per §4.6).
+   * ends. The collection-exception fullscreen route uses this to
+   * advance to the next item; the 2-pane right pane omits it
+   * (collection mode lives on the fullscreen route per §4.6).
    */
   onEnded?: () => void;
   /** Forwarded to ``FilePreview``: kick off playback on mount. */
@@ -97,16 +97,16 @@ interface FileDetailContentProps {
  * PR-3 of the right-pane equivalence merger
  * (docs/superpowers/specs/2026-05-09-right-pane-full-detail.md, §3.2):
  * extracts the body of the legacy ``/files/[id]/page.tsx`` so both
- * the 2-pane right pane and the playlist-exception fullscreen route
+ * the 2-pane right pane and the collection-exception fullscreen route
  * share a single rendering. Each host wraps this with its own chrome
- * (back button / TreeToggle / ImageGallery mount / PlaylistPanel /
+ * (back button / TreeToggle / ImageGallery mount / CollectionPanel /
  * useOverlaySidebar / arrow nav).
  *
  * Spec contract — what this component intentionally does **not** do
  * (§3.4):
  *   - call ``useOverlaySidebar()`` (host-side, varies by mode)
  *   - mount ``ImageGallery`` (host-side, on a callback)
- *   - mount ``PlaylistPanel`` (playlist mode lives outside the 2pane)
+ *   - mount ``CollectionPanel`` (collection mode lives outside the 2pane)
  *   - register arrow-key navigation (host uses ``useFileNav`` hook)
  *   - render a back button (host renders TreeToggle / ✕ / ←)
  *   - own searchParams (host extracts and passes initialTime etc.)
