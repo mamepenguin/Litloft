@@ -1,5 +1,6 @@
 import asyncio
 import hashlib
+import json
 import logging
 import os
 import re
@@ -61,8 +62,15 @@ from app.services.filetype import classify
 from app.services.frontmatter import (
     compose as compose_frontmatter,
     ensure_id,
+    extract_valid_aliases,
     extract_valid_tags,
     parse as parse_frontmatter,
+)
+from app.services.markdown_relations import (
+    ResolveDiagnostic,
+    extract_links,
+    resolve_wiki_targets,
+    resolve_wiki_targets_with_map,
 )
 from app.services.heic import HEIC_MIME_TYPES, convert_heic_to_jpeg
 from app.services.subtitle import convert_srt_to_vtt, detect_subtitles
@@ -92,36 +100,54 @@ _DANGEROUS_INLINE_MIMES = frozenset({
     "application/xslt+xml",
 })
 
-# Matches loft://file_id with optional query string; captures only the file_id.
-_LOFT_LINK_RE = re.compile(r"loft://([A-Za-z0-9_-]{12})(?:[?#][^\s\)\"']*)?")
-
-
 def _sync_md_file_relations(
-    db: Session, file_id: str, drive: str, content: str
-) -> None:
-    """Sync file_relations for a .md file based on loft:// links in its content.
+    db: Session,
+    file_id: str,
+    drive: str,
+    content: str,
+    self_dir: str,
+) -> list[ResolveDiagnostic]:
+    """Sync file_relations for a .md file using its body.
 
-    .md files use their body as source of truth for file_relations (same
-    pattern as frontmatter.tags for tags). Relations are added for newly
-    appearing loft:// links and removed for links no longer present.
-    Only same-drive, non-trashed targets are valid.
+    Spec ``2026-05-12-markdown-link-three-forms.md`` §3.5.
+
+    The body is the source of truth for ``kind='related'`` relations on
+    ``.md`` files. Two link forms contribute:
+
+    * ``loft://<id>`` — direct file id reference.
+    * ``[[X]]`` — wiki target, resolved drive-scoped via
+      :func:`resolve_wiki_targets` (see §3.3 for precedence).
+
+    Ambiguous and unresolved wiki targets do **not** create relations
+    (per spec §7.5 — auto-picking would surprise the writer). They are
+    returned as diagnostics so the caller can surface a warning.
+
+    Same-drive + active filter is applied; cross-drive references are
+    silently dropped (drive = security boundary).
     """
-    extracted = {m for m in _LOFT_LINK_RE.findall(content) if m != file_id}
+    extracted = extract_links(content)
+    loft_ids = {m for m in extracted.loft_ids if m != file_id}
+    wiki_ids, diagnostics = resolve_wiki_targets(
+        db, drive, self_dir, extracted.wiki_targets
+    )
 
-    # Resolve which extracted ids actually exist in the same drive and aren't trashed
-    if extracted:
-        valid_files = (
+    # loft_ids bypass the resolver, so apply the same-drive + active
+    # filter explicitly. Without this, a stale loft id pointing at a
+    # different drive could leak into ``file_relations``.
+    valid_loft: set[str] = set()
+    if loft_ids:
+        rows = (
             db.query(File.id)
             .filter(
-                File.id.in_(extracted),
+                File.id.in_(loft_ids),
                 File.drive == drive,
-                File.deleted_at.is_(None),
+                active_file_filter(),
             )
             .all()
         )
-        valid_ids = {row.id for row in valid_files}
-    else:
-        valid_ids = set()
+        valid_loft = {row.id for row in rows}
+
+    target_ids = (valid_loft | wiki_ids) - {file_id}
 
     # Current file_relations for this file (kind='related', both directions)
     existing_rels = db.query(FileRelation).filter(
@@ -137,8 +163,8 @@ def _sync_md_file_relations(
         existing_map[other] = rel
 
     existing_ids = set(existing_map)
-    to_add = valid_ids - existing_ids
-    to_remove = existing_ids - valid_ids
+    to_add = target_ids - existing_ids
+    to_remove = existing_ids - target_ids
 
     for tid in to_add:
         db.add(
@@ -151,6 +177,8 @@ def _sync_md_file_relations(
         )
     for tid in to_remove:
         db.delete(existing_map[tid])
+
+    return diagnostics
 
 
 def _is_markdown_file(file: File) -> bool:
@@ -1423,28 +1451,117 @@ async def put_file_content(
                     "put_content: tag projection failed for %s", file_id
                 )
 
-            # Sync loft:// links → file_relations. Same isolation pattern:
-            # a sync failure must not roll back the content write.
+            # Phase B (spec 2026-05-12 §3.6): project frontmatter
+            # ``aliases:`` to ``File.md_aliases`` so the wiki-link
+            # resolver can match alias-form targets. Isolated like the
+            # tag projection — a parse / write failure must not roll
+            # back the durable content write.
             try:
-                content_str = body.decode("utf-8")
-                _sync_md_file_relations(db, file_id, file.drive, content_str)
+                parsed = parse_frontmatter(body.decode("utf-8"))
+                aliases = extract_valid_aliases(parsed.metadata)
+                file.md_aliases = json.dumps(aliases) if aliases else None
                 db.commit()
             except UnicodeDecodeError:
                 db.rollback()
                 logger.warning(
-                    "put_content: %s is not valid UTF-8; skipping loft link sync",
+                    "put_content: %s is not valid UTF-8; skipping aliases projection",
                     file_id,
                 )
             except Exception:
                 db.rollback()
                 logger.exception(
-                    "put_content: loft link sync failed for %s", file_id
+                    "put_content: md_aliases projection failed for %s", file_id
+                )
+
+            # Sync loft:// + wiki-link relations → file_relations. Same
+            # isolation pattern: a sync failure must not roll back the
+            # content write. The resolver needs ``file.folder_path`` to
+            # interpret ``./`` and ``../`` targets.
+            try:
+                content_str = body.decode("utf-8")
+                _sync_md_file_relations(
+                    db, file_id, file.drive, content_str, file.folder_path
+                )
+                db.commit()
+            except UnicodeDecodeError:
+                db.rollback()
+                logger.warning(
+                    "put_content: %s is not valid UTF-8; skipping link sync",
+                    file_id,
+                )
+            except Exception:
+                db.rollback()
+                logger.exception(
+                    "put_content: link sync failed for %s", file_id
                 )
 
     return Response(
         status_code=200,
         headers={"ETag": f'"{new_etag}"'},
     )
+
+
+@router.get("/{file_id}/wiki-resolutions")
+async def get_wiki_resolutions(
+    file_id: FileId,
+    db: Annotated[Session, Depends(get_db)],
+    unlocked_groups: Annotated[list[str], Depends(get_unlocked_groups)],
+):
+    """Return the resolver verdict for every ``[[X]]`` in a ``.md`` body.
+
+    Spec ``2026-05-12-markdown-link-three-forms.md`` §3.8. Lets the
+    renderer pick per-link styling (resolved / unresolved / ambiguous)
+    without re-parsing the body in the browser.
+
+    Response shape::
+
+        {
+          "resolutions": {
+            "<target>": {"kind": "resolved", "file_id": "<id>"},
+            "<target>": {"kind": "unresolved"},
+            "<target>": {"kind": "ambiguous", "candidates": ["..."]}
+          }
+        }
+
+    Errors: ``404`` for unknown / trashed / missing / inaccessible
+    files; ``415`` when the file is not markdown. Drive-access gating
+    flows through :func:`_get_file_or_404` so password-protected drives
+    return ``404`` while locked.
+    """
+    file = _get_file_or_404(db, file_id, unlocked_groups)
+    if not _is_markdown_file(file):
+        raise HTTPException(status_code=415, detail="Not a markdown file")
+
+    drive_path = config.get_drive_path(file.drive)
+    file_path = _validate_path(str(drive_path / file.file_path), drive_path)
+    try:
+        content = file_path.read_text(encoding="utf-8")
+    except (OSError, UnicodeDecodeError):
+        return {"resolutions": {}}
+
+    extracted = extract_links(content)
+    target_to_id, diagnostics = resolve_wiki_targets_with_map(
+        db, file.drive, file.folder_path, extracted.wiki_targets
+    )
+    diagnostics_by_target = {d.target: d for d in diagnostics}
+
+    resolutions: dict[str, dict] = {}
+    # Preserve insertion order = body order for deterministic UI render.
+    for target in extracted.wiki_targets:
+        if target in resolutions:
+            continue
+        if target in target_to_id:
+            resolutions[target] = {
+                "kind": "resolved",
+                "file_id": target_to_id[target],
+            }
+        elif target in diagnostics_by_target:
+            diag = diagnostics_by_target[target]
+            entry: dict = {"kind": diag.kind}
+            if diag.kind == "ambiguous":
+                entry["candidates"] = diag.candidates
+            resolutions[target] = entry
+    return {"resolutions": resolutions}
 
 
 @router.delete("/{file_id}/purge")

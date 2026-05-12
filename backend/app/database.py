@@ -445,6 +445,15 @@ def _migrate(engine_) -> None:
                     "ON files(drive, md_id)"
                 ))
 
+        # Phase B: aliases projection (frontmatter ``aliases:`` → JSON
+        # list). No index — alias lookup is a drive-scoped scan, which
+        # stays bounded by the drive = security boundary rule.
+        file_columns = {col["name"] for col in inspector_md.get_columns("files")}
+        if "md_aliases" not in file_columns:
+            logger.info("Migrating: adding 'md_aliases' column to files")
+            with engine_.begin() as conn:
+                conn.execute(text("ALTER TABLE files ADD COLUMN md_aliases TEXT"))
+
 
 def init_db() -> None:
     DATA_DIR.mkdir(parents=True, exist_ok=True)

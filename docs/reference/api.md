@@ -40,7 +40,8 @@ A high-level catalogue of Litloft's HTTP API. The browser uses these endpoints; 
 | `GET` | `/api/files/{id}/sprite` | Sprite preview sheet (videos). |
 | `GET` | `/api/files/{id}/exif` | EXIF data (images). |
 | `GET` | `/api/files/{id}/content` | Text body (text/Markdown only). |
-| `PUT` | `/api/files/{id}/content` | Write text body. 1 MB cap. Triggers Markdown frontmatter sync. |
+| `PUT` | `/api/files/{id}/content` | Write text body. 1 MB cap. Triggers Markdown frontmatter sync (tags, aliases, wiki-link / loft:// relations). |
+| `GET` | `/api/files/{id}/wiki-resolutions` | Per-target resolver verdict for every `[[X]]` in a `.md` body. Markdown-only (415 otherwise). Shape: `{"resolutions": {"<target>": {"kind": "resolved" \| "unresolved" \| "ambiguous", ...}}}`. |
 | `GET` | `/api/files/{id}/tags` | Get tags. |
 | `PUT` | `/api/files/{id}/tags` | Set tags (canonical store: frontmatter for `.md`, DB for others). |
 | `GET` | `/api/files/{id}/relations` | Related files. |

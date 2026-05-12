@@ -82,6 +82,9 @@ class File(Base):
     md_id: Mapped[str | None] = mapped_column(
         String(32), nullable=True, default=None
     )
+    md_aliases: Mapped[str | None] = mapped_column(
+        Text, nullable=True, default=None
+    )
 
     tags: Mapped[list[Tag]] = relationship(
         "Tag", secondary=file_tags, back_populates="files", lazy="selectin"

@@ -1,4 +1,5 @@
 import asyncio
+import json
 import logging
 import time
 import unicodedata
@@ -13,7 +14,11 @@ from app.models import EmptyFolder, File, FileExif, active_file_filter
 from app.services.exif import extract_exif
 from app.services.filetype import classify, is_hidden, refine_classification_with_probe
 from app.services.frontmatter import compose as compose_frontmatter
-from app.services.frontmatter import ensure_id, parse as parse_frontmatter
+from app.services.frontmatter import (
+    ensure_id,
+    extract_valid_aliases,
+    parse as parse_frontmatter,
+)
 from app.services.hash import compute_file_hash
 from app.services.subtitle import is_subtitle_file
 from app.services.thumbnail import get_thumbnail_generator, get_video_duration
@@ -107,13 +112,18 @@ def _ensure_md_id_for_new_file(
     file_record: File,
     file_path: Path,
 ) -> None:
-    """For ``.md`` files: read frontmatter, ensure ``id:`` and project to
-    ``File.md_id``.
+    """For ``.md`` files: read frontmatter, ensure ``id:`` and project
+    ``id`` + ``aliases`` to ``File.md_id`` / ``File.md_aliases``.
 
     No-op when the file is not markdown, has no frontmatter, or is too
     large to safely parse. When the frontmatter has no ``id:``, generate
     one and write the file back atomically. Same collision rule as
     ``put_file_content._inject_md_id`` (spec §3.1).
+
+    Aliases projection (spec §3.6 — Phase B): when frontmatter has a
+    valid ``aliases:`` list, store the sanitized JSON form on
+    ``File.md_aliases`` so the wiki-link resolver can match alias-form
+    targets at first-scan time.
 
     Called from both ``register_single_file`` and ``_scan_and_register``.
     Failures (read errors, malformed YAML, write errors) are swallowed so
@@ -162,6 +172,15 @@ def _ensure_md_id_for_new_file(
             return
 
     file_record.md_id = new_id
+
+    # Phase B: aliases projection. Best-effort — never raise.
+    try:
+        aliases = extract_valid_aliases(parsed.metadata)
+        file_record.md_aliases = json.dumps(aliases) if aliases else None
+    except Exception:
+        logger.warning(
+            "scanner: md_aliases projection failed for %s", file_record.file_path
+        )
 
 
 def register_single_file(db: Session, drive_name: str, file_path: Path) -> str:

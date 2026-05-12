@@ -98,7 +98,10 @@ Markdown files use frontmatter as the canonical store; everything else uses the 
 
 The frontmatter parser is implemented twice (core + knowledge) because they live in separate containers. Drift caught in PR review.
 
-The same canonical / projection split applies to the Markdown `id:` field added in Phase A of spec `2026-05-12-markdown-link-three-forms.md`: the frontmatter `id:` is canonical, `File.md_id` is the projection cache. Injection sites today are `PUT /api/files/{id}/content` and the knowledge `note_scanner` reconcile loop; the shared helper is `ensure_id` (duplicated in core and knowledge for the same cross-container reason).
+The same canonical / projection split applies to the Markdown link 3-form feature (spec `2026-05-12-markdown-link-three-forms.md`):
+
+- **Phase A** — frontmatter `id:` canonical, `File.md_id` is the projection cache. Injection sites: `PUT /api/files/{id}/content`, `services/scanner.py` first-detect, and the knowledge `note_scanner` reconcile loop. Shared helper: `ensure_id` (duplicated in core and knowledge).
+- **Phase B** — frontmatter `aliases:` canonical, `File.md_aliases` (JSON-encoded `list[str]`, no index) is the projection cache; resolver consumes both columns. Same isolation discipline: each projection is its own commit so a failure cannot roll back the content write. The wiki-link extractor / resolver live in `services/markdown_relations.py`, and `GET /api/files/{id}/wiki-resolutions` exposes the per-target verdict for the renderer (Phase C).
 
 ## Addon model
 

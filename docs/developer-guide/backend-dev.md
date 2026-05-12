@@ -104,11 +104,25 @@ q = session.query(File).filter(active_file_filter())
 
 ### Markdown frontmatter helpers
 
-`app.services.frontmatter` exposes `parse`, `compose`, and `ensure_id`. They are all pure / immutable — never mutate the `metadata` dict in place; use the returned dict.
+`app.services.frontmatter` exposes `parse`, `compose`, `ensure_id`, `extract_valid_tags`, and `extract_valid_aliases`. They are all pure / immutable — never mutate the `metadata` dict in place; use the returned dict.
 
 For `.md` writes, run `ensure_id(metadata, existing_id=file.md_id, now=...)` **before** writing bytes to disk so the `File.md_id` projection and the on-disk frontmatter agree. Same-second collision disambiguation (3-digit ms suffix → 17 chars) is the caller's job; `ensure_id` itself stays pure. The canonical example is `_inject_md_id` in `routers/files.py`.
 
-A sibling implementation lives at `addons/knowledge/app/services/frontmatter.py` (cross-container duplication, drift caught in PR review). Change them together. See spec `2026-05-12-markdown-link-three-forms.md` §3.1 and the "Markdown frontmatter `id:`" section of `.claude/rules/design-decisions.md`.
+`extract_valid_aliases(metadata) -> list[str]` projects frontmatter `aliases:` to the new `File.md_aliases` column (Phase B). Caps: 20 entries × 100 chars, case-sensitive dedup, no character regex (aliases may contain CJK / spaces / punctuation), drops non-string entries (no YAML-bool coercion). Returns `[]` on missing / malformed keys; the caller decides whether to store `NULL` or a JSON-encoded empty list (current policy is `NULL`).
+
+A sibling implementation lives at `addons/knowledge/app/services/frontmatter.py` (cross-container duplication, drift caught in PR review). Change them together. See spec `2026-05-12-markdown-link-three-forms.md` §3.1 / §3.6 and the "Markdown frontmatter `id:`" / "Tag editing" sections of `.claude/rules/design-decisions.md`.
+
+### Markdown wiki-link extractor + resolver
+
+`app.services.markdown_relations` (Phase B of spec `2026-05-12-markdown-link-three-forms.md`) is the single source of truth for parsing `[[X]]` wiki-links and `loft://<id>` direct references inside `.md` bodies.
+
+- `extract_links(content) -> ExtractedLinks(loft_ids, wiki_targets)` — pure regex pass. Honours CommonMark `\[` escapes so `\[\[X\]\]` is *not* captured. The wiki regex captures the target portion only; `[[X|disp]]` and `[[X#head]]` collapse to `X`.
+- `resolve_wiki_targets(db, drive, self_dir, targets) -> (resolved_ids, diagnostics)` — used by `_sync_md_file_relations` to compute `file_relations` diffs.
+- `resolve_wiki_targets_with_map(db, drive, self_dir, targets) -> (target_to_id, diagnostics)` — used by `GET /api/files/{id}/wiki-resolutions` to build the renderer's per-target lookup.
+
+Precedence is **strict and intra-rule** — the first rule with hits stops the chain; basename hits do not fall through to alias hits even when both would have matched. See spec §3.3 for the full ordering. Resolution is always drive-scoped (drive = security boundary); cross-drive targets stay `unresolved`.
+
+The resolver runs **pure read** against the ORM session — it does not commit. Callers (`_sync_md_file_relations`, `get_wiki_resolutions`) own their own transaction boundary, and each Phase B projection is isolated in its own try/commit block so a parse / sync / projection failure cannot roll back the durable content write. This is the same isolation pattern as the existing tag projection.
 
 ## Adding an endpoint
 

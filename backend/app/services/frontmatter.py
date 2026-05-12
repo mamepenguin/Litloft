@@ -44,6 +44,13 @@ _TAG_RE = re.compile(r"^[\w\-]+$", re.UNICODE)
 _MAX_TAGS = 10
 _MAX_TAG_LEN = 30
 
+# Phase B (spec 2026-05-12-markdown-link-three-forms §3.6): aliases are
+# user-facing labels with weaker character constraints than tags (e.g.
+# CJK and spaces are common). The caps are advisory — alias storage is
+# a Text column, not a per-drive Tag namespace.
+_MAX_ALIASES = 20
+_MAX_ALIAS_LEN = 100
+
 
 @dataclass(frozen=True)
 class ParsedMarkdown:
@@ -217,5 +224,60 @@ def extract_valid_tags(metadata: dict[str, Any]) -> list[str]:
         seen.add(key)
         out.append(tag)
         if len(out) >= _MAX_TAGS:
+            break
+    return out
+
+
+def extract_valid_aliases(metadata: dict[str, Any]) -> list[str]:
+    """Sanitize frontmatter ``aliases:`` for projection to ``File.md_aliases``.
+
+    Spec 2026-05-12-markdown-link-three-forms §3.6.
+
+    Differences from :func:`extract_valid_tags`:
+
+    * **Case-sensitive dedup** — aliases are user-facing display
+      strings, not the per-drive Tag namespace, so preserving case
+      matters for renderer output.
+    * **No character regex** — aliases may contain spaces, punctuation,
+      CJK, etc. We only enforce non-empty and length cap.
+    * **Bool coercion is dropped** — YAML ``true``/``false`` would
+      otherwise become the strings ``"True"``/``"False"`` (Python
+      ``bool`` is a subclass of ``int``); aliases come from human
+      typing, so silently drop non-strings.
+
+    Returns an empty list when the key is missing, not a list, or every
+    entry is invalid. The caller decides whether to store ``None`` or
+    a JSON-encoded empty list — current production policy is ``None``.
+    """
+    raw = metadata.get("aliases")
+    if not isinstance(raw, list):
+        return []
+    raw = raw[: _MAX_ALIASES * 10]
+    out: list[str] = []
+    seen: set[str] = set()
+    for item in raw:
+        if not isinstance(item, str):
+            continue
+        # Strip C0/C1 control chars + bidi overrides + zero-width chars.
+        # Prevents homograph / RTL-spoofing aliases from ambushing the
+        # resolver into matching a target that visually equals a benign one.
+        cleaned = "".join(
+            ch for ch in item
+            if not (
+                ord(ch) < 0x20
+                or 0x7F <= ord(ch) <= 0x9F
+                or ch in ("​", "‌", "‍", "⁠", "﻿")
+                or ch in ("‪", "‫", "‬", "‭", "‮")
+                or ch in ("⁦", "⁧", "⁨", "⁩")
+            )
+        )
+        alias = cleaned.strip()
+        if not alias or len(alias) > _MAX_ALIAS_LEN:
+            continue
+        if alias in seen:
+            continue
+        seen.add(alias)
+        out.append(alias)
+        if len(out) >= _MAX_ALIASES:
             break
     return out
