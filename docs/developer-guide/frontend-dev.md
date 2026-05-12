@@ -89,6 +89,26 @@ For `.md`, edits use a 500 ms debounce on the chip editor → `PUT /api/files/{i
 
 For `.md` Approve auto_tags, retry once on `ConflictError` (the projection may have just rewritten frontmatter).
 
+## Wiki-link rendering (Markdown 3-form, Phase C)
+
+`MarkdownPreview` recognises `[[X]]` wiki-links in `.md` bodies (Obsidian / Logseq / Foam compatible, alongside the existing `[<text>](loft://<id>)` form). The resolution map flows in via the `wikiResolution` prop:
+
+```tsx
+import { MarkdownPreview } from '@/components/MarkdownPreview';
+import { getWikiResolutions, type WikiResolveResult } from '@/lib/api';
+
+const map = await getWikiResolutions(fileId);
+<MarkdownPreview source={body} wikiResolution={map} />
+```
+
+Three rules to keep in mind when wiring a new caller:
+
+1. **Use `MarkdownFileViewer` if you have a `fileId`.** It owns both fetches (body + resolutions) and is decoupled on purpose — the body renders immediately while resolutions stream in, and missing entries fall back to the pessimistic `wiki-unresolved` shape so nothing blocks first paint.
+2. **`getWikiResolutions` rejects on `404` / `415`.** Non-markdown files and inaccessible files surface as `Error("wiki-resolutions: ...")`. Callers that render previews for arbitrary files should `.catch(() => undefined)` rather than letting the failure bubble — the body still renders, links just stay pessimistic.
+3. **Do not author DOM for `[[X]]` outside `MarkdownPreview`.** The inline rule is the single source of truth for the three CSS classes (`wiki-link wiki-resolved` / `wiki-unresolved` / `wiki-ambiguous`) so the renderer, DOMPurify allowlist, and DESIGN.md §2.3 stay in sync. Knowledge's `[[` autocomplete (`WikiLinkAutocomplete`) and unresolved-link dialog (`UnresolvedLinkDialog`) attach to those classes, not to the raw `[[...]]` text.
+
+Spec: `docs/superpowers/specs/2026-05-12-markdown-link-three-forms.md` §3.8-3.9. Implementation map: [docs/CODEMAPS/markdown-id.md](../CODEMAPS/markdown-id.md).
+
 ## SPA navigation
 
 Page transitions use `router.push()` / `<Link>`. **No full reloads** — `window.location.href = ...` is allowed only for the post-unlock redirect because the JWT cookie has just been set and SPA caches need to be invalidated.

@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef } from "react";
 import { useHighlightPassage } from "@/hooks/useHighlightPassage";
 import MarkdownIt from "markdown-it";
 // @ts-expect-error -- no bundled type definitions
@@ -8,9 +8,10 @@ import taskLists from "markdown-it-task-lists";
 import hljs from "highlight.js";
 import DOMPurify from "isomorphic-dompurify";
 import matter from "gray-matter";
-import { useTranslations } from "next-intl";
-import { getStreamUrl } from "@/lib/api";
+import { type WikiResolveResult } from "@/lib/api";
 import { PropertiesPanel } from "@/components/PropertiesPanel";
+
+export type { WikiResolveResult };
 
 // Mermaid is loaded lazily (≈4 MB).  Initialize only once so that calling
 // mermaid.initialize() on subsequent re-renders doesn't reset internal state.
@@ -28,6 +29,56 @@ const getMermaid = (() => {
   };
 })();
 
+/**
+ * Render a single wiki-link to a safe HTML string.
+ *
+ * The display text is HTML-escaped through markdown-it's own escapeHtml
+ * (which DOMPurify would also catch later, but escaping at emission
+ * time keeps the sanitizer's job simple and avoids relying on it for
+ * correctness). data-wiki-target carries the *raw* target so consumers
+ * (the Knowledge unresolved-link click handler) can identify the link
+ * regardless of how the user customised its display text.
+ */
+function renderWikiLinkHtml({
+  md,
+  target,
+  displayText,
+  resolution,
+}: {
+  md: MarkdownIt;
+  target: string;
+  displayText: string;
+  resolution: WikiResolveResult | undefined;
+}): string {
+  const safeDisplay = md.utils.escapeHtml(displayText);
+  const safeTarget = md.utils.escapeHtml(target);
+  if (resolution && resolution.kind === "resolved") {
+    const safeId = md.utils.escapeHtml(resolution.file_id);
+    return (
+      `<a class="wiki-link wiki-resolved" ` +
+      `href="/files/${safeId}" ` +
+      `data-wiki-target="${safeTarget}">` +
+      `${safeDisplay}</a>`
+    );
+  }
+  if (resolution && resolution.kind === "ambiguous") {
+    const count = resolution.candidates?.length ?? 0;
+    const safeTitle = md.utils.escapeHtml(
+      `ambiguous link: ${count} matches`,
+    );
+    return (
+      `<span class="wiki-link wiki-ambiguous" ` +
+      `data-wiki-target="${safeTarget}" ` +
+      `title="${safeTitle}">${safeDisplay}</span>`
+    );
+  }
+  // Default: unresolved (also covers the "no map" / "key absent" cases).
+  return (
+    `<span class="wiki-link wiki-unresolved" ` +
+    `data-wiki-target="${safeTarget}">${safeDisplay}</span>`
+  );
+}
+
 function createMarkdownRenderer({ withMermaid }: { withMermaid: boolean }): MarkdownIt {
   const md = new MarkdownIt({
     html: false,       // Do not trust raw HTML embedded in markdown
@@ -37,6 +88,99 @@ function createMarkdownRenderer({ withMermaid }: { withMermaid: boolean }): Mark
   });
 
   md.use(taskLists, { enabled: true, label: true });
+
+  // Wiki-link inline rule. Spec 2026-05-12 §3.8.
+  //
+  // Detects ``[[X]]`` / ``[[X|display]]`` / ``[[X#heading]]`` at the
+  // current source position and emits either:
+  //   - resolved   -> <a class="wiki-link wiki-resolved" ...>
+  //   - unresolved -> <span class="wiki-link wiki-unresolved" ...>
+  //   - ambiguous  -> <span class="wiki-link wiki-ambiguous" ...>
+  //
+  // The resolution map flows through ``env.wikiResolution``; when it is
+  // missing (or the target is absent) we render the pessimistic
+  // ``unresolved`` form so the UI never briefly flashes "resolved" while
+  // the resolutions request is still in flight.
+  //
+  // Registered ``before("link", ...)`` so the bracketed pair is consumed
+  // before linkify gets a chance to auto-link the inner text (a payload
+  // like ``[[example.com]]`` would otherwise become a clickable external
+  // link).
+  md.inline.ruler.before("link", "wiki_link", (state, silent) => {
+    const src = state.src;
+    const start = state.pos;
+    if (src.charCodeAt(start) !== 0x5b /* [ */) return false;
+    if (src.charCodeAt(start + 1) !== 0x5b /* [ */) return false;
+
+    // Find the closing ``]]``; bail if absent within this line.
+    const max = state.posMax;
+    let end = -1;
+    for (let i = start + 2; i < max - 1; i++) {
+      const ch = src.charCodeAt(i);
+      // Stop at newlines — wiki-links don't span lines, matching
+      // Obsidian / Foam behaviour.
+      if (ch === 0x0a) return false;
+      if (ch === 0x5d && src.charCodeAt(i + 1) === 0x5d) {
+        end = i;
+        break;
+      }
+    }
+    if (end < 0) return false;
+
+    const inner = src.slice(start + 2, end);
+    // Empty ``[[]]`` is not a wiki-link.
+    if (inner.length === 0) return false;
+    // ``]`` or ``[`` inside the inner text means the parser ran off
+    // the rails (nested brackets); bail so markdown-it's standard link
+    // pass can deal with it.
+    if (inner.indexOf("[") >= 0) return false;
+
+    // Pull out optional display / heading suffix.
+    // ``[[target|display]]`` -> target, displayOverride
+    // ``[[target#heading]]`` -> target, "target#heading" (display)
+    // ``[[target#heading|display]]`` -> target, displayOverride
+    let target = inner;
+    let display: string | null = null;
+    const pipeIdx = inner.indexOf("|");
+    if (pipeIdx >= 0) {
+      target = inner.slice(0, pipeIdx);
+      display = inner.slice(pipeIdx + 1);
+    }
+    const hashIdx = target.indexOf("#");
+    let headingSuffix = "";
+    if (hashIdx >= 0) {
+      headingSuffix = target.slice(hashIdx);
+      target = target.slice(0, hashIdx);
+    }
+    target = target.trim();
+    if (target.length === 0) return false;
+
+    if (!silent) {
+      const env = state.env as
+        | { wikiResolution?: Record<string, WikiResolveResult> }
+        | undefined;
+      const resolution: WikiResolveResult | undefined =
+        env?.wikiResolution?.[target];
+
+      const displayText =
+        display !== null
+          ? display
+          : headingSuffix
+            ? `${target}${headingSuffix}`
+            : target;
+
+      const token = state.push("html_inline", "", 0);
+      token.content = renderWikiLinkHtml({
+        md,
+        target,
+        displayText,
+        resolution,
+      });
+    }
+
+    state.pos = end + 2;
+    return true;
+  });
 
   const defaultLinkRender: NonNullable<typeof md.renderer.rules.link_open> =
     md.renderer.rules.link_open ??
@@ -111,19 +255,25 @@ function renderMarkdownToSafeHtml(
   source: string,
   withMermaid: boolean,
   _drive?: string,
+  wikiResolution?: Record<string, WikiResolveResult>,
 ): {
   frontmatter: Record<string, unknown>;
   html: string;
 } {
   const parsed = matter(source);
   const md = withMermaid ? mdWithMermaid : mdPlain;
-  const rawHtml = md.render(parsed.content);
+  // ``wikiResolution`` rides on the env object so the inline rule can
+  // pick it up without a module-level singleton (which would race on
+  // concurrent renders).
+  const env: { wikiResolution?: Record<string, WikiResolveResult> } = {};
+  if (wikiResolution) env.wikiResolution = wikiResolution;
+  const rawHtml = md.render(parsed.content, env);
   const safeHtml = DOMPurify.sanitize(rawHtml, {
     FORBID_TAGS: ["script", "iframe", "object", "embed", "form"],
     FORBID_ATTR: ["onload", "onerror", "onclick", "onmouseover"],
     // Allow target on <a> because our renderer forces rel="noopener noreferrer"
     // alongside it, so there is no tabnabbing risk.
-    ADD_ATTR: ["target", "checked", "disabled"],
+    ADD_ATTR: ["target", "checked", "disabled", "data-wiki-target"],
   });
   return { frontmatter: parsed.data as Record<string, unknown>, html: safeHtml };
 }
@@ -153,12 +303,23 @@ export function MarkdownPreview({
   onTagsSaved,
   onSourceChange,
   highlight,
+  wikiResolution,
 }: {
   source: string;
   showFrontmatter?: boolean;
   chrome?: boolean;
   mermaid?: boolean;
   className?: string;
+  /**
+   * Wiki-link resolution map from the caller. Each key is the raw
+   * target text of a ``[[X]]`` (without ``|display`` / ``#heading``
+   * suffix); each value tells the renderer whether the target resolved
+   * to a single file, none, or multiple. When omitted (or a target is
+   * absent), the renderer emits the pessimistic "unresolved" form so
+   * the UI never flashes a brief "resolved -> unresolved" while the
+   * server fetch is in flight. Spec 2026-05-12 §3.8.
+   */
+  wikiResolution?: Record<string, WikiResolveResult>;
   /**
    * Drive name used to resolve ``loft://file_id`` internal file links.
    * Required for Knowledge editor preview; optional elsewhere.
@@ -205,8 +366,8 @@ export function MarkdownPreview({
   highlight?: string;
 }) {
   const { frontmatter, html } = useMemo(
-    () => renderMarkdownToSafeHtml(source, mermaid, drive),
-    [source, mermaid, drive],
+    () => renderMarkdownToSafeHtml(source, mermaid, drive, wikiResolution),
+    [source, mermaid, drive, wikiResolution],
   );
 
   const containerRef = useRef<HTMLDivElement>(null);
@@ -307,101 +468,8 @@ export function MarkdownPreview({
   );
 }
 
-/**
- * Fetch-and-render wrapper for use in FilePreview. Loads the file content
- * then pipes it through MarkdownPreview.
- *
- * When ``editable`` is provided the Properties Panel becomes a tag
- * editor (spec §D4). Sync after edits is driven externally now:
- * callers pass ``externalReloadKey`` (e.g. bumped by the file detail
- * page when any chip save lands) and this component refetches
- * ``source`` so the frontmatter display matches the backend's
- * projection. ``onTagsSaved`` bubbles the save-success signal back up
- * so the file detail page can also refetch ``File.tags`` for its
- * outer chip row — both chip instances on the same page thus stay
- * synchronised after either side saves.
- */
-export function MarkdownFileViewer({
-  fileId,
-  editable,
-  externalReloadKey,
-  onTagsSaved,
-  highlight,
-}: {
-  fileId: string;
-  editable?: {
-    mime_type: string;
-    filename: string;
-    drive: string;
-  };
-  /**
-   * Bump this from the parent to force a source refetch. Combined
-   * with ``fileId`` so a change to either triggers the reload.
-   */
-  externalReloadKey?: number;
-  /**
-   * Fires after the Properties Panel chip's debounced save lands.
-   * The parent is responsible for bumping ``externalReloadKey`` and
-   * refreshing any sibling state (outer ``File.tags`` chip row,
-   * sidebar tag list).
-   */
-  onTagsSaved?: (tags: string[]) => void;
-  /** Forwarded to MarkdownPreview for citation jump. */
-  highlight?: string;
-}) {
-  const t = useTranslations("text");
-  const [source, setSource] = useState<string | null>(null);
-  const [error, setError] = useState<string | null>(null);
-
-  useEffect(() => {
-    let cancelled = false;
-    fetch(getStreamUrl(fileId), { credentials: "include" })
-      .then((res) => {
-        if (!res.ok) throw new Error(`${res.status} ${res.statusText}`);
-        return res.text();
-      })
-      .then((text) => {
-        if (!cancelled) setSource(text);
-      })
-      .catch((err) => {
-        if (!cancelled) setError(err instanceof Error ? err.message : "Failed to load");
-      });
-    return () => {
-      cancelled = true;
-    };
-  }, [fileId, externalReloadKey]);
-
-  if (error) {
-    return (
-      <div className="flex w-full items-center justify-center rounded-xl bg-bg-card py-16">
-        <p className="text-sm text-danger">{t("loadFailed", { error })}</p>
-      </div>
-    );
-  }
-
-  if (source === null) {
-    return (
-      <div className="flex w-full items-center justify-center rounded-xl bg-bg-card py-16">
-        <p className="text-sm text-text-muted">{t("loading")}</p>
-      </div>
-    );
-  }
-
-  const edit = editable
-    ? {
-        id: fileId,
-        mime_type: editable.mime_type,
-        filename: editable.filename,
-        drive: editable.drive,
-      }
-    : undefined;
-
-  return (
-    <MarkdownPreview
-      source={source}
-      editable={edit}
-      onTagsSaved={onTagsSaved}
-      highlight={highlight}
-    />
-  );
-}
+// MarkdownFileViewer is re-exported from a sibling module so it isn't
+// loaded as a transitive dependency of MarkdownPreview.tsx itself —
+// keeps Vitest mocks of this module clean (see file header of
+// MarkdownFileViewer.tsx for the full rationale).
+export { MarkdownFileViewer } from "@/components/MarkdownFileViewer";

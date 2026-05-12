@@ -233,6 +233,21 @@ Applies light or dark values via `@media (prefers-color-scheme: light/dark)`.
 - Never rely on color alone to convey state — pair with icons or text.
 - **`<mark>` UA default is reset globally** (`background: transparent; color: inherit`) so Tailwind utilities (e.g. `bg-accent-teal/20`) apply wherever `<mark>` is used outside the Markdown pipeline. Inside `.markdown-body`, `--highlight-bg` wins via specificity. Do not re-introduce the browser-default yellow.
 
+### 2.3 Wiki-link classes
+
+The Markdown renderer emits three CSS classes for `[[X]]`-style wiki-links (spec `2026-05-12-markdown-link-three-forms.md` §3.8). Each class is paired with an existing color token rather than a new one — the three states reuse the established palette:
+
+| Class | Element | Color token | Usage |
+|---|---|---|---|
+| `wiki-link wiki-resolved` | `<a>` | `--focus-ring` (blue, the same token used for in-app navigation focus) | A `[[X]]` that resolved to a single `.md` file_id. Rendered as a real link to `/files/<id>`. |
+| `wiki-link wiki-unresolved` | `<span>` | `--warm-silver` (muted gray) | A `[[X]]` whose target was not found. Affordance-free unless the Knowledge addon's slot attaches a click handler for the new-note dialog. |
+| `wiki-link wiki-ambiguous` | `<span>` | `--accent-amber` (suggestion / warning) | A `[[X]]` that matched more than one note. The `title` attribute surfaces the candidate count so the user can hover for context. |
+
+Rules:
+
+- Always pair the class with the marker icon or underline so the state is conveyed visually for users with color-vision deficiencies.
+- The classes are added to DOMPurify's `data-wiki-target` attribute allowlist so the wiki target survives sanitization for downstream consumers (e.g. the Knowledge unresolved-link click handler).
+
 ---
 
 ## 3. Typography

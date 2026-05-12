@@ -172,6 +172,14 @@ describe("MarkdownFileViewer", () => {
       if (href.includes("/tags")) {
         return Promise.resolve(makeResp("[]", "application/json"));
       }
+      // Phase C (spec 2026-05-12 §3.8): MarkdownFileViewer now also
+      // fetches wiki-link resolutions. Serve an empty map so it
+      // doesn't count toward the stream-call total.
+      if (href.includes("/wiki-resolutions")) {
+        return Promise.resolve(
+          makeResp(JSON.stringify({ resolutions: {} }), "application/json"),
+        );
+      }
       streamCalls += 1;
       return Promise.resolve(makeResp(`---\ntags: [v${streamCalls}]\n---\nbody\n`));
     });

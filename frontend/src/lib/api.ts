@@ -782,3 +782,52 @@ export async function lock(): Promise<void> {
 export async function getAuthStatus(): Promise<AuthStatus> {
   return fetchJSON<AuthStatus>(`${API_BASE}/auth/status`);
 }
+
+// ---- Wiki-link resolutions (spec 2026-05-12 §3.8) ----
+
+/**
+ * Phase C of the markdown link 3-form feature. The backend extracts
+ * ``[[X]]`` targets from a ``.md`` file body and returns, for each one,
+ * whether it resolves to exactly one file (``resolved``), to none
+ * (``unresolved``), or to several candidates (``ambiguous``). The
+ * renderer uses this map to decide what DOM shape to emit per target.
+ *
+ * The wire format is ``{resolutions: {target_str: WikiResolveResult}}``;
+ * this helper unwraps the outer ``resolutions`` envelope so callers can
+ * pass it through as the ``wikiResolution`` prop verbatim.
+ */
+export type WikiResolveResult =
+  | { kind: "resolved"; file_id: string }
+  | { kind: "unresolved" }
+  | { kind: "ambiguous"; candidates: string[] };
+
+export async function getWikiResolutions(
+  fileId: string,
+): Promise<Record<string, WikiResolveResult>> {
+  const res = await fetch(
+    `${API_BASE}/files/${encodeURIComponent(fileId)}/wiki-resolutions`,
+    { credentials: "include" },
+  );
+  if (res.status === 404) {
+    throw new Error("wiki-resolutions: 404 file not found");
+  }
+  if (res.status === 415) {
+    throw new Error("wiki-resolutions: not a markdown file");
+  }
+  if (!res.ok) {
+    throw new Error(`wiki-resolutions failed: ${res.status}`);
+  }
+  const body = (await res.json()) as unknown;
+  if (
+    !body ||
+    typeof body !== "object" ||
+    !("resolutions" in (body as Record<string, unknown>))
+  ) {
+    throw new Error("wiki-resolutions: unexpected response shape");
+  }
+  const resolutions = (body as { resolutions: unknown }).resolutions;
+  if (!resolutions || typeof resolutions !== "object") {
+    throw new Error("wiki-resolutions: unexpected resolutions value");
+  }
+  return resolutions as Record<string, WikiResolveResult>;
+}

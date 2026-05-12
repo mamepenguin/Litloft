@@ -1,14 +1,15 @@
-# Markdown links: frontmatter `id:` + wiki-link resolver (Phase A + B)
+# Markdown links: frontmatter `id:` + wiki-link resolver + renderer (Phase A + B + C)
 
 **Last Updated:** 2026-05-13
-**Spec:** `docs/superpowers/specs/2026-05-12-markdown-link-three-forms.md` §1-3 + §4 Phase A, B
+**Spec:** `docs/superpowers/specs/2026-05-12-markdown-link-three-forms.md` §1-3 + §4 Phase A, B, C
 
-Phases A and B of the 3-form Markdown link feature.
+Phases A, B, and C of the 3-form Markdown link feature.
 
 - **Phase A (landed)** — every `.md` file gets a Zettelkasten-style `id:` in its frontmatter, mirrored to a `File.md_id` column.
-- **Phase B (landed)** — wiki-link extraction (`[[X]]`) + drive-scoped resolver, projection of frontmatter `aliases:` to `File.md_aliases`, and a per-file resolver endpoint that the renderer (Phase C) will consume.
+- **Phase B (landed)** — wiki-link extraction (`[[X]]`) + drive-scoped resolver, projection of frontmatter `aliases:` to `File.md_aliases`, and a per-file resolver endpoint that the renderer (Phase C) consumes.
+- **Phase C (landed)** — frontend layer: `markdown-it` inline rule for `[[X]]`, a fetch-and-render wrapper that pulls resolutions per file, the Knowledge editor's `[[` autocomplete dropdown, and a new-note dialog for unresolved targets.
 
-Canonical / projection split mirrors the existing tags rule (`.claude/rules/design-decisions.md` → "Tag editing"): frontmatter is canonical, the `File.md_*` columns are projection caches. Phase C (renderer), Phase D (rename rewrite), and Phase E (LLM output policy) are out of scope here.
+Canonical / projection split mirrors the existing tags rule (`.claude/rules/design-decisions.md` → "Tag editing"): frontmatter is canonical, the `File.md_*` columns are projection caches. Phase D (rename rewrite) and Phase E (LLM output policy) remain out of scope here.
 
 ## Shared helpers
 
@@ -82,10 +83,42 @@ Cross-drive resolution never happens (drive = security boundary, hako `cRNeIvcbh
 - `backend/tests/routers/test_files_content_sync.py` — `PUT /content` projects aliases + diffs `file_relations` via the new resolver path.
 - `backend/tests/routers/test_files_wiki_resolutions.py` — endpoint shape, 415 / 404 paths, drive-gating.
 
+## Frontend renderer + editor (Phase C)
+
+Frontend layer that consumes `GET /api/files/{id}/wiki-resolutions` and turns `[[X]]` into the three documented DOM shapes (`wiki-link wiki-resolved` / `wiki-unresolved` / `wiki-ambiguous`; CSS tokens recorded in `DESIGN.md` §2.3).
+
+- `frontend/src/lib/api.ts`
+  - `WikiResolveResult` discriminated union — `{kind: "resolved", file_id}` / `{kind: "unresolved"}` / `{kind: "ambiguous", candidates}`.
+  - `getWikiResolutions(fileId) -> Promise<Record<string, WikiResolveResult>>` — unwraps the `{resolutions: ...}` envelope, throws on `404` (file not found / inaccessible) and `415` (not markdown). Callers pass the returned map straight through as the `wikiResolution` prop.
+- `frontend/src/components/MarkdownPreview.tsx`
+  - New `markdown-it` inline rule registered with `md.inline.ruler.before("link", "wiki_link", ...)`. Recognises `[[X]]`, `[[X|disp]]`, `[[X#heading]]` and emits one of the three DOM shapes. The resolution map rides on `env.wikiResolution`; absence of an entry falls back pessimistically to `wiki-unresolved` so the body still renders before the resolutions fetch returns.
+  - New prop `wikiResolution?: Record<string, WikiResolveResult>` on `<MarkdownPreview>` and on the underlying `renderMarkdownToSafeHtml` helper. The `WikiResolveResult` type is re-exported from `MarkdownPreview.tsx` for callers that want to import it from one place.
+  - Sanitiser allowlist updated to keep the `data-wiki-target` attribute through DOMPurify so the Knowledge slot-based click handler can read the raw target text off `.wiki-unresolved` nodes (handler wire-up is the open follow-up — see "Open follow-ups" below).
+- `frontend/src/components/MarkdownFileViewer.tsx` (new)
+  - Extracted from `MarkdownPreview.tsx` to keep the latter focused on the rule pipeline. Owns two parallel `useEffect`s — one fetches the body via `/stream`, the other calls `getWikiResolutions(fileId)`. They are deliberately decoupled: the body renders immediately and links flip from the pessimistic unresolved default to their real state once the resolutions request resolves. Both effects key off `(fileId, externalReloadKey)` so the parent can force a reload without unmounting.
+  - Re-exported from `MarkdownPreview.tsx` for backward-compatible imports while the file detail / editor preview paths migrate over.
+
+## Knowledge editor + unresolved-link dialog (Phase C)
+
+- `addons/knowledge/frontend/WikiLinkAutocomplete.tsx` (new)
+  - `[[`-triggered ARIA listbox. Calls `searchVault` (debounced 100 ms) to enumerate `.md` notes in the active vault, fuzzy-matches by basename + alias. Confirmed selection inserts `[[<basename>]]`; `Shift+Enter` inserts `[[<md_id>]]` when the hit has an `md_id` for disambiguation. The host owns keyboard nav through the `WikiLinkAutocompleteHandle` imperative handle so ArrowDown / ArrowUp / Enter / Esc flow through the textarea, not through the popup.
+- `addons/knowledge/frontend/Editor.tsx`
+  - `[[` trigger detection walks backwards from the caret on every keystroke, closes on whitespace or newline, and exposes a `wikiTrigger = {start, query}` state. Replacement uses `${[[}${linkBody}${]]}` so the textarea range from `triggerStart - 2` through the caret is rewritten atomically.
+- `addons/knowledge/frontend/UnresolvedLinkDialog.tsx` (new)
+  - Modal that mints a new `.md` note from a clicked `[[X]]`. Pre-fills filename `<target>.md` and folder = source-note folder. Calls `createTextFile(drive, {path, content: \`# ${target}\n\`})` so the resolver picks the new note up on the next render cycle. Client-side path-traversal guard (defense in depth — backend also rejects). 409 / 5xx surface as a `role="alert"` while the dialog stays open. Lives in the addon because only Knowledge knows how to mint a fresh note; core only exposes the `wiki-unresolved` class so the addon's slot wiring can locate the targets.
+- i18n keys (knowledge addon): `knowledge.unresolvedLinkDialog.{title,filenameLabel,folderLabel,cancel,create}` and `knowledge.wikiAutocomplete.*` live in `addons/knowledge/frontend/messages/{ja,en}.json`.
+
+## Tests (Phase C)
+
+- `frontend/src/components/__tests__/MarkdownPreview.wikilink.test.tsx` — inline rule renders all three DOM shapes from a synthetic `wikiResolution` map.
+- `addons/knowledge/frontend/__tests__/UnresolvedLinkDialog.test.tsx` — dialog open / submit / path-traversal guard / error surface.
+
+## Open follow-ups
+
+- Slot-based click handler that wires `.wiki-unresolved` clicks in the rendered preview to `UnresolvedLinkDialog`. The CSS class, the `data-wiki-target` allowlist, and the dialog are all in place; the missing piece is the listener that the Knowledge addon attaches to the rendered preview region. Implied by spec §3.8 but not landed yet — track in the Phase C follow-up before declaring the feature complete.
+
 ## Out of scope here
 
-- Renderer (`MarkdownPreview.tsx` wiki_link inline rule, unresolved-click dialog) — Phase C.
-- Editor `[[` autocomplete — Phase C.
 - Rename rewrite (`.md` basename change cascades into other `.md` bodies) — Phase D.
 - LLM output policy (intelligence → knowledge save uses `[[id]]`) — Phase E.
 - `PUT /content` `link_diagnostics` response payload — deferred (spec §3.5); the per-file `GET /wiki-resolutions` endpoint covers the renderer's needs today and is read-on-demand rather than write-piggybacked.
