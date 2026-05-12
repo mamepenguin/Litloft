@@ -1,6 +1,6 @@
 # Litloft Documentation
 
-Welcome to the Litloft docs. Litloft is a self-hosted media server and file manager for trusted home networks, with optional AI-powered search, summaries, and Q&A. It runs on Docker and is accessed through a browser (PWA).
+Welcome to the Litloft docs. Litloft is a self-hosted file and media app for trusted home networks. It can optionally use an LLM for tag suggestions, summaries, and natural-language Q&A over your files. Runs on Docker and is accessed through a browser (PWA).
 
 > **LAN only.** Litloft is designed for trusted networks. Do not expose it to the public internet without an HTTPS reverse proxy plus a VPN, or per-drive password protection at minimum.
 

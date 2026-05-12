@@ -1,12 +1,12 @@
 # Litloft
 
-A self-hosted media server and file manager for your home LAN — with AI-powered search, Q&A, and summaries. Runs on Docker, accessed via browser (PWA).
+A self-hosted file and media app for your home LAN. Browse, stream, and search your files; optionally use an LLM for tag suggestions, summaries, and natural-language Q&A. Runs on Docker, accessed via browser (PWA).
 
 > **LAN only.** Litloft is designed for trusted home networks. Do not expose it to the public internet without an HTTPS reverse proxy and VPN.
 
 > **Note:** Developed for personal use. Issues and PRs are welcome, but support is best-effort.
 
-**[Landing page](https://mamepenguin.github.io/Litloft/)** · [Japanese docs](docs/README.ja.md)
+**[Landing page](https://mamepenguin.github.io/Litloft/)** · [Japanese docs](docs/legacy/README.ja.md)
 
 <p align="center">
   <img src="docs/screenshot_home.png" width="49%" alt="Litloft home screen" />

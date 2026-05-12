@@ -1,6 +1,6 @@
 # intelligence addon
 
-The `intelligence` addon adds AI-powered features to Litloft. It is by far the largest addon: it runs in its own container (port 8100), maintains its own SQLite database under `data/addons/intelligence/`, and ships with ~500 MB of ML models.
+The `intelligence` addon adds LLM-backed search, Q&A, summarization, and tag suggestions to Litloft. It is by far the largest addon: it runs in its own container (port 8100), maintains its own SQLite database under `data/addons/intelligence/`, and ships with ~500 MB of ML models.
 
 ## What it provides
 
