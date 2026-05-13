@@ -38,7 +38,7 @@ router = APIRouter(prefix="/api/internal", tags=["internal"])
 
 # Text-content endpoint configuration. Mirrors the ``PUT /api/files/{id}/content``
 # allowlist (``backend/app/routers/files.py``) so read and write agree on what
-# "text" means. 10 MB is generous for Vault ``.md`` (typically KB-range) and
+# "text" means. 10 MB is generous for Knowledge ``.md`` (typically KB-range) and
 # leaves headroom for future PDF sidecar text; tweak via env for outlier
 # deployments without code change.
 _CONTENT_READ_ALLOWED_MIMES = frozenset({"text/markdown", "text/plain"})
