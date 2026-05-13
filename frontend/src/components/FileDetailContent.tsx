@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState, useSyncExternalStore } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { useTranslations } from "next-intl";
 import {
   Check,
@@ -28,7 +28,7 @@ import { ActiveSummaryHost } from "./ActiveSummaryHost";
 import { AddonSlot } from "./AddonSlot";
 import { CastButton } from "./CastButton";
 import { CommentSection } from "./CommentSection";
-import { EditableTagChips } from "./EditableTagChips";
+import { MarkdownAwareTagChips } from "./MarkdownAwareTagChips";
 import { ExifSection } from "./ExifSection";
 import { FavoriteButton } from "./FavoriteButton";
 import { FileActions } from "./FileActions";
@@ -238,19 +238,13 @@ export function FileDetailContent({
   // `useEffect([fileId])` — observed as a 30-second reload while typing.
   const knowledgeEditorPolicy = usePolicy(drive, "knowledge", "editor");
 
-  // Phase 3.5 (spec 2026-05-10 §D2 / hako ZWLqXgdTwt9le4dAI3U8C):
-  // subscribe to the markdown content registry so the inspector's
-  // EditableTagChips can run in content-mode against the editor's
-  // shared `content` state. Re-renders on register/unregister AND
-  // on every editor content pulse, so the chip always sees the
-  // freshest snapshot at click time (closing the etag race that
-  // Phase 3 inherited from the standalone two-writer design).
-  useSyncExternalStore(
-    markdownContentRegistry.subscribe,
-    () => markdownContentRegistry.lookup(fileId)?.getContent() ?? null,
-    () => null,
-  );
-  const mdEntry = markdownContentRegistry.lookup(fileId);
+  // Phase 3.5 (spec 2026-05-10 §D2 / hako ZWLqXgdTwt9le4dAI3U8C): the
+  // inspector's tag chips need to subscribe to the markdown content
+  // registry so they can run in content-mode against the editor's
+  // shared `content` state. That subscription is now isolated inside
+  // ``<MarkdownAwareTagChips>`` so an editor keystroke does NOT pulse
+  // a re-render of this entire FileDetailContent tree on every typed
+  // character — only the chips component re-evaluates.
 
   if (!file) {
     return (
@@ -276,29 +270,22 @@ export function FileDetailContent({
     isHtmlPreview ||
     (file.mime_type === "text/markdown" && knowledgeEditorPolicy.enabled);
 
-  // Wire the inspector's EditableTagChips through the editor's shared
-  // content state when both (a) we're in the DocumentLayout fork and
-  // (b) the editor has registered an entry. Falls back to standalone
-  // mode otherwise — non-Markdown files have no editor, and a brief
-  // gap before the editor mounts must not leave the chip group
-  // unable to save.
-  const useChipContentMode = useDocumentLayout && mdEntry !== null;
-  const tagChipNode = useChipContentMode ? (
-    <EditableTagChips
+  // Wire the inspector's tag chips through the editor's shared content
+  // state when both (a) we're in the DocumentLayout fork and (b) the
+  // editor has registered an entry. Falls back to standalone mode
+  // otherwise — non-Markdown files have no editor, and a brief gap
+  // before the editor mounts must not leave the chip group unable to
+  // save. The registry subscription lives inside this wrapper so
+  // editor keystrokes don't bubble re-renders up to this component.
+  const tagChipNode = (
+    <MarkdownAwareTagChips
+      fileId={fileId}
       file={file}
-      content={mdEntry!.getContent()}
-      onContentChange={mdEntry!.setContent}
-    />
-  ) : (
-    <EditableTagChips
-      file={file}
-      initialTags={file.tags}
-      onTagsChange={(nextTags) => {
-        // Optimistic local update only — the sidebar refresh waits
-        // until the debounced save lands.
+      documentLayoutActive={useDocumentLayout}
+      onTagsSaved={handleTagsSaved}
+      onTagsChangeOptimistic={(nextTags) => {
         setFile((prev) => (prev ? { ...prev, tags: nextTags } : prev));
       }}
-      onSaveSuccess={handleTagsSaved}
     />
   );
 
