@@ -797,7 +797,15 @@ export async function getAuthStatus(): Promise<AuthStatus> {
  * pass it through as the ``wikiResolution`` prop verbatim.
  */
 export type WikiResolveResult =
-  | { kind: "resolved"; file_id: string }
+  | {
+      kind: "resolved";
+      file_id: string;
+      /** Resolved file's on-disk filename (e.g. "note.md"). */
+      filename?: string;
+      /** Filename without the ``.md`` suffix — preferred display text
+       * for id-form targets (``[[20260512143028]]``). */
+      basename?: string;
+    }
   | { kind: "unresolved" }
   | { kind: "ambiguous"; candidates: string[] };
 

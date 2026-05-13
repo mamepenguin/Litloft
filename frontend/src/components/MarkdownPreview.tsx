@@ -162,12 +162,26 @@ function createMarkdownRenderer({ withMermaid }: { withMermaid: boolean }): Mark
       const resolution: WikiResolveResult | undefined =
         env?.wikiResolution?.[target];
 
+      // Display precedence:
+      //   1. Explicit ``|display`` alias from the source.
+      //   2. ``target`` + heading suffix when the user wrote ``[[X#h]]``.
+      //   3. For id-form resolved targets (``[[20260512143028]]``), the
+      //      resolved file's basename — keeps the rendered preview
+      //      readable instead of showing an opaque timestamp.
+      //   4. Fall back to the raw target.
+      const isIdForm = /^\d{12,17}$/.test(target);
+      const resolvedBasename =
+        resolution && resolution.kind === "resolved"
+          ? resolution.basename
+          : undefined;
       const displayText =
         display !== null
           ? display
           : headingSuffix
             ? `${target}${headingSuffix}`
-            : target;
+            : isIdForm && resolvedBasename
+              ? resolvedBasename
+              : target;
 
       const token = state.push("html_inline", "", 0);
       token.content = renderWikiLinkHtml({

@@ -1545,19 +1545,34 @@ async def get_wiki_resolutions(
     )
     diagnostics_by_target = {d.target: d for d in diagnostics}
 
+    # Bulk-load resolved files in one query so the renderer can show the
+    # file's basename for id-form targets (``[[20260512143028]]``) instead
+    # of the opaque id. Drive-scoped, active filter, .md predicate.
+    resolved_ids = set(target_to_id.values())
+    file_meta: dict[str, str] = {}
+    if resolved_ids:
+        rows = db.query(File.id, File.filename).filter(File.id.in_(resolved_ids)).all()
+        file_meta = {r.id: r.filename for r in rows}
+
     resolutions: dict[str, dict] = {}
     # Preserve insertion order = body order for deterministic UI render.
     for target in extracted.wiki_targets:
         if target in resolutions:
             continue
         if target in target_to_id:
-            resolutions[target] = {
-                "kind": "resolved",
-                "file_id": target_to_id[target],
-            }
+            fid = target_to_id[target]
+            entry: dict = {"kind": "resolved", "file_id": fid}
+            filename = file_meta.get(fid)
+            if filename:
+                # Basename without .md so the renderer can use it as
+                # human-readable display text for id-form targets.
+                basename = filename[:-3] if filename.lower().endswith(".md") else filename
+                entry["filename"] = filename
+                entry["basename"] = basename
+            resolutions[target] = entry
         elif target in diagnostics_by_target:
             diag = diagnostics_by_target[target]
-            entry: dict = {"kind": diag.kind}
+            entry = {"kind": diag.kind}
             if diag.kind == "ambiguous":
                 entry["candidates"] = diag.candidates
             resolutions[target] = entry

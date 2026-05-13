@@ -658,3 +658,31 @@ div[data-citation-section-path]:not(tr) {
   border-radius: 0.15em;
   box-shadow: 0 0 0 1px var(--highlight-bg);
 }
+
+/* Wiki-link rendering — spec 2026-05-12 §3.8 / DESIGN.md §2.3.
+   Three visual states applied by MarkdownPreview's wiki_link inline rule.
+   Colors map to design tokens so light/dark theme adapts automatically. */
+.wiki-link {
+  text-decoration: none;
+  border-bottom: 1px solid transparent;
+  transition: border-color 120ms ease, color 120ms ease;
+}
+.wiki-link.wiki-resolved {
+  color: var(--focus-ring);
+  border-bottom-color: color-mix(in srgb, var(--focus-ring) 35%, transparent);
+}
+.wiki-link.wiki-resolved:hover {
+  border-bottom-color: var(--focus-ring);
+}
+.wiki-link.wiki-unresolved {
+  color: var(--warm-silver);
+  border-bottom: 1px dashed
+    color-mix(in srgb, var(--warm-silver) 55%, transparent);
+  cursor: help;
+}
+.wiki-link.wiki-ambiguous {
+  color: var(--accent-amber);
+  border-bottom: 1px dashed
+    color-mix(in srgb, var(--accent-amber) 60%, transparent);
+  cursor: help;
+}
