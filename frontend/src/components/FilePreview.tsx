@@ -212,7 +212,7 @@ export function FilePreview({
     // rendered below so the floating mini-player only carries the
     // playable surface.
     return (
-      <div className="-mx-4 md:mx-0">
+      <div className="-mx-4 -mt-4 md:mx-0 md:mt-0">
         <MiniPlayerContainer mc={localMc} root={miniPlayerRoot}>
           <LoftPlayer
             fileId={file.id}
@@ -227,7 +227,7 @@ export function FilePreview({
 
   if (file.file_type === "video") {
     return (
-      <div className="-mx-4 md:mx-0">
+      <div className="-mx-4 -mt-4 md:mx-0 md:mt-0">
         <MiniPlayerContainer mc={localMc} root={miniPlayerRoot}>
           <NativeVideoWithController
             file={file}
