@@ -16,6 +16,15 @@ class Base(DeclarativeBase):
 engine = create_engine(
     DATABASE_URL,
     connect_args={"check_same_thread": False},
+    # SQLAlchemy defaults (5 + 10 overflow) are too small for this app's
+    # concurrency footprint: many in-flight file-stream responses each
+    # hold a session for their entire transmission, plus the cron
+    # scheduler holds one in the background, plus per-request handlers.
+    # Bumped enough to absorb editor + sidebar + neighbour previews
+    # without the pool ever timing out under normal interactive load.
+    pool_size=20,
+    max_overflow=40,
+    pool_pre_ping=True,
 )
 
 
