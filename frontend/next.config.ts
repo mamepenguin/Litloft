@@ -14,6 +14,13 @@ const nextConfig: NextConfig = {
   // the transfer-size win from gzip is negligible compared to the
   // UX loss of broken streaming.
   compress: false,
+  experimental: {
+    // Default is 10MB; the rewrite proxy silently truncates oversized
+    // chunk uploads → backend sees a short body → socket hang up.
+    // useUpload.ts picks up to 100MB chunks for >10GB files; 128MB
+    // leaves headroom for the multipart envelope.
+    proxyClientMaxBodySize: "128mb",
+  },
   async rewrites() {
     return [
       {
