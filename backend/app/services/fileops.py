@@ -228,6 +228,11 @@ def rename_file(db: Session, file_id: str, new_filename: str) -> File:
     new_filename = validate_filename(new_filename)
     drive_path = resolve_drive_path(file.drive)
 
+    # Phase D: capture pre-rename filename BEFORE mutation so we can
+    # compute the old/new wiki-link stems after the rename commits.
+    old_filename = file.filename
+    old_drive = file.drive
+
     old_full = drive_path / file.file_path
     new_rel = f"{file.folder_path}/{new_filename}" if file.folder_path else new_filename
     new_full = drive_path / new_rel
@@ -254,11 +259,39 @@ def rename_file(db: Session, file_id: str, new_filename: str) -> File:
     file.file_path = new_rel
     file.title = _filename_to_title(new_filename)
     db.commit()
+
+    # Phase D (spec 2026-05-12 §3.7): when a ``.md`` is renamed,
+    # rewrite ``[[old_stem]]`` references inside other ``.md`` files in
+    # the same drive. Best-effort: a rewrite failure must NOT roll back
+    # the user-visible rename (FS + DB row are already durable).
+    if old_filename.lower().endswith(".md") and new_filename.lower().endswith(".md"):
+        old_stem = Path(old_filename).stem
+        new_stem = Path(new_filename).stem
+        if old_stem != new_stem:
+            try:
+                import app.services.markdown_relations as markdown_relations
+                markdown_relations.rewrite_basename_in_drive(
+                    db, old_drive, old_stem, new_stem,
+                    exclude_file_id=file.id,
+                )
+                db.commit()
+            except Exception:
+                db.rollback()
+                logger.exception(
+                    "rename: wiki rewrite failed for %s (%s → %s)",
+                    file.id, old_stem, new_stem,
+                )
+
     db.refresh(file)
     return file
 
 
 def move_file(db: Session, file_id: str, target_drive: str | None, target_folder: str) -> File:
+    # Phase D note: move_file preserves ``file.filename`` (only the
+    # ``folder_path`` / ``drive`` change). A pure move therefore never
+    # changes the wiki-link basename, so no rewrite hook is needed here.
+    # Cross-drive moves are out of scope for rewrite anyway — drive is a
+    # security boundary (see ``.claude/rules/design-decisions.md``).
     file = db.query(File).filter(File.id == file_id).first()
     if not file:
         raise HTTPException(status_code=404, detail="File not found")

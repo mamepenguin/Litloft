@@ -124,6 +124,25 @@ Precedence is **strict and intra-rule** — the first rule with hits stops the c
 
 The resolver runs **pure read** against the ORM session — it does not commit. Callers (`_sync_md_file_relations`, `get_wiki_resolutions`) own their own transaction boundary, and each Phase B projection is isolated in its own try/commit block so a parse / sync / projection failure cannot roll back the durable content write. This is the same isolation pattern as the existing tag projection.
 
+### Rename-time wiki-link rewrite
+
+`app.services.markdown_relations.rewrite_basename_in_drive(db, drive, old_basename, new_basename, *, exclude_file_id=None) -> RewriteResult` (Phase D of spec `2026-05-12-markdown-link-three-forms.md` §3.7) cascades a `.md` basename rename into other `.md` bodies in the same drive. When a note is renamed from `old.md` to `new.md`, any sibling `.md` referencing it via `[[old]]` / `[[old|disp]]` / `[[old#heading]]` is rewritten to point at the new basename.
+
+- `RewriteResult` (frozen dataclass) returns `files_scanned`, `files_changed`, `occurrences` — useful for logging and tests but not part of any HTTP response.
+- The pass is **escape-aware** (CommonMark `\[\[old\]\]` is masked with sentinels before the regex, so escaped occurrences survive verbatim) and **word-bounded** (`[[oldsuffix]]` does not match — the regex requires the next character to be `]`, `|`, or `#`).
+- The frontmatter block is split off byte-for-byte (`_split_frontmatter_prefix`) and concatenated back unchanged. There is **no YAML re-serialisation**, so comments, ordering, quoting, and BOMs survive. Critically, `aliases:` entries that happen to equal `old_basename` are **not** rewritten — they live in the prefix, which the rewrite never touches. This is intentional (spec §7.6): aliases are user-managed.
+- Writes are atomic (`.tmp` + `os.replace`). `File.file_size` is updated to the new byte count so the projection matches disk.
+- Per-file read / write failures are logged and skipped. The function does not raise for a single bad file; one corrupt note never aborts the batch.
+- No-op when `old_basename == new_basename` (returns zero counters).
+- Intrinsic self-skip: any row whose `Path(filename).stem == old_basename` is skipped even without `exclude_file_id`. The renamed file is therefore safe in both code paths regardless of which hook fires first.
+
+Hook points (both in this repo):
+
+- **Explicit rename** — `app.services.fileops.rename_file`, after the FS rename and the DB commit of the new filename / file_path / title. Gate: both old and new filenames end in `.md` (case-insensitive) and stems differ. Wrapped in its own try / except — on failure, the rewrite transaction is rolled back but the user-visible rename stays durable. Passes `exclude_file_id=file.id`.
+- **Out-of-band move** — `app.services.scanner._scan_and_register`, in the hash-based move-detection branch right after `moved_ids.append(...)`. Same `.md` + stem-changed gate. Called without `exclude_file_id`; the moved file is filtered by the intrinsic self-skip because its `filename` column has already advanced to `new_basename` by the time the hook fires.
+
+Cross-drive rewrites are explicitly **not** supported — drive is a security boundary. Non-`.md` renames are no-ops here (loft-scheme references and `[[id]]` numeric references are unaffected by basename changes).
+
 ## Adding an endpoint
 
 1. Add the route to the appropriate router under `backend/app/routers/`.

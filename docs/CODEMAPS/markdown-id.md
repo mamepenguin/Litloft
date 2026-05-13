@@ -1,15 +1,16 @@
-# Markdown links: frontmatter `id:` + wiki-link resolver + renderer (Phase A + B + C)
+# Markdown links: frontmatter `id:` + wiki-link resolver + renderer + rename rewrite (Phase A + B + C + D)
 
 **Last Updated:** 2026-05-13
-**Spec:** `docs/superpowers/specs/2026-05-12-markdown-link-three-forms.md` §1-3 + §4 Phase A, B, C
+**Spec:** `docs/superpowers/specs/2026-05-12-markdown-link-three-forms.md` §1-3 + §4 Phase A, B, C, D
 
-Phases A, B, and C of the 3-form Markdown link feature.
+Phases A, B, C, and D of the 3-form Markdown link feature.
 
 - **Phase A (landed)** — every `.md` file gets a Zettelkasten-style `id:` in its frontmatter, mirrored to a `File.md_id` column.
 - **Phase B (landed)** — wiki-link extraction (`[[X]]`) + drive-scoped resolver, projection of frontmatter `aliases:` to `File.md_aliases`, and a per-file resolver endpoint that the renderer (Phase C) consumes.
 - **Phase C (landed)** — frontend layer: `markdown-it` inline rule for `[[X]]`, a fetch-and-render wrapper that pulls resolutions per file, the Knowledge editor's `[[` autocomplete dropdown, and a new-note dialog for unresolved targets.
+- **Phase D (landed)** — when a `.md` file is renamed, `[[old_basename]]` references in other `.md` files in the same drive are rewritten to `[[new_basename]]`. Hooked from both the explicit rename API and the scanner's hash-based move detection.
 
-Canonical / projection split mirrors the existing tags rule (`.claude/rules/design-decisions.md` → "Tag editing"): frontmatter is canonical, the `File.md_*` columns are projection caches. Phase D (rename rewrite) and Phase E (LLM output policy) remain out of scope here.
+Canonical / projection split mirrors the existing tags rule (`.claude/rules/design-decisions.md` → "Tag editing"): frontmatter is canonical, the `File.md_*` columns are projection caches. Phase E (LLM output policy) remains out of scope here.
 
 ## Shared helpers
 
@@ -113,12 +114,46 @@ Frontend layer that consumes `GET /api/files/{id}/wiki-resolutions` and turns `[
 - `frontend/src/components/__tests__/MarkdownPreview.wikilink.test.tsx` — inline rule renders all three DOM shapes from a synthetic `wikiResolution` map.
 - `addons/knowledge/frontend/__tests__/UnresolvedLinkDialog.test.tsx` — dialog open / submit / path-traversal guard / error surface.
 
+## Rename rewrite (Phase D)
+
+When a `.md` file's basename changes, other `.md` bodies in the same drive that reference the old basename via `[[old_basename]]` / `[[old_basename|disp]]` / `[[old_basename#head]]` are rewritten to point at the new basename. Spec §3.7 + §7.6.
+
+- `backend/app/services/markdown_relations.py`
+  - `rewrite_basename_in_drive(db, drive, old_basename, new_basename, *, exclude_file_id=None) -> RewriteResult` — drive-scoped scan of active `.md` rows. For each file: split frontmatter prefix verbatim, run an escape-aware regex over the body, write back atomically (`.tmp` + `os.replace`), and bump `File.file_size` so the projection matches the new on-disk byte count. No-op when `old_basename == new_basename`. Per-file read / write errors are logged and skipped — one bad file cannot abort the batch.
+  - `RewriteResult` (frozen dataclass): `files_scanned` (active `.md` rows considered after the exclude / self-skip filters), `files_changed` (subset whose body was actually rewritten), `occurrences` (total `[[old…]]` tokens replaced).
+  - `_rewrite_body(body, old, new) -> (new_body, occurrences)` — pure helper. Masks `\[` / `\]` with sentinels first so CommonMark-escaped `\[\[old\]\]` is not captured. The match captures the delimiter after the target (`]`, `|`, or `#`) which both gives a word boundary (`[[oldsuffix]]` doesn't match) and lets the suffix flow through verbatim (`[[old|disp]]` → `[[new|disp]]`).
+  - `_split_frontmatter_prefix(content) -> (prefix, body)` — preserves the frontmatter block byte-for-byte (indentation, comments, BOM). The body half is what the rewrite touches; the prefix is concatenated back unchanged so `aliases:` entries that happen to equal `old_basename` are **never** rewritten (spec §7.6).
+  - Intrinsic self-skip: rows whose `Path(filename).stem == old_basename` are skipped even when `exclude_file_id` is not supplied. This is the safety net for the scanner code path, where the `File.filename` column has already advanced to `new_basename` by the time the hook runs — the row is excluded by neither the explicit id nor a stale stem.
+
+- Hook points:
+  - `backend/app/services/fileops.py::rename_file` — after the FS rename, the DB commit of the new filename / file_path / title, and the optional thumbnail move. Triggered only when both `old_filename` and `new_filename` end in `.md` (case-insensitive) and the stems differ. Runs inside a fresh try / except that, on failure, rolls back the rewrite transaction but **does not** undo the user-visible rename — the FS + DB row are already durable. Passes `exclude_file_id=file.id` so the renamed file is filtered out by id rather than relying on stem comparison.
+  - `backend/app/services/scanner.py::_scan_and_register` move-detection branch — after `moved_ids.append(candidate.id)`. Triggered when an out-of-band rename (filesystem-level) is detected via the hash-based move heuristic (hako `KITKxD0mHxNaqi9_7BE1s`). Same `.md` + stem-changed gate. Called without `exclude_file_id`; the intrinsic self-skip handles it, since `candidate.filename` has already been updated to the new basename earlier in the same loop iteration.
+
+- Behaviours preserved by construction (also covered by tests, below):
+  - Frontmatter is concatenated back **verbatim** — no YAML re-serialisation, so comments / ordering / quoting survive.
+  - `\[\[old\]\]` (escaped) is not rewritten — sentinel-masking pass before the regex.
+  - `[[oldsuffix]]` is not rewritten — the regex requires the next character after the target to be `]`, `|`, or `#`.
+  - `aliases:` entries matching `old_basename` are not rewritten — they live in the frontmatter prefix, which the rewrite never touches.
+  - Same-drive only — drive = security boundary (hako `cRNeIvcbhz449BwTmof5m`); cross-drive rewrites are out of scope.
+
+- Not in scope for Phase D:
+  - `[[old_md_id]]` (numeric id form) — id is unchanged by rename, no rewrite needed.
+  - `[<display>](loft://<id>)` (loft-scheme inline links) — loft id is unchanged by rename.
+  - `aliases:` rewrite — managed by the user; rewriting would destroy the "I want to keep referring by the old name" intent (spec §7.6).
+  - WebSocket fan-out / `files.updated` events for the rewritten files — current pass is silent. If the renderer cache becomes a problem, the follow-up is to broadcast post-commit.
+
+### Tests (Phase D)
+
+- `backend/tests/test_markdown_relations_rewrite.py` — `_rewrite_body` unit tests (escape, word boundary, alias suffix `|` / `#`, no-op early return) + `rewrite_basename_in_drive` integration (frontmatter preservation, intrinsic self-skip, exclude_file_id, no-op when `old == new`, per-file failure isolation, drive scope).
+- `backend/tests/test_fileops_rename_wiki_rewrite.py` — end-to-end through `rename_file`: `.md` rename triggers rewrite, non-`.md` rename does not, rewrite failure does not undo the rename.
+- `backend/tests/test_scanner_move_wiki_rewrite.py` — hash-based move detection triggers rewrite without `exclude_file_id`, intrinsic self-skip prevents the moved file from rewriting its own body.
+
 ## Open follow-ups
 
 - Slot-based click handler that wires `.wiki-unresolved` clicks in the rendered preview to `UnresolvedLinkDialog`. The CSS class, the `data-wiki-target` allowlist, and the dialog are all in place; the missing piece is the listener that the Knowledge addon attaches to the rendered preview region. Implied by spec §3.8 but not landed yet — track in the Phase C follow-up before declaring the feature complete.
 
 ## Out of scope here
 
-- Rename rewrite (`.md` basename change cascades into other `.md` bodies) — Phase D.
 - LLM output policy (intelligence → knowledge save uses `[[id]]`) — Phase E.
 - `PUT /content` `link_diagnostics` response payload — deferred (spec §3.5); the per-file `GET /wiki-resolutions` endpoint covers the renderer's needs today and is read-on-demand rather than write-piggybacked.
+- WebSocket `files.updated` fan-out for rewritten files — Phase D currently runs silent.

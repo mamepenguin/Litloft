@@ -457,6 +457,32 @@ def _scan_and_register(db: Session, drive_name: str) -> dict[str, int]:
                 "Detected move: %s → %s (drive: %s, file_id: %s)",
                 old_path, relative_path, drive_name, candidate.id,
             )
+
+            # Phase D (spec 2026-05-12 §3.7): when an out-of-band rename
+            # changes a ``.md`` basename, rewrite ``[[old_stem]]``
+            # references in other ``.md`` files in the same drive.
+            # Trigger only when both the source and destination are
+            # ``.md`` and the basename actually changed (pure folder
+            # moves preserve the basename and are not rewrite events).
+            if old_path.lower().endswith(".md") and relative_path.lower().endswith(".md"):
+                old_stem = Path(old_path).stem
+                new_stem = Path(relative_path).stem
+                if old_stem != new_stem:
+                    try:
+                        import app.services.markdown_relations as markdown_relations
+                        # NOTE: positional-only call here — the rewrite
+                        # contract excludes the moved file naturally (its
+                        # body, if any, will not contain ``[[old_stem]]``
+                        # references unless it self-links, in which case
+                        # the user's intent is preserved verbatim).
+                        markdown_relations.rewrite_basename_in_drive(
+                            db, drive_name, old_stem, new_stem,
+                        )
+                    except Exception:
+                        logger.exception(
+                            "scanner: wiki rewrite failed for %s (%s → %s)",
+                            candidate.id, old_stem, new_stem,
+                        )
             continue
 
         # Genuine new file — INSERT.
