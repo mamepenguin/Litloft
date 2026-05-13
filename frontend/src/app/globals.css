@@ -661,23 +661,27 @@ div[data-citation-section-path]:not(tr) {
 
 /* Wiki-link rendering — spec 2026-05-12 §3.8 / DESIGN.md §2.3.
    Three visual states applied by MarkdownPreview's wiki_link inline rule.
-   Colors map to design tokens so light/dark theme adapts automatically. */
+   - resolved   → canonical accent red (matches all other in-app links)
+   - unresolved → muted text colour + dashed underline (affordance for
+     "this might become a link if you create it")
+   - ambiguous  → warning amber (multiple matches; user must disambiguate) */
 .wiki-link {
   text-decoration: none;
   border-bottom: 1px solid transparent;
   transition: border-color 120ms ease, color 120ms ease;
 }
 .wiki-link.wiki-resolved {
-  color: var(--focus-ring);
-  border-bottom-color: color-mix(in srgb, var(--focus-ring) 35%, transparent);
+  color: var(--accent);
+  border-bottom-color: color-mix(in srgb, var(--accent) 35%, transparent);
 }
 .wiki-link.wiki-resolved:hover {
-  border-bottom-color: var(--focus-ring);
+  color: var(--accent-hover);
+  border-bottom-color: var(--accent-hover);
 }
 .wiki-link.wiki-unresolved {
-  color: var(--warm-silver);
+  color: var(--text-muted);
   border-bottom: 1px dashed
-    color-mix(in srgb, var(--warm-silver) 55%, transparent);
+    color-mix(in srgb, var(--text-muted) 50%, transparent);
   cursor: help;
 }
 .wiki-link.wiki-ambiguous {

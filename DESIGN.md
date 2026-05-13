@@ -239,8 +239,8 @@ The Markdown renderer emits three CSS classes for `[[X]]`-style wiki-links (spec
 
 | Class | Element | Color token | Usage |
 |---|---|---|---|
-| `wiki-link wiki-resolved` | `<a>` | `--focus-ring` (blue, the same token used for in-app navigation focus) | A `[[X]]` that resolved to a single `.md` file_id. Rendered as a real link to `/files/<id>`. |
-| `wiki-link wiki-unresolved` | `<span>` | `--warm-silver` (muted gray) | A `[[X]]` whose target was not found. Affordance-free unless the Knowledge addon's slot attaches a click handler for the new-note dialog. |
+| `wiki-link wiki-resolved` | `<a>` | `--accent` (canonical link red, same as all in-app prose links) | A `[[X]]` that resolved to a single `.md` file_id. Rendered as a real link to `/files/<id>`. Hover uses `--accent-hover`. |
+| `wiki-link wiki-unresolved` | `<span>` | `--text-muted` (dimmed text) | A `[[X]]` whose target was not found. Dashed underline affordance suggests "could become a link if you create it". |
 | `wiki-link wiki-ambiguous` | `<span>` | `--accent-amber` (suggestion / warning) | A `[[X]]` that matched more than one note. The `title` attribute surfaces the candidate count so the user can hover for context. |
 
 Rules:
