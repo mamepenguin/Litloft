@@ -147,7 +147,7 @@ export function FolderToolbar({
 
           {onCreateFile && !creatingFolder && (
             <button
-              onClick={onCreateFile}
+              onClick={() => onCreateFile()}
               className="flex items-center gap-2 rounded-2xl border border-bg-border bg-bg-card px-3 py-2 text-sm font-medium text-text-primary transition-colors hover:bg-bg-elevated"
               aria-label={tf("newFile")}
             >
