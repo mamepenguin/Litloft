@@ -61,6 +61,11 @@ Generate strong secrets with `openssl rand -hex 32`.
 - **What it does**: Public host port. Read from `.env` and used in the base `docker-compose.yml` `ports:` mapping.
 - **When to set**: Avoiding port conflicts.
 
+### `LITLOFT_MAX_UPLOAD_SIZE_GB`
+- **Default**: `50`
+- **What it does**: Per-file upload size cap. Accepts decimals (e.g. `0.5`, `100`). Uploads are chunked, so this is a sanity cap rather than a memory/request limit.
+- **When to set**: Hosting very large media (raw camera footage, long 4K) or restricting uploads on small disks. Also ensure both `DATA_DIR` (temp chunks) and the target drive have ~1.1× the file size free; the backend pre-checks and returns 507 otherwise.
+
 ---
 
 ## intelligence addon

@@ -9,8 +9,17 @@ import {
   uploadChunk,
 } from "@/lib/api";
 
-const CHUNK_SIZE = 5 * 1024 * 1024; // 5MB
 const MAX_CONCURRENT = 2;
+
+// Pick a chunk size that keeps total chunk count reasonable for large files.
+// Browser File.slice() is cheap, but every chunk is a separate POST round-trip,
+// so 10k+ chunks add measurable overhead on multi-GB uploads.
+function pickChunkSize(fileSize: number): number {
+  const MB = 1024 * 1024;
+  if (fileSize <= 1024 * MB) return 5 * MB;       // <= 1GB
+  if (fileSize <= 10 * 1024 * MB) return 25 * MB; // <= 10GB
+  return 100 * MB;                                 // > 10GB
+}
 
 export type UploadStatus =
   | "pending"
@@ -80,6 +89,8 @@ export function useUpload(drive: string, folderPath: string, onFileComplete?: ()
   async function processUpload(id: string, internal: InternalUpload) {
     const { file } = internal;
 
+    const chunkSize = pickChunkSize(file.size);
+
     try {
       updateUpload(id, { status: "uploading", progress: 0 });
 
@@ -87,7 +98,7 @@ export function useUpload(drive: string, folderPath: string, onFileComplete?: ()
         filename: file.name,
         file_size: file.size,
         folder_path: folderPath,
-        chunk_size: CHUNK_SIZE,
+        chunk_size: chunkSize,
         relative_path: internal.relativePath,
       });
 
@@ -106,8 +117,8 @@ export function useUpload(drive: string, folderPath: string, onFileComplete?: ()
           return;
         }
 
-        const start = i * CHUNK_SIZE;
-        const end = Math.min(start + CHUNK_SIZE, file.size);
+        const start = i * chunkSize;
+        const end = Math.min(start + chunkSize, file.size);
         const chunk = file.slice(start, end);
 
         await uploadChunk(drive, initResult.upload_id, i, chunk);

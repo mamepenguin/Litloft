@@ -192,6 +192,44 @@ class TestUploadFlow:
         assert res.status_code == 200
         assert (drive_dir / "existing" / "sub" / "file.txt").exists()
 
+    def test_oversize_rejected_with_dynamic_limit(self, client, monkeypatch):
+        """File size beyond MAX_UPLOAD_SIZE → 400 with limit in message."""
+        import app.config as config
+
+        c, db, drive_dir, data_dir = client
+        monkeypatch.setattr(config, "MAX_UPLOAD_SIZE", 1024)  # 1KB cap
+
+        res = c.post(f"/api/drives/{TEST_DRIVE}/upload/init", json={
+            "filename": "huge.bin",
+            "file_size": 2048,
+            "chunk_size": 1024,
+        })
+        assert res.status_code == 400
+        # Limit should be reflected in the message, not the hardcoded "2GB"
+        assert "GB" in res.json()["detail"]
+        assert "max" in res.json()["detail"].lower()
+
+    def test_insufficient_disk_space_returns_507(self, client, monkeypatch):
+        """Disk space pre-check fails → 507 Insufficient Storage."""
+        import app.services.upload as upload_module
+        from collections import namedtuple
+
+        c, db, drive_dir, data_dir = client
+        DiskUsage = namedtuple("DiskUsage", ["total", "used", "free"])
+        monkeypatch.setattr(
+            upload_module.shutil,
+            "disk_usage",
+            lambda _p: DiskUsage(total=1000, used=900, free=100),
+        )
+
+        res = c.post(f"/api/drives/{TEST_DRIVE}/upload/init", json={
+            "filename": "needs-space.bin",
+            "file_size": 10_000,
+            "chunk_size": 1024,
+        })
+        assert res.status_code == 507
+        assert "disk" in res.json()["detail"].lower()
+
     def test_upload_relative_path_traversal_rejected(self, client):
         c, db, drive_dir, data_dir = client
 

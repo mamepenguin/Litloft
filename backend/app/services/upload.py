@@ -43,6 +43,44 @@ class UploadSession:
     created_at: datetime = field(default_factory=lambda: datetime.now(UTC))
 
 
+def _merge_relative_into_folder(folder_path: str, relative_path: str) -> str:
+    if not relative_path:
+        return folder_path
+    rel_dir = str(Path(relative_path).parent)
+    if not rel_dir or rel_dir == ".":
+        return folder_path
+    return f"{folder_path}/{rel_dir}".strip("/") if folder_path else rel_dir
+
+
+def _validate_upload_sizes(file_size: int, chunk_size: int) -> None:
+    if file_size <= 0:
+        raise HTTPException(status_code=400, detail="Invalid file size")
+    if file_size > config.MAX_UPLOAD_SIZE:
+        limit_gb = config.MAX_UPLOAD_SIZE / (1024 ** 3)
+        raise HTTPException(
+            status_code=400,
+            detail=f"File too large (max {limit_gb:g}GB)",
+        )
+    if chunk_size <= 0 or chunk_size > config.MAX_UPLOAD_SIZE:
+        raise HTTPException(status_code=400, detail="Invalid chunk size")
+
+
+def _check_disk_capacity(drive_path: Path, file_size: int) -> None:
+    # Upload temp dir + final target may live on different filesystems.
+    # Require headroom on whichever has less free space.
+    required = int(file_size * config.UPLOAD_DISK_HEADROOM_RATIO)
+    try:
+        temp_free = shutil.disk_usage(config.UPLOAD_DIR.parent).free
+        target_free = shutil.disk_usage(drive_path).free
+    except OSError:
+        return
+    if min(temp_free, target_free) < required:
+        raise HTTPException(
+            status_code=507,
+            detail=f"Insufficient disk space (need ~{required // (1024 ** 2)}MB free)",
+        )
+
+
 def init_upload(
     drive: str,
     filename: str,
@@ -55,18 +93,9 @@ def init_upload(
     filename = validate_filename(filename)
     folder_path = validate_path_safe(folder_path)
     relative_path = validate_path_safe(relative_path) if relative_path else ""
+    folder_path = _merge_relative_into_folder(folder_path, relative_path)
 
-    if relative_path:
-        rel_dir = str(Path(relative_path).parent)
-        if rel_dir and rel_dir != ".":
-            folder_path = f"{folder_path}/{rel_dir}".strip("/") if folder_path else rel_dir
-
-    if file_size <= 0:
-        raise HTTPException(status_code=400, detail="Invalid file size")
-    if file_size > config.MAX_UPLOAD_SIZE:
-        raise HTTPException(status_code=400, detail="File too large (max 2GB)")
-    if chunk_size <= 0 or chunk_size > config.MAX_UPLOAD_SIZE:
-        raise HTTPException(status_code=400, detail="Invalid chunk size")
+    _validate_upload_sizes(file_size, chunk_size)
 
     drive_path = config.get_drive_path(drive)
     target_rel = f"{folder_path}/{filename}" if folder_path else filename
@@ -75,6 +104,8 @@ def init_upload(
 
     if target_full.exists():
         raise HTTPException(status_code=409, detail="File already exists")
+
+    _check_disk_capacity(drive_path, file_size)
 
     total_chunks = math.ceil(file_size / chunk_size)
     upload_id = str(uuid.uuid4())
@@ -134,10 +165,13 @@ def complete_upload(upload_id: str, db: Session) -> File:
     target_full = drive_path / target_rel
     target_full.parent.mkdir(parents=True, exist_ok=True)
 
+    # Stream chunks via copyfileobj so we never hold a full chunk in memory.
+    # Matters for huge uploads where chunk_size may be 50-100MB.
     with open(target_full, "wb") as out:
         for i in range(session.total_chunks):
             chunk_file = session.temp_dir / f"chunk_{i:06d}"
-            out.write(chunk_file.read_bytes())
+            with open(chunk_file, "rb") as src:
+                shutil.copyfileobj(src, out, length=1024 * 1024)
 
     actual_size = target_full.stat().st_size
     if actual_size != session.file_size:

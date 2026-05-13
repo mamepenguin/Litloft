@@ -10,8 +10,26 @@ THUMBNAILS_DIR = DATA_DIR / "thumbnails"
 CONVERTED_DIR = DATA_DIR / "converted"
 UPLOAD_DIR = DATA_DIR / "uploads"
 CHUNK_SIZE = 1024 * 1024  # 1MB for streaming
-MAX_UPLOAD_SIZE = 2 * 1024 * 1024 * 1024  # 2GB
 DEFAULT_CHUNK_SIZE = 5 * 1024 * 1024  # 5MB
+
+
+def _parse_max_upload_size() -> int:
+    raw = os.getenv("LITLOFT_MAX_UPLOAD_SIZE_GB")
+    if raw is None or raw.strip() == "":
+        return 50 * 1024 * 1024 * 1024  # 50GB default
+    try:
+        gb = float(raw)
+    except ValueError as exc:
+        raise ValueError(
+            f"LITLOFT_MAX_UPLOAD_SIZE_GB must be a number, got: {raw!r}"
+        ) from exc
+    if gb <= 0:
+        raise ValueError("LITLOFT_MAX_UPLOAD_SIZE_GB must be positive")
+    return int(gb * 1024 * 1024 * 1024)
+
+
+MAX_UPLOAD_SIZE = _parse_max_upload_size()
+UPLOAD_DISK_HEADROOM_RATIO = 1.1  # require 110% of file_size free during upload
 
 
 def _restart_pending_flag() -> Path:
