@@ -229,12 +229,13 @@ export function FileDetailContent({
     setSaving(false);
   }, [file, editTitle, editDesc]);
 
-  // Drive-scope policy lookup for the Knowledge editor. The DocumentLayout
-  // fork below only takes effect when the policy resolved to enabled,
-  // which prevents a layout flicker on first paint (during loading the
-  // hook reports `enabled=true / isLoading=true`; we explicitly require
-  // `!isLoading` so we never speculatively swap layouts based on the
-  // fail-open default).
+  // Drive-scope policy lookup for the Knowledge editor. `usePolicy` is
+  // fail-open: during the initial load AND during the 30s-TTL background
+  // refetch it returns `enabled=true / isLoading=true`. We *only* read
+  // `enabled` here so the periodic refetch does not flip the layout
+  // branch out from under an open Editor, which would unmount the
+  // textarea, reset viewMode to "preview" and re-fire every child
+  // `useEffect([fileId])` — observed as a 30-second reload while typing.
   const knowledgeEditorPolicy = usePolicy(drive, "knowledge", "editor");
 
   // Phase 3.5 (spec 2026-05-10 §D2 / hako ZWLqXgdTwt9le4dAI3U8C):
@@ -273,9 +274,7 @@ export function FileDetailContent({
   const isHtmlPreview = file.mime_type === "text/html";
   const useDocumentLayout =
     isHtmlPreview ||
-    (file.mime_type === "text/markdown" &&
-      !knowledgeEditorPolicy.isLoading &&
-      knowledgeEditorPolicy.enabled);
+    (file.mime_type === "text/markdown" && knowledgeEditorPolicy.enabled);
 
   // Wire the inspector's EditableTagChips through the editor's shared
   // content state when both (a) we're in the DocumentLayout fork and

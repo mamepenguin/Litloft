@@ -92,12 +92,16 @@ export function RightPaneFile({ fileId, drive }: RightPaneFileProps) {
   // the Knowledge editor policy is enabled, *or* any HTML file (HTML
   // preview unconditionally uses the document layout for single-scroll
   // mobile UX).
+  // `usePolicy` is fail-open: it returns `enabled=true` during both the
+  // initial load and the 30s-TTL background refetch. We read only
+  // `enabled` so the periodic refetch does not flip `hideHeader` /
+  // `willUseDocumentLayout`, which would unmount the editor mid-edit
+  // and cause the observed 30-second reload-while-typing bug. Must
+  // stay in lockstep with the same predicate inside FileDetailContent.
   const knowledgeEditorPolicy = usePolicy(drive, "knowledge", "editor");
   const willUseDocumentLayout =
     file?.mime_type === "text/html" ||
-    (file?.mime_type === "text/markdown" &&
-      !knowledgeEditorPolicy.isLoading &&
-      knowledgeEditorPolicy.enabled);
+    (file?.mime_type === "text/markdown" && knowledgeEditorPolicy.enabled);
 
   // Drive arrow-key navigation through useFileNav (PR-2). selectFile
   // swaps ``?file=id`` so FileDetailContent re-mounts with the

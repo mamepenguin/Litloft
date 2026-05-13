@@ -486,7 +486,12 @@ describe("FileDetailContent", () => {
     expect(screen.getByTestId("addon-slot-all")).toBeInTheDocument();
   });
 
-  it("falls back to legacy stack while usePolicy is still loading (no flicker)", async () => {
+  it("uses DocumentLayout while usePolicy is still loading (no 30s refetch flicker)", async () => {
+    // `usePolicy` is fail-open: it returns `enabled=true` both on the
+    // initial load AND during the 30s-TTL background refetch. The
+    // consumer reads only `enabled` so a periodic refetch can't flip
+    // the layout branch and unmount the Editor mid-edit (observed as
+    // a 30-second reload while typing).
     usePolicyMock.mockReturnValue({ enabled: true, isLoading: true });
     setApiResponses(
       makeFile({
@@ -498,8 +503,8 @@ describe("FileDetailContent", () => {
     render(<FileDetailContent fileId="f1" drive="work" />);
     await waitFor(() => expect(api.getFile).toHaveBeenCalled());
     expect(
-      screen.queryByTestId("markdown-document-layout"),
-    ).not.toBeInTheDocument();
+      screen.getByTestId("markdown-document-layout"),
+    ).toBeInTheDocument();
   });
 
   // ---------- Phase 3.5: inspector content-mode wiring ----------
