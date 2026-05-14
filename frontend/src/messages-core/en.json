@@ -869,5 +869,16 @@
       "noDescription": "(No description for this addon)"
     }
   },
-  "errors": {}
+  "errors": {},
+  "fileSaveDialog": {
+    "folder": "Folder",
+    "filename": "Filename",
+    "folderFilter": "Filter folders...",
+    "folderFilterClear": "Clear filter",
+    "folderRoot": "Drive root",
+    "folderLoading": "Loading...",
+    "folderEmpty": "No matching folders",
+    "folderSelectedLabel": "Selected",
+    "submitting": "Saving..."
+  }
 }

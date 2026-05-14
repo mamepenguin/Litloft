@@ -869,5 +869,16 @@
       "noDescription": "（このアドオンの説明はありません）"
     }
   },
-  "errors": {}
+  "errors": {},
+  "fileSaveDialog": {
+    "folder": "フォルダ",
+    "filename": "ファイル名",
+    "folderFilter": "フォルダを検索...",
+    "folderFilterClear": "フィルタをクリア",
+    "folderRoot": "ドライブルート",
+    "folderLoading": "読み込み中...",
+    "folderEmpty": "一致するフォルダがありません",
+    "folderSelectedLabel": "選択中",
+    "submitting": "保存中..."
+  }
 }
