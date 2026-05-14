@@ -20,6 +20,7 @@ import {
 } from "@/lib/api";
 import { addRecentlyPlayed } from "@/lib/recentlyPlayed";
 import { formatDuration, formatFileSize } from "@/lib/format";
+import { clearListSnapshot } from "@/lib/listSnapshot";
 import type { FileItem } from "@/types";
 import type { MediaController } from "@/lib/mediaController";
 
@@ -235,6 +236,13 @@ export function FileDetailContent({
       if (!file) return;
       const updated = await renameFile(file.id, newFilename);
       setFile(updated);
+      // Clear the folder-view snapshot so the FolderBrowser doesn't
+      // hydrate from stale sessionStorage when it remounts. The
+      // FolderBrowser is unmounted while the right-pane file detail is
+      // open, so it can't receive the WS files.moved event triggered by
+      // the rename — without this the old filename persists until the
+      // user opens a new tab.
+      clearListSnapshot();
       refreshSidebar();
     },
     [file, refreshSidebar],
