@@ -12,6 +12,7 @@ The `intelligence` addon adds LLM-backed search, Q&A, summarization, and tag sug
 | **AI summaries** | Short (1 sentence) + long (paragraph) summaries per file | on_index |
 | **Detailed summaries** | Long-form Markdown with citations | manual |
 | **Ask (RAG)** | Question answering over your library with cited sources | on |
+| **Retrieval keywords** | LLM-generated synonyms and alternate names indexed for file search | false |
 | **Transcript refine** | LLM correction of ASR output, with revert | manual |
 | **Vision describe** | LLM image descriptions, photo-by-photo | on_index |
 | **Transcription** | faster-Whisper (local) or cloud providers | local |
@@ -170,6 +171,41 @@ Sensible defaults work for most libraries; tune up if you see ⚠ on obviously-g
 
 Access control is applied **twice**: once on the internal filter (Internal API `filter-file-ids`) and once via `drive_access_nested` on the addon side.
 
+### Retrieval keywords
+
+When enabled, the LLM reads each indexed file and predicts synonyms, abbreviations, and alternate names that users might search for. The results go into a dedicated FTS index (`fts_retrieval_keywords`) that file search and Ask UNION into their keyword channel, producing a **キーワード** chip on matching results.
+
+**Why this matters for transcribed content.** ASR models (Whisper) frequently misrecognise proper nouns — people's names, brand names, product titles. The embeddings and FTS indexes are built from that imperfect text, so a user searching the canonical name finds nothing. Retrieval keywords close this gap: the LLM has world knowledge and infers the correct proper noun from context even when the transcript text is wrong.
+
+The generated keywords are **tier-3 data** (LLM-generated, not human-verified). They shape retrieval scoring but are never used as citation sources. A file appearing in both the keyword and body channels gets a natural RRF boost in ranking; a keyword-only hit ranks slightly below body hits by design.
+
+Practical notes:
+
+- Search queries shorter than 3 characters (e.g. 2-char Japanese morphemes) do not match due to the trigram FTS minimum. Semantic search and body text fill in for these.
+- The LLM prompt instructs it to generate words *not already in the document*, but small models occasionally echo the filename or body text. A corpus-frequency rarity filter drops statistically common tokens before storage.
+- Document files (PDF, text) benefit less than transcript files because the semantic embedding already handles most vocabulary variation; the main value is for audio and video.
+
+Modes (`features.retrieval_keywords`):
+
+- `"false"` — disabled. Default.
+- `"manual"` — regenerated only when called via the API (no regenerate UI yet).
+- `"on_index"` — one LLM call per newly indexed file; the startup sweep enqueues files that have no row yet.
+
+Per-drive opt-out:
+
+```json
+{
+  "name": "Private",
+  "addons": {
+    "intelligence": {
+      "retrieval_keywords": false
+    }
+  }
+}
+```
+
+**Privacy:** file content (transcript text or extracted document text, up to 8 000 chars) is sent to the LLM. Use a local LLM (`llm.provider: "ollama"`) for privacy-sensitive drives.
+
 ### Transcript refine
 
 When ASR is wrong (homophones, proper nouns, technical terms), the LLM can rewrite each chunk:
@@ -226,15 +262,16 @@ Everything lives in `addons/intelligence/search-config.yml`. Defaults are reprod
 features:
   indexing: true
   search: true
-  auto_tags: "on_index"           # false | manual | on_index
-  summaries: "on_index"           # false | manual | on_index
-  detailed_summaries: "manual"    # false | manual | on_index
-  rag: true                       # bool
-  transcript_refine: "manual"     # false | manual | on_index
-  vision_describe: "on_index"     # false | manual | on_index
+  auto_tags: "on_index"               # false | manual | on_index
+  summaries: "on_index"               # false | manual | on_index
+  detailed_summaries: "manual"        # false | manual | on_index
+  rag: true                           # bool
+  transcript_refine: "manual"         # false | manual | on_index
+  vision_describe: "on_index"         # false | manual | on_index
+  retrieval_keywords: "false"         # false | manual | on_index
 ```
 
-`auto_tags`, `summaries`, `detailed_summaries`, `transcript_refine`, `vision_describe` all require `llm.provider != "disabled"`.
+`auto_tags`, `summaries`, `detailed_summaries`, `transcript_refine`, `vision_describe`, and `retrieval_keywords` all require `llm.provider != "disabled"`.
 
 ### LLM
 
