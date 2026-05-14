@@ -22,6 +22,7 @@ import { useFolderViewMode } from "@/hooks/useFolderViewMode";
 import { useSelectedFile } from "@/hooks/useSelectedFile";
 import { useTreeEnabled } from "@/hooks/useTreeEnabled";
 import { buildListSnapshotKey, loadListSnapshot, saveListSnapshot } from "@/lib/listSnapshot";
+import { useScrollContainer } from "@/lib/scrollContainer";
 import { deriveDominantKind } from "@/lib/dominantKind";
 
 import { useFolderFiles } from "@/components/folder/useFolderFiles";
@@ -120,6 +121,7 @@ export function FolderBrowser({
   const viewMode: ViewMode = isFolderContext ? folderViewMode.viewMode : globalViewMode;
   const { enabled: treeEnabled } = useTreeEnabled(driveName);
   const { fileId: selectedFileId } = useSelectedFile();
+  const scrollContainerRef = useScrollContainer();
   // While the user is reading a file in the tree's right pane, the
   // FolderToolbar's folder-targeted actions (upload, new folder, sort, ...)
   // are noise — hide on every viewport.
@@ -130,16 +132,25 @@ export function FolderBrowser({
     if (didRestoreScrollRef.current) return;
     didRestoreScrollRef.current = true;
     if (hydratedScrollY == null) return;
+    const container = scrollContainerRef?.current;
     // Thumbnails use aspect-video so container heights are stable before
     // images load — a synchronous scrollTo lands on the correct row. The rAF
     // follow-up corrects any late layout shifts (e.g. folder chips resolving).
-    window.scrollTo({ top: hydratedScrollY });
-    requestAnimationFrame(() => window.scrollTo({ top: hydratedScrollY }));
-  }, [hydratedScrollY]);
+    if (container) {
+      container.scrollTop = hydratedScrollY;
+      requestAnimationFrame(() => { container.scrollTop = hydratedScrollY; });
+    } else {
+      window.scrollTo({ top: hydratedScrollY });
+      requestAnimationFrame(() => window.scrollTo({ top: hydratedScrollY }));
+    }
+  }, [hydratedScrollY, scrollContainerRef]);
 
   const isInitialSnapshotSaveRef = useRef(true);
   useEffect(() => {
+    const container = scrollContainerRef?.current ?? null;
     let frame: number | null = null;
+
+    const getScrollY = () => (container ? container.scrollTop : window.scrollY);
 
     const save = () => {
       frame = null;
@@ -151,7 +162,7 @@ export function FolderBrowser({
       if (files.length === 0) return;
       saveListSnapshot({
         key: snapshotKey,
-        scrollY: window.scrollY,
+        scrollY: getScrollY(),
         pagesLoaded,
         items: files,
         total,
@@ -173,16 +184,17 @@ export function FolderBrowser({
       scheduleSave();
     }
 
-    window.addEventListener("scroll", scheduleSave, { passive: true });
+    const scrollTarget: EventTarget = container ?? window;
+    scrollTarget.addEventListener("scroll", scheduleSave, { passive: true } as AddEventListenerOptions);
     // pagehide fires at the last moment the page is alive; skip the rAF so
     // the synchronous write still lands before the document is torn down.
     window.addEventListener("pagehide", save);
     return () => {
-      window.removeEventListener("scroll", scheduleSave);
+      scrollTarget.removeEventListener("scroll", scheduleSave);
       window.removeEventListener("pagehide", save);
       if (frame != null) cancelAnimationFrame(frame);
     };
-  }, [files, folders, total, pagesLoaded, sort, order, typeFilter, viewMode, isRecent, isSearch, snapshotKey]);
+  }, [files, folders, total, pagesLoaded, sort, order, typeFilter, viewMode, isRecent, isSearch, snapshotKey, scrollContainerRef]);
 
   const tSearch = useTranslations("search");
   const tCommon = useTranslations("common");

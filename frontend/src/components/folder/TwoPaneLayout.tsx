@@ -3,8 +3,10 @@
 import { X } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { usePathname } from "next/navigation";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import type { ReactNode } from "react";
+
+import { ScrollContainerContext } from "@/lib/scrollContainer";
 
 import { useGuardedRouter } from "@/hooks/useGuardedRouter";
 import { useSelectedFile } from "@/hooks/useSelectedFile";
@@ -118,6 +120,8 @@ export function TwoPaneLayout({
   // open the tree. Once they enable it for the first time we keep it
   // mounted, so the close→reopen animation has content to slide and
   // the tree's expansion / scroll state survives toggles.
+  const sectionRef = useRef<HTMLElement | null>(null);
+
   const [hasEverEnabled, setHasEverEnabled] = useState(treeEnabled);
   useEffect(() => {
     if (treeEnabled && !hasEverEnabled) setHasEverEnabled(true);
@@ -130,48 +134,51 @@ export function TwoPaneLayout({
   const showSectionOnMobile = !treeEnabled || hasFile;
 
   return (
-    <div className="flex h-[calc(100dvh-3.5rem)] w-full overflow-hidden">
-      <aside
-        className={`h-full flex-shrink-0 overflow-hidden transition-[width] duration-150 ease-out ${treeAsideWidth}`}
-        aria-label={leftPaneAriaLabel ?? "Folder tree"}
-        aria-hidden={!treeEnabled}
-        // `inert` removes the subtree from tab order and pointer events
-        // while the tree is closed. aria-hidden alone hides it from
-        // screen readers but lets keyboard focus still land on the
-        // (visually clipped) tree rows underneath.
-        inert={!treeEnabled}
-      >
-        <div className="flex h-full w-[100vw] flex-col md:w-[280px]">
-          <div className="flex items-center justify-end border-b border-bg-border p-1 md:hidden">
-            <button
-              type="button"
-              onClick={() => setTreeEnabled(false)}
-              aria-label={tView("treeOff")}
-              className="rounded-lg p-2 text-text-muted hover:text-text-primary"
-            >
-              <X size={18} />
-            </button>
+    <ScrollContainerContext.Provider value={sectionRef}>
+      <div className="flex h-[calc(100dvh-3.5rem)] w-full overflow-hidden">
+        <aside
+          className={`h-full flex-shrink-0 overflow-hidden transition-[width] duration-150 ease-out ${treeAsideWidth}`}
+          aria-label={leftPaneAriaLabel ?? "Folder tree"}
+          aria-hidden={!treeEnabled}
+          // `inert` removes the subtree from tab order and pointer events
+          // while the tree is closed. aria-hidden alone hides it from
+          // screen readers but lets keyboard focus still land on the
+          // (visually clipped) tree rows underneath.
+          inert={!treeEnabled}
+        >
+          <div className="flex h-full w-[100vw] flex-col md:w-[280px]">
+            <div className="flex items-center justify-end border-b border-bg-border p-1 md:hidden">
+              <button
+                type="button"
+                onClick={() => setTreeEnabled(false)}
+                aria-label={tView("treeOff")}
+                className="rounded-lg p-2 text-text-muted hover:text-text-primary"
+              >
+                <X size={18} />
+              </button>
+            </div>
+            {hasEverEnabled
+              ? leftPane ?? (
+                  <FolderTreePane
+                    drive={drive}
+                    selectedPath={selectedTreePath}
+                    selectedFileId={fileId}
+                    currentFolderPath={folderPath}
+                    onSelectFolder={handleSelectFolder}
+                    onSelectFile={handleSelectFile}
+                  />
+                )
+              : null}
           </div>
-          {hasEverEnabled
-            ? leftPane ?? (
-                <FolderTreePane
-                  drive={drive}
-                  selectedPath={selectedTreePath}
-                  selectedFileId={fileId}
-                  currentFolderPath={folderPath}
-                  onSelectFolder={handleSelectFolder}
-                  onSelectFile={handleSelectFile}
-                />
-              )
-            : null}
-        </div>
-      </aside>
-      <section
-        className={`${showSectionOnMobile ? "flex" : "hidden md:flex"} scrollbar-hover h-full min-w-0 flex-1 flex-col overflow-y-auto`}
-      >
-        {hasFile && fileId ? <RightPaneFile fileId={fileId} drive={drive} /> : children}
-        {!hasFile && <span className="sr-only">{t("noSelection")}</span>}
-      </section>
-    </div>
+        </aside>
+        <section
+          ref={sectionRef}
+          className={`${showSectionOnMobile ? "flex" : "hidden md:flex"} scrollbar-hover h-full min-w-0 flex-1 flex-col overflow-y-auto`}
+        >
+          {hasFile && fileId ? <RightPaneFile fileId={fileId} drive={drive} /> : children}
+          {!hasFile && <span className="sr-only">{t("noSelection")}</span>}
+        </section>
+      </div>
+    </ScrollContainerContext.Provider>
   );
 }
