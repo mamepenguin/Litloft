@@ -32,6 +32,7 @@ const MATCH_TYPE_STYLES: Record<string, string> = {
   clip: "bg-accent-amber/15 text-accent-amber",
   clip_thumbnail: "bg-accent-amber/10 text-accent-amber",
   content: "bg-warm-light text-text-primary",
+  retrieval_keywords: "bg-warm-light text-text-secondary",
 };
 
 function MatchBadge({ type, label }: { type: string; label: string }) {
@@ -88,6 +89,7 @@ export function MatchOverlay({
     clip: t("matchClip"),
     clip_thumbnail: t("matchClipThumbnail"),
     content: t("matchContent"),
+    retrieval_keywords: t("matchRetrievalKeywords"),
   };
 
   // filename (substring) and metadata (embedding) are semantically close;
@@ -106,6 +108,7 @@ export function MatchOverlay({
   if (match.clip_thumbnail) activeTypes.push("clip_thumbnail");
   if (match.clip && match.clip.length > 0) activeTypes.push("clip");
   if (match.content) activeTypes.push("content");
+  if (match.retrieval_keywords) activeTypes.push("retrieval_keywords");
 
   // Tag each segment with its source so the React key stays unique
   // when a transcript hit and a clip hit happen to share the same

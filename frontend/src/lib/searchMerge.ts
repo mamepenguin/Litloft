@@ -42,6 +42,13 @@ const CLIP_WEIGHT = 0.8;
 // out of the top ranks unless another channel also fires. Spec
 // `2026-05-02-search-path-match.md` §D2.
 const PATH_WEIGHT = 0.3;
+// SIRA-style LLM-expanded retrieval keywords: contributes to the
+// hybrid score but at a discount because the hit is tier-3 (LLM
+// guess at what a user would search for). A genuine text/transcript
+// hit on the same file outranks an expansion-only hit; a same-file
+// stack of text + expansion outranks either alone. Spec
+// docs/superpowers/specs/2026-05-14-sira-retrieval-keywords.md.
+const RETRIEVAL_KEYWORDS_WEIGHT = 0.8;
 
 /**
  * Compose a `MatchMeta` from a single semantic engine hit.
@@ -68,12 +75,23 @@ const CONTENT_TYPES = new Set(["content", "text_content", "text_content_keyword"
 export function buildMatchMeta(hit: SemanticHit): MatchMeta {
   const meta: MatchMeta = {};
   const pageSet = new Set<number>();
+  const retrievalKwSet = new Set<string>();
   const upsertScore = (
     key: "metadata" | "content" | "clip_thumbnail",
     score: number,
   ) => {
     const cur = meta[key];
     if (!cur || cur.score < score) meta[key] = { score };
+  };
+  const upsertRetrievalKeywords = (score: number, matched?: string) => {
+    const cur = meta.retrieval_keywords;
+    if (matched) retrievalKwSet.add(matched);
+    const next = { score: cur && cur.score > score ? cur.score : score };
+    if (retrievalKwSet.size > 0) {
+      meta.retrieval_keywords = { ...next, matched: [...retrievalKwSet] };
+    } else {
+      meta.retrieval_keywords = next;
+    }
   };
 
   for (const seg of hit.segments) {
@@ -97,6 +115,11 @@ export function buildMatchMeta(hit: SemanticHit): MatchMeta {
         upsertScore("metadata", score);
       } else if (CONTENT_TYPES.has(m.type)) {
         upsertScore("content", score);
+      } else if (m.type === "retrieval_keywords") {
+        // LLM-expansion hit: chip-only, no jump target. ``m.text`` is
+        // the matched keyword string from the backend; collect them
+        // so the UI can later show "matched via: kw1, kw2".
+        upsertRetrievalKeywords(score, m.text);
       }
       if (typeof m.page === "number") pageSet.add(m.page);
     }
@@ -127,6 +150,12 @@ export function buildMatchMeta(hit: SemanticHit): MatchMeta {
       // engine usually sets `meta.filename` during merge, but if a hit
       // came back semantic-only we still want a filename badge.
       meta.filename = { score: fallbackScore };
+    } else if (t === "retrieval_keywords" && !meta.retrieval_keywords) {
+      // Backend declared a retrieval_keywords hit but the per-segment
+      // MatchInfo path missed it (defensive — current backend always
+      // emits a MatchInfo, but old/forked builds may not). Surface a
+      // chip-only badge without a matched-keyword list.
+      meta.retrieval_keywords = { score: fallbackScore };
     }
   }
 
@@ -162,6 +191,8 @@ export function computeHybridScore(meta: MatchMeta): number {
   }
   if (meta.content) score += meta.content.score;
   if (meta.path) score += meta.path.score * PATH_WEIGHT;
+  if (meta.retrieval_keywords)
+    score += meta.retrieval_keywords.score * RETRIEVAL_KEYWORDS_WEIGHT;
   return score;
 }
 

@@ -26,6 +26,11 @@ const BADGE_STYLES: Record<string, string> = {
   clip: "bg-accent-amber/15 text-accent-amber",
   clip_thumbnail: "bg-accent-amber/10 text-accent-amber",
   content: "bg-warm-light text-text-primary",
+  // SIRA-style LLM-expanded keyword hit. Re-uses the warm-light tone
+  // of the content badge so it sits visually adjacent to the existing
+  // keyword chips; the distinct label is what tells users the match
+  // came from an expansion rather than the document body.
+  retrieval_keywords: "bg-warm-light text-text-secondary",
 };
 
 function selectActiveBadgeKeys(meta: MatchMeta | undefined): string[] {
@@ -39,6 +44,7 @@ function selectActiveBadgeKeys(meta: MatchMeta | undefined): string[] {
   if (meta.clip_thumbnail) keys.push("clip_thumbnail");
   if (meta.clip && meta.clip.length > 0) keys.push("clip");
   if (meta.content) keys.push("content");
+  if (meta.retrieval_keywords) keys.push("retrieval_keywords");
   return keys;
 }
 
@@ -75,6 +81,7 @@ export function MergedResultItem({ file, onSelect }: Props) {
     clip: t("matchClip"),
     clip_thumbnail: t("matchClipThumbnail"),
     content: t("matchContent"),
+    retrieval_keywords: t("matchRetrievalKeywords"),
   };
 
   const badgeKeys = selectActiveBadgeKeys(meta);

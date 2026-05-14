@@ -216,6 +216,16 @@ export interface MatchMeta {
    * and text_content_keyword (FTS5) hits.
    */
   content?: { score: number };
+  /**
+   * SIRA-style LLM-expanded retrieval keywords hit (fts_retrieval_keywords).
+   * Chip-only badge: the keyword expansion does NOT point at a body
+   * location, so the result item shows the chip but jumps using
+   * whichever other channel produced a real timestamp / page.
+   * ``matched`` holds the expanded keyword string(s) for future UI use
+   * (Phase 2.5+ tooltip / inline display). Spec
+   * docs/superpowers/specs/2026-05-14-sira-retrieval-keywords.md.
+   */
+  retrieval_keywords?: { score: number; matched?: string[] };
   /** Page references for paginated documents (PDF). */
   matched_pages?: number[];
 }

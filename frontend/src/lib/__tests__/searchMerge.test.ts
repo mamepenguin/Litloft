@@ -206,6 +206,46 @@ describe("buildMatchMeta", () => {
     );
     expect(meta.filename?.score).toBe(0.5);
   });
+
+  it("collects retrieval_keywords hits as chip-only with matched list", () => {
+    // SIRA-style LLM expansion. The backend emits MatchInfo with text
+    // = matched keyword string but no time_range / page; the UI shows
+    // a chip and lists the matched expansions.
+    const meta = buildMatchMeta(
+      makeHit({
+        match_types: ["retrieval_keywords"],
+        segments: [
+          {
+            time_range: null,
+            matches: [
+              { type: "retrieval_keywords", score: 0.4, text: "退職" },
+              { type: "retrieval_keywords", score: 0.6, text: "古典文学" },
+            ],
+          },
+        ],
+      }),
+    );
+    expect(meta.retrieval_keywords?.score).toBe(0.6);
+    expect(meta.retrieval_keywords?.matched).toEqual(["退職", "古典文学"]);
+    // Crucially: no transcript / clip jumps are synthesised.
+    expect(meta.transcript).toBeUndefined();
+    expect(meta.clip).toBeUndefined();
+  });
+
+  it("falls back to a chip-only retrieval_keywords badge when MatchInfo is missing", () => {
+    // Defensive: legacy backend that declares the channel in match_types
+    // but doesn't emit a per-segment MatchInfo entry still surfaces the
+    // chip via the top-level fallback path.
+    const meta = buildMatchMeta(
+      makeHit({
+        match_types: ["retrieval_keywords"],
+        score: 0.3,
+        segments: [],
+      }),
+    );
+    expect(meta.retrieval_keywords?.score).toBe(0.3);
+    expect(meta.retrieval_keywords?.matched).toBeUndefined();
+  });
 });
 
 describe("computeHybridScore", () => {
@@ -255,6 +295,25 @@ describe("computeHybridScore", () => {
     });
     // 1*2.0 + 1*0.3 = 2.3
     expect(score).toBeCloseTo(2.3);
+  });
+
+  it("adds retrieval_keywords at 0.8 weight (tier-3 discount)", () => {
+    const score = computeHybridScore({
+      retrieval_keywords: { score: 1 },
+    });
+    expect(score).toBeCloseTo(0.8);
+  });
+
+  it("stacks retrieval_keywords with body hits", () => {
+    // The user's design point: same file from text-embedding AND
+    // retrieval_keywords gets a boost from both channels. (Body hits
+    // dominate; the LLM expansion piles on.)
+    const score = computeHybridScore({
+      content: { score: 0.5 },
+      retrieval_keywords: { score: 0.5 },
+    });
+    // 0.5 + 0.5 * 0.8 = 0.9
+    expect(score).toBeCloseTo(0.9);
   });
 });
 
