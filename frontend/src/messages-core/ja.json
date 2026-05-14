@@ -316,7 +316,18 @@
     "splitModeToggle": "見開きモード切り替え",
     "ltr": "LTR",
     "rtl": "RTL",
-    "readingDirection": "読み方向"
+    "readingDirection": "読み方向",
+    "sortName": "名前",
+    "sortSize": "サイズ",
+    "sortType": "種類",
+    "sortAsc": "昇順",
+    "sortDesc": "降順",
+    "filterAll": "すべて",
+    "filterImage": "画像",
+    "filterText": "テキスト",
+    "filterVideo": "動画",
+    "filterAudio": "音声",
+    "filterOther": "その他"
   },
   "empty": {
     "noFilesTitle": "ファイルがありません",

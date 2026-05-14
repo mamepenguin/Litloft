@@ -10,11 +10,15 @@ import type { ArchiveContents, ArchiveEntry } from "@/types";
 import type { ArchiveViewMode } from "./archive/archiveUtils";
 import { MAX_TEXT_AUTO_LOAD } from "./archive/archiveUtils";
 import { useArchiveNavigation } from "./archive/useArchiveNavigation";
+import { useArchiveSort } from "./archive/useArchiveSort";
+import { useArchiveViewMode } from "./archive/useArchiveViewMode";
 import { useImageViewer } from "./archive/useImageViewer";
 import { useTextViewer } from "./archive/useTextViewer";
 import { ArchiveImageViewer } from "./archive/ArchiveImageViewer";
 import { ArchiveTextViewer } from "./archive/ArchiveTextViewer";
 import { ArchiveFileListing } from "./archive/ArchiveFileListing";
+import { ArchiveEntryGrid } from "./archive/ArchiveEntryGrid";
+import { ArchiveToolbar } from "./archive/ArchiveToolbar";
 
 export function ArchivePreview({ fileId }: { fileId: string }) {
   const router = useRouter();
@@ -25,10 +29,14 @@ export function ArchivePreview({ fileId }: { fileId: string }) {
   const [archive, setArchive] = useState<ArchiveContents | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [viewMode, setViewMode] = useState<ArchiveViewMode>("listing");
+
+  // "listing" | "image" | "text" — controls which viewer overlay is active
+  const [viewerMode, setViewerMode] = useState<ArchiveViewMode>("listing");
   const [viewingEntry, setViewingEntry] = useState<ArchiveEntry | null>(null);
 
-  // Fetch archive contents
+  const { viewMode, setViewMode } = useArchiveViewMode();
+  const { sort, order, typeFilter, setSort, setOrder, setTypeFilter, applySortFilter } = useArchiveSort();
+
   useEffect(() => {
     let cancelled = false;
     setLoading(true);
@@ -65,27 +73,24 @@ export function ArchivePreview({ fileId }: { fileId: string }) {
     handleBreadcrumbClick,
   } = useArchiveNavigation(archive, currentPath, searchParamsString, router);
 
-  // closeViewer is defined before hooks that need it, using a stable ref pattern
-  // We pass it to useImageViewer which needs it for keyboard Escape handling
   const closeViewer = useCallback(() => {
-    setViewMode("listing");
+    setViewerMode("listing");
     setViewingEntry(null);
   }, []);
 
   const imageViewer = useImageViewer(
-    viewMode,
+    viewerMode,
     imageEntries,
     fileId,
     closeViewer
   );
 
-  const textViewer = useTextViewer(viewMode, viewingEntry, fileId);
+  const textViewer = useTextViewer(viewerMode, viewingEntry, fileId);
 
   const currentImage = imageEntries[imageViewer.imageIndex] ?? null;
 
-  // Full close that resets all viewer state
   const closeViewerFull = useCallback(() => {
-    setViewMode("listing");
+    setViewerMode("listing");
     setViewingEntry(null);
     imageViewer.setPlaying(false);
     imageViewer.setShowControls(true);
@@ -94,9 +99,8 @@ export function ArchivePreview({ fileId }: { fileId: string }) {
     textViewer.setTextConfirmed(false);
   }, [imageViewer, textViewer]);
 
-  // Reset viewer when directory changes (e.g. browser back button)
   useEffect(() => {
-    setViewMode("listing");
+    setViewerMode("listing");
     setViewingEntry(null);
     imageViewer.setPlaying(false);
     imageViewer.setShowControls(true);
@@ -108,12 +112,12 @@ export function ArchivePreview({ fileId }: { fileId: string }) {
         const idx = imageEntries.findIndex((e) => e.path === entry.path);
         imageViewer.setImageIndex(idx >= 0 ? idx : 0);
         setViewingEntry(entry);
-        setViewMode("image");
+        setViewerMode("image");
         imageViewer.setShowControls(true);
         imageViewer.setPlaying(false);
       } else if (isTextPreviewable(entry.mime_type)) {
         setViewingEntry(entry);
-        setViewMode("text");
+        setViewerMode("text");
         textViewer.setTextContent(null);
         textViewer.setTextError(null);
         textViewer.setTextConfirmed(entry.file_size <= MAX_TEXT_AUTO_LOAD);
@@ -129,7 +133,6 @@ export function ArchivePreview({ fileId }: { fileId: string }) {
     return false;
   };
 
-  // Loading state
   if (loading) {
     return (
       <div className="flex w-full items-center justify-center rounded-xl bg-bg-card py-16">
@@ -138,7 +141,6 @@ export function ArchivePreview({ fileId }: { fileId: string }) {
     );
   }
 
-  // Error state
   if (error) {
     return (
       <div className="flex w-full items-center justify-center rounded-xl bg-bg-card py-16">
@@ -149,8 +151,7 @@ export function ArchivePreview({ fileId }: { fileId: string }) {
     );
   }
 
-  // Image viewer (fullscreen overlay)
-  if (viewMode === "image" && currentImage) {
+  if (viewerMode === "image" && currentImage) {
     return (
       <ArchiveImageViewer
         fileId={fileId}
@@ -179,29 +180,54 @@ export function ArchivePreview({ fileId }: { fileId: string }) {
     );
   }
 
-  // File listing mode (with optional text viewer below)
+  const displayEntries = applySortFilter(currentEntries);
+
   return (
-    <ArchiveFileListing
-      fileId={fileId}
-      archive={archive}
-      currentEntries={currentEntries}
-      breadcrumbs={breadcrumbs}
-      handleBreadcrumbClick={handleBreadcrumbClick}
-      handleDirClick={handleDirClick}
-      handleFileClick={handleFileClick}
-      isClickable={isClickable}
-    >
-      {viewMode === "text" && viewingEntry && (
-        <ArchiveTextViewer
-          viewingEntry={viewingEntry}
-          textConfirmed={textViewer.textConfirmed}
-          textLoading={textViewer.textLoading}
-          textError={textViewer.textError}
-          textContent={textViewer.textContent}
-          setTextConfirmed={textViewer.setTextConfirmed}
-          closeViewer={closeViewerFull}
+    <div className="w-full">
+      <ArchiveToolbar
+        fileId={fileId}
+        archive={archive}
+        breadcrumbs={breadcrumbs}
+        handleBreadcrumbClick={handleBreadcrumbClick}
+        sort={sort}
+        order={order}
+        typeFilter={typeFilter}
+        viewMode={viewMode}
+        onSortChange={setSort}
+        onOrderChange={setOrder}
+        onTypeFilterChange={setTypeFilter}
+        onViewModeChange={setViewMode}
+      />
+
+      {viewMode === "grid" ? (
+        <ArchiveEntryGrid
+          entries={displayEntries}
+          fileId={fileId}
+          handleDirClick={handleDirClick}
+          handleFileClick={handleFileClick}
+          isClickable={isClickable}
         />
+      ) : (
+        <ArchiveFileListing
+          entries={displayEntries}
+          fileId={fileId}
+          handleDirClick={handleDirClick}
+          handleFileClick={handleFileClick}
+          isClickable={isClickable}
+        >
+          {viewerMode === "text" && viewingEntry && (
+            <ArchiveTextViewer
+              viewingEntry={viewingEntry}
+              textConfirmed={textViewer.textConfirmed}
+              textLoading={textViewer.textLoading}
+              textError={textViewer.textError}
+              textContent={textViewer.textContent}
+              setTextConfirmed={textViewer.setTextConfirmed}
+              closeViewer={closeViewerFull}
+            />
+          )}
+        </ArchiveFileListing>
       )}
-    </ArchiveFileListing>
+    </div>
   );
 }

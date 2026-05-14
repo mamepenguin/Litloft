@@ -1,8 +1,28 @@
 import { render, screen, waitFor, fireEvent } from "@testing-library/react";
-import { describe, it, expect, vi, beforeEach } from "vitest";
+import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import type { ReactNode } from "react";
 import { ArchivePreview } from "../ArchivePreview";
 import { ShortcutsProvider } from "../ShortcutsProvider";
+
+const mockObserve = vi.fn();
+const mockDisconnect = vi.fn();
+vi.stubGlobal(
+  "IntersectionObserver",
+  class {
+    observe = mockObserve;
+    disconnect = mockDisconnect;
+    unobserve = vi.fn();
+    constructor(cb: IntersectionObserverCallback) {
+      setTimeout(() => cb([{ isIntersecting: true } as IntersectionObserverEntry], this), 0);
+    }
+  }
+);
+
+vi.mock("../ViewToggle", () => ({
+  ViewToggle: ({ onChange }: { onChange: (m: string) => void }) => (
+    <button onClick={() => onChange("list")} data-testid="view-toggle" />
+  ),
+}));
 
 function renderWithShortcuts(ui: ReactNode) {
   return render(<ShortcutsProvider>{ui}</ShortcutsProvider>);
@@ -95,8 +115,12 @@ const mockedGetArchiveContents = vi.mocked(getArchiveContents);
 beforeEach(() => {
   vi.clearAllMocks();
   mockedGetArchiveContents.mockResolvedValue(mockArchive);
-  // Reset search params
   mockSearchParams.delete("archivePath");
+  localStorage.clear();
+});
+
+afterEach(() => {
+  localStorage.clear();
 });
 
 describe("ArchivePreview", () => {

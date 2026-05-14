@@ -316,7 +316,18 @@
     "splitModeToggle": "Toggle spread mode",
     "ltr": "LTR",
     "rtl": "RTL",
-    "readingDirection": "Reading direction"
+    "readingDirection": "Reading direction",
+    "sortName": "Name",
+    "sortSize": "Size",
+    "sortType": "Type",
+    "sortAsc": "Ascending",
+    "sortDesc": "Descending",
+    "filterAll": "All",
+    "filterImage": "Image",
+    "filterText": "Text",
+    "filterVideo": "Video",
+    "filterAudio": "Audio",
+    "filterOther": "Other"
   },
   "empty": {
     "noFilesTitle": "No files",
