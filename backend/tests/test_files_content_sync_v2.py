@@ -336,6 +336,122 @@ class TestSyncSelfExclusion:
 # Drive boundary preserved
 # ---------------------------------------------------------------------------
 
+# ---------------------------------------------------------------------------
+# Frontmatter source_file_ids → file_relations
+# ---------------------------------------------------------------------------
+
+class TestFrontmatterSourceFileIds:
+    """frontmatter ``source_file_ids`` contributes to file_relations."""
+
+    def test_source_file_ids_creates_relation(self, client):
+        api, session, drive_dir, _ = client
+        note = _seed_md(session, drive_dir, "note.md", "initial\n")
+        target = _seed_video(session, drive_dir, "video.mp4")
+
+        body = f"---\nsource_file_ids:\n  - \"{target.id}\"\n---\n"
+        r = _put(api, note.id, body, "initial\n")
+        assert r.status_code == 200, r.text
+        session.expire_all()
+        assert _relation_targets(session, note.id) == {target.id}
+
+    def test_removing_source_file_ids_removes_relation(self, client):
+        api, session, drive_dir, _ = client
+        note = _seed_md(session, drive_dir, "note.md", "initial\n")
+        target = _seed_video(session, drive_dir, "video.mp4")
+
+        body1 = f"---\nsource_file_ids:\n  - \"{target.id}\"\n---\n"
+        r = _put(api, note.id, body1, "initial\n")
+        assert r.status_code == 200, r.text
+        session.expire_all()
+        assert _relation_targets(session, note.id) == {target.id}
+
+        new_bytes = (drive_dir / "note.md").read_bytes()
+        body2 = "No frontmatter anymore.\n"
+        r = api.put(
+            f"/api/files/{note.id}/content",
+            content=body2.encode("utf-8"),
+            headers={
+                "Content-Type": "text/plain; charset=utf-8",
+                "If-Match": f'"{_etag_of(new_bytes)}"',
+            },
+        )
+        assert r.status_code == 200, r.text
+        session.expire_all()
+        assert _relation_targets(session, note.id) == set()
+
+    def test_union_with_wiki_link(self, client):
+        """Relation persists if either source_file_ids or wiki-link references it."""
+        api, session, drive_dir, _ = client
+        note = _seed_md(session, drive_dir, "note.md", "initial\n")
+        video = _seed_video(session, drive_dir, "v.mp4")
+        wiki_target = _seed_md(session, drive_dir, "other.md", "x\n")
+
+        body = (
+            f"---\nsource_file_ids:\n  - \"{video.id}\"\n---\n\n"
+            f"[[other]]\n"
+        )
+        r = _put(api, note.id, body, "initial\n")
+        assert r.status_code == 200, r.text
+        session.expire_all()
+        assert _relation_targets(session, note.id) == {video.id, wiki_target.id}
+
+    def test_source_file_ids_self_excluded(self, client):
+        api, session, drive_dir, _ = client
+        note = _seed_md(session, drive_dir, "note.md", "initial\n")
+
+        body = f"---\nsource_file_ids:\n  - \"{note.id}\"\n---\n"
+        r = _put(api, note.id, body, "initial\n")
+        assert r.status_code == 200, r.text
+        session.expire_all()
+        assert _relation_targets(session, note.id) == set()
+
+    def test_non_list_source_file_ids_ignored(self, client):
+        api, session, drive_dir, _ = client
+        note = _seed_md(session, drive_dir, "note.md", "initial\n")
+        target = _seed_video(session, drive_dir, "v.mp4")
+
+        body = f"---\nsource_file_ids: \"{target.id}\"\n---\n"
+        r = _put(api, note.id, body, "initial\n")
+        assert r.status_code == 200, r.text
+        session.expire_all()
+        assert _relation_targets(session, note.id) == set()
+
+    def test_cross_drive_source_file_id_not_synced(self, client, tmp_path):
+        import json as _json
+        import app.config as config
+
+        api, session, drive_dir, _ = client
+        note = _seed_md(session, drive_dir, "note.md", "initial\n")
+
+        second_dir = tmp_path / "drives" / "other2"
+        second_dir.mkdir(parents=True, exist_ok=True)
+        drives_json_path = config.DRIVES_CONFIG
+        existing = _json.loads(drives_json_path.read_text())
+        existing.append({"name": "other-drive2", "path": str(second_dir)})
+        drives_json_path.write_text(_json.dumps(existing))
+        config._drives_cache = None
+
+        (second_dir / "foreign.mp4").write_bytes(b"\x00" * 128)
+        foreign = File(
+            filename="foreign.mp4",
+            title="foreign",
+            drive="other-drive2",
+            folder_path="",
+            file_path="foreign.mp4",
+            file_size=128,
+            file_type="video",
+            mime_type="video/mp4",
+        )
+        session.add(foreign)
+        session.commit()
+
+        body = f"---\nsource_file_ids:\n  - \"{foreign.id}\"\n---\n"
+        r = _put(api, note.id, body, "initial\n")
+        assert r.status_code == 200, r.text
+        session.expire_all()
+        assert _relation_targets(session, note.id) == set()
+
+
 class TestSyncDriveBoundary:
     def test_cross_drive_wiki_target_not_synced(self, client, tmp_path):
         import json as _json

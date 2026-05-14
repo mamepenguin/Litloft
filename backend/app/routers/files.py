@@ -108,16 +108,22 @@ def _sync_md_file_relations(
     content: str,
     self_dir: str,
 ) -> list[ResolveDiagnostic]:
-    """Sync file_relations for a .md file using its body.
+    """Sync file_relations for a .md file using its body and frontmatter.
 
     Spec ``2026-05-12-markdown-link-three-forms.md`` §3.5.
 
-    The body is the source of truth for ``kind='related'`` relations on
-    ``.md`` files. Two link forms contribute:
+    Three sources contribute to ``kind='related'`` relations on ``.md`` files:
 
-    * ``loft://<id>`` — direct file id reference.
-    * ``[[X]]`` — wiki target, resolved drive-scoped via
+    * ``loft://<id>`` in body — direct file id reference.
+    * ``[[X]]`` in body — wiki target, resolved drive-scoped via
       :func:`resolve_wiki_targets` (see §3.3 for precedence).
+    * ``source_file_ids: [...]`` in frontmatter — raw file IDs (same format
+      as distill / Ask-save notes). Allows relations to persist even when the
+      body is empty or the user hasn't written explicit links yet.
+
+    Any combination of these sources can maintain a relation independently;
+    removing one source only removes the relation if no other source references
+    the same file.
 
     Ambiguous and unresolved wiki targets do **not** create relations
     (per spec §7.5 — auto-picking would surprise the writer). They are
@@ -132,23 +138,39 @@ def _sync_md_file_relations(
         db, drive, self_dir, extracted.wiki_targets
     )
 
-    # loft_ids bypass the resolver, so apply the same-drive + active
-    # filter explicitly. Without this, a stale loft id pointing at a
+    # frontmatter source_file_ids contribute the same way as loft_ids.
+    # Malformed frontmatter is silently ignored — a save must never fail
+    # due to a YAML parse error in this projection step.
+    fm_ids: set[str] = set()
+    try:
+        _parsed_fm = parse_frontmatter(content)
+        _raw = _parsed_fm.metadata.get("source_file_ids")
+        if isinstance(_raw, list):
+            fm_ids = {
+                str(v) for v in _raw
+                if isinstance(v, str) and v and v != file_id
+            }
+    except Exception:
+        pass
+
+    # loft_ids and fm_ids bypass the resolver, so apply the same-drive +
+    # active filter explicitly. Without this, a stale id pointing at a
     # different drive could leak into ``file_relations``.
-    valid_loft: set[str] = set()
-    if loft_ids:
+    raw_ids = (loft_ids | fm_ids) - {file_id}
+    valid_raw: set[str] = set()
+    if raw_ids:
         rows = (
             db.query(File.id)
             .filter(
-                File.id.in_(loft_ids),
+                File.id.in_(raw_ids),
                 File.drive == drive,
                 active_file_filter(),
             )
             .all()
         )
-        valid_loft = {row.id for row in rows}
+        valid_raw = {row.id for row in rows}
 
-    target_ids = (valid_loft | wiki_ids) - {file_id}
+    target_ids = (valid_raw | wiki_ids) - {file_id}
 
     # Current file_relations for this file (kind='related', both directions)
     existing_rels = db.query(FileRelation).filter(
