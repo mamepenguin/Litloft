@@ -11,7 +11,6 @@ from sqlalchemy.orm import Session
 
 import app.config as config
 from app.models import File
-from app.services import event_hooks
 from app.services.filetype import classify
 from app.services.fileops import (
     _filename_to_title,
@@ -149,7 +148,7 @@ def receive_chunk(upload_id: str, chunk_index: int, chunk_data: bytes) -> Upload
     return session
 
 
-def complete_upload(upload_id: str, db: Session) -> File:
+def complete_upload(upload_id: str, db: Session) -> tuple[File, bool]:
     session = get_session(upload_id)
 
     if len(session.received_chunks) != session.total_chunks:
@@ -239,9 +238,6 @@ def complete_upload(upload_id: str, db: Session) -> File:
     db.commit()
     db.refresh(file_record)
 
-    if recovered_missing:
-        event_hooks.emit_sync("files.recovered", {"file_ids": [file_record.id]})
-
     logger.info("Upload complete: %s → %s", upload_id, target_rel)
 
     broadcast_from_thread("upload:complete", {
@@ -250,7 +246,7 @@ def complete_upload(upload_id: str, db: Session) -> File:
         "filename": file_record.filename,
     }, drive=session.drive)
 
-    return file_record
+    return file_record, recovered_missing
 
 
 def cancel_upload(upload_id: str) -> None:

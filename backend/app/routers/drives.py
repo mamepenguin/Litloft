@@ -612,7 +612,7 @@ async def create_folder(
     result = fileops.create_folder(drive_name, body.path, body.name, db)
     # Notify subscribers (tree pane, right pane, addons) that the drive's
     # folder topology changed. Spec 2026-05-09-tree-and-pane-refresh-sync.
-    event_hooks.emit_sync(
+    await event_hooks.emit(
         "folders.created", {"drive": drive_name, "path": result["path"]}
     )
     return FolderResponse(**result)
@@ -731,7 +731,7 @@ async def create_text_file(
         # files.created so subscribers can distinguish if needed. Both
         # events drive the pane refresh subscribers identically, but
         # the semantic is different — keep the precise one.
-        event_hooks.emit_sync(
+        await event_hooks.emit(
             "files.recovered", {"file_ids": [existing_missing.id]}
         )
         return _to_response(existing_missing)
@@ -817,7 +817,7 @@ async def create_text_file(
     if new_file is None:
         raise HTTPException(status_code=409, detail="Too many naming conflicts")
 
-    event_hooks.emit_sync("files.created", {"file_ids": [new_file.id]})
+    await event_hooks.emit("files.created", {"file_ids": [new_file.id]})
 
     from fastapi.responses import JSONResponse
     return JSONResponse(
@@ -837,11 +837,11 @@ async def rename_folder(
     result = fileops.rename_folder(drive_name, body.path, body.new_name, db)
     file_ids = result.get("file_ids") or []
     if file_ids:
-        event_hooks.emit_sync("files.moved", {"file_ids": file_ids})
+        await event_hooks.emit("files.moved", {"file_ids": file_ids})
     # Always emit folders.moved so empty-folder renames are observable
     # too (file_ids is empty in that case and the files.moved emit is
     # skipped). Spec 2026-05-09-tree-and-pane-refresh-sync.
-    event_hooks.emit_sync(
+    await event_hooks.emit(
         "folders.moved",
         {"drive": drive_name, "old_path": body.path, "new_path": result["path"]},
     )
@@ -859,8 +859,8 @@ async def move_folder(
     result = fileops.move_folder(drive_name, body.path, body.target_path, db)
     file_ids = result.get("file_ids") or []
     if file_ids:
-        event_hooks.emit_sync("files.moved", {"file_ids": file_ids})
-    event_hooks.emit_sync(
+        await event_hooks.emit("files.moved", {"file_ids": file_ids})
+    await event_hooks.emit(
         "folders.moved",
         {"drive": drive_name, "old_path": body.path, "new_path": result["path"]},
     )
@@ -876,7 +876,7 @@ async def delete_folder(
 ):
     _validate_drive(drive_name, unlocked_groups)
     fileops.delete_folder(drive_name, path, db)
-    event_hooks.emit_sync("folders.deleted", {"drive": drive_name, "path": path})
+    await event_hooks.emit("folders.deleted", {"drive": drive_name, "path": path})
     return {"status": "deleted"}
 
 
@@ -1167,5 +1167,5 @@ async def purge_all_missing_endpoint(
     _validate_drive(drive_name, unlocked_groups)
     purged_ids = fileops.purge_all_missing(db, drive_name)
     if purged_ids:
-        event_hooks.emit_sync("files.purged", {"file_ids": purged_ids})
+        await event_hooks.emit("files.purged", {"file_ids": purged_ids})
     return {"purged": len(purged_ids)}

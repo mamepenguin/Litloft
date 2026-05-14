@@ -445,7 +445,7 @@ async def batch_move(
         # ``move_file`` commits individually, so ids already in ``moved_ids``
         # are durable on disk and need to reach addons regardless.
         if moved_ids:
-            event_hooks.emit_sync("files.moved", {"file_ids": moved_ids})
+            await event_hooks.emit("files.moved", {"file_ids": moved_ids})
     return {"moved": moved, "errors": errors}
 
 
@@ -489,7 +489,7 @@ async def batch_rename(
         r["id"] for r in results if r.get("old_name") != r.get("new_name")
     ]
     if renamed_ids:
-        event_hooks.emit_sync("files.moved", {"file_ids": renamed_ids})
+        await event_hooks.emit("files.moved", {"file_ids": renamed_ids})
     return {"renamed": len(results), "results": results}
 
 
@@ -1204,7 +1204,7 @@ async def rename_file_endpoint(
 ):
     _get_file_or_404(db, file_id, unlocked_groups)
     file = fileops.rename_file(db, file_id, body.new_filename)
-    event_hooks.emit_sync("files.moved", {"file_ids": [file.id]})
+    await event_hooks.emit("files.moved", {"file_ids": [file.id]})
     # Broadcast on the browser WebSocket alongside the addon webhook so
     # FolderTreePane / useFolderFiles subscribers refresh without a
     # manual reload. event_hooks dispatches to addon URLs only; the WS
@@ -1224,7 +1224,7 @@ async def move_file_endpoint(
 ):
     _get_file_or_404(db, file_id, unlocked_groups)
     file = fileops.move_file(db, file_id, body.target_drive, body.target_folder_path)
-    event_hooks.emit_sync("files.moved", {"file_ids": [file.id]})
+    await event_hooks.emit("files.moved", {"file_ids": [file.id]})
     await ws_service.manager.broadcast(
         "files.moved", {"file_ids": [file.id]}, drive=file.drive
     )
