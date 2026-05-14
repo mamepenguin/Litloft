@@ -98,34 +98,43 @@ export function FileSaveDialog({
       aria-modal
       aria-label={title}
     >
+      {/* Overlay */}
       <div
-        className="absolute inset-0 bg-black/60 backdrop-blur-sm"
+        className="absolute inset-0 bg-black/60 backdrop-blur-sm animate-fade-in"
         onClick={onCancel}
       />
-      <div className="relative mx-4 flex w-full max-w-md flex-col gap-4 rounded-2xl bg-bg-card p-5 shadow-lg">
+
+      {/* Dialog box */}
+      <div className="relative mx-4 flex w-full max-w-md flex-col gap-5 rounded-2xl bg-bg-card p-6 shadow-lg animate-fade-in-scale">
         {/* Header */}
         <div className="flex items-center justify-between">
-          <h2 className="text-sm font-semibold text-text-primary">{title}</h2>
+          <h2 className="text-base font-semibold text-text-primary">{title}</h2>
           <button
             type="button"
             onClick={onCancel}
-            className="flex h-7 w-7 items-center justify-center rounded-lg text-text-muted hover:bg-bg-elevated hover:text-text-primary"
+            className="flex h-8 w-8 items-center justify-center rounded-xl text-text-muted transition-colors hover:bg-bg-elevated hover:text-text-primary"
             aria-label={tc("close")}
           >
-            <X size={14} />
+            <X size={16} />
           </button>
         </div>
 
         {/* Folder */}
-        <div className="flex flex-col gap-1">
-          <span className="text-xs text-text-muted">{t("folder")}</span>
+        <div className="flex flex-col gap-1.5">
+          <span className="text-xs font-medium text-text-muted">{t("folder")}</span>
           <FolderPicker drive={drive} value={folder} onChange={setFolder} />
         </div>
 
         {/* Filename */}
-        <label className="flex flex-col gap-1">
-          <span className="text-xs text-text-muted">{t("filename")}</span>
+        <div className="flex flex-col gap-1.5">
+          <label
+            htmlFor="file-save-dialog-filename"
+            className="text-xs font-medium text-text-muted"
+          >
+            {t("filename")}
+          </label>
           <input
+            id="file-save-dialog-filename"
             ref={filenameRef}
             type="text"
             value={filename}
@@ -133,26 +142,27 @@ export function FileSaveDialog({
             onKeyDown={(e) => {
               if (e.key === "Enter" && !disabled) void handleSubmit();
             }}
-            className="w-full rounded-lg border border-bg-border bg-bg-primary px-3 py-2 text-sm font-mono text-text-primary focus:border-focus-ring focus:outline-none focus:ring-1 focus:ring-focus-ring"
+            className="w-full rounded-2xl border border-bg-border bg-bg-elevated px-4 py-2.5 text-sm font-mono text-text-primary placeholder:text-text-muted focus:border-focus-ring focus:outline-none focus:ring-1 focus:ring-focus-ring"
           />
-        </label>
+        </div>
 
+        {/* Error */}
         {error && (
-          <p
+          <div
             role="alert"
-            className="rounded-lg border border-danger/30 bg-danger/10 px-3 py-2 text-xs text-danger"
+            className="rounded-xl border border-danger/30 bg-danger/10 px-4 py-2.5 text-xs text-danger"
           >
             {error}
-          </p>
+          </div>
         )}
 
         {/* Actions */}
-        <div className="flex justify-end gap-2">
+        <div className="flex justify-end gap-2.5">
           <button
             type="button"
             onClick={onCancel}
             disabled={submitting}
-            className="rounded-lg px-3 py-1.5 text-sm text-text-muted hover:bg-bg-elevated disabled:opacity-50"
+            className="rounded-2xl bg-bg-elevated px-4 py-2 text-sm font-medium text-text-muted transition-colors hover:text-text-primary disabled:opacity-50"
           >
             {tc("cancel")}
           </button>
@@ -160,7 +170,7 @@ export function FileSaveDialog({
             type="button"
             onClick={() => void handleSubmit()}
             disabled={disabled}
-            className="rounded-lg bg-accent-cta px-3 py-1.5 text-sm font-medium text-white hover:bg-accent disabled:cursor-not-allowed disabled:opacity-50"
+            className="rounded-2xl bg-accent px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-accent-hover disabled:cursor-not-allowed disabled:opacity-40"
           >
             {submitting ? t("submitting") : (confirmLabel ?? tc("save"))}
           </button>

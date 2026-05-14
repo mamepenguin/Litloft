@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { Folder, Search, X } from "lucide-react";
+import { FolderOpen, Search, X } from "lucide-react";
 import { useTranslations } from "next-intl";
 
 import { getFolderTree } from "@/lib/api";
@@ -45,57 +45,63 @@ export function FolderPicker({ drive, value, onChange }: FolderPickerProps) {
   }, [folders, filter, isFiltering]);
 
   return (
-    <div className="flex flex-col gap-1">
+    <div className="flex flex-col gap-2">
       {/* Filter input */}
       <div className="relative">
         <Search
           size={13}
-          className="pointer-events-none absolute left-2.5 top-1/2 -translate-y-1/2 text-text-muted"
+          className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-text-muted"
         />
         <input
           type="text"
           value={filter}
           onChange={(e) => setFilter(e.target.value)}
           placeholder={t("folderFilter")}
-          className="w-full rounded-lg border border-bg-border bg-bg-primary py-1.5 pl-8 pr-7 text-sm text-text-primary focus:border-focus-ring focus:outline-none focus:ring-1 focus:ring-focus-ring"
+          className="w-full rounded-2xl border border-bg-border bg-bg-elevated py-2 pl-8 pr-8 text-sm text-text-primary placeholder:text-text-muted/60 focus:border-focus-ring focus:outline-none focus:ring-1 focus:ring-focus-ring"
         />
         {filter && (
           <button
             type="button"
             onClick={() => setFilter("")}
-            className="absolute right-2 top-1/2 -translate-y-1/2 text-text-muted hover:text-text-primary"
+            className="absolute right-3 top-1/2 -translate-y-1/2 rounded-full p-0.5 text-text-muted transition-colors hover:text-text-primary"
             aria-label={t("folderFilterClear")}
           >
-            <X size={13} />
+            <X size={12} />
           </button>
         )}
       </div>
 
       {/* Folder list */}
-      <div className="max-h-44 overflow-y-auto rounded-lg border border-bg-border bg-bg-elevated">
-        {/* Drive root option — always visible */}
+      <div className="max-h-44 overflow-y-auto rounded-xl border border-bg-border bg-bg-elevated">
+        {/* Drive root — always visible */}
         <button
           type="button"
           onClick={() => onChange("")}
-          className={`flex w-full items-center gap-2 border-b border-bg-border px-3 py-2 text-left text-xs transition-colors last:border-b-0 ${
+          className={`flex w-full items-center gap-2.5 px-3 py-2.5 text-left text-xs transition-colors ${
             value === ""
-              ? "bg-accent/10 font-medium text-accent"
+              ? "bg-accent/10 font-semibold text-accent"
               : "text-text-muted hover:bg-bg-card hover:text-text-primary"
           }`}
         >
-          <Folder size={14} className="shrink-0" />
+          <FolderOpen
+            size={14}
+            className={`shrink-0 ${value === "" ? "text-accent" : "text-text-muted"}`}
+          />
           <span className="font-mono">/</span>
-          <span>{t("folderRoot")}</span>
+          <span className="text-text-muted">{t("folderRoot")}</span>
         </button>
 
+        {/* Separator */}
+        <div className="mx-3 border-t border-bg-border" />
+
         {loading && (
-          <div className="px-3 py-3 text-center text-xs text-text-muted">
+          <div className="px-3 py-4 text-center text-xs text-text-muted">
             {t("folderLoading")}
           </div>
         )}
 
         {!loading && isFiltering && displayItems.length === 0 && (
-          <div className="px-3 py-3 text-center text-xs text-text-muted">
+          <div className="px-3 py-4 text-center text-xs text-text-muted">
             {t("folderEmpty")}
           </div>
         )}
@@ -105,30 +111,36 @@ export function FolderPicker({ drive, value, onChange }: FolderPickerProps) {
             const depth = folder.path.split("/").length;
             const displayName = isFiltering ? folder.path : folder.name;
             const paddingLeft = isFiltering ? 12 : 8 + (depth - 1) * 16;
+            const isSelected = value === folder.path;
             return (
               <button
                 key={folder.path}
                 type="button"
                 onClick={() => onChange(folder.path)}
                 style={{ paddingLeft: `${paddingLeft}px` }}
-                className={`flex w-full items-center gap-2 border-b border-bg-border py-2 pr-3 text-left text-xs transition-colors last:border-b-0 ${
-                  value === folder.path
-                    ? "bg-accent/10 font-medium text-accent"
+                className={`flex w-full items-center gap-2 py-2 pr-3 text-left text-xs transition-colors ${
+                  isSelected
+                    ? "bg-accent/10 font-semibold text-accent"
                     : "text-text-primary hover:bg-bg-card"
                 }`}
               >
-                <Folder size={14} className="shrink-0 text-text-muted" />
+                <FolderOpen
+                  size={13}
+                  className={`shrink-0 ${isSelected ? "text-accent" : "text-text-muted"}`}
+                />
                 <span className="truncate font-mono">{displayName}</span>
               </button>
             );
           })}
       </div>
 
-      {/* Selected path indicator */}
-      <p className="truncate text-xs text-text-muted">
-        {t("folderSelectedLabel")}:{" "}
-        <span className="font-mono text-text-primary">{value || "/"}</span>
-      </p>
+      {/* Selected path badge */}
+      <div className="flex items-center gap-1.5 rounded-xl bg-bg-elevated px-3 py-1.5">
+        <span className="text-xs text-text-muted">{t("folderSelectedLabel")}:</span>
+        <span className="truncate font-mono text-xs font-medium text-text-primary">
+          {value || "/"}
+        </span>
+      </div>
     </div>
   );
 }
