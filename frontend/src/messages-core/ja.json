@@ -444,6 +444,10 @@
   },
   "settings": {
     "title": "設定",
+    "tabs": {
+      "system": "システム設定",
+      "intelligence": "Intelligence"
+    },
     "profile": {
       "title": "プロフィール",
       "nicknamePlaceholder": "名前を入力",
@@ -491,6 +495,7 @@
     },
     "drives": {
       "title": "ドライブ",
+      "description": "ドライブを追加してメディアフォルダを登録します。パスはコンテナ内のパスです（例: /data/media）。変更は再起動後に反映されます。",
       "addButton": "ドライブを追加",
       "editButton": "編集",
       "deleteButton": "削除",
@@ -516,6 +521,7 @@
     },
     "passwords": {
       "title": "パスワード",
+      "description": "パスワードを設定するとドライブをアクセス制限できます。未設定の場合は誰でもアクセス可能です（公開モード）。",
       "addButton": "パスワードを追加",
       "deleteButton": "削除",
       "saveButton": "保存",
@@ -538,6 +544,9 @@
     },
     "addonPolicy": {
       "title": "アドオン設定",
+      "description": "ドライブごとにアドオンのON/OFFを設定します。変更は再起動後に反映されます。",
+      "addonEnabled": "有効",
+      "addonDisabled": "無効",
       "drive": "ドライブ",
       "errors": {
         "loadFailed": "アドオン設定の読み込みに失敗しました",

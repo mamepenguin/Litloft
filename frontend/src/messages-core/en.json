@@ -444,6 +444,10 @@
   },
   "settings": {
     "title": "Settings",
+    "tabs": {
+      "system": "System",
+      "intelligence": "Intelligence"
+    },
     "profile": {
       "title": "Profile",
       "nicknamePlaceholder": "Enter your name",
@@ -491,6 +495,7 @@
     },
     "drives": {
       "title": "Drives",
+      "description": "Register media folders as drives. Use the container-internal path (e.g. /data/media). Changes take effect after restart.",
       "addButton": "Add drive",
       "editButton": "Edit",
       "deleteButton": "Delete",
@@ -516,6 +521,7 @@
     },
     "passwords": {
       "title": "Passwords",
+      "description": "Set passwords to restrict drive access. Without passwords, all drives are public.",
       "addButton": "Add password",
       "deleteButton": "Delete",
       "saveButton": "Save",
@@ -538,6 +544,9 @@
     },
     "addonPolicy": {
       "title": "Addon policy",
+      "description": "Enable or disable addons per drive. Changes take effect after restart.",
+      "addonEnabled": "On",
+      "addonDisabled": "Off",
       "drive": "Drive",
       "errors": {
         "loadFailed": "Failed to load addon policy",

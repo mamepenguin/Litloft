@@ -156,11 +156,14 @@ export function DrivesSection(): React.ReactElement {
   const sortedDrives = useMemo(() => drives, [drives]);
 
   return (
-    <section className="rounded-xl border border-bg-border bg-bg-card p-4">
-      <div className="mb-4 flex items-center justify-between">
-        <h2 className="text-base font-semibold text-text-primary">
-          {t("title")}
-        </h2>
+    <section className="rounded-xl border border-bg-border bg-bg-card p-6">
+      <div className="mb-6 flex items-start justify-between">
+        <div>
+          <h2 className="text-lg font-semibold text-text-primary">
+            {t("title")}
+          </h2>
+          <p className="mt-1 text-sm text-text-muted">{t("description")}</p>
+        </div>
         <button
           type="button"
           onClick={openAdd}
