@@ -456,17 +456,22 @@ async def batch_tags(
     unlocked_groups: Annotated[list[str], Depends(get_unlocked_groups)],
 ):
     updated = 0
+    updated_ids = []
     errors = []
     for file_id in body.ids:
         try:
             file = _get_file_or_404(db, file_id, unlocked_groups)
             replace_file_tags(db, file, body.tags)
             updated += 1
+            updated_ids.append(file_id)
         except HTTPException as e:
             errors.append({"id": file_id, "error": e.detail})
     cleanup_orphan_tags(db)
     db.commit()
-
+    if updated_ids:
+        asyncio.create_task(
+            event_hooks.emit("files.updated", {"file_ids": updated_ids})
+        )
     return {"updated": updated, "errors": errors}
 
 
@@ -551,14 +556,20 @@ async def batch_copy(
     unlocked_groups: Annotated[list[str], Depends(get_unlocked_groups)],
 ):
     copied = 0
+    copied_ids = []
     errors = []
     for file_id in body.ids:
         try:
             _get_file_or_404(db, file_id, unlocked_groups)
-            fileops.copy_file(db, file_id, body.target_drive, body.target_folder_path)
+            new_file = fileops.copy_file(db, file_id, body.target_drive, body.target_folder_path)
+            copied_ids.append(new_file.id)
             copied += 1
         except HTTPException as e:
             errors.append({"id": file_id, "error": e.detail})
+    if copied_ids:
+        asyncio.create_task(
+            event_hooks.emit("files.created", {"file_ids": copied_ids})
+        )
     return {"copied": copied, "errors": errors}
 
 
@@ -646,6 +657,9 @@ async def update_file(
 
     db.commit()
     db.refresh(file)
+    asyncio.create_task(
+        event_hooks.emit("files.updated", {"file_ids": [file_id]})
+    )
     return _to_response(file)
 
 
@@ -688,6 +702,9 @@ async def toggle_favorite(
     file.is_favorite = not file.is_favorite
     db.commit()
     db.refresh(file)
+    asyncio.create_task(
+        event_hooks.emit("files.updated", {"file_ids": [file_id]})
+    )
     return _to_response(file)
 
 
@@ -703,6 +720,9 @@ async def update_file_tags(
     cleanup_orphan_tags(db)
     db.commit()
     db.refresh(file)
+    asyncio.create_task(
+        event_hooks.emit("files.updated", {"file_ids": [file_id]})
+    )
     return _to_response(file)
 
 
@@ -1240,6 +1260,9 @@ async def copy_file_endpoint(
 ):
     _get_file_or_404(db, file_id, unlocked_groups)
     new_file = fileops.copy_file(db, file_id, body.target_drive, body.target_folder_path)
+    asyncio.create_task(
+        event_hooks.emit("files.created", {"file_ids": [new_file.id]})
+    )
     return _to_response(new_file)
 
 
@@ -1506,6 +1529,9 @@ async def put_file_content(
                     "put_content: link sync failed for %s", file_id
                 )
 
+    asyncio.create_task(
+        event_hooks.emit("files.updated", {"file_ids": [file_id]})
+    )
     return Response(
         status_code=200,
         headers={"ETag": f'"{new_etag}"'},

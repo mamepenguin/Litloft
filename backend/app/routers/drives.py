@@ -1118,8 +1118,10 @@ async def empty_trash(
     unlocked_groups: Annotated[list[str], Depends(get_unlocked_groups)],
 ):
     _validate_drive(drive_name, unlocked_groups)
-    count = fileops.purge_all_trash(db, drive_name)
-    return {"purged": count}
+    purged_ids = fileops.purge_all_trash(db, drive_name)
+    if purged_ids:
+        await event_hooks.emit("files.purged", {"file_ids": purged_ids})
+    return {"purged": len(purged_ids)}
 
 
 @router.get("/{drive_name}/missing", response_model=PaginatedResponse)

@@ -582,20 +582,20 @@ def purge_file(db: Session, file_id: str) -> None:
     db.commit()
 
 
-def purge_all_trash(db: Session, drive: str) -> int:
-    """Permanently delete all trashed files for a drive. Returns count purged."""
+def purge_all_trash(db: Session, drive: str) -> list[str]:
+    """Permanently delete all trashed files for a drive. Returns purged file IDs."""
     resolve_drive_path(drive)
     trashed = (
         db.query(File)
         .filter(File.drive == drive, File.deleted_at.isnot(None))
         .all()
     )
-    count = 0
+    purged_ids = []
     for file in trashed:
+        purged_ids.append(file.id)
         physical_delete(db, file)
-        count += 1
     db.commit()
-    return count
+    return purged_ids
 
 
 def purge_missing_file(db: Session, file_id: str) -> None:

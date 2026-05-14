@@ -40,6 +40,7 @@ import { useWebSocketRefresh } from "@/hooks/useWebSocketRefresh";
  */
 const STRUCTURE_EVENTS = [
   "files.created",
+  "files.updated",
   "files.moved",
   "files.deleted",
   "files.restored",
