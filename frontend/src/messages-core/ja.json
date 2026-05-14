@@ -876,8 +876,10 @@
     "folderFilter": "フォルダを検索...",
     "folderFilterClear": "フィルタをクリア",
     "folderRoot": "ドライブルート",
+    "folderSaveTo": "保存先",
     "folderLoading": "読み込み中...",
     "folderEmpty": "一致するフォルダがありません",
+    "folderNoSubfolders": "サブフォルダがありません",
     "folderSelectedLabel": "選択中",
     "submitting": "保存中..."
   }

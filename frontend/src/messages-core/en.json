@@ -876,8 +876,10 @@
     "folderFilter": "Filter folders...",
     "folderFilterClear": "Clear filter",
     "folderRoot": "Drive root",
+    "folderSaveTo": "Save to",
     "folderLoading": "Loading...",
     "folderEmpty": "No matching folders",
+    "folderNoSubfolders": "No subfolders",
     "folderSelectedLabel": "Selected",
     "submitting": "Saving..."
   }
