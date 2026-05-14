@@ -186,6 +186,14 @@ export function FilePreview({
   miniPlayerRoot,
 }: FilePreviewProps) {
   const t = useTranslations("file");
+  const [isAppleMobile, setIsAppleMobile] = useState(false);
+  useEffect(() => {
+    const ua = navigator.userAgent;
+    const isIosOrIpadOs =
+      /iPad|iPhone|iPod/.test(ua) ||
+      (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1);
+    setIsAppleMobile(isIosOrIpadOs);
+  }, []);
   // Mirror the published MediaController locally so MiniPlayerContainer
   // can react to play/pause without requiring every caller of
   // FilePreview to thread the controller back down. The relay still
@@ -307,6 +315,18 @@ export function FilePreview({
     const pdfKey = `${file.id}:p${hasPage ? initialPage : 1}`;
     return (
       <div className="w-full overflow-hidden rounded-xl bg-bg-card">
+        {isAppleMobile && (
+          <div className="flex justify-end px-3 py-2">
+            <a
+              href={pdfSrc}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="text-sm text-text-muted underline"
+            >
+              {t("openInNewTab")}
+            </a>
+          </div>
+        )}
         <iframe
           key={pdfKey}
           src={pdfSrc}
