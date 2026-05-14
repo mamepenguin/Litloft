@@ -105,75 +105,79 @@ export function FileSaveDialog({
       />
 
       {/* Dialog box */}
-      <div className="relative mx-4 flex w-full max-w-md flex-col gap-5 rounded-2xl bg-bg-card p-6 shadow-lg animate-fade-in-scale">
-        {/* Header */}
-        <div className="flex items-center justify-between">
-          <h2 className="text-base font-semibold text-text-primary">{title}</h2>
-          <button
-            type="button"
-            onClick={onCancel}
-            className="flex h-8 w-8 items-center justify-center rounded-xl text-text-muted transition-colors hover:bg-bg-elevated hover:text-text-primary"
-            aria-label={tc("close")}
-          >
-            <X size={16} />
-          </button>
-        </div>
-
-        {/* Folder */}
-        <div className="flex flex-col gap-1.5">
-          <span className="text-xs font-medium text-text-muted">{t("folder")}</span>
-          <FolderPicker drive={drive} value={folder} onChange={setFolder} />
-        </div>
-
-        {/* Filename */}
-        <div className="flex flex-col gap-1.5">
-          <label
-            htmlFor="file-save-dialog-filename"
-            className="text-xs font-medium text-text-muted"
-          >
-            {t("filename")}
-          </label>
-          <input
-            id="file-save-dialog-filename"
-            ref={filenameRef}
-            type="text"
-            value={filename}
-            onChange={(e) => setFilename(e.target.value)}
-            onKeyDown={(e) => {
-              if (e.key === "Enter" && !disabled) void handleSubmit();
-            }}
-            className="w-full rounded-2xl border border-bg-border bg-bg-elevated px-4 py-2.5 text-sm font-mono text-text-primary placeholder:text-text-muted focus:border-focus-ring focus:outline-none focus:ring-1 focus:ring-focus-ring"
-          />
-        </div>
-
-        {/* Error */}
-        {error && (
-          <div
-            role="alert"
-            className="rounded-xl border border-danger/30 bg-danger/10 px-4 py-2.5 text-xs text-danger"
-          >
-            {error}
+      <div className="relative mx-4 w-full max-w-md animate-fade-in-scale">
+        <div className="space-y-4 rounded-xl border border-bg-border bg-bg-card p-5">
+          {/* Header */}
+          <div className="flex items-center justify-between">
+            <h2 className="text-sm font-semibold text-text-primary">{title}</h2>
+            <button
+              type="button"
+              onClick={onCancel}
+              className="text-text-muted transition-colors hover:text-text-primary"
+              aria-label={tc("close")}
+            >
+              <X size={16} />
+            </button>
           </div>
-        )}
 
-        {/* Actions */}
-        <div className="flex justify-end gap-2.5">
-          <button
-            type="button"
-            onClick={onCancel}
-            disabled={submitting}
-            className="rounded-2xl bg-bg-elevated px-4 py-2 text-sm font-medium text-text-muted transition-colors hover:text-text-primary disabled:opacity-50"
-          >
-            {tc("cancel")}
-          </button>
-          <button
-            type="button"
-            onClick={() => void handleSubmit()}
-            disabled={disabled}
-            className="rounded-2xl bg-accent px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-accent-hover disabled:cursor-not-allowed disabled:opacity-40"
-          >
-            {submitting ? t("submitting") : (confirmLabel ?? tc("save"))}
-          </button>
+          {/* Folder */}
+          <div>
+            <label className="mb-1.5 block text-xs text-text-muted">
+              {t("folder")}
+            </label>
+            <FolderPicker drive={drive} value={folder} onChange={setFolder} />
+          </div>
+
+          {/* Filename */}
+          <div>
+            <label
+              htmlFor="file-save-dialog-filename"
+              className="mb-1.5 block text-xs text-text-muted"
+            >
+              {t("filename")}
+            </label>
+            <input
+              id="file-save-dialog-filename"
+              ref={filenameRef}
+              type="text"
+              value={filename}
+              onChange={(e) => setFilename(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === "Enter" && !disabled) void handleSubmit();
+              }}
+              className="w-full rounded-2xl border border-bg-border bg-bg-primary px-4 py-2.5 text-sm text-text-primary placeholder:text-text-muted focus:border-focus-ring focus:outline-none"
+            />
+          </div>
+
+          {/* Error */}
+          {error && (
+            <div
+              role="alert"
+              className="rounded-2xl bg-danger/10 px-3 py-2 text-sm text-danger"
+            >
+              {error}
+            </div>
+          )}
+
+          {/* Actions */}
+          <div className="flex items-center justify-end gap-2">
+            <button
+              type="button"
+              onClick={onCancel}
+              disabled={submitting}
+              className="rounded-2xl px-4 py-2 text-sm text-text-muted transition-colors hover:text-text-primary disabled:opacity-50"
+            >
+              {tc("cancel")}
+            </button>
+            <button
+              type="button"
+              onClick={() => void handleSubmit()}
+              disabled={disabled}
+              className="rounded-2xl bg-accent px-5 py-2.5 text-sm font-medium text-white transition-colors hover:bg-accent-hover disabled:opacity-50"
+            >
+              {submitting ? t("submitting") : (confirmLabel ?? tc("save"))}
+            </button>
+          </div>
         </div>
       </div>
     </div>
