@@ -30,7 +30,6 @@ export function ArchiveFileListing({
   return (
     <div className="w-full">
       <div className="overflow-hidden rounded-xl bg-bg-card">
-        <div className="max-h-[60vh] overflow-auto">
           {entries.length === 0 ? (
             <div className="py-12 text-center text-sm text-text-muted">
               {t("emptyFolder")}
@@ -108,7 +107,6 @@ export function ArchiveFileListing({
               })}
             </ul>
           )}
-        </div>
       </div>
 
       {children}
