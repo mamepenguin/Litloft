@@ -4,13 +4,14 @@ import {
   useCallback,
   useEffect,
   useMemo,
+  useRef,
   useState,
   type ReactElement,
   type ReactNode,
 } from "react";
 import { useSearchParams } from "next/navigation";
 import { useTranslations } from "next-intl";
-import { PanelRight, PanelRightClose } from "lucide-react";
+import { AlertCircle, PanelRight, PanelRightClose } from "lucide-react";
 
 import { useInspectorOpen } from "@/hooks/useInspectorOpen";
 import { useIsMobile } from "@/hooks/useIsMobile";
@@ -30,12 +31,20 @@ import { TreeToggle } from "./TreeToggle";
 interface MarkdownDocumentLayoutProps {
   drive: string;
   /**
-   * Plain-text title shown in the chrome. Rename remains accessible
-   * through the folder tree / file actions; the chrome title itself
-   * stays read-only to honour the "edit-mode + Inspector toggle only"
-   * affordance set the design discussion landed on.
+   * Plain-text title shown in the chrome. When `onRename` is provided,
+   * the title becomes click-to-edit (used for Markdown notes where the
+   * filename is the user-facing identity). Without `onRename` the title
+   * stays read-only — that branch carries the HTML preview and any
+   * future preview-only file type that rides this shell.
    */
   title: string;
+  /**
+   * Optional callback to rename the underlying file. When provided, the
+   * chrome title becomes inline-editable: click to enter edit mode,
+   * blur or Enter to commit, Esc to cancel. The host is responsible
+   * for the API call and any local-state refresh.
+   */
+  onRename?: (newFilename: string) => Promise<void>;
   /**
    * Sections shown in the desktop Inspector pane. On mobile, this
    * stack is shown inside the Bottom Sheet unless `mobileSheet` is
@@ -107,6 +116,7 @@ interface MarkdownDocumentLayoutProps {
 export function MarkdownDocumentLayout({
   drive,
   title,
+  onRename,
   inspector,
   mobileSheet,
   children,
@@ -211,12 +221,16 @@ export function MarkdownDocumentLayout({
         <TreeToggle drive={drive} />
       </div>
       {!previewOnly && <SaveDot state={saveState} />}
-      <h2
-        className="min-w-0 flex-1 truncate text-sm font-medium text-text-primary"
-        title={title}
-      >
-        {title}
-      </h2>
+      {onRename && !previewOnly ? (
+        <EditableTitle title={title} onRename={onRename} />
+      ) : (
+        <h2
+          className="min-w-0 flex-1 truncate text-sm font-medium text-text-primary"
+          title={title}
+        >
+          {title}
+        </h2>
+      )}
       {!previewOnly && (
         <MarkdownViewModeToggle
           mode={viewMode}
@@ -271,6 +285,114 @@ export function MarkdownDocumentLayout({
         )}
       </div>
     </MarkdownChromeProvider>
+  );
+}
+
+/**
+ * Click-to-edit chrome title. Mirrors the legacy standalone-mode
+ * `TitleField` (knowledge addon Editor.tsx) but stays in core so the
+ * chrome bar — which is the only Markdown editor surface going forward
+ * — owns the rename affordance directly.
+ *
+ * Behaviour: click switches to a text input with the current value
+ * selected; Enter / blur commits via `onRename`; Esc cancels. Input
+ * passes the user's value verbatim to the host (matching the file
+ * browser rename dialog) — no automatic `.md` suffix, no extension
+ * normalisation. Errors surface as a small inline icon and keep the
+ * input open so the user can correct.
+ */
+function EditableTitle({
+  title,
+  onRename,
+}: {
+  title: string;
+  onRename: (newFilename: string) => Promise<void>;
+}): ReactElement {
+  const t = useTranslations("inspector.rename");
+  const [editing, setEditing] = useState(false);
+  const [value, setValue] = useState(title);
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const inputRef = useRef<HTMLInputElement | null>(null);
+
+  useEffect(() => {
+    if (!editing) setValue(title);
+  }, [title, editing]);
+
+  useEffect(() => {
+    if (editing) {
+      inputRef.current?.focus();
+      inputRef.current?.select();
+    }
+  }, [editing]);
+
+  async function commit() {
+    const trimmed = value.trim();
+    if (!trimmed || trimmed === title) {
+      setEditing(false);
+      setValue(title);
+      setError(null);
+      return;
+    }
+    setSaving(true);
+    setError(null);
+    try {
+      await onRename(trimmed);
+      setEditing(false);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : t("failed"));
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  if (!editing) {
+    return (
+      <button
+        type="button"
+        onClick={() => setEditing(true)}
+        title={t("hint")}
+        aria-label={t("hint")}
+        className="min-w-0 flex-1 truncate rounded px-1 py-0.5 text-left text-sm font-medium text-text-primary hover:bg-bg-elevated"
+      >
+        {title}
+      </button>
+    );
+  }
+
+  return (
+    <form
+      onSubmit={(e) => {
+        e.preventDefault();
+        commit();
+      }}
+      className="flex min-w-0 flex-1 items-center gap-2"
+    >
+      <input
+        ref={inputRef}
+        type="text"
+        value={value}
+        onChange={(e) => setValue(e.target.value)}
+        onBlur={() => {
+          if (!saving) commit();
+        }}
+        onKeyDown={(e) => {
+          if (e.key === "Escape") {
+            setEditing(false);
+            setValue(title);
+            setError(null);
+          }
+        }}
+        disabled={saving}
+        aria-label={t("label")}
+        className="w-full min-w-0 rounded border border-bg-border bg-bg-primary px-2 py-0.5 text-sm font-medium text-text-primary focus:border-focus-ring focus:outline-none focus:ring-1 focus:ring-focus-ring"
+      />
+      {error && (
+        <span className="text-danger" title={error}>
+          <AlertCircle size={14} />
+        </span>
+      )}
+    </form>
   );
 }
 

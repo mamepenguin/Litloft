@@ -15,6 +15,7 @@ import {
   getFile,
   likeFile,
   recordFileView,
+  renameFile,
   updateFile,
 } from "@/lib/api";
 import { addRecentlyPlayed } from "@/lib/recentlyPlayed";
@@ -228,6 +229,16 @@ export function FileDetailContent({
     setEditing(false);
     setSaving(false);
   }, [file, editTitle, editDesc]);
+
+  const handleRename = useCallback(
+    async (newFilename: string) => {
+      if (!file) return;
+      const updated = await renameFile(file.id, newFilename);
+      setFile(updated);
+      refreshSidebar();
+    },
+    [file, refreshSidebar],
+  );
 
   // Drive-scope policy lookup for the Knowledge editor. `usePolicy` is
   // fail-open: during the initial load AND during the 30s-TTL background
@@ -485,7 +496,8 @@ export function FileDetailContent({
     return (
       <MarkdownDocumentLayout
         drive={drive}
-        title={file.title || file.filename}
+        title={file.filename}
+        onRename={isHtmlPreview ? undefined : handleRename}
         inspector={inspectorPaneContent}
         mobileSheet={mobileSheetContent}
         resetKey={fileId}

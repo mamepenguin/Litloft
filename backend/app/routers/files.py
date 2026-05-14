@@ -58,6 +58,7 @@ from app.schemas import (
     file_to_response,
 )
 from app.services import fileops
+from app.services import ws as ws_service
 from app.services.filetype import classify
 from app.services.frontmatter import (
     compose as compose_frontmatter,
@@ -1204,6 +1205,13 @@ async def rename_file_endpoint(
     _get_file_or_404(db, file_id, unlocked_groups)
     file = fileops.rename_file(db, file_id, body.new_filename)
     event_hooks.emit_sync("files.moved", {"file_ids": [file.id]})
+    # Broadcast on the browser WebSocket alongside the addon webhook so
+    # FolderTreePane / useFolderFiles subscribers refresh without a
+    # manual reload. event_hooks dispatches to addon URLs only; the WS
+    # layer is independent and reaches the browser directly.
+    await ws_service.manager.broadcast(
+        "files.moved", {"file_ids": [file.id]}, drive=file.drive
+    )
     return _to_response(file)
 
 
@@ -1217,6 +1225,9 @@ async def move_file_endpoint(
     _get_file_or_404(db, file_id, unlocked_groups)
     file = fileops.move_file(db, file_id, body.target_drive, body.target_folder_path)
     event_hooks.emit_sync("files.moved", {"file_ids": [file.id]})
+    await ws_service.manager.broadcast(
+        "files.moved", {"file_ids": [file.id]}, drive=file.drive
+    )
     return _to_response(file)
 
 

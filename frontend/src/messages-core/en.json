@@ -670,6 +670,11 @@
       "saved": "Saved",
       "conflict": "Conflict detected",
       "error": "Save failed"
+    },
+    "rename": {
+      "hint": "Click to rename",
+      "label": "Filename",
+      "failed": "Rename failed"
     }
   },
   "comments": {
