@@ -96,7 +96,7 @@ The first boot downloads ML models (Whisper, CLIP, embeddings, optionally BLIP).
 The addon's reconciler (default every 60 minutes — `indexing.reconciliation_interval`) walks the core DB, finds files that have not yet been indexed, and runs a per-MIME pipeline:
 
 - **Text/Markdown/PDF/Office** — extract text, split into chunks (`indexing.text_chunking`), embed each chunk.
-- **Audio/Video** — transcribe (faster-Whisper or cloud), align word timestamps, chunk transcript, embed.
+- **Audio/Video** — transcribe (faster-Whisper or cloud), align word timestamps, chunk transcript, embed. After transcription, extract top keywords (Janome + TF-IDF) and store a single keyword-bag embedding (`embedding_type="tfidf_keywords"`) for the *Similar Files* feature.
 - **Video** — additionally extract frames (scene-detect with `indexing.frame_extraction`), embed each frame with CLIP.
 - **Image** — embed with CLIP; optionally caption with BLIP for auto-tags.
 
