@@ -48,20 +48,16 @@ export default function AdminSettingsPage(): React.ReactElement {
         )}
       </div>
 
-      {activeTab === "system" && (
-        <div className="space-y-8">
-          <DrivesSection />
-          <PasswordsSection />
-          <AddonPolicySection />
-          <AddonSlot id="admin-settings-sections" layout="stack" />
-        </div>
-      )}
+      <div className={activeTab === "system" ? "space-y-8" : "hidden"}>
+        <DrivesSection />
+        <PasswordsSection />
+        <AddonPolicySection />
+        <AddonSlot id="admin-settings-sections" layout="stack" />
+      </div>
 
-      {activeTab === "intelligence" && (
-        <div className="space-y-8">
-          <AddonSlot id="admin-intelligence-sections" layout="stack" />
-        </div>
-      )}
+      <div className={activeTab === "intelligence" ? "space-y-8" : "hidden"}>
+        <AddonSlot id="admin-intelligence-sections" layout="stack" />
+      </div>
     </div>
   );
 }
