@@ -10,6 +10,21 @@ vi.mock("@/components/AddonSlot", () => ({
   AddonSlot: () => null,
 }));
 
+// UploadButton is rendered in both the mobile row and the desktop sticky bar.
+// Mock it to a stable shape so tests can target it without CSS-based visibility.
+vi.mock("@/components/UploadButton", () => ({
+  UploadButton: ({ onCreateFolder }: { onCreateFolder?: () => void }) => (
+    <>
+      <button aria-label="Upload">Upload</button>
+      {onCreateFolder && (
+        <button onClick={onCreateFolder} aria-label="New Folder">
+          New Folder
+        </button>
+      )}
+    </>
+  ),
+}));
+
 const defaultProps = {
   isSpecialView: false,
   tagFilter: null,
@@ -44,34 +59,35 @@ describe("FolderToolbar", () => {
 
   it("renders upload button and new folder button", () => {
     render(<FolderToolbar {...defaultProps} />);
-    expect(screen.getByLabelText("Upload")).toBeInTheDocument();
-    expect(screen.getByLabelText("New Folder")).toBeInTheDocument();
+    // Both buttons appear in mobile row and desktop sticky bar (CSS-only split).
+    expect(screen.getAllByLabelText("Upload").length).toBeGreaterThan(0);
+    expect(screen.getAllByLabelText("New Folder").length).toBeGreaterThan(0);
   });
 
-  it("renders new file button when onCreateFile is provided", () => {
+  it("renders new note button when onCreateFile is provided", () => {
     const onCreateFile = vi.fn();
     render(<FolderToolbar {...defaultProps} onCreateFile={onCreateFile} />);
-    expect(screen.getByLabelText("New File")).toBeInTheDocument();
+    expect(screen.getAllByLabelText("New Note").length).toBeGreaterThan(0);
   });
 
-  it("does not render new file button when onCreateFile is omitted", () => {
+  it("does not render new note button when onCreateFile is omitted", () => {
     render(<FolderToolbar {...defaultProps} />);
-    expect(screen.queryByLabelText("New File")).not.toBeInTheDocument();
+    expect(screen.queryByLabelText("New Note")).not.toBeInTheDocument();
   });
 
-  it("clicking new file calls onCreateFile", () => {
+  it("clicking new note calls onCreateFile", () => {
     const onCreateFile = vi.fn();
     render(<FolderToolbar {...defaultProps} onCreateFile={onCreateFile} />);
-    fireEvent.click(screen.getByLabelText("New File"));
+    fireEvent.click(screen.getAllByLabelText("New Note")[0]);
     expect(onCreateFile).toHaveBeenCalledTimes(1);
   });
 
-  it("hides new file button in special view even if onCreateFile is provided", () => {
+  it("hides new note button in special view even if onCreateFile is provided", () => {
     const onCreateFile = vi.fn();
     render(
       <FolderToolbar {...defaultProps} isSpecialView={true} onCreateFile={onCreateFile} />,
     );
-    expect(screen.queryByLabelText("New File")).not.toBeInTheDocument();
+    expect(screen.queryByLabelText("New Note")).not.toBeInTheDocument();
   });
 
   it("hides upload and folder buttons in special view", () => {
@@ -85,26 +101,17 @@ describe("FolderToolbar", () => {
     expect(screen.queryByLabelText("Upload")).not.toBeInTheDocument();
   });
 
-  it("shows upload dropdown menu with Files and Folder options", () => {
+  it("clicking new folder triggers onSetCreatingFolder", () => {
     render(<FolderToolbar {...defaultProps} />);
-    fireEvent.click(screen.getByLabelText("Upload"));
-    expect(screen.getByText("Files")).toBeInTheDocument();
-    expect(screen.getByText("Folder")).toBeInTheDocument();
-  });
-
-  it("closes upload dropdown on second click", () => {
-    render(<FolderToolbar {...defaultProps} />);
-    const btn = screen.getByLabelText("Upload");
-    fireEvent.click(btn);
-    expect(screen.getByText("Files")).toBeInTheDocument();
-    fireEvent.click(btn);
-    expect(screen.queryByText("Files")).not.toBeInTheDocument();
+    fireEvent.click(screen.getAllByLabelText("New Folder")[0]);
+    expect(defaultProps.onSetCreatingFolder).toHaveBeenCalledWith(true);
   });
 
   it("shows folder creation input when creatingFolder is true", () => {
     render(<FolderToolbar {...defaultProps} creatingFolder={true} />);
-    expect(screen.getByPlaceholderText("Folder name...")).toBeInTheDocument();
-    expect(screen.getByText("Create")).toBeInTheDocument();
+    // Input appears in both mobile and desktop rows.
+    expect(screen.getAllByPlaceholderText("Folder name...").length).toBeGreaterThan(0);
+    expect(screen.getAllByText("Create").length).toBeGreaterThan(0);
   });
 
   it("calls onCreateFolder on create button click", () => {
@@ -112,7 +119,7 @@ describe("FolderToolbar", () => {
     render(
       <FolderToolbar {...defaultProps} creatingFolder={true} onCreateFolder={onCreateFolder} />
     );
-    fireEvent.click(screen.getByText("Create"));
+    fireEvent.click(screen.getAllByText("Create")[0]);
     expect(onCreateFolder).toHaveBeenCalled();
   });
 
@@ -121,7 +128,7 @@ describe("FolderToolbar", () => {
     render(
       <FolderToolbar {...defaultProps} creatingFolder={true} onCreateFolder={onCreateFolder} />
     );
-    fireEvent.keyDown(screen.getByPlaceholderText("Folder name..."), { key: "Enter" });
+    fireEvent.keyDown(screen.getAllByPlaceholderText("Folder name...")[0], { key: "Enter" });
     expect(onCreateFolder).toHaveBeenCalled();
   });
 
@@ -138,7 +145,7 @@ describe("FolderToolbar", () => {
         onSetFolderError={onSetFolderError}
       />
     );
-    fireEvent.keyDown(screen.getByPlaceholderText("Folder name..."), { key: "Escape" });
+    fireEvent.keyDown(screen.getAllByPlaceholderText("Folder name...")[0], { key: "Escape" });
     expect(onSetCreatingFolder).toHaveBeenCalledWith(false);
     expect(onSetNewFolderName).toHaveBeenCalledWith("");
     expect(onSetFolderError).toHaveBeenCalledWith(null);
@@ -148,7 +155,7 @@ describe("FolderToolbar", () => {
     render(
       <FolderToolbar {...defaultProps} creatingFolder={true} folderError="Invalid folder name" />
     );
-    expect(screen.getByText("Invalid folder name")).toBeInTheDocument();
+    expect(screen.getAllByText("Invalid folder name").length).toBeGreaterThan(0);
   });
 
   it("shows total count", () => {

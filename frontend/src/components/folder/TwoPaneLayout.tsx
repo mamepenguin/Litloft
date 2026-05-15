@@ -113,7 +113,7 @@ export function TwoPaneLayout({
   // `children` (FolderBrowser / DriveHome) on the right. Outer `<aside>`
   // animates its width; the inner wrapper keeps an intrinsic width so
   // content doesn't reflow during the transition, it just gets clipped
-  // by `overflow-hidden`.
+  // by `overflow-clip`.
   //
   // `FolderTreePane` itself is lazy-mounted — we don't want to run its
   // folder-tree fetch and WebSocket subscription for users who never
@@ -135,7 +135,7 @@ export function TwoPaneLayout({
 
   return (
     <ScrollContainerContext.Provider value={sectionRef}>
-      <div className="flex h-[calc(100dvh-3.5rem)] w-full overflow-hidden">
+      <div className="flex h-[calc(100dvh-3.5rem)] w-full overflow-clip">
         <aside
           className={`h-full flex-shrink-0 overflow-hidden transition-[width] duration-150 ease-out ${treeAsideWidth}`}
           aria-label={leftPaneAriaLabel ?? "Folder tree"}

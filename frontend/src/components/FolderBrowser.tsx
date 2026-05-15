@@ -374,7 +374,7 @@ export function FolderBrowser({
           height regardless of folder/file/search mode. The breadcrumb
           / search title share this row; TreeToggle is leftmost. */}
       {isSearch ? (
-        <header className="flex flex-wrap items-start gap-2 px-4 py-3">
+        <header className="flex flex-wrap items-start gap-2 px-4 py-2">
           <TreeToggle drive={driveName} />
           <div className="min-w-0 flex-1">
             <h1 className="truncate text-2xl font-bold text-text-primary">
@@ -407,7 +407,7 @@ export function FolderBrowser({
           </div>
         </header>
       ) : (
-        <div className="flex items-center gap-2 px-4 py-3">
+        <div className="flex items-center gap-2 px-4 py-2">
           <TreeToggle drive={driveName} />
           <Breadcrumb
             driveName={driveName}
@@ -415,33 +415,6 @@ export function FolderBrowser({
             getDropTargetProps={dragState.isDragging ? getDropTargetProps : undefined}
             isDropTarget={dragState.isDragging ? isDropTarget : undefined}
           />
-        </div>
-      )}
-
-      <div className="px-4 pb-6 pt-2 sm:pb-8 sm:pt-4">
-      {!isSearch && clipboard.clipboard && (
-        <div className="mb-3 flex items-center gap-3 rounded-lg bg-accent/10 px-4 py-2.5 ring-1 ring-accent/20">
-          <ClipboardPaste size={18} className="flex-shrink-0 text-accent" />
-          <span className="flex-1 text-sm text-text-primary">
-            {tcb("pasteCount", {
-              count: clipboard.clipboard.fileIds.length,
-              mode: clipboard.clipboard.mode === "copy" ? tcb("modeCopy") : tcb("modeCut"),
-            })}
-          </span>
-          <button
-            onClick={handlePaste}
-            disabled={pasting}
-            className="rounded-2xl bg-accent px-3 py-1.5 text-sm font-medium text-white transition-colors hover:bg-accent-hover disabled:opacity-50"
-          >
-            {tcb("pasteHere")}
-          </button>
-          <button
-            onClick={clipboard.clear}
-            className="rounded-lg p-1.5 text-text-muted transition-colors hover:text-text-primary"
-            aria-label={tcb("clear")}
-          >
-            <X size={16} />
-          </button>
         </div>
       )}
 
@@ -480,6 +453,33 @@ export function FolderBrowser({
         onCreateFolder={createFolder.handleCreateFolder}
         onCreateFile={isFolderContext ? createFile : undefined}
       />}
+
+      <div className="px-4 pb-6 pt-1 sm:pb-8 sm:pt-4">
+      {!isSearch && clipboard.clipboard && (
+        <div className="mb-3 flex items-center gap-3 rounded-lg bg-accent/10 px-4 py-2.5 ring-1 ring-accent/20">
+          <ClipboardPaste size={18} className="flex-shrink-0 text-accent" />
+          <span className="flex-1 text-sm text-text-primary">
+            {tcb("pasteCount", {
+              count: clipboard.clipboard.fileIds.length,
+              mode: clipboard.clipboard.mode === "copy" ? tcb("modeCopy") : tcb("modeCut"),
+            })}
+          </span>
+          <button
+            onClick={handlePaste}
+            disabled={pasting}
+            className="rounded-2xl bg-accent px-3 py-1.5 text-sm font-medium text-white transition-colors hover:bg-accent-hover disabled:opacity-50"
+          >
+            {tcb("pasteHere")}
+          </button>
+          <button
+            onClick={clipboard.clear}
+            className="rounded-lg p-1.5 text-text-muted transition-colors hover:text-text-primary"
+            aria-label={tcb("clear")}
+          >
+            <X size={16} />
+          </button>
+        </div>
+      )}
 
       {/* Phase 3 unified results: filename-match and semantic hits live
           in the same FolderContent list (sourced via useFolderFiles +

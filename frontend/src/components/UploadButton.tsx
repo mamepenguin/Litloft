@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { ChevronDown, File as FileIcon, Folder, Upload } from "lucide-react";
+import { ChevronDown, File as FileIcon, Folder, FolderPlus, Upload } from "lucide-react";
 import { useTranslations } from "next-intl";
 import type { UploadFileEntry } from "@/hooks/useUpload";
 
@@ -12,9 +12,14 @@ function dispatchUploadEvent(detail: File[] | UploadFileEntry[]) {
   }
 }
 
-export function UploadButton() {
+interface UploadButtonProps {
+  onCreateFolder?: () => void;
+}
+
+export function UploadButton({ onCreateFolder }: UploadButtonProps = {}) {
   const tc = useTranslations("common");
   const tu = useTranslations("upload");
+  const tf = useTranslations("folder");
   const [menuOpen, setMenuOpen] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -66,14 +71,20 @@ export function UploadButton() {
           onClick={() => setMenuOpen((s) => !s)}
           className="flex items-center gap-1.5 rounded-2xl bg-accent px-3 py-2 text-sm font-medium text-white transition-all hover:bg-accent-hover"
           aria-label={tc("upload")}
+          aria-haspopup="menu"
+          aria-expanded={menuOpen}
         >
           <Upload size={16} />
           <span className="hidden sm:inline">{tc("upload")}</span>
           <ChevronDown size={14} className="opacity-70" />
         </button>
         {menuOpen && (
-          <div className="absolute left-0 top-full z-30 mt-1 min-w-[160px] rounded-xl border border-bg-border bg-bg-primary py-1 shadow-lg animate-fade-in-scale origin-top-left">
+          <div
+            role="menu"
+            className="absolute left-0 top-full z-30 mt-1 min-w-[160px] rounded-xl border border-bg-border bg-bg-primary py-1 shadow-lg animate-fade-in-scale origin-top-left"
+          >
             <button
+              role="menuitem"
               onClick={() => {
                 setMenuOpen(false);
                 fileInputRef.current?.click();
@@ -84,6 +95,7 @@ export function UploadButton() {
               {tu("files")}
             </button>
             <button
+              role="menuitem"
               onClick={() => {
                 setMenuOpen(false);
                 folderInputRef.current?.click();
@@ -93,6 +105,22 @@ export function UploadButton() {
               <Folder size={16} />
               {tu("folder")}
             </button>
+            {onCreateFolder && (
+              <>
+                <div className="my-1 border-t border-bg-border" />
+                <button
+                  role="menuitem"
+                  onClick={() => {
+                    setMenuOpen(false);
+                    onCreateFolder();
+                  }}
+                  className="flex w-full items-center gap-2 px-3 py-2 text-left text-sm text-text-primary transition-colors hover:bg-bg-elevated"
+                >
+                  <FolderPlus size={16} />
+                  {tf("newFolder")}
+                </button>
+              </>
+            )}
           </div>
         )}
       </div>
