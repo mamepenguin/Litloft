@@ -58,6 +58,52 @@ describe("MarkdownPreview", () => {
     expect(img?.getAttribute("onerror")).toBeNull();
   });
 
+  describe("loft:// image embedding", () => {
+    it("renders loft:// image as <img src=/api/files/{id}/stream> wrapped in detail link", () => {
+      renderWithIntl(<MarkdownPreview source="![caption](loft://abc123def456)" />);
+      const img = document.querySelector("img");
+      expect(img).not.toBeNull();
+      expect(img?.getAttribute("src")).toBe("/api/files/abc123def456/stream");
+      expect(img?.getAttribute("alt")).toBe("caption");
+      expect(img?.getAttribute("loading")).toBe("lazy");
+      const link = img?.closest("a");
+      expect(link).not.toBeNull();
+      expect(link?.getAttribute("href")).toBe("/files/abc123def456");
+      expect(link?.classList.contains("loft-image-link")).toBe(true);
+    });
+
+    it("renders loft:// image with empty alt", () => {
+      renderWithIntl(<MarkdownPreview source="![](loft://abc123def456)" />);
+      const img = document.querySelector("img");
+      expect(img).not.toBeNull();
+      expect(img?.getAttribute("src")).toBe("/api/files/abc123def456/stream");
+      expect(img?.getAttribute("alt")).toBe("");
+    });
+
+    it("ignores query params from loft:// image src (not meaningful for images)", () => {
+      renderWithIntl(<MarkdownPreview source="![x](loft://abc123def456?t=30)" />);
+      const img = document.querySelector("img");
+      expect(img?.getAttribute("src")).toBe("/api/files/abc123def456/stream");
+      expect(img?.closest("a")?.getAttribute("href")).toBe("/files/abc123def456");
+    });
+
+    it("renders invalid loft:// file_id as loft-image-invalid span", () => {
+      renderWithIntl(<MarkdownPreview source="![bad](loft://../../evil)" />);
+      expect(document.querySelector("img")).toBeNull();
+      const span = document.querySelector(".loft-image-invalid");
+      expect(span).not.toBeNull();
+      expect(span?.textContent).toBe("bad");
+    });
+
+    it("does not affect external URL images", () => {
+      renderWithIntl(<MarkdownPreview source="![ext](https://example.com/a.png)" />);
+      const img = document.querySelector("img");
+      expect(img).not.toBeNull();
+      expect(img?.getAttribute("src")).toBe("https://example.com/a.png");
+      expect(document.querySelector(".loft-image-link")).toBeNull();
+    });
+  });
+
   it("renders code blocks", () => {
     renderWithIntl(
       <MarkdownPreview source={"```\nconst x = 1;\n```"} />,

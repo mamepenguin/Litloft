@@ -234,6 +234,45 @@ function createMarkdownRenderer({ withMermaid }: { withMermaid: boolean }): Mark
     return defaultLinkRender(tokens, idx, options, env, self);
   };
 
+  // loft://file_id images — resolve to /api/files/{id}/stream and wrap in
+  // a detail-page link so clicking navigates to /files/{id}, consistent
+  // with how loft:// text links behave (link_open rule above).
+  md.renderer.rules.image = function (tokens, idx, options, env, self) {
+    const token = tokens[idx];
+    const src = token.attrGet("src") ?? "";
+    const lower = src.trim().toLowerCase();
+
+    if (lower.startsWith("loft://")) {
+      const rest = src.slice("loft://".length);
+      const qIdx = rest.indexOf("?");
+      const fileId = qIdx >= 0 ? rest.slice(0, qIdx) : rest;
+      const alt = md.utils.escapeHtml(
+        self.renderInlineAsText(token.children ?? [], options, env),
+      );
+      if (!/^[A-Za-z0-9_-]{12}$/.test(fileId)) {
+        return `<span class="loft-image-invalid">${alt}</span>`;
+      }
+      const safeId = md.utils.escapeHtml(fileId);
+      return (
+        `<a href="/files/${safeId}" class="loft-image-link">` +
+        `<img src="/api/files/${safeId}/stream" alt="${alt}" loading="lazy" />` +
+        `</a>`
+      );
+    }
+
+    // Non-loft image: replicate the default markdown-it image renderer
+    // (populate alt from children tokens, then renderToken).
+    const altIdx = token.attrIndex("alt");
+    if (altIdx >= 0 && token.attrs) {
+      token.attrs[altIdx][1] = self.renderInlineAsText(
+        token.children ?? [],
+        options,
+        env,
+      );
+    }
+    return self.renderToken(tokens, idx, options);
+  };
+
   // Mermaid blocks are only emitted as hydratable placeholders when the caller
   // opts in. Untrusted sources (e.g. LLM answers) run with withMermaid=false so
   // mermaid's securityLevel:"loose" click directives can't bypass DOMPurify via
@@ -287,7 +326,7 @@ function renderMarkdownToSafeHtml(
     FORBID_ATTR: ["onload", "onerror", "onclick", "onmouseover"],
     // Allow target on <a> because our renderer forces rel="noopener noreferrer"
     // alongside it, so there is no tabnabbing risk.
-    ADD_ATTR: ["target", "checked", "disabled", "data-wiki-target"],
+    ADD_ATTR: ["target", "checked", "disabled", "data-wiki-target", "loading"],
   });
   return { frontmatter: parsed.data as Record<string, unknown>, html: safeHtml };
 }
