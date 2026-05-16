@@ -67,7 +67,10 @@ HTML 貼付 / ブックマークレットはバー下のセカンダリボタン
 
 ### Phase B: クイックメモボタン追加（2026-05-16 完了）
 
-Zone 1 セカンダリ行に「クイックメモ」ボタン（lucide `SquarePen`、絵文字なし）。
+Zone 1 セクション見出し（「キャプチャ」）右端に「クイックメモ」ボタン
+（lucide `SquarePen`、絵文字なし）。クリップ群（バー/保存先/HTML貼付/
+ブックマークレット）とは独立した面レベルのアクションとして配置（案A、
+クリップ文脈との混在を避けるためのユーザー指摘で再配置）。
 Core の `useCreateFile(drive, "")` を addon から `@/hooks/useCreateFile` で流用し、
 drive root に `untitled-{時刻}.md` を即時作成 → `/files/{id}?edit=1` へ SPA 遷移
 （実機では 2ペインエディタ `?file=...&edit=1` に正規化されて着地）。
