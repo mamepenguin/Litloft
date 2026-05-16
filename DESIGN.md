@@ -19,6 +19,12 @@ colors:
   dark-surface: "#33332e"
   focus-ring: "#435ee5"
   highlight-bg: "#fff8c5"
+  graph-cat-1: "#d63031"
+  graph-cat-2: "#1f7a5a"
+  graph-cat-3: "#c2740a"
+  graph-cat-4: "#8e4585"
+  graph-cat-5: "#7c7a45"
+  graph-cat-6: "#3f6fa3"
 typography:
   body:
     fontFamily: system-ui
@@ -247,6 +253,28 @@ Rules:
 
 - Always pair the class with the marker icon or underline so the state is conveyed visually for users with color-vision deficiencies.
 - The classes are added to DOMPurify's `data-wiki-target` attribute allowlist so the wiki target survives sanitization for downstream consumers (e.g. the Knowledge unresolved-link click handler).
+
+### 2.4 Chart-only Categorical Scale
+
+`--graph-cat-1` … `--graph-cat-6` is a **qualitative data-visualization scale**, not part of the brand palette. It exists because data viz needs N mutually distinguishable hues for arbitrary categories (e.g. the Knowledge connections graph coloring nodes by kind / tag / folder), and the semantic accent tokens cannot serve that role: `--accent-teal` (`#103c25`) and `--accent-amber` (`#78350f`) are deep colors designed to sit *behind* text at low opacity, so as solid small node fills on the white canvas they collapse into "dark blobs" and stop being distinguishable.
+
+| Token | Light | Dark | Role hint |
+|---|---|---|---|
+| `--graph-cat-1` | `#d63031` | `#e85d5e` | coral |
+| `--graph-cat-2` | `#1f7a5a` | `#4caf80` | green |
+| `--graph-cat-3` | `#c2740a` | `#f0a847` | ochre / honey |
+| `--graph-cat-4` | `#8e4585` | `#c98bc0` | plum / orchid |
+| `--graph-cat-5` | `#7c7a45` | `#bdb869` | olive |
+| `--graph-cat-6` | `#3f6fa3` | `#7fa6d4` | dusty blue |
+
+Rules:
+
+- **Chart surfaces only** — graph nodes, legend swatches, chart segments. Never use these for buttons, links, text, borders, or any brand/UI affordance.
+- The hues are earthy/warm-anchored (the single blue is desaturated "dusty", not Tailwind cool) so the scale reads as part of the coral+olive identity rather than a foreign palette.
+- Each value is tuned to stay 6-way distinguishable as a **solid small fill** against the light (white) and dark (warm plum) canvases. Derive faint fills with `color-mix(... 16-18%, transparent)`; never hand-pick a separate light tint.
+- Out-of-scale / "everything else" buckets and `flat` mode use `--text-muted`, not a 7th hue.
+- Selection / focus / search-match **highlight** is `--accent` (the app-wide highlight), independent of this categorical scale.
+- This scale does **not** violate §9 "no additional brand colors": it is documented, namespaced (`graph-cat-*`), and forbidden on brand/UI surfaces.
 
 ---
 
@@ -554,7 +582,7 @@ An inline script in `<head>` reads `localStorage('theme-preference')` and sets `
 ### Don't
 - Do not apply `word-break: break-all` globally to body text or UI labels
 - Do not use `scale()` hover or active on cards / buttons — preserve the static weight
-- Do not introduce additional brand colors — coral red + warm neutrals is the complete palette
+- Do not introduce additional brand colors — coral red + warm neutrals is the complete palette (the `--graph-cat-*` chart-only scale in §2.4 is the sole sanctioned exception, and only on chart surfaces)
 - Do not grow / darken `box-shadow` on hover. Resting `shadow-card` stays constant; hover changes surface color only
 - Do not handroll arbitrary `shadow-[0_*]` values, or stack `shadow-2xl` with `ring-*` — use the `shadow-card` (Level 1) or `shadow-lg` (Level 3) tokens
 - Do not use border-radius below 12px on outer surfaces

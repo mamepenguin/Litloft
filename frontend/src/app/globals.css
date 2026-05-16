@@ -30,6 +30,15 @@
   --highlight-bg: #fff8c5;
   --kbd-shadow: inset 0 -1px 0 #b8c0c8;
   --shadow-card: 0 1px 2px rgba(33, 25, 34, 0.04), 0 1px 3px rgba(33, 25, 34, 0.04);
+  /* Chart-only categorical scale (NOT brand colors — see DESIGN.md §2.4).
+     Warm/earthy-anchored so it sits with coral+olive identity, tuned for
+     6-way distinguishability as solid small fills on the white canvas. */
+  --graph-cat-1: #d63031; /* coral  */
+  --graph-cat-2: #1f7a5a; /* green  */
+  --graph-cat-3: #c2740a; /* ochre  */
+  --graph-cat-4: #8e4585; /* plum   */
+  --graph-cat-5: #7c7a45; /* olive  */
+  --graph-cat-6: #3f6fa3; /* dusty blue */
   color-scheme: light;
 }
 
@@ -57,6 +66,13 @@
   --highlight-bg: rgba(244, 198, 116, 0.55);
   --kbd-shadow: inset 0 -1px 0 rgba(255, 255, 255, 0.2);
   --shadow-card: 0 1px 2px rgba(0, 0, 0, 0.35), 0 1px 3px rgba(0, 0, 0, 0.25);
+  /* Chart-only categorical scale — lifted for the warm plum dark canvas. */
+  --graph-cat-1: #e85d5e; /* coral  */
+  --graph-cat-2: #4caf80; /* green  */
+  --graph-cat-3: #f0a847; /* honey  */
+  --graph-cat-4: #c98bc0; /* orchid */
+  --graph-cat-5: #bdb869; /* olive  */
+  --graph-cat-6: #7fa6d4; /* dusty blue */
   color-scheme: dark;
 }
 
@@ -80,6 +96,12 @@
   --color-dark-surface: var(--dark-surface);
   --color-focus-ring: var(--focus-ring);
   --color-danger: var(--danger);
+  --color-graph-cat-1: var(--graph-cat-1);
+  --color-graph-cat-2: var(--graph-cat-2);
+  --color-graph-cat-3: var(--graph-cat-3);
+  --color-graph-cat-4: var(--graph-cat-4);
+  --color-graph-cat-5: var(--graph-cat-5);
+  --color-graph-cat-6: var(--graph-cat-6);
   --shadow-card: var(--shadow-card);
   /* Pin Sans font stack: system-ui with broad CJK fallbacks */
   --font-sans: -apple-system, system-ui, "Segoe UI", Roboto, "Oxygen-Sans",
