@@ -1,8 +1,8 @@
 # Handoff: Knowledge Addon Dashboard Redesign
 
 **Updated:** 2026-05-16
-**Status:** Connections グラフ化は完了・コミット済み。Capture バー改修とクイックメモが残タスク。
-**Next action:** 下記「残タスク」の Phase A / B を実装する
+**Status:** 全フェーズ完了・コミット済み（Connections グラフ化 / Phase A Capture バー / Phase B クイックメモ）。
+**Next action:** なし（残タスクなし）
 
 ---
 
@@ -52,53 +52,39 @@ Zone 3  Connections（ノート↔ファイルの繋がり）  ← グラフ化 
 - `frontend/KnowledgeDashboard.tsx` が実体（Zone 1/2/3 を構成）
 - `frontend/__tests__/page.test.tsx` は新 Page の動作をカバー
 
----
+### Phase A: Capture を「カード」→「バー」へ（2026-05-16 完了）
 
-## 残タスク
+承認済みデザイン仕様どおり、`CaptureZone` の重いカード囲い・「Web クリップ」
+見出し・説明文を撤去し、`ClipForm` を常時露出の軽い入力バーとして直配置。
+HTML 貼付 / ブックマークレットはバー下のセカンダリボタン行に。
 
-`frontend/KnowledgeDashboard.tsx` の `CaptureZone`（行 235〜）が対象。
-Connections（Zone 3）には**触らないこと**。
+| リポジトリ | コミット |
+|---|---|
+| `addons/knowledge` | `3376b05 refactor(knowledge): replace Capture card with always-exposed input bar` |
+| メイン | `9c12153 chore: bump knowledge addon (Capture bar redesign)` |
 
-### Phase A: Capture を「カード」から「バー」へ【最重要】
+検証: frontend テスト 119/119 PASS（当時）、tsc 新規エラーなし、実機目視確認済み。
 
-**現状（行 247〜）:** `<div className="...rounded-2xl border ... bg-bg-card p-5 shadow-sm">`
-の重いカード。`<p>Web クリップ</p>` のタイトルと
-`<p>URL を貼り付けると Markdown に変換して保存します</p>` の説明文がある。
+### Phase B: クイックメモボタン追加（2026-05-16 完了）
 
-**あるべき姿（承認済みデザイン仕様）:** 常時露出した軽い入力バー。
-カードの囲い・タイトル・説明文を外し、URL 入力 + クリップボタンを
-1 行のバーとして出す。HTML 貼付 / ブックマークレットは現状どおり
-セカンダリ（バー下の小さなボタン行）でよい。
+Zone 1 セカンダリ行に「クイックメモ」ボタン（lucide `SquarePen`、絵文字なし）。
+Core の `useCreateFile(drive, "")` を addon から `@/hooks/useCreateFile` で流用し、
+drive root に `untitled-{時刻}.md` を即時作成 → `/files/{id}?edit=1` へ SPA 遷移
+（実機では 2ペインエディタ `?file=...&edit=1` に正規化されて着地）。
 
-**修正方針:**
-- `rounded-2xl border ... bg-bg-card p-5 shadow-sm` のラッパーを廃し、
-  `ClipForm` を直接バーとして配置（`ClipForm` 自体は流用可、行 126）
-- 「Web クリップ」見出しと説明文の `<p>` 2 本を削除
-- セクションラベル「キャプチャ」（行 249）は残してよい
-- DESIGN.md の標準入力 / CTA トークンに従う
+`/ebs` で Topic 12（`adBbtSe3GDv8cE1wGqgLP`）との対立を再確認し上書きを決定。
+根拠: 再設計後ダッシュボードは `FolderBrowser` をマウントしないため Cmd+N が
+物理的に効かず、Topic 12 の「Cmd+N で十分」前提が崩れていた。Core フック流用に
+より Topic 12 の真の懸念（設定肥大化・Knowledge↔Core 結合）は回避。
+判断記録は hako `zyhHZeGtL0Ri4NoQh3Vjr`。
 
-### Phase B: クイックメモボタンを追加
+| リポジトリ | コミット |
+|---|---|
+| `addons/knowledge` | `fa27142 feat(knowledge): add quick-memo button to Capture zone` |
+| メイン | `chore: bump knowledge addon (quick-memo) + handoff 更新` |
 
-**現状:** 未実装（完全に欠落）。
-
-**仕様:** Zone 1 に「クイックメモ」ボタン（絵文字禁止・lucide アイコン例
-`SquarePen` / `NotebookPen`）。押下で空の `.md` を新規作成しエディタへ遷移。
-
-**実装方針:**
-- API は既存の `createTextFile(drive, { path, content })` を使う
-  （`frontend/api.ts:201`、`POST /api/drives/{drive}/files` ラッパー）
-- ファイル名は `untitled-{YYYYMMDD-HHMMSS}.md`（既存クリップの命名と整合）。
-  保存先は drive root でよい（フォルダピッカーは v1 不要、後で議論）
-- 作成成功後 `router.push('/files/{id}?edit=1')` で全画面エディタへ遷移
-  （SPA 遷移厳守。hako `project_spa_navigation` / フルリロード禁止）
-- 失敗時はトースト or インラインエラー（既存パターンに合わせる）
-
-> 補足: 「ダッシュボードからどこにメモを作るか」は過去議論あり
-> （hako `WXHdghZXLAcjhy5QThNAm` Topic 12）。結論は「Core の
-> `FolderToolbar` に新規ファイル + Cmd+N」で、ダッシュボード側に
-> 専用ボタンは置かない方針だった。**この残タスクはその結論と矛盾する**
-> 可能性がある。実装前に `/ebs` で要否を再確認すること（クイックメモを
-> 入れるか、Cmd+N グローバルに委ねるかはユーザー判断）。
+検証: knowledge テスト 122/122 PASS、tsc 新規エラーなし、実機で
+クリック→空ノート作成→エディタ遷移を確認済み。
 
 ---
 
