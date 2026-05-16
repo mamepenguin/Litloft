@@ -1,0 +1,943 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, user-scalable=no" />
+<title>Knowledge Connections — Graph (v3)</title>
+<style>
+  :root {
+    --bg: #0f1115;
+    --bg-card: #1a1d24;
+    --bg-elevated: #232831;
+    --bg-border: #2a2f38;
+    --text-primary: #e8ebf0;
+    --text-muted: #8b94a3;
+    --text-dim: #5c6470;
+    --accent: #d63031;
+    --accent-teal: #2dd4bf;
+    --accent-amber: #f59e0b;
+    --accent-purple: #a78bfa;
+    --accent-blue: #60a5fa;
+    --accent-rose: #fb7185;
+    --accent-emerald: #34d399;
+    --accent-cyan: #22d3ee;
+  }
+  * { box-sizing: border-box; }
+  html, body {
+    margin: 0; padding: 0;
+    background: var(--bg);
+    color: var(--text-primary);
+    font-family: -apple-system, BlinkMacSystemFont, "Hiragino Sans", "Yu Gothic", sans-serif;
+    font-size: 14px;
+    line-height: 1.5;
+    overscroll-behavior: none;
+  }
+  .page {
+    max-width: 1100px;
+    margin: 0 auto;
+    padding: 24px 16px 60px;
+  }
+  .page > h1 {
+    font-size: 13px;
+    color: var(--text-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    margin: 0 0 4px;
+  }
+  .page > p.lead {
+    color: var(--text-muted);
+    margin: 0 0 20px;
+    font-size: 13px;
+  }
+
+  /* Toolbar */
+  .toolbar {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 12px;
+    flex-wrap: wrap;
+  }
+  .toolbar .search {
+    flex: 1;
+    min-width: 180px;
+    max-width: 280px;
+    position: relative;
+  }
+  .toolbar input[type="search"] {
+    width: 100%;
+    background: var(--bg-card);
+    border: 1px solid var(--bg-border);
+    border-radius: 10px;
+    padding: 7px 12px 7px 30px;
+    color: var(--text-primary);
+    font: inherit;
+    font-size: 12px;
+  }
+  .toolbar input[type="search"]:focus { outline: none; border-color: var(--accent-blue); }
+  .toolbar .search::before {
+    content: "🔍";
+    position: absolute; left: 8px; top: 50%;
+    transform: translateY(-50%);
+    font-size: 11px; opacity: 0.5;
+  }
+  .chip-group {
+    display: inline-flex;
+    background: var(--bg-card);
+    border: 1px solid var(--bg-border);
+    border-radius: 10px;
+    padding: 2px;
+    gap: 2px;
+  }
+  .chip {
+    background: transparent;
+    border: none;
+    color: var(--text-muted);
+    border-radius: 8px;
+    padding: 5px 11px;
+    font-size: 11px;
+    cursor: pointer;
+    user-select: none;
+    transition: all 0.15s;
+    font-family: inherit;
+  }
+  .chip:hover { color: var(--text-primary); }
+  .chip.active {
+    background: var(--bg-elevated);
+    color: var(--text-primary);
+  }
+  .colorby-label {
+    font-size: 10px;
+    color: var(--text-dim);
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    margin-right: 4px;
+    align-self: center;
+  }
+
+  /* Focus banner */
+  .focus-banner {
+    display: none;
+    align-items: center;
+    gap: 12px;
+    background: linear-gradient(90deg, rgba(96,165,250,0.12), transparent);
+    border: 1px solid rgba(96,165,250,0.3);
+    border-radius: 12px;
+    padding: 10px 16px;
+    margin-bottom: 12px;
+    font-size: 12px;
+    flex-wrap: wrap;
+  }
+  .focus-banner.on { display: flex; }
+  .focus-banner .target {
+    color: var(--accent-blue);
+    font-weight: 600;
+  }
+  .focus-banner .depth-control {
+    margin-left: auto;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    color: var(--text-muted);
+  }
+  .focus-banner input[type="range"] { width: 80px; accent-color: var(--accent-blue); }
+  .focus-banner button {
+    background: transparent;
+    border: 1px solid var(--bg-border);
+    color: var(--text-muted);
+    border-radius: 8px;
+    padding: 4px 10px;
+    font-size: 11px;
+    cursor: pointer;
+  }
+  .focus-banner button:hover { color: var(--text-primary); }
+
+  /* Frame */
+  .graph-frame {
+    border: 1px solid var(--bg-border);
+    border-radius: 16px;
+    background: var(--bg-card);
+    overflow: hidden;
+    position: relative;
+  }
+  svg.graph {
+    display: block;
+    width: 100%;
+    height: 620px;
+    touch-action: none;
+    user-select: none;
+    background:
+      radial-gradient(circle at 25% 30%, rgba(96,165,250,0.04), transparent 45%),
+      radial-gradient(circle at 70% 65%, rgba(167,139,250,0.04), transparent 40%),
+      radial-gradient(circle at 50% 90%, rgba(45,212,191,0.03), transparent 35%);
+    cursor: grab;
+  }
+  svg.graph.dragging { cursor: grabbing; }
+
+  .edge {
+    stroke: var(--bg-border);
+    stroke-width: 1;
+    fill: none;
+    transition: stroke 0.2s, opacity 0.2s;
+    vector-effect: non-scaling-stroke;
+  }
+  .edge.note-source { stroke-dasharray: 3 3; }
+  .edge.hi {
+    stroke: var(--accent-teal);
+    stroke-width: 2;
+  }
+  .edge.dim { opacity: 0.1; }
+  .edge.hidden { display: none; }
+
+  .node { cursor: pointer; transition: opacity 0.2s; }
+  .node.dim { opacity: 0.18; }
+  .node.hidden { display: none; }
+  .node circle {
+    stroke-width: 2;
+    transition: stroke-width 0.15s, filter 0.15s;
+    vector-effect: non-scaling-stroke;
+  }
+  .node.selected circle,
+  .node:hover circle {
+    stroke-width: 3;
+    filter: drop-shadow(0 0 8px currentColor);
+  }
+  .node.center circle {
+    stroke-width: 4;
+    filter: drop-shadow(0 0 14px currentColor);
+  }
+  .node.match circle {
+    filter: drop-shadow(0 0 12px var(--accent-amber));
+  }
+  .node text {
+    font-size: 11px;
+    fill: var(--text-muted);
+    pointer-events: none;
+    font-family: inherit;
+    text-anchor: middle;
+    transition: opacity 0.15s;
+  }
+  .node.selected text, .node:hover text, .node.center text {
+    fill: var(--text-primary);
+    font-weight: 500;
+  }
+
+  /* mime_kind palette */
+  .node[data-color="md"]    circle { fill: rgba(96,165,250,0.18); stroke: var(--accent-blue);   color: var(--accent-blue); }
+  .node[data-color="video"] circle { fill: rgba(45,212,191,0.18); stroke: var(--accent-teal);   color: var(--accent-teal); }
+  .node[data-color="image"] circle { fill: rgba(245,158,11,0.18); stroke: var(--accent-amber);  color: var(--accent-amber); }
+  .node[data-color="pdf"]   circle { fill: rgba(167,139,250,0.18); stroke: var(--accent-purple); color: var(--accent-purple); }
+  .node[data-color="other"] circle { fill: rgba(251,113,133,0.14); stroke: var(--accent-rose);   color: var(--accent-rose); }
+  /* tag palette */
+  .node[data-color="tag-llm"]      circle { fill: rgba(167,139,250,0.18); stroke: var(--accent-purple); color: var(--accent-purple); }
+  .node[data-color="tag-travel"]   circle { fill: rgba(34,211,238,0.18);  stroke: var(--accent-cyan);   color: var(--accent-cyan); }
+  .node[data-color="tag-book"]     circle { fill: rgba(52,211,153,0.18);  stroke: var(--accent-emerald);color: var(--accent-emerald); }
+  .node[data-color="tag-journal"]  circle { fill: rgba(245,158,11,0.18);  stroke: var(--accent-amber);  color: var(--accent-amber); }
+  .node[data-color="tag-none"]     circle { fill: rgba(140,148,163,0.12); stroke: var(--text-dim);      color: var(--text-dim); }
+  /* folder palette */
+  .node[data-color="folder-research"] circle { fill: rgba(167,139,250,0.18); stroke: var(--accent-purple); color: var(--accent-purple); }
+  .node[data-color="folder-journal"]  circle { fill: rgba(96,165,250,0.18);  stroke: var(--accent-blue);   color: var(--accent-blue); }
+  .node[data-color="folder-travel"]   circle { fill: rgba(34,211,238,0.18);  stroke: var(--accent-cyan);   color: var(--accent-cyan); }
+  .node[data-color="folder-library"]  circle { fill: rgba(52,211,153,0.18);  stroke: var(--accent-emerald);color: var(--accent-emerald); }
+  /* flat */
+  .node[data-color="flat"]     circle { fill: rgba(140,148,163,0.18); stroke: var(--text-muted); color: var(--text-muted); }
+
+  /* Zoom controls overlay */
+  .zoom-ctrl {
+    position: absolute;
+    right: 12px; bottom: 56px;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+  }
+  .zoom-ctrl button {
+    width: 32px; height: 32px;
+    border-radius: 8px;
+    background: var(--bg-elevated);
+    border: 1px solid var(--bg-border);
+    color: var(--text-primary);
+    font-size: 14px;
+    cursor: pointer;
+    transition: background 0.15s;
+  }
+  .zoom-ctrl button:hover { background: var(--bg-border); }
+  .zoom-indicator {
+    position: absolute;
+    left: 12px; bottom: 56px;
+    background: var(--bg-elevated);
+    border: 1px solid var(--bg-border);
+    border-radius: 8px;
+    padding: 4px 10px;
+    font-size: 11px;
+    color: var(--text-muted);
+    font-variant-numeric: tabular-nums;
+  }
+
+  /* Bottom bar */
+  .bottom-bar {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    padding: 10px 16px;
+    border-top: 1px solid var(--bg-border);
+    font-size: 11px;
+    color: var(--text-muted);
+    background: rgba(0,0,0,0.2);
+  }
+  .bottom-bar .stat { display: inline-flex; align-items: center; gap: 4px; }
+  .bottom-bar .stat strong { color: var(--text-primary); font-weight: 600; }
+  .bottom-bar .spacer { flex: 1; }
+  .bottom-bar a { color: var(--accent-blue); cursor: pointer; }
+  .bottom-bar a:hover { text-decoration: underline; }
+
+  /* Detail card */
+  .detail-card {
+    position: absolute;
+    top: 12px;
+    right: 12px;
+    width: 260px;
+    background: var(--bg-elevated);
+    border: 1px solid var(--bg-border);
+    border-radius: 12px;
+    padding: 14px;
+    font-size: 12px;
+    opacity: 0;
+    transform: translateY(-4px);
+    pointer-events: none;
+    transition: opacity 0.15s, transform 0.15s;
+    box-shadow: 0 8px 24px rgba(0,0,0,0.4);
+  }
+  .detail-card.show { opacity: 1; transform: translateY(0); pointer-events: auto; }
+  .detail-card .dc-title {
+    font-size: 14px;
+    font-weight: 600;
+    margin: 0 0 4px;
+    word-break: break-word;
+  }
+  .detail-card .dc-path {
+    font-size: 10px;
+    color: var(--text-dim);
+    margin: 0 0 10px;
+    font-family: ui-monospace, monospace;
+    word-break: break-all;
+  }
+  .detail-card .dc-tags {
+    margin-bottom: 10px;
+  }
+  .detail-card .dc-tag {
+    display: inline-block;
+    background: var(--bg-card);
+    border: 1px solid var(--bg-border);
+    color: var(--text-muted);
+    border-radius: 999px;
+    padding: 2px 8px;
+    font-size: 10px;
+    margin: 0 4px 2px 0;
+  }
+  .detail-card .dc-stats {
+    color: var(--text-muted);
+    line-height: 1.6;
+    margin: 0 0 12px;
+  }
+  .detail-card .dc-stats strong { color: var(--text-primary); }
+  .detail-card .dc-actions {
+    display: flex;
+    gap: 6px;
+  }
+  .detail-card .dc-actions button,
+  .detail-card .dc-actions a {
+    flex: 1;
+    background: var(--bg-card);
+    border: 1px solid var(--bg-border);
+    color: var(--text-primary);
+    border-radius: 8px;
+    padding: 6px 10px;
+    font-size: 11px;
+    text-align: center;
+    cursor: pointer;
+    text-decoration: none;
+    font-family: inherit;
+  }
+  .detail-card .dc-actions button:hover,
+  .detail-card .dc-actions a:hover { background: var(--bg-border); }
+  .detail-card .dc-actions .primary {
+    background: var(--accent-blue);
+    border-color: var(--accent-blue);
+    color: #0a0a0a;
+    font-weight: 600;
+  }
+  .detail-card .dc-actions .primary:hover {
+    background: #4f96fd;
+  }
+
+  /* Orphan panel */
+  .orphan-panel {
+    margin-top: 14px;
+    border: 1px dashed var(--bg-border);
+    border-radius: 12px;
+    padding: 14px 16px;
+    display: none;
+  }
+  .orphan-panel.open { display: block; }
+  .orphan-panel h4 {
+    margin: 0 0 10px;
+    font-size: 11px;
+    color: var(--text-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+  }
+  .orphan-panel .pill {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    background: var(--bg-elevated);
+    color: var(--text-muted);
+    border: 1px solid var(--bg-border);
+    border-radius: 999px;
+    padding: 4px 11px;
+    font-size: 11px;
+    margin: 3px 4px 3px 0;
+    cursor: pointer;
+  }
+  .orphan-panel .pill:hover { color: var(--text-primary); }
+
+  .hint {
+    margin-top: 14px;
+    color: var(--text-dim);
+    font-size: 11px;
+    text-align: center;
+  }
+  .hint code {
+    background: var(--bg-elevated);
+    padding: 1px 5px;
+    border-radius: 4px;
+    font-size: 10px;
+  }
+</style>
+</head>
+<body>
+<div class="page">
+  <h1>Knowledge / Connections — Graph (v3)</h1>
+  <p class="lead">
+    <strong>マウス:</strong> ドラッグでパン、ホイールでズーム、クリックで選択。
+    <strong>タッチ:</strong> 1 本指でパン、2 本指でピンチ、タップで選択。
+  </p>
+
+  <!-- Toolbar -->
+  <div class="toolbar">
+    <div class="search">
+      <input type="search" placeholder="ノードを検索…" id="search" />
+    </div>
+    <span class="colorby-label">Color</span>
+    <div class="chip-group" id="colorby-group">
+      <button class="chip active" data-colorby="kind">種別</button>
+      <button class="chip" data-colorby="tag">タグ</button>
+      <button class="chip" data-colorby="folder">フォルダ</button>
+      <button class="chip" data-colorby="flat">単色</button>
+    </div>
+  </div>
+
+  <!-- Focus banner -->
+  <div class="focus-banner" id="focus-banner">
+    <span>🎯 中心:</span>
+    <span class="target" id="focus-target">—</span>
+    <div class="depth-control">
+      <span>深さ</span>
+      <input type="range" min="1" max="3" value="2" id="depth"/>
+      <span id="depth-val">2</span>
+      <button id="reset-focus">全体に戻す</button>
+    </div>
+  </div>
+
+  <!-- Graph frame -->
+  <div class="graph-frame">
+    <svg class="graph" id="svg" viewBox="0 0 1100 620" preserveAspectRatio="xMidYMid meet">
+      <g id="viewport">
+        <g id="edges-group"></g>
+        <g id="nodes-group"></g>
+      </g>
+    </svg>
+
+    <div class="zoom-indicator" id="zoom-indicator">100%</div>
+    <div class="zoom-ctrl">
+      <button id="zoom-in" title="ズームイン">+</button>
+      <button id="zoom-out" title="ズームアウト">−</button>
+      <button id="zoom-reset" title="リセット" style="font-size:11px">⊙</button>
+    </div>
+
+    <div class="detail-card" id="detail-card">
+      <p class="dc-title" id="dc-title">—</p>
+      <p class="dc-path" id="dc-path">—</p>
+      <div class="dc-tags" id="dc-tags"></div>
+      <div class="dc-stats" id="dc-stats"></div>
+      <div class="dc-actions">
+        <button class="primary" id="dc-focus">🎯 ここを中心に</button>
+        <a id="dc-open">→ 開く</a>
+      </div>
+    </div>
+
+    <div class="bottom-bar">
+      <span class="stat"><strong id="stat-nodes">18</strong> ノード</span>
+      <span class="stat"><strong id="stat-edges">22</strong> エッジ</span>
+      <span class="stat"><strong id="stat-clusters">3</strong> クラスタ</span>
+      <span class="spacer"></span>
+      <a id="toggle-orphans">リンクなしファイル 7 件を表示</a>
+    </div>
+  </div>
+
+  <div class="orphan-panel" id="orphan-panel">
+    <h4>リンクなしファイル (7)</h4>
+    <span class="pill">📝 アイデア帳.md</span>
+    <span class="pill">📝 weekly-todo.md</span>
+    <span class="pill">📝 inbox.md</span>
+    <span class="pill">🎬 unsorted-001.mp4</span>
+    <span class="pill">🖼 IMG_4521.jpg</span>
+    <span class="pill">🖼 IMG_4522.jpg</span>
+    <span class="pill">📄 manual.pdf</span>
+  </div>
+
+  <p class="hint">
+    ESC で選択解除 / focus 解除 · <code>+</code> <code>−</code> でズーム · 空白クリックで deselect
+  </p>
+</div>
+
+<script>
+// ----- Sample data ------------------------------------------------------
+const DATA = {
+  nodes: [
+    { id: "n1",  title: "ローカル LLM 比較",   path: "research/llm-compare.md",   kind: "md",    folder: "research", tags: ["llm"], rc: 7,  x: 380, y: 240 },
+    { id: "n2",  title: "benchmark.csv",      path: "research/benchmark.csv",    kind: "other", folder: "research", tags: ["llm"], rc: 3,  x: 230, y: 180 },
+    { id: "n3",  title: "model-card.json",    path: "research/model-card.json",  kind: "other", folder: "research", tags: ["llm"], rc: 3,  x: 240, y: 320 },
+    { id: "n4",  title: "benchmark.mp4",      path: "research/benchmark.mp4",    kind: "video", folder: "research", tags: ["llm"], rc: 2,  x: 480, y: 130 },
+    { id: "n5",  title: "whitepaper.pdf",     path: "research/whitepaper.pdf",   kind: "pdf",   folder: "research", tags: ["llm"], rc: 2,  x: 550, y: 300 },
+    { id: "n6",  title: "Q1 振り返り",         path: "journal/q1-review.md",      kind: "md",    folder: "journal",  tags: ["journal","llm"], rc: 4,  x: 150, y: 250 },
+    { id: "n7",  title: "notes-q4.md",        path: "journal/notes-q4.md",       kind: "md",    folder: "journal",  tags: ["journal"], rc: 2,  x: 80,  y: 350 },
+    { id: "n8",  title: "slack-thread.png",   path: "journal/slack-thread.png",  kind: "image", folder: "journal",  tags: ["journal"], rc: 1,  x: 60,  y: 170 },
+    { id: "n9",  title: "海外旅行メモ",         path: "travel/japan-2026.md",      kind: "md",    folder: "travel",   tags: ["travel"], rc: 4,  x: 760, y: 380 },
+    { id: "n10", title: "flight.pdf",         path: "travel/flight.pdf",         kind: "pdf",   folder: "travel",   tags: ["travel"], rc: 2,  x: 880, y: 320 },
+    { id: "n11", title: "map.jpg",            path: "travel/map.jpg",            kind: "image", folder: "travel",   tags: ["travel"], rc: 1,  x: 880, y: 440 },
+    { id: "n12", title: "hotel-confirm.pdf",  path: "travel/hotel-confirm.pdf",  kind: "pdf",   folder: "travel",   tags: ["travel"], rc: 1,  x: 660, y: 460 },
+    { id: "n13", title: "読書ノート: SF",       path: "library/sf-reading.md",     kind: "md",    folder: "library",  tags: ["book"], rc: 4,  x: 290, y: 480 },
+    { id: "n14", title: "cover-1.jpg",        path: "library/cover-1.jpg",       kind: "image", folder: "library",  tags: ["book"], rc: 1,  x: 180, y: 540 },
+    { id: "n15", title: "cover-2.jpg",        path: "library/cover-2.jpg",       kind: "image", folder: "library",  tags: ["book"], rc: 1,  x: 400, y: 540 },
+    { id: "n16", title: "excerpt.md",         path: "library/excerpt.md",        kind: "md",    folder: "library",  tags: ["book"], rc: 1,  x: 320, y: 560 },
+    { id: "n17", title: "research-todo.md",   path: "research/todo.md",          kind: "md",    folder: "research", tags: ["llm"], rc: 2,  x: 480, y: 380 },
+    { id: "n18", title: "ai-talk.mp4",        path: "research/ai-talk.mp4",      kind: "video", folder: "research", tags: ["llm"], rc: 1,  x: 610, y: 200 },
+  ],
+  edges: [
+    { a: "n1", b: "n2", kind: "related" },
+    { a: "n1", b: "n3", kind: "related" },
+    { a: "n1", b: "n4", kind: "note_source" },
+    { a: "n1", b: "n5", kind: "note_source" },
+    { a: "n1", b: "n18", kind: "note_source" },
+    { a: "n6", b: "n2", kind: "note_source" },
+    { a: "n6", b: "n3", kind: "related" },
+    { a: "n6", b: "n7", kind: "related" },
+    { a: "n6", b: "n8", kind: "note_source" },
+    { a: "n1", b: "n6", kind: "related" },
+    { a: "n1", b: "n17", kind: "related" },
+    { a: "n17", b: "n5", kind: "note_source" },
+    { a: "n9", b: "n10", kind: "note_source" },
+    { a: "n9", b: "n11", kind: "note_source" },
+    { a: "n9", b: "n12", kind: "note_source" },
+    { a: "n10", b: "n12", kind: "related" },
+    { a: "n13", b: "n14", kind: "note_source" },
+    { a: "n13", b: "n15", kind: "note_source" },
+    { a: "n13", b: "n16", kind: "related" },
+    { a: "n14", b: "n15", kind: "related" },
+    { a: "n16", b: "n7", kind: "related" },
+  ],
+};
+
+const svg = document.getElementById("svg");
+const vp = document.getElementById("viewport");
+const edgesGroup = document.getElementById("edges-group");
+const nodesGroup = document.getElementById("nodes-group");
+const zoomInd = document.getElementById("zoom-indicator");
+const detailCard = document.getElementById("detail-card");
+
+const nodeById = new Map(DATA.nodes.map(n => [n.id, n]));
+const adjacency = new Map(DATA.nodes.map(n => [n.id, new Set()]));
+DATA.edges.forEach(e => { adjacency.get(e.a).add(e.b); adjacency.get(e.b).add(e.a); });
+
+function nodeRadius(rc) { return 8 + Math.min(rc, 8) * 1.4; }
+
+// ----- Render initial nodes/edges --------------------------------------
+DATA.edges.forEach((e, i) => {
+  const a = nodeById.get(e.a), b = nodeById.get(e.b);
+  const line = document.createElementNS("http://www.w3.org/2000/svg", "line");
+  line.setAttribute("class", "edge " + (e.kind === "note_source" ? "note-source" : ""));
+  line.setAttribute("x1", a.x); line.setAttribute("y1", a.y);
+  line.setAttribute("x2", b.x); line.setAttribute("y2", b.y);
+  line.dataset.a = e.a; line.dataset.b = e.b;
+  edgesGroup.appendChild(line);
+});
+
+DATA.nodes.forEach(n => {
+  const g = document.createElementNS("http://www.w3.org/2000/svg", "g");
+  g.setAttribute("class", "node");
+  g.dataset.id = n.id;
+  g.setAttribute("transform", `translate(${n.x},${n.y})`);
+
+  const c = document.createElementNS("http://www.w3.org/2000/svg", "circle");
+  c.setAttribute("r", nodeRadius(n.rc));
+  g.appendChild(c);
+
+  const t = document.createElementNS("http://www.w3.org/2000/svg", "text");
+  t.setAttribute("y", nodeRadius(n.rc) + 14);
+  t.textContent = n.title;
+  g.appendChild(t);
+
+  nodesGroup.appendChild(g);
+});
+
+// ----- Color by --------------------------------------------------------
+let colorBy = "kind";
+function colorTokenFor(n) {
+  if (colorBy === "kind") return n.kind;
+  if (colorBy === "tag") {
+    if (!n.tags || n.tags.length === 0) return "tag-none";
+    return "tag-" + n.tags[0];
+  }
+  if (colorBy === "folder") return "folder-" + n.folder;
+  return "flat";
+}
+function applyColors() {
+  DATA.nodes.forEach(n => {
+    const g = nodesGroup.querySelector(`[data-id="${n.id}"]`);
+    if (g) g.dataset.color = colorTokenFor(n);
+  });
+}
+applyColors();
+
+document.getElementById("colorby-group").addEventListener("click", ev => {
+  const c = ev.target.closest(".chip");
+  if (!c) return;
+  document.querySelectorAll("#colorby-group .chip").forEach(x => x.classList.remove("active"));
+  c.classList.add("active");
+  colorBy = c.dataset.colorby;
+  applyColors();
+});
+
+// ----- Pan / Zoom ------------------------------------------------------
+let tx = 0, ty = 0, scale = 1;
+const MIN_SCALE = 0.3, MAX_SCALE = 4;
+
+function applyTransform() {
+  vp.setAttribute("transform", `translate(${tx},${ty}) scale(${scale})`);
+  zoomInd.textContent = Math.round(scale * 100) + "%";
+}
+
+function clientToSvg(clientX, clientY) {
+  const rect = svg.getBoundingClientRect();
+  // map client to viewBox coords (svg has 1100x620 viewBox, preserved aspect)
+  const vbW = 1100, vbH = 620;
+  const scaleX = rect.width / vbW;
+  const scaleY = rect.height / vbH;
+  const fit = Math.min(scaleX, scaleY); // xMidYMid meet
+  const offsetX = (rect.width - vbW * fit) / 2;
+  const offsetY = (rect.height - vbH * fit) / 2;
+  return {
+    x: (clientX - rect.left - offsetX) / fit,
+    y: (clientY - rect.top - offsetY) / fit,
+  };
+}
+
+function zoomAt(svgX, svgY, factor) {
+  const newScale = Math.max(MIN_SCALE, Math.min(MAX_SCALE, scale * factor));
+  const k = newScale / scale;
+  // keep (svgX, svgY) stationary: new tx = svgX - k * (svgX - tx)
+  tx = svgX - k * (svgX - tx);
+  ty = svgY - k * (svgY - ty);
+  scale = newScale;
+  applyTransform();
+}
+
+// Wheel zoom
+svg.addEventListener("wheel", ev => {
+  ev.preventDefault();
+  const p = clientToSvg(ev.clientX, ev.clientY);
+  const delta = -ev.deltaY * 0.0015;
+  const factor = Math.exp(delta);
+  zoomAt(p.x, p.y, factor);
+}, { passive: false });
+
+// Pointer-based pan + pinch
+const pointers = new Map();
+let dragStart = null;
+let pinchStart = null;
+let didDrag = false;
+let lastPos = { tx: 0, ty: 0, t: 0 };
+let velocity = { x: 0, y: 0 };
+let inertiaRAF = null;
+
+function clearInertia() {
+  if (inertiaRAF) { cancelAnimationFrame(inertiaRAF); inertiaRAF = null; }
+}
+
+let downNode = null;
+
+svg.addEventListener("pointerdown", ev => {
+  svg.setPointerCapture(ev.pointerId);
+  pointers.set(ev.pointerId, { x: ev.clientX, y: ev.clientY });
+  clearInertia();
+
+  if (pointers.size === 1) {
+    dragStart = { sx: ev.clientX, sy: ev.clientY, tx0: tx, ty0: ty, t: performance.now() };
+    didDrag = false;
+    downNode = ev.target.closest(".node");
+    svg.classList.add("dragging");
+  } else if (pointers.size === 2) {
+    const [p1, p2] = Array.from(pointers.values());
+    const cx = (p1.x + p2.x) / 2;
+    const cy = (p1.y + p2.y) / 2;
+    const dist = Math.hypot(p2.x - p1.x, p2.y - p1.y);
+    const svgCenter = clientToSvg(cx, cy);
+    pinchStart = { dist, cx, cy, svgCenter, scale0: scale, tx0: tx, ty0: ty };
+    dragStart = null;
+  }
+});
+
+svg.addEventListener("pointermove", ev => {
+  if (!pointers.has(ev.pointerId)) return;
+  pointers.set(ev.pointerId, { x: ev.clientX, y: ev.clientY });
+
+  if (pointers.size === 1 && dragStart) {
+    const dx = ev.clientX - dragStart.sx;
+    const dy = ev.clientY - dragStart.sy;
+    if (Math.abs(dx) > 3 || Math.abs(dy) > 3) didDrag = true;
+    const rect = svg.getBoundingClientRect();
+    const vbW = 1100, vbH = 620;
+    const fit = Math.min(rect.width / vbW, rect.height / vbH);
+    const newTx = dragStart.tx0 + dx / fit;
+    const newTy = dragStart.ty0 + dy / fit;
+    const now = performance.now();
+    const dt = now - lastPos.t;
+    if (dt > 0) {
+      velocity.x = (newTx - tx) / dt * 16;
+      velocity.y = (newTy - ty) / dt * 16;
+    }
+    lastPos = { tx: newTx, ty: newTy, t: now };
+    tx = newTx; ty = newTy;
+    applyTransform();
+  } else if (pointers.size === 2 && pinchStart) {
+    const [p1, p2] = Array.from(pointers.values());
+    const cx = (p1.x + p2.x) / 2;
+    const cy = (p1.y + p2.y) / 2;
+    const dist = Math.hypot(p2.x - p1.x, p2.y - p1.y);
+    const k = dist / pinchStart.dist;
+    const newScale = Math.max(MIN_SCALE, Math.min(MAX_SCALE, pinchStart.scale0 * k));
+    const realK = newScale / pinchStart.scale0;
+    // anchor at pinchStart.svgCenter; also account for center drift
+    const rect = svg.getBoundingClientRect();
+    const vbW = 1100, vbH = 620;
+    const fit = Math.min(rect.width / vbW, rect.height / vbH);
+    const offsetX = (rect.width - vbW * fit) / 2;
+    const offsetY = (rect.height - vbH * fit) / 2;
+    const curSvgX = (cx - rect.left - offsetX) / fit;
+    const curSvgY = (cy - rect.top - offsetY) / fit;
+    tx = curSvgX - realK * (pinchStart.svgCenter.x - pinchStart.tx0);
+    ty = curSvgY - realK * (pinchStart.svgCenter.y - pinchStart.ty0);
+    scale = newScale;
+    applyTransform();
+  }
+});
+
+function endPointer(ev) {
+  pointers.delete(ev.pointerId);
+  svg.releasePointerCapture(ev.pointerId);
+  if (pointers.size === 0) {
+    svg.classList.remove("dragging");
+    if (dragStart && !didDrag) {
+      handleTap();
+      downNode = null;
+    } else if (didDrag) {
+      downNode = null;
+      // inertia
+      const decay = 0.93;
+      const step = () => {
+        velocity.x *= decay;
+        velocity.y *= decay;
+        if (Math.abs(velocity.x) < 0.1 && Math.abs(velocity.y) < 0.1) {
+          inertiaRAF = null;
+          return;
+        }
+        tx += velocity.x;
+        ty += velocity.y;
+        applyTransform();
+        inertiaRAF = requestAnimationFrame(step);
+      };
+      inertiaRAF = requestAnimationFrame(step);
+    }
+    dragStart = null;
+    pinchStart = null;
+  } else if (pointers.size === 1) {
+    const [first] = Array.from(pointers.entries());
+    const [, p] = first;
+    dragStart = { sx: p.x, sy: p.y, tx0: tx, ty0: ty, t: performance.now() };
+    pinchStart = null;
+  }
+}
+svg.addEventListener("pointerup", endPointer);
+svg.addEventListener("pointercancel", endPointer);
+
+// Zoom buttons
+document.getElementById("zoom-in").addEventListener("click", () => {
+  zoomAt(550, 310, 1.25);
+});
+document.getElementById("zoom-out").addEventListener("click", () => {
+  zoomAt(550, 310, 0.8);
+});
+document.getElementById("zoom-reset").addEventListener("click", () => {
+  tx = 0; ty = 0; scale = 1; applyTransform();
+});
+
+// ----- Selection / Focus ----------------------------------------------
+let selectedId = null;
+let focusedId = null;
+let depth = 2;
+
+function bfsScope(id, d) {
+  const seen = new Set([id]);
+  let frontier = [id];
+  for (let i = 0; i < d; i++) {
+    const next = [];
+    frontier.forEach(x => adjacency.get(x).forEach(y => {
+      if (!seen.has(y)) { seen.add(y); next.push(y); }
+    }));
+    frontier = next;
+  }
+  return seen;
+}
+
+function applyView() {
+  document.querySelectorAll(".node").forEach(g => g.classList.remove("dim","center","selected"));
+  document.querySelectorAll(".edge").forEach(e => e.classList.remove("dim","hi"));
+
+  if (focusedId) {
+    const scope = bfsScope(focusedId, depth);
+    document.querySelectorAll(".node").forEach(g => {
+      if (!scope.has(g.dataset.id)) g.classList.add("dim");
+      if (g.dataset.id === focusedId) g.classList.add("center");
+    });
+    document.querySelectorAll(".edge").forEach(e => {
+      if (!scope.has(e.dataset.a) || !scope.has(e.dataset.b)) e.classList.add("dim");
+    });
+  }
+  if (selectedId) {
+    const g = nodesGroup.querySelector(`[data-id="${selectedId}"]`);
+    if (g) g.classList.add("selected");
+    document.querySelectorAll(".edge").forEach(e => {
+      if (e.dataset.a === selectedId || e.dataset.b === selectedId) {
+        e.classList.add("hi");
+      }
+    });
+  }
+}
+
+function selectNode(id) {
+  selectedId = id;
+  const n = nodeById.get(id);
+  document.getElementById("dc-title").textContent = n.title;
+  document.getElementById("dc-path").textContent = n.path;
+  const tagsEl = document.getElementById("dc-tags");
+  tagsEl.innerHTML = "";
+  n.tags.forEach(t => {
+    const s = document.createElement("span");
+    s.className = "dc-tag";
+    s.textContent = "#" + t;
+    tagsEl.appendChild(s);
+  });
+  const inEdges = DATA.edges.filter(e => e.a === id || e.b === id);
+  const noteCount = inEdges.filter(e => e.kind === "note_source").length;
+  const relCount = inEdges.filter(e => e.kind === "related").length;
+  document.getElementById("dc-stats").innerHTML =
+    `種別: <strong>${n.kind}</strong> · フォルダ: <strong>${n.folder}</strong><br>` +
+    `接続: <strong>${inEdges.length}</strong> (related ${relCount} / note→source ${noteCount})`;
+  document.getElementById("dc-open").href = "#/files/" + id;
+  detailCard.classList.add("show");
+  applyView();
+}
+
+function deselect() {
+  selectedId = null;
+  detailCard.classList.remove("show");
+  applyView();
+}
+
+// Tap detection runs at pointerup level via downNode tracked at pointerdown
+// (pointer capture redirects pointerup target to svg, so closest() at up-time fails)
+function handleTap() {
+  if (didDrag) return;
+  if (downNode) {
+    selectNode(downNode.dataset.id);
+  } else {
+    deselect();
+  }
+}
+
+document.getElementById("dc-focus").addEventListener("click", () => {
+  if (!selectedId) return;
+  focusedId = selectedId;
+  document.getElementById("focus-banner").classList.add("on");
+  document.getElementById("focus-target").textContent = nodeById.get(focusedId).title;
+  applyView();
+});
+
+document.getElementById("reset-focus").addEventListener("click", () => {
+  focusedId = null;
+  document.getElementById("focus-banner").classList.remove("on");
+  applyView();
+});
+
+document.getElementById("depth").addEventListener("input", ev => {
+  depth = parseInt(ev.target.value);
+  document.getElementById("depth-val").textContent = depth;
+  applyView();
+});
+
+document.addEventListener("keydown", ev => {
+  if (ev.key === "Escape") {
+    if (focusedId) {
+      focusedId = null;
+      document.getElementById("focus-banner").classList.remove("on");
+    }
+    if (selectedId) deselect();
+    applyView();
+  } else if (ev.key === "+" || ev.key === "=") {
+    zoomAt(550, 310, 1.2);
+  } else if (ev.key === "-") {
+    zoomAt(550, 310, 0.83);
+  }
+});
+
+// Search
+document.getElementById("search").addEventListener("input", ev => {
+  const q = ev.target.value.trim().toLowerCase();
+  document.querySelectorAll(".node").forEach(g => g.classList.remove("match"));
+  if (!q) return;
+  DATA.nodes.forEach(n => {
+    const hit = n.title.toLowerCase().includes(q) ||
+                n.path.toLowerCase().includes(q) ||
+                n.tags.some(t => t.includes(q));
+    if (hit) {
+      const g = nodesGroup.querySelector(`[data-id="${n.id}"]`);
+      if (g) g.classList.add("match");
+    }
+  });
+});
+
+document.getElementById("toggle-orphans").addEventListener("click", () => {
+  const panel = document.getElementById("orphan-panel");
+  panel.classList.toggle("open");
+  document.getElementById("toggle-orphans").textContent =
+    panel.classList.contains("open")
+      ? "リンクなしファイルを隠す"
+      : "リンクなしファイル 7 件を表示";
+});
+
+applyTransform();
+applyView();
+</script>
+</body>
+</html>

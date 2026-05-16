@@ -1,0 +1,664 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8" />
+<title>Knowledge Connections — Graph View (v2)</title>
+<style>
+  :root {
+    --bg: #0f1115;
+    --bg-card: #1a1d24;
+    --bg-elevated: #232831;
+    --bg-border: #2a2f38;
+    --text-primary: #e8ebf0;
+    --text-muted: #8b94a3;
+    --text-dim: #5c6470;
+    --accent: #d63031;
+    --accent-teal: #2dd4bf;
+    --accent-amber: #f59e0b;
+    --accent-purple: #a78bfa;
+    --accent-blue: #60a5fa;
+    --accent-rose: #fb7185;
+  }
+  * { box-sizing: border-box; }
+  html, body {
+    margin: 0; padding: 0;
+    background: var(--bg);
+    color: var(--text-primary);
+    font-family: -apple-system, BlinkMacSystemFont, "Hiragino Sans", "Yu Gothic", sans-serif;
+    font-size: 14px;
+    line-height: 1.5;
+  }
+  .page {
+    max-width: 1100px;
+    margin: 0 auto;
+    padding: 32px 24px 80px;
+  }
+  .page > h1 {
+    font-size: 13px;
+    color: var(--text-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    margin: 0 0 4px;
+  }
+  .page > p.lead {
+    color: var(--text-muted);
+    margin: 0 0 24px;
+    font-size: 13px;
+  }
+
+  /* Toolbar */
+  .toolbar {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 12px;
+    flex-wrap: wrap;
+  }
+  .toolbar .search {
+    flex: 1;
+    min-width: 200px;
+    max-width: 320px;
+    position: relative;
+  }
+  .toolbar input[type="search"] {
+    width: 100%;
+    background: var(--bg-card);
+    border: 1px solid var(--bg-border);
+    border-radius: 10px;
+    padding: 7px 12px 7px 30px;
+    color: var(--text-primary);
+    font: inherit;
+    font-size: 12px;
+  }
+  .toolbar input[type="search"]::placeholder { color: var(--text-dim); }
+  .toolbar input[type="search"]:focus {
+    outline: none;
+    border-color: var(--accent-blue);
+  }
+  .toolbar .search::before {
+    content: "🔍";
+    position: absolute;
+    left: 8px; top: 50%;
+    transform: translateY(-50%);
+    font-size: 11px;
+    opacity: 0.5;
+  }
+  .toolbar .chip {
+    background: transparent;
+    border: 1px solid var(--bg-border);
+    color: var(--text-muted);
+    border-radius: 999px;
+    padding: 5px 11px;
+    font-size: 11px;
+    cursor: pointer;
+    user-select: none;
+    transition: all 0.15s;
+  }
+  .toolbar .chip:hover { color: var(--text-primary); border-color: var(--text-dim); }
+  .toolbar .chip.active {
+    background: var(--bg-elevated);
+    color: var(--text-primary);
+    border-color: var(--bg-elevated);
+  }
+  .toolbar .chip .swatch {
+    display: inline-block;
+    width: 8px; height: 8px;
+    border-radius: 50%;
+    margin-right: 5px;
+    vertical-align: -1px;
+  }
+
+  /* Focus banner */
+  .focus-banner {
+    display: none;
+    align-items: center;
+    gap: 12px;
+    background: linear-gradient(90deg, rgba(96,165,250,0.12), transparent);
+    border: 1px solid rgba(96,165,250,0.3);
+    border-radius: 12px;
+    padding: 10px 16px;
+    margin-bottom: 12px;
+    font-size: 12px;
+  }
+  .focus-banner.on { display: flex; }
+  .focus-banner .target {
+    color: var(--accent-blue);
+    font-weight: 600;
+  }
+  .focus-banner .depth-control {
+    margin-left: auto;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    color: var(--text-muted);
+  }
+  .focus-banner input[type="range"] {
+    width: 80px;
+    accent-color: var(--accent-blue);
+  }
+  .focus-banner button {
+    background: transparent;
+    border: 1px solid var(--bg-border);
+    color: var(--text-muted);
+    border-radius: 8px;
+    padding: 4px 10px;
+    font-size: 11px;
+    cursor: pointer;
+  }
+  .focus-banner button:hover { color: var(--text-primary); }
+
+  /* Frame */
+  .graph-frame {
+    border: 1px solid var(--bg-border);
+    border-radius: 16px;
+    background: var(--bg-card);
+    overflow: hidden;
+    position: relative;
+  }
+  svg.graph {
+    display: block;
+    width: 100%;
+    height: 600px;
+    cursor: grab;
+    background:
+      radial-gradient(circle at 25% 30%, rgba(96,165,250,0.04), transparent 45%),
+      radial-gradient(circle at 70% 65%, rgba(167,139,250,0.04), transparent 40%),
+      radial-gradient(circle at 50% 90%, rgba(45,212,191,0.03), transparent 35%);
+  }
+  svg.graph:active { cursor: grabbing; }
+
+  .edge {
+    stroke: var(--bg-border);
+    stroke-width: 1;
+    fill: none;
+    transition: stroke 0.15s, stroke-width 0.15s, opacity 0.15s;
+  }
+  .edge.note-source { stroke-dasharray: 3 3; }
+  .edge.hi {
+    stroke: var(--accent-teal);
+    stroke-width: 2;
+  }
+  .edge.dim { opacity: 0.12; }
+  .edge.hidden { display: none; }
+
+  .node {
+    cursor: pointer;
+    transition: opacity 0.2s;
+  }
+  .node.dim { opacity: 0.18; }
+  .node.hidden { display: none; }
+  .node circle {
+    stroke-width: 2;
+    transition: stroke-width 0.15s, filter 0.15s;
+  }
+  .node:hover circle, .node.hover circle {
+    stroke-width: 3;
+    filter: drop-shadow(0 0 8px currentColor);
+  }
+  .node.center circle {
+    stroke-width: 4;
+    filter: drop-shadow(0 0 14px currentColor);
+  }
+  .node.match circle {
+    filter: drop-shadow(0 0 12px var(--accent-amber));
+  }
+  .node text {
+    font-size: 11px;
+    fill: var(--text-muted);
+    pointer-events: none;
+    font-family: inherit;
+    text-anchor: middle;
+  }
+  .node.center text, .node:hover text, .node.hover text {
+    fill: var(--text-primary);
+    font-weight: 500;
+  }
+
+  /* Color by mime_kind */
+  .node[data-kind="md"]    circle { fill: rgba(96,165,250,0.18); stroke: var(--accent-blue);   color: var(--accent-blue); }
+  .node[data-kind="video"] circle { fill: rgba(45,212,191,0.18); stroke: var(--accent-teal);   color: var(--accent-teal); }
+  .node[data-kind="image"] circle { fill: rgba(245,158,11,0.18); stroke: var(--accent-amber);  color: var(--accent-amber); }
+  .node[data-kind="pdf"]   circle { fill: rgba(167,139,250,0.18); stroke: var(--accent-purple); color: var(--accent-purple); }
+  .node[data-kind="other"] circle { fill: rgba(251,113,133,0.14); stroke: var(--accent-rose);   color: var(--accent-rose); }
+
+  /* Bottom strip */
+  .bottom-bar {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    padding: 10px 16px;
+    border-top: 1px solid var(--bg-border);
+    font-size: 11px;
+    color: var(--text-muted);
+    background: rgba(0,0,0,0.2);
+  }
+  .bottom-bar .stat { display: inline-flex; align-items: center; gap: 4px; }
+  .bottom-bar .stat strong { color: var(--text-primary); font-weight: 600; }
+  .bottom-bar .spacer { flex: 1; }
+  .bottom-bar a {
+    color: var(--accent-blue);
+    text-decoration: none;
+    cursor: pointer;
+  }
+  .bottom-bar a:hover { text-decoration: underline; }
+
+  /* Orphan panel */
+  .orphan-panel {
+    margin-top: 14px;
+    border: 1px dashed var(--bg-border);
+    border-radius: 12px;
+    padding: 14px 16px;
+    display: none;
+  }
+  .orphan-panel.open { display: block; }
+  .orphan-panel h4 {
+    margin: 0 0 10px;
+    font-size: 11px;
+    color: var(--text-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+  }
+  .orphan-panel .pill {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    background: var(--bg-elevated);
+    color: var(--text-muted);
+    border: 1px solid var(--bg-border);
+    border-radius: 999px;
+    padding: 4px 11px;
+    font-size: 11px;
+    margin: 3px 4px 3px 0;
+    cursor: pointer;
+  }
+  .orphan-panel .pill:hover { color: var(--text-primary); border-color: var(--text-dim); }
+
+  /* Right hover card */
+  .hover-card {
+    position: absolute;
+    top: 60px;
+    right: 16px;
+    width: 240px;
+    background: var(--bg-elevated);
+    border: 1px solid var(--bg-border);
+    border-radius: 12px;
+    padding: 12px 14px;
+    font-size: 12px;
+    pointer-events: none;
+    opacity: 0;
+    transform: translateY(-4px);
+    transition: opacity 0.15s, transform 0.15s;
+  }
+  .hover-card.show { opacity: 1; transform: translateY(0); }
+  .hover-card .hc-title {
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--text-primary);
+    margin: 0 0 4px;
+  }
+  .hover-card .hc-path {
+    font-size: 10px;
+    color: var(--text-dim);
+    margin: 0 0 8px;
+    font-family: ui-monospace, monospace;
+    word-break: break-all;
+  }
+  .hover-card .hc-stats {
+    color: var(--text-muted);
+    line-height: 1.6;
+  }
+  .hover-card .hc-hint {
+    margin-top: 8px;
+    padding-top: 8px;
+    border-top: 1px solid var(--bg-border);
+    color: var(--text-dim);
+    font-size: 10px;
+  }
+
+  /* Large-graph warning */
+  .scale-warning {
+    background: rgba(245,158,11,0.12);
+    border: 1px solid rgba(245,158,11,0.3);
+    color: var(--accent-amber);
+    border-radius: 10px;
+    padding: 8px 12px;
+    margin-bottom: 12px;
+    font-size: 12px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .scale-warning button {
+    margin-left: auto;
+    background: transparent;
+    border: 1px solid var(--accent-amber);
+    color: var(--accent-amber);
+    border-radius: 8px;
+    padding: 3px 10px;
+    font-size: 11px;
+    cursor: pointer;
+  }
+</style>
+</head>
+<body>
+<div class="page">
+  <h1>Knowledge / Connections — Graph (v2)</h1>
+  <p class="lead">
+    全ファイル関係（<code>file_relations</code> ∪ <code>note_origin_sources</code>）をドライブ単位で描画。
+    ノードクリックで focus モードに切替、別のノードクリックで再焦点、ESC で全体に戻る。
+  </p>
+
+  <!-- Toolbar -->
+  <div class="toolbar">
+    <div class="search">
+      <input type="search" placeholder="ノードを検索…" id="search" />
+    </div>
+    <button class="chip active" data-kind="all">All</button>
+    <button class="chip" data-kind="md"><span class="swatch" style="background:var(--accent-blue)"></span>Markdown</button>
+    <button class="chip" data-kind="video"><span class="swatch" style="background:var(--accent-teal)"></span>Video</button>
+    <button class="chip" data-kind="image"><span class="swatch" style="background:var(--accent-amber)"></span>Image</button>
+    <button class="chip" data-kind="pdf"><span class="swatch" style="background:var(--accent-purple)"></span>PDF</button>
+  </div>
+
+  <!-- Focus banner -->
+  <div class="focus-banner" id="focus-banner">
+    <span>🎯 中心:</span>
+    <span class="target" id="focus-target">ローカル LLM 比較.md</span>
+    <div class="depth-control">
+      <span>深さ</span>
+      <input type="range" min="1" max="3" value="2" id="depth"/>
+      <span id="depth-val">2</span>
+      <button id="reset-focus">全体に戻す</button>
+    </div>
+  </div>
+
+  <!-- Graph frame -->
+  <div class="graph-frame">
+    <svg class="graph" viewBox="0 0 1100 600" id="svg">
+      <g id="edges-group"></g>
+      <g id="nodes-group"></g>
+    </svg>
+
+    <div class="hover-card" id="hover-card">
+      <p class="hc-title" id="hc-title">—</p>
+      <p class="hc-path" id="hc-path">—</p>
+      <div class="hc-stats" id="hc-stats">—</div>
+      <div class="hc-hint">クリックで focus モードに切替</div>
+    </div>
+
+    <div class="bottom-bar">
+      <span class="stat"><strong id="stat-nodes">18</strong> ノード</span>
+      <span class="stat"><strong id="stat-edges">22</strong> エッジ</span>
+      <span class="stat"><strong id="stat-clusters">3</strong> クラスタ</span>
+      <span class="spacer"></span>
+      <a id="toggle-orphans">リンクなしファイル 7 件を表示</a>
+    </div>
+  </div>
+
+  <!-- Orphan panel -->
+  <div class="orphan-panel" id="orphan-panel">
+    <h4>リンクなしファイル (7)</h4>
+    <span class="pill">📝 アイデア帳.md</span>
+    <span class="pill">📝 weekly-todo.md</span>
+    <span class="pill">📝 inbox.md</span>
+    <span class="pill">🎬 unsorted-001.mp4</span>
+    <span class="pill">🖼 IMG_4521.jpg</span>
+    <span class="pill">🖼 IMG_4522.jpg</span>
+    <span class="pill">📄 manual.pdf</span>
+  </div>
+</div>
+
+<script>
+// ----- Sample data (would come from GET /connections-graph) ----------
+const DATA = {
+  nodes: [
+    // Cluster 1: LLM 研究
+    { id: "n1", title: "ローカル LLM 比較",       path: "research/llm-compare.md",      kind: "md",    rc: 7,  x: 380, y: 240 },
+    { id: "n2", title: "benchmark.csv",          path: "research/benchmark.csv",       kind: "other",rc: 3,  x: 230, y: 180 },
+    { id: "n3", title: "model-card.json",        path: "research/model-card.json",     kind: "other",rc: 3,  x: 240, y: 320 },
+    { id: "n4", title: "benchmark.mp4",          path: "research/benchmark.mp4",       kind: "video",rc: 2,  x: 480, y: 130 },
+    { id: "n5", title: "whitepaper.pdf",         path: "research/whitepaper.pdf",      kind: "pdf",  rc: 2,  x: 550, y: 300 },
+    { id: "n6", title: "Q1 振り返り",             path: "journal/q1-review.md",         kind: "md",   rc: 4,  x: 150, y: 250 },
+    { id: "n7", title: "notes-q4.md",            path: "journal/notes-q4.md",          kind: "md",   rc: 2,  x: 80,  y: 350 },
+    { id: "n8", title: "slack-thread.png",       path: "journal/slack-thread.png",     kind: "image",rc: 1,  x: 60,  y: 170 },
+
+    // Cluster 2: 旅行 (中央寄り)
+    { id: "n9",  title: "海外旅行メモ",            path: "travel/japan-2026.md",         kind: "md",   rc: 4,  x: 760, y: 380 },
+    { id: "n10", title: "flight.pdf",            path: "travel/flight.pdf",            kind: "pdf",  rc: 2,  x: 880, y: 320 },
+    { id: "n11", title: "map.jpg",               path: "travel/map.jpg",               kind: "image",rc: 1,  x: 880, y: 440 },
+    { id: "n12", title: "hotel-confirm.pdf",     path: "travel/hotel-confirm.pdf",     kind: "pdf",  rc: 1,  x: 660, y: 460 },
+
+    // Cluster 3: 読書 (下)
+    { id: "n13", title: "読書ノート: SF",          path: "library/sf-reading.md",        kind: "md",   rc: 4,  x: 290, y: 480 },
+    { id: "n14", title: "cover-1.jpg",           path: "library/cover-1.jpg",          kind: "image",rc: 1,  x: 180, y: 540 },
+    { id: "n15", title: "cover-2.jpg",           path: "library/cover-2.jpg",          kind: "image",rc: 1,  x: 400, y: 540 },
+    { id: "n16", title: "excerpt.md",            path: "library/excerpt.md",           kind: "md",   rc: 1,  x: 320, y: 560 },
+
+    // Bridge between LLM and journal (q1 review references model-card)
+    { id: "n17", title: "research-todo.md",      path: "research/todo.md",             kind: "md",   rc: 2,  x: 480, y: 380 },
+    { id: "n18", title: "ai-talk.mp4",           path: "research/ai-talk.mp4",         kind: "video",rc: 1,  x: 610, y: 200 },
+  ],
+  edges: [
+    // LLM cluster
+    { a: "n1", b: "n2", kind: "related" },
+    { a: "n1", b: "n3", kind: "related" },
+    { a: "n1", b: "n4", kind: "note_source" },
+    { a: "n1", b: "n5", kind: "note_source" },
+    { a: "n1", b: "n18", kind: "note_source" },
+    { a: "n6", b: "n2", kind: "note_source" },
+    { a: "n6", b: "n3", kind: "related" },
+    { a: "n6", b: "n7", kind: "related" },
+    { a: "n6", b: "n8", kind: "note_source" },
+    { a: "n1", b: "n6", kind: "related" },
+    { a: "n1", b: "n17", kind: "related" },
+    { a: "n17", b: "n5", kind: "note_source" },
+
+    // Travel
+    { a: "n9", b: "n10", kind: "note_source" },
+    { a: "n9", b: "n11", kind: "note_source" },
+    { a: "n9", b: "n12", kind: "note_source" },
+    { a: "n10", b: "n12", kind: "related" },
+
+    // Reading
+    { a: "n13", b: "n14", kind: "note_source" },
+    { a: "n13", b: "n15", kind: "note_source" },
+    { a: "n13", b: "n16", kind: "related" },
+    { a: "n14", b: "n15", kind: "related" },
+    { a: "n16", b: "n7", kind: "related" }, // weak bridge between reading and journal
+  ],
+};
+
+// ----- Render ----------
+const edgesGroup = document.getElementById("edges-group");
+const nodesGroup = document.getElementById("nodes-group");
+
+function nodeRadius(rc) { return 8 + Math.min(rc, 8) * 1.4; }
+
+const nodeById = new Map(DATA.nodes.map(n => [n.id, n]));
+const adjacency = new Map(DATA.nodes.map(n => [n.id, new Set()]));
+DATA.edges.forEach(e => {
+  adjacency.get(e.a).add(e.b);
+  adjacency.get(e.b).add(e.a);
+});
+
+// edges first (below nodes)
+DATA.edges.forEach((e, i) => {
+  const a = nodeById.get(e.a), b = nodeById.get(e.b);
+  const line = document.createElementNS("http://www.w3.org/2000/svg", "line");
+  line.setAttribute("class", "edge " + (e.kind === "note_source" ? "note-source" : ""));
+  line.setAttribute("x1", a.x); line.setAttribute("y1", a.y);
+  line.setAttribute("x2", b.x); line.setAttribute("y2", b.y);
+  line.dataset.a = e.a; line.dataset.b = e.b;
+  line.dataset.idx = i;
+  edgesGroup.appendChild(line);
+});
+
+DATA.nodes.forEach(n => {
+  const g = document.createElementNS("http://www.w3.org/2000/svg", "g");
+  g.setAttribute("class", "node");
+  g.dataset.id = n.id;
+  g.dataset.kind = n.kind;
+  g.setAttribute("transform", `translate(${n.x},${n.y})`);
+
+  const c = document.createElementNS("http://www.w3.org/2000/svg", "circle");
+  c.setAttribute("r", nodeRadius(n.rc));
+  g.appendChild(c);
+
+  const t = document.createElementNS("http://www.w3.org/2000/svg", "text");
+  t.setAttribute("y", nodeRadius(n.rc) + 14);
+  t.textContent = n.title;
+  g.appendChild(t);
+
+  nodesGroup.appendChild(g);
+});
+
+// ----- Interactions ----------
+const hoverCard = document.getElementById("hover-card");
+const hcTitle = document.getElementById("hc-title");
+const hcPath  = document.getElementById("hc-path");
+const hcStats = document.getElementById("hc-stats");
+const focusBanner = document.getElementById("focus-banner");
+const focusTarget = document.getElementById("focus-target");
+const depthSlider = document.getElementById("depth");
+const depthVal = document.getElementById("depth-val");
+
+let focusedId = null;
+let depth = 2;
+let activeKind = "all";
+
+function clearNodeClasses(cls) {
+  document.querySelectorAll(".node").forEach(g => g.classList.remove(cls));
+  document.querySelectorAll(".edge").forEach(e => e.classList.remove(cls));
+}
+
+function bfsScope(id, d) {
+  const seen = new Set([id]);
+  let frontier = [id];
+  for (let i = 0; i < d; i++) {
+    const next = [];
+    frontier.forEach(x => adjacency.get(x).forEach(y => {
+      if (!seen.has(y)) { seen.add(y); next.push(y); }
+    }));
+    frontier = next;
+  }
+  return seen;
+}
+
+function applyView() {
+  document.querySelectorAll(".node").forEach(g => {
+    g.classList.remove("dim", "center", "hidden");
+    const kind = g.dataset.kind;
+    if (activeKind !== "all" && activeKind !== kind) {
+      g.classList.add("hidden");
+    }
+  });
+  document.querySelectorAll(".edge").forEach(e => {
+    e.classList.remove("dim", "hi", "hidden");
+    if (activeKind !== "all") {
+      const a = nodeById.get(e.dataset.a), b = nodeById.get(e.dataset.b);
+      if (a.kind !== activeKind && b.kind !== activeKind) e.classList.add("hidden");
+    }
+  });
+  if (focusedId) {
+    const scope = bfsScope(focusedId, depth);
+    document.querySelectorAll(".node").forEach(g => {
+      if (!scope.has(g.dataset.id)) g.classList.add("dim");
+      if (g.dataset.id === focusedId) g.classList.add("center");
+    });
+    document.querySelectorAll(".edge").forEach(e => {
+      if (!scope.has(e.dataset.a) || !scope.has(e.dataset.b)) e.classList.add("dim");
+    });
+  }
+}
+
+nodesGroup.addEventListener("mouseover", ev => {
+  const g = ev.target.closest(".node");
+  if (!g) return;
+  const id = g.dataset.id;
+  const n = nodeById.get(id);
+  hcTitle.textContent = n.title;
+  hcPath.textContent = n.path;
+  const inEdges = DATA.edges.filter(e => e.a === id || e.b === id);
+  const noteCount = inEdges.filter(e => e.kind === "note_source").length;
+  const relCount  = inEdges.filter(e => e.kind === "related").length;
+  hcStats.innerHTML =
+    `種別: <strong style="color:var(--text-primary)">${n.kind}</strong><br>` +
+    `接続: <strong style="color:var(--text-primary)">${inEdges.length}</strong> ` +
+    `(related ${relCount} / note→source ${noteCount})`;
+  hoverCard.classList.add("show");
+
+  document.querySelectorAll(".edge").forEach(e => {
+    if (e.dataset.a === id || e.dataset.b === id) {
+      e.classList.add("hi");
+    }
+  });
+});
+nodesGroup.addEventListener("mouseout", ev => {
+  const g = ev.target.closest(".node");
+  if (!g) return;
+  hoverCard.classList.remove("show");
+  document.querySelectorAll(".edge").forEach(e => e.classList.remove("hi"));
+});
+nodesGroup.addEventListener("click", ev => {
+  const g = ev.target.closest(".node");
+  if (!g) return;
+  const id = g.dataset.id;
+  focusedId = id;
+  focusBanner.classList.add("on");
+  focusTarget.textContent = nodeById.get(id).title;
+  applyView();
+});
+
+document.getElementById("reset-focus").addEventListener("click", () => {
+  focusedId = null;
+  focusBanner.classList.remove("on");
+  applyView();
+});
+depthSlider.addEventListener("input", () => {
+  depth = parseInt(depthSlider.value);
+  depthVal.textContent = depth;
+  applyView();
+});
+document.addEventListener("keydown", e => {
+  if (e.key === "Escape" && focusedId) {
+    focusedId = null;
+    focusBanner.classList.remove("on");
+    applyView();
+  }
+});
+
+document.querySelectorAll(".toolbar .chip").forEach(chip => {
+  chip.addEventListener("click", () => {
+    document.querySelectorAll(".toolbar .chip").forEach(c => c.classList.remove("active"));
+    chip.classList.add("active");
+    activeKind = chip.dataset.kind;
+    applyView();
+  });
+});
+
+document.getElementById("search").addEventListener("input", ev => {
+  const q = ev.target.value.trim().toLowerCase();
+  document.querySelectorAll(".node").forEach(g => g.classList.remove("match"));
+  if (!q) return;
+  DATA.nodes.forEach(n => {
+    if (n.title.toLowerCase().includes(q) || n.path.toLowerCase().includes(q)) {
+      const g = nodesGroup.querySelector(`[data-id="${n.id}"]`);
+      if (g) g.classList.add("match");
+    }
+  });
+});
+
+document.getElementById("toggle-orphans").addEventListener("click", () => {
+  const panel = document.getElementById("orphan-panel");
+  panel.classList.toggle("open");
+  const link = document.getElementById("toggle-orphans");
+  link.textContent = panel.classList.contains("open")
+    ? "リンクなしファイルを隠す"
+    : "リンクなしファイル 7 件を表示";
+});
+
+// initial
+applyView();
+</script>
+</body>
+</html>

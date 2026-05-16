@@ -2,7 +2,8 @@
 
 Endpoints (all at /api/internal):
 - POST   /file_relations        create (201, 409, 400 for same-drive / self)
-- GET    /file_relations?file_id=X[&kind=...]
+- GET    /file_relations?file_id=X[&kind=...]   per-file lookup
+- GET    /file_relations?drive=X[&kind=...]     drive-wide bulk (graph view)
 - DELETE /file_relations/{id}   (204, 404)
 
 Drive boundary (spec R4): the two files must live on the same drive.
@@ -217,6 +218,112 @@ class TestListFileRelations:
         res = c.get("/api/internal/file_relations", params={"file_id": a.id})
         assert res.status_code == 200
         assert res.json() == []
+
+
+class TestListFileRelationsByDrive:
+    """drive-wide bulk listing used by the knowledge connections graph."""
+
+    def test_returns_all_relations_in_drive(self, client):
+        c, db, _, _ = client
+        a = _seed_file(db, TEST_DRIVE, "a.mp4")
+        b = _seed_file(db, TEST_DRIVE, "b.mp4")
+        x = _seed_file(db, TEST_DRIVE, "x.mp4")
+        y = _seed_file(db, TEST_DRIVE, "y.mp4")
+        c.post(
+            "/api/internal/file_relations",
+            json={"file_id_a": a.id, "file_id_b": b.id, "kind": "related"},
+        )
+        c.post(
+            "/api/internal/file_relations",
+            json={"file_id_a": x.id, "file_id_b": y.id, "kind": "related"},
+        )
+
+        res = c.get(
+            "/api/internal/file_relations", params={"drive": TEST_DRIVE}
+        )
+        assert res.status_code == 200
+        items = res.json()
+        assert isinstance(items, list)
+        assert len(items) == 2
+
+    def test_drive_query_excludes_other_drives(self, two_drive_client):
+        c, db, _, _, _ = two_drive_client
+        a = _seed_file(db, TEST_DRIVE, "a.mp4", file_path="test/a.mp4")
+        b = _seed_file(db, TEST_DRIVE, "b.mp4", file_path="test/b.mp4")
+        x = _seed_file(db, SECOND_DRIVE, "x.mp4", file_path="second/x.mp4")
+        y = _seed_file(db, SECOND_DRIVE, "y.mp4", file_path="second/y.mp4")
+        c.post(
+            "/api/internal/file_relations",
+            json={"file_id_a": a.id, "file_id_b": b.id, "kind": "related"},
+        )
+        c.post(
+            "/api/internal/file_relations",
+            json={"file_id_a": x.id, "file_id_b": y.id, "kind": "related"},
+        )
+
+        res = c.get(
+            "/api/internal/file_relations", params={"drive": TEST_DRIVE}
+        )
+        assert res.status_code == 200
+        items = res.json()
+        assert len(items) == 1
+        ids = {items[0]["file_id_a"], items[0]["file_id_b"]}
+        assert ids == {a.id, b.id}
+
+    def test_drive_kind_filter(self, client):
+        c, db, _, _ = client
+        a = _seed_file(db, TEST_DRIVE, "a.mp4")
+        b = _seed_file(db, TEST_DRIVE, "b.mp4")
+        c.post(
+            "/api/internal/file_relations",
+            json={"file_id_a": a.id, "file_id_b": b.id, "kind": "related"},
+        )
+        c.post(
+            "/api/internal/file_relations",
+            json={"file_id_a": a.id, "file_id_b": b.id, "kind": "derived_from"},
+        )
+
+        res = c.get(
+            "/api/internal/file_relations",
+            params={"drive": TEST_DRIVE, "kind": "related"},
+        )
+        assert res.status_code == 200
+        items = res.json()
+        assert len(items) == 1
+        assert items[0]["kind"] == "related"
+
+    def test_drive_empty_result(self, client):
+        c, _, _, _ = client
+        res = c.get(
+            "/api/internal/file_relations", params={"drive": TEST_DRIVE}
+        )
+        assert res.status_code == 200
+        assert res.json() == []
+
+    def test_400_when_neither_file_id_nor_drive(self, client):
+        c, _, _, _ = client
+        res = c.get("/api/internal/file_relations")
+        assert res.status_code == 400
+
+    def test_limit_caps_results(self, client):
+        c, db, _, _ = client
+        # Build 4 files so we can create 3 distinct relations
+        a = _seed_file(db, TEST_DRIVE, "a.mp4")
+        b = _seed_file(db, TEST_DRIVE, "b.mp4")
+        cc = _seed_file(db, TEST_DRIVE, "c.mp4")
+        d = _seed_file(db, TEST_DRIVE, "d.mp4")
+        for x, y in [(a, b), (a, cc), (a, d)]:
+            c.post(
+                "/api/internal/file_relations",
+                json={"file_id_a": x.id, "file_id_b": y.id, "kind": "related"},
+            )
+
+        res = c.get(
+            "/api/internal/file_relations",
+            params={"drive": TEST_DRIVE, "limit": 2},
+        )
+        assert res.status_code == 200
+        assert len(res.json()) == 2
 
 
 class TestDeleteFileRelation:

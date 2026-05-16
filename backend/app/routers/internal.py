@@ -642,21 +642,56 @@ async def create_file_relation(
     return _relation_to_dict(rel)
 
 
+_DRIVE_LIST_DEFAULT_LIMIT = 5000
+
+
 @router.get("/file_relations")
 async def list_file_relations(
-    file_id: str = Query(...),
+    file_id: str | None = Query(None),
+    drive: str | None = Query(None),
     kind: str | None = Query(None),
+    limit: int = Query(_DRIVE_LIST_DEFAULT_LIMIT, ge=1, le=20000),
     db=Depends(get_db),
 ):
-    """List relations where file_id appears on either side, optionally filtered by kind."""
-    q = db.query(FileRelation).filter(
-        or_(
-            FileRelation.file_id_a == file_id,
-            FileRelation.file_id_b == file_id,
+    """List file_relations rows.
+
+    Two query modes — exactly one of ``file_id`` or ``drive`` is required:
+
+    * ``file_id=X``: rows where X appears on either side. Used by per-file
+      detail views and the intelligence RAG ``get_related_files`` tool.
+    * ``drive=X``: rows where both endpoints live on the given drive. Used
+      by the knowledge connections-graph view to fetch the whole drive in
+      a single round trip. file_relations enforces same-drive at create
+      time, so it suffices to anchor on ``file_id_a``'s drive.
+
+    Both modes accept an optional ``kind`` filter (opaque string). The
+    ``limit`` is a safety cap for the drive-wide mode; ``file_id`` mode
+    is naturally bounded by the per-file fan-out.
+    """
+    if file_id is None and drive is None:
+        raise HTTPException(
+            status_code=400,
+            detail="either file_id or drive is required",
         )
-    )
+
+    q = db.query(FileRelation)
+    if file_id is not None:
+        q = q.filter(
+            or_(
+                FileRelation.file_id_a == file_id,
+                FileRelation.file_id_b == file_id,
+            )
+        )
+    if drive is not None:
+        # Anchor on file_id_a's drive — same-drive invariant is enforced
+        # by POST /file_relations so file_id_b is guaranteed to match.
+        q = q.join(File, File.id == FileRelation.file_id_a).filter(
+            File.drive == drive
+        )
     if kind is not None:
         q = q.filter(FileRelation.kind == kind)
+
+    q = q.limit(limit)
     return [_relation_to_dict(r) for r in q.all()]
 
 

@@ -1,0 +1,725 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8" />
+<title>Knowledge Connections – デザイン案</title>
+<style>
+  :root {
+    --bg: #0f1115;
+    --bg-card: #1a1d24;
+    --bg-elevated: #232831;
+    --bg-border: #2a2f38;
+    --text-primary: #e8ebf0;
+    --text-muted: #8b94a3;
+    --text-dim: #5c6470;
+    --accent: #d63031;
+    --accent-teal: #2dd4bf;
+    --accent-amber: #f59e0b;
+    --accent-purple: #a78bfa;
+    --accent-blue: #60a5fa;
+  }
+  * { box-sizing: border-box; }
+  html, body {
+    margin: 0; padding: 0;
+    background: var(--bg);
+    color: var(--text-primary);
+    font-family: -apple-system, BlinkMacSystemFont, "Hiragino Sans", "Yu Gothic", sans-serif;
+    font-size: 14px;
+    line-height: 1.5;
+  }
+  .page {
+    max-width: 980px;
+    margin: 0 auto;
+    padding: 40px 24px 80px;
+  }
+  .page > h1 {
+    font-size: 14px;
+    color: var(--text-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    margin: 0 0 8px;
+  }
+  .page > p.lead {
+    color: var(--text-muted);
+    margin: 0 0 40px;
+    font-size: 13px;
+  }
+
+  /* Variant container */
+  .variant {
+    margin-bottom: 64px;
+    border-top: 1px solid var(--bg-border);
+    padding-top: 32px;
+  }
+  .variant-header {
+    display: flex;
+    align-items: baseline;
+    gap: 12px;
+    margin-bottom: 4px;
+  }
+  .variant-header h2 {
+    font-size: 18px;
+    margin: 0;
+  }
+  .variant-header .tag {
+    font-size: 10px;
+    color: var(--accent-teal);
+    background: rgba(45, 212, 191, 0.12);
+    padding: 2px 8px;
+    border-radius: 999px;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+  }
+  .variant > p.desc {
+    color: var(--text-muted);
+    font-size: 13px;
+    margin: 0 0 20px;
+  }
+  .variant > p.desc strong {
+    color: var(--text-primary);
+    font-weight: 600;
+  }
+
+  /* Section label (matches DESIGN.md) */
+  .section-label {
+    font-size: 11px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    color: var(--text-muted);
+    margin: 0 0 12px;
+  }
+
+  /* ============================================
+     VARIANT A: Force-directed network
+     ============================================ */
+  .net-frame {
+    border: 1px solid var(--bg-border);
+    border-radius: 16px;
+    background: var(--bg-card);
+    overflow: hidden;
+    position: relative;
+  }
+  .net-toolbar {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 12px 16px;
+    border-bottom: 1px solid var(--bg-border);
+    font-size: 12px;
+    color: var(--text-muted);
+  }
+  .net-toolbar .legend-dot {
+    width: 8px; height: 8px; border-radius: 50%;
+    display: inline-block; margin-right: 4px; vertical-align: middle;
+  }
+  .net-toolbar .legend-item {
+    display: inline-flex; align-items: center; gap: 4px;
+    padding: 2px 8px;
+  }
+  .net-toolbar .spacer { flex: 1; }
+  .net-toolbar .filter-chip {
+    border: 1px solid var(--bg-border);
+    background: transparent;
+    color: var(--text-muted);
+    padding: 4px 10px;
+    border-radius: 999px;
+    font-size: 11px;
+    cursor: pointer;
+  }
+  .net-toolbar .filter-chip.active {
+    background: var(--bg-elevated);
+    color: var(--text-primary);
+    border-color: var(--bg-elevated);
+  }
+  .net-svg {
+    display: block;
+    width: 100%;
+    height: 520px;
+    background:
+      radial-gradient(circle at 30% 40%, rgba(96,165,250,0.04), transparent 40%),
+      radial-gradient(circle at 70% 70%, rgba(167,139,250,0.04), transparent 40%);
+  }
+  .net-svg .edge {
+    stroke: var(--bg-border);
+    stroke-width: 1;
+    fill: none;
+    transition: stroke 0.15s, stroke-width 0.15s;
+  }
+  .net-svg .edge.hi {
+    stroke: var(--accent-teal);
+    stroke-width: 2;
+  }
+  .net-svg .node-note circle {
+    fill: var(--bg-elevated);
+    stroke: var(--accent-blue);
+    stroke-width: 2;
+    transition: stroke 0.15s, fill 0.15s;
+  }
+  .net-svg .node-source circle {
+    fill: var(--bg-elevated);
+    stroke: var(--text-dim);
+    stroke-width: 1.5;
+  }
+  .net-svg .node-source.shared circle {
+    stroke: var(--accent-purple);
+    stroke-width: 2;
+  }
+  .net-svg text {
+    fill: var(--text-muted);
+    font-size: 11px;
+    font-family: inherit;
+    pointer-events: none;
+  }
+  .net-svg .node-note text {
+    fill: var(--text-primary);
+    font-size: 12px;
+    font-weight: 500;
+  }
+  .net-svg g:hover circle { fill: var(--bg-border); cursor: pointer; }
+
+  /* ============================================
+     VARIANT B: Constellation cards
+     ============================================ */
+  .const-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+    gap: 12px;
+  }
+  .const-card {
+    border: 1px solid var(--bg-border);
+    border-radius: 16px;
+    background: var(--bg-card);
+    padding: 16px;
+    position: relative;
+    overflow: hidden;
+  }
+  .const-card .const-title {
+    font-size: 13px;
+    font-weight: 500;
+    color: var(--text-primary);
+    margin: 0 0 4px;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+  .const-card .const-meta {
+    font-size: 11px;
+    color: var(--text-muted);
+    margin: 0 0 12px;
+  }
+  .const-svg {
+    display: block;
+    width: 100%;
+    height: 120px;
+  }
+  .const-svg .center {
+    fill: var(--accent-blue);
+  }
+  .const-svg .center-ring {
+    fill: none;
+    stroke: var(--accent-blue);
+    stroke-width: 1.5;
+    opacity: 0.4;
+  }
+  .const-svg .src {
+    fill: var(--text-dim);
+  }
+  .const-svg .src.shared {
+    fill: var(--accent-purple);
+  }
+  .const-svg .src-line {
+    stroke: var(--bg-border);
+    stroke-width: 1;
+  }
+  .const-svg .src-line.shared {
+    stroke: var(--accent-purple);
+    opacity: 0.5;
+  }
+  .const-svg .src-label {
+    fill: var(--text-muted);
+    font-size: 10px;
+  }
+  .const-card .orphan-icon {
+    color: var(--text-dim);
+  }
+
+  /* ============================================
+     VARIANT C: Bipartite columns
+     ============================================ */
+  .bi-frame {
+    border: 1px solid var(--bg-border);
+    border-radius: 16px;
+    background: var(--bg-card);
+    padding: 20px;
+  }
+  .bi-toolbar {
+    display: flex;
+    gap: 8px;
+    margin-bottom: 16px;
+    font-size: 11px;
+    color: var(--text-muted);
+  }
+  .bi-grid {
+    display: grid;
+    grid-template-columns: 1fr 80px 1fr;
+    gap: 0;
+    position: relative;
+    min-height: 460px;
+  }
+  .bi-col {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+  }
+  .bi-col h4 {
+    font-size: 10px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    color: var(--text-muted);
+    margin: 0 0 6px;
+    padding: 0 8px;
+  }
+  .bi-item {
+    background: var(--bg-elevated);
+    border: 1px solid var(--bg-border);
+    border-radius: 10px;
+    padding: 8px 12px;
+    font-size: 12px;
+    color: var(--text-primary);
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    cursor: pointer;
+    transition: border-color 0.15s, background 0.15s;
+    position: relative;
+  }
+  .bi-item:hover {
+    border-color: var(--accent-blue);
+  }
+  .bi-item.note {
+    border-color: rgba(96, 165, 250, 0.3);
+  }
+  .bi-item .bi-dot {
+    width: 6px; height: 6px; border-radius: 50%;
+    flex-shrink: 0;
+  }
+  .bi-item .bi-count {
+    margin-left: auto;
+    font-size: 10px;
+    color: var(--text-muted);
+    background: var(--bg-card);
+    padding: 1px 6px;
+    border-radius: 999px;
+  }
+  .bi-svg {
+    position: absolute;
+    top: 0; left: 33.33%;
+    width: 33.33%;
+    height: 100%;
+    pointer-events: none;
+  }
+  .bi-svg path {
+    stroke: var(--bg-border);
+    stroke-width: 1;
+    fill: none;
+    opacity: 0.6;
+  }
+  .bi-svg path.hi {
+    stroke: var(--accent-teal);
+    stroke-width: 1.5;
+    opacity: 1;
+  }
+
+  /* Pros / Cons box */
+  .compare {
+    margin-top: 16px;
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 12px;
+    font-size: 12px;
+  }
+  .compare > div {
+    border: 1px solid var(--bg-border);
+    border-radius: 10px;
+    padding: 12px 14px;
+  }
+  .compare h5 {
+    margin: 0 0 6px;
+    font-size: 11px;
+    color: var(--text-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+  }
+  .compare ul {
+    margin: 0; padding-left: 16px;
+    color: var(--text-muted);
+  }
+  .compare li { margin: 3px 0; }
+
+  /* Orphaned strip shared across variants */
+  .orph-strip {
+    margin-top: 20px;
+    border: 1px dashed var(--bg-border);
+    border-radius: 12px;
+    padding: 12px 16px;
+    background: rgba(255,255,255,0.01);
+  }
+  .orph-strip h4 {
+    font-size: 11px;
+    color: var(--text-muted);
+    margin: 0 0 8px;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+  }
+  .orph-strip .pill {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    background: var(--bg-elevated);
+    color: var(--text-muted);
+    border: 1px solid var(--bg-border);
+    border-radius: 999px;
+    padding: 4px 10px;
+    font-size: 11px;
+    margin: 2px 4px 2px 0;
+    cursor: pointer;
+  }
+  .orph-strip .pill:hover { color: var(--text-primary); border-color: var(--text-dim); }
+</style>
+</head>
+<body>
+<div class="page">
+  <h1>Knowledge / Connections — デザイン案</h1>
+  <p class="lead">
+    note (Markdown) と citation 元ファイル (動画 / 画像 / 他ノート) の繋がりを可視化する。
+    API は <code>linked[]: { note_file_id, note_path, source_file_ids[] }</code> と <code>orphaned[]</code> を返す。
+    3 案ともデータ要件は同じで、表示形態のみ異なる。
+  </p>
+
+  <!-- ============================================
+       VARIANT A
+       ============================================ -->
+  <section class="variant">
+    <div class="variant-header">
+      <h2>案 A: Force-directed network</h2>
+      <span class="tag">graph</span>
+    </div>
+    <p class="desc">
+      ノード（ノート青・ソース灰）をバネモデルで配置。
+      <strong>共有ソース（複数ノートが参照する画像/動画）が purple で浮かび上がる</strong>のがハイライト。
+      ノートをホバーすると関連エッジが teal でハイライトされる。
+    </p>
+
+    <div class="net-frame">
+      <div class="net-toolbar">
+        <span class="legend-item"><span class="legend-dot" style="background:var(--accent-blue)"></span>ノート (md)</span>
+        <span class="legend-item"><span class="legend-dot" style="background:var(--text-dim)"></span>ソースファイル</span>
+        <span class="legend-item"><span class="legend-dot" style="background:var(--accent-purple)"></span>共有ソース</span>
+        <span class="spacer"></span>
+        <button class="filter-chip active">All</button>
+        <button class="filter-chip">Linked</button>
+        <button class="filter-chip">Orphaned</button>
+      </div>
+      <svg class="net-svg" viewBox="0 0 980 520" preserveAspectRatio="xMidYMid meet">
+        <!-- edges -->
+        <g>
+          <path class="edge" d="M 260 180 Q 220 220 180 280" />
+          <path class="edge hi" d="M 260 180 Q 320 200 380 240" />
+          <path class="edge" d="M 260 180 Q 300 130 360 100" />
+
+          <path class="edge hi" d="M 580 180 Q 530 210 480 260" />
+          <path class="edge hi" d="M 580 180 Q 620 200 660 230" />
+          <path class="edge hi" d="M 580 180 Q 580 130 600 80" />
+          <path class="edge hi" d="M 580 180 Q 380 240 380 240" />
+
+          <path class="edge" d="M 780 320 Q 720 300 660 280" />
+          <path class="edge" d="M 780 320 Q 830 260 880 200" />
+          <path class="edge" d="M 780 320 Q 730 380 660 420" />
+
+          <path class="edge" d="M 240 400 Q 200 360 180 320" />
+          <path class="edge" d="M 240 400 Q 290 420 350 440" />
+          <path class="edge" d="M 240 400 Q 220 460 180 480" />
+        </g>
+
+        <!-- notes -->
+        <g class="node-note" transform="translate(260,180)">
+          <circle r="22"/>
+          <text x="0" y="40" text-anchor="middle">2026 Q1 振り返り</text>
+        </g>
+        <g class="node-note" transform="translate(580,180)">
+          <circle r="22"/>
+          <text x="0" y="40" text-anchor="middle">ローカル LLM 比較</text>
+        </g>
+        <g class="node-note" transform="translate(780,320)">
+          <circle r="22"/>
+          <text x="0" y="40" text-anchor="middle">海外旅行メモ</text>
+        </g>
+        <g class="node-note" transform="translate(240,400)">
+          <circle r="22"/>
+          <text x="0" y="40" text-anchor="middle">読書ノート: SF</text>
+        </g>
+
+        <!-- sources (regular) -->
+        <g class="node-source" transform="translate(180,280)"><circle r="10"/><text x="0" y="-16" text-anchor="middle">whitepaper.pdf</text></g>
+        <g class="node-source" transform="translate(360,100)"><circle r="10"/><text x="0" y="-16" text-anchor="middle">slack.png</text></g>
+        <g class="node-source" transform="translate(660,230)"><circle r="10"/><text x="0" y="-16" text-anchor="middle">benchmark.mp4</text></g>
+        <g class="node-source" transform="translate(600,80)"><circle r="10"/><text x="0" y="-16" text-anchor="middle">notes-q4.md</text></g>
+        <g class="node-source" transform="translate(880,200)"><circle r="10"/><text x="0" y="-16" text-anchor="middle">flight.pdf</text></g>
+        <g class="node-source" transform="translate(660,420)"><circle r="10"/><text x="0" y="-16" text-anchor="middle">map.jpg</text></g>
+        <g class="node-source" transform="translate(180,320)"><circle r="10"/><text x="0" y="-16" text-anchor="middle">cover-1.jpg</text></g>
+        <g class="node-source" transform="translate(350,440)"><circle r="10"/><text x="0" y="-16" text-anchor="middle">cover-2.jpg</text></g>
+        <g class="node-source" transform="translate(180,480)"><circle r="10"/><text x="0" y="-16" text-anchor="middle">excerpt.md</text></g>
+
+        <!-- shared source -->
+        <g class="node-source shared" transform="translate(480,260)">
+          <circle r="13"/>
+          <text x="0" y="-20" text-anchor="middle" style="fill:var(--accent-purple);font-weight:600">benchmark.csv</text>
+        </g>
+        <g class="node-source shared" transform="translate(380,240)">
+          <circle r="13"/>
+          <text x="0" y="-20" text-anchor="middle" style="fill:var(--accent-purple);font-weight:600">model-card.json</text>
+        </g>
+      </svg>
+    </div>
+
+    <div class="orph-strip">
+      <h4>リンクなしノート (3)</h4>
+      <span class="pill">📝 アイデア帳.md</span>
+      <span class="pill">📝 weekly-todo.md</span>
+      <span class="pill">📝 inbox.md</span>
+    </div>
+
+    <div class="compare">
+      <div>
+        <h5>Pros</h5>
+        <ul>
+          <li>知識グラフらしい一目で構造が掴める</li>
+          <li>共有ソース（橋になる引用）が際立つ</li>
+          <li>30〜50 ノード規模まで pure SVG で 60fps</li>
+        </ul>
+      </div>
+      <div>
+        <h5>Cons</h5>
+        <ul>
+          <li>ノードが増えると重なって読みにくい</li>
+          <li>力学レイアウト計算でモバイル時 100ms 程度</li>
+          <li>「どこから読めばいいか」の起点が決まらない</li>
+        </ul>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============================================
+       VARIANT B
+       ============================================ -->
+  <section class="variant">
+    <div class="variant-header">
+      <h2>案 B: Constellation cards</h2>
+      <span class="tag">recommended</span>
+    </div>
+    <p class="desc">
+      <strong>1 ノート = 1 ミニグラフカード</strong>。最近編集された順に並ぶ。
+      各カード内では中央のノートから放射状にソースが配置され、共有ソースは purple マークと「他 2 件のノートでも引用」のヒントが出る。
+      スクロール 1 次元 + レイアウトは即時計算（バネ不要）。
+    </p>
+
+    <p class="section-label">リンク済みノート</p>
+    <div class="const-grid">
+      <div class="const-card">
+        <h3 class="const-title">📝 2026 Q1 振り返り</h3>
+        <p class="const-meta">3 ソース · 2 時間前</p>
+        <svg class="const-svg" viewBox="0 0 280 120">
+          <line class="src-line" x1="140" y1="60" x2="50" y2="30"/>
+          <line class="src-line" x1="140" y1="60" x2="50" y2="90"/>
+          <line class="src-line shared" x1="140" y1="60" x2="240" y2="60"/>
+          <circle class="center-ring" cx="140" cy="60" r="14"/>
+          <circle class="center" cx="140" cy="60" r="8"/>
+          <circle class="src" cx="50" cy="30" r="5"/>
+          <text class="src-label" x="50" y="20" text-anchor="middle">whitepaper.pdf</text>
+          <circle class="src" cx="50" cy="90" r="5"/>
+          <text class="src-label" x="50" y="108" text-anchor="middle">slack.png</text>
+          <circle class="src shared" cx="240" cy="60" r="6"/>
+          <text class="src-label" x="240" y="50" text-anchor="middle" style="fill:var(--accent-purple)">benchmark.csv</text>
+        </svg>
+      </div>
+
+      <div class="const-card">
+        <h3 class="const-title">📝 ローカル LLM 比較</h3>
+        <p class="const-meta">5 ソース · 昨日</p>
+        <svg class="const-svg" viewBox="0 0 280 120">
+          <line class="src-line" x1="140" y1="60" x2="40" y2="20"/>
+          <line class="src-line" x1="140" y1="60" x2="40" y2="100"/>
+          <line class="src-line shared" x1="140" y1="60" x2="240" y2="20"/>
+          <line class="src-line shared" x1="140" y1="60" x2="240" y2="60"/>
+          <line class="src-line" x1="140" y1="60" x2="240" y2="100"/>
+          <circle class="center-ring" cx="140" cy="60" r="14"/>
+          <circle class="center" cx="140" cy="60" r="8"/>
+          <circle class="src" cx="40" cy="20" r="5"/>
+          <circle class="src" cx="40" cy="100" r="5"/>
+          <circle class="src shared" cx="240" cy="20" r="6"/>
+          <circle class="src shared" cx="240" cy="60" r="6"/>
+          <circle class="src" cx="240" cy="100" r="5"/>
+          <text class="src-label" x="40" y="14" text-anchor="end">benchmark.mp4</text>
+          <text class="src-label" x="40" y="115" text-anchor="end">notes-q4.md</text>
+          <text class="src-label" x="240" y="14" style="fill:var(--accent-purple)">model-card.json</text>
+        </svg>
+      </div>
+
+      <div class="const-card">
+        <h3 class="const-title">📝 海外旅行メモ</h3>
+        <p class="const-meta">2 ソース · 3 日前</p>
+        <svg class="const-svg" viewBox="0 0 280 120">
+          <line class="src-line" x1="140" y1="60" x2="50" y2="60"/>
+          <line class="src-line" x1="140" y1="60" x2="240" y2="60"/>
+          <circle class="center-ring" cx="140" cy="60" r="14"/>
+          <circle class="center" cx="140" cy="60" r="8"/>
+          <circle class="src" cx="50" cy="60" r="5"/>
+          <text class="src-label" x="50" y="50" text-anchor="middle">flight.pdf</text>
+          <circle class="src" cx="240" cy="60" r="5"/>
+          <text class="src-label" x="240" y="50" text-anchor="middle">map.jpg</text>
+        </svg>
+      </div>
+
+      <div class="const-card">
+        <h3 class="const-title">📝 読書ノート: SF</h3>
+        <p class="const-meta">3 ソース · 1 週間前</p>
+        <svg class="const-svg" viewBox="0 0 280 120">
+          <line class="src-line" x1="140" y1="60" x2="50" y2="30"/>
+          <line class="src-line" x1="140" y1="60" x2="50" y2="90"/>
+          <line class="src-line" x1="140" y1="60" x2="240" y2="60"/>
+          <circle class="center-ring" cx="140" cy="60" r="14"/>
+          <circle class="center" cx="140" cy="60" r="8"/>
+          <circle class="src" cx="50" cy="30" r="5"/>
+          <circle class="src" cx="50" cy="90" r="5"/>
+          <circle class="src" cx="240" cy="60" r="5"/>
+          <text class="src-label" x="50" y="20" text-anchor="middle">cover-1.jpg</text>
+          <text class="src-label" x="50" y="108" text-anchor="middle">cover-2.jpg</text>
+          <text class="src-label" x="240" y="50" text-anchor="middle">excerpt.md</text>
+        </svg>
+      </div>
+    </div>
+
+    <div class="orph-strip">
+      <h4>リンクなしノート (3)</h4>
+      <span class="pill">📝 アイデア帳.md</span>
+      <span class="pill">📝 weekly-todo.md</span>
+      <span class="pill">📝 inbox.md</span>
+    </div>
+
+    <div class="compare">
+      <div>
+        <h5>Pros</h5>
+        <ul>
+          <li>初期描画 &lt;50ms（バネ不要、決定論的レイアウト）</li>
+          <li>各ノートが独立して読める。スクロールで詳細</li>
+          <li>共有ソースは「他で引用」バッジで明示</li>
+          <li>モバイル/狭幅で 1 列に自然に折りたたみ</li>
+        </ul>
+      </div>
+      <div>
+        <h5>Cons</h5>
+        <ul>
+          <li>グラフ全体の構造は見えない（個別の集合）</li>
+          <li>共有ソースを「橋」として視覚化できない</li>
+        </ul>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============================================
+       VARIANT C
+       ============================================ -->
+  <section class="variant">
+    <div class="variant-header">
+      <h2>案 C: Bipartite columns</h2>
+      <span class="tag">analytic</span>
+    </div>
+    <p class="desc">
+      左にノート、右にソースファイル。<strong>マウスホバーで該当エッジだけが teal でハイライト</strong>される。
+      表形式に近く、件数や種類で並び替え/フィルタしやすい。
+    </p>
+
+    <div class="bi-frame">
+      <div class="bi-toolbar">
+        <span>ソート:</span>
+        <button class="filter-chip" style="border:none;background:var(--bg-elevated);color:var(--text-primary)">最近更新</button>
+        <button class="filter-chip" style="border:none;background:transparent;color:var(--text-muted)">参照数</button>
+        <button class="filter-chip" style="border:none;background:transparent;color:var(--text-muted)">タイトル</button>
+      </div>
+      <div class="bi-grid">
+        <div class="bi-col">
+          <h4>ノート (4)</h4>
+          <div class="bi-item note"><span class="bi-dot" style="background:var(--accent-blue)"></span>2026 Q1 振り返り<span class="bi-count">3</span></div>
+          <div class="bi-item note"><span class="bi-dot" style="background:var(--accent-blue)"></span>ローカル LLM 比較<span class="bi-count">5</span></div>
+          <div class="bi-item note"><span class="bi-dot" style="background:var(--accent-blue)"></span>海外旅行メモ<span class="bi-count">2</span></div>
+          <div class="bi-item note"><span class="bi-dot" style="background:var(--accent-blue)"></span>読書ノート: SF<span class="bi-count">3</span></div>
+        </div>
+
+        <div></div>
+
+        <div class="bi-col">
+          <h4>ソースファイル (9)</h4>
+          <div class="bi-item"><span class="bi-dot" style="background:var(--text-dim)"></span>whitepaper.pdf</div>
+          <div class="bi-item"><span class="bi-dot" style="background:var(--text-dim)"></span>slack.png</div>
+          <div class="bi-item"><span class="bi-dot" style="background:var(--accent-purple)"></span>benchmark.csv<span class="bi-count">×2</span></div>
+          <div class="bi-item"><span class="bi-dot" style="background:var(--accent-purple)"></span>model-card.json<span class="bi-count">×2</span></div>
+          <div class="bi-item"><span class="bi-dot" style="background:var(--text-dim)"></span>benchmark.mp4</div>
+          <div class="bi-item"><span class="bi-dot" style="background:var(--text-dim)"></span>notes-q4.md</div>
+          <div class="bi-item"><span class="bi-dot" style="background:var(--text-dim)"></span>flight.pdf</div>
+          <div class="bi-item"><span class="bi-dot" style="background:var(--text-dim)"></span>map.jpg</div>
+          <div class="bi-item"><span class="bi-dot" style="background:var(--text-dim)"></span>cover-1.jpg</div>
+        </div>
+
+        <svg class="bi-svg" viewBox="0 0 200 460" preserveAspectRatio="none">
+          <!-- Q1 (y~40) -> sources -->
+          <path d="M 0 40 C 100 40, 100 20, 200 20"/>
+          <path d="M 0 40 C 100 40, 100 60, 200 60"/>
+          <path d="M 0 40 C 100 40, 100 100, 200 100"/>
+          <!-- LLM (y~100) -> -->
+          <path class="hi" d="M 0 100 C 100 100, 100 100, 200 100"/>
+          <path class="hi" d="M 0 100 C 100 100, 100 140, 200 140"/>
+          <path class="hi" d="M 0 100 C 100 100, 100 180, 200 180"/>
+          <path class="hi" d="M 0 100 C 100 100, 100 220, 200 220"/>
+          <path class="hi" d="M 0 100 C 100 100, 100 260, 200 260"/>
+          <!-- 旅行 (y~160) -> -->
+          <path d="M 0 160 C 100 160, 100 300, 200 300"/>
+          <path d="M 0 160 C 100 160, 100 340, 200 340"/>
+          <!-- SF (y~220) -> -->
+          <path d="M 0 220 C 100 220, 100 380, 200 380"/>
+          <path d="M 0 220 C 100 220, 100 420, 200 420"/>
+          <path d="M 0 220 C 100 220, 100 340, 200 340"/>
+        </svg>
+      </div>
+    </div>
+
+    <div class="orph-strip">
+      <h4>リンクなしノート (3)</h4>
+      <span class="pill">📝 アイデア帳.md</span>
+      <span class="pill">📝 weekly-todo.md</span>
+      <span class="pill">📝 inbox.md</span>
+    </div>
+
+    <div class="compare">
+      <div>
+        <h5>Pros</h5>
+        <ul>
+          <li>件数比較しやすい・ソート可能</li>
+          <li>共有ソースが ×2 などの数字で直球に見える</li>
+          <li>レイアウト計算ほぼゼロ（最速）</li>
+        </ul>
+      </div>
+      <div>
+        <h5>Cons</h5>
+        <ul>
+          <li>「グラフ感」が薄い（テーブルに近い）</li>
+          <li>ノートが多いと曲線が密集して読みにくい</li>
+        </ul>
+      </div>
+    </div>
+  </section>
+
+</div>
+</body>
+</html>
