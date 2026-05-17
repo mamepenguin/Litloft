@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import { useRouter } from "next/navigation";
 import { ArrowLeft, ArrowRight, ArrowUpLeft, Clock, Search, X } from "lucide-react";
 import { useShortcuts } from "@/hooks/useShortcuts";
@@ -401,9 +402,11 @@ export function GlobalSearch() {
         <Search size={18} />
       </button>
 
-      {open && isMobileViewport && (
-        // Mobile: full-screen
-        <div className="fixed inset-0 z-50 flex flex-col bg-bg-primary animate-fade-in">
+      {open &&
+        isMobileViewport &&
+        createPortal(
+          // Mobile: full-screen
+          <div className="fixed inset-0 z-50 flex flex-col bg-bg-primary animate-fade-in">
           {/* Header */}
           <div className="flex items-center gap-2 border-b border-bg-border px-2 py-2">
             <button
@@ -426,24 +429,27 @@ export function GlobalSearch() {
             </div>
           </div>
 
-          {/* Body */}
-          <div className="flex-1 overflow-y-auto">
-            {!drive ? (
-              <div className="py-12 text-center text-sm text-text-muted">
-                {t("goToDrive")}
-              </div>
-            ) : showHistory ? (
-              historyList(true)
-            ) : hasQuery ? (
-              resultsList(true)
-            ) : null}
-          </div>
-        </div>
-      )}
+            {/* Body */}
+            <div className="flex-1 overflow-y-auto">
+              {!drive ? (
+                <div className="py-12 text-center text-sm text-text-muted">
+                  {t("goToDrive")}
+                </div>
+              ) : showHistory ? (
+                historyList(true)
+              ) : hasQuery ? (
+                resultsList(true)
+              ) : null}
+            </div>
+          </div>,
+          document.body
+        )}
 
-      {open && !isMobileViewport && (
-        // Desktop: centered modal
-        <div className="fixed inset-0 z-50 flex items-start justify-center pt-[10vh]">
+      {open &&
+        !isMobileViewport &&
+        createPortal(
+          // Desktop: centered modal
+          <div className="fixed inset-0 z-50 flex items-start justify-center pt-[10vh]">
           <div
             className="fixed inset-0 bg-black/50 animate-fade-in"
             onClick={closeSearch}
@@ -476,9 +482,10 @@ export function GlobalSearch() {
             ) : hasQuery ? (
               resultsList(false)
             ) : null}
-          </div>
-        </div>
-      )}
+            </div>
+          </div>,
+          document.body
+        )}
     </>
   );
 }
