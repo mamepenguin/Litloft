@@ -993,7 +993,7 @@ services:
       # Mount each drive read-only:
       - /path/to/videos:/drives/videos:ro
     environment:
-      - HOMEVAULT_DB_PATH=/data/videos.db
+      - HOMEVAULT_DB_PATH=/data/data.db
       - SEARCH_CONFIG_PATH=/app/search-config.yml
       - ALLOWED_BASE_DIRS=/drives/
       - DRIVE_MOUNTS=Videos=/drives/videos
