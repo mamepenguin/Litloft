@@ -27,7 +27,7 @@ Independent service addons:
 
 Declare a scope at addon load time:
 
-- **`drive`** — the addon operates on a specific drive at a time. URL: `/drive/{drive}/addons/{name}/...`. Frontend sends `X-HV-Drive` header.
+- **`drive`** — the addon operates on a specific drive at a time. URL: `/drive/{drive}/addons/{name}/...`. Frontend sends `X-Lit-Drive` header.
 - **`global`** — the addon does not bind to a single drive. URL: `/admin/...`.
 - **`both`** — declare both surfaces.
 
@@ -120,10 +120,12 @@ Addons that need to read core data go through `/api/internal/*` on the Docker ne
 - `GET /api/internal/files/{id}` — file metadata.
 - `GET /api/internal/files/{id}/content` — file body (text MIMEs only, gated by `CORE_INTERNAL_SECRET`, default 10 MB cap).
 - `POST /api/internal/files/{id}/tags` — set tags (gated).
-- `GET /api/internal/viewer-history?viewer_id=&kind=` — viewer's watched / not-watched lookup.
+- `GET /api/internal/viewer-history?viewer_id=&drive=&after=&before=&kind=` — viewer's watched / not-watched lookup within a drive and time window.
 - `POST /api/internal/filter-file-ids` — access control filter.
 - `POST /api/internal/files/bulk-state` — lifecycle bulk read.
-- `POST/GET/DELETE /api/internal/file_relations` — typed link graph.
+- `POST/GET/DELETE /api/internal/file_relations` — typed link graph. GET accepts `file_id=`, `drive=`, `kind=`, `limit=`.
+- `POST /api/internal/files/bulk` — full FileResponse for multiple IDs (service-to-service, no auth).
+- `POST /api/internal/restart-pending` — touch core's `restart_pending` sentinel (gated by `CORE_INTERNAL_SECRET`).
 - `POST /api/internal/addon-events` — bridge an event onto the WebSocket.
 
 ### Internal API policy
