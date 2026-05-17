@@ -17,7 +17,7 @@ def _enable_fk(engine):
         cursor.execute("PRAGMA foreign_keys=ON")
         cursor.close()
 
-from app.database import Base, get_db
+from app.database import Base, engine as app_engine, get_db
 from app.main import app
 
 FIXTURES_DIR = Path(__file__).parent / "fixtures"
@@ -95,6 +95,7 @@ def client(tmp_path):
     config.CONVERTED_DIR = data_dir / "converted"
     config._drives_cache = None  # Reset cache so new config is loaded
 
+    app_engine.dispose()
     with TestClient(app) as c:
         yield c, TestSession(), drive_dir, data_dir
 
@@ -104,6 +105,7 @@ def client(tmp_path):
     config.CONVERTED_DIR = orig_converted
     config._drives_cache = orig_cache
     app.dependency_overrides.clear()
+    app_engine.dispose()
     engine.dispose()
 
 
