@@ -27,6 +27,34 @@
 - **Addon translation keys must only live in that addon's `frontend/messages/`**. Do not let them leak into core.
 - The merge script deep-merges `messages-core/` and `src/addons/*/messages/` to produce `messages/` (run during the Dockerfile build and before `pnpm dev`).
 
+## Component organization
+
+### features/ vs shared/ boundary
+
+`components/` subdirectories are feature-specific. When adding a new component, classify it first:
+
+- **Feature-specific** (e.g., only used within drive/file/admin context): place under the relevant subdirectory (`folder/`, `loft/`, `sidebar/`, etc.)
+- **Truly shared** (used across 2+ unrelated features, or purely presentational): place directly under `components/` or a `components/ui/` subdirectory
+
+Do not add a shared component just because it _could_ be reused. Wait until a second concrete caller exists.
+
+### Container/Presenter pattern
+
+Apply this when writing a new component that has **both** non-trivial state/data-fetching **and** non-trivial UI:
+
+```
+ComponentName/
+├── ComponentNameContainer.tsx   # state, hooks, API calls — renders Presenter
+├── ComponentNamePresenter.tsx   # pure UI, props only, no side effects
+├── hooks/                       # component-specific hooks (optional)
+└── index.ts                     # re-exports Container as default
+```
+
+- **Container**: owns state, calls hooks/API, passes everything down as props.
+- **Presenter**: receives all data via props. No `useState`, no `useEffect`, no API calls.
+
+Apply to **new** large components only. Do not retroactively split existing components unless they are being substantially reworked.
+
 ## Test library constraints
 - Vitest 4 has a rolldown native-bindings issue → **use 3.x**.
 - jsdom 29 has ESM compatibility problems → **use 25.x**.
