@@ -13,7 +13,7 @@ vi.stubGlobal(
     disconnect = mockDisconnect;
     unobserve = vi.fn();
     constructor(cb: IntersectionObserverCallback) {
-      setTimeout(() => cb([{ isIntersecting: true } as IntersectionObserverEntry], this), 0);
+      setTimeout(() => cb([{ isIntersecting: true } as IntersectionObserverEntry], this as unknown as IntersectionObserver), 0);
     }
   }
 );

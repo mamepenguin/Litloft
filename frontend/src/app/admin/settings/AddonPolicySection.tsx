@@ -8,7 +8,7 @@
 // Feature sub-toggles: when an addon's manifest declares ``policy_features``
 // — e.g. intelligence ships ``{name: "transcription_cloud", default: true,
 // i18n_key: "intelligence.policyFeatures.transcriptionCloud"}`` — the
-// matrix renders a sub-row underneath the addon column when that addon is
+// matrix renders a sub-row underneath the drive row when that addon is
 // enabled. Storing the flag requires the drive's addon policy value to be
 // a feature dict {feature: bool} rather than a plain bool.
 //
@@ -16,7 +16,7 @@
 // it does not interpret addon names or feature names. Adding or changing
 // per-feature toggles is a manifest + addon-i18n change, no core edits.
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { Fragment, useCallback, useEffect, useMemo, useState } from "react";
 import { useTranslations } from "next-intl";
 
 import {
@@ -35,9 +35,6 @@ function describeError(
 ): string {
   if (err instanceof AdminConfigError) {
     const detail = err.detail;
-    // Prefer the server-provided message verbatim — it carries the most
-    // specific language ("manifest に存在しない addon です" etc.) and is
-    // stable across i18n updates.
     if (typeof detail === "object" && detail?.message) {
       return detail.message;
     }
@@ -60,16 +57,11 @@ function readToggle(
   const value = driveEntry[addon];
   if (typeof value === "boolean") return value;
   if (typeof value === "object" && value !== null) {
-    // For feature dicts, the addon is enabled as long as the dict exists —
-    // per-feature flags live inside the dict and don't gate the addon.
     return true;
   }
   return false;
 }
 
-// Read a feature flag with default-fallback. When the policy value is a
-// bool (addon-level on/off only) we fall back to the manifest-declared
-// default carried in ``feature.default``.
 function readFeature(
   policy: AddonPolicy,
   drive: string,
@@ -87,10 +79,6 @@ function readFeature(
 
 export function AddonPolicySection(): React.ReactElement {
   const t = useTranslations("settings.addonPolicy");
-  // Root translator used to resolve manifest-supplied feature i18n keys
-  // (e.g. ``intelligence.policyFeatures.transcriptionCloud.label``). We
-  // can't pass a dynamic namespace to ``useTranslations`` so we look up
-  // the full key path here.
   const tRoot = useTranslations();
   const [policy, setPolicy] = useState<AddonPolicy>({});
   const [addons, setAddons] = useState<AddonStatusEntry[]>([]);
@@ -118,7 +106,6 @@ export function AddonPolicySection(): React.ReactElement {
     return () => {
       cancelled = true;
     };
-    // Mount-only fetch — i18n changes shouldn't re-trigger the load.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
@@ -130,7 +117,6 @@ export function AddonPolicySection(): React.ReactElement {
       const driveEntry = { ...(policy[drive] ?? {}) };
       driveEntry[addon] = !current;
       const next: AddonPolicy = { ...policy, [drive]: driveEntry };
-      // Optimistic update: flip the UI immediately, revert on error.
       setPolicy(next);
       setSaveError(null);
       try {
@@ -148,8 +134,6 @@ export function AddonPolicySection(): React.ReactElement {
       const current = readFeature(policy, drive, addon, feature);
       const driveEntry = { ...(policy[drive] ?? {}) };
       const existing = driveEntry[addon];
-      // Promote a bool addon entry to a feature dict so we can pin the
-      // feature flag without losing the addon-level enable state.
       const featureMap: Record<string, boolean> =
         typeof existing === "object" && existing !== null
           ? { ...existing }
@@ -180,88 +164,122 @@ export function AddonPolicySection(): React.ReactElement {
       {saveError && <p className="mb-4 text-xs text-danger">{saveError}</p>}
 
       {loaded && drives.length > 0 && addons.length > 0 && (
-        <div className="space-y-6">
-          {drives.map((drive) => (
-            <div key={drive}>
-              <h3 className="mb-3 text-sm font-semibold uppercase tracking-wide text-text-muted">
-                {drive}
-              </h3>
-              <div className="space-y-2">
-                {addons.map((addon) => {
-                  const checked = readToggle(policy, drive, addon.name);
-                  const featureRows = checked && addon.policy_features?.length
-                    ? addon.policy_features
-                    : [];
-                  return (
-                    <div
-                      key={addon.name}
-                      className="rounded-xl border border-bg-border bg-bg-elevated"
-                    >
-                      <div className="flex items-center justify-between px-4 py-3">
-                        <span className="text-sm font-medium text-text-primary">
-                          {addon.name}
-                        </span>
-                        <button
-                          type="button"
-                          role="switch"
-                          aria-checked={checked}
-                          aria-label={`${drive} / ${addon.name}`}
-                          onClick={() => toggle(drive, addon.name)}
-                          className={`relative inline-flex h-6 w-11 shrink-0 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-focus-ring focus:ring-offset-2 ${
-                            checked ? "bg-accent" : "bg-warm-silver/40"
-                          }`}
-                        >
-                          <span
-                            className={`inline-block h-4 w-4 rounded-full bg-white shadow transition-transform ${
-                              checked ? "translate-x-6" : "translate-x-1"
-                            }`}
+        <div className="overflow-x-auto">
+          <table className="w-full border-collapse text-sm">
+            <thead>
+              <tr>
+                <th className="py-2 pr-6 text-left text-xs font-semibold uppercase tracking-wide text-text-muted" />
+                {addons.map((addon) => (
+                  <th
+                    key={addon.name}
+                    className="px-4 py-2 text-center text-sm font-medium text-text-primary"
+                  >
+                    {addon.name}
+                  </th>
+                ))}
+              </tr>
+            </thead>
+            <tbody>
+              {drives.map((drive) => (
+                <Fragment key={drive}>
+                  <tr className="border-t border-bg-border">
+                    <td className="py-3 pr-6 text-xs font-semibold uppercase tracking-wide text-text-muted">
+                      {drive}
+                    </td>
+                    {addons.map((addon) => {
+                      const checked = readToggle(policy, drive, addon.name);
+                      return (
+                        <td key={addon.name} className="px-4 py-3 text-center">
+                          <input
+                            type="checkbox"
+                            checked={checked}
+                            aria-label={`${drive} / ${addon.name}`}
+                            onChange={() => toggle(drive, addon.name)}
+                            className="h-4 w-4 cursor-pointer accent-accent"
                           />
-                        </button>
-                      </div>
-                      {featureRows.map((feature) => {
-                        const featureChecked = readFeature(policy, drive, addon.name, feature);
-                        const labelKey = `${feature.i18n_key}.label`;
-                        const helpKey = `${feature.i18n_key}.help`;
-                        const warningKey = `${feature.i18n_key}.warning`;
-                        return (
-                          <div
-                            key={feature.name}
-                            className="flex items-start gap-3 border-t border-bg-border px-4 py-3 pl-8"
-                            data-testid={`feature-row-${drive}-${addon.name}-${feature.name}`}
-                          >
-                            <span className="mr-1 text-text-muted" aria-hidden="true">↳</span>
-                            <div className="min-w-0 flex-1">
-                              <p className="text-sm text-text-primary">{tRoot(labelKey)}</p>
-                              <p className="text-xs text-text-muted">{tRoot(helpKey)}</p>
-                              {!featureChecked && (
-                                <p className="mt-1 text-xs text-text-muted">{tRoot(warningKey)}</p>
-                              )}
-                            </div>
-                            <button
-                              type="button"
-                              role="switch"
-                              aria-checked={featureChecked}
-                              aria-label={`${drive} / ${addon.name} / ${feature.name}`}
-                              onClick={() => toggleFeature(drive, addon.name, feature)}
-                              className={`relative inline-flex h-6 w-11 shrink-0 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-focus-ring focus:ring-offset-2 ${
-                                featureChecked ? "bg-accent" : "bg-warm-silver/40"
-                              }`}
-                            >
-                              <span
-                                className={`inline-block h-4 w-4 rounded-full bg-white shadow transition-transform ${
-                                  featureChecked ? "translate-x-6" : "translate-x-1"
-                                }`}
-                              />
-                            </button>
-                          </div>
-                        );
-                      })}
-                    </div>
-                  );
-                })}
-              </div>
-            </div>
-          ))}
+                        </td>
+                      );
+                    })}
+                  </tr>
+                  {addons.flatMap((addon) => {
+                    const checked = readToggle(policy, drive, addon.name);
+                    if (!checked || !addon.policy_features?.length) return [];
+                    const addonIdx = addons.indexOf(addon);
+                    return addon.policy_features.map((feature) => {
+                      const featureChecked = readFeature(
+                        policy,
+                        drive,
+                        addon.name,
+                        feature,
+                      );
+                      const labelKey = `${feature.i18n_key}.label`;
+                      const helpKey = `${feature.i18n_key}.help`;
+                      const warningKey = `${feature.i18n_key}.warning`;
+                      return (
+                        <tr
+                          key={`${drive}-${addon.name}-${feature.name}`}
+                          data-testid={`feature-row-${drive}-${addon.name}-${feature.name}`}
+                        >
+                          <td />
+                          {addons.map((a, idx) =>
+                            idx !== addonIdx ? (
+                              <td key={a.name} />
+                            ) : (
+                              <td key={a.name} className="px-4 py-2">
+                                <div className="flex items-start gap-3">
+                                  <span
+                                    className="mt-0.5 text-text-muted"
+                                    aria-hidden="true"
+                                  >
+                                    ↳
+                                  </span>
+                                  <div className="min-w-0 flex-1">
+                                    <p className="text-sm text-text-primary">
+                                      {tRoot(labelKey)}
+                                    </p>
+                                    <p className="text-xs text-text-muted">
+                                      {tRoot(helpKey)}
+                                    </p>
+                                    {!featureChecked && (
+                                      <p className="mt-1 text-xs text-text-muted">
+                                        {tRoot(warningKey)}
+                                      </p>
+                                    )}
+                                  </div>
+                                  <button
+                                    type="button"
+                                    role="switch"
+                                    aria-checked={featureChecked}
+                                    aria-label={`${drive} / ${addon.name} / ${feature.name}`}
+                                    onClick={() =>
+                                      toggleFeature(drive, addon.name, feature)
+                                    }
+                                    className={`relative inline-flex h-6 w-11 shrink-0 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-focus-ring focus:ring-offset-2 ${
+                                      featureChecked
+                                        ? "bg-accent"
+                                        : "bg-warm-silver/40"
+                                    }`}
+                                  >
+                                    <span
+                                      className={`inline-block h-4 w-4 rounded-full bg-white shadow transition-transform ${
+                                        featureChecked
+                                          ? "translate-x-6"
+                                          : "translate-x-1"
+                                      }`}
+                                    />
+                                  </button>
+                                </div>
+                              </td>
+                            ),
+                          )}
+                        </tr>
+                      );
+                    });
+                  })}
+                </Fragment>
+              ))}
+            </tbody>
+          </table>
         </div>
       )}
 

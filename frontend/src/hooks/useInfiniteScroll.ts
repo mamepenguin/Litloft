@@ -20,7 +20,7 @@ interface UseInfiniteScrollOptions<T> {
   initial?: InitialHydration<T> | null;
 }
 
-interface UseInfiniteScrollReturn<T> {
+export interface UseInfiniteScrollReturn<T> {
   items: T[];
   total: number;
   loading: boolean;

@@ -1,7 +1,7 @@
 import { renderHook, render, act, waitFor } from "@testing-library/react";
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { createElement } from "react";
-import { useInfiniteScroll } from "../useInfiniteScroll";
+import { useInfiniteScroll, type UseInfiniteScrollReturn } from "../useInfiniteScroll";
 
 class MockIntersectionObserver {
   private cb: IntersectionObserverCallback;
@@ -71,7 +71,9 @@ describe("useInfiniteScroll", () => {
       total: 30,  // server still reports full total
     });
 
-    let capturedHook: ReturnType<typeof useInfiniteScroll<{ id: string }>> | null = null;
+    // Object container prevents TypeScript 5.4+ from narrowing the closed-over
+    // variable to null after await points.
+    const hookRef: { current: UseInfiniteScrollReturn<{ id: string }> | null } = { current: null };
 
     function Wrapper() {
       const hook = useInfiniteScroll<{ id: string }>({
@@ -83,7 +85,7 @@ describe("useInfiniteScroll", () => {
           page: 1,
         },
       });
-      capturedHook = hook;
+      hookRef.current = hook;
       return createElement("div", { ref: hook.sentinelRef });
     }
 
@@ -97,11 +99,11 @@ describe("useInfiniteScroll", () => {
     // Sentinel intersects → triggers loadPage(2, true)
     act(() => MockIntersectionObserver.instances[0].fire(true));
 
-    await waitFor(() => expect(capturedHook?.loadingMore).toBe(false));
+    await waitFor(() => expect(hookRef.current?.loadingMore).toBe(false));
 
     // reachedEnd=true because page 2 returned 0 items → hasMore must be false
-    expect(capturedHook?.hasMore).toBe(false);
-    expect(capturedHook?.items).toHaveLength(8);
+    expect(hookRef.current?.hasMore).toBe(false);
+    expect(hookRef.current?.items).toHaveLength(8);
   });
 
   it("resets reachedEnd on reset()", async () => {
