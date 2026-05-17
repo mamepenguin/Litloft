@@ -23,41 +23,44 @@ import type { FileItemWithMatch } from "@/types";
 import { useCurrentDrive } from "./CurrentDriveProvider";
 import { MergedResultItem } from "./search/MergedResultItem";
 
-const HISTORY_KEY = "search-history";
 const MAX_HISTORY = 20;
 const POPUP_LIMIT = 8;
 
-function getHistory(): string[] {
+function historyKey(drive: string): string {
+  return `search-history:${drive}`;
+}
+
+function getHistory(drive: string): string[] {
   if (typeof window === "undefined") return [];
   try {
-    const raw = localStorage.getItem(HISTORY_KEY);
+    const raw = localStorage.getItem(historyKey(drive));
     return raw ? JSON.parse(raw) : [];
   } catch {
     return [];
   }
 }
 
-function saveHistory(history: string[]): void {
+function saveHistory(drive: string, history: string[]): void {
   try {
-    localStorage.setItem(HISTORY_KEY, JSON.stringify(history));
+    localStorage.setItem(historyKey(drive), JSON.stringify(history));
   } catch {
     // jsdom test envs / Safari private mode can throw on localStorage; the
     // history list is best-effort UX, not a correctness requirement.
   }
 }
 
-function addToHistory(term: string): string[] {
+function addToHistory(drive: string, term: string): string[] {
   const normalized = term.trim();
-  if (!normalized) return getHistory();
-  const prev = getHistory().filter((h) => h !== normalized);
+  if (!normalized) return getHistory(drive);
+  const prev = getHistory(drive).filter((h) => h !== normalized);
   const next = [normalized, ...prev].slice(0, MAX_HISTORY);
-  saveHistory(next);
+  saveHistory(drive, next);
   return next;
 }
 
-function removeFromHistory(term: string): string[] {
-  const next = getHistory().filter((h) => h !== term);
-  saveHistory(next);
+function removeFromHistory(drive: string, term: string): string[] {
+  const next = getHistory(drive).filter((h) => h !== term);
+  saveHistory(drive, next);
   return next;
 }
 
@@ -73,6 +76,7 @@ export function GlobalSearch() {
   const [loading, setLoading] = useState(false);
   const [history, setHistory] = useState<string[]>([]);
   const [composing, setComposing] = useState(false);
+  const [selectedIndex, setSelectedIndex] = useState(-1);
   // Render mobile fullscreen vs. desktop modal based on viewport width.
   // Prior versions dual-rendered both DOM trees and relied on Tailwind
   // `sm:*` classes to hide one — but that surfaces both copies in
@@ -95,7 +99,7 @@ export function GlobalSearch() {
   }, []);
 
   const openSearch = useCallback(() => {
-    setHistory(getHistory());
+    setHistory(drive ? getHistory(drive) : []);
     setOpen(true);
     setTimeout(() => {
       const isMobile = window.matchMedia("(max-width: 639px)").matches;
@@ -105,7 +109,7 @@ export function GlobalSearch() {
         desktopInputRef.current?.focus();
       }
     }, 50);
-  }, []);
+  }, [drive]);
 
   const closeSearch = useCallback(() => {
     setOpen(false);
@@ -127,6 +131,16 @@ export function GlobalSearch() {
       },
     },
   ]);
+
+  useEffect(() => {
+    setSelectedIndex(-1);
+  }, [query, open]);
+
+  useEffect(() => {
+    if (selectedIndex < 0) return;
+    const el = document.querySelector<HTMLElement>(`[data-search-item="${selectedIndex}"]`);
+    el?.scrollIntoView({ block: "nearest" });
+  }, [selectedIndex]);
 
   // Handle Escape to close search (processed by ShortcutsProvider when open)
   useEffect(() => {
@@ -230,7 +244,7 @@ export function GlobalSearch() {
       const normalized = term.trim();
       if (!normalized || !drive) return;
       try {
-        setHistory(addToHistory(normalized));
+        setHistory(addToHistory(drive, normalized));
       } catch {
         // see saveHistory comment
       }
@@ -244,7 +258,7 @@ export function GlobalSearch() {
 
   function handleSelect(url: string) {
     try {
-      setHistory(addToHistory(query));
+      if (drive) setHistory(addToHistory(drive, query));
     } catch {
       // see saveHistory comment
     }
@@ -263,7 +277,7 @@ export function GlobalSearch() {
 
   function handleRemoveHistory(term: string, e: React.MouseEvent) {
     e.stopPropagation();
-    setHistory(removeFromHistory(term));
+    if (drive) setHistory(removeFromHistory(drive, term));
   }
 
   function handleFillInput(term: string, e: React.MouseEvent) {
@@ -293,10 +307,30 @@ export function GlobalSearch() {
       onCompositionStart={() => setComposing(true)}
       onCompositionEnd={() => setComposing(false)}
       onKeyDown={(e) => {
-        // Skip Enter while IME composition is active (e.g. Japanese
-        // conversion), otherwise the conversion-confirming Enter would
-        // navigate to the search page.
-        if (e.key === "Enter" && !composing) handleSubmit(query);
+        if (e.key === "ArrowDown") {
+          e.preventDefault();
+          const maxIdx = showHistory
+            ? history.length - 1
+            : hasResults
+              ? merged.length
+              : -1;
+          if (maxIdx >= 0) setSelectedIndex((prev) => Math.min(maxIdx, prev + 1));
+        } else if (e.key === "ArrowUp") {
+          e.preventDefault();
+          setSelectedIndex((prev) => Math.max(-1, prev - 1));
+        } else if (e.key === "Enter" && !composing) {
+          if (selectedIndex >= 0 && showHistory) {
+            handleHistorySubmit(history[selectedIndex]);
+          } else if (selectedIndex >= 0 && hasResults) {
+            if (selectedIndex < merged.length) {
+              handleSelect(`/files/${merged[selectedIndex].id}`);
+            } else {
+              handleSubmit(query);
+            }
+          } else {
+            handleSubmit(query);
+          }
+        }
       }}
       placeholder={drive ? t("searchInDrive", { drive }) : t("selectDrive")}
       disabled={!drive}
@@ -310,14 +344,15 @@ export function GlobalSearch() {
 
   const historyList = (mobile: boolean) => (
     <div className={mobile ? "" : "max-h-[50vh] overflow-y-auto"}>
-      {history.map((term) => (
+      {history.map((term, idx) => (
         <button
           key={term}
+          data-search-item={idx}
           onClick={() => handleHistorySubmit(term)}
           className={`flex w-full items-center gap-3 px-4 text-left transition-colors ${
             mobile
-              ? "py-3 active:bg-bg-elevated"
-              : "py-2.5 hover:bg-bg-elevated"
+              ? `py-3 ${selectedIndex === idx ? "bg-bg-elevated" : "active:bg-bg-elevated"}`
+              : `py-2.5 ${selectedIndex === idx ? "bg-bg-elevated" : "hover:bg-bg-elevated"}`
           }`}
         >
           <Clock size={mobile ? 18 : 16} className="flex-shrink-0 text-text-muted" />
@@ -355,16 +390,19 @@ export function GlobalSearch() {
         <>
           {merged.length > 0 && (
             <>
-              {merged.map((file) => (
-                <MergedResultItem
-                  key={file.id}
-                  file={file}
-                  onSelect={handleSelect}
-                />
+              {merged.map((file, idx) => (
+                <div key={file.id} data-search-item={idx}>
+                  <MergedResultItem
+                    file={file}
+                    onSelect={handleSelect}
+                    isSelected={selectedIndex === idx}
+                  />
+                </div>
               ))}
               <button
+                data-search-item={merged.length}
                 onClick={() => handleSubmit(query)}
-                className="flex w-full items-center justify-between gap-3 border-t border-bg-border px-4 py-2.5 text-left transition-colors hover:bg-bg-elevated"
+                className={`flex w-full items-center justify-between gap-3 border-t border-bg-border px-4 py-2.5 text-left transition-colors ${selectedIndex === merged.length ? "bg-bg-elevated" : "hover:bg-bg-elevated"}`}
               >
                 <span className="truncate text-sm font-medium text-accent">
                   {t("viewAllResults", { total })}
