@@ -1,3 +1,4 @@
+import type React from "react";
 import Link from "next/link";
 import { ChevronDown, ChevronRight, Tag } from "lucide-react";
 import { useTranslations } from "next-intl";
@@ -10,9 +11,10 @@ interface SidebarTagsSectionProps {
   tags: TagType[];
   linkClass: (href: string) => string;
   close: () => void;
+  dragHandle?: React.ReactNode;
 }
 
-export function SidebarTagsSection({ driveBase, tags, linkClass, close }: SidebarTagsSectionProps) {
+export function SidebarTagsSection({ driveBase, tags, linkClass, close, dragHandle }: SidebarTagsSectionProps) {
   const t = useTranslations("sidebar");
   const { collapsed, toggle } = useSidebarSectionCollapsed("tags");
 
@@ -22,16 +24,19 @@ export function SidebarTagsSection({ driveBase, tags, linkClass, close }: Sideba
 
   return (
     <>
-      <button
-        type="button"
-        onClick={toggle}
-        aria-expanded={!collapsed}
-        aria-label={collapsed ? t("sectionExpand") : t("sectionCollapse")}
-        className="mb-1 mt-4 flex w-full items-center gap-1.5 rounded-lg px-3 text-[11px] font-semibold uppercase tracking-wider text-text-muted transition-colors hover:text-text-primary"
-      >
-        <Chevron size={12} />
-        <span>Tags</span>
-      </button>
+      <div className="mb-1 mt-4 flex items-center gap-1 pl-1 pr-3">
+        {dragHandle}
+        <button
+          type="button"
+          onClick={toggle}
+          aria-expanded={!collapsed}
+          aria-label={collapsed ? t("sectionExpand") : t("sectionCollapse")}
+          className="flex flex-1 items-center gap-1.5 rounded-lg px-2 text-[11px] font-semibold uppercase tracking-wider text-text-muted transition-colors hover:text-text-primary"
+        >
+          <Chevron size={12} />
+          <span>Tags</span>
+        </button>
+      </div>
       {!collapsed &&
         tags.map((tag) => (
           <Link

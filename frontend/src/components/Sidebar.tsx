@@ -1,6 +1,6 @@
 "use client";
 
-import { Suspense, useCallback, useEffect } from "react";
+import { Suspense, useCallback, useEffect, useMemo } from "react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { LockOpen } from "lucide-react";
 import { useShortcuts } from "@/hooks/useShortcuts";
@@ -17,6 +17,16 @@ import { SidebarPinsSection } from "./sidebar/SidebarPinsSection";
 import { SidebarSmartFoldersSection } from "./sidebar/SidebarSmartFoldersSection";
 import { SidebarTagsSection } from "./sidebar/SidebarTagsSection";
 import { SidebarDrivesSection } from "./sidebar/SidebarDrivesSection";
+import { SectionDragHandle } from "./sidebar/SectionDragHandle";
+import { useSidebarSectionOrder } from "./sidebar/useSidebarSectionOrder";
+import { useReorderableDnD } from "./sidebar/useReorderableDnD";
+
+/**
+ * Stable IDs for the four reorderable sections (canonical order = default display order).
+ * These IDs match the keys used by useSidebarSectionCollapsed to keep namespaces consistent.
+ */
+const REORDERABLE_SECTIONS = ["collections", "pins", "smart-folders", "tags"] as const;
+type ReorderableSectionId = (typeof REORDERABLE_SECTIONS)[number];
 
 function SidebarNav() {
   const pathname = usePathname();
@@ -46,6 +56,33 @@ function SidebarNav() {
     close: closeIfOverlay,
     router,
     setOverrideDrive,
+  });
+
+  const driveBase = currentDrive
+    ? `/drive/${encodeURIComponent(currentDrive)}`
+    : null;
+
+  // Stable available-section list. Only include sections that will actually
+  // render (mirrors the conditional rendering below). useMemo with a stable
+  // reference avoids re-creating the array on every render, which would
+  // disturb the identity check inside useSidebarSectionOrder.
+  const availableSections = useMemo<readonly ReorderableSectionId[]>(() => {
+    const ids: ReorderableSectionId[] = [];
+    if (driveBase) ids.push("collections");
+    if (driveBase) ids.push("pins");
+    if (currentDrive) ids.push("smart-folders");
+    if (driveBase) ids.push("tags");
+    return ids;
+  // driveBase / currentDrive change only when the drive changes, so this
+  // memo is very stable in practice.
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [!!driveBase, !!currentDrive]);
+
+  const { order, setOrder } = useSidebarSectionOrder(availableSections);
+  const dnd = useReorderableDnD({
+    kind: "sidebar-section",
+    ids: order,
+    onReorder: setOrder,
   });
 
   function isActive(href: string): boolean {
@@ -87,30 +124,86 @@ function SidebarNav() {
         : "text-text-muted hover:bg-bg-elevated hover:text-text-primary"
     }`;
 
-  const driveBase = currentDrive
-    ? `/drive/${encodeURIComponent(currentDrive)}`
-    : null;
-
   return (
     <nav className="scrollbar-hover flex h-full flex-col gap-1 overflow-y-auto p-3">
+      {/* Library section: fixed at top, never reordered */}
       <SidebarLibrarySection driveBase={driveBase} currentDrive={currentDrive} linkClass={linkClass} close={closeIfOverlay} addons={addons} driveSummary={driveSummary} />
 
-      {driveBase && (
-        <SidebarCollectionsSection driveBase={driveBase} currentDrive={currentDrive} setCollectionList={setCollectionList} {...collection} />
-      )}
+      {/* Reorderable sections */}
+      {order.map((id) => {
+        const dropIndicator = dnd.dropTarget?.id === id ? (
+          <div
+            className="pointer-events-none absolute inset-x-2 h-0.5 bg-accent z-10"
+            style={{ [dnd.dropTarget.position === "before" ? "top" : "bottom"]: 0 }}
+          />
+        ) : null;
 
-      {driveBase && (
-        <SidebarPinsSection driveBase={driveBase} pins={pins} linkClass={linkClass} close={closeIfOverlay} />
-      )}
+        const handle = (
+          <SectionDragHandle {...dnd.getHandleProps(id)} />
+        );
 
-      {currentDrive && (
-        <SidebarSmartFoldersSection drive={currentDrive} close={closeIfOverlay} />
-      )}
+        if (id === "collections" && driveBase) {
+          return (
+            <div key={id} className="relative" {...dnd.getRowProps(id)}>
+              {dropIndicator}
+              <SidebarCollectionsSection
+                driveBase={driveBase}
+                currentDrive={currentDrive}
+                setCollectionList={setCollectionList}
+                dragHandle={handle}
+                {...collection}
+              />
+            </div>
+          );
+        }
 
-      {driveBase && (
-        <SidebarTagsSection driveBase={driveBase} tags={tags} linkClass={linkClass} close={closeIfOverlay} />
-      )}
+        if (id === "pins" && driveBase) {
+          return (
+            <div key={id} className="relative" {...dnd.getRowProps(id)}>
+              {dropIndicator}
+              <SidebarPinsSection
+                driveBase={driveBase}
+                pins={pins}
+                linkClass={linkClass}
+                close={closeIfOverlay}
+                dragHandle={handle}
+              />
+            </div>
+          );
+        }
 
+        if (id === "smart-folders" && currentDrive) {
+          return (
+            <div key={id} className="relative" {...dnd.getRowProps(id)}>
+              {dropIndicator}
+              <SidebarSmartFoldersSection
+                drive={currentDrive}
+                close={closeIfOverlay}
+                dragHandle={handle}
+              />
+            </div>
+          );
+        }
+
+        if (id === "tags" && driveBase) {
+          return (
+            <div key={id} className="relative" {...dnd.getRowProps(id)}>
+              {dropIndicator}
+              <SidebarTagsSection
+                driveBase={driveBase}
+                tags={tags}
+                linkClass={linkClass}
+                close={closeIfOverlay}
+                dragHandle={handle}
+              />
+            </div>
+          );
+        }
+
+        return null;
+      })}
+
+      {/* Drives + Lock: fixed at bottom, never reordered */}
       <SidebarDrivesSection drives={drives} currentDrive={currentDrive} close={closeIfOverlay} />
 
       {authStatus?.has_protected_drives && authStatus.unlocked_groups.length > 0 && (

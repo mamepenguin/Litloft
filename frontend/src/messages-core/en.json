@@ -46,7 +46,10 @@
     "renameCollection": "Rename",
     "deleteCollection": "Delete",
     "sectionCollapse": "Collapse",
-    "sectionExpand": "Expand"
+    "sectionExpand": "Expand",
+    "reorder": {
+      "dragSection": "Drag to reorder section"
+    }
   },
   "drive": {
     "title": "Drives",

@@ -1,5 +1,6 @@
 "use client";
 
+import type React from "react";
 import { useCallback, useState } from "react";
 import { useRouter } from "next/navigation";
 import { ChevronDown, ChevronRight, Pencil, Search, Trash2 } from "lucide-react";
@@ -15,6 +16,7 @@ import { useSidebarSectionCollapsed } from "./useSidebarSectionCollapsed";
 interface SidebarSmartFoldersSectionProps {
   drive: string;
   close: () => void;
+  dragHandle?: React.ReactNode;
 }
 
 interface ContextMenuState {
@@ -26,6 +28,7 @@ interface ContextMenuState {
 export function SidebarSmartFoldersSection({
   drive,
   close,
+  dragHandle,
 }: SidebarSmartFoldersSectionProps) {
   const t = useTranslations("smartFolder");
   const tSidebar = useTranslations("sidebar");
@@ -109,18 +112,21 @@ export function SidebarSmartFoldersSection({
 
   return (
     <>
-      <button
-        type="button"
-        onClick={toggle}
-        aria-expanded={!collapsed}
-        aria-label={
-          collapsed ? tSidebar("sectionExpand") : tSidebar("sectionCollapse")
-        }
-        className="mb-1 mt-4 flex w-full items-center gap-1.5 rounded-lg px-3 text-[11px] font-semibold uppercase tracking-wider text-text-muted transition-colors hover:text-text-primary"
-      >
-        <Chevron size={12} />
-        <span>{t("sectionTitle")}</span>
-      </button>
+      <div className="mb-1 mt-4 flex items-center gap-1 pl-1 pr-3">
+        {dragHandle}
+        <button
+          type="button"
+          onClick={toggle}
+          aria-expanded={!collapsed}
+          aria-label={
+            collapsed ? tSidebar("sectionExpand") : tSidebar("sectionCollapse")
+          }
+          className="flex flex-1 items-center gap-1.5 rounded-lg px-2 text-[11px] font-semibold uppercase tracking-wider text-text-muted transition-colors hover:text-text-primary"
+        >
+          <Chevron size={12} />
+          <span>{t("sectionTitle")}</span>
+        </button>
+      </div>
       {!collapsed &&
         smartFolders.map((sf) => (
           <button

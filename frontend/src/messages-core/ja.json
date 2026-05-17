@@ -46,7 +46,10 @@
     "renameCollection": "リネーム",
     "deleteCollection": "削除",
     "sectionCollapse": "折りたたむ",
-    "sectionExpand": "展開する"
+    "sectionExpand": "展開する",
+    "reorder": {
+      "dragSection": "セクションをドラッグして並び替え"
+    }
   },
   "drive": {
     "title": "ドライブ",

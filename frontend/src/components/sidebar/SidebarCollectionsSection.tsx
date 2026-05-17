@@ -1,3 +1,4 @@
+import type React from "react";
 import { type RefObject, useCallback, useRef, useState } from "react";
 import { ChevronDown, ChevronRight, Library, Pencil, Plus, Trash2 } from "lucide-react";
 import { useTranslations } from "next-intl";
@@ -27,6 +28,7 @@ interface SidebarCollectionsSectionProps {
   handleRenameCollection: () => void;
   handleDeleteCollection: (id: string) => void;
   handleCollectionClick: (c: CollectionSummary) => void;
+  dragHandle?: React.ReactNode;
 }
 
 export function SidebarCollectionsSection({
@@ -49,6 +51,7 @@ export function SidebarCollectionsSection({
   handleRenameCollection,
   handleDeleteCollection,
   handleCollectionClick,
+  dragHandle,
 }: SidebarCollectionsSectionProps) {
   const t = useTranslations("sidebar");
   const { collapsed, toggle, expand } = useSidebarSectionCollapsed("collections");
@@ -107,13 +110,14 @@ export function SidebarCollectionsSection({
 
   return (
     <>
-      <div className="mb-1 mt-4 flex items-center justify-between pr-3">
+      <div className="mb-1 mt-4 flex items-center justify-between pl-1 pr-3">
+        {dragHandle}
         <button
           type="button"
           onClick={toggle}
           aria-expanded={!collapsed}
           aria-label={collapsed ? t("sectionExpand") : t("sectionCollapse")}
-          className="flex flex-1 items-center gap-1.5 rounded-lg px-3 text-[11px] font-semibold uppercase tracking-wider text-text-muted transition-colors hover:text-text-primary"
+          className="flex flex-1 items-center gap-1.5 rounded-lg px-2 text-[11px] font-semibold uppercase tracking-wider text-text-muted transition-colors hover:text-text-primary"
         >
           <Chevron size={12} />
           <span>{t("collections")}</span>
