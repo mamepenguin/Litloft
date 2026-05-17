@@ -386,9 +386,9 @@ export function FolderTreePane({
   );
 
   // Root drop band — separate path "" so users can drop into the drive
-  // root without an explicit row. Same gate as the per-row drop props:
-  // only wire handlers while a drag is in progress, so they don't
-  // interfere with future drag sources.
+  // root without an explicit row. It is rendered as an overlay instead
+  // of normal-flow content so dragstart does not shift the source row
+  // out from under the pointer.
   const rootDropProps =
     (dnd.dragState.isDragging || isInternalDragging) && !dnd.isDropDisabled("")
       ? dnd.getDropTargetProps("")
@@ -411,7 +411,7 @@ export function FolderTreePane({
   };
 
   return (
-    <div className="flex h-full flex-col border-r border-bg-border bg-bg-card">
+    <div className="relative flex h-full flex-col border-r border-bg-border bg-bg-card">
       <div className="px-3 py-2">
         <FilterField
           text={text.text}
@@ -421,16 +421,16 @@ export function FolderTreePane({
           onTypeFilterChange={setFilter}
         />
       </div>
-      {/* Root drop band — only renders while a drag is in progress, so it
-          doesn't take vertical space in the resting layout. */}
+      {/* Root drop band — overlayed so showing it during dragstart does
+          not reflow the tree rows and cancel the native drag gesture. */}
       {(dnd.dragState.isDragging || isInternalDragging) && rootDropProps && (
         <div
           {...rootDropProps}
           aria-label={t("dropToRoot")}
-          className={`mx-2 mt-1 rounded-lg border border-dashed px-2 py-1.5 text-xs transition-colors ${
+          className={`absolute left-2 right-2 top-[52px] z-20 rounded-lg border border-dashed px-2 py-1.5 text-xs shadow-card transition-colors ${
             rootDropHover
               ? "border-accent bg-accent/10 text-text-primary"
-              : "border-bg-border text-text-muted"
+              : "border-bg-border bg-bg-card/95 text-text-muted"
           }`}
         >
           {t("dropToRoot")}
