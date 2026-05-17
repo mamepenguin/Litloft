@@ -461,13 +461,29 @@ async def batch_move(
                 moved += 1
                 moved_ids.append(file_id)
             except HTTPException as e:
+                # Expected errors (404 not found, 409 conflict, 500 with rollback).
+                # move_file guarantees the session is clean (rolled back) before
+                # raising HTTPException, so the loop can safely continue.
+                db.rollback()
                 errors.append({"id": file_id, "error": e.detail})
+            except Exception as e:
+                # Unexpected error: roll back so the session stays usable for
+                # the remaining files, then record and continue.
+                db.rollback()
+                errors.append({"id": file_id, "error": str(e)})
     finally:
         # Emit even if an unexpected exception aborts the loop: per-file
         # ``move_file`` commits individually, so ids already in ``moved_ids``
         # are durable on disk and need to reach addons regardless.
         if moved_ids:
             await event_hooks.emit("files.moved", {"file_ids": moved_ids})
+            # Also broadcast via WS so the frontend's useWebSocketRefresh
+            # triggers a list refresh (move_file_endpoint does both; batch_move
+            # was previously missing the WS broadcast, leaving the UI stale
+            # after multi-file moves).
+            await ws_service.manager.broadcast(
+                "files.moved", {"file_ids": moved_ids}
+            )
     return {"moved": moved, "errors": errors}
 
 
