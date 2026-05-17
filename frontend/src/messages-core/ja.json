@@ -48,7 +48,8 @@
     "sectionCollapse": "折りたたむ",
     "sectionExpand": "展開する",
     "reorder": {
-      "dragSection": "セクションをドラッグして並び替え"
+      "dragSection": "セクションをドラッグして並び替え",
+      "dragItem": "ドラッグして並び替え"
     }
   },
   "drive": {

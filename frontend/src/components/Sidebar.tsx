@@ -163,6 +163,7 @@ function SidebarNav() {
               {dropIndicator}
               <SidebarPinsSection
                 driveBase={driveBase}
+                drive={currentDrive}
                 pins={pins}
                 linkClass={linkClass}
                 close={closeIfOverlay}

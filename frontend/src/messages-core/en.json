@@ -48,7 +48,8 @@
     "sectionCollapse": "Collapse",
     "sectionExpand": "Expand",
     "reorder": {
-      "dragSection": "Drag to reorder section"
+      "dragSection": "Drag to reorder section",
+      "dragItem": "Drag to reorder"
     }
   },
   "drive": {
