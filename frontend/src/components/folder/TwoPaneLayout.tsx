@@ -11,6 +11,7 @@ import { ScrollContainerContext } from "@/lib/scrollContainer";
 import { useGuardedRouter } from "@/hooks/useGuardedRouter";
 import { useSelectedFile } from "@/hooks/useSelectedFile";
 import { useTreeEnabled } from "@/hooks/useTreeEnabled";
+import { TreeRefreshContext } from "@/components/TreeRefreshContext";
 
 import { FolderTreePane } from "./FolderTreePane";
 import { RightPaneFile } from "./RightPaneFile";
@@ -77,6 +78,12 @@ export function TwoPaneLayout({
   const { fileId, selectFile, clearFile } = useSelectedFile();
   const { enabled: treeEnabled, setEnabled: setTreeEnabled } = useTreeEnabled(drive);
 
+  // Explicit tree refresh key — allows FolderBrowser (and other children)
+  // to signal the tree to re-fetch after mutations even when a WS event
+  // is delayed or missed.
+  const [treeRefreshKey, setTreeRefreshKey] = useState(0);
+  const refreshTree = useCallback(() => setTreeRefreshKey((k) => k + 1), []);
+
   const hasFile = fileId !== null && fileId.length > 0;
   const driveBase = `/drive/${encodeURIComponent(drive)}`;
 
@@ -134,6 +141,7 @@ export function TwoPaneLayout({
   const showSectionOnMobile = !treeEnabled || hasFile;
 
   return (
+    <TreeRefreshContext.Provider value={refreshTree}>
     <ScrollContainerContext.Provider value={sectionRef}>
       <div className="flex h-[calc(100dvh-3.5rem)] w-full overflow-clip">
         <aside
@@ -166,6 +174,7 @@ export function TwoPaneLayout({
                     currentFolderPath={folderPath}
                     onSelectFolder={handleSelectFolder}
                     onSelectFile={handleSelectFile}
+                    externalRefreshKey={treeRefreshKey}
                   />
                 )
               : null}
@@ -180,5 +189,6 @@ export function TwoPaneLayout({
         </section>
       </div>
     </ScrollContainerContext.Provider>
+    </TreeRefreshContext.Provider>
   );
 }

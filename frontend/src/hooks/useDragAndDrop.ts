@@ -70,6 +70,7 @@ export function useDragAndDrop({ drive, selectedIds, onComplete }: UseDragAndDro
       e.dataTransfer.setData("application/x-file-ids", JSON.stringify(ids));
       e.dataTransfer.effectAllowed = "copyMove";
 
+      window.dispatchEvent(new Event("loft-internal-drag-start"));
       setDragState({
         isDragging: true,
         dragType: "file",
@@ -88,6 +89,7 @@ export function useDragAndDrop({ drive, selectedIds, onComplete }: UseDragAndDro
       e.dataTransfer.setData("application/x-folder-path", folderPath);
       e.dataTransfer.effectAllowed = "copyMove";
 
+      window.dispatchEvent(new Event("loft-internal-drag-start"));
       setDragState({
         isDragging: true,
         dragType: "folder",
@@ -103,6 +105,7 @@ export function useDragAndDrop({ drive, selectedIds, onComplete }: UseDragAndDro
     draggedIdsRef.current = [];
     draggedFolderRef.current = null;
     dragCounterRef.current.clear();
+    window.dispatchEvent(new Event("loft-internal-drag-end"));
     setDragState(INITIAL_STATE);
   }, []);
 
@@ -163,12 +166,21 @@ export function useDragAndDrop({ drive, selectedIds, onComplete }: UseDragAndDro
 
       draggedIdsRef.current = [];
       draggedFolderRef.current = null;
+      window.dispatchEvent(new Event("loft-internal-drag-end"));
       setDragState(INITIAL_STATE);
 
       if (parseError) return; // malformed payload — bail without API call
 
       try {
         if (folderPath !== null) {
+          // Guard: same-location or self-reference (mirrors backend validation so
+          // we don't swallow a 400 silently). The backend computes:
+          //   new_path = targetPath ? `${targetPath}/${name}` : name
+          // and rejects if new_path === folderPath or targetPath is a descendant.
+          if (targetPath === folderPath || targetPath.startsWith(folderPath + "/")) return;
+          const folderName = folderPath.split("/").pop() ?? folderPath;
+          const computedNew = targetPath ? `${targetPath}/${folderName}` : folderName;
+          if (computedNew === folderPath) return;
           await moveFolder(drive, folderPath, targetPath);
         } else if (ids.length === 1) {
           await moveFile(ids[0], targetPath);
@@ -178,6 +190,12 @@ export function useDragAndDrop({ drive, selectedIds, onComplete }: UseDragAndDro
           return; // nothing to move
         }
         onComplete();
+        // Notify ALL panes (source + target) that a move completed so each
+        // can refresh its own file list. The target pane's onComplete already
+        // ran above; the source pane relies on this event because the drop
+        // fires on the TARGET, not the source, so the source's onComplete is
+        // never called directly.
+        window.dispatchEvent(new Event("loft-move-complete"));
       } catch {
         // Backend returns 403 for readonly drives, 400/404 for invalid paths
       }

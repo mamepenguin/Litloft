@@ -10,6 +10,7 @@ import { useCreateFile } from "@/hooks/useCreateFile";
 import { useDragAndDrop } from "@/hooks/useDragAndDrop";
 import { useFolderTreeQuery } from "@/hooks/useFolderTreeQuery";
 import { useInitialReveal } from "@/hooks/useInitialReveal";
+import { useIsInternalDragging } from "@/hooks/useIsInternalDragging";
 import { useTreeAutoReveal } from "@/hooks/useTreeAutoReveal";
 import { useTreeExpansion } from "@/hooks/useTreeExpansion";
 import { useTreeTextFilter } from "@/hooks/useTreeTextFilter";
@@ -66,6 +67,12 @@ interface FolderTreePaneProps {
   currentFolderPath?: string;
   onSelectFolder: (path: string) => void;
   onSelectFile: (fileId: string, path: string) => void;
+  /**
+   * When incremented by the parent (TwoPaneLayout via TreeRefreshContext),
+   * the tree re-fetches its data. Acts as an out-of-band fallback to the
+   * WebSocket-based refresh for operations that happen in the right pane.
+   */
+  externalRefreshKey?: number;
 }
 
 const ROW_HEIGHT = 32;
@@ -167,6 +174,7 @@ export function FolderTreePane({
   currentFolderPath,
   onSelectFolder,
   onSelectFile,
+  externalRefreshKey,
 }: FolderTreePaneProps) {
   const t = useTranslations("tree");
   const tFilter = useTranslations("filter");
@@ -192,6 +200,19 @@ export function FolderTreePane({
   // with mutations from the right pane, other clients, and the
   // scanner. Spec 2026-05-09-tree-and-pane-refresh-sync.
   useWebSocketRefresh(TREE_STRUCTURE_EVENTS, refresh);
+
+  // Out-of-band fallback: when the right pane performs a mutation and
+  // calls refreshTree() via TreeRefreshContext, externalRefreshKey
+  // increments. We trigger a local refresh so the tree stays in sync
+  // even when the WS event hasn't arrived yet.
+  const prevExternalKeyRef = useRef(externalRefreshKey ?? 0);
+  useEffect(() => {
+    const key = externalRefreshKey ?? 0;
+    if (key !== prevExternalKeyRef.current) {
+      prevExternalKeyRef.current = key;
+      refresh();
+    }
+  }, [externalRefreshKey, refresh]);
 
   const pathsToLoad = useMemo(
     () => gatherPathsToLoad(expansion.expanded),
@@ -223,6 +244,10 @@ export function FolderTreePane({
   });
   const draggedFolderPath = dnd.dragState.draggedFolderPath;
   const draggedFileIds = dnd.dragState.draggedFileIds;
+
+  // True when any pane (including the right pane) has an internal drag
+  // in progress so we show drop targets even for cross-pane drags.
+  const isInternalDragging = useIsInternalDragging();
 
   // Both context menus are always mounted; only `open` and `target` flip
   // when the user right-clicks a row. Conditionally rendering them would
@@ -341,13 +366,13 @@ export function FolderTreePane({
       // browser's drag-intent detection — the source element never
       // initiates dragstart. FolderContent uses the same gate (line 83)
       // and dragging works there.
-      if (!dnd.dragState.isDragging) return null;
+      if (!dnd.dragState.isDragging && !isInternalDragging) return null;
       if (row.node.kind !== "folder") return null;
       // Refuse drops onto self or onto a descendant of the dragged folder.
       if (dnd.isDropDisabled(row.node.path)) return null;
       return dnd.getDropTargetProps(row.node.path);
     },
-    [dnd],
+    [dnd, isInternalDragging],
   );
 
   const isRowDragSource = useCallback(
@@ -365,7 +390,7 @@ export function FolderTreePane({
   // only wire handlers while a drag is in progress, so they don't
   // interfere with future drag sources.
   const rootDropProps =
-    dnd.dragState.isDragging && !dnd.isDropDisabled("")
+    (dnd.dragState.isDragging || isInternalDragging) && !dnd.isDropDisabled("")
       ? dnd.getDropTargetProps("")
       : null;
   const rootDropHover = dnd.isDropTarget("");
@@ -398,7 +423,7 @@ export function FolderTreePane({
       </div>
       {/* Root drop band — only renders while a drag is in progress, so it
           doesn't take vertical space in the resting layout. */}
-      {dnd.dragState.isDragging && rootDropProps && (
+      {(dnd.dragState.isDragging || isInternalDragging) && rootDropProps && (
         <div
           {...rootDropProps}
           aria-label={t("dropToRoot")}

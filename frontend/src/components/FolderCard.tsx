@@ -37,7 +37,7 @@ export function FolderCard({
     <div
       className={`group relative flex items-center gap-3 rounded-2xl bg-bg-card p-4 shadow-card transition-colors duration-200 hover:bg-bg-elevated${
         isDropTarget ? " ring-2 ring-accent bg-bg-elevated" : ""
-      }${isDragging ? " opacity-40" : ""}`}
+      }${isDragging ? " opacity-40" : ""}${draggable ? " select-none" : ""}`}
       draggable={draggable}
       onDragStart={onDragStart}
       onDragEnd={onDragEnd}
@@ -50,6 +50,7 @@ export function FolderCard({
       <Link
         href={`/drive/${encodeURIComponent(driveName)}/${folder.path.split("/").map(encodeURIComponent).join("/")}`}
         className="flex min-w-0 flex-1 items-center gap-3"
+        draggable="false"
       >
         {folder.thumbnail_file_id ? (
           <div className="h-12 w-12 flex-shrink-0 overflow-hidden rounded-xl">

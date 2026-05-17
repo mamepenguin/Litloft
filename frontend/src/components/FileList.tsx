@@ -133,25 +133,18 @@ export function FileList({
           return (
             <div
               key={file.id}
-              className={`flex items-center gap-3 bg-bg-card p-2.5 sm:p-2 border-b border-bg-border last:border-b-0 transition-colors hover:bg-bg-elevated ${
-                selectable ? "cursor-pointer select-none" : ""
+              className={`flex items-center gap-3 bg-bg-card p-2.5 sm:p-2 border-b border-bg-border last:border-b-0 transition-colors hover:bg-bg-elevated${
+                draggable ? " select-none" : selectable ? " cursor-pointer select-none" : ""
               } ${fileSelected ? "ring-2 ring-accent ring-inset" : ""}${
                 draggedFileIds?.includes(file.id) ? " opacity-40" : ""
               }${isCutFile ? " opacity-50" : ""}`}
               draggable={draggable}
               onDragStart={onDragStart ? (e) => onDragStart(e, file.id) : undefined}
               onDragEnd={onDragEnd}
-              onClick={selectable
-                ? (e: React.MouseEvent) => {
-                    if (e.shiftKey && onShiftSelect) {
-                      e.preventDefault();
-                      onShiftSelect(file.id);
-                    } else {
-                      onSelect?.(file.id);
-                    }
-                  }
-                : undefined
-              }
+              // onClick intentionally omitted from the drag-surface div;
+              // in selectable mode it lives on the inner click-area wrapper
+              // so the browser can distinguish drag from click (same-element
+              // conflict confuses drag-intent detection per FolderTreeRow comment).
               onContextMenu={selectable ? undefined : (e) => {
                 e.preventDefault();
                 e.stopPropagation();
@@ -159,22 +152,6 @@ export function FileList({
                 setMenuPos({ open: true, x: e.clientX, y: e.clientY });
               }}
             >
-              {selectable && (
-                <div
-                  className={`flex h-5 w-5 flex-shrink-0 items-center justify-center rounded-lg border-2 transition-colors pointer-events-none ${
-                    fileSelected
-                      ? "border-accent bg-accent text-white"
-                      : "border-text-muted/50"
-                  }`}
-                  aria-hidden
-                >
-                  {fileSelected && (
-                    <svg width="12" height="12" viewBox="0 0 12 12" fill="none">
-                      <path d="M2 6L5 9L10 3" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
-                    </svg>
-                  )}
-                </div>
-              )}
               {(() => {
                 const fileTypeLabel: Record<string, string> = {
                   video: t("typeVideo"),
@@ -253,7 +230,35 @@ export function FileList({
                   </>
                 );
                 return selectable ? (
-                  <div className="flex flex-1 items-center gap-3 min-w-0">{content}</div>
+                  // Click-area: owns onClick + checkbox so the draggable
+                  // outer div can remain a pure drag surface.
+                  <div
+                    className="flex flex-1 cursor-pointer items-center gap-3 min-w-0"
+                    onClick={(e: React.MouseEvent) => {
+                      if (e.shiftKey && onShiftSelect) {
+                        e.preventDefault();
+                        onShiftSelect(file.id);
+                      } else {
+                        onSelect?.(file.id);
+                      }
+                    }}
+                  >
+                    <div
+                      className={`flex h-5 w-5 flex-shrink-0 items-center justify-center rounded-lg border-2 transition-colors pointer-events-none ${
+                        fileSelected
+                          ? "border-accent bg-accent text-white"
+                          : "border-text-muted/50"
+                      }`}
+                      aria-hidden
+                    >
+                      {fileSelected && (
+                        <svg width="12" height="12" viewBox="0 0 12 12" fill="none">
+                          <path d="M2 6L5 9L10 3" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+                        </svg>
+                      )}
+                    </div>
+                    <div className="flex flex-1 items-center gap-3 min-w-0">{content}</div>
+                  </div>
                 ) : fileNavigationOverride ? (
                   // Override host (currently CollectionDetail) absorbs the
                   // click into a local ?file= selection so the user stays

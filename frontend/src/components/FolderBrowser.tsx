@@ -30,6 +30,8 @@ import { usePinnedFolders } from "@/components/folder/usePinnedFolders";
 import { useDriveScan } from "@/components/folder/useDriveScan";
 import { useCreateFolder } from "@/components/folder/useCreateFolder";
 import { useCreateFile } from "@/hooks/useCreateFile";
+import { useIsInternalDragging } from "@/hooks/useIsInternalDragging";
+import { useTreeRefresh } from "@/components/TreeRefreshContext";
 import { FolderToolbar } from "@/components/folder/FolderToolbar";
 import { FolderContent } from "@/components/folder/FolderContent";
 
@@ -83,6 +85,31 @@ export function FolderBrowser({
   const [selectable, setSelectable] = useState(false);
   const [refreshKey, setRefreshKey] = useState(0);
   const refresh = useCallback(() => setRefreshKey((k) => k + 1), []);
+
+  // Propagate right-pane mutations to the tree pane as an explicit
+  // out-of-band refresh (complements the WS-based refresh already in
+  // FolderTreePane.useWebSocketRefresh).
+  const refreshTree = useTreeRefresh();
+  const prevRefreshKeyRef = useRef(refreshKey);
+  useEffect(() => {
+    if (refreshKey === prevRefreshKeyRef.current) return;
+    prevRefreshKeyRef.current = refreshKey;
+    refreshTree();
+  }, [refreshKey, refreshTree]);
+
+  // Refresh when any drop completes in ANY pane (including cross-pane drops
+  // where the file was dragged FROM this pane but dropped on the tree pane
+  // or another pane — in that case this pane's onComplete is never called
+  // directly, so the source still shows the moved file).
+  useEffect(() => {
+    const handler = () => refresh();
+    window.addEventListener("loft-move-complete", handler);
+    return () => window.removeEventListener("loft-move-complete", handler);
+  }, [refresh]);
+
+  // True while any pane has an internal (move) drag in progress — used
+  // to gate drop targets for cross-pane drag-and-drop.
+  const isInternalDragging = useIsInternalDragging();
 
   const isFavorites = view === "favorites";
   const isRecentAdded = view === "recent-added";
@@ -412,8 +439,8 @@ export function FolderBrowser({
           <Breadcrumb
             driveName={driveName}
             folderPath={folderPath}
-            getDropTargetProps={dragState.isDragging ? getDropTargetProps : undefined}
-            isDropTarget={dragState.isDragging ? isDropTarget : undefined}
+            getDropTargetProps={(dragState.isDragging || isInternalDragging) ? getDropTargetProps : undefined}
+            isDropTarget={(dragState.isDragging || isInternalDragging) ? isDropTarget : undefined}
           />
         </div>
       )}
@@ -542,7 +569,7 @@ export function FolderBrowser({
 
   if (isSearch) return inner;
   return (
-    <UploadZone drive={driveName} folderPath={folderPath ?? ""} onUploadComplete={refresh}>
+    <UploadZone drive={driveName} folderPath={folderPath ?? ""} onUploadComplete={refresh} className="flex-1 flex flex-col">
       {inner}
     </UploadZone>
   );
