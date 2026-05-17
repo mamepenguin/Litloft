@@ -42,7 +42,7 @@ Backend never has `ports:` exposed externally. The frontend is the only public e
 
 | Path | What |
 |---|---|
-| `data/videos.db` | The core SQLite DB. |
+| `data/data.db` | The core SQLite DB. |
 | `data/thumbnails/` | Lazy-generated 320x180 JPEGs. |
 | `data/uploads/` | In-flight chunked upload state. |
 | `data/snapshots/` | Periodic SQLite snapshots (admin-triggered). |

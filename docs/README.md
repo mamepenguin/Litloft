@@ -79,7 +79,7 @@ For contributors and addon authors.
 
 - **Stack** — FastAPI (Python 3.12) + SQLite, Next.js 16 (App Router, TypeScript) + Tailwind v4, Docker Compose, ffmpeg.
 - **Default URL** — `http://localhost:3000` (override with `LITLOFT_PORT`).
-- **Storage** — SQLite (`data/videos.db`), thumbnails (`data/thumbnails/`), uploads (`data/uploads/`), addon DBs under `data/addons/`.
+- **Storage** — SQLite (`data/data.db`), thumbnails (`data/thumbnails/`), uploads (`data/uploads/`), addon DBs under `data/addons/`.
 - **Configuration files** — `drives.json` (drives + per-drive addon policy), `passwords.json` (optional access groups), `.env` (secrets), `docker-compose.override.yml` (mounts, ports, addon services), `addons/intelligence/search-config.yml` (AI features).
 - **Languages** — English, Japanese (cookie-driven, no URL prefix).
 - **Browser support** — Modern Chromium, Firefox, Safari (latest two majors).

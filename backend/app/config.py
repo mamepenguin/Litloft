@@ -5,7 +5,8 @@ from pathlib import Path
 
 DRIVES_CONFIG = Path(os.getenv("DRIVES_CONFIG", "./drives.json"))
 DATA_DIR = Path(os.getenv("DATA_DIR", "./data"))
-DATABASE_URL = f"sqlite:///{DATA_DIR}/videos.db"
+DATABASE_PATH = DATA_DIR / "data.db"
+DATABASE_URL = f"sqlite:///{DATABASE_PATH}"
 THUMBNAILS_DIR = DATA_DIR / "thumbnails"
 CONVERTED_DIR = DATA_DIR / "converted"
 UPLOAD_DIR = DATA_DIR / "uploads"

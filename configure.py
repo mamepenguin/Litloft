@@ -529,7 +529,7 @@ def main():
                 "    expose:", '      - "8100"', "    volumes:",
                 "      - ./addons/intelligence/search-config.yml:/app/search-config.yml:ro",
                 "      - ./data/addons/intelligence:/intelligence-data",
-                "      - ./data/videos.db:/data/litloft.db:ro",
+                "      - ./data/data.db:/data/litloft.db:ro",
                 *[f"      - {d['host_path']}:/drives/{d['slug']}:ro" for d in drives],
                 "    environment:", f"      - DRIVE_MOUNTS={mounts}",
                 "      - HOMEVAULT_INTERNAL_URL=http://backend:8000",
