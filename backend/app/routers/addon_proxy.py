@@ -304,7 +304,7 @@ async def _proxy_stream_request(
         upstream = await client.send(req, stream=True)
     except Exception:
         await client.aclose()
-        logger.debug("Addon stream unavailable: %s%s", target_url, path)
+        logger.warning("Addon stream unavailable: %s%s", target_url, path)
         raise HTTPException(
             status_code=502, detail="Addon service unavailable"
         )
@@ -430,7 +430,7 @@ async def _proxy_request(
     except HTTPException:
         raise
     except Exception:
-        logger.debug("Addon service unavailable: %s%s", target_url, path)
+        logger.warning("Addon service unavailable: %s%s", target_url, path)
         raise HTTPException(status_code=502, detail="Addon service unavailable")
 
 

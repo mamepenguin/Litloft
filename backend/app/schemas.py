@@ -1,3 +1,4 @@
+import math
 import re
 from datetime import UTC, datetime
 from typing import Literal
@@ -278,7 +279,7 @@ class BatchMoveRequest(BaseModel):
 
     @field_validator("ids")
     @classmethod
-    def validate_ids(cls, v: list[int]) -> list[int]:
+    def validate_ids(cls, v: list[str]) -> list[str]:
         return _validate_batch_ids(v)
 
 
@@ -407,7 +408,6 @@ class ProgressUpdateRequest(BaseModel):
     def validate_position(cls, v: float | None) -> float | None:
         if v is None:
             return v
-        import math
         if not math.isfinite(v):
             raise ValueError("position must be a finite number")
         if v < 0 or v > 86400:
@@ -419,7 +419,6 @@ class ProgressUpdateRequest(BaseModel):
     def validate_duration(cls, v: float | None) -> float | None:
         if v is None:
             return v
-        import math
         if not math.isfinite(v):
             raise ValueError("duration must be a finite number")
         if v <= 0 or v > 86400:

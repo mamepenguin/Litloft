@@ -6,7 +6,7 @@ from sqlalchemy.orm import DeclarativeBase, Session, sessionmaker
 
 logger = logging.getLogger(__name__)
 
-from app.config import DATA_DIR, DATABASE_URL
+import app.config as config
 
 
 class Base(DeclarativeBase):
@@ -14,7 +14,7 @@ class Base(DeclarativeBase):
 
 
 engine = create_engine(
-    DATABASE_URL,
+    config.DATABASE_URL,
     connect_args={"check_same_thread": False},
     # SQLAlchemy defaults (5 + 10 overflow) are too small for this app's
     # concurrency footprint: many in-flight file-stream responses each
@@ -39,7 +39,6 @@ SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 
 def _get_default_drive() -> str:
     try:
-        import app.config as config
         drives = config.load_drives()
         if drives:
             name = drives[0]["name"]
@@ -386,7 +385,7 @@ def _migrate(engine_) -> None:
     # force recomputation under the new (head256KB || tail256KB) SHA-256
     # algorithm. Idempotent via a sentinel file in DATA_DIR.
     if "files" in tables:
-        sentinel = DATA_DIR / "hash_format_v2_done"
+        sentinel = config.DATA_DIR / "hash_format_v2_done"
         if not sentinel.exists():
             logger.info(
                 "Migrating: resetting files.file_hash for new "
@@ -397,7 +396,7 @@ def _migrate(engine_) -> None:
                     "UPDATE files SET file_hash = NULL "
                     "WHERE file_hash IS NOT NULL"
                 ))
-            DATA_DIR.mkdir(parents=True, exist_ok=True)
+            config.DATA_DIR.mkdir(parents=True, exist_ok=True)
             sentinel.touch()
 
     # === Phase 12: Create file_exif table ===

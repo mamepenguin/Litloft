@@ -7,11 +7,11 @@ import { useTranslations } from "next-intl";
 import {
   getCollection,
   getDriveFiles,
+  getThumbnailUrl,
   removeCollectionItem,
   reorderCollectionItems,
 } from "@/lib/api";
 import { formatDuration } from "@/lib/format";
-import { getThumbnailUrl } from "@/lib/api";
 import type { FileItem, FileType, SortField, SortOrder } from "@/types";
 
 const LOOP_KEY = "collection-loop";
@@ -153,11 +153,16 @@ export function CollectionPanel({
 
   const handleMoveUp = useCallback(async (index: number) => {
     if (index <= 0 || !collectionId) return;
-    const newTracks = [...tracks];
-    const [item] = newTracks.splice(index, 1);
-    newTracks.splice(index - 1, 0, item);
+    const newTracks = [
+      ...tracks.slice(0, index - 1),
+      tracks[index],
+      tracks[index - 1],
+      ...tracks.slice(index + 1),
+    ];
     setTracks(newTracks);
-    const itemIds = newTracks.map((t) => t.itemId!);
+    const itemIds = newTracks
+      .map((t) => t.itemId)
+      .filter((id): id is number => id !== undefined);
     try {
       await reorderCollectionItems(drive, collectionId, itemIds);
     } catch {
@@ -167,11 +172,16 @@ export function CollectionPanel({
 
   const handleMoveDown = useCallback(async (index: number) => {
     if (index >= tracks.length - 1 || !collectionId) return;
-    const newTracks = [...tracks];
-    const [item] = newTracks.splice(index, 1);
-    newTracks.splice(index + 1, 0, item);
+    const newTracks = [
+      ...tracks.slice(0, index),
+      tracks[index + 1],
+      tracks[index],
+      ...tracks.slice(index + 2),
+    ];
     setTracks(newTracks);
-    const itemIds = newTracks.map((t) => t.itemId!);
+    const itemIds = newTracks
+      .map((t) => t.itemId)
+      .filter((id): id is number => id !== undefined);
     try {
       await reorderCollectionItems(drive, collectionId, itemIds);
     } catch {

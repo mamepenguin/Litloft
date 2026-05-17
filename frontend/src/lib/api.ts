@@ -339,10 +339,11 @@ export async function completeUpload(drive: string, uploadId: string): Promise<F
 }
 
 export async function cancelUpload(drive: string, uploadId: string): Promise<void> {
-  await fetch(
+  const res = await fetch(
     `${API_BASE}/drives/${encodeURIComponent(drive)}/upload/${uploadId}`,
     { method: "DELETE", credentials: "include" }
   );
+  if (!res.ok) throw new Error(`Cancel upload failed: ${res.status}`);
 }
 
 // Batch operations

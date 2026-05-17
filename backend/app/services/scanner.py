@@ -23,6 +23,7 @@ from app.services.hash import compute_file_hash
 from app.services.subtitle import is_subtitle_file
 from app.services.thumbnail import get_thumbnail_generator, get_video_duration
 from app.services import event_hooks
+from app.services.fileops import _cleanup_empty_parents, _filename_to_title
 from app.services.ws import broadcast_from_thread
 
 _MD_READ_MAX_BYTES = 1 * 1024 * 1024
@@ -45,28 +46,12 @@ PROGRESS_BATCH_SIZE = 50
 PROGRESS_INTERVAL = 1.0  # seconds
 
 
-def _filename_to_title(filename: str) -> str:
-    name = Path(filename).stem
-    name = name.replace("_", " ").replace("-", " ")
-    return name.title()
-
-
 def _get_folder_path(file_path: Path, base_dir: Path) -> str:
     relative = file_path.relative_to(base_dir)
     parent = str(relative.parent)
     if parent == ".":
         return ""
     return parent
-
-
-def _cleanup_empty_parents(directory: Path, stop_at: Path) -> None:
-    current = directory
-    while current != stop_at and current.is_dir():
-        try:
-            current.rmdir()
-            current = current.parent
-        except OSError:
-            break
 
 
 def _expected_thumbnail_path(drive_name: str, folder_path: str, nfc_stem: str) -> str:

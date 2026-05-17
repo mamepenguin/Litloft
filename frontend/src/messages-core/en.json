@@ -878,7 +878,11 @@
       "noDescription": "(No description for this addon)"
     }
   },
-  "errors": {},
+  "errors": {
+    "pageError": "An error occurred while loading the page",
+    "tryAgain": "Try again",
+    "addonLoadFailed": "Failed to load addon"
+  },
   "fileSaveDialog": {
     "folder": "Folder",
     "filename": "Filename",

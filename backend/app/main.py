@@ -208,7 +208,10 @@ async def lifespan(app: FastAPI):
     asyncio.create_task(purge_expired_trash())
     logger.info("Trash auto-purge task started")
     for startup_fn in _addon_startup_fns:
-        await startup_fn()
+        try:
+            await startup_fn()
+        except Exception:
+            logger.exception("Addon startup failed: %s", getattr(startup_fn, "__module__", startup_fn))
     yield
 
 

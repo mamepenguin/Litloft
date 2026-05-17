@@ -209,41 +209,58 @@ export function FileDetailContent({
 
   const handleLike = useCallback(async () => {
     if (!file) return;
-    const updated = await likeFile(file.id);
-    setFile(updated);
+    try {
+      const updated = await likeFile(file.id);
+      setFile(updated);
+    } catch (err) {
+      console.error("Failed to like file:", err);
+    }
   }, [file]);
 
   const handleDislike = useCallback(async () => {
     if (!file) return;
-    const updated = await dislikeFile(file.id);
-    setFile(updated);
+    try {
+      const updated = await dislikeFile(file.id);
+      setFile(updated);
+    } catch (err) {
+      console.error("Failed to dislike file:", err);
+    }
   }, [file]);
 
   const handleSave = useCallback(async () => {
     if (!file) return;
     setSaving(true);
-    const updated = await updateFile(file.id, {
-      title: editTitle,
-      description: editDesc,
-    });
-    setFile(updated);
-    setEditing(false);
-    setSaving(false);
+    try {
+      const updated = await updateFile(file.id, {
+        title: editTitle,
+        description: editDesc,
+      });
+      setFile(updated);
+      setEditing(false);
+    } catch (err) {
+      console.error("Failed to save file metadata:", err);
+    } finally {
+      setSaving(false);
+    }
   }, [file, editTitle, editDesc]);
 
   const handleRename = useCallback(
     async (newFilename: string) => {
       if (!file) return;
-      const updated = await renameFile(file.id, newFilename);
-      setFile(updated);
-      // Clear the folder-view snapshot so the FolderBrowser doesn't
-      // hydrate from stale sessionStorage when it remounts. The
-      // FolderBrowser is unmounted while the right-pane file detail is
-      // open, so it can't receive the WS files.moved event triggered by
-      // the rename — without this the old filename persists until the
-      // user opens a new tab.
-      clearListSnapshot();
-      refreshSidebar();
+      try {
+        const updated = await renameFile(file.id, newFilename);
+        setFile(updated);
+        // Clear the folder-view snapshot so the FolderBrowser doesn't
+        // hydrate from stale sessionStorage when it remounts. The
+        // FolderBrowser is unmounted while the right-pane file detail is
+        // open, so it can't receive the WS files.moved event triggered by
+        // the rename — without this the old filename persists until the
+        // user opens a new tab.
+        clearListSnapshot();
+        refreshSidebar();
+      } catch (err) {
+        console.error("Failed to rename file:", err);
+      }
     },
     [file, refreshSidebar],
   );

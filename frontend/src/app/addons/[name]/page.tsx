@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useParams, notFound } from "next/navigation";
+import { useTranslations } from "next-intl";
 import { useAddonSlots } from "@/components/AddonSlotsProvider";
 
 const VALID_ADDON_NAME = /^[a-z][a-z0-9_-]*$/;
@@ -30,6 +31,7 @@ export default function GlobalScopedAddonPage() {
   const addonName = decodeURIComponent(params.name as string);
   const { addons, loading } = useAddonSlots();
   const meta = addons[addonName];
+  const t = useTranslations("errors");
 
   const [mod, setMod] = useState<AddonModule | null>(
     () => moduleCache.get(addonName) ?? null,
@@ -55,7 +57,13 @@ export default function GlobalScopedAddonPage() {
     notFound();
   }
 
-  if (failed) return null;
+  if (failed) {
+    return (
+      <div className="flex min-h-[30dvh] flex-col items-center justify-center px-4 text-center">
+        <p className="text-sm text-text-muted">{t("addonLoadFailed")}</p>
+      </div>
+    );
+  }
   if (!mod) return null;
 
   const Component = mod.default;

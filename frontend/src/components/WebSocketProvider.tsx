@@ -12,10 +12,12 @@ import type { WebSocketEvent } from "@/types";
 
 export interface WebSocketContextValue {
   lastEvent: WebSocketEvent | null;
+  connected: boolean;
 }
 
 export const WebSocketContext = createContext<WebSocketContextValue>({
   lastEvent: null,
+  connected: false,
 });
 
 const MAX_BACKOFF_MS = 30000;
@@ -23,6 +25,7 @@ const BASE_DELAY_MS = 1000;
 
 export function WebSocketProvider({ children }: { children: ReactNode }) {
   const [lastEvent, setLastEvent] = useState<WebSocketEvent | null>(null);
+  const [connected, setConnected] = useState(false);
   const wsRef = useRef<WebSocket | null>(null);
   const reconnectTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(
     null,
@@ -45,6 +48,7 @@ export function WebSocketProvider({ children }: { children: ReactNode }) {
 
     ws.onopen = () => {
       reconnectAttemptRef.current = 0;
+      setConnected(true);
     };
 
     ws.onmessage = (e: MessageEvent) => {
@@ -64,6 +68,7 @@ export function WebSocketProvider({ children }: { children: ReactNode }) {
     };
 
     ws.onclose = () => {
+      setConnected(false);
       if (!mountedRef.current) return;
       const attempt = reconnectAttemptRef.current;
       reconnectAttemptRef.current = attempt + 1;
@@ -108,7 +113,7 @@ export function WebSocketProvider({ children }: { children: ReactNode }) {
   }, [connect, clearReconnectTimeout]);
 
   return (
-    <WebSocketContext.Provider value={{ lastEvent }}>
+    <WebSocketContext.Provider value={{ lastEvent, connected }}>
       {children}
     </WebSocketContext.Provider>
   );

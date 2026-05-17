@@ -22,7 +22,7 @@ function Harness({
   const [lastEvent, setLastEvent] = useState<WebSocketEvent | null>(initialEvent);
   setEvent((next) => setLastEvent(next));
   return (
-    <WebSocketContext.Provider value={{ lastEvent }}>
+    <WebSocketContext.Provider value={{ lastEvent, connected: true }}>
       <Probe events={events} onMatch={onMatch} />
     </WebSocketContext.Provider>
   );
