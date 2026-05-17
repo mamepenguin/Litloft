@@ -24,7 +24,15 @@ const nextConfig: NextConfig = {
   async rewrites() {
     return [
       {
-        source: "/api/:path*",
+        // Exclude /api/internal/* from the public proxy. The backend's
+        // Internal API is for Docker-internal addon ↔ core traffic only;
+        // it is not drive-access gated like the public API and several
+        // write endpoints accept requests with no viewer cookie. The
+        // negative lookahead keeps the standalone server.js edge block
+        // (production) and this rewrite (local `pnpm dev`) in agreement.
+        // Requests to /api/internal/* fall through to a 404 instead of
+        // being forwarded upstream.
+        source: "/api/:path((?!internal/|internal$).*)",
         destination: "http://backend:8000/api/:path*",
       },
     ];

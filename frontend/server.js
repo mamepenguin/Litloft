@@ -29,12 +29,39 @@ nextProxy.on("error", (_e, _req, res) => {
 });
 backendProxy.on("error", () => {});
 
+// The backend's Internal API (/api/internal/*) is intended for the
+// Docker-internal network only (addon ↔ core service-to-service). It is
+// NOT drive-access gated the way the public API is, and several write
+// endpoints (file_relations, addon-events, files/{id}/tags) accept
+// requests with no viewer cookie. The Next.js rewrite rule
+// (`/api/:path*` → backend:8000) would otherwise expose these to any
+// browser on the LAN. Reject them at the edge so the only path to the
+// Internal API stays the Docker network. Returning 404 (not 403) keeps
+// the endpoint's existence hidden, matching the project's
+// "404 not 403" access-control rule.
+function isInternalApiPath(pathname) {
+  return pathname === "/api/internal" || pathname.startsWith("/api/internal/");
+}
+
 function tryStart(attempt) {
   http
     .get(`http://127.0.0.1:${NEXT_PORT}`, () => {
-      const server = http.createServer((req, res) =>
-        nextProxy.web(req, res),
-      );
+      const server = http.createServer((req, res) => {
+        let pathname;
+        try {
+          pathname = new URL(req.url, `http://${req.headers.host}`).pathname;
+        } catch {
+          res.writeHead(400);
+          res.end();
+          return;
+        }
+        if (isInternalApiPath(pathname)) {
+          res.writeHead(404, { "Content-Type": "application/json" });
+          res.end('{"detail":"Not Found"}');
+          return;
+        }
+        nextProxy.web(req, res);
+      });
       server.on("upgrade", (req, socket, head) => {
         try {
           const pathname = new URL(req.url, `http://${req.headers.host}`)

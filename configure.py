@@ -500,7 +500,7 @@ def main():
         for d in drives:
             lines.append(f"      - {d['host_path']}:/app/drives/{d['slug']}")
         if use_passwords:
-            lines.append("      - ./passwords.json:/app/passwords.json:ro")
+            lines.append("      - ./passwords.json:/app/passwords.json")
         if (base / 'event-hooks.json').exists():
             lines.append("      - ./event-hooks.json:/app/event-hooks.json:ro")
         _cs_cfg = base / 'addons/cloud-sync/sync-config.json'

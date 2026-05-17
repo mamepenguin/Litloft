@@ -597,7 +597,11 @@ def _relation_to_dict(rel: FileRelation) -> dict:
     }
 
 
-@router.post("/file_relations", status_code=201)
+@router.post(
+    "/file_relations",
+    status_code=201,
+    dependencies=[Depends(verify_internal_secret)],
+)
 async def create_file_relation(
     body: FileRelationCreate,
     db=Depends(get_db),
@@ -695,7 +699,11 @@ async def list_file_relations(
     return [_relation_to_dict(r) for r in q.all()]
 
 
-@router.delete("/file_relations/{relation_id}", status_code=204)
+@router.delete(
+    "/file_relations/{relation_id}",
+    status_code=204,
+    dependencies=[Depends(verify_internal_secret)],
+)
 async def delete_file_relation(
     relation_id: int,
     db=Depends(get_db),
@@ -777,7 +785,11 @@ async def set_restart_pending(body: RestartPendingRequest) -> Response:
     return Response(status_code=204)
 
 
-@router.post("/addon-events", status_code=204)
+@router.post(
+    "/addon-events",
+    status_code=204,
+    dependencies=[Depends(verify_internal_secret)],
+)
 async def broadcast_addon_event(body: AddonEventRequest):
     """Forward an addon-generated WebSocket event to connected clients.
 

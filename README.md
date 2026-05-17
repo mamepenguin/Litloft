@@ -75,6 +75,8 @@ The interactive wizard generates all config files. It asks:
 
 > Re-run `configure.py` any time to update settings. The generated files are plain text and can also be edited by hand.
 
+> **`drives.json` must exist before the first start** — `docker-compose.yml` always bind-mounts it. Running `configure.py` (recommended) creates it automatically. If you prefer to set things up manually instead, see the note below step 3.
+
 ### 3. Start
 
 ```bash
@@ -84,6 +86,8 @@ docker compose up -d --build
 Open `http://localhost:3000`. From other devices on your LAN: `http://<host-ip>:3000`.
 
 > First build downloads base images + AI models. Expect a few minutes.
+
+> **Manual setup (without configure.py):** Create drive volume mounts by hand — copy `docker-compose.override.yml.example` to `docker-compose.override.yml` and edit the host paths. Then create a minimal `drives.json` so Docker can start: `echo '[]' > drives.json`. After that, `docker compose up -d --build` will open the first-run wizard at `/setup`, which writes the final `drives.json` and `passwords.json`. Once the wizard completes, restart to apply: `docker compose restart`.
 
 ---
 

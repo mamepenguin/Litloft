@@ -165,7 +165,19 @@ def filter_drives(
 
 
 def check_drive_access(drive_name: str, unlocked_groups: list[str]) -> None:
-    access_group = config.get_drive_access_group(drive_name)
+    # An unknown drive must surface as 404 (existence-hiding), not a 500
+    # ValueError leak. Callers that pass a drive name straight from the
+    # request path (e.g. uploads.init_upload) rely on this helper for the
+    # existence check too; without the guard ``get_drive_access_group``
+    # raises ValueError → FastAPI 500, which both differs from the
+    # locked-drive 404 (an oracle for "this drive name is unknown vs.
+    # locked") and is an unhandled-exception leak.
+    try:
+        access_group = config.get_drive_access_group(drive_name)
+    except ValueError:
+        raise HTTPException(
+            status_code=404, detail=f"Drive not found: {drive_name}"
+        )
     if access_group and access_group not in unlocked_groups:
         raise HTTPException(status_code=404, detail=f"Drive not found: {drive_name}")
 
