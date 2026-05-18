@@ -46,14 +46,14 @@ export function SidebarPinsSection({
 
   return (
     <>
-      <div className="mb-1 mt-4 flex items-center gap-1 pl-1 pr-3">
+      <div className="group relative">
         {dragHandle}
         <button
           type="button"
           onClick={toggle}
           aria-expanded={!collapsed}
           aria-label={collapsed ? t("sectionExpand") : t("sectionCollapse")}
-          className="flex flex-1 items-center gap-1.5 rounded-lg px-2 text-[11px] font-semibold uppercase tracking-wider text-text-muted transition-colors hover:text-text-primary"
+          className="mb-1 mt-4 flex w-full items-center gap-1.5 rounded-lg px-3 text-[11px] font-semibold uppercase tracking-wider text-text-muted transition-colors hover:text-text-primary"
         >
           <Chevron size={12} />
           <span>Pins</span>
@@ -68,7 +68,7 @@ export function SidebarPinsSection({
           return (
             <div
               key={pin.path}
-              className="relative flex items-center"
+              className="group relative"
               {...itemDnd.getRowProps(pin.path)}
             >
               {itemDnd.dropTarget?.id === pin.path && (
@@ -83,7 +83,7 @@ export function SidebarPinsSection({
               <Link
                 href={pinHref}
                 onClick={close}
-                className={`flex-1 ${linkClass(pinHref)}`}
+                className={linkClass(pinHref)}
               >
                 <Folder size={16} />
                 <span className="flex-1 truncate">{pinName}</span>

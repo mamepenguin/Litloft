@@ -125,7 +125,7 @@ export function SidebarSmartFoldersSection({
 
   return (
     <>
-      <div className="mb-1 mt-4 flex items-center gap-1 pl-1 pr-3">
+      <div className="group relative">
         {dragHandle}
         <button
           type="button"
@@ -134,7 +134,7 @@ export function SidebarSmartFoldersSection({
           aria-label={
             collapsed ? tSidebar("sectionExpand") : tSidebar("sectionCollapse")
           }
-          className="flex flex-1 items-center gap-1.5 rounded-lg px-2 text-[11px] font-semibold uppercase tracking-wider text-text-muted transition-colors hover:text-text-primary"
+          className="mb-1 mt-4 flex w-full items-center gap-1.5 rounded-lg px-3 text-[11px] font-semibold uppercase tracking-wider text-text-muted transition-colors hover:text-text-primary"
         >
           <Chevron size={12} />
           <span>{t("sectionTitle")}</span>
@@ -147,7 +147,7 @@ export function SidebarSmartFoldersSection({
           return (
             <div
               key={sf.id}
-              className="relative flex items-center"
+              className="group relative"
               {...itemDnd.getRowProps(sf.id)}
             >
               {itemDnd.dropTarget?.id === sf.id && (
@@ -163,7 +163,7 @@ export function SidebarSmartFoldersSection({
                 type="button"
                 onClick={() => handleClick(sf)}
                 onContextMenu={(e) => openContextMenu(e, sf)}
-                className="flex flex-1 items-center gap-2.5 rounded-2xl px-3 py-2 text-sm text-text-muted transition-colors hover:bg-bg-elevated hover:text-text-primary"
+                className="flex w-full items-center gap-2.5 rounded-2xl px-3 py-2 text-sm text-text-muted transition-colors hover:bg-bg-elevated hover:text-text-primary"
               >
                 <Search size={16} />
                 <span className="flex-1 truncate text-left">{sf.name}</span>

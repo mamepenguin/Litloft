@@ -31,7 +31,7 @@ export function ItemDragHandle({
       onDragStart={onDragStart}
       onDragEnd={onDragEnd}
       onClick={handleClick}
-      className="cursor-grab active:cursor-grabbing shrink-0"
+      className="absolute left-0 top-1/2 -translate-y-1/2 opacity-0 transition-opacity group-hover:opacity-100 cursor-grab active:cursor-grabbing"
     >
       <GripVertical size={12} className="text-text-muted" />
     </span>

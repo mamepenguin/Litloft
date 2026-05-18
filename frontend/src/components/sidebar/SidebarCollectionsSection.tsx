@@ -136,14 +136,14 @@ export function SidebarCollectionsSection({
 
   return (
     <>
-      <div className="mb-1 mt-4 flex items-center justify-between pl-1 pr-3">
+      <div className="group relative mb-1 mt-4 flex items-center justify-between pr-3">
         {dragHandle}
         <button
           type="button"
           onClick={toggle}
           aria-expanded={!collapsed}
           aria-label={collapsed ? t("sectionExpand") : t("sectionCollapse")}
-          className="flex flex-1 items-center gap-1.5 rounded-lg px-2 text-[11px] font-semibold uppercase tracking-wider text-text-muted transition-colors hover:text-text-primary"
+          className="flex flex-1 items-center gap-1.5 rounded-lg px-3 text-[11px] font-semibold uppercase tracking-wider text-text-muted transition-colors hover:text-text-primary"
         >
           <Chevron size={12} />
           <span>{t("collections")}</span>
@@ -189,7 +189,7 @@ export function SidebarCollectionsSection({
         return (
         <div
           key={c.id}
-          className="relative flex items-center"
+          className="group relative"
           {...itemDnd.getRowProps(c.id)}
         >
           {itemDnd.dropTarget?.id === c.id && (
@@ -205,7 +205,7 @@ export function SidebarCollectionsSection({
             <ItemDragHandle {...itemDnd.getHandleProps(c.id)} />
           )}
           {isRenaming ? (
-            <div className="flex-1 px-3">
+            <div className="px-3">
               <input
                 ref={renameInputRef}
                 type="text"
@@ -233,7 +233,7 @@ export function SidebarCollectionsSection({
               onDragEnter={(e) => handleDragEnter(e, c.id)}
               onDragLeave={(e) => handleDragLeave(e, c.id)}
               onDrop={(e) => handleDrop(e, c.id)}
-              className={`flex flex-1 items-center gap-2.5 rounded-lg px-3 py-2 text-sm transition-colors ${
+              className={`flex w-full items-center gap-2.5 rounded-lg px-3 py-2 text-sm transition-colors ${
                 dropTargetId === c.id
                   ? "bg-accent/20 text-accent ring-1 ring-accent/50"
                   : "text-text-muted hover:bg-bg-elevated hover:text-text-primary cursor-pointer"
