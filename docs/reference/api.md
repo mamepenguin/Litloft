@@ -2,15 +2,43 @@
 
 A high-level catalogue of Litloft's HTTP API. The browser uses these endpoints; CLI scripts can too. All endpoints are served from `http://<host>:<port>/api/...` and are proxied to the backend through the Next.js custom server.
 
-> Conventions: all responses are JSON unless noted. Error responses are `{ "detail": "..." }`. Authentication is cookie-based (`access_token` + optional `lit_viewer`). Cross-drive endpoints automatically filter to the viewer's accessible drives.
+> Conventions: all responses are JSON unless noted. Error responses are `{ "detail": "..." }`. Authentication is cookie-based (`access_token` JWT + optional `lit_viewer` identity cookie). Cross-drive endpoints automatically filter to the viewer's accessible drives.
 
 ---
+
+## Status codes and pagination
+
+Common status codes across endpoints:
+
+| Code | Meaning in Litloft |
+|---|---|
+| `200` / `201` | Success. `201` on resource creation (e.g. pin a folder). |
+| `204` | Success, no body (e.g. profile preferences with no server-side persistence). |
+| `400` | Bad request — most often path traversal in a `path`/`folder` argument. |
+| `401` / `403` | Not authenticated / not permitted for this group. |
+| `404` | Not found — **also returned for a locked protected drive**, so its existence stays hidden, and for Missing/Trash files on GET or mutating endpoints. |
+| `409` | Conflict — scan already in progress, duplicate collection/playlist name, naming-conflict ceiling, setup already completed. |
+| `410` | Gone — streaming a Missing file (`GET /api/files/{id}/stream`). |
+| `413` | Payload too large — body cap exceeded (e.g. 1 MB content write, 5 MB render). |
+| `415` | Unsupported media type — wrong encoding/MIME for `/render`, `/wiki-resolutions`. |
+| `429` | Rate limit exceeded. Two in-memory per-IP limiters: `POST /api/auth/unlock` (5 / 60 s) and `POST /api/files/{id}/comments` (10 / 60 s). |
+
+Pagination: list endpoints that paginate take `page` (1-based) and return the current slice; `GET /api/drives/{drive}/files` and the admin duplicates endpoint are the primary paginated surfaces. There is no cursor API — pagination is offset/page based, and an out-of-range `page` returns an empty list rather than an error.
+
+---
+
+## System
+
+| Method | Path | Purpose |
+|---|---|---|
+| `GET` | `/api/health` | Liveness probe. Always `{ "status": "ok" }` with `200` once the app is up. No auth. This is what the Docker healthcheck polls (every 30s, 10s timeout, 3 retries, 10s start period). |
+| `GET` | `/api/addons/status?drive=` | Loaded-addon catalogue and UI slot map. Without `drive`: every loaded addon (admin/global view). With `drive`: addons whose per-drive `index` policy is off are dropped, along with their slots. An unknown `drive` yields empty maps (not `404`). |
 
 ## Auth
 
 | Method | Path | Purpose |
 |---|---|---|
-| `POST` | `/api/auth/unlock` | Try a password, get a JWT cookie. Body: `{ "password": "..." , "remember": bool }`. |
+| `POST` | `/api/auth/unlock` | Try a password, get a JWT cookie. Body: `{ "password": "..." , "remember": bool }`. Rate-limited to 5 attempts per 60 s per client IP (`429` when exceeded). |
 | `GET` | `/api/auth/me` | Inspect the current viewer (groups, viewer_id). |
 | `POST` | `/api/auth/logout` | Clear the JWT cookie. |
 
@@ -27,7 +55,7 @@ A high-level catalogue of Litloft's HTTP API. The browser uses these endpoints; 
 | `GET` | `/api/drives/{drive}/pins` | Pinned folders. |
 | `POST` | `/api/drives/{drive}/pins` | Pin a folder. |
 | `DELETE` | `/api/drives/{drive}/pins/{path}` | Unpin. |
-| `POST` | `/api/drives/{drive}/scan` | Force a rescan. |
+| `POST` | `/api/drives/{drive}/scan` | Force a rescan. Scans are globally serialised; returns `409 Scan already in progress` if any drive is currently scanning. |
 
 ## Files
 

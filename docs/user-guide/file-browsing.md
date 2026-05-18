@@ -96,8 +96,8 @@ When you find yourself running the same search often, save it as a Smart Folder.
 
 The browser holds a WebSocket to `/api/ws`. Whenever the backend emits one of:
 
-- `files.added` — new file scanned.
-- `files.removed` — soft-deleted (trash).
+- `files.created` — a new file row was created.
+- `files.deleted` — soft-deleted (trash).
 - `files.recovered` — was missing, now back on disk.
 - `files.missing` — was on disk, now gone.
 - `files.purged` — explicit hard delete.

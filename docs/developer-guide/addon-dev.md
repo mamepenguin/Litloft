@@ -91,7 +91,7 @@ Event hooks are the inverse: filtering is **fail-open** so an addon that goes br
 
 The core emits these events:
 
-- `files.added`, `files.removed`, `files.recovered`, `files.missing`, `files.purged`
+- `files.created`, `files.updated`, `files.deleted`, `files.restored`, `files.missing`, `files.recovered`, `files.moved`, `files.purged`
 - `scan.complete`
 
 Subscribe by writing to `event-hooks.json` (in `data/`). Each hook has:

@@ -40,6 +40,7 @@ For operators running Litloft for one or many users.
 - [Admin dashboard](admin-guide/admin-dashboard.md)
 - [Settings GUI](admin-guide/settings-gui.md) — drives, passwords, addon policy.
 - [docker-compose customisation](admin-guide/docker-compose.md)
+- [Monitoring and troubleshooting](admin-guide/monitoring.md) — health check, logs, common issues.
 - [Backup and restore](admin-guide/backup-restore.md)
 
 ### Addons

@@ -60,7 +60,7 @@ The pipeline:
 3. **Caption fetch** — yt-dlp `--write-subs --write-auto-subs --sub-langs all` (deduplicated across platform variants).
 4. **Avatar fetch** — channel thumbnail downloaded to `data/media_import_avatars/<provider>/<channel_id>.jpg`.
 5. **Write `.loft`** — JSON file with the structured metadata.
-6. **Index** — the core scanner picks up the new file on its next pass; a `files.added` event fires.
+6. **Index** — the core scanner picks up the new `.loft` file on its next pass (startup or a manual rescan), reflected by the `scan.complete` event.
 
 ## The `.loft` format
 

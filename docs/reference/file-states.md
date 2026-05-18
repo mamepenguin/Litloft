@@ -18,19 +18,36 @@ The default state. The file is on disk and the DB row is current. Visible everyw
 
 The scanner found that the file disappeared from disk:
 
-- Set: scanner observation, after a tolerance window.
-- Cleared: scanner sees the file again at the same path, **or** an upload to the same path revives it (no INSERT — that would violate `UNIQUE(path)`).
+- Set: on the **first** scan pass that does not find the file at its recorded path. There is no grace period or tolerance window — a single pass that misses the file flips it to Missing (the mount-failure and move-detection rules below are the only things that hold it back).
+- Cleared: scanner sees the file again at the same path, **or** an upload to the same path revives it (no INSERT — that would violate the `(drive, file_path)` uniqueness), **or** the file is detected as moved (see below).
 - Effects:
   - GET / mutating endpoints: `404 Not Found`.
   - Stream: `410 Gone`.
   - Thumbnail: still served (kept on disk).
-  - WS: `files.missing` on entry, `files.recovered` on exit.
+  - Event: `files.missing` on entry, `files.recovered` on exit.
 
 Missing files are kept indefinitely. Use `purge_all_missing` (batch size 200) to clean up.
 
 ### Mount-failure protection
 
-If `drive_path.exists() == False`, the scanner returns early so a missing mount does not flip every file in the drive into Missing. Restoring the mount on the next pass quietly resumes normal operation.
+If `drive_path.exists() == False`, the scanner returns early so a missing mount does not flip every file in the drive into Missing. Restoring the mount on the next pass quietly resumes normal operation. This is a drive-root check only: if the mount is present but a subtree is unreadable, files under it still flip to Missing on that pass.
+
+### Move detection
+
+A file that disappears from path A and reappears at path B **within the same scan pass** is treated as a move, not as Missing + new:
+
+- Match key: `(file_hash, file_size)`. The disappeared record and the new path must be an **unambiguous single-candidate** pair — if two or more records share the same `(file_hash, file_size)` on either the old or the new side, none of them match and they fall back to Missing + new.
+- On a match the existing DB row follows the file: `file_path`, `folder_path`, filename, thumbnail are updated in place and `missing_since` is cleared. All linked data (watch history, comments, tags, relations, transcripts, embeddings) stays attached because the row is the same row.
+- Event: `files.moved` (not `files.missing` followed by a fresh insert).
+- Markdown special case: when an out-of-band rename changes a `.md` basename, `[[old-stem]]` wiki-links in other `.md` files in the same drive are rewritten.
+
+### When the scanner runs
+
+- **Backend startup** — a full scan of every drive (`scan_all_drives`).
+- **Manual trigger** — `POST /api/drives/{drive}/scan`.
+- **Incremental** — uploads and file operations register/relocate single rows directly without a full pass.
+
+There is **no periodic auto-scan**. A file deleted out-of-band on disk stays Active in the DB until the next startup or a manual rescan. Scans are serialised by a single global lock: only one drive scans at a time across the whole app, and a concurrent `POST .../scan` returns `409 Scan already in progress`.
 
 ## Trash
 
@@ -42,7 +59,7 @@ User-initiated soft delete:
   - The file on disk is **not moved**. Trash is purely a database flag.
   - Default queries exclude the row.
   - Playlists keep their references, rendered as muted.
-  - WS: `files.removed` on entry, `files.restored` on exit.
+  - Event: `files.deleted` on entry, `files.restored` on exit.
 
 ### Auto-purge
 
@@ -70,9 +87,10 @@ Addons subscribe to lifecycle events and decide:
 
 - `files.missing` — keep your data; the file might come back. Mark as missing to gray it out in your UI.
 - `files.recovered` — clear your missing markers.
+- `files.moved` — the file's `file_id` is unchanged but its path changed. Keep all data attached to the `file_id`; do not treat it as a delete + add.
 - `files.purged` — drop your data; the file will not come back.
 
-Addons should not delete on `files.removed` (Trash) — the file might be restored. Wait for `files.purged`.
+Addons should not delete on `files.deleted` (Trash) — the file might be restored. Wait for `files.purged`. Note that an out-of-band move emits `files.moved`, **not** `files.missing` followed by a fresh insert, so addons that key off `file_id` need no special handling; addons that cache paths must refresh them on `files.moved`.
 
 ## Operational notes
 

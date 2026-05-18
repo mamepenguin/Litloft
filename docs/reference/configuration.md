@@ -196,7 +196,7 @@ The core's webhook configuration. Lives under `data/event-hooks.json` (or `EVENT
 
 | Field | Type | What it does |
 |---|---|---|
-| `hooks[].event` | string | Event name (`files.added`, `files.removed`, `files.recovered`, `files.missing`, `files.purged`, `scan.complete`). |
+| `hooks[].event` | string | Event name (`files.created`, `files.updated`, `files.deleted`, `files.restored`, `files.missing`, `files.recovered`, `files.moved`, `files.purged`, `scan.complete`). |
 | `hooks[].url` | string | POST target. |
 | `hooks[].secret_env` | string | Environment variable holding the HMAC secret. |
 | `hooks[].drives` | string[] | Drive name allowlist; `["*"]` means all. |

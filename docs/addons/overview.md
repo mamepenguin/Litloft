@@ -101,7 +101,7 @@ When no addon contributes to a slot, the slot disappears entirely (no holes in t
 
 The core emits lifecycle events that addons subscribe to:
 
-- `files.added`, `files.removed`, `files.recovered`, `files.missing`, `files.purged`
+- `files.created`, `files.updated`, `files.deleted`, `files.restored`, `files.missing`, `files.recovered`, `files.moved`, `files.purged`
 - `scan.complete`
 
 Hooks are configured in `event-hooks.json` (in the core data dir). When a hook fires, the core POSTs the payload to the addon's webhook URL with an `X-Webhook-Secret` HMAC header signed with the addon's shared secret (e.g., `KNOWLEDGE_WEBHOOK_SECRET`). Hooks are *fail-open* on lookup error — events are forwarded without filtering when the per-drive policy cache is unreachable.

@@ -6,7 +6,7 @@ Litloft picks a viewer based on the file's MIME type. The same file detail page 
 
 - **Adaptive streaming** — the backend serves byte-range requests; the player seeks instantly without re-downloading.
 - **Resume from last position** — playback position is saved every 5 seconds. When you reopen the file, you resume where you left off.
-- **Subtitles** — sidecar `.srt` / `.vtt` files with the same basename as the video are auto-attached. Multiple languages → language picker.
+- **Subtitles** — sidecar `.srt` / `.vtt` files in the same folder are auto-attached. Name them after the video's basename: `movie.srt` (default track) or `movie.<lang>.srt` / `movie.<lang>.vtt` where `<lang>` is a 2–3 letter code (`en`, `ja`, `eng`, …) — each becomes an entry in the language picker, default track first. `.srt` is converted to WebVTT on the fly for the browser player. Subtitle files do not appear as their own entries in the file list.
 - **Sprite preview on hover** — the scrubber shows a thumbnail strip generated lazily by ffmpeg. Generation is gated by a semaphore (max 2 concurrent) so a busy library does not blow up CPU.
 - **Picture-in-picture** — `autoPictureInPicture` is enabled where the browser supports it.
 - **Media session** — lock-screen and OS media-key controls (play/pause, next, previous within a playlist).

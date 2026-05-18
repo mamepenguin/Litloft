@@ -51,7 +51,8 @@ A Litloft installation has:
 - Admin dashboard at `/admin` (per-drive metrics, system health, restart-pending banner).
 - Settings GUI at `/admin/settings` for drives, passwords, and per-drive addon policy.
 - WebSocket live updates (`/api/ws`) for added/missing/recovered/purged files.
-- PWA manifest, dark/light/system theme, English and Japanese translations.
+- Installable as a PWA — "Add to Home Screen" / the browser's install action launches Litloft in a standalone window (custom icon, themed title bar, iOS safe-area handling). It is **not** offline-capable: there is no service worker, so the server must be reachable.
+- Dark / light / system theme, English and Japanese translations (cookie-driven, no URL prefix).
 
 ### Optional via addons
 - **intelligence** — semantic search, Ask (RAG), summaries, transcripts, vision descriptions.
@@ -65,5 +66,6 @@ A Litloft installation has:
 - **Not a multi-tenant SaaS.** There are no per-user accounts; identity is a cookie. Comments and watch history are per device unless you copy the cookie.
 - **Not cross-drive.** Drives are deliberate silos. Searches, favourites, and tags do not cross drive boundaries.
 - **Not a Plex replacement.** No transcoding, no client apps, no metadata scraping from external databases. It is a browser-only, file-shaped library.
+- **Not an offline app.** The PWA installs as a standalone window but has no service worker or local cache; with no connection to the server it shows nothing.
 
 Continue with [drives and access control](drives-and-access.md) to understand how content is gated.
