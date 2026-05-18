@@ -192,6 +192,7 @@ function SidebarNav() {
               {dropIndicator}
               <SidebarTagsSection
                 driveBase={driveBase}
+                drive={currentDrive}
                 tags={tags}
                 linkClass={linkClass}
                 close={closeIfOverlay}
