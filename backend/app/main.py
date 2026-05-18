@@ -18,7 +18,7 @@ from app.routers import admin, auth, collections, comments, drives, files, progr
 from app.routers import addon_proxy, admin_config, drive_policies, internal, smart_folders
 from app.services.fileops import physical_delete
 from app.services.scanner import scan_all_drives
-from app.services import addon_registry, event_hooks
+from app.services import addon_registry, drive_seed, event_hooks
 from app.services.upload import cleanup_abandoned_uploads
 from app.services.ws import set_event_loop
 
@@ -151,25 +151,25 @@ def _load_addons(app: FastAPI) -> None:
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    # Setup-completion sentinel migration: any existing user with a
-    # drives.json predates the GUI wizard. Touch the sentinel so they aren't
-    # redirected to /setup (which would clobber their config) on the first
-    # frontend load after upgrade.
+    # Drive bootstrap: pre-seed count -> setup-sentinel migration -> seed.
     #
-    # The correct discriminator for "fresh install vs upgrade" is
-    # ``drives.json`` alone — a fresh install has no drives.json. The
-    # previous gate also required ``not passwords.json.exists()`` which
-    # incorrectly excluded users who set up protected mode before this
-    # feature shipped (they have BOTH files) and bricked them into the
-    # wizard's overwrite path.
-    try:
-        sentinel = config.DATA_DIR / "setup_completed"
-        if config.DRIVES_CONFIG.exists() and not sentinel.exists():
-            config.DATA_DIR.mkdir(parents=True, exist_ok=True)
-            sentinel.touch()
-            logger.info("Setup sentinel auto-created for existing user")
-    except OSError:
-        logger.exception("Failed to evaluate setup sentinel migration")
+    # The mere *existence* of drives.json no longer distinguishes a fresh
+    # install from an upgrade: the shrunk configure.py writes an empty
+    # ``[]`` for brand-new users too (a footgun guard for the single-file
+    # bind-mount — an absent host file would otherwise make Docker mount a
+    # directory at /app/drives.json). The discriminator is the **pre-seed
+    # non-empty** state: only a non-empty drives.json means a pre-existing
+    # user who configured logical settings via the old configure.py and
+    # must keep skipping /setup. An empty ``[]`` is a new user — the
+    # sentinel must NOT be touched so /setup runs, and the seed then
+    # populates drives.json from the Docker mount directories.
+    #
+    # Ordering is load-bearing (spec 2026-05-19 §3.1, H5 grounding fix):
+    # the pre-seed count is read once, the migration inspects that
+    # pre-seed count and runs *before* the seed, and everything here
+    # happens before scan_all_drives() so the freshly seeded drives are
+    # picked up and the persistent _drives_cache is invalidated in time.
+    drive_seed.run_startup_drive_bootstrap()
 
     # The restart-pending flag is set by admin_config writes. Once we've
     # restarted the backend, the new config is in effect, so the banner

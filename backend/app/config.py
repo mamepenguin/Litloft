@@ -4,6 +4,7 @@ from pathlib import Path
 
 
 DRIVES_CONFIG = Path(os.getenv("DRIVES_CONFIG", "./drives.json"))
+DRIVES_MOUNT_ROOT = Path(os.getenv("DRIVES_MOUNT_ROOT", "/app/drives"))
 DATA_DIR = Path(os.getenv("DATA_DIR", "./data"))
 DATABASE_PATH = DATA_DIR / "data.db"
 DATABASE_URL = f"sqlite:///{DATABASE_PATH}"
