@@ -46,7 +46,16 @@
     "renameCollection": "Rename",
     "deleteCollection": "Delete",
     "sectionCollapse": "Collapse",
-    "sectionExpand": "Expand"
+    "sectionExpand": "Expand",
+    "reorder": {
+      "dragSection": "Drag to reorder section",
+      "dragItem": "Drag to reorder"
+    },
+    "sort": {
+      "byName": "By name",
+      "byCount": "By count",
+      "toggle": "Toggle tag sort order"
+    }
   },
   "drive": {
     "title": "Drives",
@@ -492,6 +501,14 @@
     },
     "language": {
       "title": "Language"
+    },
+    "sidebarReset": {
+      "title": "Sidebar order",
+      "description": "Reset the sidebar section order, item order, and tag sort to defaults.",
+      "button": "Reset order",
+      "confirmTitle": "Reset order",
+      "confirmBody": "This resets all your customised sidebar ordering to defaults. Continue?",
+      "done": "Reset done"
     },
     "drives": {
       "title": "Drives",

@@ -1,6 +1,7 @@
 "use client";
 
-import { useCallback, useState } from "react";
+import type React from "react";
+import { useCallback, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { ChevronDown, ChevronRight, Pencil, Search, Trash2 } from "lucide-react";
 import { useTranslations } from "next-intl";
@@ -11,10 +12,14 @@ import { SmartFolderSaveDialog } from "@/components/SmartFolderSaveDialog";
 import { useSmartFolders } from "@/hooks/useSmartFolders";
 import type { SmartFolder } from "@/types/smartFolder";
 import { useSidebarSectionCollapsed } from "./useSidebarSectionCollapsed";
+import { useSidebarItemOrder } from "./useSidebarItemOrder";
+import { useReorderableDnD } from "./useReorderableDnD";
+import { ItemDragHandle } from "./ItemDragHandle";
 
 interface SidebarSmartFoldersSectionProps {
   drive: string;
   close: () => void;
+  dragHandle?: React.ReactNode;
 }
 
 interface ContextMenuState {
@@ -26,6 +31,7 @@ interface ContextMenuState {
 export function SidebarSmartFoldersSection({
   drive,
   close,
+  dragHandle,
 }: SidebarSmartFoldersSectionProps) {
   const t = useTranslations("smartFolder");
   const tSidebar = useTranslations("sidebar");
@@ -33,6 +39,16 @@ export function SidebarSmartFoldersSection({
   const { collapsed, toggle } = useSidebarSectionCollapsed("smart-folders");
 
   const { smartFolders, update, remove } = useSmartFolders(drive);
+
+  // Stable id list (sf.id). Memoised so the reorder hooks keep a steady
+  // reference and do not churn `order` identity on every render.
+  const currentIds = useMemo(() => smartFolders.map((sf) => sf.id), [smartFolders]);
+  const { order, setOrder } = useSidebarItemOrder("smart-folders", drive, currentIds);
+  const itemDnd = useReorderableDnD({
+    kind: "sidebar-item-smart-folders",
+    ids: order,
+    onReorder: setOrder,
+  });
 
   const [contextMenu, setContextMenu] = useState<ContextMenuState | null>(null);
   const [renaming, setRenaming] = useState<SmartFolder | null>(null);
@@ -109,31 +125,52 @@ export function SidebarSmartFoldersSection({
 
   return (
     <>
-      <button
-        type="button"
-        onClick={toggle}
-        aria-expanded={!collapsed}
-        aria-label={
-          collapsed ? tSidebar("sectionExpand") : tSidebar("sectionCollapse")
-        }
-        className="mb-1 mt-4 flex w-full items-center gap-1.5 rounded-lg px-3 text-[11px] font-semibold uppercase tracking-wider text-text-muted transition-colors hover:text-text-primary"
-      >
-        <Chevron size={12} />
-        <span>{t("sectionTitle")}</span>
-      </button>
+      <div className="group relative">
+        {dragHandle}
+        <button
+          type="button"
+          onClick={toggle}
+          aria-expanded={!collapsed}
+          aria-label={
+            collapsed ? tSidebar("sectionExpand") : tSidebar("sectionCollapse")
+          }
+          className="mb-1 mt-4 flex w-full items-center gap-1.5 rounded-lg px-3 text-[11px] font-semibold uppercase tracking-wider text-text-muted transition-colors hover:text-text-primary"
+        >
+          <Chevron size={12} />
+          <span>{t("sectionTitle")}</span>
+        </button>
+      </div>
       {!collapsed &&
-        smartFolders.map((sf) => (
-          <button
-            key={sf.id}
-            type="button"
-            onClick={() => handleClick(sf)}
-            onContextMenu={(e) => openContextMenu(e, sf)}
-            className="flex items-center gap-2.5 rounded-2xl px-3 py-2 text-sm text-text-muted transition-colors hover:bg-bg-elevated hover:text-text-primary"
-          >
-            <Search size={16} />
-            <span className="flex-1 truncate text-left">{sf.name}</span>
-          </button>
-        ))}
+        order.map((id) => {
+          const sf = smartFolders.find((s) => s.id === id);
+          if (!sf) return null;
+          return (
+            <div
+              key={sf.id}
+              className="group relative"
+              {...itemDnd.getRowProps(sf.id)}
+            >
+              {itemDnd.dropTarget?.id === sf.id && (
+                <div
+                  className="pointer-events-none absolute inset-x-2 h-0.5 bg-accent z-10"
+                  style={{
+                    [itemDnd.dropTarget.position === "before" ? "top" : "bottom"]: 0,
+                  }}
+                />
+              )}
+              <ItemDragHandle {...itemDnd.getHandleProps(sf.id)} />
+              <button
+                type="button"
+                onClick={() => handleClick(sf)}
+                onContextMenu={(e) => openContextMenu(e, sf)}
+                className="flex w-full items-center gap-2.5 rounded-2xl px-3 py-2 text-sm text-text-muted transition-colors hover:bg-bg-elevated hover:text-text-primary"
+              >
+                <Search size={16} />
+                <span className="flex-1 truncate text-left">{sf.name}</span>
+              </button>
+            </div>
+          );
+        })}
 
       {contextMenu && (
         <ContextMenu

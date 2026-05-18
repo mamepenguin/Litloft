@@ -1,10 +1,14 @@
-import { type RefObject, useCallback, useRef, useState } from "react";
+import type React from "react";
+import { type RefObject, useCallback, useMemo, useRef, useState } from "react";
 import { ChevronDown, ChevronRight, Library, Pencil, Plus, Trash2 } from "lucide-react";
 import { useTranslations } from "next-intl";
 
 import type { CollectionSummary } from "@/types";
 import { addCollectionItems, getCollections } from "@/lib/api";
 import { useSidebarSectionCollapsed } from "./useSidebarSectionCollapsed";
+import { useSidebarItemOrder } from "./useSidebarItemOrder";
+import { useReorderableDnD } from "./useReorderableDnD";
+import { ItemDragHandle } from "./ItemDragHandle";
 
 interface SidebarCollectionsSectionProps {
   currentDrive: string | null;
@@ -27,6 +31,7 @@ interface SidebarCollectionsSectionProps {
   handleRenameCollection: () => void;
   handleDeleteCollection: (id: string) => void;
   handleCollectionClick: (c: CollectionSummary) => void;
+  dragHandle?: React.ReactNode;
 }
 
 export function SidebarCollectionsSection({
@@ -49,11 +54,35 @@ export function SidebarCollectionsSection({
   handleRenameCollection,
   handleDeleteCollection,
   handleCollectionClick,
+  dragHandle,
 }: SidebarCollectionsSectionProps) {
   const t = useTranslations("sidebar");
   const { collapsed, toggle, expand } = useSidebarSectionCollapsed("collections");
   const [dropTargetId, setDropTargetId] = useState<string | null>(null);
   const dragCounterRef = useRef<Map<string, number>>(new Map());
+
+  // Stable id list (c.id). Memoised so the reorder hooks keep a steady
+  // reference and do not churn `order` identity on every render.
+  const currentIds = useMemo(
+    () => collectionList.map((c) => c.id),
+    [collectionList],
+  );
+  const { order, setOrder } = useSidebarItemOrder(
+    "collections",
+    currentDrive,
+    currentIds,
+  );
+  // Reorder DnD uses its own per-section MIME
+  // (application/x-litloft-reorder-sidebar-item-collections), entirely
+  // separate from the existing application/x-file-ids drop that adds files
+  // to a collection. The reorder primitive early-returns when its MIME is
+  // absent, so a file-ids drag passes through the row wrapper untouched and
+  // reaches the item button's file-ids handlers below.
+  const itemDnd = useReorderableDnD({
+    kind: "sidebar-item-collections",
+    ids: order,
+    onReorder: setOrder,
+  });
 
   const handleDragOver = useCallback((e: React.DragEvent) => {
     if (!e.dataTransfer.types.includes("application/x-file-ids")) return;
@@ -107,7 +136,8 @@ export function SidebarCollectionsSection({
 
   return (
     <>
-      <div className="mb-1 mt-4 flex items-center justify-between pr-3">
+      <div className="group relative mb-1 mt-4 flex items-center justify-between pr-3">
+        {dragHandle}
         <button
           type="button"
           onClick={toggle}
@@ -152,9 +182,29 @@ export function SidebarCollectionsSection({
         </div>
       )}
 
-      {!collapsed && collectionList.map((c) => (
-        <div key={c.id} className="relative">
-          {renamingId === c.id ? (
+      {!collapsed && order.map((id) => {
+        const c = collectionList.find((col) => col.id === id);
+        if (!c) return null;
+        const isRenaming = renamingId === c.id;
+        return (
+        <div
+          key={c.id}
+          className="group relative"
+          {...itemDnd.getRowProps(c.id)}
+        >
+          {itemDnd.dropTarget?.id === c.id && (
+            <div
+              className="pointer-events-none absolute inset-x-2 h-0.5 bg-accent z-10"
+              style={{
+                [itemDnd.dropTarget.position === "before" ? "top" : "bottom"]: 0,
+              }}
+            />
+          )}
+          {/* grip only on real collection rows, not the rename input */}
+          {!isRenaming && (
+            <ItemDragHandle {...itemDnd.getHandleProps(c.id)} />
+          )}
+          {isRenaming ? (
             <div className="px-3">
               <input
                 ref={renameInputRef}
@@ -221,7 +271,8 @@ export function SidebarCollectionsSection({
             </div>
           )}
         </div>
-      ))}
+        );
+      })}
     </>
   );
 }

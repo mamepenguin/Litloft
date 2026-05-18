@@ -46,7 +46,16 @@
     "renameCollection": "リネーム",
     "deleteCollection": "削除",
     "sectionCollapse": "折りたたむ",
-    "sectionExpand": "展開する"
+    "sectionExpand": "展開する",
+    "reorder": {
+      "dragSection": "セクションをドラッグして並び替え",
+      "dragItem": "ドラッグして並び替え"
+    },
+    "sort": {
+      "byName": "名前順",
+      "byCount": "件数順",
+      "toggle": "タグの並び順を切り替え"
+    }
   },
   "drive": {
     "title": "ドライブ",
@@ -492,6 +501,14 @@
     },
     "language": {
       "title": "言語"
+    },
+    "sidebarReset": {
+      "title": "サイドバーの並び順",
+      "description": "サイドバーのセクション順・アイテム順・タグの並び順をすべて初期状態に戻します。",
+      "button": "並び順をリセット",
+      "confirmTitle": "並び順をリセット",
+      "confirmBody": "サイドバーのカスタマイズした並び順をすべて初期状態に戻します。よろしいですか？",
+      "done": "リセットしました"
     },
     "drives": {
       "title": "ドライブ",
