@@ -12,6 +12,7 @@ Invariant rules to follow whenever you edit code. Read these as a "this is how w
 ## Drives
 
 - **A drive is a security boundary.** Do not build cross-drive features such as cross-drive search, favorites, or tag aggregation.
+- **Drive-partitioned tables are uniquely keyed per-drive, never globally.** `File` (`UniqueConstraint("drive", "file_path")`), `Tag`, `EmptyFolder`, `PinnedFolder`, `Collection` all use a composite `UniqueConstraint("drive", ...)`. `file_path` is stored drive-relative with no drive prefix, so two drives legitimately each hold e.g. a root `README.md`. Any query/upsert on these tables must be drive-scoped (`File.drive == drive AND ...`); never query `File.file_path` alone (the global single-column UNIQUE was a `videos`-era design bug, fixed 2026-05-17, hako `IVTLJEKUL1zkoxjhLyyjT`).
 - Special views like favorites are expressed via the `?view=<name>` query (to avoid clashing with folder names).
 - Drive configuration lives in `drives.json` (outside the DB). Changes take effect on container restart.
 

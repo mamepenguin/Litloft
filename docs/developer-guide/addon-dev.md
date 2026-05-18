@@ -194,7 +194,7 @@ For features that depend on a synchronous policy lookup at enqueue time (e.g., c
 - Do **not** modify core's `docker-compose.yml`. User-facing config (your addon container) goes in `docker-compose.override.yml`.
 - Do **not** import addon code from core. Dependency direction is one-way.
 - Do **not** assume the core's DB schema; read through the Internal API.
-- Do **not** mount `data/videos.db` writable into your addon. Read-only is fine for emergency lookups (`./data/videos.db:/data/core.db:ro`); production uses the Internal API.
+- Do **not** mount `data/data.db` writable into your addon. Read-only is fine for emergency lookups (`./data/data.db:/data/core.db:ro`); production uses the Internal API.
 - Do **not** introduce addon-name-specific routes / response shapes in core.
 
 ## See also

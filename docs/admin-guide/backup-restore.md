@@ -30,7 +30,7 @@ tar -czf litloft-backup-$(date +%Y%m%d).tar.gz \
 SQLite handles the live snapshot fine for short reads; for very busy installations, use the SQLite online backup API:
 
 ```bash
-docker compose exec backend sqlite3 /app/data/videos.db ".backup /app/data/videos.db.bak"
+docker compose exec backend sqlite3 /app/data/data.db ".backup /app/data/data.db.bak"
 ```
 
 …and back up the `.bak` instead of the live file.

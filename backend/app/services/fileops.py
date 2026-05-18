@@ -125,6 +125,54 @@ def _ensure_empty_folder_tracked(db: Session, drive: str, folder_path: str) -> N
         db.add(EmptyFolder(drive=drive, path=folder_path))
 
 
+def resolve_db_path_conflict(db: Session, new_rel: str, drive: str) -> None:
+    """Free the UNIQUE ``file_path`` slot at ``new_rel`` *within* ``drive``
+    before a create / move / rename / upload writes that path.
+
+    ``file_path`` carries a per-drive UNIQUE constraint
+    (``UniqueConstraint("drive", "file_path")``), so a stale DB record in
+    the *same drive* holding ``new_rel`` causes an IntegrityError at
+    flush/commit time — *after* the filesystem operation has already
+    happened — leaving FS and DB inconsistent (the "file disappears"
+    symptom). A record at the same relative path in a *different* drive is
+    irrelevant and must be left untouched (a drive is a security boundary;
+    two drives legitimately each hold e.g. a root ``README.md``).
+
+    Callers MUST have already verified the physical destination does not
+    exist on disk, so any record found here truly has no live FS copy.
+
+    Per record state:
+      • Active (no deleted_at / no missing_since)
+            → 409. A live record claims the path; refuse so the user can
+              rescan (→ Missing) then purge it deliberately.
+      • Trashed (deleted_at set), FS copy gone
+            → purge the ghost. The user already expressed delete intent and
+              nothing physical remains; keeping a fake-path record would only
+              create an invisible, unpurgeable entry.
+      • Missing (missing_since set)
+            → retire the ghost's file_path to a placeholder. The record is
+              preserved (watch-history / tags / comments survive) and stays
+              visible in the Missing view for the user to purge later.
+    """
+    conflict = (
+        db.query(File)
+        .filter(File.drive == drive, File.file_path == new_rel)
+        .first()
+    )
+    if conflict is None:
+        return
+    if conflict.missing_since is None and conflict.deleted_at is None:
+        raise HTTPException(
+            status_code=409,
+            detail=f"A database record already exists at '{new_rel}' (id={conflict.id})",
+        )
+    if conflict.deleted_at is not None:
+        db.delete(conflict)
+    else:
+        conflict.file_path = f"__missing_{conflict.id}_{new_rel}"
+    db.flush()
+
+
 def _resolve_copy_filename(target_dir: Path, original_filename: str) -> str:
     """Generate a unique filename for copy, adding _copy, _copy_2, etc. on collision."""
     if not (target_dir / original_filename).exists():
@@ -170,6 +218,16 @@ def copy_file(db: Session, file_id: str, target_drive: str | None, target_folder
     new_full = target_dir / new_filename
     validate_within_drive(new_full, dst_drive_path)
 
+    new_id = generate_nanoid()
+    new_rel = f"{target_folder}/{new_filename}" if target_folder else new_filename
+
+    # Free the UNIQUE file_path slot if a stale ghost holds it. Done BEFORE
+    # creating the FS file so an active 409 conflict doesn't leave an orphan
+    # file on disk. (_resolve_copy_filename only avoids FS collisions; a DB
+    # ghost with no FS copy would otherwise pass that check and then blow up
+    # at db.commit with an IntegrityError.)
+    resolve_db_path_conflict(db, new_rel, dst_drive)
+
     # Atomic copy: create exclusive target then copy content to prevent TOCTOU race
     try:
         fd = os.open(str(new_full), os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o644)
@@ -177,9 +235,6 @@ def copy_file(db: Session, file_id: str, target_drive: str | None, target_folder
     except FileExistsError:
         raise HTTPException(status_code=409, detail="Target file already exists")
     shutil.copy2(str(old_full), str(new_full))
-
-    new_id = generate_nanoid()
-    new_rel = f"{target_folder}/{new_filename}" if target_folder else new_filename
 
     new_file = File(
         id=new_id,
@@ -213,9 +268,22 @@ def copy_file(db: Session, file_id: str, target_drive: str | None, target_folder
             new_file.thumbnail_path = new_thumb_rel
 
 
-    db.add(new_file)
-    remove_empty_folder_if_has_files(db, dst_drive, target_folder)
-    db.commit()
+    # If the DB write fails, delete the freshly copied FS file so we don't
+    # leave an orphan with no DB record.
+    try:
+        db.add(new_file)
+        remove_empty_folder_if_has_files(db, dst_drive, target_folder)
+        db.commit()
+    except Exception as exc:
+        db.rollback()
+        try:
+            new_full.unlink()
+        except Exception:
+            pass
+        raise HTTPException(
+            status_code=500,
+            detail=f"Copy failed (DB error, filesystem reversed): {exc}",
+        ) from exc
     db.refresh(new_file)
     return new_file
 
@@ -243,22 +311,39 @@ def rename_file(db: Session, file_id: str, new_filename: str) -> File:
     if not old_full.exists():
         raise HTTPException(status_code=404, detail="File not found on disk")
 
+    # Free the UNIQUE file_path slot if a stale ghost holds it (same
+    # behaviour as move_file). Raises 409 for a genuine active conflict.
+    resolve_db_path_conflict(db, new_rel, file.drive)
+
     old_full.rename(new_full)
 
-    if file.file_type == "video" and file.thumbnail_path:
-        new_stem = Path(new_filename).stem
-        new_thumb_rel = (
-            f"{file.drive}/{file.folder_path}/{new_stem}.jpg"
-            if file.folder_path
-            else f"{file.drive}/{new_stem}.jpg"
-        )
-        _move_thumbnail(file, new_thumb_rel)
-        file.thumbnail_path = new_thumb_rel
+    # Mirror move_file's atomicity guard: if any DB op fails after the FS
+    # rename, reverse the rename so FS and DB stay in sync.
+    try:
+        if file.file_type == "video" and file.thumbnail_path:
+            new_stem = Path(new_filename).stem
+            new_thumb_rel = (
+                f"{file.drive}/{file.folder_path}/{new_stem}.jpg"
+                if file.folder_path
+                else f"{file.drive}/{new_stem}.jpg"
+            )
+            _move_thumbnail(file, new_thumb_rel)
+            file.thumbnail_path = new_thumb_rel
 
-    file.filename = new_filename
-    file.file_path = new_rel
-    file.title = _filename_to_title(new_filename)
-    db.commit()
+        file.filename = new_filename
+        file.file_path = new_rel
+        file.title = _filename_to_title(new_filename)
+        db.commit()
+    except Exception as exc:
+        db.rollback()
+        try:
+            new_full.rename(old_full)
+        except Exception:
+            pass
+        raise HTTPException(
+            status_code=500,
+            detail=f"Rename failed (DB error, filesystem reversed): {exc}",
+        ) from exc
 
     # Phase D (spec 2026-05-12 §3.7): when a ``.md`` is renamed,
     # rewrite ``[[old_stem]]`` references inside other ``.md`` files in
@@ -313,27 +398,50 @@ def move_file(db: Session, file_id: str, target_drive: str | None, target_folder
     if not old_full.exists():
         raise HTTPException(status_code=404, detail="File not found on disk")
 
+    # Free the UNIQUE file_path slot if a stale ghost record holds it
+    # (shared with rename_file / copy_file / upload for consistent
+    # behaviour). Raises 409 only for a genuinely active conflict.
+    resolve_db_path_conflict(db, new_rel, dst_drive)
+
     new_full.parent.mkdir(parents=True, exist_ok=True)
     shutil.move(str(old_full), str(new_full))
 
-    if file.file_type == "video" and file.thumbnail_path:
-        new_thumb_rel = (
-            f"{dst_drive}/{target_folder}/{file.filename.rsplit('.', 1)[0]}.jpg"
-            if target_folder
-            else f"{dst_drive}/{file.filename.rsplit('.', 1)[0]}.jpg"
-        )
-        _move_thumbnail(file, new_thumb_rel)
-        file.thumbnail_path = new_thumb_rel
+    # Wrap all post-FS-move operations in a try/except so that if the DB
+    # commit fails for any reason the filesystem move is reversed, keeping
+    # the two stores in sync.  Without this guard, a DB error after
+    # shutil.move leaves the file at the destination on disk but still
+    # pointing to the source path in the DB (i.e. the file "disappears").
+    try:
+        if file.file_type == "video" and file.thumbnail_path:
+            new_thumb_rel = (
+                f"{dst_drive}/{target_folder}/{file.filename.rsplit('.', 1)[0]}.jpg"
+                if target_folder
+                else f"{dst_drive}/{file.filename.rsplit('.', 1)[0]}.jpg"
+            )
+            _move_thumbnail(file, new_thumb_rel)
+            file.thumbnail_path = new_thumb_rel
 
-    old_drive = file.drive
-    old_folder = file.folder_path
-    file.drive = dst_drive
-    file.folder_path = target_folder
-    file.file_path = new_rel
-    remove_empty_folder_if_has_files(db, dst_drive, target_folder)
-    db.flush()
-    _ensure_empty_folder_tracked(db, old_drive, old_folder)
-    db.commit()
+        old_drive = file.drive
+        old_folder = file.folder_path
+        file.drive = dst_drive
+        file.folder_path = target_folder
+        file.file_path = new_rel
+        remove_empty_folder_if_has_files(db, dst_drive, target_folder)
+        db.flush()
+        _ensure_empty_folder_tracked(db, old_drive, old_folder)
+        db.commit()
+    except Exception as exc:
+        # Reverse the filesystem move so neither store is corrupted.
+        db.rollback()
+        try:
+            shutil.move(str(new_full), str(old_full))
+        except Exception:
+            pass  # If the FS reverse also fails we can't do better here
+        raise HTTPException(
+            status_code=500,
+            detail=f"Move failed (DB error, filesystem reversed): {exc}",
+        ) from exc
+
     db.refresh(file)
     return file
 

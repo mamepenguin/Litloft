@@ -119,7 +119,7 @@ def _migrate(engine_) -> None:
                     description TEXT DEFAULT '',
                     drive VARCHAR NOT NULL DEFAULT '',
                     folder_path VARCHAR NOT NULL DEFAULT '',
-                    file_path VARCHAR NOT NULL UNIQUE,
+                    file_path VARCHAR NOT NULL,
                     file_size INTEGER NOT NULL,
                     file_type VARCHAR NOT NULL DEFAULT 'other',
                     mime_type VARCHAR NOT NULL DEFAULT 'application/octet-stream',
@@ -200,7 +200,7 @@ def _migrate(engine_) -> None:
                         description TEXT DEFAULT '',
                         drive VARCHAR NOT NULL DEFAULT '',
                         folder_path VARCHAR NOT NULL DEFAULT '',
-                        file_path VARCHAR NOT NULL UNIQUE,
+                        file_path VARCHAR NOT NULL,
                         file_size INTEGER NOT NULL,
                         file_type VARCHAR NOT NULL DEFAULT 'other',
                         mime_type VARCHAR NOT NULL DEFAULT 'application/octet-stream',
@@ -267,7 +267,7 @@ def _migrate(engine_) -> None:
                         description TEXT DEFAULT '',
                         drive VARCHAR NOT NULL DEFAULT '',
                         folder_path VARCHAR NOT NULL DEFAULT '',
-                        file_path VARCHAR NOT NULL UNIQUE,
+                        file_path VARCHAR NOT NULL,
                         file_size INTEGER NOT NULL,
                         file_type VARCHAR NOT NULL DEFAULT 'other',
                         mime_type VARCHAR NOT NULL DEFAULT 'application/octet-stream',
@@ -461,6 +461,136 @@ def _migrate(engine_) -> None:
             logger.info("Migrating: adding 'md_aliases' column to files")
             with engine_.begin() as conn:
                 conn.execute(text("ALTER TABLE files ADD COLUMN md_aliases TEXT"))
+
+    # === Spec 2026-05-17-file-path-drive-scoped-unique: files.file_path
+    # UNIQUE must be per-drive, not global.
+    #
+    # The pre-fix schema declared ``file_path`` with a single-column
+    # ``unique=True`` (models.py) / ``file_path ... UNIQUE`` (raw DDL).
+    # Because the scanner stores a *drive-relative* path with no drive
+    # prefix, two drives could never both hold e.g. a root ``README.md``
+    # (the second registration died with an IntegrityError surfaced as
+    # 409). A drive is a security boundary, so uniqueness is per-drive —
+    # this matches Tag / EmptyFolder / PinnedFolder / Collection, which
+    # are all ``UniqueConstraint("drive", ...)``.
+    #
+    # SQLite can't ``DROP`` the implicit ``sqlite_autoindex`` an inline
+    # single-column UNIQUE creates, so the table must be rebuilt (same
+    # idiom as the nanoid / dislikes rebuilds above). Idempotent: gated
+    # on the composite constraint already being present, so once any DB
+    # is converted this phase never runs again — which is why the
+    # rebuild DDL below only has to mirror models.py *as of this
+    # release* (later columns are added by their own ALTER phase, but a
+    # DB old enough to lack the composite constraint cannot yet have
+    # them, and a DB new enough to have them already has the composite).
+    #
+    # Data is safe: the old GLOBAL unique physically guaranteed no
+    # cross-drive duplicate ``file_path``, so every existing row already
+    # satisfies ``(drive, file_path)``. FK enforcement is turned OFF for
+    # the swap: with it ON, ``DROP TABLE files`` performs an implicit
+    # row-delete that would CASCADE into file_tags / file_relations /
+    # file_exif / comments and wipe tags, relations, comments, exif.
+    # Ids are preserved by the INSERT…SELECT, so the renamed table
+    # re-satisfies every child FK by name; ``foreign_key_check`` asserts
+    # no orphan slipped through before FK enforcement is restored.
+    inspector_fp = inspect(engine_)
+    if "files" in inspector_fp.get_table_names():
+        has_composite = any(
+            sorted(u["column_names"]) == ["drive", "file_path"]
+            for u in inspector_fp.get_unique_constraints("files")
+        )
+        if not has_composite:
+            logger.info(
+                "Migrating: files.file_path global UNIQUE → "
+                "composite UNIQUE(drive, file_path)"
+            )
+            old_cols = [c["name"] for c in inspector_fp.get_columns("files")]
+            new_schema_cols = [
+                "id", "filename", "title", "description", "drive",
+                "folder_path", "file_path", "file_size", "file_type",
+                "mime_type", "thumbnail_path", "duration", "likes",
+                "is_favorite", "created_at", "updated_at", "deleted_at",
+                "missing_since", "file_hash", "md_id", "md_aliases",
+            ]
+            common = [c for c in new_schema_cols if c in old_cols]
+            col_list = ", ".join(common)
+
+            raw = engine_.raw_connection()
+            try:
+                cur = raw.cursor()
+                cur.execute("PRAGMA foreign_keys=OFF")
+                cur.execute("BEGIN")
+                cur.execute("""
+                    CREATE TABLE files_new (
+                        id VARCHAR(12) PRIMARY KEY,
+                        filename VARCHAR NOT NULL,
+                        title VARCHAR NOT NULL,
+                        description TEXT DEFAULT '',
+                        drive VARCHAR NOT NULL DEFAULT '',
+                        folder_path VARCHAR NOT NULL DEFAULT '',
+                        file_path VARCHAR NOT NULL,
+                        file_size INTEGER NOT NULL,
+                        file_type VARCHAR NOT NULL DEFAULT 'other',
+                        mime_type VARCHAR NOT NULL DEFAULT 'application/octet-stream',
+                        thumbnail_path VARCHAR,
+                        duration FLOAT,
+                        likes INTEGER DEFAULT 0,
+                        is_favorite BOOLEAN DEFAULT 0,
+                        created_at DATETIME,
+                        updated_at DATETIME,
+                        deleted_at DATETIME,
+                        missing_since DATETIME,
+                        file_hash VARCHAR(64),
+                        md_id VARCHAR(32),
+                        md_aliases TEXT,
+                        CONSTRAINT uq_files_drive_file_path
+                            UNIQUE (drive, file_path)
+                    )
+                """)
+                cur.execute(
+                    f"INSERT INTO files_new ({col_list}) "
+                    f"SELECT {col_list} FROM files"
+                )
+                cur.execute("DROP TABLE files")
+                cur.execute("ALTER TABLE files_new RENAME TO files")
+                for ddl in (
+                    "CREATE INDEX idx_files_drive_folder_path "
+                    "ON files(drive, folder_path)",
+                    "CREATE INDEX idx_files_title ON files(title)",
+                    "CREATE INDEX idx_files_is_favorite ON files(is_favorite)",
+                    "CREATE INDEX idx_files_file_type ON files(file_type)",
+                    "CREATE INDEX idx_files_deleted_at ON files(deleted_at)",
+                    "CREATE INDEX idx_files_missing_since ON files(missing_since)",
+                    "CREATE INDEX idx_files_file_hash ON files(file_hash)",
+                    "CREATE INDEX idx_files_drive_md_id ON files(drive, md_id)",
+                ):
+                    cur.execute(ddl)
+                cur.execute("COMMIT")
+                orphans = cur.execute("PRAGMA foreign_key_check").fetchall()
+                if orphans:
+                    raise RuntimeError(
+                        f"foreign_key_check failed after files rebuild: {orphans}"
+                    )
+                cur.execute("PRAGMA foreign_keys=ON")
+                raw.commit()
+                logger.info(
+                    "Migration complete: files.file_path is now "
+                    "UNIQUE per (drive, file_path)"
+                )
+            except Exception:
+                # The connection still has ``foreign_keys=OFF`` (and may be
+                # mid-transaction). Discard it so the pool can't hand a
+                # FK-disabled connection to a later checkout — the engine's
+                # connect listener re-enables FK on the fresh one. (In
+                # practice this aborts ``init_db`` and startup, but stay
+                # defensive in case a caller recovers.)
+                try:
+                    raw.rollback()
+                finally:
+                    raw.invalidate()
+                raise
+            finally:
+                raw.close()
 
 
 def init_db() -> None:

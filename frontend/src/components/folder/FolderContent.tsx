@@ -5,6 +5,7 @@ import { useTranslations } from "next-intl";
 
 import { useContextMenu } from "@/hooks/useContextMenu";
 import { useFolderFilter } from "@/hooks/useFolderFilter";
+import { useIsInternalDragging } from "@/hooks/useIsInternalDragging";
 import type { DragState } from "@/hooks/useDragAndDrop";
 import type { FileItem, FileItemWithMatch, Folder, ViewMode } from "@/types";
 import { FileGrid } from "@/components/FileGrid";
@@ -54,6 +55,9 @@ export function FolderContent({
   isSelected, onSelect, onMetaSelect, onShiftSelect, onTogglePin, onFavoriteToggle, onRefresh,
   onDragStart, onDragEnd, selectedCount, isDropDisabled, onFolderDragStart,
 }: FolderContentProps) {
+  // Show folder-card drop targets for both local drags and cross-pane
+  // drags originating from the tree pane.
+  const isInternalDragging = useIsInternalDragging();
   const tFilter = useTranslations("filter");
   const [menuTarget, setMenuTarget] = useState<Folder | null>(null);
   const { menuState: folderMenuState, close: closeFolderMenu, handlers: folderMenuHandlers } = useContextMenu();
@@ -83,8 +87,8 @@ export function FolderContent({
                 key={folder.path}
                 folder={folder}
                 driveName={driveName}
-                isDropTarget={dragState.isDragging && !disabled && isDropTarget(folder.path)}
-                dropTargetProps={dragState.isDragging && !disabled ? getDropTargetProps(folder.path) : undefined}
+                isDropTarget={(dragState.isDragging || isInternalDragging) && !disabled && isDropTarget(folder.path)}
+                dropTargetProps={(dragState.isDragging || isInternalDragging) && !disabled ? getDropTargetProps(folder.path) : undefined}
                 draggable={!!onRefresh}
                 isDragging={dragState.draggedFolderPath === folder.path}
                 onDragStart={(e) => onFolderDragStart(e, folder.path)}

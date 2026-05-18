@@ -66,6 +66,19 @@ import { FolderTreePane } from "../FolderTreePane";
 const driveExpKey = (drive: string) => `tree:expanded:${drive}`;
 const driveFilterKey = (drive: string) => `tree:typeFilter:${drive}`;
 
+function dragDataTransfer(): DataTransfer {
+  const store = new Map<string, string>();
+  return {
+    setData: (key: string, value: string) => {
+      store.set(key, value);
+    },
+    getData: (key: string) => store.get(key) ?? "",
+    effectAllowed: "uninitialized",
+    dropEffect: "none",
+    types: [],
+  } as unknown as DataTransfer;
+}
+
 beforeEach(() => {
   mockGetFolderTree.mockReset();
   localStorage.removeItem(driveExpKey("work"));
@@ -250,6 +263,34 @@ describe("FolderTreePane", () => {
       expect.objectContaining({ type_filter: "markdown" }),
       expect.any(Object),
     );
+  });
+
+  it("renders the root drop band as an overlay during tree-row drag", async () => {
+    mockGetFolderTree.mockResolvedValue([
+      { kind: "folder", name: "Q1", path: "Q1", file_count: 3, has_children: true },
+      { kind: "folder", name: "Q2", path: "Q2", file_count: 0, has_children: false },
+    ]);
+
+    render(
+      <FolderTreePane
+        drive="work"
+        selectedPath={null}
+        onSelectFolder={vi.fn()}
+        onSelectFile={vi.fn()}
+      />,
+    );
+
+    await waitFor(() => expect(screen.getByText("Q1")).toBeInTheDocument());
+
+    fireEvent.dragStart(screen.getByText("Q1"), {
+      dataTransfer: dragDataTransfer(),
+    });
+
+    const rootDropBand = await screen.findByLabelText(
+      /drop here to move to drive root|tree\.dropToRoot|ここにドロップしてドライブルートへ移動/i,
+    );
+    expect(rootDropBand.className).toMatch(/\babsolute\b/);
+    expect(rootDropBand.className).toMatch(/\bz-20\b/);
   });
 });
 

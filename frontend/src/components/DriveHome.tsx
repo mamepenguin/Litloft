@@ -8,6 +8,8 @@ import type { FileItem, Folder as FolderType, WatchHistoryItem } from "@/types";
 import { addPin, getDriveFiles, getFolders, getPins, getWatchHistory, removePin } from "@/lib/api";
 import { useDragAndDrop } from "@/hooks/useDragAndDrop";
 import { useContextMenu } from "@/hooks/useContextMenu";
+import { useTreeRefresh } from "@/components/TreeRefreshContext";
+import { useWebSocketRefresh } from "@/hooks/useWebSocketRefresh";
 import { AddonSlot } from "./AddonSlot";
 import { Breadcrumb } from "./Breadcrumb";
 import { CarouselSection } from "./CarouselSection";
@@ -50,6 +52,7 @@ export function DriveHome({ driveName }: DriveHomeProps) {
   const { menuState: folderMenuState, close: closeFolderMenu, handlers: folderMenuHandlers } = useContextMenu();
   const { requestRefresh: refreshSidebar } = useSidebar();
   const emptySelection = useMemo(() => new Set<string>(), []);
+  const refreshTree = useTreeRefresh();
 
   const refreshFolders = useCallback(async () => {
     try {
@@ -58,7 +61,25 @@ export function DriveHome({ driveName }: DriveHomeProps) {
     } catch {
       // ignore
     }
-  }, [driveName]);
+    refreshTree();
+  }, [driveName, refreshTree]);
+
+  // Auto-refresh the folder grid when cross-pane drops or WS events arrive.
+  // Two complementary signals:
+  //   1. WS events — covers backend-emitted structural changes (scan, other clients)
+  //   2. loft-move-complete window event — immediate signal after any in-page
+  //      drag-and-drop completes, including cross-pane drops that don't trigger
+  //      this component's own onComplete callback.
+  useWebSocketRefresh(
+    ["folders.moved", "folders.created", "folders.deleted", "files.moved", "scan.complete"],
+    refreshFolders,
+  );
+
+  useEffect(() => {
+    const handler = () => refreshFolders();
+    window.addEventListener("loft-move-complete", handler);
+    return () => window.removeEventListener("loft-move-complete", handler);
+  }, [refreshFolders]);
 
   const {
     dragState,

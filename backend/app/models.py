@@ -56,7 +56,7 @@ class File(Base):
     description: Mapped[str] = mapped_column(Text, default="")
     drive: Mapped[str] = mapped_column(String, nullable=False, default="")
     folder_path: Mapped[str] = mapped_column(String, nullable=False, default="")
-    file_path: Mapped[str] = mapped_column(String, nullable=False, unique=True)
+    file_path: Mapped[str] = mapped_column(String, nullable=False)
     file_size: Mapped[int] = mapped_column(Integer, nullable=False)
     file_type: Mapped[str] = mapped_column(String, nullable=False, default="other")
     mime_type: Mapped[str] = mapped_column(String, nullable=False, default="application/octet-stream")
@@ -91,6 +91,11 @@ class File(Base):
     )
 
     __table_args__ = (
+        # A drive is a security boundary; ``file_path`` is stored
+        # drive-relative (no drive prefix), so uniqueness is per-drive,
+        # never global. Mirrors Tag / EmptyFolder / PinnedFolder /
+        # Collection which are all UniqueConstraint("drive", ...).
+        UniqueConstraint("drive", "file_path", name="uq_files_drive_file_path"),
         Index("idx_files_drive_folder_path", "drive", "folder_path"),
         Index("idx_files_title", "title"),
         Index("idx_files_is_favorite", "is_favorite"),

@@ -2,10 +2,11 @@
 
 import { useCallback, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { CheckSquare, FileText, FolderPlus, Play, RefreshCw, X } from "lucide-react";
+import { CheckSquare, FileText, Play, RefreshCw, X } from "lucide-react";
 
 import { useTranslations } from "next-intl";
 import { createFolder, getDriveFiles, scanDrive } from "@/lib/api";
+import { useTreeRefresh } from "@/components/TreeRefreshContext";
 import type { FileItem, SortField, SortOrder, ViewMode } from "@/types";
 import { FileGrid } from "@/components/FileGrid";
 import { FileList } from "@/components/FileList";
@@ -16,6 +17,7 @@ import { UploadButton } from "@/components/UploadButton";
 import { UploadZone } from "@/components/UploadZone";
 import { SelectionBar } from "@/components/SelectionBar";
 import { FilterField } from "@/components/folder/FilterField";
+import { useDragAndDrop } from "@/hooks/useDragAndDrop";
 import { useFolderFilter } from "@/hooks/useFolderFilter";
 import { useSelection } from "@/hooks/useSelection";
 import { useInfiniteScroll } from "@/hooks/useInfiniteScroll";
@@ -35,6 +37,7 @@ export function RootFileListing({ driveName, onFileAction, onFolderChange }: Roo
   const ts = useTranslations("selection");
   const td = useTranslations("drive");
   const tFilter = useTranslations("filter");
+  const refreshTree = useTreeRefresh();
   const [viewMode, setViewMode] = useState<ViewMode>("grid");
   const [sort, setSort] = useState<SortField>("created_at");
   const [order, setOrder] = useState<SortOrder>("desc");
@@ -72,6 +75,40 @@ export function RootFileListing({ driveName, onFileAction, onFolderChange }: Roo
 
   const [refreshKey, setRefreshKey] = useState(0);
   const refresh = useCallback(() => setRefreshKey((k) => k + 1), []);
+
+  // Refresh when any drop completes in ANY pane (covers both same-pane and
+  // cross-pane drops; also handles WS-less batch moves).
+  useEffect(() => {
+    const handler = () => refresh();
+    window.addEventListener("loft-move-complete", handler);
+    return () => window.removeEventListener("loft-move-complete", handler);
+  }, [refresh]);
+
+  const handleDragDropComplete = useCallback(() => {
+    selection.clear();
+    setSelectable(false);
+    refresh();
+    onFolderChange?.();
+  }, [selection, refresh, onFolderChange]);
+
+  const {
+    dragState,
+    handleDragStart,
+    handleDragEnd,
+  } = useDragAndDrop({
+    drive: driveName,
+    selectedIds: selection.selectedIds,
+    onComplete: handleDragDropComplete,
+  });
+
+  const handleShiftSelect = useCallback((id: string) => {
+    selection.selectRange(files.map((f) => f.id), id);
+  }, [selection, files]);
+
+  const handleMetaSelect = useCallback((id: string) => {
+    setSelectable(true);
+    selection.toggle(id);
+  }, [selection]);
   const [scanning, setScanning] = useState(false);
 
   async function handleScan() {
@@ -116,6 +153,7 @@ export function RootFileListing({ driveName, onFileAction, onFolderChange }: Roo
       setNewFolderName("");
       setCreatingFolder(false);
       refresh();
+      refreshTree();
       onFolderChange?.();
     } catch {
       setFolderError(tf("createFailed"));
@@ -177,9 +215,9 @@ export function RootFileListing({ driveName, onFileAction, onFolderChange }: Roo
 
         {/* Toolbar */}
         <div className="mb-4 flex flex-wrap items-center gap-2">
-          <UploadButton />
+          <UploadButton onCreateFolder={() => setCreatingFolder(true)} />
 
-          {creatingFolder ? (
+          {creatingFolder && (
             <div className="flex w-full items-center gap-2 sm:w-auto">
               <input
                 type="text"
@@ -207,15 +245,6 @@ export function RootFileListing({ driveName, onFileAction, onFolderChange }: Roo
               </button>
               {folderError && <span className="text-xs text-danger">{folderError}</span>}
             </div>
-          ) : (
-            <button
-              onClick={() => setCreatingFolder(true)}
-              className="flex items-center gap-2 rounded-2xl border border-bg-border bg-bg-card px-3 py-2 text-sm font-medium text-text-primary transition-colors hover:bg-bg-elevated"
-              aria-label={tf("newFolder")}
-            >
-              <FolderPlus size={16} />
-              <span className="hidden sm:inline">New Folder</span>
-            </button>
           )}
 
           <div className="flex-1" />
@@ -309,7 +338,13 @@ export function RootFileListing({ driveName, onFileAction, onFolderChange }: Roo
             selectable={selectable}
             isSelected={selection.isSelected}
             onSelect={selection.toggle}
+            onMetaSelect={handleMetaSelect}
+            onShiftSelect={handleShiftSelect}
             sortQuery={sortQuery}
+            draggable={!selectable || selection.count > 0}
+            draggedFileIds={dragState.draggedFileIds}
+            onDragStart={handleDragStart}
+            onDragEnd={handleDragEnd}
           />
         ) : (
           <FileList
@@ -319,7 +354,13 @@ export function RootFileListing({ driveName, onFileAction, onFolderChange }: Roo
             selectable={selectable}
             isSelected={selection.isSelected}
             onSelect={selection.toggle}
+            onMetaSelect={handleMetaSelect}
+            onShiftSelect={handleShiftSelect}
             sortQuery={sortQuery}
+            draggable={!selectable || selection.count > 0}
+            draggedFileIds={dragState.draggedFileIds}
+            onDragStart={handleDragStart}
+            onDragEnd={handleDragEnd}
           />
         )}
 

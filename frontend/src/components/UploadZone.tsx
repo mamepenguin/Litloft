@@ -12,6 +12,12 @@ interface UploadZoneProps {
   folderPath: string;
   onUploadComplete?: () => void;
   children: ReactNode;
+  /**
+   * Extra Tailwind classes applied to the root wrapper div. Callers that
+   * need the zone to fill its flex-column parent should pass
+   * `"flex-1 flex flex-col"`.
+   */
+  className?: string;
 }
 
 export function UploadZone({
@@ -19,6 +25,7 @@ export function UploadZone({
   folderPath,
   onUploadComplete,
   children,
+  className,
 }: UploadZoneProps) {
   const t = useTranslations("upload");
   const [isDragging, setIsDragging] = useState(false);
@@ -137,7 +144,7 @@ export function UploadZone({
     <div
       ref={zoneRef}
       data-upload-zone
-      className="relative"
+      className={`relative${className ? ` ${className}` : ""}`}
       onDragEnter={handleDragEnter}
       onDragLeave={handleDragLeave}
       onDragOver={handleDragOver}
@@ -145,9 +152,11 @@ export function UploadZone({
     >
       {children}
 
-      {/* Drag overlay */}
+      {/* Drag overlay — `select-none` prevents text selection; no
+          `pointer-events-none` so drop events fire on this element
+          and bubble up to the parent's onDrop handler. */}
       {isDragging && (
-        <div className="pointer-events-none fixed inset-0 z-50 flex items-center justify-center bg-accent/10 backdrop-blur-sm">
+        <div className="select-none fixed inset-0 z-50 flex items-center justify-center bg-accent/10 backdrop-blur-sm">
           <div className="flex flex-col items-center gap-3 rounded-2xl border-2 border-dashed border-accent bg-bg-card/90 px-12 py-10">
             <Upload size={48} className="text-accent" />
             <p className="text-lg font-medium text-text-primary">

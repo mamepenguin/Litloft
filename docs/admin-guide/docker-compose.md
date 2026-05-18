@@ -126,7 +126,7 @@ Best practice: mount drives read-only into addons. The intelligence addon, for e
 - ./videos:/app/drives/default:ro
 ```
 
-The shared core SQLite DB should be mounted read-only into addons (`./data/videos.db:/data/core.db:ro`) when an addon needs to look up file metadata directly. In practice, the Internal API is preferred over direct DB access; see [Internal API policy](../developer-guide/addon-dev.md#internal-api-policy).
+The shared core SQLite DB should be mounted read-only into addons (`./data/data.db:/data/core.db:ro`) when an addon needs to look up file metadata directly. In practice, the Internal API is preferred over direct DB access; see [Internal API policy](../developer-guide/addon-dev.md#internal-api-policy).
 
 ## Healthcheck
 

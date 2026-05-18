@@ -67,9 +67,10 @@ function collectTimestamps(
 interface Props {
   file: FileItemWithMatch;
   onSelect: (url: string) => void;
+  isSelected?: boolean;
 }
 
-export function MergedResultItem({ file, onSelect }: Props) {
+export function MergedResultItem({ file, onSelect, isSelected = false }: Props) {
   const t = useTranslations("search");
   const meta = file.match_meta;
 
@@ -93,7 +94,7 @@ export function MergedResultItem({ file, onSelect }: Props) {
       type="button"
       data-testid="merged-result-item"
       onClick={() => onSelect(`/files/${file.id}`)}
-      className="flex w-full items-start gap-3 px-4 py-2.5 text-left transition-colors hover:bg-bg-elevated"
+      className={`flex w-full items-start gap-3 px-4 py-2.5 text-left transition-colors ${isSelected ? "bg-bg-elevated" : "hover:bg-bg-elevated"}`}
     >
       <img
         src={`/api/files/${file.id}/thumbnail`}

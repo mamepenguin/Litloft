@@ -200,15 +200,33 @@ def complete_upload(upload_id: str, db: Session) -> tuple[File, bool]:
         if not gen_fn(str(target_full), str(thumbnail_full)):
             thumbnail_rel = None
 
-    # If a missing record exists at the same path, recover it instead of
-    # inserting a new one (prevents UNIQUE constraint violation on file_path).
+    # Reconcile any DB record already holding this file_path so the UNIQUE
+    # constraint can't blow up at commit (consistent with
+    # fileops.resolve_db_path_conflict used by move / rename / copy).
+    #
+    # init_upload's FS check (target_full.exists() → 409) already guaranteed
+    # there was no live physical file at this path, so any record here is a
+    # ghost or an entry whose FS copy was gone and is now (re)materialised by
+    # this upload.
     existing = (
         db.query(File)
         .filter(File.drive == session.drive, File.file_path == target_rel)
         .first()
     )
+    if existing is not None and existing.deleted_at is not None:
+        # Trashed ghost: the user re-uploaded to this path, superseding the
+        # earlier delete intent. Purge the ghost so the fresh upload takes
+        # the slot cleanly (no fake-path leftover, no IntegrityError).
+        db.delete(existing)
+        db.flush()
+        existing = None
+
     recovered_missing = False
-    if existing is not None and existing.missing_since is not None and existing.deleted_at is None:
+    if existing is not None and existing.deleted_at is None:
+        # Reuse the row in place. Covers a Missing ghost (classic recover)
+        # and an Active row whose FS file had vanished and is now restored
+        # by this upload — reusing keeps its watch-history / tags / comments.
+        recovered_missing = existing.missing_since is not None
         existing.missing_since = None
         existing.filename = session.filename
         existing.title = _filename_to_title(session.filename)
@@ -219,7 +237,6 @@ def complete_upload(upload_id: str, db: Session) -> tuple[File, bool]:
         existing.thumbnail_path = thumbnail_rel
         existing.duration = duration
         file_record = existing
-        recovered_missing = True
     else:
         file_record = File(
             filename=session.filename,

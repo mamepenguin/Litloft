@@ -25,7 +25,7 @@ Click a drive card to drill into per-drive admin actions.
 
 A single card with global stats:
 
-- DB size (bytes of `data/videos.db`).
+- DB size (bytes of `data/data.db`).
 - Uptime (since the last container restart).
 - Total file count, total trash size, total missing count.
 - Last full scan.

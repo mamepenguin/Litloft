@@ -93,7 +93,7 @@ def _build_drive_info(db: Session, drive: dict) -> DashboardDriveInfo:
 
 def _build_system_info(db: Session) -> DashboardSystemInfo:
     """Build system-level dashboard info."""
-    db_path = config.DATA_DIR / "videos.db"
+    db_path = config.DATABASE_PATH
 
     total_files = (
         db.query(func.count())

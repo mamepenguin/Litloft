@@ -132,7 +132,7 @@ export function FileCard({
 
   return (
     <div
-      className={`relative${isDragging ? " opacity-40" : ""}${isCutFile ? " opacity-50" : ""}`}
+      className={`relative${isDragging ? " opacity-40" : ""}${isCutFile ? " opacity-50" : ""}${draggable ? " select-none" : ""}`}
       draggable={draggable}
       onDragStart={onDragStart}
       onDragEnd={onDragEnd}
@@ -174,6 +174,7 @@ export function FileCard({
               alt={file.title}
               className="h-full w-full object-cover"
               loading="lazy"
+              draggable="false"
             />
           ) : isTextPreviewable ? (
             <TextThumbnail file={file} />

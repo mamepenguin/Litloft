@@ -64,7 +64,7 @@ git checkout <previous-sha>
 docker compose up -d --build
 ```
 
-If a database migration has already run, restore `data/videos.db` from a backup before bringing the stack up. Mismatched schema and code is the most common cause of post-rollback errors.
+If a database migration has already run, restore `data/data.db` from a backup before bringing the stack up. Mismatched schema and code is the most common cause of post-rollback errors.
 
 ## Continuous deployment helper
 
