@@ -534,6 +534,11 @@
         "duplicate_name": "Drive name already in use",
         "missing_field": "Required field",
         "json_syntax": "JSON syntax error"
+      },
+      "addMountHelp": {
+        "title": "How to add a new drive",
+        "body": "Drives appear here automatically once their host directory is mounted. To add one, add '- /host/path:/app/drives/<slug>' to backend.volumes in docker-compose.override.yml, then run the command below and reload this page.",
+        "command": "docker compose up -d --build"
       }
     },
     "passwords": {

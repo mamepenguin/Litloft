@@ -534,6 +534,11 @@
         "duplicate_name": "このドライブ名はすでに使われています",
         "missing_field": "必須項目です",
         "json_syntax": "JSON 構文エラーです"
+      },
+      "addMountHelp": {
+        "title": "新しいドライブを追加するには",
+        "body": "ホストディレクトリをマウントすると、ドライブはここに自動的に表示されます。追加するには docker-compose.override.yml の backend.volumes に '- /host/path:/app/drives/<slug>' を追記し、下記コマンドを実行してこのページを再読み込みしてください。",
+        "command": "docker compose up -d --build"
       }
     },
     "passwords": {
