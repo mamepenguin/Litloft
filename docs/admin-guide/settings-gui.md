@@ -1,6 +1,6 @@
 # Settings GUI
 
-`/admin/settings` is the canonical place to edit Litloft configuration after the initial setup wizard. It is a thin wrapper over `drives.json` and `passwords.json` with validation and atomic writes — what you save here is identical to what you would write by hand, just safer.
+`/admin/settings` is the canonical place to edit Litloft's logical configuration once the running stack exists. `configure.py` only wires the containers (mounts, port, addons); the backend then seeds one drive entry per mounted directory, and from that point on this page (and the `/setup` wizard on first run) own drive names, access groups, passwords, and addon policy. It is a thin wrapper over `drives.json` and `passwords.json` with validation and atomic writes — what you save here is identical to what you would write by hand, just safer.
 
 > **Image needed:** screenshot of the settings page showing the three sections (Drives, Passwords, AddonPolicy).
 
@@ -18,6 +18,8 @@ Lists every drive in `drives.json`. Per row:
 - **Addon policy** — opens an inline matrix of toggles for each enabled addon (see *AddonPolicy* below). For addons with sub-feature flags, an expandable row lists each flag.
 
 Add a drive with the `+` button. Validation runs before save; on success the file is written atomically (`.tmp` + rename) and a `data/restart_pending` flag is set. The dashboard banner reminds you to restart.
+
+A drive's content directory is a host mount, which the GUI cannot create (the backend cannot edit `docker-compose.override.yml` or restart itself). To expose a **new** host directory, add a mount line to `docker-compose.override.yml` (`- /host/path:/app/drives/<slug>`) and run `docker compose up -d --build`; the backend seeds the new directory as a drive on the next start, after which you rename and protect it here.
 
 Delete a drive with the trash icon. The DB rows for files in that drive **stay** until you purge them — Litloft does not auto-delete on drive removal so you can recover from a misclick. To clean them up afterwards, use `purge_all_missing` once the scanner has flagged the orphans as missing.
 
@@ -93,7 +95,7 @@ For automation:
 - `POST /api/admin/config/passwords/append` — add one entry
 - `DELETE /api/admin/config/passwords/{index}` — remove by index
 - `PUT /api/admin/config/addon-policy` — update per-drive addon policy
-- `GET /api/admin/config/setup-status` — whether `data/setup_completed` exists
+- `GET /api/admin/config/setup-status` — `{ completed, drives }`. Unauthenticated, because the first-run wizard needs it before any password exists. `drives` (the seeded `name`/`path`/`access_group` list) is returned **only while setup is incomplete**; once `data/setup_completed` exists it is always `[]`, so drive names and container paths are never disclosed to unauthenticated peers after first run.
 - `GET /api/admin/config/restart-status` — `data/restart_pending` flag
 
-All require admin authentication.
+All except `setup-status` and `complete-setup` require admin authentication. Those two are intentionally open so the unauthenticated first-run wizard can function; `setup-status` stops returning the drive list the moment setup completes.

@@ -149,13 +149,13 @@ Pagination: list endpoints that paginate take `page` (1-based) and return the cu
 
 ## Admin
 
-All require master-viewer authentication.
+All require master-viewer authentication **except** `setup-status` and `complete-setup`, which are intentionally unauthenticated so the first-run wizard can run before any password exists.
 
 | Method | Path | Purpose |
 |---|---|---|
 | `GET` | `/api/admin/dashboard` | Aggregated metrics. |
 | `GET` | `/api/admin/duplicates` | Paginated duplicate groups. |
-| `GET` | `/api/admin/config/setup-status` | `data/setup_completed`. |
+| `GET` | `/api/admin/config/setup-status` | `{ completed, drives }` (unauthenticated). `drives` (seeded `name`/`path`/`access_group`) is returned only while setup is incomplete; `[]` once `data/setup_completed` exists. |
 | `GET` | `/api/admin/config/restart-status` | `data/restart_pending`. |
 | `GET` | `/api/admin/config/drives` | Read drives.json. |
 | `PUT` | `/api/admin/config/drives` | Replace drives.json (validated). |

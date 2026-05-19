@@ -4,15 +4,17 @@ A single page listing every configuration knob in Litloft. For per-feature expla
 
 Litloft's configuration is split across several files:
 
+`configure.py` is bootstrap-only — it generates the container wiring (`docker-compose.override.yml`, `.env`, empty `drives.json`/`passwords.json`, `event-hooks.json`, and a `search-config.yml` copy when intelligence is enabled). It does not ask for drive names, passwords, access groups, or AI feature modes; those are owned by the `/setup` wizard and `/admin/settings`.
+
 | File | What it configures | Edited by |
 |---|---|---|
-| `drives.json` | Drives + per-drive addon policy | Setup wizard, settings GUI, by hand |
-| `passwords.json` | Access groups | Setup wizard, settings GUI, by hand |
-| `.env` | Secrets and env vars | By hand |
-| `docker-compose.override.yml` | Mounts, ports, addon services | By hand |
-| `addons/intelligence/search-config.yml` | AI features | By hand |
+| `drives.json` | Drives + per-drive addon policy | `configure.py` writes `[]`; backend seeds from mounts; then setup wizard / settings GUI / by hand |
+| `passwords.json` | Access groups | `configure.py` writes `[]`; then setup wizard / settings GUI / by hand |
+| `.env` | Secrets and env vars | `configure.py` (port / addon secrets) + by hand |
+| `docker-compose.override.yml` | Mounts, ports, addon services | `configure.py` (or by hand from the example) |
+| `addons/intelligence/search-config.yml` | AI features | `configure.py` copies the example; then by hand |
 | `addons/cloud-sync/sync-config.json` | Backup schedule | By hand |
-| `event-hooks.json` (in `data/`) | Webhooks | Auto + by hand |
+| `event-hooks.json` | Webhooks | `configure.py` (from addon manifests) + by hand |
 
 All settings are reproduced below with defaults and links to detailed docs.
 
@@ -55,7 +57,7 @@ See [drives and access](../user-guide/drives-and-access.md), [settings GUI](../a
 
 ## passwords.json
 
-JSON array of password objects. Optional — if absent, every drive is public.
+JSON array of password objects. `configure.py` always generates it as `[]`. An empty `[]` is treated identically to an absent file: every drive is public (graceful degradation). It must be mounted **read-write** (`./passwords.json:/app/passwords.json`, never `:ro`) so the wizard and settings GUI can write to it.
 
 ```json
 [
@@ -228,7 +230,7 @@ See [profile and preferences](../user-guide/profile-preferences.md).
 
 | File | Set by | Read by | Purpose |
 |---|---|---|---|
-| `data/setup_completed` | Setup wizard finalisation | `main.py` startup | Hide the `/setup` wizard |
+| `data/setup_completed` | Setup wizard finalisation; also auto-created on startup for upgraded installs whose `drives.json` is already non-empty | `main.py` startup | Hide the `/setup` wizard |
 | `data/restart_pending` | Settings GUI writes | Admin dashboard | "Pending changes" banner |
 | `data/.jwt_secret` | Backend on first boot | Backend | JWT signing key when `JWT_SECRET` is unset |
 

@@ -4,7 +4,7 @@ A *drive* is the top-level unit of content in Litloft. Each drive has a name, a 
 
 ## Defining a drive
 
-Drives live in `drives.json` (a JSON array) at the project root. Edit them through the [setup wizard](../getting-started/first-run-setup.md) or the [settings GUI](../admin-guide/settings-gui.md). Direct file editing also works but requires a backend restart.
+Drives live in `drives.json` (a JSON array) at the project root. You do not create this file by hand: `configure.py` writes it empty (`[]`), the backend seeds one entry per mounted directory on first start, and you name and protect them through the [setup wizard](../getting-started/first-run-setup.md) or the [settings GUI](../admin-guide/settings-gui.md). Direct file editing also works but requires a backend restart — reset the file to `[]` rather than deleting it (the single-file bind-mount needs the file to exist).
 
 ```json
 [
@@ -59,7 +59,7 @@ A viewer whose unlocked password covers **every** access group used in `drives.j
 - Can edit drives, passwords, and addon policy at [`/admin/settings`](../admin-guide/settings-gui.md).
 - Can view the dashboard at `/admin`.
 
-If `passwords.json` is absent, every viewer is implicitly an admin. This is the *graceful degradation* mode for personal-use single-user setups.
+If `passwords.json` is empty (`[]`) or absent, every viewer is implicitly an admin. `configure.py` always generates an empty `passwords.json`; an empty file is treated identically to no file (all drives public). This is the *graceful degradation* mode for personal-use single-user setups, and the default until you add a password through the wizard or settings GUI.
 
 ## The unlock flow
 

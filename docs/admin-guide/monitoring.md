@@ -80,7 +80,7 @@ docker compose restart backend               # releases the lock if it is genuin
 ### Protected drives not visible after `/unlock`
 
 1. Confirm `passwords.json` group names match the `access_group` values in `drives.json`.
-2. Ensure the backend has `passwords.json` mounted (`./passwords.json:/app/passwords.json:ro` in the override file).
+2. Ensure the backend has `passwords.json` mounted **read-write** (`./passwords.json:/app/passwords.json` in the override file — never `:ro`, which breaks GUI writes). `configure.py` adds this mount automatically.
 3. Ensure browser cookies are enabled — the JWT is the `access_token` cookie (DevTools → Application → Cookies).
 4. Restart the backend to reload config.
 
