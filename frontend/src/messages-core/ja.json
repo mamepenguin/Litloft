@@ -68,7 +68,11 @@
     "favorites": "お気に入り",
     "popular": "人気",
     "continueWatching": "続きを見る",
-    "recentlyPlayed": "最近見た"
+    "recentlyPlayed": "最近見た",
+    "tagline": "ファイルの保存・配信・整理をひとつに",
+    "greeting": "おかえりなさい、{name}",
+    "fileCount": "{count, plural, other {#件のファイル}}",
+    "emptyDrive": "まだファイルがありません"
   },
   "folder": {
     "items": "{count} 件",
@@ -653,6 +657,7 @@
   },
   "admin": {
     "title": "ダッシュボード",
+    "settings": "設定",
     "drives": "ドライブ",
     "system": "システム",
     "totalFiles": "ファイル数",

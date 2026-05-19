@@ -335,6 +335,8 @@ class TestStatusEndpoint:
             body = res.json()
             assert body["unlocked_groups"] == []
             assert body["has_protected_drives"] is False
+            # No passwords.json → graceful degradation: everyone is admin.
+            assert body["is_admin"] is True
         finally:
             cleanup()
 
@@ -352,6 +354,50 @@ class TestStatusEndpoint:
             body = res.json()
             assert body["unlocked_groups"] == ["private"]
             assert body["has_protected_drives"] is True
+            # Holds every protected access_group → admin.
+            assert body["is_admin"] is True
+        finally:
+            cleanup()
+
+    def test_status_not_admin_without_unlock(self, tmp_path):
+        passwords = [{"password": "pass123", "groups": ["private"]}]
+        drive_dir = tmp_path / "drives" / "protected"
+        drive_dir.mkdir(parents=True)
+        drives = [
+            {"name": TEST_DRIVE, "path": str(drive_dir), "access_group": "private"},
+        ]
+        c, cleanup = _make_auth_client(tmp_path, passwords=passwords, drives=drives)
+        try:
+            res = c.get("/api/auth/status")
+            body = res.json()
+            assert body["unlocked_groups"] == []
+            assert body["has_protected_drives"] is True
+            # A protected drive exists but no group is unlocked → not admin.
+            assert body["is_admin"] is False
+        finally:
+            cleanup()
+
+    def test_status_partial_unlock_not_admin(self, tmp_path):
+        passwords = [
+            {"password": "pass-a", "groups": ["group-a"]},
+            {"password": "pass-b", "groups": ["group-b"]},
+        ]
+        drive_a = tmp_path / "drives" / "a"
+        drive_b = tmp_path / "drives" / "b"
+        drive_a.mkdir(parents=True)
+        drive_b.mkdir(parents=True)
+        drives = [
+            {"name": "drive-a", "path": str(drive_a), "access_group": "group-a"},
+            {"name": "drive-b", "path": str(drive_b), "access_group": "group-b"},
+        ]
+        c, cleanup = _make_auth_client(tmp_path, passwords=passwords, drives=drives)
+        try:
+            c.post("/api/auth/unlock", json={"password": "pass-a"})
+            res = c.get("/api/auth/status")
+            body = res.json()
+            assert body["unlocked_groups"] == ["group-a"]
+            # Unlocked only one of two protected groups → not admin.
+            assert body["is_admin"] is False
         finally:
             cleanup()
 
@@ -388,6 +434,80 @@ class TestDriveAccessControl:
             names = [d["name"] for d in res.json()]
             assert "public-drive" in names
             assert "secret-drive" in names
+        finally:
+            cleanup()
+
+    def test_locked_drive_file_count_not_leaked(self, tmp_path):
+        # spec 2026-05-19-root-home-enrichment §2.1/§6.1 (boundary):
+        # a locked protected drive must not appear in /api/drives at all,
+        # and a hidden drive's file_count (here 3) must not be attributed
+        # to any visible drive's count.
+        from sqlalchemy import create_engine
+        from sqlalchemy.orm import sessionmaker
+
+        from app.models import File
+
+        pub_dir = tmp_path / "drives" / "pub"
+        sec_dir = tmp_path / "drives" / "sec"
+        pub_dir.mkdir(parents=True)
+        sec_dir.mkdir(parents=True)
+        passwords = [{"password": "vippass", "groups": ["vip"]}]
+        drives = [
+            {"name": "public-drive", "path": str(pub_dir)},
+            {"name": "secret-drive", "path": str(sec_dir), "access_group": "vip"},
+        ]
+        c, cleanup = _make_auth_client(tmp_path, passwords=passwords, drives=drives)
+        try:
+            # Seed via an independent session on the same sqlite file
+            # (counting is a pure DB query — no physical files needed):
+            # public-drive = 1 active file, secret-drive = 3 active files.
+            seed_engine = create_engine(f"sqlite:///{tmp_path / 'test.db'}")
+            Seed = sessionmaker(bind=seed_engine)
+            s = Seed()
+            s.add(
+                File(
+                    filename="p.mp4",
+                    title="P",
+                    drive="public-drive",
+                    folder_path="",
+                    file_path="p.mp4",
+                    file_size=1,
+                    file_type="video",
+                    mime_type="video/mp4",
+                )
+            )
+            for i in range(3):
+                s.add(
+                    File(
+                        filename=f"s{i}.mp4",
+                        title=f"S{i}",
+                        drive="secret-drive",
+                        folder_path="",
+                        file_path=f"s{i}.mp4",
+                        file_size=1,
+                        file_type="video",
+                        mime_type="video/mp4",
+                    )
+                )
+            s.commit()
+            s.close()
+            seed_engine.dispose()
+
+            # Locked: secret-drive entirely absent, and its count (3) must
+            # not appear in ANY visible drive's file_count.
+            res = c.get("/api/drives")
+            body = res.json()
+            names = [d["name"] for d in body]
+            assert names == ["public-drive"]
+            assert "secret-drive" not in names
+            assert body[0]["file_count"] == 1
+            assert all(d["file_count"] != 3 for d in body)
+            # After unlock the drive appears with its own (correct) count.
+            c.post("/api/auth/unlock", json={"password": "vippass"})
+            by_name = {d["name"]: d for d in c.get("/api/drives").json()}
+            assert set(by_name) == {"public-drive", "secret-drive"}
+            assert by_name["secret-drive"]["file_count"] == 3
+            assert by_name["public-drive"]["file_count"] == 1
         finally:
             cleanup()
 

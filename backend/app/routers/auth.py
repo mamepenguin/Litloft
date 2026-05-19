@@ -9,6 +9,7 @@ from app.auth import (
     create_jwt,
     get_unlocked_groups,
     has_protected_drives,
+    is_admin,
     record_failed_attempt,
     verify_password,
 )
@@ -34,6 +35,10 @@ class LockResponse(BaseModel):
 class StatusResponse(BaseModel):
     unlocked_groups: list[str]
     has_protected_drives: bool
+    # True iff the caller can see every protected drive (same definition
+    # as require_admin). Drives the admin-only surfaces, e.g. the
+    # sidebar dashboard link, without leaking which groups exist.
+    is_admin: bool
 
 
 @router.post("/unlock", response_model=UnlockResponse)
@@ -76,4 +81,5 @@ async def status(request_groups: Annotated[list[str], Depends(get_unlocked_group
     return StatusResponse(
         unlocked_groups=request_groups,
         has_protected_drives=has_protected_drives(),
+        is_admin=is_admin(request_groups),
     )
