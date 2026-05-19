@@ -24,7 +24,7 @@ describe("useSidebarData", () => {
 
   it("fetches drives and auth status on mount", async () => {
     vi.mocked(getDrives).mockResolvedValueOnce([
-      { name: "main", protected: false },
+      { name: "main", protected: false, file_count: 0 },
     ]);
     const { result } = renderHook(() => useSidebarData(null, 0));
 

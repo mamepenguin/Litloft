@@ -121,6 +121,7 @@ class NeighborsResponse(BaseModel):
 class DriveResponse(BaseModel):
     name: str
     protected: bool = False
+    file_count: int = 0
 
 
 class DriveSummaryResponse(BaseModel):

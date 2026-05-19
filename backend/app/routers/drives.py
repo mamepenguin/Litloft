@@ -179,11 +179,27 @@ def _list_folder_tree_flat(
 
 @router.get("", response_model=list[DriveResponse])
 async def list_drives(
+    db: Annotated[Session, Depends(get_db)],
     unlocked_groups: Annotated[list[str], Depends(get_unlocked_groups)],
 ):
     drives = filter_drives(config.load_drives(), unlocked_groups)
+    # Single grouped query for all drives (no N+1); active-only counts
+    # (active_file_filter excludes trash/missing per design-decisions.md).
+    # counts is computed for every drive but only attached to the
+    # access-filtered visible drives, so a locked drive's count never
+    # leaves the server (spec 2026-05-19-root-home-enrichment §2.1).
+    counts = dict(
+        db.query(File.drive, func.count(File.id))
+        .filter(active_file_filter())
+        .group_by(File.drive)
+        .all()
+    )
     return [
-        DriveResponse(name=d["name"], protected=bool(d.get("access_group")))
+        DriveResponse(
+            name=d["name"],
+            protected=bool(d.get("access_group")),
+            file_count=counts.get(d["name"], 0),
+        )
         for d in drives
     ]
 

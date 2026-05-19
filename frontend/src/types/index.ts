@@ -51,6 +51,9 @@ export interface PaginatedResponse {
 export interface Drive {
   name: string;
   protected: boolean;
+  // Active file count (trash/missing excluded). Always returned by
+  // GET /api/drives (DriveResponse default 0).
+  file_count: number;
 }
 
 export interface UnlockResult {

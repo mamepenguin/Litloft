@@ -60,6 +60,65 @@ class TestListDrives:
         assert len(drives) == 1
         assert drives[0]["name"] == TEST_DRIVE
 
+    def test_drives_includes_file_count(self, client):
+        # spec 2026-05-19-root-home-enrichment §3.1: list_drives returns a
+        # per-drive active file_count via a single grouped query.
+        c, db, drive_dir, data_dir = client
+        _seed(db, drive_dir)  # 2 active files (旅行/v.mp4, 料理/v.mp4)
+        res = c.get("/api/drives")
+        assert res.status_code == 200
+        drives = res.json()
+        assert drives[0]["name"] == TEST_DRIVE
+        assert drives[0]["file_count"] == 2
+
+    def test_file_count_zero_when_empty(self, client):
+        c, db, drive_dir, data_dir = client
+        res = c.get("/api/drives")
+        assert res.status_code == 200
+        assert res.json()[0]["file_count"] == 0
+
+    def test_file_count_excludes_trash_and_missing(self, client):
+        # spec §3.1: counts must go through active_file_filter()
+        # (design-decisions.md "File state": trash/missing excluded).
+        from datetime import datetime, timezone
+
+        from app.models import File
+
+        c, db, drive_dir, data_dir = client
+        _seed(db, drive_dir)  # 2 active
+        now = datetime.now(timezone.utc)
+        db.add(
+            File(
+                filename="trashed.mp4",
+                title="Trashed",
+                drive=TEST_DRIVE,
+                folder_path="旅行",
+                file_path="旅行/trashed.mp4",
+                file_size=1,
+                file_type="video",
+                mime_type="video/mp4",
+                deleted_at=now,
+            )
+        )
+        db.add(
+            File(
+                filename="gone.mp4",
+                title="Gone",
+                drive=TEST_DRIVE,
+                folder_path="料理",
+                file_path="料理/gone.mp4",
+                file_size=1,
+                file_type="video",
+                mime_type="video/mp4",
+                missing_since=now,
+            )
+        )
+        db.commit()
+        res = c.get("/api/drives")
+        assert res.status_code == 200
+        # Only the 2 active files count; trash + missing excluded.
+        assert res.json()[0]["file_count"] == 2
+
     def test_invalid_drive(self, client):
         c, db, drive_dir, data_dir = client
         res = c.get("/api/drives/nonexistent/files")
