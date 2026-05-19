@@ -173,6 +173,18 @@ export function DrivesSection(): React.ReactElement {
         </button>
       </div>
 
+      <details className="mb-4 rounded-xl bg-bg-elevated p-4 text-sm">
+        <summary className="cursor-pointer font-medium text-text-primary">
+          {t("addMountHelp.title")}
+        </summary>
+        <div className="mt-3 space-y-2 text-text-muted">
+          <p>{t("addMountHelp.body")}</p>
+          <code className="block break-anywhere rounded-lg bg-bg-card px-3 py-2 text-xs text-text-primary">
+            {t("addMountHelp.command")}
+          </code>
+        </div>
+      </details>
+
       {loadError && (
         <p className="mb-3 text-xs text-danger">{loadError}</p>
       )}

@@ -195,4 +195,22 @@ describe("DrivesSection", () => {
       expect(body).toHaveLength(1);
     });
   });
+
+  it("renders a help disclosure explaining how to add a new mounted drive", async () => {
+    mockFetch.mockResolvedValueOnce(jsonResponse(initialDrives));
+    render(<DrivesSection />);
+    await waitFor(() => {
+      expect(screen.getByText("main")).toBeInTheDocument();
+    });
+
+    // A <details> disclosure (resolved i18n strings, not key paths) that
+    // tells the admin a new drive needs a docker-compose.override.yml
+    // mount + rebuild — consistent with the /setup DriveStep wording.
+    expect(
+      screen.getByText(/docker-compose\.override\.yml/i),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByText(/docker compose up -d --build/i),
+    ).toBeInTheDocument();
+  });
 });

@@ -2,11 +2,19 @@
 
 Litloft is run as a Docker Compose stack. The base file `docker-compose.yml` is shipped with the project and **must not be edited**. All operator-specific configuration lives in `docker-compose.override.yml`, which Compose merges in automatically.
 
+`configure.py` generates `docker-compose.override.yml` for you from a short set of questions (mounts, port, which addons to enable). Run it instead of copying the example by hand:
+
+```bash
+python3 configure.py
+```
+
+If you prefer to write the override file yourself, start from the template:
+
 ```bash
 cp docker-compose.override.yml.example docker-compose.override.yml
 ```
 
-The override file is `.gitignored` so your customisation is private to your machine.
+The override file is `.gitignored` so your customisation is private to your machine. The sections below describe what `configure.py` writes and how to adjust it afterwards.
 
 ## Services
 
@@ -19,7 +27,7 @@ Addon containers (intelligence, knowledge, …) are introduced through your over
 
 ## Drive mounts
 
-Map host directories to container paths. The container path **must** match `path` in the corresponding `drives.json` entry.
+`configure.py` asks for one host path and a slug per drive and writes the mount lines for you. Each mount maps a host directory to `/app/drives/<slug>`:
 
 ```yaml
 services:
@@ -30,21 +38,25 @@ services:
       - /mnt/nas/photos:/app/drives/photos
 ```
 
-- Use `:ro` to mount read-only when you do not want Litloft to write into a directory.
+The slug here is a path identifier, not the display name. The backend seeds one logical drive entry per mounted directory on first startup, and you give each drive its real name (and optional password protection) later in the `/setup` wizard. To add a drive after the fact, append a mount line and run `docker compose up -d --build` again.
+
+- `:ro` is optional and only for drives you want Litloft to never write into (read-only library). It is not required and not the default.
 - Bind mounts work as expected on Linux; on macOS/Windows expect slower I/O for very large drives (Docker Desktop's filesystem is the bottleneck).
 
 ## Passwords file
 
-If you use password protection, mount your `passwords.json` read-only into the backend:
+`configure.py` always generates an empty `passwords.json` (`[]`) and mounts it **read-write**, regardless of whether you intend to use passwords yet:
 
 ```yaml
 services:
   backend:
     volumes:
-      - ./passwords.json:/app/passwords.json:ro
+      - ./passwords.json:/app/passwords.json
 ```
 
-Without this, the backend treats every drive as public (graceful-degradation mode).
+Do **not** add `:ro` to this mount. Passwords are created and edited through the `/setup` wizard and `/admin/settings`, which write `passwords.json` from inside the backend container; a read-only mount makes those writes fail. The single-file bind-mount also needs a real host file to exist — an absent file makes Docker create a directory there, which the backend cannot read or write — which is why `configure.py` writes the empty `[]` up front.
+
+An empty `passwords.json` is semantically identical to having no passwords at all: every drive is public (graceful-degradation mode). It only stops being a no-op once you add an entry through the GUI.
 
 ## Port
 

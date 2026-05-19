@@ -534,6 +534,11 @@
         "duplicate_name": "このドライブ名はすでに使われています",
         "missing_field": "必須項目です",
         "json_syntax": "JSON 構文エラーです"
+      },
+      "addMountHelp": {
+        "title": "新しいドライブを追加するには",
+        "body": "ホストディレクトリをマウントすると、ドライブはここに自動的に表示されます。追加するには docker-compose.override.yml の backend.volumes に '- /host/path:/app/drives/<slug>' を追記し、下記コマンドを実行してこのページを再読み込みしてください。",
+        "command": "docker compose up -d --build"
       }
     },
     "passwords": {
@@ -816,7 +821,8 @@
         "save": "ドライブ・パスワード・アドオン設定を保存します",
         "redirect": "管理ダッシュボード（/admin）へ移動します",
         "lan": "家庭内 LAN の他のデバイスからもアクセスできます"
-      }
+      },
+      "submit": "保存して完了"
     },
     "language": {
       "title": "言語を選択",
@@ -845,8 +851,13 @@
       "complete": "完了"
     },
     "drive": {
-      "title": "ドライブを追加",
+      "title": "ドライブに名前を付ける",
       "description": "最低 1 つ追加してください。docker-compose.yml の volumes でホストにマウントされたパスを入力します。",
+      "detectedDescription": "コンテナのマウントから検知したドライブです。それぞれに表示名を付け、必要ならアクセスグループを設定してください。",
+      "pathReadonlyLabel": "マウント先",
+      "noneDetectedTitle": "ドライブが検知されませんでした",
+      "noneDetected": "ホストディレクトリがマウントされていません。docker-compose.override.yml の backend.volumes に追加し、コンテナを再ビルドしてください。",
+      "noneDetectedCommand": "docker compose up -d --build",
       "fields": {
         "name": "名前",
         "path": "パス",
@@ -855,12 +866,12 @@
       "helpers": {
         "name": "サイドバーや URL に使われる識別子。英数字とハイフン推奨。例: media",
         "path": "コンテナ内のパスを入力します。docker-compose.yml の volumes でマウント済みであることが前提です。例: /data/media",
-        "group": "アクセス制御の単位。後でグループ単位でパスワードを設定できます。例: family"
+        "group": "アクセス制御の単位。後でグループ単位でパスワードを設定できます。公開ドライブは空欄のままで構いません。例: family"
       },
       "troubleshootingTitle": "うまくいかないときは",
       "troubleshooting": {
-        "dockerVolume": "パスはホスト側ではなく、コンテナ内のパスです。",
-        "containerPath": "docker-compose.yml の backend.volumes に '- /host/path:/data/media' を追加し、'docker compose up -d --build' してから登録してください。"
+        "dockerVolume": "ドライブは docker-compose.override.yml でマウントします。ここでは入力しません。",
+        "containerPath": "docker-compose.override.yml の backend.volumes に '- /host/path:/app/drives/<slug>' を追加し、'docker compose up -d --build' してからこのページを再読み込みしてください。"
       }
     },
     "accessMode": {

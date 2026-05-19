@@ -62,6 +62,18 @@ describe("CompleteStep", () => {
     });
   });
 
+  it("submit button shows a resolved label, not a raw i18n key", async () => {
+    // Regression: the button used t('complete') under the "setup"
+    // namespace, but setup.complete is an object namespace, so next-intl
+    // rendered the literal key path. The label must be a real string and
+    // must not leak the "setup." key prefix.
+    render(<CompleteStep onBack={vi.fn()} summary={DEFAULT_SUMMARY} />);
+    const buttons = screen.getAllByRole("button");
+    const submit = buttons[buttons.length - 1];
+    expect(submit.textContent?.trim()).toBe("Save and finish");
+    expect(submit.textContent ?? "").not.toMatch(/setup\./);
+  });
+
   it("does not redirect on failure", async () => {
     mockFetch.mockResolvedValueOnce(jsonResponse({ detail: "error" }, 500));
     render(<CompleteStep onBack={vi.fn()} summary={DEFAULT_SUMMARY} />);

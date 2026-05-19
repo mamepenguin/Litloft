@@ -1,6 +1,6 @@
 # First-run setup
 
-The first time you load Litloft in a browser, you are redirected to `/setup`, a six-step wizard that creates `drives.json` and (optionally) `passwords.json`. The wizard runs without authentication; until it completes, any LAN client can write the configuration. Run it from the same network you trust to admin from.
+The first time you load Litloft in a browser, you are redirected to `/setup`, a wizard where you turn the mounted directories into named drives and decide how access is gated. `configure.py` already wired the containers and the backend seeded one stub drive per mounted directory; the wizard is where that becomes your real configuration (names, passwords, AI features). The wizard runs without authentication; until it completes, any LAN client can write the configuration. Run it from the same network you trust to admin from.
 
 > **Image needed:** screenshot of the wizard's overall stepper. See [`IMAGES-NEEDED.md`](../IMAGES-NEEDED.md).
 
@@ -18,21 +18,22 @@ A localised summary of what the next four steps will collect. No input needed.
 
 ## Step 3 — Drives
 
-Declare your drives. Each entry has:
+The wizard lists the drives the backend detected — one per directory you mounted under `/app/drives/` via `configure.py`. You do not type host paths here; the mounts are already wired. For each detected drive you set:
 
 | Field | Required | Notes |
 |---|---|---|
-| `name` | yes | Display name and URL slug. Avoid path separators (`/`, `\`). Unicode is fine (e.g. `動画`, `Photos`). |
-| `path` | yes | The **container** path. Must match a volume mount you set up in `docker-compose.override.yml`. The wizard validates the path is reachable from the backend. |
+| `name` | yes | Display name and URL slug. Defaults to the mount slug; rename it to something readable. Avoid path separators (`/`, `\`). Unicode is fine (e.g. `動画`, `Photos`). |
 | `access_group` | no | If set, the drive is protected and only viewers who unlock this group via password can see it. Set up groups in steps 4–5. |
 
-Add as many drives as you need, in any order. Order is preserved in `drives.json` and used in some UIs.
+The container path is fixed by the mount and is not editable here. To add or remove a drive, add or remove a mount line in `docker-compose.override.yml` and run `docker compose up -d --build` again.
+
+If no drives appear, no directories are mounted under `/app/drives/`. Fix the `services.backend.volumes` block in `docker-compose.override.yml` (or re-run `configure.py`), rebuild, and reload `/setup`.
 
 ## Step 4 — Access mode
 
 Pick how access is gated:
 
-- **Public** — every drive is visible to everyone on the LAN. No `passwords.json`.
+- **Public** — every drive is visible to everyone on the LAN. `passwords.json` stays empty (`[]`), which is treated exactly like having no passwords at all.
 - **Protected** — at least one drive uses an `access_group`. You will set passwords in step 5.
 
 You can switch later from the admin settings page.
@@ -60,8 +61,8 @@ If no addons are installed, this step is skipped automatically.
 
 A summary of what you configured: drive count, access mode, addon enablement. Click **Finish**; the wizard:
 
-1. Writes `drives.json` (atomic write through `.tmp` + rename).
-2. Writes `passwords.json` if you chose Protected.
+1. Writes `drives.json` with your names and access groups (atomic write through `.tmp` + rename), replacing the seeded stubs.
+2. Writes password entries into `passwords.json` if you chose Protected (the file already exists as `[]`; the wizard fills it in).
 3. Writes the per-drive addon policy into `drives.json` under each drive's `addons` field.
 4. Creates `data/setup_completed`.
 5. Triggers a backend rescan.
@@ -76,8 +77,8 @@ You are then redirected to the home page (`/`) listing your drives.
 
 ## Troubleshooting
 
-- **"Path does not exist" on the Drives step.** The container cannot see that path. Re-check your volume mount in `docker-compose.override.yml` and `docker compose up -d` again.
-- **Locked out after setting protected mode.** `data/setup_completed` blocks the wizard from re-running. To recover: stop the stack, edit `passwords.json` directly, and start again. As a last resort, `rm data/setup_completed passwords.json drives.json` to start clean (does **not** delete files in your drives, only the configuration).
+- **No drives detected on the Drives step.** No directories are mounted under `/app/drives/`. Re-check the `services.backend.volumes` block in `docker-compose.override.yml` (or re-run `configure.py`), then `docker compose up -d --build` and reload.
+- **Locked out after setting protected mode.** `data/setup_completed` blocks the wizard from re-running. To recover: stop the stack, edit `passwords.json` directly, and start again. As a last resort, `rm data/setup_completed` and reset `drives.json` / `passwords.json` to `[]` (`echo '[]' > drives.json && echo '[]' > passwords.json`) to start clean — reset them to `[]`, do **not** delete the files (an absent single-file bind-mount makes Docker create an unusable directory). This does **not** delete files in your drives, only the configuration.
 - **Addons not showing in step 6.** Confirm the addon's symlink under `addons/` is intact and that the addon container (if independent) is up.
 
 Continue with the [user-guide overview](../user-guide/overview.md) or jump straight to [browsing files](../user-guide/file-browsing.md).

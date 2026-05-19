@@ -18,59 +18,36 @@ git clone https://github.com/mamepenguin/Litloft.git litloft
 cd litloft
 ```
 
-## Choose your drive layout
+## How setup is split
 
-A *drive* is a top-level content area in Litloft (e.g. *Movies*, *Photos*, *Knowledge*). Each drive maps to a host directory mounted into the backend container. You will declare drives twice:
+Setup has two halves:
 
-1. In `drives.json` — the logical name and the **container** path the backend sees.
-2. In `docker-compose.override.yml` — the **host** path mapped to that container path.
+- **`configure.py`** wires the container so it can start: which host directories to mount, the port, and which addons to enable. This is the part Docker forces to be on disk before the stack boots.
+- **The `/setup` wizard** (in the browser, after the stack is up) is where you do the actual configuration: naming each drive, setting passwords, and choosing AI feature behaviour.
 
-## Create a `docker-compose.override.yml`
+A *drive* is a top-level content area in Litloft (e.g. *Movies*, *Photos*, *Knowledge*). Each drive is a host directory mounted into the backend container; you give it a real name and optional password protection in the wizard, not on the command line.
 
-`docker-compose.yml` is the base file and you should not edit it. User-specific configuration lives in an override file:
-
-```bash
-cp docker-compose.override.yml.example docker-compose.override.yml
-```
-
-Open it and adjust the `services.backend.volumes` block. The default mounts a single drive named `default` from `./videos` (a folder under the repo) to `/app/drives/default`. Add as many lines as you need:
-
-```yaml
-services:
-  backend:
-    volumes:
-      - ./videos:/app/drives/default
-      - /mnt/nas/movies:/app/drives/movies
-      - /mnt/nas/photos:/app/drives/photos
-```
-
-The container path **must** match the `path` field in the matching `drives.json` entry (see [first-run setup](first-run-setup.md)).
-
-## (Optional) Set the port
-
-The frontend listens on `3000` by default. To change it, create a `.env` file:
-
-```dotenv
-LITLOFT_PORT=8080
-```
-
-## (Optional) Enable password protection
-
-If you want password-gated drives, you will create a `passwords.json` later through the setup wizard. To make it available to the container, also uncomment this volume in `docker-compose.override.yml`:
-
-```yaml
-- ./passwords.json:/app/passwords.json:ro
-```
-
-## (Optional) Provide secrets
-
-Some addons and internal endpoints use shared secrets. Copy the example env file and fill it in:
+## Run `configure.py`
 
 ```bash
-cp .env.example .env
+python3 configure.py
 ```
 
-Generate strong secrets with `openssl rand -hex 32`. See [environment variables](../reference/env-variables.md) for what each value does.
+It asks, with sensible defaults:
+
+- One **host path** and a **slug** (a short path identifier, not a display name) per drive.
+- The **port** (default `3000`).
+- Whether to enable the **intelligence** and/or **knowledge** addons (yes/no only — the AI features themselves are configured later in the browser, all off by default).
+
+It then writes `docker-compose.override.yml` (mounts, addon services, env wiring), an empty `drives.json` and `passwords.json` (`[]`), `.env` (only if needed for the port or addon secrets), `event-hooks.json` (if an addon defines hooks), and — when intelligence is enabled — a verbatim copy of `search-config.yml.example`. It does **not** ask for drive names, passwords, access groups, or AI feature modes; those belong to the `/setup` wizard.
+
+You do not need to copy `docker-compose.override.yml.example` by hand — `configure.py` generates the override file. If you would rather hand-write it, see [docker-compose customisation](../admin-guide/docker-compose.md).
+
+> The empty `drives.json` and `passwords.json` are deliberate. The single-file bind-mounts need a real file on the host; an absent file makes Docker create a directory there that the backend cannot use. The backend seeds drive entries from the mounted directories on first startup, and the wizard owns logical configuration from then on.
+
+## (Optional) Provide AI secrets
+
+If you enabled the intelligence addon and want to use the LLM-backed features, set `LLM_API_KEY` (and any provider keys) in `.env`, then re-run `python3 configure.py` so the wiring picks them up. AI features stay off by default until you enable them in the browser. See [environment variables](../reference/env-variables.md) for what each value does.
 
 ## Build and start
 
@@ -88,7 +65,7 @@ Wait a few seconds for the backend healthcheck to flip green, then open the fron
 http://localhost:3000     # or http://<your-LAN-IP>:3000
 ```
 
-You will be redirected to `/setup` — proceed to [first-run setup](first-run-setup.md).
+You will be redirected to `/setup`, where you name the detected drives and set passwords and AI features — proceed to [first-run setup](first-run-setup.md).
 
 To watch live logs while you work:
 
@@ -114,7 +91,8 @@ The backend is `expose:`-only and not reachable from outside the Docker network.
 
 - **Port already in use.** Set `LITLOFT_PORT` in `.env` or change the `frontend.ports` mapping in your override file.
 - **Permission denied on a mounted drive.** The backend runs as the container's default user. Ensure the host directory is readable; for write-heavy features, also writable.
-- **Healthcheck never goes green.** Check `docker compose logs backend`; usually it is a missing path declared in `drives.json` that does not exist inside the container, or a mistyped volume in the override file.
+- **Healthcheck never goes green.** Check `docker compose logs backend`; usually it is a mistyped volume in `docker-compose.override.yml` so a mounted directory does not actually exist inside the container.
+- **No drives in the wizard.** The backend seeds drives from the directories mounted under `/app/drives/`. If `/setup` shows none, your override file has no drive mounts (or they failed to mount); fix the volumes and run `docker compose up -d --build` again.
 - **Frontend says `502 Bad Gateway`.** The backend is not yet healthy. Wait, then refresh.
 
 ## Updating
@@ -123,4 +101,4 @@ See [upgrading](upgrading.md).
 
 ## Uninstall
 
-`docker compose down` stops and removes the containers. Your data — `data/`, `drives.json`, `passwords.json` — is left on disk so you can reinstall later. To wipe everything: `docker compose down -v && rm -rf data drives.json passwords.json`.
+`docker compose down` stops and removes the containers. Your data — `data/`, `drives.json`, `passwords.json` — is left on disk so you can reinstall later. To wipe configuration while keeping the stack runnable: `docker compose down -v && rm -rf data && echo '[]' > drives.json && echo '[]' > passwords.json`. If you want the directory truly empty, also remove `drives.json` and `passwords.json`, but re-run `python3 configure.py` before starting again (the single-file bind-mounts need those files to exist, otherwise Docker creates unusable directories in their place).

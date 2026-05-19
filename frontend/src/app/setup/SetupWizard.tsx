@@ -8,8 +8,12 @@
 // Password is skipped when access mode is "public".
 // Stepper is shown for Drive..Complete only (Language/Welcome are intro screens).
 
-import { useCallback, useMemo, useState } from "react";
-import { useTranslations } from "next-intl";
+import { useCallback, useEffect, useMemo, useState } from "react";
+import { NextIntlClientProvider, useTranslations } from "next-intl";
+
+import enMessages from "@/messages/en.json";
+import jaMessages from "@/messages/ja.json";
+import { defaultLocale } from "@/i18n/config";
 
 import { LanguageStep } from "./steps/LanguageStep";
 import { WelcomeStep } from "./steps/WelcomeStep";
@@ -89,27 +93,52 @@ function readToggle(
   return false;
 }
 
-export function SetupWizard(): React.ReactElement {
+function SetupWizardInner({
+  locale,
+  setLocale,
+}: {
+  locale: Locale;
+  setLocale: (next: Locale) => void;
+}): React.ReactElement {
   const tStepper = useTranslations("setup.stepper");
   const [internalStepIndex, setInternalStepIndex] = useState(0);
-  const [locale, setLocaleState] = useState<Locale>("ja");
+  // The backend seeds drives.json from the container mounts on startup,
+  // so /setup begins with N detected stubs. We initialise the draft list
+  // from GET /api/admin/config/setup-status (unauthenticated, covers the
+  // first-run read path that GET /drives does not — spec §3.3, M1).
+  const [drives, setDrives] = useState<DriveDraft[]>([]);
 
-  // Persist locale to the NEXT_LOCALE cookie so next-intl picks it up
-  // immediately (the wizard re-renders) and after the post-complete
-  // redirect to /admin. Without this the LanguageStep selection silently
-  // drops on the cookie boundary.
-  const setLocale = useCallback((next: Locale) => {
-    setLocaleState(next);
-    if (typeof document !== "undefined") {
-      const oneYear = 365 * 24 * 60 * 60;
-      document.cookie = `NEXT_LOCALE=${next}; path=/; max-age=${oneYear}`;
-    }
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        const res = await fetch("/api/admin/config/setup-status", {
+          credentials: "include",
+        });
+        if (!res.ok) return;
+        const body = await res.json();
+        const detected = Array.isArray(body?.drives) ? body.drives : [];
+        if (cancelled) return;
+        setDrives(
+          detected.map(
+            (d: { name?: string; path?: string; access_group?: string }) => ({
+              name: typeof d?.name === "string" ? d.name : "",
+              path: typeof d?.path === "string" ? d.path : "",
+              access_group:
+                typeof d?.access_group === "string" ? d.access_group : "",
+            }),
+          ),
+        );
+      } catch {
+        // Network failure: leave drives empty so the DriveStep shows the
+        // mount guidance rather than crashing the wizard.
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
   }, []);
-  const [drive, setDrive] = useState<DriveDraft>({
-    name: "",
-    path: "",
-    access_group: "",
-  });
+
   const [accessMode, setAccessMode] = useState<AccessMode>("public");
   const [password, setPassword] = useState<PasswordDraft>({
     password: "",
@@ -138,25 +167,28 @@ export function SetupWizard(): React.ReactElement {
     setInternalStepIndex((idx) => Math.max(idx - 1, 0));
   }, []);
 
-  // Sync the master password's groups with the drive group so the UI can
-  // pre-check it without further user action.
-  const passwordValue = useMemo<PasswordDraft>(() => {
-    if (password.groups.length === 0 && drive.access_group) {
-      return { ...password, groups: [drive.access_group] };
-    }
-    return password;
-  }, [drive.access_group, password]);
-
+  // Every distinct, non-empty access group across the detected drives.
+  // The master password offered in PasswordStep should cover all of them
+  // so a single password unlocks every protected drive.
   const groupsForPassword = useMemo(() => {
     const set = new Set<string>();
-    if (drive.access_group) set.add(drive.access_group);
+    for (const d of drives) {
+      if (d.access_group.trim()) set.add(d.access_group.trim());
+    }
     return Array.from(set);
-  }, [drive.access_group]);
+  }, [drives]);
 
-  // Drive list to ship to the backend on final submit. The wizard
-  // currently collects exactly one drive entry — keep this as a list for
-  // future expansion.
-  const drivesForSubmit = useMemo(() => [drive], [drive]);
+  // Sync the master password's groups with the detected drive groups so
+  // the UI can pre-check them without further user action.
+  const passwordValue = useMemo<PasswordDraft>(() => {
+    if (password.groups.length === 0 && groupsForPassword.length > 0) {
+      return { ...password, groups: groupsForPassword };
+    }
+    return password;
+  }, [groupsForPassword, password]);
+
+  // Drive list to ship to the backend on final submit.
+  const drivesForSubmit = useMemo(() => drives, [drives]);
 
   // Summary values for the Complete step.
   const driveCount = useMemo(
@@ -254,8 +286,8 @@ export function SetupWizard(): React.ReactElement {
       {current === "drive" && (
         <div className="mt-6 rounded-2xl border border-bg-border bg-bg-card p-6 sm:p-8">
           <DriveStep
-            value={drive}
-            onChange={setDrive}
+            value={drives}
+            onChange={setDrives}
             onNext={goNext}
             onBack={goBack}
             skipValidate
@@ -304,6 +336,47 @@ export function SetupWizard(): React.ReactElement {
         </div>
       )}
     </SetupShell>
+  );
+}
+
+const MESSAGES_BY_LOCALE = { en: enMessages, ja: jaMessages } as const;
+
+// Outer wrapper: owns the wizard locale and supplies a client-side
+// NextIntlClientProvider for the subtree. The app's root provider binds
+// its messages at request time from the NEXT_LOCALE cookie, so a
+// LanguageStep selection could not change the language of later steps
+// within the same SPA session without this nested provider. Selecting a
+// language here swaps the provider's messages and re-renders every step
+// immediately (no full reload — SPA navigation policy), and the cookie
+// is still written so the post-complete redirect to /admin keeps it.
+export function SetupWizard(): React.ReactElement {
+  const [locale, setLocaleState] = useState<Locale>(defaultLocale);
+
+  useEffect(() => {
+    // Sync from the cookie post-mount (avoids an SSR/CSR hydration
+    // mismatch) so a reload mid-wizard keeps the chosen language.
+    const match = document.cookie.match(/(?:^|;\s*)NEXT_LOCALE=(\w+)/);
+    const cookieLocale = match?.[1];
+    if (cookieLocale === "en" || cookieLocale === "ja") {
+      setLocaleState(cookieLocale);
+    }
+  }, []);
+
+  const setLocale = useCallback((next: Locale) => {
+    setLocaleState(next);
+    if (typeof document !== "undefined") {
+      const oneYear = 365 * 24 * 60 * 60;
+      document.cookie = `NEXT_LOCALE=${next}; path=/; max-age=${oneYear}`;
+    }
+  }, []);
+
+  return (
+    <NextIntlClientProvider
+      locale={locale}
+      messages={MESSAGES_BY_LOCALE[locale]}
+    >
+      <SetupWizardInner locale={locale} setLocale={setLocale} />
+    </NextIntlClientProvider>
   );
 }
 

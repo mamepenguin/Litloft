@@ -24,6 +24,10 @@ Mounted in from the host and never touched by the build:
 - The application code in `backend/`, `frontend/`, and the base `docker-compose.yml`.
 - Container images (rebuilt on each `--build`).
 
+## The `/setup` wizard does not reappear
+
+Newer Litloft builds run the `/setup` wizard on first launch and own logical configuration there. Upgrading an existing install does **not** drop you back into the wizard: on startup the backend sees your non-empty `drives.json` and, if `data/setup_completed` is missing, creates it automatically (a one-time migration for installs that predate the sentinel). Your drives, passwords, and addon policy are untouched. The wizard only runs on genuinely fresh installs whose `drives.json` is still empty.
+
 ## Database migrations
 
 The backend applies schema migrations on boot. There is no separate `migrate` command. Schema changes are forward-only: rolling back to an older Litloft after a migration may not be safe. Take a backup before pulling.

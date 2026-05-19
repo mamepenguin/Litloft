@@ -60,6 +60,40 @@ describe("AddonPolicyStep", () => {
     expect(screen.getByText("main")).toBeInTheDocument();
   });
 
+  it("renders the addon description from the API (no 'no description' fallback)", async () => {
+    // Regression: addon manifests had no `description` and the
+    // /api/addons/status allowlist stripped it, so every row showed the
+    // "no description" fallback. When the API surfaces a description it
+    // must be rendered.
+    mockFetch.mockResolvedValue(
+      jsonResponse({
+        addons: {
+          intelligence: {
+            scope: "drive",
+            description: "Semantic search and AI summaries.",
+          },
+        },
+        slots: {},
+      }),
+    );
+    render(
+      <AddonPolicyStep
+        drives={[{ name: "main", path: "/data/main", access_group: "default" }]}
+        value={{}}
+        onChange={vi.fn()}
+        onNext={vi.fn()}
+        onBack={vi.fn()}
+      />,
+    );
+
+    await waitFor(() => {
+      expect(
+        screen.getByText("Semantic search and AI summaries."),
+      ).toBeInTheDocument();
+    });
+    expect(screen.queryByText(/no description/i)).not.toBeInTheDocument();
+  });
+
   it("toggling a cell calls onChange", async () => {
     mockFetch.mockResolvedValue(
       jsonResponse({
