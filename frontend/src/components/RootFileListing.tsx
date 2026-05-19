@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { CheckSquare, FileText, Play, RefreshCw, X } from "lucide-react";
+import { CheckSquare, FileText, MoreHorizontal, Play, RefreshCw, X } from "lucide-react";
 
 import { useTranslations } from "next-intl";
 import { createFolder, getDriveFiles, scanDrive } from "@/lib/api";
@@ -71,6 +71,7 @@ export function RootFileListing({ driveName, onFileAction, onFolderChange }: Roo
   const isFilterEmpty = filter.isActive && visibleFiles.length === 0;
 
   const [selectable, setSelectable] = useState(false);
+  const [moreOpen, setMoreOpen] = useState(false);
   const selection = useSelection();
 
   const [refreshKey, setRefreshKey] = useState(0);
@@ -261,41 +262,83 @@ export function RootFileListing({ driveName, onFileAction, onFolderChange }: Roo
               </button>
             )}
 
-            <div className="flex items-center gap-1 rounded-xl bg-bg-card p-1">
+            {/* Sort + view toggle + overflow grouped in a single pill —
+                mirrors folder/FolderToolbar's right-group cluster so the
+                drive-home and folder-browser toolbars stay visually
+                consistent. */}
+            <div className="flex items-center gap-1 rounded-2xl bg-bg-elevated p-1">
               <SortButton
                 sort={sort}
                 order={order}
                 onChange={(s, o) => { setSort(s); setOrder(o); }}
               />
 
-              <button
-                onClick={() => {
-                  setSelectable((s) => {
-                    if (s) selection.clear();
-                    return !s;
-                  });
-                }}
-                className={`rounded-lg p-2 transition-colors ${
-                  selectable
-                    ? "bg-accent text-white"
-                    : "text-text-muted hover:text-text-primary"
-                }`}
-                aria-label={ts("selectMode")}
-              >
-                <CheckSquare size={16} />
-              </button>
-
               <ViewToggle onChange={handleViewChange} />
 
-              <button
-                onClick={handleScan}
-                disabled={scanning}
-                className="rounded-lg p-2 text-text-muted transition-colors hover:text-text-primary disabled:opacity-50"
-                aria-label={t("rescan")}
-                title={t("rescanTitle")}
-              >
-                <RefreshCw size={16} className={scanning ? "animate-spin" : ""} />
-              </button>
+              {/* Overflow: select-mode + rescan (low-frequency) */}
+              <div className="relative">
+                <button
+                  onClick={() => setMoreOpen((s) => !s)}
+                  className={`rounded-lg p-2 transition-colors ${
+                    selectable
+                      ? "bg-bg-card text-text-primary"
+                      : "text-text-muted hover:text-text-primary"
+                  }`}
+                  aria-haspopup="menu"
+                  aria-expanded={moreOpen}
+                  aria-label={t("more")}
+                  title={t("more")}
+                >
+                  <MoreHorizontal size={16} />
+                </button>
+                {moreOpen && (
+                  <>
+                    <div
+                      className="fixed inset-0 z-30 bg-black/30 sm:bg-transparent"
+                      aria-hidden="true"
+                      onClick={() => setMoreOpen(false)}
+                    />
+                    <div
+                      role="menu"
+                      className="fixed inset-x-2 bottom-4 z-40 max-h-[60vh] overflow-y-auto rounded-2xl border border-bg-border bg-bg-primary py-1 shadow-lg animate-fade-in-scale sm:absolute sm:inset-x-auto sm:bottom-auto sm:right-0 sm:top-full sm:mt-1 sm:max-h-none sm:min-w-[200px] sm:overflow-visible sm:origin-top-right"
+                    >
+                      <button
+                        role="menuitem"
+                        onClick={() => {
+                          setSelectable((s) => {
+                            if (s) selection.clear();
+                            return !s;
+                          });
+                          setMoreOpen(false);
+                        }}
+                        className={`flex w-full items-center gap-2.5 px-3 py-2 text-left text-sm transition-colors ${
+                          selectable
+                            ? "bg-bg-elevated text-text-primary font-medium"
+                            : "text-text-primary hover:bg-bg-elevated"
+                        }`}
+                      >
+                        <CheckSquare size={16} className="flex-shrink-0" />
+                        <span className="flex-1">{ts("selectMode")}</span>
+                      </button>
+                      <button
+                        role="menuitem"
+                        onClick={() => {
+                          if (!scanning) handleScan();
+                          setMoreOpen(false);
+                        }}
+                        disabled={scanning}
+                        className="flex w-full items-center gap-2.5 px-3 py-2 text-left text-sm text-text-primary transition-colors hover:bg-bg-elevated disabled:opacity-50"
+                      >
+                        <RefreshCw
+                          size={16}
+                          className={`flex-shrink-0 ${scanning ? "animate-spin" : ""}`}
+                        />
+                        <span className="flex-1">{t("rescan")}</span>
+                      </button>
+                    </div>
+                  </>
+                )}
+              </div>
             </div>
           </div>
         </div>

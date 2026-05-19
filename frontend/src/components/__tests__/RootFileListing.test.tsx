@@ -199,3 +199,51 @@ describe("RootFileListing right-pane filter (Phase 4)", () => {
     });
   });
 });
+
+describe("RootFileListing toolbar right group (FolderToolbar parity)", () => {
+  it("hides Selection mode and Rescan behind a More actions overflow menu", async () => {
+    mockGetDriveFiles.mockResolvedValue({
+      data: [makeFile("1", "spec.md", "text/markdown", "document")],
+      meta: { total: 1, page: 1, limit: 30 },
+    });
+
+    render(<RootFileListing driveName="main" />);
+
+    const moreBtn = await screen.findByRole("button", { name: /more actions/i });
+
+    // Mirrors FolderToolbar: Select Mode + Rescan are not surfaced as
+    // bare pill buttons; they live inside the overflow menu.
+    expect(
+      screen.queryByRole("button", { name: /selection mode/i }),
+    ).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole("button", { name: /^rescan$/i }),
+    ).not.toBeInTheDocument();
+
+    fireEvent.click(moreBtn);
+
+    expect(
+      await screen.findByRole("menuitem", { name: /selection mode/i }),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole("menuitem", { name: /rescan/i }),
+    ).toBeInTheDocument();
+  });
+
+  it("invokes a rescan from the overflow menu", async () => {
+    mockGetDriveFiles.mockResolvedValue({
+      data: [makeFile("1", "spec.md", "text/markdown", "document")],
+      meta: { total: 1, page: 1, limit: 30 },
+    });
+    mockScanDrive.mockResolvedValue(undefined);
+
+    render(<RootFileListing driveName="main" />);
+
+    fireEvent.click(await screen.findByRole("button", { name: /more actions/i }));
+    fireEvent.click(screen.getByRole("menuitem", { name: /rescan/i }));
+
+    await waitFor(() => {
+      expect(mockScanDrive).toHaveBeenCalledWith("main");
+    });
+  });
+});
