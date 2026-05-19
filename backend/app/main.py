@@ -252,7 +252,7 @@ async def addons_status(drive: str | None = None):
     surface without special-casing missing drives.
     """
     # Strip internal-only fields (proxy config) before returning to clients
-    _FRONTEND_FIELDS = {"label", "icon", "href", "type", "slots", "scope", "policy_features"}
+    _FRONTEND_FIELDS = {"label", "description", "icon", "href", "type", "slots", "scope", "policy_features"}
     addons = {
         name: {k: v for k, v in meta.items() if k in _FRONTEND_FIELDS}
         for name, meta in addon_registry.get_all().items()

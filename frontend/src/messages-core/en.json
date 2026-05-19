@@ -821,7 +821,8 @@
         "save": "Save drives, passwords and addon policy",
         "redirect": "Go to the admin dashboard (/admin)",
         "lan": "Other devices on your home LAN can also access"
-      }
+      },
+      "submit": "Save and finish"
     },
     "language": {
       "title": "Choose language",

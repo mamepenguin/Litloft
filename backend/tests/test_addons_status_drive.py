@@ -21,6 +21,33 @@ def _restore_registry(snapshot):
     addon_registry._registry.update(snapshot)
 
 
+def test_status_surfaces_manifest_description(client):
+    """Regression: the manifest `description` must reach the frontend.
+
+    `_FRONTEND_FIELDS` previously omitted "description", so the addon
+    enable/disable UI always showed a "no description" fallback. The
+    allowlist must pass `description` through.
+    """
+    c, _, _, _ = client
+    snap = dict(addon_registry._registry)
+    try:
+        addon_registry._registry["descaddon"] = {
+            "label": "Desc Addon",
+            "description": "Does a useful thing.",
+            "icon": "x",
+            "type": "external_service",
+            "scope": "drive",
+            "href": "/drive/{drive}/addons/descaddon",
+            "slots": {},
+        }
+        resp = c.get("/api/addons/status")
+        assert resp.status_code == 200
+        entry = resp.json()["addons"]["descaddon"]
+        assert entry["description"] == "Does a useful thing."
+    finally:
+        _restore_registry(snap)
+
+
 def test_no_drive_returns_full_catalogue(client):
     c, _, _, _ = client
     snap = dict(addon_registry._registry)

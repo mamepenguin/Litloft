@@ -9,7 +9,11 @@
 // Stepper is shown for Drive..Complete only (Language/Welcome are intro screens).
 
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { useTranslations } from "next-intl";
+import { NextIntlClientProvider, useTranslations } from "next-intl";
+
+import enMessages from "@/messages/en.json";
+import jaMessages from "@/messages/ja.json";
+import { defaultLocale } from "@/i18n/config";
 
 import { LanguageStep } from "./steps/LanguageStep";
 import { WelcomeStep } from "./steps/WelcomeStep";
@@ -89,22 +93,15 @@ function readToggle(
   return false;
 }
 
-export function SetupWizard(): React.ReactElement {
+function SetupWizardInner({
+  locale,
+  setLocale,
+}: {
+  locale: Locale;
+  setLocale: (next: Locale) => void;
+}): React.ReactElement {
   const tStepper = useTranslations("setup.stepper");
   const [internalStepIndex, setInternalStepIndex] = useState(0);
-  const [locale, setLocaleState] = useState<Locale>("ja");
-
-  // Persist locale to the NEXT_LOCALE cookie so next-intl picks it up
-  // immediately (the wizard re-renders) and after the post-complete
-  // redirect to /admin. Without this the LanguageStep selection silently
-  // drops on the cookie boundary.
-  const setLocale = useCallback((next: Locale) => {
-    setLocaleState(next);
-    if (typeof document !== "undefined") {
-      const oneYear = 365 * 24 * 60 * 60;
-      document.cookie = `NEXT_LOCALE=${next}; path=/; max-age=${oneYear}`;
-    }
-  }, []);
   // The backend seeds drives.json from the container mounts on startup,
   // so /setup begins with N detected stubs. We initialise the draft list
   // from GET /api/admin/config/setup-status (unauthenticated, covers the
@@ -339,6 +336,47 @@ export function SetupWizard(): React.ReactElement {
         </div>
       )}
     </SetupShell>
+  );
+}
+
+const MESSAGES_BY_LOCALE = { en: enMessages, ja: jaMessages } as const;
+
+// Outer wrapper: owns the wizard locale and supplies a client-side
+// NextIntlClientProvider for the subtree. The app's root provider binds
+// its messages at request time from the NEXT_LOCALE cookie, so a
+// LanguageStep selection could not change the language of later steps
+// within the same SPA session without this nested provider. Selecting a
+// language here swaps the provider's messages and re-renders every step
+// immediately (no full reload — SPA navigation policy), and the cookie
+// is still written so the post-complete redirect to /admin keeps it.
+export function SetupWizard(): React.ReactElement {
+  const [locale, setLocaleState] = useState<Locale>(defaultLocale);
+
+  useEffect(() => {
+    // Sync from the cookie post-mount (avoids an SSR/CSR hydration
+    // mismatch) so a reload mid-wizard keeps the chosen language.
+    const match = document.cookie.match(/(?:^|;\s*)NEXT_LOCALE=(\w+)/);
+    const cookieLocale = match?.[1];
+    if (cookieLocale === "en" || cookieLocale === "ja") {
+      setLocaleState(cookieLocale);
+    }
+  }, []);
+
+  const setLocale = useCallback((next: Locale) => {
+    setLocaleState(next);
+    if (typeof document !== "undefined") {
+      const oneYear = 365 * 24 * 60 * 60;
+      document.cookie = `NEXT_LOCALE=${next}; path=/; max-age=${oneYear}`;
+    }
+  }, []);
+
+  return (
+    <NextIntlClientProvider
+      locale={locale}
+      messages={MESSAGES_BY_LOCALE[locale]}
+    >
+      <SetupWizardInner locale={locale} setLocale={setLocale} />
+    </NextIntlClientProvider>
   );
 }
 
