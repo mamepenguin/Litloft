@@ -48,4 +48,20 @@ describe("SidebarLibrarySection", () => {
     const favLink = screen.getByText("Favorites").closest("a");
     expect(favLink?.className).toBe("active");
   });
+
+  it("hides the dashboard link when the viewer is not admin", () => {
+    render(<SidebarLibrarySection driveBase="/drive/main" currentDrive="main" linkClass={linkClass} close={vi.fn()} />);
+    expect(screen.queryByText("Dashboard")).not.toBeInTheDocument();
+  });
+
+  it("hides the dashboard link while admin status is unknown (isAdmin=false)", () => {
+    render(<SidebarLibrarySection driveBase="/drive/main" currentDrive="main" linkClass={linkClass} close={vi.fn()} isAdmin={false} />);
+    expect(screen.queryByText("Dashboard")).not.toBeInTheDocument();
+  });
+
+  it("shows the dashboard link only when the viewer is admin", () => {
+    render(<SidebarLibrarySection driveBase="/drive/main" currentDrive="main" linkClass={linkClass} close={vi.fn()} isAdmin />);
+    const adminLink = screen.getByText("Dashboard").closest("a");
+    expect(adminLink).toHaveAttribute("href", "/admin");
+  });
 });

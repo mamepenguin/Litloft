@@ -652,6 +652,7 @@
   },
   "admin": {
     "title": "Dashboard",
+    "settings": "Settings",
     "drives": "Drives",
     "system": "System",
     "totalFiles": "Total Files",

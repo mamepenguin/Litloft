@@ -34,9 +34,15 @@ interface SidebarLibrarySectionProps {
   close: () => void;
   addons?: Record<string, AddonMeta>;
   driveSummary?: DriveSummary | null;
+  // Whether the current viewer is an admin (sees every protected
+  // drive). The dashboard link points at admin-only surfaces, so we
+  // only render it for admins. Defaults to hidden until the
+  // auth-status probe resolves, mirroring the /admin gate's
+  // "don't flash admin UI to non-admins" posture.
+  isAdmin?: boolean;
 }
 
-export function SidebarLibrarySection({ driveBase, currentDrive, linkClass, close, addons, driveSummary }: SidebarLibrarySectionProps) {
+export function SidebarLibrarySection({ driveBase, currentDrive, linkClass, close, addons, driveSummary, isAdmin }: SidebarLibrarySectionProps) {
   const t = useTranslations("sidebar");
   const tMissing = useTranslations("missing");
   const tAdmin = useTranslations("admin");
@@ -96,10 +102,12 @@ export function SidebarLibrarySection({ driveBase, currentDrive, linkClass, clos
           )}
         </>
       )}
-      <Link href="/admin" onClick={close} className={linkClass("/admin")}>
-        <Gauge size={16} />
-        {tAdmin("title")}
-      </Link>
+      {isAdmin && (
+        <Link href="/admin" onClick={close} className={linkClass("/admin")}>
+          <Gauge size={16} />
+          {tAdmin("title")}
+        </Link>
+      )}
 
       {addonEntries.length > 0 && (
         <>

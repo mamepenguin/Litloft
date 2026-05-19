@@ -65,6 +65,10 @@ export interface UnlockResult {
 export interface AuthStatus {
   unlocked_groups: string[];
   has_protected_drives: boolean;
+  // True iff the viewer can see every protected drive (the same
+  // admin definition the /admin gate uses). Gates the sidebar
+  // dashboard link.
+  is_admin: boolean;
 }
 
 export type FolderKind =

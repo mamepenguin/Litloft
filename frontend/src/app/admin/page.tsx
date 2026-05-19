@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
+import Link from "next/link";
 import { useTranslations } from "next-intl";
 import {
   Database,
@@ -13,6 +14,7 @@ import {
   FileText,
   Archive,
   Server,
+  Settings,
   Trash2,
   Clock,
 } from "lucide-react";
@@ -261,7 +263,16 @@ export default function AdminDashboardPage() {
 
   return (
     <div className="mx-auto max-w-5xl px-4 py-6 sm:px-6">
-      <h1 className="mb-6 text-xl font-bold text-text-primary">{t("title")}</h1>
+      <div className="mb-6 flex items-center justify-between gap-3">
+        <h1 className="text-xl font-bold text-text-primary">{t("title")}</h1>
+        <Link
+          href="/admin/settings"
+          className="flex items-center gap-2 rounded-2xl px-3 py-2 text-sm text-text-muted transition-colors hover:bg-bg-elevated hover:text-text-primary"
+        >
+          <Settings size={16} />
+          {t("settings")}
+        </Link>
+      </div>
 
       {error && (
         <div className="mb-4 rounded-xl bg-danger/10 px-4 py-3 text-sm text-danger">

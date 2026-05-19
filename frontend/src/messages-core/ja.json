@@ -652,6 +652,7 @@
   },
   "admin": {
     "title": "ダッシュボード",
+    "settings": "設定",
     "drives": "ドライブ",
     "system": "システム",
     "totalFiles": "ファイル数",
