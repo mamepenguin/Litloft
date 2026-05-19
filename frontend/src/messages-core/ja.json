@@ -72,7 +72,8 @@
     "tagline": "ファイルの保存・配信・整理をひとつに",
     "greeting": "おかえりなさい、{name}",
     "fileCount": "{count, plural, other {#件のファイル}}",
-    "emptyDrive": "まだファイルがありません"
+    "emptyDrive": "まだファイルがありません",
+    "unlockAccess": "パスワードを入力"
   },
   "folder": {
     "items": "{count} 件",
@@ -442,7 +443,12 @@
     "title": "Unlock",
     "passwordPlaceholder": "Password",
     "rememberDevice": "Remember this device",
-    "submit": "Unlock"
+    "submit": "Unlock",
+    "loading": "確認中...",
+    "description": "アクセスグループのパスワードを入力してください。",
+    "whatHappens": "グループに紐づいたドライブにアクセスできるようになります。",
+    "invalidPassword": "Invalid password",
+    "connectionError": "Connection error"
   },
   "profile": {
     "setup": "プロファイル設定",

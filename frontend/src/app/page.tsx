@@ -1,8 +1,8 @@
 import { cookies } from "next/headers";
 import Link from "next/link";
-import { HardDrive, Lock, Warehouse } from "lucide-react";
+import { HardDrive, KeyRound, Lock, Warehouse } from "lucide-react";
 import { getTranslations } from "next-intl/server";
-import type { Drive } from "@/types";
+import type { AuthStatus, Drive } from "@/types";
 import { COOKIE_NAME, sanitizeNickname } from "@/lib/nickname";
 
 async function fetchDrives(cookieHeader: string | undefined): Promise<Drive[]> {
@@ -16,6 +16,22 @@ async function fetchDrives(cookieHeader: string | undefined): Promise<Drive[]> {
     headers,
   });
   if (!res.ok) return [];
+  return res.json();
+}
+
+async function fetchAuthStatus(
+  cookieHeader: string | undefined,
+): Promise<AuthStatus | null> {
+  const headers: HeadersInit = {};
+  if (cookieHeader) {
+    headers["Cookie"] = cookieHeader;
+  }
+
+  const res = await fetch("http://backend:8000/api/auth/status", {
+    cache: "no-store",
+    headers,
+  });
+  if (!res.ok) return null;
   return res.json();
 }
 
@@ -38,11 +54,16 @@ function readNickname(raw: string | undefined): string | null {
 export default async function Home() {
   const cookieStore = await cookies();
   const accessToken = cookieStore.get("access_token");
-  const drives = await fetchDrives(
-    accessToken ? `access_token=${accessToken.value}` : undefined,
-  );
+  const cookieHeader = accessToken
+    ? `access_token=${accessToken.value}`
+    : undefined;
+  const [drives, authStatus] = await Promise.all([
+    fetchDrives(cookieHeader),
+    fetchAuthStatus(cookieHeader),
+  ]);
   const t = await getTranslations("drive");
   const nickname = readNickname(cookieStore.get(COOKIE_NAME)?.value);
+  const showUnlockAction = authStatus?.has_protected_drives ?? false;
 
   return (
     <div className="w-full flex-1 px-4 py-6">
@@ -105,6 +126,17 @@ export default async function Home() {
               )}
             </Link>
           ))}
+        </div>
+      )}
+      {showUnlockAction && (
+        <div className="mt-5 flex justify-end">
+          <Link
+            href="/unlock"
+            className="inline-flex items-center gap-1.5 text-xs text-text-muted transition-colors hover:text-accent"
+          >
+            <KeyRound size={13} aria-hidden />
+            {t("unlockAccess")}
+          </Link>
         </div>
       )}
     </div>

@@ -22,6 +22,11 @@ vi.mock("next-intl/server", () => ({
 
 const fetchSpy = vi.fn();
 const originalFetch = globalThis.fetch;
+let drivesResponse: unknown[] = [];
+let authStatusResponse: unknown = {
+  unlocked_groups: [],
+  has_protected_drives: false,
+};
 
 import Home from "../page";
 
@@ -35,7 +40,11 @@ function setCookie(viewer?: string) {
 }
 
 function setDrives(drives: unknown[]) {
-  fetchSpy.mockResolvedValue({ ok: true, json: async () => drives });
+  drivesResponse = drives;
+}
+
+function setAuthStatus(status: unknown) {
+  authStatusResponse = status;
 }
 
 beforeEach(() => {
@@ -43,8 +52,18 @@ beforeEach(() => {
   mocks.cookies.mockReset();
   mocks.t.mockClear();
   globalThis.fetch = fetchSpy as unknown as typeof globalThis.fetch;
+  fetchSpy.mockImplementation(async (url: string) => {
+    if (url === "http://backend:8000/api/drives") {
+      return { ok: true, json: async () => drivesResponse };
+    }
+    if (url === "http://backend:8000/api/auth/status") {
+      return { ok: true, json: async () => authStatusResponse };
+    }
+    return { ok: false, json: async () => ({}) };
+  });
   setCookie(undefined);
   setDrives([]);
+  setAuthStatus({ unlocked_groups: [], has_protected_drives: false });
 });
 
 afterEach(() => {
@@ -88,8 +107,18 @@ describe("/ root home (Server Component)", () => {
         headers: { Cookie: "access_token=jwt-abc" },
       }),
     );
-    const cookieHeader = fetchSpy.mock.calls[0][1].headers.Cookie as string;
-    expect(cookieHeader).not.toContain("lit_viewer");
+    expect(fetchSpy).toHaveBeenCalledWith(
+      "http://backend:8000/api/auth/status",
+      expect.objectContaining({
+        headers: { Cookie: "access_token=jwt-abc" },
+      }),
+    );
+    for (const [, init] of fetchSpy.mock.calls) {
+      const cookieHeader = (init?.headers as HeadersInit | undefined) as
+        | Record<string, string>
+        | undefined;
+      expect(cookieHeader?.Cookie ?? "").not.toContain("lit_viewer");
+    }
   });
 
   it("sanitizes the cookie nickname (decode + strip bidi/zero-width)", async () => {
@@ -127,5 +156,14 @@ describe("/ root home (Server Component)", () => {
     render(await Home());
     expect(screen.getByText("empty")).toBeTruthy();
     expect(screen.getByText("emptyDescription")).toBeTruthy();
+  });
+
+  it("renders a subdued unlock link outside the drive grid when protected drives are configured", async () => {
+    setDrives([{ name: "Media", protected: false, file_count: 10 }]);
+    setAuthStatus({ unlocked_groups: [], has_protected_drives: true });
+    render(await Home());
+    const link = screen.getByRole("link", { name: /unlockAccess/ });
+    expect(link.getAttribute("href")).toBe("/unlock");
+    expect(screen.queryByText("unlockAccessDescription")).toBeNull();
   });
 });

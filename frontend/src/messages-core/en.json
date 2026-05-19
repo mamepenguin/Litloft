@@ -72,7 +72,8 @@
     "tagline": "Store, stream, and organize your files in one place",
     "greeting": "Welcome back, {name}",
     "fileCount": "{count, plural, one {# file} other {# files}}",
-    "emptyDrive": "No files yet"
+    "emptyDrive": "No files yet",
+    "unlockAccess": "Enter password"
   },
   "folder": {
     "items": "{count} items",
@@ -442,7 +443,12 @@
     "title": "Unlock",
     "passwordPlaceholder": "Password",
     "rememberDevice": "Remember this device",
-    "submit": "Unlock"
+    "submit": "Unlock",
+    "loading": "Checking...",
+    "description": "Enter an access-group password.",
+    "whatHappens": "You will be able to access drives tied to that group.",
+    "invalidPassword": "Invalid password",
+    "connectionError": "Connection error"
   },
   "profile": {
     "setup": "Profile Setup",
