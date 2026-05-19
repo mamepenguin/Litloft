@@ -1751,8 +1751,8 @@
           <div class="step-connector-v" aria-hidden="true"></div>
         </div>
         <div class="step-body">
-          <h3>Run the setup wizard</h3>
-          <p><code class="inline-code">configure.py</code> is an interactive CLI that generates all configuration files for you. Run it once to get started, and re-run any time you want to change settings.</p>
+          <h3>Wire the containers</h3>
+          <p><code class="inline-code">configure.py</code> is a short bootstrap script. It asks only what the containers need in order to start — which host directories to mount, the port, and which addons to run. Re-run it any time you change mounts or the port.</p>
           <div class="code-block" role="region" aria-label="Configure command">
             <div><span class="c-cmd">python3 configure.py</span></div>
           </div>
@@ -1760,8 +1760,8 @@
             <div class="wizard-step">
               <span class="wz-num">①</span>
               <div>
-                <strong>Drives</strong>
-                <span>Enter the number of drives and the absolute path on your host for each one. Litloft mounts them read-only in the container.</span>
+                <strong>Drive mounts</strong>
+                <span>For each drive, the host directory to mount and a short slug (a path identifier, not a display name). You give drives their names and access groups later, in the browser.</span>
               </div>
             </div>
             <div class="wizard-step">
@@ -1774,27 +1774,12 @@
             <div class="wizard-step">
               <span class="wz-num">③</span>
               <div>
-                <strong>Password protection</strong> <span class="opt-label">optional</span>
-                <span>Assign an access group to each drive and set a password. Drives without a group are accessible to anyone on your LAN. If <code>passwords.json</code> is not present at all, all drives are public regardless of group settings.</span>
-              </div>
-            </div>
-            <div class="wizard-step">
-              <span class="wz-num">④</span>
-              <div>
-                <strong>Intelligence addon</strong> <span class="opt-label">optional</span>
-                <span>Choose a Whisper model for local video transcription, a text embedding model for semantic search, and an LLM provider for AI features. <strong>An LLM is required for auto-tagging, summaries, and the Ask feature</strong> — see the note below.</span>
-                <span class="wz-hw">Whisper: small ~500 MB · turbo ~1.2 GB · large-v3 ~3 GB RAM. Indexing is CPU-intensive; embedding and transcription run in the background.</span>
-              </div>
-            </div>
-            <div class="wizard-step">
-              <span class="wz-num">⑤</span>
-              <div>
-                <strong>Knowledge addon</strong> <span class="opt-label">optional</span>
-                <span>A linked Markdown notes vault. Secrets are auto-generated; no manual config needed.</span>
+                <strong>Addons</strong> <span class="opt-label">optional</span>
+                <span>Enable the Intelligence and/or Knowledge services (yes/no). Their features — Whisper model, embeddings, LLM provider, notes — are configured later in the browser.</span>
               </div>
             </div>
           </div>
-          <p class="step-note">The wizard writes <code class="inline-code">docker-compose.override.yml</code>, <code class="inline-code">drives.json</code>, <code class="inline-code">passwords.json</code>, and <code class="inline-code">addons/intelligence/search-config.yml</code> — all editable by hand later.</p>
+          <p class="step-note"><code class="inline-code">configure.py</code> writes <code class="inline-code">docker-compose.override.yml</code> and <code class="inline-code">.env</code>, and creates empty <code class="inline-code">drives.json</code> / <code class="inline-code">passwords.json</code> that the app fills in. It does not ask for drive names, passwords, or AI settings — those are set in the browser on first launch.</p>
         </div>
       </div>
 
@@ -1802,14 +1787,26 @@
       <div class="step-linear reveal reveal-delay-2">
         <div class="step-left">
           <div class="step-num">3</div>
+          <div class="step-connector-v" aria-hidden="true"></div>
         </div>
         <div class="step-body">
           <h3>Start Litloft</h3>
-          <p>Build and start the containers. On first run this pulls base images and downloads the Whisper and embedding models — expect a few minutes.</p>
+          <p>Build and start the containers. On first run this builds the images, and — if you enabled Intelligence — downloads the transcription and embedding models. Expect a few minutes.</p>
           <div class="code-block" role="region" aria-label="Docker start command">
             <div><span class="c-cmd">docker compose up</span> <span class="c-key">-d</span> <span class="c-key">--build</span></div>
             <div style="margin-top:6px"><span class="c-comment"># Open http://localhost:3000 when ready</span></div>
           </div>
+        </div>
+      </div>
+
+      <!-- Step 4 -->
+      <div class="step-linear reveal reveal-delay-2">
+        <div class="step-left">
+          <div class="step-num">4</div>
+        </div>
+        <div class="step-body">
+          <h3>Set up in your browser</h3>
+          <p>Open <code class="inline-code">http://localhost:3000</code>. On first launch Litloft shows the <code class="inline-code">/setup</code> wizard: it lists the drives it detected from your mounts so you can name them, set passwords and access groups, and choose which AI features to enable. Everything here can be changed later at <code class="inline-code">/admin/settings</code>.</p>
         </div>
       </div>
 
@@ -1822,15 +1819,15 @@
       </div>
       <div>
         <strong>Using AI features (Intelligence addon)</strong>
-        <p>Auto-tagging, summaries, and the Ask feature require an LLM. configure.py supports two options:</p>
+        <p>Auto-tagging, summaries, and the Ask feature require an LLM. Set it up after launch — there are two options:</p>
         <ul class="llm-options">
           <li>
             <span class="llm-label">Local (recommended)</span>
-            Install <a href="https://ollama.com" target="_blank" rel="noopener noreferrer">Ollama</a> on your host and pull a model. Litloft connects to it at <code class="inline-code">http://host.docker.internal:11434</code>. Your data never leaves your machine.
+            Install <a href="https://ollama.com" target="_blank" rel="noopener noreferrer">Ollama</a> on your host and pull a model. Point Litloft at it with the API key / base URL in <code class="inline-code">.env</code>; the provider and model are chosen in the browser. Your data never leaves your machine.
           </li>
           <li>
             <span class="llm-label">API</span>
-            Use OpenAI, DeepSeek, or any OpenAI-compatible endpoint. Enter your base URL and API key when prompted. File content is sent to the API during indexing and Ask queries.
+            Use OpenAI, DeepSeek, or any OpenAI-compatible endpoint. Put the API key (and base URL) in <code class="inline-code">.env</code> and pick the model in the browser. File content is sent to the API during indexing and Ask queries.
           </li>
         </ul>
         <p>Semantic search and transcription work without an LLM — only the text generation features are gated behind it.</p>
