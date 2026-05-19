@@ -320,6 +320,194 @@ def test_get_setup_status_completed_true_after_post_complete_setup(admin_client)
 
 
 # ---------------------------------------------------------------------------
+# GET /setup-status — Phase 2 expansion (M1) + post-review security fix
+#
+# spec 2026-05-19-gui-first-setup-cli-bootstrap §3.3 / plan Phase 2.
+#
+# The endpoint stays unauthenticated and MUST keep the ``completed`` key
+# (SetupRedirector and others read it). It ALSO returns the seeded drives
+# so the /setup DriveStep can render them without hitting the admin-gated
+# GET /drives (first-run bypass does not cover that route).
+#
+# SECURITY (Phase 2 code review, HIGH): the drive list is exposed ONLY
+# during first-run (sentinel absent / ``completed == False``). After
+# completion this unauthenticated endpoint must NOT leak drive names,
+# container paths, or access groups to any network peer — that would
+# contradict the "hide protected drive existence (404)" rule in
+# .claude/rules/design-decisions.md. The DriveStep only runs during
+# first-run, so hiding drives post-completion costs zero functionality.
+#
+# A real first-run is reproduced by driving the lifespan with an empty
+# ``[]`` drives.json plus subdirectories under DRIVES_MOUNT_ROOT: the
+# startup bootstrap reads pre_seed_count == 0, the sentinel migration does
+# NOT touch the sentinel (count < 1), and the seed then populates
+# drives.json from the mount dirs while ``completed`` stays False.
+# ---------------------------------------------------------------------------
+
+
+def _first_run_seed_env(tmp_path, monkeypatch, slugs_with_groups):
+    """Wire an isolated working tree for a genuine first-run seed flow.
+
+    ``slugs_with_groups`` is a list of ``(slug, group_or_None)`` tuples.
+    Each slug becomes a directory under a monkeypatched
+    ``config.DRIVES_MOUNT_ROOT``; drives.json starts as an empty ``[]`` so
+    ``run_startup_drive_bootstrap`` seeds it on lifespan startup. The
+    sentinel is left absent (no touch) so ``completed`` stays False.
+
+    Returns the mount root Path so callers can compute expected seed
+    paths (the seed writes ``f"{root}/{slug}"``).
+    """
+    import app.config as config
+    import app.auth as auth
+
+    data_dir = tmp_path / "data"
+    data_dir.mkdir()
+    mount_root = tmp_path / "mounts"
+    mount_root.mkdir()
+    for slug, _group in slugs_with_groups:
+        (mount_root / slug).mkdir()
+
+    drives_json = tmp_path / "drives.json"
+    drives_json.write_text("[]")
+    pw_json = tmp_path / "passwords.json"
+    pw_json.write_text("[]")
+
+    monkeypatch.setattr(config, "DRIVES_CONFIG", drives_json)
+    monkeypatch.setattr(config, "DRIVES_MOUNT_ROOT", mount_root)
+    monkeypatch.setattr(config, "DATA_DIR", data_dir)
+    monkeypatch.setattr(config, "THUMBNAILS_DIR", data_dir / "thumbnails")
+    monkeypatch.setattr(config, "CONVERTED_DIR", data_dir / "converted")
+    monkeypatch.setattr(config, "_drives_cache", None)
+    monkeypatch.setattr(auth, "PASSWORDS_CONFIG", pw_json)
+    monkeypatch.setattr(auth, "_passwords_cache", None)
+    return mount_root
+
+
+def test_setup_status_keeps_completed_key(anonymous_client):
+    """Backward compatibility: the ``completed`` key must always exist."""
+    c, _ = anonymous_client
+    resp = c.get("/api/admin/config/setup-status")
+    assert resp.status_code == 200
+    body = resp.json()
+    assert "completed" in body
+    assert isinstance(body["completed"], bool)
+
+
+def test_setup_status_returns_seeded_drives(tmp_path, monkeypatch):
+    """First-run: setup-status returns the drives the startup seed wrote.
+
+    Empty ``[]`` drives.json + two mount subdirectories → lifespan seeds
+    drives.json (pre_seed_count == 0, sentinel NOT touched) → the
+    unauthenticated read returns the seeded stubs while ``completed`` is
+    still False (the genuine first-run window).
+    """
+    mount_root = _first_run_seed_env(
+        tmp_path, monkeypatch, [("media", None), ("docs", None)]
+    )
+
+    from app.main import app
+
+    with TestClient(app) as c:
+        resp = c.get("/api/admin/config/setup-status")
+        assert resp.status_code == 200
+        body = resp.json()
+        # Genuine first-run: the seed ran but the sentinel was not touched.
+        assert body["completed"] is False
+        drives = body["drives"]
+        assert isinstance(drives, list)
+        by_name = {d["name"]: d for d in drives}
+        assert set(by_name) == {"media", "docs"}
+        # The seed writes path as f"{DRIVES_MOUNT_ROOT}/{slug}".
+        assert by_name["media"]["path"] == f"{mount_root}/media"
+        assert by_name["docs"]["path"] == f"{mount_root}/docs"
+        # Seeded stubs carry no access_group.
+        assert "access_group" not in by_name["media"]
+        assert "access_group" not in by_name["docs"]
+
+
+def test_setup_status_hides_drives_after_completion(admin_setup):
+    """SECURITY regression: drives must NOT leak once setup is complete.
+
+    Non-empty drives.json (the admin_setup fixture seeds alpha/beta with
+    real container paths and access groups) + sentinel present
+    (``completed == True``). The unauthenticated endpoint must report
+    completion but expose an empty ``drives`` list — no drive names, no
+    container paths, no access groups to any network peer.
+
+    Before the Phase 2 review fix (drives returned unconditionally) this
+    test fails: ``body["drives"]`` would contain alpha/beta with their
+    paths and groups.
+    """
+    from app.main import app
+
+    with TestClient(app) as c:
+        sentinel = admin_setup["data_dir"] / "setup_completed"
+        sentinel.parent.mkdir(parents=True, exist_ok=True)
+        sentinel.touch()
+
+        resp = c.get("/api/admin/config/setup-status")
+        assert resp.status_code == 200
+        body = resp.json()
+        assert body["completed"] is True
+        assert body["drives"] == []
+
+        # Defence-in-depth: no leaked identifier appears anywhere in the
+        # serialized response body.
+        raw = resp.text
+        assert "alpha" not in raw
+        assert "beta" not in raw
+        assert str(admin_setup["drive_a"]) not in raw
+        assert str(admin_setup["drive_b"]) not in raw
+        assert "g1" not in raw
+        assert "g2" not in raw
+
+
+def test_setup_status_empty_drives_when_drives_json_empty(tmp_path, monkeypatch):
+    """No mounts: drives.json stays [] → setup-status returns drives: [].
+
+    Empty ``[]`` drives.json and an empty DRIVES_MOUNT_ROOT (no
+    subdirectories) → the seed writes nothing, ``completed`` is False, and
+    the response is the stable ``{completed, drives: []}`` shape.
+    """
+    _first_run_seed_env(tmp_path, monkeypatch, [])
+
+    from app.main import app
+
+    with TestClient(app) as c:
+        resp = c.get("/api/admin/config/setup-status")
+        assert resp.status_code == 200
+        body = resp.json()
+        assert "completed" in body
+        assert body["completed"] is False
+        assert body["drives"] == []
+
+
+def test_setup_status_drive_without_group_omits_access_group(tmp_path, monkeypatch):
+    """A seeded stub (no access_group) must not carry a null access_group.
+
+    First-run seed flow (so ``completed`` stays False and drives are
+    exposed): the startup seed writes ``{name, path}`` only. setup-status
+    must omit the ``access_group`` key entirely (not emit ``null``).
+    """
+    mount_root = _first_run_seed_env(
+        tmp_path, monkeypatch, [("media", None)]
+    )
+
+    from app.main import app
+
+    with TestClient(app) as c:
+        resp = c.get("/api/admin/config/setup-status")
+        assert resp.status_code == 200
+        body = resp.json()
+        assert body["completed"] is False
+        drives = body["drives"]
+        assert len(drives) == 1
+        assert drives[0]["name"] == "media"
+        assert drives[0]["path"] == f"{mount_root}/media"
+        assert "access_group" not in drives[0]
+
+
+# ---------------------------------------------------------------------------
 # PUT /drives — happy path + validation
 # ---------------------------------------------------------------------------
 

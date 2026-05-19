@@ -80,7 +80,7 @@ docker compose logs -f backend
 - The backend is `expose`-only (not reachable from outside); the frontend is the only entry point.
 - Backend healthcheck → frontend uses `depends_on: condition: service_healthy`.
 - `data/` persists the SQLite DB and thumbnail images.
-- **Do not edit `docker-compose.yml`.** User-specific configuration (drive mounts, passwords.json, ports) goes in `docker-compose.override.yml`.
+- **Do not edit `docker-compose.yml`.** User-specific configuration (drive mounts, ports) goes in `docker-compose.override.yml`. `configure.py` always generates an empty `drives.json` / `passwords.json` (footgun guard) and writes an unconditional **read-write** `./passwords.json:/app/passwords.json` mount (never `:ro` — the GUI writes it in place). Drive names / passwords / policy are then owned by `/setup` + `/admin/settings`.
 - Template: `cp docker-compose.override.yml.example docker-compose.override.yml`, then edit.
 - For just changing the port, adding `LITLOFT_PORT=8080` to `.env` is enough.
 - Independent-service addons are added the same way through `docker-compose.override.yml`.

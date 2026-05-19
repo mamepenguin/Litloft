@@ -15,10 +15,13 @@ shrinking, configure.py must:
 
 - prompt only host_path + slug per drive, port, and addon yes/no
 - write drives.json as an empty [] (footgun guard, no logical content)
+- write passwords.json as an empty [] (same footgun guard; [] is
+  semantically identical to "no passwords" = all drives public)
 - NOT create data/setup_completed (reversal: /setup must run)
-- NOT create passwords.json (password dialog removed)
 - copy search-config.yml.example verbatim when intelligence enabled
 - write override.yml with <host_path>:/app/drives/<slug> mounts
+- write override.yml with an unconditional RW (no :ro) passwords.json
+  bind-mount so /setup and /admin/settings can write it later
 - keep event-hooks.json generation untouched
 """
 from __future__ import annotations
@@ -88,14 +91,42 @@ def test_minimal_run_does_not_create_setup_completed(base, tmp_path):
     assert not sentinel.exists(), "configure.py must NOT touch setup_completed (reversal)"
 
 
-def test_minimal_run_does_not_create_passwords_json(base, tmp_path):
+def test_minimal_run_writes_empty_passwords_json(base, tmp_path):
+    """Phase 2 §5.9: configure.py now writes an empty [] passwords.json.
+
+    [] is semantically identical to "no passwords" (auth.load_passwords()
+    treats absent and [] the same = all drives public). The single-file
+    bind-mount needs a real host file so /setup / /admin/settings can
+    write it later without hitting the directory footgun.
+    """
     host = tmp_path / "media"
     host.mkdir()
     answers = ["1", str(host), "media", "3000", "y"]
     proc = _run_configure(base, answers)
     assert proc.returncode == 0, proc.stderr + proc.stdout
 
-    assert not (base / "passwords.json").exists()
+    pw_file = base / "passwords.json"
+    assert pw_file.exists(), "configure.py must generate passwords.json (footgun guard)"
+    assert json.loads(pw_file.read_text()) == []
+
+
+def test_override_yml_has_rw_passwords_mount(base, tmp_path):
+    """passwords.json must be mounted RW (no :ro) and unconditionally.
+
+    :ro is incompatible with GUI writes (EBUSY / rejected). The mount is
+    unconditional regardless of access mode because /setup may create the
+    first password entry.
+    """
+    host = tmp_path / "media"
+    host.mkdir()
+    answers = ["1", str(host), "media", "3000", "y"]
+    proc = _run_configure(base, answers)
+    assert proc.returncode == 0, proc.stderr + proc.stdout
+
+    override = (base / "docker-compose.override.yml").read_text()
+    assert "- ./passwords.json:/app/passwords.json" in override
+    # Must NOT be read-only.
+    assert "./passwords.json:/app/passwords.json:ro" not in override
 
 
 def test_override_yml_has_slug_mount(base, tmp_path):

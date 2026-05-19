@@ -307,15 +307,62 @@ def _admin_or_first_run(request: Request) -> None:
 # ---------------------------------------------------------------------------
 
 
-@router.get("/setup-status")
-async def get_setup_status() -> dict[str, bool]:
-    """Return whether first-run setup has been completed.
+def _setup_status_drives() -> list[dict[str, Any]]:
+    """Project the on-disk drives into the minimal shape /setup needs.
 
-    No auth so the frontend can decide whether to redirect anonymous
-    visitors to ``/setup`` before any password entry exists.
+    Only ``name`` / ``path`` (and ``access_group`` when present) are
+    surfaced — the wizard does not need addon policy here. A seeded stub
+    has no ``access_group``, so the key is omitted (not nulled) so the
+    DriveStep can treat "no group" cleanly.
+    """
+    drives: list[dict[str, Any]] = []
+    for entry in _read_drives_from_disk():
+        if not isinstance(entry, dict):
+            continue
+        name = entry.get("name")
+        path = entry.get("path")
+        if not name or not path:
+            continue
+        item: dict[str, Any] = {"name": name, "path": path}
+        group = entry.get("access_group")
+        if group:
+            item["access_group"] = group
+        drives.append(item)
+    return drives
+
+
+@router.get("/setup-status")
+async def get_setup_status() -> dict[str, Any]:
+    """Return first-run setup state plus the seeded drive list.
+
+    No auth so the frontend can (a) decide whether to redirect anonymous
+    visitors to ``/setup`` before any password entry exists, and (b)
+    render the detected drives in the DriveStep without going through the
+    admin-gated ``GET /drives`` (the first-run bypass does not cover that
+    route — spec §3.3, M1).
+
+    ``completed`` is kept unconditionally for backward compatibility
+    (``SetupRedirector`` and others read it). ``drives`` is an additive
+    field; it is ``[]`` when drives.json is empty or unreadable.
     """
     sentinel = config.DATA_DIR / "setup_completed"
-    return {"completed": sentinel.exists()}
+    completed = sentinel.exists()
+    # Expose the detected drive list ONLY during first-run. This endpoint
+    # is unauthenticated; once setup is complete the DriveStep never reads
+    # it again, so returning drive names / container paths / access groups
+    # post-completion is pure information disclosure to any unauthenticated
+    # network peer and contradicts the "hide protected drive existence"
+    # rule in .claude/rules/design-decisions.md.
+    drives: list[dict[str, Any]] = []
+    if not completed:
+        try:
+            drives = _setup_status_drives()
+        except HTTPException:
+            # drives.json invalid (not a JSON array): the wizard should
+            # still be reachable, so degrade to an empty list rather
+            # than 500.
+            drives = []
+    return {"completed": completed, "drives": drives}
 
 
 @router.post("/complete-setup")

@@ -1,16 +1,21 @@
-// SetupWizard integration test (RED phase)
+// SetupWizard integration test (Phase 2: multi detected-drives).
 //
-// Choices:
-// - Wizard step order: Language → Drive → AccessMode → (Password) → AddonPolicy → Complete.
-// - When 全公開 is chosen at AccessMode, PasswordStep is skipped.
-// - "Next/Back" preserves intermediate state.
-// - Final submit calls (in order):
-//     PUT /api/admin/config/drives
-//     PUT /api/admin/config/passwords (only if protected mode)
-//     PUT /api/admin/config/addon-policy
-//     POST /api/admin/config/complete-setup
-//   then router.push('/admin').
-// - Steps are referenced by accessible button labels (Next / Back / Complete).
+// spec 2026-05-19-gui-first-setup-cli-bootstrap §3.3 / plan Phase 2.
+//
+// On mount the wizard fetches GET /api/admin/config/setup-status and
+// seeds its drive drafts from the returned `drives`. The DriveStep then
+// shows those detected drives (name + group editable, path read-only).
+// Final submit re-PUTs the whole drive array.
+//
+// Flow:
+//   Language → Welcome → Drive → AccessMode → (Password) → AddonPolicy → Complete
+// Password is skipped when access mode is 全公開 (public).
+// Final submit calls, in order:
+//   PUT  /api/admin/config/drives
+//   PUT  /api/admin/config/passwords (protected only)
+//   PUT  /api/admin/config/addon-policy
+//   POST /api/admin/config/complete-setup
+// then router.push('/admin').
 
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { render, screen, fireEvent, waitFor } from "@testing-library/react";
@@ -30,8 +35,35 @@ import { SetupWizard } from "@/app/setup/SetupWizard";
 
 const mockFetch = vi.fn();
 
+function jsonResponse(data: unknown, status = 200) {
+  return new Response(JSON.stringify(data), {
+    status,
+    headers: { "Content-Type": "application/json" },
+  });
+}
+
+// Default setup-status payload: two detected drives, setup not completed.
+const DETECTED = [
+  { name: "media", path: "/app/drives/media" },
+  { name: "docs", path: "/app/drives/docs" },
+];
+
+function defaultMockImpl(url: string) {
+  if (url === "/api/admin/config/setup-status") {
+    return Promise.resolve(
+      jsonResponse({ completed: false, drives: DETECTED }),
+    );
+  }
+  if (url === "/api/addons/status") {
+    return Promise.resolve(jsonResponse({ addons: {}, slots: {} }));
+  }
+  return Promise.resolve(jsonResponse({ ok: true }));
+}
+
 beforeEach(() => {
   pushMock.mockReset();
+  mockFetch.mockReset();
+  mockFetch.mockImplementation(defaultMockImpl);
   vi.stubGlobal("fetch", mockFetch);
 });
 
@@ -40,131 +72,99 @@ afterEach(() => {
   vi.restoreAllMocks();
 });
 
-function jsonResponse(data: unknown, status = 200) {
-  return new Response(JSON.stringify(data), {
-    status,
-    headers: { "Content-Type": "application/json" },
-  });
-}
-
-function fillDriveStep() {
-  // The DriveStep redesign nests a helper `<p>` inside each `<label>`,
-  // so the computed accessible name of each textbox starts with the field
-  // label ("Name", "Path", "Group") followed by helper text. Use getByRole
-  // with a name pattern anchored to the start so "path" in the group helper
-  // ("set passwords") does not match the path input.
-  const name = screen.getByRole("textbox", { name: /^name\b/i });
-  const path = screen.getByRole("textbox", { name: /^path\b/i });
-  const group = screen.getByRole("textbox", { name: /^group\b/i });
-  fireEvent.change(name, { target: { value: "main" } });
-  fireEvent.change(path, { target: { value: "/data/main" } });
-  fireEvent.change(group, { target: { value: "default" } });
-}
-
-// Advance past the new Welcome step (inserted between Language and Drive
-// by the 2026-04-30 redesign). The button is matched against the
-// localized "Get started" or the i18n fallback path.
-async function passWelcomeStep() {
+// Advance past the Welcome step (between Language and Drive).
+function passWelcomeStep() {
   const start =
     screen.queryByRole("button", { name: /get started|start|begin/i }) ??
     screen.queryByRole("button", { name: /setup\.welcome\.startButton/i });
   if (start) fireEvent.click(start);
 }
 
-describe("SetupWizard", () => {
+// Drive the wizard from Language through the detected DriveStep.
+async function reachDriveStep() {
+  fireEvent.click(screen.getByRole("button", { name: /日本語/ }));
+  fireEvent.click(screen.getByRole("button", { name: /next/i }));
+  await waitFor(() => {
+    const start =
+      screen.queryByRole("button", { name: /get started|start|begin/i }) ??
+      screen.queryByRole("button", { name: /setup\.welcome\.startButton/i });
+    expect(start).not.toBeNull();
+  });
+  passWelcomeStep();
+  // Detected drive name inputs should be present (default = slug).
+  await waitFor(() => {
+    expect(screen.getByDisplayValue("media")).toBeInTheDocument();
+  });
+}
+
+describe("SetupWizard (detected drives)", () => {
   it("writes NEXT_LOCALE cookie when locale is selected", async () => {
-    mockFetch.mockResolvedValue(jsonResponse({ addons: {}, slots: {} }));
-    // Reset cookies to a known state
     document.cookie = "NEXT_LOCALE=; path=/; max-age=0";
     render(<SetupWizard />);
+    await waitFor(() => {
+      expect(
+        screen.getByRole("button", { name: /english|en/i }),
+      ).toBeInTheDocument();
+    });
     fireEvent.click(screen.getByRole("button", { name: /english|en/i }));
     expect(document.cookie).toContain("NEXT_LOCALE=en");
   });
 
-  it("skips PasswordStep when 全公開 is selected", async () => {
-    mockFetch.mockResolvedValue(jsonResponse({ addons: {}, slots: {} }));
+  it("fetches setup-status on mount and seeds detected drives", async () => {
     render(<SetupWizard />);
+    await waitFor(() => {
+      const urls = mockFetch.mock.calls.map((c) => c[0] as string);
+      expect(urls).toContain("/api/admin/config/setup-status");
+    });
+    await reachDriveStep();
+    expect(screen.getByDisplayValue("media")).toBeInTheDocument();
+    expect(screen.getByDisplayValue("docs")).toBeInTheDocument();
+  });
 
-    // Step 1: Language
-    fireEvent.click(screen.getByRole("button", { name: /日本語/ }));
+  it("skips PasswordStep when 全公開 is selected", async () => {
+    render(<SetupWizard />);
+    await reachDriveStep();
     fireEvent.click(screen.getByRole("button", { name: /next/i }));
 
-    // Welcome (new, inserted before Drive)
-    await passWelcomeStep();
-
-    // Step 2: Drive
-    fillDriveStep();
-    fireEvent.click(screen.getByRole("button", { name: /next/i }));
-
-    // Step 3: AccessMode -- pick 全公開
     fireEvent.click(screen.getByLabelText(/public/i));
     fireEvent.click(screen.getByRole("button", { name: /next/i }));
 
-    // Should now be on AddonPolicyStep (skipping PasswordStep), so no
-    // password input should be visible.
     await waitFor(() => {
       expect(screen.queryByLabelText(/^password/i)).toBeNull();
     });
   });
 
-  it("preserves DriveStep state across Next/Back navigation", async () => {
-    mockFetch.mockResolvedValue(jsonResponse({ addons: {}, slots: {} }));
+  it("preserves edited display name across Next/Back navigation", async () => {
     render(<SetupWizard />);
+    await reachDriveStep();
 
-    // Step 1
-    fireEvent.click(screen.getByRole("button", { name: /日本語/ }));
+    const firstName = screen.getByDisplayValue("media") as HTMLInputElement;
+    fireEvent.change(firstName, { target: { value: "Movies" } });
     fireEvent.click(screen.getByRole("button", { name: /next/i }));
 
-    // Welcome
-    await passWelcomeStep();
-
-    // Step 2: fill, Next
-    fillDriveStep();
-    fireEvent.click(screen.getByRole("button", { name: /next/i }));
-
-    // On AccessMode now, go Back
+    // On AccessMode, go Back.
     fireEvent.click(screen.getByRole("button", { name: /back/i }));
 
-    // Drive fields should still be filled.
     await waitFor(() => {
-      const nameInput = screen.getByRole(
-        "textbox", { name: /^name\b/i },
-      ) as HTMLInputElement;
-      expect(nameInput.value).toBe("main");
+      expect(screen.getByDisplayValue("Movies")).toBeInTheDocument();
     });
-    const pathInput = screen.getByRole(
-      "textbox", { name: /^path\b/i },
-    ) as HTMLInputElement;
-    expect(pathInput.value).toBe("/data/main");
   });
 
-  it("final submit issues PUT drives, PUT addon-policy, POST complete-setup, then redirects", async () => {
-    // Default mock returns ok JSON for all calls
-    mockFetch.mockImplementation((url: string) => {
-      if (url === "/api/addons/status") {
-        return Promise.resolve(jsonResponse({ addons: {}, slots: {} }));
-      }
-      return Promise.resolve(jsonResponse({ ok: true }));
-    });
-
+  it("final submit PUTs the full drive array, then completes and redirects", async () => {
     render(<SetupWizard />);
+    await reachDriveStep();
 
-    // Language
-    fireEvent.click(screen.getByRole("button", { name: /日本語/ }));
-    fireEvent.click(screen.getByRole("button", { name: /next/i }));
-
-    // Welcome (new, inserted before Drive)
-    await passWelcomeStep();
-
-    // Drive
-    fillDriveStep();
+    // Rename the first drive so we can assert it is sent.
+    fireEvent.change(screen.getByDisplayValue("media"), {
+      target: { value: "Movies" },
+    });
     fireEvent.click(screen.getByRole("button", { name: /next/i }));
 
     // AccessMode: 全公開
     fireEvent.click(screen.getByLabelText(/public/i));
     fireEvent.click(screen.getByRole("button", { name: /next/i }));
 
-    // AddonPolicy: skip
+    // AddonPolicy: skip / next
     await waitFor(() => {
       expect(
         screen.getByRole("button", { name: /skip|next/i }),
@@ -195,94 +195,126 @@ describe("SetupWizard", () => {
         ]),
       );
     });
+
+    // The drives PUT body must be the full array with the rename applied.
+    const drivesPut = mockFetch.mock.calls.find(
+      ([url, opts]) =>
+        url === "/api/admin/config/drives" &&
+        (opts as RequestInit)?.method === "PUT",
+    );
+    expect(drivesPut).toBeDefined();
+    const body = JSON.parse(
+      (drivesPut![1] as RequestInit).body as string,
+    );
+    expect(Array.isArray(body)).toBe(true);
+    expect(body).toHaveLength(2);
+    expect(body[0].name).toBe("Movies");
+    expect(body[0].path).toBe("/app/drives/media");
+    expect(body[1].name).toBe("docs");
+
     await waitFor(() => {
       expect(pushMock).toHaveBeenCalledWith("/admin");
     });
 
-    // PUT /passwords should NOT be called (公開 mode)
     const passwordCall = mockFetch.mock.calls.find(
       ([url]) => url === "/api/admin/config/passwords",
     );
     expect(passwordCall).toBeUndefined();
   });
+
+  it("shows mount guidance when zero drives are detected", async () => {
+    mockFetch.mockImplementation((url: string) => {
+      if (url === "/api/admin/config/setup-status") {
+        return Promise.resolve(
+          jsonResponse({ completed: false, drives: [] }),
+        );
+      }
+      if (url === "/api/addons/status") {
+        return Promise.resolve(jsonResponse({ addons: {}, slots: {} }));
+      }
+      return Promise.resolve(jsonResponse({ ok: true }));
+    });
+
+    render(<SetupWizard />);
+    fireEvent.click(screen.getByRole("button", { name: /日本語/ }));
+    fireEvent.click(screen.getByRole("button", { name: /next/i }));
+    await waitFor(() => {
+      const start =
+        screen.queryByRole("button", {
+          name: /get started|start|begin/i,
+        }) ??
+        screen.queryByRole("button", {
+          name: /setup\.welcome\.startButton/i,
+        });
+      expect(start).not.toBeNull();
+    });
+    passWelcomeStep();
+
+    await waitFor(() => {
+      expect(
+        screen.getAllByText(/docker compose up -d --build/i).length,
+      ).toBeGreaterThan(0);
+    });
+    expect(
+      screen.getAllByText(/docker-compose\.override\.yml/i).length,
+    ).toBeGreaterThan(0);
+    // Next on the empty DriveStep must be disabled.
+    expect(screen.getByRole("button", { name: /next/i })).toBeDisabled();
+  });
 });
 
-// Additional tests (RED phase) for the redesigned wizard step order with the
-// new Welcome step inserted between Language and Drive.
-//
-// New flow (public):
-//   Language -> Welcome -> Drive -> AccessMode -> AddonPolicy -> Complete
-//
-// New flow (protected):
-//   Language -> Welcome -> Drive -> AccessMode -> Password -> AddonPolicy -> Complete
-//
-// We detect the Welcome screen by its primary CTA, which is matched against
-// the localized text "Get started" or the i18n fallback path
-// "setup.welcome.startButton".
-
-function findWelcomeStartButton(): HTMLElement | null {
-  return (
-    screen.queryByRole("button", { name: /get started|start|begin/i }) ??
-    screen.queryByRole("button", { name: /setup\.welcome\.startButton/i })
-  );
-}
-
+// Welcome-step ordering regression (kept from the original suite).
 describe("SetupWizard with WelcomeStep", () => {
-  it("shows Welcome step right after Language (before Drive) in public mode", async () => {
-    mockFetch.mockResolvedValue(jsonResponse({ addons: {}, slots: {} }));
-    render(<SetupWizard />);
+  function findWelcomeStartButton(): HTMLElement | null {
+    return (
+      screen.queryByRole("button", {
+        name: /get started|start|begin/i,
+      }) ??
+      screen.queryByRole("button", {
+        name: /setup\.welcome\.startButton/i,
+      })
+    );
+  }
 
-    // Step 1: Language -> Next
+  it("shows Welcome right after Language (before Drive) in public mode", async () => {
+    render(<SetupWizard />);
     fireEvent.click(screen.getByRole("button", { name: /日本語/ }));
     fireEvent.click(screen.getByRole("button", { name: /next/i }));
 
-    // Welcome should now be visible — the start button must exist.
     await waitFor(() => {
       expect(findWelcomeStartButton()).not.toBeNull();
     });
-
-    // The Drive step's "name" input should NOT yet be visible.
-    expect(screen.queryByLabelText(/name/i)).toBeNull();
+    // Detected drive inputs should NOT be visible yet.
+    expect(screen.queryByDisplayValue("media")).toBeNull();
   });
 
   it('clicking "Get started" on Welcome advances to the Drive step', async () => {
-    mockFetch.mockResolvedValue(jsonResponse({ addons: {}, slots: {} }));
     render(<SetupWizard />);
-
     fireEvent.click(screen.getByRole("button", { name: /日本語/ }));
     fireEvent.click(screen.getByRole("button", { name: /next/i }));
 
     await waitFor(() => {
       expect(findWelcomeStartButton()).not.toBeNull();
     });
+    fireEvent.click(findWelcomeStartButton()!);
 
-    // Click the start button on Welcome.
-    const start = findWelcomeStartButton()!;
-    fireEvent.click(start);
-
-    // We should be on DriveStep -> the "名前" / "name" input must appear.
     await waitFor(() => {
-      expect(screen.getByLabelText(/name/i)).toBeInTheDocument();
+      expect(screen.getByDisplayValue("media")).toBeInTheDocument();
     });
   });
 
   it('clicking "Back" on Welcome returns to the Language step', async () => {
-    mockFetch.mockResolvedValue(jsonResponse({ addons: {}, slots: {} }));
     render(<SetupWizard />);
-
     fireEvent.click(screen.getByRole("button", { name: /日本語/ }));
     fireEvent.click(screen.getByRole("button", { name: /next/i }));
 
     await waitFor(() => {
       expect(findWelcomeStartButton()).not.toBeNull();
     });
-
     fireEvent.click(screen.getByRole("button", { name: /back/i }));
 
-    // Welcome should be gone, the language buttons should be re-visible.
     await waitFor(() => {
       expect(findWelcomeStartButton()).toBeNull();
-      // Re-rendered language step shows the Japanese / English buttons.
       expect(
         screen.getByRole("button", { name: /日本語/ }),
       ).toBeInTheDocument();
@@ -292,32 +324,24 @@ describe("SetupWizard with WelcomeStep", () => {
     });
   });
 
-  it("Welcome appears between Language and Drive even in protected mode flow", async () => {
-    mockFetch.mockResolvedValue(jsonResponse({ addons: {}, slots: {} }));
+  it("Welcome appears between Language and Drive in protected flow too", async () => {
     render(<SetupWizard />);
-
-    // Language -> Next
     fireEvent.click(screen.getByRole("button", { name: /日本語/ }));
     fireEvent.click(screen.getByRole("button", { name: /next/i }));
 
-    // Welcome -> Get started
     await waitFor(() => {
       expect(findWelcomeStartButton()).not.toBeNull();
     });
     fireEvent.click(findWelcomeStartButton()!);
 
-    // Drive
     await waitFor(() => {
-      expect(screen.getByLabelText(/name/i)).toBeInTheDocument();
+      expect(screen.getByDisplayValue("media")).toBeInTheDocument();
     });
-    fillDriveStep();
     fireEvent.click(screen.getByRole("button", { name: /next/i }));
 
-    // AccessMode -> protected
     fireEvent.click(screen.getByLabelText(/password protected/i));
     fireEvent.click(screen.getByRole("button", { name: /next/i }));
 
-    // Now Password should be visible (AccessMode order is unchanged).
     await waitFor(() => {
       expect(screen.getByLabelText(/^password/i)).toBeInTheDocument();
     });

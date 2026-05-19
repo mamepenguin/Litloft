@@ -12,11 +12,16 @@ passwords, per-drive addon policy, or AI feature modes. Those are logical
 settings owned by the first-run wizard at ``/setup`` and the running-app
 editor at ``/admin/settings``.
 
-drives.json is always written as an empty ``[]``. The single-file
-bind-mount ``./drives.json:/app/drives.json`` means an absent host file
-makes Docker create a *directory* there, which the backend cannot read or
-write. Writing ``[]`` keeps it a real, writable file; the backend seeds
-logical drive entries from the mount directories on startup.
+drives.json and passwords.json are always written as an empty ``[]``. The
+single-file bind-mounts ``./drives.json:/app/drives.json`` and
+``./passwords.json:/app/passwords.json`` mean an absent host file makes
+Docker create a *directory* there, which the backend cannot read or
+write. Writing ``[]`` keeps each a real, writable file; the backend seeds
+logical drive entries from the mount directories on startup, and the
+wizard / admin settings own passwords from then on. An empty
+``passwords.json`` is semantically identical to "no passwords" (every
+drive public, graceful degradation). The override.yml mounts
+passwords.json **read-write** (``:ro`` is incompatible with GUI writes).
 
 ``data/setup_completed`` is intentionally NOT created — the web wizard
 must run on first launch (it now owns logical configuration).
@@ -251,7 +256,8 @@ def main():
     heading("Summary")
     print("  Files to generate:")
     print("    docker-compose.override.yml")
-    print("    drives.json  (empty — drives are named at /setup)")
+    print("    drives.json     (empty — drives are named at /setup)")
+    print("    passwords.json  (empty — passwords are set at /setup)")
     if port != '3000':        print(f"    .env  (LITLOFT_PORT={port})")
     if has_intelligence:      print("    addons/intelligence/search-config.yml")
     if has_intelligence or has_knowledge: print("    event-hooks.json")
@@ -285,6 +291,12 @@ def main():
         ]
         for d in drives:
             lines.append(f"      - {d['host_path']}:/app/drives/{d['slug']}")
+        # passwords.json is mounted unconditionally and read-write. The
+        # single-file bind-mount needs a real host file (footgun guard,
+        # symmetric with drives.json). :ro is incompatible with GUI
+        # writes from /setup + /admin/settings (EBUSY / rejected), so it
+        # is RW regardless of whether a password is configured yet.
+        lines.append("      - ./passwords.json:/app/passwords.json")
         if (base / 'event-hooks.json').exists():
             lines.append("      - ./event-hooks.json:/app/event-hooks.json:ro")
         _cs_cfg = base / 'addons/cloud-sync/sync-config.json'
@@ -354,6 +366,20 @@ def main():
     if check_overwrite(drives_file):
         drives_file.write_text('[]\n')
         ok("drives.json  (empty — named at /setup)")
+
+    # ── Generate passwords.json (always empty []) ─────────────────────────────
+    #
+    # Same footgun guard as drives.json: the single-file bind-mount needs a
+    # real host file, otherwise Docker mounts a directory the backend
+    # cannot read or write. An empty [] is semantically identical to "no
+    # passwords" — auth.load_passwords() treats absent and [] the same way
+    # (all drives public, graceful degradation). Passwords are configured
+    # later at /setup + /admin/settings.
+
+    passwords_file = base / 'passwords.json'
+    if check_overwrite(passwords_file):
+        passwords_file.write_text('[]\n')
+        ok("passwords.json  (empty — set at /setup)")
 
     # ── Generate search-config.yml (verbatim copy of the example) ─────────────
     #

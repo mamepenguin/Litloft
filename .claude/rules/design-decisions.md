@@ -6,8 +6,8 @@ Invariant rules to follow whenever you edit code. Read these as a "this is how w
 
 - When a protected drive is locked, exclude it from API responses entirely. Return 404 (not 403) so its existence stays hidden.
 - Do not link to `/unlock` from the UI. It is reachable only by typing the URL directly.
-- When `passwords.json` is absent, every drive is public (graceful degradation). Do not raise errors.
-- For setups using `passwords.json`, add `./passwords.json:/app/passwords.json:ro` to the backend volumes in `docker-compose.override.yml` (do not edit `docker-compose.yml`).
+- When `passwords.json` is absent **or empty `[]`**, every drive is public (graceful degradation — `auth.load_passwords()` treats absent and `[]` identically). Do not raise errors.
+- `configure.py` always generates `passwords.json` as an empty `[]` (single-file bind-mount footgun guard, symmetric with `drives.json`) and writes an **unconditional read-write** mount `./passwords.json:/app/passwords.json` into the backend volumes of `docker-compose.override.yml`. **`:ro` is forbidden** — the GUI (`/setup`, `/admin/settings` PasswordsSection) writes this file in place and `:ro` causes EBUSY / write rejection (hako `zMmxWEQfhizLyMl-O0CJF`). Do not edit `docker-compose.yml`.
 
 ## Drives
 

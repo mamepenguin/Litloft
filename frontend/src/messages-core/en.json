@@ -845,8 +845,13 @@
       "complete": "Done"
     },
     "drive": {
-      "title": "Add a drive",
+      "title": "Name your drives",
       "description": "Add at least one. The path must be mounted by docker-compose.yml volumes.",
+      "detectedDescription": "These drives were detected from the container mounts. Give each one a display name and, optionally, an access group.",
+      "pathReadonlyLabel": "Mounted at",
+      "noneDetectedTitle": "No drives detected",
+      "noneDetected": "No host directory is mounted. Add one to backend.volumes in docker-compose.override.yml, then rebuild the containers.",
+      "noneDetectedCommand": "docker compose up -d --build",
       "fields": {
         "name": "Name",
         "path": "Path",
@@ -855,12 +860,12 @@
       "helpers": {
         "name": "Identifier used in the sidebar and URL. Letters, numbers and hyphens recommended. Example: media",
         "path": "The path inside the container. It must be mounted via docker-compose.yml volumes. Example: /data/media",
-        "group": "Access-control unit. You can later set passwords per group. Example: family"
+        "group": "Access-control unit. You can later set passwords per group. Leave blank for a public drive. Example: family"
       },
       "troubleshootingTitle": "Having trouble?",
       "troubleshooting": {
-        "dockerVolume": "The path is the path inside the container, not on the host.",
-        "containerPath": "Add '- /host/path:/data/media' to backend.volumes in docker-compose.yml, run 'docker compose up -d --build', then register the drive."
+        "dockerVolume": "Drives are mounted by docker-compose.override.yml, not entered here.",
+        "containerPath": "Add '- /host/path:/app/drives/<slug>' to backend.volumes in docker-compose.override.yml, run 'docker compose up -d --build', then reload this page."
       }
     },
     "accessMode": {

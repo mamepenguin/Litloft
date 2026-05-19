@@ -1,9 +1,14 @@
 "use client";
 
-// DriveStep: collects a single drive entry (name/path/group) from the
-// user. Next is disabled until all required fields are populated, then
-// runs a server-side validation against PUT /api/admin/config/drives
-// before advancing — surface 422 errors inline.
+// DriveStep (Phase 2: detected drives).
+//
+// The backend seeds drives.json from the container mount directories on
+// startup, so by the time /setup runs there are N stub drives. This step
+// renders that detected list: the display name and access group are
+// editable; the container path is shown read-only (the user does NOT
+// type a host path here — mounts are wired by configure.py /
+// docker-compose.override.yml). Next validates the whole array against
+// PUT /api/admin/config/drives unless `skipValidate` is set.
 
 import { useCallback, useState } from "react";
 import { useTranslations } from "next-intl";
@@ -15,8 +20,8 @@ export interface DriveDraft {
 }
 
 interface Props {
-  value: DriveDraft;
-  onChange: (draft: DriveDraft) => void;
+  value: DriveDraft[];
+  onChange: (draft: DriveDraft[]) => void;
   onNext: () => void;
   onBack: () => void;
   // When true, skip the server validation fetch on Next. The wizard sets
@@ -37,8 +42,19 @@ export function DriveStep({
   const tDrive = useTranslations("setup.drive");
   const [error, setError] = useState<string | null>(null);
 
-  const isValid = Boolean(
-    value.name.trim() && value.path.trim() && value.access_group.trim(),
+  const hasDrives = value.length > 0;
+
+  // Immutable per-field update: replace exactly one entry with a fresh
+  // object, leaving the others (and the original array) untouched.
+  const updateField = useCallback(
+    (index: number, field: "name" | "access_group", next: string) => {
+      onChange(
+        value.map((drive, i) =>
+          i === index ? { ...drive, [field]: next } : drive,
+        ),
+      );
+    },
+    [onChange, value],
   );
 
   const handleNext = useCallback(async () => {
@@ -52,7 +68,7 @@ export function DriveStep({
         method: "PUT",
         credentials: "include",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify([value]),
+        body: JSON.stringify(value),
       });
       if (!res.ok) {
         let message = `Validation failed (${res.status})`;
@@ -77,48 +93,69 @@ export function DriveStep({
       <h2 className="text-lg font-semibold text-text-primary">
         {tDrive("title")}
       </h2>
-      <p className="text-sm text-text-muted">{tDrive("description")}</p>
+      <p className="text-sm text-text-muted">
+        {hasDrives ? tDrive("detectedDescription") : tDrive("description")}
+      </p>
 
-      <div className="space-y-3">
-        <label className="block text-sm">
-          <span className="mb-1 block font-medium text-text-primary">
-            {tDrive("fields.name")}
-          </span>
-          <input
-            type="text"
-            value={value.name}
-            onChange={(e) => onChange({ ...value, name: e.target.value })}
-            className="w-full rounded-2xl border border-warm-silver/40 bg-bg-card px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-focus-ring"
-          />
-          <p className="mt-1 text-xs text-text-muted">{tDrive("helpers.name")}</p>
-        </label>
-        <label className="block text-sm">
-          <span className="mb-1 block font-medium text-text-primary">
-            {tDrive("fields.path")}
-          </span>
-          <input
-            type="text"
-            value={value.path}
-            onChange={(e) => onChange({ ...value, path: e.target.value })}
-            className="w-full rounded-2xl border border-warm-silver/40 bg-bg-card px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-focus-ring"
-          />
-          <p className="mt-1 text-xs text-text-muted">{tDrive("helpers.path")}</p>
-        </label>
-        <label className="block text-sm">
-          <span className="mb-1 block font-medium text-text-primary">
-            {tDrive("fields.group")}
-          </span>
-          <input
-            type="text"
-            value={value.access_group}
-            onChange={(e) =>
-              onChange({ ...value, access_group: e.target.value })
-            }
-            className="w-full rounded-2xl border border-warm-silver/40 bg-bg-card px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-focus-ring"
-          />
-          <p className="mt-1 text-xs text-text-muted">{tDrive("helpers.group")}</p>
-        </label>
-      </div>
+      {hasDrives ? (
+        <div className="space-y-4">
+          {value.map((drive, index) => (
+            <div
+              key={drive.path || index}
+              className="space-y-3 rounded-2xl border border-bg-border bg-bg-elevated p-4"
+            >
+              <div className="text-xs text-text-muted">
+                <span className="mr-2 font-medium text-text-primary">
+                  {tDrive("pathReadonlyLabel")}
+                </span>
+                <code className="break-all font-mono">{drive.path}</code>
+              </div>
+              <label className="block text-sm">
+                <span className="mb-1 block font-medium text-text-primary">
+                  {tDrive("fields.name")}
+                </span>
+                <input
+                  type="text"
+                  value={drive.name}
+                  onChange={(e) =>
+                    updateField(index, "name", e.target.value)
+                  }
+                  className="w-full rounded-2xl border border-warm-silver/40 bg-bg-card px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-focus-ring"
+                />
+                <p className="mt-1 text-xs text-text-muted">
+                  {tDrive("helpers.name")}
+                </p>
+              </label>
+              <label className="block text-sm">
+                <span className="mb-1 block font-medium text-text-primary">
+                  {tDrive("fields.group")}
+                </span>
+                <input
+                  type="text"
+                  value={drive.access_group}
+                  onChange={(e) =>
+                    updateField(index, "access_group", e.target.value)
+                  }
+                  className="w-full rounded-2xl border border-warm-silver/40 bg-bg-card px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-focus-ring"
+                />
+                <p className="mt-1 text-xs text-text-muted">
+                  {tDrive("helpers.group")}
+                </p>
+              </label>
+            </div>
+          ))}
+        </div>
+      ) : (
+        <div className="space-y-2 rounded-2xl border border-danger/40 bg-bg-elevated p-4 text-sm text-text-muted">
+          <p className="font-medium text-text-primary">
+            {tDrive("noneDetectedTitle")}
+          </p>
+          <p>{tDrive("noneDetected")}</p>
+          <pre className="overflow-x-auto rounded-xl bg-bg-card p-3 text-xs">
+            <code>{tDrive("noneDetectedCommand")}</code>
+          </pre>
+        </div>
+      )}
 
       <details className="rounded-xl bg-bg-elevated p-4 text-sm">
         <summary className="cursor-pointer font-medium text-text-primary">
@@ -143,7 +180,7 @@ export function DriveStep({
         <button
           type="button"
           onClick={handleNext}
-          disabled={!isValid}
+          disabled={!hasDrives}
           className="rounded-2xl bg-accent px-4 py-2 text-sm font-medium text-white hover:bg-accent-hover disabled:cursor-not-allowed disabled:opacity-50"
         >
           {t("next")}
