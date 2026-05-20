@@ -28,7 +28,7 @@ This handles the very common situation of a network share unmounting, a USB disk
 
 Everything that depended on the file ID:
 
-- Comments, tags, watch history, playlists.
+- Comments, tags, watch history, collections.
 - Thumbnails (kept on disk; reused on recovery).
 - AI artefacts (transcripts, summaries, embeddings).
 
@@ -62,6 +62,8 @@ Missing files are kept indefinitely until the user explicitly purges them. Use t
 
 Trash is the result of a user-initiated soft delete:
 
+![Trash view listing deleted files with restore and delete-forever actions](../images/user-guide/trash-view-actions.png)
+
 - `deleted_at` is set to the deletion time.
 - `missing_since` is cleared.
 - The file on disk is **not** moved or removed.
@@ -70,8 +72,8 @@ Trash is the result of a user-initiated soft delete:
 The 30-day clock starts ticking. Trashed files:
 
 - Do not appear in default queries.
-- Cannot be added to new playlists.
-- Existing playlist entries pointing at them remain (rendered as muted, non-playable).
+- Cannot be added to new collections.
+- Existing collection entries pointing at them remain (rendered as muted, non-playable).
 - Are visible in the **Trash** view, where they can be restored or purged.
 
 ### Restore from trash

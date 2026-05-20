@@ -26,7 +26,7 @@ For everyday users: viewers, players, search, organisation.
 - [Viewers and players](user-guide/viewers-and-players.md) — video, audio, image, Markdown, PDF, Office, ZIP.
 - [Search](user-guide/search.md) — keyword, tag filter, semantic, scene search.
 - [Upload and file operations](user-guide/upload-and-fileops.md)
-- [Playlists and favourites](user-guide/playlists-favorites.md)
+- [Collections and favourites](user-guide/playlists-favorites.md)
 - [Tags and file relations](user-guide/tags-and-relations.md)
 - [Trash and missing files](user-guide/trash-and-missing.md)
 - [Comments and watch history](user-guide/comments-history.md)

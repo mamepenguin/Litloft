@@ -4,13 +4,15 @@ Litloft picks a viewer based on the file's MIME type. The same file detail page 
 
 ## Video player
 
+![Video player with hover preview, subtitles menu, and autoplay controls](../images/user-guide/video-player-subtitles-preview.png)
+
 - **Adaptive streaming** — the backend serves byte-range requests; the player seeks instantly without re-downloading.
 - **Resume from last position** — playback position is saved every 5 seconds. When you reopen the file, you resume where you left off.
 - **Subtitles** — sidecar `.srt` / `.vtt` files in the same folder are auto-attached. Name them after the video's basename: `movie.srt` (default track) or `movie.<lang>.srt` / `movie.<lang>.vtt` where `<lang>` is a 2–3 letter code (`en`, `ja`, `eng`, …) — each becomes an entry in the language picker, default track first. `.srt` is converted to WebVTT on the fly for the browser player. Subtitle files do not appear as their own entries in the file list.
 - **Sprite preview on hover** — the scrubber shows a thumbnail strip generated lazily by ffmpeg. Generation is gated by a semaphore (max 2 concurrent) so a busy library does not blow up CPU.
 - **Picture-in-picture** — `autoPictureInPicture` is enabled where the browser supports it.
-- **Media session** — lock-screen and OS media-key controls (play/pause, next, previous within a playlist).
-- **Theatre mode** — toggle to expand the player and show a sidebar with the playlist queue or related files.
+- **Media session** — lock-screen and OS media-key controls (play/pause, next, previous within a collection).
+- **Theatre mode** — toggle to expand the player and show a sidebar with the collection queue or related files.
 - **Cast** — Chromecast button when a compatible session is detected.
 - **Autoplay** — defaults **off** to respect attention. Toggle on the player; choice is persisted in localStorage.
 - **Keyboard shortcuts** — `space` (play/pause), `←` / `→` (seek ±5 s), `/` (fullscreen). Single-character shortcuts only fire when no input is focused.
@@ -26,6 +28,8 @@ Litloft picks a viewer based on the file's MIME type. The same file detail page 
 
 The image viewer doubles as an archive page-turner — both single images and pages inside ZIP/TAR/RAR archives use the same component.
 
+![Image viewer in two-page spread mode with right-to-left reading enabled](../images/user-guide/image-viewer-spread-rtl.png)
+
 - **Swipe navigation** — left/right swipe (50 px threshold) advances. Direction is reading-direction-aware: in *right-to-left* mode (manga, Arabic, Hebrew) the swipe is mirrored.
 - **Edge taps** — tapping the left or right 25% of the screen behaves like swipe.
 - **Centre tap** — toggles the controls bar.
@@ -39,6 +43,8 @@ The image viewer doubles as an archive page-turner — both single images and pa
 ## Markdown viewer
 
 Litloft renders Markdown with a curated set of extensions:
+
+![Markdown viewer with frontmatter chips and a rendered Mermaid diagram](../images/user-guide/markdown-viewer-frontmatter-mermaid.png)
 
 - **Syntax highlighting** for fenced code blocks (`highlight.js`).
 - **Mermaid diagrams** — lazy-loaded; opt-in only, since Mermaid evaluates string input as code-like configuration.

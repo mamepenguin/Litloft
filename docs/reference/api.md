@@ -17,7 +17,7 @@ Common status codes across endpoints:
 | `400` | Bad request — most often path traversal in a `path`/`folder` argument. |
 | `401` / `403` | Not authenticated / not permitted for this group. |
 | `404` | Not found — **also returned for a locked protected drive**, so its existence stays hidden, and for Missing/Trash files on GET or mutating endpoints. |
-| `409` | Conflict — scan already in progress, duplicate collection/playlist name, naming-conflict ceiling, setup already completed. |
+| `409` | Conflict — scan already in progress, duplicate collection name, naming-conflict ceiling, setup already completed. |
 | `410` | Gone — streaming a Missing file (`GET /api/files/{id}/stream`). |
 | `413` | Payload too large — body cap exceeded (e.g. 1 MB content write, 5 MB render). |
 | `415` | Unsupported media type — wrong encoding/MIME for `/render`, `/wiki-resolutions`. |
@@ -117,17 +117,17 @@ Pagination: list endpoints that paginate take `page` (1-based) and return the cu
 | `POST` | `/api/files/trash/empty` | Purge trash older than 30 days. |
 | `POST` | `/api/files/missing/purge-all` | Purge all missing files (in batches of 200). |
 
-## Playlists
+## Collections
 
 | Method | Path | Purpose |
 |---|---|---|
-| `GET` | `/api/drives/{drive}/playlists` | List. |
-| `POST` | `/api/drives/{drive}/playlists` | Create. |
-| `GET` | `/api/drives/{drive}/playlists/{id}` | Detail with items. |
-| `PATCH` | `/api/drives/{drive}/playlists/{id}` | Rename / reorder. |
-| `DELETE` | `/api/drives/{drive}/playlists/{id}` | Remove. |
-| `POST` | `/api/drives/{drive}/playlists/{id}/items` | Add a file. Rejected for missing/trashed. |
-| `DELETE` | `/api/drives/{drive}/playlists/{id}/items/{file_id}` | Remove. |
+| `GET` | `/api/drives/{drive}/collections` | List. |
+| `POST` | `/api/drives/{drive}/collections` | Create. |
+| `GET` | `/api/drives/{drive}/collections/{id}` | Detail with items. |
+| `PATCH` | `/api/drives/{drive}/collections/{id}` | Rename / reorder. |
+| `DELETE` | `/api/drives/{drive}/collections/{id}` | Remove. |
+| `POST` | `/api/drives/{drive}/collections/{id}/items` | Add a file. Rejected for missing/trashed. |
+| `DELETE` | `/api/drives/{drive}/collections/{id}/items/{item_id}` | Remove. |
 
 ## Upload
 

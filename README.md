@@ -6,11 +6,15 @@ A self-hosted file and media app for your home LAN. Browse, stream, and search y
 
 > **Note:** Developed for personal use. Issues and PRs are welcome, but support is best-effort.
 
-**[Landing page](https://mamepenguin.github.io/Litloft/)**
+**[Landing page](https://mamepenguin.github.io/Litloft/)** · **[Documentation](docs/README.md)**
 
 <p align="center">
-  <img src="docs/screenshot_home.png" width="49%" alt="Litloft home screen" />
-  <img src="docs/screenshot_ask.png" width="49%" alt="Litloft AI Ask" />
+  <img src="docs/images/user-guide/drive-home-overview.png" width="92%" alt="Litloft drive home overview" />
+</p>
+
+<p align="center">
+  <img src="docs/images/screenshot_summary.png" width="45%" alt="Litloft AI summary with citations" />
+  <img src="docs/images/user-guide/markdown-viewer-frontmatter-mermaid.png" width="45%" alt="Litloft Markdown viewer with frontmatter and Mermaid" />
 </p>
 
 ---
@@ -24,7 +28,7 @@ A self-hosted file and media app for your home LAN. Browse, stream, and search y
 - **File operations** — Upload (folder, chunked), rename, move, copy, batch operations, in-browser text editing
 - **Trash** — Soft delete with 30-day auto-purge; restore at any time
 - **Search & discovery** — Keyword search, tag filter, duplicate detection, pinned folders
-- **Organization** — Playlists, favorites, per-file comments, watch history with resume
+- **Organization** — Collections, favorites, per-file comments, watch history with resume
 
 ### AI (Intelligence addon)
 - **Ask** — Natural language Q&A over your media, with cited source clips
@@ -61,19 +65,20 @@ cd Litloft
 python3 configure.py
 ```
 
-The interactive wizard generates all config files. It asks:
+`configure.py` generates the container wiring needed before Docker starts. It asks:
 
 | Step | What it configures |
 |------|--------------------|
-| ① Drives | How many drives, display name, host path for each |
+| ① Drive mounts | How many drives, host path, and slug for each |
 | ② Port | Default `3000`; change if needed |
-| ③ Password protection | Per-drive access groups and passwords (optional) |
-| ④ Intelligence addon | Whisper model, embedding model, LLM provider, AI features (optional) |
-| ⑤ Knowledge addon | Markdown vault (optional) |
+| ③ Intelligence addon | Enable the standalone AI service container (optional) |
+| ④ Knowledge addon | Enable the standalone Markdown vault service container (optional) |
 
-**Output files:** `docker-compose.override.yml`, `drives.json`, `passwords.json`, `addons/intelligence/search-config.yml`, `.env`
+**Output files:** `docker-compose.override.yml`, empty `drives.json` / `passwords.json`, `event-hooks.json` when needed, `addons/intelligence/search-config.yml` when intelligence is enabled, and `.env` when the port or addon secrets need it.
 
-> Re-run `configure.py` any time to update settings. The generated files are plain text and can also be edited by hand.
+Drive display names, access groups, passwords, and AI feature modes are configured later in the browser: first in `/setup`, then in `/admin/settings`.
+
+> Re-run `configure.py` any time to update container wiring. The generated files are plain text and can also be edited by hand.
 
 > **`drives.json` must exist before the first start** — `docker-compose.yml` always bind-mounts it. Running `configure.py` (recommended) creates it automatically. If you prefer to set things up manually instead, see the note below step 3.
 
@@ -83,11 +88,11 @@ The interactive wizard generates all config files. It asks:
 docker compose up -d --build
 ```
 
-Open `http://localhost:3000`. From other devices on your LAN: `http://<host-ip>:3000`.
+Open `http://localhost:3000`. From other devices on your LAN: `http://<host-ip>:3000`. On first launch, the `/setup` wizard names drives and configures passwords / addon policy.
 
-> First build downloads base images + AI models. Expect a few minutes.
+> First build downloads base images and installs container dependencies. If the intelligence addon is enabled, ML model weights are downloaded on first use and cached under `data/addons/intelligence/models/`.
 
-> **Manual setup (without configure.py):** Create drive volume mounts by hand — copy `docker-compose.override.yml.example` to `docker-compose.override.yml` and edit the host paths. Then create a minimal `drives.json` so Docker can start: `echo '[]' > drives.json`. After that, `docker compose up -d --build` will open the first-run wizard at `/setup`, which writes the final `drives.json` and `passwords.json`. Once the wizard completes, restart to apply: `docker compose restart`.
+> **Manual setup (without configure.py):** Create drive volume mounts by hand — copy `docker-compose.override.yml.example` to `docker-compose.override.yml` and edit the host paths. Then create minimal single-file bind-mount targets so Docker can start: `echo '[]' > drives.json` and `echo '[]' > passwords.json`. After that, `docker compose up -d --build` will open the first-run wizard at `/setup`, which writes the final logical configuration.
 
 ---
 
@@ -107,7 +112,7 @@ Indexing (transcription + embedding) is CPU-intensive and runs in the background
 
 ### LLM (required for Ask, summaries, auto-tags)
 
-Choose one option in `configure.py`:
+Choose one option in `/admin/intelligence` or by editing `addons/intelligence/search-config.yml`:
 
 **Option A — Local (recommended for privacy)**
 
@@ -117,11 +122,11 @@ Install [Ollama](https://ollama.com) on your host and pull a model:
 ollama pull gemma3:4b   # or llama3.2, qwen2.5, etc.
 ```
 
-`configure.py` points Litloft at `http://host.docker.internal:11434` automatically. Your data never leaves your machine.
+Set the provider to `ollama` and the base URL to `http://host.docker.internal:11434`. Your data never leaves your machine.
 
 **Option B — API**
 
-Use OpenAI, DeepSeek, or any OpenAI-compatible endpoint. Enter your base URL and API key when prompted. File content (transcripts, text) is sent to the API during indexing and Ask queries.
+Use OpenAI, DeepSeek, or any OpenAI-compatible endpoint. Set the base URL and `LLM_API_KEY` in `.env` or the admin UI. File content (transcripts, text) is sent to the API during LLM-backed indexing tasks and Ask queries.
 
 > Semantic search and transcription work without an LLM — only the text-generation features require one.
 
@@ -135,7 +140,7 @@ In addition to local Whisper (`faster-whisper`, CPU), Litloft supports several c
 | Deepgram Nova-3 | Top-class WER, strong diarization | Separate billing |
 | ElevenLabs Scribe | Diarization, long-form audio | Separate billing |
 
-Configure via the `transcription` section in `addons/intelligence/search-config.yml` plus the relevant API key env (`DEEPGRAM_API_KEY` / `ELEVENLABS_API_KEY` / `OPENAI_API_KEY`). See [docs/PROVIDERS.md](docs/PROVIDERS.md) for the full matrix.
+Configure via the `transcription` section in `addons/intelligence/search-config.yml` plus the relevant API key env (`DEEPGRAM_API_KEY` / `ELEVENLABS_API_KEY` / `OPENAI_API_KEY`). See the [intelligence transcription provider matrix](docs/addons/intelligence.md#transcription-providers) for details.
 
 **Privacy note:** selecting a cloud provider sends audio bytes to that provider. Privacy-sensitive drives can pin **forced local fallback** by setting `addons.intelligence.transcription_cloud: false` in `drives.json` for that drive — even when the global provider is a cloud one.
 
@@ -143,7 +148,7 @@ Configure via the `transcription` section in `addons/intelligence/search-config.
 
 ## Addons
 
-Addons are cloned alongside the main repo via `--recurse-submodules`. Enable them in `configure.py`.
+Addons are cloned alongside the main repo via `--recurse-submodules`. `configure.py` prompts for the standalone service addons (`intelligence`, `knowledge`); in-process addons are loaded when their submodule is present and the image is rebuilt.
 
 | Addon | Description |
 |-------|-------------|

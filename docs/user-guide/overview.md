@@ -3,7 +3,7 @@
 Litloft is two things at once:
 
 1. **A personal media server** — stream video and audio with resume, browse images and Markdown, view PDFs and Office documents, drop in ZIP archives and explore them in place.
-2. **A file manager for trusted home networks** — upload via drag-and-drop or chunked HTTP, rename, move, copy, tag, comment, organise into playlists, and recover from a 30-day soft-delete trash.
+2. **A file manager for trusted home networks** — upload via drag-and-drop or chunked HTTP, rename, move, copy, tag, comment, organise into collections, and recover from a 30-day soft-delete trash.
 
 Optional addons add AI search, summaries, Q&A over your library, scheduled cloud backups, and lightweight URL-based imports for online videos.
 
@@ -26,7 +26,7 @@ A Litloft installation has:
 
 ### Organise
 - Tags (separate per drive). For Markdown files the YAML frontmatter is the canonical store.
-- Playlists with arbitrary ordering.
+- Collections with arbitrary ordering.
 - Favourites (`is_favorite` flag), pinned folders.
 - Per-file comments (rate-limited).
 - File relations (`kind`-typed graph; for Markdown derived from `loft://` links).

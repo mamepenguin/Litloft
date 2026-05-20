@@ -1,4 +1,4 @@
-# Playlists and favourites
+# Collections and favourites
 
 Two lightweight ways to keep things you want to revisit.
 
@@ -12,46 +12,48 @@ Each file has an `is_favorite` flag, toggled by the star on its viewer page or i
 
 If you want viewer-private favourites, that is a feature request — currently the model is shared.
 
-## Playlists
+## Collections
 
-A **playlist** is an ordered list of files within a single drive.
+A **collection** is an ordered list of files within a single drive.
 
-- Create a playlist from the drive sidebar or from the file viewer (*Add to playlist*).
-- Playlists are **drive-scoped**: a file belongs to exactly one drive, and a playlist can only contain files from its own drive.
-- A file can appear in multiple playlists.
-- The order is editable: drag-and-drop within the playlist editor.
+![Collection editor with a row being reordered by drag and drop](../images/user-guide/playlist-reorder-drag.png)
 
-### What playlists do
+- Create a collection from the drive sidebar or from the file viewer (*Add to collection*).
+- Collections are **drive-scoped**: a file belongs to exactly one drive, and a collection can only contain files from its own drive.
+- A file can appear in multiple collections.
+- The order is editable: drag-and-drop within the collection editor.
 
-- The video and audio players honour the playlist order: when one file ends and **autoplay** is on, the player advances to the next item.
-- Theatre mode shows the playlist queue alongside the player.
-- A playlist surface is available on the drive home page when at least one playlist exists.
+### What collections do
 
-### Missing or deleted files in playlists
+- The video and audio players honour the collection order: when one file ends and **autoplay** is on, the player advances to the next item.
+- Theatre mode shows the collection queue alongside the player.
+- A collection surface is available on the drive home page when at least one collection exists.
 
-If a file in your playlist later goes **missing** (off-disk) or **trashed**:
+### Missing or deleted files in collections
 
-- The item remains in the playlist (it is not silently removed).
+If a file in your collection later goes **missing** (off-disk) or **trashed**:
+
+- The item remains in the collection (it is not silently removed).
 - The frontend renders it with a muted style and disables play.
-- Restoring or recovering the file makes the playlist item playable again.
+- Restoring or recovering the file makes the collection item playable again.
 
-Adding a missing or trashed file to a new playlist is rejected (`active_file_filter()` excludes them at the API level).
+Adding a missing or trashed file to a new collection is rejected (`active_file_filter()` excludes them at the API level).
 
-### Sharing a playlist
+### Sharing a collection
 
-There is no built-in public sharing. Within a Litloft instance, every viewer who has access to the drive sees the same playlists. To export, you can fetch the playlist's items via the API:
+There is no built-in public sharing. Within a Litloft instance, every viewer who has access to the drive sees the same collections. To export, you can fetch the collection's items via the API:
 
 ```
-GET /api/drives/<drive>/playlists
-GET /api/drives/<drive>/playlists/<id>
+GET /api/drives/<drive>/collections
+GET /api/drives/<drive>/collections/<id>
 ```
 
 …and reconstruct it elsewhere (filenames, file_ids, etc.).
 
 ### Common patterns
 
-- **Watch later** — a single global *Later* playlist where you stash anything you spot.
-- **Channels** — one playlist per recurring source (a podcast feed, a video creator's videos).
+- **Watch later** — a single global *Later* collection where you stash anything you spot.
+- **Channels** — one collection per recurring source (a podcast feed, a video creator's videos).
 - **Topical** — *Cooking shows*, *Travel vlogs*; complements tag filters when the boundary is fuzzy.
 
 ## Pinned folders
