@@ -176,7 +176,7 @@
     "heading": "Search: \"{query}\"",
     "emptyQuery": "Enter a search query",
     "sceneSearchToggle": "Scene search",
-    "sceneSearchHint": "Find specific moments inside videos (off by default: searches by overall subject)"
+    "sceneSearchHint": "Find specific moments inside videos"
   },
   "smartFolder": {
     "sectionTitle": "Smart Folders",
@@ -547,7 +547,7 @@
       },
       "addMountHelp": {
         "title": "How to add a new drive",
-        "body": "Drives appear here automatically once their host directory is mounted. To add one, add '- /host/path:/app/drives/<slug>' to backend.volumes in docker-compose.override.yml, then run the command below and reload this page.",
+        "body": "Re-run python3 configure.py. Your existing drives appear as defaults — increase the drive count, enter the new path, and approve overwriting docker-compose.override.yml. This automatically updates intelligence and other addon settings too. Then run the command below and reload this page.",
         "command": "docker compose up -d --build"
       }
     },

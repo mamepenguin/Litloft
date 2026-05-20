@@ -186,6 +186,10 @@ class ExistingConfig:
     def __init__(self, base: Path):
         self.drives: list[dict] = []   # slug, host_path
         self.port = '3000'
+        self.has_intelligence = False
+        self.has_knowledge = False
+        self.knowledge_webhook_secret = ''
+        self.core_internal_secret = ''
         self._load(base)
 
     def _load(self, base: Path):
@@ -223,10 +227,23 @@ class ExistingConfig:
                 'host_path': host_by_slug.get(slug, ''),
             })
 
+        if dc_f.exists():
+            try:
+                dc_text = dc_f.read_text()
+                # Detect service blocks by top-level service key pattern.
+                self.has_intelligence = bool(re.search(r'^\s{2}intelligence\s*:', dc_text, re.MULTILINE))
+                self.has_knowledge    = bool(re.search(r'^\s{2}knowledge\s*:',    dc_text, re.MULTILINE))
+            except Exception:
+                pass
+
         if env_f.exists():
             for line in env_f.read_text().splitlines():
                 if line.startswith('LITLOFT_PORT='):
                     self.port = line.split('=', 1)[1].strip()
+                elif line.startswith('KNOWLEDGE_WEBHOOK_SECRET='):
+                    self.knowledge_webhook_secret = line.split('=', 1)[1].strip()
+                elif line.startswith('CORE_INTERNAL_SECRET='):
+                    self.core_internal_secret = line.split('=', 1)[1].strip()
 
 # ── Main ──────────────────────────────────────────────────────────────────────
 
@@ -287,7 +304,7 @@ def main():
         heading("Step 3: Intelligence Addon (Semantic Search + AI)")
         print("  Enables the intelligence service. AI features themselves are")
         print("  configured later in the browser (all off by default).")
-        has_intelligence = ask_yn("Enable intelligence addon?", 'y')
+        has_intelligence = ask_yn("Enable intelligence addon?", 'y' if ex.has_intelligence else 'n')
 
     # ── Step 4: Knowledge Addon ───────────────────────────────────────────────
 
@@ -297,11 +314,16 @@ def main():
 
     if (base / 'addons/knowledge').exists():
         heading("Step 4: Knowledge Addon (Markdown Vault)")
-        if ask_yn("Enable knowledge addon?", 'n'):
-            has_knowledge            = True
-            knowledge_webhook_secret = gen_secret()
-            core_internal_secret     = gen_secret()
-            ok("Generated secrets")
+        if ask_yn("Enable knowledge addon?", 'y' if ex.has_knowledge else 'n'):
+            has_knowledge = True
+            if ex.knowledge_webhook_secret and ex.core_internal_secret:
+                knowledge_webhook_secret = ex.knowledge_webhook_secret
+                core_internal_secret     = ex.core_internal_secret
+                ok("Reusing existing secrets")
+            else:
+                knowledge_webhook_secret = gen_secret()
+                core_internal_secret     = gen_secret()
+                ok("Generated secrets")
 
     # ── Summary ───────────────────────────────────────────────────────────────
 

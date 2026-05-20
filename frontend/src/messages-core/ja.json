@@ -176,7 +176,7 @@
     "heading": "検索: \"{query}\"",
     "emptyQuery": "検索ワードを入力してください",
     "sceneSearchToggle": "シーン検索",
-    "sceneSearchHint": "動画の中で特定のシーンが映っている箇所を探す（既定はオフ：動画全体の主題で検索）"
+    "sceneSearchHint": "動画の中で特定のシーンが映っている箇所を探す"
   },
   "smartFolder": {
     "sectionTitle": "スマートフォルダ",
@@ -547,7 +547,7 @@
       },
       "addMountHelp": {
         "title": "新しいドライブを追加するには",
-        "body": "ホストディレクトリをマウントすると、ドライブはここに自動的に表示されます。追加するにはdocker-compose.override.ymlのbackend.volumesに'- /host/path:/app/drives/<slug>'を追記し、下記コマンドを実行してこのページを再読み込みしてください。",
+        "body": "python3 configure.py を再実行してください。既存のドライブがデフォルトとして表示されます。ドライブ数を増やして新しいパスを入力し、docker-compose.override.yml の上書きを承認すると、intelligenceアドオン等の設定も自動で更新されます。その後、下記コマンドを実行してこのページを再読み込みしてください。",
         "command": "docker compose up -d --build"
       }
     },
