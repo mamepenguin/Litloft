@@ -380,10 +380,11 @@ Whisper alternatives (multilingual, CT2 int8):
 
 Text-embedding alternatives (re-index required on change):
 
-- `intfloat/multilingual-e5-small` — 384d, ~120 MB. Fast.
-- `intfloat/multilingual-e5-base` — 768d, ~470 MB. Balanced.
-- `cl-nagoya/ruri-v3-30m` — 256d, ~150 MB. Best for Japanese.
-- `cl-nagoya/ruri-v3-130m` — 768d, ~520 MB. Best Japanese accuracy.
+- `ibm-granite/granite-embedding-97m-multilingual-r2` — 384d, ~190 MB. Multilingual default (Apache 2.0, prefix-free).
+- `ibm-granite/granite-embedding-311m-multilingual-r2` — 768d, ~620 MB. Higher-quality multilingual.
+- `cl-nagoya/ruri-v3-30m` — 256d, ~150 MB. Lightweight Japanese.
+- `cl-nagoya/ruri-v3-130m` — 768d, ~520 MB. Recommended for Japanese accuracy.
+- `cl-nagoya/ruri-v3-310m` — 1024d, ~1.2 GB. Max Japanese accuracy.
 
 CLIP alternatives:
 
@@ -465,7 +466,7 @@ indexing:
     max_frames: 500
 
   text_chunking:
-    max_chunk_size: 400                   # ~256 tokens for multilingual-e5
+    max_chunk_size: 400                   # ~256 tokens for 384d multilingual embedders
     overlap: 80                           # ≈20% of max_chunk_size
 ```
 
