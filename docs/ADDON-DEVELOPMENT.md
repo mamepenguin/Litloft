@@ -1046,6 +1046,36 @@ models:
 
 Generates English text descriptions of images/video frames. Used as context for auto-tags to improve image tag quality. Requires approximately 1GB additional memory.
 
+#### Text Embedding Model (GUI-managed)
+
+`models.text_embedding` is operator-selectable from `/admin/settings` → **Text Embedding**. The picker exposes a curated allowlist (the keys of `_MODEL_DIMS` in `app/workers/embedder.py`) grouped by language family: e5 multilingual (`intfloat/multilingual-e5-small`, `…-base`, `…-large`) and ruri Japanese-specialised (`cl-nagoya/ruri-v3-30m`, `…-130m`, `…-310m`). Free-text model ids are rejected by the `PUT /admin/embedding` endpoint with HTTP 422 — silent fallback to a 384-dim default would break `vec_text` invisibly, so the API refuses unknown ids by design. Adding a model requires editing `_MODEL_DIMS` in code.
+
+The selection is persisted to `embedding-overrides.json` in the addon's data volume and merged onto `models.text_embedding` at startup, parallel to the existing llm / rag / transcription / features overrides (the Phase 2D pattern). `search-config.yml` remains the read-only baseline and is not rewritten.
+
+**Automatic re-index on model change.** On every startup, `_migrate_vec_text_if_needed` (in `app/database.py`) compares the model name recorded in the new `index_meta(key, value)` table against the configured one. **The trigger is the model name, not the vector dimension.** Two models with the same dimension (e.g. e5-base 768 ↔ ruri-v3-130m 768) produce non-interchangeable vector spaces and a mixed index returns meaningless cosine scores, so a swap between same-dim families must still rebuild. When a mismatch is detected, inside a single SQLite SAVEPOINT the addon:
+
+1. Drops and recreates `vec_text` at the new dimension.
+2. Deletes the `embeddings` rows of type `text_content` and purges both `fts_text_content*` tables.
+3. Purges `detailed_summary_citations`.
+4. Resets `indexed_files.text_indexed = 0` so the background indexer re-embeds.
+5. Upserts the new model name into `index_meta`.
+
+While the re-index runs, Ask and text search are degraded (fewer or no text hits). The background indexer reports progress on `/api/addons/intelligence/status`. The settings UI surfaces this cost in a confirmation dialog before the `PUT` is sent, and the core `RestartBanner` shows the pending-restart state via the standard `data/restart_pending` sentinel touched by the addon through the Internal API.
+
+**Upgrade safety.** Existing installs that pre-date this feature have no `index_meta` row. If `vec_text` exists and its current dimension matches the configured (baseline) model's dimension, the migration seeds the recorded model name without dropping anything. This avoids a surprise full re-embed on the first restart after upgrading.
+
+The admin gate on `PUT/DELETE /api/addons/intelligence/admin/embedding` is enforced by the manifest's `proxy.routes` entry with `pre_check: {"type": "admin"}` rather than by per-route Python code. The addon ships `tests/test_admin_manifest_parity.py` to enforce that every `/admin/*` route declared in `app/routers/admin.py` has a matching manifest entry with `pre_check.admin` — this keeps the gate from drifting silently when new admin endpoints are added.
+
+**Residual caveats:**
+
+- `detailed_summary_citations` are purged but not regenerated automatically. After the text re-embed completes, the operator must run `python -m scripts.reindex_text_content` followed by `python -m scripts.backfill_detailed_citations --force` to restore citation snippets. The confirmation dialog states this, and the same contract applies to the pre-existing manual `reindex_text_content` path.
+- Calibrated thresholds such as `min_score_text` (default 0.85) are **not** auto-retuned on a model swap. Different models produce different score distributions and the threshold may need re-evaluation against your corpus.
+- Only curated models work. Free-text ids are rejected with HTTP 422; do not expect a silent fallback.
+- There is no shadow index — search is degraded for the entire re-embed window. This is an accepted tradeoff for a self-hosted LAN application; a dual-index path was considered and dropped as overengineering.
+- The parallel `vec_clip` migration in the same file is still **dimension-keyed**, so a hypothetical same-dim CLIP model swap would currently be missed. This is a known limitation tracked separately; fixing it is out of scope for this feature.
+
+For the full design and the broader rationale, see `docs/superpowers/specs/2026-05-20-gui-text-embedding-model.md` (developer-internal; the `docs/superpowers/` tree is gitignored).
+
 ### Memory Requirements
 
 | Configuration | Recommended Memory |
@@ -1072,6 +1102,7 @@ Generates English text descriptions of images/video frames. Used as context for 
 | `folder-actions` | `folder-ai-actions` | Batch AI actions button (auto-tags, summaries, transcript refine) |
 | `admin-intelligence-sections` | `admin-features` | Feature toggle panel on the intelligence admin page |
 | `admin-intelligence-sections` | `admin-llm` | LLM provider configuration panel |
+| `admin-intelligence-sections` | `admin-embedding` | Text embedding model picker (curated allowlist; triggers vec_text rebuild on change) |
 | `admin-intelligence-sections` | `admin-transcription` | Transcription provider and settings panel |
 | `admin-intelligence-sections` | `admin-rag` | RAG behaviour configuration panel |
 
