@@ -27,7 +27,7 @@ passwords.json **read-write** (``:ro`` is incompatible with GUI writes).
 must run on first launch (it now owns logical configuration).
 """
 
-import json, os, re, sys
+import json, os, re, shutil, subprocess, sys
 from pathlib import Path
 
 # ── Colors ────────────────────────────────────────────────────────────────────
@@ -112,6 +112,57 @@ def generate_event_hooks(base: Path, enabled_addons: list) -> bool:
     return True
 
 
+def ensure_submodules_initialized(base: Path) -> None:
+    """Auto-init git submodules whose checkout directory is empty.
+
+    A `git clone` without `--recurse-submodules` leaves `addons/<name>/` as
+    empty directories. If configure.py then writes a single-file bind-mount
+    (e.g. `./addons/intelligence/search-config.yml:/app/search-config.yml`)
+    whose source does not exist on the host, Docker silently creates the
+    bind-mount source as a *directory* — the single-file bind-mount footgun
+    documented in design-decisions.md. Initializing here keeps the happy
+    path working when the clone was incomplete.
+    """
+    addon_dirs = ['addons/intelligence', 'addons/knowledge',
+                  'addons/cloud-sync', 'addons/media_import']
+    uninitialized = [
+        rel for rel in addon_dirs
+        if (base / rel).is_dir() and not any((base / rel).iterdir())
+    ]
+    if not uninitialized:
+        return
+
+    warn("Uninitialized addon submodule(s) detected:")
+    for rel in uninitialized:
+        print(f"      - {rel}")
+
+    if not (base / '.gitmodules').exists() or not shutil.which('git'):
+        print()
+        warn("Cannot auto-initialize (no .gitmodules or git not installed).")
+        info("Re-clone with: git clone --recurse-submodules <url>")
+        info("Or in this repo: git submodule update --init --recursive")
+        sys.exit(1)
+
+    info("Running: git submodule update --init --recursive")
+    result = subprocess.run(
+        ['git', 'submodule', 'update', '--init', '--recursive'],
+        cwd=str(base))
+    if result.returncode != 0:
+        print()
+        warn("git submodule update failed.")
+        info("Re-run manually: git submodule update --init --recursive")
+        sys.exit(1)
+
+    still_empty = [
+        rel for rel in uninitialized
+        if not any((base / rel).iterdir())
+    ]
+    if still_empty:
+        warn("Submodule(s) still empty after init: " + ', '.join(still_empty))
+        sys.exit(1)
+    ok("Submodules initialized")
+
+
 def write_env_key(key, value, env_path):
     if env_path.exists():
         content = env_path.read_text()
@@ -181,6 +232,7 @@ class ExistingConfig:
 
 def main():
     base = Path(__file__).parent
+    ensure_submodules_initialized(base)
     ex = ExistingConfig(base)
 
     if ex.drives:
@@ -391,10 +443,16 @@ def main():
         ex_file  = base / 'addons/intelligence/search-config.yml.example'
         if check_overwrite(sc_file):
             if not ex_file.exists():
-                warn("search-config.yml.example not found — skipping")
-            else:
-                sc_file.write_text(ex_file.read_text())
-                ok("addons/intelligence/search-config.yml")
+                # Belt-and-suspenders: the override.yml mount has already
+                # been written for this run, so silently skipping would
+                # let `docker compose up` create a directory at the mount
+                # source (single-file bind-mount footgun). Abort instead.
+                warn("addons/intelligence/search-config.yml.example not found.")
+                info("The intelligence submodule appears incomplete.")
+                info("Run: git submodule update --init --recursive")
+                sys.exit(1)
+            sc_file.write_text(ex_file.read_text())
+            ok("addons/intelligence/search-config.yml")
 
     # ── Update .env ───────────────────────────────────────────────────────────
 
