@@ -16,10 +16,10 @@
     "play": "再生",
     "pause": "一時停止",
     "upload": "アップロード",
-    "lock": "Lock",
-    "items": "{count} 件",
+    "lock": "ロック",
+    "items": "{count}件",
     "loadContent": "読み込む",
-    "fileSizeLarge": "ファイルサイズが大きいです ({size})",
+    "fileSizeLarge": "ファイルサイズが大きすぎます ({size})",
     "loadFailed": "読み込みに失敗しました: {error}",
     "discardUnsaved": {
       "title": "未保存の変更があります",
@@ -43,7 +43,7 @@
     "collections": "コレクション",
     "createCollection": "コレクション作成",
     "collectionNamePlaceholder": "コレクション名...",
-    "renameCollection": "リネーム",
+    "renameCollection": "名前を変更",
     "deleteCollection": "削除",
     "sectionCollapse": "折りたたむ",
     "sectionExpand": "展開する",
@@ -60,7 +60,7 @@
   "drive": {
     "title": "ドライブ",
     "empty": "ドライブがありません",
-    "emptyDescription": "drives.json を設定してドライブを追加してください。",
+    "emptyDescription": "drives.jsonを設定してドライブを追加してください。",
     "folders": "フォルダ",
     "files": "ファイル",
     "pickup": "ピックアップ",
@@ -76,7 +76,7 @@
     "unlockAccess": "パスワードを入力"
   },
   "folder": {
-    "items": "{count} 件",
+    "items": "{count}件",
     "namePlaceholder": "フォルダ名...",
     "invalidName": "無効なフォルダ名です",
     "nameTooLong": "フォルダ名が長すぎます",
@@ -89,7 +89,7 @@
     "pin": "ピン留め",
     "unpin": "ピン留め解除",
     "newFolder": "新規フォルダ",
-    "newFile": "ノート作成",
+    "newFile": "新規ノート",
     "createFileFailed": "ファイルの作成に失敗しました",
     "createFileForbidden": "このドライブには書き込めません",
     "open": "開く",
@@ -112,14 +112,14 @@
   },
   "file": {
     "addDescription": "説明を追加...",
-    "backTo": "{name} に戻る",
+    "backTo": "{name}に戻る",
     "rename": "名前を変更",
     "move": "移動",
     "delete": "削除",
     "deleteTitle": "ファイルを削除",
     "deleteMessage": "「{name}」を削除しますか？この操作は取り消せません。",
     "batchDeleteTitle": "ファイルを一括削除",
-    "batchDeleteMessage": "{count} 件のファイルを削除しますか？この操作は取り消せません。",
+    "batchDeleteMessage": "{count}件のファイルを削除しますか？この操作は取り消せません。",
     "actions": "ファイル操作",
     "renameFailed": "名前の変更に失敗しました",
     "moveFailed": "移動に失敗しました",
@@ -131,7 +131,7 @@
     "summaryEdit": "編集",
     "summarySave": "保存",
     "summaryCancel": "キャンセル",
-    "summaryRevert": "AI 版に戻す",
+    "summaryRevert": "AI版に戻す",
     "summaryEditedBadge": "編集済み",
     "summaryShortLabel": "短い要約",
     "summaryLongLabel": "詳しい要約",
@@ -147,28 +147,28 @@
     "typeArchive": "書庫",
     "typeOther": "ファイル",
     "activeSummaryFallbackTitle": "承認済みの要約ノートがあります",
-    "activeSummaryFallbackBody": "このファイルには knowledge に昇格された要約ノートが存在しますが、ノートを表示できるアドオンが導入されていません。ノート本体にアクセスするには下記リンクから直接ファイルを開いてください。",
+    "activeSummaryFallbackBody": "このファイルにはKnowledgeに保存された要約ノートがありますが、ノートを表示するアドオンが導入されていません。ノートを直接開くには、下のリンクからファイルを開いてください。",
     "activeSummaryFallbackOpen": "ノートファイルを開く",
     "relatedFilesTitle": "関連ファイル",
     "relatedFileMissing": "見つからない",
-    "relatedFileSizeBytes": "{size} バイト"
+    "relatedFileSizeBytes": "{size}バイト"
   },
   "search": {
     "label": "検索",
     "title": "検索 (Cmd+Shift+F)",
-    "searchInDrive": "{drive} 内を検索...",
+    "searchInDrive": "{drive}内を検索...",
     "selectDrive": "ドライブを選択してください",
     "goToDrive": "ドライブページに移動してから検索してください",
     "noResults": "一致するファイルが見つかりません",
-    "showingResults": "{total} 件中 100 件を表示",
-    "viewAllResults": "全 {total} 件を表示 →",
+    "showingResults": "{total}件中100件を表示",
+    "viewAllResults": "全{total}件を表示 →",
     "fillInput": "「{term}」を入力欄に設定",
     "removeHistory": "「{term}」を履歴から削除",
     "filterAll": "すべて",
     "filterVideo": "動画",
     "filterImage": "画像",
     "filterAudio": "音声",
-    "filterDocument": "ドキュメント",
+    "filterDocument": "文書",
     "textResults": "ファイル名一致",
     "matchFilename": "ファイル名",
     "matchPath": "パス",
@@ -180,52 +180,52 @@
   },
   "smartFolder": {
     "sectionTitle": "スマートフォルダ",
-    "save": "Smart Folder に保存",
+    "save": "スマートフォルダに保存",
     "saved": "保存中: {name}",
     "update": "更新",
     "delete": "削除",
     "rename": "名前変更",
     "menu": "メニュー",
-    "saveTitle": "Smart Folder を保存",
+    "saveTitle": "スマートフォルダを保存",
     "saveDescription": "現在の検索条件を保存します。",
-    "renameTitle": "Smart Folder の名前を変更",
+    "renameTitle": "スマートフォルダの名前を変更",
     "nameLabel": "名前",
     "namePlaceholder": "例: 最近の動画",
     "saveAction": "保存",
-    "saveSuccess": "Smart Folder を保存しました",
-    "saveFailed": "Smart Folder の保存に失敗しました",
-    "updateConfirmTitle": "Smart Folder を更新",
-    "updateConfirmMessage": "「{name}」のクエリを現在の検索条件で上書きしますか？",
-    "updateSuccess": "Smart Folder を更新しました",
-    "updateFailed": "Smart Folder の更新に失敗しました",
-    "deleteConfirmTitle": "Smart Folder を削除",
+    "saveSuccess": "スマートフォルダを保存しました",
+    "saveFailed": "スマートフォルダの保存に失敗しました",
+    "updateConfirmTitle": "スマートフォルダを更新",
+    "updateConfirmMessage": "「{name}」を現在の検索条件で上書きしますか？",
+    "updateSuccess": "スマートフォルダを更新しました",
+    "updateFailed": "スマートフォルダの更新に失敗しました",
+    "deleteConfirmTitle": "スマートフォルダを削除",
     "deleteConfirmMessage": "「{name}」を削除しますか？",
-    "deleteSuccess": "Smart Folder を削除しました",
-    "deleteFailed": "Smart Folder の削除に失敗しました",
-    "renameSuccess": "Smart Folder の名前を変更しました",
-    "renameFailed": "Smart Folder の名前変更に失敗しました"
+    "deleteSuccess": "スマートフォルダを削除しました",
+    "deleteFailed": "スマートフォルダの削除に失敗しました",
+    "renameSuccess": "スマートフォルダの名前を変更しました",
+    "renameFailed": "スマートフォルダの名前変更に失敗しました"
   },
   "sort": {
     "label": "ソート",
     "relevance": "関連度順",
     "newestFirst": "新しい順",
     "oldestFirst": "古い順",
-    "titleAZ": "タイトル A→Z",
-    "titleZA": "タイトル Z→A",
+    "titleAZ": "タイトルA→Z",
+    "titleZA": "タイトルZ→A",
     "sizeLargest": "サイズ 大→小",
     "sizeSmallest": "サイズ 小→大",
     "likesmost": "いいね 多→少",
     "likesleast": "いいね 少→多"
   },
   "selection": {
-    "selected": "{count} 件選択",
+    "selected": "{count}件選択",
     "selectAll": "すべて選択",
     "deselect": "選択解除",
     "selectMode": "選択モード",
     "tag": "タグ",
     "tagging": "タグ付け",
     "collection": "コレクション",
-    "rename": "リネーム"
+    "rename": "名前変更"
   },
   "favorite": {
     "add": "お気に入りに追加",
@@ -241,7 +241,7 @@
     "maxCount": "タグは最大10個までです",
     "updateFailed": "タグの更新に失敗しました",
     "removeFailed": "タグの削除に失敗しました",
-    "removeTag": "{tag} を削除"
+    "removeTag": "{tag}を削除"
   },
   "dialog": {
     "moveTitle": "移動先を選択",
@@ -256,7 +256,7 @@
   },
   "upload": {
     "title": "アップロード",
-    "processing": "{count} 件処理中",
+    "processing": "{count}件処理中",
     "clear": "クリア",
     "files": "ファイル",
     "folder": "フォルダ",
@@ -275,7 +275,7 @@
     "newCollectionPlaceholder": "新しいコレクション名...",
     "newCollection": "新しいコレクション",
     "descriptionPlaceholder": "説明を追加...",
-    "itemCount": "{count} 件",
+    "itemCount": "{count}件",
     "play": "再生",
     "deleteCollection": "コレクションを削除",
     "removeItem": "コレクションから削除",
@@ -295,7 +295,7 @@
     "errorRemoveItem": "アイテムの削除に失敗しました"
   },
   "playback": {
-    "tracks": "{current}/{total} tracks",
+    "tracks": "{current}/{total}トラック",
     "loopOn": "ループON",
     "loopOff": "ループOFF",
     "expand": "展開",
@@ -309,18 +309,18 @@
     "cast": "キャスト",
     "castConnecting": "接続中...",
     "castConnected": "キャスト中",
-    "autoplayOn": "自動再生 ON",
-    "autoplayOff": "自動再生 OFF",
+    "autoplayOn": "自動再生ON",
+    "autoplayOff": "自動再生OFF",
     "miniPlayerClose": "ミニプレーヤーを閉じる（再生停止）",
     "miniPlayerRestore": "プレーヤーを元の位置に戻す",
     "miniPlayerAnnounced": "プレーヤーを画面右下に移動しました"
   },
   "archive": {
     "loadFailed": "アーカイブの読み込みに失敗しました: {error}",
-    "fileCount": "{count} ファイル / {size}",
+    "fileCount": "{count}ファイル/{size}",
     "downloadArchive": "アーカイブをダウンロード",
     "emptyFolder": "このフォルダは空です",
-    "downloadFile": "{name} をダウンロード",
+    "downloadFile": "{name}をダウンロード",
     "slideshowInterval": "スライドショー間隔",
     "seconds": "{sec}秒",
     "prevImage": "前の画像",
@@ -382,7 +382,7 @@
     "loading": "読み込み中...",
     "errorRetry": "再試行",
     "empty": "このフォルダにファイルはありません",
-    "dropToRoot": "ここにドロップしてドライブルートへ移動"
+    "dropToRoot": "ここにドロップしてドライブ直下へ移動"
   },
   "filter": {
     "placeholder": {
@@ -404,7 +404,7 @@
     "clearInput": "入力をクリア",
     "chipChange": "{type}フィルタ。クリックで変更",
     "chipRemove": "{type}フィルタを解除",
-    "openTypeFilter": "型でフィルタ"
+    "openTypeFilter": "種類でフィルタ"
   },
   "rightPane": {
     "openDetails": "詳細を開く",
@@ -440,26 +440,26 @@
     "readingDirection": "読み方向"
   },
   "unlock": {
-    "title": "Unlock",
-    "passwordPlaceholder": "Password",
-    "rememberDevice": "Remember this device",
-    "submit": "Unlock",
+    "title": "ロック解除",
+    "passwordPlaceholder": "パスワード",
+    "rememberDevice": "このデバイスを記憶する",
+    "submit": "ロック解除",
     "loading": "確認中...",
     "description": "アクセスグループのパスワードを入力してください。",
     "whatHappens": "グループに紐づいたドライブにアクセスできるようになります。",
-    "invalidPassword": "Invalid password",
-    "connectionError": "Connection error"
+    "invalidPassword": "パスワードが違います",
+    "connectionError": "接続エラー"
   },
   "profile": {
-    "setup": "プロファイル設定",
+    "setup": "プロフィール設定",
     "nickname": "ニックネーム",
     "nicknamePlaceholder": "名前を入力",
     "save": "保存",
     "later": "あとで",
     "dontShowAgain": "次回から表示しない",
     "change": "名前を変更",
-    "clear": "プロファイルをクリア",
-    "clearConfirm": "プロファイルをクリアすると視聴履歴がこのデバイスから切り離されます。よろしいですか？"
+    "clear": "プロフィールをクリア",
+    "clearConfirm": "プロフィールをクリアすると視聴履歴がこのデバイスから切り離されます。よろしいですか？"
   },
   "settings": {
     "title": "設定",
@@ -472,12 +472,12 @@
       "nicknamePlaceholder": "名前を入力",
       "save": "保存",
       "cancel": "キャンセル",
-      "clear": "プロファイルをクリア",
-      "clearConfirm": "プロファイルをクリアすると視聴履歴がこのデバイスから切り離されます。よろしいですか？",
+      "clear": "プロフィールをクリア",
+      "clearConfirm": "プロフィールをクリアすると視聴履歴がこのデバイスから切り離されます。よろしいですか？",
       "switch": "別の名前に切り替え",
       "switchHelp": "別の名前に切り替えると、視聴履歴・コメントなどは引き継がれません。同じ名前を以前使っていた場合はその履歴に戻ります。",
-      "switchConfirmTitle": "プロファイルを切り替え",
-      "switchConfirmMessage": "プロファイルを「{from}」から「{to}」に切り替えます。現在の履歴は引き継がれません。よろしいですか？",
+      "switchConfirmTitle": "プロフィールを切り替え",
+      "switchConfirmMessage": "プロフィールを「{from}」から「{to}」に切り替えます。現在の履歴は引き継がれません。よろしいですか？",
       "switchConfirm": "切り替える",
       "guide": {
         "title": "プロフィールとは？",
@@ -530,7 +530,7 @@
       "cancelButton": "キャンセル",
       "saveButton": "保存",
       "deleteConfirmTitle": "ドライブを削除しますか？",
-      "deleteConfirmBody": "{name} を drives.json から削除します。データそのものは消えません。",
+      "deleteConfirmBody": "{name}をdrives.jsonから削除します。データそのものは消えません。",
       "fields": {
         "name": "名前",
         "path": "パス",
@@ -539,15 +539,15 @@
       "errors": {
         "loadFailed": "ドライブ一覧の読み込みに失敗しました",
         "saveFailed": "保存に失敗しました",
-        "path_not_found": "パスが見つかりません。docker-compose.yml の volumes に追加されているか確認してください",
+        "path_not_found": "パスが見つかりません。docker-compose.ymlのvolumesに追加されているか確認してください",
         "not_absolute_path": "絶対パスを指定してください",
         "duplicate_name": "このドライブ名はすでに使われています",
         "missing_field": "必須項目です",
-        "json_syntax": "JSON 構文エラーです"
+        "json_syntax": "JSON構文エラーです"
       },
       "addMountHelp": {
         "title": "新しいドライブを追加するには",
-        "body": "ホストディレクトリをマウントすると、ドライブはここに自動的に表示されます。追加するには docker-compose.override.yml の backend.volumes に '- /host/path:/app/drives/<slug>' を追記し、下記コマンドを実行してこのページを再読み込みしてください。",
+        "body": "ホストディレクトリをマウントすると、ドライブはここに自動的に表示されます。追加するにはdocker-compose.override.ymlのbackend.volumesに'- /host/path:/app/drives/<slug>'を追記し、下記コマンドを実行してこのページを再読み込みしてください。",
         "command": "docker compose up -d --build"
       }
     },
@@ -558,7 +558,7 @@
       "deleteButton": "削除",
       "saveButton": "保存",
       "cancelButton": "キャンセル",
-      "publicMode": "全公開モードです（passwords.json は未設定）",
+      "publicMode": "全公開モードです（passwords.jsonは未設定）",
       "enableProtection": "パスワード保護を有効化",
       "fields": {
         "password": "パスワード",
@@ -571,7 +571,7 @@
         "duplicate_password": "このパスワードはすでに登録されています",
         "masked_password": "新しいパスワードを入力してください",
         "missing_field": "必須項目です",
-        "json_syntax": "JSON 構文エラーです"
+        "json_syntax": "JSON構文エラーです"
       }
     },
     "addonPolicy": {
@@ -588,20 +588,20 @@
     },
     "restartBanner": {
       "title": "保留中の変更があります。反映には再起動が必要です",
-      "fileLabel": "{name} ({count} 件)",
+      "fileLabel": "{name} ({count}件)",
       "copyCommand": "docker compose restart backend",
       "copyButton": "コピー",
       "copied": "コピーしました"
     }
   },
   "text": {
-    "fileSizeLarge": "ファイルサイズが大きいです ({size})",
+    "fileSizeLarge": "ファイルサイズが大きすぎます ({size})",
     "loadContent": "読み込む",
     "loading": "読み込み中...",
     "loadFailed": "読み込みに失敗しました: {error}"
   },
   "batchRename": {
-    "title": "一括リネーム",
+    "title": "一括名前変更",
     "modeTemplate": "テンプレート",
     "modeRegex": "正規表現",
     "modePrefixSuffix": "プレフィックス・サフィックス",
@@ -611,7 +611,7 @@
     "zeroPad": "ゼロ埋め桁数",
     "searchPattern": "検索パターン",
     "replaceWith": "置換文字列",
-    "regexHelp": "$1, $2... でキャプチャグループを参照",
+    "regexHelp": "$1, $2...でキャプチャグループを参照",
     "actionAddPrefix": "先頭に追加",
     "actionAddSuffix": "末尾に追加",
     "actionRemovePrefix": "先頭から削除",
@@ -619,10 +619,10 @@
     "value": "値",
     "preview": "プレビュー",
     "noChanges": "変更されるファイルがありません",
-    "execute": "リネーム実行",
+    "execute": "名前を変更",
     "invalidRegex": "正規表現が無効です",
-    "failed": "リネームに失敗しました",
-    "filesCount": "{count} ファイル"
+    "failed": "名前の変更に失敗しました",
+    "filesCount": "{count}ファイル"
   },
   "trash": {
     "title": "ゴミ箱",
@@ -640,9 +640,9 @@
     "daysRemaining": "残り{days}日",
     "moveToTrash": "ゴミ箱に移動",
     "confirmMoveToTrash": "「{name}」をゴミ箱に移動しますか？",
-    "batchConfirmMoveToTrash": "{count} 件のファイルをゴミ箱に移動しますか？",
+    "batchConfirmMoveToTrash": "{count}件のファイルをゴミ箱に移動しますか？",
     "batchPurgeTitle": "完全に削除",
-    "batchPurgeMessage": "{count} 件のファイルを完全に削除しますか？この操作は取り消せません。"
+    "batchPurgeMessage": "{count}件のファイルを完全に削除しますか？この操作は取り消せません。"
   },
   "missing": {
     "title": "見つからないファイル",
@@ -653,13 +653,13 @@
     "purge": "完全削除",
     "purgeAll": "すべて完全削除",
     "confirmPurge": "このファイルのデータ（視聴履歴・コメント・タグ・検索インデックス等）を完全に削除しますか？この操作は取り消せません。",
-    "confirmPurgeAll": "{count} 件のファイルを完全に削除しますか？関連データも全て失われ、この操作は取り消せません。",
+    "confirmPurgeAll": "{count}件のファイルを完全に削除しますか？関連データもすべて失われ、この操作は取り消せません。",
     "purged": "完全に削除しました",
     "streamError": "このファイルは現在見つからないため再生できません。ドライブが正しくマウントされているか確認してください。",
     "description": "ディスク上で見つからなかったファイル。ファイルが戻ってきたら自動的に復帰します。",
-    "scanWarning": "{count} 件のファイルが見つかりません",
+    "scanWarning": "{count}件のファイルが見つかりません",
     "scanWarningDescription": "ドライブのマウント状態を確認してください。",
-    "scanRecovered": "{count} 件のファイルが復帰しました"
+    "scanRecovered": "{count}件のファイルが復帰しました"
   },
   "admin": {
     "title": "ダッシュボード",
@@ -679,26 +679,26 @@
     "readonly": "読み取り専用",
     "used": "使用中",
     "free": "空き",
-    "files": "{count} ファイル",
+    "files": "{count}ファイル",
     "days": "{count}日",
     "hours": "{count}時間",
     "minutes": "{count}分",
     "loadError": "ダッシュボードの読み込みに失敗しました",
-    "forbidden": "このダッシュボードはすべての保護ドライブのアクセス権を持つユーザーのみ閲覧できます。サイドバーの「解錠」から必要なパスワードを入力してください。",
+    "forbidden": "このダッシュボードは、すべての保護ドライブにアクセスできるユーザーのみ閲覧できます。サイドバーの「ロック解除」から必要なパスワードを入力してください。",
     "duplicates": "重複ファイル",
     "duplicatesDescription": "同一内容のファイルが複数存在します",
     "noDuplicates": "重複ファイルはありません",
     "noDuplicatesDescription": "このドライブには重複ファイルがありません。",
-    "duplicateGroups": "{count} グループ",
+    "duplicateGroups": "{count}グループ",
     "wastedSpace": "重複による無駄: {size}",
     "keepFile": "保持",
     "deleteSelected": "選択したファイルを削除",
-    "confirmDelete": "{count} 件のファイルをゴミ箱に移動しますか？",
+    "confirmDelete": "{count}件のファイルをゴミ箱に移動しますか？",
     "selectDrive": "ドライブを選択",
     "needsScan": "ハッシュ未計算のファイルがあります。スキャンを実行してください。",
-    "filesInGroup": "{count} 件のファイル",
+    "filesInGroup": "{count}件のファイル",
     "location": "場所",
-    "forbiddenTitle": "403 権限がありません",
+    "forbiddenTitle": "403: 権限がありません",
     "forbiddenMessage": "管理者のみがこのページにアクセスできます。すべてのアクセスグループに属するパスワードでロック解除してください。",
     "restartTitle": "保留中の変更があります。反映には再起動が必要です",
     "restartCopyCommand": "docker compose restart backend",
@@ -707,14 +707,14 @@
   },
   "inspector": {
     "title": "プロパティ",
-    "close": "Inspector を閉じる",
-    "toggleShortcut": "Inspector の開閉",
-    "openShortcut": "Inspector を開く",
-    "sheetDescription": "このファイルのタグ・関連情報・コメント・AI 要約をまとめて表示します。",
+    "close": "インスペクターを閉じる",
+    "toggleShortcut": "インスペクターの開閉",
+    "openShortcut": "インスペクターを開く",
+    "sheetDescription": "このファイルのタグ・関連情報・コメント・AI要約をまとめて表示します。",
     "sections": {
       "tags": "タグ",
       "related": "関連ファイル",
-      "aiSummary": "AI 要約",
+      "aiSummary": "AI要約",
       "comments": "コメント"
     },
     "saveDot": {
@@ -727,7 +727,7 @@
     "rename": {
       "hint": "クリックして名前を変更",
       "label": "ファイル名",
-      "failed": "リネームに失敗しました"
+      "failed": "名前の変更に失敗しました"
     }
   },
   "comments": {
@@ -768,7 +768,7 @@
     "imageGallery": "画像ギャラリー",
     "noShortcuts": "このコンテキストにショートカットはありません",
     "openHint": "でいつでも開けます",
-    "play": "再生 / 一時停止",
+    "play": "再生/一時停止",
     "seekBack10": "−10秒",
     "seekForward10": "+10秒",
     "seekForward60": "+60秒",
@@ -799,22 +799,22 @@
       "sources": "情報源"
     },
     "origin": {
-      "webclip": "Web クリップ",
-      "detailed_summary": "AI 要約",
+      "webclip": "Webクリップ",
+      "detailed_summary": "AI要約",
       "manual": "手動作成"
     },
-    "sourcesMore": "他 {n} 件",
+    "sourcesMore": "他{n}件",
     "sourceMissing": "削除済みまたはアクセス不可"
   },
   "setup": {
-    "title": "Litloft 初期設定",
+    "title": "Litloft初期設定",
     "subtitle": "初期設定",
     "next": "次へ",
     "back": "戻る",
     "skip": "スキップ",
     "complete": {
       "title": "設定完了",
-      "description": "保存して /admin に移動します。",
+      "description": "保存して/adminに移動します。",
       "errorMessage": "完了処理に失敗しました",
       "submitting": "保存中...",
       "summary": {
@@ -831,7 +831,7 @@
         "title": "次の手順",
         "save": "ドライブ・パスワード・アドオン設定を保存します",
         "redirect": "管理ダッシュボード（/admin）へ移動します",
-        "lan": "家庭内 LAN の他のデバイスからもアクセスできます"
+        "lan": "家庭内LANの他のデバイスからもアクセスできます"
       },
       "submit": "保存して完了"
     },
@@ -841,8 +841,8 @@
       "english": "English"
     },
     "welcome": {
-      "greeting": "ようこそ、Litloft へ",
-      "intro": "自宅のメディアを家族で楽しむための、シンプルなセルフホスト型の動画 / ファイルブラウザです。",
+      "greeting": "ようこそ、Litloftへ",
+      "intro": "自宅のメディアを家族で楽しむための、シンプルなセルフホスト型の動画/ファイルブラウザです。",
       "stepsTitle": "これから設定する項目",
       "steps": {
         "drive": "ドライブの追加",
@@ -863,11 +863,11 @@
     },
     "drive": {
       "title": "ドライブに名前を付ける",
-      "description": "最低 1 つ追加してください。docker-compose.yml の volumes でホストにマウントされたパスを入力します。",
+      "description": "最低1つ追加してください。docker-compose.ymlのvolumesでホストにマウントされたパスを入力します。",
       "detectedDescription": "コンテナのマウントから検知したドライブです。それぞれに表示名を付け、必要ならアクセスグループを設定してください。",
       "pathReadonlyLabel": "マウント先",
       "noneDetectedTitle": "ドライブが検知されませんでした",
-      "noneDetected": "ホストディレクトリがマウントされていません。docker-compose.override.yml の backend.volumes に追加し、コンテナを再ビルドしてください。",
+      "noneDetected": "ホストディレクトリがマウントされていません。docker-compose.override.ymlのbackend.volumesに追加し、コンテナを再ビルドしてください。",
       "noneDetectedCommand": "docker compose up -d --build",
       "fields": {
         "name": "名前",
@@ -875,20 +875,20 @@
         "group": "グループ"
       },
       "helpers": {
-        "name": "サイドバーや URL に使われる識別子。英数字とハイフン推奨。例: media",
-        "path": "コンテナ内のパスを入力します。docker-compose.yml の volumes でマウント済みであることが前提です。例: /data/media",
+        "name": "サイドバーやURLに使われる識別子。英数字とハイフン推奨。例: media",
+        "path": "コンテナ内のパスを入力します。docker-compose.ymlのvolumesでマウント済みであることが前提です。例: /data/media",
         "group": "アクセス制御の単位。後でグループ単位でパスワードを設定できます。公開ドライブは空欄のままで構いません。例: family"
       },
       "troubleshootingTitle": "うまくいかないときは",
       "troubleshooting": {
-        "dockerVolume": "ドライブは docker-compose.override.yml でマウントします。ここでは入力しません。",
-        "containerPath": "docker-compose.override.yml の backend.volumes に '- /host/path:/app/drives/<slug>' を追加し、'docker compose up -d --build' してからこのページを再読み込みしてください。"
+        "dockerVolume": "ドライブはdocker-compose.override.ymlでマウントします。ここでは入力しません。",
+        "containerPath": "docker-compose.override.ymlのbackend.volumesに'- /host/path:/app/drives/<slug>'を追加し、'docker compose up -d --build'してからこのページを再読み込みしてください。"
       }
     },
     "accessMode": {
       "title": "アクセス制御モード",
-      "public": "全公開（自宅 LAN 向け、認証なし）",
-      "publicDescription": "家庭内 LAN 限定で誰でも閲覧できます。",
+      "public": "全公開（自宅LAN向け、認証なし）",
+      "publicDescription": "家庭内LAN限定で誰でも閲覧できます。",
       "publicUseCase": "推奨: 家族のみで使う場合",
       "publicBenefit1": "パスワード設定不要",
       "publicBenefit2": "すぐ使い始められる",
@@ -896,13 +896,13 @@
       "protectedDescription": "ドライブ単位でアクセス制御をかけます。",
       "protectedUseCase": "推奨: ゲストや複数家族で使い分ける場合",
       "protectedBenefit1": "ドライブごとに視聴範囲を制限",
-      "protectedBenefit2": "あとで /admin から追加・変更可能"
+      "protectedBenefit2": "あとで/adminから追加・変更可能"
     },
     "password": {
       "title": "マスターパスワードを設定",
       "description": "管理者として設定画面にアクセスするには、すべてのグループに属するパスワードが必要です。",
-      "adminExplanation": "Litloft では「すべてのグループに属するパスワード = 管理者」と判定するため、ここで作るパスワードはすべてのグループにチェックを入れる必要があります。あとで /admin から、特定のグループだけアクセスできる別パスワードも追加できます。",
-      "weakPassword": "短いパスワードです（6 文字以上を推奨）",
+      "adminExplanation": "Litloftでは「すべてのグループに属するパスワード = 管理者」と判定するため、ここで作るパスワードはすべてのグループにチェックを入れる必要があります。あとで/adminから、特定のグループだけアクセスできる別パスワードも追加できます。",
+      "weakPassword": "短いパスワードです（6文字以上を推奨）",
       "fields": {
         "password": "パスワード",
         "groups": "対象グループ"
@@ -913,7 +913,7 @@
       "title": "アドオン設定",
       "description": "ドライブごとにアドオンを有効化できます。あとで変更可能です。",
       "skipDescription": "今は設定せずに次へ進めます。",
-      "skipNote": "今は決めずに進めて構いません。あとで /admin から変更できます。",
+      "skipNote": "今は決めずに進めて構いません。あとで/adminから変更できます。",
       "noDescription": "（このアドオンの説明はありません）"
     }
   },
@@ -927,7 +927,7 @@
     "filename": "ファイル名",
     "folderFilter": "フォルダを検索...",
     "folderFilterClear": "フィルタをクリア",
-    "folderRoot": "ドライブルート",
+    "folderRoot": "ドライブ直下",
     "folderSaveTo": "保存先",
     "folderLoading": "読み込み中...",
     "folderEmpty": "一致するフォルダがありません",
