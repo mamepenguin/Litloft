@@ -14,17 +14,15 @@ The addon does **not** back up the metadata DB or addon state — it is a *conte
 
 ## Installation
 
-cloud-sync is in-process. Enable it by symlinking its backend module into the core:
-
-```bash
-ln -s ../../addons/cloud-sync/backend backend/addons/cloud-sync
-```
-
-Then ensure rclone is available **inside the backend container**. The base `Dockerfile` already installs rclone if the symlink is present at build time. After symlinking, rebuild:
+cloud-sync is in-process. The repository ships it as a submodule under `addons/cloud-sync/`; the backend Dockerfile copies every addon's `backend/` directory into the image at build time, so a plain rebuild is enough to pick it up:
 
 ```bash
 docker compose up -d --build
 ```
+
+`rclone` is installed by the addon's own `install.sh`, which the backend Dockerfile runs during the image build (so once the addon is present in `addons/cloud-sync/`, the binary is available inside the backend container with no extra steps).
+
+For local development (running the backend outside Docker) symlink the addon into the core tree with `./setup-addons.sh`.
 
 Mount your rclone config so the container can use your saved remotes:
 

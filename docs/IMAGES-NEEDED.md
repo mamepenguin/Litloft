@@ -72,7 +72,7 @@ Place new images under `docs/images/` (create the directory if it does not exist
 
 | ID | Where it goes | What it shows |
 |---|---|---|
-| LOGO | various | Project logo (existing in `legacy/screenshot_*` may be reusable). |
+| LOGO | various | Project logo (existing `docs/screenshot_*.png` may be reusable). |
 
 ## Animated GIFs
 

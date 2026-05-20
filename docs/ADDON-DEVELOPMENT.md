@@ -1106,7 +1106,7 @@ For the full design and the broader rationale, see `docs/superpowers/specs/2026-
 | `admin-intelligence-sections` | `admin-transcription` | Transcription provider and settings panel |
 | `admin-intelligence-sections` | `admin-rag` | RAG behaviour configuration panel |
 
-For a narrative operator-focused walkthrough (feature flags, LLM providers, memory tuning, eval harness), see [INTELLIGENCE.md](legacy/INTELLIGENCE.md).
+For a narrative operator-focused walkthrough (feature flags, LLM providers, memory tuning, eval harness), see [addons/intelligence.md](addons/intelligence.md).
 
 ---
 

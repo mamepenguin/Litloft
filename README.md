@@ -6,7 +6,7 @@ A self-hosted file and media app for your home LAN. Browse, stream, and search y
 
 > **Note:** Developed for personal use. Issues and PRs are welcome, but support is best-effort.
 
-**[Landing page](https://mamepenguin.github.io/Litloft/)** · [Japanese docs](docs/legacy/README.ja.md)
+**[Landing page](https://mamepenguin.github.io/Litloft/)**
 
 <p align="center">
   <img src="docs/screenshot_home.png" width="49%" alt="Litloft home screen" />

@@ -16,14 +16,15 @@ It is in-process, drive-scoped, and adds a *Loft Metadata* file-detail section.
 
 ## Installation
 
-In-process, like cloud-sync:
+media_import is in-process. The repository ships it as a submodule under `addons/media_import/`; the backend Dockerfile copies every addon's `backend/` directory into the image at build time, so a plain rebuild is enough to pick it up:
 
 ```bash
-ln -s ../../addons/media_import/backend backend/addons/media_import
 docker compose up -d --build
 ```
 
-`yt-dlp` is bundled in the backend Dockerfile when the symlink is present.
+`yt-dlp` is declared in the addon's own `requirements.txt`, which the backend Dockerfile installs alongside its own dependencies during the image build.
+
+For local development (running the backend outside Docker) symlink the addon into the core tree with `./setup-addons.sh`.
 
 ## Per-drive policy
 

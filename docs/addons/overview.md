@@ -1,6 +1,6 @@
 # Addon overview
 
-Litloft addons are optional capability modules. Each addon is a separate Git repository, lives under `addons/<name>/`, and is enabled per drive via `drives.json`. Four are shipped today; more are easy to add — see [addon development](../developer-guide/addon-dev.md).
+Litloft addons are optional capability modules. Each addon is a separate Git repository, tracked as a submodule under `addons/<name>/`, and is enabled per drive via `drives.json`. Four are shipped today; more are easy to add — see [addon development](../developer-guide/addon-dev.md).
 
 ## The four shipped addons
 
@@ -123,8 +123,11 @@ The endpoints are deliberately small and generic; see [Internal API policy](../d
 
 ## Enabling and disabling addons
 
-- **Install** — `git clone` the addon under `addons/<name>/`; symlink (`ln -s ../addons/<name>/backend backend/addons/<name>`) for in-process addons; add the service block to `docker-compose.override.yml` for independent ones; `docker compose up -d --build`.
-- **Disable an addon entirely** — set the policy to `false` for every drive, or remove the symlink / service block.
+The four shipped addons are tracked as Git submodules under `addons/`. A `git clone --recurse-submodules` (or, after the fact, `git submodule update --init --recursive`) checks them out. From there:
+
+- **Independent-service addons** (`intelligence`, `knowledge`) — `configure.py` writes the matching service block into `docker-compose.override.yml`. Re-run `python3 configure.py` to toggle the answer, then `docker compose up -d --build`.
+- **In-process addons** (`cloud-sync`, `media_import`) — the backend Dockerfile copies every addon's `backend/` directory into the image at build time, so they ship and auto-load as soon as the image is rebuilt; no host-side symlink is required for a Docker install. When you run the backend outside Docker (local development), use `./setup-addons.sh` once from the repo root to symlink each addon's `backend/` (and `frontend/`) into the core tree.
+- **Disable an addon entirely** — set the policy to `false` for every drive. For independent services, also remove the service block from `docker-compose.override.yml`; for in-process addons there is no per-image switch — leaving the per-drive policy off keeps the addon dormant.
 - **Disable per drive** — toggle in the [settings GUI](../admin-guide/settings-gui.md) → AddonPolicy.
 
 When a drive policy flips an addon off, the addon is responsible for purging the data it had stored for that drive (best practice, with safety: skip the purge if the policy lookup fails to avoid accidental wipe).

@@ -8,17 +8,17 @@ The `intelligence` addon adds LLM-backed search, Q&A, summarization, and tag sug
 |---|---|---|
 | **Indexing** | Scans drives, extracts text/frames/audio, builds embeddings | on |
 | **Semantic search** | BM25 + dense vector hybrid retrieval over text, transcripts, image frames | on |
-| **Auto-tags** | LLM proposes tags; Suggest → Approve workflow | on_index |
-| **AI summaries** | Short (1 sentence) + long (paragraph) summaries per file | on_index |
-| **Detailed summaries** | Long-form Markdown with citations | manual |
+| **Auto-tags** | LLM proposes tags; Suggest → Approve workflow | manual |
+| **AI summaries** | Short (1 sentence) + long (paragraph) summaries per file | manual |
+| **Detailed summaries** | Long-form Markdown with citations | false |
 | **Ask (RAG)** | Question answering over your library with cited sources | on |
 | **Retrieval keywords** | LLM-generated synonyms and alternate names indexed for file search | false |
-| **Transcript refine** | LLM correction of ASR output, with revert | manual |
-| **Vision describe** | LLM image descriptions, photo-by-photo | on_index |
+| **Transcript refine** | LLM correction of ASR output, with revert | false |
+| **Vision describe** | LLM image descriptions, photo-by-photo | manual |
 | **Transcription** | faster-Whisper (local) or cloud providers | local |
 | **CLIP frame analysis** | Scene-aware video frame embeddings for "find a moment" | on |
 
-All features are opt-out per drive via the [settings GUI](../admin-guide/settings-gui.md).
+Shipped defaults are conservative — most LLM-driven features start at `"false"` or `"manual"` so an unconfigured install never makes outbound LLM calls until you turn a feature on (in the browser or in `search-config.yml`). All features are opt-out per drive via the [settings GUI](../admin-guide/settings-gui.md).
 
 > **Image needed:** screenshot of the Ask page with a citation-linked answer. See [`IMAGES-NEEDED.md`](../IMAGES-NEEDED.md).
 
@@ -49,41 +49,40 @@ Defence in depth: the host proxy enforces the policy *before* dispatching, and t
 
 ## Installation
 
-The addon lives under `addons/intelligence/` and is its own Git repository. It is enabled in two steps:
+The addon lives under `addons/intelligence/` and is tracked as a Git submodule. The recommended path is to answer **yes** when `configure.py` prompts to enable the intelligence addon — it writes the matching service block into `docker-compose.override.yml`, mounts the configured drives read-only, and seeds `search-config.yml` from the example. Then:
 
-1. Add the service block to `docker-compose.override.yml`:
+```bash
+docker compose up -d --build
+```
 
-   ```yaml
-   services:
-     intelligence:
-       build:
-         context: ./addons/intelligence
-       expose:
-         - "8100"
-       environment:
-         - LLM_API_KEY=${LLM_API_KEY:-}
-         - DEEPGRAM_API_KEY=${DEEPGRAM_API_KEY:-}
-         - ELEVENLABS_API_KEY=${ELEVENLABS_API_KEY:-}
-         - OPENAI_API_KEY=${OPENAI_API_KEY:-}
-         - ASSEMBLYAI_API_KEY=${ASSEMBLYAI_API_KEY:-}
-         - GEMINI_API_KEY=${GEMINI_API_KEY:-}
-         - CORE_INTERNAL_SECRET=${CORE_INTERNAL_SECRET}
-       volumes:
-         - ./addons/intelligence:/app
-         - ./data/addons/intelligence:/data
-         - ./videos:/app/drives/default:ro
-       depends_on:
-         backend:
-           condition: service_healthy
-   ```
+For a manual install (no `configure.py`), add a service block like the one below to `docker-compose.override.yml`, copy `search-config.yml.example` to `search-config.yml`, and rebuild.
 
-2. Copy and edit the config file:
-
-   ```bash
-   cp addons/intelligence/search-config.yml.example addons/intelligence/search-config.yml
-   ```
-
-3. `docker compose up -d --build`.
+```yaml
+services:
+  intelligence:
+    build: ./addons/intelligence
+    expose:
+      - "8100"
+    environment:
+      - DRIVE_MOUNTS=default=/drives/default
+      - HOMEVAULT_INTERNAL_URL=http://backend:8000
+      - LLM_API_KEY=${LLM_API_KEY:-}
+      - DEEPGRAM_API_KEY=${DEEPGRAM_API_KEY:-}
+      - ELEVENLABS_API_KEY=${ELEVENLABS_API_KEY:-}
+      - OPENAI_API_KEY=${OPENAI_API_KEY:-}
+      - ASSEMBLYAI_API_KEY=${ASSEMBLYAI_API_KEY:-}
+      - GEMINI_API_KEY=${GEMINI_API_KEY:-}
+      - CORE_INTERNAL_SECRET=${CORE_INTERNAL_SECRET:-}
+    volumes:
+      - ./addons/intelligence/search-config.yml:/app/search-config.yml:ro
+      - ./data/addons/intelligence:/intelligence-data
+      - ./data/data.db:/data/litloft.db:ro
+      - ./videos:/drives/default:ro
+    depends_on:
+      backend:
+        condition: service_healthy
+    restart: unless-stopped
+```
 
 The first boot downloads ML models (Whisper, CLIP, embeddings, optionally BLIP). Expect 1–3 GB of weights cached under `data/addons/intelligence/models/`.
 
@@ -125,7 +124,7 @@ Both default to 0.05 because SigLIP2 produces lower absolute cosine values than 
 
 ### Auto-tags
 
-When `features.auto_tags = "on_index"` (default), every newly indexed file gets a set of LLM-proposed tags. They are stored as **suggestions** — never auto-applied.
+When `features.auto_tags = "on_index"`, every newly indexed file gets a set of LLM-proposed tags. They are stored as **suggestions** — never auto-applied. The shipped default is `"manual"`, so suggestions are generated only when you click *Regenerate* on a file.
 
 In the file detail page, the chip editor shows them under *Suggested*. Per chip:
 
@@ -214,13 +213,13 @@ When ASR is wrong (homophones, proper nouns, technical terms), the LLM can rewri
 - Per-chunk LLM rewrite → re-aligned by WhisperX forced alignment → words rebuilt → embeddings recomputed from the refined text.
 - If the aligner fails (missing audio, unsupported language, OOM), the old word rows stay (no time-proportional fallback).
 
-Modes (`features.transcript_refine`): `"false"`, `"manual"`, `"on_index"`. Default `"manual"`.
+Modes (`features.transcript_refine`): `"false"`, `"manual"`, `"on_index"`. Default `"false"` — the LLM never rewrites transcripts unless you explicitly enable it.
 
 ### Vision describe
 
 Vision-LLM image descriptions for `image/*` and HEIC. The description is stored alongside the file and used for tag generation.
 
-- Modes: `"false"`, `"manual"`, `"on_index"`. Default `"on_index"`.
+- Modes: `"false"`, `"manual"`, `"on_index"`. Default `"manual"`.
 - Requires `llm.vision_model` to be set; without it the feature is unavailable regardless of mode (graceful degradation).
 - **`"on_index"` scales linearly with new image count** — enable carefully on large photo libraries.
 
@@ -262,12 +261,12 @@ Everything lives in `addons/intelligence/search-config.yml`. Defaults are reprod
 features:
   indexing: true
   search: true
-  auto_tags: "on_index"               # false | manual | on_index
-  summaries: "on_index"               # false | manual | on_index
-  detailed_summaries: "manual"        # false | manual | on_index
+  auto_tags: "manual"                 # false | manual | on_index
+  summaries: "manual"                 # false | manual | on_index
+  detailed_summaries: "false"         # false | manual | on_index
   rag: true                           # bool
-  transcript_refine: "manual"         # false | manual | on_index
-  vision_describe: "on_index"         # false | manual | on_index
+  transcript_refine: "false"          # false | manual | on_index
+  vision_describe: "manual"           # false | manual | on_index
   retrieval_keywords: "false"         # false | manual | on_index
 ```
 
@@ -277,23 +276,25 @@ features:
 
 ```yaml
 llm:
-  provider: "ollama"                                    # ollama | openai_compatible | disabled
-  base_url: "http://host.docker.internal:11434"         # provider-specific
-  api_key: ""                                           # or env LLM_API_KEY
-  model: "gemma4:e4b"
+  provider: "disabled"                                  # ollama | openai_compatible | disabled
+  base_url: ""                                          # provider-specific
+  api_key: ""                                           # or env LLM_API_KEY (ignored for ollama)
+  model: ""                                             # e.g. "gemma4:e4b", "gpt-4o-mini"
   max_tokens: 2048
   temperature: 0.3
-  output_language: "ja"                                  # auto | ja | en
+  output_language: "auto"                               # auto | ja | en
   retry_attempts: 3
   retry_base_delay: 1.0
   retry_max_delay: 30.0
-  min_request_interval_ms: 0                             # rate limit; 500-1000 for paid APIs
+  min_request_interval_ms: 0                            # rate limit; 500-1000 for paid APIs
   request_timeout_seconds: 90.0
   request_connect_timeout_seconds: 10.0
-  vision_model: "gemma4:e4b"
+  vision_model: ""                                      # e.g. "gemma4:e4b" or a hosted vision model
   vision_max_tokens: 1024
   vision_temperature: 0.1
 ```
+
+Shipped defaults disable the LLM entirely (`provider: "disabled"`); set this in the browser at `/admin/intelligence` (or edit the file and restart) before turning on any LLM-driven feature.
 
 **Provider semantics:**
 

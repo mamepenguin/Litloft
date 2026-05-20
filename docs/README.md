@@ -89,7 +89,3 @@ For contributors and addon authors.
 ## Image assets
 
 Diagrams and screenshots referenced in these docs are tracked in [`IMAGES-NEEDED.md`](IMAGES-NEEDED.md). Contributions welcome.
-
-## Legacy documentation
-
-Older single-file docs (`FEATURES.md`, `ADDON-DEVELOPMENT.md`, `INTELLIGENCE.md`, etc.) have been moved under [`legacy/`](legacy/) and remain readable for cross-reference, but the structured docs in this directory are the canonical source going forward.

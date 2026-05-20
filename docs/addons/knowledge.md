@@ -15,32 +15,34 @@ The `knowledge` addon turns Litloft into a personal notes vault and web-clip arc
 
 ## Installation
 
-The addon runs as an independent service on port 8200. Add this to `docker-compose.override.yml`:
+The addon runs as an independent service on port 8200. The recommended path is to answer **yes** when `configure.py` prompts to enable the knowledge addon — it writes the service block into `docker-compose.override.yml` and generates `KNOWLEDGE_WEBHOOK_SECRET` / `CORE_INTERNAL_SECRET` into `.env` for you. Then:
+
+```bash
+docker compose up -d --build
+```
+
+For a manual install (no `configure.py`), add a service block like this to `docker-compose.override.yml` and set the two secrets in `.env` (`openssl rand -hex 32`):
 
 ```yaml
 services:
   knowledge:
-    build:
-      context: ./addons/knowledge
+    build: ./addons/knowledge
     expose:
       - "8200"
     environment:
       - HOMEVAULT_INTERNAL_URL=http://backend:8000
-      - KNOWLEDGE_WEBHOOK_SECRET=${KNOWLEDGE_WEBHOOK_SECRET}
-      - CORE_INTERNAL_SECRET=${CORE_INTERNAL_SECRET}
+      - KNOWLEDGE_WEBHOOK_SECRET=${KNOWLEDGE_WEBHOOK_SECRET:-}
+      - CORE_INTERNAL_SECRET=${CORE_INTERNAL_SECRET:-}
       - NOTE_SCANNER_INTERVAL_SECONDS=3600
     volumes:
-      - ./addons/knowledge:/app
       - ./data/addons/knowledge:/knowledge-data
-      # Mount each drive that may host a Vault, read-write so the addon
-      # can write notes back. Use the same paths as in drives.json.
-      - ./videos:/app/drives/default
     depends_on:
       backend:
         condition: service_healthy
+    restart: unless-stopped
 ```
 
-Set `KNOWLEDGE_WEBHOOK_SECRET` and `CORE_INTERNAL_SECRET` in `.env` (`openssl rand -hex 32`).
+The knowledge addon does not bind-mount drive directories — it reaches the Vault files indirectly, by reading file content through the [Internal API](../developer-guide/addon-dev.md#internal-api-policy) on the Docker network.
 
 ## Configuration
 

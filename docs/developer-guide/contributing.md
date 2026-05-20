@@ -6,7 +6,7 @@ Litloft is developed primarily for personal use, but pull requests are welcome. 
 
 - Read the [architecture](architecture.md) and the [Internal API policy](addon-dev.md#internal-api-policy). Most "no, not in core" decisions trace back to those rules.
 - Skim the design rules in `.claude/rules/design-decisions.md` (in the repo root). They capture invariants — "drives are a security boundary", "tag canonical store split", "missing files are not auto-purged" — that pre-empt large redesigns.
-- Check the existing issues and the `legacy/` docs for context on past decisions.
+- Check the existing issues and recent commit history for context on past decisions.
 
 ## Branch and commit conventions
 

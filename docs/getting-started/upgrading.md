@@ -1,9 +1,9 @@
 # Upgrading
 
-Litloft is upgraded by pulling new code and rebuilding the containers.
+Litloft is upgraded by pulling new code (core + addons) and rebuilding the containers.
 
 ```bash
-git pull
+git pull --recurse-submodules
 docker compose up -d --build
 ```
 
@@ -41,14 +41,14 @@ See [backup and restore](../admin-guide/backup-restore.md) for full options.
 
 ## Addon upgrades
 
-Each addon under `addons/` is its own Git repository. To upgrade them:
+Each addon under `addons/` is its own Git repository, tracked as a submodule of this one. The `git pull --recurse-submodules` above already advances each submodule to the commit the core points at. If you want the latest tip of each addon's own default branch instead, update them explicitly:
 
 ```bash
-for d in addons/*/; do (cd "$d" && git pull); done
+git submodule update --remote --merge
 docker compose up -d --build
 ```
 
-Addon-specific config files (for example `addons/intelligence/search-config.yml`) are *not* overwritten by `git pull`, but new fields may be introduced. After an addon upgrade, glance at the addon's `search-config.yml.example` (or equivalent) to see what is new.
+Addon-specific config files (for example `addons/intelligence/search-config.yml`) are *not* overwritten by submodule updates, but new fields may be introduced. After an addon upgrade, glance at the addon's `search-config.yml.example` (or equivalent) to see what is new.
 
 ## Restart-pending banner
 

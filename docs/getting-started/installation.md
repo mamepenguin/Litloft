@@ -14,9 +14,11 @@ You do **not** need Python, Node.js, ffmpeg, or any AI runtimes installed locall
 ## Get the code
 
 ```bash
-git clone https://github.com/mamepenguin/Litloft.git litloft
-cd litloft
+git clone --recurse-submodules https://github.com/mamepenguin/Litloft
+cd Litloft
 ```
+
+The four shipped addons (`intelligence`, `knowledge`, `cloud-sync`, `media_import`) are tracked as Git submodules under `addons/`. The `--recurse-submodules` flag checks them out at the same time. If you forget it, `configure.py` will detect the empty submodule directories and offer to run `git submodule update --init --recursive` for you.
 
 ## How setup is split
 
@@ -40,6 +42,8 @@ It asks, with sensible defaults:
 - Whether to enable the **intelligence** and/or **knowledge** addons (yes/no only — the AI features themselves are configured later in the browser, all off by default).
 
 It then writes `docker-compose.override.yml` (mounts, addon services, env wiring), an empty `drives.json` and `passwords.json` (`[]`), `.env` (only if needed for the port or addon secrets), `event-hooks.json` (if an addon defines hooks), and — when intelligence is enabled — a verbatim copy of `search-config.yml.example`. It does **not** ask for drive names, passwords, access groups, or AI feature modes; those belong to the `/setup` wizard.
+
+`configure.py` only prompts for the two independent-service addons (`intelligence`, `knowledge`); they each run as their own container and need their own `services:` block. The in-process addons (`cloud-sync`, `media_import`) are bundled into the backend image at build time, so they auto-load as soon as the submodule is present and the image is rebuilt — nothing to configure here. See [addon overview](../addons/overview.md#enabling-and-disabling-addons) for the policy-per-drive editor.
 
 You do not need to copy `docker-compose.override.yml.example` by hand — `configure.py` generates the override file. If you would rather hand-write it, see [docker-compose customisation](../admin-guide/docker-compose.md).
 
