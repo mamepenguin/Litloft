@@ -16,6 +16,8 @@ This model is intentional: trusted home networks, personal use. Privacy-by-defau
 
 Each file has a comment thread.
 
+![File detail page with a comment thread followed by continue-watching items](../images/user-guide/comments-thread-continue-watching.png)
+
 - Posting requires only a nickname (no password). The viewer ID is recorded.
 - Markdown is **not** rendered; comments are plain text.
 - Threading is one level deep (top-level comments only).

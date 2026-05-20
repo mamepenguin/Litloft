@@ -48,6 +48,8 @@ See [tags and relations](tags-and-relations.md) for the canonical-store split.
 
 When the [intelligence addon](../addons/intelligence.md) is enabled for a drive, two extra search modes appear:
 
+![Search page with semantic search and scene search enabled, showing timestamped results](../images/user-guide/search-semantic-scene-results.png)
+
 - **Semantic Search** — embeddings over text, transcripts, and a representative CLIP frame per video. Hybrid retrieval: BM25 + dense vectors blended with `search.alpha` (default 0.5).
 - **Find mode** — a unified mode that mixes keyword and embedding for an "I know roughly what I want" feel.
 
@@ -62,6 +64,8 @@ This is gated by `search.min_score_clip` (representative frames) and `search.min
 ## Ask (RAG)
 
 When `features.rag: true` in `addons/intelligence/search-config.yml`, an **Ask** input appears in the search modes. It is question answering over your library:
+
+![Ask answer pane with source citations and a no-strong-source warning](../images/user-guide/ask-answer-citations-warning.png)
 
 - Type a natural-language question.
 - The intelligence addon retrieves relevant chunks (BM25 + dense), packs them into an LLM prompt, and returns the answer with **citations** linking back to the source files (and timestamps for video).
@@ -112,5 +116,3 @@ If you script Litloft, the search endpoints are:
 - `POST /api/addons/intelligence/ask` (RAG)
 
 See the [HTTP API reference](../reference/api.md).
-
-> **Image needed:** screenshot of search page with semantic + scene search toggles, results with citations.

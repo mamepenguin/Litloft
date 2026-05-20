@@ -6,6 +6,8 @@ Litloft accepts files via drag-and-drop or a file picker, then runs them through
 
 Drop files anywhere on a folder page, or use the **Upload** button.
 
+![Upload progress drawer showing queued, paused, and completed uploads](../images/user-guide/upload-progress-drawer.png)
+
 - **Folder upload** is supported in browsers that expose `webkitdirectory`. Drop a folder and the relative tree is preserved.
 - **Multi-file upload** is supported. Files are queued and uploaded sequentially per chunked session.
 - An upload **progress drawer** at the bottom of the screen lets you monitor speed, ETA, and individual file statuses. You can cancel any in-flight upload.

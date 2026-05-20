@@ -2,6 +2,8 @@
 
 Single-character shortcuts only fire when no input is focused.
 
+![Shortcut cheat sheet modal opened over the current page](../images/user-guide/shortcut-cheatsheet-modal.png)
+
 ## Global
 
 | Key | Action |

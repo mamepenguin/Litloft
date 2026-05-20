@@ -2,6 +2,8 @@
 
 Litloft's tagging is structured but understated. There is no hierarchy and no global tag list — tags are per drive, applied flat. File relations are a separate, typed graph.
 
+![File detail page showing frontmatter tag chips and related files](../images/user-guide/tags-related-files.png)
+
 ## Tags
 
 Open any file's viewer; a **chip editor** below the title lets you add or remove tags. Tags auto-complete from the drive's existing tag set.

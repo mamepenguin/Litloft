@@ -2,6 +2,12 @@
 
 The drive home page (`/drive/<name>`) is the main browsing surface. Folders are walked from the drive root; subfolders open at `/drive/<name>/<path>`. Below the breadcrumb you find a folder grid, a file grid, and several *carousels* (Recently added, Continue watching, Favourites, Popular). Each surface is wired into the same backend so changes you make anywhere appear in real time over WebSocket.
 
+## Drive home layout
+
+![Annotated drive home page showing the breadcrumb, folder grid, file grid, and content carousels](../images/user-guide/drive-home-overview.png)
+
+The numbered areas in the screenshot map to the main browsing surfaces: breadcrumb navigation, folder cards, file cards, and the activity carousels that surface recent or in-progress items.
+
 ## Folder grid
 
 - Folders show a thumbnail (from a child file) and a count of contained files.
@@ -113,5 +119,3 @@ Drop one or more files (or a whole folder, in browsers that support it) onto the
 
 - **Trashed and missing files** are hidden from default queries via `active_file_filter()`. Trashed items show in the *Trash* view; missing files show in the *Missing* view. See [trash and missing files](trash-and-missing.md).
 - **Files in locked drives** are hidden entirely; the drives themselves do not appear in the home grid.
-
-> **Image needed:** annotated screenshot of a drive home page (folder grid, file grid, carousels, breadcrumb).
