@@ -3,10 +3,10 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Litloft — Self-hosted file and media app for your home LAN</title>
-  <meta name="description" content="Self-hosted file and media app for your home LAN. Browse, stream, and (optionally) ask questions about your files using an LLM. Runs on Docker.">
-  <meta property="og:title" content="Litloft — Self-hosted file and media app for your home LAN">
-  <meta property="og:description" content="Browse, stream, and search your files on your own home LAN server. Optional LLM integration for tag suggestions, summaries, and Q&A.">
+  <title>Litloft — Self-hosted research library for media and notes</title>
+  <meta name="description" content="Index videos, PDFs, web media, and Markdown notes on your own hardware. Search with citations, stream locally, and optionally use an LLM for summaries and Q&amp;A.">
+  <meta property="og:title" content="Litloft — Self-hosted research library for media and notes">
+  <meta property="og:description" content="A local research library for videos, documents, web media, and notes. Search with citations and keep generated content under your control.">
   <meta property="og:type" content="website">
   <meta name="theme-color" content="#E53935">
   <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='8' fill='%23E53935' fill-opacity='.1'/%3E%3Cpath d='M16 6L6 13v12h6v-6h8v6h6V13L16 6z' stroke='%23E53935' stroke-width='2' stroke-linejoin='round' fill='none'/%3E%3C/svg%3E">
@@ -223,6 +223,48 @@
       max-width: 1040px;
       margin-left: auto;
       margin-right: auto;
+    }
+
+    /* ─── RESEARCH POSITIONING ─── */
+    .research {
+      padding: 92px 0 70px;
+      background: var(--bg);
+      border-top: 1px solid var(--border);
+    }
+
+    .research-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 18px;
+    }
+
+    .research-card {
+      background: white;
+      border: 1px solid var(--border);
+      border-radius: var(--r);
+      padding: 24px;
+    }
+
+    .research-label {
+      font-size: 11px;
+      font-weight: 700;
+      color: var(--red);
+      letter-spacing: 0.05em;
+      text-transform: uppercase;
+      margin-bottom: 14px;
+    }
+
+    .research-card h3 {
+      font-size: 18px;
+      font-weight: 600;
+      letter-spacing: 0;
+      margin-bottom: 9px;
+    }
+
+    .research-card p {
+      font-size: 14px;
+      color: var(--text-2);
+      line-height: 1.68;
     }
 
     /* ─── SCREENSHOT IMAGE ─── */
@@ -489,7 +531,7 @@
 
     .feat-visual .browser { position: relative; }
 
-    /* ─── FEATURE 1: AI Q&A MOCKUP ─── */
+    /* ─── FEATURE 1: CITED Q&A MOCKUP ─── */
     .mock-ai .app-window {
       flex-direction: column;
       min-height: 340px;
@@ -1387,19 +1429,60 @@
       .step { padding: 32px 0; border-bottom: 1px solid var(--border); }
       .step:last-child { border-bottom: none; }
 
+      .research-grid { grid-template-columns: 1fr; }
+
       .addon-grid { grid-template-columns: repeat(2, 1fr); }
     }
 
     @media (max-width: 768px) {
+      .nav-inner { gap: 12px; }
+      .nav-links { gap: 0; }
+      .nav-links .btn { display: none; }
+      .nav-link { padding: 6px 9px; font-size: 13px; }
       .hero { padding: 56px 0 48px; }
+      .hero h1 {
+        font-size: 32px;
+        line-height: 1.12;
+        overflow-wrap: anywhere;
+      }
+      .hero-sub {
+        font-size: 16px;
+        max-width: 100%;
+      }
+      .hero-note {
+        flex-wrap: wrap;
+        justify-content: center;
+        row-gap: 6px;
+      }
+      .hero-mockup-wrap { margin-top: 40px; }
       .app-sidebar { display: none; }
       .thumb-row .thumb:nth-child(n+4) { display: none; }
       .mock-cit:nth-child(3) { display: none; }
     }
 
     @media (max-width: 540px) {
+      .container { padding: 0 20px; }
+      .nav-link { padding: 6px 7px; }
+      .nav-link[href="#use-cases"] { display: none; }
+      .nav-link[href="#features"] { display: none; }
+      .hero h1 {
+        font-size: 28px;
+        max-width: 320px;
+        margin-left: auto;
+        margin-right: auto;
+      }
+      .hero-sub {
+        max-width: 320px;
+        margin-left: auto;
+        margin-right: auto;
+      }
       .hero-ctas { flex-direction: column; align-items: stretch; }
       .hero-ctas .btn { justify-content: center; }
+      .hero-mockup-wrap {
+        width: calc(100vw - 40px);
+        max-width: calc(100vw - 40px);
+        overflow: hidden;
+      }
       .addon-grid { grid-template-columns: 1fr; }
       .mock-tags-row .mock-tag:nth-child(n+5) { display: none; }
     }
@@ -1421,8 +1504,9 @@
         <span class="logo-text">Litloft</span>
       </a>
       <div class="nav-links">
+        <a href="#use-cases" class="nav-link">Use cases</a>
         <a href="#features" class="nav-link">Features</a>
-        <a href="#how-it-works" class="nav-link">How it works</a>
+        <a href="#how-it-works" class="nav-link">Setup</a>
         <a href="https://github.com/mamepenguin/Litloft" class="btn btn-primary" target="_blank" rel="noopener noreferrer">
           <svg width="15" height="15" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M12 0C5.374 0 0 5.373 0 12c0 5.302 3.438 9.8 8.207 11.387.599.111.793-.261.793-.577v-2.234c-3.338.726-4.033-1.416-4.033-1.416-.546-1.387-1.333-1.756-1.333-1.756-1.089-.745.083-.729.083-.729 1.205.084 1.839 1.237 1.839 1.237 1.07 1.834 2.807 1.304 3.492.997.107-.775.418-1.305.762-1.604-2.665-.305-5.467-1.334-5.467-5.931 0-1.311.469-2.381 1.236-3.221-.124-.303-.535-1.524.117-3.176 0 0 1.008-.322 3.301 1.23A11.509 11.509 0 0112 5.803c1.02.005 2.047.138 3.006.404 2.291-1.552 3.297-1.23 3.297-1.23.653 1.653.242 2.874.118 3.176.77.84 1.235 1.911 1.235 3.221 0 4.609-2.807 5.624-5.479 5.921.43.372.823 1.102.823 2.222v3.293c0 .319.192.694.801.576C20.566 21.797 24 17.3 24 12c0-6.627-5.373-12-12-12z"/></svg>
           Get Started
@@ -1438,16 +1522,16 @@
     <div class="hero-inner">
       <div class="badge badge-red reveal">
         <span class="badge-dot"></span>
-        Open Source · Self-Hosted
+        Self-hosted research library
       </div>
 
       <h1 class="reveal reveal-delay-1">
-        Your files.<br>
-        <em>Your home server.</em>
+        Search your media.<br>
+        <em>Build from your sources.</em>
       </h1>
 
       <p class="hero-sub reveal reveal-delay-2">
-        A self-hosted file and media app for your home LAN. Browse, stream, and search your files; optionally use an LLM for tag suggestions, summaries, and Q&amp;A. Runs entirely on your own hardware.
+        Litloft indexes videos, PDFs, web media, and Markdown notes on your own hardware. Stream the original files, search them with citations, and turn useful findings into notes you control.
       </p>
 
       <div class="hero-ctas reveal reveal-delay-3">
@@ -1461,9 +1545,9 @@
       <p class="hero-note reveal reveal-delay-4">
         <span>Docker-based</span>
         <span class="hero-note-sep"></span>
-        <span>LAN-only</span>
+        <span>Local-first</span>
         <span class="hero-note-sep"></span>
-        <span>Free &amp; open source</span>
+        <span>Optional LLMs</span>
       </p>
     </div>
 
@@ -1480,48 +1564,79 @@
   </div>
 </section>
 
+<!-- ═══ POSITIONING ═══ -->
+<section class="research" id="use-cases">
+  <div class="container">
+    <div class="section-head">
+      <div class="badge badge-red reveal"><span class="badge-dot"></span>Use cases</div>
+      <h2 class="reveal reveal-delay-1">For media-heavy knowledge work</h2>
+      <p class="reveal reveal-delay-2">Litloft is not trying to replace a movie server or a cloud notebook. It is a local workspace for source material you need to search, cite, and connect.</p>
+    </div>
+
+    <div class="research-grid">
+      <div class="research-card reveal">
+        <div class="research-label">Conference videos</div>
+        <h3>Find the few seconds that matter</h3>
+        <p>Transcribe long talks, search across transcripts, and jump back to the cited timestamp instead of rewatching an entire session.</p>
+      </div>
+
+      <div class="research-card reveal reveal-delay-1">
+        <div class="research-label">Documents and books</div>
+        <h3>Keep PDFs beside your notes</h3>
+        <p>Index documents and scanned-book archives alongside video and audio, then connect findings to Markdown notes with shared tags.</p>
+      </div>
+
+      <div class="research-card reveal reveal-delay-2">
+        <div class="research-label">Web media</div>
+        <h3>Track sources without filling storage</h3>
+        <p>Add videos from YouTube, SoundCloud, or Vimeo by URL. Use embedded playback while captions and transcripts join your searchable library.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
 <!-- ═══ FEATURES ═══ -->
 <section class="features" id="features">
   <div class="container">
 
-    <!-- Feature 1: AI Intelligence -->
+    <!-- Feature 1: Cited Search -->
     <div class="feature-block">
       <div class="feat-text reveal">
-        <div class="feat-tag"><span class="feat-tag-line"></span>Intelligence</div>
-        <h2>Natural-language Q&amp;A over your media</h2>
+        <div class="feat-tag"><span class="feat-tag-line"></span>Cited Search</div>
+        <h2>Ask questions, then inspect the sources</h2>
         <p>
-          With the optional Intelligence addon, an LLM can answer questions about your media library and return citations linked back to the original clip or document. Works with any OpenAI-compatible endpoint; a local LLM is recommended.
+          The optional Intelligence addon searches transcripts, document text, metadata, and embeddings together. When an LLM is used for Q&amp;A, answers are linked back to the retrieved clip, page, or note.
         </p>
         <ul class="feat-points">
           <li>
             <span class="check-icon" aria-hidden="true">
               <svg width="10" height="10" viewBox="0 0 10 10" fill="none"><path d="M2 5l2.5 2.5L8 3" stroke="#E53935" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
             </span>
-            Natural language Q&amp;A over video transcripts
+            Search across video transcripts, PDFs, text files, subtitles, tags, and filenames
           </li>
           <li>
             <span class="check-icon" aria-hidden="true">
               <svg width="10" height="10" viewBox="0 0 10 10" fill="none"><path d="M2 5l2.5 2.5L8 3" stroke="#E53935" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
             </span>
-            Every answer is grounded in your actual transcripts, with cited source clips
+            Answers include citations to the retrieved sources; unknown file IDs are dropped
           </li>
           <li>
             <span class="check-icon" aria-hidden="true">
               <svg width="10" height="10" viewBox="0 0 10 10" fill="none"><path d="M2 5l2.5 2.5L8 3" stroke="#E53935" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
             </span>
-            Works with any OpenAI-compatible LLM, including local models via Ollama
+            Works with local or remote OpenAI-compatible LLM endpoints; local models are recommended for private libraries
           </li>
         </ul>
         <div class="hw-note">
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" aria-hidden="true"><circle cx="12" cy="12" r="10" stroke="currentColor" stroke-width="1.8"/><path d="M12 8v4M12 16h.01" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>
-          <span><strong>Hardware note:</strong> Indexing is CPU-intensive. Whisper (transcription) requires 0.5–3 GB RAM depending on the model you choose. Plan for at least 2 GB free RAM when running the Intelligence addon.</span>
+          <span><strong>Hardware note:</strong> Indexing is CPU-intensive. Whisper transcription requires 0.5-3 GB RAM depending on the model you choose. Plan for at least 2 GB free RAM when running the Intelligence addon.</span>
         </div>
       </div>
       <div class="feat-visual reveal reveal-delay-1">
         <div class="browser">
           <div class="browser-bar">
             <span class="dot-red"></span><span class="dot-yellow"></span><span class="dot-green"></span>
-            <span class="browser-url">localhost:3000 › Intelligence</span>
+            <span class="browser-url">localhost:3000 › Ask</span>
           </div>
           <video src="intelligence.mp4" autoplay loop muted playsinline class="screenshot-img" style="display:block;width:100%;"></video>
         </div>
@@ -1531,23 +1646,23 @@
     <!-- Feature 2: Knowledge -->
     <div class="feature-block reverse">
       <div class="feat-text reveal">
-        <div class="feat-tag"><span class="feat-tag-line"></span>Knowledge</div>
-        <h2>Notes that connect to your files</h2>
+        <div class="feat-tag"><span class="feat-tag-line"></span>Connected Notes</div>
+        <h2>Turn findings into Markdown notes</h2>
         <p>
-          The optional Knowledge addon adds Markdown notes inside Litloft. Create a note from any file detail page, or jump back from a note's <code>[[file:…]]</code> link to the video, document, or image it references. Notes share the same library as your files, so the connection runs in both directions.
+          The optional Knowledge addon adds Markdown notes inside Litloft. Create a note from a file detail page, link back with <code>[[file:...]]</code>, and keep notes searchable beside the media and documents they came from.
         </p>
         <ul class="feat-points">
           <li>
             <span class="check-icon" aria-hidden="true">
               <svg width="10" height="10" viewBox="0 0 10 10" fill="none"><path d="M2 5l2.5 2.5L8 3" stroke="#E53935" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
             </span>
-            Tags are shared with the core file tags — one vocabulary across notes and files
+            Tags are shared with core file tags, so notes and files use one vocabulary
           </li>
           <li>
             <span class="check-icon" aria-hidden="true">
               <svg width="10" height="10" viewBox="0 0 10 10" fill="none"><path d="M2 5l2.5 2.5L8 3" stroke="#E53935" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
             </span>
-            Intelligence Ask returns citations from both your media and your notes
+            Ask can cite both source media and saved Markdown notes
           </li>
           <li>
             <span class="check-icon" aria-hidden="true">
@@ -1559,7 +1674,7 @@
             <span class="check-icon" aria-hidden="true">
               <svg width="10" height="10" viewBox="0 0 10 10" fill="none"><path d="M2 5l2.5 2.5L8 3" stroke="#E53935" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
             </span>
-            AI-generated summaries become notes only after you review and save them — Litloft never writes AI output to disk on its own
+            Generated summaries become notes only after you review and save them; Litloft never writes AI output to disk on its own
           </li>
         </ul>
       </div>
@@ -1574,32 +1689,32 @@
       </div>
     </div>
 
-    <!-- Feature 3: Streaming -->
+    <!-- Feature 3: Media Import -->
     <div class="feature-block">
       <div class="feat-text reveal">
-        <div class="feat-tag"><span class="feat-tag-line"></span>Streaming</div>
-        <h2>Beautiful streaming, pick up where you left off</h2>
+        <div class="feat-tag"><span class="feat-tag-line"></span>Media Import</div>
+        <h2>Bring web videos into the same library</h2>
         <p>
-          Smooth video playback for all your media — across every device on your home network. Resume at the exact moment you stopped, with playlists, favorites, and smart continue-watching built in.
+          Add videos from YouTube, SoundCloud, or Vimeo by URL. Litloft keeps playback embedded when possible, while captions and transcripts can be indexed with the rest of your local library.
         </p>
         <ul class="feat-points">
           <li>
             <span class="check-icon" aria-hidden="true">
               <svg width="10" height="10" viewBox="0 0 10 10" fill="none"><path d="M2 5l2.5 2.5L8 3" stroke="#E53935" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
             </span>
-            Video, audio, images, PDFs — all in one place
+            Add individual videos by URL without manually downloading media files first
           </li>
           <li>
             <span class="check-icon" aria-hidden="true">
               <svg width="10" height="10" viewBox="0 0 10 10" fill="none"><path d="M2 5l2.5 2.5L8 3" stroke="#E53935" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
             </span>
-            Cross-device playback position sync (LAN)
+            YouTube captions can be reused by the Intelligence addon for search and Q&amp;A
           </li>
           <li>
             <span class="check-icon" aria-hidden="true">
               <svg width="10" height="10" viewBox="0 0 10 10" fill="none"><path d="M2 5l2.5 2.5L8 3" stroke="#E53935" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
             </span>
-            Auto-generated thumbnails and rich metadata
+            Imported media lives beside local videos, PDFs, images, and notes in the same browser UI
           </li>
         </ul>
       </div>
@@ -1607,9 +1722,9 @@
         <div class="browser">
           <div class="browser-bar">
             <span class="dot-red"></span><span class="dot-yellow"></span><span class="dot-green"></span>
-            <span class="browser-url">localhost:3000 › Videos</span>
+            <span class="browser-url">localhost:3000 › Media Import</span>
           </div>
-          <img src="screenshot_all_files.png" alt="Litloft All Files view showing video library with thumbnails" class="screenshot-img" loading="lazy">
+          <img src="screenshot_summary.png" alt="Litloft file detail showing transcript-backed summaries and citations" class="screenshot-img" loading="lazy">
         </div>
       </div>
     </div>
@@ -1622,8 +1737,8 @@
   <div class="container">
     <div class="section-head">
       <div class="badge badge-red reveal"><span class="badge-dot"></span>Internals</div>
-      <h2 class="reveal reveal-delay-1">How Intelligence indexes your media</h2>
-      <p class="reveal reveal-delay-2">Every file is processed through a multi-channel pipeline and stored in a local vector database — no external database required.</p>
+      <h2 class="reveal reveal-delay-1">How Litloft makes sources searchable</h2>
+      <p class="reveal reveal-delay-2">Files are processed through a multi-channel pipeline and stored in local SQLite-backed indexes. No external vector database is required.</p>
     </div>
 
     <!-- Indexing pipeline -->
@@ -1739,7 +1854,7 @@
           <p>Use <code class="inline-code">--recurse-submodules</code> to include the bundled addons (Intelligence, Knowledge, Cloud Sync) in one go.</p>
           <div class="code-block" role="region" aria-label="Clone command">
             <div><span class="c-cmd">git clone</span> <span class="c-key">--recurse-submodules</span> <span class="c-str">https://github.com/mamepenguin/Litloft</span></div>
-            <div><span class="c-cmd">cd</span> <span class="c-val">litloft</span></div>
+            <div><span class="c-cmd">cd</span> <span class="c-val">Litloft</span></div>
           </div>
         </div>
       </div>
@@ -1779,7 +1894,7 @@
               </div>
             </div>
           </div>
-          <p class="step-note"><code class="inline-code">configure.py</code> writes <code class="inline-code">docker-compose.override.yml</code> and <code class="inline-code">.env</code>, and creates empty <code class="inline-code">drives.json</code> / <code class="inline-code">passwords.json</code> that the app fills in. It does not ask for drive names, passwords, or AI settings — those are set in the browser on first launch.</p>
+          <p class="step-note"><code class="inline-code">configure.py</code> writes <code class="inline-code">docker-compose.override.yml</code> and <code class="inline-code">.env</code>, and creates empty <code class="inline-code">drives.json</code> / <code class="inline-code">passwords.json</code> that the app fills in. It does not ask for drive names, passwords, or LLM settings — those are set in the browser on first launch.</p>
         </div>
       </div>
 
@@ -1806,7 +1921,7 @@
         </div>
         <div class="step-body">
           <h3>Set up in your browser</h3>
-          <p>Open <code class="inline-code">http://localhost:3000</code>. On first launch Litloft shows the <code class="inline-code">/setup</code> wizard: it lists the drives it detected from your mounts so you can name them, set passwords and access groups, and choose which AI features to enable. Everything here can be changed later at <code class="inline-code">/admin/settings</code>.</p>
+          <p>Open <code class="inline-code">http://localhost:3000</code>. On first launch Litloft shows the <code class="inline-code">/setup</code> wizard: it lists the drives it detected from your mounts so you can name them, set passwords and access groups, and choose which optional Intelligence features to enable. Everything here can be changed later at <code class="inline-code">/admin/settings</code>.</p>
         </div>
       </div>
 
@@ -1818,19 +1933,19 @@
         <svg width="20" height="20" viewBox="0 0 24 24" fill="none"><path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5" stroke="#E53935" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
       </div>
       <div>
-        <strong>Using AI features (Intelligence addon)</strong>
-        <p>Auto-tagging, summaries, and the Ask feature require an LLM. Set it up after launch — there are two options:</p>
+        <strong>Using LLM features (Intelligence addon)</strong>
+        <p>Tag suggestions, generated summaries, and Ask answers require an LLM. Set it up after launch; search and transcription can still run without one.</p>
         <ul class="llm-options">
           <li>
             <span class="llm-label">Local (recommended)</span>
-            Install <a href="https://ollama.com" target="_blank" rel="noopener noreferrer">Ollama</a> on your host and pull a model. Point Litloft at it with the API key / base URL in <code class="inline-code">.env</code>; the provider and model are chosen in the browser. Your data never leaves your machine.
+            Install <a href="https://ollama.com" target="_blank" rel="noopener noreferrer">Ollama</a> on your host and pull a model. Point Litloft at it with the API key / base URL in <code class="inline-code">.env</code>; the provider and model are chosen in the browser. Your source material stays on your machine.
           </li>
           <li>
             <span class="llm-label">API</span>
             Use OpenAI, DeepSeek, or any OpenAI-compatible endpoint. Put the API key (and base URL) in <code class="inline-code">.env</code> and pick the model in the browser. File content is sent to the API during indexing and Ask queries.
           </li>
         </ul>
-        <p>Semantic search and transcription work without an LLM — only the text generation features are gated behind it.</p>
+        <p>Semantic search and transcription work without an LLM. Only text generation features are gated behind it, and generated summaries require an explicit review/save step before they become notes.</p>
       </div>
     </div>
 
@@ -1845,8 +1960,8 @@
         <span class="badge-dot"></span>
         Extensible
       </div>
-      <h2 class="reveal reveal-delay-1">Supercharge with addons</h2>
-      <p class="reveal reveal-delay-2">Install only what you need. Each addon is an independent service you enable via Docker Compose.</p>
+      <h2 class="reveal reveal-delay-1">Install only the services you need</h2>
+      <p class="reveal reveal-delay-2">Each addon is an independent service you enable via Docker Compose. Keep a simple media library, or add indexing, notes, import, and backups as needed.</p>
     </div>
 
     <div class="addon-grid">
@@ -1857,7 +1972,7 @@
           </svg>
         </div>
         <h3>Intelligence</h3>
-        <p>Search, Q&amp;A, tag suggestions, and summaries using an LLM. Works with any OpenAI-compatible API; a local LLM is recommended.</p>
+        <p>Transcript indexing, semantic search, Q&amp;A, tag suggestions, and summaries. LLM features work with OpenAI-compatible endpoints; local models are recommended.</p>
       </div>
 
       <div class="addon-card reveal reveal-delay-1">
@@ -1867,7 +1982,7 @@
           </svg>
         </div>
         <h3>Knowledge</h3>
-        <p>Linked notes for your media files. Build a personal wiki connected to your videos, podcasts, and documents.</p>
+        <p>Markdown notes linked to videos, podcasts, documents, and images, with shared tags and citations from notes and source media.</p>
       </div>
 
       <div class="addon-card reveal reveal-delay-2">
@@ -1889,7 +2004,7 @@
     </svg>
   </div>
   <h3>Media Import</h3>
-  <p>Add videos from YouTube, SoundCloud, or Vimeo by URL. YouTube captions integrate with the Intelligence addon for search and Q&amp;A.</p>
+  <p>Add videos from YouTube, SoundCloud, or Vimeo by URL. Keep playback embedded when possible, and let captions join search and Q&amp;A.</p>
 </div>
     </div>
   </div>
@@ -1899,8 +2014,8 @@
 <section class="cta-section">
   <div class="container">
     <div class="cta-inner">
-      <h2 class="reveal">Run Litloft on your<br>own hardware.</h2>
-      <p class="reveal reveal-delay-1">Docker-based, LAN-only, free and open source.</p>
+      <h2 class="reveal">Keep the library close<br>to the sources.</h2>
+      <p class="reveal reveal-delay-1">Self-hosted, citation-oriented, and built for local knowledge work.</p>
       <div class="cta-btns reveal reveal-delay-2">
         <a href="https://github.com/mamepenguin/Litloft" class="btn btn-primary btn-lg" target="_blank" rel="noopener noreferrer">
           <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M12 0C5.374 0 0 5.373 0 12c0 5.302 3.438 9.8 8.207 11.387.599.111.793-.261.793-.577v-2.234c-3.338.726-4.033-1.416-4.033-1.416-.546-1.387-1.333-1.756-1.333-1.756-1.089-.745.083-.729.083-.729 1.205.084 1.839 1.237 1.839 1.237 1.07 1.834 2.807 1.304 3.492.997.107-.775.418-1.305.762-1.604-2.665-.305-5.467-1.334-5.467-5.931 0-1.311.469-2.381 1.236-3.221-.124-.303-.535-1.524.117-3.176 0 0 1.008-.322 3.301 1.23A11.509 11.509 0 0112 5.803c1.02.005 2.047.138 3.006.404 2.291-1.552 3.297-1.23 3.297-1.23.653 1.653.242 2.874.118 3.176.77.84 1.235 1.911 1.235 3.221 0 4.609-2.807 5.624-5.479 5.921.43.372.823 1.102.823 2.222v3.293c0 .319.192.694.801.576C20.566 21.797 24 17.3 24 12c0-6.627-5.373-12-12-12z"/></svg>
@@ -1908,7 +2023,7 @@
         </a>
         <a href="#how-it-works" class="btn btn-ghost btn-lg">View setup guide</a>
       </div>
-      <p class="cta-tagline reveal reveal-delay-3">Self-hosted. LAN-only. Free and open source.</p>
+      <p class="cta-tagline reveal reveal-delay-3">Self-hosted. Source-backed. Free and open source.</p>
     </div>
   </div>
 </section>
