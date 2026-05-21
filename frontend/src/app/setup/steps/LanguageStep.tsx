@@ -1,7 +1,7 @@
 "use client";
 
 // LanguageStep: language-agnostic intro screen. Renders the brand mark
-// and a tiny bilingual subtitle ("Setup / 初期設定") only — no localized
+// and a tiny bilingual subtitle ("Setup") only — no localized
 // copy here, because the user has not yet chosen a language. Two large
 // language buttons drive the locale selection and a small arrow advances
 // to the Welcome step.
@@ -28,7 +28,7 @@ export function LanguageStep({
       <div className="space-y-8 text-center">
         <div>
           <h1 className="text-4xl font-bold text-accent">Litloft</h1>
-          <p className="mt-2 text-sm text-text-muted">Setup / 初期設定</p>
+          <p className="mt-2 text-sm text-text-muted">Setup</p>
         </div>
 
         <div className="grid grid-cols-2 gap-3">
