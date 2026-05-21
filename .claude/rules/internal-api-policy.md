@@ -1,6 +1,6 @@
 # Internal API policy
 
-Rules to follow whenever you add, remove, or change an endpoint in `backend/app/routers/internal.py`. New additions must pass these rules. If reasonable people disagree, pull the related hako entries and re-evaluate.
+Rules to follow whenever you add, remove, or change an endpoint in `backend/app/routers/internal.py`. New additions must pass these rules. If reasonable people disagree, re-evaluate using the spec docs in `docs/superpowers/specs/`.
 
 ## Goal
 
@@ -77,14 +77,49 @@ When you want to add a new Internal API endpoint, walk through this in order:
 4. **R4 Write asymmetry** (for writes): Does the core's UI / search / access control read this data?
 5. **R5 Promotion target** (for addon-derived data): Is the promotion target a core entity?
 
-**All YES** → fine to add. Record the rationale in the spec doc / hako.
+**All YES** → fine to add. Record the rationale in the spec doc.
 **Any NO** → keep it in the addon's DB. Use the addon-to-addon proxy for cross-addon communication.
+
+## Contract-test pattern (required when adding a new endpoint)
+
+Two layers of contract tests are required for every new addon → core Internal API call:
+
+**Layer 1: Wire shape test** (`httpx.MockTransport` + `monkeypatch`)
+- URL, HTTP method, Content-Type, auth header presence
+- Request body and response parse shape
+- Error propagation (422 etc.)
+
+**Layer 2: Validator parity test** (pytest parametrize pair table)
+- Compare the addon-side input filter (e.g. `_normalise_tags`) against the core-side validator (e.g. `TagUpdate.validate_tags`)
+- Detects drift between regex / cap / dedup rules on both sides
+- Core schema changes will break this test, making drift visible
+
+Both layers are necessary: Layer 1 alone misses "wire passes but core 422-rejects" silent failures; Layer 2 alone leaves the wire path (headers / secret / URL drift) unverified.
+
+## Secret gating for write endpoints
+
+Write endpoints require stricter secret gating than read endpoints.
+
+- `GET /files/{id}/content` treats `CORE_INTERNAL_SECRET` as optional (no-op when unset) to preserve dev parity — **do not reuse this no-op pattern for write endpoints**.
+- Threat model: compromised addon container, SSRF, future addon_proxy bugs. Reads have blast radius limited by mime allowlist + size cap; writes can corrupt integrity across any drive.
+- Current pattern (personal tool premise): `CORE_INTERNAL_SECRET` unset → startup WARNING log. Full enforcement (startup error) would break dev parity and is deferred.
+- If the threat model changes (production deployment, external network exposure, third-party addon providers), escalate to mandatory enforcement or a dedicated write secret.
+
+## Why full addon-core separation (Phase 2) is deferred
+
+The current Phase 1 stance: document R1-R5, enforce via PR review, reflect changes in the API reference in the same PR. Full separation (API stability contract, semver, breaking-change freeze) is not implemented yet because:
+
+- **YAGNI**: Concrete use cases (e.g. `current_drive_only` filter) only revealed the right API shape after actual implementation. Pre-emptive generalization would have produced the wrong shape.
+- **Patterns still evolving**: The `file_active_summary` migration is a recent example of the boundary moving. Freezing the API surface before patterns stabilize creates compatibility debt.
+- **Single developer**: Core changes carry low coordination cost today.
+
+**Phase 2 triggers** (implement when any of these appear):
+- An external addon developer joins.
+- Six months pass without any new Internal API additions (pattern stability signal).
+- OSS public release preparation begins.
+
+**During Phase 1**: any core change required by addon development must pass R1-R5 and be documented in the API reference in the same PR.
 
 ## References
 
 - **Internal API reference**: [`docs/ADDON-DEVELOPMENT.md` Internal API section](../../docs/ADDON-DEVELOPMENT.md#internal-api) — wire shape, auth, and use case for every endpoint.
-- Contract-test pattern (required when adding a new endpoint): hako `VHE7K0KWjIzV3M1CyfDAN` (two layers: wire shape + validator parity).
-- Secret gating for write endpoints: hako `6sC7Td2hvp_0IpEF1t4tb` (stricter threat model than reads).
-- Origin of these criteria: hako `749bxgygHt3YyvvFlFeQA`.
-- `file_active_summary` migration decision: hako `G_9Og26IADKqz74fnIicu`.
-- Why we are not pursuing full separation (Phase 2) right now: hako `UIST7-3m8VovTAZ0ioarn`.
