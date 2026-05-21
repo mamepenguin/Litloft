@@ -61,11 +61,17 @@ cd Litloft
 
 ### 2. 設定
 
+**macOS / Linux:**
 ```bash
 python3 configure.py
 ```
 
-`configure.py` は Docker 起動前に必要なコンテナの結線を生成します。以下を尋ねます：
+**Windows:**
+```bash
+py -3 configure.py
+```
+
+`configure.py` は Docker 起動前に必要なコンテナの結線を生成し、最後にコンテナの起動を提案します（デフォルトは yes）。以下を尋ねます：
 
 | ステップ | 設定内容 |
 |------|--------------------|
@@ -83,6 +89,8 @@ python3 configure.py
 > **初回起動前に `drives.json` が存在している必要があります** — `docker-compose.yml` は常にこれをバインドマウントします。`configure.py` を実行すれば（推奨）自動で作成されます。手動でセットアップしたい場合は、ステップ 3 の下の注記を参照してください。
 
 ### 3. 起動
+
+`configure.py` は最後にコンテナを自動起動します。プロンプトをスキップした場合や後から再起動する場合:
 
 ```bash
 docker compose up -d --build
