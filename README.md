@@ -6,7 +6,7 @@ A self-hosted file and media app for your home LAN. Browse, stream, and search y
 
 > **Note:** Developed for personal use. Issues and PRs are welcome, but support is best-effort.
 
-**[Landing page](https://mamepenguin.github.io/Litloft/)** · **[Documentation](docs/README.md)**
+**[Landing page](https://mamepenguin.github.io/Litloft/)** · **[Documentation](docs/README.md)** · **[日本語 README](docs/README_ja.md)**
 
 <p align="center">
   <img src="docs/images/user-guide/drive-home-overview.png" width="92%" alt="Litloft drive home overview" />
