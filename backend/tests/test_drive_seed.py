@@ -173,6 +173,35 @@ def test_seed_does_not_touch_restart_pending(seed_env):
     assert not (data_dir / "restart_pending").exists()
 
 
+def test_seed_writes_auto_seeded_marker(seed_env):
+    """A successful seed records the auto-seeded marker.
+
+    The marker is the discriminator that lets a later boot's migration tell
+    "this non-empty drives.json was produced by our own seed" apart from
+    "a pre-GUI user hand-configured it" (see migration tests below).
+    """
+    _drives_json, _data, mount_root = seed_env
+    _mkmounts(mount_root, ["alpha"])
+    assert not config._auto_seeded_marker().exists()
+
+    drive_seed.seed_drives_from_mounts()
+
+    assert config._auto_seeded_marker().exists()
+
+
+def test_seed_with_no_mount_dirs_does_not_write_marker(seed_env):
+    """No directories -> nothing seeded -> no marker.
+
+    drives.json stays [] so the "non-empty" migration condition never fires;
+    writing the marker here would be meaningless (and misleading).
+    """
+    _drives_json, _data, _mount = seed_env
+    # mount_root is empty.
+    drive_seed.seed_drives_from_mounts()
+
+    assert not config._auto_seeded_marker().exists()
+
+
 # ── re-seed behaviour (allowed-spec) ───────────────────────────────────────
 
 
@@ -243,13 +272,16 @@ def test_ordering_new_user_empty_array_does_not_touch_sentinel(seed_env):
 
 
 def test_ordering_existing_user_non_empty_touches_sentinel(seed_env):
-    """pre-seed non-empty + sentinel absent -> sentinel touched (skip /setup)."""
+    """pre-seed non-empty + sentinel absent + NO auto-seed marker ->
+    sentinel touched (genuine pre-GUI upgrade user skips /setup)."""
     drives_json, _data, mount_root = seed_env
     drives_json.write_text(
         json.dumps([{"name": "legacy", "path": f"{mount_root}/legacy"}])
     )
     sentinel = config._setup_completed_sentinel()
     assert not sentinel.exists()
+    # Genuine upgrade user predates the seed regime: no marker on disk.
+    assert not config._auto_seeded_marker().exists()
 
     _run_lifespan_seed_sequence()
 
@@ -257,6 +289,33 @@ def test_ordering_existing_user_non_empty_touches_sentinel(seed_env):
     # Non-empty -> seed must be a no-op (entry preserved, not overwritten).
     written = json.loads(drives_json.read_text())
     assert written == [{"name": "legacy", "path": f"{mount_root}/legacy"}]
+
+
+def test_ordering_new_user_restart_after_seed_does_not_touch_sentinel(seed_env):
+    """Regression: new user restarts backend BEFORE completing /setup.
+
+    Boot 1 seeds drives.json (now non-empty) and records the marker. On boot
+    2 the pre-seed count is >= 1, but because the marker shows the file is our
+    own seed product (not a pre-GUI hand-config), the migration must NOT touch
+    the sentinel -> the user still reaches /setup. This is the exact bug the
+    auto-seed marker fixes.
+    """
+    drives_json, _data, mount_root = seed_env
+    _mkmounts(mount_root, ["fresh"])
+    sentinel = config._setup_completed_sentinel()
+
+    # Boot 1: empty -> seed populates drives.json + marker, sentinel absent.
+    drives_json.write_text("[]\n")
+    _run_lifespan_seed_sequence()
+    assert config._auto_seeded_marker().exists()
+    assert not sentinel.exists()
+    assert [d["name"] for d in json.loads(drives_json.read_text())] == ["fresh"]
+
+    # Boot 2: drives.json now non-empty, marker present, sentinel still absent.
+    _run_lifespan_seed_sequence()
+
+    assert not sentinel.exists()  # /setup still reachable
+    assert [d["name"] for d in json.loads(drives_json.read_text())] == ["fresh"]
 
 
 def test_ordering_footgun_count_none_touches_nothing(seed_env):

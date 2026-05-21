@@ -43,6 +43,19 @@ def _setup_completed_sentinel() -> Path:
     """Path to the setup-completed sentinel (re-evaluated each call)."""
     return DATA_DIR / "setup_completed"
 
+
+def _auto_seeded_marker() -> Path:
+    """Path to the auto-seed marker (re-evaluated each call).
+
+    Touched by ``drive_seed.seed_drives_from_mounts`` once it populates
+    drives.json. Its presence means "this install's non-empty drives.json
+    was produced by our own startup seed, not by a pre-GUI configure.py", so
+    the setup-sentinel migration must not mistake the seeded file for a
+    legacy user's hand-config. Never removed (a permanent fact about the
+    install). Same thin-flag convention as setup_completed / restart_pending.
+    """
+    return DATA_DIR / "auto_seeded"
+
 _drives_cache: list[dict] | None = None
 
 
