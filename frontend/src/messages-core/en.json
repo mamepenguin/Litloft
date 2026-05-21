@@ -837,8 +837,8 @@
     },
     "language": {
       "title": "Choose language",
-      "japanese": "日本語",
-      "english": "English"
+      "english": "English",
+      "japanese": "日本語"
     },
     "welcome": {
       "greeting": "Welcome to Litloft",

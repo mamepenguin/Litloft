@@ -77,7 +77,7 @@ The profile page (`/app/settings`) lets a viewer set:
 
 - Their nickname (writes the `lit_viewer` cookie and rebuilds the viewer ID).
 - Theme preference (light, dark, system).
-- Language (Japanese, English).
+- Language preference.
 - Per-device toggles like *autoplay* (stored in localStorage rather than the DB).
 
 There is no account password and no email. The profile is purely local-meets-cookie.

@@ -20,6 +20,13 @@ afterEach(() => {
 });
 
 describe("LanguageStep", () => {
+  it("renders English before the secondary locale", () => {
+    render(<LanguageStep value="en" onChange={vi.fn()} onNext={vi.fn()} />);
+    const options = screen.getAllByRole("button").slice(0, 2);
+    expect(options[0]).toHaveTextContent(/english/i);
+    expect(options[1]).toHaveTextContent(/日本語|ja/i);
+  });
+
   it("calls onChange with 'ja' when ja option is clicked", () => {
     const onChange = vi.fn();
     render(<LanguageStep value="en" onChange={onChange} onNext={vi.fn()} />);

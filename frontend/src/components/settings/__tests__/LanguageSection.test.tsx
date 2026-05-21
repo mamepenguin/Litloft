@@ -29,6 +29,13 @@ describe("LanguageSection", () => {
     expect(screen.getByRole("button", { name: "English" })).toBeInTheDocument();
   });
 
+  it("lists English before the secondary locale", () => {
+    render(<LanguageSection />);
+    const options = screen.getAllByRole("button");
+    expect(options[0]).toHaveTextContent("English");
+    expect(options[1]).toHaveTextContent("日本語");
+  });
+
   it("writes NEXT_LOCALE cookie and refreshes router when switching locale", () => {
     render(<LanguageSection />);
     fireEvent.click(screen.getByRole("button", { name: "日本語" }));

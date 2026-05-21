@@ -39,7 +39,7 @@
 |---|---|---|
 | AG-01 | `admin-guide/admin-dashboard.md` 冒頭の「ダッシュボードの構成」セクション | `/admin` 画面の俯瞰ショット。ドライブごとのカード、システムメトリクス、アドオンウィジェット、再起動保留バナーがすべて見える状態。番号付き吹き出しで領域を注釈。 |
 | AG-02 | `admin-guide/settings-gui.md` の「設定ページの構成」セクション | `/admin/settings` 画面。Drives / Passwords / AddonPolicy の 3 セクションがすべて折りたたまれずに表示されている状態（縦長のフルページショット）。 |
-| AG-03 | `admin-guide/docker-compose.md` の「override.yml の例」セクション | `docker-compose.override.yml` のサンプル断面のコード画像。ドライブマウント行と intelligence サービス定義行に色付きハイライト＋日本語コメントの吹き出しを重ねたもの。 |
+| AG-03 | `admin-guide/docker-compose.md` の「override.yml の例」セクション | `docker-compose.override.yml` のサンプル断面のコード画像。ドライブマウント行と intelligence サービス定義行に色付きハイライト＋コメントの吹き出しを重ねたもの。 |
 | AG-04 | `admin-guide/backup-restore.md` の「バックアップ対象」セクション | バックアップ対象の図解。`data/`、`drives.json` / `passwords.json`、`.env`、アドオン設定、ドライブ実体ディレクトリの 5 ブロックを矢印付き構成図で示す。 |
 
 ## Addons

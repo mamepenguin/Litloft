@@ -122,9 +122,9 @@ body {
   transition: background-color 0.2s ease, color 0.2s ease;
 }
 
-/* ===== Japanese Typography (jp-ui-contracts: base + saas profile) ===== */
+/* ===== ja Typography (jp-ui-contracts: base + saas profile) ===== */
 
-/* Core Japanese line-breaking rules */
+/* Core ja line-breaking rules */
 html:lang(ja) {
   line-break: strict;
   word-break: normal;
@@ -155,7 +155,7 @@ dd {
   font-kerning: auto;
 }
 
-/* Japanese heading line-height scale */
+/* ja heading line-height scale */
 :lang(ja) h1 { line-height: 1.35; }
 :lang(ja) h2 { line-height: 1.4; }
 :lang(ja) h3 { line-height: 1.45; }

@@ -10,7 +10,7 @@ The setup wizard is shown when the file `data/setup_completed` does **not** exis
 
 ## Step 1 — Language
 
-Choose `日本語` or `English`. The choice is stored client-side (cookie + localStorage) and influences both the wizard and the running app. Locale is later changeable from the in-app settings.
+Choose the UI language. English is selected by default, and the choice is stored client-side (cookie + localStorage) for both the wizard and the running app. Locale is later changeable from the in-app settings.
 
 ## Step 2 — Welcome
 
@@ -22,7 +22,7 @@ The wizard lists the drives the backend detected — one per directory you mount
 
 | Field | Required | Notes |
 |---|---|---|
-| `name` | yes | Display name and URL slug. Defaults to the mount slug; rename it to something readable. Avoid path separators (`/`, `\`). Unicode is fine (e.g. `動画`, `Photos`). |
+| `name` | yes | Display name and URL slug. Defaults to the mount slug; rename it to something readable. Avoid path separators (`/`, `\`). Unicode is fine (e.g. `Movies`, `Photos`). |
 | `access_group` | no | If set, the drive is protected and only viewers who unlock this group via password can see it. Set up groups in steps 4–5. |
 
 The container path is fixed by the mount and is not editable here. To add or remove a drive, add or remove a mount line in `docker-compose.override.yml` and run `docker compose up -d --build` again.

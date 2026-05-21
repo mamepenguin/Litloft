@@ -43,7 +43,7 @@ A self-hosted file and media app for your home LAN. Browse, stream, and search y
 - **Password protection** — Per-drive access groups; master password for admin access
 - **Admin UI** — First-run wizard (`/setup`), settings GUI (`/admin/settings`), dashboard
 - **Addon system** — In-process and standalone service addons; drive-scoped or global
-- **i18n** — Japanese / English (cookie-based, no URL prefix)
+- **Language preference** — Cookie-based, no URL prefix
 - **Dark / light theme**, **PWA** (add to home screen)
 
 ---

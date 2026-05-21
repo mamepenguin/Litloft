@@ -22,7 +22,7 @@ The in-app settings page is at `/app/settings` (linked from the user menu). It e
 
 - **Nickname** — sets the `lit_viewer` cookie. Empty value clears the cookie and reverts to local-only mode.
 - **Theme** — radio of `light` / `dark` / `system`. The choice is applied immediately via a `data-theme` attribute on `<html>`.
-- **Language** — radio of `日本語` / `English`. The cookie is updated and the page reloads to refresh translations.
+- **Language** — choose the UI language. The cookie is updated and the page reloads to refresh translations.
 - **Clear watch history** — drops all `WatchHistory` rows for this viewer ID.
 
 ## Per-player preferences

@@ -1,10 +1,8 @@
 "use client";
 
 // LanguageStep: language-agnostic intro screen. Renders the brand mark
-// and a tiny bilingual subtitle ("Setup") only — no localized
-// copy here, because the user has not yet chosen a language. Two large
-// language buttons drive the locale selection and a small arrow advances
-// to the Welcome step.
+// and a tiny neutral subtitle only. Two large language buttons drive the
+// locale selection and a small arrow advances to the Welcome step.
 
 import { useTranslations } from "next-intl";
 
@@ -34,18 +32,6 @@ export function LanguageStep({
         <div className="grid grid-cols-2 gap-3">
           <button
             type="button"
-            onClick={() => onChange("ja")}
-            aria-pressed={value === "ja"}
-            className={`rounded-2xl border px-6 py-5 text-base font-medium transition-colors ${
-              value === "ja"
-                ? "border-accent bg-accent/10 text-text-primary"
-                : "border-bg-border bg-bg-card text-text-primary hover:bg-bg-elevated"
-            }`}
-          >
-            {tLang("japanese")}
-          </button>
-          <button
-            type="button"
             onClick={() => onChange("en")}
             aria-pressed={value === "en"}
             className={`rounded-2xl border px-6 py-5 text-base font-medium transition-colors ${
@@ -55,6 +41,18 @@ export function LanguageStep({
             }`}
           >
             {tLang("english")}
+          </button>
+          <button
+            type="button"
+            onClick={() => onChange("ja")}
+            aria-pressed={value === "ja"}
+            className={`rounded-2xl border px-6 py-5 text-base font-medium transition-colors ${
+              value === "ja"
+                ? "border-accent bg-accent/10 text-text-primary"
+                : "border-bg-border bg-bg-card text-text-primary hover:bg-bg-elevated"
+            }`}
+          >
+            {tLang("japanese")}
           </button>
         </div>
 

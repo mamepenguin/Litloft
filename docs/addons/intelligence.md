@@ -180,7 +180,7 @@ The generated keywords are **tier-3 data** (LLM-generated, not human-verified). 
 
 Practical notes:
 
-- Search queries shorter than 3 characters (e.g. 2-char Japanese morphemes) do not match due to the trigram FTS minimum. Semantic search and body text fill in for these.
+- Search queries shorter than 3 characters do not match due to the trigram FTS minimum. Semantic search and body text fill in for these.
 - The LLM prompt instructs it to generate words *not already in the document*, but small models occasionally echo the filename or body text. A corpus-frequency rarity filter drops statistically common tokens before storage.
 - Document files (PDF, text) benefit less than transcript files because the semantic embedding already handles most vocabulary variation; the main value is for audio and video.
 
@@ -383,14 +383,14 @@ Text-embedding alternatives (re-index required on change):
 
 - `ibm-granite/granite-embedding-97m-multilingual-r2` — 384d, ~190 MB. Multilingual default (Apache 2.0, prefix-free).
 - `ibm-granite/granite-embedding-311m-multilingual-r2` — 768d, ~620 MB. Higher-quality multilingual.
-- `cl-nagoya/ruri-v3-30m` — 256d, ~150 MB. Lightweight Japanese.
-- `cl-nagoya/ruri-v3-130m` — 768d, ~520 MB. Recommended for Japanese accuracy.
-- `cl-nagoya/ruri-v3-310m` — 1024d, ~1.2 GB. Max Japanese accuracy.
+- `cl-nagoya/ruri-v3-30m` — 256d, ~150 MB. Lightweight ruri model.
+- `cl-nagoya/ruri-v3-130m` — 768d, ~520 MB. Higher-quality ruri model.
+- `cl-nagoya/ruri-v3-310m` — 1024d, ~1.2 GB. Largest ruri option.
 
 CLIP alternatives:
 
-- `llm-jp/waon-siglip2-base-patch16-256` — 768d, JP+multilingual SigLIP2 (default).
-- `llm-jp/llm-jp-clip-vit-base-patch16` — 512d, Japanese.
+- `llm-jp/waon-siglip2-base-patch16-256` — 768d, multilingual SigLIP2 (default).
+- `llm-jp/llm-jp-clip-vit-base-patch16` — 512d, llm-jp CLIP.
 - `openai/clip-vit-b-32` — 512d, English. With CLIP-family models raise `min_score_clip` to 0.20.
 
 ### Search

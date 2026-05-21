@@ -9,8 +9,8 @@ const COOKIE_MAX_AGE = 60 * 60 * 24 * 365; // 1 year
 // Native names so each option remains recognizable regardless of the
 // currently active UI language. Intentionally not localized.
 const LOCALE_LABELS: Record<Locale, string> = {
-  ja: "日本語",
   en: "English",
+  ja: "日本語",
 };
 
 function writeLocaleCookie(next: Locale): void {

@@ -55,9 +55,8 @@ export function SmartFolderSaveDialog({
 
   function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
-    // Skip Enter while IME composition is active (e.g. Japanese
-    // conversion), otherwise the conversion-confirming Enter would
-    // submit the form.
+    // Skip Enter while IME composition is active, otherwise the
+    // conversion-confirming Enter would submit the form.
     if (composing) return;
     if (!canSubmit) return;
     onSubmit(trimmed);

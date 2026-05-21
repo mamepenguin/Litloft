@@ -1048,7 +1048,7 @@ Generates English text descriptions of images/video frames. Used as context for 
 
 #### Text Embedding Model (GUI-managed)
 
-`models.text_embedding` is operator-selectable from `/admin/settings` → **Text Embedding**. The picker exposes a curated allowlist (the keys of `_MODEL_DIMS` in `app/workers/embedder.py`) grouped by language family: IBM Granite Embedding R2 multilingual (`ibm-granite/granite-embedding-97m-multilingual-r2`, `…-311m-…`) and ruri Japanese-specialised (`cl-nagoya/ruri-v3-30m`, `…-130m`, `…-310m`). Free-text model ids are rejected by the `PUT /admin/embedding` endpoint with HTTP 422 — silent fallback to a 384-dim default would break `vec_text` invisibly, so the API refuses unknown ids by design. Adding a model requires editing `_MODEL_DIMS` in code.
+`models.text_embedding` is operator-selectable from `/admin/settings` → **Text Embedding**. The picker exposes a curated allowlist (the keys of `_MODEL_DIMS` in `app/workers/embedder.py`) grouped by language family: IBM Granite Embedding R2 multilingual (`ibm-granite/granite-embedding-97m-multilingual-r2`, `…-311m-…`) and the ruri family (`cl-nagoya/ruri-v3-30m`, `…-130m`, `…-310m`). Free-text model ids are rejected by the `PUT /admin/embedding` endpoint with HTTP 422 — silent fallback to a 384-dim default would break `vec_text` invisibly, so the API refuses unknown ids by design. Adding a model requires editing `_MODEL_DIMS` in code.
 
 The selection is persisted to `embedding-overrides.json` in the addon's data volume and merged onto `models.text_embedding` at startup, parallel to the existing llm / rag / transcription / features overrides (the Phase 2D pattern). `search-config.yml` remains the read-only baseline and is not rewritten.
 

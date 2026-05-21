@@ -52,7 +52,7 @@ A Litloft installation has:
 - Settings GUI at `/admin/settings` for drives, passwords, and per-drive addon policy.
 - WebSocket live updates (`/api/ws`) for added/missing/recovered/purged files.
 - Installable as a PWA — "Add to Home Screen" / the browser's install action launches Litloft in a standalone window (custom icon, themed title bar, iOS safe-area handling). It is **not** offline-capable: there is no service worker, so the server must be reachable.
-- Dark / light / system theme, English and Japanese translations (cookie-driven, no URL prefix).
+- Dark / light / system theme, cookie-driven language preference with no URL prefix.
 
 ### Optional via addons
 - **intelligence** — semantic search, Ask (RAG), summaries, transcripts, vision descriptions.
