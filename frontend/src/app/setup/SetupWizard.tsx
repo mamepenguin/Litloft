@@ -228,12 +228,17 @@ function SetupWizardInner({
     });
 
     if (accessMode === "protected" && password.password) {
+      // Append the __admin__ sentinel so this password grants admin access
+      // even after JWT expiry (user re-unlocks with this password → admin restored).
+      const groupsWithAdmin = passwordValue.groups.includes("__admin__")
+        ? passwordValue.groups
+        : [...passwordValue.groups, "__admin__"];
       await fetch("/api/admin/config/passwords", {
         method: "PUT",
         credentials: "include",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify([
-          { password: password.password, groups: passwordValue.groups },
+          { password: password.password, groups: groupsWithAdmin },
         ]),
       });
     }
@@ -244,6 +249,17 @@ function SetupWizardInner({
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(addonPolicy),
     });
+
+    // Auto-unlock with the setup password so the wizard completer arrives
+    // at /admin as an admin without having to unlock manually.
+    if (accessMode === "protected" && password.password) {
+      await fetch("/api/auth/unlock", {
+        method: "POST",
+        credentials: "include",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ password: password.password, remember: false }),
+      });
+    }
   }, [accessMode, addonPolicy, drivesForSubmit, password, passwordValue.groups]);
 
   const stepperSteps = useMemo(

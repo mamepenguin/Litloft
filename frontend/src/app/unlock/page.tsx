@@ -1,7 +1,7 @@
 "use client";
 
 import { FormEvent, useState } from "react";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { Lock } from "lucide-react";
 import { useTranslations } from "next-intl";
 
@@ -9,11 +9,20 @@ import { unlock } from "@/lib/api";
 
 export default function UnlockPage() {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const t = useTranslations("unlock");
   const [password, setPassword] = useState("");
   const [remember, setRemember] = useState(false);
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
+
+  function resolveRedirect(): string {
+    const param = searchParams.get("redirect");
+    if (param && param.startsWith("/") && !param.startsWith("//")) {
+      return param;
+    }
+    return "/";
+  }
 
   async function handleSubmit(e: FormEvent) {
     e.preventDefault();
@@ -23,7 +32,7 @@ export default function UnlockPage() {
     try {
       const result = await unlock(password, remember);
       if (result.success) {
-        router.push("/");
+        router.push(resolveRedirect());
       } else {
         setError(result.error || t("invalidPassword"));
         setPassword("");

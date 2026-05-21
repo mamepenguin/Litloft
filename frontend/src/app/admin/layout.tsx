@@ -52,7 +52,7 @@ export default function AdminLayout({
         });
         if (cancelled) return;
         if (res.status === 403) {
-          setGate("forbidden");
+          router.replace("/unlock?redirect=/admin");
           return;
         }
         setGate("ok");

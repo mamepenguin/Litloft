@@ -899,9 +899,9 @@
       "protectedBenefit2": "Add or change later from /admin"
     },
     "password": {
-      "title": "Set master password",
-      "description": "The master password must cover every group to access settings as administrator.",
-      "adminExplanation": "Litloft treats 'a password covering all groups' as the administrator, so the password you create here must check every group. You can later add other passwords scoped to specific groups from /admin.",
+      "title": "Set admin password",
+      "description": "This password grants access to the Litloft settings dashboard and unlocks all drive groups.",
+      "adminExplanation": "The password you create here becomes your admin password. Unlocking with it lets you manage settings from /admin. You can later add other passwords scoped to specific groups from /admin.",
       "weakPassword": "Short password (6 characters or more recommended)",
       "fields": {
         "password": "Password",

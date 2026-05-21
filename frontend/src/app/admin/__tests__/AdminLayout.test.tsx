@@ -72,7 +72,7 @@ describe("AdminLayout", () => {
     expect(screen.getByTestId("child")).toBeInTheDocument();
   });
 
-  it("renders 403 when not an admin viewer (restart-status returns 403)", async () => {
+  it("redirects to /unlock when not an admin viewer (restart-status returns 403)", async () => {
     mockFetch.mockImplementation((url: string) => {
       if (url === "/api/admin/config/setup-status") {
         return Promise.resolve(jsonResponse({ completed: true }));
@@ -88,7 +88,7 @@ describe("AdminLayout", () => {
       </AdminLayout>,
     );
     await waitFor(() => {
-      expect(screen.getByText(/403|権限がありません|forbidden/i)).toBeInTheDocument();
+      expect(replaceMock).toHaveBeenCalledWith("/unlock?redirect=/admin");
     });
     expect(screen.queryByTestId("child")).toBeNull();
   });

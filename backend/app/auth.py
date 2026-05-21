@@ -182,8 +182,15 @@ def check_drive_access(drive_name: str, unlocked_groups: list[str]) -> None:
         raise HTTPException(status_code=404, detail=f"Drive not found: {drive_name}")
 
 
+# Passwords carrying this group grant admin access directly, without
+# requiring every drive group to be unlocked. Set automatically during
+# first-run setup so the admin password is a stable, user-visible concept.
+ADMIN_SENTINEL_GROUP = "__admin__"
+
+
 def is_admin(unlocked_groups: list[str]) -> bool:
-    """A caller is "admin" iff they can see every protected drive.
+    """A caller is "admin" iff they can see every protected drive,
+    or they hold the __admin__ sentinel group.
 
     Rationale: an admin surface (queue control, system-wide index
     counters, disk usage, etc.) leaks aggregate information across
@@ -195,6 +202,8 @@ def is_admin(unlocked_groups: list[str]) -> bool:
     everyone is admin — same graceful-degradation posture as the rest
     of the auth layer.
     """
+    if ADMIN_SENTINEL_GROUP in unlocked_groups:
+        return True
     try:
         drives = config.load_drives()
     except FileNotFoundError:

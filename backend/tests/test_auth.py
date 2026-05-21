@@ -401,6 +401,26 @@ class TestStatusEndpoint:
         finally:
             cleanup()
 
+    def test_status_admin_via_sentinel_group(self, tmp_path):
+        # A password carrying __admin__ grants admin even without unlocking
+        # every drive group (setup wizard flow: one password covers all
+        # drives + __admin__).
+        drive_dir = tmp_path / "drives" / "protected"
+        drive_dir.mkdir(parents=True)
+        passwords = [{"password": "admin-pass", "groups": ["private", "__admin__"]}]
+        drives = [
+            {"name": TEST_DRIVE, "path": str(drive_dir), "access_group": "private"},
+        ]
+        c, cleanup = _make_auth_client(tmp_path, passwords=passwords, drives=drives)
+        try:
+            c.post("/api/auth/unlock", json={"password": "admin-pass"})
+            res = c.get("/api/auth/status")
+            body = res.json()
+            assert "__admin__" in body["unlocked_groups"]
+            assert body["is_admin"] is True
+        finally:
+            cleanup()
+
 
 class TestDriveAccessControl:
     def test_protected_drive_hidden(self, tmp_path):
