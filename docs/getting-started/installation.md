@@ -32,7 +32,8 @@ A *drive* is a top-level content area in Litloft (e.g. *Movies*, *Photos*, *Know
 ## Run `configure.py`
 
 ```bash
-python3 configure.py
+python3 configure.py   # macOS / Linux
+py -3 configure.py     # Windows (Python Launcher)
 ```
 
 It asks, with sensible defaults:
@@ -54,6 +55,8 @@ You do not need to copy `docker-compose.override.yml.example` by hand — `confi
 If you enabled the intelligence addon and want to use the LLM-backed features, set `LLM_API_KEY` (and any provider keys) in `.env`, then re-run `python3 configure.py` so the wiring picks them up. AI features stay off by default until you enable them in the browser. See [environment variables](../reference/env-variables.md) for what each value does.
 
 ## Build and start
+
+`configure.py` offers to start the containers automatically at the end of the setup prompts (defaults to yes). If you skipped that prompt or need to restart later:
 
 ```bash
 docker compose up -d --build

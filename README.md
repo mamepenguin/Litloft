@@ -6,7 +6,7 @@ A self-hosted file and media app for your home LAN. Browse, stream, and search y
 
 > **Note:** Developed for personal use. Issues and PRs are welcome, but support is best-effort.
 
-**[Landing page](https://mamepenguin.github.io/Litloft/)** · **[Documentation](docs/README.md)**
+**[Landing page](https://mamepenguin.github.io/Litloft/)** · **[Documentation](docs/README.md)** · **[日本語 README](docs/README_ja.md)**
 
 <p align="center">
   <img src="docs/images/user-guide/drive-home-overview.png" width="92%" alt="Litloft drive home overview" />
@@ -61,11 +61,17 @@ cd Litloft
 
 ### 2. Configure
 
+**macOS / Linux:**
 ```bash
 python3 configure.py
 ```
 
-`configure.py` generates the container wiring needed before Docker starts. It asks:
+**Windows:**
+```bash
+py -3 configure.py
+```
+
+`configure.py` generates the container wiring needed before Docker starts, then offers to start the containers immediately (defaults to yes). It asks:
 
 | Step | What it configures |
 |------|--------------------|
@@ -83,6 +89,8 @@ Drive display names, access groups, passwords, and AI feature modes are configur
 > **`drives.json` must exist before the first start** — `docker-compose.yml` always bind-mounts it. Running `configure.py` (recommended) creates it automatically. If you prefer to set things up manually instead, see the note below step 3.
 
 ### 3. Start
+
+`configure.py` starts the containers automatically at the end. If you skipped the prompt or need to restart later:
 
 ```bash
 docker compose up -d --build

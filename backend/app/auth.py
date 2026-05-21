@@ -198,9 +198,11 @@ def is_admin(unlocked_groups: list[str]) -> bool:
     access_group keeps the drive-isolation principle from being
     side-stepped by a meta channel.
 
-    When no drive is protected (passwords.json absent or empty)
-    everyone is admin — same graceful-degradation posture as the rest
-    of the auth layer.
+    When no drive is protected and no __admin__ password is configured
+    (passwords.json absent/empty, or a legacy config) everyone is admin —
+    same graceful-degradation posture as the rest of the auth layer. But
+    once an __admin__ password exists, admin is earned by unlocking it
+    even if every drive stays publicly browsable.
     """
     if ADMIN_SENTINEL_GROUP in unlocked_groups:
         return True
@@ -218,7 +220,21 @@ def is_admin(unlocked_groups: list[str]) -> bool:
         if d.get("access_group")
     }
     if not required:
-        return True
+        # No group-protected drive exists. Two sub-cases:
+        # - An __admin__ password is configured ("protected mode + all
+        #   drives public"): admin is earned by unlocking it. Reaching here
+        #   means the caller lacks __admin__ (the sentinel check above
+        #   already returned), so they are NOT admin even though every
+        #   drive is publicly browsable.
+        # - Otherwise (passwords.json absent/empty, or a legacy config
+        #   whose groups match no current drive): graceful degradation —
+        #   everyone is admin. Gating here would lock such installs out of
+        #   /admin entirely.
+        admin_configured = any(
+            ADMIN_SENTINEL_GROUP in entry.get("groups", [])
+            for entry in load_passwords()
+        )
+        return not admin_configured
     return required.issubset(set(unlocked_groups))
 
 

@@ -1,7 +1,7 @@
 ---
 version: alpha
 name: Litloft
-description: Pinterest-inspired warm design system for Litloft media browser. Next.js 16 + Tailwind CSS v4, Japanese-first typography.
+description: Warm, photography-forward design system for Litloft media browser. Next.js 16 + Tailwind CSS v4, Japanese-first typography.
 colors:
   primary: "#211922"
   secondary: "#62625b"
@@ -133,7 +133,7 @@ components:
 
 # Litloft Design System
 
-> Pinterest-inspired design system for Litloft.
+> Warm, photography-forward design system for Litloft.
 > Stack: Next.js 16, Tailwind CSS v4.
 > Japanese typography: jp-ui-contracts base + saas profile.
 
@@ -156,7 +156,7 @@ components:
 
 A **warm white canvas** with **coral red** as the single brand accent — flat, minimal, and photography-forward.
 
-Pinterest's design philosophy (warm neutrals, generous border-radius, depth without shadows) is translated into Litloft's file-browser UI.
+A warm-neutral, masonry-grid design philosophy (generous border-radius, depth without shadows) is translated into Litloft's file-browser UI.
 
 **Light mode**: white canvas + plum black text + coral red accent
 **Dark mode**: warm plum dark (`#1a0e10`) + bright coral (`#e85d5e`)
@@ -377,7 +377,7 @@ p, li, dd {
 | Level | Treatment | Usage |
 |---|---|---|
 | 0 (Flat) | No shadow | Buttons, inline chrome, dense list rows |
-| 1 (Card resting) | `shadow-card` token only | Media cards (FileCard / FolderCard / Pinterest-style grid items), MiniPlayer, mid-page floating affordances |
+| 1 (Card resting) | `shadow-card` token only | Media cards (FileCard / FolderCard / masonry-style grid items), MiniPlayer, mid-page floating affordances |
 | 2 (Elevated surface) | `bg-bg-elevated` surface shift | Toolbars, sub-panels, banners |
 | 3 (Overlay) | `shadow-lg` + `bg-bg-card` | Modals, dropdowns, context menus, command bars |
 
@@ -409,7 +409,7 @@ Use it via the Tailwind utility `shadow-card`. Do not handroll arbitrary shadow 
 | `rounded-lg` | 8px | Small elements inside icon containers only |
 
 - Do not expose less than 12px border-radius on outer surfaces.
-- Do not use `scale()` transforms on hover — maintain Pinterest's static weight.
+- Do not use `scale()` transforms on hover — maintain the cards' static, settled weight.
 
 **Exception — Mobile media frames**: Video / Loft (YouTube) playback frames render edge-to-edge with **0px radius on mobile** (`<md`) to maximize the viewable frame and match platform expectations (YouTube / Netflix / standard mobile players). Desktop (`md+`) keeps `rounded-xl`. Use `md:rounded-xl` on the player wrapper and `-mx-4 md:mx-0` on the parent slot to escape the page's horizontal padding. This exception applies only to the primary playback surface, not to thumbnails, mini-player placeholders, or cards listing media.
 

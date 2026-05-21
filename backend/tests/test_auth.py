@@ -421,6 +421,59 @@ class TestStatusEndpoint:
         finally:
             cleanup()
 
+    def test_admin_password_only_no_drive_groups_holder_is_admin(self, tmp_path):
+        # "Protected mode + all drives public": the master password carries
+        # only __admin__ (no drive has an access_group). The holder unlocks
+        # __admin__ → admin.
+        drive_dir = tmp_path / "drives" / "open"
+        drive_dir.mkdir(parents=True)
+        passwords = [{"password": "admin-pass", "groups": ["__admin__"]}]
+        drives = [{"name": TEST_DRIVE, "path": str(drive_dir), "access_group": ""}]
+        c, cleanup = _make_auth_client(tmp_path, passwords=passwords, drives=drives)
+        try:
+            c.post("/api/auth/unlock", json={"password": "admin-pass"})
+            body = c.get("/api/auth/status").json()
+            assert "__admin__" in body["unlocked_groups"]
+            assert body["is_admin"] is True
+        finally:
+            cleanup()
+
+    def test_admin_password_only_no_drive_groups_visitor_not_admin(self, tmp_path):
+        # Same config, but a visitor who never entered the password must NOT
+        # be admin. This is the gap __admin__ introduced: with no group-
+        # protected drive, the old `if not required: return True` leaked
+        # admin to everyone. An __admin__ password makes admin earned.
+        drive_dir = tmp_path / "drives" / "open"
+        drive_dir.mkdir(parents=True)
+        passwords = [{"password": "admin-pass", "groups": ["__admin__"]}]
+        drives = [{"name": TEST_DRIVE, "path": str(drive_dir), "access_group": ""}]
+        c, cleanup = _make_auth_client(tmp_path, passwords=passwords, drives=drives)
+        try:
+            body = c.get("/api/auth/status").json()
+            assert body["unlocked_groups"] == []
+            # The drive itself stays public (no access_group), but /admin is
+            # protected by the admin password.
+            assert body["is_admin"] is False
+        finally:
+            cleanup()
+
+    def test_legacy_passwords_without_admin_sentinel_no_lockout(self, tmp_path):
+        # Backward-compat: a passwords.json that predates __admin__ and whose
+        # groups match no current drive must NOT lock everyone out of /admin.
+        # Without an __admin__ password configured, fall back to graceful
+        # degradation (everyone is admin).
+        drive_dir = tmp_path / "drives" / "open"
+        drive_dir.mkdir(parents=True)
+        passwords = [{"password": "legacy-pass", "groups": ["orphan-group"]}]
+        drives = [{"name": TEST_DRIVE, "path": str(drive_dir), "access_group": ""}]
+        c, cleanup = _make_auth_client(tmp_path, passwords=passwords, drives=drives)
+        try:
+            body = c.get("/api/auth/status").json()
+            assert body["unlocked_groups"] == []
+            assert body["is_admin"] is True
+        finally:
+            cleanup()
+
 
 class TestDriveAccessControl:
     def test_protected_drive_hidden(self, tmp_path):

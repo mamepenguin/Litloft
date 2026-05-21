@@ -34,9 +34,13 @@ export function PasswordStep({
   const t = useTranslations("setup");
   const tPw = useTranslations("setup.password");
 
-  const allCovered =
-    groups.length > 0 &&
-    groups.every((g) => value.groups.includes(g));
+  // Empty `groups` means no drive carries an access_group, i.e. every drive
+  // is public. That is a valid "protected mode" config: the master password
+  // (always tagged __admin__ on submit) then guards only /admin while drives
+  // stay browsable. So coverage is vacuously satisfied when there are no
+  // groups — gating Next here would dead-end the wizard.
+  const hasGroups = groups.length > 0;
+  const allCovered = groups.every((g) => value.groups.includes(g));
   const isValid = value.password.trim().length > 0 && allCovered;
   const showWeakHint =
     value.password.length > 0 &&
@@ -84,6 +88,13 @@ export function PasswordStep({
         )}
       </label>
 
+      {!hasGroups && (
+        <div className="rounded-xl bg-bg-elevated p-4 text-sm text-text-muted">
+          {tPw("noGroupsExplanation")}
+        </div>
+      )}
+
+      {hasGroups && (
       <fieldset className="space-y-2">
         <legend className="mb-1 block text-sm font-medium text-text-primary">
           {tPw("fields.groups")}
@@ -119,6 +130,7 @@ export function PasswordStep({
           <p className="text-xs text-danger">{tPw("groupsRequired")}</p>
         )}
       </fieldset>
+      )}
 
       <div className="flex justify-between">
         <button
