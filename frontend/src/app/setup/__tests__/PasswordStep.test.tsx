@@ -81,4 +81,22 @@ describe("PasswordStep", () => {
     const next = screen.getByRole("button", { name: /次へ|next/i });
     expect(next).toBeDisabled();
   });
+
+  it("with no groups: Next is enabled (admin-only password) and the groups picker is hidden", () => {
+    render(
+      <PasswordStep
+        groups={[]}
+        value={{ password: "master123", groups: [] }}
+        onChange={vi.fn()}
+        onNext={vi.fn()}
+        onBack={vi.fn()}
+      />,
+    );
+    // No drive carries a group → the password protects only /admin and the
+    // wizard must not dead-end.
+    const next = screen.getByRole("button", { name: /次へ|next/i });
+    expect(next).not.toBeDisabled();
+    // The group checkbox picker is not rendered when there are no groups.
+    expect(screen.queryByRole("checkbox")).toBeNull();
+  });
 });

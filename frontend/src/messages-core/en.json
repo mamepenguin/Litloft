@@ -907,7 +907,8 @@
         "password": "Password",
         "groups": "Groups"
       },
-      "groupsRequired": "All groups must be checked"
+      "groupsRequired": "All groups must be checked",
+      "noGroupsExplanation": "No drive has an access group, so this password protects only the settings dashboard (/admin). Every drive stays browsable by anyone. To protect a specific drive, go Back and set an access group for it."
     },
     "addonPolicy": {
       "title": "Addon policy",
