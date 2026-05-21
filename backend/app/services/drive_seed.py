@@ -86,6 +86,16 @@ def seed_drives_from_mounts() -> list[dict]:
     atomic_write_json(
         config.DRIVES_CONFIG, entries, touch_restart_pending=False
     )
+    # Record that this install's non-empty drives.json is our own seed
+    # product. A later boot (before /setup completes) will read pre_seed_count
+    # >= 1 and must NOT mistake it for a pre-GUI hand-config — the migration
+    # checks this marker (spec §3.1).
+    try:
+        marker = config._auto_seeded_marker()
+        config.DATA_DIR.mkdir(parents=True, exist_ok=True)
+        marker.touch()
+    except OSError:
+        logger.exception("Failed to write auto-seed marker")
     # Invalidate the persistent cache so the next load_drives() sees the
     # freshly seeded file (spec §3.1 H4 — must happen before scan_all_drives).
     config._drives_cache = None
@@ -143,6 +153,16 @@ def _migrate_setup_sentinel(pre_seed_count: int) -> None:
     sentinel, so the seed can populate drives.json and /setup still runs.
     """
     if pre_seed_count < 1:
+        return
+    # A non-empty drives.json produced by our own startup seed is NOT a
+    # legacy hand-config: if the marker is present, leave the sentinel absent
+    # so a new user who restarts before completing /setup still reaches the
+    # wizard (spec §3.1). Genuine pre-GUI users predate the seed regime and
+    # have no marker, so they keep skipping /setup as before.
+    if config._auto_seeded_marker().exists():
+        logger.info(
+            "Skipping setup-sentinel migration: drives.json is auto-seeded"
+        )
         return
     try:
         sentinel = config._setup_completed_sentinel()
