@@ -236,6 +236,7 @@ class ExistingConfig:
             except Exception:
                 pass
 
+        self.has_llm_api_key = False
         if env_f.exists():
             for line in env_f.read_text().splitlines():
                 if line.startswith('LITLOFT_PORT='):
@@ -244,6 +245,8 @@ class ExistingConfig:
                     self.knowledge_webhook_secret = line.split('=', 1)[1].strip()
                 elif line.startswith('CORE_INTERNAL_SECRET='):
                     self.core_internal_secret = line.split('=', 1)[1].strip()
+                elif line.startswith('LLM_API_KEY=') and line.split('=', 1)[1].strip():
+                    self.has_llm_api_key = True
 
 # ── Main ──────────────────────────────────────────────────────────────────────
 
@@ -300,11 +303,25 @@ def main():
     # ── Step 3: Intelligence Addon ────────────────────────────────────────────
 
     has_intelligence = False
+    llm_api_key      = ''
     if (base / 'addons/intelligence').exists():
         heading("Step 3: Intelligence Addon (Semantic Search + AI)")
         print("  Enables the intelligence service. AI features themselves are")
         print("  configured later in the browser (all off by default).")
         has_intelligence = ask_yn("Enable intelligence addon?", 'y' if ex.has_intelligence else 'n')
+        if has_intelligence:
+            print()
+            if ex.has_llm_api_key:
+                print("  LLM_API_KEY is already set in .env.")
+                if not ask_yn("  Update it?", 'n'):
+                    llm_api_key = ''   # keep existing — no overwrite
+                else:
+                    llm_api_key = ask("  LLM_API_KEY", '')
+            else:
+                print("  LLM API key enables cloud LLM providers (OpenAI-compatible).")
+                print("  Leave blank if you plan to use a local model (e.g. Ollama),")
+                print("  or to configure it later by editing .env.")
+                llm_api_key = ask("  LLM_API_KEY (optional, Enter to skip)", '')
 
     # ── Step 4: Knowledge Addon ───────────────────────────────────────────────
 
@@ -335,7 +352,10 @@ def main():
     if port != '3000':        print(f"    .env  (LITLOFT_PORT={port})")
     if has_intelligence:      print("    addons/intelligence/search-config.yml")
     if has_intelligence or has_knowledge: print("    event-hooks.json")
-    if has_knowledge: print("    .env  (secrets)")
+    if has_knowledge:         print("    .env  (secrets)")
+    if llm_api_key:           print("    .env  (LLM_API_KEY)")
+    elif has_intelligence and not ex.has_llm_api_key:
+        print("    .env  (LLM_API_KEY: not set — AI features will be unavailable)")
     print()
     print("  Drive mounts:")
     for d in drives:
@@ -484,21 +504,56 @@ def main():
     if has_knowledge:
         if knowledge_webhook_secret: write_env_key('KNOWLEDGE_WEBHOOK_SECRET', knowledge_webhook_secret, env_file); wrote_env = True
         if core_internal_secret:     write_env_key('CORE_INTERNAL_SECRET', core_internal_secret, env_file);        wrote_env = True
+    if llm_api_key:
+        write_env_key('LLM_API_KEY', llm_api_key, env_file)
+        wrote_env = True
     if wrote_env:
         ok(".env")
 
     # ── Done ──────────────────────────────────────────────────────────────────
 
-    print(f"\n{BOLD}{GREEN}Done.{RESET}")
-    print("\n  Next steps:")
-    print("    1. docker compose up -d --build")
-    print("    2. Open Litloft in your browser — the /setup wizard runs on")
-    print("       first launch to name drives and set passwords / AI features.")
-    if has_intelligence:
+    print(f"\n{BOLD}{GREEN}All files generated.{RESET}")
+
+    url = f"http://localhost:{port}"
+
+    if not shutil.which('docker'):
+        print("\n  docker command not found. Start manually:")
+        print("    docker compose up -d --build")
+        print(f"  Then open: {BOLD}{url}{RESET}")
+        if has_intelligence and not llm_api_key and not ex.has_llm_api_key:
+            print()
+            info("AI features require LLM_API_KEY in .env before starting.")
         print()
-        info("AI features are off by default. To use them, set LLM_API_KEY")
-        info("in .env (and any provider keys) then re-run step 1. Provider /")
-        info("model details are configured in the browser afterwards.")
+        return
+
+    print()
+    if has_intelligence and not llm_api_key and not ex.has_llm_api_key:
+        warn("LLM_API_KEY is not set. AI features will be unavailable.")
+        info("Add it to .env and restart to enable AI features.")
+        print()
+
+    if ask_yn("Start Litloft now?", 'y'):
+        heading("Starting Litloft")
+        result = subprocess.run(
+            ['docker', 'compose', 'up', '-d', '--build'],
+            cwd=str(base),
+        )
+        print()
+        if result.returncode == 0:
+            print(f"{BOLD}{GREEN}Litloft is running!{RESET}")
+            print(f"\n  {BOLD}{BLUE}→  {url}{RESET}")
+            print("\n  The /setup wizard will run on first launch.")
+            print("  Use it to name drives, set passwords, and enable AI features.")
+        else:
+            warn("docker compose up failed. Check the output above.")
+            print()
+            info("To retry:  docker compose up -d --build")
+            info(f"Then open: {url}")
+    else:
+        print()
+        info("When ready, run:  docker compose up -d --build")
+        info(f"Then open:        {url}")
+
     print()
 
 
