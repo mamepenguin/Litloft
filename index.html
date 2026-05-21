@@ -1486,6 +1486,34 @@
       .addon-grid { grid-template-columns: 1fr; }
       .mock-tags-row .mock-tag:nth-child(n+5) { display: none; }
     }
+
+    /* OS tab switcher */
+    .os-tabs {
+      display: flex;
+      gap: 0;
+      margin-bottom: 8px;
+      border-bottom: 1px solid rgba(255,255,255,0.12);
+    }
+    .os-tab {
+      padding: 5px 14px;
+      font-size: 12px;
+      font-weight: 500;
+      font-family: 'JetBrains Mono', monospace;
+      background: none;
+      border: none;
+      border-bottom: 2px solid transparent;
+      color: rgba(255,255,255,0.45);
+      cursor: pointer;
+      transition: color 0.15s, border-color 0.15s;
+      margin-bottom: -1px;
+    }
+    .os-tab.active {
+      color: #fff;
+      border-bottom-color: #E53935;
+    }
+    .os-tab:hover:not(.active) { color: rgba(255,255,255,0.75); }
+    .os-panel { display: none; }
+    .os-panel.active { display: block; }
   </style>
 </head>
 <body>
@@ -1869,7 +1897,16 @@
           <h3>Wire the containers</h3>
           <p><code class="inline-code">configure.py</code> is a short bootstrap script. It asks only what the containers need in order to start — which host directories to mount, the port, and which addons to run. Re-run it any time you change mounts or the port.</p>
           <div class="code-block" role="region" aria-label="Configure command">
-            <div><span class="c-cmd">python3 configure.py</span></div>
+            <div class="os-tabs" role="tablist" aria-label="Operating system">
+              <button class="os-tab active" role="tab" aria-selected="true" data-os="unix">macOS / Linux</button>
+              <button class="os-tab" role="tab" aria-selected="false" data-os="win">Windows</button>
+            </div>
+            <div class="os-panel active" data-os-panel="unix">
+              <div><span class="c-cmd">python3 configure.py</span></div>
+            </div>
+            <div class="os-panel" data-os-panel="win">
+              <div><span class="c-cmd">py -3 configure.py</span></div>
+            </div>
           </div>
           <div class="wizard-steps">
             <div class="wizard-step">
@@ -1894,7 +1931,7 @@
               </div>
             </div>
           </div>
-          <p class="step-note"><code class="inline-code">configure.py</code> writes <code class="inline-code">docker-compose.override.yml</code> and <code class="inline-code">.env</code>, and creates empty <code class="inline-code">drives.json</code> / <code class="inline-code">passwords.json</code> that the app fills in. It does not ask for drive names, passwords, or LLM settings — those are set in the browser on first launch.</p>
+          <p class="step-note"><code class="inline-code">configure.py</code> writes <code class="inline-code">docker-compose.override.yml</code> and <code class="inline-code">.env</code>, and creates empty <code class="inline-code">drives.json</code> / <code class="inline-code">passwords.json</code> that the app fills in. It does not ask for drive names, passwords, or LLM settings — those are set in the browser on first launch. At the end it offers to start the containers immediately (defaults to yes).</p>
         </div>
       </div>
 
@@ -1906,7 +1943,7 @@
         </div>
         <div class="step-body">
           <h3>Start Litloft</h3>
-          <p>Build and start the containers. On first run this builds the images, and — if you enabled Intelligence — downloads the transcription and embedding models. Expect a few minutes.</p>
+          <p><code class="inline-code">configure.py</code> starts the containers automatically at the end (the first build takes a few minutes). If you skipped that prompt or need to restart later:</p>
           <div class="code-block" role="region" aria-label="Docker start command">
             <div><span class="c-cmd">docker compose up</span> <span class="c-key">-d</span> <span class="c-key">--build</span></div>
             <div style="margin-top:6px"><span class="c-comment"># Open http://localhost:3000 when ready</span></div>
@@ -2047,6 +2084,21 @@
     { threshold: 0.1, rootMargin: '0px 0px -40px 0px' }
   );
   document.querySelectorAll('.reveal').forEach(el => observer.observe(el));
+
+  // OS tab switcher
+  document.querySelectorAll('.os-tab').forEach(tab => {
+    tab.addEventListener('click', () => {
+      const os = tab.dataset.os;
+      const block = tab.closest('.code-block');
+      block.querySelectorAll('.os-tab').forEach(t => {
+        t.classList.toggle('active', t.dataset.os === os);
+        t.setAttribute('aria-selected', t.dataset.os === os ? 'true' : 'false');
+      });
+      block.querySelectorAll('.os-panel').forEach(p => {
+        p.classList.toggle('active', p.dataset.osPanel === os);
+      });
+    });
+  });
 </script>
 
 </body>
