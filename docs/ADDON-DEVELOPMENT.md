@@ -1096,9 +1096,10 @@ For the full design and the broader rationale, see `docs/superpowers/specs/2026-
 | `file-detail-sections` | `visual-description` | AI-generated visual description for images and video (vision model) |
 | `file-detail-sections` | `transcript` | Whisper transcript with per-file refine / revert |
 | `file-detail-sections` | `clip-frames` | CLIP frame analysis |
+| `file-detail-sections` | `index-details` | Per-file indexing state with a *Regenerate* button per task (`metadata`, `clip`, `whisper`, `text`) and recent provider stats |
 | `file-detail-sections` | `similar-files` | Visually similar files |
 | `drive-home-sections` | `pickup` | Recommended files widget on the drive home page |
-| `dashboard-widgets` | `index-status` | Index statistics on admin dashboard |
+| `dashboard-widgets` | `index-status` | Index queue depth, model memory, and a failed-jobs summary that opens a per-file × per-task retry modal |
 | `folder-actions` | `folder-ai-actions` | Batch AI actions button (auto-tags, summaries, transcript refine) |
 | `admin-intelligence-sections` | `admin-features` | Feature toggle panel on the intelligence admin page |
 | `admin-intelligence-sections` | `admin-llm` | LLM provider configuration panel |
