@@ -228,7 +228,10 @@ export function FilePreview({
             initialTime={initialTime}
           />
         </MiniPlayerContainer>
-        <AddonSlot id="loft-metadata" props={{ fileId: file.id }} />
+        <AddonSlot
+          id="loft-metadata"
+          props={{ fileId: file.id, drive: file.drive }}
+        />
       </div>
     );
   }
