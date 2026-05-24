@@ -17,7 +17,7 @@ def _enable_fk(engine):
         cursor.execute("PRAGMA foreign_keys=ON")
         cursor.close()
 
-from app.database import Base, engine as app_engine, get_db
+from app.database import Base, get_db
 from app.main import app
 
 FIXTURES_DIR = Path(__file__).parent / "fixtures"
@@ -83,11 +83,21 @@ def client(tmp_path):
     ]))
 
     import app.config as config
+    import app.database as database
+    import app.main as main
+    import app.services.scanner as scanner
+
     orig_drives_config = config.DRIVES_CONFIG
     orig_data = config.DATA_DIR
     orig_thumbs = config.THUMBNAILS_DIR
     orig_converted = config.CONVERTED_DIR
     orig_cache = config._drives_cache
+    orig_engine = database.engine
+    orig_session_local = database.SessionLocal
+    orig_main_session_local = main.SessionLocal
+    orig_scanner_session_local = scanner.SessionLocal
+    orig_scan_all_drives = main.scan_all_drives
+    orig_purge_expired_trash = main.purge_expired_trash
 
     config.DRIVES_CONFIG = drives_json
     config.DATA_DIR = data_dir
@@ -95,18 +105,41 @@ def client(tmp_path):
     config.CONVERTED_DIR = data_dir / "converted"
     config._drives_cache = None  # Reset cache so new config is loaded
 
-    app_engine.dispose()
-    with TestClient(app) as c:
-        yield c, TestSession(), drive_dir, data_dir
+    orig_engine.dispose()
+    database.engine = engine
+    database.SessionLocal = TestSession
+    main.SessionLocal = TestSession
+    scanner.SessionLocal = TestSession
 
-    config.DRIVES_CONFIG = orig_drives_config
-    config.DATA_DIR = orig_data
-    config.THUMBNAILS_DIR = orig_thumbs
-    config.CONVERTED_DIR = orig_converted
-    config._drives_cache = orig_cache
-    app.dependency_overrides.clear()
-    app_engine.dispose()
-    engine.dispose()
+    async def noop_scan_all_drives():
+        return {}
+
+    async def noop_purge_expired_trash():
+        return None
+
+    main.scan_all_drives = noop_scan_all_drives
+    main.purge_expired_trash = noop_purge_expired_trash
+
+    yielded_session = TestSession()
+    try:
+        with TestClient(app) as c:
+            yield c, yielded_session, drive_dir, data_dir
+    finally:
+        yielded_session.close()
+        config.DRIVES_CONFIG = orig_drives_config
+        config.DATA_DIR = orig_data
+        config.THUMBNAILS_DIR = orig_thumbs
+        config.CONVERTED_DIR = orig_converted
+        config._drives_cache = orig_cache
+        database.engine = orig_engine
+        database.SessionLocal = orig_session_local
+        main.SessionLocal = orig_main_session_local
+        scanner.SessionLocal = orig_scanner_session_local
+        main.scan_all_drives = orig_scan_all_drives
+        main.purge_expired_trash = orig_purge_expired_trash
+        app.dependency_overrides.clear()
+        orig_engine.dispose()
+        engine.dispose()
 
 
 @pytest.fixture()
