@@ -1,223 +1,189 @@
 # Litloft
 
-家庭内 LAN 向けのセルフホスト型ファイル・メディアアプリ。ファイルの閲覧・ストリーミング・検索ができ、必要に応じて LLM によるタグ提案・要約・自然言語 Q&A を利用できます。Docker 上で動作し、ブラウザ（PWA）からアクセスします。
+あとから何度も戻ってくるファイルのためのメディアライブラリ。
 
-> **LAN 専用。** Litloft は信頼できる家庭内ネットワークでの利用を想定しています。HTTPS リバースプロキシと VPN なしでインターネットに公開しないでください。
+Litloftは、自宅LANで動かすセルフホスト型のライブラリです。動画、
+文書、画像、Web 動画、Markdownノートをひとつの場所に集めて扱えます。
+土台はメディアサーバーですが、目的は再生だけではありません。ファイルの
+中に何があるのかを覚えておき、必要な場面をもう一度見つけ、散らばった
+メディアを使える資料に変えるためのアプリです。
 
-> **注記：** 個人利用のために開発されています。Issue や PR は歓迎しますが、サポートはベストエフォートです。
+**[Webサイト](https://mamepenguin.github.io/Litloft/)** ·
+**[英語README](../README.md)** ·
+**[ドキュメント](README.md)**
 
-**[ランディングページ](https://mamepenguin.github.io/Litloft/)** · **[ドキュメント](README.md)**
+> **LAN専用。** Litloft は信頼できるネットワークでの利用を想定して
+> います。HTTPSリバースプロキシやVPNなしでインターネットに公開
+> しないでください。
+
+> **個人プロジェクトです。** 自分で使うために作っています。IssueやPR
+> は歓迎しますが、サポートはベストエフォートです。
 
 <p align="center">
-  <img src="images/user-guide/drive-home-overview.png" width="92%" alt="Litloft ドライブホーム概観" />
+  <img src="images/user-guide/drive-home-overview.png" width="92%" alt="Litloft ドライブホーム" />
 </p>
 
 <p align="center">
-  <img src="images/screenshot_summary.png" width="45%" alt="引用付きの Litloft AI 要約" />
-  <img src="images/user-guide/markdown-viewer-frontmatter-mermaid.png" width="45%" alt="frontmatter と Mermaid を表示する Litloft Markdown ビューア" />
+  <img src="images/screenshot_summary.png" width="45%" alt="引用付きのLitloft要約" />
+  <img src="images/user-guide/markdown-viewer-frontmatter-mermaid.png" width="45%" alt="frontmatterとMermaidを表示するLitloft Markdownビューア" />
 </p>
 
 ---
 
-## 機能
+## Litloftが欲しかった理由
 
-### コア
-- **フォルダブラウザ** — ネストした階層をナビゲートできます。グリッド／リスト表示に対応し、サムネイルは遅延読み込みされます
-- **ストリーミング** — Range Request に対応した動画／音声を再生できます。字幕表示と前回再生位置からの再開もサポートしています
-- **ビューア** — 画像（スワイプ・見開き）、Markdown（Mermaid・シンタックスハイライト）、PDF、Office、ZIP を閲覧できます
-- **ファイル操作** — アップロード（フォルダ・チャンク分割）、リネーム、移動、コピー、一括操作、ブラウザ内テキスト編集ができます
-- **ゴミ箱** — ソフト削除されたファイルは 30 日後に自動消去されます。削除後もいつでも復元できます
-- **検索と発見** — キーワード検索、タグフィルタ、重複検出、ピン留めフォルダを利用できます
-- **整理** — コレクション、お気に入り、ファイル単位のコメント、再開に対応した視聴履歴を管理できます
+多くのメディアサーバーは、ファイルを再生するのが得意です。多くのノート
+アプリは、文章を書くのが得意です。多くの検索ツールは、大事なものが
+すでにテキストになっている前提で作られています。
 
-### AI（Intelligence アドオン）
-- **Ask** — メディアに対して自然言語で質問できます。回答には引用元クリップが付きます
-- **セマンティック検索** — トランスクリプト・テキスト・画像フレーム（CLIP）を横断した埋め込みベースの検索ができます
-- **AI 要約** — 短い要約と、引用が自動リンクされた長文 Markdown を生成します
-- **オートタグ** — AI がタグを提案します。承認／却下のワークフローにより、自動適用はしません
-- **トランスクリプト精緻化** — LLM で ASR テキストを補正します。元のテキストは復元用に保持されます
-- **文字起こし** — ローカル動画／音声は faster-Whisper で、インポート動画は YouTube 字幕インポートで文字起こしします
+Litloftが扱いたいのは、そのあいだにあるものです。講義、配信、トーク、
+スクリーンショット、PDF、自炊本、個人メモ、ダウンロードした資料、
+あとで見返すつもりだったリンク。そうしたものをひとつのローカル
+ライブラリとして扱います。
 
-### システム
-- **マルチドライブ** — アクセス制御とアドオンポリシーをドライブごとに独立して設定できる複数のコンテンツ領域を管理できます
-- **パスワード保護** — ドライブ単位のアクセスグループを設定できます。管理者アクセス用のマスターパスワードも設定可能です
-- **管理 UI** — 初回起動ウィザード（`/setup`）、設定 GUI（`/admin/settings`）、ダッシュボードを提供します
-- **アドオンシステム** — インプロセス型・独立サービス型のアドオンをサポートします。ドライブスコープまたはグローバルスコープで動作します
-- **i18n** — 日本語／英語に対応しています（クッキーベース、URL プレフィックスなし）
-- **ダーク／ライトテーマ**、**PWA**（ホーム画面に追加できます）
+動画を見て、字幕を検索し、内容についてAskで質問し、その答えをノートに
+残し、別のファイルと関連付ける。あとで戻るときは、動画からでも、ノート
+からでも、検索結果からでも入れます。
 
----
+## Media Server
+
+Litloft の出発点は、ブラウザで使うLAN向けメディアサーバーです。
+
+ディスクやNASのフォルダを指定すれば、スマートフォン、タブレット、
+デスクトップのブラウザからそのまま開けます。動画は前回の位置から再開
+できます。画像、PDF、アーカイブ、Markdownファイルも同じライブラリで
+扱えます。ドライブごとにアクセス権を分けられるので、家族向けのメディア、
+個人アーカイブ、調査用の資料を無理にひとつの平面へ混ぜる必要はありません。
+
+高速なブラウズ、サムネイル、ストリーミング、履歴、コメント、タグ、
+コレクション、基本的なファイル操作。Litloftの他の機能は、この
+ライブラリが日常的に使いやすいことの上に成り立っています。
+
+## Intelligence
+
+Intelligenceは、ライブラリの中身を Litloft が思い出せるようにする
+仕組みです。
+
+テキスト、字幕、トランスクリプト、要約、ファイルのメタデータ、動画の
+フレームをインデックス化します。長い録画は、話されている言葉で検索
+できます。字幕のある動画は、途中で扱われた話題から見つけられます。
+うろ覚えの一文から文書にたどり着けます。LLM を設定すれば、要約、タグ
+提案、トランスクリプト補正、引用付きのAsk回答も使えます。
+
+大事なのは、モデルが入っていること自体ではありません。タイムスタンプ、
+抜粋、要約、キーワード、関連ファイル、引用付きの答えといった「戻るための
+手がかり」がライブラリに増えることです。Askの答えは、検索の終点では
+なく、元のファイルと該当箇所へ戻るための入口として役立ちます。
+
+## Media Import
+
+Media Import は、外部の動画を同じ作業用ライブラリに取り込む入口です。
+
+URLを貼り付けるだけでなく、YouTubeチャンネルやプレイリストを購読して、
+新しい動画を自動で集められます。タイトル、説明、サムネイル、チャンネル
+情報、取得できる字幕がライブラリに入り、外部メディアもローカルファイルと
+同じように検索、要約、Askの対象になります。
+
+「動画を保存する」という行為が、ただのブックマークではなくなります。
+あとで開くかもしれないURL ではなく、自分の録画やノートと並ぶ、検索
+可能なアーカイブの一部になります。
+
+## Knowledge
+
+Knowledgeは、ファイルのまわりに文章を書くための場所です。
+
+Markdownノートは普通のフォルダに保存され、Litloftが理解できる
+frontmatterを持ちます。ブラウザから編集しても、外部エディタで編集しても
+構いません。ノートは、元ファイル、クリップ、要約、Ask の回答、ほかの
+ノートを指すことができます。Markdown同士のリンクは Litloft にも投影
+されるので、プレーンテキストのフォルダが、メディアアーカイブの上に重なる
+関連付けの層になります。
+
+これは、横に置かれた別のノートアプリではありません。ある動画がなぜ大事
+だったのか、どのファイルが主張を支えているのか、PDFが何につながるのか、
+次に何を読むべきか。ライブラリ自身を説明していくための場所です。
+
+## 何に使えるか
+
+- 動画、本、スキャン、個人ファイルのためのプライベートな LAN メディア
+  サーバー。
+- 講義、配信、トーク、ポッドキャスト、クリップをあとから探せる
+  アーカイブ。
+- 動画、テキスト、スクリーンショット、ノートを関連付けて扱う調査用
+  ライブラリ。
+- YouTubeチャンネルやプレイリストを集めながら、字幕や文脈を失わない
+  保存場所。
+- 要約、引用、Markdown ノートを元ファイルのそばに置けるローカルな知識
+  ワークスペース。
 
 ## クイックスタート
 
-**前提条件：** Git · Docker · Python 3
-
-### 1. クローン
+**必要なもの:** Git、Docker、Python 3。
 
 ```bash
 git clone --recurse-submodules https://github.com/mamepenguin/Litloft
 cd Litloft
-```
-
-### 2. 設定
-
-**macOS / Linux:**
-```bash
 python3 configure.py
-```
-
-**Windows:**
-```bash
-py -3 configure.py
-```
-
-`configure.py` は Docker 起動前に必要なコンテナの結線を生成し、最後にコンテナの起動を提案します（デフォルトは yes）。以下を尋ねます：
-
-| ステップ | 設定内容 |
-|------|--------------------|
-| ① ドライブマウント | ドライブ数、ホストパス、各ドライブの slug |
-| ② ポート | デフォルト `3000`。必要なら変更 |
-| ③ Intelligence アドオン | 独立した AI サービスコンテナを有効化（任意） |
-| ④ Knowledge アドオン | 独立した Markdown vault サービスコンテナを有効化（任意） |
-
-**出力ファイル：** `docker-compose.override.yml`、空の `drives.json` / `passwords.json`、必要に応じて `event-hooks.json`、intelligence 有効時は `addons/intelligence/search-config.yml`、ポートやアドオンシークレットが必要な場合は `.env`。
-
-ドライブの表示名、アクセスグループ、パスワード、AI 機能モードは、後でブラウザから設定します。最初に `/setup`、その後 `/admin/settings` で行います。
-
-> コンテナの結線を更新するには、いつでも `configure.py` を再実行できます。生成されるファイルはプレーンテキストなので、手動で編集することもできます。
-
-> **初回起動前に `drives.json` が存在している必要があります** — `docker-compose.yml` は常にこれをバインドマウントします。`configure.py` を実行すれば（推奨）自動で作成されます。手動でセットアップしたい場合は、ステップ 3 の下の注記を参照してください。
-
-### 3. 起動
-
-`configure.py` は最後にコンテナを自動起動します。プロンプトをスキップした場合や後から再起動する場合:
-
-```bash
 docker compose up -d --build
 ```
 
-`http://localhost:3000` を開きます。LAN 上の他のデバイスからは `http://<host-ip>:3000`。初回起動時は `/setup` ウィザードがドライブの命名とパスワード／アドオンポリシーの設定を行います。
+`http://localhost:3000` を開きます。
 
-> 初回ビルドではベースイメージのダウンロードとコンテナ依存関係のインストールが行われます。intelligence アドオンが有効な場合、ML モデルの重みは初回利用時にダウンロードされ、`data/addons/intelligence/models/` 以下にキャッシュされます。
+同じ LAN 上の別デバイスからは `http://<host-ip>:3000` を開きます。
 
-> **手動セットアップ（configure.py を使わない場合）：** ドライブのボリュームマウントを手動で作成します — `docker-compose.override.yml.example` を `docker-compose.override.yml` にコピーし、ホストパスを編集します。次に、Docker が起動できるよう最小限の単一ファイルバインドマウント先を作成します：`echo '[]' > drives.json` と `echo '[]' > passwords.json`。その後、`docker compose up -d --build` を実行すると `/setup` の初回起動ウィザードが開き、最終的な論理設定を書き込みます。
+`configure.py` は、ローカルの Docker 設定、ドライブマウント、ポート、
+任意のアドオンサービスを生成します。初回起動時はセットアップウィザードで
+ドライブ名、アクセス制御、アドオンポリシーを設定します。
 
----
-
-## AI 機能（Intelligence アドオン）
-
-Intelligence アドオンはセマンティック検索、Ask Q&A、AI 要約を追加します。ベースアプリより多くのリソースを必要とします。
-
-### ハードウェア
-
-| Whisper モデル | RAM（目安） | 備考 |
-|---------------|--------------|-------|
-| small | 約 500 MB | 高速だが精度は低め |
-| turbo *（デフォルト）* | 約 1.2 GB | 精度と速度のバランスが最良 |
-| large-v3 | 約 3 GB | 最高精度のモデル |
-
-インデックス処理（文字起こし + 埋め込み）は CPU 負荷が高く、ファイルのスキャン後にバックグラウンドで実行されます。
-
-### LLM（Ask、要約、オートタグに必要）
-
-`/admin/intelligence` または `addons/intelligence/search-config.yml` の編集で、以下のいずれかを選択します：
-
-**オプション A — ローカル（プライバシー重視の場合に推奨）**
-
-ホストに [Ollama](https://ollama.com) をインストールし、モデルを取得します：
-
-```bash
-ollama pull gemma3:4b   # または llama3.2, qwen2.5 など
-```
-
-プロバイダを `ollama`、ベース URL を `http://host.docker.internal:11434` に設定します。データがマシンの外に出ることはありません。
-
-**オプション B — API**
-
-OpenAI、DeepSeek、その他 OpenAI 互換のエンドポイントを利用します。ベース URL と `LLM_API_KEY` を `.env` または管理 UI で設定します。LLM ベースのインデックスタスクや Ask クエリの際に、ファイル内容（トランスクリプト、テキスト）が API に送信されます。
-
-> セマンティック検索と文字起こしは LLM なしでも動作します — テキスト生成機能のみ LLM を必要とします。
-
-### クラウド文字起こしプロバイダ（クラウド STT）
-
-ローカル Whisper（`faster-whisper`、CPU）に加えて、Litloft はいくつかのクラウド STT プロバイダをサポートします：
-
-| プロバイダ | 強み | 備考 |
-|---|---|---|
-| OpenAI 互換（Groq / Fireworks など） | OSS Whisper 系統で API が馴染みやすい | 公式 OpenAI API はファイルあたり 25 MB の上限あり |
-| Deepgram Nova-3 | WER がトップクラスで話者分離も強力 | 別途課金 |
-| ElevenLabs Scribe | 話者分離と長尺音声に強い | 別途課金 |
-
-`addons/intelligence/search-config.yml` の `transcription` セクションと、対応する API キー環境変数（`DEEPGRAM_API_KEY` / `ELEVENLABS_API_KEY` / `OPENAI_API_KEY`）で設定します。詳細は [intelligence の文字起こしプロバイダ一覧](addons/intelligence.md#transcription-providers) を参照してください。
-
-**プライバシーに関する注記：** クラウドプロバイダを選択すると、音声バイトがそのプロバイダに送信されます。プライバシーに配慮したいドライブでは、そのドライブの `drives.json` に `addons.intelligence.transcription_cloud: false` を設定することで、**強制ローカルフォールバック**を固定できます — グローバルなプロバイダがクラウドであっても適用されます。
-
----
-
-## アドオン
-
-アドオンは `--recurse-submodules` によってメインリポジトリと一緒にクローンされます。`configure.py` は独立サービス型のアドオン（`intelligence`、`knowledge`）について尋ねます。インプロセス型のアドオンは、サブモジュールが存在しイメージが再ビルドされると読み込まれます。
-
-| アドオン | 説明 |
-|-------|-------------|
-| **intelligence** | AI 検索、Ask Q&A、要約、オートタグ、CLIP 画像検索 |
-| **knowledge** | ドライブ単位の Markdown vault と Web クリッピング |
-| **cloud-sync** | rclone でドライブをクラウドストレージにバックアップ（S3、Backblaze、Google Drive など） |
-| **media_import** | URL からメディアを `.loft` 参照としてインポート。メタデータとプロバイダ埋め込み付き |
-
----
-
-## アクセス制御
-
-`passwords.json` がない場合、すべてのドライブは LAN 上で誰でもアクセス可能です。
-
-`passwords.json` がある場合、`access_group` を持つ各ドライブはアンロックにパスワードが必要です。グループを持たないドライブは誰でもアクセスできます。マスターパスワード（すべてのグループを網羅するパスワード）でアンロックした viewer が **管理者** になります。
-
-アンロック URL：`http://<ip>:3000/unlock`（UI には意図的にリンクを張っていません）
-
----
-
-## アップデート
+アップデート:
 
 ```bash
 git pull --recurse-submodules
 docker compose up -d --build
 ```
 
-ビルドに失敗した場合、以前のコンテナがそのまま動作し続けます。
+## 機能一覧
 
----
+**Media:** 動画ストリーミング、音声再生、Range Request、再生位置の
+保存、字幕表示、サムネイルプレビュー、画像ビューア、見開き表示、
+Markdown ビューア、Mermaid 表示、シンタックスハイライト、PDF ビューア、
+ZIP / アーカイブ閲覧。
 
-## 開発
+**Library:** マルチドライブ、フォルダブラウザ、グリッド / リスト表示、
+ピン留めフォルダ、お気に入り、コレクション、コメント、タグ、視聴履歴、
+最近再生した項目、最近追加した項目、重複検出、スマートフォルダ、
+ゴミ箱、消えたファイルの復帰、アップロード、フォルダアップロード、
+リネーム、移動、コピー、一括操作、ブラウザ内テキスト編集。
 
-```bash
-# バックエンドテスト（Docker 内で実行）
-docker build -f backend/Dockerfile.test -t litloft-test backend/
-docker run --rm litloft-test
+**Intelligence:** トランスクリプトのインデックス化、字幕のインデックス化、
+セマンティック検索、シーン / フレーム検索、BM25 とベクトルのハイブリッド
+検索、引用付き Ask、要約、詳細 Markdown 要約、タグ提案、検索用
+キーワード、トランスクリプト補正、画像説明、ローカル Whisper、クラウド
+STT プロバイダ、Deepgram API、ElevenLabs API、OpenAI 互換 LLM
+エンドポイント、Ollama / ローカル LLM、ドライブ別プライバシーポリシー。
 
-# フロントエンドテスト
-cd frontend && pnpm test
+**Media Import:** URL 取り込み、YouTubeチャンネル購読、YouTube
+プレイリスト購読、自動同期、メタデータ更新、字幕取り込み、サムネイル
+キャッシュ、プロバイダ埋め込み、取り込み履歴、リトライ、ドライブ別の
+有効化。
 
-# ログ
-docker compose logs -f backend
-```
+**Knowledge:** Markdown Vault、frontmatter 同期、wiki リンク、Markdown
+編集、Web クリッピング、元ファイルとの関連付け、関連ノート、アクティブ
+サマリーパネル、Vault 検索、ノート要約、外部エディタとの併用。
 
----
+**Admin:** 初回セットアップ、設定 GUI、パスワード保護されたドライブ、
+アクセスグループ、管理者ビューア、アドオンポリシー、再起動待ちバナー、
+ダッシュボード、Docker Compose デプロイ、PWA、ダーク / ライトテーマ。
 
 ## 技術スタック
 
-| レイヤー | 技術 |
-|-------|-----------|
-| バックエンド | FastAPI (Python 3.12) + SQLite (SQLAlchemy) + ffmpeg |
-| フロントエンド | Next.js 16 (App Router, TypeScript, Tailwind CSS v4) |
-| インフラ | Docker Compose |
-| AI | faster-Whisper · SigLIP2/CLIP · multilingual-e5 / Ruri · sqlite-vec · SQLite FTS5 |
+FastAPI、SQLite、SQLAlchemy、Next.js、TypeScript、Tailwind CSS、
+Docker Compose、ffmpeg、faster-Whisper、SigLIP / CLIP、多言語
+embedding、SQLite FTS5、sqlite-vec。
 
 ```
-Browser → :3000 (Next.js) → rewrites /api/* → :8000 (FastAPI, internal only)
+Browser -> :3000 Next.js -> /api/* -> :8000 FastAPI
 ```
-
----
 
 ## ライセンス
 

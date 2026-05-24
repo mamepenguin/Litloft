@@ -122,15 +122,19 @@ Below the embedded player, the addon contributes a *Loft Metadata* card:
 - Filename (typically the imported title), title, and description are indexed.
 - When the [intelligence addon](intelligence.md) is enabled, captions become transcript chunks and feed semantic search and Ask. This is the most useful integration: ask *"what was the video where they explained X?"* and Ask retrieves the relevant `.loft` with a timestamp citation.
 
-## Subscriptions (Phase 2 preview)
+## Subscriptions
 
-A planned but partially-implemented feature: follow a channel and have the addon poll periodically for new videos.
+Subscriptions let the addon track YouTube channels and playlists, then poll
+periodically for new videos.
 
-- Channel registration: `POST /api/addons/media_import/subscriptions` with the channel URL.
-- Periodic poll (default daily) discovers new uploads and creates `.loft` files in a configured folder.
-- A *Subscriptions* page surfaces follows and recent imports.
-
-This is gated by Phase 2 work; the schema and scanner exist but the UI is partial.
+- Channel / playlist registration: paste a YouTube channel or playlist URL in
+  the Media Import UI, or call `POST /api/addons/media_import/subscriptions`.
+- Manual sync is available from the UI and via
+  `POST /api/addons/media_import/subscriptions/{id}/sync`.
+- Periodic polling discovers new uploads and creates `.loft` files in the
+  configured folder.
+- The Subscriptions dashboard surfaces follows, status, recent imports,
+  failures, and retry / conflict-resolution actions.
 
 ## Limits and caveats
 
