@@ -20,6 +20,8 @@ shrinking, configure.py must:
 - NOT create data/setup_completed (reversal: /setup must run)
 - copy search-config.yml.example verbatim when intelligence enabled
 - write override.yml with <host_path>:/app/drives/<slug> mounts
+- write override.yml with the core thumbnail directory mounted read-only
+  into intelligence when intelligence is enabled
 - write override.yml with an unconditional RW (no :ro) passwords.json
   bind-mount so /setup and /admin/settings can write it later
 - keep event-hooks.json generation untouched
@@ -216,6 +218,21 @@ def test_intelligence_copies_search_config_verbatim(base, tmp_path):
     assert not (base / "data" / "setup_completed").exists()
 
 
+def test_intelligence_mounts_core_thumbnails_read_only(base, tmp_path):
+    intel = base / "addons" / "intelligence"
+    intel.mkdir(parents=True)
+    (intel / "search-config.yml.example").write_text("features:\n  rag: false\n")
+
+    host = tmp_path / "media"
+    host.mkdir()
+    answers = ["1", str(host), "media", "3000", "y", "y"]
+    proc = _run_configure(base, answers)
+    assert proc.returncode == 0, proc.stderr + proc.stdout
+
+    override = (base / "docker-compose.override.yml").read_text()
+    assert "- ./data/thumbnails:/data/thumbnails:ro" in override
+
+
 def test_intelligence_disabled_still_no_search_config_rewrite(base, tmp_path):
     intel = base / "addons" / "intelligence"
     intel.mkdir(parents=True)
@@ -229,3 +246,6 @@ def test_intelligence_disabled_still_no_search_config_rewrite(base, tmp_path):
     assert proc.returncode == 0, proc.stderr + proc.stdout
 
     assert not (intel / "search-config.yml").exists()
+
+    override = (base / "docker-compose.override.yml").read_text()
+    assert "./data/thumbnails:/data/thumbnails:ro" not in override

@@ -253,11 +253,39 @@ async def addons_status(drive: str | None = None):
     """
     # Strip internal-only fields (proxy config) before returning to clients
     _FRONTEND_FIELDS = {"label", "description", "icon", "href", "type", "slots", "scope", "policy_features"}
+
+    def is_configured(meta: dict) -> bool:
+        # External services need compose/env wiring. A manifest alone can
+        # exist in the backend image even when configure.py left the
+        # container disabled, so keep those out of /setup and settings.
+        if meta.get("type") != "external_service":
+            return True
+        proxy = meta.get("proxy")
+        if not isinstance(proxy, dict):
+            return True
+        target_env = proxy.get("target_env")
+        if not target_env:
+            return True
+        return bool(os.environ.get(target_env))
+
+    raw_addons = {
+        name: meta
+        for name, meta in addon_registry.get_all().items()
+        if is_configured(meta)
+    }
     addons = {
         name: {k: v for k, v in meta.items() if k in _FRONTEND_FIELDS}
-        for name, meta in addon_registry.get_all().items()
+        for name, meta in raw_addons.items()
     }
-    slots = addon_registry.get_all_slots()
+    configured_names = set(raw_addons)
+    slots = {
+        slot_id: [
+            entry for entry in entries
+            if entry.get("addonName") in configured_names
+        ]
+        for slot_id, entries in addon_registry.get_all_slots().items()
+    }
+    slots = {k: v for k, v in slots.items() if v}
 
     if drive is None:
         return {"addons": addons, "slots": slots}

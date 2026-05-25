@@ -102,12 +102,25 @@ Independent-service addons (intelligence, knowledge) ship their own Dockerfiles 
 
 ```yaml
 services:
+  backend:
+    environment:
+      - INTELLIGENCE_SERVICE_URL=http://intelligence:8100
+
   intelligence:
     build:
       context: ./addons/intelligence
     expose:
       - "8100"
+    volumes:
+      - ./addons/intelligence/search-config.yml:/app/search-config.yml:ro
+      - ./data/addons/intelligence:/intelligence-data
+      - ./data/data.db:/data/litloft.db:ro
+      - ./data/thumbnails:/data/thumbnails:ro
+      # Read-only mounts of the drives the addon should index:
+      - ./videos:/drives/default:ro
     environment:
+      - DRIVE_MOUNTS=default=/drives/default
+      - HOMEVAULT_INTERNAL_URL=http://backend:8000
       - LLM_API_KEY=${LLM_API_KEY:-}
       - DEEPGRAM_API_KEY=${DEEPGRAM_API_KEY:-}
       - ELEVENLABS_API_KEY=${ELEVENLABS_API_KEY:-}
@@ -115,12 +128,6 @@ services:
       - ASSEMBLYAI_API_KEY=${ASSEMBLYAI_API_KEY:-}
       - GEMINI_API_KEY=${GEMINI_API_KEY:-}
       - CORE_INTERNAL_SECRET=${CORE_INTERNAL_SECRET}
-    volumes:
-      - ./addons/intelligence:/app
-      - ./addons/intelligence/search-config.yml:/app/search-config.yml
-      - ./data/addons/intelligence:/data
-      # Read-only mounts of the drives the addon should index:
-      - ./videos:/app/drives/default:ro
     depends_on:
       backend:
         condition: service_healthy
@@ -135,10 +142,10 @@ The base `docker-compose.yml` does **not** include addon services so non-AI user
 Best practice: mount drives read-only into addons. The intelligence addon, for example, only ever reads file content; it has no business writing into your library:
 
 ```yaml
-- ./videos:/app/drives/default:ro
+- ./videos:/drives/default:ro
 ```
 
-The shared core SQLite DB should be mounted read-only into addons (`./data/data.db:/data/core.db:ro`) when an addon needs to look up file metadata directly. In practice, the Internal API is preferred over direct DB access; see [Internal API policy](../developer-guide/addon-dev.md#internal-api-policy).
+The shared core SQLite DB should be mounted read-only into addons (`./data/data.db:/data/litloft.db:ro` for intelligence) when an addon needs to look up file metadata directly. The intelligence addon also needs the generated thumbnail directory at `./data/thumbnails:/data/thumbnails:ro` so representative-video thumbnail embeddings can be built. In practice, the Internal API is preferred over direct DB access; see [Internal API policy](../developer-guide/addon-dev.md#internal-api-policy).
 
 ## Healthcheck
 

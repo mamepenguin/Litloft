@@ -420,6 +420,7 @@ def main():
                 "      - ./addons/intelligence/search-config.yml:/app/search-config.yml:ro",
                 "      - ./data/addons/intelligence:/intelligence-data",
                 "      - ./data/data.db:/data/litloft.db:ro",
+                "      - ./data/thumbnails:/data/thumbnails:ro",
                 *[f"      - {d['host_path']}:/drives/{d['slug']}:ro" for d in drives],
                 "    environment:", f"      - DRIVE_MOUNTS={mounts}",
                 "      - HOMEVAULT_INTERNAL_URL=http://backend:8000",
