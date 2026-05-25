@@ -186,6 +186,7 @@ export function useFolderFiles({
   });
 
   const [folders, setFolders] = useState<Folder[]>(() => hydration.folders ?? []);
+  const shouldRevalidateHydratedSnapshot = hydration.initial != null && !isSearch && !isRecent;
 
   const fetchPage = useCallback(
     async (page: number, limit: number) => {
@@ -236,6 +237,7 @@ export function useFolderFiles({
     limit: 30,
     disabled: isRecent,
     initial: hydration.initial,
+    revalidateInitial: shouldRevalidateHydratedSnapshot,
   });
 
   // Semantic search hits — loaded once per search query/drive/typeFilter.
@@ -349,17 +351,19 @@ export function useFolderFiles({
       return;
     }
     if (!isSpecialView && !tagFilter) {
-      if (hydratedFoldersRef.current) {
-        // Skip the initial folder fetch right after snapshot hydration —
-        // subsequent refreshes / filter changes will still refetch below.
+      if (hydratedFoldersRef.current && !shouldRevalidateHydratedSnapshot) {
+        // Skip the initial folder fetch right after a pure restore. Folder
+        // snapshots opt into revalidation so reload/back can refresh stale
+        // directory contents without giving up scroll restoration.
         hydratedFoldersRef.current = false;
         return;
       }
+      hydratedFoldersRef.current = false;
       getFolders(driveName, folderPath).then(setFolders).catch(() => setFolders([]));
     } else {
       setFolders([]);
     }
-  }, [driveName, folderPath, isSpecialView, tagFilter, isSearch]);
+  }, [driveName, folderPath, isSpecialView, tagFilter, isSearch, shouldRevalidateHydratedSnapshot]);
 
   // Reset infinite scroll on filter/sort/drive changes (scroll to top).
   // On first render after hydration the key matches, so neither reset nor the

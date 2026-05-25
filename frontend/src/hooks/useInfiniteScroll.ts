@@ -18,6 +18,14 @@ interface UseInfiniteScrollOptions<T> {
   limit?: number;
   disabled?: boolean;
   initial?: InitialHydration<T> | null;
+  revalidateInitial?: boolean;
+}
+
+interface LoadPageOptions {
+  fetchLimit?: number;
+  loadedPages?: number;
+  showLoading?: boolean;
+  preserveOnError?: boolean;
 }
 
 export interface UseInfiniteScrollReturn<T> {
@@ -38,6 +46,7 @@ export function useInfiniteScroll<T>({
   limit = 30,
   disabled = false,
   initial = null,
+  revalidateInitial = false,
 }: UseInfiniteScrollOptions<T>): UseInfiniteScrollReturn<T> {
   const [items, setItems] = useState<T[]>(() => initial?.items ?? []);
   const [total, setTotal] = useState(() => initial?.total ?? 0);
@@ -54,15 +63,24 @@ export function useInfiniteScroll<T>({
   const hasMore = !reachedEnd && items.length < total;
 
   const loadPage = useCallback(
-    async (pageNum: number, append: boolean) => {
+    async (
+      pageNum: number,
+      append: boolean,
+      {
+        fetchLimit = limit,
+        loadedPages = pageNum,
+        showLoading = true,
+        preserveOnError = false,
+      }: LoadPageOptions = {},
+    ) => {
       const id = ++fetchIdRef.current;
       if (append) {
         setLoadingMore(true);
-      } else {
+      } else if (showLoading) {
         setLoading(true);
       }
       try {
-        const result = await fetchPage(pageNum, limit);
+        const result = await fetchPage(pageNum, fetchLimit);
         if (fetchIdRef.current !== id) return;
         if (append) {
           setItems((prev) => [...prev, ...result.data]);
@@ -79,11 +97,11 @@ export function useInfiniteScroll<T>({
           setReachedEnd(false);
         }
         setTotal(result.total);
-        pageRef.current = pageNum;
-        setPagesLoaded(pageNum);
+        pageRef.current = loadedPages;
+        setPagesLoaded(loadedPages);
       } catch {
         if (fetchIdRef.current !== id) return;
-        if (!append) {
+        if (!append && !preserveOnError) {
           setItems([]);
           setTotal(0);
         }
@@ -116,13 +134,23 @@ export function useInfiniteScroll<T>({
       return;
     }
     if (hydratedRef.current && epoch === 0) {
-      // First render after hydration from a snapshot — skip the initial fetch
-      // so we don't clobber the restored items. Subsequent reset() calls set
-      // hydratedRef=false and bump epoch, which re-enables fetching.
+      // First render after hydration from a snapshot. By default this is a
+      // pure restore; callers that need freshness can opt into a background
+      // revalidation that keeps the restored page depth intact.
+      hydratedRef.current = false;
+      if (revalidateInitial) {
+        const pagesToReload = Math.max(1, pageRef.current);
+        loadPage(1, false, {
+          fetchLimit: limit * pagesToReload,
+          loadedPages: pagesToReload,
+          showLoading: false,
+          preserveOnError: true,
+        });
+      }
       return;
     }
     loadPage(1, false);
-  }, [loadPage, disabled, epoch]);
+  }, [loadPage, disabled, epoch, limit, revalidateInitial]);
 
   useEffect(() => {
     if (disabled || !hasMore || loadingMore || loading) return;

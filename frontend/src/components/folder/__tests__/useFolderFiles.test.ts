@@ -2,6 +2,7 @@ import { renderHook, waitFor } from "@testing-library/react";
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { useFolderFiles } from "../useFolderFiles";
 import type { FileItem, Folder } from "@/types";
+import type { ListSnapshot } from "@/lib/listSnapshot";
 
 const mockFile = (id: string, drive = "main"): FileItem => ({
   id,
@@ -311,6 +312,63 @@ describe("useFolderFiles", () => {
 
     expect(result.current.files).toHaveLength(0);
     expect(result.current.total).toBe(0);
+  });
+
+  it("hydrates folder snapshot immediately, then revalidates files and folders", async () => {
+    const cachedFile = mockFile("cached");
+    const freshFile = mockFile("fresh");
+    const cachedFolder = mockFolder("cached-folder");
+    const freshFolder = mockFolder("fresh-folder");
+    const snapshot: ListSnapshot = {
+      key: "main|movies||",
+      scrollY: 420,
+      pagesLoaded: 2,
+      items: [cachedFile],
+      total: 42,
+      folders: [cachedFolder],
+      filters: {
+        sort: "created_at",
+        order: "desc",
+        typeFilter: null,
+        viewMode: "grid",
+      },
+      ts: Date.now(),
+    };
+    mockGetDriveFiles.mockResolvedValueOnce({
+      data: [freshFile],
+      meta: { total: 1, page: 1, limit: 60 },
+    });
+    mockGetFolders.mockResolvedValueOnce([freshFolder]);
+
+    const { result } = renderHook(() =>
+      useFolderFiles({
+        driveName: "main",
+        folderPath: "movies",
+        view: null,
+        tagFilter: null,
+        typeFilter: null,
+        sort: "created_at",
+        order: "desc",
+        refreshKey: 0,
+        initialSnapshot: snapshot,
+      }),
+    );
+
+    expect(result.current.files.map((f) => f.id)).toEqual(["cached"]);
+    expect(result.current.folders.map((f) => f.name)).toEqual(["cached-folder"]);
+    expect(result.current.hydratedScrollY).toBe(420);
+    expect(result.current.loading).toBe(false);
+
+    await waitFor(() => {
+      expect(result.current.files.map((f) => f.id)).toEqual(["fresh"]);
+    });
+
+    expect(mockGetDriveFiles).toHaveBeenCalledWith(
+      "main",
+      expect.objectContaining({ path: "movies", page: 1, limit: 60 }),
+    );
+    expect(mockGetFolders).toHaveBeenCalledWith("main", "movies");
+    expect(result.current.folders.map((f) => f.name)).toEqual(["fresh-folder"]);
   });
 
   it("calls getDriveFiles with search param when searchQuery is set", async () => {

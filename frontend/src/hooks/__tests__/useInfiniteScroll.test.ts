@@ -106,6 +106,63 @@ describe("useInfiniteScroll", () => {
     expect(hookRef.current?.items).toHaveLength(8);
   });
 
+  it("can revalidate initial hydration without hiding restored pages first", async () => {
+    const initialItems = makeItems(Array.from({ length: 60 }, (_, i) => `init-${i}`));
+    const freshItems = makeItems(Array.from({ length: 60 }, (_, i) => `fresh-${i}`));
+    const fetchPage = vi.fn().mockResolvedValueOnce({
+      data: freshItems,
+      total: 75,
+    });
+
+    const { result } = renderHook(() =>
+      useInfiniteScroll({
+        fetchPage,
+        limit: 30,
+        initial: {
+          items: initialItems,
+          total: 75,
+          page: 2,
+        },
+        revalidateInitial: true,
+      }),
+    );
+
+    expect(result.current.items[0]?.id).toBe("init-0");
+    expect(result.current.loading).toBe(false);
+
+    await waitFor(() => expect(result.current.loading).toBe(false));
+
+    expect(fetchPage).toHaveBeenCalledWith(1, 60);
+    expect(result.current.items[0]?.id).toBe("fresh-0");
+    expect(result.current.items).toHaveLength(60);
+    expect(result.current.pagesLoaded).toBe(2);
+  });
+
+  it("preserves restored items when initial revalidation fails", async () => {
+    const initialItems = makeItems(["init-a", "init-b"]);
+    const fetchPage = vi.fn().mockRejectedValueOnce(new Error("network down"));
+
+    const { result } = renderHook(() =>
+      useInfiniteScroll({
+        fetchPage,
+        limit: 30,
+        initial: {
+          items: initialItems,
+          total: 2,
+          page: 1,
+        },
+        revalidateInitial: true,
+      }),
+    );
+
+    await waitFor(() => expect(fetchPage).toHaveBeenCalledWith(1, 30));
+
+    expect(result.current.loading).toBe(false);
+    expect(result.current.items.map((item) => item.id)).toEqual(["init-a", "init-b"]);
+    expect(result.current.total).toBe(2);
+    expect(result.current.pagesLoaded).toBe(1);
+  });
+
   it("resets reachedEnd on reset()", async () => {
     const fetchPage = vi
       .fn()
