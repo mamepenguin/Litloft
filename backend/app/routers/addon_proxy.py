@@ -369,18 +369,24 @@ async def _proxy_request(
     path: str,
     request: Request,
     stream: bool = False,
+    timeout: float = 15.0,
 ) -> Response | dict:
     """Forward request to the target service (buffered JSON path).
 
     For ``stream: true`` routes use ``_proxy_stream_request`` instead — it
     keeps the upstream connection open and streams chunks as they arrive.
+
+    ``timeout`` is the upstream request timeout in seconds. Defaults to 15s,
+    which fits typical metadata / state routes. Routes that legitimately
+    take longer (multi-stage LLM pipelines like ``/find``) declare
+    ``"timeout": <seconds>`` in the manifest so they don't time out before
+    the upstream finishes.
     """
     if stream:
         return await _proxy_stream_request(target_url, path, request)
 
     url = f"{target_url}{path}"
     params = dict(request.query_params)
-    timeout = 15.0
 
     try:
         async with httpx.AsyncClient(timeout=timeout, trust_env=False) as client:
@@ -545,10 +551,14 @@ async def addon_proxy(
 
     # Proxy the request
     is_stream = route_config.get("stream", False)
+    # Per-route timeout override (buffered path only — streams use read=None).
+    # Documented in the manifest as ``"timeout": <seconds>``.
+    route_timeout = float(route_config.get("timeout", 15.0))
 
     try:
         result = await _proxy_request(
-            target_url, route_path, request, stream=is_stream,
+            target_url, route_path, request,
+            stream=is_stream, timeout=route_timeout,
         )
     except HTTPException:
         raise

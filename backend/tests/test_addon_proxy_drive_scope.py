@@ -334,3 +334,85 @@ def test_addon_feature_pre_check_passes_when_enabled(client, filter_addon):
         headers={"X-Lit-Drive": "test-drive"},
     )
     assert r.status_code == 200
+
+
+# ---------------------------------------------------------------------------
+# Per-route timeout override
+# ---------------------------------------------------------------------------
+
+
+class _TimeoutCapturingClient:
+    """Records the ``timeout`` kwarg AsyncClient was constructed with."""
+
+    last_timeout: float | None = None
+
+    def __init__(self, *a, **kw):
+        _TimeoutCapturingClient.last_timeout = kw.get("timeout")
+
+    async def __aenter__(self):
+        return self
+
+    async def __aexit__(self, *a):
+        return None
+
+    async def request(self, *, method, url, params, content, headers):
+        class _R:
+            status_code = 200
+            text = ""
+            headers = httpx.Headers({"content-type": "application/json"})
+            def json(self_inner):
+                return {"ok": True}
+            def raise_for_status(self_inner):
+                pass
+
+        return _R()
+
+
+@pytest.fixture()
+def timeout_addon(monkeypatch):
+    meta = {
+        "label": "Timeout",
+        "icon": "clock",
+        "type": "external_service",
+        "scope": "drive",
+        "href": "/drive/{drive}/addons/_timeout",
+        "proxy": {
+            "target_default": "http://_timeout:9999",
+            "routes": [
+                {"path": "/quick", "methods": ["GET"]},
+                {"path": "/slow", "methods": ["GET"], "timeout": 90},
+            ],
+        },
+    }
+    prev = addon_registry._registry.get("_timeout")
+    addon_registry._registry["_timeout"] = meta
+    import app.routers.addon_proxy as proxy_module
+    monkeypatch.setattr(
+        proxy_module.httpx, "AsyncClient", _TimeoutCapturingClient
+    )
+    _TimeoutCapturingClient.last_timeout = None
+    yield meta
+    if prev is None:
+        addon_registry._registry.pop("_timeout", None)
+    else:
+        addon_registry._registry["_timeout"] = prev
+
+
+def test_route_without_timeout_uses_default_15s(client, timeout_addon):
+    c, _s, _d, _dat = client
+    r = c.get(
+        "/api/addons/_timeout/quick",
+        headers={"X-Lit-Drive": "test-drive"},
+    )
+    assert r.status_code == 200
+    assert _TimeoutCapturingClient.last_timeout == 15.0
+
+
+def test_route_with_timeout_overrides_default(client, timeout_addon):
+    c, _s, _d, _dat = client
+    r = c.get(
+        "/api/addons/_timeout/slow",
+        headers={"X-Lit-Drive": "test-drive"},
+    )
+    assert r.status_code == 200
+    assert _TimeoutCapturingClient.last_timeout == 90.0
