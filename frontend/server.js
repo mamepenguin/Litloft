@@ -13,8 +13,14 @@ process.env.PORT = String(NEXT_PORT);
 process.env.HOSTNAME = "127.0.0.1";
 require("./server-next.js");
 
+// agent:false disables keep-alive pooling for the Next.js internal proxy.
+// Node.js 20 changed globalAgent to keepAlive:true, causing connections to
+// accumulate when upstream errors (ECONNRESET from addon restarts) leave
+// pooled sockets in a half-open state. Using per-request connections avoids
+// this leak while keeping latency acceptable (loopback ~0.1ms overhead).
 const nextProxy = httpProxy.createProxyServer({
   target: `http://127.0.0.1:${NEXT_PORT}`,
+  agent: false,
 });
 const backendProxy = httpProxy.createProxyServer({
   target: WS_BACKEND,
