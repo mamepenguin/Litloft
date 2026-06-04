@@ -49,6 +49,18 @@ function isInternalApiPath(pathname) {
   return pathname === "/api/internal" || pathname.startsWith("/api/internal/");
 }
 
+// File stream requests (/api/files/{id}/stream) are routed directly to the
+// backend, bypassing the Next.js rewrite layer. The two-hop proxy chain
+// (browser → nextProxy → Next.js fetch → backend) causes downloads to stall
+// near completion: the response body arrives in full but the final
+// connection-close signal is delayed, leaving the browser waiting forever.
+// Direct proxying mirrors how WebSocket (/api/ws) is already handled.
+// Authentication is preserved — the browser's hv_token cookie is forwarded.
+const _streamPathRe = /^\/api\/files\/\d+\/stream$/;
+function isStreamPath(pathname) {
+  return _streamPathRe.test(pathname);
+}
+
 function tryStart(attempt) {
   http
     .get(`http://127.0.0.1:${NEXT_PORT}`, () => {
@@ -64,6 +76,10 @@ function tryStart(attempt) {
         if (isInternalApiPath(pathname)) {
           res.writeHead(404, { "Content-Type": "application/json" });
           res.end('{"detail":"Not Found"}');
+          return;
+        }
+        if (isStreamPath(pathname)) {
+          backendProxy.web(req, res);
           return;
         }
         nextProxy.web(req, res);
