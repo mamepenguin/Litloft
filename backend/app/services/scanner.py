@@ -208,18 +208,27 @@ def register_single_file(db: Session, drive_name: str, file_path: Path) -> str:
 
     file_hash = compute_file_hash(file_path)
 
+    try:
+        st = file_path.stat()
+        fs_mtime: datetime | None = datetime.fromtimestamp(st.st_mtime, UTC)
+        fs_size = st.st_size
+    except OSError:
+        fs_mtime = None
+        fs_size = 0
+
     file_record = File(
         filename=nfc_name,
         title=_filename_to_title(nfc_name),
         drive=drive_name,
         folder_path=folder_path,
         file_path=relative_path,
-        file_size=file_path.stat().st_size,
+        file_size=fs_size,
         file_type=file_type,
         mime_type=mime_type,
         thumbnail_path=thumbnail_rel,
         duration=duration,
         file_hash=file_hash,
+        **({"created_at": fs_mtime} if fs_mtime is not None else {}),
     )
     db.add(file_record)
     db.flush()
@@ -382,12 +391,16 @@ def _scan_and_register(db: Session, drive_name: str) -> dict[str, int]:
     for entry in pending_new:
         item = entry["item"]
         try:
-            size = item.stat().st_size
+            st = item.stat()
+            size = st.st_size
+            mtime = datetime.fromtimestamp(st.st_mtime, UTC)
         except OSError:
             size = None
+            mtime = None
         h = compute_file_hash(item) if size is not None else None
         entry["file_size"] = size
         entry["file_hash"] = h
+        entry["mtime"] = mtime
         if h is not None and size is not None:
             key = (h, size)
             entry["match_key"] = key
@@ -409,6 +422,7 @@ def _scan_and_register(db: Session, drive_name: str) -> dict[str, int]:
         match_key = entry["match_key"]
         file_hash = entry["file_hash"]
         file_size = entry["file_size"]
+        mtime = entry["mtime"]
 
         candidate: File | None = None
         if (
@@ -501,6 +515,7 @@ def _scan_and_register(db: Session, drive_name: str) -> dict[str, int]:
             thumbnail_path=thumbnail_rel,
             duration=duration,
             file_hash=file_hash,
+            **({"created_at": mtime} if mtime is not None else {}),
         )
         db.add(file_record)
         db.flush()

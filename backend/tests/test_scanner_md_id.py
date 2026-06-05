@@ -131,6 +131,10 @@ class TestCollisionInScanner:
             def now(tz=None):
                 return datetime(2026, 5, 12, 14, 30, 28, 123_000, tzinfo=tz or UTC)
 
+            @staticmethod
+            def fromtimestamp(ts, tz=None):
+                return datetime.fromtimestamp(ts, tz)
+
         monkeypatch.setattr(scanner_mod, "datetime", _FrozenDT)
 
         fresh = drive_dir / "fresh.md"
