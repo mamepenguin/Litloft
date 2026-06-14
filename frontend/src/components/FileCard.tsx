@@ -221,7 +221,7 @@ export function FileCard({
           <div className="mt-1 flex flex-wrap items-center gap-x-1.5 gap-y-0.5 text-xs text-text-muted">
             <span className="tabular-nums">{formatFileSize(file.file_size)}</span>
             <span className="opacity-40">·</span>
-            <span className="tabular-nums">{formatRelativeDate(file.updated_at)}</span>
+            <span className="tabular-nums">{formatRelativeDate(file.created_at)}</span>
             {file.tags.length > 0 && (
               <>
                 <span className="opacity-40">·</span>
