@@ -354,6 +354,8 @@
     "noFavoritesDescription": "星アイコンをクリックしてお気に入りに追加しましょう。",
     "noRecentTitle": "最近見たファイルがありません",
     "noRecentDescription": "ファイルを開くと、ここに表示されます。",
+    "noRecentNoProfileTitle": "プロフィールが設定されていません",
+    "noRecentNoProfileDescription": "設定からプロフィール名を設定すると、視聴履歴がデバイス間で共有されます。",
     "noRecentAddedTitle": "最近追加されたファイルがありません",
     "noRecentAddedDescription": "ファイルをアップロードすると、ここに表示されます。",
     "noTrashTitle": "ゴミ箱は空です",

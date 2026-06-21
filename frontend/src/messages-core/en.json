@@ -354,6 +354,8 @@
     "noFavoritesDescription": "Click the star icon to add favorites.",
     "noRecentTitle": "No recently viewed files",
     "noRecentDescription": "Files you open will appear here.",
+    "noRecentNoProfileTitle": "No profile set",
+    "noRecentNoProfileDescription": "Set a profile name in Settings to share your watch history across devices.",
     "noRecentAddedTitle": "No recently added files",
     "noRecentAddedDescription": "Uploaded files will appear here.",
     "noTrashTitle": "Trash is empty",

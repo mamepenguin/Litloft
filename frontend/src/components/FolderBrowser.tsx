@@ -70,7 +70,7 @@ export function FolderBrowser({
   // the same reference down to useFolderFiles so that both its filter tuple
   // and the hydrated items originate from a single parse of sessionStorage.
   const [initialSnapshot] = useState(() =>
-    loadListSnapshot(buildListSnapshotKey({ driveName, folderPath, view, tagFilter })),
+    loadListSnapshot(buildListSnapshotKey({ driveName, folderPath, view, tagFilter }))
   );
 
   // Search mode defaults to relevance (hybrid score on the merged
@@ -124,7 +124,7 @@ export function FolderBrowser({
 
   const {
     files, folders, total, loading, loadingMore, hasMore, pagesLoaded, sentinelRef,
-    setFiles, setPaginatedTotal, setFolders, isRecent,
+    setFiles, setPaginatedTotal, setFolders, isRecent, hasProfile,
     snapshotKey, hydratedScrollY,
   } = useFolderFiles({ driveName, folderPath, view, tagFilter, typeFilter, sort, order, refreshKey, searchQuery, includeSceneClip, initialSnapshot });
 
@@ -524,6 +524,7 @@ export function FolderBrowser({
         loading={loading}
         loadingMore={loadingMore}
         isRecent={isRecent}
+        hasProfile={hasProfile}
         isFavorites={isFavorites}
         isRecentAdded={isRecentAdded}
         isSearch={isSearch}

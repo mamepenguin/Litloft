@@ -3,7 +3,7 @@
 import { Clock, File, FilePlus, Search, RefreshCw, Star, Trash2 } from "lucide-react";
 import { useTranslations } from "next-intl";
 
-type EmptyVariant = "no-files" | "no-results" | "needs-scan" | "no-favorites" | "no-recent" | "no-recent-added" | "no-trash";
+type EmptyVariant = "no-files" | "no-results" | "needs-scan" | "no-favorites" | "no-recent" | "no-recent-profile" | "no-recent-added" | "no-trash";
 
 const variantConfig: Record<
   EmptyVariant,
@@ -33,6 +33,11 @@ const variantConfig: Record<
     icon: Clock,
     titleKey: "noRecentTitle",
     descriptionKey: "noRecentDescription",
+  },
+  "no-recent-profile": {
+    icon: Clock,
+    titleKey: "noRecentNoProfileTitle",
+    descriptionKey: "noRecentNoProfileDescription",
   },
   "no-recent-added": {
     icon: FilePlus,
