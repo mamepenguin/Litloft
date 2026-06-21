@@ -123,6 +123,19 @@ describe("listSnapshot", () => {
       expect(loadListSnapshot("main|photos||")).toBeNull();
     });
 
+    it("returns a random-sort snapshot (caller is responsible for discarding it)", () => {
+      // "random" is a valid SortField, so loadListSnapshot returns it.
+      // FolderBrowser's lazy useState initializer discards it to prevent
+      // restoring a stale random-ordered list.
+      saveListSnapshot({
+        ...BASE_SNAPSHOT,
+        filters: { ...BASE_SNAPSHOT.filters, sort: "random" },
+      });
+      const loaded = loadListSnapshot("main|photos||");
+      expect(loaded).not.toBeNull();
+      expect(loaded?.filters.sort).toBe("random");
+    });
+
     it("accepts snapshots exactly at the TTL boundary", () => {
       vi.useFakeTimers();
       vi.setSystemTime(new Date("2026-04-22T12:00:00Z"));

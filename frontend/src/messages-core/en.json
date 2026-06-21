@@ -215,7 +215,8 @@
     "sizeLargest": "Size largest",
     "sizeSmallest": "Size smallest",
     "likesmost": "Most liked",
-    "likesleast": "Least liked"
+    "likesleast": "Least liked",
+    "random": "Random"
   },
   "selection": {
     "selected": "{count} selected",
@@ -428,7 +429,8 @@
     "other": "Other",
     "playAll": "Play all",
     "home": "Home",
-    "more": "More actions"
+    "more": "More actions",
+    "reshuffle": "Reshuffle"
   },
   "gallery": {
     "prevImage": "Previous image",

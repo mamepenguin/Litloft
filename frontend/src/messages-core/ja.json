@@ -215,7 +215,8 @@
     "sizeLargest": "サイズ 大→小",
     "sizeSmallest": "サイズ 小→大",
     "likesmost": "いいね 多→少",
-    "likesleast": "いいね 少→多"
+    "likesleast": "いいね 少→多",
+    "random": "ランダム"
   },
   "selection": {
     "selected": "{count}件選択",
@@ -428,7 +429,8 @@
     "other": "その他",
     "playAll": "全曲再生",
     "home": "ホーム",
-    "more": "その他の操作"
+    "more": "その他の操作",
+    "reshuffle": "再シャッフル"
   },
   "gallery": {
     "prevImage": "前の画像",

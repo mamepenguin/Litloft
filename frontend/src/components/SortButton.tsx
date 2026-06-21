@@ -26,6 +26,7 @@ const baseSortOptions: SortOption[] = [
   { labelKey: "sizeSmallest", sort: "file_size", order: "asc" },
   { labelKey: "likesmost", sort: "likes", order: "desc" },
   { labelKey: "likesleast", sort: "likes", order: "asc" },
+  { labelKey: "random", sort: "random", order: "desc" },
 ];
 
 interface SortButtonProps {
