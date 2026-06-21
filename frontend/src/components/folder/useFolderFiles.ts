@@ -2,8 +2,8 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState, type Dispatch, type SetStateAction } from "react";
 
-import { batchGetFiles, getDriveFiles, getFolders } from "@/lib/api";
-import { getRecentFileIds } from "@/lib/recentlyPlayed";
+import { getDriveFiles, getFolders, getWatchHistory } from "@/lib/api";
+import { useProfile } from "@/components/ProfileProvider";
 import {
   buildListSnapshotKey,
   clearListSnapshot,
@@ -92,6 +92,7 @@ interface UseFolderFilesReturn {
   setPaginatedTotal: Dispatch<SetStateAction<number>>;
   setFolders: Dispatch<SetStateAction<Folder[]>>;
   isRecent: boolean;
+  hasProfile: boolean;
   snapshotKey: string;
   hydratedScrollY: number | null;
 }
@@ -112,6 +113,8 @@ function filtersMatchSnapshot(
 export function useFolderFiles({
   driveName, folderPath, view, tagFilter, typeFilter, sort, order, refreshKey, searchQuery, includeSceneClip, initialSnapshot,
 }: UseFolderFilesParams): UseFolderFilesReturn {
+  const { nickname } = useProfile();
+  const hasProfile = nickname !== null;
   const isSearch = !!(searchQuery && searchQuery.trim());
   const isFavorites = view === "favorites";
   const isRecent = view === "recent" && !isSearch;
@@ -283,32 +286,31 @@ export function useFolderFiles({
     };
   }, [isSearch, searchQuery, driveName, typeFilter, includeSceneClip]);
 
-  // Recent view uses localStorage, managed separately
+  // Recent view — server-side WatchHistory, scoped to this drive
   const [recentFiles, setRecentFiles] = useState<FileItem[]>([]);
   const [recentLoading, setRecentLoading] = useState(false);
 
   const fetchRecentFiles = useCallback(() => {
-    const recentIds = getRecentFileIds();
-    if (recentIds.length === 0) {
+    if (!hasProfile) {
       setRecentFiles([]);
       return;
     }
     setRecentLoading(true);
-    batchGetFiles(recentIds).then((fetched) => {
-      const driveFiles = fetched.filter((f) =>
-        f.drive === driveName && (!typeFilter || f.file_type === typeFilter)
-      );
-      setRecentFiles(driveFiles);
+    getWatchHistory(driveName, 50, "all").then((items) => {
+      const filtered = typeFilter
+        ? items.filter((f) => f.file_type === typeFilter)
+        : items;
+      setRecentFiles(filtered as FileItem[]);
     }).catch(() => {
       setRecentFiles([]);
     }).finally(() => {
       setRecentLoading(false);
     });
-  }, [driveName, typeFilter]);
+  }, [driveName, typeFilter, hasProfile]);
 
   useEffect(() => {
     if (isRecent) fetchRecentFiles();
-  }, [isRecent, fetchRecentFiles]);
+  }, [isRecent, fetchRecentFiles, hasProfile]);
 
   // Merged list for search mode: filename matches + semantic hits with
   // per-file `match_meta`. Sort applied client-side because the two
@@ -405,7 +407,7 @@ export function useFolderFiles({
 
   return {
     files, folders, total, loading, loadingMore, hasMore, pagesLoaded, sentinelRef,
-    reset, setFiles, setPaginatedTotal, setFolders, isRecent,
+    reset, setFiles, setPaginatedTotal, setFolders, isRecent, hasProfile,
     snapshotKey,
     hydratedScrollY: hydration.scrollY,
   };

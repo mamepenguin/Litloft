@@ -71,6 +71,7 @@ const defaultProps = {
   loading: false,
   loadingMore: false,
   isRecent: false,
+  hasProfile: true,
   isFavorites: false,
   isRecentAdded: false,
   selectable: false,
