@@ -310,7 +310,7 @@ export function useFolderFiles({
 
   useEffect(() => {
     if (isRecent) fetchRecentFiles();
-  }, [isRecent, fetchRecentFiles, hasProfile]);
+  }, [isRecent, fetchRecentFiles]);
 
   // Merged list for search mode: filename matches + semantic hits with
   // per-file `match_meta`. Sort applied client-side because the two

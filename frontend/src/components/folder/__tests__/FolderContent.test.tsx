@@ -129,6 +129,11 @@ describe("FolderContent", () => {
     expect(screen.getByTestId("empty-no-recent")).toBeInTheDocument();
   });
 
+  it("shows no-profile empty state when isRecent and hasProfile is false", () => {
+    render(<FolderContent {...defaultProps} files={[]} folders={[]} isRecent={true} hasProfile={false} />);
+    expect(screen.getByTestId("empty-no-recent-profile")).toBeInTheDocument();
+  });
+
   it("shows recent-added empty state", () => {
     render(<FolderContent {...defaultProps} files={[]} folders={[]} isRecentAdded={true} />);
     expect(screen.getByTestId("empty-no-recent-added")).toBeInTheDocument();
