@@ -18,7 +18,7 @@ import { ViewToggle } from "@/components/ViewToggle";
 import { useClipboard } from "@/components/ClipboardProvider";
 import { useSelection } from "@/hooks/useSelection";
 import { useDragAndDrop } from "@/hooks/useDragAndDrop";
-import { useFolderViewMode } from "@/hooks/useFolderViewMode";
+import { useFolderSort, useFolderViewMode } from "@/hooks/useFolderViewMode";
 import { useSelectedFile } from "@/hooks/useSelectedFile";
 import { useTreeEnabled } from "@/hooks/useTreeEnabled";
 import { buildListSnapshotKey, clearListSnapshot, loadListSnapshot, saveListSnapshot } from "@/lib/listSnapshot";
@@ -76,10 +76,10 @@ export function FolderBrowser({
 
   // Search mode defaults to relevance (hybrid score on the merged
   // filename + semantic list); folder/view browsing keeps created_at.
-  const [sort, setSort] = useState<SortField>(
+  const [localSort, setLocalSort] = useState<SortField>(
     initialSnapshot?.filters.sort ?? (isSearch ? "relevance" : "created_at"),
   );
-  const [order, setOrder] = useState<SortOrder>(initialSnapshot?.filters.order ?? "desc");
+  const [localOrder, setLocalOrder] = useState<SortOrder>(initialSnapshot?.filters.order ?? "desc");
   const [typeFilter, setTypeFilter] = useState<FileType | null>(
     typeFilterProp ?? initialSnapshot?.filters.typeFilter ?? null,
   );
@@ -122,6 +122,12 @@ export function FolderBrowser({
   // filters use the global default for view mode rather than the
   // per-folder override, since they don't render a single folder.
   const isFolderContext = !isSpecialView && !isSearch && !tagFilter;
+
+  // Per-folder sort preference (localStorage folderPrefs:{drive}).
+  // Active only in isFolderContext; search/special views use localSort/localOrder.
+  const folderSort = useFolderSort({ drive: driveName, folderPath: folderPath ?? "" });
+  const sort = isFolderContext ? folderSort.sort : localSort;
+  const order = isFolderContext ? folderSort.order : localOrder;
 
   const {
     files, folders, total, loading, loadingMore, hasMore, pagesLoaded, sentinelRef,
@@ -470,7 +476,10 @@ export function FolderBrowser({
         drive={driveName}
         folderPath={folderPath}
         viewMode={isFolderContext ? viewMode : undefined}
-        onSortChange={(s, o) => { setSort(s); setOrder(o); }}
+        onSortChange={(s, o) => {
+          if (isFolderContext) folderSort.setSort(s, o);
+          else { setLocalSort(s); setLocalOrder(o); }
+        }}
         onTypeFilterChange={setTypeFilter}
         onViewChange={handleViewChange}
         onToggleSelectable={() => {

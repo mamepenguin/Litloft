@@ -2,14 +2,27 @@
 
 import { useCallback, useEffect, useState } from "react";
 
-import type { FolderKind, ViewMode } from "@/types";
+import type { FolderKind, SortField, SortOrder, ViewMode } from "@/types";
 
 const GLOBAL_KEY = "video-share-view-mode";
 const PER_DRIVE_PREFIX = "folderPrefs:";
 const VALID_MODES: ViewMode[] = ["grid", "list"];
 
+const VALID_SORT_FIELDS: SortField[] = [
+  "created_at",
+  "title",
+  "file_size",
+  "likes",
+  "random",
+  "relevance",
+];
+const DEFAULT_SORT: SortField = "created_at";
+const DEFAULT_ORDER: SortOrder = "desc";
+
 interface FolderPrefsEntry {
   viewMode?: ViewMode;
+  sort?: SortField;
+  order?: SortOrder;
 }
 
 type FolderPrefs = Record<string, FolderPrefsEntry>;
@@ -104,4 +117,56 @@ export function useFolderViewMode(opts: ResolveOpts): UseFolderViewModeResult {
   );
 
   return { viewMode, setViewMode };
+}
+
+// --- Per-folder sort ---
+
+function isSortField(v: unknown): v is SortField {
+  return typeof v === "string" && (VALID_SORT_FIELDS as string[]).includes(v);
+}
+
+function isSortOrder(v: unknown): v is SortOrder {
+  return v === "asc" || v === "desc";
+}
+
+function resolveFolderSort(drive: string, folderPath: string): { sort: SortField; order: SortOrder } {
+  const entry = loadFolderPrefs(drive)[folderPath];
+  return {
+    sort: isSortField(entry?.sort) ? entry.sort : DEFAULT_SORT,
+    order: isSortOrder(entry?.order) ? entry.order : DEFAULT_ORDER,
+  };
+}
+
+interface UseFolderSortOpts {
+  drive: string;
+  folderPath: string;
+}
+
+interface UseFolderSortResult {
+  sort: SortField;
+  order: SortOrder;
+  setSort: (sort: SortField, order: SortOrder) => void;
+}
+
+export function useFolderSort({ drive, folderPath }: UseFolderSortOpts): UseFolderSortResult {
+  const [state, setState] = useState(() => resolveFolderSort(drive, folderPath));
+
+  useEffect(() => {
+    setState(resolveFolderSort(drive, folderPath));
+  }, [drive, folderPath]);
+
+  const setSort = useCallback(
+    (sort: SortField, order: SortOrder) => {
+      const prefs = loadFolderPrefs(drive);
+      const next: FolderPrefs = {
+        ...prefs,
+        [folderPath]: { ...prefs[folderPath], sort, order },
+      };
+      saveFolderPrefs(drive, next);
+      setState({ sort, order });
+    },
+    [drive, folderPath],
+  );
+
+  return { sort: state.sort, order: state.order, setSort };
 }
