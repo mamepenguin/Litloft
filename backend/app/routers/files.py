@@ -222,8 +222,8 @@ def _is_markdown_file(file: File) -> bool:
 def replace_file_tags(db: Session, file: File, tag_names: list[str]) -> None:
     """Replace ``file.tags`` with the given names, reusing existing Tag rows.
 
-    Shared by ``PUT /api/files/{id}/tags``, ``PUT /api/files/batch/tags`` and
-    the internal ``POST /api/internal/files/{id}/tags`` (spec
+    Shared by ``PUT /api/files/{id}/tags`` and the internal
+    ``POST /api/internal/files/{id}/tags`` (spec
     ``2026-04-24-knowledge-tag-unification.md``). Case-insensitive dedup
     via ``func.lower(Tag.name)``; the ``Tag`` namespace is per-drive
     (``uq_tags_drive_name``).
@@ -255,6 +255,40 @@ def replace_file_tags(db: Session, file: File, tag_names: list[str]) -> None:
             db.flush()
         tag_objects.append(tag)
     file.tags = tag_objects
+
+
+def merge_file_tags(db: Session, file: File, tag_names: list[str]) -> None:
+    """Add ``tag_names`` to ``file.tags`` without removing existing tags.
+
+    Used by ``PUT /api/files/batch/tags`` so that bulk-tagging multiple files
+    with different existing tags never destroys per-file history.
+    Case-insensitive dedup: a name that already exists on the file (compared
+    via ``lower()``) is silently skipped.
+
+    SECURITY: same contract as ``replace_file_tags`` — callers must verify
+    drive access upstream.
+
+    Transactional contract: caller commits. No orphan cleanup needed because
+    this helper never removes tags.
+    """
+    existing_lower = {t.name.lower() for t in file.tags}
+    for tag_name in tag_names:
+        if tag_name.lower() in existing_lower:
+            continue
+        tag = (
+            db.query(Tag)
+            .filter(
+                func.lower(Tag.name) == tag_name.lower(),
+                Tag.drive == file.drive,
+            )
+            .first()
+        )
+        if not tag:
+            tag = Tag(name=tag_name, drive=file.drive)
+            db.add(tag)
+            db.flush()
+        file.tags.append(tag)
+        existing_lower.add(tag_name.lower())
 
 
 def cleanup_orphan_tags(db: Session) -> int:
@@ -499,12 +533,11 @@ async def batch_tags(
     for file_id in body.ids:
         try:
             file = _get_file_or_404(db, file_id, unlocked_groups)
-            replace_file_tags(db, file, body.tags)
+            merge_file_tags(db, file, body.tags)
             updated += 1
             updated_ids.append(file_id)
         except HTTPException as e:
             errors.append({"id": file_id, "error": e.detail})
-    cleanup_orphan_tags(db)
     db.commit()
     if updated_ids:
         asyncio.create_task(
