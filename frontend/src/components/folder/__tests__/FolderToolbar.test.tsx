@@ -219,4 +219,28 @@ describe("FolderToolbar", () => {
     expect(screen.queryByText("Rescan")).not.toBeInTheDocument();
     expect(screen.getByText("Selection mode")).toBeInTheDocument();
   });
+
+  it("shows reshuffle button when sort is random and onReshuffle is provided", () => {
+    const onReshuffle = vi.fn();
+    render(<FolderToolbar {...defaultProps} sort="random" onReshuffle={onReshuffle} />);
+    expect(screen.getByLabelText("Reshuffle")).toBeInTheDocument();
+  });
+
+  it("does not show reshuffle button when sort is not random", () => {
+    const onReshuffle = vi.fn();
+    render(<FolderToolbar {...defaultProps} sort="created_at" onReshuffle={onReshuffle} />);
+    expect(screen.queryByLabelText("Reshuffle")).not.toBeInTheDocument();
+  });
+
+  it("does not show reshuffle button when onReshuffle is not provided", () => {
+    render(<FolderToolbar {...defaultProps} sort="random" />);
+    expect(screen.queryByLabelText("Reshuffle")).not.toBeInTheDocument();
+  });
+
+  it("calls onReshuffle when reshuffle button is clicked", () => {
+    const onReshuffle = vi.fn();
+    render(<FolderToolbar {...defaultProps} sort="random" onReshuffle={onReshuffle} />);
+    fireEvent.click(screen.getByLabelText("Reshuffle"));
+    expect(onReshuffle).toHaveBeenCalledTimes(1);
+  });
 });

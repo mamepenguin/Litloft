@@ -1,22 +1,18 @@
 # Litloft
 
-A media library for files you want to return to.
+A file-based media library.
 
-Litloft runs on your home LAN and gives your videos, documents, images,
-web videos, and Markdown notes one place to live. It is a media server at
-the base, but the point is not only playback. The point is remembering what
-is inside your files, finding the right moment again, and turning scattered
-media into material you can work with.
+Litloft is a self-hosted library app that runs on your home LAN. It gives you a single web interface to manage and share your videos, documents, images, web videos, and Markdown notes.
+
+I originally started building it as a simple video server, but it has evolved to focus heavily on knowledge aggregation and search. By indexing your files in multiple ways, Litloft turns a scattered collection of media into a truly useful, searchable resource.
 
 **[Landing page](https://mamepenguin.github.io/Litloft/)** ·
 **[Documentation](docs/README.md)** ·
 **[日本語 README](docs/README_ja.md)**
 
-> **LAN only.** Litloft is designed for trusted home networks. Do not expose
-> it to the public internet without an HTTPS reverse proxy and VPN.
+Litloft keeps authentication minimal by design and is meant to be used on a trusted network. If you need to access it outside your LAN, I highly recommend routing it through a VPN like Tailscale.
 
-> **Personal project.** Built for my own use. Issues and PRs are welcome, but
-> support is best-effort.
+Personal project. I built this primarily for my own use. Issues and PRs are welcome, but please note that support is on a best-effort basis.
 
 <p align="center">
   <img src="docs/images/user-guide/drive-home-overview.png" width="92%" alt="Litloft drive home overview" />
@@ -29,88 +25,53 @@ media into material you can work with.
 
 ---
 
-## Why Litloft Exists
+## Why I Built Litloft
 
-Most media servers are good at playing files. Most note apps are good at
-writing notes. Most search tools assume the interesting material is already
-text.
+There are plenty of great media servers for playback, and excellent note-taking apps for writing. Litloft targets the space in between.
 
-Litloft sits in the overlap: lectures, streams, talks, screenshots, PDFs,
-self-scanned books, personal notes, downloaded documents, and links you
-keep meaning to revisit. It treats them as one local library.
+I wanted a single local library to handle lecture recordings, stream archives, PDFs, self-scanned books, personal notes, and all those URLs I bookmarked to "watch later."
 
-You can watch a video, search its subtitles, ask what it said, save the
-answer into a note, connect that note to another file, and come back later
-from any of those entry points.
+I wanted an environment where I could watch a video, search its subtitles, jot down notes, and link them to other documents. When looking back, I wanted to jump straight to the right information—whether starting from a video, a note, or a search query.
 
 ## Media Server
 
-Litloft starts as a browser-based media server for your LAN.
+At its core, Litloft is a fast, browser-based media server for your LAN.
 
-Point it at folders on a disk or NAS, open it from a phone, tablet, or
-desktop browser, and stream the files in place. Videos resume where you left
-off. Images, PDFs, archives, and Markdown files open in the same library.
-Drives can be separated by access rules, so public family media,
-private archives, and research material do not need to share one
-flat space.
+Point it at a folder, and you can open files directly from your phone, tablet, or PC browser. It supports video resume playback, but also handles images, PDFs, and Markdown files in the same view. You can set access rules per drive, so you don't have to mix family videos with your personal research materials.
 
-The media server is the foundation: fast browsing, thumbnails, streaming,
-history, comments, tags, collections, and ordinary file operations. Nothing
-else in Litloft matters unless the library itself feels useful every day.
+Everything is built on top of a solid, everyday library experience: fast browsing, thumbnails, streaming, history tracking, and tagging.
 
-## Intelligence
+## Search & Summarize (Intelligence)
 
-Intelligence is how Litloft remembers what is inside the library.
+Litloft indexes the contents of your files so you can pull them up anytime.
 
-It indexes text, subtitles, transcripts, summaries, file metadata, and video
-frames. A long recording becomes searchable by the words spoken inside it.
-A video with captions can be found by the topic discussed halfway through.
-A document can surface from a phrase you half remember. With an LLM
-configured, Litloft can summarize files, suggest tags, refine transcripts,
-and answer questions with citations back to the source material.
+By automatically transcribing audio and indexing subtitles/text, you can search for the exact scene where a specific word was spoken. Even with just a vague keyword, you can jump right to the relevant document or video timestamp.
 
-The useful part is not that a model is present. The useful part is that the
-library gains handles: timestamps, excerpts, summaries, keywords, related
-files, and cited answers. Ask is most valuable when the answer is not the
-end of the search, but a path back to the exact file and passage it came
-from.
+If you connect an LLM, you can also use features like automatic summaries, tag suggestions, and Ask (Q&A). However, AI-generated answers aren't the final destination here. I designed these features to act as practical stepping stones—helping you find the exact file and timestamp so you can check the source yourself.
 
 ## Media Import
 
-Media Import brings outside videos into the same working library.
+You can pull external videos (like YouTube) straight into your local library.
 
-Paste a URL, or subscribe to a YouTube channel or playlist, and Litloft can
-collect new entries automatically. Titles, descriptions, thumbnails, channel
-information, and available captions are pulled into the library, so external
-media can be searched, summarized, and used by Ask alongside local files.
+Simply paste a URL, or subscribe to channels and playlists to automatically fetch new videos. Litloft grabs the titles, thumbnails, and available subtitles. This means external videos become fully searchable and summarizable, just like your local files.
 
-That changes what "saving a video" means. It is no longer just a bookmark
-you may or may not open again. It becomes part of the same searchable archive
-as your own recordings and notes.
+Instead of letting "Watch Later" links pile up as dead bookmarks, they become an active, searchable part of your archive alongside your own recordings and notes.
 
-## Knowledge
+## Linking Files and Notes (Knowledge)
 
-Knowledge turns the library into a place for writing around your files.
+Litloft allows you to write Markdown notes linked directly to your media files.
 
-Markdown notes live in ordinary folders, with frontmatter that Litloft can
-understand. Notes can be edited in the browser or with external tools. They
-can point to source files, clips, summaries, Ask answers, and other notes.
-Links between Markdown files are projected back into Litloft, so a folder of
-plain text becomes a connected layer over the media archive.
+Because notes are saved in ordinary folders, you can edit them in the browser or use your favorite external Markdown editor. You can link a note to a specific timestamp in a video, or connect notes to each other to give your files context.
 
-This is not a separate notebook bolted onto the side. It is the place where
-the library starts to explain itself: why a video mattered, which file
-supports a claim, what a PDF connects to, what should be read next.
+Rather than just being a standalone notepad, it acts as a space to organize your library—explaining why a video is important, or which document backs up a specific claim.
 
 ## What You Can Use It For
 
-- A private LAN media server for videos, books, scans, and personal files.
-- A searchable archive of lectures, streams, talks, podcasts, and clips.
-- A research library where video, text, screenshots, and notes stay linked.
-- A way to collect YouTube channels and playlists without losing their
-  captions and context.
-- A local knowledge workspace where summaries, citations, and Markdown notes
-  live beside the original files.
+- A private media server for videos, books, scans, and personal files.
+- A searchable archive for lectures, streams, talks, podcasts, and clips.
+- A research library connecting videos, text, screenshots, and notes.
+- A place to archive YouTube channels/playlists without losing subtitles or context.
+- A local knowledge workspace where notes and summaries live right next to the source files.
 
 ## Quick Start
 
@@ -127,11 +88,9 @@ Open `http://localhost:3000`.
 
 From another device on the same LAN, open `http://<host-ip>:3000`.
 
-`configure.py` writes the local Docker wiring, drive mounts, port settings,
-and optional addon services. On first launch, the setup wizard names your
-drives and configures access control and addon policy.
+`configure.py` generates your local Docker configuration, drive mounts, ports, and optional add-on services. On the first launch, a setup wizard will guide you through naming drives, access control, and add-on policies.
 
-For updates:
+To update:
 
 ```bash
 git pull --recurse-submodules
@@ -140,40 +99,21 @@ docker compose up -d --build
 
 ## Feature Sweep
 
-**Media:** video streaming, audio playback, Range requests, resume playback,
-subtitle display, thumbnail previews, image viewer, spread view, Markdown
-viewer, Mermaid rendering, syntax highlighting, PDF viewer, ZIP/archive browsing.
+Media: Video streaming, audio playback, Range requests, resume playback, subtitle display, thumbnail previews, image viewer, spread view, Markdown viewer, Mermaid rendering, syntax highlighting, PDF viewer, ZIP/archive browsing.
 
-**Library:** multi-drive setup, folder browser, grid/list views, pinned
-folders, favorites, collections, comments, tags, watch history, recently
-played, recently added, duplicate detection, smart folders, trash, missing
-file recovery, upload, folder upload, rename, move, copy, batch operations,
-in-browser text editing.
+Library: Multi-drive setup, folder browser, grid/list views, pinned folders, favorites, collections, comments, tags, watch history, recently played, recently added, duplicate detection, smart folders, trash, missing file recovery, upload, folder upload, rename, move, copy, batch operations, in-browser text editing.
 
-**Intelligence:** transcript indexing, subtitle indexing, semantic search,
-scene/frame search, hybrid BM25/vector retrieval, Ask with citations,
-summaries, detailed Markdown summaries, suggested tags, retrieval keywords,
-transcript refinement, vision descriptions, local Whisper, cloud STT
-providers, deepgram APIs, ElevenLabs APIs, OpenAI-compatible LLM endpoints,
-Ollama/local LLM support, per-drive privacy policy.
+Intelligence: Transcript & subtitle indexing, semantic search, scene/frame search, hybrid BM25/vector retrieval, Ask with citations, summaries, detailed Markdown summaries, tag suggestions, retrieval keywords, transcript refinement, vision descriptions, local Whisper, cloud STT providers, Deepgram API, ElevenLabs API, OpenAI-compatible LLM endpoints, Ollama/local LLM support, per-drive privacy policies.
 
-**Media Import:** URL import, YouTube channel subscriptions, YouTube playlist
-subscriptions, automatic sync, metadata refresh, caption import, thumbnail
-caching, provider embeds, import activity, retry tools, per-drive enablement.
+Media Import: URL import, YouTube channel/playlist subscriptions, automatic sync, metadata refresh, caption import, thumbnail caching, provider embeds, import activity log, retry tools, per-drive enablement.
 
-**Knowledge:** Markdown vaults, frontmatter sync, wiki links, Markdown
-editing, web clipping, source-file relations, related notes, active summary
-panel, vault search, note distillation, external editor compatibility.
+Knowledge: Markdown vaults, frontmatter sync, wiki links, Markdown editing, web clipping, source-file relations, related notes, active summary panel, note distillation, external editor compatibility.
 
-**Admin:** first-run setup, settings GUI, password-protected drives, access
-groups, master viewer admin access, addon policy, restart-pending banner,
-dashboard, Docker Compose deployment, PWA, dark/light theme.
+Admin: First-run setup, settings GUI, password-protected drives, access groups, master viewer admin access, add-on policy, restart-pending banner, dashboard, Docker Compose deployment, PWA, dark/light theme.
 
 ## Stack
 
-FastAPI, SQLite, SQLAlchemy, Next.js, TypeScript, Tailwind CSS, Docker
-Compose, ffmpeg, faster-Whisper, SigLIP/CLIP, multilingual embeddings,
-SQLite FTS5, sqlite-vec.
+FastAPI, SQLite, SQLAlchemy, Next.js, TypeScript, Tailwind CSS, Docker Compose, ffmpeg, faster-Whisper, SigLIP/CLIP, multilingual embeddings, SQLite FTS5, sqlite-vec.
 
 ```
 Browser -> :3000 Next.js -> /api/* -> :8000 FastAPI

@@ -168,7 +168,7 @@ export function DriveHome({ driveName }: DriveHomeProps) {
     };
 
     fetchAll();
-  }, [driveName, fetchFileSections, applyFileSections, hasProfile]);
+  }, [driveName, fetchFileSections, applyFileSections, hasProfile, nickname]);
 
   const handleTogglePin = useCallback(
     async (folderPath: string) => {
@@ -295,6 +295,7 @@ export function DriveHome({ driveName }: DriveHomeProps) {
           loading={recentlyPlayedLoading}
           title={t("recentlyPlayed")}
           icon={<History size={20} className="text-text-muted" />}
+          seeAllHref={`${driveBase}?view=recent`}
           onRemoveItem={handleRemoveWatchItem}
         />
       )}

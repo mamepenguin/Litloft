@@ -215,7 +215,8 @@
     "sizeLargest": "Size largest",
     "sizeSmallest": "Size smallest",
     "likesmost": "Most liked",
-    "likesleast": "Least liked"
+    "likesleast": "Least liked",
+    "random": "Random"
   },
   "selection": {
     "selected": "{count} selected",
@@ -354,6 +355,8 @@
     "noFavoritesDescription": "Click the star icon to add favorites.",
     "noRecentTitle": "No recently viewed files",
     "noRecentDescription": "Files you open will appear here.",
+    "noRecentNoProfileTitle": "No profile set",
+    "noRecentNoProfileDescription": "Set a profile name in Settings to share your watch history across devices.",
     "noRecentAddedTitle": "No recently added files",
     "noRecentAddedDescription": "Uploaded files will appear here.",
     "noTrashTitle": "Trash is empty",
@@ -426,7 +429,8 @@
     "other": "Other",
     "playAll": "Play all",
     "home": "Home",
-    "more": "More actions"
+    "more": "More actions",
+    "reshuffle": "Reshuffle"
   },
   "gallery": {
     "prevImage": "Previous image",

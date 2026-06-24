@@ -1,7 +1,7 @@
 import { act, renderHook } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 
-import { resolveFolderViewMode, useFolderViewMode } from "../useFolderViewMode";
+import { resolveFolderViewMode, useFolderSort, useFolderViewMode } from "../useFolderViewMode";
 
 const GLOBAL_KEY = "video-share-view-mode";
 const driveKey = (drive: string) => `folderPrefs:${drive}`;
@@ -121,6 +121,107 @@ describe("resolveFolderViewMode (layered fallback, grid|list)", () => {
       dominantKind: null,
     });
     expect(result).toBe("grid");
+  });
+});
+
+describe("useFolderSort", () => {
+  it("defaults to created_at/desc when no prefs stored", () => {
+    const { result } = renderHook(() =>
+      useFolderSort({ drive: "work", folderPath: "Q1" }),
+    );
+    expect(result.current.sort).toBe("created_at");
+    expect(result.current.order).toBe("desc");
+  });
+
+  it("reads stored sort/order from folderPrefs", () => {
+    localStorage.setItem(
+      driveKey("work"),
+      JSON.stringify({ Q1: { sort: "title", order: "asc" } }),
+    );
+    const { result } = renderHook(() =>
+      useFolderSort({ drive: "work", folderPath: "Q1" }),
+    );
+    expect(result.current.sort).toBe("title");
+    expect(result.current.order).toBe("asc");
+  });
+
+  it("writes sort/order to folderPrefs on setSort", () => {
+    const { result } = renderHook(() =>
+      useFolderSort({ drive: "work", folderPath: "Q1" }),
+    );
+    act(() => result.current.setSort("file_size", "asc"));
+    expect(result.current.sort).toBe("file_size");
+    expect(result.current.order).toBe("asc");
+    const stored = JSON.parse(localStorage.getItem(driveKey("work"))!);
+    expect(stored).toEqual({ Q1: { sort: "file_size", order: "asc" } });
+  });
+
+  it("preserves viewMode when updating sort", () => {
+    localStorage.setItem(
+      driveKey("work"),
+      JSON.stringify({ Q1: { viewMode: "list", sort: "title", order: "desc" } }),
+    );
+    const { result } = renderHook(() =>
+      useFolderSort({ drive: "work", folderPath: "Q1" }),
+    );
+    act(() => result.current.setSort("file_size", "asc"));
+    const stored = JSON.parse(localStorage.getItem(driveKey("work"))!);
+    expect(stored.Q1).toEqual({ viewMode: "list", sort: "file_size", order: "asc" });
+  });
+
+  it("preserves entries for other folders", () => {
+    localStorage.setItem(
+      driveKey("work"),
+      JSON.stringify({ photos: { sort: "created_at", order: "desc" } }),
+    );
+    const { result } = renderHook(() =>
+      useFolderSort({ drive: "work", folderPath: "Q1" }),
+    );
+    act(() => result.current.setSort("title", "asc"));
+    const stored = JSON.parse(localStorage.getItem(driveKey("work"))!);
+    expect(stored.photos).toEqual({ sort: "created_at", order: "desc" });
+    expect(stored.Q1).toEqual({ sort: "title", order: "asc" });
+  });
+
+  it("re-resolves when folderPath changes", () => {
+    localStorage.setItem(
+      driveKey("work"),
+      JSON.stringify({
+        Q1: { sort: "title", order: "asc" },
+        photos: { sort: "file_size", order: "desc" },
+      }),
+    );
+    const { result, rerender } = renderHook(
+      ({ folderPath }: { folderPath: string }) =>
+        useFolderSort({ drive: "work", folderPath }),
+      { initialProps: { folderPath: "Q1" } },
+    );
+    expect(result.current.sort).toBe("title");
+    rerender({ folderPath: "photos" });
+    expect(result.current.sort).toBe("file_size");
+    expect(result.current.order).toBe("desc");
+  });
+
+  it("ignores unknown sort field values", () => {
+    localStorage.setItem(
+      driveKey("work"),
+      JSON.stringify({ Q1: { sort: "bogus", order: "desc" } }),
+    );
+    const { result } = renderHook(() =>
+      useFolderSort({ drive: "work", folderPath: "Q1" }),
+    );
+    expect(result.current.sort).toBe("created_at");
+  });
+
+  it("ignores unknown order values", () => {
+    localStorage.setItem(
+      driveKey("work"),
+      JSON.stringify({ Q1: { sort: "title", order: "sideways" } }),
+    );
+    const { result } = renderHook(() =>
+      useFolderSort({ drive: "work", folderPath: "Q1" }),
+    );
+    expect(result.current.order).toBe("desc");
   });
 });
 

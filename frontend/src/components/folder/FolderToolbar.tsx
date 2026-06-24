@@ -9,6 +9,7 @@ import {
   MoreHorizontal,
   Play,
   RefreshCw,
+  Shuffle,
   X,
 } from "lucide-react";
 
@@ -61,6 +62,7 @@ interface FolderToolbarProps {
    * concrete folder to write into.
    */
   onCreateFile?: () => void;
+  onReshuffle?: () => void;
 }
 
 const TYPE_OPTION_KEYS: ReadonlyArray<{ value: FileType | null; labelKey: string }> = [
@@ -80,7 +82,7 @@ export function FolderToolbar({
   viewMode,
   onSortChange, onTypeFilterChange, onViewChange, onToggleSelectable,
   onScan, onPlayAll, onSetCreatingFolder, onSetNewFolderName,
-  onSetFolderError, onCreateFolder, onCreateFile,
+  onSetFolderError, onCreateFolder, onCreateFile, onReshuffle,
 }: FolderToolbarProps) {
   const hideMutatingActions = isSpecialView || !!tagFilter || !!isSearch;
   const t = useTranslations("toolbar");
@@ -242,6 +244,17 @@ export function FolderToolbar({
             </>
           )}
         </div>
+
+        {sort === "random" && onReshuffle && (
+          <button
+            onClick={onReshuffle}
+            className="rounded-lg p-2 text-text-muted transition-colors hover:text-text-primary"
+            aria-label={t("reshuffle")}
+            title={t("reshuffle")}
+          >
+            <Shuffle size={16} />
+          </button>
+        )}
 
         {/* Sort + view toggle + overflow grouped in a single pill */}
         <div className="flex items-center gap-1 rounded-2xl bg-bg-elevated p-1">

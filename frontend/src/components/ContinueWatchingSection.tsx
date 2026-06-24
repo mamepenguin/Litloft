@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import Link from "next/link";
 import { Play } from "lucide-react";
 import { useTranslations } from "next-intl";
 import type { FileItem, WatchHistoryItem } from "@/types";
@@ -14,6 +15,7 @@ interface ContinueWatchingSectionProps {
   loading: boolean;
   title?: string;
   icon?: React.ReactNode;
+  seeAllHref?: string;
   onRemoveItem?: (fileId: string) => void;
 }
 
@@ -36,9 +38,11 @@ export function ContinueWatchingSection({
   loading,
   title,
   icon,
+  seeAllHref,
   onRemoveItem,
 }: ContinueWatchingSectionProps) {
   const t = useTranslations("drive");
+  const tc = useTranslations("common");
   const { menuState, close, handlers } = useContextMenu();
   const [target, setTarget] = useState<FileItem | null>(null);
 
@@ -53,6 +57,14 @@ export function ContinueWatchingSection({
           {icon ?? <Play size={20} className="text-accent-teal" />}
           {title ?? t("continueWatching")}
         </h2>
+        {seeAllHref && (
+          <Link
+            href={seeAllHref}
+            className="text-sm text-text-muted transition-colors hover:text-accent"
+          >
+            {tc("seeAll")}
+          </Link>
+        )}
       </div>
 
       <div className="-mx-4 px-4 overflow-x-auto scrollbar-hide sm:-mx-0 sm:px-0">

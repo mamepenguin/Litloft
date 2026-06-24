@@ -18,10 +18,10 @@ import { ViewToggle } from "@/components/ViewToggle";
 import { useClipboard } from "@/components/ClipboardProvider";
 import { useSelection } from "@/hooks/useSelection";
 import { useDragAndDrop } from "@/hooks/useDragAndDrop";
-import { useFolderViewMode } from "@/hooks/useFolderViewMode";
+import { useFolderSort, useFolderViewMode } from "@/hooks/useFolderViewMode";
 import { useSelectedFile } from "@/hooks/useSelectedFile";
 import { useTreeEnabled } from "@/hooks/useTreeEnabled";
-import { buildListSnapshotKey, loadListSnapshot, saveListSnapshot } from "@/lib/listSnapshot";
+import { buildListSnapshotKey, clearListSnapshot, loadListSnapshot, saveListSnapshot } from "@/lib/listSnapshot";
 import { useScrollContainer } from "@/lib/scrollContainer";
 import { deriveDominantKind } from "@/lib/dominantKind";
 
@@ -69,16 +69,17 @@ export function FolderBrowser({
   // Load the snapshot exactly once via useState's lazy initializer. We pass
   // the same reference down to useFolderFiles so that both its filter tuple
   // and the hydrated items originate from a single parse of sessionStorage.
-  const [initialSnapshot] = useState(() =>
-    loadListSnapshot(buildListSnapshotKey({ driveName, folderPath, view, tagFilter })),
-  );
+  const [initialSnapshot] = useState(() => {
+    const snap = loadListSnapshot(buildListSnapshotKey({ driveName, folderPath, view, tagFilter }));
+    return snap?.filters.sort === "random" ? null : snap;
+  });
 
   // Search mode defaults to relevance (hybrid score on the merged
   // filename + semantic list); folder/view browsing keeps created_at.
-  const [sort, setSort] = useState<SortField>(
+  const [localSort, setLocalSort] = useState<SortField>(
     initialSnapshot?.filters.sort ?? (isSearch ? "relevance" : "created_at"),
   );
-  const [order, setOrder] = useState<SortOrder>(initialSnapshot?.filters.order ?? "desc");
+  const [localOrder, setLocalOrder] = useState<SortOrder>(initialSnapshot?.filters.order ?? "desc");
   const [typeFilter, setTypeFilter] = useState<FileType | null>(
     typeFilterProp ?? initialSnapshot?.filters.typeFilter ?? null,
   );
@@ -122,9 +123,15 @@ export function FolderBrowser({
   // per-folder override, since they don't render a single folder.
   const isFolderContext = !isSpecialView && !isSearch && !tagFilter;
 
+  // Per-folder sort preference (localStorage folderPrefs:{drive}).
+  // Active only in isFolderContext; search/special views use localSort/localOrder.
+  const folderSort = useFolderSort({ drive: driveName, folderPath: folderPath ?? "" });
+  const sort = isFolderContext ? folderSort.sort : localSort;
+  const order = isFolderContext ? folderSort.order : localOrder;
+
   const {
     files, folders, total, loading, loadingMore, hasMore, pagesLoaded, sentinelRef,
-    setFiles, setPaginatedTotal, setFolders, isRecent,
+    reset, setFiles, setPaginatedTotal, setFolders, isRecent, hasProfile,
     snapshotKey, hydratedScrollY,
   } = useFolderFiles({ driveName, folderPath, view, tagFilter, typeFilter, sort, order, refreshKey, searchQuery, includeSceneClip, initialSnapshot });
 
@@ -186,6 +193,7 @@ export function FolderBrowser({
       // snapshotKey doesn't include searchQuery, so saving here would
       // corrupt the root drive page's hydration.
       if (isSearch) return;
+      if (sort === "random") return;
       if (files.length === 0) return;
       saveListSnapshot({
         key: snapshotKey,
@@ -222,6 +230,11 @@ export function FolderBrowser({
       if (frame != null) cancelAnimationFrame(frame);
     };
   }, [files, folders, total, pagesLoaded, sort, order, typeFilter, viewMode, isRecent, isSearch, snapshotKey, scrollContainerRef]);
+
+  const handleReshuffle = useCallback(() => {
+    reset();
+    clearListSnapshot();
+  }, [reset]);
 
   const tSearch = useTranslations("search");
   const tCommon = useTranslations("common");
@@ -463,7 +476,10 @@ export function FolderBrowser({
         drive={driveName}
         folderPath={folderPath}
         viewMode={isFolderContext ? viewMode : undefined}
-        onSortChange={(s, o) => { setSort(s); setOrder(o); }}
+        onSortChange={(s, o) => {
+          if (isFolderContext) folderSort.setSort(s, o);
+          else { setLocalSort(s); setLocalOrder(o); }
+        }}
         onTypeFilterChange={setTypeFilter}
         onViewChange={handleViewChange}
         onToggleSelectable={() => {
@@ -479,6 +495,7 @@ export function FolderBrowser({
         onSetFolderError={createFolder.setFolderError}
         onCreateFolder={createFolder.handleCreateFolder}
         onCreateFile={isFolderContext ? createFile : undefined}
+        onReshuffle={handleReshuffle}
       />}
 
       <div className="px-4 pb-6 pt-1 sm:pb-8 sm:pt-4">
@@ -524,6 +541,7 @@ export function FolderBrowser({
         loading={loading}
         loadingMore={loadingMore}
         isRecent={isRecent}
+        hasProfile={hasProfile}
         isFavorites={isFavorites}
         isRecentAdded={isRecentAdded}
         isSearch={isSearch}
