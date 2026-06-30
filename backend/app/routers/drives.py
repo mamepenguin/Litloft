@@ -178,7 +178,7 @@ def _list_folder_tree_flat(
 
 
 @router.get("", response_model=list[DriveResponse])
-async def list_drives(
+def list_drives(
     db: Annotated[Session, Depends(get_db)],
     unlocked_groups: Annotated[list[str], Depends(get_unlocked_groups)],
 ):
@@ -205,7 +205,7 @@ async def list_drives(
 
 
 @router.get("/{drive_name}/summary", response_model=DriveSummaryResponse)
-async def get_drive_summary(
+def get_drive_summary(
     drive_name: str,
     db: Annotated[Session, Depends(get_db)],
     unlocked_groups: Annotated[list[str], Depends(get_unlocked_groups)],
@@ -235,7 +235,7 @@ async def get_drive_summary(
 
 
 @router.get("/{drive_name}/folders", response_model=list[FolderResponse])
-async def list_folders(
+def list_folders(
     drive_name: str,
     db: Annotated[Session, Depends(get_db)],
     unlocked_groups: Annotated[list[str], Depends(get_unlocked_groups)],
@@ -372,7 +372,7 @@ _FLAT_TREE_MAX_ENTRIES = 50_000
 
 
 @router.get("/{drive_name}/folder-tree", response_model=list[FolderTreeNode])
-async def list_folder_tree(
+def list_folder_tree(
     drive_name: str,
     db: Annotated[Session, Depends(get_db)],
     unlocked_groups: Annotated[list[str], Depends(get_unlocked_groups)],
@@ -512,7 +512,7 @@ async def list_folder_tree(
 
 
 @router.get("/{drive_name}/files", response_model=PaginatedResponse)
-async def list_drive_files(
+def list_drive_files(
     drive_name: str,
     db: Annotated[Session, Depends(get_db)],
     unlocked_groups: Annotated[list[str], Depends(get_unlocked_groups)],
@@ -595,7 +595,7 @@ def _classify_match_source(file_obj, normalized_search: str | None) -> str | Non
 
 
 @router.get("/{drive_name}/tags", response_model=list[TagResponse])
-async def list_drive_tags(
+def list_drive_tags(
     drive_name: str,
     db: Annotated[Session, Depends(get_db)],
     unlocked_groups: Annotated[list[str], Depends(get_unlocked_groups)],
@@ -911,7 +911,7 @@ async def trigger_drive_scan(
 
 
 @router.get("/{drive_name}/pins", response_model=list[PinnedFolderResponse])
-async def list_pinned_folders(
+def list_pinned_folders(
     drive_name: str,
     db: Annotated[Session, Depends(get_db)],
     unlocked_groups: Annotated[list[str], Depends(get_unlocked_groups)],
@@ -927,7 +927,7 @@ async def list_pinned_folders(
 
 
 @router.post("/{drive_name}/pins", response_model=PinnedFolderResponse, status_code=201)
-async def pin_folder(
+def pin_folder(
     drive_name: str,
     body: PinnedFolderCreateRequest,
     db: Annotated[Session, Depends(get_db)],
@@ -952,7 +952,7 @@ async def pin_folder(
 
 
 @router.delete("/{drive_name}/pins", status_code=204)
-async def unpin_folder(
+def unpin_folder(
     drive_name: str,
     path: str,
     db: Annotated[Session, Depends(get_db)],
@@ -973,7 +973,7 @@ async def unpin_folder(
 
 
 @router.get("/{drive_name}/watch-history", response_model=WatchHistoryResponse)
-async def get_watch_history(
+def get_watch_history(
     drive_name: str,
     db: Annotated[Session, Depends(get_db)],
     unlocked_groups: Annotated[list[str], Depends(get_unlocked_groups)],
@@ -1023,7 +1023,7 @@ async def get_watch_history(
 
 
 @router.get("/{drive_name}/duplicates", response_model=DuplicatesResponse)
-async def list_duplicates(
+def list_duplicates(
     drive_name: str,
     db: Annotated[Session, Depends(get_db)],
     unlocked_groups: Annotated[list[str], Depends(get_unlocked_groups)],
@@ -1093,7 +1093,7 @@ async def list_duplicates(
 
 
 @router.get("/{drive_name}/trash", response_model=PaginatedResponse)
-async def list_trash(
+def list_trash(
     drive_name: str,
     db: Annotated[Session, Depends(get_db)],
     unlocked_groups: Annotated[list[str], Depends(get_unlocked_groups)],
@@ -1141,7 +1141,7 @@ async def empty_trash(
 
 
 @router.get("/{drive_name}/missing", response_model=PaginatedResponse)
-async def list_missing(
+def list_missing(
     drive_name: str,
     db: Annotated[Session, Depends(get_db)],
     unlocked_groups: Annotated[list[str], Depends(get_unlocked_groups)],

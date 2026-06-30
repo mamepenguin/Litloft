@@ -440,7 +440,7 @@ def _get_file_any_state_or_404(
 
 
 @router.post("/batch/get", response_model=list[FileResponse])
-async def batch_get(
+def batch_get(
     body: BatchIdsRequest,
     db: Annotated[Session, Depends(get_db)],
     unlocked_groups: Annotated[list[str], Depends(get_unlocked_groups)],
@@ -455,7 +455,7 @@ async def batch_get(
 
 
 @router.post("/batch/delete")
-async def batch_delete(
+def batch_delete(
     body: BatchIdsRequest,
     db: Annotated[Session, Depends(get_db)],
     unlocked_groups: Annotated[list[str], Depends(get_unlocked_groups)],
@@ -522,7 +522,7 @@ async def batch_move(
 
 
 @router.put("/batch/tags")
-async def batch_tags(
+def batch_tags(
     body: BatchTagRequest,
     db: Annotated[Session, Depends(get_db)],
     unlocked_groups: Annotated[list[str], Depends(get_unlocked_groups)],
@@ -570,7 +570,7 @@ async def batch_rename(
 
 
 @router.post("/batch/restore", response_model=BatchRestoreResponse)
-async def batch_restore(
+def batch_restore(
     body: BatchIdsRequest,
     db: Annotated[Session, Depends(get_db)],
     unlocked_groups: Annotated[list[str], Depends(get_unlocked_groups)],
@@ -594,7 +594,7 @@ async def batch_restore(
 
 
 @router.post("/batch/purge", response_model=BatchPurgeResponse)
-async def batch_purge(
+def batch_purge(
     body: BatchIdsRequest,
     db: Annotated[Session, Depends(get_db)],
     unlocked_groups: Annotated[list[str], Depends(get_unlocked_groups)],
@@ -621,7 +621,7 @@ async def batch_purge(
 
 
 @router.post("/batch/copy", response_model=BatchCopyResponse)
-async def batch_copy(
+def batch_copy(
     body: BatchCopyRequest,
     db: Annotated[Session, Depends(get_db)],
     unlocked_groups: Annotated[list[str], Depends(get_unlocked_groups)],
@@ -645,7 +645,7 @@ async def batch_copy(
 
 
 @router.get("/{file_id}", response_model=FileResponse)
-async def get_file(
+def get_file(
     file_id: FileId,
     db: Annotated[Session, Depends(get_db)],
     unlocked_groups: Annotated[list[str], Depends(get_unlocked_groups)],
@@ -656,7 +656,7 @@ async def get_file(
 
 
 @router.get("/{file_id}/neighbors", response_model=NeighborsResponse)
-async def get_file_neighbors(
+def get_file_neighbors(
     file_id: FileId,
     db: Annotated[Session, Depends(get_db)],
     unlocked_groups: Annotated[list[str], Depends(get_unlocked_groups)],
@@ -714,7 +714,7 @@ async def get_file_neighbors(
 
 
 @router.put("/{file_id}", response_model=FileResponse)
-async def update_file(
+def update_file(
     file_id: FileId,
     update: FileUpdate,
     db: Annotated[Session, Depends(get_db)],
@@ -735,7 +735,7 @@ async def update_file(
 
 
 @router.post("/{file_id}/like", response_model=FileResponse)
-async def like_file(
+def like_file(
     file_id: FileId,
     db: Annotated[Session, Depends(get_db)],
     unlocked_groups: Annotated[list[str], Depends(get_unlocked_groups)],
@@ -749,7 +749,7 @@ async def like_file(
 
 
 @router.post("/{file_id}/dislike", response_model=FileResponse)
-async def dislike_file(
+def dislike_file(
     file_id: FileId,
     db: Annotated[Session, Depends(get_db)],
     unlocked_groups: Annotated[list[str], Depends(get_unlocked_groups)],
@@ -763,7 +763,7 @@ async def dislike_file(
 
 
 @router.post("/{file_id}/favorite", response_model=FileResponse)
-async def toggle_favorite(
+def toggle_favorite(
     file_id: FileId,
     db: Annotated[Session, Depends(get_db)],
     unlocked_groups: Annotated[list[str], Depends(get_unlocked_groups)],
@@ -780,7 +780,7 @@ async def toggle_favorite(
 
 
 @router.put("/{file_id}/tags", response_model=FileResponse)
-async def update_file_tags(
+def update_file_tags(
     file_id: FileId,
     update: TagUpdate,
     db: Annotated[Session, Depends(get_db)],
@@ -798,7 +798,7 @@ async def update_file_tags(
 
 
 @router.get("/{file_id}/stream")
-async def stream_file(
+def stream_file(
     file_id: FileId,
     request: Request,
     db: Annotated[Session, Depends(get_db)],
@@ -970,7 +970,7 @@ def _inject_render_bootstrap(html_bytes: bytes) -> bytes:
 
 
 @router.get("/{file_id}/render")
-async def render_file(
+def render_file(
     file_id: FileId,
     db: Annotated[Session, Depends(get_db)],
     unlocked_groups: Annotated[list[str], Depends(get_unlocked_groups)],
@@ -1076,7 +1076,7 @@ def _extract_office_preview(file_path: Path, mime_type: str) -> str:
 
 
 @router.get("/{file_id}/preview-text")
-async def get_preview_text(
+def get_preview_text(
     file_id: FileId,
     db: Annotated[Session, Depends(get_db)],
     unlocked_groups: Annotated[list[str], Depends(get_unlocked_groups)],
@@ -1098,7 +1098,7 @@ async def get_preview_text(
 
 
 @router.get("/{file_id}/thumbnail")
-async def get_thumbnail(
+def get_thumbnail(
     file_id: FileId,
     db: Annotated[Session, Depends(get_db)],
     unlocked_groups: Annotated[list[str], Depends(get_unlocked_groups)],
@@ -1124,7 +1124,7 @@ async def get_thumbnail(
 
 
 @router.get("/{file_id}/archive", response_model=ArchiveContentsResponse)
-async def get_archive_contents(
+def get_archive_contents(
     file_id: FileId,
     db: Annotated[Session, Depends(get_db)],
     unlocked_groups: Annotated[list[str], Depends(get_unlocked_groups)],
@@ -1250,7 +1250,7 @@ async def get_archive_entry(
 
 
 @router.get("/{file_id}/subtitles/{index}")
-async def get_subtitle(
+def get_subtitle(
     file_id: FileId,
     index: int,
     db: Annotated[Session, Depends(get_db)],
@@ -1323,7 +1323,7 @@ async def move_file_endpoint(
 
 
 @router.post("/{file_id}/copy", response_model=FileResponse)
-async def copy_file_endpoint(
+def copy_file_endpoint(
     file_id: FileId,
     body: FileCopyRequest,
     db: Annotated[Session, Depends(get_db)],
@@ -1338,7 +1338,7 @@ async def copy_file_endpoint(
 
 
 @router.delete("/{file_id}")
-async def delete_file_endpoint(
+def delete_file_endpoint(
     file_id: FileId,
     db: Annotated[Session, Depends(get_db)],
     unlocked_groups: Annotated[list[str], Depends(get_unlocked_groups)],
@@ -1352,7 +1352,7 @@ async def delete_file_endpoint(
 
 
 @router.post("/{file_id}/restore", response_model=FileResponse)
-async def restore_file_endpoint(
+def restore_file_endpoint(
     file_id: FileId,
     db: Annotated[Session, Depends(get_db)],
     unlocked_groups: Annotated[list[str], Depends(get_unlocked_groups)],
@@ -1610,7 +1610,7 @@ async def put_file_content(
 
 
 @router.get("/{file_id}/wiki-resolutions")
-async def get_wiki_resolutions(
+def get_wiki_resolutions(
     file_id: FileId,
     db: Annotated[Session, Depends(get_db)],
     unlocked_groups: Annotated[list[str], Depends(get_unlocked_groups)],
@@ -1688,7 +1688,7 @@ async def get_wiki_resolutions(
 
 
 @router.delete("/{file_id}/purge")
-async def purge_file_endpoint(
+def purge_file_endpoint(
     file_id: FileId,
     db: Annotated[Session, Depends(get_db)],
     unlocked_groups: Annotated[list[str], Depends(get_unlocked_groups)],
@@ -1722,7 +1722,7 @@ def _related_file_summary(file: File) -> RelatedFileSummary:
 
 
 @router.get("/{file_id}/relations", response_model=FileRelationsResponse)
-async def list_file_relations(
+def list_file_relations(
     file_id: FileId,
     db: Annotated[Session, Depends(get_db)],
     unlocked_groups: Annotated[list[str], Depends(get_unlocked_groups)],
@@ -1792,7 +1792,7 @@ async def list_file_relations(
 
 
 @router.get("/{file_id}/exif", response_model=ExifResponse)
-async def get_file_exif(
+def get_file_exif(
     file_id: FileId,
     db: Annotated[Session, Depends(get_db)],
     unlocked_groups: Annotated[list[str], Depends(get_unlocked_groups)],

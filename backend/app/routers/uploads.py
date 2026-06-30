@@ -25,7 +25,7 @@ def _validate_session_drive(upload_id: str, drive_name: str) -> None:
 
 
 @router.post("/{drive_name}/upload/init", response_model=UploadInitResponse)
-async def init_upload(
+def init_upload(
     drive_name: str,
     body: UploadInitRequest,
     unlocked_groups: Annotated[list[str], Depends(get_unlocked_groups)],
@@ -86,7 +86,7 @@ async def complete_upload(
 
 
 @router.delete("/{drive_name}/upload/{upload_id}")
-async def cancel_upload(
+def cancel_upload(
     drive_name: str,
     upload_id: str,
     unlocked_groups: Annotated[list[str], Depends(get_unlocked_groups)],
