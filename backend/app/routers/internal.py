@@ -47,7 +47,7 @@ _CONTENT_READ_MAX_BYTES = int(
 )
 
 
-async def verify_internal_secret(
+def verify_internal_secret(
     x_internal_secret: str = Header(default=""),
 ) -> None:
     """Gate internal endpoints behind the shared-secret header.
@@ -68,7 +68,7 @@ async def verify_internal_secret(
 
 
 @router.get("/drive-policy")
-async def drive_policy(drive: str, addon: str):
+def drive_policy(drive: str, addon: str):
     """Return per-drive addon policy in a stable two-key shape.
 
     Response::
@@ -101,7 +101,7 @@ async def drive_policy(drive: str, addon: str):
 
 
 @router.get("/accessible-drives")
-async def accessible_drives(
+def accessible_drives(
     unlocked_groups: Annotated[list[str], Depends(get_unlocked_groups)] = [],
 ):
     """Return list of drive names accessible with the current token."""
@@ -110,7 +110,7 @@ async def accessible_drives(
 
 
 @router.get("/files/{file_id}")
-async def file_info(
+def file_info(
     file_id: str,
     db=Depends(get_db),
 ):
@@ -146,7 +146,7 @@ async def file_info(
     dependencies=[Depends(verify_internal_secret)],
     status_code=204,
 )
-async def replace_file_tags_internal(
+def replace_file_tags_internal(
     file_id: str,
     update: TagUpdate,
     db=Depends(get_db),
@@ -207,7 +207,7 @@ def _resolve_text_content_path(file: File) -> Path:
     dependencies=[Depends(verify_internal_secret)],
     response_class=PlainTextResponse,
 )
-async def file_text_content(
+def file_text_content(
     file_id: str,
     db=Depends(get_db),
 ) -> PlainTextResponse:
@@ -318,7 +318,7 @@ def _parse_iso8601_or_400(value: str | None, field_name: str) -> datetime | None
     "/viewer-history",
     dependencies=[Depends(verify_internal_secret)],
 )
-async def viewer_history(
+def viewer_history(
     viewer_id: Annotated[str, Query(...)],
     drive: Annotated[str, Query(...)],
     after: Annotated[str | None, Query()] = None,
@@ -440,7 +440,7 @@ class FilterFileIdsRequest(BaseModel):
 
 
 @router.post("/filter-file-ids")
-async def filter_file_ids(
+def filter_file_ids(
     body: FilterFileIdsRequest,
     unlocked_groups: Annotated[list[str], Depends(get_unlocked_groups)] = [],
     db=Depends(get_db),
@@ -473,7 +473,7 @@ class BulkStateRequest(BaseModel):
 
 
 @router.post("/files/bulk-state")
-async def files_bulk_state(
+def files_bulk_state(
     body: BulkStateRequest,
     db=Depends(get_db),
 ):
@@ -525,7 +525,7 @@ class BulkFilesRequest(BaseModel):
 
 
 @router.post("/files/bulk")
-async def files_bulk(
+def files_bulk(
     body: BulkFilesRequest,
     db=Depends(get_db),
 ):
@@ -602,7 +602,7 @@ def _relation_to_dict(rel: FileRelation) -> dict:
     status_code=201,
     dependencies=[Depends(verify_internal_secret)],
 )
-async def create_file_relation(
+def create_file_relation(
     body: FileRelationCreate,
     db=Depends(get_db),
 ):
@@ -650,7 +650,7 @@ _DRIVE_LIST_DEFAULT_LIMIT = 5000
 
 
 @router.get("/file_relations")
-async def list_file_relations(
+def list_file_relations(
     file_id: str | None = Query(None),
     drive: str | None = Query(None),
     kind: str | None = Query(None),
@@ -704,7 +704,7 @@ async def list_file_relations(
     status_code=204,
     dependencies=[Depends(verify_internal_secret)],
 )
-async def delete_file_relation(
+def delete_file_relation(
     relation_id: int,
     db=Depends(get_db),
 ):
@@ -747,7 +747,7 @@ class RestartPendingRequest(BaseModel):
     status_code=204,
     dependencies=[Depends(verify_internal_secret)],
 )
-async def set_restart_pending(body: RestartPendingRequest) -> Response:
+def set_restart_pending(body: RestartPendingRequest) -> Response:
     """Touch ``data/restart_pending`` on behalf of an addon.
 
     Phase 2D introduces the GUI-driven transcription provider switch

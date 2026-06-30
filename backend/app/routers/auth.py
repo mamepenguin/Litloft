@@ -42,7 +42,7 @@ class StatusResponse(BaseModel):
 
 
 @router.post("/unlock", response_model=UnlockResponse)
-async def unlock(body: UnlockRequest, request: Request, response: Response):
+def unlock(body: UnlockRequest, request: Request, response: Response):
     client_ip = request.client.host if request.client else "unknown"
     check_rate_limit(client_ip)
 
@@ -65,7 +65,7 @@ async def unlock(body: UnlockRequest, request: Request, response: Response):
 
 
 @router.post("/lock", response_model=LockResponse)
-async def lock(response: Response):
+def lock(response: Response):
     response.delete_cookie(
         key=COOKIE_NAME,
         httponly=True,
@@ -77,7 +77,7 @@ async def lock(response: Response):
 
 
 @router.get("/status", response_model=StatusResponse)
-async def status(request_groups: Annotated[list[str], Depends(get_unlocked_groups)]):
+def status(request_groups: Annotated[list[str], Depends(get_unlocked_groups)]):
     return StatusResponse(
         unlocked_groups=request_groups,
         has_protected_drives=has_protected_drives(),

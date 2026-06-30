@@ -84,7 +84,7 @@ def _to_detail(collection: Collection) -> CollectionDetailResponse:
     "/{drive_name}/collections",
     response_model=list[CollectionSummaryResponse],
 )
-async def list_collections(
+def list_collections(
     drive_name: str,
     db: Annotated[Session, Depends(get_db)],
     unlocked_groups: Annotated[list[str], Depends(get_unlocked_groups)],
@@ -104,7 +104,7 @@ async def list_collections(
     response_model=CollectionSummaryResponse,
     status_code=201,
 )
-async def create_collection(
+def create_collection(
     drive_name: str,
     body: CollectionCreateRequest,
     db: Annotated[Session, Depends(get_db)],
@@ -133,7 +133,7 @@ async def create_collection(
     "/{drive_name}/collections/{collection_id}",
     response_model=CollectionDetailResponse,
 )
-async def get_collection(
+def get_collection(
     drive_name: str,
     collection_id: str,
     db: Annotated[Session, Depends(get_db)],
@@ -148,7 +148,7 @@ async def get_collection(
     "/{drive_name}/collections/{collection_id}",
     response_model=CollectionSummaryResponse,
 )
-async def update_collection(
+def update_collection(
     drive_name: str,
     collection_id: str,
     body: CollectionUpdateRequest,
@@ -185,7 +185,7 @@ async def update_collection(
 @router.delete(
     "/{drive_name}/collections/{collection_id}", status_code=204
 )
-async def delete_collection(
+def delete_collection(
     drive_name: str,
     collection_id: str,
     db: Annotated[Session, Depends(get_db)],
@@ -204,7 +204,7 @@ async def delete_collection(
     "/{drive_name}/collections/{collection_id}/items",
     response_model=CollectionDetailResponse,
 )
-async def add_collection_items(
+def add_collection_items(
     drive_name: str,
     collection_id: str,
     body: CollectionItemAddRequest,
@@ -252,7 +252,7 @@ async def add_collection_items(
     "/{drive_name}/collections/{collection_id}/items/{item_id}",
     status_code=204,
 )
-async def remove_collection_item(
+def remove_collection_item(
     drive_name: str,
     collection_id: str,
     item_id: int,
@@ -281,7 +281,7 @@ async def remove_collection_item(
     "/{drive_name}/collections/{collection_id}/items/reorder",
     response_model=CollectionDetailResponse,
 )
-async def reorder_collection_items(
+def reorder_collection_items(
     drive_name: str,
     collection_id: str,
     body: CollectionItemReorderRequest,

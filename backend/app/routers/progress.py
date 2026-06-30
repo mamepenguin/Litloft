@@ -30,7 +30,7 @@ def _get_file_or_404(
 
 
 @router.post("/{file_id}/progress")
-async def update_progress(
+def update_progress(
     file_id: FileId,
     body: ProgressUpdateRequest,
     db: Annotated[Session, Depends(get_db)],
@@ -76,7 +76,7 @@ async def update_progress(
 
 
 @router.get("/{file_id}/progress", response_model=ProgressResponse)
-async def get_progress(
+def get_progress(
     file_id: FileId,
     db: Annotated[Session, Depends(get_db)],
     unlocked_groups: Annotated[list[str], Depends(get_unlocked_groups)],
@@ -100,7 +100,7 @@ async def get_progress(
 
 
 @router.delete("/{file_id}/progress", status_code=204)
-async def delete_progress(
+def delete_progress(
     file_id: FileId,
     db: Annotated[Session, Depends(get_db)],
     unlocked_groups: Annotated[list[str], Depends(get_unlocked_groups)],

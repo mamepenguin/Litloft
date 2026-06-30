@@ -332,7 +332,7 @@ def _setup_status_drives() -> list[dict[str, Any]]:
 
 
 @router.get("/setup-status")
-async def get_setup_status() -> dict[str, Any]:
+def get_setup_status() -> dict[str, Any]:
     """Return first-run setup state plus the seeded drive list.
 
     No auth so the frontend can (a) decide whether to redirect anonymous
@@ -366,7 +366,7 @@ async def get_setup_status() -> dict[str, Any]:
 
 
 @router.post("/complete-setup")
-async def post_complete_setup() -> dict[str, bool]:
+def post_complete_setup() -> dict[str, bool]:
     """Mark first-run setup complete by touching the sentinel.
 
     409 if the sentinel already exists — re-running the wizard would
@@ -387,13 +387,13 @@ async def post_complete_setup() -> dict[str, bool]:
 
 
 @router.get("/drives", dependencies=[Depends(auth.require_admin)])
-async def get_drives() -> list[dict[str, Any]]:
+def get_drives() -> list[dict[str, Any]]:
     """Return the on-disk drives.json (full fidelity, including addons)."""
     return _read_drives_from_disk()
 
 
 @router.put("/drives", dependencies=[Depends(_admin_or_first_run)])
-async def put_drives(payload: Any = Body(...)) -> dict[str, Any]:
+def put_drives(payload: Any = Body(...)) -> dict[str, Any]:
     """Atomically rewrite drives.json after validation."""
     validated = _validate_drives_payload(payload)
     try:
@@ -409,7 +409,7 @@ async def put_drives(payload: Any = Body(...)) -> dict[str, Any]:
 
 
 @router.get("/passwords", dependencies=[Depends(auth.require_admin)])
-async def get_passwords() -> list[dict[str, Any]]:
+def get_passwords() -> list[dict[str, Any]]:
     """Return passwords.json with every password value masked.
 
     Real passwords MUST never leave the server; the GUI prompts for a new
@@ -423,7 +423,7 @@ async def get_passwords() -> list[dict[str, Any]]:
 
 
 @router.put("/passwords", dependencies=[Depends(_admin_or_first_run)])
-async def put_passwords(payload: Any = Body(...)) -> dict[str, Any]:
+def put_passwords(payload: Any = Body(...)) -> dict[str, Any]:
     """Atomically rewrite passwords.json after validation."""
     drives = _read_drives_from_disk()
     validated = _validate_passwords_payload(payload, drives)
@@ -502,7 +502,7 @@ def _validate_password_entry(
 
 
 @router.post("/passwords/append", dependencies=[Depends(_admin_or_first_run)])
-async def post_passwords_append(payload: Any = Body(...)) -> dict[str, Any]:
+def post_passwords_append(payload: Any = Body(...)) -> dict[str, Any]:
     """Append a single new password entry without touching existing entries.
 
     Used by the admin settings GUI for incremental edits — the GET masks
@@ -531,7 +531,7 @@ async def post_passwords_append(payload: Any = Body(...)) -> dict[str, Any]:
 @router.delete(
     "/passwords/{index}", dependencies=[Depends(_admin_or_first_run)]
 )
-async def delete_password(index: int) -> dict[str, Any]:
+def delete_password(index: int) -> dict[str, Any]:
     """Delete the password entry at the given 0-based index.
 
     Used by the admin settings GUI to remove an existing entry without
@@ -563,7 +563,7 @@ async def delete_password(index: int) -> dict[str, Any]:
 
 
 @router.get("/addon-policy", dependencies=[Depends(auth.require_admin)])
-async def get_addon_policy() -> dict[str, dict[str, Any]]:
+def get_addon_policy() -> dict[str, dict[str, Any]]:
     """Project per-drive addon policy out of drives.json.
 
     Drives that have no ``addons`` field still appear (with an empty dict)
@@ -578,7 +578,7 @@ async def get_addon_policy() -> dict[str, dict[str, Any]]:
 
 
 @router.put("/addon-policy", dependencies=[Depends(_admin_or_first_run)])
-async def put_addon_policy(payload: Any = Body(...)) -> dict[str, Any]:
+def put_addon_policy(payload: Any = Body(...)) -> dict[str, Any]:
     """Merge new addon policy into drives.json without losing other fields.
 
     Each drive entry's ``addons`` key is replaced wholesale with the
@@ -610,7 +610,7 @@ async def put_addon_policy(payload: Any = Body(...)) -> dict[str, Any]:
 
 
 @router.get("/restart-status", dependencies=[Depends(auth.require_admin)])
-async def get_restart_status() -> dict[str, Any]:
+def get_restart_status() -> dict[str, Any]:
     """Whether a backend restart is required for pending config changes.
 
     The flag is touched by every successful PUT in this router and cleared

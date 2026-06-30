@@ -66,7 +66,7 @@ def _comment_to_response(comment: Comment, viewer_id: str | None) -> CommentResp
 
 
 @router.get("/{file_id}/comments", response_model=CommentsListResponse)
-async def list_comments(
+def list_comments(
     file_id: FileId,
     db: Annotated[Session, Depends(get_db)],
     unlocked_groups: Annotated[list[str], Depends(get_unlocked_groups)],
@@ -88,7 +88,7 @@ async def list_comments(
 
 
 @router.post("/{file_id}/comments", response_model=CommentResponse, status_code=201)
-async def create_comment(
+def create_comment(
     file_id: FileId,
     body: CommentCreateRequest,
     request: Request,
@@ -134,7 +134,7 @@ async def create_comment(
 
 
 @router.put("/{file_id}/comments/{comment_id}", response_model=CommentResponse)
-async def update_comment(
+def update_comment(
     file_id: FileId,
     comment_id: CommentId,
     body: CommentUpdateRequest,
@@ -164,7 +164,7 @@ async def update_comment(
 
 
 @router.delete("/{file_id}/comments/{comment_id}", status_code=204)
-async def delete_comment(
+def delete_comment(
     file_id: FileId,
     comment_id: CommentId,
     db: Annotated[Session, Depends(get_db)],
