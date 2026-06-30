@@ -11,12 +11,17 @@ async function fetchDrives(cookieHeader: string | undefined): Promise<Drive[]> {
     headers["Cookie"] = cookieHeader;
   }
 
-  const res = await fetch("http://backend:8000/api/drives", {
-    cache: "no-store",
-    headers,
-  });
-  if (!res.ok) return [];
-  return res.json();
+  try {
+    const res = await fetch("http://backend:8000/api/drives", {
+      cache: "no-store",
+      headers,
+      signal: AbortSignal.timeout(5000),
+    });
+    if (!res.ok) return [];
+    return res.json();
+  } catch {
+    return [];
+  }
 }
 
 async function fetchAuthStatus(
@@ -27,12 +32,17 @@ async function fetchAuthStatus(
     headers["Cookie"] = cookieHeader;
   }
 
-  const res = await fetch("http://backend:8000/api/auth/status", {
-    cache: "no-store",
-    headers,
-  });
-  if (!res.ok) return null;
-  return res.json();
+  try {
+    const res = await fetch("http://backend:8000/api/auth/status", {
+      cache: "no-store",
+      headers,
+      signal: AbortSignal.timeout(5000),
+    });
+    if (!res.ok) return null;
+    return res.json();
+  } catch {
+    return null;
+  }
 }
 
 // The lit_viewer cookie holds a raw, URL-encoded nickname (personal
