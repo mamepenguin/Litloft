@@ -8,7 +8,10 @@ from datetime import UTC, datetime, timedelta
 from pathlib import Path
 from typing import Callable, Coroutine
 
-from fastapi import FastAPI
+import time
+
+from fastapi import FastAPI, Request
+from starlette.middleware.base import BaseHTTPMiddleware
 
 from app.database import SessionLocal, init_db
 from app.auth import init_jwt_secret, load_passwords
@@ -33,50 +36,58 @@ _PURGE_INTERVAL_SECONDS = 86400  # 24 hours
 _PURGE_BATCH_SIZE = 100
 
 
+def _run_purge_batch(
+    cutoff: datetime,
+) -> tuple[list[str], set[tuple[str, str]]]:
+    """Synchronous purge work — runs in a thread via asyncio.to_thread."""
+    all_purged_ids: list[str] = []
+    folders_to_check: set[tuple[str, str]] = set()
+    while True:
+        db = SessionLocal()
+        try:
+            batch = (
+                db.query(File)
+                .filter(File.deleted_at.isnot(None), File.deleted_at < cutoff)
+                .limit(_PURGE_BATCH_SIZE)
+                .all()
+            )
+            if not batch:
+                break
+            purged = 0
+            for file in batch:
+                try:
+                    file_id = file.id
+                    if file.folder_path:
+                        folders_to_check.add((file.drive, file.folder_path))
+                    physical_delete(db, file)
+                    purged += 1
+                    all_purged_ids.append(file_id)
+                except Exception:
+                    logger.exception("Failed to purge file %s", file.id)
+            if purged:
+                db.commit()
+        except Exception:
+            db.rollback()
+            logger.exception("Error during trash purge")
+            break
+        finally:
+            db.close()
+    return all_purged_ids, folders_to_check
+
+
 async def purge_expired_trash() -> None:
     """Periodically purge soft-deleted files older than TRASH_RETENTION_DAYS."""
     while True:
         cutoff = datetime.now(UTC) - timedelta(days=TRASH_RETENTION_DAYS)
-        total_purged = 0
-        all_purged_ids: list[str] = []
-        folders_to_check: set[tuple[str, str]] = set()
-        while True:
-            db = SessionLocal()
-            try:
-                batch = (
-                    db.query(File)
-                    .filter(File.deleted_at.isnot(None), File.deleted_at < cutoff)
-                    .limit(_PURGE_BATCH_SIZE)
-                    .all()
-                )
-                if not batch:
-                    break
-                purged = 0
-                for file in batch:
-                    try:
-                        file_id = file.id
-                        if file.folder_path:
-                            folders_to_check.add((file.drive, file.folder_path))
-                        physical_delete(db, file)
-                        purged += 1
-                        all_purged_ids.append(file_id)
-                    except Exception:
-                        logger.exception("Failed to purge file %s", file.id)
-                if purged:
-                    db.commit()
-                    total_purged += purged
-            except Exception:
-                db.rollback()
-                logger.exception("Error during trash purge")
-                break
-            finally:
-                db.close()
-        if total_purged:
-            logger.info("Purged %d expired trash files", total_purged)
+        all_purged_ids, folders_to_check = await asyncio.to_thread(
+            _run_purge_batch, cutoff
+        )
+        if all_purged_ids:
+            logger.info("Purged %d expired trash files", len(all_purged_ids))
             asyncio.create_task(
                 event_hooks.emit("files.purged", {"file_ids": all_purged_ids})
             )
-        _cleanup_empty_folders_after_purge(folders_to_check)
+        await asyncio.to_thread(_cleanup_empty_folders_after_purge, folders_to_check)
         await asyncio.sleep(_PURGE_INTERVAL_SECONDS)
 
 
@@ -216,6 +227,26 @@ async def lifespan(app: FastAPI):
 
 
 app = FastAPI(title="Video Share API", lifespan=lifespan)
+
+_SLOW_REQUEST_THRESHOLD_SEC = 2.0
+
+
+class SlowRequestMiddleware(BaseHTTPMiddleware):
+    async def dispatch(self, request: Request, call_next):
+        t0 = time.perf_counter()
+        response = await call_next(request)
+        elapsed = time.perf_counter() - t0
+        if elapsed >= _SLOW_REQUEST_THRESHOLD_SEC:
+            logger.warning(
+                "SLOW REQUEST %.3fs %s %s",
+                elapsed,
+                request.method,
+                request.url.path,
+            )
+        return response
+
+
+app.add_middleware(SlowRequestMiddleware)
 
 app.include_router(admin.router)
 app.include_router(admin_config.router)
