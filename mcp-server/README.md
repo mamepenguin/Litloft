@@ -104,7 +104,8 @@ When adding a new tool, put agent-facing behavior notes in its
 | Tool | Description |
 |---|---|
 | `list_drives` | List drives visible to the current credentials |
-| `search_files` | Search/list files within a single drive |
+| `list_folders` | List the immediate subfolders under a path (one level deep) |
+| `search_files` | Search/list files within a single drive (set `path` with no `search` to list a folder's files) |
 | `get_file` | Get metadata for a single file |
 | `get_file_content` | Read the text content of a small `text/markdown`/`text/plain` file (≤1MB), plus its ETag |
 | `semantic_search` | Rank files in a drive by relevance to a natural-language query, using transcripts/captions/embeddings (not filename matching); returns matching excerpts |

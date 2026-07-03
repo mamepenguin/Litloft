@@ -33,6 +33,9 @@ Key concepts:
   know the drive name.
 - A "file_id" is a 12-character id (from search_files or get_file results),
   not a filesystem path.
+- To browse a drive like a file tree, alternate list_folders (subfolders,
+  one level at a time) and search_files with the same path and no search
+  term (files directly in that folder).
 - Deleting a file only ever moves it to trash (trash_file), recoverable for
   30 days via restore_file. There is no permanent-delete tool.
 - To edit a text/markdown file's content: call get_file_content first to

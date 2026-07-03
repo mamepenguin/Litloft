@@ -34,10 +34,30 @@ const listDrives: LitloftTool = {
     runTool(async () => textResult(await client.request("GET", "/api/drives"))),
 };
 
+const listFolders: LitloftTool = {
+  name: "list_folders",
+  description:
+    "List the immediate subfolders directly under a path within a drive (one level deep, not recursive — call again with a returned subfolder's path to go deeper). To list the files inside a folder instead, use search_files with the same path and no search term.",
+  inputSchema: {
+    drive: z.string().describe("Drive name"),
+    path: z.string().optional().describe("Parent folder path; omit for the drive root"),
+  },
+  handler: (args, client) =>
+    runTool(async () => {
+      const drive = args.drive as string;
+      const path = args.path as string | undefined;
+      return textResult(
+        await client.request("GET", `/api/drives/${encodeURIComponent(drive)}/folders`, {
+          query: path !== undefined ? { path } : undefined,
+        })
+      );
+    }),
+};
+
 const searchFiles: LitloftTool = {
   name: "search_files",
   description:
-    "Search/list files within a single drive. Drives are a hard security boundary in Litloft; there is no cross-drive search.",
+    "List and/or search files within a single drive. Set path (and leave search empty) to list files directly inside a specific folder; set search to filter by filename/folder-path substring. Drives are a hard security boundary in Litloft; there is no cross-drive search.",
   inputSchema: {
     drive: z.string().describe("Drive name"),
     search: z.string().optional().describe("Substring match against title/folder path"),
@@ -237,6 +257,7 @@ const listComments: LitloftTool = {
 
 export const readTools: LitloftTool[] = [
   listDrives,
+  listFolders,
   searchFiles,
   getFile,
   getFileContent,

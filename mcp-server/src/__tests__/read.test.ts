@@ -41,6 +41,28 @@ describe("search_files", () => {
   });
 });
 
+describe("list_folders", () => {
+  it("calls GET /api/drives/{drive}/folders with no query when path is omitted", async () => {
+    const client = fakeClient(async () => []);
+    await findTool("list_folders").handler({ drive: "media" }, client);
+    expect(client.calls).toEqual([
+      { method: "GET", path: "/api/drives/media/folders", options: { query: undefined } },
+    ]);
+  });
+
+  it("passes path as a query param when given", async () => {
+    const client = fakeClient(async () => []);
+    await findTool("list_folders").handler({ drive: "media", path: "notes/2026" }, client);
+    expect(client.calls).toEqual([
+      {
+        method: "GET",
+        path: "/api/drives/media/folders",
+        options: { query: { path: "notes/2026" } },
+      },
+    ]);
+  });
+});
+
 describe("get_file", () => {
   it("calls GET /api/files/{file_id}", async () => {
     const client = fakeClient(async () => ({ id: "abc123456789" }));
