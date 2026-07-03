@@ -169,6 +169,15 @@ describe("semantic_search", () => {
       headers: { "X-Lit-Drive": "media" },
     });
   });
+
+  it("percent-encodes non-ASCII drive names in the X-Lit-Drive header (Headers is ByteString-only)", async () => {
+    const client = fakeClient(async () => ({ results: [], total: 0 }));
+    await findTool("semantic_search").handler({ drive: "動画", q: "cats" }, client);
+    expect(client.calls[0].options).toEqual({
+      query: { q: "cats" },
+      headers: { "X-Lit-Drive": encodeURIComponent("動画") },
+    });
+  });
 });
 
 describe("get_transcript", () => {
@@ -201,6 +210,17 @@ describe("get_transcript", () => {
     expect(parsed.returned_chunks).toBe(3);
     expect(parsed.truncated).toBe(false);
     expect(parsed.chunks.map((c: { index: number }) => c.index)).toEqual([0, 1, 2]);
+  });
+
+  it("percent-encodes non-ASCII drive names in the X-Lit-Drive header", async () => {
+    const client = fakeClient(async () => fullTranscript);
+    await findTool("get_transcript").handler(
+      { drive: "動画", file_id: "abc123456789" },
+      client
+    );
+    expect(client.calls[0].options).toEqual({
+      headers: { "X-Lit-Drive": encodeURIComponent("動画") },
+    });
   });
 
   it("filters to chunks overlapping [start_time, end_time)", async () => {

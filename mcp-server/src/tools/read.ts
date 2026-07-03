@@ -171,7 +171,7 @@ const semanticSearch: LitloftTool = {
       return textResult(
         await client.request("GET", "/api/addons/intelligence/search", {
           query: query as Record<string, string | number | boolean | undefined>,
-          headers: { "X-Lit-Drive": drive },
+          headers: { "X-Lit-Drive": encodeURIComponent(drive) },
         })
       );
     }),
@@ -205,7 +205,7 @@ const getTranscript: LitloftTool = {
         language: string;
         chunks: TranscriptChunk[];
       }>("GET", `/api/addons/intelligence/files/${encodeURIComponent(fileId)}/transcript`, {
-        headers: { "X-Lit-Drive": drive },
+        headers: { "X-Lit-Drive": encodeURIComponent(drive) },
       });
 
       let candidates = transcript.chunks;
