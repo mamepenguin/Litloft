@@ -142,6 +142,17 @@ def decode_jwt(token: str) -> list[str]:
 
 
 def get_unlocked_groups(request: Request) -> list[str]:
+    # A Bearer credential is an explicit choice by non-browser clients
+    # (mobile apps, the MCP server) and takes priority over the cookie. It
+    # does not fall back to the cookie on failure — a broken/expired API
+    # token must surface as "locked", not silently degrade to whatever
+    # browser session cookie happens to be attached.
+    auth_header = request.headers.get("Authorization")
+    if auth_header:
+        scheme, _, param = auth_header.partition(" ")
+        if scheme.lower() == "bearer" and param:
+            return decode_jwt(param)
+
     token = request.cookies.get(COOKIE_NAME)
     if not token:
         return []
