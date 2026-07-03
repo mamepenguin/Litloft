@@ -42,11 +42,16 @@ Key concepts:
 - search_files only matches filenames/folder paths. For "find files about
   X" style queries, prefer semantic_search, which ranks by transcript/
   caption/embedding relevance and returns the matching excerpt.
+- There is no built-in "ask a question, get a synthesized answer" tool,
+  but you can build the same result yourself: call semantic_search to
+  find relevant files and the time range each match came from, then call
+  get_transcript with that time range to read the exact surrounding
+  context before answering — this avoids pulling a whole transcript into
+  context when only one part of it is relevant.
 - upload_file is for small notes/documents/images only (10MB cap on
   base64-decoded content) — not for large video files.
 - Not every operation the web UI has is available here yet: there is no
-  tool for asking a question and getting a synthesized answer (Ask), or
-  posting comments.
+  tool for posting comments.
 `.trim();
 
 function main() {

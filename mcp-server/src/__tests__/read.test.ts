@@ -149,6 +149,75 @@ describe("semantic_search", () => {
   });
 });
 
+describe("get_transcript", () => {
+  const fullTranscript = {
+    file_id: "abc123456789",
+    drive: "media",
+    language: "en",
+    chunks: [
+      { index: 0, text: "intro", start: 0, end: 10, text_refined_at: null },
+      { index: 1, text: "middle part", start: 10, end: 20, text_refined_at: null },
+      { index: 2, text: "outro", start: 20, end: 30, text_refined_at: null },
+    ],
+  };
+
+  it("calls GET .../transcript with X-Lit-Drive and returns all chunks when no range given", async () => {
+    const client = fakeClient(async () => fullTranscript);
+    const result = await findTool("get_transcript").handler(
+      { drive: "media", file_id: "abc123456789" },
+      client
+    );
+    expect(client.calls).toEqual([
+      {
+        method: "GET",
+        path: "/api/addons/intelligence/files/abc123456789/transcript",
+        options: { headers: { "X-Lit-Drive": "media" } },
+      },
+    ]);
+    const parsed = JSON.parse(result.content[0].text);
+    expect(parsed.total_chunks).toBe(3);
+    expect(parsed.returned_chunks).toBe(3);
+    expect(parsed.truncated).toBe(false);
+    expect(parsed.chunks.map((c: { index: number }) => c.index)).toEqual([0, 1, 2]);
+  });
+
+  it("filters to chunks overlapping [start_time, end_time)", async () => {
+    const client = fakeClient(async () => fullTranscript);
+    const result = await findTool("get_transcript").handler(
+      { drive: "media", file_id: "abc123456789", start_time: 10, end_time: 20 },
+      client
+    );
+    const parsed = JSON.parse(result.content[0].text);
+    expect(parsed.chunks.map((c: { index: number }) => c.index)).toEqual([1]);
+    expect(parsed.total_chunks).toBe(3);
+  });
+
+  it("truncates when total text exceeds the cap, but always includes at least one chunk", async () => {
+    const hugeChunks = Array.from({ length: 5 }, (_, i) => ({
+      index: i,
+      text: "x".repeat(15_000),
+      start: i * 10,
+      end: (i + 1) * 10,
+      text_refined_at: null,
+    }));
+    const client = fakeClient(async () => ({
+      file_id: "abc123456789",
+      drive: "media",
+      language: "en",
+      chunks: hugeChunks,
+    }));
+    const result = await findTool("get_transcript").handler(
+      { drive: "media", file_id: "abc123456789" },
+      client
+    );
+    const parsed = JSON.parse(result.content[0].text);
+    expect(parsed.total_chunks).toBe(5);
+    expect(parsed.returned_chunks).toBeGreaterThanOrEqual(1);
+    expect(parsed.returned_chunks).toBeLessThan(5);
+    expect(parsed.truncated).toBe(true);
+  });
+});
+
 describe("list_comments", () => {
   it("calls GET /api/files/{file_id}/comments", async () => {
     const client = fakeClient(async () => ({ comments: [], total: 0 }));

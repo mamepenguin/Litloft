@@ -10,6 +10,21 @@ import { textResult, type LitloftTool } from "./types.js";
 const TEXT_CONTENT_MIMES = new Set(["text/markdown", "text/plain"]);
 const TEXT_CONTENT_MAX_BYTES = 1024 * 1024; // 1 MB
 
+// get_transcript has no server-side range/pagination support (the backend
+// endpoint always returns every chunk), so range filtering and the size
+// cap are both applied client-side here. 20k chars is in the same order of
+// magnitude as the project's own RAG context budgets (search-config.yml),
+// not an arbitrary number.
+const TRANSCRIPT_MAX_CHARS = 20_000;
+
+interface TranscriptChunk {
+  index: number;
+  text: string;
+  start: number;
+  end: number;
+  text_refined_at: string | null;
+}
+
 const listDrives: LitloftTool = {
   name: "list_drives",
   description:
@@ -142,6 +157,69 @@ const semanticSearch: LitloftTool = {
     }),
 };
 
+const getTranscript: LitloftTool = {
+  name: "get_transcript",
+  description:
+    "Get the Whisper transcript for a video/audio file as time-stamped chunks. Pass start_time/end_time (in seconds, e.g. from a semantic_search segment's time_range) to narrow to a relevant window instead of pulling the whole transcript. Fails with a 404-style error if the file hasn't been transcribed.",
+  inputSchema: {
+    drive: z.string(),
+    file_id: z.string(),
+    start_time: z
+      .number()
+      .optional()
+      .describe("Only return chunks ending after this time (seconds)"),
+    end_time: z
+      .number()
+      .optional()
+      .describe("Only return chunks starting before this time (seconds)"),
+  },
+  handler: (args, client) =>
+    runTool(async () => {
+      const drive = args.drive as string;
+      const fileId = args.file_id as string;
+      const startTime = args.start_time as number | undefined;
+      const endTime = args.end_time as number | undefined;
+
+      const transcript = await client.request<{
+        file_id: string;
+        language: string;
+        chunks: TranscriptChunk[];
+      }>("GET", `/api/addons/intelligence/files/${encodeURIComponent(fileId)}/transcript`, {
+        headers: { "X-Lit-Drive": drive },
+      });
+
+      let candidates = transcript.chunks;
+      if (startTime !== undefined || endTime !== undefined) {
+        candidates = candidates.filter(
+          (c) =>
+            (endTime === undefined || c.start < endTime) &&
+            (startTime === undefined || c.end > startTime)
+        );
+      }
+
+      const limited: TranscriptChunk[] = [];
+      let totalChars = 0;
+      let truncated = false;
+      for (const c of candidates) {
+        if (limited.length > 0 && totalChars + c.text.length > TRANSCRIPT_MAX_CHARS) {
+          truncated = true;
+          break;
+        }
+        limited.push(c);
+        totalChars += c.text.length;
+      }
+
+      return textResult({
+        file_id: transcript.file_id,
+        language: transcript.language,
+        total_chunks: transcript.chunks.length,
+        returned_chunks: limited.length,
+        truncated,
+        chunks: limited.map((c) => ({ index: c.index, start: c.start, end: c.end, text: c.text })),
+      });
+    }),
+};
+
 const listComments: LitloftTool = {
   name: "list_comments",
   description: "List comments on a file.",
@@ -163,6 +241,7 @@ export const readTools: LitloftTool[] = [
   getFile,
   getFileContent,
   semanticSearch,
+  getTranscript,
   getWatchHistory,
   listComments,
 ];

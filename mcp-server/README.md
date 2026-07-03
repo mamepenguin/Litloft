@@ -108,6 +108,7 @@ When adding a new tool, put agent-facing behavior notes in its
 | `get_file` | Get metadata for a single file |
 | `get_file_content` | Read the text content of a small `text/markdown`/`text/plain` file (≤1MB), plus its ETag |
 | `semantic_search` | Rank files in a drive by relevance to a natural-language query, using transcripts/captions/embeddings (not filename matching); returns matching excerpts |
+| `get_transcript` | Get a video/audio file's Whisper transcript as time-stamped chunks, optionally narrowed to a time range |
 | `get_watch_history` | Continue-watching / watch history for a drive |
 | `list_comments` | List comments on a file |
 
@@ -140,8 +141,11 @@ they depend on backend/addon changes outside this package's scope:
   drive-access check before forwarding content to the LLM) rather than
   going through the addon proxy's Bearer-aware drive gate, so
   addon-proxied requests from this server aren't recognized as
-  authenticated yet. `semantic_search` has no such restriction and is
-  fully supported.
+  authenticated yet. In practice this isn't a hard blocker: an agent can
+  combine `semantic_search` (ranked results + matching segment/time range)
+  with `get_transcript` (narrowed to that time range) to read the relevant
+  source material itself and answer directly, without a dedicated `ask`
+  tool.
 - **`add_comment`**: posting a comment requires a `lit_viewer` profile
   cookie, which this server doesn't carry.
 - **Purge (permanent delete)**: intentionally excluded — only the
