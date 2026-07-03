@@ -146,6 +146,70 @@ class TestJWT:
         assert groups == []
 
 
+class TestGetUnlockedGroupsBearer:
+    def _make_request(self, headers: dict[str, str]):
+        from starlette.requests import Request
+
+        scope = {
+            "type": "http",
+            "headers": [(k.lower().encode(), v.encode()) for k, v in headers.items()],
+        }
+        return Request(scope)
+
+    def test_bearer_header_only(self):
+        import app.auth as auth
+        auth._jwt_secret = "test-secret-key"
+        token, _ = auth.create_jwt(["private"], remember=False)
+        request = self._make_request({"Authorization": f"Bearer {token}"})
+        assert auth.get_unlocked_groups(request) == ["private"]
+
+    def test_cookie_only_still_works(self):
+        import app.auth as auth
+        auth._jwt_secret = "test-secret-key"
+        token, _ = auth.create_jwt(["private"], remember=False)
+        request = self._make_request({"Cookie": f"{auth.COOKIE_NAME}={token}"})
+        assert auth.get_unlocked_groups(request) == ["private"]
+
+    def test_no_credentials_returns_empty(self):
+        import app.auth as auth
+        request = self._make_request({})
+        assert auth.get_unlocked_groups(request) == []
+
+    def test_invalid_bearer_does_not_fall_back_to_cookie(self):
+        # An explicitly-presented Bearer credential that fails to decode is
+        # treated as invalid, not absent — it must not silently degrade to
+        # the cookie, which could mask a broken/expired API token.
+        import app.auth as auth
+        auth._jwt_secret = "test-secret-key"
+        cookie_token, _ = auth.create_jwt(["private"], remember=False)
+        request = self._make_request({
+            "Authorization": "Bearer invalid.token.here",
+            "Cookie": f"{auth.COOKIE_NAME}={cookie_token}",
+        })
+        assert auth.get_unlocked_groups(request) == []
+
+    def test_bearer_takes_priority_over_cookie(self):
+        import app.auth as auth
+        auth._jwt_secret = "test-secret-key"
+        bearer_token, _ = auth.create_jwt(["bearer-group"], remember=False)
+        cookie_token, _ = auth.create_jwt(["cookie-group"], remember=False)
+        request = self._make_request({
+            "Authorization": f"Bearer {bearer_token}",
+            "Cookie": f"{auth.COOKIE_NAME}={cookie_token}",
+        })
+        assert auth.get_unlocked_groups(request) == ["bearer-group"]
+
+    def test_non_bearer_authorization_scheme_falls_back_to_cookie(self):
+        import app.auth as auth
+        auth._jwt_secret = "test-secret-key"
+        cookie_token, _ = auth.create_jwt(["private"], remember=False)
+        request = self._make_request({
+            "Authorization": "Basic dXNlcjpwYXNz",
+            "Cookie": f"{auth.COOKIE_NAME}={cookie_token}",
+        })
+        assert auth.get_unlocked_groups(request) == ["private"]
+
+
 class TestRateLimit:
     def test_allows_under_limit(self):
         from app.auth import check_rate_limit, _failed_attempts
@@ -309,6 +373,60 @@ class TestUnlockEndpoint:
             res = c.post("/api/auth/unlock", json={"password": "pass123", "remember": True})
             assert res.status_code == 200
             assert res.json()["success"] is True
+        finally:
+            cleanup()
+
+
+class TestUnlockBearerToken:
+    def test_unlock_response_includes_token(self, tmp_path):
+        passwords = [{"password": "pass123", "groups": ["private"]}]
+        c, cleanup = _make_auth_client(tmp_path, passwords=passwords)
+        try:
+            res = c.post("/api/auth/unlock", json={"password": "pass123"})
+            body = res.json()
+            assert body["success"] is True
+            assert isinstance(body.get("token"), str)
+            assert len(body["token"]) > 0
+        finally:
+            cleanup()
+
+    def test_unlock_failure_has_no_token(self, tmp_path):
+        passwords = [{"password": "pass123", "groups": ["private"]}]
+        c, cleanup = _make_auth_client(tmp_path, passwords=passwords)
+        try:
+            res = c.post("/api/auth/unlock", json={"password": "wrong"})
+            body = res.json()
+            assert body["success"] is False
+            assert body.get("token") is None
+        finally:
+            cleanup()
+
+    def test_bearer_token_reproduces_unlocked_state_without_cookie(self, tmp_path):
+        passwords = [{"password": "pass123", "groups": ["private"]}]
+        drive_dir = tmp_path / "drives" / "protected"
+        drive_dir.mkdir(parents=True)
+        drives = [
+            {"name": TEST_DRIVE, "path": str(drive_dir), "access_group": "private"},
+        ]
+        c, cleanup = _make_auth_client(tmp_path, passwords=passwords, drives=drives)
+        try:
+            unlock_res = c.post("/api/auth/unlock", json={"password": "pass123"})
+            token = unlock_res.json()["token"]
+
+            # Simulate a non-browser client: drop the cookie jar entirely and
+            # rely only on the returned token as a Bearer header.
+            c.cookies.clear()
+            status_res = c.get(
+                "/api/auth/status", headers={"Authorization": f"Bearer {token}"}
+            )
+            body = status_res.json()
+            assert body["unlocked_groups"] == ["private"]
+
+            drives_res = c.get(
+                "/api/drives", headers={"Authorization": f"Bearer {token}"}
+            )
+            names = [d["name"] for d in drives_res.json()]
+            assert TEST_DRIVE in names
         finally:
             cleanup()
 

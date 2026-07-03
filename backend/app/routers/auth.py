@@ -26,6 +26,10 @@ class UnlockResponse(BaseModel):
     success: bool
     groups: list[str] = []
     error: str = ""
+    # Present only on success. Lets non-browser clients (mobile apps, the
+    # MCP server) capture the JWT and resend it as `Authorization: Bearer`
+    # on later requests, since they can't rely on the httponly cookie.
+    token: str | None = None
 
 
 class LockResponse(BaseModel):
@@ -61,7 +65,7 @@ def unlock(body: UnlockRequest, request: Request, response: Response):
         secure=False,
         path="/",
     )
-    return UnlockResponse(success=True, groups=groups)
+    return UnlockResponse(success=True, groups=groups, token=token)
 
 
 @router.post("/lock", response_model=LockResponse)
