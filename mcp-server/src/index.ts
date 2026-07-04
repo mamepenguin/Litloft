@@ -57,6 +57,10 @@ Key concepts:
 - upload_file is for small notes/documents/images only (10MB cap on
   decoded content) — not for large video files. Pass plain text via
   content, or base64 via content_base64 for binary files.
+- To embed an uploaded image inside a markdown/text file's content, reference
+  it as \`![alt](loft://file_id)\` (the file_id from upload_file's completion
+  response). A plain relative path or filename will NOT render — only the
+  \`loft://file_id\` scheme resolves to the file's stream URL.
 - Not every operation the web UI has is available here yet: there is no
   tool for posting comments.
 `.trim();
