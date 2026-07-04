@@ -61,6 +61,82 @@ describe("list_folders", () => {
       },
     ]);
   });
+
+  it("with depth omitted (or 1), returns the bare array unchanged (backward compatible)", async () => {
+    const client = fakeClient(async () => [{ name: "notes", path: "notes", file_count: 2 }]);
+    const result = await findTool("list_folders").handler(
+      { drive: "media", depth: 1 },
+      client
+    );
+    expect(client.calls).toHaveLength(1);
+    expect(JSON.parse(result.content[0].text)).toEqual([
+      { name: "notes", path: "notes", file_count: 2 },
+    ]);
+  });
+
+  it("with depth > 1, recurses into each subfolder and nests results under `subfolders`", async () => {
+    const client = fakeClient(async (call) => {
+      const path = (call.options?.query as { path?: string } | undefined)?.path;
+      if (path === undefined) {
+        return [{ name: "notes", path: "notes", file_count: 2 }];
+      }
+      if (path === "notes") {
+        return [{ name: "2026", path: "notes/2026", file_count: 1 }];
+      }
+      return [];
+    });
+
+    const result = await findTool("list_folders").handler(
+      { drive: "media", depth: 3 },
+      client
+    );
+
+    expect(client.calls.map((c) => (c.options?.query as { path?: string } | undefined)?.path)).toEqual([
+      undefined,
+      "notes",
+      "notes/2026",
+    ]);
+    const parsed = JSON.parse(result.content[0].text);
+    expect(parsed.depth).toBe(3);
+    expect(parsed.truncated).toBe(false);
+    expect(parsed.folders).toEqual([
+      {
+        name: "notes",
+        path: "notes",
+        file_count: 2,
+        subfolders: [
+          {
+            name: "2026",
+            path: "notes/2026",
+            file_count: 1,
+            subfolders: [],
+          },
+        ],
+      },
+    ]);
+  });
+
+  it("stops recursing and reports truncated once the call cap is hit", async () => {
+    // A drive with 300 sibling folders under root, depth=2: the root call
+    // plus 300 per-folder calls would exceed LIST_FOLDERS_MAX_CALLS (200).
+    const wideRoot = Array.from({ length: 300 }, (_, i) => ({
+      name: `f${i}`,
+      path: `f${i}`,
+      file_count: 0,
+    }));
+    const client = fakeClient(async (call) => {
+      const path = (call.options?.query as { path?: string } | undefined)?.path;
+      return path === undefined ? wideRoot : [];
+    });
+
+    const result = await findTool("list_folders").handler(
+      { drive: "media", depth: 2 },
+      client
+    );
+    const parsed = JSON.parse(result.content[0].text);
+    expect(parsed.truncated).toBe(true);
+    expect(client.calls.length).toBeLessThanOrEqual(201);
+  });
 });
 
 describe("get_file", () => {

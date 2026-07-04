@@ -104,11 +104,11 @@ When adding a new tool, put agent-facing behavior notes in its
 | Tool | Description |
 |---|---|
 | `list_drives` | List drives visible to the current credentials |
-| `list_folders` | List the immediate subfolders under a path (one level deep) |
+| `list_folders` | List subfolders under a path (one level deep by default; pass `depth` up to 5 to recurse and nest results under `subfolders`) |
 | `search_files` | Search/list files within a single drive (set `path` with no `search` to list a folder's files) |
 | `get_file` | Get metadata for a single file |
 | `get_file_content` | Read the text content of a small `text/markdown`/`text/plain` file (≤1MB), plus its ETag |
-| `semantic_search` | Rank files in a drive by relevance to a natural-language query, using transcripts/captions/embeddings (not filename matching); returns matching excerpts |
+| `semantic_search` | Rank files in a drive by relevance to a natural-language query; a hybrid search combining transcript/caption/embedding relevance with filename/title/path/tag matching — returns matching excerpts |
 | `get_transcript` | Get a video/audio file's Whisper transcript as time-stamped chunks, optionally narrowed to a time range |
 | `get_watch_history` | Continue-watching / watch history for a drive |
 | `list_comments` | List comments on a file |
@@ -122,10 +122,10 @@ When adding a new tool, put agent-facing behavior notes in its
 | `trash_file` | Soft-delete a file (recoverable for 30 days) |
 | `restore_file` | Restore a file out of trash |
 | `update_tags` | Replace a file's full tag list |
-| `update_file_content` | Overwrite a text/markdown file's content (requires the ETag from `get_file_content`) |
+| `update_file_content` | Overwrite a text/markdown file's content as plain text, not base64 (requires the ETag from `get_file_content`) |
 | `create_playlist` | Create a playlist (collection) in a drive |
 | `add_to_playlist` | Add files to an existing playlist |
-| `upload_file` | Upload a new small file (note, document, image) via base64 content, ≤10MB decoded |
+| `upload_file` | Upload a new small file (note, document, image), ≤10MB decoded — plain text via `content`, or base64 via `content_base64` for binary files |
 
 Every write tool call maps 1:1 onto an existing Litloft API endpoint, with
 no additional gating beyond what the backend already enforces. The MCP
