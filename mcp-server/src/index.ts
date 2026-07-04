@@ -33,18 +33,21 @@ Key concepts:
   know the drive name.
 - A "file_id" is a 12-character id (from search_files or get_file results),
   not a filesystem path.
-- To browse a drive like a file tree, alternate list_folders (subfolders,
-  one level at a time) and search_files with the same path and no search
-  term (files directly in that folder).
+- To browse a drive like a file tree, alternate list_folders (subfolders;
+  one level at a time by default, or pass depth to recurse several levels
+  in one call) and search_files with the same path and no search term
+  (files directly in that folder).
 - Deleting a file only ever moves it to trash (trash_file), recoverable for
   30 days via restore_file. There is no permanent-delete tool.
 - To edit a text/markdown file's content: call get_file_content first to
   get the current text and its ETag, then pass that ETag to
-  update_file_content. If the write is rejected as a conflict, the file
-  changed since you last read it — call get_file_content again and retry.
-- search_files only matches filenames/folder paths. For "find files about
-  X" style queries, prefer semantic_search, which ranks by transcript/
-  caption/embedding relevance and returns the matching excerpt.
+  update_file_content (content is plain text, not base64). If the write is
+  rejected as a conflict, the file changed since you last read it — call
+  get_file_content again and retry.
+- search_files only matches filenames/folder paths. semantic_search is a
+  hybrid search: it also matches filenames/paths/tags, plus ranks by
+  transcript/caption/embedding relevance and returns the matching excerpt —
+  prefer it for "find files about X" style queries.
 - There is no built-in "ask a question, get a synthesized answer" tool,
   but you can build the same result yourself: call semantic_search to
   find relevant files and the time range each match came from, then call
@@ -52,7 +55,8 @@ Key concepts:
   context before answering — this avoids pulling a whole transcript into
   context when only one part of it is relevant.
 - upload_file is for small notes/documents/images only (10MB cap on
-  base64-decoded content) — not for large video files.
+  decoded content) — not for large video files. Pass plain text via
+  content, or base64 via content_base64 for binary files.
 - Not every operation the web UI has is available here yet: there is no
   tool for posting comments.
 `.trim();

@@ -106,7 +106,7 @@ const updateTags: LitloftTool = {
 const updateFileContent: LitloftTool = {
   name: "update_file_content",
   description:
-    "Overwrite a text/markdown file's content. Requires the current ETag (from get_file_content) as an optimistic-lock guard; a 412 conflict means the file changed since you last read it, so call get_file_content again before retrying.",
+    "Overwrite a text/markdown file's content. `content` is plain text, not base64 (unlike upload_file's content_base64). Requires the current ETag (from get_file_content) as an optimistic-lock guard; a 412 conflict means the file changed since you last read it, so call get_file_content again before retrying.",
   inputSchema: { file_id: z.string(), content: z.string(), etag: z.string() },
   handler: (args, client) =>
     runTool(async () => {
@@ -175,11 +175,22 @@ const addToPlaylist: LitloftTool = {
 const uploadFile: LitloftTool = {
   name: "upload_file",
   description:
-    "Upload a new small file (note, document, image) to a drive. Content must be base64-encoded, capped at 10MB decoded — not for large video files.",
+    "Upload a new small file (note, document, image) to a drive, capped at 10MB decoded — not for large video files. Pass exactly one of: `content` (plain UTF-8 text — for notes/markdown/text files) or `content_base64` (base64-encoded bytes — required for binary files such as images; plain text is NOT accepted here, only in `content`).",
   inputSchema: {
     drive: z.string(),
     filename: z.string(),
-    content_base64: z.string().describe("File content, base64-encoded"),
+    content: z
+      .string()
+      .optional()
+      .describe(
+        "Plain UTF-8 text content, for text/markdown files. Mutually exclusive with content_base64; pass exactly one."
+      ),
+    content_base64: z
+      .string()
+      .optional()
+      .describe(
+        "Base64-encoded file content, required for binary files (e.g. images). Mutually exclusive with content; pass exactly one."
+      ),
     folder_path: z
       .string()
       .optional()
@@ -190,11 +201,30 @@ const uploadFile: LitloftTool = {
       const drive = args.drive as string;
       const filename = args.filename as string;
       const folderPath = (args.folder_path as string | undefined) ?? "";
-      const bytes = Buffer.from(args.content_base64 as string, "base64");
+      const content = args.content as string | undefined;
+      const contentBase64 = args.content_base64 as string | undefined;
+
+      if (content !== undefined && contentBase64 !== undefined) {
+        return textResult({
+          error: "Pass exactly one of content or content_base64, not both.",
+        });
+      }
+      if (content === undefined && contentBase64 === undefined) {
+        return textResult({
+          error: "One of content (plain text) or content_base64 (base64) is required.",
+        });
+      }
+      const bytes =
+        content !== undefined
+          ? Buffer.from(content, "utf-8")
+          : Buffer.from(contentBase64 as string, "base64");
 
       if (bytes.length === 0) {
         return textResult({
-          error: "Decoded content is empty (check that content_base64 is valid base64).",
+          error:
+            content !== undefined
+              ? "content is empty."
+              : "Decoded content is empty (check that content_base64 is valid base64).",
         });
       }
       if (bytes.length > MAX_UPLOAD_BYTES) {

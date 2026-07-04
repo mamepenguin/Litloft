@@ -238,6 +238,56 @@ describe("upload_file", () => {
     expect(client.calls).toEqual([]);
     expect(result.content[0].text).toContain("exceeds");
   });
+
+  it("accepts plain-text content via `content` (no base64 required)", async () => {
+    const client = fakeClient(
+      async (call) => {
+        if (call.path === "/api/drives/media/upload/init") {
+          return { upload_id: "up1", chunk_size: 11, total_chunks: 1 };
+        }
+        return { id: "newfile123456" };
+      },
+      undefined,
+      async (call) => {
+        const chunk = call.form.get("chunk") as File;
+        expect(await chunk.text()).toBe("hello world");
+        return { chunk_index: 0, received_chunks: 1, total_chunks: 1 };
+      }
+    );
+
+    const result = await findTool("upload_file").handler(
+      { drive: "media", filename: "note.md", content: "hello world" },
+      client
+    );
+
+    expect((client.calls[0].options as any).json.file_size).toBe(11);
+    expect(result.isError).toBeUndefined();
+    expect(JSON.parse(result.content[0].text)).toEqual({ id: "newfile123456" });
+  });
+
+  it("rejects when both content and content_base64 are given", async () => {
+    const client = fakeClient(async () => {
+      throw new Error("request() should not be called");
+    });
+    const result = await findTool("upload_file").handler(
+      { drive: "media", filename: "note.md", content: "x", content_base64: "eA==" },
+      client
+    );
+    expect(client.calls).toEqual([]);
+    expect(result.content[0].text).toContain("exactly one");
+  });
+
+  it("rejects when neither content nor content_base64 is given", async () => {
+    const client = fakeClient(async () => {
+      throw new Error("request() should not be called");
+    });
+    const result = await findTool("upload_file").handler(
+      { drive: "media", filename: "note.md" },
+      client
+    );
+    expect(client.calls).toEqual([]);
+    expect(result.content[0].text).toContain("required");
+  });
 });
 
 describe("purge exclusion", () => {

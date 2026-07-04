@@ -34,23 +34,78 @@ const listDrives: LitloftTool = {
     runTool(async () => textResult(await client.request("GET", "/api/drives"))),
 };
 
+// Safety valve for depth > 1: each level issues one request per folder
+// discovered at the level above, so a wide/deep drive could otherwise fan
+// out into hundreds of requests from a single tool call. Mirrors the
+// client-side caps used elsewhere in this file (TEXT_CONTENT_MAX_BYTES,
+// TRANSCRIPT_MAX_CHARS) rather than a server-side limit, since the
+// recursion itself lives here, not in the backend endpoint.
+const LIST_FOLDERS_MAX_CALLS = 200;
+
+interface FolderNode {
+  name: string;
+  path: string;
+  file_count: number;
+  thumbnail_file_id: string | null;
+  dominant_kind?: string | null;
+  subfolders?: FolderNode[];
+}
+
 const listFolders: LitloftTool = {
   name: "list_folders",
   description:
-    "List the immediate subfolders directly under a path within a drive (one level deep, not recursive — call again with a returned subfolder's path to go deeper). To list the files inside a folder instead, use search_files with the same path and no search term.",
+    "List subfolders under a path within a drive. By default one level deep (call again with a returned subfolder's path to go deeper). Pass depth (2-5) to recurse multiple levels in one call — each folder in the result then carries a `subfolders` array nested the same way, up to that depth. To list the files inside a folder instead, use search_files with the same path and no search term.",
   inputSchema: {
     drive: z.string().describe("Drive name"),
     path: z.string().optional().describe("Parent folder path; omit for the drive root"),
+    depth: z
+      .number()
+      .int()
+      .min(1)
+      .max(5)
+      .optional()
+      .describe(
+        "How many levels deep to recurse (default 1, max 5). Depth >1 nests each folder's children under a `subfolders` field."
+      ),
   },
   handler: (args, client) =>
     runTool(async () => {
       const drive = args.drive as string;
       const path = args.path as string | undefined;
-      return textResult(
-        await client.request("GET", `/api/drives/${encodeURIComponent(drive)}/folders`, {
-          query: path !== undefined ? { path } : undefined,
-        })
-      );
+      const depth = (args.depth as number | undefined) ?? 1;
+
+      let callCount = 0;
+      let truncated = false;
+
+      const fetchLevel = async (
+        parentPath: string | undefined,
+        remainingDepth: number
+      ): Promise<FolderNode[]> => {
+        if (truncated) return [];
+        callCount += 1;
+        if (callCount > LIST_FOLDERS_MAX_CALLS) {
+          truncated = true;
+          return [];
+        }
+        const folders = await client.request<FolderNode[]>(
+          "GET",
+          `/api/drives/${encodeURIComponent(drive)}/folders`,
+          { query: parentPath !== undefined ? { path: parentPath } : undefined }
+        );
+        if (remainingDepth > 1) {
+          for (const folder of folders) {
+            if (truncated) break;
+            folder.subfolders = await fetchLevel(folder.path, remainingDepth - 1);
+          }
+        }
+        return folders;
+      };
+
+      const folders = await fetchLevel(path, depth);
+      if (depth === 1) {
+        return textResult(folders);
+      }
+      return textResult({ depth, truncated, folders });
     }),
 };
 
@@ -150,7 +205,7 @@ const getWatchHistory: LitloftTool = {
 const semanticSearch: LitloftTool = {
   name: "semantic_search",
   description:
-    "Rank files within a drive by relevance to a natural-language query, using transcripts/captions/embeddings rather than filename matching (unlike search_files, which only matches title/folder path). Results include per-segment excerpts (with time ranges for video/audio, page numbers for documents) showing exactly what matched. Requires the intelligence addon's 'search' feature to be enabled for the drive.",
+    "Rank files within a drive by relevance to a natural-language query. This is a hybrid search: it combines transcript/caption/embedding relevance with filename/title/folder-path/tag matching (so it's a superset of search_files, not just a semantic-only complement to it). Results include per-segment excerpts (with time ranges for video/audio, page numbers for documents) showing exactly what matched. Requires the intelligence addon's 'search' feature to be enabled for the drive.",
   inputSchema: {
     drive: z.string().describe("Drive name"),
     q: z.string().min(1).describe("Natural-language search query"),
