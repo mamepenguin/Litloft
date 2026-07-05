@@ -21,6 +21,7 @@ filtering: events whose payload references drives where the addon feature
 is disabled are silently dropped or stripped before dispatch.
 """
 
+import asyncio
 import json
 import logging
 import os
@@ -213,3 +214,29 @@ def emit_sync(event: str, data: dict[str, Any]) -> None:
                 event,
                 hook["url"],
             )
+
+
+_event_loop: asyncio.AbstractEventLoop | None = None
+
+
+def set_event_loop(loop: asyncio.AbstractEventLoop) -> None:
+    """Store the running event loop reference for thread-safe emits."""
+    global _event_loop
+    _event_loop = loop
+
+
+def emit_from_thread(event: str, data: dict[str, Any]) -> None:
+    """Thread-safe fire-and-forget emit for use from FastAPI's sync (threadpool) handlers.
+
+    Schedules the async ``emit`` coroutine on the stored event loop from a
+    worker thread, so the calling thread returns immediately instead of
+    blocking on the webhook HTTP call (unlike ``emit_sync``). Mirrors
+    ``app.services.ws.broadcast_from_thread``.
+    """
+    if _event_loop is None or _event_loop.is_closed():
+        logger.warning("No event loop available for emit: %s", event)
+        return
+    _event_loop.call_soon_threadsafe(
+        asyncio.ensure_future,
+        emit(event, data),
+    )

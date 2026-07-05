@@ -472,8 +472,8 @@ def batch_delete(
         except HTTPException as e:
             errors.append({"id": file_id, "error": e.detail})
     if deleted_ids:
-        asyncio.create_task(
-            event_hooks.emit("files.deleted", {"file_ids": deleted_ids, "type": "soft_delete"})
+        event_hooks.emit_from_thread(
+            "files.deleted", {"file_ids": deleted_ids, "type": "soft_delete"}
         )
     return {"deleted": deleted, "errors": errors}
 
@@ -540,9 +540,7 @@ def batch_tags(
             errors.append({"id": file_id, "error": e.detail})
     db.commit()
     if updated_ids:
-        asyncio.create_task(
-            event_hooks.emit("files.updated", {"file_ids": updated_ids})
-        )
+        event_hooks.emit_from_thread("files.updated", {"file_ids": updated_ids})
     return {"updated": updated, "errors": errors}
 
 
@@ -587,9 +585,7 @@ def batch_restore(
         except HTTPException as e:
             errors.append({"id": file_id, "error": e.detail})
     if restored_ids:
-        asyncio.create_task(
-            event_hooks.emit("files.restored", {"file_ids": restored_ids})
-        )
+        event_hooks.emit_from_thread("files.restored", {"file_ids": restored_ids})
     return {"restored": restored, "errors": errors}
 
 
@@ -614,9 +610,7 @@ def batch_purge(
         except HTTPException as e:
             errors.append({"id": file_id, "error": e.detail})
     if purged_ids:
-        asyncio.create_task(
-            event_hooks.emit("files.purged", {"file_ids": purged_ids})
-        )
+        event_hooks.emit_from_thread("files.purged", {"file_ids": purged_ids})
     return {"purged": purged, "errors": errors}
 
 
@@ -638,9 +632,7 @@ def batch_copy(
         except HTTPException as e:
             errors.append({"id": file_id, "error": e.detail})
     if copied_ids:
-        asyncio.create_task(
-            event_hooks.emit("files.created", {"file_ids": copied_ids})
-        )
+        event_hooks.emit_from_thread("files.created", {"file_ids": copied_ids})
     return {"copied": copied, "errors": errors}
 
 
@@ -728,9 +720,7 @@ def update_file(
 
     db.commit()
     db.refresh(file)
-    asyncio.create_task(
-        event_hooks.emit("files.updated", {"file_ids": [file_id]})
-    )
+    event_hooks.emit_from_thread("files.updated", {"file_ids": [file_id]})
     return _to_response(file)
 
 
@@ -773,9 +763,7 @@ def toggle_favorite(
     file.is_favorite = not file.is_favorite
     db.commit()
     db.refresh(file)
-    asyncio.create_task(
-        event_hooks.emit("files.updated", {"file_ids": [file_id]})
-    )
+    event_hooks.emit_from_thread("files.updated", {"file_ids": [file_id]})
     return _to_response(file)
 
 
@@ -791,9 +779,7 @@ def update_file_tags(
     cleanup_orphan_tags(db)
     db.commit()
     db.refresh(file)
-    asyncio.create_task(
-        event_hooks.emit("files.updated", {"file_ids": [file_id]})
-    )
+    event_hooks.emit_from_thread("files.updated", {"file_ids": [file_id]})
     return _to_response(file)
 
 
@@ -1331,9 +1317,7 @@ def copy_file_endpoint(
 ):
     _get_file_or_404(db, file_id, unlocked_groups)
     new_file = fileops.copy_file(db, file_id, body.target_drive, body.target_folder_path)
-    asyncio.create_task(
-        event_hooks.emit("files.created", {"file_ids": [new_file.id]})
-    )
+    event_hooks.emit_from_thread("files.created", {"file_ids": [new_file.id]})
     return _to_response(new_file)
 
 
@@ -1345,8 +1329,8 @@ def delete_file_endpoint(
 ):
     _get_file_or_404(db, file_id, unlocked_groups)
     fileops.delete_file(db, file_id)
-    asyncio.create_task(
-        event_hooks.emit("files.deleted", {"file_ids": [file_id], "type": "soft_delete"})
+    event_hooks.emit_from_thread(
+        "files.deleted", {"file_ids": [file_id], "type": "soft_delete"}
     )
     return {"status": "deleted"}
 
@@ -1359,9 +1343,7 @@ def restore_file_endpoint(
 ):
     _get_trashed_file_or_404(db, file_id, unlocked_groups)
     file = fileops.restore_file(db, file_id)
-    asyncio.create_task(
-        event_hooks.emit("files.restored", {"file_ids": [file_id]})
-    )
+    event_hooks.emit_from_thread("files.restored", {"file_ids": [file_id]})
     return _to_response(file)
 
 
@@ -1698,9 +1680,7 @@ def purge_file_endpoint(
         fileops.purge_missing_file(db, file_id)
     else:
         fileops.purge_file(db, file_id)
-    asyncio.create_task(
-        event_hooks.emit("files.purged", {"file_ids": [file_id]})
-    )
+    event_hooks.emit_from_thread("files.purged", {"file_ids": [file_id]})
     return {"status": "purged"}
 
 
