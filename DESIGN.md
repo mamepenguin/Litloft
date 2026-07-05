@@ -321,6 +321,7 @@ Applies wherever `.markdown-body` renders — `MarkdownPreview` (FilePreview `.m
 - `blockquote`: `border-left: 3px solid var(--accent)`, `background: var(--bg-elevated)`, radius `0 12px 12px 0`.
 - `.markdown-body > :first-child` / `:last-child` strip outer margins so the first/last block never paints a phantom gutter against its host container.
 - `.markdown-segment` variant does the same strip on the **immediate** children only — use it when MarkdownPreview is rendered inside a wrapper that already owns vertical rhythm (e.g. citation-anchored segments).
+- **Consecutive images auto-group into a flex row** (`.markdown-image-group`): images written with no blank line between them (same paragraph / list item / table cell) are wrapped by the renderer into one row — each image at a fixed `height` (200px desktop, 120px below 767px), `width: auto` to keep its aspect ratio, `gap: 8px`, wrapping to a new line when it doesn't fit. A single image is unaffected and keeps the plain `img` rule above. No Markdown syntax changes; this is a preview-only renderer transform (spec `2026-07-05-markdown-image-auto-grouping.md`).
 
 ### 3.4 Reading Measure
 
