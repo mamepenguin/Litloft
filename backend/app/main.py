@@ -213,6 +213,7 @@ async def lifespan(app: FastAPI):
     event_hooks.init()
     addon_registry.load_external_manifests()
     set_event_loop(asyncio.get_running_loop())
+    event_hooks.set_event_loop(asyncio.get_running_loop())
     cleanup_abandoned_uploads()
     asyncio.create_task(scan_all_drives())
     logger.info("Background scan started for all drives")
