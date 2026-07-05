@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useRef } from "react";
 import { useHighlightPassage } from "@/hooks/useHighlightPassage";
 import MarkdownIt from "markdown-it";
+import type Token from "markdown-it/lib/token.mjs";
 // @ts-expect-error -- no bundled type definitions
 import taskLists from "markdown-it-task-lists";
 import hljs from "highlight.js";
@@ -297,6 +298,78 @@ function createMarkdownRenderer({ withMermaid }: { withMermaid: boolean }): Mark
     const escaped = md.utils.escapeHtml(token.content);
     return `<pre class="code-block"><code class="hljs">${escaped}</code></pre>\n`;
   };
+
+  // Group consecutive images (no blank line between them, i.e. the same
+  // paragraph / list item / table cell) into a single
+  // <span class="markdown-image-group"> so CSS can lay them out as an
+  // equal-height flex row (Craft-style grouping). Markdown syntax and the
+  // rendering of each individual image are untouched — this only wraps
+  // runs of >=2 image tokens after inline parsing has finished.
+  //
+  // Implemented as a core rule (not an inline rule) because grouping
+  // needs lookahead: whether a run has 2+ images is only known once the
+  // whole children array is parsed. Whitespace-only separators
+  // (softbreak/hardbreak, or a blank text token from a bare newline) are
+  // dropped from the group rather than kept — the CSS `gap` supplies
+  // spacing, so a leftover whitespace node wouldn't just be redundant,
+  // it would unevenly widen that one gap.
+  md.core.ruler.push("image_group", (state) => {
+    const isImage = (t: Token) => t.type === "image";
+    const isWhitespaceSep = (t: Token) =>
+      t.type === "softbreak" ||
+      t.type === "hardbreak" ||
+      (t.type === "text" && t.content.trim() === "");
+
+    for (const blockToken of state.tokens) {
+      const children = blockToken.children;
+      if (!children || children.length === 0) continue;
+
+      const result: Token[] = [];
+      let i = 0;
+      while (i < children.length) {
+        if (!isImage(children[i])) {
+          result.push(children[i]);
+          i++;
+          continue;
+        }
+
+        // Scan the maximal run of image/whitespace tokens from here, then
+        // trim trailing whitespace so the run ends on an image token.
+        let j = i;
+        let lastImage = i;
+        while (
+          j < children.length &&
+          (isImage(children[j]) || isWhitespaceSep(children[j]))
+        ) {
+          if (isImage(children[j])) lastImage = j;
+          j++;
+        }
+        const run = children.slice(i, lastImage + 1);
+        const imageCount = run.filter(isImage).length;
+
+        if (imageCount < 2) {
+          result.push(children[i]);
+          i++;
+          continue;
+        }
+
+        const open = new state.Token("html_inline", "", 0);
+        open.content = '<span class="markdown-image-group">';
+        const close = new state.Token("html_inline", "", 0);
+        close.content = "</span>";
+
+        result.push(open);
+        for (const t of run) {
+          if (isImage(t)) result.push(t);
+        }
+        result.push(close);
+
+        i = lastImage + 1;
+      }
+
+      blockToken.children = result;
+    }
+  });
 
   return md;
 }
