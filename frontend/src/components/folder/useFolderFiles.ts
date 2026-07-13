@@ -262,11 +262,11 @@ export function useFolderFiles({
     }
     const trimmed = searchQuery!.trim();
     if (!trimmed) return;
-    let cancelled = false;
+    const ctrl = new AbortController();
     setSemanticLoading(true);
     (async () => {
       const available = await isSemanticSearchAvailable(driveName);
-      if (cancelled) return;
+      if (ctrl.signal.aborted) return;
       if (!available) {
         setSemanticHits([]);
         setSemanticLoading(false);
@@ -276,13 +276,14 @@ export function useFolderFiles({
         limit: 50,
         type: typeFilter,
         includeSceneClip,
+        signal: ctrl.signal,
       });
-      if (cancelled) return;
+      if (ctrl.signal.aborted) return;
       setSemanticHits(hits);
       setSemanticLoading(false);
     })();
     return () => {
-      cancelled = true;
+      ctrl.abort();
     };
   }, [isSearch, searchQuery, driveName, typeFilter, includeSceneClip]);
 
