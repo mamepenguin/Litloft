@@ -35,6 +35,25 @@ nextProxy.on("error", (_e, _req, res) => {
 });
 backendProxy.on("error", () => {});
 
+// http-proxy only aborts the upstream request when the *client's request*
+// emits 'aborted' (lib/http-proxy/passes/web-incoming.js). For a GET, the
+// request body finishes immediately, so that event never fires — if the
+// client disconnects while the *response* is still streaming (tab closed,
+// navigated away, query superseded), the upstream connection to Next.js
+// (or backend) is never torn down. Those orphaned sockets pile up as
+// stalled ESTABLISHED/CLOSE_WAIT connections on the Next.js internal port
+// until the process runs out of usable sockets. Watching 'close' on the
+// client response and destroying the upstream request closes that gap.
+function abortUpstreamOnClientClose(proxy) {
+  proxy.on("proxyReq", (proxyReq, _req, res) => {
+    res.on("close", () => {
+      if (!proxyReq.destroyed) proxyReq.destroy();
+    });
+  });
+}
+abortUpstreamOnClientClose(nextProxy);
+abortUpstreamOnClientClose(backendProxy);
+
 // The backend's Internal API (/api/internal/*) is intended for the
 // Docker-internal network only (addon ↔ core service-to-service). It is
 // NOT drive-access gated the way the public API is, and several write
