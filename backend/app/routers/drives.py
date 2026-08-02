@@ -602,6 +602,8 @@ def list_drive_tags(
     folder_path: str | None = None,
 ):
     _validate_drive(drive_name, unlocked_groups)
+    if folder_path:
+        folder_path = _validate_folder_path(folder_path)
 
     query = (
         db.query(Tag.name, func.count(file_tags.c.file_id).label("count"))

@@ -63,6 +63,16 @@ class TestListTags:
 
 
 class TestListTagsFolderScope:
+    def test_folder_path_rejects_traversal(self, client):
+        c, db, drive_dir, data_dir = client
+        res = c.get(f"/api/drives/{TEST_DRIVE}/tags?folder_path=../etc")
+        assert res.status_code == 400
+
+    def test_folder_path_rejects_leading_slash(self, client):
+        c, db, drive_dir, data_dir = client
+        res = c.get(f"/api/drives/{TEST_DRIVE}/tags?folder_path=/etc")
+        assert res.status_code == 400
+
     def test_folder_path_not_specified_returns_all(self, client):
         c, db, drive_dir, data_dir = client
         f1 = _seed_file(db, drive_dir, "1", folder_path="recipes")

@@ -1,5 +1,5 @@
 import type React from "react";
-import { renderHook } from "@testing-library/react";
+import { act, renderHook } from "@testing-library/react";
 import { describe, expect, it, beforeEach, vi } from "vitest";
 
 let mockPathname = "/drive/work";
@@ -12,6 +12,7 @@ import {
   CurrentDriveProvider,
   useCurrentDrive,
   useCurrentFolderPath,
+  useSetOverrideFolderPath,
 } from "../CurrentDriveProvider";
 
 function wrapper({ children }: { children: React.ReactNode }) {
@@ -20,7 +21,11 @@ function wrapper({ children }: { children: React.ReactNode }) {
 
 function renderCurrent() {
   return renderHook(
-    () => ({ drive: useCurrentDrive(), folderPath: useCurrentFolderPath() }),
+    () => ({
+      drive: useCurrentDrive(),
+      folderPath: useCurrentFolderPath(),
+      setFolderPath: useSetOverrideFolderPath(),
+    }),
     { wrapper },
   );
 }
@@ -29,60 +34,44 @@ beforeEach(() => {
   mockPathname = "/drive/work";
 });
 
-describe("CurrentDriveProvider folder path", () => {
-  it("returns null folderPath at the drive root", () => {
-    mockPathname = "/drive/work";
-    const { result } = renderCurrent();
-    expect(result.current.drive).toBe("work");
-    expect(result.current.folderPath).toBeNull();
-  });
-
-  it("extracts a nested folder path", () => {
+describe("CurrentDriveProvider — drive from URL", () => {
+  it("extracts the drive name from the path", () => {
     mockPathname = "/drive/work/Q1/reports";
     const { result } = renderCurrent();
-    expect(result.current.folderPath).toBe("Q1/reports");
+    expect(result.current.drive).toBe("work");
   });
 
-  it("decodes each path segment independently", () => {
-    mockPathname = "/drive/work/%E6%97%85%E8%A1%8C/2024";
-    const { result } = renderCurrent();
-    expect(result.current.folderPath).toBe("旅行/2024");
-  });
-
-  it("treats the search route as having no folder context", () => {
-    mockPathname = "/drive/work/search";
-    const { result } = renderCurrent();
-    expect(result.current.folderPath).toBeNull();
-  });
-
-  it("treats the collections route as having no folder context", () => {
-    mockPathname = "/drive/work/collections/abc123";
-    const { result } = renderCurrent();
-    expect(result.current.folderPath).toBeNull();
-  });
-
-  it("treats the addons route as having no folder context", () => {
-    mockPathname = "/drive/work/addons/intelligence";
-    const { result } = renderCurrent();
-    expect(result.current.folderPath).toBeNull();
-  });
-
-  it("treats a nested addons slug route as having no folder context", () => {
-    mockPathname = "/drive/work/addons/knowledge/some-note-id";
-    const { result } = renderCurrent();
-    expect(result.current.folderPath).toBeNull();
-  });
-
-  it("ignores a trailing slash", () => {
-    mockPathname = "/drive/work/Q1/";
-    const { result } = renderCurrent();
-    expect(result.current.folderPath).toBe("Q1");
-  });
-
-  it("returns null folderPath for drive-independent pages", () => {
+  it("returns null for drive-independent pages", () => {
     mockPathname = "/settings";
     const { result } = renderCurrent();
     expect(result.current.drive).toBeNull();
+  });
+});
+
+describe("CurrentDriveProvider — folder path is published, not parsed from the URL", () => {
+  // hako review finding M1 (2026-08-02): a denylist of non-folder sibling
+  // routes under /drive/[name]/ (search, collections, addons/...) is
+  // structurally fragile — every new route must remember to update it, and
+  // nothing enforces that. Instead, only the folder page itself
+  // (app/drive/[name]/[...path]/page.tsx) calls setOverrideFolderPath; any
+  // other route simply never calls it, so it's null there for free.
+
+  it("starts null before anything publishes a folder path", () => {
+    const { result } = renderCurrent();
+    expect(result.current.folderPath).toBeNull();
+  });
+
+  it("reflects whatever is published via setOverrideFolderPath", () => {
+    const { result } = renderCurrent();
+    act(() => result.current.setFolderPath("Q1/reports"));
+    expect(result.current.folderPath).toBe("Q1/reports");
+  });
+
+  it("clears back to null once unpublished", () => {
+    const { result } = renderCurrent();
+    act(() => result.current.setFolderPath("Q1"));
+    expect(result.current.folderPath).toBe("Q1");
+    act(() => result.current.setFolderPath(null));
     expect(result.current.folderPath).toBeNull();
   });
 });
