@@ -16,7 +16,6 @@ import { sortTags, useTagSortMode } from "./useTagSortMode";
 interface SidebarTagsSectionProps {
   driveBase: string;
   drive?: string | null;
-  currentFolderPath?: string | null;
   tags: TagType[];
   linkClass: (href: string) => string;
   close: () => void;
@@ -26,7 +25,6 @@ interface SidebarTagsSectionProps {
 export function SidebarTagsSection({
   driveBase,
   drive,
-  currentFolderPath,
   tags,
   linkClass,
   close,
@@ -42,9 +40,10 @@ export function SidebarTagsSection({
   const sortedTags = sortTags(tags, mode);
   const SortIcon = mode === "count" ? ArrowDown01 : ArrowDownAZ;
   const sortLabel = mode === "count" ? t("sort.byCount") : t("sort.byName");
-  const tagBase = currentFolderPath
-    ? `${driveBase}/${currentFolderPath.split("/").map(encodeURIComponent).join("/")}`
-    : driveBase;
+  // Tag links always point at the drive root, not the current folder:
+  // list_drive_files' `path` filter is an exact match while file browsing
+  // by tag needs a subtree match, and the file-listing API doesn't support
+  // that combination yet (see hako review finding H1, 2026-08-02).
 
   return (
     <>
@@ -73,7 +72,7 @@ export function SidebarTagsSection({
       </div>
       {!collapsed &&
         sortedTags.map((tag) => {
-          const href = `${tagBase}?tag=${encodeURIComponent(tag.name)}`;
+          const href = `${driveBase}?tag=${encodeURIComponent(tag.name)}`;
           return (
             <Link
               key={tag.name}

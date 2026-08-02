@@ -191,6 +191,21 @@ describe("SidebarTagsSection — sort mode toggle", () => {
     ).not.toBeInTheDocument();
   });
 
+  it("links always target the drive root, never the current folder (hako review H1, 2026-08-02: the file-listing API cannot combine a folder path with a tag subtree match)", () => {
+    render(
+      <SidebarTagsSection
+        driveBase="/drive/main"
+        drive="main"
+        tags={tags}
+        linkClass={() => ""}
+        close={vi.fn()}
+      />,
+    );
+    for (const link of screen.getAllByRole("link")) {
+      expect(link.getAttribute("href")).toMatch(/^\/drive\/main\?tag=/);
+    }
+  });
+
   it("does not mutate the input tags array (sortTags is immutable)", () => {
     const input: TagType[] = [
       { name: "z", count: 1 },

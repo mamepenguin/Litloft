@@ -22,7 +22,7 @@ function driveFromPath(pathname: string): string | null {
 
 // Sibling routes under /drive/[name]/ that are not folder paths
 // (see frontend/src/app/drive/[name]/), so [...path] never sees them.
-const NON_FOLDER_ROUTE_SEGMENTS = new Set(["search", "collections"]);
+const NON_FOLDER_ROUTE_SEGMENTS = new Set(["search", "collections", "addons"]);
 
 function folderPathFromPath(pathname: string): string | null {
   const match = pathname.match(/^\/drive\/[^/]+\/(.+)$/);

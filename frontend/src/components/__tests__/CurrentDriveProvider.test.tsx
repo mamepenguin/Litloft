@@ -61,6 +61,18 @@ describe("CurrentDriveProvider folder path", () => {
     expect(result.current.folderPath).toBeNull();
   });
 
+  it("treats the addons route as having no folder context", () => {
+    mockPathname = "/drive/work/addons/intelligence";
+    const { result } = renderCurrent();
+    expect(result.current.folderPath).toBeNull();
+  });
+
+  it("treats a nested addons slug route as having no folder context", () => {
+    mockPathname = "/drive/work/addons/knowledge/some-note-id";
+    const { result } = renderCurrent();
+    expect(result.current.folderPath).toBeNull();
+  });
+
   it("ignores a trailing slash", () => {
     mockPathname = "/drive/work/Q1/";
     const { result } = renderCurrent();

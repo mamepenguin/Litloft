@@ -106,10 +106,8 @@ function SidebarNav() {
       return pathname === base && activeView === "all";
     }
     if (href.includes("?tag=")) {
-      const url = new URL(href, "http://x");
-      const hrefTag = url.searchParams.get("tag");
-      const hrefPath = decodeURIComponent(url.pathname);
-      return pathname === hrefPath && activeTag === hrefTag && !activeView;
+      const hrefTag = new URL(href, "http://x").searchParams.get("tag");
+      return pathname === base && activeTag === hrefTag && !activeView;
     }
     if (href === base) {
       return pathname === base && !activeView && !activeTag;
@@ -196,7 +194,6 @@ function SidebarNav() {
               <SidebarTagsSection
                 driveBase={driveBase}
                 drive={currentDrive}
-                currentFolderPath={currentFolderPath}
                 tags={tags}
                 linkClass={linkClass}
                 close={closeIfOverlay}
