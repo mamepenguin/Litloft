@@ -18,6 +18,7 @@ interface UseSidebarDataResult {
 
 export function useSidebarData(
   currentDrive: string | null,
+  currentFolderPath: string | null,
   refreshKey: number,
 ): UseSidebarDataResult {
   const [drives, setDrives] = useState<Drive[]>([]);
@@ -37,11 +38,18 @@ export function useSidebarData(
       setDriveSummary(null);
       return;
     }
-    getDriveTags(currentDrive).then(setTags).catch(() => setTags([]));
     getPins(currentDrive).then(setPins).catch(() => setPins([]));
     getCollections(currentDrive).then(setCollectionList).catch(() => setCollectionList([]));
     getDriveSummary(currentDrive).then(setDriveSummary).catch(() => setDriveSummary(null));
   }, [currentDrive, refreshKey]);
+
+  useEffect(() => {
+    if (!currentDrive) {
+      setTags([]);
+      return;
+    }
+    getDriveTags(currentDrive, currentFolderPath).then(setTags).catch(() => setTags([]));
+  }, [currentDrive, currentFolderPath, refreshKey]);
 
   // Refresh drive summary when a scan completes so sidebar reflects
   // newly missing / recovered counts.

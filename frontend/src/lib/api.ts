@@ -77,8 +77,9 @@ export async function getDriveFiles(
   );
 }
 
-export async function getDriveTags(drive: string): Promise<Tag[]> {
-  return fetchJSON<Tag[]>(`${API_BASE}/drives/${encodeURIComponent(drive)}/tags`);
+export async function getDriveTags(drive: string, folderPath?: string | null): Promise<Tag[]> {
+  const query = folderPath ? `?folder_path=${encodeURIComponent(folderPath)}` : "";
+  return fetchJSON<Tag[]>(`${API_BASE}/drives/${encodeURIComponent(drive)}/tags${query}`);
 }
 
 export async function scanDrive(drive: string): Promise<{ added: number; removed: number; total: number }> {

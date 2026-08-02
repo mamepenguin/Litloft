@@ -16,6 +16,7 @@ import { sortTags, useTagSortMode } from "./useTagSortMode";
 interface SidebarTagsSectionProps {
   driveBase: string;
   drive?: string | null;
+  currentFolderPath?: string | null;
   tags: TagType[];
   linkClass: (href: string) => string;
   close: () => void;
@@ -25,6 +26,7 @@ interface SidebarTagsSectionProps {
 export function SidebarTagsSection({
   driveBase,
   drive,
+  currentFolderPath,
   tags,
   linkClass,
   close,
@@ -40,6 +42,9 @@ export function SidebarTagsSection({
   const sortedTags = sortTags(tags, mode);
   const SortIcon = mode === "count" ? ArrowDown01 : ArrowDownAZ;
   const sortLabel = mode === "count" ? t("sort.byCount") : t("sort.byName");
+  const tagBase = currentFolderPath
+    ? `${driveBase}/${currentFolderPath.split("/").map(encodeURIComponent).join("/")}`
+    : driveBase;
 
   return (
     <>
@@ -67,18 +72,21 @@ export function SidebarTagsSection({
         </button>
       </div>
       {!collapsed &&
-        sortedTags.map((tag) => (
-          <Link
-            key={tag.name}
-            href={`${driveBase}?tag=${encodeURIComponent(tag.name)}`}
-            onClick={close}
-            className={linkClass(`${driveBase}?tag=${encodeURIComponent(tag.name)}`)}
-          >
-            <Tag size={16} />
-            <span className="flex-1 truncate">{tag.name}</span>
-            <span className="text-xs opacity-60">{tag.count}</span>
-          </Link>
-        ))}
+        sortedTags.map((tag) => {
+          const href = `${tagBase}?tag=${encodeURIComponent(tag.name)}`;
+          return (
+            <Link
+              key={tag.name}
+              href={href}
+              onClick={close}
+              className={linkClass(href)}
+            >
+              <Tag size={16} />
+              <span className="flex-1 truncate">{tag.name}</span>
+              <span className="text-xs opacity-60">{tag.count}</span>
+            </Link>
+          );
+        })}
     </>
   );
 }
