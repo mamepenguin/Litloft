@@ -48,7 +48,22 @@ export function useSidebarData(
       setTags([]);
       return;
     }
-    getDriveTags(currentDrive, currentFolderPath).then(setTags).catch(() => setTags([]));
+    // currentFolderPath is published by the folder page after mount (see
+    // CurrentDriveProvider), so opening a folder URL directly fires this
+    // effect twice in quick succession: once with null, then again with
+    // the real path. Guard against the null request resolving second and
+    // clobbering the folder-scoped result.
+    let cancelled = false;
+    getDriveTags(currentDrive, currentFolderPath)
+      .then((t) => {
+        if (!cancelled) setTags(t);
+      })
+      .catch(() => {
+        if (!cancelled) setTags([]);
+      });
+    return () => {
+      cancelled = true;
+    };
   }, [currentDrive, currentFolderPath, refreshKey]);
 
   // Refresh drive summary when a scan completes so sidebar reflects

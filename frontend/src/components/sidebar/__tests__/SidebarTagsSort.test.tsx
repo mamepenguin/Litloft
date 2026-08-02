@@ -191,7 +191,10 @@ describe("SidebarTagsSection — sort mode toggle", () => {
     ).not.toBeInTheDocument();
   });
 
-  it("links always target the drive root, never the current folder (hako review H1, 2026-08-02: the file-listing API cannot combine a folder path with a tag subtree match)", () => {
+  // hako review finding H1 (2026-08-02): the file-listing API cannot
+  // combine a folder path with a tag subtree match, so links must stay
+  // pinned to the drive root rather than the current folder.
+  it("links always target the drive root, never the current folder", () => {
     render(
       <SidebarTagsSection
         driveBase="/drive/main"

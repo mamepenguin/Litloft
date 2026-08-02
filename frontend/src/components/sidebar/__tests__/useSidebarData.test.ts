@@ -1,4 +1,4 @@
-import { renderHook, waitFor } from "@testing-library/react";
+import { act, renderHook, waitFor } from "@testing-library/react";
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { useSidebarData } from "../useSidebarData";
 
@@ -122,5 +122,40 @@ describe("useSidebarData", () => {
     // Pins/collections/driveSummary are drive-scoped, not folder-scoped,
     // so a folder-only change must not trigger their effect again.
     expect(getPins).toHaveBeenCalledTimes(1);
+  });
+
+  it("does not let a stale request (opened with folderPath=null, then published) clobber a newer folder-scoped result", async () => {
+    let resolveStaleRequest: (tags: { name: string; count: number }[]) => void = () => {};
+    const staleRequest = new Promise<{ name: string; count: number }[]>((resolve) => {
+      resolveStaleRequest = resolve;
+    });
+
+    vi.mocked(getDriveTags).mockImplementation((_drive, folderPath) =>
+      folderPath === null ? staleRequest : Promise.resolve([{ name: "scoped", count: 1 }]),
+    );
+
+    // Mirrors opening a folder URL directly: currentFolderPath starts null
+    // (before the folder page has published its path) and is then updated.
+    const { rerender, result } = renderHook(
+      ({ folderPath }) => useSidebarData("main", folderPath, 0),
+      { initialProps: { folderPath: null as string | null } },
+    );
+    rerender({ folderPath: "recipes" });
+
+    await waitFor(() => {
+      expect(result.current.tags).toEqual([{ name: "scoped", count: 1 }]);
+    });
+
+    // The null-folderPath request finally resolves late; it must be ignored.
+    // Await the promise itself (not an arbitrary timeout) and wrap in act()
+    // so React has actually flushed the resulting state update, if any,
+    // before we assert — otherwise the assertion could pass by mere luck
+    // of running before the clobbering re-render commits.
+    await act(async () => {
+      resolveStaleRequest([{ name: "stale-drive-wide", count: 99 }]);
+      await staleRequest;
+    });
+
+    expect(result.current.tags).toEqual([{ name: "scoped", count: 1 }]);
   });
 });

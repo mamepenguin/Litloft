@@ -40,10 +40,6 @@ export function SidebarTagsSection({
   const sortedTags = sortTags(tags, mode);
   const SortIcon = mode === "count" ? ArrowDown01 : ArrowDownAZ;
   const sortLabel = mode === "count" ? t("sort.byCount") : t("sort.byName");
-  // Tag links always point at the drive root, not the current folder:
-  // list_drive_files' `path` filter is an exact match while file browsing
-  // by tag needs a subtree match, and the file-listing API doesn't support
-  // that combination yet (see hako review finding H1, 2026-08-02).
 
   return (
     <>
@@ -72,6 +68,10 @@ export function SidebarTagsSection({
       </div>
       {!collapsed &&
         sortedTags.map((tag) => {
+          // Always the drive root, not the current folder: list_drive_files'
+          // `path` filter is an exact match while file browsing by tag needs
+          // a subtree match, and the file-listing API doesn't support that
+          // combination yet (see hako review finding H1, 2026-08-02).
           const href = `${driveBase}?tag=${encodeURIComponent(tag.name)}`;
           return (
             <Link
