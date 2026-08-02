@@ -8,7 +8,7 @@ import { useShortcuts } from "@/hooks/useShortcuts";
 import { lock as lockApi } from "@/lib/api";
 import { useAddonSlots } from "./AddonSlotsProvider";
 import { useSidebar } from "./SidebarProvider";
-import { useCurrentDrive, useSetOverrideDrive } from "./CurrentDriveProvider";
+import { useCurrentDrive, useCurrentFolderPath, useSetOverrideDrive } from "./CurrentDriveProvider";
 import { useSidebarData } from "./sidebar/useSidebarData";
 import { useCollectionManagement } from "./sidebar/useCollectionManagement";
 import { SidebarLibrarySection } from "./sidebar/SidebarLibrarySection";
@@ -40,6 +40,7 @@ function SidebarNav() {
   }, [isOverlay, close]);
 
   const currentDrive = useCurrentDrive();
+  const currentFolderPath = useCurrentFolderPath();
   const setOverrideDrive = useSetOverrideDrive();
   const activeView = searchParams.get("view");
   const activeTag = searchParams.get("tag");
@@ -47,7 +48,7 @@ function SidebarNav() {
   const { addons } = useAddonSlots();
 
   const { drives, tags, pins, collectionList, setCollectionList, authStatus, driveSummary } =
-    useSidebarData(currentDrive, refreshKey);
+    useSidebarData(currentDrive, currentFolderPath, refreshKey);
 
   const collection = useCollectionManagement({
     currentDrive,

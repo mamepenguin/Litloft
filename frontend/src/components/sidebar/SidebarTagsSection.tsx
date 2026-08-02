@@ -67,18 +67,25 @@ export function SidebarTagsSection({
         </button>
       </div>
       {!collapsed &&
-        sortedTags.map((tag) => (
-          <Link
-            key={tag.name}
-            href={`${driveBase}?tag=${encodeURIComponent(tag.name)}`}
-            onClick={close}
-            className={linkClass(`${driveBase}?tag=${encodeURIComponent(tag.name)}`)}
-          >
-            <Tag size={16} />
-            <span className="flex-1 truncate">{tag.name}</span>
-            <span className="text-xs opacity-60">{tag.count}</span>
-          </Link>
-        ))}
+        sortedTags.map((tag) => {
+          // Always the drive root, not the current folder: list_drive_files'
+          // `path` filter is an exact match while file browsing by tag needs
+          // a subtree match, and the file-listing API doesn't support that
+          // combination yet (see hako review finding H1, 2026-08-02).
+          const href = `${driveBase}?tag=${encodeURIComponent(tag.name)}`;
+          return (
+            <Link
+              key={tag.name}
+              href={href}
+              onClick={close}
+              className={linkClass(href)}
+            >
+              <Tag size={16} />
+              <span className="flex-1 truncate">{tag.name}</span>
+              <span className="text-xs opacity-60">{tag.count}</span>
+            </Link>
+          );
+        })}
     </>
   );
 }

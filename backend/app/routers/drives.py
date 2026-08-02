@@ -599,10 +599,13 @@ def list_drive_tags(
     drive_name: str,
     db: Annotated[Session, Depends(get_db)],
     unlocked_groups: Annotated[list[str], Depends(get_unlocked_groups)],
+    folder_path: str | None = None,
 ):
     _validate_drive(drive_name, unlocked_groups)
+    if folder_path:
+        folder_path = _validate_folder_path(folder_path)
 
-    results = (
+    query = (
         db.query(Tag.name, func.count(file_tags.c.file_id).label("count"))
         .outerjoin(file_tags)
         .outerjoin(File, File.id == file_tags.c.file_id)
@@ -610,10 +613,15 @@ def list_drive_tags(
             Tag.drive == drive_name,
             (file_tags.c.file_id.is_(None)) | active_file_filter(),
         )
-        .group_by(Tag.id)
-        .order_by(Tag.name)
-        .all()
     )
+    if folder_path:
+        query = query.filter(
+            (file_tags.c.file_id.is_(None))
+            | (File.folder_path == folder_path)
+            | (File.folder_path.like(_escape_like(folder_path) + "/%", escape="\\"))
+        )
+
+    results = query.group_by(Tag.id).order_by(Tag.name).all()
     return [TagResponse(name=name, count=count) for name, count in results]
 
 

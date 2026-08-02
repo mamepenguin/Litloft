@@ -191,6 +191,24 @@ describe("SidebarTagsSection — sort mode toggle", () => {
     ).not.toBeInTheDocument();
   });
 
+  // hako review finding H1 (2026-08-02): the file-listing API cannot
+  // combine a folder path with a tag subtree match, so links must stay
+  // pinned to the drive root rather than the current folder.
+  it("links always target the drive root, never the current folder", () => {
+    render(
+      <SidebarTagsSection
+        driveBase="/drive/main"
+        drive="main"
+        tags={tags}
+        linkClass={() => ""}
+        close={vi.fn()}
+      />,
+    );
+    for (const link of screen.getAllByRole("link")) {
+      expect(link.getAttribute("href")).toMatch(/^\/drive\/main\?tag=/);
+    }
+  });
+
   it("does not mutate the input tags array (sortTags is immutable)", () => {
     const input: TagType[] = [
       { name: "z", count: 1 },

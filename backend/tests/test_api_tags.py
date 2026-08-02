@@ -6,9 +6,9 @@ from tests.conftest import TEST_DRIVE
 FIXTURES_DIR = Path(__file__).parent / "fixtures"
 
 
-def _seed_file(db, drive_dir, suffix=""):
-    folder = drive_dir / "旅行"
-    folder.mkdir(exist_ok=True)
+def _seed_file(db, drive_dir, suffix="", folder_path="旅行"):
+    folder = drive_dir / folder_path
+    folder.mkdir(parents=True, exist_ok=True)
     fname = f"test{suffix}.mp4"
     shutil.copy(FIXTURES_DIR / "long_video.mp4", folder / fname)
 
@@ -18,8 +18,8 @@ def _seed_file(db, drive_dir, suffix=""):
         filename=fname,
         title=f"Test Video{suffix}",
         drive=TEST_DRIVE,
-        folder_path="旅行",
-        file_path=f"旅行/{fname}",
+        folder_path=folder_path,
+        file_path=f"{folder_path}/{fname}",
         file_size=folder.joinpath(fname).stat().st_size,
         file_type="video",
         mime_type="video/mp4",
@@ -60,6 +60,77 @@ class TestListTags:
         tags = {t["name"]: t["count"] for t in res.json()}
         assert tags["night"] == 2
         assert tags["tokyo"] == 1
+
+
+class TestListTagsFolderScope:
+    def test_folder_path_rejects_traversal(self, client):
+        c, db, drive_dir, data_dir = client
+        res = c.get(f"/api/drives/{TEST_DRIVE}/tags?folder_path=../etc")
+        assert res.status_code == 400
+
+    def test_folder_path_rejects_leading_slash(self, client):
+        c, db, drive_dir, data_dir = client
+        res = c.get(f"/api/drives/{TEST_DRIVE}/tags?folder_path=/etc")
+        assert res.status_code == 400
+
+    def test_folder_path_not_specified_returns_all(self, client):
+        c, db, drive_dir, data_dir = client
+        f1 = _seed_file(db, drive_dir, "1", folder_path="recipes")
+        f2 = _seed_file(db, drive_dir, "2", folder_path="dev")
+        c.put(f"/api/files/{f1.id}/tags", json={"tags": ["炒め物"]})
+        c.put(f"/api/files/{f2.id}/tags", json={"tags": ["Flutter"]})
+        res = c.get(f"/api/drives/{TEST_DRIVE}/tags")
+        names = [t["name"] for t in res.json()]
+        assert "炒め物" in names
+        assert "Flutter" in names
+
+    def test_folder_path_filters_to_subtree(self, client):
+        c, db, drive_dir, data_dir = client
+        f1 = _seed_file(db, drive_dir, "1", folder_path="recipes")
+        f2 = _seed_file(db, drive_dir, "2", folder_path="dev")
+        c.put(f"/api/files/{f1.id}/tags", json={"tags": ["炒め物"]})
+        c.put(f"/api/files/{f2.id}/tags", json={"tags": ["Flutter"]})
+        res = c.get(f"/api/drives/{TEST_DRIVE}/tags?folder_path=recipes")
+        names = [t["name"] for t in res.json()]
+        assert "炒め物" in names
+        assert "Flutter" not in names
+
+    def test_folder_path_includes_nested_subfolder(self, client):
+        c, db, drive_dir, data_dir = client
+        f1 = _seed_file(db, drive_dir, "1", folder_path="recipes/soup")
+        c.put(f"/api/files/{f1.id}/tags", json={"tags": ["煮物"]})
+        res = c.get(f"/api/drives/{TEST_DRIVE}/tags?folder_path=recipes")
+        names = [t["name"] for t in res.json()]
+        assert "煮物" in names
+
+    def test_folder_path_prefix_boundary_not_confused(self, client):
+        c, db, drive_dir, data_dir = client
+        f1 = _seed_file(db, drive_dir, "1", folder_path="recipes2")
+        c.put(f"/api/files/{f1.id}/tags", json={"tags": ["別物"]})
+        res = c.get(f"/api/drives/{TEST_DRIVE}/tags?folder_path=recipes")
+        names = [t["name"] for t in res.json()]
+        assert "別物" not in names
+
+    def test_folder_path_underscore_not_treated_as_wildcard(self, client):
+        c, db, drive_dir, data_dir = client
+        f1 = _seed_file(db, drive_dir, "1", folder_path="2024_photos")
+        f2 = _seed_file(db, drive_dir, "2", folder_path="2024Xphotos")
+        c.put(f"/api/files/{f1.id}/tags", json={"tags": ["target"]})
+        c.put(f"/api/files/{f2.id}/tags", json={"tags": ["decoy"]})
+        res = c.get(f"/api/drives/{TEST_DRIVE}/tags?folder_path=2024_photos")
+        names = [t["name"] for t in res.json()]
+        assert "target" in names
+        assert "decoy" not in names
+
+    def test_folder_path_keeps_unused_tags(self, client):
+        c, db, drive_dir, data_dir = client
+        from app.models import Tag
+
+        db.add(Tag(name="unused", drive=TEST_DRIVE))
+        db.commit()
+        res = c.get(f"/api/drives/{TEST_DRIVE}/tags?folder_path=recipes")
+        names = [t["name"] for t in res.json()]
+        assert "unused" in names
 
 
 class TestUpdateFileTags:
