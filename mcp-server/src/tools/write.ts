@@ -8,9 +8,6 @@ import { textResult, type LitloftTool } from "./types.js";
 //
 // - purge (physical delete): irreversible, excluded per explicit design
 //   decision ("一旦除外").
-// - add_comment: POST /api/files/{id}/comments 401s without a lit_viewer
-//   profile cookie, which MCP clients don't carry (profile support was
-//   explicitly deferred alongside mobile-app cookie handling).
 
 // MCP tool args are JSON, so file content travels as base64 rather than a
 // multipart stream. Capped well below the backend's own MAX_UPLOAD_SIZE
@@ -20,6 +17,13 @@ import { textResult, type LitloftTool } from "./types.js";
 // multi-chunk loop entirely since every upload through this tool fits
 // under the cap by construction.
 const MAX_UPLOAD_BYTES = 10 * 1024 * 1024; // 10 MB
+
+function requireViewer(client: { viewer?: string }): string | null {
+  if (!client.viewer) {
+    return "LITLOFT_VIEWER is required for this tool.";
+  }
+  return null;
+}
 const renameFile: LitloftTool = {
   name: "rename_file",
   description: "Rename a file (change its filename, not its folder).",
@@ -264,6 +268,80 @@ const uploadFile: LitloftTool = {
     }),
 };
 
+const addComment: LitloftTool = {
+  name: "add_comment",
+  description:
+    "Post a comment on a file. Requires LITLOFT_VIEWER so the comment has a profile nickname.",
+  inputSchema: { file_id: z.string(), body: z.string().min(1).max(1000) },
+  handler: (args, client) =>
+    runTool(async () => {
+      const error = requireViewer(client);
+      if (error) {
+        return textResult({ error });
+      }
+      return textResult(
+        await client.request(
+          "POST",
+          `/api/files/${encodeURIComponent(args.file_id as string)}/comments`,
+          { json: { body: args.body } }
+        )
+      );
+    }),
+};
+
+const clipUrl: LitloftTool = {
+  name: "clip_url",
+  description:
+    "Create a Knowledge web clip from a URL in a drive. Requires LITLOFT_VIEWER.",
+  inputSchema: {
+    drive: z.string(),
+    url: z.string().url(),
+    subfolder: z.string().optional(),
+    title: z.string().optional(),
+  },
+  handler: (args, client) =>
+    runTool(async () => {
+      const error = requireViewer(client);
+      if (error) {
+        return textResult({ error });
+      }
+      const { drive, ...body } = args as { drive: string } & Record<string, unknown>;
+      return textResult(
+        await client.request("POST", "/api/addons/knowledge/clips", {
+          headers: { "X-Lit-Drive": drive },
+          json: body,
+        })
+      );
+    }),
+};
+
+const clipPasted: LitloftTool = {
+  name: "clip_pasted",
+  description:
+    "Create a Knowledge clip from pasted HTML. Requires LITLOFT_VIEWER.",
+  inputSchema: {
+    drive: z.string(),
+    url: z.string().url(),
+    html: z.string().min(1),
+    subfolder: z.string().optional(),
+    title: z.string().optional(),
+  },
+  handler: (args, client) =>
+    runTool(async () => {
+      const error = requireViewer(client);
+      if (error) {
+        return textResult({ error });
+      }
+      const { drive, ...body } = args as { drive: string } & Record<string, unknown>;
+      return textResult(
+        await client.request("POST", "/api/addons/knowledge/clips/pasted", {
+          headers: { "X-Lit-Drive": drive },
+          json: body,
+        })
+      );
+    }),
+};
+
 export const writeTools: LitloftTool[] = [
   renameFile,
   moveFile,
@@ -274,4 +352,7 @@ export const writeTools: LitloftTool[] = [
   createPlaylist,
   addToPlaylist,
   uploadFile,
+  addComment,
+  clipUrl,
+  clipPasted,
 ];

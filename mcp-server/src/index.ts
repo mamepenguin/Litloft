@@ -48,12 +48,8 @@ Key concepts:
   hybrid search: it also matches filenames/paths/tags, plus ranks by
   transcript/caption/embedding relevance and returns the matching excerpt —
   prefer it for "find files about X" style queries.
-- There is no built-in "ask a question, get a synthesized answer" tool,
-  but you can build the same result yourself: call semantic_search to
-  find relevant files and the time range each match came from, then call
-  get_transcript with that time range to read the exact surrounding
-  context before answering — this avoids pulling a whole transcript into
-  context when only one part of it is relevant.
+- ask can synthesize an answer through Litloft's intelligence addon. It
+  streams internally and returns the final answer plus source events.
 - upload_file is for small notes/documents/images only (10MB cap on
   decoded content) — not for large video files. Pass plain text via
   content, or base64 via content_base64 for binary files.
@@ -61,14 +57,15 @@ Key concepts:
   it as \`![alt](loft://file_id)\` (the file_id from upload_file's completion
   response). A plain relative path or filename will NOT render — only the
   \`loft://file_id\` scheme resolves to the file's stream URL.
-- Not every operation the web UI has is available here yet: there is no
-  tool for posting comments.
+- add_comment and web clipper tools need LITLOFT_VIEWER so Litloft can
+  attribute the write to a profile.
 `.trim();
 
 function main() {
   const baseUrl = requireEnv("LITLOFT_BASE_URL");
   const token = requireEnv("LITLOFT_API_TOKEN");
-  const client = createLitloftClient({ baseUrl, token });
+  const viewer = process.env.LITLOFT_VIEWER;
+  const client = createLitloftClient({ baseUrl, token, viewer });
 
   const server = new McpServer(
     { name: "litloft", version: "0.1.0" },

@@ -1,6 +1,7 @@
 export interface LitloftClientConfig {
   baseUrl: string;
   token: string;
+  viewer?: string;
   /** Per-request timeout in milliseconds. Defaults to 30s. */
   timeoutMs?: number;
 }
@@ -16,6 +17,12 @@ export interface LitloftRequestOptions {
   headers?: Record<string, string>;
 }
 
+export interface LitloftSseRequestOptions extends LitloftRequestOptions {
+  timeoutMs?: number;
+  maxEvents?: number;
+  maxDataBytes?: number;
+}
+
 export interface LitloftRawRequestOptions {
   query?: Record<string, string | number | boolean | undefined>;
   body?: string;
@@ -27,6 +34,14 @@ export interface LitloftRawResponse {
   headers: Headers;
   text: string;
 }
+
+export interface LitloftSseEvent {
+  event: string;
+  data: unknown;
+}
+
+const DEFAULT_SSE_MAX_EVENTS = 4096;
+const DEFAULT_SSE_MAX_DATA_BYTES = 1024 * 1024;
 
 export class LitloftApiError extends Error {
   readonly status: number;
@@ -41,6 +56,7 @@ export class LitloftApiError extends Error {
 }
 
 export interface LitloftClient {
+  viewer?: string;
   request<T = unknown>(
     method: string,
     path: string,
@@ -51,6 +67,11 @@ export interface LitloftClient {
     path: string,
     options?: LitloftRawRequestOptions
   ): Promise<LitloftRawResponse>;
+  requestSse(
+    method: string,
+    path: string,
+    options?: LitloftSseRequestOptions
+  ): Promise<LitloftSseEvent[]>;
   // For multipart/form-data endpoints (chunked upload). fetch sets its own
   // Content-Type with boundary for a FormData body, so this must not set
   // one manually the way request()/requestRaw() do for JSON/text.
@@ -59,6 +80,16 @@ export interface LitloftClient {
     path: string,
     form: FormData
   ): Promise<T>;
+}
+
+function baseHeaders(config: LitloftClientConfig): Record<string, string> {
+  const headers: Record<string, string> = {
+    Authorization: `Bearer ${config.token}`,
+  };
+  if (config.viewer) {
+    headers["X-Lit-Viewer"] = config.viewer;
+  }
+  return headers;
 }
 
 async function finishJsonOrText<T>(res: Response): Promise<T> {
@@ -101,6 +132,8 @@ export function createLitloftClient(config: LitloftClientConfig): LitloftClient 
   const timeoutMs = config.timeoutMs ?? DEFAULT_TIMEOUT_MS;
 
   return {
+    viewer: config.viewer,
+
     async request<T>(
       method: string,
       path: string,
@@ -109,7 +142,7 @@ export function createLitloftClient(config: LitloftClientConfig): LitloftClient 
       const url = buildUrl(baseUrl, path, options.query);
 
       const headers: Record<string, string> = {
-        Authorization: `Bearer ${config.token}`,
+        ...baseHeaders(config),
         ...options.headers,
       };
       let body: string | undefined;
@@ -141,7 +174,7 @@ export function createLitloftClient(config: LitloftClientConfig): LitloftClient 
     ): Promise<LitloftRawResponse> {
       const url = buildUrl(baseUrl, path, options.query);
       const headers: Record<string, string> = {
-        Authorization: `Bearer ${config.token}`,
+        ...baseHeaders(config),
         ...options.headers,
       };
 
@@ -169,6 +202,102 @@ export function createLitloftClient(config: LitloftClientConfig): LitloftClient 
       return { status: res.status, headers: res.headers, text };
     },
 
+    async requestSse(
+      method: string,
+      path: string,
+      options: LitloftSseRequestOptions = {}
+    ): Promise<LitloftSseEvent[]> {
+      const url = buildUrl(baseUrl, path, options.query);
+      const headers: Record<string, string> = {
+        ...baseHeaders(config),
+        Accept: "text/event-stream",
+        ...options.headers,
+      };
+      let body: string | undefined;
+      if (options.json !== undefined) {
+        headers["Content-Type"] = "application/json";
+        body = JSON.stringify(options.json);
+      }
+
+      const res = await fetch(url, {
+        method,
+        headers,
+        body,
+        signal: AbortSignal.timeout(options.timeoutMs ?? timeoutMs),
+      });
+      if (!res.ok) {
+        return finishJsonOrText<never>(res);
+      }
+
+      const reader = res.body?.getReader();
+      if (!reader) {
+        return [];
+      }
+
+      const decoder = new TextDecoder();
+      const events: LitloftSseEvent[] = [];
+      let buffer = "";
+      let currentEvent = "message";
+      let currentData: string[] = [];
+      let totalDataBytes = 0;
+      const maxEvents = options.maxEvents ?? DEFAULT_SSE_MAX_EVENTS;
+      const maxDataBytes = options.maxDataBytes ?? DEFAULT_SSE_MAX_DATA_BYTES;
+
+      const flush = () => {
+        if (currentData.length === 0) {
+          currentEvent = "message";
+          return;
+        }
+        const raw = currentData.join("\n");
+        totalDataBytes += new TextEncoder().encode(raw).byteLength;
+        if (events.length >= maxEvents) {
+          throw new Error(`SSE event limit exceeded (${maxEvents})`);
+        }
+        if (totalDataBytes > maxDataBytes) {
+          throw new Error(`SSE data limit exceeded (${maxDataBytes} bytes)`);
+        }
+        let data: unknown = raw;
+        try {
+          data = JSON.parse(raw);
+        } catch {
+          // Keep raw text for non-JSON SSE payloads.
+        }
+        events.push({ event: currentEvent, data });
+        currentEvent = "message";
+        currentData = [];
+      };
+
+      const processLine = (line: string) => {
+        if (line === "") {
+          flush();
+        } else if (line.startsWith("event:")) {
+          currentEvent = line.slice("event:".length).trim();
+        } else if (line.startsWith("data:")) {
+          currentData.push(line.slice("data:".length).trimStart());
+        }
+      };
+
+      while (true) {
+        const { value, done } = await reader.read();
+        buffer += decoder.decode(value, { stream: !done });
+        const frames = buffer.split(/\r?\n/);
+        buffer = frames.pop() ?? "";
+        for (const line of frames) {
+          processLine(line);
+        }
+        if (done) {
+          break;
+        }
+      }
+      if (buffer) {
+        processLine(buffer);
+      }
+      if (currentData.length > 0) {
+        flush();
+      }
+      return events;
+    },
+
     async requestMultipart<T>(
       method: string,
       path: string,
@@ -176,7 +305,7 @@ export function createLitloftClient(config: LitloftClientConfig): LitloftClient 
     ): Promise<T> {
       const url = buildUrl(baseUrl, path, undefined);
       const headers: Record<string, string> = {
-        Authorization: `Bearer ${config.token}`,
+        ...baseHeaders(config),
       };
 
       const res = await fetch(url, {

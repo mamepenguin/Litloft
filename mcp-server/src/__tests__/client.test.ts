@@ -100,6 +100,75 @@ describe("createLitloftClient", () => {
     expect(result).toEqual([{ name: "media" }]);
   });
 
+  it("sends X-Lit-Viewer when configured", async () => {
+    let seenViewer: string | null = null;
+    server.use(
+      http.get(`${BASE_URL}/api/drives`, ({ request }) => {
+        seenViewer = request.headers.get("X-Lit-Viewer");
+        return HttpResponse.json([]);
+      })
+    );
+    const client = createLitloftClient({
+      baseUrl: BASE_URL,
+      token: TOKEN,
+      viewer: "alice",
+    });
+    await client.request("GET", "/api/drives");
+    expect(seenViewer).toBe("alice");
+  });
+
+  it("requestSse parses event names, multi-line data, and trailing unterminated data", async () => {
+    server.use(
+      http.post(`${BASE_URL}/api/addons/intelligence/ask`, () =>
+        HttpResponse.text(
+          [
+            "event: answer_chunk",
+            "data: {\"delta\":\"hello\"}",
+            "data: \" world\"",
+            "",
+            "event: done",
+            "data: {\"took_ms\": 1}",
+          ].join("\n"),
+          { headers: { "Content-Type": "text/event-stream" } }
+        )
+      )
+    );
+    const client = createLitloftClient({ baseUrl: BASE_URL, token: TOKEN });
+    const events = await client.requestSse(
+      "POST",
+      "/api/addons/intelligence/ask",
+      { maxEvents: 10 }
+    );
+    expect(events).toEqual([
+      { event: "answer_chunk", data: "{\"delta\":\"hello\"}\n\" world\"" },
+      { event: "done", data: { took_ms: 1 } },
+    ]);
+  });
+
+  it("requestSse stops when the event cap is exceeded", async () => {
+    server.use(
+      http.post(`${BASE_URL}/api/addons/intelligence/ask`, () =>
+        HttpResponse.text(
+          [
+            "event: answer_chunk",
+            "data: {\"delta\":\"a\"}",
+            "",
+            "event: answer_chunk",
+            "data: {\"delta\":\"b\"}",
+            "",
+          ].join("\n"),
+          { headers: { "Content-Type": "text/event-stream" } }
+        )
+      )
+    );
+    const client = createLitloftClient({ baseUrl: BASE_URL, token: TOKEN });
+    await expect(
+      client.requestSse("POST", "/api/addons/intelligence/ask", {
+        maxEvents: 1,
+      })
+    ).rejects.toThrow("SSE event limit exceeded");
+  });
+
   it("requestMultipart sends a FormData body and returns the parsed JSON response", async () => {
     let seenIndex: string | null = null;
     let seenFilename: string | undefined;
