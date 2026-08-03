@@ -42,3 +42,12 @@ docs/superpowers/
 .DS_Store
 Thumbs.db
 test_images/
+
+# Worktrees symlink these to the main checkout (see .cmux/setup). A symlink is
+# a file to git, so the trailing-slash patterns above do not cover them.
+/private
+/data
+/test_images
+
+# git worktrees created by wt
+/.worktrees/
