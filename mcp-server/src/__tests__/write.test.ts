@@ -290,6 +290,65 @@ describe("upload_file", () => {
   });
 });
 
+describe("add_comment", () => {
+  it("calls POST /api/files/{file_id}/comments with the comment body when viewer is configured", async () => {
+    const client = fakeClient(async () => ({ id: "comment1" }));
+    client.viewer = "alice";
+
+    await findTool("add_comment").handler(
+      { file_id: "abc123456789", body: "looks good" },
+      client
+    );
+
+    expect(client.calls).toEqual([
+      {
+        method: "POST",
+        path: "/api/files/abc123456789/comments",
+        options: { json: { body: "looks good" } },
+      },
+    ]);
+  });
+
+  it("requires LITLOFT_VIEWER before calling the API", async () => {
+    const client = fakeClient(async () => {
+      throw new Error("request() should not be called without viewer");
+    });
+
+    const result = await findTool("add_comment").handler(
+      { file_id: "abc123456789", body: "looks good" },
+      client
+    );
+
+    expect(client.calls).toEqual([]);
+    expect(result.content[0].text).toContain("LITLOFT_VIEWER");
+  });
+
+  it("matches the core 1000 character comment body cap", () => {
+    expect(() =>
+      findTool("add_comment").inputSchema.body.parse("x".repeat(1000))
+    ).not.toThrow();
+    expect(() =>
+      findTool("add_comment").inputSchema.body.parse("x".repeat(1001))
+    ).toThrow();
+  });
+});
+
+describe("clip tools", () => {
+  it("require LITLOFT_VIEWER before calling the API", async () => {
+    const client = fakeClient(async () => {
+      throw new Error("request() should not be called without viewer");
+    });
+
+    const result = await findTool("clip_url").handler(
+      { drive: "media", url: "https://example.com/" },
+      client
+    );
+
+    expect(client.calls).toEqual([]);
+    expect(result.content[0].text).toContain("LITLOFT_VIEWER");
+  });
+});
+
 describe("purge exclusion", () => {
   it("does not register a purge tool (irreversible physical delete is intentionally excluded)", () => {
     expect(writeTools.some((t) => t.name.includes("purge"))).toBe(false);

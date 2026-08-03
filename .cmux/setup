@@ -1,0 +1,40 @@
+#!/bin/bash
+set -euo pipefail
+REPO_ROOT="$(git rev-parse --git-common-dir | xargs dirname)"
+
+# gitignored secrets / runtime config / drive payloads live only in the main
+# checkout. docker-compose.override.yml resolves its bind paths relative to the
+# compose project directory (= this worktree), so every path it references must
+# exist here too, or docker silently creates empty dirs in their place.
+for f in .env .env.local drives.json passwords.json event-hooks.json rclone.conf \
+         docker-compose.override.yml test_images private data; do
+  [ -e "$REPO_ROOT/$f" ] && ln -sfn "$REPO_ROOT/$f" "$f"
+done
+
+# addons/ are git submodules; a fresh worktree gets empty dirs.
+# Worktrees get their own submodule gitdirs, so borrow objects from the main
+# checkout's module store instead of re-cloning over the network.
+# --dissociate copies the borrowed objects in, so this worktree keeps working
+# even if the main checkout is removed later.
+git config --file .gitmodules --get-regexp '^submodule\..*\.path$' |
+  while read -r _ sub_path; do
+    ref="$REPO_ROOT/.git/modules/$sub_path"
+    [ -d "$ref" ] || continue
+    git submodule update --init --reference "$ref" --dissociate "$sub_path"
+  done
+# catches submodules with no local reference, plus nested ones
+git submodule update --init --recursive
+
+# addon-local gitignored config (must run after the submodules are checked out)
+for f in addons/intelligence/search-config.yml addons/cloud-sync/sync-config.json; do
+  [ -e "$REPO_ROOT/$f" ] && ln -sfn "$REPO_ROOT/$f" "$f"
+done
+
+# creates backend/addons + frontend/src/addons symlinks (both gitignored)
+./setup-addons.sh
+
+pnpm install --dir frontend --frozen-lockfile
+pnpm install --dir mcp-server --frozen-lockfile
+
+# generates gitignored frontend/src/messages/ from messages-core + addon messages
+node frontend/scripts/merge-addon-messages.mjs

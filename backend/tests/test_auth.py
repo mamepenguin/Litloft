@@ -146,6 +146,48 @@ class TestJWT:
         assert groups == []
 
 
+class TestViewerIdentity:
+    def _make_request(self, headers: dict[str, str]):
+        from starlette.requests import Request
+
+        scope = {
+            "type": "http",
+            "headers": [(k.lower().encode(), v.encode()) for k, v in headers.items()],
+        }
+        return Request(scope)
+
+    def test_cookie_only_viewer_id_and_nickname(self):
+        import app.auth as auth
+
+        request = self._make_request({"Cookie": "lit_viewer=alice"})
+        assert auth.get_viewer_id(request) == auth.nickname_to_viewer_id("alice")
+        assert auth.get_nickname(request) == "alice"
+
+    def test_header_only_viewer_id_and_nickname(self):
+        import app.auth as auth
+
+        request = self._make_request({"X-Lit-Viewer": "alice"})
+        assert auth.get_viewer_id(request) == auth.nickname_to_viewer_id("alice")
+        assert auth.get_nickname(request) == "alice"
+
+    def test_cookie_takes_priority_over_header(self):
+        import app.auth as auth
+
+        request = self._make_request({
+            "Cookie": "lit_viewer=alice",
+            "X-Lit-Viewer": "bob",
+        })
+        assert auth.get_viewer_id(request) == auth.nickname_to_viewer_id("alice")
+        assert auth.get_nickname(request) == "alice"
+
+    def test_overlong_header_is_ignored(self):
+        import app.auth as auth
+
+        request = self._make_request({"X-Lit-Viewer": "x" * 51})
+        assert auth.get_viewer_id(request) is None
+        assert auth.get_nickname(request) is None
+
+
 class TestGetUnlockedGroupsBearer:
     def _make_request(self, headers: dict[str, str]):
         from starlette.requests import Request

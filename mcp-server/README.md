@@ -70,7 +70,8 @@ Example for Claude Desktop (`claude_desktop_config.json`):
       "args": ["/absolute/path/to/mcp-server/dist/index.js"],
       "env": {
         "LITLOFT_BASE_URL": "http://<litloft-host>:3000",
-        "LITLOFT_API_TOKEN": "<token from the unlock response>"
+        "LITLOFT_API_TOKEN": "<token from the unlock response>",
+        "LITLOFT_VIEWER": "<nickname for comments and clips>"
       }
     }
   }
@@ -112,6 +113,7 @@ When adding a new tool, put agent-facing behavior notes in its
 | `get_transcript` | Get a video/audio file's Whisper transcript as time-stamped chunks, optionally narrowed to a time range |
 | `get_watch_history` | Continue-watching / watch history for a drive |
 | `list_comments` | List comments on a file |
+| `ask` | Ask Litloft Intelligence a question within one drive |
 
 ### Write
 
@@ -126,6 +128,9 @@ When adding a new tool, put agent-facing behavior notes in its
 | `create_playlist` | Create a playlist (collection) in a drive |
 | `add_to_playlist` | Add files to an existing playlist |
 | `upload_file` | Upload a new small file (note, document, image), ≤10MB decoded — plain text via `content`, or base64 via `content_base64` for binary files |
+| `add_comment` | Post a comment on a file (requires `LITLOFT_VIEWER`) |
+| `clip_url` | Create a Knowledge web clip from a URL (requires `LITLOFT_VIEWER`) |
+| `clip_pasted` | Create a Knowledge clip from pasted HTML (requires `LITLOFT_VIEWER`) |
 
 Every write tool call maps 1:1 onto an existing Litloft API endpoint, with
 no additional gating beyond what the backend already enforces. The MCP
@@ -134,21 +139,6 @@ does not double-gate on top of it.
 
 ## Known limitations
 
-A few tools that were originally planned are not implemented yet, because
-they depend on backend/addon changes outside this package's scope:
-
-- **`ask` (intelligence Q&A / RAG)**: unlike `semantic_search`, the `/ask`
-  endpoint reads its auth cookie directly (for a second, redundant
-  drive-access check before forwarding content to the LLM) rather than
-  going through the addon proxy's Bearer-aware drive gate, so
-  addon-proxied requests from this server aren't recognized as
-  authenticated yet. In practice this isn't a hard blocker: an agent can
-  combine `semantic_search` (ranked results + matching segment/time range)
-  with `get_transcript` (narrowed to that time range) to read the relevant
-  source material itself and answer directly, without a dedicated `ask`
-  tool.
-- **`add_comment`**: posting a comment requires a `lit_viewer` profile
-  cookie, which this server doesn't carry.
 - **Purge (permanent delete)**: intentionally excluded — only the
   soft-delete/restore (trash) flow is exposed.
 
