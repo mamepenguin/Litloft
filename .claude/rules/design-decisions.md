@@ -125,6 +125,7 @@ Rules:
 
 - **No core-to-addon dependencies.** Do not add addon-specific code to the core.
 - Addon-to-core is fine (an addon may use `app.config`, `app.database`, `app.models`, `app.services.ws`, etc.).
+- Addons must not hard-code caller authentication to cookies. Independent-service addons accept caller credentials through a frozen `CallerCredential` value that preserves either the inbound `Cookie` header or `Authorization: Bearer` token, then forwards the same shape when calling core public APIs. The duplicated `app/credentials.py` implementations in addons are intentionally kept in sync by PR review, like the duplicated `frontmatter.py` parsers.
 - The UI is injected through slots (`search-modes`, `file-detail-sections`, `dashboard-widgets`, `folder-actions`, etc.). When no addon is installed, the slot is hidden (no holes in the UI).
 - An addon's UI lives under `addons/{name}/frontend/`. If `Page.tsx` exists, the `/addons/{name}` route is auto-generated (do not write a manual wrapper).
 - In-process addon enable/disable is controlled by adding/removing a symlink. Do not modify core code.
