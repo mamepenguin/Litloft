@@ -65,20 +65,21 @@ class TestNicknameToViewerId:
 
 class TestGetViewerId:
     def test_none_cookie(self):
-        from app.routers.progress import get_viewer_id
-        assert get_viewer_id(None) is None
+        from app.auth import _viewer_id_from_nickname
+        assert _viewer_id_from_nickname(None) is None
 
     def test_empty_string(self):
-        from app.routers.progress import get_viewer_id
-        assert get_viewer_id("") is None
+        from app.auth import _viewer_id_from_nickname
+        assert _viewer_id_from_nickname("") is None
 
     def test_whitespace_only(self):
-        from app.routers.progress import get_viewer_id
-        assert get_viewer_id("   ") is None
+        from app.auth import _viewer_id_from_nickname
+        assert _viewer_id_from_nickname("   ") is None
 
     def test_valid_nickname(self):
-        from app.routers.progress import get_viewer_id, nickname_to_viewer_id
-        result = get_viewer_id("alice")
+        from app.auth import _viewer_id_from_nickname
+        from app.routers.progress import nickname_to_viewer_id
+        result = _viewer_id_from_nickname("alice")
         assert result == nickname_to_viewer_id("alice")
 
 

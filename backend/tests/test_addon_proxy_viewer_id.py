@@ -116,6 +116,29 @@ def test_viewer_id_header_set_from_cookie(client, global_scope_addon):
     assert forwarded == nickname_to_viewer_id(nickname)
 
 
+def test_viewer_id_header_set_from_inbound_viewer_header(
+    client, global_scope_addon
+):
+    c, _s, _d, _dat = client
+    r = c.get("/api/addons/_vid/ping", headers={"X-Lit-Viewer": "alice"})
+    assert r.status_code == 200
+    forwarded = _forwarded_header("x-lit-viewer-id")
+    assert forwarded == nickname_to_viewer_id("alice")
+    assert _forwarded_header("x-lit-viewer") is None
+
+
+def test_cookie_takes_priority_over_inbound_viewer_header(
+    client, global_scope_addon
+):
+    c, _s, _d, _dat = client
+    c.cookies.set("lit_viewer", "alice")
+    r = c.get("/api/addons/_vid/ping", headers={"X-Lit-Viewer": "bob"})
+    assert r.status_code == 200
+    forwarded = _forwarded_header("x-lit-viewer-id")
+    assert forwarded == nickname_to_viewer_id("alice")
+    assert _forwarded_header("x-lit-viewer") is None
+
+
 def test_viewer_id_header_absent_without_cookie(client, global_scope_addon):
     c, _s, _d, _dat = client
     r = c.get("/api/addons/_vid/ping")

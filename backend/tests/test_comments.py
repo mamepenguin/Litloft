@@ -72,36 +72,35 @@ class TestSharedViewerIdUtilities:
         assert all(c in "0123456789abcdef" for c in vid)
 
     def test_get_viewer_id_from_auth(self):
-        from app.auth import get_viewer_id
-        assert get_viewer_id(None) is None
-        assert get_viewer_id("") is None
-        assert get_viewer_id("   ") is None
+        from app.auth import _viewer_id_from_nickname
+        assert _viewer_id_from_nickname(None) is None
+        assert _viewer_id_from_nickname("") is None
+        assert _viewer_id_from_nickname("   ") is None
 
     def test_get_viewer_id_valid(self):
-        from app.auth import get_viewer_id, nickname_to_viewer_id
-        result = get_viewer_id("alice")
+        from app.auth import _viewer_id_from_nickname, nickname_to_viewer_id
+        result = _viewer_id_from_nickname("alice")
         assert result == nickname_to_viewer_id("alice")
 
     def test_get_nickname_from_auth(self):
-        from app.auth import get_nickname
-        assert get_nickname(None) is None
-        assert get_nickname("") is None
-        assert get_nickname("   ") is None
-        assert get_nickname("alice") == "alice"
+        from app.auth import _nickname_from_raw
+        assert _nickname_from_raw(None) is None
+        assert _nickname_from_raw("") is None
+        assert _nickname_from_raw("   ") is None
+        assert _nickname_from_raw("alice") == "alice"
 
     def test_get_nickname_strips_whitespace(self):
-        from app.auth import get_nickname
-        assert get_nickname("  alice  ") == "alice"
+        from app.auth import _nickname_from_raw
+        assert _nickname_from_raw("  alice  ") == "alice"
 
     def test_get_nickname_too_long(self):
-        from app.auth import get_nickname
-        assert get_nickname("x" * 51) is None
+        from app.auth import _nickname_from_raw
+        assert _nickname_from_raw("x" * 51) is None
 
     def test_backward_compat_progress_imports(self):
         """Ensure progress.py still exports these for backward compatibility."""
-        from app.routers.progress import nickname_to_viewer_id, get_viewer_id
+        from app.routers.progress import nickname_to_viewer_id
         assert nickname_to_viewer_id("test") is not None
-        assert get_viewer_id(None) is None
 
 
 class TestCreateComment:

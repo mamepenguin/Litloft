@@ -206,6 +206,7 @@ _VIEWER_NICKNAME_MAX_LEN = 50
 # nickname (which the cookie holds in plaintext) never crosses the
 # Docker boundary.
 _VIEWER_ID_HEADER = "x-lit-viewer-id"
+_VIEWER_NICKNAME_HEADER = "x-lit-viewer"
 
 
 def _resolve_viewer_id(request: Request) -> str | None:
@@ -215,7 +216,7 @@ def _resolve_viewer_id(request: Request) -> str | None:
     FastAPI dependency: this code path runs from a plain helper, not a
     router parameter, so we re-do the same length-bounded SHA-256 here.
     """
-    raw = request.cookies.get("lit_viewer")
+    raw = request.cookies.get("lit_viewer") or request.headers.get("X-Lit-Viewer")
     if not raw:
         return None
     trimmed = raw.strip()
@@ -230,10 +231,11 @@ def _filter_request_headers(request: Request) -> dict[str, str]:
     Two transforms beyond the hop-by-hop strip:
 
     1. ``X-Lit-Viewer-Id`` is *replaced* with a host-computed value
-       (or removed if no nickname cookie). Trusting a client-supplied
-       value here would let any browser tab impersonate another viewer
-       just by injecting the header — the cookie path is the single
-       source of truth so we drop whatever the client sent first.
+       (or removed if no nickname cookie/header). Trusting a
+       client-supplied value here would let any browser tab impersonate
+       another viewer just by injecting the header, so we drop whatever
+       the client sent first. ``X-Lit-Viewer`` is also stripped so the
+       plaintext nickname never crosses the Docker boundary.
     2. The replacement is keyed by ``x-lit-viewer-id`` (lowercase) on
        the way *out* because httpx's case-insensitive header map lets
        a stray uppercase entry leak through if both forms exist.
@@ -243,6 +245,7 @@ def _filter_request_headers(request: Request) -> dict[str, str]:
         for k, v in request.headers.items()
         if k.lower() not in _HOP_BY_HOP_REQUEST_HEADERS
         and k.lower() != _VIEWER_ID_HEADER
+        and k.lower() != _VIEWER_NICKNAME_HEADER
     }
     viewer_id = _resolve_viewer_id(request)
     if viewer_id is not None:
