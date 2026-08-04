@@ -497,6 +497,7 @@ Chrome that sits **on top of a video frame** is the one place that deliberately 
 
 - Foreground: `text-white`. Secondary text: `text-white/70`. Dividers and inert marks: `text-white/50`.
 - Button surfaces: transparent at rest, `hover:bg-white/15`. Standalone circular buttons over video (mini-player `×` / `↩`) use `bg-black/70 hover:bg-black/90`.
+- Button sizes: `h-11 w-11` (44px) in a control-bar row. Transport buttons placed **standalone over the frame** on touch step up to 56px for the secondary actions and 64px for play/pause, and take the circular dark disc above — they have no scrim of their own to sit on.
 - Control-bar backdrop: a scrim gradient, `bg-gradient-to-t from-black/80 via-black/50 to-transparent`. This is legibility, not decoration — it is not a shadow and is not subject to §4's shadow ban.
 - Track fills: `bg-white/25` (empty), `bg-white/40` (buffered), `bg-accent` (played). `--accent` reads clearly against black in both themes.
 - Focus rings still use the themed `ring-focus-ring` token — focus visibility must not depend on the surface.

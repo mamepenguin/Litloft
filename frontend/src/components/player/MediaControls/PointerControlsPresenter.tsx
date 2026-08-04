@@ -11,23 +11,14 @@ import {
   Volume2,
   VolumeX,
 } from "lucide-react";
-import { PLAYBACK_RATES } from "./hooks/usePlaybackRatePreference";
+import {
+  PLAYBACK_RATES,
+  nearestOfferedRate,
+} from "./hooks/usePlaybackRatePreference";
 import type { MediaControlsPresenterProps } from "./types";
 import { ControlButton } from "./parts/ControlButton";
 import { SeekBar, RANGE_CLASS } from "./parts/SeekBar";
 import { TimeDisplay } from "./parts/TimeDisplay";
-
-/**
- * Snap a reported rate onto the offered set. A backend may apply a
- * speed we never offer; rendering a select with no matching option
- * would blank the control, so show the closest match instead. Ties go
- * to the faster rate (`<=` keeps the later, larger candidate).
- */
-function nearestOfferedRate(rate: number): number {
-  return PLAYBACK_RATES.reduce((best, candidate) =>
-    Math.abs(candidate - rate) <= Math.abs(best - rate) ? candidate : best,
-  );
-}
 
 /**
  * The mouse layout: one row of controls under a scrub bar, everything

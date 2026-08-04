@@ -162,4 +162,51 @@ describe("MediaControlsContainer", () => {
     renderControls(null);
     expect(screen.getByRole("button", { name: "Play" })).toBeInTheDocument();
   });
+
+  describe("layout selection", () => {
+    function installPointerMode(mode: "coarse" | "fine" | "none") {
+      window.matchMedia = vi.fn().mockImplementation((query: string) => ({
+        matches:
+          mode === "none"
+            ? false
+            : query.includes(`pointer: ${mode}`),
+        media: query,
+        addEventListener: vi.fn(),
+        removeEventListener: vi.fn(),
+        addListener: vi.fn(),
+        removeListener: vi.fn(),
+        dispatchEvent: vi.fn(),
+      }));
+    }
+
+    /**
+     * The volume slider only exists in the pointer layout: iOS ignores
+     * writes to volume, so the touch layout leaves it out entirely.
+     * jsdom does not apply media queries, so its presence in the DOM is
+     * a reliable way to tell the two layouts apart.
+     */
+    function isTouchLayout(): boolean {
+      return screen.queryByRole("slider", { name: "Volume" }) === null;
+    }
+
+    it("uses the touch layout on a coarse pointer", () => {
+      installPointerMode("coarse");
+      renderControls(makeMc());
+      expect(isTouchLayout()).toBe(true);
+    });
+
+    it("uses the pointer layout on a fine pointer", () => {
+      installPointerMode("fine");
+      renderControls(makeMc());
+      expect(isTouchLayout()).toBe(false);
+    });
+
+    it("falls back to the pointer layout when the input is unknown", () => {
+      // It is the layout that works without gestures, so it is the safe
+      // answer where the media queries cannot tell us anything.
+      installPointerMode("none");
+      renderControls(makeMc());
+      expect(isTouchLayout()).toBe(false);
+    });
+  });
 });

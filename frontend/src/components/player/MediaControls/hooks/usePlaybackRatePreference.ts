@@ -17,6 +17,18 @@ function isOfferedRate(rate: number): boolean {
   return (PLAYBACK_RATES as readonly number[]).includes(rate);
 }
 
+/**
+ * Snap a reported rate onto the offered set. A backend may apply a
+ * speed we never offer; rendering a select with no matching option
+ * would blank the control, so show the closest match instead. Ties go
+ * to the faster rate (`<=` keeps the later, larger candidate).
+ */
+export function nearestOfferedRate(rate: number): number {
+  return PLAYBACK_RATES.reduce((best, candidate) =>
+    Math.abs(candidate - rate) <= Math.abs(best - rate) ? candidate : best,
+  );
+}
+
 export function readPlaybackRatePreference(): number {
   if (typeof window === "undefined") return DEFAULT_RATE;
   try {

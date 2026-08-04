@@ -1,0 +1,194 @@
+import { describe, it, expect, vi } from "vitest";
+import { render, screen, fireEvent } from "@testing-library/react";
+import { TouchControlsPresenter } from "../TouchControlsPresenter";
+import type { MediaControlsPresenterProps } from "../types";
+
+function renderControls(overrides: Partial<MediaControlsPresenterProps> = {}) {
+  const props: MediaControlsPresenterProps = {
+    displayTime: 30,
+    duration: 120,
+    bufferedFraction: 0.5,
+    paused: false,
+    muted: false,
+    volume: 1,
+    playbackRate: 1,
+    interrupted: false,
+    visible: true,
+    isFullscreen: false,
+    onTogglePlay: vi.fn(),
+    onSkip: vi.fn(),
+    onScrubStart: vi.fn(),
+    onScrubChange: vi.fn(),
+    onScrubEnd: vi.fn(),
+    onToggleMute: vi.fn(),
+    onVolumeChange: vi.fn(),
+    onPlaybackRateChange: vi.fn(),
+    onToggleFullscreen: vi.fn(),
+    ...overrides,
+  };
+  const utils = render(<TouchControlsPresenter {...props} />);
+  return { ...utils, props };
+}
+
+/** The blocks that take input, which is what useFullscreen looks for. */
+function controlBlocks(container: HTMLElement): HTMLElement[] {
+  return Array.from(container.querySelectorAll<HTMLElement>("[data-player-controls]"));
+}
+
+describe("TouchControlsPresenter", () => {
+  describe("transport", () => {
+    it("puts play and both skips on the frame", () => {
+      renderControls();
+      expect(screen.getByRole("button", { name: "Pause" })).toBeInTheDocument();
+      expect(screen.getByRole("button", { name: "Back 10 seconds" })).toBeInTheDocument();
+      expect(
+        screen.getByRole("button", { name: "Forward 10 seconds" }),
+      ).toBeInTheDocument();
+    });
+
+    it("skips by ten seconds in each direction", () => {
+      const { props } = renderControls();
+      fireEvent.click(screen.getByRole("button", { name: "Forward 10 seconds" }));
+      expect(props.onSkip).toHaveBeenCalledWith(10);
+      fireEvent.click(screen.getByRole("button", { name: "Back 10 seconds" }));
+      expect(props.onSkip).toHaveBeenLastCalledWith(-10);
+    });
+
+    it("offers Play while paused", () => {
+      renderControls({ paused: true });
+      expect(screen.getByRole("button", { name: "Play" })).toBeInTheDocument();
+    });
+
+    it("toggles playback", () => {
+      const { props } = renderControls();
+      fireEvent.click(screen.getByRole("button", { name: "Pause" }));
+      expect(props.onTogglePlay).toHaveBeenCalledTimes(1);
+    });
+  });
+
+  describe("status row", () => {
+    it("shows the elapsed and total time", () => {
+      renderControls();
+      expect(screen.getByText("0:30")).toBeInTheDocument();
+      expect(screen.getByText("2:00")).toBeInTheDocument();
+    });
+
+    it("keeps mute, speed and fullscreen reachable", () => {
+      renderControls();
+      expect(screen.getByRole("button", { name: "Mute" })).toBeInTheDocument();
+      expect(screen.getByRole("combobox", { name: "Playback speed" })).toBeInTheDocument();
+      expect(screen.getByRole("button", { name: "Full screen" })).toBeInTheDocument();
+    });
+
+    it("omits the volume slider, which iOS ignores writes to", () => {
+      renderControls();
+      expect(screen.queryByRole("slider", { name: "Volume" })).not.toBeInTheDocument();
+    });
+
+    it("falls back to the nearest offered rate for an unexpected value", () => {
+      renderControls({ playbackRate: 1.7 });
+      expect(screen.getByRole("combobox", { name: "Playback speed" })).toHaveValue("1.5");
+    });
+  });
+
+  describe("seek bar", () => {
+    it("spans the duration and sits at the current position", () => {
+      renderControls();
+      const slider = screen.getByRole("slider", { name: "Seek" });
+      expect(slider).toHaveValue("30");
+      expect(slider).toHaveAttribute("max", "120");
+    });
+
+    it("leaves a hairline behind once the controls fade out", () => {
+      // Mobile players keep a sense of position without keeping a whole
+      // bar on screen.
+      renderControls({ visible: false });
+      expect(screen.getByTestId("progress-hairline")).toBeInTheDocument();
+    });
+
+    it("shows no hairline while the real bar is up", () => {
+      renderControls({ visible: true });
+      expect(screen.queryByTestId("progress-hairline")).not.toBeInTheDocument();
+    });
+  });
+
+  describe("interrupted (ad break)", () => {
+    it("announces the interruption", () => {
+      renderControls({ interrupted: true });
+      expect(screen.getByText("Ad")).toBeInTheDocument();
+    });
+
+    it("disables the skips, which belong to the file and not the ad", () => {
+      // These sit in the control layer, above the gesture overlay, so
+      // the overlay's interactive gate never reaches them.
+      renderControls({ interrupted: true });
+      expect(screen.getByRole("button", { name: "Back 10 seconds" })).toBeDisabled();
+      expect(screen.getByRole("button", { name: "Forward 10 seconds" })).toBeDisabled();
+    });
+
+    it("disables seeking and speed", () => {
+      renderControls({ interrupted: true });
+      expect(screen.getByRole("slider", { name: "Seek" })).toBeDisabled();
+      expect(screen.getByRole("combobox", { name: "Playback speed" })).toBeDisabled();
+    });
+
+    it("leaves play alone, which still belongs to the viewer", () => {
+      renderControls({ interrupted: true });
+      expect(screen.getByRole("button", { name: "Pause" })).toBeEnabled();
+    });
+  });
+
+  describe("visibility", () => {
+    it("stops faded controls from taking taps", () => {
+      // An invisible play button under the viewer's finger would toggle
+      // playback on the tap that was only meant to bring it back.
+      const { container } = renderControls({ visible: false });
+      for (const block of controlBlocks(container)) {
+        expect(block.className).toContain("pointer-events-none");
+      }
+    });
+
+    it("takes taps while visible", () => {
+      const { container } = renderControls({ visible: true });
+      const blocks = controlBlocks(container);
+      expect(blocks.length).toBeGreaterThan(0);
+      for (const block of blocks) {
+        expect(block.className).toContain("pointer-events-auto");
+      }
+    });
+  });
+
+  describe("swipe-to-dismiss coexistence", () => {
+    it("marks only the blocks that take input", () => {
+      // useFullscreen ignores swipes that start on [data-player-controls].
+      // Marking a full-frame container would tell it every swipe belongs
+      // to the controls, killing swipe-to-dismiss outright.
+      const { container } = renderControls();
+      const blocks = controlBlocks(container);
+      expect(blocks.length).toBeGreaterThan(0);
+      for (const block of blocks) {
+        expect(block.className).not.toContain("inset-0");
+      }
+    });
+  });
+
+  describe("pseudo-fullscreen safe areas", () => {
+    it("keeps the bottom block clear of the home indicator and the notch", () => {
+      const { container } = renderControls({ isPseudoFullscreen: true });
+      const bottom = container.querySelector<HTMLElement>(
+        "[data-player-controls].bottom-0",
+      );
+      expect(bottom?.style.paddingBottom).toContain("safe-area-inset-bottom");
+      expect(bottom?.style.paddingLeft).toContain("safe-area-inset-left");
+      expect(bottom?.style.paddingRight).toContain("safe-area-inset-right");
+    });
+
+    it("adds no insets in the normal in-page layout", () => {
+      const { container } = renderControls();
+      const bottom = container.querySelector<HTMLElement>(
+        "[data-player-controls].bottom-0",
+      );
+      expect(bottom?.style.paddingBottom).toBe("");
+    });
+  });
+});

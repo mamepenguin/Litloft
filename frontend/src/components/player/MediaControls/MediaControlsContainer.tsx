@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useState, type RefObject } from "react";
 import type { MediaController } from "@/lib/mediaController";
 import { PointerControlsPresenter } from "./PointerControlsPresenter";
+import { TouchControlsPresenter } from "./TouchControlsPresenter";
 import { GestureOverlay } from "./GestureOverlay";
 import { useMediaControlsState } from "./hooks/useMediaControlsState";
 import { usePlaybackRatePreference } from "./hooks/usePlaybackRatePreference";
@@ -163,6 +164,12 @@ export default function MediaControlsContainer({
     onBoostingChange?.(boosting);
   }, [boosting, onBoostingChange]);
 
+  // Both layouts implement the same contract, so the choice is only
+  // ever about which shape suits the input device. `unknown` keeps the
+  // pointer layout: it is the one that works without gestures.
+  const Presenter =
+    pointerMode === "coarse" ? TouchControlsPresenter : PointerControlsPresenter;
+
   return (
     <>
       <GestureOverlay
@@ -172,7 +179,7 @@ export default function MediaControlsContainer({
         boostRate={BOOST_RATE}
         handlers={gestures.handlers}
       />
-      <PointerControlsPresenter
+      <Presenter
         displayTime={state.displayTime}
         duration={state.duration}
         bufferedFraction={state.bufferedFraction}

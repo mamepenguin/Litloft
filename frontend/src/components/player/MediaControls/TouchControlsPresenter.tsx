@@ -1,0 +1,224 @@
+"use client";
+
+import { useTranslations } from "next-intl";
+import {
+  Maximize,
+  Minimize,
+  Pause,
+  Play,
+  RotateCcw,
+  RotateCw,
+  Volume2,
+  VolumeX,
+} from "lucide-react";
+import {
+  PLAYBACK_RATES,
+  nearestOfferedRate,
+} from "./hooks/usePlaybackRatePreference";
+import type { MediaControlsPresenterProps } from "./types";
+import { ControlButton } from "./parts/ControlButton";
+import { ProgressHairline } from "./parts/ProgressHairline";
+import { SeekBar } from "./parts/SeekBar";
+import { TimeDisplay } from "./parts/TimeDisplay";
+
+const SKIP_SECONDS = 10;
+
+/**
+ * The rotate arrow with its interval written inside it, the way mobile
+ * players label their skip buttons. `aria-hidden` because the button
+ * around it already carries the full label.
+ */
+function SkipIcon({ direction }: { direction: "back" | "forward" }) {
+  return (
+    <span aria-hidden="true" className="relative inline-flex items-center justify-center">
+      {direction === "back" ? <RotateCcw size={30} /> : <RotateCw size={30} />}
+      <span className="absolute text-[9px] font-semibold tabular-nums">
+        {SKIP_SECONDS}
+      </span>
+    </span>
+  );
+}
+
+/**
+ * The touch layout: transport on large targets in the middle of the
+ * frame, status and the remaining controls along the bottom.
+ *
+ * The parts that take input are separate absolutely-positioned blocks
+ * rather than one full-frame container, and only those blocks carry
+ * `data-player-controls`. A full-frame marker would tell useFullscreen
+ * that every swipe belongs to the controls, killing swipe-to-dismiss
+ * outright.
+ *
+ * Colours are white-on-scrim rather than theme tokens, since the
+ * backdrop is always a black video frame (DESIGN.md, "Over-video
+ * chrome").
+ */
+export function TouchControlsPresenter({
+  displayTime,
+  duration,
+  bufferedFraction,
+  paused,
+  muted,
+  playbackRate,
+  interrupted,
+  visible,
+  isFullscreen,
+  isPseudoFullscreen = false,
+  onTogglePlay,
+  onSkip,
+  onScrubStart,
+  onScrubChange,
+  onScrubEnd,
+  onToggleMute,
+  onPlaybackRateChange,
+  onToggleFullscreen,
+}: MediaControlsPresenterProps) {
+  const t = useTranslations("player");
+
+  const seekable = duration > 0 && !interrupted;
+  const playedFraction = duration > 0 ? displayTime / duration : 0;
+  // Faded-out controls must not take taps: an invisible play button
+  // under the viewer's finger would toggle playback on the tap that
+  // was only meant to bring the controls back. Keyboard focus still
+  // reaches them, which pointer-events does not affect.
+  const takesInput = visible ? "pointer-events-auto" : "pointer-events-none";
+
+  return (
+    <>
+      <div
+        className={[
+          "absolute inset-0 z-10 transition-opacity duration-200 ease-out motion-reduce:transition-none",
+          // Keyboard users must be able to reach the controls even once
+          // the idle timer has faded them out.
+          "focus-within:opacity-100",
+          visible ? "opacity-100" : "opacity-0",
+        ].join(" ")}
+      >
+        <div
+          data-player-controls=""
+          className={`absolute left-1/2 top-1/2 flex -translate-x-1/2 -translate-y-1/2 items-center gap-6 ${takesInput}`}
+        >
+          <ControlButton
+            size="hero"
+            label={t("skipBack10")}
+            onClick={() => onSkip(-SKIP_SECONDS)}
+            // The overlay's interactive gate does not reach this far:
+            // these buttons sit in the control layer, above it.
+            disabled={interrupted}
+          >
+            <SkipIcon direction="back" />
+          </ControlButton>
+          <ControlButton
+            size="heroPrimary"
+            label={paused ? t("play") : t("pause")}
+            onClick={onTogglePlay}
+          >
+            {paused ? <Play size={32} /> : <Pause size={32} />}
+          </ControlButton>
+          <ControlButton
+            size="hero"
+            label={t("skipForward10")}
+            onClick={() => onSkip(SKIP_SECONDS)}
+            disabled={interrupted}
+          >
+            <SkipIcon direction="forward" />
+          </ControlButton>
+        </div>
+
+        <div
+          data-player-controls=""
+          style={
+            isPseudoFullscreen
+              ? {
+                  // Flush against the bottom edge, iOS gives the tap to
+                  // Reachability or the home-bar swipe instead of the bar.
+                  paddingBottom: "calc(env(safe-area-inset-bottom, 0px) + 8px)",
+                  // Landscape puts the notch on a side, not the top.
+                  paddingLeft: "calc(env(safe-area-inset-left, 0px) + 8px)",
+                  paddingRight: "calc(env(safe-area-inset-right, 0px) + 8px)",
+                }
+              : undefined
+          }
+          className={[
+            "absolute inset-x-0 bottom-0 flex flex-col gap-0.5 px-2 pb-1 pt-8",
+            "bg-gradient-to-t from-black/80 via-black/50 to-transparent",
+            takesInput,
+          ].join(" ")}
+        >
+          <div className="flex items-center gap-1">
+            <TimeDisplay
+              displayTime={displayTime}
+              duration={duration}
+              interrupted={interrupted}
+            />
+
+            {interrupted && (
+              <span className="ml-1 rounded-2xl bg-white/15 px-2 py-0.5 text-xs text-white">
+                {t("adBreak")}
+              </span>
+            )}
+
+            <div className="ml-auto flex items-center gap-0.5">
+              {/* No volume slider: iOS silently ignores writes to
+                  volume, so it would look broken rather than absent.
+                  The mute toggle still works there. */}
+              <ControlButton
+                label={muted ? t("unmute") : t("mute")}
+                onClick={onToggleMute}
+              >
+                {muted ? <VolumeX size={18} /> : <Volume2 size={18} />}
+              </ControlButton>
+
+              <select
+                className="h-11 rounded-2xl bg-transparent px-1 text-xs text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus-ring disabled:opacity-40"
+                aria-label={t("speed")}
+                value={String(nearestOfferedRate(playbackRate))}
+                disabled={interrupted}
+                onChange={(e) => onPlaybackRateChange(Number(e.target.value))}
+              >
+                {PLAYBACK_RATES.map((rate) => (
+                  // The open dropdown is drawn by the OS and inherits
+                  // the select's background. Left transparent, the
+                  // popup renders white-on-white.
+                  <option
+                    key={rate}
+                    value={rate}
+                    className="bg-bg-card text-text-primary"
+                  >
+                    {rate}x
+                  </option>
+                ))}
+              </select>
+
+              <ControlButton
+                label={isFullscreen ? t("exitFullscreen") : t("fullscreen")}
+                onClick={onToggleFullscreen}
+              >
+                {isFullscreen ? <Minimize size={18} /> : <Maximize size={18} />}
+              </ControlButton>
+            </div>
+          </div>
+
+          <SeekBar
+            displayTime={displayTime}
+            duration={duration}
+            bufferedFraction={bufferedFraction}
+            disabled={!seekable}
+            onScrubStart={onScrubStart}
+            onScrubChange={onScrubChange}
+            onScrubEnd={onScrubEnd}
+          />
+        </div>
+      </div>
+
+      {/* Outside the faded container: this is what remains once the
+          controls go away. */}
+      {!visible && (
+        <ProgressHairline
+          playedFraction={playedFraction}
+          bufferedFraction={bufferedFraction}
+        />
+      )}
+    </>
+  );
+}
