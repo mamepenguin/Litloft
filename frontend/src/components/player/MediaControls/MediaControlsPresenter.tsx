@@ -27,6 +27,12 @@ export interface MediaControlsPresenterProps {
   interrupted: boolean;
   visible: boolean;
   isFullscreen: boolean;
+  /**
+   * True while the frame fakes fullscreen with position: fixed. The bar
+   * then sits against the physical screen edge rather than inside the
+   * page, so it has to respect the device's safe areas itself.
+   */
+  isPseudoFullscreen?: boolean;
   onTogglePlay: () => void;
   onSkip: (seconds: number) => void;
   onScrubStart: (seconds: number) => void;
@@ -108,6 +114,7 @@ export function MediaControlsPresenter({
   interrupted,
   visible,
   isFullscreen,
+  isPseudoFullscreen = false,
   onTogglePlay,
   onSkip,
   onScrubStart,
@@ -128,6 +135,20 @@ export function MediaControlsPresenter({
       // Read by useFullscreen: a swipe that starts here belongs to the
       // controls (scrubbing) and must not be taken as a dismiss.
       data-player-controls=""
+      style={
+        isPseudoFullscreen
+          ? {
+              // Flush against the bottom edge, iOS gives the tap to
+              // Reachability or the home-bar swipe instead of the bar.
+              paddingBottom: "calc(env(safe-area-inset-bottom, 0px) + 8px)",
+              // Landscape puts the notch on a side, not the top. The
+              // extra 8px also keeps the bar off the screen edge,
+              // which it otherwise sits flush against in fullscreen.
+              paddingLeft: "calc(env(safe-area-inset-left, 0px) + 8px)",
+              paddingRight: "calc(env(safe-area-inset-right, 0px) + 8px)",
+            }
+          : undefined
+      }
       className={[
         "absolute inset-x-0 bottom-0 z-10 flex flex-col gap-0.5 px-2 pb-1 pt-8",
         "bg-gradient-to-t from-black/80 via-black/50 to-transparent",
