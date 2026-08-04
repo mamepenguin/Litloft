@@ -128,6 +128,37 @@ describe("TouchControlsPresenter", () => {
       expect(slider).toHaveAttribute("max", "120");
     });
 
+    it("draws the knob and the track on one shared line", () => {
+      // Regression: the track was painted against the row while the
+      // native thumb was positioned against its own track
+      // pseudo-element. Two coordinate systems, so the knob floated
+      // above the bar it belonged to. One parent, one baseline.
+      const { container } = renderControls();
+      const line = container.querySelector<HTMLElement>('[data-testid="seek-line"]');
+      expect(line?.querySelector('[data-testid="played-range"]')).toBeInTheDocument();
+      expect(line?.querySelector('[data-testid="seek-knob"]')).toBeInTheDocument();
+    });
+
+    it("hides the native thumb that would sit somewhere else", () => {
+      const { container } = renderControls();
+      const input = container.querySelector<HTMLElement>('input[type="range"]');
+      expect(input?.className).toContain("[&::-webkit-slider-thumb]:opacity-0");
+    });
+
+    it("drops the knob when there is nothing to seek through", () => {
+      renderControls({ interrupted: true });
+      expect(screen.queryByTestId("seek-knob")).not.toBeInTheDocument();
+    });
+
+    it("sits on the bottom edge of the frame", () => {
+      // The row keeps a finger-sized target; the bar itself belongs on
+      // the very edge, the way mobile players draw it.
+      const { container } = renderControls();
+      const row = container.querySelector<HTMLElement>('[data-testid="seek-line"]')
+        ?.parentElement;
+      expect(row?.className).toContain("items-end");
+    });
+
     it("leaves a hairline behind once the controls fade out", () => {
       // Mobile players keep a sense of position without keeping a whole
       // bar on screen.

@@ -217,8 +217,15 @@ describe("MediaControlsContainer", () => {
      * the touch layout did when it first landed.
      */
     function fullFrameElementsTakingInput(container: HTMLElement): HTMLElement[] {
-      return Array.from(container.querySelectorAll<HTMLElement>(".inset-0")).filter(
-        (el) => !el.className.includes("pointer-events-none"),
+      // Only the layers the container puts directly on the frame count.
+      // `inset-0` deeper in the tree is relative to whatever box holds
+      // it — the seek bar stretches its input that way inside a row a
+      // few pixels tall, which covers nothing.
+      return Array.from(container.children).filter(
+        (el): el is HTMLElement =>
+          el instanceof HTMLElement &&
+          el.className.includes("inset-0") &&
+          !el.className.includes("pointer-events-none"),
       );
     }
 

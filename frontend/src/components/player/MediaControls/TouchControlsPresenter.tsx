@@ -149,7 +149,10 @@ export function TouchControlsPresenter({
               : undefined
           }
           className={[
-            "absolute inset-x-0 bottom-0 flex flex-col gap-1 pt-8",
+            // No bottom padding: the scrub bar is meant to sit on the
+            // very edge of the frame, and the row above it is what
+            // keeps a finger-sized target there.
+            "absolute inset-x-0 bottom-0 flex flex-col pt-8",
             "bg-gradient-to-t from-black/80 via-black/50 to-transparent",
             takesInput,
           ].join(" ")}
@@ -181,6 +184,7 @@ export function TouchControlsPresenter({
           </div>
 
           <SeekBar
+            variant="edge"
             displayTime={displayTime}
             duration={duration}
             bufferedFraction={bufferedFraction}
