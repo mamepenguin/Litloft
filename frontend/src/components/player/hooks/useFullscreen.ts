@@ -6,12 +6,13 @@ import { useCallback, useEffect, useRef, useState, type RefObject } from "react"
  * Fullscreen for a player frame, with a fallback for platforms that
  * have no element fullscreen at all.
  *
- * iPhone Safari does not implement `Element.requestFullscreen`, and the
- * one thing it can put fullscreen — a `<video>` via
- * `webkitEnterFullscreen()` — is unreachable inside a cross-origin
- * iframe. Once the provider's own controls are turned off there is no
- * route to fullscreen left, so we fake it: pin the existing frame over
- * the viewport with `position: fixed`.
+ * No Apple mobile browser implements `Element.requestFullscreen` —
+ * measured on iPadOS, the standard and prefixed entry points and
+ * fullscreenEnabled are all undefined. The one thing they can put
+ * fullscreen, a `<video>` via `webkitEnterFullscreen()`, is out of
+ * reach inside a cross-origin iframe. With the provider's controls
+ * turned off there is no route left, so we fake it: pin the existing
+ * frame over the viewport with `position: fixed`.
  *
  * The frame is styled in place and never re-parented. Moving an iframe
  * to a new parent reloads it, losing playback position and the player
@@ -71,50 +72,12 @@ function matches(query: string): boolean {
   return window.matchMedia(query).matches;
 }
 
-/**
- * Safari carried element fullscreen behind a webkit prefix long after
- * it worked, and iPadOS still ships builds with only the prefixed
- * name. Missing it there means falling back to the CSS imitation on a
- * device that can do the real thing.
- */
-interface WebkitFullscreenElement extends HTMLElement {
-  webkitRequestFullscreen?: () => Promise<void> | void;
-}
-
-interface WebkitFullscreenDocument extends Document {
-  webkitFullscreenElement?: Element | null;
-  webkitExitFullscreen?: () => Promise<void> | void;
-}
-
-function nativeFullscreenElement(): Element | null {
-  const doc = document as WebkitFullscreenDocument;
-  return doc.fullscreenElement ?? doc.webkitFullscreenElement ?? null;
-}
-
-function exitNativeFullscreen(): void {
-  const doc = document as WebkitFullscreenDocument;
-  if (typeof doc.exitFullscreen === "function") {
-    Promise.resolve(doc.exitFullscreen()).catch(() => {});
-    return;
-  }
-  if (typeof doc.webkitExitFullscreen === "function") {
-    Promise.resolve(doc.webkitExitFullscreen()).catch(() => {});
-  }
-}
-
 function requestNativeFullscreen(frame: HTMLElement): Promise<void> {
-  const prefixed = frame as WebkitFullscreenElement;
-  const request =
-    typeof frame.requestFullscreen === "function"
-      ? frame.requestFullscreen.bind(frame)
-      : typeof prefixed.webkitRequestFullscreen === "function"
-        ? prefixed.webkitRequestFullscreen.bind(frame)
-        : null;
-  if (!request) {
+  if (typeof frame.requestFullscreen !== "function") {
     return Promise.reject(new Error("element fullscreen unsupported"));
   }
   try {
-    return Promise.resolve(request());
+    return Promise.resolve(frame.requestFullscreen());
   } catch (error) {
     // Some engines throw synchronously instead of rejecting.
     return Promise.reject(error);
@@ -143,21 +106,17 @@ export function useFullscreen({
   useEffect(() => {
     const sync = () =>
       setNativeActive(
-        frameRef.current != null && nativeFullscreenElement() === frameRef.current,
+        frameRef.current != null && document.fullscreenElement === frameRef.current,
       );
     sync();
     document.addEventListener("fullscreenchange", sync);
-    document.addEventListener("webkitfullscreenchange", sync);
-    return () => {
-      document.removeEventListener("fullscreenchange", sync);
-      document.removeEventListener("webkitfullscreenchange", sync);
-    };
+    return () => document.removeEventListener("fullscreenchange", sync);
   }, [frameRef]);
 
   const exit = useCallback(() => {
     entryReasonRef.current = null;
-    if (nativeFullscreenElement()) {
-      exitNativeFullscreen();
+    if (document.fullscreenElement) {
+      document.exitFullscreen().catch(() => {});
     }
     setPseudoActive(false);
   }, []);

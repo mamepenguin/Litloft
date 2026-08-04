@@ -33,7 +33,6 @@ let controlBar: HTMLDivElement;
 let videoArea: HTMLDivElement;
 
 const COARSE = "(pointer: coarse)";
-const LANDSCAPE = "(orientation: landscape)";
 
 function installMatchMedia() {
   window.matchMedia = vi.fn().mockImplementation((query: string) => ({
@@ -77,7 +76,6 @@ beforeEach(() => {
   frame.append(videoArea, controlBar);
   document.body.appendChild(frame);
   window.history.replaceState(null, "");
-  void LANDSCAPE;
 });
 
 afterEach(() => {

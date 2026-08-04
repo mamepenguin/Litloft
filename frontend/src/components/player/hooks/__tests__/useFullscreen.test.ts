@@ -117,9 +117,6 @@ beforeEach(() => {
 
 afterEach(() => {
   frame.remove();
-  // The webkit stub is installed by one test only; leaving it behind
-  // would have later tests reading a detached element's state.
-  delete (document as { webkitFullscreenElement?: unknown }).webkitFullscreenElement;
   vi.restoreAllMocks();
 });
 
@@ -160,38 +157,6 @@ describe("useFullscreen — native vs pseudo", () => {
     await act(async () => result.current.toggle());
     expect(result.current.isPseudo).toBe(false);
     expect(result.current.isFullscreen).toBe(false);
-  });
-
-  it("uses the webkit-prefixed API when that is all the platform has", async () => {
-    // iPadOS ships builds with only the prefixed name; missing it
-    // drops a device that can do real fullscreen into the imitation.
-    const webkitRequest = vi.fn().mockResolvedValue(undefined);
-    Object.defineProperty(frame, "requestFullscreen", {
-      configurable: true,
-      value: undefined,
-    });
-    Object.defineProperty(frame, "webkitRequestFullscreen", {
-      configurable: true,
-      value: webkitRequest,
-    });
-    const { result } = renderFullscreen();
-    await act(async () => result.current.toggle());
-    expect(webkitRequest).toHaveBeenCalledTimes(1);
-    expect(result.current.isPseudo).toBe(false);
-  });
-
-  it("recognises webkit fullscreen state and its change event", async () => {
-    const webkitElement = { current: null as Element | null };
-    Object.defineProperty(document, "webkitFullscreenElement", {
-      configurable: true,
-      get: () => webkitElement.current,
-    });
-    const { result } = renderFullscreen();
-    webkitElement.current = frame;
-    act(() => {
-      document.dispatchEvent(new Event("webkitfullscreenchange"));
-    });
-    expect(result.current.isFullscreen).toBe(true);
   });
 
   it("reports native fullscreen only for its own frame", async () => {
