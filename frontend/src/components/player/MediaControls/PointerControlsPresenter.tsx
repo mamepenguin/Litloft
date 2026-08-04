@@ -77,6 +77,9 @@ export function PointerControlsPresenter({
       className={[
         "absolute inset-x-0 bottom-0 z-10 flex flex-col gap-0.5 px-2 pb-1 pt-8",
         "bg-gradient-to-t from-black/80 via-black/50 to-transparent",
+        // A long press on the timings or a label otherwise brings up
+        // iOS's selection loupe on top of the player.
+        "select-none [-webkit-user-select:none] [-webkit-touch-callout:none]",
         "transition-opacity duration-200 ease-out motion-reduce:transition-none",
         // Keyboard users must be able to reach the bar even once the
         // idle timer has faded it out.

@@ -208,5 +208,29 @@ describe("MediaControlsContainer", () => {
       renderControls(makeMc());
       expect(isTouchLayout()).toBe(false);
     });
+
+    /**
+     * Nothing may sit over the whole frame and take pointer input
+     * except the gesture overlay itself. A layout that does swallows
+     * every tap, long press and double tap on the video, and the
+     * controls cannot even be summoned back — which is exactly what
+     * the touch layout did when it first landed.
+     */
+    function fullFrameElementsTakingInput(container: HTMLElement): HTMLElement[] {
+      return Array.from(container.querySelectorAll<HTMLElement>(".inset-0")).filter(
+        (el) => !el.className.includes("pointer-events-none"),
+      );
+    }
+
+    it.each(["coarse", "fine", "none"] as const)(
+      "leaves the gestures reachable through the %s layout",
+      (mode) => {
+        installPointerMode(mode);
+        const { container } = renderControls(makeMc());
+        const blocking = fullFrameElementsTakingInput(container);
+        expect(blocking).toHaveLength(1);
+        expect(blocking[0]).toHaveAttribute("data-player-gestures");
+      },
+    );
   });
 });

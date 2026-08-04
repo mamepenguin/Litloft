@@ -86,8 +86,17 @@ export function TouchControlsPresenter({
   return (
     <>
       <div
+        data-testid="touch-controls-root"
         className={[
           "absolute inset-0 z-10 transition-opacity duration-200 ease-out motion-reduce:transition-none",
+          // This box covers the whole frame purely to position its
+          // children, and it sits above the gesture overlay. Taking
+          // input here would swallow every tap, long press and double
+          // tap on the video. The children opt back in individually.
+          "pointer-events-none",
+          // iOS runs its own long-press behaviour over anything
+          // selectable — the loupe appears and the gesture is lost.
+          "select-none [-webkit-user-select:none] [-webkit-touch-callout:none]",
           // Keyboard users must be able to reach the controls even once
           // the idle timer has faded them out.
           "focus-within:opacity-100",

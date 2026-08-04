@@ -42,7 +42,7 @@ export function GestureOverlay({
       // Symmetric with the bar's `data-player-controls`: lets the frame's
       // owner address the overlay without depending on its classes.
       data-player-gestures=""
-      className="absolute inset-0 z-0 touch-none select-none [-webkit-touch-callout:none]"
+      className="absolute inset-0 z-0 touch-none select-none [-webkit-user-select:none] [-webkit-touch-callout:none]"
       style={{ pointerEvents: interactive ? "auto" : "none" }}
       {...handlers}
     >

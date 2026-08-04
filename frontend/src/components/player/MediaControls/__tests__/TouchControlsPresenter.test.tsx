@@ -177,6 +177,29 @@ describe("TouchControlsPresenter", () => {
   });
 
   describe("gesture coexistence", () => {
+    it("lets the frame-covering container pass every pointer through", () => {
+      // Regression: this box spans the whole frame to position its
+      // children and sits above the gesture overlay. Taking input here
+      // swallowed every tap, long press and double tap on the video —
+      // the controls could not even be summoned back.
+      const { container } = renderControls();
+      const root = container.querySelector<HTMLElement>(
+        '[data-testid="touch-controls-root"]',
+      );
+      expect(root?.className).toContain("pointer-events-none");
+    });
+
+    it("keeps iOS from claiming a long press as a text selection", () => {
+      // Without this the selection loupe comes up over the player and
+      // the speed boost never engages.
+      const { container } = renderControls();
+      const root = container.querySelector<HTMLElement>(
+        '[data-testid="touch-controls-root"]',
+      );
+      expect(root?.className).toContain("select-none");
+      expect(root?.className).toContain("[-webkit-touch-callout:none]");
+    });
+
     it("lets the gaps between the transport buttons fall through", () => {
       // The three buttons span a box about 220px wide. If that whole box
       // took input, a double tap landing in a gap between the buttons
