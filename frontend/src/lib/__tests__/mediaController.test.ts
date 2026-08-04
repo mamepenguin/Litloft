@@ -628,6 +628,44 @@ describe("createYouTubeController — captions", () => {
     expect(mc.getCaptions?.()).toBe("unavailable");
   });
 
+  it("says captions off again after a seek", () => {
+    // The player brings them back by itself as part of settling on the
+    // new position, so the instruction has to be repeated rather than
+    // issued once.
+    vi.useFakeTimers();
+    try {
+      const player = fakeYTPlayer();
+      const mc = createYouTubeController(player, makeContainer());
+      mc.setCaptions?.(false);
+      const before = player.unloadModule!.mock.calls.length;
+
+      mc.seek(42);
+      expect(player.unloadModule!.mock.calls.length).toBeGreaterThan(before);
+
+      // Once more shortly after: an immediate call alone can land
+      // before the player has restored them.
+      const afterImmediate = player.unloadModule!.mock.calls.length;
+      vi.advanceTimersByTime(400);
+      expect(player.unloadModule!.mock.calls.length).toBeGreaterThan(afterImmediate);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("leaves captions alone across a seek when they are on", () => {
+    vi.useFakeTimers();
+    try {
+      const player = fakeYTPlayer();
+      const mc = createYouTubeController(player, makeContainer());
+      mc.setCaptions?.(true);
+      mc.seek(42);
+      vi.advanceTimersByTime(400);
+      expect(player.unloadModule).not.toHaveBeenCalled();
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
   it("keeps reporting the truth when the player refuses", () => {
     const player = fakeYTPlayer({
       loadModule: vi.fn(() => {

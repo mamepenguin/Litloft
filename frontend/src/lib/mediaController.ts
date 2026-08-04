@@ -73,6 +73,13 @@ export interface MediaController {
 export type CaptionsState = "on" | "off" | "unavailable";
 
 /**
+ * How long after a seek to repeat "captions off". The player restores
+ * them while it settles on the new position, which happens after
+ * seekTo returns.
+ */
+const CAPTION_REASSERT_MS = 400;
+
+/**
  * Minimal subset of the YouTube IFrame Player API we depend on. Kept
  * here (rather than as a global type) so the controller stays
  * testable with a plain object stub and so the rest of the codebase
@@ -246,6 +253,37 @@ export function createYouTubeController(
   // pressing it does nothing visible. Hiding it instead would mean
   // flashing captions on every video just to find out.
   let captionsOn = false;
+  let captionReassertTimer: ReturnType<typeof setTimeout> | null = null;
+
+  /**
+   * Say "captions off" again. The player brings them back by itself
+   * after a seek — our unloadModule call does not survive one — so the
+   * instruction has to be repeated rather than issued once.
+   */
+  function enforceCaptionsOff() {
+    if (captionsOn) return;
+    try {
+      player.unloadModule?.("captions");
+    } catch {
+      // Undocumented API; nothing useful to do if it is gone.
+    }
+  }
+
+  /**
+   * Immediately and once more shortly after. The player restores
+   * captions as part of settling on the new position, which happens
+   * after seekTo returns, so an immediate call alone can land too
+   * early to stick.
+   */
+  function enforceCaptionsOffThroughSeek() {
+    if (captionsOn) return;
+    enforceCaptionsOff();
+    if (captionReassertTimer) clearTimeout(captionReassertTimer);
+    captionReassertTimer = setTimeout(() => {
+      captionReassertTimer = null;
+      enforceCaptionsOff();
+    }, CAPTION_REASSERT_MS);
+  }
 
   return {
     // Spread first so the key is simply absent when no detector was
@@ -255,6 +293,7 @@ export function createYouTubeController(
     ...(isInterrupted ? { isInterrupted: () => isInterrupted() } : {}),
     seek(seconds) {
       player.seekTo(clampSeek(seconds, player.getDuration()), true);
+      enforceCaptionsOffThroughSeek();
     },
     play() {
       player.playVideo();
