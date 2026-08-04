@@ -62,6 +62,12 @@ export interface FullscreenState {
   isPseudo: boolean;
   toggle: () => void;
   exit: () => void;
+  /**
+   * TEMPORARY — why the native request was turned down, so a device
+   * that falls back unexpectedly can say what happened. Remove with
+   * the iPad diagnostic.
+   */
+  lastNativeError: string | null;
 }
 
 function matches(query: string): boolean {
@@ -127,6 +133,8 @@ export function useFullscreen({
 }: UseFullscreenOptions): FullscreenState {
   const [nativeActive, setNativeActive] = useState(false);
   const [pseudoActive, setPseudoActive] = useState(false);
+  // TEMPORARY — remove with the iPad diagnostic.
+  const [lastNativeError, setLastNativeError] = useState<string | null>(null);
   const entryReasonRef = useRef<EntryReason | null>(null);
 
   // Declared first so its cleanup runs before the others on unmount:
@@ -185,7 +193,16 @@ export function useFullscreen({
         .then(() => {
           entryReasonRef.current = reason;
         })
-        .catch(() => {
+        .catch((error: unknown) => {
+          // TEMPORARY — remove with the iPad diagnostic.
+          setLastNativeError(
+            [
+              error instanceof Error ? `${error.name}: ${error.message}` : String(error),
+              `std=${typeof frame.requestFullscreen}`,
+              `wk=${typeof (frame as WebkitFullscreenElement).webkitRequestFullscreen}`,
+              `enabled=${document.fullscreenEnabled}`,
+            ].join(" | "),
+          );
           // Only stand in for the real thing on touch devices. On a
           // fine pointer this would just collide with the mini player,
           // and a desktop browser without element fullscreen is a
@@ -356,5 +373,5 @@ export function useFullscreen({
     };
   }, [pseudoActive, exit]);
 
-  return { isFullscreen, isPseudo: pseudoActive, toggle, exit };
+  return { isFullscreen, isPseudo: pseudoActive, toggle, exit, lastNativeError };
 }
