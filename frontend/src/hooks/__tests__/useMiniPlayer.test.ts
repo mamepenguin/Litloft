@@ -134,6 +134,12 @@ function makeMc(paused: boolean): MediaController {
     getCurrentTime: vi.fn().mockReturnValue(0),
     getDuration: vi.fn().mockReturnValue(100),
     isPaused: vi.fn().mockReturnValue(paused),
+    isMuted: vi.fn().mockReturnValue(false),
+    getVolume: vi.fn().mockReturnValue(1),
+    setVolume: vi.fn(),
+    getPlaybackRate: vi.fn().mockReturnValue(1),
+    setPlaybackRate: vi.fn(),
+    getBufferedFraction: vi.fn().mockReturnValue(0),
   };
 }
 

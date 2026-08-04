@@ -26,6 +26,32 @@ export interface MediaController {
   getCurrentTime(): number;
   getDuration(): number;
   isPaused(): boolean;
+  isMuted(): boolean;
+  /**
+   * Volume on a 0-1 scale. YouTube reports 0-100 natively; that
+   * difference is normalised away here so callers never branch on the
+   * backend.
+   */
+  getVolume(): number;
+  setVolume(v: number): void;
+  getPlaybackRate(): number;
+  setPlaybackRate(r: number): void;
+  /** Buffered-ahead progress as a 0-1 fraction of the total duration. */
+  getBufferedFraction(): number;
+  /**
+   * True when the backend is playing something other than the
+   * requested media (a YouTube ad break being the motivating case), so
+   * controls should degrade: position/duration readings belong to the
+   * interruption rather than the file, and any click-capturing overlay
+   * must let events through to the underlying player.
+   *
+   * Optional because most backends have nothing that can interrupt
+   * them, and because detection is inherently provider-specific — the
+   * heuristic is injected by whoever constructs the controller rather
+   * than living here. Treat an absent implementation as "never
+   * interrupted".
+   */
+  isInterrupted?(): boolean;
 }
 
 /**
@@ -50,6 +76,26 @@ export interface YouTubePlayerLike {
    *   -1 unstarted, 0 ended, 1 playing, 2 paused, 3 buffering, 5 cued
    */
   getPlayerState(): number;
+  /** 0-100, unlike HTMLMediaElement.volume which is 0-1. */
+  getVolume(): number;
+  setVolume(volume: number): void;
+  getPlaybackRate(): number;
+  setPlaybackRate(rate: number): void;
+  /** 0-1 fraction of the video that has been buffered. */
+  getVideoLoadedFraction(): number;
+}
+
+/** Extra wiring a caller can supply when constructing a controller. */
+export interface YouTubeControllerOptions {
+  /**
+   * Detector for "an ad is playing right now". Injected rather than
+   * implemented here: the YouTube IFrame API exposes no ad state, so
+   * every detection strategy is a heuristic owned by the embed that
+   * has the surrounding context (e.g. the real duration from our own
+   * metadata). Keeping it out of core also keeps this module free of
+   * provider-specific guesswork.
+   */
+  isInterrupted?: () => boolean;
 }
 
 const YT_STATE_PLAYING = 1;
@@ -65,6 +111,23 @@ function clampSeek(seconds: number, duration: number): number {
   }
   if (seconds > duration) return duration;
   return seconds;
+}
+
+/** Clamp into [0, 1]; non-finite input degrades to 0 rather than NaN. */
+function clampFraction(value: number): number {
+  if (!Number.isFinite(value)) return 0;
+  if (value < 0) return 0;
+  if (value > 1) return 1;
+  return value;
+}
+
+/**
+ * Playback rates must stay positive and finite. A 0 or negative rate
+ * is not "slow motion" — it either throws or silently wedges the
+ * player — so reject rather than pass it through.
+ */
+function isUsableRate(rate: number): boolean {
+  return Number.isFinite(rate) && rate > 0;
 }
 
 export function createNativeVideoController(
@@ -106,14 +169,50 @@ export function createNativeVideoController(
     isPaused() {
       return video.paused;
     },
+    isMuted() {
+      return video.muted;
+    },
+    getVolume() {
+      return video.volume;
+    },
+    setVolume(v) {
+      if (!Number.isFinite(v)) return;
+      video.volume = clampFraction(v);
+    },
+    getPlaybackRate() {
+      return video.playbackRate;
+    },
+    setPlaybackRate(r) {
+      if (!isUsableRate(r)) return;
+      video.playbackRate = r;
+    },
+    getBufferedFraction() {
+      const { buffered, duration } = video;
+      if (!Number.isFinite(duration) || duration <= 0) return 0;
+      if (buffered.length === 0) return 0;
+      // Read the END of the LAST range rather than summing every
+      // range. The bar communicates "buffered up to here"; a video
+      // that was seeked backwards leaves earlier ranges behind, and
+      // summing them would claim more contiguous buffer than exists.
+      return clampFraction(buffered.end(buffered.length - 1) / duration);
+    },
+    // isInterrupted is deliberately absent: a local file has nothing
+    // that can preempt it.
   };
 }
 
 export function createYouTubeController(
   player: YouTubePlayerLike,
   container: HTMLElement,
+  opts: YouTubeControllerOptions = {},
 ): MediaController {
+  const { isInterrupted } = opts;
   return {
+    // Spread first so the key is simply absent when no detector was
+    // injected, matching the optional-method contract (callers check
+    // `mc.isInterrupted?.()`). The wrapper delegates on every call
+    // rather than capturing a value, so the detector stays live.
+    ...(isInterrupted ? { isInterrupted: () => isInterrupted() } : {}),
     seek(seconds) {
       player.seekTo(clampSeek(seconds, player.getDuration()), true);
     },
@@ -161,6 +260,29 @@ export function createYouTubeController(
       // CUED (5), UNSTARTED (-1) remain paused.
       const state = player.getPlayerState();
       return state !== YT_STATE_PLAYING && state !== YT_STATE_BUFFERING;
+    },
+    isMuted() {
+      return player.isMuted();
+    },
+    getVolume() {
+      const raw = player.getVolume();
+      // Normalise YouTube's 0-100 down to the 0-1 contract.
+      return Number.isFinite(raw) ? clampFraction(raw / 100) : 0;
+    },
+    setVolume(v) {
+      if (!Number.isFinite(v)) return;
+      player.setVolume(clampFraction(v) * 100);
+    },
+    getPlaybackRate() {
+      const raw = player.getPlaybackRate();
+      return isUsableRate(raw) ? raw : 1;
+    },
+    setPlaybackRate(r) {
+      if (!isUsableRate(r)) return;
+      player.setPlaybackRate(r);
+    },
+    getBufferedFraction() {
+      return clampFraction(player.getVideoLoadedFraction());
     },
   };
 }
