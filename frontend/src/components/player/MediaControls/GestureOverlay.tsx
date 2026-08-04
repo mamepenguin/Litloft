@@ -46,7 +46,12 @@ export function GestureOverlay({
       style={{ pointerEvents: interactive ? "auto" : "none" }}
       {...handlers}
     >
-      {skip && (
+      {/* Gated on `interactive` as well: the ripple covers half the
+          frame, and leaving one on screen when an ad takes over would
+          obscure the ad itself. Hiding the player visually is a clearer
+          terms violation than covering it, and pointer-events does
+          nothing about that. */}
+      {interactive && skip && (
         <div
           data-testid="skip-feedback"
           data-side={skip.side}
@@ -67,7 +72,7 @@ export function GestureOverlay({
         </div>
       )}
 
-      {boosting && (
+      {interactive && boosting && (
         <div
           data-testid="boost-pill"
           aria-hidden="true"

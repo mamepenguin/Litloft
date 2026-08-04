@@ -38,6 +38,20 @@ describe("GestureOverlay", () => {
     expect(screen.queryByTestId("boost-pill")).not.toBeInTheDocument();
   });
 
+  it("draws no feedback over a frame that is not ours", () => {
+    // The skip ripple covers half the frame. Leaving one on screen when
+    // an ad takes over would obscure the ad itself — visually hiding
+    // the player is a clearer terms violation than merely covering it,
+    // and pointer-events: none does nothing about that.
+    renderOverlay({
+      interactive: false,
+      skip: { side: "forward", seconds: 10 },
+      boosting: true,
+    });
+    expect(screen.queryByTestId("skip-feedback")).not.toBeInTheDocument();
+    expect(screen.queryByTestId("boost-pill")).not.toBeInTheDocument();
+  });
+
   it("shows the accumulated seconds on the side that was tapped", () => {
     renderOverlay({ skip: { side: "forward", seconds: 20 } });
     const feedback = screen.getByTestId("skip-feedback");

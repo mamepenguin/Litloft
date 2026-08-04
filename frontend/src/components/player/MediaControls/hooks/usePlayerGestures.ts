@@ -331,6 +331,23 @@ export function usePlayerGestures({
     callbacksRef.current.onToggleFullscreen();
   }, []);
 
+  // An ad can start under a planted finger. The rate applies to
+  // whatever the player is showing, so a mid-roll would otherwise run
+  // at 2x until the viewer let go.
+  useEffect(() => {
+    if (!boosting) return;
+    if (interactive && !interrupted) return;
+    restoreRate();
+    const press = pressRef.current;
+    if (press) {
+      press.boosted = false;
+      // Not a tap either: the finger is still down from a gesture that
+      // was taken away, and toggling the controls on release would be
+      // an event the viewer never asked for.
+      press.cancelled = true;
+    }
+  }, [boosting, interactive, interrupted, restoreRate]);
+
   useEffect(
     () => () => {
       detachRef.current?.();

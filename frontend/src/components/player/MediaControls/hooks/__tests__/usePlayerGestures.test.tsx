@@ -76,10 +76,11 @@ function Harness(props: UsePlayerGesturesOptions) {
   );
 }
 
-function setup(overrides: Partial<UsePlayerGesturesOptions> = {}) {
-  const mc = overrides.mc === undefined ? makeMc() : overrides.mc;
-  const options: UsePlayerGesturesOptions = {
-    mc,
+function baseOptions(
+  overrides: Partial<UsePlayerGesturesOptions> = {},
+): UsePlayerGesturesOptions {
+  return {
+    mc: makeMc(),
     mode: "coarse" as PointerMode,
     interactive: true,
     interrupted: false,
@@ -88,6 +89,11 @@ function setup(overrides: Partial<UsePlayerGesturesOptions> = {}) {
     ...callbacks,
     ...overrides,
   };
+}
+
+function setup(overrides: Partial<UsePlayerGesturesOptions> = {}) {
+  const mc = overrides.mc === undefined ? makeMc() : overrides.mc;
+  const options = baseOptions({ ...overrides, mc });
   const utils = render(<Harness {...options} />);
   const overlay = utils.getByTestId("overlay");
   // jsdom gives every element a zero-sized rect, so the left/right
@@ -214,6 +220,32 @@ describe("usePlayerGestures long press", () => {
     firePointer(window, "pointerup", { clientX: RIGHT_X });
     expect(callbacks.onToggleControls).not.toHaveBeenCalled();
     expect(mc.seek).not.toHaveBeenCalled();
+  });
+
+  it("drops the boost when an ad interrupts mid-press", () => {
+    // The rate applies to whatever is playing, so a mid-roll starting
+    // under a planted finger would run the ad at 2x.
+    const { mc, overlay, getByTestId, rerender } = setup({ preferredRate: 1 });
+    firePointer(overlay, "pointerdown", { clientX: RIGHT_X });
+    act(() => {
+      vi.advanceTimersByTime(500);
+    });
+    expect(mc.setPlaybackRate).toHaveBeenCalledWith(2);
+
+    rerender(<Harness {...baseOptions({ mc, interrupted: true })} />);
+    expect(mc.setPlaybackRate).toHaveBeenLastCalledWith(1);
+    expect(getByTestId("boost").textContent).toBe("false");
+  });
+
+  it("does not turn the release after an interrupted boost into a tap", () => {
+    const { mc, overlay, rerender } = setup();
+    firePointer(overlay, "pointerdown", { clientX: RIGHT_X });
+    act(() => {
+      vi.advanceTimersByTime(500);
+    });
+    rerender(<Harness {...baseOptions({ mc, interrupted: true })} />);
+    firePointer(window, "pointerup", { clientX: RIGHT_X });
+    expect(callbacks.onToggleControls).not.toHaveBeenCalled();
   });
 
   it("restores the rate when the gesture is cancelled outright", () => {
