@@ -1,9 +1,7 @@
 import { describe, it, expect, vi } from "vitest";
 import { render, screen, fireEvent } from "@testing-library/react";
-import {
-  MediaControlsPresenter,
-  type MediaControlsPresenterProps,
-} from "../MediaControlsPresenter";
+import { PointerControlsPresenter } from "../PointerControlsPresenter";
+import type { MediaControlsPresenterProps } from "../types";
 
 function renderControls(overrides: Partial<MediaControlsPresenterProps> = {}) {
   const props: MediaControlsPresenterProps = {
@@ -28,11 +26,11 @@ function renderControls(overrides: Partial<MediaControlsPresenterProps> = {}) {
     onToggleFullscreen: vi.fn(),
     ...overrides,
   };
-  const utils = render(<MediaControlsPresenter {...props} />);
+  const utils = render(<PointerControlsPresenter {...props} />);
   return { ...utils, props };
 }
 
-describe("MediaControlsPresenter", () => {
+describe("PointerControlsPresenter", () => {
   describe("play / pause", () => {
     it("offers Pause while playing and Play while paused", () => {
       const { unmount } = renderControls({ paused: false });

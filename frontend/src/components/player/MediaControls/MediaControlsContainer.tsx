@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useState, type RefObject } from "react";
 import type { MediaController } from "@/lib/mediaController";
-import { MediaControlsPresenter } from "./MediaControlsPresenter";
+import { PointerControlsPresenter } from "./PointerControlsPresenter";
 import { GestureOverlay } from "./GestureOverlay";
 import { useMediaControlsState } from "./hooks/useMediaControlsState";
 import { usePlaybackRatePreference } from "./hooks/usePlaybackRatePreference";
@@ -172,7 +172,7 @@ export default function MediaControlsContainer({
         boostRate={BOOST_RATE}
         handlers={gestures.handlers}
       />
-      <MediaControlsPresenter
+      <PointerControlsPresenter
         displayTime={state.displayTime}
         duration={state.duration}
         bufferedFraction={state.bufferedFraction}
