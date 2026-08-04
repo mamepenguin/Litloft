@@ -331,7 +331,10 @@
     "skipSeconds": "{seconds}s",
     "settings": "Settings",
     "closeSettings": "Close settings",
-    "normalSpeed": "Normal"
+    "normalSpeed": "Normal",
+    "captions": "Subtitles",
+    "captionsOn": "On",
+    "captionsOff": "Off"
   },
   "archive": {
     "loadFailed": "Failed to load archive: {error}",

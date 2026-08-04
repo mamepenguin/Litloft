@@ -3,6 +3,8 @@
  * container picks a presenter by input device without also deciding
  * what each one is allowed to know.
  */
+import type { CaptionsState } from "@/lib/mediaController";
+
 export interface MediaControlsPresenterProps {
   /** Playhead, or the drag position while the user is scrubbing. */
   displayTime: number;
@@ -31,11 +33,15 @@ export interface MediaControlsPresenterProps {
   onVolumeChange: (volume: number) => void;
   onPlaybackRateChange: (rate: number) => void;
   onToggleFullscreen: () => void;
+  /** `"unavailable"` leaves every caption control out. */
+  captions: CaptionsState;
+  onToggleCaptions: (enabled: boolean) => void;
   /**
-   * Touch layout only. The speed sheet is drawn by the layout, but its
-   * open state has to reach the container, which owns the idle timer —
-   * a sheet that vanishes three seconds after opening is not usable.
+   * Touch layout only. The settings sheet is drawn by the layout, but
+   * its open state has to reach the container, which owns the idle
+   * timer — a sheet that vanishes three seconds after opening is not
+   * usable.
    */
-  rateSheetOpen?: boolean;
-  onRateSheetOpenChange?: (open: boolean) => void;
+  settingsOpen?: boolean;
+  onSettingsOpenChange?: (open: boolean) => void;
 }

@@ -1,21 +1,23 @@
 import { describe, it, expect, vi } from "vitest";
 import { render, screen, fireEvent } from "@testing-library/react";
-import { PlaybackRateSheet } from "../PlaybackRateSheet";
+import { SettingsSheet } from "../SettingsSheet";
 
 function renderSheet(
-  overrides: Partial<React.ComponentProps<typeof PlaybackRateSheet>> = {},
+  overrides: Partial<React.ComponentProps<typeof SettingsSheet>> = {},
 ) {
   const props = {
     playbackRate: 1,
-    onSelect: vi.fn(),
+    onSelectRate: vi.fn(),
+    captions: "off" as const,
+    onToggleCaptions: vi.fn(),
     onClose: vi.fn(),
     ...overrides,
   };
-  const utils = render(<PlaybackRateSheet {...props} />);
+  const utils = render(<SettingsSheet {...props} />);
   return { ...utils, props };
 }
 
-describe("PlaybackRateSheet", () => {
+describe("SettingsSheet", () => {
   it("offers exactly the supported rates", () => {
     renderSheet();
     const options = screen.getAllByRole("radio");
@@ -44,7 +46,7 @@ describe("PlaybackRateSheet", () => {
   it("reports the chosen rate as a number", () => {
     const { props } = renderSheet();
     fireEvent.click(screen.getByRole("radio", { name: "2x" }));
-    expect(props.onSelect).toHaveBeenCalledWith(2);
+    expect(props.onSelectRate).toHaveBeenCalledWith(2);
   });
 
   it("closes once a rate is chosen", () => {
@@ -56,13 +58,13 @@ describe("PlaybackRateSheet", () => {
 
   it("closes on the backdrop", () => {
     const { props } = renderSheet();
-    fireEvent.click(screen.getByTestId("rate-sheet-backdrop"));
+    fireEvent.click(screen.getByTestId("settings-sheet-backdrop"));
     expect(props.onClose).toHaveBeenCalledTimes(1);
   });
 
   it("closes on Escape", () => {
     const { props } = renderSheet();
-    fireEvent.keyDown(screen.getByRole("radiogroup"), { key: "Escape" });
+    fireEvent.keyDown(screen.getByTestId("settings-sheet"), { key: "Escape" });
     expect(props.onClose).toHaveBeenCalledTimes(1);
   });
 
@@ -71,6 +73,47 @@ describe("PlaybackRateSheet", () => {
     expect(
       screen.getByRole("radiogroup", { name: "Playback speed" }),
     ).toBeInTheDocument();
+  });
+
+  describe("captions", () => {
+    it("offers a toggle when the backend has captions", () => {
+      renderSheet({ captions: "off" });
+      const toggle = screen.getByRole("switch", { name: "Subtitles" });
+      expect(toggle).toBeInTheDocument();
+      expect(toggle).not.toBeChecked();
+    });
+
+    it("reflects captions already showing", () => {
+      renderSheet({ captions: "on" });
+      expect(screen.getByRole("switch", { name: "Subtitles" })).toBeChecked();
+    });
+
+    it("leaves the row out when the backend has no captions", () => {
+      // Rendering a control that provably does nothing is worse than
+      // not offering it.
+      renderSheet({ captions: "unavailable" });
+      expect(screen.queryByRole("switch")).not.toBeInTheDocument();
+    });
+
+    it("asks for the opposite of what is showing", () => {
+      const { props } = renderSheet({ captions: "off" });
+      fireEvent.click(screen.getByRole("switch", { name: "Subtitles" }));
+      expect(props.onToggleCaptions).toHaveBeenCalledWith(true);
+    });
+
+    it("turns them back off", () => {
+      const { props } = renderSheet({ captions: "on" });
+      fireEvent.click(screen.getByRole("switch", { name: "Subtitles" }));
+      expect(props.onToggleCaptions).toHaveBeenCalledWith(false);
+    });
+
+    it("stays open after toggling", () => {
+      // Seeing whether captions actually appeared is the point, and on
+      // a video with no caption track nothing will.
+      const { props } = renderSheet({ captions: "off" });
+      fireEvent.click(screen.getByRole("switch", { name: "Subtitles" }));
+      expect(props.onClose).not.toHaveBeenCalled();
+    });
   });
 
   it("stays inside the frame so pseudo-fullscreen keeps it visible", () => {

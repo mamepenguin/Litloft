@@ -45,8 +45,18 @@ function installMatchMedia(initial: { coarse: boolean; fine: boolean }) {
   };
 }
 
+// One test deletes matchMedia outright, which restoreAllMocks cannot
+// undo — it is a property redefinition, not a spy. Left in place it
+// leaks into whatever file the worker runs next.
+const realMatchMedia = window.matchMedia;
+
 afterEach(() => {
   vi.restoreAllMocks();
+  Object.defineProperty(window, "matchMedia", {
+    configurable: true,
+    writable: true,
+    value: realMatchMedia,
+  });
 });
 
 describe("usePointerMode", () => {

@@ -38,6 +38,75 @@ function advance(ms: number) {
   });
 }
 
+describe("useMediaControlsState — settling after a scrub", () => {
+  it("holds the requested position until the player reaches it", () => {
+    // Dropping the drag position the moment the scrub ends makes the
+    // bar snap back to where playback still is, then jump forward once
+    // the next poll lands.
+    vi.useFakeTimers();
+    try {
+      const getCurrentTime = vi.fn().mockReturnValue(40);
+      const mc = makeMc({ getCurrentTime });
+      const { result } = renderHook(() => useMediaControlsState({ mc }));
+
+      act(() => result.current.beginScrub(120));
+      act(() => result.current.endScrub());
+      expect(mc.seek).toHaveBeenCalledWith(120);
+
+      // The player has not moved yet.
+      act(() => {
+        vi.advanceTimersByTime(300);
+      });
+      expect(result.current.displayTime).toBe(120);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("hands back to the clock once the player arrives", () => {
+    vi.useFakeTimers();
+    try {
+      const getCurrentTime = vi.fn().mockReturnValue(40);
+      const mc = makeMc({ getCurrentTime });
+      const { result } = renderHook(() => useMediaControlsState({ mc }));
+
+      act(() => result.current.beginScrub(120));
+      act(() => result.current.endScrub());
+
+      getCurrentTime.mockReturnValue(120.4);
+      act(() => {
+        vi.advanceTimersByTime(300);
+      });
+      expect(result.current.displayTime).toBeCloseTo(120.4);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("gives up if the player never gets there", () => {
+    // A seek can be refused outright — during an ad, or past the end of
+    // a stream. The bar must not sit forever on a position that never
+    // happened.
+    vi.useFakeTimers();
+    try {
+      const getCurrentTime = vi.fn().mockReturnValue(40);
+      const mc = makeMc({ getCurrentTime });
+      const { result } = renderHook(() => useMediaControlsState({ mc }));
+
+      act(() => result.current.beginScrub(120));
+      act(() => result.current.endScrub());
+      expect(result.current.displayTime).toBe(120);
+
+      act(() => {
+        vi.advanceTimersByTime(3000);
+      });
+      expect(result.current.displayTime).toBe(40);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+});
+
 describe("useMediaControlsState", () => {
   describe("without a controller", () => {
     it("reports a neutral snapshot instead of throwing", () => {
@@ -155,7 +224,10 @@ describe("useMediaControlsState", () => {
       expect(result.current.displayTime).toBe(80);
     });
 
-    it("seeks once on release and hands the playhead back", () => {
+    it("seeks once on release and keeps showing where it asked for", () => {
+      // The drag is over — scrubbing goes false, so the idle timer and
+      // the poll rate go back to normal — but the position stays put
+      // until the player catches up. See "settling after a scrub".
       const mc = makeMc();
       const { result } = renderHook(() => useMediaControlsState({ mc }));
       act(() => result.current.beginScrub(80));
@@ -163,7 +235,7 @@ describe("useMediaControlsState", () => {
       expect(mc.seek).toHaveBeenCalledTimes(1);
       expect(mc.seek).toHaveBeenCalledWith(80);
       expect(result.current.scrubbing).toBe(false);
-      expect(result.current.displayTime).toBe(10);
+      expect(result.current.displayTime).toBe(80);
     });
 
     it("is a no-op on release when no scrub was in progress", () => {

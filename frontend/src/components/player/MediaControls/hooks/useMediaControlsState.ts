@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
-import type { MediaController } from "@/lib/mediaController";
+import type { CaptionsState, MediaController } from "@/lib/mediaController";
 
 /**
  * MediaController is a pull-shaped contract: it exposes getters, not
@@ -18,6 +18,20 @@ const POLL_ACTIVE_MS = 250;
 const POLL_IDLE_MS = 1000;
 const DEFAULT_AUTO_HIDE_MS = 3000;
 
+/**
+ * How close the player has to get to a requested position before the
+ * bar stops showing that position instead of the clock. Loose on
+ * purpose: the YouTube player re-buffers on every seekTo, and its clock
+ * lags the request by a beat even once it lands.
+ */
+const SEEK_SETTLE_S = 1.5;
+/**
+ * Give up waiting. A seek can be refused outright — during an ad, or
+ * past the end of a stream — and the bar must not sit on a position the
+ * player never reached.
+ */
+const SEEK_SETTLE_TIMEOUT_MS = 3000;
+
 export interface MediaControlsSnapshot {
   currentTime: number;
   duration: number;
@@ -27,6 +41,7 @@ export interface MediaControlsSnapshot {
   volume: number;
   playbackRate: number;
   interrupted: boolean;
+  captions: CaptionsState;
 }
 
 const EMPTY_SNAPSHOT: MediaControlsSnapshot = {
@@ -38,6 +53,7 @@ const EMPTY_SNAPSHOT: MediaControlsSnapshot = {
   volume: 1,
   playbackRate: 1,
   interrupted: false,
+  captions: "unavailable",
 };
 
 export interface UseMediaControlsStateOptions {
@@ -93,6 +109,7 @@ function readSnapshot(
     volume: finite(mc.getVolume()),
     playbackRate: mc.getPlaybackRate(),
     interrupted: mc.isInterrupted?.() ?? false,
+    captions: mc.getCaptions?.() ?? "unavailable",
   };
 }
 
@@ -108,7 +125,8 @@ function sameSnapshot(
     a.muted === b.muted &&
     a.volume === b.volume &&
     a.playbackRate === b.playbackRate &&
-    a.interrupted === b.interrupted
+    a.interrupted === b.interrupted &&
+    a.captions === b.captions
   );
 }
 
@@ -120,6 +138,10 @@ export function useMediaControlsState({
 }: UseMediaControlsStateOptions): MediaControlsState {
   const [snapshot, setSnapshot] = useState<MediaControlsSnapshot>(EMPTY_SNAPSHOT);
   const [scrubTime, setScrubTime] = useState<number | null>(null);
+  // Where the viewer asked to be, held until the player gets there.
+  // Dropping it the moment the scrub ends makes the bar snap back to
+  // the old position for a poll interval before jumping forward.
+  const [pendingSeek, setPendingSeek] = useState<number | null>(null);
   const [controlsVisible, setControlsVisible] = useState(true);
   // Bumping this restarts the auto-hide countdown declaratively, so the
   // timer lives in one effect instead of being juggled across refs.
@@ -197,12 +219,26 @@ export function useMediaControlsState({
     if (target === null) return;
     scrubTimeRef.current = null;
     setScrubTime(null);
+    setPendingSeek(target);
     mc?.seek(target);
   }, [mc]);
 
+  useEffect(() => {
+    if (pendingSeek === null) return;
+    if (Math.abs(snapshot.currentTime - pendingSeek) < SEEK_SETTLE_S) {
+      setPendingSeek(null);
+    }
+  }, [snapshot.currentTime, pendingSeek]);
+
+  useEffect(() => {
+    if (pendingSeek === null) return;
+    const id = setTimeout(() => setPendingSeek(null), SEEK_SETTLE_TIMEOUT_MS);
+    return () => clearTimeout(id);
+  }, [pendingSeek]);
+
   return {
     ...snapshot,
-    displayTime: scrubTime ?? snapshot.currentTime,
+    displayTime: scrubTime ?? pendingSeek ?? snapshot.currentTime,
     scrubbing,
     controlsVisible,
     revealControls,

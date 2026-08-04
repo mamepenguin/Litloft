@@ -61,12 +61,12 @@ export default function MediaControlsContainer({
   interactive = true,
   onBoostingChange,
 }: MediaControlsContainerProps) {
-  const [rateSheetOpen, setRateSheetOpen] = useState(false);
+  const [settingsOpen, setSettingsOpen] = useState(false);
   const state = useMediaControlsState({
     mc,
     durationHint,
     autoHideMs,
-    holdVisible: rateSheetOpen,
+    holdVisible: settingsOpen,
   });
   const [preferredRate, setPreferredRate] = usePlaybackRatePreference();
   const [nativeFullscreen, setNativeFullscreen] = useState(false);
@@ -147,6 +147,14 @@ export default function MediaControlsContainer({
     revealControls();
   }, [fullscreen, mc, revealControls]);
 
+  const handleToggleCaptions = useCallback(
+    (enabled: boolean) => {
+      mc?.setCaptions?.(enabled);
+      revealControls();
+    },
+    [mc, revealControls],
+  );
+
   const toggleControls = useCallback(() => {
     if (controlsVisible) hideControls();
     else revealControls();
@@ -217,8 +225,10 @@ export default function MediaControlsContainer({
         onVolumeChange={handleVolumeChange}
         onPlaybackRateChange={handleRateChange}
         onToggleFullscreen={handleToggleFullscreen}
-        rateSheetOpen={rateSheetOpen}
-        onRateSheetOpenChange={setRateSheetOpen}
+        captions={state.captions}
+        onToggleCaptions={handleToggleCaptions}
+        settingsOpen={settingsOpen}
+        onSettingsOpenChange={setSettingsOpen}
       />
     </>
   );

@@ -52,7 +52,25 @@ export interface MediaController {
    * interrupted".
    */
   isInterrupted?(): boolean;
+  /**
+   * Whether the backend can show captions at all, and whether it is
+   * doing so. `"unavailable"` means the backend has no caption control
+   * to offer, and callers should leave the toggle out entirely rather
+   * than render one that does nothing.
+   *
+   * Optional because most backends have no captions to speak of.
+   * Treat an absent implementation as `"unavailable"`.
+   */
+  getCaptions?(): CaptionsState;
+  setCaptions?(enabled: boolean): void;
 }
+
+/**
+ * `"off"` means the backend could show captions if asked. It does not
+ * promise this particular video has any — see createYouTubeController
+ * for why that cannot be known in advance.
+ */
+export type CaptionsState = "on" | "off" | "unavailable";
 
 /**
  * Minimal subset of the YouTube IFrame Player API we depend on. Kept
@@ -83,6 +101,15 @@ export interface YouTubePlayerLike {
   setPlaybackRate(rate: number): void;
   /** 0-1 fraction of the video that has been buffered. */
   getVideoLoadedFraction(): number;
+  /**
+   * Caption control. Undocumented — these are not in the IFrame API
+   * reference, but they are what every player that offers a caption
+   * toggle over an embed ends up calling. Optional so a stub or a
+   * future API change simply leaves captions unavailable rather than
+   * throwing.
+   */
+  loadModule?(name: string): void;
+  unloadModule?(name: string): void;
 }
 
 /** Extra wiring a caller can supply when constructing a controller. */
@@ -207,6 +234,19 @@ export function createYouTubeController(
   opts: YouTubeControllerOptions = {},
 ): MediaController {
   const { isInterrupted } = opts;
+
+  // Tracked here because the IFrame API has no getter for it. The
+  // nearest thing, getOption("captions", "tracklist"), returns nothing
+  // until the module has been loaded at least once — so it can report
+  // "this video has captions" only after they have already been shown,
+  // which is useless for deciding whether to offer the toggle.
+  //
+  // The consequence is deliberate and worth stating: the toggle is
+  // offered for every YouTube video, and on one with no caption track
+  // pressing it does nothing visible. Hiding it instead would mean
+  // flashing captions on every video just to find out.
+  let captionsOn = false;
+
   return {
     // Spread first so the key is simply absent when no detector was
     // injected, matching the optional-method contract (callers check
@@ -283,6 +323,24 @@ export function createYouTubeController(
     },
     getBufferedFraction() {
       return clampFraction(player.getVideoLoadedFraction());
+    },
+    getCaptions() {
+      // Undocumented API: absent on a stub, and liable to disappear if
+      // YouTube ever tidies up. Both cases mean "no toggle".
+      if (typeof player.loadModule !== "function") return "unavailable";
+      if (typeof player.unloadModule !== "function") return "unavailable";
+      return captionsOn ? "on" : "off";
+    },
+    setCaptions(enabled) {
+      try {
+        if (enabled) player.loadModule?.("captions");
+        else player.unloadModule?.("captions");
+      } catch {
+        // Unofficial; if the player refuses there is nothing to do but
+        // leave the flag alone so the UI keeps reporting the truth.
+        return;
+      }
+      captionsOn = enabled;
     },
   };
 }

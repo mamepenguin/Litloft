@@ -59,6 +59,10 @@ type FakeYTPlayer = {
   getPlaybackRate: ReturnType<typeof vi.fn>;
   setPlaybackRate: ReturnType<typeof vi.fn>;
   getVideoLoadedFraction: ReturnType<typeof vi.fn>;
+  // Undocumented caption API; optional so a test can model a player
+  // that does not expose it.
+  loadModule?: ReturnType<typeof vi.fn>;
+  unloadModule?: ReturnType<typeof vi.fn>;
 };
 
 function fakeYTPlayer(overrides: Partial<FakeYTPlayer> = {}): FakeYTPlayer {
@@ -79,6 +83,8 @@ function fakeYTPlayer(overrides: Partial<FakeYTPlayer> = {}): FakeYTPlayer {
     getPlaybackRate: vi.fn().mockReturnValue(1),
     setPlaybackRate: vi.fn(),
     getVideoLoadedFraction: vi.fn().mockReturnValue(0),
+    loadModule: vi.fn(),
+    unloadModule: vi.fn(),
     ...overrides,
   };
 }
@@ -588,5 +594,48 @@ describe("MediaController interface", () => {
       expect(typeof mc.setPlaybackRate).toBe("function");
       expect(typeof mc.getBufferedFraction).toBe("function");
     }
+  });
+});
+
+describe("createYouTubeController — captions", () => {
+  it("reports captions available and off to begin with", () => {
+    const mc = createYouTubeController(fakeYTPlayer(), makeContainer());
+    expect(mc.getCaptions?.()).toBe("off");
+  });
+
+  it("loads the caption module when switched on", () => {
+    const player = fakeYTPlayer();
+    const mc = createYouTubeController(player, makeContainer());
+    mc.setCaptions?.(true);
+    expect(player.loadModule).toHaveBeenCalledWith("captions");
+    expect(mc.getCaptions?.()).toBe("on");
+  });
+
+  it("unloads it again when switched off", () => {
+    const player = fakeYTPlayer();
+    const mc = createYouTubeController(player, makeContainer());
+    mc.setCaptions?.(true);
+    mc.setCaptions?.(false);
+    expect(player.unloadModule).toHaveBeenCalledWith("captions");
+    expect(mc.getCaptions?.()).toBe("off");
+  });
+
+  it("reports unavailable where the undocumented API is missing", () => {
+    // loadModule is not in the IFrame API reference. A player that
+    // lacks it must produce no toggle rather than a dead one.
+    const player = fakeYTPlayer({ loadModule: undefined, unloadModule: undefined });
+    const mc = createYouTubeController(player, makeContainer());
+    expect(mc.getCaptions?.()).toBe("unavailable");
+  });
+
+  it("keeps reporting the truth when the player refuses", () => {
+    const player = fakeYTPlayer({
+      loadModule: vi.fn(() => {
+        throw new Error("nope");
+      }),
+    });
+    const mc = createYouTubeController(player, makeContainer());
+    mc.setCaptions?.(true);
+    expect(mc.getCaptions?.()).toBe("off");
   });
 });

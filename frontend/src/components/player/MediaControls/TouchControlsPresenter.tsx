@@ -11,7 +11,7 @@ import {
   VolumeX,
 } from "lucide-react";
 import type { MediaControlsPresenterProps } from "./types";
-import { PlaybackRateSheet } from "./PlaybackRateSheet";
+import { SettingsSheet } from "./SettingsSheet";
 import { ControlButton } from "./parts/ControlButton";
 import { ProgressHairline } from "./parts/ProgressHairline";
 import { SeekBar } from "./parts/SeekBar";
@@ -50,8 +50,10 @@ export function TouchControlsPresenter({
   onToggleMute,
   onPlaybackRateChange,
   onToggleFullscreen,
-  rateSheetOpen = false,
-  onRateSheetOpenChange,
+  captions,
+  onToggleCaptions,
+  settingsOpen = false,
+  onSettingsOpenChange,
 }: MediaControlsPresenterProps) {
   const t = useTranslations("player");
 
@@ -127,7 +129,7 @@ export function TouchControlsPresenter({
           </ControlButton>
           <ControlButton
             label={t("settings")}
-            onClick={() => onRateSheetOpenChange?.(true)}
+            onClick={() => onSettingsOpenChange?.(true)}
             disabled={interrupted}
           >
             <Settings size={20} />
@@ -200,11 +202,13 @@ export function TouchControlsPresenter({
         </div>
       </div>
 
-      {rateSheetOpen && (
-        <PlaybackRateSheet
+      {settingsOpen && (
+        <SettingsSheet
           playbackRate={playbackRate}
-          onSelect={onPlaybackRateChange}
-          onClose={() => onRateSheetOpenChange?.(false)}
+          onSelectRate={onPlaybackRateChange}
+          captions={captions}
+          onToggleCaptions={onToggleCaptions}
+          onClose={() => onSettingsOpenChange?.(false)}
         />
       )}
 

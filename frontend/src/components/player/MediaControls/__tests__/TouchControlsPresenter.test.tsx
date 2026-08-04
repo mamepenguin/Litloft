@@ -24,7 +24,9 @@ function renderControls(overrides: Partial<MediaControlsPresenterProps> = {}) {
     onVolumeChange: vi.fn(),
     onPlaybackRateChange: vi.fn(),
     onToggleFullscreen: vi.fn(),
-    onRateSheetOpenChange: vi.fn(),
+    onSettingsOpenChange: vi.fn(),
+    captions: "off",
+    onToggleCaptions: vi.fn(),
     ...overrides,
   };
   const utils = render(<TouchControlsPresenter {...props} />);
@@ -98,7 +100,7 @@ describe("TouchControlsPresenter", () => {
     it("opens from the settings button", () => {
       const { props } = renderControls();
       fireEvent.click(screen.getByRole("button", { name: "Settings" }));
-      expect(props.onRateSheetOpenChange).toHaveBeenCalledWith(true);
+      expect(props.onSettingsOpenChange).toHaveBeenCalledWith(true);
     });
 
     it("stays out of the way until asked for", () => {
@@ -107,14 +109,14 @@ describe("TouchControlsPresenter", () => {
     });
 
     it("shows the rates once open", () => {
-      renderControls({ rateSheetOpen: true });
+      renderControls({ settingsOpen: true });
       expect(
         screen.getByRole("radiogroup", { name: "Playback speed" }),
       ).toBeInTheDocument();
     });
 
     it("reports a chosen rate through the same callback as before", () => {
-      const { props } = renderControls({ rateSheetOpen: true });
+      const { props } = renderControls({ settingsOpen: true });
       fireEvent.click(screen.getByRole("radio", { name: "2x" }));
       expect(props.onPlaybackRateChange).toHaveBeenCalledWith(2);
     });

@@ -24,6 +24,8 @@ function renderControls(overrides: Partial<MediaControlsPresenterProps> = {}) {
     onVolumeChange: vi.fn(),
     onPlaybackRateChange: vi.fn(),
     onToggleFullscreen: vi.fn(),
+    captions: "off",
+    onToggleCaptions: vi.fn(),
     ...overrides,
   };
   const utils = render(<PointerControlsPresenter {...props} />);
