@@ -56,6 +56,11 @@ export interface MediaControlsState extends MediaControlsSnapshot {
   scrubbing: boolean;
   controlsVisible: boolean;
   revealControls: () => void;
+  /**
+   * Put the bar away now. Used by the touch layer, where a tap toggles
+   * the controls and a skip gesture takes the frame over.
+   */
+  hideControls: () => void;
   beginScrub: (seconds: number) => void;
   updateScrub: (seconds: number) => void;
   endScrub: () => void;
@@ -160,6 +165,13 @@ export function useMediaControlsState({
     setRevealNonce((n) => n + 1);
   }, []);
 
+  // Stays hidden until something re-runs the effect above (playback
+  // starting or stopping, a scrub, another reveal). An explicit "put it
+  // away" outranks the "paused means visible" default until then.
+  const hideControls = useCallback(() => {
+    setControlsVisible(false);
+  }, []);
+
   const beginScrub = useCallback((seconds: number) => {
     scrubTimeRef.current = seconds;
     setScrubTime(seconds);
@@ -185,6 +197,7 @@ export function useMediaControlsState({
     scrubbing,
     controlsVisible,
     revealControls,
+    hideControls,
     beginScrub,
     updateScrub,
     endScrub,

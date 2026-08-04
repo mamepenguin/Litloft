@@ -150,3 +150,43 @@ describe("useFullscreen — swipe to dismiss", () => {
     expect(view.result.current.isFullscreen).toBe(false);
   });
 });
+
+describe("useFullscreen — suppressed swipes", () => {
+  async function enterPseudoWith(suppressSwipe: boolean) {
+    const view = renderHook(
+      (props: { suppressSwipe: boolean }) =>
+        useFullscreen({
+          frameRef: { current: frame },
+          autoRotateEnabled: false,
+          suppressSwipe: props.suppressSwipe,
+        }),
+      { initialProps: { suppressSwipe } },
+    );
+    await act(async () => view.result.current.toggle());
+    expect(view.result.current.isPseudo).toBe(true);
+    return view;
+  }
+
+  it("holds the frame while a gesture owns the video", async () => {
+    // A long press for the speed boost keeps the finger planted; the
+    // drift that comes with it must not be read as "put this away".
+    const { result } = await enterPseudoWith(true);
+    swipe({ x: 100, y: 100 }, { x: 105, y: 260 }, videoArea);
+    expect(result.current.isPseudo).toBe(true);
+  });
+
+  it("dismisses again once the gesture lets go", async () => {
+    const view = await enterPseudoWith(true);
+    swipe({ x: 100, y: 100 }, { x: 105, y: 260 }, videoArea);
+    expect(view.result.current.isPseudo).toBe(true);
+    view.rerender({ suppressSwipe: false });
+    swipe({ x: 100, y: 100 }, { x: 105, y: 260 }, videoArea);
+    expect(view.result.current.isPseudo).toBe(false);
+  });
+
+  it("dismisses normally when nothing is suppressing", async () => {
+    const { result } = await enterPseudoWith(false);
+    swipe({ x: 100, y: 100 }, { x: 105, y: 260 }, videoArea);
+    expect(result.current.isPseudo).toBe(false);
+  });
+});

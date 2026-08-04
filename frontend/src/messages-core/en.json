@@ -326,7 +326,9 @@
     "seek": "Seek",
     "skipBack10": "Back 10 seconds",
     "skipForward10": "Forward 10 seconds",
-    "adBreak": "Ad"
+    "adBreak": "Ad",
+    "speedBoost": "Playing at {rate}x",
+    "skipSeconds": "{seconds}s"
   },
   "archive": {
     "loadFailed": "Failed to load archive: {error}",

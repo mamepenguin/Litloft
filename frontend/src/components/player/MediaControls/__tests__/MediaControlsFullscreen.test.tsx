@@ -80,6 +80,17 @@ describe("MediaControls — fullscreen delegation", () => {
   });
 });
 
+/**
+ * The bar is one of two siblings the container renders (the gesture
+ * overlay is the other), so it is addressed by its marker attribute
+ * rather than by position.
+ */
+function barOf(container: HTMLElement): HTMLElement {
+  const bar = container.querySelector<HTMLElement>("[data-player-controls]");
+  if (!bar) throw new Error("control bar not found");
+  return bar;
+}
+
 describe("MediaControls — pseudo-fullscreen safe areas", () => {
   it("keeps clear of the home indicator and the notch while pseudo", () => {
     const { container } = render(
@@ -90,7 +101,7 @@ describe("MediaControls — pseudo-fullscreen safe areas", () => {
         isPseudoFullscreen
       />,
     );
-    const root = container.firstElementChild as HTMLElement;
+    const root = barOf(container);
     // A bar sitting flush at bottom-0 triggers iOS Reachability and the
     // home-bar swipe instead of taking the tap.
     expect(root.style.paddingBottom).toContain("safe-area-inset-bottom");
@@ -103,7 +114,7 @@ describe("MediaControls — pseudo-fullscreen safe areas", () => {
     const { container } = render(
       <MediaControls mc={makeMc()} frameRef={{ current: frame }} />,
     );
-    const root = container.firstElementChild as HTMLElement;
+    const root = barOf(container);
     expect(root.style.paddingBottom).toBe("");
     expect(root.style.paddingLeft).toBe("");
   });

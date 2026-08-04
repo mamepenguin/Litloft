@@ -3,8 +3,11 @@
 import { useCallback, useEffect, useState, type RefObject } from "react";
 import type { MediaController } from "@/lib/mediaController";
 import { MediaControlsPresenter } from "./MediaControlsPresenter";
+import { GestureOverlay } from "./GestureOverlay";
 import { useMediaControlsState } from "./hooks/useMediaControlsState";
 import { usePlaybackRatePreference } from "./hooks/usePlaybackRatePreference";
+import { BOOST_RATE, usePlayerGestures } from "./hooks/usePlayerGestures";
+import { usePointerMode } from "../hooks/usePointerMode";
 
 export interface MediaControlsContainerProps {
   mc: MediaController | null;
@@ -29,6 +32,17 @@ export interface MediaControlsContainerProps {
   fullscreen?: { isFullscreen: boolean; toggle: () => void };
   /** True while the frame is faking fullscreen with position: fixed. */
   isPseudoFullscreen?: boolean;
+  /**
+   * False while an ad or the end screen owns the frame. The gesture
+   * overlay then lets every pointer through — covering YouTube's own
+   * UI breaks the player and counts as interfering with ads.
+   */
+  interactive?: boolean;
+  /**
+   * Reports the long-press speed boost so the frame's owner can hold
+   * off its swipe-to-dismiss while a finger is planted on the video.
+   */
+  onBoostingChange?: (boosting: boolean) => void;
 }
 
 /**
@@ -43,12 +57,15 @@ export default function MediaControlsContainer({
   autoHideMs,
   fullscreen,
   isPseudoFullscreen = false,
+  interactive = true,
+  onBoostingChange,
 }: MediaControlsContainerProps) {
   const state = useMediaControlsState({ mc, durationHint, autoHideMs });
   const [preferredRate, setPreferredRate] = usePlaybackRatePreference();
   const [nativeFullscreen, setNativeFullscreen] = useState(false);
+  const pointerMode = usePointerMode();
 
-  const { revealControls } = state;
+  const { revealControls, hideControls, controlsVisible } = state;
 
   // Applying the preference in one effect keeps a single write path:
   // the change handler only records the preference, and this reacts.
@@ -59,16 +76,18 @@ export default function MediaControlsContainer({
   useEffect(() => {
     const frame = frameRef.current;
     if (!frame) return;
-    // pointerdown as well as pointermove: touch devices produce no
-    // hover stream, so a tap is the only signal that the viewer wants
-    // the controls back.
+    // Touch drives the bar entirely from the gesture layer, where a tap
+    // toggles it. Revealing on every pointerdown here as well would
+    // make "tap to put the controls away" impossible, and a finger
+    // sliding to scroll would keep summoning them.
+    if (pointerMode === "coarse") return;
     frame.addEventListener("pointermove", revealControls);
     frame.addEventListener("pointerdown", revealControls);
     return () => {
       frame.removeEventListener("pointermove", revealControls);
       frame.removeEventListener("pointerdown", revealControls);
     };
-  }, [frameRef, revealControls]);
+  }, [frameRef, revealControls, pointerMode]);
 
   // Only consulted in the fallback path; when the owner supplies a
   // fullscreen controller it already tracks this itself.
@@ -115,30 +134,66 @@ export default function MediaControlsContainer({
     [setPreferredRate, revealControls],
   );
 
+  const handleToggleFullscreen = useCallback(() => {
+    if (fullscreen) fullscreen.toggle();
+    else mc?.toggleFullscreen();
+    revealControls();
+  }, [fullscreen, mc, revealControls]);
+
+  const toggleControls = useCallback(() => {
+    if (controlsVisible) hideControls();
+    else revealControls();
+  }, [controlsVisible, hideControls, revealControls]);
+
+  const gestures = usePlayerGestures({
+    mc,
+    mode: pointerMode,
+    interactive,
+    interrupted: state.interrupted,
+    duration: state.duration,
+    preferredRate,
+    onToggleControls: toggleControls,
+    onHideControls: hideControls,
+    onTogglePlay: withReveal(() => mc?.togglePlay()),
+    onToggleFullscreen: handleToggleFullscreen,
+  });
+
+  const { boosting } = gestures;
+  useEffect(() => {
+    onBoostingChange?.(boosting);
+  }, [boosting, onBoostingChange]);
+
   return (
-    <MediaControlsPresenter
-      displayTime={state.displayTime}
-      duration={state.duration}
-      bufferedFraction={state.bufferedFraction}
-      paused={state.paused}
-      muted={state.muted}
-      volume={state.volume}
-      playbackRate={state.playbackRate}
-      interrupted={state.interrupted}
-      visible={state.controlsVisible}
-      isFullscreen={fullscreen ? fullscreen.isFullscreen : nativeFullscreen}
-      isPseudoFullscreen={isPseudoFullscreen}
-      onTogglePlay={withReveal(() => mc?.togglePlay())}
-      onSkip={handleSkip}
-      onScrubStart={state.beginScrub}
-      onScrubChange={state.updateScrub}
-      onScrubEnd={state.endScrub}
-      onToggleMute={withReveal(() => mc?.toggleMute())}
-      onVolumeChange={handleVolumeChange}
-      onPlaybackRateChange={handleRateChange}
-      onToggleFullscreen={withReveal(() =>
-        fullscreen ? fullscreen.toggle() : mc?.toggleFullscreen(),
-      )}
-    />
+    <>
+      <GestureOverlay
+        interactive={interactive}
+        skip={gestures.skip}
+        boosting={boosting}
+        boostRate={BOOST_RATE}
+        handlers={gestures.handlers}
+      />
+      <MediaControlsPresenter
+        displayTime={state.displayTime}
+        duration={state.duration}
+        bufferedFraction={state.bufferedFraction}
+        paused={state.paused}
+        muted={state.muted}
+        volume={state.volume}
+        playbackRate={state.playbackRate}
+        interrupted={state.interrupted}
+        visible={state.controlsVisible}
+        isFullscreen={fullscreen ? fullscreen.isFullscreen : nativeFullscreen}
+        isPseudoFullscreen={isPseudoFullscreen}
+        onTogglePlay={withReveal(() => mc?.togglePlay())}
+        onSkip={handleSkip}
+        onScrubStart={state.beginScrub}
+        onScrubChange={state.updateScrub}
+        onScrubEnd={state.endScrub}
+        onToggleMute={withReveal(() => mc?.toggleMute())}
+        onVolumeChange={handleVolumeChange}
+        onPlaybackRateChange={handleRateChange}
+        onToggleFullscreen={handleToggleFullscreen}
+      />
+    </>
   );
 }

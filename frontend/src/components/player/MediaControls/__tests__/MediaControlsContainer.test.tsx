@@ -46,6 +46,17 @@ function renderControls(mc: MediaController | null, durationHint?: number | null
   );
 }
 
+/**
+ * The bar is one of two siblings the container renders (the gesture
+ * overlay is the other), so it is addressed by its marker attribute
+ * rather than by position.
+ */
+function barOf(container: HTMLElement): HTMLElement {
+  const bar = container.querySelector<HTMLElement>("[data-player-controls]");
+  if (!bar) throw new Error("control bar not found");
+  return bar;
+}
+
 describe("MediaControlsContainer", () => {
   it("renders the polled controller state", () => {
     renderControls(makeMc());
@@ -136,11 +147,11 @@ describe("MediaControlsContainer", () => {
         act(() => {
           vi.advanceTimersByTime(3000);
         });
-        expect(container.firstElementChild?.className).toContain("opacity-0");
+        expect(barOf(container).className).toContain("opacity-0");
         act(() => {
           fireEvent.pointerMove(frame);
         });
-        expect(container.firstElementChild?.className).toContain("opacity-100");
+        expect(barOf(container).className).toContain("opacity-100");
       } finally {
         vi.useRealTimers();
       }

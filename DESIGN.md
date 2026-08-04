@@ -501,6 +501,8 @@ Chrome that sits **on top of a video frame** is the one place that deliberately 
 - Track fills: `bg-white/25` (empty), `bg-white/40` (buffered), `bg-accent` (played). `--accent` reads clearly against black in both themes.
 - Focus rings still use the themed `ring-focus-ring` token — focus visibility must not depend on the surface.
 - Radius follows §5 as normal (`rounded-2xl` for buttons and inputs).
+- **Transient gesture feedback** (what a touch gesture just did, with no button of its own) is the one place a half-disc appears: `w-1/2` filled `bg-white/15`, rounded on its inner edge only (`rounded-r-full` on the left half, `rounded-l-full` on the right). It carries an icon plus a label, animates in with `animate-fade-in-scale`, and clears itself. It is `aria-hidden` — the same operation must also be reachable as a real button or shortcut.
+- **Transient state pills** (a mode that is on right now, e.g. a held speed boost) use `bg-black/70 rounded-2xl` and sit clear of the control bar, at `top-4` centred.
 
 Do not "fix" these to semantic surface tokens. Everything **outside** the video frame (metadata panels, action bars, mini-player placeholder) uses the normal themed tokens.
 

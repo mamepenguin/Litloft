@@ -54,6 +54,13 @@ export interface UseFullscreenOptions {
    * player is startling rather than helpful.
    */
   autoRotateEnabled: boolean;
+  /**
+   * Hold the swipe-to-dismiss while another gesture owns the video.
+   * The long-press speed boost keeps a finger planted on the frame, and
+   * the drift that comes with it would otherwise read as "put this
+   * away" — dropping the viewer out of fullscreen mid-gesture.
+   */
+  suppressSwipe?: boolean;
 }
 
 export interface FullscreenState {
@@ -87,10 +94,18 @@ function requestNativeFullscreen(frame: HTMLElement): Promise<void> {
 export function useFullscreen({
   frameRef,
   autoRotateEnabled,
+  suppressSwipe = false,
 }: UseFullscreenOptions): FullscreenState {
   const [nativeActive, setNativeActive] = useState(false);
   const [pseudoActive, setPseudoActive] = useState(false);
   const entryReasonRef = useRef<EntryReason | null>(null);
+
+  // Read through a ref rather than a dependency: rebuilding the touch
+  // listeners mid-gesture would drop the in-flight start point.
+  const suppressSwipeRef = useRef(suppressSwipe);
+  useEffect(() => {
+    suppressSwipeRef.current = suppressSwipe;
+  }, [suppressSwipe]);
 
   // Declared first so its cleanup runs before the others on unmount:
   // React tears effects down in the order they were defined, and the
@@ -207,6 +222,10 @@ export function useFullscreen({
     let start: { x: number; y: number } | null = null;
 
     const onTouchStart = (event: Event) => {
+      if (suppressSwipeRef.current) {
+        start = null;
+        return;
+      }
       const { touches } = event as TouchLikeEvent;
       // Pinch and other multi-finger gestures are not a dismiss.
       if (touches.length !== 1) {
@@ -222,6 +241,13 @@ export function useFullscreen({
     };
 
     const onTouchEnd = (event: Event) => {
+      // The decisive check: a long press only becomes a boost partway
+      // through the touch, so the flag is usually still false at
+      // touchstart and true by the time the finger lifts.
+      if (suppressSwipeRef.current) {
+        start = null;
+        return;
+      }
       if (!start) return;
       const point = (event as TouchLikeEvent).changedTouches[0];
       const from = start;

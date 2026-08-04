@@ -326,7 +326,9 @@
     "seek": "シーク",
     "skipBack10": "10秒戻す",
     "skipForward10": "10秒進む",
-    "adBreak": "広告"
+    "adBreak": "広告",
+    "speedBoost": "{rate}x で再生中",
+    "skipSeconds": "{seconds}秒"
   },
   "archive": {
     "loadFailed": "アーカイブの読み込みに失敗しました: {error}",
