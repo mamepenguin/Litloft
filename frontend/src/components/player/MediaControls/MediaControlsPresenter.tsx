@@ -57,6 +57,23 @@ function nearestOfferedRate(rate: number): number {
   );
 }
 
+/**
+ * Keys that actually move a range input. Treating *every* keydown as
+ * the start of a scrub means Tab-ing through the bar commits a seek to
+ * the position already playing — harmless in principle, but the
+ * YouTube player re-buffers on any seekTo, so it shows up as a stutter.
+ */
+const SCRUB_KEYS = new Set([
+  "ArrowLeft",
+  "ArrowRight",
+  "ArrowUp",
+  "ArrowDown",
+  "Home",
+  "End",
+  "PageUp",
+  "PageDown",
+]);
+
 const BUTTON_CLASS =
   "inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl text-white transition-colors hover:bg-white/15 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus-ring disabled:opacity-40 motion-reduce:transition-none";
 
@@ -141,10 +158,17 @@ export function MediaControlsPresenter({
           value={displayTime}
           disabled={!seekable}
           onPointerDown={() => onScrubStart(displayTime)}
-          onKeyDown={() => onScrubStart(displayTime)}
+          onKeyDown={(e) => {
+            if (SCRUB_KEYS.has(e.key)) onScrubStart(displayTime);
+          }}
           onChange={(e) => onScrubChange(Number(e.target.value))}
           onPointerUp={onScrubEnd}
-          onKeyUp={onScrubEnd}
+          onKeyUp={(e) => {
+            if (SCRUB_KEYS.has(e.key)) onScrubEnd();
+          }}
+          // Safety net: a pointer released outside the input, or focus
+          // lost mid-drag, would otherwise leave the scrub uncommitted
+          // and the bar frozen on the drag position.
           onBlur={onScrubEnd}
         />
       </div>
@@ -228,7 +252,11 @@ export function MediaControlsPresenter({
             onChange={(e) => onPlaybackRateChange(Number(e.target.value))}
           >
             {PLAYBACK_RATES.map((rate) => (
-              <option key={rate} value={rate} className="text-text-primary">
+              // The open dropdown is drawn by the OS and inherits the
+              // select's background. Left transparent, the popup
+              // renders white-on-white; the options need a real
+              // surface of their own.
+              <option key={rate} value={rate} className="bg-bg-card text-text-primary">
                 {rate}x
               </option>
             ))}

@@ -86,6 +86,28 @@ describe("MediaControlsPresenter", () => {
       expect(props.onScrubEnd).toHaveBeenCalled();
     });
 
+    it("treats arrow keys as a scrub", () => {
+      const { props } = renderControls();
+      const seek = screen.getByRole("slider", { name: "Seek" });
+      fireEvent.keyDown(seek, { key: "ArrowRight" });
+      fireEvent.keyUp(seek, { key: "ArrowRight" });
+      expect(props.onScrubStart).toHaveBeenCalledTimes(1);
+      expect(props.onScrubEnd).toHaveBeenCalledTimes(1);
+    });
+
+    it("ignores keys that do not move the slider", () => {
+      // Tab-ing through would otherwise commit a seek to the position
+      // already playing, which makes the YouTube player re-buffer.
+      const { props } = renderControls();
+      const seek = screen.getByRole("slider", { name: "Seek" });
+      for (const key of ["Tab", "Enter", "a"]) {
+        fireEvent.keyDown(seek, { key });
+        fireEvent.keyUp(seek, { key });
+      }
+      expect(props.onScrubStart).not.toHaveBeenCalled();
+      expect(props.onScrubEnd).not.toHaveBeenCalled();
+    });
+
     it("renders the buffered range as a proportional width", () => {
       const { container } = renderControls({ bufferedFraction: 0.42 });
       const buffered = container.querySelector("[data-testid='buffered-range']");
