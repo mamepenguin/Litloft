@@ -71,12 +71,50 @@ function matches(query: string): boolean {
   return window.matchMedia(query).matches;
 }
 
+/**
+ * Safari carried element fullscreen behind a webkit prefix long after
+ * it worked, and iPadOS still ships builds with only the prefixed
+ * name. Missing it there means falling back to the CSS imitation on a
+ * device that can do the real thing.
+ */
+interface WebkitFullscreenElement extends HTMLElement {
+  webkitRequestFullscreen?: () => Promise<void> | void;
+}
+
+interface WebkitFullscreenDocument extends Document {
+  webkitFullscreenElement?: Element | null;
+  webkitExitFullscreen?: () => Promise<void> | void;
+}
+
+function nativeFullscreenElement(): Element | null {
+  const doc = document as WebkitFullscreenDocument;
+  return doc.fullscreenElement ?? doc.webkitFullscreenElement ?? null;
+}
+
+function exitNativeFullscreen(): void {
+  const doc = document as WebkitFullscreenDocument;
+  if (typeof doc.exitFullscreen === "function") {
+    Promise.resolve(doc.exitFullscreen()).catch(() => {});
+    return;
+  }
+  if (typeof doc.webkitExitFullscreen === "function") {
+    Promise.resolve(doc.webkitExitFullscreen()).catch(() => {});
+  }
+}
+
 function requestNativeFullscreen(frame: HTMLElement): Promise<void> {
-  if (typeof frame.requestFullscreen !== "function") {
+  const prefixed = frame as WebkitFullscreenElement;
+  const request =
+    typeof frame.requestFullscreen === "function"
+      ? frame.requestFullscreen.bind(frame)
+      : typeof prefixed.webkitRequestFullscreen === "function"
+        ? prefixed.webkitRequestFullscreen.bind(frame)
+        : null;
+  if (!request) {
     return Promise.reject(new Error("element fullscreen unsupported"));
   }
   try {
-    return Promise.resolve(frame.requestFullscreen());
+    return Promise.resolve(request());
   } catch (error) {
     // Some engines throw synchronously instead of rejecting.
     return Promise.reject(error);
@@ -105,17 +143,21 @@ export function useFullscreen({
   useEffect(() => {
     const sync = () =>
       setNativeActive(
-        frameRef.current != null && document.fullscreenElement === frameRef.current,
+        frameRef.current != null && nativeFullscreenElement() === frameRef.current,
       );
     sync();
     document.addEventListener("fullscreenchange", sync);
-    return () => document.removeEventListener("fullscreenchange", sync);
+    document.addEventListener("webkitfullscreenchange", sync);
+    return () => {
+      document.removeEventListener("fullscreenchange", sync);
+      document.removeEventListener("webkitfullscreenchange", sync);
+    };
   }, [frameRef]);
 
   const exit = useCallback(() => {
     entryReasonRef.current = null;
-    if (document.fullscreenElement) {
-      document.exitFullscreen().catch(() => {});
+    if (nativeFullscreenElement()) {
+      exitNativeFullscreen();
     }
     setPseudoActive(false);
   }, []);

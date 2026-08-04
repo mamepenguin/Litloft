@@ -108,6 +108,16 @@ describe("MediaControlsPresenter", () => {
       expect(props.onScrubEnd).not.toHaveBeenCalled();
     });
 
+    it("stretches the input over its row so a finger can land on it", () => {
+      // An appearance-none range collapses to its 4px track, which is
+      // clickable with a mouse and untouchable with a thumb.
+      renderControls();
+      const seek = screen.getByRole("slider", { name: "Seek" });
+      expect(seek.className).toContain("h-full");
+      // Without this the drag gets claimed as a pan gesture.
+      expect(seek.className).toContain("touch-none");
+    });
+
     it("renders the buffered range as a proportional width", () => {
       const { container } = renderControls({ bufferedFraction: 0.42 });
       const buffered = container.querySelector("[data-testid='buffered-range']");

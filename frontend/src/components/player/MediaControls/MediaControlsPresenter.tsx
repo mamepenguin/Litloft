@@ -85,8 +85,14 @@ const BUTTON_CLASS =
 
 // A transparent track: the visible bar is painted by the sibling divs,
 // so the input only contributes the thumb and the interaction surface.
+//
+// `h-full` matters more than it looks: an appearance-none range input
+// collapses to the height of its track, which is 4px here, leaving a
+// target no finger can land on. The element is stretched to fill its
+// row while the visible track stays thin. `touch-none` stops the drag
+// being claimed as a pan gesture.
 const RANGE_CLASS =
-  "w-full cursor-pointer appearance-none bg-transparent focus-visible:outline-none disabled:cursor-not-allowed " +
+  "h-full w-full cursor-pointer touch-none appearance-none bg-transparent focus-visible:outline-none disabled:cursor-not-allowed " +
   "[&::-webkit-slider-runnable-track]:h-1 [&::-webkit-slider-runnable-track]:bg-transparent " +
   "[&::-moz-range-track]:h-1 [&::-moz-range-track]:bg-transparent " +
   "[&::-webkit-slider-thumb]:h-3 [&::-webkit-slider-thumb]:w-3 [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:bg-white " +
@@ -159,7 +165,9 @@ export function MediaControlsPresenter({
         visible ? "opacity-100" : "opacity-0 pointer-events-none",
       ].join(" ")}
     >
-      <div className="relative flex h-6 items-center">
+      {/* Taller on touch: 24px is a comfortable mouse target and an
+          impossible finger one. */}
+      <div className="relative flex h-6 items-center [@media(pointer:coarse)]:h-10">
         <div className="pointer-events-none absolute inset-x-0 top-1/2 h-1 -translate-y-1/2 overflow-hidden rounded-full bg-white/25">
           <div
             data-testid="buffered-range"
@@ -254,7 +262,7 @@ export function MediaControlsPresenter({
             {/* Hidden on touch devices: iOS silently ignores writes to
                 volume, so the slider would look broken rather than
                 merely absent. The mute toggle still works there. */}
-            <div className="hidden w-20 items-center [@media(pointer:fine)]:flex">
+            <div className="hidden h-11 w-20 items-center [@media(pointer:fine)]:flex">
               <input
                 type="range"
                 className={RANGE_CLASS}
