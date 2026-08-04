@@ -31,6 +31,8 @@ export interface ControlButtonProps {
   onClick: () => void;
   disabled?: boolean;
   size?: ControlButtonSize;
+  /** For callers that position the button themselves. */
+  className?: string;
   children: ReactNode;
 }
 
@@ -39,12 +41,19 @@ export function ControlButton({
   onClick,
   disabled = false,
   size = "bar",
+  className = "",
   children,
 }: ControlButtonProps) {
   return (
     <button
       type="button"
-      className={`${BASE_CLASS} ${SIZE_CLASS[size]}`}
+      // Marks the button for useFullscreen, which ignores swipes that
+      // start on the controls. Without it, a finger sliding off a
+      // button reads as swipe-to-dismiss and closes the frame.
+      // Redundant inside a marked bar, harmless, and the only thing
+      // that works for a button standing alone over the video.
+      data-player-controls=""
+      className={`${BASE_CLASS} ${SIZE_CLASS[size]} ${className}`}
       aria-label={label}
       disabled={disabled}
       onClick={onClick}

@@ -139,22 +139,70 @@ describe("TouchControlsPresenter", () => {
   });
 
   describe("visibility", () => {
+    /**
+     * The elements that set pointer-events for themselves. Everything
+     * else inside the bottom bar inherits it, pointer-events being a
+     * inherited property — only the standalone transport buttons and
+     * the bar itself have to say anything.
+     */
+    function gatedElements(container: HTMLElement): HTMLElement[] {
+      const bottom = container.querySelector<HTMLElement>(
+        "[data-player-controls].bottom-0",
+      );
+      const transport = Array.from(
+        container.querySelectorAll<HTMLElement>('[data-testid="transport"] button'),
+      );
+      return bottom ? [bottom, ...transport] : transport;
+    }
+
     it("stops faded controls from taking taps", () => {
       // An invisible play button under the viewer's finger would toggle
       // playback on the tap that was only meant to bring it back.
       const { container } = renderControls({ visible: false });
-      for (const block of controlBlocks(container)) {
-        expect(block.className).toContain("pointer-events-none");
+      const gated = gatedElements(container);
+      expect(gated).toHaveLength(4);
+      for (const element of gated) {
+        expect(element.className).toContain("pointer-events-none");
       }
     });
 
     it("takes taps while visible", () => {
       const { container } = renderControls({ visible: true });
-      const blocks = controlBlocks(container);
-      expect(blocks.length).toBeGreaterThan(0);
-      for (const block of blocks) {
-        expect(block.className).toContain("pointer-events-auto");
+      const gated = gatedElements(container);
+      expect(gated).toHaveLength(4);
+      for (const element of gated) {
+        expect(element.className).toContain("pointer-events-auto");
       }
+    });
+  });
+
+  describe("gesture coexistence", () => {
+    it("lets the gaps between the transport buttons fall through", () => {
+      // The three buttons span a box about 220px wide. If that whole box
+      // took input, a double tap landing in a gap between the buttons
+      // would hit nothing at all — a dead zone in the middle of the
+      // frame, which is exactly where people tap.
+      const { container } = renderControls();
+      const transport = container.querySelector<HTMLElement>(
+        '[data-testid="transport"]',
+      );
+      expect(transport?.className).toContain("pointer-events-none");
+    });
+
+    it("still takes taps on the buttons themselves", () => {
+      renderControls();
+      expect(screen.getByRole("button", { name: "Pause" }).className).toContain(
+        "pointer-events-auto",
+      );
+    });
+
+    it("stops a slip on a button from dismissing fullscreen", () => {
+      // useFullscreen ignores swipes starting on [data-player-controls];
+      // a finger sliding off a button must not close the frame.
+      renderControls();
+      expect(screen.getByRole("button", { name: "Pause" })).toHaveAttribute(
+        "data-player-controls",
+      );
     });
   });
 

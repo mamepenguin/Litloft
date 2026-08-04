@@ -94,12 +94,17 @@ export function TouchControlsPresenter({
           visible ? "opacity-100" : "opacity-0",
         ].join(" ")}
       >
+        {/* The row itself takes no input. Its box spans roughly 220px,
+            and a double tap landing between two buttons would otherwise
+            hit a dead zone in the middle of the frame — exactly where
+            people tap. Only the buttons opt back in. */}
         <div
-          data-player-controls=""
-          className={`absolute left-1/2 top-1/2 flex -translate-x-1/2 -translate-y-1/2 items-center gap-6 ${takesInput}`}
+          data-testid="transport"
+          className="pointer-events-none absolute left-1/2 top-1/2 flex -translate-x-1/2 -translate-y-1/2 items-center gap-6"
         >
           <ControlButton
             size="hero"
+            className={takesInput}
             label={t("skipBack10")}
             onClick={() => onSkip(-SKIP_SECONDS)}
             // The overlay's interactive gate does not reach this far:
@@ -110,6 +115,7 @@ export function TouchControlsPresenter({
           </ControlButton>
           <ControlButton
             size="heroPrimary"
+            className={takesInput}
             label={paused ? t("play") : t("pause")}
             onClick={onTogglePlay}
           >
@@ -117,6 +123,7 @@ export function TouchControlsPresenter({
           </ControlButton>
           <ControlButton
             size="hero"
+            className={takesInput}
             label={t("skipForward10")}
             onClick={() => onSkip(SKIP_SECONDS)}
             disabled={interrupted}
