@@ -45,8 +45,15 @@ export default function MediaControlsContainer({
   useEffect(() => {
     const frame = frameRef.current;
     if (!frame) return;
+    // pointerdown as well as pointermove: touch devices produce no
+    // hover stream, so a tap is the only signal that the viewer wants
+    // the controls back.
     frame.addEventListener("pointermove", revealControls);
-    return () => frame.removeEventListener("pointermove", revealControls);
+    frame.addEventListener("pointerdown", revealControls);
+    return () => {
+      frame.removeEventListener("pointermove", revealControls);
+      frame.removeEventListener("pointerdown", revealControls);
+    };
   }, [frameRef, revealControls]);
 
   useEffect(() => {

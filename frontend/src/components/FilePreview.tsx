@@ -226,6 +226,7 @@ export function FilePreview({
             fileId={file.id}
             onMediaController={relayMc}
             initialTime={initialTime}
+            durationHint={file.duration}
           />
         </MiniPlayerContainer>
         <AddonSlot
