@@ -314,7 +314,19 @@
     "autoplayOff": "自動再生OFF",
     "miniPlayerClose": "ミニプレーヤーを閉じる（再生停止）",
     "miniPlayerRestore": "プレーヤーを元の位置に戻す",
-    "miniPlayerAnnounced": "プレーヤーを画面右下に移動しました"
+    "miniPlayerAnnounced": "プレーヤーを画面右下に移動しました",
+    "play": "再生",
+    "pause": "一時停止",
+    "mute": "ミュート",
+    "unmute": "ミュート解除",
+    "volume": "音量",
+    "speed": "再生速度",
+    "fullscreen": "全画面表示",
+    "exitFullscreen": "全画面表示を終了",
+    "seek": "シーク",
+    "skipBack10": "10秒戻す",
+    "skipForward10": "10秒進む",
+    "adBreak": "広告"
   },
   "archive": {
     "loadFailed": "アーカイブの読み込みに失敗しました: {error}",

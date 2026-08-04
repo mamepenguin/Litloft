@@ -491,6 +491,19 @@ Use it via the Tailwind utility `shadow-card`. Do not handroll arbitrary shadow 
 - Radius: `rounded-2xl`
 - Danger item: `text-danger hover:bg-accent/10`
 
+### Over-video chrome (player controls, mini-player buttons)
+
+Chrome that sits **on top of a video frame** is the one place that deliberately ignores the light/dark theme tokens. The backdrop is the video itself — near-black in practice — so theme-following surfaces would render pale controls on a black frame in light mode and become unreadable.
+
+- Foreground: `text-white`. Secondary text: `text-white/70`. Dividers and inert marks: `text-white/50`.
+- Button surfaces: transparent at rest, `hover:bg-white/15`. Standalone circular buttons over video (mini-player `×` / `↩`) use `bg-black/70 hover:bg-black/90`.
+- Control-bar backdrop: a scrim gradient, `bg-gradient-to-t from-black/80 via-black/50 to-transparent`. This is legibility, not decoration — it is not a shadow and is not subject to §4's shadow ban.
+- Track fills: `bg-white/25` (empty), `bg-white/40` (buffered), `bg-accent` (played). `--accent` reads clearly against black in both themes.
+- Focus rings still use the themed `ring-focus-ring` token — focus visibility must not depend on the surface.
+- Radius follows §5 as normal (`rounded-2xl` for buttons and inputs).
+
+Do not "fix" these to semantic surface tokens. Everything **outside** the video frame (metadata panels, action bars, mini-player placeholder) uses the normal themed tokens.
+
 ### Tables ("quiet editorial" style)
 
 Default table aesthetic for MarkdownPreview and any other reading-surface table. The idea: **dividers and font-weight alone carry structure** — no fills, no zebra, no cell grid.

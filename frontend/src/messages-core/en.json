@@ -314,7 +314,19 @@
     "autoplayOff": "Autoplay OFF",
     "miniPlayerClose": "Close mini player (stops playback)",
     "miniPlayerRestore": "Return player to original position",
-    "miniPlayerAnnounced": "Player moved to bottom-right corner"
+    "miniPlayerAnnounced": "Player moved to bottom-right corner",
+    "play": "Play",
+    "pause": "Pause",
+    "mute": "Mute",
+    "unmute": "Unmute",
+    "volume": "Volume",
+    "speed": "Playback speed",
+    "fullscreen": "Full screen",
+    "exitFullscreen": "Exit full screen",
+    "seek": "Seek",
+    "skipBack10": "Back 10 seconds",
+    "skipForward10": "Forward 10 seconds",
+    "adBreak": "Ad"
   },
   "archive": {
     "loadFailed": "Failed to load archive: {error}",
