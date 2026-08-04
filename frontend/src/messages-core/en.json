@@ -328,7 +328,10 @@
     "skipForward10": "Forward 10 seconds",
     "adBreak": "Ad",
     "speedBoost": "Playing at {rate}x",
-    "skipSeconds": "{seconds}s"
+    "skipSeconds": "{seconds}s",
+    "settings": "Settings",
+    "closeSettings": "Close settings",
+    "normalSpeed": "Normal"
   },
   "archive": {
     "loadFailed": "Failed to load archive: {error}",

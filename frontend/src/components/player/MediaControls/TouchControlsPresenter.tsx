@@ -8,14 +8,12 @@ import {
   Play,
   RotateCcw,
   RotateCw,
+  Settings,
   Volume2,
   VolumeX,
 } from "lucide-react";
-import {
-  PLAYBACK_RATES,
-  nearestOfferedRate,
-} from "./hooks/usePlaybackRatePreference";
 import type { MediaControlsPresenterProps } from "./types";
+import { PlaybackRateSheet } from "./PlaybackRateSheet";
 import { ControlButton } from "./parts/ControlButton";
 import { ProgressHairline } from "./parts/ProgressHairline";
 import { SeekBar } from "./parts/SeekBar";
@@ -72,6 +70,8 @@ export function TouchControlsPresenter({
   onToggleMute,
   onPlaybackRateChange,
   onToggleFullscreen,
+  rateSheetOpen = false,
+  onRateSheetOpenChange,
 }: MediaControlsPresenterProps) {
   const t = useTranslations("player");
 
@@ -146,6 +146,37 @@ export function TouchControlsPresenter({
           style={
             isPseudoFullscreen
               ? {
+                  paddingTop: "calc(env(safe-area-inset-top, 0px) + 8px)",
+                  // Landscape puts the notch on a side, not the top.
+                  paddingRight: "calc(env(safe-area-inset-right, 0px) + 8px)",
+                }
+              : undefined
+          }
+          className={`absolute right-0 top-0 flex items-center gap-0.5 p-2 ${takesInput}`}
+        >
+          {/* No volume slider: iOS silently ignores writes to volume,
+              so it would look broken rather than absent. The mute
+              toggle still works there. */}
+          <ControlButton
+            label={muted ? t("unmute") : t("mute")}
+            onClick={onToggleMute}
+          >
+            {muted ? <VolumeX size={20} /> : <Volume2 size={20} />}
+          </ControlButton>
+          <ControlButton
+            label={t("settings")}
+            onClick={() => onRateSheetOpenChange?.(true)}
+            disabled={interrupted}
+          >
+            <Settings size={20} />
+          </ControlButton>
+        </div>
+
+        <div
+          data-player-controls=""
+          style={
+            isPseudoFullscreen
+              ? {
                   // Flush against the bottom edge, iOS gives the tap to
                   // Reachability or the home-bar swipe instead of the bar.
                   paddingBottom: "calc(env(safe-area-inset-bottom, 0px) + 8px)",
@@ -156,12 +187,15 @@ export function TouchControlsPresenter({
               : undefined
           }
           className={[
-            "absolute inset-x-0 bottom-0 flex flex-col gap-0.5 px-2 pb-1 pt-8",
+            "absolute inset-x-0 bottom-0 flex flex-col gap-1 pt-8",
             "bg-gradient-to-t from-black/80 via-black/50 to-transparent",
             takesInput,
           ].join(" ")}
         >
-          <div className="flex items-center gap-1">
+          {/* The padding lives on the status row, not the block, so the
+              scrub bar below can run the full width of the frame the
+              way mobile players draw it. */}
+          <div className="flex items-center gap-1 px-2">
             <TimeDisplay
               displayTime={displayTime}
               duration={duration}
@@ -175,42 +209,11 @@ export function TouchControlsPresenter({
             )}
 
             <div className="ml-auto flex items-center gap-0.5">
-              {/* No volume slider: iOS silently ignores writes to
-                  volume, so it would look broken rather than absent.
-                  The mute toggle still works there. */}
-              <ControlButton
-                label={muted ? t("unmute") : t("mute")}
-                onClick={onToggleMute}
-              >
-                {muted ? <VolumeX size={18} /> : <Volume2 size={18} />}
-              </ControlButton>
-
-              <select
-                className="h-11 rounded-2xl bg-transparent px-1 text-xs text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus-ring disabled:opacity-40"
-                aria-label={t("speed")}
-                value={String(nearestOfferedRate(playbackRate))}
-                disabled={interrupted}
-                onChange={(e) => onPlaybackRateChange(Number(e.target.value))}
-              >
-                {PLAYBACK_RATES.map((rate) => (
-                  // The open dropdown is drawn by the OS and inherits
-                  // the select's background. Left transparent, the
-                  // popup renders white-on-white.
-                  <option
-                    key={rate}
-                    value={rate}
-                    className="bg-bg-card text-text-primary"
-                  >
-                    {rate}x
-                  </option>
-                ))}
-              </select>
-
               <ControlButton
                 label={isFullscreen ? t("exitFullscreen") : t("fullscreen")}
                 onClick={onToggleFullscreen}
               >
-                {isFullscreen ? <Minimize size={18} /> : <Maximize size={18} />}
+                {isFullscreen ? <Minimize size={20} /> : <Maximize size={20} />}
               </ControlButton>
             </div>
           </div>
@@ -226,6 +229,14 @@ export function TouchControlsPresenter({
           />
         </div>
       </div>
+
+      {rateSheetOpen && (
+        <PlaybackRateSheet
+          playbackRate={playbackRate}
+          onSelect={onPlaybackRateChange}
+          onClose={() => onRateSheetOpenChange?.(false)}
+        />
+      )}
 
       {/* Outside the faded container: this is what remains once the
           controls go away. */}

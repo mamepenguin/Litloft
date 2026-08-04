@@ -61,7 +61,13 @@ export default function MediaControlsContainer({
   interactive = true,
   onBoostingChange,
 }: MediaControlsContainerProps) {
-  const state = useMediaControlsState({ mc, durationHint, autoHideMs });
+  const [rateSheetOpen, setRateSheetOpen] = useState(false);
+  const state = useMediaControlsState({
+    mc,
+    durationHint,
+    autoHideMs,
+    holdVisible: rateSheetOpen,
+  });
   const [preferredRate, setPreferredRate] = usePlaybackRatePreference();
   const [nativeFullscreen, setNativeFullscreen] = useState(false);
   const pointerMode = usePointerMode();
@@ -200,6 +206,8 @@ export default function MediaControlsContainer({
         onVolumeChange={handleVolumeChange}
         onPlaybackRateChange={handleRateChange}
         onToggleFullscreen={handleToggleFullscreen}
+        rateSheetOpen={rateSheetOpen}
+        onRateSheetOpenChange={setRateSheetOpen}
       />
     </>
   );

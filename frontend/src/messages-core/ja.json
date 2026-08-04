@@ -328,7 +328,10 @@
     "skipForward10": "10秒進む",
     "adBreak": "広告",
     "speedBoost": "{rate}x で再生中",
-    "skipSeconds": "{seconds}秒"
+    "skipSeconds": "{seconds}秒",
+    "settings": "設定",
+    "closeSettings": "設定を閉じる",
+    "normalSpeed": "標準"
   },
   "archive": {
     "loadFailed": "アーカイブの読み込みに失敗しました: {error}",

@@ -24,6 +24,7 @@ function renderControls(overrides: Partial<MediaControlsPresenterProps> = {}) {
     onVolumeChange: vi.fn(),
     onPlaybackRateChange: vi.fn(),
     onToggleFullscreen: vi.fn(),
+    onRateSheetOpenChange: vi.fn(),
     ...overrides,
   };
   const utils = render(<TouchControlsPresenter {...props} />);
@@ -73,10 +74,10 @@ describe("TouchControlsPresenter", () => {
       expect(screen.getByText("2:00")).toBeInTheDocument();
     });
 
-    it("keeps mute, speed and fullscreen reachable", () => {
+    it("keeps mute, settings and fullscreen reachable", () => {
       renderControls();
       expect(screen.getByRole("button", { name: "Mute" })).toBeInTheDocument();
-      expect(screen.getByRole("combobox", { name: "Playback speed" })).toBeInTheDocument();
+      expect(screen.getByRole("button", { name: "Settings" })).toBeInTheDocument();
       expect(screen.getByRole("button", { name: "Full screen" })).toBeInTheDocument();
     });
 
@@ -85,9 +86,37 @@ describe("TouchControlsPresenter", () => {
       expect(screen.queryByRole("slider", { name: "Volume" })).not.toBeInTheDocument();
     });
 
-    it("falls back to the nearest offered rate for an unexpected value", () => {
-      renderControls({ playbackRate: 1.7 });
-      expect(screen.getByRole("combobox", { name: "Playback speed" })).toHaveValue("1.5");
+    it("leaves the OS speed dropdown behind", () => {
+      // A native <select> popup is drawn by the platform and looks
+      // nothing like the rest of the player; speed moved into a sheet.
+      renderControls();
+      expect(screen.queryByRole("combobox")).not.toBeInTheDocument();
+    });
+  });
+
+  describe("speed sheet", () => {
+    it("opens from the settings button", () => {
+      const { props } = renderControls();
+      fireEvent.click(screen.getByRole("button", { name: "Settings" }));
+      expect(props.onRateSheetOpenChange).toHaveBeenCalledWith(true);
+    });
+
+    it("stays out of the way until asked for", () => {
+      renderControls();
+      expect(screen.queryByRole("radiogroup")).not.toBeInTheDocument();
+    });
+
+    it("shows the rates once open", () => {
+      renderControls({ rateSheetOpen: true });
+      expect(
+        screen.getByRole("radiogroup", { name: "Playback speed" }),
+      ).toBeInTheDocument();
+    });
+
+    it("reports a chosen rate through the same callback as before", () => {
+      const { props } = renderControls({ rateSheetOpen: true });
+      fireEvent.click(screen.getByRole("radio", { name: "2x" }));
+      expect(props.onPlaybackRateChange).toHaveBeenCalledWith(2);
     });
   });
 
@@ -126,10 +155,10 @@ describe("TouchControlsPresenter", () => {
       expect(screen.getByRole("button", { name: "Forward 10 seconds" })).toBeDisabled();
     });
 
-    it("disables seeking and speed", () => {
+    it("disables seeking and settings", () => {
       renderControls({ interrupted: true });
       expect(screen.getByRole("slider", { name: "Seek" })).toBeDisabled();
-      expect(screen.getByRole("combobox", { name: "Playback speed" })).toBeDisabled();
+      expect(screen.getByRole("button", { name: "Settings" })).toBeDisabled();
     });
 
     it("leaves play alone, which still belongs to the viewer", () => {
@@ -149,10 +178,13 @@ describe("TouchControlsPresenter", () => {
       const bottom = container.querySelector<HTMLElement>(
         "[data-player-controls].bottom-0",
       );
+      const top = container.querySelector<HTMLElement>(
+        "[data-player-controls].top-0",
+      );
       const transport = Array.from(
         container.querySelectorAll<HTMLElement>('[data-testid="transport"] button'),
       );
-      return bottom ? [bottom, ...transport] : transport;
+      return [bottom, top, ...transport].filter((el): el is HTMLElement => el !== null);
     }
 
     it("stops faded controls from taking taps", () => {
@@ -160,7 +192,7 @@ describe("TouchControlsPresenter", () => {
       // playback on the tap that was only meant to bring it back.
       const { container } = renderControls({ visible: false });
       const gated = gatedElements(container);
-      expect(gated).toHaveLength(4);
+      expect(gated).toHaveLength(5);
       for (const element of gated) {
         expect(element.className).toContain("pointer-events-none");
       }
@@ -169,7 +201,7 @@ describe("TouchControlsPresenter", () => {
     it("takes taps while visible", () => {
       const { container } = renderControls({ visible: true });
       const gated = gatedElements(container);
-      expect(gated).toHaveLength(4);
+      expect(gated).toHaveLength(5);
       for (const element of gated) {
         expect(element.className).toContain("pointer-events-auto");
       }

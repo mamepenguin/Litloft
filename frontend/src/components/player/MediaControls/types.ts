@@ -31,4 +31,11 @@ export interface MediaControlsPresenterProps {
   onVolumeChange: (volume: number) => void;
   onPlaybackRateChange: (rate: number) => void;
   onToggleFullscreen: () => void;
+  /**
+   * Touch layout only. The speed sheet is drawn by the layout, but its
+   * open state has to reach the container, which owns the idle timer —
+   * a sheet that vanishes three seconds after opening is not usable.
+   */
+  rateSheetOpen?: boolean;
+  onRateSheetOpenChange?: (open: boolean) => void;
 }

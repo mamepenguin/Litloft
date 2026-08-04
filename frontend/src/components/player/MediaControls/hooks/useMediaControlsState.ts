@@ -48,6 +48,12 @@ export interface UseMediaControlsStateOptions {
    */
   durationHint?: number | null;
   autoHideMs?: number;
+  /**
+   * Keep the controls up regardless of the idle timer. Set while
+   * something transient is open over the frame — a sheet that faded
+   * out three seconds after the viewer opened it would be unusable.
+   */
+  holdVisible?: boolean;
 }
 
 export interface MediaControlsState extends MediaControlsSnapshot {
@@ -110,6 +116,7 @@ export function useMediaControlsState({
   mc,
   durationHint,
   autoHideMs = DEFAULT_AUTO_HIDE_MS,
+  holdVisible = false,
 }: UseMediaControlsStateOptions): MediaControlsState {
   const [snapshot, setSnapshot] = useState<MediaControlsSnapshot>(EMPTY_SNAPSHOT);
   const [scrubTime, setScrubTime] = useState<number | null>(null);
@@ -152,14 +159,16 @@ export function useMediaControlsState({
 
   useEffect(() => {
     // Nothing is moving, so there is nothing to get out of the way of.
-    if (paused || scrubbing) {
+    // holdVisible is the same idea for something the viewer opened
+    // deliberately and is still reading.
+    if (paused || scrubbing || holdVisible) {
       setControlsVisible(true);
       return;
     }
     setControlsVisible(true);
     const id = setTimeout(() => setControlsVisible(false), autoHideMs);
     return () => clearTimeout(id);
-  }, [paused, scrubbing, autoHideMs, revealNonce]);
+  }, [paused, scrubbing, holdVisible, autoHideMs, revealNonce]);
 
   const revealControls = useCallback(() => {
     setRevealNonce((n) => n + 1);
