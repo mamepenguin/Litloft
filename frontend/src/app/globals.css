@@ -4,13 +4,6 @@
 /* Warm white canvas · Coral Red (#d63031) · Plum Black (#211922) */
 /* Dark variant: warm plum dark (#1a0e10) · Bright Coral (#e85d5e) */
 
-/* TEMPORARY probe — remove with the fullscreen diagnostic. Reads the
-   device's landscape safe-area inset so it can be compared against the
-   observed video offset. */
-:root {
-  --probe-safe-left: env(safe-area-inset-left, 0px);
-}
-
 :root,
 [data-theme="light"] {
   --bg-primary: #ffffff;
