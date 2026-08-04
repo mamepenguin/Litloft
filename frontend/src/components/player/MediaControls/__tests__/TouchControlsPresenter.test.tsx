@@ -152,11 +152,11 @@ describe("TouchControlsPresenter", () => {
 
     it("sits on the bottom edge of the frame", () => {
       // The row keeps a finger-sized target; the bar itself belongs on
-      // the very edge, the way mobile players draw it.
+      // the very edge, the way mobile players draw it. 28px down a 40px
+      // row leaves the 12px line flush with the bottom.
       const { container } = renderControls();
-      const row = container.querySelector<HTMLElement>('[data-testid="seek-line"]')
-        ?.parentElement;
-      expect(row?.className).toContain("items-end");
+      const line = container.querySelector<HTMLElement>('[data-testid="seek-line"]');
+      expect(line?.style.top).toBe("28px");
     });
 
     it("leaves a hairline behind once the controls fade out", () => {
@@ -298,9 +298,12 @@ describe("TouchControlsPresenter", () => {
     });
   });
 
-  describe("pseudo-fullscreen safe areas", () => {
+  describe("fullscreen safe areas", () => {
     it("keeps the bottom block clear of the home indicator and the notch", () => {
-      const { container } = renderControls({ isPseudoFullscreen: true });
+      // Applies to either kind of fullscreen: both put the frame
+      // against the physical screen edge, where the home indicator
+      // takes touches meant for the bar.
+      const { container } = renderControls({ isFullscreen: true });
       const bottom = container.querySelector<HTMLElement>(
         "[data-player-controls].bottom-0",
       );
@@ -310,11 +313,24 @@ describe("TouchControlsPresenter", () => {
     });
 
     it("adds no insets in the normal in-page layout", () => {
+      // In the page there is no screen edge to avoid, and the bar
+      // belongs on the frame's own boundary.
       const { container } = renderControls();
       const bottom = container.querySelector<HTMLElement>(
         "[data-player-controls].bottom-0",
       );
       expect(bottom?.style.paddingBottom).toBe("");
+    });
+
+    it("applies them in pseudo-fullscreen too", () => {
+      const { container } = renderControls({
+        isFullscreen: true,
+        isPseudoFullscreen: true,
+      });
+      const bottom = container.querySelector<HTMLElement>(
+        "[data-player-controls].bottom-0",
+      );
+      expect(bottom?.style.paddingBottom).toContain("safe-area-inset-bottom");
     });
   });
 });

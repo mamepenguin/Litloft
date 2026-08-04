@@ -137,10 +137,13 @@ export function TouchControlsPresenter({
         <div
           data-player-controls=""
           style={
-            isPseudoFullscreen
+            // Either kind of fullscreen puts the frame against the
+            // physical screen edge, where a bar flush at the bottom
+            // lands on the home indicator and iOS gives the touch to
+            // the system instead of to us. In the page there is no such
+            // edge, and the bar belongs on the frame's own boundary.
+            isFullscreen
               ? {
-                  // Flush against the bottom edge, iOS gives the tap to
-                  // Reachability or the home-bar swipe instead of the bar.
                   paddingBottom: "calc(env(safe-area-inset-bottom, 0px) + 8px)",
                   // Landscape puts the notch on a side, not the top.
                   paddingLeft: "calc(env(safe-area-inset-left, 0px) + 8px)",
@@ -149,9 +152,9 @@ export function TouchControlsPresenter({
               : undefined
           }
           className={[
-            // No bottom padding: the scrub bar is meant to sit on the
-            // very edge of the frame, and the row above it is what
-            // keeps a finger-sized target there.
+            // No bottom padding in the page: the scrub bar is meant to
+            // sit on the very edge of the frame, and the row above it
+            // is what keeps a finger-sized target there.
             "absolute inset-x-0 bottom-0 flex flex-col pt-8",
             "bg-gradient-to-t from-black/80 via-black/50 to-transparent",
             takesInput,
@@ -159,8 +162,9 @@ export function TouchControlsPresenter({
         >
           {/* The padding lives on the status row, not the block, so the
               scrub bar below can run the full width of the frame the
-              way mobile players draw it. */}
-          <div className="flex items-center gap-1 px-2">
+              way mobile players draw it. The negative margin closes the
+              gap the button's own 44px target leaves above the bar. */}
+          <div className="-mb-2 flex items-center gap-1 px-2">
             <TimeDisplay
               displayTime={displayTime}
               duration={duration}

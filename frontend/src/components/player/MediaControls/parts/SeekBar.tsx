@@ -1,9 +1,15 @@
 "use client";
 
+import type { CSSProperties } from "react";
 import { useTranslations } from "next-intl";
 
-/** Diameter of the knob, in px. Needed as a number for its travel. */
-const KNOB_PX = 12;
+/**
+ * The row is a finger-sized target; the visible line inside it is only
+ * as tall as the knob. Both are needed as numbers, because the native
+ * track has to be offset to land on the same line as the painted one.
+ */
+const ROW_PX = 40;
+const LINE_PX = 12;
 
 /** One decimal is plenty for a progress bar, and it keeps float noise
  *  (0.42 * 100 === 42.00000000000001) out of the rendered style. */
@@ -46,22 +52,28 @@ export const RANGE_CLASS =
   "focus-visible:[&::-webkit-slider-thumb]:ring-2 focus-visible:[&::-webkit-slider-thumb]:ring-focus-ring";
 
 /**
- * The same input with its thumb hidden. The seek bar paints its own
- * knob instead, because the native one is positioned against the
- * *track pseudo-element* while the painted layers are positioned
- * against the row — two coordinate systems that do not line up, which
- * shows as a knob floating above or below its own bar.
+ * The seek bar's input: invisible, but doing three jobs.
  *
- * The input stays for what it is genuinely good at: keyboard
- * operation, `role="slider"` and `aria-valuenow` for free, and a hit
- * area the full height of the row.
+ * The knob is painted separately so it shares a coordinate system with
+ * the track. That only works if the *native* thumb — still the thing a
+ * finger actually grabs, since iOS scrubs by dragging the thumb rather
+ * than by tapping the track — sits in the same place. So the native
+ * track is pushed down by `--seek-track-offset` to land on the painted
+ * line, and the thumb is centred on it.
+ *
+ * The thumb is also deliberately larger than the knob it stands in for:
+ * 24px of grab area behind a 12px dot.
  */
 const SEEK_INPUT_CLASS =
   "h-full w-full cursor-pointer touch-none appearance-none bg-transparent focus-visible:outline-none disabled:cursor-not-allowed " +
-  "[&::-webkit-slider-runnable-track]:h-full [&::-webkit-slider-runnable-track]:bg-transparent " +
-  "[&::-moz-range-track]:h-full [&::-moz-range-track]:bg-transparent " +
-  "[&::-webkit-slider-thumb]:h-3 [&::-webkit-slider-thumb]:w-3 [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:opacity-0 " +
-  "[&::-moz-range-thumb]:h-3 [&::-moz-range-thumb]:w-3 [&::-moz-range-thumb]:appearance-none [&::-moz-range-thumb]:border-0 [&::-moz-range-thumb]:opacity-0";
+  "[&::-webkit-slider-runnable-track]:h-3 [&::-webkit-slider-runnable-track]:bg-transparent " +
+  "[&::-webkit-slider-runnable-track]:[margin-top:var(--seek-track-offset)] " +
+  "[&::-moz-range-track]:h-3 [&::-moz-range-track]:bg-transparent " +
+  "[&::-moz-range-track]:[margin-top:var(--seek-track-offset)] " +
+  // -6px re-centres a 24px thumb on a 12px track; WebKit otherwise
+  // hangs it off the track's top edge.
+  "[&::-webkit-slider-thumb]:h-6 [&::-webkit-slider-thumb]:w-6 [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:bg-transparent [&::-webkit-slider-thumb]:opacity-0 [&::-webkit-slider-thumb]:[margin-top:-6px] " +
+  "[&::-moz-range-thumb]:h-6 [&::-moz-range-thumb]:w-6 [&::-moz-range-thumb]:appearance-none [&::-moz-range-thumb]:rounded-full [&::-moz-range-thumb]:border-0 [&::-moz-range-thumb]:bg-transparent [&::-moz-range-thumb]:opacity-0";
 
 export interface SeekBarProps {
   displayTime: number;
@@ -73,7 +85,7 @@ export interface SeekBarProps {
   onScrubChange: (seconds: number) => void;
   onScrubEnd: () => void;
   /**
-   * `edge` pins the bar to the bottom of its row so it can sit on the
+   * `edge` pins the line to the bottom of the row so it can sit on the
    * very edge of the video frame, the way mobile players draw it, while
    * the row above it stays a finger-sized target.
    */
@@ -82,8 +94,8 @@ export interface SeekBarProps {
 
 /**
  * The scrub surface: three painted layers (empty / buffered / played)
- * plus a knob, with a transparent range input laid over them for
- * input and semantics.
+ * plus a knob, with a transparent range input laid over them for input
+ * and semantics.
  */
 export function SeekBar({
   displayTime,
@@ -103,21 +115,19 @@ export function SeekBar({
   // keeps a native thumb from hanging off either end. Reproduced here
   // because the knob is ours now.
   const knobLeft = `calc(${playedFraction * 100}% + ${
-    (0.5 - playedFraction) * KNOB_PX
+    (0.5 - playedFraction) * LINE_PX
   }px)`;
 
+  // Where the line sits in the row, and therefore how far the native
+  // track has to be pushed down to meet it.
+  const trackOffsetPx = variant === "edge" ? ROW_PX - LINE_PX : (ROW_PX - LINE_PX) / 2;
+
   return (
-    <div
-      className={[
-        "relative flex w-full",
-        variant === "edge"
-          ? "h-10 items-end"
-          : "h-6 items-center [@media(pointer:coarse)]:h-10",
-      ].join(" ")}
-    >
+    <div className="relative h-10 w-full">
       <input
         type="range"
         className={`peer absolute inset-0 z-10 ${SEEK_INPUT_CLASS}`}
+        style={{ "--seek-track-offset": `${trackOffsetPx}px` } as CSSProperties}
         aria-label={t("seek")}
         min={0}
         max={duration}
@@ -143,8 +153,9 @@ export function SeekBar({
           knob cannot drift apart vertically. */}
       <div
         data-testid="seek-line"
+        style={{ top: `${trackOffsetPx}px` }}
         className={[
-          "pointer-events-none relative h-3 w-full rounded-full",
+          "pointer-events-none absolute inset-x-0 h-3 rounded-full",
           "peer-focus-visible:ring-2 peer-focus-visible:ring-focus-ring",
         ].join(" ")}
       >
