@@ -125,6 +125,9 @@ export function MediaControlsPresenter({
 
   return (
     <div
+      // Read by useFullscreen: a swipe that starts here belongs to the
+      // controls (scrubbing) and must not be taken as a dismiss.
+      data-player-controls=""
       className={[
         "absolute inset-x-0 bottom-0 z-10 flex flex-col gap-0.5 px-2 pb-1 pt-8",
         "bg-gradient-to-t from-black/80 via-black/50 to-transparent",

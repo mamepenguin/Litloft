@@ -22,6 +22,26 @@ const HISTORY_MARKER = "litloftFullscreen";
 const COARSE_POINTER_QUERY = "(pointer: coarse)";
 const LANDSCAPE_QUERY = "(orientation: landscape)";
 
+/** Downward travel that counts as "put this away". */
+const SWIPE_DISMISS_PX = 80;
+
+/**
+ * Marks the control bar so swipes that begin there are left alone.
+ * Dragging the seek bar travels downward as often as not, and reading
+ * that as a dismiss would make scrubbing impossible.
+ */
+const CONTROLS_SELECTOR = "[data-player-controls]";
+
+interface TouchPoint {
+  clientX: number;
+  clientY: number;
+}
+
+interface TouchLikeEvent extends Event {
+  touches: ArrayLike<TouchPoint>;
+  changedTouches: ArrayLike<TouchPoint>;
+}
+
 /** How the current fullscreen session was started. */
 type EntryReason = "manual" | "rotate";
 
@@ -176,6 +196,58 @@ export function useFullscreen({
     window.addEventListener("keydown", onKeyDown);
     return () => window.removeEventListener("keydown", onKeyDown);
   }, [pseudoActive, exit]);
+
+  // --- swipe to dismiss ---
+
+  useEffect(() => {
+    if (!pseudoActive) return;
+    const frame = frameRef.current;
+    if (!frame) return;
+    let start: { x: number; y: number } | null = null;
+
+    const onTouchStart = (event: Event) => {
+      const { touches } = event as TouchLikeEvent;
+      // Pinch and other multi-finger gestures are not a dismiss.
+      if (touches.length !== 1) {
+        start = null;
+        return;
+      }
+      const target = event.target as Element | null;
+      if (target?.closest?.(CONTROLS_SELECTOR)) {
+        start = null;
+        return;
+      }
+      start = { x: touches[0].clientX, y: touches[0].clientY };
+    };
+
+    const onTouchEnd = (event: Event) => {
+      if (!start) return;
+      const point = (event as TouchLikeEvent).changedTouches[0];
+      const from = start;
+      start = null;
+      if (!point) return;
+      const dx = point.clientX - from.x;
+      const dy = point.clientY - from.y;
+      if (dy < SWIPE_DISMISS_PX) return;
+      // A drag that travels further sideways is a scrub or a scroll
+      // attempt, not a dismiss.
+      if (Math.abs(dy) <= Math.abs(dx)) return;
+      exit();
+    };
+
+    const onTouchCancel = () => {
+      start = null;
+    };
+
+    frame.addEventListener("touchstart", onTouchStart, { passive: true });
+    frame.addEventListener("touchend", onTouchEnd, { passive: true });
+    frame.addEventListener("touchcancel", onTouchCancel, { passive: true });
+    return () => {
+      frame.removeEventListener("touchstart", onTouchStart);
+      frame.removeEventListener("touchend", onTouchEnd);
+      frame.removeEventListener("touchcancel", onTouchCancel);
+    };
+  }, [pseudoActive, frameRef, exit]);
 
   // --- document side effects ---
 
