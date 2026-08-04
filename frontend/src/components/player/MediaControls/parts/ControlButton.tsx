@@ -14,20 +14,19 @@ const BASE_CLASS =
   "disabled:opacity-40 motion-reduce:transition-none";
 
 /**
- * `bar` sits in a row of controls; `hero` and `heroPrimary` stand alone
- * over the video, which per DESIGN.md means they carry their own dark
- * disc rather than relying on the bar's scrim for legibility.
+ * `bar` sits in a row of controls; `hero` stands alone over the video,
+ * which per DESIGN.md means it carries its own dark disc rather than
+ * relying on the bar's scrim for legibility.
  */
-export type ControlButtonSize = "bar" | "hero" | "heroPrimary";
+export type ControlButtonSize = "bar" | "hero";
 
-// The hero discs are deliberately lighter than the small standalone
+// The hero disc is deliberately lighter than the small standalone
 // buttons: opacity that reads as a subtle backing at 32px reads as a
-// heavy blob at 56px, covering the video rather than lifting the icon
+// heavy blob at 64px, covering the video rather than lifting the icon
 // off it.
 const SIZE_CLASS: Record<ControlButtonSize, string> = {
   bar: "h-11 w-11 rounded-2xl hover:bg-white/15",
-  hero: "h-14 w-14 rounded-full bg-black/50 hover:bg-black/70",
-  heroPrimary: "h-16 w-16 rounded-full bg-black/50 hover:bg-black/70",
+  hero: "h-16 w-16 rounded-full bg-black/50 hover:bg-black/70",
 };
 
 export interface ControlButtonProps {

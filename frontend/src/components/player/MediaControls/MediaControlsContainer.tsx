@@ -165,7 +165,18 @@ export default function MediaControlsContainer({
     onToggleFullscreen: handleToggleFullscreen,
   });
 
-  const { boosting } = gestures;
+  const { boosting, resetTapSequence } = gestures;
+
+  // The button and the gesture overlay are different surfaces. Without
+  // clearing the tap history here, pressing play and then tapping
+  // beside it would read as a double tap and skip, when the viewer only
+  // meant to press play twice.
+  const handleTogglePlayFromControls = useCallback(() => {
+    resetTapSequence();
+    mc?.togglePlay();
+    revealControls();
+  }, [mc, resetTapSequence, revealControls]);
+
   useEffect(() => {
     onBoostingChange?.(boosting);
   }, [boosting, onBoostingChange]);
@@ -197,7 +208,7 @@ export default function MediaControlsContainer({
         visible={state.controlsVisible}
         isFullscreen={fullscreen ? fullscreen.isFullscreen : nativeFullscreen}
         isPseudoFullscreen={isPseudoFullscreen}
-        onTogglePlay={withReveal(() => mc?.togglePlay())}
+        onTogglePlay={handleTogglePlayFromControls}
         onSkip={handleSkip}
         onScrubStart={state.beginScrub}
         onScrubChange={state.updateScrub}

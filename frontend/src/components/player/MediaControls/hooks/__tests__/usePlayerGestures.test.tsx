@@ -4,8 +4,14 @@ import type { MediaController } from "@/lib/mediaController";
 import type { PointerMode } from "@/components/player/hooks/usePointerMode";
 import {
   usePlayerGestures,
+  DOUBLE_TAP_MS,
+  SKIP_ACCUMULATE_MS,
   type UsePlayerGesturesOptions,
 } from "../usePlayerGestures";
+
+/** Comfortably inside a window, and comfortably past it. */
+const WITHIN = 50;
+const BEYOND = 100;
 
 /**
  * jsdom implements no PointerEvent, and testing-library's
@@ -265,7 +271,7 @@ describe("usePlayerGestures double tap", () => {
     const { mc, overlay } = setup();
     tap(overlay, RIGHT_X);
     act(() => {
-      vi.advanceTimersByTime(50);
+      vi.advanceTimersByTime(WITHIN);
     });
     tap(overlay, RIGHT_X);
     expect(mc.seek).toHaveBeenCalledWith(50);
@@ -275,7 +281,7 @@ describe("usePlayerGestures double tap", () => {
     const { mc, overlay } = setup();
     tap(overlay, LEFT_X);
     act(() => {
-      vi.advanceTimersByTime(50);
+      vi.advanceTimersByTime(WITHIN);
     });
     tap(overlay, LEFT_X);
     expect(mc.seek).toHaveBeenCalledWith(30);
@@ -287,7 +293,7 @@ describe("usePlayerGestures double tap", () => {
     tap(overlay, RIGHT_X);
     getCurrentTime.mockReturnValue(41);
     act(() => {
-      vi.advanceTimersByTime(50);
+      vi.advanceTimersByTime(WITHIN);
     });
     tap(overlay, RIGHT_X);
     expect(mc.seek).toHaveBeenCalledWith(51);
@@ -297,7 +303,7 @@ describe("usePlayerGestures double tap", () => {
     const { overlay } = setup();
     tap(overlay, RIGHT_X);
     act(() => {
-      vi.advanceTimersByTime(50);
+      vi.advanceTimersByTime(WITHIN);
     });
     tap(overlay, RIGHT_X);
     expect(callbacks.onHideControls).toHaveBeenCalled();
@@ -307,12 +313,12 @@ describe("usePlayerGestures double tap", () => {
     const { overlay, getByTestId } = setup();
     tap(overlay, RIGHT_X);
     act(() => {
-      vi.advanceTimersByTime(50);
+      vi.advanceTimersByTime(WITHIN);
     });
     tap(overlay, RIGHT_X);
     expect(skipLabel(getByTestId)).toBe("forward:10");
     act(() => {
-      vi.advanceTimersByTime(800);
+      vi.advanceTimersByTime(SKIP_ACCUMULATE_MS + BEYOND);
     });
     expect(skipLabel(getByTestId)).toBe("none");
   });
@@ -321,7 +327,7 @@ describe("usePlayerGestures double tap", () => {
     const { mc, overlay } = setup();
     tap(overlay, LEFT_X);
     act(() => {
-      vi.advanceTimersByTime(50);
+      vi.advanceTimersByTime(WITHIN);
     });
     tap(overlay, RIGHT_X);
     expect(mc.seek).not.toHaveBeenCalled();
@@ -331,7 +337,7 @@ describe("usePlayerGestures double tap", () => {
     const { mc, overlay } = setup();
     tap(overlay, RIGHT_X);
     act(() => {
-      vi.advanceTimersByTime(400);
+      vi.advanceTimersByTime(DOUBLE_TAP_MS + BEYOND);
     });
     tap(overlay, RIGHT_X);
     expect(mc.seek).not.toHaveBeenCalled();
@@ -342,7 +348,7 @@ describe("usePlayerGestures skip accumulation", () => {
   function beginSkip(overlay: HTMLElement, x: number) {
     tap(overlay, x);
     act(() => {
-      vi.advanceTimersByTime(50);
+      vi.advanceTimersByTime(WITHIN);
     });
     tap(overlay, x);
   }
@@ -353,13 +359,13 @@ describe("usePlayerGestures skip accumulation", () => {
     expect(skipLabel(getByTestId)).toBe("forward:10");
 
     act(() => {
-      vi.advanceTimersByTime(100);
+      vi.advanceTimersByTime(WITHIN);
     });
     tap(overlay, RIGHT_X);
     expect(skipLabel(getByTestId)).toBe("forward:20");
 
     act(() => {
-      vi.advanceTimersByTime(100);
+      vi.advanceTimersByTime(WITHIN);
     });
     tap(overlay, RIGHT_X);
     expect(skipLabel(getByTestId)).toBe("forward:30");
@@ -375,7 +381,7 @@ describe("usePlayerGestures skip accumulation", () => {
     expect(mc.seek).toHaveBeenLastCalledWith(50);
     getCurrentTime.mockReturnValue(50);
     act(() => {
-      vi.advanceTimersByTime(100);
+      vi.advanceTimersByTime(WITHIN);
     });
     tap(overlay, RIGHT_X);
     expect(mc.seek).toHaveBeenLastCalledWith(60);
@@ -385,13 +391,13 @@ describe("usePlayerGestures skip accumulation", () => {
     const { mc, overlay, getByTestId } = setup();
     beginSkip(overlay, RIGHT_X);
     act(() => {
-      vi.advanceTimersByTime(100);
+      vi.advanceTimersByTime(WITHIN);
     });
     tap(overlay, RIGHT_X);
     expect(skipLabel(getByTestId)).toBe("forward:20");
 
     act(() => {
-      vi.advanceTimersByTime(100);
+      vi.advanceTimersByTime(WITHIN);
     });
     tap(overlay, LEFT_X);
     expect(skipLabel(getByTestId)).toBe("back:10");
@@ -402,16 +408,16 @@ describe("usePlayerGestures skip accumulation", () => {
     const { overlay, getByTestId } = setup();
     beginSkip(overlay, RIGHT_X);
     act(() => {
-      vi.advanceTimersByTime(700);
+      vi.advanceTimersByTime(SKIP_ACCUMULATE_MS - BEYOND);
     });
     tap(overlay, RIGHT_X);
     expect(skipLabel(getByTestId)).toBe("forward:20");
     act(() => {
-      vi.advanceTimersByTime(700);
+      vi.advanceTimersByTime(SKIP_ACCUMULATE_MS - BEYOND);
     });
     expect(skipLabel(getByTestId)).toBe("forward:20");
     act(() => {
-      vi.advanceTimersByTime(200);
+      vi.advanceTimersByTime(BEYOND * 2);
     });
     expect(skipLabel(getByTestId)).toBe("none");
   });
@@ -420,11 +426,94 @@ describe("usePlayerGestures skip accumulation", () => {
     const { mc, overlay } = setup();
     beginSkip(overlay, RIGHT_X);
     act(() => {
-      vi.advanceTimersByTime(900);
+      vi.advanceTimersByTime(SKIP_ACCUMULATE_MS + BEYOND);
     });
     tap(overlay, RIGHT_X);
     expect(mc.seek).toHaveBeenCalledTimes(1);
     expect(callbacks.onToggleControls).toHaveBeenCalled();
+  });
+});
+
+describe("usePlayerGestures resetTapSequence", () => {
+  function HarnessWithReset(props: UsePlayerGesturesOptions) {
+    const gestures = usePlayerGestures(props);
+    return (
+      <div data-testid="overlay" {...gestures.handlers}>
+        <span data-testid="skip">
+          {gestures.skip ? `${gestures.skip.side}:${gestures.skip.seconds}` : "none"}
+        </span>
+        <button type="button" data-testid="reset" onClick={gestures.resetTapSequence}>
+          reset
+        </button>
+      </div>
+    );
+  }
+
+  function setupWithReset(overrides: Partial<UsePlayerGesturesOptions> = {}) {
+    const mc = makeMc();
+    const utils = render(<HarnessWithReset {...baseOptions({ ...overrides, mc })} />);
+    const overlay = utils.getByTestId("overlay");
+    Object.defineProperty(overlay, "getBoundingClientRect", {
+      configurable: true,
+      value: () => ({
+        left: 0,
+        top: 0,
+        width: FRAME_WIDTH,
+        height: 200,
+        right: FRAME_WIDTH,
+        bottom: 200,
+        x: 0,
+        y: 0,
+        toJSON: () => ({}),
+      }),
+    });
+    return { ...utils, overlay, mc };
+  }
+
+  it("stops a button press and a nearby tap from reading as a double tap", () => {
+    // The play button and the overlay are different surfaces. Pressing
+    // play and then tapping just beside it means "press twice", not
+    // "skip ten seconds".
+    const { overlay, mc, getByTestId } = setupWithReset();
+    tap(overlay, RIGHT_X);
+    act(() => {
+      fireEvent.click(getByTestId("reset"));
+    });
+    act(() => {
+      vi.advanceTimersByTime(WITHIN);
+    });
+    tap(overlay, RIGHT_X);
+    expect(mc.seek).not.toHaveBeenCalled();
+  });
+
+  it("clears an accumulating skip", () => {
+    const { overlay, getByTestId } = setupWithReset();
+    tap(overlay, RIGHT_X);
+    act(() => {
+      vi.advanceTimersByTime(WITHIN);
+    });
+    tap(overlay, RIGHT_X);
+    expect(getByTestId("skip").textContent).toBe("forward:10");
+
+    act(() => {
+      fireEvent.click(getByTestId("reset"));
+    });
+    expect(getByTestId("skip").textContent).toBe("none");
+  });
+
+  it("leaves a fresh double tap working afterwards", () => {
+    // The opposite of the assertions above: clearing the history must
+    // not disarm the gesture itself.
+    const { overlay, mc, getByTestId } = setupWithReset();
+    act(() => {
+      fireEvent.click(getByTestId("reset"));
+    });
+    tap(overlay, RIGHT_X);
+    act(() => {
+      vi.advanceTimersByTime(WITHIN);
+    });
+    tap(overlay, RIGHT_X);
+    expect(mc.seek).toHaveBeenCalledWith(50);
   });
 });
 
@@ -436,7 +525,7 @@ describe("usePlayerGestures seek bounds", () => {
     });
     tap(overlay, RIGHT_X);
     act(() => {
-      vi.advanceTimersByTime(50);
+      vi.advanceTimersByTime(WITHIN);
     });
     tap(overlay, RIGHT_X);
     expect(mc.seek).toHaveBeenCalledWith(200);
@@ -448,7 +537,7 @@ describe("usePlayerGestures seek bounds", () => {
     });
     tap(overlay, LEFT_X);
     act(() => {
-      vi.advanceTimersByTime(50);
+      vi.advanceTimersByTime(WITHIN);
     });
     tap(overlay, LEFT_X);
     expect(mc.seek).toHaveBeenCalledWith(0);
@@ -458,7 +547,7 @@ describe("usePlayerGestures seek bounds", () => {
     const { mc, overlay } = setup({ duration: 0 });
     tap(overlay, RIGHT_X);
     act(() => {
-      vi.advanceTimersByTime(50);
+      vi.advanceTimersByTime(WITHIN);
     });
     tap(overlay, RIGHT_X);
     expect(mc.seek).toHaveBeenCalledWith(50);
@@ -494,7 +583,7 @@ describe("usePlayerGestures gating", () => {
     const { mc, overlay } = setup({ interactive: false });
     tap(overlay, RIGHT_X);
     act(() => {
-      vi.advanceTimersByTime(50);
+      vi.advanceTimersByTime(WITHIN);
     });
     tap(overlay, RIGHT_X);
     expect(mc.seek).not.toHaveBeenCalled();
@@ -505,7 +594,7 @@ describe("usePlayerGestures gating", () => {
     const { mc, overlay } = setup({ interrupted: true });
     tap(overlay, RIGHT_X);
     act(() => {
-      vi.advanceTimersByTime(50);
+      vi.advanceTimersByTime(WITHIN);
     });
     tap(overlay, RIGHT_X);
     expect(mc.seek).not.toHaveBeenCalled();

@@ -38,21 +38,21 @@ function controlBlocks(container: HTMLElement): HTMLElement[] {
 
 describe("TouchControlsPresenter", () => {
   describe("transport", () => {
-    it("puts play and both skips on the frame", () => {
+    it("puts play on the frame", () => {
       renderControls();
       expect(screen.getByRole("button", { name: "Pause" })).toBeInTheDocument();
-      expect(screen.getByRole("button", { name: "Back 10 seconds" })).toBeInTheDocument();
-      expect(
-        screen.getByRole("button", { name: "Forward 10 seconds" }),
-      ).toBeInTheDocument();
     });
 
-    it("skips by ten seconds in each direction", () => {
-      const { props } = renderControls();
-      fireEvent.click(screen.getByRole("button", { name: "Forward 10 seconds" }));
-      expect(props.onSkip).toHaveBeenCalledWith(10);
-      fireEvent.click(screen.getByRole("button", { name: "Back 10 seconds" }));
-      expect(props.onSkip).toHaveBeenLastCalledWith(-10);
+    it("leaves skipping to the gesture", () => {
+      // A double tap targets half the frame. Buttons for the same thing
+      // would only cover the video to duplicate it.
+      renderControls();
+      expect(
+        screen.queryByRole("button", { name: "Forward 10 seconds" }),
+      ).not.toBeInTheDocument();
+      expect(
+        screen.queryByRole("button", { name: "Back 10 seconds" }),
+      ).not.toBeInTheDocument();
     });
 
     it("offers Play while paused", () => {
@@ -147,14 +147,6 @@ describe("TouchControlsPresenter", () => {
       expect(screen.getByText("Ad")).toBeInTheDocument();
     });
 
-    it("disables the skips, which belong to the file and not the ad", () => {
-      // These sit in the control layer, above the gesture overlay, so
-      // the overlay's interactive gate never reaches them.
-      renderControls({ interrupted: true });
-      expect(screen.getByRole("button", { name: "Back 10 seconds" })).toBeDisabled();
-      expect(screen.getByRole("button", { name: "Forward 10 seconds" })).toBeDisabled();
-    });
-
     it("disables seeking and settings", () => {
       renderControls({ interrupted: true });
       expect(screen.getByRole("slider", { name: "Seek" })).toBeDisabled();
@@ -192,7 +184,7 @@ describe("TouchControlsPresenter", () => {
       // playback on the tap that was only meant to bring it back.
       const { container } = renderControls({ visible: false });
       const gated = gatedElements(container);
-      expect(gated).toHaveLength(5);
+      expect(gated).toHaveLength(3);
       for (const element of gated) {
         expect(element.className).toContain("pointer-events-none");
       }
@@ -201,7 +193,7 @@ describe("TouchControlsPresenter", () => {
     it("takes taps while visible", () => {
       const { container } = renderControls({ visible: true });
       const gated = gatedElements(container);
-      expect(gated).toHaveLength(5);
+      expect(gated).toHaveLength(3);
       for (const element of gated) {
         expect(element.className).toContain("pointer-events-auto");
       }

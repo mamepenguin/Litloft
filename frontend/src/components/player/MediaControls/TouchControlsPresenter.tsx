@@ -6,8 +6,6 @@ import {
   Minimize,
   Pause,
   Play,
-  RotateCcw,
-  RotateCw,
   Settings,
   Volume2,
   VolumeX,
@@ -19,27 +17,10 @@ import { ProgressHairline } from "./parts/ProgressHairline";
 import { SeekBar } from "./parts/SeekBar";
 import { TimeDisplay } from "./parts/TimeDisplay";
 
-const SKIP_SECONDS = 10;
-
 /**
- * The rotate arrow with its interval written inside it, the way mobile
- * players label their skip buttons. `aria-hidden` because the button
- * around it already carries the full label.
- */
-function SkipIcon({ direction }: { direction: "back" | "forward" }) {
-  return (
-    <span aria-hidden="true" className="relative inline-flex items-center justify-center">
-      {direction === "back" ? <RotateCcw size={30} /> : <RotateCw size={30} />}
-      <span className="absolute text-[9px] font-semibold tabular-nums">
-        {SKIP_SECONDS}
-      </span>
-    </span>
-  );
-}
-
-/**
- * The touch layout: transport on large targets in the middle of the
- * frame, status and the remaining controls along the bottom.
+ * The touch layout: play on a large target in the middle of the frame,
+ * status and the remaining controls along the bottom. Skipping is left
+ * to the double-tap gesture, whose target is half the frame.
  *
  * The parts that take input are separate absolutely-positioned blocks
  * rather than one full-frame container, and only those blocks carry
@@ -63,7 +44,6 @@ export function TouchControlsPresenter({
   isFullscreen,
   isPseudoFullscreen = false,
   onTogglePlay,
-  onSkip,
   onScrubStart,
   onScrubChange,
   onScrubEnd,
@@ -103,41 +83,23 @@ export function TouchControlsPresenter({
           visible ? "opacity-100" : "opacity-0",
         ].join(" ")}
       >
-        {/* The row itself takes no input. Its box spans roughly 220px,
-            and a double tap landing between two buttons would otherwise
-            hit a dead zone in the middle of the frame — exactly where
-            people tap. Only the buttons opt back in. */}
+        {/* Play alone. Skipping is a double tap on either half of the
+            frame — a far larger target than any button — so buttons for
+            it would only cover the video to duplicate a gesture.
+
+            The wrapper takes no input: only the button itself does, so
+            everything around it still falls through to the gestures. */}
         <div
           data-testid="transport"
-          className="pointer-events-none absolute left-1/2 top-1/2 flex -translate-x-1/2 -translate-y-1/2 items-center gap-6"
+          className="pointer-events-none absolute left-1/2 top-1/2 flex -translate-x-1/2 -translate-y-1/2 items-center"
         >
           <ControlButton
             size="hero"
-            className={takesInput}
-            label={t("skipBack10")}
-            onClick={() => onSkip(-SKIP_SECONDS)}
-            // The overlay's interactive gate does not reach this far:
-            // these buttons sit in the control layer, above it.
-            disabled={interrupted}
-          >
-            <SkipIcon direction="back" />
-          </ControlButton>
-          <ControlButton
-            size="heroPrimary"
             className={takesInput}
             label={paused ? t("play") : t("pause")}
             onClick={onTogglePlay}
           >
             {paused ? <Play size={32} /> : <Pause size={32} />}
-          </ControlButton>
-          <ControlButton
-            size="hero"
-            className={takesInput}
-            label={t("skipForward10")}
-            onClick={() => onSkip(SKIP_SECONDS)}
-            disabled={interrupted}
-          >
-            <SkipIcon direction="forward" />
           </ControlButton>
         </div>
 

@@ -10,15 +10,21 @@ import type { MediaController } from "@/lib/mediaController";
 import type { PointerMode } from "@/components/player/hooks/usePointerMode";
 
 /** How long a finger has to stay put before the speed boost engages. */
-const LONG_PRESS_MS = 500;
+export const LONG_PRESS_MS = 500;
 /** Included in PLAYBACK_RATES; YouTube ignores rates outside that set. */
 export const BOOST_RATE = 2;
 /** Travel that hands the gesture over to a scroll or a swipe. */
 const MOVE_CANCEL_PX = 10;
 /** Gap within which a second tap counts as a double tap. */
-const DOUBLE_TAP_MS = 300;
-/** How long a skip stays open for further taps, and stays on screen. */
-const SKIP_ACCUMULATE_MS = 800;
+export const DOUBLE_TAP_MS = 400;
+/**
+ * How long a skip stays open for further taps, and stays on screen.
+ * Generous on purpose: this is the window someone taps within to reach
+ * 30 or 40 seconds, and having the count reset under them because they
+ * paused to look at the frame is worse than the occasional stray tap
+ * being counted.
+ */
+export const SKIP_ACCUMULATE_MS = 1300;
 const SKIP_SECONDS = 10;
 /**
  * How long a single click waits to see whether it is really the first
@@ -66,6 +72,13 @@ export interface PlayerGestures {
   skip: SkipFeedback | null;
   /** True while the long-press speed boost is engaged. */
   boosting: boolean;
+  /**
+   * Forget any tap in progress. Called when a control button handles a
+   * tap instead: the button and the overlay are different surfaces, and
+   * without this a tap on one followed by a tap beside it would read as
+   * a double tap and skip when the viewer only meant to press twice.
+   */
+  resetTapSequence: () => void;
 }
 
 interface ActivePress {
@@ -190,6 +203,16 @@ export function usePlayerGestures({
       burstRef.current = null;
       setSkip(null);
     }, SKIP_ACCUMULATE_MS);
+  }, []);
+
+  const resetTapSequence = useCallback(() => {
+    lastTapRef.current = null;
+    burstRef.current = null;
+    if (burstTimerRef.current) {
+      clearTimeout(burstTimerRef.current);
+      burstTimerRef.current = null;
+    }
+    setSkip(null);
   }, []);
 
   const handleTap = useCallback(
@@ -366,5 +389,6 @@ export function usePlayerGestures({
     },
     skip,
     boosting,
+    resetTapSequence,
   };
 }
