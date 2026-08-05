@@ -26,6 +26,11 @@ function makeMc(overrides: Partial<MediaController> = {}): MediaController {
 
 let frame: HTMLDivElement;
 
+// Several tests swap in a matchMedia to choose a layout. Left in place
+// it decides the layout for every test that follows, which quietly
+// changes what they are asserting against.
+const realMatchMedia = window.matchMedia;
+
 beforeEach(() => {
   window.localStorage.clear();
   frame = document.createElement("div");
@@ -38,6 +43,11 @@ beforeEach(() => {
 
 afterEach(() => {
   frame.remove();
+  Object.defineProperty(window, "matchMedia", {
+    configurable: true,
+    writable: true,
+    value: realMatchMedia,
+  });
 });
 
 function renderControls(mc: MediaController | null, durationHint?: number | null) {
@@ -136,6 +146,55 @@ describe("MediaControlsContainer", () => {
         });
       });
       expect(screen.getByRole("combobox", { name: "Playback speed" })).toHaveValue("1");
+    });
+  });
+
+  describe("captions", () => {
+    function makeCaptionMc() {
+      return makeMc({
+        getCaptions: vi.fn().mockReturnValue("off"),
+        setCaptions: vi.fn(),
+      });
+    }
+
+    it("starts them off", async () => {
+      // Subtitles are an opt-in, and the embed also tells the player
+      // not to enable them from the viewer's YouTube account.
+      const mc = makeCaptionMc();
+      renderControls(mc);
+      await act(async () => {});
+      expect(mc.setCaptions).toHaveBeenCalledWith(false);
+      expect(mc.setCaptions).not.toHaveBeenCalledWith(true);
+    });
+
+    it("applies a saved preference to the player", async () => {
+      window.localStorage.setItem("video-share-captions", "true");
+      const mc = makeCaptionMc();
+      renderControls(mc);
+      await act(async () => {});
+      expect(mc.setCaptions).toHaveBeenCalledWith(true);
+    });
+
+    it("persists a new choice and applies it", async () => {
+      window.matchMedia = vi.fn().mockImplementation((query: string) => ({
+        matches: query.includes("pointer: coarse"),
+        media: query,
+        addEventListener: vi.fn(),
+        removeEventListener: vi.fn(),
+        addListener: vi.fn(),
+        removeListener: vi.fn(),
+        dispatchEvent: vi.fn(),
+      }));
+      const mc = makeCaptionMc();
+      renderControls(mc);
+      await act(async () => {
+        fireEvent.click(screen.getByRole("button", { name: "Settings" }));
+      });
+      await act(async () => {
+        fireEvent.click(screen.getByRole("switch", { name: "Subtitles" }));
+      });
+      expect(window.localStorage.getItem("video-share-captions")).toBe("true");
+      expect(mc.setCaptions).toHaveBeenLastCalledWith(true);
     });
   });
 

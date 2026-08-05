@@ -7,6 +7,7 @@ import { TouchControlsPresenter } from "./TouchControlsPresenter";
 import { GestureOverlay } from "./GestureOverlay";
 import { useMediaControlsState } from "./hooks/useMediaControlsState";
 import { usePlaybackRatePreference } from "./hooks/usePlaybackRatePreference";
+import { useCaptionsPreference } from "./hooks/useCaptionsPreference";
 import { BOOST_RATE, usePlayerGestures } from "./hooks/usePlayerGestures";
 import { usePointerMode } from "../hooks/usePointerMode";
 
@@ -69,6 +70,7 @@ export default function MediaControlsContainer({
     holdVisible: settingsOpen,
   });
   const [preferredRate, setPreferredRate] = usePlaybackRatePreference();
+  const [captionsPreferred, setCaptionsPreferred] = useCaptionsPreference();
   const [nativeFullscreen, setNativeFullscreen] = useState(false);
   const pointerMode = usePointerMode();
 
@@ -79,6 +81,13 @@ export default function MediaControlsContainer({
   useEffect(() => {
     mc?.setPlaybackRate(preferredRate);
   }, [mc, preferredRate]);
+
+  // Same single-write-path idea, and it also carries the preference to
+  // each new file: the toggle only records what the viewer wants, and
+  // this applies it whenever that or the player changes.
+  useEffect(() => {
+    mc?.setCaptions?.(captionsPreferred);
+  }, [mc, captionsPreferred]);
 
   useEffect(() => {
     const frame = frameRef.current;
@@ -149,10 +158,10 @@ export default function MediaControlsContainer({
 
   const handleToggleCaptions = useCallback(
     (enabled: boolean) => {
-      mc?.setCaptions?.(enabled);
+      setCaptionsPreferred(enabled);
       revealControls();
     },
-    [mc, revealControls],
+    [setCaptionsPreferred, revealControls],
   );
 
   const toggleControls = useCallback(() => {
