@@ -23,8 +23,19 @@ const HISTORY_MARKER = "litloftFullscreen";
 const COARSE_POINTER_QUERY = "(pointer: coarse)";
 const LANDSCAPE_QUERY = "(orientation: landscape)";
 
-/** Downward travel that counts as "put this away". */
+/**
+ * Vertical travel that counts as a request to change size: down for
+ * "put this away", up for "fill the screen".
+ */
 const SWIPE_DISMISS_PX = 80;
+
+/**
+ * How much two fingers have to spread or close before it reads as a
+ * deliberate pinch. Generous margins on both sides so an imprecise
+ * two-finger tap does nothing at all.
+ */
+const PINCH_ENTER_RATIO = 1.25;
+const PINCH_EXIT_RATIO = 0.8;
 
 /**
  * Marks the control bar so swipes that begin there are left alone.
@@ -70,6 +81,14 @@ export interface FullscreenState {
   isPseudo: boolean;
   toggle: () => void;
   exit: () => void;
+}
+
+/** Distance between the first two touch points. */
+function spread(touches: ArrayLike<TouchPoint>): number {
+  return Math.hypot(
+    touches[0].clientX - touches[1].clientX,
+    touches[0].clientY - touches[1].clientY,
+  );
 }
 
 function matches(query: string): boolean {
@@ -213,25 +232,45 @@ export function useFullscreen({
     return () => window.removeEventListener("keydown", onKeyDown);
   }, [pseudoActive, exit]);
 
-  // --- swipe to dismiss ---
+  // --- swipe and pinch ---
 
   useEffect(() => {
-    if (!pseudoActive) return;
     const frame = frameRef.current;
     if (!frame) return;
+    // Both directions are touch idioms. On a fine pointer the button
+    // and the `f` shortcut are the routes in and out.
+    if (!matches(COARSE_POINTER_QUERY)) return;
+
     let start: { x: number; y: number } | null = null;
+    let pinchFrom: number | null = null;
+    let pinchTo: number | null = null;
+
+    const forget = () => {
+      start = null;
+      pinchFrom = null;
+      pinchTo = null;
+    };
 
     const onTouchStart = (event: Event) => {
       if (suppressSwipeRef.current) {
-        start = null;
+        forget();
         return;
       }
       const { touches } = event as TouchLikeEvent;
-      // Pinch and other multi-finger gestures are not a dismiss.
-      if (touches.length !== 1) {
+
+      if (touches.length === 2) {
         start = null;
+        pinchFrom = spread(touches);
+        pinchTo = pinchFrom;
         return;
       }
+      if (touches.length !== 1) {
+        forget();
+        return;
+      }
+      pinchFrom = null;
+      pinchTo = null;
+
       const target = event.target as Element | null;
       if (target?.closest?.(CONTROLS_SELECTOR)) {
         start = null;
@@ -240,41 +279,65 @@ export function useFullscreen({
       start = { x: touches[0].clientX, y: touches[0].clientY };
     };
 
+    const onTouchMove = (event: Event) => {
+      if (pinchFrom === null) return;
+      const { touches } = event as TouchLikeEvent;
+      if (touches.length !== 2) return;
+      // The end of a pinch reports one finger at most, so the spread
+      // has to be captured while both are still down.
+      pinchTo = spread(touches);
+    };
+
     const onTouchEnd = (event: Event) => {
       // The decisive check: a long press only becomes a boost partway
       // through the touch, so the flag is usually still false at
       // touchstart and true by the time the finger lifts.
       if (suppressSwipeRef.current) {
-        start = null;
+        forget();
         return;
       }
+
+      if (pinchFrom !== null) {
+        const from = pinchFrom;
+        const to = pinchTo;
+        forget();
+        if (to === null || from <= 0) return;
+        const ratio = to / from;
+        if (ratio >= PINCH_ENTER_RATIO) enter("manual");
+        else if (ratio <= PINCH_EXIT_RATIO) exit();
+        return;
+      }
+
       if (!start) return;
       const point = (event as TouchLikeEvent).changedTouches[0];
       const from = start;
-      start = null;
+      forget();
       if (!point) return;
       const dx = point.clientX - from.x;
       const dy = point.clientY - from.y;
-      if (dy < SWIPE_DISMISS_PX) return;
       // A drag that travels further sideways is a scrub or a scroll
-      // attempt, not a dismiss.
+      // attempt, not a request to change size.
       if (Math.abs(dy) <= Math.abs(dx)) return;
-      exit();
+      if (dy >= SWIPE_DISMISS_PX) exit();
+      else if (dy <= -SWIPE_DISMISS_PX) enter("manual");
     };
 
-    const onTouchCancel = () => {
-      start = null;
-    };
+    const onTouchCancel = forget;
 
     frame.addEventListener("touchstart", onTouchStart, { passive: true });
+    frame.addEventListener("touchmove", onTouchMove, { passive: true });
     frame.addEventListener("touchend", onTouchEnd, { passive: true });
     frame.addEventListener("touchcancel", onTouchCancel, { passive: true });
     return () => {
       frame.removeEventListener("touchstart", onTouchStart);
+      frame.removeEventListener("touchmove", onTouchMove);
       frame.removeEventListener("touchend", onTouchEnd);
       frame.removeEventListener("touchcancel", onTouchCancel);
     };
-  }, [pseudoActive, frameRef, exit]);
+    // Deliberately not keyed on whether we are currently fullscreen:
+    // the same listeners serve both directions, and rebuilding them on
+    // every transition would drop a gesture already in flight.
+  }, [frameRef, enter, exit]);
 
   // --- document side effects ---
 

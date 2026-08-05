@@ -5,16 +5,48 @@ import { useFullscreen } from "../useFullscreen";
 // jsdom does not construct TouchEvent, so build the minimal shape the
 // hook reads and dispatch it as a plain bubbling Event.
 function touchEvent(
-  type: "touchstart" | "touchend" | "touchcancel",
+  type: "touchstart" | "touchmove" | "touchend" | "touchcancel",
   points: Array<{ x: number; y: number }>,
 ): Event {
   const event = new Event(type, { bubbles: true });
   const list = points.map(({ x, y }) => ({ clientX: x, clientY: y }));
+  // `touches` is what is still down; by touchend that is nothing.
   Object.defineProperty(event, "touches", {
-    value: type === "touchstart" ? list : [],
+    value: type === "touchstart" || type === "touchmove" ? list : [],
   });
   Object.defineProperty(event, "changedTouches", { value: list });
   return event;
+}
+
+/** A two-finger gesture that opens or closes by the given distances. */
+async function pinch(from: number, to: number, origin: Element) {
+  await act(async () => {
+    origin.dispatchEvent(
+      touchEvent("touchstart", [
+        { x: 200 - from / 2, y: 200 },
+        { x: 200 + from / 2, y: 200 },
+      ]),
+    );
+    origin.dispatchEvent(
+      touchEvent("touchmove", [
+        { x: 200 - to / 2, y: 200 },
+        { x: 200 + to / 2, y: 200 },
+      ]),
+    );
+    origin.dispatchEvent(touchEvent("touchend", [{ x: 200 - to / 2, y: 200 }]));
+  });
+}
+
+/** Like `swipe`, but awaits the async path into fullscreen. */
+async function swipeAsync(
+  from: { x: number; y: number },
+  to: { x: number; y: number },
+  origin: Element,
+) {
+  await act(async () => {
+    origin.dispatchEvent(touchEvent("touchstart", [from]));
+    origin.dispatchEvent(touchEvent("touchend", [to]));
+  });
 }
 
 function swipe(
@@ -117,7 +149,9 @@ describe("useFullscreen — swipe to dismiss", () => {
     expect(result.current.isPseudo).toBe(true);
   });
 
-  it("ignores multi-touch gestures", async () => {
+  it("does not read a two-finger drag as a dismiss", async () => {
+    // Two fingers is a pinch, judged on how far apart they end up
+    // rather than where they travelled.
     const { result } = await enterPseudo();
     act(() => {
       videoArea.dispatchEvent(
@@ -188,5 +222,78 @@ describe("useFullscreen — suppressed swipes", () => {
     const { result } = await enterPseudoWith(false);
     swipe({ x: 100, y: 100 }, { x: 105, y: 260 }, videoArea);
     expect(result.current.isPseudo).toBe(false);
+  });
+});
+
+describe("useFullscreen — gestures into fullscreen", () => {
+  function renderInPage() {
+    return renderHook(() =>
+      useFullscreen({ frameRef: { current: frame }, autoRotateEnabled: false }),
+    );
+  }
+
+  it("opens on a firm upward swipe", async () => {
+    const { result } = renderInPage();
+    await swipeAsync({ x: 100, y: 300 }, { x: 105, y: 180 }, videoArea);
+    expect(result.current.isFullscreen).toBe(true);
+  });
+
+  it("ignores a short upward drag", async () => {
+    const { result } = renderInPage();
+    await swipeAsync({ x: 100, y: 300 }, { x: 100, y: 260 }, videoArea);
+    expect(result.current.isFullscreen).toBe(false);
+  });
+
+  it("ignores a mostly horizontal drag", async () => {
+    const { result } = renderInPage();
+    await swipeAsync({ x: 100, y: 300 }, { x: 400, y: 200 }, videoArea);
+    expect(result.current.isFullscreen).toBe(false);
+  });
+
+  it("ignores a gesture that starts on the control bar", async () => {
+    // Dragging the seek bar travels upward as often as not.
+    const { result } = renderInPage();
+    const seekBar = controlBar.firstElementChild!;
+    await swipeAsync({ x: 100, y: 300 }, { x: 105, y: 180 }, seekBar);
+    expect(result.current.isFullscreen).toBe(false);
+  });
+
+  it("opens when two fingers spread apart", async () => {
+    const { result } = renderInPage();
+    await pinch(100, 200, videoArea);
+    expect(result.current.isFullscreen).toBe(true);
+  });
+
+  it("ignores a pinch too small to be deliberate", async () => {
+    const { result } = renderInPage();
+    await pinch(100, 110, videoArea);
+    expect(result.current.isFullscreen).toBe(false);
+  });
+
+  it("closes when two fingers come together", async () => {
+    const view = await enterPseudo();
+    await pinch(200, 100, videoArea);
+    expect(view.result.current.isPseudo).toBe(false);
+  });
+
+  it("ignores a two-finger tap that goes nowhere", async () => {
+    const { result } = renderInPage();
+    await pinch(150, 150, videoArea);
+    expect(result.current.isFullscreen).toBe(false);
+  });
+
+  it("stays put while a gesture already owns the video", async () => {
+    // A long press for the speed boost keeps fingers on the frame.
+    const view = renderHook(
+      (props: { suppressSwipe: boolean }) =>
+        useFullscreen({
+          frameRef: { current: frame },
+          autoRotateEnabled: false,
+          suppressSwipe: props.suppressSwipe,
+        }),
+      { initialProps: { suppressSwipe: true } },
+    );
+    await swipeAsync({ x: 100, y: 300 }, { x: 105, y: 180 }, videoArea);
+    expect(view.result.current.isFullscreen).toBe(false);
   });
 });
