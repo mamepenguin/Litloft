@@ -50,12 +50,6 @@ export function ControlButton({
   return (
     <button
       type="button"
-      // Marks the button for useFullscreen, which ignores swipes that
-      // start on the controls. Without it, a finger sliding off a
-      // button reads as swipe-to-dismiss and closes the frame.
-      // Redundant inside a marked bar, harmless, and the only thing
-      // that works for a button standing alone over the video.
-      data-player-controls=""
       className={`${BASE_CLASS} ${SIZE_CLASS[size]} ${className}`}
       aria-label={label}
       disabled={disabled}

@@ -38,11 +38,17 @@ const PINCH_ENTER_RATIO = 1.25;
 const PINCH_EXIT_RATIO = 0.8;
 
 /**
- * Marks the control bar so swipes that begin there are left alone.
- * Dragging the seek bar travels downward as often as not, and reading
- * that as a dismiss would make scrubbing impossible.
+ * Marks the scrub bar so swipes that begin there are left alone.
+ * Dragging it travels vertically as often as not, and reading that as
+ * a request to change size would make scrubbing impossible.
+ *
+ * Deliberately just the scrub bar. Marking the whole control bar meant
+ * a swipe starting on the play button — dead centre of the frame, the
+ * obvious place to put a finger — did nothing at all. Buttons have no
+ * drag of their own, so the distance threshold is enough to tell a
+ * deliberate swipe from a slip.
  */
-const CONTROLS_SELECTOR = "[data-player-controls]";
+const SCRUB_SELECTOR = "[data-player-scrub]";
 
 interface TouchPoint {
   clientX: number;
@@ -272,7 +278,7 @@ export function useFullscreen({
       pinchTo = null;
 
       const target = event.target as Element | null;
-      if (target?.closest?.(CONTROLS_SELECTOR)) {
+      if (target?.closest?.(SCRUB_SELECTOR)) {
         start = null;
         return;
       }

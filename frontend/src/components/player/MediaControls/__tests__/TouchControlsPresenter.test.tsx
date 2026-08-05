@@ -33,9 +33,13 @@ function renderControls(overrides: Partial<MediaControlsPresenterProps> = {}) {
   return { ...utils, props };
 }
 
-/** The blocks that take input, which is what useFullscreen looks for. */
+/** The absolutely-positioned blocks that hold the controls. */
 function controlBlocks(container: HTMLElement): HTMLElement[] {
-  return Array.from(container.querySelectorAll<HTMLElement>("[data-player-controls]"));
+  return Array.from(
+    container.querySelectorAll<HTMLElement>(
+      '[data-testid="top-controls"], [data-testid="bottom-controls"]',
+    ),
+  );
 }
 
 describe("TouchControlsPresenter", () => {
@@ -201,10 +205,10 @@ describe("TouchControlsPresenter", () => {
      */
     function gatedElements(container: HTMLElement): HTMLElement[] {
       const bottom = container.querySelector<HTMLElement>(
-        "[data-player-controls].bottom-0",
+        '[data-testid="bottom-controls"]',
       );
       const top = container.querySelector<HTMLElement>(
-        "[data-player-controls].top-0",
+        '[data-testid="top-controls"]',
       );
       const transport = Array.from(
         container.querySelectorAll<HTMLElement>('[data-testid="transport"] button'),
@@ -276,21 +280,33 @@ describe("TouchControlsPresenter", () => {
       );
     });
 
-    it("stops a slip on a button from dismissing fullscreen", () => {
-      // useFullscreen ignores swipes starting on [data-player-controls];
-      // a finger sliding off a button must not close the frame.
+    it("lets a swipe from a button reach the frame", () => {
+      // Only the scrub bar opts out of swipes. A button has no drag of
+      // its own, and excluding it made an upward swipe from dead centre
+      // of the frame do nothing at all.
       renderControls();
-      expect(screen.getByRole("button", { name: "Pause" })).toHaveAttribute(
-        "data-player-controls",
+      expect(screen.getByRole("button", { name: "Pause" })).not.toHaveAttribute(
+        "data-player-scrub",
       );
+    });
+
+    it("refuses to be scrolled while the controls are up", () => {
+      // The gesture layer underneath already refuses, but the controls
+      // sit on top of it: without the same refusal here, a swipe that
+      // starts on a button is taken by the page as a scroll.
+      const { container } = renderControls();
+      const root = container.querySelector<HTMLElement>(
+        '[data-testid="touch-controls-root"]',
+      );
+      expect(root?.className).toContain("touch-none");
     });
   });
 
   describe("swipe-to-dismiss coexistence", () => {
     it("marks only the blocks that take input", () => {
-      // useFullscreen ignores swipes that start on [data-player-controls].
-      // Marking a full-frame container would tell it every swipe belongs
-      // to the controls, killing swipe-to-dismiss outright.
+      // Everything between the blocks has to fall through to the
+      // gestures underneath; a container filling the frame would take
+      // the lot.
       const { container } = renderControls();
       const blocks = controlBlocks(container);
       expect(blocks.length).toBeGreaterThan(0);
@@ -307,7 +323,7 @@ describe("TouchControlsPresenter", () => {
       // takes touches meant for the bar.
       const { container } = renderControls({ isFullscreen: true });
       const bottom = container.querySelector<HTMLElement>(
-        "[data-player-controls].bottom-0",
+        '[data-testid="bottom-controls"]',
       );
       expect(bottom?.style.paddingBottom).toContain("safe-area-inset-bottom");
       expect(bottom?.style.paddingLeft).toContain("safe-area-inset-left");
@@ -319,7 +335,7 @@ describe("TouchControlsPresenter", () => {
       // belongs on the frame's own boundary.
       const { container } = renderControls();
       const bottom = container.querySelector<HTMLElement>(
-        "[data-player-controls].bottom-0",
+        '[data-testid="bottom-controls"]',
       );
       expect(bottom?.style.paddingBottom).toBe("");
     });
@@ -330,7 +346,7 @@ describe("TouchControlsPresenter", () => {
         isPseudoFullscreen: true,
       });
       const bottom = container.querySelector<HTMLElement>(
-        "[data-player-controls].bottom-0",
+        '[data-testid="bottom-controls"]',
       );
       expect(bottom?.style.paddingBottom).toContain("safe-area-inset-bottom");
     });

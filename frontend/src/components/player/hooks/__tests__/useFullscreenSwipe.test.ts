@@ -102,8 +102,8 @@ beforeEach(() => {
   });
   videoArea = document.createElement("div");
   controlBar = document.createElement("div");
-  controlBar.setAttribute("data-player-controls", "");
-  const seekBar = document.createElement("input");
+  const seekBar = document.createElement("div");
+  seekBar.setAttribute("data-player-scrub", "");
   controlBar.appendChild(seekBar);
   frame.append(videoArea, controlBar);
   document.body.appendChild(frame);
@@ -140,13 +140,21 @@ describe("useFullscreen — swipe to dismiss", () => {
     expect(result.current.isPseudo).toBe(true);
   });
 
-  it("ignores a gesture that starts on the control bar", async () => {
-    // Dragging the seek bar travels downward as often as not; treating
-    // that as a dismiss would make scrubbing impossible.
+  it("ignores a gesture that starts on the scrub bar", async () => {
+    // Dragging it travels downward as often as not; treating that as a
+    // dismiss would make scrubbing impossible.
     const { result } = await enterPseudo();
     const seekBar = controlBar.firstElementChild!;
     swipe({ x: 100, y: 100 }, { x: 105, y: 260 }, seekBar);
     expect(result.current.isPseudo).toBe(true);
+  });
+
+  it("still dismisses from elsewhere on the control bar", async () => {
+    // Only the scrub bar has a drag of its own. Excluding the whole bar
+    // meant a swipe starting on a button did nothing at all.
+    const { result } = await enterPseudo();
+    swipe({ x: 100, y: 100 }, { x: 105, y: 260 }, controlBar);
+    expect(result.current.isPseudo).toBe(false);
   });
 
   it("does not read a two-finger drag as a dismiss", async () => {
@@ -250,12 +258,21 @@ describe("useFullscreen — gestures into fullscreen", () => {
     expect(result.current.isFullscreen).toBe(false);
   });
 
-  it("ignores a gesture that starts on the control bar", async () => {
-    // Dragging the seek bar travels upward as often as not.
+  it("ignores a gesture that starts on the scrub bar", async () => {
+    // Dragging it travels upward as often as not.
     const { result } = renderInPage();
     const seekBar = controlBar.firstElementChild!;
     await swipeAsync({ x: 100, y: 300 }, { x: 105, y: 180 }, seekBar);
     expect(result.current.isFullscreen).toBe(false);
+  });
+
+  it("opens from a swipe that starts on a button", async () => {
+    // The play button sits dead centre of the frame — the obvious place
+    // to put a finger — and excluding the whole control bar made a
+    // swipe from there do nothing.
+    const { result } = renderInPage();
+    await swipeAsync({ x: 100, y: 300 }, { x: 105, y: 180 }, controlBar);
+    expect(result.current.isFullscreen).toBe(true);
   });
 
   it("opens when two fingers spread apart", async () => {

@@ -57,9 +57,7 @@ export function PointerControlsPresenter({
 
   return (
     <div
-      // Read by useFullscreen: a swipe that starts here belongs to the
-      // controls (scrubbing) and must not be taken as a dismiss.
-      data-player-controls=""
+      data-testid="control-bar"
       style={
         isPseudoFullscreen
           ? {

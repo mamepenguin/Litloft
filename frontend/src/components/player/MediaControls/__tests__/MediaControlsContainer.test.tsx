@@ -58,11 +58,11 @@ function renderControls(mc: MediaController | null, durationHint?: number | null
 
 /**
  * The bar is one of two siblings the container renders (the gesture
- * overlay is the other), so it is addressed by its marker attribute
- * rather than by position.
+ * overlay is the other), so it is addressed by test id rather than by
+ * position.
  */
 function barOf(container: HTMLElement): HTMLElement {
-  const bar = container.querySelector<HTMLElement>("[data-player-controls]");
+  const bar = container.querySelector<HTMLElement>('[data-testid="control-bar"]');
   if (!bar) throw new Error("control bar not found");
   return bar;
 }

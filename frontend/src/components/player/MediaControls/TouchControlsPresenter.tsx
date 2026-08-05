@@ -23,10 +23,8 @@ import { TimeDisplay } from "./parts/TimeDisplay";
  * to the double-tap gesture, whose target is half the frame.
  *
  * The parts that take input are separate absolutely-positioned blocks
- * rather than one full-frame container, and only those blocks carry
- * `data-player-controls`. A full-frame marker would tell useFullscreen
- * that every swipe belongs to the controls, killing swipe-to-dismiss
- * outright.
+ * rather than one container filling the frame, so that everything
+ * between them still falls through to the gestures underneath.
  *
  * Colours are white-on-scrim rather than theme tokens, since the
  * backdrop is always a black video frame (DESIGN.md, "Over-video
@@ -76,6 +74,11 @@ export function TouchControlsPresenter({
           // input here would swallow every tap, long press and double
           // tap on the video. The children opt back in individually.
           "pointer-events-none",
+          // The gesture layer underneath already refuses to be scrolled,
+          // but the controls sit on top of it. Without the same refusal
+          // here, a swipe that starts on a button or the bar is taken
+          // by the page as a scroll and never reaches the frame.
+          "touch-none",
           // iOS runs its own long-press behaviour over anything
           // selectable — the loupe appears and the gesture is lost.
           "select-none [-webkit-user-select:none] [-webkit-touch-callout:none]",
@@ -106,7 +109,7 @@ export function TouchControlsPresenter({
         </div>
 
         <div
-          data-player-controls=""
+          data-testid="top-controls"
           style={
             isPseudoFullscreen
               ? {
@@ -137,7 +140,7 @@ export function TouchControlsPresenter({
         </div>
 
         <div
-          data-player-controls=""
+          data-testid="bottom-controls"
           style={
             // Either kind of fullscreen puts the frame against the
             // physical screen edge, where a bar flush at the bottom

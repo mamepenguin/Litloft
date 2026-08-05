@@ -123,7 +123,12 @@ export function SeekBar({
   const trackOffsetPx = variant === "edge" ? ROW_PX - LINE_PX : (ROW_PX - LINE_PX) / 2;
 
   return (
-    <div className="relative h-10 w-full">
+    <div
+      // Swipes that begin here are a scrub, not a request to change
+      // the frame's size. Read by useFullscreen.
+      data-player-scrub=""
+      className="relative h-10 w-full"
+    >
       <input
         type="range"
         className={`peer absolute inset-0 z-10 ${SEEK_INPUT_CLASS}`}
