@@ -73,11 +73,13 @@ export interface MediaController {
 export type CaptionsState = "on" | "off" | "unavailable";
 
 /**
- * How long after a seek to repeat "captions off". The player restores
- * them while it settles on the new position, which happens after
- * seekTo returns.
+ * The player restores captions somewhere in the time it takes to settle
+ * on a new position, and exactly when depends on how long it buffers.
+ * Repeating "off" across that whole window is more reliable than
+ * guessing a single moment to say it.
  */
-const CAPTION_REASSERT_MS = 400;
+const CAPTION_REASSERT_INTERVAL_MS = 250;
+const CAPTION_REASSERT_ATTEMPTS = 8;
 
 /**
  * Minimal subset of the YouTube IFrame Player API we depend on. Kept
@@ -117,6 +119,8 @@ export interface YouTubePlayerLike {
    */
   loadModule?(name: string): void;
   unloadModule?(name: string): void;
+  getOption?(module: string, option: string): unknown;
+  setOption?(module: string, option: string, value: unknown): void;
 }
 
 /** Extra wiring a caller can supply when constructing a controller. */
@@ -253,36 +257,81 @@ export function createYouTubeController(
   // pressing it does nothing visible. Hiding it instead would mean
   // flashing captions on every video just to find out.
   let captionsOn = false;
-  let captionReassertTimer: ReturnType<typeof setTimeout> | null = null;
+  let captionReassertTimer: ReturnType<typeof setInterval> | null = null;
 
   /**
-   * Say "captions off" again. The player brings them back by itself
-   * after a seek — our unloadModule call does not survive one — so the
-   * instruction has to be repeated rather than issued once.
+   * Hide captions. Two calls because they do different things:
+   * blanking the track is what actually sticks, while unloading the
+   * module is what takes effect immediately. Unloading alone is undone
+   * the moment the player decides to load the module again — which it
+   * does on its own after a seek.
    */
-  function enforceCaptionsOff() {
-    if (captionsOn) return;
+  function hideCaptions(): boolean {
+    let acted = false;
+    try {
+      player.setOption?.("captions", "track", {});
+      acted = true;
+    } catch {
+      // Fall through; the unload below may still work.
+    }
     try {
       player.unloadModule?.("captions");
+      acted = true;
     } catch {
-      // Undocumented API; nothing useful to do if it is gone.
+      // Both undocumented calls refused.
     }
+    return acted;
   }
 
   /**
-   * Immediately and once more shortly after. The player restores
-   * captions as part of settling on the new position, which happens
-   * after seekTo returns, so an immediate call alone can land too
-   * early to stick.
+   * Show captions. Loading the module is not enough on its own: having
+   * been turned off by blanking the track, that blank is still in
+   * place, so a track has to be chosen again. The tracklist is only
+   * readable once the module is loaded, which is why this order.
    */
-  function enforceCaptionsOffThroughSeek() {
+  function showCaptions(): boolean {
+    try {
+      player.loadModule?.("captions");
+    } catch {
+      return false;
+    }
+    try {
+      const tracks = player.getOption?.("captions", "tracklist");
+      if (Array.isArray(tracks) && tracks.length > 0) {
+        player.setOption?.("captions", "track", tracks[0]);
+      }
+    } catch {
+      // Best effort: the module is loaded either way, and the player
+      // picks a default track in most cases.
+    }
+    return true;
+  }
+
+  function stopReasserting() {
+    if (captionReassertTimer === null) return;
+    clearInterval(captionReassertTimer);
+    captionReassertTimer = null;
+  }
+
+  /**
+   * Keep saying "off" for a couple of seconds. A seek makes the player
+   * restore captions by itself, and a single call — before or just
+   * after seekTo — lands at one arbitrary point in a window whose
+   * length depends on buffering.
+   */
+  function reassertCaptionsOff() {
     if (captionsOn) return;
-    enforceCaptionsOff();
-    if (captionReassertTimer) clearTimeout(captionReassertTimer);
-    captionReassertTimer = setTimeout(() => {
-      captionReassertTimer = null;
-      enforceCaptionsOff();
-    }, CAPTION_REASSERT_MS);
+    hideCaptions();
+    stopReasserting();
+    let attempts = 0;
+    captionReassertTimer = setInterval(() => {
+      if (captionsOn) {
+        stopReasserting();
+        return;
+      }
+      hideCaptions();
+      if (++attempts >= CAPTION_REASSERT_ATTEMPTS) stopReasserting();
+    }, CAPTION_REASSERT_INTERVAL_MS);
   }
 
   return {
@@ -293,7 +342,7 @@ export function createYouTubeController(
     ...(isInterrupted ? { isInterrupted: () => isInterrupted() } : {}),
     seek(seconds) {
       player.seekTo(clampSeek(seconds, player.getDuration()), true);
-      enforceCaptionsOffThroughSeek();
+      reassertCaptionsOff();
     },
     play() {
       player.playVideo();
@@ -371,15 +420,13 @@ export function createYouTubeController(
       return captionsOn ? "on" : "off";
     },
     setCaptions(enabled) {
-      try {
-        if (enabled) player.loadModule?.("captions");
-        else player.unloadModule?.("captions");
-      } catch {
-        // Unofficial; if the player refuses there is nothing to do but
-        // leave the flag alone so the UI keeps reporting the truth.
-        return;
-      }
+      const acted = enabled ? showCaptions() : hideCaptions();
+      // Leave the flag alone if the player refused, so the UI keeps
+      // reporting the truth.
+      if (!acted) return;
       captionsOn = enabled;
+      if (enabled) stopReasserting();
+      else reassertCaptionsOff();
     },
   };
 }
