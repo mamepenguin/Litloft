@@ -668,6 +668,7 @@
   "admin": {
     "title": "Dashboard",
     "settings": "Settings",
+    "markdownImages": "Markdown images",
     "drives": "Drives",
     "system": "System",
     "totalFiles": "Total Files",
@@ -708,6 +709,53 @@
     "restartCopyCommand": "docker compose restart backend",
     "restartCopyButton": "Copy",
     "restartCopied": "Copied"
+  },
+  "markdownImages": {
+    "title": "Attach Markdown Images",
+    "back": "Back to dashboard",
+    "scope": "Analysis scope",
+    "drive": "Drive",
+    "folder": "Folder",
+    "recursive": "Include subfolders",
+    "analyze": "Analyze",
+    "analysis": "Analysis results",
+    "hosts": "Hosts allowed for download",
+    "noCandidates": "No external HTTPS image candidates",
+    "selected": "{count} selected",
+    "import": "Attach {count}",
+    "cancel": "Cancel",
+    "progress": "{processed} of {total}",
+    "samples": "Candidates and files needing attention",
+    "recentErrors": "Recent errors",
+    "loadError": "Could not load import status",
+    "analyzeError": "Analysis failed",
+    "importError": "Could not start the import",
+    "cancelError": "Could not cancel the import",
+    "counts": {
+      "total_markdown": "Markdown files",
+      "local_loft_image": "Already attached",
+      "external_https_candidate": "External HTTPS candidates",
+      "no_image": "No image",
+      "unsupported_first_image": "Unsupported first image",
+      "invalid_loft_reference": "Invalid attachment reference",
+      "read_error": "Read errors"
+    },
+    "states": {
+      "queued": "Queued",
+      "running": "Attaching images",
+      "cancelling": "Stopping",
+      "completed": "Completed",
+      "cancelled": "Cancelled",
+      "interrupted": "Interrupted by restart",
+      "failed": "Job failed"
+    },
+    "jobCounts": {
+      "succeeded": "New attachments",
+      "reused": "Reused",
+      "skipped": "Skipped",
+      "conflicts": "Content conflicts",
+      "failed": "Failed"
+    }
   },
   "inspector": {
     "title": "Properties",

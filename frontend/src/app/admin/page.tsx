@@ -17,6 +17,7 @@ import {
   Settings,
   Trash2,
   Clock,
+  ImageDown,
 } from "lucide-react";
 
 import { getDashboard } from "@/lib/api";
@@ -265,13 +266,22 @@ export default function AdminDashboardPage() {
     <div className="mx-auto max-w-5xl px-4 py-6 sm:px-6">
       <div className="mb-6 flex items-center justify-between gap-3">
         <h1 className="text-xl font-bold text-text-primary">{t("title")}</h1>
-        <Link
-          href="/admin/settings"
-          className="flex items-center gap-2 rounded-2xl px-3 py-2 text-sm text-text-muted transition-colors hover:bg-bg-elevated hover:text-text-primary"
-        >
-          <Settings size={16} />
-          {t("settings")}
-        </Link>
+        <div className="flex items-center gap-1">
+          <Link
+            href="/admin/markdown-images"
+            className="flex items-center gap-2 rounded-lg px-3 py-2 text-sm text-text-muted transition-colors hover:bg-bg-elevated hover:text-text-primary"
+          >
+            <ImageDown size={16} />
+            {t("markdownImages")}
+          </Link>
+          <Link
+            href="/admin/settings"
+            className="flex items-center gap-2 rounded-lg px-3 py-2 text-sm text-text-muted transition-colors hover:bg-bg-elevated hover:text-text-primary"
+          >
+            <Settings size={16} />
+            {t("settings")}
+          </Link>
+        </div>
       </div>
 
       {error && (

@@ -1,10 +1,8 @@
 import asyncio
-import hashlib
 import json
 import logging
 import os
 import re
-import tempfile
 import zipfile
 from collections import defaultdict
 from datetime import UTC, datetime
@@ -70,8 +68,15 @@ from app.services.frontmatter import (
 from app.services.markdown_relations import (
     ResolveDiagnostic,
     extract_links,
-    resolve_wiki_targets,
     resolve_wiki_targets_with_map,
+    sync_markdown_file_relations,
+)
+from app.services.markdown_images import project_markdown_thumbnail
+from app.services.content_write import (
+    ContentConflictError,
+    ContentMissingError,
+    compute_content_etag,
+    write_text_content,
 )
 from app.services.heic import HEIC_MIME_TYPES, convert_heic_to_jpeg
 from app.services.subtitle import convert_srt_to_vtt, detect_subtitles
@@ -108,100 +113,7 @@ def _sync_md_file_relations(
     content: str,
     self_dir: str,
 ) -> list[ResolveDiagnostic]:
-    """Sync file_relations for a .md file using its body and frontmatter.
-
-    Spec ``2026-05-12-markdown-link-three-forms.md`` §3.5.
-
-    Three sources contribute to ``kind='related'`` relations on ``.md`` files:
-
-    * ``loft://<id>`` in body — direct file id reference.
-    * ``[[X]]`` in body — wiki target, resolved drive-scoped via
-      :func:`resolve_wiki_targets` (see §3.3 for precedence).
-    * ``source_file_ids: [...]`` in frontmatter — raw file IDs (same format
-      as distill / Ask-save notes). Allows relations to persist even when the
-      body is empty or the user hasn't written explicit links yet.
-
-    Any combination of these sources can maintain a relation independently;
-    removing one source only removes the relation if no other source references
-    the same file.
-
-    Ambiguous and unresolved wiki targets do **not** create relations
-    (per spec §7.5 — auto-picking would surprise the writer). They are
-    returned as diagnostics so the caller can surface a warning.
-
-    Same-drive + active filter is applied; cross-drive references are
-    silently dropped (drive = security boundary).
-    """
-    extracted = extract_links(content)
-    loft_ids = {m for m in extracted.loft_ids if m != file_id}
-    wiki_ids, diagnostics = resolve_wiki_targets(
-        db, drive, self_dir, extracted.wiki_targets
-    )
-
-    # frontmatter source_file_ids contribute the same way as loft_ids.
-    # Malformed frontmatter is silently ignored — a save must never fail
-    # due to a YAML parse error in this projection step.
-    fm_ids: set[str] = set()
-    try:
-        _parsed_fm = parse_frontmatter(content)
-        _raw = _parsed_fm.metadata.get("source_file_ids")
-        if isinstance(_raw, list):
-            fm_ids = {
-                str(v) for v in _raw
-                if isinstance(v, str) and v and v != file_id
-            }
-    except Exception:
-        pass
-
-    # loft_ids and fm_ids bypass the resolver, so apply the same-drive +
-    # active filter explicitly. Without this, a stale id pointing at a
-    # different drive could leak into ``file_relations``.
-    raw_ids = (loft_ids | fm_ids) - {file_id}
-    valid_raw: set[str] = set()
-    if raw_ids:
-        rows = (
-            db.query(File.id)
-            .filter(
-                File.id.in_(raw_ids),
-                File.drive == drive,
-                active_file_filter(),
-            )
-            .all()
-        )
-        valid_raw = {row.id for row in rows}
-
-    target_ids = (valid_raw | wiki_ids) - {file_id}
-
-    # Current file_relations for this file (kind='related', both directions)
-    existing_rels = db.query(FileRelation).filter(
-        or_(
-            FileRelation.file_id_a == file_id,
-            FileRelation.file_id_b == file_id,
-        ),
-        FileRelation.kind == "related",
-    ).all()
-    existing_map: dict[str, FileRelation] = {}
-    for rel in existing_rels:
-        other = rel.file_id_b if rel.file_id_a == file_id else rel.file_id_a
-        existing_map[other] = rel
-
-    existing_ids = set(existing_map)
-    to_add = target_ids - existing_ids
-    to_remove = existing_ids - target_ids
-
-    for tid in to_add:
-        db.add(
-            FileRelation(
-                file_id_a=file_id,
-                file_id_b=tid,
-                kind="related",
-                created_at=datetime.now(UTC),
-            )
-        )
-    for tid in to_remove:
-        db.delete(existing_map[tid])
-
-    return diagnostics
+    return sync_markdown_file_relations(db, file_id, drive, content, self_dir)
 
 
 def _is_markdown_file(file: File) -> bool:
@@ -1348,7 +1260,7 @@ def restore_file_endpoint(
 
 
 def _compute_text_etag(data: bytes) -> str:
-    return hashlib.sha256(data).hexdigest()
+    return compute_content_etag(data)
 
 
 def _inject_md_id(
@@ -1478,26 +1390,18 @@ async def put_file_content(
                     status_code=413, detail="Content exceeds size limit after id injection"
                 )
 
-        # Atomic write: tmp + os.replace. Temp file is on the same FS as target
-        # so os.replace is atomic on POSIX.
-        tmp_fd, tmp_name = tempfile.mkstemp(
-            prefix=f".{file_path.name}.", suffix=".tmp", dir=str(file_path.parent)
-        )
         try:
-            with os.fdopen(tmp_fd, "wb") as f:
-                f.write(body)
-            os.replace(tmp_name, file_path)
-        except Exception:
-            try:
-                os.unlink(tmp_name)
-            except OSError:
-                pass
-            raise
-
-        new_etag = _compute_text_etag(body)
-        # Update File.file_size (ignore mtime — FS is authoritative for mtime)
-        file.file_size = len(body)
-        db.commit()
+            new_etag = write_text_content(
+                db,
+                file,
+                file_path,
+                body,
+                expected_etag=current_etag,
+            )
+        except ContentMissingError:
+            raise HTTPException(status_code=404, detail="File not found on disk")
+        except ContentConflictError:
+            raise HTTPException(status_code=412, detail="ETag mismatch")
 
         # β canonical rule (spec 2026-04-24, Phase 11): for .md files,
         # the frontmatter's ``tags:`` is the source of truth for
@@ -1580,6 +1484,26 @@ async def put_file_content(
                 db.rollback()
                 logger.exception(
                     "put_content: link sync failed for %s", file_id
+                )
+
+            # The Markdown body is canonical; thumbnail_path is a local,
+            # network-free projection of its first loft:// image. Keep this
+            # isolated like the other projections so a thumbnail failure can
+            # never roll back the durable content write.
+            try:
+                content_str = body.decode("utf-8")
+                project_markdown_thumbnail(db, file, content_str)
+                db.commit()
+            except UnicodeDecodeError:
+                db.rollback()
+                logger.warning(
+                    "put_content: %s is not valid UTF-8; skipping thumbnail projection",
+                    file_id,
+                )
+            except Exception:
+                db.rollback()
+                logger.exception(
+                    "put_content: thumbnail projection failed for %s", file_id
                 )
 
     asyncio.create_task(
@@ -1784,4 +1708,3 @@ def get_file_exif(
     if not exif:
         raise HTTPException(status_code=404, detail="No EXIF data")
     return ExifResponse.model_validate(exif)
-
