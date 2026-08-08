@@ -16,12 +16,15 @@ export interface LoftPlayerProps {
   onMediaController?: (mc: MediaController | null) => void;
   /** Forwarded to the resolved embed component (citation jump). */
   initialTime?: number;
+  /** Forwarded to the resolved embed component (see LoftEmbedProps). */
+  durationHint?: number | null;
 }
 
 export default function LoftPlayer({
   fileId,
   onMediaController,
   initialTime,
+  durationHint,
 }: LoftPlayerProps) {
   const [content, setContent] = useState<LoftContent | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -60,6 +63,7 @@ export default function LoftPlayer({
       url={content.url}
       onMediaController={onMediaController}
       initialTime={initialTime}
+      durationHint={durationHint}
     />
   );
 }

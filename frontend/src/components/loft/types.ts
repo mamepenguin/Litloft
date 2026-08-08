@@ -14,4 +14,16 @@ export interface LoftEmbedProps {
    * in the initial src URL.
    */
   initialTime?: number;
+  /**
+   * The file's real duration in seconds, from Litloft's own metadata
+   * (yt-dlp at import time), or null when we never captured one.
+   *
+   * Embeds cannot trust the player for this. The YouTube IFrame API
+   * reports 0 until metadata loads — which happens after playback
+   * starts, i.e. potentially after a pre-roll ad has begun — and during
+   * an ad it reports the *ad's* duration. A trustworthy duration is
+   * what makes ad detection possible at all, and it lets the seek bar
+   * show the right total before the player knows it.
+   */
+  durationHint?: number | null;
 }
