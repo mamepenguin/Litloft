@@ -1,6 +1,12 @@
 "use client";
 
-import { useCallback, useEffect, useState, type RefObject } from "react";
+import {
+  useCallback,
+  useEffect,
+  useState,
+  type ReactNode,
+  type RefObject,
+} from "react";
 import type { MediaController } from "@/lib/mediaController";
 import { PointerControlsPresenter } from "./PointerControlsPresenter";
 import { TouchControlsPresenter } from "./TouchControlsPresenter";
@@ -45,6 +51,11 @@ export interface MediaControlsContainerProps {
    * off its swipe-to-dismiss while a finger is planted on the video.
    */
   onBoostingChange?: (boosting: boolean) => void;
+  /**
+   * Extra rows for the settings sheet. Opaque to core: a backend may
+   * have settings core has no concept of.
+   */
+  settingsExtra?: ReactNode;
 }
 
 /**
@@ -61,6 +72,7 @@ export default function MediaControlsContainer({
   isPseudoFullscreen = false,
   interactive = true,
   onBoostingChange,
+  settingsExtra,
 }: MediaControlsContainerProps) {
   const [settingsOpen, setSettingsOpen] = useState(false);
   const state = useMediaControlsState({
@@ -78,15 +90,28 @@ export default function MediaControlsContainer({
 
   // Applying the preference in one effect keeps a single write path:
   // the change handler only records the preference, and this reacts.
+  //
+  // Guarded because a controller can outlive its player by a moment:
+  // whoever owns the frame may tear the backend down in the same commit
+  // that mounts us, and a write to a destroyed one throws from inside
+  // the backend's own code rather than returning an error.
   useEffect(() => {
-    mc?.setPlaybackRate(preferredRate);
+    try {
+      mc?.setPlaybackRate(preferredRate);
+    } catch {
+      // Backend gone; the next one will get the preference on mount.
+    }
   }, [mc, preferredRate]);
 
   // Same single-write-path idea, and it also carries the preference to
   // each new file: the toggle only records what the viewer wants, and
   // this applies it whenever that or the player changes.
   useEffect(() => {
-    mc?.setCaptions?.(captionsPreferred);
+    try {
+      mc?.setCaptions?.(captionsPreferred);
+    } catch {
+      // Same as above.
+    }
   }, [mc, captionsPreferred]);
 
   useEffect(() => {
@@ -238,6 +263,7 @@ export default function MediaControlsContainer({
         onToggleCaptions={handleToggleCaptions}
         settingsOpen={settingsOpen}
         onSettingsOpenChange={setSettingsOpen}
+        settingsExtra={settingsExtra}
       />
     </>
   );
