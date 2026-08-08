@@ -25,13 +25,15 @@ import logging
 import os
 import re
 from dataclasses import dataclass, field
+from datetime import UTC, datetime
 from pathlib import Path, PurePosixPath
 from typing import Iterable, Literal
 
+from sqlalchemy import or_
 from sqlalchemy.orm import Session
 
 import app.config as config
-from app.models import File, active_file_filter
+from app.models import File, FileRelation, active_file_filter
 
 logger = logging.getLogger(__name__)
 
@@ -104,6 +106,76 @@ def extract_links(content: str) -> ExtractedLinks:
     raw_targets = _WIKI_LINK_RE.findall(safe)
     wiki_targets = [t.strip() for t in raw_targets if t.strip()]
     return ExtractedLinks(loft_ids=loft_ids, wiki_targets=wiki_targets)
+
+
+def sync_markdown_file_relations(
+    db: Session,
+    file_id: str,
+    drive: str,
+    content: str,
+    self_dir: str,
+) -> list[ResolveDiagnostic]:
+    extracted = extract_links(content)
+    loft_ids = {item for item in extracted.loft_ids if item != file_id}
+    wiki_ids, diagnostics = resolve_wiki_targets(
+        db, drive, self_dir, extracted.wiki_targets
+    )
+
+    fm_ids: set[str] = set()
+    try:
+        from app.services.frontmatter import parse as parse_frontmatter
+
+        raw_ids = parse_frontmatter(content).metadata.get("source_file_ids")
+        if isinstance(raw_ids, list):
+            fm_ids = {
+                item for item in raw_ids
+                if isinstance(item, str) and item and item != file_id
+            }
+    except Exception:
+        pass
+
+    requested_ids = (loft_ids | fm_ids) - {file_id}
+    valid_direct_ids: set[str] = set()
+    if requested_ids:
+        rows = (
+            db.query(File.id)
+            .filter(
+                File.id.in_(requested_ids),
+                File.drive == drive,
+                active_file_filter(),
+            )
+            .all()
+        )
+        valid_direct_ids = {row.id for row in rows}
+
+    target_ids = (valid_direct_ids | wiki_ids) - {file_id}
+    existing = (
+        db.query(FileRelation)
+        .filter(
+            or_(
+                FileRelation.file_id_a == file_id,
+                FileRelation.file_id_b == file_id,
+            ),
+            FileRelation.kind == "related",
+        )
+        .all()
+    )
+    existing_map = {
+        (relation.file_id_b if relation.file_id_a == file_id else relation.file_id_a): relation
+        for relation in existing
+    }
+    for target_id in target_ids - set(existing_map):
+        db.add(
+            FileRelation(
+                file_id_a=file_id,
+                file_id_b=target_id,
+                kind="related",
+                created_at=datetime.now(UTC),
+            )
+        )
+    for target_id in set(existing_map) - target_ids:
+        db.delete(existing_map[target_id])
+    return diagnostics
 
 
 # ---------------------------------------------------------------------------

@@ -20,6 +20,12 @@ from app.services.frontmatter import (
     parse as parse_frontmatter,
 )
 from app.services.hash import compute_file_hash
+from app.services.markdown_images import project_markdown_thumbnail
+from app.services.maintenance import (
+    MaintenanceBusyError,
+    _lock as _scan_lock,
+    maintenance_operation,
+)
 from app.services.subtitle import is_subtitle_file
 from app.services.thumbnail import get_thumbnail_generator, get_video_duration
 from app.services import event_hooks
@@ -30,7 +36,6 @@ _MD_READ_MAX_BYTES = 1 * 1024 * 1024
 
 logger = logging.getLogger(__name__)
 
-_scan_lock = asyncio.Lock()
 _last_scanned_at: dict[str, datetime] = {}
 _scanning_drives: set[str] = set()
 
@@ -234,6 +239,15 @@ def register_single_file(db: Session, drive_name: str, file_path: Path) -> str:
     db.flush()
 
     _ensure_md_id_for_new_file(db, file_record, file_path)
+
+    if mime_type == "text/markdown" or nfc_name.lower().endswith(".md"):
+        try:
+            if file_path.stat().st_size <= _MD_READ_MAX_BYTES:
+                project_markdown_thumbnail(
+                    db, file_record, file_path.read_text(encoding="utf-8")
+                )
+        except (OSError, UnicodeDecodeError):
+            pass
 
     if file_type == "image":
         exif = extract_exif(file_path)
@@ -446,7 +460,7 @@ def _scan_and_register(db: Session, drive_name: str) -> dict[str, int]:
             if get_thumbnail_generator(file_type, mime_type) is not None:
                 new_thumb_rel = _expected_thumbnail_path(drive_name, folder_path, nfc_stem)
                 _relocate_thumbnail(candidate, new_thumb_rel, file_type, item)
-            else:
+            elif mime_type != "text/markdown" and not nfc_name.lower().endswith(".md"):
                 candidate.thumbnail_path = None
 
             moved_ids.append(candidate.id)
@@ -559,6 +573,36 @@ def _scan_and_register(db: Session, drive_name: str) -> dict[str, int]:
     if moved_ids:
         event_hooks.emit_sync("files.moved", {"file_ids": moved_ids})
 
+    # Markdown thumbnails are a body projection, so reconcile them after the
+    # regular pass has generated all referenced image thumbnails. This pass is
+    # local-only: project_markdown_thumbnail never fetches external URLs.
+    markdown_rows = (
+        db.query(File)
+        .filter(File.drive == drive_name, active_file_filter())
+        .all()
+    )
+    for markdown_file in markdown_rows:
+        if (
+            markdown_file.mime_type != "text/markdown"
+            and not markdown_file.filename.lower().endswith(".md")
+        ):
+            continue
+        markdown_path = drive_path / markdown_file.file_path
+        try:
+            if markdown_path.stat().st_size > _MD_READ_MAX_BYTES:
+                continue
+            content = markdown_path.read_text(encoding="utf-8")
+        except (OSError, UnicodeDecodeError):
+            continue
+        try:
+            if project_markdown_thumbnail(db, markdown_file, content):
+                updated += 1
+        except Exception:
+            logger.exception(
+                "scanner: markdown thumbnail projection failed for %s",
+                markdown_file.file_path,
+            )
+
     # Sync empty folders: detect filesystem dirs with no files and track them
     folders_with_files = {
         f.folder_path
@@ -628,33 +672,33 @@ def _scan_and_register(db: Session, drive_name: str) -> dict[str, int]:
 
 
 async def scan_drive(drive_name: str) -> dict[str, int]:
-    if _scan_lock.locked():
-        raise RuntimeError("Scan already in progress")
-
-    async with _scan_lock:
-        _scanning_drives.add(drive_name)
-        logger.info("Starting file scan for drive '%s'", drive_name)
-        loop = asyncio.get_running_loop()
-        db = SessionLocal()
-        try:
-            result = await loop.run_in_executor(None, _scan_and_register, db, drive_name)
-            _last_scanned_at[drive_name] = datetime.now(UTC)
-            logger.info(
-                "Scan complete for drive '%s': added=%d, missing=%d, recovered=%d, moved=%d, total=%d",
-                drive_name,
-                result["added"],
-                result.get("missing", 0),
-                result.get("recovered", 0),
-                result.get("moved", 0),
-                result["total"],
-            )
-            return result
-        except Exception:
-            db.rollback()
-            raise
-        finally:
-            _scanning_drives.discard(drive_name)
-            db.close()
+    try:
+        async with maintenance_operation(f"scan:{drive_name}"):
+            _scanning_drives.add(drive_name)
+            logger.info("Starting file scan for drive '%s'", drive_name)
+            loop = asyncio.get_running_loop()
+            db = SessionLocal()
+            try:
+                result = await loop.run_in_executor(None, _scan_and_register, db, drive_name)
+                _last_scanned_at[drive_name] = datetime.now(UTC)
+                logger.info(
+                    "Scan complete for drive '%s': added=%d, missing=%d, recovered=%d, moved=%d, total=%d",
+                    drive_name,
+                    result["added"],
+                    result.get("missing", 0),
+                    result.get("recovered", 0),
+                    result.get("moved", 0),
+                    result["total"],
+                )
+                return result
+            except Exception:
+                db.rollback()
+                raise
+            finally:
+                _scanning_drives.discard(drive_name)
+                db.close()
+    except MaintenanceBusyError as exc:
+        raise RuntimeError("Maintenance operation already in progress") from exc
 
 
 async def scan_all_drives() -> dict[str, dict[str, int]]:

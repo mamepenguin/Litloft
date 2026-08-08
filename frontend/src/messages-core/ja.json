@@ -668,6 +668,7 @@
   "admin": {
     "title": "ダッシュボード",
     "settings": "設定",
+    "markdownImages": "Markdown画像",
     "drives": "ドライブ",
     "system": "システム",
     "totalFiles": "ファイル数",
@@ -708,6 +709,53 @@
     "restartCopyCommand": "docker compose restart backend",
     "restartCopyButton": "コピー",
     "restartCopied": "コピーしました"
+  },
+  "markdownImages": {
+    "title": "Markdown画像の添付化",
+    "back": "ダッシュボードへ戻る",
+    "scope": "分析範囲",
+    "drive": "ドライブ",
+    "folder": "フォルダ",
+    "recursive": "サブフォルダを含める",
+    "analyze": "分析",
+    "analysis": "分析結果",
+    "hosts": "取得を許可するホスト",
+    "noCandidates": "外部HTTPS画像の候補はありません",
+    "selected": "{count}件を選択中",
+    "import": "{count}件を添付化",
+    "cancel": "キャンセル",
+    "progress": "{processed} / {total}件",
+    "samples": "対象と確認が必要なファイル",
+    "recentErrors": "最近のエラー",
+    "loadError": "状態の読み込みに失敗しました",
+    "analyzeError": "分析に失敗しました",
+    "importError": "添付化を開始できませんでした",
+    "cancelError": "キャンセルに失敗しました",
+    "counts": {
+      "total_markdown": "Markdown総数",
+      "local_loft_image": "添付済み画像",
+      "external_https_candidate": "外部HTTPS候補",
+      "no_image": "画像なし",
+      "unsupported_first_image": "未対応の最初の画像",
+      "invalid_loft_reference": "無効な添付参照",
+      "read_error": "読み込みエラー"
+    },
+    "states": {
+      "queued": "開始待ち",
+      "running": "添付化中",
+      "cancelling": "停止処理中",
+      "completed": "完了",
+      "cancelled": "キャンセル済み",
+      "interrupted": "再起動により中断",
+      "failed": "ジョブ失敗"
+    },
+    "jobCounts": {
+      "succeeded": "新規添付",
+      "reused": "再利用",
+      "skipped": "スキップ",
+      "conflicts": "本文競合",
+      "failed": "失敗"
+    }
   },
   "inspector": {
     "title": "プロパティ",

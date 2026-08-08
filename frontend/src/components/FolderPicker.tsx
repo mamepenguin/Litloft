@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useId, useMemo, useRef, useState } from "react";
 import {
   ChevronDown,
   ChevronRight,
@@ -23,6 +23,8 @@ interface FolderPickerProps {
 
 export function FolderPicker({ drive, value, onChange }: FolderPickerProps) {
   const t = useTranslations("fileSaveDialog");
+  const panelId = useId();
+  const containerRef = useRef<HTMLDivElement>(null);
 
   const [open, setOpen] = useState(false);
   const [filter, setFilter] = useState("");
@@ -32,6 +34,29 @@ export function FolderPicker({ drive, value, onChange }: FolderPickerProps) {
   const [allFolders, setAllFolders] = useState<FolderTreeNode[]>([]);
   const [loadingCurrent, setLoadingCurrent] = useState(false);
   const allLoadedRef = useRef(false);
+
+  useEffect(() => {
+    if (!open) return;
+
+    function handlePointerDown(event: PointerEvent) {
+      if (!containerRef.current?.contains(event.target as Node)) {
+        setOpen(false);
+      }
+    }
+
+    function handleKeyDown(event: KeyboardEvent) {
+      if (event.key === "Escape") {
+        setOpen(false);
+      }
+    }
+
+    document.addEventListener("pointerdown", handlePointerDown);
+    document.addEventListener("keydown", handleKeyDown);
+    return () => {
+      document.removeEventListener("pointerdown", handlePointerDown);
+      document.removeEventListener("keydown", handleKeyDown);
+    };
+  }, [open]);
 
   // Load current-level folders whenever browsePath or open state changes.
   useEffect(() => {
@@ -89,12 +114,15 @@ export function FolderPicker({ drive, value, onChange }: FolderPickerProps) {
   const displayValue = value ? `/${value}` : `/${t("folderRoot")}`;
 
   return (
-    <div>
+    <div ref={containerRef} className="relative w-full min-w-0">
       {/* Toggle button */}
       <button
         type="button"
         onClick={() => setOpen((v) => !v)}
-        className="flex w-full items-center justify-between rounded-2xl border border-bg-border bg-bg-primary px-4 py-2.5 text-sm text-text-primary transition-colors hover:bg-bg-elevated"
+        className="flex w-full items-center justify-between rounded-2xl border border-bg-border bg-bg-primary px-4 py-2.5 text-sm text-text-primary transition-colors hover:bg-bg-elevated focus:outline-none focus:ring-2 focus:ring-focus-ring"
+        aria-expanded={open}
+        aria-controls={panelId}
+        aria-haspopup="dialog"
       >
         <span className="flex min-w-0 items-center gap-2">
           <FolderIcon size={14} className="shrink-0 text-text-muted" />
@@ -110,7 +138,11 @@ export function FolderPicker({ drive, value, onChange }: FolderPickerProps) {
 
       {/* Expanded panel */}
       {open && (
-        <div className="mt-2 rounded-xl border border-bg-border bg-bg-primary">
+        <div
+          id={panelId}
+          role="dialog"
+          className="absolute inset-x-0 top-full z-50 mt-2 overflow-hidden rounded-2xl border border-bg-border bg-bg-primary shadow-lg"
+        >
           {/* Filter input */}
           <div className="border-b border-bg-border px-3 py-2">
             <div className="relative">
@@ -123,13 +155,13 @@ export function FolderPicker({ drive, value, onChange }: FolderPickerProps) {
                 value={filter}
                 onChange={(e) => setFilter(e.target.value)}
                 placeholder={t("folderFilter")}
-                className="w-full rounded-xl bg-bg-elevated py-1.5 pl-8 pr-7 text-sm text-text-primary placeholder:text-text-muted focus:outline-none"
+                className="w-full rounded-2xl bg-bg-elevated py-1.5 pl-8 pr-8 text-sm text-text-primary placeholder:text-text-muted focus:outline-none focus:ring-2 focus:ring-focus-ring"
               />
               {filter && (
                 <button
                   type="button"
                   onClick={() => setFilter("")}
-                  className="absolute right-2 top-1/2 -translate-y-1/2 text-text-muted transition-colors hover:text-text-primary"
+                  className="absolute right-1.5 top-1/2 -translate-y-1/2 rounded-lg p-1 text-text-muted transition-colors hover:bg-bg-card hover:text-text-primary"
                   aria-label={t("folderFilterClear")}
                 >
                   <X size={13} />
@@ -144,7 +176,7 @@ export function FolderPicker({ drive, value, onChange }: FolderPickerProps) {
               <button
                 type="button"
                 onClick={() => handleBreadcrumbClick(-1)}
-                className="transition-colors hover:text-text-primary"
+                className="rounded-xl px-2 py-1 transition-colors hover:bg-bg-elevated hover:text-text-primary"
               >
                 {drive}
               </button>
@@ -154,7 +186,7 @@ export function FolderPicker({ drive, value, onChange }: FolderPickerProps) {
                   <button
                     type="button"
                     onClick={() => handleBreadcrumbClick(i)}
-                    className="transition-colors hover:text-text-primary"
+                    className="rounded-xl px-2 py-1 transition-colors hover:bg-bg-elevated hover:text-text-primary"
                   >
                     {part}
                   </button>

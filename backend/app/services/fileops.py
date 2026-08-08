@@ -15,11 +15,25 @@ import app.config as config
 from app.models import EmptyFolder, File, active_file_filter
 from app.nanoid import generate_nanoid
 from app.services.heic import cleanup_heic_cache
+from app.services.markdown_images import project_markdown_thumbnail
 
 logger = logging.getLogger(__name__)
 
 FORBIDDEN_CHARS = set('<>:"/\\|?*\x00')
 MAX_FILENAME_LENGTH = 255
+
+
+def _is_markdown_file(file: File) -> bool:
+    return file.mime_type == "text/markdown" or file.filename.lower().endswith(".md")
+
+
+def _read_markdown_for_projection(path: Path) -> str | None:
+    try:
+        if path.stat().st_size > 1_000_000:
+            return None
+        return path.read_text(encoding="utf-8")
+    except (OSError, UnicodeDecodeError):
+        return None
 
 
 def resolve_drive_path(drive_name: str) -> Path:
@@ -252,8 +266,9 @@ def copy_file(db: Session, file_id: str, target_drive: str | None, target_folder
         is_favorite=False,
     )
 
-    # Copy thumbnail if it exists
-    if source.thumbnail_path:
+    # Markdown thumbnails are projections owned by the note ID, so they must
+    # be regenerated below instead of copied to the generic path-based cache.
+    if source.thumbnail_path and not _is_markdown_file(source):
         old_thumb = config.THUMBNAILS_DIR / source.thumbnail_path
         if old_thumb.exists():
             new_stem = Path(new_filename).stem
@@ -272,6 +287,10 @@ def copy_file(db: Session, file_id: str, target_drive: str | None, target_folder
     # leave an orphan with no DB record.
     try:
         db.add(new_file)
+        if _is_markdown_file(new_file):
+            content = _read_markdown_for_projection(new_full)
+            if content is not None:
+                project_markdown_thumbnail(db, new_file, content)
         remove_empty_folder_if_has_files(db, dst_drive, target_folder)
         db.commit()
     except Exception as exc:
@@ -426,6 +445,10 @@ def move_file(db: Session, file_id: str, target_drive: str | None, target_folder
         file.drive = dst_drive
         file.folder_path = target_folder
         file.file_path = new_rel
+        if _is_markdown_file(file):
+            content = _read_markdown_for_projection(new_full)
+            if content is not None:
+                project_markdown_thumbnail(db, file, content)
         remove_empty_folder_if_has_files(db, dst_drive, target_folder)
         db.flush()
         _ensure_empty_folder_tracked(db, old_drive, old_folder)

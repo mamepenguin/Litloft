@@ -17,7 +17,7 @@ from app.database import SessionLocal, init_db
 from app.auth import init_jwt_secret, load_passwords
 import app.config as config
 from app.models import File
-from app.routers import admin, auth, collections, comments, drives, files, progress, uploads, ws
+from app.routers import admin, admin_markdown_images, auth, collections, comments, drives, files, progress, uploads, ws
 from app.routers import addon_proxy, admin_config, drive_policies, internal, smart_folders
 from app.services.fileops import physical_delete
 from app.services.scanner import scan_all_drives
@@ -215,6 +215,8 @@ async def lifespan(app: FastAPI):
     set_event_loop(asyncio.get_running_loop())
     event_hooks.set_event_loop(asyncio.get_running_loop())
     cleanup_abandoned_uploads()
+    from app.services.markdown_image_import import initialize_interrupted_jobs
+    initialize_interrupted_jobs()
     asyncio.create_task(scan_all_drives())
     logger.info("Background scan started for all drives")
     asyncio.create_task(purge_expired_trash())
@@ -250,6 +252,7 @@ class SlowRequestMiddleware(BaseHTTPMiddleware):
 app.add_middleware(SlowRequestMiddleware)
 
 app.include_router(admin.router)
+app.include_router(admin_markdown_images.router)
 app.include_router(admin_config.router)
 app.include_router(auth.router)
 app.include_router(comments.router)
