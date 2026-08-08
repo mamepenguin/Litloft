@@ -90,15 +90,28 @@ export default function MediaControlsContainer({
 
   // Applying the preference in one effect keeps a single write path:
   // the change handler only records the preference, and this reacts.
+  //
+  // Guarded because a controller can outlive its player by a moment:
+  // whoever owns the frame may tear the backend down in the same commit
+  // that mounts us, and a write to a destroyed one throws from inside
+  // the backend's own code rather than returning an error.
   useEffect(() => {
-    mc?.setPlaybackRate(preferredRate);
+    try {
+      mc?.setPlaybackRate(preferredRate);
+    } catch {
+      // Backend gone; the next one will get the preference on mount.
+    }
   }, [mc, preferredRate]);
 
   // Same single-write-path idea, and it also carries the preference to
   // each new file: the toggle only records what the viewer wants, and
   // this applies it whenever that or the player changes.
   useEffect(() => {
-    mc?.setCaptions?.(captionsPreferred);
+    try {
+      mc?.setCaptions?.(captionsPreferred);
+    } catch {
+      // Same as above.
+    }
   }, [mc, captionsPreferred]);
 
   useEffect(() => {
