@@ -59,7 +59,12 @@ export function SettingsSheet({
           if (e.key === "Escape") onClose();
         }}
         className={[
-          "relative flex flex-col gap-3 rounded-t-2xl bg-black/85 px-3 pb-3 pt-3 text-white",
+          "relative flex flex-col gap-2 rounded-t-2xl bg-black/85 px-3 pb-3 pt-3 text-white",
+          // The frame is only as tall as a 16:9 video, which on a phone
+          // leaves barely 200px. The sheet is sized to fit inside that;
+          // this is the guard for the cases it still cannot, rather
+          // than letting rows fall off the bottom edge unreachable.
+          "max-h-full overflow-y-auto",
           "animate-slide-up-bar",
         ].join(" ")}
       >
@@ -78,7 +83,7 @@ export function SettingsSheet({
               // and on a video without a caption track nothing will.
               onClick={() => onToggleCaptions(captions !== "on")}
               className={[
-                "inline-flex h-11 min-w-20 items-center justify-center gap-1 rounded-2xl px-3 text-sm",
+                "inline-flex h-11 items-center justify-center gap-1 rounded-2xl px-3 text-sm",
                 "transition-colors motion-reduce:transition-none",
                 "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus-ring",
                 captions === "on" ? "bg-white/20 font-medium" : "hover:bg-white/10",
@@ -91,7 +96,7 @@ export function SettingsSheet({
         )}
 
         <div role="radiogroup" aria-label={t("speed")}>
-          <div className="px-1 pb-2 text-xs font-medium text-white/70">
+          <div className="px-1 pb-1.5 text-xs font-medium text-white/70">
             {t("speed")}
           </div>
           <div className="flex flex-wrap gap-1">
@@ -104,7 +109,7 @@ export function SettingsSheet({
                   role="radio"
                   aria-checked={checked}
                   className={[
-                    "inline-flex h-11 min-w-16 items-center justify-center gap-1 rounded-2xl px-3",
+                    "inline-flex h-11 items-center justify-center gap-1 rounded-2xl px-2.5",
                     "text-sm tabular-nums transition-colors motion-reduce:transition-none",
                     "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus-ring",
                     checked ? "bg-white/20 font-medium" : "hover:bg-white/10",
