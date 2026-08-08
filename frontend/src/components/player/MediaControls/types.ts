@@ -3,6 +3,7 @@
  * container picks a presenter by input device without also deciding
  * what each one is allowed to know.
  */
+import type { ReactNode } from "react";
 import type { CaptionsState } from "@/lib/mediaController";
 
 export interface MediaControlsPresenterProps {
@@ -44,4 +45,11 @@ export interface MediaControlsPresenterProps {
    */
   settingsOpen?: boolean;
   onSettingsOpenChange?: (open: boolean) => void;
+  /**
+   * Extra rows for the settings sheet, supplied by whoever owns the
+   * frame. Kept opaque: a backend may have settings core has no
+   * concept of, and core should not grow a branch per backend to
+   * describe them.
+   */
+  settingsExtra?: ReactNode;
 }

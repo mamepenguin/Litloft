@@ -1,5 +1,6 @@
 "use client";
 
+import type { ReactNode } from "react";
 import { useTranslations } from "next-intl";
 import { Check } from "lucide-react";
 import type { CaptionsState } from "@/lib/mediaController";
@@ -18,6 +19,8 @@ export interface SettingsSheetProps {
   captions: CaptionsState;
   onToggleCaptions: (enabled: boolean) => void;
   onClose: () => void;
+  /** Rows contributed by the frame's owner; see MediaControlsPresenterProps. */
+  extra?: ReactNode;
 }
 
 /**
@@ -34,6 +37,7 @@ export function SettingsSheet({
   captions,
   onToggleCaptions,
   onClose,
+  extra,
 }: SettingsSheetProps) {
   const t = useTranslations("player");
   const current = nearestOfferedRate(playbackRate);
@@ -59,6 +63,8 @@ export function SettingsSheet({
           "animate-slide-up-bar",
         ].join(" ")}
       >
+        {extra}
+
         {captions !== "unavailable" && (
           <div className="flex items-center justify-between gap-3">
             <span className="px-1 text-sm">{t("captions")}</span>

@@ -52,6 +52,7 @@ export function TouchControlsPresenter({
   onToggleCaptions,
   settingsOpen = false,
   onSettingsOpenChange,
+  settingsExtra,
 }: MediaControlsPresenterProps) {
   const t = useTranslations("player");
 
@@ -212,6 +213,7 @@ export function TouchControlsPresenter({
           captions={captions}
           onToggleCaptions={onToggleCaptions}
           onClose={() => onSettingsOpenChange?.(false)}
+          extra={settingsExtra}
         />
       )}
 

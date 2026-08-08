@@ -1,6 +1,12 @@
 "use client";
 
-import { useCallback, useEffect, useState, type RefObject } from "react";
+import {
+  useCallback,
+  useEffect,
+  useState,
+  type ReactNode,
+  type RefObject,
+} from "react";
 import type { MediaController } from "@/lib/mediaController";
 import { PointerControlsPresenter } from "./PointerControlsPresenter";
 import { TouchControlsPresenter } from "./TouchControlsPresenter";
@@ -45,6 +51,11 @@ export interface MediaControlsContainerProps {
    * off its swipe-to-dismiss while a finger is planted on the video.
    */
   onBoostingChange?: (boosting: boolean) => void;
+  /**
+   * Extra rows for the settings sheet. Opaque to core: a backend may
+   * have settings core has no concept of.
+   */
+  settingsExtra?: ReactNode;
 }
 
 /**
@@ -61,6 +72,7 @@ export default function MediaControlsContainer({
   isPseudoFullscreen = false,
   interactive = true,
   onBoostingChange,
+  settingsExtra,
 }: MediaControlsContainerProps) {
   const [settingsOpen, setSettingsOpen] = useState(false);
   const state = useMediaControlsState({
@@ -238,6 +250,7 @@ export default function MediaControlsContainer({
         onToggleCaptions={handleToggleCaptions}
         settingsOpen={settingsOpen}
         onSettingsOpenChange={setSettingsOpen}
+        settingsExtra={settingsExtra}
       />
     </>
   );
