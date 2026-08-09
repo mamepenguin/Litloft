@@ -159,12 +159,16 @@ export default function MediaControlsContainer({
     [mc, revealControls],
   );
 
+  // Goes through the state hook rather than straight to the controller:
+  // it holds the requested level until the poll confirms it, so a drag
+  // does not trail the pointer by up to a poll interval.
+  const { setVolume } = state;
   const handleVolumeChange = useCallback(
     (volume: number) => {
-      mc?.setVolume(volume);
+      setVolume(volume);
       revealControls();
     },
-    [mc, revealControls],
+    [setVolume, revealControls],
   );
 
   const handleRateChange = useCallback(
@@ -250,6 +254,10 @@ export default function MediaControlsContainer({
         visible={state.controlsVisible}
         isFullscreen={fullscreen ? fullscreen.isFullscreen : nativeFullscreen}
         isPseudoFullscreen={isPseudoFullscreen}
+        // The same condition that stands the gestures down: what makes
+        // the backend's own chrome untouchable also makes it something
+        // we must not paint over.
+        backendOwnsFrame={!interactive}
         onTogglePlay={handleTogglePlayFromControls}
         onSkip={handleSkip}
         onScrubStart={state.beginScrub}

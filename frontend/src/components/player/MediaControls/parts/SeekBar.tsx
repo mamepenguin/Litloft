@@ -35,22 +35,6 @@ const SCRUB_KEYS = new Set([
   "PageDown",
 ]);
 
-// A range input with a visible thumb, for controls that want the
-// browser's own knob (volume). The seek bar draws its own — see below.
-//
-// `h-full` matters more than it looks: an appearance-none range input
-// collapses to the height of its track, which is 4px here, leaving a
-// target no finger can land on. The element is stretched to fill its
-// row while the visible track stays thin. `touch-none` stops the drag
-// being claimed as a pan gesture.
-export const RANGE_CLASS =
-  "h-full w-full cursor-pointer touch-none appearance-none bg-transparent focus-visible:outline-none disabled:cursor-not-allowed " +
-  "[&::-webkit-slider-runnable-track]:h-1 [&::-webkit-slider-runnable-track]:bg-transparent " +
-  "[&::-moz-range-track]:h-1 [&::-moz-range-track]:bg-transparent " +
-  "[&::-webkit-slider-thumb]:h-3 [&::-webkit-slider-thumb]:w-3 [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:bg-white " +
-  "[&::-moz-range-thumb]:h-3 [&::-moz-range-thumb]:w-3 [&::-moz-range-thumb]:appearance-none [&::-moz-range-thumb]:rounded-full [&::-moz-range-thumb]:border-0 [&::-moz-range-thumb]:bg-white " +
-  "focus-visible:[&::-webkit-slider-thumb]:ring-2 focus-visible:[&::-webkit-slider-thumb]:ring-focus-ring";
-
 /**
  * The seek bar's input: invisible, but doing three jobs.
  *
