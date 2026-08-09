@@ -441,6 +441,7 @@ export function FileDetailContent({
   const addonSlotProps = {
     fileId,
     drive,
+    filename: file.filename,
     videoRef,
     mediaController,
     subtitles: file.subtitles,
@@ -573,6 +574,12 @@ export function FileDetailContent({
         miniPlayerRoot={miniPlayerRoot}
         onEnded={onEnded}
         autoPlay={autoPlay}
+      />
+
+      <AddonSlot
+        id="file-preview-actions"
+        layout="stack"
+        props={addonSlotProps}
       />
 
       {metadataNode}

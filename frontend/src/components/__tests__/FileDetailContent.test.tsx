@@ -24,19 +24,24 @@ vi.mock("../ExifSection", () => ({
 }));
 vi.mock("../AddonSlot", () => ({
   AddonSlot: ({
+    id,
     includeIds,
     excludeIds,
   }: {
+    id: string;
     includeIds?: string[];
     excludeIds?: string[];
   }) => {
     // Surface the filter intent to the DOM so tests can assert which
     // copy of the slot (canvas vs. inspector) ran.
-    const tag = includeIds
-      ? `include:${includeIds.join(",")}`
-      : excludeIds
-        ? `exclude:${excludeIds.join(",")}`
-        : "all";
+    const tag =
+      id !== "file-detail-sections"
+        ? id
+        : includeIds
+          ? `include:${includeIds.join(",")}`
+          : excludeIds
+            ? `exclude:${excludeIds.join(",")}`
+            : "all";
     return <div data-testid={`addon-slot-${tag}`} />;
   },
 }));
@@ -423,6 +428,9 @@ describe("FileDetailContent", () => {
     ).not.toBeInTheDocument();
     // Legacy stack: full slot (no include/exclude)
     expect(screen.getByTestId("addon-slot-all")).toBeInTheDocument();
+    expect(
+      screen.getByTestId("addon-slot-file-preview-actions"),
+    ).toBeInTheDocument();
   });
 
   it("hot-switches between DocumentLayout and legacy stack when usePolicy flips mid-session (Phase 5)", async () => {
