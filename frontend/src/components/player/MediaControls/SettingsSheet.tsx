@@ -11,6 +11,14 @@ import {
 
 const DEFAULT_RATE = 1;
 
+/**
+ * `sheet` spans the frame's width and rises from its bottom edge — the
+ * touch layout, where the settings button is a thumb's reach from
+ * there. `popover` is the mouse layout's shape: a narrow panel parked
+ * above the button that opened it, so the video stays visible.
+ */
+export type SettingsSheetPlacement = "sheet" | "popover";
+
 export interface SettingsSheetProps {
   /** The rate the player reports, which may not be one we offer. */
   playbackRate: number;
@@ -21,11 +29,11 @@ export interface SettingsSheetProps {
   onClose: () => void;
   /** Rows contributed by the frame's owner; see MediaControlsPresenterProps. */
   extra?: ReactNode;
+  placement?: SettingsSheetPlacement;
 }
 
 /**
- * Player settings for the touch layout, rising from the bottom of the
- * frame.
+ * Player settings, rising from the bottom of the frame.
  *
  * Rendered *inside* the player frame rather than portalled to the body:
  * the frame is `position: fixed` while faking fullscreen on Apple
@@ -38,33 +46,52 @@ export function SettingsSheet({
   onToggleCaptions,
   onClose,
   extra,
+  placement = "sheet",
 }: SettingsSheetProps) {
   const t = useTranslations("player");
   const current = nearestOfferedRate(playbackRate);
+  const isPopover = placement === "popover";
 
   return (
-    <div className="absolute inset-0 z-20 flex flex-col justify-end">
+    <div
+      className={[
+        "absolute inset-0 z-20 flex flex-col justify-end",
+        isPopover ? "items-end" : "",
+      ].join(" ")}
+    >
       <button
         type="button"
         data-testid="settings-sheet-backdrop"
         aria-label={t("closeSettings")}
-        className="absolute inset-0 bg-black/40"
+        // A mouse user can see the whole frame at once and the panel
+        // covers very little of it, so there is nothing to dim; the
+        // backdrop stays only to catch the click that dismisses it.
+        className={`absolute inset-0 ${isPopover ? "" : "bg-black/40"}`}
         onClick={onClose}
       />
 
       <div
         data-testid="settings-sheet"
+        data-placement={placement}
         tabIndex={-1}
         onKeyDown={(e) => {
           if (e.key === "Escape") onClose();
         }}
         className={[
-          "relative flex flex-col gap-2 rounded-t-2xl bg-black/85 px-3 pb-3 pt-3 text-white",
+          "relative flex flex-col gap-2 bg-black/85 px-3 pb-3 pt-3 text-white",
+          isPopover
+            ? // Clear of the control bar below it, which is where the
+              // button that opened this lives.
+              "mb-16 mr-2 w-64 rounded-2xl"
+            : "rounded-t-2xl",
           // The frame is only as tall as a 16:9 video, which on a phone
           // leaves barely 200px. The sheet is sized to fit inside that;
           // this is the guard for the cases it still cannot, rather
           // than letting rows fall off the bottom edge unreachable.
-          "max-h-full overflow-y-auto",
+          // The popover's own offset comes out of that budget, or a
+          // narrow window pushes its top rows off the frame instead.
+          isPopover ? "max-h-[calc(100%-5rem)]" : "max-h-full",
+          "overflow-y-auto",
           "animate-slide-up-bar",
         ].join(" ")}
       >

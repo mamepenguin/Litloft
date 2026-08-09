@@ -25,6 +25,14 @@ export interface MediaControlsPresenterProps {
    * page, so it has to respect the device's safe areas itself.
    */
   isPseudoFullscreen?: boolean;
+  /**
+   * True while the backend is drawing chrome of its own over the frame
+   * — an ad, or an end screen. Anything of ours that would obscure it
+   * has to stand down: those surfaces carry the skip button and the
+   * links the viewer needs, and covering an ad's controls is a breach
+   * of the embed terms besides.
+   */
+  backendOwnsFrame?: boolean;
   onTogglePlay: () => void;
   onSkip: (seconds: number) => void;
   onScrubStart: (seconds: number) => void;
@@ -38,10 +46,9 @@ export interface MediaControlsPresenterProps {
   captions: CaptionsState;
   onToggleCaptions: (enabled: boolean) => void;
   /**
-   * Touch layout only. The settings sheet is drawn by the layout, but
-   * its open state has to reach the container, which owns the idle
-   * timer — a sheet that vanishes three seconds after opening is not
-   * usable.
+   * The settings panel is drawn by the layout, but its open state has
+   * to reach the container, which owns the idle timer — a panel that
+   * vanishes three seconds after opening is not usable.
    */
   settingsOpen?: boolean;
   onSettingsOpenChange?: (open: boolean) => void;

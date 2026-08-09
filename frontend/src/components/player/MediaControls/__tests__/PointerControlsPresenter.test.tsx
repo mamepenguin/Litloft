@@ -26,6 +26,8 @@ function renderControls(overrides: Partial<MediaControlsPresenterProps> = {}) {
     onToggleFullscreen: vi.fn(),
     captions: "off",
     onToggleCaptions: vi.fn(),
+    settingsOpen: false,
+    onSettingsOpenChange: vi.fn(),
     ...overrides,
   };
   const utils = render(<PointerControlsPresenter {...props} />);
@@ -141,34 +143,77 @@ describe("PointerControlsPresenter", () => {
       });
       expect(props.onVolumeChange).toHaveBeenCalledWith(0.3);
     });
+
+    it("paints a track behind the slider", () => {
+      // The shared range styling leaves the native track transparent,
+      // because the seek bar draws its own. Without one here the
+      // control renders as a knob floating over the video.
+      const { container } = renderControls({ volume: 0.5 });
+      expect(container.querySelector("[data-testid='volume-track']")).toBeInTheDocument();
+      expect(container.querySelector("[data-testid='volume-fill']")).toBeInTheDocument();
+    });
+
+    it("empties the fill while muted without forgetting the level", () => {
+      const { container } = renderControls({ muted: true, volume: 0.8 });
+      expect(screen.getByRole("slider", { name: "Volume" })).toHaveValue("0");
+      expect(container.querySelector("[data-testid='volume-fill']")).toHaveStyle({
+        width: "calc(0% + 6px)",
+      });
+    });
   });
 
-  describe("playback speed", () => {
-    it("offers exactly the supported rates", () => {
-      renderControls();
-      const select = screen.getByRole("combobox", { name: "Playback speed" });
-      const values = Array.from(select.querySelectorAll("option")).map((o) => o.value);
-      expect(values).toEqual(["0.5", "0.75", "1", "1.25", "1.5", "2"]);
+  describe("settings", () => {
+    it("opens the panel from the bar", () => {
+      const { props } = renderControls({ settingsOpen: false });
+      fireEvent.click(screen.getByRole("button", { name: "Settings" }));
+      expect(props.onSettingsOpenChange).toHaveBeenCalledWith(true);
     });
 
-    it("shows the rate the player actually applied", () => {
-      renderControls({ playbackRate: 1.5 });
-      expect(screen.getByRole("combobox", { name: "Playback speed" })).toHaveValue("1.5");
+    it("keeps the panel out of the way until it is asked for", () => {
+      renderControls({ settingsOpen: false });
+      expect(screen.queryByTestId("settings-sheet")).not.toBeInTheDocument();
     });
 
-    it("falls back to the nearest offered rate for an unexpected value", () => {
-      // A backend can report a rate we never offer. Showing a blank
-      // select would be worse than showing the closest match.
-      renderControls({ playbackRate: 1.75 });
-      expect(screen.getByRole("combobox", { name: "Playback speed" })).toHaveValue("2");
+    it("offers speed, captions and the owner's own rows once open", () => {
+      renderControls({
+        settingsOpen: true,
+        settingsExtra: <button type="button">Switch player</button>,
+      });
+      expect(
+        screen.getByRole("radiogroup", { name: "Playback speed" }),
+      ).toBeInTheDocument();
+      expect(screen.getByRole("switch", { name: "Subtitles" })).toBeInTheDocument();
+      expect(
+        screen.getByRole("button", { name: "Switch player" }),
+      ).toBeInTheDocument();
+    });
+
+    it("stands as a panel rather than a full-width sheet", () => {
+      // The mouse layout can see the whole frame at once; a sheet
+      // spanning it would cover the video to show six chips.
+      renderControls({ settingsOpen: true });
+      expect(screen.getByTestId("settings-sheet")).toHaveAttribute(
+        "data-placement",
+        "popover",
+      );
     });
 
     it("reports the chosen rate as a number", () => {
-      const { props } = renderControls();
-      fireEvent.change(screen.getByRole("combobox", { name: "Playback speed" }), {
-        target: { value: "0.5" },
-      });
+      const { props } = renderControls({ settingsOpen: true });
+      fireEvent.click(screen.getByRole("radio", { name: "0.5x" }));
       expect(props.onPlaybackRateChange).toHaveBeenCalledWith(0.5);
+    });
+
+    it("marks the rate the player actually applied", () => {
+      renderControls({ settingsOpen: true, playbackRate: 1.5 });
+      expect(screen.getByRole("radio", { name: "1.5x" })).toBeChecked();
+    });
+
+    it("falls back to the nearest offered rate for an unexpected value", () => {
+      // A backend can report a rate we never offer. Leaving every chip
+      // unmarked would be worse than marking the closest match.
+      renderControls({ settingsOpen: true, playbackRate: 1.75 });
+      expect(screen.getByRole("radio", { name: "2x" })).toBeChecked();
     });
   });
 
@@ -188,10 +233,27 @@ describe("PointerControlsPresenter", () => {
       expect(screen.getByText("Ad")).toBeInTheDocument();
     });
 
-    it("disables seeking and speed, which belong to the file and not the ad", () => {
+    it("disables seeking and settings, which belong to the file and not the ad", () => {
       renderControls({ interrupted: true });
       expect(screen.getByRole("slider", { name: "Seek" })).toBeDisabled();
-      expect(screen.getByRole("combobox", { name: "Playback speed" })).toBeDisabled();
+      expect(screen.getByRole("button", { name: "Settings" })).toBeDisabled();
+    });
+
+    it("drops the blurred scrim so the ad's own controls stay legible", () => {
+      // Covering an ad's skip button breaks the player, and the embed
+      // terms call obscuring ad controls interference.
+      const { rerender, container, props } = renderControls({
+        interrupted: true,
+        backendOwnsFrame: true,
+      });
+      const scrim = () =>
+        container.querySelector("[data-testid='control-bar-scrim']")?.className ?? "";
+      expect(scrim()).not.toContain("backdrop-blur");
+
+      rerender(
+        <PointerControlsPresenter {...props} interrupted={false} backendOwnsFrame={false} />,
+      );
+      expect(scrim()).toContain("backdrop-blur");
     });
 
     it("hides the timings rather than showing the ad's clock as the file's", () => {

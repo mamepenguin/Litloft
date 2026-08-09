@@ -114,6 +114,38 @@ describe("MediaControlsContainer", () => {
     expect(mc.setVolume).toHaveBeenCalledWith(0.4);
   });
 
+  it("shows a dragged volume before the poll confirms it", () => {
+    // The controller keeps reporting the old level until its next tick,
+    // which on a paused player is a second away. Rendering that would
+    // leave the painted fill trailing the knob the browser is already
+    // drawing under the pointer.
+    const mc = makeMc({ getVolume: vi.fn().mockReturnValue(1) });
+    renderControls(mc);
+    fireEvent.change(screen.getByRole("slider", { name: "Volume" }), {
+      target: { value: "0.4" },
+    });
+    expect(screen.getByRole("slider", { name: "Volume" })).toHaveValue("0.4");
+  });
+
+  it("falls back to the controller when it refuses the level", async () => {
+    // iOS ignores writes to volume outright. The slider must not sit
+    // forever on a level the player never took.
+    vi.useFakeTimers();
+    try {
+      const mc = makeMc({ getVolume: vi.fn().mockReturnValue(1) });
+      renderControls(mc);
+      fireEvent.change(screen.getByRole("slider", { name: "Volume" }), {
+        target: { value: "0.4" },
+      });
+      await act(async () => {
+        vi.advanceTimersByTime(2100);
+      });
+      expect(screen.getByRole("slider", { name: "Volume" })).toHaveValue("1");
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
   describe("playback rate", () => {
     it("applies the persisted preference to the controller on mount", async () => {
       window.localStorage.setItem("video-share-playback-rate", "1.5");
@@ -127,9 +159,10 @@ describe("MediaControlsContainer", () => {
       const mc = makeMc();
       renderControls(mc);
       await act(async () => {
-        fireEvent.change(screen.getByRole("combobox", { name: "Playback speed" }), {
-          target: { value: "2" },
-        });
+        fireEvent.click(screen.getByRole("button", { name: "Settings" }));
+      });
+      await act(async () => {
+        fireEvent.click(screen.getByRole("radio", { name: "2x" }));
       });
       expect(mc.setPlaybackRate).toHaveBeenCalledWith(2);
       expect(window.localStorage.getItem("video-share-playback-rate")).toBe("2");
@@ -141,11 +174,17 @@ describe("MediaControlsContainer", () => {
       const mc = makeMc({ getPlaybackRate: vi.fn().mockReturnValue(1) });
       renderControls(mc);
       await act(async () => {
-        fireEvent.change(screen.getByRole("combobox", { name: "Playback speed" }), {
-          target: { value: "2" },
-        });
+        fireEvent.click(screen.getByRole("button", { name: "Settings" }));
       });
-      expect(screen.getByRole("combobox", { name: "Playback speed" })).toHaveValue("1");
+      await act(async () => {
+        fireEvent.click(screen.getByRole("radio", { name: "2x" }));
+      });
+      // Picking a rate closes the panel, so reopen it to read back what
+      // the bar believes is in effect.
+      await act(async () => {
+        fireEvent.click(screen.getByRole("button", { name: "Settings" }));
+      });
+      expect(screen.getByRole("radio", { name: "Normal" })).toBeChecked();
     });
   });
 

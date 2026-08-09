@@ -32,6 +32,21 @@ const SEEK_SETTLE_S = 1.5;
  */
 const SEEK_SETTLE_TIMEOUT_MS = 3000;
 
+/**
+ * The volume slider needs the same treatment as the scrub bar, and for
+ * a sharper reason: it is dragged continuously, so a level that only
+ * catches up on the next poll trails the pointer by up to a full idle
+ * interval — a second, on a paused player. The knob is drawn by the
+ * browser and follows the finger regardless, so the painted fill would
+ * visibly lag behind its own knob.
+ *
+ * The tolerance is under one step of the slider (0.05), so a level the
+ * player rounded on its way through is still recognised as arrival.
+ */
+const VOLUME_SETTLE = 0.02;
+/** Give up: the backend may refuse the level (iOS ignores volume writes). */
+const VOLUME_SETTLE_TIMEOUT_MS = 2000;
+
 export interface MediaControlsSnapshot {
   currentTime: number;
   duration: number;
@@ -86,6 +101,11 @@ export interface MediaControlsState extends MediaControlsSnapshot {
   beginScrub: (seconds: number) => void;
   updateScrub: (seconds: number) => void;
   endScrub: () => void;
+  /**
+   * Write a level (0-1) to the player and show it straight away, rather
+   * than waiting for the poll to confirm it. See VOLUME_SETTLE.
+   */
+  setVolume: (value: number) => void;
 }
 
 function finite(value: number): number {
@@ -142,6 +162,8 @@ export function useMediaControlsState({
   // Dropping it the moment the scrub ends makes the bar snap back to
   // the old position for a poll interval before jumping forward.
   const [pendingSeek, setPendingSeek] = useState<number | null>(null);
+  // Same idea for the level the viewer just dragged to.
+  const [pendingVolume, setPendingVolume] = useState<number | null>(null);
   const [controlsVisible, setControlsVisible] = useState(true);
   // Bumping this restarts the auto-hide countdown declaratively, so the
   // timer lives in one effect instead of being juggled across refs.
@@ -236,8 +258,31 @@ export function useMediaControlsState({
     return () => clearTimeout(id);
   }, [pendingSeek]);
 
+  const setVolume = useCallback(
+    (value: number) => {
+      const clamped = Math.min(Math.max(value, 0), 1);
+      setPendingVolume(clamped);
+      mc?.setVolume(clamped);
+    },
+    [mc],
+  );
+
+  useEffect(() => {
+    if (pendingVolume === null) return;
+    if (Math.abs(snapshot.volume - pendingVolume) < VOLUME_SETTLE) {
+      setPendingVolume(null);
+    }
+  }, [snapshot.volume, pendingVolume]);
+
+  useEffect(() => {
+    if (pendingVolume === null) return;
+    const id = setTimeout(() => setPendingVolume(null), VOLUME_SETTLE_TIMEOUT_MS);
+    return () => clearTimeout(id);
+  }, [pendingVolume]);
+
   return {
     ...snapshot,
+    volume: pendingVolume ?? snapshot.volume,
     displayTime: scrubTime ?? pendingSeek ?? snapshot.currentTime,
     scrubbing,
     controlsVisible,
@@ -246,5 +291,6 @@ export function useMediaControlsState({
     beginScrub,
     updateScrub,
     endScrub,
+    setVolume,
   };
 }
