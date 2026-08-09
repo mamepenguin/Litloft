@@ -206,6 +206,11 @@ dd {
   to { opacity: 1; transform: translateY(0); }
 }
 
+@keyframes slide-in-right {
+  from { opacity: 0; transform: translateX(100%); }
+  to { opacity: 1; transform: translateX(0); }
+}
+
 @keyframes pop {
   0% { transform: scale(1); }
   50% { transform: scale(1.25); }
@@ -226,6 +231,10 @@ dd {
 
 @utility animate-slide-up-bar {
   animation: slide-up-bar 300ms cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+@utility animate-slide-in-right {
+  animation: slide-in-right 300ms cubic-bezier(0.16, 1, 0.3, 1) both;
 }
 
 @utility animate-pop {

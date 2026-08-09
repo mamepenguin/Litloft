@@ -6,6 +6,14 @@ vi.mock("../GlobalSearch", () => ({
   GlobalSearch: () => <div data-testid="global-search" />,
 }));
 
+vi.mock("../AddonSlot", () => ({
+  AddonSlot: ({ id }: { id: string }) => <div data-testid={`addon-slot-${id}`} />,
+}));
+
+vi.mock("../CurrentDriveProvider", () => ({
+  useCurrentDrive: () => null,
+}));
+
 const pushMock = vi.fn();
 
 vi.mock("next/navigation", () => ({

@@ -7,11 +7,14 @@ import { useTranslations } from "next-intl";
 
 import { useProfile } from "./ProfileProvider";
 import { GlobalSearch } from "./GlobalSearch";
+import { AddonSlot } from "./AddonSlot";
+import { useCurrentDrive } from "./CurrentDriveProvider";
 
 export function Header() {
   const tp = useTranslations("profile");
   const { nickname } = useProfile();
   const router = useRouter();
+  const drive = useCurrentDrive();
 
   const goToSettings = useCallback(() => {
     router.push("/settings");
@@ -40,6 +43,9 @@ export function Header() {
 
       <div className="flex items-center gap-1">
         <GlobalSearch />
+        {drive && (
+          <AddonSlot id="header-actions" props={{ drive }} layout="stack" />
+        )}
 
         {nickname ? (
           <button
