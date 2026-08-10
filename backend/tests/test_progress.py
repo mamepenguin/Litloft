@@ -588,6 +588,99 @@ class TestWatchHistoryList:
         assert len(res.json()["data"]) == 0
 
 
+class TestCompletionIsPreserved:
+    """Spec 2026-08-10-media-import-watch-surface.md §4.2.
+
+    Players stopped deleting the history row at the end of playback and
+    now write the final position instead. These lock in the two halves
+    of that contract: the record survives, and it still does not come
+    back as unfinished work.
+    """
+
+    def test_completed_record_is_retained(self, client):
+        c, db, drive_dir, data_dir = client
+        file = _seed_file(db, drive_dir, filename="video1.mp4")
+        c.post(
+            f"/api/files/{file.id}/progress",
+            json={"position": 120.0, "duration": 120.0},
+            cookies={"lit_viewer": "alice"},
+        )
+        res = c.get(
+            f"/api/files/{file.id}/progress",
+            cookies={"lit_viewer": "alice"},
+        )
+        assert res.json() == {"position": 120.0, "duration": 120.0}
+
+    def test_completed_record_stays_out_of_continue_watching(self, client):
+        c, db, drive_dir, data_dir = client
+        file = _seed_file(db, drive_dir, filename="video1.mp4")
+        c.post(
+            f"/api/files/{file.id}/progress",
+            json={"position": 120.0, "duration": 120.0},
+            cookies={"lit_viewer": "alice"},
+        )
+        res = c.get(
+            f"/api/drives/{TEST_DRIVE}/watch-history",
+            cookies={"lit_viewer": "alice"},
+        )
+        assert res.json()["data"] == []
+
+    def test_completed_record_is_visible_under_filter_all(self, client):
+        # The point of keeping the row: "watched to the end" has to stay
+        # distinguishable from "never opened".
+        c, db, drive_dir, data_dir = client
+        file = _seed_file(db, drive_dir, filename="video1.mp4")
+        c.post(
+            f"/api/files/{file.id}/progress",
+            json={"position": 120.0, "duration": 120.0},
+            cookies={"lit_viewer": "alice"},
+        )
+        res = c.get(
+            f"/api/drives/{TEST_DRIVE}/watch-history?filter=all",
+            cookies={"lit_viewer": "alice"},
+        )
+        data = res.json()["data"]
+        assert [row["id"] for row in data] == [file.id]
+
+    def test_view_only_record_is_not_continue_watching(self, client):
+        # A 0/0 row means "the detail page was opened", never "partially
+        # watched". The gate already filters it (0 < 0 is false); this
+        # pins that down so a future rewrite of the filter cannot
+        # silently start advertising unopened files as in progress.
+        c, db, drive_dir, data_dir = client
+        file = _seed_file(db, drive_dir, filename="video1.mp4")
+        c.post(
+            f"/api/files/{file.id}/progress",
+            json={},
+            cookies={"lit_viewer": "alice"},
+        )
+        res = c.get(
+            f"/api/drives/{TEST_DRIVE}/watch-history",
+            cookies={"lit_viewer": "alice"},
+        )
+        assert res.json()["data"] == []
+
+    def test_explicit_delete_still_removes_the_record(self, client):
+        # Completion no longer deletes, so the only remaining caller of
+        # the delete path is the user's own "remove from history".
+        c, db, drive_dir, data_dir = client
+        file = _seed_file(db, drive_dir, filename="video1.mp4")
+        c.post(
+            f"/api/files/{file.id}/progress",
+            json={"position": 120.0, "duration": 120.0},
+            cookies={"lit_viewer": "alice"},
+        )
+        assert c.delete(
+            f"/api/files/{file.id}/progress",
+            cookies={"lit_viewer": "alice"},
+        ).status_code == 204
+        res = c.get(
+            f"/api/drives/{TEST_DRIVE}/watch-history?filter=all",
+            cookies={"lit_viewer": "alice"},
+        )
+        assert res.json()["data"] == []
+
+
 class TestAccessControl:
     def _setup_protected(self, tmp_path, drive_dir):
         """Set up a protected drive config."""

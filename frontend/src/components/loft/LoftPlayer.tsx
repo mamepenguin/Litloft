@@ -18,6 +18,11 @@ export interface LoftPlayerProps {
   initialTime?: number;
   /** Forwarded to the resolved embed component (see LoftEmbedProps). */
   durationHint?: number | null;
+  /**
+   * Forwarded to the resolved embed component. Providers that cannot
+   * observe completion never call it (see LoftEmbedProps.onEnded).
+   */
+  onEnded?: () => void;
 }
 
 export default function LoftPlayer({
@@ -25,6 +30,7 @@ export default function LoftPlayer({
   onMediaController,
   initialTime,
   durationHint,
+  onEnded,
 }: LoftPlayerProps) {
   const [content, setContent] = useState<LoftContent | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -64,6 +70,7 @@ export default function LoftPlayer({
       onMediaController={onMediaController}
       initialTime={initialTime}
       durationHint={durationHint}
+      onEnded={onEnded}
     />
   );
 }
