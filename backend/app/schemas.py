@@ -229,6 +229,7 @@ class FolderCreateRequest(BaseModel):
 class TextFileCreateRequest(BaseModel):
     path: str
     content: str = ""
+    conflict_mode: Literal["rename", "error"] = "rename"
 
 
 class FolderRenameRequest(BaseModel):

@@ -103,6 +103,60 @@ class TestPostFiles:
         assert "untitled-20260509.md" in paths
         assert "untitled-20260509 (1).md" in paths
 
+    def test_create_text_file_error_mode_returns_409_without_suffix(self, client):
+        api, session, drive_dir, _ = client
+        (drive_dir / "Inbox.md").write_text("original")
+        session.add(File(
+            filename="Inbox.md",
+            title="Inbox",
+            drive=TEST_DRIVE,
+            folder_path="",
+            file_path="Inbox.md",
+            file_size=8,
+            file_type="document",
+            mime_type="text/markdown",
+        ))
+        session.commit()
+
+        response = api.post(
+            f"/api/drives/{TEST_DRIVE}/files",
+            json={
+                "path": "Inbox.md",
+                "content": "new",
+                "conflict_mode": "error",
+            },
+        )
+
+        assert response.status_code == 409
+        assert (drive_dir / "Inbox.md").read_text() == "original"
+        assert not (drive_dir / "Inbox (1).md").exists()
+
+    def test_create_text_file_error_mode_does_not_suffix_on_fs_race(
+        self, client, monkeypatch
+    ):
+        import os
+
+        api, _, drive_dir, _ = client
+        real_open = os.open
+
+        def racing_open(path, flags, mode=0o777):
+            if str(path) == str(drive_dir / "Inbox.md"):
+                raise FileExistsError(path)
+            return real_open(path, flags, mode)
+
+        monkeypatch.setattr(os, "open", racing_open)
+        response = api.post(
+            f"/api/drives/{TEST_DRIVE}/files",
+            json={
+                "path": "Inbox.md",
+                "content": "new",
+                "conflict_mode": "error",
+            },
+        )
+
+        assert response.status_code == 409
+        assert not (drive_dir / "Inbox (1).md").exists()
+
     def test_create_text_file_suffix_numbering_on_trash_collision(self, client):
         """Phase 4: trashed-file collision → suffix-numbered 201; the
         trashed file is preserved at its original path."""

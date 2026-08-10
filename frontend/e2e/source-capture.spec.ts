@@ -35,16 +35,23 @@ test("opens a drive-scoped capture basket and edits a capture note", async ({
   await expect(dialog).toBeVisible();
   await expect(dialog.getByText("source-video.mp4")).toBeVisible();
   await expect(dialog.getByText("1:05")).toBeVisible();
+  await expect(
+    dialog.getByRole("button", { name: /Append to Inbox\.md|Inbox\.md へ追記/ }),
+  ).toBeVisible();
+  await expect(dialog.getByText("Captures/Inbox.md")).toBeVisible();
 
   const note = dialog.getByPlaceholder(/Add a note|メモを追加/);
   await note.fill("Review this section");
   await expect(note).toHaveValue("Review this section");
 
   await dialog
-    .getByRole("button", { name: /Save .* to new note|件を新規ノートへ保存/ })
+    .getByRole("button", { name: /Other save methods|その他の保存方法/ })
+    .click();
+  await dialog
+    .getByRole("button", { name: /Save \d+ captures|\d+ 件の引用を保存/ })
     .click();
   const filenameDialog = page.getByRole("dialog", {
-    name: /Save captures to new note|引用を新規ノートへ保存/,
+    name: /Save capture note|引用ノートを保存/,
   });
   await expect(filenameDialog).toBeVisible();
   await expect(filenameDialog.getByLabel(/Filename|ファイル名/)).toHaveValue(

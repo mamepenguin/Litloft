@@ -578,6 +578,38 @@ def list_drive_files(
     )
 
 
+@router.get("/{drive_name}/files/by-path", response_model=FileResponse)
+def get_drive_file_by_path(
+    drive_name: str,
+    db: Annotated[Session, Depends(get_db)],
+    unlocked_groups: Annotated[list[str], Depends(get_unlocked_groups)],
+    path: str = Query(..., min_length=1, max_length=4096),
+):
+    """Resolve one active file by its exact drive-relative path."""
+    _validate_drive(drive_name, unlocked_groups)
+
+    import unicodedata
+    from pathlib import Path as _Path
+
+    resolved = resolve_safe_path(drive_name, path.strip())
+    drive_root = _Path(config.get_drive_path(drive_name)).resolve()
+    normalized_rel = unicodedata.normalize(
+        "NFC", str(resolved.relative_to(drive_root))
+    )
+    file = (
+        db.query(File)
+        .filter(
+            File.drive == drive_name,
+            File.file_path == normalized_rel,
+            active_file_filter(),
+        )
+        .first()
+    )
+    if file is None:
+        raise HTTPException(status_code=404, detail="File not found")
+    return _to_response(file)
+
+
 def _classify_match_source(file_obj, normalized_search: str | None) -> str | None:
     if not normalized_search:
         return None
@@ -662,9 +694,10 @@ async def create_text_file(
     Phase 4 of the Vault-Core merger removed the extension allowlist —
     any extension is creatable. Name conflicts with active or trashed
     files are auto-resolved by appending `` (n)`` before the extension.
-    Conflicts with a *missing* row at the same path are still treated as
-    UPSERT recovery (the existing row's content is replaced) and return
-    200.
+    With ``conflict_mode=error``, any collision returns 409 instead.
+    In the default rename mode, conflicts with a *missing* row at the same
+    path are still treated as UPSERT recovery (the existing row's content is
+    replaced) and return 200.
 
     Responses:
     - 201 on new file creation (incl. suffix-numbered fallback)
@@ -698,6 +731,15 @@ async def create_text_file(
     normalized_rel = unicodedata.normalize(
         "NFC", str(resolved.relative_to(drive_root))
     )
+
+    if body.conflict_mode == "error":
+        path_row = (
+            db.query(File)
+            .filter(File.drive == drive_name, File.file_path == normalized_rel)
+            .first()
+        )
+        if path_row is not None or resolved.exists():
+            raise HTTPException(status_code=409, detail="Path already exists")
 
     # Missing-state precedence: if a row exists with missing_since set,
     # reuse it (UPSERT) rather than falling through to suffix numbering.
@@ -782,6 +824,8 @@ async def create_text_file(
                 continue
 
         if _row_taken(candidate_rel):
+            if body.conflict_mode == "error":
+                raise HTTPException(status_code=409, detail="Path already exists")
             continue
 
         candidate_resolved.parent.mkdir(parents=True, exist_ok=True)
@@ -792,6 +836,8 @@ async def create_text_file(
                 0o644,
             )
         except FileExistsError:
+            if body.conflict_mode == "error":
+                raise HTTPException(status_code=409, detail="Path already exists")
             continue
         try:
             with _os.fdopen(fd, "wb") as f:
@@ -834,6 +880,8 @@ async def create_text_file(
             except OSError:
                 pass
             new_file = None
+            if body.conflict_mode == "error":
+                raise HTTPException(status_code=409, detail="Path already exists")
             continue
         db.refresh(new_file)
         break

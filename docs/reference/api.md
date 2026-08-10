@@ -50,7 +50,8 @@ Pagination: list endpoints that paginate take `page` (1-based) and return the cu
 | `GET` | `/api/drives/{drive}` | Drive info (counts, last scan). |
 | `GET` | `/api/drives/{drive}/folders?path=...` | Folder listing under a path. |
 | `GET` | `/api/drives/{drive}/files?path=...&type=...&tag=...&sort=...&page=...` | List files with filters. |
-| `POST` | `/api/drives/{drive}/files` | Create a file in the drive. Body `{ "path": "<rel>", "content": "<utf-8 text>" }`. Any extension (or none) is accepted; `content` is stored as opaque UTF-8 text. 1 MB body cap. On same-name collision with an active or trashed file, the basename is auto-suffixed (`foo.md` → `foo (1).md` → `foo (2).md` …). A *missing*-state file at the same path is revived in place (UPSERT). 409 is only returned at the suffix-numbering ceiling (~99 collisions). 400 on path traversal. |
+| `GET` | `/api/drives/{drive}/files/by-path?path=...` | Resolve one active file by exact normalized drive-relative path. Returns 404 when no active row matches; unlike the paginated listing, this has no 500-item search ceiling. |
+| `POST` | `/api/drives/{drive}/files` | Create a file in the drive. Body `{ "path": "<rel>", "content": "<utf-8 text>", "conflict_mode": "rename" | "error" }`. `conflict_mode` defaults to `rename`, preserving automatic suffixing (`foo.md` → `foo (1).md`). `error` returns 409 on any DB/filesystem collision and never creates a suffix. Any extension is accepted; 1 MB body cap; 400 on traversal. Missing-state recovery applies in the default `rename` mode. |
 | `GET` | `/api/drives/{drive}/duplicates` | Files grouped by `file_hash`. |
 | `GET` | `/api/drives/{drive}/pins` | Pinned folders. |
 | `POST` | `/api/drives/{drive}/pins` | Pin a folder. |

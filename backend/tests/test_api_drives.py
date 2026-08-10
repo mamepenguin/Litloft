@@ -125,6 +125,47 @@ class TestListDrives:
         assert res.status_code == 404
 
 
+class TestFileByPath:
+    def test_returns_active_file_by_exact_normalized_relative_path(self, client):
+        from app.models import File
+
+        c, db, drive_dir, _ = client
+        folder = drive_dir / "Captures"
+        folder.mkdir()
+        (folder / "Inbox.md").write_text("# Inbox\n")
+        row = File(
+            filename="Inbox.md",
+            title="Inbox",
+            drive=TEST_DRIVE,
+            folder_path="Captures",
+            file_path="Captures/Inbox.md",
+            file_size=8,
+            file_type="document",
+            mime_type="text/markdown",
+        )
+        db.add(row)
+        db.commit()
+        db.refresh(row)
+
+        response = c.get(
+            f"/api/drives/{TEST_DRIVE}/files/by-path",
+            params={"path": "Captures/Inbox.md"},
+        )
+
+        assert response.status_code == 200, response.text
+        assert response.json()["id"] == row.id
+
+    def test_returns_404_for_missing_exact_path(self, client):
+        c, _, _, _ = client
+
+        response = c.get(
+            f"/api/drives/{TEST_DRIVE}/files/by-path",
+            params={"path": "Captures/Inbox.md"},
+        )
+
+        assert response.status_code == 404
+
+
 class TestListFolders:
     def test_root_folders(self, client):
         c, db, drive_dir, data_dir = client
