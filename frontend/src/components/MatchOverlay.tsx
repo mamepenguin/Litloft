@@ -15,12 +15,20 @@
  *   transcript          → accent-teal (audio = nature)
  *   clip / clip_thumbnail → accent-amber (visual = focus)
  *   content             → warm-light (neutral, body text)
+ *
+ * The last row is a search snippet: the single strongest quotable excerpt
+ * behind the hit, rendered as a quiet quotation rather than a surface so a
+ * dense grid of cards does not turn into a wall of boxes. Addons hang their
+ * per-hit actions off that row through `search-result-actions`; the snippet
+ * itself is core, so a drive without Knowledge still sees where it matched.
  */
 
 import Link from "next/link";
 import { useTranslations } from "next-intl";
-import type { MatchMeta } from "@/types";
+import type { FileItemWithMatch, MatchMeta } from "@/types";
 import { formatDuration } from "@/lib/format";
+import { AddonSlot } from "@/components/AddonSlot";
+import { buildSearchSnippet } from "@/lib/searchCapture";
 
 const MATCH_TYPE_STYLES: Record<string, string> = {
   filename: "bg-accent/15 text-accent",
@@ -75,9 +83,11 @@ const MAX_TIMESTAMP_PILLS = 3;
 export function MatchOverlay({
   match,
   fileId,
+  file,
 }: {
   match: MatchMeta;
   fileId: string;
+  file?: FileItemWithMatch;
 }) {
   const t = useTranslations("search");
 
@@ -122,11 +132,13 @@ export function MatchOverlay({
     .slice(0, MAX_TIMESTAMP_PILLS);
 
   const matchedPages = match.matched_pages ?? [];
+  const snippet = file ? buildSearchSnippet(file) : null;
 
   if (
     activeTypes.length === 0 &&
     timestampSegments.length === 0 &&
-    matchedPages.length === 0
+    matchedPages.length === 0 &&
+    !snippet
   ) {
     return null;
   }
@@ -155,6 +167,21 @@ export function MatchOverlay({
         <p className="text-[11px] text-text-muted">
           {t("matchedPages", { pages: matchedPages.join(", ") })}
         </p>
+      )}
+      {snippet && (
+        <div className="group/snippet flex items-start gap-1.5 border-l-2 border-bg-border pl-2">
+          <p className="line-clamp-2 min-w-0 flex-1 text-[11px] leading-relaxed text-text-secondary">
+            {snippet.excerpt}
+          </p>
+          {/* Reserve the action's width at all times so revealing it on
+              hover never reflows the excerpt beside it. */}
+          <div className="flex-shrink-0 opacity-0 transition-opacity focus-within:opacity-100 group-hover/snippet:opacity-100 pointer-coarse:opacity-100">
+            <AddonSlot
+              id="search-result-actions"
+              props={{ capture: snippet.capture }}
+            />
+          </div>
+        </div>
       )}
     </div>
   );

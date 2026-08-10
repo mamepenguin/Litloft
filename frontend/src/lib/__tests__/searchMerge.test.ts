@@ -107,6 +107,28 @@ describe("buildMatchMeta", () => {
     expect(meta.matched_pages).toEqual([2, 5]);
   });
 
+  it("keeps each content excerpt paired with its page and score", () => {
+    const meta = buildMatchMeta(
+      makeHit({
+        match_types: ["text_content"],
+        segments: [
+          {
+            time_range: null,
+            matches: [
+              { type: "text_content", score: 0.8, page: 7, text: "page seven" },
+              { type: "text_content", score: 0.6, page: 2, text: "page two" },
+            ],
+          },
+        ],
+      }),
+    );
+
+    expect(meta.content_matches).toEqual([
+      { score: 0.8, page: 7, text: "page seven" },
+      { score: 0.6, page: 2, text: "page two" },
+    ]);
+  });
+
   it("collects clip_thumbnail score (no timestamp)", () => {
     // Spec 2026-05-02-thumbnail-clip-default-shallow-search.md:
     // representative-frame CLIP carries no time_range — surface as a
