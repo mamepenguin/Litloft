@@ -2,20 +2,21 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import type { CaptionsState, MediaController } from "@/lib/mediaController";
+import { getMediaClockSnapshot, subscribeMediaClock } from "@/lib/mediaClock";
 
 /**
  * MediaController is a pull-shaped contract: it exposes getters, not
  * events. Turning it into a push contract would ripple through every
- * backend (native, YouTube, Vimeo, anything added later), so the
- * controls poll instead.
+ * backend (native, YouTube, Vimeo, anything added later), so we poll.
  *
- * Two rates rather than start/stop: a paused player can start playing
- * again without telling us (a keyboard shortcut, an ad ending, an
- * autoplay kicking in), so we keep a slow heartbeat going and only
- * speed up when something is actually moving.
+ * The polling itself lives in `lib/mediaClock`, shared with every other
+ * consumer watching the same controller — the mini player, the
+ * transcript highlight, Media Session. This hook subscribes to that
+ * cadence and samples the extra fields it needs on top: volume, mute,
+ * rate, buffered and captions have no business in a shared playback
+ * clock, and giving them their own interval would put us back where we
+ * started.
  */
-const POLL_ACTIVE_MS = 250;
-const POLL_IDLE_MS = 1000;
 const DEFAULT_AUTO_HIDE_MS = 3000;
 
 /**
@@ -120,15 +121,24 @@ function readSnapshot(
   mc: MediaController,
   durationHint: number | null | undefined,
 ): MediaControlsSnapshot {
+  // Position, length, paused and interrupted come from the shared
+  // clock so the bar can never disagree with the mini player about
+  // whether playback is running. The rest is read here — those are the
+  // fields the clock deliberately excludes.
+  const clock = getMediaClockSnapshot(mc);
   return {
-    currentTime: finite(mc.getCurrentTime()),
-    duration: usableDuration(durationHint) || usableDuration(mc.getDuration()),
+    currentTime: clock.currentTime,
+    // The hint comes from our own file metadata and is trustworthy even
+    // when the player is reporting something else (an ad, or nothing
+    // yet), which is why it is layered here rather than in the clock:
+    // it is a property of the file, not of the controller.
+    duration: usableDuration(durationHint) || clock.duration,
     bufferedFraction: finite(mc.getBufferedFraction()),
-    paused: mc.isPaused(),
+    paused: clock.paused,
     muted: mc.isMuted(),
     volume: finite(mc.getVolume()),
     playbackRate: mc.getPlaybackRate(),
-    interrupted: mc.isInterrupted?.() ?? false,
+    interrupted: clock.interrupted,
     captions: mc.getCaptions?.() ?? "unavailable",
   };
 }
@@ -178,14 +188,16 @@ export function useMediaControlsState({
 
   useEffect(() => {
     if (!mc) return;
-    const tick = () => {
+    const sample = () => {
       setSnapshot((prev) => {
         let next: MediaControlsSnapshot;
         try {
           next = readSnapshot(mc, durationHint);
         } catch {
           // The YouTube player throws while it swaps media. Hold the
-          // last good reading rather than blanking the bar.
+          // last good reading rather than blanking the bar. (The clock
+          // already suppresses ticks whose own read threw; this covers
+          // the getters sampled here.)
           return prev;
         }
         // Returning the previous object lets React bail out, so a
@@ -193,13 +205,14 @@ export function useMediaControlsState({
         return sameSnapshot(prev, next) ? prev : next;
       });
     };
-    tick();
-    const id = setInterval(
-      tick,
-      paused && !scrubbing ? POLL_IDLE_MS : POLL_ACTIVE_MS,
-    );
-    return () => clearInterval(id);
-  }, [mc, durationHint, paused, scrubbing]);
+    // Subscribe before the first sample. Subscribing refreshes a
+    // snapshot that may have been parked since the last consumer left,
+    // and it does not notify anyone — so sampling first would show a
+    // stale reading until the next tick.
+    const unsubscribe = subscribeMediaClock(mc, sample);
+    sample();
+    return unsubscribe;
+  }, [mc, durationHint]);
 
   useEffect(() => {
     // Nothing is moving, so there is nothing to get out of the way of.
