@@ -13,7 +13,7 @@ vi.mock("@/lib/recentlyPlayed", () => ({
   clearProgress: vi.fn(),
 }));
 
-import { clearProgress } from "@/lib/recentlyPlayed";
+import { clearProgress, saveProgress } from "@/lib/recentlyPlayed";
 
 describe("VideoPlayer", () => {
   beforeEach(() => {
@@ -37,9 +37,14 @@ describe("VideoPlayer", () => {
     const onEnded = vi.fn();
     render(<VideoPlayer videoId="vid-1" onEnded={onEnded} />);
     const video = document.querySelector("video")!;
+    Object.defineProperty(video, "duration", { value: 300, configurable: true });
+    Object.defineProperty(video, "currentTime", { value: 300, configurable: true });
     video.dispatchEvent(new Event("ended"));
     expect(onEnded).toHaveBeenCalled();
-    expect(clearProgress).toHaveBeenCalledWith("vid-1");
+    // Completion is recorded, never erased — clearing is reserved for
+    // the explicit "remove from history" action.
+    expect(saveProgress).toHaveBeenCalledWith("vid-1", 300, 300);
+    expect(clearProgress).not.toHaveBeenCalled();
   });
 
   it("renders fallback text", () => {

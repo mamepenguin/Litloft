@@ -3,8 +3,8 @@
 import { useRef, useEffect, useCallback, useImperativeHandle, forwardRef, type Ref } from "react";
 import { useTranslations } from "next-intl";
 import type { SubtitleInfo } from "@/types";
-import { getStreamUrl, getSubtitleUrl, getThumbnailUrl, saveWatchProgress, getWatchProgress, deleteWatchProgress } from "@/lib/api";
-import { getSavedProgress, saveProgress, clearProgress } from "@/lib/recentlyPlayed";
+import { getStreamUrl, getSubtitleUrl, getThumbnailUrl, saveWatchProgress, getWatchProgress } from "@/lib/api";
+import { getSavedProgress, saveProgress } from "@/lib/recentlyPlayed";
 import { readAutoplayPreference } from "@/lib/autoplay";
 import { setupBackgroundPiP } from "@/lib/backgroundPiP";
 import { setupMediaSession } from "@/lib/mediaSession";
@@ -60,16 +60,30 @@ export const VideoPlayer = forwardRef(function VideoPlayer({ videoId, subtitles 
       if (hasProfile) {
         saveWatchProgress(videoId, current, video.duration).catch(() => {});
       } else {
-        saveProgress(videoId, current);
+        saveProgress(videoId, current, video.duration);
       }
     }
   }, [videoId, hasProfile]);
 
+  // Reaching the end records the final position instead of erasing the
+  // history row. The row is what makes "completed" distinguishable from
+  // "never started", and the continue-watching query drops it anyway
+  // through its 90% gate — deleting it here threw that state away.
+  // Spec: 2026-08-10-media-import-watch-surface.md §4.2.
   const handleEnded = useCallback(() => {
-    if (hasProfile) {
-      deleteWatchProgress(videoId).catch(() => {});
-    } else {
-      clearProgress(videoId);
+    const video = videoRef.current;
+    const duration = video?.duration;
+    // Without a trustworthy length there is no way to express
+    // "completed", so leave the last periodic save standing rather than
+    // fabricate one. Live streams and un-probed media land here.
+    if (video && Number.isFinite(duration) && (duration ?? 0) > 0) {
+      const position = video.currentTime > 0 ? video.currentTime : duration!;
+      lastSavedRef.current = position;
+      if (hasProfile) {
+        saveWatchProgress(videoId, position, duration!).catch(() => {});
+      } else {
+        saveProgress(videoId, position, duration!);
+      }
     }
     onEnded?.();
   }, [videoId, onEnded, hasProfile]);
@@ -174,7 +188,13 @@ export const VideoPlayer = forwardRef(function VideoPlayer({ videoId, subtitles 
         if (hasProfile) {
           saveWatchProgress(videoId, video.currentTime, video.duration).catch(() => {});
         } else {
-          saveProgress(videoId, video.currentTime);
+          saveProgress(
+            videoId,
+            video.currentTime,
+            Number.isFinite(video.duration) && video.duration > 0
+              ? video.duration
+              : undefined,
+          );
         }
       }
     };

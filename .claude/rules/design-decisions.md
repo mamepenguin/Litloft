@@ -90,6 +90,9 @@ Rules:
   - For media files, after the player starts, re-POST with position/duration to update playback markers.
   - Both paths always refresh `last_played_at`. A view-only POST never overwrites the playback markers of media.
   - View-only records with `playback_position=0` / `duration=0` are filtered out naturally by the continue-watching gate (the 90% completion gate in `drives.py`).
+- **Reaching the end of a media file records the final position; it never deletes the record.** Players write `position = currentTime`, `duration = duration` on `ended`, and the 90% gate keeps the row out of continue-watching. Deleting the row is reserved for an explicit user action ("remove from history"). Do not call `deleteWatchProgress` / `clearProgress` from a playback-completion path — that erases the distinction between "watched to the end" and "never opened".
+  - When the duration is not a finite positive number (live streams, media that never probed its length), write nothing and let the last periodic save stand. Never fabricate a completed state.
+  - Providers that cannot observe completion (plain iframe embeds) simply omit `LoftEmbedProps.onEnded`; absence means "unknown", not "unfinished".
   - This table is the single source of truth for syncing watch history across clients; `personal_history` (intelligence Ask) reads it as canonical.
 
 ## WebSocket

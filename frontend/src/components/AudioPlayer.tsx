@@ -4,9 +4,9 @@ import { useRef, useCallback, useEffect } from "react";
 import { useTranslations } from "next-intl";
 import type { FileItem } from "@/types";
 import { FileTypeIcon } from "./FileTypeIcon";
-import { getStreamUrl, getThumbnailUrl, saveWatchProgress, getWatchProgress, deleteWatchProgress } from "@/lib/api";
+import { getStreamUrl, getThumbnailUrl, saveWatchProgress, getWatchProgress } from "@/lib/api";
 import { formatFileSize } from "@/lib/format";
-import { getSavedProgress, saveProgress, clearProgress } from "@/lib/recentlyPlayed";
+import { getSavedProgress, saveProgress } from "@/lib/recentlyPlayed";
 import { useAutoplayPreference } from "@/lib/autoplay";
 import { setupMediaSession } from "@/lib/mediaSession";
 import { useProfile } from "./ProfileProvider";
@@ -53,16 +53,25 @@ export function AudioPlayer({ file, onEnded, autoPlay }: { file: FileItem; onEnd
       if (hasProfile) {
         saveWatchProgress(file.id, current, audio.duration).catch(() => {});
       } else {
-        saveProgress(file.id, current);
+        saveProgress(file.id, current, audio.duration);
       }
     }
   }, [file.id, hasProfile]);
 
+  // Records the final position rather than deleting the row — see the
+  // matching comment in VideoPlayer and spec
+  // 2026-08-10-media-import-watch-surface.md §4.2.
   const handleEnded = useCallback(() => {
-    if (hasProfile) {
-      deleteWatchProgress(file.id).catch(() => {});
-    } else {
-      clearProgress(file.id);
+    const audio = audioRef.current;
+    const duration = audio?.duration;
+    if (audio && Number.isFinite(duration) && (duration ?? 0) > 0) {
+      const position = audio.currentTime > 0 ? audio.currentTime : duration!;
+      lastSavedRef.current = position;
+      if (hasProfile) {
+        saveWatchProgress(file.id, position, duration!).catch(() => {});
+      } else {
+        saveProgress(file.id, position, duration!);
+      }
     }
     onEnded?.();
   }, [file.id, onEnded, hasProfile]);

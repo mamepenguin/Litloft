@@ -26,4 +26,21 @@ export interface LoftEmbedProps {
    * show the right total before the player knows it.
    */
   durationHint?: number | null;
+  /**
+   * Called once the provider reports that playback reached the end.
+   *
+   * Optional on purpose: it is a *capability*, not a requirement. A
+   * provider that cannot observe completion — a plain iframe embed,
+   * say — simply never calls it and stays fully playable. Core must
+   * therefore treat "never fired" as "unknown", never as "not
+   * finished", and must not fabricate a completed state on its behalf.
+   *
+   * Wiring this up is what lets `.loft` files take part in the same
+   * end-of-playback lifecycle native media already has (Collection
+   * advance today, a generic playback queue later) without Core
+   * gaining any knowledge of Media Import.
+   *
+   * Spec: 2026-08-10-media-import-watch-surface.md §4.3.
+   */
+  onEnded?: () => void;
 }
