@@ -31,6 +31,12 @@ vi.mock("../HtmlPreview", () => ({
   ),
 }));
 
+vi.mock("../PdfPreview", () => ({
+  PdfPreview: ({ fileId, initialPage }: { fileId: string; initialPage?: number }) => (
+    <div data-testid="pdf-preview">{fileId}:{initialPage ?? 1}</div>
+  ),
+}));
+
 vi.mock("../TextPreview", () => ({
   TextPreview: ({ fileId }: { fileId: string }) => (
     <div data-testid="text-preview">{fileId}</div>
@@ -118,11 +124,10 @@ describe("FilePreview", () => {
     expect(screen.getByTestId("audio-player")).toBeInTheDocument();
   });
 
-  it("renders iframe for PDF files", () => {
+  it("renders the selectable PDF viewer at the requested page", () => {
     const file = makeFile({ file_type: "document", mime_type: "application/pdf", filename: "doc.pdf" });
-    render(<FilePreview file={file} />);
-    const iframe = screen.getByTitle("Test");
-    expect(iframe).toHaveAttribute("src", "/api/files/file-1/stream");
+    render(<FilePreview file={file} initialPage={4} />);
+    expect(screen.getByTestId("pdf-preview")).toHaveTextContent("file-1:4");
   });
 
   it("renders ArchivePreview for archive files", () => {

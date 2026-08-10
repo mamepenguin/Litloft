@@ -15,6 +15,7 @@ import { AudioPlayer } from "./AudioPlayer";
 import { TextPreview, isTextPreviewable } from "./TextPreview";
 import { MarkdownFileViewer } from "./MarkdownPreview";
 import { HtmlPreview } from "./HtmlPreview";
+import { PdfPreview } from "./PdfPreview";
 import { ArchivePreview } from "./ArchivePreview";
 import { FileTypeIcon } from "./FileTypeIcon";
 import { AddonSlot } from "./AddonSlot";
@@ -26,6 +27,7 @@ import {
   createNativeVideoController,
   type MediaController,
 } from "@/lib/mediaController";
+import type { DocumentCaptureController } from "@/lib/documentCapture";
 
 interface FilePreviewProps {
   file: FileItem;
@@ -59,6 +61,9 @@ interface FilePreviewProps {
    * setter or a useCallback).
    */
   onMediaController?: (mc: MediaController | null) => void;
+  onDocumentCaptureController?: (
+    controller: DocumentCaptureController | null,
+  ) => void;
   /**
    * ``.md`` only: bump to force the Properties Panel source to
    * refetch (keeps frontmatter display in sync when the outer
@@ -181,19 +186,12 @@ export function FilePreview({
   initialPage,
   highlight,
   onMediaController,
+  onDocumentCaptureController,
   markdownReloadKey,
   onMarkdownTagsSaved,
   miniPlayerRoot,
 }: FilePreviewProps) {
   const t = useTranslations("file");
-  const [isAppleMobile, setIsAppleMobile] = useState(false);
-  useEffect(() => {
-    const ua = navigator.userAgent;
-    const isIosOrIpadOs =
-      /iPad|iPhone|iPod/.test(ua) ||
-      (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1);
-    setIsAppleMobile(isIosOrIpadOs);
-  }, []);
   // Mirror the published MediaController locally so MiniPlayerContainer
   // can react to play/pause without requiring every caller of
   // FilePreview to thread the controller back down. The relay still
@@ -289,6 +287,7 @@ export function FilePreview({
         externalReloadKey={markdownReloadKey}
         onTagsSaved={onMarkdownTagsSaved}
         highlight={highlight}
+        onDocumentCaptureController={onDocumentCaptureController}
       />
     );
   }
@@ -298,46 +297,13 @@ export function FilePreview({
   }
 
   if (file.mime_type === "application/pdf") {
-    // `#page=N` is the PDF Open Parameters fragment honoured by
-    // Chromium's built-in viewer, Firefox's PDF.js, and Safari's
-    // PDFKit. Falls back to page 1 when the fragment is absent.
-    //
-    // The `key` prop forces a fresh iframe element when initialPage
-    // changes — Chromium's PDF viewer ignores fragment updates on a
-    // live iframe, and React would otherwise keep the existing
-    // element and only patch the `src` attribute (which doesn't
-    // re-trigger the viewer's page-on-load logic). Tying the key to
-    // (file.id, page) makes a citation jump always present a freshly
-    // initialised viewer at the requested page.
-    const hasPage =
-      initialPage != null &&
-      Number.isFinite(initialPage) &&
-      initialPage > 0;
-    const pdfSrc = hasPage
-      ? `${getStreamUrl(file.id)}#page=${initialPage}`
-      : getStreamUrl(file.id);
-    const pdfKey = `${file.id}:p${hasPage ? initialPage : 1}`;
     return (
-      <div className="w-full overflow-hidden rounded-xl bg-bg-card">
-        {isAppleMobile && (
-          <div className="flex justify-end px-3 py-2">
-            <a
-              href={pdfSrc}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="text-sm text-text-muted underline"
-            >
-              {t("openInNewTab")}
-            </a>
-          </div>
-        )}
-        <iframe
-          key={pdfKey}
-          src={pdfSrc}
-          title={file.title}
-          className="h-[80vh] w-full border-0"
-        />
-      </div>
+      <PdfPreview
+        fileId={file.id}
+        title={file.title || file.filename}
+        initialPage={initialPage}
+        onDocumentCaptureController={onDocumentCaptureController}
+      />
     );
   }
 
@@ -351,6 +317,7 @@ export function FilePreview({
         fileId={file.id}
         fileSize={file.file_size}
         highlight={highlight}
+        onDocumentCaptureController={onDocumentCaptureController}
       />
     );
   }

@@ -2,6 +2,8 @@
 
 import { useEffect, useMemo, useRef } from "react";
 import { useHighlightPassage } from "@/hooks/useHighlightPassage";
+import { useDocumentCapturePublisher } from "@/hooks/useDocumentCapturePublisher";
+import type { DocumentCaptureController } from "@/lib/documentCapture";
 import MarkdownIt from "markdown-it";
 import type Token from "markdown-it/lib/token.mjs";
 // @ts-expect-error -- no bundled type definitions
@@ -430,6 +432,7 @@ export function MarkdownPreview({
   onSourceChange,
   highlight,
   wikiResolution,
+  onDocumentCaptureController,
 }: {
   source: string;
   showFrontmatter?: boolean;
@@ -446,6 +449,9 @@ export function MarkdownPreview({
    * server fetch is in flight. Spec 2026-05-12 §3.8.
    */
   wikiResolution?: Record<string, WikiResolveResult>;
+  onDocumentCaptureController?: (
+    controller: DocumentCaptureController | null,
+  ) => void;
   /**
    * Drive name used to resolve ``loft://file_id`` internal file links.
    * Required for Knowledge editor preview; optional elsewhere.
@@ -497,6 +503,11 @@ export function MarkdownPreview({
   );
 
   const containerRef = useRef<HTMLDivElement>(null);
+  useDocumentCapturePublisher(
+    containerRef,
+    onDocumentCaptureController,
+    { includeHeading: true },
+  );
   // The hook is wired to the rendered body. It runs after the html
   // is set, and re-runs when source or highlight changes.
   useHighlightPassage(containerRef, highlight, html.length > 0);

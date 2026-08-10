@@ -23,6 +23,7 @@ import { formatDuration, formatFileSize } from "@/lib/format";
 import { clearListSnapshot } from "@/lib/listSnapshot";
 import type { FileItem } from "@/types";
 import type { MediaController } from "@/lib/mediaController";
+import type { DocumentCaptureController } from "@/lib/documentCapture";
 
 import { markdownContentRegistry } from "@/lib/markdownContentRegistry";
 import { useIsMobile } from "@/hooks/useIsMobile";
@@ -148,6 +149,8 @@ export function FileDetailContent({
   // pick it up.
   const [mediaController, setMediaController] =
     useState<MediaController | null>(null);
+  const [documentCaptureController, setDocumentCaptureController] =
+    useState<DocumentCaptureController | null>(null);
 
   const handleMediaController = useCallback(
     (mc: MediaController | null) => {
@@ -160,6 +163,7 @@ export function FileDetailContent({
   useEffect(() => {
     setFile(null);
     setEditing(false);
+    setDocumentCaptureController(null);
     let cancelled = false;
     getFile(fileId)
       .then((f) => {
@@ -447,6 +451,7 @@ export function FileDetailContent({
     subtitles: file.subtitles,
     fileType: file.file_type,
     mimeType: file.mime_type,
+    documentCaptureController,
   };
 
   if (useDocumentLayout) {
@@ -569,6 +574,7 @@ export function FileDetailContent({
         initialPage={initialPage}
         highlight={highlight}
         onMediaController={handleMediaController}
+        onDocumentCaptureController={setDocumentCaptureController}
         markdownReloadKey={tagSaveVersion}
         onMarkdownTagsSaved={handleTagsSaved}
         miniPlayerRoot={miniPlayerRoot}
