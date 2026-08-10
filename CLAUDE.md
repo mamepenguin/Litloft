@@ -57,7 +57,20 @@ data/                # SQLite DB + thumbnails + cache + setup_completed sentinel
 ```
 
 ## Git
-The addons within the addons directory are independent Git repositories. Therefore, they are not tracked by the main repository. When making changes, you must also commit them within the respective addon.
+
+Everything under `addons/` is a **Git submodule** — an independent repository with its own history, branches, and PRs (see `.gitmodules`).
+
+What this does and does not mean for the main repository:
+
+- **Addon file contents are not tracked here.** Editing `addons/knowledge/frontend/Foo.tsx` produces no diff in the main repo. That change must be committed and merged in the addon's own repository.
+- **The commit each addon is pinned to _is_ tracked here**, as a gitlink (mode `160000`) in the index. `git status` shows it as a modified path, and `git diff --submodule=short addons/` shows the old and new SHAs.
+
+So a change that spans core and an addon takes two steps, in this order:
+
+1. Commit, PR, and merge inside the addon repository.
+2. In the main repository, move the submodule to the merged commit (`git -C addons/<name> checkout main && git -C addons/<name> merge --ff-only origin/main`), then `git add addons/<name>` and commit the pointer bump.
+
+Skipping step 2 leaves the branch pinned to the pre-merge addon commit, so a fresh clone pairs new core code with the old addon and the integration silently fails to load. Verify with `git diff --submodule=short addons/` before opening the core PR.
 
 ## Development commands
 
