@@ -5,6 +5,8 @@ import { useTranslations } from "next-intl";
 import { getStreamUrl } from "@/lib/api";
 import { formatFileSize } from "@/lib/format";
 import { useHighlightPassage } from "@/hooks/useHighlightPassage";
+import { useDocumentCapturePublisher } from "@/hooks/useDocumentCapturePublisher";
+import type { DocumentCaptureController } from "@/lib/documentCapture";
 
 const MAX_AUTO_LOAD_SIZE = 1024 * 1024; // 1MB
 
@@ -34,10 +36,14 @@ export function TextPreview({
   fileId,
   fileSize,
   highlight,
+  onDocumentCaptureController,
 }: {
   fileId: string;
   fileSize: number;
   highlight?: string;
+  onDocumentCaptureController?: (
+    controller: DocumentCaptureController | null,
+  ) => void;
 }) {
   const t = useTranslations("text");
   const [content, setContent] = useState<string | null>(null);
@@ -45,6 +51,7 @@ export function TextPreview({
   const [error, setError] = useState<string | null>(null);
   const [confirmed, setConfirmed] = useState(fileSize <= MAX_AUTO_LOAD_SIZE);
   const preRef = useRef<HTMLPreElement>(null);
+  useDocumentCapturePublisher(preRef, onDocumentCaptureController);
   useHighlightPassage(preRef, highlight, content !== null);
 
   useEffect(() => {

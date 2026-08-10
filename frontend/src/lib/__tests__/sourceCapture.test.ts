@@ -50,6 +50,32 @@ describe("sourceCapture store", () => {
     expect(getSourceCaptures("media")).toHaveLength(1);
   });
 
+  it("restores document selections and PDF page fallbacks", () => {
+    addSourceCapture(
+      capture({
+        kind: "document_selection",
+        fileType: "document",
+        quote: "A selected paragraph",
+        locator: { label: "Introduction" },
+      }),
+    );
+    addSourceCapture(
+      capture({
+        sourceFileId: "pdf123456789",
+        filename: "paper.pdf",
+        fileType: "document",
+        kind: "pdf_page",
+        locator: { page: 4 },
+      }),
+    );
+
+    clearSourceCaptures("media", { persist: false });
+    expect(getSourceCaptures("media").map((item) => item.kind)).toEqual([
+      "document_selection",
+      "pdf_page",
+    ]);
+  });
+
   it("updates a personal note immutably and removes by id", () => {
     const { item } = addSourceCapture(capture());
     const before = getSourceCaptures("media");

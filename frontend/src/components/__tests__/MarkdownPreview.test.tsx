@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, it, expect, vi } from "vitest";
-import { render, screen, waitFor } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { MarkdownFileViewer, MarkdownPreview } from "@/components/MarkdownPreview";
 import { NextIntlClientProvider } from "next-intl";
 
@@ -12,6 +12,30 @@ function renderWithIntl(ui: React.ReactElement) {
 }
 
 describe("MarkdownPreview", () => {
+  it("publishes selected text with the nearest Markdown heading", () => {
+    const onDocumentCaptureController = vi.fn();
+    renderWithIntl(
+      <MarkdownPreview
+        source={"# Guide\n\n## Install\n\nRun the installer."}
+        onDocumentCaptureController={onDocumentCaptureController}
+      />,
+    );
+    const text = screen.getByText("Run the installer.").firstChild as Text;
+    const range = document.createRange();
+    range.selectNodeContents(text);
+    const selection = window.getSelection()!;
+    selection.removeAllRanges();
+    selection.addRange(range);
+    fireEvent(document, new Event("selectionchange"));
+
+    const controller = onDocumentCaptureController.mock.calls.at(-1)?.[0];
+    expect(controller?.getSnapshot()).toMatchObject({
+      kind: "selection",
+      quote: "Run the installer.",
+      locator: { label: "Install" },
+    });
+  });
+
   it("renders basic markdown to HTML", () => {
     renderWithIntl(<MarkdownPreview source={"# Hello\n\nWorld"} />);
     expect(screen.getByRole("heading", { name: "Hello" })).toBeInTheDocument();

@@ -7,7 +7,9 @@ const STORAGE_PREFIX = "litloft:source-captures:";
 export type SourceCaptureKind =
   | "media_timestamp"
   | "transcript"
-  | "ask_citation";
+  | "ask_citation"
+  | "document_selection"
+  | "pdf_page";
 
 export interface SourceCaptureLocator {
   seconds?: number;
@@ -93,7 +95,13 @@ function validCapture(value: unknown, drive: string): value is SourceCapture {
     item.filename.length > 0 &&
     item.filename.length <= 500 &&
     typeof item.fileType === "string" &&
-    ["media_timestamp", "transcript", "ask_citation"].includes(
+    [
+      "media_timestamp",
+      "transcript",
+      "ask_citation",
+      "document_selection",
+      "pdf_page",
+    ].includes(
       item.kind as string,
     ) &&
     validLocator(item.locator) &&

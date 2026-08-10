@@ -8,6 +8,7 @@ import {
   type WikiResolveResult,
 } from "@/lib/api";
 import { MarkdownPreview } from "@/components/MarkdownPreview";
+import type { DocumentCaptureController } from "@/lib/documentCapture";
 
 /**
  * Fetch-and-render wrapper for use in FilePreview. Loads the file
@@ -32,6 +33,7 @@ export function MarkdownFileViewer({
   externalReloadKey,
   onTagsSaved,
   highlight,
+  onDocumentCaptureController,
 }: {
   fileId: string;
   editable?: {
@@ -53,6 +55,9 @@ export function MarkdownFileViewer({
   onTagsSaved?: (tags: string[]) => void;
   /** Forwarded to MarkdownPreview for citation jump. */
   highlight?: string;
+  onDocumentCaptureController?: (
+    controller: DocumentCaptureController | null,
+  ) => void;
 }) {
   const t = useTranslations("text");
   const [source, setSource] = useState<string | null>(null);
@@ -129,6 +134,7 @@ export function MarkdownFileViewer({
       onTagsSaved={onTagsSaved}
       highlight={highlight}
       wikiResolution={wikiResolution}
+      onDocumentCaptureController={onDocumentCaptureController}
     />
   );
 }
