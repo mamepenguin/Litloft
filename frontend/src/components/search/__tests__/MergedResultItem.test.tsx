@@ -163,4 +163,24 @@ describe("MergedResultItem", () => {
     const pills = screen.getAllByText(/^\d+:\d{2}$/);
     expect(pills.length).toBeLessThanOrEqual(5);
   });
+
+  it("stays navigation-only: no snippet or capture action in the dropdown", () => {
+    // The dropdown is driven by arrow keys + Enter. Search snippets and
+    // capture actions live on the results page / file list instead, so a
+    // row stays one focusable target and the selection highlight stays
+    // the height of a row.
+    const file = makeFile({
+      match_meta: {
+        transcript: [{
+          time_range: [10, 20],
+          score: 0.8,
+          text: "quotable source excerpt",
+        }],
+      },
+    });
+    render(<MergedResultItem file={file} onSelect={vi.fn()} />);
+
+    expect(screen.queryByText("quotable source excerpt")).not.toBeInTheDocument();
+    expect(screen.getByTestId("merged-result-item").tagName).toBe("BUTTON");
+  });
 });

@@ -115,6 +115,11 @@ export function buildMatchMeta(hit: SemanticHit): MatchMeta {
         upsertScore("metadata", score);
       } else if (CONTENT_TYPES.has(m.type)) {
         upsertScore("content", score);
+        (meta.content_matches ??= []).push({
+          score,
+          ...(m.text ? { text: m.text } : {}),
+          ...(typeof m.page === "number" ? { page: m.page } : {}),
+        });
       } else if (m.type === "retrieval_keywords") {
         // LLM-expansion hit: chip-only, no jump target. ``m.text`` is
         // the matched keyword string from the backend; collect them

@@ -223,6 +223,7 @@ export function FileList({
                           <MatchOverlay
                             match={file.match_meta}
                             fileId={file.id}
+                            file={file}
                           />
                         </div>
                       )}

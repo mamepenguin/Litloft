@@ -523,6 +523,15 @@ Default table aesthetic for MarkdownPreview and any other reading-surface table.
 - **Exception**: vertical-header tables (`tbody th`) may keep a subtle fill on the header column to distinguish the axis.
 - Mobile (`max-width: 767px`): trim table `font-size` to `0.93em`. Do not reflow — horizontal scroll is preferred to structure loss.
 
+### Search Snippet (MatchOverlay excerpt row)
+
+The one-line excerpt showing *where* a search hit matched, inside a file card or list row. It is a quotation in a dense surface, so it deliberately does **not** reuse the long-form `blockquote` treatment from §3.3 — a `bg-bg-elevated` fill would read as a nested card in the grid, and it collapses into the row's own `hover:bg-bg-elevated` state.
+
+- Marker: `border-l-2 border-bg-border pl-2` — a rule, never a fill, never the accent border reserved for §3.3 prose blockquotes.
+- Text: `text-[11px] leading-relaxed text-text-secondary`, clamped with `line-clamp-2`. The excerpt is truncated in the data layer too, so a long source never ships into the card's DOM.
+- **One snippet per hit.** Do not stack a row per match — the badges and timestamp pills above already enumerate the evidence, and repeating a timestamp as a text row shows the same fact twice.
+- Row actions (e.g. the Knowledge capture action in `search-result-actions`) sit at the row's trailing edge, revealed by `group-hover` / `focus-within`, and are always visible under `pointer-coarse`. Keep the action's box in flow at `opacity-0` so revealing it never reflows the excerpt.
+
 ### Section Header Labels (i18n)
 
 - Do **not** use `tracking-wider` — these render Japanese text

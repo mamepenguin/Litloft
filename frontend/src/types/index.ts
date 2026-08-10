@@ -189,6 +189,12 @@ export interface MatchTimestamp {
   text?: string;
 }
 
+export interface MatchContent {
+  score: number;
+  text?: string;
+  page?: number;
+}
+
 export interface MatchMeta {
   /** Filename / metadata search hit (backend has no real score, set to 1). */
   filename?: { score: number };
@@ -223,6 +229,8 @@ export interface MatchMeta {
    * and text_content_keyword (FTS5) hits.
    */
   content?: { score: number };
+  /** Body excerpts, retaining the page association of each document hit. */
+  content_matches?: MatchContent[];
   /**
    * SIRA-style LLM-expanded retrieval keywords hit (fts_retrieval_keywords).
    * Chip-only badge: the keyword expansion does NOT point at a body

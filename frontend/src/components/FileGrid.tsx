@@ -69,7 +69,7 @@ export function FileGrid({
             onDragEnd={onDragEnd}
             matchOverlay={
               file.match_meta ? (
-                <MatchOverlay match={file.match_meta} fileId={file.id} />
+                <MatchOverlay match={file.match_meta} fileId={file.id} file={file} />
               ) : undefined
             }
           />
