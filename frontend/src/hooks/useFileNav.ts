@@ -4,6 +4,7 @@ import { useCallback, useEffect, useState } from "react";
 import { useTranslations } from "next-intl";
 
 import { getFileNeighbors } from "@/lib/api";
+import { playerKind } from "@/lib/playerKind";
 import type { FileItem, Neighbors } from "@/types";
 import { useShortcuts } from "./useShortcuts";
 
@@ -43,8 +44,6 @@ interface UseFileNavResult {
   prevId: string | null;
   nextId: string | null;
 }
-
-const LOFT_MIME = "application/vnd.litloft.loft+json";
 
 /**
  * File navigation hook for hosts that show a single file at a time
@@ -97,9 +96,7 @@ export function useFileNav({
   const shortcutsEnabled =
     enabled &&
     !!neighbors &&
-    fileType !== "video" &&
-    fileType !== "audio" &&
-    mimeType !== LOFT_MIME;
+    playerKind({ mime_type: mimeType, file_type: fileType }) === null;
 
   const navigatePrev = useCallback(() => {
     if (neighbors?.prev_id) onNavigate(neighbors.prev_id);
