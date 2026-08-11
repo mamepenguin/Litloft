@@ -293,3 +293,144 @@ def test_chapters_probed_at_migration_is_idempotent(tmp_path, monkeypatch):
         db.commit()
 
     engine.dispose()
+
+
+class TestNormaliseChapters:
+    """The rules every producer shares, wherever it extracted from.
+
+    ffprobe keeps the title under ``tags`` and yt-dlp keeps it at the top
+    level, so extraction differs; what happens next must not, or the two
+    producers start disagreeing about the same file.
+    """
+
+    def test_drops_entries_with_no_usable_title(self):
+        from app.services.chapters import normalise_chapters
+
+        rows = normalise_chapters(
+            [
+                {"start_time": "0", "end_time": "5", "title": "One"},
+                {"start_time": "5", "end_time": "8", "title": "   "},
+                {"start_time": "6", "end_time": "8", "title": None},
+                {"start_time": "7", "end_time": "8"},
+                {"start_time": "8", "end_time": None, "title": "Two"},
+            ]
+        )
+
+        assert [row["title"] for row in rows] == ["One", "Two"]
+
+    def test_ordering_is_contiguous_after_filtering(self):
+        # Sorting only cares about relative values, but a caller reading
+        # this as "chapter N of M" would be wrong about a set with holes.
+        from app.services.chapters import normalise_chapters
+
+        rows = normalise_chapters(
+            [
+                {"start_time": "0", "title": "One"},
+                {"start_time": "5", "title": ""},
+                {"start_time": "8", "title": "Three"},
+            ]
+        )
+
+        assert [row["ordering"] for row in rows] == [0, 1]
+
+    def test_coerces_times_and_keeps_a_missing_end(self):
+        from app.services.chapters import normalise_chapters
+
+        rows = normalise_chapters([{"start_time": "12.5", "title": " Padded "}])
+
+        assert rows == [
+            {
+                "start_time": 12.5,
+                "end_time": None,
+                "title": "Padded",
+                "ordering": 0,
+            }
+        ]
+
+    def test_drops_an_entry_whose_start_will_not_coerce(self):
+        # Guessing a position is worse than dropping the row.
+        from app.services.chapters import normalise_chapters
+
+        rows = normalise_chapters(
+            [
+                {"start_time": "not a number", "title": "Bad"},
+                {"start_time": None, "title": "Also bad"},
+                {"title": "No start at all"},
+                {"start_time": "3", "title": "Good"},
+            ]
+        )
+
+        assert [row["title"] for row in rows] == ["Good"]
+
+    def test_an_unusable_end_does_not_cost_the_row(self):
+        from app.services.chapters import normalise_chapters
+
+        rows = normalise_chapters(
+            [{"start_time": "0", "end_time": "junk", "title": "Kept"}]
+        )
+
+        assert rows == [
+            {"start_time": 0.0, "end_time": None, "title": "Kept", "ordering": 0}
+        ]
+
+    def test_none_and_empty_both_yield_nothing(self):
+        # A probe that said nothing and a file with no chapters are
+        # different claims, but neither is a set worth writing.
+        from app.services.chapters import normalise_chapters
+
+        assert normalise_chapters(None) == []
+        assert normalise_chapters([]) == []
+
+    @pytest.mark.parametrize("bad", ["nan", "inf", "-inf", "Infinity", "NaN"])
+    def test_drops_a_non_finite_start(self, bad):
+        # ``float()`` accepts all of these, and neither survives the round
+        # trip: SQLite turns NaN into NULL and violates the column's NOT
+        # NULL, while Infinity stores fine and then breaks JSON encoding
+        # on read. This is an external-input boundary — the addon hands
+        # yt-dlp's values straight here.
+        from app.services.chapters import normalise_chapters
+
+        rows = normalise_chapters(
+            [
+                {"start_time": bad, "title": "Poison"},
+                {"start_time": "3", "title": "Good"},
+            ]
+        )
+
+        assert [row["title"] for row in rows] == ["Good"]
+
+    @pytest.mark.parametrize("bad", ["nan", "inf", "-inf"])
+    def test_a_non_finite_end_is_nulled_not_fatal(self, bad):
+        # Same treatment a missing end already gets: the row is still
+        # navigable, and the consumer derives the end from the next start.
+        from app.services.chapters import normalise_chapters
+
+        rows = normalise_chapters(
+            [{"start_time": "0", "end_time": bad, "title": "Kept"}]
+        )
+
+        assert rows == [
+            {"start_time": 0.0, "end_time": None, "title": "Kept", "ordering": 0}
+        ]
+
+    def test_a_non_finite_start_survives_neither_storage_nor_encoding(self):
+        # Pins why the filter exists rather than only that it runs: both
+        # failure modes are reproduced here, so a future relaxation has
+        # to confront them.
+        import json
+        import math as _math
+
+        import sqlite3
+
+        from app.services.chapters import normalise_chapters
+
+        assert normalise_chapters([{"start_time": "nan", "title": "X"}]) == []
+
+        con = sqlite3.connect(":memory:")
+        con.execute("CREATE TABLE t (x REAL NOT NULL)")
+        with pytest.raises(sqlite3.IntegrityError):
+            con.execute("INSERT INTO t VALUES (?)", (_math.nan,))
+        con.close()
+
+        with pytest.raises(ValueError):
+            json.dumps({"x": _math.inf}, allow_nan=False)

@@ -12,46 +12,32 @@ from app.services.thumbnail import (
 
 
 class TestGetMediaChapters:
+    """Extraction only. The shared rules are ``normalise_chapters``'s."""
+
     def test_reads_chapters_from_real_mkv(self, chaptered_mkv):
         assert get_media_chapters(str(chaptered_mkv)) == [
-            {
-                "start_time": 0.0,
-                "end_time": 1.0,
-                "title": "Opening",
-                "ordering": 0,
-            },
-            {
-                "start_time": 1.0,
-                "end_time": 2.0,
-                "title": "Closing",
-                "ordering": 1,
-            },
+            {"start_time": "0.000000", "end_time": "1.000000", "title": "Opening"},
+            {"start_time": "1.000000", "end_time": "2.000000", "title": "Closing"},
         ]
 
     @patch("app.services.thumbnail.subprocess.run")
-    def test_drops_blank_titles_and_preserves_source_ordering(self, mock_run):
+    def test_lifts_the_title_out_of_tags_without_judging_it(self, mock_run):
+        # Where each part lives is ffprobe-shape knowledge and belongs
+        # here; whether a blank title earns a row is not, because both
+        # producers have to answer that the same way.
         mock_run.return_value = MagicMock(
             returncode=0,
             stdout='{"chapters": ['
             '{"start_time": "0", "end_time": "5", "tags": {"title": "One"}},'
             '{"start_time": "5", "end_time": "8", "tags": {"title": "  "}},'
-            '{"start_time": "8", "tags": {"title": "Three"}}'
+            '{"start_time": "8", "tags": {}}'
             "]}",
         )
 
         assert get_media_chapters("/media/example.mkv") == [
-            {
-                "start_time": 0.0,
-                "end_time": 5.0,
-                "title": "One",
-                "ordering": 0,
-            },
-            {
-                "start_time": 8.0,
-                "end_time": None,
-                "title": "Three",
-                "ordering": 2,
-            },
+            {"start_time": "0", "end_time": "5", "title": "One"},
+            {"start_time": "5", "end_time": "8", "title": "  "},
+            {"start_time": "8", "end_time": None, "title": None},
         ]
         assert mock_run.call_args.args[0] == [
             "ffprobe",
