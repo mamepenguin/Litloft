@@ -380,3 +380,57 @@ class TestNormaliseChapters:
 
         assert normalise_chapters(None) == []
         assert normalise_chapters([]) == []
+
+    @pytest.mark.parametrize("bad", ["nan", "inf", "-inf", "Infinity", "NaN"])
+    def test_drops_a_non_finite_start(self, bad):
+        # ``float()`` accepts all of these, and neither survives the round
+        # trip: SQLite turns NaN into NULL and violates the column's NOT
+        # NULL, while Infinity stores fine and then breaks JSON encoding
+        # on read. This is an external-input boundary — the addon hands
+        # yt-dlp's values straight here.
+        from app.services.chapters import normalise_chapters
+
+        rows = normalise_chapters(
+            [
+                {"start_time": bad, "title": "Poison"},
+                {"start_time": "3", "title": "Good"},
+            ]
+        )
+
+        assert [row["title"] for row in rows] == ["Good"]
+
+    @pytest.mark.parametrize("bad", ["nan", "inf", "-inf"])
+    def test_a_non_finite_end_is_nulled_not_fatal(self, bad):
+        # Same treatment a missing end already gets: the row is still
+        # navigable, and the consumer derives the end from the next start.
+        from app.services.chapters import normalise_chapters
+
+        rows = normalise_chapters(
+            [{"start_time": "0", "end_time": bad, "title": "Kept"}]
+        )
+
+        assert rows == [
+            {"start_time": 0.0, "end_time": None, "title": "Kept", "ordering": 0}
+        ]
+
+    def test_a_non_finite_start_survives_neither_storage_nor_encoding(self):
+        # Pins why the filter exists rather than only that it runs: both
+        # failure modes are reproduced here, so a future relaxation has
+        # to confront them.
+        import json
+        import math as _math
+
+        import sqlite3
+
+        from app.services.chapters import normalise_chapters
+
+        assert normalise_chapters([{"start_time": "nan", "title": "X"}]) == []
+
+        con = sqlite3.connect(":memory:")
+        con.execute("CREATE TABLE t (x REAL NOT NULL)")
+        with pytest.raises(sqlite3.IntegrityError):
+            con.execute("INSERT INTO t VALUES (?)", (_math.nan,))
+        con.close()
+
+        with pytest.raises(ValueError):
+            json.dumps({"x": _math.inf}, allow_nan=False)

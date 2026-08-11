@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import math
 from collections.abc import Iterable, Mapping
 from datetime import UTC, datetime
 from pathlib import Path
@@ -35,8 +36,17 @@ def normalise_chapters(
     * an entry with no usable title is dropped. An untitled marker is not
       something a person can navigate by, and rendering a blank row is
       worse than rendering nothing;
-    * times are coerced, and an entry whose start will not coerce is
-      dropped rather than guessed at;
+    * times are coerced, and an entry whose start will not coerce — or
+      coerces to something that is not a finite number — is dropped
+      rather than guessed at. ``float()`` accepts ``"nan"`` and
+      ``"inf"``, and this is an external-input boundary: the addon hands
+      yt-dlp's values straight to it. Neither survives the round trip.
+      SQLite stores NaN as NULL, so a NaN start violates the column's
+      NOT NULL and takes the whole ingest transaction down with it;
+      Infinity stores fine and then breaks JSON encoding on read, which
+      is worse — the chapter endpoint 500s for that file until someone
+      deletes the row. An unusable end is nulled rather than costing the
+      row, matching how a missing end is already treated;
     * ``ordering`` is assigned **after** filtering, so it stays
       contiguous. Sorting only cares about relative values, but a caller
       that reads it as "chapter N of M" would be wrong about a set with
@@ -56,11 +66,15 @@ def normalise_chapters(
             start_time = float(entry["start_time"])
         except (KeyError, TypeError, ValueError):
             continue
+        if not math.isfinite(start_time):
+            continue
 
         end_raw = entry.get("end_time")
         try:
             end_time = float(end_raw) if end_raw is not None else None
         except (TypeError, ValueError):
+            end_time = None
+        if end_time is not None and not math.isfinite(end_time):
             end_time = None
 
         rows.append(
