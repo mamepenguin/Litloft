@@ -812,16 +812,25 @@ div[data-citation-section-path]:not(tr) {
    without it a flex item refuses to shrink below its content and the
    overflow moves up a level instead of scrolling. */
 
-/* Lead — core's own occupant (chapters). Sizes to its content and
-   scrolls inside its cap rather than growing without bound. Without the
-   cap a file with fifty chapters takes the whole region: `flex-shrink`
-   is distributed by basis, and the fill's basis is 0, so the lead would
-   absorb none of the shortfall and the fill would collapse to nothing.
-   An absolute cap keeps that predictable whether or not a fill is
-   present — a percentage does not resolve against this box, whose
-   height is its content. */
+/* Lead — core's own occupant (chapters). Sizes to its content, scrolls
+   inside its cap, and **must not shrink**.
+
+   `flex-shrink: 1` here collapses it to a sliver. The reason is not
+   obvious: the fill's `flex-basis: 0%` does not resolve to 0 in this
+   box. A percentage basis resolves against the container's main size,
+   and this container has `max-height` rather than `height`, so that
+   size is content-derived and the percentage falls back to content —
+   making the fill's flex base size the transcript's full length,
+   thousands of pixels against a box of a few hundred. Shrinkage is
+   distributed by `flex-shrink × base`, so the lead's share of that
+   shortfall, small as a proportion, is many times its own height. It
+   was measured at 14px against 36px of content, clipping its own
+   header.
+
+   So the cap is what bounds the lead, not shrinking. jsdom does no
+   layout, which is why this reached a browser to be found. */
 .media-detail-companion-lead {
-  flex: 0 1 auto;
+  flex: 0 0 auto;
   min-height: 0;
   max-height: 12rem;
 }
@@ -889,12 +898,18 @@ div[data-citation-section-path]:not(tr) {
     max-height: calc(var(--rail-avail, 100dvh) - 2rem);
   }
 
-  /* The lead can afford more here. Stacked it shares a 20rem box and a
-     12rem index would leave the transcript a sliver; the rail is as
-     tall as the scroll container, so the same list can stay open
-     without crowding what it indexes. */
+  /* The lead can afford more here. Stacked it shares a 20rem box, so a
+     12rem cap leaves the transcript 8rem; the rail is as tall as the
+     scroll container, so the same list can stay open without crowding
+     what it indexes.
+
+     Bounded by the measured rail as well as by the absolute value,
+     because the lead no longer shrinks: on a short window 22rem could
+     be most of the region, and nothing else would give it back.
+     `--rail-avail` is the host's measurement of the scroll container,
+     already published for `.media-detail-companion-inner`. */
   [data-media-layout="beside"] .media-detail-companion-lead {
-    max-height: 22rem;
+    max-height: min(22rem, calc(var(--rail-avail, 100dvh) * 0.4));
   }
 }
 
