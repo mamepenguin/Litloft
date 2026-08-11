@@ -1,11 +1,15 @@
 from __future__ import annotations
 
+from datetime import UTC, datetime
+from pathlib import Path
 from typing import Literal, Sequence, TypedDict
 
 from sqlalchemy import delete, select
 from sqlalchemy.orm import Session
 
-from app.models import FileChapter
+from app.models import File, FileChapter
+from app.services.filetype import LOFT_MIME_TYPE, is_probeable_media
+from app.services.thumbnail import get_media_chapters
 
 
 ChapterSource = Literal["extracted", "curated"]
@@ -62,3 +66,21 @@ def replace_chapters(
 
     db.execute(delete(FileChapter).where(FileChapter.file_id == file_id))
     db.add_all(new_rows)
+
+
+def probe_file_chapters(db: Session, file: File, media_path: Path) -> bool:
+    """Probe and stamp one file once, returning whether the stamp changed."""
+    if file.chapters_probed_at is not None:
+        return False
+
+    if file.mime_type == LOFT_MIME_TYPE:
+        file.chapters_probed_at = datetime.now(UTC)
+        return True
+
+    if not is_probeable_media(file.file_type, file.mime_type):
+        return False
+
+    chapters = get_media_chapters(str(media_path))
+    replace_chapters(db, file.id, chapters, "extracted")
+    file.chapters_probed_at = datetime.now(UTC)
+    return True

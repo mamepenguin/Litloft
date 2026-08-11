@@ -1,6 +1,7 @@
 import os
 import json
 import shutil
+import subprocess
 import tempfile
 from pathlib import Path
 
@@ -150,3 +151,47 @@ def sample_video():
 @pytest.fixture()
 def short_video():
     return FIXTURES_DIR / "short_video.mp4"
+
+
+@pytest.fixture()
+def chaptered_mkv(short_video, tmp_path):
+    metadata = tmp_path / "chapters.ffmeta"
+    metadata.write_text(
+        ";FFMETADATA1\n"
+        "[CHAPTER]\n"
+        "TIMEBASE=1/1000\n"
+        "START=0\n"
+        "END=1000\n"
+        "title=Opening\n"
+        "[CHAPTER]\n"
+        "TIMEBASE=1/1000\n"
+        "START=1000\n"
+        "END=2000\n"
+        "title=Closing\n"
+    )
+    output = tmp_path / "chaptered.mkv"
+    subprocess.run(
+        [
+            "ffmpeg",
+            "-y",
+            "-v",
+            "error",
+            "-i",
+            str(short_video),
+            "-f",
+            "ffmetadata",
+            "-i",
+            str(metadata),
+            "-map",
+            "0",
+            "-map_metadata",
+            "1",
+            "-map_chapters",
+            "1",
+            "-c",
+            "copy",
+            str(output),
+        ],
+        check=True,
+    )
+    return output

@@ -29,6 +29,8 @@ _DOCUMENT_MIMES = frozenset({
     "application/vnd.openxmlformats-officedocument.presentationml.presentation",
 })
 
+LOFT_MIME_TYPE = "application/vnd.litloft.loft+json"
+
 # Mime → file_type override for vendor wrapper formats whose major
 # component (``application``) doesn't reflect what the file actually
 # contains. ``.loft`` is the media_import addon's link wrapper for
@@ -38,7 +40,7 @@ _DOCUMENT_MIMES = frozenset({
 # provider wraps audio / image, add the per-provider dispatch here
 # (peek into the .loft JSON for ``provider`` and look it up).
 _MIME_TYPE_OVERRIDES = {
-    "application/vnd.litloft.loft+json": "video",
+    LOFT_MIME_TYPE: "video",
 }
 
 _EXTRA_MIMES = {
@@ -63,7 +65,7 @@ _EXTRA_MIMES = {
     ".xls": "application/vnd.ms-excel",
     ".ppt": "application/vnd.ms-powerpoint",
     ".zip": "application/zip",
-    ".loft": "application/vnd.litloft.loft+json",
+    ".loft": LOFT_MIME_TYPE,
 }
 
 
@@ -91,6 +93,11 @@ def classify(filename: str) -> tuple[str, str]:
     file_type = _CATEGORY_MAP.get(major, "other")
 
     return (file_type, mime)
+
+
+def is_probeable_media(file_type: str, mime_type: str) -> bool:
+    """Return whether the path contains bytes ffprobe can inspect directly."""
+    return file_type in ("video", "audio") and mime_type != LOFT_MIME_TYPE
 
 
 # Containers that frequently wrap audio-only payloads despite a

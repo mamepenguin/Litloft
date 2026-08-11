@@ -35,6 +35,63 @@ def get_video_duration(video_path: str) -> float | None:
         return None
 
 
+def get_media_chapters(media_path: str) -> list[dict] | None:
+    try:
+        result = subprocess.run(
+            [
+                "ffprobe",
+                "-v", "quiet",
+                "-show_chapters",
+                "-print_format", "json",
+                media_path,
+            ],
+            capture_output=True,
+            text=True,
+            check=False,
+            timeout=30,
+        )
+        if result.returncode != 0:
+            logger.error("ffprobe chapters failed for %s: %s", media_path, result.stderr)
+            return None
+
+        data = json.loads(result.stdout)
+        rows = []
+        for ordering, chapter in enumerate(data.get("chapters", []) or []):
+            title = (chapter.get("tags") or {}).get("title")
+            if not isinstance(title, str) or not title.strip():
+                continue
+            try:
+                start_time = float(chapter["start_time"])
+            except (KeyError, TypeError, ValueError):
+                continue
+
+            end_raw = chapter.get("end_time")
+            try:
+                end_time = float(end_raw) if end_raw is not None else None
+            except (TypeError, ValueError):
+                end_time = None
+
+            rows.append(
+                {
+                    "start_time": start_time,
+                    "end_time": end_time,
+                    "title": title.strip(),
+                    "ordering": ordering,
+                }
+            )
+        return rows
+    except (
+        OSError,
+        subprocess.TimeoutExpired,
+        json.JSONDecodeError,
+        AttributeError,
+        TypeError,
+        ValueError,
+    ) as error:
+        logger.error("Failed to get chapters for %s: %s", media_path, error)
+        return None
+
+
 # Recognized ISO BMFF / QuickTime container format names reported by
 # ffprobe. We only trust a stream sniff when the format is one of these
 # — random binaries that happen to parse partially can otherwise produce
@@ -243,6 +300,10 @@ def generate_pdf_thumbnail(pdf_path: str, output_path: str) -> bool:
 
 def get_thumbnail_generator(file_type: str, mime_type: str | None):
     """Return the thumbnail generator for this file type, or None if not thumbnailable."""
+    from app.services.filetype import LOFT_MIME_TYPE
+
+    if mime_type == LOFT_MIME_TYPE:
+        return None
     if file_type == "video":
         return generate_thumbnail
     if file_type == "image":

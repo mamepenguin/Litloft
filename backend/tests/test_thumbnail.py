@@ -4,10 +4,76 @@ import pytest
 
 from app.services.thumbnail import (
     generate_thumbnail,
+    get_media_chapters,
     get_video_duration,
     has_video_stream,
     _calculate_seek_time,
 )
+
+
+class TestGetMediaChapters:
+    def test_reads_chapters_from_real_mkv(self, chaptered_mkv):
+        assert get_media_chapters(str(chaptered_mkv)) == [
+            {
+                "start_time": 0.0,
+                "end_time": 1.0,
+                "title": "Opening",
+                "ordering": 0,
+            },
+            {
+                "start_time": 1.0,
+                "end_time": 2.0,
+                "title": "Closing",
+                "ordering": 1,
+            },
+        ]
+
+    @patch("app.services.thumbnail.subprocess.run")
+    def test_drops_blank_titles_and_preserves_source_ordering(self, mock_run):
+        mock_run.return_value = MagicMock(
+            returncode=0,
+            stdout='{"chapters": ['
+            '{"start_time": "0", "end_time": "5", "tags": {"title": "One"}},'
+            '{"start_time": "5", "end_time": "8", "tags": {"title": "  "}},'
+            '{"start_time": "8", "tags": {"title": "Three"}}'
+            "]}",
+        )
+
+        assert get_media_chapters("/media/example.mkv") == [
+            {
+                "start_time": 0.0,
+                "end_time": 5.0,
+                "title": "One",
+                "ordering": 0,
+            },
+            {
+                "start_time": 8.0,
+                "end_time": None,
+                "title": "Three",
+                "ordering": 2,
+            },
+        ]
+        assert mock_run.call_args.args[0] == [
+            "ffprobe",
+            "-v",
+            "quiet",
+            "-show_chapters",
+            "-print_format",
+            "json",
+            "/media/example.mkv",
+        ]
+
+    @patch("app.services.thumbnail.subprocess.run")
+    def test_failure_returns_none(self, mock_run):
+        mock_run.return_value = MagicMock(returncode=1, stderr="probe error")
+        assert get_media_chapters("/media/broken.mkv") is None
+
+    @patch("app.services.thumbnail.subprocess.run")
+    def test_timeout_returns_none(self, mock_run):
+        import subprocess
+
+        mock_run.side_effect = subprocess.TimeoutExpired("ffprobe", 30)
+        assert get_media_chapters("/media/slow.mkv") is None
 
 
 class TestCalculateSeekTime:
