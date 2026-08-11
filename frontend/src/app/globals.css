@@ -803,12 +803,43 @@ div[data-citation-section-path]:not(tr) {
   overflow: hidden;
 }
 
-/* Whatever the slot machinery puts here has to take that height and
-   hand it on, or the occupant lays itself out at full length and this
-   box silently clips it. `min-height: 0` is the half everyone forgets:
+/* Two kinds of occupant now, so the chain forks rather than treating
+   every child alike. A blanket `> *` rule would hand both an equal
+   share, which is right for neither: the lead is a short index and the
+   fill is the long body it indexes.
+
+   `min-height: 0` is the half everyone forgets, and it applies to both:
    without it a flex item refuses to shrink below its content and the
    overflow moves up a level instead of scrolling. */
-.media-detail-companion-inner > * {
+
+/* Lead — core's own occupant (chapters). Sizes to its content and
+   scrolls inside its cap rather than growing without bound. Without the
+   cap a file with fifty chapters takes the whole region: `flex-shrink`
+   is distributed by basis, and the fill's basis is 0, so the lead would
+   absorb none of the shortfall and the fill would collapse to nothing.
+   An absolute cap keeps that predictable whether or not a fill is
+   present — a percentage does not resolve against this box, whose
+   height is its content. */
+.media-detail-companion-lead {
+  flex: 0 1 auto;
+  min-height: 0;
+  max-height: 12rem;
+}
+
+/* Fill — whatever the slot machinery puts here has to take the
+   remaining height and hand it on, or the occupant lays itself out at
+   full length and this box silently clips it. This is the wrapper div
+   C-1 avoided for that reason; it is safe as long as it is itself a
+   flex container that passes the height through, which is what these
+   two rules are. */
+.media-detail-companion-fill {
+  display: flex;
+  flex-direction: column;
+  flex: 1 1 0%;
+  min-height: 0;
+}
+
+.media-detail-companion-fill > * {
   flex: 1 1 0%;
   min-height: 0;
 }
@@ -856,6 +887,14 @@ div[data-citation-section-path]:not(tr) {
     position: sticky;
     top: calc(var(--rail-top, 0px) + 1rem);
     max-height: calc(var(--rail-avail, 100dvh) - 2rem);
+  }
+
+  /* The lead can afford more here. Stacked it shares a 20rem box and a
+     12rem index would leave the transcript a sliver; the rail is as
+     tall as the scroll container, so the same list can stay open
+     without crowding what it indexes. */
+  [data-media-layout="beside"] .media-detail-companion-lead {
+    max-height: 22rem;
   }
 }
 

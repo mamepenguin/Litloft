@@ -200,6 +200,30 @@ export async function getFileRelations(
   );
 }
 
+export interface FileChapter {
+  start_time: number;
+  /** Null when the producer did not state one; derive from the next start. */
+  end_time: number | null;
+  title: string;
+  ordering: number;
+}
+
+export interface FileChaptersResponse {
+  chapters: FileChapter[];
+  /**
+   * Provenance class of the whole set: re-derivable from the file or its
+   * provider, or approved by a person. Unused by the panel today; C-2b's
+   * approval UI is what needs to tell the two apart.
+   */
+  source: "extracted" | "curated" | null;
+}
+
+export async function getFileChapters(
+  id: string,
+): Promise<FileChaptersResponse> {
+  return fetchJSON<FileChaptersResponse>(`${API_BASE}/files/${id}/chapters`);
+}
+
 export async function getFileNeighbors(
   id: string,
   sort?: string,

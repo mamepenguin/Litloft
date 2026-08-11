@@ -35,6 +35,14 @@ export interface FileItem {
    * Spec `2026-05-02-search-path-match.md`.
    */
   match_source?: "filename" | "path" | "both" | null;
+  /**
+   * Whether the file has chapters, answered inline by the detail endpoint
+   * so the companion layout can be decided from data already in hand. The
+   * list itself comes from `getFileChapters`. Absent on list endpoints,
+   * which return the plain file shape.
+   * Spec `2026-08-11-media-chapters.md` §5.
+   */
+  has_chapters?: boolean;
 }
 
 export interface PaginationMeta {

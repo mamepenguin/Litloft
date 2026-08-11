@@ -38,6 +38,7 @@ import { ActiveSummaryHost } from "./ActiveSummaryHost";
 import { AddonSlot } from "./AddonSlot";
 import { useAddonSlots } from "./AddonSlotsProvider";
 import { CastButton } from "./CastButton";
+import { ChaptersPanel } from "./ChaptersPanel";
 import { CommentSection } from "./CommentSection";
 import { MarkdownAwareTagChips } from "./MarkdownAwareTagChips";
 import { ExifSection } from "./ExifSection";
@@ -143,6 +144,23 @@ export function FileDetailContent({
   const isMobile = useIsMobile();
 
   const [file, setFile] = useState<FileItem | null>(null);
+  /**
+   * Whether the companion region has chapters to show — held apart from
+   * ``file`` on purpose.
+   *
+   * ``has_chapters`` is a detail-only field, but ``FileItem`` is also what
+   * the mutation endpoints return (like / dislike / favourite / metadata /
+   * rename all answer with the plain ``FileResponse``). Every one of those
+   * does ``setFile(updated)``, so keeping the flag on the file object means
+   * liking a video makes its chapters disappear until the next reload.
+   * Separate state cannot be clobbered by a whole-object replace, now or
+   * from a call site added later.
+   *
+   * Seeded from the detail response so the layout is decided without a
+   * second round trip, then corrected by the panel once its fetch settles
+   * (see ``ChaptersPanel``'s ``onResolved``).
+   */
+  const [chaptersPresent, setChaptersPresent] = useState(false);
   const [editing, setEditing] = useState(false);
   const [editTitle, setEditTitle] = useState("");
   const [editDesc, setEditDesc] = useState("");
@@ -200,6 +218,7 @@ export function FileDetailContent({
 
   useEffect(() => {
     setFile(null);
+    setChaptersPresent(false);
     setEditing(false);
     setDocumentCaptureController(null);
     let cancelled = false;
@@ -207,6 +226,7 @@ export function FileDetailContent({
       .then((f) => {
         if (cancelled) return;
         setFile(f);
+        setChaptersPresent(f.has_chapters === true);
         setEditTitle(f.title);
         setEditDesc(f.description);
       })
@@ -248,6 +268,14 @@ export function FileDetailContent({
     });
     return dispose;
   }, [fileId, handleTagsSaved]);
+
+  // Folds the region away when the list turns out to be empty or
+  // unreadable. Without this the panel hides itself while the region it
+  // was the only occupant of stays — an empty 24rem column with the
+  // player squeezed beside it.
+  const handleChaptersResolved = useCallback((count: number) => {
+    setChaptersPresent(count > 0);
+  }, []);
 
   const handleLike = useCallback(async () => {
     if (!file) return;
@@ -348,6 +376,12 @@ export function FileDetailContent({
   // rail form. `playerKind` owns the .loft-before-file_type ordering.
   const companionKind = playerKind(file);
   const railEligible = companionKind === "video" || companionKind === "loft";
+
+  // Core is an occupant of the companion region now, not just its host:
+  // chapters are a core entity and `AddonSlot` can only load addon
+  // components. So every question that used to be "does an addon fill
+  // this?" becomes "does anyone?".
+  const companionOccupied = hasSlot("player-side") || chaptersPresent;
 
   const isHtmlPreview = file.mime_type === "text/html";
   const useDocumentLayout =
@@ -637,7 +671,7 @@ export function FileDetailContent({
           have one, so a button there would appear for some media and
           not others. Only rendered where a rail is possible at all;
           the container query decides whether it is visible. */}
-      {railEligible && hasSlot("player-side") && <MediaLayoutToggle />}
+      {railEligible && companionOccupied && <MediaLayoutToggle />}
     </>
   );
 
@@ -663,7 +697,7 @@ export function FileDetailContent({
   // The companion region only exists for files a player actually
   // plays, and only when an addon has something to put in it. With no
   // occupant the grid never appears and the page is exactly as before.
-  if (!companionKind || !hasSlot("player-side")) {
+  if (!companionKind || !companionOccupied) {
     return (
       <div className="w-full">
         {playerNode}
@@ -675,22 +709,38 @@ export function FileDetailContent({
   const companionNode = (
     <div className="media-detail-companion">
       <div className="media-detail-companion-inner">
-        {/* `stack` rather than `tabs`: with one occupant a tab strip is
-            a label for a thing that is already the only thing there,
-            and its wrapper div breaks the flex chain the rail needs.
-            When a second occupant arrives (C-2 chapters) that choice
-            gets made properly, along with making its wrapper fill. */}
+        {/* The second occupant #31 anticipated, and it stacks rather than
+            sharing a tab strip. Tabs are exclusive, so they would put
+            "where am I" and "what is being said" behind one another —
+            seeing a coarse index and the fine text follow the same clock
+            at once is the reason the rail exists. Chapters sit above
+            because they are the shorter, coarser index of the two. */}
+        {chaptersPresent && (
+          <ChaptersPanel
+            fileId={fileId}
+            mediaController={mediaController}
+            onResolved={handleChaptersResolved}
+          />
+        )}
+        {/* The wrapper #31 said would break the flex chain. It is here
+            because the chain now has to fork — the lead sizes to its
+            content while the slot takes the remainder — and it does not
+            break anything as long as it is itself a flex container that
+            passes the height on, which `media-detail-companion-fill`
+            is. */}
         {/* fillHeight is unconditional: the host bounds this region in
             both forms, so the occupant should always fill what it is
             given. Deciding it by file kind was wrong — whether the rail
             form is in use is a container-width question answered in
             CSS, and a video in a narrow pane got the fill treatment
             with nothing bounding it, so the list ran to full length. */}
-        <AddonSlot
-          id="player-side"
-          layout="stack"
-          props={{ ...addonSlotProps, fillHeight: true }}
-        />
+        <div className="media-detail-companion-fill">
+          <AddonSlot
+            id="player-side"
+            layout="stack"
+            props={{ ...addonSlotProps, fillHeight: true }}
+          />
+        </div>
       </div>
     </div>
   );
