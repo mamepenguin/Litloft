@@ -627,9 +627,24 @@ must never be the one bounding itself.
 occupant: a *lead* that sizes to its own content under a cap (a short
 index, such as chapters) and a *fill* that takes whatever remains (the
 long body, such as the transcript). Giving both an equal share is wrong
-for either. Note that `flex-shrink` is distributed by basis, and the
-fill's basis is `0` — so without the cap the lead absorbs none of a
-shortfall and the fill collapses to nothing.
+for either.
+
+**The lead must not shrink.** In a box sized by `max-height` rather
+than `height`, the fill's `flex-basis: 0%` does not resolve to zero: a
+percentage basis resolves against the container's main size, that size
+is content-derived here, and the percentage falls back to content. The
+fill's flex base size is therefore the whole length of its content, and
+the shortfall against the box is enormous. Since shrinkage is
+distributed by `flex-shrink × base`, the lead's proportionally small
+share of that shortfall is still many times its own height — measured
+at 14px against 36px of content, clipping its own header. Give the lead
+`flex-shrink: 0` and let its cap bound it.
+
+Both caps are absolute (`rem`), because a percentage `max-height` does
+not resolve against a parent whose height is its content either. Where
+a measured height is available — `--rail-avail` — cap against the
+smaller of the two, since a lead that cannot shrink has no other way to
+give space back on a short window.
 
 ### Measure against the container, not the viewport
 
