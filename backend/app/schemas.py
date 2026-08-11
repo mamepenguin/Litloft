@@ -55,6 +55,10 @@ class FileResponse(_UtcDateTimeMixin, BaseModel):
     model_config = {"from_attributes": True}
 
 
+class FileDetailResponse(FileResponse):
+    has_chapters: bool
+
+
 class FileUpdate(BaseModel):
     title: str | None = None
     description: str | None = None
@@ -715,6 +719,20 @@ class FileRelationItem(_UtcDateTimeMixin, BaseModel):
 
 class FileRelationsResponse(BaseModel):
     relations: list[FileRelationItem]
+
+
+class FileChapterResponse(BaseModel):
+    start_time: float
+    end_time: float | None
+    title: str
+    ordering: int
+
+    model_config = {"from_attributes": True}
+
+
+class FileChaptersResponse(BaseModel):
+    chapters: list[FileChapterResponse]
+    source: Literal["extracted", "curated"] | None
 
 
 _SMART_FOLDER_FILE_TYPES = {"video", "image", "audio", "document"}
