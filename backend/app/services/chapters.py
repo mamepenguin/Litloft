@@ -1,8 +1,9 @@
 from __future__ import annotations
 
+from collections.abc import Iterable, Mapping
 from datetime import UTC, datetime
 from pathlib import Path
-from typing import Literal, Sequence, TypedDict
+from typing import Any, Literal, Sequence, TypedDict
 
 from sqlalchemy import delete, select
 from sqlalchemy.orm import Session
@@ -20,6 +21,57 @@ class ChapterRow(TypedDict):
     end_time: float | None
     title: str
     ordering: int
+
+
+def normalise_chapters(
+    raw: Iterable[Mapping[str, Any]] | None,
+) -> list[ChapterRow]:
+    """Apply the rules every producer shares, whatever it extracted from.
+
+    Producers differ in where a chapter's parts live — ffprobe puts the
+    title under ``tags``, yt-dlp puts it at the top level — so extraction
+    stays with each producer. What must not differ is what happens next:
+
+    * an entry with no usable title is dropped. An untitled marker is not
+      something a person can navigate by, and rendering a blank row is
+      worse than rendering nothing;
+    * times are coerced, and an entry whose start will not coerce is
+      dropped rather than guessed at;
+    * ``ordering`` is assigned **after** filtering, so it stays
+      contiguous. Sorting only cares about relative values, but a caller
+      that reads it as "chapter N of M" would be wrong about a set with
+      holes in it.
+
+    Kept here rather than beside either prober because a second
+    implementation of these three rules is how the two producers would
+    start disagreeing about the same file.
+    """
+    rows: list[ChapterRow] = []
+    for entry in raw or ():
+        title = entry.get("title")
+        if not isinstance(title, str) or not title.strip():
+            continue
+
+        try:
+            start_time = float(entry["start_time"])
+        except (KeyError, TypeError, ValueError):
+            continue
+
+        end_raw = entry.get("end_time")
+        try:
+            end_time = float(end_raw) if end_raw is not None else None
+        except (TypeError, ValueError):
+            end_time = None
+
+        rows.append(
+            {
+                "start_time": start_time,
+                "end_time": end_time,
+                "title": title.strip(),
+                "ordering": len(rows),
+            }
+        )
+    return rows
 
 
 def replace_chapters(
@@ -80,7 +132,11 @@ def probe_file_chapters(db: Session, file: File, media_path: Path) -> bool:
     if not is_probeable_media(file.file_type, file.mime_type):
         return False
 
-    chapters = get_media_chapters(str(media_path))
-    replace_chapters(db, file.id, chapters, "extracted")
+    raw = get_media_chapters(str(media_path))
+    # ``None`` means the probe said nothing — it failed, or timed out.
+    # That is not the same claim as "this file has no chapters", and
+    # ``replace_chapters`` refuses to act on either, so both leave any
+    # existing set alone.
+    replace_chapters(db, file.id, normalise_chapters(raw), "extracted")
     file.chapters_probed_at = datetime.now(UTC)
     return True

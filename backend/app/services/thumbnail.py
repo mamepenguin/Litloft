@@ -55,31 +55,18 @@ def get_media_chapters(media_path: str) -> list[dict] | None:
             return None
 
         data = json.loads(result.stdout)
-        rows = []
-        for ordering, chapter in enumerate(data.get("chapters", []) or []):
-            title = (chapter.get("tags") or {}).get("title")
-            if not isinstance(title, str) or not title.strip():
-                continue
-            try:
-                start_time = float(chapter["start_time"])
-            except (KeyError, TypeError, ValueError):
-                continue
-
-            end_raw = chapter.get("end_time")
-            try:
-                end_time = float(end_raw) if end_raw is not None else None
-            except (TypeError, ValueError):
-                end_time = None
-
-            rows.append(
-                {
-                    "start_time": start_time,
-                    "end_time": end_time,
-                    "title": title.strip(),
-                    "ordering": ordering,
-                }
-            )
-        return rows
+        # Extraction only — where ffprobe keeps each part. Filtering,
+        # coercion and ordering are the rules every producer shares and
+        # live in ``chapters.normalise_chapters``; importing it here
+        # would close a cycle, so the caller composes the two.
+        return [
+            {
+                "start_time": chapter.get("start_time"),
+                "end_time": chapter.get("end_time"),
+                "title": (chapter.get("tags") or {}).get("title"),
+            }
+            for chapter in data.get("chapters", []) or []
+        ]
     except (
         OSError,
         subprocess.TimeoutExpired,
