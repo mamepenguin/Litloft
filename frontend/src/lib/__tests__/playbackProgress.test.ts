@@ -259,6 +259,67 @@ describe("usePlaybackProgress", () => {
       expect(mc.seek).toHaveBeenCalledWith(42);
     });
 
+    it("resumes immediately when the player reports its metadata", async () => {
+      mockGetWatchProgress.mockResolvedValue({ position: 120, duration: 600 });
+      const { mc } = stubController();
+
+      const { result } = renderHook(() =>
+        usePlaybackProgress({ mc, fileId: "f1" }),
+      );
+
+      // No clock tick has run. A player that waits for one before
+      // starting playback shows the video restarting before it jumps.
+      await act(async () => {
+        await result.current.notifyReady();
+      });
+
+      expect(mc.seek).toHaveBeenCalledWith(120);
+    });
+
+    it("settles notifyReady even when there is nothing to restore", async () => {
+      // A live stream never resumes, but a player awaiting this before
+      // it starts playing must not be left hanging.
+      const { mc } = stubController({ duration: Infinity });
+
+      const { result } = renderHook(() =>
+        usePlaybackProgress({ mc, fileId: "f1" }),
+      );
+
+      await act(async () => {
+        await expect(result.current.notifyReady()).resolves.toBeUndefined();
+      });
+      expect(mc.seek).not.toHaveBeenCalled();
+    });
+
+    it("does not resume twice when the tick and the player both report in", async () => {
+      mockGetWatchProgress.mockResolvedValue({ position: 120, duration: 600 });
+      const { mc } = stubController();
+
+      const { result } = renderHook(() =>
+        usePlaybackProgress({ mc, fileId: "f1" }),
+      );
+      tick();
+      await act(async () => {});
+      await act(async () => {
+        await result.current.notifyReady();
+      });
+
+      expect(mc.seek).toHaveBeenCalledTimes(1);
+    });
+
+    it("is inert after unmount", async () => {
+      const { mc } = stubController();
+      const { result, unmount } = renderHook(() =>
+        usePlaybackProgress({ mc, fileId: "f1" }),
+      );
+      unmount();
+
+      await act(async () => {
+        await expect(result.current.notifyReady()).resolves.toBeUndefined();
+      });
+      expect(mc.seek).not.toHaveBeenCalled();
+    });
+
     it("does not immediately re-save the position it just restored", async () => {
       mockGetWatchProgress.mockResolvedValue({ position: 120, duration: 600 });
       const { mc } = stubController();

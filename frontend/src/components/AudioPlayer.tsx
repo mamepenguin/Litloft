@@ -1,80 +1,62 @@
 "use client";
 
-import { useRef, useCallback, useEffect } from "react";
+import { useRef, useState, useCallback, useEffect } from "react";
 import { useTranslations } from "next-intl";
 import type { FileItem } from "@/types";
 import { FileTypeIcon } from "./FileTypeIcon";
-import { getStreamUrl, getThumbnailUrl, saveWatchProgress, getWatchProgress } from "@/lib/api";
+import { getStreamUrl, getThumbnailUrl } from "@/lib/api";
 import { formatFileSize } from "@/lib/format";
-import { getSavedProgress, saveProgress } from "@/lib/recentlyPlayed";
 import { useAutoplayPreference } from "@/lib/autoplay";
 import { setupMediaSession } from "@/lib/mediaSession";
-import { useProfile } from "./ProfileProvider";
+import {
+  createNativeVideoController,
+  type MediaController,
+} from "@/lib/mediaController";
+import { usePlaybackProgress } from "@/lib/playbackProgress";
 import { CastButton } from "./CastButton";
 import { AutoplayToggle } from "./AutoplayToggle";
 
-const SAVE_INTERVAL = 5;
-const RESUME_THRESHOLD = 3;
-
-export function AudioPlayer({ file, onEnded, autoPlay }: { file: FileItem; onEnded?: () => void; autoPlay?: boolean }) {
+export function AudioPlayer({ file, onEnded, autoPlay, onMediaController }: { file: FileItem; onEnded?: () => void; autoPlay?: boolean; onMediaController?: (mc: MediaController | null) => void }) {
   const t = useTranslations("player");
-  const { nickname } = useProfile();
-  const hasProfile = nickname !== null;
   const [preferAutoplay] = useAutoplayPreference();
   const audioRef = useRef<HTMLAudioElement>(null);
-  const lastSavedRef = useRef(0);
+  const [mc, setMc] = useState<MediaController | null>(null);
 
-  const handleLoadedMetadata = useCallback(async () => {
+  useEffect(() => {
     const audio = audioRef.current;
     if (!audio) return;
-    if (hasProfile) {
-      try {
-        const progress = await getWatchProgress(file.id);
-        if (progress.position > RESUME_THRESHOLD && progress.position < audio.duration - RESUME_THRESHOLD) {
-          audio.currentTime = progress.position;
-        }
-      } catch {
-        // Fire-and-forget
-      }
-    } else {
-      const saved = getSavedProgress(file.id);
-      if (saved > RESUME_THRESHOLD && saved < audio.duration - RESUME_THRESHOLD) {
-        audio.currentTime = saved;
-      }
-    }
-  }, [file.id, hasProfile]);
+    // HTMLAudioElement extends HTMLMediaElement just like
+    // HTMLVideoElement, so the native controller's currentTime / play /
+    // pause / muted shape is identical. requestFullscreen on audio is a
+    // no-op in browsers, which is acceptable: F is a video-only
+    // affordance and the shortcuts intentionally don't gate on type.
+    const controller = createNativeVideoController(
+      audio as unknown as HTMLVideoElement,
+    );
+    setMc(controller);
+    onMediaController?.(controller);
+    return () => {
+      setMc(null);
+      onMediaController?.(null);
+    };
+  }, [file.id, onMediaController]);
 
-  const handleTimeUpdate = useCallback(() => {
-    const audio = audioRef.current;
-    if (!audio) return;
-    const current = audio.currentTime;
-    if (Math.abs(current - lastSavedRef.current) >= SAVE_INTERVAL) {
-      lastSavedRef.current = current;
-      if (hasProfile) {
-        saveWatchProgress(file.id, current, audio.duration).catch(() => {});
-      } else {
-        saveProgress(file.id, current, audio.duration);
-      }
-    }
-  }, [file.id, hasProfile]);
+  const { notifyEnded, notifyReady } = usePlaybackProgress({
+    mc,
+    fileId: file.id,
+  });
+
+  const handleLoadedMetadata = useCallback(() => {
+    void notifyReady();
+  }, [notifyReady]);
 
   // Records the final position rather than deleting the row — see the
   // matching comment in VideoPlayer and spec
   // 2026-08-10-media-import-watch-surface.md §4.2.
   const handleEnded = useCallback(() => {
-    const audio = audioRef.current;
-    const duration = audio?.duration;
-    if (audio && Number.isFinite(duration) && (duration ?? 0) > 0) {
-      const position = audio.currentTime > 0 ? audio.currentTime : duration!;
-      lastSavedRef.current = position;
-      if (hasProfile) {
-        saveWatchProgress(file.id, position, duration!).catch(() => {});
-      } else {
-        saveProgress(file.id, position, duration!);
-      }
-    }
+    notifyEnded();
     onEnded?.();
-  }, [file.id, onEnded, hasProfile]);
+  }, [notifyEnded, onEnded]);
 
   useEffect(() => {
     const audio = audioRef.current;
@@ -103,7 +85,6 @@ export function AudioPlayer({ file, onEnded, autoPlay }: { file: FileItem; onEnd
         preload="metadata"
         className="w-full max-w-md"
         onLoadedMetadata={handleLoadedMetadata}
-        onTimeUpdate={handleTimeUpdate}
         onEnded={handleEnded}
       >
         {t("audioNotSupported")}

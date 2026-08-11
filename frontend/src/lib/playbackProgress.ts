@@ -63,6 +63,23 @@ export interface UsePlaybackProgressResult {
    * players keep detecting the end and this hook decides what to write.
    */
   notifyEnded: () => void;
+  /**
+   * Call from the player's own metadata-ready event — `loadedmetadata`
+   * on a native element, `onReady` from the YouTube IFrame player.
+   * Resolves once the resume decision has been made and any seek has
+   * been issued.
+   *
+   * A player that wants to start playing itself should await this
+   * first. Otherwise autoplay begins at zero and the restored position
+   * lands a moment later, which the viewer sees and hears as the video
+   * starting over before jumping.
+   *
+   * Optional in the sense that the clock keeps its own eye out: a
+   * backend with no such event, or one that forgets to call this, still
+   * resumes on the first tick reporting a usable duration. It just
+   * cannot order anything against it.
+   */
+  notifyReady: () => Promise<void>;
 }
 
 function usable(value: number): boolean {
@@ -92,6 +109,8 @@ export function usePlaybackProgress({
    * before any polling began.
    */
   const resumePendingRef = useRef(false);
+  /** Set by the effect so notifyReady can reach into the live subscription. */
+  const resumeNowRef = useRef<(() => Promise<void>) | null>(null);
 
   // Read through refs inside the subscription so a change of profile or
   // requested start does not tear the clock subscription down and
@@ -143,12 +162,12 @@ export function usePlaybackProgress({
     resumePendingRef.current = false;
     let cancelled = false;
 
-    const restoreStored = (duration: number) => {
+    const restoreStored = (duration: number): Promise<void> => {
       resumePendingRef.current = true;
       const read = hasProfileRef.current
         ? getWatchProgress(fileId).then((p) => p.position)
         : Promise.resolve(getSavedProgress(fileId));
-      read
+      return read
         .then((saved) => {
           if (cancelled) return;
           if (saved <= RESUME_THRESHOLD) return;
@@ -167,7 +186,8 @@ export function usePlaybackProgress({
         });
     };
 
-    const resumeOnce = (duration: number) => {
+    const resumeOnce = (duration: number): Promise<void> => {
+      if (resumedRef.current) return Promise.resolve();
       const requested = initialTimeRef.current;
       if (requested != null && usable(requested)) {
         // An explicit request needs no length: there is no window to
@@ -175,21 +195,35 @@ export function usePlaybackProgress({
         resumedRef.current = true;
         mc.seek(requested);
         lastSavedRef.current = requested;
-        return;
+        return Promise.resolve();
       }
       // Restoring stored progress does need one — the upper bound of the
       // resume window is measured from the end. Media that never reports
       // a usable duration, a live stream, therefore never resumes, which
-      // is correct: there is no position to be at.
-      if (!usable(duration)) return;
+      // is correct: there is no position to be at. Reporting "settled"
+      // anyway is what lets such a player get on with playing.
+      if (!usable(duration)) return Promise.resolve();
       resumedRef.current = true;
-      restoreStored(duration);
+      return restoreStored(duration);
+    };
+
+    // Read the controller rather than the clock: this runs from the
+    // player's own metadata event, and the clock's last tick can be
+    // older than the news the player is bringing.
+    resumeNowRef.current = () => {
+      let duration = 0;
+      try {
+        duration = mc.getDuration();
+      } catch {
+        // Player not ready; the tick fallback will pick it up.
+      }
+      return resumeOnce(duration);
     };
 
     const onTick = () => {
       const { currentTime, duration, interrupted } = getMediaClockSnapshot(mc);
 
-      if (!resumedRef.current) resumeOnce(duration);
+      if (!resumedRef.current) void resumeOnce(duration);
 
       // During an interruption the clock belongs to whatever is
       // interrupting, so persisting it would overwrite the resume point
@@ -207,6 +241,7 @@ export function usePlaybackProgress({
 
     return () => {
       cancelled = true;
+      resumeNowRef.current = null;
       unsubscribe();
       // Leaving between periodic saves would otherwise discard up to
       // SAVE_INTERVAL seconds. Read the controller directly rather than
@@ -233,5 +268,9 @@ export function usePlaybackProgress({
     };
   }, [mc, fileId, write]);
 
-  return { notifyEnded };
+  const notifyReady = useCallback(async () => {
+    await resumeNowRef.current?.();
+  }, []);
+
+  return { notifyEnded, notifyReady };
 }

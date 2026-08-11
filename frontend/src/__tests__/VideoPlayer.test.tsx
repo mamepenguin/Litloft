@@ -1,5 +1,6 @@
-import { describe, it, expect, vi, beforeEach } from "vitest";
-import { render, screen, fireEvent, waitFor } from "@testing-library/react";
+import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
+import { render, screen, fireEvent, waitFor, act } from "@testing-library/react";
+import { MEDIA_CLOCK_ACTIVE_MS, MEDIA_CLOCK_IDLE_MS } from "@/lib/mediaClock";
 
 // Mock profile context
 const mockProfile = { nickname: null as string | null, setNickname: vi.fn(), clearNickname: vi.fn() };
@@ -77,30 +78,76 @@ describe("VideoPlayer", () => {
     expect(mockGetSavedProgress).not.toHaveBeenCalled();
   });
 
-  it("saves progress to server on timeupdate when profile is set", () => {
-    mockProfile.nickname = "Alice";
-    render(<VideoPlayer videoId="abc123" />);
-    const video = document.querySelector("video")!;
+  // Periodic saving is driven by the shared playback clock rather than
+  // the element's `timeupdate`, so that native media and the .loft
+  // player share one implementation. These cover the wiring — that the
+  // player really does hand a controller to usePlaybackProgress, and
+  // that the profile fork reaches the right store. The rules themselves
+  // are covered in lib/__tests__/playbackProgress.test.ts.
+  describe("periodic saving", () => {
+    beforeEach(() => {
+      vi.useFakeTimers();
+    });
 
-    Object.defineProperty(video, "currentTime", { value: 10, writable: true, configurable: true });
-    Object.defineProperty(video, "duration", { value: 300, writable: true });
-    fireEvent.timeUpdate(video);
+    afterEach(() => {
+      vi.useRealTimers();
+    });
 
-    expect(mockSaveWatchProgress).toHaveBeenCalledWith("abc123", 10, 300);
-    expect(mockSaveProgress).not.toHaveBeenCalled();
-  });
+    async function renderAndSettleResume(currentTime: number) {
+      render(<VideoPlayer videoId="abc123" />);
+      const video = document.querySelector("video")!;
+      Object.defineProperty(video, "duration", {
+        value: 300,
+        writable: true,
+        configurable: true,
+      });
+      Object.defineProperty(video, "currentTime", {
+        value: currentTime,
+        writable: true,
+        configurable: true,
+      });
+      // jsdom reports a media element as paused forever, which would
+      // leave the clock on its idle heartbeat. We are testing a video
+      // that is playing.
+      Object.defineProperty(video, "paused", {
+        value: false,
+        configurable: true,
+      });
 
-  it("saves progress to localStorage on timeupdate when no profile", () => {
-    mockProfile.nickname = null;
-    render(<VideoPlayer videoId="abc123" />);
-    const video = document.querySelector("video")!;
+      // The clock subscribed while the element still looked paused, so
+      // it opened on the idle interval; this first tick is the one that
+      // notices playback and speeds up. It also starts the resume read,
+      // and saving deliberately stands still until that settles so it
+      // cannot write back the position being restored.
+      act(() => {
+        vi.advanceTimersByTime(MEDIA_CLOCK_IDLE_MS);
+      });
+      await act(async () => {});
+    }
 
-    Object.defineProperty(video, "currentTime", { value: 10, writable: true, configurable: true });
-    Object.defineProperty(video, "duration", { value: 300, writable: true });
-    fireEvent.timeUpdate(video);
+    it("saves progress to the server on the clock when a profile is set", async () => {
+      mockProfile.nickname = "Alice";
+      await renderAndSettleResume(10);
 
-    expect(mockSaveProgress).toHaveBeenCalledWith("abc123", 10, 300);
-    expect(mockSaveWatchProgress).not.toHaveBeenCalled();
+      act(() => {
+        vi.advanceTimersByTime(MEDIA_CLOCK_ACTIVE_MS);
+      });
+
+      expect(mockSaveWatchProgress).toHaveBeenCalledWith("abc123", 10, 300);
+      expect(mockSaveProgress).not.toHaveBeenCalled();
+    });
+
+    it("saves progress to localStorage on the clock when no profile", async () => {
+      mockProfile.nickname = null;
+      await renderAndSettleResume(10);
+
+      act(() => {
+        vi.advanceTimersByTime(MEDIA_CLOCK_ACTIVE_MS);
+      });
+
+      expect(mockSaveProgress).toHaveBeenCalledWith("abc123", 10, 300);
+      expect(mockSaveWatchProgress).not.toHaveBeenCalled();
+    });
   });
 
   // Spec 2026-08-10-media-import-watch-surface.md §4.2: reaching the end

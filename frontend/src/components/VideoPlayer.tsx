@@ -1,69 +1,60 @@
 "use client";
 
-import { useRef, useEffect, useCallback, useImperativeHandle, forwardRef, type Ref } from "react";
+import { useRef, useEffect, useState, useCallback, useImperativeHandle, forwardRef, type Ref } from "react";
 import { useTranslations } from "next-intl";
 import type { SubtitleInfo } from "@/types";
-import { getStreamUrl, getSubtitleUrl, getThumbnailUrl, saveWatchProgress, getWatchProgress } from "@/lib/api";
-import { getSavedProgress, saveProgress } from "@/lib/recentlyPlayed";
+import { getStreamUrl, getSubtitleUrl, getThumbnailUrl } from "@/lib/api";
 import { readAutoplayPreference } from "@/lib/autoplay";
 import { setupBackgroundPiP } from "@/lib/backgroundPiP";
 import { setupMediaSession } from "@/lib/mediaSession";
-import { createNativeVideoController, handleMediaShortcut } from "@/lib/mediaController";
+import {
+  createNativeVideoController,
+  type MediaController,
+} from "@/lib/mediaController";
+import { usePlaybackProgress } from "@/lib/playbackProgress";
 import { AutoplayToggle } from "./AutoplayToggle";
-import { useProfile } from "./ProfileProvider";
 import { useShortcuts } from "@/hooks/useShortcuts";
 
-const SAVE_INTERVAL = 5;
-const RESUME_THRESHOLD = 5;
-
-export const VideoPlayer = forwardRef(function VideoPlayer({ videoId, subtitles = [], onEnded, autoPlay, initialTime, title, subtitleText }: { videoId: string; subtitles?: SubtitleInfo[]; onEnded?: () => void; autoPlay?: boolean; initialTime?: number; title?: string; subtitleText?: string }, ref: Ref<HTMLVideoElement>) {
+export const VideoPlayer = forwardRef(function VideoPlayer({ videoId, subtitles = [], onEnded, autoPlay, initialTime, title, subtitleText, onMediaController }: { videoId: string; subtitles?: SubtitleInfo[]; onEnded?: () => void; autoPlay?: boolean; initialTime?: number; title?: string; subtitleText?: string; onMediaController?: (mc: MediaController | null) => void }, ref: Ref<HTMLVideoElement>) {
   const t = useTranslations("player");
-  const { nickname } = useProfile();
-  const hasProfile = nickname !== null;
   const videoRef = useRef<HTMLVideoElement>(null);
-  const lastSavedRef = useRef(0);
+  // One controller for the life of this element, held in state so the
+  // hooks below re-run when it appears. Building a fresh one per call
+  // — as the shortcut handlers used to — would hand the playback clock
+  // a different key every time and defeat its per-controller sharing.
+  const [mc, setMc] = useState<MediaController | null>(null);
 
   useImperativeHandle(ref, () => videoRef.current!, []);
+
+  useEffect(() => {
+    const video = videoRef.current;
+    if (!video) return;
+    const controller = createNativeVideoController(video);
+    setMc(controller);
+    onMediaController?.(controller);
+    return () => {
+      setMc(null);
+      onMediaController?.(null);
+    };
+  }, [videoId, onMediaController]);
+
+  const { notifyEnded, notifyReady } = usePlaybackProgress({
+    mc,
+    fileId: videoId,
+    initialTime,
+  });
 
   const handleLoadedMetadata = useCallback(async () => {
     const video = videoRef.current;
     if (!video) return;
-    if (initialTime != null && initialTime > 0) {
-      video.currentTime = Math.min(initialTime, video.duration);
-    } else if (hasProfile) {
-      try {
-        const progress = await getWatchProgress(videoId);
-        if (progress.position > RESUME_THRESHOLD && progress.position < video.duration - RESUME_THRESHOLD) {
-          video.currentTime = progress.position;
-        }
-      } catch {
-        // Fire-and-forget: don't block playback
-      }
-    } else {
-      const saved = getSavedProgress(videoId);
-      if (saved > RESUME_THRESHOLD && saved < video.duration - RESUME_THRESHOLD) {
-        video.currentTime = saved;
-      }
-    }
-
+    // Await the resume decision before starting playback, or autoplay
+    // begins at zero and the restored position lands a moment later —
+    // which the viewer sees and hears as the video starting over.
+    await notifyReady();
     if (autoPlay || readAutoplayPreference()) {
       video.play().catch(() => {});
     }
-  }, [videoId, autoPlay, hasProfile, initialTime]);
-
-  const handleTimeUpdate = useCallback(() => {
-    const video = videoRef.current;
-    if (!video) return;
-    const current = video.currentTime;
-    if (Math.abs(current - lastSavedRef.current) >= SAVE_INTERVAL) {
-      lastSavedRef.current = current;
-      if (hasProfile) {
-        saveWatchProgress(videoId, current, video.duration).catch(() => {});
-      } else {
-        saveProgress(videoId, current, video.duration);
-      }
-    }
-  }, [videoId, hasProfile]);
+  }, [autoPlay, notifyReady]);
 
   // Reaching the end records the final position instead of erasing the
   // history row. The row is what makes "completed" distinguishable from
@@ -71,22 +62,9 @@ export const VideoPlayer = forwardRef(function VideoPlayer({ videoId, subtitles 
   // through its 90% gate — deleting it here threw that state away.
   // Spec: 2026-08-10-media-import-watch-surface.md §4.2.
   const handleEnded = useCallback(() => {
-    const video = videoRef.current;
-    const duration = video?.duration;
-    // Without a trustworthy length there is no way to express
-    // "completed", so leave the last periodic save standing rather than
-    // fabricate one. Live streams and un-probed media land here.
-    if (video && Number.isFinite(duration) && (duration ?? 0) > 0) {
-      const position = video.currentTime > 0 ? video.currentTime : duration!;
-      lastSavedRef.current = position;
-      if (hasProfile) {
-        saveWatchProgress(videoId, position, duration!).catch(() => {});
-      } else {
-        saveProgress(videoId, position, duration!);
-      }
-    }
+    notifyEnded();
     onEnded?.();
-  }, [videoId, onEnded, hasProfile]);
+  }, [notifyEnded, onEnded]);
 
   useEffect(() => {
     const video = videoRef.current;
@@ -115,90 +93,39 @@ export const VideoPlayer = forwardRef(function VideoPlayer({ videoId, subtitles 
     {
       key: "space",
       label: tShortcuts("play"),
-      handler: () => {
-        const video = videoRef.current;
-        if (!video) return;
-        createNativeVideoController(video).togglePlay();
-      },
+      handler: () => mc?.togglePlay(),
     },
     {
       key: "arrowleft",
       label: tShortcuts("seekBack10"),
-      handler: () => {
-        const video = videoRef.current;
-        if (!video) return;
-        const mc = createNativeVideoController(video);
-        mc.seek(mc.getCurrentTime() - 10);
-      },
+      handler: () => mc?.seek(mc.getCurrentTime() - 10),
     },
     {
       key: "arrowright",
       label: tShortcuts("seekForward10"),
-      handler: () => {
-        const video = videoRef.current;
-        if (!video) return;
-        const mc = createNativeVideoController(video);
-        mc.seek(mc.getCurrentTime() + 10);
-      },
+      handler: () => mc?.seek(mc.getCurrentTime() + 10),
     },
     {
       key: "arrowup",
       label: tShortcuts("seekForward60"),
-      handler: () => {
-        const video = videoRef.current;
-        if (!video) return;
-        const mc = createNativeVideoController(video);
-        mc.seek(mc.getCurrentTime() + 60);
-      },
+      handler: () => mc?.seek(mc.getCurrentTime() + 60),
     },
     {
       key: "arrowdown",
       label: tShortcuts("seekBack60"),
-      handler: () => {
-        const video = videoRef.current;
-        if (!video) return;
-        const mc = createNativeVideoController(video);
-        mc.seek(mc.getCurrentTime() - 60);
-      },
+      handler: () => mc?.seek(mc.getCurrentTime() - 60),
     },
     {
       key: "m",
       label: tShortcuts("mute"),
-      handler: () => {
-        const video = videoRef.current;
-        if (!video) return;
-        createNativeVideoController(video).toggleMute();
-      },
+      handler: () => mc?.toggleMute(),
     },
     {
       key: "f",
       label: tShortcuts("fullscreen"),
-      handler: () => {
-        const video = videoRef.current;
-        if (!video) return;
-        createNativeVideoController(video).toggleFullscreen();
-      },
+      handler: () => mc?.toggleFullscreen(),
     },
   ]);
-
-  useEffect(() => {
-    return () => {
-      const video = videoRef.current;
-      if (video && video.currentTime > 0) {
-        if (hasProfile) {
-          saveWatchProgress(videoId, video.currentTime, video.duration).catch(() => {});
-        } else {
-          saveProgress(
-            videoId,
-            video.currentTime,
-            Number.isFinite(video.duration) && video.duration > 0
-              ? video.duration
-              : undefined,
-          );
-        }
-      }
-    };
-  }, [videoId, hasProfile]);
 
   return (
     <div className="group/player relative aspect-video w-full overflow-hidden bg-black md:rounded-xl">
@@ -210,7 +137,6 @@ export const VideoPlayer = forwardRef(function VideoPlayer({ videoId, subtitles 
         preload="metadata"
         className="h-full w-full object-contain"
         onLoadedMetadata={handleLoadedMetadata}
-        onTimeUpdate={handleTimeUpdate}
         onEnded={handleEnded}
       >
         {subtitles.map((sub, i) => (
