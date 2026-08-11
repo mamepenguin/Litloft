@@ -813,7 +813,12 @@ describe("FileDetailContent companion region", () => {
     expect(grid(container)).toBeNull();
   });
 
-  it("asks the occupant to fill the height only in the rail form", async () => {
+  it("always asks the occupant to fill, because the host always bounds", async () => {
+    // Deciding this by file kind was wrong: which form is in use is a
+    // container-width question answered in CSS, so a video in a narrow
+    // pane got the fill treatment with nothing bounding it and the
+    // occupant ran to full length. The host now holds the height in
+    // both forms and the occupant simply fills what it is given.
     slotMocks.occupied.add("player-side");
 
     const video = await renderFile(makeFile());
@@ -827,6 +832,6 @@ describe("FileDetailContent companion region", () => {
     );
     expect(
       screen.getByTestId("addon-slot-player-side").getAttribute("data-fill-height"),
-    ).toBe("false");
+    ).toBe("true");
   });
 });

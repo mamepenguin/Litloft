@@ -774,7 +774,7 @@ div[data-citation-section-path]:not(tr) {
    would split the pane into two columns at widths where it does not
    fit. See DESIGN.md §10.
 
-   56rem = 552px player + 320px rail + 24px gap.
+   60rem = 552px player + 384px rail + 24px gap.
    ------------------------------------------------------------------ */
 .media-detail-grid {
   display: grid;
@@ -790,9 +790,32 @@ div[data-citation-section-path]:not(tr) {
 .media-detail-companion { grid-area: companion; }
 .media-detail-rest { grid-area: rest; }
 
-@container (min-width: 56rem) {
+/* The host bounds the companion in BOTH forms, not just the rail.
+   Whether the rail form is in use is a container-width decision made
+   here in CSS, while the occupant is handed its props in JS — so the
+   occupant cannot know which form it is in and must not be the one
+   holding the height. Stacked it is a box; beside the player it takes
+   the scroll container's height (below). */
+.media-detail-companion-inner {
+  display: flex;
+  flex-direction: column;
+  max-height: 20rem;
+  overflow: hidden;
+}
+
+/* Whatever the slot machinery puts here has to take that height and
+   hand it on, or the occupant lays itself out at full length and this
+   box silently clips it. `min-height: 0` is the half everyone forgets:
+   without it a flex item refuses to shrink below its content and the
+   overflow moves up a level instead of scrolling. */
+.media-detail-companion-inner > * {
+  flex: 1 1 0%;
+  min-height: 0;
+}
+
+@container (min-width: 60rem) {
   .media-detail-grid {
-    grid-template-columns: minmax(0, 1fr) 20rem;
+    grid-template-columns: minmax(0, 1fr) 24rem;
     grid-template-areas:
       "player companion"
       "rest   companion";
@@ -814,19 +837,5 @@ div[data-citation-section-path]:not(tr) {
     position: sticky;
     top: calc(var(--rail-top, 0px) + 1rem);
     max-height: calc(var(--rail-avail, 100dvh) - 2rem);
-    display: flex;
-    flex-direction: column;
-    overflow: hidden;
-  }
-
-  /* Whatever the slot machinery puts here has to take the rail's
-     height and hand it on, or the occupant lays itself out at full
-     length and this box silently clips it. `min-height: 0` is the half
-     everyone forgets: without it a flex item refuses to shrink below
-     its content and the overflow moves up a level instead of
-     scrolling. */
-  .media-detail-companion-inner > * {
-    flex: 1 1 0%;
-    min-height: 0;
   }
 }

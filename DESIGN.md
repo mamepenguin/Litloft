@@ -605,13 +605,21 @@ player — the transcript today, chapters next. Widths:
 
 | Token | Value | Meaning |
 |---|---|---|
-| rail width | `20rem` (320px) | Fixed. Below this the content stops being readable at the type scale in §3.2. |
+| rail width | `24rem` (384px) | Fixed. 320px was tried first and Japanese wrapped at 12–14 characters a line, which reads as cramped. |
+| stacked height | `20rem` (320px) | The bounded box the companion becomes when it cannot sit beside the player. |
 | player minimum | `34.5rem` (552px) | Narrower than this and a 16:9 video stops being watchable. |
 | gap | `1.5rem` (24px) | The standard section gap. |
-| switch threshold | `56rem` (896px) | The sum of the three. |
+| switch threshold | `60rem` (960px) | The sum of the first, third and fourth. |
 
 The threshold is a **sum, not a feel**. Change either minimum and
 recompute it; do not nudge it to make a particular window look right.
+Widening the rail from 320px to 384px moved the threshold from 56rem to
+60rem for exactly this reason.
+
+**The host holds the height, in both forms.** Which form is in use is a
+container-width question answered in CSS, while an occupant is handed
+its props in JS — so an occupant cannot know which form it is in and
+must never be the one bounding itself.
 
 ### Measure against the container, not the viewport
 

@@ -672,10 +672,16 @@ export function FileDetailContent({
             and its wrapper div breaks the flex chain the rail needs.
             When a second occupant arrives (C-2 chapters) that choice
             gets made properly, along with making its wrapper fill. */}
+        {/* fillHeight is unconditional: the host bounds this region in
+            both forms, so the occupant should always fill what it is
+            given. Deciding it by file kind was wrong — whether the rail
+            form is in use is a container-width question answered in
+            CSS, and a video in a narrow pane got the fill treatment
+            with nothing bounding it, so the list ran to full length. */}
         <AddonSlot
           id="player-side"
           layout="stack"
-          props={{ ...addonSlotProps, fillHeight: railEligible }}
+          props={{ ...addonSlotProps, fillHeight: true }}
         />
       </div>
     </div>
