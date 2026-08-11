@@ -342,7 +342,8 @@
     "normalSpeed": "標準",
     "captions": "字幕",
     "captionsOn": "オン",
-    "captionsOff": "オフ"
+    "captionsOff": "オフ",
+    "chapters": "チャプター"
   },
   "archive": {
     "loadFailed": "アーカイブの読み込みに失敗しました: {error}",

@@ -601,7 +601,7 @@ An inline script in `<head>` reads `localStorage('theme-preference')` and sets `
 ### Companion rail (media file detail)
 
 A media file's detail page may put a companion column beside the
-player — the transcript today, chapters next. Widths:
+player — chapters and the transcript. Widths:
 
 | Token | Value | Meaning |
 |---|---|---|
@@ -610,6 +610,8 @@ player — the transcript today, chapters next. Widths:
 | player minimum | `34.5rem` (552px) | Narrower than this and a 16:9 video stops being watchable. |
 | gap | `1.5rem` (24px) | The standard section gap. |
 | switch threshold | `60rem` (960px) | The sum of the first, third and fourth. |
+| lead cap, stacked | `12rem` (192px) | Most a short index may take of the 20rem box, leaving the body it indexes readable. |
+| lead cap, rail | `22rem` (352px) | The same index where there is room for it. |
 
 The threshold is a **sum, not a feel**. Change either minimum and
 recompute it; do not nudge it to make a particular window look right.
@@ -620,6 +622,14 @@ Widening the rail from 320px to 384px moved the threshold from 56rem to
 container-width question answered in CSS, while an occupant is handed
 its props in JS — so an occupant cannot know which form it is in and
 must never be the one bounding itself.
+
+**Lead and fill, not equal shares.** The region takes two kinds of
+occupant: a *lead* that sizes to its own content under a cap (a short
+index, such as chapters) and a *fill* that takes whatever remains (the
+long body, such as the transcript). Giving both an equal share is wrong
+for either. Note that `flex-shrink` is distributed by basis, and the
+fill's basis is `0` — so without the cap the lead absorbs none of a
+shortfall and the fill collapses to nothing.
 
 ### Measure against the container, not the viewport
 

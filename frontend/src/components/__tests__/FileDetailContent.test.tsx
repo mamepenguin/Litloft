@@ -134,6 +134,12 @@ vi.mock("../FileActions", () => ({
 vi.mock("../CastButton", () => ({
   CastButton: () => <div data-testid="cast" />,
 }));
+// Core's own companion occupant. Mocked like the other heavy children:
+// what it renders is its own test's business, while this file cares
+// only that the host places it and counts it as an occupant.
+vi.mock("../ChaptersPanel", () => ({
+  ChaptersPanel: () => <div data-testid="chapters-panel" />,
+}));
 vi.mock("@/lib/api", () => ({
   getFile: vi.fn(),
   recordFileView: vi.fn(),
@@ -803,6 +809,51 @@ describe("FileDetailContent companion region", () => {
     ]);
   });
 
+  // Spec 2026-08-11-media-chapters.md §6. Core is an occupant now, not
+  // only the host, so "is anyone here" stopped being the same question
+  // as "has an addon claimed the slot".
+  it("gives the rail to a file with chapters and no addon occupant", async () => {
+    const { container } = await renderFile(makeFile({ has_chapters: true }));
+
+    expect(screen.getByTestId("chapters-panel")).toBeInTheDocument();
+    expect(screen.queryByTestId("addon-slot-player-side")).toBeInTheDocument();
+    expect(grid(container)).not.toBeNull();
+  });
+
+  it("puts chapters above the addon occupant, not behind a tab", async () => {
+    slotMocks.occupied.add("player-side");
+    const { container } = await renderFile(makeFile({ has_chapters: true }));
+
+    const order = Array.from(
+      container.querySelectorAll(
+        "[data-testid='chapters-panel'], [data-testid='addon-slot-player-side']",
+      ),
+    ).map((el) => el.getAttribute("data-testid"));
+
+    expect(order).toEqual(["chapters-panel", "addon-slot-player-side"]);
+  });
+
+  it("leaves the panel out for a file with no chapters", async () => {
+    slotMocks.occupied.add("player-side");
+    await renderFile(makeFile());
+
+    expect(screen.queryByTestId("chapters-panel")).toBeNull();
+  });
+
+  it("gives the slot a wrapper that carries the height on", async () => {
+    // The wrapper C-1 avoided. It is only safe because it is itself a
+    // flex container in the chain; if it ever stops being one the
+    // transcript lays itself out at full length and gets clipped.
+    slotMocks.occupied.add("player-side");
+    const { container } = await renderFile(makeFile({ has_chapters: true }));
+
+    const slot = screen.getByTestId("addon-slot-player-side");
+    expect(slot.parentElement).toHaveClass("media-detail-companion-fill");
+    expect(
+      container.querySelector(".media-detail-companion-fill"),
+    ).not.toBeNull();
+  });
+
   it("offers no companion for a file no player plays", async () => {
     slotMocks.occupied.add("player-side");
     const { container } = await renderFile(
@@ -875,6 +926,13 @@ describe("FileDetailContent layout toggle", () => {
   it("offers nothing when no addon claims the slot", async () => {
     await renderFile(makeFile());
     expect(toggle()).toBeNull();
+  });
+
+  it("offers the swap for a chapters-only file, with no addon at all", async () => {
+    // The toggle gates placement, not occupancy. Tying it to `hasSlot`
+    // alone would leave a rail the viewer cannot put back.
+    await renderFile(makeFile({ has_chapters: true }));
+    expect(toggle()).toBeInTheDocument();
   });
 
   it("flips the attribute the layout is driven by", async () => {

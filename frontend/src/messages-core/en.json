@@ -342,7 +342,8 @@
     "normalSpeed": "Normal",
     "captions": "Subtitles",
     "captionsOn": "On",
-    "captionsOff": "Off"
+    "captionsOff": "Off",
+    "chapters": "Chapters"
   },
   "archive": {
     "loadFailed": "Failed to load archive: {error}",

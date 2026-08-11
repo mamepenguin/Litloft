@@ -38,6 +38,7 @@ import { ActiveSummaryHost } from "./ActiveSummaryHost";
 import { AddonSlot } from "./AddonSlot";
 import { useAddonSlots } from "./AddonSlotsProvider";
 import { CastButton } from "./CastButton";
+import { ChaptersPanel } from "./ChaptersPanel";
 import { CommentSection } from "./CommentSection";
 import { MarkdownAwareTagChips } from "./MarkdownAwareTagChips";
 import { ExifSection } from "./ExifSection";
@@ -349,6 +350,13 @@ export function FileDetailContent({
   const companionKind = playerKind(file);
   const railEligible = companionKind === "video" || companionKind === "loft";
 
+  // Core is an occupant of the companion region now, not just its host:
+  // chapters are a core entity and `AddonSlot` can only load addon
+  // components. So every question that used to be "does an addon fill
+  // this?" becomes "does anyone?".
+  const hasChapters = file.has_chapters === true;
+  const companionOccupied = hasSlot("player-side") || hasChapters;
+
   const isHtmlPreview = file.mime_type === "text/html";
   const useDocumentLayout =
     isHtmlPreview ||
@@ -637,7 +645,7 @@ export function FileDetailContent({
           have one, so a button there would appear for some media and
           not others. Only rendered where a rail is possible at all;
           the container query decides whether it is visible. */}
-      {railEligible && hasSlot("player-side") && <MediaLayoutToggle />}
+      {railEligible && companionOccupied && <MediaLayoutToggle />}
     </>
   );
 
@@ -663,7 +671,7 @@ export function FileDetailContent({
   // The companion region only exists for files a player actually
   // plays, and only when an addon has something to put in it. With no
   // occupant the grid never appears and the page is exactly as before.
-  if (!companionKind || !hasSlot("player-side")) {
+  if (!companionKind || !companionOccupied) {
     return (
       <div className="w-full">
         {playerNode}
@@ -675,22 +683,34 @@ export function FileDetailContent({
   const companionNode = (
     <div className="media-detail-companion">
       <div className="media-detail-companion-inner">
-        {/* `stack` rather than `tabs`: with one occupant a tab strip is
-            a label for a thing that is already the only thing there,
-            and its wrapper div breaks the flex chain the rail needs.
-            When a second occupant arrives (C-2 chapters) that choice
-            gets made properly, along with making its wrapper fill. */}
+        {/* The second occupant #31 anticipated, and it stacks rather than
+            sharing a tab strip. Tabs are exclusive, so they would put
+            "where am I" and "what is being said" behind one another —
+            seeing a coarse index and the fine text follow the same clock
+            at once is the reason the rail exists. Chapters sit above
+            because they are the shorter, coarser index of the two. */}
+        {hasChapters && (
+          <ChaptersPanel fileId={fileId} mediaController={mediaController} />
+        )}
+        {/* The wrapper #31 said would break the flex chain. It is here
+            because the chain now has to fork — the lead sizes to its
+            content while the slot takes the remainder — and it does not
+            break anything as long as it is itself a flex container that
+            passes the height on, which `media-detail-companion-fill`
+            is. */}
         {/* fillHeight is unconditional: the host bounds this region in
             both forms, so the occupant should always fill what it is
             given. Deciding it by file kind was wrong — whether the rail
             form is in use is a container-width question answered in
             CSS, and a video in a narrow pane got the fill treatment
             with nothing bounding it, so the list ran to full length. */}
-        <AddonSlot
-          id="player-side"
-          layout="stack"
-          props={{ ...addonSlotProps, fillHeight: true }}
-        />
+        <div className="media-detail-companion-fill">
+          <AddonSlot
+            id="player-side"
+            layout="stack"
+            props={{ ...addonSlotProps, fillHeight: true }}
+          />
+        </div>
       </div>
     </div>
   );
