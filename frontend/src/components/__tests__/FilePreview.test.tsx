@@ -5,6 +5,7 @@ import type { FileItem } from "@/types";
 
 vi.mock("@/lib/api", () => ({
   getStreamUrl: (id: string) => `/api/files/${id}/stream`,
+  getThumbnailUrl: (id: string) => `/api/files/${id}/thumbnail`,
 }));
 
 vi.mock("../VideoPlayer", () => ({

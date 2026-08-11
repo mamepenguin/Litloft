@@ -1,13 +1,6 @@
 "use client";
 
-import {
-  useCallback,
-  useEffect,
-  useImperativeHandle,
-  useRef,
-  useState,
-  type Ref,
-} from "react";
+import { useCallback, useState, type Ref } from "react";
 import { useTranslations } from "next-intl";
 import type { FileItem } from "@/types";
 import { VideoPlayer } from "./VideoPlayer";
@@ -22,11 +15,8 @@ import { AddonSlot } from "./AddonSlot";
 import LoftPlayer from "./loft/LoftPlayer";
 import { MiniPlayerContainer } from "./MiniPlayerContainer";
 import { formatFileSize } from "@/lib/format";
-import { getStreamUrl } from "@/lib/api";
-import {
-  createNativeVideoController,
-  type MediaController,
-} from "@/lib/mediaController";
+import { getStreamUrl, getThumbnailUrl } from "@/lib/api";
+import type { MediaController } from "@/lib/mediaController";
 import type { DocumentCaptureController } from "@/lib/documentCapture";
 
 interface FilePreviewProps {
@@ -87,95 +77,15 @@ interface FilePreviewProps {
   miniPlayerRoot?: Element | null;
 }
 
-/**
- * Wrap AudioPlayer so its `<audio>` element bubbles up as a
- * MediaController. AudioPlayer doesn't expose its internal ref, so we
- * scope a wrapper div, find the audio child after mount, and publish a
- * native controller. citation jump (intelligence addon) needs this
- * because audio files have transcripts too.
+/*
+ * The two wrappers that used to live here — NativeAudioWithController
+ * and NativeVideoWithController — existed only to build a
+ * MediaController outside the player and publish it upward. The players
+ * now own their controller, because usePlaybackProgress needs one
+ * inside and a second instance built out here would be a second key in
+ * the playback clock, and so a second interval. The audio wrapper's
+ * querySelector("audio") hunt went with it.
  */
-function NativeAudioWithController({
-  file,
-  onEnded,
-  autoPlay,
-  onMediaController,
-}: {
-  file: FileItem;
-  onEnded?: () => void;
-  autoPlay?: boolean;
-  onMediaController?: (mc: MediaController | null) => void;
-}) {
-  const wrapRef = useRef<HTMLDivElement>(null);
-  useEffect(() => {
-    if (!onMediaController) return;
-    const audio = wrapRef.current?.querySelector("audio");
-    if (!audio) return;
-    // HTMLAudioElement extends HTMLMediaElement just like
-    // HTMLVideoElement, so the native controller's currentTime / play
-    // / pause / muted shape is identical. requestFullscreen on audio
-    // is a no-op in browsers — that's acceptable, as F is a video-only
-    // affordance and our shortcuts intentionally don't gate on type.
-    onMediaController(
-      createNativeVideoController(audio as unknown as HTMLVideoElement),
-    );
-    return () => onMediaController(null);
-  }, [file.id, onMediaController]);
-
-  return (
-    <div ref={wrapRef}>
-      <AudioPlayer file={file} onEnded={onEnded} autoPlay={autoPlay} />
-    </div>
-  );
-}
-
-/**
- * Helper that forwards both the legacy `<video>` ref and the new
- * `MediaController` upward when a native VideoPlayer is mounted.
- * Extracted so the FilePreview render tree stays declarative and the
- * cleanup (null on unmount) lives in a single place.
- */
-function NativeVideoWithController({
-  file,
-  onEnded,
-  autoPlay,
-  initialTime,
-  videoRef,
-  onMediaController,
-}: {
-  file: FileItem;
-  onEnded?: () => void;
-  autoPlay?: boolean;
-  initialTime?: number;
-  videoRef?: Ref<HTMLVideoElement>;
-  onMediaController?: (mc: MediaController | null) => void;
-}) {
-  const internalRef = useRef<HTMLVideoElement>(null);
-  // Mirror the inner ref out to the parent's videoRef (back-compat).
-  useImperativeHandle(videoRef, () => internalRef.current!, []);
-
-  useEffect(() => {
-    if (!onMediaController) return;
-    const video = internalRef.current;
-    if (!video) return;
-    onMediaController(createNativeVideoController(video));
-    return () => onMediaController(null);
-    // file.id is the stable identity that determines whether the
-    // underlying media element / controller is still the same one.
-  }, [file.id, onMediaController]);
-
-  return (
-    <VideoPlayer
-      ref={internalRef}
-      videoId={file.id}
-      subtitles={file.subtitles}
-      onEnded={onEnded}
-      autoPlay={autoPlay}
-      initialTime={initialTime}
-      title={file.title || file.filename}
-      subtitleText={file.folder_path || file.drive}
-    />
-  );
-}
 
 export function FilePreview({
   file,
@@ -226,6 +136,11 @@ export function FilePreview({
             initialTime={initialTime}
             durationHint={file.duration}
             onEnded={onEnded}
+            mediaSessionMetadata={{
+              title: file.title || file.filename,
+              artist: file.folder_path || file.drive,
+              artwork: [{ src: getThumbnailUrl(file.id) }],
+            }}
           />
         </MiniPlayerContainer>
         <AddonSlot
@@ -240,12 +155,15 @@ export function FilePreview({
     return (
       <div className="-mx-4 -mt-4 md:mx-0 md:mt-0">
         <MiniPlayerContainer mc={localMc} root={miniPlayerRoot}>
-          <NativeVideoWithController
-            file={file}
+          <VideoPlayer
+            ref={videoRef}
+            videoId={file.id}
+            subtitles={file.subtitles}
             onEnded={onEnded}
             autoPlay={autoPlay}
             initialTime={initialTime}
-            videoRef={videoRef}
+            title={file.title || file.filename}
+            subtitleText={file.folder_path || file.drive}
             onMediaController={relayMc}
           />
         </MiniPlayerContainer>
@@ -267,7 +185,7 @@ export function FilePreview({
 
   if (file.file_type === "audio") {
     return (
-      <NativeAudioWithController
+      <AudioPlayer
         file={file}
         onEnded={onEnded}
         autoPlay={autoPlay}

@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState, type RefObject } from "react";
 import type { MediaController } from "@/lib/mediaController";
+import { useMediaClock } from "@/lib/mediaClock";
 
 export interface MiniPlayerInputs {
   intersecting: boolean;
@@ -35,7 +36,6 @@ export function shouldShowMini(inputs: MiniPlayerInputs): boolean {
 }
 
 const DESKTOP_QUERY = "(min-width: 768px)";
-const PAUSE_POLL_MS = 250;
 
 interface UseMiniPlayerOpts {
   /**
@@ -82,7 +82,14 @@ export function useMiniPlayer({
   root,
 }: UseMiniPlayerOpts): UseMiniPlayerResult {
   const [intersecting, setIntersecting] = useState(true);
-  const [paused, setPaused] = useState(true);
+  // Polling (rather than event subscription) avoids asymmetry between
+  // native <video> DOM events and the YouTube IFrame Player's
+  // onStateChange — both backends already expose isPaused() uniformly.
+  // The clock owns the cadence and is shared with every other consumer
+  // watching the same controller, so this costs no interval of its own.
+  // A null controller reports paused, which is the right default: there
+  // is nothing to float.
+  const { paused } = useMediaClock(mc);
   const [fullscreen, setFullscreen] = useState(false);
   const [osPip, setOsPip] = useState(false);
   const [desktop, setDesktop] = useState(false);
@@ -104,24 +111,6 @@ export function useMiniPlayer({
     io.observe(el);
     return () => io.disconnect();
   }, [containerRef, root]);
-
-  // Poll paused state via mc.isPaused(). Polling (rather than event
-  // subscription) avoids asymmetry between native <video> DOM events
-  // and the YouTube IFrame Player's onStateChange — both backends
-  // already expose isPaused() uniformly. A 250ms cadence is imper-
-  // ceptible for a UI state switch and cheap enough to ignore.
-  useEffect(() => {
-    if (!mc) {
-      setPaused(true);
-      return;
-    }
-    setPaused(mc.isPaused());
-    const id = window.setInterval(() => {
-      const current = mcRef.current;
-      if (current) setPaused(current.isPaused());
-    }, PAUSE_POLL_MS);
-    return () => window.clearInterval(id);
-  }, [mc]);
 
   // Fullscreen / PiP listeners.
   useEffect(() => {
