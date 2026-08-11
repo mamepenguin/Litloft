@@ -234,6 +234,22 @@ export function createNativeVideoController(
       // summing them would claim more contiguous buffer than exists.
       return clampFraction(buffered.end(buffered.length - 1) / duration);
     },
+    getCaptions() {
+      const { textTracks } = video;
+      if (textTracks.length === 0) return "unavailable";
+      for (let index = 0; index < textTracks.length; index += 1) {
+        if (textTracks[index]?.mode === "showing") return "on";
+      }
+      return "off";
+    },
+    setCaptions(enabled) {
+      const { textTracks } = video;
+      for (let index = 0; index < textTracks.length; index += 1) {
+        const track = textTracks[index];
+        if (!track) continue;
+        track.mode = enabled && index === 0 ? "showing" : "disabled";
+      }
+    },
     // isInterrupted is deliberately absent: a local file has nothing
     // that can preempt it.
   };
