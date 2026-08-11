@@ -282,12 +282,18 @@ export function FileDetailContent({
       // deliberately leaves a small peek of the title below the frame.
       publishAvailable(available);
       const player = playerWrapperRef.current;
+      const scrollOffset = pane ? pane.scrollTop : window.scrollY;
       publishPlayerAvailable(
         player
           ? Math.max(
               0,
               available -
-                Math.max(0, player.getBoundingClientRect().top - visibleTop) -
+                Math.max(
+                  0,
+                  player.getBoundingClientRect().top -
+                    visibleTop +
+                    scrollOffset,
+                ) -
                 PLAYER_PEEK_PX,
             )
           : null,

@@ -196,14 +196,11 @@ describe("MediaControlsContainer", () => {
       });
     }
 
-    it("starts them off", async () => {
-      // Subtitles are an opt-in, and the embed also tells the player
-      // not to enable them from the viewer's YouTube account.
+    it("leaves the backend's default alone when no preference exists", async () => {
       const mc = makeCaptionMc();
       renderControls(mc);
       await act(async () => {});
-      expect(mc.setCaptions).toHaveBeenCalledWith(false);
-      expect(mc.setCaptions).not.toHaveBeenCalledWith(true);
+      expect(mc.setCaptions).not.toHaveBeenCalled();
     });
 
     it("applies a saved preference to the player", async () => {

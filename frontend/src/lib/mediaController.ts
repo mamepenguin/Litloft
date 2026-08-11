@@ -245,19 +245,10 @@ export function createNativeVideoController(
     },
     setCaptions(enabled) {
       const { textTracks } = video;
-      if (enabled) {
-        for (let index = 0; index < textTracks.length; index += 1) {
-          if (textTracks[index]?.mode === "showing") {
-            selectedCaptionTrack = index;
-            break;
-          }
-        }
-      } else {
-        for (let index = 0; index < textTracks.length; index += 1) {
-          if (textTracks[index]?.mode === "showing") {
-            selectedCaptionTrack = index;
-            break;
-          }
+      for (let index = 0; index < textTracks.length; index += 1) {
+        if (textTracks[index]?.mode === "showing") {
+          selectedCaptionTrack = index;
+          break;
         }
       }
       for (let index = 0; index < textTracks.length; index += 1) {

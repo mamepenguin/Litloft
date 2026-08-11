@@ -5,12 +5,17 @@ import { useCallback, useEffect, useState } from "react";
 const STORAGE_KEY = "video-share-captions";
 const CHANGE_EVENT = "litloft:captions-preference-change";
 
-export function readCaptionsPreference(): boolean {
-  if (typeof window === "undefined") return false;
+export type CaptionsPreference = boolean | null;
+
+export function readCaptionsPreference(): CaptionsPreference {
+  if (typeof window === "undefined") return null;
   try {
-    return window.localStorage?.getItem?.(STORAGE_KEY) === "true";
+    const stored = window.localStorage?.getItem?.(STORAGE_KEY);
+    if (stored === "true") return true;
+    if (stored === "false") return false;
+    return null;
   } catch {
-    return false;
+    return null;
   }
 }
 
@@ -18,17 +23,19 @@ export function readCaptionsPreference(): boolean {
  * Whether the viewer wants subtitles, remembered across files and
  * sessions — the same treatment autoplay and playback speed get.
  *
- * Defaults to off. Subtitles are an opt-in, and the embed also tells
- * the player not to enable them from the viewer's YouTube account
- * (`cc_load_policy: 0`), so this preference is the only thing that
- * turns them on inside Litloft.
+ * An unset preference stays null so each backend keeps its own default:
+ * native video honors `<track default>`, while YouTube already starts
+ * captions off through `cc_load_policy: 0`.
  *
  * Hydrates in an effect rather than in the initial state: reading
  * localStorage during render would make the server and client markup
  * disagree.
  */
-export function useCaptionsPreference(): [boolean, (value: boolean) => void] {
-  const [enabled, setEnabled] = useState(false);
+export function useCaptionsPreference(): [
+  CaptionsPreference,
+  (value: boolean) => void,
+] {
+  const [enabled, setEnabled] = useState<CaptionsPreference>(null);
 
   useEffect(() => {
     setEnabled(readCaptionsPreference());

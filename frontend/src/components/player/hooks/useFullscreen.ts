@@ -124,6 +124,7 @@ export function useFullscreen({
   const [nativeActive, setNativeActive] = useState(false);
   const [pseudoActive, setPseudoActive] = useState(false);
   const entryReasonRef = useRef<EntryReason | null>(null);
+  const historyEntryLiveRef = useRef(false);
 
   // Read through a ref rather than a dependency: rebuilding the touch
   // listeners mid-gesture would drop the in-flight start point.
@@ -153,13 +154,22 @@ export function useFullscreen({
     return () => document.removeEventListener("fullscreenchange", sync);
   }, [frameRef]);
 
+  const unwindHistoryEntry = useCallback(() => {
+    if (!historyEntryLiveRef.current) return;
+    historyEntryLiveRef.current = false;
+    if ((window.history.state as Record<string, unknown> | null)?.[HISTORY_MARKER]) {
+      window.history.back();
+    }
+  }, []);
+
   const exit = useCallback(() => {
     entryReasonRef.current = null;
     if (document.fullscreenElement) {
       document.exitFullscreen().catch(() => {});
     }
+    unwindHistoryEntry();
     setPseudoActive(false);
-  }, []);
+  }, [unwindHistoryEntry]);
 
   const isFullscreen = nativeActive || pseudoActive;
 
@@ -383,7 +393,7 @@ export function useFullscreen({
 
   useEffect(() => {
     if (!pseudoActive) return;
-    let ourEntryLive = true;
+    historyEntryLiveRef.current = true;
     window.history.pushState({ [HISTORY_MARKER]: true }, "");
 
     const onPopState = () => {
@@ -392,23 +402,21 @@ export function useFullscreen({
       if ((window.history.state as Record<string, unknown> | null)?.[HISTORY_MARKER]) {
         return;
       }
-      ourEntryLive = false;
+      historyEntryLiveRef.current = false;
       exit();
     };
     window.addEventListener("popstate", onPopState);
 
     return () => {
       window.removeEventListener("popstate", onPopState);
-      if (!ourEntryLive) return;
+      if (!historyEntryLiveRef.current) return;
       // Unmounting means something else is already navigating; going
       // back here could cancel it. Leaving one stale entry behind is
       // the cheaper mistake.
       if (!mountedRef.current) return;
-      if ((window.history.state as Record<string, unknown> | null)?.[HISTORY_MARKER]) {
-        window.history.back();
-      }
+      unwindHistoryEntry();
     };
-  }, [pseudoActive, exit]);
+  }, [pseudoActive, exit, unwindHistoryEntry]);
 
   return { isFullscreen, isPseudo: pseudoActive, toggle, exit };
 }

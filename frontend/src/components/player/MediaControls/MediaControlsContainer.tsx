@@ -107,6 +107,7 @@ export default function MediaControlsContainer({
   // each new file: the toggle only records what the viewer wants, and
   // this applies it whenever that or the player changes.
   useEffect(() => {
+    if (captionsPreferred === null) return;
     try {
       mc?.setCaptions?.(captionsPreferred);
     } catch {

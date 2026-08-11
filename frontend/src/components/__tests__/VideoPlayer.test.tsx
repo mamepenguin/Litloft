@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { act, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { VideoPlayer } from "../VideoPlayer";
 import { ShortcutsProvider } from "../ShortcutsProvider";
 
@@ -92,6 +92,26 @@ describe("VideoPlayer", () => {
     expect(videoRequest).not.toHaveBeenCalled();
   });
 
+  it("falls back to the native controller for f in browser mode", async () => {
+    window.localStorage.setItem("native-player-ui", "browser");
+    const { container } = render(
+      <ShortcutsProvider>
+        <VideoPlayer videoId="vid-1" />
+      </ShortcutsProvider>,
+    );
+    const video = container.querySelector("video")!;
+    const requestFullscreen = vi.fn().mockResolvedValue(undefined);
+    Object.defineProperty(video, "requestFullscreen", {
+      configurable: true,
+      value: requestFullscreen,
+    });
+
+    await waitFor(() => expect(video.hasAttribute("controls")).toBe(true));
+    fireEvent.keyDown(document, { key: "f" });
+
+    expect(requestFullscreen).toHaveBeenCalledOnce();
+  });
+
   it("pins the same frame for pseudo-fullscreen on a coarse device", async () => {
     window.matchMedia = vi.fn().mockImplementation((query: string) => ({
       matches: query.includes("pointer: coarse"),
@@ -111,6 +131,67 @@ describe("VideoPlayer", () => {
     fireEvent.keyDown(document, { key: "f" });
     await waitFor(() => expect(frame).toHaveClass("fixed", "inset-0", "z-50"));
     expect(frame).not.toHaveClass("aspect-video");
+  });
+
+  it("does not treat waiting on a paused video as active playback", async () => {
+    const landscapeListeners = new Set<(event: MediaQueryListEvent) => void>();
+    window.matchMedia = vi.fn().mockImplementation((query: string) => ({
+      matches: query === "(pointer: coarse)",
+      media: query,
+      addEventListener: (_: string, listener: (event: MediaQueryListEvent) => void) => {
+        if (query === "(orientation: landscape)") {
+          landscapeListeners.add(listener);
+        }
+      },
+      removeEventListener: (_: string, listener: (event: MediaQueryListEvent) => void) => {
+        landscapeListeners.delete(listener);
+      },
+    }));
+    window.scrollTo = vi.fn();
+    const { container } = render(
+      <ShortcutsProvider>
+        <VideoPlayer videoId="vid-1" />
+      </ShortcutsProvider>,
+    );
+    const video = container.querySelector("video")!;
+    const frame = container.querySelector<HTMLElement>("[data-testid='player-frame']")!;
+    Object.defineProperty(video, "paused", { configurable: true, value: true });
+    Object.defineProperty(video, "ended", { configurable: true, value: false });
+
+    fireEvent.waiting(video);
+    await act(async () => {
+      for (const listener of landscapeListeners) {
+        listener({ matches: true } as MediaQueryListEvent);
+      }
+      await Promise.resolve();
+    });
+
+    expect(frame).not.toHaveClass("fixed");
+  });
+
+  it("unwinds pseudo-fullscreen history before switching to browser controls", async () => {
+    window.matchMedia = vi.fn().mockImplementation((query: string) => ({
+      matches: query.includes("pointer: coarse"),
+      media: query,
+      addEventListener: vi.fn(),
+      removeEventListener: vi.fn(),
+    }));
+    window.scrollTo = vi.fn();
+    const back = vi.spyOn(window.history, "back").mockImplementation(() => {});
+    render(
+      <ShortcutsProvider>
+        <VideoPlayer videoId="vid-1" />
+      </ShortcutsProvider>,
+    );
+
+    fireEvent.keyDown(document, { key: "f" });
+    await waitFor(() =>
+      expect(screen.getByTestId("player-frame")).toHaveClass("fixed"),
+    );
+    fireEvent.click(screen.getByRole("button", { name: "Settings" }));
+    fireEvent.click(screen.getByRole("switch", { name: "Player controls" }));
+
+    expect(back).toHaveBeenCalledOnce();
   });
 
   it("preserves the selected subtitle track across a mode round-trip", async () => {

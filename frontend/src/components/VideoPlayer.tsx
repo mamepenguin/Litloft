@@ -84,6 +84,11 @@ function LitloftVideoControls({
     onPseudoFullscreenChange(fullscreen.isPseudo);
   }, [fullscreen.isPseudo, onPseudoFullscreenChange]);
 
+  const handleUseBrowserControls = () => {
+    fullscreen.exit();
+    onUseBrowserControls();
+  };
+
   return (
     <MediaControls
       mc={mc}
@@ -98,7 +103,7 @@ function LitloftVideoControls({
           <NativeSettingsRows video={video} />
           <NativePlayerUiToggle
             ui="litloft"
-            onChange={onUseBrowserControls}
+            onChange={handleUseBrowserControls}
           />
         </>
       }
@@ -121,12 +126,12 @@ export const VideoPlayer = forwardRef(function VideoPlayer(
   ref: Ref<HTMLVideoElement>,
 ) {
   const t = useTranslations("player");
-  const videoRef = useRef<HTMLVideoElement>(null);
   const frameRef = useRef<HTMLDivElement>(null);
   const fullscreenToggleRef = useRef<(() => void) | null>(null);
   const [playerUi, setPlayerUi] = useNativePlayerUiPreference();
   const [playing, setPlaying] = useState(false);
   const [pseudoFullscreen, setPseudoFullscreen] = useState(false);
+  const [videoElement, setVideoElement] = useState<HTMLVideoElement | null>(null);
   // One controller for the life of this element, held in state so the
   // hooks below re-run when it appears. Building a fresh one per call
   // — as the shortcut handlers used to — would hand the playback clock
@@ -138,19 +143,18 @@ export const VideoPlayer = forwardRef(function VideoPlayer(
     setPlayerUi("browser");
   }, [setPlayerUi]);
 
-  useImperativeHandle(ref, () => videoRef.current!, []);
+  useImperativeHandle(ref, () => videoElement!, [videoElement]);
 
   useEffect(() => {
-    const video = videoRef.current;
-    if (!video) return;
-    const controller = createNativeVideoController(video);
+    if (!videoElement) return;
+    const controller = createNativeVideoController(videoElement);
     setMc(controller);
     onMediaController?.(controller);
     return () => {
       setMc(null);
       onMediaController?.(null);
     };
-  }, [videoId, onMediaController]);
+  }, [videoElement, videoId, onMediaController]);
 
   const { notifyEnded, notifyReady } = usePlaybackProgress({
     mc,
@@ -159,16 +163,15 @@ export const VideoPlayer = forwardRef(function VideoPlayer(
   });
 
   const handleLoadedMetadata = useCallback(async () => {
-    const video = videoRef.current;
-    if (!video) return;
+    if (!videoElement) return;
     // Await the resume decision before starting playback, or autoplay
     // begins at zero and the restored position lands a moment later —
     // which the viewer sees and hears as the video starting over.
     await notifyReady();
     if (autoPlay || readAutoplayPreference()) {
-      video.play().catch(() => {});
+      videoElement.play().catch(() => {});
     }
-  }, [autoPlay, notifyReady]);
+  }, [autoPlay, notifyReady, videoElement]);
 
   // Reaching the end records the final position instead of erasing the
   // history row. The row is what makes "completed" distinguishable from
@@ -182,11 +185,10 @@ export const VideoPlayer = forwardRef(function VideoPlayer(
   }, [notifyEnded, onEnded]);
 
   useEffect(() => {
-    const video = videoRef.current;
-    if (!video) return;
-    video.setAttribute("autoPictureInPicture", "");
-    return setupBackgroundPiP(video);
-  }, []);
+    if (!videoElement) return;
+    videoElement.setAttribute("autoPictureInPicture", "");
+    return setupBackgroundPiP(videoElement);
+  }, [videoElement]);
 
   useEffect(() => {
     if (!mc || !title) return;
@@ -237,7 +239,11 @@ export const VideoPlayer = forwardRef(function VideoPlayer(
     {
       key: "f",
       label: tShortcuts("fullscreen"),
-      handler: () => fullscreenToggleRef.current?.(),
+      handler: () => {
+        const toggle = fullscreenToggleRef.current;
+        if (toggle) toggle();
+        else mc?.toggleFullscreen();
+      },
     },
   ]);
 
@@ -248,14 +254,14 @@ export const VideoPlayer = forwardRef(function VideoPlayer(
         data-testid="player-frame"
         tabIndex={0}
         className={[
-          "group/player overflow-hidden bg-black focus:outline-none focus-visible:ring-2 focus-visible:ring-focus-ring",
+          "overflow-hidden bg-black focus:outline-none focus-visible:ring-2 focus-visible:ring-focus-ring",
           pseudoFullscreen
             ? "fixed inset-0 z-50 rounded-none"
             : "relative aspect-video w-full md:rounded-xl",
         ].join(" ")}
       >
         <video
-          ref={videoRef}
+          ref={setVideoElement}
           src={getStreamUrl(videoId)}
           controls={playerUi === "browser"}
           playsInline
@@ -265,7 +271,9 @@ export const VideoPlayer = forwardRef(function VideoPlayer(
           onEnded={handleEnded}
           onPlay={() => setPlaying(true)}
           onPause={() => setPlaying(false)}
-          onWaiting={() => setPlaying(true)}
+          onWaiting={(event) =>
+            setPlaying(!event.currentTarget.paused && !event.currentTarget.ended)
+          }
         >
           {subtitles.map((sub, i) => (
             <track
@@ -294,7 +302,7 @@ export const VideoPlayer = forwardRef(function VideoPlayer(
           <LitloftVideoControls
             mc={mc}
             frameRef={frameRef}
-            video={videoRef.current}
+            video={videoElement}
             duration={duration}
             playing={playing}
             fullscreenToggleRef={fullscreenToggleRef}

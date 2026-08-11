@@ -864,6 +864,7 @@ describe("FileDetailContent companion region", () => {
     vi.stubGlobal("ResizeObserver", ResizeObserverMock);
 
     const pane = document.createElement("div");
+    let playerTop = 100;
     Object.defineProperty(pane, "clientHeight", {
       configurable: true,
       value: 500,
@@ -873,7 +874,7 @@ describe("FileDetailContent companion region", () => {
         const top = this === pane
           ? 50
           : this.classList.contains("media-detail-player")
-            ? 100
+            ? playerTop
             : 0;
         return {
           x: 0,
@@ -902,6 +903,15 @@ describe("FileDetailContent companion region", () => {
       expect(host?.style.getPropertyValue("--player-avail")).toBe("402px");
     });
     expect(resize).toBeDefined();
+
+    // A resize after scrolling must use the player's content coordinate,
+    // not its now-negative viewport coordinate.
+    pane.scrollTop = 500;
+    playerTop = -400;
+    act(() => resize?.());
+    await waitFor(() =>
+      expect(host?.style.getPropertyValue("--player-avail")).toBe("402px"),
+    );
   });
 
   it("gives video the rail layout", async () => {
