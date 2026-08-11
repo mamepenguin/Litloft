@@ -10,6 +10,7 @@ import {
   isInPictureInPicture,
   supportsPictureInPicture,
 } from "@/lib/backgroundPiP";
+import { useCaptionsPreference } from "../MediaControls/hooks/useCaptionsPreference";
 
 interface VideoRowProps {
   video: HTMLVideoElement | null;
@@ -79,19 +80,22 @@ export function PictureInPictureRow({ video }: VideoRowProps) {
 
 export function SubtitleTrackPicker({ video }: VideoRowProps) {
   const t = useTranslations("player");
+  const [, setCaptionsPreferred] = useCaptionsPreference();
   const [, setVersion] = useState(0);
   const tracks = video ? textTracks(video) : [];
 
   useEffect(() => {
     if (!video) return;
+    const list = video.textTracks;
+    if (typeof list.addEventListener !== "function") return;
     const update = () => setVersion((version) => version + 1);
-    video.textTracks.addEventListener("change", update);
-    video.textTracks.addEventListener("addtrack", update);
-    video.textTracks.addEventListener("removetrack", update);
+    list.addEventListener("change", update);
+    list.addEventListener("addtrack", update);
+    list.addEventListener("removetrack", update);
     return () => {
-      video.textTracks.removeEventListener("change", update);
-      video.textTracks.removeEventListener("addtrack", update);
-      video.textTracks.removeEventListener("removetrack", update);
+      list.removeEventListener("change", update);
+      list.removeEventListener("addtrack", update);
+      list.removeEventListener("removetrack", update);
     };
   }, [video]);
 
@@ -102,6 +106,7 @@ export function SubtitleTrackPicker({ video }: VideoRowProps) {
     tracks.forEach((track, index) => {
       track.mode = index === selectedIndex ? "showing" : "disabled";
     });
+    setCaptionsPreferred(selectedIndex !== -1);
     setVersion((version) => version + 1);
   };
 

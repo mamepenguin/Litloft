@@ -508,6 +508,31 @@ describe("createNativeVideoController extended controls", () => {
       mc.setCaptions?.(false);
       expect(tracks.map((track) => track.mode)).toEqual(["disabled", "disabled"]);
     });
+
+    it("restores the previously selected track after captions are toggled", () => {
+      const { list, tracks } = fakeTextTracks(["disabled", "showing"]);
+      const mc = createNativeVideoController(fakeVideo({ textTracks: list }));
+
+      mc.setCaptions?.(false);
+      mc.setCaptions?.(true);
+
+      expect(tracks.map((track) => track.mode)).toEqual([
+        "disabled",
+        "showing",
+      ]);
+    });
+
+    it("keeps a track selected outside the bool controller when enabling", () => {
+      const { list, tracks } = fakeTextTracks(["disabled", "showing"]);
+      const mc = createNativeVideoController(fakeVideo({ textTracks: list }));
+
+      mc.setCaptions?.(true);
+
+      expect(tracks.map((track) => track.mode)).toEqual([
+        "disabled",
+        "showing",
+      ]);
+    });
   });
 });
 

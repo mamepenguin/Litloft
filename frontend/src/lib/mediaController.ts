@@ -171,6 +171,7 @@ function isUsableRate(rate: number): boolean {
 export function createNativeVideoController(
   video: HTMLVideoElement,
 ): MediaController {
+  let selectedCaptionTrack = 0;
   return {
     seek(seconds) {
       video.currentTime = clampSeek(seconds, video.duration);
@@ -244,10 +245,26 @@ export function createNativeVideoController(
     },
     setCaptions(enabled) {
       const { textTracks } = video;
+      if (enabled) {
+        for (let index = 0; index < textTracks.length; index += 1) {
+          if (textTracks[index]?.mode === "showing") {
+            selectedCaptionTrack = index;
+            break;
+          }
+        }
+      } else {
+        for (let index = 0; index < textTracks.length; index += 1) {
+          if (textTracks[index]?.mode === "showing") {
+            selectedCaptionTrack = index;
+            break;
+          }
+        }
+      }
       for (let index = 0; index < textTracks.length; index += 1) {
         const track = textTracks[index];
         if (!track) continue;
-        track.mode = enabled && index === 0 ? "showing" : "disabled";
+        track.mode =
+          enabled && index === selectedCaptionTrack ? "showing" : "disabled";
       }
     },
     // isInterrupted is deliberately absent: a local file has nothing

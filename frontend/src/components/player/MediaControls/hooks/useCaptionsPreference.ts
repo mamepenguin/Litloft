@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useState } from "react";
 
 const STORAGE_KEY = "video-share-captions";
+const CHANGE_EVENT = "litloft:captions-preference-change";
 
 export function readCaptionsPreference(): boolean {
   if (typeof window === "undefined") return false;
@@ -31,6 +32,11 @@ export function useCaptionsPreference(): [boolean, (value: boolean) => void] {
 
   useEffect(() => {
     setEnabled(readCaptionsPreference());
+    const sync = (event: Event) => {
+      setEnabled((event as CustomEvent<boolean>).detail);
+    };
+    window.addEventListener(CHANGE_EVENT, sync);
+    return () => window.removeEventListener(CHANGE_EVENT, sync);
   }, []);
 
   const update = useCallback((value: boolean) => {
@@ -40,6 +46,7 @@ export function useCaptionsPreference(): [boolean, (value: boolean) => void] {
     } catch {
       // localStorage unavailable (private mode, test env) — keep in-memory only
     }
+    window.dispatchEvent(new CustomEvent(CHANGE_EVENT, { detail: value }));
   }, []);
 
   return [enabled, update];

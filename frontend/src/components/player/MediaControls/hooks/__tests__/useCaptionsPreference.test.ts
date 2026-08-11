@@ -39,6 +39,16 @@ describe("useCaptionsPreference", () => {
     expect(window.localStorage.getItem(STORAGE_KEY)).toBe("false");
   });
 
+  it("keeps consumers in the same tab in sync", () => {
+    const first = renderHook(() => useCaptionsPreference());
+    const second = renderHook(() => useCaptionsPreference());
+
+    act(() => first.result.current[1](true));
+
+    expect(first.result.current[0]).toBe(true);
+    expect(second.result.current[0]).toBe(true);
+  });
+
   it("reads false for anything that is not an explicit yes", () => {
     window.localStorage.setItem(STORAGE_KEY, "yes please");
     expect(readCaptionsPreference()).toBe(false);

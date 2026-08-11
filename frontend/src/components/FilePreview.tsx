@@ -166,6 +166,7 @@ export function FilePreview({
             onEnded={onEnded}
             autoPlay={autoPlay}
             initialTime={initialTime}
+            duration={file.duration}
             title={file.title || file.filename}
             subtitleText={file.folder_path || file.drive}
             onMediaController={relayMc}
