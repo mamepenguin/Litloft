@@ -161,6 +161,34 @@ export function FileDetailContent({
   const [documentCaptureController, setDocumentCaptureController] =
     useState<DocumentCaptureController | null>(null);
 
+  // How tall the rail may be: the visible height of whatever scrolls.
+  // Measured rather than computed, because the two hosts do not differ
+  // by a knowable amount — the right pane carries its own header row on
+  // top of the app header, and only it knows that.
+  const [railAvailable, setRailAvailable] = useState<number | null>(null);
+  useEffect(() => {
+    const pane = miniPlayerRoot ?? null;
+    const measure = () => {
+      if (pane) {
+        setRailAvailable(pane.clientHeight);
+        return;
+      }
+      const header = Number.parseFloat(
+        getComputedStyle(document.documentElement).getPropertyValue(
+          "--app-header-h",
+        ),
+      );
+      setRailAvailable(
+        window.innerHeight - (Number.isFinite(header) ? header : 0),
+      );
+    };
+    measure();
+    if (typeof ResizeObserver === "undefined") return;
+    const observer = new ResizeObserver(measure);
+    observer.observe(pane ?? document.documentElement);
+    return () => observer.disconnect();
+  }, [miniPlayerRoot]);
+
   const handleMediaController = useCallback(
     (mc: MediaController | null) => {
       setMediaController(mc);
@@ -639,9 +667,14 @@ export function FileDetailContent({
   const companionNode = (
     <div className="media-detail-companion">
       <div className="media-detail-companion-inner">
+        {/* `stack` rather than `tabs`: with one occupant a tab strip is
+            a label for a thing that is already the only thing there,
+            and its wrapper div breaks the flex chain the rail needs.
+            When a second occupant arrives (C-2 chapters) that choice
+            gets made properly, along with making its wrapper fill. */}
         <AddonSlot
           id="player-side"
-          layout="tabs"
+          layout="stack"
           props={{ ...addonSlotProps, fillHeight: railEligible }}
         />
       </div>
@@ -674,6 +707,9 @@ export function FileDetailContent({
         style={
           {
             "--rail-top": miniPlayerRoot ? "0px" : "var(--app-header-h, 0px)",
+            ...(railAvailable != null
+              ? { "--rail-avail": `${railAvailable}px` }
+              : {}),
           } as CSSProperties
         }
       >

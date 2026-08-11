@@ -806,15 +806,27 @@ div[data-citation-section-path]:not(tr) {
      the header's measured height when the document scrolls and the
      sticky header would otherwise cover the rail.
 
-     The available height is the same expression either way: a
-     self-scrolling pane is already the viewport minus the header, and
-     the document's visible area below the header is too. */
+     --rail-avail is the scroll container's visible height, measured by
+     the host. It cannot be computed in CSS: a self-scrolling pane is
+     not simply the viewport minus the app header — it carries its own
+     chrome as well — and the difference is not knowable from here. */
   .media-detail-companion-inner {
     position: sticky;
     top: calc(var(--rail-top, 0px) + 1rem);
-    max-height: calc(100dvh - var(--app-header-h, 0px) - 2rem);
+    max-height: calc(var(--rail-avail, 100dvh) - 2rem);
     display: flex;
     flex-direction: column;
     overflow: hidden;
+  }
+
+  /* Whatever the slot machinery puts here has to take the rail's
+     height and hand it on, or the occupant lays itself out at full
+     length and this box silently clips it. `min-height: 0` is the half
+     everyone forgets: without it a flex item refuses to shrink below
+     its content and the overflow moves up a level instead of
+     scrolling. */
+  .media-detail-companion-inner > * {
+    flex: 1 1 0%;
+    min-height: 0;
   }
 }
