@@ -16,6 +16,7 @@ import LoftPlayer from "./loft/LoftPlayer";
 import { MiniPlayerContainer } from "./MiniPlayerContainer";
 import { formatFileSize } from "@/lib/format";
 import { getStreamUrl, getThumbnailUrl } from "@/lib/api";
+import { playerKind } from "@/lib/playerKind";
 import type { MediaController } from "@/lib/mediaController";
 import type { DocumentCaptureController } from "@/lib/documentCapture";
 
@@ -116,11 +117,14 @@ export function FilePreview({
     [onMediaController],
   );
 
-  // .loft must be checked BEFORE the file_type branches: filetype
-  // classification reports .loft as ``video`` (so search file_type
-  // filters include it), but playback has to go through the iframe
-  // provider registry — a native <video> can't load a YouTube URL.
-  if (file.mime_type === "application/vnd.litloft.loft+json") {
+  // `playerKind` owns the ordering that matters here: .loft is checked
+  // before the file_type branches, because filetype classification
+  // reports it as ``video`` (so search file_type filters include it)
+  // while playback has to go through the iframe provider registry — a
+  // native <video> can't load a YouTube URL.
+  const kind = playerKind(file);
+
+  if (kind === "loft") {
     // Core renders the .loft player via the provider/player registry
     // (Phase 0 ships YouTube + Vimeo). The MiniPlayerContainer reflows
     // the player into a floating window when it scrolls out of view;
@@ -151,7 +155,7 @@ export function FilePreview({
     );
   }
 
-  if (file.file_type === "video") {
+  if (kind === "video") {
     return (
       <div className="-mx-4 -mt-4 md:mx-0 md:mt-0">
         <MiniPlayerContainer mc={localMc} root={miniPlayerRoot}>
@@ -183,7 +187,7 @@ export function FilePreview({
     );
   }
 
-  if (file.file_type === "audio") {
+  if (kind === "audio") {
     return (
       <AudioPlayer
         file={file}

@@ -157,7 +157,9 @@
     "activeSummaryFallbackOpen": "Open note file",
     "relatedFilesTitle": "Related files",
     "relatedFileMissing": "missing",
-    "relatedFileSizeBytes": "{size} bytes"
+    "relatedFileSizeBytes": "{size} bytes",
+    "layoutBeside": "Move transcript beside the player",
+    "layoutStack": "Move transcript below the player"
   },
   "search": {
     "label": "Search",

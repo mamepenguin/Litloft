@@ -759,3 +759,103 @@ div[data-citation-section-path]:not(tr) {
     color-mix(in srgb, var(--accent-amber) 60%, transparent);
   cursor: help;
 }
+
+/* ------------------------------------------------------------------
+   Media file detail: player column with an optional companion rail.
+
+   One occupant, two positions. The companion (transcript today,
+   chapters next) must not be mounted twice — it fetches, subscribes to
+   the playback clock and holds scroll state — so the grid moves it
+   rather than the markup duplicating it.
+
+   The switch is a CONTAINER query, not a breakpoint. The same content
+   renders in the full-screen route and inside the 2-pane right pane,
+   which is 280px narrower than the viewport; a viewport breakpoint
+   would split the pane into two columns at widths where it does not
+   fit. See DESIGN.md §10.
+
+   60rem = 552px player + 384px rail + 24px gap.
+   ------------------------------------------------------------------ */
+.media-detail-grid {
+  display: grid;
+  gap: 1.5rem;
+  grid-template-columns: minmax(0, 1fr);
+  grid-template-areas:
+    "player"
+    "companion"
+    "rest";
+}
+
+.media-detail-player { grid-area: player; }
+.media-detail-companion { grid-area: companion; }
+.media-detail-rest { grid-area: rest; }
+
+/* The host bounds the companion in BOTH forms, not just the rail.
+   Whether the rail form is in use is a container-width decision made
+   here in CSS, while the occupant is handed its props in JS — so the
+   occupant cannot know which form it is in and must not be the one
+   holding the height. Stacked it is a box; beside the player it takes
+   the scroll container's height (below). */
+.media-detail-companion-inner {
+  display: flex;
+  flex-direction: column;
+  max-height: 20rem;
+  overflow: hidden;
+}
+
+/* Whatever the slot machinery puts here has to take that height and
+   hand it on, or the occupant lays itself out at full length and this
+   box silently clips it. `min-height: 0` is the half everyone forgets:
+   without it a flex item refuses to shrink below its content and the
+   overflow moves up a level instead of scrolling. */
+.media-detail-companion-inner > * {
+  flex: 1 1 0%;
+  min-height: 0;
+}
+
+/* Hidden until the container query below turns it on. Declared BEFORE
+   that block: the two rules have equal specificity, so source order is
+   what decides, and putting this after would win everywhere. */
+.media-detail-layout-toggle {
+  display: none;
+}
+
+/* The rail needs BOTH a wide enough container and the viewer having
+   asked for it. The width is a CSS question and the preference is a
+   stored one, so they are ANDed here rather than reconciled: either
+   saying no leaves the stacked layout. Two conditions that must agree
+   eventually disagree — C-1 shipped exactly that bug — while two that
+   are ANDed cannot. */
+@container (min-width: 60rem) {
+  [data-media-layout="beside"] .media-detail-grid {
+    grid-template-columns: minmax(0, 1fr) 24rem;
+    grid-template-areas:
+      "player companion"
+      "rest   companion";
+  }
+
+  /* Offering the swap only where it can happen. A control that does
+     nothing when pressed is worse than no control. */
+  .media-detail-layout-toggle {
+    display: inline-flex;
+  }
+
+  /* The rail spans both rows, so the reader can scroll the left column
+     through metadata and summaries while it stays put and keeps
+     following playback.
+
+     --rail-top is set by the host: 0 inside a pane that scrolls itself,
+     the header's measured height when the document scrolls and the
+     sticky header would otherwise cover the rail.
+
+     --rail-avail is the scroll container's visible height, measured by
+     the host. It cannot be computed in CSS: a self-scrolling pane is
+     not simply the viewport minus the app header — it carries its own
+     chrome as well — and the difference is not knowable from here. */
+  [data-media-layout="beside"] .media-detail-companion-inner {
+    position: sticky;
+    top: calc(var(--rail-top, 0px) + 1rem);
+    max-height: calc(var(--rail-avail, 100dvh) - 2rem);
+  }
+}
+

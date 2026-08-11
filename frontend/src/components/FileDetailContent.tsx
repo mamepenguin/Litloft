@@ -1,6 +1,12 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import {
+  useCallback,
+  useEffect,
+  useRef,
+  useState,
+  type CSSProperties,
+} from "react";
 import { useTranslations } from "next-intl";
 import {
   Check,
@@ -23,12 +29,14 @@ import { formatDuration, formatFileSize } from "@/lib/format";
 import { clearListSnapshot } from "@/lib/listSnapshot";
 import type { FileItem } from "@/types";
 import type { MediaController } from "@/lib/mediaController";
+import { playerKind } from "@/lib/playerKind";
 import type { DocumentCaptureController } from "@/lib/documentCapture";
 
 import { markdownContentRegistry } from "@/lib/markdownContentRegistry";
 import { useIsMobile } from "@/hooks/useIsMobile";
 import { ActiveSummaryHost } from "./ActiveSummaryHost";
 import { AddonSlot } from "./AddonSlot";
+import { useAddonSlots } from "./AddonSlotsProvider";
 import { CastButton } from "./CastButton";
 import { CommentSection } from "./CommentSection";
 import { MarkdownAwareTagChips } from "./MarkdownAwareTagChips";
@@ -37,6 +45,7 @@ import { FavoriteButton } from "./FavoriteButton";
 import { FileActions } from "./FileActions";
 import { FilePreview } from "./FilePreview";
 import { MarkdownDocumentLayout } from "./MarkdownDocumentLayout";
+import { MediaLayoutToggle } from "./MediaLayoutToggle";
 import { RelatedFilesSection } from "./RelatedFilesSection";
 import { useSidebar } from "./SidebarProvider";
 import { usePolicy } from "@/hooks/usePolicy";
@@ -130,6 +139,7 @@ export function FileDetailContent({
   const t = useTranslations("file");
   const tc = useTranslations("common");
   const { requestRefresh: refreshSidebar } = useSidebar();
+  const { hasSlot } = useAddonSlots();
   const isMobile = useIsMobile();
 
   const [file, setFile] = useState<FileItem | null>(null);
@@ -151,6 +161,34 @@ export function FileDetailContent({
     useState<MediaController | null>(null);
   const [documentCaptureController, setDocumentCaptureController] =
     useState<DocumentCaptureController | null>(null);
+
+  // How tall the rail may be: the visible height of whatever scrolls.
+  // Measured rather than computed, because the two hosts do not differ
+  // by a knowable amount — the right pane carries its own header row on
+  // top of the app header, and only it knows that.
+  const [railAvailable, setRailAvailable] = useState<number | null>(null);
+  useEffect(() => {
+    const pane = miniPlayerRoot ?? null;
+    const measure = () => {
+      if (pane) {
+        setRailAvailable(pane.clientHeight);
+        return;
+      }
+      const header = Number.parseFloat(
+        getComputedStyle(document.documentElement).getPropertyValue(
+          "--app-header-h",
+        ),
+      );
+      setRailAvailable(
+        window.innerHeight - (Number.isFinite(header) ? header : 0),
+      );
+    };
+    measure();
+    if (typeof ResizeObserver === "undefined") return;
+    const observer = new ResizeObserver(measure);
+    observer.observe(pane ?? document.documentElement);
+    return () => observer.disconnect();
+  }, [miniPlayerRoot]);
 
   const handleMediaController = useCallback(
     (mc: MediaController | null) => {
@@ -305,6 +343,12 @@ export function FileDetailContent({
   //   (b) text/html, which uses the same layout for AI artifact preview
   //       and reuses the inspector but never mounts the editor slot
   // Anything else falls through to the legacy vertical stack.
+  // Which player, if any, plays this file — and therefore whether a
+  // companion region is possible at all and whether it may take the
+  // rail form. `playerKind` owns the .loft-before-file_type ordering.
+  const companionKind = playerKind(file);
+  const railEligible = companionKind === "video" || companionKind === "loft";
+
   const isHtmlPreview = file.mime_type === "text/html";
   const useDocumentLayout =
     isHtmlPreview ||
@@ -565,8 +609,8 @@ export function FileDetailContent({
 
   // Legacy vertical stack — preserved verbatim for non-Markdown files
   // and for drives where the Knowledge editor is policy-disabled.
-  return (
-    <div className="w-full">
+  const playerNode = (
+    <>
       <FilePreview
         file={file}
         videoRef={videoRef}
@@ -588,6 +632,17 @@ export function FileDetailContent({
         props={addonSlotProps}
       />
 
+      {/* Directly below the player rather than inside its control bar:
+          that bar belongs to the .loft embed and native video does not
+          have one, so a button there would appear for some media and
+          not others. Only rendered where a rail is possible at all;
+          the container query decides whether it is visible. */}
+      {railEligible && hasSlot("player-side") && <MediaLayoutToggle />}
+    </>
+  );
+
+  const restNode = (
+    <>
       {metadataNode}
 
       <div className="mt-4 space-y-4">
@@ -602,6 +657,80 @@ export function FileDetailContent({
       </div>
 
       <CommentSection fileId={fileId} />
+    </>
+  );
+
+  // The companion region only exists for files a player actually
+  // plays, and only when an addon has something to put in it. With no
+  // occupant the grid never appears and the page is exactly as before.
+  if (!companionKind || !hasSlot("player-side")) {
+    return (
+      <div className="w-full">
+        {playerNode}
+        {restNode}
+      </div>
+    );
+  }
+
+  const companionNode = (
+    <div className="media-detail-companion">
+      <div className="media-detail-companion-inner">
+        {/* `stack` rather than `tabs`: with one occupant a tab strip is
+            a label for a thing that is already the only thing there,
+            and its wrapper div breaks the flex chain the rail needs.
+            When a second occupant arrives (C-2 chapters) that choice
+            gets made properly, along with making its wrapper fill. */}
+        {/* fillHeight is unconditional: the host bounds this region in
+            both forms, so the occupant should always fill what it is
+            given. Deciding it by file kind was wrong — whether the rail
+            form is in use is a container-width question answered in
+            CSS, and a video in a narrow pane got the fill treatment
+            with nothing bounding it, so the list ran to full length. */}
+        <AddonSlot
+          id="player-side"
+          layout="stack"
+          props={{ ...addonSlotProps, fillHeight: true }}
+        />
+      </div>
+    </div>
+  );
+
+  // Audio never gets the rail: the player is ~200px tall and a column
+  // beside it would leave half the width empty. It keeps the promoted
+  // position — directly below the player, full width — which is what
+  // the narrow form of the grid already is.
+  if (!railEligible) {
+    return (
+      <div className="w-full">
+        {playerNode}
+        {companionNode}
+        {restNode}
+      </div>
+    );
+  }
+
+  return (
+    <div className="w-full @container">
+      <div
+        className="media-detail-grid"
+        // Sticky offset by host: a pane that scrolls itself starts at
+        // its own top, while under document scroll the sticky header
+        // would cover the rail. `miniPlayerRoot` is exactly the "this
+        // host scrolls itself" signal — RightPaneFile passes its scroll
+        // element, document-scroll hosts pass nothing.
+        style={
+          {
+            "--rail-top": miniPlayerRoot ? "0px" : "var(--app-header-h, 0px)",
+            ...(railAvailable != null
+              ? { "--rail-avail": `${railAvailable}px` }
+              : {}),
+          } as CSSProperties
+        }
+      >
+        <div className="media-detail-player">{playerNode}</div>
+        {companionNode}
+        <div className="media-detail-rest">{restNode}</div>
+      </div>
     </div>
   );
 }

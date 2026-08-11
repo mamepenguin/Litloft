@@ -157,7 +157,9 @@
     "activeSummaryFallbackOpen": "ノートファイルを開く",
     "relatedFilesTitle": "関連ファイル",
     "relatedFileMissing": "見つからない",
-    "relatedFileSizeBytes": "{size}バイト"
+    "relatedFileSizeBytes": "{size}バイト",
+    "layoutBeside": "文字起こしを動画の横に表示",
+    "layoutStack": "文字起こしを動画の下に表示"
   },
   "search": {
     "label": "検索",

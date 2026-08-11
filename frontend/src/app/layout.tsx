@@ -46,6 +46,10 @@ export const viewport: Viewport = {
   ],
 };
 
+// Applied before first paint. The media layout rides along for the
+// same reason the theme does: it is decided entirely in CSS from an
+// attribute here, so reading it in an effect would show the stacked
+// layout for a frame and then shift.
 const themeInitScript = `
 (function(){
   var t = localStorage.getItem('theme-preference') || 'system';
@@ -53,6 +57,11 @@ const themeInitScript = `
     ? t
     : (window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light');
   document.documentElement.setAttribute('data-theme', resolved);
+
+  var layout = localStorage.getItem('media-layout-preference');
+  document.documentElement.setAttribute(
+    'data-media-layout', layout === 'beside' ? 'beside' : 'stacked'
+  );
 })();
 `;
 
