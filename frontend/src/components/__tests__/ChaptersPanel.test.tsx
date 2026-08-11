@@ -69,6 +69,21 @@ describe("activeChapterIndex", () => {
     const open = [chapter(0, "Only", 0)];
     expect(activeChapterIndex(open, 12_345)).toBe(0);
   });
+
+  it("does not assume the list ascends with time", () => {
+    // Display order is `ordering`, which the schema keeps so a producer
+    // can commit an order of its own. Stopping at the first future start
+    // reports the wrong chapter for any set where the two disagree.
+    const shuffled = [
+      chapter(180, "Third", 0),
+      chapter(0, "First", 1),
+      chapter(60, "Second", 2),
+    ];
+    expect(activeChapterIndex(shuffled, 200)).toBe(0);
+    expect(activeChapterIndex(shuffled, 90)).toBe(2);
+    expect(activeChapterIndex(shuffled, 10)).toBe(1);
+    expect(activeChapterIndex(shuffled, -1)).toBe(-1);
+  });
 });
 
 describe("ChaptersPanel", () => {
@@ -178,6 +193,60 @@ describe("ChaptersPanel", () => {
     fireEvent.click(screen.getByRole("button", { expanded: true }));
 
     expect(screen.getByText("chapters")).toBeInTheDocument();
+  });
+
+  it("reports what arrived so the host can fold an empty region", async () => {
+    mockChapters();
+    const onResolved = vi.fn();
+    render(
+      <ChaptersPanel
+        fileId="f1"
+        mediaController={makeController()}
+        onResolved={onResolved}
+      />,
+    );
+
+    await waitFor(() => expect(onResolved).toHaveBeenCalledWith(3));
+  });
+
+  it("reports zero when the chapters cannot be read", async () => {
+    (api.getFileChapters as ReturnType<typeof vi.fn>).mockRejectedValue(
+      new Error("boom"),
+    );
+    const onResolved = vi.fn();
+    render(
+      <ChaptersPanel
+        fileId="f1"
+        mediaController={makeController()}
+        onResolved={onResolved}
+      />,
+    );
+
+    await waitFor(() => expect(onResolved).toHaveBeenCalledWith(0));
+  });
+
+  it("does not refetch when the host passes a fresh callback each render", async () => {
+    // This component re-renders on every clock tick, so an `onResolved`
+    // in the effect's dependencies would refetch several times a second.
+    mockChapters();
+    const { rerender } = render(
+      <ChaptersPanel
+        fileId="f1"
+        mediaController={makeController()}
+        onResolved={() => {}}
+      />,
+    );
+    await waitFor(() => expect(api.getFileChapters).toHaveBeenCalledTimes(1));
+
+    rerender(
+      <ChaptersPanel
+        fileId="f1"
+        mediaController={makeController()}
+        onResolved={() => {}}
+      />,
+    );
+
+    expect(api.getFileChapters).toHaveBeenCalledTimes(1);
   });
 
   it("stays inert when no controller has been published yet", async () => {

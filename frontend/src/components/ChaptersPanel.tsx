@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { ChevronDown, ChevronRight } from "lucide-react";
 import { useTranslations } from "next-intl";
 
@@ -10,22 +10,32 @@ import { useMediaClock } from "@/lib/mediaClock";
 import type { MediaController } from "@/lib/mediaController";
 
 /**
- * Index of the last chapter that has started, or -1 before the first one.
+ * Index of the chapter the playhead is inside, or -1 before any has begun.
  *
- * Deliberately reads `start_time` only. `end_time` is nullable — a producer
- * may not state one — so a range test would answer "no chapter" for a
- * position the file plainly is inside. Chapters partition the timeline, so
- * "the last one that began" is the same answer wherever both are known and
- * the only available answer where they are not.
+ * Reads `start_time` only. `end_time` is nullable — a producer may not state
+ * one — so a range test would answer "no chapter" for a position the file is
+ * plainly inside. Chapters partition the timeline, so "the latest one that
+ * began" is the same answer wherever both are known and the only available
+ * answer where they are not.
+ *
+ * Scans the whole list rather than stopping at the first future start.
+ * Display order is `ordering`, which the schema keeps precisely so a
+ * producer can commit an order of its own; nothing guarantees it ascends
+ * with time. Stopping early would report the wrong chapter for any set
+ * where it does not, and lists are short enough that the full pass is free.
  */
 export function activeChapterIndex(
   chapters: FileChapter[],
   currentTime: number,
 ): number {
   let active = -1;
+  let latestStart = -Infinity;
   for (let i = 0; i < chapters.length; i += 1) {
-    if (chapters[i].start_time <= currentTime) active = i;
-    else break;
+    const start = chapters[i].start_time;
+    if (start <= currentTime && start > latestStart) {
+      latestStart = start;
+      active = i;
+    }
   }
   return active;
 }
@@ -33,24 +43,50 @@ export function activeChapterIndex(
 interface ChaptersPanelProps {
   fileId: string;
   mediaController: MediaController | null;
+  /**
+   * How many chapters actually arrived, reported once the fetch settles.
+   *
+   * The host sizes the companion region from the detail response's
+   * `has_chapters`, which is what keeps the layout from re-gridding after
+   * a second round trip. But hiding itself is not enough when this is the
+   * only occupant: the region would stay, and on a wide container that is
+   * a 24rem empty column with the player squeezed beside it. So the panel
+   * reports nothing-to-show rather than only acting on it.
+   */
+  onResolved?: (count: number) => void;
 }
 
-export function ChaptersPanel({ fileId, mediaController }: ChaptersPanelProps) {
+export function ChaptersPanel({
+  fileId,
+  mediaController,
+  onResolved,
+}: ChaptersPanelProps) {
   const t = useTranslations("player");
   const [chapters, setChapters] = useState<FileChapter[]>([]);
   const [collapsed, setCollapsed] = useState(false);
   const { currentTime } = useMediaClock(mediaController);
 
+  // Held in a ref so an inline arrow from the host does not re-run the
+  // fetch on every render of a component that renders on every tick.
+  const onResolvedRef = useRef(onResolved);
+  useEffect(() => {
+    onResolvedRef.current = onResolved;
+  });
+
   useEffect(() => {
     let cancelled = false;
     getFileChapters(fileId)
       .then((res) => {
-        if (!cancelled) setChapters(res.chapters);
+        if (cancelled) return;
+        setChapters(res.chapters);
+        onResolvedRef.current?.(res.chapters.length);
       })
       .catch(() => {
         // A chapter list that cannot be read is not a reason to take the
-        // player or the transcript down with it. Render nothing.
-        if (!cancelled) setChapters([]);
+        // player or the transcript down with it.
+        if (cancelled) return;
+        setChapters([]);
+        onResolvedRef.current?.(0);
       });
     return () => {
       cancelled = true;

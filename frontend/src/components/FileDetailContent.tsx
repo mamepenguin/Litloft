@@ -144,6 +144,23 @@ export function FileDetailContent({
   const isMobile = useIsMobile();
 
   const [file, setFile] = useState<FileItem | null>(null);
+  /**
+   * Whether the companion region has chapters to show — held apart from
+   * ``file`` on purpose.
+   *
+   * ``has_chapters`` is a detail-only field, but ``FileItem`` is also what
+   * the mutation endpoints return (like / dislike / favourite / metadata /
+   * rename all answer with the plain ``FileResponse``). Every one of those
+   * does ``setFile(updated)``, so keeping the flag on the file object means
+   * liking a video makes its chapters disappear until the next reload.
+   * Separate state cannot be clobbered by a whole-object replace, now or
+   * from a call site added later.
+   *
+   * Seeded from the detail response so the layout is decided without a
+   * second round trip, then corrected by the panel once its fetch settles
+   * (see ``ChaptersPanel``'s ``onResolved``).
+   */
+  const [chaptersPresent, setChaptersPresent] = useState(false);
   const [editing, setEditing] = useState(false);
   const [editTitle, setEditTitle] = useState("");
   const [editDesc, setEditDesc] = useState("");
@@ -201,6 +218,7 @@ export function FileDetailContent({
 
   useEffect(() => {
     setFile(null);
+    setChaptersPresent(false);
     setEditing(false);
     setDocumentCaptureController(null);
     let cancelled = false;
@@ -208,6 +226,7 @@ export function FileDetailContent({
       .then((f) => {
         if (cancelled) return;
         setFile(f);
+        setChaptersPresent(f.has_chapters === true);
         setEditTitle(f.title);
         setEditDesc(f.description);
       })
@@ -249,6 +268,14 @@ export function FileDetailContent({
     });
     return dispose;
   }, [fileId, handleTagsSaved]);
+
+  // Folds the region away when the list turns out to be empty or
+  // unreadable. Without this the panel hides itself while the region it
+  // was the only occupant of stays — an empty 24rem column with the
+  // player squeezed beside it.
+  const handleChaptersResolved = useCallback((count: number) => {
+    setChaptersPresent(count > 0);
+  }, []);
 
   const handleLike = useCallback(async () => {
     if (!file) return;
@@ -354,8 +381,7 @@ export function FileDetailContent({
   // chapters are a core entity and `AddonSlot` can only load addon
   // components. So every question that used to be "does an addon fill
   // this?" becomes "does anyone?".
-  const hasChapters = file.has_chapters === true;
-  const companionOccupied = hasSlot("player-side") || hasChapters;
+  const companionOccupied = hasSlot("player-side") || chaptersPresent;
 
   const isHtmlPreview = file.mime_type === "text/html";
   const useDocumentLayout =
@@ -689,8 +715,12 @@ export function FileDetailContent({
             seeing a coarse index and the fine text follow the same clock
             at once is the reason the rail exists. Chapters sit above
             because they are the shorter, coarser index of the two. */}
-        {hasChapters && (
-          <ChaptersPanel fileId={fileId} mediaController={mediaController} />
+        {chaptersPresent && (
+          <ChaptersPanel
+            fileId={fileId}
+            mediaController={mediaController}
+            onResolved={handleChaptersResolved}
+          />
         )}
         {/* The wrapper #31 said would break the flex chain. It is here
             because the chain now has to fork — the lead sizes to its

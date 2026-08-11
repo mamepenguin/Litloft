@@ -136,9 +136,18 @@ vi.mock("../CastButton", () => ({
 }));
 // Core's own companion occupant. Mocked like the other heavy children:
 // what it renders is its own test's business, while this file cares
-// only that the host places it and counts it as an occupant.
+// only that the host places it and counts it as an occupant. The button
+// lets a test fire `onResolved` at a moment it controls, rather than
+// racing an effect.
 vi.mock("../ChaptersPanel", () => ({
-  ChaptersPanel: () => <div data-testid="chapters-panel" />,
+  ChaptersPanel: ({ onResolved }: { onResolved?: (n: number) => void }) => (
+    <div data-testid="chapters-panel">
+      <button
+        data-testid="chapters-resolved-empty"
+        onClick={() => onResolved?.(0)}
+      />
+    </div>
+  ),
 }));
 vi.mock("@/lib/api", () => ({
   getFile: vi.fn(),
@@ -838,6 +847,51 @@ describe("FileDetailContent companion region", () => {
     await renderFile(makeFile());
 
     expect(screen.queryByTestId("chapters-panel")).toBeNull();
+  });
+
+  it("keeps the chapters through a mutation that answers without them", async () => {
+    // like / dislike / favourite / metadata / rename all reply with the
+    // plain FileResponse, which has no `has_chapters`. Storing that whole
+    // object used to erase the flag, so liking a video made its chapters
+    // vanish until the next reload.
+    const { container } = await renderFile(makeFile({ has_chapters: true }));
+    expect(grid(container)).not.toBeNull();
+
+    // `makeFile` carries no `has_chapters` unless asked, which is exactly
+    // the shape these endpoints answer with.
+    (api.likeFile as ReturnType<typeof vi.fn>).mockResolvedValue(
+      makeFile({ likes: 1 }),
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: "Like" }));
+    await waitFor(() => expect(api.likeFile).toHaveBeenCalled());
+
+    expect(screen.getByTestId("chapters-panel")).toBeInTheDocument();
+    expect(grid(container)).not.toBeNull();
+  });
+
+  it("folds the region away when the chapters turn out to be unreadable", async () => {
+    // The panel hiding itself is not enough when it is the only
+    // occupant: the region would stay as an empty 24rem column with the
+    // player squeezed beside it.
+    const { container } = await renderFile(makeFile({ has_chapters: true }));
+    expect(grid(container)).not.toBeNull();
+
+    fireEvent.click(screen.getByTestId("chapters-resolved-empty"));
+
+    expect(screen.queryByTestId("chapters-panel")).toBeNull();
+    expect(grid(container)).toBeNull();
+  });
+
+  it("keeps the region when an addon occupies it and the chapters fail", async () => {
+    slotMocks.occupied.add("player-side");
+    const { container } = await renderFile(makeFile({ has_chapters: true }));
+
+    fireEvent.click(screen.getByTestId("chapters-resolved-empty"));
+
+    expect(screen.queryByTestId("chapters-panel")).toBeNull();
+    expect(screen.getByTestId("addon-slot-player-side")).toBeInTheDocument();
+    expect(grid(container)).not.toBeNull();
   });
 
   it("gives the slot a wrapper that carries the height on", async () => {
