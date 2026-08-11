@@ -104,6 +104,8 @@ interface FileDetailContentProps {
   autoPlay?: boolean;
 }
 
+const PLAYER_PEEK_PX = 48;
+
 /**
  * Width at which the companion may sit beside the player, in rem:
  * 552px player + 384px rail + 24px gap. Kept in rem, and resolved
@@ -194,6 +196,8 @@ export function FileDetailContent({
   // by a knowable amount — the right pane carries its own header row on
   // top of the app header, and only it knows that.
   const [railAvailable, setRailAvailable] = useState<number | null>(null);
+  const [playerAvailable, setPlayerAvailable] = useState<number | null>(null);
+  const playerWrapperRef = useRef<HTMLDivElement>(null);
   // Whether this host is wide enough for the rail form. Measured rather
   // than asked of a container query: `@container` establishes a
   // containment context, and on iOS Safari one wrapped around a <video>
@@ -205,15 +209,18 @@ export function FileDetailContent({
   // was — this renders both full-width and inside the 2-pane right pane
   // — so the question stays "how wide is this element", only the way of
   // answering it changes.
+  //
   // Written straight onto the node rather than held in state: the
   // layout is decided entirely in CSS from the attribute, the same way
   // `lib/mediaLayout.ts` drives `data-media-layout`. Nothing has to
   // re-render for the columns to change, so a window drag costs no
   // React work at all.
   const railHostRef = useRef<HTMLDivElement | null>(null);
-  // Same idea for the height, which the observer recomputes on every
-  // resize frame and which usually comes back unchanged.
+  // Both budgets are recomputed on every resize frame and usually come
+  // back unchanged; the guards keep an identical value from being
+  // dispatched sixty times a second during a drag.
   const railAvailableRef = useRef<number | null>(null);
+  const playerAvailableRef = useRef<number | null>(null);
   // Reached by the callback ref below, which runs on commits the
   // measuring effect does not.
   const railObserverRef = useRef<ResizeObserver | null>(null);
@@ -249,19 +256,43 @@ export function FileDetailContent({
       railAvailableRef.current = value;
       setRailAvailable(value);
     };
+    const publishPlayerAvailable = (value: number | null) => {
+      if (value === playerAvailableRef.current) return;
+      playerAvailableRef.current = value;
+      setPlayerAvailable(value);
+    };
     const measure = () => {
+      let available: number;
+      let visibleTop: number;
       if (pane) {
-        publishAvailable(pane.clientHeight);
+        available = pane.clientHeight;
+        visibleTop = pane.getBoundingClientRect().top;
       } else {
         const header = Number.parseFloat(
           getComputedStyle(document.documentElement).getPropertyValue(
             "--app-header-h",
           ),
         );
-        publishAvailable(
-          window.innerHeight - (Number.isFinite(header) ? header : 0),
-        );
+        visibleTop = Number.isFinite(header) ? header : 0;
+        available = window.innerHeight - visibleTop;
       }
+
+      // Keep the C-1 rail budget unchanged. The player gets a separate
+      // budget because it starts below the scroll root's visible top and
+      // deliberately leaves a small peek of the title below the frame.
+      publishAvailable(available);
+      const player = playerWrapperRef.current;
+      publishPlayerAvailable(
+        player
+          ? Math.max(
+              0,
+              available -
+                Math.max(0, player.getBoundingClientRect().top - visibleTop) -
+                PLAYER_PEEK_PX,
+            )
+          : null,
+      );
+
       const host = railHostRef.current;
       if (!host) return;
       const rootFontSize =
@@ -276,6 +307,7 @@ export function FileDetailContent({
     const observer = new ResizeObserver(measure);
     railObserverRef.current = observer;
     observer.observe(pane ?? document.documentElement);
+    if (playerWrapperRef.current) observer.observe(playerWrapperRef.current);
     // Safe to observe the element this callback writes an attribute to:
     // the attribute only re-columns the grid *inside* it, while the
     // wrapper itself stays full-width. Nothing it sets can change what
@@ -289,7 +321,12 @@ export function FileDetailContent({
       observer.disconnect();
       railObserverRef.current = null;
     };
-  }, [miniPlayerRoot]);
+    // `file?.id` is here for the *player* wrapper, which renders on
+    // every branch as soon as there is a file, so one dependency covers
+    // it exactly. The rail host does not rely on it — its callback ref
+    // covers every reason that wrapper can appear, including an addon
+    // publishing `player-side` after the file has already resolved.
+  }, [file?.id, miniPlayerRoot]);
 
   const handleMediaController = useCallback(
     (mc: MediaController | null) => {
@@ -758,6 +795,25 @@ export function FileDetailContent({
     </>
   );
 
+  const playerLayoutNode = (
+    <div ref={playerWrapperRef} className="media-detail-player">
+      {playerNode}
+    </div>
+  );
+
+  // Publish the existing rail variables and the new player budget on a
+  // wrapper shared by every legacy layout branch. The grid path inherits
+  // byte-for-byte the same rail values it used to own directly.
+  const mediaDetailStyle = {
+    "--rail-top": miniPlayerRoot ? "0px" : "var(--app-header-h, 0px)",
+    ...(railAvailable != null
+      ? { "--rail-avail": `${railAvailable}px` }
+      : {}),
+    ...(playerAvailable != null
+      ? { "--player-avail": `${playerAvailable}px` }
+      : {}),
+  } as CSSProperties;
+
   const restNode = (
     <>
       {metadataNode}
@@ -782,8 +838,8 @@ export function FileDetailContent({
   // occupant the grid never appears and the page is exactly as before.
   if (!companionKind || !companionOccupied) {
     return (
-      <div className="w-full">
-        {playerNode}
+      <div className="media-detail-host w-full" style={mediaDetailStyle}>
+        {playerLayoutNode}
         {restNode}
       </div>
     );
@@ -834,8 +890,8 @@ export function FileDetailContent({
   // the narrow form of the grid already is.
   if (!railEligible) {
     return (
-      <div className="w-full">
-        {playerNode}
+      <div className="media-detail-host w-full" style={mediaDetailStyle}>
+        {playerLayoutNode}
         {companionNode}
         {restNode}
       </div>
@@ -846,24 +902,13 @@ export function FileDetailContent({
   // rendered here: absent reads as narrow, which is the layout to show
   // before anything has been measured.
   return (
-    <div ref={attachRailHost} className="w-full">
-      <div
-        className="media-detail-grid"
-        // Sticky offset by host: a pane that scrolls itself starts at
-        // its own top, while under document scroll the sticky header
-        // would cover the rail. `miniPlayerRoot` is exactly the "this
-        // host scrolls itself" signal — RightPaneFile passes its scroll
-        // element, document-scroll hosts pass nothing.
-        style={
-          {
-            "--rail-top": miniPlayerRoot ? "0px" : "var(--app-header-h, 0px)",
-            ...(railAvailable != null
-              ? { "--rail-avail": `${railAvailable}px` }
-              : {}),
-          } as CSSProperties
-        }
-      >
-        <div className="media-detail-player">{playerNode}</div>
+    <div
+      ref={attachRailHost}
+      className="media-detail-host w-full"
+      style={mediaDetailStyle}
+    >
+      <div className="media-detail-grid">
+        {playerLayoutNode}
         {companionNode}
         <div className="media-detail-rest">{restNode}</div>
       </div>

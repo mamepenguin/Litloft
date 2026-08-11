@@ -747,6 +747,12 @@ describe("FileDetailContent companion region", () => {
     slotMocks.occupied.clear();
   });
 
+  afterEach(() => {
+    vi.unstubAllGlobals();
+    vi.restoreAllMocks();
+    document.documentElement.style.removeProperty("--app-header-h");
+  });
+
   function grid(container: HTMLElement) {
     return container.querySelector(".media-detail-grid");
   }
@@ -765,6 +771,137 @@ describe("FileDetailContent companion region", () => {
     // the page keeps exactly the layout it had before this existed.
     expect(screen.queryByTestId("addon-slot-player-side")).toBeNull();
     expect(grid(container)).toBeNull();
+  });
+
+  it("wraps the player on the no-companion, promoted, and grid branches", async () => {
+    const noCompanion = await renderFile(makeFile());
+    expect(
+      noCompanion.container.querySelector(
+        ".media-detail-player > [data-testid='file-preview']",
+      ),
+    ).not.toBeNull();
+    noCompanion.unmount();
+
+    slotMocks.occupied.add("player-side");
+    const promoted = await renderFile(
+      makeFile({
+        filename: "ep.mp3",
+        file_type: "audio",
+        mime_type: "audio/mpeg",
+      }),
+    );
+    expect(
+      promoted.container.querySelector(
+        ".media-detail-player > [data-testid='file-preview']",
+      ),
+    ).not.toBeNull();
+    promoted.unmount();
+
+    const gridLayout = await renderFile(makeFile());
+    expect(
+      gridLayout.container.querySelector(
+        ".media-detail-grid .media-detail-player > [data-testid='file-preview']",
+      ),
+    ).not.toBeNull();
+  });
+
+  it("publishes both height budgets without a companion and recomputes them", async () => {
+    let resize: (() => void) | undefined;
+    class ResizeObserverMock {
+      constructor(callback: () => void) {
+        resize = callback;
+      }
+      observe() {}
+      disconnect() {}
+    }
+    vi.stubGlobal("ResizeObserver", ResizeObserverMock);
+    vi.stubGlobal("innerHeight", 676);
+    document.documentElement.style.setProperty("--app-header-h", "64px");
+    vi.spyOn(HTMLElement.prototype, "getBoundingClientRect").mockImplementation(
+      function (this: HTMLElement) {
+        const top = this.classList.contains("media-detail-player") ? 120 : 0;
+        return {
+          x: 0,
+          y: top,
+          top,
+          right: 0,
+          bottom: top,
+          left: 0,
+          width: 0,
+          height: 0,
+          toJSON: () => ({}),
+        };
+      },
+    );
+
+    const { container } = await renderFile(makeFile());
+    const host = container.querySelector<HTMLElement>(".media-detail-host");
+    await waitFor(() => {
+      expect(host?.style.getPropertyValue("--rail-top")).toBe(
+        "var(--app-header-h, 0px)",
+      );
+      expect(host?.style.getPropertyValue("--rail-avail")).toBe("612px");
+      expect(host?.style.getPropertyValue("--player-avail")).toBe("508px");
+    });
+
+    vi.stubGlobal("innerHeight", 800);
+    act(() => resize?.());
+    await waitFor(() =>
+      expect(host?.style.getPropertyValue("--player-avail")).toBe("632px"),
+    );
+    expect(host?.style.getPropertyValue("--rail-avail")).toBe("736px");
+  });
+
+  it("keeps the existing rail budgets exact in a self-scrolling pane", async () => {
+    let resize: (() => void) | undefined;
+    class ResizeObserverMock {
+      constructor(callback: () => void) {
+        resize = callback;
+      }
+      observe() {}
+      disconnect() {}
+    }
+    vi.stubGlobal("ResizeObserver", ResizeObserverMock);
+
+    const pane = document.createElement("div");
+    Object.defineProperty(pane, "clientHeight", {
+      configurable: true,
+      value: 500,
+    });
+    vi.spyOn(HTMLElement.prototype, "getBoundingClientRect").mockImplementation(
+      function (this: HTMLElement) {
+        const top = this === pane
+          ? 50
+          : this.classList.contains("media-detail-player")
+            ? 100
+            : 0;
+        return {
+          x: 0,
+          y: top,
+          top,
+          right: 0,
+          bottom: top,
+          left: 0,
+          width: 0,
+          height: 0,
+          toJSON: () => ({}),
+        };
+      },
+    );
+    slotMocks.occupied.add("player-side");
+    setApiResponses(makeFile());
+    const { container } = render(
+      <FileDetailContent fileId="f1" drive="main" miniPlayerRoot={pane} />,
+    );
+    await waitFor(() => expect(api.getFile).toHaveBeenCalledWith("f1"));
+
+    const host = container.querySelector<HTMLElement>(".media-detail-host");
+    await waitFor(() => {
+      expect(host?.style.getPropertyValue("--rail-top")).toBe("0px");
+      expect(host?.style.getPropertyValue("--rail-avail")).toBe("500px");
+      expect(host?.style.getPropertyValue("--player-avail")).toBe("402px");
+    });
+    expect(resize).toBeDefined();
   });
 
   it("gives video the rail layout", async () => {
