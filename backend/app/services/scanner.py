@@ -52,30 +52,50 @@ def _refresh_file_identity(
     *,
     detect_content_change: bool,
 ) -> bool:
-    """Refresh the bounded hash/size and clear the probe stamp on change."""
-    if file_record.file_hash is not None and not detect_content_change:
+    """Refresh the bounded hash/size and clear the probe stamp on change.
+
+    Returns whether the record was modified.
+    """
+    known_hash = file_record.file_hash
+    if known_hash is not None and not detect_content_change:
         return False
 
     try:
         current_size = item.stat().st_size
     except OSError:
         current_size = file_record.file_size
+
+    # Size decides whether the hash is worth reading. ``compute_file_hash``
+    # reads 512KB per call, so hashing every video on every sweep costs
+    # gigabytes of reads on a library-sized drive, while the stat above is
+    # already paid for. The gap this leaves — an edit that lands on the
+    # exact same byte count — is not something a re-encode or a re-download
+    # produces, and covering it would mean re-reading the whole library on
+    # every scan forever.
+    if known_hash is not None and current_size == file_record.file_size:
+        return False
+
     current_hash = compute_file_hash(item)
     if current_hash is None:
         return False
 
-    previous_hash = file_record.file_hash
-    previous_size = file_record.file_size
-    content_changed = previous_hash is not None and (
-        previous_hash != current_hash or previous_size != current_size
+    # Restated rather than inferred from the gate above. The gate already
+    # implies the content moved by the time we reach here, so this reads as
+    # redundant — but leaving it out makes stamp handling depend on a
+    # condition three branches away, and widening the gate later would
+    # silently start discarding probe results. Both values are in hand.
+    content_changed = known_hash is not None and (
+        current_hash != known_hash or current_size != file_record.file_size
     )
 
-    changed = previous_hash != current_hash or previous_size != current_size
     file_record.file_hash = current_hash
     file_record.file_size = current_size
+
+    # Filling in a hash we never had is a backfill, not a content change:
+    # it must not invalidate a probe stamp that is still true.
     if content_changed:
         file_record.chapters_probed_at = None
-    return changed
+    return True
 
 
 def get_scan_status(drive_name: str) -> dict:

@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import io
 import shutil
+from datetime import UTC, datetime
 from unittest.mock import patch
 
 from app.models import File, FileChapter
@@ -246,3 +247,105 @@ def test_backfill_does_not_replace_curated_set(client):
     db.expire_all()
     assert db.get(File, record.id).chapters_probed_at is not None
     assert _chapter_titles(db, record.id) == ["Approved"]
+
+
+def test_unchanged_media_is_not_rehashed_on_later_scans(client):
+    """The size gate: a stable video costs a stat, not a 512KB read.
+
+    Without it every sweep re-hashes every video and audio file on the
+    drive purely to notice the rare case that one changed.
+    """
+    _, db, drive_dir, _ = client
+    target = drive_dir / "stable-hash.mkv"
+    target.write_bytes(b"stable media content")
+
+    with (
+        patch("app.services.scanner.get_thumbnail_generator", return_value=None),
+        patch("app.services.scanner.get_video_duration", return_value=None),
+        patch(
+            "app.services.chapters.get_media_chapters",
+            return_value=[_chapter("Only")],
+        ),
+        patch(
+            "app.services.scanner.compute_file_hash",
+            side_effect=compute_file_hash,
+        ) as hasher,
+    ):
+        _scan_and_register(db, TEST_DRIVE)
+        hasher.reset_mock()
+        _scan_and_register(db, TEST_DRIVE)
+
+    assert hasher.call_count == 0
+
+
+def test_same_size_edit_is_deliberately_not_detected(client):
+    """The blind spot the size gate accepts, pinned so it stays a choice.
+
+    An edit that lands on the exact byte count goes unnoticed and the
+    chapters are not re-probed. Covering it would mean re-reading every
+    media file on every scan; a re-encode or re-download does not produce
+    a byte-identical length. If this test ever needs to change, that is a
+    decision to make on purpose rather than a bug to fix.
+    """
+    _, db, drive_dir, _ = client
+    target = drive_dir / "same-size.mkv"
+    target.write_bytes(b"aaaaaaaaaaaaaaaa")
+
+    with (
+        patch("app.services.scanner.get_thumbnail_generator", return_value=None),
+        patch("app.services.scanner.get_video_duration", return_value=None),
+        patch(
+            "app.services.chapters.get_media_chapters",
+            side_effect=[[_chapter("First")], [_chapter("Second")]],
+        ) as probe,
+    ):
+        _scan_and_register(db, TEST_DRIVE)
+        target.write_bytes(b"bbbbbbbbbbbbbbbb")
+        _scan_and_register(db, TEST_DRIVE)
+
+    db.expire_all()
+    record = db.query(File).filter(File.file_path == target.name).one()
+    assert probe.call_count == 1
+    assert _chapter_titles(db, record.id) == ["First"]
+
+
+def test_hash_backfill_does_not_invalidate_an_existing_stamp(client):
+    """Filling in a missing hash is not a content change.
+
+    Reachable through upload, which clears both the hash and the stamp and
+    then probes: the row is left stamped with no hash, and the next scan
+    must not undo that probe.
+    """
+    _, db, drive_dir, _ = client
+    target = drive_dir / "hashless.mkv"
+    target.write_bytes(b"hashless media")
+    record = File(
+        filename=target.name,
+        title="Hashless",
+        drive=TEST_DRIVE,
+        folder_path="",
+        file_path=target.name,
+        file_size=target.stat().st_size,
+        file_type="video",
+        mime_type="video/x-matroska",
+        file_hash=None,
+    )
+    db.add(record)
+    db.flush()
+    replace_chapters(db, record.id, [_chapter("Kept")], "extracted")
+    record.chapters_probed_at = datetime.now(UTC)
+    db.commit()
+
+    with (
+        patch("app.services.scanner.get_thumbnail_generator", return_value=None),
+        patch("app.services.scanner.get_video_duration", return_value=None),
+        patch("app.services.chapters.get_media_chapters") as probe,
+    ):
+        _scan_and_register(db, TEST_DRIVE)
+
+    db.expire_all()
+    refreshed = db.get(File, record.id)
+    assert probe.call_count == 0
+    assert refreshed.file_hash is not None
+    assert refreshed.chapters_probed_at is not None
+    assert _chapter_titles(db, record.id) == ["Kept"]
