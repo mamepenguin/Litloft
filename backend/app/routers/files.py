@@ -23,6 +23,7 @@ from app.auth import check_drive_access, get_unlocked_groups
 from app.database import get_db
 from app.models import (
     File,
+    FileChapter,
     FileExif,
     FileRelation,
     Tag,
@@ -42,7 +43,10 @@ from app.schemas import (
     BatchRestoreResponse,
     BatchTagRequest,
     ExifResponse,
+    FileChapterResponse,
+    FileChaptersResponse,
     FileCopyRequest,
+    FileDetailResponse,
     FileRelationItem,
     FileRelationsResponse,
     FileResponse,
@@ -548,7 +552,7 @@ def batch_copy(
     return {"copied": copied, "errors": errors}
 
 
-@router.get("/{file_id}", response_model=FileResponse)
+@router.get("/{file_id}", response_model=FileDetailResponse)
 def get_file(
     file_id: FileId,
     db: Annotated[Session, Depends(get_db)],
@@ -556,7 +560,15 @@ def get_file(
 ):
     file = _get_file_or_404(db, file_id, unlocked_groups)
     subtitles = _detect_file_subtitles(file)
-    return _to_response(file, subtitles=subtitles)
+    has_chapters = (
+        db.query(FileChapter.id).filter(FileChapter.file_id == file_id).first()
+        is not None
+    )
+    response = _to_response(file, subtitles=subtitles)
+    return FileDetailResponse(
+        **response.model_dump(),
+        has_chapters=has_chapters,
+    )
 
 
 @router.get("/{file_id}/neighbors", response_model=NeighborsResponse)
@@ -1693,6 +1705,26 @@ def list_file_relations(
         )
 
     return FileRelationsResponse(relations=items)
+
+
+@router.get("/{file_id}/chapters", response_model=FileChaptersResponse)
+def list_file_chapters(
+    file_id: FileId,
+    db: Annotated[Session, Depends(get_db)],
+    unlocked_groups: Annotated[list[str], Depends(get_unlocked_groups)],
+) -> FileChaptersResponse:
+    """Return the accessible active file's ordered chapter set."""
+    _get_file_or_404(db, file_id, unlocked_groups)
+    rows = (
+        db.query(FileChapter)
+        .filter(FileChapter.file_id == file_id)
+        .order_by(FileChapter.ordering, FileChapter.id)
+        .all()
+    )
+    return FileChaptersResponse(
+        chapters=[FileChapterResponse.model_validate(row) for row in rows],
+        source=rows[0].source if rows else None,
+    )
 
 
 @router.get("/{file_id}/exif", response_model=ExifResponse)
