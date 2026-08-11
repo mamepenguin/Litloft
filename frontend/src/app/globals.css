@@ -759,3 +759,62 @@ div[data-citation-section-path]:not(tr) {
     color-mix(in srgb, var(--accent-amber) 60%, transparent);
   cursor: help;
 }
+
+/* ------------------------------------------------------------------
+   Media file detail: player column with an optional companion rail.
+
+   One occupant, two positions. The companion (transcript today,
+   chapters next) must not be mounted twice — it fetches, subscribes to
+   the playback clock and holds scroll state — so the grid moves it
+   rather than the markup duplicating it.
+
+   The switch is a CONTAINER query, not a breakpoint. The same content
+   renders in the full-screen route and inside the 2-pane right pane,
+   which is 280px narrower than the viewport; a viewport breakpoint
+   would split the pane into two columns at widths where it does not
+   fit. See DESIGN.md §10.
+
+   56rem = 552px player + 320px rail + 24px gap.
+   ------------------------------------------------------------------ */
+.media-detail-grid {
+  display: grid;
+  gap: 1.5rem;
+  grid-template-columns: minmax(0, 1fr);
+  grid-template-areas:
+    "player"
+    "companion"
+    "rest";
+}
+
+.media-detail-player { grid-area: player; }
+.media-detail-companion { grid-area: companion; }
+.media-detail-rest { grid-area: rest; }
+
+@container (min-width: 56rem) {
+  .media-detail-grid {
+    grid-template-columns: minmax(0, 1fr) 20rem;
+    grid-template-areas:
+      "player companion"
+      "rest   companion";
+  }
+
+  /* The rail spans both rows, so the reader can scroll the left column
+     through metadata and summaries while it stays put and keeps
+     following playback.
+
+     --rail-top is set by the host: 0 inside a pane that scrolls itself,
+     the header's measured height when the document scrolls and the
+     sticky header would otherwise cover the rail.
+
+     The available height is the same expression either way: a
+     self-scrolling pane is already the viewport minus the header, and
+     the document's visible area below the header is too. */
+  .media-detail-companion-inner {
+    position: sticky;
+    top: calc(var(--rail-top, 0px) + 1rem);
+    max-height: calc(100dvh - var(--app-header-h, 0px) - 2rem);
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+  }
+}

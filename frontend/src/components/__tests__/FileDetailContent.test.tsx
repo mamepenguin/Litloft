@@ -22,15 +22,29 @@ vi.mock("../RelatedFilesSection", () => ({
 vi.mock("../ExifSection", () => ({
   ExifSection: () => <div data-testid="exif" />,
 }));
+// Which slots an addon has claimed. Defaults to none, which is what
+// every pre-existing test in this file assumes.
+const slotMocks = vi.hoisted(() => ({ occupied: new Set<string>() }));
+vi.mock("../AddonSlotsProvider", () => ({
+  useAddonSlots: () => ({
+    addons: {},
+    slots: {},
+    loading: false,
+    getSlotEntries: () => [],
+    hasSlot: (slotId: string) => slotMocks.occupied.has(slotId),
+  }),
+}));
 vi.mock("../AddonSlot", () => ({
   AddonSlot: ({
     id,
     includeIds,
     excludeIds,
+    props,
   }: {
     id: string;
     includeIds?: string[];
     excludeIds?: string[];
+    props?: Record<string, unknown>;
   }) => {
     // Surface the filter intent to the DOM so tests can assert which
     // copy of the slot (canvas vs. inspector) ran.
@@ -42,7 +56,12 @@ vi.mock("../AddonSlot", () => ({
           : excludeIds
             ? `exclude:${excludeIds.join(",")}`
             : "all";
-    return <div data-testid={`addon-slot-${tag}`} />;
+    return (
+      <div
+        data-testid={`addon-slot-${tag}`}
+        data-fill-height={props?.fillHeight === true ? "true" : "false"}
+      />
+    );
   },
 }));
 vi.mock("../MarkdownDocumentLayout", () => ({
@@ -701,5 +720,113 @@ describe("FileDetailContent", () => {
     expect(chipsProps!.onContentChange).toBeUndefined();
 
     markdownContentRegistry.reset();
+  });
+});
+
+// Spec 2026-08-11-transcript-following-playback.md §3. Core owns where
+// the companion goes; the occupant has no say in it.
+describe("FileDetailContent companion region", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    usePolicyMock.mockReturnValue({ enabled: true, isLoading: false });
+    slotMocks.occupied.clear();
+  });
+
+  function grid(container: HTMLElement) {
+    return container.querySelector(".media-detail-grid");
+  }
+
+  async function renderFile(file: FileItem) {
+    setApiResponses(file);
+    const utils = render(<FileDetailContent fileId="f1" drive="main" />);
+    await waitFor(() => expect(api.getFile).toHaveBeenCalledWith("f1"));
+    return utils;
+  }
+
+  it("renders nothing at all when no addon claims the slot", async () => {
+    const { container } = await renderFile(makeFile());
+
+    // Not merely hidden: with no occupant the grid never appears, so
+    // the page keeps exactly the layout it had before this existed.
+    expect(screen.queryByTestId("addon-slot-player-side")).toBeNull();
+    expect(grid(container)).toBeNull();
+  });
+
+  it("gives video the rail layout", async () => {
+    slotMocks.occupied.add("player-side");
+    const { container } = await renderFile(makeFile());
+
+    expect(screen.getByTestId("addon-slot-player-side")).toBeInTheDocument();
+    expect(grid(container)).not.toBeNull();
+  });
+
+  it("gives .loft the rail layout even though its file_type is video", async () => {
+    slotMocks.occupied.add("player-side");
+    const { container } = await renderFile(
+      makeFile({
+        filename: "clip.loft",
+        mime_type: "application/vnd.litloft.loft+json",
+      }),
+    );
+
+    expect(grid(container)).not.toBeNull();
+  });
+
+  it("never gives audio the rail, but still shows the companion", async () => {
+    // The audio player is ~200px tall; a column beside it would leave
+    // half the width empty. It keeps the promoted position instead.
+    slotMocks.occupied.add("player-side");
+    const { container } = await renderFile(
+      makeFile({ filename: "ep.mp3", file_type: "audio", mime_type: "audio/mpeg" }),
+    );
+
+    expect(screen.getByTestId("addon-slot-player-side")).toBeInTheDocument();
+    expect(grid(container)).toBeNull();
+  });
+
+  it("places the audio companion directly below the player", async () => {
+    slotMocks.occupied.add("player-side");
+    const { container } = await renderFile(
+      makeFile({ filename: "ep.mp3", file_type: "audio", mime_type: "audio/mpeg" }),
+    );
+
+    const order = Array.from(
+      container.querySelectorAll(
+        "[data-testid='file-preview'], [data-testid='addon-slot-player-side'], [data-testid='related-files']",
+      ),
+    ).map((el) => el.getAttribute("data-testid"));
+
+    expect(order).toEqual([
+      "file-preview",
+      "addon-slot-player-side",
+      "related-files",
+    ]);
+  });
+
+  it("offers no companion for a file no player plays", async () => {
+    slotMocks.occupied.add("player-side");
+    const { container } = await renderFile(
+      makeFile({ filename: "photo.jpg", file_type: "image", mime_type: "image/jpeg" }),
+    );
+
+    expect(screen.queryByTestId("addon-slot-player-side")).toBeNull();
+    expect(grid(container)).toBeNull();
+  });
+
+  it("asks the occupant to fill the height only in the rail form", async () => {
+    slotMocks.occupied.add("player-side");
+
+    const video = await renderFile(makeFile());
+    expect(
+      screen.getByTestId("addon-slot-player-side").getAttribute("data-fill-height"),
+    ).toBe("true");
+    video.unmount();
+
+    await renderFile(
+      makeFile({ filename: "ep.mp3", file_type: "audio", mime_type: "audio/mpeg" }),
+    );
+    expect(
+      screen.getByTestId("addon-slot-player-side").getAttribute("data-fill-height"),
+    ).toBe("false");
   });
 });

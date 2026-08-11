@@ -596,6 +596,50 @@ An inline script in `<head>` reads `localStorage('theme-preference')` and sets `
 
 ---
 
+## 8.5 Layout
+
+### Companion rail (media file detail)
+
+A media file's detail page may put a companion column beside the
+player — the transcript today, chapters next. Widths:
+
+| Token | Value | Meaning |
+|---|---|---|
+| rail width | `20rem` (320px) | Fixed. Below this the content stops being readable at the type scale in §3.2. |
+| player minimum | `34.5rem` (552px) | Narrower than this and a 16:9 video stops being watchable. |
+| gap | `1.5rem` (24px) | The standard section gap. |
+| switch threshold | `56rem` (896px) | The sum of the three. |
+
+The threshold is a **sum, not a feel**. Change either minimum and
+recompute it; do not nudge it to make a particular window look right.
+
+### Measure against the container, not the viewport
+
+Any layout that can appear both full-width and inside a pane must
+switch on a **container query** (`@container`), never on a viewport
+breakpoint. The file-detail surface renders in the full-screen route
+and in the 2-pane right pane, which is 280px narrower than the window;
+a `lg:` rule fires on window size and splits the pane at widths where
+two columns do not fit.
+
+This is the general rule, not a note about one component. Before
+reaching for `md:` / `lg:`, ask whether the component ever renders
+somewhere narrower than the window.
+
+### Sticking below the header
+
+`--app-header-h` is published by `Header` from its measured height (the
+PWA safe-area inset changes it, so it is not a constant). Anything that
+sticks under the header positions itself with it rather than
+duplicating the header's shape.
+
+The offset depends on the host: a pane that scrolls itself starts at
+its own top, while under document scroll the sticky header would cover
+the element. Hosts signal which they are; see
+`.media-detail-companion-inner` in `globals.css`.
+
+---
+
 ## 9. Do's and Don'ts
 
 ### Do

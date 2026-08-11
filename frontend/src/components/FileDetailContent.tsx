@@ -1,6 +1,12 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import {
+  useCallback,
+  useEffect,
+  useRef,
+  useState,
+  type CSSProperties,
+} from "react";
 import { useTranslations } from "next-intl";
 import {
   Check,
@@ -23,12 +29,14 @@ import { formatDuration, formatFileSize } from "@/lib/format";
 import { clearListSnapshot } from "@/lib/listSnapshot";
 import type { FileItem } from "@/types";
 import type { MediaController } from "@/lib/mediaController";
+import { playerKind } from "@/lib/playerKind";
 import type { DocumentCaptureController } from "@/lib/documentCapture";
 
 import { markdownContentRegistry } from "@/lib/markdownContentRegistry";
 import { useIsMobile } from "@/hooks/useIsMobile";
 import { ActiveSummaryHost } from "./ActiveSummaryHost";
 import { AddonSlot } from "./AddonSlot";
+import { useAddonSlots } from "./AddonSlotsProvider";
 import { CastButton } from "./CastButton";
 import { CommentSection } from "./CommentSection";
 import { MarkdownAwareTagChips } from "./MarkdownAwareTagChips";
@@ -130,6 +138,7 @@ export function FileDetailContent({
   const t = useTranslations("file");
   const tc = useTranslations("common");
   const { requestRefresh: refreshSidebar } = useSidebar();
+  const { hasSlot } = useAddonSlots();
   const isMobile = useIsMobile();
 
   const [file, setFile] = useState<FileItem | null>(null);
@@ -305,6 +314,12 @@ export function FileDetailContent({
   //   (b) text/html, which uses the same layout for AI artifact preview
   //       and reuses the inspector but never mounts the editor slot
   // Anything else falls through to the legacy vertical stack.
+  // Which player, if any, plays this file — and therefore whether a
+  // companion region is possible at all and whether it may take the
+  // rail form. `playerKind` owns the .loft-before-file_type ordering.
+  const companionKind = playerKind(file);
+  const railEligible = companionKind === "video" || companionKind === "loft";
+
   const isHtmlPreview = file.mime_type === "text/html";
   const useDocumentLayout =
     isHtmlPreview ||
@@ -565,8 +580,8 @@ export function FileDetailContent({
 
   // Legacy vertical stack — preserved verbatim for non-Markdown files
   // and for drives where the Knowledge editor is policy-disabled.
-  return (
-    <div className="w-full">
+  const playerNode = (
+    <>
       <FilePreview
         file={file}
         videoRef={videoRef}
@@ -587,7 +602,11 @@ export function FileDetailContent({
         layout="stack"
         props={addonSlotProps}
       />
+    </>
+  );
 
+  const restNode = (
+    <>
       {metadataNode}
 
       <div className="mt-4 space-y-4">
@@ -602,6 +621,66 @@ export function FileDetailContent({
       </div>
 
       <CommentSection fileId={fileId} />
+    </>
+  );
+
+  // The companion region only exists for files a player actually
+  // plays, and only when an addon has something to put in it. With no
+  // occupant the grid never appears and the page is exactly as before.
+  if (!companionKind || !hasSlot("player-side")) {
+    return (
+      <div className="w-full">
+        {playerNode}
+        {restNode}
+      </div>
+    );
+  }
+
+  const companionNode = (
+    <div className="media-detail-companion">
+      <div className="media-detail-companion-inner">
+        <AddonSlot
+          id="player-side"
+          layout="tabs"
+          props={{ ...addonSlotProps, fillHeight: railEligible }}
+        />
+      </div>
+    </div>
+  );
+
+  // Audio never gets the rail: the player is ~200px tall and a column
+  // beside it would leave half the width empty. It keeps the promoted
+  // position — directly below the player, full width — which is what
+  // the narrow form of the grid already is.
+  if (!railEligible) {
+    return (
+      <div className="w-full">
+        {playerNode}
+        {companionNode}
+        {restNode}
+      </div>
+    );
+  }
+
+  return (
+    <div className="w-full @container">
+      <div
+        className="media-detail-grid"
+        // Sticky offset by host: a pane that scrolls itself starts at
+        // its own top, while under document scroll the sticky header
+        // would cover the rail. `miniPlayerRoot` is exactly the "this
+        // host scrolls itself" signal — RightPaneFile passes its scroll
+        // element, document-scroll hosts pass nothing.
+        style={
+          {
+            "--rail-top": miniPlayerRoot ? "0px" : "var(--app-header-h, 0px)",
+          } as CSSProperties
+        }
+      >
+        <div className="media-detail-player">{playerNode}</div>
+        {companionNode}
+        <div className="media-detail-rest">{restNode}</div>
+      </div>
     </div>
   );
 }
