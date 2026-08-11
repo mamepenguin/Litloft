@@ -74,10 +74,9 @@ export const VideoPlayer = forwardRef(function VideoPlayer({ videoId, subtitles 
   }, []);
 
   useEffect(() => {
-    const video = videoRef.current;
-    if (!video || !title) return;
+    if (!mc || !title) return;
     return setupMediaSession(
-      video,
+      mc,
       {
         title,
         artist: subtitleText ?? "",
@@ -85,7 +84,7 @@ export const VideoPlayer = forwardRef(function VideoPlayer({ videoId, subtitles 
       },
       { onNextTrack: onEnded },
     );
-  }, [videoId, title, subtitleText, onEnded]);
+  }, [mc, videoId, title, subtitleText, onEnded]);
 
   const tShortcuts = useTranslations("shortcuts");
 

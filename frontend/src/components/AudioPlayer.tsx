@@ -59,10 +59,9 @@ export function AudioPlayer({ file, onEnded, autoPlay, onMediaController }: { fi
   }, [notifyEnded, onEnded]);
 
   useEffect(() => {
-    const audio = audioRef.current;
-    if (!audio) return;
+    if (!mc) return;
     return setupMediaSession(
-      audio,
+      mc,
       {
         title: file.title || file.filename,
         artist: file.folder_path || file.drive,
@@ -70,7 +69,7 @@ export function AudioPlayer({ file, onEnded, autoPlay, onMediaController }: { fi
       },
       { onNextTrack: onEnded },
     );
-  }, [file.id, file.title, file.filename, file.folder_path, file.drive, onEnded]);
+  }, [mc, file.id, file.title, file.filename, file.folder_path, file.drive, onEnded]);
 
   return (
     <div className="flex w-full flex-col items-center justify-center rounded-xl bg-bg-card py-12">
