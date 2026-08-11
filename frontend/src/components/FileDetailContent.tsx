@@ -45,6 +45,7 @@ import { FavoriteButton } from "./FavoriteButton";
 import { FileActions } from "./FileActions";
 import { FilePreview } from "./FilePreview";
 import { MarkdownDocumentLayout } from "./MarkdownDocumentLayout";
+import { MediaLayoutToggle } from "./MediaLayoutToggle";
 import { RelatedFilesSection } from "./RelatedFilesSection";
 import { useSidebar } from "./SidebarProvider";
 import { usePolicy } from "@/hooks/usePolicy";
@@ -630,6 +631,13 @@ export function FileDetailContent({
         layout="stack"
         props={addonSlotProps}
       />
+
+      {/* Directly below the player rather than inside its control bar:
+          that bar belongs to the .loft embed and native video does not
+          have one, so a button there would appear for some media and
+          not others. Only rendered where a rail is possible at all;
+          the container query decides whether it is visible. */}
+      {railEligible && hasSlot("player-side") && <MediaLayoutToggle />}
     </>
   );
 

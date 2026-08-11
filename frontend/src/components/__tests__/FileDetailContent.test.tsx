@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { render, screen, waitFor, act } from "@testing-library/react";
+import { render, screen, waitFor, act, fireEvent } from "@testing-library/react";
 import { useState } from "react";
 
 import { FileDetailContent } from "../FileDetailContent";
@@ -833,5 +833,58 @@ describe("FileDetailContent companion region", () => {
     expect(
       screen.getByTestId("addon-slot-player-side").getAttribute("data-fill-height"),
     ).toBe("true");
+  });
+});
+
+// Spec 2026-08-11-media-layout-toggle.md §2. Whether the button is
+// *visible* is a container query (untestable here); whether it is
+// rendered at all is the host's decision and is.
+describe("FileDetailContent layout toggle", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    usePolicyMock.mockReturnValue({ enabled: true, isLoading: false });
+    slotMocks.occupied.clear();
+    document.documentElement.removeAttribute("data-media-layout");
+    window.localStorage.clear();
+  });
+
+  async function renderFile(file: FileItem) {
+    setApiResponses(file);
+    const utils = render(<FileDetailContent fileId="f1" drive="main" />);
+    await waitFor(() => expect(api.getFile).toHaveBeenCalledWith("f1"));
+    return utils;
+  }
+
+  const toggle = () =>
+    screen.queryByRole("button", { name: /transcript (beside|below) the player/i });
+
+  it("offers the swap for a video with an occupant", async () => {
+    slotMocks.occupied.add("player-side");
+    await renderFile(makeFile());
+    expect(toggle()).toBeInTheDocument();
+  });
+
+  it("offers nothing for audio, which never gets the rail", async () => {
+    slotMocks.occupied.add("player-side");
+    await renderFile(
+      makeFile({ filename: "ep.mp3", file_type: "audio", mime_type: "audio/mpeg" }),
+    );
+    expect(toggle()).toBeNull();
+  });
+
+  it("offers nothing when no addon claims the slot", async () => {
+    await renderFile(makeFile());
+    expect(toggle()).toBeNull();
+  });
+
+  it("flips the attribute the layout is driven by", async () => {
+    slotMocks.occupied.add("player-side");
+    await renderFile(makeFile());
+
+    fireEvent.click(toggle()!);
+    expect(document.documentElement.getAttribute("data-media-layout")).toBe("beside");
+
+    fireEvent.click(toggle()!);
+    expect(document.documentElement.getAttribute("data-media-layout")).toBe("stacked");
   });
 });
