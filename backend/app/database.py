@@ -594,6 +594,21 @@ def _migrate(engine_) -> None:
             finally:
                 raw.close()
 
+    # === Spec 2026-08-11-media-chapters: record whether chapter metadata
+    # has already been probed. The result table cannot carry this fact when
+    # a file has no chapters, so the nullable stamp belongs to ``files``.
+    inspector_chapters = inspect(engine_)
+    if "files" in inspector_chapters.get_table_names():
+        file_columns = {
+            column["name"] for column in inspector_chapters.get_columns("files")
+        }
+        if "chapters_probed_at" not in file_columns:
+            logger.info("Migrating: adding 'chapters_probed_at' column to files")
+            with engine_.begin() as conn:
+                conn.execute(
+                    text("ALTER TABLE files ADD COLUMN chapters_probed_at DATETIME")
+                )
+
 
 def init_db() -> None:
     config.DATA_DIR.mkdir(parents=True, exist_ok=True)
