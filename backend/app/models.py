@@ -62,6 +62,9 @@ class File(Base):
     mime_type: Mapped[str] = mapped_column(String, nullable=False, default="application/octet-stream")
     thumbnail_path: Mapped[str | None] = mapped_column(String, nullable=True)
     duration: Mapped[float | None] = mapped_column(Float, nullable=True)
+    chapters_probed_at: Mapped[datetime | None] = mapped_column(
+        DateTime, nullable=True, default=None
+    )
     likes: Mapped[int] = mapped_column(Integer, default=0, server_default="0")
     is_favorite: Mapped[bool] = mapped_column(Boolean, default=False, server_default="0")
     created_at: Mapped[datetime] = mapped_column(
@@ -273,6 +276,24 @@ class FileRelation(Base):
         CheckConstraint("file_id_a != file_id_b", name="ck_file_relations_not_self"),
         Index("idx_file_relations_a", "file_id_a", "kind"),
         Index("idx_file_relations_b", "file_id_b", "kind"),
+    )
+
+
+class FileChapter(Base):
+    __tablename__ = "file_chapters"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    file_id: Mapped[str] = mapped_column(
+        String(12), ForeignKey("files.id", ondelete="CASCADE"), nullable=False
+    )
+    start_time: Mapped[float] = mapped_column(Float, nullable=False)
+    end_time: Mapped[float | None] = mapped_column(Float, nullable=True)
+    title: Mapped[str] = mapped_column(String, nullable=False)
+    ordering: Mapped[int] = mapped_column(Integer, nullable=False)
+    source: Mapped[str] = mapped_column(String, nullable=False)
+
+    __table_args__ = (
+        Index("idx_file_chapters_file", "file_id", "ordering"),
     )
 
 
