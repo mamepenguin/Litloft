@@ -15,7 +15,7 @@ import { AddonSlot } from "./AddonSlot";
 import LoftPlayer from "./loft/LoftPlayer";
 import { MiniPlayerContainer } from "./MiniPlayerContainer";
 import { formatFileSize } from "@/lib/format";
-import { getStreamUrl } from "@/lib/api";
+import { getStreamUrl, getThumbnailUrl } from "@/lib/api";
 import type { MediaController } from "@/lib/mediaController";
 import type { DocumentCaptureController } from "@/lib/documentCapture";
 
@@ -136,6 +136,11 @@ export function FilePreview({
             initialTime={initialTime}
             durationHint={file.duration}
             onEnded={onEnded}
+            mediaSessionMetadata={{
+              title: file.title || file.filename,
+              artist: file.folder_path || file.drive,
+              artwork: [{ src: getThumbnailUrl(file.id) }],
+            }}
           />
         </MiniPlayerContainer>
         <AddonSlot

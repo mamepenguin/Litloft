@@ -1,9 +1,21 @@
 import type { MediaController } from "@/lib/mediaController";
+import type { MediaSessionMetadataInput } from "@/lib/mediaSession";
 
 export interface LoftEmbedProps {
   fileId: string;
   url: string;
   onMediaController?: (mc: MediaController | null) => void;
+  /**
+   * What the OS should show for this file on the lock screen,
+   * notification shade or car display.
+   *
+   * Core supplies it because core owns file metadata; the embed decides
+   * whether it can act on it. Like `onEnded` this is a capability, not
+   * a requirement: an embed with no handle on playback (a plain iframe)
+   * simply ignores it, and the platform shows whatever the provider
+   * chose to publish for itself.
+   */
+  mediaSessionMetadata?: MediaSessionMetadataInput;
   /**
    * Seconds to seek to once the player is ready. Used by intelligence
    * Ask citation jumps (URL `?t=`). When provided AND non-zero, this

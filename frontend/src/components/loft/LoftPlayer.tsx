@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { getStreamUrl } from "@/lib/api";
 import type { MediaController } from "@/lib/mediaController";
+import type { MediaSessionMetadataInput } from "@/lib/mediaSession";
 import GenericLinkCard from "./GenericLinkCard";
 import { getLoftPlayer } from "./playerRegistry";
 
@@ -23,6 +24,8 @@ export interface LoftPlayerProps {
    * observe completion never call it (see LoftEmbedProps.onEnded).
    */
   onEnded?: () => void;
+  /** Forwarded to the resolved embed component (see LoftEmbedProps). */
+  mediaSessionMetadata?: MediaSessionMetadataInput;
 }
 
 export default function LoftPlayer({
@@ -31,6 +34,7 @@ export default function LoftPlayer({
   initialTime,
   durationHint,
   onEnded,
+  mediaSessionMetadata,
 }: LoftPlayerProps) {
   const [content, setContent] = useState<LoftContent | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -71,6 +75,7 @@ export default function LoftPlayer({
       initialTime={initialTime}
       durationHint={durationHint}
       onEnded={onEnded}
+      mediaSessionMetadata={mediaSessionMetadata}
     />
   );
 }
