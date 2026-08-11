@@ -11,8 +11,14 @@ from sqlalchemy.orm import Session
 import app.config as config
 from app.database import SessionLocal
 from app.models import EmptyFolder, File, FileExif, active_file_filter
+from app.services.chapters import probe_file_chapters
 from app.services.exif import extract_exif
-from app.services.filetype import classify, is_hidden, refine_classification_with_probe
+from app.services.filetype import (
+    classify,
+    is_hidden,
+    is_probeable_media,
+    refine_classification_with_probe,
+)
 from app.services.frontmatter import compose as compose_frontmatter
 from app.services.frontmatter import (
     ensure_id,
@@ -38,6 +44,38 @@ logger = logging.getLogger(__name__)
 
 _last_scanned_at: dict[str, datetime] = {}
 _scanning_drives: set[str] = set()
+
+
+def _refresh_file_identity(
+    file_record: File,
+    item: Path,
+    *,
+    detect_content_change: bool,
+) -> bool:
+    """Refresh the bounded hash/size and clear the probe stamp on change."""
+    if file_record.file_hash is not None and not detect_content_change:
+        return False
+
+    try:
+        current_size = item.stat().st_size
+    except OSError:
+        current_size = file_record.file_size
+    current_hash = compute_file_hash(item)
+    if current_hash is None:
+        return False
+
+    previous_hash = file_record.file_hash
+    previous_size = file_record.file_size
+    content_changed = previous_hash is not None and (
+        previous_hash != current_hash or previous_size != current_size
+    )
+
+    changed = previous_hash != current_hash or previous_size != current_size
+    file_record.file_hash = current_hash
+    file_record.file_size = current_size
+    if content_changed:
+        file_record.chapters_probed_at = None
+    return changed
 
 
 def get_scan_status(drive_name: str) -> dict:
@@ -200,7 +238,7 @@ def register_single_file(db: Session, drive_name: str, file_path: Path) -> str:
     nfc_stem = Path(nfc_name).stem
 
     duration = None
-    if file_type in ("video", "audio"):
+    if is_probeable_media(file_type, mime_type):
         duration = get_video_duration(str(file_path))
 
     thumbnail_rel = None
@@ -237,6 +275,8 @@ def register_single_file(db: Session, drive_name: str, file_path: Path) -> str:
     )
     db.add(file_record)
     db.flush()
+
+    probe_file_chapters(db, file_record, file_path)
 
     _ensure_md_id_for_new_file(db, file_record, file_path)
 
@@ -322,11 +362,18 @@ def _scan_and_register(db: Session, drive_name: str) -> dict[str, int]:
                 file_record.mime_type = mime_type
                 needs_update = True
 
-            if file_record.file_hash is None:
-                file_hash = compute_file_hash(item)
-                if file_hash is not None:
-                    file_record.file_hash = file_hash
-                    needs_update = True
+            if _refresh_file_identity(
+                file_record,
+                item,
+                detect_content_change=is_probeable_media(file_type, mime_type),
+            ):
+                needs_update = True
+
+            if (
+                file_record.deleted_at is None
+                and probe_file_chapters(db, file_record, item)
+            ):
+                needs_update = True
 
             if get_thumbnail_generator(file_type, mime_type) is not None:
                 expected_thumb = _expected_thumbnail_path(drive_name, folder_path, nfc_stem)
@@ -457,6 +504,12 @@ def _scan_and_register(db: Session, drive_name: str) -> dict[str, int]:
             candidate.mime_type = mime_type
             candidate.missing_since = None
 
+            if (
+                candidate.deleted_at is None
+                and probe_file_chapters(db, candidate, item)
+            ):
+                updated += 1
+
             if get_thumbnail_generator(file_type, mime_type) is not None:
                 new_thumb_rel = _expected_thumbnail_path(drive_name, folder_path, nfc_stem)
                 _relocate_thumbnail(candidate, new_thumb_rel, file_type, item)
@@ -500,7 +553,7 @@ def _scan_and_register(db: Session, drive_name: str) -> dict[str, int]:
 
         # Genuine new file — INSERT.
         duration = None
-        if file_type in ("video", "audio"):
+        if is_probeable_media(file_type, mime_type):
             duration = get_video_duration(str(item))
 
         thumbnail_rel = None
@@ -533,6 +586,8 @@ def _scan_and_register(db: Session, drive_name: str) -> dict[str, int]:
         )
         db.add(file_record)
         db.flush()
+
+        probe_file_chapters(db, file_record, item)
 
         _ensure_md_id_for_new_file(db, file_record, item)
 

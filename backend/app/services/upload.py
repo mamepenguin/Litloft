@@ -11,7 +11,8 @@ from sqlalchemy.orm import Session
 
 import app.config as config
 from app.models import File
-from app.services.filetype import classify
+from app.services.chapters import probe_file_chapters
+from app.services.filetype import classify, is_probeable_media
 from app.services.fileops import (
     _filename_to_title,
     remove_empty_folder_if_has_files,
@@ -185,7 +186,7 @@ def complete_upload(upload_id: str, db: Session) -> tuple[File, bool]:
     file_type, mime_type = classify(session.filename)
 
     duration = None
-    if file_type in ("video", "audio"):
+    if is_probeable_media(file_type, mime_type):
         duration = get_video_duration(str(target_full))
 
     thumbnail_rel = None
@@ -236,6 +237,8 @@ def complete_upload(upload_id: str, db: Session) -> tuple[File, bool]:
         existing.mime_type = mime_type
         existing.thumbnail_path = thumbnail_rel
         existing.duration = duration
+        existing.file_hash = None
+        existing.chapters_probed_at = None
         file_record = existing
     else:
         file_record = File(
@@ -251,6 +254,8 @@ def complete_upload(upload_id: str, db: Session) -> tuple[File, bool]:
             duration=duration,
         )
         db.add(file_record)
+    db.flush()
+    probe_file_chapters(db, file_record, target_full)
     remove_empty_folder_if_has_files(db, session.drive, session.folder_path)
     db.commit()
     db.refresh(file_record)
