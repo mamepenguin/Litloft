@@ -174,6 +174,42 @@ describe("GlobalSearch", () => {
     expect(inputs.length).toBeGreaterThanOrEqual(1);
   });
 
+  it("opens on Cmd+K", () => {
+    renderWithShortcuts(<GlobalSearch />);
+    fireEvent.keyDown(document, { key: "k", ctrlKey: true });
+    expect(
+      screen.getAllByPlaceholderText("Search in main...").length,
+    ).toBeGreaterThanOrEqual(1);
+  });
+
+  it("closes on a second Cmd+K", () => {
+    renderWithShortcuts(<GlobalSearch />);
+    fireEvent.keyDown(document, { key: "k", ctrlKey: true });
+    expect(
+      screen.getAllByPlaceholderText("Search in main...").length,
+    ).toBeGreaterThanOrEqual(1);
+
+    fireEvent.keyDown(document, { key: "k", ctrlKey: true });
+    expect(screen.queryByPlaceholderText("Search in main...")).toBeNull();
+  });
+
+  // Guards the contract the Knowledge editor's ctrl+k (insert link,
+  // editingOnly: true) relies on. That shortcut lives in a separate
+  // repository, so a regression here would not surface in its tests.
+  it("does not open on Cmd+K while an editing element has focus", () => {
+    renderWithShortcuts(
+      <>
+        <textarea data-testid="editor" />
+        <GlobalSearch />
+      </>,
+    );
+    fireEvent.keyDown(screen.getByTestId("editor"), {
+      key: "k",
+      ctrlKey: true,
+    });
+    expect(screen.queryByPlaceholderText("Search in main...")).toBeNull();
+  });
+
   describe("merge: filename + semantic", () => {
     async function typeQuery(value: string) {
       // The popup renders both desktop and mobile inputs. Use the first

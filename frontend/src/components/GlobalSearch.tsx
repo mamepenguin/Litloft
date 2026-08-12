@@ -118,17 +118,32 @@ export function GlobalSearch() {
     setTotal(0);
   }, []);
 
+  const toggleSearch = () => {
+    if (open) {
+      closeSearch();
+    } else {
+      openSearch();
+    }
+  };
+
+  // Both bindings open the same modal. ctrl+k is the switcher ergonomics
+  // (one chord, reachable one-handed); ctrl+shift+f is kept so existing
+  // muscle memory keeps working.
+  //
+  // `editingOnly` is deliberately left unset on ctrl+k. Unset means "fires
+  // only when no editing element has focus", which is what partitions this
+  // from the Knowledge editor's own ctrl+k (insert link, editingOnly: true).
+  // That partition is the reason the flag exists — see ShortcutsProvider.
   useShortcuts("global", tsc("global"), [
     {
       key: "ctrl+shift+f",
       label: tsc("search"),
-      handler: () => {
-        if (open) {
-          closeSearch();
-        } else {
-          openSearch();
-        }
-      },
+      handler: toggleSearch,
+    },
+    {
+      key: "ctrl+k",
+      label: tsc("switcher"),
+      handler: toggleSearch,
     },
   ]);
 
