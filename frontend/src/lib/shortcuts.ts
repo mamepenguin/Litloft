@@ -17,6 +17,35 @@ export interface ShortcutContextDef {
   id: string
   label: string
   shortcuts: ShortcutDef[]
+  // Resolution tier. Contexts are consulted highest tier first, and within a
+  // tier most-recently-pushed first. Defaults to 0, which preserves plain
+  // push-order semantics for every context that does not opt in.
+  //
+  // Push order alone is not enough for overlays: a context that enables later
+  // lands on top of an already-open modal. Knowledge, for instance, gates its
+  // editor shortcuts on the note body having loaded, so opening a modal while
+  // a note is still loading would otherwise hand the modal's own chords to the
+  // editor underneath it.
+  priority?: number
+}
+
+/** Tier for modals and other overlays that must win their chords outright. */
+export const OVERLAY_PRIORITY = 100
+
+/**
+ * Order a shortcut stack for resolution: highest priority tier first, and
+ * within a tier the most recently pushed context first.
+ */
+export function orderContexts(
+  stack: ShortcutContextDef[],
+): ShortcutContextDef[] {
+  return stack
+    .map((ctx, index) => ({ ctx, index }))
+    .sort(
+      (a, b) =>
+        (b.ctx.priority ?? 0) - (a.ctx.priority ?? 0) || b.index - a.index,
+    )
+    .map((entry) => entry.ctx)
 }
 
 function isMacPlatform(): boolean {

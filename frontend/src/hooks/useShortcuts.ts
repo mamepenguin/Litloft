@@ -14,12 +14,17 @@ import type { ShortcutDef, ShortcutContextDef } from "@/lib/shortcuts";
  *
  * The shortcuts array is held in a ref so that handler closures always reflect
  * the latest state without triggering re-registration (push/pop) on every render.
+ *
+ * `priority` raises the context above plain push order. Overlays should pass
+ * `OVERLAY_PRIORITY` so a context that enables later — an editor whose content
+ * finishes loading, say — cannot take a chord away from an open modal.
  */
 export function useShortcuts(
   id: string,
   label: string,
   shortcuts: ShortcutDef[],
   enabled: boolean = true,
+  priority: number = 0,
 ): void {
   const { push, pop } = useShortcutsContext();
   const shortcutsRef = useRef<ShortcutDef[]>(shortcuts);
@@ -34,6 +39,7 @@ export function useShortcuts(
     const ctx: ShortcutContextDef = {
       id,
       label,
+      priority,
       // Proxy each handler through the ref so callers always invoke the
       // latest closure even after state updates.
       shortcuts: shortcuts.map((s) => ({
@@ -47,5 +53,5 @@ export function useShortcuts(
     push(ctx);
     return () => pop(id);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [id, label, push, pop, enabled]);
+  }, [id, label, push, pop, enabled, priority]);
 }

@@ -3,7 +3,11 @@
 import { useEffect } from "react";
 import { X } from "lucide-react";
 import { useTranslations } from "next-intl";
-import type { ShortcutContextDef, ShortcutDef } from "@/lib/shortcuts";
+import {
+  orderContexts,
+  type ShortcutContextDef,
+  type ShortcutDef,
+} from "@/lib/shortcuts";
 
 interface ShortcutCheatSheetProps {
   open: boolean;
@@ -79,16 +83,14 @@ export function ShortcutCheatSheet({ open, stack, onClose }: ShortcutCheatSheetP
 
   if (!open) return null;
 
-  // Show every non-global layer (top of stack first), then global at the
+  // Show every non-global layer in the same order the provider resolves them
+  // (overlay tiers first, then most recently pushed), with global at the
   // bottom. Walking the full stack lets a mid-stack context (e.g. an addon
   // root that also has an editor pushed on top) keep its shortcuts visible.
   const globalCtx = stack.find((c) => c.id === "global");
-  const sections: ShortcutContextDef[] = [];
-  for (let i = stack.length - 1; i >= 0; i--) {
-    const ctx = stack[i];
-    if (ctx.id === "global") continue;
-    sections.push(ctx);
-  }
+  const sections: ShortcutContextDef[] = orderContexts(stack).filter(
+    (ctx) => ctx.id !== "global",
+  );
   if (globalCtx) sections.push(globalCtx);
 
   return (

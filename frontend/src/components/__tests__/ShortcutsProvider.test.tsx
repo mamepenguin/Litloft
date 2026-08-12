@@ -1,16 +1,22 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { render, fireEvent, act } from "@testing-library/react";
+import { useState } from "react";
 import { ShortcutsProvider } from "../ShortcutsProvider";
+import { OVERLAY_PRIORITY } from "@/lib/shortcuts";
 import { useShortcuts } from "@/hooks/useShortcuts";
 
 function Harness({
   contextId = "test",
   shortcuts,
+  enabled = true,
+  priority = 0,
 }: {
   contextId?: string;
   shortcuts: Parameters<typeof useShortcuts>[2];
+  enabled?: boolean;
+  priority?: number;
 }) {
-  useShortcuts(contextId, contextId, shortcuts);
+  useShortcuts(contextId, contextId, shortcuts, enabled, priority);
   return null;
 }
 
@@ -27,6 +33,71 @@ function StackHarness({
     </>
   );
 }
+
+describe("ShortcutsProvider priority tiers", () => {
+  beforeEach(() => {
+    document.body.innerHTML = "";
+  });
+
+  it("a higher tier wins over a context pushed later", () => {
+    const overlay = vi.fn();
+    const late = vi.fn();
+
+    function LateLayer() {
+      const [on, setOn] = useState(false);
+      return (
+        <>
+          <Harness
+            contextId="late"
+            enabled={on}
+            shortcuts={[{ key: "ctrl+k", label: "late", handler: late }]}
+          />
+          <button data-testid="enable-late" onClick={() => setOn(true)} />
+        </>
+      );
+    }
+
+    const { getByTestId } = render(
+      <ShortcutsProvider>
+        <Harness
+          contextId="overlay"
+          priority={OVERLAY_PRIORITY}
+          shortcuts={[{ key: "ctrl+k", label: "overlay", handler: overlay }]}
+        />
+        <LateLayer />
+      </ShortcutsProvider>,
+    );
+
+    // The late context is pushed after the overlay, so push order alone
+    // would give it the chord.
+    fireEvent.click(getByTestId("enable-late"));
+    fireEvent.keyDown(document, { key: "k", ctrlKey: true });
+
+    expect(overlay).toHaveBeenCalledTimes(1);
+    expect(late).not.toHaveBeenCalled();
+  });
+
+  it("within one tier, the most recently pushed context still wins", () => {
+    const first = vi.fn();
+    const second = vi.fn();
+
+    render(
+      <ShortcutsProvider>
+        <StackHarness
+          layers={[
+            { id: "first", shortcuts: [{ key: "ctrl+k", label: "a", handler: first }] },
+            { id: "second", shortcuts: [{ key: "ctrl+k", label: "b", handler: second }] },
+          ]}
+        />
+      </ShortcutsProvider>,
+    );
+
+    fireEvent.keyDown(document, { key: "k", ctrlKey: true });
+
+    expect(second).toHaveBeenCalledTimes(1);
+    expect(first).not.toHaveBeenCalled();
+  });
+});
 
 describe("ShortcutsProvider editingOnly partition", () => {
   beforeEach(() => {

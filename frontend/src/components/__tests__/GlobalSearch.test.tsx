@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { render, screen, fireEvent, act, waitFor } from "@testing-library/react";
-import type { ReactNode } from "react";
+import { useState, type ReactNode } from "react";
 import { GlobalSearch } from "../GlobalSearch";
 import { ShortcutsProvider } from "../ShortcutsProvider";
 import { useShortcuts } from "@/hooks/useShortcuts";
@@ -257,6 +257,53 @@ describe("GlobalSearch", () => {
     act(() => {
       vi.advanceTimersByTime(60);
     });
+
+    fireEvent.keyDown(document.activeElement!, { key: "k", ctrlKey: true });
+    expect(screen.queryByPlaceholderText("Search in main...")).toBeNull();
+    expect(addonHandler).not.toHaveBeenCalled();
+  });
+
+  // Same collision, but the editing context enables *after* the modal is
+  // already open. Knowledge gates its editor shortcuts on `content !== null`,
+  // so opening the modal while a note is still loading produces exactly this
+  // order. Push order alone would hand the chord to the editor.
+  it("closing wins ctrl+k over an editing context registered after it", () => {
+    const addonHandler = vi.fn();
+
+    function LateAddonEditor() {
+      const [loaded, setLoaded] = useState(false);
+      useShortcuts(
+        "addon-editor",
+        "Addon",
+        [
+          {
+            key: "ctrl+k",
+            label: "Insert link",
+            editingOnly: true,
+            handler: addonHandler,
+          },
+        ],
+        loaded,
+      );
+      return (
+        <button data-testid="finish-load" onClick={() => setLoaded(true)} />
+      );
+    }
+
+    renderWithShortcuts(
+      <>
+        <LateAddonEditor />
+        <GlobalSearch />
+      </>,
+    );
+
+    fireEvent.keyDown(document, { key: "k", ctrlKey: true });
+    act(() => {
+      vi.advanceTimersByTime(60);
+    });
+
+    // The note finishes loading while the modal is open.
+    fireEvent.click(screen.getByTestId("finish-load"));
 
     fireEvent.keyDown(document.activeElement!, { key: "k", ctrlKey: true });
     expect(screen.queryByPlaceholderText("Search in main...")).toBeNull();

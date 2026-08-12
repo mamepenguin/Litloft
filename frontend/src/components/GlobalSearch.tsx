@@ -5,6 +5,7 @@ import { createPortal } from "react-dom";
 import { useRouter } from "next/navigation";
 import { ArrowLeft, ArrowRight, ArrowUpLeft, Clock, Search, X } from "lucide-react";
 import { useShortcuts } from "@/hooks/useShortcuts";
+import { OVERLAY_PRIORITY } from "@/lib/shortcuts";
 
 import { useTranslations } from "next-intl";
 import { getDriveFiles } from "@/lib/api";
@@ -169,9 +170,10 @@ export function GlobalSearch() {
   //     would otherwise win the chord and write a link into the note behind the
   //     modal.
   //
-  // `editingOnly: false` means "fires regardless of focus state", and being
-  // top-of-stack this context is consulted before both the global layer and
-  // anything an addon registered earlier.
+  // `editingOnly: false` means "fires regardless of focus state".
+  // `OVERLAY_PRIORITY` puts the context in a tier above plain push order, so a
+  // context that enables *after* the modal opened — Knowledge gates its editor
+  // shortcuts on the note body having loaded — cannot take the chord back.
   useShortcuts(
     "search-modal",
     tsc("search"),
@@ -180,6 +182,7 @@ export function GlobalSearch() {
       { key: "ctrl+shift+f", label: tc("close"), editingOnly: false, handler: closeSearch },
     ],
     open,
+    OVERLAY_PRIORITY,
   );
 
   useEffect(() => {
