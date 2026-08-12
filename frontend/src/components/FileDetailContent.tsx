@@ -105,6 +105,15 @@ interface FileDetailContentProps {
 }
 
 /**
+ * Width at which the companion may sit beside the player, in rem:
+ * 552px player + 384px rail + 24px gap. Kept in rem, and resolved
+ * against the root font size when measured, so a viewer who scales
+ * text gets the layout these numbers were chosen for. Must stay in
+ * step with the `[data-media-width="wide"]` rules in `globals.css`.
+ */
+const RAIL_MIN_REM = 60;
+
+/**
  * The full per-file detail surface, sans navigation chrome.
  *
  * PR-3 of the right-pane equivalence merger
@@ -185,28 +194,68 @@ export function FileDetailContent({
   // by a knowable amount — the right pane carries its own header row on
   // top of the app header, and only it knows that.
   const [railAvailable, setRailAvailable] = useState<number | null>(null);
+  // Whether this host is wide enough for the rail form. Measured rather
+  // than asked of a container query: `@container` establishes a
+  // containment context, and on iOS Safari one wrapped around a <video>
+  // or a cross-origin iframe renders the whole subtree rotated and
+  // spinning. Confirmed on device 2026-08-12 by removing that one word;
+  // no desktop browser shows it. hako 7bFYOh3vFZP9EEuf9Ym_5.
+  //
+  // A viewport breakpoint is still wrong for the same reason it always
+  // was — this renders both full-width and inside the 2-pane right pane
+  // — so the question stays "how wide is this element", only the way of
+  // answering it changes.
+  // Written straight onto the node rather than held in state: the
+  // layout is decided entirely in CSS from the attribute, the same way
+  // `lib/mediaLayout.ts` drives `data-media-layout`. Nothing has to
+  // re-render for the columns to change, so a window drag costs no
+  // React work at all.
+  const railHostRef = useRef<HTMLDivElement>(null);
+  // Same idea for the height, which the observer recomputes on every
+  // resize frame and which usually comes back unchanged.
+  const railAvailableRef = useRef<number | null>(null);
   useEffect(() => {
     const pane = miniPlayerRoot ?? null;
+    const publishAvailable = (value: number) => {
+      if (value === railAvailableRef.current) return;
+      railAvailableRef.current = value;
+      setRailAvailable(value);
+    };
     const measure = () => {
       if (pane) {
-        setRailAvailable(pane.clientHeight);
-        return;
+        publishAvailable(pane.clientHeight);
+      } else {
+        const header = Number.parseFloat(
+          getComputedStyle(document.documentElement).getPropertyValue(
+            "--app-header-h",
+          ),
+        );
+        publishAvailable(
+          window.innerHeight - (Number.isFinite(header) ? header : 0),
+        );
       }
-      const header = Number.parseFloat(
-        getComputedStyle(document.documentElement).getPropertyValue(
-          "--app-header-h",
-        ),
-      );
-      setRailAvailable(
-        window.innerHeight - (Number.isFinite(header) ? header : 0),
-      );
+      const host = railHostRef.current;
+      if (!host) return;
+      const rootFontSize =
+        Number.parseFloat(getComputedStyle(document.documentElement).fontSize) ||
+        16;
+      host.dataset.mediaWidth =
+        host.clientWidth >= RAIL_MIN_REM * rootFontSize ? "wide" : "narrow";
     };
     measure();
     if (typeof ResizeObserver === "undefined") return;
     const observer = new ResizeObserver(measure);
     observer.observe(pane ?? document.documentElement);
+    // Safe to observe the element this callback writes an attribute to:
+    // the attribute only re-columns the grid *inside* it, while the
+    // wrapper itself stays full-width. Nothing it sets can change what
+    // it measures, so there is no resize loop to converge.
+    if (railHostRef.current) observer.observe(railHostRef.current);
     return () => observer.disconnect();
-  }, [miniPlayerRoot]);
+    // `file?.id` because the wrapper this measures only exists once the
+    // file has loaded — without it the effect runs while the ref is
+    // still null and never looks again.
+  }, [miniPlayerRoot, file?.id]);
 
   const handleMediaController = useCallback(
     (mc: MediaController | null) => {
@@ -759,8 +808,11 @@ export function FileDetailContent({
     );
   }
 
+  // `data-media-width` is set by the measuring effect above rather than
+  // rendered here: absent reads as narrow, which is the layout to show
+  // before anything has been measured.
   return (
-    <div className="w-full @container">
+    <div ref={railHostRef} className="w-full">
       <div
         className="media-detail-grid"
         // Sticky offset by host: a pane that scrolls itself starts at
