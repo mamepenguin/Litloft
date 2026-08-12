@@ -59,4 +59,6 @@ export interface MediaControlsPresenterProps {
    * describe them.
    */
   settingsExtra?: ReactNode;
+  /** On/off settings drawn as icons beside core's own. */
+  settingsToggles?: ReactNode;
 }

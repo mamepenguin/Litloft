@@ -324,8 +324,6 @@
     "pictureInPicture": "ピクチャ・イン・ピクチャ",
     "subtitleTrack": "字幕トラック",
     "subtitleTrackOff": "オフ",
-    "playerControls": "プレーヤー操作",
-    "litloftControls": "Litloft の操作バー",
     "browserControls": "ブラウザ標準の操作バー",
     "useLitloftControls": "Litloft の操作バーに戻す",
     "miniPlayerClose": "ミニプレーヤーを閉じる（再生停止）",
@@ -349,8 +347,6 @@
     "closeSettings": "設定を閉じる",
     "normalSpeed": "標準",
     "captions": "字幕",
-    "captionsOn": "オン",
-    "captionsOff": "オフ",
     "chapters": "チャプター"
   },
   "archive": {

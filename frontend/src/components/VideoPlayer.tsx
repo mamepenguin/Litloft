@@ -27,8 +27,8 @@ import { useShortcuts } from "@/hooks/useShortcuts";
 import MediaControls from "./player/MediaControls";
 import { useFullscreen } from "./player/hooks/useFullscreen";
 import {
-  NativePlayerUiToggle,
-  NativeSettingsRows,
+  NativeToggleButtons,
+  SubtitleTrackPicker,
 } from "./player/NativeSettingsRows";
 
 interface VideoPlayerProps {
@@ -98,15 +98,14 @@ function LitloftVideoControls({
       isPseudoFullscreen={fullscreen.isPseudo}
       interactive
       onBoostingChange={setBoosting}
-      settingsExtra={
-        <>
-          <NativeSettingsRows video={video} />
-          <NativePlayerUiToggle
-            ui="litloft"
-            onChange={handleUseBrowserControls}
-          />
-        </>
+      settingsToggles={
+        <NativeToggleButtons
+          video={video}
+          browserControls={false}
+          onBrowserControlsChange={handleUseBrowserControls}
+        />
       }
+      settingsExtra={<SubtitleTrackPicker video={video} />}
     />
   );
 }

@@ -1,7 +1,7 @@
 export {
-  NativeAutoplayRow,
-  NativeSettingsRows,
-  PictureInPictureRow,
+  NativeAutoplayToggle,
+  NativePlayerUiToggle,
+  NativeToggleButtons,
+  PictureInPictureToggle,
   SubtitleTrackPicker,
 } from "./NativeSettingsRows";
-export { NativePlayerUiToggle } from "./NativePlayerUiToggle";

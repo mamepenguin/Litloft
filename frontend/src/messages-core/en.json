@@ -324,8 +324,6 @@
     "pictureInPicture": "Picture-in-Picture",
     "subtitleTrack": "Subtitle track",
     "subtitleTrackOff": "Off",
-    "playerControls": "Player controls",
-    "litloftControls": "Litloft controls",
     "browserControls": "Browser controls",
     "useLitloftControls": "Use Litloft controls",
     "miniPlayerClose": "Close mini player (stops playback)",
@@ -349,8 +347,6 @@
     "closeSettings": "Close settings",
     "normalSpeed": "Normal",
     "captions": "Subtitles",
-    "captionsOn": "On",
-    "captionsOff": "Off",
     "chapters": "Chapters"
   },
   "archive": {

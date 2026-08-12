@@ -60,7 +60,7 @@ describe("VideoPlayer", () => {
     const original = document.querySelector("video")!;
     fireEvent.click(await screen.findByRole("button", { name: "Settings" }));
     fireEvent.click(
-      await screen.findByRole("switch", { name: "Player controls" }),
+      await screen.findByRole("switch", { name: "Browser controls" }),
     );
 
     await waitFor(() => expect(original.hasAttribute("controls")).toBe(true));
@@ -189,7 +189,7 @@ describe("VideoPlayer", () => {
       expect(screen.getByTestId("player-frame")).toHaveClass("fixed"),
     );
     fireEvent.click(screen.getByRole("button", { name: "Settings" }));
-    fireEvent.click(screen.getByRole("switch", { name: "Player controls" }));
+    fireEvent.click(screen.getByRole("switch", { name: "Browser controls" }));
 
     expect(back).toHaveBeenCalledOnce();
   });
@@ -214,7 +214,7 @@ describe("VideoPlayer", () => {
     fireEvent.click(await screen.findByRole("button", { name: "Settings" }));
     fireEvent.click(await screen.findByRole("radio", { name: "日本語" }));
     expect(tracks.map((track) => track.mode)).toEqual(["disabled", "showing"]);
-    fireEvent.click(screen.getByRole("switch", { name: "Player controls" }));
+    fireEvent.click(screen.getByRole("switch", { name: "Browser controls" }));
     await waitFor(() => expect(video.hasAttribute("controls")).toBe(true));
     fireEvent.click(
       screen.getByRole("button", { name: "Use Litloft controls" }),

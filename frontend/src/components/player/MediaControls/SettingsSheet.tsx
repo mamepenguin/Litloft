@@ -2,8 +2,9 @@
 
 import type { ReactNode } from "react";
 import { useTranslations } from "next-intl";
-import { Check } from "lucide-react";
+import { Captions, CaptionsOff, Check } from "lucide-react";
 import type { CaptionsState } from "@/lib/mediaController";
+import { SettingToggle } from "./parts/SettingToggle";
 import {
   PLAYBACK_RATES,
   nearestOfferedRate,
@@ -29,6 +30,12 @@ export interface SettingsSheetProps {
   onClose: () => void;
   /** Rows contributed by the frame's owner; see MediaControlsPresenterProps. */
   extra?: ReactNode;
+  /**
+   * On/off settings contributed by the frame's owner, rendered as icons
+   * on the same line as core's own. Kept apart from `extra` because
+   * that one is a stack of blocks and this is a single row.
+   */
+  toggles?: ReactNode;
   placement?: SettingsSheetPlacement;
 }
 
@@ -46,6 +53,7 @@ export function SettingsSheet({
   onToggleCaptions,
   onClose,
   extra,
+  toggles,
   placement = "sheet",
 }: SettingsSheetProps) {
   const t = useTranslations("player");
@@ -95,32 +103,29 @@ export function SettingsSheet({
           "animate-slide-up-bar",
         ].join(" ")}
       >
-        {extra}
-
-        {captions !== "unavailable" && (
-          <div className="flex items-center justify-between gap-3">
-            <span className="px-1 text-sm">{t("captions")}</span>
-            <button
-              type="button"
-              role="switch"
-              aria-checked={captions === "on"}
-              aria-label={t("captions")}
-              // Deliberately does not close the sheet: seeing whether
-              // captions actually appeared is the point of the toggle,
-              // and on a video without a caption track nothing will.
-              onClick={() => onToggleCaptions(captions !== "on")}
-              className={[
-                "inline-flex h-11 items-center justify-center gap-1 rounded-2xl px-3 text-sm",
-                "transition-colors motion-reduce:transition-none",
-                "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus-ring",
-                captions === "on" ? "bg-white/20 font-medium" : "hover:bg-white/10",
-              ].join(" ")}
-            >
-              {captions === "on" && <Check size={14} aria-hidden="true" />}
-              {captions === "on" ? t("captionsOn") : t("captionsOff")}
-            </button>
+        {(captions !== "unavailable" || toggles) && (
+          <div className="flex flex-wrap items-center gap-1">
+            {captions !== "unavailable" && (
+              <SettingToggle
+                label={t("captions")}
+                checked={captions === "on"}
+                // Deliberately does not close the sheet: seeing whether
+                // captions actually appeared is the point of the toggle,
+                // and on a video without a caption track nothing will.
+                onChange={onToggleCaptions}
+              >
+                {captions === "on" ? (
+                  <Captions size={18} aria-hidden="true" />
+                ) : (
+                  <CaptionsOff size={18} aria-hidden="true" />
+                )}
+              </SettingToggle>
+            )}
+            {toggles}
           </div>
         )}
+
+        {extra}
 
         <div role="radiogroup" aria-label={t("speed")}>
           <div className="px-1 pb-1.5 text-xs font-medium text-white/70">

@@ -2,8 +2,8 @@ import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import {
-  NativeAutoplayRow,
-  PictureInPictureRow,
+  NativeAutoplayToggle,
+  PictureInPictureToggle,
   SubtitleTrackPicker,
 } from "../NativeSettingsRows";
 
@@ -43,7 +43,7 @@ describe("native settings rows", () => {
   });
 
   it("hides Picture-in-Picture when the video does not support it", () => {
-    render(<PictureInPictureRow video={document.createElement("video")} />);
+    render(<PictureInPictureToggle video={document.createElement("video")} />);
     expect(
       screen.queryByRole("switch", { name: "Picture-in-Picture" }),
     ).toBeNull();
@@ -61,7 +61,7 @@ describe("native settings rows", () => {
       value: true,
     });
 
-    render(<PictureInPictureRow video={video} />);
+    render(<PictureInPictureToggle video={video} />);
     const row = screen.getByRole("switch", { name: "Picture-in-Picture" });
     expect(row).toHaveClass("h-11");
     fireEvent.click(row);
@@ -91,7 +91,7 @@ describe("native settings rows", () => {
       value: exitPictureInPicture,
     });
 
-    render(<PictureInPictureRow video={video} />);
+    render(<PictureInPictureToggle video={video} />);
     const row = screen.getByRole("switch", { name: "Picture-in-Picture" });
     expect(row).toHaveAttribute("aria-checked", "true");
     fireEvent.click(row);
@@ -119,7 +119,7 @@ describe("native settings rows", () => {
       value: webkitSetPresentationMode,
     });
 
-    render(<PictureInPictureRow video={video} />);
+    render(<PictureInPictureToggle video={video} />);
     const row = screen.getByRole("switch", { name: "Picture-in-Picture" });
     expect(row).toHaveAttribute("aria-checked", "true");
     fireEvent.click(row);
@@ -166,16 +166,19 @@ describe("native settings rows", () => {
     expect(off).toHaveAttribute("aria-checked", "true");
   });
 
-  it("renders autoplay as a labelled switch and stores its choice", () => {
-    render(<NativeAutoplayRow />);
+  it("renders autoplay as an icon switch and stores its choice", () => {
+    // Icon-only, so the name lives on `aria-label` and the state on
+    // `aria-checked` — there is no visible text to assert. `title`
+    // repeats the name for a pointer hover.
+    render(<NativeAutoplayToggle />);
     const row = screen.getByRole("switch", { name: "Autoplay" });
-    expect(row).toHaveClass("h-11");
+    expect(row).toHaveClass("h-11", "w-11");
+    expect(row).toHaveAttribute("title", "Autoplay");
     expect(row).toHaveAttribute("aria-checked", "false");
-    expect(row).toHaveTextContent("Autoplay OFF");
+    expect(row).toHaveTextContent("");
 
     fireEvent.click(row);
     expect(row).toHaveAttribute("aria-checked", "true");
-    expect(row).toHaveTextContent("Autoplay ON");
     expect(window.localStorage.getItem("video-share-autoplay")).toBe("true");
   });
 });

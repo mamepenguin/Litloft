@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Check, PictureInPicture2, Play } from "lucide-react";
+import { Check, MonitorPlay, PictureInPicture2, Play } from "lucide-react";
 import { useTranslations } from "next-intl";
 
 import { useAutoplayPreference } from "@/lib/autoplay";
@@ -11,17 +11,12 @@ import {
   isInPictureInPicture,
   supportsPictureInPicture,
 } from "@/lib/backgroundPiP";
+import { SettingToggle } from "../MediaControls/parts/SettingToggle";
 import { useCaptionsPreference } from "../MediaControls/hooks/useCaptionsPreference";
 
 interface VideoRowProps {
   video: HTMLVideoElement | null;
 }
-
-const buttonClass = [
-  "inline-flex h-11 items-center justify-center gap-1 rounded-2xl px-3 text-sm",
-  "transition-colors motion-reduce:transition-none",
-  "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus-ring",
-].join(" ");
 
 function textTracks(video: HTMLVideoElement): TextTrack[] {
   return Array.from({ length: video.textTracks.length }, (_, index) =>
@@ -29,7 +24,7 @@ function textTracks(video: HTMLVideoElement): TextTrack[] {
   ).filter((track): track is TextTrack => track !== null);
 }
 
-export function PictureInPictureRow({ video }: VideoRowProps) {
+export function PictureInPictureToggle({ video }: VideoRowProps) {
   const t = useTranslations("player");
   const [active, setActive] = useState(
     () => video != null && isInPictureInPicture(video),
@@ -52,36 +47,59 @@ export function PictureInPictureRow({ video }: VideoRowProps) {
   if (!video || !supportsPictureInPicture(video)) return null;
 
   return (
-    <div className="flex items-center justify-between gap-3">
-      <span className="px-1 text-sm">{t("pictureInPicture")}</span>
-      <button
-        type="button"
-        role="switch"
-        aria-checked={active}
-        aria-label={t("pictureInPicture")}
-        onClick={() => {
-          // Both directions, because this renders as a switch. The
-          // effect above also hears the platform's own events, so a
-          // window closed from the OS chrome settles the state too.
-          const change = active
-            ? exitPictureInPicture(video)
-            : enterPictureInPicture(video);
-          void change
-            .then(() => setActive(isInPictureInPicture(video)))
-            .catch(() => {});
-        }}
-        className={`${buttonClass} ${
-          active ? "bg-white/20 font-medium" : "hover:bg-white/10"
-        }`}
-      >
-        {active ? (
-          <Check size={14} aria-hidden="true" />
-        ) : (
-          <PictureInPicture2 size={14} aria-hidden="true" />
-        )}
-        {t("pictureInPicture")}
-      </button>
-    </div>
+    <SettingToggle
+      label={t("pictureInPicture")}
+      checked={active}
+      // Both directions, because this renders as a switch. The effect
+      // above also hears the platform's own events, so a window closed
+      // from the OS chrome settles the state too.
+      onChange={(next) => {
+        void (next ? enterPictureInPicture(video) : exitPictureInPicture(video))
+          .then(() => setActive(isInPictureInPicture(video)))
+          .catch(() => {});
+      }}
+    >
+      <PictureInPicture2 size={18} aria-hidden="true" />
+    </SettingToggle>
+  );
+}
+
+export function NativeAutoplayToggle() {
+  const t = useTranslations("player");
+  const [enabled, setEnabled] = useAutoplayPreference();
+
+  return (
+    <SettingToggle label={t("autoplay")} checked={enabled} onChange={setEnabled}>
+      <Play size={18} aria-hidden="true" />
+    </SettingToggle>
+  );
+}
+
+export interface NativePlayerUiToggleProps {
+  browser: boolean;
+  onChange: (browser: boolean) => void;
+}
+
+/**
+ * Hands the frame back to the browser's own controls, and takes it
+ * again. What it actually sets is the `controls` attribute; the visible
+ * consequence is that the browser draws its own bar, which is also
+ * where the platform's fullscreen and AirPlay entries live.
+ */
+export function NativePlayerUiToggle({
+  browser,
+  onChange,
+}: NativePlayerUiToggleProps) {
+  const t = useTranslations("player");
+
+  return (
+    <SettingToggle
+      label={t("browserControls")}
+      checked={browser}
+      onChange={onChange}
+    >
+      <MonitorPlay size={18} aria-hidden="true" />
+    </SettingToggle>
   );
 }
 
@@ -106,6 +124,8 @@ export function SubtitleTrackPicker({ video }: VideoRowProps) {
     };
   }, [video]);
 
+  // One track is what the core toggle already covers; a picker would
+  // just be a second control for the same thing.
   if (tracks.length <= 1) return null;
 
   const selected = tracks.findIndex((track) => track.mode === "showing");
@@ -116,6 +136,14 @@ export function SubtitleTrackPicker({ video }: VideoRowProps) {
     setCaptionsPreferred(selectedIndex !== -1);
     setVersion((version) => version + 1);
   };
+
+  const optionClass = (checked: boolean) =>
+    [
+      "inline-flex h-11 items-center justify-center gap-1 rounded-2xl px-3 text-sm",
+      "transition-colors motion-reduce:transition-none",
+      "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus-ring",
+      checked ? "bg-white/20 font-medium" : "hover:bg-white/10",
+    ].join(" ");
 
   return (
     <div role="radiogroup" aria-label={t("subtitleTrack")}>
@@ -128,9 +156,7 @@ export function SubtitleTrackPicker({ video }: VideoRowProps) {
           role="radio"
           aria-checked={selected === -1}
           onClick={() => select(-1)}
-          className={`${buttonClass} ${
-            selected === -1 ? "bg-white/20 font-medium" : "hover:bg-white/10"
-          }`}
+          className={optionClass(selected === -1)}
         >
           {selected === -1 && <Check size={14} aria-hidden="true" />}
           {t("subtitleTrackOff")}
@@ -145,9 +171,7 @@ export function SubtitleTrackPicker({ video }: VideoRowProps) {
               role="radio"
               aria-checked={checked}
               onClick={() => select(index)}
-              className={`${buttonClass} ${
-                checked ? "bg-white/20 font-medium" : "hover:bg-white/10"
-              }`}
+              className={optionClass(checked)}
             >
               {checked && <Check size={14} aria-hidden="true" />}
               {label}
@@ -159,40 +183,29 @@ export function SubtitleTrackPicker({ video }: VideoRowProps) {
   );
 }
 
-export function NativeAutoplayRow() {
-  const t = useTranslations("player");
-  const [enabled, setEnabled] = useAutoplayPreference();
-
-  return (
-    <div className="flex items-center justify-between gap-3">
-      <span className="px-1 text-sm">{t("autoplay")}</span>
-      <button
-        type="button"
-        role="switch"
-        aria-checked={enabled}
-        aria-label={t("autoplay")}
-        onClick={() => setEnabled(!enabled)}
-        className={`${buttonClass} ${
-          enabled ? "bg-white/20 font-medium" : "hover:bg-white/10"
-        }`}
-      >
-        {enabled ? (
-          <Check size={14} aria-hidden="true" />
-        ) : (
-          <Play size={14} aria-hidden="true" />
-        )}
-        {enabled ? t("autoplayOn") : t("autoplayOff")}
-      </button>
-    </div>
-  );
+export interface NativeToggleButtonsProps extends VideoRowProps {
+  browserControls: boolean;
+  onBrowserControlsChange: (browser: boolean) => void;
 }
 
-export function NativeSettingsRows({ video }: VideoRowProps) {
+/**
+ * The native backend's on/off settings, for the settings sheet's icon
+ * row. The subtitle track picker is not here: it has more than two
+ * states, so it stays a labelled group in `settingsExtra`.
+ */
+export function NativeToggleButtons({
+  video,
+  browserControls,
+  onBrowserControlsChange,
+}: NativeToggleButtonsProps) {
   return (
     <>
-      <PictureInPictureRow video={video} />
-      <SubtitleTrackPicker video={video} />
-      <NativeAutoplayRow />
+      <PictureInPictureToggle video={video} />
+      <NativeAutoplayToggle />
+      <NativePlayerUiToggle
+        browser={browserControls}
+        onChange={onBrowserControlsChange}
+      />
     </>
   );
 }
