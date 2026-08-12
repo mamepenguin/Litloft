@@ -297,6 +297,38 @@ describe("GlobalSearch", () => {
       }
     });
 
+    // Anything can end up under this localStorage key: a hand-edited value, an
+    // older schema, another tab. Before Phase 2 a non-array was tolerated by
+    // accident (`history.length > 0` was falsy), so the modal rendered nothing
+    // rather than crashing. The flat-list refactor maps over it unconditionally,
+    // which turns that silent tolerance into a TypeError unless getHistory
+    // validates the shape.
+    it("ignores a persisted history value that is not an array", () => {
+      localStorage.setItem(
+        "search-history:main",
+        JSON.stringify({ term: "whisper" }),
+      );
+      render(<GlobalSearch />);
+      fireEvent.click(screen.getByLabelText("Search"));
+
+      expect(
+        screen.getAllByPlaceholderText("Search in main...").length,
+      ).toBeGreaterThanOrEqual(1);
+      expect(screen.queryByText("whisper")).toBeNull();
+    });
+
+    it("drops non-string entries from persisted history", () => {
+      localStorage.setItem(
+        "search-history:main",
+        JSON.stringify(["whisper", 42, null]),
+      );
+      render(<GlobalSearch />);
+      fireEvent.click(screen.getByLabelText("Search"));
+
+      expect(screen.getAllByText("whisper").length).toBeGreaterThanOrEqual(1);
+      expect(screen.queryByText("42")).toBeNull();
+    });
+
     it("renders one row per history term when the query is empty", () => {
       seedHistory(["whisper", "chapters"]);
       render(<GlobalSearch />);

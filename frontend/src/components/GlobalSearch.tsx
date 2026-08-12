@@ -37,11 +37,22 @@ function historyKey(drive: string): string {
   return `search-history:${drive}`;
 }
 
+/**
+ * Read the persisted search-term history.
+ *
+ * The value is validated rather than trusted: this key can hold anything a
+ * hand edit, an older schema, or another tab left behind, and every caller
+ * (including the empty-state list, which maps over it unconditionally) treats
+ * the result as a string array.
+ */
 function getHistory(drive: string): string[] {
   if (typeof window === "undefined") return [];
   try {
     const raw = localStorage.getItem(historyKey(drive));
-    return raw ? JSON.parse(raw) : [];
+    if (!raw) return [];
+    const parsed: unknown = JSON.parse(raw);
+    if (!Array.isArray(parsed)) return [];
+    return parsed.filter((entry): entry is string => typeof entry === "string");
   } catch {
     return [];
   }
