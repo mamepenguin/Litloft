@@ -14,6 +14,18 @@ describe("media detail theater sizing", () => {
     );
   });
 
+  it("keeps an explicit width alongside the auto margins", () => {
+    // An auto inline margin turns off a grid item's default `stretch`,
+    // so without this the item sizes from its contents — a <video> with
+    // no metadata yet, which reports the CSS default 300x150. The player
+    // rendered at 300px wide until the file loaded, then snapped.
+    const rule = globalsCss().match(
+      /\.media-detail-player\[data-framed="true"\]\s*\{[^}]*\}/,
+    );
+    expect(rule).not.toBeNull();
+    expect(rule![0]).toMatch(/width:\s*100%;/);
+  });
+
   it("leaves the unframed player column alone", () => {
     // The cap inverts a 16:9 ratio, so it only means anything for a
     // player whose height follows its width. Applying it to an image,
