@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach } from "vitest";
+import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { render, screen, waitFor, act, fireEvent } from "@testing-library/react";
 import { useState } from "react";
 
@@ -998,5 +998,113 @@ describe("FileDetailContent layout toggle", () => {
 
     fireEvent.click(toggle()!);
     expect(document.documentElement.getAttribute("data-media-layout")).toBe("stacked");
+  });
+});
+
+describe("FileDetailContent rail width", () => {
+  // The rail form used to be selected by a container query. `@container`
+  // establishes a containment context, and on iOS Safari one wrapped
+  // around a <video> or a cross-origin iframe renders the whole subtree
+  // rotated and spinning (confirmed on device 2026-08-12, invisible on
+  // desktop). The width question is unchanged — this surface renders
+  // both full-width and inside the 2-pane right pane — so it is now
+  // measured and published as an attribute instead.
+  //
+  // Which is also why these assertions can exist at all: jsdom does not
+  // evaluate container queries, but it does have attributes.
+  let resize: (() => void) | undefined;
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+    usePolicyMock.mockReturnValue({ enabled: true, isLoading: false });
+    slotMocks.occupied.clear();
+    slotMocks.occupied.add("player-side");
+    document.documentElement.removeAttribute("data-media-layout");
+    resize = undefined;
+    class ResizeObserverMock {
+      constructor(callback: () => void) {
+        resize = callback;
+      }
+      observe() {}
+      unobserve() {}
+      disconnect() {}
+    }
+    vi.stubGlobal("ResizeObserver", ResizeObserverMock);
+  });
+
+  afterEach(() => {
+    vi.unstubAllGlobals();
+    vi.restoreAllMocks();
+  });
+
+  async function renderAtWidth(width: number) {
+    vi.spyOn(HTMLElement.prototype, "clientWidth", "get").mockReturnValue(width);
+    setApiResponses(makeFile());
+    const { container } = render(<FileDetailContent fileId="f1" drive="main" />);
+    await waitFor(() => expect(api.getFile).toHaveBeenCalledWith("f1"));
+    const host = await waitFor(() => {
+      const found = container.querySelector<HTMLElement>("[data-media-width]");
+      expect(found).not.toBeNull();
+      return found!;
+    });
+    return host;
+  }
+
+  it("calls a host with room for both columns wide", async () => {
+    // 60rem at the 16px default root size.
+    const host = await renderAtWidth(960);
+    expect(host.dataset.mediaWidth).toBe("wide");
+  });
+
+  it("calls a host one pixel short of that narrow", async () => {
+    const host = await renderAtWidth(959);
+    expect(host.dataset.mediaWidth).toBe("narrow");
+  });
+
+  it("re-measures when the host is resized", async () => {
+    const host = await renderAtWidth(959);
+    expect(host.dataset.mediaWidth).toBe("narrow");
+
+    vi.spyOn(HTMLElement.prototype, "clientWidth", "get").mockReturnValue(1200);
+    resize?.();
+    await waitFor(() => expect(host.dataset.mediaWidth).toBe("wide"));
+  });
+
+  it("measures a wrapper that only appears once an addon claims the slot", async () => {
+    // `getFile` routinely wins the race against the addon catalogue, so
+    // the wrapper mounts on a later commit than the one the measuring
+    // effect ran on. A dependency list would have to name every reason
+    // it can appear; the callback ref does not care which one it was.
+    slotMocks.occupied.clear();
+    vi.spyOn(HTMLElement.prototype, "clientWidth", "get").mockReturnValue(1200);
+    setApiResponses(makeFile());
+    const { container, rerender } = render(
+      <FileDetailContent fileId="f1" drive="main" />,
+    );
+    await waitFor(() => expect(api.getFile).toHaveBeenCalledWith("f1"));
+    expect(container.querySelector("[data-media-width]")).toBeNull();
+
+    slotMocks.occupied.add("player-side");
+    rerender(<FileDetailContent fileId="f1" drive="main" />);
+
+    const host = await waitFor(() => {
+      const found = container.querySelector<HTMLElement>("[data-media-width]");
+      expect(found).not.toBeNull();
+      return found!;
+    });
+    expect(host.dataset.mediaWidth).toBe("wide");
+  });
+
+  it("scales the threshold with the root font size", async () => {
+    // 60rem at a 20px root is 1200px, so 960 is no longer enough. The
+    // rail and player minimums the number came from are in rem too.
+    vi.spyOn(window, "getComputedStyle").mockImplementation(
+      ((element: Element) =>
+        element === document.documentElement
+          ? ({ fontSize: "20px", getPropertyValue: () => "" } as unknown as CSSStyleDeclaration)
+          : ({ fontSize: "16px", getPropertyValue: () => "" } as unknown as CSSStyleDeclaration)) as typeof window.getComputedStyle,
+    );
+    const host = await renderAtWidth(960);
+    expect(host.dataset.mediaWidth).toBe("narrow");
   });
 });

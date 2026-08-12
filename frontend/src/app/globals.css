@@ -768,11 +768,17 @@ div[data-citation-section-path]:not(tr) {
    the playback clock and holds scroll state — so the grid moves it
    rather than the markup duplicating it.
 
-   The switch is a CONTAINER query, not a breakpoint. The same content
-   renders in the full-screen route and inside the 2-pane right pane,
-   which is 280px narrower than the viewport; a viewport breakpoint
-   would split the pane into two columns at widths where it does not
-   fit. See DESIGN.md §10.
+   The switch is on a MEASURED WIDTH published as `data-media-width`,
+   not on a breakpoint. The same content renders in the full-screen
+   route and inside the 2-pane right pane, which is 280px narrower than
+   the viewport; a viewport breakpoint would split the pane into two
+   columns at widths where it does not fit.
+
+   It was a container query until 2026-08-12. Do not put it back:
+   `container-type` establishes a containment context, and on iOS
+   Safari one wrapped around a <video> or a cross-origin iframe renders
+   the whole subtree rotated and spinning. See DESIGN.md §10 and hako
+   7bFYOh3vFZP9EEuf9Ym_5.
 
    60rem = 552px player + 384px rail + 24px gap.
    ------------------------------------------------------------------ */
@@ -853,63 +859,78 @@ div[data-citation-section-path]:not(tr) {
   min-height: 0;
 }
 
-/* Hidden until the container query below turns it on. Declared BEFORE
-   that block: the two rules have equal specificity, so source order is
-   what decides, and putting this after would win everywhere. */
+/* Hidden until the rules below turn it on. Those carry an extra
+   attribute selector, so they win on specificity rather than on source
+   order. */
 .media-detail-layout-toggle {
   display: none;
 }
 
-/* The rail needs BOTH a wide enough container and the viewer having
-   asked for it. The width is a CSS question and the preference is a
-   stored one, so they are ANDed here rather than reconciled: either
-   saying no leaves the stacked layout. Two conditions that must agree
-   eventually disagree — C-1 shipped exactly that bug — while two that
-   are ANDed cannot. */
-@container (min-width: 60rem) {
-  [data-media-layout="beside"] .media-detail-grid {
-    grid-template-columns: minmax(0, 1fr) 24rem;
-    grid-template-areas:
-      "player companion"
-      "rest   companion";
-  }
+/* The rail needs BOTH a wide enough host and the viewer having asked
+   for it. The width is measured and the preference is stored, so they
+   are ANDed here rather than reconciled: either saying no leaves the
+   stacked layout. Two conditions that must agree eventually disagree —
+   C-1 shipped exactly that bug — while two that are ANDed cannot.
 
-  /* Offering the swap only where it can happen. A control that does
-     nothing when pressed is worse than no control. */
-  .media-detail-layout-toggle {
-    display: inline-flex;
-  }
+   `data-media-width` is set by the host from a measured width, NOT by a
+   container query. The question is still "how much width does this
+   element have", which a viewport breakpoint cannot answer (the same
+   content renders full-width and inside the 2-pane right pane, 280px
+   narrower). But `@container` cannot be the answer here: it establishes
+   a containment context, and on iOS Safari a containment context around
+   a <video> or a cross-origin iframe makes the whole subtree render
+   rotated and spinning. Measured on device 2026-08-12; invisible on
+   every desktop browser. hako 7bFYOh3vFZP9EEuf9Ym_5.
 
-  /* The rail spans both rows, so the reader can scroll the left column
-     through metadata and summaries while it stays put and keeps
-     following playback.
+   Threshold 60rem = 552px player + 384px rail + 24px gap, resolved
+   against the root font size so a viewer who scales text still gets the
+   layout the numbers were chosen for. */
+[data-media-layout="beside"] [data-media-width="wide"] .media-detail-grid {
+  grid-template-columns: minmax(0, 1fr) 24rem;
+  grid-template-areas:
+    "player companion"
+    "rest   companion";
+}
 
-     --rail-top is set by the host: 0 inside a pane that scrolls itself,
-     the header's measured height when the document scrolls and the
-     sticky header would otherwise cover the rail.
+/* Offering the swap only where it can happen. A control that does
+   nothing when pressed is worse than no control. */
+[data-media-width="wide"] .media-detail-layout-toggle {
+  display: inline-flex;
+}
 
-     --rail-avail is the scroll container's visible height, measured by
-     the host. It cannot be computed in CSS: a self-scrolling pane is
-     not simply the viewport minus the app header — it carries its own
-     chrome as well — and the difference is not knowable from here. */
-  [data-media-layout="beside"] .media-detail-companion-inner {
-    position: sticky;
-    top: calc(var(--rail-top, 0px) + 1rem);
-    max-height: calc(var(--rail-avail, 100dvh) - 2rem);
-  }
+/* The rail spans both rows, so the reader can scroll the left column
+   through metadata and summaries while it stays put and keeps
+   following playback.
 
-  /* The lead can afford more here. Stacked it shares a 20rem box, so a
-     12rem cap leaves the transcript 8rem; the rail is as tall as the
-     scroll container, so the same list can stay open without crowding
-     what it indexes.
+   --rail-top is set by the host: 0 inside a pane that scrolls itself,
+   the header's measured height when the document scrolls and the
+   sticky header would otherwise cover the rail.
 
-     Bounded by the measured rail as well as by the absolute value,
-     because the lead no longer shrinks: on a short window 22rem could
-     be most of the region, and nothing else would give it back.
-     `--rail-avail` is the host's measurement of the scroll container,
-     already published for `.media-detail-companion-inner`. */
-  [data-media-layout="beside"] .media-detail-companion-lead {
-    max-height: min(22rem, calc(var(--rail-avail, 100dvh) * 0.4));
-  }
+   --rail-avail is the scroll container's visible height, measured by
+   the host. It cannot be computed in CSS: a self-scrolling pane is
+   not simply the viewport minus the app header — it carries its own
+   chrome as well — and the difference is not knowable from here. */
+[data-media-layout="beside"]
+  [data-media-width="wide"]
+  .media-detail-companion-inner {
+  position: sticky;
+  top: calc(var(--rail-top, 0px) + 1rem);
+  max-height: calc(var(--rail-avail, 100dvh) - 2rem);
+}
+
+/* The lead can afford more here. Stacked it shares a 20rem box, so a
+   12rem cap leaves the transcript 8rem; the rail is as tall as the
+   scroll container, so the same list can stay open without crowding
+   what it indexes.
+
+   Bounded by the measured rail as well as by the absolute value,
+   because the lead no longer shrinks: on a short window 22rem could
+   be most of the region, and nothing else would give it back.
+   `--rail-avail` is the host's measurement of the scroll container,
+   already published for `.media-detail-companion-inner`. */
+[data-media-layout="beside"]
+  [data-media-width="wide"]
+  .media-detail-companion-lead {
+  max-height: min(22rem, calc(var(--rail-avail, 100dvh) * 0.4));
 }
 

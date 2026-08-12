@@ -649,7 +649,7 @@ give space back on a short window.
 ### Measure against the container, not the viewport
 
 Any layout that can appear both full-width and inside a pane must
-switch on a **container query** (`@container`), never on a viewport
+switch on the width **it actually has**, never on a viewport
 breakpoint. The file-detail surface renders in the full-screen route
 and in the 2-pane right pane, which is 280px narrower than the window;
 a `lg:` rule fires on window size and splits the pane at widths where
@@ -658,6 +658,24 @@ two columns do not fit.
 This is the general rule, not a note about one component. Before
 reaching for `md:` / `lg:`, ask whether the component ever renders
 somewhere narrower than the window.
+
+**Which mechanism depends on what is inside.** A container query
+(`@container`) is the natural tool, but `container-type` establishes a
+containment context, and on iOS Safari a containment context wrapped
+around a `<video>`, `<audio>` or cross-origin iframe renders the whole
+subtree rotated and continuously spinning. No desktop browser shows it,
+so it survives review. Confirmed on device 2026-08-12.
+
+- **No media in the subtree** → `@container` + `@4xl:`-style rules.
+- **Media in the subtree** → measure the width with a `ResizeObserver`
+  and publish a `data-*` attribute the CSS branches on. The file-detail
+  surface does this (`data-media-width`), because the grid it switches
+  necessarily contains the player. This form is also the testable one:
+  container queries are not evaluated by jsdom, attributes are.
+
+Keep the threshold in `rem` on both sides and resolve it against the
+root font size when measuring, so scaled text still gets the layout the
+numbers were chosen for.
 
 ### Sticking below the header
 
