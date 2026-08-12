@@ -41,9 +41,9 @@ Generate strong secrets with `openssl rand -hex 32`.
 
 ### `CORE_INTERNAL_SECRET`
 - **Default**: empty (warned at startup)
-- **What it does**: HMAC for `/api/internal/*` write endpoints — `POST /files/<id>/tags`, `GET /files/<id>/content`, etc.
-- **Without it**: Docker-network neighbours can call those endpoints freely. Acceptable in single-tenant home setups; risky if you run untrusted addons.
-- **When to set**: Always in production setups; required when the knowledge addon is enabled.
+- **What it does**: Shared-secret authentication for protected `/api/internal/*` endpoints.
+- **Without it**: Legacy internal endpoints retain their documented development behaviour, but strict writes such as `PUT /files/<id>/chapters` fail closed with `503`.
+- **When to set**: Always in production setups; required when the knowledge addon is enabled or Intelligence chapter candidates must be approved.
 - **How**: `openssl rand -hex 32`. Same value must be set on every addon that talks to internal endpoints.
 
 ### `CORE_INTERNAL_CONTENT_MAX_BYTES`
@@ -97,7 +97,7 @@ Generate strong secrets with `openssl rand -hex 32`.
 
 ### `CORE_INTERNAL_SECRET`
 - **Default**: empty
-- **What it does**: Same as in core; the addon sends this header on internal calls. Mismatched values cause `401`.
+- **What it does**: Same as in core; the addon sends this header on internal calls. It is mandatory for approving AI chapter candidates. Missing configuration fails with `503`; a missing or mismatched request header is rejected by core with `403`.
 
 ---
 

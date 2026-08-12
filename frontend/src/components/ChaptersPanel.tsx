@@ -43,6 +43,8 @@ export function activeChapterIndex(
 interface ChaptersPanelProps {
   fileId: string;
   mediaController: MediaController | null;
+  /** Changes when an addon replaces this file's core chapter set. */
+  refreshToken?: number;
   /**
    * How many chapters actually arrived, reported once the fetch settles.
    *
@@ -59,6 +61,7 @@ interface ChaptersPanelProps {
 export function ChaptersPanel({
   fileId,
   mediaController,
+  refreshToken = 0,
   onResolved,
 }: ChaptersPanelProps) {
   const t = useTranslations("player");
@@ -91,7 +94,7 @@ export function ChaptersPanel({
     return () => {
       cancelled = true;
     };
-  }, [fileId]);
+  }, [fileId, refreshToken]);
 
   if (chapters.length === 0) return null;
 

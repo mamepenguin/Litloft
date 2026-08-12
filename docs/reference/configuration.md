@@ -86,7 +86,7 @@ Set in `.env` (read by Compose), then injected into containers explicitly via `d
 | `PASSWORDS_CONFIG` | `./passwords.json` | Path to passwords.json |
 | `DATA_DIR` | `./data` | Working directory for DB, thumbnails, uploads |
 | `JWT_SECRET` | auto-generated | JWT signing key. Auto-stored at `${DATA_DIR}/.jwt_secret` if unset. Set explicitly to rotate. |
-| `CORE_INTERNAL_SECRET` | (empty; warns) | Shared secret for `/api/internal/*` endpoints |
+| `CORE_INTERNAL_SECRET` | (empty; warns) | Shared secret for protected `/api/internal/*` endpoints; strict writes fail closed when unset |
 | `CORE_INTERNAL_CONTENT_MAX_BYTES` | `10485760` | Max body size for internal `/files/<id>/content` (bytes) |
 | `EVENT_HOOKS_PATH` | `/app/event-hooks.json` | Path to webhook config |
 | `LITLOFT_PORT` | `3000` | Public port (read from `.env`, used in base compose) |
@@ -105,7 +105,7 @@ The frontend reads its API target from the Next.js custom server config. There a
 | `ELEVENLABS_API_KEY` | (empty) | ElevenLabs Scribe cloud transcription |
 | `ASSEMBLYAI_API_KEY` | (empty) | AssemblyAI cloud transcription (Universal-2 / nano) |
 | `GEMINI_API_KEY` | (empty) | Google Gemini File API + generate_content for transcription |
-| `CORE_INTERNAL_SECRET` | (matches core) | Used to call core's internal API |
+| `CORE_INTERNAL_SECRET` | (matches core) | Used to call core's internal API; required to approve AI chapter candidates |
 
 ### knowledge addon
 

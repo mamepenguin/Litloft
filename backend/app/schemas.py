@@ -1,9 +1,11 @@
 import math
 import re
 from datetime import UTC, datetime
-from typing import Literal
+from typing import Any, Literal
 
 from pydantic import BaseModel, Field, field_validator, model_validator
+
+from app.services.chapters import ChapterRow, normalise_chapters
 
 
 class _UtcDateTimeMixin:
@@ -733,6 +735,38 @@ class FileChapterResponse(BaseModel):
 class FileChaptersResponse(BaseModel):
     chapters: list[FileChapterResponse]
     source: Literal["extracted", "curated"] | None
+
+
+class ChapterPromotionItem(BaseModel):
+    """Untrusted chapter value supplied across the addon boundary.
+
+    Values intentionally stay loose here so the shared chapter normaliser can
+    apply the same drop/null rules used by ffprobe and yt-dlp. Core-owned
+    ``source`` and ``ordering`` are absent and extra fields are forbidden.
+    """
+
+    start_time: Any = None
+    end_time: Any = None
+    title: Any = None
+
+    model_config = {"extra": "forbid"}
+
+
+class ChapterPromotionRequest(BaseModel):
+    chapters: list[ChapterPromotionItem]
+
+    model_config = {"extra": "forbid"}
+
+    def normalised_chapters(self) -> list[ChapterRow]:
+        return normalise_chapters(
+            chapter.model_dump() for chapter in self.chapters
+        )
+
+    @model_validator(mode="after")
+    def _require_usable_chapter(self):
+        if not self.normalised_chapters():
+            raise ValueError("At least one valid chapter is required")
+        return self
 
 
 _SMART_FOLDER_FILE_TYPES = {"video", "image", "audio", "document"}

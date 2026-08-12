@@ -10,6 +10,7 @@ The `intelligence` addon adds LLM-backed search, Q&A, summarization, and tag sug
 | **Semantic search** | BM25 + dense vector hybrid retrieval over text, transcripts, image frames | on |
 | **Auto-tags** | LLM proposes tags; Suggest → Approve workflow | manual |
 | **AI summaries** | Short (1 sentence) + long (paragraph) summaries per file | manual |
+| **AI chapter candidates** | LLM proposes timestamped media chapters; Suggest → Approve workflow | false |
 | **Detailed summaries** | Long-form Markdown with citations | false |
 | **Ask (RAG)** | Question answering over your library with cited sources | on |
 | **Retrieval keywords** | LLM-generated synonyms and alternate names indexed for file search | false |
@@ -157,6 +158,48 @@ Citation accuracy is tuned by a dozen knobs in `summaries.*`:
 
 Sensible defaults work for most libraries; tune up if you see ⚠ on obviously-grounded bullets, tune down if hallucinations slip through.
 
+### AI chapter candidates
+
+For audio and video with timestamped transcripts, `features.chapter_suggestions`
+can ask the configured LLM to propose a complete chapter set. Long transcripts
+are processed in bounded, time-ordered windows and consolidated hierarchically,
+so generation covers the full transcript instead of truncating it to an opening
+excerpt.
+
+Granularity is semantic rather than numeric: a boundary represents a distinct
+destination in a table of contents, while examples, clarifications, speaker
+changes, repetitions, and brief digressions stay with their central subject.
+Every result, including a single-window transcript, receives a candidate-only
+editorial pass. Candidate lists are merged rather than cut to a fixed count, so
+the ending cannot disappear behind a head-only cap. The provider's token setting
+remains a safety ceiling, not a chapter-count or output-length control.
+
+Malformed/empty model output is retried once with a broader-outline repair
+instruction. A second failure emits a drive-scoped failure event, stops the UI's
+progress state, and leaves the previous staged proposal and core chapters intact.
+
+Candidates remain staged in the Intelligence database until a user reviews the
+whole set in the file detail page:
+
+- **Approve all** replaces the file's active core chapter set. Core assigns
+  dense ordering and records the promoted rows as `curated`; the addon cannot
+  spoof provenance or ordering.
+- **Dismiss** keeps the core chapter set unchanged and marks the staged proposal
+  dismissed.
+- **Create again** replaces the staged proposal only after the new generation
+  succeeds.
+
+Modes (`features.chapter_suggestions`):
+
+- `"false"` — disabled. Default.
+- `"manual"` — generated from the file detail page.
+- `"on_index"` — generated after transcription; files missed while the worker
+  was offline are picked up by the startup sweep.
+
+Approval requires the same non-empty `CORE_INTERNAL_SECRET` in core and the
+Intelligence container. Missing configuration fails closed and leaves the
+candidate pending; generation and dismissal do not write core chapters.
+
 ### Ask (RAG)
 
 `POST /api/addons/intelligence/ask` is question answering over your library:
@@ -263,6 +306,7 @@ features:
   search: true
   auto_tags: "manual"                 # false | manual | on_index
   summaries: "manual"                 # false | manual | on_index
+  chapter_suggestions: "false"        # false | manual | on_index
   detailed_summaries: "false"         # false | manual | on_index
   rag: true                           # bool
   transcript_refine: "false"          # false | manual | on_index
@@ -270,7 +314,7 @@ features:
   retrieval_keywords: "false"         # false | manual | on_index
 ```
 
-`auto_tags`, `summaries`, `detailed_summaries`, `transcript_refine`, `vision_describe`, and `retrieval_keywords` all require `llm.provider != "disabled"`.
+`auto_tags`, `summaries`, `chapter_suggestions`, `detailed_summaries`, `transcript_refine`, `vision_describe`, and `retrieval_keywords` all require `llm.provider != "disabled"`.
 
 ### LLM
 

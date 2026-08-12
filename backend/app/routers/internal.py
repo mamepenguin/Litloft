@@ -29,7 +29,8 @@ from app.models import (
     active_file_filter,
 )
 from app.routers.files import cleanup_orphan_tags, replace_file_tags
-from app.schemas import TagUpdate, file_to_response
+from app.schemas import ChapterPromotionRequest, TagUpdate, file_to_response
+from app.services.chapters import replace_chapters
 from app.services.ws import manager as ws_manager
 
 logger = logging.getLogger(__name__)
@@ -63,6 +64,26 @@ def verify_internal_secret(
     expected = os.environ.get("CORE_INTERNAL_SECRET", "")
     if not expected:
         return
+    if not hmac.compare_digest(x_internal_secret, expected):
+        raise HTTPException(status_code=403, detail="Invalid internal secret")
+
+
+def verify_internal_write_secret(
+    x_internal_secret: str = Header(default=""),
+) -> None:
+    """Strictly gate integrity-changing addon-to-core writes.
+
+    Unlike the legacy optional gate used by content reads and older internal
+    endpoints, an unset secret fails closed. This verifier is deliberately
+    specific to strict write endpoints so tightening this boundary does not
+    silently change the existing development contract elsewhere.
+    """
+    expected = os.environ.get("CORE_INTERNAL_SECRET", "")
+    if not expected.strip():
+        raise HTTPException(
+            status_code=503,
+            detail="Internal write secret is not configured",
+        )
     if not hmac.compare_digest(x_internal_secret, expected):
         raise HTTPException(status_code=403, detail="Invalid internal secret")
 
@@ -178,6 +199,41 @@ def replace_file_tags_internal(
 
     replace_file_tags(db, file, update.tags)
     cleanup_orphan_tags(db)
+    db.commit()
+    return Response(status_code=204)
+
+
+@router.put(
+    "/files/{file_id}/chapters",
+    dependencies=[Depends(verify_internal_write_secret)],
+    status_code=204,
+)
+def promote_file_chapters_internal(
+    file_id: str,
+    update: ChapterPromotionRequest,
+    db=Depends(get_db),
+) -> Response:
+    """Promote an addon's approved chapter candidates into core.
+
+    The caller supplies values only. Core applies the same normalisation as
+    every other producer, assigns dense ordering, and forces curated
+    provenance. A request with no usable chapters fails schema validation, so
+    ``replace_chapters`` can never interpret an empty approval as deletion.
+    """
+    file = (
+        db.query(File)
+        .filter(File.id == file_id, active_file_filter())
+        .first()
+    )
+    if not file:
+        raise HTTPException(status_code=404, detail="File not found")
+
+    replace_chapters(
+        db,
+        file.id,
+        update.normalised_chapters(),
+        "curated",
+    )
     db.commit()
     return Response(status_code=204)
 
