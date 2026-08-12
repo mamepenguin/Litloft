@@ -98,6 +98,10 @@ function makeHit(overrides: Partial<SemanticHit> = {}): SemanticHit {
   };
 }
 
+// jsdom does not implement scrollIntoView, which the selection effect calls
+// whenever selectedIndex >= 0. Only tests that move the selection hit it.
+Element.prototype.scrollIntoView = vi.fn();
+
 // jsdom does not implement matchMedia
 Object.defineProperty(window, "matchMedia", {
   writable: true,
@@ -208,6 +212,83 @@ describe("GlobalSearch", () => {
       ctrlKey: true,
     });
     expect(screen.queryByPlaceholderText("Search in main...")).toBeNull();
+  });
+
+  // The empty-query state (search-term history) had no coverage before the
+  // Phase 2 refactor that moved it onto a single flat item list. These pin
+  // the behaviour so the list restructure — and the rows Phase 3 adds beside
+  // it — cannot silently change how the rows render or navigate.
+  describe("empty query state", () => {
+    function seedHistory(terms: string[]) {
+      localStorage.setItem("search-history:main", JSON.stringify(terms));
+    }
+
+    afterEach(() => {
+      try {
+        localStorage.removeItem("search-history:main");
+      } catch {
+        /* jsdom */
+      }
+    });
+
+    it("renders one row per history term when the query is empty", () => {
+      seedHistory(["whisper", "chapters"]);
+      render(<GlobalSearch />);
+      fireEvent.click(screen.getByLabelText("Search"));
+
+      expect(screen.getAllByText("whisper").length).toBeGreaterThanOrEqual(1);
+      expect(screen.getAllByText("chapters").length).toBeGreaterThanOrEqual(1);
+    });
+
+    it("clicking a history row navigates to the search page for that term", () => {
+      seedHistory(["whisper"]);
+      render(<GlobalSearch />);
+      fireEvent.click(screen.getByLabelText("Search"));
+
+      fireEvent.click(screen.getAllByText("whisper")[0]);
+      expect(mockRouterPush).toHaveBeenCalledWith(
+        expect.stringContaining("q=whisper"),
+      );
+    });
+
+    it("ArrowDown then Enter submits the first history term", () => {
+      seedHistory(["whisper", "chapters"]);
+      render(<GlobalSearch />);
+      fireEvent.click(screen.getByLabelText("Search"));
+
+      const input = screen.getAllByRole("textbox")[0];
+      fireEvent.keyDown(input, { key: "ArrowDown" });
+      fireEvent.keyDown(input, { key: "Enter" });
+
+      expect(mockRouterPush).toHaveBeenCalledWith(
+        expect.stringContaining("q=whisper"),
+      );
+    });
+
+    it("ArrowDown stops at the last history row", () => {
+      seedHistory(["whisper", "chapters"]);
+      render(<GlobalSearch />);
+      fireEvent.click(screen.getByLabelText("Search"));
+
+      const input = screen.getAllByRole("textbox")[0];
+      // Three presses against two rows: the index must clamp, not overrun
+      // into a non-existent row.
+      fireEvent.keyDown(input, { key: "ArrowDown" });
+      fireEvent.keyDown(input, { key: "ArrowDown" });
+      fireEvent.keyDown(input, { key: "ArrowDown" });
+      fireEvent.keyDown(input, { key: "Enter" });
+
+      expect(mockRouterPush).toHaveBeenCalledWith(
+        expect.stringContaining("q=chapters"),
+      );
+    });
+
+    it("renders nothing in the body when there is no history", () => {
+      render(<GlobalSearch />);
+      fireEvent.click(screen.getByLabelText("Search"));
+
+      expect(screen.queryByText("whisper")).toBeNull();
+    });
   });
 
   describe("merge: filename + semantic", () => {

@@ -26,6 +26,13 @@ import { MergedResultItem } from "./search/MergedResultItem";
 const MAX_HISTORY = 20;
 const POPUP_LIMIT = 8;
 
+/**
+ * A row rendered while the query is empty. Kept as a discriminated union
+ * so more row kinds can join the same keyboard index space without the
+ * navigation code growing another branch.
+ */
+type EmptyItem = { kind: "term"; term: string };
+
 function historyKey(drive: string): string {
   return `search-history:${drive}`;
 }
@@ -306,9 +313,20 @@ export function GlobalSearch() {
     }
   }
 
-  const showHistory = !query.trim() && history.length > 0;
   const hasResults = merged.length > 0;
   const hasQuery = query.trim().length > 0;
+
+  // Rows shown when the query is empty. Modelled as one flat list rather
+  // than a per-section branch so keyboard navigation runs through every
+  // row as a single index space, whatever mix of row kinds is present.
+  const emptyItems: EmptyItem[] = hasQuery
+    ? []
+    : history.map((term) => ({ kind: "term", term }));
+  const showEmptyState = emptyItems.length > 0;
+
+  function activateEmptyItem(item: EmptyItem) {
+    if (item.kind === "term") handleHistorySubmit(item.term);
+  }
 
   const searchInput = (
     ref: React.RefObject<HTMLInputElement | null>,
@@ -324,8 +342,8 @@ export function GlobalSearch() {
       onKeyDown={(e) => {
         if (e.key === "ArrowDown") {
           e.preventDefault();
-          const maxIdx = showHistory
-            ? history.length - 1
+          const maxIdx = showEmptyState
+            ? emptyItems.length - 1
             : hasResults
               ? merged.length
               : -1;
@@ -334,8 +352,8 @@ export function GlobalSearch() {
           e.preventDefault();
           setSelectedIndex((prev) => Math.max(-1, prev - 1));
         } else if (e.key === "Enter" && !composing) {
-          if (selectedIndex >= 0 && showHistory) {
-            handleHistorySubmit(history[selectedIndex]);
+          if (selectedIndex >= 0 && showEmptyState) {
+            activateEmptyItem(emptyItems[selectedIndex]);
           } else if (selectedIndex >= 0 && hasResults) {
             if (selectedIndex < merged.length) {
               handleSelect(`/files/${merged[selectedIndex].id}`);
@@ -357,11 +375,9 @@ export function GlobalSearch() {
     />
   );
 
-  const historyList = (mobile: boolean) => (
-    <div className={mobile ? "" : "max-h-[50vh] overflow-y-auto"}>
-      {history.map((term, idx) => (
+  const termRow = (term: string, idx: number, mobile: boolean) => (
         <button
-          key={term}
+          key={`term:${term}`}
           data-search-item={idx}
           onClick={() => handleHistorySubmit(term)}
           className={`flex w-full items-center gap-3 px-4 text-left transition-colors ${
@@ -391,7 +407,16 @@ export function GlobalSearch() {
             <X size={mobile ? 16 : 14} />
           </button>
         </button>
-      ))}
+  );
+
+  const emptyStateList = (mobile: boolean) => (
+    <div className={mobile ? "" : "max-h-[50vh] overflow-y-auto"}>
+      {emptyItems.map((item, idx) => {
+        switch (item.kind) {
+          case "term":
+            return termRow(item.term, idx, mobile);
+        }
+      })}
     </div>
   );
 
@@ -488,8 +513,8 @@ export function GlobalSearch() {
                 <div className="py-12 text-center text-sm text-text-muted">
                   {t("goToDrive")}
                 </div>
-              ) : showHistory ? (
-                historyList(true)
+              ) : showEmptyState ? (
+                emptyStateList(true)
               ) : hasQuery ? (
                 resultsList(true)
               ) : null}
@@ -530,8 +555,8 @@ export function GlobalSearch() {
               <div className="py-8 text-center text-sm text-text-muted">
                 {t("goToDrive")}
               </div>
-            ) : showHistory ? (
-              historyList(false)
+            ) : showEmptyState ? (
+              emptyStateList(false)
             ) : hasQuery ? (
               resultsList(false)
             ) : null}
