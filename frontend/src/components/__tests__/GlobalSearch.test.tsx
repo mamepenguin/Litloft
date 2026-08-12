@@ -3,6 +3,7 @@ import { render, screen, fireEvent, act, waitFor } from "@testing-library/react"
 import type { ReactNode } from "react";
 import { GlobalSearch } from "../GlobalSearch";
 import { ShortcutsProvider } from "../ShortcutsProvider";
+import { useShortcuts } from "@/hooks/useShortcuts";
 import type { FileItem } from "@/types";
 import type { SemanticHit } from "@/lib/searchMerge";
 
@@ -195,6 +196,71 @@ describe("GlobalSearch", () => {
 
     fireEvent.keyDown(document, { key: "k", ctrlKey: true });
     expect(screen.queryByPlaceholderText("Search in main...")).toBeNull();
+  });
+
+  // Opening focuses the search input on a 50ms timer. Once it has focus the
+  // event target is an INPUT, which ShortcutsProvider treats as "editing" —
+  // so a global binding with editingOnly unset would no longer fire and the
+  // toggle would be dead in the browser while passing a test that keeps
+  // firing at `document`.
+  it("closes on a second Cmd+K after the input takes focus", () => {
+    renderWithShortcuts(<GlobalSearch />);
+    fireEvent.keyDown(document, { key: "k", ctrlKey: true });
+
+    act(() => {
+      vi.advanceTimersByTime(60);
+    });
+    expect(document.activeElement?.tagName).toBe("INPUT");
+
+    fireEvent.keyDown(document.activeElement!, { key: "k", ctrlKey: true });
+    expect(screen.queryByPlaceholderText("Search in main...")).toBeNull();
+  });
+
+  it("closes on Cmd+Shift+F after the input takes focus", () => {
+    renderWithShortcuts(<GlobalSearch />);
+    fireEvent.keyDown(document, { key: "f", ctrlKey: true, shiftKey: true });
+
+    act(() => {
+      vi.advanceTimersByTime(60);
+    });
+    expect(document.activeElement?.tagName).toBe("INPUT");
+
+    fireEvent.keyDown(document.activeElement!, {
+      key: "f",
+      ctrlKey: true,
+      shiftKey: true,
+    });
+    expect(screen.queryByPlaceholderText("Search in main...")).toBeNull();
+  });
+
+  // The modal's own context sits on top of the stack, so an addon that bound
+  // the same chord for editing (Knowledge uses ctrl+k to insert a link) must
+  // not win it while the modal is open.
+  it("closing wins ctrl+k over an editing context registered beneath", () => {
+    const addonHandler = vi.fn();
+
+    function AddonEditor() {
+      useShortcuts("addon-editor", "Addon", [
+        { key: "ctrl+k", label: "Insert link", editingOnly: true, handler: addonHandler },
+      ]);
+      return null;
+    }
+
+    renderWithShortcuts(
+      <>
+        <AddonEditor />
+        <GlobalSearch />
+      </>,
+    );
+
+    fireEvent.keyDown(document, { key: "k", ctrlKey: true });
+    act(() => {
+      vi.advanceTimersByTime(60);
+    });
+
+    fireEvent.keyDown(document.activeElement!, { key: "k", ctrlKey: true });
+    expect(screen.queryByPlaceholderText("Search in main...")).toBeNull();
+    expect(addonHandler).not.toHaveBeenCalled();
   });
 
   // Guards the contract the Knowledge editor's ctrl+k (insert link,

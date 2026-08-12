@@ -125,34 +125,51 @@ export function GlobalSearch() {
     setTotal(0);
   }, []);
 
-  const toggleSearch = () => {
-    if (open) {
-      closeSearch();
-    } else {
-      openSearch();
-    }
-  };
-
   // Both bindings open the same modal. ctrl+k is the switcher ergonomics
   // (one chord, reachable one-handed); ctrl+shift+f is kept so existing
   // muscle memory keeps working.
   //
-  // `editingOnly` is deliberately left unset on ctrl+k. Unset means "fires
-  // only when no editing element has focus", which is what partitions this
-  // from the Knowledge editor's own ctrl+k (insert link, editingOnly: true).
+  // `editingOnly` is deliberately left unset here. Unset means "fires only
+  // when no editing element has focus", which is what partitions these from
+  // the Knowledge editor's own ctrl+k (insert link, editingOnly: true) and
+  // stops either chord firing while the user types in any other field.
   // That partition is the reason the flag exists — see ShortcutsProvider.
   useShortcuts("global", tsc("global"), [
     {
       key: "ctrl+shift+f",
       label: tsc("search"),
-      handler: toggleSearch,
+      handler: openSearch,
     },
     {
       key: "ctrl+k",
       label: tsc("switcher"),
-      handler: toggleSearch,
+      handler: openSearch,
     },
   ]);
+
+  // Closing needs its own context, pushed on top of the stack while the modal
+  // is open, for two reasons:
+  //
+  //  1. Opening focuses the search input, and the provider classifies a focused
+  //     INPUT as "editing". A closing handler registered above with editingOnly
+  //     unset would therefore never fire — the chord would look like a toggle
+  //     in the source and be dead in the browser.
+  //  2. An addon editor mounted beneath (Knowledge binds ctrl+k while editing)
+  //     would otherwise win the chord and write a link into the note behind the
+  //     modal.
+  //
+  // `editingOnly: false` means "fires regardless of focus state", and being
+  // top-of-stack this context is consulted before both the global layer and
+  // anything an addon registered earlier.
+  useShortcuts(
+    "search-modal",
+    tsc("search"),
+    [
+      { key: "ctrl+k", label: tc("close"), editingOnly: false, handler: closeSearch },
+      { key: "ctrl+shift+f", label: tc("close"), editingOnly: false, handler: closeSearch },
+    ],
+    open,
+  );
 
   useEffect(() => {
     setSelectedIndex(-1);
