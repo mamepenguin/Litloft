@@ -1026,6 +1026,7 @@ describe("FileDetailContent rail width", () => {
         resize = callback;
       }
       observe() {}
+      unobserve() {}
       disconnect() {}
     }
     vi.stubGlobal("ResizeObserver", ResizeObserverMock);
@@ -1067,6 +1068,31 @@ describe("FileDetailContent rail width", () => {
     vi.spyOn(HTMLElement.prototype, "clientWidth", "get").mockReturnValue(1200);
     resize?.();
     await waitFor(() => expect(host.dataset.mediaWidth).toBe("wide"));
+  });
+
+  it("measures a wrapper that only appears once an addon claims the slot", async () => {
+    // `getFile` routinely wins the race against the addon catalogue, so
+    // the wrapper mounts on a later commit than the one the measuring
+    // effect ran on. A dependency list would have to name every reason
+    // it can appear; the callback ref does not care which one it was.
+    slotMocks.occupied.clear();
+    vi.spyOn(HTMLElement.prototype, "clientWidth", "get").mockReturnValue(1200);
+    setApiResponses(makeFile());
+    const { container, rerender } = render(
+      <FileDetailContent fileId="f1" drive="main" />,
+    );
+    await waitFor(() => expect(api.getFile).toHaveBeenCalledWith("f1"));
+    expect(container.querySelector("[data-media-width]")).toBeNull();
+
+    slotMocks.occupied.add("player-side");
+    rerender(<FileDetailContent fileId="f1" drive="main" />);
+
+    const host = await waitFor(() => {
+      const found = container.querySelector<HTMLElement>("[data-media-width]");
+      expect(found).not.toBeNull();
+      return found!;
+    });
+    expect(host.dataset.mediaWidth).toBe("wide");
   });
 
   it("scales the threshold with the root font size", async () => {

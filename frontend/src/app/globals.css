@@ -768,11 +768,17 @@ div[data-citation-section-path]:not(tr) {
    the playback clock and holds scroll state — so the grid moves it
    rather than the markup duplicating it.
 
-   The switch is a CONTAINER query, not a breakpoint. The same content
-   renders in the full-screen route and inside the 2-pane right pane,
-   which is 280px narrower than the viewport; a viewport breakpoint
-   would split the pane into two columns at widths where it does not
-   fit. See DESIGN.md §10.
+   The switch is on a MEASURED WIDTH published as `data-media-width`,
+   not on a breakpoint. The same content renders in the full-screen
+   route and inside the 2-pane right pane, which is 280px narrower than
+   the viewport; a viewport breakpoint would split the pane into two
+   columns at widths where it does not fit.
+
+   It was a container query until 2026-08-12. Do not put it back:
+   `container-type` establishes a containment context, and on iOS
+   Safari one wrapped around a <video> or a cross-origin iframe renders
+   the whole subtree rotated and spinning. See DESIGN.md §10 and hako
+   7bFYOh3vFZP9EEuf9Ym_5.
 
    60rem = 552px player + 384px rail + 24px gap.
    ------------------------------------------------------------------ */

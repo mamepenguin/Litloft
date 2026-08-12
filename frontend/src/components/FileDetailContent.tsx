@@ -210,10 +210,38 @@ export function FileDetailContent({
   // `lib/mediaLayout.ts` drives `data-media-layout`. Nothing has to
   // re-render for the columns to change, so a window drag costs no
   // React work at all.
-  const railHostRef = useRef<HTMLDivElement>(null);
+  const railHostRef = useRef<HTMLDivElement | null>(null);
   // Same idea for the height, which the observer recomputes on every
   // resize frame and which usually comes back unchanged.
   const railAvailableRef = useRef<number | null>(null);
+  // Reached by the callback ref below, which runs on commits the
+  // measuring effect does not.
+  const railObserverRef = useRef<ResizeObserver | null>(null);
+  const railMeasureRef = useRef<() => void>(() => {});
+
+  // A callback ref rather than a dependency on "does the wrapper
+  // render". The wrapper appears for several independent reasons — the
+  // file resolving, an addon publishing `player-side`, chapters
+  // answering, the Knowledge editor policy settling — and `getFile`
+  // routinely wins the race against the addon catalogue, so the effect
+  // would run while this is still null and never look again. A
+  // dependency list would have to name every one of those and would
+  // eventually miss one; this fires exactly when the node arrives,
+  // whatever brought it.
+  const attachRailHost = useCallback((node: HTMLDivElement | null) => {
+    const previous = railHostRef.current;
+    if (previous && railObserverRef.current) {
+      railObserverRef.current.unobserve(previous);
+    }
+    railHostRef.current = node;
+    if (!node) return;
+    railObserverRef.current?.observe(node);
+    // The observer reports a first size on its own, but only where one
+    // exists: a fixed-height right pane may never resize again, which
+    // would leave the attribute unset until the window changed.
+    railMeasureRef.current();
+  }, []);
+
   useEffect(() => {
     const pane = miniPlayerRoot ?? null;
     const publishAvailable = (value: number) => {
@@ -242,20 +270,26 @@ export function FileDetailContent({
       host.dataset.mediaWidth =
         host.clientWidth >= RAIL_MIN_REM * rootFontSize ? "wide" : "narrow";
     };
+    railMeasureRef.current = measure;
     measure();
     if (typeof ResizeObserver === "undefined") return;
     const observer = new ResizeObserver(measure);
+    railObserverRef.current = observer;
     observer.observe(pane ?? document.documentElement);
     // Safe to observe the element this callback writes an attribute to:
     // the attribute only re-columns the grid *inside* it, while the
     // wrapper itself stays full-width. Nothing it sets can change what
     // it measures, so there is no resize loop to converge.
+    //
+    // Attached here as well as in the callback ref: whichever of the
+    // two runs second finds the other already done, and re-observing an
+    // element a ResizeObserver already watches is a no-op.
     if (railHostRef.current) observer.observe(railHostRef.current);
-    return () => observer.disconnect();
-    // `file?.id` because the wrapper this measures only exists once the
-    // file has loaded — without it the effect runs while the ref is
-    // still null and never looks again.
-  }, [miniPlayerRoot, file?.id]);
+    return () => {
+      observer.disconnect();
+      railObserverRef.current = null;
+    };
+  }, [miniPlayerRoot]);
 
   const handleMediaController = useCallback(
     (mc: MediaController | null) => {
@@ -812,7 +846,7 @@ export function FileDetailContent({
   // rendered here: absent reads as narrow, which is the layout to show
   // before anything has been measured.
   return (
-    <div ref={railHostRef} className="w-full">
+    <div ref={attachRailHost} className="w-full">
       <div
         className="media-detail-grid"
         // Sticky offset by host: a pane that scrolls itself starts at
