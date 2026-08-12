@@ -183,6 +183,8 @@
     "matchClipThumbnail": "サムネイル",
     "heading": "検索: \"{query}\"",
     "emptyQuery": "検索ワードを入力してください",
+    "recentFiles": "最近のファイル",
+    "recentSearches": "最近の検索",
     "sceneSearchToggle": "シーン検索",
     "sceneSearchHint": "動画の中で特定のシーンが映っている箇所を探す"
   },
@@ -868,6 +870,7 @@
     "paste": "ペースト",
     "newFile": "ノート作成",
     "search": "検索",
+    "switcher": "ファイルに移動",
     "prevFile": "前のファイル",
     "nextFile": "次のファイル",
     "loftPlayer": "動画プレーヤー（LoftRef）",

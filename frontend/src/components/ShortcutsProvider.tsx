@@ -11,7 +11,11 @@ import {
   type ReactNode,
 } from "react";
 
-import { normalizeKey, type ShortcutContextDef } from "@/lib/shortcuts";
+import {
+  normalizeKey,
+  orderContexts,
+  type ShortcutContextDef,
+} from "@/lib/shortcuts";
 import { ShortcutCheatSheet } from "./ShortcutCheatSheet";
 
 interface ShortcutsContextValue {
@@ -83,13 +87,14 @@ export function ShortcutsProvider({ children }: { children: ReactNode }): ReactE
       // If cheat sheet is open, ignore other shortcuts
       if (cheatSheetOpen) return;
 
-      // Walk the stack top-to-bottom and pick the first shortcut whose
-      // editingOnly flag matches the current focus state. Partitioning by
-      // focus lets the same key bind to different handlers in editor vs
-      // non-editor contexts without needing to toggle layers manually.
-      const currentStack = stackRef.current;
-      for (let i = currentStack.length - 1; i >= 0; i--) {
-        const ctx = currentStack[i];
+      // Walk the stack in resolution order (overlay tiers first, then most
+      // recently pushed) and pick the first shortcut whose editingOnly flag
+      // matches the current focus state. Partitioning by focus lets the same
+      // key bind to different handlers in editor vs non-editor contexts
+      // without needing to toggle layers manually.
+      const ordered = orderContexts(stackRef.current);
+      for (let i = 0; i < ordered.length; i++) {
+        const ctx = ordered[i];
         const match = ctx.shortcuts.find((s) => {
           if (s.key !== normalized) return false;
           // editingOnly === false: fires regardless of focus state.

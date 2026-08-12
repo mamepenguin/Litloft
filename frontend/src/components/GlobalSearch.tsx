@@ -3,11 +3,12 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { useRouter } from "next/navigation";
-import { ArrowLeft, ArrowRight, ArrowUpLeft, Clock, Search, X } from "lucide-react";
+import { ArrowLeft, ArrowRight, Search, X } from "lucide-react";
 import { useShortcuts } from "@/hooks/useShortcuts";
+import { OVERLAY_PRIORITY } from "@/lib/shortcuts";
 
 import { useTranslations } from "next-intl";
-import { getDriveFiles } from "@/lib/api";
+import { getDriveFiles, getWatchHistory } from "@/lib/api";
 import { fetchSemanticHits, isSemanticSearchAvailable } from "@/lib/semanticSearch";
 import {
   mergeResults,
@@ -19,22 +20,37 @@ import {
   writeSearchCache,
   type SearchCacheKey,
 } from "@/lib/searchCache";
-import type { FileItemWithMatch } from "@/types";
+import type { FileItemWithMatch, WatchHistoryItem } from "@/types";
 import { useCurrentDrive } from "./CurrentDriveProvider";
 import { MergedResultItem } from "./search/MergedResultItem";
+import { SearchEmptyState, type EmptyItem } from "./search/SearchEmptyState";
 
 const MAX_HISTORY = 20;
 const POPUP_LIMIT = 8;
+
+/** How many recently-opened files the empty state offers. */
+const RECENT_FILE_LIMIT = 8;
 
 function historyKey(drive: string): string {
   return `search-history:${drive}`;
 }
 
+/**
+ * Read the persisted search-term history.
+ *
+ * The value is validated rather than trusted: this key can hold anything a
+ * hand edit, an older schema, or another tab left behind, and every caller
+ * (including the empty-state list, which maps over it unconditionally) treats
+ * the result as a string array.
+ */
 function getHistory(drive: string): string[] {
   if (typeof window === "undefined") return [];
   try {
     const raw = localStorage.getItem(historyKey(drive));
-    return raw ? JSON.parse(raw) : [];
+    if (!raw) return [];
+    const parsed: unknown = JSON.parse(raw);
+    if (!Array.isArray(parsed)) return [];
+    return parsed.filter((entry): entry is string => typeof entry === "string");
   } catch {
     return [];
   }
@@ -75,6 +91,12 @@ export function GlobalSearch() {
   const [total, setTotal] = useState(0);
   const [loading, setLoading] = useState(false);
   const [history, setHistory] = useState<string[]>([]);
+  // Kept with its drive so a stale payload can never be rendered — see the
+  // fetch effect below.
+  const [recentData, setRecentData] = useState<{
+    drive: string;
+    items: WatchHistoryItem[];
+  } | null>(null);
   const [composing, setComposing] = useState(false);
   const [selectedIndex, setSelectedIndex] = useState(-1);
   // Render mobile fullscreen vs. desktop modal based on viewport width.
@@ -118,23 +140,96 @@ export function GlobalSearch() {
     setTotal(0);
   }, []);
 
+  // Both bindings open the same modal. ctrl+k is the switcher ergonomics
+  // (one chord, reachable one-handed); ctrl+shift+f is kept so existing
+  // muscle memory keeps working.
+  //
+  // `editingOnly` is deliberately left unset here. Unset means "fires only
+  // when no editing element has focus", which is what partitions these from
+  // the Knowledge editor's own ctrl+k (insert link, editingOnly: true) and
+  // stops either chord firing while the user types in any other field.
+  // That partition is the reason the flag exists — see ShortcutsProvider.
   useShortcuts("global", tsc("global"), [
     {
       key: "ctrl+shift+f",
       label: tsc("search"),
-      handler: () => {
-        if (open) {
-          closeSearch();
-        } else {
-          openSearch();
-        }
-      },
+      handler: openSearch,
+    },
+    {
+      key: "ctrl+k",
+      label: tsc("switcher"),
+      handler: openSearch,
     },
   ]);
 
+  // Closing needs its own context, pushed on top of the stack while the modal
+  // is open, for two reasons:
+  //
+  //  1. Opening focuses the search input, and the provider classifies a focused
+  //     INPUT as "editing". A closing handler registered above with editingOnly
+  //     unset would therefore never fire — the chord would look like a toggle
+  //     in the source and be dead in the browser.
+  //  2. An addon editor mounted beneath (Knowledge binds ctrl+k while editing)
+  //     would otherwise win the chord and write a link into the note behind the
+  //     modal.
+  //
+  // `editingOnly: false` means "fires regardless of focus state".
+  // `OVERLAY_PRIORITY` puts the context in a tier above plain push order, so a
+  // context that enables *after* the modal opened — Knowledge gates its editor
+  // shortcuts on the note body having loaded — cannot take the chord back.
+  useShortcuts(
+    "search-modal",
+    tsc("search"),
+    [
+      { key: "ctrl+k", label: tc("close"), editingOnly: false, handler: closeSearch },
+      { key: "ctrl+shift+f", label: tc("close"), editingOnly: false, handler: closeSearch },
+    ],
+    open,
+    OVERLAY_PRIORITY,
+  );
+
+  // Recently-opened files come from the server, not a local list: opening any
+  // file detail page records `last_played_at` regardless of media type, so
+  // watch history already is the cross-device record of "what I was just on".
+  // `filter: "all"` is required — the default `unfinished` applies a 90%
+  // completion gate meant for continue-watching, which would drop exactly the
+  // notes and videos a user most wants to return to.
+  //
+  // The loaded files are stored with the drive they came from. GlobalSearch is
+  // mounted in the header under the root layout, so it survives drive
+  // navigation — a bare array would keep showing (and let the user open) files
+  // from the drive they just left until the next request landed, and a drive is
+  // a security boundary. Tagging the payload makes the stale set unrenderable
+  // the moment `drive` changes, without a clearing flash on re-open.
+  useEffect(() => {
+    if (!open || !drive) {
+      setRecentData(null);
+      return;
+    }
+    let cancelled = false;
+    getWatchHistory(drive, RECENT_FILE_LIMIT, "all")
+      .then((items) => {
+        if (!cancelled) setRecentData({ drive, items });
+      })
+      .catch(() => {
+        // Best-effort: the modal is still usable for searching without it.
+        if (!cancelled) setRecentData({ drive, items: [] });
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [open, drive]);
+
+  const recentFiles =
+    recentData && recentData.drive === drive ? recentData.items : [];
+
+  // `selectedIndex` is a position in a list that is assembled asynchronously.
+  // Resetting whenever the composition changes stops a late-arriving payload
+  // from sliding rows underneath a live selection and retargeting the user's
+  // Enter, and keeps the index from pointing past the end of a shorter list.
   useEffect(() => {
     setSelectedIndex(-1);
-  }, [query, open]);
+  }, [query, open, recentData]);
 
   useEffect(() => {
     if (selectedIndex < 0) return;
@@ -291,9 +386,31 @@ export function GlobalSearch() {
     }
   }
 
-  const showHistory = !query.trim() && history.length > 0;
   const hasResults = merged.length > 0;
   const hasQuery = query.trim().length > 0;
+
+  // Rows shown when the query is empty. Modelled as one flat list rather
+  // than a per-section branch so keyboard navigation runs through every
+  // row as a single index space, whatever mix of row kinds is present.
+  // Files first: the chord's main use is getting back to what you just had
+  // open, which should be one Enter away.
+  const emptyItems: EmptyItem[] = hasQuery
+    ? []
+    : [
+        ...recentFiles.map<EmptyItem>((file) => ({ kind: "file", file })),
+        ...history.map<EmptyItem>((term) => ({ kind: "term", term })),
+      ];
+  const showEmptyState = emptyItems.length > 0;
+  const recentFileCount = hasQuery ? 0 : recentFiles.length;
+
+  function activateEmptyItem(item: EmptyItem | undefined) {
+    if (!item) return;
+    if (item.kind === "term") {
+      handleHistorySubmit(item.term);
+    } else {
+      handleSelect(`/files/${item.file.id}`);
+    }
+  }
 
   const searchInput = (
     ref: React.RefObject<HTMLInputElement | null>,
@@ -309,8 +426,8 @@ export function GlobalSearch() {
       onKeyDown={(e) => {
         if (e.key === "ArrowDown") {
           e.preventDefault();
-          const maxIdx = showHistory
-            ? history.length - 1
+          const maxIdx = showEmptyState
+            ? emptyItems.length - 1
             : hasResults
               ? merged.length
               : -1;
@@ -319,8 +436,8 @@ export function GlobalSearch() {
           e.preventDefault();
           setSelectedIndex((prev) => Math.max(-1, prev - 1));
         } else if (e.key === "Enter" && !composing) {
-          if (selectedIndex >= 0 && showHistory) {
-            handleHistorySubmit(history[selectedIndex]);
+          if (selectedIndex >= 0 && showEmptyState) {
+            activateEmptyItem(emptyItems[selectedIndex]);
           } else if (selectedIndex >= 0 && hasResults) {
             if (selectedIndex < merged.length) {
               handleSelect(`/files/${merged[selectedIndex].id}`);
@@ -340,44 +457,6 @@ export function GlobalSearch() {
           : "flex-1 bg-transparent text-base text-text-primary placeholder:text-text-muted outline-none"
       }
     />
-  );
-
-  const historyList = (mobile: boolean) => (
-    <div className={mobile ? "" : "max-h-[50vh] overflow-y-auto"}>
-      {history.map((term, idx) => (
-        <button
-          key={term}
-          data-search-item={idx}
-          onClick={() => handleHistorySubmit(term)}
-          className={`flex w-full items-center gap-3 px-4 text-left transition-colors ${
-            mobile
-              ? `py-3 ${selectedIndex === idx ? "bg-bg-elevated" : "active:bg-bg-elevated"}`
-              : `py-2.5 ${selectedIndex === idx ? "bg-bg-elevated" : "hover:bg-bg-elevated"}`
-          }`}
-        >
-          <Clock size={mobile ? 18 : 16} className="flex-shrink-0 text-text-muted" />
-          <span className="min-w-0 flex-1 truncate text-sm text-text-primary">{term}</span>
-          <button
-            onClick={(e) => handleFillInput(term, e)}
-            className={`flex-shrink-0 rounded-lg text-text-muted ${
-              mobile ? "p-1.5 active:bg-bg-elevated" : "p-1 hover:text-text-primary"
-            }`}
-            aria-label={t("fillInput", { term })}
-          >
-            <ArrowUpLeft size={mobile ? 16 : 14} />
-          </button>
-          <button
-            onClick={(e) => handleRemoveHistory(term, e)}
-            className={`flex-shrink-0 rounded-lg text-text-muted ${
-              mobile ? "p-1.5 active:bg-bg-elevated" : "p-1 hover:text-text-primary"
-            }`}
-            aria-label={t("removeHistory", { term })}
-          >
-            <X size={mobile ? 16 : 14} />
-          </button>
-        </button>
-      ))}
-    </div>
   );
 
   const resultsList = (mobile: boolean) => (
@@ -473,8 +552,17 @@ export function GlobalSearch() {
                 <div className="py-12 text-center text-sm text-text-muted">
                   {t("goToDrive")}
                 </div>
-              ) : showHistory ? (
-                historyList(true)
+              ) : showEmptyState ? (
+                <SearchEmptyState
+                  items={emptyItems}
+                  selectedIndex={selectedIndex}
+                  recentFileCount={recentFileCount}
+                  mobile={true}
+                  onOpenFile={(file) => handleSelect(`/files/${file.id}`)}
+                  onSubmitTerm={handleHistorySubmit}
+                  onFillInput={handleFillInput}
+                  onRemoveTerm={handleRemoveHistory}
+                />
               ) : hasQuery ? (
                 resultsList(true)
               ) : null}
@@ -515,8 +603,17 @@ export function GlobalSearch() {
               <div className="py-8 text-center text-sm text-text-muted">
                 {t("goToDrive")}
               </div>
-            ) : showHistory ? (
-              historyList(false)
+            ) : showEmptyState ? (
+              <SearchEmptyState
+                  items={emptyItems}
+                  selectedIndex={selectedIndex}
+                  recentFileCount={recentFileCount}
+                  mobile={false}
+                  onOpenFile={(file) => handleSelect(`/files/${file.id}`)}
+                  onSubmitTerm={handleHistorySubmit}
+                  onFillInput={handleFillInput}
+                  onRemoveTerm={handleRemoveHistory}
+                />
             ) : hasQuery ? (
               resultsList(false)
             ) : null}
