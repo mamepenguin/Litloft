@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useState, type Ref } from "react";
+import dynamic from "next/dynamic";
 import { useTranslations } from "next-intl";
 import type { FileItem } from "@/types";
 import { VideoPlayer } from "./VideoPlayer";
@@ -8,7 +9,6 @@ import { AudioPlayer } from "./AudioPlayer";
 import { TextPreview, isTextPreviewable } from "./TextPreview";
 import { MarkdownFileViewer } from "./MarkdownPreview";
 import { HtmlPreview } from "./HtmlPreview";
-import { PdfPreview } from "./PdfPreview";
 import { ArchivePreview } from "./ArchivePreview";
 import { FileTypeIcon } from "./FileTypeIcon";
 import { AddonSlot } from "./AddonSlot";
@@ -19,6 +19,34 @@ import { getStreamUrl, getThumbnailUrl } from "@/lib/api";
 import { playerKind } from "@/lib/playerKind";
 import type { MediaController } from "@/lib/mediaController";
 import type { DocumentCaptureController } from "@/lib/documentCapture";
+
+/**
+ * Loaded on the client only.
+ *
+ * `react-pdf` pulls in `pdfjs-dist`, which touches `DOMMatrix` while its
+ * module body evaluates. Node has no `DOMMatrix`, so a static import made
+ * every `/drive/*` route throw during SSR and return HTTP 500. The pages
+ * still *looked* fine, because Next ships the client bundle and flight
+ * payload inside the error document and React re-renders the route on
+ * hydration — which is exactly why this went unnoticed: only the status
+ * code and the server log showed it.
+ *
+ * Rendering a PDF viewer on the server has no value anyway; it needs a
+ * canvas and a worker. `ssr: false` also keeps pdfjs out of the server
+ * bundle entirely.
+ */
+const PdfPreview = dynamic(
+  () => import("./PdfPreview").then((m) => m.PdfPreview),
+  {
+    ssr: false,
+    loading: () => (
+      <div
+        className="h-96 w-full animate-pulse rounded-xl bg-bg-card"
+        aria-hidden="true"
+      />
+    ),
+  },
+);
 
 interface FilePreviewProps {
   file: FileItem;
