@@ -125,10 +125,14 @@ describe("FilePreview", () => {
     expect(screen.getByTestId("audio-player")).toBeInTheDocument();
   });
 
-  it("renders the selectable PDF viewer at the requested page", () => {
+  // The viewer is loaded with next/dynamic and ssr: false, so it arrives a
+  // tick after render. That is deliberate: react-pdf evaluates pdfjs-dist,
+  // which needs DOMMatrix and therefore threw during SSR on every /drive/*
+  // route. See the comment on the dynamic() call in FilePreview.
+  it("renders the selectable PDF viewer at the requested page", async () => {
     const file = makeFile({ file_type: "document", mime_type: "application/pdf", filename: "doc.pdf" });
     render(<FilePreview file={file} initialPage={4} />);
-    expect(screen.getByTestId("pdf-preview")).toHaveTextContent("file-1:4");
+    expect(await screen.findByTestId("pdf-preview")).toHaveTextContent("file-1:4");
   });
 
   it("renders ArchivePreview for archive files", () => {
