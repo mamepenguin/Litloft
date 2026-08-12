@@ -183,6 +183,8 @@
     "matchClipThumbnail": "Thumbnail",
     "heading": "Search: \"{query}\"",
     "emptyQuery": "Enter a search query",
+    "recentFiles": "Recent files",
+    "recentSearches": "Recent searches",
     "sceneSearchToggle": "Scene search",
     "sceneSearchHint": "Find specific moments inside videos"
   },

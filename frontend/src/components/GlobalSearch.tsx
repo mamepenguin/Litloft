@@ -3,12 +3,12 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { useRouter } from "next/navigation";
-import { ArrowLeft, ArrowRight, ArrowUpLeft, Clock, Search, X } from "lucide-react";
+import { ArrowLeft, ArrowRight, Search, X } from "lucide-react";
 import { useShortcuts } from "@/hooks/useShortcuts";
 import { OVERLAY_PRIORITY } from "@/lib/shortcuts";
 
 import { useTranslations } from "next-intl";
-import { getDriveFiles } from "@/lib/api";
+import { getDriveFiles, getWatchHistory } from "@/lib/api";
 import { fetchSemanticHits, isSemanticSearchAvailable } from "@/lib/semanticSearch";
 import {
   mergeResults,
@@ -20,19 +20,16 @@ import {
   writeSearchCache,
   type SearchCacheKey,
 } from "@/lib/searchCache";
-import type { FileItemWithMatch } from "@/types";
+import type { FileItemWithMatch, WatchHistoryItem } from "@/types";
 import { useCurrentDrive } from "./CurrentDriveProvider";
 import { MergedResultItem } from "./search/MergedResultItem";
+import { SearchEmptyState, type EmptyItem } from "./search/SearchEmptyState";
 
 const MAX_HISTORY = 20;
 const POPUP_LIMIT = 8;
 
-/**
- * A row rendered while the query is empty. Kept as a discriminated union
- * so more row kinds can join the same keyboard index space without the
- * navigation code growing another branch.
- */
-type EmptyItem = { kind: "term"; term: string };
+/** How many recently-opened files the empty state offers. */
+const RECENT_FILE_LIMIT = 8;
 
 function historyKey(drive: string): string {
   return `search-history:${drive}`;
@@ -94,6 +91,12 @@ export function GlobalSearch() {
   const [total, setTotal] = useState(0);
   const [loading, setLoading] = useState(false);
   const [history, setHistory] = useState<string[]>([]);
+  // Kept with its drive so a stale payload can never be rendered — see the
+  // fetch effect below.
+  const [recentData, setRecentData] = useState<{
+    drive: string;
+    items: WatchHistoryItem[];
+  } | null>(null);
   const [composing, setComposing] = useState(false);
   const [selectedIndex, setSelectedIndex] = useState(-1);
   // Render mobile fullscreen vs. desktop modal based on viewport width.
@@ -185,9 +188,48 @@ export function GlobalSearch() {
     OVERLAY_PRIORITY,
   );
 
+  // Recently-opened files come from the server, not a local list: opening any
+  // file detail page records `last_played_at` regardless of media type, so
+  // watch history already is the cross-device record of "what I was just on".
+  // `filter: "all"` is required — the default `unfinished` applies a 90%
+  // completion gate meant for continue-watching, which would drop exactly the
+  // notes and videos a user most wants to return to.
+  //
+  // The loaded files are stored with the drive they came from. GlobalSearch is
+  // mounted in the header under the root layout, so it survives drive
+  // navigation — a bare array would keep showing (and let the user open) files
+  // from the drive they just left until the next request landed, and a drive is
+  // a security boundary. Tagging the payload makes the stale set unrenderable
+  // the moment `drive` changes, without a clearing flash on re-open.
+  useEffect(() => {
+    if (!open || !drive) {
+      setRecentData(null);
+      return;
+    }
+    let cancelled = false;
+    getWatchHistory(drive, RECENT_FILE_LIMIT, "all")
+      .then((items) => {
+        if (!cancelled) setRecentData({ drive, items });
+      })
+      .catch(() => {
+        // Best-effort: the modal is still usable for searching without it.
+        if (!cancelled) setRecentData({ drive, items: [] });
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [open, drive]);
+
+  const recentFiles =
+    recentData && recentData.drive === drive ? recentData.items : [];
+
+  // `selectedIndex` is a position in a list that is assembled asynchronously.
+  // Resetting whenever the composition changes stops a late-arriving payload
+  // from sliding rows underneath a live selection and retargeting the user's
+  // Enter, and keeps the index from pointing past the end of a shorter list.
   useEffect(() => {
     setSelectedIndex(-1);
-  }, [query, open]);
+  }, [query, open, recentData]);
 
   useEffect(() => {
     if (selectedIndex < 0) return;
@@ -350,13 +392,24 @@ export function GlobalSearch() {
   // Rows shown when the query is empty. Modelled as one flat list rather
   // than a per-section branch so keyboard navigation runs through every
   // row as a single index space, whatever mix of row kinds is present.
+  // Files first: the chord's main use is getting back to what you just had
+  // open, which should be one Enter away.
   const emptyItems: EmptyItem[] = hasQuery
     ? []
-    : history.map((term) => ({ kind: "term", term }));
+    : [
+        ...recentFiles.map<EmptyItem>((file) => ({ kind: "file", file })),
+        ...history.map<EmptyItem>((term) => ({ kind: "term", term })),
+      ];
   const showEmptyState = emptyItems.length > 0;
+  const recentFileCount = hasQuery ? 0 : recentFiles.length;
 
-  function activateEmptyItem(item: EmptyItem) {
-    if (item.kind === "term") handleHistorySubmit(item.term);
+  function activateEmptyItem(item: EmptyItem | undefined) {
+    if (!item) return;
+    if (item.kind === "term") {
+      handleHistorySubmit(item.term);
+    } else {
+      handleSelect(`/files/${item.file.id}`);
+    }
   }
 
   const searchInput = (
@@ -404,51 +457,6 @@ export function GlobalSearch() {
           : "flex-1 bg-transparent text-base text-text-primary placeholder:text-text-muted outline-none"
       }
     />
-  );
-
-  const termRow = (term: string, idx: number, mobile: boolean) => (
-        <button
-          key={`term:${term}`}
-          data-search-item={idx}
-          onClick={() => handleHistorySubmit(term)}
-          className={`flex w-full items-center gap-3 px-4 text-left transition-colors ${
-            mobile
-              ? `py-3 ${selectedIndex === idx ? "bg-bg-elevated" : "active:bg-bg-elevated"}`
-              : `py-2.5 ${selectedIndex === idx ? "bg-bg-elevated" : "hover:bg-bg-elevated"}`
-          }`}
-        >
-          <Clock size={mobile ? 18 : 16} className="flex-shrink-0 text-text-muted" />
-          <span className="min-w-0 flex-1 truncate text-sm text-text-primary">{term}</span>
-          <button
-            onClick={(e) => handleFillInput(term, e)}
-            className={`flex-shrink-0 rounded-lg text-text-muted ${
-              mobile ? "p-1.5 active:bg-bg-elevated" : "p-1 hover:text-text-primary"
-            }`}
-            aria-label={t("fillInput", { term })}
-          >
-            <ArrowUpLeft size={mobile ? 16 : 14} />
-          </button>
-          <button
-            onClick={(e) => handleRemoveHistory(term, e)}
-            className={`flex-shrink-0 rounded-lg text-text-muted ${
-              mobile ? "p-1.5 active:bg-bg-elevated" : "p-1 hover:text-text-primary"
-            }`}
-            aria-label={t("removeHistory", { term })}
-          >
-            <X size={mobile ? 16 : 14} />
-          </button>
-        </button>
-  );
-
-  const emptyStateList = (mobile: boolean) => (
-    <div className={mobile ? "" : "max-h-[50vh] overflow-y-auto"}>
-      {emptyItems.map((item, idx) => {
-        switch (item.kind) {
-          case "term":
-            return termRow(item.term, idx, mobile);
-        }
-      })}
-    </div>
   );
 
   const resultsList = (mobile: boolean) => (
@@ -545,7 +553,16 @@ export function GlobalSearch() {
                   {t("goToDrive")}
                 </div>
               ) : showEmptyState ? (
-                emptyStateList(true)
+                <SearchEmptyState
+                  items={emptyItems}
+                  selectedIndex={selectedIndex}
+                  recentFileCount={recentFileCount}
+                  mobile={true}
+                  onOpenFile={(file) => handleSelect(`/files/${file.id}`)}
+                  onSubmitTerm={handleHistorySubmit}
+                  onFillInput={handleFillInput}
+                  onRemoveTerm={handleRemoveHistory}
+                />
               ) : hasQuery ? (
                 resultsList(true)
               ) : null}
@@ -587,7 +604,16 @@ export function GlobalSearch() {
                 {t("goToDrive")}
               </div>
             ) : showEmptyState ? (
-              emptyStateList(false)
+              <SearchEmptyState
+                  items={emptyItems}
+                  selectedIndex={selectedIndex}
+                  recentFileCount={recentFileCount}
+                  mobile={false}
+                  onOpenFile={(file) => handleSelect(`/files/${file.id}`)}
+                  onSubmitTerm={handleHistorySubmit}
+                  onFillInput={handleFillInput}
+                  onRemoveTerm={handleRemoveHistory}
+                />
             ) : hasQuery ? (
               resultsList(false)
             ) : null}

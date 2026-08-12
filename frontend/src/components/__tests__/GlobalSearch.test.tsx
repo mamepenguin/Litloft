@@ -20,14 +20,20 @@ vi.mock("next/navigation", () => ({
   }),
 }));
 
+// Mutable so a test can put the component on a page with no drive in context
+// (the root page), where the recent-files section must not render or fetch.
+const driveState = vi.hoisted(() => ({ current: "main" as string | null }));
+
 vi.mock("../CurrentDriveProvider", () => ({
-  useCurrentDrive: () => "main",
+  useCurrentDrive: () => driveState.current,
 }));
 
 const mockGetDriveFiles = vi.fn();
+const mockGetWatchHistory = vi.fn();
 
 vi.mock("@/lib/api", () => ({
   getDriveFiles: (...args: unknown[]) => mockGetDriveFiles(...args),
+  getWatchHistory: (...args: unknown[]) => mockGetWatchHistory(...args),
 }));
 
 const mockFetchSemanticHits = vi.fn();
@@ -122,7 +128,9 @@ describe("GlobalSearch", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     vi.useFakeTimers();
+    driveState.current = "main";
     try { localStorage.removeItem("search-history"); } catch { /* jsdom */ }
+    mockGetWatchHistory.mockResolvedValue([]);
     mockGetDriveFiles.mockResolvedValue({
       data: [],
       meta: { total: 0, page: 1, limit: 100 },
@@ -432,6 +440,207 @@ describe("GlobalSearch", () => {
       render(<GlobalSearch />);
       fireEvent.click(screen.getByLabelText("Search"));
 
+      expect(screen.queryByText("whisper")).toBeNull();
+    });
+  });
+
+  describe("recent files", () => {
+    function makeRecent(overrides: Partial<FileItem> = {}) {
+      return {
+        ...makeFile(overrides),
+        watch_progress: { position: 0, duration: 0 },
+      };
+    }
+
+    async function openAndSettle() {
+      fireEvent.click(screen.getByLabelText("Search"));
+      await act(async () => {
+        await Promise.resolve();
+        await Promise.resolve();
+      });
+    }
+
+    afterEach(() => {
+      try {
+        localStorage.removeItem("search-history:main");
+      } catch {
+        /* jsdom */
+      }
+    });
+
+    it("requests the drive's history with filter 'all'", async () => {
+      render(<GlobalSearch />);
+      await openAndSettle();
+
+      expect(mockGetWatchHistory).toHaveBeenCalledWith("main", 8, "all");
+    });
+
+    it("renders recent files above recent searches", async () => {
+      localStorage.setItem(
+        "search-history:main",
+        JSON.stringify(["whisper"]),
+      );
+      mockGetWatchHistory.mockResolvedValue([
+        makeRecent({ id: "r1", filename: "meeting-notes.md", title: "meeting-notes.md" }),
+      ]);
+
+      render(<GlobalSearch />);
+      await openAndSettle();
+
+      const fileRow = screen.getByText("meeting-notes.md");
+      const termRow = screen.getByText("whisper");
+      expect(
+        fileRow.compareDocumentPosition(termRow) &
+          Node.DOCUMENT_POSITION_FOLLOWING,
+      ).toBeTruthy();
+    });
+
+    it("Enter on a recent file opens it", async () => {
+      mockGetWatchHistory.mockResolvedValue([
+        makeRecent({ id: "r1", filename: "meeting-notes.md", title: "meeting-notes.md" }),
+      ]);
+
+      render(<GlobalSearch />);
+      await openAndSettle();
+
+      const input = screen.getAllByRole("textbox")[0];
+      fireEvent.keyDown(input, { key: "ArrowDown" });
+      fireEvent.keyDown(input, { key: "Enter" });
+
+      expect(mockRouterPush).toHaveBeenCalledWith("/files/r1");
+    });
+
+    it("ArrowDown from the last recent file lands on the first search term", async () => {
+      localStorage.setItem(
+        "search-history:main",
+        JSON.stringify(["whisper"]),
+      );
+      mockGetWatchHistory.mockResolvedValue([
+        makeRecent({ id: "r1", filename: "meeting-notes.md", title: "meeting-notes.md" }),
+      ]);
+
+      render(<GlobalSearch />);
+      await openAndSettle();
+
+      const input = screen.getAllByRole("textbox")[0];
+      fireEvent.keyDown(input, { key: "ArrowDown" });
+      fireEvent.keyDown(input, { key: "ArrowDown" });
+      fireEvent.keyDown(input, { key: "Enter" });
+
+      expect(mockRouterPush).toHaveBeenCalledWith(
+        expect.stringContaining("q=whisper"),
+      );
+    });
+
+    it("renders no section and does not fetch when there is no drive", async () => {
+      driveState.current = null;
+
+      render(<GlobalSearch />);
+      fireEvent.click(screen.getByLabelText("Search"));
+      await act(async () => {
+        await Promise.resolve();
+      });
+
+      expect(mockGetWatchHistory).not.toHaveBeenCalled();
+    });
+
+    // A viewer without a nickname has no viewer_id, so the endpoint returns an
+    // empty list. The section is simply absent rather than an empty heading.
+    it("renders no section when the response is empty", async () => {
+      mockGetWatchHistory.mockResolvedValue([]);
+
+      render(<GlobalSearch />);
+      await openAndSettle();
+
+      expect(screen.queryByText("Recent files")).toBeNull();
+    });
+
+    // The list is built after the fetch resolves, but the user can navigate it
+    // before then. selectedIndex is a position, so prepending rows underneath a
+    // live selection silently retargets it — Enter would open a file the user
+    // never highlighted.
+    it("does not retarget a live selection when the fetch resolves late", async () => {
+      localStorage.setItem(
+        "search-history:main",
+        JSON.stringify(["whisper"]),
+      );
+      let resolveHistory: (items: unknown[]) => void = () => {};
+      mockGetWatchHistory.mockReturnValue(
+        new Promise((resolve) => {
+          resolveHistory = resolve as (items: unknown[]) => void;
+        }),
+      );
+
+      render(<GlobalSearch />);
+      fireEvent.click(screen.getByLabelText("Search"));
+
+      // Only the search-term row exists so far; select it.
+      const input = screen.getAllByRole("textbox")[0];
+      fireEvent.keyDown(input, { key: "ArrowDown" });
+
+      await act(async () => {
+        resolveHistory([
+          makeRecent({ id: "r1", filename: "meeting-notes.md", title: "meeting-notes.md" }),
+        ]);
+        await Promise.resolve();
+        await Promise.resolve();
+      });
+
+      fireEvent.keyDown(input, { key: "Enter" });
+      expect(mockRouterPush).not.toHaveBeenCalledWith("/files/r1");
+    });
+
+    // GlobalSearch lives in the header under the root layout, so it survives
+    // drive navigation. A drive is a security boundary; rows from the drive the
+    // user just left must not stay selectable while the new request is in
+    // flight.
+    it("drops the previous drive's files immediately when the drive changes", async () => {
+      mockGetWatchHistory.mockResolvedValue([
+        makeRecent({ id: "r1", filename: "meeting-notes.md", title: "meeting-notes.md" }),
+      ]);
+
+      const { rerender } = render(<GlobalSearch />);
+      await openAndSettle();
+      expect(screen.getByText("meeting-notes.md")).toBeInTheDocument();
+
+      // The next drive's request never settles, so anything still on screen is
+      // stale state rather than a fresh result.
+      mockGetWatchHistory.mockReturnValue(new Promise(() => {}));
+      driveState.current = "other";
+      await act(async () => {
+        rerender(<GlobalSearch />);
+        await Promise.resolve();
+      });
+
+      expect(screen.queryByText("meeting-notes.md")).toBeNull();
+    });
+
+    it("typing a query replaces the recent sections with results", async () => {
+      localStorage.setItem(
+        "search-history:main",
+        JSON.stringify(["whisper"]),
+      );
+      mockGetWatchHistory.mockResolvedValue([
+        makeRecent({ id: "r1", filename: "meeting-notes.md", title: "meeting-notes.md" }),
+      ]);
+      mockGetDriveFiles.mockResolvedValue({
+        data: [makeFile({ id: "f9", title: "found" })],
+        meta: { total: 1, page: 1, limit: 8 },
+      });
+
+      render(<GlobalSearch />);
+      await openAndSettle();
+      expect(screen.getByText("meeting-notes.md")).toBeInTheDocument();
+
+      const input = screen.getAllByRole("textbox")[0];
+      fireEvent.change(input, { target: { value: "found" } });
+      await act(async () => {
+        vi.advanceTimersByTime(350);
+        await Promise.resolve();
+        await Promise.resolve();
+      });
+
+      expect(screen.queryByText("meeting-notes.md")).toBeNull();
       expect(screen.queryByText("whisper")).toBeNull();
     });
   });
