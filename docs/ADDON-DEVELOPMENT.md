@@ -572,14 +572,7 @@ Base path for all routes: `http://backend:8000/api/internal`.
 | `POST /files/bulk` | Body `{file_ids: []}` → `{files: [FileResponse], not_found: []}`. Returns full file metadata for active files; missing/trash appear in `not_found`. Service-to-service (no auth). Use when enriching search results to avoid N+1 single-file lookups. |
 | `GET /file_relations?file_id=&drive=&kind=&limit=` | List relations where `file_id` appears on either side, **or** all relations for a `drive`. Exactly one of `file_id` or `drive` is required. `kind` filter is optional. `limit` caps results (default 5000, max 20000). |
 
-#### Write endpoints (no secret)
-
-| Endpoint | Description |
-|----------|-------------|
-| `POST /file_relations` | Body `{file_id_a, file_id_b, kind, viewer_id?}`. Creates a relation (same drive only). 400 self / cross-drive, 404 missing files, 409 duplicate. |
-| `DELETE /file_relations/{relation_id}` | Removes a relation by id. |
-
-#### Secret-gated endpoints (`X-Internal-Secret` matches `CORE_INTERNAL_SECRET`)
+#### Legacy secret-gated endpoints (`X-Internal-Secret` matches `CORE_INTERNAL_SECRET`)
 
 The header is required when `CORE_INTERNAL_SECRET` is set on both sides. When unset (dev) the gate is a no-op; production deployments should always set it.
 
@@ -587,20 +580,74 @@ The header is required when `CORE_INTERNAL_SECRET` is set on both sides. When un
 |----------|-------------|
 | `GET /files/{file_id}/content` | Raw text body. Mime allowlist (`text/markdown`, `text/plain`); size cap (`CORE_INTERNAL_CONTENT_MAX_BYTES`, default 10 MB). 415 on non-text or non-UTF-8. |
 | `POST /files/{file_id}/tags` | Body `{tags: []}` → 204. Same validation as `PUT /api/files/{id}/tags`. Used by the knowledge scanner to project frontmatter onto core `File.tags`. |
+| `POST /file_relations` | Body `{file_id_a, file_id_b, kind, viewer_id?}`. Creates a relation (same drive only). 400 self / cross-drive, 404 missing files, 409 duplicate. |
+| `DELETE /file_relations/{relation_id}` | Removes a relation by id. |
 | `GET /viewer-history?viewer_id=&drive=&after=&before=&kind=` | File IDs the viewer touched in the drive within `[after, before)`. `kind=viewed` (default) or `not_viewed`. Drive isolation via JOIN to `files` so cross-drive viewer history never leaks. |
 | `POST /restart-pending` | Body `{source, reason?}` → 204. Touches `data/restart_pending` so the core's `RestartBanner` prompts the user to restart. Use when an addon changes user-visible config that requires a container restart to take effect. `source` is the addon name (opaque to core). |
+
+#### Strict write endpoints
+
+Strict writes fail closed and always require `X-Internal-Secret` to match a
+non-empty `CORE_INTERNAL_SECRET`. If the environment variable is unset or
+empty, core returns 503; if the header is missing or wrong, core returns 403.
+The comparison is constant-time.
+
+##### Promote approved chapters
+
+```http
+PUT /api/internal/files/{file_id}/chapters
+Content-Type: application/json
+X-Internal-Secret: <CORE_INTERNAL_SECRET>
+
+{
+  "chapters": [
+    {"start_time": 0.0, "end_time": 42.5, "title": "Opening"},
+    {"start_time": 42.5, "end_time": null, "title": "Discussion"}
+  ]
+}
+```
+
+Success returns 204. The request may contain only `chapters`, and each item
+may contain only `start_time`, `end_time`, and `title`; `source`, `ordering`,
+and all other extra fields return 422. Core drops entries with a blank title
+or an invalid/non-finite start, nulls an invalid/non-finite end, trims titles,
+and assigns dense ordering after filtering. It does not impose a chapter-count
+cap, title-length cap, non-negative-time rule, chronology rule, or sorting.
+
+Approval replaces the file's complete chapter set and always writes
+`source="curated"`; the caller cannot choose provenance. An empty list or a
+list with no usable entries returns 422 and leaves the existing set untouched.
+Unknown, missing, and trashed files return 404.
+
+Internal API policy rationale:
+
+| Rule | Why this endpoint passes |
+|------|--------------------------|
+| R1 first-class core entity | `file_chapters` is owned and rendered by core in the file-detail player companion. |
+| R2 generic shape | The path and body describe only core chapter values; no addon, LLM, suggestion-status, source, or workflow name crosses the boundary. |
+| R3 multi-addon viability | Intelligence promotes transcript-derived chapters. Media Import is the concrete second chapter producer and writes the identical core entity through the shared service because it currently runs in-process; the endpoint shape does not encode either producer. |
+| R4 write asymmetry | Core's chapter panel reads and navigates the promoted data. The addon is not the sole consumer. |
+| R5 promotion target | Untrusted candidates remain in the producing addon's database until user approval promotes them into the core-owned `file_chapters` set. |
 
 #### WS bridge
 
 | Endpoint | Description |
 |----------|-------------|
-| `POST /addon-events` | Body `{event, data, drive?}` → 204. Core relays the payload to its WS broadcaster. Drive-scoped broadcasts are access-filtered (other-drive viewers don't receive). Use this from external-service addons that can't reach the core's broadcaster directly. |
+| `POST /addon-events` | Body `{event, data, drive?}` → 204. Core relays the payload to its WS broadcaster. Drive-scoped broadcasts are access-filtered (other-drive viewers don't receive). Send `X-Internal-Secret` when configured. Use this from external-service addons that can't reach the core's broadcaster directly. |
+
+Known chapter event contracts:
+
+| Event | Transport | Payload | Meaning |
+|-------|-----------|---------|---------|
+| `intelligence.chapter_suggestions.ready` | Core WS bridge | `{file_id, drive, created_at}` | A replacement candidate set is durable and the Intelligence UI should reload it. This replaces deadline-based polling for multi-call LLM work. |
+| `intelligence.chapter_suggestions.failed` | Core WS bridge | `{file_id, drive, reason}` | Generation ended without a usable complete candidate set. The Intelligence UI should stop its progress state and keep any prior staged/core chapters unchanged. `reason` is diagnostic; UI copy remains generic. |
+| `litloft:chapters-updated` | Browser `CustomEvent` | `{fileId}` | An addon UI has promoted a complete chapter set. Import `FILE_CHAPTERS_UPDATED_EVENT` from `frontend/src/lib/addonEvents.ts`; core's mounted `ChaptersPanel` uses it as a refetch signal even when chapters were already present. |
 
 #### Auth conventions
 
 - **Cookies**: forward the original request's `Cookie` header (`lit_token`, `lit_viewer`) when calling access-controlled endpoints (`accessible-drives`, `filter-file-ids`, `files/{id}`). The core evaluates the caller's unlocked groups from `lit_token`.
-- **Shared secret**: send `X-Internal-Secret: <value>` for the secret-gated endpoints. Mismatch is 403; constant-time compared so token length / prefix never leaks via timing.
-- **Service-to-service**: `bulk-state`, `files/bulk`, and `addon-events` need no auth — they're service convenience routes intended for Docker-internal traffic only.
+- **Shared secret**: send `X-Internal-Secret: <value>` for the secret-gated endpoints. Mismatch is 403; constant-time compared so token length / prefix never leaks via timing. Strict writes additionally return 503 when core has no secret configured; legacy endpoints retain their documented dev no-op when it is unset.
+- **Service-to-service**: `bulk-state` and `files/bulk` need no auth. `addon-events` uses the legacy shared-secret gate: send the header whenever `CORE_INTERNAL_SECRET` is configured.
 
 #### Drive policy shape
 

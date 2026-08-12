@@ -249,6 +249,29 @@ describe("ChaptersPanel", () => {
     expect(api.getFileChapters).toHaveBeenCalledTimes(1);
   });
 
+  it("refetches without remounting when the refresh token changes", async () => {
+    mockChapters();
+    const controller = makeController();
+    const { rerender } = render(
+      <ChaptersPanel
+        fileId="f1"
+        mediaController={controller}
+        refreshToken={0}
+      />,
+    );
+    await waitFor(() => expect(api.getFileChapters).toHaveBeenCalledTimes(1));
+
+    rerender(
+      <ChaptersPanel
+        fileId="f1"
+        mediaController={controller}
+        refreshToken={1}
+      />,
+    );
+
+    await waitFor(() => expect(api.getFileChapters).toHaveBeenCalledTimes(2));
+  });
+
   it("stays inert when no controller has been published yet", async () => {
     mockChapters();
     render(<ChaptersPanel fileId="f1" mediaController={null} />);

@@ -5,6 +5,7 @@ import { useState } from "react";
 import { FileDetailContent } from "../FileDetailContent";
 import * as api from "@/lib/api";
 import type { FileItem } from "@/types";
+import { FILE_CHAPTERS_UPDATED_EVENT } from "@/lib/addonEvents";
 
 // Heavy children are mocked: this test focuses on FileDetailContent's
 // own contract (fetch + recordFileView + chrome-less surface), not on
@@ -140,8 +141,14 @@ vi.mock("../CastButton", () => ({
 // lets a test fire `onResolved` at a moment it controls, rather than
 // racing an effect.
 vi.mock("../ChaptersPanel", () => ({
-  ChaptersPanel: ({ onResolved }: { onResolved?: (n: number) => void }) => (
-    <div data-testid="chapters-panel">
+  ChaptersPanel: ({
+    onResolved,
+    refreshToken,
+  }: {
+    onResolved?: (n: number) => void;
+    refreshToken?: number;
+  }) => (
+    <div data-testid="chapters-panel" data-refresh-token={refreshToken}>
       <button
         data-testid="chapters-resolved-empty"
         onClick={() => onResolved?.(0)}
@@ -1048,6 +1055,44 @@ describe("FileDetailContent companion region", () => {
 
     expect(screen.getByTestId("chapters-panel")).toBeInTheDocument();
     expect(grid(container)).not.toBeNull();
+  });
+
+  it("mounts chapters immediately after an addon promotes them", async () => {
+    const { container } = await renderFile(makeFile({ has_chapters: false }));
+    expect(screen.queryByTestId("chapters-panel")).toBeNull();
+    expect(grid(container)).toBeNull();
+
+    act(() => {
+      window.dispatchEvent(
+        new CustomEvent(FILE_CHAPTERS_UPDATED_EVENT, {
+          detail: { fileId: "f1" },
+        }),
+      );
+    });
+
+    expect(screen.getByTestId("chapters-panel")).toBeInTheDocument();
+    expect(grid(container)).not.toBeNull();
+  });
+
+  it("refreshes an already-mounted chapter panel after promotion", async () => {
+    await renderFile(makeFile({ has_chapters: true }));
+    expect(screen.getByTestId("chapters-panel")).toHaveAttribute(
+      "data-refresh-token",
+      "0",
+    );
+
+    act(() => {
+      window.dispatchEvent(
+        new CustomEvent(FILE_CHAPTERS_UPDATED_EVENT, {
+          detail: { fileId: "f1" },
+        }),
+      );
+    });
+
+    expect(screen.getByTestId("chapters-panel")).toHaveAttribute(
+      "data-refresh-token",
+      "1",
+    );
   });
 
   it("folds the region away when the chapters turn out to be unreadable", async () => {

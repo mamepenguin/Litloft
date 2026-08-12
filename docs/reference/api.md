@@ -197,6 +197,7 @@ Available only on the Docker network (frontend never proxies these). For addon u
 | `GET` | `/api/internal/files/{id}` | none | File metadata. |
 | `GET` | `/api/internal/files/{id}/content` | `CORE_INTERNAL_SECRET` | File body (text MIME allowlist + size cap). |
 | `POST` | `/api/internal/files/{id}/tags` | `CORE_INTERNAL_SECRET` | Set tags. |
+| `PUT` | `/api/internal/files/{id}/chapters` | `CORE_INTERNAL_SECRET` (strict) | Replace the full chapter set with approved values. Core assigns dense ordering and `source=curated`; empty/fully invalid input is 422. Unset secret is 503. |
 | `GET` | `/api/internal/viewer-history?viewer_id=&kind=` | none | Watched/not-watched lookup. |
 | `POST` | `/api/internal/filter-file-ids` | none | Filter a list to those the caller can see. |
 | `POST` | `/api/internal/files/bulk-state` | none | Lifecycle bulk read. |

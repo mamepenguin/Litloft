@@ -129,7 +129,7 @@ def _check_file_access(
     file_id: str,
     unlocked_groups: list[str],
     db: Any,
-) -> None:
+) -> File:
     """Pre-check: verify file exists and user has access to its drive."""
     file = (
         db.query(File)
@@ -142,6 +142,21 @@ def _check_file_access(
     accessible = _accessible_drives(unlocked_groups)
     if file.drive not in accessible:
         raise HTTPException(status_code=404, detail="File not found")
+    return file
+
+
+def _require_addon_feature(
+    requested_drive: str | None,
+    addon_name: str,
+    feature: str,
+) -> None:
+    """Apply the manifest feature gate without revealing disabled routes."""
+    if not requested_drive:
+        raise HTTPException(status_code=404, detail="Route not found")
+    if not config.is_addon_feature_enabled(
+        requested_drive, addon_name, feature
+    ):
+        raise HTTPException(status_code=404, detail="Route not found")
 
 
 def _extract_path_params(
@@ -524,24 +539,22 @@ async def addon_proxy(
 
     # Pre-check hooks
     pre_check = route_config.get("pre_check")
+    checked_file: File | None = None
     if pre_check:
         check_type = pre_check.get("type")
         if check_type == "file_access":
             param_name = pre_check.get("param", "file_id")
             file_id = path_params.get(param_name)
             if file_id:
-                _check_file_access(file_id, unlocked_groups, db)
+                checked_file = _check_file_access(
+                    file_id, unlocked_groups, db
+                )
         elif check_type == "addon_feature":
             # Per-drive policy gate. Requires X-Lit-Drive (already enforced
             # for scope=drive; for scope=both we treat absence as 404 to
             # avoid surfacing the route in a global context).
             feature = pre_check.get("feature", "index")
-            if not requested_drive:
-                raise HTTPException(status_code=404, detail="Route not found")
-            if not config.is_addon_feature_enabled(
-                requested_drive, addon_name, feature
-            ):
-                raise HTTPException(status_code=404, detail="Route not found")
+            _require_addon_feature(requested_drive, addon_name, feature)
         elif check_type == "admin":
             # Admin gate for routes that expose system-wide aggregates
             # (queue control, total indexed counters, etc.). Same
@@ -551,6 +564,18 @@ async def addon_proxy(
                 raise HTTPException(
                     status_code=403, detail="Admin access required"
                 )
+
+    # File-scoped routes need to compose the core file-access check above
+    # with a per-drive feature gate. ``pre_check`` intentionally has one
+    # discriminator, so manifests declare the second requirement as
+    # ``addon_feature`` on the route itself.
+    addon_feature = route_config.get("addon_feature")
+    if addon_feature:
+        if checked_file is not None and checked_file.drive != requested_drive:
+            raise HTTPException(status_code=404, detail="Route not found")
+        _require_addon_feature(
+            requested_drive, addon_name, addon_feature
+        )
 
     # Proxy the request
     is_stream = route_config.get("stream", False)

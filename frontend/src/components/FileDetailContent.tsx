@@ -27,6 +27,10 @@ import {
 import { addRecentlyPlayed } from "@/lib/recentlyPlayed";
 import { formatDuration, formatFileSize } from "@/lib/format";
 import { clearListSnapshot } from "@/lib/listSnapshot";
+import {
+  FILE_CHAPTERS_UPDATED_EVENT,
+  type FileChaptersUpdatedDetail,
+} from "@/lib/addonEvents";
 import type { FileItem } from "@/types";
 import type { MediaController } from "@/lib/mediaController";
 import { playerKind } from "@/lib/playerKind";
@@ -172,6 +176,7 @@ export function FileDetailContent({
    * (see ``ChaptersPanel``'s ``onResolved``).
    */
   const [chaptersPresent, setChaptersPresent] = useState(false);
+  const [chaptersVersion, setChaptersVersion] = useState(0);
   const [editing, setEditing] = useState(false);
   const [editTitle, setEditTitle] = useState("");
   const [editDesc, setEditDesc] = useState("");
@@ -345,6 +350,7 @@ export function FileDetailContent({
   useEffect(() => {
     setFile(null);
     setChaptersPresent(false);
+    setChaptersVersion(0);
     setEditing(false);
     setDocumentCaptureController(null);
     let cancelled = false;
@@ -368,6 +374,28 @@ export function FileDetailContent({
     recordFileView(fileId);
     return () => {
       cancelled = true;
+    };
+  }, [fileId]);
+
+  useEffect(() => {
+    const handleChaptersUpdated = (event: Event) => {
+      const updatedFileId = (
+        event as CustomEvent<Partial<FileChaptersUpdatedDetail>>
+      ).detail?.fileId;
+      if (updatedFileId === fileId) {
+        setChaptersPresent(true);
+        setChaptersVersion((version) => version + 1);
+      }
+    };
+    window.addEventListener(
+      FILE_CHAPTERS_UPDATED_EVENT,
+      handleChaptersUpdated,
+    );
+    return () => {
+      window.removeEventListener(
+        FILE_CHAPTERS_UPDATED_EVENT,
+        handleChaptersUpdated,
+      );
     };
   }, [fileId]);
 
@@ -880,6 +908,7 @@ export function FileDetailContent({
           <ChaptersPanel
             fileId={fileId}
             mediaController={mediaController}
+            refreshToken={chaptersVersion}
             onResolved={handleChaptersResolved}
           />
         )}
