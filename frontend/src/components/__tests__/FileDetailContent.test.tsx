@@ -812,6 +812,7 @@ describe("FileDetailContent companion region", () => {
         resize = callback;
       }
       observe() {}
+      unobserve() {}
       disconnect() {}
     }
     vi.stubGlobal("ResizeObserver", ResizeObserverMock);
@@ -859,6 +860,7 @@ describe("FileDetailContent companion region", () => {
         resize = callback;
       }
       observe() {}
+      unobserve() {}
       disconnect() {}
     }
     vi.stubGlobal("ResizeObserver", ResizeObserverMock);
