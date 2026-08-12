@@ -503,6 +503,18 @@ export function FileDetailContent({
   const companionKind = playerKind(file);
   const railEligible = companionKind === "video" || companionKind === "loft";
 
+  // Whether the player draws a fixed 16:9 frame, which is what makes
+  // the height budget expressible as a width cap at all. Only video and
+  // `.loft` do: an image sizes itself from `max-h-[70vh]` with `w-auto`,
+  // and PDF, text and archive previews have no aspect ratio to invert.
+  // Capping their column by `--player-avail * 16 / 9` would shrink them
+  // for no reason on a short, wide window.
+  //
+  // The same two kinds as `railEligible` today, kept separate because
+  // the two answer different questions — one is "can a rail fit beside
+  // it", this is "is its height a function of its width".
+  const playerHasFixedFrame = railEligible;
+
   // Core is an occupant of the companion region now, not just its host:
   // chapters are a core entity and `AddonSlot` can only load addon
   // components. So every question that used to be "does an addon fill
@@ -802,7 +814,11 @@ export function FileDetailContent({
   );
 
   const playerLayoutNode = (
-    <div ref={playerWrapperRef} className="media-detail-player">
+    <div
+      ref={playerWrapperRef}
+      className="media-detail-player"
+      data-framed={playerHasFixedFrame ? "true" : undefined}
+    >
       {playerNode}
     </div>
   );

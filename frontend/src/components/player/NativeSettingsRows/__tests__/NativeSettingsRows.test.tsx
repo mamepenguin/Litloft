@@ -68,6 +68,66 @@ describe("native settings rows", () => {
     await waitFor(() => expect(requestPictureInPicture).toHaveBeenCalledOnce());
   });
 
+  it("leaves Picture-in-Picture again when it is already on", async () => {
+    // It renders as a switch, so pressing it while on has to turn it
+    // off. The standard route out goes through `document`, not the
+    // element, which is why entering and leaving are not symmetric.
+    const video = document.createElement("video");
+    const exitPictureInPicture = vi.fn().mockResolvedValue(undefined);
+    Object.defineProperty(video, "requestPictureInPicture", {
+      configurable: true,
+      value: vi.fn().mockResolvedValue(undefined),
+    });
+    Object.defineProperty(document, "pictureInPictureEnabled", {
+      configurable: true,
+      value: true,
+    });
+    Object.defineProperty(document, "pictureInPictureElement", {
+      configurable: true,
+      value: video,
+    });
+    Object.defineProperty(document, "exitPictureInPicture", {
+      configurable: true,
+      value: exitPictureInPicture,
+    });
+
+    render(<PictureInPictureRow video={video} />);
+    const row = screen.getByRole("switch", { name: "Picture-in-Picture" });
+    expect(row).toHaveAttribute("aria-checked", "true");
+    fireEvent.click(row);
+    await waitFor(() => expect(exitPictureInPicture).toHaveBeenCalledOnce());
+
+    Object.defineProperty(document, "pictureInPictureElement", {
+      configurable: true,
+      value: null,
+    });
+  });
+
+  it("falls back to WebKit presentation mode when leaving", async () => {
+    const video = document.createElement("video");
+    const webkitSetPresentationMode = vi.fn();
+    Object.defineProperty(video, "webkitSupportsPresentationMode", {
+      configurable: true,
+      value: (mode: string) => mode === "picture-in-picture",
+    });
+    Object.defineProperty(video, "webkitPresentationMode", {
+      configurable: true,
+      value: "picture-in-picture",
+    });
+    Object.defineProperty(video, "webkitSetPresentationMode", {
+      configurable: true,
+      value: webkitSetPresentationMode,
+    });
+
+    render(<PictureInPictureRow video={video} />);
+    const row = screen.getByRole("switch", { name: "Picture-in-Picture" });
+    expect(row).toHaveAttribute("aria-checked", "true");
+    fireEvent.click(row);
+    await waitFor(() =>
+      expect(webkitSetPresentationMode).toHaveBeenCalledWith("inline"),
+    );
+  });
+
   it("hides the track picker unless more than one track exists", () => {
     const { video } = videoWithTracks([{ label: "English", language: "en" }]);
     render(<SubtitleTrackPicker video={video} />);

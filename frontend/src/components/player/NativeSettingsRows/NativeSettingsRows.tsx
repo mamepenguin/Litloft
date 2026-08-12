@@ -7,6 +7,7 @@ import { useTranslations } from "next-intl";
 import { useAutoplayPreference } from "@/lib/autoplay";
 import {
   enterPictureInPicture,
+  exitPictureInPicture,
   isInPictureInPicture,
   supportsPictureInPicture,
 } from "@/lib/backgroundPiP";
@@ -59,7 +60,13 @@ export function PictureInPictureRow({ video }: VideoRowProps) {
         aria-checked={active}
         aria-label={t("pictureInPicture")}
         onClick={() => {
-          void enterPictureInPicture(video)
+          // Both directions, because this renders as a switch. The
+          // effect above also hears the platform's own events, so a
+          // window closed from the OS chrome settles the state too.
+          const change = active
+            ? exitPictureInPicture(video)
+            : enterPictureInPicture(video);
+          void change
             .then(() => setActive(isInPictureInPicture(video)))
             .catch(() => {});
         }}

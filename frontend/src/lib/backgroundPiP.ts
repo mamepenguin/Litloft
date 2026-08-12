@@ -34,6 +34,31 @@ export async function enterPictureInPicture(video: HTMLVideoElement): Promise<vo
   }
 }
 
+/**
+ * The way back out, which has to mirror `enterPictureInPicture`'s two
+ * routes: the standard API takes the element out through `document`,
+ * while WebKit's presentation mode is set on the video itself. A
+ * control that only ever enters is a switch that cannot be switched
+ * off.
+ */
+export async function exitPictureInPicture(
+  video: HTMLVideoElement,
+): Promise<void> {
+  if (!isInPictureInPicture(video)) return;
+  if (
+    typeof document !== "undefined" &&
+    document.pictureInPictureElement === video &&
+    typeof document.exitPictureInPicture === "function"
+  ) {
+    await document.exitPictureInPicture();
+    return;
+  }
+  const wk = video as WebKitVideoElement;
+  if (typeof wk.webkitSetPresentationMode === "function") {
+    wk.webkitSetPresentationMode("inline");
+  }
+}
+
 export function setupBackgroundPiP(video: HTMLVideoElement): () => void {
   if (typeof document === "undefined") return () => {};
 

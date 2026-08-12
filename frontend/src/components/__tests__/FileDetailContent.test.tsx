@@ -924,6 +924,37 @@ describe("FileDetailContent companion region", () => {
     expect(grid(container)).not.toBeNull();
   });
 
+  it("marks video and .loft as framed, and nothing else", async () => {
+    // The theater width cap inverts a 16:9 ratio, so it is only
+    // meaningful where the height follows the width. An image sizes
+    // itself from `max-h-[70vh]`; a PDF or text preview has no ratio at
+    // all. Capping their column would narrow them on a short window.
+    const framed = async (file: FileItem) => {
+      const { container, unmount } = await renderFile(file);
+      const wrapper = container.querySelector<HTMLElement>(
+        ".media-detail-player",
+      );
+      expect(wrapper).not.toBeNull();
+      const value = wrapper!.dataset.framed;
+      unmount();
+      return value;
+    };
+
+    expect(await framed(makeFile())).toBe("true");
+    expect(
+      await framed(makeFile({ filename: "clip.loft", mime_type: "application/x-loft" })),
+    ).toBe("true");
+    expect(
+      await framed(makeFile({ file_type: "image", filename: "a.jpg", mime_type: "image/jpeg" })),
+    ).toBeUndefined();
+    expect(
+      await framed(makeFile({ file_type: "audio", filename: "a.mp3", mime_type: "audio/mpeg" })),
+    ).toBeUndefined();
+    expect(
+      await framed(makeFile({ file_type: "document", filename: "a.pdf", mime_type: "application/pdf" })),
+    ).toBeUndefined();
+  });
+
   it("gives .loft the rail layout even though its file_type is video", async () => {
     slotMocks.occupied.add("player-side");
     const { container } = await renderFile(
