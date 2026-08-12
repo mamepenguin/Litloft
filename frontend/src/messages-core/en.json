@@ -320,6 +320,12 @@
     "castConnected": "Casting",
     "autoplayOn": "Autoplay ON",
     "autoplayOff": "Autoplay OFF",
+    "autoplay": "Autoplay",
+    "pictureInPicture": "Picture-in-Picture",
+    "subtitleTrack": "Subtitle track",
+    "subtitleTrackOff": "Off",
+    "browserControls": "Browser controls",
+    "useLitloftControls": "Use Litloft controls",
     "miniPlayerClose": "Close mini player (stops playback)",
     "miniPlayerRestore": "Return player to original position",
     "miniPlayerAnnounced": "Player moved to bottom-right corner",
@@ -341,8 +347,6 @@
     "closeSettings": "Close settings",
     "normalSpeed": "Normal",
     "captions": "Subtitles",
-    "captionsOn": "On",
-    "captionsOff": "Off",
     "chapters": "Chapters"
   },
   "archive": {

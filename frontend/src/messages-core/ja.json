@@ -320,6 +320,12 @@
     "castConnected": "キャスト中",
     "autoplayOn": "自動再生ON",
     "autoplayOff": "自動再生OFF",
+    "autoplay": "自動再生",
+    "pictureInPicture": "ピクチャ・イン・ピクチャ",
+    "subtitleTrack": "字幕トラック",
+    "subtitleTrackOff": "オフ",
+    "browserControls": "ブラウザ標準の操作バー",
+    "useLitloftControls": "Litloft の操作バーに戻す",
     "miniPlayerClose": "ミニプレーヤーを閉じる（再生停止）",
     "miniPlayerRestore": "プレーヤーを元の位置に戻す",
     "miniPlayerAnnounced": "プレーヤーを画面右下に移動しました",
@@ -341,8 +347,6 @@
     "closeSettings": "設定を閉じる",
     "normalSpeed": "標準",
     "captions": "字幕",
-    "captionsOn": "オン",
-    "captionsOff": "オフ",
     "chapters": "チャプター"
   },
   "archive": {

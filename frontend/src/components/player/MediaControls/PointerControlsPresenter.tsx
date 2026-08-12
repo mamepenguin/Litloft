@@ -55,6 +55,7 @@ export function PointerControlsPresenter({
   settingsOpen = false,
   onSettingsOpenChange,
   settingsExtra,
+  settingsToggles,
 }: MediaControlsPresenterProps) {
   const t = useTranslations("player");
 
@@ -221,6 +222,7 @@ export function PointerControlsPresenter({
           onToggleCaptions={onToggleCaptions}
           onClose={() => onSettingsOpenChange?.(false)}
           extra={settingsExtra}
+          toggles={settingsToggles}
         />
       )}
     </>

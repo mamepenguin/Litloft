@@ -44,6 +44,23 @@ function fakeVideo(overrides: Partial<HTMLVideoElement> = {}): FakeVideo {
   return Object.assign(base, overrides) as unknown as FakeVideo;
 }
 
+function fakeTextTracks(
+  modes: TextTrackMode[],
+): { list: TextTrackList; tracks: TextTrack[] } {
+  const tracks = modes.map(
+    (mode, index) =>
+      ({
+        id: `track-${index}`,
+        kind: "subtitles",
+        label: `Track ${index + 1}`,
+        language: index === 0 ? "en" : "ja",
+        mode,
+      }) as TextTrack,
+  );
+  const list = Object.assign({ length: tracks.length, item: (i: number) => tracks[i] ?? null }, tracks);
+  return { list: list as unknown as TextTrackList, tracks };
+}
+
 type FakeYTPlayer = {
   seekTo: ReturnType<typeof vi.fn>;
   playVideo: ReturnType<typeof vi.fn>;
@@ -458,6 +475,63 @@ describe("createNativeVideoController extended controls", () => {
   describe("isInterrupted", () => {
     it("is not implemented for native media (nothing interrupts an owned file)", () => {
       expect(createNativeVideoController(fakeVideo()).isInterrupted).toBeUndefined();
+    });
+  });
+
+  describe("captions", () => {
+    it("reports unavailable when the element has no text tracks", () => {
+      const { list } = fakeTextTracks([]);
+      expect(
+        createNativeVideoController(fakeVideo({ textTracks: list })).getCaptions?.(),
+      ).toBe("unavailable");
+    });
+
+    it("reports off or on from whether a track is showing", () => {
+      const off = fakeTextTracks(["disabled", "hidden"]);
+      const on = fakeTextTracks(["disabled", "showing"]);
+
+      expect(
+        createNativeVideoController(fakeVideo({ textTracks: off.list })).getCaptions?.(),
+      ).toBe("off");
+      expect(
+        createNativeVideoController(fakeVideo({ textTracks: on.list })).getCaptions?.(),
+      ).toBe("on");
+    });
+
+    it("shows the first track when enabled and disables every track when off", () => {
+      const { list, tracks } = fakeTextTracks(["disabled", "hidden"]);
+      const mc = createNativeVideoController(fakeVideo({ textTracks: list }));
+
+      mc.setCaptions?.(true);
+      expect(tracks.map((track) => track.mode)).toEqual(["showing", "disabled"]);
+
+      mc.setCaptions?.(false);
+      expect(tracks.map((track) => track.mode)).toEqual(["disabled", "disabled"]);
+    });
+
+    it("restores the previously selected track after captions are toggled", () => {
+      const { list, tracks } = fakeTextTracks(["disabled", "showing"]);
+      const mc = createNativeVideoController(fakeVideo({ textTracks: list }));
+
+      mc.setCaptions?.(false);
+      mc.setCaptions?.(true);
+
+      expect(tracks.map((track) => track.mode)).toEqual([
+        "disabled",
+        "showing",
+      ]);
+    });
+
+    it("keeps a track selected outside the bool controller when enabling", () => {
+      const { list, tracks } = fakeTextTracks(["disabled", "showing"]);
+      const mc = createNativeVideoController(fakeVideo({ textTracks: list }));
+
+      mc.setCaptions?.(true);
+
+      expect(tracks.map((track) => track.mode)).toEqual([
+        "disabled",
+        "showing",
+      ]);
     });
   });
 });

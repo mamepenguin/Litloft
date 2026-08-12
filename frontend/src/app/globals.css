@@ -792,7 +792,38 @@ div[data-citation-section-path]:not(tr) {
     "rest";
 }
 
-.media-detail-player { grid-area: player; }
+.media-detail-player {
+  grid-area: player;
+}
+
+/* Bound the player to the visible height of whatever scrolls, so it
+   stops running off the bottom of the screen.
+
+   Expressed as a width cap rather than `max-height`, because the two
+   players build their aspect ratio differently — `aspect-video` for
+   native, a `padding-top: 56.25%` shim for the `.loft` iframe — and
+   padding is not collapsed by `max-height`: the box clamps, the padding
+   does not, and the contents spill behind `overflow-hidden`. Capping
+   the width lets each one's existing machinery produce the right
+   height, which also keeps this a core-only change.
+
+   Only for a player whose height IS a function of its width. An image
+   sizes itself from `max-h-[70vh]` with `w-auto`, and PDF, text and
+   archive previews have no aspect ratio to invert, so applying this to
+   them would just shrink them on a short, wide window. The host sets
+   `data-framed` for the two kinds that qualify. */
+.media-detail-player[data-framed="true"] {
+  /* `width` before the auto margins, and not optional: an auto inline
+     margin turns off a grid item's default `stretch`, so the item falls
+     back to sizing from its contents. A <video> with no metadata yet
+     reports the CSS default 300x150, which is what the player was
+     rendered at until the file loaded and then snapped to full width.
+     Asking for the column width explicitly keeps the box the same size
+     before and after metadata arrives. */
+  width: 100%;
+  max-width: calc(var(--player-avail, 100dvh) * 16 / 9);
+  margin-inline: auto;
+}
 .media-detail-companion { grid-area: companion; }
 .media-detail-rest { grid-area: rest; }
 
@@ -933,4 +964,3 @@ div[data-citation-section-path]:not(tr) {
   .media-detail-companion-lead {
   max-height: min(22rem, calc(var(--rail-avail, 100dvh) * 0.4));
 }
-

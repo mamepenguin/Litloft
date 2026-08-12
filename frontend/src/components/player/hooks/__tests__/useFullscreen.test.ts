@@ -300,6 +300,17 @@ describe("useFullscreen — history", () => {
     expect(back).toHaveBeenCalledTimes(1);
   });
 
+  it("unwinds an explicit exit even when its owner unmounts immediately", async () => {
+    const back = vi.spyOn(window.history, "back").mockImplementation(() => {});
+    const { result, unmount } = renderFullscreen();
+    await act(async () => result.current.toggle());
+    act(() => {
+      result.current.exit();
+      unmount();
+    });
+    expect(back).toHaveBeenCalledTimes(1);
+  });
+
   it("does not unwind after the entry was already consumed by a back navigation", async () => {
     const back = vi.spyOn(window.history, "back").mockImplementation(() => {});
     const { result } = renderFullscreen();

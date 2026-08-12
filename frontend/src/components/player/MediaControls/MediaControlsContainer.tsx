@@ -56,6 +56,11 @@ export interface MediaControlsContainerProps {
    * have settings core has no concept of.
    */
   settingsExtra?: ReactNode;
+  /**
+   * On/off settings the backend contributes, drawn as icons on the
+   * same line as core's own rather than as their own labelled rows.
+   */
+  settingsToggles?: ReactNode;
 }
 
 /**
@@ -73,6 +78,7 @@ export default function MediaControlsContainer({
   interactive = true,
   onBoostingChange,
   settingsExtra,
+  settingsToggles,
 }: MediaControlsContainerProps) {
   const [settingsOpen, setSettingsOpen] = useState(false);
   const state = useMediaControlsState({
@@ -107,6 +113,7 @@ export default function MediaControlsContainer({
   // each new file: the toggle only records what the viewer wants, and
   // this applies it whenever that or the player changes.
   useEffect(() => {
+    if (captionsPreferred === null) return;
     try {
       mc?.setCaptions?.(captionsPreferred);
     } catch {
@@ -272,6 +279,7 @@ export default function MediaControlsContainer({
         settingsOpen={settingsOpen}
         onSettingsOpenChange={setSettingsOpen}
         settingsExtra={settingsExtra}
+        settingsToggles={settingsToggles}
       />
     </>
   );
