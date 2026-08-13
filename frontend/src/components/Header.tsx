@@ -7,6 +7,7 @@ import { useTranslations } from "next-intl";
 
 import { useProfile } from "./ProfileProvider";
 import { GlobalSearch } from "./GlobalSearch";
+import { QuickNote } from "./quick-note";
 import { AddonSlot } from "./AddonSlot";
 import { useCurrentDrive } from "./CurrentDriveProvider";
 
@@ -67,6 +68,10 @@ export function Header() {
 
       <div className="flex items-center gap-1">
         <GlobalSearch />
+        {/* Mounted directly, not through the addon slot: Quick Note has to be
+            reachable from root, admin, and settings screens too, and those
+            have no active drive. */}
+        <QuickNote />
         {drive && (
           <AddonSlot id="header-actions" props={{ drive }} layout="stack" />
         )}
