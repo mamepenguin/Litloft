@@ -874,7 +874,8 @@
     "prevFile": "Previous file",
     "nextFile": "Next file",
     "loftPlayer": "Video Player (LoftRef)",
-    "archiveViewer": "Archive Viewer"
+    "archiveViewer": "Archive Viewer",
+    "quickNote": "Quick note"
   },
   "propertiesPanel": {
     "labels": {
@@ -1023,5 +1024,29 @@
     "folderNoSubfolders": "No subfolders",
     "folderSelectedLabel": "Selected",
     "submitting": "Saving..."
+  },
+  "quickNote": {
+    "title": "Quick note",
+    "open": "Quick note",
+    "bodyLabel": "Note text",
+    "placeholder": "Write it down now, file it later.",
+    "filenamePreview": "Saves as",
+    "destination": "Destination",
+    "driveLabel": "Drive",
+    "selectDrive": "Select a drive",
+    "driveRoot": "Drive root",
+    "noDrives": "There is no drive you can save to.",
+    "drivesFailed": "Could not load drives.",
+    "retry": "Retry",
+    "saving": "Saving...",
+    "saved": "Saved to {path}",
+    "saveFailed": "Could not save the note.",
+    "forbidden": "That drive is no longer available. Choose another destination.",
+    "tooLarge": "The note is over the 1 MB limit.",
+    "invalidPath": "That destination was rejected. Change the first line or the folder and try again.",
+    "discardTitle": "Discard this note?",
+    "discardMessage": "It has not been saved and cannot be recovered.",
+    "discard": "Discard",
+    "keepEditing": "Keep editing"
   }
 }

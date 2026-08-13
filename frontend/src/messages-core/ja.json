@@ -874,7 +874,8 @@
     "prevFile": "前のファイル",
     "nextFile": "次のファイル",
     "loftPlayer": "動画プレーヤー（LoftRef）",
-    "archiveViewer": "アーカイブビューア"
+    "archiveViewer": "アーカイブビューア",
+    "quickNote": "クイックノート"
   },
   "propertiesPanel": {
     "labels": {
@@ -1023,5 +1024,29 @@
     "folderNoSubfolders": "サブフォルダがありません",
     "folderSelectedLabel": "選択中",
     "submitting": "保存中..."
+  },
+  "quickNote": {
+    "title": "クイックノート",
+    "open": "クイックノート",
+    "bodyLabel": "ノート本文",
+    "placeholder": "いま書き留めて、整理はあとで。",
+    "filenamePreview": "保存名",
+    "destination": "保存先",
+    "driveLabel": "ドライブ",
+    "selectDrive": "ドライブを選択",
+    "driveRoot": "ドライブ直下",
+    "noDrives": "保存できるドライブがありません。",
+    "drivesFailed": "ドライブを読み込めませんでした。",
+    "retry": "再試行",
+    "saving": "保存中...",
+    "saved": "{path} に保存しました",
+    "saveFailed": "ノートを保存できませんでした。",
+    "forbidden": "このドライブは利用できなくなりました。別の保存先を選んでください。",
+    "tooLarge": "ノートが 1 MB の上限を超えています。",
+    "invalidPath": "この保存先は受け付けられませんでした。1行目かフォルダを変えて試してください。",
+    "discardTitle": "このノートを破棄しますか？",
+    "discardMessage": "まだ保存されていないため、復元できません。",
+    "discard": "破棄",
+    "keepEditing": "編集を続ける"
   }
 }
