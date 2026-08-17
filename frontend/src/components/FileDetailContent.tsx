@@ -778,8 +778,15 @@ export function FileDetailContent({
         resetKey={fileId}
         previewOnly={isHtmlPreview}
       >
-        <div className="flex flex-col">
-          <div className="relative isolate flex flex-col bg-bg-primary">
+        {/* The canvas is at least as tall as the scroll viewport
+            (`flex-1` against the layout's scrolling <main>), and the
+            editor region takes whatever the footer leaves. Without
+            this, a short note ended at its own content height and the
+            sections under it floated in the middle of the screen with
+            dead space below. Long notes are unaffected: both boxes
+            keep their automatic minimum size and the page scrolls. */}
+        <div className="flex flex-1 flex-col">
+          <div className="relative isolate flex flex-1 flex-col bg-bg-primary">
             {isHtmlPreview ? (
               <FilePreview file={file} />
             ) : (
@@ -796,9 +803,13 @@ export function FileDetailContent({
               Bottom Sheet so the user does not have to scroll past a
               long note to reach them. HTML preview skips the heavy
               summary slot — intelligence does not index HTML and the
-              placeholder UI would be misleading. */}
+              placeholder UI would be misleading. `empty:hidden`
+              because both occupants render nothing until the file has
+              a summary — the padded, top-bordered strip would
+              otherwise be a visible rule floating above the bottom of
+              the canvas with nothing under it. */}
           {!isMobile && !isHtmlPreview && (
-            <div className="relative isolate space-y-6 border-t border-bg-border bg-bg-primary px-6 py-8">
+            <div className="relative isolate space-y-6 border-t border-bg-border bg-bg-primary px-6 py-8 empty:hidden">
               {heavySummarySections}
             </div>
           )}
