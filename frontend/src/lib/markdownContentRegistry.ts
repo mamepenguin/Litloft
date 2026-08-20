@@ -9,7 +9,7 @@
  * `addons/knowledge` submodule) registers its `(getContent, setContent)`
  * pair so the inspector's `EditableTagChips` (in core) can edit the
  * same `.md` source through content-mode — eliminating the etag race
- * between standalone tag saves and editor textarea autosaves.
+ * between standalone tag saves and editor autosaves.
  *
  * Same shape as `dirtyRegistry`:
  *   - Module-level singleton + listener Set for `useSyncExternalStore`
@@ -33,8 +33,8 @@ export interface MarkdownContentEntry {
   getContent: () => string;
   /**
    * Mutate the editor's in-memory `content`. Triggers React state
-   * update on the editor side, which re-renders the textarea and
-   * arms the editor's autosave debounce — single writer, single etag.
+   * update on the editor side, which dispatches into the editor and
+   * arms its autosave debounce — single writer, single etag.
    */
   setContent: (next: string) => void;
 }
@@ -109,7 +109,7 @@ export const markdownContentRegistry = {
   /**
    * Fire a "save success" notification for `fileId`. Subscribers via
    * `subscribeSaved(fileId, fn)` get called so the file-detail host
-   * can refetch `File.tags` (the editor's textarea autosave wrote
+   * can refetch `File.tags` (the editor's autosave wrote
    * frontmatter to disk; the projected `File.tags` resync follows
    * shortly via the addon's `resync-tags` endpoint or the scanner).
    *

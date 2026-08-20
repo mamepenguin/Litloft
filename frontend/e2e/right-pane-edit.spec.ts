@@ -1,5 +1,12 @@
 import { expect, test, type Page } from "@playwright/test";
-import { getDriveFiles, getFirstDrive, waitForApp } from "./helpers";
+import {
+  createTextFile,
+  deleteFile,
+  getDriveFiles,
+  getFirstDrive,
+  waitForApp,
+  type FileItem,
+} from "./helpers";
 
 /**
  * E2E coverage for the Phase 2 inline Knowledge editor work
@@ -31,10 +38,12 @@ interface PickedFile {
 let driveName: string | null = null;
 let mdFile: PickedFile | null = null;
 let mdSibling: PickedFile | null = null;
+let wikiAnchorFile: FileItem | null = null;
 
 const DISCARD_TITLE_RE = /未保存の変更|Unsaved changes/i;
 const DISCARD_CONFIRM_RE = /破棄して移動|Discard and navigate/i;
 const CANCEL_RE = /キャンセル|Cancel/i;
+const EDITOR_RE = /Markdownエディタ|Markdown editor/i;
 
 function folderUrl(drive: string, folderPath: string): string {
   const segs = folderPath
@@ -80,18 +89,29 @@ test.beforeAll(async () => {
     all.data
       .filter((f) => f.id !== md.id)
       .find((f) => (f.folder_path ?? "") === (md.folder_path ?? "")) ?? null;
+
+  const unique = Date.now();
+  wikiAnchorFile = await createTextFile(
+    driveName,
+    `wiki-anchor-e2e-${unique}.md`,
+    Array.from({ length: 80 }, (_, index) => `line ${index + 1}`).join("\n"),
+  );
+});
+
+test.afterAll(async () => {
+  if (wikiAnchorFile) await deleteFile(wikiAnchorFile.id).catch(() => {});
 });
 
 test.describe("Inline Knowledge editor (PR-7)", () => {
   test.skip(() => !driveName || !mdFile, "No writable .md fixture");
 
-  test("?file={mdId} mounts the inline editor textarea", async ({ page }) => {
+  test("?file={mdId} mounts the inline CodeMirror editor", async ({ page }) => {
     await enableTreeFor(page, mdFile!.drive);
     await page.goto(fileSelectionUrl(mdFile!));
     await waitForApp(page);
 
-    // Editor.tsx textarea uses aria-label="editArea".
-    await expect(page.getByLabel("editArea")).toBeVisible({ timeout: 10_000 });
+    // Editor.tsx keeps the same accessible name after the CM6 migration.
+    await expect(page.getByLabel(EDITOR_RE)).toBeVisible({ timeout: 10_000 });
   });
 
   test("editing + arrow-key shows the discard dialog; cancel keeps the file", async ({
@@ -102,20 +122,20 @@ test.describe("Inline Knowledge editor (PR-7)", () => {
     await page.goto(fileSelectionUrl(mdFile!));
     await waitForApp(page);
 
-    const textarea = page.getByLabel("editArea");
-    await expect(textarea).toBeVisible({ timeout: 10_000 });
+    const editor = page.getByLabel(EDITOR_RE);
+    await expect(editor).toBeVisible({ timeout: 10_000 });
 
-    // Type into the textarea to publish dirty=true to dirtyRegistry.
+    // Type into the editor to publish dirty=true to dirtyRegistry.
     // We use ``pressSequentially`` rather than ``fill`` so the React
     // onChange handler fires per-character (autosave debounce won't
     // commit before we press arrow because the timer is 2s).
-    await textarea.click();
-    await textarea.pressSequentially(" edit");
+    await editor.click();
+    await editor.pressSequentially(" edit");
 
-    // Blur the textarea so ArrowRight is delivered to ``useFileNav``
-    // (its useShortcuts is editingOnly=false; textareas otherwise
+    // Blur the editor so ArrowRight is delivered to ``useFileNav``
+    // (its useShortcuts is editingOnly=false; editing surfaces otherwise
     // capture arrow keys for caret movement).
-    await textarea.evaluate((el) => (el as HTMLTextAreaElement).blur());
+    await editor.evaluate((el) => (el as HTMLElement).blur());
     await page.keyboard.press("ArrowRight");
 
     // Global DirtyBlocker (mounted in app/layout.tsx) renders
@@ -139,11 +159,11 @@ test.describe("Inline Knowledge editor (PR-7)", () => {
     await page.goto(fileSelectionUrl(mdFile!));
     await waitForApp(page);
 
-    const textarea = page.getByLabel("editArea");
-    await expect(textarea).toBeVisible({ timeout: 10_000 });
-    await textarea.click();
-    await textarea.pressSequentially(" edit");
-    await textarea.evaluate((el) => (el as HTMLTextAreaElement).blur());
+    const editor = page.getByLabel(EDITOR_RE);
+    await expect(editor).toBeVisible({ timeout: 10_000 });
+    await editor.click();
+    await editor.pressSequentially(" edit");
+    await editor.evaluate((el) => (el as HTMLElement).blur());
     await page.keyboard.press("ArrowRight");
 
     await expect(page.getByText(DISCARD_TITLE_RE)).toBeVisible();
@@ -179,5 +199,52 @@ test.describe("Inline Knowledge editor (PR-7)", () => {
     );
     expect(page.url()).toContain(`file=${mdFile!.id}`);
     expect(page.url()).toContain("edit=1");
+  });
+
+  test("wiki-link popup stays anchored under the caret in split mode while scrolling", async ({
+    page,
+  }) => {
+    test.skip(!wikiAnchorFile, "Could not create a writable Markdown fixture");
+    await enableTreeFor(page, wikiAnchorFile!.drive);
+    await page.goto(fileSelectionUrl(wikiAnchorFile!));
+    await waitForApp(page);
+
+    await page.getByLabel(/分割表示|Split/i).click();
+    const editor = page.getByLabel(EDITOR_RE);
+    await expect(editor).toBeVisible({ timeout: 10_000 });
+    await editor.click();
+    await editor.press("Control+End");
+    await editor.pressSequentially("\n[[anchor");
+
+    const popup = page.getByTestId("wiki-link-autocomplete");
+    await expect(popup).toBeVisible({ timeout: 5_000 });
+
+    const assertAnchored = async () => {
+      const trigger = await editor.evaluate(() => {
+        const selection = window.getSelection();
+        if (!selection?.focusNode || selection.focusOffset < 8) return null;
+        const range = document.createRange();
+        range.setStart(selection.focusNode, selection.focusOffset - 8);
+        range.collapse(true);
+        const rect = range.getBoundingClientRect();
+        return { left: rect.left, top: rect.top, bottom: rect.bottom };
+      });
+      const box = await popup.boundingBox();
+      expect(trigger).not.toBeNull();
+      expect(box).not.toBeNull();
+      expect(Math.abs(box!.x - trigger!.left)).toBeLessThan(16);
+      expect(box!.y).toBeGreaterThanOrEqual(trigger!.bottom - 2);
+      expect(box!.y - trigger!.bottom).toBeLessThan(12);
+    };
+
+    await assertAnchored();
+    await editor.evaluate((element) => {
+      const scroller = element.closest(".cm-editor")?.querySelector(".cm-scroller");
+      if (!(scroller instanceof HTMLElement)) return;
+      scroller.scrollTop += 32;
+      scroller.dispatchEvent(new Event("scroll"));
+    });
+    await page.waitForTimeout(50);
+    await assertAnchored();
   });
 });

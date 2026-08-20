@@ -60,13 +60,14 @@ export function ShortcutsProvider({ children }: { children: ReactNode }): ReactE
 
   useEffect(() => {
     function handleKeyDown(e: KeyboardEvent) {
-      const target = e.target as HTMLElement | null;
+      const target = e.target instanceof HTMLElement ? e.target : null;
       const tag = target?.tagName;
       const isEditing =
         tag === "INPUT" ||
         tag === "TEXTAREA" ||
         tag === "SELECT" ||
-        target?.isContentEditable === true;
+        target?.isContentEditable === true ||
+        Boolean(target?.closest('[contenteditable="true"]'));
 
       const normalized = normalizeKey(e);
 

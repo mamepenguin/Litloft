@@ -8,7 +8,7 @@ interface Drive {
   protected?: boolean;
 }
 
-interface FileItem {
+export interface FileItem {
   id: string;
   title: string;
   filename: string;
@@ -108,6 +108,21 @@ export async function deletePlaylist(
 
 export async function deleteFile(id: string): Promise<void> {
   await fetch(`${API}/files/${id}`, { method: "DELETE" });
+}
+
+export async function createTextFile(
+  drive: string,
+  path: string,
+  content: string,
+): Promise<FileItem> {
+  return apiFetch<FileItem>(
+    `/drives/${encodeURIComponent(drive)}/files`,
+    {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ path, content }),
+    },
+  );
 }
 
 /** Wait for the app to be loaded (header visible) */
