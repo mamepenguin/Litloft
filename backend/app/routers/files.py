@@ -19,7 +19,7 @@ from sqlalchemy import and_, func, or_
 from sqlalchemy.orm import Session
 
 import app.config as config
-from app.auth import check_drive_access, get_unlocked_groups
+from app.auth import check_drive_access, get_nickname, get_unlocked_groups, get_viewer_id
 from app.database import get_db
 from app.models import (
     File,
@@ -53,12 +53,17 @@ from app.schemas import (
     FileMoveRequest,
     FileRenameRequest,
     FileUpdate,
+    FileVersionBodyResponse,
+    FileVersionDiffResponse,
+    FileVersionItemResponse,
+    FileVersionsResponse,
     NeighborsResponse,
     RelatedFileSummary,
     SubtitleInfo,
     TagUpdate,
     file_to_response,
 )
+from app.services import file_versions as file_version_service
 from app.services import fileops
 from app.services import ws as ws_service
 from app.services.filetype import classify
@@ -1346,6 +1351,8 @@ async def put_file_content(
     request: Request,
     db: Annotated[Session, Depends(get_db)],
     unlocked_groups: Annotated[list[str], Depends(get_unlocked_groups)],
+    viewer_id: Annotated[str | None, Depends(get_viewer_id)],
+    nickname: Annotated[str | None, Depends(get_nickname)],
 ):
     """Overwrite a text file's content with optimistic-lock safety.
 
@@ -1403,12 +1410,19 @@ async def put_file_content(
                 )
 
         try:
-            new_etag = write_text_content(
+            write_result = write_text_content(
                 db,
                 file,
                 file_path,
                 body,
                 expected_etag=current_etag,
+                kind=(
+                    "explicit"
+                    if request.headers.get("X-Litloft-Save-Kind") == "explicit"
+                    else "auto"
+                ),
+                viewer_id=viewer_id,
+                nickname=nickname,
             )
         except ContentMissingError:
             raise HTTPException(status_code=404, detail="File not found on disk")
@@ -1523,7 +1537,126 @@ async def put_file_content(
     )
     return Response(
         status_code=200,
-        headers={"ETag": f'"{new_etag}"'},
+        headers={
+            "ETag": f'"{write_result.etag}"',
+            **(
+                {"X-Litloft-Version-Action": write_result.version_action}
+                if write_result.version_action is not None
+                else {}
+            ),
+        },
+    )
+
+
+def _get_versionable_file_or_404(
+    db: Session, file_id: str, unlocked_groups: list[str]
+) -> File:
+    file = _get_file_or_404(db, file_id, unlocked_groups)
+    if (file.mime_type or "") not in _TEXT_WRITE_ALLOWED_MIMES:
+        raise HTTPException(status_code=404, detail="File not found")
+    return file
+
+
+@router.get("/{file_id}/versions", response_model=FileVersionsResponse)
+def get_file_versions(
+    file_id: FileId,
+    db: Annotated[Session, Depends(get_db)],
+    unlocked_groups: Annotated[list[str], Depends(get_unlocked_groups)],
+    response: Response,
+    limit: Annotated[int, Query(ge=1)] = 50,
+    offset: Annotated[int, Query(ge=0)] = 0,
+) -> FileVersionsResponse:
+    _get_versionable_file_or_404(db, file_id, unlocked_groups)
+    response.headers["Cache-Control"] = "no-store"
+    safe_limit = min(limit, 100)
+    rows, total = file_version_service.list_versions(
+        db, file_id=file_id, limit=safe_limit, offset=offset
+    )
+    return FileVersionsResponse(
+        versions=[FileVersionItemResponse.model_validate(row) for row in rows],
+        total=total,
+        limit=safe_limit,
+        offset=offset,
+    )
+
+
+@router.get(
+    "/{file_id}/versions/{version_id}", response_model=FileVersionBodyResponse
+)
+def get_file_version_body(
+    file_id: FileId,
+    version_id: int,
+    db: Annotated[Session, Depends(get_db)],
+    unlocked_groups: Annotated[list[str], Depends(get_unlocked_groups)],
+    response: Response,
+) -> FileVersionBodyResponse:
+    _get_versionable_file_or_404(db, file_id, unlocked_groups)
+    response.headers["Cache-Control"] = "no-store"
+    try:
+        result = file_version_service.get_version_body(
+            db, file_id=file_id, version_id=version_id
+        )
+    except file_version_service.FileVersionReadError:
+        logger.exception(
+            "Stored file version unavailable: file_id=%s version_id=%s",
+            file_id,
+            version_id,
+        )
+        raise HTTPException(
+            status_code=500,
+            detail="Stored version is unavailable",
+            headers={"Cache-Control": "no-store"},
+        ) from None
+    if result is None:
+        raise HTTPException(
+            status_code=404,
+            detail="Version not found",
+            headers={"Cache-Control": "no-store"},
+        )
+    row, content = result
+    return FileVersionBodyResponse(id=row.id, content=content, etag=row.etag)
+
+
+@router.get(
+    "/{file_id}/versions/{version_id}/diff",
+    response_model=FileVersionDiffResponse,
+)
+def get_file_version_diff(
+    file_id: FileId,
+    version_id: int,
+    db: Annotated[Session, Depends(get_db)],
+    unlocked_groups: Annotated[list[str], Depends(get_unlocked_groups)],
+    response: Response,
+) -> FileVersionDiffResponse:
+    _get_versionable_file_or_404(db, file_id, unlocked_groups)
+    response.headers["Cache-Control"] = "no-store"
+    try:
+        result = file_version_service.diff_version(
+            db, file_id=file_id, version_id=version_id
+        )
+    except file_version_service.FileVersionReadError:
+        logger.exception(
+            "Stored file version diff unavailable: file_id=%s version_id=%s",
+            file_id,
+            version_id,
+        )
+        raise HTTPException(
+            status_code=500,
+            detail="Stored version is unavailable",
+            headers={"Cache-Control": "no-store"},
+        ) from None
+    if result is None:
+        raise HTTPException(
+            status_code=404,
+            detail="Version not found",
+            headers={"Cache-Control": "no-store"},
+        )
+    row, lines, lines_added, lines_removed = result
+    return FileVersionDiffResponse(
+        id=row.id,
+        lines=[{"kind": line.kind, "text": line.text} for line in lines],
+        lines_added=lines_added,
+        lines_removed=lines_removed,
     )
 
 

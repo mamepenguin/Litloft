@@ -9,6 +9,7 @@ from sqlalchemy import (
     ForeignKey,
     Index,
     Integer,
+    LargeBinary,
     String,
     Table,
     Text,
@@ -203,6 +204,30 @@ class Comment(Base):
 
     __table_args__ = (
         Index("idx_comments_file_id", "file_id"),
+    )
+
+
+class FileVersion(Base):
+    __tablename__ = "file_versions"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    file_id: Mapped[str] = mapped_column(
+        String(12), ForeignKey("files.id", ondelete="CASCADE"), nullable=False
+    )
+    viewer_id: Mapped[str | None] = mapped_column(String(16), nullable=True)
+    nickname: Mapped[str | None] = mapped_column(String(50), nullable=True)
+    kind: Mapped[str] = mapped_column(String(8), nullable=False)
+    content_z: Mapped[bytes] = mapped_column(LargeBinary, nullable=False)
+    size_bytes: Mapped[int] = mapped_column(Integer, nullable=False)
+    lines_added: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    lines_removed: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    etag: Mapped[str] = mapped_column(String(64), nullable=False)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime, nullable=False, default=lambda: datetime.now(UTC)
+    )
+
+    __table_args__ = (
+        Index("idx_file_versions_file_id", "file_id"),
     )
 
 

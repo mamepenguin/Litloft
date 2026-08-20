@@ -61,6 +61,43 @@ class FileDetailResponse(FileResponse):
     has_chapters: bool
 
 
+class FileVersionItemResponse(_UtcDateTimeMixin, BaseModel):
+    id: int
+    created_at: datetime
+    nickname: str | None
+    kind: Literal["auto", "explicit"]
+    size_bytes: int
+    lines_added: int
+    lines_removed: int
+
+    model_config = {"from_attributes": True}
+
+
+class FileVersionsResponse(BaseModel):
+    versions: list[FileVersionItemResponse]
+    total: int
+    limit: int
+    offset: int
+
+
+class FileVersionBodyResponse(BaseModel):
+    id: int
+    content: str
+    etag: str
+
+
+class FileVersionDiffLineResponse(BaseModel):
+    kind: Literal["add", "del", "context"]
+    text: str
+
+
+class FileVersionDiffResponse(BaseModel):
+    id: int
+    lines: list[FileVersionDiffLineResponse]
+    lines_added: int
+    lines_removed: int
+
+
 class FileUpdate(BaseModel):
     title: str | None = None
     description: str | None = None
