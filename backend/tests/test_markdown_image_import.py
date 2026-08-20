@@ -7,7 +7,7 @@ from PIL import Image
 
 from app.auth import require_admin
 from app.main import app
-from app.models import File, FileRelation
+from app.models import File, FileRelation, FileVersion
 from app.services import markdown_image_import as importer
 from app.services.safe_image_fetch import NormalizedImage
 
@@ -159,6 +159,10 @@ def test_import_localizes_image_and_rewrites_markdown(client, monkeypatch):
         .count()
         == 1
     )
+    versions = db.query(FileVersion).filter(FileVersion.file_id == note.id).all()
+    assert len(versions) == 1
+    assert versions[0].kind == "explicit"
+    assert versions[0].viewer_id is None
 
 
 def test_import_rejects_host_not_in_analysis(client):

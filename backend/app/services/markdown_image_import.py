@@ -459,6 +459,9 @@ def _apply_import(
                 note_path,
                 new_content.encode("utf-8"),
                 expected_etag=candidate.content_hash,
+                kind="explicit",
+                viewer_id=None,
+                nickname=None,
             )
         except Exception as write_error:
             if created_asset is not None:

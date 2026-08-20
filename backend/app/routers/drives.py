@@ -1,4 +1,5 @@
 import unicodedata
+import logging
 from typing import Annotated, Literal
 
 from fastapi import APIRouter, Depends, HTTPException, Query
@@ -35,11 +36,34 @@ from app.schemas import (
     file_to_response,
 )
 from app.services import fileops
+from app.services.file_versions import record_version
 from app.services.filetype import classify
 from app.services.safepath import resolve_safe_path
 from app.services.scanner import scan_drive
 
+logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/api/drives", tags=["drives"])
+
+
+def _record_created_file_version(
+    db: Session, file: File, content: bytes
+) -> None:
+    try:
+        with db.begin_nested():
+            record_version(
+                db,
+                file_id=file.id,
+                body=content,
+                kind="explicit",
+                viewer_id=None,
+                nickname=None,
+            )
+    except Exception:
+        logger.exception(
+            "Could not record file version: file_id=%s drive=%s",
+            file.id,
+            file.drive,
+        )
 
 
 def _escape_like(value: str) -> str:
@@ -790,6 +814,7 @@ async def create_text_file(
         existing_missing.mime_type = mime_type
         existing_missing.filename = nfc_name
         existing_missing.folder_path = folder_path
+        _record_created_file_version(db, existing_missing, content_bytes)
         db.commit()
         db.refresh(existing_missing)
         # Recovered-from-missing reuses the existing row; emit
@@ -872,6 +897,8 @@ async def create_text_file(
         )
         db.add(new_file)
         try:
+            db.flush()
+            _record_created_file_version(db, new_file, content_bytes)
             db.commit()
         except IntegrityError:
             db.rollback()
