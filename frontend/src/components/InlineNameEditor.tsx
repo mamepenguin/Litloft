@@ -5,6 +5,18 @@ import { useTranslations } from "next-intl";
 
 import { selectStem, validateFilename } from "@/lib/filename";
 
+/**
+ * How long after a composition ends an Enter or Escape is still read as
+ * belonging to the IME rather than to the editor. The confirming key
+ * arrives in the same event burst (measured at ~0 ms); a person who ended
+ * the composition another way and then reached for Enter takes an order
+ * of magnitude longer.
+ */
+const COMPOSITION_GRACE_MS = 100;
+
+/** Legacy "this key belongs to the IME" signal, still emitted by some browsers. */
+const IME_KEY_CODE = 229;
+
 export interface InlineNameEditorProps {
   /** The name as it stands. Shown with its stem pre-selected. */
   initialName: string;
@@ -46,6 +58,7 @@ export function InlineNameEditor({
   const inputRef = useRef<HTMLInputElement>(null);
   const inFlightRef = useRef(false);
   const settledRef = useRef(false);
+  const compositionEndedAtRef = useRef(0);
 
   // Read through a ref so the unmount cleanup below can stay on `[]` and
   // still call the current callback.
@@ -141,6 +154,28 @@ export function InlineNameEditor({
   }, [commit]);
 
   const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    // An IME is mid-conversion: every key belongs to it, not to us.
+    if (e.nativeEvent.isComposing || e.keyCode === IME_KEY_CODE) return;
+
+    // The keystroke that *confirmed* a conversion still reaches the page,
+    // and measurement says it is indistinguishable from a bare press —
+    // `compositionend` fires first, then `keydown` with `key: "Enter"`,
+    // `isComposing: false`, `keyCode: 13`. Checking `isComposing` alone
+    // therefore does not help. Swallow one Enter or Escape immediately
+    // after a composition ends: confirming a conversion must not also
+    // commit the rename, and cancelling one must not abandon the edit.
+    //
+    // The window keeps this from eating a deliberate keystroke. Choosing
+    // a candidate with the mouse also ends the composition, and reaching
+    // for the keyboard afterwards takes far longer than this.
+    if (
+      (e.key === "Enter" || e.key === "Escape") &&
+      Date.now() - compositionEndedAtRef.current < COMPOSITION_GRACE_MS
+    ) {
+      compositionEndedAtRef.current = 0;
+      return;
+    }
+
     // The row underneath is a drag source and a navigation target; none of
     // these keys should reach it.
     if (e.key === "Escape") {
@@ -169,6 +204,9 @@ export function InlineNameEditor({
           if (error) setError(null);
         }}
         onKeyDown={handleKeyDown}
+        onCompositionEnd={() => {
+          compositionEndedAtRef.current = Date.now();
+        }}
         // Keep the surrounding row from claiming the gesture: a text
         // selection inside a `draggable` ancestor is otherwise swallowed
         // by the drag system.

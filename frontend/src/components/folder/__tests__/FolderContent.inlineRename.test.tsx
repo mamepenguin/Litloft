@@ -130,7 +130,10 @@ describe("FolderContent inline rename", () => {
 
   it("starts editing the focused card on F2", async () => {
     renderContent();
-    act(() => {
+    // Async act: see the note in FolderTreePane.test.tsx — the shortcut
+    // context is pushed through an effect cascade that the synchronous
+    // form does not reliably drain.
+    await act(async () => {
       (screen.getByText("Notes").closest("a") as HTMLElement).focus();
     });
 
@@ -162,7 +165,7 @@ describe("FolderContent inline rename", () => {
     });
 
     await waitFor(() =>
-      expect(screen.getByRole("status")).toHaveTextContent(/already taken/i),
+      expect(screen.getByRole("alert")).toHaveTextContent(/already taken/i),
     );
     expect(
       screen.queryByRole("textbox", { name: /new name/i }),

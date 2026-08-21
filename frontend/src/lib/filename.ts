@@ -66,3 +66,12 @@ export function selectStem(el: HTMLInputElement): void {
   if (ext) el.setSelectionRange(0, stem.length);
   else el.select();
 }
+
+/**
+ * The path a renamed item lands on: same parent folder, new name. Used to
+ * find the row again after a rename so focus can be handed back to it.
+ */
+export function siblingPath(path: string, newName: string): string {
+  const idx = path.lastIndexOf("/");
+  return idx === -1 ? newName : `${path.slice(0, idx)}/${newName}`;
+}

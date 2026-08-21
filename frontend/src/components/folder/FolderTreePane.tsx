@@ -43,6 +43,7 @@ import {
   type FilteredTreeRow,
 } from "@/lib/treeFilterTransform";
 import { renameFile, renameFolder } from "@/lib/api";
+import { siblingPath } from "@/lib/filename";
 import type { FileItem, Folder, FolderTreeNode } from "@/types";
 
 import { FilterField } from "./FilterField";
@@ -362,10 +363,12 @@ export function FolderTreePane({
       const row = flatList.find((r) => r.node.path === rename.editingPath);
       if (!row) return Promise.resolve();
       const node = row.node;
-      return rename.commit(() =>
-        node.kind === "folder"
-          ? renameFolder(drive, node.path, next)
-          : renameFile(node.file_id, next),
+      return rename.commit(
+        () =>
+          node.kind === "folder"
+            ? renameFolder(drive, node.path, next)
+            : renameFile(node.file_id, next),
+        siblingPath(node.path, next),
       );
     },
     [flatList, rename, drive],
@@ -563,7 +566,7 @@ export function FolderTreePane({
       />
       {rename.error && (
         <div
-          role="status"
+          role="alert"
           className="absolute left-2 right-2 top-[52px] z-30 rounded-lg bg-danger px-2 py-1.5 text-xs text-white shadow-card"
         >
           {rename.error}

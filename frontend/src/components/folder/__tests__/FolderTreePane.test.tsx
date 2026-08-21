@@ -733,7 +733,7 @@ describe("FolderTreePane inline rename", () => {
   it("starts editing the focused row on F2", async () => {
     await renderPane();
     const label = screen.getByText("Notes").closest("button") as HTMLElement;
-    act(() => {
+    await act(async () => {
       label.focus();
     });
 
@@ -759,11 +759,58 @@ describe("FolderTreePane inline rename", () => {
     expect(screen.queryByText("Folder tree")).not.toBeInTheDocument();
     fireEvent.keyDown(document, { key: "Escape" });
 
-    act(() => {
+    await act(async () => {
       (screen.getByText("Notes").closest("button") as HTMLElement).focus();
     });
     fireEvent.keyDown(document, { key: "?" });
     expect(await screen.findByText("Folder tree")).toBeInTheDocument();
+  });
+
+  it("hands focus back to the row when the edit is abandoned", async () => {
+    // F2 is a keyboard entry point; dropping focus to <body> on every
+    // rename would lose the user's place in the tree.
+    await renderPane();
+    const label = screen.getByText("Notes").closest("button") as HTMLElement;
+    // Async act: focusing schedules setFocusedPath -> useShortcuts push ->
+    // setStack -> the provider's stackRef sync. The synchronous form does
+    // not reliably drain that cascade under load, and F2 dispatched before
+    // it lands finds no context.
+    await act(async () => {
+      label.focus();
+    });
+    fireEvent.keyDown(document, { key: "F2" });
+    const input = await screen.findByRole("textbox", { name: /new name/i });
+
+    fireEvent.keyDown(input, { key: "Escape" });
+
+    await waitFor(() =>
+      expect(document.activeElement).toBe(
+        screen.getByText("Notes").closest("button"),
+      ),
+    );
+  });
+
+  it("hands focus to the renamed row once the list comes back", async () => {
+    await renderPane();
+    await openRenameFromContextMenu("Notes");
+    const input = await screen.findByRole("textbox", { name: /new name/i });
+
+    // The refresh that follows the rename returns the new name.
+    mockGetFolderTree.mockImplementation(() =>
+      Promise.resolve([
+        { kind: "folder", name: "Archive", path: "Archive", file_count: 2, has_children: false },
+      ]),
+    );
+    fireEvent.change(input, { target: { value: "Archive" } });
+    await act(async () => {
+      fireEvent.keyDown(input, { key: "Enter" });
+    });
+
+    await waitFor(() =>
+      expect(document.activeElement).toBe(
+        screen.getByText("Archive").closest("button"),
+      ),
+    );
   });
 
   it("leaves edit mode on Escape without calling the API", async () => {

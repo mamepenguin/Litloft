@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { Folder } from "lucide-react";
 import { useTranslations } from "next-intl";
+import { RENAME_FOCUS_ATTR } from "@/hooks/useInlineRename";
 import type { Folder as FolderType } from "@/types";
 import { InlineNameEditor } from "./InlineNameEditor";
 
@@ -110,6 +111,7 @@ export function FolderCard({
           href={`/drive/${encodeURIComponent(driveName)}/${folder.path.split("/").map(encodeURIComponent).join("/")}`}
           className="flex min-w-0 flex-1 items-center gap-3"
           draggable="false"
+          {...{ [RENAME_FOCUS_ATTR]: folder.path }}
         >
           {thumbnail}
           <div className="min-w-0">

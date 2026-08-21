@@ -5,6 +5,7 @@ import { useTranslations } from "next-intl";
 
 import { FileTypeIcon } from "@/components/FileTypeIcon";
 import { InlineNameEditor } from "@/components/InlineNameEditor";
+import { RENAME_FOCUS_ATTR } from "@/hooks/useInlineRename";
 import type { FolderTreeNode } from "@/types";
 
 export interface FlatTreeRow {
@@ -225,6 +226,7 @@ export function FolderTreeRow({
         <button
           type="button"
           onClick={() => onSelect(row)}
+          {...{ [RENAME_FOCUS_ATTR]: node.path }}
           className="flex flex-1 items-center gap-1 overflow-hidden rounded-lg text-left"
         >
           <span className="flex h-4 w-4 flex-shrink-0 items-center justify-center">
