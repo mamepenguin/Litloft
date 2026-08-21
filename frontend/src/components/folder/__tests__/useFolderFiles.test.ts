@@ -181,6 +181,109 @@ describe("useFolderFiles", () => {
     }));
   });
 
+  // spec 2026-08-21-folder-scoped-tag-filter §4
+  it("scopes a tag filter to the current folder's subtree", async () => {
+    const { result } = renderHook(() =>
+      useFolderFiles({
+        driveName: "main",
+        folderPath: "recipes",
+        view: null,
+        tagFilter: "soup",
+        typeFilter: null,
+        sort: "created_at",
+        order: "desc",
+        refreshKey: 0,
+      })
+    );
+
+    await waitFor(() => {
+      expect(result.current.loading).toBe(false);
+    });
+
+    expect(mockGetDriveFiles).toHaveBeenCalledWith("main", expect.objectContaining({
+      path: "recipes",
+      recursive: true,
+      tag: "soup",
+    }));
+  });
+
+  it("sends no path for a tag filter at the drive root", async () => {
+    // §3.1: path="" would narrow to root-level files, not widen to the drive.
+    const { result } = renderHook(() =>
+      useFolderFiles({
+        driveName: "main",
+        folderPath: "",
+        view: null,
+        tagFilter: "soup",
+        typeFilter: null,
+        sort: "created_at",
+        order: "desc",
+        refreshKey: 0,
+      })
+    );
+
+    await waitFor(() => {
+      expect(result.current.loading).toBe(false);
+    });
+
+    expect(mockGetDriveFiles).toHaveBeenCalledWith("main", expect.objectContaining({
+      path: undefined,
+      tag: "soup",
+    }));
+  });
+
+  it("keeps a plain folder listing non-recursive", async () => {
+    const { result } = renderHook(() =>
+      useFolderFiles({
+        driveName: "main",
+        folderPath: "recipes",
+        view: null,
+        tagFilter: null,
+        typeFilter: null,
+        sort: "created_at",
+        order: "desc",
+        refreshKey: 0,
+      })
+    );
+
+    await waitFor(() => {
+      expect(result.current.loading).toBe(false);
+    });
+
+    expect(mockGetDriveFiles).toHaveBeenCalledWith("main", expect.objectContaining({
+      path: "recipes",
+      recursive: false,
+    }));
+  });
+
+  it("sends no path when there is no folder to anchor to", async () => {
+    // A nullish folderPath means the drive root, where FolderBrowser only
+    // ever renders a view or a tag filter (a plain root listing is
+    // DriveHome / RootFileListing, which calls getDriveFiles directly with
+    // path: ""). Sending "" here would narrow instead of widen (§3.1).
+    const { result } = renderHook(() =>
+      useFolderFiles({
+        driveName: "main",
+        folderPath: undefined,
+        view: null,
+        tagFilter: null,
+        typeFilter: null,
+        sort: "created_at",
+        order: "desc",
+        refreshKey: 0,
+      })
+    );
+
+    await waitFor(() => {
+      expect(result.current.loading).toBe(false);
+    });
+
+    expect(mockGetDriveFiles).toHaveBeenCalledWith("main", expect.objectContaining({
+      path: undefined,
+      recursive: false,
+    }));
+  });
+
   it("passes type filter", async () => {
     const { result } = renderHook(() =>
       useFolderFiles({

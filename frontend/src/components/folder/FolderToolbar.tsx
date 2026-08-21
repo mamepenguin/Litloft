@@ -19,9 +19,18 @@ import { SortButton } from "@/components/SortButton";
 import { UploadButton } from "@/components/UploadButton";
 import { ViewToggle } from "@/components/ViewToggle";
 import { AddonSlot } from "@/components/AddonSlot";
+import { WidenTagScopeLink, type WidenTagScope } from "./WidenTagScopeLink";
 
 interface FolderToolbarProps {
   isSpecialView: boolean;
+  /**
+   * Is there a concrete folder to write into? Decided once by
+   * FolderBrowser and passed down rather than re-derived here — this
+   * component's own predicate used to disagree with FolderBrowser's, so
+   * handing it `onCreateFile` during a tag filter changed nothing visible
+   * (spec 2026-08-21-folder-scoped-tag-filter §6.2).
+   */
+  isFolderAnchored: boolean;
   isSearch?: boolean;
   tagFilter?: string | null;
   hasPlayableFiles: boolean;
@@ -44,6 +53,14 @@ interface FolderToolbarProps {
    * persists to the global default key.
    */
   viewMode?: ViewMode;
+  /**
+   * The drive-wide destination for a tag currently scoped to a folder, or
+   * null when there is nothing to widen. Decided by FolderBrowser so this
+   * component and the empty state cannot disagree about when the door out
+   * of folder scope is offered (spec
+   * 2026-08-21-folder-scoped-tag-filter §8).
+   */
+  widenTagScope?: WidenTagScope | null;
   onSortChange: (s: SortField, o: SortOrder) => void;
   onTypeFilterChange: (t: FileType | null) => void;
   onViewChange: (mode: ViewMode) => void;
@@ -57,9 +74,10 @@ interface FolderToolbarProps {
   /**
    * When provided, render a "New Note" button that creates a blank
    * Markdown file in the current folder. Omitting the prop hides the
-   * button — used by FolderBrowser to disable file creation in
-   * special views (favorites, search, tag filters) where there's no
-   * concrete folder to write into.
+   * button — used by FolderBrowser to disable file creation where there
+   * is no concrete folder to write into (search and the flat virtual
+   * views). A folder-scoped tag filter does have one, so it keeps the
+   * button (spec 2026-08-21-folder-scoped-tag-filter §6.1).
    */
   onCreateFile?: () => void;
   onReshuffle?: () => void;
@@ -76,15 +94,23 @@ const TYPE_OPTION_KEYS: ReadonlyArray<{ value: FileType | null; labelKey: string
 ];
 
 export function FolderToolbar({
-  isSpecialView, isSearch, tagFilter, hasPlayableFiles,
+  isSpecialView, isFolderAnchored, isSearch, tagFilter, hasPlayableFiles,
   sort, order, typeFilter, total, selectable, scanning,
   creatingFolder, newFolderName, folderError, fileIds, drive, folderPath,
-  viewMode,
+  viewMode, widenTagScope,
   onSortChange, onTypeFilterChange, onViewChange, onToggleSelectable,
   onScan, onPlayAll, onSetCreatingFolder, onSetNewFolderName,
   onSetFolderError, onCreateFolder, onCreateFile, onReshuffle,
 }: FolderToolbarProps) {
-  const hideMutatingActions = isSpecialView || !!tagFilter || !!isSearch;
+  // Upload / New folder / New note all need the same thing: a folder to
+  // write into. A folder-scoped tag filter now has one — the folder the
+  // breadcrumb shows and the listing is scoped to. Search and the flat
+  // virtual views genuinely have none.
+  const hideMutatingActions = !isFolderAnchored;
+  // Play All is not a mutating action; it has simply always been hidden
+  // wherever the left group was. Keep its existing scope rather than
+  // widening it as a side effect of the folder-anchor split.
+  const hidePlayAll = isSpecialView || !!tagFilter || !!isSearch;
   const t = useTranslations("toolbar");
   const tc = useTranslations("common");
   const ts = useTranslations("selection");
@@ -177,10 +203,12 @@ export function FolderToolbar({
           <AddonSlot id="folder-actions" layout="stack" props={{ fileIds, drive, path: folderPath ?? "" }} />
         </div>
 
+        {widenTagScope && <WidenTagScopeLink scope={widenTagScope} />}
+
         <div className="flex-1" />
 
         {/* RIGHT: view controls */}
-        {hasPlayableFiles && !hideMutatingActions && (
+        {hasPlayableFiles && !hidePlayAll && (
           <button
             onClick={onPlayAll}
             className="flex items-center gap-1.5 rounded-2xl bg-accent px-3 py-2 text-sm font-medium text-white transition-all hover:bg-accent-hover"

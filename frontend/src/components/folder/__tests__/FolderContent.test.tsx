@@ -139,6 +139,51 @@ describe("FolderContent", () => {
     expect(screen.getByTestId("empty-no-recent-added")).toBeInTheDocument();
   });
 
+  // spec 2026-08-21-folder-scoped-tag-filter §8 / §8.1
+  it("shows a tag-specific empty state with a way to widen to the drive", () => {
+    render(
+      <FolderContent
+        {...defaultProps}
+        files={[]}
+        folders={[]}
+        widenTagScope={{ tagName: "soup", href: "/drive/main?tag=soup" }}
+      />,
+    );
+    expect(screen.getByTestId("empty-no-tag-matches")).toBeInTheDocument();
+    // "No matches in this folder" with no way out is a dead end — this is
+    // the case the affordance matters most for.
+    expect(
+      screen.getByRole("link", { name: "Search the whole drive" }),
+    ).toHaveAttribute("href", "/drive/main?tag=soup");
+  });
+
+  it("keeps the generic empty state when there is no tag scope to widen", () => {
+    render(<FolderContent {...defaultProps} files={[]} folders={[]} widenTagScope={null} />);
+    expect(screen.getByTestId("empty-no-files")).toBeInTheDocument();
+    expect(
+      screen.queryByRole("link", { name: "Search the whole drive" }),
+    ).not.toBeInTheDocument();
+  });
+
+  it("renders nothing in search mode, even with a tag scope present", () => {
+    // The semantic-search section above is a separate result axis; an
+    // empty state here would contradict it. The two branches must not be
+    // collapsed into one.
+    const { container } = render(
+      <FolderContent
+        {...defaultProps}
+        files={[]}
+        folders={[]}
+        isSearch={true}
+        widenTagScope={{ tagName: "soup", href: "/drive/main?tag=soup" }}
+      />,
+    );
+    expect(container.querySelector("[data-testid^='empty-']")).toBeNull();
+    expect(
+      screen.queryByRole("link", { name: "Search the whole drive" }),
+    ).not.toBeInTheDocument();
+  });
+
   it("renders folder cards when folders exist", () => {
     render(
       <FolderContent

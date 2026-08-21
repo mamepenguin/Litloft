@@ -395,7 +395,9 @@
     "noRecentAddedTitle": "No recently added files",
     "noRecentAddedDescription": "Uploaded files will appear here.",
     "noTrashTitle": "Trash is empty",
-    "noTrashDescription": "Deleted files will appear here."
+    "noTrashDescription": "Deleted files will appear here.",
+    "noTagMatchesTitle": "No matches in this folder",
+    "noTagMatchesDescription": "Nothing here carries this tag."
   },
   "theme": {
     "system": "System",
@@ -465,7 +467,8 @@
     "playAll": "Play all",
     "home": "Home",
     "more": "More actions",
-    "reshuffle": "Reshuffle"
+    "reshuffle": "Reshuffle",
+    "searchWholeDrive": "Search the whole drive"
   },
   "gallery": {
     "prevImage": "Previous image",

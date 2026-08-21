@@ -541,6 +541,7 @@ def list_drive_files(
     db: Annotated[Session, Depends(get_db)],
     unlocked_groups: Annotated[list[str], Depends(get_unlocked_groups)],
     path: str | None = None,
+    recursive: bool = False,
     search: str | None = Query(None, max_length=200),
     favorite: bool | None = None,
     tag: str | None = None,
@@ -550,6 +551,14 @@ def list_drive_files(
     page: int = Query(1, ge=1),
     limit: int = Query(30, ge=1, le=500),
 ):
+    """List a drive's active files.
+
+    `path` is an exact `folder_path` match by default — direct children only.
+    `recursive=True` widens it to the folder's whole subtree, which is what a
+    folder-scoped tag filter needs (spec 2026-08-21-folder-scoped-tag-filter).
+    The default stays False so every existing caller is unchanged: `path=""`
+    keeps meaning "root level" for RootFileListing / ImageGallery.
+    """
     _validate_drive(drive_name, unlocked_groups)
     if path is not None and path:
         path = _validate_folder_path(path)
@@ -557,7 +566,18 @@ def list_drive_files(
     query = db.query(File).filter(File.drive == drive_name, active_file_filter())
 
     if path is not None:
-        query = query.filter(File.folder_path == path)
+        if recursive:
+            # An empty prefix with recursive applies no folder predicate: a
+            # recursive search from the root is the whole drive. (A LIKE
+            # '/%' would match nothing — folder_path is drive-relative with
+            # no leading separator.)
+            if path:
+                query = query.filter(or_(
+                    File.folder_path == path,
+                    File.folder_path.like(_escape_like(path) + "/%", escape="\\"),
+                ))
+        else:
+            query = query.filter(File.folder_path == path)
     normalized_search: str | None = None
     if search:
         normalized_search = unicodedata.normalize("NFC", search)

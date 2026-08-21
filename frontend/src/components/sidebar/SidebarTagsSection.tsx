@@ -9,22 +9,45 @@ import {
 } from "lucide-react";
 import { useTranslations } from "next-intl";
 
-import type { Tag as TagType } from "@/types";
+import type { ScopedTags } from "./useSidebarData";
 import { useSidebarSectionCollapsed } from "./useSidebarSectionCollapsed";
 import { sortTags, useTagSortMode } from "./useTagSortMode";
 
 interface SidebarTagsSectionProps {
-  driveBase: string;
+  /** The drive we are currently in. Also keys the per-drive sort mode. */
   drive?: string | null;
-  tags: TagType[];
+  /**
+   * The folder we are currently in, straight from `useCurrentFolderPath()`
+   * via Sidebar — never re-derived from `usePathname()`. Two independent
+   * computations of "what folder are we in" is what produced the defect
+   * this section exists to fix.
+   */
+  currentFolderPath: string | null;
+  tags: ScopedTags | null;
   linkClass: (href: string) => string;
   close: () => void;
   dragHandle?: React.ReactNode;
 }
 
+/** Build a folder URL, encoding each segment separately. */
+function tagHref(
+  scope: { drive: string; folderPath: string | null },
+  tagName: string,
+): string {
+  const base = `/drive/${encodeURIComponent(scope.drive)}`;
+  // The folder route decodes path segments individually
+  // (app/drive/[name]/[...path]/page.tsx), so encoding the whole path in
+  // one go would not round-trip a folder containing "/"-adjacent
+  // characters or a non-ASCII name.
+  const folder = scope.folderPath
+    ? `/${scope.folderPath.split("/").map(encodeURIComponent).join("/")}`
+    : "";
+  return `${base}${folder}?tag=${encodeURIComponent(tagName)}`;
+}
+
 export function SidebarTagsSection({
-  driveBase,
   drive,
+  currentFolderPath,
   tags,
   linkClass,
   close,
@@ -34,10 +57,21 @@ export function SidebarTagsSection({
   const { collapsed, toggle } = useSidebarSectionCollapsed("tags");
   const { mode, setMode } = useTagSortMode(drive ?? null);
 
-  if (tags.length === 0) return null;
+  if (!tags || tags.items.length === 0) return null;
+
+  const { resolvedScope } = tags;
+  // Links are live only while the rows on screen and the scope we are in
+  // describe the same thing. During the in-flight window after a
+  // navigation the previous scope's rows stay visible but inert — blanking
+  // them instead would flicker on every folder navigation, and leaving
+  // them live is the bug this whole design removes. Note that a stably
+  // null folderPath (search / collections / addons / file detail) agrees
+  // with a drive-wide fetch, so links keep working on those routes.
+  const scopeMatches =
+    resolvedScope.drive === drive && resolvedScope.folderPath === currentFolderPath;
 
   const Chevron = collapsed ? ChevronRight : ChevronDown;
-  const sortedTags = sortTags(tags, mode);
+  const sortedTags = sortTags(tags.items, mode);
   const SortIcon = mode === "count" ? ArrowDown01 : ArrowDownAZ;
   const sortLabel = mode === "count" ? t("sort.byCount") : t("sort.byName");
 
@@ -68,22 +102,34 @@ export function SidebarTagsSection({
       </div>
       {!collapsed &&
         sortedTags.map((tag) => {
-          // Always the drive root, not the current folder: list_drive_files'
-          // `path` filter is an exact match while file browsing by tag needs
-          // a subtree match, and the file-listing API doesn't support that
-          // combination yet (see hako review finding H1, 2026-08-02).
-          const href = `${driveBase}?tag=${encodeURIComponent(tag.name)}`;
-          return (
+          // Built from resolvedScope — the scope the visible items
+          // actually came from — so a rendered row and its link cannot
+          // describe different scopes, even mid-flight.
+          const href = tagHref(resolvedScope, tag.name);
+          const body = (
+            <>
+              <Tag size={16} />
+              <span className="flex-1 truncate">{tag.name}</span>
+              <span className="text-xs opacity-60">{tag.count}</span>
+            </>
+          );
+          return scopeMatches ? (
             <Link
               key={tag.name}
               href={href}
               onClick={close}
               className={linkClass(href)}
             >
-              <Tag size={16} />
-              <span className="flex-1 truncate">{tag.name}</span>
-              <span className="text-xs opacity-60">{tag.count}</span>
+              {body}
             </Link>
+          ) : (
+            <div
+              key={tag.name}
+              aria-disabled="true"
+              className={`${linkClass(href)} pointer-events-none opacity-60`}
+            >
+              {body}
+            </div>
           );
         })}
     </>

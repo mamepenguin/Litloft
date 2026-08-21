@@ -256,3 +256,81 @@ class TestTagFilter:
         res = c.get(f"/api/drives/{TEST_DRIVE}/files")
         assert "tags" in res.json()["data"][0]
         assert res.json()["data"][0]["tags"] == ["night"]
+
+
+class TestFolderScopedTagCountAgreement:
+    """spec 2026-08-21-folder-scoped-tag-filter §11 — the headline invariant.
+
+    For the same folder and the same tag, the count shown in the sidebar
+    (`list_drive_tags?folder_path=`) and the number of results in the
+    listing (`list_drive_files?path=&recursive=true&tag=`) must agree.
+    That equality is exactly what was broken: the sidebar narrowed its list
+    to the folder while a click filtered the whole drive.
+
+    Fixture note: `list_drive_files` matches tags case-insensitively
+    (`func.lower(Tag.name) == tag.lower()`) while `list_drive_tags` groups
+    by `Tag.id`, so two tags differing only in case would make the sidebar
+    count smaller — pre-existing, and not this change's regression. Use a
+    single-case tag here.
+    """
+
+    def _seed_tagged(self, db, drive_dir):
+        from app.models import Tag
+
+        layout = {
+            "recipes": ["soup"],
+            "recipes/winter": ["soup"],
+            "recipes/winter/2026": ["soup"],
+            "dev": ["soup"],
+            "": ["soup"],
+        }
+        tag = Tag(name="soup", drive=TEST_DRIVE)
+        db.add(tag)
+        db.commit()
+        for i, (folder, tags) in enumerate(layout.items()):
+            f = _seed_file(db, drive_dir, suffix=f"-{i}", folder_path=folder or ".")
+            f.folder_path = folder
+            f.file_path = f"{folder}/{f.filename}" if folder else f.filename
+            if tags:
+                f.tags.append(tag)
+        db.commit()
+
+    def test_sidebar_count_matches_listing_total_in_a_folder(self, client):
+        c, db, drive_dir, data_dir = client
+        self._seed_tagged(db, drive_dir)
+
+        tags = c.get(f"/api/drives/{TEST_DRIVE}/tags?folder_path=recipes").json()
+        sidebar_count = next(t["count"] for t in tags if t["name"] == "soup")
+
+        listing = c.get(
+            f"/api/drives/{TEST_DRIVE}/files?path=recipes&recursive=true&tag=soup"
+        ).json()
+
+        assert sidebar_count == listing["meta"]["total"] == 3
+
+    def test_sidebar_count_matches_listing_total_at_the_drive_root(self, client):
+        # No folder_path / no path: both sides describe the whole drive.
+        c, db, drive_dir, data_dir = client
+        self._seed_tagged(db, drive_dir)
+
+        tags = c.get(f"/api/drives/{TEST_DRIVE}/tags").json()
+        sidebar_count = next(t["count"] for t in tags if t["name"] == "soup")
+
+        listing = c.get(f"/api/drives/{TEST_DRIVE}/files?tag=soup").json()
+
+        assert sidebar_count == listing["meta"]["total"] == 5
+
+    def test_agreement_holds_for_a_leaf_folder(self, client):
+        c, db, drive_dir, data_dir = client
+        self._seed_tagged(db, drive_dir)
+
+        tags = c.get(
+            f"/api/drives/{TEST_DRIVE}/tags?folder_path=recipes/winter"
+        ).json()
+        sidebar_count = next(t["count"] for t in tags if t["name"] == "soup")
+
+        listing = c.get(
+            f"/api/drives/{TEST_DRIVE}/files?path=recipes/winter&recursive=true&tag=soup"
+        ).json()
+
+        assert sidebar_count == listing["meta"]["total"] == 2

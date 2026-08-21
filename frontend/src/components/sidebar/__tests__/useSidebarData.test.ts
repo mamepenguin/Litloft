@@ -45,8 +45,9 @@ describe("useSidebarData", () => {
     const { result } = renderHook(() => useSidebarData("main", null, 0));
 
     await waitFor(() => {
-      expect(result.current.tags).toHaveLength(1);
+      expect(result.current.tags?.items).toHaveLength(1);
     });
+    expect(result.current.tags?.resolvedScope).toEqual({ drive: "main", folderPath: null });
     expect(result.current.pins).toHaveLength(1);
     expect(result.current.collectionList).toHaveLength(1);
   });
@@ -58,7 +59,7 @@ describe("useSidebarData", () => {
       expect(getDrives).toHaveBeenCalled();
     });
 
-    expect(result.current.tags).toHaveLength(0);
+    expect(result.current.tags).toBeNull();
     expect(result.current.pins).toHaveLength(0);
     expect(result.current.collectionList).toHaveLength(0);
     expect(getDriveTags).not.toHaveBeenCalled();
@@ -98,7 +99,15 @@ describe("useSidebarData", () => {
     await waitFor(() => {
       expect(getDriveTags).toHaveBeenCalled();
     });
-    expect(result.current.tags).toHaveLength(0);
+    // spec 2026-08-21-folder-scoped-tag-filter §5.0: the catch must record
+    // the scope it was fetching for. Leaving the previous value in place
+    // would strand the old rows inert forever, since nothing would match.
+    await waitFor(() => {
+      expect(result.current.tags).toEqual({
+        resolvedScope: { drive: "main", folderPath: null },
+        items: [],
+      });
+    });
   });
 
   it("refetches tags with folder_path when currentFolderPath changes, without refetching pins/collections", async () => {
@@ -143,7 +152,7 @@ describe("useSidebarData", () => {
     rerender({ folderPath: "recipes" });
 
     await waitFor(() => {
-      expect(result.current.tags).toEqual([{ name: "scoped", count: 1 }]);
+      expect(result.current.tags?.items).toEqual([{ name: "scoped", count: 1 }]);
     });
 
     // The null-folderPath request finally resolves late; it must be ignored.
@@ -156,6 +165,29 @@ describe("useSidebarData", () => {
       await staleRequest;
     });
 
-    expect(result.current.tags).toEqual([{ name: "scoped", count: 1 }]);
+    expect(result.current.tags?.items).toEqual([{ name: "scoped", count: 1 }]);
+    expect(result.current.tags?.resolvedScope).toEqual({ drive: "main", folderPath: "recipes" });
+  });
+
+  // spec 2026-08-21-folder-scoped-tag-filter §5.0
+  it("carries the resolved scope with the items, including the drive", async () => {
+    vi.mocked(getDriveTags).mockResolvedValue([{ name: "soup", count: 2 }]);
+    const { result, rerender } = renderHook(
+      ({ drive, folderPath }) => useSidebarData(drive, folderPath, 0),
+      { initialProps: { drive: "main" as string | null, folderPath: "recipes" as string | null } },
+    );
+
+    await waitFor(() => {
+      expect(result.current.tags).toEqual({
+        resolvedScope: { drive: "main", folderPath: "recipes" },
+        items: [{ name: "soup", count: 2 }],
+      });
+    });
+
+    rerender({ drive: "work", folderPath: null });
+
+    await waitFor(() => {
+      expect(result.current.tags?.resolvedScope).toEqual({ drive: "work", folderPath: null });
+    });
   });
 });

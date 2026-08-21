@@ -27,6 +27,7 @@ vi.mock("@/components/UploadButton", () => ({
 
 const defaultProps = {
   isSpecialView: false,
+  isFolderAnchored: true,
   tagFilter: null,
   hasPlayableFiles: false,
   sort: "created_at" as const,
@@ -85,20 +86,76 @@ describe("FolderToolbar", () => {
   it("hides new note button in special view even if onCreateFile is provided", () => {
     const onCreateFile = vi.fn();
     render(
-      <FolderToolbar {...defaultProps} isSpecialView={true} onCreateFile={onCreateFile} />,
+      <FolderToolbar
+        {...defaultProps}
+        isSpecialView={true}
+        isFolderAnchored={false}
+        onCreateFile={onCreateFile}
+      />,
     );
     expect(screen.queryByLabelText("New Note")).not.toBeInTheDocument();
   });
 
   it("hides upload and folder buttons in special view", () => {
-    render(<FolderToolbar {...defaultProps} isSpecialView={true} />);
+    render(<FolderToolbar {...defaultProps} isSpecialView={true} isFolderAnchored={false} />);
     expect(screen.queryByLabelText("Upload")).not.toBeInTheDocument();
     expect(screen.queryByLabelText("New Folder")).not.toBeInTheDocument();
   });
 
-  it("hides upload and folder buttons when tag filter active", () => {
-    render(<FolderToolbar {...defaultProps} tagFilter="nature" />);
+  // spec 2026-08-21-folder-scoped-tag-filter §6.2: the toolbar's gate is
+  // the second of two, and it nulls the whole left group — so passing
+  // onCreateFile without moving this predicate changes nothing visible.
+  // What it actually tests is "is there a folder to write into?".
+  it("shows upload, new folder and new note during a folder-anchored tag filter", () => {
+    const onCreateFile = vi.fn();
+    render(
+      <FolderToolbar
+        {...defaultProps}
+        tagFilter="nature"
+        folderPath="recipes"
+        isFolderAnchored={true}
+        onCreateFile={onCreateFile}
+      />,
+    );
+    expect(screen.getAllByLabelText("Upload").length).toBeGreaterThan(0);
+    expect(screen.getAllByLabelText("New Folder").length).toBeGreaterThan(0);
+    expect(screen.getAllByLabelText("New Note").length).toBeGreaterThan(0);
+  });
+
+  it("hides upload and folder buttons for a tag filter with no folder anchor", () => {
+    // A drive-root tag filter has no concrete folder to write into.
+    render(
+      <FolderToolbar {...defaultProps} tagFilter="nature" isFolderAnchored={false} />,
+    );
     expect(screen.queryByLabelText("Upload")).not.toBeInTheDocument();
+    expect(screen.queryByLabelText("New Folder")).not.toBeInTheDocument();
+  });
+
+  it("hides upload and folder buttons in search mode", () => {
+    render(<FolderToolbar {...defaultProps} isSearch={true} isFolderAnchored={false} />);
+    expect(screen.queryByLabelText("Upload")).not.toBeInTheDocument();
+    expect(screen.queryByLabelText("New Folder")).not.toBeInTheDocument();
+  });
+
+  // spec 2026-08-21-folder-scoped-tag-filter §8
+  it("offers the drive-wide widening link during a folder tag filter", () => {
+    render(
+      <FolderToolbar
+        {...defaultProps}
+        tagFilter="soup"
+        folderPath="recipes"
+        widenTagScope={{ tagName: "soup", href: "/drive/test-drive?tag=soup" }}
+      />,
+    );
+    const link = screen.getByRole("link", { name: "Search the whole drive" });
+    expect(link).toHaveAttribute("href", "/drive/test-drive?tag=soup");
+  });
+
+  it("does not offer the widening link when there is nothing to widen", () => {
+    render(<FolderToolbar {...defaultProps} widenTagScope={null} />);
+    expect(
+      screen.queryByRole("link", { name: "Search the whole drive" }),
+    ).not.toBeInTheDocument();
   });
 
   it("clicking new folder triggers onSetCreatingFolder", () => {

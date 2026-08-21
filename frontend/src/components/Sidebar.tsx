@@ -10,6 +10,7 @@ import { useAddonSlots } from "./AddonSlotsProvider";
 import { useSidebar } from "./SidebarProvider";
 import { useCurrentDrive, useCurrentFolderPath, useSetOverrideDrive } from "./CurrentDriveProvider";
 import { useSidebarData } from "./sidebar/useSidebarData";
+import { isSidebarLinkActive } from "./sidebar/isSidebarLinkActive";
 import { useCollectionManagement } from "./sidebar/useCollectionManagement";
 import { SidebarLibrarySection } from "./sidebar/SidebarLibrarySection";
 import { SidebarCollectionsSection } from "./sidebar/SidebarCollectionsSection";
@@ -86,37 +87,8 @@ function SidebarNav() {
     onReorder: setOrder,
   });
 
-  function isActive(href: string): boolean {
-    if (href === "/") return pathname === "/";
-    if (href === "/admin") return pathname === "/admin";
-    if (!currentDrive) return false;
-
-    const base = `/drive/${encodeURIComponent(currentDrive)}`;
-
-    if (href === `${base}?view=favorites`) {
-      return pathname === base && activeView === "favorites";
-    }
-    if (href === `${base}?view=recent`) {
-      return pathname === base && activeView === "recent";
-    }
-    if (href === `${base}?view=recent-added`) {
-      return pathname === base && activeView === "recent-added";
-    }
-    if (href === `${base}?view=all`) {
-      return pathname === base && activeView === "all";
-    }
-    if (href.includes("?tag=")) {
-      const hrefTag = new URL(href, "http://x").searchParams.get("tag");
-      return pathname === base && activeTag === hrefTag && !activeView;
-    }
-    if (href === base) {
-      return pathname === base && !activeView && !activeTag;
-    }
-    if (href.startsWith("/drive/")) {
-      return pathname === decodeURIComponent(href) || pathname === href;
-    }
-    return false;
-  }
+  const isActive = (href: string) =>
+    isSidebarLinkActive({ href, pathname, currentDrive, activeView, activeTag });
 
   const linkClass = (href: string) =>
     `flex items-center gap-2.5 rounded-2xl px-3 py-2 text-sm transition-colors ${
@@ -192,8 +164,8 @@ function SidebarNav() {
             <div key={id} className="relative" {...dnd.getRowProps(id)}>
               {dropIndicator}
               <SidebarTagsSection
-                driveBase={driveBase}
                 drive={currentDrive}
+                currentFolderPath={currentFolderPath}
                 tags={tags}
                 linkClass={linkClass}
                 close={closeIfOverlay}

@@ -34,6 +34,7 @@ import { useIsInternalDragging } from "@/hooks/useIsInternalDragging";
 import { useTreeRefresh } from "@/components/TreeRefreshContext";
 import { FolderToolbar } from "@/components/folder/FolderToolbar";
 import { FolderContent } from "@/components/folder/FolderContent";
+import { buildWidenTagScope } from "@/components/folder/WidenTagScopeLink";
 
 interface FolderBrowserProps {
   driveName: string;
@@ -117,17 +118,32 @@ export function FolderBrowser({
   const isPopular = view === "popular";
   const isAll = view === "all";
   const isSpecialView = isFavorites || view === "recent" || isRecentAdded || isPopular || isAll;
-  // True for "real" folder browsing (drive root or a sub folder, no tag).
-  // The flat virtual views (favorites/recent/etc.), search, and tag
-  // filters use the global default for view mode rather than the
-  // per-folder override, since they don't render a single folder.
-  const isFolderContext = !isSpecialView && !isSearch && !tagFilter;
+  // Is there a concrete folder we are anchored to? This is the question
+  // the per-folder preferences and the create-file actions actually ask,
+  // and a folder-scoped tag filter answers it yes: the breadcrumb shows a
+  // folder and the listing is scoped to its subtree (spec
+  // 2026-08-21-folder-scoped-tag-filter §6). It is false at the drive
+  // root, in the flat virtual views (favorites/recent/...), and in search,
+  // which render no single folder.
+  //
+  // It replaced `isFolderContext`, a single flag that stood for three
+  // different questions and so was easy to misread as "folder support is
+  // handled" (hako a8r4bT7Wt1LQ6IBPTBm7N).
+  const isFolderAnchored = !isSpecialView && !isSearch && !!folderPath;
+
+  // With folder scope as the default, the drive-wide view needs an
+  // explicit door. Derived once here and handed to both consumers (the
+  // toolbar header and the empty state) so they cannot disagree about
+  // when it is offered (spec 2026-08-21-folder-scoped-tag-filter §8).
+  const widenTagScope = isFolderAnchored
+    ? buildWidenTagScope(driveName, tagFilter)
+    : null;
 
   // Per-folder sort preference (localStorage folderPrefs:{drive}).
-  // Active only in isFolderContext; search/special views use localSort/localOrder.
+  // Active only when folder-anchored; search/special views use localSort/localOrder.
   const folderSort = useFolderSort({ drive: driveName, folderPath: folderPath ?? "" });
-  const sort = isFolderContext ? folderSort.sort : localSort;
-  const order = isFolderContext ? folderSort.order : localOrder;
+  const sort = isFolderAnchored ? folderSort.sort : localSort;
+  const order = isFolderAnchored ? folderSort.order : localOrder;
 
   const {
     files, folders, total, loading, loadingMore, hasMore, pagesLoaded, sentinelRef,
@@ -152,7 +168,7 @@ export function FolderBrowser({
   const [globalViewMode, setGlobalViewMode] = useState<ViewMode>(
     snapshotMode === "grid" || snapshotMode === "list" ? snapshotMode : "grid",
   );
-  const viewMode: ViewMode = isFolderContext ? folderViewMode.viewMode : globalViewMode;
+  const viewMode: ViewMode = isFolderAnchored ? folderViewMode.viewMode : globalViewMode;
   const { enabled: treeEnabled } = useTreeEnabled(driveName);
   const { fileId: selectedFileId } = useSelectedFile();
   const scrollContainerRef = useScrollContainer();
@@ -298,9 +314,10 @@ export function FolderBrowser({
       key: "ctrl+n",
       label: tsc("newFile"),
       handler: () => {
-        // Special views (favorites, search, tag filter) don't have a
-        // concrete folder target — Cmd+N is a no-op there.
-        if (!isFolderContext) return;
+        // Search and the flat virtual views have no concrete folder
+        // target — Cmd+N is a no-op there. A folder-scoped tag filter
+        // does have one, and creates into the anchored folder (§6.1).
+        if (!isFolderAnchored) return;
         createFile();
       },
     },
@@ -338,10 +355,10 @@ export function FolderBrowser({
 
   const handleViewChange = useCallback(
     (mode: ViewMode) => {
-      if (isFolderContext) folderViewMode.setViewMode(mode);
+      if (isFolderAnchored) folderViewMode.setViewMode(mode);
       else setGlobalViewMode(mode);
     },
-    [isFolderContext, folderViewMode],
+    [isFolderAnchored, folderViewMode],
   );
 
   const handleSemanticSelect = useCallback(
@@ -460,6 +477,7 @@ export function FolderBrowser({
 
       {!hideToolbar && <FolderToolbar
         isSpecialView={isSpecialView}
+        isFolderAnchored={isFolderAnchored}
         isSearch={isSearch}
         tagFilter={tagFilter}
         hasPlayableFiles={hasPlayableFiles}
@@ -475,9 +493,10 @@ export function FolderBrowser({
         fileIds={files.map((f) => f.id)}
         drive={driveName}
         folderPath={folderPath}
-        viewMode={isFolderContext ? viewMode : undefined}
+        viewMode={isFolderAnchored ? viewMode : undefined}
+        widenTagScope={widenTagScope}
         onSortChange={(s, o) => {
-          if (isFolderContext) folderSort.setSort(s, o);
+          if (isFolderAnchored) folderSort.setSort(s, o);
           else { setLocalSort(s); setLocalOrder(o); }
         }}
         onTypeFilterChange={setTypeFilter}
@@ -494,7 +513,7 @@ export function FolderBrowser({
         onSetNewFolderName={createFolder.setNewFolderName}
         onSetFolderError={createFolder.setFolderError}
         onCreateFolder={createFolder.handleCreateFolder}
-        onCreateFile={isFolderContext ? createFile : undefined}
+        onCreateFile={isFolderAnchored ? createFile : undefined}
         onReshuffle={handleReshuffle}
       />}
 
@@ -537,6 +556,7 @@ export function FolderBrowser({
         files={files}
         folders={folders}
         driveName={driveName}
+        widenTagScope={widenTagScope}
         viewMode={viewMode}
         loading={loading}
         loadingMore={loadingMore}
