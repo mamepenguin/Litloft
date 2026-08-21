@@ -10,6 +10,7 @@ import {
 import { useTranslations } from "next-intl";
 
 import type { ScopedTags } from "./useSidebarData";
+import { samePath } from "./isSidebarLinkActive";
 import { useSidebarSectionCollapsed } from "./useSidebarSectionCollapsed";
 import { sortTags, useTagSortMode } from "./useTagSortMode";
 
@@ -23,6 +24,14 @@ interface SidebarTagsSectionProps {
    * this section exists to fix.
    */
   currentFolderPath: string | null;
+  /**
+   * The live `usePathname()`. A tag row can only be *selected* while we
+   * are actually on the page its scope describes: `currentFolderPath` is
+   * stably null on the search / collections / addon / file-detail routes
+   * too, so scope agreement alone would let a stray `?tag=` there mark a
+   * row selected and turn its link into "leave this route".
+   */
+  pathname: string;
   /** The tag currently applied via `?tag=`, if any. */
   activeTag: string | null;
   /** `?view=` wins over `?tag=` in the drive route, so a view suppresses selection. */
@@ -55,6 +64,7 @@ function tagHref(scope: Scope, tagName: string): string {
 export function SidebarTagsSection({
   drive,
   currentFolderPath,
+  pathname,
   activeTag,
   activeView,
   tags,
@@ -78,6 +88,16 @@ export function SidebarTagsSection({
   // with a drive-wide fetch, so links keep working on those routes.
   const scopeMatches =
     resolvedScope.drive === drive && resolvedScope.folderPath === currentFolderPath;
+
+  // Where clearing the tag filter lands, and — because it is the scope's
+  // own page — the only place a row may claim to be selected.
+  const clearHref = scopeHref(resolvedScope);
+  const isOnScopePage = samePath(pathname, clearHref);
+  // The server matches tags case-insensitively
+  // (`func.lower(Tag.name) == tag.lower()`), so an exact comparison here
+  // would filter the listing while showing nothing selected — and the
+  // re-click-to-clear toggle would never engage.
+  const activeTagKey = activeTag?.toLowerCase() ?? null;
 
   const Chevron = collapsed ? ChevronRight : ChevronDown;
   const sortedTags = sortTags(tags.items, mode);
@@ -115,13 +135,15 @@ export function SidebarTagsSection({
           // name, never from each other: a selected row links to the
           // scope without the tag, so an href-derived highlight would
           // vanish exactly when the row is selected.
-          const isSelected = scopeMatches && !activeView && activeTag === tag.name;
+          const isSelected =
+            scopeMatches &&
+            isOnScopePage &&
+            !activeView &&
+            activeTagKey === tag.name.toLowerCase();
           // Built from resolvedScope — the scope the visible items
           // actually came from — so a rendered row and its link cannot
           // describe different scopes, even mid-flight.
-          const href = isSelected
-            ? scopeHref(resolvedScope)
-            : tagHref(resolvedScope, tag.name);
+          const href = isSelected ? clearHref : tagHref(resolvedScope, tag.name);
           const body = (
             <>
               <Tag size={16} />

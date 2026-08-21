@@ -169,6 +169,7 @@ function SidebarNav() {
               <SidebarTagsSection
                 drive={currentDrive}
                 currentFolderPath={currentFolderPath}
+                pathname={pathname}
                 tags={tags}
                 activeTag={activeTag}
                 activeView={activeView}

@@ -132,6 +132,7 @@ function TagsUnderNavigation({
     <SidebarTagsSection
       drive={drive}
       currentFolderPath={folderPath}
+      pathname={`/drive/${drive ?? ""}${folderPath ? `/${folderPath}` : ""}`}
       activeTag={null}
       activeView={null}
       tags={tags}

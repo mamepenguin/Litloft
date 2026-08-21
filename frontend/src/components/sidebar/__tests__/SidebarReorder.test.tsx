@@ -219,6 +219,7 @@ describe("(b) grip presence — reorderable sections have grip, fixed zones do n
       <SidebarTagsSection
         drive="main"
         currentFolderPath={null}
+        pathname="/drive/main"
         activeTag={null}
         activeView={null}
         tags={{

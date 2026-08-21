@@ -53,7 +53,12 @@ export function isSidebarLinkActive({
   return false;
 }
 
-function samePath(pathname: string, hrefPath: string): boolean {
+/**
+ * Compare a live `usePathname()` value against a built href path.
+ * `usePathname()` may report either the encoded or the decoded form
+ * depending on how the navigation happened, so try both.
+ */
+export function samePath(pathname: string, hrefPath: string): boolean {
   if (pathname === hrefPath) return true;
   try {
     return pathname === decodeURIComponent(hrefPath);

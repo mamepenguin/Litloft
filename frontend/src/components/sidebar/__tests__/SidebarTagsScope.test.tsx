@@ -88,13 +88,21 @@ function renderSection(props: {
   tags: ScopedTags | null;
   drive: string | null;
   currentFolderPath: string | null;
+  /** Defaults to the page the current drive/folder describes. */
+  pathname?: string;
   activeTag?: string | null;
   activeView?: string | null;
 }) {
+  const defaultPathname = `/drive/${encodeURIComponent(props.drive ?? "")}${
+    props.currentFolderPath
+      ? `/${props.currentFolderPath.split("/").map(encodeURIComponent).join("/")}`
+      : ""
+  }`;
   return render(
     <SidebarTagsSection
       drive={props.drive}
       currentFolderPath={props.currentFolderPath}
+      pathname={props.pathname ?? defaultPathname}
       tags={props.tags}
       activeTag={props.activeTag ?? null}
       activeView={props.activeView ?? null}
@@ -324,5 +332,114 @@ describe("SidebarTagsSection — clearing the selected tag", () => {
     expect(hrefs()).toEqual([
       `/drive/main/${encodeURIComponent("料理")}/${encodeURIComponent("煮込み 2024")}`,
     ]);
+  });
+});
+
+/**
+ * Selection is a claim about the current *page*, not only about scope.
+ *
+ * `currentFolderPath` is stably null on /drive/[name]/search,
+ * /drive/[name]/collections/[id], the addon routes and /files/[id]
+ * (§9.2), so scope agreement alone cannot tell "at the drive root" from
+ * "on a sibling route". Without a pathname check, a stray `?tag=` on one
+ * of those routes would mark a row selected and turn its link into "leave
+ * this route" — the opposite of clearing a filter.
+ */
+describe("SidebarTagsSection — selection is page-scoped", () => {
+  beforeEach(() => {
+    mockStorage.clear();
+  });
+
+  it("does not treat a tag as selected on a sibling route", () => {
+    renderSection({
+      tags: scoped("main", null, ["soup"]),
+      drive: "main",
+      currentFolderPath: null,
+      pathname: "/drive/main/search",
+      activeTag: "soup",
+    });
+    // Still a live, applying link — §9.2 requires tag links to work here.
+    expect(hrefs()).toEqual(["/drive/main?tag=soup"]);
+    expect(activeRowNames()).toEqual([]);
+  });
+
+  it("does not treat a tag as selected on a file-detail route", () => {
+    renderSection({
+      tags: scoped("main", null, ["soup"]),
+      drive: "main",
+      currentFolderPath: null,
+      pathname: "/files/abc123",
+      activeTag: "soup",
+    });
+    expect(hrefs()).toEqual(["/drive/main?tag=soup"]);
+    expect(activeRowNames()).toEqual([]);
+  });
+
+  it("does not treat a tag as selected on a collection route", () => {
+    renderSection({
+      tags: scoped("main", null, ["soup"]),
+      drive: "main",
+      currentFolderPath: null,
+      pathname: "/drive/main/collections/c1",
+      activeTag: "soup",
+    });
+    expect(hrefs()).toEqual(["/drive/main?tag=soup"]);
+    expect(activeRowNames()).toEqual([]);
+  });
+
+  it("treats a decoded pathname as the same page as an encoded href", () => {
+    renderSection({
+      tags: scoped("main", "料理", ["炒め物"]),
+      drive: "main",
+      currentFolderPath: "料理",
+      pathname: "/drive/main/料理",
+      activeTag: "炒め物",
+    });
+    expect(hrefs()).toEqual([`/drive/main/${encodeURIComponent("料理")}`]);
+    expect(activeRowNames()).toEqual(["炒め物"]);
+  });
+});
+
+/**
+ * The server matches tags case-insensitively
+ * (`func.lower(Tag.name) == tag.lower()`, drives.py). An exact
+ * comparison in the UI would filter the listing while showing nothing
+ * selected, and the re-click-to-clear toggle would never engage — a URL
+ * kept from before a tag was re-cased is enough to reach it.
+ */
+describe("SidebarTagsSection — tag matching follows the server", () => {
+  beforeEach(() => {
+    mockStorage.clear();
+  });
+
+  it("selects a tag whose stored casing differs from the URL", () => {
+    renderSection({
+      tags: scoped("main", "recipes", ["Soup"]),
+      drive: "main",
+      currentFolderPath: "recipes",
+      activeTag: "soup",
+    });
+    expect(hrefs()).toEqual(["/drive/main/recipes"]);
+    expect(activeRowNames()).toEqual(["Soup"]);
+  });
+
+  it("keeps the stored casing in the applying href", () => {
+    renderSection({
+      tags: scoped("main", "recipes", ["Soup"]),
+      drive: "main",
+      currentFolderPath: "recipes",
+      activeTag: null,
+    });
+    expect(hrefs()).toEqual(["/drive/main/recipes?tag=Soup"]);
+  });
+
+  it("still distinguishes different tags", () => {
+    renderSection({
+      tags: scoped("main", "recipes", ["Soup", "Stew"]),
+      drive: "main",
+      currentFolderPath: "recipes",
+      activeTag: "stew",
+    });
+    expect(activeRowNames()).toEqual(["Stew"]);
   });
 });

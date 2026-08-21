@@ -275,24 +275,37 @@ class TestFolderScopedTagCountAgreement:
     """
 
     def _seed_tagged(self, db, drive_dir):
+        """Seed a subtree where the tag predicate genuinely narrows.
+
+        Every folder in the subtree also holds an untagged file and a
+        differently-tagged one, so an implementation that ignored `tag`
+        under `recursive=true` would return more rows than the sidebar
+        count and break the agreement these tests assert.
+        """
         from app.models import Tag
 
-        layout = {
-            "recipes": ["soup"],
-            "recipes/winter": ["soup"],
-            "recipes/winter/2026": ["soup"],
-            "dev": ["soup"],
-            "": ["soup"],
+        # (folder_path, tag name or None), one file each.
+        layout = [
+            ("recipes", "soup"),
+            ("recipes", "stew"),           # same folder, different tag
+            ("recipes", None),             # same folder, untagged
+            ("recipes/winter", "soup"),
+            ("recipes/winter", None),      # descendant, untagged
+            ("recipes/winter/2026", "soup"),
+            ("dev", "soup"),               # tagged, outside the subtree
+            ("", "soup"),                  # tagged, drive root level
+        ]
+        tags = {
+            name: Tag(name=name, drive=TEST_DRIVE) for name in ("soup", "stew")
         }
-        tag = Tag(name="soup", drive=TEST_DRIVE)
-        db.add(tag)
+        db.add_all(tags.values())
         db.commit()
-        for i, (folder, tags) in enumerate(layout.items()):
+        for i, (folder, tag_name) in enumerate(layout):
             f = _seed_file(db, drive_dir, suffix=f"-{i}", folder_path=folder or ".")
             f.folder_path = folder
             f.file_path = f"{folder}/{f.filename}" if folder else f.filename
-            if tags:
-                f.tags.append(tag)
+            if tag_name:
+                f.tags.append(tags[tag_name])
         db.commit()
 
     def test_sidebar_count_matches_listing_total_in_a_folder(self, client):
@@ -334,3 +347,32 @@ class TestFolderScopedTagCountAgreement:
         ).json()
 
         assert sidebar_count == listing["meta"]["total"] == 2
+
+    def test_the_tag_predicate_is_load_bearing_in_these_fixtures(self, client):
+        """Without this, the agreement tests above could pass on a
+        recursive query that ignored `tag` entirely."""
+        c, db, drive_dir, data_dir = client
+        self._seed_tagged(db, drive_dir)
+
+        untagged = c.get(
+            f"/api/drives/{TEST_DRIVE}/files?path=recipes&recursive=true"
+        ).json()
+        assert untagged["meta"]["total"] == 6  # 3 tagged soup + stew + 2 untagged
+
+        other = c.get(
+            f"/api/drives/{TEST_DRIVE}/files?path=recipes&recursive=true&tag=stew"
+        ).json()
+        assert other["meta"]["total"] == 1
+
+    def test_agreement_holds_for_a_second_tag(self, client):
+        c, db, drive_dir, data_dir = client
+        self._seed_tagged(db, drive_dir)
+
+        tags = c.get(f"/api/drives/{TEST_DRIVE}/tags?folder_path=recipes").json()
+        sidebar_count = next(t["count"] for t in tags if t["name"] == "stew")
+
+        listing = c.get(
+            f"/api/drives/{TEST_DRIVE}/files?path=recipes&recursive=true&tag=stew"
+        ).json()
+
+        assert sidebar_count == listing["meta"]["total"] == 1

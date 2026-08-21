@@ -33,7 +33,11 @@ vi.mock("@/components/UploadZone", () => ({
   UploadZone: ({ children }: { children?: React.ReactNode }) => <>{children}</>,
 }));
 vi.mock("@/components/SortButton", () => ({
-  SortButton: () => <button data-testid="sort-button">Sort</button>,
+  SortButton: ({ onChange }: { onChange: (s: string, o: string) => void }) => (
+    <button data-testid="sort-button" onClick={() => onChange("file_size", "asc")}>
+      Sort
+    </button>
+  ),
 }));
 vi.mock("@/components/UploadButton", () => ({
   UploadButton: ({ onCreateFolder }: { onCreateFolder?: () => void }) => (
@@ -168,14 +172,35 @@ describe("FolderBrowser — folder anchoring during a tag filter", () => {
     expect(folderViewModeCalls[0]).toEqual({ drive: "main", folderPath: "recipes" });
   });
 
-  it("persists a sort change to the folder, not the session-local state", () => {
+  it("persists a sort change to the folder during a tag filter", () => {
     render(<FolderBrowser driveName="main" folderPath="recipes" tagFilter="soup" />);
-    // SortButton is mocked; drive the persistence path through ViewToggle,
-    // which FolderToolbar renders unconditionally.
+    fireEvent.click(screen.getAllByTestId("sort-button")[0]);
+    expect(mockSetSort).toHaveBeenCalledWith("file_size", "asc");
+  });
+
+  it("persists a viewMode change to the folder during a tag filter", () => {
+    render(<FolderBrowser driveName="main" folderPath="recipes" tagFilter="soup" />);
     const viewButtons = screen.getAllByRole("button", { name: /list|grid/i });
     expect(viewButtons.length).toBeGreaterThan(0);
     fireEvent.click(viewButtons[0]);
     expect(mockSetViewMode).toHaveBeenCalled();
+  });
+
+  it("keeps sort and viewMode session-local in search mode", () => {
+    // No folder to anchor to — the per-folder stores must stay untouched.
+    render(<FolderBrowser driveName="main" searchQuery="kyoto" />);
+    fireEvent.click(screen.getAllByTestId("sort-button")[0]);
+    expect(mockSetSort).not.toHaveBeenCalled();
+
+    const viewButtons = screen.getAllByRole("button", { name: /list|grid/i });
+    fireEvent.click(viewButtons[0]);
+    expect(mockSetViewMode).not.toHaveBeenCalled();
+  });
+
+  it("keeps sort and viewMode session-local in a special view", () => {
+    render(<FolderBrowser driveName="main" view="favorites" />);
+    fireEvent.click(screen.getAllByTestId("sort-button")[0]);
+    expect(mockSetSort).not.toHaveBeenCalled();
   });
 
   // spec §8: the door out of folder scope, offered from FolderBrowser to

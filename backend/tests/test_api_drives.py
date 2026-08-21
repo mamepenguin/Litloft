@@ -569,20 +569,87 @@ class TestListDriveFilesRecursive:
         assert res.status_code == 400
 
     def test_recursive_with_tag_scopes_to_subtree(self, client):
-        # The headline combination this spec exists for.
+        """The headline combination this spec exists for.
+
+        The subtree and the tag must *both* narrow. The fixture therefore
+        puts untagged and differently-tagged files inside the subtree as
+        well as a tagged file outside it — otherwise an implementation
+        that dropped either predicate would still pass.
+        """
         from app.models import File, Tag
 
         c, db, drive_dir, data_dir = client
-        _seed_subtree(db, drive_dir, ["recipes", "recipes/soup", "dev"])
-        tag = Tag(name="soup", drive=TEST_DRIVE)
-        db.add(tag)
+        _seed_subtree(db, drive_dir, ["recipes", "recipes/nested", "dev"])
+
+        wanted = Tag(name="soup", drive=TEST_DRIVE)
+        other = Tag(name="stew", drive=TEST_DRIVE)
+        db.add_all([wanted, other])
         db.commit()
-        for f in db.query(File).filter(File.drive == TEST_DRIVE).all():
-            f.tags.append(tag)
+
+        # One extra file per folder so each can carry a different tag state.
+        extras = {}
+        for folder in ["recipes", "recipes/nested"]:
+            d = drive_dir / folder
+            (d / "extra.mp4").write_bytes(b"x")
+            f = File(
+                filename="extra.mp4",
+                title=f"Extra in {folder}",
+                drive=TEST_DRIVE,
+                folder_path=folder,
+                file_path=f"{folder}/extra.mp4",
+                file_size=1,
+                file_type="video",
+                mime_type="video/mp4",
+            )
+            db.add(f)
+            extras[folder] = f
+        db.commit()
+
+        by_folder = {
+            f.folder_path: f
+            for f in db.query(File)
+            .filter(File.drive == TEST_DRIVE, File.filename == "v.mp4")
+            .all()
+        }
+        by_folder["recipes"].tags.append(wanted)         # in subtree, wanted
+        by_folder["recipes/nested"].tags.append(wanted)  # in subtree, wanted
+        by_folder["dev"].tags.append(wanted)             # tagged but OUTSIDE
+        extras["recipes"].tags.append(other)             # in subtree, other tag
+        # extras["recipes/nested"] stays untagged, in subtree
         db.commit()
 
         res = c.get(f"/api/drives/{TEST_DRIVE}/files?path=recipes&recursive=true&tag=soup")
         assert res.status_code == 200
         body = res.json()
-        assert {item["folder_path"] for item in body["data"]} == {"recipes", "recipes/soup"}
+        assert {item["title"] for item in body["data"]} == {
+            "V in recipes",
+            "V in recipes/nested",
+        }
         assert body["meta"]["total"] == 2
+
+    def test_recursive_tag_predicate_is_not_ignored(self, client):
+        """Guard: with recursive=true, dropping the tag filter must matter.
+
+        Without this, `test_recursive_with_tag_scopes_to_subtree` alone
+        cannot tell a working tag predicate from an ignored one.
+        """
+        from app.models import File, Tag
+
+        c, db, drive_dir, data_dir = client
+        _seed_subtree(db, drive_dir, ["recipes", "recipes/nested"])
+        tag = Tag(name="soup", drive=TEST_DRIVE)
+        db.add(tag)
+        db.commit()
+        only = (
+            db.query(File)
+            .filter(File.drive == TEST_DRIVE, File.folder_path == "recipes/nested")
+            .one()
+        )
+        only.tags.append(tag)
+        db.commit()
+
+        untagged = c.get(f"/api/drives/{TEST_DRIVE}/files?path=recipes&recursive=true")
+        tagged = c.get(f"/api/drives/{TEST_DRIVE}/files?path=recipes&recursive=true&tag=soup")
+        assert untagged.json()["meta"]["total"] == 2
+        assert tagged.json()["meta"]["total"] == 1
+        assert tagged.json()["data"][0]["folder_path"] == "recipes/nested"

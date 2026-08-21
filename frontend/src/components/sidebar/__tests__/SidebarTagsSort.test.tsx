@@ -101,6 +101,7 @@ describe("SidebarTagsSection — sort mode toggle", () => {
       <SidebarTagsSection
         drive="main"
         currentFolderPath={null}
+        pathname="/drive/main"
         activeTag={null}
         activeView={null}
         tags={inScope("main")}
@@ -117,6 +118,7 @@ describe("SidebarTagsSection — sort mode toggle", () => {
       <SidebarTagsSection
         drive="main"
         currentFolderPath={null}
+        pathname="/drive/main"
         activeTag={null}
         activeView={null}
         tags={inScope("main")}
@@ -138,6 +140,7 @@ describe("SidebarTagsSection — sort mode toggle", () => {
       <SidebarTagsSection
         drive="main"
         currentFolderPath={null}
+        pathname="/drive/main"
         activeTag={null}
         activeView={null}
         tags={inScope("main")}
@@ -163,6 +166,7 @@ describe("SidebarTagsSection — sort mode toggle", () => {
       <SidebarTagsSection
         drive="photos"
         currentFolderPath={null}
+        pathname="/drive/photos"
         activeTag={null}
         activeView={null}
         tags={inScope("photos")}
@@ -179,6 +183,7 @@ describe("SidebarTagsSection — sort mode toggle", () => {
       <SidebarTagsSection
         drive="main"
         currentFolderPath={null}
+        pathname="/drive/main"
         activeTag={null}
         activeView={null}
         tags={inScope("main")}
@@ -195,6 +200,7 @@ describe("SidebarTagsSection — sort mode toggle", () => {
       <SidebarTagsSection
         drive="main"
         currentFolderPath={null}
+        pathname="/drive/main"
         activeTag={null}
         activeView={null}
         tags={inScope("main")}
@@ -220,6 +226,7 @@ describe("SidebarTagsSection — sort mode toggle", () => {
       <SidebarTagsSection
         drive="main"
         currentFolderPath={null}
+        pathname="/drive/main"
         activeTag={null}
         activeView={null}
         tags={inScope("main")}
@@ -242,6 +249,7 @@ describe("SidebarTagsSection — sort mode toggle", () => {
       <SidebarTagsSection
         drive="main"
         currentFolderPath={null}
+        pathname="/drive/main"
         activeTag={null}
         activeView={null}
         tags={inScope("main", input)}
