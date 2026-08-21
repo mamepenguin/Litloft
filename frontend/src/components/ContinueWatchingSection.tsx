@@ -76,12 +76,12 @@ export function ContinueWatchingSection({
                   <FileCard
                     file={item}
                     watchProgress={item.watch_progress}
-                    onContextMenu={(e) => {
-                      setTarget(item);
+                    onContextMenu={(e, f) => {
+                      setTarget(f);
                       handlers.onContextMenu(e);
                     }}
-                    onTouchStart={(e) => {
-                      setTarget(item);
+                    onTouchStart={(e, f) => {
+                      setTarget(f);
                       handlers.onTouchStart(e);
                     }}
                     onTouchEnd={handlers.onTouchEnd}

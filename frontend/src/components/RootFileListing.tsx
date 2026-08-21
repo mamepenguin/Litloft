@@ -379,13 +379,13 @@ export function RootFileListing({ driveName, onFileAction, onFolderChange }: Roo
             onFavoriteToggle={handleFavoriteToggle}
             onRefresh={refresh}
             selectable={selectable}
-            isSelected={selection.isSelected}
+            selectedIds={selection.selectedIds}
             onSelect={selection.toggle}
             onMetaSelect={handleMetaSelect}
             onShiftSelect={handleShiftSelect}
             sortQuery={sortQuery}
             draggable={!selectable || selection.count > 0}
-            draggedFileIds={dragState.draggedFileIds}
+            draggedIds={dragState.draggedFileIdSet}
             onDragStart={handleDragStart}
             onDragEnd={handleDragEnd}
           />
@@ -395,13 +395,13 @@ export function RootFileListing({ driveName, onFileAction, onFolderChange }: Roo
             onFavoriteToggle={handleFavoriteToggle}
             onRefresh={refresh}
             selectable={selectable}
-            isSelected={selection.isSelected}
+            selectedIds={selection.selectedIds}
             onSelect={selection.toggle}
             onMetaSelect={handleMetaSelect}
             onShiftSelect={handleShiftSelect}
             sortQuery={sortQuery}
             draggable={!selectable || selection.count > 0}
-            draggedFileIds={dragState.draggedFileIds}
+            draggedIds={dragState.draggedFileIdSet}
             onDragStart={handleDragStart}
             onDragEnd={handleDragEnd}
           />

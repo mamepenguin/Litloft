@@ -14,6 +14,8 @@ import { EmptyState } from "@/components/EmptyState";
 import { FolderCard } from "@/components/FolderCard";
 import { FolderContextMenu } from "@/components/FolderContextMenu";
 
+import { cardGridColumns } from "@/lib/cardGrid";
+
 import { FilterField } from "./FilterField";
 import { useFolderCardRename } from "./useFolderCardRename";
 import { WidenTagScopeLink, type WidenTagScope } from "./WidenTagScopeLink";
@@ -37,7 +39,7 @@ interface FolderContentProps {
   dragState: DragState;
   isDropTarget: (path: string) => boolean;
   getDropTargetProps: (path: string) => Record<string, (e: React.DragEvent) => void>;
-  isSelected: (id: string) => boolean;
+  selectedIds: ReadonlySet<string>;
   onSelect: (id: string) => void;
   onMetaSelect: (id: string) => void;
   onShiftSelect: (id: string) => void;
@@ -62,7 +64,7 @@ export function FolderContent({
   files, folders, driveName, viewMode, loading, loadingMore,
   isRecent, hasProfile, isFavorites, isRecentAdded, isSearch, selectable, sortQuery,
   pinnedPaths, sentinelRef, dragState, isDropTarget, getDropTargetProps,
-  isSelected, onSelect, onMetaSelect, onShiftSelect, onTogglePin, onFavoriteToggle, onRefresh,
+  selectedIds, onSelect, onMetaSelect, onShiftSelect, onTogglePin, onFavoriteToggle, onRefresh,
   onDragStart, onDragEnd, selectedCount, isDropDisabled, onFolderDragStart,
   widenTagScope,
 }: FolderContentProps) {
@@ -104,7 +106,10 @@ export function FolderContent({
       </div>
 
       {filteredFolders.length > 0 && (
-        <div className="mb-6 grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+        <div
+          className="mb-6 grid gap-3"
+          style={{ gridTemplateColumns: cardGridColumns }}
+        >
           {filteredFolders.map((folder) => {
             const disabled = isDropDisabled(folder.path);
             return (
@@ -192,13 +197,13 @@ export function FolderContent({
           onFavoriteToggle={onFavoriteToggle}
           onRefresh={onRefresh}
           selectable={selectable}
-          isSelected={isSelected}
+          selectedIds={selectedIds}
           onSelect={onSelect}
           onMetaSelect={onMetaSelect}
           onShiftSelect={onShiftSelect}
           sortQuery={sortQuery}
           draggable={!selectable || selectedCount > 0}
-          draggedFileIds={dragState.draggedFileIds}
+          draggedIds={dragState.draggedFileIdSet}
           onDragStart={onDragStart}
           onDragEnd={onDragEnd}
         />
@@ -208,13 +213,13 @@ export function FolderContent({
           onFavoriteToggle={onFavoriteToggle}
           onRefresh={onRefresh}
           selectable={selectable}
-          isSelected={isSelected}
+          selectedIds={selectedIds}
           onSelect={onSelect}
           onMetaSelect={onMetaSelect}
           onShiftSelect={onShiftSelect}
           sortQuery={sortQuery}
           draggable={!selectable || selectedCount > 0}
-          draggedFileIds={dragState.draggedFileIds}
+          draggedIds={dragState.draggedFileIdSet}
           onDragStart={onDragStart}
           onDragEnd={onDragEnd}
         />
