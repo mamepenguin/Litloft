@@ -36,6 +36,14 @@ import { FolderToolbar } from "@/components/folder/FolderToolbar";
 import { FolderContent } from "@/components/folder/FolderContent";
 import { buildWidenTagScope } from "@/components/folder/WidenTagScopeLink";
 
+/**
+ * How long scrolling must be idle before the list snapshot is
+ * re-persisted. Long enough that a continuous scroll writes once at the
+ * end instead of once per frame, short enough that a quick flick
+ * followed by a click still records where the user stopped.
+ */
+const SNAPSHOT_SAVE_DEBOUNCE_MS = 150;
+
 interface FolderBrowserProps {
   driveName: string;
   folderPath?: string;
@@ -196,14 +204,33 @@ export function FolderBrowser({
   }, [hydratedScrollY, scrollContainerRef]);
 
   const isInitialSnapshotSaveRef = useRef(true);
+  // Holds the current effect's `save` so the unmount-only effect below
+  // can flush it. Reassigned on every effect run.
+  const flushSnapshotRef = useRef<(() => void) | null>(null);
+  // Last scroll offset observed while this component's DOM was still
+  // mounted. `save` persists THIS, never a fresh DOM read: the scroll
+  // container belongs to TwoPaneLayout and outlives us, so by the time
+  // the unmount flush runs React has already removed our rows, the
+  // container has collapsed, and `scrollTop` reads 0. Reading it there
+  // overwrote a good offset with zero on every in-app navigation.
+  const lastScrollYRef = useRef(0);
   useEffect(() => {
     const container = scrollContainerRef?.current ?? null;
-    let frame: number | null = null;
+    let timer: ReturnType<typeof setTimeout> | null = null;
 
-    const getScrollY = () => (container ? container.scrollTop : window.scrollY);
+    const rememberScrollY = () => {
+      lastScrollYRef.current = container ? container.scrollTop : window.scrollY;
+    };
+    // Mount and every dependency change: the DOM is alive here, and the
+    // restore layout effect has already run, so this picks up a
+    // hydrated offset even when the user has not scrolled yet.
+    rememberScrollY();
 
     const save = () => {
-      frame = null;
+      if (timer != null) {
+        clearTimeout(timer);
+        timer = null;
+      }
       if (isRecent) return;
       // Don't persist search results into the folder/view snapshot —
       // snapshotKey doesn't include searchQuery, so saving here would
@@ -213,7 +240,7 @@ export function FolderBrowser({
       if (files.length === 0) return;
       saveListSnapshot({
         key: snapshotKey,
-        scrollY: getScrollY(),
+        scrollY: lastScrollYRef.current,
         pagesLoaded,
         items: files,
         total,
@@ -222,9 +249,23 @@ export function FolderBrowser({
       });
     };
 
+    // Trailing debounce rather than once-per-animation-frame. Measured
+    // 2026-08-21 (spec 2026-08-21-file-list-deep-scroll-cost §5.4): at
+    // 995 items the write is ~3 ms and fired ~115 times a second while
+    // scrolling — about a third of the frame budget spent re-persisting
+    // a snapshot nobody reads until the next navigation. It did not
+    // drop frames on the machine measured, so this is insurance for
+    // slower devices rather than a fix for an observed stall.
     const scheduleSave = () => {
-      if (frame != null) return;
-      frame = requestAnimationFrame(save);
+      rememberScrollY();
+      if (timer != null) clearTimeout(timer);
+      timer = setTimeout(save, SNAPSHOT_SAVE_DEBOUNCE_MS);
+    };
+
+    // `pagehide` still has a live DOM, so refresh before writing.
+    const saveNow = () => {
+      rememberScrollY();
+      save();
     };
 
     // Skip the very first effect pass so we don't overwrite a freshly loaded
@@ -235,17 +276,30 @@ export function FolderBrowser({
       scheduleSave();
     }
 
+    flushSnapshotRef.current = save;
+
     const scrollTarget: EventTarget = container ?? window;
     scrollTarget.addEventListener("scroll", scheduleSave, { passive: true } as AddEventListenerOptions);
-    // pagehide fires at the last moment the page is alive; skip the rAF so
-    // the synchronous write still lands before the document is torn down.
-    window.addEventListener("pagehide", save);
+    // pagehide fires at the last moment the page is alive; skip the debounce
+    // so the synchronous write still lands before the document is torn down.
+    window.addEventListener("pagehide", saveNow);
     return () => {
       scrollTarget.removeEventListener("scroll", scheduleSave);
-      window.removeEventListener("pagehide", save);
-      if (frame != null) cancelAnimationFrame(frame);
+      window.removeEventListener("pagehide", saveNow);
+      // Dropping a pending write is safe here but not on unmount: this
+      // cleanup runs on every dependency change, and the next effect
+      // pass immediately re-schedules. Unmount has no next pass, so it
+      // is handled separately below.
+      if (timer != null) clearTimeout(timer);
     };
   }, [files, folders, total, pagesLoaded, sort, order, typeFilter, viewMode, isRecent, isSearch, snapshotKey, scrollContainerRef]);
+
+  // Flush a pending snapshot write on unmount. `pagehide` covers a real
+  // page teardown, but an in-app navigation unmounts this component
+  // without firing it, and the debounce means a write is usually still
+  // pending — dropping it would lose the scroll position the user is
+  // about to come back to.
+  useEffect(() => () => { flushSnapshotRef.current?.(); }, []);
 
   const handleReshuffle = useCallback(() => {
     reset();
@@ -398,14 +452,22 @@ export function FolderBrowser({
     (f) => f.file_type === "audio" || f.file_type === "video"
   );
 
+  // Depend on the individual callbacks, not on `selection` itself:
+  // `useSelection` returns a fresh object literal every render, so
+  // `[selection]` would make these handlers change identity on every
+  // render and defeat `FileCard`'s memo for all 995 cards — the same
+  // failure as the `isSelected` predicate these replaced (spec
+  // `2026-08-21-file-list-deep-scroll-cost` §6.3).
+  const { toggle: toggleSelection, selectRange } = selection;
+
   const handleMetaSelect = useCallback((id: string) => {
     setSelectable(true);
-    selection.toggle(id);
-  }, [selection]);
+    toggleSelection(id);
+  }, [toggleSelection]);
 
   const handleShiftSelect = useCallback((id: string) => {
-    selection.selectRange(files.map((f) => f.id), id);
-  }, [selection, files]);
+    selectRange(files.map((f) => f.id), id);
+  }, [selectRange, files]);
 
   const handlePlayAll = useCallback(() => {
     const firstPlayable = files.find(
@@ -572,7 +634,7 @@ export function FolderBrowser({
         dragState={dragState}
         isDropTarget={isDropTarget}
         getDropTargetProps={getDropTargetProps}
-        isSelected={selection.isSelected}
+        selectedIds={selection.selectedIds}
         onSelect={selection.toggle}
         onMetaSelect={handleMetaSelect}
         onShiftSelect={handleShiftSelect}

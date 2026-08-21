@@ -1,22 +1,14 @@
 "use client";
 
-import { useRelativeDate } from "@/hooks/useRelativeDate";
 import { useCallback, useState } from "react";
-import Link from "next/link";
 import { Download, ListMusic, Move, Pencil, Trash2 } from "lucide-react";
 
 import { ClipboardCopy, Scissors } from "lucide-react";
 import { useTranslations } from "next-intl";
-import { deleteFile, getDownloadUrl, getThumbnailUrl, moveFile, renameFile } from "@/lib/api";
-import { useFileNavigationOverride } from "@/lib/fileNavigationOverride";
+import { deleteFile, getDownloadUrl, moveFile, renameFile } from "@/lib/api";
 import { useClipboard } from "./ClipboardProvider";
-import { formatDuration, formatFileSize } from "@/lib/format";
 import type { FileItem, FileItemWithMatch } from "@/types";
-import { MatchOverlay } from "./MatchOverlay";
-import { FavoriteButton } from "./FavoriteButton";
-import { TagList } from "./TagList";
-import { FileTypeIcon } from "./FileTypeIcon";
-import { TextThumbnail } from "./TextThumbnail";
+import { FileListRow } from "./FileListRow";
 import { ContextMenu, type MenuItem } from "./ContextMenu";
 import { ConfirmDialog } from "./ConfirmDialog";
 import { RenameDialog } from "./RenameDialog";
@@ -28,13 +20,13 @@ export function FileList({
   onFavoriteToggle,
   onRefresh,
   selectable,
-  isSelected,
+  selectedIds,
   onSelect,
   onMetaSelect,
   onShiftSelect,
   sortQuery,
   draggable,
-  draggedFileIds,
+  draggedIds,
   onDragStart,
   onDragEnd,
 }: {
@@ -42,23 +34,22 @@ export function FileList({
   onFavoriteToggle?: (file: FileItem) => void;
   onRefresh?: () => void;
   selectable?: boolean;
-  isSelected?: (id: string) => boolean;
+  /** A set, not a predicate — see `FileListRow`'s prop-shape note. */
+  selectedIds?: ReadonlySet<string>;
   onSelect?: (id: string) => void;
   onMetaSelect?: (id: string) => void;
   onShiftSelect?: (id: string) => void;
   sortQuery?: string;
   draggable?: boolean;
-  draggedFileIds?: string[];
+  draggedIds?: ReadonlySet<string>;
   onDragStart?: (e: React.DragEvent, fileId: string) => void;
   onDragEnd?: () => void;
 }) {
-  const formatRelativeDate = useRelativeDate();
   const t = useTranslations("file");
   const tc = useTranslations("common");
   const tcb = useTranslations("clipboard");
   const tt = useTranslations("trash");
   const clipboard = useClipboard();
-  const fileNavigationOverride = useFileNavigationOverride();
   const [menuPos, setMenuPos] = useState<{ open: boolean; x: number; y: number }>({
     open: false, x: 0, y: 0,
   });
@@ -75,6 +66,22 @@ export function FileList({
   const clearTarget = useCallback(() => {
     setTarget(null);
   }, []);
+
+  // Stable identities so the memoized rows keep their props between
+  // renders. Each row hands its own `file` back.
+  const handleContextMenu = useCallback((e: React.MouseEvent, file: FileItem) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setTarget(file);
+    setMenuPos({ open: true, x: e.clientX, y: e.clientY });
+  }, []);
+
+  const handleDragStart = useCallback(
+    (e: React.DragEvent, file: FileItem) => {
+      onDragStart?.(e, file.id);
+    },
+    [onDragStart],
+  );
 
   const menuItems: MenuItem[] = target ? [
     {
@@ -118,196 +125,24 @@ export function FileList({
   return (
     <>
       <div className="flex flex-col">
-        {files.map((file) => {
-          const hasThumbnail = file.has_thumbnail || file.file_type === "video" || file.file_type === "image";
-          const isTextPreviewable = !hasThumbnail && file.file_type === "document" && (
-            (file.mime_type?.startsWith('text/') ?? false) ||
-            file.mime_type === "application/vnd.openxmlformats-officedocument.wordprocessingml.document" ||
-            file.mime_type === "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" ||
-            file.mime_type === "application/vnd.openxmlformats-officedocument.presentationml.presentation"
-          );
-          const hasDuration = (file.file_type === "video" || file.file_type === "audio") && file.duration != null;
-          const fileSelected = isSelected?.(file.id);
-          const isCutFile = clipboard.isCut(file.id);
-
-          return (
-            <div
-              key={file.id}
-              className={`flex items-center gap-3 bg-bg-card p-2.5 sm:p-2 border-b border-bg-border last:border-b-0 transition-colors hover:bg-bg-elevated${
-                draggable ? " select-none" : selectable ? " cursor-pointer select-none" : ""
-              } ${fileSelected ? "ring-2 ring-accent ring-inset" : ""}${
-                draggedFileIds?.includes(file.id) ? " opacity-40" : ""
-              }${isCutFile ? " opacity-50" : ""}`}
-              draggable={draggable}
-              onDragStart={onDragStart ? (e) => onDragStart(e, file.id) : undefined}
-              onDragEnd={onDragEnd}
-              // onClick intentionally omitted from the drag-surface div;
-              // in selectable mode it lives on the inner click-area wrapper
-              // so the browser can distinguish drag from click (same-element
-              // conflict confuses drag-intent detection per FolderTreeRow comment).
-              onContextMenu={selectable ? undefined : (e) => {
-                e.preventDefault();
-                e.stopPropagation();
-                setTarget(file);
-                setMenuPos({ open: true, x: e.clientX, y: e.clientY });
-              }}
-            >
-              {(() => {
-                const fileTypeLabel: Record<string, string> = {
-                  video: t("typeVideo"),
-                  image: t("typeImage"),
-                  audio: t("typeAudio"),
-                  document: t("typeDocument"),
-                  archive: t("typeArchive"),
-                  other: t("typeOther"),
-                };
-                const content = (
-                  <>
-                    <div className="relative h-14 w-24 flex-shrink-0 overflow-hidden rounded-lg bg-bg-elevated sm:h-14 sm:w-24">
-                      {hasThumbnail ? (
-                        <img
-                          src={getThumbnailUrl(file.id)}
-                          alt={file.title}
-                          className="h-full w-full object-cover"
-                          loading="lazy"
-                        />
-                      ) : isTextPreviewable ? (
-                        <TextThumbnail file={file} />
-                      ) : (
-                        <div className="flex h-full w-full items-center justify-center">
-                          <FileTypeIcon fileType={file.file_type} size={22} className="text-text-muted" />
-                        </div>
-                      )}
-                      {hasDuration && (
-                        <span className="absolute bottom-0.5 right-0.5 rounded-lg bg-black/70 px-1 py-0.5 text-[10px] text-white">
-                          {formatDuration(file.duration)}
-                        </span>
-                      )}
-                    </div>
-                    <div className="min-w-0 flex-1">
-                      <div className="flex items-center gap-2">
-                        <h3 className="min-w-0 flex-1 truncate text-sm font-semibold text-text-primary">
-                          {file.title}
-                        </h3>
-                        <span className="hidden flex-shrink-0 text-xs tabular-nums text-text-muted sm:inline">
-                          {formatFileSize(file.file_size)}
-                        </span>
-                        <span className="hidden flex-shrink-0 text-xs tabular-nums text-text-muted sm:inline">
-                          {formatRelativeDate(file.updated_at)}
-                        </span>
-                      </div>
-                      <div className="mt-0.5 flex flex-wrap items-center gap-x-1.5 gap-y-0.5 text-xs text-text-muted">
-                        <span className="flex-shrink-0">{fileTypeLabel[file.file_type] ?? file.file_type}</span>
-                        {file.file_type !== "video" && file.file_type !== "audio" && file.filename.includes(".") && (
-                          <span className="flex-shrink-0 rounded-lg bg-bg-elevated px-1.5 py-0.5 text-[10px] font-medium uppercase text-text-muted">
-                            {file.filename.split(".").pop()}
-                          </span>
-                        )}
-                        <span className="flex-shrink-0 sm:hidden">{formatFileSize(file.file_size)}</span>
-                        <span className="flex-shrink-0 opacity-40 sm:hidden">·</span>
-                        <span className="flex-shrink-0 sm:hidden">{formatRelativeDate(file.updated_at)}</span>
-                        {file.tags.length > 0 && (
-                          <>
-                            <span className="hidden flex-shrink-0 opacity-40 sm:inline">·</span>
-                            <TagList tags={file.tags} maxVisible={3} />
-                          </>
-                        )}
-                      </div>
-                      {file.match_meta && (
-                        <div
-                          className="mt-1.5"
-                          onClick={(e) => e.stopPropagation()}
-                          onKeyDown={(e) => e.stopPropagation()}
-                          role="presentation"
-                        >
-                          <MatchOverlay
-                            match={file.match_meta}
-                            fileId={file.id}
-                            file={file}
-                          />
-                        </div>
-                      )}
-                    </div>
-                  </>
-                );
-                return selectable ? (
-                  // Click-area: owns onClick + checkbox so the draggable
-                  // outer div can remain a pure drag surface.
-                  <div
-                    className="flex flex-1 cursor-pointer items-center gap-3 min-w-0"
-                    onClick={(e: React.MouseEvent) => {
-                      if (e.shiftKey && onShiftSelect) {
-                        e.preventDefault();
-                        onShiftSelect(file.id);
-                      } else {
-                        onSelect?.(file.id);
-                      }
-                    }}
-                  >
-                    <div
-                      className={`flex h-5 w-5 flex-shrink-0 items-center justify-center rounded-lg border-2 transition-colors pointer-events-none ${
-                        fileSelected
-                          ? "border-accent bg-accent text-white"
-                          : "border-text-muted/50"
-                      }`}
-                      aria-hidden
-                    >
-                      {fileSelected && (
-                        <svg width="12" height="12" viewBox="0 0 12 12" fill="none">
-                          <path d="M2 6L5 9L10 3" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
-                        </svg>
-                      )}
-                    </div>
-                    <div className="flex flex-1 items-center gap-3 min-w-0">{content}</div>
-                  </div>
-                ) : fileNavigationOverride ? (
-                  // Override host (currently CollectionDetail) absorbs the
-                  // click into a local ?file= selection so the user stays
-                  // on the current page instead of being redirected to
-                  // the file's containing folder.
-                  <div
-                    role="button"
-                    tabIndex={0}
-                    className="flex flex-1 cursor-pointer items-center gap-3 min-w-0"
-                    onClick={(e: React.MouseEvent) => {
-                      if ((e.metaKey || e.ctrlKey) && onMetaSelect) {
-                        e.preventDefault();
-                        onMetaSelect(file.id);
-                        return;
-                      }
-                      e.preventDefault();
-                      fileNavigationOverride(file.id);
-                    }}
-                    onKeyDown={(e: React.KeyboardEvent) => {
-                      if (e.key === "Enter" || e.key === " ") {
-                        e.preventDefault();
-                        fileNavigationOverride(file.id);
-                      }
-                    }}
-                  >{content}</div>
-                ) : (
-                  <Link
-                    href={`/files/${file.id}${sortQuery || ""}`}
-                    className="flex flex-1 items-center gap-3 min-w-0"
-                    onClick={(e: React.MouseEvent) => {
-                      if ((e.metaKey || e.ctrlKey) && onMetaSelect) {
-                        e.preventDefault();
-                        onMetaSelect(file.id);
-                      }
-                    }}
-                  >{content}</Link>
-                );
-              })()}
-              {onFavoriteToggle && (
-                <FavoriteButton
-                  fileId={file.id}
-                  isFavorite={file.is_favorite}
-                  onToggle={onFavoriteToggle}
-                />
-              )}
-            </div>
-          );
-        })}
+        {files.map((file) => (
+          <FileListRow
+            key={file.id}
+            file={file}
+            selectable={selectable}
+            selected={selectedIds?.has(file.id)}
+            isDragging={draggedIds?.has(file.id)}
+            draggable={draggable}
+            sortQuery={sortQuery}
+            onFavoriteToggle={onFavoriteToggle}
+            onSelect={onSelect}
+            onMetaSelect={onMetaSelect}
+            onShiftSelect={onShiftSelect}
+            onDragStart={onDragStart ? handleDragStart : undefined}
+            onDragEnd={onDragEnd}
+            onContextMenu={handleContextMenu}
+          />
+        ))}
       </div>
 
       <ContextMenu

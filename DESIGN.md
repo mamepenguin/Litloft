@@ -677,6 +677,18 @@ Keep the threshold in `rem` on both sides and resolve it against the
 root font size when measuring, so scaled text still gets the layout the
 numbers were chosen for.
 
+**For a grid of equal cards, neither mechanism is needed.**
+`repeat(auto-fill, minmax(min(<card-min>, 100%), 1fr))` lets the
+container's own width choose the column count, with no query, no
+observer, and nothing to keep in sync. Prefer it over breakpoint
+column counts wherever the cells are interchangeable.
+
+**Card grid minimum: `16rem`.** Used by the file grid (`FileGrid`) and
+the folder grid above it (`FolderContent`), which must agree so the two
+rows of cards line up. Both previously used `sm:`/`lg:`/`xl:` column
+counts and so mis-counted columns inside the tree pane, which is
+280px narrower than the window.
+
 ### Sticking below the header
 
 `--app-header-h` is published by `Header` from its measured height (the

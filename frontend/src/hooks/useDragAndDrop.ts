@@ -34,6 +34,14 @@ export interface DragState {
   isDragging: boolean;
   dragType: "file" | "folder" | null;
   draggedFileIds: string[];
+  /**
+   * The same ids as a set. Card grids pass a per-card `isDragging`
+   * boolean to memoized cards; testing membership against the array
+   * would hand every card a prop whose identity changes on drag start,
+   * defeating the memo (spec
+   * `2026-08-21-file-list-deep-scroll-cost` §6.3).
+   */
+  draggedFileIdSet: ReadonlySet<string>;
   draggedFolderPath: string | null;
   dropTargetPath: string | null;
 }
@@ -61,6 +69,7 @@ const INITIAL_STATE: DragState = {
   isDragging: false,
   dragType: null,
   draggedFileIds: [],
+  draggedFileIdSet: new Set<string>(),
   draggedFolderPath: null,
   dropTargetPath: null,
 };
@@ -93,6 +102,7 @@ export function useDragAndDrop({
         isDragging: true,
         dragType: "file",
         draggedFileIds: ids,
+        draggedFileIdSet: new Set(ids),
         draggedFolderPath: null,
         dropTargetPath: null,
       });
@@ -112,6 +122,7 @@ export function useDragAndDrop({
         isDragging: true,
         dragType: "folder",
         draggedFileIds: [],
+        draggedFileIdSet: new Set<string>(),
         draggedFolderPath: folderPath,
         dropTargetPath: null,
       });

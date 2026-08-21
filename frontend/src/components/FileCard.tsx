@@ -1,6 +1,6 @@
 import { useRelativeDate } from "@/hooks/useRelativeDate";
 import Link from "next/link";
-import type { ReactNode } from "react";
+import { memo, type ReactNode } from "react";
 import type { FileItem, WatchProgress } from "@/types";
 import { formatDuration, formatFileSize } from "@/lib/format";
 import { getThumbnailUrl } from "@/lib/api";
@@ -12,7 +12,7 @@ import { FileTypeIcon } from "./FileTypeIcon";
 import { VideoPreview } from "./VideoPreview";
 import { TextThumbnail } from "./TextThumbnail";
 
-export function FileCard({
+function FileCardImpl({
   file,
   onFavoriteToggle,
   onContextMenu,
@@ -34,8 +34,8 @@ export function FileCard({
 }: {
   file: FileItem;
   onFavoriteToggle?: (file: FileItem) => void;
-  onContextMenu?: (e: React.MouseEvent) => void;
-  onTouchStart?: (e: React.TouchEvent) => void;
+  onContextMenu?: (e: React.MouseEvent, file: FileItem) => void;
+  onTouchStart?: (e: React.TouchEvent, file: FileItem) => void;
   onTouchEnd?: (e: React.TouchEvent) => void;
   onTouchMove?: (e: React.TouchEvent) => void;
   selectable?: boolean;
@@ -46,7 +46,7 @@ export function FileCard({
   sortQuery?: string;
   draggable?: boolean;
   isDragging?: boolean;
-  onDragStart?: (e: React.DragEvent) => void;
+  onDragStart?: (e: React.DragEvent, file: FileItem) => void;
   onDragEnd?: (e: React.DragEvent) => void;
   watchProgress?: WatchProgress;
   /**
@@ -134,7 +134,7 @@ export function FileCard({
     <div
       className={`relative${isDragging ? " opacity-40" : ""}${isCutFile ? " opacity-50" : ""}${draggable ? " select-none" : ""}`}
       draggable={draggable}
-      onDragStart={onDragStart}
+      onDragStart={onDragStart ? (e) => onDragStart(e, file) : undefined}
       onDragEnd={onDragEnd}
     >
       {selectable && (
@@ -162,8 +162,8 @@ export function FileCard({
         className={`group block rounded-2xl overflow-hidden shadow-card transition-colors duration-200 ease-out ${
           selectable ? "cursor-pointer select-none" : ""
         } ${selected ? "ring-2 ring-accent" : ""}`}
-        onContextMenu={selectable ? undefined : onContextMenu}
-        onTouchStart={selectable ? undefined : onTouchStart}
+        onContextMenu={selectable || !onContextMenu ? undefined : (e) => onContextMenu(e, file)}
+        onTouchStart={selectable || !onTouchStart ? undefined : (e) => onTouchStart(e, file)}
         onTouchEnd={selectable ? undefined : onTouchEnd}
         onTouchMove={selectable ? undefined : onTouchMove}
       >
@@ -244,3 +244,15 @@ export function FileCard({
     </div>
   );
 }
+
+/**
+ * Memoized. Every prop must therefore be either a per-file primitive or
+ * a referentially stable callback — a predicate like
+ * `isSelected: (id) => boolean` or a `string[]` of dragged ids defeats
+ * this entirely, because its identity changes whenever the selection or
+ * drag state changes and so every card's props change with it.
+ * Measured 2026-08-21: re-rendering 995 unmemoized cards blocked the
+ * main thread for ~142 ms (spec `2026-08-21-file-list-deep-scroll-cost`
+ * §5.4, hako `v3BsEd0wEZeBvImaMUOj2`).
+ */
+export const FileCard = memo(FileCardImpl);

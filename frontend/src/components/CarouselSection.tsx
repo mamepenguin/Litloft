@@ -94,12 +94,12 @@ export function CarouselSection({
                 <div key={file.id} className="w-48 flex-shrink-0 snap-start sm:w-56">
                   <FileCard
                     file={file}
-                    onContextMenu={(e) => {
-                      setTarget(file);
+                    onContextMenu={(e, f) => {
+                      setTarget(f);
                       handlers.onContextMenu(e);
                     }}
-                    onTouchStart={(e) => {
-                      setTarget(file);
+                    onTouchStart={(e, f) => {
+                      setTarget(f);
                       handlers.onTouchStart(e);
                     }}
                     onTouchEnd={handlers.onTouchEnd}
