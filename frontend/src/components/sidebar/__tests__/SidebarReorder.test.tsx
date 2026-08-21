@@ -217,8 +217,15 @@ describe("(b) grip presence — reorderable sections have grip, fixed zones do n
     const grip = <span data-testid="tags-grip">grip</span>;
     render(
       <SidebarTagsSection
-        driveBase="/drive/main"
-        tags={[{ name: "rock", count: 3 }]}
+        drive="main"
+        currentFolderPath={null}
+        pathname="/drive/main"
+        activeTag={null}
+        activeView={null}
+        tags={{
+          resolvedScope: { drive: "main", folderPath: null },
+          items: [{ name: "rock", count: 3 }],
+        }}
         linkClass={() => ""}
         close={vi.fn()}
         dragHandle={grip}

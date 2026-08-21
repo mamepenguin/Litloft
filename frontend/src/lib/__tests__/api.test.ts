@@ -128,6 +128,25 @@ describe("api", () => {
       expect(url).toContain("order=asc");
       expect(url).toContain("page=2");
     });
+
+    // spec 2026-08-21-folder-scoped-tag-filter §4.1: typing the param
+    // without serialising it compiles cleanly and silently drops it.
+    it("sends recursive=true when requested", async () => {
+      mockFetch.mockResolvedValueOnce(jsonResponse({ data: [], meta: { total: 0, page: 1, limit: 30 } }));
+      await getDriveFiles("main", { path: "recipes", tag: "soup", recursive: true });
+      const url = mockFetch.mock.calls[0][0] as string;
+      expect(url).toContain("recursive=true");
+    });
+
+    it("omits recursive when false or absent", async () => {
+      mockFetch.mockResolvedValueOnce(jsonResponse({ data: [], meta: { total: 0, page: 1, limit: 30 } }));
+      await getDriveFiles("main", { path: "recipes", recursive: false });
+      expect(mockFetch.mock.calls[0][0] as string).not.toContain("recursive");
+
+      mockFetch.mockResolvedValueOnce(jsonResponse({ data: [], meta: { total: 0, page: 1, limit: 30 } }));
+      await getDriveFiles("main", { path: "recipes" });
+      expect(mockFetch.mock.calls[1][0] as string).not.toContain("recursive");
+    });
   });
 
   describe("getFile", () => {

@@ -15,6 +15,7 @@ import { FolderCard } from "@/components/FolderCard";
 import { FolderContextMenu } from "@/components/FolderContextMenu";
 
 import { FilterField } from "./FilterField";
+import { WidenTagScopeLink, type WidenTagScope } from "./WidenTagScopeLink";
 
 interface FolderContentProps {
   files: FileItemWithMatch[];
@@ -47,6 +48,13 @@ interface FolderContentProps {
   selectedCount: number;
   isDropDisabled: (path: string) => boolean;
   onFolderDragStart: (e: React.DragEvent, folderPath: string) => void;
+  /**
+   * Set when a folder-scoped tag filter is active. "No matches in this
+   * folder" without a way to widen is a dead end, so the empty state
+   * carries the drive-wide door (spec
+   * 2026-08-21-folder-scoped-tag-filter §8 / §8.1).
+   */
+  widenTagScope?: WidenTagScope | null;
 }
 
 export function FolderContent({
@@ -55,6 +63,7 @@ export function FolderContent({
   pinnedPaths, sentinelRef, dragState, isDropTarget, getDropTargetProps,
   isSelected, onSelect, onMetaSelect, onShiftSelect, onTogglePin, onFavoriteToggle, onRefresh,
   onDragStart, onDragEnd, selectedCount, isDropDisabled, onFolderDragStart,
+  widenTagScope,
 }: FolderContentProps) {
   // Show folder-card drop targets for both local drags and cross-pane
   // drags originating from the tree pane.
@@ -150,6 +159,11 @@ export function FolderContent({
           <EmptyState variant={hasProfile ? "no-recent" : "no-recent-profile"} />
         ) : isRecentAdded ? (
           <EmptyState variant="no-recent-added" />
+        ) : widenTagScope ? (
+          <div className="flex flex-col items-center">
+            <EmptyState variant="no-tag-matches" />
+            <WidenTagScopeLink scope={widenTagScope} className="-mt-8 mb-16 flex items-center gap-2 rounded-2xl bg-accent px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-accent-hover" />
+          </div>
         ) : (
           <EmptyState variant="no-files" />
         )

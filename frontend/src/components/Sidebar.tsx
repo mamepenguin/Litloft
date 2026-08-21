@@ -10,6 +10,7 @@ import { useAddonSlots } from "./AddonSlotsProvider";
 import { useSidebar } from "./SidebarProvider";
 import { useCurrentDrive, useCurrentFolderPath, useSetOverrideDrive } from "./CurrentDriveProvider";
 import { useSidebarData } from "./sidebar/useSidebarData";
+import { isSidebarLinkActive } from "./sidebar/isSidebarLinkActive";
 import { useCollectionManagement } from "./sidebar/useCollectionManagement";
 import { SidebarLibrarySection } from "./sidebar/SidebarLibrarySection";
 import { SidebarCollectionsSection } from "./sidebar/SidebarCollectionsSection";
@@ -86,41 +87,15 @@ function SidebarNav() {
     onReorder: setOrder,
   });
 
-  function isActive(href: string): boolean {
-    if (href === "/") return pathname === "/";
-    if (href === "/admin") return pathname === "/admin";
-    if (!currentDrive) return false;
+  const isActive = (href: string) =>
+    isSidebarLinkActive({ href, pathname, currentDrive, activeView, activeTag });
 
-    const base = `/drive/${encodeURIComponent(currentDrive)}`;
-
-    if (href === `${base}?view=favorites`) {
-      return pathname === base && activeView === "favorites";
-    }
-    if (href === `${base}?view=recent`) {
-      return pathname === base && activeView === "recent";
-    }
-    if (href === `${base}?view=recent-added`) {
-      return pathname === base && activeView === "recent-added";
-    }
-    if (href === `${base}?view=all`) {
-      return pathname === base && activeView === "all";
-    }
-    if (href.includes("?tag=")) {
-      const hrefTag = new URL(href, "http://x").searchParams.get("tag");
-      return pathname === base && activeTag === hrefTag && !activeView;
-    }
-    if (href === base) {
-      return pathname === base && !activeView && !activeTag;
-    }
-    if (href.startsWith("/drive/")) {
-      return pathname === decodeURIComponent(href) || pathname === href;
-    }
-    return false;
-  }
-
-  const linkClass = (href: string) =>
+  // `active` overrides the href-derived answer. Tag rows need it: their
+  // href toggles between "apply this tag" and "clear it", so the href
+  // alone cannot say whether the row is the selected one.
+  const linkClass = (href: string, active?: boolean) =>
     `flex items-center gap-2.5 rounded-2xl px-3 py-2 text-sm transition-colors ${
-      isActive(href)
+      (active ?? isActive(href))
         ? "bg-bg-elevated text-text-primary font-medium"
         : "text-text-muted hover:bg-bg-elevated hover:text-text-primary"
     }`;
@@ -192,9 +167,12 @@ function SidebarNav() {
             <div key={id} className="relative" {...dnd.getRowProps(id)}>
               {dropIndicator}
               <SidebarTagsSection
-                driveBase={driveBase}
                 drive={currentDrive}
+                currentFolderPath={currentFolderPath}
+                pathname={pathname}
                 tags={tags}
+                activeTag={activeTag}
+                activeView={activeView}
                 linkClass={linkClass}
                 close={closeIfOverlay}
                 dragHandle={handle}

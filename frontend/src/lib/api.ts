@@ -49,6 +49,13 @@ export async function getDriveFiles(
   drive: string,
   params: {
     path?: string;
+    /**
+     * Widen `path` from an exact folder match to its whole subtree.
+     * Used by the folder-scoped tag filter (spec
+     * 2026-08-21-folder-scoped-tag-filter); omitted/false keeps the
+     * direct-children semantics every other caller relies on.
+     */
+    recursive?: boolean;
     search?: string;
     favorite?: boolean;
     tag?: string;
@@ -62,6 +69,7 @@ export async function getDriveFiles(
 ): Promise<PaginatedResponse> {
   const searchParams = new URLSearchParams();
   if (params.path !== undefined) searchParams.set("path", params.path);
+  if (params.recursive) searchParams.set("recursive", "true");
   if (params.search) searchParams.set("search", params.search);
   if (params.favorite !== undefined) searchParams.set("favorite", String(params.favorite));
   if (params.tag) searchParams.set("tag", params.tag);

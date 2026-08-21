@@ -210,7 +210,13 @@ export function useFolderFiles({
         return { data: res.data, total: res.meta.total };
       }
       const res = await getDriveFiles(driveName, {
-        path: isSpecialView || tagFilter ? undefined : (folderPath ?? ""),
+        // A tag filter no longer disqualifies the folder: it scopes to the
+        // folder's subtree instead (spec 2026-08-21-folder-scoped-tag-filter).
+        // `!folderPath` — not `folderPath ?? ""` — because at the drive root
+        // there is no folder to scope to, and path="" would narrow the
+        // result to root-level files rather than widen it to the drive (§3.1).
+        path: isSpecialView || !folderPath ? undefined : folderPath,
+        recursive: !!tagFilter,
         favorite: isFavorites ? true : undefined,
         tag: tagFilter || undefined,
         type: typeFilter || undefined,

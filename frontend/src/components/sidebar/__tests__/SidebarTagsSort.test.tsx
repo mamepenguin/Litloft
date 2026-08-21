@@ -15,6 +15,7 @@ import { describe, it, expect, vi, beforeEach, afterAll } from "vitest";
 import { render, screen, fireEvent } from "@testing-library/react";
 
 import { SidebarTagsSection } from "../SidebarTagsSection";
+import type { ScopedTags } from "../useSidebarData";
 import type { Tag as TagType } from "@/types";
 
 // ---- localStorage mock --------------------------------------------------------
@@ -67,11 +68,16 @@ vi.mock("next/link", () => ({
 
 // ---- helpers -----------------------------------------------------------------
 
-const tags: TagType[] = [
+const tagItems: TagType[] = [
   { name: "alpha", count: 1 },
   { name: "beta", count: 9 },
   { name: "gamma", count: 5 },
 ];
+
+/** Tags whose resolved scope matches the drive/folder they render under. */
+function inScope(drive: string, items: TagType[] = tagItems): ScopedTags {
+  return { resolvedScope: { drive, folderPath: null }, items };
+}
 
 function tagOrderInDom(): string[] {
   return screen
@@ -93,9 +99,12 @@ describe("SidebarTagsSection — sort mode toggle", () => {
   it("(1) defaults to count (descending) order", () => {
     render(
       <SidebarTagsSection
-        driveBase="/drive/main"
         drive="main"
-        tags={tags}
+        currentFolderPath={null}
+        pathname="/drive/main"
+        activeTag={null}
+        activeView={null}
+        tags={inScope("main")}
         linkClass={() => ""}
         close={vi.fn()}
       />,
@@ -107,9 +116,12 @@ describe("SidebarTagsSection — sort mode toggle", () => {
   it("(2) clicking the toggle switches to name order and persists", () => {
     render(
       <SidebarTagsSection
-        driveBase="/drive/main"
         drive="main"
-        tags={tags}
+        currentFolderPath={null}
+        pathname="/drive/main"
+        activeTag={null}
+        activeView={null}
+        tags={inScope("main")}
         linkClass={() => ""}
         close={vi.fn()}
       />,
@@ -126,9 +138,12 @@ describe("SidebarTagsSection — sort mode toggle", () => {
     mockStorage.setItem(SORT_KEY, "name");
     render(
       <SidebarTagsSection
-        driveBase="/drive/main"
         drive="main"
-        tags={tags}
+        currentFolderPath={null}
+        pathname="/drive/main"
+        activeTag={null}
+        activeView={null}
+        tags={inScope("main")}
         linkClass={() => ""}
         close={vi.fn()}
       />,
@@ -149,9 +164,12 @@ describe("SidebarTagsSection — sort mode toggle", () => {
     // Rendering for drive 'photos' must NOT pick up work's name mode.
     render(
       <SidebarTagsSection
-        driveBase="/drive/photos"
         drive="photos"
-        tags={tags}
+        currentFolderPath={null}
+        pathname="/drive/photos"
+        activeTag={null}
+        activeView={null}
+        tags={inScope("photos")}
         linkClass={() => ""}
         close={vi.fn()}
       />,
@@ -163,9 +181,12 @@ describe("SidebarTagsSection — sort mode toggle", () => {
   it("(4) the section drag handle (Phase 2) is still rendered", () => {
     render(
       <SidebarTagsSection
-        driveBase="/drive/main"
         drive="main"
-        tags={tags}
+        currentFolderPath={null}
+        pathname="/drive/main"
+        activeTag={null}
+        activeView={null}
+        tags={inScope("main")}
         linkClass={() => ""}
         close={vi.fn()}
         dragHandle={<span data-testid="section-grip">grip</span>}
@@ -177,9 +198,12 @@ describe("SidebarTagsSection — sort mode toggle", () => {
   it("(4b) tag items themselves have NO grip (no manual reorder)", () => {
     render(
       <SidebarTagsSection
-        driveBase="/drive/main"
         drive="main"
-        tags={tags}
+        currentFolderPath={null}
+        pathname="/drive/main"
+        activeTag={null}
+        activeView={null}
+        tags={inScope("main")}
         linkClass={() => ""}
         close={vi.fn()}
       />,
@@ -191,15 +215,21 @@ describe("SidebarTagsSection — sort mode toggle", () => {
     ).not.toBeInTheDocument();
   });
 
-  // hako review finding H1 (2026-08-02): the file-listing API cannot
-  // combine a folder path with a tag subtree match, so links must stay
-  // pinned to the drive root rather than the current folder.
-  it("links always target the drive root, never the current folder", () => {
+  // Was pinned to the drive root by hako review finding H1 (2026-08-02),
+  // because the file-listing API could not combine a folder path with a
+  // tag subtree match. `recursive` lifted that constraint (spec
+  // 2026-08-21-folder-scoped-tag-filter); with no folder in the resolved
+  // scope the drive root is still the right target. Folder scoping is
+  // covered in SidebarTagsScope.test.tsx.
+  it("targets the drive root when the resolved scope carries no folder", () => {
     render(
       <SidebarTagsSection
-        driveBase="/drive/main"
         drive="main"
-        tags={tags}
+        currentFolderPath={null}
+        pathname="/drive/main"
+        activeTag={null}
+        activeView={null}
+        tags={inScope("main")}
         linkClass={() => ""}
         close={vi.fn()}
       />,
@@ -217,9 +247,12 @@ describe("SidebarTagsSection — sort mode toggle", () => {
     const snapshot = [...input];
     render(
       <SidebarTagsSection
-        driveBase="/drive/main"
         drive="main"
-        tags={input}
+        currentFolderPath={null}
+        pathname="/drive/main"
+        activeTag={null}
+        activeView={null}
+        tags={inScope("main", input)}
         linkClass={() => ""}
         close={vi.fn()}
       />,
