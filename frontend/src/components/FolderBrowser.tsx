@@ -207,11 +207,24 @@ export function FolderBrowser({
   // Holds the current effect's `save` so the unmount-only effect below
   // can flush it. Reassigned on every effect run.
   const flushSnapshotRef = useRef<(() => void) | null>(null);
+  // Last scroll offset observed while this component's DOM was still
+  // mounted. `save` persists THIS, never a fresh DOM read: the scroll
+  // container belongs to TwoPaneLayout and outlives us, so by the time
+  // the unmount flush runs React has already removed our rows, the
+  // container has collapsed, and `scrollTop` reads 0. Reading it there
+  // overwrote a good offset with zero on every in-app navigation.
+  const lastScrollYRef = useRef(0);
   useEffect(() => {
     const container = scrollContainerRef?.current ?? null;
     let timer: ReturnType<typeof setTimeout> | null = null;
 
-    const getScrollY = () => (container ? container.scrollTop : window.scrollY);
+    const rememberScrollY = () => {
+      lastScrollYRef.current = container ? container.scrollTop : window.scrollY;
+    };
+    // Mount and every dependency change: the DOM is alive here, and the
+    // restore layout effect has already run, so this picks up a
+    // hydrated offset even when the user has not scrolled yet.
+    rememberScrollY();
 
     const save = () => {
       if (timer != null) {
@@ -227,7 +240,7 @@ export function FolderBrowser({
       if (files.length === 0) return;
       saveListSnapshot({
         key: snapshotKey,
-        scrollY: getScrollY(),
+        scrollY: lastScrollYRef.current,
         pagesLoaded,
         items: files,
         total,
@@ -244,8 +257,15 @@ export function FolderBrowser({
     // drop frames on the machine measured, so this is insurance for
     // slower devices rather than a fix for an observed stall.
     const scheduleSave = () => {
+      rememberScrollY();
       if (timer != null) clearTimeout(timer);
       timer = setTimeout(save, SNAPSHOT_SAVE_DEBOUNCE_MS);
+    };
+
+    // `pagehide` still has a live DOM, so refresh before writing.
+    const saveNow = () => {
+      rememberScrollY();
+      save();
     };
 
     // Skip the very first effect pass so we don't overwrite a freshly loaded
@@ -262,10 +282,10 @@ export function FolderBrowser({
     scrollTarget.addEventListener("scroll", scheduleSave, { passive: true } as AddEventListenerOptions);
     // pagehide fires at the last moment the page is alive; skip the debounce
     // so the synchronous write still lands before the document is torn down.
-    window.addEventListener("pagehide", save);
+    window.addEventListener("pagehide", saveNow);
     return () => {
       scrollTarget.removeEventListener("scroll", scheduleSave);
-      window.removeEventListener("pagehide", save);
+      window.removeEventListener("pagehide", saveNow);
       // Dropping a pending write is safe here but not on unmount: this
       // cleanup runs on every dependency change, and the next effect
       // pass immediately re-schedules. Unmount has no next pass, so it
