@@ -39,6 +39,7 @@ let driveName: string | null = null;
 let mdFile: PickedFile | null = null;
 let mdSibling: PickedFile | null = null;
 let wikiAnchorFile: FileItem | null = null;
+let cursorNavigationFile: FileItem | null = null;
 
 const DISCARD_TITLE_RE = /未保存の変更|Unsaved changes/i;
 const DISCARD_CONFIRM_RE = /破棄して移動|Discard and navigate/i;
@@ -96,10 +97,36 @@ test.beforeAll(async () => {
     `wiki-anchor-e2e-${unique}.md`,
     Array.from({ length: 80 }, (_, index) => `line ${index + 1}`).join("\n"),
   );
+  cursorNavigationFile = await createTextFile(
+    driveName,
+    `cursor-navigation-e2e-${unique}.md`,
+    [
+      "plain one",
+      "# heading two",
+      "plain three",
+      "***",
+      "plain five",
+      "**bold six**",
+      "plain seven",
+      "> quote eight",
+      "plain nine",
+      "[link ten](https://example.test)",
+      "plain eleven",
+      "- bullet twelve",
+      "plain thirteen",
+      "1. ordered fourteen",
+      "plain fifteen",
+      "- [ ] task sixteen",
+      "plain seventeen",
+    ].join("\n"),
+  );
 });
 
 test.afterAll(async () => {
   if (wikiAnchorFile) await deleteFile(wikiAnchorFile.id).catch(() => {});
+  if (cursorNavigationFile) {
+    await deleteFile(cursorNavigationFile.id).catch(() => {});
+  }
 });
 
 test.describe("Inline Knowledge editor (PR-7)", () => {
@@ -246,5 +273,72 @@ test.describe("Inline Knowledge editor (PR-7)", () => {
     });
     await page.waitForTimeout(50);
     await assertAnchored();
+  });
+
+  test("Arrow keys visit every decorated Markdown line in order", async ({ page }) => {
+    test.skip(
+      !cursorNavigationFile,
+      "Could not create a writable cursor-navigation fixture",
+    );
+    await enableTreeFor(page, cursorNavigationFile!.drive);
+    await page.goto(fileSelectionUrl(cursorNavigationFile!, { edit: "1" }));
+    await waitForApp(page);
+
+    const editor = page.getByLabel(EDITOR_RE);
+    await expect(editor).toBeVisible({ timeout: 10_000 });
+    await expect(editor.locator(".cm-live-list-marker")).toHaveText(["•", "1."]);
+    await expect(
+      editor.locator(".cm-line").filter({ hasText: "task sixteen" }),
+    ).not.toContainText("•");
+    const ruleMargins = await editor
+      .locator(".cm-live-horizontal-rule")
+      .evaluate((element) => {
+        const style = getComputedStyle(element);
+        return {
+          top: Number.parseFloat(style.marginTop),
+          bottom: Number.parseFloat(style.marginBottom),
+        };
+      });
+    expect(ruleMargins.top).toBeLessThanOrEqual(8);
+    expect(ruleMargins.bottom).toBeLessThanOrEqual(8);
+    await editor.locator(".cm-line").first().click();
+    await editor.press("Home");
+
+    const currentLineText = () =>
+      editor.evaluate(() => {
+        const focusNode = window.getSelection()?.focusNode;
+        const focusElement =
+          focusNode instanceof Element ? focusNode : focusNode?.parentElement;
+        return focusElement?.closest(".cm-line")?.textContent?.trim() ?? "";
+      });
+
+    const expectedLines = [
+      "plain one",
+      "heading two",
+      "plain three",
+      "***",
+      "plain five",
+      "bold six",
+      "plain seven",
+      "quote eight",
+      "plain nine",
+      "link ten",
+      "plain eleven",
+      "bullet twelve",
+      "plain thirteen",
+      "ordered fourteen",
+      "plain fifteen",
+      "task sixteen",
+      "plain seventeen",
+    ];
+    await expect.poll(currentLineText).toContain(expectedLines[0]);
+    for (let index = 1; index < expectedLines.length; index += 1) {
+      await editor.press("ArrowDown");
+      await expect.poll(currentLineText).toContain(expectedLines[index]);
+    }
+    for (let index = expectedLines.length - 2; index >= 0; index -= 1) {
+      await editor.press("ArrowUp");
+      await expect.poll(currentLineText).toContain(expectedLines[index]);
+    }
   });
 });
