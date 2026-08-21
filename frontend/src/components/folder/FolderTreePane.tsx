@@ -11,6 +11,7 @@ import { useDragAndDrop } from "@/hooks/useDragAndDrop";
 import { useFolderTreeQuery } from "@/hooks/useFolderTreeQuery";
 import { useInitialReveal } from "@/hooks/useInitialReveal";
 import { useIsInternalDragging } from "@/hooks/useIsInternalDragging";
+import { useSpringLoadedExpand } from "@/hooks/useSpringLoadedExpand";
 import { useTreeAutoReveal } from "@/hooks/useTreeAutoReveal";
 import { useTreeExpansion } from "@/hooks/useTreeExpansion";
 import { useTreeTextFilter } from "@/hooks/useTreeTextFilter";
@@ -237,10 +238,22 @@ export function FolderTreePane({
   // Cross-pane drops (drag a card from the right pane → drop on a tree
   // row) work via the DataTransfer fallback inside the hook, so we
   // don't need to share state with the right pane's instance.
+  // `useDragAndDrop` reports the drop target, and the spring-load hook
+  // consumes it — but the spring-load hook also needs the drag state that
+  // `useDragAndDrop` produces. The indirection breaks that cycle; the
+  // report only ever fires on a user drop, long after mount effects have
+  // filled the ref.
+  const notifyDropRef = useRef<(targetPath: string) => void>(() => {});
+  const reportDropTarget = useCallback(
+    (targetPath: string) => notifyDropRef.current(targetPath),
+    [],
+  );
+
   const dnd = useDragAndDrop({
     drive,
     selectedIds: useMemo(() => new Set<string>(), []),
     onComplete: refresh,
+    onDropTarget: reportDropTarget,
   });
   const draggedFolderPath = dnd.dragState.draggedFolderPath;
   const draggedFileIds = dnd.dragState.draggedFileIds;
@@ -305,6 +318,35 @@ export function FolderTreePane({
     }
     return buildFlatList(rootNodes, childrenByPath, expansion.expanded, loading);
   }, [filteredRows, rootNodes, childrenByPath, expansion.expanded, loading]);
+
+  // Spring-loaded drag. A folder is worth opening only if it is a real
+  // folder with children that is not already open. While the filter is
+  // active the visible list is built from `filteredRows` and ignores the
+  // expansion set entirely, so auto-expanding there would change nothing
+  // on screen while quietly mutating persisted state.
+  const isSpringLoadable = useCallback(
+    (path: string) => {
+      if (filterActive) return false;
+      if (expansion.expanded.has(path)) return false;
+      const row = flatList.find((r) => r.node.path === path);
+      return row?.node.kind === "folder" && row.node.has_children;
+    },
+    [filterActive, expansion.expanded, flatList],
+  );
+
+  const spring = useSpringLoadedExpand({
+    // Cross-pane drags never set this instance's `isDragging` (the drag
+    // started on the right pane's hook), but their dragenter still lands
+    // on tree rows, so the shared signal is the one to gate on.
+    isDragging: dnd.dragState.isDragging || isInternalDragging,
+    dropTargetPath: dnd.dragState.dropTargetPath,
+    isSpringLoadable,
+    expand: expansion.expand,
+    collapseMany: expansion.collapseMany,
+  });
+  useEffect(() => {
+    notifyDropRef.current = spring.notifyDrop;
+  }, [spring.notifyDrop]);
 
   const scrollRef = useRef<HTMLDivElement>(null);
   const virtualizer = useVirtualizer({

@@ -1,4 +1,4 @@
-import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { act, cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 const mockGetFolderTree = vi.fn();
@@ -448,5 +448,195 @@ describe("FolderTreePane filter (Phase 4)", () => {
       expect(screen.getByText("alpha.md")).toBeInTheDocument();
       expect(screen.getByText("beta.md")).toBeInTheDocument();
     });
+  });
+});
+
+/**
+ * Spring-loaded drag — spec 2026-08-21-inline-rename-and-spring-loaded-drag §6.
+ */
+describe("FolderTreePane spring-loaded expansion", () => {
+  function mockTree() {
+    mockGetFolderTree.mockImplementation(
+      (_drive: string, params: { root?: string }) => {
+        if (params.root === "" || params.root === undefined) {
+          return Promise.resolve([
+            { kind: "folder", name: "Q1", path: "Q1", file_count: 3, has_children: true },
+            { kind: "folder", name: "Q2", path: "Q2", file_count: 1, has_children: false },
+          ]);
+        }
+        if (params.root === "Q1") {
+          return Promise.resolve([
+            { kind: "file", name: "inside.md", path: "Q1/inside.md", file_id: "fa", file_type: "document", mime_type: "text/markdown" },
+          ]);
+        }
+        return Promise.resolve([]);
+      },
+    );
+  }
+
+  async function renderAndStartDrag() {
+    mockTree();
+    render(
+      <FolderTreePane
+        drive="work"
+        selectedPath={null}
+        onSelectFolder={vi.fn()}
+        onSelectFile={vi.fn()}
+      />,
+    );
+    await waitFor(() => expect(screen.getByText("Q1")).toBeInTheDocument());
+    fireEvent.dragStart(screen.getByText("Q2"), { dataTransfer: dragDataTransfer() });
+    return screen.getByText("Q1").closest("div[draggable]") as HTMLElement;
+  }
+
+  it("expands a folder the drag has dwelt on", async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true });
+    try {
+      const q1Row = await renderAndStartDrag();
+      fireEvent.dragEnter(q1Row, { dataTransfer: dragDataTransfer() });
+
+      await act(async () => {
+        vi.advanceTimersByTime(600);
+      });
+
+      await waitFor(() => expect(screen.getByText("inside.md")).toBeInTheDocument());
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("does not expand a folder the drag only passes over", async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true });
+    try {
+      const q1Row = await renderAndStartDrag();
+      fireEvent.dragEnter(q1Row, { dataTransfer: dragDataTransfer() });
+      await act(async () => {
+        vi.advanceTimersByTime(400);
+      });
+      fireEvent.dragLeave(q1Row, { dataTransfer: dragDataTransfer() });
+      await act(async () => {
+        vi.advanceTimersByTime(600);
+      });
+
+      expect(screen.queryByText("inside.md")).not.toBeInTheDocument();
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("collapses the branch again when the drag ends without dropping into it", async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true });
+    try {
+      const q1Row = await renderAndStartDrag();
+      fireEvent.dragEnter(q1Row, { dataTransfer: dragDataTransfer() });
+      await act(async () => {
+        vi.advanceTimersByTime(600);
+      });
+      await waitFor(() => expect(screen.getByText("inside.md")).toBeInTheDocument());
+
+      fireEvent.dragEnd(screen.getByText("Q2"));
+
+      await waitFor(() =>
+        expect(screen.queryByText("inside.md")).not.toBeInTheDocument(),
+      );
+      expect(localStorage.getItem(driveExpKey("work")) ?? "[]").not.toContain("Q1");
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("spring-loads for a drag that started in the other pane", async () => {
+    // A file card dragged from the right pane never sets this instance's
+    // own drag state, but its dragenter still lands on tree rows. The
+    // shared window signal is what makes the dwell count.
+    vi.useFakeTimers({ shouldAdvanceTime: true });
+    try {
+      mockTree();
+      render(
+        <FolderTreePane
+          drive="work"
+          selectedPath={null}
+          onSelectFolder={vi.fn()}
+          onSelectFile={vi.fn()}
+        />,
+      );
+      await waitFor(() => expect(screen.getByText("Q1")).toBeInTheDocument());
+
+      act(() => {
+        window.dispatchEvent(new Event("loft-internal-drag-start"));
+      });
+      const q1Row = screen.getByText("Q1").closest("div[draggable]") as HTMLElement;
+      fireEvent.dragEnter(q1Row, { dataTransfer: dragDataTransfer() });
+      await act(async () => {
+        vi.advanceTimersByTime(600);
+      });
+
+      await waitFor(() => expect(screen.getByText("inside.md")).toBeInTheDocument());
+
+      act(() => {
+        window.dispatchEvent(new Event("loft-internal-drag-end"));
+      });
+      await waitFor(() =>
+        expect(screen.queryByText("inside.md")).not.toBeInTheDocument(),
+      );
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("leaves a branch the user had already opened alone", async () => {
+    // Only branches this drag opened are tracked, so the user's own
+    // expansion state survives a drag that passes over it.
+    vi.useFakeTimers({ shouldAdvanceTime: true });
+    try {
+      localStorage.setItem(driveExpKey("work"), JSON.stringify(["Q1"]));
+      mockTree();
+      render(
+        <FolderTreePane
+          drive="work"
+          selectedPath={null}
+          onSelectFolder={vi.fn()}
+          onSelectFile={vi.fn()}
+        />,
+      );
+      await waitFor(() => expect(screen.getByText("inside.md")).toBeInTheDocument());
+
+      fireEvent.dragStart(screen.getByText("Q2"), { dataTransfer: dragDataTransfer() });
+      const q1Row = screen.getByText("Q1").closest("div[draggable]") as HTMLElement;
+      fireEvent.dragEnter(q1Row, { dataTransfer: dragDataTransfer() });
+      await act(async () => {
+        vi.advanceTimersByTime(600);
+      });
+      fireEvent.dragEnd(screen.getByText("Q2"));
+
+      await act(async () => {
+        vi.advanceTimersByTime(50);
+      });
+      expect(screen.getByText("inside.md")).toBeInTheDocument();
+      expect(localStorage.getItem(driveExpKey("work"))).toContain("Q1");
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("keeps the branch open when the drop lands inside it", async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true });
+    try {
+      const q1Row = await renderAndStartDrag();
+      fireEvent.dragEnter(q1Row, { dataTransfer: dragDataTransfer() });
+      await act(async () => {
+        vi.advanceTimersByTime(600);
+      });
+      await waitFor(() => expect(screen.getByText("inside.md")).toBeInTheDocument());
+
+      await act(async () => {
+        fireEvent.drop(q1Row, { dataTransfer: dragDataTransfer() });
+      });
+      fireEvent.dragEnd(screen.getByText("Q2"));
+
+      await waitFor(() => expect(screen.getByText("inside.md")).toBeInTheDocument());
+    } finally {
+      vi.useRealTimers();
+    }
   });
 });

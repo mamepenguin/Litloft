@@ -1,5 +1,5 @@
 import { act, renderHook } from "@testing-library/react";
-import { afterEach, beforeEach, describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { useTreeExpansion } from "../useTreeExpansion";
 
@@ -73,5 +73,87 @@ describe("useTreeExpansion", () => {
     localStorage.setItem(driveKey("work"), JSON.stringify({ Q1: true }));
     const { result } = renderHook(() => useTreeExpansion("work"));
     expect(result.current.expanded.size).toBe(0);
+  });
+});
+
+describe("useTreeExpansion.collapseMany", () => {
+  it("collapses every listed path in one update", () => {
+    const { result } = renderHook(() => useTreeExpansion("work"));
+
+    act(() => {
+      result.current.expand("a");
+      result.current.expand("a/b");
+      result.current.expand("c");
+    });
+    expect(result.current.expanded).toEqual(new Set(["a", "a/b", "c"]));
+
+    act(() => {
+      result.current.collapseMany(["a", "a/b"]);
+    });
+    expect(result.current.expanded).toEqual(new Set(["c"]));
+  });
+
+  it("leaves paths that were not expanded alone", () => {
+    const { result } = renderHook(() => useTreeExpansion("work"));
+
+    act(() => {
+      result.current.expand("keep");
+    });
+    act(() => {
+      result.current.collapseMany(["never-expanded"]);
+    });
+
+    expect(result.current.expanded).toEqual(new Set(["keep"]));
+  });
+
+  it("persists the collapse", () => {
+    const { result } = renderHook(() => useTreeExpansion("work"));
+
+    act(() => {
+      result.current.expand("a");
+      result.current.expand("b");
+    });
+    act(() => {
+      result.current.collapseMany(["a"]);
+    });
+
+    expect(JSON.parse(localStorage.getItem(driveKey("work"))!)).toEqual(["b"]);
+  });
+
+  it("writes to localStorage once regardless of how many paths collapse", () => {
+    const { result } = renderHook(() => useTreeExpansion("work"));
+    act(() => {
+      result.current.expand("a");
+      result.current.expand("b");
+      result.current.expand("c");
+    });
+
+    const setItem = vi.spyOn(localStorage, "setItem");
+    act(() => {
+      result.current.collapseMany(["a", "b", "c"]);
+    });
+    const writes = setItem.mock.calls.filter(([k]) => k === driveKey("work"));
+    setItem.mockRestore();
+
+    expect(writes).toHaveLength(1);
+  });
+
+  it("is a no-op for an empty list, without touching localStorage", () => {
+    // Every drag end calls this; a drag that spring-loaded nothing must
+    // not cost a write.
+    const { result } = renderHook(() => useTreeExpansion("work"));
+    act(() => {
+      result.current.expand("a");
+    });
+
+    const setItem = vi.spyOn(localStorage, "setItem");
+    act(() => {
+      result.current.collapseMany([]);
+    });
+    const writes = setItem.mock.calls.filter(([k]) => k === driveKey("work"));
+    setItem.mockRestore();
+
+    expect(result.current.expanded).toEqual(new Set(["a"]));
+    expect(writes).toHaveLength(0);
   });
 });

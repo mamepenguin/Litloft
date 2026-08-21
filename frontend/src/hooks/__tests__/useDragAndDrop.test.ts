@@ -263,3 +263,188 @@ describe("useDragAndDrop", () => {
     });
   });
 });
+
+describe("useDragAndDrop — onDropTarget", () => {
+  const onComplete = vi.fn();
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  it("reports the target path before the move request settles", async () => {
+    // The collapse-back in useSpringLoadedExpand runs on dragend, which
+    // the browser fires right after drop — long before an awaited move
+    // resolves. A callback that waited for the move would always arrive
+    // to find the branches already collapsed.
+    let releaseMove: (() => void) | undefined;
+    vi.mocked(moveFile).mockImplementationOnce(
+      () => new Promise<never>((resolve) => {
+        releaseMove = () => resolve(undefined as never);
+      }) as ReturnType<typeof moveFile>,
+    );
+
+    const onDropTarget = vi.fn();
+    const { result } = renderHook(() =>
+      useDragAndDrop({ drive: "main", selectedIds: new Set(), onComplete, onDropTarget }),
+    );
+
+    act(() => {
+      result.current.handleDragStart(createDragEvent(), "file-1");
+    });
+
+    const dropEvent = createDragEvent();
+    act(() => {
+      // Deliberately NOT awaited: this is the state of the world at the
+      // instant the browser would fire dragend.
+      void result.current.getDropTargetProps("dst/deep").onDrop(dropEvent);
+    });
+
+    expect(onDropTarget).toHaveBeenCalledWith("dst/deep");
+    expect(moveFile).toHaveBeenCalled();
+
+    await act(async () => {
+      releaseMove?.();
+    });
+  });
+
+  it("is not called when the drag is cancelled instead of dropped", () => {
+    const onDropTarget = vi.fn();
+    const { result } = renderHook(() =>
+      useDragAndDrop({ drive: "main", selectedIds: new Set(), onComplete, onDropTarget }),
+    );
+
+    act(() => {
+      result.current.handleDragStart(createDragEvent(), "file-1");
+    });
+    act(() => {
+      result.current.getDropTargetProps("hovered").onDragEnter(createDragEvent());
+    });
+    act(() => {
+      result.current.handleDragEnd();
+    });
+
+    expect(onDropTarget).not.toHaveBeenCalled();
+  });
+
+  it("reports the drive root as an empty path", async () => {
+    const onDropTarget = vi.fn();
+    const { result } = renderHook(() =>
+      useDragAndDrop({ drive: "main", selectedIds: new Set(), onComplete, onDropTarget }),
+    );
+
+    act(() => {
+      result.current.handleDragStart(createDragEvent(), "file-1");
+    });
+    await act(async () => {
+      await result.current.getDropTargetProps("").onDrop(createDragEvent());
+    });
+
+    expect(onDropTarget).toHaveBeenCalledWith("");
+  });
+});
+
+describe("useDragAndDrop — end-of-drag watchdog", () => {
+  const onComplete = vi.fn();
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  it("ends the drag when a pointermove arrives", () => {
+    // A drag source that unmounts mid-drag (virtualized row scrolled out
+    // of the window) dispatches `dragend` only at the detached node, so
+    // React's delegated handler never sees it. Native drag suppresses
+    // mouse events for its whole duration, so the first pointermove is
+    // proof the drag is over. Measured in Chromium, 2026-08-21.
+    const { result } = renderHook(() =>
+      useDragAndDrop({ drive: "main", selectedIds: new Set(), onComplete }),
+    );
+
+    act(() => {
+      result.current.handleDragStart(createDragEvent(), "file-1");
+    });
+    expect(result.current.dragState.isDragging).toBe(true);
+
+    act(() => {
+      window.dispatchEvent(new Event("pointermove"));
+    });
+
+    expect(result.current.dragState.isDragging).toBe(false);
+    expect(result.current.dragState.draggedFileIds).toEqual([]);
+    expect(result.current.dragState.dropTargetPath).toBeNull();
+  });
+
+  it("tells the other panes so their drop targets stand down too", () => {
+    const { result } = renderHook(() =>
+      useDragAndDrop({ drive: "main", selectedIds: new Set(), onComplete }),
+    );
+    const seen: string[] = [];
+    const listener = () => seen.push("end");
+    window.addEventListener("loft-internal-drag-end", listener);
+
+    act(() => {
+      result.current.handleDragStart(createDragEvent(), "file-1");
+    });
+    act(() => {
+      window.dispatchEvent(new Event("pointermove"));
+    });
+    window.removeEventListener("loft-internal-drag-end", listener);
+
+    expect(seen).toEqual(["end"]);
+  });
+
+  it("also recovers a folder drag", () => {
+    const { result } = renderHook(() =>
+      useDragAndDrop({ drive: "main", selectedIds: new Set(), onComplete }),
+    );
+
+    act(() => {
+      result.current.handleFolderDragStart(createDragEvent(), "docs");
+    });
+    act(() => {
+      window.dispatchEvent(new Event("pointermove"));
+    });
+
+    expect(result.current.dragState.isDragging).toBe(false);
+    expect(result.current.dragState.draggedFolderPath).toBeNull();
+  });
+
+  it("ignores pointermove while no drag is in progress", () => {
+    const { result } = renderHook(() =>
+      useDragAndDrop({ drive: "main", selectedIds: new Set(), onComplete }),
+    );
+    const seen: string[] = [];
+    const listener = () => seen.push("end");
+    window.addEventListener("loft-internal-drag-end", listener);
+
+    act(() => {
+      window.dispatchEvent(new Event("pointermove"));
+    });
+    window.removeEventListener("loft-internal-drag-end", listener);
+
+    expect(result.current.dragState.isDragging).toBe(false);
+    expect(seen).toEqual([]);
+  });
+
+  it("stops listening once the drag ends normally", () => {
+    const { result } = renderHook(() =>
+      useDragAndDrop({ drive: "main", selectedIds: new Set(), onComplete }),
+    );
+    act(() => {
+      result.current.handleDragStart(createDragEvent(), "file-1");
+    });
+    act(() => {
+      result.current.handleDragEnd();
+    });
+
+    const seen: string[] = [];
+    const listener = () => seen.push("end");
+    window.addEventListener("loft-internal-drag-end", listener);
+    act(() => {
+      window.dispatchEvent(new Event("pointermove"));
+    });
+    window.removeEventListener("loft-internal-drag-end", listener);
+
+    expect(seen).toEqual([]);
+  });
+});
