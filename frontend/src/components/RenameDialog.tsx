@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import { Pencil, X } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { useShortcuts } from "@/hooks/useShortcuts";
+import { selectStem } from "@/lib/filename";
 
 interface RenameDialogProps {
   open: boolean;
@@ -27,8 +28,8 @@ export function RenameDialog({
     if (open) {
       setName(currentName);
       setTimeout(() => {
-        inputRef.current?.focus();
-        inputRef.current?.select();
+        const el = inputRef.current;
+        if (el) selectStem(el);
       }, 0);
     }
   }, [open, currentName]);

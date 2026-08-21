@@ -4,6 +4,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { X } from "lucide-react";
 import { useTranslations } from "next-intl";
 
+import { selectStem } from "@/lib/filename";
 import { FolderPicker } from "./FolderPicker";
 
 export interface FileSaveDialogProps {
@@ -52,10 +53,7 @@ export function FileSaveDialog({
     if (!open) return;
     const el = filenameRef.current;
     if (!el) return;
-    el.focus();
-    const dotIdx = el.value.lastIndexOf(".");
-    if (dotIdx > 0) el.setSelectionRange(0, dotIdx);
-    else el.select();
+    selectStem(el);
   }, [open]);
 
   useEffect(() => {

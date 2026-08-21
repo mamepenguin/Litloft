@@ -1,3 +1,5 @@
+import { splitFilename } from "./filename";
+
 export interface RenamePreviewFile {
   id: string;
   filename: string;
@@ -24,17 +26,6 @@ export interface RenameParams {
   replacement?: string;
   action?: PrefixSuffixAction;
   value?: string;
-}
-
-function splitFilename(filename: string): { stem: string; ext: string } {
-  const lastDot = filename.lastIndexOf(".");
-  if (lastDot <= 0) {
-    return { stem: filename, ext: "" };
-  }
-  return {
-    stem: filename.substring(0, lastDot),
-    ext: filename.substring(lastDot),
-  };
 }
 
 function padNumber(n: number, width: number): string {
