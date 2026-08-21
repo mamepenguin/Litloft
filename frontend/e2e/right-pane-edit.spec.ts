@@ -340,5 +340,18 @@ test.describe("Inline Knowledge editor (PR-7)", () => {
       await editor.press("ArrowUp");
       await expect.poll(currentLineText).toContain(expectedLines[index]);
     }
+
+    // Core owns this shortcut. CM6 also binds Shift-Mod-k to deleteLine,
+    // so verify the source line survives before the core code-block action.
+    const codeBlockShortcut = await page.evaluate(() =>
+      /Mac|iPhone|iPad|iPod/i.test(navigator.platform)
+        ? "Meta+Shift+K"
+        : "Control+Shift+K",
+    );
+    await editor.press(codeBlockShortcut);
+    await expect(editor).toContainText("plain one");
+    await expect
+      .poll(() => editor.locator(".cm-live-code-block").count())
+      .toBeGreaterThanOrEqual(3);
   });
 });
