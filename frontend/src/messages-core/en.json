@@ -55,7 +55,8 @@
       "byName": "By name",
       "byCount": "By count",
       "toggle": "Toggle tag sort order"
-    }
+    },
+    "clearTag": "Clear tag filter"
   },
   "drive": {
     "title": "Drives",

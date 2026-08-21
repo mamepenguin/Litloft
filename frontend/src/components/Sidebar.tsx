@@ -90,9 +90,12 @@ function SidebarNav() {
   const isActive = (href: string) =>
     isSidebarLinkActive({ href, pathname, currentDrive, activeView, activeTag });
 
-  const linkClass = (href: string) =>
+  // `active` overrides the href-derived answer. Tag rows need it: their
+  // href toggles between "apply this tag" and "clear it", so the href
+  // alone cannot say whether the row is the selected one.
+  const linkClass = (href: string, active?: boolean) =>
     `flex items-center gap-2.5 rounded-2xl px-3 py-2 text-sm transition-colors ${
-      isActive(href)
+      (active ?? isActive(href))
         ? "bg-bg-elevated text-text-primary font-medium"
         : "text-text-muted hover:bg-bg-elevated hover:text-text-primary"
     }`;
@@ -167,6 +170,8 @@ function SidebarNav() {
                 drive={currentDrive}
                 currentFolderPath={currentFolderPath}
                 tags={tags}
+                activeTag={activeTag}
+                activeView={activeView}
                 linkClass={linkClass}
                 close={closeIfOverlay}
                 dragHandle={handle}

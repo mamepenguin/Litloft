@@ -1,12 +1,17 @@
 /**
  * Decides whether a sidebar link renders as the active row.
  *
- * Extracted from Sidebar's render body so the tag branch — the one that
- * had to learn about folder paths in spec
- * 2026-08-21-folder-scoped-tag-filter §5.2 — is directly testable. It
- * fails cosmetically and silently when wrong (nothing errors; the sidebar
- * just stops showing a selection), which is exactly the kind of thing a
- * unit test earns its keep on.
+ * Extracted from Sidebar's render body because it fails cosmetically and
+ * silently when wrong — nothing errors; the sidebar just stops showing a
+ * selection.
+ *
+ * Tag rows deliberately do **not** go through here. Their href is a
+ * toggle (apply the tag, or clear it), so it stops carrying `?tag=` at
+ * exactly the moment the row is selected — deriving the highlight from
+ * the href would drop it. SidebarTagsSection computes both from the tag
+ * name instead and passes the answer to `linkClass`. `activeTag` is
+ * still read below, so a bare drive link is not marked active while a
+ * tag filter is applied.
  */
 export function isSidebarLinkActive({
   href,
@@ -38,18 +43,6 @@ export function isSidebarLinkActive({
   }
   if (href === `${base}?view=all`) {
     return pathname === base && activeView === "all";
-  }
-  if (href.includes("?tag=")) {
-    const url = new URL(href, "http://x");
-    // A tag href now carries the folder it is scoped to, so the question
-    // is "does the current pathname match this href's path", not "are we
-    // at the drive root". Compare both encodings for the same reason the
-    // plain folder branch below does.
-    return (
-      samePath(pathname, url.pathname) &&
-      activeTag === url.searchParams.get("tag") &&
-      !activeView
-    );
   }
   if (href === base) {
     return pathname === base && !activeView && !activeTag;

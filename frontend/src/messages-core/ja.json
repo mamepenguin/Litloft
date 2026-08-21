@@ -55,7 +55,8 @@
       "byName": "名前順",
       "byCount": "件数順",
       "toggle": "タグの並び順を切り替え"
-    }
+    },
+    "clearTag": "タグ絞り込みを解除"
   },
   "drive": {
     "title": "ドライブ",

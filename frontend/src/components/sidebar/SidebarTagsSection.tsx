@@ -23,17 +23,20 @@ interface SidebarTagsSectionProps {
    * this section exists to fix.
    */
   currentFolderPath: string | null;
+  /** The tag currently applied via `?tag=`, if any. */
+  activeTag: string | null;
+  /** `?view=` wins over `?tag=` in the drive route, so a view suppresses selection. */
+  activeView: string | null;
   tags: ScopedTags | null;
-  linkClass: (href: string) => string;
+  linkClass: (href: string, active?: boolean) => string;
   close: () => void;
   dragHandle?: React.ReactNode;
 }
 
-/** Build a folder URL, encoding each segment separately. */
-function tagHref(
-  scope: { drive: string; folderPath: string | null },
-  tagName: string,
-): string {
+type Scope = { drive: string; folderPath: string | null };
+
+/** The scope's own URL — where clearing the tag filter lands. */
+function scopeHref(scope: Scope): string {
   const base = `/drive/${encodeURIComponent(scope.drive)}`;
   // The folder route decodes path segments individually
   // (app/drive/[name]/[...path]/page.tsx), so encoding the whole path in
@@ -42,12 +45,18 @@ function tagHref(
   const folder = scope.folderPath
     ? `/${scope.folderPath.split("/").map(encodeURIComponent).join("/")}`
     : "";
-  return `${base}${folder}?tag=${encodeURIComponent(tagName)}`;
+  return `${base}${folder}`;
+}
+
+function tagHref(scope: Scope, tagName: string): string {
+  return `${scopeHref(scope)}?tag=${encodeURIComponent(tagName)}`;
 }
 
 export function SidebarTagsSection({
   drive,
   currentFolderPath,
+  activeTag,
+  activeView,
   tags,
   linkClass,
   close,
@@ -102,10 +111,17 @@ export function SidebarTagsSection({
       </div>
       {!collapsed &&
         sortedTags.map((tag) => {
+          // Both the highlight and the destination come from the tag
+          // name, never from each other: a selected row links to the
+          // scope without the tag, so an href-derived highlight would
+          // vanish exactly when the row is selected.
+          const isSelected = scopeMatches && !activeView && activeTag === tag.name;
           // Built from resolvedScope — the scope the visible items
           // actually came from — so a rendered row and its link cannot
           // describe different scopes, even mid-flight.
-          const href = tagHref(resolvedScope, tag.name);
+          const href = isSelected
+            ? scopeHref(resolvedScope)
+            : tagHref(resolvedScope, tag.name);
           const body = (
             <>
               <Tag size={16} />
@@ -118,7 +134,9 @@ export function SidebarTagsSection({
               key={tag.name}
               href={href}
               onClick={close}
-              className={linkClass(href)}
+              title={isSelected ? t("clearTag") : undefined}
+              aria-current={isSelected ? "true" : undefined}
+              className={linkClass(href, isSelected)}
             >
               {body}
             </Link>
@@ -126,7 +144,7 @@ export function SidebarTagsSection({
             <div
               key={tag.name}
               aria-disabled="true"
-              className={`${linkClass(href)} pointer-events-none opacity-60`}
+              className={`${linkClass(href, false)} pointer-events-none opacity-60`}
             >
               {body}
             </div>

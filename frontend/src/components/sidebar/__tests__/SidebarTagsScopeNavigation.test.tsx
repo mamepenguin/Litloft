@@ -132,6 +132,8 @@ function TagsUnderNavigation({
     <SidebarTagsSection
       drive={drive}
       currentFolderPath={folderPath}
+      activeTag={null}
+      activeView={null}
       tags={tags}
       linkClass={() => ""}
       close={vi.fn()}

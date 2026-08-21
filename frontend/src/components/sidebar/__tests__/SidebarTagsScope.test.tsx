@@ -78,17 +78,29 @@ function hrefs(): string[] {
   return screen.getAllByRole("link").map((a) => a.getAttribute("href") ?? "");
 }
 
+function activeRowNames(): string[] {
+  return Array.from(document.querySelectorAll(".is-active")).map(
+    (el) => el.textContent?.replace(/[0-9]/g, "").trim() ?? "",
+  );
+}
+
 function renderSection(props: {
   tags: ScopedTags | null;
   drive: string | null;
   currentFolderPath: string | null;
+  activeTag?: string | null;
+  activeView?: string | null;
 }) {
   return render(
     <SidebarTagsSection
       drive={props.drive}
       currentFolderPath={props.currentFolderPath}
       tags={props.tags}
-      linkClass={() => ""}
+      activeTag={props.activeTag ?? null}
+      activeView={props.activeView ?? null}
+      // Report the active flag the section computed, so the tests can
+      // assert the highlight independently of the href.
+      linkClass={(_href, active) => (active ? "is-active" : "")}
       close={vi.fn()}
     />,
   );
@@ -200,5 +212,117 @@ describe("SidebarTagsSection — scope agreement", () => {
       currentFolderPath: "recipes",
     });
     expect(container).toBeEmptyDOMElement();
+  });
+});
+
+/**
+ * Re-clicking the selected tag clears the filter.
+ *
+ * This became worth having *because* of the folder scoping above: a tag
+ * click used to throw the user to the drive root, so "clear" was really
+ * "go back to the folder I was in". Now that the filter keeps you in
+ * place, narrowing and un-narrowing the same folder is a round trip.
+ *
+ * The trap: `linkClass(href)` derives the highlight from the href, and a
+ * cleared row's href no longer carries `?tag=`. Deriving both from the
+ * tag name instead is the same single-source discipline §5 applies to
+ * scope — the row's identity and its destination must not be computed
+ * independently.
+ */
+describe("SidebarTagsSection — clearing the selected tag", () => {
+  beforeEach(() => {
+    mockStorage.clear();
+  });
+
+  it("points the selected tag back at the folder, without the tag", () => {
+    renderSection({
+      tags: scoped("main", "recipes", ["soup"]),
+      drive: "main",
+      currentFolderPath: "recipes",
+      activeTag: "soup",
+    });
+    expect(hrefs()).toEqual(["/drive/main/recipes"]);
+  });
+
+  it("points the selected tag back at the drive root when unscoped", () => {
+    renderSection({
+      tags: scoped("main", null, ["soup"]),
+      drive: "main",
+      currentFolderPath: null,
+      activeTag: "soup",
+    });
+    expect(hrefs()).toEqual(["/drive/main"]);
+  });
+
+  it("keeps the selected row highlighted even though its href lost the tag", () => {
+    // The silent failure this guards: href-derived highlighting would
+    // drop the selection the moment the row became a clear-link.
+    renderSection({
+      tags: scoped("main", "recipes", ["soup", "stew"]),
+      drive: "main",
+      currentFolderPath: "recipes",
+      activeTag: "soup",
+    });
+    expect(activeRowNames()).toEqual(["soup"]);
+  });
+
+  it("leaves unselected tags applying their own filter", () => {
+    renderSection({
+      tags: scoped("main", "recipes", ["soup", "stew"]),
+      drive: "main",
+      currentFolderPath: "recipes",
+      activeTag: "soup",
+    });
+    expect(hrefs()).toEqual(["/drive/main/recipes", "/drive/main/recipes?tag=stew"]);
+  });
+
+  it("selects nothing when no tag filter is applied", () => {
+    renderSection({
+      tags: scoped("main", "recipes", ["soup"]),
+      drive: "main",
+      currentFolderPath: "recipes",
+      activeTag: null,
+    });
+    expect(hrefs()).toEqual(["/drive/main/recipes?tag=soup"]);
+    expect(activeRowNames()).toEqual([]);
+  });
+
+  it("selects nothing while a view is active", () => {
+    // ?view= wins over ?tag= in the drive route, so a tag row must not
+    // claim to be selected there.
+    renderSection({
+      tags: scoped("main", null, ["soup"]),
+      drive: "main",
+      currentFolderPath: null,
+      activeTag: "soup",
+      activeView: "favorites",
+    });
+    expect(hrefs()).toEqual(["/drive/main?tag=soup"]);
+    expect(activeRowNames()).toEqual([]);
+  });
+
+  it("never marks a stale-scope row as selected", () => {
+    // Mid-navigation the rows are inert; claiming a selection there would
+    // describe a scope the user has already left.
+    renderSection({
+      tags: scoped("main", "recipes", ["soup"]),
+      drive: "main",
+      currentFolderPath: "dev",
+      activeTag: "soup",
+    });
+    expect(screen.queryAllByRole("link")).toHaveLength(0);
+    expect(activeRowNames()).toEqual([]);
+  });
+
+  it("encodes the clear target per path segment", () => {
+    renderSection({
+      tags: scoped("main", "料理/煮込み 2024", ["炒め物"]),
+      drive: "main",
+      currentFolderPath: "料理/煮込み 2024",
+      activeTag: "炒め物",
+    });
+    expect(hrefs()).toEqual([
+      `/drive/main/${encodeURIComponent("料理")}/${encodeURIComponent("煮込み 2024")}`,
+    ]);
   });
 });

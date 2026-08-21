@@ -101,6 +101,8 @@ describe("SidebarTagsSection — sort mode toggle", () => {
       <SidebarTagsSection
         drive="main"
         currentFolderPath={null}
+        activeTag={null}
+        activeView={null}
         tags={inScope("main")}
         linkClass={() => ""}
         close={vi.fn()}
@@ -115,6 +117,8 @@ describe("SidebarTagsSection — sort mode toggle", () => {
       <SidebarTagsSection
         drive="main"
         currentFolderPath={null}
+        activeTag={null}
+        activeView={null}
         tags={inScope("main")}
         linkClass={() => ""}
         close={vi.fn()}
@@ -134,6 +138,8 @@ describe("SidebarTagsSection — sort mode toggle", () => {
       <SidebarTagsSection
         drive="main"
         currentFolderPath={null}
+        activeTag={null}
+        activeView={null}
         tags={inScope("main")}
         linkClass={() => ""}
         close={vi.fn()}
@@ -157,6 +163,8 @@ describe("SidebarTagsSection — sort mode toggle", () => {
       <SidebarTagsSection
         drive="photos"
         currentFolderPath={null}
+        activeTag={null}
+        activeView={null}
         tags={inScope("photos")}
         linkClass={() => ""}
         close={vi.fn()}
@@ -171,6 +179,8 @@ describe("SidebarTagsSection — sort mode toggle", () => {
       <SidebarTagsSection
         drive="main"
         currentFolderPath={null}
+        activeTag={null}
+        activeView={null}
         tags={inScope("main")}
         linkClass={() => ""}
         close={vi.fn()}
@@ -185,6 +195,8 @@ describe("SidebarTagsSection — sort mode toggle", () => {
       <SidebarTagsSection
         drive="main"
         currentFolderPath={null}
+        activeTag={null}
+        activeView={null}
         tags={inScope("main")}
         linkClass={() => ""}
         close={vi.fn()}
@@ -208,6 +220,8 @@ describe("SidebarTagsSection — sort mode toggle", () => {
       <SidebarTagsSection
         drive="main"
         currentFolderPath={null}
+        activeTag={null}
+        activeView={null}
         tags={inScope("main")}
         linkClass={() => ""}
         close={vi.fn()}
@@ -228,6 +242,8 @@ describe("SidebarTagsSection — sort mode toggle", () => {
       <SidebarTagsSection
         drive="main"
         currentFolderPath={null}
+        activeTag={null}
+        activeView={null}
         tags={inScope("main", input)}
         linkClass={() => ""}
         close={vi.fn()}

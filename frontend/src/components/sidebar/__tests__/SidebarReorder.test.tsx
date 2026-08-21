@@ -219,6 +219,8 @@ describe("(b) grip presence — reorderable sections have grip, fixed zones do n
       <SidebarTagsSection
         drive="main"
         currentFolderPath={null}
+        activeTag={null}
+        activeView={null}
         tags={{
           resolvedScope: { drive: "main", folderPath: null },
           items: [{ name: "rock", count: 3 }],

@@ -1,11 +1,14 @@
 /**
  * spec 2026-08-21-folder-scoped-tag-filter §5.2
  *
- * The tag branch used to compare `pathname === base`, pinning the active
- * highlight to the drive root. Once a tag href carries a folder path the
- * highlight silently stops working — the user filters by a tag and the
- * sidebar shows nothing selected. The comparison has to move from "are we
- * at the drive root" to "does the pathname match this href's own path".
+ * Tag rows no longer route through here: their href toggles between
+ * applying and clearing the tag, so it stops carrying `?tag=` at exactly
+ * the moment the row is selected, and an href-derived highlight would
+ * vanish there. SidebarTagsSection computes the highlight from the tag
+ * name — see SidebarTagsScope.test.tsx.
+ *
+ * What remains here is every other sidebar link, including the bare drive
+ * link, which must *not* light up while a tag filter is applied.
  */
 
 import { describe, it, expect } from "vitest";
@@ -27,11 +30,11 @@ describe("isSidebarLinkActive", () => {
   it("returns false for drive links when no drive is current", () => {
     expect(
       isSidebarLinkActive({
-        href: "/drive/main?tag=soup",
-        pathname: "/drive/main",
+        href: "/drive/main/recipes",
+        pathname: "/drive/main/recipes",
         currentDrive: null,
         activeView: null,
-        activeTag: "soup",
+        activeTag: null,
       }),
     ).toBe(false);
   });
@@ -47,95 +50,6 @@ describe("isSidebarLinkActive", () => {
         }),
       ).toBe(true);
     }
-  });
-
-  it("matches a drive-root tag filter", () => {
-    expect(
-      isSidebarLinkActive({
-        ...base,
-        href: "/drive/main?tag=soup",
-        pathname: "/drive/main",
-        activeTag: "soup",
-      }),
-    ).toBe(true);
-  });
-
-  it("matches a folder-scoped tag filter", () => {
-    expect(
-      isSidebarLinkActive({
-        ...base,
-        href: "/drive/main/recipes?tag=soup",
-        pathname: "/drive/main/recipes",
-        activeTag: "soup",
-      }),
-    ).toBe(true);
-  });
-
-  it("does not match a folder-scoped tag href from a different folder", () => {
-    expect(
-      isSidebarLinkActive({
-        ...base,
-        href: "/drive/main/recipes?tag=soup",
-        pathname: "/drive/main/dev",
-        activeTag: "soup",
-      }),
-    ).toBe(false);
-  });
-
-  it("does not match a drive-root tag href while inside a folder", () => {
-    expect(
-      isSidebarLinkActive({
-        ...base,
-        href: "/drive/main?tag=soup",
-        pathname: "/drive/main/recipes",
-        activeTag: "soup",
-      }),
-    ).toBe(false);
-  });
-
-  it("does not match a different tag on the same path", () => {
-    expect(
-      isSidebarLinkActive({
-        ...base,
-        href: "/drive/main/recipes?tag=soup",
-        pathname: "/drive/main/recipes",
-        activeTag: "stew",
-      }),
-    ).toBe(false);
-  });
-
-  it("does not match a tag href while a view is active", () => {
-    expect(
-      isSidebarLinkActive({
-        ...base,
-        href: "/drive/main/recipes?tag=soup",
-        pathname: "/drive/main/recipes",
-        activeTag: "soup",
-        activeView: "favorites",
-      }),
-    ).toBe(false);
-  });
-
-  it("matches a percent-encoded folder path against a decoded pathname", () => {
-    // usePathname() may report either form depending on the navigation;
-    // the plain folder-link branch already compares both.
-    const href = `/drive/main/${encodeURIComponent("料理")}?tag=${encodeURIComponent("炒め物")}`;
-    expect(
-      isSidebarLinkActive({
-        ...base,
-        href,
-        pathname: "/drive/main/料理",
-        activeTag: "炒め物",
-      }),
-    ).toBe(true);
-    expect(
-      isSidebarLinkActive({
-        ...base,
-        href,
-        pathname: `/drive/main/${encodeURIComponent("料理")}`,
-        activeTag: "炒め物",
-      }),
-    ).toBe(true);
   });
 
   it("matches the bare drive link only with no view and no tag", () => {
