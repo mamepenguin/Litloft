@@ -37,6 +37,13 @@ interface FileContextMenuProps {
    * the file's own page.
    */
   onOpenInNewTab?: () => void;
+  /**
+   * Opt-in inline rename. When provided, Rename hands control back to the
+   * host so it can edit the row in place instead of opening
+   * {@link RenameDialog}. Hosts with no row to edit — the file detail
+   * page, search results — omit it and keep the dialog.
+   */
+  onStartInlineRename?: () => void;
 }
 
 export function FileContextMenu({
@@ -47,6 +54,7 @@ export function FileContextMenu({
   onUpdate,
   onRemoveFromHistory,
   onOpenInNewTab,
+  onStartInlineRename,
 }: FileContextMenuProps) {
   const tc = useTranslations("common");
   const tcb = useTranslations("clipboard");
@@ -153,7 +161,11 @@ export function FileContextMenu({
     {
       icon: Pencil,
       label: tc("rename"),
-      onClick: () => setRenameOpen(true),
+      // Branch on the prop's presence: `onStartInlineRename?.() ?? ...`
+      // would open the dialog as well, since a void handler returns
+      // undefined.
+      onClick: () =>
+        onStartInlineRename ? onStartInlineRename() : setRenameOpen(true),
     },
     {
       icon: Move,

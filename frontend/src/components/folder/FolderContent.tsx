@@ -1,11 +1,13 @@
 "use client";
 
-import { useState, type RefObject } from "react";
+import { useCallback, useState, type RefObject } from "react";
 import { useTranslations } from "next-intl";
 
 import { useContextMenu } from "@/hooks/useContextMenu";
 import { useFolderFilter } from "@/hooks/useFolderFilter";
+import { useInlineRename } from "@/hooks/useInlineRename";
 import { useIsInternalDragging } from "@/hooks/useIsInternalDragging";
+import { useShortcuts } from "@/hooks/useShortcuts";
 import type { DragState } from "@/hooks/useDragAndDrop";
 import type { FileItem, FileItemWithMatch, Folder, ViewMode } from "@/types";
 import { FileGrid } from "@/components/FileGrid";
@@ -13,6 +15,8 @@ import { FileList } from "@/components/FileList";
 import { EmptyState } from "@/components/EmptyState";
 import { FolderCard } from "@/components/FolderCard";
 import { FolderContextMenu } from "@/components/FolderContextMenu";
+
+import { renameFolder } from "@/lib/api";
 
 import { FilterField } from "./FilterField";
 import { WidenTagScopeLink, type WidenTagScope } from "./WidenTagScopeLink";
@@ -69,6 +73,7 @@ export function FolderContent({
   // drags originating from the tree pane.
   const isInternalDragging = useIsInternalDragging();
   const tFilter = useTranslations("filter");
+  const tShortcuts = useTranslations("shortcuts");
   const [menuTarget, setMenuTarget] = useState<Folder | null>(null);
   const { menuState: folderMenuState, close: closeFolderMenu, handlers: folderMenuHandlers } = useContextMenu();
   const filter = useFolderFilter<FileItemWithMatch>(files, folders);
@@ -76,8 +81,49 @@ export function FolderContent({
   const filteredFolders = filter.folders;
   const isFilterEmpty =
     filter.isActive && filteredFiles.length === 0 && filteredFolders.length === 0;
+
+  // Inline rename. Folder cards show the real folder name, so editing
+  // here edits exactly the string on screen (spec §2). File cards show
+  // `file.title`, a cosmetic derivation, and keep the dialog.
+  const rename = useInlineRename(onRefresh);
+  const [focusedPath, setFocusedPath] = useState<string | null>(null);
+
+  const handleRenameCommit = useCallback(
+    (next: string) => {
+      const path = rename.editingPath;
+      if (path === null) return Promise.resolve();
+      return rename.commit(() => renameFolder(driveName, path, next));
+    },
+    [rename, driveName],
+  );
+
+  // Registered only while a card holds focus, so the tree pane's own F2
+  // context cannot be shadowed by this one sitting on the stack.
+  useShortcuts(
+    "folder-cards",
+    tShortcuts("folderCards"),
+    [
+      {
+        key: "f2",
+        label: tShortcuts("rename"),
+        handler: () => {
+          if (focusedPath !== null) rename.start(focusedPath);
+        },
+      },
+    ],
+    focusedPath !== null,
+  );
+
   return (
     <>
+      {rename.error && (
+        <div
+          role="status"
+          className="mb-3 rounded-lg bg-danger px-3 py-1.5 text-xs text-white"
+        >
+          {rename.error}
+        </div>
+      )}
       <div className="mb-6">
         <FilterField
           text={filter.text}
@@ -103,6 +149,15 @@ export function FolderContent({
                 isDragging={dragState.draggedFolderPath === folder.path}
                 onDragStart={(e) => onFolderDragStart(e, folder.path)}
                 onDragEnd={onDragEnd}
+                isEditing={rename.editingPath === folder.path}
+                onRenameCommit={handleRenameCommit}
+                onRenameCancel={rename.cancel}
+                onCardFocus={() => setFocusedPath(folder.path)}
+                onCardBlur={() =>
+                  setFocusedPath((prev) =>
+                    prev === folder.path ? null : prev,
+                  )
+                }
                 onContextMenu={(e) => {
                   setMenuTarget(folder);
                   folderMenuHandlers.onContextMenu(e);
@@ -128,6 +183,9 @@ export function FolderContent({
         onTogglePin={menuTarget ? () => onTogglePin(menuTarget.path) : undefined}
         onUpdate={onRefresh}
         onClose={closeFolderMenu}
+        onStartInlineRename={
+          menuTarget ? () => rename.start(menuTarget.path) : undefined
+        }
       />
 
       {loading ? (

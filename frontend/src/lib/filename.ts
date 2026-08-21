@@ -21,6 +21,40 @@ export function splitFilename(filename: string): { stem: string; ext: string } {
   };
 }
 
+/** Mirrors `MAX_FILENAME_LENGTH` in `backend/app/services/fileops.py`. */
+export const FILENAME_MAX_LENGTH = 255;
+
+/** Mirrors `FORBIDDEN_CHARS` in `backend/app/services/fileops.py`. */
+const FORBIDDEN_CHARS = /[<>:"/\\|?*\u0000]/;
+
+export type FilenameError = "empty" | "forbiddenChars" | "hidden" | "tooLong";
+
+/**
+ * Reject a filename the backend would reject, so inline rename can say so
+ * without a round-trip. Returns `null` when the name is acceptable.
+ *
+ * `fileops.validate_filename` stays authoritative — this is a
+ * convenience layer, and its errors are still surfaced verbatim. The two
+ * are kept honest by a shared table
+ * (`backend/tests/fixtures/filename_validation.json`) that both test
+ * suites read; see `filenameValidation.parity.test.ts`.
+ *
+ * The rules, in the backend's order: strip, NFC-normalise, then reject
+ * empty / forbidden characters / a leading dot / over 255. Length is
+ * counted in **code points**, not UTF-16 units, because Python's `len()`
+ * does — otherwise a name of 200 emoji would be rejected here and
+ * accepted there.
+ */
+export function validateFilename(raw: string): FilenameError | null {
+  const name = raw.trim().normalize("NFC");
+  if (name.length === 0) return "empty";
+  if (FORBIDDEN_CHARS.test(name)) return "forbiddenChars";
+  // Catches "." and ".." too, exactly as the backend's ordering does.
+  if (name.startsWith(".")) return "hidden";
+  if ([...name].length > FILENAME_MAX_LENGTH) return "tooLong";
+  return null;
+}
+
 /**
  * Focus `el` and select only the stem, so the first keystroke replaces
  * the name without destroying the extension. Folders and extensionless
