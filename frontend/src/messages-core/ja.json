@@ -879,7 +879,10 @@
     "nextFile": "次のファイル",
     "loftPlayer": "動画プレーヤー（LoftRef）",
     "archiveViewer": "アーカイブビューア",
-    "quickNote": "クイックノート"
+    "quickNote": "クイックノート",
+    "folderTree": "フォルダツリー",
+    "folderCards": "フォルダ",
+    "rename": "名前を変更"
   },
   "propertiesPanel": {
     "labels": {
@@ -1052,5 +1055,18 @@
     "discardMessage": "まだ保存されていないため、復元できません。",
     "discard": "破棄",
     "keepEditing": "編集を続ける"
+  },
+  "inlineRename": {
+    "label": "新しい名前",
+    "error": {
+      "empty": "名前を入力してください",
+      "forbiddenChars": "< > : \" / \\ | ? * は使えません",
+      "hidden": "ドットで始まる名前は使えません",
+      "tooLong": "名前が長すぎます（255文字まで）",
+      "conflict": "その名前は既に使われています",
+      "readOnly": "このドライブは読み取り専用です",
+      "notFound": "この項目は既に存在しません",
+      "failed": "名前を変更できませんでした"
+    }
   }
 }

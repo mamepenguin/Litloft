@@ -113,3 +113,61 @@ describe("FolderCard", () => {
     expect(screen.queryByLabelText("Delete")).not.toBeInTheDocument();
   });
 });
+
+describe("FolderCard inline rename", () => {
+  const editingProps = {
+    ...baseFolderProps,
+    folder: folderWithoutThumbnail,
+    isEditing: true,
+    onRenameCommit: vi.fn().mockResolvedValue(undefined),
+    onRenameCancel: vi.fn(),
+  };
+
+  it("replaces the name with an editable field", () => {
+    render(<FolderCard {...editingProps} />);
+    const input = screen.getByRole("textbox") as HTMLInputElement;
+    expect(input.value).toBe("Travel Photos");
+  });
+
+  it("does not wrap the field in the folder link", () => {
+    // A text field inside an <a> navigates away on click.
+    render(<FolderCard {...editingProps} />);
+    expect(screen.getByRole("textbox").closest("a")).toBeNull();
+  });
+
+  it("turns off the card's drag source while editing", () => {
+    const { container } = render(
+      <FolderCard {...editingProps} draggable onDragStart={vi.fn()} />,
+    );
+    const card = container.firstElementChild as HTMLElement;
+    expect(card.getAttribute("draggable")).not.toBe("true");
+    expect(card.className).not.toMatch(/\bselect-none\b/);
+  });
+
+  it("stays draggable when not editing", () => {
+    const { container } = render(
+      <FolderCard
+        {...editingProps}
+        isEditing={false}
+        draggable
+        onDragStart={vi.fn()}
+      />,
+    );
+    const card = container.firstElementChild as HTMLElement;
+    expect(card.getAttribute("draggable")).toBe("true");
+    expect(card.className).toMatch(/\bselect-none\b/);
+  });
+
+  it("reports focus so the host can bind F2", () => {
+    const onCardFocus = vi.fn();
+    const { container } = render(
+      <FolderCard
+        {...baseFolderProps}
+        folder={folderWithoutThumbnail}
+        onCardFocus={onCardFocus}
+      />,
+    );
+    fireEvent.focus(container.querySelector("a")!);
+    expect(onCardFocus).toHaveBeenCalled();
+  });
+});

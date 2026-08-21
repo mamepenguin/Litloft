@@ -1,7 +1,11 @@
-import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { act, cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 const mockGetFolderTree = vi.fn();
+// Spies (not plain functions) because the inline-rename tests assert on
+// their arguments; reset in beforeEach like mockGetFolderTree.
+const mockRenameFolder = vi.fn();
+const mockRenameFile = vi.fn();
 vi.mock("@/lib/api", () => ({
   getFolderTree: (...args: unknown[]) => mockGetFolderTree(...args),
   // Pin and mutation surfaces consumed by the new context menus on the
@@ -13,10 +17,10 @@ vi.mock("@/lib/api", () => ({
   removePin: () => Promise.resolve(undefined),
   createTextFile: () => Promise.resolve({}),
   createFolder: () => Promise.resolve({}),
-  renameFolder: () => Promise.resolve({}),
+  renameFolder: (...args: unknown[]) => mockRenameFolder(...args),
   moveFolder: () => Promise.resolve({}),
   deleteFolder: () => Promise.resolve(undefined),
-  renameFile: () => Promise.resolve({}),
+  renameFile: (...args: unknown[]) => mockRenameFile(...args),
   moveFile: () => Promise.resolve({}),
   deleteFile: () => Promise.resolve(undefined),
   getDownloadUrl: (id: string) => `/api/files/${id}/download`,
@@ -62,6 +66,7 @@ vi.mock("@tanstack/react-virtual", () => ({
 }));
 
 import { FolderTreePane } from "../FolderTreePane";
+import { ShortcutsProvider } from "@/components/ShortcutsProvider";
 
 const driveExpKey = (drive: string) => `tree:expanded:${drive}`;
 const driveFilterKey = (drive: string) => `tree:typeFilter:${drive}`;
@@ -81,6 +86,8 @@ function dragDataTransfer(): DataTransfer {
 
 beforeEach(() => {
   mockGetFolderTree.mockReset();
+  mockRenameFolder.mockReset().mockResolvedValue({});
+  mockRenameFile.mockReset().mockResolvedValue({});
   localStorage.removeItem(driveExpKey("work"));
   localStorage.removeItem(driveFilterKey("work"));
 });
@@ -448,5 +455,375 @@ describe("FolderTreePane filter (Phase 4)", () => {
       expect(screen.getByText("alpha.md")).toBeInTheDocument();
       expect(screen.getByText("beta.md")).toBeInTheDocument();
     });
+  });
+});
+
+/**
+ * Spring-loaded drag — spec 2026-08-21-inline-rename-and-spring-loaded-drag §6.
+ */
+describe("FolderTreePane spring-loaded expansion", () => {
+  function mockTree() {
+    mockGetFolderTree.mockImplementation(
+      (_drive: string, params: { root?: string }) => {
+        if (params.root === "" || params.root === undefined) {
+          return Promise.resolve([
+            { kind: "folder", name: "Q1", path: "Q1", file_count: 3, has_children: true },
+            { kind: "folder", name: "Q2", path: "Q2", file_count: 1, has_children: false },
+          ]);
+        }
+        if (params.root === "Q1") {
+          return Promise.resolve([
+            { kind: "file", name: "inside.md", path: "Q1/inside.md", file_id: "fa", file_type: "document", mime_type: "text/markdown" },
+          ]);
+        }
+        return Promise.resolve([]);
+      },
+    );
+  }
+
+  async function renderAndStartDrag() {
+    mockTree();
+    render(
+      <FolderTreePane
+        drive="work"
+        selectedPath={null}
+        onSelectFolder={vi.fn()}
+        onSelectFile={vi.fn()}
+      />,
+    );
+    await waitFor(() => expect(screen.getByText("Q1")).toBeInTheDocument());
+    fireEvent.dragStart(screen.getByText("Q2"), { dataTransfer: dragDataTransfer() });
+    return screen.getByText("Q1").closest("div[draggable]") as HTMLElement;
+  }
+
+  it("expands a folder the drag has dwelt on", async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true });
+    try {
+      const q1Row = await renderAndStartDrag();
+      fireEvent.dragEnter(q1Row, { dataTransfer: dragDataTransfer() });
+
+      await act(async () => {
+        vi.advanceTimersByTime(600);
+      });
+
+      await waitFor(() => expect(screen.getByText("inside.md")).toBeInTheDocument());
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("does not expand a folder the drag only passes over", async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true });
+    try {
+      const q1Row = await renderAndStartDrag();
+      fireEvent.dragEnter(q1Row, { dataTransfer: dragDataTransfer() });
+      await act(async () => {
+        vi.advanceTimersByTime(400);
+      });
+      fireEvent.dragLeave(q1Row, { dataTransfer: dragDataTransfer() });
+      await act(async () => {
+        vi.advanceTimersByTime(600);
+      });
+
+      expect(screen.queryByText("inside.md")).not.toBeInTheDocument();
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("collapses the branch again when the drag ends without dropping into it", async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true });
+    try {
+      const q1Row = await renderAndStartDrag();
+      fireEvent.dragEnter(q1Row, { dataTransfer: dragDataTransfer() });
+      await act(async () => {
+        vi.advanceTimersByTime(600);
+      });
+      await waitFor(() => expect(screen.getByText("inside.md")).toBeInTheDocument());
+
+      fireEvent.dragEnd(screen.getByText("Q2"));
+
+      await waitFor(() =>
+        expect(screen.queryByText("inside.md")).not.toBeInTheDocument(),
+      );
+      expect(localStorage.getItem(driveExpKey("work")) ?? "[]").not.toContain("Q1");
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("spring-loads for a drag that started in the other pane", async () => {
+    // A file card dragged from the right pane never sets this instance's
+    // own drag state, but its dragenter still lands on tree rows. The
+    // shared window signal is what makes the dwell count.
+    vi.useFakeTimers({ shouldAdvanceTime: true });
+    try {
+      mockTree();
+      render(
+        <FolderTreePane
+          drive="work"
+          selectedPath={null}
+          onSelectFolder={vi.fn()}
+          onSelectFile={vi.fn()}
+        />,
+      );
+      await waitFor(() => expect(screen.getByText("Q1")).toBeInTheDocument());
+
+      act(() => {
+        window.dispatchEvent(new Event("loft-internal-drag-start"));
+      });
+      const q1Row = screen.getByText("Q1").closest("div[draggable]") as HTMLElement;
+      fireEvent.dragEnter(q1Row, { dataTransfer: dragDataTransfer() });
+      await act(async () => {
+        vi.advanceTimersByTime(600);
+      });
+
+      await waitFor(() => expect(screen.getByText("inside.md")).toBeInTheDocument());
+
+      act(() => {
+        window.dispatchEvent(new Event("loft-internal-drag-end"));
+      });
+      await waitFor(() =>
+        expect(screen.queryByText("inside.md")).not.toBeInTheDocument(),
+      );
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("leaves a branch the user had already opened alone", async () => {
+    // Only branches this drag opened are tracked, so the user's own
+    // expansion state survives a drag that passes over it.
+    vi.useFakeTimers({ shouldAdvanceTime: true });
+    try {
+      localStorage.setItem(driveExpKey("work"), JSON.stringify(["Q1"]));
+      mockTree();
+      render(
+        <FolderTreePane
+          drive="work"
+          selectedPath={null}
+          onSelectFolder={vi.fn()}
+          onSelectFile={vi.fn()}
+        />,
+      );
+      await waitFor(() => expect(screen.getByText("inside.md")).toBeInTheDocument());
+
+      fireEvent.dragStart(screen.getByText("Q2"), { dataTransfer: dragDataTransfer() });
+      const q1Row = screen.getByText("Q1").closest("div[draggable]") as HTMLElement;
+      fireEvent.dragEnter(q1Row, { dataTransfer: dragDataTransfer() });
+      await act(async () => {
+        vi.advanceTimersByTime(600);
+      });
+      fireEvent.dragEnd(screen.getByText("Q2"));
+
+      await act(async () => {
+        vi.advanceTimersByTime(50);
+      });
+      expect(screen.getByText("inside.md")).toBeInTheDocument();
+      expect(localStorage.getItem(driveExpKey("work"))).toContain("Q1");
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("keeps the branch open when the drop lands inside it", async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true });
+    try {
+      const q1Row = await renderAndStartDrag();
+      fireEvent.dragEnter(q1Row, { dataTransfer: dragDataTransfer() });
+      await act(async () => {
+        vi.advanceTimersByTime(600);
+      });
+      await waitFor(() => expect(screen.getByText("inside.md")).toBeInTheDocument());
+
+      await act(async () => {
+        fireEvent.drop(q1Row, { dataTransfer: dragDataTransfer() });
+      });
+      fireEvent.dragEnd(screen.getByText("Q2"));
+
+      await waitFor(() => expect(screen.getByText("inside.md")).toBeInTheDocument());
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+});
+
+/**
+ * Inline rename — spec 2026-08-21-inline-rename-and-spring-loaded-drag §3.
+ */
+describe("FolderTreePane inline rename", () => {
+  function mockTree() {
+    mockGetFolderTree.mockImplementation(
+      (_drive: string, params: { root?: string }) => {
+        if (params.root === "" || params.root === undefined) {
+          return Promise.resolve([
+            { kind: "folder", name: "Notes", path: "Notes", file_count: 2, has_children: false },
+            { kind: "file", name: "todo.md", path: "todo.md", file_id: "f1", file_type: "document", mime_type: "text/markdown" },
+          ]);
+        }
+        return Promise.resolve([]);
+      },
+    );
+  }
+
+  async function renderPane() {
+    mockTree();
+    // AppShell provides this in the real app; F2 is registered through it.
+    render(
+      <ShortcutsProvider>
+        <FolderTreePane
+          drive="work"
+          selectedPath={null}
+          onSelectFolder={vi.fn()}
+          onSelectFile={vi.fn()}
+        />
+      </ShortcutsProvider>,
+    );
+    await waitFor(() => expect(screen.getByText("Notes")).toBeInTheDocument());
+  }
+
+  function rowFor(name: string): HTMLElement {
+    return screen.getByText(name).closest("div[draggable]") as HTMLElement;
+  }
+
+  async function openRenameFromContextMenu(name: string) {
+    fireEvent.contextMenu(rowFor(name));
+    const item = await screen.findByText(/^Rename$/i);
+    fireEvent.click(item);
+  }
+
+  it("edits the row in place instead of opening the rename dialog", async () => {
+    await renderPane();
+    await openRenameFromContextMenu("Notes");
+
+    const input = (await screen.findByRole("textbox", {
+      name: /new name/i,
+    })) as HTMLInputElement;
+    expect(input.value).toBe("Notes");
+    // The dialog heading must not be on screen.
+    expect(screen.queryByRole("heading", { name: /^Rename$/i })).not.toBeInTheDocument();
+  });
+
+  it("renames a folder through the folder API", async () => {
+    await renderPane();
+    await openRenameFromContextMenu("Notes");
+    const input = await screen.findByRole("textbox", { name: /new name/i });
+
+    fireEvent.change(input, { target: { value: "Archive" } });
+    await act(async () => {
+      fireEvent.keyDown(input, { key: "Enter" });
+    });
+
+    expect(mockRenameFolder).toHaveBeenCalledWith("work", "Notes", "Archive");
+  });
+
+  it("renames a file through the file API, by id", async () => {
+    await renderPane();
+    await openRenameFromContextMenu("todo.md");
+    const input = await screen.findByRole("textbox", { name: /new name/i });
+
+    fireEvent.change(input, { target: { value: "done.md" } });
+    await act(async () => {
+      fireEvent.keyDown(input, { key: "Enter" });
+    });
+
+    expect(mockRenameFile).toHaveBeenCalledWith("f1", "done.md");
+  });
+
+  it("starts editing the focused row on F2", async () => {
+    await renderPane();
+    const label = screen.getByText("Notes").closest("button") as HTMLElement;
+    await act(async () => {
+      label.focus();
+    });
+
+    fireEvent.keyDown(document, { key: "F2" });
+
+    expect(
+      await screen.findByRole("textbox", { name: /new name/i }),
+    ).toBeInTheDocument();
+  });
+
+  it("does nothing on F2 when no row has focus", async () => {
+    await renderPane();
+    fireEvent.keyDown(document, { key: "F2" });
+    expect(screen.queryByRole("textbox", { name: /new name/i })).not.toBeInTheDocument();
+  });
+
+  it("stays off the shortcut stack entirely until a row has focus", async () => {
+    // Not merely a no-op handler: the context must be absent, or it would
+    // sit on top of the right pane's own F2 context and swallow the key
+    // there. The cheat sheet is the observable form of the stack.
+    await renderPane();
+    fireEvent.keyDown(document, { key: "?" });
+    expect(screen.queryByText("Folder tree")).not.toBeInTheDocument();
+    fireEvent.keyDown(document, { key: "Escape" });
+
+    await act(async () => {
+      (screen.getByText("Notes").closest("button") as HTMLElement).focus();
+    });
+    fireEvent.keyDown(document, { key: "?" });
+    expect(await screen.findByText("Folder tree")).toBeInTheDocument();
+  });
+
+  it("hands focus back to the row when the edit is abandoned", async () => {
+    // F2 is a keyboard entry point; dropping focus to <body> on every
+    // rename would lose the user's place in the tree.
+    await renderPane();
+    const label = screen.getByText("Notes").closest("button") as HTMLElement;
+    // Async act: focusing schedules setFocusedPath -> useShortcuts push ->
+    // setStack -> the provider's stackRef sync. The synchronous form does
+    // not reliably drain that cascade under load, and F2 dispatched before
+    // it lands finds no context.
+    await act(async () => {
+      label.focus();
+    });
+    fireEvent.keyDown(document, { key: "F2" });
+    const input = await screen.findByRole("textbox", { name: /new name/i });
+
+    fireEvent.keyDown(input, { key: "Escape" });
+
+    await waitFor(() =>
+      expect(document.activeElement).toBe(
+        screen.getByText("Notes").closest("button"),
+      ),
+    );
+  });
+
+  it("hands focus to the renamed row once the list comes back", async () => {
+    await renderPane();
+    await openRenameFromContextMenu("Notes");
+    const input = await screen.findByRole("textbox", { name: /new name/i });
+
+    // The refresh that follows the rename returns the new name.
+    mockGetFolderTree.mockImplementation(() =>
+      Promise.resolve([
+        { kind: "folder", name: "Archive", path: "Archive", file_count: 2, has_children: false },
+      ]),
+    );
+    fireEvent.change(input, { target: { value: "Archive" } });
+    await act(async () => {
+      fireEvent.keyDown(input, { key: "Enter" });
+    });
+
+    await waitFor(() =>
+      expect(document.activeElement).toBe(
+        screen.getByText("Archive").closest("button"),
+      ),
+    );
+  });
+
+  it("leaves edit mode on Escape without calling the API", async () => {
+    await renderPane();
+    await openRenameFromContextMenu("Notes");
+    const input = await screen.findByRole("textbox", { name: /new name/i });
+
+    fireEvent.change(input, { target: { value: "Archive" } });
+    fireEvent.keyDown(input, { key: "Escape" });
+
+    await waitFor(() =>
+      expect(screen.queryByRole("textbox", { name: /new name/i })).not.toBeInTheDocument(),
+    );
+    expect(mockRenameFolder).not.toHaveBeenCalled();
   });
 });

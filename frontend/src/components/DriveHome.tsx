@@ -15,6 +15,7 @@ import { Breadcrumb } from "./Breadcrumb";
 import { CarouselSection } from "./CarouselSection";
 import { ContinueWatchingSection } from "./ContinueWatchingSection";
 import { FolderCard } from "./FolderCard";
+import { useFolderCardRename } from "./folder/useFolderCardRename";
 import { FolderContextMenu } from "./FolderContextMenu";
 import { RootFileListing } from "./RootFileListing";
 import { TreeToggle } from "./TreeToggle";
@@ -63,6 +64,11 @@ export function DriveHome({ driveName }: DriveHomeProps) {
     }
     refreshTree();
   }, [driveName, refreshTree]);
+
+  // Inline rename for the folder grid, the same wiring FolderContent
+  // uses. Both hosts share it so the same right-click cannot mean two
+  // different things depending on the screen.
+  const rename = useFolderCardRename(driveName, refreshFolders);
 
   // Auto-refresh the folder grid when cross-pane drops or WS events arrive.
   // Two complementary signals:
@@ -234,6 +240,15 @@ export function DriveHome({ driveName }: DriveHomeProps) {
             )}
           </div>
 
+          {rename.error && (
+            <div
+              role="alert"
+              className="mb-3 rounded-lg bg-danger px-3 py-1.5 text-xs text-white"
+            >
+              {rename.error}
+            </div>
+          )}
+
           {foldersLoading ? (
             <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
               {Array.from({ length: 4 }).map((_, i) => (
@@ -273,6 +288,7 @@ export function DriveHome({ driveName }: DriveHomeProps) {
                     }}
                     onTouchEnd={folderMenuHandlers.onTouchEnd}
                     onTouchMove={folderMenuHandlers.onTouchMove}
+                    {...rename.cardProps(folder)}
                   />
                 );
               })}
@@ -344,6 +360,9 @@ export function DriveHome({ driveName }: DriveHomeProps) {
         onTogglePin={menuTarget ? () => handleTogglePin(menuTarget.path) : undefined}
         onUpdate={refreshFolders}
         onClose={closeFolderMenu}
+        onStartInlineRename={
+          menuTarget ? () => rename.start(menuTarget.path) : undefined
+        }
       />
       </div>
     </div>

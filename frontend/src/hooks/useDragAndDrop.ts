@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { batchMove, moveFile, moveFolder } from "@/lib/api";
 
 /**
@@ -42,6 +42,19 @@ export interface UseDragAndDropOptions {
   drive: string;
   selectedIds: Set<string>;
   onComplete: () => void;
+  /**
+   * Fired with the target path the moment a drop lands on this hook's
+   * instance — synchronously, before the move request is issued.
+   *
+   * The timing is load-bearing, not stylistic. `handleDrop` is async, and
+   * the browser fires `dragend` right after `drop`, so anything listening
+   * for the end of the drag (spring-loaded expansion's collapse-back) has
+   * already run by the time an awaited move resolves. A drop is reported
+   * even if the move then fails: `handleDrop` swallows move errors, so
+   * leaving the tree showing where the user aimed is the better of the
+   * two available failure modes.
+   */
+  onDropTarget?: (targetPath: string) => void;
 }
 
 const INITIAL_STATE: DragState = {
@@ -52,7 +65,12 @@ const INITIAL_STATE: DragState = {
   dropTargetPath: null,
 };
 
-export function useDragAndDrop({ drive, selectedIds, onComplete }: UseDragAndDropOptions) {
+export function useDragAndDrop({
+  drive,
+  selectedIds,
+  onComplete,
+  onDropTarget,
+}: UseDragAndDropOptions) {
   const [dragState, setDragState] = useState<DragState>(INITIAL_STATE);
 
   const dragCounterRef = useRef<Map<string, number>>(new Map());
@@ -149,6 +167,7 @@ export function useDragAndDrop({ drive, selectedIds, onComplete }: UseDragAndDro
       e.preventDefault();
       e.stopPropagation();
       dragCounterRef.current.clear();
+      onDropTarget?.(targetPath);
 
       // Prefer internal refs (set by handleDragStart on this same hook
       // instance). When empty — the typical cross-pane case — fall back
@@ -200,8 +219,33 @@ export function useDragAndDrop({ drive, selectedIds, onComplete }: UseDragAndDro
         // Backend returns 403 for readonly drives, 400/404 for invalid paths
       }
     },
-    [drive, onComplete],
+    [drive, onComplete, onDropTarget],
   );
+
+  // End-of-drag watchdog.
+  //
+  // `handleDragEnd` is wired to the source element's `onDragEnd`, which
+  // is enough only while that element stays mounted. A virtualized row
+  // that scrolls out of the window during a drag unmounts, and a
+  // detached node dispatches `dragend` to itself and to nobody else — it
+  // has no ancestors left to bubble through, so React's delegated root
+  // handler never sees it and the drag state sticks at `isDragging`.
+  // Listening on `window` does not help for the same reason; measured in
+  // Chromium 2026-08-21 (spec 2026-08-21-inline-rename-and-spring-loaded-
+  // drag §6.3).
+  //
+  // What is reliable: a native drag suppresses mouse events for its
+  // entire duration, and they resume once it ends. So the first
+  // `pointermove` after a drag started is proof the drag is over. The
+  // listener is attached from an effect, which necessarily runs after the
+  // `dragstart` handler returned, so it cannot tear down a drag that is
+  // still starting.
+  useEffect(() => {
+    if (!dragState.isDragging) return;
+    const handlePointerMove = () => handleDragEnd();
+    window.addEventListener("pointermove", handlePointerMove);
+    return () => window.removeEventListener("pointermove", handlePointerMove);
+  }, [dragState.isDragging, handleDragEnd]);
 
   const getDropTargetProps = useCallback(
     (targetPath: string) => ({

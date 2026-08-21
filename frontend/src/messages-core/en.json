@@ -879,7 +879,10 @@
     "nextFile": "Next file",
     "loftPlayer": "Video Player (LoftRef)",
     "archiveViewer": "Archive Viewer",
-    "quickNote": "Quick note"
+    "quickNote": "Quick note",
+    "folderTree": "Folder tree",
+    "folderCards": "Folders",
+    "rename": "Rename"
   },
   "propertiesPanel": {
     "labels": {
@@ -1052,5 +1055,18 @@
     "discardMessage": "It has not been saved and cannot be recovered.",
     "discard": "Discard",
     "keepEditing": "Keep editing"
+  },
+  "inlineRename": {
+    "label": "New name",
+    "error": {
+      "empty": "Enter a name",
+      "forbiddenChars": "Can't use < > : \" / \\ | ? *",
+      "hidden": "Names can't start with a dot",
+      "tooLong": "Name is too long (255 characters max)",
+      "conflict": "That name is already taken",
+      "readOnly": "This drive is read-only",
+      "notFound": "That item no longer exists",
+      "failed": "Rename failed"
+    }
   }
 }

@@ -36,6 +36,13 @@ export interface TreeExpansionApi {
   toggle: (path: string) => void;
   expand: (path: string) => void;
   collapse: (path: string) => void;
+  /**
+   * Collapse several paths as one state update and one write. Spring-
+   * loaded drag calls this on every drag end to undo the branches it
+   * opened, so the common case — a drag that opened nothing — must not
+   * cost a render or a localStorage write.
+   */
+  collapseMany: (paths: Iterable<string>) => void;
 }
 
 export function useTreeExpansion(drive: string): TreeExpansionApi {
@@ -87,5 +94,16 @@ export function useTreeExpansion(drive: string): TreeExpansionApi {
     [update],
   );
 
-  return { expanded, isExpanded, toggle, expand, collapse };
+  const collapseMany = useCallback(
+    (paths: Iterable<string>) => {
+      const list = [...paths];
+      if (list.length === 0) return;
+      update((next) => {
+        for (const path of list) next.delete(path);
+      });
+    },
+    [update],
+  );
+
+  return { expanded, isExpanded, toggle, expand, collapse, collapseMany };
 }

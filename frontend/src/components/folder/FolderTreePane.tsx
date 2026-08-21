@@ -10,7 +10,10 @@ import { useCreateFile } from "@/hooks/useCreateFile";
 import { useDragAndDrop } from "@/hooks/useDragAndDrop";
 import { useFolderTreeQuery } from "@/hooks/useFolderTreeQuery";
 import { useInitialReveal } from "@/hooks/useInitialReveal";
+import { useInlineRename } from "@/hooks/useInlineRename";
 import { useIsInternalDragging } from "@/hooks/useIsInternalDragging";
+import { useShortcuts } from "@/hooks/useShortcuts";
+import { useSpringLoadedExpand } from "@/hooks/useSpringLoadedExpand";
 import { useTreeAutoReveal } from "@/hooks/useTreeAutoReveal";
 import { useTreeExpansion } from "@/hooks/useTreeExpansion";
 import { useTreeTextFilter } from "@/hooks/useTreeTextFilter";
@@ -39,6 +42,8 @@ import {
   groupByParent,
   type FilteredTreeRow,
 } from "@/lib/treeFilterTransform";
+import { renameFile, renameFolder } from "@/lib/api";
+import { siblingPath } from "@/lib/filename";
 import type { FileItem, Folder, FolderTreeNode } from "@/types";
 
 import { FilterField } from "./FilterField";
@@ -178,6 +183,7 @@ export function FolderTreePane({
 }: FolderTreePaneProps) {
   const t = useTranslations("tree");
   const tFilter = useTranslations("filter");
+  const tShortcuts = useTranslations("shortcuts");
   const expansion = useTreeExpansion(drive);
   const { filter, setFilter } = useTreeTypeFilter(drive);
   const text = useTreeTextFilter(drive, true);
@@ -237,10 +243,22 @@ export function FolderTreePane({
   // Cross-pane drops (drag a card from the right pane → drop on a tree
   // row) work via the DataTransfer fallback inside the hook, so we
   // don't need to share state with the right pane's instance.
+  // `useDragAndDrop` reports the drop target, and the spring-load hook
+  // consumes it — but the spring-load hook also needs the drag state that
+  // `useDragAndDrop` produces. The indirection breaks that cycle; the
+  // report only ever fires on a user drop, long after mount effects have
+  // filled the ref.
+  const notifyDropRef = useRef<(targetPath: string) => void>(() => {});
+  const reportDropTarget = useCallback(
+    (targetPath: string) => notifyDropRef.current(targetPath),
+    [],
+  );
+
   const dnd = useDragAndDrop({
     drive,
     selectedIds: useMemo(() => new Set<string>(), []),
     onComplete: refresh,
+    onDropTarget: reportDropTarget,
   });
   const draggedFolderPath = dnd.dragState.draggedFolderPath;
   const draggedFileIds = dnd.dragState.draggedFileIds;
@@ -305,6 +323,73 @@ export function FolderTreePane({
     }
     return buildFlatList(rootNodes, childrenByPath, expansion.expanded, loading);
   }, [filteredRows, rootNodes, childrenByPath, expansion.expanded, loading]);
+
+  // Spring-loaded drag. A folder is worth opening only if it is a real
+  // folder with children that is not already open. While the filter is
+  // active the visible list is built from `filteredRows` and ignores the
+  // expansion set entirely, so auto-expanding there would change nothing
+  // on screen while quietly mutating persisted state.
+  const isSpringLoadable = useCallback(
+    (path: string) => {
+      if (filterActive) return false;
+      if (expansion.expanded.has(path)) return false;
+      const row = flatList.find((r) => r.node.path === path);
+      return row?.node.kind === "folder" && row.node.has_children;
+    },
+    [filterActive, expansion.expanded, flatList],
+  );
+
+  const spring = useSpringLoadedExpand({
+    // Cross-pane drags never set this instance's `isDragging` (the drag
+    // started on the right pane's hook), but their dragenter still lands
+    // on tree rows, so the shared signal is the one to gate on.
+    isDragging: dnd.dragState.isDragging || isInternalDragging,
+    dropTargetPath: dnd.dragState.dropTargetPath,
+    isSpringLoadable,
+    expand: expansion.expand,
+    collapseMany: expansion.collapseMany,
+  });
+  useEffect(() => {
+    notifyDropRef.current = spring.notifyDrop;
+  }, [spring.notifyDrop]);
+
+  // Inline rename. The tree shows `node.name`, the real filename, so
+  // editing here edits exactly the string on screen (spec §2).
+  const rename = useInlineRename(refresh);
+  const [focusedPath, setFocusedPath] = useState<string | null>(null);
+
+  const handleRenameCommit = useCallback(
+    (next: string) => {
+      const row = flatList.find((r) => r.node.path === rename.editingPath);
+      if (!row) return Promise.resolve();
+      const node = row.node;
+      return rename.commit(
+        () =>
+          node.kind === "folder"
+            ? renameFolder(drive, node.path, next)
+            : renameFile(node.file_id, next),
+        siblingPath(node.path, next),
+      );
+    },
+    [flatList, rename, drive],
+  );
+
+  // Registered only while a row holds focus, so the right pane's own F2
+  // context cannot be shadowed by this one sitting on the stack.
+  useShortcuts(
+    "folder-tree",
+    tShortcuts("folderTree"),
+    [
+      {
+        key: "f2",
+        label: tShortcuts("rename"),
+        handler: () => {
+          if (focusedPath !== null) rename.start(focusedPath);
+        },
+      },
+    ],
+    focusedPath !== null,
+  );
 
   const scrollRef = useRef<HTMLDivElement>(null);
   const virtualizer = useVirtualizer({
@@ -456,6 +541,9 @@ export function FolderTreePane({
             : undefined
         }
         onCreateFolderHere={folderTarget ? refresh : undefined}
+        onStartInlineRename={
+          folderTarget ? () => rename.start(folderTarget.path) : undefined
+        }
       />
       <FileContextMenu
         open={menuOpen && fileTarget !== null}
@@ -470,7 +558,20 @@ export function FolderTreePane({
               }
             : undefined
         }
+        onStartInlineRename={
+          menuRow && fileTarget
+            ? () => rename.start(menuRow.node.path)
+            : undefined
+        }
       />
+      {rename.error && (
+        <div
+          role="alert"
+          className="absolute left-2 right-2 top-[52px] z-30 rounded-lg bg-danger px-2 py-1.5 text-xs text-white shadow-card"
+        >
+          {rename.error}
+        </div>
+      )}
       <div ref={scrollRef} className="scrollbar-hover flex-1 overflow-y-auto py-2">
         {isRootLoading ? (
           <div className="px-3 py-4 text-xs text-text-muted">{t("loading")}</div>
@@ -512,6 +613,15 @@ export function FolderTreePane({
                   <FolderTreeRow
                     row={row}
                     selected={isSelected}
+                    isEditing={rename.editingPath === row.node.path}
+                    onRenameCommit={handleRenameCommit}
+                    onRenameCancel={rename.cancel}
+                    onRowFocus={() => setFocusedPath(row.node.path)}
+                    onRowBlur={() =>
+                      setFocusedPath((prev) =>
+                        prev === row.node.path ? null : prev,
+                      )
+                    }
                     onSelect={handleSelect}
                     onToggle={handleToggle}
                     onContextMenu={handleContextMenu}

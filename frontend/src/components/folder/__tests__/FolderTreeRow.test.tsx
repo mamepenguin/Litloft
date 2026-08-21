@@ -190,3 +190,60 @@ describe("FolderTreeRow — drag and drop", () => {
     expect(onDrop).not.toHaveBeenCalled();
   });
 });
+
+describe("FolderTreeRow inline rename", () => {
+  const editing = {
+    row: folderRow,
+    selected: false,
+    onSelect: vi.fn(),
+    onToggle: vi.fn(),
+    isEditing: true,
+    onRenameCommit: vi.fn().mockResolvedValue(undefined),
+    onRenameCancel: vi.fn(),
+  };
+
+  it("replaces the row label with an editable field", () => {
+    const { getByRole, queryByRole } = render(
+      <FolderTreeRow {...editing} onDragStart={vi.fn()} onDragEnd={vi.fn()} />,
+    );
+    const input = getByRole("textbox") as HTMLInputElement;
+    expect(input.value).toBe("Notes");
+    // The label is normally a button; while editing there is nothing to
+    // click through to, and a text field inside a button is not valid.
+    expect(queryByRole("button", { name: "Notes" })).not.toBeInTheDocument();
+  });
+
+  it("turns off the row's drag source while editing", () => {
+    // A text selection inside a `draggable` ancestor is swallowed by the
+    // drag system, leaving the field impossible to select in.
+    const { container } = render(
+      <FolderTreeRow {...editing} onDragStart={vi.fn()} onDragEnd={vi.fn()} />,
+    );
+    const rowEl = container.firstElementChild as HTMLElement;
+    expect(rowEl.getAttribute("draggable")).not.toBe("true");
+    expect(rowEl.className).not.toMatch(/\bselect-none\b/);
+  });
+
+  it("keeps the row draggable when not editing", () => {
+    const { container } = render(
+      <FolderTreeRow
+        {...editing}
+        isEditing={false}
+        onDragStart={vi.fn()}
+        onDragEnd={vi.fn()}
+      />,
+    );
+    const rowEl = container.firstElementChild as HTMLElement;
+    expect(rowEl.getAttribute("draggable")).toBe("true");
+    expect(rowEl.className).toMatch(/\bselect-none\b/);
+  });
+
+  it("does not navigate when the field is clicked", () => {
+    const onSelect = vi.fn();
+    const { getByRole } = render(
+      <FolderTreeRow {...editing} onSelect={onSelect} />,
+    );
+    fireEvent.click(getByRole("textbox"));
+    expect(onSelect).not.toHaveBeenCalled();
+  });
+});

@@ -4,6 +4,8 @@ import { ChevronDown, ChevronRight, Folder } from "lucide-react";
 import { useTranslations } from "next-intl";
 
 import { FileTypeIcon } from "@/components/FileTypeIcon";
+import { InlineNameEditor } from "@/components/InlineNameEditor";
+import { RENAME_FOCUS_ATTR } from "@/hooks/useInlineRename";
 import type { FolderTreeNode } from "@/types";
 
 export interface FlatTreeRow {
@@ -60,6 +62,20 @@ interface FolderTreeRowProps {
   isDragSource?: boolean;
   /** True for the row that holds the current drop highlight. */
   isDropHover?: boolean;
+  /**
+   * Renders the name as an editable field instead of a label. The tree
+   * pane owns which row this is, so at most one is ever editing.
+   */
+  isEditing?: boolean;
+  /** Rejecting with an `Error` shows its message inside the row. */
+  onRenameCommit?: (next: string) => Promise<void>;
+  onRenameCancel?: (error?: string) => void;
+  /**
+   * Focus tracking for the pane's F2 binding. Attached to the row
+   * container, so focus reaching the inner label button counts.
+   */
+  onRowFocus?: () => void;
+  onRowBlur?: () => void;
 }
 
 const INDENT_PX = 12;
@@ -75,6 +91,11 @@ export function FolderTreeRow({
   dropTargetProps,
   isDragSource,
   isDropHover,
+  isEditing,
+  onRenameCommit,
+  onRenameCancel,
+  onRowFocus,
+  onRowBlur,
 }: FolderTreeRowProps) {
   const t = useTranslations("tree");
   const { node, depth, isExpanded, isLoading } = row;
@@ -95,7 +116,10 @@ export function FolderTreeRow({
     : "";
   const dragSourceClass = isDragSource ? "opacity-40" : "";
   const ancestorClass = row.isAncestor && !isDropHover ? "opacity-60" : "";
-  const draggable = !!onDragStart;
+  // While the name is being edited the row stops being a drag source: a
+  // text selection inside a `draggable` ancestor is swallowed by the drag
+  // system, so the field would be impossible to select in.
+  const draggable = !!onDragStart && !isEditing;
   // `select-none` is required for the native HTML5 drag to actually
   // start: without it the browser interprets a mousedown-and-move on
   // the inner <span> text as a text-selection gesture instead of a
@@ -108,6 +132,19 @@ export function FolderTreeRow({
       ? "cursor-grabbing select-none"
       : "cursor-grab select-none"
     : "";
+
+  const icon = isFolder ? (
+    <Folder
+      size={14}
+      className={`flex-shrink-0 ${selected ? "text-accent" : "text-accent/70"}`}
+    />
+  ) : (
+    <FileTypeIcon
+      fileType={node.file_type}
+      size={14}
+      className={selected ? "text-accent" : "text-text-muted"}
+    />
+  );
 
   const handleChevronClick = (e: React.MouseEvent) => {
     e.stopPropagation();
@@ -125,13 +162,15 @@ export function FolderTreeRow({
     <div
       draggable={draggable}
       onDragStart={
-        onDragStart
+        onDragStart && !isEditing
           ? (e) => {
               onDragStart(row, e);
             }
           : undefined
       }
-      onDragEnd={onDragEnd}
+      onDragEnd={isEditing ? undefined : onDragEnd}
+      onFocus={onRowFocus}
+      onBlur={onRowBlur}
       onDragEnter={dropTargetProps?.onDragEnter}
       onDragLeave={dropTargetProps?.onDragLeave}
       onDragOver={dropTargetProps?.onDragOver}
@@ -167,30 +206,35 @@ export function FolderTreeRow({
       ) : (
         <span aria-hidden className="flex h-7 w-6 flex-shrink-0" />
       )}
-      {/* Body button: the actual clickable selection target. Carrying
-          onClick here (not on the draggable parent) lets the native
-          drag system claim mousedown gestures over the row. */}
-      <button
-        type="button"
-        onClick={() => onSelect(row)}
-        className="flex flex-1 items-center gap-1 overflow-hidden rounded-lg text-left"
-      >
-        <span className="flex h-4 w-4 flex-shrink-0 items-center justify-center">
-          {isFolder ? (
-            <Folder
-              size={14}
-              className={`flex-shrink-0 ${selected ? "text-accent" : "text-accent/70"}`}
-            />
-          ) : (
-            <FileTypeIcon
-              fileType={node.file_type}
-              size={14}
-              className={selected ? "text-accent" : "text-text-muted"}
-            />
-          )}
+      {/* Body: the clickable selection target. Carrying onClick here (not
+          on the draggable parent) lets the native drag system claim
+          mousedown gestures over the row. While editing it degrades to a
+          plain container — a text field inside a <button> would both be
+          invalid and navigate on every click. */}
+      {isEditing && onRenameCommit && onRenameCancel ? (
+        <span className="flex flex-1 items-center gap-1 overflow-hidden py-0.5">
+          <span className="flex h-4 w-4 flex-shrink-0 items-center justify-center">
+            {icon}
+          </span>
+          <InlineNameEditor
+            initialName={node.name}
+            onCommit={onRenameCommit}
+            onCancel={onRenameCancel}
+          />
         </span>
-        <span className="flex-1 truncate py-1.5">{node.name}</span>
-      </button>
+      ) : (
+        <button
+          type="button"
+          onClick={() => onSelect(row)}
+          {...{ [RENAME_FOCUS_ATTR]: node.path }}
+          className="flex flex-1 items-center gap-1 overflow-hidden rounded-lg text-left"
+        >
+          <span className="flex h-4 w-4 flex-shrink-0 items-center justify-center">
+            {icon}
+          </span>
+          <span className="flex-1 truncate py-1.5">{node.name}</span>
+        </button>
+      )}
       {isFolder && (
         <span className="ml-1 flex-shrink-0 text-xs text-text-muted">
           {isLoading ? t("loading") : node.file_count > 0 ? node.file_count : ""}

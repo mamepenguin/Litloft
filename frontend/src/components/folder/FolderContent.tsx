@@ -15,6 +15,7 @@ import { FolderCard } from "@/components/FolderCard";
 import { FolderContextMenu } from "@/components/FolderContextMenu";
 
 import { FilterField } from "./FilterField";
+import { useFolderCardRename } from "./useFolderCardRename";
 import { WidenTagScopeLink, type WidenTagScope } from "./WidenTagScopeLink";
 
 interface FolderContentProps {
@@ -76,8 +77,22 @@ export function FolderContent({
   const filteredFolders = filter.folders;
   const isFilterEmpty =
     filter.isActive && filteredFiles.length === 0 && filteredFolders.length === 0;
+
+  // Inline rename. Folder cards show the real folder name, so editing
+  // here edits exactly the string on screen (spec §2). File cards show
+  // `file.title`, a cosmetic derivation, and keep the dialog.
+  const rename = useFolderCardRename(driveName, onRefresh);
+
   return (
     <>
+      {rename.error && (
+        <div
+          role="alert"
+          className="mb-3 rounded-lg bg-danger px-3 py-1.5 text-xs text-white"
+        >
+          {rename.error}
+        </div>
+      )}
       <div className="mb-6">
         <FilterField
           text={filter.text}
@@ -103,6 +118,7 @@ export function FolderContent({
                 isDragging={dragState.draggedFolderPath === folder.path}
                 onDragStart={(e) => onFolderDragStart(e, folder.path)}
                 onDragEnd={onDragEnd}
+                {...rename.cardProps(folder)}
                 onContextMenu={(e) => {
                   setMenuTarget(folder);
                   folderMenuHandlers.onContextMenu(e);
@@ -128,6 +144,9 @@ export function FolderContent({
         onTogglePin={menuTarget ? () => onTogglePin(menuTarget.path) : undefined}
         onUpdate={onRefresh}
         onClose={closeFolderMenu}
+        onStartInlineRename={
+          menuTarget ? () => rename.start(menuTarget.path) : undefined
+        }
       />
 
       {loading ? (
