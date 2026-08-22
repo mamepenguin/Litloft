@@ -65,7 +65,6 @@ from app.schemas import (
 )
 from app.services import file_versions as file_version_service
 from app.services import fileops
-from app.services import ws as ws_service
 from app.services.filetype import classify
 from app.services.frontmatter import (
     compose as compose_frontmatter,
@@ -467,13 +466,6 @@ async def batch_move(
         if moved_ids:
             await event_hooks.emit(
                 "files.moved", {"file_ids": moved_ids}, drives=sorted(touched_drives)
-            )
-            # Also broadcast via WS so the frontend's useWebSocketRefresh
-            # triggers a list refresh (move_file_endpoint does both; batch_move
-            # was previously missing the WS broadcast, leaving the UI stale
-            # after multi-file moves).
-            await ws_service.manager.broadcast(
-                "files.moved", {"file_ids": moved_ids}
             )
     return {"moved": moved, "errors": errors}
 
@@ -1254,13 +1246,6 @@ async def rename_file_endpoint(
     _get_file_or_404(db, file_id, unlocked_groups)
     file = fileops.rename_file(db, file_id, body.new_filename)
     await event_hooks.emit("files.moved", {"file_ids": [file.id]})
-    # Broadcast on the browser WebSocket alongside the addon webhook so
-    # FolderTreePane / useFolderFiles subscribers refresh without a
-    # manual reload. event_hooks dispatches to addon URLs only; the WS
-    # layer is independent and reaches the browser directly.
-    await ws_service.manager.broadcast(
-        "files.moved", {"file_ids": [file.id]}, drive=file.drive
-    )
     return _to_response(file)
 
 
@@ -1279,9 +1264,6 @@ async def move_file_endpoint(
         "files.moved",
         {"file_ids": [file.id]},
         drives=sorted({source_drive, file.drive}),
-    )
-    await ws_service.manager.broadcast(
-        "files.moved", {"file_ids": [file.id]}, drive=file.drive
     )
     return _to_response(file)
 

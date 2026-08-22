@@ -1,5 +1,9 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { render, screen, waitFor } from "@testing-library/react";
+import { act, render, screen, waitFor } from "@testing-library/react";
+import { useState } from "react";
+
+import { WebSocketContext } from "@/components/WebSocketProvider";
+import type { WebSocketEvent } from "@/types";
 
 // Mock profile
 const mockProfile = { nickname: null as string | null, setNickname: vi.fn(), clearNickname: vi.fn() };
@@ -166,6 +170,67 @@ describe("DriveHome", () => {
     await waitFor(() => {
       const items = screen.getAllByText("Video v1");
       expect(items.length).toBeGreaterThanOrEqual(1);
+    });
+  });
+
+  describe("live updates", () => {
+    // A structural change refreshes the whole page, not just the folder
+    // grid: the Recently added / Favourites / Popular rows are file
+    // listings too, and were left showing files deleted elsewhere.
+    function Live({ initial }: { initial: WebSocketEvent | null }) {
+      const [lastEvent, setLastEvent] = useState<WebSocketEvent | null>(initial);
+      (globalThis as Record<string, unknown>).__emit = setLastEvent;
+      return (
+        <WebSocketContext.Provider value={{ lastEvent, connected: true }}>
+          <DriveHome driveName="media" />
+        </WebSocketContext.Provider>
+      );
+    }
+
+    function emit(event: string, drive: string) {
+      act(() => {
+        (
+          globalThis as unknown as {
+            __emit: (e: WebSocketEvent) => void;
+          }
+        ).__emit({ event, data: { drive } });
+      });
+    }
+
+    it("refetches the file sections on a structural change", async () => {
+      render(<Live initial={null} />);
+      await waitFor(() => expect(mockGetDriveFiles).toHaveBeenCalled());
+      const before = mockGetDriveFiles.mock.calls.length;
+
+      emit("drive.structure_changed", "media");
+
+      await waitFor(() =>
+        expect(mockGetDriveFiles.mock.calls.length).toBeGreaterThan(before),
+      );
+    });
+
+    it("refetches on a content update, so favourites stay current", async () => {
+      render(<Live initial={null} />);
+      await waitFor(() => expect(mockGetDriveFiles).toHaveBeenCalled());
+      const before = mockGetDriveFiles.mock.calls.length;
+
+      // Favouriting is a content update, not a structural one.
+      emit("drive.file_updated", "media");
+
+      await waitFor(() =>
+        expect(mockGetDriveFiles.mock.calls.length).toBeGreaterThan(before),
+      );
+    });
+
+    it("ignores a change in another drive", async () => {
+      render(<Live initial={null} />);
+      await waitFor(() => expect(mockGetDriveFiles).toHaveBeenCalled());
+      const before = mockGetDriveFiles.mock.calls.length;
+
+      emit("drive.structure_changed", "other-drive");
+
+      await new Promise((r) => setTimeout(r, 20));
+      expect(mockGetDriveFiles.mock.calls.length).toBe(before);
     });
   });
 });

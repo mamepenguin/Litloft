@@ -76,11 +76,6 @@ export function DriveHome({ driveName }: DriveHomeProps) {
   //   2. loft-move-complete window event — immediate signal after any in-page
   //      drag-and-drop completes, including cross-pane drops that don't trigger
   //      this component's own onComplete callback.
-  useWebSocketRefresh(
-    ["folders.moved", "folders.created", "folders.deleted", "files.moved", "scan.complete"],
-    refreshFolders,
-  );
-
   useEffect(() => {
     const handler = () => refreshFolders();
     window.addEventListener("loft-move-complete", handler);
@@ -203,6 +198,25 @@ export function DriveHome({ driveName }: DriveHomeProps) {
     const results = await fetchFileSections();
     applyFileSections(results);
   }, [fetchFileSections, applyFileSections]);
+
+  // Both halves of the page follow the drive: the folder grid *and* the
+  // Recently added / Favourites / Popular carousels. Refreshing only the
+  // grid left the carousels showing files that had been deleted or moved
+  // elsewhere.
+  //
+  // `drive.file_updated` matters here because favouriting is a content
+  // update, not a structural one, so the Favourites row would otherwise
+  // never notice a change made on another device.
+  const refreshPage = useCallback(() => {
+    void refreshFolders();
+    void refetchAllSections();
+  }, [refreshFolders, refetchAllSections]);
+
+  useWebSocketRefresh(
+    ["drive.structure_changed", "drive.file_updated"],
+    refreshPage,
+    driveName,
+  );
 
   const handleRemoveWatchItem = useCallback((fileId: string) => {
     setContinueWatching((prev) => prev.filter((item) => item.id !== fileId));

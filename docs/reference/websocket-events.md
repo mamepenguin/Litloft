@@ -21,9 +21,11 @@ Litloft dispatches notifications through **two independent systems**. Confusing 
 | Mechanism | `ws_manager.broadcast` | `event-hooks.json` → `httpx`/`urllib` POST |
 | Configured by | Nothing — always on | `event-hooks.json` (no file → no-op) |
 
-The two are **not** automatically bridged. An event-hook webhook does not reach the browser unless an addon explicitly relays it back via `POST /api/internal/addon-events`. `files.moved` is the one event the core emits on both systems from the same handler; everything else belongs to exactly one system.
+The two carry **different granularity on purpose**. Addon listeners receive the fine-grained lifecycle event with the ids it concerns (`files.created`, `folders.moved`, and so on). Browsers receive one of two coarse events saying only which drive changed, because every browser subscriber refetches its listing rather than patching it from the payload — the name is the whole signal, and leaving the ids out means a protected drive's item count and timing are not broadcast either.
 
-Names are not a reliable way to tell the two apart. A colon means browser-only, but the reverse does not hold: the core's browser-only events split between colon names (`scan:progress`, `scan:complete`, `upload:complete`) and `files.moved`, and most addon events reaching the browser use dots as well.
+An event-hook webhook still does not reach the browser as itself; an addon that wants its own event there relays it via `POST /api/internal/addon-events`.
+
+Names are not a reliable way to tell the two apart. A colon means browser-only, but the reverse does not hold: most addon events reaching the browser use dots as well.
 
 ## Browser WebSocket events
 
@@ -44,10 +46,18 @@ These are the events the core broadcasts directly to connected browsers. This li
 - Payload: `{ "drive": "...", "file_id": "...", "filename": "..." }`.
 - Drive-scoped (access-filtered).
 
-`files.moved`
-- When: a rename or a single move completed (`PUT /api/files/{id}/rename`, `PUT /api/files/{id}/move`), or a batch move completed. **This is the one event emitted on both systems** — the route handler broadcasts it on the WebSocket *and* fires the `files.moved` webhook, so the browser file list refreshes without an addon relay.
-- Payload: `{ "file_ids": [...] }`. Rename and single move pass `drive` to the broadcaster for access-group scoping; batch move does not, so a batch-move broadcast reaches every connection.
-- Note: the scanner's out-of-band move detection, and folder rename / folder move, fire the `files.moved` **webhook only** — they do not WebSocket-broadcast.
+`drive.structure_changed`
+- When: the set of files or folders in a drive changed — a create, soft delete, move, rename, restore, recovery, a file going missing, a purge, a folder created / moved / deleted, or a scan finishing. Emitted from the same place as the corresponding webhook, so every producer is covered: routes, the scanner, uploads, and the startup auto-purge.
+- Payload: `{ "drive": "..." }`. No ids.
+- Drive-scoped (access-filtered). One broadcast per affected drive, so a batch spanning drives produces one event each rather than a single unscoped one.
+
+`drive.file_updated`
+- When: a file's contents were written.
+- Payload: `{ "drive": "..." }`.
+- Drive-scoped (access-filtered).
+- Separate from `drive.structure_changed` so a subscriber can ignore content writes. The folder tree does exactly that: the Markdown editor autosaves on a 2-second debounce, and refetching the tree on each one would make it flicker while the user types.
+
+Both are best effort. When the drive behind an event cannot be determined, nothing is broadcast rather than something unscoped — the drive filter *is* the recipient set here, so failing open would mean sending to every connection.
 
 Nothing in the core broadcasts for chapters or for file version history. Both are read back by ordinary HTTP requests; there is no live event for either.
 
@@ -100,16 +110,30 @@ See [file states](file-states.md) for the lifecycle semantics behind these event
 
 ## What the browser client subscribes to
 
-- The file list (`useFolderFiles`) and the folder tree (`FolderTreePane`) subscribe to the dot-named structure set — `files.created`, `files.moved`, `files.deleted`, `files.restored`, `files.recovered`, `files.purged`, `folders.created`, `folders.deleted`, `folders.moved`, `scan.complete` (the file list adds `files.updated`). They ignore the payload and refetch.
-- The drive home folder grid subscribes to `folders.moved`, `folders.created`, `folders.deleted`, `files.moved`, `scan.complete`.
-- The sidebar and the admin dashboard subscribe to `scan:complete`.
-- The file-detail active-summary panel subscribes to `knowledge.active_summary.changed`.
+| Subscriber | Events | Notes |
+|---|---|---|
+| File list (`useFolderFiles`) | `drive.structure_changed`, `drive.file_updated`, `files.updated` | a content write can change a title or a thumbnail, so it watches both |
+| Folder tree (`FolderTreePane`) | `drive.structure_changed` | ignores content writes on purpose — the Markdown editor autosaves on a 2 s debounce |
+| Drive home (`DriveHome`) | `drive.structure_changed`, `drive.file_updated` | refreshes the folder grid **and** the Recently added / Favourites / Popular rows; favouriting is a content update |
+| Sidebar, admin dashboard | `scan:complete` | scan counts |
+| File-detail summary panel | `knowledge.active_summary.changed` | addon event |
 
-Of these, the only ones the **core** itself broadcasts are `files.moved` and `scan:complete`. The rest of the dot-named structure set (`files.created`, `files.deleted`, `folders.*`, `scan.complete`, ...) are webhook names — the core never puts them on the WebSocket, so those subscriptions fire only if an addon publishes the same name to the browser. Today the one addon doing that is media_import, which broadcasts `files.updated` and is the reason that subscription exists.
+Subscribers ignore the payload apart from `drive`, and refetch rather than patch.
+
+`files.updated` in the file list is a **compatibility bridge**, not part of the coarse contract. An in-process addon can call the broadcaster directly instead of going through `event_hooks`, and media_import does: after fetching a thumbnail or subtitles it broadcasts `files.updated` itself, so no `drive.file_updated` is derived from it. The bridge goes away when those addons emit through `event_hooks`.
 
 `scan:progress` and `upload:complete` are broadcast by the core but currently have no subscriber.
 
-Bursts arriving in the same microtask (a scan emitting missing, then recovered, then moved) are coalesced into a single refresh callback. Independently of WebSocket events, the client refetches visible state on reconnect and on tab refocus, so a missed event is not permanently stale.
+### Delivery is lossy, and the client compensates
+
+Two things to know before relying on an event arriving:
+
+- **The socket is closed while the tab is hidden.** `WebSocketProvider` closes it on `visibilitychange` and reconnects when the tab is shown again. Nothing is replayed, so every event during that window is simply gone.
+- **The provider holds one event at a time.** `lastEvent` is a single state slot, so two events arriving in the same React batch leave only the second observable.
+
+`useWebSocketRefresh` therefore **refetches once on every reconnect**, which is what makes a hidden tab correct again when the user returns. The first connection is skipped, since consumers already fetch on mount. Bursts inside one microtask are coalesced into a single callback.
+
+The coarse events are designed around this: because a subscriber refetches instead of applying a delta, a dropped event costs at most a delayed refresh, never a wrong list.
 
 ## Filtering
 

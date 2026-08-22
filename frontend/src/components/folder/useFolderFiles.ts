@@ -38,18 +38,20 @@ import { useWebSocketRefresh } from "@/hooks/useWebSocketRefresh";
  * changed. Both the right pane and the tree pane subscribe to the same
  * set so they stay in sync after any structure-changing operation.
  */
+// The core collapses its lifecycle events into two coarse signals before
+// they reach the browser. The list watches both: a content write can change
+// a title or a thumbnail, which is visible here even though the set of
+// files did not change.
 const STRUCTURE_EVENTS = [
-  "files.created",
+  "drive.structure_changed",
+  "drive.file_updated",
+  // Compatibility bridge. In-process addons can call the broadcaster
+  // directly instead of going through `event_hooks`, and media_import does:
+  // after fetching a thumbnail or subtitles it broadcasts `files.updated`
+  // itself, so no `drive.file_updated` is ever derived from it. Dropping
+  // this would stop the list refreshing when an import finishes. Remove it
+  // once those addons emit through `event_hooks` instead.
   "files.updated",
-  "files.moved",
-  "files.deleted",
-  "files.restored",
-  "files.recovered",
-  "files.purged",
-  "folders.created",
-  "folders.deleted",
-  "folders.moved",
-  "scan.complete",
 ];
 
 interface UseFolderFilesParams {
@@ -394,9 +396,13 @@ export function useFolderFiles({
   // RootFileListing, …) gets auto-sync without each parent threading
   // WS plumbing.
   const [wsRefreshKey, setWsRefreshKey] = useState(0);
-  useWebSocketRefresh(STRUCTURE_EVENTS, () => {
-    setWsRefreshKey((k) => k + 1);
-  });
+  useWebSocketRefresh(
+    STRUCTURE_EVENTS,
+    () => {
+      setWsRefreshKey((k) => k + 1);
+    },
+    driveName,
+  );
   const combinedRefreshKey = refreshKey + wsRefreshKey;
   useEffect(() => {
     if (combinedRefreshKey === 0) return;
