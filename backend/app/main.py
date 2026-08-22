@@ -38,10 +38,16 @@ _PURGE_BATCH_SIZE = 100
 
 def _run_purge_batch(
     cutoff: datetime,
-) -> tuple[list[str], set[tuple[str, str]]]:
-    """Synchronous purge work — runs in a thread via asyncio.to_thread."""
+) -> tuple[list[str], set[tuple[str, str]], set[str]]:
+    """Synchronous purge work — runs in a thread via asyncio.to_thread.
+
+    Also returns the drives touched. They have to be collected here, while
+    the rows still exist: the purge notification is emitted after the
+    delete, when the ids no longer resolve to anything.
+    """
     all_purged_ids: list[str] = []
     folders_to_check: set[tuple[str, str]] = set()
+    purged_drives: set[str] = set()
     while True:
         db = SessionLocal()
         try:
@@ -57,6 +63,7 @@ def _run_purge_batch(
             for file in batch:
                 try:
                     file_id = file.id
+                    purged_drives.add(file.drive)
                     if file.folder_path:
                         folders_to_check.add((file.drive, file.folder_path))
                     physical_delete(db, file)
@@ -72,20 +79,24 @@ def _run_purge_batch(
             break
         finally:
             db.close()
-    return all_purged_ids, folders_to_check
+    return all_purged_ids, folders_to_check, purged_drives
 
 
 async def purge_expired_trash() -> None:
     """Periodically purge soft-deleted files older than TRASH_RETENTION_DAYS."""
     while True:
         cutoff = datetime.now(UTC) - timedelta(days=TRASH_RETENTION_DAYS)
-        all_purged_ids, folders_to_check = await asyncio.to_thread(
+        all_purged_ids, folders_to_check, purged_drives = await asyncio.to_thread(
             _run_purge_batch, cutoff
         )
         if all_purged_ids:
             logger.info("Purged %d expired trash files", len(all_purged_ids))
             asyncio.create_task(
-                event_hooks.emit("files.purged", {"file_ids": all_purged_ids})
+                event_hooks.emit(
+                    "files.purged",
+                    {"file_ids": all_purged_ids},
+                    drives=sorted(purged_drives),
+                )
             )
         await asyncio.to_thread(_cleanup_empty_folders_after_purge, folders_to_check)
         await asyncio.sleep(_PURGE_INTERVAL_SECONDS)

@@ -1239,7 +1239,10 @@ async def empty_trash(
     _validate_drive(drive_name, unlocked_groups)
     purged_ids = fileops.purge_all_trash(db, drive_name)
     if purged_ids:
-        await event_hooks.emit("files.purged", {"file_ids": purged_ids})
+        # The rows are gone, so the drive cannot be looked up afterwards.
+        await event_hooks.emit(
+            "files.purged", {"file_ids": purged_ids}, drives=[drive_name]
+        )
     return {"purged": len(purged_ids)}
 
 
@@ -1288,5 +1291,7 @@ async def purge_all_missing_endpoint(
     _validate_drive(drive_name, unlocked_groups)
     purged_ids = fileops.purge_all_missing(db, drive_name)
     if purged_ids:
-        await event_hooks.emit("files.purged", {"file_ids": purged_ids})
+        await event_hooks.emit(
+            "files.purged", {"file_ids": purged_ids}, drives=[drive_name]
+        )
     return {"purged": len(purged_ids)}

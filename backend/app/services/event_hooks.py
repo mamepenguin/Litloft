@@ -238,19 +238,51 @@ def _affected_drives(data: dict[str, Any]) -> list[str]:
     return sorted(drives)
 
 
-def _ws_plan(event: str, data: dict[str, Any]) -> tuple[str, list[str]] | None:
-    """Resolve an event to (ws_event_name, drives), or None to stay silent."""
+def _ws_plan(
+    event: str,
+    data: dict[str, Any],
+    drives_hint: list[str] | None = None,
+) -> tuple[str, list[str]] | None:
+    """Resolve an event to (ws_event_name, drives), or None to stay silent.
+
+    ``drives_hint`` wins over anything derivable from ``data``, because a
+    lookup can only ever observe the state *after* the mutation:
+
+    - a purge has already deleted the row, so nothing resolves at all;
+    - a cross-drive move has already rewritten ``File.drive``, so only the
+      destination resolves and the source drive is never told.
+
+    Only the caller holds the pre-mutation truth, so callers in those paths
+    capture it and pass it here. The hint travels beside the payload rather
+    than inside it: the webhook body is an addon-facing contract and must
+    not change shape.
+    """
     ws_event = _WS_EVENT_FOR.get(event)
     if ws_event is None:
         return None
-    drives = _affected_drives(data)
+
+    if drives_hint:
+        drives = sorted({d for d in drives_hint if d})
+    else:
+        drives = _affected_drives(data)
+        if not drives and event == "files.purged":
+            # Purge always deletes before it notifies, so this is not a
+            # transient miss — it means a call site forgot the hint.
+            logger.warning(
+                "files.purged emitted without a drives hint; "
+                "browsers will not be told (%d ids)",
+                len(data.get("file_ids") or []),
+            )
+
     if not drives:
         return None
     return ws_event, drives
 
 
-async def _broadcast_to_browsers(event: str, data: dict[str, Any]) -> None:
-    plan = _ws_plan(event, data)
+async def _broadcast_to_browsers(
+    event: str, data: dict[str, Any], drives: list[str] | None = None
+) -> None:
+    plan = _ws_plan(event, data, drives)
     if plan is None:
         return
     ws_event, drives = plan
@@ -265,8 +297,10 @@ async def _broadcast_to_browsers(event: str, data: dict[str, Any]) -> None:
             logger.debug("WS broadcast failed for %s: %s", ws_event, exc)
 
 
-def _broadcast_to_browsers_sync(event: str, data: dict[str, Any]) -> None:
-    plan = _ws_plan(event, data)
+def _broadcast_to_browsers_sync(
+    event: str, data: dict[str, Any], drives: list[str] | None = None
+) -> None:
+    plan = _ws_plan(event, data, drives)
     if plan is None:
         return
     ws_event, drives = plan
@@ -279,12 +313,19 @@ def _broadcast_to_browsers_sync(event: str, data: dict[str, Any]) -> None:
             logger.debug("WS broadcast failed for %s: %s", ws_event, exc)
 
 
-async def emit(event: str, data: dict[str, Any]) -> None:
-    """Fire-and-forget async notification to all listeners for an event."""
+async def emit(
+    event: str, data: dict[str, Any], drives: list[str] | None = None
+) -> None:
+    """Fire-and-forget async notification to all listeners for an event.
+
+    ``drives`` scopes the browser broadcast when the payload cannot be
+    resolved after the fact — purges and cross-drive moves. It never
+    reaches addon listeners.
+    """
     # Before the listener guard on purpose: with no addons installed there
     # are no listeners, and that is exactly the install that needs the
     # browser notification.
-    await _broadcast_to_browsers(event, data)
+    await _broadcast_to_browsers(event, data, drives)
 
     listeners = _hooks.get(event, [])
     if not listeners:
@@ -318,12 +359,14 @@ async def emit(event: str, data: dict[str, Any]) -> None:
         logger.debug("Event hook dispatch failed for %s", event)
 
 
-def emit_sync(event: str, data: dict[str, Any]) -> None:
+def emit_sync(
+    event: str, data: dict[str, Any], drives: list[str] | None = None
+) -> None:
     """Fire-and-forget synchronous notification for use in threads."""
     # Same reasoning as ``emit``: before the listener guard. Uses the
     # thread-safe broadcaster because the scanner calls this from a worker
     # thread, where ``manager.broadcast`` has no running loop.
-    _broadcast_to_browsers_sync(event, data)
+    _broadcast_to_browsers_sync(event, data, drives)
 
     listeners = _hooks.get(event, [])
     if not listeners:
@@ -359,7 +402,9 @@ def set_event_loop(loop: asyncio.AbstractEventLoop) -> None:
     _event_loop = loop
 
 
-def emit_from_thread(event: str, data: dict[str, Any]) -> None:
+def emit_from_thread(
+    event: str, data: dict[str, Any], drives: list[str] | None = None
+) -> None:
     """Thread-safe fire-and-forget emit for use from FastAPI's sync (threadpool) handlers.
 
     Schedules the async ``emit`` coroutine on the stored event loop from a
@@ -372,5 +417,5 @@ def emit_from_thread(event: str, data: dict[str, Any]) -> None:
         return
     _event_loop.call_soon_threadsafe(
         asyncio.ensure_future,
-        emit(event, data),
+        emit(event, data, drives),
     )

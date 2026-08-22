@@ -407,11 +407,18 @@ async def batch_move(
 ):
     moved = 0
     moved_ids: list[str] = []
+    touched_drives: set[str] = set()
     errors = []
+    if body.target_drive:
+        touched_drives.add(body.target_drive)
     try:
         for file_id in body.ids:
             try:
-                _get_file_or_404(db, file_id, unlocked_groups)
+                source = _get_file_or_404(db, file_id, unlocked_groups)
+                # Captured before the move: ``move_file`` rewrites
+                # ``File.drive``, so afterwards only the destination is
+                # visible and a tab on the source drive is never told.
+                touched_drives.add(source.drive)
                 fileops.move_file(db, file_id, body.target_drive, body.target_folder_path)
                 moved += 1
                 moved_ids.append(file_id)
@@ -431,7 +438,9 @@ async def batch_move(
         # ``move_file`` commits individually, so ids already in ``moved_ids``
         # are durable on disk and need to reach addons regardless.
         if moved_ids:
-            await event_hooks.emit("files.moved", {"file_ids": moved_ids})
+            await event_hooks.emit(
+                "files.moved", {"file_ids": moved_ids}, drives=sorted(touched_drives)
+            )
             # Also broadcast via WS so the frontend's useWebSocketRefresh
             # triggers a list refresh (move_file_endpoint does both; batch_move
             # was previously missing the WS broadcast, leaving the UI stale
@@ -518,10 +527,14 @@ def batch_purge(
 ):
     purged = 0
     purged_ids = []
+    purged_drives: set[str] = set()
     errors = []
     for file_id in body.ids:
         try:
             file = _get_trashed_or_missing_file_or_404(db, file_id, unlocked_groups)
+            # Captured before the delete: afterwards the row is gone and the
+            # drive is unrecoverable.
+            purged_drives.add(file.drive)
             if file.missing_since is not None and file.deleted_at is None:
                 fileops.purge_missing_file(db, file_id)
             else:
@@ -531,7 +544,9 @@ def batch_purge(
         except HTTPException as e:
             errors.append({"id": file_id, "error": e.detail})
     if purged_ids:
-        event_hooks.emit_from_thread("files.purged", {"file_ids": purged_ids})
+        event_hooks.emit_from_thread(
+            "files.purged", {"file_ids": purged_ids}, drives=sorted(purged_drives)
+        )
     return {"purged": purged, "errors": errors}
 
 
@@ -1228,9 +1243,14 @@ async def move_file_endpoint(
     db: Annotated[Session, Depends(get_db)],
     unlocked_groups: Annotated[list[str], Depends(get_unlocked_groups)],
 ):
-    _get_file_or_404(db, file_id, unlocked_groups)
+    source = _get_file_or_404(db, file_id, unlocked_groups)
+    source_drive = source.drive  # captured before move_file rewrites it
     file = fileops.move_file(db, file_id, body.target_drive, body.target_folder_path)
-    await event_hooks.emit("files.moved", {"file_ids": [file.id]})
+    await event_hooks.emit(
+        "files.moved",
+        {"file_ids": [file.id]},
+        drives=sorted({source_drive, file.drive}),
+    )
     await ws_service.manager.broadcast(
         "files.moved", {"file_ids": [file.id]}, drive=file.drive
     )
@@ -1745,11 +1765,14 @@ def purge_file_endpoint(
     unlocked_groups: Annotated[list[str], Depends(get_unlocked_groups)],
 ):
     file = _get_trashed_or_missing_file_or_404(db, file_id, unlocked_groups)
+    purged_drive = file.drive  # captured before the row is deleted
     if file.missing_since is not None and file.deleted_at is None:
         fileops.purge_missing_file(db, file_id)
     else:
         fileops.purge_file(db, file_id)
-    event_hooks.emit_from_thread("files.purged", {"file_ids": [file_id]})
+    event_hooks.emit_from_thread(
+        "files.purged", {"file_ids": [file_id]}, drives=[purged_drive]
+    )
     return {"status": "purged"}
 
 
