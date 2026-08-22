@@ -163,6 +163,8 @@ Two older signals remain for the rescan progress UI: `scan:progress` and `scan:c
 
 Access control applies here as it does everywhere: a notification about a locked drive is never sent to a browser that has not unlocked it.
 
+**A hidden tab stops listening.** To save a connection, the browser closes the WebSocket when you switch away and opens it again when you come back. Nothing is replayed, so anything that happened while the tab was in the background was never delivered to it. Litloft handles this by refetching once on reconnect: when you return to a tab, what you see is fetched fresh rather than reconstructed from events it missed.
+
 Addons can also push their own events through the core's relay, which is how, for example, an intelligence job reports progress into the page.
 
 The payload of each event is in [WebSocket events](../reference/websocket-events.md).

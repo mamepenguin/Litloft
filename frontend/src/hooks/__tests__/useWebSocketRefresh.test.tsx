@@ -14,17 +14,19 @@ function Harness({
   initialEvent,
   setEvent,
   drive,
+  connected = true,
 }: {
   events: string[];
   onMatch: () => void;
   initialEvent: WebSocketEvent | null;
   setEvent: (setter: (next: WebSocketEvent | null) => void) => void;
   drive?: string;
+  connected?: boolean;
 }) {
   const [lastEvent, setLastEvent] = useState<WebSocketEvent | null>(initialEvent);
   setEvent((next) => setLastEvent(next));
   return (
-    <WebSocketContext.Provider value={{ lastEvent, connected: true }}>
+    <WebSocketContext.Provider value={{ lastEvent, connected }}>
       <Probe events={events} onMatch={onMatch} drive={drive} />
     </WebSocketContext.Provider>
   );
@@ -212,6 +214,71 @@ describe("useWebSocketRefresh", () => {
       fire(undefined, "movies", onMatch);
       await flushMicrotasks();
       expect(onMatch).toHaveBeenCalledTimes(1);
+    });
+  });
+
+  describe("reconnect catch-up", () => {
+    function Reconnectable({ onMatch }: { onMatch: () => void }) {
+      const [connected, setConnected] = useState(true);
+      (globalThis as Record<string, unknown>).__setConnected = setConnected;
+      return (
+        <WebSocketContext.Provider value={{ lastEvent: null, connected }}>
+          <Probe events={["drive.structure_changed"]} onMatch={onMatch} />
+        </WebSocketContext.Provider>
+      );
+    }
+
+    function setConnected(next: boolean) {
+      act(() => {
+        (
+          globalThis as unknown as {
+            __setConnected: (v: boolean) => void;
+          }
+        ).__setConnected(next);
+      });
+    }
+
+    it("does not fire on the first connection", async () => {
+      const onMatch = vi.fn();
+      render(<Reconnectable onMatch={onMatch} />);
+      await flushMicrotasks();
+      // Consumers already fetch on mount; firing here would double every
+      // page load.
+      expect(onMatch).not.toHaveBeenCalled();
+    });
+
+    it("fires once after a drop and reconnect", async () => {
+      const onMatch = vi.fn();
+      render(<Reconnectable onMatch={onMatch} />);
+      await flushMicrotasks();
+
+      setConnected(false);
+      await flushMicrotasks();
+      expect(onMatch).not.toHaveBeenCalled();
+
+      setConnected(true);
+      await flushMicrotasks();
+      // The socket is closed whenever the tab is hidden, so anything that
+      // happened while the user was away arrived nowhere. Refetch on the
+      // way back rather than waiting for the next event.
+      expect(onMatch).toHaveBeenCalledTimes(1);
+    });
+
+    it("fires again on a second reconnect", async () => {
+      const onMatch = vi.fn();
+      render(<Reconnectable onMatch={onMatch} />);
+      await flushMicrotasks();
+
+      setConnected(false);
+      await flushMicrotasks();
+      setConnected(true);
+      await flushMicrotasks();
+      setConnected(false);
+      await flushMicrotasks();
+      setConnected(true);
+      await flushMicrotasks();
+
+      expect(onMatch).toHaveBeenCalledTimes(2);
     });
   });
 });

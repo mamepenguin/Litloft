@@ -110,16 +110,30 @@ See [file states](file-states.md) for the lifecycle semantics behind these event
 
 ## What the browser client subscribes to
 
-- The file list (`useFolderFiles`) and the folder tree (`FolderTreePane`) subscribe to the dot-named structure set — `files.created`, `files.moved`, `files.deleted`, `files.restored`, `files.recovered`, `files.purged`, `folders.created`, `folders.deleted`, `folders.moved`, `scan.complete` (the file list adds `files.updated`). They ignore the payload and refetch.
-- The drive home folder grid subscribes to `folders.moved`, `folders.created`, `folders.deleted`, `files.moved`, `scan.complete`.
-- The sidebar and the admin dashboard subscribe to `scan:complete`.
-- The file-detail active-summary panel subscribes to `knowledge.active_summary.changed`.
+| Subscriber | Events | Notes |
+|---|---|---|
+| File list (`useFolderFiles`) | `drive.structure_changed`, `drive.file_updated`, `files.updated` | a content write can change a title or a thumbnail, so it watches both |
+| Folder tree (`FolderTreePane`) | `drive.structure_changed` | ignores content writes on purpose — the Markdown editor autosaves on a 2 s debounce |
+| Drive home (`DriveHome`) | `drive.structure_changed`, `drive.file_updated` | refreshes the folder grid **and** the Recently added / Favourites / Popular rows; favouriting is a content update |
+| Sidebar, admin dashboard | `scan:complete` | scan counts |
+| File-detail summary panel | `knowledge.active_summary.changed` | addon event |
 
-Of these, the only ones the **core** itself broadcasts are `files.moved` and `scan:complete`. The rest of the dot-named structure set (`files.created`, `files.deleted`, `folders.*`, `scan.complete`, ...) are webhook names — the core never puts them on the WebSocket, so those subscriptions fire only if an addon publishes the same name to the browser. Today the one addon doing that is media_import, which broadcasts `files.updated` and is the reason that subscription exists.
+Subscribers ignore the payload apart from `drive`, and refetch rather than patch.
+
+`files.updated` in the file list is a **compatibility bridge**, not part of the coarse contract. An in-process addon can call the broadcaster directly instead of going through `event_hooks`, and media_import does: after fetching a thumbnail or subtitles it broadcasts `files.updated` itself, so no `drive.file_updated` is derived from it. The bridge goes away when those addons emit through `event_hooks`.
 
 `scan:progress` and `upload:complete` are broadcast by the core but currently have no subscriber.
 
-Bursts arriving in the same microtask (a scan emitting missing, then recovered, then moved) are coalesced into a single refresh callback. Independently of WebSocket events, the client refetches visible state on reconnect and on tab refocus, so a missed event is not permanently stale.
+### Delivery is lossy, and the client compensates
+
+Two things to know before relying on an event arriving:
+
+- **The socket is closed while the tab is hidden.** `WebSocketProvider` closes it on `visibilitychange` and reconnects when the tab is shown again. Nothing is replayed, so every event during that window is simply gone.
+- **The provider holds one event at a time.** `lastEvent` is a single state slot, so two events arriving in the same React batch leave only the second observable.
+
+`useWebSocketRefresh` therefore **refetches once on every reconnect**, which is what makes a hidden tab correct again when the user returns. The first connection is skipped, since consumers already fetch on mount. Bursts inside one microtask are coalesced into a single callback.
+
+The coarse events are designed around this: because a subscriber refetches instead of applying a delta, a dropped event costs at most a delayed refresh, never a wrong list.
 
 ## Filtering
 

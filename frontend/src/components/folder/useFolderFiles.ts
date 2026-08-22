@@ -42,7 +42,17 @@ import { useWebSocketRefresh } from "@/hooks/useWebSocketRefresh";
 // they reach the browser. The list watches both: a content write can change
 // a title or a thumbnail, which is visible here even though the set of
 // files did not change.
-const STRUCTURE_EVENTS = ["drive.structure_changed", "drive.file_updated"];
+const STRUCTURE_EVENTS = [
+  "drive.structure_changed",
+  "drive.file_updated",
+  // Compatibility bridge. In-process addons can call the broadcaster
+  // directly instead of going through `event_hooks`, and media_import does:
+  // after fetching a thumbnail or subtitles it broadcasts `files.updated`
+  // itself, so no `drive.file_updated` is ever derived from it. Dropping
+  // this would stop the list refreshing when an import finishes. Remove it
+  // once those addons emit through `event_hooks` instead.
+  "files.updated",
+];
 
 interface UseFolderFilesParams {
   driveName: string;

@@ -39,7 +39,7 @@ export function useWebSocketRefresh(
   onMatch: () => void,
   drive?: string,
 ): void {
-  const { lastEvent } = useContext(WebSocketContext);
+  const { lastEvent, connected } = useContext(WebSocketContext);
   const lastSeenRef = useRef(lastEvent);
   // Match-set is rebuilt only when the event-name list reference
   // changes; consumers typically pass an inline array, so memoise on
@@ -68,6 +68,17 @@ export function useWebSocketRefresh(
     matchSetRef.current = new Set(events);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [eventsKey]);
+
+  // Catch-up on reconnect. `wasConnectedRef` starts true so the initial
+  // connection is not treated as a recovery.
+  const wasConnectedRef = useRef(true);
+  useEffect(() => {
+    const was = wasConnectedRef.current;
+    wasConnectedRef.current = connected;
+    if (connected && !was) {
+      onMatchRef.current();
+    }
+  }, [connected]);
 
   useEffect(() => {
     if (!lastEvent) return;
