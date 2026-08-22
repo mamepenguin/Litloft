@@ -4,7 +4,14 @@
 
 Architectural codemaps for navigating the Litloft codebase. Each map lists the files that participate in a feature area with a one-line description, so you can land on the right entry point without grep'ing.
 
-For project-wide rules and rationale, see `.claude/rules/` and `docs/superpowers/specs/`.
+For project-wide rules and rationale, see `.claude/rules/`.
+
+Codemaps cite the design spec a piece of work came from, as a plain path rather
+than a link. Those specs are pre-implementation notes: the `docs/superpowers/`
+tree is gitignored, so the files are developer-internal and are not present in a
+clone, and they are not updated after the work merges. Treat a citation as
+provenance, never as a description of current behaviour — that lives in `docs/`
+and, ultimately, in the code.
 
 ## Maps
 

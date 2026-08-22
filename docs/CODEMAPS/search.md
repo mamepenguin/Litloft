@@ -2,9 +2,9 @@
 
 **Last Updated:** 2026-05-03
 **Specs:**
-- [docs/superpowers/specs/2026-05-01-search-ui-rich-redesign.md](../superpowers/specs/2026-05-01-search-ui-rich-redesign.md) — origin of the two-layer UX
-- [docs/superpowers/specs/2026-05-02-search-results-unification-phase3.md](../superpowers/specs/2026-05-02-search-results-unification-phase3.md) — unification of the results page into a single list
-- [docs/superpowers/specs/2026-05-03-search-popup-semantic-merge.md](../superpowers/specs/2026-05-03-search-popup-semantic-merge.md) — popup semantic merge + cache handoff
+- `docs/superpowers/specs/2026-05-01-search-ui-rich-redesign.md` — origin of the two-layer UX
+- `docs/superpowers/specs/2026-05-02-search-results-unification-phase3.md` — unification of the results page into a single list
+- `docs/superpowers/specs/2026-05-03-search-popup-semantic-merge.md` — popup semantic merge + cache handoff
 
 **Scope:** the two-layer search UX. The `Cmd/Ctrl+Shift+F` quick-launcher popup (filename + semantic merged in parallel), and the virtual-folder-style results page at `/drive/{drive}/search` (including cache hydrate from the popup). The Smart Folder (saved searches) DB / API / UI. Page-context extensions for the intelligence addon's `search-modes` slot.
 

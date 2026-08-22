@@ -23,6 +23,7 @@ For everyday users: viewers, players, search, organisation.
 - [Overview of features](user-guide/overview.md)
 - [Drives and access control](user-guide/drives-and-access.md)
 - [Browsing files](user-guide/file-browsing.md)
+- [Quick Note](user-guide/quick-note.md) — capture a Markdown note from any screen.
 - [Viewers and players](user-guide/viewers-and-players.md) — video, audio, image, Markdown, PDF, Office, ZIP.
 - [Search](user-guide/search.md) — keyword, tag filter, semantic, scene search.
 - [Upload and file operations](user-guide/upload-and-fileops.md)
@@ -52,6 +53,15 @@ Optional capability modules. Each addon is a separate Git repository under `addo
 - [knowledge](addons/knowledge.md) — Vaults, web clips, frontmatter notes.
 - [cloud-sync](addons/cloud-sync.md) — scheduled rclone backups.
 - [media_import](addons/media-import.md) — URL → `.loft` reference files (YouTube/Vimeo).
+
+### Integrations
+
+Ways to reach a Litloft library from outside the browser.
+
+- [MCP server](../mcp-server/README.md) — browse and edit a library from an MCP
+  client such as Claude Desktop. A thin wrapper over the same public `/api/*`
+  endpoints the web frontend uses; it adds no backend endpoints and no bypass of
+  drive access control.
 
 ### Reference
 

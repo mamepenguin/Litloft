@@ -42,7 +42,7 @@ Treat the DB not as an FS cache, but as an independent source of truth that hold
 - `files.purged` is emitted only on an explicit user-driven hard delete. The scanner never emits it.
 - Keep thumbnails for missing files (they are reused on recovery).
 - Missing files are not auto-purged. They are kept indefinitely until the user explicitly deletes them.
-- `purge_all_missing` commits in chunks of 200 and emits a webhook per batch.
+- `purge_all_missing` commits in chunks of 200, then emits a single `files.purged` carrying every purged id after the loop (the startup auto-purge does the same with 100-row chunks). One event per run, not per batch.
 
 ## Trash
 
@@ -81,7 +81,7 @@ Rules:
 
 ## Watch history and profiles
 
-- Keep the JWT `hv_token` (drive access control) and the `hv_viewer` cookie (personal identity) orthogonal. Do not mix them.
+- Keep the JWT (drive access control, cookie `access_token`) and the viewer-identity cookie (`lit_viewer`, or the `X-Lit-Viewer` header for non-browser clients) orthogonal. Do not mix them.
 - The nickname is hashed with SHA-256 → viewer_id. There is no account management.
 - When no profile is set, fall back to localStorage and do not persist server-side (return 204).
 - Do not build a profile-listing API (privacy).
@@ -119,7 +119,7 @@ Rules:
 ## Addons: drive-scope context propagation
 
 - The URL is `/drive/{drive}/addons/{name}`, but the API is `/api/addons/{name}/...`.
-- The frontend attaches the `X-HV-Drive` header.
+- The frontend attaches the `X-Lit-Drive` header.
 - The core's addon_proxy makes it required when scope=drive, validates against `accessible_drives`, and forwards upstream.
 - The addon side just reads the header. It does not validate.
 - `drive_optional` is restricted to inherently global paths (`<img>`, admin queue, etc.). Authorization for those paths is enforced through a separate route.
@@ -138,13 +138,13 @@ Rules:
 
 - `routers/internal.py` is for the Docker-internal network only.
 - Normal state/meta endpoints do not require a secret.
-- `GET /api/internal/files/{id}/content` is the exception: a three-layer defense of text-mime allowlist + required `CORE_INTERNAL_SECRET` + `_CONTENT_READ_ALLOWED_MIMES` + `CORE_INTERNAL_CONTENT_MAX_BYTES` (default 10 MB), because file bodies carry orders of magnitude more information than metadata.
+- `GET /api/internal/files/{id}/content` is the exception: a layered defense of text-mime allowlist (`_CONTENT_READ_ALLOWED_MIMES`) + `CORE_INTERNAL_CONTENT_MAX_BYTES` (default 10 MB) + `CORE_INTERNAL_SECRET`, because file bodies carry orders of magnitude more information than metadata. The secret here is the **optional** gate (`verify_internal_secret`): it is a no-op when the variable is unset, for dev parity. Only `verify_internal_write_secret` fails closed, and `PUT /files/{id}/chapters` is its sole user. See `internal-api-policy.md`.
 
 ## LLM features (intelligence addon)
 
 - Use the OpenAI-compatible client. Configuration is the `llm` section in `search-config.yml` plus `LLM_API_KEY`.
-- `auto_tags` / `summaries` / `transcript_refine` each have three modes (`"false"` / `"manual"` / `"on_index"`). The default is `"false"`.
-- Ask is a bool flag (internally `features.rag`). Disabled by default. Stateless: it does not write to the core DB or to the addon DB.
+- `auto_tags` / `summaries` / `detailed_summaries` / `transcript_refine` each have three modes (`"false"` / `"manual"` / `"on_index"`). Defaults differ per feature and are declared on `FeaturesConfig` in `addons/intelligence/app/config.py` — currently `"manual"` for `auto_tags` and `summaries`, `"false"` for `detailed_summaries` and `transcript_refine`. Read that dataclass rather than assuming a uniform default.
+- Ask is a bool flag (internally `features.rag`), and it is **enabled by default** — runtime still needs an LLM provider, so it stays inert until one is configured. Stateless: it does not write to the core DB or to the addon DB.
 - `auto_tags` follows a Suggest → Approve/Dismiss workflow. It is never auto-applied.
 - The output language is controlled centrally by `llm.output_language`.
 - Features that send file content (transcript / caption / text / frontmatter) to the LLM API are privacy-sensitive. A local LLM (ollama) is recommended.

@@ -1,7 +1,7 @@
 # intelligence reindex controls
 
 **Last Updated:** 2026-05-24
-**Spec:** [`docs/superpowers/specs/2026-05-24-intelligence-reindex-controls.md`](../superpowers/specs/2026-05-24-intelligence-reindex-controls.md)
+**Spec:** `docs/superpowers/specs/2026-05-24-intelligence-reindex-controls.md`
 
 How the intelligence addon exposes "regenerate this index" controls to operators after the global *Reindex all* button was removed. Two scoped paths replace it: per-file × per-task regeneration from the file detail page, and per-row retry from a global failed-jobs modal on the admin dashboard. The embedding-model swap (`reindex_pending`) is an independent flow handled at restart and is not covered here.
 
