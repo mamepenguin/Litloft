@@ -322,13 +322,17 @@ def _check_target_drive_access(
     nothing more. Without this, a caller holding one drive's password could
     move or copy files into a drive they cannot see.
 
-    ``None`` means "same drive as the source", which the source-side check
-    has already covered.
+    Any falsy value means "same drive as the source", which the source-side
+    check has already covered. That includes the empty string: both
+    ``fileops.move_file`` and ``copy_file`` resolve the destination with
+    ``target_drive or src_drive``, and the schema sets no ``min_length``, so
+    ``""`` has always been an accepted way of saying "leave it where it is".
+    Testing ``is None`` here would turn that into a 404.
 
     Raises 404 (not 403) for both locked and unknown drives, so the response
     cannot be used to tell the two apart.
     """
-    if target_drive is None:
+    if not target_drive:
         return
     check_drive_access(target_drive, unlocked_groups)
 

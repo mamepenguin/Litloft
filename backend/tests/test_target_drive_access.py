@@ -229,6 +229,36 @@ class TestSingleFileDestination:
         assert res.status_code == 200
         assert (open_dir / "sub" / "clip.mp4").exists()
 
+    def test_empty_target_drive_means_same_drive(self, two_drives):
+        c, db, open_dir, _locked_dir = two_drives
+        f = _seed(db, open_dir, OPEN_DRIVE)
+        (open_dir / "sub").mkdir()
+
+        res = c.put(
+            f"/api/files/{f.id}/move",
+            json={"target_drive": "", "target_folder_path": "sub"},
+        )
+
+        # ``fileops.move_file`` resolves the destination with
+        # ``target_drive or src_drive``, so an empty string has always meant
+        # "the drive it is already in" — same as null. The schema has no
+        # min_length, so callers can and do send it. Rejecting it would be a
+        # silent compatibility break, not a tightening.
+        assert res.status_code == 200
+        assert (open_dir / "sub" / "clip.mp4").exists()
+
+    def test_empty_target_drive_on_copy_means_same_drive(self, two_drives):
+        c, db, open_dir, _locked_dir = two_drives
+        f = _seed(db, open_dir, OPEN_DRIVE)
+        (open_dir / "sub").mkdir()
+
+        res = c.post(
+            f"/api/files/{f.id}/copy",
+            json={"target_drive": "", "target_folder_path": "sub"},
+        )
+
+        assert res.status_code == 200
+
     def test_move_into_unlocked_drive_succeeds(self, two_drives):
         c, db, open_dir, locked_dir = two_drives
         f = _seed(db, open_dir, OPEN_DRIVE)
