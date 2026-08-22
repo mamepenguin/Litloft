@@ -155,8 +155,137 @@ def _build_headers(hook: dict[str, str]) -> dict[str, str]:
     return headers
 
 
+# ---------------------------------------------------------------------------
+# Browser notification (WebSocket)
+#
+# Addon listeners get the fine-grained event with its ids. Browsers get a
+# coarse "something changed in this drive" signal instead, because every
+# structural subscriber goes through ``useWebSocketRefresh``, which ignores
+# the payload and simply refetches.
+#
+# Two events rather than one: the folder tree deliberately does not watch
+# content updates, and collapsing them would make the Markdown editor's
+# autosave refetch the tree on every debounce while the user types.
+#
+# Spec: docs/superpowers/specs/2026-08-22-core-lifecycle-events-over-websocket.md
+# ---------------------------------------------------------------------------
+
+# Keeps the IN clause well inside SQLite's bind-variable ceiling.
+_DRIVE_LOOKUP_CHUNK = 500
+
+WS_STRUCTURE_CHANGED = "drive.structure_changed"
+WS_FILE_UPDATED = "drive.file_updated"
+
+_WS_EVENT_FOR: dict[str, str] = {
+    "files.created": WS_STRUCTURE_CHANGED,
+    "files.deleted": WS_STRUCTURE_CHANGED,
+    "files.moved": WS_STRUCTURE_CHANGED,
+    "files.restored": WS_STRUCTURE_CHANGED,
+    "files.recovered": WS_STRUCTURE_CHANGED,
+    "files.missing": WS_STRUCTURE_CHANGED,
+    "files.purged": WS_STRUCTURE_CHANGED,
+    "folders.created": WS_STRUCTURE_CHANGED,
+    "folders.moved": WS_STRUCTURE_CHANGED,
+    "folders.deleted": WS_STRUCTURE_CHANGED,
+    "scan.complete": WS_STRUCTURE_CHANGED,
+    "files.updated": WS_FILE_UPDATED,
+}
+
+
+def _affected_drives(data: dict[str, Any]) -> list[str]:
+    """Which drives a payload concerns, for per-drive broadcast scoping.
+
+    ``folders.*`` and ``scan.complete`` already carry ``drive``. The
+    ``files.*`` payloads carry only ``file_ids``, and a single batch can
+    span drives — the startup auto-purge emits every purged id from every
+    drive at once — so the ids are resolved and the caller fans out.
+
+    Returns ``[]`` when the drives cannot be determined. That is
+    deliberately **fail closed**, the opposite of the webhook path's
+    fail-open filter: for a webhook the recipient is one known addon, but
+    for a broadcast the drive filter *is* the recipient set, so failing
+    open would send a protected drive's notification to every connection.
+    """
+    drive = data.get("drive")
+    if isinstance(drive, str) and drive:
+        return [drive]
+
+    file_ids = data.get("file_ids")
+    if not file_ids:
+        return []
+
+    # Chunked because a single event can carry every id in the library:
+    # the startup auto-purge emits all expired ids at once, and
+    # ``_file_ids_to_drives`` expands them into one IN clause. Previously
+    # an install with no addon listeners returned early and never ran this
+    # query at all, so bounding it here is new work, not a regression.
+    ids = list(file_ids)
+    drives: set[str] = set()
+    try:
+        for start in range(0, len(ids), _DRIVE_LOOKUP_CHUNK):
+            chunk = ids[start : start + _DRIVE_LOOKUP_CHUNK]
+            resolved = _file_ids_to_drives(chunk)
+            if not resolved:
+                # Fail closed: a chunk we could not resolve may have held
+                # the only ids belonging to a drive we would then omit —
+                # but omitting is safe, whereas guessing is not.
+                continue
+            drives.update(resolved.values())
+    except Exception as exc:  # noqa: BLE001
+        logger.debug("Drive lookup failed, skipping broadcast: %s", exc)
+        return []
+
+    return sorted(drives)
+
+
+def _ws_plan(event: str, data: dict[str, Any]) -> tuple[str, list[str]] | None:
+    """Resolve an event to (ws_event_name, drives), or None to stay silent."""
+    ws_event = _WS_EVENT_FOR.get(event)
+    if ws_event is None:
+        return None
+    drives = _affected_drives(data)
+    if not drives:
+        return None
+    return ws_event, drives
+
+
+async def _broadcast_to_browsers(event: str, data: dict[str, Any]) -> None:
+    plan = _ws_plan(event, data)
+    if plan is None:
+        return
+    ws_event, drives = plan
+    from app.services.ws import manager
+
+    for drive in drives:
+        try:
+            await manager.broadcast(ws_event, {"drive": drive}, drive=drive)
+        except Exception as exc:  # noqa: BLE001
+            # Notification is best effort. A write must never fail because
+            # a browser could not be told about it.
+            logger.debug("WS broadcast failed for %s: %s", ws_event, exc)
+
+
+def _broadcast_to_browsers_sync(event: str, data: dict[str, Any]) -> None:
+    plan = _ws_plan(event, data)
+    if plan is None:
+        return
+    ws_event, drives = plan
+    import app.services.ws as ws
+
+    for drive in drives:
+        try:
+            ws.broadcast_from_thread(ws_event, {"drive": drive}, drive=drive)
+        except Exception as exc:  # noqa: BLE001
+            logger.debug("WS broadcast failed for %s: %s", ws_event, exc)
+
+
 async def emit(event: str, data: dict[str, Any]) -> None:
     """Fire-and-forget async notification to all listeners for an event."""
+    # Before the listener guard on purpose: with no addons installed there
+    # are no listeners, and that is exactly the install that needs the
+    # browser notification.
+    await _broadcast_to_browsers(event, data)
+
     listeners = _hooks.get(event, [])
     if not listeners:
         return
@@ -191,6 +320,11 @@ async def emit(event: str, data: dict[str, Any]) -> None:
 
 def emit_sync(event: str, data: dict[str, Any]) -> None:
     """Fire-and-forget synchronous notification for use in threads."""
+    # Same reasoning as ``emit``: before the listener guard. Uses the
+    # thread-safe broadcaster because the scanner calls this from a worker
+    # thread, where ``manager.broadcast`` has no running loop.
+    _broadcast_to_browsers_sync(event, data)
+
     listeners = _hooks.get(event, [])
     if not listeners:
         return
