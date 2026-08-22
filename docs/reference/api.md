@@ -107,8 +107,8 @@ File ids are 12-character nanoids and are validated as such in the path.
 | `DELETE` | `/api/files/{id}` | Soft delete (trash). |
 | `DELETE` | `/api/files/{id}/purge` | Hard delete (irreversible). Accepts a trashed or a missing file; there is no `?purge=true` variant on `DELETE /api/files/{id}`. |
 | `PUT` | `/api/files/{id}/rename` | Rename. Body `{ "new_filename": "..." }`. |
-| `PUT` | `/api/files/{id}/move` | Move to another folder (and optionally another drive). Body `{ "target_drive": null, "target_folder_path": "..." }`. |
-| `POST` | `/api/files/{id}/copy` | Copy to another folder. Same body shape as move. |
+| `PUT` | `/api/files/{id}/move` | Move to another folder (and optionally another drive). Body `{ "target_drive": null, "target_folder_path": "..." }`. A `target_drive` the caller cannot access is `404`, indistinguishable from one that does not exist. `null` means "the drive it is already in". |
+| `POST` | `/api/files/{id}/copy` | Copy to another folder. Same body shape as move, and the same `404` on an inaccessible `target_drive`. |
 
 ### Batch operations
 
@@ -118,12 +118,12 @@ Batch endpoints take `{ "ids": [...] }` (plus operation-specific fields) and nev
 |---|---|---|
 | `POST` | `/api/files/batch/get` | Resolve many ids to file responses, filtered to accessible drives. |
 | `POST` | `/api/files/batch/delete` | Soft delete many files. |
-| `PUT` | `/api/files/batch/move` | Move many files. Body adds `target_drive` / `target_folder_path`. |
+| `PUT` | `/api/files/batch/move` | Move many files. Body adds `target_drive` / `target_folder_path`. The destination is checked once for the whole request, so an inaccessible `target_drive` is a request-level `404` and nothing moves — it is not reported as per-file errors. |
 | `PUT` | `/api/files/batch/tags` | **Merge** tags into many files (unlike the single-file `PUT`, which replaces). |
 | `PUT` | `/api/files/batch/rename` | Pattern rename. Body adds `mode` plus the fields that mode needs. |
 | `POST` | `/api/files/batch/restore` | Restore many trashed files. |
 | `POST` | `/api/files/batch/purge` | Hard delete many trashed or missing files. |
-| `POST` | `/api/files/batch/copy` | Copy many files into one target folder. |
+| `POST` | `/api/files/batch/copy` | Copy many files into one target folder. Same request-level `404` on an inaccessible `target_drive`. |
 
 ## Folder operations
 
