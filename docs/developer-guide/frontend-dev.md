@@ -4,14 +4,23 @@ Next.js 16 (App Router) + TypeScript + Tailwind CSS v4 + next-intl. Code lives u
 
 ## Running locally
 
-`pnpm` is the package manager. The merge script for addon translations runs automatically on `pnpm dev` and `pnpm build`.
+`pnpm` is the package manager.
+
+**Run the addon translation merge yourself before `pnpm dev`.** It is wired into the
+Docker image build (`frontend/Dockerfile`), not into the `dev` or `build` scripts,
+so a local dev server will not pick up keys you just added to `src/messages-core/`
+until you run it:
+
+```bash
+node scripts/merge-addon-messages.mjs
+```
 
 ```bash
 cd frontend
 pnpm install
 pnpm dev          # http://localhost:3000 (proxies /api/* to backend in compose)
-pnpm test
-pnpm test --watch
+pnpm test         # vitest run
+pnpm test:watch   # vitest, watch mode
 pnpm build
 ```
 

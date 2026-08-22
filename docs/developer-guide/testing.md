@@ -34,8 +34,8 @@ docker run --rm litloft-test -k internal_api_contract -vv
 
 ```bash
 cd frontend
-pnpm test
-pnpm test --watch
+pnpm test          # vitest run
+pnpm test:watch    # vitest, watch mode
 ```
 
 Library constraints:
@@ -55,8 +55,8 @@ Playwright. Launches a stack and walks the UI.
 
 ```bash
 cd frontend
-pnpm e2e            # headless
-pnpm e2e --ui       # Playwright UI runner
+pnpm test:e2e          # headless
+pnpm test:e2e --ui     # Playwright UI runner
 ```
 
 Tests live under `frontend/e2e/`. Critical user flows:
@@ -73,8 +73,8 @@ Tests live under `frontend/e2e/`. Critical user flows:
 Playwright produces screenshots, videos, and traces. CI uploads these on failure for diagnosis. Locally:
 
 ```bash
-pnpm e2e --reporter=html
-pnpm playwright show-report
+pnpm test:e2e --reporter=html
+pnpm test:e2e:report
 ```
 
 ## Coverage

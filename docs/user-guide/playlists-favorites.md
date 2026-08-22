@@ -69,4 +69,4 @@ A *Smart Folder* is a saved search rather than a curated list. See [search](sear
 
 ## Continue watching
 
-Not user-curated, but a sibling concept: the *Continue watching* row on the drive home page lists files you have started but not finished. Backed by `WatchHistory` rows where `playback_position / duration` is between 1% and 90%. See [comments and watch history](comments-history.md).
+Not user-curated, but a sibling concept: the *Continue watching* row on the drive home page lists files you have started but not finished. Backed by `WatchHistory` rows that have not passed 90% (`playback_position < duration * 0.9`). There is no lower bound: rows sit out naturally because a file you only opened records `0`, and `0 < 0` is false. See [comments and watch history](comments-history.md).

@@ -1,6 +1,6 @@
 # Browsing files
 
-The drive home page (`/drive/<name>`) is the main browsing surface. Folders are walked from the drive root; subfolders open at `/drive/<name>/<path>`. Below the breadcrumb you find a folder grid, a file grid, and several *carousels* (Recently added, Continue watching, Favourites, Popular). Each surface is wired into the same backend so changes you make anywhere appear in real time over WebSocket.
+The drive home page (`/drive/<name>`) is the main browsing surface. Folders are walked from the drive root; subfolders open at `/drive/<name>/<path>`. Below the breadcrumb you find a folder grid, a file grid, and several *carousels* (Recently added, Continue watching, Favourites, Popular). Every surface reads the same backend, and a change you make on one of them refreshes the others (see [real-time updates](#real-time-updates) for what does and does not propagate between separate tabs).
 
 ## Drive home layout
 
@@ -10,20 +10,36 @@ The numbered areas in the screenshot map to the main browsing surfaces: breadcru
 
 ## Folder grid
 
-- Folders show a thumbnail (from a child file) and a count of contained files.
+- Folders show a thumbnail (borrowed from the first video or image anywhere beneath them) and a file count. The count is **recursive** — it includes every active file in the folder *and* its subfolders.
 - Clicking opens that folder.
-- Right-click (or long-press on touch) opens **folder actions** — addons inject extras here (for example, *intelligence* offers batch refine/regenerate).
-- Empty folders are tracked in the DB so the count is accurate even when navigating offline-cached data.
+- Right-click (or long-press on touch) opens the **folder menu**: Open, New file here, New folder here, Pin / Unpin, Rename, Move, Delete. Which entries appear depends on the surface — the tree pane offers the create actions, the folder grid does not.
+- Addon actions are not in this menu. They live in the `folder-actions` slot in the toolbar above the grid, which receives the current folder and the ids of the files listed in it (for example, *intelligence* offers batch refine/regenerate there).
+- The folder list is derived from the paths of the files in the drive, so a folder holding no files at all would otherwise vanish. Those are recorded in the `empty_folders` table and merged back into the listing with a count of 0.
 
 ## File grid and list modes
 
 A toolbar above the grid lets you:
 
-- Toggle **grid** / **list** view (preference is per-folder, persisted in localStorage).
-- Sort by **name**, **created**, **modified**, **size**, **duration**.
-- Multi-select files with click+shift, then run batch operations (move, copy, delete, tag).
-- **New folder** — create a folder inside the current one.
+- Toggle **grid** / **list** view. In a real folder the choice is remembered per folder (localStorage, under `folderPrefs:{drive}`); on the drive root, in the flat views, and in search it falls back to a single global preference. Before you have ever chosen, the mode is guessed from what the folder mostly holds — Markdown folders open as a list, video/image/audio folders as a grid.
+- Sort by **newest / oldest** (indexed date), **title A-Z / Z-A**, **largest / smallest**, **most / least liked**, or **random**. Search results add a **relevance** option, which is their default. Sort is remembered per folder in the same place as the view mode. Random sort gets a reshuffle button next to the sort control.
+- Filter by file type (All / Video / Image / Audio / Document / Archive / Other). This one is applied by the server and narrows the query itself, unlike the filter row below the toolbar, which sifts what has already been loaded.
+- Turn on **Select mode** from the overflow (`…`) menu, then click cards to select them. `Cmd/Ctrl+click` turns selection on and toggles a card in one gesture, and `Shift+click` extends the selection to a range. A selection bar appears at the bottom with tag, rename, add-to-collection, copy, cut, move, and move-to-trash.
+- **Rescan** the drive, also from the overflow menu.
+- **Upload** and **New folder**, from the upload button.
 - **New file** — create an empty `untitled-{timestamp}.md` in the current folder and jump straight into the editor (see below).
+
+The file list is paged: 30 files per request, fetched as you scroll. When you open a file and come back, the list is restored from a snapshot in `sessionStorage` — the pages you had already loaded and your scroll position both come back, so a deep scroll survives the round trip. The snapshot is skipped for random sort and for search results, and it expires after two hours.
+
+Each file card shows:
+
+- Thumbnail (320x180 JPEG; lazy-generated on first access).
+- The file's **title**, not its filename. The title is derived from the filename and is cosmetic — this is why renaming in place is not offered on the cards (see below).
+- Size and the date the file was indexed, plus up to two tags.
+- A duration badge for video and audio, or an extension badge for everything else.
+- A thin *progress bar* along the bottom for partially-watched media.
+- A favourite star, shown on hover and always shown once the file is a favourite.
+
+For the keys these actions are bound to, see [keyboard shortcuts](keyboard-shortcuts.md).
 
 ## Creating a new file
 
@@ -34,11 +50,38 @@ From any folder view you can create a blank Markdown file in one click:
 
 Behaviour:
 
-- The file is created at `untitled-{YYYYMMDD-HHMMSS}.md` inside the **current folder** (the drive root if you are at `/drive/<name>` with no path). No name dialog is shown — the timestamp guarantees uniqueness, and if it ever does collide the backend automatically suffixes the name (`untitled-… (1).md`, `(2)`, …).
+- The file is created at `untitled-{YYYYMMDD-HHMMSS}.md` (local time) inside the **current folder**. No name dialog is shown — the timestamp guarantees uniqueness, and if it ever does collide the backend automatically suffixes the name (`untitled-… (1).md`, `(2)`, …).
 - After creation you are navigated straight to the file in edit mode. Start typing.
 - To use a different extension or rename the file, use the rename action on the file once it is open.
-- The button and the shortcut are **disabled in special views** that do not have a folder context: favourites (`?view=favorites`), search results, tag views, and the global search popup. In those views, navigate into a regular folder first.
-- For drives marked `readonly: true` in `drives.json`, creation fails with an error toast (server returns 403). Use a writable drive for notes.
+- The button and the shortcut are **disabled where there is no folder to write into**: the drive root, favourites (`?view=favorites`), the other flat views, search results, and the global search popup. A tag filter applied *inside* a folder does have a folder, and creates into it.
+- If creation fails the browser shows an alert with the reason. Locked drives are not a special case here — they are invisible until you unlock them.
+
+## Renaming in place
+
+Renaming happens inline, in the row or card you are looking at — there is no dialog:
+
+- Press **`F2`** while a **tree row** or a **folder card** has focus, or pick **Rename** from that item's right-click menu.
+- The name becomes an editable field with the base name preselected, so the first keystroke replaces the name and leaves the extension intact.
+- **`Enter`** (or `Tab`) commits, **`Esc`** cancels. Clicking elsewhere also commits; if that commit is refused the edit is let go and the reason is shown briefly at the top of the pane.
+- Names are checked before the request goes out, with the same rules the server applies: not empty, no `< > : " / \ | ? *`, no leading dot, at most 255 characters. A rejected name keeps the field open with the reason underneath it.
+- After a successful rename focus returns to the row under its new name, so you can keep working from the keyboard.
+
+Where this applies:
+
+- **Folders** — in the tree pane and on folder cards, everywhere folder cards are shown (drive home and inside folders).
+- **Files** — in the **tree pane only**. The tree shows real filenames, so what you edit is exactly the string on screen.
+- **File cards in the grid and list** still rename through the old dialog, because a card shows the title rather than the filename and editing there would show one string and save another.
+
+While a name is being edited, that row stops being a drag source.
+
+## Spring-loaded folders during a drag
+
+Holding a drag still over a collapsed folder row in the tree **opens it after 600 ms**, so you can carry on down and drop into a folder you never opened by hand.
+
+- Only folders that actually have children and are not already open spring open. Sweeping a drag across the tree opens nothing, because the dwell timer restarts every time the hovered row changes.
+- Branches opened this way **close again when the drag ends** — passing over a folder is not an instruction to reshape the tree. The exception is the folder you actually dropped into and its ancestors, which stay open so you can see where the items landed.
+- Branches **you** had already opened are never touched.
+- Spring-loading is off while a tree filter is active, since the filtered tree is built from matches rather than from the expansion state.
 
 ## In-folder filter
 
@@ -49,10 +92,11 @@ Below the toolbar there is an always-visible **filter row** with two inputs comb
 
 Scope and behaviour:
 
-- Filters only the **direct files of the current folder**. Subfolder contents are not searched. Folder entries themselves are always shown — the filter does not hide folders.
+- Filters only the **direct entries of the current folder**. Subfolder contents are not searched.
+- The **text** filter applies to folder cards as well as files, so typing narrows both lists. The **type** filter applies to files only and leaves the folder cards alone — a folder's dominant kind is a different axis from a file's type.
 - **No persistence.** Navigating to another folder, reloading, or re-opening the pane clears the filter (this is intentional — to avoid "I am secretly being filtered" surprises).
-- When zero files match, an empty-state with a **Clear filters** button appears.
-- The text input is debounced ~300 ms and combines with the existing virtual scroller, so it stays responsive on folders with thousands of files.
+- When nothing matches, an empty-state with a **Clear filters** button appears.
+- The text input is debounced ~300 ms, so it stays responsive on folders with thousands of files.
 
 This is the lightest of three search layers. For drive-wide search use the global search popup; for natural-language questions use intelligence Ask. See [Search](search.md).
 
@@ -62,32 +106,38 @@ When the folder tree pane is open, it has its own filter row at the top, identic
 
 - Matches against **file and folder names** across the whole tree of the current drive.
 - Tree structure is preserved: matched items are highlighted, ancestors are shown in a dimmed style as path context, non-matching siblings are hidden.
-- The **type filter** is persisted per drive in localStorage (so a photo drive can default to *Image*); the **text filter** is not — it clears when the tree pane is closed or the page is reloaded.
+- The **type filter** is persisted per drive in localStorage (so a photo drive can default to *Image*); the **text filter** is not — it clears when the tree pane is closed, when the drive changes, or when the page is reloaded.
 - Switching the tree filter on triggers a one-shot full-tree fetch (the tree is normally lazy-expanded), so the first keystroke on a very large drive may take a moment.
+- While a filter is active, rows cannot be dragged out of the tree — the list mixes matches with ancestor context, so the intent would be ambiguous. Rows can still receive drops.
 
-Each file card shows:
+## Filtering a folder by tag
 
-- Thumbnail (320x180 JPEG; lazy-generated on first access).
-- Filename.
-- Type/size badges.
-- A small *progress bar* for partially-watched media.
-- A favourite star (filled if `is_favorite`).
+Clicking a tag in the sidebar while you are inside a folder filters *that folder* by the tag (clicking the same tag again clears it). Two things about the file list change:
+
+- The listing switches from the folder's **direct children** to its **whole subtree**. Plain browsing is a directory listing; a tag filter is a search, and a search that stopped at the first level would miss most of what you meant. Finder behaves the same way.
+- Folder cards disappear while the filter is on — the result is a flat list of matching files. A **Search the whole drive** link appears in the toolbar, and again in the empty state when nothing in this folder matches, to widen the same tag to the whole drive.
+
+Tags themselves — how they are stored, edited, and searched — are covered in [tags and relations](tags-and-relations.md).
 
 ## Carousels
 
 The drive home page surfaces several content rows:
 
-- **Continue watching** — files with playback progress between 1% and 90%, sorted by `last_played_at`. The 90% gate filters out finished items; the 1% gate filters out view-only opens (text/Markdown/image), so you only see media you actually paused mid-way.
-- **Recently added** — files indexed in the last few days.
+- **Continue watching** — files whose playback position is below 90% of their duration, newest first. Finished items fall out at that gate, and so do view-only opens of text, Markdown, and images (they carry no duration), so you only see media you actually paused mid-way.
+- **Recently played** — the same history without the 90% gate.
+- **Recently added** — files most recently indexed.
 - **Favourites** — `is_favorite = true`.
-- **Popular** — files with the most cumulative watch time / opens.
-- **Pinned folders** — folders the viewer has explicitly pinned via the folder action menu.
+- **Popular** — files with the most likes.
+
+Continue watching and Recently played need a profile; without one, no history is recorded and the two rows do not appear. See [profile and preferences](profile-preferences.md).
+
+Below the carousels the drive home lists the files that sit at the drive root, using the same grid as any other folder.
 
 ## Pinned folders
 
-Pin a folder to keep it on the drive home page even when nothing has happened in it recently.
+Pin a folder to keep it one click away from anywhere in the drive.
 
-- Right-click a folder → **Pin**.
+- Right-click a folder → **Pin**. Pinned folders appear in the **Pins** section of the sidebar, not on the drive home page.
 - Pins are per-drive and shared across viewers (they live in the drive DB, not the cookie). If you want viewer-private pins, that is a feature request.
 
 ## Smart folders (saved searches)
@@ -95,25 +145,33 @@ Pin a folder to keep it on the drive home page even when nothing has happened in
 When you find yourself running the same search often, save it as a Smart Folder.
 
 - From the search page, run the query and click **Save**.
-- Smart Folders appear on the drive home page below the Pinned folders.
+- Smart Folders appear in their own sidebar section, which you can collapse and reorder alongside Pins, Collections, and Tags.
 - They are drive-scoped, shared across viewers, editable from the same menu.
 
 ## Real-time updates
 
-The browser holds a WebSocket to `/api/ws`. Whenever the backend emits one of:
+The browser holds a WebSocket to `/api/ws`, and reconnects on its own if the connection drops (e.g., laptop sleep). What actually travels over it is narrower than you might expect. The core broadcasts three things to browsers:
 
-- `files.created` — a new file row was created.
-- `files.deleted` — soft-deleted (trash).
-- `files.recovered` — was missing, now back on disk.
-- `files.missing` — was on disk, now gone.
-- `files.purged` — explicit hard delete.
-- `scan.complete` — a drive rescan finished.
+- `files.moved` — a file was renamed or moved, singly or in a batch. The file list and the tree pane both refresh on this one, including when the change came from another browser or another tab.
+- `scan:complete` — a drive rescan finished. The sidebar and the admin dashboard refresh their counts; the file list does not listen for it.
+- `scan:progress` — rescan progress, for the admin dashboard.
 
-…the UI updates without a refresh. If the WebSocket disconnects (e.g., laptop sleep), it reconnects automatically.
+Everything else — creating, deleting, restoring, purging a file, and any change to the folder tree — is delivered as an **addon webhook**, an HTTP POST to addon services. Those events (`files.created`, `files.deleted`, `files.restored`, `files.recovered`, `files.missing`, `files.purged`, `folders.created`, `folders.deleted`, `folders.moved`) never reach the browser, so **do not expect another tab or another device to notice them on its own.**
+
+What keeps the screen honest after your *own* action is not the WebSocket but a direct refresh: the component that performed the operation refetches its list, and the tree pane and the file list tell each other to do the same. So deleting a file in front of you updates immediately; the same delete performed elsewhere does not, until you navigate, reload, or trigger a rescan.
+
+Addons can also push their own events through the core's relay, which is how, for example, an intelligence job reports progress into the page.
+
+The payload of each event is in [WebSocket events](../reference/websocket-events.md).
 
 ## Drag-and-drop
 
-Drop one or more files (or a whole folder, in browsers that support it) onto the file grid. See [upload and file operations](upload-and-fileops.md) for chunking, resume, and limits.
+Two different things travel by drag:
+
+- **Files from your computer.** Drop one or more files (or a whole folder, in browsers that support it) onto the file grid to upload them. See [upload and file operations](upload-and-fileops.md) for chunking and limits.
+- **Files and folders already in the drive.** Dragging a card or a tree row and dropping it on a folder **moves** it. Valid drop targets are folder cards, folder rows in the tree, the breadcrumb, and the drop band at the top of the tree that stands for the drive root. Drops onto a folder itself, or into its own descendants, are refused. Drags work across panes — pick a card up in the file list and drop it on a tree row.
+
+If several files are selected, dragging any one of them moves the whole selection.
 
 ## What is *not* shown
 

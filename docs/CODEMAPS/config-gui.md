@@ -1,7 +1,7 @@
 # Codemap: Config GUI (first-run wizard + admin settings)
 
 **Last Updated:** 2026-04-30
-**Spec:** [docs/superpowers/specs/2026-04-30-config-gui.md](../superpowers/specs/2026-04-30-config-gui.md)
+**Spec:** `docs/superpowers/specs/2026-04-30-config-gui.md`
 **Scope:** Browser-based editing of `drives.json`, `passwords.json`, and per-drive addon policy. First-run wizard for new installs. Restart-pending banner driven by a filesystem flag.
 
 ## Architecture

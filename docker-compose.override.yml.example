@@ -50,9 +50,38 @@ services:
   # compatible) because their job records depend on a synchronous policy
   # lookup at enqueue time.
   #
-  # Uncomment this block if you run the intelligence addon:
+  # PREFER `configure.py`. It generates this whole block for you, with the
+  # drive mounts and DRIVE_MOUNTS filled in from the drives you selected.
+  # Hand-writing it is the fallback, and the two must not drift.
+  #
+  # `docker-compose.yml` does not define an `intelligence` service, so this
+  # is a full service definition, not an override of an existing one. Every
+  # key below is load-bearing:
+  #
+  #   volumes      the addon indexes the drives through its own read-only
+  #                mounts, and reads the core DB and thumbnails read-only
+  #   DRIVE_MOUNTS maps drive slug to container path. WITHOUT IT THE ADDON
+  #                INDEXES NOTHING, and it fails quietly rather than loudly
+  #   CORE_INTERNAL_SECRET  must match the core's value, or the addon
+  #                cannot read file content or promote chapters
+  #
+  # Mount every drive you want indexed, using the same slug in the path and
+  # in DRIVE_MOUNTS. The example below assumes two drives, `movies` and
+  # `photos` — replace them with yours.
+  #
   # intelligence:
+  #   build: ./addons/intelligence
+  #   expose:
+  #     - "8100"
+  #   volumes:
+  #     - ./addons/intelligence/search-config.yml:/app/search-config.yml:ro
+  #     - ./data/addons/intelligence:/intelligence-data
+  #     - ./data/data.db:/data/litloft.db:ro
+  #     - ./data/thumbnails:/data/thumbnails:ro
+  #     - /srv/movies:/drives/movies:ro
+  #     - /srv/photos:/drives/photos:ro
   #   environment:
+  #     - DRIVE_MOUNTS=movies=/drives/movies,photos=/drives/photos
   #     # Lets the addon notify the core of restart-pending events
   #     # (Phase 2D: settings GUI for transcription provider).
   #     - HOMEVAULT_INTERNAL_URL=http://backend:8000
@@ -64,6 +93,8 @@ services:
   #     - OPENAI_API_KEY=${OPENAI_API_KEY:-}
   #     - ASSEMBLYAI_API_KEY=${ASSEMBLYAI_API_KEY:-}
   #     - GEMINI_API_KEY=${GEMINI_API_KEY:-}
+  #     - CORE_INTERNAL_SECRET=${CORE_INTERNAL_SECRET:-}
   #   depends_on:
   #     backend:
   #       condition: service_healthy
+  #   restart: unless-stopped

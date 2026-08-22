@@ -21,7 +21,6 @@ from app.config import DATA_DIR
 - All thumbnails are 320x180 JPEG.
 
 ## Concurrency control patterns
-- Sprite sheet generation: `asyncio.Semaphore(2)` plus an in-progress set to prevent duplication.
 - ZIP extraction: `asyncio.Semaphore(3)` to cap concurrent extractions.
 - Atomic file writes: write to `.tmp` then `os.replace()`.
 

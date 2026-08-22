@@ -105,5 +105,39 @@ A `post-receive` hook lives under `deploy/`, but it's an auto-deploy helper for 
 
 ## Design documents
 
-Detailed design specs live under `docs/superpowers/specs/`.
 Backend/Frontend conventions and gotchas live under `.claude/rules/`.
+
+### Specs are pre-implementation only, and are not committed
+
+`docs/superpowers/specs/` holds design documents written *before* the work
+starts. They quote the code as it stood at design time, so they go stale the
+moment the branch merges. `docs/superpowers/` is gitignored on purpose:
+specs are local working material, not a repository artifact. Do not `git add`
+one, and do not send a reader to a spec to learn how the system behaves today.
+
+A spec is finished when the implementation merges. Nothing is expected to
+update it afterwards, so its `Status` line is the author's own bookkeeping and
+carries no authority — **verify behaviour against the code, never against a
+spec.**
+
+### Shipped behaviour is documented under `docs/`
+
+Every change that alters what a user, an operator, or an addon developer can
+observe must update the matching page under `docs/` **in the same PR** that
+ships it:
+
+| What changed | Page to update |
+|---|---|
+| Something a viewer sees or presses | `docs/user-guide/` |
+| A key binding or gesture | `docs/user-guide/keyboard-shortcuts.md` |
+| A public HTTP endpoint | `docs/reference/api.md` |
+| A WebSocket event | `docs/reference/websocket-events.md` |
+| A config file key or env var | `docs/reference/configuration.md`, `docs/reference/env-variables.md` |
+| Install / upgrade / first-run flow | `docs/getting-started/` |
+| An operator-facing screen or procedure | `docs/admin-guide/` |
+| An Internal API endpoint | `docs/ADDON-DEVELOPMENT.md` (also required by `.claude/rules/internal-api-policy.md`) |
+| An addon's own surface | `docs/addons/<name>.md` |
+
+Purely internal refactors that change no observable behaviour need no doc
+change. If a change is user-visible and no page fits it, add one rather than
+leaving it undocumented.

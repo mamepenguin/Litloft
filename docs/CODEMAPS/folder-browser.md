@@ -2,12 +2,12 @@
 
 **Last Updated:** 2026-05-09
 **Specs:**
-- [docs/superpowers/specs/2026-05-08-vault-core-merger-phase3.md](../superpowers/specs/2026-05-08-vault-core-merger-phase3.md) — two-pane layout (drive-level tree + content)
-- [docs/superpowers/specs/2026-05-09-folder-filter-and-tree-filter.md](../superpowers/specs/2026-05-09-folder-filter-and-tree-filter.md) — `<FilterField>` introduction, right-pane filter, tree filter (chips replacement)
-- [docs/superpowers/specs/2026-05-09-new-file-creation-core.md](../superpowers/specs/2026-05-09-new-file-creation-core.md) — Phase 4 new-file creation in Core (toolbar button + Cmd/Ctrl+N), backend mime-allowlist removal, suffix numbering on collision
-- [docs/superpowers/specs/2026-05-09-tree-context-menu.md](../superpowers/specs/2026-05-09-tree-context-menu.md) — tree-pane right-click menu (ports the Knowledge addon's row context menu to the core)
-- [docs/superpowers/specs/2026-05-09-tree-pane-drag-drop.md](../superpowers/specs/2026-05-09-tree-pane-drag-drop.md) — tree-pane drag-and-drop (ports the Knowledge sidebar's move gesture; reuses the core `useDragAndDrop` hook with a DataTransfer fallback for cross-pane drops)
-- [docs/superpowers/specs/2026-05-09-tree-and-pane-refresh-sync.md](../superpowers/specs/2026-05-09-tree-and-pane-refresh-sync.md) — both panes auto-refresh on WS events emitted by structure-changing operations (no more siloed `refreshKey` between tree and right pane)
+- `docs/superpowers/specs/2026-05-08-vault-core-merger-phase3.md` — two-pane layout (drive-level tree + content)
+- `docs/superpowers/specs/2026-05-09-folder-filter-and-tree-filter.md` — `<FilterField>` introduction, right-pane filter, tree filter (chips replacement)
+- `docs/superpowers/specs/2026-05-09-new-file-creation-core.md` — Phase 4 new-file creation in Core (toolbar button + Cmd/Ctrl+N), backend mime-allowlist removal, suffix numbering on collision
+- `docs/superpowers/specs/2026-05-09-tree-context-menu.md` — tree-pane right-click menu (ports the Knowledge addon's row context menu to the core)
+- `docs/superpowers/specs/2026-05-09-tree-pane-drag-drop.md` — tree-pane drag-and-drop (ports the Knowledge sidebar's move gesture; reuses the core `useDragAndDrop` hook with a DataTransfer fallback for cross-pane drops)
+- `docs/superpowers/specs/2026-05-09-tree-and-pane-refresh-sync.md` — both panes auto-refresh on WS events emitted by structure-changing operations (no more siloed `refreshKey` between tree and right pane)
 
 **Scope:** the drive-level browser at `/drive/{drive}` and `/drive/{drive}/{path}`. Two-pane layout (folder tree on the left, content on the right), per-pane filter UIs, virtual scroll, the lazy / full-load tree fetch strategy, and the toolbar/shortcut surface for creating new folders and files in the current folder. The filter pair introduced in Phase 4 (right-pane in-folder filter + tree filter that replaces the old type-filter chips) and the new-file creation flow (also Phase 4) are the focus of this map.
 

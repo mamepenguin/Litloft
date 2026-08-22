@@ -18,12 +18,17 @@ Litloft has no traditional account system. What looks like a profile is really a
 
 ## Where to change settings
 
-The in-app settings page is at `/app/settings` (linked from the user menu). It exposes:
+The in-app settings page is at `/settings` (linked from the user menu). It has
+four sections:
 
-- **Nickname** — sets the `lit_viewer` cookie. Empty value clears the cookie and reverts to local-only mode.
-- **Theme** — radio of `light` / `dark` / `system`. The choice is applied immediately via a `data-theme` attribute on `<html>`.
-- **Language** — choose the UI language. The cookie is updated and the page reloads to refresh translations.
-- **Clear watch history** — drops all `WatchHistory` rows for this viewer ID.
+- **Profile** — your nickname, which sets the `lit_viewer` cookie. An empty value clears the cookie and reverts to local-only mode.
+- **Appearance** — `light` / `dark` / `system`. Applied immediately via a `data-theme` attribute on `<html>`.
+- **Language** — the UI language. The cookie is updated and the page reloads to refresh translations.
+- **Sidebar** — reset the sidebar's collapsed sections and ordering back to their defaults.
+
+There is **no "clear watch history" action** here or anywhere else. History is
+removed one entry at a time, from the *Continue watching* and *Recently played*
+rows — see [comments and watch history](comments-history.md).
 
 ## Per-player preferences
 
