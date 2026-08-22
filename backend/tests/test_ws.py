@@ -15,8 +15,23 @@ from tests.conftest import TEST_DRIVE
 
 
 def _run(coro):
-    """Run an async coroutine synchronously."""
-    return asyncio.get_event_loop().run_until_complete(coro)
+    """Run an async coroutine synchronously.
+
+    Deliberately not ``asyncio.get_event_loop()``: since 3.12 that raises
+    ``RuntimeError: There is no current event loop`` when the thread has no
+    loop set, which is the state ``asyncio.run()`` leaves behind. Any other
+    test file using ``asyncio.run`` would therefore break every test here,
+    and one did.
+
+    Not ``asyncio.run`` either, for the same reason in reverse: it sets the
+    new loop as current and clears the slot on exit, so it would export the
+    problem to whoever runs next. A private loop touches nothing global.
+    """
+    loop = asyncio.new_event_loop()
+    try:
+        return loop.run_until_complete(coro)
+    finally:
+        loop.close()
 
 
 def _make_mock_ws():
