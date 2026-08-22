@@ -50,11 +50,18 @@ def captured_emits(monkeypatch):
     """
     calls: list[tuple[str, dict]] = []
 
-    async def fake_emit(event, data):
-        calls.append((event, data))
+    # ``drives`` scopes the browser broadcast for events whose payload cannot
+    # be resolved after the mutation (purges, cross-drive moves). It never
+    # reaches addon listeners, so it is captured separately from the payload.
+    drive_hints: list[list[str] | None] = []
 
-    def fake_emit_sync(event, data):
+    async def fake_emit(event, data, drives=None):
         calls.append((event, data))
+        drive_hints.append(drives)
+
+    def fake_emit_sync(event, data, drives=None):
+        calls.append((event, data))
+        drive_hints.append(drives)
 
     from app.services import event_hooks
     monkeypatch.setattr(event_hooks, "emit", fake_emit)
