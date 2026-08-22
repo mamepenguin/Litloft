@@ -107,7 +107,7 @@ File ids are 12-character nanoids and are validated as such in the path.
 | `DELETE` | `/api/files/{id}` | Soft delete (trash). |
 | `DELETE` | `/api/files/{id}/purge` | Hard delete (irreversible). Accepts a trashed or a missing file; there is no `?purge=true` variant on `DELETE /api/files/{id}`. |
 | `PUT` | `/api/files/{id}/rename` | Rename. Body `{ "new_filename": "..." }`. |
-| `PUT` | `/api/files/{id}/move` | Move to another folder (and optionally another drive). Body `{ "target_drive": null, "target_folder_path": "..." }`. A `target_drive` the caller cannot access is `404`, indistinguishable from one that does not exist. `null` means "the drive it is already in". |
+| `PUT` | `/api/files/{id}/move` | Move to another folder (and optionally another drive). Body `{ "target_drive": null, "target_folder_path": "..." }`. A `target_drive` the caller cannot access is `404`, indistinguishable from one that does not exist. `null` **or an empty string** means "the drive it is already in". |
 | `POST` | `/api/files/{id}/copy` | Copy to another folder. Same body shape as move, and the same `404` on an inaccessible `target_drive`. |
 
 ### Batch operations
