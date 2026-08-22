@@ -112,7 +112,7 @@ See [file states](file-states.md) for the lifecycle semantics behind these event
 
 | Subscriber | Events | Notes |
 |---|---|---|
-| File list (`useFolderFiles`) | `drive.structure_changed`, `drive.file_updated`, `files.updated` | a content write can change a title or a thumbnail, so it watches both |
+| File list (`useFolderFiles`) | `drive.structure_changed`, `drive.file_updated` | a content write can change a title or a thumbnail, so it watches both |
 | Folder tree (`FolderTreePane`) | `drive.structure_changed` | ignores content writes on purpose — the Markdown editor autosaves on a 2 s debounce |
 | Drive home (`DriveHome`) | `drive.structure_changed`, `drive.file_updated` | refreshes the folder grid **and** the Recently added / Favourites / Popular rows; favouriting is a content update |
 | Sidebar, admin dashboard | `scan:complete` | scan counts |
@@ -120,7 +120,7 @@ See [file states](file-states.md) for the lifecycle semantics behind these event
 
 Subscribers ignore the payload apart from `drive`, and refetch rather than patch.
 
-`files.updated` in the file list is a **compatibility bridge**, not part of the coarse contract. An in-process addon can call the broadcaster directly instead of going through `event_hooks`, and media_import does: after fetching a thumbnail or subtitles it broadcasts `files.updated` itself, so no `drive.file_updated` is derived from it. The bridge goes away when those addons emit through `event_hooks`.
+An in-process addon must emit core-owned names through `event_hooks` rather than calling the broadcaster directly, or core derives no browser event from them and no subscriber refreshes. Addon-owned names (`media_import.subscription.*`) are the opposite case: core has nothing to derive, so those broadcast directly.
 
 `scan:progress` and `upload:complete` are broadcast by the core but currently have no subscriber.
 
