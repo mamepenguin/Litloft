@@ -311,6 +311,32 @@ def _get_file_or_404(
     return file
 
 
+def _check_target_drive_access(
+    target_drive: str | None, unlocked_groups: list[str]
+) -> None:
+    """Gate the *destination* of a move/copy.
+
+    ``_get_file_or_404`` covers the file being moved, but ``target_drive``
+    comes straight from the request body and previously only reached
+    ``fileops.resolve_drive_path``, which checks that the drive exists and
+    nothing more. Without this, a caller holding one drive's password could
+    move or copy files into a drive they cannot see.
+
+    Any falsy value means "same drive as the source", which the source-side
+    check has already covered. That includes the empty string: both
+    ``fileops.move_file`` and ``copy_file`` resolve the destination with
+    ``target_drive or src_drive``, and the schema sets no ``min_length``, so
+    ``""`` has always been an accepted way of saying "leave it where it is".
+    Testing ``is None`` here would turn that into a 404.
+
+    Raises 404 (not 403) for both locked and unknown drives, so the response
+    cannot be used to tell the two apart.
+    """
+    if not target_drive:
+        return
+    check_drive_access(target_drive, unlocked_groups)
+
+
 def _get_trashed_file_or_404(
     db: Session, file_id: str, unlocked_groups: list[str]
 ) -> File:
@@ -405,6 +431,7 @@ async def batch_move(
     db: Annotated[Session, Depends(get_db)],
     unlocked_groups: Annotated[list[str], Depends(get_unlocked_groups)],
 ):
+    _check_target_drive_access(body.target_drive, unlocked_groups)
     moved = 0
     moved_ids: list[str] = []
     touched_drives: set[str] = set()
@@ -556,6 +583,7 @@ def batch_copy(
     db: Annotated[Session, Depends(get_db)],
     unlocked_groups: Annotated[list[str], Depends(get_unlocked_groups)],
 ):
+    _check_target_drive_access(body.target_drive, unlocked_groups)
     copied = 0
     copied_ids = []
     errors = []
@@ -1245,6 +1273,7 @@ async def move_file_endpoint(
 ):
     source = _get_file_or_404(db, file_id, unlocked_groups)
     source_drive = source.drive  # captured before move_file rewrites it
+    _check_target_drive_access(body.target_drive, unlocked_groups)
     file = fileops.move_file(db, file_id, body.target_drive, body.target_folder_path)
     await event_hooks.emit(
         "files.moved",
@@ -1265,6 +1294,7 @@ def copy_file_endpoint(
     unlocked_groups: Annotated[list[str], Depends(get_unlocked_groups)],
 ):
     _get_file_or_404(db, file_id, unlocked_groups)
+    _check_target_drive_access(body.target_drive, unlocked_groups)
     new_file = fileops.copy_file(db, file_id, body.target_drive, body.target_folder_path)
     event_hooks.emit_from_thread("files.created", {"file_ids": [new_file.id]})
     return _to_response(new_file)
