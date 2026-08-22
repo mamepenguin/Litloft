@@ -150,15 +150,18 @@ When you find yourself running the same search often, save it as a Smart Folder.
 
 ## Real-time updates
 
-The browser holds a WebSocket to `/api/ws`, and reconnects on its own if the connection drops (e.g., laptop sleep). What actually travels over it is narrower than you might expect. The core broadcasts three things to browsers:
+The browser holds a WebSocket to `/api/ws`, and reconnects on its own if the connection drops (e.g., laptop sleep). **A change made anywhere shows up everywhere it should** — another tab, another device, the scanner, or an addon — without a reload.
 
-- `files.moved` — a file was renamed or moved, singly or in a batch. The file list and the tree pane both refresh on this one, including when the change came from another browser or another tab.
-- `scan:complete` — a drive rescan finished. The sidebar and the admin dashboard refresh their counts; the file list does not listen for it.
-- `scan:progress` — rescan progress, for the admin dashboard.
+What travels over it is coarse on purpose. The core sends two signals:
 
-Everything else — creating, deleting, restoring, purging a file, and any change to the folder tree — is delivered as an **addon webhook**, an HTTP POST to addon services. Those events (`files.created`, `files.deleted`, `files.restored`, `files.recovered`, `files.missing`, `files.purged`, `folders.created`, `folders.deleted`, `folders.moved`) never reach the browser, so **do not expect another tab or another device to notice them on its own.**
+- `drive.structure_changed` — the set of files or folders in a drive changed: something was created, deleted, moved, renamed, restored, purged, went missing, or a rescan finished. The file list, the folder tree, and the drive home page all refetch.
+- `drive.file_updated` — a file's contents were written. The file list refetches, because a write can change a title or a thumbnail. The folder tree ignores it, so editing a note does not make the tree flicker while you type.
 
-What keeps the screen honest after your *own* action is not the WebSocket but a direct refresh: the component that performed the operation refetches its list, and the tree pane and the file list tell each other to do the same. So deleting a file in front of you updates immediately; the same delete performed elsewhere does not, until you navigate, reload, or trigger a rescan.
+Neither carries the ids of what changed. Subscribers refetch the listing they are showing rather than patching it, so the event only has to say *which drive*, and a screen showing a different drive stays still.
+
+Two older signals remain for the rescan progress UI: `scan:progress` and `scan:complete`, which the sidebar and the admin dashboard use for their counts.
+
+Access control applies here as it does everywhere: a notification about a locked drive is never sent to a browser that has not unlocked it.
 
 Addons can also push their own events through the core's relay, which is how, for example, an intelligence job reports progress into the page.
 

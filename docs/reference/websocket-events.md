@@ -21,9 +21,11 @@ Litloft dispatches notifications through **two independent systems**. Confusing 
 | Mechanism | `ws_manager.broadcast` | `event-hooks.json` → `httpx`/`urllib` POST |
 | Configured by | Nothing — always on | `event-hooks.json` (no file → no-op) |
 
-The two are **not** automatically bridged. An event-hook webhook does not reach the browser unless an addon explicitly relays it back via `POST /api/internal/addon-events`. `files.moved` is the one event the core emits on both systems from the same handler; everything else belongs to exactly one system.
+The two carry **different granularity on purpose**. Addon listeners receive the fine-grained lifecycle event with the ids it concerns (`files.created`, `folders.moved`, and so on). Browsers receive one of two coarse events saying only which drive changed, because every browser subscriber refetches its listing rather than patching it from the payload — the name is the whole signal, and leaving the ids out means a protected drive's item count and timing are not broadcast either.
 
-Names are not a reliable way to tell the two apart. A colon means browser-only, but the reverse does not hold: the core's browser-only events split between colon names (`scan:progress`, `scan:complete`, `upload:complete`) and `files.moved`, and most addon events reaching the browser use dots as well.
+An event-hook webhook still does not reach the browser as itself; an addon that wants its own event there relays it via `POST /api/internal/addon-events`.
+
+Names are not a reliable way to tell the two apart. A colon means browser-only, but the reverse does not hold: most addon events reaching the browser use dots as well.
 
 ## Browser WebSocket events
 
@@ -44,10 +46,18 @@ These are the events the core broadcasts directly to connected browsers. This li
 - Payload: `{ "drive": "...", "file_id": "...", "filename": "..." }`.
 - Drive-scoped (access-filtered).
 
-`files.moved`
-- When: a rename or a single move completed (`PUT /api/files/{id}/rename`, `PUT /api/files/{id}/move`), or a batch move completed. **This is the one event emitted on both systems** — the route handler broadcasts it on the WebSocket *and* fires the `files.moved` webhook, so the browser file list refreshes without an addon relay.
-- Payload: `{ "file_ids": [...] }`. Rename and single move pass `drive` to the broadcaster for access-group scoping; batch move does not, so a batch-move broadcast reaches every connection.
-- Note: the scanner's out-of-band move detection, and folder rename / folder move, fire the `files.moved` **webhook only** — they do not WebSocket-broadcast.
+`drive.structure_changed`
+- When: the set of files or folders in a drive changed — a create, soft delete, move, rename, restore, recovery, a file going missing, a purge, a folder created / moved / deleted, or a scan finishing. Emitted from the same place as the corresponding webhook, so every producer is covered: routes, the scanner, uploads, and the startup auto-purge.
+- Payload: `{ "drive": "..." }`. No ids.
+- Drive-scoped (access-filtered). One broadcast per affected drive, so a batch spanning drives produces one event each rather than a single unscoped one.
+
+`drive.file_updated`
+- When: a file's contents were written.
+- Payload: `{ "drive": "..." }`.
+- Drive-scoped (access-filtered).
+- Separate from `drive.structure_changed` so a subscriber can ignore content writes. The folder tree does exactly that: the Markdown editor autosaves on a 2-second debounce, and refetching the tree on each one would make it flicker while the user types.
+
+Both are best effort. When the drive behind an event cannot be determined, nothing is broadcast rather than something unscoped — the drive filter *is* the recipient set here, so failing open would mean sending to every connection.
 
 Nothing in the core broadcasts for chapters or for file version history. Both are read back by ordinary HTTP requests; there is no live event for either.
 

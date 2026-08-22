@@ -77,8 +77,9 @@ export function DriveHome({ driveName }: DriveHomeProps) {
   //      drag-and-drop completes, including cross-pane drops that don't trigger
   //      this component's own onComplete callback.
   useWebSocketRefresh(
-    ["folders.moved", "folders.created", "folders.deleted", "files.moved", "scan.complete"],
+    ["drive.structure_changed"],
     refreshFolders,
+    driveName,
   );
 
   useEffect(() => {

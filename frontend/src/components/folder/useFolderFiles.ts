@@ -38,19 +38,11 @@ import { useWebSocketRefresh } from "@/hooks/useWebSocketRefresh";
  * changed. Both the right pane and the tree pane subscribe to the same
  * set so they stay in sync after any structure-changing operation.
  */
-const STRUCTURE_EVENTS = [
-  "files.created",
-  "files.updated",
-  "files.moved",
-  "files.deleted",
-  "files.restored",
-  "files.recovered",
-  "files.purged",
-  "folders.created",
-  "folders.deleted",
-  "folders.moved",
-  "scan.complete",
-];
+// The core collapses its lifecycle events into two coarse signals before
+// they reach the browser. The list watches both: a content write can change
+// a title or a thumbnail, which is visible here even though the set of
+// files did not change.
+const STRUCTURE_EVENTS = ["drive.structure_changed", "drive.file_updated"];
 
 interface UseFolderFilesParams {
   driveName: string;
@@ -394,9 +386,13 @@ export function useFolderFiles({
   // RootFileListing, …) gets auto-sync without each parent threading
   // WS plumbing.
   const [wsRefreshKey, setWsRefreshKey] = useState(0);
-  useWebSocketRefresh(STRUCTURE_EVENTS, () => {
-    setWsRefreshKey((k) => k + 1);
-  });
+  useWebSocketRefresh(
+    STRUCTURE_EVENTS,
+    () => {
+      setWsRefreshKey((k) => k + 1);
+    },
+    driveName,
+  );
   const combinedRefreshKey = refreshKey + wsRefreshKey;
   useEffect(() => {
     if (combinedRefreshKey === 0) return;

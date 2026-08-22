@@ -13,17 +13,19 @@ function Harness({
   onMatch,
   initialEvent,
   setEvent,
+  drive,
 }: {
   events: string[];
   onMatch: () => void;
   initialEvent: WebSocketEvent | null;
   setEvent: (setter: (next: WebSocketEvent | null) => void) => void;
+  drive?: string;
 }) {
   const [lastEvent, setLastEvent] = useState<WebSocketEvent | null>(initialEvent);
   setEvent((next) => setLastEvent(next));
   return (
     <WebSocketContext.Provider value={{ lastEvent, connected: true }}>
-      <Probe events={events} onMatch={onMatch} />
+      <Probe events={events} onMatch={onMatch} drive={drive} />
     </WebSocketContext.Provider>
   );
 }
@@ -31,11 +33,13 @@ function Harness({
 function Probe({
   events,
   onMatch,
+  drive,
 }: {
   events: string[];
   onMatch: () => void;
+  drive?: string;
 }): ReactNode {
-  useWebSocketRefresh(events, onMatch);
+  useWebSocketRefresh(events, onMatch, drive);
   return null;
 }
 
@@ -149,5 +153,65 @@ describe("useWebSocketRefresh", () => {
       await flushMicrotasks();
     });
     expect(onMatch).toHaveBeenCalledTimes(1);
+  });
+
+  describe("drive scoping", () => {
+    function fire(
+      drive: string | undefined,
+      payloadDrive: unknown,
+      onMatch: () => void,
+    ) {
+      let setter: (next: WebSocketEvent | null) => void = () => {};
+      render(
+        <Harness
+          events={["drive.structure_changed"]}
+          onMatch={onMatch}
+          initialEvent={null}
+          drive={drive}
+          setEvent={(s) => {
+            setter = s;
+          }}
+        />,
+      );
+      act(() => {
+        setter({
+          event: "drive.structure_changed",
+          data: payloadDrive === undefined ? {} : { drive: payloadDrive },
+        });
+      });
+      return setter;
+    }
+
+    it("fires for an event on the subscribed drive", async () => {
+      const onMatch = vi.fn();
+      fire("photos", "photos", onMatch);
+      await flushMicrotasks();
+      expect(onMatch).toHaveBeenCalledTimes(1);
+    });
+
+    it("ignores an event for a different drive", async () => {
+      const onMatch = vi.fn();
+      fire("photos", "movies", onMatch);
+      await flushMicrotasks();
+      // Two public drives are both deliverable, so the access filter does
+      // not save us here — refetching another drive's listing is waste.
+      expect(onMatch).not.toHaveBeenCalled();
+    });
+
+    it("fires when the payload carries no drive", async () => {
+      const onMatch = vi.fn();
+      fire("photos", undefined, onMatch);
+      await flushMicrotasks();
+      // Never drop a refresh over a payload shape we did not expect: a
+      // missed update is visible to the user, a spare refetch is not.
+      expect(onMatch).toHaveBeenCalledTimes(1);
+    });
+
+    it("fires for every drive when no drive is given", async () => {
+      const onMatch = vi.fn();
+      fire(undefined, "movies", onMatch);
+      await flushMicrotasks();
+      expect(onMatch).toHaveBeenCalledTimes(1);
+    });
   });
 });

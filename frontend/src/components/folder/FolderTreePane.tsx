@@ -24,18 +24,10 @@ import { useWebSocketRefresh } from "@/hooks/useWebSocketRefresh";
  * WS events that imply the folder tree's shape may have changed. The
  * right pane subscribes to the same set inside `useFolderFiles`.
  */
-const TREE_STRUCTURE_EVENTS = [
-  "files.created",
-  "files.moved",
-  "files.deleted",
-  "files.restored",
-  "files.recovered",
-  "files.purged",
-  "folders.created",
-  "folders.deleted",
-  "folders.moved",
-  "scan.complete",
-];
+// Structure only. The tree deliberately ignores content writes: the
+// Markdown editor autosaves on a 2s debounce, and refetching the tree on
+// every keystroke pause would make it flicker while the user types.
+const TREE_STRUCTURE_EVENTS = ["drive.structure_changed"];
 import {
   buildFilteredRows,
   computeMatchTables,
@@ -205,7 +197,7 @@ export function FolderTreePane({
   // Auto-refresh on any structural WS event so the tree stays in sync
   // with mutations from the right pane, other clients, and the
   // scanner. Spec 2026-05-09-tree-and-pane-refresh-sync.
-  useWebSocketRefresh(TREE_STRUCTURE_EVENTS, refresh);
+  useWebSocketRefresh(TREE_STRUCTURE_EVENTS, refresh, drive);
 
   // Out-of-band fallback: when the right pane performs a mutation and
   // calls refreshTree() via TreeRefreshContext, externalRefreshKey
