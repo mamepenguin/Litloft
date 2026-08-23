@@ -65,12 +65,20 @@ def _make_repo(tmp_path: Path, *, declares: bool) -> Path:
     return tmp_path
 
 
-def _run_configure(repo: Path) -> None:
-    """Drive the wizard: one drive, default port, intelligence on, no start."""
+def _run_configure(repo: Path) -> subprocess.CompletedProcess:
+    """Drive the wizard: one drive, default port, intelligence on, no start.
+
+    The exit status is part of what is asserted. `configure.py` writes
+    `event-hooks.json` and the override file *before* it persists the
+    generated secret to `.env`, so a crash in that last step — or its
+    removal — leaves every file-shaped assertion above still passing while
+    both containers interpolate an empty value and the gate silently drops
+    back to a no-op. Swallowing the return code hides exactly that.
+    """
     answers = "\n".join(
         ["1", str(repo / "srv"), "", "", "y", "", "y", "n"]
     ) + "\n"
-    subprocess.run(
+    proc = subprocess.run(
         [sys.executable, str(repo / "configure.py")],
         cwd=repo,
         input=answers,
@@ -79,6 +87,24 @@ def _run_configure(repo: Path) -> None:
         timeout=120,
         check=False,
     )
+    assert proc.returncode == 0, (
+        f"configure.py exited {proc.returncode}\n"
+        f"--- stdout ---\n{proc.stdout}\n--- stderr ---\n{proc.stderr}"
+    )
+    return proc
+
+
+def _env_values(repo: Path) -> dict[str, str]:
+    """`.env` as a dict. Absent file means nothing was written."""
+    env_file = repo / ".env"
+    if not env_file.exists():
+        return {}
+    values = {}
+    for line in env_file.read_text().splitlines():
+        if "=" in line and not line.lstrip().startswith("#"):
+            key, _, value = line.partition("=")
+            values[key.strip()] = value.strip()
+    return values
 
 
 def _services_with(text: str, variable: str) -> set[str]:
@@ -158,6 +184,54 @@ class TestGeneratedCompose:
         listeners = [h for entries in hooks.values() for h in entries]
         assert listeners
         assert all(h.get("secret_env") == SECRET for h in listeners)
+
+
+class TestGeneratedEnv:
+    """The compose lines interpolate `${SEARCH_WEBHOOK_SECRET:-}`.
+
+    Both containers can therefore be wired perfectly and still end up with
+    an empty value on both sides — which is the no-op the gate had before
+    any of this work. The generated `.env` is the other half of the wiring
+    and needs asserting on its own.
+    """
+
+    def test_a_secret_is_generated(self, tmp_path):
+        repo = _make_repo(tmp_path, declares=True)
+        _run_configure(repo)
+
+        secret = _env_values(repo).get(SECRET)
+        assert secret, f".env has no usable {SECRET}: {secret!r}"
+        # `gen_secret()` is `os.urandom(32).hex()`. Pinning the shape keeps
+        # a placeholder or a truncated write from passing as a secret.
+        assert re.fullmatch(r"[0-9a-f]{64}", secret), secret
+
+    def test_an_existing_secret_is_reused(self, tmp_path):
+        """Rerunning the wizard must not rotate a live secret.
+
+        A new value in `.env` alone would not break anything at rest, but
+        it does at runtime: the containers keep the old one until they are
+        recreated, and whichever half restarts first starts 403ing.
+        """
+        repo = _make_repo(tmp_path, declares=True)
+        existing = "a" * 64
+        (repo / ".env").write_text(f"{SECRET}={existing}\n")
+        _run_configure(repo)
+
+        assert _env_values(repo)[SECRET] == existing
+
+    def test_no_secret_is_written_without_the_declaration(self, tmp_path):
+        """The guard covers `.env` as well as the compose file.
+
+        Nothing interpolates the leftover value once the compose lines are
+        gone, but rewriting it would still hand the next run — against a
+        manifest that does declare `secret_env` — a value the addon never
+        agreed to, and would say the wizard armed something it did not.
+        """
+        repo = _make_repo(tmp_path, declares=False)
+        (repo / ".env").write_text(f"{SECRET}=left-over-from-before\n")
+        _run_configure(repo)
+
+        assert _env_values(repo)[SECRET] == "left-over-from-before"
 
 
 class TestManifestGuard:

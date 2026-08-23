@@ -122,6 +122,7 @@ Set in `.env` (read by Compose), then injected into containers explicitly via `d
 | `CORE_INTERNAL_SECRET` | (empty; warns at startup) | Shared secret for `/api/internal/*`. Unset makes the gate a no-op everywhere except `PUT /api/internal/files/{id}/chapters`, which 503s. |
 | `CORE_INTERNAL_CONTENT_MAX_BYTES` | `10485760` | Max body size for internal `/files/{id}/content` (bytes) |
 | `EVENT_HOOKS_PATH` | `/app/event-hooks.json` | Path to webhook config |
+| `SEARCH_WEBHOOK_SECRET` | (empty) | Secret core signs intelligence lifecycle webhooks with, resolved by name from the hook's `secret_env`. Needed here as well as on the addon — see the intelligence table below. |
 | `INTELLIGENCE_SERVICE_URL` | `http://intelligence:8100` | Proxy target for the intelligence addon. Unset also hides the addon from `/setup` and `/admin/settings`. |
 | `KNOWLEDGE_SERVICE_URL` | `http://knowledge:8200` | Same, for the knowledge addon |
 | `LITLOFT_MAX_UPLOAD_SIZE_GB` | `50` | Per-file upload cap. A non-numeric or non-positive value stops the backend from booting. |
@@ -158,6 +159,7 @@ Normal deployments need none of these. The `/api/*` rewrite target is hard-coded
 | `ASSEMBLYAI_API_KEY` | (empty) | AssemblyAI cloud transcription (`best` / `nano`) |
 | `GEMINI_API_KEY` | (empty) | Google Gemini File API + generate_content for transcription |
 | `CORE_INTERNAL_SECRET` | (empty; matches core) | Used to call core's Internal API; required to approve AI chapter candidates |
+| `SEARCH_WEBHOOK_SECRET` | (empty) | Shared secret for the addon's lifecycle webhooks (`X-Webhook-Secret`). Unset makes the gate a no-op. Set it on the backend **and** here, or on neither: core builds the header in the backend container, so arming one side alone 403s every webhook or gates nothing. Only takes effect when the manifest declares `secret_env` on every listener. |
 
 ### knowledge addon
 

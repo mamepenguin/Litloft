@@ -50,16 +50,21 @@ Defence in depth: the host proxy enforces the policy *before* dispatching, and t
 
 ## Installation
 
-The addon lives under `addons/intelligence/` and is tracked as a Git submodule. The recommended path is to answer **yes** when `configure.py` prompts to enable the intelligence addon — it writes the matching service block into `docker-compose.override.yml`, mounts the configured drives read-only, and seeds `search-config.yml` from the example. Then:
+The addon lives under `addons/intelligence/` and is tracked as a Git submodule. The recommended path is to answer **yes** when `configure.py` prompts to enable the intelligence addon — it writes the matching service block into `docker-compose.override.yml`, mounts the configured drives read-only, seeds `search-config.yml` from the example, and generates `SEARCH_WEBHOOK_SECRET` into `.env` for both containers. Then:
 
 ```bash
 docker compose up -d --build
 ```
 
-For a manual install (no `configure.py`), add a service block like the one below to `docker-compose.override.yml`, copy `search-config.yml.example` to `search-config.yml`, and rebuild.
+For a manual install (no `configure.py`), add the blocks below to `docker-compose.override.yml`, set `SEARCH_WEBHOOK_SECRET` in `.env` (`openssl rand -hex 32`), copy `search-config.yml.example` to `search-config.yml`, and rebuild.
 
 ```yaml
 services:
+  backend:
+    environment:
+      - INTELLIGENCE_SERVICE_URL=http://intelligence:8100
+      - SEARCH_WEBHOOK_SECRET=${SEARCH_WEBHOOK_SECRET:-}
+
   intelligence:
     build: ./addons/intelligence
     expose:
@@ -74,6 +79,7 @@ services:
       - ASSEMBLYAI_API_KEY=${ASSEMBLYAI_API_KEY:-}
       - GEMINI_API_KEY=${GEMINI_API_KEY:-}
       - CORE_INTERNAL_SECRET=${CORE_INTERNAL_SECRET:-}
+      - SEARCH_WEBHOOK_SECRET=${SEARCH_WEBHOOK_SECRET:-}
     volumes:
       - ./addons/intelligence/search-config.yml:/app/search-config.yml:ro
       - ./data/addons/intelligence:/intelligence-data
@@ -84,6 +90,10 @@ services:
         condition: service_healthy
     restart: unless-stopped
 ```
+
+`INTELLIGENCE_SERVICE_URL` on the **backend** is what lets the core's addon proxy find the service; without it the routes 404.
+
+`SEARCH_WEBHOOK_SECRET` has to be on **both** containers or neither. The core builds the `X-Webhook-Secret` header inside the backend container from its own environment, and the addon compares it in its own — set it on the addon alone and every lifecycle webhook 403s, so indexing quietly stops with no other symptom. Set it on the backend alone and the addon's gate simply stays a no-op. It also only does anything when `addons/intelligence/manifest.json` declares `"secret_env": "SEARCH_WEBHOOK_SECRET"` on every listener, which is what makes core attach the header at all; a submodule pinned to an older commit does not, and the secret should then be left out of both blocks.
 
 The first boot downloads ML models (Whisper, CLIP, embeddings, optionally BLIP). Expect 1–3 GB of weights cached under `data/addons/intelligence/models/`.
 
