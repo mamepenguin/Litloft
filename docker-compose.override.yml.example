@@ -94,6 +94,10 @@ services:
   #     - ASSEMBLYAI_API_KEY=${ASSEMBLYAI_API_KEY:-}
   #     - GEMINI_API_KEY=${GEMINI_API_KEY:-}
   #     - CORE_INTERNAL_SECRET=${CORE_INTERNAL_SECRET:-}
+  #     # Authenticates core's webhooks to the addon. Only takes effect
+  #     # when the addon's manifest declares secret_env for its listeners;
+  #     # setting it otherwise makes every webhook 403.
+  #     - SEARCH_WEBHOOK_SECRET=${SEARCH_WEBHOOK_SECRET:-}
   #   depends_on:
   #     backend:
   #       condition: service_healthy

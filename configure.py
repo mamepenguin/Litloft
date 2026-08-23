@@ -78,6 +78,28 @@ def check_overwrite(path):
         return ask_yn(f"{YELLOW}{path.name}{RESET} already exists. Overwrite?", 'n')
     return True
 
+def addon_declares_secret_env(base: Path, addon_name: str, var: str) -> bool:
+    """Does this addon's manifest ask core to send `var` as X-Webhook-Secret?
+
+    Emitting the variable when the manifest does not declare `secret_env`
+    is the one combination that breaks: the addon starts rejecting, core
+    keeps sending unauthenticated requests, and every webhook 403s with no
+    other symptom. Asking the manifest makes the two halves impossible to
+    get out of step — including against a submodule pinned to an older
+    commit, where the declaration is simply absent and no secret is
+    written.
+    """
+    manifest_path = base / 'addons' / addon_name / 'manifest.json'
+    if not manifest_path.exists():
+        return False
+    try:
+        manifest = json.loads(manifest_path.read_text())
+    except Exception:
+        return False
+    hooks = manifest.get('event_hooks') or []
+    return bool(hooks) and all(h.get('secret_env') == var for h in hooks)
+
+
 def generate_event_hooks(base: Path, enabled_addons: list) -> bool:
     """Build event-hooks.json from the event_hooks field in each enabled addon's manifest.
 
@@ -189,6 +211,7 @@ class ExistingConfig:
         self.has_intelligence = False
         self.has_knowledge = False
         self.knowledge_webhook_secret = ''
+        self.search_webhook_secret = ''
         self.core_internal_secret = ''
         self._load(base)
 
@@ -243,6 +266,8 @@ class ExistingConfig:
                     self.port = line.split('=', 1)[1].strip()
                 elif line.startswith('KNOWLEDGE_WEBHOOK_SECRET='):
                     self.knowledge_webhook_secret = line.split('=', 1)[1].strip()
+                elif line.startswith('SEARCH_WEBHOOK_SECRET='):
+                    self.search_webhook_secret = line.split('=', 1)[1].strip()
                 elif line.startswith('CORE_INTERNAL_SECRET='):
                     self.core_internal_secret = line.split('=', 1)[1].strip()
                 elif line.startswith('LLM_API_KEY=') and line.split('=', 1)[1].strip():
@@ -304,6 +329,7 @@ def main():
 
     has_intelligence = False
     llm_api_key      = ''
+    search_webhook_secret = ''
     if (base / 'addons/intelligence').exists():
         heading("Step 3: Intelligence Addon (Semantic Search + AI)")
         print("  Enables the intelligence service. AI features themselves are")
@@ -322,6 +348,12 @@ def main():
                 print("  Leave blank if you plan to use a local model (e.g. Ollama),")
                 print("  or to configure it later by editing .env.")
                 llm_api_key = ask("  LLM_API_KEY (optional, Enter to skip)", '')
+
+            # Only when the addon's manifest declares secret_env. Emitting it
+            # otherwise would gate the addon while core still sent
+            # unauthenticated requests, and every webhook would 403.
+            if addon_declares_secret_env(base, 'intelligence', 'SEARCH_WEBHOOK_SECRET'):
+                search_webhook_secret = ex.search_webhook_secret or gen_secret()
 
     # ── Step 4: Knowledge Addon ───────────────────────────────────────────────
 
@@ -431,6 +463,7 @@ def main():
                 "      - ASSEMBLYAI_API_KEY=${ASSEMBLYAI_API_KEY:-}",
                 "      - GEMINI_API_KEY=${GEMINI_API_KEY:-}",
                 "      - CORE_INTERNAL_SECRET=${CORE_INTERNAL_SECRET:-}",
+                "      - SEARCH_WEBHOOK_SECRET=${SEARCH_WEBHOOK_SECRET:-}",
                 "    depends_on:", "      backend:", "        condition: service_healthy",
                 "    restart: unless-stopped",
             ]
@@ -502,6 +535,8 @@ def main():
     env_file = base / '.env'
     wrote_env = False
     if port != '3000':       write_env_key('LITLOFT_PORT', port, env_file);                          wrote_env = True
+    if has_intelligence and search_webhook_secret:
+        write_env_key('SEARCH_WEBHOOK_SECRET', search_webhook_secret, env_file); wrote_env = True
     if has_knowledge:
         if knowledge_webhook_secret: write_env_key('KNOWLEDGE_WEBHOOK_SECRET', knowledge_webhook_secret, env_file); wrote_env = True
         if core_internal_secret:     write_env_key('CORE_INTERNAL_SECRET', core_internal_secret, env_file);        wrote_env = True
