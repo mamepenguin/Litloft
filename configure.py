@@ -431,6 +431,11 @@ def main():
 
         backend_env = []
         if has_intelligence: backend_env.append("- INTELLIGENCE_SERVICE_URL=http://intelligence:8100")
+        # Core builds X-Webhook-Secret in *this* container, from its own
+        # environment — passing the value only to the addon would leave core
+        # sending unauthenticated requests to a service now rejecting them.
+        if search_webhook_secret:
+            backend_env.append("- SEARCH_WEBHOOK_SECRET=${SEARCH_WEBHOOK_SECRET:-}")
         if has_knowledge:
             backend_env += [
                 "- KNOWLEDGE_SERVICE_URL=http://knowledge:8200",
@@ -463,7 +468,8 @@ def main():
                 "      - ASSEMBLYAI_API_KEY=${ASSEMBLYAI_API_KEY:-}",
                 "      - GEMINI_API_KEY=${GEMINI_API_KEY:-}",
                 "      - CORE_INTERNAL_SECRET=${CORE_INTERNAL_SECRET:-}",
-                "      - SEARCH_WEBHOOK_SECRET=${SEARCH_WEBHOOK_SECRET:-}",
+                *(["      - SEARCH_WEBHOOK_SECRET=${SEARCH_WEBHOOK_SECRET:-}"]
+                  if search_webhook_secret else []),
                 "    depends_on:", "      backend:", "        condition: service_healthy",
                 "    restart: unless-stopped",
             ]
