@@ -14,7 +14,7 @@ docker compose exec backend bash    # interactive shell
 For tests:
 
 ```bash
-docker build -f backend/Dockerfile.test -t litloft-test backend/
+docker build -f backend/Dockerfile.test -t litloft-test .
 docker run --rm litloft-test
 ```
 

@@ -1,0 +1,65 @@
+# Every image here builds from the repository root — `docker-compose.yml`
+# uses `context: .`, and the addon test images do too. Without this file the
+# daemon is handed the whole working tree on every build, which on a real
+# install means the media library and the database as well: 37 GB on the
+# machine this was written on, none of it reachable by any COPY.
+#
+# Only exclude what no Dockerfile copies. The ones that matter are
+# backend/Dockerfile, frontend/Dockerfile, and the addons' Dockerfile.test,
+# which between them need backend/, frontend/ and addons/.
+
+# ── Drive contents and runtime state ────────────────────────────────────
+# Mounted at runtime, never built in. These are the large ones.
+videos/
+private/
+test_images/
+data/
+
+# ── Version control and local tooling ───────────────────────────────────
+.git/
+.gitignore
+.github/
+.claude/
+.cmux/
+.venv/
+venv/
+
+# ── Build outputs and dependency trees ──────────────────────────────────
+# The frontend image installs from package.json + the lockfile itself, so
+# shipping a host-built node_modules would be both wasteful and wrong: it
+# may hold platform-specific binaries for the host, not the image.
+node_modules/
+frontend/node_modules/
+frontend/.next/
+frontend/out/
+**/__pycache__/
+*.py[cod]
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
+coverage/
+.coverage
+htmlcov/
+
+# ── Local configuration, secrets and generated files ────────────────────
+# Deliberately not baked into an image; they are bind-mounted so they can
+# be edited without a rebuild.
+.env
+.env.local
+docker-compose.override.yml
+drives.json
+passwords.json
+event-hooks.json
+
+# ── Documentation and design material ───────────────────────────────────
+# docs/superpowers/ is gitignored pre-implementation material; the rest is
+# prose that no image serves.
+docs/
+*.md
+!README.md
+
+# ── Editor and OS noise ─────────────────────────────────────────────────
+.DS_Store
+.idea/
+.vscode/
+*.swp

@@ -79,7 +79,7 @@ Skipping step 2 leaves the branch pinned to the pre-merge addon commit, so a fre
 docker compose up -d --build
 
 # Backend tests (run inside Docker; pydantic is not compatible with local Python 3.14)
-docker build -f backend/Dockerfile.test -t video-share-test backend/
+docker build -f backend/Dockerfile.test -t video-share-test .   # context is the repo root
 docker run --rm video-share-test
 
 # Frontend tests

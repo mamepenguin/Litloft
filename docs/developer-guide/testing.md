@@ -7,7 +7,12 @@ Litloft has three test layers: unit, integration, end-to-end. Coverage target is
 Run inside the test container — local Python 3.14 is incompatible with Litloft's pinned Pydantic.
 
 ```bash
-docker build -f backend/Dockerfile.test -t litloft-test backend/
+docker build -f backend/Dockerfile.test -t litloft-test .
+```
+
+The build context is the **repository root**, not `backend/`. Tests reach `configure.py` and `docker-compose.override.yml.example`, which sit above it; `.dockerignore` keeps the context from including the media library.
+
+```bash
 docker run --rm litloft-test
 ```
 
