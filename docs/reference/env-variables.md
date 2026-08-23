@@ -195,6 +195,14 @@ The frontend needs no operator configuration in a normal deployment. The
 - **Read by**: `addons/intelligence/app/routers/admin.py`, `app/rag/*`, `app/workers/chapter_suggestions.py` and others; sent as the `X-Internal-Secret` header.
 - **What it does**: Same value as in core. Mandatory for promoting AI chapter candidates: the addon returns `503` when it is unset on its own side, and core returns `403` on a mismatch.
 
+### `SEARCH_WEBHOOK_SECRET`
+- **Default**: empty
+- **Read by**: `addons/intelligence/app/dependencies.py` `verify_webhook_secret()` on the receiving side, and `backend/app/services/event_hooks.py` on the sending side — core resolves it by name from the hook's `secret_env` in `event-hooks.json` and sends it as the `X-Webhook-Secret` header.
+- **What it does**: Shared secret for the addon's lifecycle webhooks (`scan.complete`, `files.deleted`, `files.restored`, `files.missing`, `files.recovered`, `files.moved`, `files.purged`), the routes that reconcile and permanently drop index state. It does **not** gate `/queue/*`, which is browser-driven and authorised by the proxy's `admin` pre-check instead.
+- **Set it on both containers or neither**: core builds the header inside the **backend** container from its own environment, so the same value has to be in `backend.environment` *and* `intelligence.environment`. On the addon only, all seven webhooks 403 and indexing stops with no other symptom. On the backend only, the addon's gate stays a no-op.
+- **Without it**: the gate is a **no-op** — the addon boots normally and accepts unauthenticated webhook posts from any Docker-network peer.
+- **How to set**: `openssl rand -hex 32`. `configure.py` generates it when you enable the addon, but only if `addons/intelligence/manifest.json` declares `"secret_env": "SEARCH_WEBHOOK_SECRET"` on **every** listener — that declaration is what makes core attach the header, and without it the wizard deliberately wires neither side.
+
 ---
 
 ## knowledge addon
@@ -242,6 +250,7 @@ The frontend needs no operator configuration in a normal deployment. The
 | `JWT_SECRET` | strong random | Stable across restarts, rotatable on demand |
 | `CORE_INTERNAL_SECRET` | strong random | Without it the Internal API gate is a no-op; mandatory for AI chapter promotion |
 | `KNOWLEDGE_WEBHOOK_SECRET` | strong random | Without it the knowledge webhook gate is a no-op |
+| `SEARCH_WEBHOOK_SECRET` | strong random | Without it the intelligence webhook gate is a no-op. Set it on the backend **and** the intelligence container. |
 | `LLM_API_KEY` | provider-issued | Required for cloud LLM features (auto-tags, summaries, Ask); not needed for ollama |
 | `LITLOFT_PORT` | desired port | Avoid 3000 conflicts |
 
@@ -257,6 +266,7 @@ LITLOFT_PORT=3000
 
 # Intelligence
 LLM_API_KEY=...
+SEARCH_WEBHOOK_SECRET=...
 OPENAI_API_KEY=
 DEEPGRAM_API_KEY=
 ELEVENLABS_API_KEY=

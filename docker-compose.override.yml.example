@@ -28,6 +28,25 @@ services:
       # the same atomic writer used for drives.json. Do not add ":ro".
       # - ./passwords.json:/app/passwords.json
 
+    # ── Addon wiring (only when you run an addon) ───────────────────────
+    # These belong to the **backend**, not the addon. Core resolves the
+    # addon's URL and builds the X-Webhook-Secret header in this container,
+    # from these variables.
+    #
+    # SEARCH_WEBHOOK_SECRET has to be on BOTH sides or neither. Set it here
+    # and not on the addon and nothing happens (the addon's gate stays a
+    # no-op); set it on the addon and not here and core sends no header
+    # while the addon rejects everything — all seven webhooks 403 and
+    # indexing stops with no other symptom.
+    #
+    # It also only does anything when the addon's manifest declares
+    # "secret_env": "SEARCH_WEBHOOK_SECRET" for its listeners, which is
+    # what makes core attach the header at all.
+    #
+    # environment:
+    #   - INTELLIGENCE_SERVICE_URL=http://intelligence:8100
+    #   - SEARCH_WEBHOOK_SECRET=${SEARCH_WEBHOOK_SECRET:-}
+
   # ── Port (optional) ─────────────────────────────────────────────────────
   # Default port is 3000.
   # The easiest way to change it is to add LITLOFT_PORT=8080 to a .env file.
@@ -94,6 +113,10 @@ services:
   #     - ASSEMBLYAI_API_KEY=${ASSEMBLYAI_API_KEY:-}
   #     - GEMINI_API_KEY=${GEMINI_API_KEY:-}
   #     - CORE_INTERNAL_SECRET=${CORE_INTERNAL_SECRET:-}
+  #     # Authenticates core's webhooks to the addon. The backend needs the
+  #     # same line (see the backend environment block above) — core builds
+  #     # the header there. On one side only, every webhook 403s.
+  #     - SEARCH_WEBHOOK_SECRET=${SEARCH_WEBHOOK_SECRET:-}
   #   depends_on:
   #     backend:
   #       condition: service_healthy

@@ -105,6 +105,9 @@ services:
   backend:
     environment:
       - INTELLIGENCE_SERVICE_URL=http://intelligence:8100
+      # Core signs its webhooks to the addon in *this* container, so the
+      # same value has to be here and on the addon below.
+      - SEARCH_WEBHOOK_SECRET=${SEARCH_WEBHOOK_SECRET:-}
 
   intelligence:
     build:
@@ -128,10 +131,13 @@ services:
       - ASSEMBLYAI_API_KEY=${ASSEMBLYAI_API_KEY:-}
       - GEMINI_API_KEY=${GEMINI_API_KEY:-}
       - CORE_INTERNAL_SECRET=${CORE_INTERNAL_SECRET}
+      - SEARCH_WEBHOOK_SECRET=${SEARCH_WEBHOOK_SECRET:-}
     depends_on:
       backend:
         condition: service_healthy
 ```
+
+`SEARCH_WEBHOOK_SECRET` authenticates the core's lifecycle webhooks to the addon, and it belongs on **both** services or neither. The backend builds the `X-Webhook-Secret` header from its own environment; arming only the addon makes every webhook 403 and indexing stops with no other symptom, while setting it only on the backend leaves the addon's gate a no-op. It takes effect only when `addons/intelligence/manifest.json` declares `"secret_env": "SEARCH_WEBHOOK_SECRET"` on every listener — `configure.py` checks that before wiring either side, and a manual install should do the same. The knowledge addon's `KNOWLEDGE_WEBHOOK_SECRET` works identically.
 
 The `depends_on: condition: service_healthy` is recommended — when the intelligence addon talks to the backend's internal API on cold start, racing past the backend boot can produce `ConnectionRefused`. The addon already fails open during a 60-second grace period, but the healthy gate is the recommended fix and is mandatory when using cloud transcription providers (their job records depend on a synchronous policy lookup at enqueue time).
 
