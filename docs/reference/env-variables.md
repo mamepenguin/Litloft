@@ -195,6 +195,23 @@ The frontend needs no operator configuration in a normal deployment. The
 - **Read by**: `addons/intelligence/app/routers/admin.py`, `app/rag/*`, `app/workers/chapter_suggestions.py` and others; sent as the `X-Internal-Secret` header.
 - **What it does**: Same value as in core. Mandatory for promoting AI chapter candidates: the addon returns `503` when it is unset on its own side, and core returns `403` on a mismatch.
 
+### `INTELLIGENCE_WRITE_LOCK_TIMEOUT`
+- **Default**: `300` (seconds)
+- **Read by**: `addons/intelligence/app/database.py` `get_search_db()`.
+- **What it does**: Longest the addon waits for the search-DB write lock before raising `WriteLockTimeout`. The lock serialises SQLite writers; a wait this long means a bug is holding it, not that a write is slow, so failing loudly beats hanging silently.
+- **When to set**: Only if a legitimate write block genuinely needs longer than five minutes. Raising it to mask repeated timeouts hides the bug rather than fixing it.
+
+### `INTELLIGENCE_WATCHDOG_INTERVAL`
+- **Default**: `10` (seconds)
+- **Read by**: `addons/intelligence/app/loop_watchdog.py`.
+- **What it does**: How often the watchdog asks the event loop to prove it is still running callbacks.
+
+### `INTELLIGENCE_WATCHDOG_THRESHOLD`
+- **Default**: `120` (seconds)
+- **Read by**: `addons/intelligence/app/loop_watchdog.py`.
+- **What it does**: How long the event loop may stay silent before the addon logs an error with every thread's stack. A blocked loop takes down every endpoint at once while the process still looks healthy, so this dump is usually the only evidence of what is stuck. The watchdog reports once per stall and never terminates the process — recovery is a manual `docker compose restart intelligence`.
+- **When to set**: Lower it if you want stalls reported sooner; raise it if a legitimate long-running synchronous step trips it.
+
 ### `SEARCH_WEBHOOK_SECRET`
 - **Default**: empty
 - **Read by**: `addons/intelligence/app/dependencies.py` `verify_webhook_secret()` on the receiving side, and `backend/app/services/event_hooks.py` on the sending side — core resolves it by name from the hook's `secret_env` in `event-hooks.json` and sends it as the `X-Webhook-Secret` header.
