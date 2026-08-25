@@ -472,6 +472,19 @@ def main():
                   if search_webhook_secret else []),
                 "    depends_on:", "      backend:", "        condition: service_healthy",
                 "    restart: unless-stopped",
+                '    # A wedged event loop leaves the process alive, memory flat and CPU',
+                '    # at zero, so only an HTTP probe can tell healthy from hung. /health',
+                '    # is served by the same loop every other endpoint uses.',
+                '    #',
+                '    # Note this reports, it does not repair: Docker never restarts a',
+                '    # merely unhealthy container. `docker compose ps` shows the state and',
+                '    # the addon logs a full thread dump when the loop stalls.',
+                '    healthcheck:',
+                '      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen(\'http://127.0.0.1:8100/health\', timeout=5)"]',
+                '      interval: 30s',
+                '      timeout: 10s',
+                '      retries: 3',
+                '      start_period: 60s',
             ]
 
         if has_knowledge:

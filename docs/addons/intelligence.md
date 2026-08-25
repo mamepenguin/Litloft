@@ -582,6 +582,7 @@ Embedding-model switches are a different flow: editing `models.text_embedding` f
 - **DB layout.** The addon's data lives under `data/addons/intelligence/`. The core DB is **not** modified; the addon mirrors what it needs and queries the rest through the Internal API.
 - **Observability.** `docker compose logs -f intelligence`. Queue depth, model memory, and recent failed jobs are surfaced on the admin dashboard's *Index Status* widget; the *Failed jobs* modal supports per-row retry.
 - **Cold-start grace.** The addon fails open on policy lookups for the first 60 seconds; after that, missing core means the addon refuses to enqueue work.
+- **Liveness.** The addon serves every endpoint from a single event loop, so a blocked loop takes them all down at once while the container still looks perfectly healthy — process up, memory flat, CPU at zero. Two things make that state visible: the `healthcheck` block `configure.py` writes into `docker-compose.override.yml` (an HTTP probe of `/health`, so `docker compose ps` reports `unhealthy`), and a watchdog inside the addon that logs every thread's stack once the loop has gone 120 seconds without running a callback. Neither restarts anything — Docker leaves an unhealthy container running, and the watchdog deliberately does not kill a process that might be mid-index. Recovery is `docker compose restart intelligence`.
 
 ## Troubleshooting
 
@@ -596,6 +597,7 @@ Embedding-model switches are a different flow: editing `models.text_embedding` f
 | AssemblyAI upload fails on a multi-hour file | 5 GB cap per file. Phase 2B will add ffmpeg-based splitting; for now, transcode to a lower bitrate or use Deepgram |
 | Gemini upload stalls then times out | Raise `transcription.gemini.upload_wait_sec`; the File API is slow on very large files |
 | Tags suggest nothing | Vision describe disabled and BLIP missing for image-heavy drives; enable one |
+| Every intelligence endpoint returns 502, core logs `SLOW REQUEST 15.0s` | The addon's event loop is blocked. Confirm with `docker compose ps` (`unhealthy`), read the thread dump the watchdog wrote to `docker compose logs intelligence`, then `docker compose restart intelligence` |
 | Container OOM during indexing | Raise host RAM, or set `whisper_idle_unload: 60` and `blip_idle_unload: 60` |
 | LLM 429s | Set `llm.min_request_interval_ms: 1000` or increase `llm.retry_max_delay` |
 
