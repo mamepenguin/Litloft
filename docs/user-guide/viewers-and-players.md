@@ -130,6 +130,7 @@ Two things are specific to the YouTube embed:
 
 - **Player UI choice** — a row in the settings sheet swaps Litloft's controls for YouTube's own. It is off by default: Litloft's controls are the point of the embed, and switching trades away the gestures, the caption toggle and the speed sheet. On iOS the browser then refuses inline playback and opens its own full-screen player, which is the only place Picture-in-Picture can be reached from — a cross-origin iframe puts its `<video>` out of our reach.
 - **Ad awareness** — while the provider is drawing chrome of its own (a pre-roll, an end screen), Litloft's overlay stands down and file-scoped controls go quiet, so an ad's own controls are never covered.
+- **Embedding-restricted fallback** — when a video's owner disallows embedded playback (YouTube reports this regardless of which control skin was requested), Litloft gives up on the in-page player entirely and shows the file's thumbnail with a "Watch on YouTube" link that opens the video on youtube.com in a new tab. The player UI choice above has no effect in this state, since neither skin can play the video in an iframe.
 
 ## Shared playback clock and watch history
 
