@@ -1,3 +1,4 @@
+import asyncio
 import json
 import shutil
 import subprocess
@@ -7,6 +8,7 @@ import pytest
 
 import app.config as config
 from app.models import File
+from app.services import scanner as scanner_module
 from app.services.scanner import (
     _filename_to_title,
     _get_folder_path,
@@ -55,6 +57,49 @@ class TestGetFolderPath:
         base.mkdir()
         file_path = base / "video.mp4"
         assert _get_folder_path(file_path, base) == ""
+
+
+class TestScanAllDrivesIsolation:
+    """One drive's unexpected scan_drive failure must not strand every
+    drive scheduled after it in the same startup sweep.
+
+    Regression for the case where an ffmpeg subprocess call raised an
+    uncaught UnicodeDecodeError partway through one drive's scan: the
+    for-loop in scan_all_drives had no per-drive try/except, so the
+    exception propagated out of the whole background task (visible only
+    as an easy-to-miss "Task exception was never retrieved" asyncio
+    warning) and every later drive in drives.json silently never got
+    scanned — on every restart, since the failure was deterministic.
+    """
+
+    def test_continues_past_a_failing_drive(self, monkeypatch):
+        monkeypatch.setattr(config, "get_drive_names", lambda: ["a", "b", "c"])
+
+        calls: list[str] = []
+
+        async def fake_scan_drive(drive_name: str) -> dict[str, int]:
+            calls.append(drive_name)
+            if drive_name == "b":
+                raise RuntimeError("boom")
+            return {"added": 0, "missing": 0, "recovered": 0, "moved": 0, "total": 0}
+
+        monkeypatch.setattr(scanner_module, "scan_drive", fake_scan_drive)
+
+        # Not asyncio.run(): this repo's event-loop hygiene test forbids it
+        # in test files (it resets the thread's current-loop slot on exit,
+        # which can break unrelated tests run in the same session — see
+        # test_event_loop_hygiene.py). A private loop touches no shared
+        # state.
+        loop = asyncio.new_event_loop()
+        try:
+            results = loop.run_until_complete(scanner_module.scan_all_drives())
+        finally:
+            loop.close()
+
+        # All three drives were attempted — "c" was not stranded by "b".
+        assert calls == ["a", "b", "c"]
+        # Only the drives that actually succeeded appear in the result.
+        assert set(results.keys()) == {"a", "c"}
 
 
 class TestAudioOnlyMp4Registration:
