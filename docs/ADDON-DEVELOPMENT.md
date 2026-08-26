@@ -487,6 +487,9 @@ services:
     expose: ["8100"]
     volumes:
       - ./data:/data:ro
+      # Mask the core's token signing key. Without this an addon that is
+      # compromised can mint a JWT for any drive group (or __admin__).
+      - /dev/null:/data/.jwt_secret:ro
     mem_limit: 2g
     restart: unless-stopped
 ```
@@ -1035,6 +1038,9 @@ services:
     mem_limit: 4096m
     volumes:
       - ./data:/data:ro
+      # Mask the core's token signing key (see "Read-only mounts for
+      # addons" in the Docker Compose guide).
+      - /dev/null:/data/.jwt_secret:ro
       - ./data/addons/intelligence:/intelligence-data
       - ./addons/intelligence/search-config.yml:/app/search-config.yml:ro
       # Mount each drive read-only:

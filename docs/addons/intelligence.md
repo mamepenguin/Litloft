@@ -71,6 +71,8 @@ services:
       - "8100"
     environment:
       - DRIVE_MOUNTS=default=/drives/default
+      # The DB keeps its host filename under the directory mount below.
+      - HOMEVAULT_DB_PATH=/data/data.db
       - HOMEVAULT_INTERNAL_URL=http://backend:8000
       - LLM_API_KEY=${LLM_API_KEY:-}
       - DEEPGRAM_API_KEY=${DEEPGRAM_API_KEY:-}
@@ -83,7 +85,13 @@ services:
     volumes:
       - ./addons/intelligence/search-config.yml:/app/search-config.yml:ro
       - ./data/addons/intelligence:/intelligence-data
-      - ./data/data.db:/data/litloft.db:ro
+      # The data directory, not the DB file: SQLite needs data.db-wal and
+      # data.db-shm beside data.db, and a per-file mount of a path SQLite
+      # has checkpointed away becomes a Docker-created directory. The
+      # second line masks the core's token signing key. See
+      # docs/admin-guide/docker-compose.md#read-only-mounts-for-addons.
+      - ./data:/data:ro
+      - /dev/null:/data/.jwt_secret:ro
       - ./videos:/drives/default:ro
     depends_on:
       backend:

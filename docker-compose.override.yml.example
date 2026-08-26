@@ -95,12 +95,28 @@ services:
   #   volumes:
   #     - ./addons/intelligence/search-config.yml:/app/search-config.yml:ro
   #     - ./data/addons/intelligence:/intelligence-data
-  #     - ./data/data.db:/data/litloft.db:ro
-  #     - ./data/thumbnails:/data/thumbnails:ro
+  #     # Mount the data DIRECTORY, never the DB file on its own. SQLite runs
+  #     # the core DB in WAL mode, so a reader needs data.db-wal and
+  #     # data.db-shm alongside data.db — and those two are deleted on a clean
+  #     # shutdown and recreated on the next write. Bind-mounting them by path
+  #     # makes Docker create a DIRECTORY wherever the file is missing at `up`
+  #     # time, and the backend then dies with "unable to open database file"
+  #     # because a directory sits where its WAL belongs. A directory mount
+  #     # always resolves and picks up the sidecars as they come and go.
+  #     # Read-only: the addon must never write to the core's data.
+  #     - ./data:/data:ro
+  #     # ...but that directory also holds the core's JWT signing key, and an
+  #     # addon that can read it can mint a token for any drive group (or
+  #     # __admin__) and call core write APIs. Mask it with /dev/null, which
+  #     # always exists on the host, so the addon sees an empty file and no
+  #     # directory is ever created in its place.
+  #     - /dev/null:/data/.jwt_secret:ro
   #     - /srv/movies:/drives/movies:ro
   #     - /srv/photos:/drives/photos:ro
   #   environment:
   #     - DRIVE_MOUNTS=movies=/drives/movies,photos=/drives/photos
+  #     # The DB keeps its host filename under the directory mount.
+  #     - HOMEVAULT_DB_PATH=/data/data.db
   #     # Lets the addon notify the core of restart-pending events
   #     # (Phase 2D: settings GUI for transcription provider).
   #     - HOMEVAULT_INTERNAL_URL=http://backend:8000

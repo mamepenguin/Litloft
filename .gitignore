@@ -51,3 +51,6 @@ test_images/
 
 # git worktrees created by wt
 /.worktrees/
+
+# pnpm's content-addressed package cache (~800 MB, fully regenerable)
+.pnpm-store/
