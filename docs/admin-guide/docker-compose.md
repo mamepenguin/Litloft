@@ -117,12 +117,16 @@ services:
     volumes:
       - ./addons/intelligence/search-config.yml:/app/search-config.yml:ro
       - ./data/addons/intelligence:/intelligence-data
-      - ./data/data.db:/data/litloft.db:ro
-      - ./data/thumbnails:/data/thumbnails:ro
+      # The whole data directory, read-only — never the DB file alone,
+      # with the core's JWT signing key masked out. See "Read-only
+      # mounts for addons" below for why both lines are needed.
+      - ./data:/data:ro
+      - /dev/null:/data/.jwt_secret:ro
       # Read-only mounts of the drives the addon should index:
       - ./videos:/drives/default:ro
     environment:
       - DRIVE_MOUNTS=default=/drives/default
+      - HOMEVAULT_DB_PATH=/data/data.db
       - HOMEVAULT_INTERNAL_URL=http://backend:8000
       - LLM_API_KEY=${LLM_API_KEY:-}
       - DEEPGRAM_API_KEY=${DEEPGRAM_API_KEY:-}
@@ -151,7 +155,34 @@ Best practice: mount drives read-only into addons. The intelligence addon, for e
 - ./videos:/drives/default:ro
 ```
 
-The shared core SQLite DB should be mounted read-only into addons (`./data/data.db:/data/litloft.db:ro` for intelligence) when an addon needs to look up file metadata directly. The intelligence addon also needs the generated thumbnail directory at `./data/thumbnails:/data/thumbnails:ro` so representative-video thumbnail embeddings can be built. In practice, the Internal API is preferred over direct DB access; see [Internal API policy](../developer-guide/addon-dev.md#internal-api-policy).
+When an addon needs to look up file metadata directly, give it the core's data **directory**, read-only, and point it at the database inside:
+
+```yaml
+volumes:
+  - ./data:/data:ro
+  - /dev/null:/data/.jwt_secret:ro
+environment:
+  - HOMEVAULT_DB_PATH=/data/data.db
+```
+
+That one mount also covers the generated thumbnails the intelligence addon reads at `/data/thumbnails` to build representative-video embeddings.
+
+**The second line is not optional.** `data/.jwt_secret` is the key the core signs access tokens with, and it lives beside the database. An addon that can read it can mint a token carrying any drive group — or `__admin__` — and call the core's write and delete APIs, which makes the read-only drive mounts above meaningless. Overlaying `/dev/null` leaves the addon an empty file. `/dev/null` is the right mask precisely because it always exists on the host, so it can never become a Docker-created directory itself.
+
+The mask makes `depends_on: backend: condition: service_healthy` **load-bearing for startup**, not merely a cold-start nicety. A bind mount needs its target to exist, and on a first run `data/.jwt_secret` is only created when the backend boots (`init_jwt_secret()` runs in the startup lifespan, before `/health` answers). Start the addon before the backend on a fresh install and container creation itself fails:
+
+```
+error mounting "/dev/null" to rootfs at "/data/.jwt_secret":
+  openat .jwt_secret: read-only file system
+```
+
+The healthy gate orders it correctly, so keep it on every addon that takes this mount.
+
+What this mount still exposes, read-only, is the rest of `data/`: other addons' databases under `data/addons/`, and `data/uploads`. That is a deliberate trade — the alternative that scopes it tighter is to give the database its own subdirectory, which cannot be done without breaking every existing `docker-compose.override.yml` on upgrade. It is acceptable under the personal-tool premise, where every addon is first-party. If you ever run a third-party addon, give it the Internal API instead of this mount.
+
+**Do not bind-mount the database file on its own.** The core runs SQLite in WAL mode, so a reader needs `data.db-wal` and `data.db-shm` next to `data.db`, and SQLite deletes both on a clean shutdown, recreating them on the next write. Naming them in a mount means that whenever they are absent at `docker compose up`, Docker creates a **directory** at each missing path — and the backend then fails to start with `unable to open database file`, because a directory occupies the spot where its WAL belongs. Recovery is `docker compose down`, `rmdir data/data.db-wal data/data.db-shm`, `docker compose up -d`. A directory mount cannot hit this: the directory always exists, and the sidecars are picked up as they come and go.
+
+In practice, the Internal API is preferred over direct DB access; see [Internal API policy](../developer-guide/addon-dev.md#internal-api-policy).
 
 ## Healthcheck
 

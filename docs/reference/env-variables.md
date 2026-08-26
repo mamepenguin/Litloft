@@ -149,6 +149,18 @@ The frontend needs no operator configuration in a normal deployment. The
 - **What it does**: Maps core drive names to the addon container's read-only mount points, as a comma-separated `name=/path` list (e.g. `movies=/drives/movies,photos=/drives/photos`). Without it the addon cannot resolve a file to a path it can read, so indexing finds nothing.
 - **When to set**: `configure.py` generates it from your drive mounts. Update it by hand whenever you add a drive mount to the intelligence service.
 
+### `HOMEVAULT_DB_PATH`
+- **Default**: `/data/litloft.db`
+- **Read by**: `addons/intelligence/app/config.py` `load_settings()`.
+- **What it does**: Path to the core's SQLite database inside the addon container, opened read-only for reconciliation and metadata lookups.
+- **When to set**: Whenever the core data directory is mounted as a directory rather than renamed file-by-file — which is what `configure.py` now generates. With `- ./data:/data:ro` the database keeps its host filename, so set `HOMEVAULT_DB_PATH=/data/data.db`. Mounting the DB file on its own is a footgun; see [Read-only mounts for addons](../admin-guide/docker-compose.md#read-only-mounts-for-addons).
+
+### `HOMEVAULT_THUMBNAILS_DIR`
+- **Default**: `/data/thumbnails`
+- **Read by**: `addons/intelligence/app/workers/clip.py`.
+- **What it does**: Directory holding the core-rendered thumbnails the addon embeds for representative-frame video search.
+- **When to set**: Rarely. The default already resolves under the `- ./data:/data:ro` directory mount.
+
 ### `HOMEVAULT_INTERNAL_URL`
 - **Default**: `http://backend:8000`
 - **Read by**: `addons/intelligence/app/routers/admin.py`, `app/workers/chapter_suggestions.py`.
