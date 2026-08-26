@@ -1,6 +1,6 @@
 "use client";
 
-import type { CSSProperties } from "react";
+import { useCallback, useRef, type CSSProperties } from "react";
 import { useTranslations } from "next-intl";
 
 /**
@@ -39,14 +39,14 @@ const SCRUB_KEYS = new Set([
  * The seek bar's input: invisible, but doing three jobs.
  *
  * The knob is painted separately so it shares a coordinate system with
- * the track. That only works if the *native* thumb — still the thing a
- * finger actually grabs, since iOS scrubs by dragging the thumb rather
- * than by tapping the track — sits in the same place. So the native
- * track is pushed down by `--seek-track-offset` to land on the painted
- * line, and the thumb is centred on it.
- *
- * The thumb is also deliberately larger than the knob it stands in for:
- * 24px of grab area behind a 12px dot.
+ * the track. Dragging/tapping is computed by hand from pointer
+ * coordinates (see `secondsFromClientX`) rather than left to the
+ * browser's own thumb-drag handling, so the native thumb's exact
+ * position and hit-box size no longer matter for input — only for the
+ * focus ring and screen-reader semantics a native `<input type="range">`
+ * gives for free. The native track is still pushed down by
+ * `--seek-track-offset` to land on the painted line, for that same
+ * cosmetic/semantic reason.
  */
 const SEEK_INPUT_CLASS =
   "h-full w-full cursor-pointer touch-none appearance-none bg-transparent focus-visible:outline-none disabled:cursor-not-allowed " +
@@ -92,8 +92,26 @@ export function SeekBar({
   variant = "centered",
 }: SeekBarProps) {
   const t = useTranslations("player");
+  const rowRef = useRef<HTMLDivElement>(null);
   const playedFraction =
     duration > 0 ? Math.min(Math.max(displayTime / duration, 0), 1) : 0;
+
+  // The browser's own "click the track to jump" behaviour is a mouse-only
+  // default action: WebKit and Blink under touch only move the value when
+  // the drag starts on the (invisible, 24px) native thumb itself, so a tap
+  // anywhere else on the bar is silently ignored. Computing the position
+  // ourselves from the pointer's coordinates — instead of leaning on that
+  // default action — makes the whole row the drag/tap target on every
+  // pointer type, not just mouse.
+  const secondsFromClientX = useCallback(
+    (clientX: number) => {
+      const rect = rowRef.current?.getBoundingClientRect();
+      if (!rect || rect.width <= 0 || duration <= 0) return displayTime;
+      const fraction = Math.min(Math.max((clientX - rect.left) / rect.width, 0), 1);
+      return fraction * duration;
+    },
+    [duration, displayTime],
+  );
 
   // The knob's travel is the track minus its own width, which is what
   // keeps a native thumb from hanging off either end. Reproduced here
@@ -111,7 +129,8 @@ export function SeekBar({
       // Swipes that begin here are a scrub, not a request to change
       // the frame's size. Read by useFullscreen.
       data-player-scrub=""
-      className="relative h-10 w-full"
+      ref={rowRef}
+      className="relative h-10 w-full touch-none"
     >
       <input
         type="range"
@@ -123,7 +142,20 @@ export function SeekBar({
         step="any"
         value={displayTime}
         disabled={disabled}
-        onPointerDown={() => onScrubStart(displayTime)}
+        onPointerDown={(e) => {
+          // Captured so a drag that wanders outside the row's bounds
+          // (a finger sliding up off the bar, say) keeps reporting to
+          // this element instead of losing the gesture. jsdom (tests)
+          // has no implementation of pointer capture at all.
+          e.currentTarget.setPointerCapture?.(e.pointerId);
+          onScrubStart(secondsFromClientX(e.clientX));
+        }}
+        onPointerMove={(e) => {
+          // Pointer capture keeps delivering move events even while
+          // just hovering with a mouse; only an active press is a scrub.
+          if (e.buttons === 0) return;
+          onScrubChange(secondsFromClientX(e.clientX));
+        }}
         onKeyDown={(e) => {
           if (SCRUB_KEYS.has(e.key)) onScrubStart(displayTime);
         }}
