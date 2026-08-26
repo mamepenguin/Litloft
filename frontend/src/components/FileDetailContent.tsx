@@ -837,18 +837,23 @@ export function FileDetailContent({
         autoPlay={autoPlay}
       />
 
-      <AddonSlot
-        id="file-preview-actions"
-        layout="stack"
-        props={addonSlotProps}
-      />
-
       {/* Directly below the player rather than inside its control bar:
           that bar belongs to the .loft embed and native video does not
           have one, so a button there would appear for some media and
-          not others. Only rendered where a rail is possible at all;
-          the container query decides whether it is visible. */}
-      {railEligible && companionOccupied && <MediaLayoutToggle />}
+          not others. One row so an addon action and the core's own
+          layout toggle read as a single toolbar instead of stacking.
+          `empty:hidden` drops the row's own padding when neither child
+          renders (same trick as the heavy-summary footer below). */}
+      <div className="flex items-center justify-end gap-2 px-3 pt-2 empty:hidden">
+        <AddonSlot
+          id="file-preview-actions"
+          layout="stack"
+          props={addonSlotProps}
+        />
+        {/* Only rendered where a rail is possible at all; the container
+            query decides whether it is visible. */}
+        {railEligible && companionOccupied && <MediaLayoutToggle />}
+      </div>
     </>
   );
 
