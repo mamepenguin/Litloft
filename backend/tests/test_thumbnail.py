@@ -3,10 +3,12 @@ from unittest.mock import patch, MagicMock
 import pytest
 
 from app.services.thumbnail import (
+    generate_image_thumbnail,
     generate_thumbnail,
     get_media_chapters,
     get_video_duration,
     has_video_stream,
+    probe_stream_kinds,
     _calculate_seek_time,
 )
 
@@ -270,3 +272,65 @@ class TestGenerateThumbnail:
         result = generate_thumbnail(str(sample_video), output)
         assert result is True
         assert (tmp_path / "a" / "b" / "thumb.jpg").exists()
+
+
+class TestNonUtf8SubprocessOutput:
+    """Regression: ffmpeg/ffprobe can echo raw bytes straight from a
+    file's legacy-encoded (e.g. Shift_JIS) chapter/title metadata, which
+    aren't valid UTF-8. ``subprocess.run(text=True)`` decodes internally
+    with ``errors="strict"`` by default, so a file like that used to raise
+    an uncaught ``UnicodeDecodeError`` from inside ``subprocess.run``
+    itself — none of these functions' ``except`` clauses catch it before
+    it reaches the caller. Because the startup scan (``scan_all_drives``)
+    runs drives sequentially with no per-drive isolation, this crashed
+    the whole background scan task the moment the scanner reached such a
+    file, silently stranding every drive scheduled after it — and since
+    the file's content never changes, every restart hit the exact same
+    file and crashed the exact same way. ``errors="replace"`` prevents
+    the raise instead of merely surviving it.
+    """
+
+    @patch("app.services.thumbnail.subprocess.run")
+    def test_get_video_duration_passes_errors_replace(self, mock_run):
+        mock_run.return_value = MagicMock(
+            returncode=0, stdout='{"format": {"duration": "1.0"}}'
+        )
+        get_video_duration("/media/x.mp4")
+        assert mock_run.call_args.kwargs["errors"] == "replace"
+
+    @patch("app.services.thumbnail.subprocess.run")
+    def test_get_media_chapters_passes_errors_replace(self, mock_run):
+        mock_run.return_value = MagicMock(returncode=0, stdout='{"chapters": []}')
+        get_media_chapters("/media/x.mkv")
+        assert mock_run.call_args.kwargs["errors"] == "replace"
+
+    @patch("app.services.thumbnail.subprocess.run")
+    def test_probe_stream_kinds_passes_errors_replace(self, mock_run):
+        mock_run.return_value = MagicMock(
+            returncode=0, stdout='{"format": {}, "streams": []}'
+        )
+        probe_stream_kinds("/media/x.mp4")
+        assert mock_run.call_args.kwargs["errors"] == "replace"
+
+    @patch("app.services.thumbnail.subprocess.run")
+    @patch("app.services.thumbnail.get_video_duration", return_value=30.0)
+    def test_run_ffmpeg_thumbnail_passes_errors_replace(
+        self, mock_duration, mock_run, tmp_path
+    ):
+        output = str(tmp_path / "thumb.jpg")
+        (tmp_path / "thumb.jpg").touch()
+        mock_run.return_value = MagicMock(returncode=0)
+
+        generate_thumbnail("/fake/video.mp4", output)
+
+        assert mock_run.call_args_list[0].kwargs["errors"] == "replace"
+
+    @patch("app.services.thumbnail.subprocess.run")
+    def test_generate_image_thumbnail_passes_errors_replace(self, mock_run, tmp_path):
+        output = str(tmp_path / "thumb.jpg")
+        (tmp_path / "thumb.jpg").touch()
+        mock_run.return_value = MagicMock(returncode=0)
+
+        generate_image_thumbnail("/fake/image.jpg", output)
+
+        assert mock_run.call_args.kwargs["errors"] == "replace"

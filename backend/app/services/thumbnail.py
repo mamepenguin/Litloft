@@ -18,6 +18,7 @@ def get_video_duration(video_path: str) -> float | None:
             ],
             capture_output=True,
             text=True,
+            errors="replace",
             check=False,
             timeout=30,
         )
@@ -47,6 +48,7 @@ def get_media_chapters(media_path: str) -> list[dict] | None:
             ],
             capture_output=True,
             text=True,
+            errors="replace",
             check=False,
             timeout=30,
         )
@@ -110,6 +112,7 @@ def probe_stream_kinds(media_path: str) -> dict | None:
             ],
             capture_output=True,
             text=True,
+            errors="replace",
             check=False,
             timeout=30,
         )
@@ -183,6 +186,7 @@ def _run_ffmpeg_thumbnail(
             ],
             capture_output=True,
             text=True,
+            errors="replace",
             check=False,
             timeout=60,
         )
@@ -240,6 +244,7 @@ def generate_image_thumbnail(image_path: str, output_path: str) -> bool:
             ],
             capture_output=True,
             text=True,
+            errors="replace",
             check=False,
             timeout=30,
         )

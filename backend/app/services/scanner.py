@@ -786,5 +786,16 @@ async def scan_all_drives() -> dict[str, dict[str, int]]:
         # scan rather than crashing the lifespan.
         return results
     for drive_name in drive_names:
-        results[drive_name] = await scan_drive(drive_name)
+        try:
+            results[drive_name] = await scan_drive(drive_name)
+        except Exception:
+            # One drive's unexpected failure (e.g. a subprocess choking on
+            # a file's content) must not silently strand every drive after
+            # it — without this, the whole task dies and is only visible
+            # as an easy-to-miss "Task exception was never retrieved"
+            # asyncio warning, and the failed drive never gets a retry.
+            logger.exception(
+                "Startup scan failed for drive '%s'; continuing with remaining drives",
+                drive_name,
+            )
     return results
