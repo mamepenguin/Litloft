@@ -234,6 +234,31 @@ class TestFilterFileIdsTrustFilter:
 
         assert resp.json()["accessible"] == [bad.id]
 
+    def test_response_reports_whether_the_filter_was_applied(self, client):
+        """Lets an addon tell "applied" apart from "core ignored the field".
+
+        Core is versioned independently of its addons and drops unknown
+        fields silently, so without this marker a grounding caller could
+        read an unfiltered list as verified.
+        """
+        c, db, _, _ = client
+        file = _seed(db, tier="verified")
+
+        plain = c.post(self.URL, json={"file_ids": [file.id]}).json()
+        filtered = c.post(
+            self.URL, json={"file_ids": [file.id], "trust_tier": "verified"}
+        ).json()
+
+        assert plain["trust_filtered"] is False
+        assert filtered["trust_filtered"] is True
+
+    def test_marker_is_present_for_an_empty_request(self, client):
+        c, _, _, _ = client
+        body = c.post(
+            self.URL, json={"file_ids": [], "trust_tier": "verified"}
+        ).json()
+        assert body == {"accessible": [], "trust_filtered": True}
+
     def test_invalid_trust_tier_is_422(self, client):
         c, db, _, _ = client
         file = _seed(db)

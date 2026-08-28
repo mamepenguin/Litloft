@@ -567,9 +567,16 @@ def filter_file_ids(
     unlocked_groups: Annotated[list[str], Depends(get_unlocked_groups)] = [],
     db=Depends(get_db),
 ):
-    """Filter file IDs by access control. Returns only accessible file IDs."""
+    """Filter file IDs by access control, and optionally by trust tier.
+
+    The response echoes ``trust_filtered`` so a caller can tell "core applied
+    my filter" apart from "core is too old to know about it and ignored the
+    field". Addons are versioned independently of core, and an unknown field
+    is silently dropped rather than rejected, so without this marker a
+    grounding caller would read an unfiltered list as verified.
+    """
     if not body.file_ids:
-        return {"accessible": []}
+        return {"accessible": [], "trust_filtered": body.trust_tier is not None}
 
     accessible_drive_names = {
         d["name"] for d in filter_drives(config.load_drives(), unlocked_groups)
@@ -584,7 +591,10 @@ def filter_file_ids(
     accessible = [
         f.id for f in files if f.drive in accessible_drive_names
     ]
-    return {"accessible": accessible}
+    return {
+        "accessible": accessible,
+        "trust_filtered": body.trust_tier is not None,
+    }
 
 
 class BulkStateRequest(BaseModel):

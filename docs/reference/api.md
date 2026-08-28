@@ -253,7 +253,7 @@ Available only on the Docker network (frontend never proxies these). For addon u
 | `PUT` | `/api/internal/files/{id}/chapters` | `CORE_INTERNAL_SECRET` (strict) | Replace the full chapter set with approved values (`204`). Core assigns dense ordering and `source=curated`; empty/fully invalid input is 422. Unset secret is 503. |
 | `GET` | `/api/internal/viewer-history?viewer_id=&kind=` | `CORE_INTERNAL_SECRET` | Watched/not-watched lookup. |
 | `PUT` | `/api/internal/files/{id}/trust-tier` | `CORE_INTERNAL_SECRET` (strict) | Declare a file's tier at ingest (`204`). Never stamps `trust_reviewed_at` — that is a person's judgement, made through the public endpoint. `409` when a viewer already ruled on the file (conditional update; the viewer wins). Unset secret is 503. |
-| `POST` | `/api/internal/filter-file-ids` | none | Filter a list to those the caller can see. Optional `trust_tier` narrows further to that tier; omitted, behaviour is unchanged. |
+| `POST` | `/api/internal/filter-file-ids` | none | Filter a list to those the caller can see. Optional `trust_tier` narrows further to that tier; omitted, behaviour is unchanged. The response carries `trust_filtered` so a caller can tell an applied filter from an older core that ignored the field. |
 | `POST` | `/api/internal/files/bulk-state` | none | Lifecycle bulk read. |
 | `POST` | `/api/internal/files/bulk` | none | Full file metadata in bulk for a list of ids, so addons can enrich results without N+1 lookups. Trashed and missing ids come back under `not_found`. |
 | `POST` | `/api/internal/file_relations` | `CORE_INTERNAL_SECRET` | Create relation. |
