@@ -294,3 +294,66 @@ class TestDriveListingTrustFilter:
         c, _, _, _ = client
         resp = c.get(self._url(TEST_DRIVE, trust="bogus"))
         assert resp.status_code == 422
+
+
+class TestRevivedFilesLoseTrust:
+    """A path reused by new content cannot inherit an old verification.
+
+    Both revive paths reuse the existing row on purpose, to keep watch
+    history, tags, and comments. Trust is different in kind: the vouch was
+    about bytes that no longer exist, and carrying it over would let
+    arbitrary new material ground Ask answers under someone's name.
+    """
+
+    def test_text_create_over_a_missing_file_resets_trust(self, client):
+        from datetime import UTC, datetime
+
+        c, db, drive_dir, _ = client
+        file = _seed(db, filename="note.md", tier="verified",
+                     reviewed_at=datetime.now(UTC))
+        file.missing_since = datetime.now(UTC)
+        db.commit()
+
+        resp = c.post(
+            f"/api/drives/{TEST_DRIVE}/files",
+            json={"path": "note.md", "content": "wholly different text"},
+        )
+
+        assert resp.status_code in (200, 201)
+        db.expire_all()
+        row = db.get(File, file.id)
+        assert row.missing_since is None
+        assert row.trust_tier == "unverified"
+        assert row.trust_reviewed_at is None
+
+    def test_active_verified_file_keeps_trust_on_plain_edits(self, client):
+        """Editing your own verified note must not demote it."""
+        from datetime import UTC, datetime
+
+        c, db, drive_dir, _ = client
+        reviewed = datetime.now(UTC)
+        file = _seed(db, filename="mine.md", tier="verified", reviewed_at=reviewed)
+        (drive_dir / "mine.md").write_text("original")
+
+        c.put(f"/api/files/{file.id}/tags", json={"tags": ["kept"]})
+
+        db.expire_all()
+        row = db.get(File, file.id)
+        assert row.trust_tier == "verified"
+        assert row.trust_reviewed_at is not None
+
+
+def test_trust_tier_vocabulary_is_pinned():
+    """Guards the cross-container contract with addon callers.
+
+    Addons pin this same set as a literal because they run in separate
+    containers and cannot import core. Changing the vocabulary here must be a
+    deliberate act that breaks a test, not a silent source of runtime 422s.
+    """
+    from app.models import TRUST_TIERS
+    from app.schemas import TrustTierUpdate
+
+    assert set(TRUST_TIERS) == {"verified", "unverified"}
+
+    for tier in TRUST_TIERS:
+        assert TrustTierUpdate(tier=tier).tier == tier

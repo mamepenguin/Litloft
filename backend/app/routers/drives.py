@@ -9,7 +9,7 @@ from sqlalchemy.orm import Session
 import app.config as config
 from app.auth import check_drive_access, filter_drives, get_unlocked_groups
 from app.database import get_db
-from app.models import EmptyFolder, File, PinnedFolder, Tag, WatchHistory, active_file_filter, file_tags
+from app.models import TRUST_UNVERIFIED, EmptyFolder, File, PinnedFolder, Tag, WatchHistory, active_file_filter, file_tags
 from app.routers.progress import get_viewer_id
 from app.services import event_hooks
 from app.schemas import (
@@ -837,6 +837,13 @@ async def create_text_file(
             else unicodedata.normalize("NFC", parent_rel)
         )
         existing_missing.missing_since = None
+        # New bytes took over this path, so an earlier verification was
+        # about content that no longer exists. Keeping it would let
+        # arbitrary new material inherit a person's vouch and ground Ask
+        # answers under it. Same reasoning as clearing chapters_probed_at:
+        # derived state does not survive a content swap.
+        existing_missing.trust_tier = TRUST_UNVERIFIED
+        existing_missing.trust_reviewed_at = None
         existing_missing.file_size = len(content_bytes)
         existing_missing.file_type = file_type
         existing_missing.mime_type = mime_type

@@ -63,7 +63,7 @@ The knowledge addon does not bind-mount drive directories — it reaches the not
 | `HOMEVAULT_INTERNAL_URL` | `http://backend:8000` | Core API endpoint on the Docker network. |
 | `KNOWLEDGE_USER_AGENT` | (browser-like) | Override for the web-clip fetcher. |
 | `KNOWLEDGE_WEBHOOK_SECRET` | *(empty)* | HMAC for lifecycle webhooks (`files.missing` etc.). Also gates the service-to-service summary-note route. |
-| `CORE_INTERNAL_SECRET` | *(empty)* | Shared secret for `/api/internal/files/<id>/content` calls. |
+| `CORE_INTERNAL_SECRET` | *(empty)* | Shared secret for `/api/internal/files/<id>/content` calls. **Required for web clipping** since clips must be marked unverified as they are created; without it core answers 503 and the clip fails rather than landing as a trusted source. |
 | `NOTE_SCANNER_INTERVAL_SECONDS` | `3600` | Cadence for the frontmatter reconciler. |
 
 Both secrets default to empty, in which case the corresponding gate no-ops. That keeps development frictionless, but on a real install set them — they are the only defence in depth behind the Docker network boundary.
@@ -202,6 +202,27 @@ Two endpoints, both drive-scoped:
 The dashboard also offers a **bookmarklet** to drag to your browser's bookmark bar. It does not talk to the API directly: it opens the Knowledge page for that drive with the current page's URL and title prefilled and submits the URL clip for you, so no cross-origin permission is involved.
 
 The placeholder write is guarded: if you (or the scanner) touch the file while the fetch is in flight, the fetched content is discarded rather than overwriting your edit.
+
+### Clips land unverified
+
+Every clip is created with core's trust tier set to **unverified**. It is
+fully searchable from the moment it lands, but it does not ground Ask
+answers until you have read it and pressed **Trust as a source** on the file
+page. See [trusted sources](../user-guide/file-browsing.md#trusted-sources-and-the-review-queue).
+
+The reasoning: a clip is text someone else wrote, saved because a headline
+looked promising. Treating it as evidence the instant it arrives is how a
+marketing page ends up cited back at you with a page number.
+
+Two operational consequences:
+
+- **`CORE_INTERNAL_SECRET` must be set**, or clipping fails with `502`. This
+  is deliberate. The alternative — carrying on and letting the clip land
+  trusted — is the exact defect the tier exists to prevent, and it would fail
+  silently. The realistic cause is a one-time configuration gap, so it
+  surfaces on your first clip and is fixed once.
+- If you had already ruled on that file yourself, core answers `409` and
+  **your decision stands**; the clip still succeeds.
 
 ### SSRF safety
 

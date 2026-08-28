@@ -10,7 +10,7 @@ from fastapi import HTTPException
 from sqlalchemy.orm import Session
 
 import app.config as config
-from app.models import File
+from app.models import TRUST_UNVERIFIED, File
 from app.services.chapters import probe_file_chapters
 from app.services.filetype import classify, is_probeable_media
 from app.services.fileops import (
@@ -239,6 +239,11 @@ def complete_upload(upload_id: str, db: Session) -> tuple[File, bool]:
         existing.duration = duration
         existing.file_hash = None
         existing.chapters_probed_at = None
+        # An earlier verification was about content this upload just
+        # replaced, so it cannot carry over: new material would inherit
+        # a person's vouch and start grounding Ask answers under it.
+        existing.trust_tier = TRUST_UNVERIFIED
+        existing.trust_reviewed_at = None
         file_record = existing
     else:
         file_record = File(
