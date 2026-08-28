@@ -698,6 +698,12 @@ export function FileDetailContent({
     fileType: file.file_type,
     mimeType: file.mime_type,
     documentCaptureController,
+    // Generic file context, same as fileType/mimeType: lets a section decide
+    // whether it applies without a second round-trip for the file it is
+    // already being rendered for.
+    trustTier: file.trust_tier,
+    trustReviewedAt: file.trust_reviewed_at,
+    onFileChange: setFile,
   };
 
   if (useDocumentLayout) {
