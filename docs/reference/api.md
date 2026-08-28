@@ -88,6 +88,7 @@ File ids are 12-character nanoids and are validated as such in the path.
 | `GET` | `/api/files/{id}/versions/{version_id}/diff` | Line diff of that version against its predecessor: `{ id, lines: [{ kind: "add" \| "del" \| "context", text }], lines_added, lines_removed }`. |
 | `GET` | `/api/files/{id}/wiki-resolutions` | Per-target resolver verdict for every `[[X]]` in a `.md` body. Markdown-only (415 otherwise). Shape: `{"resolutions": {"<target>": {"kind": "resolved" \| "unresolved" \| "ambiguous", ...}}}`; resolved entries also carry `file_id`, `filename`, and `basename`. |
 | `PUT` | `/api/files/{id}/tags` | Set tags (canonical store: frontmatter for `.md`, DB for others). Replaces the whole set. There is no `GET` counterpart — tags come back on the file response. |
+| `PUT` | `/api/files/{id}/trust-tier` | Vouch for a source or withdraw the vouch: `{tier}`, one of `verified` \| `unverified`. Returns the updated file. Stamps `trust_reviewed_at`, which is what separates a person's judgement from a bulk-migrated row. Unverified files stay searchable but stop grounding Ask answers. Demoting never changes anything distilled from the file — a note keeps its own standing. |
 | `GET` | `/api/files/{id}/relations?kind=` | Related files via `file_relations`, both directions, newest first. Trashed counterparts are dropped; missing ones are kept so the UI can grey them out. |
 | `GET` | `/api/files/{id}/chapters` | Ordered chapter set plus the `source` (`extracted` or `curated`) of the current set. |
 | `GET` | `/api/files/{id}/subtitles/{index}` | One detected sidecar subtitle track as WebVTT (SRT is converted on the fly). 5 MB cap (413). |
@@ -251,7 +252,8 @@ Available only on the Docker network (frontend never proxies these). For addon u
 | `POST` | `/api/internal/files/{id}/tags` | `CORE_INTERNAL_SECRET` | Replace tags (`204`). |
 | `PUT` | `/api/internal/files/{id}/chapters` | `CORE_INTERNAL_SECRET` (strict) | Replace the full chapter set with approved values (`204`). Core assigns dense ordering and `source=curated`; empty/fully invalid input is 422. Unset secret is 503. |
 | `GET` | `/api/internal/viewer-history?viewer_id=&kind=` | `CORE_INTERNAL_SECRET` | Watched/not-watched lookup. |
-| `POST` | `/api/internal/filter-file-ids` | none | Filter a list to those the caller can see. |
+| `PUT` | `/api/internal/files/{id}/trust-tier` | `CORE_INTERNAL_SECRET` (strict) | Declare a file's tier at ingest (`204`). Never stamps `trust_reviewed_at` — that is a person's judgement, made through the public endpoint. `409` when a viewer already ruled on the file (conditional update; the viewer wins). Unset secret is 503. |
+| `POST` | `/api/internal/filter-file-ids` | none | Filter a list to those the caller can see. Optional `trust_tier` narrows further to that tier; omitted, behaviour is unchanged. |
 | `POST` | `/api/internal/files/bulk-state` | none | Lifecycle bulk read. |
 | `POST` | `/api/internal/files/bulk` | none | Full file metadata in bulk for a list of ids, so addons can enrich results without N+1 lookups. Trashed and missing ids come back under `not_found`. |
 | `POST` | `/api/internal/file_relations` | `CORE_INTERNAL_SECRET` | Create relation. |

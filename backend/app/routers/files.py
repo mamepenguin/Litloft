@@ -61,6 +61,7 @@ from app.schemas import (
     RelatedFileSummary,
     SubtitleInfo,
     TagUpdate,
+    TrustTierUpdate,
     file_to_response,
 )
 from app.services import file_versions as file_version_service
@@ -741,6 +742,33 @@ def update_file_tags(
     file = _get_file_or_404(db, file_id, unlocked_groups)
     replace_file_tags(db, file, update.tags)
     cleanup_orphan_tags(db)
+    db.commit()
+    db.refresh(file)
+    event_hooks.emit_from_thread("files.updated", {"file_ids": [file_id]})
+    return _to_response(file)
+
+
+@router.put("/{file_id}/trust-tier", response_model=FileResponse)
+def update_file_trust_tier(
+    file_id: FileId,
+    update: TrustTierUpdate,
+    db: Annotated[Session, Depends(get_db)],
+    unlocked_groups: Annotated[list[str], Depends(get_unlocked_groups)],
+):
+    """Vouch for a source, or withdraw that vouch.
+
+    Stamping ``trust_reviewed_at`` is what separates a human judgement from
+    a bulk migration or an addon's ingest-time declaration, so it is set on
+    both directions — including a demotion back to the tier the file
+    started at.
+
+    Demoting never touches anything distilled from this file: a note holds
+    the viewer's own words and stays verified on its own merit.
+    """
+    file = _get_file_or_404(db, file_id, unlocked_groups)
+
+    file.trust_tier = update.tier
+    file.trust_reviewed_at = datetime.now(UTC)
     db.commit()
     db.refresh(file)
     event_hooks.emit_from_thread("files.updated", {"file_ids": [file_id]})
