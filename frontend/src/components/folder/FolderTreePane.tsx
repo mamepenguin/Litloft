@@ -154,6 +154,11 @@ function nodeToFile(
     file_size: 0,
     duration: null,
     likes: 0,
+    // Display placeholder: this stand-in never grounds an answer (Ask
+    // filters server-side) and never mounts the trust control, so it
+    // follows core's column default rather than inventing a tier.
+    trust_tier: "verified" as const,
+    trust_reviewed_at: null,
     is_favorite: false,
     tags: [],
     subtitles: [],

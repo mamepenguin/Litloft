@@ -546,6 +546,7 @@ def list_drive_files(
     favorite: bool | None = None,
     tag: str | None = None,
     type: str | None = None,
+    trust: str | None = Query(None, pattern="^(verified|unverified|unreviewed)$"),
     sort: str = Query("created_at", pattern="^(created_at|title|file_size|likes|random)$"),
     order: str = Query("desc", pattern="^(asc|desc)$"),
     page: int = Query(1, ge=1),
@@ -597,6 +598,13 @@ def list_drive_files(
         query = query.filter(File.tags.any(func.lower(Tag.name) == tag.lower()))
     if type:
         query = query.filter(File.file_type == type)
+    if trust == "unreviewed":
+        # Not a tier: the review queue is "nobody has ruled on this", which
+        # spans both tiers. Bulk-migrated rows are verified but unjudged, and
+        # they are exactly what this filter exists to surface.
+        query = query.filter(File.trust_reviewed_at.is_(None))
+    elif trust:
+        query = query.filter(File.trust_tier == trust)
 
     total = query.count()
 

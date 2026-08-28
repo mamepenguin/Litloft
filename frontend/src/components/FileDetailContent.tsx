@@ -47,6 +47,7 @@ import { CommentSection } from "./CommentSection";
 import { MarkdownAwareTagChips } from "./MarkdownAwareTagChips";
 import { ExifSection } from "./ExifSection";
 import { FavoriteButton } from "./FavoriteButton";
+import { TrustTierControl } from "./TrustTierControl";
 import { FileActions } from "./FileActions";
 import { FilePreview } from "./FilePreview";
 import { MarkdownDocumentLayout } from "./MarkdownDocumentLayout";
@@ -659,6 +660,7 @@ export function FileDetailContent({
               onToggle={setFile}
               showLabel
             />
+            <TrustTierControl file={file} onChange={setFile} />
             {file.file_type === "image" && onRequestImageGallery && (
               <button
                 onClick={onRequestImageGallery}

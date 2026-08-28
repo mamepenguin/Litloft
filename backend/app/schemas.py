@@ -519,6 +519,8 @@ class WatchHistoryItemResponse(_UtcDateTimeMixin, BaseModel):
     likes: int
     is_favorite: bool
     tags: list[str]
+    trust_tier: str = "verified"
+    trust_reviewed_at: datetime | None = None
     created_at: datetime
     updated_at: datetime
     watch_progress: WatchProgressInfo

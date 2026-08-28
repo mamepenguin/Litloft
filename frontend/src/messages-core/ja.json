@@ -1068,5 +1068,17 @@
       "notFound": "この項目は既に存在しません",
       "failed": "名前を変更できませんでした"
     }
+  },
+  "trustTier": {
+    "stateVerified": "検証済み",
+    "stateUnreviewedVerified": "未確認",
+    "stateUnverified": "未検証",
+    "trust": "出典として信用する",
+    "withdraw": "信用を取り消す",
+    "withdrawUnreviewed": "信用しない",
+    "filterAll": "すべて",
+    "filterVerified": "検証済みのみ",
+    "filterUnreviewed": "未確認のみ",
+    "filterLabel": "信頼度"
   }
 }

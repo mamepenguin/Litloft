@@ -9,12 +9,13 @@ import {
   MoreHorizontal,
   Play,
   RefreshCw,
+  ShieldCheck,
   Shuffle,
   X,
 } from "lucide-react";
 
 import { useTranslations } from "next-intl";
-import type { FileType, SortField, SortOrder, ViewMode } from "@/types";
+import type { FileType, SortField, SortOrder, TrustFilter, ViewMode } from "@/types";
 import { SortButton } from "@/components/SortButton";
 import { UploadButton } from "@/components/UploadButton";
 import { ViewToggle } from "@/components/ViewToggle";
@@ -37,6 +38,7 @@ interface FolderToolbarProps {
   sort: SortField;
   order: SortOrder;
   typeFilter: FileType | null;
+  trustFilter?: TrustFilter | null;
   total: number;
   selectable: boolean;
   scanning: boolean;
@@ -63,6 +65,7 @@ interface FolderToolbarProps {
   widenTagScope?: WidenTagScope | null;
   onSortChange: (s: SortField, o: SortOrder) => void;
   onTypeFilterChange: (t: FileType | null) => void;
+  onTrustFilterChange?: (t: TrustFilter | null) => void;
   onViewChange: (mode: ViewMode) => void;
   onToggleSelectable: () => void;
   onScan: () => void;
@@ -83,6 +86,12 @@ interface FolderToolbarProps {
   onReshuffle?: () => void;
 }
 
+const TRUST_OPTION_KEYS: ReadonlyArray<{ value: TrustFilter | null; labelKey: string }> = [
+  { value: null, labelKey: "filterAll" },
+  { value: "verified", labelKey: "filterVerified" },
+  { value: "unreviewed", labelKey: "filterUnreviewed" },
+];
+
 const TYPE_OPTION_KEYS: ReadonlyArray<{ value: FileType | null; labelKey: string }> = [
   { value: null, labelKey: "all" },
   { value: "video", labelKey: "video" },
@@ -95,10 +104,10 @@ const TYPE_OPTION_KEYS: ReadonlyArray<{ value: FileType | null; labelKey: string
 
 export function FolderToolbar({
   isSpecialView, isFolderAnchored, isSearch, tagFilter, hasPlayableFiles,
-  sort, order, typeFilter, total, selectable, scanning,
+  sort, order, typeFilter, trustFilter, total, selectable, scanning,
   creatingFolder, newFolderName, folderError, fileIds, drive, folderPath,
   viewMode, widenTagScope,
-  onSortChange, onTypeFilterChange, onViewChange, onToggleSelectable,
+  onSortChange, onTypeFilterChange, onTrustFilterChange, onViewChange, onToggleSelectable,
   onScan, onPlayAll, onSetCreatingFolder, onSetNewFolderName,
   onSetFolderError, onCreateFolder, onCreateFile, onReshuffle,
 }: FolderToolbarProps) {
@@ -114,9 +123,11 @@ export function FolderToolbar({
   const t = useTranslations("toolbar");
   const tc = useTranslations("common");
   const ts = useTranslations("selection");
+  const tTrust = useTranslations("trustTier");
   const tf = useTranslations("folder");
 
   const [typeFilterOpen, setTypeFilterOpen] = useState(false);
+  const [trustFilterOpen, setTrustFilterOpen] = useState(false);
   const [moreOpen, setMoreOpen] = useState(false);
 
   const activeTypeOption = TYPE_OPTION_KEYS.find((opt) => opt.value === typeFilter);
@@ -217,6 +228,68 @@ export function FolderToolbar({
             <Play size={16} />
             <span className="hidden sm:inline">{tc("play")}</span>
           </button>
+        )}
+
+        {/* Trust filter — sibling chip. Hidden where no handler is wired
+            (archive listings and other non-drive surfaces). */}
+        {onTrustFilterChange && (
+          <div className="relative">
+            <button
+              onClick={() => setTrustFilterOpen((s) => !s)}
+              className={`flex items-center gap-1.5 rounded-2xl border px-3 py-2 text-sm transition-colors ${
+                trustFilter
+                  ? "border-bg-border bg-bg-elevated text-text-primary font-medium"
+                  : "border-bg-border bg-bg-card text-text-muted hover:text-text-primary"
+              }`}
+              aria-haspopup="menu"
+              aria-expanded={trustFilterOpen}
+              aria-label={tTrust("filterLabel")}
+            >
+              <ShieldCheck size={16} />
+              {trustFilter && (
+                <span className="text-sm font-medium">
+                  {tTrust(
+                    TRUST_OPTION_KEYS.find((o) => o.value === trustFilter)
+                      ?.labelKey ?? "filterAll"
+                  )}
+                </span>
+              )}
+            </button>
+            {trustFilterOpen && (
+              <>
+                <div
+                  className="fixed inset-0 z-30 bg-black/30 sm:bg-transparent"
+                  aria-hidden="true"
+                  onClick={() => setTrustFilterOpen(false)}
+                />
+                <div
+                  role="menu"
+                  className="fixed inset-x-2 bottom-4 z-40 max-h-[60vh] overflow-y-auto rounded-2xl border border-bg-border bg-bg-primary py-1 shadow-lg animate-fade-in-scale sm:absolute sm:inset-x-auto sm:bottom-auto sm:right-0 sm:top-full sm:mt-1 sm:max-h-none sm:min-w-[160px] sm:overflow-visible sm:origin-top-right"
+                >
+                  {TRUST_OPTION_KEYS.map((opt) => (
+                    <button
+                      key={opt.labelKey}
+                      role="menuitem"
+                      onClick={() => {
+                        onTrustFilterChange(opt.value);
+                        setTrustFilterOpen(false);
+                      }}
+                      className={`flex w-full items-center gap-2 px-3 py-2 text-left text-sm transition-colors ${
+                        (trustFilter ?? null) === opt.value
+                          ? "bg-bg-elevated text-text-primary font-medium"
+                          : "text-text-primary hover:bg-bg-elevated"
+                      }`}
+                    >
+                      <span className="w-4 flex-shrink-0">
+                        {(trustFilter ?? null) === opt.value && <Check size={14} />}
+                      </span>
+                      {tTrust(opt.labelKey)}
+                    </button>
+                  ))}
+                </div>
+              </>
+            )}
+          </div>
         )}
 
         {/* Type filter — single chip + popover */}

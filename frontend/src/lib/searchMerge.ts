@@ -223,6 +223,13 @@ function fileItemFromHit(hit: SemanticHit): FileItem {
     file_size: 0,
     duration: null,
     likes: 0,
+    // Hydration failed, so the real tier is unknown. The values below are
+    // only placeholders to satisfy the shape; `trust_unknown` is what a
+    // trust filter actually reads, and it drops the row rather than let
+    // an unknown pass as verified.
+    trust_tier: "verified" as const,
+    trust_reviewed_at: null,
+    trust_unknown: true as const,
     is_favorite: false,
     tags: [],
     subtitles: [],

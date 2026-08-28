@@ -241,3 +241,56 @@ class TestFilterFileIdsTrustFilter:
             self.URL, json={"file_ids": [file.id], "trust_tier": "bogus"}
         )
         assert resp.status_code == 422
+
+
+class TestDriveListingTrustFilter:
+    """The core-side filter that makes R1/R4 hold.
+
+    ``unreviewed`` is deliberately not a tier: it selects files nobody has
+    ruled on, which spans both tiers because the migrated backlog is
+    verified but unjudged. That is the review queue.
+    """
+
+    def _url(self, drive: str, **params) -> str:
+        query = "&".join(f"{k}={v}" for k, v in params.items())
+        return f"/api/drives/{drive}/files?{query}"
+
+    def test_verified_filter_narrows_the_listing(self, client):
+        c, db, _, _ = client
+        _seed(db, filename="a.md", tier="verified")
+        _seed(db, filename="b.md", tier="unverified")
+
+        body = c.get(self._url(TEST_DRIVE, trust="verified")).json()
+
+        assert [f["filename"] for f in body["data"]] == ["a.md"]
+
+    def test_unreviewed_filter_spans_both_tiers(self, client):
+        from datetime import UTC, datetime
+
+        c, db, _, _ = client
+        _seed(db, filename="migrated.md", tier="verified", reviewed_at=None)
+        _seed(db, filename="fresh-clip.md", tier="unverified", reviewed_at=None)
+        _seed(
+            db, filename="judged.md", tier="verified",
+            reviewed_at=datetime.now(UTC),
+        )
+
+        body = c.get(self._url(TEST_DRIVE, trust="unreviewed")).json()
+
+        assert sorted(f["filename"] for f in body["data"]) == [
+            "fresh-clip.md", "migrated.md",
+        ]
+
+    def test_absent_filter_returns_everything(self, client):
+        c, db, _, _ = client
+        _seed(db, filename="a.md", tier="verified")
+        _seed(db, filename="b.md", tier="unverified")
+
+        body = c.get(f"/api/drives/{TEST_DRIVE}/files").json()
+
+        assert len(body["data"]) == 2
+
+    def test_unknown_filter_value_is_422(self, client):
+        c, _, _, _ = client
+        resp = c.get(self._url(TEST_DRIVE, trust="bogus"))
+        assert resp.status_code == 422
