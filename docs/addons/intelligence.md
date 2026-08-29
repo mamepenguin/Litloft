@@ -496,6 +496,15 @@ related_passages:
 
 `min_z` is the knob that matters. Measured on a real drive, true matches sit at z = 5.5-6.2 and the noise tail stops at 4.5.
 
+Where it belongs depends on your library and your embedding model, so measure rather than assume — and measure again after the library grows or `models.text_embedding` changes:
+
+```bash
+docker compose exec intelligence \
+    python -m scripts.tune_related_passages --drive <drive>
+```
+
+It prints, per candidate value, the share of files that produce a pair **and the top pairs themselves**. Judge by the pairs: on the drive this was developed against, moving from 5.0 to 4.0 raised the hit rate from 48% to 78% and every pair it added was noise.
+
 ### Transcription
 
 ```yaml
