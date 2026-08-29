@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach } from "vitest";
+import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { render, screen, fireEvent, waitFor } from "@testing-library/react";
 import { FileActions } from "../FileActions";
 import type { FileItem } from "@/types";
@@ -129,5 +129,50 @@ describe("FileActions", () => {
     await waitFor(() => {
       expect(onUpdate).toHaveBeenCalled();
     });
+  });
+});
+
+describe("FileActions menu alignment", () => {
+  // The menu hangs left of the trigger, which only holds while the trigger
+  // sits near its column's right edge. A wrapped action row or a narrow pane
+  // breaks that, and the menu would spill over whatever is to the left.
+  function mountWithBounds(triggerRight: number, clipLeft: number) {
+    const original = Element.prototype.getBoundingClientRect;
+    vi.spyOn(Element.prototype, "getBoundingClientRect").mockImplementation(
+      function (this: Element) {
+        if (this.getAttribute("data-bounds") === "clip") {
+          return { left: clipLeft, right: clipLeft + 300 } as DOMRect;
+        }
+        if ((this as HTMLElement).classList.contains("relative")) {
+          return { left: triggerRight - 28, right: triggerRight } as DOMRect;
+        }
+        return original.call(this);
+      },
+    );
+  }
+
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
+  it("opens leftward when the trigger has room to its left", async () => {
+    mountWithBounds(300, 0);
+    const { container } = render(<FileActions file={mockFile} />);
+    fireEvent.click(screen.getByLabelText("File actions"));
+
+    const menu = container.querySelector(".absolute.top-full");
+    expect(menu?.className).toContain("right-0");
+    expect(menu?.className).not.toContain("left-0");
+  });
+
+  it("flips rightward when the menu would spill past the column edge", async () => {
+    // Trigger 150px from a column that starts at 0: a 160px menu hung to the
+    // left would start at -10.
+    mountWithBounds(150, 0);
+    const { container } = render(<FileActions file={mockFile} />);
+    fireEvent.click(screen.getByLabelText("File actions"));
+
+    const menu = container.querySelector(".absolute.top-full");
+    expect(menu?.className).toContain("left-0");
   });
 });
