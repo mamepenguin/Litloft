@@ -16,7 +16,10 @@ from app.config import DATA_DIR
 - Scanner exclusion: prevent concurrent runs with `asyncio.Lock`; while held, return 409 Conflict.
 
 ## Thumbnail generation
-- Video: ffmpeg's `thumbnail=300` filter picks a representative frame automatically (skipping the first 10% intro).
+- Video: skip the first 10%, then let ffmpeg's `thumbnail=300` filter pick a
+  representative candidate. Analyze the unpadded video region and retry later
+  when at least 50% of its pixels are near one dominant color. Keep retries
+  bounded and use the least-uniform candidate if every candidate is rejected.
 - Image: resize via Pillow. HEIC must be generated through Pillow rather than ffmpeg.
 - All thumbnails are 320x180 JPEG.
 

@@ -1,6 +1,9 @@
 from unittest.mock import patch, MagicMock
 
 import pytest
+from PIL import Image, ImageDraw
+
+from app.services import thumbnail as thumbnail_service
 
 from app.services.thumbnail import (
     generate_image_thumbnail,
@@ -199,6 +202,143 @@ class TestThumbnailFilterCommand:
         vf_value = second_call_args[vf_index + 1]
         assert "scale=320:180" in vf_value
         assert "pad=320:180" in vf_value
+
+
+class TestUniformFrameAvoidance:
+    def test_noisy_solid_background_with_central_logo_is_rejected(self, tmp_path):
+        candidate = tmp_path / "logo.png"
+        image = Image.new("RGB", (320, 180))
+        image.putdata(
+            [
+                ((x + y) % 13, (x * 3 + y) % 13, (x + y * 5) % 13)
+                for y in range(180)
+                for x in range(320)
+            ]
+        )
+        ImageDraw.Draw(image).rectangle((120, 65, 200, 115), fill=(240, 240, 240))
+        image.save(candidate)
+
+        ratio = thumbnail_service._dominant_color_ratio(candidate)
+
+        assert ratio is not None
+        assert ratio >= thumbnail_service.DOMINANT_COLOR_THRESHOLD
+
+    def test_multicolor_frame_is_accepted(self, tmp_path):
+        candidate = tmp_path / "multicolor.png"
+        image = Image.new("RGB", (320, 180))
+        draw = ImageDraw.Draw(image)
+        draw.rectangle((0, 0, 159, 89), fill=(220, 30, 30))
+        draw.rectangle((160, 0, 319, 89), fill=(30, 220, 30))
+        draw.rectangle((0, 90, 159, 179), fill=(30, 30, 220))
+        draw.rectangle((160, 90, 319, 179), fill=(220, 220, 30))
+        image.save(candidate)
+
+        ratio = thumbnail_service._dominant_color_ratio(candidate)
+
+        assert ratio is not None
+        assert ratio < thumbnail_service.DOMINANT_COLOR_THRESHOLD
+
+    def test_exactly_half_nearly_one_color_is_rejected(self, tmp_path):
+        candidate = tmp_path / "half.png"
+        image = Image.new("RGB", (320, 180), (230, 30, 30))
+        ImageDraw.Draw(image).rectangle((160, 0, 319, 179), fill=(30, 30, 230))
+        image.save(candidate)
+
+        assert thumbnail_service._dominant_color_ratio(candidate) == pytest.approx(0.5)
+
+    @patch("app.services.thumbnail._finalize_video_thumbnail", return_value=True)
+    @patch(
+        "app.services.thumbnail._dominant_color_ratio",
+        side_effect=[0.5, 0.3],
+    )
+    @patch("app.services.thumbnail._run_ffmpeg_thumbnail", return_value=True)
+    @patch("app.services.thumbnail.get_video_duration", return_value=30.0)
+    def test_retries_later_until_candidate_is_not_uniform(
+        self,
+        mock_duration,
+        mock_run,
+        mock_ratio,
+        mock_finalize,
+        tmp_path,
+    ):
+        output = str(tmp_path / "thumb.jpg")
+
+        assert generate_thumbnail("/fake/video.mp4", output) is True
+
+        assert mock_run.call_count == 2
+        assert [call.args[2] for call in mock_run.call_args_list] == ["3.0", "8.0"]
+        for call in mock_run.call_args_list:
+            vf_filter = call.args[3]
+            assert "thumbnail=300" in vf_filter
+            assert "pad=320:180" not in vf_filter
+        assert mock_ratio.call_count == 2
+        mock_finalize.assert_called_once()
+
+    def test_unknown_duration_still_has_a_bounded_search(self):
+        assert thumbnail_service._candidate_seek_times(None, 0.0) == [
+            0.0,
+            10.0,
+            20.0,
+            30.0,
+            40.0,
+            50.0,
+        ]
+
+    @patch("app.services.thumbnail._finalize_video_thumbnail", return_value=True)
+    @patch(
+        "app.services.thumbnail._dominant_color_ratio",
+        side_effect=[0.9, 0.6, 0.8],
+    )
+    @patch("app.services.thumbnail._run_ffmpeg_thumbnail", return_value=True)
+    @patch("app.services.thumbnail.get_video_duration", return_value=3.0)
+    def test_all_uniform_candidates_keep_the_least_uniform_one(
+        self,
+        mock_duration,
+        mock_run,
+        mock_ratio,
+        mock_finalize,
+        tmp_path,
+    ):
+        output = str(tmp_path / "thumb.jpg")
+
+        assert generate_thumbnail("/fake/video.mp4", output) is True
+
+        assert mock_run.call_count == 3
+        least_uniform_path = mock_ratio.call_args_list[1].args[0]
+        assert mock_finalize.call_args.args == (least_uniform_path, output)
+
+    @patch("app.services.thumbnail._finalize_video_thumbnail", return_value=True)
+    @patch("app.services.thumbnail._dominant_color_ratio", return_value=None)
+    @patch("app.services.thumbnail._run_ffmpeg_thumbnail", return_value=True)
+    @patch("app.services.thumbnail.get_video_duration", return_value=30.0)
+    def test_analysis_failure_accepts_the_first_candidate(
+        self,
+        mock_duration,
+        mock_run,
+        mock_ratio,
+        mock_finalize,
+        tmp_path,
+    ):
+        output = str(tmp_path / "thumb.jpg")
+
+        assert generate_thumbnail("/fake/video.mp4", output) is True
+
+        assert mock_run.call_count == 1
+        mock_finalize.assert_called_once()
+
+    def test_final_padding_does_not_affect_candidate_analysis(self, tmp_path):
+        candidate = tmp_path / "portrait.png"
+        output = tmp_path / "thumb.jpg"
+        image = Image.new("RGB", (80, 180), (220, 30, 30))
+        ImageDraw.Draw(image).rectangle((0, 90, 79, 179), fill=(30, 30, 220))
+        image.save(candidate)
+
+        ratio = thumbnail_service._dominant_color_ratio(candidate)
+        assert ratio == pytest.approx(0.5)
+        assert thumbnail_service._finalize_video_thumbnail(candidate, str(output))
+
+        with Image.open(output) as thumbnail:
+            assert thumbnail.size == (320, 180)
 
 
 class TestGetVideoDuration:
