@@ -1,6 +1,8 @@
 import json
 import logging
 import subprocess
+import tempfile
+from collections import Counter
 from pathlib import Path
 
 logger = logging.getLogger(__name__)
@@ -150,15 +152,19 @@ def has_video_stream(media_path: str) -> bool | None:
     return info["video"]
 
 
-SCALE_FILTER = (
-    "scale=320:180:force_original_aspect_ratio=decrease,"
-    "pad=320:180:(ow-iw)/2:(oh-ih)/2"
-)
+CANDIDATE_SCALE_FILTER = "scale=320:180:force_original_aspect_ratio=decrease"
+SCALE_FILTER = f"{CANDIDATE_SCALE_FILTER},pad=320:180:(ow-iw)/2:(oh-ih)/2"
 
 SEEK_MIN = 2.0
 SEEK_MAX = 60.0
 SHORT_VIDEO_THRESHOLD = 10.0
 INTRO_SKIP_RATIO = 0.1
+DOMINANT_COLOR_THRESHOLD = 0.5
+COLOR_BUCKET_SIZE = 16
+COLOR_TOLERANCE = 20
+MAX_THUMBNAIL_CANDIDATES = 6
+MAX_CANDIDATE_SEEK_STEP = 10.0
+VIDEO_THUMBNAIL_JPEG_QUALITY = 95
 
 
 def _calculate_seek_time(duration: float | None) -> float:
@@ -201,18 +207,150 @@ def _run_ffmpeg_thumbnail(
         return False
 
 
+def _dominant_color_ratio(image_path: str | Path) -> float | None:
+    """Return the share of pixels close to the candidate's dominant color.
+
+    Coarse buckets locate the dominant color despite compression noise. The
+    second pass counts nearby buckets too, so colors on a bucket boundary are
+    not treated as unrelated. ``None`` keeps image-analysis failures fail-open.
+    """
+    from PIL import Image
+
+    try:
+        with Image.open(image_path) as source:
+            pixels = list(source.convert("RGB").getdata())
+    except (OSError, ValueError) as error:
+        logger.warning(
+            "Could not analyze thumbnail candidate %s: %s", image_path, error
+        )
+        return None
+
+    if not pixels:
+        return None
+
+    buckets = Counter(
+        (red // COLOR_BUCKET_SIZE, green // COLOR_BUCKET_SIZE, blue // COLOR_BUCKET_SIZE)
+        for red, green, blue in pixels
+    )
+    dominant_bucket, _ = buckets.most_common(1)[0]
+    dominant_pixels = [
+        pixel
+        for pixel in pixels
+        if tuple(channel // COLOR_BUCKET_SIZE for channel in pixel) == dominant_bucket
+    ]
+    dominant_color = tuple(
+        sum(pixel[channel] for pixel in dominant_pixels) / len(dominant_pixels)
+        for channel in range(3)
+    )
+    near_dominant = sum(
+        1
+        for pixel in pixels
+        if max(
+            abs(pixel[channel] - dominant_color[channel]) for channel in range(3)
+        )
+        <= COLOR_TOLERANCE
+    )
+    return near_dominant / len(pixels)
+
+
+def _candidate_seek_times(duration: float | None, initial_seek: float) -> list[float]:
+    if duration is None:
+        step = MAX_CANDIDATE_SEEK_STEP
+    else:
+        step = min(
+            MAX_CANDIDATE_SEEK_STEP,
+            max(1.0, duration / MAX_THUMBNAIL_CANDIDATES),
+        )
+
+    times: list[float] = []
+    for index in range(MAX_THUMBNAIL_CANDIDATES):
+        seek = initial_seek + (step * index)
+        if duration is not None and seek >= duration:
+            break
+        times.append(seek)
+    return times or [initial_seek]
+
+
+def _finalize_video_thumbnail(candidate_path: str | Path, output_path: str) -> bool:
+    """Pad a content-only candidate to the public 320x180 JPEG format."""
+    from PIL import Image
+
+    try:
+        with Image.open(candidate_path) as source:
+            candidate = source.convert("RGB")
+            candidate.thumbnail((320, 180), Image.Resampling.LANCZOS)
+            canvas = Image.new("RGB", (320, 180), (0, 0, 0))
+            canvas.paste(
+                candidate,
+                ((320 - candidate.width) // 2, (180 - candidate.height) // 2),
+            )
+            canvas.save(
+                output_path,
+                format="JPEG",
+                quality=VIDEO_THUMBNAIL_JPEG_QUALITY,
+            )
+        return Path(output_path).exists()
+    except (OSError, ValueError) as error:
+        logger.error("Could not finalize thumbnail %s: %s", output_path, error)
+        return False
+
+
 def generate_thumbnail(video_path: str, output_path: str) -> bool:
     output = Path(output_path)
     output.parent.mkdir(parents=True, exist_ok=True)
 
     duration = get_video_duration(video_path)
-    seek = _calculate_seek_time(duration)
-    seek_str = str(seek)
+    initial_seek = _calculate_seek_time(duration)
+    candidate_paths: list[Path] = []
+    best_candidate: tuple[float, Path] | None = None
 
-    # Primary: thumbnail filter (picks most representative frame)
-    primary_vf = f"thumbnail=300,{SCALE_FILTER}"
-    if _run_ffmpeg_thumbnail(video_path, output_path, seek_str, primary_vf):
-        return True
+    # Analyze before padding so portrait and ultrawide videos are not rejected
+    # merely because their generated 320x180 thumbnails contain black bars.
+    candidate_vf = f"thumbnail=300,{CANDIDATE_SCALE_FILTER}"
+    try:
+        for seek in _candidate_seek_times(duration, initial_seek):
+            with tempfile.NamedTemporaryFile(
+                prefix=f".{output.stem}-candidate-",
+                suffix=".jpg",
+                dir=output.parent,
+                delete=False,
+            ) as temporary:
+                candidate_path = Path(temporary.name)
+            candidate_path.unlink(missing_ok=True)
+            candidate_paths.append(candidate_path)
+
+            if not _run_ffmpeg_thumbnail(
+                video_path,
+                str(candidate_path),
+                str(seek),
+                candidate_vf,
+            ):
+                break
+
+            dominant_ratio = _dominant_color_ratio(candidate_path)
+            if dominant_ratio is None or dominant_ratio < DOMINANT_COLOR_THRESHOLD:
+                if _finalize_video_thumbnail(candidate_path, output_path):
+                    return True
+                break
+
+            if best_candidate is None or dominant_ratio < best_candidate[0]:
+                best_candidate = (dominant_ratio, candidate_path)
+            logger.debug(
+                "Rejected uniform thumbnail candidate for %s at %.1fs (ratio %.3f)",
+                video_path,
+                seek,
+                dominant_ratio,
+            )
+
+        # Some videos are intentionally near-monochrome. Keep the least-uniform
+        # candidate rather than leaving those videos without a thumbnail.
+        if best_candidate is not None and _finalize_video_thumbnail(
+            best_candidate[1], output_path
+        ):
+            return True
+    finally:
+        for candidate_path in candidate_paths:
+            candidate_path.unlink(missing_ok=True)
 
     # Fallback: simple seek (original method)
     logger.warning("Thumbnail filter failed for %s, falling back to seek", video_path)
