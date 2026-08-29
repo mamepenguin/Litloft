@@ -18,6 +18,7 @@ The `intelligence` addon adds LLM-backed search, Q&A, summarization, and tag sug
 | **Vision describe** | LLM image descriptions, photo-by-photo | manual |
 | **Transcription** | faster-Whisper (local) or cloud providers | local |
 | **CLIP frame analysis** | Scene-aware video frame embeddings for "find a moment" | on |
+| **Related passages** | Pairs a passage of the file you are reading with a passage of a source you vouched for | on |
 
 Shipped defaults are conservative — most LLM-driven features start at `"false"` or `"manual"` so an unconfigured install never makes outbound LLM calls until you turn a feature on (in the browser or in `search-config.yml`). All features are opt-out per drive via the [settings GUI](../admin-guide/settings-gui.md).
 
@@ -140,6 +141,18 @@ A toggle in the search page enables matching against per-second video frame embe
 - `min_score_clip_thumbnail` — for individual scene-detected frames.
 
 Both default to 0.05 because SigLIP2 produces lower absolute cosine values than older CLIP models.
+
+### Related passages
+
+A file-detail section that answers **which passages** of the file you are reading connect to passages of files you have marked as trusted sources — the counterpart to *Similar files*, which answers which whole files relate to this one.
+
+Each row shows both passages in full, verbatim, and links to the other one's exact position (a timestamp for a transcript, a page for a PDF). **No LLM is involved**: the section points at places, it never writes or summarises. Candidates are drawn only from `trust_tier = verified` files in the same drive.
+
+It runs when the file is opened, and **renders nothing at all unless it found something** — the section being on the page is itself the signal. On a real drive about half of files produce no pair, so an empty placeholder would be the common case.
+
+**Why the section is often absent.** Absolute cosine similarity does not separate related passages from unrelated ones — on a real drive, unrelated passages score a median of 0.77 while a genuinely related pair scores 0.93, and the bands overlap. The gate is therefore how far a pair stands out from *that request's own* distribution (`related_passages.min_z`). When nothing stands out — including when every candidate is equally related — the section does not render at all rather than showing five arbitrary rows. Measured on a real drive, `min_z = 5.0` puts a pair on about half of files; lowering it to 4.0 produces four times as many pairs, most of them spurious (the noise tail there reaches z = 4.5).
+
+A file the addon has not indexed yet returns nothing rather than an error.
 
 ### Auto-tags
 
@@ -465,6 +478,23 @@ search:
   min_score_clip: 0.05                    # SigLIP2 default; raise to 0.20 for CLIP
   min_score_clip_thumbnail: 0.05
 ```
+
+### Related passages
+
+```yaml
+related_passages:
+  min_z: 5.0                              # SDs above this request's own mean
+  small_sample_z: 3.0                     # bar for a drive too small for z=5
+  min_pairs_for_z: 400
+  min_score: 0.70                         # sanity floor only
+  near_duplicate_score: 0.999             # above this it is the same text
+  min_passage_chars: 40                   # shorter passages match everything
+  candidate_files: 20                     # cost knobs: the pairwise stage is
+  max_source_chunks: 400                  # a matrix product of both sides
+  max_candidate_chunks: 200
+```
+
+`min_z` is the knob that matters. Measured on a real drive, true matches sit at z = 5.5-6.2 and the noise tail stops at 4.5.
 
 ### Transcription
 

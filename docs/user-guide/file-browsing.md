@@ -143,6 +143,12 @@ it does not touch notes you wrote from that file — a note holds your own
 words and keeps its own standing whatever happens to the page that prompted
 it. There is no confirmation dialog because there is nothing to lose.
 
+When you open a file nobody has ruled on, the page asks the question
+directly, with **Trust as a source** and **Not now** buttons. The panel is
+just the question — when the material for answering it exists, it sits
+just below in [Related passages](viewers-and-players.md#related-passages),
+which runs on every file and stays there after you have decided.
+
 The toolbar has a matching filter chip:
 
 | Choice | Shows |
