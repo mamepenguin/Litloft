@@ -743,6 +743,67 @@ describe("FileDetailContent", () => {
 
     markdownContentRegistry.reset();
   });
+
+  // Spec 2026-08-29-description-timestamp-links.md. SeekableDescription
+  // is deliberately not mocked here — the point of these two is that the
+  // host reaches it at all, and only for media.
+  describe("description timestamps", () => {
+    it("links the timestamps in a video's description", async () => {
+      setApiResponses(
+        makeFile({ description: "0:00 Intro\n0:45 Method", duration: 600 }),
+      );
+      render(<FileDetailContent fileId="f1" drive="main" />);
+      await waitFor(() => expect(api.getFile).toHaveBeenCalled());
+
+      expect(
+        await screen.findByRole("button", { name: "Jump to 0:00" }),
+      ).toBeInTheDocument();
+      expect(
+        screen.getByRole("button", { name: "Jump to 0:45" }),
+      ).toBeInTheDocument();
+    });
+
+    it("links them for audio too, not only video", async () => {
+      setApiResponses(
+        makeFile({
+          filename: "ep.m4a",
+          mime_type: "audio/mp4",
+          file_type: "audio",
+          description: "1:23 Chapter one",
+          duration: 600,
+        }),
+      );
+      render(<FileDetailContent fileId="f1" drive="main" />);
+      await waitFor(() => expect(api.getFile).toHaveBeenCalled());
+
+      expect(
+        await screen.findByRole("button", { name: "Jump to 1:23" }),
+      ).toBeInTheDocument();
+    });
+
+    it("leaves a non-media file's description as plain text", async () => {
+      setApiResponses(
+        makeFile({
+          filename: "photo.jpg",
+          mime_type: "image/jpeg",
+          file_type: "image",
+          description: "Taken at 1:23 in the afternoon",
+          duration: null,
+        }),
+      );
+      const { container } = render(
+        <FileDetailContent fileId="f1" drive="main" />,
+      );
+      await waitFor(() => expect(api.getFile).toHaveBeenCalled());
+
+      await waitFor(() =>
+        expect(container.textContent).toContain(
+          "Taken at 1:23 in the afternoon",
+        ),
+      );
+      expect(screen.queryByRole("button", { name: /Jump to/ })).toBeNull();
+    });
+  });
 });
 
 // Spec 2026-08-11-transcript-following-playback.md §3. Core owns where
