@@ -15,7 +15,7 @@ from typing import Annotated
 
 from fastapi import APIRouter, Depends, Header, HTTPException, Query, Response
 from fastapi.responses import PlainTextResponse
-from pydantic import BaseModel, StringConstraints
+from pydantic import BaseModel, StringConstraints, field_validator
 from sqlalchemy import or_
 from sqlalchemy.exc import IntegrityError
 
@@ -23,13 +23,20 @@ import app.config as config
 from app.auth import filter_drives, get_unlocked_groups
 from app.database import get_db
 from app.models import (
+    TRUST_TIERS,
     File,
     FileRelation,
     WatchHistory,
     active_file_filter,
+    verified_file_filter,
 )
 from app.routers.files import cleanup_orphan_tags, replace_file_tags
-from app.schemas import ChapterPromotionRequest, TagUpdate, file_to_response
+from app.schemas import (
+    ChapterPromotionRequest,
+    TagUpdate,
+    TrustTierUpdate,
+    file_to_response,
+)
 from app.services.chapters import replace_chapters
 from app.services.ws import manager as ws_manager
 
@@ -493,6 +500,65 @@ def viewer_history(
 
 class FilterFileIdsRequest(BaseModel):
     file_ids: list[str]
+    # Optional so every existing caller keeps its current behaviour. When
+    # set, the response is additionally narrowed to that trust tier, which
+    # is how grounding surfaces drop unverified sources without opening a
+    # second data path into core's schema.
+    trust_tier: str | None = None
+
+    @field_validator("trust_tier")
+    @classmethod
+    def validate_trust_tier(cls, v: str | None) -> str | None:
+        if v is not None and v not in TRUST_TIERS:
+            raise ValueError(f"trust_tier must be one of {', '.join(TRUST_TIERS)}")
+        return v
+
+
+@router.put(
+    "/files/{file_id}/trust-tier",
+    dependencies=[Depends(verify_internal_write_secret)],
+    status_code=204,
+)
+def set_file_trust_tier_internal(
+    file_id: str,
+    update: TrustTierUpdate,
+    db=Depends(get_db),
+) -> Response:
+    """Let an addon declare a file's trust tier as it ingests it.
+
+    This is a declaration, not a judgement, so ``trust_reviewed_at`` is
+    deliberately left untouched: an addon has reviewed nothing. Only a
+    person acting through the core UI stamps that column.
+    """
+    # Conditional update rather than read-then-write: a viewer promoting the
+    # file concurrently must win, and the check has to be atomic to mean
+    # anything. Writing the tier while a person's ``trust_reviewed_at``
+    # stands would attribute the addon's declaration to them.
+    updated = (
+        db.query(File)
+        .filter(
+            File.id == file_id,
+            active_file_filter(),
+            File.trust_reviewed_at.is_(None),
+        )
+        .update({File.trust_tier: update.tier}, synchronize_session=False)
+    )
+    if updated:
+        db.commit()
+        return Response(status_code=204)
+
+    db.rollback()
+    exists = (
+        db.query(File.id)
+        .filter(File.id == file_id, active_file_filter())
+        .first()
+    )
+    if not exists:
+        raise HTTPException(status_code=404, detail="File not found")
+    raise HTTPException(
+        status_code=409,
+        detail="Trust tier already decided by a viewer",
+    )
 
 
 @router.post("/filter-file-ids")
@@ -501,27 +567,34 @@ def filter_file_ids(
     unlocked_groups: Annotated[list[str], Depends(get_unlocked_groups)] = [],
     db=Depends(get_db),
 ):
-    """Filter file IDs by access control. Returns only accessible file IDs."""
+    """Filter file IDs by access control, and optionally by trust tier.
+
+    The response echoes ``trust_filtered`` so a caller can tell "core applied
+    my filter" apart from "core is too old to know about it and ignored the
+    field". Addons are versioned independently of core, and an unknown field
+    is silently dropped rather than rejected, so without this marker a
+    grounding caller would read an unfiltered list as verified.
+    """
     if not body.file_ids:
-        return {"accessible": []}
+        return {"accessible": [], "trust_filtered": body.trust_tier is not None}
 
     accessible_drive_names = {
         d["name"] for d in filter_drives(config.load_drives(), unlocked_groups)
     }
 
-    files = (
-        db.query(File.id, File.drive)
-        .filter(
-            File.id.in_(body.file_ids),
-            active_file_filter(),
-        )
-        .all()
-    )
+    conditions = [File.id.in_(body.file_ids), active_file_filter()]
+    if body.trust_tier is not None:
+        conditions.append(File.trust_tier == body.trust_tier)
+
+    files = db.query(File.id, File.drive).filter(*conditions).all()
 
     accessible = [
         f.id for f in files if f.drive in accessible_drive_names
     ]
-    return {"accessible": accessible}
+    return {
+        "accessible": accessible,
+        "trust_filtered": body.trust_tier is not None,
+    }
 
 
 class BulkStateRequest(BaseModel):

@@ -1,5 +1,14 @@
 export type FileType = "video" | "image" | "audio" | "document" | "archive" | "subtitle" | "other";
 
+export type TrustTier = "verified" | "unverified";
+
+/**
+ * Listing filter. `unreviewed` is deliberately not a tier: it selects
+ * files nobody has ruled on, which spans both tiers because the migrated
+ * backlog is verified but unjudged.
+ */
+export type TrustFilter = TrustTier | "unreviewed";
+
 export interface SubtitleInfo {
   index: number;
   language: string;
@@ -26,6 +35,24 @@ export interface FileItem {
   subtitles: SubtitleInfo[];
   deleted_at: string | null;
   missing_since: string | null;
+  /**
+   * Whether the viewer has vouched for this file as a source. Unverified
+   * files stay searchable but stop grounding Ask answers.
+   *
+   * Read together with `trust_reviewed_at`: the two encode four states, and
+   * `verified` with a null stamp means "bulk-migrated or declared by an
+   * addon at ingest", not "a person approved this".
+   * Spec `2026-08-29-web-clip-promotion.md`.
+   */
+  trust_tier: TrustTier;
+  trust_reviewed_at: string | null;
+  /**
+   * Client-only marker set by the search-merge placeholder builder when
+   * core's bulk hydrate failed and the real tier is unknown. Never sent
+   * by the API. A trust filter drops these rather than letting an
+   * unknown pass as verified.
+   */
+  trust_unknown?: true;
   created_at: string;
   updated_at: string;
   /**

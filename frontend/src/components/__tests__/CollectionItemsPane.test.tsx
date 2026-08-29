@@ -39,6 +39,8 @@ function makeFile(id: string): FileItem {
     subtitles: [],
     deleted_at: null,
     missing_since: null,
+    trust_tier: "verified",
+    trust_reviewed_at: null,
     created_at: "",
     updated_at: "",
   };

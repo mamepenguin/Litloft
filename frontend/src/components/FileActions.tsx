@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useRef, useState, useEffect } from "react";
+import { useCallback, useLayoutEffect, useRef, useState, useEffect } from "react";
 import { createPortal } from "react-dom";
 import { Download, Move, Pencil, SquarePen, Trash2 } from "lucide-react";
 
@@ -15,6 +15,9 @@ import type { FileItem } from "@/types";
 import { ConfirmDialog } from "./ConfirmDialog";
 import { RenameDialog } from "./RenameDialog";
 import { MoveDialog } from "./MoveDialog";
+
+/** Must match the menu's `w-40`; used to decide which side it opens on. */
+const MENU_WIDTH_PX = 160;
 
 interface FileActionsProps {
   file: FileItem;
@@ -33,6 +36,33 @@ export function FileActions({ file, onUpdate, onDelete, onEdit }: FileActionsPro
   const [deleteOpen, setDeleteOpen] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const menuRef = useRef<HTMLDivElement>(null);
+  // The menu hangs to the left of the trigger, which only works while the
+  // trigger sits near its column's right edge. It does not in a wrapped
+  // action row or a narrow pane, where the menu would spill over whatever is
+  // to the left. Measured on open rather than guessed from a breakpoint,
+  // because what matters is the enclosing column, not the viewport.
+  const [alignLeft, setAlignLeft] = useState(false);
+
+  useLayoutEffect(() => {
+    if (!menuOpen) {
+      setAlignLeft(false);
+      return;
+    }
+    const trigger = menuRef.current;
+    if (!trigger) return;
+
+    const triggerRect = trigger.getBoundingClientRect();
+    let boundsLeft = 0;
+    for (let el = trigger.parentElement; el; el = el.parentElement) {
+      const { overflowX, overflowY } = getComputedStyle(el);
+      const clips = /auto|scroll|hidden/.test(overflowX + overflowY);
+      if (clips) {
+        boundsLeft = el.getBoundingClientRect().left;
+        break;
+      }
+    }
+    setAlignLeft(triggerRect.right - MENU_WIDTH_PX < boundsLeft);
+  }, [menuOpen]);
 
   const anyDialogOpen = renameOpen || moveOpen || deleteOpen;
 
@@ -161,7 +191,11 @@ export function FileActions({ file, onUpdate, onDelete, onEdit }: FileActionsPro
         </button>
 
         {menuOpen && (
-          <div className="absolute right-0 top-full z-30 mt-1 w-40 overflow-hidden rounded-lg border border-bg-border bg-bg-card shadow-lg">
+          <div
+            className={`absolute top-full z-30 mt-1 w-40 overflow-hidden rounded-lg border border-bg-border bg-bg-card shadow-lg ${
+              alignLeft ? "left-0" : "right-0"
+            }`}
+          >
             {menuItems.map((item) => (
               <button
                 key={item.label}

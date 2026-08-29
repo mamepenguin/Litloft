@@ -47,6 +47,7 @@ import { CommentSection } from "./CommentSection";
 import { MarkdownAwareTagChips } from "./MarkdownAwareTagChips";
 import { ExifSection } from "./ExifSection";
 import { FavoriteButton } from "./FavoriteButton";
+import { TrustTierControl } from "./TrustTierControl";
 import { FileActions } from "./FileActions";
 import { FilePreview } from "./FilePreview";
 import { MarkdownDocumentLayout } from "./MarkdownDocumentLayout";
@@ -633,7 +634,9 @@ export function FileDetailContent({
               {formatFileSize(file.file_size)}
             </p>
           )}
-          <div className="mt-2 flex items-center gap-1">
+          {/* Wraps because this row also renders inside the 300px Markdown
+              inspector and on a phone, where it cannot fit on one line. */}
+          <div className="mt-2 flex flex-wrap items-center gap-1">
             <div className="flex items-center overflow-hidden rounded-full bg-bg-card">
               <button
                 onClick={handleLike}
@@ -659,6 +662,7 @@ export function FileDetailContent({
               onToggle={setFile}
               showLabel
             />
+            <TrustTierControl file={file} onChange={setFile} />
             {file.file_type === "image" && onRequestImageGallery && (
               <button
                 onClick={onRequestImageGallery}
@@ -696,6 +700,12 @@ export function FileDetailContent({
     fileType: file.file_type,
     mimeType: file.mime_type,
     documentCaptureController,
+    // Generic file context, same as fileType/mimeType: lets a section decide
+    // whether it applies without a second round-trip for the file it is
+    // already being rendered for.
+    trustTier: file.trust_tier,
+    trustReviewedAt: file.trust_reviewed_at,
+    onFileChange: setFile,
   };
 
   if (useDocumentLayout) {

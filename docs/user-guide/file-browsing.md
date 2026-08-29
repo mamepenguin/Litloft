@@ -110,6 +110,66 @@ When the folder tree pane is open, it has its own filter row at the top, identic
 - Switching the tree filter on triggers a one-shot full-tree fetch (the tree is normally lazy-expanded), so the first keystroke on a very large drive may take a moment.
 - While a filter is active, rows cannot be dragged out of the tree — the list mixes matches with ancestor context, so the intent would be ambiguous. Rows can still receive drops.
 
+## Trusted sources and the review queue
+
+Every file carries a **trust tier**: either it can be used as evidence, or it
+cannot. It is shown on the file page next to the favourite star, as a single
+button that toggles it.
+
+Almost everything is trusted — files the scanner finds are trusted from the
+moment they appear, and so was everything that existed before this feature.
+So the button is **just a shield icon** on a trusted file, and only spells out
+**Unverified** on the exception. Hover it to see what pressing it does.
+
+Why it exists: an answer from Ask is only as good as what it was built from.
+A book you bought and a page you clipped at 2 a.m. after reading the headline
+are not the same kind of evidence, but once the text is indexed they look
+identical. The tier keeps that difference.
+
+What the tier changes:
+
+- **Unverified files still appear in search.** Filename search, tag filters,
+  and semantic search all return them exactly as before. Nothing is hidden
+  and nothing is deleted.
+- **Unverified files do not ground Ask answers.** They are excluded from the
+  set Ask draws citations from, so they cannot be quoted back at you as
+  evidence.
+
+Put plainly: clips are for *finding things again*; trusted sources are for
+*answering questions*.
+
+**Withdrawing trust is safe and reversible.** It changes nothing on disk, and
+it does not touch notes you wrote from that file — a note holds your own
+words and keeps its own standing whatever happens to the page that prompted
+it. There is no confirmation dialog because there is nothing to lose.
+
+The toolbar has a matching filter chip:
+
+| Choice | Shows |
+|---|---|
+| All | everything (default) |
+| Verified only | just the sources you have vouched for |
+| Not reviewed only | files nobody has ruled on yet — the review queue |
+
+*Not reviewed* is not the opposite of *verified* — it is a separate axis, and
+it lives only in this filter. Files that existed before this feature were all
+marked verified so that nothing you relied on stopped working, but nobody has
+actually judged them, and neither has anyone judged the files the scanner
+picks up. This filter is how you work through that backlog at your own pace
+if you ever want to. Files added by an addon — Web Clips especially — arrive
+unverified *and* unreviewed, so they appear here too.
+
+The per-file button deliberately ignores this axis. Marking every untouched
+file as "not reviewed" on its own page would put a warning on your whole
+library and tell you nothing.
+
+The filter is not persisted: it clears when you navigate away, for the same
+reason the in-folder filter does. It is also **not offered while searching** —
+search blends filename matches with semantic hits, and the semantic side ranks
+and trims its results before the page sees them, so a filter applied afterwards
+could quietly hide matches that do qualify. Rather than show a control that
+under-reports, it is withheld there.
+
 ## Filtering a folder by tag
 
 Clicking a tag in the sidebar while you are inside a folder filters *that folder* by the tag (clicking the same tag again clears it). Two things about the file list change:

@@ -9,7 +9,7 @@ from sqlalchemy.orm import Session
 import app.config as config
 from app.auth import check_drive_access, filter_drives, get_unlocked_groups
 from app.database import get_db
-from app.models import EmptyFolder, File, PinnedFolder, Tag, WatchHistory, active_file_filter, file_tags
+from app.models import TRUST_UNVERIFIED, EmptyFolder, File, PinnedFolder, Tag, WatchHistory, active_file_filter, file_tags
 from app.routers.progress import get_viewer_id
 from app.services import event_hooks
 from app.schemas import (
@@ -546,6 +546,7 @@ def list_drive_files(
     favorite: bool | None = None,
     tag: str | None = None,
     type: str | None = None,
+    trust: str | None = Query(None, pattern="^(verified|unverified|unreviewed)$"),
     sort: str = Query("created_at", pattern="^(created_at|title|file_size|likes|random)$"),
     order: str = Query("desc", pattern="^(asc|desc)$"),
     page: int = Query(1, ge=1),
@@ -597,6 +598,13 @@ def list_drive_files(
         query = query.filter(File.tags.any(func.lower(Tag.name) == tag.lower()))
     if type:
         query = query.filter(File.file_type == type)
+    if trust == "unreviewed":
+        # Not a tier: the review queue is "nobody has ruled on this", which
+        # spans both tiers. Bulk-migrated rows are verified but unjudged, and
+        # they are exactly what this filter exists to surface.
+        query = query.filter(File.trust_reviewed_at.is_(None))
+    elif trust:
+        query = query.filter(File.trust_tier == trust)
 
     total = query.count()
 
@@ -829,6 +837,13 @@ async def create_text_file(
             else unicodedata.normalize("NFC", parent_rel)
         )
         existing_missing.missing_since = None
+        # New bytes took over this path, so an earlier verification was
+        # about content that no longer exists. Keeping it would let
+        # arbitrary new material inherit a person's vouch and ground Ask
+        # answers under it. Same reasoning as clearing chapters_probed_at:
+        # derived state does not survive a content swap.
+        existing_missing.trust_tier = TRUST_UNVERIFIED
+        existing_missing.trust_reviewed_at = None
         existing_missing.file_size = len(content_bytes)
         existing_missing.file_type = file_type
         existing_missing.mime_type = mime_type

@@ -609,6 +609,40 @@ def _migrate(engine_) -> None:
                     text("ALTER TABLE files ADD COLUMN chapters_probed_at DATETIME")
                 )
 
+    # === Spec 2026-08-29-web-clip-promotion: trust tiers.
+    # Existing rows migrate to 'verified' so nothing that grounds Ask today
+    # stops doing so; 'trust_reviewed_at' stays NULL for them, which is what
+    # distinguishes a bulk-migrated row from one a human actually approved.
+    inspector_trust = inspect(engine_)
+    if "files" in inspector_trust.get_table_names():
+        trust_columns = {
+            column["name"] for column in inspector_trust.get_columns("files")
+        }
+        with engine_.begin() as conn:
+            if "trust_tier" not in trust_columns:
+                logger.info("Migrating: adding 'trust_tier' column to files")
+                conn.execute(
+                    text(
+                        "ALTER TABLE files ADD COLUMN trust_tier "
+                        "VARCHAR(16) NOT NULL DEFAULT 'verified'"
+                    )
+                )
+            if "trust_reviewed_at" not in trust_columns:
+                logger.info("Migrating: adding 'trust_reviewed_at' column to files")
+                conn.execute(
+                    text("ALTER TABLE files ADD COLUMN trust_reviewed_at DATETIME")
+                )
+            # ``create_all`` has already run against the existing table by
+            # now, and it does not add indexes declared after the table
+            # exists. Without this an upgraded DB full-scans ``files`` on
+            # every trust-filtered query while a fresh DB does not.
+            conn.execute(
+                text(
+                    "CREATE INDEX IF NOT EXISTS idx_files_trust_tier "
+                    "ON files (trust_tier)"
+                )
+            )
+
 
 def init_db() -> None:
     config.DATA_DIR.mkdir(parents=True, exist_ok=True)

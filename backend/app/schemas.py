@@ -5,6 +5,7 @@ from typing import Any, Literal
 
 from pydantic import BaseModel, Field, field_validator, model_validator
 
+from app.models import TRUST_TIERS
 from app.services.chapters import ChapterRow, normalise_chapters
 
 
@@ -48,6 +49,11 @@ class FileResponse(_UtcDateTimeMixin, BaseModel):
     updated_at: datetime
     deleted_at: datetime | None = None
     missing_since: datetime | None = None
+    # 'verified' plus a NULL reviewed stamp means the row was bulk-migrated
+    # or declared by an addon at ingest, not judged by a person; the UI
+    # tells those apart to offer a review queue.
+    trust_tier: str = "verified"
+    trust_reviewed_at: datetime | None = None
     # Set only by /api/drives/{name}/files when ``search`` matches: tells
     # the frontend whether the hit came from the title (filename engine),
     # the folder_path, or both — drives the per-card "ファイル名 / パス"
@@ -513,6 +519,8 @@ class WatchHistoryItemResponse(_UtcDateTimeMixin, BaseModel):
     likes: int
     is_favorite: bool
     tags: list[str]
+    trust_tier: str = "verified"
+    trust_reviewed_at: datetime | None = None
     created_at: datetime
     updated_at: datetime
     watch_progress: WatchProgressInfo
@@ -806,6 +814,28 @@ class ChapterPromotionRequest(BaseModel):
         return self
 
 
+class TrustTierUpdate(BaseModel):
+    """Set a file's trust tier.
+
+    Symmetric on purpose: promotion and demotion travel the same path, so
+    reversibility is visible in the API shape rather than being a second
+    endpoint.
+    """
+
+    tier: str
+
+    model_config = {"extra": "forbid"}
+
+    @field_validator("tier")
+    @classmethod
+    def validate_tier(cls, v: str) -> str:
+        if v not in TRUST_TIERS:
+            raise ValueError(
+                f"tier must be one of {', '.join(TRUST_TIERS)}"
+            )
+        return v
+
+
 _SMART_FOLDER_FILE_TYPES = {"video", "image", "audio", "document"}
 _SMART_FOLDER_SORT_ORDERS = {"asc", "desc"}
 
@@ -962,5 +992,7 @@ def file_to_response(
         updated_at=file.updated_at,
         deleted_at=file.deleted_at,
         missing_since=file.missing_since,
+        trust_tier=file.trust_tier,
+        trust_reviewed_at=file.trust_reviewed_at,
         match_source=match_source,
     )

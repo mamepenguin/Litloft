@@ -570,7 +570,7 @@ Base path for all routes: `http://backend:8000/api/internal`.
 | `GET /accessible-drives` | Accessible drive names for the given auth token (forwards `lit_token` cookie). |
 | `GET /drive-policy?drive=&addon=` | Per-drive addon policy in `{default, features}` shape. 404 for unknown drive (no enumeration). |
 | `GET /files/{file_id}` | File metadata: `{id, drive, filename, file_type, folder_path, thumbnail_path, updated_at}`. `updated_at` is the core's last-touched timestamp; use it as an mtime-equivalent when reconciling cached state. |
-| `POST /filter-file-ids` | Body `{file_ids: []}` → `{accessible: []}`. Drops IDs the caller can't see. |
+| `POST /filter-file-ids` | Body `{file_ids: [], trust_tier?}` → `{accessible: [], trust_filtered: bool}`. Drops IDs the caller can't see. Pass `trust_tier` (`verified` \| `unverified`) to additionally narrow to that tier — grounding surfaces send `verified` so unverified sources stop acting as evidence. Omit it and behaviour is unchanged. An unknown value returns 422. **`trust_filtered` echoes whether the filter was applied**: core is versioned independently of its addons and drops unknown fields silently, so a caller that asked for a filter and does not get `trust_filtered: true` is talking to an older core and must fail closed rather than read the unfiltered list as verified. |
 | `POST /files/bulk-state` | Body `{file_ids: []}` → `{statuses: [{id, drive, state}], not_found: []}`. State is `active`/`missing`/`trash`. Service-to-service (no auth). |
 | `POST /files/bulk` | Body `{file_ids: []}` → `{files: [FileResponse], not_found: []}`. Returns full file metadata for active files; missing/trash appear in `not_found`. Service-to-service (no auth). Use when enriching search results to avoid N+1 single-file lookups. |
 | `GET /file_relations?file_id=&drive=&kind=&limit=` | List relations where `file_id` appears on either side, **or** all relations for a `drive`. Exactly one of `file_id` or `drive` is required. `kind` filter is optional. `limit` caps results (default 5000, max 20000). |
@@ -631,6 +631,44 @@ Internal API policy rationale:
 | R3 multi-addon viability | Intelligence promotes transcript-derived chapters. Media Import is the concrete second chapter producer and writes the identical core entity through the shared service because it currently runs in-process; the endpoint shape does not encode either producer. |
 | R4 write asymmetry | Core's chapter panel reads and navigates the promoted data. The addon is not the sole consumer. |
 | R5 promotion target | Untrusted candidates remain in the producing addon's database until user approval promotes them into the core-owned `file_chapters` set. |
+
+##### Declare a file's trust tier
+
+```http
+PUT /api/internal/files/{file_id}/trust-tier
+Content-Type: application/json
+X-Internal-Secret: <CORE_INTERNAL_SECRET>
+
+{"tier": "unverified"}
+```
+
+Success returns 204. `tier` must be `verified` or `unverified`; any other
+value, a missing `tier`, or any extra field returns 422. Unknown, missing,
+and trashed files return 404.
+
+**A file a viewer has already ruled on returns 409** and is left untouched.
+The check is a conditional update, so a viewer promoting the file
+concurrently wins the race. Treat 409 as success-equivalent for a retry:
+it means a person got there first, which is the outcome the design wants.
+
+Use this at **ingest time only**, to declare what a file you are creating
+is: a Web Clip lands `unverified`, a file the operator placed deliberately
+lands `verified` (the column default, so most ingests need no call at all).
+
+This endpoint deliberately does **not** touch `trust_reviewed_at`. That
+stamp records a person's judgement, and an addon has judged nothing; only
+the core UI writes it, through the public `PUT /api/files/{id}/trust-tier`.
+Promotion and demotion are the viewer's to make, not yours.
+
+Internal API policy rationale:
+
+| Rule | Why this endpoint passes |
+|------|--------------------------|
+| R1 first-class core entity | `files.trust_tier` is a column on the core-owned `files` table, peer to the active/missing/trash lifecycle, and core's search UI filters on it. |
+| R2 generic shape | Path, body, and values name no addon and no feature; `verified` / `unverified` describe the file, not a workflow. |
+| R3 multi-addon viability | Knowledge lands Web Clips unverified. Media Import is the concrete second producer: anything pulled in from outside starts unverified for the same reason. |
+| R4 write asymmetry | Core's search filter and file-detail control read the column, and core's own UI performs the human promotion. The addon write is an ingest-time declaration, not the decision. |
+| R5 promotion target | The tier is itself a core entity; nothing addon-owned is promoted into core by this call. |
 
 #### WS bridge
 

@@ -1,4 +1,4 @@
-import type { ArchiveContents, AuthStatus, BatchRenameRequest, BatchRenameResponse, ChunkResponse, CollectionDetail, CollectionSummary, Comment, CommentsResponse, DashboardResponse, Drive, DriveSummary, DuplicatesResponse, FileExif, FileItem, FileType, Folder, FolderTreeNode, Neighbors, PaginatedResponse, PinnedFolder, SortField, SortOrder, Tag, TreeTypeFilter, UnlockResult, UploadInitResponse, WatchHistoryItem, WatchProgress } from "@/types";
+import type { ArchiveContents, AuthStatus, BatchRenameRequest, BatchRenameResponse, ChunkResponse, CollectionDetail, CollectionSummary, Comment, CommentsResponse, DashboardResponse, Drive, DriveSummary, DuplicatesResponse, FileExif, FileItem, FileType, Folder, FolderTreeNode, Neighbors, PaginatedResponse, PinnedFolder, SortField, SortOrder, Tag, TrustFilter, TrustTier, TreeTypeFilter, UnlockResult, UploadInitResponse, WatchHistoryItem, WatchProgress } from "@/types";
 import type { SmartFolder, SmartFolderCreate, SmartFolderUpdate } from "@/types/smartFolder";
 
 const API_BASE = "/api";
@@ -60,6 +60,11 @@ export async function getDriveFiles(
     favorite?: boolean;
     tag?: string;
     type?: FileType;
+    /**
+     * `verified` / `unverified` select a tier; `unreviewed` is not a tier but
+     * the review queue — files nobody has ruled on, which spans both.
+     */
+    trust?: TrustFilter;
     sort?: SortField;
     order?: SortOrder;
     page?: number;
@@ -74,6 +79,7 @@ export async function getDriveFiles(
   if (params.favorite !== undefined) searchParams.set("favorite", String(params.favorite));
   if (params.tag) searchParams.set("tag", params.tag);
   if (params.type) searchParams.set("type", params.type);
+  if (params.trust) searchParams.set("trust", params.trust);
   if (params.sort) searchParams.set("sort", params.sort);
   if (params.order) searchParams.set("order", params.order);
   if (params.page) searchParams.set("page", String(params.page));
@@ -123,6 +129,17 @@ export async function dislikeFile(id: string): Promise<FileItem> {
 
 export async function toggleFavorite(id: string): Promise<FileItem> {
   return fetchJSON<FileItem>(`${API_BASE}/files/${id}/favorite`, { method: "POST" });
+}
+
+export async function setFileTrustTier(
+  id: string,
+  tier: TrustTier
+): Promise<FileItem> {
+  return fetchJSON<FileItem>(`${API_BASE}/files/${id}/trust-tier`, {
+    method: "PUT",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ tier }),
+  });
 }
 
 export async function updateFileTags(id: string, tags: string[]): Promise<FileItem> {

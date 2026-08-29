@@ -29,6 +29,7 @@ import type {
   Folder,
   SortField,
   SortOrder,
+  TrustFilter,
 } from "@/types";
 import { useInfiniteScroll } from "@/hooks/useInfiniteScroll";
 import { useWebSocketRefresh } from "@/hooks/useWebSocketRefresh";
@@ -54,6 +55,7 @@ interface UseFolderFilesParams {
   view?: string | null;
   tagFilter?: string | null;
   typeFilter: FileType | null;
+  trustFilter?: TrustFilter | null;
   sort: SortField;
   order: SortOrder;
   refreshKey: number;
@@ -93,6 +95,27 @@ interface UseFolderFilesReturn {
   hydratedScrollY: number | null;
 }
 
+/**
+ * Client-side counterpart to the backend `trust` query parameter.
+ *
+ * Needed wherever results arrive from a source that cannot take the
+ * parameter: watch history, and semantic hits merged in after the fact. A
+ * placeholder built from an unhydrated hit has no real tier, so it is
+ * dropped rather than allowed to pass as verified — a filter that quietly
+ * admits unknowns is worse than one that shows fewer rows.
+ */
+export function matchesTrustFilter(
+  file: Pick<FileItem, "trust_tier" | "trust_reviewed_at" | "trust_unknown">,
+  trustFilter: TrustFilter | null | undefined,
+): boolean {
+  if (!trustFilter) return true;
+  // A hit core could not hydrate has no real tier. Admitting it would let it
+  // satisfy every filter at once, so it is dropped while one is active.
+  if (file.trust_unknown) return false;
+  if (trustFilter === "unreviewed") return file.trust_reviewed_at === null;
+  return file.trust_tier === trustFilter;
+}
+
 function filtersMatchSnapshot(
   snap: ListSnapshot,
   typeFilter: FileType | null,
@@ -107,7 +130,7 @@ function filtersMatchSnapshot(
 }
 
 export function useFolderFiles({
-  driveName, folderPath, view, tagFilter, typeFilter, sort, order, refreshKey, searchQuery, includeSceneClip, initialSnapshot,
+  driveName, folderPath, view, tagFilter, typeFilter, trustFilter, sort, order, refreshKey, searchQuery, includeSceneClip, initialSnapshot,
 }: UseFolderFilesParams): UseFolderFilesReturn {
   const { nickname } = useProfile();
   const hasProfile = nickname !== null;
@@ -198,6 +221,7 @@ export function useFolderFiles({
         const res = await getDriveFiles(driveName, {
           search: searchQuery!.trim(),
           type: typeFilter || undefined,
+          trust: trustFilter || undefined,
           sort: backendSort,
           order: backendOrder,
           page,
@@ -216,6 +240,7 @@ export function useFolderFiles({
         favorite: isFavorites ? true : undefined,
         tag: tagFilter || undefined,
         type: typeFilter || undefined,
+        trust: trustFilter || undefined,
         sort: isRecentAdded ? "created_at" : isPopular ? "likes" : sort,
         order: isRecentAdded || isPopular ? "desc" : order,
         page,
@@ -223,7 +248,7 @@ export function useFolderFiles({
       });
       return { data: res.data, total: res.meta.total };
     },
-    [isSearch, searchQuery, driveName, folderPath, sort, order, isFavorites, isSpecialView, isRecentAdded, isPopular, tagFilter, typeFilter],
+    [isSearch, searchQuery, driveName, folderPath, sort, order, isFavorites, isSpecialView, isRecentAdded, isPopular, tagFilter, typeFilter, trustFilter],
   );
 
   const {
@@ -300,16 +325,18 @@ export function useFolderFiles({
     }
     setRecentLoading(true);
     getWatchHistory(driveName, 50, "all").then((items) => {
-      const filtered = typeFilter
-        ? items.filter((f) => f.file_type === typeFilter)
-        : items;
+      const filtered = items.filter(
+        (f) =>
+          (!typeFilter || f.file_type === typeFilter) &&
+          matchesTrustFilter(f, trustFilter),
+      );
       setRecentFiles(filtered as FileItem[]);
     }).catch(() => {
       setRecentFiles([]);
     }).finally(() => {
       setRecentLoading(false);
     });
-  }, [driveName, typeFilter, hasProfile]);
+  }, [driveName, typeFilter, trustFilter, hasProfile]);
 
   useEffect(() => {
     if (isRecent) fetchRecentFiles();
@@ -325,11 +352,16 @@ export function useFolderFiles({
       semanticHits,
       filenameTotal: paginatedTotal,
     });
+    // The semantic source cannot take the `trust` parameter, so its hits
+    // arrive unfiltered and are merged in here. Re-apply the predicate to
+    // the merged list or the chip would silently fail to hold for exactly
+    // the searches Ask users care about.
+    const kept = merged.files.filter((f) => matchesTrustFilter(f, trustFilter));
     return {
-      files: sortMerged(merged.files, sort, order),
-      total: merged.total,
+      files: sortMerged(kept, sort, order),
+      total: merged.total - (merged.files.length - kept.length),
     };
-  }, [isSearch, paginatedFiles, semanticHits, paginatedTotal, sort, order]);
+  }, [isSearch, paginatedFiles, semanticHits, paginatedTotal, sort, order, trustFilter]);
 
   // Pick the right source.
   const files: FileItemWithMatch[] = isRecent

@@ -559,6 +559,7 @@ When enabled, the intelligence addon contributes:
 
 - **Search modes** — *Semantic Search* and *Find* (sidebar of `/drive/<name>/search`), plus *Scene search* toggle and *Ask* input.
 - **File detail sections** —
+  - *Unverified Source* (shown only on a file you have not yet ruled on — see below)
   - *Suggested Tags* (with Approve / Dismiss / Regenerate)
   - *AI Summary* (short)
   - *Detailed Summary* (long-form Markdown with citation chips)
@@ -571,6 +572,41 @@ When enabled, the intelligence addon contributes:
 - **Dashboard widget** — *Index Status* (queue depth, model memory, and a failed-jobs summary row that opens the *Failed jobs* modal — per-file × per-task retry).
 
 Each section is a slot contribution; if a feature is disabled (per-drive policy), its section disappears.
+
+### Unverified sources
+
+Ask draws its citations only from files you have vouched for. An unverified
+file — a Web Clip, or anything else that arrived from outside — stays fully
+searchable but never grounds an answer. See
+[trusted sources](../user-guide/file-browsing.md#trusted-sources-and-the-review-queue).
+
+When you open such a file, this section asks you to rule on it, and offers
+whatever context it can:
+
+- Up to three of the **file's own paragraphs**, reproduced verbatim, each
+  paired with a note of yours that it echoes. Only files you have already
+  vouched for count as "a note of yours" — ordinary search returns unverified
+  files too, and a clip is a `.md` like any note, so the extension alone
+  proves nothing.
+- **Trust as a source** promotes it; **Not for now** records that you looked
+  and decided against it, so you are not asked again.
+
+What it deliberately does *not* do is summarise. The paragraphs shown are the
+exact strings used as the search queries, and the matches are embedding
+neighbours — **no LLM is called on this path at all**. Approving generated
+text would place it in the verified tier, whose definition is content you
+wrote or vouched for; a summary you waved through is neither.
+
+To keep one passage rather than trust the whole page, select it in the
+document and add it to Knowledge's quotation basket. That affordance belongs
+to Knowledge and is not duplicated here.
+
+**Retrieval note.** Because the trust filter narrows results after ranking,
+grounding draws a wider candidate pool than it needs and widens it again
+until the budget is filled or the index is exhausted. Without that, unverified
+files that outrank verified ones would spend the budget and then be discarded,
+leaving Ask with fewer sources than exist. Ordinary search is unaffected, and
+so is *Find*, which presents files rather than grounding an answer.
 
 ### Re-generating indexes
 

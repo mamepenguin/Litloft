@@ -48,6 +48,15 @@ class Tag(Base):
     )
 
 
+TRUST_VERIFIED = "verified"
+TRUST_UNVERIFIED = "unverified"
+
+#: A source the viewer has vouched for ranks with primary sources; anything
+#: scavenged from outside starts unverified. See
+#: ``.claude/rules/design-decisions.md`` and hako 9APRV-pzgqpa2fPMHNTJt.
+TRUST_TIERS = (TRUST_VERIFIED, TRUST_UNVERIFIED)
+
+
 class File(Base):
     __tablename__ = "files"
 
@@ -89,6 +98,12 @@ class File(Base):
     md_aliases: Mapped[str | None] = mapped_column(
         Text, nullable=True, default=None
     )
+    trust_tier: Mapped[str] = mapped_column(
+        String(16), nullable=False, default=TRUST_VERIFIED, server_default=TRUST_VERIFIED
+    )
+    trust_reviewed_at: Mapped[datetime | None] = mapped_column(
+        DateTime, nullable=True, default=None
+    )
 
     tags: Mapped[list[Tag]] = relationship(
         "Tag", secondary=file_tags, back_populates="files", lazy="selectin"
@@ -108,6 +123,7 @@ class File(Base):
         Index("idx_files_missing_since", "missing_since"),
         Index("idx_files_file_hash", "file_hash"),
         Index("idx_files_drive_md_id", "drive", "md_id"),
+        Index("idx_files_trust_tier", "trust_tier"),
     )
 
 
@@ -345,3 +361,13 @@ def active_file_filter():
     soft-deleted (trash) and missing files should be excluded.
     """
     return and_(File.deleted_at.is_(None), File.missing_since.is_(None))
+
+
+def verified_file_filter():
+    """Filter condition matching only files the viewer has vouched for.
+
+    Grounding surfaces (Ask citations) use this on top of
+    ``active_file_filter()``. Ordinary search must NOT apply it: unverified
+    files stay findable, they just stop acting as evidence.
+    """
+    return File.trust_tier == TRUST_VERIFIED

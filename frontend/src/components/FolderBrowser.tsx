@@ -6,7 +6,7 @@ import { ClipboardPaste, X } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { useShortcuts } from "@/hooks/useShortcuts";
 
-import type { FileItem, FileType, SortField, SortOrder, ViewMode } from "@/types";
+import type { FileItem, FileType, SortField, SortOrder, TrustFilter, ViewMode } from "@/types";
 import { Breadcrumb } from "@/components/Breadcrumb";
 import { TreeToggle } from "@/components/TreeToggle";
 import { UploadZone } from "@/components/UploadZone";
@@ -92,6 +92,17 @@ export function FolderBrowser({
   const [typeFilter, setTypeFilter] = useState<FileType | null>(
     typeFilterProp ?? initialSnapshot?.filters.typeFilter ?? null,
   );
+  // Not persisted into the list snapshot: the review queue is a deliberate,
+  // short-lived mode, not a browsing preference to restore on return.
+  const [trustFilter, setTrustFilter] = useState<TrustFilter | null>(null);
+  // Search mixes filename matches with semantic hits, and the semantic source
+  // ranks and truncates before the client ever sees the rows — post-filtering
+  // that would silently under-report. Until the addon can take the predicate
+  // itself, the chip is withheld here rather than shown while lying.
+  const trustFilterAvailable = !isSearch;
+  useEffect(() => {
+    if (!trustFilterAvailable && trustFilter) setTrustFilter(null);
+  }, [trustFilterAvailable, trustFilter]);
   const [selectable, setSelectable] = useState(false);
   const [refreshKey, setRefreshKey] = useState(0);
   const refresh = useCallback(() => setRefreshKey((k) => k + 1), []);
@@ -157,7 +168,7 @@ export function FolderBrowser({
     files, folders, total, loading, loadingMore, hasMore, pagesLoaded, sentinelRef,
     reset, setFiles, setPaginatedTotal, setFolders, isRecent, hasProfile,
     snapshotKey, hydratedScrollY,
-  } = useFolderFiles({ driveName, folderPath, view, tagFilter, typeFilter, sort, order, refreshKey, searchQuery, includeSceneClip, initialSnapshot });
+  } = useFolderFiles({ driveName, folderPath, view, tagFilter, typeFilter, trustFilter, sort, order, refreshKey, searchQuery, includeSceneClip, initialSnapshot });
 
   // Topic 9 layered fallback (grid|list only — tree visibility is now a
   // separate axis, hako w4zVT8-dyYwshLNiJ5REY). We approximate the
@@ -238,6 +249,10 @@ export function FolderBrowser({
       if (isSearch) return;
       if (sort === "random") return;
       if (files.length === 0) return;
+      // A trust-filtered listing is a subset. Saving it under the ordinary
+      // key would rehydrate those rows as the complete folder on return —
+      // and keep them if revalidation then fails.
+      if (trustFilter) return;
       saveListSnapshot({
         key: snapshotKey,
         scrollY: lastScrollYRef.current,
@@ -292,7 +307,7 @@ export function FolderBrowser({
       // is handled separately below.
       if (timer != null) clearTimeout(timer);
     };
-  }, [files, folders, total, pagesLoaded, sort, order, typeFilter, viewMode, isRecent, isSearch, snapshotKey, scrollContainerRef]);
+  }, [files, folders, total, pagesLoaded, sort, order, typeFilter, trustFilter, viewMode, isRecent, isSearch, snapshotKey, scrollContainerRef]);
 
   // Flush a pending snapshot write on unmount. `pagehide` covers a real
   // page teardown, but an in-app navigation unmounts this component
@@ -562,6 +577,8 @@ export function FolderBrowser({
           else { setLocalSort(s); setLocalOrder(o); }
         }}
         onTypeFilterChange={setTypeFilter}
+        trustFilter={trustFilter}
+        onTrustFilterChange={trustFilterAvailable ? setTrustFilter : undefined}
         onViewChange={handleViewChange}
         onToggleSelectable={() => {
           setSelectable((s) => {
