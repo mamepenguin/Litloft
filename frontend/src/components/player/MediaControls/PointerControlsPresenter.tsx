@@ -14,6 +14,7 @@ import {
 } from "lucide-react";
 import type { MediaControlsPresenterProps } from "./types";
 import { SettingsSheet } from "./SettingsSheet";
+import { ControlBarScrim } from "./parts/ControlBarScrim";
 import { ControlButton } from "./parts/ControlButton";
 import { SeekBar } from "./parts/SeekBar";
 import { TimeDisplay } from "./parts/TimeDisplay";
@@ -91,40 +92,7 @@ export function PointerControlsPresenter({
           visible ? "opacity-100" : "opacity-0 pointer-events-none",
         ].join(" ")}
       >
-        {/* The scrim, on its own layer so it can carry a blur without the
-            content being blurred with it. Negative z-index keeps it
-            behind the rows, which are in normal flow.
-
-            An embedded backend draws chrome of its own in this same strip
-            — YouTube's pause overlay puts a share pill, a related-video
-            card and its wordmark exactly where our transport, volume and
-            fullscreen controls sit — and the old scrim was thin enough to
-            read as a second, broken row of controls. Blurring what is
-            behind us settles that: the backend's chrome falls back to
-            being a backdrop, and ours reads as the layer in front.
-
-            Not while the backend owns the frame, though. An ad's skip
-            button and the end screen's links live in this strip too, and
-            those have to stay legible — obscuring them breaks the player
-            and, for ads, the API terms. Then the scrim goes back to the
-            plain gradient. */}
-        <div
-          aria-hidden="true"
-          data-testid="control-bar-scrim"
-          className={[
-            "pointer-events-none absolute inset-0 -z-10",
-            backendOwnsFrame
-              ? "bg-gradient-to-t from-black/80 via-black/50 to-transparent"
-              : [
-                  "bg-gradient-to-t from-black/95 to-black/60 backdrop-blur-[3px]",
-                  // The gradient alone fades the tint but not the blur,
-                  // which would end at a visible horizontal seam. The
-                  // mask fades the whole layer, blur included.
-                  "[mask-image:linear-gradient(to_top,black_0%,black_55%,transparent_100%)]",
-                  "[-webkit-mask-image:linear-gradient(to_top,black_0%,black_55%,transparent_100%)]",
-                ].join(" "),
-          ].join(" ")}
-        />
+        <ControlBarScrim backendOwnsFrame={backendOwnsFrame} />
 
         <SeekBar
           displayTime={displayTime}

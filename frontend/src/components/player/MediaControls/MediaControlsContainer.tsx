@@ -8,9 +8,11 @@ import {
   type RefObject,
 } from "react";
 import type { MediaController } from "@/lib/mediaController";
+import { CompactControlsPresenter } from "./CompactControlsPresenter";
 import { PointerControlsPresenter } from "./PointerControlsPresenter";
 import { TouchControlsPresenter } from "./TouchControlsPresenter";
 import { GestureOverlay } from "./GestureOverlay";
+import { pickControlsLayout } from "./layout";
 import { useMediaControlsState } from "./hooks/useMediaControlsState";
 import { usePlaybackRatePreference } from "./hooks/usePlaybackRatePreference";
 import { useCaptionsPreference } from "./hooks/useCaptionsPreference";
@@ -90,6 +92,7 @@ export default function MediaControlsContainer({
   const [preferredRate, setPreferredRate] = usePlaybackRatePreference();
   const [captionsPreferred, setCaptionsPreferred] = useCaptionsPreference();
   const [nativeFullscreen, setNativeFullscreen] = useState(false);
+  const [frameWidth, setFrameWidth] = useState<number | null>(null);
   const pointerMode = usePointerMode();
 
   const { revealControls, hideControls, controlsVisible } = state;
@@ -136,6 +139,25 @@ export default function MediaControlsContainer({
       frame.removeEventListener("pointerdown", revealControls);
     };
   }, [frameRef, revealControls, pointerMode]);
+
+  // Which layout the bar takes is a question about the frame, not about
+  // the window, so it is measured rather than read off a breakpoint: the
+  // same player sits in a full-width page, in a narrow right pane and in
+  // the 320px mini window, and a viewport breakpoint cannot tell those
+  // apart. A container query would express it directly but cannot be
+  // used here — `container-type: inline-size` around a subtree holding a
+  // <video> or a cross-origin iframe makes iOS Safari rotate the page
+  // indefinitely.
+  useEffect(() => {
+    const frame = frameRef.current;
+    if (!frame) return;
+    const measure = () => setFrameWidth(frame.getBoundingClientRect().width);
+    measure();
+    if (typeof ResizeObserver === "undefined") return;
+    const observer = new ResizeObserver(measure);
+    observer.observe(frame);
+    return () => observer.disconnect();
+  }, [frameRef]);
 
   // Only consulted in the fallback path; when the owner supplies a
   // fullscreen controller it already tracks this itself.
@@ -234,11 +256,24 @@ export default function MediaControlsContainer({
     onBoostingChange?.(boosting);
   }, [boosting, onBoostingChange]);
 
-  // Both layouts implement the same contract, so the choice is only
-  // ever about which shape suits the input device. `unknown` keeps the
-  // pointer layout: it is the one that works without gestures.
-  const Presenter =
-    pointerMode === "coarse" ? TouchControlsPresenter : PointerControlsPresenter;
+  // All three layouts implement the same contract, so the choice is only
+  // ever about which shape suits the input device and the room there is.
+  const layout = pickControlsLayout(pointerMode, frameWidth);
+
+  // The compact layout draws no settings sheet, so a sheet left open
+  // when the frame narrows would be invisible while `settingsOpen` went
+  // on holding the bar awake — the idle timer would never fire again and
+  // the bar would sit over the video for good.
+  const compact = layout === "compact";
+  useEffect(() => {
+    if (compact) setSettingsOpen(false);
+  }, [compact]);
+
+  const Presenter = {
+    touch: TouchControlsPresenter,
+    compact: CompactControlsPresenter,
+    pointer: PointerControlsPresenter,
+  }[layout];
 
   return (
     <>
