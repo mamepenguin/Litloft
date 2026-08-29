@@ -472,12 +472,21 @@ dd {
 }
 
 /* Reset the UA-default yellow on ``<mark>`` so Tailwind utilities
-   (e.g. ``bg-accent-teal/20``) apply cleanly wherever a mark is used
-   outside MarkdownPreview. ``.markdown-body mark`` below wins via
-   specificity inside the Markdown pipeline. */
-mark {
-  background-color: transparent;
-  color: inherit;
+   (e.g. ``bg-highlight-bg``) apply wherever a mark is used outside
+   MarkdownPreview. ``.markdown-body mark`` below is unlayered and so
+   still wins inside the Markdown pipeline.
+
+   **The layer is load-bearing.** Tailwind v4 emits its utilities into
+   ``@layer utilities``, and unlayered rules beat layered ones whatever
+   their specificity — so as plain CSS this reset silently defeated
+   every utility a caller put on a mark, which is the opposite of what
+   it is for. In ``@layer base`` it loses to utilities and still beats
+   the UA default. */
+@layer base {
+  mark {
+    background-color: transparent;
+    color: inherit;
+  }
 }
 
 .markdown-body mark {

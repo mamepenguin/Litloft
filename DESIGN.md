@@ -237,7 +237,7 @@ Applies light or dark values via `@media (prefers-color-scheme: light/dark)`.
 - **`--danger`**: Use only for errors, deletions, and destructive actions. Do not confuse with `--accent` red.
 - **`--text-muted`**: Keep contrast readable. Do not reduce opacity beyond legibility.
 - Never rely on color alone to convey state — pair with icons or text.
-- **`<mark>` UA default is reset globally** (`background: transparent; color: inherit`) so Tailwind utilities (e.g. `bg-accent-teal/20`) apply wherever `<mark>` is used outside the Markdown pipeline. Inside `.markdown-body`, `--highlight-bg` wins via specificity. Do not re-introduce the browser-default yellow.
+- **`<mark>` UA default is reset globally** (`background: transparent; color: inherit`) so Tailwind utilities apply wherever `<mark>` is used outside the Markdown pipeline. Inside `.markdown-body`, `--highlight-bg` wins. Do not re-introduce the browser-default yellow. **Keep that reset inside `@layer base`** — Tailwind v4 emits utilities into `@layer utilities`, and an unlayered rule beats a layered one whatever its specificity, so as plain CSS the reset silently defeats every utility a caller puts on a mark.
 - **A persistent highlight outside `.markdown-body` uses `bg-highlight-bg`** — the same `--highlight-bg` token, exposed as a utility so `<mark>` can carry it without a bespoke class. Use it for matched terms a surface keeps highlighted (Related passages' overlap terms). `.ask-citation-highlight` remains the *temporary* jump flash and is not a substitute.
 
 ### 2.3 Wiki-link classes
