@@ -155,6 +155,8 @@ It runs by itself when you open the file, and searches only files you have marke
 
 That also holds when everything is equally close, which happens with a set of near-identical files: nothing stands out, so nothing is shown.
 
+Text that repeats across many files — a channel's "subscribe and hit the bell", a template header — is left out too. It matches beautifully and tells you nothing, so a passage that turns up in several files at once is treated as furniture rather than content.
+
 ## Per-file actions menu
 
 Every viewer page has a `…` menu with:

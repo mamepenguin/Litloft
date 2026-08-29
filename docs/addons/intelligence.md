@@ -150,6 +150,8 @@ Each row shows both passages in full, verbatim, and links to the other one's exa
 
 It runs when the file is opened, and **renders nothing at all unless it found something** — the section being on the page is itself the signal. On a real drive about half of files produce no pair, so an empty placeholder would be the common case.
 
+**Boilerplate is excluded.** A channel sign-off — *"subscribe, links in the description"* — recurs almost word for word across every video that carries it, and scores *higher* than real subject matter does (0.98 against 0.93, measured), so no threshold separates them. What does is recurrence: a passage appearing in more than `max_passage_files` different files is not about any of them, and is dropped. Raise that value if a series covering the same ground across several files is being silenced.
+
 **Why the section is often absent.** Absolute cosine similarity does not separate related passages from unrelated ones — on a real drive, unrelated passages score a median of 0.77 while a genuinely related pair scores 0.93, and the bands overlap. The gate is therefore how far a pair stands out from *that request's own* distribution (`related_passages.min_z`). When nothing stands out — including when every candidate is equally related — the section does not render at all rather than showing five arbitrary rows. Measured on a real drive, `min_z = 5.0` puts a pair on about half of files; lowering it to 4.0 produces four times as many pairs, most of them spurious (the noise tail there reaches z = 4.5).
 
 A file the addon has not indexed yet returns nothing rather than an error.
@@ -489,6 +491,7 @@ related_passages:
   min_score: 0.70                         # sanity floor only
   near_duplicate_score: 0.999             # above this it is the same text
   min_passage_chars: 40                   # shorter passages match everything
+  max_passage_files: 2                    # above this a passage is boilerplate
   candidate_files: 20                     # cost knobs: the pairwise stage is
   max_source_chunks: 400                  # a matrix product of both sides
   max_candidate_chunks: 200
