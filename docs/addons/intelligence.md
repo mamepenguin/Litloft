@@ -623,6 +623,7 @@ Embedding-model switches are a different flow: editing `models.text_embedding` f
 
 - **First-run cost.** Indexing a populated drive can take hours, dominated by ASR and frame extraction. Expect 1–10× real-time on CPU, 5–20× on GPU.
 - **Re-index on model change.** Switching `text_embedding` or `clip` invalidates existing embeddings; the next reconcile pass re-indexes. Switching Whisper does not re-transcribe automatically — re-run transcription manually.
+- **One-time document re-index on upgrade.** The upgrade that adds `embeddings.chunk_index` discards existing document embeddings so the next reconcile pass rebuilds them with the chunk key a passage-level lookup needs. Only text extraction and embedding re-run: transcripts are untouched, and keyword search keeps working throughout because the FTS tables are replaced per file as it comes back around.
 - **DB layout.** The addon's data lives under `data/addons/intelligence/`. The core DB is **not** modified; the addon mirrors what it needs and queries the rest through the Internal API.
 - **Observability.** `docker compose logs -f intelligence`. Queue depth, model memory, and recent failed jobs are surfaced on the admin dashboard's *Index Status* widget; the *Failed jobs* modal supports per-row retry.
 - **Cold-start grace.** The addon fails open on policy lookups for the first 60 seconds; after that, missing core means the addon refuses to enqueue work.
