@@ -211,6 +211,13 @@ Malformed/empty model output is retried once with a broader-outline repair
 instruction. A second failure emits a drive-scoped failure event, stops the UI's
 progress state, and leaves the previous staged proposal and core chapters intact.
 
+The file detail panel distinguishes two failures, because their remedies differ.
+An output budget exhausted before the model wrote anything — the model was
+thinking, or the answer outran `max_tokens` — is reported as such and points at
+`llm.reasoning` and `llm.max_tokens`; anything else advises a retry. A window
+that fails takes the whole file with it rather than being skipped, because
+dropping one would leave a gap in the middle of the timeline.
+
 Candidates remain staged in the Intelligence database until a user reviews the
 whole set in the file detail page:
 
@@ -360,6 +367,7 @@ llm:
   max_tokens: 2048
   temperature: 0.3
   output_language: "auto"                               # auto | ja | en
+  reasoning: "disabled"                                 # disabled | auto
   retry_attempts: 3
   retry_base_delay: 1.0
   retry_max_delay: 30.0
@@ -376,8 +384,24 @@ Shipped defaults disable the LLM entirely (`provider: "disabled"`); set this in 
 **Provider semantics:**
 
 - `"ollama"` — uses ollama's `/api/chat`. Sends `think: false` so reasoning models (Gemma 4, DeepSeek-R1, QwQ) skip chain-of-thought. Use this for any ollama instance.
-- `"openai_compatible"` — OpenAI SDK. Works with OpenAI, DeepSeek, vLLM, LM Studio. Also works with ollama but cannot disable thinking over this API.
+- `"openai_compatible"` — OpenAI SDK. Works with OpenAI, DeepSeek, vLLM, LM Studio. Also works with ollama, whose `/v1` layer ignores `think: false`.
 - `"disabled"` — no LLM features. Indexing and search still work; summaries/auto-tags/etc. become no-ops.
+
+**`reasoning`** controls whether the provider is asked to skip chain-of-thought,
+and defaults to `"disabled"` because none of these features are better for the
+thinking. It matters more than it sounds: a reasoning model spends `max_tokens`
+on its thinking before writing any answer, so a budget that comfortably fits the
+answer can come back empty with `finish_reason="length"`. Long inputs hit this
+first — chapter generation on a full-length transcript is the usual casualty.
+
+The request field is an OpenRouter extension. A provider that does not recognise
+it answers 400; the client reads the first such rejection as "this provider does
+not speak this field", re-sends the request without it, and remembers that for
+the rest of the run, so the default costs such a provider one request rather
+than breaking it. Set `"auto"` to never send the field. Suppression is a request
+and not a guarantee — an upstream that ignores it still reasons, and the log
+says so. The `"ollama"` provider is unaffected either way; its requests always
+carry `think: false`.
 
 ### Summaries (citation tuning)
 
