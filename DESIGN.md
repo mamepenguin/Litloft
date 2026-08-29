@@ -238,6 +238,7 @@ Applies light or dark values via `@media (prefers-color-scheme: light/dark)`.
 - **`--text-muted`**: Keep contrast readable. Do not reduce opacity beyond legibility.
 - Never rely on color alone to convey state — pair with icons or text.
 - **`<mark>` UA default is reset globally** (`background: transparent; color: inherit`) so Tailwind utilities (e.g. `bg-accent-teal/20`) apply wherever `<mark>` is used outside the Markdown pipeline. Inside `.markdown-body`, `--highlight-bg` wins via specificity. Do not re-introduce the browser-default yellow.
+- **A persistent highlight outside `.markdown-body` uses `bg-highlight-bg`** — the same `--highlight-bg` token, exposed as a utility so `<mark>` can carry it without a bespoke class. Use it for matched terms a surface keeps highlighted (Related passages' overlap terms). `.ask-citation-highlight` remains the *temporary* jump flash and is not a substitute.
 
 ### 2.3 Wiki-link classes
 

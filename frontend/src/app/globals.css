@@ -96,6 +96,7 @@
   --color-dark-surface: var(--dark-surface);
   --color-focus-ring: var(--focus-ring);
   --color-danger: var(--danger);
+  --color-highlight-bg: var(--highlight-bg);
   --color-graph-cat-1: var(--graph-cat-1);
   --color-graph-cat-2: var(--graph-cat-2);
   --color-graph-cat-3: var(--graph-cat-3);
