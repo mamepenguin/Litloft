@@ -112,9 +112,14 @@ When the folder tree pane is open, it has its own filter row at the top, identic
 
 ## Trusted sources and the review queue
 
-Every file carries a **trust tier**: either you have vouched for it as a
-source, or you have not. It is shown on the file page next to the favourite
-star, with a single button to change it.
+Every file carries a **trust tier**: either it can be used as evidence, or it
+cannot. It is shown on the file page next to the favourite star, as a single
+button that toggles it.
+
+Almost everything is trusted — files the scanner finds are trusted from the
+moment they appear, and so was everything that existed before this feature.
+So the button is **just a shield icon** on a trusted file, and only spells out
+**Unverified** on the exception. Hover it to see what pressing it does.
 
 Why it exists: an answer from Ask is only as good as what it was built from.
 A book you bought and a page you clipped at 2 a.m. after reading the headline
@@ -146,12 +151,17 @@ The toolbar has a matching filter chip:
 | Verified only | just the sources you have vouched for |
 | Not reviewed only | files nobody has ruled on yet — the review queue |
 
-*Not reviewed* is not the opposite of *verified*. Files that existed before
-this feature were all marked verified so that nothing you relied on stopped
-working, but no one has actually judged them. They show as **Not reviewed**
-and appear in that filter, which is how you work through the backlog at your
-own pace. Files added by an addon — Web Clips especially — arrive unverified
-and unreviewed, and appear there too.
+*Not reviewed* is not the opposite of *verified* — it is a separate axis, and
+it lives only in this filter. Files that existed before this feature were all
+marked verified so that nothing you relied on stopped working, but nobody has
+actually judged them, and neither has anyone judged the files the scanner
+picks up. This filter is how you work through that backlog at your own pace
+if you ever want to. Files added by an addon — Web Clips especially — arrive
+unverified *and* unreviewed, so they appear here too.
+
+The per-file button deliberately ignores this axis. Marking every untouched
+file as "not reviewed" on its own page would put a warning on your whole
+library and tell you nothing.
 
 The filter is not persisted: it clears when you navigate away, for the same
 reason the in-folder filter does. It is also **not offered while searching** —

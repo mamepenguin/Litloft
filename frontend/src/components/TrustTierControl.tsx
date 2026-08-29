@@ -45,22 +45,21 @@ export function TrustTierControl({
   }
 
   const target: TrustTier = verified ? "unverified" : "verified";
-  const action = verified
-    ? reviewed
-      ? t("withdraw")
-      : t("withdrawUnreviewed")
-    : t("trust");
-  const state = verified
-    ? reviewed
-      ? t("stateVerified")
-      : t("stateUnreviewedVerified")
-    : t("stateUnverified");
+  const action = verified ? t("withdraw") : t("trust");
 
-  // One button rather than a state chip beside an action button: two text
-  // labels are more than the 300px Markdown inspector can spare, and state
-  // and action are the same axis. The visible label is the state and the
-  // click does the opposite, exactly as the favourite star behaves; the
-  // action is the accessible name so it is never guesswork.
+  // Verified is the normal state of almost every file, so it is an icon and
+  // nothing else — a label repeated across a whole library is noise, not
+  // information. Only the exception carries text.
+  //
+  // The badge deliberately reports the tier alone. Whether anyone has *ruled*
+  // on the file is a different question, and the one place it actually helps
+  // is the "not reviewed" listing filter; putting it here made every
+  // untouched file look like a warning.
+  //
+  // One button rather than a chip beside an action button: state and action
+  // are the same axis, so the click does the opposite of what is shown, as
+  // the favourite star already does in this row. The action is the accessible
+  // name so it is never guesswork.
   return (
     <button
       onClick={() => apply(target)}
@@ -70,14 +69,14 @@ export function TrustTierControl({
       data-testid="trust-tier-state"
       data-tier={file.trust_tier}
       data-reviewed={reviewed ? "true" : "false"}
-      className={`flex shrink-0 items-center gap-1.5 rounded-full bg-bg-card px-3 py-1.5 text-sm transition-colors disabled:opacity-50 ${
+      className={`flex shrink-0 items-center gap-1.5 rounded-full transition-colors disabled:opacity-50 ${
         verified
-          ? "text-text-primary hover:text-text-muted"
-          : "text-text-muted hover:text-text-primary"
+          ? "p-1.5 text-text-muted hover:text-text-primary"
+          : "bg-bg-card px-3 py-1.5 text-sm text-text-muted hover:text-text-primary"
       }`}
     >
       {verified ? <ShieldCheck size={16} /> : <ShieldQuestion size={16} />}
-      <span>{state}</span>
+      {!verified && <span>{t("stateUnverified")}</span>}
     </button>
   );
 }

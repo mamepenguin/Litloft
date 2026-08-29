@@ -1070,12 +1070,9 @@
     }
   },
   "trustTier": {
-    "stateVerified": "Verified",
-    "stateUnreviewedVerified": "Not reviewed",
     "stateUnverified": "Unverified",
     "trust": "Trust as a source",
     "withdraw": "Withdraw trust",
-    "withdrawUnreviewed": "Do not trust",
     "filterAll": "All",
     "filterVerified": "Verified only",
     "filterUnreviewed": "Not reviewed only",

@@ -56,23 +56,48 @@ describe("TrustTierControl", () => {
   // The four states of spec §3. The migrated row (verified, never reviewed)
   // is the one worth guarding: it grounds Ask today, so it must not read as
   // unverified, but it also has not actually been judged by anyone.
+  // The badge reports the tier alone. Whether anyone has ruled on the file is
+  // a separate question, answered by the "not reviewed" listing filter —
+  // surfacing it here made every untouched file look like a warning.
   it.each([
-    ["unverified", null, "stateUnverified", "trust"],
-    ["unverified", REVIEWED, "stateUnverified", "trust"],
-    ["verified", REVIEWED, "stateVerified", "withdraw"],
-    ["verified", null, "stateUnreviewedVerified", "withdrawUnreviewed"],
+    ["unverified", null, "trust"],
+    ["unverified", REVIEWED, "trust"],
+    ["verified", REVIEWED, "withdraw"],
+    ["verified", null, "withdraw"],
   ] as const)(
-    "renders %s/%s as %s with action %s",
-    async (tier, reviewedAt, stateLabel, actionLabel) => {
+    "labels %s/%s with the action %s",
+    async (tier, reviewedAt, actionLabel) => {
       render(
         <TrustTierControl file={makeFile(tier, reviewedAt)} onChange={vi.fn()} />,
       );
-      // The visible label is the state; the action is the accessible name,
-      // so a screen reader is told what pressing it does.
-      expect(screen.getByTestId("trust-tier-state")).toHaveTextContent(stateLabel);
       expect(screen.getByRole("button", { name: actionLabel })).toBeTruthy();
     },
   );
+
+  it("shows no text on a verified file, reviewed or not", () => {
+    // Verified is the normal state of nearly every file; a label repeated
+    // across the whole library is noise. This is the regression that made
+    // scanner-discovered files read as unverified.
+    for (const reviewedAt of [null, REVIEWED]) {
+      const { unmount } = render(
+        <TrustTierControl
+          file={makeFile("verified", reviewedAt)}
+          onChange={vi.fn()}
+        />,
+      );
+      expect(screen.getByTestId("trust-tier-state")).toHaveTextContent("");
+      unmount();
+    }
+  });
+
+  it("labels only the exception", () => {
+    render(
+      <TrustTierControl file={makeFile("unverified", null)} onChange={vi.fn()} />,
+    );
+    expect(screen.getByTestId("trust-tier-state")).toHaveTextContent(
+      "stateUnverified",
+    );
+  });
 
   it("is a single control, so it fits the 300px Markdown inspector", () => {
     // Regression: a state chip beside an action button put two text labels in
