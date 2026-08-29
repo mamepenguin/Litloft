@@ -634,7 +634,9 @@ export function FileDetailContent({
               {formatFileSize(file.file_size)}
             </p>
           )}
-          <div className="mt-2 flex items-center gap-1">
+          {/* Wraps because this row also renders inside the 300px Markdown
+              inspector and on a phone, where it cannot fit on one line. */}
+          <div className="mt-2 flex flex-wrap items-center gap-1">
             <div className="flex items-center overflow-hidden rounded-full bg-bg-card">
               <button
                 onClick={handleLike}

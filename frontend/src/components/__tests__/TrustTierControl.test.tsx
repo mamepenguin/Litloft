@@ -67,10 +67,21 @@ describe("TrustTierControl", () => {
       render(
         <TrustTierControl file={makeFile(tier, reviewedAt)} onChange={vi.fn()} />,
       );
+      // The visible label is the state; the action is the accessible name,
+      // so a screen reader is told what pressing it does.
       expect(screen.getByTestId("trust-tier-state")).toHaveTextContent(stateLabel);
       expect(screen.getByRole("button", { name: actionLabel })).toBeTruthy();
     },
   );
+
+  it("is a single control, so it fits the 300px Markdown inspector", () => {
+    // Regression: a state chip beside an action button put two text labels in
+    // a row that also renders in the inspector and on a phone.
+    render(
+      <TrustTierControl file={makeFile("verified", REVIEWED)} onChange={vi.fn()} />,
+    );
+    expect(screen.getAllByRole("button")).toHaveLength(1);
+  });
 
   it("promotes an unverified file", async () => {
     const onChange = vi.fn();

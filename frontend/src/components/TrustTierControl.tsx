@@ -45,40 +45,39 @@ export function TrustTierControl({
   }
 
   const target: TrustTier = verified ? "unverified" : "verified";
-  const label = verified
+  const action = verified
     ? reviewed
       ? t("withdraw")
       : t("withdrawUnreviewed")
     : t("trust");
+  const state = verified
+    ? reviewed
+      ? t("stateVerified")
+      : t("stateUnreviewedVerified")
+    : t("stateUnverified");
 
+  // One button rather than a state chip beside an action button: two text
+  // labels are more than the 300px Markdown inspector can spare, and state
+  // and action are the same axis. The visible label is the state and the
+  // click does the opposite, exactly as the favourite star behaves; the
+  // action is the accessible name so it is never guesswork.
   return (
-    <div className="flex items-center gap-2">
-      <span
-        className={`inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 text-sm ${
-          verified
-            ? "bg-bg-card text-text-primary"
-            : "bg-bg-card text-text-muted"
-        }`}
-        data-testid="trust-tier-state"
-        data-tier={file.trust_tier}
-        data-reviewed={reviewed ? "true" : "false"}
-      >
-        {verified ? <ShieldCheck size={16} /> : <ShieldQuestion size={16} />}
-        <span>
-          {verified
-            ? reviewed
-              ? t("stateVerified")
-              : t("stateUnreviewedVerified")
-            : t("stateUnverified")}
-        </span>
-      </span>
-      <button
-        onClick={() => apply(target)}
-        disabled={pending}
-        className="rounded-full px-3 py-1.5 text-sm text-text-muted transition-colors hover:text-text-primary disabled:opacity-50"
-      >
-        {label}
-      </button>
-    </div>
+    <button
+      onClick={() => apply(target)}
+      disabled={pending}
+      aria-label={action}
+      title={action}
+      data-testid="trust-tier-state"
+      data-tier={file.trust_tier}
+      data-reviewed={reviewed ? "true" : "false"}
+      className={`flex shrink-0 items-center gap-1.5 rounded-full bg-bg-card px-3 py-1.5 text-sm transition-colors disabled:opacity-50 ${
+        verified
+          ? "text-text-primary hover:text-text-muted"
+          : "text-text-muted hover:text-text-primary"
+      }`}
+    >
+      {verified ? <ShieldCheck size={16} /> : <ShieldQuestion size={16} />}
+      <span>{state}</span>
+    </button>
   );
 }
