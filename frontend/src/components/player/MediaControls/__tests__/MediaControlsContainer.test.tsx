@@ -43,6 +43,7 @@ beforeEach(() => {
 
 afterEach(() => {
   frame.remove();
+  vi.unstubAllGlobals();
   Object.defineProperty(window, "matchMedia", {
     configurable: true,
     writable: true,
@@ -302,6 +303,131 @@ describe("MediaControlsContainer", () => {
       installPointerMode("none");
       renderControls(makeMc());
       expect(isTouchLayout()).toBe(false);
+    });
+
+    /**
+     * Three layouts now, and the touch one is no longer the only one
+     * without a volume slider, so `isTouchLayout` cannot tell compact
+     * from touch. Each layout's root carries its own test id.
+     */
+    function layoutOf(container: HTMLElement): string {
+      for (const [id, name] of [
+        ["touch-controls-root", "touch"],
+        ["compact-controls-root", "compact"],
+        ["control-bar", "pointer"],
+      ]) {
+        if (container.querySelector(`[data-testid="${id}"]`)) return name;
+      }
+      throw new Error("no control layout rendered");
+    }
+
+    function setFrameWidth(width: number) {
+      frame.getBoundingClientRect = () =>
+        ({
+          width,
+          height: (width * 9) / 16,
+          top: 0,
+          left: 0,
+          right: width,
+          bottom: (width * 9) / 16,
+          x: 0,
+          y: 0,
+          toJSON: () => ({}),
+        }) as DOMRect;
+    }
+
+    /** Returns a trigger that replays every live observation callback. */
+    function installResizeObserver(): () => void {
+      const callbacks: Array<() => void> = [];
+      vi.stubGlobal(
+        "ResizeObserver",
+        class {
+          constructor(callback: () => void) {
+            callbacks.push(callback);
+          }
+          observe() {}
+          unobserve() {}
+          disconnect() {}
+        },
+      );
+      return () => callbacks.forEach((callback) => callback());
+    }
+
+    it("falls to the compact layout when the frame cannot hold the row", () => {
+      installPointerMode("fine");
+      setFrameWidth(320);
+      const { container } = renderControls(makeMc());
+      expect(layoutOf(container)).toBe("compact");
+    });
+
+    it("keeps the pointer layout once the frame is wide enough", () => {
+      installPointerMode("fine");
+      setFrameWidth(480);
+      const { container } = renderControls(makeMc());
+      expect(layoutOf(container)).toBe("pointer");
+    });
+
+    it("keeps the touch layout however narrow the frame is", () => {
+      // A finger needs the larger targets at every width, and the touch
+      // layout already fits a phone.
+      installPointerMode("coarse");
+      setFrameWidth(320);
+      const { container } = renderControls(makeMc());
+      expect(layoutOf(container)).toBe("touch");
+    });
+
+    it("swaps back to the pointer layout when the frame grows", () => {
+      installPointerMode("fine");
+      const resize = installResizeObserver();
+      setFrameWidth(320);
+      const { container } = renderControls(makeMc());
+      expect(layoutOf(container)).toBe("compact");
+      act(() => {
+        setFrameWidth(900);
+        resize();
+      });
+      expect(layoutOf(container)).toBe("pointer");
+    });
+
+    /**
+     * `settingsOpen` holds the bar awake so a panel cannot vanish under
+     * the viewer. The compact layout draws no panel, so a sheet left
+     * open across the transition would be invisible and would still be
+     * holding — the idle timer would never fire again.
+     */
+    it("closes the settings sheet when the frame narrows", () => {
+      vi.useFakeTimers();
+      try {
+        installPointerMode("fine");
+        const resize = installResizeObserver();
+        setFrameWidth(900);
+        const { container } = renderControls(makeMc());
+        act(() => {
+          fireEvent.click(screen.getByRole("button", { name: "Settings" }));
+        });
+        expect(
+          container.querySelector('[data-testid="settings-sheet"]'),
+        ).toBeInTheDocument();
+
+        act(() => {
+          setFrameWidth(320);
+          resize();
+        });
+        expect(
+          container.querySelector('[data-testid="settings-sheet"]'),
+        ).not.toBeInTheDocument();
+
+        // The part that matters: the bar can still put itself away.
+        act(() => {
+          vi.advanceTimersByTime(5000);
+        });
+        const bar = container.querySelector<HTMLElement>(
+          '[data-testid="compact-controls-root"]',
+        );
+        expect(bar?.className).toContain("opacity-0");
+      } finally {
+        vi.useRealTimers();
+      }
     });
 
     /**
