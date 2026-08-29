@@ -26,6 +26,16 @@ A chapter list in the companion region, seekable by click, with the chapter the 
 - A chapter with no usable title is dropped rather than rendered blank, so the list may be shorter than the file's own marker count.
 - Chapter lists are read-only in the core UI: there is no chapter editor.
 
+## Timestamps in a description
+
+On a video or audio file, timestamps written in the file's **description** — the text under the title, which you edit yourself — become buttons that jump the player to that position, the way a YouTube description's index does. Nothing is saved; the links are worked out from the text each time the page is drawn.
+
+- **Recognised forms** are `M:SS` and `H:MM:SS` — `0:00`, `12:34`, `1:02:03`. Seconds always take two digits, so `16:9` and `1:1` stay as text.
+- They are linked **wherever they appear**, whether the line is an index entry (`1:23 Method`) or a mention inside a sentence (`covered from 12:05`).
+- **A timestamp longer than the file is left as plain text.** This is what keeps a description like `starts at 21:00` from becoming a link on a short video. On a file longer than that, it cannot be told apart from a real position and will be linked.
+- The description is **your own text**. A `.loft` file's imported description is shown separately, below the player, and its timestamps arrive as [chapters](#chapters) instead.
+- These links never change a file's chapters, and a description with no timestamps looks exactly as it did before.
+
 ## Video player
 
 ![Video player with hover preview, subtitles menu, and autoplay controls](../images/user-guide/video-player-subtitles-preview.png)

@@ -278,6 +278,20 @@ Rules:
 
 ---
 
+### 2.5 Description timestamp links
+
+A media file's description renders its timestamps as inline `<button>` elements that seek the player (spec `2026-08-29-description-timestamp-links.md` §5.4). No new token — it reuses the same `--accent` that §2.3 calls the canonical in-app prose link colour.
+
+| State | Color token | Usage |
+|---|---|---|
+| default | `--accent`, hover `--accent-hover` | A timestamp the player can seek to. |
+| `:disabled` | inherits the paragraph's colour (`text-inherit`) | No media controller — the player has not published one yet, or never will because the media failed to load. |
+
+Rules:
+
+- **Do not dim the disabled state.** The usual `disabled:opacity-50` is wrong here: the disabled case is not only a brief moment during mount, it is also the permanent state when a file has no working player. A timestamp that will never do anything must read as the prose it sits in, not as a faded link.
+- The button carries **no font utility**, so it inherits the surrounding paragraph's size and family. A timestamp set apart from its own sentence is the failure mode to watch for.
+
 ## 3. Typography
 
 ### 3.1 Font Stack

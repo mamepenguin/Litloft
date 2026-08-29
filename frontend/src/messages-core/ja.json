@@ -350,7 +350,8 @@
     "closeSettings": "設定を閉じる",
     "normalSpeed": "標準",
     "captions": "字幕",
-    "chapters": "チャプター"
+    "chapters": "チャプター",
+    "seekToTime": "{time} へ移動"
   },
   "archive": {
     "loadFailed": "アーカイブの読み込みに失敗しました: {error}",

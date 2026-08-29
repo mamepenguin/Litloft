@@ -350,7 +350,8 @@
     "closeSettings": "Close settings",
     "normalSpeed": "Normal",
     "captions": "Subtitles",
-    "chapters": "Chapters"
+    "chapters": "Chapters",
+    "seekToTime": "Jump to {time}"
   },
   "archive": {
     "loadFailed": "Failed to load archive: {error}",

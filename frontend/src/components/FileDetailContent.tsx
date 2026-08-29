@@ -53,6 +53,7 @@ import { FilePreview } from "./FilePreview";
 import { MarkdownDocumentLayout } from "./MarkdownDocumentLayout";
 import { MediaLayoutToggle } from "./MediaLayoutToggle";
 import { RelatedFilesSection } from "./RelatedFilesSection";
+import { SeekableDescription } from "./SeekableDescription";
 import { useSidebar } from "./SidebarProvider";
 import { usePolicy } from "@/hooks/usePolicy";
 
@@ -515,9 +516,15 @@ export function FileDetailContent({
     );
   }
 
-  const hasDuration =
-    (file.file_type === "video" || file.file_type === "audio") &&
-    file.duration != null;
+  /**
+   * Media with a timeline to seek along. Separate from ``hasDuration``
+   * because a file can be playable while its length is unknown, and the
+   * description's timestamps are still worth linking then — knowing the
+   * length only lets us reject the ones that fall outside it.
+   */
+  const isTimedMedia =
+    file.file_type === "video" || file.file_type === "audio";
+  const hasDuration = isTimedMedia && file.duration != null;
 
   // DocumentLayout fork: rides the Markdown-document layout shell for
   // long-form readable content. Eligible when the file is either:
@@ -624,7 +631,15 @@ export function FileDetailContent({
               <span>{formatFileSize(file.file_size)}</span>
               {file.description && (
                 <p className="mt-1 text-sm whitespace-pre-wrap">
-                  {file.description}
+                  {isTimedMedia ? (
+                    <SeekableDescription
+                      text={file.description}
+                      durationSeconds={file.duration}
+                      mediaController={mediaController}
+                    />
+                  ) : (
+                    file.description
+                  )}
                 </p>
               )}
             </div>
