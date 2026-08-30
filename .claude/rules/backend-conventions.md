@@ -29,3 +29,13 @@ from app.config import DATA_DIR
 
 ## Prohibitions
 - LLM and string-processing logic must not embed language-dependent rules (e.g. searching for the literal word "タイトル" to detect a title).
+
+  What this forbids is **one language's vocabulary or grammar standing in for a concept**. Such a rule works where it was written and silently produces nothing, or nonsense, everywhere else — and nothing in the code says so.
+
+  It does **not** forbid a **script test that gates a mechanism whose correctness provably depends on script**, provided all three hold:
+
+  1. The dependence is **measured**, not assumed, and the measurement is recorded beside the code.
+  2. The gate **fails to silence, never to nonsense** — the closed path does nothing rather than something wrong.
+  3. The path where the gate is closed is a **designed state**, not a degradation.
+
+  The distinction is silence versus lying. A gate that asks "is this the language I wrote the rule for?" is a guess and is forbidden; one that asks "does this input satisfy the precondition my algorithm needs?" is a test of the algorithm's own contract, and belongs in the code that depends on it.
