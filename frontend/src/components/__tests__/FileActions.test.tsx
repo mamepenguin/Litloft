@@ -46,11 +46,14 @@ vi.mock("../MoveDialog", () => ({
 // test drive the two callbacks an addon menu entry is given.
 const slotCalls = vi.hoisted(() => ({
   props: [] as Record<string, unknown>[],
+  /** Mirrors AddonSlot returning null when no addon claims the slot. */
+  empty: false,
 }));
 
 vi.mock("../AddonSlot", () => ({
   AddonSlot: ({ id, props }: { id: string; props?: Record<string, unknown> }) => {
     slotCalls.props.push({ id, ...props });
+    if (slotCalls.empty) return null;
     return (
       <div data-testid={`addon-slot-${id}`}>
         <button
@@ -208,6 +211,7 @@ describe("FileActions menu alignment", () => {
 describe("FileActions file-actions-menu slot", () => {
   beforeEach(() => {
     slotCalls.props = [];
+    slotCalls.empty = false;
   });
 
   function openMenu() {
@@ -215,8 +219,7 @@ describe("FileActions file-actions-menu slot", () => {
   }
 
   it("renders no slot without addonProps", () => {
-    // Guards the listing cost: FileCard / FileListRow mount one
-    // FileActions per row and must not pull in addon slot modules.
+    // A call site with no file context to give gets no addon entries.
     render(<FileActions file={mockFile} />);
     openMenu();
 
@@ -278,5 +281,59 @@ describe("FileActions file-actions-menu slot", () => {
     expect(
       screen.queryByTestId("addon-slot-file-actions-menu"),
     ).not.toBeInTheDocument();
+  });
+
+  it("leaves no dangling separator when the slot renders nothing", () => {
+    // No addon claims this slot on a stock install, and an entry that does
+    // claim it may still render nothing for a given file. The separator
+    // rides on the wrapper so `empty:hidden` takes it away too — assert the
+    // wrapper really is childless, which is what `:empty` keys off.
+    slotCalls.empty = true;
+    const { container } = render(
+      <FileActions file={mockFile} addonProps={{ fileId: mockFile.id }} />,
+    );
+    openMenu();
+
+    const wrapper = container.querySelector('[class*="empty:hidden"]');
+    expect(wrapper).not.toBeNull();
+    expect(wrapper!.childElementCount).toBe(0);
+  });
+
+  it("recovers when an addon closes the menu without clearing its dialog flag", () => {
+    // `onDialogOpenChange(false)` is the addon's job and lives in another
+    // repository. If it is skipped, the flag must not survive the menu and
+    // leave `anyDialogOpen` stuck true — that would wedge the outside-click
+    // and Escape listeners off for every later open.
+    render(<FileActions file={mockFile} addonProps={{ fileId: mockFile.id }} />);
+    openMenu();
+
+    fireEvent.click(screen.getByTestId("addon-open"));
+    fireEvent.click(screen.getByTestId("addon-close"));
+    expect(screen.queryByText("Download")).not.toBeInTheDocument();
+
+    openMenu();
+    fireEvent.mouseDown(document.body);
+
+    expect(screen.queryByText("Download")).not.toBeInTheDocument();
+  });
+
+  it("closes on Escape and returns focus to the trigger", () => {
+    render(<FileActions file={mockFile} addonProps={{ fileId: mockFile.id }} />);
+    openMenu();
+
+    fireEvent.keyDown(document, { key: "Escape" });
+
+    expect(screen.queryByText("Download")).not.toBeInTheDocument();
+    expect(screen.getByLabelText("File actions")).toHaveFocus();
+  });
+
+  it("leaves Escape to the addon while its dialog is open", () => {
+    render(<FileActions file={mockFile} addonProps={{ fileId: mockFile.id }} />);
+    openMenu();
+
+    fireEvent.click(screen.getByTestId("addon-open"));
+    fireEvent.keyDown(document, { key: "Escape" });
+
+    expect(screen.getByText("Download")).toBeInTheDocument();
   });
 });

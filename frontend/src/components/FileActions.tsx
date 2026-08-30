@@ -27,10 +27,11 @@ interface FileActionsProps {
   onDelete?: () => void;
   onEdit?: () => void;
   /**
-   * File context handed to the `file-actions-menu` slot. Supplying it is
-   * what opts a call site into addon menu entries — the file detail page
-   * does, the listing rows (FileCard / FileListRow) do not, so a folder
-   * of 500 files does not lazy-import addon slot modules 500 times.
+   * File context handed to the `file-actions-menu` slot, and the opt-in
+   * that renders the slot at all: an entry cannot do anything useful
+   * without knowing which file it is acting on, so a call site with no
+   * context to give gets no addon entries. Today only the file detail page
+   * passes it.
    */
   addonProps?: Record<string, unknown>;
 }
@@ -52,6 +53,7 @@ export function FileActions({
   const [addonDialogOpen, setAddonDialogOpen] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const menuRef = useRef<HTMLDivElement>(null);
+  const triggerRef = useRef<HTMLButtonElement>(null);
   // The menu hangs to the left of the trigger, which only works while the
   // trigger sits near its column's right edge. It does not in a wrapped
   // action row or a narrow pane, where the menu would spill over whatever is
@@ -62,6 +64,11 @@ export function FileActions({
   useLayoutEffect(() => {
     if (!menuOpen) {
       setAlignLeft(false);
+      // The flag belongs to a subtree that only exists while the menu is
+      // open, and it is set by an addon in another repository. Clearing it
+      // here means a caller that forgets `onDialogOpenChange(false)` cannot
+      // strand `anyDialogOpen` at true and leave the menu unclosable.
+      setAddonDialogOpen(false);
       return;
     }
     const trigger = menuRef.current;
@@ -92,6 +99,20 @@ export function FileActions({
     }
     document.addEventListener("mousedown", handleClick);
     return () => document.removeEventListener("mousedown", handleClick);
+  }, [menuOpen, anyDialogOpen]);
+
+  // A popup must be dismissable from the keyboard. Without this the only
+  // ways out are an outside click or picking an item, so a keyboard user
+  // who opens the menu cannot back out of it.
+  useEffect(() => {
+    if (!menuOpen || anyDialogOpen) return;
+    function handleKeyDown(e: KeyboardEvent) {
+      if (e.key !== "Escape") return;
+      setMenuOpen(false);
+      triggerRef.current?.focus();
+    }
+    document.addEventListener("keydown", handleKeyDown);
+    return () => document.removeEventListener("keydown", handleKeyDown);
   }, [menuOpen, anyDialogOpen]);
 
   useEffect(() => {
@@ -187,6 +208,7 @@ export function FileActions({
     <>
       <div ref={menuRef} className="relative">
         <button
+          ref={triggerRef}
           onClick={(e) => {
             e.preventDefault();
             e.stopPropagation();
@@ -226,24 +248,32 @@ export function FileActions({
               />
             ))}
             {addonProps && (
-              <>
-                <div className="border-t border-bg-border" />
-                {/* An entry here must NOT close the menu when it opens a
-                    dialog: closing unmounts this subtree, taking the
-                    dialog with it. Entries open their dialog, report it
-                    through `onDialogOpenChange` so the outside-click
-                    listener above stands down, and call `onRequestClose`
-                    only once the dialog is dismissed. */}
+              /* `empty:hidden` carries the separator: no addon claims this
+                 slot on a stock install, and an entry that does claim it may
+                 still render nothing for a given file. Either way the rule
+                 would otherwise float under the last core item with nothing
+                 beneath it.
+
+                 An entry here must NOT close the menu when it opens a
+                 dialog: closing unmounts this subtree, taking the dialog
+                 with it. Entries open their dialog, report it through
+                 `onDialogOpenChange` so the outside-click and Escape
+                 listeners stand down, and call `onRequestClose` only once
+                 the dialog is dismissed. */
+              <div className="border-t border-bg-border empty:hidden">
                 <AddonSlot
                   id="file-actions-menu"
                   layout="stack"
                   props={{
                     ...addonProps,
-                    onRequestClose: () => setMenuOpen(false),
+                    onRequestClose: () => {
+                      setAddonDialogOpen(false);
+                      setMenuOpen(false);
+                    },
                     onDialogOpenChange: setAddonDialogOpen,
                   }}
                 />
-              </>
+              </div>
             )}
           </div>
         )}
