@@ -600,8 +600,8 @@ When enabled, the intelligence addon contributes:
   - *Visual Description* (vision LLM)
   - *Transcript* (with Refine button)
   - *CLIP Frames* (per-second thumbnails)
-  - *Index Details* (per-task state with a *Regenerate* button for each task — `metadata`, `clip`, `whisper`, `text` — and recent provider stats for failure context)
   - *Similar Files* (semantic neighbour list)
+- **File `[...]` menu** — *Index details*, a dialog showing per-task state with a *Regenerate* button for each task (`metadata`, `clip`, `whisper`, `text`) plus recent provider stats for failure context. It sits in the overflow menu rather than in the inspector because it answers an operator's question, not a reader's.
 - **Folder actions** — *Refine all transcripts in folder*, *Regenerate summaries*.
 - **Dashboard widget** — *Index Status* (queue depth, model memory, and a failed-jobs summary row that opens the *Failed jobs* modal — per-file × per-task retry).
 
@@ -646,7 +646,7 @@ so is *Find*, which presents files rather than grounding an answer.
 
 There is **no global "Reindex all" button**. The addon offers two scoped paths instead (spec [`2026-05-24-intelligence-reindex-controls.md`](../superpowers/specs/2026-05-24-intelligence-reindex-controls.md)):
 
-- **Per-file × per-task.** From a file's *Index Details* section, click *Regenerate* on a specific task (`metadata`, `clip`, `whisper`, or `text`). The corresponding `*_indexed` flag is reset to `False` and the reconciler picks the file up on its next pass.
+- **Per-file × per-task.** Open the `[...]` menu on a file's detail page, choose *Index details*, and click *Regenerate* on a specific task (`metadata`, `clip`, `whisper`, or `text`). The corresponding `*_indexed` flag is reset to `False` and the reconciler picks the file up on its next pass.
 - **Failed-job retry.** The *Index Status* dashboard widget shows a *Failed jobs* summary row. Opening the modal lists the most recent failures (file, drive, task, provider, error class, attempt count, timestamp), with a *Retry* button per row that calls the same per-file × per-task path. Rows with `status='skipped'` (e.g. `UnsupportedMimeType`) are intentionally excluded — retrying would only re-skip.
 
 Embedding-model switches are a different flow: editing `models.text_embedding` from the intelligence admin page sets a `reindex_pending` flag and the actual rebuild happens on container restart (see [text embedding model](#text-embedding-model-gui-managed) in the developer-guide reference). The reindex-pending flow and the per-file regeneration UI are independent.
@@ -667,7 +667,7 @@ Embedding-model switches are a different flow: editing `models.text_embedding` f
 
 | Symptom | Likely cause |
 |---|---|
-| Search returns nothing on a freshly-added drive | Reconciler has not run yet; wait for the next reconcile (`indexing.reconciliation_interval`, default 1 hour) or open a file's *Index Details* section and click *Regenerate* on the relevant task |
+| Search returns nothing on a freshly-added drive | Reconciler has not run yet; wait for the next reconcile (`indexing.reconciliation_interval`, default 1 hour) or open a file's `[...]` menu → *Index details* and click *Regenerate* on the relevant task |
 | A handful of files consistently fail to index | Open the admin dashboard, click the *Failed jobs* row on *Index Status*, and *Retry* the affected files — or jump to the file detail and regenerate the specific task that failed |
 | Ask answer says *no strong source* on grounded questions | Lower `summaries.citation_threshold`, or improve transcript quality |
 | Whisper transcripts drift to nonsense | Lower `compression_ratio_threshold`; never put filenames in `initial_prompt` |

@@ -165,6 +165,12 @@ Every viewer page has a `…` menu with:
 
 Restoring from trash is done from the [trash view](trash-and-missing.md), not from this menu.
 
+An installed addon may add its own entries below a separator. With the
+intelligence addon, *Index details* is there — it opens a dialog showing
+which indexing tasks have run for the file, with a *Regenerate* button on
+each. It lives in this menu rather than on the page because it answers a
+maintenance question, not a reading one.
+
 ## What gets hidden
 
 A file in the **missing** state still has its viewer page but streams return `410 Gone` (the file is no longer on disk). Tags, comments, watch history, and AI artefacts persist for when the file reappears. See [trash and missing files](trash-and-missing.md).
