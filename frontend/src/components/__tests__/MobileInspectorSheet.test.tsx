@@ -32,6 +32,32 @@ describe("MobileInspectorSheet", () => {
     });
   });
 
+  it("sits below the modal-dialog tier", async () => {
+    // The sheet hosts the same inspector the desktop pane does, `[...]`
+    // menu included, so Rename / Move / Trash and any addon dialog open
+    // from inside it. Those portal to body at z-50; if the sheet
+    // outranked them they would be launched and immediately buried.
+    // DESIGN.md §Layering.
+    render(
+      <MobileInspectorSheet open={true} onClose={() => undefined}>
+        <div>inspector</div>
+      </MobileInspectorSheet>,
+    );
+
+    await waitFor(() => {
+      expect(screen.getByTestId("mobile-inspector-sheet")).toBeInTheDocument();
+    });
+    const sheet = screen.getByTestId("mobile-inspector-sheet");
+    const overlay = screen.getByTestId("mobile-inspector-overlay");
+
+    for (const el of [sheet, overlay]) {
+      const tier = /z-\[(\d+)\]/.exec(el.className)?.[1];
+      expect(tier).toBeDefined();
+      expect(Number(tier)).toBeLessThan(50);
+      expect(Number(tier)).toBeGreaterThan(40);
+    }
+  });
+
   it("invokes onClose when ESC is pressed (vaul's keyboard close)", () => {
     // vaul's `<Drawer.Root onOpenChange={(open) => !open && onClose()}>`
     // path is exercised by any close affordance — drag-down, backdrop

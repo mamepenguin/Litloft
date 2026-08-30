@@ -16,6 +16,13 @@ import { Drawer } from "vaul";
  * previous tabbed sheet expensive to maintain (tab-specific section
  * lists, displayedTab pinning to survive the close animation, etc.).
  *
+ * Sits in the surface tier (DESIGN.md §Layering), above the sidebar
+ * overlay and mini-player but *below* modal dialogs. It hosts the same
+ * inspector content the desktop pane does, including the file `[...]`
+ * menu, so anything that menu opens — Rename, Move, Trash, an addon's
+ * dialog — has to be able to sit on top of the sheet it was launched
+ * from.
+ *
  * Open state is controlled by the host (the layout decides whether
  * the user tapped the chrome's Inspector toggle). vaul calls
  * `onClose` when the user swipes the sheet down / taps the backdrop
@@ -47,11 +54,11 @@ export function MobileInspectorSheet({
       <Drawer.Portal>
         <Drawer.Overlay
           data-testid="mobile-inspector-overlay"
-          className="fixed inset-0 z-[55] bg-black/50"
+          className="fixed inset-0 z-[45] bg-black/50"
         />
         <Drawer.Content
           data-testid="mobile-inspector-sheet"
-          className="fixed bottom-0 left-0 right-0 z-[60] flex h-[90vh] max-h-[90vh] min-h-[18rem] flex-col rounded-t-2xl border-t border-bg-border bg-bg-card outline-none"
+          className="fixed bottom-0 left-0 right-0 z-[46] flex h-[90vh] max-h-[90vh] min-h-[18rem] flex-col rounded-t-2xl border-t border-bg-border bg-bg-card outline-none"
         >
           <div
             aria-hidden
