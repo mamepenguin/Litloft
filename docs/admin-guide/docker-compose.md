@@ -182,6 +182,22 @@ What this mount still exposes, read-only, is the rest of `data/`: other addons' 
 
 **Do not bind-mount the database file on its own.** The core runs SQLite in WAL mode, so a reader needs `data.db-wal` and `data.db-shm` next to `data.db`, and SQLite deletes both on a clean shutdown, recreating them on the next write. Naming them in a mount means that whenever they are absent at `docker compose up`, Docker creates a **directory** at each missing path — and the backend then fails to start with `unable to open database file`, because a directory occupies the spot where its WAL belongs. Recovery is `docker compose down`, `rmdir data/data.db-wal data/data.db-shm`, `docker compose up -d`. A directory mount cannot hit this: the directory always exists, and the sidecars are picked up as they come and go.
 
+A file mount has a second consequence, and unlike the WAL one it is
+silent. `/data/thumbnails` never appears inside the container, so every
+thumbnail the intelligence addon would embed is simply out of reach. The
+thumbnail route is best-effort by design — a missing JPEG skips that one
+file rather than failing the job — so nothing errors and nothing stops.
+The only symptom is that *Similar files* stops offering visual matches
+for videos, `.loft` refs and HEIC images, which reads as a weak model
+rather than a broken mount. Images are unaffected, because they embed
+their own file from the drive mount and never touch `/data/thumbnails`.
+
+If your `docker-compose.override.yml` predates this section, check it:
+an addon that mounts `./data/data.db` instead of `./data` is in exactly
+this state. Switching to the directory mount above is enough — the addon
+logs a warning at startup when the directory is unreadable, and reopens
+the thumbnail work for every affected file on the next reconcile.
+
 In practice, the Internal API is preferred over direct DB access; see [Internal API policy](../developer-guide/addon-dev.md#internal-api-policy).
 
 ## Healthcheck
