@@ -145,9 +145,8 @@ it. There is no confirmation dialog because there is nothing to lose.
 
 When you open a file nobody has ruled on, the page asks the question
 directly, with **Trust as a source** and **Not now** buttons. The panel is
-just the question — when the material for answering it exists, it sits
-just below in [Related passages](viewers-and-players.md#related-passages),
-which runs on every file and stays there after you have decided.
+just the question. Material for answering it sits below in *Similar
+files*, which runs on every file and stays there after you have decided.
 
 The toolbar has a matching filter chip:
 

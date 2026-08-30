@@ -18,7 +18,6 @@ The `intelligence` addon adds LLM-backed search, Q&A, summarization, and tag sug
 | **Vision describe** | LLM image descriptions, photo-by-photo | manual |
 | **Transcription** | faster-Whisper (local) or cloud providers | local |
 | **CLIP frame analysis** | Scene-aware video frame embeddings for "find a moment" | on |
-| **Related passages** | Pairs a passage of the file you are reading with a passage of a source you vouched for | on |
 
 Shipped defaults are conservative — most LLM-driven features start at `"false"` or `"manual"` so an unconfigured install never makes outbound LLM calls until you turn a feature on (in the browser or in `search-config.yml`). All features are opt-out per drive via the [settings GUI](../admin-guide/settings-gui.md).
 
@@ -141,20 +140,6 @@ A toggle in the search page enables matching against per-second video frame embe
 - `min_score_clip_thumbnail` — for individual scene-detected frames.
 
 Both default to 0.05 because SigLIP2 produces lower absolute cosine values than older CLIP models.
-
-### Related passages
-
-A file-detail section that answers **which passages** of the file you are reading connect to passages of files you have marked as trusted sources — the counterpart to *Similar files*, which answers which whole files relate to this one.
-
-A row is built for recognising a connection, not for reading two walls of transcript. This file's own locator leads and seeks the open player in place; the other file's name and locator follow and take you there. Only the other passage is shown by default — this file's own sits behind a toggle, since you are already reading it. Excerpts are opened at a sentence boundary rather than wherever the chunk was cut, and a locator nothing can act on (a plain text file, or media whose player published no controller) renders as text rather than as a dead button. **No LLM is involved**: the section points at places, it never writes or summarises. Candidates are drawn only from `trust_tier = verified` files in the same drive.
-
-It runs when the file is opened, and **renders nothing at all unless it found something** — the section being on the page is itself the signal. On a real drive about half of files produce no pair, so an empty placeholder would be the common case.
-
-**Boilerplate is excluded.** A channel sign-off — *"subscribe, links in the description"* — recurs almost word for word across every video that carries it, and scores *higher* than real subject matter does (0.98 against 0.93, measured), so no threshold separates them. What does is recurrence: a passage appearing in more than `max_passage_files` different files is not about any of them, and is dropped. Raise that value if a series covering the same ground across several files is being silenced.
-
-**Why the section is often absent.** Absolute cosine similarity does not separate related passages from unrelated ones — on a real drive, unrelated passages score a median of 0.77 while a genuinely related pair scores 0.93, and the bands overlap. The gate is therefore how far a pair stands out from *that request's own* distribution (`related_passages.min_z`). When nothing stands out — including when every candidate is equally related — the section does not render at all rather than showing five arbitrary rows. Measured on a real drive, `min_z = 5.0` puts a pair on about half of files; lowering it to 4.0 produces four times as many pairs, most of them spurious (the noise tail there reaches z = 4.5).
-
-A file the addon has not indexed yet returns nothing rather than an error.
 
 ### Auto-tags
 
@@ -515,33 +500,6 @@ search:
   min_score_clip_thumbnail: 0.05
 ```
 
-### Related passages
-
-```yaml
-related_passages:
-  min_z: 5.0                              # SDs above this request's own mean
-  small_sample_z: 3.0                     # bar for a drive too small for z=5
-  min_pairs_for_z: 400
-  min_score: 0.70                         # sanity floor only
-  near_duplicate_score: 0.999             # above this it is the same text
-  min_passage_chars: 40                   # shorter passages match everything
-  max_passage_files: 2                    # above this a passage is boilerplate
-  candidate_files: 20                     # cost knobs: the pairwise stage is
-  max_source_chunks: 400                  # a matrix product of both sides
-  max_candidate_chunks: 200
-```
-
-`min_z` is the knob that matters. Measured on a real drive, true matches sit at z = 5.5-6.2 and the noise tail stops at 4.5.
-
-Where it belongs depends on your library and your embedding model, so measure rather than assume — and measure again after the library grows or `models.text_embedding` changes:
-
-```bash
-docker compose exec intelligence \
-    python -m scripts.tune_related_passages --drive <drive>
-```
-
-It prints, per candidate value, the share of files that produce a pair **and the top pairs themselves**. Judge by the pairs: on the drive this was developed against, moving from 5.0 to 4.0 raised the hit rate from 48% to 78% and every pair it added was noise.
-
 ### Transcription
 
 ```yaml
@@ -699,7 +657,7 @@ Embedding-model switches are a different flow: editing `models.text_embedding` f
 
 - **First-run cost.** Indexing a populated drive can take hours, dominated by ASR and frame extraction. Expect 1–10× real-time on CPU, 5–20× on GPU.
 - **Re-index on model change.** Switching `text_embedding` or `clip` invalidates existing embeddings; the next reconcile pass re-indexes. Switching Whisper does not re-transcribe automatically — re-run transcription manually.
-- **One-time document re-index on upgrade.** The upgrade that adds `embeddings.chunk_index` discards existing document embeddings so the next reconcile pass rebuilds them with the chunk key a passage-level lookup needs. Only text extraction and embedding re-run: transcripts are untouched, and keyword search keeps working throughout because the FTS tables are replaced per file as it comes back around.
+- **One-time document re-index on upgrade.** The upgrade that adds `embeddings.chunk_index` discards existing document embeddings so the next reconcile pass rebuilds them with the key that maps an embedding back to the text it was built from. Only text extraction and embedding re-run: transcripts are untouched, and keyword search keeps working throughout because the FTS tables are replaced per file as it comes back around.
 - **DB layout.** The addon's data lives under `data/addons/intelligence/`. The core DB is **not** modified; the addon mirrors what it needs and queries the rest through the Internal API.
 - **Observability.** `docker compose logs -f intelligence`. Queue depth, model memory, and recent failed jobs are surfaced on the admin dashboard's *Index Status* widget; the *Failed jobs* modal supports per-row retry.
 - **Cold-start grace.** The addon fails open on policy lookups for the first 60 seconds; after that, missing core means the addon refuses to enqueue work.

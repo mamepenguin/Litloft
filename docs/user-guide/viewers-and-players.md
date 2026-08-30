@@ -1,6 +1,6 @@
 # Viewers and players
 
-Litloft picks a viewer based on the file's MIME type. The same file detail page (`/files/<id>`) hosts every viewer; only the central component changes. Below the viewer you always get tags, comments, related files, and any addon-injected sections (transcripts, AI summaries, EXIF, similar files, related passages).
+Litloft picks a viewer based on the file's MIME type. The same file detail page (`/files/<id>`) hosts every viewer; only the central component changes. Below the viewer you always get tags, comments, related files, and any addon-injected sections (transcripts, AI summaries, EXIF, similar files).
 
 ## The companion rail
 
@@ -152,20 +152,6 @@ Both playback backends run on one implementation, so resume, periodic saving and
 - **Reaching the end records the final position; it never deletes the record.** See [comments and watch history](comments-history.md).
 - **Media with no trustworthy duration** — a live stream, or media that never probed its length — never resumes and never records a completed state. There is no position to be at, and inventing one would be worse than saying nothing.
 - **Interruptions are not persisted.** While an ad owns the clock, nothing is written; YouTube's end-of-video event fires for pre-rolls too, and writing there unguarded would stamp the ad's length onto the video as a finished watch.
-
-## Related passages
-
-With the intelligence addon installed, a **Related passages** section sits below the viewer. It answers a narrower question than *Similar files*: not "which files resemble this one" but **"which passage of what I am reading connects to a passage of something I already trust"**.
-
-Each row shows the two passages in full, word for word, and the link takes you to the exact spot in the other file — a timestamp in a transcript, a page in a PDF. Nothing is summarised or generated; the section only points.
-
-It runs by itself when you open the file, and searches only files you have marked as trusted sources (see [Trusted sources](file-browsing.md#trusted-sources-and-the-review-queue)), within the drive you are in.
-
-**If the section is not there, it found nothing.** A passage only appears if it clearly stands out from everything else the search compared it against, and roughly half of files have no such passage — so rather than leave a "nothing found" line for you to scroll down to, the section simply is not on the page. Seeing it means there is something to read.
-
-That also holds when everything is equally close, which happens with a set of near-identical files: nothing stands out, so nothing is shown.
-
-Text that repeats across many files — a channel's "subscribe and hit the bell", a template header — is left out too. It matches beautifully and tells you nothing, so a passage that turns up in several files at once is treated as furniture rather than content.
 
 ## Per-file actions menu
 
