@@ -1253,7 +1253,7 @@ For the full design and the broader rationale, see `docs/superpowers/specs/2026-
 | `file-detail-sections` | `visual-description` | AI-generated visual description for images and video (vision model) |
 | `file-detail-sections` | `transcript` | Whisper transcript with per-file refine / revert |
 | `file-detail-sections` | `clip-frames` | CLIP frame analysis |
-| `file-detail-sections` | `index-details` | Per-file indexing state with a *Regenerate* button per task (`metadata`, `clip`, `whisper`, `text`) and recent provider stats |
+| `file-actions-menu` | `index-details` | Per-file indexing state with a *Regenerate* button per task (`metadata`, `clip`, `whisper`, `text`) and recent provider stats, in a dialog opened from the file `[...]` menu |
 | `file-detail-sections` | `similar-files` | Visually similar files |
 | `drive-home-sections` | `pickup` | Recommended files widget on the drive home page |
 | `dashboard-widgets` | `index-status` | Index queue depth, model memory, and a failed-jobs summary that opens a per-file × per-task retry modal |

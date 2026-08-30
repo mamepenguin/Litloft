@@ -42,12 +42,19 @@ Tests: `addons/intelligence/tests/test_reindex_endpoint.py` (13 cases — schema
 
 | File | Role |
 |---|---|
-| `addons/intelligence/frontend/IndexDetailsSection.tsx` | New section, registered into `file-detail-sections` slot at priority 30 (between `clip-frames` at 20 and `similar-files` at 40). Renders the `status` map from `GET /files/{id}/index-details` as one row per task with a *Regenerate* button (lucide `RefreshCw`), a `Loader2` spinner while in flight, and recent `provider_stats` lines for error context |
+| `addons/intelligence/frontend/IndexDetailsMenuItem.tsx` | The `file-actions-menu` slot entry: an `ActionMenuItem` row that opens the dialog. Reports the dialog through `onDialogOpenChange` and asks the host to close its menu only once dismissed — closing earlier would unmount this subtree and take the dialog with it |
+| `addons/intelligence/frontend/IndexDetailsDialog.tsx` | Renders the `status` map from `GET /files/{id}/index-details` as one row per task with a *Regenerate* button (lucide `RefreshCw`), a `Loader2` spinner while in flight, and recent `provider_stats` lines for error context. Fetches on open, not on mount. Portalled through core's `useDialogPortalTarget()` |
 | `addons/intelligence/frontend/api.ts` | `getIndexDetails(fileId)` and `reindexFile(fileId, tasks)` — kept separate from the admin-side `getFailedJobs` because the `pre_check` differs (`file_access` vs `admin`) |
-| `addons/intelligence/frontend/slots.ts` | Registers `"index-details": lazy(() => import("./IndexDetailsSection"))` |
+| `addons/intelligence/frontend/slots.ts` | Registers `"index-details": lazy(() => import("./IndexDetailsMenuItem"))` |
 | `addons/intelligence/frontend/messages/{ja,en}.json` | New keys for the Regenerate button label, confirm dialog copy, and per-task labels |
 
-Tests: `addons/intelligence/frontend/IndexDetailsSection.test.tsx`.
+Tests: `addons/intelligence/frontend/IndexDetailsMenuItem.test.tsx`.
+
+Originally one `IndexDetailsSection.tsx` in `file-detail-sections`. It
+moved to the `[...]` menu on 2026-08-30 (spec
+`2026-08-30-file-actions-menu-addon-slot`) because per-task index state
+is operator-facing and was occupying a permanent card in the reader's
+inspector.
 
 ## Failed-jobs observation + retry
 
@@ -73,7 +80,7 @@ Tests: `addons/intelligence/tests/test_failed_jobs_endpoint.py` (12 cases — ad
 | File | Role |
 |---|---|
 | `addons/intelligence/frontend/IndexStatusWidget.tsx` | Failed-jobs summary row replaces the old *Reindex* button. *N == 0* → muted "no failed jobs" label; *N > 0* → amber background with `AlertTriangle`, clickable to open the modal. Pause / Resume buttons in the header are unchanged. Polled every 10 s with `?limit=1` to keep the row count fresh |
-| `addons/intelligence/frontend/FailedJobsModal.tsx` | New modal. Lists each row with filename, drive, task kind, provider, `error_class`, `attempted_at`, attempts; *Retry* button calls `reindexFile(fileId, [task])`; *Details* link is an SPA navigation (`<Link>` / `router.push`, never `window.location.href`) to the file detail page anchored at the `IndexDetailsSection`. A 24px gutter is reserved at the start of each row for a future multi-select checkbox (Phase 2 only) |
+| `addons/intelligence/frontend/FailedJobsModal.tsx` | New modal. Lists each row with filename, drive, task kind, provider, `error_class`, `attempted_at`, attempts; *Retry* button calls `reindexFile(fileId, [task])`; *Details* link is an SPA navigation (`<Link>` / `router.push`, never `window.location.href`) to the file detail page, where the same per-task view is reachable from the `[...]` menu. A 24px gutter is reserved at the start of each row for a future multi-select checkbox (Phase 2 only) |
 | `addons/intelligence/frontend/api.ts` | `getFailedJobs({ limit, offset })` and the `FailedJobsResponse` type |
 
 Tests: `addons/intelligence/frontend/FailedJobsModal.test.tsx`.
