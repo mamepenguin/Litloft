@@ -63,6 +63,12 @@ vi.mock("../AddonSlot", () => ({
           open
         </button>
         <button
+          data-testid="addon-dialog-close"
+          onClick={() => (props?.onDialogOpenChange as (o: boolean) => void)?.(false)}
+        >
+          dialog close
+        </button>
+        <button
           data-testid="addon-close"
           onClick={() => (props?.onRequestClose as () => void)?.()}
         >
@@ -325,6 +331,23 @@ describe("FileActions file-actions-menu slot", () => {
     expect(screen.queryByText("Download")).not.toBeInTheDocument();
 
     openMenu();
+    fireEvent.mouseDown(document.body);
+
+    expect(screen.queryByText("Download")).not.toBeInTheDocument();
+  });
+
+  it("resumes dismissing the menu once an addon reports its dialog closed", () => {
+    // The other half of the guard: the listeners stand down while the
+    // dialog is up, and must come back when it goes away — otherwise the
+    // menu survives every outside click for the rest of its life.
+    render(<FileActions file={mockFile} addonProps={{ fileId: mockFile.id }} />);
+    openMenu();
+
+    fireEvent.click(screen.getByTestId("addon-open"));
+    fireEvent.mouseDown(document.body);
+    expect(screen.getByText("Download")).toBeInTheDocument();
+
+    fireEvent.click(screen.getByTestId("addon-dialog-close"));
     fireEvent.mouseDown(document.body);
 
     expect(screen.queryByText("Download")).not.toBeInTheDocument();
