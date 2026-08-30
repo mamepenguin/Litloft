@@ -94,6 +94,7 @@ Litloft's frontend has a small set of named slots:
 - `file-detail-sections` — stacked cards under the viewer (transcript, AI summary, similar files, …).
 - `dashboard-widgets` — admin dashboard cards.
 - `folder-actions` — appended to the folder context menu.
+- `file-actions-menu` — entries in the `[...]` overflow menu on the file detail page, for per-file actions that are too infrequent to earn a section.
 
 When no addon contributes to a slot, the slot disappears entirely (no holes in the UI). Per-drive policy filters which addons populate each slot per request.
 

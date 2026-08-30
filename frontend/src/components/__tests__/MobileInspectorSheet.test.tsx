@@ -1,5 +1,8 @@
 import { describe, it, expect, vi } from "vitest";
 import { render, screen, fireEvent, waitFor } from "@testing-library/react";
+import { createPortal } from "react-dom";
+
+import { useDialogPortalTarget } from "@/components/DialogPortal";
 
 import { MobileInspectorSheet } from "@/components/MobileInspectorSheet";
 
@@ -30,6 +33,72 @@ describe("MobileInspectorSheet", () => {
     await waitFor(() => {
       expect(screen.getByTestId("inspector-content")).toBeInTheDocument();
     });
+  });
+
+  it("sits below the modal-dialog tier", async () => {
+    // The sheet hosts the same inspector the desktop pane does, `[...]`
+    // menu included, so Rename / Move / Trash and any addon dialog open
+    // from inside it. Those portal to body at z-50; if the sheet
+    // outranked them they would be launched and immediately buried.
+    // DESIGN.md §Layering.
+    render(
+      <MobileInspectorSheet open={true} onClose={() => undefined}>
+        <div>inspector</div>
+      </MobileInspectorSheet>,
+    );
+
+    await waitFor(() => {
+      expect(screen.getByTestId("mobile-inspector-sheet")).toBeInTheDocument();
+    });
+    const sheet = screen.getByTestId("mobile-inspector-sheet");
+    const overlay = screen.getByTestId("mobile-inspector-overlay");
+
+    for (const el of [sheet, overlay]) {
+      const tier = /z-\[(\d+)\]/.exec(el.className)?.[1];
+      expect(tier).toBeDefined();
+      expect(Number(tier)).toBeLessThan(50);
+      expect(Number(tier)).toBeGreaterThan(40);
+    }
+  });
+
+  it("hosts dialogs opened from inside it, where they stay interactive", async () => {
+    // vaul is `modal`: it puts `pointer-events: none` on <body> and
+    // `aria-hidden` on every other body child. A dialog portalled beside
+    // the sheet is therefore rendered and inert no matter its z-index,
+    // which is why the sheet hands out a host inside its own subtree.
+    function DialogFromInsideTheSheet() {
+      const target = useDialogPortalTarget();
+      if (!target) return null;
+      return createPortal(
+        <div role="dialog" aria-label="launched from the sheet">
+          <button>confirm</button>
+        </div>,
+        target,
+      );
+    }
+
+    render(
+      <MobileInspectorSheet open={true} onClose={() => undefined}>
+        <DialogFromInsideTheSheet />
+      </MobileInspectorSheet>,
+    );
+
+    const dialog = await screen.findByRole("dialog", {
+      name: "launched from the sheet",
+    });
+    expect(dialog.closest("[aria-hidden='true']")).toBeNull();
+    expect(dialog.closest("[data-testid='mobile-inspector-sheet']"))
+      .not.toBeNull();
+    expect(screen.getByRole("button", { name: "confirm" })).toBeInTheDocument();
+  });
+
+  it("falls back to document.body outside the sheet", () => {
+    function Probe() {
+      const target = useDialogPortalTarget();
+      return <span data-testid="target">{target === document.body ? "body" : "other"}</span>;
+    }
+    render(<Probe />);
+    expect(screen.getByTestId("target")).toHaveTextContent("body");
   });
 
   it("invokes onClose when ESC is pressed (vaul's keyboard close)", () => {

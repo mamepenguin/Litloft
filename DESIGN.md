@@ -506,6 +506,41 @@ Use it via the Tailwind utility `shadow-card`. Do not handroll arbitrary shadow 
 - Radius: `rounded-2xl`
 - Danger item: `text-danger hover:bg-accent/10`
 
+### Layering
+
+Stacking is tiered. Pick the tier by what the element *is*, not by
+picking a number one higher than whatever it currently sits under.
+
+| Tier | `z` | What belongs here |
+|---|---|---|
+| In-flow chrome | `z-10` – `z-30` | Sticky bars, the header (`z-20`), popovers anchored to a control, the sidebar backdrop (`z-30`) |
+| Floating surfaces | `z-40` | Sidebar in overlay mode, mini-player, upload progress, bottom-anchored mobile menus |
+| Inspector sheet | `z-[45]` / `z-[46]` | The mobile Bottom Sheet — above every floating surface, below every dialog |
+| Modal dialogs | `z-50` | Confirm / Rename / Move and anything else that interrupts to ask a question, including addon dialogs |
+| Immersive viewers | `z-[60]` | Full-screen image gallery and archive viewer, which replace the page rather than overlay it |
+| Always on top | `z-[100]` | Shortcut cheat sheet, quick note, file save, toasts |
+
+**A dialog must outrank the surface that launched it.** The mobile
+Bottom Sheet hosts the same inspector the desktop pane does, `[...]`
+menu included, so a dialog opened from inside it has to paint above it —
+that is why the sheet sits below the dialog tier rather than at the top
+of the stack.
+
+Correct stacking is necessary but not sufficient there. The sheet runs
+vaul in `modal` mode, which puts `pointer-events: none` on `<body>` and
+`aria-hidden="true"` on every other body child — a dialog portalled
+beside it would be stacked correctly and still be inert. So **a dialog
+never hard-codes `document.body`**; it portals into
+`useDialogPortalTarget()`, which is `document.body` everywhere except
+inside the sheet, where the sheet hands out a host in its own subtree.
+
+The host sits inside `Drawer.Content`, but a `fixed inset-0` dialog
+placed there still resolves against the viewport and covers the whole
+screen — verified in the running app. Were vaul to leave a transform on
+`Drawer.Content` at rest, that ancestor would become the containing
+block and the dialog would be confined to the sheet instead; it does
+not today.
+
 ### Over-video chrome (player controls, mini-player buttons)
 
 Chrome that sits **on top of a video frame** is the one place that deliberately ignores the light/dark theme tokens. The backdrop is the video itself — near-black in practice — so theme-following surfaces would render pale controls on a black frame in light mode and become unreadable.

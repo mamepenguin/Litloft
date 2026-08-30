@@ -787,12 +787,78 @@ Addons can inject UI components into predefined **slots** in the core applicatio
 | `file-detail-sections` | File detail panel | Vertical stack | Transcripts, similar files, suggested tags, summaries, knowledge notes |
 | `dashboard-widgets` | Admin dashboard | Cards | Index statistics, cloud sync status |
 | `folder-actions` | Folder toolbar | Inline buttons | Batch AI actions |
+| `file-actions-menu` | The `[...]` overflow menu on the file detail page | Stack of menu rows | Per-file actions too infrequent to deserve a section of their own. See [Contributing to the file actions menu](#contributing-to-the-file-actions-menu) — entries have extra obligations. |
 | `sidebar-sections` | Sidebar | Stack | Per-addon shortcuts |
 | `loft-player` | File detail (external-source files) | Stack | Embedded player for URL-only files |
 | `active-summary-view` | File detail | Stack | Knowledge-promoted summary note rendering. Hidden when no addon registers — file detail page falls back to the AI summary section. |
 | `drive-home-sections` | Drive home page | Stack | Per-drive feature widgets (e.g. "Pickup" recommendations) |
 | `admin-settings-sections` | Admin settings page | Stack | Additional settings sections contributed by addons |
 | `admin-intelligence-sections` | Intelligence admin page (`/drive/{drive}/addons/intelligence/admin`) | Stack | Intelligence-specific settings panels (features, LLM provider, transcription, RAG) |
+
+### Contributing to the file actions menu
+
+`file-actions-menu` is the only slot whose host is a transient popup, so
+an entry there has obligations the other slots do not impose.
+
+It receives everything the file detail page gives its other slots
+(`fileId`, `drive`, `filename`, `fileType`, `mimeType`, `mediaController`,
+…) plus two callbacks. **`onRequestClose` and `onDialogOpenChange` are
+reserved names**: the host applies them after spreading the file context,
+so an entry cannot override them.
+
+| Prop | Type | Meaning |
+|---|---|---|
+| `onDialogOpenChange` | `(open: boolean) => void` | Tell the host a dialog of yours is open. While it is, the host stops closing the menu on an outside click or Escape. |
+| `onRequestClose` | `() => void` | Ask the host to close the menu. |
+
+**Do not close the menu when you open a dialog.** Closing it unmounts the
+slot's subtree, and your dialog goes with it. The sequence is:
+
+1. On click: open your dialog and call `onDialogOpenChange(true)`. The
+   menu stays open behind your modal overlay.
+2. On dismiss: call `onDialogOpenChange(false)`, then `onRequestClose()`.
+
+The host clears its copy of the flag whenever the menu closes, so a
+missed step 2 degrades rather than wedging the menu shut — but the
+ordering above is what keeps the interaction correct.
+
+Further constraints:
+
+- **Render `ActionMenuItem` directly** (a fragment for several rows). It
+  is imported from `@/components/ActionMenuItem` and takes
+  `{ icon, label, onClick, disabled?, danger? }`. Wrapping rows in your
+  own element breaks the `menu` → `menuitem` relationship the host
+  declares for assistive technology.
+- **Portal dialogs out of the menu**, at `z-50` — the modal-dialog tier
+  in `DESIGN.md` §Layering. The menu itself is `z-30` and clips its
+  overflow, and your overlay is what hides it while the dialog is up. Do
+  not reach for a higher number: `z-50` already outranks the mobile
+  Bottom Sheet, and going above it would put you over the immersive
+  viewers and toasts as well.
+
+  **Portal into `useDialogPortalTarget()`, never `document.body`
+  directly:**
+
+  ```tsx
+  import { useDialogPortalTarget } from "@/components/DialogPortal";
+
+  const host = useDialogPortalTarget();
+  if (!open || !host) return null;
+  return createPortal(<YourDialog />, host);
+  ```
+
+  It is `document.body` almost everywhere. The exception is the mobile
+  Bottom Sheet, which hosts this menu on a phone: it runs vaul in
+  `modal` mode, so anything portalled beside it gets
+  `pointer-events: none` from `<body>` and `aria-hidden="true"` of its
+  own, and would be visible but dead. The hook hands you a node inside
+  the sheet in that case, and `document.body` in every other.
+- The menu is a fixed 160px wide and clips its overflow. Keep labels
+  short, and put anything larger in a portalled dialog rather than a
+  nested popover.
+- Returning `null` is fine and expected — an entry that does not apply to
+  the current file should render nothing, and the host drops its
+  separator when the slot comes out empty.
 
 ### Declaring Slots
 

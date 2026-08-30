@@ -12,6 +12,9 @@ import {
   renameFile,
 } from "@/lib/api";
 import type { FileItem } from "@/types";
+import { ActionMenuItem } from "./ActionMenuItem";
+import { useDialogPortalTarget } from "./DialogPortal";
+import { AddonSlot } from "./AddonSlot";
 import { ConfirmDialog } from "./ConfirmDialog";
 import { RenameDialog } from "./RenameDialog";
 import { MoveDialog } from "./MoveDialog";
@@ -24,9 +27,23 @@ interface FileActionsProps {
   onUpdate?: () => void;
   onDelete?: () => void;
   onEdit?: () => void;
+  /**
+   * File context handed to the `file-actions-menu` slot, and the opt-in
+   * that renders the slot at all: an entry cannot do anything useful
+   * without knowing which file it is acting on, so a call site with no
+   * context to give gets no addon entries. Today only the file detail page
+   * passes it.
+   */
+  addonProps?: Record<string, unknown>;
 }
 
-export function FileActions({ file, onUpdate, onDelete, onEdit }: FileActionsProps) {
+export function FileActions({
+  file,
+  onUpdate,
+  onDelete,
+  onEdit,
+  addonProps,
+}: FileActionsProps) {
   const t = useTranslations("file");
   const tc = useTranslations("common");
   const tt = useTranslations("trash");
@@ -34,8 +51,13 @@ export function FileActions({ file, onUpdate, onDelete, onEdit }: FileActionsPro
   const [renameOpen, setRenameOpen] = useState(false);
   const [moveOpen, setMoveOpen] = useState(false);
   const [deleteOpen, setDeleteOpen] = useState(false);
+  const [addonDialogOpen, setAddonDialogOpen] = useState(false);
+  // document.body everywhere except inside the mobile Bottom Sheet,
+  // which hands out a host in its own subtree — see DialogPortal.
+  const dialogHost = useDialogPortalTarget();
   const [error, setError] = useState<string | null>(null);
   const menuRef = useRef<HTMLDivElement>(null);
+  const triggerRef = useRef<HTMLButtonElement>(null);
   // The menu hangs to the left of the trigger, which only works while the
   // trigger sits near its column's right edge. It does not in a wrapped
   // action row or a narrow pane, where the menu would spill over whatever is
@@ -46,6 +68,11 @@ export function FileActions({ file, onUpdate, onDelete, onEdit }: FileActionsPro
   useLayoutEffect(() => {
     if (!menuOpen) {
       setAlignLeft(false);
+      // The flag belongs to a subtree that only exists while the menu is
+      // open, and it is set by an addon in another repository. Clearing it
+      // here means a caller that forgets `onDialogOpenChange(false)` cannot
+      // strand `anyDialogOpen` at true and leave the menu unclosable.
+      setAddonDialogOpen(false);
       return;
     }
     const trigger = menuRef.current;
@@ -64,7 +91,8 @@ export function FileActions({ file, onUpdate, onDelete, onEdit }: FileActionsPro
     setAlignLeft(triggerRect.right - MENU_WIDTH_PX < boundsLeft);
   }, [menuOpen]);
 
-  const anyDialogOpen = renameOpen || moveOpen || deleteOpen;
+  const anyDialogOpen =
+    renameOpen || moveOpen || deleteOpen || addonDialogOpen;
 
   useEffect(() => {
     if (!menuOpen || anyDialogOpen) return;
@@ -75,6 +103,20 @@ export function FileActions({ file, onUpdate, onDelete, onEdit }: FileActionsPro
     }
     document.addEventListener("mousedown", handleClick);
     return () => document.removeEventListener("mousedown", handleClick);
+  }, [menuOpen, anyDialogOpen]);
+
+  // A popup must be dismissable from the keyboard. Without this the only
+  // ways out are an outside click or picking an item, so a keyboard user
+  // who opens the menu cannot back out of it.
+  useEffect(() => {
+    if (!menuOpen || anyDialogOpen) return;
+    function handleKeyDown(e: KeyboardEvent) {
+      if (e.key !== "Escape") return;
+      setMenuOpen(false);
+      triggerRef.current?.focus();
+    }
+    document.addEventListener("keydown", handleKeyDown);
+    return () => document.removeEventListener("keydown", handleKeyDown);
   }, [menuOpen, anyDialogOpen]);
 
   useEffect(() => {
@@ -170,12 +212,15 @@ export function FileActions({ file, onUpdate, onDelete, onEdit }: FileActionsPro
     <>
       <div ref={menuRef} className="relative">
         <button
+          ref={triggerRef}
           onClick={(e) => {
             e.preventDefault();
             e.stopPropagation();
             setMenuOpen((prev) => !prev);
           }}
           className="rounded-lg p-1.5 text-text-muted transition-colors hover:bg-bg-elevated hover:text-text-primary"
+          aria-haspopup="menu"
+          aria-expanded={menuOpen}
           aria-label={t("actions")}
         >
           <svg
@@ -192,28 +237,56 @@ export function FileActions({ file, onUpdate, onDelete, onEdit }: FileActionsPro
 
         {menuOpen && (
           <div
-            className={`absolute top-full z-30 mt-1 w-40 overflow-hidden rounded-lg border border-bg-border bg-bg-card shadow-lg ${
+            role="menu"
+            className={`absolute top-full z-30 mt-1 w-40 overflow-hidden rounded-2xl border border-bg-border bg-bg-card shadow-lg ${
               alignLeft ? "left-0" : "right-0"
             }`}
           >
             {menuItems.map((item) => (
-              <button
+              <ActionMenuItem
                 key={item.label}
-                onClick={(e) => {
-                  e.preventDefault();
-                  e.stopPropagation();
-                  item.onClick();
-                }}
-                className={`flex w-full items-center gap-2 px-3 py-2 text-left text-sm transition-colors ${
-                  item.danger
-                    ? "text-danger hover:bg-accent/10"
-                    : "text-text-muted hover:bg-bg-elevated hover:text-text-primary"
-                }`}
-              >
-                <item.icon size={14} />
-                {item.label}
-              </button>
+                icon={item.icon}
+                label={item.label}
+                onClick={item.onClick}
+                danger={item.danger}
+              />
             ))}
+            {addonProps && (
+              /* `empty:hidden` carries the separator: no addon claims this
+                 slot on a stock install, and an entry that does claim it may
+                 still render nothing for a given file. Either way the rule
+                 would otherwise float under the last core item with nothing
+                 beneath it.
+
+                 An entry here must NOT close the menu when it opens a
+                 dialog: closing unmounts this subtree, taking the dialog
+                 with it. Entries open their dialog, report it through
+                 `onDialogOpenChange` so the outside-click and Escape
+                 listeners stand down, and call `onRequestClose` only once
+                 the dialog is dismissed. */
+              <div
+                /* Presentational: the menuitems inside must read as direct
+                   children of role="menu", and the rule itself is decoration. */
+                role="none"
+                className="mt-1 border-t border-bg-border pt-1 empty:hidden"
+              >
+                <AddonSlot
+                  id="file-actions-menu"
+                  layout="stack"
+                  props={{
+                    ...addonProps,
+                    onRequestClose: () => {
+                      setAddonDialogOpen(false);
+                      setMenuOpen(false);
+                      // The entry that had focus is about to unmount with
+                      // the menu; without this, focus lands on <body>.
+                      triggerRef.current?.focus();
+                    },
+                    onDialogOpenChange: setAddonDialogOpen,
+                  }}
+                />
+              </div>
+            )}
           </div>
         )}
 
@@ -224,7 +297,7 @@ export function FileActions({ file, onUpdate, onDelete, onEdit }: FileActionsPro
         )}
       </div>
 
-      {renameOpen &&
+      {renameOpen && dialogHost &&
         createPortal(
           <RenameDialog
             open={renameOpen}
@@ -232,10 +305,10 @@ export function FileActions({ file, onUpdate, onDelete, onEdit }: FileActionsPro
             onRename={handleRename}
             onCancel={() => setRenameOpen(false)}
           />,
-          document.body
+          dialogHost
         )}
 
-      {moveOpen &&
+      {moveOpen && dialogHost &&
         createPortal(
           <MoveDialog
             open={moveOpen}
@@ -244,10 +317,10 @@ export function FileActions({ file, onUpdate, onDelete, onEdit }: FileActionsPro
             onMove={handleMove}
             onCancel={() => setMoveOpen(false)}
           />,
-          document.body
+          dialogHost
         )}
 
-      {deleteOpen &&
+      {deleteOpen && dialogHost &&
         createPortal(
           <ConfirmDialog
             open={deleteOpen}
@@ -258,7 +331,7 @@ export function FileActions({ file, onUpdate, onDelete, onEdit }: FileActionsPro
             onCancel={() => setDeleteOpen(false)}
             note={tt("autoDelete")}
           />,
-          document.body
+          dialogHost
         )}
     </>
   );
