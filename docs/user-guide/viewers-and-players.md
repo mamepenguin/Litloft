@@ -157,15 +157,24 @@ Both playback backends run on one implementation, so resume, periodic saving and
 
 With the intelligence addon installed, a **Related passages** section sits below the viewer. It answers a narrower question than *Similar files*: not "which files resemble this one" but **"which passage of what I am reading connects to a passage of something I already trust"**.
 
-Each row shows the two passages in full, word for word, and the link takes you to the exact spot in the other file — a timestamp in a transcript, a page in a PDF. Nothing is summarised or generated; the section only points.
+A row is built to be recognised at a glance rather than read:
+
+- **Where it is in the file you are reading**, at the top. Press it and the player moves there — a document jumps to the page — without leaving this page.
+- **What the two passages have in common**, as small labels beside it. These are words that appear, letter for letter, in *both* passages. Nothing is summarised or generated; the section only ever points.
+- **Who else covers it** — the other file's name and the spot inside it. That link does take you away, which is why it reads differently from the locator above it.
+- **Their passage**, with those shared words highlighted, so the eye can land somewhere instead of reading a wall of transcript.
+
+Your own passage is behind **Full text**, together with theirs in full. You are already reading this file, so the row spends its space on the half you have not seen.
+
+The labels need Japanese text on both sides. In other languages the words two passages share turn out to be *the*, *this*, *because* — grammar rather than subject — so the row shows the passage without them rather than claim a connection that is not there.
 
 It runs by itself when you open the file, and searches only files you have marked as trusted sources (see [Trusted sources](file-browsing.md#trusted-sources-and-the-review-queue)), within the drive you are in.
 
-**If the section is not there, it found nothing.** A passage only appears if it clearly stands out from everything else the search compared it against, and roughly half of files have no such passage — so rather than leave a "nothing found" line for you to scroll down to, the section simply is not on the page. Seeing it means there is something to read.
+**If the section is not there, it found nothing.** A passage only appears if it clearly stands out from everything else the search compared it against, and about two thirds of files have no such passage — so rather than leave a "nothing found" line for you to scroll down to, the section simply is not on the page. Seeing it means there is something to read.
 
 That also holds when everything is equally close, which happens with a set of near-identical files: nothing stands out, so nothing is shown.
 
-Text that repeats across many files — a channel's "subscribe and hit the bell", a template header — is left out too. It matches beautifully and tells you nothing, so a passage that turns up in several files at once is treated as furniture rather than content.
+Text that repeats across many files — a channel's "subscribe and hit the bell", an outro song, a template header — is left out too. It matches beautifully and tells you nothing, so a passage that turns up in several of the drive's files is treated as furniture rather than content.
 
 ## Per-file actions menu
 

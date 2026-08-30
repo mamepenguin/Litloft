@@ -146,11 +146,15 @@ Both default to 0.05 because SigLIP2 produces lower absolute cosine values than 
 
 A file-detail section that answers **which passages** of the file you are reading connect to passages of files you have marked as trusted sources — the counterpart to *Similar files*, which answers which whole files relate to this one.
 
-Each row shows both passages in full, verbatim, and links to the other one's exact position (a timestamp for a transcript, a page for a PDF). **No LLM is involved**: the section points at places, it never writes or summarises. Candidates are drawn only from `trust_tier = verified` files in the same drive.
+A row is a recognition surface, not a reading one. It leads with **where the connection sits in the file being read** — pressing that locator seeks the player or turns to the page in place — then the **words both passages share**, then the other file and its position, then **their** passage with those words highlighted. The reader's own passage is behind a toggle: they are already reading this file. **No LLM is involved**: the section points at places, it never writes or summarises. Candidates are drawn only from `trust_tier = verified` files in the same drive.
 
-It runs when the file is opened, and **renders nothing at all unless it found something** — the section being on the page is itself the signal. On a real drive about half of files produce no pair, so an empty placeholder would be the common case.
+**The shared words are extracted, never generated** — they appear letter for letter in both passages. They are shown only when both passages contain hiragana. That is not a preference for Japanese but the condition under which the extractor works at all: Japanese grammar lives in kana, so particles and fillers cannot become terms and no stopword list is needed. Measured across eight languages, where that separation is absent the words two passages share are `different`, `something`, `because`, `there` — a confident row asserting a connection that is not there. Rows without the labels still show everything else.
 
-**Boilerplate is excluded.** A channel sign-off — *"subscribe, links in the description"* — recurs almost word for word across every video that carries it, and scores *higher* than real subject matter does (0.98 against 0.93, measured), so no threshold separates them. What does is recurrence: a passage appearing in more than `max_passage_files` different files is not about any of them, and is dropped. Raise that value if a series covering the same ground across several files is being silenced.
+It runs when the file is opened, and **renders nothing at all unless it found something** — the section being on the page is itself the signal. Measured on a real drive, about two thirds of files produce no pair, so an empty placeholder would be the common case.
+
+**Boilerplate is excluded.** A channel sign-off — *"subscribe, links in the description"* — recurs almost word for word across every video that carries it, and scores *higher* than real subject matter does (0.98 against 0.93, measured), so no threshold separates them. What does is recurrence: a passage appearing in more than `max_passage_files` different files **of the drive** is not about any of them, and is dropped. The count is taken against the drive rather than against the handful of candidates that reached the ranking — a sign-off carried by two hundred videos otherwise slips through whenever only one of them is on screen. Two passages count as the same when they sit within `recurrence_score` of each other; a sign-off is re-read rather than copied, so its takes differ in filler and land near 0.95 rather than at 1.0. Raise `max_passage_files` if a series covering the same ground across several files is being silenced.
+
+**What this does not fix.** Matching happens on chunks of a few sentences. In writing and in prepared talks a chunk of that size carries a claim, and the pairs are about something. In casual speech most of it is conversational scaffolding, and two chunks can score highly for being the same kind of talk rather than the same subject. Expect weaker rows on vlog-style material than on lectures and documents.
 
 **Why the section is often absent.** Absolute cosine similarity does not separate related passages from unrelated ones — on a real drive, unrelated passages score a median of 0.77 while a genuinely related pair scores 0.93, and the bands overlap. The gate is therefore how far a pair stands out from *that request's own* distribution (`related_passages.min_z`). When nothing stands out — including when every candidate is equally related — the section does not render at all rather than showing five arbitrary rows. Measured on a real drive, `min_z = 5.0` puts a pair on about half of files; lowering it to 4.0 produces four times as many pairs, most of them spurious (the noise tail there reaches z = 4.5).
 
@@ -516,6 +520,8 @@ related_passages:
   near_duplicate_score: 0.999             # above this it is the same text
   min_passage_chars: 40                   # shorter passages match everything
   max_passage_files: 2                    # above this a passage is boilerplate
+  recurrence_score: 0.95                  # at which two takes are "the same"
+  recurrence_k: 64                        # neighbours fetched for that count
   candidate_files: 20                     # cost knobs: the pairwise stage is
   max_source_chunks: 400                  # a matrix product of both sides
   max_candidate_chunks: 200
