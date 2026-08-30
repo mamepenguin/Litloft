@@ -234,7 +234,7 @@ export function FileActions({
         {menuOpen && (
           <div
             role="menu"
-            className={`absolute top-full z-30 mt-1 w-40 overflow-hidden rounded-lg border border-bg-border bg-bg-card shadow-lg ${
+            className={`absolute top-full z-30 mt-1 w-40 overflow-hidden rounded-2xl border border-bg-border bg-bg-card shadow-lg ${
               alignLeft ? "left-0" : "right-0"
             }`}
           >
