@@ -159,6 +159,14 @@ Modes:
 
 For images, captions from BLIP (when configured) seed the LLM tag prompt.
 
+Before the LLM runs, local pipelines assemble grounding candidates: CLIP
+zero-shot scoring against a curated vocabulary plus the drive's own tag names,
+tags voted for by visually similar already-tagged files, and TF-IDF keywords
+from the transcript and filename. All three stay inside the file's drive — a
+drive is a security boundary, so nothing another drive contains can shape the
+suggestions you see. With no LLM configured, these candidates are the
+suggestions.
+
 ### AI summaries
 
 Two layers:
