@@ -581,6 +581,26 @@ export function FileDetailContent({
     />
   );
 
+  // Shared addon slot props. Same shape regardless of layout fork so
+  // every slot entry receives an identical context.
+  const addonSlotProps = {
+    fileId,
+    drive,
+    filename: file.filename,
+    videoRef,
+    mediaController,
+    subtitles: file.subtitles,
+    fileType: file.file_type,
+    mimeType: file.mime_type,
+    documentCaptureController,
+    // Generic file context, same as fileType/mimeType: lets a section decide
+    // whether it applies without a second round-trip for the file it is
+    // already being rendered for.
+    trustTier: file.trust_tier,
+    trustReviewedAt: file.trust_reviewed_at,
+    onFileChange: setFile,
+  };
+
   const metadataNode = (
     <div className="mt-4">
       {editing ? (
@@ -695,6 +715,7 @@ export function FileDetailContent({
               onUpdate={() => getFile(fileId).then(setFile)}
               onDelete={() => onAfterDelete?.()}
               onEdit={() => setEditing(true)}
+              addonProps={addonSlotProps}
             />
           </div>
           <div className="mt-3">{tagChipNode}</div>
@@ -702,26 +723,6 @@ export function FileDetailContent({
       )}
     </div>
   );
-
-  // Shared addon slot props. Same shape regardless of layout fork so
-  // every slot entry receives an identical context.
-  const addonSlotProps = {
-    fileId,
-    drive,
-    filename: file.filename,
-    videoRef,
-    mediaController,
-    subtitles: file.subtitles,
-    fileType: file.file_type,
-    mimeType: file.mime_type,
-    documentCaptureController,
-    // Generic file context, same as fileType/mimeType: lets a section decide
-    // whether it applies without a second round-trip for the file it is
-    // already being rendered for.
-    trustTier: file.trust_tier,
-    trustReviewedAt: file.trust_reviewed_at,
-    onFileChange: setFile,
-  };
 
   if (useDocumentLayout) {
     // 2026-05-12 inspector consolidation:

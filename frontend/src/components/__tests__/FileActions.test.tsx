@@ -42,6 +42,34 @@ vi.mock("../MoveDialog", () => ({
     ) : null,
 }));
 
+// Records what the host handed the `file-actions-menu` slot, and lets a
+// test drive the two callbacks an addon menu entry is given.
+const slotCalls = vi.hoisted(() => ({
+  props: [] as Record<string, unknown>[],
+}));
+
+vi.mock("../AddonSlot", () => ({
+  AddonSlot: ({ id, props }: { id: string; props?: Record<string, unknown> }) => {
+    slotCalls.props.push({ id, ...props });
+    return (
+      <div data-testid={`addon-slot-${id}`}>
+        <button
+          data-testid="addon-open"
+          onClick={() => (props?.onDialogOpenChange as (o: boolean) => void)?.(true)}
+        >
+          open
+        </button>
+        <button
+          data-testid="addon-close"
+          onClick={() => (props?.onRequestClose as () => void)?.()}
+        >
+          close
+        </button>
+      </div>
+    );
+  },
+}));
+
 const mockFile: FileItem = {
   id: "file-1",
   filename: "test.mp4",
@@ -174,5 +202,81 @@ describe("FileActions menu alignment", () => {
 
     const menu = container.querySelector(".absolute.top-full");
     expect(menu?.className).toContain("left-0");
+  });
+});
+
+describe("FileActions file-actions-menu slot", () => {
+  beforeEach(() => {
+    slotCalls.props = [];
+  });
+
+  function openMenu() {
+    fireEvent.click(screen.getByLabelText("File actions"));
+  }
+
+  it("renders no slot without addonProps", () => {
+    // Guards the listing cost: FileCard / FileListRow mount one
+    // FileActions per row and must not pull in addon slot modules.
+    render(<FileActions file={mockFile} />);
+    openMenu();
+
+    expect(
+      screen.queryByTestId("addon-slot-file-actions-menu"),
+    ).not.toBeInTheDocument();
+    expect(slotCalls.props).toHaveLength(0);
+  });
+
+  it("forwards addonProps plus the two callbacks", () => {
+    render(
+      <FileActions file={mockFile} addonProps={{ fileId: mockFile.id, drive: "main" }} />,
+    );
+    openMenu();
+
+    expect(screen.getByTestId("addon-slot-file-actions-menu")).toBeInTheDocument();
+
+    const passed = slotCalls.props.at(-1)!;
+    expect(passed.fileId).toBe(mockFile.id);
+    expect(passed.drive).toBe("main");
+    expect(typeof passed.onRequestClose).toBe("function");
+    expect(typeof passed.onDialogOpenChange).toBe("function");
+  });
+
+  it("keeps the menu open while an addon dialog is open", () => {
+    // An addon's dialog is portalled to document.body, so the host's
+    // outside-click listener sees it as a click outside the menu. Were the
+    // menu to close, the slot subtree — and the dialog with it — would
+    // unmount mid-interaction.
+    render(<FileActions file={mockFile} addonProps={{ fileId: mockFile.id }} />);
+    openMenu();
+
+    fireEvent.click(screen.getByTestId("addon-open"));
+    fireEvent.mouseDown(document.body);
+
+    expect(screen.getByText("Download")).toBeInTheDocument();
+    expect(screen.getByTestId("addon-slot-file-actions-menu")).toBeInTheDocument();
+  });
+
+  it("closes on an outside click while no addon dialog is open", () => {
+    render(<FileActions file={mockFile} addonProps={{ fileId: mockFile.id }} />);
+    openMenu();
+
+    fireEvent.mouseDown(document.body);
+
+    expect(screen.queryByText("Download")).not.toBeInTheDocument();
+    expect(
+      screen.queryByTestId("addon-slot-file-actions-menu"),
+    ).not.toBeInTheDocument();
+  });
+
+  it("closes when an addon calls onRequestClose", () => {
+    render(<FileActions file={mockFile} addonProps={{ fileId: mockFile.id }} />);
+    openMenu();
+
+    fireEvent.click(screen.getByTestId("addon-close"));
+
+    expect(screen.queryByText("Download")).not.toBeInTheDocument();
+    expect(
+      screen.queryByTestId("addon-slot-file-actions-menu"),
+    ).not.toBeInTheDocument();
   });
 });

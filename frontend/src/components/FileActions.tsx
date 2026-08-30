@@ -13,6 +13,7 @@ import {
 } from "@/lib/api";
 import type { FileItem } from "@/types";
 import { ActionMenuItem } from "./ActionMenuItem";
+import { AddonSlot } from "./AddonSlot";
 import { ConfirmDialog } from "./ConfirmDialog";
 import { RenameDialog } from "./RenameDialog";
 import { MoveDialog } from "./MoveDialog";
@@ -25,9 +26,22 @@ interface FileActionsProps {
   onUpdate?: () => void;
   onDelete?: () => void;
   onEdit?: () => void;
+  /**
+   * File context handed to the `file-actions-menu` slot. Supplying it is
+   * what opts a call site into addon menu entries — the file detail page
+   * does, the listing rows (FileCard / FileListRow) do not, so a folder
+   * of 500 files does not lazy-import addon slot modules 500 times.
+   */
+  addonProps?: Record<string, unknown>;
 }
 
-export function FileActions({ file, onUpdate, onDelete, onEdit }: FileActionsProps) {
+export function FileActions({
+  file,
+  onUpdate,
+  onDelete,
+  onEdit,
+  addonProps,
+}: FileActionsProps) {
   const t = useTranslations("file");
   const tc = useTranslations("common");
   const tt = useTranslations("trash");
@@ -35,6 +49,7 @@ export function FileActions({ file, onUpdate, onDelete, onEdit }: FileActionsPro
   const [renameOpen, setRenameOpen] = useState(false);
   const [moveOpen, setMoveOpen] = useState(false);
   const [deleteOpen, setDeleteOpen] = useState(false);
+  const [addonDialogOpen, setAddonDialogOpen] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const menuRef = useRef<HTMLDivElement>(null);
   // The menu hangs to the left of the trigger, which only works while the
@@ -65,7 +80,8 @@ export function FileActions({ file, onUpdate, onDelete, onEdit }: FileActionsPro
     setAlignLeft(triggerRect.right - MENU_WIDTH_PX < boundsLeft);
   }, [menuOpen]);
 
-  const anyDialogOpen = renameOpen || moveOpen || deleteOpen;
+  const anyDialogOpen =
+    renameOpen || moveOpen || deleteOpen || addonDialogOpen;
 
   useEffect(() => {
     if (!menuOpen || anyDialogOpen) return;
@@ -209,6 +225,26 @@ export function FileActions({ file, onUpdate, onDelete, onEdit }: FileActionsPro
                 danger={item.danger}
               />
             ))}
+            {addonProps && (
+              <>
+                <div className="border-t border-bg-border" />
+                {/* An entry here must NOT close the menu when it opens a
+                    dialog: closing unmounts this subtree, taking the
+                    dialog with it. Entries open their dialog, report it
+                    through `onDialogOpenChange` so the outside-click
+                    listener above stands down, and call `onRequestClose`
+                    only once the dialog is dismissed. */}
+                <AddonSlot
+                  id="file-actions-menu"
+                  layout="stack"
+                  props={{
+                    ...addonProps,
+                    onRequestClose: () => setMenuOpen(false),
+                    onDialogOpenChange: setAddonDialogOpen,
+                  }}
+                />
+              </>
+            )}
           </div>
         )}
 
