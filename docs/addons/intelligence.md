@@ -146,7 +146,7 @@ Both default to 0.05 because SigLIP2 produces lower absolute cosine values than 
 
 A file-detail section that answers **which passages** of the file you are reading connect to passages of files you have marked as trusted sources — the counterpart to *Similar files*, which answers which whole files relate to this one.
 
-Each row shows both passages in full, verbatim, and links to the other one's exact position (a timestamp for a transcript, a page for a PDF). **No LLM is involved**: the section points at places, it never writes or summarises. Candidates are drawn only from `trust_tier = verified` files in the same drive.
+A row is built for recognising a connection, not for reading two walls of transcript. This file's own locator leads and seeks the open player in place; the other file's name and locator follow and take you there. Only the other passage is shown by default — this file's own sits behind a toggle, since you are already reading it. Excerpts are opened at a sentence boundary rather than wherever the chunk was cut, and a locator nothing can act on (a plain text file, or media whose player published no controller) renders as text rather than as a dead button. **No LLM is involved**: the section points at places, it never writes or summarises. Candidates are drawn only from `trust_tier = verified` files in the same drive.
 
 It runs when the file is opened, and **renders nothing at all unless it found something** — the section being on the page is itself the signal. On a real drive about half of files produce no pair, so an empty placeholder would be the common case.
 
@@ -364,7 +364,7 @@ llm:
   base_url: ""                                          # provider-specific
   api_key: ""                                           # or env LLM_API_KEY (ignored for ollama)
   model: ""                                             # e.g. "gemma4:e4b", "gpt-4o-mini"
-  max_tokens: 2048
+  max_tokens: 8192                                      # ceiling, not an allocation
   temperature: 0.3
   output_language: "auto"                               # auto | ja | en
   reasoning: "disabled"                                 # disabled | auto
@@ -380,6 +380,16 @@ llm:
 ```
 
 Shipped defaults disable the LLM entirely (`provider: "disabled"`); set this in the browser at `/admin/intelligence` (or edit the file and restart) before turning on any LLM-driven feature.
+
+**`max_tokens`** is a ceiling, not an allocation — providers bill the tokens the
+model actually writes, so headroom costs nothing, while a ceiling that merely
+fits the typical answer turns a legitimately long one into a body cut
+mid-structure and unparseable. Chapter consolidation on a feature-length
+transcript is the case that outgrew the old 2048 default. Lower it only for a
+model whose context window cannot hold that many output tokens. Note that an
+install created before this default changed carries the old value in its own
+`search-config.yml`, where it wins over the default: raise it there to pick the
+change up.
 
 **Provider semantics:**
 
