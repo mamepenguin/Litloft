@@ -27,7 +27,7 @@ Never write a parser from a theory about the site. Fetch the page and
 run the current pipeline over it.
 
 ```bash
-cd /Users/libre/Sources/video_share/addons/knowledge
+cd addons/knowledge   # from the repository root
 curl -sSL -A "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) \
 AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0 Safari/537.36" \
   "https://example.com/article/1" -o /tmp/page.html
@@ -197,7 +197,7 @@ Every one of these has been hit in this codebase.
 ## 6. Verify
 
 ```bash
-cd /Users/libre/Sources/video_share/addons/knowledge
+cd addons/knowledge   # from the repository root
 docker build -f Dockerfile.test -t knowledge-test . && docker run --rm knowledge-test
 ```
 
