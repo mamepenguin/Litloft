@@ -1,8 +1,10 @@
 "use client";
 
-import { type ReactElement, type ReactNode } from "react";
+import { useState, type ReactElement, type ReactNode } from "react";
 import { useTranslations } from "next-intl";
 import { Drawer } from "vaul";
+
+import { DialogPortalProvider } from "./DialogPortal";
 
 /**
  * Bottom Sheet that mirrors the desktop Inspector on mobile widths.
@@ -44,6 +46,7 @@ export function MobileInspectorSheet({
   children: ReactNode;
 }): ReactElement | null {
   const t = useTranslations("inspector");
+  const [dialogHost, setDialogHost] = useState<HTMLDivElement | null>(null);
 
   function handleOpenChange(next: boolean) {
     if (!next) onClose();
@@ -82,8 +85,19 @@ export function MobileInspectorSheet({
               paddingBottom: "calc(env(safe-area-inset-bottom, 0px) + 16px)",
             }}
           >
-            {children}
+            <DialogPortalProvider target={dialogHost}>
+              {children}
+            </DialogPortalProvider>
           </div>
+          {/* Host for dialogs opened from inside the sheet. vaul is
+              `modal`, so it puts `pointer-events: none` on <body> and
+              `aria-hidden` on every other body child — a dialog
+              portalled beside the sheet would be stacked correctly and
+              still be inert. Landing it here keeps it inside the one
+              subtree vaul leaves interactive. Last child so it paints
+              over the section stack, and outside the scroll container so
+              it does not scroll with it. */}
+          <div ref={setDialogHost} />
         </Drawer.Content>
       </Drawer.Portal>
     </Drawer.Root>

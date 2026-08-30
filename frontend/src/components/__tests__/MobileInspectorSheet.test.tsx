@@ -1,5 +1,8 @@
 import { describe, it, expect, vi } from "vitest";
 import { render, screen, fireEvent, waitFor } from "@testing-library/react";
+import { createPortal } from "react-dom";
+
+import { useDialogPortalTarget } from "@/components/DialogPortal";
 
 import { MobileInspectorSheet } from "@/components/MobileInspectorSheet";
 
@@ -56,6 +59,46 @@ describe("MobileInspectorSheet", () => {
       expect(Number(tier)).toBeLessThan(50);
       expect(Number(tier)).toBeGreaterThan(40);
     }
+  });
+
+  it("hosts dialogs opened from inside it, where they stay interactive", async () => {
+    // vaul is `modal`: it puts `pointer-events: none` on <body> and
+    // `aria-hidden` on every other body child. A dialog portalled beside
+    // the sheet is therefore rendered and inert no matter its z-index,
+    // which is why the sheet hands out a host inside its own subtree.
+    function DialogFromInsideTheSheet() {
+      const target = useDialogPortalTarget();
+      if (!target) return null;
+      return createPortal(
+        <div role="dialog" aria-label="launched from the sheet">
+          <button>confirm</button>
+        </div>,
+        target,
+      );
+    }
+
+    render(
+      <MobileInspectorSheet open={true} onClose={() => undefined}>
+        <DialogFromInsideTheSheet />
+      </MobileInspectorSheet>,
+    );
+
+    const dialog = await screen.findByRole("dialog", {
+      name: "launched from the sheet",
+    });
+    expect(dialog.closest("[aria-hidden='true']")).toBeNull();
+    expect(dialog.closest("[data-testid='mobile-inspector-sheet']"))
+      .not.toBeNull();
+    expect(screen.getByRole("button", { name: "confirm" })).toBeInTheDocument();
+  });
+
+  it("falls back to document.body outside the sheet", () => {
+    function Probe() {
+      const target = useDialogPortalTarget();
+      return <span data-testid="target">{target === document.body ? "body" : "other"}</span>;
+    }
+    render(<Probe />);
+    expect(screen.getByTestId("target")).toHaveTextContent("body");
   });
 
   it("invokes onClose when ESC is pressed (vaul's keyboard close)", () => {

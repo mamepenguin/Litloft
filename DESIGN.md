@@ -526,13 +526,20 @@ menu included, so a dialog opened from inside it has to paint above it —
 that is why the sheet sits below the dialog tier rather than at the top
 of the stack.
 
-> **Known gap.** Correct stacking is necessary but not sufficient there.
-> The sheet runs vaul in `modal` mode, which puts `pointer-events: none`
-> on `<body>` and `aria-hidden="true"` on every other body child, so a
-> dialog portalled beside it is inert regardless of its `z`. Rename /
-> Move / Trash from the file `[...]` are affected on mobile today.
-> Resolving it means changing the sheet's modality or giving dialogs a
-> portal target inside it; neither is done yet.
+Correct stacking is necessary but not sufficient there. The sheet runs
+vaul in `modal` mode, which puts `pointer-events: none` on `<body>` and
+`aria-hidden="true"` on every other body child — a dialog portalled
+beside it would be stacked correctly and still be inert. So **a dialog
+never hard-codes `document.body`**; it portals into
+`useDialogPortalTarget()`, which is `document.body` everywhere except
+inside the sheet, where the sheet hands out a host in its own subtree.
+
+The host sits inside `Drawer.Content`, but a `fixed inset-0` dialog
+placed there still resolves against the viewport and covers the whole
+screen — verified in the running app. Were vaul to leave a transform on
+`Drawer.Content` at rest, that ancestor would become the containing
+block and the dialog would be confined to the sheet instead; it does
+not today.
 
 ### Over-video chrome (player controls, mini-player buttons)
 

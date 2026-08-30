@@ -13,6 +13,7 @@ import {
 } from "@/lib/api";
 import type { FileItem } from "@/types";
 import { ActionMenuItem } from "./ActionMenuItem";
+import { useDialogPortalTarget } from "./DialogPortal";
 import { AddonSlot } from "./AddonSlot";
 import { ConfirmDialog } from "./ConfirmDialog";
 import { RenameDialog } from "./RenameDialog";
@@ -51,6 +52,9 @@ export function FileActions({
   const [moveOpen, setMoveOpen] = useState(false);
   const [deleteOpen, setDeleteOpen] = useState(false);
   const [addonDialogOpen, setAddonDialogOpen] = useState(false);
+  // document.body everywhere except inside the mobile Bottom Sheet,
+  // which hands out a host in its own subtree — see DialogPortal.
+  const dialogHost = useDialogPortalTarget();
   const [error, setError] = useState<string | null>(null);
   const menuRef = useRef<HTMLDivElement>(null);
   const triggerRef = useRef<HTMLButtonElement>(null);
@@ -293,7 +297,7 @@ export function FileActions({
         )}
       </div>
 
-      {renameOpen &&
+      {renameOpen && dialogHost &&
         createPortal(
           <RenameDialog
             open={renameOpen}
@@ -301,10 +305,10 @@ export function FileActions({
             onRename={handleRename}
             onCancel={() => setRenameOpen(false)}
           />,
-          document.body
+          dialogHost
         )}
 
-      {moveOpen &&
+      {moveOpen && dialogHost &&
         createPortal(
           <MoveDialog
             open={moveOpen}
@@ -313,10 +317,10 @@ export function FileActions({
             onMove={handleMove}
             onCancel={() => setMoveOpen(false)}
           />,
-          document.body
+          dialogHost
         )}
 
-      {deleteOpen &&
+      {deleteOpen && dialogHost &&
         createPortal(
           <ConfirmDialog
             open={deleteOpen}
@@ -327,7 +331,7 @@ export function FileActions({
             onCancel={() => setDeleteOpen(false)}
             note={tt("autoDelete")}
           />,
-          document.body
+          dialogHost
         )}
     </>
   );

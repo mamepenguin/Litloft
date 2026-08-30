@@ -829,14 +829,30 @@ Further constraints:
   `{ icon, label, onClick, disabled?, danger? }`. Wrapping rows in your
   own element breaks the `menu` → `menuitem` relationship the host
   declares for assistive technology.
-- **Portal dialogs to `document.body`** at `z-50` — the modal-dialog
-  tier in `DESIGN.md` §Layering. The menu itself is `z-30`, and your
-  overlay is what hides it while the dialog is up. Do not reach for a
-  higher number: `z-50` already outranks the mobile Bottom Sheet that
-  hosts this menu on a phone, and going above it would put you over the
-  immersive viewers and toasts as well. Note the known gap recorded in
-  that section — on mobile the sheet currently renders body-portalled
-  dialogs inert, which affects core's own Rename / Move / Trash too.
+- **Portal dialogs out of the menu**, at `z-50` — the modal-dialog tier
+  in `DESIGN.md` §Layering. The menu itself is `z-30` and clips its
+  overflow, and your overlay is what hides it while the dialog is up. Do
+  not reach for a higher number: `z-50` already outranks the mobile
+  Bottom Sheet, and going above it would put you over the immersive
+  viewers and toasts as well.
+
+  **Portal into `useDialogPortalTarget()`, never `document.body`
+  directly:**
+
+  ```tsx
+  import { useDialogPortalTarget } from "@/components/DialogPortal";
+
+  const host = useDialogPortalTarget();
+  if (!open || !host) return null;
+  return createPortal(<YourDialog />, host);
+  ```
+
+  It is `document.body` almost everywhere. The exception is the mobile
+  Bottom Sheet, which hosts this menu on a phone: it runs vaul in
+  `modal` mode, so anything portalled beside it gets
+  `pointer-events: none` from `<body>` and `aria-hidden="true"` of its
+  own, and would be visible but dead. The hook hands you a node inside
+  the sheet in that case, and `document.body` in every other.
 - The menu is a fixed 160px wide and clips its overflow. Keep labels
   short, and put anything larger in a portalled dialog rather than a
   nested popover.
