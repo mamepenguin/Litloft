@@ -300,6 +300,9 @@ describe("FileActions file-actions-menu slot", () => {
     expect(
       screen.queryByTestId("addon-slot-file-actions-menu"),
     ).not.toBeInTheDocument();
+    // The entry holding focus unmounts with the menu, so the host has to
+    // put focus back or it falls to <body>.
+    expect(screen.getByLabelText("File actions")).toHaveFocus();
   });
 
   it("leaves no dangling separator when the slot renders nothing", () => {

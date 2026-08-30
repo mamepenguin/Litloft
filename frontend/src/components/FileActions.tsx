@@ -274,6 +274,9 @@ export function FileActions({
                     onRequestClose: () => {
                       setAddonDialogOpen(false);
                       setMenuOpen(false);
+                      // The entry that had focus is about to unmount with
+                      // the menu; without this, focus lands on <body>.
+                      triggerRef.current?.focus();
                     },
                     onDialogOpenChange: setAddonDialogOpen,
                   }}
