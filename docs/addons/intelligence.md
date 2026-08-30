@@ -608,7 +608,7 @@ When enabled, the intelligence addon contributes:
   - *Visual Description* (vision LLM)
   - *Transcript* (with Refine button)
   - *CLIP Frames* (per-second thumbnails)
-  - *Similar Files* (semantic neighbour list)
+  - *Similar Files* (semantic neighbour list; each result names the keywords it shares with the file you are on, taken from the keyword bag both files were indexed with, and names none when it shares none)
 - **File `[...]` menu** — *Index details*, a dialog showing per-task state with a *Regenerate* button for each task (`metadata`, `clip`, `whisper`, `text`) plus recent provider stats for failure context. It sits in the overflow menu rather than in the inspector because it answers an operator's question, not a reader's.
 - **Folder actions** — *Refine all transcripts in folder*, *Regenerate summaries*.
 - **Dashboard widget** — *Index Status* (queue depth, model memory, and a failed-jobs summary row that opens the *Failed jobs* modal — per-file × per-task retry).
