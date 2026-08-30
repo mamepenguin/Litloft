@@ -260,7 +260,12 @@ export function FileActions({
                  `onDialogOpenChange` so the outside-click and Escape
                  listeners stand down, and call `onRequestClose` only once
                  the dialog is dismissed. */
-              <div className="border-t border-bg-border empty:hidden">
+              <div
+                /* Presentational: the menuitems inside must read as direct
+                   children of role="menu", and the rule itself is decoration. */
+                role="none"
+                className="mt-1 border-t border-bg-border pt-1 empty:hidden"
+              >
                 <AddonSlot
                   id="file-actions-menu"
                   layout="stack"

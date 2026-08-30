@@ -108,6 +108,19 @@ describe("FileActions", () => {
     expect(screen.getByLabelText("File actions")).toBeInTheDocument();
   });
 
+  it("exposes the menu to assistive tech", () => {
+    render(<FileActions file={mockFile} />);
+    const trigger = screen.getByLabelText("File actions");
+    expect(trigger).toHaveAttribute("aria-haspopup", "menu");
+    expect(trigger).toHaveAttribute("aria-expanded", "false");
+
+    fireEvent.click(trigger);
+
+    expect(trigger).toHaveAttribute("aria-expanded", "true");
+    expect(screen.getByRole("menu")).toBeInTheDocument();
+    expect(screen.getAllByRole("menuitem")).toHaveLength(4);
+  });
+
   it("opens menu on click", () => {
     render(<FileActions file={mockFile} />);
     fireEvent.click(screen.getByLabelText("File actions"));
