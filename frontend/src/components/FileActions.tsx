@@ -12,6 +12,7 @@ import {
   renameFile,
 } from "@/lib/api";
 import type { FileItem } from "@/types";
+import { ActionMenuItem } from "./ActionMenuItem";
 import { ConfirmDialog } from "./ConfirmDialog";
 import { RenameDialog } from "./RenameDialog";
 import { MoveDialog } from "./MoveDialog";
@@ -176,6 +177,8 @@ export function FileActions({ file, onUpdate, onDelete, onEdit }: FileActionsPro
             setMenuOpen((prev) => !prev);
           }}
           className="rounded-lg p-1.5 text-text-muted transition-colors hover:bg-bg-elevated hover:text-text-primary"
+          aria-haspopup="menu"
+          aria-expanded={menuOpen}
           aria-label={t("actions")}
         >
           <svg
@@ -192,27 +195,19 @@ export function FileActions({ file, onUpdate, onDelete, onEdit }: FileActionsPro
 
         {menuOpen && (
           <div
+            role="menu"
             className={`absolute top-full z-30 mt-1 w-40 overflow-hidden rounded-lg border border-bg-border bg-bg-card shadow-lg ${
               alignLeft ? "left-0" : "right-0"
             }`}
           >
             {menuItems.map((item) => (
-              <button
+              <ActionMenuItem
                 key={item.label}
-                onClick={(e) => {
-                  e.preventDefault();
-                  e.stopPropagation();
-                  item.onClick();
-                }}
-                className={`flex w-full items-center gap-2 px-3 py-2 text-left text-sm transition-colors ${
-                  item.danger
-                    ? "text-danger hover:bg-accent/10"
-                    : "text-text-muted hover:bg-bg-elevated hover:text-text-primary"
-                }`}
-              >
-                <item.icon size={14} />
-                {item.label}
-              </button>
+                icon={item.icon}
+                label={item.label}
+                onClick={item.onClick}
+                danger={item.danger}
+              />
             ))}
           </div>
         )}
