@@ -292,6 +292,16 @@ first sweep after you have watched something. The link to the full page
 appears once the feed holds at least 40 files; below that the carousel
 is already showing everything there is.
 
+**How fast it forgets.** An interest halves in weight every week you do
+not touch it. Stop watching something you had been watching heavily and
+its share of the feed roughly halves within a fortnight; it clears
+entirely once the last of it falls out of the year-long window. Keep
+watching it a little and it keeps a proportional share indefinitely.
+
+Interests you have not touched for months do not disappear — they hold a
+floor share whatever their age. What decays is how much *more* than that
+floor a current interest gets.
+
 **Freshness.** The feed is rebuilt when a scan completes and on an
 hourly sweep, and only for viewers whose history has actually changed.
 The carousel shows a different twelve each day, drawn from the top of
