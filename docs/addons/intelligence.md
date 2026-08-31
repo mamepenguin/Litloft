@@ -18,6 +18,7 @@ The `intelligence` addon adds LLM-backed search, Q&A, summarization, and tag sug
 | **Vision describe** | LLM image descriptions, photo-by-photo | manual |
 | **Transcription** | faster-Whisper (local) or cloud providers | local |
 | **CLIP frame analysis** | Scene-aware video frame embeddings for "find a moment" | on |
+| **Pickup** | A feed of files you have never opened, drawn from your whole watch history | on |
 
 Shipped defaults are conservative — most LLM-driven features start at `"false"` or `"manual"` so an unconfigured install never makes outbound LLM calls until you turn a feature on (in the browser or in `search-config.yml`). All features are opt-out per drive via the [settings GUI](../admin-guide/settings-gui.md).
 
@@ -245,6 +246,57 @@ candidate pending; generation and dismissal do not write core chapters.
 - Generate the answer with `max_tokens`. Citations are matched against the retriever's result set; anything outside is dropped (anti-hallucination).
 
 Access control is applied **twice**: once on the internal filter (Internal API `filter-file-ids`) and once via `drive_access_nested` on the addon side.
+
+### Pickup
+
+A feed of files in this drive that **you have never opened**, ranked by
+how well they match the interests your watch history describes. It sits
+on the drive home as a carousel, with the full feed on its own page.
+
+Nothing is sent anywhere — this feature makes no LLM calls. It reads the
+embeddings indexing has already produced.
+
+**How the ranking works**
+
+- Your last year of watch history in this drive is clustered into a
+  handful of *interests*, per embedding channel (video and image
+  thumbnails, transcript keyword bags, document text). Clustering sees
+  every entry in the window; recency is a weight on an interest, never a
+  filter on which interests exist.
+- Each interest gets a weight from its decayed mass, log-compressed so
+  forty episodes do not count as eight times a five-file interest, then
+  scaled so **the quietest interest keeps at least a quarter of the
+  turns the loudest one gets**. An interest you have not touched for
+  months stays visible instead of vanishing.
+- Every interest is scored against the drive's candidates in one pass,
+  and the results are woven together so each interest's share of the
+  feed matches its weight.
+- A file you have opened — ever, not just recently — is never a
+  candidate.
+
+**What it does not do**
+
+Watching a lot of one series does bias the feed toward that series. The
+profile reports what your history looks like, and a long-running series
+splits into several interests because it genuinely contains several —
+different eras, formats and openings. Telling "more of the same subject"
+apart from "a related but different subject" needs a judgement the
+embeddings do not carry, so the feature does not pretend to make it.
+
+**Per drive.** A drive is a security boundary: the feed never draws on
+another drive, and a locked drive contributes nothing.
+
+**When it appears.** The carousel needs a viewer profile (a nickname) —
+without one there is no watch history to read. It stays hidden until the
+first sweep after you have watched something. The link to the full page
+appears once the feed holds at least 40 files; below that the carousel
+is already showing everything there is.
+
+**Freshness.** The feed is rebuilt when a scan completes and on an
+hourly sweep, and only for viewers whose history has actually changed.
+The carousel shows a different twelve each day, drawn from the top of
+the feed; the page itself keeps a stable order so paging through it does
+not repeat or skip.
 
 ### Retrieval keywords
 
@@ -609,6 +661,7 @@ When enabled, the intelligence addon contributes:
   - *Transcript* (with Refine button)
   - *CLIP Frames* (per-second thumbnails)
   - *Similar Files* (semantic neighbour list; each result names the keywords it shares with the file you are on, taken from the keyword bag both files were indexed with, and names none when it shares none)
+- **Drive home** — *Pickup*, a carousel of files you have never opened, with a link through to the full feed at `/drive/{drive}/addons/intelligence/pickup` once it holds at least 40
 - **File `[...]` menu** — *Index details*, a dialog showing per-task state with a *Regenerate* button for each task (`metadata`, `clip`, `whisper`, `text`) plus recent provider stats for failure context. It sits in the overflow menu rather than in the inspector because it answers an operator's question, not a reader's.
 - **Folder actions** — *Refine all transcripts in folder*, *Regenerate summaries*.
 - **Dashboard widget** — *Index Status* (queue depth, model memory, and a failed-jobs summary row that opens the *Failed jobs* modal — per-file × per-task retry).
