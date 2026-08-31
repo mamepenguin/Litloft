@@ -77,6 +77,13 @@ That endpoint validates `event` against `^[a-z][a-z0-9_.]*$`, max 128 characters
 Names in use today (the addons own these; check each addon's docs before relying on a payload shape):
 
 - intelligence — `intelligence.transcription.completed`, `intelligence.transcription.failed`, `intelligence.refine.started` / `.progress` / `.completed` / `.failed`, `intelligence.vision_describe.started` / `.succeeded` / `.failed` / `.unsupported`, `intelligence.video_visual.started` / `.progress` / `.partial` / `.succeeded` / `.failed`, `intelligence.chapter_suggestions.ready` / `.failed`, `intelligence.detailed_summary.updated` / `.citations_ready`
+
+`intelligence.vision_describe.failed` carries a `reason` naming the
+cause — `model_missing`, `image_rejected`, `token_budget`,
+`request_failed`, `empty`, or the pre-LLM stages `load` / `decode`. Its
+`.unsupported` sibling now means the model was measured not to accept
+image content, rather than inferred to be so from a single provider
+rejection; see [the intelligence addon docs](../addons/intelligence.md#vision-describe).
 - knowledge — `knowledge.active_summary.changed`, `knowledge.note.created`, `knowledge.distilled.created`, `knowledge.clip.ready` / `.failed`
 
 ## Event-hook webhooks (addon-facing)
