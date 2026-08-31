@@ -358,8 +358,59 @@ Modes (`features.transcript_refine`): `"false"`, `"manual"`, `"on_index"`. Defau
 Vision-LLM image descriptions for `image/*` and HEIC. The description is stored alongside the file and used for tag generation.
 
 - Modes: `"false"`, `"manual"`, `"on_index"`. Default `"manual"`.
-- Requires `llm.vision_model` to be set; without it the feature is unavailable regardless of mode (graceful degradation).
+- Requires `llm.vision_model` **and a usable LLM client**. With either
+  missing the feature is unavailable regardless of mode (graceful
+  degradation): a `vision_model` set against `provider: disabled`, or an
+  empty `base_url`, counts as missing.
 - **`"on_index"` scales linearly with new image count** — enable carefully on large photo libraries.
+
+#### What a file's state means
+
+`GET /api/addons/intelligence/files/{id}/visual_description` returns
+`status` and, since a failure's cause is worth acting on, a `reason`.
+
+| `status` | `reason` | Meaning | Recoverable by retrying? |
+|---|---|---|---|
+| `null` | `null` | Never attempted | — (offer generate) |
+| `pending` | `null` | Queued or in flight | — |
+| `success` | `null` | Description stored | — |
+| `unsupported` | `not_configured` | No usable vision LLM at all | No — fix the configuration |
+| `unsupported` | `vision_unsupported` | The configured model was measured not to accept images | Only after changing the model |
+| `unsupported` | `null` | A verdict recorded before reasons were kept, by an inference that has since been removed | **Yes — these are the ones worth re-running** |
+| `failed` | `model_missing` | The model is not installed on the provider | Yes, once it is pulled |
+| `failed` | `image_rejected` | The provider could not read this particular image | Yes, though the same image may fail again |
+| `failed` | `token_budget` | The answer was cut off by `llm.vision_max_tokens` | Yes, after raising it |
+| `failed` | `load` / `decode` / other | Read or decode failure before the LLM was reached | Yes |
+
+A rejection from the provider is never read as a verdict on its own. A
+400 means the same thing whether the model cannot see, the image could
+not be read, or the request carried a field the provider does not know;
+a 404 means the model was never pulled. To tell them apart the addon
+sends a fixed reference image to the same model and reads the response
+status, once per model, only after a real call has already failed.
+
+#### Recovering files stuck on `unsupported`
+
+Both trigger points are explicit user actions and both override the
+"already settled, do not re-run" guard that protects background sweeps:
+
+- The **Retry** button on the file page, for one file.
+- The **folder** button, for every image in the folder. Because it
+  overrides that guard, it re-describes images that already have a
+  description — that is what its confirmation means by *all* — and is
+  capped at 500 files per request.
+
+Automatic paths (`on_index`, the startup sweep) never override it, so
+turning the feature on does not re-spend on work that is already done.
+
+#### Endpoints
+
+| Endpoint | Notes |
+|---|---|
+| `GET /files/{id}/visual_description` | `status` + `reason` as above |
+| `POST /files/{id}/visual_description/generate` | `202`-style `{"status": "accepted"}`, or `{"status": "already_queued"}` when the file is already on its way. `409` with `{"detail": {"error": "not_queued", "reason": ...}}` when the worker declines it. `404` when the feature is unavailable |
+| `DELETE /files/{id}/visual_description` | Clears the description, its embeddings, and its reason |
+| `POST /folders/visual_description/generate` | `413` with `{"error": "too_many_files", "max", "requested"}` above the cap |
 
 ### Transcription providers
 
@@ -747,6 +798,9 @@ Embedding-model switches are a different flow: editing `models.text_embedding` f
 | AssemblyAI upload fails on a multi-hour file | 5 GB cap per file. Phase 2B will add ffmpeg-based splitting; for now, transcode to a lower bitrate or use Deepgram |
 | Gemini upload stalls then times out | Raise `transcription.gemini.upload_wait_sec`; the File API is slow on very large files |
 | Tags suggest nothing | Vision describe disabled and BLIP missing for image-heavy drives; enable one |
+| An image keeps saying the model does not accept images, but `llm.vision_model` is set | Open the file and press **Retry**. Verdicts recorded before the addon measured capability were inferred from a single provider rejection and are often wrong; the retry re-measures. For a whole folder, use the folder button |
+| Descriptions stay *Creating description…* forever | The row was accepted by a process that then stopped. A restart re-queues them automatically; the file page also offers **Retry**. If it recurs, check that `llm.provider` is not `disabled` while `llm.vision_model` is set |
+| Vision fails with `token_budget` | Raise `llm.vision_max_tokens`. A truncated description is discarded rather than stored, so nothing is left half-written |
 | Every intelligence endpoint returns 502, core logs `SLOW REQUEST 15.0s` | The addon's event loop is blocked. Confirm with `docker compose ps` (`unhealthy`), read the thread dump the watchdog wrote to `docker compose logs intelligence`, then `docker compose restart intelligence` |
 | Container OOM during indexing | Raise host RAM, or set `whisper_idle_unload: 60` and `blip_idle_unload: 60` |
 | LLM 429s | Set `llm.min_request_interval_ms: 1000` or increase `llm.retry_max_delay` |
