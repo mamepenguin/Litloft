@@ -7,7 +7,7 @@ REPO_ROOT="$(git rev-parse --git-common-dir | xargs dirname)"
 # compose project directory (= this worktree), so every path it references must
 # exist here too, or docker silently creates empty dirs in their place.
 for f in .env .env.local drives.json passwords.json event-hooks.json rclone.conf \
-         docker-compose.override.yml test_images private data; do
+         docker-compose.override.yml test_images private data docs/superpowers; do
   [ -e "$REPO_ROOT/$f" ] && ln -sfn "$REPO_ROOT/$f" "$f"
 done
 
