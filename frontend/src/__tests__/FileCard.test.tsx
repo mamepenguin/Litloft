@@ -39,7 +39,7 @@ const makeFile = (overrides: Partial<FileItem> = {}): FileItem => ({
   has_thumbnail: false,
   file_size: 1024000,
   duration: 120,
-  likes: 0,
+  liked_at: null,
   is_favorite: false,
   tags: [],
   subtitles: [],

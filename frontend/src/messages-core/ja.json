@@ -36,6 +36,7 @@
   "sidebar": {
     "home": "ホーム",
     "favorites": "お気に入り",
+    "liked": "良かったもの",
     "recentPlay": "最近見た",
     "recentAdded": "最近追加",
     "allFiles": "すべてのファイル",
@@ -67,7 +68,7 @@
     "pickup": "ピックアップ",
     "recentAdded": "最近追加",
     "favorites": "お気に入り",
-    "popular": "人気",
+    "liked": "良かったもの",
     "continueWatching": "続きを見る",
     "recentlyPlayed": "最近見た",
     "tagline": "ファイルの保存・配信・整理をひとつに",
@@ -225,8 +226,6 @@
     "titleZA": "タイトルZ→A",
     "sizeLargest": "サイズ 大→小",
     "sizeSmallest": "サイズ 小→大",
-    "likesmost": "いいね 多→少",
-    "likesleast": "いいね 少→多",
     "random": "ランダム"
   },
   "selection": {
@@ -244,6 +243,12 @@
     "remove": "お気に入り解除",
     "added": "お気に入り済み",
     "label": "お気に入り"
+  },
+  "like": {
+    "add": "良かったに追加",
+    "remove": "良かったを取り消す",
+    "added": "良かった",
+    "label": "良かった"
   },
   "tag": {
     "add": "タグ追加",
@@ -390,6 +395,8 @@
     "needsScanDescription": "ドライブのファイルを読み込みます。",
     "noFavoritesTitle": "お気に入りのファイルがありません",
     "noFavoritesDescription": "星アイコンをクリックしてお気に入りに追加しましょう。",
+    "noLikedTitle": "良かったファイルがありません",
+    "noLikedDescription": "ファイル詳細で親指アイコンを押すと、ここに残ります。",
     "noRecentTitle": "最近見たファイルがありません",
     "noRecentDescription": "ファイルを開くと、ここに表示されます。",
     "noRecentNoProfileTitle": "プロフィールが設定されていません",

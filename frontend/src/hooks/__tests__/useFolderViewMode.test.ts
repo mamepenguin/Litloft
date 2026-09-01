@@ -145,6 +145,21 @@ describe("useFolderSort", () => {
     expect(result.current.order).toBe("asc");
   });
 
+  it("falls back to the default when the stored field was retired", () => {
+    // A sort selection outlives the deploy that removes it. "likes" was
+    // stored per folder, so without this fallback that folder would send
+    // a rejected sort on every load until localStorage was cleared by
+    // hand (spec 2026-09-01-favorite-like-separation).
+    localStorage.setItem(
+      driveKey("work"),
+      JSON.stringify({ Q1: { sort: "likes", order: "desc" } }),
+    );
+    const { result } = renderHook(() =>
+      useFolderSort({ drive: "work", folderPath: "Q1" }),
+    );
+    expect(result.current.sort).toBe("created_at");
+  });
+
   it("writes sort/order to folderPrefs on setSort", () => {
     const { result } = renderHook(() =>
       useFolderSort({ drive: "work", folderPath: "Q1" }),

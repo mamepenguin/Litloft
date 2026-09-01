@@ -24,8 +24,6 @@ const baseSortOptions: SortOption[] = [
   { labelKey: "titleZA", sort: "title", order: "desc" },
   { labelKey: "sizeLargest", sort: "file_size", order: "desc" },
   { labelKey: "sizeSmallest", sort: "file_size", order: "asc" },
-  { labelKey: "likesmost", sort: "likes", order: "desc" },
-  { labelKey: "likesleast", sort: "likes", order: "asc" },
   { labelKey: "random", sort: "random", order: "desc" },
 ];
 

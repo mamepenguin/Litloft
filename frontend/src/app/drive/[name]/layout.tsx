@@ -33,7 +33,7 @@ import {
  * - addon routes (`/drive/{name}/addons/...`) own their own layout.
  * - recovery views (`?view=trash | missing`) own their own layout.
  * - cross-folder virtual views (`?view=favorites | recent-added |
- *   popular | all | recent`) and the search / smart-folder route
+ *   liked | all | recent`) and the search / smart-folder route
  *   list files detached from the folder tree — showing the tree
  *   would mislead about where each file lives. The host page
  *   (FolderBrowser) renders directly; if a file is selected via

@@ -70,7 +70,7 @@ describe("TreeToggle", () => {
   it.each([
     ["?view=favorites", "favorites"],
     ["?view=recent-added", "recent-added"],
-    ["?view=popular", "popular"],
+    ["?view=liked", "liked"],
     ["?view=all", "all"],
     ["?view=recent", "recent"],
   ])("auto-hides on cross-folder view %s", (_label, view) => {

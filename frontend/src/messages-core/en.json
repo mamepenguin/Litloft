@@ -36,6 +36,7 @@
   "sidebar": {
     "home": "Home",
     "favorites": "Favorites",
+    "liked": "Liked",
     "recentPlay": "Recently Viewed",
     "recentAdded": "Recently Added",
     "allFiles": "All Files",
@@ -67,7 +68,7 @@
     "pickup": "Pickup",
     "recentAdded": "Recently Added",
     "favorites": "Favorites",
-    "popular": "Popular",
+    "liked": "Liked",
     "continueWatching": "Continue Watching",
     "recentlyPlayed": "Recently Viewed",
     "tagline": "Store, stream, and organize your files in one place",
@@ -225,8 +226,6 @@
     "titleZA": "Title Z→A",
     "sizeLargest": "Size largest",
     "sizeSmallest": "Size smallest",
-    "likesmost": "Most liked",
-    "likesleast": "Least liked",
     "random": "Random"
   },
   "selection": {
@@ -244,6 +243,12 @@
     "remove": "Remove from favorites",
     "added": "Favorited",
     "label": "Favorites"
+  },
+  "like": {
+    "add": "Mark as liked",
+    "remove": "Remove from liked",
+    "added": "Liked",
+    "label": "Like"
   },
   "tag": {
     "add": "Add tag",
@@ -390,6 +395,8 @@
     "needsScanDescription": "Scan the drive to load files.",
     "noFavoritesTitle": "No favorite files",
     "noFavoritesDescription": "Click the star icon to add favorites.",
+    "noLikedTitle": "No liked files",
+    "noLikedDescription": "Press the thumb on a file page and it stays here.",
     "noRecentTitle": "No recently viewed files",
     "noRecentDescription": "Files you open will appear here.",
     "noRecentNoProfileTitle": "No profile set",

@@ -152,7 +152,7 @@ describe("DriveLayout", () => {
   it.each([
     ["favorites"],
     ["recent-added"],
-    ["popular"],
+    ["liked"],
     ["all"],
     ["recent"],
   ])("does NOT wrap on the %s cross-folder view", (view) => {

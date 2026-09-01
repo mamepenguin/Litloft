@@ -23,7 +23,7 @@ function makeFile(id: string): FileItem {
     has_thumbnail: true,
     file_size: 1024,
     duration: 60,
-    likes: 0,
+    liked_at: null,
     is_favorite: false,
     tags: [],
     subtitles: [],
@@ -123,6 +123,20 @@ describe("listSnapshot", () => {
       };
       window.sessionStorage.setItem("hv_list_snapshot", JSON.stringify(bad));
       expect(loadListSnapshot("main|photos||")).toBeNull();
+    });
+
+    it("evicts a snapshot holding a retired sort field", () => {
+      // Same hazard as the folderPrefs fallback: "likes" outlives the
+      // deploy that removed it, and replaying it would 422
+      // (spec 2026-09-01-favorite-like-separation).
+      const stale = {
+        ...BASE_SNAPSHOT,
+        filters: { ...BASE_SNAPSHOT.filters, sort: "likes" },
+        ts: Date.now(),
+      };
+      window.sessionStorage.setItem("hv_list_snapshot", JSON.stringify(stale));
+      expect(loadListSnapshot("main|photos||")).toBeNull();
+      expect(window.sessionStorage.getItem("hv_list_snapshot")).toBeNull();
     });
 
     it("returns a random-sort snapshot (caller is responsible for discarding it)", () => {

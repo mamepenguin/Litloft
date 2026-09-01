@@ -29,7 +29,7 @@ export interface FileItem {
   has_thumbnail: boolean;
   file_size: number;
   duration: number | null;
-  likes: number;
+  liked_at: string | null;
   is_favorite: boolean;
   tags: string[];
   subtitles: SubtitleInfo[];
@@ -204,7 +204,10 @@ export type SortField =
   | "created_at"
   | "title"
   | "file_size"
-  | "likes"
+  // Only the Liked view selects this. It is deliberately absent from
+  // SortButton's options: inside an ordinary folder most rows have no
+  // value at all.
+  | "liked_at"
   | "random"
   | "relevance";
 export type SortOrder = "asc" | "desc";

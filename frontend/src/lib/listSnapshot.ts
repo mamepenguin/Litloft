@@ -39,7 +39,9 @@ export function buildListSnapshotKey(parts: ListSnapshotKeyParts): string {
   ].join("|");
 }
 
-const SORT_FIELDS: readonly SortField[] = ["created_at", "title", "file_size", "likes", "random"];
+// Deliberately narrower than ``lib/sortField``: a snapshot is never taken
+// in search mode, so ``relevance`` must not validate here.
+const SORT_FIELDS: readonly SortField[] = ["created_at", "title", "file_size", "random"];
 const SORT_ORDERS: readonly SortOrder[] = ["asc", "desc"];
 const VIEW_MODES: readonly ViewMode[] = ["grid", "list"];
 const FILE_TYPES: readonly FileType[] = ["video", "image", "audio", "document", "archive", "subtitle", "other"];

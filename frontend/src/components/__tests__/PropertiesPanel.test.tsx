@@ -17,7 +17,7 @@ function fakeFile(id: string, filename = "sample.mp4") {
     has_thumbnail: true,
     file_size: 1000,
     duration: 10,
-    likes: 0,
+    liked_at: null,
     is_favorite: false,
     tags: [],
     subtitles: [],

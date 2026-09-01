@@ -102,7 +102,7 @@ const makeWatchHistoryItem = (id: string): WatchHistoryItem => ({
   has_thumbnail: false,
   file_size: 1024000,
   duration: 300,
-  likes: 0,
+  liked_at: null,
   is_favorite: false,
   tags: [],
   subtitles: [],
@@ -123,6 +123,24 @@ describe("DriveHome", () => {
     mockGetFolders.mockResolvedValue([]);
     mockGetPins.mockResolvedValue([]);
     mockGetWatchHistory.mockResolvedValue([]);
+  });
+
+  it("asks the backend for liked files, ordered by when they were liked", async () => {
+    // The counter this replaces was fetched with sort=likes and then
+    // filtered client-side on `likes > 0`; the server filter replaces
+    // both (spec 2026-09-01-favorite-like-separation).
+    render(<DriveHome driveName="media" />);
+
+    await waitFor(() => {
+      expect(mockGetDriveFiles).toHaveBeenCalledWith(
+        "media",
+        expect.objectContaining({
+          liked: true,
+          sort: "liked_at",
+          order: "desc",
+        }),
+      );
+    });
   });
 
   it("does not show Continue Watching when no profile", async () => {

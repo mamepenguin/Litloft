@@ -11,15 +11,11 @@ import { useTranslations } from "next-intl";
 import {
   Check,
   Maximize2,
-  ThumbsDown,
-  ThumbsUp,
   X,
 } from "lucide-react";
 
 import {
-  dislikeFile,
   getFile,
-  likeFile,
   recordFileView,
   renameFile,
   updateFile,
@@ -47,6 +43,7 @@ import { CommentSection } from "./CommentSection";
 import { MarkdownAwareTagChips } from "./MarkdownAwareTagChips";
 import { ExifSection } from "./ExifSection";
 import { FavoriteButton } from "./FavoriteButton";
+import { LikeButton } from "./LikeButton";
 import { TrustTierControl } from "./TrustTierControl";
 import { FileActions } from "./FileActions";
 import { FilePreview } from "./FilePreview";
@@ -433,26 +430,6 @@ export function FileDetailContent({
     setChaptersPresent(count > 0);
   }, []);
 
-  const handleLike = useCallback(async () => {
-    if (!file) return;
-    try {
-      const updated = await likeFile(file.id);
-      setFile(updated);
-    } catch (err) {
-      console.error("Failed to like file:", err);
-    }
-  }, [file]);
-
-  const handleDislike = useCallback(async () => {
-    if (!file) return;
-    try {
-      const updated = await dislikeFile(file.id);
-      setFile(updated);
-    } catch (err) {
-      console.error("Failed to dislike file:", err);
-    }
-  }, [file]);
-
   const handleSave = useCallback(async () => {
     if (!file) return;
     setSaving(true);
@@ -672,25 +649,12 @@ export function FileDetailContent({
           {/* Wraps because this row also renders inside the 300px Markdown
               inspector and on a phone, where it cannot fit on one line. */}
           <div className="mt-2 flex flex-wrap items-center gap-1">
-            <div className="flex items-center overflow-hidden rounded-full bg-bg-card">
-              <button
-                onClick={handleLike}
-                className="px-2.5 py-1.5 text-sm text-text-muted transition-colors hover:text-text-primary"
-                aria-label="Like"
-              >
-                <ThumbsUp size={16} />
-              </button>
-              <span className="min-w-[1.5rem] text-center text-sm text-text-muted">
-                {file.likes}
-              </span>
-              <button
-                onClick={handleDislike}
-                className="px-2.5 py-1.5 text-sm text-text-muted transition-colors hover:text-text-primary"
-                aria-label="Dislike"
-              >
-                <ThumbsDown size={16} />
-              </button>
-            </div>
+            <LikeButton
+              fileId={file.id}
+              likedAt={file.liked_at}
+              onToggle={setFile}
+              showLabel
+            />
             <FavoriteButton
               fileId={file.id}
               isFavorite={file.is_favorite}

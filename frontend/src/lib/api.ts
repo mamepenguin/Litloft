@@ -58,6 +58,7 @@ export async function getDriveFiles(
     recursive?: boolean;
     search?: string;
     favorite?: boolean;
+    liked?: boolean;
     tag?: string;
     type?: FileType;
     /**
@@ -77,6 +78,7 @@ export async function getDriveFiles(
   if (params.recursive) searchParams.set("recursive", "true");
   if (params.search) searchParams.set("search", params.search);
   if (params.favorite !== undefined) searchParams.set("favorite", String(params.favorite));
+  if (params.liked !== undefined) searchParams.set("liked", String(params.liked));
   if (params.tag) searchParams.set("tag", params.tag);
   if (params.type) searchParams.set("type", params.type);
   if (params.trust) searchParams.set("trust", params.trust);
@@ -121,10 +123,6 @@ export async function updateFile(
 
 export async function likeFile(id: string): Promise<FileItem> {
   return fetchJSON<FileItem>(`${API_BASE}/files/${id}/like`, { method: "POST" });
-}
-
-export async function dislikeFile(id: string): Promise<FileItem> {
-  return fetchJSON<FileItem>(`${API_BASE}/files/${id}/dislike`, { method: "POST" });
 }
 
 export async function toggleFavorite(id: string): Promise<FileItem> {

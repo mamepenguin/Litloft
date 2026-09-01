@@ -44,7 +44,7 @@ const mockFile: FileItem = {
   has_thumbnail: false,
   file_size: 5000000,
   duration: 180,
-  likes: 0,
+  liked_at: null,
   is_favorite: false,
   tags: [],
   subtitles: [],

@@ -15,6 +15,7 @@ import { useSetOverrideDrive } from "@/components/CurrentDriveProvider";
 import { useOverlaySidebar } from "@/components/SidebarProvider";
 import { useFileNav } from "@/hooks/useFileNav";
 import { getFile } from "@/lib/api";
+import { normalizeSortParam } from "@/lib/sortField";
 import type { FileItem } from "@/types";
 
 interface FileDetailFullScreenProps {
@@ -48,7 +49,7 @@ export function FileDetailFullScreen({ fileId }: FileDetailFullScreenProps) {
   const searchParams = useSearchParams();
   const setOverrideDrive = useSetOverrideDrive();
 
-  const sort = searchParams.get("sort") || undefined;
+  const sort = normalizeSortParam(searchParams.get("sort"));
   const order = searchParams.get("order") || undefined;
   // Spec 2026-05-12-playlist-to-collection §6.4: prefer ``?collection=``
   // but accept the legacy ``?playlist=`` for one release so bookmarks

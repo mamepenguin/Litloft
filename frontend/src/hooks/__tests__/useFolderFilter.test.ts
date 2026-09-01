@@ -35,7 +35,7 @@ function makeFile(overrides: Partial<FileItem>): FileItem {
     has_thumbnail: false,
     file_size: 1,
     duration: null,
-    likes: 0,
+    liked_at: null,
     is_favorite: false,
     tags: [],
     subtitles: [],

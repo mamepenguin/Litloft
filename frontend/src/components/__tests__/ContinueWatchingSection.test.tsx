@@ -74,7 +74,7 @@ const item1: WatchHistoryItem = {
   has_thumbnail: true,
   file_size: 1024,
   duration: 120,
-  likes: 0,
+  liked_at: null,
   is_favorite: false,
   tags: [],
   subtitles: [],
