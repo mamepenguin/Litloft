@@ -1,16 +1,29 @@
-# Collections and favourites
+# Collections, favourites and likes
 
-Two lightweight ways to keep things you want to revisit.
+Three lightweight ways to keep things you want to revisit.
 
-## Favourites
+## Favourites and likes
 
-Each file has an `is_favorite` flag, toggled by the star on its viewer page or in the file grid.
+Both mark a file, and each has its own list, but they answer different
+questions. The difference is one of tense.
 
-- Favourites are **per drive**, not per viewer. If you share a Litloft installation, favouriting affects what everyone sees in the *Favourites* carousel on the drive home page.
-- Favourites do not affect search ranking by default.
-- A `likes` counter is also stored per file. The frontend exposes a like button alongside the favourite star; multiple likes from the same viewer are counted only once on the cookie level.
+| | Favourite (star) | Like (thumb) |
+|---|---|---|
+| Means | **Open this again.** Working shelf | **This was good.** A record of something you already read or watched |
+| Churn | High — taking things off is expected | Low — it accumulates |
+| Press it from | A file's viewer page, or hover on any card in the grid | Its viewer page only |
+| Stored as | `is_favorite`, a flag | `liked_at`, the time you liked it |
+| Its list | *Favourites* in the sidebar and on the drive home | *Liked* in the same two places, ordered by when you liked each file |
 
-If you want viewer-private favourites, that is a feature request — currently the model is shared.
+Liking a file you already liked clears the mark; liking it again later
+records the new time, so a file you come back to returns to the top of
+*Liked* rather than keeping the date you first pressed it.
+
+- Both are **per drive**, not per viewer. If you share a Litloft installation, marking a file affects what everyone sees.
+- Neither affects search ranking.
+
+If you want viewer-private favourites or likes, that is a feature request —
+currently the model is shared.
 
 ## Collections
 

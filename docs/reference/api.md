@@ -56,7 +56,7 @@ Pagination: list endpoints that paginate take `page` (1-based) and `limit` (defa
 | `GET` | `/api/drives/{drive}/summary` | `{ name, trash_count, missing_count }`. |
 | `GET` | `/api/drives/{drive}/folders?path=` | Direct subfolders under a path, with recursive file counts. |
 | `GET` | `/api/drives/{drive}/folder-tree?root=&type_filter=&depth=1&flat=` | Lazy-expandable tree for the 2-pane browser. Default mode returns one level under `root` (subfolders plus depth-1 files matching `type_filter`), each folder carrying `file_count` and `has_children`. `flat=true` returns a flattened subtree, capped at 50,000 entries. `depth` currently accepts only `1`. |
-| `GET` | `/api/drives/{drive}/files?path=&recursive=&search=&favorite=&tag=&type=&sort=&order=&page=&limit=` | List files with filters. `path` is an exact `folder_path` match (direct children); `recursive=true` widens it to the whole subtree, and a recursive query with an empty `path` covers the drive. `search` matches title **or** folder path (each item carries a `match_source` of `filename` / `path` / `both`). `sort` is one of `created_at`, `title`, `file_size`, `likes`, `random`. |
+| `GET` | `/api/drives/{drive}/files?path=&recursive=&search=&favorite=&liked=&tag=&type=&sort=&order=&page=&limit=` | List files with filters. `path` is an exact `folder_path` match (direct children); `recursive=true` widens it to the whole subtree, and a recursive query with an empty `path` covers the drive. `search` matches title **or** folder path (each item carries a `match_source` of `filename` / `path` / `both`). `liked=true` selects files carrying a like stamp (`liked=false` the rest). `sort` is one of `created_at`, `title`, `file_size`, `liked_at`, `random`. |
 | `GET` | `/api/drives/{drive}/files/by-path?path=...` | Resolve one active file by exact normalized drive-relative path. Returns 404 when no active row matches; unlike the paginated listing, this has no search ceiling. |
 | `POST` | `/api/drives/{drive}/files` | Create a file in the drive. Body `{ "path": "<rel>", "content": "<utf-8 text>", "conflict_mode": "rename" \| "error" }`. `conflict_mode` defaults to `rename`, preserving automatic suffixing (`foo.md` → `foo (1).md`). `error` returns 409 on any DB/filesystem collision and never creates a suffix. Any extension is accepted; 1 MB body cap; 400 on traversal. `201` on creation, `200` when the write revived a missing row at the same path (default `rename` mode only). |
 | `GET` | `/api/drives/{drive}/tags?folder_path=` | Tag names with usage counts. `folder_path` scopes the counts to that folder's subtree. |
@@ -101,8 +101,7 @@ File ids are 12-character nanoids and are validated as such in the path.
 | `POST` | `/api/files/{id}/progress` | Update watch progress. Empty body = view-only. |
 | `GET` | `/api/files/{id}/progress` | Get viewer's progress. |
 | `DELETE` | `/api/files/{id}/progress` | Remove this viewer's history row for the file (`204`). An explicit user action only — playback completion must not call it. |
-| `POST` | `/api/files/{id}/like` | Increment the like counter. |
-| `POST` | `/api/files/{id}/dislike` | Decrement the like counter. |
+| `POST` | `/api/files/{id}/like` | Toggle the per-file like stamp. Liking sets `liked_at` to now, so a file liked again returns to the top of the Liked view; liking a liked file clears it. |
 | `POST` | `/api/files/{id}/favorite` | Toggle the per-file favorite flag. |
 | `POST` | `/api/files/{id}/restore` | Restore from trash. |
 | `DELETE` | `/api/files/{id}` | Soft delete (trash). |

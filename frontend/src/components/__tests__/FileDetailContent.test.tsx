@@ -199,7 +199,7 @@ function makeFile(overrides: Partial<FileItem> = {}): FileItem {
     file_size: 1234,
     duration: 60,
     mime_type: "video/mp4",
-    likes: 0,
+    liked_at: null,
     is_favorite: false,
     tags: [],
     subtitles: [],
@@ -1108,10 +1108,10 @@ describe("FileDetailContent companion region", () => {
     // `makeFile` carries no `has_chapters` unless asked, which is exactly
     // the shape these endpoints answer with.
     (api.likeFile as ReturnType<typeof vi.fn>).mockResolvedValue(
-      makeFile({ likes: 1 }),
+      makeFile({ liked_at: "2026-09-01T00:00:00Z" }),
     );
 
-    fireEvent.click(screen.getByRole("button", { name: "Like" }));
+    fireEvent.click(screen.getByRole("button", { name: "Mark as liked" }));
     await waitFor(() => expect(api.likeFile).toHaveBeenCalled());
 
     expect(screen.getByTestId("chapters-panel")).toBeInTheDocument();

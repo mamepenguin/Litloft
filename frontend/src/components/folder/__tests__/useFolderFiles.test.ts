@@ -17,7 +17,7 @@ const mockFile = (id: string, drive = "main"): FileItem => ({
   has_thumbnail: false,
   file_size: 1000,
   duration: 60,
-  likes: 0,
+  liked_at: null,
   is_favorite: false,
   tags: [],
   subtitles: [],
@@ -333,12 +333,12 @@ describe("useFolderFiles", () => {
     }));
   });
 
-  it("uses likes sort for popular view", async () => {
+  it("filters and orders the liked view by when it was liked", async () => {
     const { result } = renderHook(() =>
       useFolderFiles({
         driveName: "main",
         folderPath: "",
-        view: "popular",
+        view: "liked",
         tagFilter: null,
         typeFilter: null,
         sort: "title",
@@ -352,7 +352,8 @@ describe("useFolderFiles", () => {
     });
 
     expect(mockGetDriveFiles).toHaveBeenCalledWith("main", expect.objectContaining({
-      sort: "likes",
+      liked: true,
+      sort: "liked_at",
       order: "desc",
     }));
   });

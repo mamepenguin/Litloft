@@ -1,6 +1,6 @@
 # Browsing files
 
-The drive home page (`/drive/<name>`) is the main browsing surface. Folders are walked from the drive root; subfolders open at `/drive/<name>/<path>`. Below the breadcrumb you find a folder grid, a file grid, and several *carousels* (Recently added, Continue watching, Favourites, Popular). Every surface reads the same backend, and a change you make on one of them refreshes the others (see [real-time updates](#real-time-updates) for what does and does not propagate between separate tabs).
+The drive home page (`/drive/<name>`) is the main browsing surface. Folders are walked from the drive root; subfolders open at `/drive/<name>/<path>`. Below the breadcrumb you find a folder grid, a file grid, and several *carousels* (Recently added, Continue watching, Favourites, Liked). Every surface reads the same backend, and a change you make on one of them refreshes the others (see [real-time updates](#real-time-updates) for what does and does not propagate between separate tabs).
 
 ## Drive home layout
 
@@ -192,7 +192,7 @@ The drive home page surfaces several content rows:
 - **Recently played** — the same history without the 90% gate.
 - **Recently added** — files most recently indexed.
 - **Favourites** — `is_favorite = true`.
-- **Popular** — files with the most likes.
+- **Liked** — files you marked as good, most recently liked first.
 
 Continue watching and Recently played need a profile; without one, no history is recorded and the two rows do not appear. See [profile and preferences](profile-preferences.md).
 

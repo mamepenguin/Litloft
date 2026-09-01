@@ -75,7 +75,9 @@ class File(Base):
     chapters_probed_at: Mapped[datetime | None] = mapped_column(
         DateTime, nullable=True, default=None
     )
-    likes: Mapped[int] = mapped_column(Integer, default=0, server_default="0")
+    liked_at: Mapped[datetime | None] = mapped_column(
+        DateTime, nullable=True, default=None
+    )
     is_favorite: Mapped[bool] = mapped_column(Boolean, default=False, server_default="0")
     created_at: Mapped[datetime] = mapped_column(
         DateTime, default=lambda: datetime.now(UTC)
@@ -118,6 +120,7 @@ class File(Base):
         Index("idx_files_drive_folder_path", "drive", "folder_path"),
         Index("idx_files_title", "title"),
         Index("idx_files_is_favorite", "is_favorite"),
+        Index("idx_files_liked_at", "liked_at"),
         Index("idx_files_file_type", "file_type"),
         Index("idx_files_deleted_at", "deleted_at"),
         Index("idx_files_missing_since", "missing_since"),

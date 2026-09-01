@@ -17,7 +17,7 @@ function makeTrackFile(id: string, type: "audio" | "video" = "audio"): FileItem 
     has_thumbnail: false,
     file_size: 1000,
     duration: 180,
-    likes: 0,
+    liked_at: null,
     is_favorite: false,
     tags: [],
     subtitles: [],

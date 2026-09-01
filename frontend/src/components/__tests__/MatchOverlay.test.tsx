@@ -18,7 +18,7 @@ function makeFile(overrides: Partial<FileItemWithMatch> = {}): FileItemWithMatch
     has_thumbnail: true,
     file_size: 100,
     duration: 600,
-    likes: 0,
+    liked_at: null,
     is_favorite: false,
     tags: [],
     subtitles: [],

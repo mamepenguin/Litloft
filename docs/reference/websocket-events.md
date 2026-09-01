@@ -52,7 +52,7 @@ These are the events the core broadcasts directly to connected browsers. This li
 - Drive-scoped (access-filtered). One broadcast per affected drive, so a batch spanning drives produces one event each rather than a single unscoped one.
 
 `drive.file_updated`
-- When: a file's contents were written.
+- When: a file's contents were written, or a per-file mark that a listing reads changed (favourite, like, tags, trust tier).
 - Payload: `{ "drive": "..." }`.
 - Drive-scoped (access-filtered).
 - Separate from `drive.structure_changed` so a subscriber can ignore content writes. The folder tree does exactly that: the Markdown editor autosaves on a 2-second debounce, and refetching the tree on each one would make it flicker while the user types.
@@ -121,7 +121,7 @@ See [file states](file-states.md) for the lifecycle semantics behind these event
 |---|---|---|
 | File list (`useFolderFiles`) | `drive.structure_changed`, `drive.file_updated` | a content write can change a title or a thumbnail, so it watches both |
 | Folder tree (`FolderTreePane`) | `drive.structure_changed` | ignores content writes on purpose — the Markdown editor autosaves on a 2 s debounce |
-| Drive home (`DriveHome`) | `drive.structure_changed`, `drive.file_updated` | refreshes the folder grid **and** the Recently added / Favourites / Popular rows; favouriting is a content update |
+| Drive home (`DriveHome`) | `drive.structure_changed`, `drive.file_updated` | refreshes the folder grid **and** the Recently added / Favourites / Liked rows; favouriting and liking both count as content updates |
 | Sidebar, admin dashboard | `scan:complete` | scan counts |
 | File-detail summary panel | `knowledge.active_summary.changed` | addon event |
 

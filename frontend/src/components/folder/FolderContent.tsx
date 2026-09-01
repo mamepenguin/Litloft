@@ -30,6 +30,7 @@ interface FolderContentProps {
   isRecent: boolean;
   hasProfile: boolean;
   isFavorites: boolean;
+  isLiked: boolean;
   isRecentAdded: boolean;
   isSearch?: boolean;
   selectable: boolean;
@@ -62,7 +63,7 @@ interface FolderContentProps {
 
 export function FolderContent({
   files, folders, driveName, viewMode, loading, loadingMore,
-  isRecent, hasProfile, isFavorites, isRecentAdded, isSearch, selectable, sortQuery,
+  isRecent, hasProfile, isFavorites, isLiked, isRecentAdded, isSearch, selectable, sortQuery,
   pinnedPaths, sentinelRef, dragState, isDropTarget, getDropTargetProps,
   selectedIds, onSelect, onMetaSelect, onShiftSelect, onTogglePin, onFavoriteToggle, onRefresh,
   onDragStart, onDragEnd, selectedCount, isDropDisabled, onFolderDragStart,
@@ -179,6 +180,8 @@ export function FolderContent({
         // semantic section communicates its own emptiness.
         isSearch ? null : isFavorites ? (
           <EmptyState variant="no-favorites" />
+        ) : isLiked ? (
+          <EmptyState variant="no-liked" />
         ) : isRecent ? (
           <EmptyState variant={hasProfile ? "no-recent" : "no-recent-profile"} />
         ) : isRecentAdded ? (

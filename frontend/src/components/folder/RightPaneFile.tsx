@@ -11,6 +11,7 @@ import { useFileNav } from "@/hooks/useFileNav";
 import { usePolicy } from "@/hooks/usePolicy";
 import { useSelectedFile } from "@/hooks/useSelectedFile";
 import { getFile } from "@/lib/api";
+import { normalizeSortParam } from "@/lib/sortField";
 import type { FileItem } from "@/types";
 
 interface RightPaneFileProps {
@@ -112,7 +113,7 @@ export function RightPaneFile({ fileId, drive }: RightPaneFileProps) {
   // dialog before the swap fires; this hook stays surface-agnostic.
   useFileNav({
     fileId: file ? fileId : null,
-    sort: searchParams.get("sort") ?? undefined,
+    sort: normalizeSortParam(searchParams.get("sort")),
     order: searchParams.get("order") ?? undefined,
     fileType: file?.file_type ?? null,
     mimeType: file?.mime_type ?? null,
@@ -128,7 +129,7 @@ export function RightPaneFile({ fileId, drive }: RightPaneFileProps) {
   const initialTime = tParam ? Number(tParam) : undefined;
   const initialPage = pageParam ? Number(pageParam) : undefined;
   const highlight = searchParams.get("highlight") ?? undefined;
-  const sortQuery = searchParams.get("sort") ?? undefined;
+  const sortQuery = normalizeSortParam(searchParams.get("sort"));
   const orderQuery = searchParams.get("order") ?? undefined;
 
   if (state.status === "loading") {

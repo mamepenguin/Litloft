@@ -18,7 +18,7 @@ const CROSS_FOLDER_VIEWS = new Set([
   "favorites",
   "recent",
   "recent-added",
-  "popular",
+  "liked",
 ]);
 
 const STANDALONE_VIEWS = new Set(["trash", "missing"]);

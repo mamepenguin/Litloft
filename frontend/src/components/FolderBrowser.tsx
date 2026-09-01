@@ -134,9 +134,9 @@ export function FolderBrowser({
 
   const isFavorites = view === "favorites";
   const isRecentAdded = view === "recent-added";
-  const isPopular = view === "popular";
+  const isLiked = view === "liked";
   const isAll = view === "all";
-  const isSpecialView = isFavorites || view === "recent" || isRecentAdded || isPopular || isAll;
+  const isSpecialView = isFavorites || view === "recent" || isRecentAdded || isLiked || isAll;
   // Is there a concrete folder we are anchored to? This is the question
   // the per-folder preferences and the create-file actions actually ask,
   // and a folder-scoped tag filter answers it yes: the breadcrumb shows a
@@ -457,8 +457,8 @@ export function FolderBrowser({
     [isFavorites, isRecent, setFiles, setPaginatedTotal],
   );
 
-  const effectiveSort = isRecentAdded ? "created_at" : isPopular ? "likes" : sort;
-  const effectiveOrder = isRecentAdded || isPopular ? "desc" : order;
+  const effectiveSort = isRecentAdded ? "created_at" : isLiked ? "liked_at" : sort;
+  const effectiveOrder = isRecentAdded || isLiked ? "desc" : order;
   const sortQuery = effectiveSort === "random"
     ? ""
     : `?sort=${effectiveSort}&order=${effectiveOrder}`;
@@ -642,6 +642,7 @@ export function FolderBrowser({
         isRecent={isRecent}
         hasProfile={hasProfile}
         isFavorites={isFavorites}
+        isLiked={isLiked}
         isRecentAdded={isRecentAdded}
         isSearch={isSearch}
         selectable={selectable}

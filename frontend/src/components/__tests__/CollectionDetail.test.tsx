@@ -121,7 +121,7 @@ function makeFile(
     has_thumbnail: false,
     file_size: 100,
     duration: null,
-    likes: 0,
+    liked_at: null,
     is_favorite: false,
     tags: [],
     subtitles: [],

@@ -138,9 +138,9 @@ export function useFolderFiles({
   const isFavorites = view === "favorites";
   const isRecent = view === "recent" && !isSearch;
   const isRecentAdded = view === "recent-added";
-  const isPopular = view === "popular";
+  const isLiked = view === "liked";
   const isAll = view === "all";
-  const isSpecialView = isFavorites || isRecent || isRecentAdded || isPopular || isAll;
+  const isSpecialView = isFavorites || isRecent || isRecentAdded || isLiked || isAll;
 
   const snapshotKey = useMemo(
     () => buildListSnapshotKey({ driveName, folderPath, view, tagFilter }),
@@ -238,17 +238,18 @@ export function useFolderFiles({
         path: isSpecialView || !folderPath ? undefined : folderPath,
         recursive: !!tagFilter,
         favorite: isFavorites ? true : undefined,
+        liked: isLiked ? true : undefined,
         tag: tagFilter || undefined,
         type: typeFilter || undefined,
         trust: trustFilter || undefined,
-        sort: isRecentAdded ? "created_at" : isPopular ? "likes" : sort,
-        order: isRecentAdded || isPopular ? "desc" : order,
+        sort: isRecentAdded ? "created_at" : isLiked ? "liked_at" : sort,
+        order: isRecentAdded || isLiked ? "desc" : order,
         page,
         limit,
       });
       return { data: res.data, total: res.meta.total };
     },
-    [isSearch, searchQuery, driveName, folderPath, sort, order, isFavorites, isSpecialView, isRecentAdded, isPopular, tagFilter, typeFilter, trustFilter],
+    [isSearch, searchQuery, driveName, folderPath, sort, order, isFavorites, isSpecialView, isRecentAdded, isLiked, tagFilter, typeFilter, trustFilter],
   );
 
   const {

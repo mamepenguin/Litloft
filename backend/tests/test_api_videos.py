@@ -77,39 +77,3 @@ class TestUpdateFile:
         assert res.status_code == 404
 
 
-class TestLikeDislike:
-    def test_like_increments(self, client):
-        c, db, drive_dir, data_dir = client
-        file = _seed_file(db, drive_dir)
-        res = c.post(f"/api/files/{file.id}/like")
-        assert res.status_code == 200
-        assert res.json()["likes"] == 1
-
-    def test_dislike_decrements(self, client):
-        c, db, drive_dir, data_dir = client
-        file = _seed_file(db, drive_dir)
-        res = c.post(f"/api/files/{file.id}/dislike")
-        assert res.status_code == 200
-        assert res.json()["likes"] == -1
-
-    def test_like_then_dislike(self, client):
-        c, db, drive_dir, data_dir = client
-        file = _seed_file(db, drive_dir)
-        c.post(f"/api/files/{file.id}/like")
-        res = c.post(f"/api/files/{file.id}/dislike")
-        assert res.status_code == 200
-        assert res.json()["likes"] == 0
-
-    def test_response_has_no_dislikes(self, client):
-        c, db, drive_dir, data_dir = client
-        file = _seed_file(db, drive_dir)
-        res = c.post(f"/api/files/{file.id}/like")
-        assert "dislikes" not in res.json()
-
-    def test_negative_likes(self, client):
-        c, db, drive_dir, data_dir = client
-        file = _seed_file(db, drive_dir)
-        c.post(f"/api/files/{file.id}/dislike")
-        res = c.post(f"/api/files/{file.id}/dislike")
-        assert res.status_code == 200
-        assert res.json()["likes"] == -2

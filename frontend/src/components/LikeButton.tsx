@@ -1,29 +1,37 @@
 "use client";
 
-import { Star } from "lucide-react";
+import { ThumbsUp } from "lucide-react";
 
 import { useTranslations } from "next-intl";
 import { useOptimisticFileToggle } from "@/hooks/useOptimisticFileToggle";
-import { toggleFavorite } from "@/lib/api";
+import { likeFile } from "@/lib/api";
 import type { FileItem } from "@/types";
 
-export function FavoriteButton({
+/**
+ * "This was good" — a record of something already consumed, as opposed to
+ * the favorite star's "open this again".
+ *
+ * Deliberately only on the file page. Pressing it is an act performed
+ * after actually reading or watching, and that friction is what keeps the
+ * two apart.
+ */
+export function LikeButton({
   fileId,
-  isFavorite,
+  likedAt,
   onToggle,
   size = "sm",
   showLabel = false,
 }: {
   fileId: string;
-  isFavorite: boolean;
+  likedAt: string | null;
   onToggle: (file: FileItem) => void;
   size?: "sm" | "md";
   showLabel?: boolean;
 }) {
-  const t = useTranslations("favorite");
+  const t = useTranslations("like");
   const { current, iconRef, toggle } = useOptimisticFileToggle({
-    value: isFavorite,
-    mutate: () => toggleFavorite(fileId),
+    value: likedAt !== null,
+    mutate: () => likeFile(fileId),
     onToggle,
   });
 
@@ -43,7 +51,7 @@ export function FavoriteButton({
       }`}
       aria-label={current ? t("remove") : t("add")}
     >
-      <Star
+      <ThumbsUp
         ref={iconRef}
         size={iconSize}
         fill={current ? "currentColor" : "none"}

@@ -222,7 +222,7 @@ function fileItemFromHit(hit: SemanticHit): FileItem {
     has_thumbnail: true,
     file_size: 0,
     duration: null,
-    likes: 0,
+    liked_at: null,
     // Hydration failed, so the real tier is unknown. The values below are
     // only placeholders to satisfy the shape; `trust_unknown` is what a
     // trust filter actually reads, and it drops the row rather than let
@@ -344,8 +344,6 @@ export function sortMerged(
       return sorted.sort((a, b) => dir * a.title.localeCompare(b.title));
     case "file_size":
       return sorted.sort((a, b) => dir * (a.file_size - b.file_size));
-    case "likes":
-      return sorted.sort((a, b) => dir * (a.likes - b.likes));
     case "random":
       return sorted;
     default:

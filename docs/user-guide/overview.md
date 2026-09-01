@@ -28,7 +28,7 @@ A Litloft installation has:
 ### Organise
 - Tags (separate per drive). For Markdown files the YAML frontmatter is the canonical store.
 - Collections with arbitrary ordering.
-- Favourites (`is_favorite` flag), pinned folders.
+- Favourites (`is_favorite` flag) and likes (`liked_at` stamp), pinned folders.
 - Per-file comments (rate-limited).
 - File relations (`kind`-typed graph; for Markdown derived from `loft://` links).
 
@@ -38,7 +38,7 @@ A Litloft installation has:
 - Tag and type filters.
 - Saved searches as Smart Folders.
 - Duplicate detection by content hash.
-- Continue-watching, recently added, popular, and favourites carousels per drive.
+- Continue-watching, recently added, favourites, and liked carousels per drive.
 
 ### File operations
 - Drag-and-drop upload (folder upload supported, chunked with resume).

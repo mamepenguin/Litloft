@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
-import { Folder, Heart, History, Play, Clock, ThumbsUp } from "lucide-react";
+import { Folder, History, Play, Clock, Star, ThumbsUp } from "lucide-react";
 import { useTranslations } from "next-intl";
 import type { FileItem, Folder as FolderType, WatchHistoryItem } from "@/types";
 import { addPin, getDriveFiles, getFolders, getPins, getWatchHistory, removePin } from "@/lib/api";
@@ -45,7 +45,7 @@ export function DriveHome({ driveName }: DriveHomeProps) {
   const [recentlyPlayedLoading, setRecentlyPlayedLoading] = useState(false);
   const [recent, setRecent] = useState<SectionState>({ files: [], loading: true });
   const [favorites, setFavorites] = useState<SectionState>({ files: [], loading: true });
-  const [popular, setPopular] = useState<SectionState>({ files: [], loading: true });
+  const [liked, setLiked] = useState<SectionState>({ files: [], loading: true });
   const [folders, setFolders] = useState<FolderType[]>([]);
   const [foldersLoading, setFoldersLoading] = useState(true);
   const [pinnedPaths, setPinnedPaths] = useState<Set<string>>(new Set());
@@ -107,9 +107,8 @@ export function DriveHome({ driveName }: DriveHomeProps) {
       files: results[1].status === "fulfilled" ? results[1].value.data : [],
       loading: false,
     });
-    const popularFiles = results[2].status === "fulfilled" ? results[2].value.data : [];
-    setPopular({
-      files: popularFiles.filter((f: FileItem) => f.likes > 0),
+    setLiked({
+      files: results[2].status === "fulfilled" ? results[2].value.data : [],
       loading: false,
     });
   }, []);
@@ -118,7 +117,7 @@ export function DriveHome({ driveName }: DriveHomeProps) {
     return Promise.allSettled([
       getDriveFiles(driveName, { sort: "created_at", order: "desc", limit: SECTION_LIMIT }),
       getDriveFiles(driveName, { favorite: true, sort: "created_at", order: "desc", limit: SECTION_LIMIT }),
-      getDriveFiles(driveName, { sort: "likes", order: "desc", limit: SECTION_LIMIT }),
+      getDriveFiles(driveName, { liked: true, sort: "liked_at", order: "desc", limit: SECTION_LIMIT }),
     ]);
   }, [driveName]);
 
@@ -126,7 +125,7 @@ export function DriveHome({ driveName }: DriveHomeProps) {
     const fetchAll = async () => {
       setRecent({ files: [], loading: true });
       setFavorites({ files: [], loading: true });
-      setPopular({ files: [], loading: true });
+      setLiked({ files: [], loading: true });
       setFoldersLoading(true);
       if (hasProfile) {
         setContinueWatchingLoading(true);
@@ -343,7 +342,7 @@ export function DriveHome({ driveName }: DriveHomeProps) {
 
       <CarouselSection
         title={t("favorites")}
-        icon={<Heart size={20} className="text-text-muted" />}
+        icon={<Star size={20} className="text-text-muted" />}
         files={favorites.files}
         loading={favorites.loading}
         seeAllHref={`${driveBase}?view=favorites`}
@@ -351,11 +350,11 @@ export function DriveHome({ driveName }: DriveHomeProps) {
       />
 
       <CarouselSection
-        title={t("popular")}
+        title={t("liked")}
         icon={<ThumbsUp size={20} className="text-accent-teal" />}
-        files={popular.files}
-        loading={popular.loading}
-        seeAllHref={`${driveBase}?view=popular`}
+        files={liked.files}
+        loading={liked.loading}
+        seeAllHref={`${driveBase}?view=liked`}
         onFileAction={refetchAllSections}
       />
 

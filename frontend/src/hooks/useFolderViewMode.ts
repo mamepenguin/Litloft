@@ -3,19 +3,12 @@
 import { useCallback, useEffect, useState } from "react";
 
 import type { FolderKind, SortField, SortOrder, ViewMode } from "@/types";
+import { isSortField } from "@/lib/sortField";
 
 const GLOBAL_KEY = "video-share-view-mode";
 const PER_DRIVE_PREFIX = "folderPrefs:";
 const VALID_MODES: ViewMode[] = ["grid", "list"];
 
-const VALID_SORT_FIELDS: SortField[] = [
-  "created_at",
-  "title",
-  "file_size",
-  "likes",
-  "random",
-  "relevance",
-];
 const DEFAULT_SORT: SortField = "created_at";
 const DEFAULT_ORDER: SortOrder = "desc";
 
@@ -120,10 +113,6 @@ export function useFolderViewMode(opts: ResolveOpts): UseFolderViewModeResult {
 }
 
 // --- Per-folder sort ---
-
-function isSortField(v: unknown): v is SortField {
-  return typeof v === "string" && (VALID_SORT_FIELDS as string[]).includes(v);
-}
 
 function isSortOrder(v: unknown): v is SortOrder {
   return v === "asc" || v === "desc";

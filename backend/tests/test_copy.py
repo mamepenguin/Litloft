@@ -1,5 +1,6 @@
 import json
 import shutil
+from datetime import UTC, datetime
 from pathlib import Path
 
 from tests.conftest import TEST_DRIVE
@@ -58,7 +59,7 @@ class TestCopyFileService:
         assert data["id"] != file.id
         assert data["filename"] == "test_copy.mp4"
         assert data["folder_path"] == "旅行"
-        assert data["likes"] == 0
+        assert data["liked_at"] is None
         assert data["is_favorite"] is False
         assert (drive_dir / "旅行" / "test_copy.mp4").exists()
         # Original still exists
@@ -153,10 +154,10 @@ class TestCopyFileService:
         assert data["file_type"] == "video"
         assert data["mime_type"] == "video/mp4"
 
-    def test_copy_resets_likes_and_favorite(self, client):
+    def test_copy_resets_like_and_favorite(self, client):
         c, db, drive_dir, data_dir = client
         file = _seed(db, drive_dir)
-        file.likes = 5
+        file.liked_at = datetime(2026, 5, 1, tzinfo=UTC)
         file.is_favorite = True
         db.commit()
 
@@ -166,7 +167,7 @@ class TestCopyFileService:
         )
         assert res.status_code == 200
         data = res.json()
-        assert data["likes"] == 0
+        assert data["liked_at"] is None
         assert data["is_favorite"] is False
 
     def test_copy_thumbnail(self, client):

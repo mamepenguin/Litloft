@@ -59,7 +59,7 @@ const file: FileItem = {
   has_thumbnail: true,
   file_size: 1048576,
   duration: 125.5,
-  likes: 0,
+  liked_at: null,
   is_favorite: false,
   tags: [],
   subtitles: [],

@@ -53,6 +53,7 @@ const props = {
   isRecent: false,
   hasProfile: true,
   isFavorites: false,
+  isLiked: false,
   isRecentAdded: false,
   selectable: false,
   sortQuery: "",

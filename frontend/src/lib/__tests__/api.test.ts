@@ -174,7 +174,7 @@ describe("api", () => {
 
   describe("likeFile", () => {
     it("sends POST", async () => {
-      mockFetch.mockResolvedValueOnce(jsonResponse({ id: "f1", likes: 1 }));
+      mockFetch.mockResolvedValueOnce(jsonResponse({ id: "f1", liked_at: "2026-09-01T00:00:00Z" }));
       await likeFile("f1");
       expect(mockFetch).toHaveBeenCalledWith(
         "/api/files/f1/like",

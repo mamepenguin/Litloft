@@ -153,7 +153,7 @@ function nodeToFile(
     has_thumbnail: false,
     file_size: 0,
     duration: null,
-    likes: 0,
+    liked_at: null,
     // Display placeholder: this stand-in never grounds an answer (Ask
     // filters server-side) and never mounts the trust control, so it
     // follows core's column default rather than inventing a tier.

@@ -41,7 +41,7 @@ class FileResponse(_UtcDateTimeMixin, BaseModel):
     has_thumbnail: bool
     file_size: int
     duration: float | None
-    likes: int
+    liked_at: datetime | None
     is_favorite: bool
     tags: list[str]
     subtitles: list[SubtitleInfo] = []
@@ -516,7 +516,7 @@ class WatchHistoryItemResponse(_UtcDateTimeMixin, BaseModel):
     has_thumbnail: bool
     file_size: int
     duration: float | None
-    likes: int
+    liked_at: datetime | None
     is_favorite: bool
     tags: list[str]
     trust_tier: str = "verified"
@@ -984,7 +984,7 @@ def file_to_response(
         has_thumbnail=file.thumbnail_path is not None,
         file_size=file.file_size,
         duration=file.duration,
-        likes=file.likes,
+        liked_at=file.liked_at,
         is_favorite=file.is_favorite,
         tags=[tag.name for tag in file.tags],
         subtitles=subtitles or [],

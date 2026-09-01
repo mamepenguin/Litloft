@@ -1,20 +1,5 @@
 import Link from "next/link";
-import {
-  AlertTriangle,
-  Clock,
-  Download,
-  FilePlus,
-  Files,
-  Gauge,
-  Home,
-  NotebookPen,
-  Package,
-  Rss,
-  Star,
-  Trash2,
-  Warehouse,
-  type LucideIcon,
-} from "lucide-react";
+import { AlertTriangle, Clock, Download, FilePlus, Files, Gauge, Home, NotebookPen, Package, Rss, Star, ThumbsUp, Trash2, Warehouse, type LucideIcon } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { AddonSlot } from "@/components/AddonSlot";
 import { addonUrlFor, type AddonMeta } from "@/lib/addons";
@@ -74,6 +59,10 @@ export function SidebarLibrarySection({ driveBase, currentDrive, linkClass, clos
           <Link href={`${driveBase}?view=favorites`} onClick={close} className={linkClass(`${driveBase}?view=favorites`)}>
             <Star size={16} />
             {t("favorites")}
+          </Link>
+          <Link href={`${driveBase}?view=liked`} onClick={close} className={linkClass(`${driveBase}?view=liked`)}>
+            <ThumbsUp size={16} />
+            {t("liked")}
           </Link>
           <Link href={`${driveBase}?view=recent`} onClick={close} className={linkClass(`${driveBase}?view=recent`)}>
             <Clock size={16} />

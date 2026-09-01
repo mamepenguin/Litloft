@@ -31,7 +31,7 @@ function makeImage(id: string, title: string): FileItem {
     has_thumbnail: false,
     file_size: 500000,
     duration: null,
-    likes: 0,
+    liked_at: null,
     is_favorite: false,
     tags: [],
     subtitles: [],

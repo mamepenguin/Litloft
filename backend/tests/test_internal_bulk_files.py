@@ -82,7 +82,7 @@ class TestBulkFiles:
         assert item["has_thumbnail"] is False
         assert item["file_size"] == 10
         assert item["duration"] is None
-        assert item["likes"] == 0
+        assert item["liked_at"] is None
         assert item["is_favorite"] is True
         assert item["tags"] == []
         # Performance: subtitles is unconditionally [] to avoid ffprobe
