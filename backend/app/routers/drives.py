@@ -544,10 +544,11 @@ def list_drive_files(
     recursive: bool = False,
     search: str | None = Query(None, max_length=200),
     favorite: bool | None = None,
+    liked: bool | None = None,
     tag: str | None = None,
     type: str | None = None,
     trust: str | None = Query(None, pattern="^(verified|unverified|unreviewed)$"),
-    sort: str = Query("created_at", pattern="^(created_at|title|file_size|likes|random)$"),
+    sort: str = Query("created_at", pattern="^(created_at|title|file_size|liked_at|random)$"),
     order: str = Query("desc", pattern="^(asc|desc)$"),
     page: int = Query(1, ge=1),
     limit: int = Query(30, ge=1, le=500),
@@ -594,6 +595,10 @@ def list_drive_files(
         ))
     if favorite is not None:
         query = query.filter(File.is_favorite == favorite)
+    if liked is not None:
+        query = query.filter(
+            File.liked_at.is_not(None) if liked else File.liked_at.is_(None)
+        )
     if tag:
         query = query.filter(File.tags.any(func.lower(Tag.name) == tag.lower()))
     if type:

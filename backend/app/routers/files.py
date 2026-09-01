@@ -617,13 +617,23 @@ def get_file_neighbors(
     file_id: FileId,
     db: Annotated[Session, Depends(get_db)],
     unlocked_groups: Annotated[list[str], Depends(get_unlocked_groups)],
-    sort: str = Query("created_at", pattern="^(created_at|title|file_size|likes)$"),
+    sort: str = Query("created_at", pattern="^(created_at|title|file_size|liked_at)$"),
     order: str = Query("desc", pattern="^(asc|desc)$"),
 ):
     file = _get_file_or_404(db, file_id, unlocked_groups)
 
     sort_col = getattr(File, sort)
     current_val = getattr(file, sort)
+
+    if current_val is None:
+        # ``liked_at`` is the only sortable column that can be NULL, and
+        # the keyset comparisons below need a total order. A file that was
+        # never liked has no place in a like-ordered sequence, so it has
+        # no neighbours there rather than a position invented by comparing
+        # against NULL. Liked files are unaffected: every comparison an
+        # unliked row makes against a real timestamp is NULL, so those rows
+        # drop out of the queries on their own.
+        return NeighborsResponse(prev_id=None, next_id=None)
 
     base = db.query(File.id).filter(
         File.drive == file.drive,
@@ -690,30 +700,23 @@ def update_file(
 
 
 @router.post("/{file_id}/like", response_model=FileResponse)
-def like_file(
+def toggle_like(
     file_id: FileId,
     db: Annotated[Session, Depends(get_db)],
     unlocked_groups: Annotated[list[str], Depends(get_unlocked_groups)],
 ):
+    """Toggle the like stamp.
+
+    The stamp is the sort key for the Liked view, so a file that is
+    unliked and liked again returns to the top rather than keeping the
+    time it was first liked.
+    """
     file = _get_file_or_404(db, file_id, unlocked_groups)
 
-    file.likes = File.likes + 1
+    file.liked_at = None if file.liked_at else datetime.now(UTC)
     db.commit()
     db.refresh(file)
-    return _to_response(file)
-
-
-@router.post("/{file_id}/dislike", response_model=FileResponse)
-def dislike_file(
-    file_id: FileId,
-    db: Annotated[Session, Depends(get_db)],
-    unlocked_groups: Annotated[list[str], Depends(get_unlocked_groups)],
-):
-    file = _get_file_or_404(db, file_id, unlocked_groups)
-
-    file.likes = File.likes - 1
-    db.commit()
-    db.refresh(file)
+    event_hooks.emit_from_thread("files.updated", {"file_ids": [file_id]})
     return _to_response(file)
 
 

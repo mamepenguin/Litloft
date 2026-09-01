@@ -262,8 +262,8 @@ def copy_file(db: Session, file_id: str, target_drive: str | None, target_folder
         file_type=source.file_type,
         mime_type=source.mime_type,
         duration=source.duration,
-        likes=0,
         is_favorite=False,
+        liked_at=None,
     )
 
     # Markdown thumbnails are projections owned by the note ID, so they must

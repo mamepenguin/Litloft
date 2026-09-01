@@ -643,6 +643,52 @@ def _migrate(engine_) -> None:
                 )
             )
 
+    # === Spec 2026-09-01-favorite-like-separation: the ``likes`` counter
+    # becomes ``liked_at``, a nullable timestamp that is both the flag and
+    # the sort key for the Liked view.
+    #
+    # This phase must stay *after* the drive-scoped file_path rebuild
+    # above. That rebuild copies rows through a hardcoded column list
+    # which does not name ``liked_at``, so a conversion placed before it
+    # would have its column dropped on the way through and lose every
+    # like without raising. Do not "fix" that by adding ``liked_at`` to
+    # the rebuild's list either: the rebuild would then create the column
+    # empty, this phase would see it already present, and the counter
+    # would be dropped without ever being read.
+    #
+    # The guards are therefore on each column independently rather than
+    # on a single "has this run" flag, so the conversion happens whenever
+    # a counter is still there, whatever produced the current shape.
+    inspector_liked = inspect(engine_)
+    if "files" in inspector_liked.get_table_names():
+        liked_columns = {
+            column["name"] for column in inspector_liked.get_columns("files")
+        }
+        with engine_.begin() as conn:
+            if "liked_at" not in liked_columns:
+                logger.info("Migrating: adding 'liked_at' column to files")
+                conn.execute(
+                    text("ALTER TABLE files ADD COLUMN liked_at DATETIME")
+                )
+            if "likes" in liked_columns:
+                # The counter recorded no timestamp, so the moment a file
+                # was liked is unrecoverable; ``updated_at`` is the
+                # closest bound the row still carries, not a real like
+                # time. ``likes > 0`` also excludes negatives, which the
+                # old ``/dislike`` could produce with no lower bound.
+                logger.info("Migrating: files.likes → files.liked_at")
+                conn.execute(text(
+                    "UPDATE files SET liked_at = updated_at "
+                    "WHERE likes > 0 AND liked_at IS NULL"
+                ))
+                conn.execute(text("ALTER TABLE files DROP COLUMN likes"))
+            # ``create_all`` does not add indexes to a table that already
+            # exists, so an upgraded DB would full-scan the Liked view.
+            conn.execute(text(
+                "CREATE INDEX IF NOT EXISTS idx_files_liked_at "
+                "ON files (liked_at)"
+            ))
+
 
 def init_db() -> None:
     config.DATA_DIR.mkdir(parents=True, exist_ok=True)
