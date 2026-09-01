@@ -48,6 +48,7 @@ test_images/
 /private
 /data
 /test_images
+/docs/superpowers
 
 # git worktrees created by wt
 /.worktrees/

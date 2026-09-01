@@ -105,7 +105,23 @@ A `post-receive` hook lives under `deploy/`, but it's an auto-deploy helper for 
 
 ## Design documents
 
-Backend/Frontend conventions and gotchas live under `.claude/rules/`.
+### Rules index
+
+`.claude/rules/` holds the invariant conventions and gotchas of this project.
+Claude Code loads them automatically; other agents do not. **Read the matching
+file before changing code, tests, configuration, or documentation**, and cite
+the rule you relied on when a review finding comes from one.
+
+| What you are touching | File to read |
+|---|---|
+| Anything (drive boundary, file state, trash, playlists, tag editing, file relations, watch history, WS, addons, LLM features) | `.claude/rules/design-decisions.md` |
+| `backend/` | `.claude/rules/backend-conventions.md` |
+| `frontend/`, `addons/*/frontend/` | `.claude/rules/frontend-conventions.md` |
+| `backend/app/routers/internal.py` (adding, removing, or changing an endpoint) | `.claude/rules/internal-api-policy.md` |
+
+`AGENTS.md` is a symlink to this file, so Codex and Claude Code read the same
+project instructions. Agent-specific guidance does not belong here: it goes in
+`AGENTS.override.md` (Codex reads it ahead of `AGENTS.md`) or under `.claude/`.
 
 ### Specs are pre-implementation only, and are not committed
 
@@ -119,6 +135,16 @@ A spec is finished when the implementation merges. Nothing is expected to
 update it afterwards, so its `Status` line is the author's own bookkeeping and
 carries no authority — **verify behaviour against the code, never against a
 spec.**
+
+That warning is aimed at readers asking how the system behaves *today*. It does
+not apply while the branch is still open: a spec is the design document for the
+work under review, and reviewing a change is exactly when to read it. Specs are
+named `docs/superpowers/specs/YYYY-MM-DD-topic.md`, so match the topic against
+the branch name. `## Checked, no action` lists what the author considered and
+deliberately skipped — read it before flagging an omission. Where the code has
+moved away from the spec, ask whether the change was intentional rather than
+calling it a defect: the design is allowed to evolve during implementation, and
+nothing updates the spec when it does.
 
 ### Shipped behaviour is documented under `docs/`
 
