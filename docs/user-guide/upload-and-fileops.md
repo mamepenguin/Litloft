@@ -49,7 +49,7 @@ Renaming a folder, or a file in the tree pane, now happens **in place** rather t
 
 Paste targets whichever drive and folder you are standing in, and the move and copy endpoints both take a target drive, so **cutting or copying in one drive and pasting in another moves or copies the file across drives.** The file is relocated on disk between the two drive roots and its record follows it. A name already taken at the destination is refused (409) for a move, and suffixed for a copy.
 
-A copy gets a new file id, and starts with no likes, no favourite flag, and empty watch history; tags and comments are not duplicated. If the name is taken in the target folder, the copy is suffixed `_copy`, then `_copy_2`, `_copy_3`, and so on.
+A copy gets a new file id, and starts unliked, without the favourite flag, and with empty watch history; tags and comments are not duplicated. If the name is taken in the target folder, the copy is suffixed `_copy`, then `_copy_2`, `_copy_3`, and so on.
 
 Batch operations work the same way: turn on select mode, pick the files, then choose the action from the selection bar. Batch move and batch rename report per-file errors rather than failing the whole run.
 
