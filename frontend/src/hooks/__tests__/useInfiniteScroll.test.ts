@@ -130,10 +130,13 @@ describe("useInfiniteScroll", () => {
     expect(result.current.items[0]?.id).toBe("init-0");
     expect(result.current.loading).toBe(false);
 
-    await waitFor(() => expect(result.current.loading).toBe(false));
+    // Wait for the swap itself. Waiting on `loading` cannot work here: this
+    // revalidation deliberately never raises it — that is what "without hiding
+    // restored pages" means — so the condition is already true and the wait
+    // returns before the fetch resolves, leaving the assertions below to race it.
+    await waitFor(() => expect(result.current.items[0]?.id).toBe("fresh-0"));
 
     expect(fetchPage).toHaveBeenCalledWith(1, 60);
-    expect(result.current.items[0]?.id).toBe("fresh-0");
     expect(result.current.items).toHaveLength(60);
     expect(result.current.pagesLoaded).toBe(2);
   });
