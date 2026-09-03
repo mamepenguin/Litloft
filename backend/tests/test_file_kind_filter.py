@@ -131,6 +131,27 @@ class TestOneClassifier:
         assert "legacy.pdf" in _listing_names(c, "pdf")
         assert _listing_names(c, "pdf") == _tree_names(c, "pdf")
 
+    def test_the_name_is_enough_even_when_the_column_disagrees(self, library):
+        """The nested branch must not also require ``file_type == "document"``.
+
+        A row with no recorded mime got its ``file_type`` from the same
+        writer that skipped the mime, so it is exactly the row most
+        likely to carry the wrong one. Demanding the column too would
+        drop precisely the rows the extension fallback exists for —
+        while the semantic index, which does not demand it, keeps
+        returning them. That is the two-surfaces-disagree defect this
+        whole item exists to end, reintroduced in the one direction that
+        looks like a correction.
+
+        ``addons/intelligence/tests/test_search_file_kind_filter.py``
+        seeds the mirror of this row for the same reason.
+        """
+        c, db, drive_dir = library
+        _add(db, drive_dir, filename="stray.md", file_type="other", mime_type=None)
+
+        assert "stray.md" in _listing_names(c, "markdown")
+        assert _listing_names(c, "markdown") == _tree_names(c, "markdown")
+
 
 class TestTheRecentView:
     """Watch history narrows through the same classifier.

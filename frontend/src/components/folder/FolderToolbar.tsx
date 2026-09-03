@@ -108,7 +108,7 @@ const TRUST_OPTION_KEYS: ReadonlyArray<{ value: TrustFilter | null; labelKey: st
  * Markdown and PDF sit under `document`: choosing `document` returns
  * them too, and choosing one of them narrows further.
  */
-const TYPE_OPTION_KEYS: ReadonlyArray<{ value: FileKind | null; labelKey: string }> = [
+export const TYPE_OPTION_KEYS: ReadonlyArray<{ value: FileKind | null; labelKey: string }> = [
   { value: null, labelKey: "type.all" },
   { value: "video", labelKey: "type.video" },
   { value: "image", labelKey: "type.image" },
@@ -146,15 +146,6 @@ export function FolderToolbar({
   const isFiltered =
     typeFilter !== null || !!trustFilter || !!tagFilter || !!isSearch;
 
-  // Markdown and PDF are refinements the core listing understands and
-  // the semantic index does not: intelligence stores `file_type`, which
-  // never holds either, so a search narrowed to one of them would drop
-  // every semantic hit and silently degrade to filename matches. Offer
-  // them where they work; `document` is still there, and it is the
-  // parent both of them live under.
-  const options = isSearch
-    ? TYPE_OPTION_KEYS.filter((o) => o.value !== "markdown" && o.value !== "pdf")
-    : TYPE_OPTION_KEYS;
   const hideArrangingControls = total === 0 && folderCount === 0 && !isFiltered;
   const t = useTranslations("toolbar");
   const tc = useTranslations("common");
@@ -371,7 +362,7 @@ export function FolderToolbar({
                 role="menu"
                 className="fixed inset-x-2 bottom-4 z-40 max-h-[60vh] overflow-y-auto rounded-2xl border border-bg-border bg-bg-primary py-1 shadow-lg animate-fade-in-scale sm:absolute sm:inset-x-auto sm:bottom-auto sm:right-0 sm:top-full sm:mt-1 sm:max-h-none sm:min-w-[160px] sm:overflow-visible sm:origin-top-right"
               >
-              {options.map((opt) => (
+              {TYPE_OPTION_KEYS.map((opt) => (
                 <button
                   key={opt.labelKey}
                   role="menuitem"
