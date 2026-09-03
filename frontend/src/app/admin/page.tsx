@@ -290,6 +290,17 @@ export default function AdminDashboardPage() {
         </div>
       )}
 
+      {/* Anything wrong, above everything that is fine.
+          An addon reporting a problem — intelligence's failed indexing
+          jobs are the first — had nowhere above the fold to say so, so
+          it said it at the bottom of a widget three sections down. No
+          wrapper and no heading: an alert supplies its own, and
+          `empty:hidden` keeps the margin from being the only thing on
+          screen when nothing is wrong. */}
+      <div className="mb-8 space-y-3 empty:hidden">
+        <AddonSlot id="dashboard-alerts" layout="stack" />
+      </div>
+
       <section className="mb-8">
         <h2 className="mb-3 text-sm font-semibold uppercase text-text-muted">
           {t("drives")}

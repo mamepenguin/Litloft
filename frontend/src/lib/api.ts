@@ -98,8 +98,39 @@ export async function getDriveTags(drive: string, folderPath?: string | null): P
   return fetchJSON<Tag[]>(`${API_BASE}/drives/${encodeURIComponent(drive)}/tags${query}`);
 }
 
-export async function scanDrive(drive: string): Promise<{ added: number; removed: number; total: number }> {
-  return fetchJSON(`${API_BASE}/drives/${encodeURIComponent(drive)}/scan`, { method: "POST" });
+/**
+ * What a scan reports. Mirrors `ScanResponse` in
+ * `backend/app/schemas.py` — the old declaration promised a `removed`
+ * the API has never sent, and omitted the three fields it does, which
+ * is why nothing could report what a scan had done.
+ */
+export interface ScanResult {
+  added: number;
+  missing: number;
+  recovered: number;
+  updated: number;
+  total: number;
+}
+
+/** Thrown when the API answers with a status the caller may want to branch on. */
+export class ApiStatusError extends Error {
+  constructor(readonly status: number, message: string) {
+    super(message);
+    this.name = "ApiStatusError";
+  }
+}
+
+export async function scanDrive(drive: string): Promise<ScanResult> {
+  const res = await fetch(`${API_BASE}/drives/${encodeURIComponent(drive)}/scan`, {
+    method: "POST",
+    credentials: "include",
+  });
+  if (!res.ok) {
+    // 409 means a scan is already running — a different thing to say
+    // than "that failed", so the status has to survive the throw.
+    throw new ApiStatusError(res.status, `API error: ${res.status} ${res.statusText}`);
+  }
+  return res.json() as Promise<ScanResult>;
 }
 
 export async function getFile(id: string): Promise<FileItem> {

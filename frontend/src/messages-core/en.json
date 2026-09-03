@@ -479,7 +479,12 @@
     "home": "Home",
     "more": "More actions",
     "reshuffle": "Reshuffle",
-    "searchWholeDrive": "Search the whole drive"
+    "searchWholeDrive": "Search the whole drive",
+    "scanStarted": "Rescanning {drive}",
+    "scanDone": "Rescan finished — {added} added, {recovered} recovered, {missing} missing",
+    "scanDoneNoChange": "Rescan finished — nothing changed",
+    "scanAlreadyRunning": "This drive is already being rescanned",
+    "scanFailed": "Rescan failed"
   },
   "gallery": {
     "imageGallery": "Image gallery",

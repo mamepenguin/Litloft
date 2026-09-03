@@ -479,7 +479,12 @@
     "home": "ホーム",
     "more": "その他の操作",
     "reshuffle": "再シャッフル",
-    "searchWholeDrive": "ドライブ全体を検索"
+    "searchWholeDrive": "ドライブ全体を検索",
+    "scanStarted": "{drive} を再スキャンしています",
+    "scanDone": "再スキャン完了 — 追加 {added} / 復帰 {recovered} / 見つからない {missing}",
+    "scanDoneNoChange": "再スキャン完了 — 変更はありません",
+    "scanAlreadyRunning": "このドライブは既に再スキャン中です",
+    "scanFailed": "再スキャンに失敗しました"
   },
   "gallery": {
     "imageGallery": "画像ギャラリー",

@@ -35,6 +35,10 @@ A single card with global stats:
 
 Files sharing a `file_hash` are grouped here. Useful when consolidating after a bulk import. Each row links to the file detail page so you can pick a winner and delete the rest.
 
+### Addon alerts
+
+Above the drive cards, before anything else on the page, addons may raise something an operator should see first — the intelligence addon puts its failed indexing jobs here. The band is absent when nothing is wrong; it is not a section with an empty state.
+
 ### Addon widgets
 
 Independent addons inject **dashboard widgets**:
@@ -59,7 +63,7 @@ For protected setups, ensure your own master password covers every group used in
 
 From the dashboard you can:
 
-- **Force a rescan** — *Rescan drive* on any drive card. This re-walks the directory and reconciles the DB.
+- **Force a rescan** — *Rescan* in the folder toolbar's `…` menu, inside the drive. (Not on the dashboard's drive cards; they carry no rescan button.) This re-walks the directory and reconciles the DB, then reports what it found — how many files were added, recovered and are now missing, or that nothing changed. If a scan is already running on that drive it says so rather than failing.
 - **Empty trash** — purges everything older than 30 days, or all trashed files with confirmation.
 - **Purge all missing** — `purge_all_missing` runs in chunks of 200 with a webhook per batch.
 - **Restart backend** — the UI does not actually restart the container; it points you at `docker compose restart backend` and the *restart-pending* flag.

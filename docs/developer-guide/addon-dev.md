@@ -157,7 +157,7 @@ When you add a new internal endpoint, add the contract test in the same PR.
 
 ## Slot contributions
 
-Litloft's frontend hosts named slots (`search-modes`, `file-detail-sections`, `dashboard-widgets`, `folder-actions`). To contribute:
+Litloft's frontend hosts named slots (`search-modes`, `file-detail-sections`, `file-detail-actions`, `dashboard-widgets`, `dashboard-alerts`, `folder-actions`). To contribute:
 
 1. Declare the slot in your `ADDON_META.slots` array.
 2. Ship the React component under `addons/<name>/frontend/`.
