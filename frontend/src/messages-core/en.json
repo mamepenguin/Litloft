@@ -359,6 +359,7 @@
     "seekToTime": "Jump to {time}"
   },
   "archive": {
+    "rootBreadcrumb": "Archive",
     "loadFailed": "Failed to load archive: {error}",
     "fileCount": "{count} files / {size}",
     "downloadArchive": "Download archive",
@@ -388,7 +389,7 @@
   },
   "empty": {
     "noFilesTitle": "No files",
-    "noFilesDescription": "This folder has no files yet.",
+    "noFilesDescription": "Drop files here to add them.",
     "noResultsTitle": "No matching files found",
     "noResultsDescription": "Try changing your search criteria.",
     "needsScanTitle": "Scan required",
@@ -885,7 +886,7 @@
     "switcher": "Go to file",
     "prevFile": "Previous file",
     "nextFile": "Next file",
-    "loftPlayer": "Video Player (LoftRef)",
+    "loftPlayer": "Video Player",
     "archiveViewer": "Archive Viewer",
     "quickNote": "Quick note",
     "folderTree": "Folder tree",

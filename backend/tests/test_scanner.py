@@ -17,20 +17,44 @@ from app.services.scanner import (
 
 
 class TestFilenameToTitle:
-    def test_underscores(self):
-        assert _filename_to_title("my_vacation_2024.mp4") == "My Vacation 2024"
+    # Underscores separate words in a filename because a space cannot; a hyphen
+    # is a character the author chose, and often the only thing holding a
+    # compound name together. Only the first is a separator to normalise.
+    @pytest.mark.parametrize(
+        "filename,expected",
+        [
+            ("my_vacation_2024.mp4", "My vacation 2024"),
+            ("summer_trip-2024.mp4", "Summer trip-2024"),
+            ("video.mp4", "Video"),
+            ("My Video.mp4", "My Video"),
+            ("trip-to-tokyo.mp4", "Trip-to-tokyo"),
+        ],
+    )
+    def test_normalises_separators_and_capitalises_the_first_letter(
+        self, filename, expected
+    ):
+        assert _filename_to_title(filename) == expected
 
-    def test_hyphens(self):
-        assert _filename_to_title("trip-to-tokyo.mp4") == "Trip To Tokyo"
+    # `str.title()` uppercases after every non-alphabetic character, so an
+    # apostrophe, a digit or an interior capital each got mangled, and every
+    # word past the first was lowercased. Latin filenames hit this constantly;
+    # Japanese ones do not, which is why it went unnoticed.
+    @pytest.mark.parametrize(
+        "filename,expected",
+        [
+            ("02 charon's burden.mp3", "02 charon's burden"),
+            ("6484215695_3df06f6b39_o.jpg", "6484215695 3df06f6b39 o"),
+            ("MacBook-Neo-review.mp4", "MacBook-Neo-review"),
+            ("ヤンニョムチキン-韓国風-甘辛.mp4", "ヤンニョムチキン-韓国風-甘辛"),
+        ],
+    )
+    def test_preserves_the_spelling_the_author_wrote(self, filename, expected):
+        assert _filename_to_title(filename) == expected
 
-    def test_mixed(self):
-        assert _filename_to_title("summer_trip-2024.mp4") == "Summer Trip 2024"
-
-    def test_no_separators(self):
-        assert _filename_to_title("video.mp4") == "Video"
-
-    def test_already_titled(self):
-        assert _filename_to_title("My Video.mp4") == "My Video"
+    def test_never_returns_a_blank_title(self):
+        # Normalising a name made only of separators would leave nothing to
+        # show, so the stem stands as written rather than the row going empty.
+        assert _filename_to_title("_.mp4") == "_"
 
 
 class TestGetFolderPath:

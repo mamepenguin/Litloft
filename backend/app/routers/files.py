@@ -239,6 +239,21 @@ def cleanup_orphan_tags(db: Session) -> int:
 
 
 
+def _is_macos_metadata(name: str) -> bool:
+    """Whether a ZIP entry is macOS packaging noise rather than archive content.
+
+    The Finder's compressor writes a parallel `__MACOSX/` tree holding an
+    AppleDouble sidecar (`._name`) for every file, plus a `.DS_Store` per
+    directory. Sorted by path it lands at the top of almost every archive made
+    on a Mac, so it is the first thing a reader sees and it never carries
+    anything they opened the archive for.
+    """
+    parts = PurePosixPath(name.rstrip("/")).parts
+    if not parts:
+        return False
+    return parts[0] == "__MACOSX" or parts[-1] == ".DS_Store"
+
+
 def _decode_zip_filename(info: zipfile.ZipInfo) -> str:
     """Decode ZIP entry filename, handling Shift_JIS encoded names.
 
@@ -1125,6 +1140,8 @@ def get_archive_contents(
         for info in zf.infolist():
             if len(entries) >= _MAX_ARCHIVE_ENTRIES:
                 break
+            if _is_macos_metadata(_decode_zip_filename(info)):
+                continue
             # Skip symlink entries
             if info.external_attr != 0:
                 mode = info.external_attr >> 16

@@ -218,7 +218,7 @@ function PaneShell({
   children: React.ReactNode;
 }) {
   return (
-    <div className="flex h-full flex-col bg-bg-base">
+    <div className="flex h-full flex-col bg-bg-primary">
       {!hideHeader && (
         // Mirror the MarkdownDocumentLayout chrome shell (h-12, bg-bg-card,
         // px-3, gap-2, border-b) so the file detail surface stays

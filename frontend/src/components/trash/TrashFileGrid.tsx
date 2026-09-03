@@ -117,7 +117,7 @@ export function TrashFileGrid({
                   </div>
                 )}
 
-                <div className="absolute bottom-2 right-2 rounded-lg bg-black/70 px-1.5 py-0.5 text-xs font-medium text-text-muted">
+                <div className="absolute bottom-2 right-2 rounded-lg bg-black/70 px-1.5 py-0.5 text-xs font-medium text-white">
                   {tt("daysRemaining", { days: daysRemaining })}
                 </div>
 
