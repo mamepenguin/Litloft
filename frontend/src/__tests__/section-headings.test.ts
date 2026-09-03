@@ -145,14 +145,17 @@ function headingIcons(): HeadingIcon[] {
 describe("section heading icons", () => {
   const icons = headingIcons();
 
-  it("finds every heading icon in the app", () => {
+  it("finds exactly the heading icons the app has", () => {
     // Guards the scan itself: a regex that silently stopped matching
-    // would make every assertion below pass over an empty list. Eight
-    // is what a full sweep of core plus the addons turns up today —
-    // the seven sections of the drive home column plus "Pickup", which
-    // the intelligence addon adds to the same column — and a new
-    // section is expected to raise it.
-    expect(icons.length).toBeGreaterThanOrEqual(8);
+    // would make every assertion below pass over an empty list. Exact
+    // rather than a lower bound, because the failure this is really
+    // aimed at is a *new* heading the scan cannot see — under `>=` that
+    // stays green, which is how the original count came out at seven
+    // when there were eight. Eight is the drive home column's seven
+    // sections plus "Pickup", which the intelligence addon adds to the
+    // same column. Adding a section means updating this number, which
+    // is the point: it forces someone to look at the list.
+    expect(icons.length).toBe(8);
   });
 
   it("paints them all the same, because the difference carried no meaning", () => {
@@ -171,10 +174,23 @@ describe("section heading icons", () => {
     ).toEqual([]);
   });
 
-  it("leaves each section its own glyph", () => {
-    // Colour was the redundant channel; shape is the one that works.
-    // Two sections sharing a glyph would be the opposite mistake.
-    const glyphs = icons.map((i) => i.glyph);
+  it("leaves each section of one column its own glyph", () => {
+    // Colour was the redundant channel; shape is the one that works, so
+    // two sections of the same column sharing a glyph would be the
+    // opposite mistake. Judged per column and not across the sweep: two
+    // unrelated pages in two addons may legitimately reach for the same
+    // lucide icon, and failing on that would be a red with no defect
+    // behind it. "Column" is approximated by the file, plus the addon
+    // widgets that render into the drive home beside core's own.
+    const DRIVE_HOME = new Set([
+      "frontend/src/components/DriveHome.tsx",
+      "frontend/src/components/RootFileListing.tsx",
+      "frontend/src/components/ContinueWatchingSection.tsx",
+      "addons/intelligence/frontend/PickupWidget.tsx",
+    ]);
+    const column = icons.filter((i) => DRIVE_HOME.has(i.where.split(":")[0]));
+    const glyphs = column.map((i) => i.glyph);
+    expect(glyphs.length).toBeGreaterThan(1);
     expect(new Set(glyphs).size).toBe(glyphs.length);
   });
 });

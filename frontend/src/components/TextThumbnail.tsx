@@ -32,12 +32,16 @@ const PREVIEW_WINDOW_BYTES = 1024;
  */
 export function stripPreviewText(raw: string): string {
   const closed = /^---\r?\n[\s\S]*?\r?\n---\r?\n?/.test(raw);
+  // Opened but never closed inside the window: everything fetched is
+  // frontmatter. Showing the fragment would put `id:` and `url:` on the
+  // card, so show nothing and let the title stand alone. The `key:
+  // value` test is what separates that from a note that simply opens on
+  // a horizontal rule — which is rare, but would otherwise go blank.
+  const truncatedFrontmatter =
+    !closed && /^---\r?\n[ \t]*[A-Za-z][\w-]*:[ \t]/.test(raw);
   const body = closed
     ? raw.replace(/^---\r?\n[\s\S]*?\r?\n---\r?\n?/, "")
-    // Opened but never closed inside the window: everything fetched is
-    // frontmatter. Showing the fragment would put `id:` and `url:` on
-    // the card, so show nothing and let the title stand alone.
-    : /^---\r?\n/.test(raw)
+    : truncatedFrontmatter
       ? ""
       : raw;
 

@@ -60,7 +60,6 @@
     "clearTag": "Clear tag filter"
   },
   "drive": {
-    "title": "Drives",
     "empty": "No drives found",
     "emptyDescription": "Configure drives.json to add drives.",
     "folders": "Folders",

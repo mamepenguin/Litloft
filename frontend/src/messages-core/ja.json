@@ -60,7 +60,6 @@
     "clearTag": "タグ絞り込みを解除"
   },
   "drive": {
-    "title": "ドライブ",
     "empty": "ドライブがありません",
     "emptyDescription": "drives.jsonを設定してドライブを追加してください。",
     "folders": "フォルダ",

@@ -66,6 +66,14 @@ describe("stripPreviewText", () => {
     expect(stripPreviewText(window)).toBe("");
   });
 
+  it("keeps a note that merely opens on a horizontal rule", () => {
+    // `---` at the top of a note is a rule, not frontmatter, unless a
+    // `key: value` line follows it. Blanking those too would trade one
+    // silent failure for another.
+    const out = stripPreviewText("---\nA paragraph after a rule.");
+    expect(out).toContain("A paragraph after a rule.");
+  });
+
   it("drops a line that is only an image", () => {
     const out = stripPreviewText(
       "![](https://img.example.com/yangnyeom-chicken.jpg)\nReal first sentence.",
