@@ -23,7 +23,7 @@ A Litloft installation has:
 - Chapters on media files, plus a companion region (chapters, transcript, related material) that sits beside the player on wide screens or below it on narrow ones — see [viewers and players](viewers-and-players.md).
 - Image viewer with swipe, double-page spread, slideshow, EXIF panel.
 - Markdown renderer with Mermaid, syntax highlighting, frontmatter chips, internal `loft://` links.
-- PDF viewer, ZIP/TAR/RAR archive browsing. Office files (DOCX/XLSX/PPTX) have no
+- PDF viewer, ZIP archive browsing. Office files (DOCX/XLSX/PPTX) have no
   viewer; Litloft extracts a short text excerpt so they stay searchable.
 
 ### Organise

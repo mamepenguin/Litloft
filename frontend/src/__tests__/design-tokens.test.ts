@@ -77,14 +77,16 @@ function eachLine(visit: (line: string, where: string) => void) {
 /**
  * Colour utilities are `<property>-<token>`; these are the properties in use.
  *
- * `accent` is deliberately absent. Tailwind spells `accent-color` that way, but
- * this project also names tokens `accent-teal` / `accent-amber`, so including
- * it would match the tail of every `text-accent-amber`.
+ * `accent` is Tailwind's `accent-color` prefix and also the head of this
+ * project's `accent-teal` / `accent-amber` tokens. That collision is harmless
+ * here only because candidates are whole whitespace-separated tokens matched
+ * anchored: `text-accent-amber` is tested entire, never mined for a bare
+ * `accent-amber` the way a scan across the raw line would.
  */
 const PROPERTIES = [
   "text", "bg", "border", "ring", "outline", "fill", "stroke",
   "from", "to", "via", "divide", "shadow", "decoration", "caret",
-  "placeholder",
+  "placeholder", "accent",
 ];
 
 const COLOUR_UTILITY = new RegExp(

@@ -13,6 +13,7 @@ function Page({ open }: { open: boolean }) {
     <div data-testid="app-root">
       <header>
         <button>page control</button>
+        <button>thumbnail</button>
       </header>
       {open && (
         <div ref={ref} data-testid="viewer">
@@ -36,7 +37,7 @@ afterEach(cleanup);
 describe("useInertBackdrop", () => {
   it("leaves the page alone while the viewer is closed", () => {
     render(<Page open={false} />);
-    expect(focusableOutsideViewer()).toHaveLength(1);
+    expect(focusableOutsideViewer()).toHaveLength(2);
     expect(document.body.style.overflow).toBe("");
   });
 
@@ -58,9 +59,46 @@ describe("useInertBackdrop", () => {
   it("gives the page and the scroll back on close", () => {
     const { rerender } = render(<Page open />);
     rerender(<Page open={false} />);
-    expect(focusableOutsideViewer()).toHaveLength(1);
+    expect(focusableOutsideViewer()).toHaveLength(2);
     expect(document.body.style.overflow).toBe("");
     expect(document.querySelectorAll("[inert]")).toHaveLength(0);
+  });
+
+  it("moves focus into the viewer so Tab starts there", () => {
+    const { getByTestId } = render(<Page open />);
+    expect(document.activeElement).toBe(getByTestId("viewer"));
+    expect(getByTestId("viewer")).toHaveAttribute("tabindex", "-1");
+  });
+
+  it("returns focus to whatever opened it", () => {
+    const { getByText, rerender } = render(<Page open={false} />);
+    const opener = getByText("thumbnail") as HTMLButtonElement;
+    opener.focus();
+    expect(document.activeElement).toBe(opener);
+
+    rerender(<Page open />);
+    expect(document.activeElement).not.toBe(opener);
+
+    rerender(<Page open={false} />);
+    expect(document.activeElement).toBe(opener);
+  });
+
+  it("does not reach for an opener that the close removed from the page", () => {
+    function Vanishing({ open }: { open: boolean }) {
+      const ref = useInertBackdrop<HTMLDivElement>(open);
+      return (
+        <div>
+          {!open && <button>only while closed</button>}
+          {open && <div ref={ref} data-testid="viewer" />}
+        </div>
+      );
+    }
+    const { getByText, rerender } = render(<Vanishing open={false} />);
+    (getByText("only while closed") as HTMLButtonElement).focus();
+    rerender(<Vanishing open />);
+    // The opener unmounts on open, so the cleanup has nothing live to restore
+    // to; it must not throw on the detached node.
+    expect(() => rerender(<Vanishing open={false} />)).not.toThrow();
   });
 
   it("does not clear inert that something else set", () => {
