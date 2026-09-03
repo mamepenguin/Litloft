@@ -171,6 +171,16 @@ Dark mode uses a red-tinted plum instead of pure black, keeping the warm charact
 
 All tokens are exposed as Tailwind utility classes via `@theme inline` (e.g. `bg-accent`, `text-text-muted`).
 
+**Except two.** `--danger-bg` and `--kbd-shadow` are consumed by rules inside
+`globals.css` and are deliberately absent from `@theme inline`, so there is no
+`bg-danger-bg` and no `shadow-kbd-shadow` utility. Tailwind v4 emits nothing at
+all for a utility whose token it does not know — no error, no warning, just a
+class that does not exist — so writing one produces an element with no
+background rather than a build failure. For an error surface in markup, use the
+alpha derivation `bg-danger/15`. The token table in
+`frontend/src/__tests__/design-tokens.test.ts` is checked against every colour
+utility in core and the addons, which is what stops this from recurring.
+
 #### Light mode (`:root`, `[data-theme="light"]`)
 
 | Token | Value | Usage |
