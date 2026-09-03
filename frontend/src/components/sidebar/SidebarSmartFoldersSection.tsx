@@ -3,7 +3,7 @@
 import type React from "react";
 import { useCallback, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
-import { ChevronDown, ChevronRight, Pencil, Search, Trash2 } from "lucide-react";
+import { Pencil, Search, Trash2 } from "lucide-react";
 import { useTranslations } from "next-intl";
 
 import { ConfirmDialog } from "@/components/ConfirmDialog";
@@ -15,6 +15,7 @@ import { useSidebarSectionCollapsed } from "./useSidebarSectionCollapsed";
 import { useSidebarItemOrder } from "./useSidebarItemOrder";
 import { useReorderableDnD } from "./useReorderableDnD";
 import { ItemDragHandle } from "./ItemDragHandle";
+import { SidebarSectionHeading } from "./SidebarSectionHeading";
 
 interface SidebarSmartFoldersSectionProps {
   drive: string;
@@ -34,7 +35,6 @@ export function SidebarSmartFoldersSection({
   dragHandle,
 }: SidebarSmartFoldersSectionProps) {
   const t = useTranslations("smartFolder");
-  const tSidebar = useTranslations("sidebar");
   const router = useRouter();
   const { collapsed, toggle } = useSidebarSectionCollapsed("smart-folders");
 
@@ -102,7 +102,6 @@ export function SidebarSmartFoldersSection({
   // Hide the entire section when there are no entries for the current drive.
   if (smartFolders.length === 0) return null;
 
-  const Chevron = collapsed ? ChevronRight : ChevronDown;
   const menuTarget = contextMenu
     ? smartFolders.find((sf) => sf.id === contextMenu.id) ?? null
     : null;
@@ -125,21 +124,12 @@ export function SidebarSmartFoldersSection({
 
   return (
     <>
-      <div className="group relative">
-        {dragHandle}
-        <button
-          type="button"
-          onClick={toggle}
-          aria-expanded={!collapsed}
-          aria-label={
-            collapsed ? tSidebar("sectionExpand") : tSidebar("sectionCollapse")
-          }
-          className="mb-1 mt-4 flex w-full items-center gap-1.5 rounded-lg px-3 text-[11px] font-semibold text-text-muted transition-colors hover:text-text-primary"
-        >
-          <Chevron size={12} />
-          <span>{t("sectionTitle")}</span>
-        </button>
-      </div>
+      <SidebarSectionHeading
+        label={t("sectionTitle")}
+        collapsed={collapsed}
+        onToggle={toggle}
+        dragHandle={dragHandle}
+      />
       {!collapsed &&
         order.map((id) => {
           const sf = smartFolders.find((s) => s.id === id);

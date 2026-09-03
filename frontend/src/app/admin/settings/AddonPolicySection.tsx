@@ -168,7 +168,7 @@ export function AddonPolicySection(): React.ReactElement {
           <table className="w-full border-collapse text-sm">
             <thead>
               <tr>
-                <th className="py-2 pr-6 text-left text-xs font-semibold uppercase tracking-wide text-text-muted" />
+                <th className="py-2 pr-6 text-left text-xs font-semibold tracking-wide text-text-muted" />
                 {addons.map((addon) => (
                   <th
                     key={addon.name}
@@ -183,7 +183,7 @@ export function AddonPolicySection(): React.ReactElement {
               {drives.map((drive) => (
                 <Fragment key={drive}>
                   <tr className="border-t border-bg-border">
-                    <td className="py-3 pr-6 text-xs font-semibold uppercase tracking-wide text-text-muted">
+                    <td className="py-3 pr-6 text-xs font-semibold tracking-wide text-text-muted">
                       {drive}
                     </td>
                     {addons.map((addon) => {

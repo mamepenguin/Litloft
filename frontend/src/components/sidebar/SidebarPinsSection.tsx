@@ -1,7 +1,7 @@
 import type React from "react";
 import { useMemo } from "react";
 import Link from "next/link";
-import { ChevronDown, ChevronRight, Folder } from "lucide-react";
+import { Folder } from "lucide-react";
 import { useTranslations } from "next-intl";
 
 import type { PinnedFolder } from "@/types";
@@ -9,6 +9,7 @@ import { useSidebarSectionCollapsed } from "./useSidebarSectionCollapsed";
 import { useSidebarItemOrder } from "./useSidebarItemOrder";
 import { useReorderableDnD } from "./useReorderableDnD";
 import { ItemDragHandle } from "./ItemDragHandle";
+import { SidebarSectionHeading } from "./SidebarSectionHeading";
 
 interface SidebarPinsSectionProps {
   driveBase: string;
@@ -42,23 +43,14 @@ export function SidebarPinsSection({
 
   if (pins.length === 0) return null;
 
-  const Chevron = collapsed ? ChevronRight : ChevronDown;
-
   return (
     <>
-      <div className="group relative">
-        {dragHandle}
-        <button
-          type="button"
-          onClick={toggle}
-          aria-expanded={!collapsed}
-          aria-label={collapsed ? t("sectionExpand") : t("sectionCollapse")}
-          className="mb-1 mt-4 flex w-full items-center gap-1.5 rounded-lg px-3 text-[11px] font-semibold uppercase tracking-wider text-text-muted transition-colors hover:text-text-primary"
-        >
-          <Chevron size={12} />
-          <span>Pins</span>
-        </button>
-      </div>
+      <SidebarSectionHeading
+        label={t("pins")}
+        collapsed={collapsed}
+        onToggle={toggle}
+        dragHandle={dragHandle}
+      />
       {!collapsed &&
         order.map((id) => {
           const pin = pins.find((p) => p.path === id);

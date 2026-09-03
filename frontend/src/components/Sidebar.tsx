@@ -17,7 +17,6 @@ import { SidebarCollectionsSection } from "./sidebar/SidebarCollectionsSection";
 import { SidebarPinsSection } from "./sidebar/SidebarPinsSection";
 import { SidebarSmartFoldersSection } from "./sidebar/SidebarSmartFoldersSection";
 import { SidebarTagsSection } from "./sidebar/SidebarTagsSection";
-import { SidebarDrivesSection } from "./sidebar/SidebarDrivesSection";
 import { SectionDragHandle } from "./sidebar/SectionDragHandle";
 import { useSidebarSectionOrder } from "./sidebar/useSidebarSectionOrder";
 import { useReorderableDnD } from "./sidebar/useReorderableDnD";
@@ -103,7 +102,7 @@ function SidebarNav() {
   return (
     <nav className="scrollbar-hover flex h-full flex-col gap-1 overflow-y-auto p-3">
       {/* Library section: fixed at top, never reordered */}
-      <SidebarLibrarySection driveBase={driveBase} currentDrive={currentDrive} linkClass={linkClass} close={closeIfOverlay} addons={addons} driveSummary={driveSummary} isAdmin={authStatus?.is_admin === true} />
+      <SidebarLibrarySection driveBase={driveBase} currentDrive={currentDrive} drives={drives} linkClass={linkClass} close={closeIfOverlay} addons={addons} driveSummary={driveSummary} isAdmin={authStatus?.is_admin === true} />
 
       {/* Reorderable sections */}
       {order.map((id) => {
@@ -184,9 +183,7 @@ function SidebarNav() {
         return null;
       })}
 
-      {/* Drives + Lock: fixed at bottom, never reordered */}
-      <SidebarDrivesSection drives={drives} currentDrive={currentDrive} close={closeIfOverlay} />
-
+      {/* Lock: fixed at bottom, never reordered */}
       {authStatus?.has_protected_drives && authStatus.unlocked_groups.length > 0 && (
         <div className="mt-4 px-3">
           <button

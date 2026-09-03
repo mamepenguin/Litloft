@@ -73,6 +73,16 @@ If `passwords.json` is empty (`[]`) or absent, every viewer is implicitly an adm
 - **Clear cookies** in the browser to forget all unlocks on that device.
 - **Edit `passwords.json`** to revoke or change passwords. Existing JWTs remain valid until they expire because the backend does not maintain a session table; for instant revocation, also rotate `JWT_SECRET` in `.env` and restart the backend, which invalidates every issued token.
 
+## Moving between drives
+
+The drive you are in is the row at the top of the sidebar, under the Litloft logo. Press it to
+open the others and pick one. On surfaces that belong to no drive — the root page and
+`/admin` — there is nothing to name, so the list is simply shown open.
+
+Only drives you can currently see are listed. A protected drive you have not unlocked is
+absent from the list, exactly as it is absent from the root page and from the API: its
+existence is not disclosed before unlock (see [access groups](#access-groups)).
+
 ## Multi-drive patterns
 
 A few common shapes:
