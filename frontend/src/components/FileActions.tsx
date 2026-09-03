@@ -2,7 +2,6 @@
 
 import { useCallback, useLayoutEffect, useRef, useState, useEffect } from "react";
 import { createPortal } from "react-dom";
-import { Download, ListMusic, Move, Pencil, SquarePen, Trash2 } from "lucide-react";
 
 import { useTranslations } from "next-intl";
 import {
@@ -11,6 +10,7 @@ import {
   moveFile,
   renameFile,
 } from "@/lib/api";
+import { useFileMenuItems } from "@/hooks/useFileMenuItems";
 import type { FileItem } from "@/types";
 import { ActionMenuItem } from "./ActionMenuItem";
 import { useDialogPortalTarget } from "./DialogPortal";
@@ -169,54 +169,35 @@ export function FileActions({
     }
   }, [file.id, onDelete, t]);
 
-  const menuItems = [
-    ...(onEdit ? [{
-      icon: SquarePen,
-      label: t("edit"),
-      onClick: () => {
-        setMenuOpen(false);
-        onEdit();
-      },
-    }] : []),
-    {
-      icon: Download,
-      label: tc("download"),
-      onClick: handleDownload,
+  // Every surface's menu comes from here, including this one. It used
+  // to build its own array, which is how it ended up without
+  // "add to collection" at all — the entry the card and list menus both
+  // had. Each handler closes the menu first: the dialogs portal out of
+  // this subtree, and leaving it open would stack a menu over them.
+  const menuItems = useFileMenuItems(file, {
+    onEdit: onEdit
+      ? () => {
+          setMenuOpen(false);
+          onEdit();
+        }
+      : undefined,
+    onAddToCollection: () => {
+      setMenuOpen(false);
+      setCollectionPickerOpen(true);
     },
-    {
-      icon: ListMusic,
-      label: t("addToCollection"),
-      onClick: () => {
-        setMenuOpen(false);
-        setCollectionPickerOpen(true);
-      },
+    onRename: () => {
+      setMenuOpen(false);
+      setRenameOpen(true);
     },
-    {
-      icon: Pencil,
-      label: tc("rename"),
-      onClick: () => {
-        setMenuOpen(false);
-        setRenameOpen(true);
-      },
+    onMove: () => {
+      setMenuOpen(false);
+      setMoveOpen(true);
     },
-    {
-      icon: Move,
-      label: tc("move"),
-      onClick: () => {
-        setMenuOpen(false);
-        setMoveOpen(true);
-      },
+    onTrash: () => {
+      setMenuOpen(false);
+      setDeleteOpen(true);
     },
-    {
-      icon: Trash2,
-      label: tt("moveToTrash"),
-      onClick: () => {
-        setMenuOpen(false);
-        setDeleteOpen(true);
-      },
-      danger: true,
-    },
-  ];
+  });
 
   return (
     <>
@@ -258,6 +239,7 @@ export function FileActions({
                 icon={item.icon}
                 label={item.label}
                 onClick={item.onClick}
+                disabled={item.disabled}
                 danger={item.danger}
               />
             ))}

@@ -100,6 +100,36 @@ describe("the list row's overflow button", () => {
     expect(onContextMenu).toHaveBeenCalledTimes(1);
   });
 
+  it("opens the menu at the row, not at the corner of the window", () => {
+    // Enter and Space on a button produce a click carrying no pointer,
+    // so the raw event says (0, 0) and the menu clamps to the top-left
+    // of the viewport — forty rows away from the row it belongs to.
+    const onContextMenu = vi.fn();
+    render(<FileListRow file={file} onContextMenu={onContextMenu} />);
+
+    const button = actions()!;
+    button.getBoundingClientRect = () =>
+      ({ left: 812, bottom: 344, top: 320, right: 836, width: 24, height: 24, x: 812, y: 320, toJSON() {} }) as DOMRect;
+
+    // A coordinate-free click is what the keyboard produces.
+    fireEvent.click(button, { clientX: 0, clientY: 0 });
+
+    const event = onContextMenu.mock.calls[0][0] as React.MouseEvent;
+    expect(event.clientX).toBe(812);
+    expect(event.clientY).toBe(344);
+  });
+
+  it("leaves a real pointer click where the pointer was", () => {
+    const onContextMenu = vi.fn();
+    render(<FileListRow file={file} onContextMenu={onContextMenu} />);
+
+    fireEvent.click(actions()!, { clientX: 400, clientY: 260 });
+
+    const event = onContextMenu.mock.calls[0][0] as React.MouseEvent;
+    expect(event.clientX).toBe(400);
+    expect(event.clientY).toBe(260);
+  });
+
   it("holds its place instead of appearing, so the row does not reflow", () => {
     render(<FileListRow file={file} onContextMenu={vi.fn()} />);
     const cls = actions()!.className;

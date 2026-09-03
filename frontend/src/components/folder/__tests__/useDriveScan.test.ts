@@ -68,18 +68,21 @@ describe("useDriveScan", () => {
     expect(result.current.scanning).toBe(false);
   });
 
-  it("reports the counts when the drive changed", async () => {
+  it("puts each count against its own word", async () => {
+    // Distinct values, checked in position: three numbers that merely
+    // appear somewhere in the string would pass with any two of them
+    // swapped, which is the mistake worth catching here.
     vi.mocked(scanDrive).mockResolvedValue({
-      added: 3, missing: 1, recovered: 2, updated: 0, total: 40,
+      added: 11, missing: 33, recovered: 22, updated: 0, total: 40,
     });
     const { result } = renderHook(() => useDriveScan("main", onComplete));
     await act(async () => {
       await result.current.handleScan();
     });
     const message = toast.success.mock.calls[0][0] as string;
-    expect(message).toContain("3");
-    expect(message).toContain("2");
-    expect(message).toContain("1");
+    expect(message).toMatch(/11 added/);
+    expect(message).toMatch(/22 recovered/);
+    expect(message).toMatch(/33 missing/);
   });
 
   it("says so plainly when nothing changed", async () => {

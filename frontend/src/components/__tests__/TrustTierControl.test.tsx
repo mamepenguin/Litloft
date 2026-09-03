@@ -125,7 +125,7 @@ describe("TrustTierControl", () => {
     );
   });
 
-  it("is a single control, so it fits the 384px Markdown inspector", () => {
+  it("is a single control, so it fits the Markdown inspector", () => {
     // Regression: a state chip beside an action button put two text labels in
     // a row that also renders in the inspector and on a phone.
     render(

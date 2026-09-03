@@ -17,6 +17,7 @@ import { UploadButton } from "@/components/UploadButton";
 import { UploadZone } from "@/components/UploadZone";
 import { SelectionBar } from "@/components/SelectionBar";
 import { FilterField } from "@/components/folder/FilterField";
+import { useDriveScan } from "@/components/folder/useDriveScan";
 import { useDragAndDrop } from "@/hooks/useDragAndDrop";
 import { useFolderFilter } from "@/hooks/useFolderFilter";
 import { useSelection } from "@/hooks/useSelection";
@@ -110,21 +111,15 @@ export function RootFileListing({ driveName, onFileAction, onFolderChange }: Roo
     setSelectable(true);
     selection.toggle(id);
   }, [selection]);
-  const [scanning, setScanning] = useState(false);
-
-  async function handleScan() {
-    if (scanning) return;
-    setScanning(true);
-    try {
-      await scanDrive(driveName);
-      refresh();
-      onFolderChange?.();
-    } catch {
-      // 409 = already scanning, ignore
-    } finally {
-      setScanning(false);
-    }
-  }
+  // The same hook the folder toolbar uses. This was a byte-for-byte
+  // copy of the bug that hook exists to fix: the spinner rendered
+  // inside a menu that closes on click, and a 409 was swallowed
+  // alongside real failures. Two copies of one silence.
+  const handleScanComplete = useCallback(() => {
+    refresh();
+    onFolderChange?.();
+  }, [refresh, onFolderChange]);
+  const { scanning, handleScan } = useDriveScan(driveName, handleScanComplete);
 
   useEffect(() => {
     if (refreshKey === 0) return;

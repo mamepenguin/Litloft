@@ -244,6 +244,56 @@ class TestFilesystemUsage:
         assert len(rows) == 1
         assert sorted(rows[0]["drives"]) == ["one", "two"]
 
+    def test_drives_on_different_disks_get_different_rows(self, client, monkeypatch, tmp_path):
+        # The grouping key is the whole point, and one tmp_path cannot
+        # tell `st_dev` apart from any constant: both put two drives in
+        # one row. Two different device ids must produce two rows.
+        import app.config as config
+        from pathlib import Path
+
+        c, db, drive_dir, data_dir = client
+        first = tmp_path / "disk-a"
+        second = tmp_path / "disk-b"
+        first.mkdir()
+        second.mkdir()
+        monkeypatch.setattr(
+            config,
+            "load_drives",
+            lambda: [
+                {"name": "a", "path": str(first)},
+                {"name": "b", "path": str(second)},
+            ],
+        )
+
+        real_stat = Path.stat
+        fake_device = {str(first): 101, str(second): 202}
+
+        class _Result:
+            """The real stat with one field overridden.
+
+            Delegating the rest matters: these paths are stat'd for size
+            and mode elsewhere in the same request, and a stub carrying
+            only ``st_dev`` breaks those callers depending on ordering.
+            """
+
+            def __init__(self, real, dev):
+                self._real = real
+                self.st_dev = dev
+
+            def __getattr__(self, name):
+                return getattr(self._real, name)
+
+        def fake_stat(self, *args, **kwargs):
+            result = real_stat(self, *args, **kwargs)
+            dev = fake_device.get(str(self))
+            return _Result(result, dev) if dev is not None else result
+
+        monkeypatch.setattr(Path, "stat", fake_stat)
+
+        rows = c.get("/api/admin/dashboard").json()["system"]["filesystems"]
+        assert len(rows) == 2
+        assert sorted(r["drives"][0] for r in rows) == ["a", "b"]
+
     def test_an_unreadable_drive_contributes_no_row(self, client, monkeypatch, tmp_path):
         import app.config as config
 

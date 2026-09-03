@@ -131,8 +131,15 @@ button that toggles it.
 
 Almost everything is trusted — files the scanner finds are trusted from the
 moment they appear, and so was everything that existed before this feature.
-So the button is **just a shield icon** on a trusted file, and only spells out
-**Unverified** on the exception. Hover it to see what pressing it does.
+The button names the state either way: **Verified** or **Unverified**, beside a
+shield. Hover it to see what pressing it does — it toggles, so the label is
+the state, not the action.
+
+One word throughout: the state is **verified**, and *trust* is only ever the
+verb on the action. The toolbar's filter reads the same way — *Verified only*,
+or **Unjudged only**, which is not a third state but a different question:
+nobody has ruled on those, and the files migrated in when the feature landed
+are verified and unjudged at once.
 
 Why it exists: an answer from Ask is only as good as what it was built from.
 A book you bought and a page you clipped at 2 a.m. after reading the headline

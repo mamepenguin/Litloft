@@ -266,6 +266,26 @@ function FileListRowImpl({
           onClick={(e) => {
             e.preventDefault();
             e.stopPropagation();
+            // Enter and Space on a button produce a click with no
+            // pointer, so `clientX/clientY` are 0 and the menu opens
+            // clamped to the top-left of the window — forty rows away
+            // from the row it belongs to. Anchor it to the button
+            // instead, which is where a pointer click would have put it
+            // anyway.
+            if (e.clientX === 0 && e.clientY === 0) {
+              const box = e.currentTarget.getBoundingClientRect();
+              onContextMenu(
+                {
+                  ...e,
+                  preventDefault: () => {},
+                  stopPropagation: () => {},
+                  clientX: box.left,
+                  clientY: box.bottom,
+                } as unknown as React.MouseEvent,
+                file,
+              );
+              return;
+            }
             onContextMenu(e, file);
           }}
           className="flex h-6 w-6 flex-shrink-0 items-center justify-center rounded-lg text-text-muted opacity-0 transition-opacity hover:bg-bg-elevated hover:text-text-primary focus-visible:opacity-100 group-hover:opacity-100 focus-within:opacity-100 pointer-coarse:h-11 pointer-coarse:w-11 pointer-coarse:opacity-100"
