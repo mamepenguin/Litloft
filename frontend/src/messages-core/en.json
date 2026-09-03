@@ -431,11 +431,13 @@
     "loading": "Loading...",
     "errorRetry": "Retry",
     "empty": "No files in this folder",
-    "dropToRoot": "Drop here to move to drive root"
+    "dropToRoot": "Drop here to move to drive root",
+    "paneHeading": "Folders"
   },
   "filter": {
     "placeholder": {
       "tree": "Filter by name...",
+      "treeSearch": "Find a folder",
       "folder": "Filter in this folder..."
     },
     "type": {

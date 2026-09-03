@@ -2,7 +2,7 @@
 
 import { useCallback, useLayoutEffect, useRef, useState, useEffect } from "react";
 import { createPortal } from "react-dom";
-import { Download, Move, Pencil, SquarePen, Trash2 } from "lucide-react";
+import { Download, ListMusic, Move, Pencil, SquarePen, Trash2 } from "lucide-react";
 
 import { useTranslations } from "next-intl";
 import {
@@ -18,6 +18,7 @@ import { AddonSlot } from "./AddonSlot";
 import { ConfirmDialog } from "./ConfirmDialog";
 import { RenameDialog } from "./RenameDialog";
 import { MoveDialog } from "./MoveDialog";
+import { CollectionPicker } from "./CollectionPicker";
 
 /** Must match the menu's `w-40`; used to decide which side it opens on. */
 const MENU_WIDTH_PX = 160;
@@ -51,6 +52,7 @@ export function FileActions({
   const [renameOpen, setRenameOpen] = useState(false);
   const [moveOpen, setMoveOpen] = useState(false);
   const [deleteOpen, setDeleteOpen] = useState(false);
+  const [collectionPickerOpen, setCollectionPickerOpen] = useState(false);
   const [addonDialogOpen, setAddonDialogOpen] = useState(false);
   // document.body everywhere except inside the mobile Bottom Sheet,
   // which hands out a host in its own subtree — see DialogPortal.
@@ -180,6 +182,14 @@ export function FileActions({
       icon: Download,
       label: tc("download"),
       onClick: handleDownload,
+    },
+    {
+      icon: ListMusic,
+      label: t("addToCollection"),
+      onClick: () => {
+        setMenuOpen(false);
+        setCollectionPickerOpen(true);
+      },
     },
     {
       icon: Pencil,
@@ -316,6 +326,20 @@ export function FileActions({
             currentPath={file.folder_path}
             onMove={handleMove}
             onCancel={() => setMoveOpen(false)}
+          />,
+          dialogHost
+        )}
+
+      {/* Through the same portal as the others. Opened from inside the
+          mobile Bottom Sheet, a dialog rendered in place is buried by
+          the sheet it was opened from. */}
+      {collectionPickerOpen && dialogHost &&
+        createPortal(
+          <CollectionPicker
+            open={collectionPickerOpen}
+            drive={file.drive}
+            fileIds={[file.id]}
+            onClose={() => setCollectionPickerOpen(false)}
           />,
           dialogHost
         )}

@@ -124,7 +124,19 @@ describe("FileActions", () => {
 
     expect(trigger).toHaveAttribute("aria-expanded", "true");
     expect(screen.getByRole("menu")).toBeInTheDocument();
-    expect(screen.getAllByRole("menuitem")).toHaveLength(4);
+    // Download / Add to collection / Rename / Move / Move to trash.
+    // "Add to collection" was in the card and list menus but not this
+    // one, so the same file offered different things depending on where
+    // you right-clicked it.
+    expect(screen.getAllByRole("menuitem")).toHaveLength(5);
+  });
+
+  it("offers add-to-collection, like the card and list menus do", () => {
+    render(<FileActions file={mockFile} />);
+    fireEvent.click(screen.getByLabelText("File actions"));
+    expect(
+      screen.getByRole("menuitem", { name: /add to collection/i }),
+    ).toBeInTheDocument();
   });
 
   it("opens menu on click", () => {

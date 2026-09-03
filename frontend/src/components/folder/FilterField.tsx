@@ -71,6 +71,16 @@ interface FilterFieldProps {
   typeFilter?: FileKind | null;
   onTypeFilterChange?: (next: FileKind | null) => void;
   typeOptions?: FileKind[];
+  /**
+   * How the field is drawn.
+   *
+   * `pill` is a bordered input with a magnifier — the listing's shape,
+   * and the default. `underline` is a rule with no icon and no border,
+   * for the tree pane's heading row: the two used to be the same
+   * component drawn identically forty pixels apart, which is why nobody
+   * could tell which one they were typing into.
+   */
+  variant?: "pill" | "underline";
 }
 
 /**
@@ -85,6 +95,7 @@ export function FilterField({
   typeFilter: typeFilterProp,
   onTypeFilterChange,
   typeOptions,
+  variant = "pill",
 }: FilterFieldProps) {
   // Without a handler there is nothing a chip could change, so the whole
   // kind axis is off — one condition rather than a guard at each use.
@@ -292,18 +303,24 @@ export function FilterField({
     </div>
   );
 
+  const underline = variant === "underline";
+
   return (
     <div className="flex items-center gap-2">
       <div className="relative flex flex-1 items-center">
-        <Search
-          size={14}
-          className="pointer-events-none absolute left-2 z-10 text-text-muted"
-          aria-hidden
-        />
+        {!underline && (
+          <Search
+            size={14}
+            className="pointer-events-none absolute left-2 z-10 text-text-muted"
+            aria-hidden
+          />
+        )}
         {typeFilter !== null && TypeIcon && (
           <div
             ref={chipWrapperRef}
-            className="absolute left-7 z-10 flex items-center overflow-hidden rounded-full border border-bg-border bg-bg-card text-xs"
+            className={`absolute z-10 flex items-center overflow-hidden rounded-full border border-bg-border bg-bg-card text-xs ${
+              underline ? "left-0" : "left-7"
+            }`}
           >
             <button
               ref={chipRef}
@@ -342,19 +359,25 @@ export function FilterField({
             typeFilter !== null && chipWidth > 0
               ? {
                   paddingLeft: `${
-                    CHIP_LEFT_OFFSET_PX + chipWidth + CHIP_TEXT_GAP_PX
+                    (underline ? 0 : CHIP_LEFT_OFFSET_PX) + chipWidth + CHIP_TEXT_GAP_PX
                   }px`,
                 }
               : undefined
           }
-          className="w-full rounded-2xl border border-bg-border bg-bg-card pl-7 pr-7 py-1.5 text-sm text-text-primary placeholder:text-text-muted outline-none focus:border-focus-ring focus:ring-1 focus:ring-focus-ring"
+          className={
+            underline
+              ? "w-full border-0 border-b border-bg-border bg-transparent px-0 pr-6 py-1 text-sm text-text-primary placeholder:text-text-muted outline-none focus:border-focus-ring"
+              : "w-full rounded-2xl border border-bg-border bg-bg-card pl-7 pr-7 py-1.5 text-sm text-text-primary placeholder:text-text-muted outline-none focus:border-focus-ring focus:ring-1 focus:ring-focus-ring"
+          }
         />
         {localText.length > 0 && (
           <button
             type="button"
             onClick={handleClearText}
             aria-label={t("clearInput")}
-            className="absolute right-1.5 z-10 flex items-center justify-center rounded-2xl p-0.5 text-text-muted hover:bg-bg-elevated hover:text-text-primary"
+            className={`absolute z-10 flex items-center justify-center rounded-2xl p-0.5 text-text-muted hover:bg-bg-elevated hover:text-text-primary ${
+              underline ? "right-0" : "right-1.5"
+            }`}
           >
             <X size={14} />
           </button>

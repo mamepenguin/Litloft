@@ -322,13 +322,16 @@ describe("FolderTreePane filter (Phase 4)", () => {
       />,
     );
 
-    // The new FilterField has a text input with placeholder coming from
-    // the `filter.placeholder.tree` namespace; tolerate the literal,
-    // the i18n key fallback, or the JA copy.
+    // The tree's field says a different verb from the listing's, in a
+    // different shape, inside a pane heading — the listing narrows the
+    // folder you are looking at, this searches the whole drive's tree.
     const input = await screen.findByPlaceholderText(
-      /filter by name|filter\.placeholder\.tree|名前で絞り込み/i,
+      /find a folder|filter\.placeholder\.treeSearch|フォルダを探す/i,
     );
     expect(input).toBeInTheDocument();
+    // Underlined, not the listing's bordered pill.
+    expect(input.className).toContain("border-b");
+    expect(input.className).not.toContain("rounded-2xl");
   });
 
   it("dims ancestor nodes when filter is active (data-state='ancestor')", async () => {
@@ -351,7 +354,7 @@ describe("FolderTreePane filter (Phase 4)", () => {
     );
 
     const input = await screen.findByPlaceholderText(
-      /filter by name|filter\.placeholder\.tree|名前で絞り込み/i,
+      /find a folder|filter\.placeholder\.treeSearch|フォルダを探す/i,
     );
     fireEvent.change(input, { target: { value: "spec1" } });
 
@@ -378,7 +381,7 @@ describe("FolderTreePane filter (Phase 4)", () => {
     );
 
     const input = await screen.findByPlaceholderText(
-      /filter by name|filter\.placeholder\.tree|名前で絞り込み/i,
+      /find a folder|filter\.placeholder\.treeSearch|フォルダを探す/i,
     );
     fireEvent.change(input, { target: { value: "specs" } });
 
@@ -406,7 +409,7 @@ describe("FolderTreePane filter (Phase 4)", () => {
     );
 
     const input = await screen.findByPlaceholderText(
-      /filter by name|filter\.placeholder\.tree|名前で絞り込み/i,
+      /find a folder|filter\.placeholder\.treeSearch|フォルダを探す/i,
     );
     fireEvent.change(input, { target: { value: "nothingmatches" } });
 
@@ -440,7 +443,7 @@ describe("FolderTreePane filter (Phase 4)", () => {
     );
 
     const input = await screen.findByPlaceholderText(
-      /filter by name|filter\.placeholder\.tree|名前で絞り込み/i,
+      /find a folder|filter\.placeholder\.treeSearch|フォルダを探す/i,
     );
     // Filter to a non-matching string so the empty-state UI (which now
     // owns the "Clear filters" button per spec §3.8 / H1) appears.

@@ -431,11 +431,13 @@
     "loading": "読み込み中...",
     "errorRetry": "再試行",
     "empty": "このフォルダにファイルはありません",
-    "dropToRoot": "ここにドロップしてドライブ直下へ移動"
+    "dropToRoot": "ここにドロップしてドライブ直下へ移動",
+    "paneHeading": "フォルダ"
   },
   "filter": {
     "placeholder": {
       "tree": "名前で絞り込み...",
+      "treeSearch": "フォルダを探す",
       "folder": "このフォルダで絞り込み..."
     },
     "type": {
