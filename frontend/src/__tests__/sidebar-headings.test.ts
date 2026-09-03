@@ -27,6 +27,13 @@ import { resolve, dirname, relative } from "node:path";
 const REPO_ROOT = resolve(dirname(fileURLToPath(import.meta.url)), "../../..");
 const SELF = fileURLToPath(import.meta.url);
 const SIDEBAR_DIR = resolve(REPO_ROOT, "frontend/src/components/sidebar");
+/**
+ * `Sidebar.tsx` sits one level above the directory and is the file most
+ * likely to grow a sixth heading — it already owns the Lock block and
+ * the reorderable-section map. Scanning only the directory made both
+ * claims below one directory narrower than they read.
+ */
+const SIDEBAR_ROOT_FILE = resolve(REPO_ROOT, "frontend/src/components/Sidebar.tsx");
 
 /** The classes that make a sidebar section heading look like one. */
 const HEADING_CLASSES = "text-[11px] font-semibold text-text-muted";
@@ -51,7 +58,7 @@ function sourceFiles(dir: string, skipTests = true): string[] {
 const rel = (f: string) => relative(REPO_ROOT, f);
 
 describe("sidebar section headings", () => {
-  const files = sourceFiles(SIDEBAR_DIR);
+  const files = [...sourceFiles(SIDEBAR_DIR), SIDEBAR_ROOT_FILE];
 
   it("has one component that knows what a section heading looks like", () => {
     const writers = files.filter((f) => readFileSync(f, "utf-8").includes(HEADING_CLASSES));
@@ -143,17 +150,23 @@ describe("section header labels", () => {
    * over rather than smuggled into this change.
    */
   it("does not shout, anywhere in core", () => {
+    // Matched on the *element*, not on a combination of classes. The
+    // first version of this asked for `uppercase` + `font-semibold` +
+    // `text-text-muted` together, which let the cheat sheet's own
+    // `font-medium` heading through — a real violation, invisible to
+    // the guard. A heading tag is what makes something a heading; the
+    // weight it happens to carry is not.
+    //
+    // `<dt>` labels in a properties table and extension badges on a
+    // row are deliberately outside this: they are field labels and
+    // machine strings, governed by §Properties Panel, not by
+    // §Section Header Labels.
     const hits: string[] = [];
     for (const file of sourceFiles(resolve(REPO_ROOT, "frontend/src"))) {
       if (file.startsWith(resolve(REPO_ROOT, "frontend/src/addons"))) continue;
       const text = readFileSync(file, "utf-8");
-      for (const m of text.matchAll(/className="([^"]*)"/g)) {
-        const cls = m[1];
-        if (
-          cls.includes("uppercase") &&
-          cls.includes("font-semibold") &&
-          cls.includes("text-text-muted")
-        ) {
+      for (const m of text.matchAll(/<h[1-6]\s[^>]*>/g)) {
+        if (/\buppercase\b/.test(m[0])) {
           hits.push(`${rel(file)}:${text.slice(0, m.index!).split("\n").length}`);
         }
       }

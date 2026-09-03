@@ -70,7 +70,12 @@ export function SidebarDriveSwitcher({ drives, currentDrive, close }: SidebarDri
             type="button"
             onClick={() => setOpen((v) => !v)}
             aria-expanded={open}
-            aria-label={t("switchDrive")}
+            // The name has to contain the visible label (WCAG 2.5.3):
+            // what the row reads is the drive's name, so someone
+            // saying "click media" has to reach it. It also has to say
+            // what pressing does, since the name is otherwise just a
+            // noun. Both, in that order.
+            aria-label={t("switchDrive", { drive: current.name })}
             className={`w-full ${rowClass(true)}`}
           >
             {currentRow}

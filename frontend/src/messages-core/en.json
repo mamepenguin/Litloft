@@ -41,7 +41,7 @@
     "recentAdded": "Recently Added",
     "allFiles": "All Files",
     "trash": "Trash",
-    "switchDrive": "Switch drive",
+    "switchDrive": "Switch drive (currently {drive})",
     "addons": "Addons",
     "pins": "Pins",
     "tags": "Tags",

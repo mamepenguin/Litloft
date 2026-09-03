@@ -1,5 +1,5 @@
 import { describe, it, expect, vi } from "vitest";
-import { fireEvent, render, screen, within } from "@testing-library/react";
+import { fireEvent, render, screen } from "@testing-library/react";
 
 import { SidebarDriveSwitcher } from "../SidebarDriveSwitcher";
 import { SidebarLibrarySection } from "../SidebarLibrarySection";
@@ -17,7 +17,7 @@ describe("SidebarDriveSwitcher", () => {
   it("shows the current drive as one row, not the whole list", () => {
     render(<SidebarDriveSwitcher drives={DRIVES} currentDrive="media" close={vi.fn()} />);
 
-    expect(screen.getByRole("button", { name: "Switch drive" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /media/ })).toBeInTheDocument();
     expect(screen.getByText("media")).toBeInTheDocument();
     expect(screen.queryByText("notes")).not.toBeInTheDocument();
     expect(screen.queryByText("vault")).not.toBeInTheDocument();
@@ -26,7 +26,7 @@ describe("SidebarDriveSwitcher", () => {
   it("opens the other drives when the row is pressed", () => {
     render(<SidebarDriveSwitcher drives={DRIVES} currentDrive="media" close={vi.fn()} />);
 
-    fireEvent.click(screen.getByRole("button", { name: "Switch drive" }));
+    fireEvent.click(screen.getByRole("button", { name: /media/ }));
 
     expect(screen.getByRole("link", { name: /notes/ })).toHaveAttribute(
       "href",
@@ -41,7 +41,7 @@ describe("SidebarDriveSwitcher", () => {
     const { rerender } = render(
       <SidebarDriveSwitcher drives={DRIVES} currentDrive="media" close={vi.fn()} />,
     );
-    fireEvent.click(screen.getByRole("button", { name: "Switch drive" }));
+    fireEvent.click(screen.getByRole("button", { name: /media/ }));
     expect(screen.getByRole("link", { name: /notes/ })).toBeInTheDocument();
 
     rerender(<SidebarDriveSwitcher drives={DRIVES} currentDrive="notes" close={vi.fn()} />);
@@ -54,7 +54,7 @@ describe("SidebarDriveSwitcher", () => {
     // anyway would leave the switch naming nothing.
     render(<SidebarDriveSwitcher drives={DRIVES} currentDrive={null} close={vi.fn()} />);
 
-    expect(screen.queryByRole("button", { name: "Switch drive" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /Switch drive/ })).not.toBeInTheDocument();
     for (const name of ["media", "notes", "vault"]) {
       expect(screen.getByRole("link", { name: new RegExp(name) })).toHaveAttribute(
         "href",
@@ -111,21 +111,26 @@ describe("sidebar top — item 10", () => {
     expect(screen.queryByText("Library")).not.toBeInTheDocument();
   });
 
-  it("keeps the five filter views, in order", () => {
+  it("keeps the views, in order, and adds none", () => {
     // Item 10 moves the drive list; it does not re-rank the views.
+    // Asserted as the whole ordered list rather than a filtered subset:
+    // filtering to the five expected names makes the test blind to a
+    // sixth view inserted between them, to Trash moving above
+    // Favorites, and to a rename (which drops out of the filter and the
+    // expectation at the same time).
     const { container } = render(<SidebarLibrarySection {...props} />);
     const labels = Array.from(container.querySelectorAll("a")).map((a) =>
       (a.textContent ?? "").trim(),
     );
-    const views = labels.filter((l) =>
-      ["Favorites", "Liked", "Recently Viewed", "Recently Added", "All Files"].includes(l),
-    );
-    expect(views).toEqual([
+    expect(labels).toEqual([
+      "Litloft",
+      "Home",
       "Favorites",
       "Liked",
       "Recently Viewed",
       "Recently Added",
       "All Files",
+      "Trash",
     ]);
   });
 
@@ -138,6 +143,9 @@ describe("sidebar top — item 10", () => {
     );
     const heading = screen.getByText("Addons");
     expect(heading.className).not.toMatch(/uppercase|tracking-wider/);
-    expect(within(heading.parentElement!).queryByRole("button")).toBeNull();
+    // `closest`, not `within(parentElement)`: `within` searches
+    // descendants only, so if the heading became a button the query
+    // would look *inside* that button, find nothing, and pass.
+    expect(heading.closest("button")).toBeNull();
   });
 });

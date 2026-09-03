@@ -41,7 +41,7 @@
     "recentAdded": "最近追加",
     "allFiles": "すべてのファイル",
     "trash": "ゴミ箱",
-    "switchDrive": "ドライブを切り替え",
+    "switchDrive": "ドライブを切り替え（現在: {drive}）",
     "addons": "アドオン",
     "pins": "ピン",
     "tags": "タグ",

@@ -658,6 +658,16 @@ Size is the one thing that varies, because density does:
 The sidebar is `text-[11px]` and not `text-sm` because its rows are `text-sm`: at the
 same size the heading and the rows below it stop being two levels.
 
+**Addon panels are not there yet.** Fifteen field-group labels inside the addons'
+own panels still carry `uppercase` (`cloud-sync/CloudSyncWidget`,
+`intelligence/FailedJobsModal`, `knowledge/{ClipModal,EmptyState,FolderView,Sidebar}`,
+`media_import/{Composer,ActivityFeed,Page,SubscriptionDetailPanel}`). They are the
+same shape and want the same sweep; it reaches three submodules, so it is deferred
+rather than smuggled into the change that wrote this rule. **New addon headings
+follow the rule above** — the fifteen are a backlog, not a precedent.
+`frontend/src/__tests__/sidebar-headings.test.ts` enforces the rule in core only,
+for that reason.
+
 ### Properties Panel (Obsidian-style frontmatter display)
 
 Machine-readable frontmatter of a Markdown note (`---\nkey: value\n---`) is presented above the rendered body as a compact label-value table. See spec `2026-04-24-knowledge-frontmatter-schema-and-display.md`.

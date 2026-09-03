@@ -45,8 +45,16 @@ export function SidebarSectionHeading({
     "flex min-w-0 flex-1 items-center gap-1.5 rounded-lg px-3 text-[11px] font-semibold text-text-muted transition-colors";
   const Chevron = collapsed ? ChevronRight : ChevronDown;
 
+  // `title` on the row: the scoped tags heading puts its variable part
+  // last ("Tags — under {folder}"), and the column leaves it around
+  // 100px, so the folder name is the half that ellipses away. The
+  // attribute is the hover disclosure for it. (Screen readers read the
+  // full text either way — CSS truncation hides nothing from them.)
   return (
-    <div className="group relative mb-1 mt-4 flex items-center justify-between pr-3">
+    <div
+      title={label}
+      className="group relative mb-1 mt-4 flex items-center justify-between pr-3"
+    >
       {dragHandle}
       {onToggle ? (
         <button
