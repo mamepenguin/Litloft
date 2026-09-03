@@ -5,6 +5,8 @@ import { X } from "lucide-react";
 import { useTranslations } from "next-intl";
 
 import { selectStem } from "@/lib/filename";
+import { useShortcuts } from "@/hooks/useShortcuts";
+import { OVERLAY_PRIORITY } from "@/lib/shortcuts";
 import { FolderPicker } from "./FolderPicker";
 
 export interface FileSaveDialogProps {
@@ -56,14 +58,27 @@ export function FileSaveDialog({
     selectStem(el);
   }, [open]);
 
-  useEffect(() => {
-    if (!open) return;
-    function onKey(e: KeyboardEvent) {
-      if (e.key === "Escape") onCancel();
-    }
-    document.addEventListener("keydown", onKey);
-    return () => document.removeEventListener("keydown", onKey);
-  }, [open, onCancel]);
+  // Escape goes through the shortcut stack instead of a listener of its
+  // own, so a layer pushed on top wins the key rather than both closing
+  // on one press. `editingOnly: false` is load-bearing: the dialog
+  // focuses its filename field on open, and the provider counts a
+  // focused input as "editing", where the flag's default means the
+  // shortcut does not fire.
+  useShortcuts(
+    "file-save-dialog",
+    "Dialog",
+    [
+      {
+        key: "escape",
+        label: "Cancel",
+        editingOnly: false,
+        hidden: true,
+        handler: onCancel,
+      },
+    ],
+    open,
+    OVERLAY_PRIORITY,
+  );
 
   const hasTraversal =
     filename

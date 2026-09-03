@@ -181,6 +181,7 @@ export function GlobalSearch() {
     "search-modal",
     tsc("search"),
     [
+      { key: "escape", label: tc("close"), editingOnly: false, hidden: true, handler: closeSearch },
       { key: "ctrl+k", label: tc("close"), editingOnly: false, handler: closeSearch },
       { key: "ctrl+shift+f", label: tc("close"), editingOnly: false, handler: closeSearch },
     ],
@@ -236,18 +237,6 @@ export function GlobalSearch() {
     const el = document.querySelector<HTMLElement>(`[data-search-item="${selectedIndex}"]`);
     el?.scrollIntoView({ block: "nearest" });
   }, [selectedIndex]);
-
-  // Handle Escape to close search (processed by ShortcutsProvider when open)
-  useEffect(() => {
-    if (!open) return;
-    function handleKeyDown(e: KeyboardEvent) {
-      if (e.key === "Escape") {
-        closeSearch();
-      }
-    }
-    document.addEventListener("keydown", handleKeyDown);
-    return () => document.removeEventListener("keydown", handleKeyDown);
-  }, [open, closeSearch]);
 
   // Debounced merged search: filename + semantic in parallel.
   // - Cache lookup is synchronous at the top of the effect so a re-opened

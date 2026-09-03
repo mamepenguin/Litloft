@@ -11,6 +11,9 @@ import {
 } from "lucide-react";
 import { useTranslations } from "next-intl";
 
+import { useShortcuts } from "@/hooks/useShortcuts";
+import { OVERLAY_PRIORITY } from "@/lib/shortcuts";
+
 import { getFolders, getFolderTree } from "@/lib/api";
 import type { Folder, FolderTreeNode } from "@/types";
 
@@ -44,19 +47,32 @@ export function FolderPicker({ drive, value, onChange }: FolderPickerProps) {
       }
     }
 
-    function handleKeyDown(event: KeyboardEvent) {
-      if (event.key === "Escape") {
-        setOpen(false);
-      }
-    }
-
     document.addEventListener("pointerdown", handlePointerDown);
-    document.addEventListener("keydown", handleKeyDown);
     return () => {
       document.removeEventListener("pointerdown", handlePointerDown);
-      document.removeEventListener("keydown", handleKeyDown);
     };
   }, [open]);
+
+  // Escape closes the picker through the shortcut stack. As its own
+  // listener it fired alongside the listener of whatever dialog holds
+  // the picker, so one press closed both layers; on the stack the
+  // picker pushes later and wins outright. `editingOnly: false`
+  // because the picker sits beside a focused filename field.
+  useShortcuts(
+    "folder-picker",
+    "Dialog",
+    [
+      {
+        key: "escape",
+        label: "Close",
+        editingOnly: false,
+        hidden: true,
+        handler: () => setOpen(false),
+      },
+    ],
+    open,
+    OVERLAY_PRIORITY,
+  );
 
   // Load current-level folders whenever browsePath or open state changes.
   useEffect(() => {

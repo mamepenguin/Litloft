@@ -3,6 +3,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { getFolders, getFolderTree } from "@/lib/api";
 import { FolderPicker } from "../FolderPicker";
+import { ShortcutsProvider } from "../ShortcutsProvider";
 
 vi.mock("@/lib/api", () => ({
   getFolders: vi.fn(),
@@ -17,7 +18,9 @@ describe("FolderPicker", () => {
 
   it("opens its panel as an overlay without changing document flow", async () => {
     render(
-      <FolderPicker drive="recipes" value="" onChange={vi.fn()} />,
+      <ShortcutsProvider>
+        <FolderPicker drive="recipes" value="" onChange={vi.fn()} />
+      </ShortcutsProvider>,
     );
 
     const trigger = screen.getByRole("button", { name: /Save to:/ });
@@ -35,11 +38,13 @@ describe("FolderPicker", () => {
   });
 
   it("closes from Escape and an outside pointer interaction", async () => {
+    // Wrapped as the app wraps it: Escape reaches the picker through
+    // the shortcut stack, which AppShell mounts around everything.
     render(
-      <div>
+      <ShortcutsProvider>
         <FolderPicker drive="recipes" value="" onChange={vi.fn()} />
         <button type="button">Outside</button>
-      </div>,
+      </ShortcutsProvider>,
     );
 
     const trigger = screen.getByRole("button", { name: /Save to:/ });

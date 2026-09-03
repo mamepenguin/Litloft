@@ -1,6 +1,8 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState, type RefObject } from "react";
+import { useShortcuts } from "@/hooks/useShortcuts";
+import { OVERLAY_PRIORITY } from "@/lib/shortcuts";
 
 /**
  * Fullscreen for a player frame, with a fallback for platforms that
@@ -238,15 +240,27 @@ export function useFullscreen({
 
   // --- escape ---
 
-  useEffect(() => {
-    // Native fullscreen handles Escape on its own.
-    if (!pseudoActive) return;
-    const onKeyDown = (event: KeyboardEvent) => {
-      if (event.key === "Escape") exit();
-    };
-    window.addEventListener("keydown", onKeyDown);
-    return () => window.removeEventListener("keydown", onKeyDown);
-  }, [pseudoActive, exit]);
+  // Only pseudo-fullscreen needs this: the native kind is left to the
+  // browser. Registered on the shortcut stack rather than on `window`
+  // so a dialog opened over the player wins the press — as a listener
+  // it answered every Escape in pseudo-fullscreen, dialog or not.
+  // `editingOnly: false` because a comment box or a rename field can
+  // hold focus while the player fills the screen.
+  useShortcuts(
+    "player-pseudo-fullscreen",
+    "Player",
+    [
+      {
+        key: "escape",
+        label: "Exit fullscreen",
+        editingOnly: false,
+        hidden: true,
+        handler: exit,
+      },
+    ],
+    pseudoActive,
+    OVERLAY_PRIORITY,
+  );
 
   // --- swipe and pinch ---
 
