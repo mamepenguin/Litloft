@@ -325,12 +325,13 @@ export function useFolderFiles({
       return;
     }
     setRecentLoading(true);
-    getWatchHistory(driveName, 50, "all").then((items) => {
-      const filtered = items.filter(
-        (f) =>
-          (!typeFilter || f.file_type === typeFilter) &&
-          matchesTrustFilter(f, trustFilter),
-      );
+    // The kind goes to the server: `file_type` is a column that never
+    // holds `markdown` or `pdf`, so comparing against it here answered
+    // "no such files" for two of the kinds the toolbar offers. Trust is
+    // still sifted locally — it is a per-row property with no server
+    // parameter on this endpoint.
+    getWatchHistory(driveName, 50, "all", typeFilter).then((items) => {
+      const filtered = items.filter((f) => matchesTrustFilter(f, trustFilter));
       setRecentFiles(filtered as FileItem[]);
     }).catch(() => {
       setRecentFiles([]);

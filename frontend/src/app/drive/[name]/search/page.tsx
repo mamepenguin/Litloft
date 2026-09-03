@@ -7,9 +7,16 @@ import { useCallback } from "react";
 import { FolderBrowser } from "@/components/FolderBrowser";
 import type { FileKind } from "@/types";
 
-// The whole vocabulary, so a `?type=` the toolbar can produce is a
-// `?type=` this page can read back. It listed six before, which meant a
-// shared link narrowed to Markdown came back unfiltered.
+// The kinds a search can honour end to end.
+//
+// `markdown` and `pdf` are missing on purpose: the core listing
+// understands them, but intelligence's semantic index stores
+// `file_type`, which never holds either — a search narrowed to one
+// would drop every semantic hit and quietly degrade to filename
+// matches. The search toolbar hides those two for the same reason
+// (`FolderToolbar`), so a URL cannot carry a value the picker will not
+// produce. Widening both belongs with the addon change that teaches the
+// index the nested kinds.
 const VALID_TYPES: ReadonlyArray<FileKind> = [
   "video",
   "image",
@@ -17,8 +24,6 @@ const VALID_TYPES: ReadonlyArray<FileKind> = [
   "document",
   "archive",
   "other",
-  "markdown",
-  "pdf",
 ];
 
 function parseTypeFilter(raw: string | null): FileKind | null {

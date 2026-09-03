@@ -382,4 +382,31 @@ describe("FolderToolbar", () => {
       expect(screen.getByTestId("sort-button")).toBeInTheDocument();
     });
   });
+
+  describe("the kinds it offers", () => {
+    const kindMenu = () => {
+      fireEvent.click(screen.getByLabelText("File type"));
+      return screen.getAllByRole("menuitem").map((el) => el.textContent);
+    };
+
+    it("offers the whole vocabulary in a folder", () => {
+      render(<FolderToolbar {...defaultProps} />);
+      expect(kindMenu()).toEqual([
+        "All", "Video", "Image", "Audio", "Document", "Markdown", "PDF",
+        "Archive", "Other",
+      ]);
+    });
+
+    it("hides the two the semantic index cannot honour, in search", () => {
+      // intelligence stores `file_type`, which never holds `markdown`
+      // or `pdf`, so a search narrowed to either would drop every
+      // semantic hit and silently fall back to filename matches.
+      // `Document` — the kind both live under — stays.
+      render(<FolderToolbar {...defaultProps} isSearch />);
+      const items = kindMenu();
+      expect(items).not.toContain("Markdown");
+      expect(items).not.toContain("PDF");
+      expect(items).toContain("Document");
+    });
+  });
 });

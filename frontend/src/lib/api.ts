@@ -682,11 +682,19 @@ export async function deleteWatchProgress(fileId: string): Promise<void> {
 export async function getWatchHistory(
   driveName: string,
   limit?: number,
-  filter?: "unfinished" | "all"
+  filter?: "unfinished" | "all",
+  /**
+   * Narrow to one kind, through the same classifier the listing and the
+   * tree use. The Recent view used to sift the response in the browser
+   * on `file_type`, which is a column that never holds `markdown` or
+   * `pdf` — so those two choices emptied the view.
+   */
+  type?: FileKind | null,
 ): Promise<WatchHistoryItem[]> {
   const params = new URLSearchParams();
   if (limit) params.set("limit", String(limit));
   if (filter) params.set("filter", filter);
+  if (type) params.set("type", type);
   const qs = params.toString();
   const result = await fetchJSON<{ data: WatchHistoryItem[] }>(
     `${API_BASE}/drives/${encodeURIComponent(driveName)}/watch-history${qs ? `?${qs}` : ""}`

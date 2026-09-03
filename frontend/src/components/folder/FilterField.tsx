@@ -20,13 +20,14 @@ import { useTranslations } from "next-intl";
 import type { FileKind } from "@/types";
 
 /**
- * The whole vocabulary, in the order the toolbar's own filter lists it,
- * with the two document refinements last. The tree used to offer four
- * of these, so a drive of audio or archives had a filter that could not
+ * The whole vocabulary, in the same order the toolbar lists it — the
+ * two document refinements directly under the kind they refine, so the
+ * nesting is visible in the order. The tree used to offer four of
+ * these, so a drive of audio or archives had a filter that could not
  * name what was in it.
  */
 const DEFAULT_TYPE_OPTIONS: FileKind[] = [
-  "video", "image", "audio", "document", "archive", "other", "markdown", "pdf",
+  "video", "image", "audio", "document", "markdown", "pdf", "archive", "other",
 ];
 const DEBOUNCE_MS = 300;
 

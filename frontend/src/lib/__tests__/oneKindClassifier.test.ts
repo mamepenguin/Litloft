@@ -79,6 +79,31 @@ describe("the listing's kind filter", () => {
     expect(existsSync(resolve(REPO_ROOT, "frontend/src/lib/fileTypeFilter.ts"))).toBe(false);
   });
 
+  it("is not compared against `file_type` by hand anywhere", () => {
+    // Naming the old classifier was not enough: two inline comparisons
+    // survived the first cut of this change, and both went silent
+    // rather than wrong. `file_type` is a column of six values; the
+    // filter is a vocabulary of eight, so `f.file_type === kind` is
+    // false for `markdown` and `pdf` however it is spelled — an empty
+    // list, no error, no clue.
+    //
+    // Two surfaces are exempt, and for the same reason: their listing
+    // has no server-side kind filter to disagree with. The trash
+    // endpoint takes no kind parameter, and archive entries are read
+    // out of a ZIP rather than out of the files table. Both offer only
+    // the flat kinds their own toolbar can produce, so the comparison
+    // is sound. Listed by path, not by pattern, so each exemption stays
+    // visible and has to be re-argued if a server filter ever appears.
+    const EXEMPT = [
+      "frontend/src/components/trash/TrashView.tsx",
+      "frontend/src/components/archive/useArchiveSort.ts",
+    ];
+    const hits = sitesMatching(
+      /\.file_type\s*===\s*(?!["'`])[A-Za-z_$][\w$]*(?![\w$(])/,
+    ).filter((where) => !EXEMPT.some((p) => where.startsWith(p)));
+    expect(hits).toEqual([]);
+  });
+
   it("is not re-decided against nodes the server already filtered", () => {
     // The tree asked the backend for a filtered subtree and then
     // classified the answer a second time to decide what counted as a

@@ -162,6 +162,14 @@ def _apply_kind_filter(query, kind: FileKind | None):
 
     # A nested kind: recognised by mime, or by extension for rows whose
     # mime was never recorded.
+    #
+    # Note what is *not* required — that the row also be
+    # ``file_type == "document"``. The nesting ("document returns
+    # markdown and PDF too") holds because ``classify()`` files both
+    # under document, not because this query enforces it. Adding the
+    # predicate would undo the extension fallback for exactly the rows
+    # it exists for: one whose mime was never recorded may well have
+    # been given the wrong ``file_type`` by the same writer.
     suffixes = _KIND_SUFFIXES[kind]
     return query.filter(
         or_(
@@ -1153,6 +1161,7 @@ def get_watch_history(
     viewer_id: Annotated[str | None, Depends(get_viewer_id)],
     limit: int = Query(20, ge=1, le=50),
     filter: str = Query("unfinished", pattern=r"^(unfinished|all)$"),
+    type: FileKind | None = None,
 ):
     _validate_drive(drive_name, unlocked_groups)
 
@@ -1173,6 +1182,13 @@ def get_watch_history(
         query = query.filter(
             WatchHistory.playback_position < WatchHistory.duration * 0.9,
         )
+
+    # Same classifier as the listing and the tree. The Recent view used
+    # to sift these rows in the browser on ``file_type`` alone, which
+    # answered "no such files" for markdown and PDF — values the column
+    # never holds. Narrowing here also means ``limit`` counts matching
+    # rows rather than being spent on rows about to be discarded.
+    query = _apply_kind_filter(query, type)
 
     records = (
         query

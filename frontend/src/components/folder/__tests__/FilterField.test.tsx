@@ -404,9 +404,11 @@ describe("FilterField", () => {
     // All + eight kinds. A drive of audio or archives had no way to
     // name what was in it before.
     expect(items).toHaveLength(9);
+    // Same order as the toolbar's, so the same nine words do not appear
+    // in two arrangements depending on which pane you are looking at.
     expect(items.map((el) => el.textContent)).toEqual([
-      "All", "Video", "Image", "Audio", "Document", "Archive", "Other",
-      "Markdown", "PDF",
+      "All", "Video", "Image", "Audio", "Document", "Markdown", "PDF",
+      "Archive", "Other",
     ]);
   });
 
@@ -444,7 +446,8 @@ describe("FilterField", () => {
     fireEvent.keyDown(menu, { key: "ArrowUp" });
     fireEvent.keyDown(menu, { key: "Enter" });
 
-    expect(onTypeFilterChange).toHaveBeenCalledWith("pdf");
+    // Last in the shared order.
+    expect(onTypeFilterChange).toHaveBeenCalledWith("other");
   });
 
   it("renders a chip button when a type is selected", () => {

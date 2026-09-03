@@ -56,13 +56,23 @@ def _listing_names(c, kind: str | None = None) -> set[str]:
     return {item["filename"] for item in res.json()["data"]}
 
 
-def _tree_names(c, kind: str | None = None) -> set[str]:
-    url = f"/api/drives/{TEST_DRIVE}/folder-tree?flat=true"
+def _tree_names(c, kind: str | None = None, *, flat: bool = True) -> set[str]:
+    url = f"/api/drives/{TEST_DRIVE}/folder-tree?flat=true" if flat \
+        else f"/api/drives/{TEST_DRIVE}/folder-tree?root="
     if kind is not None:
         url += f"&type_filter={kind}"
     res = c.get(url)
     assert res.status_code == 200, res.text
     return {n["name"] for n in res.json() if n["kind"] == "file"}
+
+
+def _recent_names(c, kind: str | None = None) -> set[str]:
+    url = f"/api/drives/{TEST_DRIVE}/watch-history?filter=all&limit=50"
+    if kind is not None:
+        url += f"&type={kind}"
+    res = c.get(url)
+    assert res.status_code == 200, res.text
+    return {item["filename"] for item in res.json()["data"]}
 
 
 # The six top-level kinds plus the two that live under `document`.
@@ -94,6 +104,15 @@ class TestOneClassifier:
         c, _, _ = library
         assert _listing_names(c, kind) == _tree_names(c, kind)
 
+    @pytest.mark.parametrize("kind", ALL_KINDS)
+    def test_the_tree_agrees_with_itself_in_both_modes(self, library, kind):
+        # The tree answers in two shapes — a flat whole-drive list and a
+        # lazy one level at a time — and each builds its own query. Only
+        # the flat one was covered, so the depth-1 path could have lost
+        # the filter without this file noticing.
+        c, _, _ = library
+        assert _tree_names(c, kind, flat=False) == _tree_names(c, kind)
+
     def test_they_agree_on_a_markdown_row_with_no_recorded_mime(self, library):
         # The row this whole exercise is about. `classify()` always
         # records a mime today, but rows predating it — and rows written
@@ -111,6 +130,49 @@ class TestOneClassifier:
 
         assert "legacy.pdf" in _listing_names(c, "pdf")
         assert _listing_names(c, "pdf") == _tree_names(c, "pdf")
+
+
+class TestTheRecentView:
+    """Watch history narrows through the same classifier.
+
+    It used to sift the fetched rows in the browser on ``file_type``
+    alone, so choosing Markdown or PDF — values that column never holds
+    — emptied the view no matter what was in the history.
+    """
+
+    @pytest.fixture
+    def watched(self, library):
+        """Every file in the library, watched by one viewer.
+
+        Recorded through the progress endpoint rather than by inserting
+        rows: the viewer id is derived from the `lit_viewer` cookie, so
+        a hand-written row would belong to nobody.
+        """
+        c, db, _ = library
+        from app.models import File
+
+        for f in db.query(File).all():
+            res = c.post(
+                f"/api/files/{f.id}/progress",
+                json={"position": 1.0, "duration": 100.0},
+                cookies={"lit_viewer": "alice"},
+            )
+            assert res.status_code in (200, 204), res.text
+        c.cookies.set("lit_viewer", "alice")
+        return c
+
+    def test_it_finds_markdown(self, watched):
+        assert _recent_names(watched, "markdown") == {"note.md"}
+
+    def test_it_finds_pdf(self, watched):
+        assert _recent_names(watched, "pdf") == {"doc.pdf"}
+
+    def test_it_agrees_with_the_listing(self, watched):
+        for kind in ALL_KINDS:
+            assert _recent_names(watched, kind) == _listing_names(watched, kind), kind
+
+    def test_no_filter_returns_the_whole_history(self, watched):
+        assert len(_recent_names(watched)) == 8
 
 
 class TestTheVocabulary:
