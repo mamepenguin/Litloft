@@ -20,14 +20,15 @@ interface TrashToolbarProps {
   onToggleSelectable: () => void;
 }
 
+/** Same vocabulary, same source. See FolderToolbar's note. */
 const TYPE_OPTION_KEYS: ReadonlyArray<{ value: FileType | null; labelKey: string }> = [
-  { value: null, labelKey: "all" },
-  { value: "video", labelKey: "video" },
-  { value: "image", labelKey: "image" },
-  { value: "audio", labelKey: "audio" },
-  { value: "document", labelKey: "document" },
-  { value: "archive", labelKey: "archiveType" },
-  { value: "other", labelKey: "other" },
+  { value: null, labelKey: "type.all" },
+  { value: "video", labelKey: "type.video" },
+  { value: "image", labelKey: "type.image" },
+  { value: "audio", labelKey: "type.audio" },
+  { value: "document", labelKey: "type.document" },
+  { value: "archive", labelKey: "type.archive" },
+  { value: "other", labelKey: "type.other" },
 ];
 
 export function TrashToolbar({
@@ -37,6 +38,7 @@ export function TrashToolbar({
   const t = useTranslations("toolbar");
   const tc = useTranslations("common");
   const ts = useTranslations("selection");
+  const tFilter = useTranslations("filter");
   const [typeFilterOpen, setTypeFilterOpen] = useState(false);
   const typeFilterRef = useRef<HTMLDivElement>(null);
 
@@ -113,7 +115,7 @@ export function TrashToolbar({
                   <span className="w-4 flex-shrink-0">
                     {typeFilter === opt.value && <Check size={14} />}
                   </span>
-                  {t(opt.labelKey)}
+                  {tFilter(opt.labelKey)}
                 </button>
               ))}
             </div>
@@ -132,7 +134,7 @@ export function TrashToolbar({
                   : "text-text-muted hover:text-text-primary"
               }`}
             >
-              {t(tab.labelKey)}
+              {tFilter(tab.labelKey)}
             </button>
           ))}
         </div>

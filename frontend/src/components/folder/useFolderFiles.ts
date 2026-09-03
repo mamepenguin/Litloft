@@ -25,7 +25,7 @@ import {
 import type {
   FileItem,
   FileItemWithMatch,
-  FileType,
+  FileKind,
   Folder,
   SortField,
   SortOrder,
@@ -54,7 +54,7 @@ interface UseFolderFilesParams {
   folderPath?: string;
   view?: string | null;
   tagFilter?: string | null;
-  typeFilter: FileType | null;
+  typeFilter: FileKind | null;
   trustFilter?: TrustFilter | null;
   sort: SortField;
   order: SortOrder;
@@ -118,7 +118,7 @@ export function matchesTrustFilter(
 
 function filtersMatchSnapshot(
   snap: ListSnapshot,
-  typeFilter: FileType | null,
+  typeFilter: FileKind | null,
   sort: SortField,
   order: SortOrder,
 ): boolean {

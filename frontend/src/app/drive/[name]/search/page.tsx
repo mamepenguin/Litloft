@@ -5,20 +5,25 @@ import { useTranslations } from "next-intl";
 import { useCallback } from "react";
 
 import { FolderBrowser } from "@/components/FolderBrowser";
-import type { FileType } from "@/types";
+import type { FileKind } from "@/types";
 
-const VALID_TYPES: ReadonlyArray<FileType> = [
+// The whole vocabulary, so a `?type=` the toolbar can produce is a
+// `?type=` this page can read back. It listed six before, which meant a
+// shared link narrowed to Markdown came back unfiltered.
+const VALID_TYPES: ReadonlyArray<FileKind> = [
   "video",
   "image",
   "audio",
   "document",
   "archive",
   "other",
+  "markdown",
+  "pdf",
 ];
 
-function parseTypeFilter(raw: string | null): FileType | null {
+function parseTypeFilter(raw: string | null): FileKind | null {
   if (!raw) return null;
-  return (VALID_TYPES as readonly string[]).includes(raw) ? (raw as FileType) : null;
+  return (VALID_TYPES as readonly string[]).includes(raw) ? (raw as FileKind) : null;
 }
 
 /**

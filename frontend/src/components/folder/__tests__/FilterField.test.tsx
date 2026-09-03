@@ -378,7 +378,49 @@ describe("FilterField", () => {
     fireEvent.keyDown(menu, { key: "ArrowDown" });
     fireEvent.keyDown(menu, { key: "Enter" });
 
-    expect(onTypeFilterChange).toHaveBeenCalledWith("markdown");
+    // The chip now offers the whole vocabulary in the order the
+    // toolbar lists it, so the first entry after "All" is Video. It
+    // used to be Markdown, when this menu knew only four kinds.
+    expect(onTypeFilterChange).toHaveBeenCalledWith("video");
+  });
+
+  it("offers every kind, including the ones it used to leave out", async () => {
+    render(
+      <FilterField
+        text=""
+        onTextChange={vi.fn()}
+        placeholder="..."
+        typeFilter={null}
+        onTypeFilterChange={vi.fn()}
+      />,
+    );
+
+    fireEvent.click(
+      screen.getByRole("button", {
+        name: /filter by type|filter\.openTypeFilter|型でフィルタ/i,
+      }),
+    );
+    const items = await screen.findAllByRole("menuitem");
+    // All + eight kinds. A drive of audio or archives had no way to
+    // name what was in it before.
+    expect(items).toHaveLength(9);
+    expect(items.map((el) => el.textContent)).toEqual([
+      "All", "Video", "Image", "Audio", "Document", "Archive", "Other",
+      "Markdown", "PDF",
+    ]);
+  });
+
+  it("renders no kind control at all when the caller does not offer one", () => {
+    // The listings dropped their kind filter when the toolbar's
+    // server-side one became the only one. Absent, not disabled.
+    render(<FilterField text="" onTextChange={vi.fn()} placeholder="..." />);
+
+    expect(
+      screen.queryByRole("button", {
+        name: /filter by type|filter\.openTypeFilter|型でフィルタ/i,
+      }),
+    ).toBeNull();
+    expect(screen.getByRole("textbox")).toBeInTheDocument();
   });
 
   it("ArrowUp wraps focus from the first to the last option", async () => {

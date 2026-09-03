@@ -359,8 +359,6 @@ export function RootFileListing({ driveName, onFileAction, onFolderChange }: Roo
               text={filter.text}
               onTextChange={filter.setText}
               placeholder={tFilter("placeholder.folder")}
-              typeFilter={filter.typeFilter}
-              onTypeFilterChange={filter.setTypeFilter}
             />
           )}
           <div className="mt-2 text-sm text-text-muted">{tc("items", { count: total })}</div>

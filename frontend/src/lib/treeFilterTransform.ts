@@ -1,5 +1,4 @@
-import type { FolderTreeNode, TreeTypeFilter } from "@/types";
-import { fileMatchesTypeFilter } from "./fileTypeFilter";
+import type { FolderTreeNode } from "@/types";
 
 export interface FilteredTreeRow {
   node: FolderTreeNode;
@@ -37,11 +36,7 @@ interface MatchTables {
   cascadingFolders: Set<string>;
 }
 
-function nodeMatches(
-  node: FolderTreeNode,
-  loweredText: string,
-  typeFilter: TreeTypeFilter | null,
-): boolean {
+function nodeMatches(node: FolderTreeNode, loweredText: string): boolean {
   const nameMatches =
     loweredText.length === 0 || node.name.toLowerCase().includes(loweredText);
   if (!nameMatches) return false;
@@ -52,15 +47,13 @@ function nodeMatches(
     // every folder.
     return loweredText.length > 0;
   }
-  if (typeFilter === null) return true;
-  return fileMatchesTypeFilter(
-    {
-      filename: node.name,
-      mime_type: node.mime_type,
-      file_type: node.file_type,
-    },
-    typeFilter,
-  );
+  // A file node that arrived under an active type filter already
+  // satisfies it: the query carried the filter and the backend applied
+  // it. Re-deciding here meant a second classifier, and the two
+  // disagreed — a `.md` row with no recorded mime was dropped by the
+  // server and kept by this one, so the tree and the listing showed
+  // different files for the same request.
+  return true;
 }
 
 function ancestorsOf(path: string): string[] {
@@ -75,7 +68,6 @@ function ancestorsOf(path: string): string[] {
 export function computeMatchTables(
   nodes: FolderTreeNode[],
   text: string,
-  typeFilter: TreeTypeFilter | null,
 ): MatchTables {
   const loweredText = text.trim().toLowerCase();
   const matched = new Set<string>();
@@ -83,7 +75,7 @@ export function computeMatchTables(
   const cascadingFolders = new Set<string>();
 
   for (const node of nodes) {
-    if (nodeMatches(node, loweredText, typeFilter)) {
+    if (nodeMatches(node, loweredText)) {
       matched.add(node.path);
       if (node.kind === "folder") cascadingFolders.add(node.path);
     }

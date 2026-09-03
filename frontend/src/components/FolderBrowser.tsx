@@ -6,7 +6,7 @@ import { ClipboardPaste, X } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { useShortcuts } from "@/hooks/useShortcuts";
 
-import type { FileItem, FileType, SortField, SortOrder, TrustFilter, ViewMode } from "@/types";
+import type { FileItem, FileKind, SortField, SortOrder, TrustFilter, ViewMode } from "@/types";
 import { Breadcrumb } from "@/components/Breadcrumb";
 import { TreeToggle } from "@/components/TreeToggle";
 import { UploadZone } from "@/components/UploadZone";
@@ -52,7 +52,7 @@ interface FolderBrowserProps {
   /** When set (non-empty), the browser renders search-mode UI. */
   searchQuery?: string;
   /** Optional pre-set type filter (used by SearchPage from URL). */
-  typeFilter?: FileType | null;
+  typeFilter?: FileKind | null;
   /** When set, the active search came from a saved Smart Folder. */
   smartFolderId?: string | null;
   /**
@@ -89,7 +89,7 @@ export function FolderBrowser({
     initialSnapshot?.filters.sort ?? (isSearch ? "relevance" : "created_at"),
   );
   const [localOrder, setLocalOrder] = useState<SortOrder>(initialSnapshot?.filters.order ?? "desc");
-  const [typeFilter, setTypeFilter] = useState<FileType | null>(
+  const [typeFilter, setTypeFilter] = useState<FileKind | null>(
     typeFilterProp ?? initialSnapshot?.filters.typeFilter ?? null,
   );
   // Not persisted into the list snapshot: the review queue is a deliberate,

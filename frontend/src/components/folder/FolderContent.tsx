@@ -101,8 +101,6 @@ export function FolderContent({
           text={filter.text}
           onTextChange={filter.setText}
           placeholder={tFilter("placeholder.folder")}
-          typeFilter={filter.typeFilter}
-          onTypeFilterChange={filter.setTypeFilter}
         />
       </div>
 

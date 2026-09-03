@@ -288,27 +288,32 @@ describe("FolderContent right-pane filter (Phase 4)", () => {
     });
   });
 
-  it("type filter narrows the file list", async () => {
+  it("offers no kind filter of its own — the toolbar's is the one that is right", async () => {
+    // This pane used to carry a second kind filter forty pixels below
+    // the toolbar's. The toolbar asks the server; this one sifted the
+    // rows already loaded, so on a folder past its first page of thirty
+    // the same choice gave two different answers.
     render(
       <FolderContent
         {...defaultProps}
         files={[mdFile, videoFile, imgFile]}
       />,
     );
-    // Open the type dropdown and pick "Image".
-    const trigger = screen.getByRole("button", {
-      name: /filter by type|filter\.openTypeFilter|型でフィルタ/i,
-    });
-    fireEvent.click(trigger);
-    const imageOption = await screen.findByRole("menuitem", { name: /image|画像/i });
-    fireEvent.click(imageOption);
 
-    await waitFor(() => {
-      expect(screen.getByTestId("file-grid")).toHaveTextContent("1 files");
-    });
+    expect(
+      screen.queryByRole("button", {
+        name: /filter by type|filter\.openTypeFilter|型でフィルタ/i,
+      }),
+    ).toBeNull();
+    // The text filter stays.
+    expect(
+      screen.getByPlaceholderText(
+        /filter in this folder|filter\.placeholder\.folder|このフォルダで絞り込み/i,
+      ),
+    ).toBeInTheDocument();
   });
 
-  it("text + type combined are AND'd", async () => {
+  it("narrows on text alone", async () => {
     render(
       <FolderContent
         {...defaultProps}
@@ -320,21 +325,13 @@ describe("FolderContent right-pane filter (Phase 4)", () => {
       />,
     );
 
-    const trigger = screen.getByRole("button", {
-      name: /filter by type|filter\.openTypeFilter|型でフィルタ/i,
-    });
-    fireEvent.click(trigger);
-    const mdOption = await screen.findByRole("menuitem", { name: /markdown/i });
-    fireEvent.click(mdOption);
-
     const input = screen.getByPlaceholderText(
       /filter in this folder|filter\.placeholder\.folder|このフォルダで絞り込み/i,
     );
     fireEvent.change(input, { target: { value: "spec" } });
 
     await waitFor(() => {
-      // Only the markdown file with "spec" in the name remains.
-      expect(screen.getByTestId("file-grid")).toHaveTextContent("1 files");
+      expect(screen.getByTestId("file-grid")).toHaveTextContent("2 files");
     });
   });
 

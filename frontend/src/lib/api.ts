@@ -1,4 +1,4 @@
-import type { ArchiveContents, AuthStatus, BatchRenameRequest, BatchRenameResponse, ChunkResponse, CollectionDetail, CollectionSummary, Comment, CommentsResponse, DashboardResponse, Drive, DriveSummary, DuplicatesResponse, FileExif, FileItem, FileType, Folder, FolderTreeNode, Neighbors, PaginatedResponse, PinnedFolder, SortField, SortOrder, Tag, TrustFilter, TrustTier, TreeTypeFilter, UnlockResult, UploadInitResponse, WatchHistoryItem, WatchProgress } from "@/types";
+import type { ArchiveContents, AuthStatus, BatchRenameRequest, BatchRenameResponse, ChunkResponse, CollectionDetail, CollectionSummary, Comment, CommentsResponse, DashboardResponse, Drive, DriveSummary, DuplicatesResponse, FileExif, FileItem, FileType, Folder, FolderTreeNode, Neighbors, PaginatedResponse, PinnedFolder, SortField, SortOrder, Tag, TrustFilter, TrustTier, FileKind, UnlockResult, UploadInitResponse, WatchHistoryItem, WatchProgress } from "@/types";
 import type { SmartFolder, SmartFolderCreate, SmartFolderUpdate } from "@/types/smartFolder";
 
 const API_BASE = "/api";
@@ -30,7 +30,7 @@ export async function getFolders(drive: string, path?: string): Promise<Folder[]
 
 export async function getFolderTree(
   drive: string,
-  params: { root?: string; type_filter?: TreeTypeFilter | null; depth?: number; flat?: boolean } = {},
+  params: { root?: string; type_filter?: FileKind | null; depth?: number; flat?: boolean } = {},
   options?: RequestOptions,
 ): Promise<FolderTreeNode[]> {
   const search = new URLSearchParams();
@@ -60,7 +60,7 @@ export async function getDriveFiles(
     favorite?: boolean;
     liked?: boolean;
     tag?: string;
-    type?: FileType;
+    type?: FileKind;
     /**
      * `verified` / `unverified` select a tier; `unreviewed` is not a tier but
      * the review queue — files nobody has ruled on, which spans both.
