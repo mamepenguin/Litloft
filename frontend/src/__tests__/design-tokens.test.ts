@@ -139,6 +139,30 @@ describe("design token declarations match their use", () => {
     expect(report).toEqual([]);
   });
 
+  // DESIGN.md §6 "Disabled (every variant)": a disabled control drops its
+  // enabled background rather than fading it. `disabled:opacity-50` on an
+  // accent button leaves it reading as the page's one call to action, only
+  // dimmer, so it still invites the press it will not accept (SET-1).
+  //
+  // Scoped to accent buttons, which is where the contradiction bites. The
+  // remaining `disabled:opacity-*` uses are folded in with the shared Button
+  // component (Phase 3), and this widens to all of them then.
+  it("never fades an accent button to say it is disabled", () => {
+    const offenders: string[] = [];
+    for (const root of SOURCE_ROOTS) {
+      for (const file of sourceFiles(root)) {
+        readFileSync(file, "utf-8")
+          .split("\n")
+          .forEach((line, i) => {
+            if (/\bdisabled:opacity-\d+/.test(line) && /\bbg-accent\b/.test(line)) {
+              offenders.push(`${relative(REPO_ROOT, file)}:${i + 1}`);
+            }
+          });
+      }
+    }
+    expect(offenders).toEqual([]);
+  });
+
   // DESIGN.md §Over-video chrome: chrome painted onto a dark scrim does not
   // follow the theme, because the theme's foregrounds are picked against the
   // page background, not against black. `text-text-muted` over `bg-black/70`

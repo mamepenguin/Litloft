@@ -599,7 +599,7 @@ export function FileDetailContent({
             <button
               onClick={handleSave}
               disabled={saving}
-              className="flex items-center gap-1 rounded-2xl bg-accent px-3 py-1.5 text-sm font-medium text-white hover:bg-accent-hover disabled:opacity-50"
+              className="flex items-center gap-1 rounded-2xl bg-accent px-3 py-1.5 text-sm font-medium text-white hover:bg-accent-hover disabled:bg-sand disabled:text-warm-silver disabled:cursor-not-allowed"
             >
               <Check size={14} />
               {tc("save")}

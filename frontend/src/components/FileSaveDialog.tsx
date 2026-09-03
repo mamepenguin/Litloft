@@ -171,7 +171,7 @@ export function FileSaveDialog({
               type="button"
               onClick={() => void handleSubmit()}
               disabled={disabled}
-              className="rounded-2xl bg-accent px-5 py-2.5 text-sm font-medium text-white transition-colors hover:bg-accent-hover disabled:opacity-50"
+              className="rounded-2xl bg-accent px-5 py-2.5 text-sm font-medium text-white transition-colors hover:bg-accent-hover disabled:bg-sand disabled:text-warm-silver disabled:cursor-not-allowed"
             >
               {submitting ? t("submitting") : (confirmLabel ?? tc("save"))}
             </button>

@@ -94,7 +94,7 @@ export function NameInputDialog({
             <button
               type="submit"
               disabled={!name.trim()}
-              className="rounded-2xl bg-accent px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-accent-hover disabled:opacity-40"
+              className="rounded-2xl bg-accent px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-accent-hover disabled:bg-sand disabled:text-warm-silver disabled:cursor-not-allowed"
             >
               {submitLabel ?? tc("create")}
             </button>

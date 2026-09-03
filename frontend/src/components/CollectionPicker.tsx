@@ -107,7 +107,7 @@ export function CollectionPicker({ open, drive, fileIds, onClose }: CollectionPi
             <button
               onClick={handleCreateAndAdd}
               disabled={adding || !newName.trim()}
-              className="rounded-2xl bg-accent px-3 py-1.5 text-sm text-white hover:bg-accent-hover disabled:opacity-50"
+              className="rounded-2xl bg-accent px-3 py-1.5 text-sm text-white hover:bg-accent-hover disabled:bg-sand disabled:text-warm-silver disabled:cursor-not-allowed"
             >
               {tc("create")}
             </button>
