@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useMemo } from "react";
+import { useTranslations } from "next-intl";
 import type { AppRouterInstance } from "next/dist/shared/lib/app-router-context.shared-runtime";
 
 import type { ArchiveContents, ArchiveEntry } from "@/types";
@@ -21,6 +22,8 @@ export function useArchiveNavigation(
   searchParamsString: string,
   router: AppRouterInstance
 ): ArchiveNavigationResult {
+  const t = useTranslations("archive");
+
   // Compute entries for current directory
   const currentEntries = archive
     ? [
@@ -53,7 +56,7 @@ export function useArchiveNavigation(
   // Breadcrumb segments
   const pathSegments = currentPath ? currentPath.split("/") : [];
   const breadcrumbs = [
-    { label: "Archive", path: "" },
+    { label: t("rootBreadcrumb"), path: "" },
     ...pathSegments.map((seg, i) => ({
       label: seg,
       path: pathSegments.slice(0, i + 1).join("/"),

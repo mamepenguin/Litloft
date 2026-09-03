@@ -16,6 +16,21 @@ The build context is the **repository root**, not `backend/`. Tests reach `confi
 docker run --rm litloft-test
 ```
 
+### Addon backends
+
+Each addon carries its own image, built from the repository root for the same
+reason — an in-process addon imports the core `app` package, so both have to
+land in one tree:
+
+```bash
+docker build -f addons/cloud-sync/Dockerfile.test -t cloud-sync-test .
+docker run --rm cloud-sync-test
+```
+
+`knowledge`, `intelligence` and `media_import` follow the same shape. Core's
+image does not pick these up, so a change to an addon backend needs its own
+image run.
+
 Pass arguments through to `pytest`:
 
 ```bash

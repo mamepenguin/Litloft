@@ -218,3 +218,49 @@ describe("ImageGallery", () => {
     expect(select).toHaveValue("5");
   });
 });
+
+// DESIGN.md §Layering: an immersive viewer takes the page out of reach, not
+// just out of sight. `useInertBackdrop` is well covered on its own, but the
+// hook being right proves nothing about this component being wired to it —
+// deleting the ref from the root left the whole suite green.
+describe("ImageGallery backdrop", () => {
+  function outsideTheViewer() {
+    const viewer = document.querySelector('[role="dialog"]');
+    return [...document.querySelectorAll("button, a[href], input, select")].filter(
+      (el) => !viewer?.contains(el) && !el.closest("[inert]"),
+    );
+  }
+
+  it("puts the page out of reach and locks the scroll while open", () => {
+    render(
+      <ShortcutsProvider>
+        <button>page control</button>
+        <ImageGallery {...defaultProps} />
+      </ShortcutsProvider>,
+    );
+
+    expect(document.querySelector('[role="dialog"]')).toBeInTheDocument();
+    expect(outsideTheViewer()).toEqual([]);
+    expect(document.body.style.overflow).toBe("hidden");
+  });
+
+  it("gives both back when it closes", () => {
+    const { rerender } = render(
+      <ShortcutsProvider>
+        <button>page control</button>
+        <ImageGallery {...defaultProps} />
+      </ShortcutsProvider>,
+    );
+
+    rerender(
+      <ShortcutsProvider>
+        <button>page control</button>
+        <ImageGallery {...defaultProps} open={false} />
+      </ShortcutsProvider>,
+    );
+
+    expect(outsideTheViewer()).toHaveLength(1);
+    expect(document.body.style.overflow).toBe("");
+    expect(document.querySelectorAll("[inert]")).toHaveLength(0);
+  });
+});

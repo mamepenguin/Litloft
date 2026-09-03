@@ -79,9 +79,22 @@ def validate_within_drive(target: Path, drive_path: Path) -> Path:
 
 
 def _filename_to_title(filename: str) -> str:
-    name = Path(filename).stem
-    name = name.replace("_", " ").replace("-", " ")
-    return name.title()
+    """Derive a display title from a filename, keeping the author's spelling.
+
+    Only the underscore is treated as a separator: it stands in for a space the
+    filesystem made awkward to type. A hyphen is a character someone chose, and
+    is frequently load-bearing (`MacBook-Neo-review`, a Japanese compound), so
+    it survives.
+
+    Nothing recases the words. `str.title()` uppercases the letter after every
+    non-alphabetic character and lowercases the rest of each word, which turns
+    `charon's` into `Charon'S` and `MacBook` into `Macbook`.
+    """
+    stem = Path(filename).stem
+    name = stem.replace("_", " ").strip()
+    if not name:
+        return stem
+    return name[0].upper() + name[1:]
 
 
 def _move_thumbnail(file: File, new_thumb_rel: str) -> None:

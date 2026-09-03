@@ -2,7 +2,7 @@
 
 Litloft is two things at once:
 
-1. **A personal media server** — stream video and audio with resume, browse images and Markdown, view PDFs and Office documents, drop in ZIP archives and explore them in place.
+1. **A personal media server** — stream video and audio with resume, browse images and Markdown, view PDFs, drop in ZIP archives and explore them in place.
 2. **A file manager for trusted home networks** — upload via drag-and-drop or chunked HTTP, rename in place, move, copy, tag, comment, organise into collections, capture a Markdown note from any screen, and recover from a 30-day soft-delete trash.
 
 Optional addons add AI search, summaries and Q&A over your library, the Markdown editor with live preview, scheduled cloud backups, and lightweight URL-based imports for online videos.
@@ -23,7 +23,9 @@ A Litloft installation has:
 - Chapters on media files, plus a companion region (chapters, transcript, related material) that sits beside the player on wide screens or below it on narrow ones — see [viewers and players](viewers-and-players.md).
 - Image viewer with swipe, double-page spread, slideshow, EXIF panel.
 - Markdown renderer with Mermaid, syntax highlighting, frontmatter chips, internal `loft://` links.
-- PDF viewer, in-browser Office (DOCX/XLSX/PPTX) preview, ZIP/TAR/RAR archive browsing.
+- PDF viewer, ZIP archive browsing. Office files (DOCX/XLSX/PPTX) have no
+  viewer; the detail page shows a short text excerpt. Searching their contents
+  needs the intelligence addon — core search matches names and folder paths.
 
 ### Organise
 - Tags (separate per drive). For Markdown files the YAML frontmatter is the canonical store.

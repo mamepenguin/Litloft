@@ -81,7 +81,7 @@ export function RightPaneFolder({ drive, folderPath }: RightPaneFolderProps) {
     }`;
 
   return (
-    <div className="flex h-full flex-col bg-bg-base">
+    <div className="flex h-full flex-col bg-bg-primary">
       <div className="flex items-center justify-between gap-2 border-b border-bg-border px-4 py-3">
         <h2 className="min-w-0 flex-1 truncate text-sm font-medium text-text-primary">
           {folderPath || drive}

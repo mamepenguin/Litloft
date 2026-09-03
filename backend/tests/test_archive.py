@@ -236,6 +236,49 @@ class TestArchiveList:
         paths = [e["path"] for e in body["entries"]]
         assert paths == sorted(paths)
 
+    def test_archive_list_hides_macos_packaging(self, client):
+        """The Finder's sidecar tree is packaging, not content.
+
+        Compressing on macOS adds a `__MACOSX/` AppleDouble for every file and
+        a `.DS_Store` per directory. Sorted by path they land at the top of the
+        listing, so they are the first thing a reader sees in almost every ZIP
+        made on a Mac.
+        """
+        c, db, drive_dir, data_dir = client
+        zip_path = drive_dir / "mac.zip"
+        buf = io.BytesIO()
+        with zipfile.ZipFile(buf, "w", zipfile.ZIP_DEFLATED) as zf:
+            zf.writestr("__MACOSX/", "")
+            zf.writestr("__MACOSX/._hello.txt", b"\x00\x05\x16\x07")
+            zf.writestr("__MACOSX/notes/._draft.txt", b"\x00\x05\x16\x07")
+            zf.writestr(".DS_Store", b"\x00\x00\x00\x01Bud1")
+            zf.writestr("notes/.DS_Store", b"\x00\x00\x00\x01Bud1")
+            zf.writestr("hello.txt", "Hello, World!")
+            zf.writestr("notes/draft.txt", "draft")
+        zip_path.write_bytes(buf.getvalue())
+        file = _seed_zip_raw(db, zip_path)
+
+        res = c.get(f"/api/files/{file.id}/archive")
+        assert res.status_code == 200
+
+        paths = [e["path"] for e in res.json()["entries"]]
+        assert paths == ["hello.txt", "notes/draft.txt"]
+
+    def test_archive_list_keeps_a_name_that_merely_contains_the_marker(self, client):
+        """Only the tree macOS actually writes is dropped, not lookalike names."""
+        c, db, drive_dir, data_dir = client
+        zip_path = drive_dir / "lookalike.zip"
+        buf = io.BytesIO()
+        with zipfile.ZipFile(buf, "w", zipfile.ZIP_DEFLATED) as zf:
+            zf.writestr("docs/__MACOSX_notes.txt", "kept")
+            zf.writestr("__MACOSX_backup/report.txt", "kept")
+        zip_path.write_bytes(buf.getvalue())
+        file = _seed_zip_raw(db, zip_path)
+
+        res = c.get(f"/api/files/{file.id}/archive")
+        paths = [e["path"] for e in res.json()["entries"]]
+        assert paths == ["__MACOSX_backup/report.txt", "docs/__MACOSX_notes.txt"]
+
     def test_archive_list_sjis(self, client):
         """Shift_JIS encoded filenames should be decoded correctly."""
         c, db, drive_dir, data_dir = client

@@ -171,6 +171,17 @@ Dark mode uses a red-tinted plum instead of pure black, keeping the warm charact
 
 All tokens are exposed as Tailwind utility classes via `@theme inline` (e.g. `bg-accent`, `text-text-muted`).
 
+**Except two.** `--danger-bg` and `--kbd-shadow` are consumed by rules inside
+`globals.css` and are deliberately absent from `@theme inline`, so there is no
+`bg-danger-bg` and no `shadow-kbd-shadow` utility. Tailwind v4 emits nothing at
+all for a utility whose token it does not know — no error, no warning, just a
+class that does not exist — so writing one produces an element with no
+background rather than a build failure. For an error surface in markup, use the
+alpha derivation `bg-danger/15`. `frontend/src/__tests__/design-tokens.test.ts`
+compiles every colour utility written in core and the addons against this
+stylesheet and fails on the ones that produce no rule, which is what stops this
+from recurring.
+
 #### Light mode (`:root`, `[data-theme="light"]`)
 
 | Token | Value | Usage |
@@ -461,6 +472,31 @@ Use it via the Tailwind utility `shadow-card`. Do not handroll arbitrary shadow 
 - Background: `bg-warm-light`
 - Radius: `rounded-full`
 
+**Disabled (every variant)**
+- Background: `disabled:bg-sand`
+- Text: `disabled:text-warm-silver`
+- Cursor: `disabled:cursor-not-allowed`
+
+A disabled button drops its enabled background rather than fading it. Keeping
+`bg-accent` on a disabled control leaves it reading as the page's one call to
+action (§2.2) — it still looks like the thing to press, and nothing on screen
+says otherwise.
+
+**Do not use `disabled:opacity-*`.** Transparency dims a control without
+changing what it says: an accent button at 50% is still the accent, and the
+contrast loss lands hardest on the label, which is the part that would have
+explained why the button is off.
+
+> **Known gap — the rule is ahead of the code.** Only buttons filled with
+> `bg-accent` (or `bg-accent-cta`, its twin) follow this today; the enforcing
+> test scans for that pairing alone. Every other variant still carries
+> `disabled:opacity-*`, including the saturated `bg-accent-teal` fills with
+> white labels in the intelligence summary sections, which fade in exactly the
+> way this rule forbids. They are converted with the shared `Button` component
+> (UI redesign Phase 3) rather than one at a time, because a converted button
+> beside an unconverted sibling — both disabled by the same click — shows two
+> different disabled states in one row, which reads worse than either alone.
+
 ### Cards
 
 - Radius: `rounded-xl` (12px)
@@ -520,6 +556,15 @@ picking a number one higher than whatever it currently sits under.
 | Immersive viewers | `z-[60]` | Full-screen image gallery and archive viewer, which replace the page rather than overlay it |
 | Always on top | `z-[100]` | Shortcut cheat sheet, quick note, file save, toasts |
 
+**An immersive viewer takes the page out of reach, not just out of
+sight.** Its surface is opaque and covers everything, so nothing signals
+that the page is still live underneath — yet every control back there stays
+focusable, and a scroll the viewer does not consume moves the page. While
+one is open it marks every subtree outside itself `inert` and locks the body
+scroll, restoring both on close. `useInertBackdrop` does this; attach its ref
+to the viewer's root rather than reaching for `document.body`, which a viewer
+rendered inline is itself inside.
+
 **A dialog must outrank the surface that launched it.** The mobile
 Bottom Sheet hosts the same inspector the desktop pane does, `[...]`
 menu included, so a dialog opened from inside it has to paint above it —
@@ -578,7 +623,7 @@ Default table aesthetic for MarkdownPreview and any other reading-surface table.
 The one-line excerpt showing *where* a search hit matched, inside a file card or list row. It is a quotation in a dense surface, so it deliberately does **not** reuse the long-form `blockquote` treatment from §3.3 — a `bg-bg-elevated` fill would read as a nested card in the grid, and it collapses into the row's own `hover:bg-bg-elevated` state.
 
 - Marker: `border-l-2 border-bg-border pl-2` — a rule, never a fill, never the accent border reserved for §3.3 prose blockquotes.
-- Text: `text-[11px] leading-relaxed text-text-secondary`, clamped with `line-clamp-2`. The excerpt is truncated in the data layer too, so a long source never ships into the card's DOM.
+- Text: `text-[11px] leading-relaxed text-text-muted`, clamped with `line-clamp-2`. The excerpt is truncated in the data layer too, so a long source never ships into the card's DOM.
 - **One snippet per hit.** Do not stack a row per match — the badges and timestamp pills above already enumerate the evidence, and repeating a timestamp as a text row shows the same fact twice.
 - Row actions (e.g. the Knowledge capture action in `search-result-actions`) sit at the row's trailing edge, revealed by `group-hover` / `focus-within`, and are always visible under `pointer-coarse`. Keep the action's box in flow at `opacity-0` so revealing it never reflows the excerpt.
 

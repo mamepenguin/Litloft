@@ -30,7 +30,7 @@ const BADGE_STYLES: Record<string, string> = {
   // of the content badge so it sits visually adjacent to the existing
   // keyword chips; the distinct label is what tells users the match
   // came from an expansion rather than the document body.
-  retrieval_keywords: "bg-warm-light text-text-secondary",
+  retrieval_keywords: "bg-warm-light text-text-muted",
 };
 
 function selectActiveBadgeKeys(meta: MatchMeta | undefined): string[] {

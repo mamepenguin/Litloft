@@ -359,6 +359,8 @@
     "seekToTime": "{time} へ移動"
   },
   "archive": {
+    "imageViewer": "書庫の画像ビューア",
+    "rootBreadcrumb": "書庫",
     "loadFailed": "アーカイブの読み込みに失敗しました: {error}",
     "fileCount": "{count}ファイル/{size}",
     "downloadArchive": "アーカイブをダウンロード",
@@ -388,7 +390,7 @@
   },
   "empty": {
     "noFilesTitle": "ファイルがありません",
-    "noFilesDescription": "このフォルダにはまだファイルがありません。",
+    "noFilesDescription": "ファイルをここにドロップすると追加できます。",
     "noResultsTitle": "一致するファイルが見つかりません",
     "noResultsDescription": "検索条件を変更してください。",
     "needsScanTitle": "スキャンを実行してください",
@@ -480,6 +482,7 @@
     "searchWholeDrive": "ドライブ全体を検索"
   },
   "gallery": {
+    "imageGallery": "画像ギャラリー",
     "prevImage": "前の画像",
     "nextImage": "次の画像",
     "slideshowInterval": "スライドショー間隔",
@@ -885,7 +888,7 @@
     "switcher": "ファイルに移動",
     "prevFile": "前のファイル",
     "nextFile": "次のファイル",
-    "loftPlayer": "動画プレーヤー（LoftRef）",
+    "loftPlayer": "動画プレーヤー",
     "archiveViewer": "アーカイブビューア",
     "quickNote": "クイックノート",
     "folderTree": "フォルダツリー",

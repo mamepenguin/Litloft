@@ -71,8 +71,8 @@ export function CastButton({ mediaRef }: { mediaRef: RefObject<HTMLVideoElement 
         state === "connected"
           ? "bg-accent/20 text-accent"
           : state === "connecting"
-            ? "bg-bg-hover text-accent animate-pulse"
-            : "bg-bg-hover text-text-secondary hover:text-text-primary"
+            ? "bg-bg-elevated text-accent animate-pulse"
+            : "bg-bg-elevated text-text-muted hover:text-text-primary"
       }`}
       title={label}
     >

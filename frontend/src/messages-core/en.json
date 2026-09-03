@@ -359,6 +359,8 @@
     "seekToTime": "Jump to {time}"
   },
   "archive": {
+    "imageViewer": "Archive image viewer",
+    "rootBreadcrumb": "Archive",
     "loadFailed": "Failed to load archive: {error}",
     "fileCount": "{count} files / {size}",
     "downloadArchive": "Download archive",
@@ -388,7 +390,7 @@
   },
   "empty": {
     "noFilesTitle": "No files",
-    "noFilesDescription": "This folder has no files yet.",
+    "noFilesDescription": "Drop files here to add them.",
     "noResultsTitle": "No matching files found",
     "noResultsDescription": "Try changing your search criteria.",
     "needsScanTitle": "Scan required",
@@ -480,6 +482,7 @@
     "searchWholeDrive": "Search the whole drive"
   },
   "gallery": {
+    "imageGallery": "Image gallery",
     "prevImage": "Previous image",
     "nextImage": "Next image",
     "slideshowInterval": "Slideshow interval",
@@ -885,7 +888,7 @@
     "switcher": "Go to file",
     "prevFile": "Previous file",
     "nextFile": "Next file",
-    "loftPlayer": "Video Player (LoftRef)",
+    "loftPlayer": "Video Player",
     "archiveViewer": "Archive Viewer",
     "quickNote": "Quick note",
     "folderTree": "Folder tree",

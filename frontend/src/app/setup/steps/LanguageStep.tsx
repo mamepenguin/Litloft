@@ -62,7 +62,7 @@ export function LanguageStep({
             onClick={onNext}
             disabled={!value}
             aria-label={t("next")}
-            className="rounded-2xl bg-accent px-5 py-2.5 text-base font-medium text-white hover:bg-accent-hover disabled:cursor-not-allowed disabled:opacity-50"
+            className="rounded-2xl bg-accent px-5 py-2.5 text-base font-medium text-white hover:bg-accent-hover disabled:cursor-not-allowed disabled:bg-sand disabled:text-warm-silver"
           >
             →
           </button>

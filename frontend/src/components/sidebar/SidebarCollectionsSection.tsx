@@ -143,7 +143,7 @@ export function SidebarCollectionsSection({
           onClick={toggle}
           aria-expanded={!collapsed}
           aria-label={collapsed ? t("sectionExpand") : t("sectionCollapse")}
-          className="flex flex-1 items-center gap-1.5 rounded-lg px-3 text-[11px] font-semibold uppercase tracking-wider text-text-muted transition-colors hover:text-text-primary"
+          className="flex flex-1 items-center gap-1.5 rounded-lg px-3 text-[11px] font-semibold text-text-muted transition-colors hover:text-text-primary"
         >
           <Chevron size={12} />
           <span>{t("collections")}</span>

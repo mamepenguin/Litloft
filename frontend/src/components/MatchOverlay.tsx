@@ -40,7 +40,7 @@ const MATCH_TYPE_STYLES: Record<string, string> = {
   clip: "bg-accent-amber/15 text-accent-amber",
   clip_thumbnail: "bg-accent-amber/10 text-accent-amber",
   content: "bg-warm-light text-text-primary",
-  retrieval_keywords: "bg-warm-light text-text-secondary",
+  retrieval_keywords: "bg-warm-light text-text-muted",
 };
 
 function MatchBadge({ type, label }: { type: string; label: string }) {
@@ -170,7 +170,7 @@ export function MatchOverlay({
       )}
       {snippet && (
         <div className="group/snippet flex items-start gap-1.5 border-l-2 border-bg-border pl-2">
-          <p className="line-clamp-2 min-w-0 flex-1 text-[11px] leading-relaxed text-text-secondary">
+          <p className="line-clamp-2 min-w-0 flex-1 text-[11px] leading-relaxed text-text-muted">
             {snippet.excerpt}
           </p>
           {/* Reserve the action's width at all times so revealing it on

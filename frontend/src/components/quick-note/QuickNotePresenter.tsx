@@ -252,7 +252,7 @@ export function QuickNotePresenter({
             type="button"
             onClick={onSave}
             disabled={!canSave}
-            className="rounded-2xl bg-accent px-5 py-2.5 text-sm font-medium text-white transition-colors hover:bg-accent-hover disabled:opacity-50"
+            className="rounded-2xl bg-accent px-5 py-2.5 text-sm font-medium text-white transition-colors hover:bg-accent-hover disabled:bg-sand disabled:text-warm-silver disabled:cursor-not-allowed"
           >
             {submitting ? t("saving") : tc("save")}
           </button>

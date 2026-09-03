@@ -67,7 +67,7 @@ Audio keeps the browser's own `<audio controls>` bar rather than Litloft's — t
 
 ## Image viewer
 
-The full-screen image viewer is a page-turner for a folder of images. Archives get a separate viewer built from the same gesture handling, described under [ZIP / TAR / RAR archives](#zip--tar--rar-archives).
+The full-screen image viewer is a page-turner for a folder of images. Archives get a separate viewer built from the same gesture handling, described under [ZIP archives](#zip-archives).
 
 ![Image viewer in two-page spread mode with right-to-left reading enabled](../images/user-guide/image-viewer-spread-rtl.png)
 
@@ -107,7 +107,7 @@ Office files have **no in-app viewer**. The detail page shows the file type, nam
 
 What Litloft does read is a short text excerpt — up to 400 characters extracted server-side with `python-docx` / `openpyxl` / `python-pptx` — which is used as the file's thumbnail in listings and makes the document findable by search.
 
-## ZIP / TAR / RAR archives
+## ZIP archives
 
 - The archive is **not extracted on the server**; entries are streamed lazily.
 - The listing has grid and list view modes, sorting, and a breadcrumb for folders inside the archive.

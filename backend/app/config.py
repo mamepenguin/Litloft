@@ -56,6 +56,19 @@ def _auto_seeded_marker() -> Path:
     """
     return DATA_DIR / "auto_seeded"
 
+
+def _titles_recased_marker() -> Path:
+    """Path to the title-backfill marker (re-evaluated each call).
+
+    Touched once the startup migration has rewritten titles that `str.title()`
+    had mangled. The rewrite only replaces a title still identical to what the
+    old formatter would produce, so a title the user typed is never touched —
+    but that guard cannot tell a user who later types exactly the old shape
+    from a leftover, which is why this runs once rather than every boot. Never
+    removed. Same thin-flag convention as setup_completed / auto_seeded.
+    """
+    return DATA_DIR / "titles_recased"
+
 _drives_cache: list[dict] | None = None
 
 

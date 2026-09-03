@@ -183,7 +183,7 @@ export function CommentSection({ fileId }: CommentSectionProps) {
         <button
           onClick={handlePost}
           disabled={!body.trim() || posting}
-          className="self-end rounded-2xl bg-accent px-3 py-2 text-sm font-medium text-white transition-colors hover:bg-accent-hover disabled:opacity-50"
+          className="self-end rounded-2xl bg-accent px-3 py-2 text-sm font-medium text-white transition-colors hover:bg-accent-hover disabled:bg-sand disabled:text-warm-silver disabled:cursor-not-allowed"
           aria-label={t("post")}
         >
           <Send size={16} />
@@ -251,7 +251,7 @@ export function CommentSection({ fileId }: CommentSectionProps) {
                     <button
                       onClick={handleEditSave}
                       disabled={!editBody.trim() || savingEdit}
-                      className="rounded-2xl bg-accent px-3 py-1.5 text-sm font-medium text-white transition-colors hover:bg-accent-hover disabled:opacity-50"
+                      className="rounded-2xl bg-accent px-3 py-1.5 text-sm font-medium text-white transition-colors hover:bg-accent-hover disabled:bg-sand disabled:text-warm-silver disabled:cursor-not-allowed"
                     >
                       {t("save")}
                     </button>

@@ -690,10 +690,62 @@ def _migrate(engine_) -> None:
             ))
 
 
+def _backfill_mangled_titles(engine_) -> None:
+    """Re-derive titles that `str.title()` had mangled.
+
+    A rescan will not reach these. ``scanner`` only recomputes a title when the
+    filename itself changes, so every row imported before the formatter was
+    fixed keeps its ``Charon'S Burden`` and ``Macbook`` indefinitely.
+
+    Only a title still byte-identical to what the old formatter would produce
+    from the current filename is replaced. A title the user edited cannot match
+    that, so it is left alone; the cost of the guard is that a file whose old
+    and new derivations agree is skipped, which is exactly the case where
+    nothing needed doing.
+    """
+    # Imported here: fileops reaches back into models, which needs Base from
+    # this module, so a module-level import would close the cycle.
+    from pathlib import PurePosixPath
+
+    from app.services.fileops import _filename_to_title
+
+    marker = config._titles_recased_marker()
+    if marker.exists():
+        return
+
+    inspector = inspect(engine_)
+    if "files" not in inspector.get_table_names():
+        return
+
+    def old_derivation(filename: str) -> str:
+        return PurePosixPath(filename).stem.replace("_", " ").replace("-", " ").title()
+
+    updated = 0
+    with engine_.begin() as conn:
+        rows = conn.execute(text("SELECT id, filename, title FROM files")).fetchall()
+        for row_id, filename, title in rows:
+            if not filename or title != old_derivation(filename):
+                continue
+            fixed = _filename_to_title(filename)
+            if fixed == title:
+                continue
+            conn.execute(
+                text("UPDATE files SET title = :title WHERE id = :id"),
+                {"title": fixed, "id": row_id},
+            )
+            updated += 1
+
+    if updated:
+        logger.info("Migrating: re-derived %d title(s) mangled by str.title()", updated)
+    config.DATA_DIR.mkdir(parents=True, exist_ok=True)
+    marker.touch()
+
+
 def init_db() -> None:
     config.DATA_DIR.mkdir(parents=True, exist_ok=True)
     Base.metadata.create_all(bind=engine)
     _migrate(engine)
+    _backfill_mangled_titles(engine)
 
 
 def get_db():

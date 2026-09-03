@@ -17,20 +17,44 @@ from app.services.scanner import (
 
 
 class TestFilenameToTitle:
-    def test_underscores(self):
-        assert _filename_to_title("my_vacation_2024.mp4") == "My Vacation 2024"
+    # Underscores separate words in a filename because a space cannot; a hyphen
+    # is a character the author chose, and often the only thing holding a
+    # compound name together. Only the first is a separator to normalise.
+    @pytest.mark.parametrize(
+        "filename,expected",
+        [
+            ("my_vacation_2024.mp4", "My vacation 2024"),
+            ("summer_trip-2024.mp4", "Summer trip-2024"),
+            ("video.mp4", "Video"),
+            ("My Video.mp4", "My Video"),
+            ("trip-to-tokyo.mp4", "Trip-to-tokyo"),
+        ],
+    )
+    def test_normalises_separators_and_capitalises_the_first_letter(
+        self, filename, expected
+    ):
+        assert _filename_to_title(filename) == expected
 
-    def test_hyphens(self):
-        assert _filename_to_title("trip-to-tokyo.mp4") == "Trip To Tokyo"
+    # `str.title()` uppercases after every non-alphabetic character, so an
+    # apostrophe, a digit or an interior capital each got mangled, and every
+    # word past the first was lowercased. Latin filenames hit this constantly;
+    # Japanese ones do not, which is why it went unnoticed.
+    @pytest.mark.parametrize(
+        "filename,expected",
+        [
+            ("02 charon's burden.mp3", "02 charon's burden"),
+            ("6484215695_3df06f6b39_o.jpg", "6484215695 3df06f6b39 o"),
+            ("MacBook-Neo-review.mp4", "MacBook-Neo-review"),
+            ("ヤンニョムチキン-韓国風-甘辛.mp4", "ヤンニョムチキン-韓国風-甘辛"),
+        ],
+    )
+    def test_preserves_the_spelling_the_author_wrote(self, filename, expected):
+        assert _filename_to_title(filename) == expected
 
-    def test_mixed(self):
-        assert _filename_to_title("summer_trip-2024.mp4") == "Summer Trip 2024"
-
-    def test_no_separators(self):
-        assert _filename_to_title("video.mp4") == "Video"
-
-    def test_already_titled(self):
-        assert _filename_to_title("My Video.mp4") == "My Video"
+    def test_never_returns_a_blank_title(self):
+        # Normalising a name made only of separators would leave nothing to
+        # show, so the stem stands as written rather than the row going empty.
+        assert _filename_to_title("_.mp4") == "_"
 
 
 class TestGetFolderPath:
@@ -140,3 +164,100 @@ class TestAudioOnlyMp4Registration:
         assert record is not None
         assert record.file_type == "audio"
         assert record.mime_type == "audio/mp4"
+
+
+class TestBackfillMangledTitles:
+    """`str.title()` damage is invisible to a rescan.
+
+    ``scanner`` only re-derives a title when the filename changes, so rows
+    imported before the formatter was fixed keep their mangled titles forever.
+    """
+
+    def _table(self, tmp_path):
+        from sqlalchemy import create_engine, text
+
+        engine = create_engine(f"sqlite:///{tmp_path / 'backfill.db'}")
+        with engine.begin() as conn:
+            conn.execute(text(
+                "CREATE TABLE files (id INTEGER PRIMARY KEY, filename TEXT, title TEXT)"
+            ))
+        return engine
+
+    def _insert(self, engine, rows, first_id=1):
+        from sqlalchemy import text
+
+        with engine.begin() as conn:
+            for i, (filename, title) in enumerate(rows, first_id):
+                conn.execute(
+                    text("INSERT INTO files (id, filename, title) VALUES (:i, :f, :t)"),
+                    {"i": i, "f": filename, "t": title},
+                )
+
+    def _titles(self, engine):
+        from sqlalchemy import text
+
+        with engine.begin() as conn:
+            return [r[0] for r in conn.execute(text("SELECT title FROM files ORDER BY id"))]
+
+    def test_repairs_titles_the_old_formatter_produced(self, tmp_path, monkeypatch):
+        from app import database
+
+        monkeypatch.setattr(config, "DATA_DIR", tmp_path / "data")
+        engine = self._table(tmp_path)
+        self._insert(engine, [
+            ("02 charon's burden.mp3", "02 Charon'S Burden"),
+            ("MacBook-Neo-review.mp4", "Macbook Neo Review"),
+            ("6484215695_3df06f6b39_o.jpg", "6484215695 3Df06F6B39 O"),
+        ])
+
+        database._backfill_mangled_titles(engine)
+
+        assert self._titles(engine) == [
+            "02 charon's burden",
+            "MacBook-Neo-review",
+            "6484215695 3df06f6b39 o",
+        ]
+
+    def test_leaves_a_title_the_user_wrote(self, tmp_path, monkeypatch):
+        """A hand-written title cannot equal the old derivation, so it survives."""
+        from app import database
+
+        monkeypatch.setattr(config, "DATA_DIR", tmp_path / "data")
+        engine = self._table(tmp_path)
+        self._insert(engine, [
+            ("MacBook-Neo-review.mp4", "The one where the hinge breaks"),
+            ("02 charon's burden.mp3", "Charon's Burden (live)"),
+        ])
+
+        database._backfill_mangled_titles(engine)
+
+        assert self._titles(engine) == [
+            "The one where the hinge breaks",
+            "Charon's Burden (live)",
+        ]
+
+    def test_runs_once(self, tmp_path, monkeypatch):
+        """The marker stops a later hand-typed old-shape title being rewritten."""
+        from app import database
+
+        monkeypatch.setattr(config, "DATA_DIR", tmp_path / "data")
+        engine = self._table(tmp_path)
+        self._insert(engine, [("MacBook-Neo-review.mp4", "Macbook Neo Review")])
+
+        database._backfill_mangled_titles(engine)
+        assert self._titles(engine) == ["MacBook-Neo-review"]
+
+        self._insert(engine, [("MacBook-Neo-review.mp4", "Macbook Neo Review")], first_id=2)
+        database._backfill_mangled_titles(engine)
+        assert self._titles(engine)[1] == "Macbook Neo Review"
+
+    def test_survives_a_row_with_no_filename(self, tmp_path, monkeypatch):
+        from app import database
+
+        monkeypatch.setattr(config, "DATA_DIR", tmp_path / "data")
+        engine = self._table(tmp_path)
+        self._insert(engine, [(None, "Some Title")])
+
+        database._backfill_mangled_titles(engine)
+
+        assert self._titles(engine) == ["Some Title"]

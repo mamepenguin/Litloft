@@ -134,7 +134,7 @@ export function SidebarSmartFoldersSection({
           aria-label={
             collapsed ? tSidebar("sectionExpand") : tSidebar("sectionCollapse")
           }
-          className="mb-1 mt-4 flex w-full items-center gap-1.5 rounded-lg px-3 text-[11px] font-semibold uppercase tracking-wider text-text-muted transition-colors hover:text-text-primary"
+          className="mb-1 mt-4 flex w-full items-center gap-1.5 rounded-lg px-3 text-[11px] font-semibold text-text-muted transition-colors hover:text-text-primary"
         >
           <Chevron size={12} />
           <span>{t("sectionTitle")}</span>

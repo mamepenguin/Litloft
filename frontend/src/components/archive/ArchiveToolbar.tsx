@@ -100,7 +100,7 @@ export function ArchiveToolbar({
           data-testid="archive-sort"
           value={sort}
           onChange={(e) => onSortChange(e.target.value as ArchiveSortKey)}
-          className="rounded-lg border border-bg-border bg-bg-base px-2 py-1 text-xs text-text-primary"
+          className="rounded-lg border border-bg-border bg-bg-primary px-2 py-1 text-xs text-text-primary"
         >
           <option value="name">{t("sortName")}</option>
           <option value="size">{t("sortSize")}</option>
@@ -110,7 +110,7 @@ export function ArchiveToolbar({
         <select
           value={order}
           onChange={(e) => onOrderChange(e.target.value as ArchiveSortOrder)}
-          className="rounded-lg border border-bg-border bg-bg-base px-2 py-1 text-xs text-text-primary"
+          className="rounded-lg border border-bg-border bg-bg-primary px-2 py-1 text-xs text-text-primary"
         >
           <option value="asc">{t("sortAsc")}</option>
           <option value="desc">{t("sortDesc")}</option>
@@ -123,7 +123,7 @@ export function ArchiveToolbar({
             const val = e.target.value as FileType | "";
             onTypeFilterChange(val === "" ? null : val);
           }}
-          className="rounded-lg border border-bg-border bg-bg-base px-2 py-1 text-xs text-text-primary"
+          className="rounded-lg border border-bg-border bg-bg-primary px-2 py-1 text-xs text-text-primary"
         >
           {TYPE_FILTERS.map(({ value, label }) => (
             <option key={value} value={value}>

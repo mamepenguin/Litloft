@@ -67,7 +67,7 @@ Addons reach the browser two different ways, depending on how they are deployed.
 
 **In-process addons** (`addons/<name>/backend/`, loaded into the core process) import `app.services.ws` and call the broadcaster directly. No bridge, no name constraints:
 
-- cloud-sync — `sync:progress` (`{drive, bytes_transferred, total_bytes, speed, eta, percent, transfers, total_transfers}`), `sync:complete` (`{drive, transferred_files, transferred_bytes, errors, elapsed_seconds}`), `sync:error` (`{drive, message}`)
+- cloud-sync — `sync:progress` (`{drive, bytes_transferred, total_bytes, speed, eta, percent, transfers, total_transfers}`), `sync:complete` (`{drive, transferred_files, transferred_bytes, errors, elapsed_seconds}`), `sync:error` (`{drive, message, kind}` — `kind` is `"auth_expired"` or `null` when the failure could not be classified; the card offers a recovery step only for the former)
 - media_import — `media_import.subscription.sync_started`, `media_import.subscription.sync_completed` (both `{subscription_id, drive, ...}`). It also broadcasts `files.updated` (`{file_id, drive}`) after an import, reusing a core webhook name on the browser channel; see the note under the webhook table.
 
 **Independent-service addons** run in their own containers and cannot reach the broadcaster, so they `POST /api/internal/addon-events` with `{event, data, drive?}` and the core relays the payload verbatim. When `drive` is set the relay is access-filtered like any other broadcast; without it the event reaches every connection.

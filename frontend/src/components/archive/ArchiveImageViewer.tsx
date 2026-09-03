@@ -12,6 +12,7 @@ import {
 
 import { useTranslations } from "next-intl";
 import { useImageAreaGestures } from "@/hooks/useImageAreaGestures";
+import { useInertBackdrop } from "@/hooks/useInertBackdrop";
 import { getArchiveEntryUrl } from "@/lib/api";
 import type { ArchiveEntry } from "@/types";
 import { INTERVAL_OPTIONS } from "./archiveUtils";
@@ -84,8 +85,17 @@ export function ArchiveImageViewer({
     toggleControls: handleImageAreaClick,
   });
 
+  // Mounted only while the viewer is open, so it is active for its whole life.
+  const backdropRef = useInertBackdrop<HTMLDivElement>(true);
+
   return (
-    <div className="fixed inset-0 z-[60] flex flex-col bg-black">
+    <div
+      ref={backdropRef}
+      role="dialog"
+      aria-modal
+      aria-label={`${t("imageViewer")}: ${currentImage.filename}`}
+      className="fixed inset-0 z-[60] flex flex-col bg-black"
+    >
       {/* Header */}
       <div
         className="absolute inset-x-0 top-0 z-10 flex items-center justify-between bg-gradient-to-b from-black/80 to-transparent px-4 py-3 transition-opacity duration-300"
