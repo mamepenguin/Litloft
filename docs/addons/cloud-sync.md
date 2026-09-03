@@ -107,9 +107,15 @@ When an OAuth token has expired, the card shows a *Re-authenticate* button which
 Subscribe to `/api/ws` and watch for:
 
 - `sync:started` — `{ drive, started_at }`
-- `sync:progress` — `{ drive, transferred, total, speed, eta }`
-- `sync:complete` — `{ drive, transferred, duration_s, errors }`
-- `sync:error` — `{ drive, message, retryable }`
+- `sync:progress` — `{ drive, bytes_transferred, total_bytes, speed, eta, percent, transfers, total_transfers }`
+- `sync:complete` — `{ drive, transferred_files, transferred_bytes, errors, elapsed_seconds }`
+- `sync:error` — `{ drive, message, kind }`
+
+`kind` classifies the failure so the UI does not have to read the English
+message: `"auth_expired"` when rclone reported an expired or rejected
+credential, `null` when it could not be classified. `GET /status` carries the
+same value as `error_kind` on each drive. Only `auth_expired` draws the
+re-authentication panel; anything else shows `message` as it came.
 
 ## Logs
 

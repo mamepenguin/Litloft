@@ -127,3 +127,47 @@ describe("ArchiveImageViewer", () => {
     expect(screen.getByLabelText("Slideshow interval")).toBeInTheDocument();
   });
 });
+
+// DESIGN.md §Layering: an immersive viewer takes the page out of reach, not
+// just out of sight. The hook that does it is covered on its own, but that
+// proves nothing about this component being wired to it.
+describe("ArchiveImageViewer backdrop", () => {
+  function outsideTheViewer() {
+    const viewer = document.querySelector('[role="dialog"]');
+    return [...document.querySelectorAll("button, a[href], input, select")].filter(
+      (el) => !viewer?.contains(el) && !el.closest("[inert]"),
+    );
+  }
+
+  it("puts the page out of reach and locks the scroll while mounted", () => {
+    render(
+      <>
+        <button>listing control</button>
+        <ArchiveImageViewer {...defaultProps} />
+      </>,
+    );
+
+    expect(document.querySelector('[role="dialog"]')).toBeInTheDocument();
+    expect(outsideTheViewer()).toEqual([]);
+    expect(document.body.style.overflow).toBe("hidden");
+  });
+
+  it("gives both back when it unmounts", () => {
+    const { rerender } = render(
+      <>
+        <button>listing control</button>
+        <ArchiveImageViewer {...defaultProps} />
+      </>,
+    );
+
+    rerender(
+      <>
+        <button>listing control</button>
+      </>,
+    );
+
+    expect(outsideTheViewer()).toHaveLength(1);
+    expect(document.body.style.overflow).toBe("");
+    expect(document.querySelectorAll("[inert]")).toHaveLength(0);
+  });
+});

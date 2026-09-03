@@ -35,7 +35,9 @@ export function ActionMenuItem({
         e.stopPropagation();
         onClick();
       }}
-      className={`flex w-full items-center gap-2 px-3 py-2 text-left text-sm transition-colors disabled:opacity-50 ${
+      // `:hover` still matches a disabled button, so without the override the
+      // danger row tints accent under the pointer while refusing the click.
+      className={`flex w-full items-center gap-2 px-3 py-2 text-left text-sm transition-colors disabled:opacity-50 disabled:hover:bg-transparent ${
         danger
           ? "text-danger hover:bg-accent/10"
           : "text-text-muted hover:bg-bg-elevated hover:text-text-primary"

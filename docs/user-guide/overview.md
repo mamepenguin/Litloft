@@ -24,7 +24,8 @@ A Litloft installation has:
 - Image viewer with swipe, double-page spread, slideshow, EXIF panel.
 - Markdown renderer with Mermaid, syntax highlighting, frontmatter chips, internal `loft://` links.
 - PDF viewer, ZIP archive browsing. Office files (DOCX/XLSX/PPTX) have no
-  viewer; Litloft extracts a short text excerpt so they stay searchable.
+  viewer; the detail page shows a short text excerpt. Searching their contents
+  needs the intelligence addon — core search matches names and folder paths.
 
 ### Organise
 - Tags (separate per drive). For Markdown files the YAML frontmatter is the canonical store.

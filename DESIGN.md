@@ -177,9 +177,10 @@ All tokens are exposed as Tailwind utility classes via `@theme inline` (e.g. `bg
 all for a utility whose token it does not know — no error, no warning, just a
 class that does not exist — so writing one produces an element with no
 background rather than a build failure. For an error surface in markup, use the
-alpha derivation `bg-danger/15`. The token table in
-`frontend/src/__tests__/design-tokens.test.ts` is checked against every colour
-utility in core and the addons, which is what stops this from recurring.
+alpha derivation `bg-danger/15`. `frontend/src/__tests__/design-tokens.test.ts`
+compiles every colour utility written in core and the addons against this
+stylesheet and fails on the ones that produce no rule, which is what stops this
+from recurring.
 
 #### Light mode (`:root`, `[data-theme="light"]`)
 
