@@ -788,12 +788,34 @@ Addons can inject UI components into predefined **slots** in the core applicatio
 | `dashboard-widgets` | Admin dashboard | Cards | Index statistics, cloud sync status |
 | `folder-actions` | Folder toolbar | Inline buttons | Batch AI actions |
 | `file-actions-menu` | The `[...]` overflow menu on the file detail page | Stack of menu rows | Per-file actions too infrequent to deserve a section of their own. See [Contributing to the file actions menu](#contributing-to-the-file-actions-menu) — entries have extra obligations. |
+| `file-detail-actions` | The file detail page's primary action row, between the state controls and the `[...]` menu | Inline buttons | Per-file actions that deserve to be reachable in one press rather than through the overflow menu — the file counterpart of `folder-actions`. See [Contributing to the file action row](#contributing-to-the-file-action-row). |
 | `sidebar-sections` | Sidebar | Stack | Per-addon shortcuts |
 | `loft-player` | File detail (external-source files) | Stack | Embedded player for URL-only files |
 | `active-summary-view` | File detail | Stack | Knowledge-promoted summary note rendering. Hidden when no addon registers — file detail page falls back to the AI summary section. |
 | `drive-home-sections` | Drive home page | Stack | Per-drive feature widgets (e.g. "Pickup" recommendations) |
 | `admin-settings-sections` | Admin settings page | Stack | Additional settings sections contributed by addons |
 | `admin-intelligence-sections` | Intelligence admin page (`/drive/{drive}/addons/intelligence/admin`) | Stack | Intelligence-specific settings panels (features, LLM provider, transcription, RAG) |
+
+### Contributing to the file action row
+
+`file-detail-actions` sits in the row that already carries the like,
+favorite, and trust controls, immediately before the `[...]` menu. It
+receives the same file context as every other file slot (`fileId`,
+`drive`, `filename`, `fileType`, `mimeType`, `mediaController`, …) and
+adds no callbacks of its own.
+
+The row is a `flex-wrap` line that is also rendered inside a ~300px
+Markdown inspector and on a phone, so an entry must:
+
+- **Bring its own trigger.** The host renders no wrapper, no label, and
+  no separator — the slot is a bare stack.
+- **Take no width or height from the host,** and hard-code neither. The
+  same entry has to fit a narrow inspector column today.
+- **Keep its tap target at least 44px,** even where the drawn control is
+  smaller.
+- **Render nothing when it has nothing to offer for this file.** The row
+  belongs to the core's own controls; an entry that always draws is a
+  permanent occupant of a line the user did not ask for.
 
 ### Contributing to the file actions menu
 

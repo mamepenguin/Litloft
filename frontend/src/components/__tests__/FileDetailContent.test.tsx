@@ -61,6 +61,8 @@ vi.mock("../AddonSlot", () => ({
       <div
         data-testid={`addon-slot-${tag}`}
         data-fill-height={props?.fillHeight === true ? "true" : "false"}
+        data-prop-file-id={typeof props?.fileId === "string" ? props.fileId : undefined}
+        data-prop-drive={typeof props?.drive === "string" ? props.drive : undefined}
       />
     );
   },
@@ -254,6 +256,53 @@ describe("FileDetailContent", () => {
     render(<FileDetailContent fileId="f1" drive="main" />);
     await waitFor(() => expect(api.getFile).toHaveBeenCalled());
     expect(sidebarMocks.overlaySidebarSpy).not.toHaveBeenCalled();
+  });
+
+  describe("file-detail-actions slot", () => {
+    // The row that already carries ♡ ☆ ⋮ is the only place an addon can
+    // put a per-file action that is not buried in the overflow menu.
+    // Phase 2 lifts this same row into the inspector's fixed header, so
+    // the slot is named for what it holds rather than for where it sits.
+    const actionRow = () =>
+      screen.getByTestId("file-actions").parentElement as HTMLElement;
+
+    it("places the slot in the action row, beside the overflow menu", async () => {
+      setApiResponses(makeFile({ file_type: "video", mime_type: "video/mp4" }));
+      render(<FileDetailContent fileId="f1" drive="main" />);
+      await waitFor(() => expect(api.getFile).toHaveBeenCalled());
+
+      const slot = screen.getByTestId("addon-slot-file-detail-actions");
+      expect(actionRow().contains(slot)).toBe(true);
+      expect(actionRow().querySelector('[data-testid="favorite"]')).not.toBeNull();
+    });
+
+    it("hands the slot the same file context every other file slot gets", async () => {
+      setApiResponses(makeFile({ file_type: "video", mime_type: "video/mp4" }));
+      render(<FileDetailContent fileId="f1" drive="main" />);
+      await waitFor(() => expect(api.getFile).toHaveBeenCalled());
+
+      const slot = screen.getByTestId("addon-slot-file-detail-actions");
+      expect(slot.dataset.propFileId).toBe("f1");
+      expect(slot.dataset.propDrive).toBe("main");
+      // No sizing baked in: the same entry has to fit a 56px Bottom
+      // Sheet peek row in Phase 2.
+      expect(slot.dataset.fillHeight).toBe("false");
+    });
+
+    it("is present in the Markdown inspector's action row too", async () => {
+      setApiResponses(
+        makeFile({
+          file_type: "document",
+          mime_type: "text/markdown",
+          filename: "note.md",
+        }),
+      );
+      render(<FileDetailContent fileId="f1" drive="main" />);
+      await waitFor(() => expect(api.getFile).toHaveBeenCalled());
+
+      const slot = screen.getByTestId("addon-slot-file-detail-actions");
+      expect(actionRow().contains(slot)).toBe(true);
+    });
   });
 
   it("renders the Maximize trigger only for image files when onRequestImageGallery is provided", async () => {
