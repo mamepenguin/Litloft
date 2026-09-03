@@ -118,9 +118,9 @@ class TestDashboard:
         assert len(body["drives"]) == 1
         drive = body["drives"][0]
         assert drive["name"] == TEST_DRIVE
-        assert drive["total_bytes"] > 0
-        assert drive["used_bytes"] >= 0
-        assert drive["free_bytes"] >= 0
+        # Disk figures moved to the system section: they describe the
+        # filesystem, not the drive. See TestFilesystemUsage.
+        assert "total_bytes" not in drive
         assert isinstance(drive["file_count"], int)
         assert isinstance(drive["file_types"], dict)
         assert isinstance(drive["is_scanning"], bool)
@@ -196,3 +196,114 @@ class TestDashboard:
         system = res.json()["system"]
 
         assert system["thumbnail_cache_bytes"] >= 1024
+
+
+class TestFilesystemUsage:
+    """Disk usage is reported per filesystem, not per drive.
+
+    ``shutil.disk_usage`` measures a mount. Asking it once per drive
+    gave every drive on one disk the same numbers, so an empty drive
+    read as 48% full and three drives on one SSD looked like three disks
+    filling in step.
+    """
+
+    def test_drive_cards_carry_no_disk_figures(self, client):
+        c, db, drive_dir, data_dir = client
+        for drive in c.get("/api/admin/dashboard").json()["drives"]:
+            for gone in ("total_bytes", "used_bytes", "free_bytes"):
+                assert gone not in drive, gone
+
+    def test_one_row_per_filesystem_naming_its_drives(self, client):
+        c, db, drive_dir, data_dir = client
+        rows = c.get("/api/admin/dashboard").json()["system"]["filesystems"]
+        assert rows, "the configured drive must appear on some filesystem"
+        for row in rows:
+            assert row["total_bytes"] > 0
+            assert row["drives"], "a filesystem row that names no drive is noise"
+
+    def test_drives_sharing_a_disk_share_one_row(self, client, monkeypatch, tmp_path):
+        # Two drives under one tmp_path are on one filesystem, and being
+        # reported once is the whole point.
+        import app.config as config
+
+        c, db, drive_dir, data_dir = client
+        first = tmp_path / "one"
+        second = tmp_path / "two"
+        first.mkdir()
+        second.mkdir()
+        monkeypatch.setattr(
+            config,
+            "load_drives",
+            lambda: [
+                {"name": "one", "path": str(first)},
+                {"name": "two", "path": str(second)},
+            ],
+        )
+
+        rows = c.get("/api/admin/dashboard").json()["system"]["filesystems"]
+        assert len(rows) == 1
+        assert sorted(rows[0]["drives"]) == ["one", "two"]
+
+    def test_drives_on_different_disks_get_different_rows(self, client, monkeypatch, tmp_path):
+        # The grouping key is the whole point, and one tmp_path cannot
+        # tell `st_dev` apart from any constant: both put two drives in
+        # one row. Two different device ids must produce two rows.
+        import app.config as config
+        from pathlib import Path
+
+        c, db, drive_dir, data_dir = client
+        first = tmp_path / "disk-a"
+        second = tmp_path / "disk-b"
+        first.mkdir()
+        second.mkdir()
+        monkeypatch.setattr(
+            config,
+            "load_drives",
+            lambda: [
+                {"name": "a", "path": str(first)},
+                {"name": "b", "path": str(second)},
+            ],
+        )
+
+        real_stat = Path.stat
+        fake_device = {str(first): 101, str(second): 202}
+
+        class _Result:
+            """The real stat with one field overridden.
+
+            Delegating the rest matters: these paths are stat'd for size
+            and mode elsewhere in the same request, and a stub carrying
+            only ``st_dev`` breaks those callers depending on ordering.
+            """
+
+            def __init__(self, real, dev):
+                self._real = real
+                self.st_dev = dev
+
+            def __getattr__(self, name):
+                return getattr(self._real, name)
+
+        def fake_stat(self, *args, **kwargs):
+            result = real_stat(self, *args, **kwargs)
+            dev = fake_device.get(str(self))
+            return _Result(result, dev) if dev is not None else result
+
+        monkeypatch.setattr(Path, "stat", fake_stat)
+
+        rows = c.get("/api/admin/dashboard").json()["system"]["filesystems"]
+        assert len(rows) == 2
+        assert sorted(r["drives"][0] for r in rows) == ["a", "b"]
+
+    def test_an_unreadable_drive_contributes_no_row(self, client, monkeypatch, tmp_path):
+        import app.config as config
+
+        c, db, drive_dir, data_dir = client
+        monkeypatch.setattr(
+            config,
+            "load_drives",
+            lambda: [{"name": "ghost", "path": str(tmp_path / "not-mounted")}],
+        )
+
+        # A row of zeroes would read as a full disk, which is worse than
+        # saying nothing.
+        assert c.get("/api/admin/dashboard").json()["system"]["filesystems"] == []

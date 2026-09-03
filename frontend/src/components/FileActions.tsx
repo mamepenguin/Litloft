@@ -2,7 +2,6 @@
 
 import { useCallback, useLayoutEffect, useRef, useState, useEffect } from "react";
 import { createPortal } from "react-dom";
-import { Download, Move, Pencil, SquarePen, Trash2 } from "lucide-react";
 
 import { useTranslations } from "next-intl";
 import {
@@ -11,6 +10,7 @@ import {
   moveFile,
   renameFile,
 } from "@/lib/api";
+import { useFileMenuItems } from "@/hooks/useFileMenuItems";
 import type { FileItem } from "@/types";
 import { ActionMenuItem } from "./ActionMenuItem";
 import { useDialogPortalTarget } from "./DialogPortal";
@@ -18,6 +18,7 @@ import { AddonSlot } from "./AddonSlot";
 import { ConfirmDialog } from "./ConfirmDialog";
 import { RenameDialog } from "./RenameDialog";
 import { MoveDialog } from "./MoveDialog";
+import { CollectionPicker } from "./CollectionPicker";
 
 /** Must match the menu's `w-40`; used to decide which side it opens on. */
 const MENU_WIDTH_PX = 160;
@@ -51,6 +52,7 @@ export function FileActions({
   const [renameOpen, setRenameOpen] = useState(false);
   const [moveOpen, setMoveOpen] = useState(false);
   const [deleteOpen, setDeleteOpen] = useState(false);
+  const [collectionPickerOpen, setCollectionPickerOpen] = useState(false);
   const [addonDialogOpen, setAddonDialogOpen] = useState(false);
   // document.body everywhere except inside the mobile Bottom Sheet,
   // which hands out a host in its own subtree — see DialogPortal.
@@ -167,46 +169,35 @@ export function FileActions({
     }
   }, [file.id, onDelete, t]);
 
-  const menuItems = [
-    ...(onEdit ? [{
-      icon: SquarePen,
-      label: t("edit"),
-      onClick: () => {
-        setMenuOpen(false);
-        onEdit();
-      },
-    }] : []),
-    {
-      icon: Download,
-      label: tc("download"),
-      onClick: handleDownload,
+  // Every surface's menu comes from here, including this one. It used
+  // to build its own array, which is how it ended up without
+  // "add to collection" at all — the entry the card and list menus both
+  // had. Each handler closes the menu first: the dialogs portal out of
+  // this subtree, and leaving it open would stack a menu over them.
+  const menuItems = useFileMenuItems(file, {
+    onEdit: onEdit
+      ? () => {
+          setMenuOpen(false);
+          onEdit();
+        }
+      : undefined,
+    onAddToCollection: () => {
+      setMenuOpen(false);
+      setCollectionPickerOpen(true);
     },
-    {
-      icon: Pencil,
-      label: tc("rename"),
-      onClick: () => {
-        setMenuOpen(false);
-        setRenameOpen(true);
-      },
+    onRename: () => {
+      setMenuOpen(false);
+      setRenameOpen(true);
     },
-    {
-      icon: Move,
-      label: tc("move"),
-      onClick: () => {
-        setMenuOpen(false);
-        setMoveOpen(true);
-      },
+    onMove: () => {
+      setMenuOpen(false);
+      setMoveOpen(true);
     },
-    {
-      icon: Trash2,
-      label: tt("moveToTrash"),
-      onClick: () => {
-        setMenuOpen(false);
-        setDeleteOpen(true);
-      },
-      danger: true,
+    onTrash: () => {
+      setMenuOpen(false);
+      setDeleteOpen(true);
     },
-  ];
+  });
 
   return (
     <>
@@ -248,6 +239,7 @@ export function FileActions({
                 icon={item.icon}
                 label={item.label}
                 onClick={item.onClick}
+                disabled={item.disabled}
                 danger={item.danger}
               />
             ))}
@@ -316,6 +308,20 @@ export function FileActions({
             currentPath={file.folder_path}
             onMove={handleMove}
             onCancel={() => setMoveOpen(false)}
+          />,
+          dialogHost
+        )}
+
+      {/* Through the same portal as the others. Opened from inside the
+          mobile Bottom Sheet, a dialog rendered in place is buried by
+          the sheet it was opened from. */}
+      {collectionPickerOpen && dialogHost &&
+        createPortal(
+          <CollectionPicker
+            open={collectionPickerOpen}
+            drive={file.drive}
+            fileIds={[file.id]}
+            onClose={() => setCollectionPickerOpen(false)}
           />,
           dialogHost
         )}

@@ -10,6 +10,8 @@ import { useFileNavigationOverride } from "@/lib/fileNavigationOverride";
 import { formatDuration, formatFileSize } from "@/lib/format";
 import type { FileItem, FileItemWithMatch } from "@/types";
 
+import { MoreVertical } from "lucide-react";
+
 import { useClipboard } from "./ClipboardProvider";
 import { FavoriteButton } from "./FavoriteButton";
 import { FileTypeIcon } from "./FileTypeIcon";
@@ -161,7 +163,7 @@ function FileListRowImpl({
 
   return (
     <div
-      className={`flex items-center gap-3 bg-bg-card p-2.5 sm:p-2 border-b border-bg-border last:border-b-0 transition-colors hover:bg-bg-elevated${
+      className={`group flex items-center gap-3 bg-bg-card p-2.5 sm:p-2 border-b border-bg-border last:border-b-0 transition-colors hover:bg-bg-elevated${
         draggable ? " select-none" : selectable ? " cursor-pointer select-none" : ""
       } ${selected ? "ring-2 ring-accent ring-inset" : ""}${
         isDragging ? " opacity-40" : ""
@@ -245,7 +247,51 @@ function FileListRowImpl({
           fileId={file.id}
           isFavorite={file.is_favorite}
           onToggle={onFavoriteToggle}
+          entityName={file.title}
         />
+      )}
+      {/* Rename, move, copy and trash were reachable only by
+          right-click, so a keyboard could not get to them at all. The
+          button holds its place with `opacity-0` rather than appearing
+          on hover, so the row does not reflow under the pointer; it
+          shows on focus for the keyboard and stays put on touch, where
+          there is no hover to reveal it.
+          Sized past its 16px glyph to a 24px target (hako
+          `Prwd_iaXmCjWfY24KjFz2`), and 44px where the pointer is a
+          finger (`00-basis.md`, mobile sizing). */}
+      {!selectable && onContextMenu && (
+        <button
+          type="button"
+          aria-label={t("actionsFor", { name: file.title })}
+          onClick={(e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            // Enter and Space on a button produce a click with no
+            // pointer, so `clientX/clientY` are 0 and the menu opens
+            // clamped to the top-left of the window — forty rows away
+            // from the row it belongs to. Anchor it to the button
+            // instead, which is where a pointer click would have put it
+            // anyway.
+            if (e.clientX === 0 && e.clientY === 0) {
+              const box = e.currentTarget.getBoundingClientRect();
+              onContextMenu(
+                {
+                  ...e,
+                  preventDefault: () => {},
+                  stopPropagation: () => {},
+                  clientX: box.left,
+                  clientY: box.bottom,
+                } as unknown as React.MouseEvent,
+                file,
+              );
+              return;
+            }
+            onContextMenu(e, file);
+          }}
+          className="flex h-6 w-6 flex-shrink-0 items-center justify-center rounded-lg text-text-muted opacity-0 transition-opacity hover:bg-bg-elevated hover:text-text-primary focus-visible:opacity-100 group-hover:opacity-100 focus-within:opacity-100 pointer-coarse:h-11 pointer-coarse:w-11 pointer-coarse:opacity-100"
+        >
+          <MoreVertical size={16} />
+        </button>
       )}
     </div>
   );

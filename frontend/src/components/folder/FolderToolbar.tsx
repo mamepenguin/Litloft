@@ -311,16 +311,28 @@ export function FolderToolbar({
                         onTrustFilterChange(opt.value);
                         setTrustFilterOpen(false);
                       }}
-                      className={`flex w-full items-center gap-2 px-3 py-2 text-left text-sm transition-colors ${
+                      className={`flex w-full items-start gap-2 px-3 py-2 text-left text-sm transition-colors ${
                         (trustFilter ?? null) === opt.value
                           ? "bg-bg-elevated text-text-primary font-medium"
                           : "text-text-primary hover:bg-bg-elevated"
                       }`}
                     >
-                      <span className="w-4 flex-shrink-0">
+                      <span className="mt-0.5 w-4 flex-shrink-0">
                         {(trustFilter ?? null) === opt.value && <Check size={14} />}
                       </span>
-                      {tTrust(opt.labelKey)}
+                      <span className="flex-1">
+                        {tTrust(opt.labelKey)}
+                        {/* "Unjudged" is not a tier — it selects files
+                            nobody has ruled on, which spans both tiers
+                            because the migrated backlog is verified and
+                            unjudged. The word alone reads as a third
+                            state, so it says what it means here. */}
+                        {opt.value === "unreviewed" && (
+                          <span className="mt-0.5 block text-xs font-normal text-text-muted">
+                            {tTrust("filterUnreviewedHint")}
+                          </span>
+                        )}
+                      </span>
                     </button>
                   ))}
                 </div>

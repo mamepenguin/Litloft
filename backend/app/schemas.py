@@ -640,16 +640,31 @@ class CollectionDetailResponse(_UtcDateTimeMixin, BaseModel):
 
 class DashboardDriveInfo(BaseModel):
     name: str
-    total_bytes: int
-    used_bytes: int
-    free_bytes: int
     file_count: int
     file_types: dict[str, int]
     last_scanned_at: datetime | None = None
     is_scanning: bool
 
 
+class DashboardFilesystemInfo(BaseModel):
+    """One mounted filesystem, and the drives that live on it.
+
+    Reported per filesystem rather than per drive because that is what
+    the number measures. Every drive used to carry a copy of
+    ``shutil.disk_usage`` for whatever mount it sat on, so drives
+    sharing a disk all showed the same bar and an empty drive read as
+    48% full.
+    """
+
+    mount_label: str
+    total_bytes: int
+    used_bytes: int
+    free_bytes: int
+    drives: list[str]
+
+
 class DashboardSystemInfo(BaseModel):
+    filesystems: list[DashboardFilesystemInfo] = []
     db_size_bytes: int
     thumbnail_cache_bytes: int
     converted_cache_bytes: int

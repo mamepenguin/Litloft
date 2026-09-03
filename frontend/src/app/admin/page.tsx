@@ -145,8 +145,10 @@ function DriveCard({ drive }: { drive: DashboardDriveInfo }) {
         )}
       </div>
 
-      <UsageBar usedBytes={drive.used_bytes} totalBytes={drive.total_bytes} />
-
+      {/* No usage bar. It measured the filesystem the drive sits on,
+          not the drive, so every drive on one disk drew the same bar and
+          an empty one read as half full. The real figure is per
+          filesystem, in the system section below. */}
       <div className="mt-3 text-xs text-text-muted">
         {t("files", { count: drive.file_count })}
       </div>
@@ -210,6 +212,31 @@ function SystemCard({ system }: { system: DashboardSystemInfo }) {
         <StatItem icon={Archive} label={t("uploadTemp")} value={formatFileSize(system.upload_temp_bytes)} />
         <StatItem icon={Clock} label={t("uptime")} value={formatUptime(system.uptime_seconds, t)} />
       </div>
+
+      {/* One row per filesystem, naming the drives that share it —
+          which is the fact the per-drive bars could not express. */}
+      {system.filesystems.length > 0 && (
+        <div className="mt-4 space-y-3 border-t border-bg-border pt-4">
+          {system.filesystems.map((fs) => (
+            <div key={fs.mount_label}>
+              <div className="flex items-baseline justify-between gap-2 text-xs">
+                <span className="truncate text-text-primary" title={fs.mount_label}>
+                  {fs.drives.join(", ")}
+                </span>
+                <span className="flex-shrink-0 text-text-muted">
+                  {t("diskUsage", {
+                    used: formatFileSize(fs.used_bytes),
+                    total: formatFileSize(fs.total_bytes),
+                  })}
+                </span>
+              </div>
+              <div className="mt-1">
+                <UsageBar usedBytes={fs.used_bytes} totalBytes={fs.total_bytes} />
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
     </div>
   );
 }
@@ -289,6 +316,17 @@ export default function AdminDashboardPage() {
           {error}
         </div>
       )}
+
+      {/* Anything wrong, above everything that is fine.
+          An addon reporting a problem — intelligence's failed indexing
+          jobs are the first — had nowhere above the fold to say so, so
+          it said it at the bottom of a widget three sections down. No
+          wrapper and no heading: an alert supplies its own, and
+          `empty:hidden` keeps the margin from being the only thing on
+          screen when nothing is wrong. */}
+      <div className="mb-8 space-y-3 empty:hidden">
+        <AddonSlot id="dashboard-alerts" layout="stack" />
+      </div>
 
       <section className="mb-8">
         <h2 className="mb-3 text-sm font-semibold uppercase text-text-muted">

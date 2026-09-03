@@ -467,4 +467,48 @@ describe("FilterField", () => {
     expect(chip).toBeInTheDocument();
     expect(chip.className).toMatch(/text-text-primary/);
   });
+
+  describe("the two shapes", () => {
+    // The tree's filter and the listing's were the same component drawn
+    // identically, forty pixels apart. Telling them apart is the point
+    // of the variant, so the test is about the difference, not about
+    // either one's class list.
+    const classesFor = (variant?: "pill" | "underline") => {
+      const { unmount } = render(
+        <FilterField
+          text=""
+          onTextChange={vi.fn()}
+          placeholder="..."
+          variant={variant}
+        />,
+      );
+      const el = screen.getByRole("textbox");
+      const className = el.className;
+      const hasSearchIcon = Boolean(
+        el.parentElement?.querySelector("svg.lucide-search"),
+      );
+      unmount();
+      return { className, hasSearchIcon };
+    };
+
+    it("draws a bordered pill with a magnifier by default", () => {
+      const pill = classesFor();
+      expect(pill.className).toContain("rounded-2xl");
+      expect(pill.hasSearchIcon).toBe(true);
+    });
+
+    it("draws a bare rule with no magnifier when asked for underline", () => {
+      const line = classesFor("underline");
+      expect(line.className).toContain("border-b");
+      expect(line.className).not.toContain("rounded-2xl");
+      expect(line.hasSearchIcon).toBe(false);
+    });
+
+    it("makes the two visibly different", () => {
+      const pill = classesFor("pill");
+      const line = classesFor("underline");
+      expect(line.className).not.toBe(pill.className);
+      expect(line.hasSearchIcon).not.toBe(pill.hasSearchIcon);
+    });
+  });
 });

@@ -3,6 +3,20 @@ import { render, screen, fireEvent, waitFor } from "@testing-library/react";
 import { FileActions } from "../FileActions";
 import type { FileItem } from "@/types";
 
+// The detail menu is built by `useFileMenuItems`, which reads the
+// clipboard for Copy / Cut. The app wraps everything in the provider
+// (`app/layout.tsx`); this stands in for it.
+vi.mock("@/components/ClipboardProvider", () => ({
+  useClipboard: () => ({
+    clipboard: null,
+    copy: vi.fn(),
+    cut: vi.fn(),
+    paste: vi.fn(),
+    clear: vi.fn(),
+    isCut: () => false,
+  }),
+}));
+
 vi.mock("@/lib/api", () => ({
   deleteFile: vi.fn().mockResolvedValue(undefined),
   getDownloadUrl: (id: string) => `/api/files/${id}/stream?download=true`,
@@ -124,7 +138,19 @@ describe("FileActions", () => {
 
     expect(trigger).toHaveAttribute("aria-expanded", "true");
     expect(screen.getByRole("menu")).toBeInTheDocument();
-    expect(screen.getAllByRole("menuitem")).toHaveLength(4);
+    // The seven this menu shares with the card and list menus. It used
+    // to build its own array and had five — no Copy, no Cut, and no
+    // "add to collection" at all. See `fileMenuParity.test.tsx`, which
+    // compares the three real surfaces rather than this count.
+    expect(screen.getAllByRole("menuitem")).toHaveLength(7);
+  });
+
+  it("offers add-to-collection, like the card and list menus do", () => {
+    render(<FileActions file={mockFile} />);
+    fireEvent.click(screen.getByLabelText("File actions"));
+    expect(
+      screen.getByRole("menuitem", { name: /add to collection/i }),
+    ).toBeInTheDocument();
   });
 
   it("opens menu on click", () => {

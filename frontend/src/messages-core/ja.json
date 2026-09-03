@@ -159,7 +159,8 @@
     "relatedFileMissing": "見つからない",
     "relatedFileSizeBytes": "{size}バイト",
     "layoutBeside": "文字起こしを動画の横に表示",
-    "layoutStack": "文字起こしを動画の下に表示"
+    "layoutStack": "文字起こしを動画の下に表示",
+    "actionsFor": "{name} の操作"
   },
   "search": {
     "label": "検索",
@@ -240,7 +241,9 @@
     "add": "お気に入りに追加",
     "remove": "お気に入り解除",
     "added": "お気に入り済み",
-    "label": "お気に入り"
+    "label": "お気に入り",
+    "addFor": "{name} をお気に入りに追加",
+    "removeFor": "{name} をお気に入りから外す"
   },
   "like": {
     "add": "Like する",
@@ -431,11 +434,13 @@
     "loading": "読み込み中...",
     "errorRetry": "再試行",
     "empty": "このフォルダにファイルはありません",
-    "dropToRoot": "ここにドロップしてドライブ直下へ移動"
+    "dropToRoot": "ここにドロップしてドライブ直下へ移動",
+    "paneHeading": "フォルダ"
   },
   "filter": {
     "placeholder": {
       "tree": "名前で絞り込み...",
+      "treeSearch": "フォルダを探す",
       "folder": "このフォルダで絞り込み..."
     },
     "type": {
@@ -474,7 +479,12 @@
     "home": "ホーム",
     "more": "その他の操作",
     "reshuffle": "再シャッフル",
-    "searchWholeDrive": "ドライブ全体を検索"
+    "searchWholeDrive": "ドライブ全体を検索",
+    "scanStarted": "{drive} を再スキャンしています",
+    "scanDone": "再スキャン完了 — 追加 {added} / 復帰 {recovered} / 見つからない {missing}",
+    "scanDoneNoChange": "再スキャン完了 — 変更はありません",
+    "scanAlreadyRunning": "このドライブは既に再スキャン中です",
+    "scanFailed": "再スキャンに失敗しました"
   },
   "gallery": {
     "imageGallery": "画像ギャラリー",
@@ -753,7 +763,8 @@
     "restartTitle": "保留中の変更があります。反映には再起動が必要です",
     "restartCopyCommand": "docker compose restart backend",
     "restartCopyButton": "コピー",
-    "restartCopied": "コピーしました"
+    "restartCopied": "コピーしました",
+    "diskUsage": "{used} / {total} 使用"
   },
   "markdownImages": {
     "title": "Markdown画像の添付化",
@@ -1076,12 +1087,14 @@
     }
   },
   "trustTier": {
+    "stateVerified": "検証済み",
     "stateUnverified": "未検証",
     "trust": "出典として信用する",
     "withdraw": "信用を取り消す",
     "filterAll": "すべて",
     "filterVerified": "検証済みのみ",
-    "filterUnreviewed": "未確認のみ",
-    "filterLabel": "信頼度"
+    "filterUnreviewed": "未判定のみ",
+    "filterUnreviewedHint": "誰も判定していないもの（移行分を含む）",
+    "filterLabel": "検証状態"
   }
 }

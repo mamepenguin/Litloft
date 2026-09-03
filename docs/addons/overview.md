@@ -81,7 +81,7 @@ Common fields:
 
 - `name` — opaque identifier, must match the directory name.
 - `scope` — `drive | global | both`.
-- `slots` — UI injection points the addon contributes to (search-modes, file-detail-sections, dashboard-widgets, folder-actions).
+- `slots` — UI injection points the addon contributes to (search-modes, file-detail-sections, file-detail-actions, dashboard-widgets, dashboard-alerts, folder-actions).
 - `features` — the sub-feature flags exposed to the policy editor.
 - `pages` — frontend routes the addon adds.
 - `event_hooks` — webhook URLs invoked on lifecycle events.
@@ -93,6 +93,7 @@ Litloft's frontend has a small set of named slots:
 - `search-modes` — appended to the search page sidebar.
 - `file-detail-sections` — stacked cards under the viewer (transcript, AI summary, similar files, …).
 - `dashboard-widgets` — admin dashboard cards.
+- `dashboard-alerts` — a band above the drive cards, for something an operator should see before anything else. Absent when there is nothing to report.
 - `folder-actions` — appended to the folder context menu.
 - `file-actions-menu` — entries in the `[...]` overflow menu on the file detail page, for per-file actions that are too infrequent to earn a section.
 

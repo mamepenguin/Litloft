@@ -74,10 +74,16 @@ describe("TrustTierControl", () => {
     },
   );
 
-  it("shows no text on a verified file, reviewed or not", () => {
-    // Verified is the normal state of nearly every file; a label repeated
-    // across the whole library is noise. This is the regression that made
-    // scanner-discovered files read as unverified.
+  it("names the state in words, whichever state it is", () => {
+    // Verified used to be a bare shield, on the reasoning that a label
+    // repeated across a library is noise — true of list rows, and this
+    // control renders once, on the detail page. Next to an unverified
+    // state that says so in words, the silent half made the reader
+    // supply the meaning of a shield.
+    //
+    // Reviewed-ness is deliberately not in here: whether anyone has
+    // *ruled* on the file is a different question from which tier it is
+    // in, and mixing them made every untouched file look like a warning.
     for (const reviewedAt of [null, REVIEWED]) {
       const { unmount } = render(
         <TrustTierControl
@@ -85,9 +91,29 @@ describe("TrustTierControl", () => {
           onChange={vi.fn()}
         />,
       );
-      expect(screen.getByTestId("trust-tier-state")).toHaveTextContent("");
+      expect(screen.getByTestId("trust-tier-state")).toHaveTextContent(
+        "stateVerified",
+      );
       unmount();
     }
+  });
+
+  it("uses one stem for the state on both sides", () => {
+    // 検証 / 確認 / 信用 were three stems for a two-valued state, and
+    // "未検証" and "未確認のみ" did not even name the same set. The
+    // state is 検証 now; 信用 survives only as the verb on the action.
+    const { unmount } = render(
+      <TrustTierControl file={makeFile("verified", REVIEWED)} onChange={vi.fn()} />,
+    );
+    const verified = screen.getByTestId("trust-tier-state").textContent;
+    unmount();
+    render(
+      <TrustTierControl file={makeFile("unverified", null)} onChange={vi.fn()} />,
+    );
+    const unverified = screen.getByTestId("trust-tier-state").textContent;
+    // Same key family, so the two read as one pair rather than two ideas.
+    expect(verified).toBe("stateVerified");
+    expect(unverified).toBe("stateUnverified");
   });
 
   it("labels only the exception", () => {
@@ -99,7 +125,7 @@ describe("TrustTierControl", () => {
     );
   });
 
-  it("is a single control, so it fits the 300px Markdown inspector", () => {
+  it("is a single control, so it fits the Markdown inspector", () => {
     // Regression: a state chip beside an action button put two text labels in
     // a row that also renders in the inspector and on a phone.
     render(

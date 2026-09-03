@@ -159,7 +159,8 @@
     "relatedFileMissing": "missing",
     "relatedFileSizeBytes": "{size} bytes",
     "layoutBeside": "Move transcript beside the player",
-    "layoutStack": "Move transcript below the player"
+    "layoutStack": "Move transcript below the player",
+    "actionsFor": "Actions for {name}"
   },
   "search": {
     "label": "Search",
@@ -240,7 +241,9 @@
     "add": "Add to favorites",
     "remove": "Remove from favorites",
     "added": "Favorited",
-    "label": "Favorites"
+    "label": "Favorites",
+    "addFor": "Add {name} to favorites",
+    "removeFor": "Remove {name} from favorites"
   },
   "like": {
     "add": "Mark as liked",
@@ -431,11 +434,13 @@
     "loading": "Loading...",
     "errorRetry": "Retry",
     "empty": "No files in this folder",
-    "dropToRoot": "Drop here to move to drive root"
+    "dropToRoot": "Drop here to move to drive root",
+    "paneHeading": "Folders"
   },
   "filter": {
     "placeholder": {
       "tree": "Filter by name...",
+      "treeSearch": "Find a folder",
       "folder": "Filter in this folder..."
     },
     "type": {
@@ -474,7 +479,12 @@
     "home": "Home",
     "more": "More actions",
     "reshuffle": "Reshuffle",
-    "searchWholeDrive": "Search the whole drive"
+    "searchWholeDrive": "Search the whole drive",
+    "scanStarted": "Rescanning {drive}",
+    "scanDone": "Rescan finished — {added} added, {recovered} recovered, {missing} missing",
+    "scanDoneNoChange": "Rescan finished — nothing changed",
+    "scanAlreadyRunning": "This drive is already being rescanned",
+    "scanFailed": "Rescan failed"
   },
   "gallery": {
     "imageGallery": "Image gallery",
@@ -753,7 +763,8 @@
     "restartTitle": "Pending changes — restart required",
     "restartCopyCommand": "docker compose restart backend",
     "restartCopyButton": "Copy",
-    "restartCopied": "Copied"
+    "restartCopied": "Copied",
+    "diskUsage": "{used} of {total} used"
   },
   "markdownImages": {
     "title": "Attach Markdown Images",
@@ -1076,12 +1087,14 @@
     }
   },
   "trustTier": {
+    "stateVerified": "Verified",
     "stateUnverified": "Unverified",
     "trust": "Trust as a source",
     "withdraw": "Withdraw trust",
     "filterAll": "All",
     "filterVerified": "Verified only",
-    "filterUnreviewed": "Not reviewed only",
-    "filterLabel": "Trust"
+    "filterUnreviewed": "Unjudged only",
+    "filterUnreviewedHint": "Nobody has ruled on these, migrated files included",
+    "filterLabel": "Verification"
   }
 }

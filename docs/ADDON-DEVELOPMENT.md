@@ -786,6 +786,7 @@ Addons can inject UI components into predefined **slots** in the core applicatio
 | `search-modes` | Search results page (`/drive/{drive}/search`); not the GlobalSearch popup | Stack | Semantic search, Find, and other custom retrievers. Receives a `context: "popup" \| "page"` prop (default `"popup"`); core mounts the slot only on the results page with `context: "page"` today, but the prop is reserved so addons may render a compact popup layout in the future without breaking compatibility. The GlobalSearch popup obtains semantic hits by calling intelligence's HTTP routes directly via the thin wrapper at `frontend/src/lib/semanticSearch.ts` — the established public-contract pattern — not via this slot |
 | `file-detail-sections` | File detail panel | Vertical stack | Transcripts, similar files, suggested tags, summaries, knowledge notes |
 | `dashboard-widgets` | Admin dashboard | Cards | Index statistics, cloud sync status |
+| `dashboard-alerts` | Admin dashboard, above the drive cards | Stack | Something is wrong and an operator should see it before anything else — a queue of failed jobs, a provider that stopped answering. Render nothing when there is nothing wrong: the host draws no wrapper and no heading, so an entry that always renders is a permanent band above the page. |
 | `folder-actions` | Folder toolbar | Inline buttons | Batch AI actions |
 | `file-actions-menu` | The `[...]` overflow menu on the file detail page | Stack of menu rows | Per-file actions too infrequent to deserve a section of their own. See [Contributing to the file actions menu](#contributing-to-the-file-actions-menu) — entries have extra obligations. |
 | `file-detail-actions` | The file detail page's primary action row, between the state controls and the `[...]` menu | Inline buttons | Per-file actions that deserve to be reachable in one press rather than through the overflow menu — the file counterpart of `folder-actions`. See [Contributing to the file action row](#contributing-to-the-file-action-row). |
@@ -1279,6 +1280,7 @@ For the full design and the broader rationale, see `docs/superpowers/specs/2026-
 | `file-detail-sections` | `similar-files` | Visually similar files (collapsed by default; the detect button is inside) |
 | `drive-home-sections` | `pickup` | Recommended files widget on the drive home page |
 | `dashboard-widgets` | `index-status` | Index queue depth, model memory, and a failed-jobs summary that opens a per-file × per-task retry modal |
+| `dashboard-alerts` | `failed-jobs` | The failed-jobs warning band, above the drive cards. Absent when nothing has failed. |
 | `folder-actions` | `folder-ai-actions` | Batch AI actions button (auto-tags, summaries, transcript refine) |
 | `file-detail-actions` | `file-ai-actions` | The **AI** menu beside the like and favourite buttons. Lists only what this file does not have yet (tag candidates, summary, detailed summary, chapter candidates, image description); each entry disappears once its section has content, and the button hides itself when nothing is left to offer |
 | `admin-intelligence-sections` | `admin-features` | Feature toggle panel on the intelligence admin page |

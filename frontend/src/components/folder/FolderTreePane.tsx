@@ -494,14 +494,29 @@ export function FolderTreePane({
 
   return (
     <div className="relative flex h-full flex-col border-r border-bg-border bg-bg-card">
-      <div className="px-3 py-2">
-        <FilterField
-          text={text.text}
-          onTextChange={(next) => text.setText(next)}
-          placeholder={tFilter("placeholder.tree")}
-          typeFilter={filter}
-          onTypeFilterChange={setFilter}
-        />
+      {/* Pane heading, with the filter inside it.
+          The tree's filter and the listing's were the same component
+          drawn identically, forty pixels apart, and the only thing
+          telling them apart was a placeholder nobody reads twice. This
+          one is an underlined field in a heading — a different shape in
+          a different place, saying a different verb ("find a folder"
+          rather than "filter in this folder"), because they do
+          different things: this one searches the whole drive's tree,
+          that one narrows the folder you are looking at. */}
+      <div className="flex items-center gap-2 px-3 py-2">
+        <span className="flex-shrink-0 text-[11px] font-semibold text-text-muted">
+          {t("paneHeading")}
+        </span>
+        <div className="min-w-0 flex-1">
+          <FilterField
+            variant="underline"
+            text={text.text}
+            onTextChange={(next) => text.setText(next)}
+            placeholder={tFilter("placeholder.treeSearch")}
+            typeFilter={filter}
+            onTypeFilterChange={setFilter}
+          />
+        </div>
       </div>
       {/* Root drop band — overlayed so showing it during dragstart does
           not reflow the tree rows and cancel the native drag gesture. */}

@@ -1,9 +1,13 @@
 "use client";
 
-import { type LucideIcon } from "lucide-react";
+import type { ComponentType } from "react";
 
 export interface ActionMenuItemProps {
-  icon: LucideIcon;
+  /**
+   * Accepts the same shape as `MenuItem.icon` so a row can be drawn
+   * from the shared file-menu definition without restating its type.
+   */
+  icon: ComponentType<{ size?: number }>;
   label: string;
   onClick: () => void;
   disabled?: boolean;

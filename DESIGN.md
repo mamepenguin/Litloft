@@ -693,6 +693,31 @@ An inline script in `<head>` reads `localStorage('theme-preference')` and sets `
 
 ## 8.5 Layout
 
+### Inspector column (document layout)
+
+The Markdown document layout puts an inspector beside the canvas: file
+meta, tags, related files, comments and the addon sections that fit a
+narrow column.
+
+| Token | Value | Meaning |
+|---|---|---|
+| inspector width | `24rem` (384px) | Fixed. |
+
+**A separate entry from the companion rail below, despite the same
+number.** They are different parts — one holds a document's metadata,
+the other follows a player's clock — and they arrive at 384px for the
+same reason rather than by sharing a value: it is the narrowest column
+where Japanese does not wrap at 12–14 characters a line. Merging them
+into one row would make a later change to either look like a change to
+both.
+
+It was 300px until 2026-09, chosen as part of a three-column budget
+(sidebar 240 + tree 280 + inspector 300 = 820px, spec
+`2026-05-10-markdown-document-layout.md`). The 2026-09 file-detail
+design puts a fixed header and a tab strip in this column, which 300px
+cannot hold. Recording the old number here so the next person to count
+the budget does not read 384 as drift and put it back.
+
 ### Companion rail (media file detail)
 
 A media file's detail page may put a companion column beside the

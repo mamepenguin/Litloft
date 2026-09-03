@@ -7,6 +7,13 @@ export interface MenuItem {
   icon: ComponentType<{ size?: number }>;
   label: string;
   onClick: () => void;
+  /**
+   * The action exists here but cannot be run on this file right now —
+   * downloading one whose bytes have gone missing, say. Greyed and
+   * inert rather than removed, so the menu keeps the same shape and the
+   * row below does not move under the pointer (案 11).
+   */
+  disabled?: boolean;
   danger?: boolean;
 }
 
@@ -65,6 +72,9 @@ export function ContextMenu({ open, position, items, onClose }: ContextMenuProps
         {items.map((item) => (
           <button
             key={item.label}
+            role="menuitem"
+            disabled={item.disabled}
+            aria-disabled={item.disabled || undefined}
             onMouseDown={(e) => {
               e.preventDefault();
               e.stopPropagation();
@@ -72,15 +82,19 @@ export function ContextMenu({ open, position, items, onClose }: ContextMenuProps
             onClick={(e) => {
               e.preventDefault();
               e.stopPropagation();
+              if (item.disabled) return;
               onClose();
               // Use requestAnimationFrame to let the menu close before opening dialog
               requestAnimationFrame(() => item.onClick());
             }}
-            className={`flex w-full items-center gap-2.5 px-3 py-2 text-left text-sm transition-colors ${
+            // `:hover` still matches a disabled button, so the override
+            // stops a greyed row tinting under the pointer while
+            // refusing the click. Same treatment as ActionMenuItem.
+            className={`flex w-full items-center gap-2.5 px-3 py-2 text-left text-sm transition-colors disabled:opacity-50 disabled:hover:bg-transparent ${
               item.danger
                 ? "text-danger hover:bg-accent/10"
                 : "text-text-muted hover:bg-bg-elevated hover:text-text-primary"
-            }`}
+            } ${item.disabled && item.danger ? "disabled:hover:text-danger" : ""}`}
           >
             <item.icon size={14} />
             {item.label}

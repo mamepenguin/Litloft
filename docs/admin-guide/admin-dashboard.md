@@ -13,7 +13,6 @@ The page is composed of stacked sections, each driven by an API call:
 For every drive in `drives.json`:
 
 - **File counts by type** — videos, audio, images, documents, archives, other.
-- **Disk usage** — total bytes occupied by Active files.
 - **Trash count and bytes** — how much would be reclaimed by an empty-trash cycle.
 - **Missing count** — files that disappeared from disk and are awaiting recovery.
 - **Last scan** — when the scanner last walked this drive.
@@ -22,6 +21,13 @@ For every drive in `drives.json`:
 Click a drive card to drill into per-drive admin actions.
 
 ### System metrics
+
+**Disk usage is listed per filesystem, not per drive**, with the drives
+that share each one named beside it. `shutil.disk_usage` measures a
+mount: asking it once per drive gave every drive on the same disk
+identical numbers, so an empty drive read as half full. A drive whose
+path cannot be read is left out rather than shown as a full disk.
+
 
 A single card with global stats:
 
@@ -34,6 +40,10 @@ A single card with global stats:
 ### Duplicates
 
 Files sharing a `file_hash` are grouped here. Useful when consolidating after a bulk import. Each row links to the file detail page so you can pick a winner and delete the rest.
+
+### Addon alerts
+
+Above the drive cards, before anything else on the page, addons may raise something an operator should see first — the intelligence addon puts its failed indexing jobs here. The band is absent when nothing is wrong; it is not a section with an empty state.
 
 ### Addon widgets
 
@@ -59,7 +69,7 @@ For protected setups, ensure your own master password covers every group used in
 
 From the dashboard you can:
 
-- **Force a rescan** — *Rescan drive* on any drive card. This re-walks the directory and reconciles the DB.
+- **Force a rescan** — *Rescan* in the folder toolbar's `…` menu, inside the drive. (Not on the dashboard's drive cards; they carry no rescan button.) This re-walks the directory and reconciles the DB, then reports what it found — how many files were added, recovered and are now missing, or that nothing changed. If a scan is already running on that drive it says so rather than failing.
 - **Empty trash** — purges everything older than 30 days, or all trashed files with confirmation.
 - **Purge all missing** — `purge_all_missing` runs in chunks of 200 with a webhook per batch.
 - **Restart backend** — the UI does not actually restart the container; it points you at `docker compose restart backend` and the *restart-pending* flag.

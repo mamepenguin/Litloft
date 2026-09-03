@@ -1,45 +1,39 @@
 /**
- * Tests for `InspectorPane` — the open/expanded Inspector column.
+ * The inspector's width is a written rule now, so something has to hold
+ * it to the number.
  *
- * 2026-05-11 chrome consolidation: the pane no longer owns its own
- * header / close button — the unified top chrome in
- * `MarkdownDocumentLayout` exposes the toggle instead. The pane is now
- * a thin scrollable wrapper around the section stack.
+ * `DESIGN.md` had no entry for this column at all — the 384px in §8.5
+ * belongs to the media companion rail, a different part — so 300px was
+ * not drift from a rule, it was the absence of one. The rule exists
+ * now; this is what makes it more than prose.
  */
+
 import { describe, it, expect } from "vitest";
 import { render, screen } from "@testing-library/react";
+import { readFileSync } from "node:fs";
+import { fileURLToPath } from "node:url";
+import { resolve, dirname } from "node:path";
 
 import { InspectorPane } from "../InspectorPane";
 
-describe("InspectorPane", () => {
-  it("renders provided children", () => {
-    render(
-      <InspectorPane>
-        <div data-testid="tags-section">tags</div>
-        <div data-testid="related-section">related</div>
-      </InspectorPane>,
-    );
-    expect(screen.getByTestId("tags-section")).toBeInTheDocument();
-    expect(screen.getByTestId("related-section")).toBeInTheDocument();
+const REPO_ROOT = resolve(dirname(fileURLToPath(import.meta.url)), "../../../..");
+
+describe("the inspector column", () => {
+  it("is 384px, the width DESIGN.md §8.5 gives it", () => {
+    render(<InspectorPane>{null}</InspectorPane>);
+    // `w-96` is 24rem is 384px. Asserting the class rather than a
+    // computed width because jsdom applies no stylesheet.
+    expect(screen.getByTestId("inspector-pane").className).toContain("w-96");
   });
 
-  it("exposes the pane with a recognizable test id for layout assertions", () => {
-    render(
-      <InspectorPane>
-        <div>content</div>
-      </InspectorPane>,
+  it("agrees with the rule that names it", () => {
+    // The number lives in two places by necessity — a Tailwind class
+    // and a table in DESIGN.md — so the pair is what needs pinning. A
+    // change to either alone fails here.
+    const design = readFileSync(resolve(REPO_ROOT, "DESIGN.md"), "utf-8");
+    const section = design.slice(design.indexOf("### Inspector column"));
+    expect(section.slice(0, section.indexOf("### Companion rail"))).toMatch(
+      /inspector width \| `24rem` \(384px\)/,
     );
-    expect(screen.getByTestId("inspector-pane")).toBeInTheDocument();
-  });
-
-  it("does not render its own header / close button (chrome owns the toggle)", () => {
-    render(
-      <InspectorPane>
-        <div>content</div>
-      </InspectorPane>,
-    );
-    expect(
-      screen.queryByRole("button", { name: /close|collapse/i }),
-    ).not.toBeInTheDocument();
   });
 });
