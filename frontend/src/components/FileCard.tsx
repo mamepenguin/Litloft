@@ -25,6 +25,7 @@ function FileCardImpl({
   onMetaSelect,
   onShiftSelect,
   sortQuery,
+  showExtensionBadge = true,
   draggable,
   isDragging,
   onDragStart,
@@ -44,6 +45,17 @@ function FileCardImpl({
   onMetaSelect?: (id: string) => void;
   onShiftSelect?: (id: string) => void;
   sortQuery?: string;
+  /**
+   * Whether this listing's extension badges say anything. Resolved once
+   * by the grid and handed down as a plain boolean — see
+   * `lib/listMeta.ts` for the rule, and the memo note at the bottom of
+   * this file for why it arrives as a primitive.
+   *
+   * Defaults to drawing it: the drive-home carousels render cards
+   * directly and are mixed by construction, so the rule would only ever
+   * confirm what the default already does.
+   */
+  showExtensionBadge?: boolean;
   draggable?: boolean;
   isDragging?: boolean;
   onDragStart?: (e: React.DragEvent, file: FileItem) => void;
@@ -191,7 +203,7 @@ function FileCardImpl({
               {formatDuration(file.duration)}
             </span>
           )}
-          {file.file_type !== "video" && file.file_type !== "audio" && file.filename.includes(".") && (
+          {showExtensionBadge && file.file_type !== "video" && file.file_type !== "audio" && file.filename.includes(".") && (
             <span className="absolute bottom-2 right-2 rounded-lg bg-black/70 px-1.5 py-0.5 text-[10px] font-medium uppercase text-white">
               {file.filename.split(".").pop()}
             </span>

@@ -26,6 +26,14 @@ A toolbar above the grid lets you:
 - Turn on **Select mode** from the overflow (`…`) menu, then click cards to select them. `Cmd/Ctrl+click` turns selection on and toggles a card in one gesture, and `Shift+click` extends the selection to a range. A selection bar appears at the bottom with tag, rename, add-to-collection, copy, cut, move, and move-to-trash.
 - **Rescan** the drive, also from the overflow menu.
 - **Upload** and **New folder**, from the upload button.
+
+On a listing with nothing in it at all — no files and no subfolders —
+the toolbar drops the controls for arranging things: the view toggle,
+the sort, and the type filter. What stays is everything that puts
+something in the folder (upload, new folder, new note, rescan) and the
+count. A listing emptied by a filter keeps them all, because the filter
+that produced the empty result is also the way back out of it. The same
+applies to the drive root's own file listing and to an empty trash.
 - **New file** — create an empty `untitled-{timestamp}.md` in the current folder and jump straight into the editor (see below).
 
 The file list is paged: 30 files per request, fetched as you scroll. When you open a file and come back, the list is restored from a snapshot in `sessionStorage` — the pages you had already loaded and your scroll position both come back, so a deep scroll survives the round trip. The snapshot is skipped for random sort and for search results, and it expires after two hours.
@@ -35,7 +43,7 @@ Each file card shows:
 - Thumbnail (320x180 JPEG; lazy-generated on first access).
 - The file's **title**, not its filename. The title is derived from the filename and is cosmetic — this is why renaming in place is not offered on the cards (see below).
 - Size and the date the file was indexed, plus up to two tags.
-- A duration badge for video and audio, or an extension badge for everything else.
+- A duration badge for video and audio. Everything else gets an extension badge, but only where it distinguishes something: in a folder whose files all share one extension the badge is dropped, and the list view drops its type label the same way when every row is the same kind. Both come back the moment the listing is mixed — including when a later page brings in a different kind.
 - A thin *progress bar* along the bottom for partially-watched media.
 - A favourite star, shown on hover and always shown once the file is a favourite.
 

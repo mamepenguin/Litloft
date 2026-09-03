@@ -1,11 +1,12 @@
 "use client";
 
-import { useCallback, useState } from "react";
+import { useCallback, useMemo, useState } from "react";
 import { Download, ListMusic, Move, Pencil, Trash2 } from "lucide-react";
 
 import { ClipboardCopy, Scissors } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { deleteFile, getDownloadUrl, moveFile, renameFile } from "@/lib/api";
+import { deriveListMeta } from "@/lib/listMeta";
 import { useClipboard } from "./ClipboardProvider";
 import type { FileItem, FileItemWithMatch } from "@/types";
 import { FileListRow } from "./FileListRow";
@@ -58,6 +59,14 @@ export function FileList({
   const [moveOpen, setMoveOpen] = useState(false);
   const [deleteOpen, setDeleteOpen] = useState(false);
   const [collectionPickerOpen, setCollectionPickerOpen] = useState(false);
+
+  // Decided once for the listing rather than per row: the question is
+  // about the column, not the file. Only booleans cross into the row,
+  // so the memo there still holds.
+  const { showTypeLabel, showExtensionBadge } = useMemo(
+    () => deriveListMeta(files),
+    [files],
+  );
 
   const closeMenu = useCallback(() => {
     setMenuPos({ open: false, x: 0, y: 0 });
@@ -134,6 +143,8 @@ export function FileList({
             isDragging={draggedIds?.has(file.id)}
             draggable={draggable}
             sortQuery={sortQuery}
+            showTypeLabel={showTypeLabel}
+            showExtensionBadge={showExtensionBadge}
             onFavoriteToggle={onFavoriteToggle}
             onSelect={onSelect}
             onMetaSelect={onMetaSelect}

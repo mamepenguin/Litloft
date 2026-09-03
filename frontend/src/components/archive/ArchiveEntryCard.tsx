@@ -12,6 +12,13 @@ interface ArchiveEntryCardProps {
   fileId: string;
   onClick: () => void;
   isClickable: boolean;
+  /**
+   * Whether an image entry's filename tells this level's reader
+   * anything. Decided once by the grid — see the note there. Folder and
+   * non-image names are unaffected; those carry no thumbnail to
+   * identify them by.
+   */
+  showFilename?: boolean;
 }
 
 function ImageCard({ entry, fileId }: { entry: ArchiveEntry; fileId: string }) {
@@ -60,6 +67,7 @@ export function ArchiveEntryCard({
   fileId,
   onClick,
   isClickable,
+  showFilename = true,
 }: ArchiveEntryCardProps) {
   return (
     <button
@@ -84,9 +92,11 @@ export function ArchiveEntryCard({
           <div className="min-h-0 flex-1 overflow-hidden">
             <ImageCard entry={entry} fileId={fileId} />
           </div>
-          <div className="shrink-0 px-2 py-1 text-left">
-            <p className="truncate text-xs text-text-primary">{entry.filename}</p>
-          </div>
+          {showFilename && (
+            <div className="shrink-0 px-2 py-1 text-left">
+              <p className="truncate text-xs text-text-primary">{entry.filename}</p>
+            </div>
+          )}
         </div>
       ) : (
         <div className="flex h-full flex-col items-center justify-center gap-2 px-2">

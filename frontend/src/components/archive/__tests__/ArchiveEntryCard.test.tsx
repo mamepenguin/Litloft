@@ -157,4 +157,43 @@ describe("ArchiveEntryCard", () => {
     fireEvent.click(button);
     expect(onClick).toHaveBeenCalledTimes(1);
   });
+
+  it("omits an image's filename when told the level does not need it", () => {
+    render(
+      <ArchiveEntryCard
+        entry={makeEntry("p01_007.jpg", { file_type: "image", mime_type: "image/jpeg" })}
+        fileId="a1"
+        onClick={vi.fn()}
+        isClickable
+        showFilename={false}
+      />,
+    );
+    expect(screen.queryByText("p01_007.jpg")).toBeNull();
+  });
+
+  it("still names a non-image entry, which has no picture to go by", () => {
+    render(
+      <ArchiveEntryCard
+        entry={makeEntry("credits.txt", { file_type: "document", mime_type: "text/plain" })}
+        fileId="a1"
+        onClick={vi.fn()}
+        isClickable
+        showFilename={false}
+      />,
+    );
+    expect(screen.getByText("credits.txt")).toBeInTheDocument();
+  });
+
+  it("still names a folder", () => {
+    render(
+      <ArchiveEntryCard
+        entry={makeEntry("chapter-2/")}
+        fileId="a1"
+        onClick={vi.fn()}
+        isClickable
+        showFilename={false}
+      />,
+    );
+    expect(screen.getByText("chapter-2")).toBeInTheDocument();
+  });
 });

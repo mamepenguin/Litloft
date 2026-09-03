@@ -169,12 +169,12 @@ describe("ArchivePreview", () => {
     mockSearchParams.set("archivePath", "chapter1");
     render(<ArchivePreview fileId="test-id" />);
 
-    await waitFor(() => {
-      expect(screen.getByText("001.jpg")).toBeInTheDocument();
-    });
-
     // Breadcrumb should show Archive > chapter1
-    expect(screen.getByText("Archive")).toBeInTheDocument();
+    expect(await screen.findByText("Archive")).toBeInTheDocument();
+    expect(screen.getByText("chapter1")).toBeInTheDocument();
+    // This level is nothing but pages, so the grid stops repeating
+    // their names under the thumbnails — see ArchiveEntryGrid.
+    expect(screen.queryByText("001.jpg")).toBeNull();
     // Click "Archive" to go back to root
     fireEvent.click(screen.getByText("Archive"));
 

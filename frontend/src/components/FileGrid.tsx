@@ -1,9 +1,10 @@
 "use client";
 
-import { useCallback, useState } from "react";
+import { useCallback, useMemo, useState } from "react";
 import type { FileItem, FileItemWithMatch } from "@/types";
 import { useContextMenu } from "@/hooks/useContextMenu";
 import { cardGridColumns } from "@/lib/cardGrid";
+import { deriveListMeta } from "@/lib/listMeta";
 import { FileCard } from "./FileCard";
 import { FileContextMenu } from "./FileContextMenu";
 import { MatchOverlay } from "./MatchOverlay";
@@ -46,6 +47,11 @@ export function FileGrid({
 }) {
   const { menuState, close, handlers } = useContextMenu();
   const [target, setTarget] = useState<FileItem | null>(null);
+
+  // Decided once for the listing rather than per card: the question is
+  // about the column, not the file. Only the boolean crosses into the
+  // card, so the memo there still holds.
+  const { showExtensionBadge } = useMemo(() => deriveListMeta(files), [files]);
 
   // Stable across renders so memoized cards don't see new props every
   // time the parent re-renders. The card hands its own `file` back.
@@ -95,6 +101,7 @@ export function FileGrid({
             onMetaSelect={onMetaSelect}
             onShiftSelect={onShiftSelect}
             sortQuery={sortQuery}
+            showExtensionBadge={showExtensionBadge}
             draggable={draggable}
             isDragging={draggedIds?.has(file.id)}
             onDragStart={onDragStart ? handleDragStart : undefined}

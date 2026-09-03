@@ -713,19 +713,29 @@ Whisper and BLIP are only used during indexing, so they can be unloaded after a 
 When enabled, the intelligence addon contributes:
 
 - **Search modes** — *Semantic Search* and *Find* (sidebar of `/drive/<name>/search`), plus *Scene search* toggle and *Ask* input.
-- **File detail sections** —
+- **File detail sections** — a section appears once it has something in it. Until then
+  there is no heading; the way to make one is the **AI** menu below.
   - *Unverified Source* (shown only on a file you have not yet ruled on — see below)
   - *Suggested Tags* (with Approve / Dismiss / Regenerate)
   - *AI Summary* (short)
   - *Detailed Summary* (long-form Markdown with citation chips)
   - *Visual Description* (vision LLM)
   - *Transcript* (with Refine button)
-  - *CLIP Frames* (per-second thumbnails)
-  - *Similar Files* (semantic neighbour list; each result names the keywords it shares with the file you are on, taken from the keyword bag both files were indexed with, and names none when it shares none)
+  - *CLIP Frames* (per-second thumbnails; collapsed by default)
+  - *Visual index* (collapsed by default)
+  - *Similar Files* (collapsed by default; expanding it offers the *Find similar files*
+    button, since the search is heavy enough that it has always been run on request.
+    Each result names the keywords it shares with the file you are on, taken from the
+    keyword bag both files were indexed with, and names none when it shares none)
+- **File action row** — **AI**, beside the like and favourite buttons. It lists what this
+  file does not have yet: tag candidates, a summary, a detailed summary, chapter
+  candidates, an image description. Generating one makes its section appear and removes
+  it from the menu, which is where its regenerate control lives from then on. On a file
+  with nothing left to generate — or nothing applicable — the button is not shown.
 - **Drive home** — *Pickup*, a carousel of files you have never opened, with a link through to the full feed at `/drive/{drive}/addons/intelligence/pickup` once it holds at least 40
 - **File `[...]` menu** — *Index details*, a dialog showing per-task state with a *Regenerate* button for each task (`metadata`, `clip`, `whisper`, `text`) plus recent provider stats for failure context. It sits in the overflow menu rather than in the inspector because it answers an operator's question, not a reader's.
 - **Folder actions** — *Refine all transcripts in folder*, *Regenerate summaries*.
-- **Dashboard widget** — *Index Status* (queue depth, model memory, and a failed-jobs summary row that opens the *Failed jobs* modal — per-file × per-task retry).
+- **Dashboard widget** — *Index Status* (queue depth, model memory, and a failed-jobs summary row that opens the *Failed jobs* modal — per-file × per-task retry). The eleven per-task queues are listed only while they are moving; the idle ones sit behind a *Show N idle queues* disclosure, since the running/waiting total above already says how much work there is.
 
 Each section is a slot contribution; if a feature is disabled (per-drive policy), its section disappears.
 

@@ -300,4 +300,86 @@ describe("FolderToolbar", () => {
     fireEvent.click(screen.getByLabelText("Reshuffle"));
     expect(onReshuffle).toHaveBeenCalledTimes(1);
   });
+
+  describe("an empty folder", () => {
+    // Sort order, view mode and the type filter are ways of arranging
+    // things. With nothing to arrange they are seven controls above an
+    // empty page. What stays is everything that puts something in the
+    // folder, plus the count that says it is empty.
+    const empty = {
+      ...defaultProps,
+      total: 0,
+      folderCount: 0,
+      viewMode: "grid" as const,
+    };
+
+    it("puts away the arranging controls", () => {
+      render(<FolderToolbar {...empty} />);
+      expect(screen.queryByTestId("sort-button")).not.toBeInTheDocument();
+      expect(screen.queryByLabelText("File type")).not.toBeInTheDocument();
+      expect(screen.queryByLabelText("Grid view")).not.toBeInTheDocument();
+      expect(screen.queryByLabelText("List view")).not.toBeInTheDocument();
+    });
+
+    it("keeps the ways of putting something in it", () => {
+      render(<FolderToolbar {...empty} onCreateFile={vi.fn()} />);
+      expect(screen.getAllByLabelText("Upload").length).toBeGreaterThan(0);
+      expect(screen.getAllByLabelText("New Folder").length).toBeGreaterThan(0);
+      expect(screen.getAllByLabelText("New Note").length).toBeGreaterThan(0);
+    });
+
+    it("keeps the count, and the way back to a rescan", () => {
+      render(<FolderToolbar {...empty} />);
+      expect(screen.getByText(/0/)).toBeInTheDocument();
+      // Rescan is how an empty folder stops being empty.
+      expect(screen.getByLabelText("More actions")).toBeInTheDocument();
+    });
+
+    it("keeps them all when only the files are gone", () => {
+      // Subfolders are laid out by the same view toggle. A folder of
+      // eight folders and no files is not an empty folder.
+      render(<FolderToolbar {...empty} folderCount={8} />);
+      expect(screen.getByTestId("sort-button")).toBeInTheDocument();
+      expect(screen.getByLabelText("Grid view")).toBeInTheDocument();
+    });
+
+    it("keeps them all when a filter is what emptied it", () => {
+      // Hiding the type chip that produced the empty result would leave
+      // the user with no way back to the full listing.
+      render(<FolderToolbar {...empty} typeFilter="audio" />);
+      expect(screen.getByTestId("sort-button")).toBeInTheDocument();
+      expect(screen.getByLabelText("File type")).toBeInTheDocument();
+    });
+
+    it("keeps them all when a trust filter is what emptied it", () => {
+      render(
+        <FolderToolbar
+          {...empty}
+          trustFilter="unreviewed"
+          onTrustFilterChange={vi.fn()}
+        />,
+      );
+      expect(screen.getByTestId("sort-button")).toBeInTheDocument();
+    });
+
+    it("keeps them all when a tag filter is what emptied it", () => {
+      render(<FolderToolbar {...empty} tagFilter="recipes" />);
+      expect(screen.getByTestId("sort-button")).toBeInTheDocument();
+    });
+
+    it("keeps them all for an empty search", () => {
+      // A search that found nothing still needs its sort and its type
+      // chip: they are how the query gets widened.
+      render(<FolderToolbar {...empty} isSearch />);
+      expect(screen.getByTestId("sort-button")).toBeInTheDocument();
+      expect(screen.getByLabelText("File type")).toBeInTheDocument();
+    });
+
+    it("keeps them all when the folder count is simply not known", () => {
+      // Callers that never pass folderCount must behave as they did.
+      const { folderCount: _ignored, ...withoutCount } = empty;
+      render(<FolderToolbar {...withoutCount} />);
+      expect(screen.getByTestId("sort-button")).toBeInTheDocument();
+    });
+  });
 });

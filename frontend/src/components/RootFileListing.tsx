@@ -181,6 +181,13 @@ export function RootFileListing({ driveName, onFileAction, onFolderChange }: Roo
 
   const router = useRouter();
 
+  // Nothing under the drive root is the permanent state of a drive that
+  // keeps its files in subfolders, so the sort, the view toggle and a
+  // filter box would sit over the empty state on every visit. Same rule
+  // as FolderToolbar's; a filter that is what emptied the list keeps
+  // them, since it is also the way back out.
+  const hideArrangingControls = total === 0 && !filter.isActive;
+
   const hasPlayableFiles = visibleFiles.some(
     (f) => f.file_type === "audio" || f.file_type === "video"
   );
@@ -209,7 +216,7 @@ export function RootFileListing({ driveName, onFileAction, onFolderChange }: Roo
       <section>
         <div className="mb-3 flex items-center gap-2">
           <h2 className="flex items-center gap-2 text-lg font-bold text-text-primary">
-            <FileText size={20} className="text-accent" />
+            <FileText size={20} className="text-text-muted" />
             {td("files")}
           </h2>
         </div>
@@ -266,6 +273,7 @@ export function RootFileListing({ driveName, onFileAction, onFolderChange }: Roo
                 mirrors folder/FolderToolbar's right-group cluster so the
                 drive-home and folder-browser toolbars stay visually
                 consistent. */}
+            {!hideArrangingControls && (
             <div className="flex items-center gap-1 rounded-2xl bg-bg-elevated p-1">
               <SortButton
                 sort={sort}
@@ -340,18 +348,21 @@ export function RootFileListing({ driveName, onFileAction, onFolderChange }: Roo
                 )}
               </div>
             </div>
+            )}
           </div>
         </div>
 
         {/* Filter row (client-side) */}
         <div className="mb-4">
-          <FilterField
-            text={filter.text}
-            onTextChange={filter.setText}
-            placeholder={tFilter("placeholder.folder")}
-            typeFilter={filter.typeFilter}
-            onTypeFilterChange={filter.setTypeFilter}
-          />
+          {!hideArrangingControls && (
+            <FilterField
+              text={filter.text}
+              onTextChange={filter.setText}
+              placeholder={tFilter("placeholder.folder")}
+              typeFilter={filter.typeFilter}
+              onTypeFilterChange={filter.setTypeFilter}
+            />
+          )}
           <div className="mt-2 text-sm text-text-muted">{tc("items", { count: total })}</div>
         </div>
 

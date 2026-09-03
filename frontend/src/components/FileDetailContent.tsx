@@ -674,6 +674,17 @@ export function FileDetailContent({
             {file.file_type === "video" && (
               <CastButton mediaRef={videoRef} />
             )}
+            {/* Named for what it holds, not for where it sits: Phase 2
+                lifts this whole row into the inspector's fixed header,
+                and the same entry also has to fit the 56px Bottom Sheet
+                peek row. Entries therefore bring their own trigger and
+                take no sizing from the host. Sits before the overflow
+                menu so `⋮` stays last, the way it reads everywhere else. */}
+            <AddonSlot
+              id="file-detail-actions"
+              layout="stack"
+              props={addonSlotProps}
+            />
             <FileActions
               file={file}
               onUpdate={() => getFile(fileId).then(setFile)}

@@ -1,6 +1,6 @@
 # Viewers and players
 
-Litloft picks a viewer based on the file's MIME type. The same file detail page (`/files/<id>`) hosts every viewer; only the central component changes. Below the viewer you always get tags, comments, related files, and any addon-injected sections (transcripts, AI summaries, EXIF, similar files).
+Litloft picks a viewer based on the file's MIME type. The same file detail page (`/files/<id>`) hosts every viewer; only the central component changes. Below the viewer you always get tags, comments and related files. Addon sections (transcripts, AI summaries, EXIF, similar files) appear once they have something in them: a section that has not been generated yet is not shown, and the way to generate it is the **AI** menu in the row beside the like and favourite buttons. Anything already generated keeps its own section, with its own regenerate control, and drops out of that menu.
 
 ## The companion rail
 
@@ -112,6 +112,7 @@ What Litloft does read is a short text excerpt — up to 400 characters extracte
 - The archive is **not extracted on the server**; entries are streamed lazily.
 - The listing has grid and list view modes, sorting, and a breadcrumb for folders inside the archive.
 - Per-entry caps: 50 MB per entry, max 10 000 entries, max 3 concurrent extractions across all viewers.
+- Entry names are shown under the thumbnails, except where the level holds nothing but images — in a scanned comic every cell would otherwise repeat the same page-number pattern under identical thumbnails. A level that mixes images with anything else keeps the names, and folders always keep theirs.
 - Click an entry → an image page-turner or a text viewer opens over the listing if the type is recognised, else the entry downloads.
 - The archive page-turner shares the image viewer's gestures, spread mode and reading direction, and adds a per-entry **download** button.
 
