@@ -50,7 +50,14 @@ describe("FolderPicker", () => {
     const trigger = screen.getByRole("button", { name: /Save to:/ });
     fireEvent.click(trigger);
     expect(await screen.findByText("No subfolders")).toBeInTheDocument();
-    fireEvent.keyDown(document, { key: "Escape" });
+    // Pressed from inside the picker's own filter field, not at
+    // `document`. A press at `document` has no `HTMLElement` target, so
+    // the provider reads it as "not editing" and the test passes even
+    // with `editingOnly: false` removed — which is the whole claim the
+    // picker's comment makes.
+    const filter = screen.getByRole("textbox");
+    filter.focus();
+    fireEvent.keyDown(filter, { key: "Escape" });
     expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
 
     fireEvent.click(trigger);

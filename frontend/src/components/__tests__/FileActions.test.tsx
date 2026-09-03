@@ -1,6 +1,7 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { render, screen, fireEvent, waitFor } from "@testing-library/react";
 import { FileActions } from "../FileActions";
+import { ShortcutsProvider } from "../ShortcutsProvider";
 import type { FileItem } from "@/types";
 
 // The detail menu is built by `useFileMenuItems`, which reads the
@@ -118,18 +119,27 @@ const mockFile: FileItem = {
   updated_at: "2026-01-01T00:00:00Z",
 };
 
+/**
+ * Escape reaches the menu through the shortcut stack now, and
+ * `AppShell` mounts the provider around every route — so a bare render
+ * is a tree the browser never has.
+ */
+function renderWithStack(ui: React.ReactElement) {
+  return render(<ShortcutsProvider>{ui}</ShortcutsProvider>);
+}
+
 describe("FileActions", () => {
   beforeEach(() => {
     vi.clearAllMocks();
   });
 
   it("renders menu button", () => {
-    render(<FileActions file={mockFile} />);
+    renderWithStack(<FileActions file={mockFile} />);
     expect(screen.getByLabelText("File actions")).toBeInTheDocument();
   });
 
   it("exposes the menu to assistive tech", () => {
-    render(<FileActions file={mockFile} />);
+    renderWithStack(<FileActions file={mockFile} />);
     const trigger = screen.getByLabelText("File actions");
     expect(trigger).toHaveAttribute("aria-haspopup", "menu");
     expect(trigger).toHaveAttribute("aria-expanded", "false");
@@ -146,7 +156,7 @@ describe("FileActions", () => {
   });
 
   it("offers add-to-collection, like the card and list menus do", () => {
-    render(<FileActions file={mockFile} />);
+    renderWithStack(<FileActions file={mockFile} />);
     fireEvent.click(screen.getByLabelText("File actions"));
     expect(
       screen.getByRole("menuitem", { name: /add to collection/i }),
@@ -154,7 +164,7 @@ describe("FileActions", () => {
   });
 
   it("opens menu on click", () => {
-    render(<FileActions file={mockFile} />);
+    renderWithStack(<FileActions file={mockFile} />);
     fireEvent.click(screen.getByLabelText("File actions"));
     expect(screen.getByText("Download")).toBeInTheDocument();
     expect(screen.getByText("Rename")).toBeInTheDocument();
@@ -163,21 +173,21 @@ describe("FileActions", () => {
   });
 
   it("opens rename dialog", () => {
-    render(<FileActions file={mockFile} />);
+    renderWithStack(<FileActions file={mockFile} />);
     fireEvent.click(screen.getByLabelText("File actions"));
     fireEvent.click(screen.getByText("Rename"));
     expect(screen.getByTestId("rename-dialog")).toBeInTheDocument();
   });
 
   it("opens move dialog", () => {
-    render(<FileActions file={mockFile} />);
+    renderWithStack(<FileActions file={mockFile} />);
     fireEvent.click(screen.getByLabelText("File actions"));
     fireEvent.click(screen.getByText("Move"));
     expect(screen.getByTestId("move-dialog")).toBeInTheDocument();
   });
 
   it("opens delete confirmation dialog", () => {
-    render(<FileActions file={mockFile} />);
+    renderWithStack(<FileActions file={mockFile} />);
     fireEvent.click(screen.getByLabelText("File actions"));
     fireEvent.click(screen.getByText("Move to Trash"));
     expect(screen.getByTestId("confirm-dialog")).toBeInTheDocument();
@@ -185,7 +195,7 @@ describe("FileActions", () => {
 
   it("calls onDelete after successful deletion", async () => {
     const onDelete = vi.fn();
-    render(<FileActions file={mockFile} onDelete={onDelete} />);
+    renderWithStack(<FileActions file={mockFile} onDelete={onDelete} />);
     fireEvent.click(screen.getByLabelText("File actions"));
     fireEvent.click(screen.getByText("Move to Trash"));
     fireEvent.click(screen.getByText("Confirm"));
@@ -197,7 +207,7 @@ describe("FileActions", () => {
 
   it("calls onUpdate after successful rename", async () => {
     const onUpdate = vi.fn();
-    render(<FileActions file={mockFile} onUpdate={onUpdate} />);
+    renderWithStack(<FileActions file={mockFile} onUpdate={onUpdate} />);
     fireEvent.click(screen.getByLabelText("File actions"));
     fireEvent.click(screen.getByText("Rename"));
     fireEvent.click(screen.getByText("Rename"));
@@ -233,7 +243,7 @@ describe("FileActions menu alignment", () => {
 
   it("opens leftward when the trigger has room to its left", async () => {
     mountWithBounds(300, 0);
-    const { container } = render(<FileActions file={mockFile} />);
+    const { container } = renderWithStack(<FileActions file={mockFile} />);
     fireEvent.click(screen.getByLabelText("File actions"));
 
     const menu = container.querySelector(".absolute.top-full");
@@ -245,7 +255,7 @@ describe("FileActions menu alignment", () => {
     // Trigger 150px from a column that starts at 0: a 160px menu hung to the
     // left would start at -10.
     mountWithBounds(150, 0);
-    const { container } = render(<FileActions file={mockFile} />);
+    const { container } = renderWithStack(<FileActions file={mockFile} />);
     fireEvent.click(screen.getByLabelText("File actions"));
 
     const menu = container.querySelector(".absolute.top-full");
@@ -265,7 +275,7 @@ describe("FileActions file-actions-menu slot", () => {
 
   it("renders no slot without addonProps", () => {
     // A call site with no file context to give gets no addon entries.
-    render(<FileActions file={mockFile} />);
+    renderWithStack(<FileActions file={mockFile} />);
     openMenu();
 
     expect(
@@ -275,7 +285,7 @@ describe("FileActions file-actions-menu slot", () => {
   });
 
   it("forwards addonProps plus the two callbacks", () => {
-    render(
+    renderWithStack(
       <FileActions file={mockFile} addonProps={{ fileId: mockFile.id, drive: "main" }} />,
     );
     openMenu();
@@ -294,7 +304,7 @@ describe("FileActions file-actions-menu slot", () => {
     // outside-click listener sees it as a click outside the menu. Were the
     // menu to close, the slot subtree — and the dialog with it — would
     // unmount mid-interaction.
-    render(<FileActions file={mockFile} addonProps={{ fileId: mockFile.id }} />);
+    renderWithStack(<FileActions file={mockFile} addonProps={{ fileId: mockFile.id }} />);
     openMenu();
 
     fireEvent.click(screen.getByTestId("addon-open"));
@@ -305,7 +315,7 @@ describe("FileActions file-actions-menu slot", () => {
   });
 
   it("closes on an outside click while no addon dialog is open", () => {
-    render(<FileActions file={mockFile} addonProps={{ fileId: mockFile.id }} />);
+    renderWithStack(<FileActions file={mockFile} addonProps={{ fileId: mockFile.id }} />);
     openMenu();
 
     fireEvent.mouseDown(document.body);
@@ -317,7 +327,7 @@ describe("FileActions file-actions-menu slot", () => {
   });
 
   it("closes when an addon calls onRequestClose", () => {
-    render(<FileActions file={mockFile} addonProps={{ fileId: mockFile.id }} />);
+    renderWithStack(<FileActions file={mockFile} addonProps={{ fileId: mockFile.id }} />);
     openMenu();
 
     fireEvent.click(screen.getByTestId("addon-close"));
@@ -337,7 +347,7 @@ describe("FileActions file-actions-menu slot", () => {
     // rides on the wrapper so `empty:hidden` takes it away too — assert the
     // wrapper really is childless, which is what `:empty` keys off.
     slotCalls.empty = true;
-    const { container } = render(
+    const { container } = renderWithStack(
       <FileActions file={mockFile} addonProps={{ fileId: mockFile.id }} />,
     );
     openMenu();
@@ -352,7 +362,7 @@ describe("FileActions file-actions-menu slot", () => {
     // repository. If it is skipped, the flag must not survive the menu and
     // leave `anyDialogOpen` stuck true — that would wedge the outside-click
     // and Escape listeners off for every later open.
-    render(<FileActions file={mockFile} addonProps={{ fileId: mockFile.id }} />);
+    renderWithStack(<FileActions file={mockFile} addonProps={{ fileId: mockFile.id }} />);
     openMenu();
 
     fireEvent.click(screen.getByTestId("addon-open"));
@@ -369,7 +379,7 @@ describe("FileActions file-actions-menu slot", () => {
     // The other half of the guard: the listeners stand down while the
     // dialog is up, and must come back when it goes away — otherwise the
     // menu survives every outside click for the rest of its life.
-    render(<FileActions file={mockFile} addonProps={{ fileId: mockFile.id }} />);
+    renderWithStack(<FileActions file={mockFile} addonProps={{ fileId: mockFile.id }} />);
     openMenu();
 
     fireEvent.click(screen.getByTestId("addon-open"));
@@ -383,7 +393,7 @@ describe("FileActions file-actions-menu slot", () => {
   });
 
   it("closes on Escape and returns focus to the trigger", () => {
-    render(<FileActions file={mockFile} addonProps={{ fileId: mockFile.id }} />);
+    renderWithStack(<FileActions file={mockFile} addonProps={{ fileId: mockFile.id }} />);
     openMenu();
 
     fireEvent.keyDown(document, { key: "Escape" });
@@ -393,7 +403,7 @@ describe("FileActions file-actions-menu slot", () => {
   });
 
   it("leaves Escape to the addon while its dialog is open", () => {
-    render(<FileActions file={mockFile} addonProps={{ fileId: mockFile.id }} />);
+    renderWithStack(<FileActions file={mockFile} addonProps={{ fileId: mockFile.id }} />);
     openMenu();
 
     fireEvent.click(screen.getByTestId("addon-open"));

@@ -11,6 +11,7 @@ import {
   type ReactNode,
 } from "react";
 
+import { COMPOSITION_GRACE_MS, IME_KEY_CODE } from "@/lib/ime";
 import {
   normalizeKey,
   orderContexts,
@@ -58,8 +59,35 @@ export function ShortcutsProvider({ children }: { children: ReactNode }): ReactE
     setStack((prev) => prev.filter((c) => c.id !== id));
   }, []);
 
+  // When a composition last ended. An IME's confirming keystroke reaches
+  // the page looking exactly like a bare press — see `@/lib/ime`.
+  const compositionEndedAtRef = useRef(0);
+  useEffect(() => {
+    const onCompositionEnd = () => {
+      compositionEndedAtRef.current = Date.now();
+    };
+    document.addEventListener("compositionend", onCompositionEnd, true);
+    return () =>
+      document.removeEventListener("compositionend", onCompositionEnd, true);
+  }, []);
+
   useEffect(() => {
     function handleKeyDown(e: KeyboardEvent) {
+      // Mid-conversion, every key belongs to the IME.
+      if (e.isComposing || e.keyCode === IME_KEY_CODE) return;
+      // And so does the one that just ended it. Escape cancels a
+      // candidate list; without this it would also close the dialog the
+      // user was typing into — which is what `editingOnly: false` on a
+      // dialog's Escape newly exposes, since before that the shortcut
+      // never fired in a focused field at all. Enter is here for the
+      // same reason, ahead of any shortcut binding it.
+      if (
+        (e.key === "Escape" || e.key === "Enter") &&
+        Date.now() - compositionEndedAtRef.current < COMPOSITION_GRACE_MS
+      ) {
+        compositionEndedAtRef.current = 0;
+        return;
+      }
       const target = e.target instanceof HTMLElement ? e.target : null;
       const tag = target?.tagName;
       const isEditing =

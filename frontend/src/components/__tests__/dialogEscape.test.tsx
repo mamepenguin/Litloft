@@ -56,6 +56,48 @@ afterEach(() => {
   cleanup();
 });
 
+describe("an IME's Escape", () => {
+  it("cancels the conversion without throwing away the dialog", () => {
+    // The keystroke that ends a composition reaches the page looking
+    // exactly like a bare press: `compositionend` fires first, then
+    // `keydown` with `isComposing` already false. Measured in this repo
+    // at `lib/ime.ts`.
+    //
+    // This only became reachable with `editingOnly: false`: before it,
+    // Escape in these dialogs never fired in a focused field at all, so
+    // cancelling a candidate list was safe by accident. Now it has to
+    // be safe on purpose — a Japanese-first app where the dialog's one
+    // job is typing a name.
+    const onCancel = vi.fn();
+    withStack(
+      <RenameDialog
+        open
+        currentName="notes.md"
+        onRename={vi.fn()}
+        onCancel={onCancel}
+      />,
+    );
+    act(() => vi.advanceTimersByTime(10));
+
+    const field = document.querySelector<HTMLElement>("input")!;
+    act(() => field.focus());
+
+    // Mid-conversion.
+    fireEvent.keyDown(field, { key: "Escape", isComposing: true });
+    expect(onCancel).not.toHaveBeenCalled();
+
+    // The keystroke that ended it, indistinguishable on its own.
+    fireEvent.compositionEnd(field);
+    fireEvent.keyDown(field, { key: "Escape" });
+    expect(onCancel).not.toHaveBeenCalled();
+
+    // And a real one, after the measured grace window.
+    act(() => vi.advanceTimersByTime(200));
+    fireEvent.keyDown(field, { key: "Escape" });
+    expect(onCancel).toHaveBeenCalledTimes(1);
+  });
+});
+
 describe("RenameDialog", () => {
   it("cancels on Escape from the name field", () => {
     const onCancel = vi.fn();
@@ -120,6 +162,39 @@ describe("FileSaveDialog", () => {
       />,
     );
     act(() => vi.advanceTimersByTime(10));
+    expect(escapeFromTheField()).toBe(true);
+    expect(onCancel).toHaveBeenCalledTimes(1);
+  });
+
+  it("gives one press to the picker and the next to the dialog", () => {
+    // The reason the whole change exists. Two listeners answered one
+    // press: Escape closed the folder picker *and* threw away the
+    // dialog holding it. On the stack the picker pushes later, so it
+    // answers first and alone; the dialog answers the press after.
+    //
+    // Every other test here renders one context. This is the only one
+    // that asserts resolution *order*, which is the subject.
+    const onCancel = vi.fn();
+    withStack(
+      <FileSaveDialog
+        open
+        title="Save note"
+        drive="notes"
+        defaultFilename="draft.md"
+        onConfirm={vi.fn()}
+        onCancel={onCancel}
+      />,
+    );
+    act(() => vi.advanceTimersByTime(10));
+
+    const trigger = screen.getByRole("button", { name: /Save to:/ });
+    fireEvent.click(trigger);
+    expect(trigger).toHaveAttribute("aria-expanded", "true");
+
+    expect(escapeFromTheField()).toBe(true);
+    expect(trigger).toHaveAttribute("aria-expanded", "false");
+    expect(onCancel).not.toHaveBeenCalled();
+
     expect(escapeFromTheField()).toBe(true);
     expect(onCancel).toHaveBeenCalledTimes(1);
   });
