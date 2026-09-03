@@ -82,6 +82,30 @@ function eachLine(visit: (line: string, where: string) => void) {
 }
 
 /**
+ * Every `className` value in the tree, as one string each, however many lines
+ * it spans.
+ *
+ * The checks below match utilities against each other — "is this button both
+ * accent-filled and faded when disabled" — and a class list broken across
+ * lines answers no to every such question when read a line at a time. Breaking
+ * one line in two is not a code change, so a line-based check is one a
+ * formatter can silently switch off.
+ */
+function eachClassAttribute(visit: (value: string, where: string) => void) {
+  for (const root of SOURCE_ROOTS) {
+    for (const file of sourceFiles(root)) {
+      if (file === SELF) continue;
+      const text = stripComments(readFileSync(file, "utf-8"));
+      const rel = relative(REPO_ROOT, file);
+      for (const [start, end] of classAttributeSpans(text)) {
+        const line = text.slice(0, start).split("\n").length;
+        visit(text.slice(start, end), `${rel}:${line}`);
+      }
+    }
+  }
+}
+
+/**
  * Colour utilities are `<property>-<token>`; these are the properties in use.
  *
  * `accent` is Tailwind's `accent-color` prefix and also the head of this
@@ -307,8 +331,11 @@ describe("design tokens", () => {
   // disable on the same condition.
   it("never fades an accent button to say it is disabled", () => {
     const offenders: string[] = [];
-    eachLine((line, where) => {
-      const accentFill = /\bbg-accent(-cta|-hover)?(\/\d+)?(?![\w-])/.test(line);
+    eachClassAttribute((line, where) => {
+      // A *solid* accent fill, which is what reads as the page's one call to
+      // action. Not `hover:bg-accent/10`, a 10%-alpha tint behind a variant on
+      // an otherwise ghost control — hence no variant prefix and no alpha.
+      const accentFill = /(?<![\w:-])bg-accent(?:-cta|-hover)?(?![\w/-])/.test(line);
       // `disabled:hover:bg-accent` carries two variants to `disabled:bg-sand`'s
       // one, so it wins and paints the accent back the moment the pointer rests
       // on a button that will not respond.
@@ -325,7 +352,7 @@ describe("design tokens", () => {
   // measured 1.4:1 (UI redesign Bug-7).
   it("never puts a theme foreground on a black scrim", () => {
     const offenders: string[] = [];
-    eachLine((line, where) => {
+    eachClassAttribute((line, where) => {
       if (/\bbg-black\/\d+/.test(line) && /\btext-(text|accent|warm|sand)-/.test(line)) {
         offenders.push(where);
       }

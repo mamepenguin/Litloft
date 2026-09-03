@@ -486,9 +486,15 @@ changing what it says: an accent button at 50% is still the accent, and the
 contrast loss lands hardest on the label, which is the part that would have
 explained why the button is off.
 
-> **Known gap.** Buttons that pair `disabled:opacity-*` with `bg-accent` follow
-> this rule. Other variants still carry `disabled:opacity-*` and are converted
-> when the shared `Button` component lands (UI redesign Phase 3).
+> **Known gap — the rule is ahead of the code.** Only buttons filled with
+> `bg-accent` (or `bg-accent-cta`, its twin) follow this today; the enforcing
+> test scans for that pairing alone. Every other variant still carries
+> `disabled:opacity-*`, including the saturated `bg-accent-teal` fills with
+> white labels in the intelligence summary sections, which fade in exactly the
+> way this rule forbids. They are converted with the shared `Button` component
+> (UI redesign Phase 3) rather than one at a time, because a converted button
+> beside an unconverted sibling — both disabled by the same click — shows two
+> different disabled states in one row, which reads worse than either alone.
 
 ### Cards
 
