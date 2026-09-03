@@ -118,7 +118,23 @@ const searchFiles: LitloftTool = {
     search: z.string().optional().describe("Substring match against title/folder path"),
     favorite: z.boolean().optional(),
     tag: z.string().optional(),
-    type: z.string().optional().describe("file_type filter, e.g. video/image/document"),
+    type: z
+      .enum([
+        "video",
+        "image",
+        "audio",
+        "document",
+        "archive",
+        "other",
+        "markdown",
+        "pdf",
+      ])
+      .optional()
+      .describe(
+        "Narrow to one kind. `markdown` and `pdf` are refinements of "
+        + "`document`, so `document` returns those too. An unlisted value "
+        + "is rejected by the server rather than returning nothing.",
+      ),
     sort: z.enum(["created_at", "title", "file_size", "likes", "random"]).optional(),
     order: z.enum(["asc", "desc"]).optional(),
     page: z.number().int().min(1).optional(),
@@ -210,7 +226,13 @@ const semanticSearch: LitloftTool = {
     drive: z.string().describe("Drive name"),
     q: z.string().min(1).describe("Natural-language search query"),
     limit: z.number().int().min(1).max(100).optional(),
-    type: z.string().optional().describe("file_type filter, e.g. video/image/document"),
+    type: z
+      .enum(["video", "image", "audio", "document", "archive", "other"])
+      .optional()
+      .describe(
+        "Narrow to one kind. The semantic index stores the flat kinds "
+        + "only — use `document` to include Markdown and PDFs.",
+      ),
     mode: z
       .enum(["precision", "recall"])
       .optional()

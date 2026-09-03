@@ -15,7 +15,7 @@ import {
 } from "lucide-react";
 
 import { useTranslations } from "next-intl";
-import type { FileType, SortField, SortOrder, TrustFilter, ViewMode } from "@/types";
+import type { FileKind, SortField, SortOrder, TrustFilter, ViewMode } from "@/types";
 import { SortButton } from "@/components/SortButton";
 import { UploadButton } from "@/components/UploadButton";
 import { ViewToggle } from "@/components/ViewToggle";
@@ -37,7 +37,7 @@ interface FolderToolbarProps {
   hasPlayableFiles: boolean;
   sort: SortField;
   order: SortOrder;
-  typeFilter: FileType | null;
+  typeFilter: FileKind | null;
   trustFilter?: TrustFilter | null;
   total: number;
   /**
@@ -71,7 +71,7 @@ interface FolderToolbarProps {
    */
   widenTagScope?: WidenTagScope | null;
   onSortChange: (s: SortField, o: SortOrder) => void;
-  onTypeFilterChange: (t: FileType | null) => void;
+  onTypeFilterChange: (t: FileKind | null) => void;
   onTrustFilterChange?: (t: TrustFilter | null) => void;
   onViewChange: (mode: ViewMode) => void;
   onToggleSelectable: () => void;
@@ -99,14 +99,25 @@ const TRUST_OPTION_KEYS: ReadonlyArray<{ value: TrustFilter | null; labelKey: st
   { value: "unreviewed", labelKey: "filterUnreviewed" },
 ];
 
-const TYPE_OPTION_KEYS: ReadonlyArray<{ value: FileType | null; labelKey: string }> = [
-  { value: null, labelKey: "all" },
-  { value: "video", labelKey: "video" },
-  { value: "image", labelKey: "image" },
-  { value: "audio", labelKey: "audio" },
-  { value: "document", labelKey: "document" },
-  { value: "archive", labelKey: "archiveType" },
-  { value: "other", labelKey: "other" },
+/**
+ * The one vocabulary, read from the one place it is written
+ * (`filter.type.*`). The toolbar used to carry its own copy of these
+ * words under `toolbar.*`, forty pixels from a chip that offered four
+ * different ones.
+ *
+ * Markdown and PDF sit under `document`: choosing `document` returns
+ * them too, and choosing one of them narrows further.
+ */
+const TYPE_OPTION_KEYS: ReadonlyArray<{ value: FileKind | null; labelKey: string }> = [
+  { value: null, labelKey: "type.all" },
+  { value: "video", labelKey: "type.video" },
+  { value: "image", labelKey: "type.image" },
+  { value: "audio", labelKey: "type.audio" },
+  { value: "document", labelKey: "type.document" },
+  { value: "markdown", labelKey: "type.markdown" },
+  { value: "pdf", labelKey: "type.pdf" },
+  { value: "archive", labelKey: "type.archive" },
+  { value: "other", labelKey: "type.other" },
 ];
 
 export function FolderToolbar({
@@ -134,19 +145,30 @@ export function FolderToolbar({
   // search still needs its sort to be widened.
   const isFiltered =
     typeFilter !== null || !!trustFilter || !!tagFilter || !!isSearch;
+
+  // Markdown and PDF are refinements the core listing understands and
+  // the semantic index does not: intelligence stores `file_type`, which
+  // never holds either, so a search narrowed to one of them would drop
+  // every semantic hit and silently degrade to filename matches. Offer
+  // them where they work; `document` is still there, and it is the
+  // parent both of them live under.
+  const options = isSearch
+    ? TYPE_OPTION_KEYS.filter((o) => o.value !== "markdown" && o.value !== "pdf")
+    : TYPE_OPTION_KEYS;
   const hideArrangingControls = total === 0 && folderCount === 0 && !isFiltered;
   const t = useTranslations("toolbar");
   const tc = useTranslations("common");
   const ts = useTranslations("selection");
   const tTrust = useTranslations("trustTier");
   const tf = useTranslations("folder");
+  const tFilter = useTranslations("filter");
 
   const [typeFilterOpen, setTypeFilterOpen] = useState(false);
   const [trustFilterOpen, setTrustFilterOpen] = useState(false);
   const [moreOpen, setMoreOpen] = useState(false);
 
   const activeTypeOption = TYPE_OPTION_KEYS.find((opt) => opt.value === typeFilter);
-  const activeTypeLabel = activeTypeOption ? t(activeTypeOption.labelKey) : t("all");
+  const activeTypeLabel = tFilter(activeTypeOption?.labelKey ?? "type.all");
   const isTypeFiltered = typeFilter !== null;
 
   // Left mutating actions — rendered in two places:
@@ -337,7 +359,7 @@ export function FolderToolbar({
                 role="menu"
                 className="fixed inset-x-2 bottom-4 z-40 max-h-[60vh] overflow-y-auto rounded-2xl border border-bg-border bg-bg-primary py-1 shadow-lg animate-fade-in-scale sm:absolute sm:inset-x-auto sm:bottom-auto sm:right-0 sm:top-full sm:mt-1 sm:max-h-none sm:min-w-[160px] sm:overflow-visible sm:origin-top-right"
               >
-              {TYPE_OPTION_KEYS.map((opt) => (
+              {options.map((opt) => (
                 <button
                   key={opt.labelKey}
                   role="menuitem"
@@ -354,7 +376,7 @@ export function FolderToolbar({
                   <span className="w-4 flex-shrink-0">
                     {typeFilter === opt.value && <Check size={14} />}
                   </span>
-                  {t(opt.labelKey)}
+                  {tFilter(opt.labelKey)}
                 </button>
               ))}
               </div>

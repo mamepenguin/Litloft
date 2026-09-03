@@ -17,7 +17,7 @@ import { useSpringLoadedExpand } from "@/hooks/useSpringLoadedExpand";
 import { useTreeAutoReveal } from "@/hooks/useTreeAutoReveal";
 import { useTreeExpansion } from "@/hooks/useTreeExpansion";
 import { useTreeTextFilter } from "@/hooks/useTreeTextFilter";
-import { useTreeTypeFilter } from "@/hooks/useTreeTypeFilter";
+import { useTreeKindFilter } from "@/hooks/useTreeKindFilter";
 import { useWebSocketRefresh } from "@/hooks/useWebSocketRefresh";
 
 /**
@@ -182,7 +182,7 @@ export function FolderTreePane({
   const tFilter = useTranslations("filter");
   const tShortcuts = useTranslations("shortcuts");
   const expansion = useTreeExpansion(drive);
-  const { filter, setFilter } = useTreeTypeFilter(drive);
+  const { filter, setFilter } = useTreeKindFilter(drive);
   const text = useTreeTextFilter(drive, true);
   const { pinnedPaths, handleTogglePin } = usePinnedFolders(drive);
 
@@ -304,9 +304,9 @@ export function FolderTreePane({
     // root entries into the empty-string bucket and everything else
     // under their parents.
     const rootEntries = byParent.get("") ?? rootNodes;
-    const tables = computeMatchTables(rootNodes, text.debouncedText, filter);
+    const tables = computeMatchTables(rootNodes, text.debouncedText);
     return buildFilteredRows(rootEntries, byParent, tables);
-  }, [filterActive, rootNodes, text.debouncedText, filter]);
+  }, [filterActive, rootNodes, text.debouncedText]);
 
   const flatList = useMemo(() => {
     if (filteredRows) {

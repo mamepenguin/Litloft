@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 import { getFolderTree } from "@/lib/api";
-import type { FolderTreeNode, TreeTypeFilter } from "@/types";
+import type { FolderTreeNode, FileKind } from "@/types";
 
 interface FetchState {
   status: "idle" | "loading" | "loaded" | "error";
@@ -15,7 +15,7 @@ const IDLE: FetchState = { status: "idle", nodes: [], error: null };
 
 interface UseFolderTreeQueryOpts {
   drive: string;
-  typeFilter: TreeTypeFilter | null;
+  typeFilter: FileKind | null;
   /** Paths whose children should be loaded. Drive root is "". Ignored when ``flatLoad`` is true. */
   pathsToLoad: ReadonlySet<string>;
   /**

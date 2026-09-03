@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import { ChevronDown, Pencil, RefreshCw, Star, Trash2 } from "lucide-react";
 import { useTranslations } from "next-intl";
 
-import type { FileType } from "@/types";
+import type { FileKind } from "@/types";
 import { useSmartFolders } from "@/hooks/useSmartFolders";
 import { ConfirmDialog } from "./ConfirmDialog";
 import { SmartFolderSaveDialog } from "./SmartFolderSaveDialog";
@@ -13,7 +13,18 @@ import { SmartFolderSaveDialog } from "./SmartFolderSaveDialog";
 interface SmartFolderSaveButtonProps {
   drive: string;
   query: string;
-  typeFilter?: FileType | null;
+  /**
+   * The listing's active kind, saved with the smart folder.
+   *
+   * Smart folders accept only four of them
+   * (`_SMART_FOLDER_FILE_TYPES`: video / image / audio / document), so
+   * saving one narrowed to any other kind fails with the existing
+   * "could not save" error. That gap predates the shared vocabulary —
+   * `archive` and `other` were already offered and already unsaveable —
+   * and closing it means migrating saved rows, which is Phase 4's
+   * (spec 2026-09-03-ui-redesign-p1-vocabulary.md, carry-over table).
+   */
+  typeFilter?: FileKind | null;
   smartFolderId: string | null;
 }
 

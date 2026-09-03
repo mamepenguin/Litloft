@@ -22,7 +22,7 @@ A toolbar above the grid lets you:
 
 - Toggle **grid** / **list** view. In a real folder the choice is remembered per folder (localStorage, under `folderPrefs:{drive}`); on the drive root, in the flat views, and in search it falls back to a single global preference. Before you have ever chosen, the mode is guessed from what the folder mostly holds — Markdown folders open as a list, video/image/audio folders as a grid.
 - Sort by **newest / oldest** (indexed date), **title A-Z / Z-A**, **largest / smallest**, **most / least liked**, or **random**. Search results add a **relevance** option, which is their default. Sort is remembered per folder in the same place as the view mode. Random sort gets a reshuffle button next to the sort control.
-- Filter by file type (All / Video / Image / Audio / Document / Archive / Other). This one is applied by the server and narrows the query itself, unlike the filter row below the toolbar, which sifts what has already been loaded.
+- Filter by file kind (All / Video / Image / Audio / Document / Markdown / PDF / Archive / Other). Markdown and PDF sit *under* Document: choosing Document returns them too, and choosing one of them narrows further. The server applies this and narrows the query itself, so it is right about files you have not scrolled to yet.
 - Turn on **Select mode** from the overflow (`…`) menu, then click cards to select them. `Cmd/Ctrl+click` turns selection on and toggles a card in one gesture, and `Shift+click` extends the selection to a range. A selection bar appears at the bottom with tag, rename, add-to-collection, copy, cut, move, and move-to-trash.
 - **Rescan** the drive, also from the overflow menu.
 - **Upload** and **New folder**, from the upload button.
@@ -93,15 +93,20 @@ Holding a drag still over a collapsed folder row in the tree **opens it after 60
 
 ## In-folder filter
 
-Below the toolbar there is an always-visible **filter row** with two inputs combined as AND:
+Below the toolbar there is an always-visible **filter row**: a free-text
+field (placeholder *Filter in this folder…*) that does a case-insensitive
+substring match against the filename, including the extension.
 
-- A free-text field (placeholder *Filter in this folder…*) that does case-insensitive substring match against the filename, including the extension.
-- A type dropdown (All / Markdown / Video / Image / PDF).
+Text only. It used to carry a kind dropdown as well, but that one sifted
+the rows already loaded while the toolbar's asks the server — so on a
+folder past its first page of thirty, the same choice gave two different
+answers. The toolbar's is the one that can be right, and it is the one
+that remains.
 
 Scope and behaviour:
 
 - Filters only the **direct entries of the current folder**. Subfolder contents are not searched.
-- The **text** filter applies to folder cards as well as files, so typing narrows both lists. The **type** filter applies to files only and leaves the folder cards alone — a folder's dominant kind is a different axis from a file's type.
+- Applies to folder cards as well as files, so typing narrows both lists.
 - **No persistence.** Navigating to another folder, reloading, or re-opening the pane clears the filter (this is intentional — to avoid "I am secretly being filtered" surprises).
 - When nothing matches, an empty-state with a **Clear filters** button appears.
 - The text input is debounced ~300 ms, so it stays responsive on folders with thousands of files.
@@ -110,7 +115,7 @@ This is the lightest of three search layers. For drive-wide search use the globa
 
 ### Tree pane filter
 
-When the folder tree pane is open, it has its own filter row at the top, identical in shape (text + type dropdown) but different in scope:
+When the folder tree pane is open, it has its own filter row at the top — text plus a kind dropdown offering the same nine choices as the toolbar — but different in scope:
 
 - Matches against **file and folder names** across the whole tree of the current drive.
 - Tree structure is preserved: matched items are highlighted, ancestors are shown in a dimmed style as path context, non-matching siblings are hidden.

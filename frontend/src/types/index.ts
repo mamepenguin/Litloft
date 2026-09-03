@@ -123,7 +123,27 @@ export interface Folder {
   dominant_kind: FolderKind | null;
 }
 
-export type TreeTypeFilter = "markdown" | "video" | "image" | "pdf";
+/**
+ * The one vocabulary for "what kind of file is this", mirroring
+ * `FileKind` in `backend/app/routers/drives.py`.
+ *
+ * It is `FileType` with two refinements nested under `document`:
+ * markdown and PDF are documents, and asking for documents returns
+ * them. `subtitle` is a real `file_type` but no surface offers it.
+ *
+ * The classifier lives in the backend and only there — a second
+ * implementation that agreed the day it was written is what put the
+ * same file on opposite sides of the listing and the tree.
+ */
+export type FileKind =
+  | "video"
+  | "image"
+  | "audio"
+  | "document"
+  | "archive"
+  | "other"
+  | "markdown"
+  | "pdf";
 
 export type FolderTreeNode =
   | {

@@ -84,9 +84,32 @@ def _validate_folder_path(path: str) -> str:
     return path
 
 
-# Kind taxonomy used by Topic 2-C type filter chips (Markdown / Video / Image / PDF)
-# and Topic 9 dominant_kind for the layered viewMode fallback.
-TreeKind = Literal["markdown", "video", "image", "pdf"]
+# The one vocabulary for "what kind of file is this", shared by the
+# listing's ``?type=`` and the tree's ``?type_filter=``.
+#
+# It is ``File.file_type`` with two refinements nested under
+# ``document``: markdown and PDF are documents, and asking for documents
+# returns them. The tree used to know only four of these buckets and the
+# listing only the six flat ones, so the same file could satisfy one
+# filter and not the other — see ``_apply_kind_filter``.
+#
+# ``subtitle`` is accepted because it is a real ``file_type``, but the
+# scanner never registers subtitle files as rows and no UI offers it, so
+# selecting it returns nothing.
+FileKind = Literal[
+    "video",
+    "image",
+    "audio",
+    "document",
+    "archive",
+    "other",
+    "markdown",
+    "pdf",
+    "subtitle",
+]
+
+# Retained name for the tree query parameter, which predates the merge.
+TreeKind = FileKind
 
 
 def _classify_kind(file_type: str | None, mime_type: str | None) -> str:
@@ -106,18 +129,54 @@ def _classify_kind(file_type: str | None, mime_type: str | None) -> str:
     return "other"
 
 
-def _apply_kind_filter(query, kind: TreeKind | None):
+# The extensions that name a kind when the mime does not. `classify()`
+# always records a mime today, but rows written before it did — or by
+# anything that skipped it — carry NULL, and those are precisely the
+# rows the two old filters disagreed about: the client sifted on the
+# filename and kept them, the server sifted on the mime and dropped them.
+_KIND_MIMES: dict[str, tuple[str, ...]] = {
+    "markdown": ("text/markdown",),
+    "pdf": ("application/pdf",),
+}
+_KIND_SUFFIXES: dict[str, tuple[str, ...]] = {
+    "markdown": (".md", ".markdown"),
+    "pdf": (".pdf",),
+}
+
+
+def _apply_kind_filter(query, kind: FileKind | None):
+    """Narrow ``query`` to one kind of the shared vocabulary.
+
+    The single classifier. Both ``?type=`` on the listing and
+    ``?type_filter=`` on the tree route through here, so the two
+    surfaces cannot drift apart — a second implementation that agreed on
+    the day it was written is what produced the drift being removed.
+    """
     if kind is None:
         return query
-    if kind == "markdown":
-        return query.filter(File.mime_type == "text/markdown")
-    if kind == "pdf":
-        return query.filter(File.mime_type == "application/pdf")
-    if kind == "video":
-        return query.filter(File.file_type == "video")
-    if kind == "image":
-        return query.filter(File.file_type == "image")
-    return query
+
+    mimes = _KIND_MIMES.get(kind)
+    if mimes is None:
+        # The six flat kinds are `file_type` itself.
+        return query.filter(File.file_type == kind)
+
+    # A nested kind: recognised by mime, or by extension for rows whose
+    # mime was never recorded.
+    #
+    # Note what is *not* required — that the row also be
+    # ``file_type == "document"``. The nesting ("document returns
+    # markdown and PDF too") holds because ``classify()`` files both
+    # under document, not because this query enforces it. Adding the
+    # predicate would undo the extension fallback for exactly the rows
+    # it exists for: one whose mime was never recorded may well have
+    # been given the wrong ``file_type`` by the same writer.
+    suffixes = _KIND_SUFFIXES[kind]
+    return query.filter(
+        or_(
+            File.mime_type.in_(mimes),
+            *(func.lower(File.filename).like(f"%{suffix}") for suffix in suffixes),
+        )
+    )
 
 
 _to_response = file_to_response
@@ -546,7 +605,7 @@ def list_drive_files(
     favorite: bool | None = None,
     liked: bool | None = None,
     tag: str | None = None,
-    type: str | None = None,
+    type: FileKind | None = None,
     trust: str | None = Query(None, pattern="^(verified|unverified|unreviewed)$"),
     sort: str = Query("created_at", pattern="^(created_at|title|file_size|liked_at|random)$"),
     order: str = Query("desc", pattern="^(asc|desc)$"),
@@ -601,8 +660,7 @@ def list_drive_files(
         )
     if tag:
         query = query.filter(File.tags.any(func.lower(Tag.name) == tag.lower()))
-    if type:
-        query = query.filter(File.file_type == type)
+    query = _apply_kind_filter(query, type)
     if trust == "unreviewed":
         # Not a tier: the review queue is "nobody has ruled on this", which
         # spans both tiers. Bulk-migrated rows are verified but unjudged, and
@@ -1103,6 +1161,7 @@ def get_watch_history(
     viewer_id: Annotated[str | None, Depends(get_viewer_id)],
     limit: int = Query(20, ge=1, le=50),
     filter: str = Query("unfinished", pattern=r"^(unfinished|all)$"),
+    type: FileKind | None = None,
 ):
     _validate_drive(drive_name, unlocked_groups)
 
@@ -1123,6 +1182,13 @@ def get_watch_history(
         query = query.filter(
             WatchHistory.playback_position < WatchHistory.duration * 0.9,
         )
+
+    # Same classifier as the listing and the tree. The Recent view used
+    # to sift these rows in the browser on ``file_type`` alone, which
+    # answered "no such files" for markdown and PDF — values the column
+    # never holds. Narrowing here also means ``limit`` counts matching
+    # rows rather than being spent on rows about to be discarded.
+    query = _apply_kind_filter(query, type)
 
     records = (
         query

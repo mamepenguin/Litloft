@@ -50,7 +50,8 @@ When you have a query and filter combination you want to keep:
 
 - Click **Save** beside the results heading, then name the Smart Folder.
 - Smart Folders appear in the sidebar. The chip beside the heading turns into **Saved: {name}**, with Update / Rename / Delete behind it.
-- A Smart Folder stores the query, the type filter, and the sort — not a tag.
+- A Smart Folder stores the query, the kind filter, and the sort — not a tag.
+- It can only hold four kinds: **Video**, **Image**, **Audio** and **Document**. Saving a search narrowed to Archive, Other, Markdown or PDF fails with an error and leaves the dialog open — nothing is silently dropped. Use **Document** to cover Markdown and PDFs.
 - They re-evaluate live: a Smart Folder defined as `invoice` + `document` always shows the current matching files.
 
 Smart Folders are drive-scoped and shared across viewers of that drive.

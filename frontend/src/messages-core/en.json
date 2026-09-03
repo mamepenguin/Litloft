@@ -440,9 +440,13 @@
     },
     "type": {
       "all": "All",
-      "markdown": "Markdown",
       "video": "Video",
       "image": "Image",
+      "audio": "Audio",
+      "document": "Document",
+      "archive": "Archive",
+      "other": "Other",
+      "markdown": "Markdown",
       "pdf": "PDF"
     },
     "empty": {
@@ -466,13 +470,6 @@
     "rescanTitle": "Rescan drive",
     "fileType": "File type",
     "filter": "Filter",
-    "all": "All",
-    "video": "Video",
-    "image": "Image",
-    "audio": "Audio",
-    "document": "Document",
-    "archiveType": "Archive",
-    "other": "Other",
     "playAll": "Play all",
     "home": "Home",
     "more": "More actions",

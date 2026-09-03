@@ -60,11 +60,10 @@ const sampleFiles: FileItem[] = [
 ];
 
 describe("useFolderFilter", () => {
-  it("returns all files unchanged when text is empty and type is null", () => {
+  it("returns all files unchanged when the text is empty", () => {
     const { result } = renderHook(() => useFolderFilter(sampleFiles));
     expect(result.current.files).toEqual(sampleFiles);
     expect(result.current.text).toBe("");
-    expect(result.current.typeFilter).toBeNull();
     expect(result.current.isActive).toBe(false);
   });
 
@@ -83,52 +82,15 @@ describe("useFolderFilter", () => {
     vi.useRealTimers();
   });
 
-  it("filters by type (markdown matches text/markdown only)", () => {
+  it("no longer classifies — that is the toolbar's job, and the server's", () => {
+    // This hook carried a second kind filter forty pixels below the
+    // toolbar's. The toolbar asks the server; this sifted the rows
+    // already loaded, so past the first page of thirty the same choice
+    // gave two answers. The vocabulary and its one classifier now live
+    // in the backend (tests/test_file_kind_filter.py).
     const { result } = renderHook(() => useFolderFilter(sampleFiles));
-    act(() => {
-      result.current.setTypeFilter("markdown");
-    });
-    const filenames = result.current.files.map((f) => f.filename);
-    expect(filenames.sort()).toEqual(["Notes.md", "spec.md"]);
-  });
-
-  it("filters by type (video matches mp4 / mov / avi / webm / mkv)", () => {
-    const { result } = renderHook(() => useFolderFilter(sampleFiles));
-    act(() => {
-      result.current.setTypeFilter("video");
-    });
-    const filenames = result.current.files.map((f) => f.filename).sort();
-    expect(filenames).toEqual(["intro.mp4", "outro.MOV"]);
-  });
-
-  it("filters by type (image)", () => {
-    const { result } = renderHook(() => useFolderFilter(sampleFiles));
-    act(() => {
-      result.current.setTypeFilter("image");
-    });
-    expect(result.current.files.map((f) => f.filename)).toEqual(["photo.jpg"]);
-  });
-
-  it("filters by type (pdf only matches application/pdf)", () => {
-    const { result } = renderHook(() => useFolderFilter(sampleFiles));
-    act(() => {
-      result.current.setTypeFilter("pdf");
-    });
-    expect(result.current.files.map((f) => f.filename)).toEqual(["manual.pdf"]);
-  });
-
-  it("combines text and type with AND", () => {
-    vi.useFakeTimers({ shouldAdvanceTime: false });
-    const { result } = renderHook(() => useFolderFilter(sampleFiles));
-    act(() => {
-      result.current.setTypeFilter("markdown");
-      result.current.setText("notes");
-    });
-    act(() => {
-      vi.advanceTimersByTime(300);
-    });
-    expect(result.current.files.map((f) => f.filename)).toEqual(["Notes.md"]);
-    vi.useRealTimers();
+    expect(result.current).not.toHaveProperty("typeFilter");
+    expect(result.current).not.toHaveProperty("setTypeFilter");
   });
 
   it("debounces text input by 300ms", () => {
@@ -148,15 +110,6 @@ describe("useFolderFilter", () => {
     });
     expect(result.current.files.length).toBe(1);
     vi.useRealTimers();
-  });
-
-  it("isActive becomes true when text or type is set", () => {
-    const { result } = renderHook(() => useFolderFilter(sampleFiles));
-    expect(result.current.isActive).toBe(false);
-    act(() => {
-      result.current.setTypeFilter("video");
-    });
-    expect(result.current.isActive).toBe(true);
   });
 
   it("isActive tracks debouncedText timing so the empty-state doesn't flicker", () => {
@@ -200,27 +153,22 @@ describe("useFolderFilter", () => {
     expect(result.current.folders).toEqual(folders);
   });
 
-  it("type filter does not hide folders", () => {
-    const folders = [makeFolder("Misc"), makeFolder("Other")];
-    const { result } = renderHook(() => useFolderFilter(sampleFiles, folders));
-    act(() => {
-      result.current.setTypeFilter("video");
-    });
-    expect(result.current.folders).toEqual(folders);
-  });
-
-  it("clear() resets both text and type", () => {
+  it("clear() resets the text", () => {
+    vi.useFakeTimers({ shouldAdvanceTime: false });
     const { result } = renderHook(() => useFolderFilter(sampleFiles));
     act(() => {
       result.current.setText("foo");
-      result.current.setTypeFilter("video");
+    });
+    act(() => {
+      vi.advanceTimersByTime(300);
     });
     act(() => {
       result.current.clear();
     });
     expect(result.current.text).toBe("");
-    expect(result.current.typeFilter).toBeNull();
+    expect(result.current.isActive).toBe(false);
     expect(result.current.files).toEqual(sampleFiles);
+    vi.useRealTimers();
   });
 
   beforeEach(() => {

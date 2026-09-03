@@ -2,9 +2,13 @@
 
 import {
   Check,
+  File as FileIcon,
+  FileArchive,
   FileText,
   FileType,
+  Files,
   Image as ImageIcon,
+  Music,
   Search,
   SlidersHorizontal,
   Video,
@@ -13,22 +17,39 @@ import {
 import { useEffect, useId, useLayoutEffect, useRef, useState } from "react";
 import { useTranslations } from "next-intl";
 
-import type { TreeTypeFilter } from "@/types";
+import type { FileKind } from "@/types";
 
-const DEFAULT_TYPE_OPTIONS: TreeTypeFilter[] = ["markdown", "video", "image", "pdf"];
+/**
+ * The whole vocabulary, in the same order the toolbar lists it — the
+ * two document refinements directly under the kind they refine, so the
+ * nesting is visible in the order. The tree used to offer four of
+ * these, so a drive of audio or archives had a filter that could not
+ * name what was in it.
+ */
+const DEFAULT_TYPE_OPTIONS: FileKind[] = [
+  "video", "image", "audio", "document", "markdown", "pdf", "archive", "other",
+];
 const DEBOUNCE_MS = 300;
 
-const TYPE_LABEL_KEYS: Record<TreeTypeFilter, string> = {
-  markdown: "type.markdown",
+const TYPE_LABEL_KEYS: Record<FileKind, string> = {
   video: "type.video",
   image: "type.image",
+  audio: "type.audio",
+  document: "type.document",
+  archive: "type.archive",
+  other: "type.other",
+  markdown: "type.markdown",
   pdf: "type.pdf",
 };
 
-const TYPE_ICONS: Record<TreeTypeFilter, typeof FileText> = {
-  markdown: FileText,
+const TYPE_ICONS: Record<FileKind, typeof FileText> = {
   video: Video,
   image: ImageIcon,
+  audio: Music,
+  document: Files,
+  archive: FileArchive,
+  other: FileIcon,
+  markdown: FileText,
   pdf: FileType,
 };
 
@@ -41,9 +62,15 @@ interface FilterFieldProps {
   text: string;
   onTextChange: (next: string) => void;
   placeholder?: string;
-  typeFilter: TreeTypeFilter | null;
-  onTypeFilterChange: (next: TreeTypeFilter | null) => void;
-  typeOptions?: TreeTypeFilter[];
+  /**
+   * The kind filter. Optional: the listing surfaces dropped theirs when
+   * the toolbar's server-side filter became the only one — this input is
+   * text-only there, and the chip, its popover and its trigger are all
+   * absent rather than disabled.
+   */
+  typeFilter?: FileKind | null;
+  onTypeFilterChange?: (next: FileKind | null) => void;
+  typeOptions?: FileKind[];
 }
 
 /**
@@ -55,10 +82,15 @@ export function FilterField({
   text,
   onTextChange,
   placeholder,
-  typeFilter,
+  typeFilter: typeFilterProp,
   onTypeFilterChange,
   typeOptions,
 }: FilterFieldProps) {
+  // Without a handler there is nothing a chip could change, so the whole
+  // kind axis is off — one condition rather than a guard at each use.
+  const kindEnabled = onTypeFilterChange !== undefined;
+  const typeFilter = kindEnabled ? (typeFilterProp ?? null) : null;
+  const changeType = onTypeFilterChange ?? (() => {});
   const t = useTranslations("filter");
   const [localText, setLocalText] = useState(text);
   const [open, setOpen] = useState(false);
@@ -122,7 +154,7 @@ export function FilterField({
   }, [typeFilter]);
 
   const options = typeOptions ?? DEFAULT_TYPE_OPTIONS;
-  const menuValues: Array<TreeTypeFilter | null> = [null, ...options];
+  const menuValues: Array<FileKind | null> = [null, ...options];
 
   // Reset focus to the currently selected entry whenever the menu opens or
   // the active type changes while open — keeps keyboard focus tracking the
@@ -142,8 +174,8 @@ export function FilterField({
     optionRefs.current[focusedIndex]?.focus();
   }, [open, focusedIndex]);
 
-  const handleSelect = (value: TreeTypeFilter | null) => {
-    onTypeFilterChange(value);
+  const handleSelect = (value: FileKind | null) => {
+    changeType(value);
     setOpen(false);
     inputRef.current?.focus();
   };
@@ -195,7 +227,7 @@ export function FilterField({
 
   const handleRemoveType = (e: React.MouseEvent<HTMLButtonElement>) => {
     e.stopPropagation();
-    onTypeFilterChange(null);
+    changeType(null);
   };
 
   const handleChipClick = () => {
@@ -216,7 +248,7 @@ export function FilterField({
       target.selectionEnd === 0
     ) {
       e.preventDefault();
-      onTypeFilterChange(null);
+      changeType(null);
     }
   };
 
@@ -330,7 +362,7 @@ export function FilterField({
         {typeFilter !== null && open && renderMenu()}
       </div>
 
-      {typeFilter === null && (
+      {kindEnabled && typeFilter === null && (
         <div className="relative flex-shrink-0">
           <button
             ref={triggerRef}

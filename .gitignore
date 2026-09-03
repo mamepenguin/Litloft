@@ -50,6 +50,10 @@ test_images/
 /test_images
 /docs/superpowers
 
+# Local copy of the UI redesign research artifact. Design working
+# material, tracked nowhere — the same call as docs/superpowers/.
+/litloft-ui-redesign.html
+
 # git worktrees created by wt
 /.worktrees/
 

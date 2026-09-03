@@ -5,9 +5,19 @@ import { useTranslations } from "next-intl";
 import { useCallback } from "react";
 
 import { FolderBrowser } from "@/components/FolderBrowser";
-import type { FileType } from "@/types";
+import type { FileKind } from "@/types";
 
-const VALID_TYPES: ReadonlyArray<FileType> = [
+// The kinds a search can honour end to end.
+//
+// `markdown` and `pdf` are missing on purpose: the core listing
+// understands them, but intelligence's semantic index stores
+// `file_type`, which never holds either — a search narrowed to one
+// would drop every semantic hit and quietly degrade to filename
+// matches. The search toolbar hides those two for the same reason
+// (`FolderToolbar`), so a URL cannot carry a value the picker will not
+// produce. Widening both belongs with the addon change that teaches the
+// index the nested kinds.
+const VALID_TYPES: ReadonlyArray<FileKind> = [
   "video",
   "image",
   "audio",
@@ -16,9 +26,9 @@ const VALID_TYPES: ReadonlyArray<FileType> = [
   "other",
 ];
 
-function parseTypeFilter(raw: string | null): FileType | null {
+function parseTypeFilter(raw: string | null): FileKind | null {
   if (!raw) return null;
-  return (VALID_TYPES as readonly string[]).includes(raw) ? (raw as FileType) : null;
+  return (VALID_TYPES as readonly string[]).includes(raw) ? (raw as FileKind) : null;
 }
 
 /**

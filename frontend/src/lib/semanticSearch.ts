@@ -13,7 +13,7 @@
  */
 
 import { getEnabledAddons } from "./addons";
-import type { FileType } from "@/types";
+import type { FileKind } from "@/types";
 import type { SemanticHit } from "./searchMerge";
 
 const API_BASE = "/api";
@@ -33,7 +33,7 @@ export async function fetchSemanticHits(
   drive: string,
   options?: {
     limit?: number;
-    type?: FileType | null;
+    type?: FileKind | null;
     /**
      * When `true`, the addon unions in scene-frame CLIP embeddings
      * (`embedding_type="clip"`) alongside the default representative-
