@@ -18,7 +18,7 @@ export function InspectorPane({ children }: InspectorPaneProps): ReactElement {
   return (
     <aside
       data-testid="inspector-pane"
-      className="flex h-full w-[300px] flex-col overflow-auto border-l border-bg-border bg-bg-card"
+      className="flex h-full w-96 flex-col overflow-auto border-l border-bg-border bg-bg-card"
     >
       <div className="flex-1 overflow-auto">{children}</div>
     </aside>

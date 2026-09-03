@@ -13,12 +13,19 @@ export function FavoriteButton({
   onToggle,
   size = "sm",
   showLabel = false,
+  entityName,
 }: {
   fileId: string;
   isFavorite: boolean;
   onToggle: (file: FileItem) => void;
   size?: "sm" | "md";
   showLabel?: boolean;
+  /**
+   * The file this star belongs to, for the accessible name. Pass it
+   * wherever the control repeats — a list of them all called "Add to
+   * favorites" tells a screen reader nothing about which row it is on.
+   */
+  entityName?: string;
 }) {
   const t = useTranslations("favorite");
   const { current, iconRef, toggle } = useOptimisticFileToggle({
@@ -41,7 +48,16 @@ export function FavoriteButton({
           ? "text-accent-teal"
           : "text-text-muted/50 hover:text-accent-teal"
       }`}
-      aria-label={current ? t("remove") : t("add")}
+      // A library of stars all called "Add to favorites" gives a screen
+      // reader no way to tell which row it is on. Where the caller knows
+      // the file — a list row — the name goes in (hako
+      // `Prwd_iaXmCjWfY24KjFz2`). The detail page renders one, so it
+      // keeps the short form.
+      aria-label={
+        entityName
+          ? t(current ? "removeFor" : "addFor", { name: entityName })
+          : t(current ? "remove" : "add")
+      }
     >
       <Star
         ref={iconRef}

@@ -86,7 +86,7 @@ interface MarkdownDocumentLayoutProps {
  *   ┌──────────────────────────────────────────────────────────┐
  *   │ [▤] ● title              [ Edit Split Preview ]    [▭] │  ← h-12 chrome
  *   ├───────────────────────────────────┬──────────────────────┤
- *   │ canvas (children)                 │ inspector (300px)    │
+ *   │ canvas (children)                 │ inspector (384px)    │
  *   └───────────────────────────────────┴──────────────────────┘
  *
  * Chrome is a single 48px (`h-12`) row matching the non-Markdown

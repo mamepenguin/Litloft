@@ -646,7 +646,7 @@ export function FileDetailContent({
               {formatFileSize(file.file_size)}
             </p>
           )}
-          {/* Wraps because this row also renders inside the 300px Markdown
+          {/* Wraps because this row also renders inside the 384px Markdown
               inspector and on a phone, where it cannot fit on one line. */}
           <div className="mt-2 flex flex-wrap items-center gap-1">
             <LikeButton
@@ -703,7 +703,7 @@ export function FileDetailContent({
     // 2026-05-12 inspector consolidation:
     //
     // - The Inspector (and the mobile Bottom Sheet) hosts every
-    //   section that fits comfortably in a ~300px column: file meta,
+    //   section that fits comfortably in a ~384px column: file meta,
     //   tags, related files, exif, similar-files, comments, plus
     //   residual addon sections (everything except `knowledge-edit`
     //   and `detailed-summary`).

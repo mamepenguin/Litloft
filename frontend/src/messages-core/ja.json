@@ -159,7 +159,8 @@
     "relatedFileMissing": "見つからない",
     "relatedFileSizeBytes": "{size}バイト",
     "layoutBeside": "文字起こしを動画の横に表示",
-    "layoutStack": "文字起こしを動画の下に表示"
+    "layoutStack": "文字起こしを動画の下に表示",
+    "actionsFor": "{name} の操作"
   },
   "search": {
     "label": "検索",
@@ -240,7 +241,9 @@
     "add": "お気に入りに追加",
     "remove": "お気に入り解除",
     "added": "お気に入り済み",
-    "label": "お気に入り"
+    "label": "お気に入り",
+    "addFor": "{name} をお気に入りに追加",
+    "removeFor": "{name} をお気に入りから外す"
   },
   "like": {
     "add": "Like する",
@@ -1078,12 +1081,14 @@
     }
   },
   "trustTier": {
+    "stateVerified": "検証済み",
     "stateUnverified": "未検証",
     "trust": "出典として信用する",
     "withdraw": "信用を取り消す",
     "filterAll": "すべて",
     "filterVerified": "検証済みのみ",
-    "filterUnreviewed": "未確認のみ",
-    "filterLabel": "信頼度"
+    "filterUnreviewed": "未判定のみ",
+    "filterUnreviewedHint": "誰も判定していないもの（移行分を含む）",
+    "filterLabel": "検証状態"
   }
 }

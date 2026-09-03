@@ -47,9 +47,15 @@ export function TrustTierControl({
   const target: TrustTier = verified ? "unverified" : "verified";
   const action = verified ? t("withdraw") : t("trust");
 
-  // Verified is the normal state of almost every file, so it is an icon and
-  // nothing else — a label repeated across a whole library is noise, not
-  // information. Only the exception carries text.
+  // Both states carry their label.
+  //
+  // Verified used to be an icon alone, on the reasoning that a label
+  // repeated across a whole library is noise. That reasoning is about
+  // list rows, and this control does not appear in one — it renders
+  // once, on the file detail page. What the bare shield cost instead
+  // was a reader having to know that a shield means verified, next to
+  // an unverified state that says so in words. One of two states
+  // spelling itself out is not a pair.
   //
   // The badge deliberately reports the tier alone. Whether anyone has *ruled*
   // on the file is a different question, and the one place it actually helps
@@ -69,14 +75,10 @@ export function TrustTierControl({
       data-testid="trust-tier-state"
       data-tier={file.trust_tier}
       data-reviewed={reviewed ? "true" : "false"}
-      className={`flex shrink-0 items-center gap-1.5 rounded-full transition-colors disabled:opacity-50 ${
-        verified
-          ? "p-1.5 text-text-muted hover:text-text-primary"
-          : "bg-bg-card px-3 py-1.5 text-sm text-text-muted hover:text-text-primary"
-      }`}
+      className="flex shrink-0 items-center gap-1.5 rounded-full bg-bg-card px-3 py-1.5 text-sm text-text-muted transition-colors hover:text-text-primary disabled:opacity-50"
     >
       {verified ? <ShieldCheck size={16} /> : <ShieldQuestion size={16} />}
-      {!verified && <span>{t("stateUnverified")}</span>}
+      <span>{t(verified ? "stateVerified" : "stateUnverified")}</span>
     </button>
   );
 }

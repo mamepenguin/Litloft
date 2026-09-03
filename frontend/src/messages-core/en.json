@@ -159,7 +159,8 @@
     "relatedFileMissing": "missing",
     "relatedFileSizeBytes": "{size} bytes",
     "layoutBeside": "Move transcript beside the player",
-    "layoutStack": "Move transcript below the player"
+    "layoutStack": "Move transcript below the player",
+    "actionsFor": "Actions for {name}"
   },
   "search": {
     "label": "Search",
@@ -240,7 +241,9 @@
     "add": "Add to favorites",
     "remove": "Remove from favorites",
     "added": "Favorited",
-    "label": "Favorites"
+    "label": "Favorites",
+    "addFor": "Add {name} to favorites",
+    "removeFor": "Remove {name} from favorites"
   },
   "like": {
     "add": "Mark as liked",
@@ -1078,12 +1081,14 @@
     }
   },
   "trustTier": {
+    "stateVerified": "Verified",
     "stateUnverified": "Unverified",
     "trust": "Trust as a source",
     "withdraw": "Withdraw trust",
     "filterAll": "All",
     "filterVerified": "Verified only",
-    "filterUnreviewed": "Not reviewed only",
-    "filterLabel": "Trust"
+    "filterUnreviewed": "Unjudged only",
+    "filterUnreviewedHint": "Nobody has ruled on these, migrated files included",
+    "filterLabel": "Verification"
   }
 }
