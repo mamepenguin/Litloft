@@ -13,9 +13,10 @@ import { compile } from "tailwindcss";
 // candidate class the source writes and see which produce no CSS. That is what
 // "dead" means, and it leaves no list of exceptions to keep current — `text-sm`
 // and `bg-gradient-to-b` compile, `text-success` and `bg-danger-bg` do not, and
-// nothing here has to know why. An earlier version matched token names against
-// the families declared in `@theme inline`, which could not see `text-success`
-// at all: `success` names no family, so it looked like Tailwind's business.
+// nothing here has to know why. Matching token names against the families
+// declared in `@theme inline` would be the obvious shortcut, and it cannot see
+// a token like `text-success`: `success` names no family, so it reads as
+// Tailwind's business rather than ours.
 
 const REPO_ROOT = resolve(dirname(fileURLToPath(import.meta.url)), "../../..");
 const FRONTEND = resolve(REPO_ROOT, "frontend");
@@ -266,8 +267,8 @@ async function findDeadClasses(classes: string[]): Promise<Set<string>> {
   // `build` is cumulative: it returns everything compiled so far, not just the
   // classes in this call. So deadness is measured as growth — a class Tailwind
   // understands adds its rule and lengthens the sheet, a dead one adds nothing.
-  // (Testing each result for `{` instead would call everything live, since the
-  // base layer alone contains braces.) Callers must pass distinct classes; a
+  // Testing each result for `{` would call everything live, since the base
+  // layer alone contains braces. Callers must pass distinct classes; a
   // repeat adds nothing the second time and would look dead.
   const dead = new Set<string>();
   let length = compiler.build([]).length;

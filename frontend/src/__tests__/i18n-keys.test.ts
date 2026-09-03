@@ -25,6 +25,46 @@ function getAllKeys(obj: MessageObject, prefix = ""): string[] {
   return keys.sort();
 }
 
+/**
+ * Every path in the tree, mapped to whether it holds a subtree or a string.
+ *
+ * The merge recurses only where both sides hold objects; anywhere else it
+ * assigns (`result[key] = sv`). So two namespaces of the same name combine
+ * harmlessly — that is how addons extend `file` or `search` — but an addon
+ * holding a *string* where core holds a namespace replaces the whole subtree,
+ * and every key beneath it vanishes from the merged output. Comparing leaves
+ * alone cannot see that: the addon contributes one path that is a branch on
+ * core's side, so it appears in no leaf list.
+ */
+function pathKinds(obj: MessageObject, prefix = ""): Map<string, "branch" | "leaf"> {
+  const kinds = new Map<string, "branch" | "leaf">();
+  for (const [key, value] of Object.entries(obj)) {
+    const fullKey = prefix ? `${prefix}.${key}` : key;
+    const isBranch = typeof value === "object" && value !== null;
+    kinds.set(fullKey, isBranch ? "branch" : "leaf");
+    if (isBranch) {
+      for (const [k, v] of pathKinds(value as MessageObject, fullKey)) kinds.set(k, v);
+    }
+  }
+  return kinds;
+}
+
+/** Paths where `addon` would displace `core` rather than merge into it. */
+function displacements(
+  addon: Map<string, "branch" | "leaf">,
+  core: Map<string, "branch" | "leaf">,
+): string[] {
+  const out: string[] = [];
+  for (const [path, kind] of addon) {
+    const coreKind = core.get(path);
+    if (coreKind === undefined) continue;
+    // Two namespaces of the same name merge; anything else overwrites.
+    if (kind === "branch" && coreKind === "branch") continue;
+    out.push(`${path} (addon ${kind} over core ${coreKind})`);
+  }
+  return out.sort();
+}
+
 describe("i18n key consistency", () => {
   const jaKeys = getAllKeys(jaMessages as MessageObject);
   const enKeys = getAllKeys(enMessages as MessageObject);
@@ -104,11 +144,16 @@ function addonCatalogues(): { addon: string; ja: MessageObject; en: MessageObjec
 
 describe("addon i18n catalogues", () => {
   const catalogues = addonCatalogues();
-  const coreKeys = new Set(getAllKeys(jaMessages as MessageObject));
+  const coreKinds = pathKinds(jaMessages as MessageObject);
 
-  it("finds the addons checked out beside core", () => {
-    expect(catalogues.length).toBeGreaterThan(0);
-  });
+  it.skipIf(!existsSync(ADDONS_DIR))(
+    "finds the addons checked out beside core",
+    () => {
+      // Skipped rather than failed where only `frontend/` was copied, matching
+      // how design-tokens.test.ts treats the same absence.
+      expect(catalogues.length).toBeGreaterThan(0);
+    },
+  );
 
   it.each(catalogues.map((c) => [c.addon, c] as const))(
     "%s ships the same keys in both locales",
@@ -121,17 +166,19 @@ describe("addon i18n catalogues", () => {
   );
 
   it.each(catalogues.map((c) => [c.addon, c] as const))(
-    "%s does not overwrite a core key",
+    "%s does not displace a core key or namespace",
     (_addon, catalogue) => {
-      const clashes = getAllKeys(catalogue.ja).filter((k) => coreKeys.has(k));
-      expect(clashes).toEqual([]);
+      expect(displacements(pathKinds(catalogue.ja), coreKinds)).toEqual([]);
     },
   );
 
   it("no two addons claim the same key", () => {
     const owners = new Map<string, string[]>();
     for (const { addon, en } of catalogues) {
-      for (const key of getAllKeys(en)) {
+      for (const [key, kind] of pathKinds(en)) {
+        // Shared namespaces are fine; a shared leaf means one addon's string
+        // silently wins, and which one depends on directory order.
+        if (kind === "branch") continue;
         owners.set(key, [...(owners.get(key) ?? []), addon]);
       }
     }
