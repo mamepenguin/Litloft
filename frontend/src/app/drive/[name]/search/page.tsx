@@ -7,21 +7,17 @@ import { useCallback } from "react";
 import { FolderBrowser } from "@/components/FolderBrowser";
 import type { FileKind } from "@/types";
 
-// The kinds a search can honour end to end.
-//
-// `markdown` and `pdf` are missing on purpose: the core listing
-// understands them, but intelligence's semantic index stores
-// `file_type`, which never holds either — a search narrowed to one
-// would drop every semantic hit and quietly degrade to filename
-// matches. The search toolbar hides those two for the same reason
-// (`FolderToolbar`), so a URL cannot carry a value the picker will not
-// produce. Widening both belongs with the addon change that teaches the
-// index the nested kinds.
+// The kinds a search can honour end to end — the same eight the folder
+// toolbar offers, since intelligence learned the nested two
+// (`addons/intelligence/app/file_kind.py`). `subtitle` is not here for
+// the reason it is not in the toolbar: nothing registers a row for it.
 const VALID_TYPES: ReadonlyArray<FileKind> = [
   "video",
   "image",
   "audio",
   "document",
+  "markdown",
+  "pdf",
   "archive",
   "other",
 ];

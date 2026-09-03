@@ -397,16 +397,19 @@ describe("FolderToolbar", () => {
       ]);
     });
 
-    it("hides the two the semantic index cannot honour, in search", () => {
-      // intelligence stores `file_type`, which never holds `markdown`
-      // or `pdf`, so a search narrowed to either would drop every
-      // semantic hit and silently fall back to filename matches.
-      // `Document` — the kind both live under — stays.
+    it("offers the same vocabulary in search", () => {
+      // For a while it offered two fewer here: intelligence's index
+      // stores `file_type`, which never holds `markdown` or `pdf`, so
+      // narrowing a search to either dropped every semantic hit and
+      // fell back to filename matches without saying so. The addon
+      // learned the nested kinds (`app/file_kind.py`), so the two
+      // surfaces answer the same question again — which is the whole
+      // point of there being one vocabulary.
       render(<FolderToolbar {...defaultProps} isSearch />);
-      const items = kindMenu();
-      expect(items).not.toContain("Markdown");
-      expect(items).not.toContain("PDF");
-      expect(items).toContain("Document");
+      expect(kindMenu()).toEqual([
+        "All", "Video", "Image", "Audio", "Document", "Markdown", "PDF",
+        "Archive", "Other",
+      ]);
     });
   });
 });

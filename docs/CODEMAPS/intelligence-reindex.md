@@ -79,11 +79,12 @@ Tests: `addons/intelligence/tests/test_failed_jobs_endpoint.py` (12 cases — ad
 
 | File | Role |
 |---|---|
-| `addons/intelligence/frontend/IndexStatusWidget.tsx` | Failed-jobs summary row replaces the old *Reindex* button. *N == 0* → muted "no failed jobs" label; *N > 0* → amber background with `AlertTriangle`, clickable to open the modal. Pause / Resume buttons in the header are unchanged. Polled every 10 s with `?limit=1` to keep the row count fresh |
+| `addons/intelligence/frontend/IndexStatusWidget.tsx` | Queue depth, per-task rows, model memory, Pause / Resume. It no longer knows about failed jobs at all — it does not poll for them and does not own the modal |
+| `addons/intelligence/frontend/FailedJobsAlert.tsx` | The `dashboard-alerts` entry, above the drive cards. Polls every 10 s with `?limit=1` for the count alone; *N == 0* renders nothing (no wrapper, no heading, no "all clear" row); *N > 0* is an amber band with `AlertTriangle` that opens the modal. Owns the modal, and keeps it mounted while it is open even after the count reaches 0 — clearing the last job from inside the modal must not tear the modal out |
 | `addons/intelligence/frontend/FailedJobsModal.tsx` | New modal. Lists each row with filename, drive, task kind, provider, `error_class`, `attempted_at`, attempts; *Retry* button calls `reindexFile(fileId, [task])`; *Details* link is an SPA navigation (`<Link>` / `router.push`, never `window.location.href`) to the file detail page, where the same per-task view is reachable from the `[...]` menu. A 24px gutter is reserved at the start of each row for a future multi-select checkbox (Phase 2 only) |
 | `addons/intelligence/frontend/api.ts` | `getFailedJobs({ limit, offset })` and the `FailedJobsResponse` type |
 
-Tests: `addons/intelligence/frontend/FailedJobsModal.test.tsx`.
+Tests: `addons/intelligence/frontend/FailedJobsModal.test.tsx`, `FailedJobsAlert.test.tsx`.
 
 ## Independence from the embedding-model swap
 

@@ -735,7 +735,8 @@ When enabled, the intelligence addon contributes:
 - **Drive home** — *Pickup*, a carousel of files you have never opened, with a link through to the full feed at `/drive/{drive}/addons/intelligence/pickup` once it holds at least 40
 - **File `[...]` menu** — *Index details*, a dialog showing per-task state with a *Regenerate* button for each task (`metadata`, `clip`, `whisper`, `text`) plus recent provider stats for failure context. It sits in the overflow menu rather than in the inspector because it answers an operator's question, not a reader's.
 - **Folder actions** — *Refine all transcripts in folder*, *Regenerate summaries*.
-- **Dashboard widget** — *Index Status* (queue depth, model memory, and a failed-jobs summary row that opens the *Failed jobs* modal — per-file × per-task retry). The eleven per-task queues are listed only while they are moving; the idle ones sit behind a *Show N idle queues* disclosure, since the running/waiting total above already says how much work there is.
+- **Dashboard widget** — *Index Status* (queue depth and model memory). The eleven per-task queues are listed only while they are moving; the idle ones sit behind a *Show N idle queues* disclosure, since the running/waiting total above already says how much work there is.
+- **Dashboard alert** — a *Failed jobs* band above the drive cards, which opens the *Failed jobs* modal (per-file × per-task retry). It is absent entirely when nothing has failed.
 
 Each section is a slot contribution; if a feature is disabled (per-drive policy), its section disappears.
 
@@ -754,8 +755,9 @@ whatever context it can:
   vouched for count as "a note of yours" — ordinary search returns unverified
   files too, and a clip is a `.md` like any note, so the extension alone
   proves nothing.
-- **Trust as a source** promotes it; **Not for now** records that you looked
-  and decided against it, so you are not asked again.
+- **Trust as a source** promotes it; **Leave it unverified** records that you
+  looked and decided against it, so you are not asked again. Both stamp the
+  review, which is why neither wording promises a decision deferred.
 
 What it deliberately does *not* do is summarise. The paragraphs shown are the
 exact strings used as the search queries, and the matches are embedding
@@ -779,7 +781,7 @@ so is *Find*, which presents files rather than grounding an answer.
 There is **no global "Reindex all" button**. The addon offers two scoped paths instead (spec [`2026-05-24-intelligence-reindex-controls.md`](../superpowers/specs/2026-05-24-intelligence-reindex-controls.md)):
 
 - **Per-file × per-task.** Open the `[...]` menu on a file's detail page, choose *Index details*, and click *Regenerate* on a specific task (`metadata`, `clip`, `whisper`, or `text`). The corresponding `*_indexed` flag is reset to `False` and the reconciler picks the file up on its next pass.
-- **Failed-job retry.** The *Index Status* dashboard widget shows a *Failed jobs* summary row. Opening the modal lists the most recent failures (file, drive, task, provider, error class, attempt count, timestamp), with a *Retry* button per row that calls the same per-file × per-task path. Rows with `status='skipped'` (e.g. `UnsupportedMimeType`) are intentionally excluded — retrying would only re-skip.
+- **Failed-job retry.** A *Failed jobs* band sits above the drive cards on the admin dashboard whenever something has failed. Opening the modal lists the most recent failures (file, drive, task, provider, error class, attempt count, timestamp), with a *Retry* button per row that calls the same per-file × per-task path. Rows with `status='skipped'` (e.g. `UnsupportedMimeType`) are intentionally excluded — retrying would only re-skip.
 
 Embedding-model switches are a different flow: editing `models.text_embedding` from the intelligence admin page sets a `reindex_pending` flag and the actual rebuild happens on container restart (see [text embedding model](#text-embedding-model-gui-managed) in the developer-guide reference). The reindex-pending flow and the per-file regeneration UI are independent.
 
@@ -791,7 +793,7 @@ Embedding-model switches are a different flow: editing `models.text_embedding` f
 - **Re-index on model change.** Switching `text_embedding` or `clip` invalidates existing embeddings; the next reconcile pass re-indexes. Switching Whisper does not re-transcribe automatically — re-run transcription manually.
 - **One-time document re-index on upgrade.** The upgrade that adds `embeddings.chunk_index` discards existing document embeddings so the next reconcile pass rebuilds them with the key that maps an embedding back to the text it was built from. Only text extraction and embedding re-run: transcripts are untouched, and keyword search keeps working throughout because the FTS tables are replaced per file as it comes back around.
 - **DB layout.** The addon's data lives under `data/addons/intelligence/`. The core DB is **not** modified; the addon mirrors what it needs and queries the rest through the Internal API.
-- **Observability.** `docker compose logs -f intelligence`. Queue depth, model memory, and recent failed jobs are surfaced on the admin dashboard's *Index Status* widget; the *Failed jobs* modal supports per-row retry.
+- **Observability.** `docker compose logs -f intelligence`. Queue depth and model memory are on the admin dashboard's *Index Status* widget; recent failures are the *Failed jobs* band above the drive cards, whose modal supports per-row retry.
 - **Cold-start grace.** The addon fails open on policy lookups for the first 60 seconds; after that, missing core means the addon refuses to enqueue work.
 - **Liveness.** The addon serves every endpoint from a single event loop, so a blocked loop takes them all down at once while the container still looks perfectly healthy — process up, memory flat, CPU at zero. Two things make that state visible: the `healthcheck` block `configure.py` writes into `docker-compose.override.yml` (an HTTP probe of `/health`, so `docker compose ps` reports `unhealthy`), and a watchdog inside the addon that logs every thread's stack once the loop has gone 120 seconds without running a callback. Neither restarts anything — Docker leaves an unhealthy container running, and the watchdog deliberately does not kill a process that might be mid-index. Recovery is `docker compose restart intelligence`.
 
@@ -800,7 +802,7 @@ Embedding-model switches are a different flow: editing `models.text_embedding` f
 | Symptom | Likely cause |
 |---|---|
 | Search returns nothing on a freshly-added drive | Reconciler has not run yet; wait for the next reconcile (`indexing.reconciliation_interval`, default 1 hour) or open a file's `[...]` menu → *Index details* and click *Regenerate* on the relevant task |
-| A handful of files consistently fail to index | Open the admin dashboard, click the *Failed jobs* row on *Index Status*, and *Retry* the affected files — or jump to the file detail and regenerate the specific task that failed |
+| A handful of files consistently fail to index | Open the admin dashboard, press the *Failed jobs* band above the drive cards, and *Retry* the affected files — or jump to the file detail and regenerate the specific task that failed |
 | Ask answer says *no strong source* on grounded questions | Lower `summaries.citation_threshold`, or improve transcript quality |
 | Whisper transcripts drift to nonsense | Lower `compression_ratio_threshold`; never put filenames in `initial_prompt` |
 | Cloud transcription returns 413 | Switch from `openai_compatible` to `deepgram`, `elevenlabs_scribe`, or `assemblyai` for files > 25 MB |
