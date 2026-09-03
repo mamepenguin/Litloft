@@ -13,7 +13,6 @@ The page is composed of stacked sections, each driven by an API call:
 For every drive in `drives.json`:
 
 - **File counts by type** — videos, audio, images, documents, archives, other.
-- **Disk usage** — total bytes occupied by Active files.
 - **Trash count and bytes** — how much would be reclaimed by an empty-trash cycle.
 - **Missing count** — files that disappeared from disk and are awaiting recovery.
 - **Last scan** — when the scanner last walked this drive.
@@ -22,6 +21,13 @@ For every drive in `drives.json`:
 Click a drive card to drill into per-drive admin actions.
 
 ### System metrics
+
+**Disk usage is listed per filesystem, not per drive**, with the drives
+that share each one named beside it. `shutil.disk_usage` measures a
+mount: asking it once per drive gave every drive on the same disk
+identical numbers, so an empty drive read as half full. A drive whose
+path cannot be read is left out rather than shown as a full disk.
+
 
 A single card with global stats:
 

@@ -763,7 +763,8 @@
     "restartTitle": "Pending changes — restart required",
     "restartCopyCommand": "docker compose restart backend",
     "restartCopyButton": "Copy",
-    "restartCopied": "Copied"
+    "restartCopied": "Copied",
+    "diskUsage": "{used} of {total} used"
   },
   "markdownImages": {
     "title": "Attach Markdown Images",

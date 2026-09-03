@@ -381,9 +381,6 @@ export interface UploadCompleteData {
 
 export interface DashboardDriveInfo {
   name: string;
-  total_bytes: number;
-  used_bytes: number;
-  free_bytes: number;
   file_count: number;
   file_types: Record<string, number>;
   last_scanned_at: string | null;
@@ -391,7 +388,17 @@ export interface DashboardDriveInfo {
   readonly: boolean;
 }
 
+/** One mounted filesystem, and the drives that share it. */
+export interface DashboardFilesystemInfo {
+  mount_label: string;
+  total_bytes: number;
+  used_bytes: number;
+  free_bytes: number;
+  drives: string[];
+}
+
 export interface DashboardSystemInfo {
+  filesystems: DashboardFilesystemInfo[];
   db_size_bytes: number;
   thumbnail_cache_bytes: number;
   converted_cache_bytes: number;

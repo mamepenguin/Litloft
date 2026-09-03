@@ -763,7 +763,8 @@
     "restartTitle": "保留中の変更があります。反映には再起動が必要です",
     "restartCopyCommand": "docker compose restart backend",
     "restartCopyButton": "コピー",
-    "restartCopied": "コピーしました"
+    "restartCopied": "コピーしました",
+    "diskUsage": "{used} / {total} 使用"
   },
   "markdownImages": {
     "title": "Markdown画像の添付化",

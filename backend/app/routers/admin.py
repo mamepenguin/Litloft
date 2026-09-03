@@ -13,7 +13,12 @@ import app.config as config
 from app.auth import require_admin
 from app.database import get_db
 from app.models import File, active_file_filter
-from app.schemas import DashboardDriveInfo, DashboardResponse, DashboardSystemInfo
+from app.schemas import (
+    DashboardDriveInfo,
+    DashboardFilesystemInfo,
+    DashboardResponse,
+    DashboardSystemInfo,
+)
 from app.services.scanner import get_scan_status
 
 logger = logging.getLogger(__name__)
@@ -30,13 +35,37 @@ router = APIRouter(
 _start_time = time.monotonic()
 
 
-def _get_disk_usage(drive_path: Path) -> tuple[int, int, int]:
-    """Return (total, used, free) bytes for the filesystem containing drive_path."""
-    try:
-        usage = shutil.disk_usage(str(drive_path))
-        return (usage.total, usage.used, usage.free)
-    except OSError:
-        return (0, 0, 0)
+def _collect_filesystems(drives: list[dict]) -> list[DashboardFilesystemInfo]:
+    """Group the configured drives by the filesystem they sit on.
+
+    ``shutil.disk_usage`` measures a mount, not a directory, so asking
+    it per drive answered the same number for every drive on one disk —
+    a drive with no files in it read as 48% full, and three drives on
+    one SSD looked like three disks filling in step. Grouping by
+    ``st_dev`` says the true thing once and names which drives share it.
+    """
+    by_device: dict[int, DashboardFilesystemInfo] = {}
+    for drive in drives:
+        path = Path(drive["path"])
+        try:
+            device = path.stat().st_dev
+            usage = shutil.disk_usage(str(path))
+        except OSError:
+            # An unmounted or unreadable drive contributes no filesystem
+            # row rather than a row of zeroes claiming a full disk.
+            continue
+        existing = by_device.get(device)
+        if existing is not None:
+            existing.drives.append(drive["name"])
+            continue
+        by_device[device] = DashboardFilesystemInfo(
+            mount_label=str(path),
+            total_bytes=usage.total,
+            used_bytes=usage.used,
+            free_bytes=usage.free,
+            drives=[drive["name"]],
+        )
+    return list(by_device.values())
 
 
 def _get_directory_size(directory: Path) -> int:
@@ -64,9 +93,6 @@ def _get_file_size(file_path: Path) -> int:
 def _build_drive_info(db: Session, drive: dict) -> DashboardDriveInfo:
     """Build dashboard info for a single drive."""
     name = drive["name"]
-    drive_path = Path(drive["path"])
-
-    total_bytes, used_bytes, free_bytes = _get_disk_usage(drive_path)
 
     type_counts = (
         db.query(File.file_type, func.count())
@@ -81,9 +107,6 @@ def _build_drive_info(db: Session, drive: dict) -> DashboardDriveInfo:
 
     return DashboardDriveInfo(
         name=name,
-        total_bytes=total_bytes,
-        used_bytes=used_bytes,
-        free_bytes=free_bytes,
         file_count=file_count,
         file_types=file_types,
         last_scanned_at=scan_status["last_scanned_at"],
@@ -115,6 +138,7 @@ def _build_system_info(db: Session) -> DashboardSystemInfo:
     )
 
     return DashboardSystemInfo(
+        filesystems=_collect_filesystems(config.load_drives()),
         db_size_bytes=_get_file_size(db_path),
         thumbnail_cache_bytes=_get_directory_size(config.THUMBNAILS_DIR),
         converted_cache_bytes=_get_directory_size(config.CONVERTED_DIR),
