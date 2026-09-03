@@ -51,11 +51,16 @@ export function useInertBackdrop<T extends HTMLElement>(active: boolean) {
 
     // The root carries no focusable control of its own until the chrome
     // renders, so it takes focus itself and becomes the anchor for Tab.
-    if (!root.hasAttribute("tabindex")) root.setAttribute("tabindex", "-1");
+    const ownsTabIndex = !root.hasAttribute("tabindex");
+    if (ownsTabIndex) root.setAttribute("tabindex", "-1");
     root.focus({ preventScroll: true });
 
     return () => {
       for (const sibling of marked) sibling.removeAttribute("inert");
+      // Both current viewers unmount their root, but the hook is written to be
+      // reusable, and a root that merely goes inactive should not keep an
+      // attribute it did not arrive with.
+      if (ownsTabIndex) root.removeAttribute("tabindex");
       body.style.overflow = previousOverflow;
       // Only if it is still in the document: the element that opened the
       // viewer may not have survived the render that closed it.

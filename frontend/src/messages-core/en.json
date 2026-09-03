@@ -359,6 +359,7 @@
     "seekToTime": "Jump to {time}"
   },
   "archive": {
+    "imageViewer": "Archive image viewer",
     "rootBreadcrumb": "Archive",
     "loadFailed": "Failed to load archive: {error}",
     "fileCount": "{count} files / {size}",
@@ -481,6 +482,7 @@
     "searchWholeDrive": "Search the whole drive"
   },
   "gallery": {
+    "imageGallery": "Image gallery",
     "prevImage": "Previous image",
     "nextImage": "Next image",
     "slideshowInterval": "Slideshow interval",

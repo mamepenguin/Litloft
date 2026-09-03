@@ -359,6 +359,7 @@
     "seekToTime": "{time} へ移動"
   },
   "archive": {
+    "imageViewer": "書庫の画像ビューア",
     "rootBreadcrumb": "書庫",
     "loadFailed": "アーカイブの読み込みに失敗しました: {error}",
     "fileCount": "{count}ファイル/{size}",
@@ -481,6 +482,7 @@
     "searchWholeDrive": "ドライブ全体を検索"
   },
   "gallery": {
+    "imageGallery": "画像ギャラリー",
     "prevImage": "前の画像",
     "nextImage": "次の画像",
     "slideshowInterval": "スライドショー間隔",

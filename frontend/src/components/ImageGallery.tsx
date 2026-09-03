@@ -346,7 +346,13 @@ export function ImageGallery({
   if (!open) return null;
 
   return (
-    <div ref={backdropRef} className="fixed inset-0 z-[60] flex flex-col bg-black">
+    <div
+      ref={backdropRef}
+      role="dialog"
+      aria-modal
+      aria-label={`${t("imageGallery")}: ${currentImage.title}`}
+      className="fixed inset-0 z-[60] flex flex-col bg-black"
+    >
       {/* Header */}
       <div
         className="absolute inset-x-0 top-0 z-10 flex items-center justify-between bg-gradient-to-b from-black/80 to-transparent px-4 py-3 transition-opacity duration-300"
