@@ -402,9 +402,13 @@ describe("FolderToolbar", () => {
       // stores `file_type`, which never holds `markdown` or `pdf`, so
       // narrowing a search to either dropped every semantic hit and
       // fell back to filename matches without saying so. The addon
-      // learned the nested kinds (`app/file_kind.py`), so the two
-      // surfaces answer the same question again — which is the whole
-      // point of there being one vocabulary.
+      // learned the nested kinds (`app/file_kind.py`), so both surfaces
+      // now understand the question — which is the point of there being
+      // one vocabulary. They still answer it at different points in
+      // their pipelines (core filters in SQL before paging; the addon
+      // filters after retrieval has produced its candidates), so a
+      // narrow search can still come back short. That is how the six
+      // flat kinds have always behaved.
       render(<FolderToolbar {...defaultProps} isSearch />);
       expect(kindMenu()).toEqual([
         "All", "Video", "Image", "Audio", "Document", "Markdown", "PDF",

@@ -108,7 +108,7 @@ const TRUST_OPTION_KEYS: ReadonlyArray<{ value: TrustFilter | null; labelKey: st
  * Markdown and PDF sit under `document`: choosing `document` returns
  * them too, and choosing one of them narrows further.
  */
-const TYPE_OPTION_KEYS: ReadonlyArray<{ value: FileKind | null; labelKey: string }> = [
+export const TYPE_OPTION_KEYS: ReadonlyArray<{ value: FileKind | null; labelKey: string }> = [
   { value: null, labelKey: "type.all" },
   { value: "video", labelKey: "type.video" },
   { value: "image", labelKey: "type.image" },

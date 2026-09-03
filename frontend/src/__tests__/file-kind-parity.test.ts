@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { readFileSync, existsSync } from "node:fs";
+import { readFileSync, existsSync, readdirSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { resolve, dirname } from "node:path";
 
@@ -37,8 +37,16 @@ const ADDON = resolve(REPO_ROOT, "addons/intelligence/app/file_kind.py");
  * instead of being silently read as empty.
  */
 function pythonTable(source: string, name: string): Record<string, string[]> {
-  const start = source.indexOf(`${name}: dict[str, tuple[str, ...]] = {`);
-  expect(start, `${name} not found — was it renamed?`).toBeGreaterThan(-1);
+  // Anchored to the start of a line: a bare `indexOf` also matches
+  // `_KIND_MIMES` when asked for `KIND_MIMES`, so a rename that only
+  // adds a prefix would resolve to the renamed table and the guard
+  // would report agreement with itself.
+  const anchor = new RegExp(
+    `^${name.replace(/[$_]/g, "\\$&")}: dict\\[str, tuple\\[str, \\.\\.\\.\\]\\] = \\{`,
+    "m",
+  ).exec(source);
+  expect(anchor, `${name} not found — was it renamed?`).not.toBeNull();
+  const start = anchor!.index;
   const open = source.indexOf("{", start);
   const close = source.indexOf("\n}", open);
   expect(close, `${name} has no closing brace`).toBeGreaterThan(open);
@@ -48,28 +56,54 @@ function pythonTable(source: string, name: string): Record<string, string[]> {
   for (const m of body.matchAll(/"([^"]+)":\s*\(([^)]*)\)/g)) {
     table[m[1]] = [...m[2].matchAll(/"([^"]*)"/g)].map((v) => v[1]);
   }
-  expect(Object.keys(table).length, `${name} parsed as empty`).toBeGreaterThan(0);
+  // Every key in the literal has to have been read. Without this an
+  // entry rewritten from a tuple to a list simply vanishes from the
+  // parsed table — and if both sides are rewritten, two tables that
+  // genuinely diverge compare equal because the diverging key is
+  // missing from both.
+  const declared = [...body.matchAll(/"([^"]+)":/g)].map((m) => m[1]);
+  expect(Object.keys(table).sort(), `${name} has an entry this parser cannot read`).toEqual(
+    declared.sort(),
+  );
+  expect(declared.length, `${name} parsed as empty`).toBeGreaterThan(0);
   return table;
+}
+
+/** One `def name(...)` body: from its line to the next top-level `def`. */
+function functionBody(source: string, name: string): string {
+  const start = new RegExp(`^def ${name}\\(`, "m").exec(source);
+  expect(start, `${name} not found — was it renamed?`).not.toBeNull();
+  const after = source.slice(start!.index + 1);
+  const end = /^def /m.exec(after);
+  return end ? after.slice(0, end.index) : after;
 }
 
 const ADDON_DIR = resolve(REPO_ROOT, "addons/intelligence");
 
 describe("file-kind classifier, core vs the intelligence addon", () => {
-  // A clone without `--recurse-submodules` leaves `addons/` empty, and
-  // that is not a defect in anything. But an intelligence checkout that
-  // *is* there and has no `file_kind.py` is a stale pin — core offering
-  // markdown and pdf in search over an index that cannot honour them —
-  // so that case fails rather than skips. This is what makes the
-  // gitlink load-bearing (`00-basis.md`, "bump を core PR に同梱するか").
-  const present = existsSync(ADDON_DIR);
-  if (present) {
+  // Three states, and only one of them is a defect.
+  //
+  // Git materialises a *directory* for every gitlink on checkout, so a
+  // clone without `--recurse-submodules` leaves `addons/intelligence`
+  // present and empty — measured, not assumed. That is an uninitialised
+  // working copy, not a stale pin, and blaming a pin sends the reader
+  // looking for a bump that does not exist. It skips.
+  //
+  // A checkout with contents but no `file_kind.py` is the real defect:
+  // core offering markdown and pdf in search over an index that cannot
+  // honour them. That fails, which is what makes the gitlink
+  // load-bearing (`00-basis.md`, "bump を core PR に同梱するか").
+  const initialised =
+    existsSync(ADDON_DIR) && readdirSync(ADDON_DIR).length > 0;
+  if (initialised) {
     it("is pinned to an intelligence that knows the vocabulary", () => {
-      expect(existsSync(ADDON), `${ADDON} is missing — stale submodule pin?`).toBe(
-        true,
-      );
+      expect(
+        existsSync(ADDON),
+        `${ADDON} is missing, and the submodule is initialised — stale pin?`,
+      ).toBe(true);
     });
   }
-  const readable = present && existsSync(ADDON);
+  const readable = initialised && existsSync(ADDON);
   const core = readable ? readFileSync(CORE, "utf-8") : "";
   const addon = readable ? readFileSync(ADDON, "utf-8") : "";
 
@@ -92,9 +126,13 @@ describe("file-kind classifier, core vs the intelligence addon", () => {
     // lower-case the filename and compare with LIKE; neither may also
     // demand `file_type == "document"`, or the fallback drops exactly
     // the rows it exists for.
+    // Sliced to the function, not the file. `drives.py` is 1200 lines;
+    // the first case-insensitive filename sort added anywhere else in
+    // it would satisfy a whole-file `toContain` while
+    // `_apply_kind_filter` had lost its fallback entirely.
     for (const [label, text, column] of [
-      ["core", core, "File.filename"],
-      ["addon", addon, "IndexedFile.filename"],
+      ["core", functionBody(core, "_apply_kind_filter"), "File.filename"],
+      ["addon", functionBody(addon, "apply_kind_filter"), "IndexedFile.filename"],
     ] as const) {
       expect(text, `${label} stopped lower-casing the filename`).toContain(
         `func.lower(${column})`,

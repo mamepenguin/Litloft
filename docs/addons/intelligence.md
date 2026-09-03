@@ -123,7 +123,7 @@ The pipeline is idempotent: re-indexing a file replaces its old embeddings.
 
 ### Semantic search
 
-`POST /api/addons/intelligence/search` runs:
+`GET /api/addons/intelligence/search` runs:
 
 1. Encode the query with the text-embedding model (`models.text_embedding`).
 2. KNN over file-chunk embeddings, BM25 over the FTS5 mirrors.

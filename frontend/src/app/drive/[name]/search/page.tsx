@@ -11,7 +11,14 @@ import type { FileKind } from "@/types";
 // toolbar offers, since intelligence learned the nested two
 // (`addons/intelligence/app/file_kind.py`). `subtitle` is not here for
 // the reason it is not in the toolbar: nothing registers a row for it.
-const VALID_TYPES: ReadonlyArray<FileKind> = [
+//
+// This is the second copy of that list, and the copy that decides
+// whether a shared or reloaded `?type=` survives. If it falls behind
+// the toolbar, the chip is selectable, the URL carries the value, and
+// the reload quietly widens the listing back to All — a kind of
+// failure that shows up as "my link didn't work" and nothing else.
+// `searchTypeVocabulary.test.ts` compares the two.
+export const VALID_TYPES: ReadonlyArray<FileKind> = [
   "video",
   "image",
   "audio",
