@@ -102,12 +102,14 @@ vi.mock("@/hooks/useCreateFile", () => ({
  * view controls away for a listing with nothing in it at all, so tests
  * that press those controls need a listing that holds something.
  */
-const listing = vi.hoisted(() => ({ total: 0 }));
+const listing = vi.hoisted(() => ({ total: 0, folders: [] as { path: string }[] }));
 
 vi.mock("@/components/folder/useFolderFiles", () => ({
   useFolderFiles: () => ({
     files: [],
-    folders: [],
+    get folders() {
+      return listing.folders;
+    },
     get total() {
       return listing.total;
     },
@@ -155,6 +157,7 @@ beforeEach(() => {
   folderSortCalls.length = 0;
   folderViewModeCalls.length = 0;
   listing.total = 0;
+  listing.folders = [];
 });
 
 // ---- tests -------------------------------------------------------------------
@@ -260,5 +263,25 @@ describe("FolderBrowser — folder anchoring during a tag filter", () => {
   it("still offers create-file for a plain folder listing", () => {
     render(<FolderBrowser driveName="main" folderPath="recipes" />);
     expect(newNoteButtons().length).toBeGreaterThan(0);
+  });
+});
+
+describe("FolderBrowser — what the toolbar is told about emptiness", () => {
+  // The rule that puts the sort and view controls away lives in
+  // FolderToolbar and is tested there. What is only testable here is
+  // that FolderBrowser hands it the subfolder count: a rule that is
+  // correct and unwired looks exactly like no rule at all.
+  it("puts the arranging controls away for a folder with nothing in it", () => {
+    listing.total = 0;
+    listing.folders = [];
+    render(<FolderBrowser driveName="main" folderPath="empty" />);
+    expect(screen.queryAllByTestId("sort-button")).toHaveLength(0);
+  });
+
+  it("keeps them for a folder that holds only subfolders", () => {
+    listing.total = 0;
+    listing.folders = [{ path: "a" }, { path: "b" }];
+    render(<FolderBrowser driveName="main" folderPath="parent" />);
+    expect(screen.getAllByTestId("sort-button").length).toBeGreaterThan(0);
   });
 });

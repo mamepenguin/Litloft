@@ -249,3 +249,42 @@ describe("RootFileListing toolbar right group (FolderToolbar parity)", () => {
     });
   });
 });
+
+describe("RootFileListing with nothing directly under the drive", () => {
+  // A drive that keeps every file inside a subfolder is in this state
+  // permanently, so it is the most-seen instance of the rule, not the
+  // rarest: the sort, the view toggle and a filter box sit over an
+  // empty state on every visit.
+  const empty = { data: [], meta: { total: 0, page: 1, limit: 30 } };
+
+  it("puts the arranging controls away", async () => {
+    mockGetDriveFiles.mockResolvedValue(empty);
+    render(<RootFileListing driveName="main" />);
+
+    await screen.findByTestId("empty-state");
+    expect(screen.queryByText("sort")).toBeNull();
+    expect(screen.queryByText("view")).toBeNull();
+    expect(screen.queryByPlaceholderText(/filter/i)).toBeNull();
+    expect(screen.queryByLabelText("More actions")).toBeNull();
+  });
+
+  it("keeps upload, so the drive root can stop being empty", async () => {
+    mockGetDriveFiles.mockResolvedValue(empty);
+    render(<RootFileListing driveName="main" />);
+
+    await screen.findByTestId("empty-state");
+    expect(screen.getByText("upload")).toBeInTheDocument();
+  });
+
+  it("keeps everything when there are files to arrange", async () => {
+    mockGetDriveFiles.mockResolvedValue({
+      data: [makeFile("1", "intro.mp4", "video/mp4", "video")],
+      meta: { total: 1, page: 1, limit: 30 },
+    });
+    render(<RootFileListing driveName="main" />);
+
+    await screen.findByTestId("file-grid");
+    expect(screen.getByText("sort")).toBeInTheDocument();
+    expect(screen.getByText("view")).toBeInTheDocument();
+  });
+});
