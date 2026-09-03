@@ -3,7 +3,9 @@ import { AlertTriangle, Clock, Download, FilePlus, Files, Gauge, Home, NotebookP
 import { useTranslations } from "next-intl";
 import { AddonSlot } from "@/components/AddonSlot";
 import { addonUrlFor, type AddonMeta } from "@/lib/addons";
-import type { DriveSummary } from "@/types";
+import type { Drive, DriveSummary } from "@/types";
+import { SidebarDriveSwitcher } from "./SidebarDriveSwitcher";
+import { SidebarSectionHeading } from "./SidebarSectionHeading";
 
 const ADDON_ICONS: Record<string, LucideIcon> = {
   download: Download,
@@ -15,6 +17,8 @@ const ADDON_ICONS: Record<string, LucideIcon> = {
 interface SidebarLibrarySectionProps {
   driveBase: string | null;
   currentDrive: string | null;
+  /** Every drive this viewer may see; feeds the switcher at the top. */
+  drives?: Drive[];
   linkClass: (href: string) => string;
   close: () => void;
   addons?: Record<string, AddonMeta>;
@@ -27,7 +31,7 @@ interface SidebarLibrarySectionProps {
   isAdmin?: boolean;
 }
 
-export function SidebarLibrarySection({ driveBase, currentDrive, linkClass, close, addons, driveSummary, isAdmin }: SidebarLibrarySectionProps) {
+export function SidebarLibrarySection({ driveBase, currentDrive, drives = [], linkClass, close, addons, driveSummary, isAdmin }: SidebarLibrarySectionProps) {
   const t = useTranslations("sidebar");
   const tMissing = useTranslations("missing");
   const tAdmin = useTranslations("admin");
@@ -47,9 +51,8 @@ export function SidebarLibrarySection({ driveBase, currentDrive, linkClass, clos
         </Link>
       </div>
 
-      <div className="mb-1 px-3 text-[11px] font-semibold uppercase tracking-wider text-text-muted">
-        Library
-      </div>
+      <SidebarDriveSwitcher drives={drives} currentDrive={currentDrive} close={close} />
+
       <Link href={driveBase ?? "/"} onClick={close} className={linkClass(driveBase ?? "/")}>
         <Home size={16} />
         {t("home")}
@@ -100,9 +103,7 @@ export function SidebarLibrarySection({ driveBase, currentDrive, linkClass, clos
 
       {addonEntries.length > 0 && (
         <>
-          <div className="mb-1 mt-4 px-3 text-[11px] font-semibold uppercase tracking-wider text-text-muted">
-            Addons
-          </div>
+          <SidebarSectionHeading label={t("addons")} />
           {addonEntries.map(({ name, meta, href }) => {
             const Icon = ADDON_ICONS[meta.icon] ?? Package;
             return (

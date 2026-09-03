@@ -1,18 +1,21 @@
 import type React from "react";
+import { useEffect, useState } from "react";
 import Link from "next/link";
-import {
-  ArrowDown01,
-  ArrowDownAZ,
-  ChevronDown,
-  ChevronRight,
-  Tag,
-} from "lucide-react";
+import { ArrowDown01, ArrowDownAZ, Tag, Tags } from "lucide-react";
 import { useTranslations } from "next-intl";
 
 import type { ScopedTags } from "./useSidebarData";
 import { samePath } from "./isSidebarLinkActive";
 import { useSidebarSectionCollapsed } from "./useSidebarSectionCollapsed";
 import { sortTags, useTagSortMode } from "./useTagSortMode";
+import { SidebarSectionHeading } from "./SidebarSectionHeading";
+
+/**
+ * How many tags the section shows before it folds the rest away. A
+ * drive can carry dozens; past this the list stops being a shortcut
+ * and starts being the reason the sections below it are off-screen.
+ */
+const COLLAPSED_TAG_COUNT = 8;
 
 interface SidebarTagsSectionProps {
   /** The drive we are currently in. Also keys the per-drive sort mode. */
@@ -75,6 +78,14 @@ export function SidebarTagsSection({
   const t = useTranslations("sidebar");
   const { collapsed, toggle } = useSidebarSectionCollapsed("tags");
   const { mode, setMode } = useTagSortMode(drive ?? null);
+  const [showAll, setShowAll] = useState(false);
+
+  // Moving folders swaps the list out from under the expansion, so the
+  // request to see everything does not survive the move — otherwise
+  // one folder's "show all" silently unfolds the next folder's thirty.
+  useEffect(() => {
+    setShowAll(false);
+  }, [drive, currentFolderPath]);
 
   if (!tags || tags.items.length === 0) return null;
 
@@ -99,38 +110,37 @@ export function SidebarTagsSection({
   // re-click-to-clear toggle would never engage.
   const activeTagKey = activeTag?.toLowerCase() ?? null;
 
-  const Chevron = collapsed ? ChevronRight : ChevronDown;
   const sortedTags = sortTags(tags.items, mode);
+  const visibleTags = showAll ? sortedTags : sortedTags.slice(0, COLLAPSED_TAG_COUNT);
+  const hiddenCount = sortedTags.length - visibleTags.length;
   const SortIcon = mode === "count" ? ArrowDown01 : ArrowDownAZ;
   const sortLabel = mode === "count" ? t("sort.byCount") : t("sort.byName");
+  // Only the last segment: the heading is 239px wide, so a deep path
+  // would wrap and push the rows down.
+  const scopeFolder = resolvedScope.folderPath?.split("/").filter(Boolean).pop() ?? null;
 
   return (
     <>
-      <div className="group relative mb-1 mt-4 flex items-center justify-between pr-3">
-        {dragHandle}
-        <button
-          type="button"
-          onClick={toggle}
-          aria-expanded={!collapsed}
-          aria-label={collapsed ? t("sectionExpand") : t("sectionCollapse")}
-          className="flex flex-1 items-center gap-1.5 rounded-lg px-3 text-[11px] font-semibold uppercase tracking-wider text-text-muted transition-colors hover:text-text-primary"
-        >
-          <Chevron size={12} />
-          <span>Tags</span>
-        </button>
-        <button
-          type="button"
-          onClick={() => setMode(mode === "count" ? "name" : "count")}
-          aria-label={t("sort.toggle")}
-          title={t("sort.toggle")}
-          className="flex shrink-0 items-center gap-1 rounded-lg px-1 text-[11px] text-text-muted transition-colors hover:text-text-primary"
-        >
-          <SortIcon size={12} aria-hidden="true" />
-          <span>{sortLabel}</span>
-        </button>
-      </div>
+      <SidebarSectionHeading
+        label={scopeFolder ? t("tagsScoped", { folder: scopeFolder }) : t("tags")}
+        collapsed={collapsed}
+        onToggle={toggle}
+        dragHandle={dragHandle}
+        actions={
+          <button
+            type="button"
+            onClick={() => setMode(mode === "count" ? "name" : "count")}
+            aria-label={t("sort.toggle")}
+            title={t("sort.toggle")}
+            className="flex shrink-0 items-center gap-1 rounded-lg px-1 text-[11px] text-text-muted transition-colors hover:text-text-primary"
+          >
+            <SortIcon size={12} aria-hidden="true" />
+            <span>{sortLabel}</span>
+          </button>
+        }
+      />
       {!collapsed &&
-        sortedTags.map((tag) => {
+        visibleTags.map((tag) => {
           // Both the highlight and the destination come from the tag
           // name, never from each other: a selected row links to the
           // scope without the tag, so an href-derived highlight would
@@ -172,6 +182,18 @@ export function SidebarTagsSection({
             </div>
           );
         })}
+      {!collapsed && hiddenCount > 0 && (
+        <button
+          type="button"
+          onClick={() => setShowAll(true)}
+          className="flex w-full items-center gap-2.5 rounded-2xl px-3 py-2 text-sm text-text-muted transition-colors hover:bg-bg-elevated hover:text-text-primary"
+        >
+          <Tags size={16} />
+          <span className="min-w-0 flex-1 truncate text-left">
+            {t("allTags", { count: sortedTags.length })}
+          </span>
+        </button>
+      )}
     </>
   );
 }

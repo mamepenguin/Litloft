@@ -131,7 +131,7 @@ export function ShortcutCheatSheet({ open, stack, onClose }: ShortcutCheatSheetP
               return (
                 <section key={ctx.id}>
                   {ctx.label && (
-                    <h3 className="mb-2 text-xs font-medium uppercase text-text-muted">
+                    <h3 className="mb-2 text-xs font-medium text-text-muted">
                       {ctx.label}
                     </h3>
                   )}

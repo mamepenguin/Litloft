@@ -47,6 +47,8 @@ The split optimises for the *primary* tool used to manage each file type:
 
 The **Tags** section of the sidebar is the tag filter. It lists the tags in play with a count beside each one, and clicking one filters the listing.
 
+The section shows the eight most prominent tags — by count, or alphabetically if you have switched the sort. When there are more, **All tags (N)** sits below them and opens the rest in place; N is the number of tags in scope, not the number still hidden. The list folds back to eight when you move to another folder, because a different folder brings a different set of tags. The heading names the folder it is counting (*Tags — under {folder}*) whenever the scope is narrower than the drive.
+
 Both the list and the click are **scoped to the folder you are in**:
 
 - The list shows only the tags used somewhere inside the current folder's subtree, with counts for that subtree — not for the whole drive.

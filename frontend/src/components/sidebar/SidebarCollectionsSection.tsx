@@ -1,6 +1,6 @@
 import type React from "react";
 import { type RefObject, useCallback, useMemo, useRef, useState } from "react";
-import { ChevronDown, ChevronRight, Library, Pencil, Plus, Trash2 } from "lucide-react";
+import { Library, Pencil, Plus, Trash2 } from "lucide-react";
 import { useTranslations } from "next-intl";
 
 import type { CollectionSummary } from "@/types";
@@ -9,6 +9,7 @@ import { useSidebarSectionCollapsed } from "./useSidebarSectionCollapsed";
 import { useSidebarItemOrder } from "./useSidebarItemOrder";
 import { useReorderableDnD } from "./useReorderableDnD";
 import { ItemDragHandle } from "./ItemDragHandle";
+import { SidebarSectionHeading } from "./SidebarSectionHeading";
 
 interface SidebarCollectionsSectionProps {
   currentDrive: string | null;
@@ -132,34 +133,27 @@ export function SidebarCollectionsSection({
     [currentDrive, setCollectionList],
   );
 
-  const Chevron = collapsed ? ChevronRight : ChevronDown;
-
   return (
     <>
-      <div className="group relative mb-1 mt-4 flex items-center justify-between pr-3">
-        {dragHandle}
-        <button
-          type="button"
-          onClick={toggle}
-          aria-expanded={!collapsed}
-          aria-label={collapsed ? t("sectionExpand") : t("sectionCollapse")}
-          className="flex flex-1 items-center gap-1.5 rounded-lg px-3 text-[11px] font-semibold text-text-muted transition-colors hover:text-text-primary"
-        >
-          <Chevron size={12} />
-          <span>{t("collections")}</span>
-        </button>
-        <button
-          onClick={() => {
-            expand();
-            setCreatingCollection(true);
-            setNewCollectionName("");
-          }}
-          className="text-text-muted hover:text-text-primary"
-          aria-label={t("createCollection")}
-        >
-          <Plus size={14} />
-        </button>
-      </div>
+      <SidebarSectionHeading
+        label={t("collections")}
+        collapsed={collapsed}
+        onToggle={toggle}
+        dragHandle={dragHandle}
+        actions={
+          <button
+            onClick={() => {
+              expand();
+              setCreatingCollection(true);
+              setNewCollectionName("");
+            }}
+            className="text-text-muted hover:text-text-primary"
+            aria-label={t("createCollection")}
+          >
+            <Plus size={14} />
+          </button>
+        }
+      />
 
       {!collapsed && creatingCollection && (
         <div className="px-3">

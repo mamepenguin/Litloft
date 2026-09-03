@@ -78,7 +78,7 @@ export function CompleteStep({
       </div>
 
       <div className="rounded-xl border border-bg-border bg-bg-card p-5">
-        <h3 className="text-sm font-semibold uppercase text-text-muted">
+        <h3 className="text-sm font-semibold text-text-muted">
           {tComplete("summary.title")}
         </h3>
         <dl className="mt-3 space-y-2 text-sm">

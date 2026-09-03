@@ -148,7 +148,7 @@ components:
 | Theme | Light / Dark / System |
 | CSS | Tailwind CSS v4 + CSS Custom Properties |
 | Font | System-UI with CJK fallback stack |
-| Last updated | 2026-04-23 |
+| Last updated | 2026-09-04 |
 
 ---
 
@@ -394,7 +394,7 @@ p, li, dd {
 - Do not apply `tracking-wider` (`0.05em`) to any element that renders i18n text (which may be Japanese).
 
 **Allowed:**
-- `uppercase tracking-wider` on hardcoded English-only labels (e.g. "Drives", "Tags") — these are unaffected.
+- `uppercase tracking-wider` on hardcoded English-only labels — these are unaffected. No such label exists today: the sidebar's "Drives" and "Tags" were the standing examples and both are translated as of the Phase 1 sidebar work, so `tracking-wider` appears nowhere in the app (`frontend/src/__tests__/sidebar-headings.test.ts` keeps that true). Adding a use means adding a real example here.
 - `break-anywhere` utility on machine-like strings (file paths, hashes, etc.).
 
 ---
@@ -527,7 +527,14 @@ explained why the button is off.
 
 - Background: `bg-bg-sidebar`
 - Active link: `bg-bg-elevated rounded-2xl font-medium`
-- Section headers: `text-[11px] font-semibold uppercase tracking-wider text-text-muted` — English-only hardcoded strings only
+- Composition, top to bottom: **logo → current drive → views → addons → reorderable sections → Lock.**
+  The drive you are on is one row at the top that opens the others, not a list at the bottom: it is
+  where you are, and the sidebar reads as a place before it reads as a menu. Off a drive (root, `/admin`)
+  the list is shown open, because there is no "here" to fold into. The views carry no heading — a
+  heading over the whole top of the column labels nothing, since there is nothing beside it to tell it
+  from. The four reorderable sections (collections / pins / smart folders / tags) keep their own headings
+  because their order is the user's to change.
+- Section headers: see §Section Header Labels. The sidebar's size is `text-[11px]`, and every one of them is drawn by `SidebarSectionHeading` — including the vertical margin, which is the component's and never a parent's.
 - Position: **always `position: fixed top-0 left-0 h-dvh z-40 w-60`**. Does not scroll with page content, independent of breakpoint.
 - Two display modes (derived state, `isOverlay = routeOverlay || narrowViewport`):
   - **Inline** (viewport ≥ 1200px, non-overlay routes): no backdrop. The outer layout adds `min-[1200px]:pl-60` to reserve space so content sits beside the sidebar. Toggling persists to `localStorage["sidebar-open"]`.
@@ -629,8 +636,37 @@ The one-line excerpt showing *where* a search hit matched, inside a file card or
 
 ### Section Header Labels (i18n)
 
-- Do **not** use `tracking-wider` — these render Japanese text
-- Use `text-sm font-semibold uppercase text-text-muted` only
+The label above a group of rows — an admin section, a sidebar section. This is the
+upper rule; §Sidebar defers to it rather than stating its own.
+
+Common to every surface:
+
+- `font-semibold text-text-muted`
+- Do **not** use `tracking-wider` — these render Japanese text (§3.5)
+- Do **not** use `uppercase`. It does nothing to Japanese, so on a column that mixes
+  scripts it stops being the thing that makes the headings look alike — it becomes one
+  more axis they differ on. This is why Phase 0's `tracking-wider` fix made the
+  remaining difference visible rather than removing it.
+
+Size is the one thing that varies, because density does:
+
+| Surface | Size |
+|---|---|
+| Admin / setup sections | `text-sm` |
+| Sidebar sections | `text-[11px]` |
+
+The sidebar is `text-[11px]` and not `text-sm` because its rows are `text-sm`: at the
+same size the heading and the rows below it stop being two levels.
+
+**Addon panels are not there yet.** Fifteen field-group labels inside the addons'
+own panels still carry `uppercase` (`cloud-sync/CloudSyncWidget`,
+`intelligence/FailedJobsModal`, `knowledge/{ClipModal,EmptyState,FolderView,Sidebar}`,
+`media_import/{Composer,ActivityFeed,Page,SubscriptionDetailPanel}`). They are the
+same shape and want the same sweep; it reaches three submodules, so it is deferred
+rather than smuggled into the change that wrote this rule. **New addon headings
+follow the rule above** — the fifteen are a backlog, not a precedent.
+`frontend/src/__tests__/sidebar-headings.test.ts` enforces the rule in core only,
+for that reason.
 
 ### Properties Panel (Obsidian-style frontmatter display)
 
