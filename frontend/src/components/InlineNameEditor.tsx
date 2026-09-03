@@ -4,18 +4,8 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { useTranslations } from "next-intl";
 
 import { selectStem, validateFilename } from "@/lib/filename";
+import { COMPOSITION_GRACE_MS, IME_KEY_CODE } from "@/lib/ime";
 
-/**
- * How long after a composition ends an Enter or Escape is still read as
- * belonging to the IME rather than to the editor. The confirming key
- * arrives in the same event burst (measured at ~0 ms); a person who ended
- * the composition another way and then reached for Enter takes an order
- * of magnitude longer.
- */
-const COMPOSITION_GRACE_MS = 100;
-
-/** Legacy "this key belongs to the IME" signal, still emitted by some browsers. */
-const IME_KEY_CODE = 229;
 
 export interface InlineNameEditorProps {
   /** The name as it stands. Shown with its stem pre-selected. */

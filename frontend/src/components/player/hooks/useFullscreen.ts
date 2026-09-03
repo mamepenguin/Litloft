@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState, type RefObject } from "react";
+import { useShortcuts } from "@/hooks/useShortcuts";
 
 /**
  * Fullscreen for a player frame, with a fallback for platforms that
@@ -238,15 +239,35 @@ export function useFullscreen({
 
   // --- escape ---
 
-  useEffect(() => {
-    // Native fullscreen handles Escape on its own.
-    if (!pseudoActive) return;
-    const onKeyDown = (event: KeyboardEvent) => {
-      if (event.key === "Escape") exit();
-    };
-    window.addEventListener("keydown", onKeyDown);
-    return () => window.removeEventListener("keydown", onKeyDown);
-  }, [pseudoActive, exit]);
+  // Only pseudo-fullscreen needs this: the native kind is left to the
+  // browser. Registered on the shortcut stack rather than on `window`
+  // so a dialog opened over the player wins the press — as a listener
+  // it answered every Escape in pseudo-fullscreen, dialog or not.
+  //
+  // Plain tier, deliberately. `OVERLAY_PRIORITY` means "I am the
+  // frontmost layer", and this is not: it is enabled by player state,
+  // which is established *before* anything opens on top of it. Put in
+  // the overlay tier it would outrank every tier-0 Escape in the app —
+  // the sidebar overlay, a confirm dialog, a context menu — and take
+  // the key from things that really are in front. Push order alone
+  // gives the right answer here.
+  //
+  // `editingOnly: false` because a comment box or a rename field can
+  // hold focus while the player fills the screen.
+  useShortcuts(
+    "player-pseudo-fullscreen",
+    "Player",
+    [
+      {
+        key: "escape",
+        label: "Exit fullscreen",
+        editingOnly: false,
+        hidden: true,
+        handler: exit,
+      },
+    ],
+    pseudoActive,
+  );
 
   // --- swipe and pinch ---
 

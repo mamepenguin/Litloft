@@ -3,6 +3,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { getFolders, getFolderTree } from "@/lib/api";
 import { FolderPicker } from "../FolderPicker";
+import { ShortcutsProvider } from "../ShortcutsProvider";
 
 vi.mock("@/lib/api", () => ({
   getFolders: vi.fn(),
@@ -17,7 +18,9 @@ describe("FolderPicker", () => {
 
   it("opens its panel as an overlay without changing document flow", async () => {
     render(
-      <FolderPicker drive="recipes" value="" onChange={vi.fn()} />,
+      <ShortcutsProvider>
+        <FolderPicker drive="recipes" value="" onChange={vi.fn()} />
+      </ShortcutsProvider>,
     );
 
     const trigger = screen.getByRole("button", { name: /Save to:/ });
@@ -35,17 +38,26 @@ describe("FolderPicker", () => {
   });
 
   it("closes from Escape and an outside pointer interaction", async () => {
+    // Wrapped as the app wraps it: Escape reaches the picker through
+    // the shortcut stack, which AppShell mounts around everything.
     render(
-      <div>
+      <ShortcutsProvider>
         <FolderPicker drive="recipes" value="" onChange={vi.fn()} />
         <button type="button">Outside</button>
-      </div>,
+      </ShortcutsProvider>,
     );
 
     const trigger = screen.getByRole("button", { name: /Save to:/ });
     fireEvent.click(trigger);
     expect(await screen.findByText("No subfolders")).toBeInTheDocument();
-    fireEvent.keyDown(document, { key: "Escape" });
+    // Pressed from inside the picker's own filter field, not at
+    // `document`. A press at `document` has no `HTMLElement` target, so
+    // the provider reads it as "not editing" and the test passes even
+    // with `editingOnly: false` removed — which is the whole claim the
+    // picker's comment makes.
+    const filter = screen.getByRole("textbox");
+    filter.focus();
+    fireEvent.keyDown(filter, { key: "Escape" });
     expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
 
     fireEvent.click(trigger);

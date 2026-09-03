@@ -1,6 +1,7 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { renderHook, act } from "@testing-library/react";
 import { useFullscreen } from "../useFullscreen";
+import { ShortcutsProvider } from "@/components/ShortcutsProvider";
 
 // ---------- matchMedia harness ----------
 
@@ -85,8 +86,13 @@ function setNativeSupport(mode: "ok" | "reject" | "absent") {
 }
 
 function renderFullscreen(autoRotateEnabled = true) {
-  return renderHook(() =>
-    useFullscreen({ frameRef: { current: frame }, autoRotateEnabled }),
+  // Escape now leaves pseudo-fullscreen through the shortcut stack, so
+  // the hook is rendered under the provider the app mounts around
+  // everything. Without it the stack is a no-op and Escape does
+  // nothing — which is the failure this wrapper exists to rule out.
+  return renderHook(
+    () => useFullscreen({ frameRef: { current: frame }, autoRotateEnabled }),
+    { wrapper: ShortcutsProvider },
   );
 }
 
@@ -194,7 +200,11 @@ describe("useFullscreen — exiting", () => {
     const { result } = renderFullscreen();
     await act(async () => result.current.toggle());
     act(() => {
-      window.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape" }));
+      // Dispatched on `document`, which is where ShortcutsProvider
+      // listens. The old code bound `window` directly; an event
+      // dispatched on `window` never reaches a document listener, so
+      // the target is part of what changed here.
+      document.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape" }));
     });
     expect(result.current.isPseudo).toBe(false);
   });

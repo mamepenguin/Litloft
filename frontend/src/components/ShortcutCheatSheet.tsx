@@ -1,6 +1,5 @@
 "use client";
 
-import { useEffect } from "react";
 import { X } from "lucide-react";
 import { useTranslations } from "next-intl";
 import {
@@ -64,22 +63,15 @@ function ShortcutList({ shortcuts }: { shortcuts: ShortcutDef[] }) {
   );
 }
 
+/**
+ * The sheet binds no key of its own. `ShortcutsProvider` answers Escape
+ * for it before it consults the stack at all, so the listener that used
+ * to live here was a second answer to the same press — kept as a
+ * "safety net in case the provider's listener order differs", which is
+ * a guess about code in the same repository.
+ */
 export function ShortcutCheatSheet({ open, stack, onClose }: ShortcutCheatSheetProps) {
   const t = useTranslations("shortcuts");
-
-  // Close on Escape is handled by ShortcutsProvider, but also handle it here
-  // as a safety net in case the provider's listener order differs.
-  useEffect(() => {
-    if (!open) return;
-    function handleKey(e: KeyboardEvent) {
-      if (e.key === "Escape") {
-        e.preventDefault();
-        onClose();
-      }
-    }
-    document.addEventListener("keydown", handleKey);
-    return () => document.removeEventListener("keydown", handleKey);
-  }, [open, onClose]);
 
   if (!open) return null;
 

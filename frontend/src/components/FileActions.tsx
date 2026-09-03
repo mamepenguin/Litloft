@@ -11,6 +11,8 @@ import {
   renameFile,
 } from "@/lib/api";
 import { useFileMenuItems } from "@/hooks/useFileMenuItems";
+import { useShortcuts } from "@/hooks/useShortcuts";
+import { OVERLAY_PRIORITY } from "@/lib/shortcuts";
 import type { FileItem } from "@/types";
 import { ActionMenuItem } from "./ActionMenuItem";
 import { useDialogPortalTarget } from "./DialogPortal";
@@ -110,16 +112,29 @@ export function FileActions({
   // A popup must be dismissable from the keyboard. Without this the only
   // ways out are an outside click or picking an item, so a keyboard user
   // who opens the menu cannot back out of it.
-  useEffect(() => {
-    if (!menuOpen || anyDialogOpen) return;
-    function handleKeyDown(e: KeyboardEvent) {
-      if (e.key !== "Escape") return;
-      setMenuOpen(false);
-      triggerRef.current?.focus();
-    }
-    document.addEventListener("keydown", handleKeyDown);
-    return () => document.removeEventListener("keydown", handleKeyDown);
-  }, [menuOpen, anyDialogOpen]);
+  //
+  // On the stack, not on `document`: the menu can open a dialog, and two
+  // listeners would answer one press. `anyDialogOpen` already keeps it
+  // from firing then, but push order is what makes that true for the
+  // next thing to open over it as well.
+  useShortcuts(
+    "file-actions-menu",
+    "Dialog",
+    [
+      {
+        key: "escape",
+        label: "Close",
+        editingOnly: false,
+        hidden: true,
+        handler: () => {
+          setMenuOpen(false);
+          triggerRef.current?.focus();
+        },
+      },
+    ],
+    menuOpen && !anyDialogOpen,
+    OVERLAY_PRIORITY,
+  );
 
   useEffect(() => {
     if (error) {
