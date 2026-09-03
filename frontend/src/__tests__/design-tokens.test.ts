@@ -1,32 +1,29 @@
-import { describe, it, expect } from "vitest";
+import { describe, it, expect, beforeAll } from "vitest";
 import { readFileSync, readdirSync, existsSync, statSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { resolve, dirname, relative } from "node:path";
+import { compile } from "tailwindcss";
 
-// Tailwind v4 emits no rule at all for a color utility whose token is not
-// declared in `@theme inline`. The class stays in the DOM, nothing warns, and
-// the element simply renders without the colour — which is how nine dead
-// tokens survived across twenty-five call sites (UI redesign Bug-1).
+// Tailwind v4 emits no rule at all for a utility whose token it does not know.
+// The class stays in the DOM, nothing warns, and the element simply renders
+// without the colour — which is how nine dead tokens survived across
+// twenty-five call sites (UI redesign Bug-1).
 //
-// This walks the same ground the bug did: every colour token the theme
-// declares, against every colour utility the source actually writes.
+// The question is put to the compiler rather than to a heuristic: build every
+// candidate class the source writes and see which produce no CSS. That is what
+// "dead" means, and it leaves no list of exceptions to keep current — `text-sm`
+// and `bg-gradient-to-b` compile, `text-success` and `bg-danger-bg` do not, and
+// nothing here has to know why. An earlier version matched token names against
+// the families declared in `@theme inline`, which could not see `text-success`
+// at all: `success` names no family, so it looked like Tailwind's business.
 
 const REPO_ROOT = resolve(dirname(fileURLToPath(import.meta.url)), "../../..");
-const GLOBALS_CSS = resolve(REPO_ROOT, "frontend/src/app/globals.css");
+const FRONTEND = resolve(REPO_ROOT, "frontend");
+const GLOBALS_CSS = resolve(FRONTEND, "src/app/globals.css");
 
-/** Colour utilities are `<property>-<token>`; these are the properties in use. */
-const PROPERTIES = [
-  "text",
-  "bg",
-  "border",
-  "ring",
-  "outline",
-  "fill",
-  "stroke",
-  "from",
-  "to",
-  "via",
-] as const;
+// This file spells out the patterns it forbids in order to explain them, so it
+// is the one file the scans below must not read.
+const SELF = fileURLToPath(import.meta.url);
 
 /**
  * Core plus every addon checked out beside it.
@@ -44,34 +41,7 @@ const SOURCE_ROOTS = [
     .map((e) => `addons/${e.name}/frontend`),
 ];
 
-function declaredTokens(): Set<string> {
-  const css = readFileSync(GLOBALS_CSS, "utf-8");
-  const theme = css.match(/@theme inline\s*\{([\s\S]*?)\n\}/);
-  if (!theme) throw new Error("globals.css has no `@theme inline` block");
-  return new Set(
-    [...theme[1].matchAll(/--color-([a-z0-9-]+)\s*:/g)].map((m) => m[1]),
-  );
-}
-
-/**
- * The first segment of each declared token — `bg`, `text`, `accent`, `warm`…
- *
- * A utility is only judged when its token starts with one of these. That is
- * what keeps `text-sm`, `bg-black/70` and `bg-gradient-to-b` out of the
- * results: `sm`, `black` and `gradient` name no token family, so they are
- * Tailwind's business, not ours. The cost is that a wholly invented family
- * (`bg-surface-2`) goes unseen; every token this project has ever declared or
- * mistakenly used has fallen inside an existing family.
- */
-function declaredFamilies(tokens: Set<string>): Set<string> {
-  return new Set([...tokens].map((t) => t.split("-")[0]));
-}
-
-const ADDON_LINK_DIR = resolve(REPO_ROOT, "frontend/src/addons");
-
-// This file spells out the patterns it forbids in order to explain them, so it
-// is the one file the line scans below must not read.
-const SELF = fileURLToPath(import.meta.url);
+const ADDON_LINK_DIR = resolve(FRONTEND, "src/addons");
 
 function sourceFiles(root: string): string[] {
   const abs = resolve(REPO_ROOT, root);
@@ -83,7 +53,7 @@ function sourceFiles(root: string): string[] {
     for (const entry of readdirSync(dir, { withFileTypes: true })) {
       const full = resolve(dir, entry.name);
       if (entry.name === "node_modules" || entry.name.startsWith(".")) continue;
-      // A link to an addon that is not checked out here dangles; statSync throws on it.
+      // A link to an addon not checked out here dangles; statSync throws on it.
       if (!existsSync(full)) continue;
       if (statSync(full).isDirectory()) walk(full);
       else if (/\.tsx?$/.test(entry.name)) out.push(full);
@@ -93,52 +63,149 @@ function sourceFiles(root: string): string[] {
   return out;
 }
 
-interface Use {
-  token: string;
-  utility: string;
+function eachLine(visit: (line: string, where: string) => void) {
+  for (const root of SOURCE_ROOTS) {
+    for (const file of sourceFiles(root)) {
+      if (file === SELF) continue;
+      readFileSync(file, "utf-8")
+        .split("\n")
+        .forEach((line, i) => visit(line, `${relative(REPO_ROOT, file)}:${i + 1}`));
+    }
+  }
+}
+
+/**
+ * Colour utilities are `<property>-<token>`; these are the properties in use.
+ *
+ * `accent` is deliberately absent. Tailwind spells `accent-color` that way, but
+ * this project also names tokens `accent-teal` / `accent-amber`, so including
+ * it would match the tail of every `text-accent-amber`.
+ */
+const PROPERTIES = [
+  "text", "bg", "border", "ring", "outline", "fill", "stroke",
+  "from", "to", "via", "divide", "shadow", "decoration", "caret",
+  "placeholder",
+];
+
+const COLOUR_UTILITY = new RegExp(
+  String.raw`^(?:${PROPERTIES.join("|")})-[a-z][a-z0-9-]*(?:\/\d{1,3})?$`,
+);
+
+interface Candidate {
+  cls: string;
   where: string;
 }
 
-function collectUses(): Use[] {
-  const pattern = new RegExp(
-    String.raw`\b(${PROPERTIES.join("|")})-([a-z][a-z0-9-]*)`,
-    "g",
+/** Every string and template literal on a line, minus comment lines. */
+function literalsIn(line: string): string[] {
+  const code = line.trim();
+  if (code.startsWith("//") || code.startsWith("*") || code.startsWith("/*")) return [];
+  return [...line.matchAll(/"([^"\n]*)"|'([^'\n]*)'|`([^`\n]*)`/g)].map(
+    (m) => m[1] ?? m[2] ?? m[3] ?? "",
   );
-  const uses: Use[] = [];
-  for (const root of SOURCE_ROOTS) {
-    for (const file of sourceFiles(root)) {
-      const lines = readFileSync(file, "utf-8").split("\n");
-      lines.forEach((line, i) => {
-        for (const m of line.matchAll(pattern)) {
-          uses.push({
-            token: m[2],
-            utility: m[0],
-            where: `${relative(REPO_ROOT, file)}:${i + 1}`,
-          });
-        }
-      });
-    }
-  }
-  return uses;
 }
 
-describe("design token declarations match their use", () => {
-  const tokens = declaredTokens();
-  const families = declaredFamilies(tokens);
-  const uses = collectUses();
+/** Strip `hover:` / `md:` / `disabled:` so the bare utility can be recognised. */
+function bareUtility(token: string): string {
+  const at = token.lastIndexOf(":");
+  return at === -1 ? token : token.slice(at + 1);
+}
 
-  it("reads the token table out of globals.css", () => {
-    expect(tokens.size).toBeGreaterThan(20);
-    expect(tokens).toContain("text-muted");
-    expect(tokens).toContain("bg-card");
+interface Collected {
+  /** Everything worth asking Tailwind about, so a literal can be judged whole. */
+  probes: string[];
+  /** Colour utilities, each tagged with the literal it came from. */
+  candidates: (Candidate & { literal: string })[];
+}
+
+function collect(): Collected {
+  const probes = new Set<string>();
+  const candidates: (Candidate & { literal: string })[] = [];
+  eachLine((line, where) => {
+    for (const literal of literalsIn(line)) {
+      const tokens = literal.split(/\s+/).filter((t) => /^[a-z][\w:./[\]%-]*$/.test(t));
+      if (tokens.length === 0) continue;
+      for (const token of tokens) {
+        probes.add(token);
+        if (COLOUR_UTILITY.test(bareUtility(token))) {
+          candidates.push({ cls: token, where, literal });
+        }
+      }
+    }
+  });
+  return { probes: [...probes], candidates };
+}
+
+/** A class Tailwind is certain not to know, to prove the check can say "dead". */
+const IMPOSSIBLE_CLASS = "text-zzz-not-a-token";
+
+/** Which of `classes` Tailwind produces no rule for, given this project's CSS. */
+async function findDeadClasses(classes: string[]): Promise<Set<string>> {
+  const compiler = await compile(readFileSync(GLOBALS_CSS, "utf-8"), {
+    base: FRONTEND,
+    async loadStylesheet(id: string, base: string) {
+      const path =
+        id === "tailwindcss"
+          ? resolve(FRONTEND, "node_modules/tailwindcss/index.css")
+          : resolve(base, id);
+      return { path, base: dirname(path), content: readFileSync(path, "utf-8") };
+    },
   });
 
-  it("every colour utility resolves to a declared token", () => {
-    const undeclared = uses.filter(
-      (u) => families.has(u.token.split("-")[0]) && !tokens.has(u.token),
-    );
-    const report = [...new Set(undeclared.map((u) => `${u.utility}  ${u.where}`))].sort();
-    expect(report).toEqual([]);
+  // `build` is cumulative: it returns everything compiled so far, not just the
+  // classes in this call. So deadness is measured as growth — a class Tailwind
+  // understands adds its rule and lengthens the sheet, a dead one adds nothing.
+  // (Testing each result for `{` instead would call everything live, since the
+  // base layer alone contains braces.) Callers must pass distinct classes; a
+  // repeat adds nothing the second time and would look dead.
+  const dead = new Set<string>();
+  let length = compiler.build([]).length;
+  for (const cls of classes) {
+    const grown = compiler.build([cls]).length;
+    if (grown === length) dead.add(cls);
+    length = grown;
+  }
+  return dead;
+}
+
+describe("design tokens", () => {
+  const { probes, candidates } = collect();
+  let dead: Set<string>;
+
+  beforeAll(async () => {
+    dead = await findDeadClasses([...probes, IMPOSSIBLE_CLASS]);
+  }, 180_000);
+
+  // A guard on the guard, in both directions, because this check has failed
+  // silently each way. Reading the compiler wrong once made every class look
+  // live, so the real assertion below passed while detecting nothing; a
+  // misconfigured compiler would make every class look dead instead, and that
+  // assertion would go green again the moment someone deleted the offenders.
+  it("can tell a live class from a dead one", () => {
+    expect(candidates.length).toBeGreaterThan(100);
+    expect(dead.has(IMPOSSIBLE_CLASS)).toBe(true);
+    expect(dead.has("bg-bg-card")).toBe(false);
+    expect(dead.has("text-text-muted")).toBe(false);
+    expect(dead.has("text-sm")).toBe(false);
+  });
+
+  it("every colour utility the source writes produces CSS", () => {
+    // A dead utility is only reported when it shares its string with a live
+    // one. That is what separates a class list from the many identifier-shaped
+    // strings that look just like one token — `data-testid="text-preview"`,
+    // a model id `text-embedding-model`, the cache marker `from-cache`. The
+    // cost is that a className holding exactly one class, itself dead, goes
+    // unseen; every real instance so far has sat among a dozen live classes.
+    const offenders = candidates
+      .filter(
+        (c) =>
+          dead.has(c.cls) &&
+          c.literal
+            .split(/\s+/)
+            .some((t) => t !== c.cls && t.length > 0 && !dead.has(t)),
+      )
+      .map((c) => `${c.cls}  ${c.where}`);
+    expect([...new Set(offenders)].sort()).toEqual([]);
   });
 
   // DESIGN.md §6 "Disabled (every variant)": a disabled control drops its
@@ -146,48 +213,36 @@ describe("design token declarations match their use", () => {
   // accent button leaves it reading as the page's one call to action, only
   // dimmer, so it still invites the press it will not accept (SET-1).
   //
-  // Scoped to accent buttons, which is where the contradiction bites. The
-  // remaining `disabled:opacity-*` uses are folded in with the shared Button
-  // component (Phase 3), and this widens to all of them then.
+  // Scoped to the accent fills — `accent` and `accent-cta`, which DESIGN.md
+  // §2.1 gives the same value. Other variants keep `disabled:opacity-*` until
+  // the shared Button component lands (§6 "Known gap", Phase 3); converting
+  // those piecemeal splits the treatment across buttons that sit in one row and
+  // disable on the same condition.
   it("never fades an accent button to say it is disabled", () => {
     const offenders: string[] = [];
-    for (const root of SOURCE_ROOTS) {
-      for (const file of sourceFiles(root)) {
-        if (file === SELF) continue;
-        readFileSync(file, "utf-8")
-          .split("\n")
-          .forEach((line, i) => {
-            // `disabled:hover:bg-accent` carries two variants to
-            // `disabled:bg-sand`'s one, so it wins and paints the accent back
-            // on the moment the pointer rests on a button that will not respond.
-            const fades = /\bdisabled:opacity-\d+/.test(line) && /\bbg-accent\b/.test(line);
-            if (fades || /\bdisabled:hover:bg-accent\b/.test(line)) {
-              offenders.push(`${relative(REPO_ROOT, file)}:${i + 1}`);
-            }
-          });
-      }
-    }
+    eachLine((line, where) => {
+      const accentFill = /\bbg-accent(-cta|-hover)?(\/\d+)?(?![\w-])/.test(line);
+      // `disabled:hover:bg-accent` carries two variants to `disabled:bg-sand`'s
+      // one, so it wins and paints the accent back the moment the pointer rests
+      // on a button that will not respond.
+      const fades = /\bdisabled:opacity-\d+/.test(line) && accentFill;
+      const hoverOverride = /\bdisabled:hover:bg-accent(-cta|-hover)?(?![\w-])/.test(line);
+      if (fades || hoverOverride) offenders.push(where);
+    });
     expect(offenders).toEqual([]);
   });
 
   // DESIGN.md §Over-video chrome: chrome painted onto a dark scrim does not
-  // follow the theme, because the theme's foregrounds are picked against the
+  // follow the theme, because the theme's foregrounds are chosen against the
   // page background, not against black. `text-text-muted` over `bg-black/70`
   // measured 1.4:1 (UI redesign Bug-7).
   it("never puts a theme foreground on a black scrim", () => {
     const offenders: string[] = [];
-    for (const root of SOURCE_ROOTS) {
-      for (const file of sourceFiles(root)) {
-        if (file === SELF) continue;
-        readFileSync(file, "utf-8")
-          .split("\n")
-          .forEach((line, i) => {
-            if (/\bbg-black\/\d+/.test(line) && /\btext-(text|accent|warm|sand)-/.test(line)) {
-              offenders.push(`${relative(REPO_ROOT, file)}:${i + 1}`);
-            }
-          });
+    eachLine((line, where) => {
+      if (/\bbg-black\/\d+/.test(line) && /\btext-(text|accent|warm|sand)-/.test(line)) {
+        offenders.push(where);
       }
-    }
+    });
     expect(offenders).toEqual([]);
   });
 });
