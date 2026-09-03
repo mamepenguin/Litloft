@@ -22,7 +22,10 @@ const FRONTEND = resolve(REPO_ROOT, "frontend");
 const GLOBALS_CSS = resolve(FRONTEND, "src/app/globals.css");
 
 // This file spells out the patterns it forbids in order to explain them, so it
-// is the one file the scans below must not read.
+// is the one file the scans below must not read. That also keeps
+// IMPOSSIBLE_CLASS out of `probes`: `build` is cumulative, so a sentinel seen
+// twice would measure a repeat rather than an unknown, and would report itself
+// dead for the wrong reason.
 const SELF = fileURLToPath(import.meta.url);
 
 /**
@@ -34,11 +37,15 @@ const SELF = fileURLToPath(import.meta.url);
  * links means the sweep covers an addon that is present but not enabled, which
  * is the state a submodule sits in right after a pointer bump.
  */
+const ADDONS_DIR = resolve(REPO_ROOT, "addons");
 const SOURCE_ROOTS = [
   "frontend/src",
-  ...readdirSync(resolve(REPO_ROOT, "addons"), { withFileTypes: true })
-    .filter((e) => e.isDirectory())
-    .map((e) => `addons/${e.name}/frontend`),
+  // Absent wherever only `frontend/` was copied; skip rather than fail collection.
+  ...(existsSync(ADDONS_DIR)
+    ? readdirSync(ADDONS_DIR, { withFileTypes: true })
+        .filter((e) => e.isDirectory())
+        .map((e) => `addons/${e.name}/frontend`)
+    : []),
 ];
 
 const ADDON_LINK_DIR = resolve(FRONTEND, "src/addons");
@@ -89,22 +96,84 @@ const PROPERTIES = [
   "placeholder", "accent",
 ];
 
-const COLOUR_UTILITY = new RegExp(
-  String.raw`^(?:${PROPERTIES.join("|")})-[a-z][a-z0-9-]*(?:\/\d{1,3})?$`,
-);
-
 interface Candidate {
   cls: string;
   where: string;
 }
 
-/** Every string and template literal on a line, minus comment lines. */
-function literalsIn(line: string): string[] {
-  const code = line.trim();
-  if (code.startsWith("//") || code.startsWith("*") || code.startsWith("/*")) return [];
-  return [...line.matchAll(/"([^"\n]*)"|'([^'\n]*)'|`([^`\n]*)`/g)].map(
-    (m) => m[1] ?? m[2] ?? m[3] ?? "",
-  );
+const COLOUR_UTILITY = new RegExp(
+  String.raw`^(?:${PROPERTIES.join("|")})-[a-z][a-z0-9-]*(?:\/\d{1,3})?$`,
+);
+
+/**
+ * Character spans of every `className` / `class` attribute value in a file.
+ *
+ * Collecting per line cannot see the static half of a multi-line template —
+ * `` className={`… border-bg-border … ${ `` contributes nothing if the closing
+ * backtick is on a later line, and that is a shape this codebase uses freely.
+ * Walking the attribute value as one span, brace to brace, reads it whole.
+ */
+function classAttributeSpans(text: string): [number, number][] {
+  const spans: [number, number][] = [];
+  for (const m of text.matchAll(/\bclass(?:Name)?\s*=\s*/g)) {
+    const at = m.index! + m[0].length;
+    const opener = text[at];
+    if (opener === '"' || opener === "'" || opener === "`") {
+      const close = text.indexOf(opener, at + 1);
+      if (close !== -1) spans.push([at, close + 1]);
+    } else if (opener === "{") {
+      let depth = 0;
+      let i = at;
+      for (; i < text.length; i++) {
+        if (text[i] === "{") depth++;
+        else if (text[i] === "}" && --depth === 0) break;
+      }
+      if (i < text.length) spans.push([at, i + 1]);
+    }
+  }
+  return spans;
+}
+
+/**
+ * Blank every comment, keeping offsets and line breaks intact.
+ *
+ * Prose is full of backticks and quotes — "the `target` chunk", "don't grow
+ * the highlight" — and a literal scan that runs through them pairs marks that
+ * were never a string, reporting fragments of sentences as classes. Blanking
+ * rather than deleting keeps reported line numbers true. The walk tracks
+ * string state so a `//` inside a URL is not mistaken for a comment.
+ */
+function stripComments(text: string): string {
+  const out = text.split("");
+  let i = 0;
+  while (i < text.length) {
+    const c = text[i];
+    if (c === '"' || c === "'" || c === "`") {
+      i++;
+      while (i < text.length) {
+        if (text[i] === "\\") { i += 2; continue; }
+        if (text[i] === c) { i++; break; }
+        i++;
+      }
+    } else if (c === "/" && text[i + 1] === "/") {
+      while (i < text.length && text[i] !== "\n") out[i++] = " ";
+    } else if (c === "/" && text[i + 1] === "*") {
+      const close = text.indexOf("*/", i + 2);
+      const stop = close === -1 ? text.length : close + 2;
+      for (; i < stop; i++) if (text[i] !== "\n") out[i] = " ";
+    } else {
+      i++;
+    }
+  }
+  return out.join("");
+}
+
+/** String and template literal contents, with the offset each starts at. */
+function literalsIn(text: string): { body: string; at: number }[] {
+  return [...text.matchAll(/"([^"]*)"|'([^']*)'|`([^`]*)`/g)].map((m) => ({
+    body: m[1] ?? m[2] ?? m[3] ?? "",
+    at: m.index!,
+  }));
 }
 
 /** Strip `hover:` / `md:` / `disabled:` so the bare utility can be recognised. */
@@ -116,25 +185,41 @@ function bareUtility(token: string): string {
 interface Collected {
   /** Everything worth asking Tailwind about, so a literal can be judged whole. */
   probes: string[];
-  /** Colour utilities, each tagged with the literal it came from. */
-  candidates: (Candidate & { literal: string })[];
+  candidates: (Candidate & { literal: string; inClassAttribute: boolean })[];
 }
 
 function collect(): Collected {
   const probes = new Set<string>();
-  const candidates: (Candidate & { literal: string })[] = [];
-  eachLine((line, where) => {
-    for (const literal of literalsIn(line)) {
-      const tokens = literal.split(/\s+/).filter((t) => /^[a-z][\w:./[\]%-]*$/.test(t));
-      if (tokens.length === 0) continue;
-      for (const token of tokens) {
-        probes.add(token);
-        if (COLOUR_UTILITY.test(bareUtility(token))) {
-          candidates.push({ cls: token, where, literal });
+  const candidates: (Candidate & { literal: string; inClassAttribute: boolean })[] = [];
+
+  for (const root of SOURCE_ROOTS) {
+    for (const file of sourceFiles(root)) {
+      if (file === SELF) continue;
+      const text = stripComments(readFileSync(file, "utf-8"));
+      const rel = relative(REPO_ROOT, file);
+      const spans = classAttributeSpans(text);
+      const lineAt = (offset: number) => text.slice(0, offset).split("\n").length;
+
+      for (const { body, at } of literalsIn(text)) {
+        const inClassAttribute = spans.some(([a, b]) => at >= a && at < b);
+        const tokens = body
+          .split(/\s+/)
+          .filter((t) => /^[a-z0-9][\w:./[\]%-]*$/.test(t));
+        if (tokens.length === 0) continue;
+        for (const token of tokens) {
+          probes.add(token);
+          if (COLOUR_UTILITY.test(bareUtility(token))) {
+            candidates.push({
+              cls: token,
+              where: `${rel}:${lineAt(at)}`,
+              literal: body,
+              inClassAttribute,
+            });
+          }
         }
       }
     }
-  });
+  }
   return { probes: [...probes], candidates };
 }
 
@@ -192,20 +277,20 @@ describe("design tokens", () => {
   });
 
   it("every colour utility the source writes produces CSS", () => {
-    // A dead utility is only reported when it shares its string with a live
-    // one. That is what separates a class list from the many identifier-shaped
-    // strings that look just like one token — `data-testid="text-preview"`,
-    // a model id `text-embedding-model`, the cache marker `from-cache`. The
-    // cost is that a className holding exactly one class, itself dead, goes
-    // unseen; every real instance so far has sat among a dozen live classes.
     const offenders = candidates
-      .filter(
-        (c) =>
-          dead.has(c.cls) &&
-          c.literal
-            .split(/\s+/)
-            .some((t) => t !== c.cls && t.length > 0 && !dead.has(t)),
-      )
+      .filter((c) => {
+        if (!dead.has(c.cls)) return false;
+        // Anything inside a className is a class list by construction.
+        if (c.inClassAttribute) return true;
+        // Outside one — a `const …_CLASS = "…"`, an argument to a helper — a
+        // live neighbour is what separates a class list from the many
+        // identifier-shaped strings that look the same alone: a
+        // `data-testid="text-preview"`, the model id `text-embedding-model`,
+        // a `from-cache` marker. A lone dead class there stays invisible.
+        return c.literal
+          .split(/\s+/)
+          .some((t) => t !== c.cls && t.length > 0 && !dead.has(t));
+      })
       .map((c) => `${c.cls}  ${c.where}`);
     expect([...new Set(offenders)].sort()).toEqual([]);
   });
