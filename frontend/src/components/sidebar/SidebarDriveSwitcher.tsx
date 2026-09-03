@@ -57,7 +57,7 @@ export function SidebarDriveSwitcher({ drives, currentDrive, close }: SidebarDri
   const currentRow = current && (
     <>
       <HardDrive size={16} className="shrink-0" />
-      <span className="flex-1 truncate text-left">{current.name}</span>
+      <span className="min-w-0 flex-1 truncate text-left">{current.name}</span>
       {current.protected && <Lock size={12} className="shrink-0 opacity-40" />}
     </>
   );
@@ -89,7 +89,7 @@ export function SidebarDriveSwitcher({ drives, currentDrive, close }: SidebarDri
           return (
             <Link key={drive.name} href={href} onClick={close} className={rowClass(false)}>
               <HardDrive size={16} className="shrink-0" />
-              <span className="flex-1 truncate">{drive.name}</span>
+              <span className="min-w-0 flex-1 truncate">{drive.name}</span>
               {drive.protected && <Lock size={12} className="shrink-0 opacity-40" />}
             </Link>
           );

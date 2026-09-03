@@ -36,8 +36,13 @@ export function SidebarSectionHeading({
   actions,
 }: SidebarSectionHeadingProps) {
   const t = useTranslations("sidebar");
+  // `min-w-0` on both the row and the label: a flex item defaults to
+  // `min-width: auto`, which for `truncate` (`white-space: nowrap`)
+  // is the full width of the text. Without it the tags heading —
+  // "Tags — under {folder}" — pushes the sort control off the
+  // 240px sidebar instead of ellipsing.
   const labelClass =
-    "flex flex-1 items-center gap-1.5 rounded-lg px-3 text-[11px] font-semibold text-text-muted transition-colors";
+    "flex min-w-0 flex-1 items-center gap-1.5 rounded-lg px-3 text-[11px] font-semibold text-text-muted transition-colors";
   const Chevron = collapsed ? ChevronRight : ChevronDown;
 
   return (
@@ -51,15 +56,15 @@ export function SidebarSectionHeading({
           aria-label={collapsed ? t("sectionExpand") : t("sectionCollapse")}
           className={`${labelClass} hover:text-text-primary`}
         >
-          <Chevron size={12} />
-          <span className="truncate">{label}</span>
+          <Chevron size={12} className="shrink-0" />
+          <span className="min-w-0 truncate">{label}</span>
         </button>
       ) : (
         <div className={labelClass}>
           {/* Holds the chevron's place so every label starts on the
               same vertical line, collapsible or not. */}
           <span className="w-3 shrink-0" aria-hidden />
-          <span className="truncate">{label}</span>
+          <span className="min-w-0 truncate">{label}</span>
         </div>
       )}
       {actions}

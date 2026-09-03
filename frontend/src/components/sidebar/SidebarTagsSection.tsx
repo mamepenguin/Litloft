@@ -189,7 +189,7 @@ export function SidebarTagsSection({
           className="flex w-full items-center gap-2.5 rounded-2xl px-3 py-2 text-sm text-text-muted transition-colors hover:bg-bg-elevated hover:text-text-primary"
         >
           <Tags size={16} />
-          <span className="flex-1 truncate text-left">
+          <span className="min-w-0 flex-1 truncate text-left">
             {t("allTags", { count: sortedTags.length })}
           </span>
         </button>
