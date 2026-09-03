@@ -194,7 +194,7 @@ export function MarkdownImagesPresenter(props: Props) {
             type="button"
             onClick={props.onAnalyze}
             disabled={!props.drive || props.loading || jobActive}
-            className="inline-flex h-10 items-center gap-2 rounded-2xl bg-accent px-4 text-sm font-semibold text-white transition-colors hover:bg-accent-hover disabled:cursor-not-allowed disabled:bg-sand disabled:text-warm-silver disabled:hover:bg-accent"
+            className="inline-flex h-10 items-center gap-2 rounded-2xl bg-accent px-4 text-sm font-semibold text-white transition-colors hover:bg-accent-hover disabled:cursor-not-allowed disabled:bg-sand disabled:text-warm-silver disabled:hover:bg-sand"
           >
             {props.loading ? <Loader2 size={16} className="animate-spin" /> : <Search size={16} />}
             {t("analyze")}
@@ -245,7 +245,7 @@ export function MarkdownImagesPresenter(props: Props) {
               type="button"
               onClick={props.onImport}
               disabled={selectedCount === 0 || props.loading || jobActive}
-              className="inline-flex h-10 items-center gap-2 rounded-2xl bg-accent px-4 text-sm font-semibold text-white transition-colors hover:bg-accent-hover disabled:cursor-not-allowed disabled:bg-sand disabled:text-warm-silver disabled:hover:bg-accent"
+              className="inline-flex h-10 items-center gap-2 rounded-2xl bg-accent px-4 text-sm font-semibold text-white transition-colors hover:bg-accent-hover disabled:cursor-not-allowed disabled:bg-sand disabled:text-warm-silver disabled:hover:bg-sand"
             >
               <Download size={16} />
               {t("import", { count: selectedCount })}

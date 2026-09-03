@@ -311,9 +311,15 @@ Thin marker files — their contents are irrelevant, only their existence matter
 | `data/setup_completed` | `POST /api/admin/config/complete-setup` at the end of the wizard; also auto-created at startup for upgraded installs whose `drives.json` was already non-empty before the seed | `GET /api/admin/config/setup-status`, and the first-run bypass in `admin_config.py` | Hide the `/setup` wizard. **While it is absent, config writes are unauthenticated** so the wizard cannot lock itself out — the first-run window is meant to be short. |
 | `data/restart_pending` | Every successful config write via `config_writer.atomic_write_json`, and `POST /api/internal/restart-pending` from addons. Cleared on the next backend startup. | `GET /api/admin/config/restart-status`, which drives RestartBanner | "Pending changes, restart to apply" banner |
 | `data/auto_seeded` | The first-boot drive seed, once it populates `drives.json`. Never removed. | The setup-sentinel migration | Records that a non-empty `drives.json` came from the seed, not from a pre-GUI hand-config |
+| `data/titles_recased` | The startup migration that re-derives titles mangled by the old `str.title()` formatter, once it has run. Never removed. | Itself | Keeps the one-time title backfill from running on every boot |
 | `data/.jwt_secret` | Backend on first boot (mode `0600`) | Backend | JWT signing key when `JWT_SECRET` is unset |
 
 Deleting a sentinel resets that signal: e.g., `rm data/setup_completed` to re-run the wizard. Note that this also reopens the unauthenticated first-run write window until the wizard completes.
+
+Deleting `data/titles_recased` re-runs the title backfill. It only rewrites a
+title that is still byte-identical to what the old formatter would produce from
+the file's current name, so a title you edited yourself is never touched — but a
+title you typed that happens to match that old shape exactly would be.
 
 Config writes also leave a single-generation backup next to the file they rewrote (`drives.json.bak`, `passwords.json.bak`), taken before the new contents are written.
 

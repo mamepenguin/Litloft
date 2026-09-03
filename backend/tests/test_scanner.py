@@ -164,3 +164,100 @@ class TestAudioOnlyMp4Registration:
         assert record is not None
         assert record.file_type == "audio"
         assert record.mime_type == "audio/mp4"
+
+
+class TestBackfillMangledTitles:
+    """`str.title()` damage is invisible to a rescan.
+
+    ``scanner`` only re-derives a title when the filename changes, so rows
+    imported before the formatter was fixed keep their mangled titles forever.
+    """
+
+    def _table(self, tmp_path):
+        from sqlalchemy import create_engine, text
+
+        engine = create_engine(f"sqlite:///{tmp_path / 'backfill.db'}")
+        with engine.begin() as conn:
+            conn.execute(text(
+                "CREATE TABLE files (id INTEGER PRIMARY KEY, filename TEXT, title TEXT)"
+            ))
+        return engine
+
+    def _insert(self, engine, rows, first_id=1):
+        from sqlalchemy import text
+
+        with engine.begin() as conn:
+            for i, (filename, title) in enumerate(rows, first_id):
+                conn.execute(
+                    text("INSERT INTO files (id, filename, title) VALUES (:i, :f, :t)"),
+                    {"i": i, "f": filename, "t": title},
+                )
+
+    def _titles(self, engine):
+        from sqlalchemy import text
+
+        with engine.begin() as conn:
+            return [r[0] for r in conn.execute(text("SELECT title FROM files ORDER BY id"))]
+
+    def test_repairs_titles_the_old_formatter_produced(self, tmp_path, monkeypatch):
+        from app import database
+
+        monkeypatch.setattr(config, "DATA_DIR", tmp_path / "data")
+        engine = self._table(tmp_path)
+        self._insert(engine, [
+            ("02 charon's burden.mp3", "02 Charon'S Burden"),
+            ("MacBook-Neo-review.mp4", "Macbook Neo Review"),
+            ("6484215695_3df06f6b39_o.jpg", "6484215695 3Df06F6B39 O"),
+        ])
+
+        database._backfill_mangled_titles(engine)
+
+        assert self._titles(engine) == [
+            "02 charon's burden",
+            "MacBook-Neo-review",
+            "6484215695 3df06f6b39 o",
+        ]
+
+    def test_leaves_a_title_the_user_wrote(self, tmp_path, monkeypatch):
+        """A hand-written title cannot equal the old derivation, so it survives."""
+        from app import database
+
+        monkeypatch.setattr(config, "DATA_DIR", tmp_path / "data")
+        engine = self._table(tmp_path)
+        self._insert(engine, [
+            ("MacBook-Neo-review.mp4", "The one where the hinge breaks"),
+            ("02 charon's burden.mp3", "Charon's Burden (live)"),
+        ])
+
+        database._backfill_mangled_titles(engine)
+
+        assert self._titles(engine) == [
+            "The one where the hinge breaks",
+            "Charon's Burden (live)",
+        ]
+
+    def test_runs_once(self, tmp_path, monkeypatch):
+        """The marker stops a later hand-typed old-shape title being rewritten."""
+        from app import database
+
+        monkeypatch.setattr(config, "DATA_DIR", tmp_path / "data")
+        engine = self._table(tmp_path)
+        self._insert(engine, [("MacBook-Neo-review.mp4", "Macbook Neo Review")])
+
+        database._backfill_mangled_titles(engine)
+        assert self._titles(engine) == ["MacBook-Neo-review"]
+
+        self._insert(engine, [("MacBook-Neo-review.mp4", "Macbook Neo Review")], first_id=2)
+        database._backfill_mangled_titles(engine)
+        assert self._titles(engine)[1] == "Macbook Neo Review"
+
+    def test_survives_a_row_with_no_filename(self, tmp_path, monkeypatch):
+        from app import database
+
+        monkeypatch.setattr(config, "DATA_DIR", tmp_path / "data")
+        engine = self._table(tmp_path)
+        self._insert(engine, [(None, "Some Title")])
+
+        database._backfill_mangled_titles(engine)
+
+        assert self._titles(engine) == ["Some Title"]

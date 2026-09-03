@@ -1,19 +1,17 @@
 import { describe, it, expect } from "vitest";
 import { readFileSync, readdirSync, existsSync, statSync } from "node:fs";
+import { fileURLToPath } from "node:url";
 import { resolve, dirname, relative } from "node:path";
 
 // Tailwind v4 emits no rule at all for a color utility whose token is not
 // declared in `@theme inline`. The class stays in the DOM, nothing warns, and
-// the element simply renders without the colour — which is how four dead
-// tokens survived across eight files (UI redesign Bug-1).
+// the element simply renders without the colour — which is how nine dead
+// tokens survived across twenty-five call sites (UI redesign Bug-1).
 //
 // This walks the same ground the bug did: every colour token the theme
 // declares, against every colour utility the source actually writes.
 
-const REPO_ROOT = resolve(
-  dirname(new URL(import.meta.url).pathname),
-  "../../..",
-);
+const REPO_ROOT = resolve(dirname(fileURLToPath(import.meta.url)), "../../..");
 const GLOBALS_CSS = resolve(REPO_ROOT, "frontend/src/app/globals.css");
 
 /** Colour utilities are `<property>-<token>`; these are the properties in use. */
@@ -70,6 +68,10 @@ function declaredFamilies(tokens: Set<string>): Set<string> {
 }
 
 const ADDON_LINK_DIR = resolve(REPO_ROOT, "frontend/src/addons");
+
+// This file spells out the patterns it forbids in order to explain them, so it
+// is the one file the line scans below must not read.
+const SELF = fileURLToPath(import.meta.url);
 
 function sourceFiles(root: string): string[] {
   const abs = resolve(REPO_ROOT, root);
@@ -151,10 +153,15 @@ describe("design token declarations match their use", () => {
     const offenders: string[] = [];
     for (const root of SOURCE_ROOTS) {
       for (const file of sourceFiles(root)) {
+        if (file === SELF) continue;
         readFileSync(file, "utf-8")
           .split("\n")
           .forEach((line, i) => {
-            if (/\bdisabled:opacity-\d+/.test(line) && /\bbg-accent\b/.test(line)) {
+            // `disabled:hover:bg-accent` carries two variants to
+            // `disabled:bg-sand`'s one, so it wins and paints the accent back
+            // on the moment the pointer rests on a button that will not respond.
+            const fades = /\bdisabled:opacity-\d+/.test(line) && /\bbg-accent\b/.test(line);
+            if (fades || /\bdisabled:hover:bg-accent\b/.test(line)) {
               offenders.push(`${relative(REPO_ROOT, file)}:${i + 1}`);
             }
           });
@@ -169,10 +176,9 @@ describe("design token declarations match their use", () => {
   // measured 1.4:1 (UI redesign Bug-7).
   it("never puts a theme foreground on a black scrim", () => {
     const offenders: string[] = [];
-    const self = new URL(import.meta.url).pathname;
     for (const root of SOURCE_ROOTS) {
       for (const file of sourceFiles(root)) {
-        if (file === self) continue; // this file names the pattern to describe it
+        if (file === SELF) continue;
         readFileSync(file, "utf-8")
           .split("\n")
           .forEach((line, i) => {
