@@ -40,6 +40,13 @@ interface FolderToolbarProps {
   typeFilter: FileType | null;
   trustFilter?: TrustFilter | null;
   total: number;
+  /**
+   * How many subfolders the listing holds, when the caller knows.
+   * `total` counts files only, and a folder of eight folders and no
+   * files is not empty — the view toggle lays those folders out too.
+   * Omitted means "not known", which is treated as "not empty".
+   */
+  folderCount?: number;
   selectable: boolean;
   scanning: boolean;
   creatingFolder: boolean;
@@ -104,7 +111,7 @@ const TYPE_OPTION_KEYS: ReadonlyArray<{ value: FileType | null; labelKey: string
 
 export function FolderToolbar({
   isSpecialView, isFolderAnchored, isSearch, tagFilter, hasPlayableFiles,
-  sort, order, typeFilter, trustFilter, total, selectable, scanning,
+  sort, order, typeFilter, trustFilter, total, folderCount, selectable, scanning,
   creatingFolder, newFolderName, folderError, fileIds, drive, folderPath,
   viewMode, widenTagScope,
   onSortChange, onTypeFilterChange, onTrustFilterChange, onViewChange, onToggleSelectable,
@@ -120,6 +127,14 @@ export function FolderToolbar({
   // wherever the left group was. Keep its existing scope rather than
   // widening it as a side effect of the folder-anchor split.
   const hidePlayAll = isSpecialView || !!tagFilter || !!isSearch;
+  // Sort order, view mode and the type chip are ways of arranging
+  // things; with nothing to arrange they are a row of controls above an
+  // empty page. Not so when a filter is what emptied it — the chip that
+  // produced the empty result is also the way back out of it, and a
+  // search still needs its sort to be widened.
+  const isFiltered =
+    typeFilter !== null || !!trustFilter || !!tagFilter || !!isSearch;
+  const hideArrangingControls = total === 0 && folderCount === 0 && !isFiltered;
   const t = useTranslations("toolbar");
   const tc = useTranslations("common");
   const ts = useTranslations("selection");
@@ -232,7 +247,7 @@ export function FolderToolbar({
 
         {/* Trust filter — sibling chip. Hidden where no handler is wired
             (archive listings and other non-drive surfaces). */}
-        {onTrustFilterChange && (
+        {onTrustFilterChange && !hideArrangingControls && (
           <div className="relative">
             <button
               onClick={() => setTrustFilterOpen((s) => !s)}
@@ -293,6 +308,7 @@ export function FolderToolbar({
         )}
 
         {/* Type filter — single chip + popover */}
+        {!hideArrangingControls && (
         <div className="relative">
           <button
             onClick={() => setTypeFilterOpen((s) => !s)}
@@ -345,8 +361,9 @@ export function FolderToolbar({
             </>
           )}
         </div>
+        )}
 
-        {sort === "random" && onReshuffle && (
+        {sort === "random" && onReshuffle && !hideArrangingControls && (
           <button
             onClick={onReshuffle}
             className="rounded-lg p-2 text-text-muted transition-colors hover:text-text-primary"
@@ -359,14 +376,18 @@ export function FolderToolbar({
 
         {/* Sort + view toggle + overflow grouped in a single pill */}
         <div className="flex items-center gap-1 rounded-2xl bg-bg-elevated p-1">
-          <SortButton
-            sort={sort}
-            order={order}
-            onChange={onSortChange}
-            allowRelevance={isSearch}
-          />
+          {!hideArrangingControls && (
+            <>
+              <SortButton
+                sort={sort}
+                order={order}
+                onChange={onSortChange}
+                allowRelevance={isSearch}
+              />
 
-          <ViewToggle mode={viewMode} onChange={onViewChange} />
+              <ViewToggle mode={viewMode} onChange={onViewChange} />
+            </>
+          )}
 
           {/* Overflow: select-mode + rescan (low-frequency, not search-mode) */}
           <div className="relative">

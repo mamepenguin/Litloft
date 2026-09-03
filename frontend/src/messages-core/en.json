@@ -71,7 +71,6 @@
     "liked": "Liked",
     "continueWatching": "Continue Watching",
     "recentlyPlayed": "Recently Viewed",
-    "tagline": "Store, stream, and organize your files in one place",
     "greeting": "Welcome back, {name}",
     "fileCount": "{count, plural, one {# file} other {# files}}",
     "emptyDrive": "No files yet",

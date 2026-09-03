@@ -77,28 +77,25 @@ export default async function Home() {
 
   return (
     <div className="w-full flex-1 px-4 py-6">
-      {/* Zone 1: welcome band — subtle, utilitarian. Same warm-card
-          jig as the first-run WelcomeStep so the very first screen
-          after GUI-first setup is visually continuous. */}
-      <div className="mb-6 rounded-2xl border border-bg-border bg-bg-card p-6 sm:p-8">
+      {/* One heading over the one thing on the page. The wordmark used
+          to sit in a bordered card with a fixed tagline under it and
+          "Drives" as a second heading immediately below — three lines
+          of chrome introducing a grid the reader can already see. The
+          greeting stays: a nickname is a different value on different
+          visits, which is what the tagline never was. */}
+      <div className="mb-4">
         <div className="flex items-center gap-3">
-          <Warehouse size={28} className="text-accent-cta" />
+          <Warehouse size={28} className="text-text-muted" />
           <h1 className="text-2xl font-bold text-text-primary sm:text-3xl">
             Litloft
           </h1>
         </div>
-        <p className="mt-3 text-base text-text-muted">{t("tagline")}</p>
         {nickname && (
           <p className="mt-1 text-sm text-text-muted">
             {t("greeting", { name: nickname })}
           </p>
         )}
       </div>
-
-      {/* Zone 2: drives */}
-      <h2 className="mb-3 text-lg font-semibold text-text-primary">
-        {t("title")}
-      </h2>
 
       {drives.length === 0 ? (
         <div className="flex flex-col items-center justify-center py-16 text-center">

@@ -209,7 +209,7 @@ export function RootFileListing({ driveName, onFileAction, onFolderChange }: Roo
       <section>
         <div className="mb-3 flex items-center gap-2">
           <h2 className="flex items-center gap-2 text-lg font-bold text-text-primary">
-            <FileText size={20} className="text-accent" />
+            <FileText size={20} className="text-text-muted" />
             {td("files")}
           </h2>
         </div>

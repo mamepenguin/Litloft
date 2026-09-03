@@ -151,4 +151,91 @@ describe("ArchiveEntryGrid", () => {
     expect(handleFileClick).toHaveBeenCalledWith(file);
     expect(handleDirClick).not.toHaveBeenCalled();
   });
+
+  describe("page names", () => {
+    // A 190-page comic reads `p01_001.jpg` … `p01_190.jpg` under 190
+    // identical thumbnails. The names are the same word repeated; the
+    // pictures are the thing being chosen between. The grid has every
+    // entry of the level in hand, so unlike the paged file listing this
+    // count is the true one.
+    const pages = (n: number, ext = "jpg") =>
+      Array.from({ length: n }, (_, i) =>
+        makeEntry(`p01_${String(i).padStart(3, "0")}.${ext}`, {
+          file_type: "image",
+          mime_type: "image/jpeg",
+        }),
+      );
+
+    it("drops the filename when the level is all images", () => {
+      render(
+        <ArchiveEntryGrid
+          entries={pages(6)}
+          fileId="a1"
+          handleDirClick={vi.fn()}
+          handleFileClick={vi.fn()}
+          isClickable={() => true}
+        />,
+      );
+      expect(screen.queryByText("p01_000.jpg")).toBeNull();
+      expect(screen.queryByText("p01_005.jpg")).toBeNull();
+    });
+
+    it("keeps the filename once the level is mixed", () => {
+      render(
+        <ArchiveEntryGrid
+          entries={[
+            ...pages(5),
+            makeEntry("credits.txt", { file_type: "document", mime_type: "text/plain" }),
+          ]}
+          fileId="a1"
+          handleDirClick={vi.fn()}
+          handleFileClick={vi.fn()}
+          isClickable={() => true}
+        />,
+      );
+      expect(screen.getByText("p01_000.jpg")).toBeInTheDocument();
+      expect(screen.getByText("credits.txt")).toBeInTheDocument();
+    });
+
+    it("keeps folder names, which are the only handle a folder has", () => {
+      render(
+        <ArchiveEntryGrid
+          entries={[...pages(5), makeEntry("chapter-2/")]}
+          fileId="a1"
+          handleDirClick={vi.fn()}
+          handleFileClick={vi.fn()}
+          isClickable={() => true}
+        />,
+      );
+      expect(screen.getByText("chapter-2")).toBeInTheDocument();
+    });
+
+    it("does not let a folder make the images look mixed", () => {
+      // A level of pages plus a "next chapter" folder is still a level
+      // of pages as far as the page names go.
+      render(
+        <ArchiveEntryGrid
+          entries={[...pages(5), makeEntry("chapter-2/")]}
+          fileId="a1"
+          handleDirClick={vi.fn()}
+          handleFileClick={vi.fn()}
+          isClickable={() => true}
+        />,
+      );
+      expect(screen.queryByText("p01_000.jpg")).toBeNull();
+    });
+
+    it("keeps a single image's name", () => {
+      render(
+        <ArchiveEntryGrid
+          entries={pages(1)}
+          fileId="a1"
+          handleDirClick={vi.fn()}
+          handleFileClick={vi.fn()}
+          isClickable={() => true}
+        />,
+      );
+      expect(screen.getByText("p01_000.jpg")).toBeInTheDocument();
+    });
+  });
 });

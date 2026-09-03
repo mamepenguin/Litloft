@@ -17,7 +17,7 @@ For every drive in `drives.json`:
 - **Trash count and bytes** — how much would be reclaimed by an empty-trash cycle.
 - **Missing count** — files that disappeared from disk and are awaiting recovery.
 - **Last scan** — when the scanner last walked this drive.
-- **Index queue** (if the intelligence addon is enabled) — items pending semantic indexing.
+- **Index queue** (if the intelligence addon is enabled) — items pending semantic indexing, as one running/waiting total. The eleven per-task queues behind it are listed individually only while they are moving; the idle ones sit behind a *Show N idle queues* disclosure.
 
 Click a drive card to drill into per-drive admin actions.
 
@@ -76,7 +76,7 @@ The dashboard listens on the WebSocket too, so changes to the underlying state (
 ## Common ops tasks
 
 - **Free disk space.** Empty trash, then *Purge all missing* if you have stale records.
-- **Spot a stuck index.** Watch the intelligence widget; queue depth that does not move usually means the LLM provider is unreachable. `docker compose logs -f intelligence` confirms.
+- **Spot a stuck index.** Watch the intelligence widget; a task row that stays on screen with a depth that does not move usually means the LLM provider is unreachable (a task with nothing to do drops back into the idle disclosure). `docker compose logs -f intelligence` confirms.
 - **Audit access.** Visit `/admin/settings` → *Passwords*. Server returns masked entries (`password: "***"`); you can see which groups each entry unlocks.
 - **Rotate JWT secret.** Set `JWT_SECRET` in `.env` and `docker compose restart backend`. All existing JWTs become invalid; viewers re-unlock.
 

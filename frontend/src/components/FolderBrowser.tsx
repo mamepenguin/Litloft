@@ -562,6 +562,7 @@ export function FolderBrowser({
         order={order}
         typeFilter={typeFilter}
         total={total}
+        folderCount={folders.length}
         selectable={selectable}
         scanning={scanning}
         creatingFolder={createFolder.creatingFolder}

@@ -1,6 +1,6 @@
 # Viewers and players
 
-Litloft picks a viewer based on the file's MIME type. The same file detail page (`/files/<id>`) hosts every viewer; only the central component changes. Below the viewer you always get tags, comments, related files, and any addon-injected sections (transcripts, AI summaries, EXIF, similar files).
+Litloft picks a viewer based on the file's MIME type. The same file detail page (`/files/<id>`) hosts every viewer; only the central component changes. Below the viewer you always get tags, comments and related files. Addon sections (transcripts, AI summaries, EXIF, similar files) appear once they have something in them: a section that has not been generated yet is not shown, and the way to generate it is the **AI** menu in the row beside the like and favourite buttons. Anything already generated keeps its own section, with its own regenerate control, and drops out of that menu.
 
 ## The companion rail
 

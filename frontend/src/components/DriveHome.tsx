@@ -333,7 +333,7 @@ export function DriveHome({ driveName }: DriveHomeProps) {
 
       <CarouselSection
         title={t("recentAdded")}
-        icon={<Clock size={20} className="text-accent-teal" />}
+        icon={<Clock size={20} className="text-text-muted" />}
         files={recent.files}
         loading={recent.loading}
         seeAllHref={`${driveBase}?view=recent-added`}
@@ -351,7 +351,7 @@ export function DriveHome({ driveName }: DriveHomeProps) {
 
       <CarouselSection
         title={t("liked")}
-        icon={<ThumbsUp size={20} className="text-accent-teal" />}
+        icon={<ThumbsUp size={20} className="text-text-muted" />}
         files={liked.files}
         loading={liked.loading}
         seeAllHref={`${driveBase}?view=liked`}

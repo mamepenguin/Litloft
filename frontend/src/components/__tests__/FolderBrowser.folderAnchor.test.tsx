@@ -97,11 +97,20 @@ vi.mock("@/hooks/useCreateFile", () => ({
   }),
 }));
 
+/**
+ * How many files the listing reports. The toolbar puts its sort and
+ * view controls away for a listing with nothing in it at all, so tests
+ * that press those controls need a listing that holds something.
+ */
+const listing = vi.hoisted(() => ({ total: 0 }));
+
 vi.mock("@/components/folder/useFolderFiles", () => ({
   useFolderFiles: () => ({
     files: [],
     folders: [],
-    total: 0,
+    get total() {
+      return listing.total;
+    },
     loading: false,
     loadingMore: false,
     hasMore: false,
@@ -145,6 +154,7 @@ beforeEach(() => {
   vi.clearAllMocks();
   folderSortCalls.length = 0;
   folderViewModeCalls.length = 0;
+  listing.total = 0;
 });
 
 // ---- tests -------------------------------------------------------------------
@@ -198,6 +208,7 @@ describe("FolderBrowser — folder anchoring during a tag filter", () => {
   });
 
   it("keeps sort and viewMode session-local in a special view", () => {
+    listing.total = 3;
     render(<FolderBrowser driveName="main" view="favorites" />);
     fireEvent.click(screen.getAllByTestId("sort-button")[0]);
     expect(mockSetSort).not.toHaveBeenCalled();

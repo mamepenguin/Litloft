@@ -54,7 +54,7 @@ export function ContinueWatchingSection({
     <section>
       <div className="mb-3 flex items-center justify-between">
         <h2 className="flex items-center gap-2 text-lg font-bold text-text-primary">
-          {icon ?? <Play size={20} className="text-accent-teal" />}
+          {icon ?? <Play size={20} className="text-text-muted" />}
           {title ?? t("continueWatching")}
         </h2>
         {seeAllHref && (

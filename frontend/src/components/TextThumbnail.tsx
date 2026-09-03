@@ -9,11 +9,47 @@ const OFFICE_MIMES = new Set([
   "application/vnd.openxmlformats-officedocument.presentationml.presentation",
 ]);
 
-function stripPreviewText(raw: string): string {
-  return raw
-    .replace(/^---[\s\S]*?---\n?/, "")
+/**
+ * How much of the file to read for the preview.
+ *
+ * A web clip's frontmatter is `---`, `id:`, `url:`, `origin:`,
+ * `created:`, `---` — about 80 bytes plus the source URL, so its size
+ * is really the URL's. The old 400-byte window held a 227-character URL
+ * and not a 327-character one, and past that boundary the strip below
+ * matched nothing and the card showed the metadata instead of the note.
+ * A kilobyte covers a ~950-character URL, and the card draws three
+ * lines whatever it is handed, so the extra bytes cost nothing.
+ */
+const PREVIEW_WINDOW_BYTES = 1024;
+
+/**
+ * The document's own opening, as a 6px card can show it.
+ *
+ * What comes off are the things every clipped note has in common —
+ * frontmatter, the hero image, the source URL on its own line — because
+ * a shape that is identical on every card is not a shape. Prose that
+ * merely contains a link keeps its words.
+ */
+export function stripPreviewText(raw: string): string {
+  const closed = /^---\r?\n[\s\S]*?\r?\n---\r?\n?/.test(raw);
+  const body = closed
+    ? raw.replace(/^---\r?\n[\s\S]*?\r?\n---\r?\n?/, "")
+    // Opened but never closed inside the window: everything fetched is
+    // frontmatter. Showing the fragment would put `id:` and `url:` on
+    // the card, so show nothing and let the title stand alone.
+    : /^---\r?\n/.test(raw)
+      ? ""
+      : raw;
+
+  return body
     .replace(/<[^>]+>/g, "")
     .replace(/^#+ /gm, "")
+    // An image is not text; a line that is only an image is not a line.
+    .replace(/^[ \t]*!\[[^\]]*\]\([^)]*\)[ \t]*$/gm, "")
+    // A link's words are prose and stay; its target is not.
+    .replace(/\[([^\]]+)\]\([^)]*\)/g, "$1")
+    // A line that is nothing but a URL — the clipper's source line.
+    .replace(/^[ \t]*<?https?:\/\/\S+>?[ \t]*$/gm, "")
     .replace(/\*\*([^*]+)\*\*/g, "$1")
     .replace(/\*([^*]+)\*/g, "$1")
     .replace(/\n{3,}/g, "\n\n")
@@ -40,7 +76,7 @@ export function TextThumbnail({ file }: { file: FileItem }) {
           const fetchPromise = isOffice
             ? fetch(`/api/files/${file.id}/preview-text`)
             : fetch(`/api/files/${file.id}/stream`, {
-                headers: { Range: "bytes=0-399" },
+                headers: { Range: `bytes=0-${PREVIEW_WINDOW_BYTES - 1}` },
               });
 
           fetchPromise

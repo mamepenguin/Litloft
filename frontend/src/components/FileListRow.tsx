@@ -31,6 +31,14 @@ interface FileListRowProps {
   isDragging?: boolean;
   draggable?: boolean;
   sortQuery?: string;
+  /**
+   * Whether this listing's type / extension columns say anything. Both
+   * are resolved once by the list and passed down as plain booleans —
+   * see `lib/listMeta.ts` for the rule, and the memo note below for why
+   * they arrive as primitives rather than as the derived object.
+   */
+  showTypeLabel?: boolean;
+  showExtensionBadge?: boolean;
   onFavoriteToggle?: (file: FileItem) => void;
   onSelect?: (id: string) => void;
   onMetaSelect?: (id: string) => void;
@@ -47,6 +55,8 @@ function FileListRowImpl({
   isDragging,
   draggable,
   sortQuery,
+  showTypeLabel = true,
+  showExtensionBadge = true,
   onFavoriteToggle,
   onSelect,
   onMetaSelect,
@@ -117,8 +127,10 @@ function FileListRowImpl({
           </span>
         </div>
         <div className="mt-0.5 flex flex-wrap items-center gap-x-1.5 gap-y-0.5 text-xs text-text-muted">
-          <span className="flex-shrink-0">{fileTypeLabel[file.file_type] ?? file.file_type}</span>
-          {file.file_type !== "video" && file.file_type !== "audio" && file.filename.includes(".") && (
+          {showTypeLabel && (
+            <span className="flex-shrink-0">{fileTypeLabel[file.file_type] ?? file.file_type}</span>
+          )}
+          {showExtensionBadge && file.file_type !== "video" && file.file_type !== "audio" && file.filename.includes(".") && (
             <span className="flex-shrink-0 rounded-lg bg-bg-elevated px-1.5 py-0.5 text-[10px] font-medium uppercase text-text-muted">
               {file.filename.split(".").pop()}
             </span>

@@ -71,10 +71,19 @@ afterEach(() => {
 });
 
 describe("/ root home (Server Component)", () => {
-  it("renders the Litloft wordmark and factual tagline", async () => {
+  it("heads the page once, over the drive list it is about", async () => {
+    // The wordmark used to sit in a bordered card with a tagline under
+    // it, and "Drives" was a second heading directly below — two
+    // headings and a fixed sentence above the only content on the page.
+    setDrives([{ name: "Media", protected: false, file_count: 3 }]);
     render(await Home());
-    expect(screen.getByText("Litloft")).toBeTruthy();
-    expect(screen.getByText("tagline")).toBeTruthy();
+    const top = screen.getAllByRole("heading", { level: 1 });
+    expect(top).toHaveLength(1);
+    expect(top[0].textContent).toBe("Litloft");
+    // No second heading over the grid; the drive names below are h3.
+    expect(screen.queryAllByRole("heading", { level: 2 })).toHaveLength(0);
+    expect(screen.queryByText("tagline")).toBeNull();
+    expect(screen.queryByText("title")).toBeNull();
   });
 
   it("does not render a greeting when no lit_viewer cookie is set", async () => {
@@ -135,10 +144,9 @@ describe("/ root home (Server Component)", () => {
     expect(screen.queryByText(/^greeting:/)).toBeNull();
   });
 
-  it("shows the Zone2 drive heading and a file count per drive", async () => {
+  it("shows a file count per drive", async () => {
     setDrives([{ name: "Media", protected: false, file_count: 1234 }]);
     render(await Home());
-    expect(screen.getByText("title")).toBeTruthy();
     expect(screen.getByText("count:1234")).toBeTruthy();
     const link = screen.getByRole("link", { name: /Media/ });
     expect(link.getAttribute("href")).toBe("/drive/Media");

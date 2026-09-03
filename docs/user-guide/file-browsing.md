@@ -35,7 +35,7 @@ Each file card shows:
 - Thumbnail (320x180 JPEG; lazy-generated on first access).
 - The file's **title**, not its filename. The title is derived from the filename and is cosmetic — this is why renaming in place is not offered on the cards (see below).
 - Size and the date the file was indexed, plus up to two tags.
-- A duration badge for video and audio, or an extension badge for everything else.
+- A duration badge for video and audio. Everything else gets an extension badge, but only where it distinguishes something: in a folder whose files all share one extension the badge is dropped, and the list view drops its type label the same way when every row is the same kind. Both come back the moment the listing is mixed — including when a later page brings in a different kind.
 - A thin *progress bar* along the bottom for partially-watched media.
 - A favourite star, shown on hover and always shown once the file is a favourite.
 

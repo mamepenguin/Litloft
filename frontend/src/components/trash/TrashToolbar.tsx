@@ -40,6 +40,13 @@ export function TrashToolbar({
   const [typeFilterOpen, setTypeFilterOpen] = useState(false);
   const typeFilterRef = useRef<HTMLDivElement>(null);
 
+  // An empty bin has nothing to sort, nothing to lay out and nothing to
+  // filter by kind — the seven pills, the sort, the view toggle and the
+  // selection mode are ten controls over an empty page. The exception
+  // is a bin emptied by the filter itself: the pill that produced the
+  // empty result is also the way back out of it.
+  const hideArrangingControls = total === 0 && typeFilter === null;
+
   useEffect(() => {
     if (!typeFilterOpen) return;
     function handleClick(e: MouseEvent) {
@@ -53,26 +60,29 @@ export function TrashToolbar({
 
   return (
     <>
-      <div className="mb-4 flex flex-wrap items-center gap-2">
-        <div className="flex-1" />
-        <div className="flex items-center gap-1 rounded-lg bg-bg-card p-1">
-          <SortButton sort={sort} order={order} onChange={onSortChange} />
-          <button
-            onClick={onToggleSelectable}
-            className={`rounded-lg p-2 transition-colors ${
-              selectable
-                ? "bg-accent text-white"
-                : "text-text-muted hover:text-text-primary"
-            }`}
-            aria-label={ts("selectMode")}
-          >
-            <CheckSquare size={16} />
-          </button>
-          <ViewToggle onChange={onViewChange} />
+      {!hideArrangingControls && (
+        <div className="mb-4 flex flex-wrap items-center gap-2">
+          <div className="flex-1" />
+          <div className="flex items-center gap-1 rounded-lg bg-bg-card p-1">
+            <SortButton sort={sort} order={order} onChange={onSortChange} />
+            <button
+              onClick={onToggleSelectable}
+              className={`rounded-lg p-2 transition-colors ${
+                selectable
+                  ? "bg-accent text-white"
+                  : "text-text-muted hover:text-text-primary"
+              }`}
+              aria-label={ts("selectMode")}
+            >
+              <CheckSquare size={16} />
+            </button>
+            <ViewToggle onChange={onViewChange} />
+          </div>
         </div>
-      </div>
+      )}
 
       <div className="mb-4 flex flex-wrap items-center gap-3">
+        {!hideArrangingControls && (
         <div ref={typeFilterRef} className="relative sm:hidden">
           <button
             onClick={() => setTypeFilterOpen((s) => !s)}
@@ -109,6 +119,8 @@ export function TrashToolbar({
             </div>
           )}
         </div>
+        )}
+        {!hideArrangingControls && (
         <div className="hidden items-center gap-1 sm:flex">
           {TYPE_OPTION_KEYS.map((tab) => (
             <button
@@ -124,6 +136,7 @@ export function TrashToolbar({
             </button>
           ))}
         </div>
+        )}
         <span className="text-sm text-text-muted">{tc("items", { count: total })}</span>
       </div>
     </>
