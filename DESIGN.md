@@ -602,12 +602,23 @@ picking a number one higher than whatever it currently sits under.
 
 | Tier | `z` | What belongs here |
 |---|---|---|
-| In-flow chrome | `z-10` – `z-30` | Sticky bars, the header (`z-20`), popovers anchored to a control, the sidebar backdrop (`z-30`) |
+| In-flow chrome | `z-10` – `z-30` | Sticky bars, the header (`z-20`), the file-detail inspector where it has to cover the canvas rather than sit beside it (`z-20`, §8.5), popovers anchored to a control, the sidebar backdrop (`z-30`) |
 | Floating surfaces | `z-40` | Sidebar in overlay mode, mini-player, upload progress, bottom-anchored mobile menus |
 | Inspector sheet | `z-[45]` / `z-[46]` | The mobile Bottom Sheet — above every floating surface, below every dialog |
 | Modal dialogs | `z-50` | Confirm / Rename / Move and anything else that interrupts to ask a question, including addon dialogs |
 | Immersive viewers | `z-[60]` | Full-screen image gallery and archive viewer, which replace the page rather than overlay it |
 | Always on top | `z-[100]` | Shortcut cheat sheet, quick note, file save, toasts |
+
+**A panel that has run out of room is still in-flow chrome.** The
+inspector covers the canvas at widths where it cannot sit beside it, and
+that makes it look like a floating surface — but pick the tier by what
+the element *is*. It is part of the page's layout, not something
+floating over it, and putting it at `z-40` buried the mini player
+outright: that is ~320px against the right edge, entirely inside the
+panel's 384px band, so its close and restore buttons went with it. At
+`z-20` it also sits under the sidebar's backdrop, which is right — the
+sidebar is modal while open, and a bright interactive panel above its
+dim is the page claiming to be two things at once.
 
 **An immersive viewer takes the page out of reach, not just out of
 sight.** Its surface is opaque and covers everything, so nothing signals

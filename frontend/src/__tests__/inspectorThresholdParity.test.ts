@@ -5,6 +5,7 @@ import { resolve, dirname } from "node:path";
 import { describe, expect, it } from "vitest";
 
 import {
+  CANVAS_PADDING_REM,
   COLUMN_REM,
   INSPECTOR_BESIDE_MIN_REM,
   PLAYER_MIN_REM,
@@ -97,11 +98,19 @@ describe("§8.5 widths", () => {
     expect(remRow("rail width")).toBe(COLUMN_REM);
   });
 
+  it("documents the canvas padding the player sits inside", () => {
+    expect(remRow("canvas padding")).toBe(CANVAS_PADDING_REM);
+  });
+
   it("documents the beside threshold, and it is still a sum", () => {
     expect(remRow("beside threshold")).toBe(INSPECTOR_BESIDE_MIN_REM);
-    // The sum, not a feel: `DESIGN.md` says to recompute it when either
-    // minimum moves, and this is what recomputing means.
-    expect(INSPECTOR_BESIDE_MIN_REM).toBe(PLAYER_MIN_REM + 2 + COLUMN_REM);
+    // The sum, not a feel: `DESIGN.md` says to recompute it when a term
+    // moves, and this is what recomputing means. Written from the
+    // constants, never from literals — a `2` here would be a second
+    // copy of the padding term inside the test that checks the first.
+    expect(INSPECTOR_BESIDE_MIN_REM).toBe(
+      PLAYER_MIN_REM + CANVAS_PADDING_REM + COLUMN_REM,
+    );
   });
 
   it("documents the rail switch threshold as its own sum", () => {

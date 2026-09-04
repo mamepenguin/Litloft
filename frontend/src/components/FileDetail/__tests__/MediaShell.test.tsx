@@ -19,6 +19,7 @@ import { render, screen, waitFor, fireEvent } from "@testing-library/react";
 import { FileDetailContent } from "../../FileDetailContent";
 import type { FileItem } from "@/types";
 import { inspectorOpenStorageKey } from "@/lib/inspectorOpenStore";
+import { CANVAS_PADDING_REM } from "@/lib/layoutSizes";
 import {
   claimSlot,
   loaded,
@@ -403,6 +404,22 @@ describe("what the canvas keeps and what the inspector takes", () => {
     expect(
       screen.queryByTestId("addon-slot-exclude:knowledge-edit,detailed-summary"),
     ).toBeNull();
+  });
+
+  it("pads itself by the amount the beside threshold budgets for", async () => {
+    // `CANVAS_PADDING_REM` is a term in the width at which the
+    // inspector stops sitting beside the canvas, and it is there
+    // because the player is *inside* this padding. Nothing derives the
+    // class from the constant, so this is the seam: widening the
+    // padding without widening the term silently takes the difference
+    // back out of the player.
+    const { container } = await renderMedia(makeFile({ has_chapters: false }));
+
+    const canvas = container.querySelector(".media-detail-host");
+    expect(canvas).not.toBeNull();
+    expect(CANVAS_PADDING_REM).toBe(2);
+    // 2rem across the pair, so 1rem a side: `p-4` on Tailwind's scale.
+    expect(canvas!.classList.contains("p-4")).toBe(true);
   });
 
   it("keeps the action row in the inspector, where every kind has it", async () => {

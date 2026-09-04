@@ -41,6 +41,15 @@ export function useInspectorFit(): (node: HTMLElement | null) => void {
   const measure = useCallback(() => {
     const host = hostRef.current;
     if (!host) return;
+    // A zero width is "not laid out yet", not "no room" — true of a
+    // `display:none` subtree, and of the first frame. Cleared rather
+    // than left standing, because a stale "overlay" outlives the width
+    // that justified it, and absent already reads as "assume there is
+    // room", which is the safe way to be wrong about an unknown.
+    if (host.clientWidth === 0) {
+      delete host.dataset.inspectorFit;
+      return;
+    }
     const rootFontSize =
       Number.parseFloat(getComputedStyle(document.documentElement).fontSize) ||
       16;

@@ -65,3 +65,25 @@ export const RAIL_MIN_REM = PLAYER_MIN_REM + COLUMN_REM + SECTION_GAP_REM;
  */
 export const INSPECTOR_BESIDE_MIN_REM =
   PLAYER_MIN_REM + CANVAS_PADDING_REM + COLUMN_REM;
+
+/**
+ * The canvas's scrollbar is **not** a term here, and adding one would be
+ * a mistake worth naming.
+ *
+ * It is real: `<main>` is the scroller and sits inside the measured
+ * row, so on a platform with classic scrollbars its 15–17px comes out
+ * of the player, leaving a boundary band about that wide where the
+ * player gets ~535px. Measuring it looks like the honest fix and is
+ * not: `offsetWidth - clientWidth` is zero when there is no scrollbar,
+ * and whether there *is* one depends on how tall the content is, which
+ * depends on how wide the canvas is, which is what the placement
+ * decides. That is the answer depending on the answer, which is the
+ * same trap as measuring the canvas instead of the row.
+ *
+ * A constant would not be it either — it is 0 on macOS's overlay
+ * scrollbars, so every reader there would lose 16px of canvas to a
+ * gutter that is not on their screen.
+ *
+ * So the band stands, knowingly, at a seventeenth of the width the
+ * padding term was worth.
+ */

@@ -89,6 +89,22 @@ describe("inspector placement", () => {
     expect(fit()).toBe("overlay");
   });
 
+  it("says nothing at all before the row has been laid out", () => {
+    // A `display:none` subtree reports 0, and so does the first frame.
+    // Reading that as "no room" would write an answer nobody measured.
+    renderAtRowWidth(0);
+    expect(fit()).toBeUndefined();
+  });
+
+  it("clears a stale answer rather than leaving it standing", () => {
+    renderAtRowWidth(800);
+    expect(fit()).toBe("overlay");
+
+    vi.spyOn(HTMLElement.prototype, "clientWidth", "get").mockReturnValue(0);
+    act(() => resize?.());
+    expect(fit()).toBeUndefined();
+  });
+
   it("re-decides when the row is resized", () => {
     renderAtRowWidth(967);
     expect(fit()).toBe("overlay");
