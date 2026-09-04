@@ -150,7 +150,7 @@ describe("MarkdownDocumentLayout — desktop (>= 768px)", () => {
   });
 
   it("hides the inspector content (no strip rail) when collapsed by default at narrow widths", () => {
-    setViewportWidth(1100); // < 1280 → default closed
+    setViewportWidth(1100); // < 1120 → default closed
     renderLayout();
     expect(screen.queryByTestId("inspector-content")).not.toBeInTheDocument();
     // The InspectorStrip rail was retired in the consolidation.

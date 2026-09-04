@@ -8,7 +8,7 @@
  * Persisted per-drive via `localStorage["inspector-open:{drive}"]` (mirrors
  * the `tree:enabled:{drive}` convention). When the persisted value is
  * missing or corrupt, the open state is derived from the viewport width:
- * `>= 1280px` → open, otherwise closed.
+ * `>= 1120px` → open, otherwise closed.
  *
  * Reads bypass any module cache so that test setup which calls
  * `localStorage.clear()` between cases is honored without an explicit
@@ -28,7 +28,29 @@ const STORAGE_PREFIX = "inspector-open:";
 export function inspectorOpenStorageKey(drive: string): string {
   return `${STORAGE_PREFIX}${drive}`;
 }
-const VIEWPORT_OPEN_THRESHOLD = 1280;
+/**
+ * Viewport width at which the inspector starts open.
+ *
+ * 1120px, and deliberately not the 960px (`60rem`) in `globals.css`.
+ * Those measure different things and the band between them is a real
+ * state: 960 asks whether a rail *can* sit beside the player, against
+ * the host's measured width; this asks whether the inspector *should*
+ * start open, against the viewport. Merging them would make "they fit,
+ * but stay closed until asked for" unsayable. `DESIGN.md` §8.5 has the
+ * table.
+ *
+ * Not a layout branch either, which is why it reads the viewport at all
+ * while the other reads a container: it only derives an initial value
+ * when the drive has no stored choice, and any choice the reader makes
+ * outranks it.
+ *
+ * It was 1280 until 2026-09. That left a band where the redesign's
+ * default — the transcript and chapters as inspector tabs — had nowhere
+ * to be: a video opened between 1120 and 1279 had both panels mounted
+ * behind an inspector that started closed, with nothing on screen and
+ * nothing pressed.
+ */
+const VIEWPORT_OPEN_THRESHOLD = 1120;
 
 type Listener = () => void;
 
@@ -81,7 +103,7 @@ export const inspectorOpenStore = {
    * Notify subscribers that the viewport has changed.
    *
    * The default open/closed state derives from `window.innerWidth >=
-   * 1280px`. When the user resizes the window across that threshold
+   * 1120px`. When the user resizes the window across that threshold
    * without ever interacting with the inspector (no localStorage entry),
    * subscribers using {@link useSyncExternalStore} need a chance to
    * re-read the snapshot. Call this from the layout's `resize` handler.
