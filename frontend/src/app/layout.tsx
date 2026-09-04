@@ -9,6 +9,7 @@ import { SidebarProvider } from "@/components/SidebarProvider";
 import { ThemeProvider } from "@/components/ThemeProvider";
 import { ToastProvider } from "@/components/ToastProvider";
 import { CurrentDriveProvider } from "@/components/CurrentDriveProvider";
+import { PREFERENCE_INIT_SCRIPT } from "@/lib/preferenceInitScript";
 import { WebSocketProvider } from "@/components/WebSocketProvider";
 import { ClipboardProvider } from "@/components/ClipboardProvider";
 import { ProfileProvider } from "@/components/ProfileProvider";
@@ -46,26 +47,6 @@ export const viewport: Viewport = {
   ],
 };
 
-// Applied before first paint. The media layout rides along for the
-// same reason the theme does: it is decided entirely in CSS from an
-// attribute here, so reading it in an effect would show the other
-// layout for a frame and then shift. The default must match
-// `lib/mediaLayout.ts`'s `normalise`, or the two disagree for exactly
-// one frame — which is the failure this script exists to prevent.
-const themeInitScript = `
-(function(){
-  var t = localStorage.getItem('theme-preference') || 'system';
-  var resolved = t === 'light' || t === 'dark'
-    ? t
-    : (window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light');
-  document.documentElement.setAttribute('data-theme', resolved);
-
-  var layout = localStorage.getItem('media-layout-preference');
-  document.documentElement.setAttribute(
-    'data-media-layout', layout === 'stacked' ? 'stacked' : 'beside'
-  );
-})();
-`;
 
 export default async function RootLayout({
   children,
@@ -78,7 +59,7 @@ export default async function RootLayout({
   return (
     <html lang={locale} className="h-full antialiased" suppressHydrationWarning>
       <head>
-        <script dangerouslySetInnerHTML={{ __html: themeInitScript }} />
+        <script dangerouslySetInnerHTML={{ __html: PREFERENCE_INIT_SCRIPT }} />
       </head>
       <body className="min-h-dvh">
         <NextIntlClientProvider messages={messages}>
