@@ -8,7 +8,7 @@ import type { ButtonHTMLAttributes, ReactNode } from "react";
  * class lists so the disabled treatment can only be written once.
  */
 export type ButtonVariant = "primary" | "secondary" | "danger" | "ghost" | "circle";
-export type ButtonSize = "sm" | "md";
+export type ButtonSize = "sm" | "md" | "lg";
 
 /**
  * Hover is `enabled:hover:`, never bare `hover:`.
@@ -31,10 +31,17 @@ const VARIANT_CLASS: Record<ButtonVariant, string> = {
  * Padding, not height. A button sized by its padding grows with a Japanese
  * label that wraps; one sized by `h-*` clips it (DESIGN.md §6 Primary:
  * "ensure Japanese labels have enough room").
+ *
+ * The three values are the ones the tree already used, counted before they
+ * were named: `md` on nine call sites, `sm` on four, `lg` on four. An earlier
+ * draft of this file invented `sm` as `px-3 py-1.5 text-xs`, which matched
+ * nothing — a scale written without measuring the thing it was meant to
+ * replace, which is how five sizes came to exist in the first place.
  */
 const SIZE_CLASS: Record<ButtonSize, string> = {
-  sm: "px-3 py-1.5 text-xs",
+  sm: "px-3 py-1.5 text-sm",
   md: "px-4 py-2 text-sm",
+  lg: "px-5 py-2.5 text-sm",
 };
 
 /**

@@ -538,6 +538,15 @@ explained why the button is off.
 > is itself a decision to pass defects through.** The local harm gets the
 > local fix instead.
 >
+> **Progress (PR A2b):** the 13 sites under `frontend/src/components/` are on
+> `Button`. Seven remain by decision, listed in
+> `src/__tests__/button-adoption.test.ts`: four in the first-run wizard, one on
+> the unlock gate — brand surfaces outside the AppShell — and two under
+> `app/admin/`, which 案 15 / 案 16 rebuild in Phase 4. Converting a button on a
+> screen nobody is reviewing this phase changes pixels no one is looking at.
+> That test holds the list rather than a comment, so the set can only shrink
+> by an edit to it.
+>
 > **What Phase 3 converts: 41 sites.** 43 already carry the
 > `disabled:bg-sand` treatment (42 of them accent fills; the one that is not is
 > `addons/knowledge/frontend/FolderView.tsx:159`), and two of those 43 are
@@ -573,6 +582,14 @@ that will not receive the correction.
 
 - **`variant` defaults to `secondary`.** A default of `primary` would spend the
   page's one accent fill (§2.2) every time a caller left the prop off.
+- **Three sizes, and they were counted rather than chosen**: `sm`
+  (`px-3 py-1.5 text-sm`), `md` (`px-4 py-2 text-sm`, the default) and `lg`
+  (`px-5 py-2.5 text-sm`). These are the values the tree already used — nine
+  call sites on `md`, four on `sm`, four on `lg`. The component's first draft
+  invented `sm` as `px-3 py-1.5 text-xs`, which matched nothing: a scale
+  written without measuring what it was replacing, which is how five sizes
+  came to exist. Padding, never `h-*`, so a Japanese label that wraps grows
+  the button instead of being clipped.
 - **`iconOnly` requires `aria-label` in the type.** A `<button>` holding one
   `<svg>` has no accessible name at all, and nothing at runtime says so. The
   type can insist a name exists; only review can insist it is *entity-specific*

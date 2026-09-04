@@ -4,6 +4,7 @@ import { useCallback, useState } from "react";
 import { useTranslations } from "next-intl";
 import { useProfile } from "@/components/ProfileProvider";
 import { ConfirmDialog } from "@/components/ConfirmDialog";
+import { Button } from "@/components/Button";
 
 export function ProfileSection() {
   const t = useTranslations("settings.profile");
@@ -117,14 +118,15 @@ export function ProfileSection() {
               className="flex-1 rounded-2xl border border-bg-border bg-bg-elevated px-3 py-2 text-sm text-text-primary placeholder:text-text-muted/50 focus:border-focus-ring focus:outline-none"
             />
             <div className="flex items-center gap-2">
-              <button
+              <Button
+                variant="primary"
+                size="md"
                 type="button"
                 onClick={handleSave}
                 disabled={!trimmedInput}
-                className="rounded-2xl bg-accent px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-accent-hover disabled:bg-sand disabled:text-warm-silver disabled:cursor-not-allowed"
               >
                 {t("save")}
-              </button>
+              </Button>
               {nickname && editing && (
                 <button
                   type="button"

@@ -8,6 +8,7 @@ import { selectStem } from "@/lib/filename";
 import { useShortcuts } from "@/hooks/useShortcuts";
 import { OVERLAY_PRIORITY } from "@/lib/shortcuts";
 import { FolderPicker } from "./FolderPicker";
+import { Button } from "@/components/Button";
 
 export interface FileSaveDialogProps {
   open: boolean;
@@ -182,14 +183,15 @@ export function FileSaveDialog({
             >
               {tc("cancel")}
             </button>
-            <button
+            <Button
+              variant="primary"
+              size="lg"
               type="button"
               onClick={() => void handleSubmit()}
               disabled={disabled}
-              className="rounded-2xl bg-accent px-5 py-2.5 text-sm font-medium text-white transition-colors hover:bg-accent-hover disabled:bg-sand disabled:text-warm-silver disabled:cursor-not-allowed"
             >
               {submitting ? t("submitting") : (confirmLabel ?? tc("save"))}
-            </button>
+            </Button>
           </div>
         </div>
       </div>

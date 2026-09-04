@@ -112,6 +112,29 @@ describe("Button", () => {
     expect(screen.getByRole("button").classList.contains(radius)).toBe(true);
   });
 
+  // The scale is stated in DESIGN.md §6, and it was derived from the call
+  // sites rather than invented: the first draft's `sm` matched none of them.
+  it.each([
+    ["sm", "px-3", "py-1.5", "text-sm"],
+    ["md", "px-4", "py-2", "text-sm"],
+    ["lg", "px-5", "py-2.5", "text-sm"],
+  ] as const)("sizes %s the way DESIGN.md states", (size, px, py, text) => {
+    render(<Button size={size}>Save</Button>);
+    const button = screen.getByRole("button");
+    for (const cls of [px, py, text]) {
+      expect(button.classList.contains(cls)).toBe(true);
+    }
+    // Padding, not height: a fixed height clips a wrapped Japanese label.
+    expect([...button.classList].filter((c) => /^h-\d/.test(c))).toEqual([]);
+  });
+
+  it("defaults to md", () => {
+    render(<Button>Save</Button>);
+    const button = screen.getByRole("button");
+    expect(button.classList.contains("px-4")).toBe(true);
+    expect(button.classList.contains("py-2")).toBe(true);
+  });
+
   describe("accent fill", () => {
     it("fills primary with the accent", () => {
       render(<Button variant="primary">Add</Button>);
