@@ -61,6 +61,51 @@ function renderAtRowWidth(width: number) {
 
 const fit = () => screen.getByTestId("inspector-fit-host").dataset.inspectorFit;
 
+describe("inspector default, where it cannot sit beside", () => {
+  // The other half of the same fix. At every width the 2-pane host was
+  // broken at, the viewport default is *open* — so without this the
+  // page arrives with the panel over the video instead of beside a
+  // narrowed one, and nothing was pressed either way.
+  function renderWithNoStoredChoice(width: number) {
+    window.localStorage.clear();
+    Object.defineProperty(window, "innerWidth", {
+      configurable: true,
+      writable: true,
+      value: 1440,
+    });
+    return renderAtRowWidth(width);
+  }
+
+  it("stays closed when it would have to cover the canvas", () => {
+    renderWithNoStoredChoice(920); // viewport 1440, 2-pane, tree open
+    expect(fit()).toBe("overlay");
+    expect(screen.queryByTestId("inspector-pane")).toBeNull();
+  });
+
+  it("still opens itself where there is room beside", () => {
+    renderWithNoStoredChoice(1200);
+    expect(fit()).toBe("beside");
+    expect(screen.getByTestId("inspector-pane")).toBeInTheDocument();
+  });
+
+  it("lets a stored choice outrank the room", () => {
+    // Asking for it is not the same as it fitting. Someone who opened
+    // the inspector gets it, covering the canvas, which is what they
+    // asked for — the AND is on the derived default only.
+    window.localStorage.setItem(inspectorOpenStorageKey("main"), "true");
+    renderAtRowWidth(800);
+    expect(fit()).toBe("overlay");
+    expect(screen.getByTestId("inspector-pane")).toBeInTheDocument();
+  });
+
+  it("keeps a stored close closed where there is room", () => {
+    window.localStorage.setItem(inspectorOpenStorageKey("main"), "false");
+    renderAtRowWidth(1200);
+    expect(fit()).toBe("beside");
+    expect(screen.queryByTestId("inspector-pane")).toBeNull();
+  });
+});
+
 describe("inspector placement", () => {
   it("sits beside the canvas when the row can hold both", () => {
     // 936px = 552 canvas + 384 inspector. At the sum exactly, both fit.
@@ -73,6 +118,16 @@ describe("inspector placement", () => {
     // for any threshold at or below the width it names.
     renderAtRowWidth(935);
     expect(fit()).toBe("overlay");
+  });
+
+  it("says nothing at all before the row has been laid out", () => {
+    // jsdom reports 0 for every element, and so does a real browser
+    // during the first frame and inside a display:none subtree. Reading
+    // that as "no room" would collapse the inspector on load and keep
+    // it collapsed wherever the shell is mounted but hidden.
+    renderAtRowWidth(0);
+    expect(fit()).toBeUndefined();
+    expect(screen.getByTestId("inspector-pane")).toBeInTheDocument();
   });
 
   it("re-decides when the row is resized", () => {

@@ -77,9 +77,27 @@ function viewportDefault(): boolean {
 }
 
 export const inspectorOpenStore = {
-  get(drive: string): boolean {
+  /**
+   * @param fitsBeside  Whether the row can hold the inspector beside the
+   *   canvas, when that has been measured. **ANDed with the viewport
+   *   default, never reconciled with it** — the same treatment
+   *   `globals.css` gives the rail, and for the same reason recorded
+   *   there: two conditions that must agree eventually disagree, while
+   *   two that are ANDed cannot.
+   *
+   *   It only touches the *derived* default. A stored choice outranks
+   *   both, so a reader who has opened the inspector still gets it,
+   *   covering the canvas, which is what they asked for.
+   *
+   *   Without this the fix for a squeezed canvas is not a fix: at the
+   *   widths where the inspector has to overlay, the viewport default
+   *   is open, so the page arrives with the panel over the video
+   *   instead of beside a narrowed one. Nothing was pressed either way.
+   */
+  get(drive: string, fitsBeside?: boolean | null): boolean {
     const persisted = readPersisted(drive);
     if (persisted !== null) return persisted;
+    if (fitsBeside === false) return false;
     return viewportDefault();
   },
   set(drive: string, next: boolean): void {
