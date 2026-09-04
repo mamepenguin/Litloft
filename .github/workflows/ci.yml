@@ -150,18 +150,25 @@ jobs:
     # visible in source order, and source order is the only order the
     # required job ever runs.
     #
-    # **This job is deliberately not a required status check.** Its seed is
-    # random, so requiring it would let an unrelated pull request be blocked
-    # at random by a test order nobody chose. It reports; it does not gate.
-    # See docs/developer-guide/testing.md for when that might change.
+    # **Required since 2026-09-05.** It was deliberately not required at
+    # first, on the theory that a random seed would block pull requests over
+    # an order nobody chose. Measured over the 48 runs and 15 branches of the
+    # redesign's Phase 2, that never happened: one red, no false positives.
+    #
+    # It also turned out to catch more than order dependence — a
+    # passive-effect flush race, in a run whose order was the source order —
+    # so what it really provides is a second sample of a non-deterministic
+    # suite. When it is red, take the seed below and reproduce; do not re-run
+    # until it goes green, because on this record a red is a real defect.
+    # See docs/developer-guide/testing.md §Branch protection.
     #
     # Vitest prints the seed it picked ("Running tests with seed …"). To
     # reproduce a failure exactly, pass that seed back:
     #   pnpm exec vitest run --sequence.shuffle --sequence.seed=<seed>
     #
     # No collection guard here, unlike the job above: if the symlinks or the
-    # submodules failed, that job fails loudly and blocks the merge. This one
-    # would only be redundantly empty.
+    # submodules failed, that job fails loudly and blocks the merge first.
+    # This one would only be redundantly empty.
     name: frontend (shuffled order)
     runs-on: ubuntu-latest
     steps:
