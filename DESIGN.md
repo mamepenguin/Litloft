@@ -658,15 +658,27 @@ Size is the one thing that varies, because density does:
 The sidebar is `text-[11px]` and not `text-sm` because its rows are `text-sm`: at the
 same size the heading and the rows below it stop being two levels.
 
-**Addon panels are not there yet.** Fifteen field-group labels inside the addons'
-own panels still carry `uppercase` (`cloud-sync/CloudSyncWidget`,
-`intelligence/FailedJobsModal`, `knowledge/{ClipModal,EmptyState,FolderView,Sidebar}`,
-`media_import/{Composer,ActivityFeed,Page,SubscriptionDetailPanel}`). They are the
-same shape and want the same sweep; it reaches three submodules, so it is deferred
-rather than smuggled into the change that wrote this rule. **New addon headings
-follow the rule above** — the fifteen are a backlog, not a precedent.
-`frontend/src/__tests__/sidebar-headings.test.ts` enforces the rule in core only,
-for that reason.
+**Addon surfaces are not there yet.** Nineteen labels across three addons still
+carry `uppercase` — most of them `<h2>` / `<h3>` section headings, not the
+field labels the first count called them:
+
+| Addon | Count |
+|---|---|
+| `media_import` | 10 (`SubscriptionDetailPanel`, `Page`, `Composer`, `ActivityFeed`) |
+| `knowledge` | 8 (`EmptyState`, `FolderView`, `ClipModal`, `Sidebar`, `graph/GraphControls`) |
+| `intelligence` | 1 (`FailedJobsModal`) |
+
+They are the same shape and want the same sweep; it reaches three submodules, so
+it is deferred rather than smuggled into the change that wrote this rule.
+**New addon headings follow the rule above** — the nineteen are a backlog, not a
+precedent. `frontend/src/__tests__/sidebar-headings.test.ts` enforces the rule in
+core only, for that reason.
+
+The one exception already closed is `cloud-sync/CloudSyncWidget`: it renders into
+core's `dashboard-widgets` slot, so it shared a screen with `/admin`'s own
+headings and the mismatch was visible on one page rather than across two.
+**An addon heading that lands inside a core surface is not part of the backlog** —
+it is a violation the moment core's neighbouring headings change.
 
 ### Properties Panel (Obsidian-style frontmatter display)
 
