@@ -830,6 +830,13 @@ div[data-citation-section-path]:not(tr) {
    giving this route a second inspector would be work to throw away. On
    the canonical surface the companion is not a grid column any more;
    it is an inspector tab, and `FileDetailShell` draws the page. */
+/* The long-form reading measure (DESIGN.md §3.4). A utility rather than
+   a number, because it was already written out in `MarkdownPreview` and
+   a second copy is how the two come to disagree. */
+.reading-measure {
+  max-width: 860px;
+}
+
 .media-detail-grid {
   display: grid;
   gap: 1.5rem;
@@ -1044,12 +1051,21 @@ div[data-citation-section-path]:not(tr) {
   overflow: hidden;
 }
 
-/* The index takes the width the body's measure leaves, up to the same
-   cap it gets beside the player. Fixed at 200px it never widened, so a
-   wide canvas spent the surplus on nothing: 200 + 24 + 68ch is about
-   770px, and the rest was gutter. 200px stays the floor — it is the
-   confirmed minimum — and 22rem the ceiling, which is the rail's own
-   lead cap rather than a new number. */
+/* The index takes the width the body's measure leaves — which means the
+   body has to claim that measure first, as its flex base.
+
+   Both items grow, and free space is shared equally from their bases,
+   so a body based at 0 arrives 200px behind the index and stays there:
+   at a 500px canvas that put a 340px chapter list beside a 140px
+   transcript, the short index outgrowing the long body it indexes.
+   Basing the body at its own measure inverts that. Under pressure the
+   shrink is distributed by base too, so the body — the one that can
+   reflow — gives up the width and the index holds its floor.
+
+   200px is the confirmed floor. 22rem is a ceiling of its own: past
+   about 350px a column of timestamps and short titles stops reading as
+   an index and starts competing with what it indexes. It is not the
+   rail's `lead cap`, which is a height. */
 .media-detail-below-index {
   flex: 1 1 12.5rem;
   min-width: 12.5rem;
@@ -1057,14 +1073,17 @@ div[data-citation-section-path]:not(tr) {
   min-height: 0;
 }
 
-/* 68ch is the reading measure from DESIGN.md §3.4, not a round number
-   picked here. `min-width: 0` is the half everyone forgets: without it
-   a flex item refuses to shrink below its content and the overflow
-   moves up a level instead of scrolling. */
+/* 68ch is the reading measure, not a round number picked here, and it
+   is the flex base rather than only a cap — see the index above for why
+   basing it at 0 hands the surplus to the wrong column.
+
+   `min-width: 0` is the half everyone forgets: without it a flex item
+   refuses to shrink below its content and the overflow moves up a level
+   instead of scrolling. */
 .media-detail-below-body {
   display: flex;
   flex-direction: column;
-  flex: 1 1 0%;
+  flex: 1 1 68ch;
   min-width: 0;
   min-height: 0;
   max-width: 68ch;

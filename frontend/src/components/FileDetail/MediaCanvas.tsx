@@ -84,14 +84,20 @@ export function MediaCanvas({
         layoutToggle={null}
       />
 
-      {/* Capped at the long-form measure (§3.4). It is the file's show
-          notes and can run to many paragraphs; the canvas is as wide as
-          the page minus the inspector, which is well past comfortable. */}
+      {/* Capped at the long-form measure. It is the file's show notes
+          and can run to many paragraphs; the canvas is the page minus
+          the inspector, which is well past comfortable.
+
+          Left-aligned rather than centred, unlike the player above it.
+          The player is centred because its width is a function of the
+          height budget, so it is narrower than the column it sits in;
+          everything below it is a reading column and lines up with the
+          companion box under it. */}
       <FileDescription
         file={file}
         isTimedMedia={isTimedMedia}
         mediaController={mediaController}
-        className="max-w-[860px]"
+        className="reading-measure"
       />
 
       {companion && (

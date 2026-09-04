@@ -28,7 +28,7 @@ stays on the row at every width, beside the path rather than instead of it.
 A column down the right of the page, the same width and the same shape on every kind of file.
 
 - **The top part does not move.** Title, length and size, the like / favourite / **AI** / `⋮` row, and tags. It stays put while the rest scrolls, so those controls are in the same place on every file whatever is below them.
-- **Below it, tabs** — but only when there is more than one. **Info** is always there: relations, comments, EXIF where a file has it, and whatever addon sections apply. A media file with chapters or a transcript grows a tab for each. A file with nothing but Info gets no tab strip at all, which is what a Markdown note has always looked like.
+- **Below it, tabs** — but only when there is more than one. **Info** is always there: relations, comments, EXIF where a file has it, and whatever addon sections apply. A media file with chapters gets a chapter tab, and one on a drive with the transcript addon switched on gets a transcript tab. A file with nothing but Info gets no tab strip at all, which is what a Markdown note has always looked like.
 - Core's own tabs appear when they have something in them — a file with no chapters has no chapter tab. An addon's tab appears whenever that addon is installed and switched on for the drive, so a video that has never been transcribed can still show an empty transcript tab.
 - **Open and close it** with the toggle at the end of the page row, or with `Cmd/Ctrl+\`. It starts open on a wide screen. Closed, nothing of it is left behind on the page.
 - **On a phone** it is a bottom sheet with the same contents, opened from the same toggle.
@@ -40,7 +40,7 @@ Video, audio and `.loft` files have panels that follow playback — chapters, an
 - **Beside** — each becomes a tab in the inspector, so it sits alongside the player and follows the clock while you scroll the page past it. This is the default.
 - **Below** — they move into the page instead, directly under the description: the transcript in a single column at a comfortable reading width, with the chapter list beside it as its index. The box has its own scrollbar and a height limit, so playback moving the transcript along does not move the page under you.
 - The choice is saved in `localStorage`, per device, and a choice you have already made is kept. **On a phone it does not apply**: there is no beside, so both panels go into the bottom sheet and the toggle is not shown.
-- The toggle appears only when there is something to move. With no chapters and no addon panel, there is nothing to place and no control for it.
+- The toggle appears only when there is something to move — no chapters and no addon panel means no control. For the addon half it goes by whether the addon is switched on for the drive rather than by whether this file has a transcript, so on an untranscribed video it is offered and moves an empty panel between the two places.
 - **During collection playback** (`/files/<id>`) the page keeps its older layout, without an inspector, and "beside" there means a column next to the player rather than a tab. That form needs room — at least 60 rem of page width — and falls back to the stacked one on a narrower window. Audio never takes it there: the player is a couple of hundred pixels tall and a column beside it would leave half the width empty.
 
 ## Chapters

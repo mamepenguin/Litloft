@@ -225,9 +225,57 @@ function manifestSlotKeys(): { addon: string; entry: string; key: string }[] {
   return out;
 }
 
+/** Every `player-side` entry, whether or not it names a translation. */
+function tabEntries(): { addon: string; entry: string; key?: string }[] {
+  if (!existsSync(ADDONS_DIR)) return [];
+  const out: { addon: string; entry: string; key?: string }[] = [];
+  for (const dirent of readdirSync(ADDONS_DIR, { withFileTypes: true })) {
+    if (!dirent.isDirectory()) continue;
+    const manifestPath = resolve(ADDONS_DIR, dirent.name, "manifest.json");
+    if (!existsSync(manifestPath)) continue;
+    const manifest = JSON.parse(readFileSync(manifestPath, "utf-8")) as {
+      slots?: Record<string, { id: string; i18n_key?: string }[]>;
+    };
+    for (const entry of manifest.slots?.["player-side"] ?? []) {
+      out.push({ addon: dirent.name, entry: entry.id, key: entry.i18n_key });
+    }
+  }
+  return out;
+}
+
 describe("addon slot labels", () => {
   const declared = manifestSlotKeys();
   const catalogues = new Map(addonCatalogues().map((c) => [c.addon, c]));
+
+  it.skipIf(!existsSync(ADDONS_DIR))(
+    "every player-side entry names a translation for its tab",
+    () => {
+      // The check the two below cannot make. They ask whether a declared
+      // key resolves; the failure this exists for is a manifest that
+      // declares none — and `slotEntryLabel` then falls back to the
+      // English literal, silently, which is the whole reason `i18n_key`
+      // was added. A `player-side` entry becomes a tab in the file
+      // detail inspector, and a tab's label is on screen in whatever
+      // language the manifest happens to be written in.
+      const entries = tabEntries();
+      expect(entries.length).toBeGreaterThan(0);
+      expect(
+        entries.filter((e) => !e.key).map((e) => `${e.addon}/${e.entry}`),
+      ).toEqual([]);
+    },
+  );
+
+  it.skipIf(!existsSync(ADDONS_DIR))(
+    "declares at least one key to check",
+    () => {
+      // `it.each([])` registers no cases and vitest fails the file with
+      // "No test found in suite" — which is a red for the wrong reason
+      // where only `frontend/` was copied, and a green-looking absence
+      // where a real one goes missing. Stated as its own assertion so
+      // neither can be mistaken for the other.
+      expect(declared.length).toBeGreaterThan(0);
+    },
+  );
 
   it.each(declared.map((d) => [`${d.addon}/${d.entry}`, d] as const))(
     "%s declares a key its own catalogue holds, in both locales",

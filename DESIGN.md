@@ -907,8 +907,8 @@ Widths and heights:
 |---|---|---|
 | rail width | `24rem` (384px) | Fixed, on the grid. 320px was tried first and Japanese wrapped at 12–14 characters a line, which reads as cramped. |
 | box height | `60%` of the measured scroll container | The bounded box the companion becomes when it is below the player, on either surface. Expressed as `calc(var(--rail-avail) * 0.6)`, falling back to `60dvh` before the first measurement — "60vh", but measured, because a self-scrolling pane is not the viewport. |
-| below: index column | `12.5rem`–`22rem` (200–352px) | The chapter list beside the transcript, when there is one. 200px is the floor; it takes whatever width the body's measure leaves, up to the rail's own lead cap. |
-| below: body column | `68ch` | The reading measure. A time-ordered transcript is never set in two text columns — reading one to the bottom and back to the top of the next is the wrong way through a clock — so leftover width goes to the index instead. |
+| below: index column | `12.5rem`–`22rem` (200–352px) | The chapter list beside the transcript, when there is one. 200px is the floor; past about 350px a column of timestamps stops reading as an index and starts competing with what it indexes. A width of its own — not the `lead cap, rail` below, which is a height. |
+| below: body column | `68ch` | The reading measure, and the body's **flex base**, not only its cap. A time-ordered transcript is never set in two text columns — reading one to the bottom and back to the top of the next is the wrong way through a clock — so leftover width goes to the index instead, which only happens if the body claims its measure first. Based at zero, both columns grow from where they start and the 200px index arrives 200px ahead of the body and stays there. |
 | player minimum | `34.5rem` (552px) | Narrower than this and a 16:9 video stops being watchable. |
 | gap | `1.5rem` (24px) | The standard section gap. |
 | switch threshold | `60rem` (960px) | The sum of the first, fifth and sixth. |

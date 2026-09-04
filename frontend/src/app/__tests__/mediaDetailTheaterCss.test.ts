@@ -88,15 +88,26 @@ describe("media detail, companion below the player", () => {
     expect(rule![0]).toMatch(/max-width:\s*22rem;/);
   });
 
-  it("caps the body at the reading measure and lets it shrink", () => {
-    // `min-width: 0` is the half everyone forgets: without it a flex
-    // item refuses to go below its content and the overflow moves up a
-    // level instead of scrolling.
+  it("bases the body at its measure, not at zero", () => {
+    // Free space is shared from the bases, so a body based at 0 arrives
+    // 200px behind the index and stays there: at a 500px canvas that is
+    // a 340px chapter list beside a 140px transcript, the short index
+    // outgrowing the long body it indexes. `min-width: 0` is the half
+    // everyone forgets — without it a flex item refuses to go below its
+    // content and the overflow moves up a level instead of scrolling.
     const rule = globalsCss().match(/\.media-detail-below-body\s*\{[^}]*\}/);
     expect(rule).not.toBeNull();
+    expect(rule![0]).toMatch(/flex:\s*1 1 68ch;/);
     expect(rule![0]).toMatch(/max-width:\s*68ch;/);
     expect(rule![0]).toMatch(/min-width:\s*0;/);
     expect(rule![0]).toMatch(/min-height:\s*0;/);
+  });
+
+  it("keeps the reading measure in one place", () => {
+    // It was written out in `MarkdownPreview` and then again on the
+    // media canvas's description, which is the drift this rule exists
+    // to make unrepresentable rather than merely detectable.
+    expect(globalsCss()).toMatch(/\.reading-measure\s*\{\s*max-width:\s*860px;\s*\}/);
   });
 
   it("passes the height on to whatever the slot puts in the body", () => {
