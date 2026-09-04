@@ -212,6 +212,17 @@ function makeFile(overrides: Partial<FileItem> = {}): FileItem {
   } as FileItem;
 }
 
+/**
+ * Wait for the fetched file to be on screen, not merely requested.
+ *
+ * `api.getFile` is called during the first commit, so a wait on the mock
+ * having been called is already true the moment it runs: it returns before
+ * the response lands, leaving every synchronous query after it racing the
+ * state update. `FileActions` renders only past the `!file` spinner
+ * branch, so finding it is the same event stated in terms of the DOM.
+ */
+const loaded = () => screen.findByTestId("file-actions");
+
 function setApiResponses(file: FileItem) {
   (api.getFile as ReturnType<typeof vi.fn>).mockResolvedValue(file);
   (api.recordFileView as ReturnType<typeof vi.fn>).mockResolvedValue(undefined);
@@ -231,7 +242,8 @@ describe("FileDetailContent", () => {
   it("calls recordFileView exactly once when mounted with a fileId", async () => {
     setApiResponses(makeFile());
     render(<FileDetailContent fileId="f1" drive="main" />);
-    await waitFor(() => expect(api.getFile).toHaveBeenCalledWith("f1"));
+    await loaded();
+    expect(api.getFile).toHaveBeenCalledWith("f1");
     expect(api.recordFileView).toHaveBeenCalledTimes(1);
     expect(api.recordFileView).toHaveBeenCalledWith("f1");
   });
@@ -241,12 +253,13 @@ describe("FileDetailContent", () => {
     const { rerender } = render(
       <FileDetailContent fileId="f1" drive="main" />,
     );
-    await waitFor(() => expect(api.getFile).toHaveBeenCalledWith("f1"));
+    await loaded();
     expect(api.recordFileView).toHaveBeenCalledTimes(1);
 
     setApiResponses(makeFile({ id: "f2", title: "Sample 2" }));
     rerender(<FileDetailContent fileId="f2" drive="main" />);
-    await waitFor(() => expect(api.getFile).toHaveBeenCalledWith("f2"));
+    await loaded();
+    expect(api.getFile).toHaveBeenCalledWith("f2");
     expect(api.recordFileView).toHaveBeenCalledTimes(2);
     expect(api.recordFileView).toHaveBeenLastCalledWith("f2");
   });
@@ -254,7 +267,7 @@ describe("FileDetailContent", () => {
   it("never calls useOverlaySidebar (host responsibility)", async () => {
     setApiResponses(makeFile());
     render(<FileDetailContent fileId="f1" drive="main" />);
-    await waitFor(() => expect(api.getFile).toHaveBeenCalled());
+    await loaded();
     expect(sidebarMocks.overlaySidebarSpy).not.toHaveBeenCalled();
   });
 
@@ -269,7 +282,7 @@ describe("FileDetailContent", () => {
     it("places the slot in the action row, beside the overflow menu", async () => {
       setApiResponses(makeFile({ file_type: "video", mime_type: "video/mp4" }));
       render(<FileDetailContent fileId="f1" drive="main" />);
-      await waitFor(() => expect(api.getFile).toHaveBeenCalled());
+      await loaded();
 
       const slot = screen.getByTestId("addon-slot-file-detail-actions");
       expect(actionRow().contains(slot)).toBe(true);
@@ -279,7 +292,7 @@ describe("FileDetailContent", () => {
     it("hands the slot the same file context every other file slot gets", async () => {
       setApiResponses(makeFile({ file_type: "video", mime_type: "video/mp4" }));
       render(<FileDetailContent fileId="f1" drive="main" />);
-      await waitFor(() => expect(api.getFile).toHaveBeenCalled());
+      await loaded();
 
       const slot = screen.getByTestId("addon-slot-file-detail-actions");
       expect(slot.dataset.propFileId).toBe("f1");
@@ -298,7 +311,7 @@ describe("FileDetailContent", () => {
         }),
       );
       render(<FileDetailContent fileId="f1" drive="main" />);
-      await waitFor(() => expect(api.getFile).toHaveBeenCalled());
+      await loaded();
 
       const slot = screen.getByTestId("addon-slot-file-detail-actions");
       expect(actionRow().contains(slot)).toBe(true);
@@ -317,7 +330,7 @@ describe("FileDetailContent", () => {
         onRequestImageGallery={onRequest}
       />,
     );
-    await waitFor(() => expect(api.getFile).toHaveBeenCalled());
+    await loaded();
     const btn = screen.getByLabelText(/gallery/i);
     btn.click();
     expect(onRequest).toHaveBeenCalledTimes(1);
@@ -333,7 +346,7 @@ describe("FileDetailContent", () => {
         onRequestImageGallery={onRequest}
       />,
     );
-    await waitFor(() => expect(api.getFile).toHaveBeenCalled());
+    await loaded();
     expect(screen.queryByLabelText(/gallery/i)).toBeNull();
   });
 
@@ -342,15 +355,15 @@ describe("FileDetailContent", () => {
       makeFile({ file_type: "image", mime_type: "image/png" }),
     );
     render(<FileDetailContent fileId="f1" drive="main" />);
-    await waitFor(() => expect(api.getFile).toHaveBeenCalled());
+    await loaded();
     expect(screen.queryByLabelText(/gallery/i)).toBeNull();
   });
 
   it("re-fetches the file when EditableTagChips reports a save", async () => {
     setApiResponses(makeFile());
     render(<FileDetailContent fileId="f1" drive="main" />);
-    await waitFor(() => expect(api.getFile).toHaveBeenCalledTimes(1));
-    const trigger = screen.getByTestId("tag-save-trigger");
+    const trigger = await screen.findByTestId("tag-save-trigger");
+    expect(api.getFile).toHaveBeenCalledTimes(1);
     act(() => {
       trigger.click();
     });
@@ -376,7 +389,7 @@ describe("FileDetailContent", () => {
       );
     }
     render(<Harness />);
-    await waitFor(() => expect(api.getFile).toHaveBeenCalled());
+    await loaded();
     // FilePreview is mocked so onMediaController isn't auto-invoked
     // here, but the wiring (handleMediaController exists and is
     // forwarded to the FilePreview prop) is verified by the next test.
@@ -394,7 +407,7 @@ describe("FileDetailContent", () => {
         miniPlayerRoot={root}
       />,
     );
-    await waitFor(() => expect(api.getFile).toHaveBeenCalled());
+    await loaded();
     const calls = (MockedPreview as ReturnType<typeof vi.fn>).mock.calls;
     expect(calls.length).toBeGreaterThan(0);
     const lastProps = calls[calls.length - 1][0] as {
@@ -414,7 +427,7 @@ describe("FileDetailContent", () => {
       }),
     );
     render(<FileDetailContent fileId="f1" drive="work" />);
-    await waitFor(() => expect(api.getFile).toHaveBeenCalled());
+    await loaded();
     expect(screen.getByTestId("markdown-document-layout")).toBeInTheDocument();
     // Canvas hosts the knowledge-edit slot ...
     const canvas = screen.getByTestId("md-canvas");
@@ -475,9 +488,9 @@ describe("FileDetailContent", () => {
         }),
       );
       render(<FileDetailContent fileId="f1" drive="work" />);
-      await waitFor(() => expect(api.getFile).toHaveBeenCalled());
-
-      const sheet = screen.getByTestId("md-mobile-sheet");
+      // The mobile layout renders the inspector and the sheet, and both
+      // carry an action row, so `loaded()` would find two and throw.
+      const sheet = await screen.findByTestId("md-mobile-sheet");
       expect(sheet.querySelector('[data-testid="active-summary-host"]'))
         .not.toBeNull();
       expect(
@@ -512,7 +525,7 @@ describe("FileDetailContent", () => {
       }),
     );
     render(<FileDetailContent fileId="f1" drive="work" />);
-    await waitFor(() => expect(api.getFile).toHaveBeenCalled());
+    await loaded();
     expect(
       screen.queryByTestId("markdown-document-layout"),
     ).not.toBeInTheDocument();
@@ -543,7 +556,7 @@ describe("FileDetailContent", () => {
     const { rerender } = render(
       <FileDetailContent fileId="f1" drive="work" />,
     );
-    await waitFor(() => expect(api.getFile).toHaveBeenCalled());
+    await loaded();
     // Phase 1: legacy stack.
     expect(
       screen.queryByTestId("markdown-document-layout"),
@@ -577,7 +590,7 @@ describe("FileDetailContent", () => {
       }),
     );
     render(<FileDetailContent fileId="f1" drive="work" />);
-    await waitFor(() => expect(api.getFile).toHaveBeenCalled());
+    await loaded();
     expect(
       screen.queryByTestId("markdown-document-layout"),
     ).not.toBeInTheDocument();
@@ -599,7 +612,7 @@ describe("FileDetailContent", () => {
       }),
     );
     render(<FileDetailContent fileId="f1" drive="work" />);
-    await waitFor(() => expect(api.getFile).toHaveBeenCalled());
+    await loaded();
     expect(
       screen.getByTestId("markdown-document-layout"),
     ).toBeInTheDocument();
@@ -635,7 +648,7 @@ describe("FileDetailContent", () => {
       }),
     );
     render(<FileDetailContent fileId="f1" drive="work" />);
-    await waitFor(() => expect(api.getFile).toHaveBeenCalled());
+    await loaded();
 
     const inspectorChipProps = editableTagChipsCalls.at(-1);
     expect(inspectorChipProps).toBeDefined();
@@ -681,7 +694,7 @@ describe("FileDetailContent", () => {
       }),
     );
     render(<FileDetailContent fileId="f1" drive="work" />);
-    await waitFor(() => expect(api.getFile).toHaveBeenCalled());
+    await loaded();
 
     const inspectorChipProps = editableTagChipsCalls.at(-1);
     expect(inspectorChipProps).toBeDefined();
@@ -783,7 +796,7 @@ describe("FileDetailContent", () => {
       }),
     );
     render(<FileDetailContent fileId="f1" drive="work" />);
-    await waitFor(() => expect(api.getFile).toHaveBeenCalled());
+    await loaded();
 
     const chipsProps = editableTagChipsCalls.at(-1);
     expect(chipsProps).toBeDefined();
@@ -802,7 +815,7 @@ describe("FileDetailContent", () => {
         makeFile({ description: "0:00 Intro\n0:45 Method", duration: 600 }),
       );
       render(<FileDetailContent fileId="f1" drive="main" />);
-      await waitFor(() => expect(api.getFile).toHaveBeenCalled());
+      await loaded();
 
       expect(
         await screen.findByRole("button", { name: "Jump to 0:00" }),
@@ -823,7 +836,7 @@ describe("FileDetailContent", () => {
         }),
       );
       render(<FileDetailContent fileId="f1" drive="main" />);
-      await waitFor(() => expect(api.getFile).toHaveBeenCalled());
+      await loaded();
 
       expect(
         await screen.findByRole("button", { name: "Jump to 1:23" }),
@@ -843,7 +856,7 @@ describe("FileDetailContent", () => {
       const { container } = render(
         <FileDetailContent fileId="f1" drive="main" />,
       );
-      await waitFor(() => expect(api.getFile).toHaveBeenCalled());
+      await loaded();
 
       await waitFor(() =>
         expect(container.textContent).toContain(
@@ -877,7 +890,8 @@ describe("FileDetailContent companion region", () => {
   async function renderFile(file: FileItem) {
     setApiResponses(file);
     const utils = render(<FileDetailContent fileId="f1" drive="main" />);
-    await waitFor(() => expect(api.getFile).toHaveBeenCalledWith("f1"));
+    await loaded();
+    expect(api.getFile).toHaveBeenCalledWith("f1");
     return utils;
   }
 
@@ -1013,7 +1027,8 @@ describe("FileDetailContent companion region", () => {
     const { container } = render(
       <FileDetailContent fileId="f1" drive="main" miniPlayerRoot={pane} />,
     );
-    await waitFor(() => expect(api.getFile).toHaveBeenCalledWith("f1"));
+    await loaded();
+    expect(api.getFile).toHaveBeenCalledWith("f1");
 
     const host = container.querySelector<HTMLElement>(".media-detail-host");
     await waitFor(() => {
@@ -1291,7 +1306,8 @@ describe("FileDetailContent layout toggle", () => {
   async function renderFile(file: FileItem) {
     setApiResponses(file);
     const utils = render(<FileDetailContent fileId="f1" drive="main" />);
-    await waitFor(() => expect(api.getFile).toHaveBeenCalledWith("f1"));
+    await loaded();
+    expect(api.getFile).toHaveBeenCalledWith("f1");
     return utils;
   }
 
@@ -1376,7 +1392,8 @@ describe("FileDetailContent rail width", () => {
     vi.spyOn(HTMLElement.prototype, "clientWidth", "get").mockReturnValue(width);
     setApiResponses(makeFile());
     const { container } = render(<FileDetailContent fileId="f1" drive="main" />);
-    await waitFor(() => expect(api.getFile).toHaveBeenCalledWith("f1"));
+    await loaded();
+    expect(api.getFile).toHaveBeenCalledWith("f1");
     const host = await waitFor(() => {
       const found = container.querySelector<HTMLElement>("[data-media-width]");
       expect(found).not.toBeNull();
@@ -1416,7 +1433,8 @@ describe("FileDetailContent rail width", () => {
     const { container, rerender } = render(
       <FileDetailContent fileId="f1" drive="main" />,
     );
-    await waitFor(() => expect(api.getFile).toHaveBeenCalledWith("f1"));
+    await loaded();
+    expect(api.getFile).toHaveBeenCalledWith("f1");
     expect(container.querySelector("[data-media-width]")).toBeNull();
 
     slotMocks.occupied.add("player-side");

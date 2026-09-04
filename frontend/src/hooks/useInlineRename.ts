@@ -72,6 +72,15 @@ export function useInlineRename(onRenamed: () => void): InlineRenameApi {
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const editingPathRef = useRef<string | null>(null);
   const refocusTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  /**
+   * An edit can be abandoned by the unmount itself: tearing down a focused
+   * editor fires blur, and the `cancel` that follows arrives *after* this
+   * hook's cleanup has run. Clearing the pending timer there is therefore
+   * not enough — the late `cancel` arms a fresh poll nothing owns, and
+   * `document.querySelector` below then hands focus to whatever row has
+   * taken that path since.
+   */
+  const aliveRef = useRef(true);
 
   useEffect(() => {
     editingPathRef.current = editingPath;
@@ -84,6 +93,7 @@ export function useInlineRename(onRenamed: () => void): InlineRenameApi {
    * rename.
    */
   const refocus = useCallback((path: string) => {
+    if (!aliveRef.current) return;
     if (refocusTimerRef.current !== null) {
       clearTimeout(refocusTimerRef.current);
       refocusTimerRef.current = null;
@@ -91,6 +101,7 @@ export function useInlineRename(onRenamed: () => void): InlineRenameApi {
     let attempts = 0;
     const tryFocus = () => {
       refocusTimerRef.current = null;
+      if (!aliveRef.current) return;
       const selector = `[${RENAME_FOCUS_ATTR}="${CSS.escape(path)}"]`;
       const el = document.querySelector<HTMLElement>(selector);
       if (el) {
@@ -110,13 +121,18 @@ export function useInlineRename(onRenamed: () => void): InlineRenameApi {
       timerRef.current = null;
     }
   };
-  useEffect(
-    () => () => {
+  useEffect(() => {
+    // Set on the way in as well as cleared on the way out: StrictMode runs
+    // mount -> cleanup -> mount while keeping the refs, so a flag only ever
+    // cleared would stay false for the rest of the component's life and
+    // silence every later refocus.
+    aliveRef.current = true;
+    return () => {
+      aliveRef.current = false;
       clearTimer();
       if (refocusTimerRef.current !== null) clearTimeout(refocusTimerRef.current);
-    },
-    [],
-  );
+    };
+  }, []);
 
   const start = useCallback((path: string) => {
     clearTimer();
@@ -129,7 +145,7 @@ export function useInlineRename(onRenamed: () => void): InlineRenameApi {
     const from = editingPathRef.current;
     setEditingPath(null);
     if (from !== null) refocus(from);
-    if (!reason) return;
+    if (!reason || !aliveRef.current) return;
     setError(reason);
     clearTimer();
     timerRef.current = setTimeout(() => {

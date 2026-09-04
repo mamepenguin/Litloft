@@ -131,9 +131,62 @@ The repo expects this rhythm; PRs that change behaviour without touching tests a
 
 Before opening a PR:
 
-- Run the full suite once.
-- For tests with timing or ordering, run them twice. If different on the second run, fix the flake before merging.
+- Run the full suite once, and **read the exit code, not the pass count.**
+  Vitest reports an unhandled rejection as `Errors 1 error` and exits 1
+  while still printing every test as passed. The JSON reporter does not
+  carry those at all — they reach the default reporter's stderr only.
 - Use Playwright's `--repeat-each=5` for new e2e tests to spot flakes.
+
+### Reproducing a frontend flake
+
+Running a suspect test again proves nothing: these failures cluster, and
+a long green streak says only that the timing went the other way. What
+does reproduce them is **oversubscribing the worker pool**, which starves
+every worker evenly instead of starving the machine:
+
+```bash
+cd frontend && pnpm vitest run --poolOptions.forks.maxForks=48
+```
+
+On a 16-core machine that raised the observed failure rate from roughly
+one run in twenty-five to seven runs in eight, at the same 30 seconds per
+run. Loading the machine from outside does not work — it slows the suite
+far more than it perturbs it.
+
+Two things make the output usable: `--reporter=json --outputFile.json=…`
+so failing test names can be counted across runs, and keeping stderr, so
+unhandled errors are not lost.
+
+### The shape almost every one of these has
+
+An assertion reading a state the test never waited for. In particular,
+**waiting on a mock having been called is not waiting for its result**:
+the call is made during the first commit, so the wait is already
+satisfied when it runs and returns before the response lands.
+
+```ts
+// Races the response.
+await waitFor(() => expect(api.getFile).toHaveBeenCalled());
+expect(screen.getByTestId("title")).toHaveTextContent("Sample");
+
+// Waits for the thing being asserted.
+expect(await screen.findByTestId("title")).toHaveTextContent("Sample");
+```
+
+The same holds for a container that is rendered before its contents — a
+`<select>` before its options, a filter box before the listing. Waiting
+for the element finds it empty, and the interaction that follows lands on
+a node the loaded layout then replaces.
+
+A negative assertion has the mirror problem: it passes while nothing has
+rendered yet, so it needs a positive control beside it — assert what
+*should* appear in the same `waitFor`, or the test is vacuous forever.
+
+Testing Library's async budget is raised to 3000 ms in
+`frontend/src/test/setup.ts`. It is a wall-clock budget and the speed of
+the machine is not part of any test's contract; a wait on a condition
+that is never satisfied still fails, only later. Do not paper over a
+wrong wait by raising it further.
 
 ## CI
 

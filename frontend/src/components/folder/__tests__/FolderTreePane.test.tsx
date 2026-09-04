@@ -257,7 +257,7 @@ describe("FolderTreePane", () => {
     await waitFor(() => expect(mockGetFolderTree).toHaveBeenCalledTimes(1));
 
     // The type filter is now opened via the funnel icon (chip inline UI).
-    const trigger = screen.getByRole("button", {
+    const trigger = await screen.findByRole("button", {
       name: /filter by type|filter\.openTypeFilter|型でフィルタ/i,
     });
     fireEvent.click(trigger);

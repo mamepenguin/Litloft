@@ -355,7 +355,11 @@ describe("QuickNote destination", () => {
     fireEvent.click(saveButton());
 
     await waitFor(() => expect(mockGetDrives).toHaveBeenCalledTimes(2));
-    expect(screen.getByLabelText("Drive")).toHaveValue("notes");
+    // The refetch having been made is not the same event as its result
+    // reaching the field, so wait for the value rather than the call.
+    await waitFor(() =>
+      expect(screen.getByLabelText("Drive")).toHaveValue("notes"),
+    );
   });
 
   it("refuses to save while the accessible-drive list is unconfirmed", async () => {
