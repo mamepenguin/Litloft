@@ -17,8 +17,11 @@ const GroupedContext = createContext(false);
  * they sit under, which reads as two lists rather than one.
  *
  * A context and not a prop because the same components are also drawn
- * ungrouped — on the collection-playback route, which has no inspector
- * and stacks everything in one column.
+ * ungrouped: on a drive where no addon publishes to `file-relations`,
+ * there is nothing to group with, and core's own relations go back to
+ * being a section of their own. Both surfaces draw the group when there
+ * is one — the collection route included, since an addon that moved its
+ * entry into this slot is no longer reachable through the other.
  */
 export function useInRelatedGroup(): boolean {
   return useContext(GroupedContext);

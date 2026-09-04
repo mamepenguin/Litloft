@@ -720,17 +720,26 @@ When enabled, the intelligence addon contributes:
   - *AI Summary* (short)
   - *Detailed Summary* (long-form Markdown with citation chips)
   - *Visual Description* (vision LLM)
-  - *Transcript* (with Refine button). Each line carries a quote button that adds it to
-    the capture basket; it appears when you hover or focus the line, and stays visible on
-    a touch screen, so several hundred of them do not read as a rule down the edge of the
-    text. Its name carries the line's timestamp, so a screen reader can tell them apart.
   - *CLIP Frames* (per-second thumbnails; collapsed by default)
   - *Visual index* (collapsed by default)
-  - *Similar Files* (collapsed by default; **expanding it is the request** — the search
-    is heavy, so it runs for the files you ask about and no others. Placeholder cards
-    hold the height while it works, and a failure says so and offers another go.
-    Each result names the keywords it shares with the file you are on, taken from the
-    keyword bag both files were indexed with, and names none when it shares none)
+- **The transcript** is not one of them: it is a **tab in the inspector**, or a box under
+  the description if you have moved it there, so it can be as tall as the panel it is in
+  and follow playback without pushing anything. A file that has never been transcribed
+  grows no tab — the addon tells the page whether it has anything for that file, so
+  there is no empty tab to press. It carries a *Refine* button and, when there is more
+  than one source, a chunks / words / external switch. Each line has a quote button that
+  adds it to the capture basket; it appears when you hover or focus the line and stays
+  visible on a touch screen, so several hundred of them do not read as a rule down the
+  edge of the text. Its name carries the line's timestamp, so a screen reader can tell
+  them apart. Where you left off is remembered across collapsing and reopening the
+  sheet on a phone, including whether you had scrolled away from the playhead.
+- **Similar files** sits under the inspector's **Related** heading, beside the file's own
+  stated relations rather than in a section of its own. Collapsed by default, and
+  **expanding it is the request** — the search is heavy, so it runs for the files you ask
+  about and no others. Placeholder cards hold the height while it works, and a failure
+  says so and offers another go. Each result names the keywords it shares with the file
+  you are on, taken from the keyword bag both files were indexed with, and names none
+  when it shares none.
 - **File action row** — **AI**, beside the like and favourite buttons. It lists what this
   file does not have yet: tag candidates, a summary, a detailed summary, chapter
   candidates, an image description. Generating one makes its section appear and removes

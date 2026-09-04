@@ -265,6 +265,34 @@ export function FileDetailContainer({
     knowledgeEditorPolicy.enabled,
   );
 
+  /**
+   * Whether the shell's canvas holds a viewer rather than the editor.
+   *
+   * The negation and not a list of kinds: everything the shell carries
+   * is either the document form (a note, and the HTML preview that
+   * borrows its single-scroll layout) or a viewer, so naming the viewer
+   * kinds here would be a second copy of the list in
+   * `ridesFileDetailShell` — and the two would drift the first time a
+   * kind joined.
+   */
+  const usesCanvasViewer = !useDocumentLayout;
+
+  /**
+   * Whether the canvas owns the description, rather than the inspector.
+   *
+   * The confirmed layout keeps the viewer and the long things belonging
+   * to it in the canvas, and for media the description is one of those:
+   * a video's description is its show notes, not a property of the file.
+   * A PDF's is a property of the file, so it stays with the title and
+   * the size where every other kind's is.
+   *
+   * `hasPlayer` and not `usesCanvasViewer` — and computed once, because
+   * the two readers of it are on opposite sides of the page. Two
+   * spellings of this is exactly how the description ends up rendered
+   * twice, which is what happened the moment PDFs joined the canvas.
+   */
+  const descriptionInCanvas = ridesShell && hasPlayer;
+
   // Wire the inspector's tag chips through the editor's shared content
   // state when both (a) we're in the DocumentLayout fork and (b) the
   // editor has registered an entry. Falls back to standalone mode
@@ -327,11 +355,7 @@ export function FileDetailContainer({
       videoRef={videoRef}
       addonSlotProps={addonSlotProps}
       tagChips={tagChipNode}
-      // The confirmed layout keeps the viewer and the long things
-      // belonging to it in the canvas, and for media the description is
-      // one of those — a video's description is its show notes, not a
-      // property of the file.
-      hoistDescription={ridesShell && hasPlayer}
+      hoistDescription={descriptionInCanvas}
     />
   );
 
@@ -373,6 +397,8 @@ export function FileDetailContainer({
       ridesShell={ridesShell}
       isHtmlPreview={isHtmlPreview}
       hasPlayer={hasPlayer}
+      usesCanvasViewer={usesCanvasViewer}
+      descriptionInCanvas={descriptionInCanvas}
       playerFramed={playerFramed}
       companionKind={companionKind}
       railEligible={railEligible}

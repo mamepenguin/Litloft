@@ -247,7 +247,7 @@ The "Summary note" section is what the user sees in Litloft's file detail page w
 
 The active-summary pointer used to live in core (`file_active_summaries`) but was migrated into the knowledge addon as part of the [Internal API policy](../developer-guide/addon-dev.md#internal-api-policy) cleanup — it does not satisfy R1 (first-class core entity) and would have leaked from a single addon into the core API surface.
 
-Alongside it, a **Create note** action on any file type creates a stub `.md` whose frontmatter already cites that file, and an **Edit note** action opens `.md` files directly in the editor.
+Alongside it, a **Create note** action in any file's `[...]` menu creates a stub `.md` whose frontmatter already cites that file, and an **Edit note** action opens `.md` files directly in the editor.
 
 ## Connections graph
 
@@ -320,7 +320,7 @@ Configure per drive in `drives.json`:
 }
 ```
 
-A drive opts out simply by setting `"knowledge": false`. Two feature keys are recognised for finer control: `editor` (the file-detail Edit note / Create note section) and `index` (whether lifecycle webhooks are forwarded for that drive). Unspecified keys are enabled by graceful degradation, and changes take effect on container restart.
+A drive opts out simply by setting `"knowledge": false`. Two feature keys are recognised for finer control: `editor` (the inline editor on a note's detail page, and the **Create note** entry in any file's `[...]` menu) and `index` (whether lifecycle webhooks are forwarded for that drive). Unspecified keys are enabled by graceful degradation, and changes take effect on container restart.
 
 Turning knowledge off for a drive stops new writes and hides the UI; it does not delete anything the addon already recorded. The notes themselves are ordinary `.md` files on the drive and are untouched either way.
 

@@ -81,7 +81,7 @@ Common fields:
 
 - `name` — opaque identifier, must match the directory name.
 - `scope` — `drive | global | both`.
-- `slots` — UI injection points the addon contributes to (search-modes, file-detail-sections, file-detail-actions, dashboard-widgets, dashboard-alerts, folder-actions).
+- `slots` — UI injection points the addon contributes to (search-modes, file-detail-sections, player-side, file-relations, file-detail-actions, file-actions-menu, dashboard-widgets, dashboard-alerts, folder-actions).
 - `features` — the sub-feature flags exposed to the policy editor.
 - `pages` — frontend routes the addon adds.
 - `event_hooks` — webhook URLs invoked on lifecycle events.
@@ -91,7 +91,10 @@ Common fields:
 Litloft's frontend has a small set of named slots:
 
 - `search-modes` — appended to the search page sidebar.
-- `file-detail-sections` — stacked cards under the viewer (transcript, AI summary, similar files, …).
+- `file-detail-sections` — stacked sections in the file detail inspector's **Info** tab (AI summary, suggested tags, the Knowledge editor, …).
+- `player-side` — a tab beside a media file, for something that follows playback (a transcript). One entry is one tab, and an entry that says it has nothing for a file gets none.
+- `file-relations` — under the inspector's **Related** heading, for connections an addon derives rather than the user states (similar files).
+- `file-detail-actions` — the file's action row, beside like and favourite, for a per-file action worth one press.
 - `dashboard-widgets` — admin dashboard cards.
 - `dashboard-alerts` — a band above the drive cards, for something an operator should see before anything else. Absent when there is nothing to report.
 - `folder-actions` — appended to the folder context menu.

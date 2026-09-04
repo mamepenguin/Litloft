@@ -85,19 +85,20 @@ vi.mock("@/hooks/useSelectedFile", () => ({
 
 import { RightPaneFile } from "../RightPaneFile";
 
-// Default fixture is a non-Markdown document so the PaneShell header
-// still renders. (The MarkdownDocumentLayout fork suppresses the
-// PaneShell header for `.md` because its own unified chrome takes
-// over — the dedicated test below covers that path.)
+// Default fixture is a plain-text document, which is a kind that still
+// gets its page row from this host. Everything that brings its own —
+// Markdown, media, and since 2026-09 PDF, archives and images — takes
+// the other branch, where drawing a header here would be the second
+// one. The dedicated tests below cover both paths.
 const baseFile = {
   id: "abc123",
-  filename: "doc.pdf",
+  filename: "doc.txt",
   title: "My Document",
   description: "",
   drive: "work",
   folder_path: "Q1",
   file_type: "document" as const,
-  mime_type: "application/pdf",
+  mime_type: "text/plain",
   thumbnail_url: "",
   has_thumbnail: false,
   file_size: 100,
@@ -148,7 +149,7 @@ describe("RightPaneFile", () => {
     mockGetFile.mockResolvedValue({ ...baseFile, title: "" });
     render(<RightPaneFile fileId="abc123" drive="work" />);
     await waitFor(() =>
-      expect(screen.getByText("doc.pdf")).toBeInTheDocument(),
+      expect(screen.getByText("doc.txt")).toBeInTheDocument(),
     );
   });
 
@@ -172,6 +173,26 @@ describe("RightPaneFile", () => {
     expect(
       screen.queryByRole("button", { name: /back to tree/i }),
     ).toBeNull();
+  });
+
+  it("suppresses the header for a PDF too, now that it brings its own", async () => {
+    // Same reason as Markdown, and the reason the fixture above is a
+    // text file: PDF, archives and images joined the shell in 2026-09,
+    // so the host drawing a header for them would put two page rows and,
+    // on a phone, two back controls on one screen.
+    for (const file of [
+      { filename: "paper.pdf", mime_type: "application/pdf", file_type: "document" },
+      { filename: "comic.cbz", mime_type: "application/x-zip-compressed", file_type: "archive" },
+      { filename: "photo.jpg", mime_type: "image/jpeg", file_type: "image" },
+    ]) {
+      mockGetFile.mockResolvedValue({ ...baseFile, ...file });
+      const view = render(<RightPaneFile fileId="abc123" drive="work" />);
+      await waitFor(() =>
+        expect(screen.getByTestId("file-detail-content")).toBeInTheDocument(),
+      );
+      expect(screen.queryByText("My Document")).toBeNull();
+      view.unmount();
+    }
   });
 
   it("does NOT render an 'Open details' link (the right pane IS the detail page now)", async () => {

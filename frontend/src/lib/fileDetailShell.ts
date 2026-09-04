@@ -50,17 +50,32 @@ export type FileDetailSurface = "canonical" | "collection";
 /**
  * File kinds routed through `FileDetailShell` on the canonical surface.
  *
- * Media joined in 2026-09: the shell is what gives it a page row, an
- * inspector and a tab strip. PDF, archives and images follow, and they
- * join by being added here — one list, so a kind cannot be routed
- * through the shell by the layout while a host still draws it a second
- * page row.
+ * Media joined in 2026-09, then PDF, archives and images: the shell is
+ * what gives a kind a page row, an inspector and a tab strip. They join
+ * by being added here — one list, so a kind cannot be routed through the
+ * shell by the layout while a host still draws it a second page row.
+ *
+ * What the last three had before was one column with the viewer at the
+ * top and everything else stacked under it, which is how a 190-page
+ * archive ended up with 100px of viewer and 440px of metadata: the
+ * viewer's height came from its own contents, so the more there was to
+ * read the less of it was on screen. On the shell the viewer is the
+ * canvas and the metadata is the inspector, and neither can push the
+ * other.
+ *
+ * Not a `playerKind` question any more. That answers "which player
+ * plays this", and a PDF has none — the two agreed only while the shell
+ * was for media.
  */
-function ridesShellAsMedia(
+function ridesShellAsViewer(
   fileType: string | undefined,
   mimeType: string | undefined,
 ): boolean {
-  return playerKind({ file_type: fileType, mime_type: mimeType }) !== null;
+  if (playerKind({ file_type: fileType, mime_type: mimeType }) !== null) {
+    return true;
+  }
+  if (mimeType === "application/pdf") return true;
+  return fileType === "archive" || fileType === "image";
 }
 
 /**
@@ -68,7 +83,7 @@ function ridesShellAsMedia(
  *
  * The document half is surface-independent: a Markdown note has drawn
  * its own row on both surfaces since long before this, and taking that
- * away would be a regression rather than a scoping decision. The media
+ * away would be a regression rather than a scoping decision. The viewer
  * half is canonical-only, per `FileDetailSurface`.
  */
 export function ridesFileDetailShell(args: {
@@ -79,5 +94,5 @@ export function ridesFileDetailShell(args: {
 }): boolean {
   if (usesDocumentShell(args.mimeType, args.knowledgeEditorEnabled)) return true;
   if (args.surface !== "canonical") return false;
-  return ridesShellAsMedia(args.fileType, args.mimeType);
+  return ridesShellAsViewer(args.fileType, args.mimeType);
 }

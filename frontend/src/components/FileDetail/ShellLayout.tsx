@@ -35,6 +35,18 @@ export interface ShellLayoutProps {
   isHtmlPreview: boolean;
   /** Whether a player plays this file at all. */
   hasPlayer: boolean;
+  /**
+   * Whether the canvas is a viewer rather than the Knowledge editor.
+   *
+   * True for everything the shell carries except a Markdown note and an
+   * HTML preview: media, and — since 2026-09 — PDF, archives and images.
+   * Not the same question as `hasPlayer`: a PDF has no player, but it
+   * has a viewer, and before this the two were conflated because the
+   * shell only carried media.
+   */
+  usesCanvasViewer: boolean;
+  /** Whether the canvas owns the description, rather than the inspector. */
+  descriptionInCanvas: boolean;
   /** Whether anyone could fill the companion. Decides what is mounted. */
   companionMountable: boolean;
   /** Whether anyone does, for this file. Decides what chrome is drawn. */
@@ -96,6 +108,8 @@ export function ShellLayout({
   isMobile,
   isHtmlPreview,
   hasPlayer,
+  usesCanvasViewer,
+  descriptionInCanvas,
   companionMountable,
   companionOccupied,
   slotAvailability,
@@ -153,7 +167,25 @@ export function ShellLayout({
    * tabs are where they go regardless of the stored preference, and the
    * page keeps a single scroll.
    */
-  const companionInTabs = !hasPlayer || isMobile || mediaLayout === "beside";
+  const companionInTabs = isMobile || mediaLayout === "beside";
+  /**
+   * A PDF has a canvas viewer but no playback clock, so nothing follows
+   * it: the companion, the tabs it can occupy and the control that moves
+   * it between the two are all a *player's*, and a viewer that is not
+   * one has none of them. `hasPlayer` and not `usesCanvasViewer` at
+   * each.
+   *
+   * **Three gates, and each has to be able to fail on its own.** There
+   * were five. Two of them could not: one read `hasPlayer &&
+   * companionOccupied` inside the branch that only runs when
+   * `hasPlayer`, and one put `!hasPlayer` into `companionInTabs`, where
+   * it was already implied by the gate on the companion itself — so
+   * either could be deleted with nothing to show for it, and only
+   * deleting *both* of the latter pair changed anything. Belt and braces
+   * reads as safety and is the opposite: it is what makes a guard
+   * untestable, and an untestable guard is one nobody can tell has
+   * stopped working.
+   */
 
   const playerSideEntries = hasPlayer ? getSlotEntries("player-side") : [];
 
@@ -205,7 +237,7 @@ export function ShellLayout({
    * Do not add a third: the general answer is a slot of its own, the
    * way `file-relations` is, not another id core has to know.
    */
-  const canvasSlotIds = hasPlayer
+  const canvasSlotIds = usesCanvasViewer
     ? ["detailed-summary"]
     : ["knowledge-edit", "detailed-summary"];
 
@@ -309,7 +341,7 @@ export function ShellLayout({
     <InspectorShell header={meta} tabs={buildTabs(true)} resetKey={fileId} />
   ) : undefined;
 
-  if (hasPlayer) {
+  if (usesCanvasViewer) {
     return (
       <FileDetailShell
         drive={drive}
@@ -327,7 +359,7 @@ export function ShellLayout({
           // desktop pane, and a phone's sheet is `FileDetailShell`'s own
           // state, not this store. Rendering the toggle on a phone would
           // write a preference and open nothing.
-          !isMobile && companionOccupied ? (
+          !isMobile && hasPlayer && companionOccupied ? (
             <MediaLayoutToggle onBeside={() => setInspectorOpen(true)} />
           ) : undefined
         }
@@ -337,6 +369,7 @@ export function ShellLayout({
         resetKey={fileId}
       >
         <MediaCanvas
+          showDescription={descriptionInCanvas}
           file={file}
           fileId={fileId}
           metrics={metrics}
@@ -344,9 +377,13 @@ export function ShellLayout({
           isTimedMedia={isTimedMedia}
           mediaController={mediaController}
           companion={
-            companionInTabs || !companionMountable
+            companionInTabs || !hasPlayer || !companionMountable
               ? null
-              : { chaptersPresent, occupied: companionOccupied, slots: playerSideNodes }
+              : {
+                  chaptersPresent,
+                  occupied: companionOccupied,
+                  slots: playerSideNodes,
+                }
           }
           chaptersVersion={chaptersVersion}
           onChaptersResolved={onChaptersResolved}

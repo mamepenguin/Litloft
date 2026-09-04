@@ -134,10 +134,13 @@ the hand, not the text.
 |---|---|
 | `Cmd/Ctrl+\` | Show / hide the inspector panel |
 
-On every page that has an inspector, which is Markdown notes, HTML previews and
-media. Desktop only — on a phone the inspector is a bottom sheet, opened from
-the toggle in the page row. This chord fires even while a note's editor has
-focus.
+On every page that has an inspector: Markdown notes, HTML previews, media,
+PDFs, archives and images. A file whose type Litloft does not recognise — and
+plain text, subtitles and the Office formats, which have no viewer to give a
+column to — keeps the older stacked page and has no inspector. Desktop only: on
+a phone the inspector is a bottom sheet that rests rather than closes, and the
+toggle in the page row raises it. This chord fires even while a note's editor
+has focus.
 
 ### Markdown editor (Knowledge addon)
 

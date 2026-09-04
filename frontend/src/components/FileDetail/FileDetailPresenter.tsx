@@ -11,6 +11,7 @@ import { CommentSection } from "../CommentSection";
 import { ExifSection } from "../ExifSection";
 import { RelatedFilesSection } from "../RelatedFilesSection";
 import { FileDetailCanvas } from "./FileDetailCanvas";
+import { RelatedGroup } from "./inspector/RelatedGroup";
 import { ShellLayout } from "./ShellLayout";
 import type { CompanionMetrics } from "./hooks/useCompanionMetrics";
 import type { SlotAvailability } from "./hooks/useSlotAvailability";
@@ -26,6 +27,10 @@ export interface FileDetailPresenterProps {
   companionKind: string | null;
   /** Whether a player plays this file at all — `companionKind !== null`. */
   hasPlayer: boolean;
+  /** Whether the canvas is a viewer rather than the Knowledge editor. */
+  usesCanvasViewer: boolean;
+  /** Whether the canvas owns the description, rather than the inspector. */
+  descriptionInCanvas: boolean;
   /** Whether the player's height is a function of its width. */
   playerFramed: boolean;
   railEligible: boolean;
@@ -83,6 +88,8 @@ export function FileDetailPresenter({
   isHtmlPreview,
   companionKind,
   hasPlayer,
+  usesCanvasViewer,
+  descriptionInCanvas,
   playerFramed,
   railEligible,
   companionMountable,
@@ -121,6 +128,8 @@ export function FileDetailPresenter({
         isMobile={isMobile}
         isHtmlPreview={isHtmlPreview}
         hasPlayer={hasPlayer}
+        usesCanvasViewer={usesCanvasViewer}
+        descriptionInCanvas={descriptionInCanvas}
         companionMountable={companionMountable}
         companionOccupied={companionOccupied}
         slotAvailability={slotAvailability}
@@ -159,7 +168,17 @@ export function FileDetailPresenter({
 
       <div className="mt-4 space-y-4">
         <ActiveSummaryHost fileId={fileId} drive={drive} />
-        <RelatedFilesSection fileId={fileId} />
+        {/* The same grouping the inspector draws, for the same reason:
+            core's own relations and whatever an addon derives are two
+            answers to one question. It is here at all because an addon
+            publishing to `file-relations` has *moved* its entry out of
+            `file-detail-sections` — the slot below no longer reaches it
+            — so this column would otherwise lose the section outright
+            rather than merely style it differently. */}
+        <RelatedGroup>
+          <RelatedFilesSection fileId={fileId} />
+          <AddonSlot id="file-relations" layout="stack" props={addonSlotProps} />
+        </RelatedGroup>
         <ExifSection fileId={fileId} fileType={file.file_type} />
         <AddonSlot
           id="file-detail-sections"
