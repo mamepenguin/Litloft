@@ -111,7 +111,25 @@ export function SidebarTagsSection({
   const activeTagKey = activeTag?.toLowerCase() ?? null;
 
   const sortedTags = sortTags(tags.items, mode);
-  const visibleTags = showAll ? sortedTags : sortedTags.slice(0, COLLAPSED_TAG_COUNT);
+  // The applied tag is always on screen, ranked or not.
+  //
+  // The fold is by count, so a rare tag is never in the first eight —
+  // and arriving on `?tag=X` from the file detail's chips or from
+  // "Search the whole drive" would then filter the listing while the
+  // row that says so, and the second click that clears it, were both
+  // folded away. This section is the only surface that shows an
+  // applied tag or takes it off, so folding it away is a filter with
+  // no exit.
+  const foldedTags = sortedTags.slice(0, COLLAPSED_TAG_COUNT);
+  const selectedOutsideFold =
+    activeTagKey !== null && !activeView
+      ? sortedTags.filter(
+          (tag) =>
+            tag.name.toLowerCase() === activeTagKey &&
+            !foldedTags.some((shown) => shown.name === tag.name),
+        )
+      : [];
+  const visibleTags = showAll ? sortedTags : [...foldedTags, ...selectedOutsideFold];
   const hiddenCount = sortedTags.length - visibleTags.length;
   const SortIcon = mode === "count" ? ArrowDown01 : ArrowDownAZ;
   const sortLabel = mode === "count" ? t("sort.byCount") : t("sort.byName");

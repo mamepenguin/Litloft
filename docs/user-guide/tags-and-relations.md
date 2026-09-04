@@ -49,6 +49,8 @@ The **Tags** section of the sidebar is the tag filter. It lists the tags in play
 
 The section shows the eight most prominent tags — by count, or alphabetically if you have switched the sort. When there are more, **All tags (N)** sits below them and opens the rest in place; N is the number of tags in scope, not the number still hidden. The list folds back to eight when you move to another folder, because a different folder brings a different set of tags. The heading names the folder it is counting (*Tags — under {folder}*) whenever the scope is narrower than the drive.
 
+The tag you have applied is always shown, ranked or not — the fold is by count, so a rare tag would otherwise filter the listing from a row you could not see, and this section is the only place that shows an applied tag or takes it off.
+
 Both the list and the click are **scoped to the folder you are in**:
 
 - The list shows only the tags used somewhere inside the current folder's subtree, with counts for that subtree — not for the whole drive.

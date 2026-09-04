@@ -141,11 +141,18 @@ describe("sidebar top — item 10", () => {
         addons={{ knowledge: { label: "Knowledge", icon: "notebook-pen", href: "/", scope: "drive" } }}
       />,
     );
-    const heading = screen.getByText("Addons");
+    // `getByText` returns the innermost element holding the text —
+    // the `<span class="truncate">` — and the classes under test are
+    // on its parent. Asserting on the span's own className checks
+    // "truncate" against a regex it can never match, which is green
+    // whatever the heading does.
+    const label = screen.getByText("Addons");
+    const heading = label.parentElement!;
+    expect(heading.className).toMatch(/text-\[11px\]/);
     expect(heading.className).not.toMatch(/uppercase|tracking-wider/);
     // `closest`, not `within(parentElement)`: `within` searches
     // descendants only, so if the heading became a button the query
     // would look *inside* that button, find nothing, and pass.
-    expect(heading.closest("button")).toBeNull();
+    expect(label.closest("button")).toBeNull();
   });
 });

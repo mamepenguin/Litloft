@@ -79,6 +79,51 @@ describe("SidebarTagsSection — folding the long tail", () => {
     expect(tagRows()).toHaveLength(8);
   });
 
+  it("keeps the applied tag on screen even when it is not in the top eight", () => {
+    // The fold ranks by count, so a rare tag is never in the first
+    // eight. Arriving on `?tag=` from a file's chips or from "Search
+    // the whole drive" would then filter the listing while the row
+    // that says which tag, and the second click that clears it, were
+    // both folded away — this section is the only place either lives.
+    const tags = tagsFor(30);
+    const rare = tags.items[25].name;
+    render(
+      <SidebarTagsSection
+        {...props(tags)}
+        activeTag={rare}
+        pathname="/drive/main"
+      />,
+    );
+
+    expect(tagRows()).toContain(rare);
+    expect(screen.getByText("All tags (30)")).toBeInTheDocument();
+  });
+
+  it("does not count the pinned row twice", () => {
+    const tags = tagsFor(30);
+    render(
+      <SidebarTagsSection
+        {...props(tags)}
+        activeTag={tags.items[25].name}
+        pathname="/drive/main"
+      />,
+    );
+    // Eight ranked plus the one held on screen.
+    expect(tagRows()).toHaveLength(9);
+  });
+
+  it("pins nothing when the applied tag already ranks", () => {
+    const tags = tagsFor(30);
+    render(
+      <SidebarTagsSection
+        {...props(tags)}
+        activeTag={tags.items[0].name}
+        pathname="/drive/main"
+      />,
+    );
+    expect(tagRows()).toHaveLength(8);
+  });
+
   it("keeps the same hrefs it always had — the fold is display only", () => {
     render(<SidebarTagsSection {...props(tagsFor(30))} />);
     expect(screen.getAllByRole("link")[0]).toHaveAttribute("href", "/drive/main?tag=tag00");

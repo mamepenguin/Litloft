@@ -35,8 +35,34 @@ const SIDEBAR_DIR = resolve(REPO_ROOT, "frontend/src/components/sidebar");
  */
 const SIDEBAR_ROOT_FILE = resolve(REPO_ROOT, "frontend/src/components/Sidebar.tsx");
 
-/** The classes that make a sidebar section heading look like one. */
-const HEADING_CLASSES = "text-[11px] font-semibold text-text-muted";
+/**
+ * The classes that make a sidebar section heading look like one.
+ *
+ * Matched as a set, not as a substring: written in another order
+ * (`font-semibold text-[11px] text-text-muted`) the same declaration
+ * would slip past a substring test, and Tailwind does not care about
+ * the order.
+ */
+const HEADING_CLASSES = ["text-[11px]", "font-semibold", "text-text-muted"];
+
+/** Every class list in a file, `className="…"` or a template literal. */
+function classLists(text: string): string[] {
+  return [
+    ...[...text.matchAll(/className="([^"]*)"/g)].map((m) => m[1]),
+    ...[...text.matchAll(/className=\{`([^`]*)`\}/g)].map((m) => m[1]),
+    // `const foo = "…"` / `` `…` `` class strings handed to className
+    // elsewhere in the file — the sidebar's own heading is written
+    // this way.
+    ...[...text.matchAll(/=\s*\n?\s*"((?:[^"\\]|\\.)*)"/g)].map((m) => m[1]),
+  ];
+}
+
+function wearsHeadingClasses(text: string): boolean {
+  return classLists(text).some((cls) => {
+    const classes = new Set(cls.split(/\s+/));
+    return HEADING_CLASSES.every((c) => classes.has(c));
+  });
+}
 const HEADING_COMPONENT = "frontend/src/components/sidebar/SidebarSectionHeading.tsx";
 
 function sourceFiles(dir: string, skipTests = true): string[] {
@@ -61,7 +87,7 @@ describe("sidebar section headings", () => {
   const files = [...sourceFiles(SIDEBAR_DIR), SIDEBAR_ROOT_FILE];
 
   it("has one component that knows what a section heading looks like", () => {
-    const writers = files.filter((f) => readFileSync(f, "utf-8").includes(HEADING_CLASSES));
+    const writers = files.filter((f) => wearsHeadingClasses(readFileSync(f, "utf-8")));
     expect(writers.map(rel)).toEqual([HEADING_COMPONENT]);
   });
 
@@ -144,10 +170,16 @@ describe("section header labels", () => {
    * Japanese, where the property does nothing, so in a column that
    * mixes scripts it stops being what makes the headings look alike.
    *
-   * Core only. The addons' own panels still write `uppercase` on their
-   * field-group labels; that is the same shape and wants the same
-   * sweep, but it reaches a third submodule and is recorded as carried
-   * over rather than smuggled into this change.
+   * Core only. Nineteen labels across three addons still write
+   * `uppercase` — mostly `<h2>` / `<h3>` section headings. Same shape,
+   * same sweep wanted, but it reaches three submodules and is recorded
+   * in `DESIGN.md` §Section Header Labels as a backlog rather than
+   * smuggled into this change.
+   *
+   * The exception is an addon heading rendered into a *core* surface —
+   * `cloud-sync`'s dashboard widget shared a screen with `/admin`'s own
+   * headings, so it was a visible mismatch on one page and was fixed
+   * rather than deferred.
    */
   it("does not shout, anywhere in core", () => {
     // Matched on the *element*, not on a combination of classes. The
