@@ -642,14 +642,26 @@ be somewhere in a column the reader had to find; at 56px they are in the
 same place on every file, and the page ends above them rather than
 behind them.
 
-**`modal` only at half and full.** vaul's modal mode puts
-`pointer-events: none` on `<body>` and `aria-hidden` on every other body
-child, which behind a 56px strip would make the page unscrollable and
-unreadable to a screen reader — the opposite of what the strip is for.
-The dim backdrop follows the same rule, for the same reason. What is
-below the rest stays **mounted and `inert`**: mounting it on expand
-would re-fetch the comments and lose the transcript's place every time
-the reader looked at the file's tags.
+**The drawer exists only while it covers the page; the strip is drawn
+outside it.** vaul hands Radix's `Dialog.Root` nothing but `open`,
+`defaultOpen` and `onOpenChange` — its own `modal` prop never reaches
+Radix, which therefore defaults to modal and calls `hideOthers()` on
+every other body child. A drawer mounted at rest puts
+`aria-hidden="true"` on the whole application, on every file page a
+phone opens, for as long as it is open. The page stays scrollable, so
+nothing looks wrong; it is simply gone for anyone using a screen reader.
+**Passing `modal={false}` does not avoid this** — it controls vaul's own
+scroll-lock and pointer-events extras and nothing about Radix.
+
+The cost is that what is below the strip unmounts on collapse and
+refetches on the way back up. That is what a closed sheet already did,
+and it is the cheaper of the two prices.
+
+**Fade the backdrop from the first snap point.** vaul defaults
+`fadeFromIndex` to the *last* one, which leaves `half` — the state the
+toggle opens — covering the page with no dim to say so, and a tap
+outside then collapses the sheet with nothing on screen having
+explained why.
 
 A dismiss gesture — the backdrop, Escape, a swipe down — collapses to
 peek. There is no closed state to dismiss to, and refusing the gesture

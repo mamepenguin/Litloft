@@ -849,7 +849,9 @@
       "label": "ファイル名",
       "failed": "名前の変更に失敗しました"
     },
-    "tablistLabel": "インスペクタのセクション"
+    "tablistLabel": "インスペクタのセクション",
+    "collapseSheet": "シートを下げる",
+    "expandSheet": "シートを開く"
   },
   "comments": {
     "title": "コメント",

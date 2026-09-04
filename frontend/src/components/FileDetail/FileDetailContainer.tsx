@@ -312,9 +312,6 @@ export function FileDetailContainer({
       // one of those — a video's description is its show notes, not a
       // property of the file.
       hoistDescription={ridesShell && hasPlayer}
-      // On a phone the sheet's peek row is drawing it, and that row is
-      // the whole of what a resting sheet shows.
-      hoistActions={ridesShell && isMobile}
     />
   );
 
@@ -322,12 +319,17 @@ export function FileDetailContainer({
   // layout because it needs the same handlers `meta` does, and built
   // only on the surface that has a sheet so the row cannot be mounted
   // twice with the inspector's copy.
+  const fileDisplayName = file.title || file.filename;
   const sheetPeek =
     ridesShell && isMobile ? (
       <>
-        <h2 className="min-w-0 flex-1 truncate text-sm font-semibold text-text-primary">
-          {file.title || file.filename}
-        </h2>
+        {/* Not a heading. The name is announced by the sheet's own
+            title when it is up, and a second heading for the same file
+            at a shallower level than the inspector's `h1` inverted the
+            document outline inside one dialog. */}
+        <span className="min-w-0 flex-1 truncate text-sm font-semibold text-text-primary">
+          {fileDisplayName}
+        </span>
         <FileActionRow
           file={file}
           onFileChange={setFile}

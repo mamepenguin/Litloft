@@ -849,7 +849,9 @@
       "label": "Filename",
       "failed": "Rename failed"
     },
-    "tablistLabel": "Inspector sections"
+    "tablistLabel": "Inspector sections",
+    "collapseSheet": "Collapse the sheet",
+    "expandSheet": "Open the sheet"
   },
   "comments": {
     "title": "Comments",

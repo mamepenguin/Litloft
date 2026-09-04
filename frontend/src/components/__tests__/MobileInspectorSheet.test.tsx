@@ -39,49 +39,52 @@ function renderSheet(
 }
 
 describe("MobileInspectorSheet", () => {
-  it("shows the peek row at rest", async () => {
+  it("shows the peek row at rest", () => {
     renderSheet();
-    await screen.findByTestId("mobile-inspector-sheet");
     expect(screen.getByTestId("peek-content")).toBeInTheDocument();
   });
 
-  it("gives the peek row exactly the height the design names", async () => {
+  it("gives the peek row exactly the height the design names", () => {
     // The 56px is what the reader gets at rest, so it is the row's own
     // height and not a minimum the content can push past.
     renderSheet();
-    const row = await screen.findByTestId("mobile-inspector-peek");
+    const row = screen.getByTestId("mobile-inspector-peek");
     expect(row.style.height).toBe(`${SHEET_PEEK_PX}px`);
   });
 
-  it("keeps the rest mounted at rest, and out of reach", async () => {
-    // Mounting on expand instead would re-fetch the comments and lose
-    // the transcript's place every time the reader looked at the tags.
-    // `inert` is what keeps a keyboard out of the part that is off the
-    // bottom of the screen.
-    renderSheet();
-    const content = await screen.findByTestId("inspector-content");
-    expect(content).toBeInTheDocument();
-    expect(content.closest("[inert]")).not.toBeNull();
+  it("mounts no dialog at rest, so the page is not hidden from a reader", () => {
+    // The reason the strip is drawn outside vaul. vaul hands Radix's
+    // `Dialog.Root` only `open` / `defaultOpen` / `onOpenChange` — its
+    // own `modal` never arrives — so Radix defaults to modal and calls
+    // `hideOthers()` on every other body child. A drawer mounted at
+    // rest puts `aria-hidden="true"` on the whole application, on every
+    // file page a phone opens, permanently. Nothing looks wrong; the
+    // page is simply gone for anyone using a screen reader.
+    const page = document.createElement("div");
+    page.setAttribute("data-testid", "the-page");
+    document.body.appendChild(page);
+    try {
+      renderSheet(SHEET_SNAP_PEEK);
+      expect(screen.queryByRole("dialog")).toBeNull();
+      expect(page.getAttribute("aria-hidden")).toBeNull();
+    } finally {
+      page.remove();
+    }
   });
 
-  it("lets the page through at rest, and takes it over when expanded", async () => {
-    // vaul's modal mode puts `pointer-events: none` on <body> and
-    // `aria-hidden` on every other body child (DESIGN.md §Layering).
-    // At rest that would make the page behind a 56px strip unscrollable
-    // and unreadable to a screen reader.
-    const peek = renderSheet(SHEET_SNAP_PEEK);
-    await screen.findByTestId("mobile-inspector-sheet");
-    expect(screen.queryByTestId("mobile-inspector-overlay")).toBeNull();
-    expect(
-      screen.getByTestId("inspector-content").closest("[inert]"),
-    ).not.toBeNull();
-    peek.unmount();
+  it("does not draw the rest of the inspector at rest", () => {
+    renderSheet(SHEET_SNAP_PEEK);
+    expect(screen.queryByTestId("inspector-content")).toBeNull();
+  });
 
+  it("dims the page at half, the state the toggle opens", async () => {
+    // vaul fades its overlay from the *last* snap point by default,
+    // which would leave half covering the page with no dim to say so —
+    // a tap outside would then collapse the sheet with nothing on
+    // screen having explained why.
     renderSheet(SHEET_SNAP_HALF);
-    await screen.findByTestId("mobile-inspector-overlay");
-    expect(
-      screen.getByTestId("inspector-content").closest("[inert]"),
-    ).toBeNull();
+    const overlay = await screen.findByTestId("mobile-inspector-overlay");
+    expect(overlay.dataset.vaulSnapPointsOverlay).toBe("true");
   });
 
   it("collapses to peek on a dismiss gesture instead of closing", async () => {

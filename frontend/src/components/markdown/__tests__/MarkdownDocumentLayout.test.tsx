@@ -196,26 +196,22 @@ describe("MarkdownDocumentLayout — mobile (< 768px)", () => {
     expect(screen.queryByTestId("inspector-pane")).toBeNull();
   });
 
-  it("keeps the sheet's content out of reach at rest, not out of the DOM", async () => {
-    // The sheet rests at 56px rather than closing, and what is below
-    // that rest is mounted the whole time. Mounting it on expand would
-    // re-fetch the comments and lose the transcript's place every time
-    // the reader looked at the file's tags — so it is `inert` instead.
+  it("shows the resting strip, not the inspector, at rest", () => {
+    // The sheet rests at 56px rather than closing. What is below that
+    // rest is not drawn: vaul's drawer is Radix-modal whether or not it
+    // is asked to be, so mounting it at rest would put `aria-hidden` on
+    // the whole page for as long as the file is open.
     setViewportWidth(420);
     renderLayout();
-    const content = await screen.findByTestId("inspector-content");
-    expect(content.closest("[inert]")).not.toBeNull();
+    expect(screen.getByTestId("mobile-inspector-peek")).toBeInTheDocument();
+    expect(screen.queryByTestId("inspector-content")).toBeNull();
   });
 
-  it("brings it within reach when the chrome toggle is tapped", async () => {
+  it("brings up the inspector when the chrome toggle is tapped", async () => {
     setViewportWidth(420);
     renderLayout();
     fireEvent.click(screen.getByTestId("inspector-toggle"));
-    await waitFor(() => {
-      expect(
-        screen.getByTestId("inspector-content").closest("[inert]"),
-      ).toBeNull();
-    });
+    expect(await screen.findByTestId("inspector-content")).toBeInTheDocument();
   });
 
   it("hides the split option in the view-mode toggle on mobile", () => {

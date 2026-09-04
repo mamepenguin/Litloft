@@ -41,14 +41,6 @@ interface FileMetaBlockProps {
    * inspector copy.
    */
   hoistDescription?: boolean;
-  /**
-   * Leave the action row out — the sheet's peek row is drawing it.
-   *
-   * Same shape as `hoistDescription`, and for the same reason: one row,
-   * placed by whoever is laying the surface out, rather than a second
-   * copy that drifts from the first.
-   */
-  hoistActions?: boolean;
 }
 
 /**
@@ -80,7 +72,6 @@ export function FileMetaBlock({
   addonSlotProps,
   tagChips,
   hoistDescription = false,
-  hoistActions = false,
 }: FileMetaBlockProps) {
   const hasDuration = isTimedMedia && file.duration != null;
 
@@ -113,8 +104,13 @@ export function FileMetaBlock({
               className="mt-1"
             />
           )}
-          {!hoistActions && (
-            <FileActionRow
+          {/* Also drawn by the sheet's peek row on a phone — in one of
+              the two places, never both: the strip exists only while
+              the sheet is resting, and this block only while it is up.
+              Stateless triggers over the same handlers, so unlike a
+              click-to-edit title there is nothing for two copies to
+              disagree about. */}
+          <FileActionRow
               file={file}
               onFileChange={onFileChange}
               onRefetch={onRefetch}
@@ -123,8 +119,7 @@ export function FileMetaBlock({
               onRequestImageGallery={onRequestImageGallery}
               videoRef={videoRef}
               addonSlotProps={addonSlotProps}
-            />
-          )}
+          />
           <div className="mt-3">{tagChips}</div>
         </div>
       )}

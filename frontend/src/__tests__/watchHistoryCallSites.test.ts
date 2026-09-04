@@ -58,36 +58,62 @@ function sourceFiles(root: string): string[] {
   return out;
 }
 
-/** Files that *call* the name, as opposed to defining or importing it. */
-function callers(name: string): string[] {
+/**
+ * Files that reach for the name at all — calling it, or importing it
+ * under any name.
+ *
+ * The import half is what makes this survive a rename at the call site.
+ * A scan for `deleteWatchProgress(` alone is blind to
+ * `import { deleteWatchProgress as dropRow }`, which is one keystroke
+ * from the exact edit this exists to catch. Nothing can use the
+ * function without naming it in an import first, so the import is the
+ * chokepoint and the call is the convenience.
+ *
+ * The defining module is excluded by name rather than by pattern:
+ * `export async function deleteWatchProgress` would otherwise report
+ * `lib/api.ts` as its own caller.
+ */
+function reaches(name: string, definedIn: string): string[] {
   const called = new RegExp(`(?<!function\\s)\\b${name}\\s*\\(`);
+  const imported = new RegExp(
+    `import[^;]*\\b${name}\\b[^;]*from\\s*["'][^"']+["']`,
+    "s",
+  );
   const out: string[] = [];
   for (const root of ROOTS) {
     for (const file of sourceFiles(root)) {
+      const rel = relative(REPO_ROOT, file);
+      if (rel === definedIn) continue;
       const source = readFileSync(file, "utf-8");
-      if (called.test(source)) out.push(relative(REPO_ROOT, file));
+      if (called.test(source) || imported.test(source)) out.push(rel);
     }
   }
   return out.sort();
 }
 
 describe("watch history deletion", () => {
-  it("finds the trees it is supposed to be scanning", () => {
-    // A scanner that walks nothing passes every assertion below it.
+  it("finds both trees it is supposed to be scanning", () => {
+    // A scanner that walks nothing passes every assertion below it, and
+    // the addon half is the one that goes missing quietly — `addons/`
+    // is absent in a frontend-only checkout and `sourceFiles` returns
+    // an empty list rather than complaining.
     expect(sourceFiles(ROOTS[0]).length).toBeGreaterThan(100);
+    expect(sourceFiles(ROOTS[1]).length).toBeGreaterThan(20);
   });
 
   it("is called from one place, and that place is a user pressing it", () => {
     // `ContinueWatchingSection` is the "remove from history" control.
-    expect(callers("deleteWatchProgress")).toEqual([
-      "frontend/src/components/ContinueWatchingSection.tsx",
-    ]);
+    expect(
+      reaches("deleteWatchProgress", "frontend/src/lib/api.ts"),
+    ).toEqual(["frontend/src/components/ContinueWatchingSection.tsx"]);
   });
 
   it("has no caller at all for the local-storage half", () => {
     // `clearProgress` exists in `lib/recentlyPlayed.ts` and nothing
     // calls it. Left defined on purpose; the point is that a playback
     // path has not picked it up.
-    expect(callers("clearProgress")).toEqual([]);
+    expect(
+      reaches("clearProgress", "frontend/src/lib/recentlyPlayed.ts"),
+    ).toEqual([]);
   });
 });

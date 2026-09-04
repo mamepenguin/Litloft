@@ -5,7 +5,6 @@ import { useTranslations } from "next-intl";
 import { Maximize2 } from "lucide-react";
 
 import type { FileItem } from "@/types";
-import type { MediaController } from "@/lib/mediaController";
 import { AddonSlot } from "../AddonSlot";
 import { CastButton } from "../CastButton";
 import { FavoriteButton } from "../FavoriteButton";
@@ -23,14 +22,19 @@ export interface FileActionRowProps {
   videoRef: RefObject<HTMLVideoElement | null>;
   addonSlotProps: Record<string, unknown>;
   /**
-   * Drop the words beside the icons.
+   * The peek row's form: the four controls the design names, no labels.
    *
-   * For the sheet's 56px peek row, which also carries the file's name:
-   * the sizing rules forbid a control row wrapping, and say to reduce
-   * the number of controls rather than strip their labels — but a row
-   * that has to share its width with a title is the case those rules
-   * describe as "the labels are what does not fit". Nothing is removed;
-   * every control keeps its accessible name.
+   * `00-basis.md` gives the strip as 題名 ＋ ♡ ☆ AI ▾ ⋮ and says to
+   * reduce the *number* of controls rather than strip labels when a row
+   * will not fit. Both happen here, and in that order: trust, Cast and
+   * the gallery launcher are not dropped but *not lifted* — they live
+   * in the inspector's fixed part, which is where the confirmed layout
+   * puts the state chip. What remains then sheds its words, because it
+   * is sharing a 375px line with the file's name.
+   *
+   * Measured: the four at 375px come to about 180px including gaps,
+   * leaving the title ~155px. With trust and Cast it was ~370px and the
+   * title had none.
    */
   compact?: boolean;
 }
@@ -62,9 +66,12 @@ export function FileActionRow({
       // Wraps because it also renders inside the 384px inspector. The
       // peek row is the one place it must not: there it shares a line
       // with the title, so it stays on one line and sheds its labels.
+      // `pointer-coarse:min-h-11` is the row half of the touch floor
+      // (`DESIGN.md` §Row Actions): reached on the row so its controls
+      // inherit it, rather than each growing its own box.
       className={
         compact
-          ? "flex flex-shrink-0 items-center gap-0.5"
+          ? "flex flex-shrink-0 items-center gap-0.5 pointer-coarse:min-h-11"
           : "mt-2 flex flex-wrap items-center gap-1"
       }
     >
@@ -80,8 +87,8 @@ export function FileActionRow({
         onToggle={onFileChange}
         showLabel={!compact}
       />
-      <TrustTierControl file={file} onChange={onFileChange} />
-      {file.file_type === "image" && onRequestImageGallery && (
+      {!compact && <TrustTierControl file={file} onChange={onFileChange} />}
+      {!compact && file.file_type === "image" && onRequestImageGallery && (
         <button
           onClick={onRequestImageGallery}
           className="rounded-lg p-2 text-text-muted hover:bg-bg-card hover:text-text-primary"
@@ -90,7 +97,9 @@ export function FileActionRow({
           <Maximize2 size={16} />
         </button>
       )}
-      {file.file_type === "video" && <CastButton mediaRef={videoRef} />}
+      {!compact && file.file_type === "video" && (
+        <CastButton mediaRef={videoRef} />
+      )}
       {/* Named for what it holds, not for where it sits: this row is
           lifted into the inspector's fixed header on a desktop and into
           the 56px peek row on a phone, so entries bring their own
