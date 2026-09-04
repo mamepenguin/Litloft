@@ -26,7 +26,23 @@ export function addonUrlFor(name: string, meta: AddonMeta, currentDrive: string 
 
 export interface SlotEntry {
   id: string;
+  /**
+   * The manifest's own label. English, because a manifest is not a
+   * translation catalogue — treat it as the fallback, not the answer.
+   */
   label: string;
+  /**
+   * Optional translation key for the label, resolved against the merged
+   * catalogue. Addons already declare one of these on
+   * `policy_features`, so this is the same pattern one field wider
+   * rather than a new idea, and the backend passes manifest fields
+   * through untouched (`addon_registry.get_all_slots` spreads the whole
+   * entry), so an addon adding it needs no core release.
+   *
+   * The key belongs in that addon's own `frontend/messages/{ja,en}.json`
+   * — never in `messages-core/` (`frontend-conventions.md`).
+   */
+  i18n_key?: string;
   priority: number;
   addonName?: string;
 }

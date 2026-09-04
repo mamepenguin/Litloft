@@ -48,8 +48,10 @@ export const viewport: Viewport = {
 
 // Applied before first paint. The media layout rides along for the
 // same reason the theme does: it is decided entirely in CSS from an
-// attribute here, so reading it in an effect would show the stacked
-// layout for a frame and then shift.
+// attribute here, so reading it in an effect would show the other
+// layout for a frame and then shift. The default must match
+// `lib/mediaLayout.ts`'s `normalise`, or the two disagree for exactly
+// one frame — which is the failure this script exists to prevent.
 const themeInitScript = `
 (function(){
   var t = localStorage.getItem('theme-preference') || 'system';
@@ -60,7 +62,7 @@ const themeInitScript = `
 
   var layout = localStorage.getItem('media-layout-preference');
   document.documentElement.setAttribute(
-    'data-media-layout', layout === 'beside' ? 'beside' : 'stacked'
+    'data-media-layout', layout === 'stacked' ? 'stacked' : 'beside'
   );
 })();
 `;

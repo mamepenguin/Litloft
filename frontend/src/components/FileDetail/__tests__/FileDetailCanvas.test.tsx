@@ -563,11 +563,12 @@ describe("FileDetailContent layout toggle", () => {
     slotMocks.occupied.add("player-side");
     await renderFile(makeFile());
 
-    fireEvent.click(toggle()!);
-    expect(document.documentElement.getAttribute("data-media-layout")).toBe("beside");
-
+    // Starts at the default, so the first press is the one that leaves it.
     fireEvent.click(toggle()!);
     expect(document.documentElement.getAttribute("data-media-layout")).toBe("stacked");
+
+    fireEvent.click(toggle()!);
+    expect(document.documentElement.getAttribute("data-media-layout")).toBe("beside");
   });
 });
 

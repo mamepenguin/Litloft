@@ -25,13 +25,22 @@ const ATTRIBUTE = "data-media-layout";
 
 export type MediaLayout = "stacked" | "beside";
 
-/** Stacked unless the stored value says otherwise. */
+/**
+ * Beside unless the stored value says otherwise.
+ *
+ * It was stacked until 2026-09. The redesign's confirmed shape puts the
+ * transcript and chapters in the inspector's tab strip, and that strip
+ * exists only in the beside form — so leaving the default at stacked
+ * meant the arrangement the design settled on was seen only by people
+ * who found the toggle. A stored preference still wins, so nobody who
+ * has chosen is moved.
+ */
 function normalise(value: string | null | undefined): MediaLayout {
-  return value === "beside" ? "beside" : "stacked";
+  return value === "stacked" ? "stacked" : "beside";
 }
 
 export function readMediaLayout(): MediaLayout {
-  if (typeof document === "undefined") return "stacked";
+  if (typeof document === "undefined") return "beside";
   // Prefer the attribute: the init script already resolved it, and it
   // is what the CSS is actually acting on.
   const applied = document.documentElement.getAttribute(ATTRIBUTE);
@@ -39,7 +48,7 @@ export function readMediaLayout(): MediaLayout {
   try {
     return normalise(window.localStorage?.getItem?.(STORAGE_KEY));
   } catch {
-    return "stacked";
+    return "beside";
   }
 }
 
@@ -50,7 +59,7 @@ export function useMediaLayoutPreference(): [
   // Starts at the default so the first client render matches the
   // server's. Only the button's icon depends on this, and the layout
   // does not, so settling a frame later is invisible.
-  const [layout, setLayout] = useState<MediaLayout>("stacked");
+  const [layout, setLayout] = useState<MediaLayout>("beside");
 
   useEffect(() => {
     const current = readMediaLayout();

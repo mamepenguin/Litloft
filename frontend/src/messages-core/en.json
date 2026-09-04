@@ -830,7 +830,12 @@
       "tags": "Tags",
       "related": "Related files",
       "aiSummary": "AI summary",
-      "comments": "Comments"
+      "comments": "Comments",
+      "relatedGroup": "Related"
+    },
+    "tabs": {
+      "info": "Info",
+      "chapters": "Chapters"
     },
     "saveDot": {
       "idle": "Save state",
