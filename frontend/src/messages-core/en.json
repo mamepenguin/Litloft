@@ -1,6 +1,7 @@
 {
   "common": {
     "close": "Close",
+    "back": "Back",
     "cancel": "Cancel",
     "save": "Save",
     "delete": "Delete",

@@ -12,7 +12,7 @@
  * the class that decides, and the behaviour assertions are about the
  * control that class reveals. The look itself is on the manual pass.
  */
-import { describe, it, expect, vi } from "vitest";
+import { describe, it, expect, vi, beforeEach } from "vitest";
 import { render, screen, fireEvent } from "@testing-library/react";
 
 vi.mock("next/navigation", () => ({
@@ -23,6 +23,20 @@ vi.mock("next/navigation", () => ({
 import { FileDetailChrome } from "../FileDetailChrome";
 
 const back = () => screen.getByTestId("file-detail-back");
+
+/** `useIsMobile` reads `innerWidth` and listens for resize. */
+function setViewportWidth(width: number) {
+  Object.defineProperty(window, "innerWidth", {
+    configurable: true,
+    writable: true,
+    value: width,
+  });
+  window.dispatchEvent(new Event("resize"));
+}
+
+beforeEach(() => {
+  setViewportWidth(1440);
+});
 
 describe("FileDetailChrome", () => {
   it("shows the whole path on a wide screen, ending in the file", () => {
@@ -189,9 +203,7 @@ describe("FileDetailChrome", () => {
     );
 
     const crumbs = screen.getByRole("navigation");
-    expect(crumbs).toContainElement(
-      screen.getAllByTestId("rename").find((n) => crumbs.contains(n))!,
-    );
+    expect(crumbs).toContainElement(screen.getByTestId("rename"));
     // The path above the leaf stays navigable when the leaf is a node,
     // the same way it does when the leaf is text.
     expect(screen.getByRole("link", { name: "notes" })).toHaveAttribute(
@@ -200,11 +212,12 @@ describe("FileDetailChrome", () => {
     );
   });
 
-  it("keeps a node leaf on the narrow form too, because it is a control", () => {
-    // Dropping the file's *name* below `md` is what the sizing rules
-    // ask for. But a Markdown note's leaf is its rename control, and
-    // dropping a function is not the same as dropping a label — this row
-    // is the only place rename exists.
+  it("places a node leaf exactly once, wherever it goes", () => {
+    // Unlike the path, which is rendered twice and hidden in CSS, the
+    // leaf is placed. A second copy of a *control* is not free: for a
+    // Markdown note the hidden one still fires `blur` when a rotation
+    // crosses this breakpoint, and that blur commits a rename — a
+    // half-typed filename saved by turning the phone sideways.
     render(
       <FileDetailChrome
         drive="main"
@@ -214,14 +227,51 @@ describe("FileDetailChrome", () => {
       />,
     );
 
-    const crumbs = screen.getByRole("navigation");
-    const renames = screen.getAllByTestId("rename");
-    // One per width form, as with the back control and the breadcrumb:
-    // both are in the DOM and CSS shows exactly one.
-    expect(renames).toHaveLength(2);
-    const narrow = renames.find((n) => !crumbs.contains(n));
-    expect(narrow).toBeDefined();
-    expect(narrow!.closest("[class*='md:hidden']")).not.toBeNull();
+    expect(screen.getAllByTestId("rename")).toHaveLength(1);
+  });
+
+  it("keeps the leaf's control on the narrow form, where the path is hidden", () => {
+    // Dropping the file's *name* below `md` is what the sizing rules ask
+    // for. But a Markdown note's leaf is its rename control, and this
+    // row is the only place rename exists — dropping a function is not
+    // the same as dropping a label.
+    setViewportWidth(400);
+    render(
+      <FileDetailChrome
+        drive="main"
+        folderPath="notes"
+        title="note.md"
+        titleNode={<button data-testid="rename">note.md</button>}
+      />,
+    );
+
+    const rename = screen.getByTestId("rename");
+    expect(screen.getByRole("navigation")).not.toContainElement(rename);
+    expect(rename.closest("[class*='md:hidden']")).not.toBeNull();
+  });
+
+  it("says only 'Back' when back is not up", () => {
+    // With `onBack` the destination is the host's, not the parent
+    // folder — during collection playback it is the collection. Naming
+    // the folder there would put the same word in the row twice,
+    // pointing at two different places.
+    render(
+      <FileDetailChrome
+        drive="main"
+        folderPath="videos"
+        title="x.mp4"
+        onBack={vi.fn()}
+      />,
+    );
+
+    expect(back()).toHaveAccessibleName("Back");
+    expect(back()).not.toHaveTextContent("videos");
+    // The path is still beside it, and its own "videos" still goes to
+    // the folder — which is now the only thing claiming to.
+    expect(screen.getByRole("link", { name: "videos" })).toHaveAttribute(
+      "href",
+      "/drive/main/videos",
+    );
   });
 
   it("keeps the host's back control at every width, since it means something else", () => {
