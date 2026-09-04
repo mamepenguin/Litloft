@@ -68,6 +68,11 @@ describe("test Web Storage shim", () => {
   it("shares one prototype between local and session storage", () => {
     // listSnapshot's quota test patches Storage.prototype.setItem and expects
     // it to reach sessionStorage, exactly as a browser would.
+    //
+    // Note this one is weaker than it looks: two object literals share
+    // Object.prototype and would satisfy it too. It catches a split into two
+    // classes; the prototype-dispatch cases above are what catch a retreat to
+    // literals.
     expect(Object.getPrototypeOf(localStorage)).toBe(Object.getPrototypeOf(sessionStorage));
   });
 

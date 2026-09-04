@@ -363,6 +363,15 @@ What is deliberately *not* set:
 - **`strict` is false**, so a branch does not have to be rebased onto the tip
   before merging.
 
+**A required check is matched by the job's `name:` string, literally.** Rename a
+job and the old name stays required forever: it can never be reported again, so
+every pull request sits on "Expected — Waiting for status to be reported" while
+the renamed job, no longer on the list, is free to fail without blocking
+anything. The protection is then simultaneously stricter and emptier than it
+looks. Renaming a job is therefore a two-part edit — the workflow and the
+protection, together. This has already been got wrong once, when
+`frontend image (next build)` became `production images`.
+
 Read the current setting, or take it off:
 
 ```bash
