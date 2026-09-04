@@ -37,3 +37,77 @@ describe("media detail theater sizing", () => {
     expect(rule![0]).not.toMatch(/margin-inline/);
   });
 });
+
+/**
+ * The companion below the player, on the shell.
+ *
+ * jsdom does no layout, so nothing else in the suite can see any of
+ * this: a `min-width` that is not there, a `flex-basis` that resolves
+ * against the wrong axis, a box with no bound on it. The rules are read
+ * as text instead, which catches the one failure mode that matters here
+ * — someone deleting a declaration whose reason is not visible from the
+ * declaration.
+ */
+describe("media detail, companion below the player", () => {
+  it("gives both surfaces one height budget, measured", () => {
+    // The box under the player and the rail beside it are the same
+    // question asked on two surfaces. A number per layout is how the
+    // two come to disagree, so the value is derived once on the host
+    // and read twice.
+    const host = globalsCss().match(/\.media-detail-host\s*\{[^}]*\}/);
+    expect(host).not.toBeNull();
+    expect(host![0]).toMatch(
+      /--companion-box-h:\s*calc\(var\(--rail-avail,\s*100dvh\)\s*\*\s*0\.6\);/,
+    );
+    for (const selector of [
+      /\.media-detail-companion-inner\s*\{[^}]*\}/,
+      /\.media-detail-below\s*\{[^}]*\}/,
+    ]) {
+      const rule = globalsCss().match(selector);
+      expect(rule).not.toBeNull();
+      expect(rule![0]).toMatch(/max-height:\s*var\(--companion-box-h\);/);
+    }
+  });
+
+  it("bounds the below box rather than trusting its occupant", () => {
+    // `max-height` on a row container clamps the line's cross size, not
+    // the main axis, so the mechanism that bounds the column form does
+    // not apply here. An occupant that ignores `fillHeight` would run
+    // past the box with nothing to stop it.
+    const rule = globalsCss().match(/\.media-detail-below\s*\{[^}]*\}/);
+    expect(rule![0]).toMatch(/overflow:\s*hidden;/);
+  });
+
+  it("lets the index take the width the body's measure leaves", () => {
+    // Fixed at its floor it never widened, and the body stops at the
+    // reading measure — so a wide canvas spent the surplus on nothing.
+    const rule = globalsCss().match(/\.media-detail-below-index\s*\{[^}]*\}/);
+    expect(rule).not.toBeNull();
+    expect(rule![0]).toMatch(/flex:\s*1 1 12\.5rem;/);
+    expect(rule![0]).toMatch(/min-width:\s*12\.5rem;/);
+    expect(rule![0]).toMatch(/max-width:\s*22rem;/);
+  });
+
+  it("caps the body at the reading measure and lets it shrink", () => {
+    // `min-width: 0` is the half everyone forgets: without it a flex
+    // item refuses to go below its content and the overflow moves up a
+    // level instead of scrolling.
+    const rule = globalsCss().match(/\.media-detail-below-body\s*\{[^}]*\}/);
+    expect(rule).not.toBeNull();
+    expect(rule![0]).toMatch(/max-width:\s*68ch;/);
+    expect(rule![0]).toMatch(/min-width:\s*0;/);
+    expect(rule![0]).toMatch(/min-height:\s*0;/);
+  });
+
+  it("passes the height on to whatever the slot puts in the body", () => {
+    // The wrapper is only safe as long as it is itself a flex container
+    // that hands the height through; otherwise the occupant lays itself
+    // out at full length and the box clips it silently.
+    const rule = globalsCss().match(
+      /\.media-detail-below-body\s*>\s*\*\s*\{[^}]*\}/,
+    );
+    expect(rule).not.toBeNull();
+    expect(rule![0]).toMatch(/flex:\s*1 1 0%;/);
+    expect(rule![0]).toMatch(/min-height:\s*0;/);
+  });
+});

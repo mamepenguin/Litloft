@@ -34,9 +34,18 @@ vi.mock("../../ExifSection", async () => ({
 vi.mock("../../AddonSlotsProvider", async () => ({
   useAddonSlots: (await import("./harness")).useAddonSlotsStub,
 }));
-vi.mock("../../AddonSlot", async () => ({
-  AddonSlot: (await import("./harness")).AddonSlotStub,
-}));
+// Both exports: `ShellLayout` takes `SlotEntryRenderer` by name, so a
+// factory that returns only `AddonSlot` leaves it `undefined`. It is
+// harmless while no suite here claims a `player-side` entry, and the
+// moment one does the failure is `Element type is invalid` pointing at
+// nothing in particular.
+vi.mock("../../AddonSlot", async () => {
+  const harness = await import("./harness");
+  return {
+    AddonSlot: harness.AddonSlotStub,
+    SlotEntryRenderer: harness.SlotEntryRendererStub,
+  };
+});
 vi.mock("../../markdown/MarkdownDocumentLayout", async () => ({
   MarkdownDocumentLayout: (await import("./harness"))
     .MarkdownDocumentLayoutStub,

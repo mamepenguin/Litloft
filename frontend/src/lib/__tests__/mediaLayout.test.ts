@@ -57,14 +57,20 @@ describe("useMediaLayoutPreference", () => {
 
   it("drives the layout through the attribute, not a re-render", () => {
     const { result } = renderHook(() => useMediaLayoutPreference());
+    expect(result.current[0]).toBe("beside");
 
-    act(() => result.current[1]("beside"));
+    // The non-default, deliberately. Setting the value it already holds
+    // makes the last assertion true before the call as well as after,
+    // which is not a test of anything.
+    act(() => result.current[1]("stacked"));
 
     // The CSS reads this; nothing in React has to move for the layout
     // to change.
-    expect(document.documentElement.getAttribute(ATTRIBUTE)).toBe("beside");
-    expect(window.localStorage.getItem("media-layout-preference")).toBe("beside");
-    expect(result.current[0]).toBe("beside");
+    expect(document.documentElement.getAttribute(ATTRIBUTE)).toBe("stacked");
+    expect(window.localStorage.getItem("media-layout-preference")).toBe(
+      "stacked",
+    );
+    expect(result.current[0]).toBe("stacked");
   });
 
   it("has the stored value on its very first render", () => {
@@ -108,11 +114,11 @@ describe("useMediaLayoutPreference", () => {
     try {
       const { result } = renderHook(() => useMediaLayoutPreference());
 
-      act(() => result.current[1]("beside"));
+      act(() => result.current[1]("stacked"));
 
       // Lost on reload, but the session it was chosen in still honours it.
-      expect(document.documentElement.getAttribute(ATTRIBUTE)).toBe("beside");
-      expect(result.current[0]).toBe("beside");
+      expect(document.documentElement.getAttribute(ATTRIBUTE)).toBe("stacked");
+      expect(result.current[0]).toBe("stacked");
     } finally {
       setItem.mockRestore();
     }

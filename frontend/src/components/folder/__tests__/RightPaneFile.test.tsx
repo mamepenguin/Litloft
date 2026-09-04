@@ -324,6 +324,26 @@ describe("RightPaneFile", () => {
       );
     });
 
+    it("leaves it to the shell for a video too, on this surface", async () => {
+      // This host is the canonical URL, where media rides the shell as
+      // of 2026-09. The predicate that decides it takes a surface now,
+      // and a host reading the old two-argument one would draw a second
+      // row under the shell's — two breadcrumbs, two inspector toggles.
+      // The collection host asserts the opposite, in its own suite.
+      mockGetFile.mockResolvedValue({
+        ...baseFile,
+        filename: "clip.mp4",
+        mime_type: "video/mp4",
+        file_type: "video" as const,
+      });
+      render(<RightPaneFile fileId="abc123" drive="work" />);
+      await waitFor(() =>
+        expect(screen.getByTestId("file-detail-content")).toBeInTheDocument(),
+      );
+
+      expect(screen.queryByTestId("file-detail-chrome")).toBeNull();
+    });
+
     it("leaves the row to the shell for a file that brings one", async () => {
       // A Markdown note rides `FileDetailShell`, which draws this row
       // itself because it also owns the inspector toggle inside it.
