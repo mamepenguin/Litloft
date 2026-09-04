@@ -336,7 +336,7 @@ every pull request and on pushes to the default branch.
 | Job | What it runs |
 |---|---|
 | `frontend` | `setup-addons.sh`, install, merge translations, the collection check below, then `pnpm test`, `tsc --noEmit`, `pnpm lint` |
-| `frontend (shuffled order)` | the same suite under `--sequence.shuffle`. **Not a required check** — see below |
+| `frontend (shuffled order)` | the same suite under `--sequence.shuffle`. Required since 2026-09 — when it is red, reproduce with its seed rather than re-running; see below |
 | `mcp-server` | `pnpm test`, `tsc --noEmit` |
 | `backend` | `backend/Dockerfile.test` built and run |
 | `bootstrap` | `pytest tests/test_configure.py` on a bare Python 3.12 |
@@ -425,32 +425,53 @@ neither.
 ### Branch protection
 
 Core's `develop` carries **classic branch protection** (the
-`branches/*/protection` API, not a ruleset) listing core's seven job names as
-required status checks. There are eight jobs; `frontend (shuffled order)` is
-the one that is not on the list, and that is deliberate — see below. The four addon repositories' `main` branches will carry
-the same shape, with their own two job names, once their workflows have been
-observed green; until then they are unprotected.
+`branches/*/protection` API, not a ruleset) listing all eight of core's job
+names as required status checks. `frontend (shuffled order)` joined the list in
+2026-09; the reasoning is below, because a check that runs the suite in a
+different order each time is an unusual thing to make mandatory and the case
+for it is not the one first expected. The four addon repositories' `main`
+branches will carry the same shape, with their own two job names, once their
+workflows have been observed green; until then they are unprotected.
+
+What **is** set, and was not at first:
+
+- **`frontend (shuffled order)` is required**, since 2026-09-05. It was kept
+  off the list through the redesign's largest phase on the theory that a random
+  seed could block a pull request over a test order nobody chose and which the
+  next run would not pick again. **The measurement did not support that.**
+
+  Between the job landing and Phase 2 finishing — 48 runs across 15
+  pull-request branches — it went red **once**, with **no false positives**: no
+  case of a red with nothing behind it that a re-run turned green. Where the
+  false-positive rate is zero, a red is a defect, and a defect is a red worth
+  stopping for.
+
+  **What it buys is a second sample of a non-deterministic suite**, which is
+  broader than the order-dependence detector it was built as — and is the
+  stronger case for making it mandatory. Not everything it has surfaced was
+  order dependence. One was a shared module mock that a test left dirty, which
+  is. One was a passive-effect flush race, which is not: the run that caught it
+  had the tests in source order, and the same race had already reddened the
+  **required** `frontend (vitest / tsc / eslint)` job once, in a run where this
+  job was green. Two independent samples of one flaky suite, each catching it
+  once. A check that only found ordering bugs would have a narrow claim on being
+  required; one that finds non-determinism whose kind has no name yet has a wide
+  one.
+
+- **When it goes red, take the seed from its log, reproduce, and fix the
+  non-determinism.** Do not re-run until it is green. On a zero-false-positive
+  record, re-running past a red is waving through a real defect — and the next
+  person to meet it will have less to go on than you have now.
 
 What is deliberately *not* set:
 
 - **No required reviewers.** A single-developer repository with mandatory review
   cannot merge its own pull requests.
 - **`enforce_admins` is false**, so an administrator can still force a merge
-  that is genuinely stuck.
+  that is genuinely stuck — including one stuck behind the shuffled job, though
+  see the line above for why that is the wrong reflex.
 - **`strict` is false**, so a branch does not have to be rebased onto the tip
   before merging.
-- **`frontend (shuffled order)` is not required.** It picks a random seed, so
-  a required version could block a pull request over a test order nobody chose
-  and which the next run would not pick again. Reporting is enough: the job
-  goes red on the pull request where it can be seen, and its log carries the
-  seed to reproduce with. Making a random check mandatory during the largest
-  phase of a redesign trades a real risk of stalling for very little.
-
-  **The decision to revisit:** once the UI redesign's Phase 2 has landed and
-  the job has been green across a run of pull requests, promote it to a
-  required check — at which point the reproduce-by-seed step above becomes the
-  first thing to reach for, not a diagnostic aside. Promoting it is a two-part
-  edit, like any rename: the protection list and this paragraph.
 
 **A required check is matched by the job's `name:` string, literally.** Rename a
 job and the old name stays required forever: it can never be reported again, so
