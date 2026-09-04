@@ -89,7 +89,11 @@ export function FileMetaBlock({
         />
       ) : (
         <div>
-          <h1 className="text-xl font-bold text-text-primary">{file.title}</h1>
+          {/* An <h2>: this heads the inspector, which is a region of the
+              page, not the page. The page's own subject is named by the
+              breadcrumb in FileDetailChrome, and two <h1>s naming the same
+              file was the shape §3.2 was blank about. Size from §3.2 H2. */}
+          <h2 className="text-lg font-bold text-text-primary">{file.title}</h2>
           {/* One line, always. Which parts it has is a question about
               the file; whether the line exists at all is not. */}
           <div className="mt-1 text-xs text-text-muted">

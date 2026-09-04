@@ -3,6 +3,7 @@ import { readFileSync, readdirSync, existsSync, statSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { resolve, dirname, relative } from "node:path";
 import { compile } from "tailwindcss";
+import { stripComments } from "./helpers/stripComments";
 
 // Tailwind v4 emits no rule at all for a utility whose token it does not know.
 // The class stays in the DOM, nothing warns, and the element simply renders
@@ -209,39 +210,6 @@ function classAttributeSpans(text: string): [number, number][] {
   return spans;
 }
 
-/**
- * Blank every comment, keeping offsets and line breaks intact.
- *
- * Prose is full of backticks and quotes — "the `target` chunk", "don't grow
- * the highlight" — and a literal scan that runs through them pairs marks that
- * were never a string, reporting fragments of sentences as classes. Blanking
- * rather than deleting keeps reported line numbers true. The walk tracks
- * string state so a `//` inside a URL is not mistaken for a comment.
- */
-function stripComments(text: string): string {
-  const out = text.split("");
-  let i = 0;
-  while (i < text.length) {
-    const c = text[i];
-    if (c === '"' || c === "'" || c === "`") {
-      i++;
-      while (i < text.length) {
-        if (text[i] === "\\") { i += 2; continue; }
-        if (text[i] === c) { i++; break; }
-        i++;
-      }
-    } else if (c === "/" && text[i + 1] === "/") {
-      while (i < text.length && text[i] !== "\n") out[i++] = " ";
-    } else if (c === "/" && text[i + 1] === "*") {
-      const close = text.indexOf("*/", i + 2);
-      const stop = close === -1 ? text.length : close + 2;
-      for (; i < stop; i++) if (text[i] !== "\n") out[i] = " ";
-    } else {
-      i++;
-    }
-  }
-  return out.join("");
-}
 
 /** String and template literal contents, with the offset each starts at. */
 function literalsIn(text: string): { body: string; at: number }[] {

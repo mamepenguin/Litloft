@@ -7,7 +7,10 @@ import { useTranslations } from "next-intl";
 import type { FileItem, ViewMode } from "@/types";
 import { getMissing, purgeAllMissing, purgeFile } from "@/lib/api";
 import { useInfiniteScroll } from "@/hooks/useInfiniteScroll";
+import { Breadcrumb } from "@/components/Breadcrumb";
+import { Button } from "@/components/Button";
 import { ConfirmDialog } from "@/components/ConfirmDialog";
+import { PageHeader } from "@/components/PageHeader";
 import { ViewToggle } from "@/components/ViewToggle";
 import { MissingFileGrid } from "@/components/missing/MissingFileGrid";
 import { MissingFileList } from "@/components/missing/MissingFileList";
@@ -67,32 +70,34 @@ export function MissingView({ driveName }: MissingViewProps) {
   }, []);
 
   return (
-    <div className="min-w-0 w-full flex-1 px-2 py-4 sm:px-4 sm:py-6">
-      <div className="mb-4 flex items-start justify-between gap-2">
-        <div className="min-w-0">
-          <h1 className="flex items-center gap-2 text-xl font-bold text-text-primary">
-            <AlertTriangle size={24} className="text-warm-silver" />
-            {tm("title")}
-          </h1>
-          <p className="mt-1 text-sm text-text-muted">{tm("description")}</p>
-        </div>
-        {files.length > 0 && (
-          <button
-            onClick={() => setPurgeAllOpen(true)}
-            className="flex flex-shrink-0 items-center gap-2 rounded-2xl bg-danger/10 px-3 py-2 text-sm font-medium text-danger transition-colors hover:bg-danger/20"
-          >
-            <Trash2 size={16} />
-            {tm("purgeAll")}
-          </button>
-        )}
-      </div>
+    <div className="min-w-0 w-full flex-1 py-4 sm:py-6">
+      {/* Three rows became one: the description and the count share the scope
+          line, and the view toggle joins the actions instead of sitting on a
+          row of its own below them. */}
+      <PageHeader
+        breadcrumb={<Breadcrumb driveName={driveName} driveIsAncestor />}
+        titleIcon={AlertTriangle}
+        title={tm("title")}
+        scope={
+          <>
+            {tm("description")}
+            {files.length > 0 && <> · {total}</>}
+          </>
+        }
+        actions={
+          files.length > 0 ? (
+            <>
+              <ViewToggle onChange={setViewMode} />
+              <Button variant="danger" onClick={() => setPurgeAllOpen(true)}>
+                <Trash2 size={16} />
+                {tm("purgeAll")}
+              </Button>
+            </>
+          ) : undefined
+        }
+      />
 
-      {files.length > 0 && (
-        <div className="mb-4 flex items-center justify-between">
-          <span className="text-sm text-text-muted">{total}</span>
-          <ViewToggle onChange={setViewMode} />
-        </div>
-      )}
+      <div className="px-2 sm:px-4">
 
       {loading ? (
         <div className="flex items-center justify-center py-16">
@@ -114,6 +119,7 @@ export function MissingView({ driveName }: MissingViewProps) {
         {loadingMore && (
           <div className="h-6 w-6 animate-spin rounded-full border-2 border-accent border-t-transparent" />
         )}
+      </div>
       </div>
 
       <ConfirmDialog

@@ -52,9 +52,17 @@ export function ViewToggle({ mode: controlledMode, onChange }: ViewToggleProps) 
     onChange(newMode);
   }
 
+  // The selected button used to be `bg-accent text-white` — a third accent
+  // fill on the folder toolbar, on a control that says which of two equal
+  // views you are in. DESIGN.md §2.2 allows one per screen, and it belongs to
+  // the action the screen is for, not to a view switch. This toggle also
+  // appears on Trash, Missing and inside an archive, so the fill is dropped
+  // here rather than at one call site.
   const buttonClass = (active: boolean) =>
     `rounded-lg p-2 transition-colors ${
-      active ? "bg-accent text-white" : "text-text-muted hover:text-text-primary"
+      active
+        ? "bg-bg-card text-text-primary"
+        : "text-text-muted hover:text-text-primary"
     }`;
 
   return (
