@@ -211,6 +211,148 @@ describe("media on the shell, beside", () => {
       "true",
     );
   });
+
+  it("tells the occupant its name is already on the button", async () => {
+    // The tab button carries the label, so a panel that draws its own
+    // heading spends a line repeating what the reader just pressed.
+    withTranscript();
+    await renderMedia();
+
+    expect(screen.getByTestId("slot-entry-transcript")).toHaveAttribute(
+      "data-labelled-by-host",
+      "true",
+    );
+  });
+});
+
+describe("an occupant with nothing for this file", () => {
+  it("loses its tab but not its mount", async () => {
+    // The symptom this fixes: a video nobody has transcribed grows a
+    // Transcript tab that opens on an empty panel. Core cannot look
+    // inside the panel to find that out — asking by name is the
+    // dependency the rules forbid — so the entry says so itself.
+    withTranscript();
+    await renderMedia();
+    expect(tabs()).toEqual(["Info", "Chapters", "Transcript"]);
+    const before = screen.getByTestId("slot-entry-transcript");
+
+    fireEvent.click(screen.getByTestId("slot-entry-transcript-empty"));
+
+    expect(tabs()).toEqual(["Info", "Chapters"]);
+    // Still the same node. It is the thing doing the reporting: unmount
+    // it and its first answer becomes its last.
+    expect(screen.getByTestId("slot-entry-transcript")).toBe(before);
+  });
+
+  it("gets the tab back the moment it has something", async () => {
+    // A transcript that is still fetching answers "nothing" first. If
+    // the first answer were final, every slow fetch would cost the
+    // reader the tab for the rest of the file.
+    withTranscript();
+    await renderMedia();
+    fireEvent.click(screen.getByTestId("slot-entry-transcript-empty"));
+    expect(tabs()).toEqual(["Info", "Chapters"]);
+
+    fireEvent.click(screen.getByTestId("slot-entry-transcript-filled"));
+
+    expect(tabs()).toEqual(["Info", "Chapters", "Transcript"]);
+  });
+
+  it("takes the layout toggle with it when it is the only occupant", async () => {
+    // The toggle moves the companion between two places. With nothing
+    // in it, both are empty and pressing it changes nothing a reader
+    // can see — the row that only says a feature exists.
+    withTranscript();
+    await renderMedia(makeFile({ has_chapters: false }));
+    expect(layoutToggle()).not.toBeNull();
+
+    fireEvent.click(screen.getByTestId("slot-entry-transcript-empty"));
+
+    expect(layoutToggle()).toBeNull();
+  });
+
+  it("leaves the toggle alone while core still fills the region", async () => {
+    // Chapters are core's own occupant, and an addon having nothing
+    // says nothing about them.
+    withTranscript();
+    await renderMedia(makeFile({ has_chapters: true }));
+
+    fireEvent.click(screen.getByTestId("slot-entry-transcript-empty"));
+
+    expect(layoutToggle()).not.toBeNull();
+  });
+
+  it("forgets the answer when the reader opens another file", async () => {
+    withTranscript();
+    const { rerender } = await renderMedia();
+    fireEvent.click(screen.getByTestId("slot-entry-transcript-empty"));
+    expect(tabs()).toEqual(["Info", "Chapters"]);
+
+    setApiResponses(makeFile({ id: "f2", has_chapters: true }));
+    rerender(<FileDetailContent fileId="f2" drive="main" />);
+    await loaded();
+
+    // A different file, so the previous file's "nothing" says nothing.
+    expect(tabs()).toEqual(["Info", "Chapters", "Transcript"]);
+  });
+});
+
+describe("an occupant with nothing for this file, below", () => {
+  beforeEach(() => {
+    window.localStorage.setItem("media-layout-preference", "stacked");
+  });
+
+  it("hides the box without unmounting what is in it", async () => {
+    // The below form has no button to take away, so the box is hidden
+    // in CSS instead. Dropping it from the tree would drop the reporter
+    // — and in the below form the reporter is the only one there is, so
+    // the answer could never change back.
+    withTranscript();
+    const { container } = await renderMedia(makeFile({ has_chapters: false }));
+    const box = () => container.querySelector(".media-detail-below");
+    expect(box()).toHaveAttribute("data-occupied", "true");
+    const before = screen.getByTestId("slot-entry-transcript");
+
+    fireEvent.click(screen.getByTestId("slot-entry-transcript-empty"));
+
+    expect(box()).toHaveAttribute("data-occupied", "false");
+    expect(screen.getByTestId("slot-entry-transcript")).toBe(before);
+
+    fireEvent.click(screen.getByTestId("slot-entry-transcript-filled"));
+    expect(box()).toHaveAttribute("data-occupied", "true");
+  });
+
+  it("keeps the order the addons declared", async () => {
+    // The tab path sorts inside the composer; this path does not go
+    // through it. `getSlotEntries` hands back the catalogue's raw order
+    // and `AddonSlot` — which sorts — is no longer in this path, so
+    // building the nodes by hand drops the ordering unless it is redone
+    // here. Declared out of order on purpose: with them already sorted
+    // an unsorted build would be indistinguishable from a sorted one.
+    claimSlot("player-side", [
+      { ...TRANSCRIPT, id: "late", priority: 90 },
+      { ...TRANSCRIPT, id: "early", priority: 10 },
+    ]);
+    const { container } = await renderMedia();
+
+    const body = container.querySelector(".media-detail-below-body")!;
+    const ids = [...body.querySelectorAll("[data-testid^='slot-entry-']")]
+      .map((node) => node.getAttribute("data-testid"))
+      .filter((id) => id && !id.endsWith("-empty") && !id.endsWith("-filled"));
+    expect(ids).toEqual(["slot-entry-early", "slot-entry-late"]);
+  });
+
+  it("does not claim the canvas already named the occupant", async () => {
+    // There is no heading over the box, so an occupant told otherwise
+    // would draw nothing to say what it is.
+    withTranscript();
+    await renderMedia();
+
+    expect(screen.getByTestId("slot-entry-transcript")).toHaveAttribute(
+      "data-labelled-by-host",
+      "false",
+    );
+  });
 });
 
 describe("media on the shell, below", () => {
@@ -233,13 +375,18 @@ describe("media on the shell, below", () => {
 
   it("still mounts each occupant exactly once", async () => {
     withTranscript();
-    await renderMedia();
+    const { container } = await renderMedia();
 
-    // In the canvas the whole slot is rendered at once rather than one
-    // entry per tab, so this is the slot and not the entry — but it is
-    // the same occupant, and there is one of it.
-    expect(screen.getAllByTestId("addon-slot-player-side")).toHaveLength(1);
-    expect(screen.queryByTestId("slot-entry-transcript")).toBeNull();
+    // One node per entry here as well: the availability callback is per
+    // entry, so the canvas builds them one at a time rather than handing
+    // one props object to the whole slot. It is still the same occupant,
+    // and there is still one of it — in the canvas and not in a tab.
+    const entries = screen.getAllByTestId("slot-entry-transcript");
+    expect(entries).toHaveLength(1);
+    expect(container.querySelector(".media-detail-below-body")).toContainElement(
+      entries[0],
+    );
+    expect(tabs()).toEqual([]);
     expect(screen.getAllByTestId("chapters-panel")).toHaveLength(1);
   });
 
@@ -281,8 +428,11 @@ describe("switching between the two forms", () => {
       expect(container.querySelector(".media-detail-below")).not.toBeNull(),
     );
     expect(screen.getByTestId("file-preview")).toBe(player);
-    expect(screen.getAllByTestId("addon-slot-player-side")).toHaveLength(1);
-    expect(screen.queryByTestId("slot-entry-transcript")).toBeNull();
+    const entries = screen.getAllByTestId("slot-entry-transcript");
+    expect(entries).toHaveLength(1);
+    expect(container.querySelector(".media-detail-below-body")).toContainElement(
+      entries[0],
+    );
   });
 
   it("opens the inspector when the swap puts the panel in it", async () => {
@@ -305,12 +455,16 @@ describe("switching between the two forms", () => {
   it("leaves the inspector alone going the other way", async () => {
     window.localStorage.setItem(inspectorOpenStorageKey("main"), "false");
     withTranscript();
-    await renderMediaAwaitingChrome();
+    const { container } = await renderMediaAwaitingChrome();
 
     fireEvent.click(layoutToggle()!);
 
     expect(screen.queryByTestId("inspector-pane")).toBeNull();
-    expect(screen.getAllByTestId("addon-slot-player-side")).toHaveLength(1);
+    const entries = screen.getAllByTestId("slot-entry-transcript");
+    expect(entries).toHaveLength(1);
+    expect(container.querySelector(".media-detail-below-body")).toContainElement(
+      entries[0],
+    );
   });
 
   it("offers the swap from the page row", async () => {

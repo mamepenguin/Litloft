@@ -79,7 +79,15 @@ export function claimSlot(slotId: string, entries: SlotEntry[]) {
   slotMocks.entries.set(slotId, entries);
 }
 
-/** Stands in for an addon's own component inside a tab. */
+/**
+ * Stands in for an addon's own component, wherever it is placed.
+ *
+ * The two buttons are how a test plays the addon's part. `onAvailability`
+ * is the entry's channel for saying whether it has anything for this
+ * file, and pressing them is the only way to exercise it from outside —
+ * the alternative, asserting that core passed *a function*, would go on
+ * passing after core stopped honouring the answer.
+ */
 export function SlotEntryRendererStub({
   entry,
   props,
@@ -87,11 +95,26 @@ export function SlotEntryRendererStub({
   entry: SlotEntry;
   props: Record<string, unknown>;
 }) {
+  const report = props?.onAvailability as
+    | ((available: boolean) => void)
+    | undefined;
   return (
     <div
       data-testid={`slot-entry-${entry.id}`}
       data-fill-height={props?.fillHeight === true ? "true" : "false"}
-    />
+      data-labelled-by-host={props?.labelledByHost === true ? "true" : "false"}
+    >
+      <button
+        type="button"
+        data-testid={`slot-entry-${entry.id}-empty`}
+        onClick={() => report?.(false)}
+      />
+      <button
+        type="button"
+        data-testid={`slot-entry-${entry.id}-filled`}
+        onClick={() => report?.(true)}
+      />
+    </div>
   );
 }
 

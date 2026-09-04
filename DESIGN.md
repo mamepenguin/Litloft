@@ -560,13 +560,21 @@ what it is made of is decided by the file rather than by the layout.
   redesign set out to remove. So an archive gets a page-list tab *when
   there is a page list*, and it appears the moment that list is
   implemented, without anyone editing the strip.
-- **An addon tab is not content-gated yet**, because core cannot ask
-  "will you render anything for this file" without naming the addon.
-  Today an addon's tab appears whenever that addon claims the slot on
-  this drive, so a video that has never been transcribed still grows an
-  empty Transcript tab. The generic fix is a per-file availability
-  signal from the entry — the shape `ChaptersPanel.onResolved` already
-  uses for core's own occupant — and it is owed.
+- **An addon tab is content-gated by the entry, not by core.** Core
+  cannot ask "will you render anything for this file" without naming the
+  addon, so it does not ask: it hands every `player-side` entry an
+  `onAvailability(boolean)` — the generic form of the `onResolved` its
+  own `ChaptersPanel` already uses — and an entry that answers `false`
+  loses its button. **Silence means available**, so an entry that never
+  calls it behaves exactly as it did before the signal existed.
+- **An unlisted tab keeps its panel, mounted and `hidden`.** The panel
+  is the thing doing the reporting: drop it on the first "nothing" and
+  that answer becomes permanent, so a transcript still fetching when it
+  first answered would never get its tab back. It also cannot be
+  selected, and the arrow keys walk past it.
+- The same answer decides the page row's beside/below toggle and, in the
+  below form, whether the canvas box is drawn — `data-occupied="false"`,
+  which hides it in CSS rather than removing it, for the same reason.
 - Composition: **core before addon**, addons in the priority their
   manifests declare. Nothing in the strip knows an addon's name; a tab
   is a slot entry, and its label comes from that entry's `i18n_key`
@@ -967,6 +975,32 @@ It was 300px until 2026-09, chosen as part of a three-column budget
 design puts a fixed header and a tab strip in this column, which 300px
 cannot hold. Recording the old number here so the next person to count
 the budget does not read 384 as drift and put it back.
+
+### The Related group
+
+One heading over both kinds of relation — core's own `file_relations`
+and whatever an addon derives (similarity, shared keywords). Two
+headings meant a reader had to guess which one a given connection had
+been filed under.
+
+- The group heading is drawn **only when there is a second source to
+  group with**, asked of the slot catalogue and not of the DOM: a
+  derived source is allowed to be a collapsed control that has computed
+  nothing yet, so "did it produce anything" is not knowable from what it
+  rendered.
+- Group heading: `text-sm font-semibold text-text-muted`.
+- **Its members are a step quieter**: `text-xs font-medium
+  text-text-muted`, no card of their own and no glyph of their own. At
+  section weight a member is louder than the heading grouping it, which
+  reads as two lists rather than one; a card inside the group draws a
+  second box inside the group's own.
+- Ungrouped — the collection-playback route, which has no inspector and
+  stacks everything in one column — each is a section again and keeps
+  the card every other section there has.
+- **The members live in two repositories**, so the weights above are the
+  contract between them, the way the duplicated frontmatter parsers are.
+  Core's `RelatedFilesSection` reads it from a context; an addon's entry
+  reads it from this table.
 
 ### Companion region (media file detail)
 

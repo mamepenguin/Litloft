@@ -13,6 +13,7 @@ import { RelatedFilesSection } from "../RelatedFilesSection";
 import { FileDetailCanvas } from "./FileDetailCanvas";
 import { ShellLayout } from "./ShellLayout";
 import type { CompanionMetrics } from "./hooks/useCompanionMetrics";
+import type { SlotAvailability } from "./hooks/useSlotAvailability";
 
 export interface FileDetailPresenterProps {
   file: FileItem;
@@ -28,7 +29,12 @@ export interface FileDetailPresenterProps {
   /** Whether the player's height is a function of its width. */
   playerFramed: boolean;
   railEligible: boolean;
+  /** Whether anyone could fill the companion. Decides what is mounted. */
+  companionMountable: boolean;
+  /** Whether anyone does, for this file. Decides what chrome is drawn. */
   companionOccupied: boolean;
+  /** Per-file "have I anything" answers from the slot entries. */
+  slotAvailability: SlotAvailability;
   isTimedMedia: boolean;
   chaptersPresent: boolean;
   chaptersVersion: number;
@@ -79,7 +85,9 @@ export function FileDetailPresenter({
   hasPlayer,
   playerFramed,
   railEligible,
+  companionMountable,
   companionOccupied,
+  slotAvailability,
   isTimedMedia,
   chaptersPresent,
   chaptersVersion,
@@ -113,7 +121,9 @@ export function FileDetailPresenter({
         isMobile={isMobile}
         isHtmlPreview={isHtmlPreview}
         hasPlayer={hasPlayer}
+        companionMountable={companionMountable}
         companionOccupied={companionOccupied}
+        slotAvailability={slotAvailability}
         playerFramed={playerFramed}
         isTimedMedia={isTimedMedia}
         chaptersPresent={chaptersPresent}
@@ -186,7 +196,11 @@ export function FileDetailPresenter({
       companionKind={companionKind}
       railEligible={railEligible}
       playerFramed={playerFramed}
-      companionOccupied={companionOccupied}
+      // The legacy stack keeps the mountable question: it has no split
+      // between mounting an occupant and drawing chrome around it, so
+      // gating the mount on availability would unmount the occupant
+      // that reports it and freeze the answer at its first guess.
+      companionMountable={companionMountable}
       rest={rest}
     />
   );

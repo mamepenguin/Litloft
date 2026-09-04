@@ -29,7 +29,12 @@ const entry = (id: string, priority = 10): SlotEntry => ({
 const info = { label: "Info", content: <p>info body</p> };
 
 function renderShell(
-  addonTabs: Array<{ entry: SlotEntry; label: string; content: React.ReactNode }> = [],
+  addonTabs: Array<{
+    entry: SlotEntry;
+    label: string;
+    content: React.ReactNode;
+    available?: boolean;
+  }> = [],
   coreTabs: Array<{ id: string; label: string; content: React.ReactNode | null }> = [],
 ) {
   return render(
@@ -195,6 +200,115 @@ describe("InspectorShell", () => {
       "aria-selected",
       "true",
     );
+  });
+
+  it("draws no button for an entry that says it has nothing", () => {
+    renderShell([
+      { entry: entry("a"), label: "A", content: <p>a body</p>, available: false },
+    ]);
+
+    // No strip at all: the only other tab has no button, so Info is
+    // alone and a strip of one is no strip.
+    expect(strip()).toBeNull();
+    expect(screen.queryByRole("tab", { name: "A" })).toBeNull();
+  });
+
+  it("keeps the unlisted panel mounted, because it is what reports", () => {
+    // The panel is the reporter. Unmounting it on the first "nothing"
+    // would make that answer permanent — the file's transcript could
+    // arrive and no one would be left to say so.
+    renderShell([
+      { entry: entry("a"), label: "A", content: <p>a body</p>, available: false },
+    ]);
+
+    const panel = screen.getByText("a body").closest("div[id]")!;
+    expect(panel.id).toBe("inspector-panel-a");
+    expect(panel).toHaveAttribute("hidden");
+  });
+
+  it("does not call the unlisted panel a tabpanel", () => {
+    // `role="tabpanel"` is a promise that a tab points at it, and none
+    // does. A screen reader walking the tablist would be told the group
+    // has three panels and find two buttons.
+    renderShell([
+      { entry: entry("a", 10), label: "A", content: <p>a body</p> },
+      {
+        entry: entry("gone", 20),
+        label: "Gone",
+        content: <p>gone body</p>,
+        available: false,
+      },
+    ]);
+
+    const panels = screen.getAllByRole("tabpanel", { hidden: true });
+    expect(panels).toHaveLength(2);
+    expect(document.getElementById("inspector-panel-gone")).not.toHaveAttribute(
+      "role",
+    );
+  });
+
+  it("never lets the selection land on an unlisted tab", () => {
+    // Two listed and one not: the arrows have to walk past the unlisted
+    // one rather than through it, or one press shows a panel whose own
+    // entry has just said it is empty.
+    renderShell([
+      { entry: entry("a", 10), label: "A", content: <p>a body</p> },
+      {
+        entry: entry("gone", 20),
+        label: "Gone",
+        content: <p>gone body</p>,
+        available: false,
+      },
+    ]);
+
+    expect(tabs().map((t) => t.textContent)).toEqual(["Info", "A"]);
+
+    fireEvent.keyDown(screen.getByRole("tablist"), { key: "ArrowRight" });
+    expect(screen.getByRole("tab", { name: "A" })).toHaveAttribute(
+      "aria-selected",
+      "true",
+    );
+
+    // Wrapping goes back to Info, not on to the unlisted one — and the
+    // focus goes with it. The selection alone would not show this: the
+    // shell already corrects a selection that lands on an unlisted tab,
+    // so a walk that steps onto one still *ends* on Info. What it loses
+    // is the focus, which stays behind on a tab that is no longer
+    // selected, because the unlisted tab has no button to move it to.
+    fireEvent.keyDown(screen.getByRole("tablist"), { key: "ArrowRight" });
+    const info = screen.getByRole("tab", { name: "Info" });
+    expect(info).toHaveAttribute("aria-selected", "true");
+    expect(document.activeElement).toBe(info);
+    expect(document.getElementById("inspector-panel-gone")).toHaveAttribute(
+      "hidden",
+    );
+  });
+
+  it("gives an unlisted panel back its button when the entry changes its mind", () => {
+    // The whole reason the panel stays mounted. A transcript that was
+    // still fetching says "nothing" first and "something" a moment
+    // later, and the tab has to come back.
+    const shell = (available: boolean) => (
+      <InspectorShell
+        header={<div data-testid="header">header</div>}
+        tabs={buildInspectorTabs({
+          info,
+          addonTabs: [
+            { entry: entry("a"), label: "A", content: <p>a body</p>, available },
+          ],
+        })}
+        resetKey="f1"
+      />
+    );
+    const { rerender } = render(shell(false));
+    const before = screen.getByText("a body");
+    expect(screen.queryByRole("tab", { name: "A" })).toBeNull();
+
+    rerender(shell(true));
+
+    expect(screen.getByRole("tab", { name: "A" })).toBeInTheDocument();
+    // The same node: it was hidden, not rebuilt.
+    expect(screen.getByText("a body")).toBe(before);
   });
 
   it("drops a core tab whose content did not materialise", () => {

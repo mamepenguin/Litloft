@@ -105,6 +105,20 @@ describe("media detail, companion below the player", () => {
     expect(rule![0]).toMatch(/min-height:\s*0;/);
   });
 
+  it("hides the empty box rather than letting the layout drop it", () => {
+    // `display: none` and not the layout omitting the box: its
+    // occupants are what report whether they have anything for the
+    // file, so a box removed because they had nothing yet would remove
+    // the reporters too and freeze the answer at its first guess. The
+    // attribute is what the layout writes and what the test in
+    // `MediaShell` asserts; this binds it to a rule that does something.
+    const rule = globalsCss().match(
+      /\.media-detail-below\[data-occupied="false"\]\s*\{[^}]*\}/,
+    );
+    expect(rule).not.toBeNull();
+    expect(rule![0]).toMatch(/display:\s*none;/);
+  });
+
   it("keeps the reading measure in one place", () => {
     // It was written out in `MarkdownPreview` and then again on the
     // media canvas's description, which is the drift this rule exists

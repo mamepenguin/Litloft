@@ -9,6 +9,7 @@ import {
   type FileRelationItem,
   type RelatedFileSummary,
 } from "@/lib/api";
+import { useInRelatedGroup } from "./FileDetail/inspector/RelatedGroup";
 
 function FileTypeIcon({ fileType }: { fileType: string }) {
   const size = 14;
@@ -67,6 +68,7 @@ function RelatedFileTile({ item }: { item: FileRelationItem }) {
 
 export function RelatedFilesSection({ fileId }: { fileId: string }) {
   const t = useTranslations("file");
+  const grouped = useInRelatedGroup();
   const [relations, setRelations] = useState<FileRelationItem[] | null>(null);
 
   useEffect(() => {
@@ -85,10 +87,25 @@ export function RelatedFilesSection({ fileId }: { fileId: string }) {
 
   if (!relations || relations.length === 0) return null;
 
+  // Grouped, this is one part of "Related" and not a section of its
+  // own: it sheds the card and drops a step in weight, so the heading
+  // above it is the louder of the two. Ungrouped — the collection route,
+  // which stacks everything in one column — it is a section and keeps
+  // the card every other section there has.
   return (
-    <section className="rounded-xl border border-bg-border bg-bg-card p-4">
-      <div className="mb-3 flex items-center gap-2 text-sm font-medium text-text-primary">
-        <Link2 size={16} className="text-text-muted" />
+    <section
+      className={
+        grouped ? undefined : "rounded-xl border border-bg-border bg-bg-card p-4"
+      }
+    >
+      <div
+        className={
+          grouped
+            ? "mb-2 flex items-center gap-2 text-xs font-medium text-text-muted"
+            : "mb-3 flex items-center gap-2 text-sm font-medium text-text-primary"
+        }
+      >
+        {!grouped && <Link2 size={16} className="text-text-muted" />}
         <span>{t("relatedFilesTitle")}</span>
         <span className="text-xs font-normal text-text-muted">
           ({relations.length})

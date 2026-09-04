@@ -2,6 +2,7 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
 import { render, screen, waitFor } from "@testing-library/react";
 
 import { RelatedFilesSection } from "../RelatedFilesSection";
+import { RelatedGroup } from "../FileDetail/inspector/RelatedGroup";
 import type { FileRelationsResponse } from "@/lib/api";
 
 // Test setup (src/test/setup.ts) globally mocks next-intl to return the
@@ -13,6 +14,18 @@ const getFileRelations = vi.fn<(id: string) => Promise<FileRelationsResponse>>()
 
 vi.mock("@/lib/api", () => ({
   getFileRelations: (id: string) => getFileRelations(id),
+}));
+
+// `RelatedGroup` draws its heading only when an addon has published
+// somewhere to group with, so the grouped case has to claim the slot.
+// Asked of the catalogue and not of the DOM: a derived source may be a
+// collapsed control that has computed nothing yet.
+const fileRelationEntries = vi.fn(() => [] as unknown[]);
+vi.mock("../AddonSlotsProvider", () => ({
+  useAddonSlots: () => ({
+    getSlotEntries: (slotId: string) =>
+      slotId === "file-relations" ? fileRelationEntries() : [],
+  }),
 }));
 
 function renderSection(fileId: string) {
@@ -135,5 +148,49 @@ describe("RelatedFilesSection", () => {
     await waitFor(() => {
       expect(getFileRelations).toHaveBeenCalledWith("src123456789");
     });
+  });
+});
+
+describe("RelatedFilesSection under the Related heading", () => {
+  it("keeps its card and its own glyph when it stands alone", async () => {
+    getFileRelations.mockResolvedValue(fakeRelations());
+    const { container } = renderSection("f1");
+    await screen.findByText(TITLE);
+
+    // The collection route stacks it beside other bordered sections, so
+    // dropping the card there would make it the one section without one.
+    const section = container.querySelector("section")!;
+    expect(section.classList.contains("border")).toBe(true);
+    expect(screen.getByText(TITLE).parentElement!.querySelector("svg")).not.toBeNull();
+  });
+
+  it("reads as a part of the group when something groups it", async () => {
+    // Grouped, this heading sits under "Related". At the weight it has
+    // standing alone it is louder than the heading above it, which reads
+    // as two lists rather than one — and the card draws a second box
+    // inside the group's own.
+    getFileRelations.mockResolvedValue(fakeRelations());
+    fileRelationEntries.mockReturnValue([{ id: "some-derived-source" }]);
+    const { container } = render(
+      <RelatedGroup>
+        <RelatedFilesSection fileId="f1" />
+      </RelatedGroup>,
+    );
+    await screen.findByText(TITLE);
+
+    const heading = screen.getByText(TITLE).parentElement!;
+    expect(heading.classList.contains("text-xs")).toBe(true);
+    expect(heading.classList.contains("text-text-muted")).toBe(true);
+    expect(heading.classList.contains("text-text-primary")).toBe(false);
+
+    const section = screen.getByText(TITLE).closest("section")!;
+    expect(section.classList.contains("border")).toBe(false);
+    // The glyph goes too: the heading above already carries the concept,
+    // and a second icon under it labels the same thing twice.
+    expect(heading.querySelector("svg")).toBeNull();
+    // And the group's own heading is still the louder one above it.
+    expect(container.querySelector("h3")!.classList.contains("text-sm")).toBe(
+      true,
+    );
   });
 });
