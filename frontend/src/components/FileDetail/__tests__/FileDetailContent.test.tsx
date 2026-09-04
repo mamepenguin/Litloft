@@ -428,7 +428,7 @@ describe("FileDetailContent", () => {
     // to the canvas and everything else to the inspector.
     expect(screen.queryByTestId("addon-slot-all")).toBeNull();
     expect(
-      screen.getByTestId("addon-slot-exclude:knowledge-edit,detailed-summary"),
+      screen.getByTestId("addon-slot-exclude:detailed-summary"),
     ).toBeInTheDocument();
     expect(
       screen.getByTestId("addon-slot-include:detailed-summary"),

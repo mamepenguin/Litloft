@@ -325,6 +325,24 @@ describe("what the canvas keeps and what the inspector takes", () => {
     );
   });
 
+  it("keeps an addon section the canvas does not draw", async () => {
+    // The inspector excludes what the canvas took. The document canvas
+    // takes `knowledge-edit` — the note editor — and the media canvas
+    // does not, so excluding it on both left a video with the knowledge
+    // addon's "create a note" card in neither column.
+    await renderMedia(makeFile({ has_chapters: false }));
+
+    const inspectorSlot = screen.getByTestId(
+      "addon-slot-exclude:detailed-summary",
+    );
+    expect(screen.getByTestId("inspector-pane")).toContainElement(
+      inspectorSlot,
+    );
+    expect(
+      screen.queryByTestId("addon-slot-exclude:knowledge-edit,detailed-summary"),
+    ).toBeNull();
+  });
+
   it("keeps the action row in the inspector, where every kind has it", async () => {
     await renderMedia(makeFile({ has_chapters: false }));
 

@@ -140,6 +140,23 @@ export function ShellLayout({
   // sheet renders nothing while closed), and the sheet takes the
   // table-heavy summaries the desktop canvas keeps — a 90vh drawer at
   // viewport width has room for them, a 384px column does not.
+  /**
+   * The `file-detail-sections` entries the canvas draws itself.
+   *
+   * The inspector excludes exactly these, so a section lands in one
+   * column or the other and never in both — or, as `knowledge-edit`
+   * briefly did, in neither: it was excluded from the inspector on
+   * every kind while only the document canvas drew it, so a video lost
+   * the knowledge addon's "create a note" card entirely.
+   *
+   * These two ids predate this file and are the only ones core names.
+   * Do not add a third: the general answer is a slot of its own, the
+   * way `file-relations` is, not another id core has to know.
+   */
+  const canvasSlotIds = hasPlayer
+    ? ["detailed-summary"]
+    : ["knowledge-edit", "detailed-summary"];
+
   const heavySummaries = (
     <>
       <ActiveSummaryHost fileId={fileId} drive={drive} />
@@ -173,7 +190,7 @@ export function ShellLayout({
         <AddonSlot
           id="file-detail-sections"
           layout="stack"
-          excludeIds={["knowledge-edit", "detailed-summary"]}
+          excludeIds={canvasSlotIds}
           props={addonSlotProps}
         />
       )}
