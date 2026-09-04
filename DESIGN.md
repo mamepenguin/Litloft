@@ -967,9 +967,10 @@ height was what was left over. A 190-page archive at 1512×807 got 100px
 of listing under 440px of metadata, and going a level down inside it
 moved every section below.
 
-Two kinds are deliberately not here: plain text and the Office formats
-keep the stacked layout. A text file has no viewer whose height is being
-squeezed, and Office has no viewer at all. They are Phase 4's.
+What is deliberately not here keeps the stacked layout: plain text and
+subtitles, the Office formats, and anything whose type Litloft does not
+recognise. A text file has no viewer whose height is being squeezed, and
+Office has no viewer at all. They are Phase 4's.
 
 ### Inspector column (document layout)
 

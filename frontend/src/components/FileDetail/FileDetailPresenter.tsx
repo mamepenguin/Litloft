@@ -29,6 +29,8 @@ export interface FileDetailPresenterProps {
   hasPlayer: boolean;
   /** Whether the canvas is a viewer rather than the Knowledge editor. */
   usesCanvasViewer: boolean;
+  /** Whether the canvas owns the description, rather than the inspector. */
+  descriptionInCanvas: boolean;
   /** Whether the player's height is a function of its width. */
   playerFramed: boolean;
   railEligible: boolean;
@@ -87,6 +89,7 @@ export function FileDetailPresenter({
   companionKind,
   hasPlayer,
   usesCanvasViewer,
+  descriptionInCanvas,
   playerFramed,
   railEligible,
   companionMountable,
@@ -126,6 +129,7 @@ export function FileDetailPresenter({
         isHtmlPreview={isHtmlPreview}
         hasPlayer={hasPlayer}
         usesCanvasViewer={usesCanvasViewer}
+        descriptionInCanvas={descriptionInCanvas}
         companionMountable={companionMountable}
         companionOccupied={companionOccupied}
         slotAvailability={slotAvailability}

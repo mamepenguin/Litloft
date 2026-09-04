@@ -91,7 +91,7 @@ vi.mock("../../SidebarProvider", async () => {
 });
 
 const PDF = { mime_type: "application/pdf", file_type: "document" as const };
-const ARCHIVE = { mime_type: "application/x-cbz", file_type: "archive" as const };
+const ARCHIVE = { mime_type: "application/x-zip-compressed", file_type: "archive" as const };
 const IMAGE = { mime_type: "image/jpeg", file_type: "image" as const };
 
 const KINDS: [string, Partial<FileItem>][] = [
@@ -106,11 +106,28 @@ beforeEach(() => {
   slotMocks.occupied.clear();
   slotMocks.entries.clear();
   window.localStorage.clear();
+  // Clearing storage is not enough: `readMediaLayout` prefers the
+  // attribute the store writes onto <html>, which outlives a test.
+  // Without this a test that stores "stacked" still reads the "beside"
+  // an earlier test left behind — and a companion gate that should have
+  // failed passes, because on "beside" the companion is in the tab strip
+  // whatever the gate says.
+  document.documentElement.removeAttribute("data-media-layout");
   setViewport();
 });
 
 async function renderKind(kind: Partial<FileItem>) {
-  setApiResponses(makeFile({ ...kind, has_chapters: false }));
+  // A non-empty description on purpose. The harness default is "", which
+  // is what let this file miss the description being drawn twice: an
+  // empty string renders nothing in either place, so both copies of
+  // nothing looked like one.
+  setApiResponses(
+    makeFile({
+      description: "Recorded on location.",
+      ...kind,
+      has_chapters: false,
+    }),
+  );
   const utils = render(<FileDetailContent fileId="f1" drive="main" />);
   await loaded();
   return utils;
@@ -131,6 +148,26 @@ describe.each(KINDS)("%s on the shell", (_name, kind) => {
     expect(canvas).toContainElement(screen.getByTestId("file-preview"));
     expect(canvas).not.toContainElement(screen.getByTestId("file-action-row"));
     expect(canvas).not.toContainElement(screen.getByTestId("comments"));
+  });
+
+  it("draws the description once, and in the inspector", async () => {
+    // A video's description is its show notes and reads with the player,
+    // so the canvas takes it. A PDF's is a property of the file and
+    // reads with the title and the size, so the inspector keeps it. Both
+    // halves are one value in the container: spelled separately, the
+    // canvas drew it for every kind while the inspector drew it for
+    // every kind without a player, and three of them had it twice.
+    //
+    // `getAllByText(...).toHaveLength(1)` and not `toContain` on the
+    // container's text: a substring check passes on two copies, which is
+    // how this shipped in the first place.
+    const { container } = await renderKind(kind);
+
+    expect(screen.getAllByText("Recorded on location.")).toHaveLength(1);
+    const canvas = container.querySelector(".media-detail-host")!;
+    expect(canvas).not.toContainElement(
+      screen.getByText("Recorded on location."),
+    );
   });
 
   it("gives it the same fixed inspector as every other kind", async () => {
@@ -158,9 +195,18 @@ describe.each(KINDS)("%s on the shell", (_name, kind) => {
     // §7 asks for the *container* for a page list, not for an empty tab
     // announcing that one could exist. When Phase 4 gives the archive
     // viewer a page list, its tab appears with no edit to the strip.
+    //
+    // The addon is installed and claiming the slot, on the default
+    // `beside` preference — which is the arrangement where an entry that
+    // reached the strip would become a tab. `stacked` cannot show this:
+    // there the strip has no addon half at all, whatever the gate says.
+    claimSlot("player-side", [
+      { id: "transcript", label: "Transcript", priority: 10, addonName: "some-addon" },
+    ]);
     await renderKind(kind);
 
     expect(tabs()).toEqual([]);
+    expect(screen.queryByTestId("slot-entry-transcript")).toBeNull();
   });
 
   it("holds back from the inspector only what the canvas itself draws", async () => {
@@ -180,15 +226,21 @@ describe.each(KINDS)("%s on the shell", (_name, kind) => {
     ).toBeNull();
   });
 
-  it("offers nothing that belongs to a player", async () => {
+  it("offers nothing that belongs to a player, on the stored preference that would show it", async () => {
     // A PDF has no playback clock, so nothing follows it. The companion,
     // its tabs and the control that moves them between the two are a
     // player's; a viewer that is not one has none of them. The addon is
     // installed here, which is exactly the case that used to conflate
     // "has a viewer" with "has a player".
+    //
+    // `stacked`, and not the default. On `beside` the companion is in
+    // the tab strip whatever the player gate says, so a missing
+    // `!hasPlayer` is invisible — which is where two of the three gates
+    // were hiding.
     claimSlot("player-side", [
       { id: "transcript", label: "Transcript", priority: 10, addonName: "some-addon" },
     ]);
+    window.localStorage.setItem("media-layout-preference", "stacked");
     const { container } = await renderKind(kind);
 
     expect(container.querySelector(".media-detail-below")).toBeNull();

@@ -6,7 +6,7 @@ The page has three parts: a **page row** at the top, the **viewer** below it, an
 
 **The viewer gets the column to itself**, which matters most where the viewer is long: a 190-page comic used to open with about 100px of archive listing and everything else stacked below it, so the deeper the archive the less of it you could see, and going down a level moved every section under it. Video, audio, Markdown, PDF, archives and images all read this way. Plain text and the Office formats still stack.
 
-Addon sections (transcripts, AI summaries, EXIF, similar files) appear once they have something in them: a section that has not been generated yet is not shown, and the way to generate it is the **AI** menu in the inspector, beside the like and favourite buttons. Anything already generated keeps its own section, with its own regenerate control, and drops out of that menu.
+Addon sections (AI summaries, tag candidates, visual descriptions) appear once they have something in them: a section that has not been generated yet is not shown, and the way to generate it is the **AI** menu in the inspector, beside the like and favourite buttons. Anything already generated keeps its own section, with its own regenerate control, and drops out of that menu. Two things are not sections: the **transcript** is a tab of its own, and **similar files** sits under the inspector's **Related** heading beside the file's stated relations.
 
 ## The page row
 

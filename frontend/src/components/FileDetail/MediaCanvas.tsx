@@ -18,6 +18,16 @@ interface MediaCanvasProps
   /** Whether the player's height follows its width (video and `.loft`). */
   framed: boolean;
   isTimedMedia: boolean;
+  /**
+   * Whether the description belongs here rather than in the inspector.
+   *
+   * A media file's description is its show notes and reads with the
+   * player; a PDF's is a property of the file and reads with its title
+   * and size. Decided once by the container, because the inspector is
+   * making the opposite half of the same decision and the two must not
+   * be spelled separately — that is how it came to be drawn twice.
+   */
+  showDescription: boolean;
   mediaController: MediaController | null;
   /**
    * The companion's occupants, when this canvas is where they live.
@@ -62,6 +72,7 @@ export function MediaCanvas({
   metrics,
   framed,
   isTimedMedia,
+  showDescription,
   mediaController,
   companion,
   chaptersVersion,
@@ -98,12 +109,14 @@ export function MediaCanvas({
           height budget, so it is narrower than the column it sits in;
           everything below it is a reading column and lines up with the
           companion box under it. */}
-      <FileDescription
-        file={file}
-        isTimedMedia={isTimedMedia}
-        mediaController={mediaController}
-        className="reading-measure"
-      />
+      {showDescription && (
+        <FileDescription
+          file={file}
+          isTimedMedia={isTimedMedia}
+          mediaController={mediaController}
+          className="reading-measure"
+        />
+      )}
 
       {companion && (
         // Directly under the description, which is where the confirmed

@@ -182,7 +182,7 @@ describe("RightPaneFile", () => {
     // on a phone, two back controls on one screen.
     for (const file of [
       { filename: "paper.pdf", mime_type: "application/pdf", file_type: "document" },
-      { filename: "comic.cbz", mime_type: "application/x-cbz", file_type: "archive" },
+      { filename: "comic.cbz", mime_type: "application/x-zip-compressed", file_type: "archive" },
       { filename: "photo.jpg", mime_type: "image/jpeg", file_type: "image" },
     ]) {
       mockGetFile.mockResolvedValue({ ...baseFile, ...file });

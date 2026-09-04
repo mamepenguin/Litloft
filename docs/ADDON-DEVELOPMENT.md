@@ -784,7 +784,7 @@ Addons can inject UI components into predefined **slots** in the core applicatio
 | Slot ID | Location | Layout | Use case |
 |---------|----------|--------|----------|
 | `search-modes` | Search results page (`/drive/{drive}/search`); not the GlobalSearch popup | Stack | Semantic search, Find, and other custom retrievers. Receives a `context: "popup" \| "page"` prop (default `"popup"`); core mounts the slot only on the results page with `context: "page"` today, but the prop is reserved so addons may render a compact popup layout in the future without breaking compatibility. The GlobalSearch popup obtains semantic hits by calling intelligence's HTTP routes directly via the thin wrapper at `frontend/src/lib/semanticSearch.ts` — the established public-contract pattern — not via this slot |
-| `file-detail-sections` | File detail panel | Vertical stack | Transcripts, similar files, suggested tags, summaries, knowledge notes |
+| `file-detail-sections` | File detail inspector, Info tab | Vertical stack | Suggested tags, summaries, visual descriptions, the Knowledge editor. **Not** a transcript (`player-side`) and **not** a derived relation (`file-relations`) — both have slots of their own and an entry left here as well renders in two places |
 | `file-relations` | Inside the file detail inspector's **Related** heading, under the core's own relations | Stack | Connections between *this* file and others that the addon derives rather than the user states — similarity, shared keywords. Core has one heading for both kinds, because two headings meant a reader had to guess which one a given connection was filed under. Two obligations: **move**, do not copy — an entry left in `file-detail-sections` renders in both places, and core cannot detect that; and note that the **Related** heading appears whenever any addon publishes here, whether or not your entry has computed anything, so a section that is only ever a placeholder does not belong in this slot. A collapsed control that computes when opened does. Under the heading your entry is one part of a group, not a section: draw its name at `text-xs font-medium text-text-muted` with no card and no glyph of its own, so the heading grouping it stays the louder of the two (`DESIGN.md` §The Related group — core's own member follows the same table). |
 | `player-side` | Beside a media player — an **inspector tab** where the reader has chosen "beside", a bounded box under the description where they have chosen "below" | Stack | Something that follows the file as it plays: a transcript, a cue list. One entry is one tab. See [Occupying the player-side slot](#occupying-the-player-side-slot) — the host places it two different ways and tells the entry which. |
 | `dashboard-widgets` | Admin dashboard | Cards | Index statistics, cloud sync status |
@@ -954,8 +954,8 @@ In `ADDON_META` (in-process) or manifest JSON (external service):
 "slots": {
     "file-detail-sections": [
         {
-            "id": "similar-files",
-            "label": "Similar Files",
+            "id": "suggested-tags",
+            "label": "Suggested Tags",
             "priority": 20
         }
     ]
@@ -1337,10 +1337,10 @@ For the full design and the broader rationale, see `docs/superpowers/specs/2026-
 | `file-detail-sections` | `summary` | Short AI summary with edit/revert |
 | `file-detail-sections` | `detailed-summary` | Long-form Markdown summary (manual trigger) with auto-linked citations and inline section editing |
 | `file-detail-sections` | `visual-description` | AI-generated visual description for images and video (vision model) |
-| `file-detail-sections` | `transcript` | Whisper transcript with per-file refine / revert |
+| `player-side` | `transcript` | Whisper transcript with per-file refine / revert. An inspector tab beside a media file, or a box under the description where the reader has moved it; answers `onAvailability(false)` on a file it has nothing for, so no empty tab appears |
 | `file-detail-sections` | `clip-frames` | CLIP frame analysis |
 | `file-actions-menu` | `index-details` | Per-file indexing state with a *Regenerate* button per task (`metadata`, `clip`, `whisper`, `text`) and recent provider stats, in a dialog opened from the file `[...]` menu |
-| `file-detail-sections` | `similar-files` | Visually similar files (collapsed by default; expanding it starts the search) |
+| `file-relations` | `similar-files` | Visually similar files, under the inspector's **Related** heading beside the file's stated relations (collapsed by default; expanding it starts the search) |
 | `drive-home-sections` | `pickup` | Recommended files widget on the drive home page |
 | `dashboard-widgets` | `index-status` | Index queue depth and model memory |
 | `dashboard-alerts` | `failed-jobs` | The failed-jobs warning band, above the drive cards. Absent when nothing has failed. |

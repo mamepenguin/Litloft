@@ -212,6 +212,33 @@ describe("media on the shell, beside", () => {
     );
   });
 
+  it("draws the addon's derived relations in the Info tab", async () => {
+    // The primary home of `file-relations`, and the point of the move
+    // this phase asked an addon to make: an entry that left
+    // `file-detail-sections` is reachable only through this slot, so a
+    // layout that stopped mounting it would take the section off every
+    // canonical file detail page — on every kind — and say nothing.
+    withTranscript();
+    claimSlot("file-relations", [
+      { id: "derived", label: "Derived", priority: 10, addonName: "some-addon" },
+    ]);
+    await renderMedia();
+
+    expect(screen.getByTestId("addon-slot-file-relations")).toBeInTheDocument();
+    expect(screen.getByTestId("related-files")).toBeInTheDocument();
+  });
+
+  it("keeps the beside/below toggle off a phone", async () => {
+    // `onBeside` opens the desktop pane's bit; a phone's sheet is the
+    // shell's own state and has nothing to do with that store. Drawn
+    // there, the control would write a preference and open nothing.
+    withTranscript();
+    setViewport(400);
+    await renderMediaAwaitingChrome();
+
+    expect(layoutToggle()).toBeNull();
+  });
+
   it("tells the occupant its name is already on the button", async () => {
     // The tab button carries the label, so a panel that draws its own
     // heading spends a line repeating what the reader just pressed.

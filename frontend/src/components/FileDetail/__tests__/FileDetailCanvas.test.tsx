@@ -745,6 +745,25 @@ describe("the collection route and the Related group", () => {
 
     expect(screen.getByTestId("addon-slot-file-relations")).toBeInTheDocument();
     expect(screen.getByTestId("related-files")).toBeInTheDocument();
+    // Under one heading, not as two lists side by side. Core's own
+    // relations and an addon's derived ones answer the same question,
+    // and this column has no inspector to make that obvious some other
+    // way.
+    expect(screen.getByRole("heading", { level: 3 })).toBeInTheDocument();
+  });
+
+  it("draws no grouping heading where there is nothing to group with", async () => {
+    // A grouping heading over a single group is a row saying only that a
+    // category exists. Asked of the catalogue and not of the DOM: a
+    // derived source may be a collapsed control that has computed
+    // nothing yet, so what it rendered says nothing about whether it is
+    // there.
+    setApiResponses(makeFile());
+    render(<FileDetailContent fileId="f1" drive="main" surface="collection" />);
+    await loaded();
+
+    expect(screen.getByTestId("related-files")).toBeInTheDocument();
+    expect(screen.queryByRole("heading", { level: 3 })).toBeNull();
   });
 });
 

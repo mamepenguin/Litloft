@@ -115,13 +115,14 @@ describe("ridesFileDetailShell", () => {
   });
 
   it("goes by the kind, not by one mime per kind", () => {
-    // An archive is a `file_type`, and there are several mimes behind it
-    // — `.cbz` arrives as `application/x-cbz`, `.7z` as its own. Keying
-    // on the mime would route one archive through the shell and leave
-    // the next one on the old layout.
-    expect(canonical({ mimeType: "application/x-cbz", fileType: "archive" })).toBe(
-      true,
-    );
+    // An archive is a `file_type`, and the backend classifies two mimes
+    // into it (`application/zip` and `application/x-zip-compressed`,
+    // `backend/app/services/filetype.py`). Keying on one of them would
+    // route one archive through the shell and leave the next on the old
+    // layout. Images are worse: `mimetypes` resolves a whole family.
+    expect(
+      canonical({ mimeType: "application/x-zip-compressed", fileType: "archive" }),
+    ).toBe(true);
     expect(canonical({ mimeType: "image/heic", fileType: "image" })).toBe(true);
   });
 
