@@ -53,16 +53,26 @@ export function ViewToggle({ mode: controlledMode, onChange }: ViewToggleProps) 
   }
 
   // The selected button used to be `bg-accent text-white` — a third accent
-  // fill on the folder toolbar, on a control that says which of two equal
-  // views you are in. DESIGN.md §2.2 allows one per screen, and it belongs to
-  // the action the screen is for, not to a view switch. This toggle also
-  // appears on Trash, Missing and inside an archive, so the fill is dropped
+  // fill on the folder toolbar, on a control that only says which of two
+  // equal views you are in. DESIGN.md §2.2 allows one fill per screen and it
+  // belongs to what the screen is for, not to a view switch. This toggle also
+  // rides on Trash, Missing and the inside of an archive, so it is dropped
   // here rather than at one call site.
+  //
+  // Selection is carried by a **border**, the same device §Tabs uses, and not
+  // by a surface. No surface token can carry it: `--bg-card` is `#ffffff` in
+  // the light theme and so is `--bg-primary`, which makes a card-coloured
+  // selection literally invisible wherever this sits on the page (the
+  // PageHeader actions on Missing, and the collection toolbar). Measured
+  // against every candidate, the best surface reached 1.28:1 and the accent
+  // border reaches 4.5-5.5:1 in both themes, clearing the 3:1 that WCAG
+  // 1.4.11 asks of a state indicator. A border is also not a *fill*, so §2.2's
+  // budget is still spent on the screen's own action.
   const buttonClass = (active: boolean) =>
-    `rounded-lg p-2 transition-colors ${
+    `rounded-lg border p-2 transition-colors ${
       active
-        ? "bg-bg-card text-text-primary"
-        : "text-text-muted hover:text-text-primary"
+        ? "border-accent text-text-primary"
+        : "border-transparent text-text-muted hover:text-text-primary"
     }`;
 
   return (

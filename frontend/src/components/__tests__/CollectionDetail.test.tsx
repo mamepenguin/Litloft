@@ -222,6 +222,59 @@ describe("CollectionDetail", () => {
     );
   });
 
+  // The name is click-to-edit, and moving it into PageHeader's <h1> turned the
+  // heading itself into the trigger. Nothing covered any of that: blanking the
+  // handler, dropping the Escape revert and dropping the blur save all left
+  // the suite green.
+  describe("the editable name", () => {
+    it("opens an input when the heading is clicked", async () => {
+      render(<CollectionDetail drive="main" collectionId="c1" />);
+      fireEvent.click(await screen.findByRole("button", { name: "My Collection" }));
+      expect(screen.getByDisplayValue("My Collection")).toBeInTheDocument();
+    });
+
+    it("persists a rename on blur", async () => {
+      render(<CollectionDetail drive="main" collectionId="c1" />);
+      fireEvent.click(await screen.findByRole("button", { name: "My Collection" }));
+      const input = screen.getByDisplayValue("My Collection");
+      fireEvent.change(input, { target: { value: "Renamed" } });
+      fireEvent.blur(input);
+      await waitFor(() =>
+        expect(apiMocks.updateCollection).toHaveBeenCalledWith("main", "c1", {
+          name: "Renamed",
+        }),
+      );
+    });
+
+    it("reverts on Escape without saving", async () => {
+      render(<CollectionDetail drive="main" collectionId="c1" />);
+      fireEvent.click(await screen.findByRole("button", { name: "My Collection" }));
+      const input = screen.getByDisplayValue("My Collection");
+      fireEvent.change(input, { target: { value: "Discarded" } });
+      fireEvent.keyDown(input, { key: "Escape" });
+      expect(screen.getByRole("button", { name: "My Collection" })).toBeInTheDocument();
+      expect(apiMocks.updateCollection).not.toHaveBeenCalled();
+    });
+
+    // "Name the subject once": the trail stops at the drive, and the heading
+    // carries the name. Adding it back to the trail is the state this
+    // migration removed.
+    it("names the collection once, in the heading and not the trail", () => {
+      render(<CollectionDetail drive="main" collectionId="c1" />);
+      return waitFor(() => {
+        expect(screen.getAllByText("My Collection")).toHaveLength(1);
+        expect(screen.getByRole("link", { name: "main" })).toBeInTheDocument();
+      });
+    });
+
+    it("keeps the tree toggle at the start of the header", async () => {
+      const { container } = render(<CollectionDetail drive="main" collectionId="c1" />);
+      await screen.findByRole("button", { name: "My Collection" });
+      const firstRow = container.querySelector("header > div")!;
+      expect(firstRow.querySelector("[data-testid='tree-toggle']")).not.toBeNull();
+    });
+  });
+
   it("mounts CollectionItemsPane in the left pane with all items", async () => {
     render(<CollectionDetail drive="main" collectionId="c1" />);
     expect(await screen.findByTestId("items-pane")).toHaveTextContent(

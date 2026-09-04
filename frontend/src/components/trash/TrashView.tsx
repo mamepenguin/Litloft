@@ -124,7 +124,10 @@ export function TrashView({ driveName }: TrashViewProps) {
         }
       />
 
-      <div className="px-2 sm:px-4">
+      {/* `px-4`, matching PageHeader's own padding. The page used to be
+          `px-2 sm:px-4` throughout; keeping that here would leave the header
+          at 16px and the file list at 8px below `sm`. */}
+      <div className="px-4">
       <TrashToolbar
         sort={sort}
         order={order}

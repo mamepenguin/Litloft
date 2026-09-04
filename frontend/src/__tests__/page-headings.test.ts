@@ -60,6 +60,13 @@ const NOT_YET_MIGRATED: Record<string, string> = {
   // Purpose-built chrome that PageHeader has to absorb rather than replace.
   "frontend/src/components/FolderBrowser.tsx":
     "folder + search headers move with the toolbar rebuild (案 2, PR B2)",
+  // The inspector's fixed block. It heads a region rather than the page, so it
+  // wants to be an <h2> — but `FileDetailChrome` does not emit a page heading
+  // yet, so demoting it now would leave the file detail page with no <h1> at
+  // all until PR A2b. Both halves move together there. Its `text-xl` is
+  // likewise off §3.2 until then.
+  "frontend/src/components/FileDetail/FileMetaBlock.tsx":
+    "inspector heading; demoted with the FileDetailChrome migration (PR A2b)",
 
   // Addons, migrating in PRs C1-C3.
   "addons/intelligence/frontend/Page.tsx": "PR C2",
@@ -134,10 +141,43 @@ describe("page headings", () => {
   // already-listed file is caught too — the allowlist is keyed by file, and a
   // second heading inside one of them would otherwise slip through.
   it("finds exactly the headings it expects", () => {
-    // 18, not the 17 a file count would suggest: `app/admin/page.tsx` holds
+    // Counted per source root, not as one total.
+    //
+    // A single number over core plus every addon is a number that depends on
+    // which submodules happen to be checked out. `git clone` without
+    // `--recurse-submodules` would fail this with "expected 18, got 17" and
+    // nothing pointing at the cause — and the stale check two tests down
+    // already treats an absent addon as absent rather than wrong, so a single
+    // total would have the file disagreeing with itself.
+    //
+    // Core's 11 is the number this repository can always assert. Each addon is
+    // asserted only when it is present, which still catches a heading added or
+    // removed inside one.
+    const perRoot = new Map<string, number>();
+    for (const h of headings()) {
+      const root = h.file.startsWith("addons/")
+        ? h.file.split("/").slice(0, 3).join("/")
+        : "frontend/src";
+      perRoot.set(root, (perRoot.get(root) ?? 0) + 1);
+    }
+    // 12, not the 11 a file count would suggest: `app/admin/page.tsx` holds
     // two, one per branch. That is precisely the case a per-file allowlist
-    // cannot see, which is why the total is asserted as well.
-    expect(headings()).toHaveLength(18);
+    // cannot see, which is why counts are asserted at all.
+    expect(perRoot.get("frontend/src")).toBe(12);
+
+    const EXPECTED_ADDON_HEADINGS: Record<string, number> = {
+      "addons/intelligence": 4,
+      "addons/knowledge": 2,
+      "addons/media_import": 1,
+    };
+    for (const [root, expected] of Object.entries(EXPECTED_ADDON_HEADINGS)) {
+      // The scanned path, not the submodule directory: an uninitialised
+      // submodule leaves `addons/<name>/` behind as an empty directory, so
+      // testing that would report a checkout that has nothing in it as
+      // present. `frontend/` is what the walk actually reads.
+      if (!existsSync(resolve(REPO_ROOT, root, "frontend"))) continue;
+      expect(perRoot.get(`${root}/frontend`) ?? 0).toBe(expected);
+    }
   });
 
   it("emits the page heading from exactly one component", () => {

@@ -247,7 +247,10 @@ export function CollectionDetail({ drive, collectionId }: CollectionDetailProps)
       }
       leftPaneAriaLabel={t("itemListLabel")}
     >
-      <div className="mx-auto w-full max-w-6xl px-4 py-6">
+      {/* No `px-4` here: PageHeader carries its own (DESIGN.md §Page Header),
+          and an outer one would indent the header past everything under it.
+          The rest of the page gets it from the wrapper below. */}
+      <div className="mx-auto w-full max-w-6xl py-6">
         {/* The name was in the trail and in the heading, saying the same thing
             twice. The heading keeps it — it is the editable one — and the
             trail carries only the drive. */}
@@ -352,6 +355,7 @@ export function CollectionDetail({ drive, collectionId }: CollectionDetailProps)
           }
         />
 
+        <div className="px-4">
         {items.length === 0 ? (
           <div className="flex flex-col items-center justify-center gap-3 py-16 text-sm text-text-muted">
             <p>{t("empty")}</p>
@@ -371,6 +375,7 @@ export function CollectionDetail({ drive, collectionId }: CollectionDetailProps)
             </FileNavigationOverrideProvider>
           </>
         )}
+        </div>
 
         {deletingCollection && (
           <div

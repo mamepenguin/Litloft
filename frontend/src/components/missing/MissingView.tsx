@@ -21,6 +21,7 @@ interface MissingViewProps {
 
 export function MissingView({ driveName }: MissingViewProps) {
   const tm = useTranslations("missing");
+  const tc = useTranslations("common");
   const [viewMode, setViewMode] = useState<ViewMode>("grid");
   const [purgeAllOpen, setPurgeAllOpen] = useState(false);
   const [purgeConfirmOpen, setPurgeConfirmOpen] = useState(false);
@@ -81,7 +82,7 @@ export function MissingView({ driveName }: MissingViewProps) {
         scope={
           <>
             {tm("description")}
-            {files.length > 0 && <> · {total}</>}
+            {files.length > 0 && <> · {tc("items", { count: total })}</>}
           </>
         }
         actions={
@@ -97,7 +98,10 @@ export function MissingView({ driveName }: MissingViewProps) {
         }
       />
 
-      <div className="px-2 sm:px-4">
+      {/* `px-4`, matching PageHeader's own padding. The page used to be
+          `px-2 sm:px-4` throughout; keeping that here would leave the header
+          at 16px and the file list at 8px below `sm`. */}
+      <div className="px-4">
 
       {loading ? (
         <div className="flex items-center justify-center py-16">

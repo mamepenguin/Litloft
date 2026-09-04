@@ -50,6 +50,40 @@ describe("Breadcrumb", () => {
     expect(driveLink.closest("a")).toHaveAttribute("href", "/drive/main");
   });
 
+  // The trail either names the current page or stops short of it, and which
+  // one is a decision the caller makes. Before this prop the second form was
+  // not expressible: a drive with nothing after it rendered as plain text, so
+  // Trash and Missing showed the drive's name with no way to click it and no
+  // route back to the drive at all.
+  describe("driveIsAncestor", () => {
+    it("makes the drive a link the reader can follow back", () => {
+      render(<Breadcrumb driveName="Videos" driveIsAncestor />);
+      const link = screen.getByRole("link", { name: "Videos" });
+      expect(link.getAttribute("href")).toBe("/drive/Videos");
+    });
+
+    it("leaves the drive as plain text without it", () => {
+      render(<Breadcrumb driveName="Videos" />);
+      expect(screen.queryByRole("link", { name: "Videos" })).toBeNull();
+      expect(screen.getByText("Videos")).toBeInTheDocument();
+    });
+
+    // The page names itself in a heading, so the trail must not also name it.
+    it("adds no segment of its own", () => {
+      render(<Breadcrumb driveName="Videos" driveIsAncestor />);
+      const links = screen.getAllByRole("link").map((el) => el.textContent);
+      // Home carries an icon and no text; the drive is the only labelled one.
+      expect(links.filter(Boolean)).toEqual(["Videos"]);
+    });
+
+    it("encodes a drive name that needs it", () => {
+      render(<Breadcrumb driveName="My Drive" driveIsAncestor />);
+      expect(
+        screen.getByRole("link", { name: "My Drive" }).getAttribute("href"),
+      ).toBe("/drive/My%20Drive");
+    });
+  });
+
   describe("trailingSegment", () => {
     it("renders trailingSegment as the last non-clickable label", () => {
       render(<Breadcrumb driveName="main" trailingSegment="My Mix" />);

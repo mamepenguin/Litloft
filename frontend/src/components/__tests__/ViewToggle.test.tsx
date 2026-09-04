@@ -53,8 +53,8 @@ describe("ViewToggle (controlled)", () => {
     // `classList.contains`, not `className.toContain`: the old assertion
     // matched "bg-accent" as a substring, so it would also have passed on
     // `bg-accent/10` or `bg-accent-teal`.
-    expect(list.classList.contains("bg-bg-card")).toBe(true);
-    expect(grid.classList.contains("bg-bg-card")).toBe(false);
+    expect(list.classList.contains("border-accent")).toBe(true);
+    expect(grid.classList.contains("border-accent")).toBe(false);
   });
 
   // DESIGN.md §2.2: one accent fill per screen, and it belongs to what the
@@ -70,6 +70,24 @@ describe("ViewToggle (controlled)", () => {
       );
       expect(filled).toEqual([]);
     }
+  });
+
+  // Selection has to be *visible*, which a surface cannot do here: `--bg-card`
+  // and `--bg-primary` are both `#ffffff` in the light theme, so a
+  // card-coloured selected state is the page background. The first attempt at
+  // removing the accent fill shipped exactly that. Neither jsdom nor a class
+  // assertion can see a colour, so what is pinned instead is the *device*:
+  // selection is a border, and both buttons carry a border box so nothing
+  // shifts when it changes colour.
+  it("marks selection with a border that both buttons reserve room for", () => {
+    render(<ViewToggle mode="list" onChange={vi.fn()} />);
+    const list = screen.getByLabelText("List view");
+    const grid = screen.getByLabelText("Grid view");
+    expect(list.classList.contains("border")).toBe(true);
+    expect(grid.classList.contains("border")).toBe(true);
+    expect(grid.classList.contains("border-transparent")).toBe(true);
+    // A background would be the thing that cannot be seen; assert there is none.
+    expect([...list.classList].filter((c) => /^bg-/.test(c))).toEqual([]);
   });
 
   it("does not write to localStorage when controlled", () => {
