@@ -74,22 +74,20 @@ export function MediaPlayerBlock({
           above is stuck to the top of the canvas. Nothing here is told
           about it, because being told means re-rendering, and
           re-rendering is the one thing a player must not do. */}
-      <div className="media-detail-player-frame">
-        <FilePreview
-          file={file}
-          videoRef={videoRef}
-          initialTime={initialTime}
-          initialPage={initialPage}
-          highlight={highlight}
-          onMediaController={onMediaController}
-          onDocumentCaptureController={onDocumentCaptureController}
-          markdownReloadKey={markdownReloadKey}
-          onMarkdownTagsSaved={onMarkdownTagsSaved}
-          miniPlayerRoot={miniPlayerRoot}
-          onEnded={onEnded}
-          autoPlay={autoPlay}
-        />
-      </div>
+      <FilePreview
+        file={file}
+        videoRef={videoRef}
+        initialTime={initialTime}
+        initialPage={initialPage}
+        highlight={highlight}
+        onMediaController={onMediaController}
+        onDocumentCaptureController={onDocumentCaptureController}
+        markdownReloadKey={markdownReloadKey}
+        onMarkdownTagsSaved={onMarkdownTagsSaved}
+        miniPlayerRoot={miniPlayerRoot}
+        onEnded={onEnded}
+        autoPlay={autoPlay}
+      />
 
       {/* Directly below the player rather than inside its control bar:
           that bar belongs to the .loft embed and native video does not

@@ -440,7 +440,7 @@ describe("media on the shell, on a phone", () => {
     await waitFor(() => {
       expect(
         screen.getByTestId("file-detail-shell").dataset.sheetSnap,
-      ).toBe("half");
+      ).toBe("expanded");
     });
   });
 

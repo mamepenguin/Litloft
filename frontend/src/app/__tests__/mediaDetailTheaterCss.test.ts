@@ -197,11 +197,6 @@ describe("the player on a phone", () => {
     // usually `empty:hidden`, the travel was zero — the player scrolled
     // away exactly as it did before. The wrapper's parent is the canvas
     // host, as tall as everything under the player.
-    const frame = globalsCss().match(
-      /\[data-sheet-snap\]\s+\.media-detail-player-frame\s*\{[^}]*\}/,
-    );
-    expect(frame).toBeNull();
-
     const rule = globalsCss().match(
       /\[data-sheet-snap\]\s+\.media-detail-player\s*\{[^}]*\}/,
     );
@@ -210,15 +205,22 @@ describe("the player on a phone", () => {
     expect(rule![0]).toMatch(/top:\s*0;/);
   });
 
-  it("drops the height budget there, since a stuck element mismeasures", () => {
-    // `useCompanionMetrics` reads this element's offset for
-    // `--player-avail`; stuck, it reports where it is pinned rather
-    // than where it sits, so the cap would tighten as the reader
-    // scrolls and the video would shrink under them.
+  it("caps it from a variable that cannot drift while it is stuck", () => {
+    // `--player-avail` comes from this element's own offset, which is a
+    // constant zero while stuck against a scroll position that keeps
+    // growing — the cap would tighten as the reader scrolls. Dropping
+    // the cap is not the answer either: phone landscape is still under
+    // the mobile breakpoint, and an uncapped 667px-wide player is
+    // taller than its scrollport, so its control bar sits below the
+    // fold. `--rail-avail` is the scrollport itself and knows nothing
+    // about the player.
     const rule = globalsCss().match(
       /\[data-sheet-snap\]\s+\.media-detail-player\[data-framed="true"\]\s*\{[^}]*\}/,
     );
     expect(rule).not.toBeNull();
-    expect(rule![0]).toMatch(/max-width:\s*none;/);
+    expect(rule![0]).toMatch(
+      /max-width:\s*calc\(var\(--rail-avail,\s*100dvh\)\s*\*\s*16\s*\/\s*9\);/,
+    );
+    expect(rule![0]).not.toMatch(/--player-avail/);
   });
 });
