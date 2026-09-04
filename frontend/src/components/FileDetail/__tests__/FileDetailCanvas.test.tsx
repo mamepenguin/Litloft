@@ -1,16 +1,13 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { render, screen, waitFor, act, fireEvent } from "@testing-library/react";
-import { useState } from "react";
 
 import { FileDetailContent } from "../../FileDetailContent";
 import * as api from "@/lib/api";
 import type { FileItem } from "@/types";
 import { FILE_CHAPTERS_UPDATED_EVENT } from "@/lib/addonEvents";
 import {
-  editableTagChipsCalls,
   loaded,
   makeFile,
-  overlaySidebarSpy,
   setApiResponses,
   slotMocks,
   usePolicyMock,

@@ -11,6 +11,8 @@ import {
   getCollectionOnEnded,
 } from "@/components/CollectionPanel";
 import { useSetOverrideDrive } from "@/components/CurrentDriveProvider";
+import { usePolicy } from "@/hooks/usePolicy";
+import { usesDocumentShell } from "@/lib/fileDetailShell";
 import { useOverlaySidebar } from "@/components/SidebarProvider";
 import { useFileNav } from "@/hooks/useFileNav";
 import { getFile } from "@/lib/api";
@@ -153,6 +155,18 @@ export function FileDetailFullScreen({ fileId }: FileDetailFullScreenProps) {
     router.push(backPath);
   }, [router, file]);
 
+  // A Markdown note or an HTML preview rides `FileDetailShell`, which
+  // draws the page row itself. Drawing one here too would put two
+  // breadcrumbs on the page and, on a phone, two back controls — the
+  // thing this row exists to stop. Same predicate as the 2-pane host
+  // and the content itself, from one place so it cannot be got right in
+  // two of the three.
+  const knowledgeEditorPolicy = usePolicy(file?.drive ?? "", "knowledge", "editor");
+  const contentBringsItsOwnRow = usesDocumentShell(
+    file?.mime_type,
+    knowledgeEditorPolicy.enabled,
+  );
+
   const isVideoTheater = hasCollection && file?.file_type === "video";
   const isAudioSide = hasCollection && file?.file_type !== "video";
 
@@ -165,15 +179,25 @@ export function FileDetailFullScreen({ fileId }: FileDetailFullScreenProps) {
           collection means the collection you were playing, not the
           folder the current track happens to live in. The tree pane
           does not exist here, so its toggle is left out. */}
-      {file && (
+      {!contentBringsItsOwnRow && (
         <div className="mb-4 -mx-4 -mt-6">
-          <FileDetailChrome
-            drive={file.drive}
-            folderPath={file.folder_path}
-            title={file.title || file.filename}
-            onBack={handleBack}
-            showTreeToggle={false}
-          />
+          {file ? (
+            <FileDetailChrome
+              drive={file.drive}
+              folderPath={file.folder_path}
+              title={file.title || file.filename}
+              onBack={handleBack}
+              showTreeToggle={false}
+            />
+          ) : (
+            // The row cannot be drawn before the file names its own
+            // folder, but it can hold its place: without this the whole
+            // page steps down 48px the moment the fetch lands.
+            <div
+              aria-hidden
+              className="h-12 border-b border-bg-border bg-bg-card"
+            />
+          )}
         </div>
       )}
 
@@ -189,6 +213,7 @@ export function FileDetailFullScreen({ fileId }: FileDetailFullScreenProps) {
             autoPlay={hasCollection}
             onRequestImageGallery={() => setGalleryOpen(true)}
             onAfterDelete={handleAfterDelete}
+            onBack={handleBack}
           />
 
           {isVideoTheater && (

@@ -122,8 +122,30 @@ export function FileDetailChrome({
 
       {/* Two forms of the same statement, one per width. Rendering both
           and hiding one costs a duplicate DOM node and buys a layout
-          that needs no measurement to decide between them. */}
-      <div className="flex min-w-0 flex-1 md:hidden">{backControl}</div>
+          that needs no measurement to decide between them.
+
+          Except where the host supplied `onBack`. That is a host saying
+          the breadcrumb cannot express where back goes — during
+          collection playback it is the collection, not the folder this
+          track happens to sit in — so the control it gave has to survive
+          the width at which the breadcrumb takes over. It shares the row
+          there rather than replacing it: the path still answers "where
+          is this file", which the collection cannot. */}
+      <div
+        className={
+          onBack
+            ? "flex min-w-0 max-w-[45%] flex-1 items-center md:flex-none"
+            : "flex min-w-0 flex-1 items-center md:hidden"
+        }
+      >
+        {backControl}
+        {/* The leaf goes with it below `md`, where the breadcrumb is
+            hidden. Dropping the name there is what the sizing rules ask
+            for — but for a Markdown note the leaf *is* the rename
+            control, and dropping a function is not the same as dropping
+            a label. */}
+        {titleNode && <span className="min-w-0 flex-1 md:hidden">{titleNode}</span>}
+      </div>
       <div className="hidden min-w-0 flex-1 md:flex">
         <Breadcrumb
           driveName={drive}

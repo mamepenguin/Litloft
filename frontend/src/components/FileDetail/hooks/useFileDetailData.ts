@@ -127,8 +127,15 @@ export function useFileDetailData(fileId: string): FileDetailData {
   const refetch = useCallback(() => {
     getFile(fileId)
       .then(setFile)
-      .catch(() => {
-        // Optimistic state stays correct; the next navigation refetches.
+      // Caught rather than left to reject: an uncaught one is reported by
+      // vitest as an error while every test still prints as passed, which
+      // is a gap this repository has already merged through. Logged
+      // rather than swallowed, the way this hook's other two failures
+      // are — the caller cannot act on it (the row is briefly stale and
+      // the next navigation refetches), but nobody debugging should have
+      // to find that out from an empty catch.
+      .catch((err) => {
+        console.error("Failed to refresh file:", err);
       });
   }, [fileId]);
 

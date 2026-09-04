@@ -189,12 +189,69 @@ describe("FileDetailChrome", () => {
     );
 
     const crumbs = screen.getByRole("navigation");
-    expect(crumbs).toContainElement(screen.getByTestId("rename"));
+    expect(crumbs).toContainElement(
+      screen.getAllByTestId("rename").find((n) => crumbs.contains(n))!,
+    );
     // The path above the leaf stays navigable when the leaf is a node,
     // the same way it does when the leaf is text.
     expect(screen.getByRole("link", { name: "notes" })).toHaveAttribute(
       "href",
       "/drive/main/notes",
     );
+  });
+
+  it("keeps a node leaf on the narrow form too, because it is a control", () => {
+    // Dropping the file's *name* below `md` is what the sizing rules
+    // ask for. But a Markdown note's leaf is its rename control, and
+    // dropping a function is not the same as dropping a label — this row
+    // is the only place rename exists.
+    render(
+      <FileDetailChrome
+        drive="main"
+        folderPath="notes"
+        title="note.md"
+        titleNode={<button data-testid="rename">note.md</button>}
+      />,
+    );
+
+    const crumbs = screen.getByRole("navigation");
+    const renames = screen.getAllByTestId("rename");
+    // One per width form, as with the back control and the breadcrumb:
+    // both are in the DOM and CSS shows exactly one.
+    expect(renames).toHaveLength(2);
+    const narrow = renames.find((n) => !crumbs.contains(n));
+    expect(narrow).toBeDefined();
+    expect(narrow!.closest("[class*='md:hidden']")).not.toBeNull();
+  });
+
+  it("keeps the host's back control at every width, since it means something else", () => {
+    // A host that supplies `onBack` is saying the breadcrumb cannot
+    // express where back goes — during collection playback it is the
+    // collection, not the folder this track sits in. Hiding it above
+    // `md` would leave the desktop with no way back at all, which is
+    // what the row it replaced did have.
+    const onBack = vi.fn();
+    render(
+      <FileDetailChrome
+        drive="main"
+        folderPath="videos"
+        title="x.mp4"
+        onBack={onBack}
+      />,
+    );
+
+    const wrapper = back().parentElement!;
+    expect(wrapper.className).not.toContain("md:hidden");
+    // And the path is still there beside it, answering the question the
+    // collection cannot: where does this file live.
+    expect(screen.getByRole("navigation")).toHaveTextContent("videos");
+  });
+
+  it("hides the back control above md when the row owns what back means", () => {
+    render(
+      <FileDetailChrome drive="main" folderPath="videos" title="x.mp4" />,
+    );
+
+    expect(back().parentElement?.className).toContain("md:hidden");
   });
 });

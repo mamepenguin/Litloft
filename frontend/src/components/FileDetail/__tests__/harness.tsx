@@ -1,9 +1,9 @@
 /**
  * Shared stubs for the FileDetail suites.
  *
- * The three suites — container, presenter, canvas — all mount the real
- * `FileDetailContent` and all need the same heavy children replaced, so
- * the stub bodies live here and each suite keeps only its own
+ * Both suites that mount the real `FileDetailContent` — the surface's
+ * contract, and its media canvas — need the same heavy children
+ * replaced, so the stub bodies live here and each suite keeps only its own
  * `vi.mock()` lines. Those lines cannot move: `vi.mock` is hoisted per
  * file, so a helper that called it for you would run in the wrong file.
  * What they can do is `await import("./harness")` inside the factory,

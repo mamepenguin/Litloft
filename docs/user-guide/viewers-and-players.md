@@ -15,8 +15,9 @@ address you arrived by.
   Edit / Split / Preview switch there, and its file name in the path is click-to-edit.
 - **The inspector toggle** is last, on the pages that have an inspector.
 
-During collection playback the back control returns you to the collection you were playing
-rather than to the folder the current file happens to live in.
+During collection playback the back control means something the path cannot say — the
+collection you were playing, not the folder this track happens to live in — so there it
+stays on the row at every width, beside the path rather than instead of it.
 
 ## The companion rail
 

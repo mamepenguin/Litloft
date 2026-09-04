@@ -40,6 +40,8 @@ interface MarkdownDocumentLayoutProps {
    * for the API call and any local-state refresh.
    */
   onRename?: (newFilename: string) => Promise<void>;
+  /** Host override for the page row's back control. */
+  onBack?: () => void;
   inspector: ReactNode;
   mobileSheet?: ReactNode;
   children: ReactNode;
@@ -74,6 +76,7 @@ export function MarkdownDocumentLayout({
   folderPath,
   title,
   onRename,
+  onBack,
   inspector,
   mobileSheet,
   children,
@@ -132,6 +135,7 @@ export function MarkdownDocumentLayout({
         drive={drive}
         folderPath={folderPath}
         title={title}
+        onBack={onBack}
         titleNode={
           onRename && !previewOnly ? (
             <EditableTitle title={title} onRename={onRename} />

@@ -29,6 +29,11 @@ interface FileDetailShellProps {
   /** Type-specific controls in the page row, before the inspector toggle. */
   chromeControls?: ReactNode;
   /**
+   * Host override for the page row's back control. Without it the row
+   * links to the parent folder, which is what "back" means from a file.
+   */
+  onBack?: () => void;
+  /**
    * Sections shown in the desktop Inspector pane. On mobile, this
    * stack is shown inside the Bottom Sheet unless `mobileSheet` is
    * provided, in which case the Sheet uses that instead.
@@ -85,6 +90,7 @@ export function FileDetailShell({
   title,
   titleNode,
   chromeControls,
+  onBack,
   inspector,
   mobileSheet,
   children,
@@ -146,6 +152,7 @@ export function FileDetailShell({
         folderPath={folderPath}
         title={title}
         titleNode={titleNode}
+        onBack={onBack}
         inspector={{
           open: isMobile ? mobileSheetOpen : open,
           onToggle: handleInspectorButton,

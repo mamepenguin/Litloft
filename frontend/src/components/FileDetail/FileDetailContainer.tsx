@@ -6,6 +6,7 @@ import type { FileItem } from "@/types";
 import type { MediaController } from "@/lib/mediaController";
 import type { DocumentCaptureController } from "@/lib/documentCapture";
 import { playerKind } from "@/lib/playerKind";
+import { usesDocumentShell } from "@/lib/fileDetailShell";
 import { useIsMobile } from "@/hooks/useIsMobile";
 import { usePolicy } from "@/hooks/usePolicy";
 import { useAddonSlots } from "../AddonSlotsProvider";
@@ -58,6 +59,14 @@ export interface FileDetailContentProps {
    */
   onAfterDelete?: () => void;
   /**
+   * Overrides the page row's back control. Supplied by a host where
+   * "back" is not "up one folder" — collection playback, where it is
+   * the collection being played. Reaches the row whether it is drawn by
+   * the host or by ``FileDetailShell``, so the two surfaces cannot
+   * disagree about it.
+   */
+  onBack?: () => void;
+  /**
    * Forwarded to ``FilePreview``: callback when video / audio playback
    * ends. The collection-exception fullscreen route uses this to
    * advance to the next item; the 2-pane right pane omits it
@@ -102,6 +111,7 @@ export function FileDetailContainer({
   miniPlayerRoot,
   onRequestImageGallery,
   onAfterDelete,
+  onBack,
   onEnded,
   autoPlay,
 }: FileDetailContentProps) {
@@ -171,13 +181,6 @@ export function FileDetailContainer({
    */
   const isTimedMedia = file.file_type === "video" || file.file_type === "audio";
 
-  // DocumentLayout fork: rides the Markdown-document layout shell for
-  // long-form readable content. Eligible when the file is either:
-  //   (a) Markdown with the per-drive Knowledge editor policy enabled,
-  //       which is the original use case (inline editor + AI sections)
-  //   (b) text/html, which uses the same layout for AI artifact preview
-  //       and reuses the inspector but never mounts the editor slot
-  // Anything else falls through to the legacy vertical stack.
   // Which player, if any, plays this file — and therefore whether a
   // companion region is possible at all and whether it may take the
   // rail form. `playerKind` owns the .loft-before-file_type ordering.
@@ -191,9 +194,10 @@ export function FileDetailContainer({
   const companionOccupied = hasSlot("player-side") || data.chaptersPresent;
 
   const isHtmlPreview = file.mime_type === "text/html";
-  const useDocumentLayout =
-    isHtmlPreview ||
-    (file.mime_type === "text/markdown" && knowledgeEditorPolicy.enabled);
+  const useDocumentLayout = usesDocumentShell(
+    file.mime_type,
+    knowledgeEditorPolicy.enabled,
+  );
 
   // Wire the inspector's tag chips through the editor's shared content
   // state when both (a) we're in the DocumentLayout fork and (b) the
@@ -289,6 +293,7 @@ export function FileDetailContainer({
       markdownReloadKey={data.tagSaveVersion}
       onMarkdownTagsSaved={data.onTagsSaved}
       onRename={data.rename}
+      onBack={onBack}
       meta={meta}
     />
   );

@@ -299,6 +299,11 @@ describe("RightPaneFile", () => {
     expect(mockClearFile).toHaveBeenCalledTimes(1);
   });
 
+  // `FileDetailContent` is stubbed here, so counting rows would count
+  // only this host's — and the duplicate a file detail page can get
+  // comes from the shell inside that stub. What is testable, and is
+  // where the equivalent bug lived on the other host, is whether this
+  // one decides to draw a row at all.
   describe("the page row", () => {
     it("carries the breadcrumb for a file that has no shell of its own", async () => {
       mockGetFile.mockResolvedValue(baseFile);
@@ -317,17 +322,6 @@ describe("RightPaneFile", () => {
         "href",
         "/drive/work/Q1",
       );
-    });
-
-    it("draws exactly one of them, ever", async () => {
-      mockGetFile.mockResolvedValue(baseFile);
-      render(<RightPaneFile fileId="abc123" drive="work" />);
-      await waitFor(() =>
-        expect(screen.getByText("My Document")).toBeInTheDocument(),
-      );
-
-      expect(screen.getAllByTestId("file-detail-chrome")).toHaveLength(1);
-      expect(screen.getAllByTestId("file-detail-back")).toHaveLength(1);
     });
 
     it("leaves the row to the shell for a file that brings one", async () => {

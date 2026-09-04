@@ -92,7 +92,14 @@ export function Breadcrumb({
         <>
           <ChevronRight size={14} className="flex-shrink-0" />
           {typeof trailingSegment === "string" ? (
-            <span className="font-medium text-text-primary truncate">
+            // `title` because this is the one segment that is routinely
+            // too long for the row — both page headers this replaced
+            // carried one, and without it a truncated filename cannot be
+            // read at all.
+            <span
+              className="font-medium text-text-primary truncate"
+              title={trailingSegment}
+            >
               {trailingSegment}
             </span>
           ) : (

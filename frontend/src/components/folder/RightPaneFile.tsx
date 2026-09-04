@@ -11,6 +11,7 @@ import { useFileNav } from "@/hooks/useFileNav";
 import { usePolicy } from "@/hooks/usePolicy";
 import { useSelectedFile } from "@/hooks/useSelectedFile";
 import { getFile } from "@/lib/api";
+import { usesDocumentShell } from "@/lib/fileDetailShell";
 import { normalizeSortParam } from "@/lib/sortField";
 import type { FileItem } from "@/types";
 
@@ -84,25 +85,20 @@ export function RightPaneFile({ fileId, drive }: RightPaneFileProps) {
 
   const file = state.status === "loaded" ? state.file : null;
 
-  // 2026-05-11 chrome consolidation: when FileDetailContent will mount
-  // the MarkdownDocumentLayout fork, that layout renders its own unified
-  // chrome (TreeToggle + title + Inspector toggle, plus editor-only
-  // controls when applicable). The PaneShell header would duplicate the
-  // title bar, so we suppress it here. Mirror the same predicate used
-  // inside FileDetailContent for ``useDocumentLayout`` — Markdown when
-  // the Knowledge editor policy is enabled, *or* any HTML file (HTML
-  // preview unconditionally uses the document layout for single-scroll
-  // mobile UX).
-  // `usePolicy` is fail-open: it returns `enabled=true` during both the
-  // initial load and the 30s-TTL background refetch. We read only
-  // `enabled` so the periodic refetch does not flip `hideHeader` /
-  // `willUseDocumentLayout`, which would unmount the editor mid-edit
-  // and cause the observed 30-second reload-while-typing bug. Must
-  // stay in lockstep with the same predicate inside FileDetailContent.
+  // A file that rides `FileDetailShell` draws its own page row, because
+  // the shell also owns the inspector toggle that sits in it. This host
+  // must not draw a second one.
+  //
+  // `usePolicy` is fail-open: it reports enabled during both the initial
+  // load and the 30s-TTL background refetch. Only `enabled` is read, so
+  // the periodic refetch cannot flip the branch out from under an open
+  // editor — which would unmount the textarea and re-fire every child
+  // effect, the observed 30-second reload-while-typing bug.
   const knowledgeEditorPolicy = usePolicy(drive, "knowledge", "editor");
-  const willUseDocumentLayout =
-    file?.mime_type === "text/html" ||
-    (file?.mime_type === "text/markdown" && knowledgeEditorPolicy.enabled);
+  const willUseDocumentLayout = usesDocumentShell(
+    file?.mime_type,
+    knowledgeEditorPolicy.enabled,
+  );
 
   // Drive arrow-key navigation through useFileNav (PR-2). selectFile
   // swaps ``?file=id`` so FileDetailContent re-mounts with the

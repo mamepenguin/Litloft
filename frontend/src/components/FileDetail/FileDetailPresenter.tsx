@@ -44,6 +44,8 @@ export interface FileDetailPresenterProps {
   markdownReloadKey: number;
   onMarkdownTagsSaved: () => void;
   onRename: (newFilename: string) => Promise<void>;
+  /** Host override for the page row's back control; see the container. */
+  onBack?: () => void;
   /** Title, meta, action row and tags — placed, not built, here. */
   meta: ReactNode;
 }
@@ -84,6 +86,7 @@ export function FileDetailPresenter({
   markdownReloadKey,
   onMarkdownTagsSaved,
   onRename,
+  onBack,
   meta,
 }: FileDetailPresenterProps) {
   if (useDocumentLayout) {
@@ -162,6 +165,7 @@ export function FileDetailPresenter({
         folderPath={file.folder_path}
         title={file.filename}
         onRename={isHtmlPreview ? undefined : onRename}
+        onBack={onBack}
         inspector={inspectorPaneContent}
         mobileSheet={mobileSheetContent}
         resetKey={fileId}
