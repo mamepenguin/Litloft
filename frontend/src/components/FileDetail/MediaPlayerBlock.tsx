@@ -70,15 +70,10 @@ export function MediaPlayerBlock({
       className="media-detail-player"
       data-framed={framed ? "true" : undefined}
     >
-      {/* An inner frame, not the wrapper above it. The wrapper is what
-          `useCompanionMetrics` measures for `--player-avail`, and a
-          measurement taken from an element that has just been made
-          sticky or fixed is a measurement of where it moved to. Same
-          anchor/inner split `MiniPlayerContainer` uses, for the same
-          reason. `globals.css` decides what this does; nothing here is
-          told which form it is in, because being told would mean
-          re-rendering it — and re-rendering is the one thing a player
-          must not do. */}
+      {/* `globals.css` decides where this sits — on a phone the wrapper
+          above is stuck to the top of the canvas. Nothing here is told
+          about it, because being told means re-rendering, and
+          re-rendering is the one thing a player must not do. */}
       <div className="media-detail-player-frame">
         <FilePreview
           file={file}

@@ -1169,26 +1169,29 @@ div[data-citation-section-path]:not(tr) {
 }
 
 /* ------------------------------------------------------------------
-   The player on a phone: stuck to the top, then docked above the sheet.
+   The player on a phone: stuck to the top of the canvas.
 
    `data-sheet-snap` is on the shell root and is written only on a
    phone, so its presence is the mobile test and the stylesheet needs no
-   second one. Everything here is CSS acting on that attribute — the
-   player is never told which form it is in, because telling it means
-   re-rendering it.
+   second one.
 
-   That constraint is the whole design. React Portal moves children by
-   `appendChild`, which reloads any <iframe> in the subtree — a browser
-   rule, not a React one — and a `.loft` embed loses its position, its
-   player state and its API binding on reload. A remounted <video>
-   restarts at zero and rebinds `ended`, which is how a completion path
-   would come to write a position that was never played
-   (`.claude/rules/design-decisions.md`, watch history). So the element
-   stays exactly where it is in the tree and only its position changes.
-   `MiniPlayerContainer` reached the same conclusion for the desktop
-   mini player; this is that answer applied to the sheet.
+   **On the wrapper, not on the frame inside it.** A sticky box travels
+   only within its own containing block, and the frame's parent holds
+   the frame and an action row that is usually `empty:hidden` — so its
+   travel was zero and the "sticky" player scrolled away exactly as
+   before. The wrapper's parent is the canvas host, which is as tall as
+   the description, the companion and the summaries under it.
+
+   Nothing is re-parented and nothing is re-rendered. A portal moves
+   children by `appendChild`, which reloads any <iframe> in the subtree
+   by the browser's own rule — a `.loft` embed loses its position, its
+   player state and its API binding — and a remounted <video> restarts
+   at zero with `ended` rebound, which is how a completion path comes to
+   write a position nobody played (`.claude/rules/design-decisions.md`,
+   watch history). `MiniPlayerContainer` reached the same conclusion for
+   the desktop mini player.
    ------------------------------------------------------------------ */
-[data-sheet-snap] .media-detail-player-frame {
+[data-sheet-snap] .media-detail-player {
   position: sticky;
   top: 0;
   /* Above the canvas that scrolls under it, below the resting strip and
@@ -1196,21 +1199,12 @@ div[data-citation-section-path]:not(tr) {
   z-index: 10;
 }
 
-/* At full the sheet takes 90vh, so the player would be behind it. It
-   moves into the 10vh the sheet leaves — which is what "a mini player
-   in the sheet's header" means from the page's side, since the sheet's
-   own header is inside a portal this element must never enter.
-
-   Sized from the height rather than the width: the strip is what is
-   scarce, and 16:9 derived from a width would overrun it. */
-[data-sheet-snap="full"] .media-detail-player-frame {
-  position: fixed;
-  top: 0.5vh;
-  right: 0.75rem;
-  left: auto;
-  height: 9vh;
-  width: calc(9vh * 16 / 9);
-  overflow: hidden;
-  border-radius: 0.75rem;
-  z-index: 40;
+/* The height budget is a desktop constraint, and on a phone it is also
+   now a wrong measurement: `useCompanionMetrics` reads this element's
+   offset, and a stuck element reports where it is pinned rather than
+   where it sits, so the cap would tighten as the reader scrolls and the
+   video would shrink under them. A phone's player is bounded by width
+   in any case — the case the cap exists for is a short, wide window. */
+[data-sheet-snap] .media-detail-player[data-framed="true"] {
+  max-width: none;
 }

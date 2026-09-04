@@ -32,8 +32,11 @@ A column down the right of the page, the same width and the same shape on every 
 - Core's own tabs appear when they have something in them — a file with no chapters has no chapter tab. An addon's tab appears whenever that addon is installed and switched on for the drive, so a video that has never been transcribed can still show an empty transcript tab.
 - **Open and close it** with the toggle at the end of the page row, or with `Cmd/Ctrl+\`. It starts open on a wide screen. Closed, nothing of it is left behind on the page.
 - **Where there is not room for both**, it covers the right side of the page instead of squeezing what is under it — the same width either way, because a narrower inspector wraps Japanese at a dozen characters a line. This goes by the room the page actually has, not by the window: with the folder tree open, the tree and the sidebar have already taken most of a laptop screen.
-- **On a phone the player stays with you.** It sticks to the top of the page as you scroll, so the video never leaves the screen while you read what is under it; when you pull the sheet all the way up, the player shrinks into the strip above it rather than disappearing behind it. There is no separate picture-in-picture window to manage — it is the same player throughout, so nothing restarts.
 - **On a phone** the inspector is a bottom sheet with the same contents, and it rests rather than closes. A strip along the bottom always carries the file's name and the four buttons that act on it — like, favourite, **AI**, and the `⋮` menu — so those are in the same place on every file without opening anything. The rest of the file's details, including its trust state, are in the sheet itself. The same toggle raises it to half the screen, and the handle drags it to full; swiping down, tapping outside or pressing Escape sends it back to the strip rather than away.
+
+## The player on a phone
+
+It sticks to the top of the page as you scroll, so the video stays on screen while you read what is under it. There is no separate picture-in-picture window to manage — it is the same player throughout, so nothing restarts. Pulling the sheet all the way up covers it; a drag back down brings it into view again.
 
 ## Chapters and the transcript, beside or below
 

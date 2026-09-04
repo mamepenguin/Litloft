@@ -191,40 +191,34 @@ describe("the sheet's resting action row", () => {
 });
 
 describe("the player on a phone", () => {
-  it("sticks to the top of the canvas while the sheet is down", () => {
-    // Keyed on `data-sheet-snap` being present at all, which is written
-    // only on a phone — so the attribute is the mobile test and the
-    // stylesheet needs no second one.
-    const rule = globalsCss().match(
+  it("sticks the wrapper, which is the element that can travel", () => {
+    // A sticky box moves only within its own containing block. On the
+    // frame, whose parent holds the frame and an action row that is
+    // usually `empty:hidden`, the travel was zero — the player scrolled
+    // away exactly as it did before. The wrapper's parent is the canvas
+    // host, as tall as everything under the player.
+    const frame = globalsCss().match(
       /\[data-sheet-snap\]\s+\.media-detail-player-frame\s*\{[^}]*\}/,
+    );
+    expect(frame).toBeNull();
+
+    const rule = globalsCss().match(
+      /\[data-sheet-snap\]\s+\.media-detail-player\s*\{[^}]*\}/,
     );
     expect(rule).not.toBeNull();
     expect(rule![0]).toMatch(/position:\s*sticky;/);
     expect(rule![0]).toMatch(/top:\s*0;/);
   });
 
-  it("docks it above the sheet at full, sized from the strip it has", () => {
-    // At full the sheet takes 90vh and would cover the player, so it
-    // moves into the 10vh left over. Sized from the height because the
-    // height is what is scarce — 16:9 derived from a width overruns it.
+  it("drops the height budget there, since a stuck element mismeasures", () => {
+    // `useCompanionMetrics` reads this element's offset for
+    // `--player-avail`; stuck, it reports where it is pinned rather
+    // than where it sits, so the cap would tighten as the reader
+    // scrolls and the video would shrink under them.
     const rule = globalsCss().match(
-      /\[data-sheet-snap="full"\]\s+\.media-detail-player-frame\s*\{[^}]*\}/,
+      /\[data-sheet-snap\]\s+\.media-detail-player\[data-framed="true"\]\s*\{[^}]*\}/,
     );
     expect(rule).not.toBeNull();
-    expect(rule![0]).toMatch(/position:\s*fixed;/);
-    expect(rule![0]).toMatch(/height:\s*9vh;/);
-    expect(rule![0]).toMatch(/width:\s*calc\(9vh \* 16 \/ 9\);/);
-  });
-
-  it("keeps the docked player under the sheet's own tier", () => {
-    // It sits in the strip the sheet leaves, so it never needs to
-    // outrank it — and a video painting over a modal drawer would be
-    // the page claiming to be two things at once (DESIGN.md §Layering).
-    const rule = globalsCss().match(
-      /\[data-sheet-snap="full"\]\s+\.media-detail-player-frame\s*\{[^}]*\}/,
-    );
-    const z = rule![0].match(/z-index:\s*(\d+);/);
-    expect(z).not.toBeNull();
-    expect(Number(z![1])).toBeLessThan(45);
+    expect(rule![0]).toMatch(/max-width:\s*none;/);
   });
 });

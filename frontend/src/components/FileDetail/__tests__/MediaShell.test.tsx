@@ -444,25 +444,12 @@ describe("media on the shell, on a phone", () => {
     });
   });
 
-  it("frames the player without moving it in the tree", async () => {
-    // The frame is what the stylesheet positions. It is *inside* the
-    // wrapper `useCompanionMetrics` measures, because a measurement
-    // taken from an element that has just gone sticky is a measurement
-    // of where it went.
-    const { container } = await renderMediaAwaitingChrome();
-    const frame = container.querySelector(
-      ".media-detail-player > .media-detail-player-frame",
-    );
-    expect(frame).not.toBeNull();
-    expect(frame).toContainElement(screen.getByTestId("file-preview"));
-  });
-
   it("keeps the same player element across every sheet transition", async () => {
-    // peek → half → full → peek. The guard §4.4 asks for, at each hop:
-    // a re-parented iframe reloads (the browser's rule, not React's)
-    // and a remounted `<video>` restarts at zero with `ended` rebound,
-    // which is how a completion path comes to write a position nobody
-    // played.
+    // The guard §4.4 asks for, at each hop: a re-parented iframe
+    // reloads (the browser's rule, not React's) and a remounted
+    // `<video>` restarts at zero with `ended` rebound, which is how a
+    // completion path comes to write a position nobody played. Element
+    // identity is the proxy — jsdom has no `currentTime` to survive.
     await renderMediaAwaitingChrome();
     const player = screen.getByTestId("file-preview");
 
@@ -472,10 +459,6 @@ describe("media on the shell, on a phone", () => {
 
     fireEvent.keyDown(document, { key: "Escape" });
     await screen.findByTestId("mobile-inspector-peek");
-    expect(screen.getByTestId("file-preview")).toBe(player);
-
-    fireEvent.click(screen.getByTestId("inspector-toggle"));
-    await screen.findByTestId("mobile-inspector-sheet");
     expect(screen.getByTestId("file-preview")).toBe(player);
   });
 
@@ -565,6 +548,17 @@ describe("what the canvas keeps and what the inspector takes", () => {
     expect(CANVAS_PADDING_REM).toBe(2);
     // 2rem across the pair, so 1rem a side: `p-4` on Tailwind's scale.
     expect(canvas!.classList.contains("p-4")).toBe(true);
+  });
+
+  it("publishes no sheet state on a desktop, so its rules cannot apply", async () => {
+    // The attribute's presence is the mobile test the stylesheet makes.
+    // Published unconditionally, a desktop player would go sticky and
+    // lose its height budget with nothing on screen explaining why.
+    await renderMedia(makeFile({ has_chapters: false }));
+
+    expect(
+      screen.getByTestId("file-detail-shell").dataset.sheetSnap,
+    ).toBeUndefined();
   });
 
   it("keeps the action row in the inspector, where every kind has it", async () => {
