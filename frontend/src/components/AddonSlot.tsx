@@ -3,7 +3,7 @@
 import { Suspense, useEffect, useMemo, useState } from "react";
 import { useTranslations } from "next-intl";
 import { useAddonSlots } from "./AddonSlotsProvider";
-import type { SlotEntry } from "@/lib/addons";
+import { sortSlotEntries, type SlotEntry } from "@/lib/addons";
 import { slotEntryLabel } from "@/lib/slotLabel";
 
 type SlotModule = {
@@ -125,7 +125,7 @@ export function AddonSlot({
       if (excludeSet && excludeSet.has(entry.id)) return false;
       return true;
     });
-    return filtered.sort((a, b) => a.priority - b.priority);
+    return sortSlotEntries(filtered);
   }, [entries, includeIds, excludeIds]);
 
   const [activeTab, setActiveTab] = useState(0);
