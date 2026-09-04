@@ -13,13 +13,27 @@ import enMessages from "../messages/en.json";
 // "unable to find" rather than a bare test timeout.
 configure({ asyncUtilTimeout: 3000 });
 
-// jsdom 25 + vitest 3 + vite 6 ships an empty `{}` for localStorage on
-// some platforms instead of a Storage instance. Replace it with a tiny
-// Map-backed shim so tests can exercise persistence code paths.
+// Web Storage is replaced wholesale with a Map-backed shim, on every
+// platform and unconditionally.
+//
+// It began as a patch: jsdom 25 + vitest 3 + vite 6 hands back an empty `{}`
+// instead of a Storage instance on some platforms, and the shim only replaced
+// it when that happened. That left the suite running against two different
+// storage implementations depending on the Node version, and the difference is
+// not cosmetic — jsdom's `Storage` is a *Proxy* whose defineProperty trap
+// treats any string key as a stored entry. `vi.spyOn(localStorage, "setItem")`
+// against it does not replace the method: it writes a storage item named
+// "setItem", the real method still runs, and the spy records nothing. An
+// assertion that counts writes then passes vacuously wherever the shim is
+// installed and fails wherever jsdom's own Storage survives.
+//
+// That is exactly how useTreeExpansion's "writes once" test came to pass on
+// Node 25 (empty `{}` -> shim -> plain object -> spy works) and fail on the
+// Node 20 that CI and frontend/Dockerfile both run (real Storage -> Proxy ->
+// spy swallowed). Installing unconditionally gives every environment one
+// storage object, with own, spy-able methods.
 if (typeof window !== "undefined") {
   const installShim = (key: "localStorage" | "sessionStorage") => {
-    const target = (window as unknown as Record<string, unknown>)[key];
-    if (target && typeof (target as Storage).getItem === "function") return;
     const store = new Map<string, string>();
     const shim: Storage = {
       get length() {

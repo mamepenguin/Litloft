@@ -91,6 +91,13 @@ Library constraints:
 
 - **vitest 3.x** only — vitest 4 has a rolldown native-bindings issue.
 - **jsdom 25.x** only — jsdom 29 breaks ESM compatibility.
+- **Node 20** is what CI and `frontend/Dockerfile` run. A newer local Node
+  changes what jsdom hands back for Web Storage, so `src/test/setup.ts`
+  installs its own Map-backed `localStorage` / `sessionStorage`
+  unconditionally, and `src/test/__tests__/storage-shim.test.ts` guards that.
+  Do not make the shim conditional: jsdom's `Storage` is a Proxy that turns
+  `vi.spyOn(localStorage, "setItem")` into a *stored entry* named `setItem`,
+  leaving the real method in place and the spy recording nothing.
 
 ### Addon frontends run here too
 
