@@ -105,6 +105,37 @@ describe("PageTabs", () => {
       expect(selected.classList.contains("text-white")).toBe(false);
     });
 
+    // DESIGN.md §Tabs states the selected state as
+    // `border-accent font-semibold text-text-primary`. Asserting only the
+    // border left two thirds of the sentence unenforced.
+    it("gives the selected tab the weight and colour DESIGN.md states", () => {
+      render(<PageTabs items={BUTTON_ITEMS} current="watch" label="Views" />);
+      const selected = screen.getByRole("tab", { name: "Watch" });
+      expect(selected.classList.contains("font-semibold")).toBe(true);
+      expect(selected.classList.contains("text-text-primary")).toBe(true);
+    });
+
+    it("marks the current button tab as the current page too", () => {
+      render(<PageTabs items={BUTTON_ITEMS} current="manage" label="Views" />);
+      expect(
+        screen.getByRole("tab", { name: "Manage" }).getAttribute("aria-current"),
+      ).toBe("page");
+      expect(
+        screen.getByRole("tab", { name: "Watch" }).getAttribute("aria-current"),
+      ).toBeNull();
+    });
+
+    // `aria-selected` belongs to a tab. On a link it is invalid ARIA, and it
+    // is the half of "a row that navigates is not a tablist" that the role
+    // assertions do not reach — adding it changes no role, so nothing else
+    // here would notice.
+    it("puts no aria-selected on a navigating tab", () => {
+      render(<PageTabs items={LINK_ITEMS} current="ask" label="Modes" />);
+      for (const link of screen.getAllByRole("link")) {
+        expect(link.getAttribute("aria-selected")).toBeNull();
+      }
+    });
+
     it("gives the unselected tab a transparent border, so nothing shifts", () => {
       render(<PageTabs items={BUTTON_ITEMS} current="watch" label="Views" />);
       const unselected = screen.getByRole("tab", { name: "Manage" });
@@ -129,12 +160,26 @@ describe("PageTabs", () => {
     ).not.toBeNull();
   });
 
-  it("clears the 44px floor on a coarse pointer", () => {
-    render(<PageTabs items={BUTTON_ITEMS} current="watch" label="Views" />);
-    expect(
-      screen.getByRole("tab", { name: "Watch" }).classList.contains(
-        "pointer-coarse:min-h-11",
-      ),
-    ).toBe(true);
+  describe("the 44px floor", () => {
+    it("is cleared on a coarse pointer", () => {
+      render(<PageTabs items={BUTTON_ITEMS} current="watch" label="Views" />);
+      expect(
+        screen.getByRole("tab", { name: "Watch" }).classList.contains(
+          "pointer-coarse:min-h-11",
+        ),
+      ).toBe(true);
+    });
+
+    // DESIGN.md §Row Actions: the floor is stated under the mobile sizing
+    // rules, so it governs touch and says nothing against a denser row on a
+    // fine pointer. An ungated `min-h-11` would satisfy the coarse assertion
+    // above while quietly imposing the height everywhere.
+    it("is not imposed on a fine pointer", () => {
+      render(<PageTabs items={BUTTON_ITEMS} current="watch" label="Views" />);
+      const ungated = [...screen.getByRole("tab", { name: "Watch" }).classList].filter(
+        (c) => /^min-h-/.test(c),
+      );
+      expect(ungated).toEqual([]);
+    });
   });
 });

@@ -64,6 +64,26 @@ describe("Button", () => {
       expect(unguarded).toEqual([]);
     });
 
+    // "Closes over every variant" was asserted across the five variants and
+    // only ever with a labelled button, so the claim held along one axis and
+    // was untested along the other. Removing the treatment from icon-only
+    // buttons alone left the suite green — and icon-only is exactly where a
+    // future "square buttons need their own class list" edit would land.
+    it.each(VARIANTS)("keeps the disabled treatment on icon-only too (%s)", (variant) => {
+      render(
+        <Button variant={variant} iconOnly aria-label="Delete Q1 notes" disabled>
+          <Trash2 size={18} />
+        </Button>,
+      );
+      const button = screen.getByRole("button", { name: "Delete Q1 notes" });
+      expect(button.classList.contains("disabled:bg-sand")).toBe(true);
+      expect(button.classList.contains("disabled:text-warm-silver")).toBe(true);
+      expect(button.classList.contains("disabled:cursor-not-allowed")).toBe(true);
+      expect(
+        [...button.classList].filter((c) => /^disabled:opacity-/.test(c)),
+      ).toEqual([]);
+    });
+
     it("is actually disabled, not merely styled as such", () => {
       const onClick = vi.fn();
       render(

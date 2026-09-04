@@ -6,7 +6,29 @@ import type { ReactNode } from "react";
 import { useTranslations } from "next-intl";
 import { Button } from "./Button";
 
-type EmptyVariant = "no-files" | "no-results" | "needs-scan" | "no-favorites" | "no-liked" | "no-recent" | "no-recent-profile" | "no-recent-added" | "no-tag-matches" | "no-trash";
+/**
+ * Exported so a test can draw every one of them.
+ *
+ * A union type cannot be enumerated at runtime, which is why three of these
+ * were covered and seven were not — and why a key renamed here but not in the
+ * catalogue reached `develop` with the suite green. The array is the single
+ * source: `EmptyVariant` is derived from it, so a variant cannot be added to
+ * one and missed by the other.
+ */
+export const EMPTY_VARIANTS = [
+  "no-files",
+  "no-results",
+  "needs-scan",
+  "no-favorites",
+  "no-liked",
+  "no-recent",
+  "no-recent-profile",
+  "no-recent-added",
+  "no-tag-matches",
+  "no-trash",
+] as const;
+
+export type EmptyVariant = (typeof EMPTY_VARIANTS)[number];
 
 const variantConfig: Record<
   EmptyVariant,
@@ -44,8 +66,8 @@ const variantConfig: Record<
   },
   "no-recent-profile": {
     icon: Clock,
-    titleKey: "noRecentProfileTitle",
-    descriptionKey: "noRecentProfileDescription",
+    titleKey: "noRecentNoProfileTitle",
+    descriptionKey: "noRecentNoProfileDescription",
   },
   "no-recent-added": {
     icon: FilePlus,
@@ -134,6 +156,11 @@ export function EmptyState(props: EmptyStateProps) {
 
   return (
     <div className="flex flex-col items-center justify-center py-16 text-center">
+      {/* Explicit, unlike `PageTabs`, and for the same reason as `PageHeader`:
+          the icon sits outside the `<h2>`, so no accessible-name assertion can
+          reach it and `aria-hidden` is the only thing that governs whether it
+          is announced. `PageTabs` can leave this to lucide-react because its
+          icon is inside the link, where the link's name is the real check. */}
       <Icon size={48} className="mb-4 text-text-muted" aria-hidden="true" />
       <h2 className="text-lg font-semibold text-text-primary">{title}</h2>
       {description !== undefined && description !== null && (

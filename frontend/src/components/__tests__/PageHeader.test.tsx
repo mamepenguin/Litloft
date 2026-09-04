@@ -149,11 +149,28 @@ describe("PageHeader", () => {
       expect(container.querySelector("svg")).not.toBeNull();
     });
 
-    // Asserting `aria-hidden` here measured lucide-react, not this component:
-    // lucide adds that attribute itself whenever no a11y prop is passed, so
-    // the assertion held with the component's own copy deleted. The heading's
-    // accessible name is the requirement, and it fails whichever layer stops
-    // hiding the icon.
+    // Two wrong versions of this test preceded it, and the second is the more
+    // instructive. First it asserted `aria-hidden`, which measured
+    // lucide-react: the attribute is supplied by the library, so the assertion
+    // held with this component's own copy deleted. It was then "fixed" to
+    // assert the heading's accessible name — which here is vacuous in a
+    // stronger way, because the icon is a *sibling* of the `<h1>` and can
+    // never enter its name at all. Giving the icon an `aria-label` left all
+    // nineteen tests green. In `PageTabs` the same replacement is sound, since
+    // there the icon really is inside the link; the reasoning was copied
+    // across a difference in DOM shape without rechecking it.
+    //
+    // What actually governs whether this icon is announced is `aria-hidden`,
+    // so that is what is asserted — knowing it also pins lucide's default.
+    // That is a real regression guard on a behaviour the design depends on,
+    // and it is labelled as such rather than dressed up as a test of this file.
+    it("hides the icon from assistive technology", () => {
+      const { container } = render(<PageHeader titleIcon={Trash2} title="Trash" />);
+      const svg = container.querySelector("svg");
+      expect(svg?.getAttribute("aria-hidden")).toBe("true");
+      expect(svg?.getAttribute("aria-label")).toBeNull();
+    });
+
     it("leaves the heading named by its text alone", () => {
       render(<PageHeader titleIcon={Trash2} title="Trash" />);
       expect(

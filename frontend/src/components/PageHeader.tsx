@@ -106,11 +106,20 @@ export function PageHeader({
           {/* The tree toggle stays leftmost. With no trail above, this row is
               the first one. */}
           {!hasTrailRow && leading}
-          {/* No `aria-hidden`: lucide-react adds it unless an a11y prop is
-              passed. Writing it here would be a duplicate that only a test of
-              the dependency's default could confirm. */}
+          {/* The icon is a sibling of the heading, not a child of it, so it
+              cannot reach the `<h1>`'s accessible name — and a test written
+              against that name says nothing about whether the icon is
+              announced. `aria-hidden` is what actually governs that here, so
+              it is written explicitly and asserted directly, even though
+              lucide-react would supply the same attribute on its own. Pinning
+              a dependency's default is a legitimate thing to do when the
+              design rests on it; pretending to test our own code is not. */}
           {TitleIcon && (
-            <TitleIcon size={20} className="mt-1 flex-shrink-0 text-text-muted" />
+            <TitleIcon
+              size={20}
+              aria-hidden="true"
+              className="mt-1 flex-shrink-0 text-text-muted"
+            />
           )}
           <div className="min-w-0 flex-1">
             <h1 className="truncate text-2xl font-bold text-text-primary">
