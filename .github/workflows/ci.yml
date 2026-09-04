@@ -1,0 +1,256 @@
+# One rule governs every step in this file: the step's exit code is the verdict.
+#
+# No test command is piped into `tee`, a formatter, or a summariser; no step
+# carries `continue-on-error`; no run of vitest passes `--reporter=json`.
+# That is not house style, it is the whole point of the file. Vitest reports an
+# unhandled rejection as `Errors 1 error` while printing every test as passed,
+# and exits 1 — and its JSON reporter does not carry those errors at all. Four
+# PRs merged through that gap because the pass count was read and the exit code
+# was not. Anything that turns a command's exit status into text puts the gap
+# back.
+#
+# The corollary for whoever edits this next: if you need to see more output,
+# make the command itself louder. Do not wrap it.
+
+name: CI
+
+on:
+  push:
+    branches: [develop, main]
+  pull_request:
+  workflow_dispatch:
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+# Nothing here writes to the repository; the cross-repository checkouts read
+# public repositories only.
+permissions:
+  contents: read
+
+jobs:
+  frontend:
+    name: frontend (vitest / tsc / eslint)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          # The pinned addon commits, not their branch tips, so the job tests
+          # the pairing a fresh clone would get.
+          #
+          # Be precise about what that catches. design-tokens.test.ts and
+          # i18n-keys.test.ts walk addons/*/frontend directly, so pinned addon
+          # code that uses a token core has removed, or ships a namespace that
+          # displaces one of core's, fails here; so does a submodule that did
+          # not check out at all (i18n-keys asserts it found catalogues). A
+          # pointer that is merely behind, on a tree still consistent with
+          # core, passes all of them. Bumping the pointer is checked here only
+          # to the extent that the old code actually conflicts.
+          submodules: recursive
+
+      - uses: pnpm/action-setup@v4
+        with:
+          package_json_file: frontend/package.json
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: pnpm
+          cache-dependency-path: frontend/pnpm-lock.yaml
+
+      # frontend/src/addons/* are symlinks into addons/*/frontend, and they are
+      # gitignored. Without them vitest collects no addon test at all and the
+      # suite is green for the wrong reason.
+      - name: Link addons into backend/ and frontend/
+        run: ./setup-addons.sh
+
+      - name: Install frontend dependencies
+        run: pnpm install --frozen-lockfile
+        working-directory: frontend
+
+      # Generates the gitignored frontend/src/messages/ from messages-core/
+      # plus every addon's own catalogue.
+      - name: Merge addon translations
+        run: node scripts/merge-addon-messages.mjs
+        working-directory: frontend
+
+      # The one way this job can be green and worthless: a submodule that did
+      # not check out, or a symlink that did not get made, costs nothing at
+      # collection time — vitest simply finds fewer files and reports every one
+      # of them passing. Ask the collector what it found instead of assuming.
+      #
+      # Walk addons/*/ rather than addons/*/frontend, because an uninitialised
+      # submodule leaves an empty directory that the narrower glob would step
+      # straight over — skipping the very case this step exists to catch.
+      - name: Fail if any addon's tests were not collected
+        shell: bash
+        working-directory: frontend
+        run: |
+          set -euo pipefail
+          shopt -s nullglob
+          addons=(../addons/*/)
+          if [ ${#addons[@]} -eq 0 ]; then
+            echo "::error::no addons are checked out at all"
+            exit 1
+          fi
+          collected="$(pnpm exec vitest list --filesOnly)"
+          status=0
+          for dir in "${addons[@]}"; do
+            name="$(basename "$dir")"
+            if [ -z "$(ls -A "$dir")" ]; then
+              echo "::error::addons/$name is empty — its submodule did not check out"
+              status=1
+              continue
+            fi
+            # An addon need not ship a frontend, or any frontend test.
+            [ -d "$dir/frontend" ] || continue
+            # Match what vitest's default include picks up, .spec included —
+            # an addon testing only in .spec files would otherwise read as
+            # having no tests and be skipped.
+            if [ -z "$(find "$dir/frontend" \( -name '*.test.*' -o -name '*.spec.*' \) -print -quit)" ]; then
+              continue
+            fi
+            if ! printf '%s\n' "$collected" | grep -q "^src/addons/$name/"; then
+              echo "::error::vitest collected no tests from addons/$name (setup-addons.sh made no symlink)"
+              status=1
+            fi
+          done
+          exit $status
+
+      # Runs core's suite and, through the symlinks above, every addon's
+      # frontend tests. A fresh checkout needs nothing else: no drives.json,
+      # passwords.json, .env, or docker-compose.override.yml.
+      - name: Test
+        run: pnpm test
+        working-directory: frontend
+
+      # tsc follows the addon symlinks, so this type-checks addon sources too.
+      - name: Type-check
+        run: pnpm exec tsc --noEmit
+        working-directory: frontend
+
+      # Two limits worth knowing, since neither is visible from the green tick.
+      # eslint does not follow the addon symlinks, so this covers core only —
+      # tsc is what guards addon sources. And the config downgrades several
+      # rules (including no-explicit-any) to warnings, which do not reach the
+      # exit code: only errors fail this step. Raising that is a separate
+      # decision about roughly a hundred existing warnings, not a CI change.
+      - name: Lint
+        run: pnpm lint
+        working-directory: frontend
+
+  mcp-server:
+    name: mcp-server (vitest / tsc)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+        with:
+          package_json_file: mcp-server/package.json
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: pnpm
+          cache-dependency-path: mcp-server/pnpm-lock.yaml
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+        working-directory: mcp-server
+
+      - name: Test
+        run: pnpm test
+        working-directory: mcp-server
+
+      - name: Type-check
+        run: pnpm exec tsc -p tsconfig.json --noEmit
+        working-directory: mcp-server
+
+  backend:
+    name: backend (pytest in the test image)
+    runs-on: ubuntu-latest
+    steps:
+      # No submodules: backend/Dockerfile.test copies backend/ and the repo-root
+      # bootstrap files, and nothing under addons/.
+      - uses: actions/checkout@v4
+
+      # Context is the repository root so the image can reach configure.py and
+      # the compose files, which sit above backend/.
+      - name: Build the test image
+        run: docker build -f backend/Dockerfile.test -t litloft-test .
+
+      - name: Test
+        run: docker run --rm litloft-test
+
+  bootstrap:
+    name: bootstrap (configure.py)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      # configure.py is stdlib-only and is deliberately not in the backend test
+      # image, so these run on a bare interpreter. The tests build their own
+      # addon trees in tmp_path, so no submodule checkout is needed.
+      - name: Install pytest
+        run: pip install pytest
+
+      - name: Test
+        run: python -m pytest tests/test_configure.py -v
+
+  addon-backends:
+    # Only the addons that compile against core. cloud-sync and media_import run
+    # in the core process and their test images COPY backend/app/, so a core
+    # change can break them and core has to find out. intelligence and knowledge
+    # ship their own `app` package in their own container and import nothing
+    # from here; their repositories test them. The split follows the direction
+    # of the dependency, not a blanket "addon tests belong to the addon" rule.
+    name: addon backend (${{ matrix.addon }})
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        addon: [cloud-sync, media_import]
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: recursive
+
+      # Context is the repository root: the addon and the core `app` package it
+      # imports have to land in one tree.
+      - name: Build the test image
+        run: docker build -f addons/${{ matrix.addon }}/Dockerfile.test -t addon-test .
+
+      - name: Test
+        run: docker run --rm addon-test
+
+  images:
+    # The production images, which no test builds.
+    #
+    # For the frontend that is `next build`, covered by neither vitest nor tsc,
+    # and impossible to run against the frontend/src/addons symlinks — Turbopack
+    # fails to resolve the dynamic `@/addons/<name>/Page` import through them.
+    # frontend/Dockerfile deletes the symlinks and copies the addon trees in
+    # first, so building the image is the only honest rehearsal.
+    #
+    # The backend earns a build by the same argument, even though its test image
+    # shares the requirements files: backend/Dockerfile has production-only
+    # steps of its own — the addon copy loop and the addons/__init__.py it
+    # creates — and nothing else would notice them breaking.
+    name: production images
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: recursive
+
+      - name: Build the frontend image
+        run: docker build -f frontend/Dockerfile -t litloft-frontend .
+
+      - name: Build the backend image
+        run: docker build -f backend/Dockerfile -t litloft-backend .

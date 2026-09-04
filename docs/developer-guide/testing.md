@@ -18,24 +18,53 @@ docker run --rm litloft-test
 
 ### Addon backends
 
-Each addon carries its own image, built from the repository root for the same
-reason — an in-process addon imports the core `app` package, so both have to
-land in one tree:
+Each addon carries its own image. The build context differs between them, and
+it follows the direction of the dependency.
+
+`cloud-sync` and `media_import` run **in the core process** and their images
+`COPY backend/app/`, so the addon and the core package it imports have to land
+in one tree. Context is the repository root:
 
 ```bash
 docker build -f addons/cloud-sync/Dockerfile.test -t cloud-sync-test .
 docker run --rm cloud-sync-test
+
+docker build -f addons/media_import/Dockerfile.test -t media-import-test .
+docker run --rm media-import-test
 ```
 
-`knowledge`, `intelligence` and `media_import` follow the same shape. Core's
-image does not pick these up, so a change to an addon backend needs its own
-image run.
+`intelligence` and `knowledge` are **independent services** with their own `app`
+package, and import nothing from core. Context is the addon directory:
+
+```bash
+docker build -f addons/intelligence/Dockerfile.test -t intelligence-test addons/intelligence
+docker run --rm intelligence-test
+
+docker build -f addons/knowledge/Dockerfile.test -t knowledge-test addons/knowledge
+docker run --rm knowledge-test
+```
+
+Core's image does not pick any of these up, so a change to an addon backend
+needs its own image run. The same asymmetry decides who tests what in CI: see
+[CI](#ci) below.
 
 Pass arguments through to `pytest`:
 
 ```bash
 docker run --rm litloft-test -k internal_api_contract -vv
 ```
+
+### The bootstrap script
+
+`configure.py` is stdlib-only and is deliberately **not** copied into the
+backend test image, so its tests run on a bare interpreter:
+
+```bash
+python3 -m pytest tests/test_configure.py
+```
+
+They build their own addon trees under `tmp_path`, so a checkout without
+submodules is enough.
 
 ### What to test
 
@@ -62,12 +91,63 @@ Library constraints:
 
 - **vitest 3.x** only — vitest 4 has a rolldown native-bindings issue.
 - **jsdom 25.x** only — jsdom 29 breaks ESM compatibility.
+- **Node 20** is what CI and `frontend/Dockerfile` run. `src/test/setup.ts`
+  replaces Web Storage with its own Map-backed shim, so the suite no longer
+  runs against a different storage object depending on the local Node version.
+  `src/test/__tests__/storage-shim.test.ts` guards two properties of that shim,
+  and both were learned the hard way:
+
+  - **It is installed unconditionally.** It used to appear only where jsdom
+    handed back an empty `{}`, which is version-dependent. jsdom's `Storage` is
+    a Proxy whose defineProperty trap treats any string key as a stored entry,
+    so `vi.spyOn(localStorage, "setItem")` against it writes a storage item
+    named `setItem`, leaves the real method in place, and records nothing.
+  - **It is a class, with `globalThis.Storage` pointing at it.** Do not
+    "simplify" it into an object literal. Tests that make storage throw patch
+    `Storage.prototype` — `nativePlayerUi`, `mediaLayout` and `listSnapshot` all
+    do — and a literal shares no prototype with anything, so those patches land
+    where the instance never looks and three error-path tests quietly stop
+    testing their error path.
+
+### Addon frontends run here too
+
+An addon's frontend has no runner of its own. Its components import core's
+(`@/components`, `@/hooks`, `@/lib`), and `frontend/src/addons/<name>` is a
+symlink into `addons/<name>/frontend`, so **core's vitest collects every addon
+test**. `setup-addons.sh` creates those symlinks and they are gitignored;
+without them the suite still passes, having silently collected nothing from any
+addon.
+
+What a fresh checkout needs before `pnpm test` is therefore:
+
+```bash
+./setup-addons.sh
+pnpm install --dir frontend --frozen-lockfile
+node frontend/scripts/merge-addon-messages.mjs
+```
+
+and nothing else — no `drives.json`, `passwords.json`, `.env`, or
+`docker-compose.override.yml`.
+
+`tsc --noEmit` follows the symlinks and type-checks addon sources; `eslint` does
+not follow them and covers core only.
 
 ### What to test
 
 - Components — render, interaction, accessibility (where reasonable).
 - Hooks (`useDebounce`, `useShortcuts`) — edge cases.
 - API helpers (`saveFileTags`, especially the MIME branching) — unit tests with `msw` for network.
+
+## MCP server tests
+
+`mcp-server/` is a separate package with its own lockfile:
+
+```bash
+cd mcp-server
+pnpm install --frozen-lockfile
+pnpm test
+pnpm exec tsc -p tsconfig.json --noEmit
+```
 
 ## End-to-end tests
 
@@ -90,12 +170,31 @@ Tests live under `frontend/e2e/`. Critical user flows:
 
 ### Artefacts
 
-Playwright produces screenshots, videos, and traces. CI uploads these on failure for diagnosis. Locally:
+Playwright produces screenshots, videos, and traces. Read them locally:
 
 ```bash
 pnpm test:e2e --reporter=html
 pnpm test:e2e:report
 ```
+
+### Why e2e is not in CI
+
+Deliberate, and worth restating before anyone "fixes" it:
+
+- `playwright.config.ts` declares no `webServer`. The suite expects a live stack
+  already answering on `localhost:3000`.
+- The specs read the real library through `/api/drives` and **skip themselves
+  when no drive answers** (`test.skip(() => !driveName)`). A CI run without
+  seeded drives would skip almost everything and report green — the exact
+  "passed, therefore fine" failure this CI exists to remove.
+- Several assertions are written against a Japanese UI (`browse.spec.ts` expects
+  `main h1` to contain `ドライブ`) while `defaultLocale` is `en`. The suite
+  assumes a developer's own environment, not a clean one.
+
+The e2e sources are not unguarded: `tsc --noEmit` and `eslint` both cover
+`frontend/e2e/`, so type and syntax rot is caught. Putting the suite in CI needs
+a compose profile that seeds a fixture drive first; that is its own piece of
+work, not a workflow edit.
 
 ## Coverage
 
@@ -190,14 +289,139 @@ wrong wait by raising it further.
 
 ## CI
 
-CI runs:
+GitHub Actions, one workflow per repository (`.github/workflows/ci.yml`), on
+every pull request and on pushes to the default branch.
 
-- Backend pytest in the test container.
-- Frontend `pnpm test`.
-- Playwright e2e against a freshly-built compose stack.
-- Linting (`ruff`, `eslint`) and type-checking (`mypy`, `tsc --noEmit`).
+### Core
 
-A failed lint or type check blocks merge. A failed flaky e2e test should be quarantined (skipped with a referenced issue) rather than retried.
+| Job | What it runs |
+|---|---|
+| `frontend` | `setup-addons.sh`, install, merge translations, the collection check below, then `pnpm test`, `tsc --noEmit`, `pnpm lint` |
+| `mcp-server` | `pnpm test`, `tsc --noEmit` |
+| `backend` | `backend/Dockerfile.test` built and run |
+| `bootstrap` | `pytest tests/test_configure.py` on a bare Python 3.12 |
+| `addon-backends` | `cloud-sync` and `media_import` test images built and run |
+| `images` | `frontend/Dockerfile` and `backend/Dockerfile` built |
+
+`frontend` checks out submodules recursively, so it tests the **pinned** addon
+commits — the pairing a fresh clone would get, not each addon's branch tip.
+
+Be precise about what that catches, because it is easy to overclaim.
+`design-tokens.test.ts` and `i18n-keys.test.ts` walk `addons/*/frontend`
+directly, so the job fails when pinned addon code uses a design token core has
+removed, or ships a message namespace that displaces one of core's. It also
+fails when a submodule did not check out at all: `i18n-keys.test.ts` asserts it
+found at least one addon catalogue, and an uninitialised submodule leaves an
+empty directory rather than no directory.
+
+What it does **not** catch is a pointer that is simply behind, on an addon tree
+that is still internally consistent with core. That passes. The submodule bump
+described in [CLAUDE.md](../../CLAUDE.md) is enforced here only to the extent
+that the older code actually conflicts; the rest of it is still a review
+responsibility.
+
+Before running the suite, the job asks `vitest list --filesOnly` what it
+actually collected, and fails naming any addon that contributed nothing. This is
+the step that makes the green tick mean something: a submodule that did not
+check out, or a symlink `setup-addons.sh` did not make, costs nothing at
+collection time — vitest simply finds fewer files and reports every remaining
+one as passing. It is the **first** line of defence for that, and
+`i18n-keys.test.ts`'s "found at least one addon catalogue" assertion is the
+second. Neither is redundant; do not remove one on the strength of the other.
+
+Each addon's own workflow runs the same check for itself.
+
+`images` builds what no test builds. For the frontend that is `next build`,
+covered by neither vitest nor tsc, and impossible to run against the
+`frontend/src/addons` symlinks: Turbopack fails to resolve the dynamic
+`@/addons/<name>/Page` import through them. `frontend/Dockerfile` deletes the
+symlinks and copies the addon trees in first, so building the image is the only
+honest rehearsal. The backend earns a build by the same argument — its
+production Dockerfile has steps the test image does not share, notably the addon
+copy loop and the `addons/__init__.py` it creates.
+
+### Addons
+
+Each addon repository has its own workflow with two jobs.
+
+Its **backend** job depends on which way the addon points. `intelligence` and
+`knowledge` are independent services and build their own image from their own
+checkout. `cloud-sync` and `media_import` compile against core's `app` package,
+so their images need a core tree; those two are *also* run by core's own CI,
+because a core change is what breaks them.
+
+Its **frontend** job checks out core `develop` with submodules, replaces
+`addons/<name>` with the commit under test, checks that `vitest list` collected
+that addon, and runs core's whole suite. That is not redundancy: an addon's
+frontend tests only exist inside core's runner, and running them this way is
+what verifies the addon against the core it is about to be pinned into. The
+collection check is what stops a tree that failed to land from producing a
+green run that tested none of it.
+
+**An addon's CI result is not reproducible, by design.** That job resolves
+`develop` to whatever its tip is at run time, not to a fixed SHA, so a pull
+request that changes nothing in the addon can turn red later because core moved
+underneath it. There is no way around it — an addon's frontend tests only run
+inside a core tree — and it is not a defect, but it will cost you an afternoon
+if you meet it without knowing. The symptom is a red job on a branch you have
+not touched, failing in a core file. Re-run it; if core has since merged the
+fix, that is all it needs. This has already happened once: the four addon pull
+requests that introduced these workflows were all red on a single core test
+until core's own fix merged.
+
+### The rule the workflows are built around
+
+**Read the exit code, never the pass count.** No step pipes a test command into
+`tee`, a formatter, or a summariser; no step sets `continue-on-error`; no vitest
+run passes `--reporter=json`. Vitest reports an unhandled rejection as
+`Errors 1 error` while printing every test as passed, and exits 1 — and its JSON
+reporter does not carry those errors at all. Four PRs merged through that gap.
+If you need more output from a failing job, make the command itself louder;
+do not wrap it.
+
+`ruff` and `mypy` are not run: the repository configures neither and installs
+neither.
+
+### Branch protection
+
+Core's `develop` carries **classic branch protection** (the
+`branches/*/protection` API, not a ruleset) listing core's seven job names as
+required status checks. The four addon repositories' `main` branches will carry
+the same shape, with their own two job names, once their workflows have been
+observed green; until then they are unprotected.
+
+What is deliberately *not* set:
+
+- **No required reviewers.** A single-developer repository with mandatory review
+  cannot merge its own pull requests.
+- **`enforce_admins` is false**, so an administrator can still force a merge
+  that is genuinely stuck.
+- **`strict` is false**, so a branch does not have to be rebased onto the tip
+  before merging.
+
+**A required check is matched by the job's `name:` string, literally.** Rename a
+job and the old name stays required forever: it can never be reported again, so
+every pull request sits on "Expected — Waiting for status to be reported" while
+the renamed job, no longer on the list, is free to fail without blocking
+anything. The protection is then simultaneously stricter and emptier than it
+looks. Renaming a job is therefore a two-part edit — the workflow and the
+protection, together. This has already been got wrong once, when
+`frontend image (next build)` became `production images`.
+
+Read the current setting, or take it off:
+
+```bash
+gh api repos/mamepenguin/Litloft/branches/develop/protection
+gh api -X DELETE repos/mamepenguin/Litloft/branches/develop/protection
+```
+
+Substitute a repository and `main` for an addon, once it has been protected.
+Note that GitHub offers two independent mechanisms and the API above only sees
+one of them: core also has a
+**ruleset** on `refs/heads/main` (deletion and non-fast-forward, unrelated to
+CI), and anything added later through the web UI defaults to a ruleset too.
+Those live at `gh api repos/mamepenguin/Litloft/rulesets`, and the delete above
+will not touch them.
 
 ## See also
 

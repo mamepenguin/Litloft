@@ -170,7 +170,14 @@ Most state is server-fetched. Client state is small: theme, autoplay, view mode 
 1. The merge script (combine `messages-core` + addon messages → `messages/`).
 2. `next build`.
 
-The Dockerfile chains both. CI mirrors the same.
+The Dockerfile chains both, and CI's `images` job builds it on every pull
+request, so the production build is exercised rather than assumed. (That job
+builds `backend/Dockerfile` too.)
+
+`pnpm build` on a development checkout does **not** work, and is not expected
+to: Turbopack cannot resolve the dynamic `@/addons/<name>/Page` import through
+the `src/addons` symlinks. The Dockerfile deletes those symlinks and copies the
+addon trees in before building.
 
 ## Common pitfalls
 
