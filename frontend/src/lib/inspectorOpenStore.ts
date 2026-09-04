@@ -44,11 +44,10 @@ export function inspectorOpenStorageKey(drive: string): string {
  * when the drive has no stored choice, and any choice the reader makes
  * outranks it.
  *
- * It was 1280 until 2026-09. That left a band where the redesign's
- * default — the transcript and chapters as inspector tabs — had nowhere
- * to be: a video opened between 1120 and 1279 had both panels mounted
- * behind an inspector that started closed, with nothing on screen and
- * nothing pressed.
+ * **Do not raise it.** A media file's transcript and chapters are
+ * inspector tabs by default, so every pixel this sits above 1120 is a
+ * band where a video opens with both of them mounted behind a closed
+ * pane — nothing on screen, and nothing pressed to put it there.
  */
 const VIEWPORT_OPEN_THRESHOLD = 1120;
 
