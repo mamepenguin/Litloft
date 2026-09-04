@@ -182,7 +182,7 @@ addon trees in before building.
 ## Common pitfalls
 
 - **Missing translation keys** — usually because addon translations were not merged. Ensure the merge script ran before `next build`.
-- **Hydration mismatch** — `useEffect`-driven theme attribute vs SSR. Use `next/script beforeInteractive` to set `data-theme` before React hydrates, or accept the brief flash for non-critical UI.
+- **Hydration mismatch** — `useEffect`-driven attribute vs SSR. Anything the CSS acts on from an attribute on `<html>` has to be set before first paint, or it paints the other value for a frame and then shifts. `lib/preferenceInitScript.ts` is where those go: one inline `<script>` in `<head>`, injected by `app/layout.tsx`, currently setting `data-theme` and `data-media-layout` (see `DESIGN.md` §8 for the two things about it that are load-bearing). Reading a preference anywhere else goes through `lib/safeStorage.ts` — an unguarded `localStorage` read throws where site data is blocked, and inside a provider that reaches the error boundary.
 - **Redirect loops on `/setup`** — `setup_completed` sentinel and the gate component must agree. If you change the sentinel logic, update both.
 - **WebSocket reconnect storms** — back off exponentially. Log once per minute, not per attempt.
 

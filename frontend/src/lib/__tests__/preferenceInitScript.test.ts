@@ -52,6 +52,12 @@ beforeEach(() => {
 
 afterEach(() => {
   vi.unstubAllGlobals();
+  // In `afterEach`, not at the end of the test that writes them: a
+  // failure mid-body would otherwise leak both preferences into the two
+  // tests below and turn one failure into three, with the cause buried.
+  // The CI job shuffles tests within a file, so this ordering is
+  // load-bearing.
+  window.localStorage.clear();
   document.documentElement.removeAttribute("data-theme");
   document.documentElement.removeAttribute("data-media-layout");
 });
@@ -67,7 +73,6 @@ describe("the pre-paint preference script", () => {
     expect(document.documentElement.getAttribute("data-media-layout")).toBe(
       "stacked",
     );
-    window.localStorage.clear();
   });
 
   it("writes the defaults when nothing has been stored", () => {
@@ -107,6 +112,20 @@ describe("the pre-paint preference script", () => {
     expect(document.documentElement.getAttribute("data-theme")).toBe("dark");
   });
 
+  it("writes the layout even when matchMedia is missing", () => {
+    // The layout attribute is the one whose CSS fallback disagrees with
+    // its JS default, so it must not sit behind anything that can throw.
+    // `matchMedia` is not storage and so is not inside the `try`; the
+    // ordering is what protects the attribute, and this is what pins it.
+    vi.stubGlobal("matchMedia", undefined);
+
+    expect(() => runInitScript()).not.toThrow();
+    expect(document.documentElement.getAttribute("data-media-layout")).toBe(
+      "beside",
+    );
+    expect(document.documentElement.getAttribute("data-theme")).toBe("light");
+  });
+
   it("defaults to the same layout the module does", async () => {
     // The two defaults live in different languages — a string of ES5
     // here, TypeScript in `mediaLayout.ts` — so nothing but a test can
@@ -122,7 +141,6 @@ describe("the pre-paint preference script", () => {
     // under comparison.
     const { readMediaLayout } = await import("../mediaLayout");
     document.documentElement.removeAttribute("data-media-layout");
-    window.localStorage.clear();
     const moduleDefault = readMediaLayout();
 
     runInitScript();

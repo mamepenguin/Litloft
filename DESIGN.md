@@ -235,9 +235,11 @@ from recurring.
 | `--highlight-bg` | `rgba(244,198,116,0.55)` | Mark highlight — opacity lifted from 0.22 so it reads against the dark canvas |
 | `--kbd-shadow` | `inset 0 -1px 0 rgba(255,255,255,0.2)` | `<kbd>` bottom bevel |
 
-#### System mode (`[data-theme="system"]`)
+#### System preference
 
-Applies light or dark values via `@media (prefers-color-scheme: light/dark)`.
+There is no `[data-theme="system"]`. A stored `'system'` is resolved to
+`light` or `dark` by the pre-paint script (§8), and only those two values are
+ever written to the attribute.
 
 ### 2.2 Color Usage Rules
 
@@ -771,13 +773,40 @@ All animations are disabled via `@media (prefers-reduced-motion: reduce)`.
 
 ---
 
-## 8. Theme Switching
+## 8. Display preferences applied before first paint
 
-An inline script in `<head>` reads `localStorage('theme-preference')` and sets `data-theme` on `<html>` before first paint to prevent flash of unstyled content.
+One inline script in `<head>` — `lib/preferenceInitScript.ts` — reads two
+preferences from `localStorage` and stamps both onto `<html>`, so neither
+flashes the other value for a frame. Both are acted on entirely in CSS from
+those attributes.
+
+**`data-theme`**, from `theme-preference`:
 
 - `'light'` → applies `[data-theme="light"]` rules
 - `'dark'` → applies `[data-theme="dark"]` rules
-- `'system'` → defers to `@media (prefers-color-scheme: *)` rules
+- `'system'`, or nothing stored → **resolved by the script** to `light` or
+  `dark` from `prefers-color-scheme`. The attribute is never written as
+  `system`; there are no `[data-theme="system"]` rules and nothing would
+  match them.
+
+**`data-media-layout`**, from `media-layout-preference` — see §8.5.
+
+Two things about this script are load-bearing and easy to undo:
+
+- **Only the storage reads are inside its `try`.** A browser with site data
+  blocked throws from `getItem` itself, and an unguarded throw skips both
+  `setAttribute` calls. Wrapping the whole body instead would also stop the
+  crash and would silently discard `prefers-color-scheme`.
+- **`data-media-layout` is written first**, ahead of anything else that can
+  throw, because it is the attribute whose CSS fallback does *not* match its
+  JS default: absent, the page renders the stacked form while
+  `useMediaLayoutPreference` reports beside, and the layout toggle then
+  appears to do nothing until pressed twice.
+
+Its default is `DEFAULT_MEDIA_LAYOUT`, exported from the same module and
+imported by `lib/mediaLayout.ts`, so the two cannot drift. Anything else
+reading a preference should go through `lib/safeStorage.ts` for the same
+reason the script has its `try`.
 
 ---
 

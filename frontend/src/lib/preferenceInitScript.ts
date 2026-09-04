@@ -24,6 +24,22 @@
  * to the reads keeps the attributes being written whatever storage
  * does, and leaves `prefers-color-scheme` still deciding the theme.
  */
+/**
+ * The media layout a reader gets before they have chosen one.
+ *
+ * Lives here, in the module with no `"use client"`, because both the
+ * server-injected script below and the client hook in `mediaLayout.ts`
+ * need it and the dependency can only point this way. Four separate
+ * literals used to encode it — this string, `normalise`, that module's
+ * SSR guard and its hook's initial state — and only two of the four were
+ * pinned by any test. One constant makes the drift unrepresentable
+ * instead of merely detectable.
+ */
+export const DEFAULT_MEDIA_LAYOUT = "beside";
+
+/** The only other value; anything else normalises to the default. */
+export const NON_DEFAULT_MEDIA_LAYOUT = "stacked";
+
 export const PREFERENCE_INIT_SCRIPT = `
 (function(){
   var theme = 'system';
@@ -36,16 +52,23 @@ export const PREFERENCE_INIT_SCRIPT = `
     // which is exactly what a first-time visitor gets.
   }
 
+  // Written first, and from the one constant both sides share. This is
+  // the attribute whose CSS fallback does NOT match its JS default, so
+  // it is the one that must not be skipped by anything throwing later.
+  document.documentElement.setAttribute(
+    'data-media-layout',
+    layout === '${NON_DEFAULT_MEDIA_LAYOUT}'
+      ? '${NON_DEFAULT_MEDIA_LAYOUT}'
+      : '${DEFAULT_MEDIA_LAYOUT}'
+  );
+
+  // \`matchMedia\` is not inside the try above — it is not storage — so
+  // guard the call rather than assume it. A theme that falls back to
+  // light is a much smaller loss than an attribute never written.
+  var mq = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)');
   var resolved = theme === 'light' || theme === 'dark'
     ? theme
-    : (window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light');
+    : (mq && mq.matches ? 'dark' : 'light');
   document.documentElement.setAttribute('data-theme', resolved);
-
-  // Must agree with \`normalise\` in lib/mediaLayout.ts, or the two
-  // disagree for exactly one frame — the flash this script exists to
-  // prevent.
-  document.documentElement.setAttribute(
-    'data-media-layout', layout === 'stacked' ? 'stacked' : 'beside'
-  );
 })();
 `;
