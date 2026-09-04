@@ -925,17 +925,19 @@ Widening the rail from 320px to 384px moved the threshold from 56rem to
 | Threshold | Question | Measured against |
 |---|---|---|
 | `60rem` = 960px | Can a rail sit beside the player? | The host's **measured width**. Gates the grid's second column, so it applies on the collection route only — on the shell the companion is a tab, and a tab fits at any width. |
-| `VIEWPORT_OPEN_THRESHOLD` (`lib/inspectorOpenStore.ts`) | Does the inspector *start* open? | The **viewport**. Not a layout branch: it is how the default is derived when the reader has no stored choice, and any choice they make outranks it. §8.5's "measure the container" rule is about layout branches, so it does not apply. |
+| `1120px` (`VIEWPORT_OPEN_THRESHOLD`) | Does the inspector *start* open? | The **viewport**. Not a layout branch: it is how the default is derived when the reader has no stored choice, and any choice they make outranks it. §8.5's "measure the container" rule is about layout branches, so it does not apply. |
 | 768px | Is the inspector a pane or a Bottom Sheet? | The **viewport**. |
 
-The first two sound like the same question and are not: 960 is "can they
-be side by side", the open threshold is "should they be, by default".
-The band between them — where they fit but start closed — is a real
-state, and merging them would make it unsayable. Which is also why the
-open threshold is named here rather than written out: it is the one of
-the three that is a default rather than a fact about the layout, and
-copying its value into this table is how the two would come to be read
-as one number.
+960 and 1120 sound like the same question and are not: 960 is "can they
+be side by side", 1120 is "should they be, by default". The band
+between them — where they fit but start closed — is a real state, and
+merging them would make it unsayable.
+
+1120 was 1280 until 2026-09, which left a band of its own. The media
+layout's default puts the transcript and chapters in the inspector, so
+between 1120 and 1279 a video arrived with both mounted behind an
+inspector that started closed: nothing on screen, and nothing pressed
+to put it there.
 
 **The host holds the height, in both forms.** Which form is in use is a
 container-width question answered in CSS, while an occupant is handed
