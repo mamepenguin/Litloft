@@ -56,11 +56,26 @@ vi.mock("@/components/FileList", () => ({
 const mockGetDriveFiles = vi.fn();
 const mockScanDrive = vi.fn();
 const mockCreateFolder = vi.fn();
-vi.mock("@/lib/api", () => ({
-  getDriveFiles: (...args: unknown[]) => mockGetDriveFiles(...args),
-  scanDrive: (...args: unknown[]) => mockScanDrive(...args),
-  createFolder: (...args: unknown[]) => mockCreateFolder(...args),
-}));
+vi.mock("@/lib/api", () => {
+  // useDriveScan's catch arm reads this class. A mock without it turns
+  // any rejection there into an unhandled rejection that fails the whole
+  // run without failing a test.
+  class ApiStatusError extends Error {
+    constructor(
+      readonly status: number,
+      message: string,
+    ) {
+      super(message);
+      this.name = "ApiStatusError";
+    }
+  }
+  return {
+    ApiStatusError,
+    getDriveFiles: (...args: unknown[]) => mockGetDriveFiles(...args),
+    scanDrive: (...args: unknown[]) => mockScanDrive(...args),
+    createFolder: (...args: unknown[]) => mockCreateFolder(...args),
+  };
+});
 
 import { RootFileListing } from "../RootFileListing";
 
@@ -154,6 +169,13 @@ describe("RootFileListing right-pane filter (Phase 4)", () => {
 
     render(<RootFileListing driveName="main" />);
 
+    // The filter box is on screen before the listing is, and the two
+    // layouts do not share the input node: typing into the one the empty
+    // listing rendered lands on a node React has already replaced by the
+    // time the files arrive, and the filter reads empty.
+    await waitFor(() => {
+      expect(screen.getByTestId("file-grid")).toHaveTextContent("1 files");
+    });
     const input = await screen.findByPlaceholderText(
       /filter in this folder|filter\.placeholder\.folder|このフォルダで絞り込み/i,
     );
@@ -182,6 +204,9 @@ describe("RootFileListing right-pane filter (Phase 4)", () => {
 
     render(<RootFileListing driveName="main" />);
 
+    await waitFor(() => {
+      expect(screen.getByTestId("file-grid")).toHaveTextContent("2 files");
+    });
     const input = await screen.findByPlaceholderText(
       /filter in this folder|filter\.placeholder\.folder|このフォルダで絞り込み/i,
     );
@@ -237,7 +262,7 @@ describe("RootFileListing toolbar right group (FolderToolbar parity)", () => {
       data: [makeFile("1", "spec.md", "text/markdown", "document")],
       meta: { total: 1, page: 1, limit: 30 },
     });
-    mockScanDrive.mockResolvedValue(undefined);
+    mockScanDrive.mockResolvedValue({ added: 0, recovered: 0, missing: 0 });
 
     render(<RootFileListing driveName="main" />);
 

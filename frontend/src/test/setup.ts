@@ -1,6 +1,17 @@
 import "@testing-library/jest-dom/vitest";
+import { configure } from "@testing-library/react";
 import { vi } from "vitest";
 import enMessages from "../messages/en.json";
+
+// Testing Library's 1000 ms default is a wall-clock budget, and the speed
+// of the machine is not part of any test's contract: with a worker per
+// core and a few hundred files, a worker can go without a core for longer
+// than that, which turns a correct wait for a 300 ms debounce into a
+// failure. Raising the budget hides nothing — a wait on a condition that
+// is never satisfied still fails, only later. `testTimeout` in
+// vitest.config.ts stays above this so the reported failure is the useful
+// "unable to find" rather than a bare test timeout.
+configure({ asyncUtilTimeout: 3000 });
 
 // jsdom 25 + vitest 3 + vite 6 ships an empty `{}` for localStorage on
 // some platforms instead of a Storage instance. Replace it with a tiny

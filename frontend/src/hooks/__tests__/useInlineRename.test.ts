@@ -1,12 +1,20 @@
 import { act, renderHook } from "@testing-library/react";
+import { StrictMode } from "react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-import { useInlineRename } from "../useInlineRename";
+import { RENAME_FOCUS_ATTR, useInlineRename } from "../useInlineRename";
 
 function setup() {
   const onRenamed = vi.fn();
   const { result } = renderHook(() => useInlineRename(onRenamed));
   return { result, onRenamed };
+}
+
+function rowFor(path: string): HTMLButtonElement {
+  const row = document.createElement("button");
+  row.setAttribute(RENAME_FOCUS_ATTR, path);
+  document.body.appendChild(row);
+  return row;
 }
 
 beforeEach(() => {
@@ -102,6 +110,88 @@ describe("useInlineRename", () => {
     act(() => result.current.cancel());
     expect(result.current.editingPath).toBeNull();
     expect(result.current.error).toBeNull();
+  });
+
+  it("hands focus back to the row the edit came from", () => {
+    const row = rowFor("a/b");
+    const { result } = setup();
+    act(() => result.current.start("a/b"));
+
+    act(() => result.current.cancel());
+
+    expect(document.activeElement).toBe(row);
+    row.remove();
+  });
+
+  it("keeps looking until the renamed row comes back", () => {
+    // A successful rename refreshes the list, so the row the edit began
+    // on is gone at the moment focus is handed back.
+    const { result } = setup();
+    act(() => result.current.start("a/b"));
+    act(() => result.current.cancel());
+    expect(document.activeElement).toBe(document.body);
+
+    const row = rowFor("a/b");
+    act(() => {
+      vi.advanceTimersByTime(200);
+    });
+
+    expect(document.activeElement).toBe(row);
+    row.remove();
+  });
+
+  it("still restores focus when effects are double-invoked", () => {
+    // StrictMode runs mount -> cleanup -> mount while keeping the refs,
+    // and `next dev` turns it on for the App Router. A liveness flag that
+    // is only ever cleared would leave this hook inert from the first
+    // render on, so every rename in development would drop focus to
+    // <body> — the one thing this hook exists to prevent.
+    const row = rowFor("a/b");
+    const { result } = renderHook(() => useInlineRename(vi.fn()), {
+      wrapper: StrictMode,
+    });
+    act(() => result.current.start("a/b"));
+
+    act(() => result.current.cancel());
+
+    expect(document.activeElement).toBe(row);
+    row.remove();
+  });
+
+  it("arms no error timer once it has been unmounted", () => {
+    const { result, unmount } = renderHook(() => useInlineRename(vi.fn()));
+    act(() => result.current.start("a/b"));
+    unmount();
+    const pending = vi.getTimerCount();
+
+    act(() => result.current.cancel("That name is already taken"));
+
+    expect(vi.getTimerCount()).toBe(pending);
+  });
+
+  it("stops chasing focus once it has been unmounted", () => {
+    // The unmount is itself a way to abandon an edit: tearing down a
+    // focused editor fires blur, and the `cancel` that follows lands
+    // after this hook's cleanup has already run. A poll armed then has
+    // no owner left to clear it, and the lookup is by attribute across
+    // the whole document — so it lands on whatever row has taken the
+    // path since, in a screen this hook was never part of.
+    const onRenamed = vi.fn();
+    const { result, unmount } = renderHook(() => useInlineRename(onRenamed));
+    act(() => result.current.start("Notes"));
+
+    unmount();
+    act(() => result.current.cancel());
+
+    const row = document.createElement("button");
+    row.setAttribute(RENAME_FOCUS_ATTR, "Notes");
+    document.body.appendChild(row);
+    act(() => {
+      vi.advanceTimersByTime(2000);
+    });
+
+    expect(document.activeElement).not.toBe(row);
+    row.remove();
   });
 
   it("clears a stale message when the next edit begins", () => {

@@ -29,7 +29,13 @@ function Wrapper({ children }: { children: ReactNode }) {
   );
 }
 
-function dispatchKey(key: string) {
+async function dispatchKey(key: string) {
+  // The handler reaches the document through the shortcut stack, and the
+  // state a test waits for lands a render before the context closing over
+  // it does: push -> setStack -> the provider's stackRef sync are two
+  // further rounds. Drain them first, or the key falls into the gap and
+  // finds no handler at all.
+  await act(async () => {});
   act(() => {
     document.dispatchEvent(
       new KeyboardEvent("keydown", { key, bubbles: true }),
@@ -83,7 +89,7 @@ describe("useFileNav", () => {
       { wrapper: Wrapper },
     );
     await waitFor(() => expect(result.current.prevId).toBe("prev1"));
-    dispatchKey("ArrowLeft");
+    await dispatchKey("ArrowLeft");
     expect(onNavigate).toHaveBeenCalledWith("prev1");
   });
 
@@ -100,7 +106,7 @@ describe("useFileNav", () => {
       { wrapper: Wrapper },
     );
     await waitFor(() => expect(result.current.nextId).toBe("next1"));
-    dispatchKey("ArrowRight");
+    await dispatchKey("ArrowRight");
     expect(onNavigate).toHaveBeenCalledWith("next1");
   });
 
@@ -119,7 +125,7 @@ describe("useFileNav", () => {
     // enabled=false also gates the fetch — neighbors should not be requested.
     await Promise.resolve();
     expect(api.getFileNeighbors).not.toHaveBeenCalled();
-    dispatchKey("ArrowLeft");
+    await dispatchKey("ArrowLeft");
     expect(onNavigate).not.toHaveBeenCalled();
   });
 
@@ -136,7 +142,7 @@ describe("useFileNav", () => {
       { wrapper: Wrapper },
     );
     await waitFor(() => expect(result.current.prevId).toBe("prev1"));
-    dispatchKey("ArrowLeft");
+    await dispatchKey("ArrowLeft");
     expect(onNavigate).not.toHaveBeenCalled();
   });
 
@@ -153,7 +159,7 @@ describe("useFileNav", () => {
       { wrapper: Wrapper },
     );
     await waitFor(() => expect(result.current.nextId).toBe("next1"));
-    dispatchKey("ArrowRight");
+    await dispatchKey("ArrowRight");
     expect(onNavigate).not.toHaveBeenCalled();
   });
 
@@ -171,7 +177,7 @@ describe("useFileNav", () => {
       { wrapper: Wrapper },
     );
     await waitFor(() => expect(result.current.prevId).toBe("prev1"));
-    dispatchKey("ArrowLeft");
+    await dispatchKey("ArrowLeft");
     expect(onNavigate).not.toHaveBeenCalled();
   });
 
@@ -198,8 +204,8 @@ describe("useFileNav", () => {
     await waitFor(() =>
       expect(api.getFileNeighbors).toHaveBeenCalledTimes(1),
     );
-    dispatchKey("ArrowLeft");
-    dispatchKey("ArrowRight");
+    await dispatchKey("ArrowLeft");
+    await dispatchKey("ArrowRight");
     expect(onNavigate).not.toHaveBeenCalled();
   });
 

@@ -16,6 +16,9 @@ breaks the β canonical rule.
 """
 from __future__ import annotations
 
+import sys
+from typing import Any
+
 from app.services.frontmatter import parse, strip
 
 
@@ -98,14 +101,42 @@ def test_parse_deeply_nested_flow_does_not_raise() -> None:
     # a non-YAMLError (e.g. RecursionError). The PUT /content handler
     # relies on parse() never raising — the broad except at the
     # safe_load call keeps that contract.
+    #
+    # Two things make that contract testable rather than merely stated.
+    #
+    # The recursion budget is pinned to the depth this test starts from,
+    # so "safe_load overflows" is guaranteed by this test rather than
+    # inferred from the interpreter's default limit and PyYAML's frames
+    # per nesting level. Either can change — CPython altered its frame
+    # accounting in 3.12 — and the test would then pass without ever
+    # reaching the except. `depth` only has to be comfortably past the
+    # budget; its exact value carries no meaning.
+    #
+    # And the body is asserted whole: the except arm is the only one that
+    # returns the original `content` as the body, so this distinguishes
+    # it. Asserting `metadata` is a dict cannot fail — every arm of
+    # parse() returns one.
     depth = 500
     frontmatter = "[" * depth + "1" + "]" * depth
     content = f"---\nvalue: {frontmatter}\n---\n\nbody\n"
-    result = parse(content)
-    # Either YAML accepts it and metadata is a dict, or it's rejected
-    # and falls back to empty — both are safe. The critical assertion
-    # is that we didn't crash.
-    assert isinstance(result.metadata, dict)
+
+    here = 0
+    frame: Any = sys._getframe()
+    while frame is not None:
+        here += 1
+        frame = frame.f_back
+
+    previous = sys.getrecursionlimit()
+    sys.setrecursionlimit(here + 100)
+    try:
+        result = parse(content)
+    finally:
+        sys.setrecursionlimit(previous)
+
+    # Rejected and fallen back to empty — the payload cannot fit in the
+    # budget above. The critical assertion is that we didn't crash.
+    assert result.metadata == {}
+    assert result.body == content
 
 
 def test_strip_returns_body_only() -> None:

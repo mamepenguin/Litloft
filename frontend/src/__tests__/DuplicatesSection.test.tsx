@@ -55,6 +55,19 @@ const makeDuplicatesResponse = (groups: DuplicatesResponse["groups"]): Duplicate
   };
 };
 
+/**
+ * Wait for the drive list to reach the select, and hand it back.
+ *
+ * The combobox is rendered before the drives arrive, so waiting for the
+ * element itself is satisfied while the placeholder is its only option.
+ * Selecting "media" then sets a value the select does not have, the
+ * change is dropped, and no fetch is ever made.
+ */
+async function selectWithDrives(): Promise<HTMLElement> {
+  await screen.findByRole("option", { name: "media" });
+  return screen.getByRole("combobox");
+}
+
 describe("DuplicatesSection", () => {
   beforeEach(() => {
     vi.clearAllMocks();
@@ -66,11 +79,7 @@ describe("DuplicatesSection", () => {
   it("renders drive selector", async () => {
     render(<DuplicatesSection />);
 
-    await waitFor(() => {
-      expect(screen.getByRole("combobox")).toBeTruthy();
-    });
-
-    const select = screen.getByRole("combobox");
+    const select = await selectWithDrives();
     const options = select.querySelectorAll("option");
     expect(options.length).toBe(3); // placeholder + 2 drives
   });
@@ -85,11 +94,7 @@ describe("DuplicatesSection", () => {
 
     render(<DuplicatesSection />);
 
-    await waitFor(() => {
-      expect(screen.getByRole("combobox")).toBeTruthy();
-    });
-
-    fireEvent.change(screen.getByRole("combobox"), { target: { value: "media" } });
+    fireEvent.change(await selectWithDrives(), { target: { value: "media" } });
 
     await waitFor(() => {
       expect(screen.getByText("Duplicate Files")).toBeTruthy();
@@ -108,11 +113,7 @@ describe("DuplicatesSection", () => {
 
     render(<DuplicatesSection />);
 
-    await waitFor(() => {
-      expect(screen.getByRole("combobox")).toBeTruthy();
-    });
-
-    fireEvent.change(screen.getByRole("combobox"), { target: { value: "media" } });
+    fireEvent.change(await selectWithDrives(), { target: { value: "media" } });
 
     await waitFor(() => {
       expect(screen.getByText("No Duplicates")).toBeTruthy();
@@ -136,11 +137,7 @@ describe("DuplicatesSection", () => {
 
     render(<DuplicatesSection />);
 
-    await waitFor(() => {
-      expect(screen.getByRole("combobox")).toBeTruthy();
-    });
-
-    fireEvent.change(screen.getByRole("combobox"), { target: { value: "media" } });
+    fireEvent.change(await selectWithDrives(), { target: { value: "media" } });
 
     await waitFor(() => {
       expect(screen.getByText("1 groups")).toBeTruthy();
@@ -166,11 +163,7 @@ describe("DuplicatesSection", () => {
 
     render(<DuplicatesSection />);
 
-    await waitFor(() => {
-      expect(screen.getByRole("combobox")).toBeTruthy();
-    });
-
-    fireEvent.change(screen.getByRole("combobox"), { target: { value: "media" } });
+    fireEvent.change(await selectWithDrives(), { target: { value: "media" } });
 
     await waitFor(() => {
       expect(screen.getByText("photo.jpg")).toBeTruthy();
@@ -208,11 +201,7 @@ describe("DuplicatesSection", () => {
 
     render(<DuplicatesSection />);
 
-    await waitFor(() => {
-      expect(screen.getByRole("combobox")).toBeTruthy();
-    });
-
-    fireEvent.change(screen.getByRole("combobox"), { target: { value: "media" } });
+    fireEvent.change(await selectWithDrives(), { target: { value: "media" } });
 
     await waitFor(() => {
       expect(screen.getByText("photo1.jpg")).toBeTruthy();
@@ -248,11 +237,7 @@ describe("DuplicatesSection", () => {
 
     render(<DuplicatesSection />);
 
-    await waitFor(() => {
-      expect(screen.getByRole("combobox")).toBeTruthy();
-    });
-
-    fireEvent.change(screen.getByRole("combobox"), { target: { value: "media" } });
+    fireEvent.change(await selectWithDrives(), { target: { value: "media" } });
 
     await waitFor(() => {
       expect(screen.getByText("photo.jpg")).toBeTruthy();
