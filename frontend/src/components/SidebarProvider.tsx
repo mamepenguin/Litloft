@@ -10,6 +10,8 @@ import {
   type ReactNode,
 } from "react";
 
+import { readStored, writeStored } from "@/lib/safeStorage";
+
 const STORAGE_KEY = "sidebar-open";
 export const SIDEBAR_INLINE_MIN_WIDTH = 1200;
 const NARROW_QUERY = `(max-width: ${SIDEBAR_INLINE_MIN_WIDTH - 1}px)`;
@@ -27,14 +29,12 @@ interface SidebarContextValue {
 const SidebarContext = createContext<SidebarContextValue | null>(null);
 
 function readStoredPreference(): boolean {
-  if (typeof window === "undefined") return true;
-  const stored = window.localStorage.getItem(STORAGE_KEY);
+  const stored = readStored(STORAGE_KEY);
   return stored !== null ? stored === "true" : true;
 }
 
 function writeStoredPreference(next: boolean): void {
-  if (typeof window === "undefined") return;
-  window.localStorage.setItem(STORAGE_KEY, String(next));
+  writeStored(STORAGE_KEY, String(next));
 }
 
 export function SidebarProvider({ children }: { children: ReactNode }) {

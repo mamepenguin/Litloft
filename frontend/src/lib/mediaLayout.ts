@@ -20,6 +20,11 @@
 
 import { useCallback, useEffect, useState } from "react";
 
+import {
+  DEFAULT_MEDIA_LAYOUT,
+  NON_DEFAULT_MEDIA_LAYOUT,
+} from "./preferenceInitScript";
+
 const STORAGE_KEY = "media-layout-preference";
 const ATTRIBUTE = "data-media-layout";
 
@@ -36,11 +41,13 @@ export type MediaLayout = "stacked" | "beside";
  * has chosen is moved.
  */
 function normalise(value: string | null | undefined): MediaLayout {
-  return value === "stacked" ? "stacked" : "beside";
+  return value === NON_DEFAULT_MEDIA_LAYOUT
+    ? NON_DEFAULT_MEDIA_LAYOUT
+    : DEFAULT_MEDIA_LAYOUT;
 }
 
 export function readMediaLayout(): MediaLayout {
-  if (typeof document === "undefined") return "beside";
+  if (typeof document === "undefined") return DEFAULT_MEDIA_LAYOUT;
   // Prefer the attribute: the init script already resolved it, and it
   // is what the CSS is actually acting on.
   const applied = document.documentElement.getAttribute(ATTRIBUTE);
@@ -48,7 +55,7 @@ export function readMediaLayout(): MediaLayout {
   try {
     return normalise(window.localStorage?.getItem?.(STORAGE_KEY));
   } catch {
-    return "beside";
+    return DEFAULT_MEDIA_LAYOUT;
   }
 }
 
@@ -59,7 +66,7 @@ export function useMediaLayoutPreference(): [
   // Starts at the default so the first client render matches the
   // server's. Only the button's icon depends on this, and the layout
   // does not, so settling a frame later is invisible.
-  const [layout, setLayout] = useState<MediaLayout>("beside");
+  const [layout, setLayout] = useState<MediaLayout>(DEFAULT_MEDIA_LAYOUT);
 
   useEffect(() => {
     const current = readMediaLayout();
