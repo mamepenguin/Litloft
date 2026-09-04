@@ -1,6 +1,22 @@
 # Viewers and players
 
-Litloft picks a viewer based on the file's MIME type. The same file detail page (`/files/<id>`) hosts every viewer; only the central component changes. Below the viewer you always get tags, comments and related files. Addon sections (transcripts, AI summaries, EXIF, similar files) appear once they have something in them: a section that has not been generated yet is not shown, and the way to generate it is the **AI** menu in the row beside the like and favourite buttons. Anything already generated keeps its own section, with its own regenerate control, and drops out of that menu.
+Litloft picks a viewer based on the file's MIME type. The same file detail page hosts every viewer; only the central component changes. Its address is `/drive/<drive>/<folder>?file=<id>` — `/files/<id>` still works and redirects there, except in collection playback, which stays on `/files/<id>` so the collection list and the player can share one column. Below the viewer you always get tags, comments and related files. Addon sections (transcripts, AI summaries, EXIF, similar files) appear once they have something in them: a section that has not been generated yet is not shown, and the way to generate it is the **AI** menu in the row beside the like and favourite buttons. Anything already generated keeps its own section, with its own regenerate control, and drops out of that menu.
+
+## The page row
+
+Every file detail page starts with the same row, whichever viewer is below it and whichever
+address you arrived by.
+
+- **The path**, from the drive down to the file, with every step above the file clickable. This
+  is how you go back up one folder, or three.
+- **On a narrow screen** the path collapses to its last step — `‹ folder name` — which is the
+  way back on a phone.
+- **Type-specific controls** sit to its right: a Markdown note puts its save indicator and its
+  Edit / Split / Preview switch there, and its file name in the path is click-to-edit.
+- **The inspector toggle** is last, on the pages that have an inspector.
+
+During collection playback the back control returns you to the collection you were playing
+rather than to the folder the current file happens to live in.
 
 ## The companion rail
 

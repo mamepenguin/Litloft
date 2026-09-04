@@ -1,10 +1,11 @@
 /**
- * Tests for `MarkdownDocumentLayout` — the document-centric shell for
- * `.md` file detail with the 2026-05-11 chrome consolidation.
+ * Tests for `MarkdownDocumentLayout` — what a Markdown note adds to the
+ * shared `FileDetailShell`, and what that shell does underneath it.
  *
  * Contract:
- *   - Renders a single 36px top chrome containing TreeToggle, save dot,
- *     title, view-mode segmented toggle, and an Inspector toggle.
+ *   - Renders a single 48px top chrome containing TreeToggle, the
+ *     breadcrumb ending in the filename, the save dot, the view-mode
+ *     segmented toggle, and an Inspector toggle.
  *   - Desktop (>=768px): Inspector pane sits beside the canvas when
  *     open. When closed, nothing replaces it (the previous
  *     `InspectorStrip` rail was retired).
@@ -95,7 +96,7 @@ beforeEach(() => {
 describe("MarkdownDocumentLayout — chrome", () => {
   it("renders the unified top chrome with title, mode toggle and Inspector toggle", () => {
     renderLayout("work", "my-note.md");
-    expect(screen.getByTestId("markdown-document-chrome")).toBeInTheDocument();
+    expect(screen.getByTestId("file-detail-chrome")).toBeInTheDocument();
     expect(screen.getByText("my-note.md")).toBeInTheDocument();
     expect(screen.getByTestId("view-mode-edit")).toBeInTheDocument();
     expect(screen.getByTestId("inspector-toggle")).toBeInTheDocument();
@@ -145,7 +146,7 @@ describe("MarkdownDocumentLayout — desktop (>= 768px)", () => {
   it("exposes a layout root with a recognizable test id", () => {
     setViewportWidth(1440);
     renderLayout();
-    expect(screen.getByTestId("markdown-document-layout")).toBeInTheDocument();
+    expect(screen.getByTestId("file-detail-shell")).toBeInTheDocument();
   });
 
   it("hides the inspector content (no strip rail) when collapsed by default at narrow widths", () => {

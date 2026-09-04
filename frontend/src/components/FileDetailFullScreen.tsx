@@ -2,10 +2,9 @@
 
 import { useCallback, useEffect, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
-import { ArrowLeft } from "lucide-react";
-import { useTranslations } from "next-intl";
 
 import { FileDetailContent } from "@/components/FileDetailContent";
+import { FileDetailChrome } from "@/components/FileDetail/FileDetailChrome";
 import { ImageGallery } from "@/components/ImageGallery";
 import {
   CollectionPanel,
@@ -44,7 +43,6 @@ export function FileDetailFullScreen({ fileId }: FileDetailFullScreenProps) {
   // sidebar would just steal width from the player.
   useOverlaySidebar();
 
-  const t = useTranslations("file");
   const router = useRouter();
   const searchParams = useSearchParams();
   const setOverrideDrive = useSetOverrideDrive();
@@ -162,19 +160,22 @@ export function FileDetailFullScreen({ fileId }: FileDetailFullScreenProps) {
     <div
       className={`mx-auto w-full flex-1 px-4 py-6 ${hasCollection ? "max-w-6xl" : "max-w-5xl"}`}
     >
-      <div className="mb-4">
-        <button
-          onClick={handleBack}
-          className="inline-flex cursor-pointer items-center gap-1 text-sm text-text-muted hover:text-text-primary"
-        >
-          <ArrowLeft size={16} />
-          {t("backTo", {
-            name: file?.folder_path
-              ? file.folder_path.split("/").pop()!
-              : (file?.drive ?? ""),
-          })}
-        </button>
-      </div>
+      {/* The same page row every other file detail surface wears. The
+          back control keeps this route's own handler: "back" from a
+          collection means the collection you were playing, not the
+          folder the current track happens to live in. The tree pane
+          does not exist here, so its toggle is left out. */}
+      {file && (
+        <div className="mb-4 -mx-4 -mt-6">
+          <FileDetailChrome
+            drive={file.drive}
+            folderPath={file.folder_path}
+            title={file.title || file.filename}
+            onBack={handleBack}
+            showTreeToggle={false}
+          />
+        </div>
+      )}
 
       <div className={isAudioSide ? "flex flex-col gap-4 md:flex-row" : ""}>
         <div className={isAudioSide ? "min-w-0 flex-1" : ""}>

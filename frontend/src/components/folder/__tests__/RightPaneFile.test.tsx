@@ -298,4 +298,57 @@ describe("RightPaneFile", () => {
     onAfterDelete();
     expect(mockClearFile).toHaveBeenCalledTimes(1);
   });
+
+  describe("the page row", () => {
+    it("carries the breadcrumb for a file that has no shell of its own", async () => {
+      mockGetFile.mockResolvedValue(baseFile);
+      render(<RightPaneFile fileId="abc123" drive="work" />);
+      await waitFor(() =>
+        expect(screen.getByText("My Document")).toBeInTheDocument(),
+      );
+
+      const row = screen.getByTestId("file-detail-chrome");
+      expect(row).toHaveTextContent("work");
+      expect(row).toHaveTextContent("Q1");
+      expect(row).toHaveTextContent("My Document");
+      // The phone form of the same row, which is where MB-3's missing
+      // way back used to be.
+      expect(screen.getByTestId("file-detail-back")).toHaveAttribute(
+        "href",
+        "/drive/work/Q1",
+      );
+    });
+
+    it("draws exactly one of them, ever", async () => {
+      mockGetFile.mockResolvedValue(baseFile);
+      render(<RightPaneFile fileId="abc123" drive="work" />);
+      await waitFor(() =>
+        expect(screen.getByText("My Document")).toBeInTheDocument(),
+      );
+
+      expect(screen.getAllByTestId("file-detail-chrome")).toHaveLength(1);
+      expect(screen.getAllByTestId("file-detail-back")).toHaveLength(1);
+    });
+
+    it("leaves the row to the shell for a file that brings one", async () => {
+      // A Markdown note rides `FileDetailShell`, which draws this row
+      // itself because it also owns the inspector toggle inside it.
+      // Two of them would be two paths and two toggles.
+      mockGetFile.mockResolvedValue({
+        ...baseFile,
+        filename: "note.md",
+        mime_type: "text/markdown",
+        file_type: "document",
+      });
+      render(<RightPaneFile fileId="abc123" drive="work" />);
+      await waitFor(() =>
+        expect(screen.getByTestId("file-detail-content")).toBeInTheDocument(),
+      );
+
+      // The stub stands in for the whole shell, so the row it would have
+      // drawn is not here either — what matters is that the host did not
+      // add a second one.
+      expect(screen.queryByTestId("file-detail-chrome")).toBeNull();
+    });
+  });
 });

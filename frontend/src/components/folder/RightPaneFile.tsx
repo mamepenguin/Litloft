@@ -5,8 +5,8 @@ import { useSearchParams } from "next/navigation";
 import { useTranslations } from "next-intl";
 
 import { FileDetailContent } from "@/components/FileDetailContent";
+import { FileDetailChrome } from "@/components/FileDetail/FileDetailChrome";
 import { ImageGallery } from "@/components/ImageGallery";
-import { TreeToggle } from "@/components/TreeToggle";
 import { useFileNav } from "@/hooks/useFileNav";
 import { usePolicy } from "@/hooks/usePolicy";
 import { useSelectedFile } from "@/hooks/useSelectedFile";
@@ -134,7 +134,7 @@ export function RightPaneFile({ fileId, drive }: RightPaneFileProps) {
 
   if (state.status === "loading") {
     return (
-      <PaneShell title="" drive={drive}>
+      <PaneShell chrome={<FileDetailChrome drive={drive} title="" />}>
         <div className="flex h-full items-center justify-center text-sm text-text-muted">
           {t("loading")}
         </div>
@@ -144,7 +144,7 @@ export function RightPaneFile({ fileId, drive }: RightPaneFileProps) {
 
   if (state.status === "error") {
     return (
-      <PaneShell title="" drive={drive}>
+      <PaneShell chrome={<FileDetailChrome drive={drive} title="" />}>
         <div className="flex h-full items-center justify-center text-sm text-text-muted">
           {t("notFound")}
         </div>
@@ -157,10 +157,19 @@ export function RightPaneFile({ fileId, drive }: RightPaneFileProps) {
   return (
     <>
       <PaneShell
-        title={title}
-        drive={drive}
+        // The document shell draws its own copy of this row, inspector
+        // toggle and all, so handing it a second one would stack two
+        // identical bars.
+        chrome={
+          willUseDocumentLayout ? undefined : (
+            <FileDetailChrome
+              drive={drive}
+              folderPath={file?.folder_path}
+              title={title}
+            />
+          )
+        }
         scrollRef={setScrollRootCb}
-        hideHeader={willUseDocumentLayout}
       >
         <FileDetailContent
           fileId={fileId}
@@ -195,57 +204,30 @@ export function RightPaneFile({ fileId, drive }: RightPaneFileProps) {
 }
 
 function PaneShell({
-  title,
-  drive,
+  chrome,
   scrollRef,
-  hideHeader,
   children,
 }: {
-  title: string;
-  drive: string;
+  /**
+   * The page row. Omitted when the inner content supplies its own —
+   * `FileDetailShell` carries the same `FileDetailChrome` internally
+   * because it also owns the inspector toggle that sits in it.
+   */
+  chrome?: React.ReactNode;
   /**
    * Optional callback ref attached to the scroll container so the
    * outer ``RightPaneFile`` can pass it down to the mini player as
    * its IntersectionObserver root.
    */
   scrollRef?: (el: HTMLDivElement | null) => void;
-  /**
-   * Skip the pane's own title bar. Used when the inner content (e.g.
-   * MarkdownDocumentLayout) supplies its own unified chrome and the
-   * default TreeToggle / title row would duplicate it.
-   */
-  hideHeader?: boolean;
   children: React.ReactNode;
 }) {
   return (
     <div className="flex h-full flex-col bg-bg-primary">
-      {!hideHeader && (
-        // Mirror the MarkdownDocumentLayout chrome shell (h-12, bg-bg-card,
-        // px-3, gap-2, border-b) so the file detail surface stays
-        // visually consistent regardless of whether the file is a
-        // Markdown note with its own document layout chrome or a
-        // generic non-Markdown file using this header.
-        <div className="flex h-12 shrink-0 items-center gap-2 border-b border-bg-border bg-bg-card px-3">
-          {/* TreeToggle leftmost. Hidden on mobile because the mobile
-              layout uses a tree ⇄ file-detail screen swap (no 2-pane
-              split), which makes the toggle visually a no-op while a
-              file is open. Mobile users can navigate back via the
-              browser / OS back gesture and re-enable the tree from the
-              folder view's TreeToggle. */}
-          <div className="hidden md:flex">
-            <TreeToggle drive={drive} />
-          </div>
-          <h2
-            className="min-w-0 flex-1 truncate text-sm font-medium text-text-primary"
-            title={title}
-          >
-            {title}
-          </h2>
-        </div>
-      )}
+      {chrome}
       <div
         ref={scrollRef}
-        className={hideHeader ? "flex-1 overflow-auto" : "flex-1 overflow-auto p-4"}
+        className={chrome ? "flex-1 overflow-auto p-4" : "flex-1 overflow-auto"}
       >
         {children}
       </div>

@@ -242,4 +242,31 @@ describe("FileDetailFullScreen", () => {
     );
   });
 
+
+  describe("the page row", () => {
+    it("gains the breadcrumb it never had, and keeps one way back", async () => {
+      mockGetFile.mockResolvedValue(baseFile);
+      render(<FileDetailFullScreen fileId="abc" />);
+      await waitFor(() =>
+        expect(screen.getByTestId("file-detail-chrome")).toBeInTheDocument(),
+      );
+
+      const row = screen.getByTestId("file-detail-chrome");
+      expect(row).toHaveTextContent("main");
+      // One control, not the old hand-rolled link plus a new one.
+      expect(screen.getAllByTestId("file-detail-back")).toHaveLength(1);
+    });
+
+    it("keeps its own idea of back, because a collection is not a folder", async () => {
+      mockGetFile.mockResolvedValue(baseFile);
+      render(<FileDetailFullScreen fileId="abc" />);
+      await waitFor(() =>
+        expect(screen.getByTestId("file-detail-back")).toBeInTheDocument(),
+      );
+
+      // A button running this route's handler, not a Link to the file's
+      // folder: from a collection, back means the collection.
+      expect(screen.getByTestId("file-detail-back").tagName).toBe("BUTTON");
+    });
+  });
 });
