@@ -2,16 +2,17 @@
 
 import { useCallback, useEffect, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
-import { ArrowLeft } from "lucide-react";
-import { useTranslations } from "next-intl";
 
 import { FileDetailContent } from "@/components/FileDetailContent";
+import { FileDetailChrome } from "@/components/FileDetail/FileDetailChrome";
 import { ImageGallery } from "@/components/ImageGallery";
 import {
   CollectionPanel,
   getCollectionOnEnded,
 } from "@/components/CollectionPanel";
 import { useSetOverrideDrive } from "@/components/CurrentDriveProvider";
+import { usePolicy } from "@/hooks/usePolicy";
+import { usesDocumentShell } from "@/lib/fileDetailShell";
 import { useOverlaySidebar } from "@/components/SidebarProvider";
 import { useFileNav } from "@/hooks/useFileNav";
 import { getFile } from "@/lib/api";
@@ -44,7 +45,6 @@ export function FileDetailFullScreen({ fileId }: FileDetailFullScreenProps) {
   // sidebar would just steal width from the player.
   useOverlaySidebar();
 
-  const t = useTranslations("file");
   const router = useRouter();
   const searchParams = useSearchParams();
   const setOverrideDrive = useSetOverrideDrive();
@@ -155,6 +155,18 @@ export function FileDetailFullScreen({ fileId }: FileDetailFullScreenProps) {
     router.push(backPath);
   }, [router, file]);
 
+  // A Markdown note or an HTML preview rides `FileDetailShell`, which
+  // draws the page row itself. Drawing one here too would put two
+  // breadcrumbs on the page and, on a phone, two back controls — the
+  // thing this row exists to stop. Same predicate as the 2-pane host
+  // and the content itself, from one place so it cannot be got right in
+  // two of the three.
+  const knowledgeEditorPolicy = usePolicy(file?.drive ?? "", "knowledge", "editor");
+  const contentBringsItsOwnRow = usesDocumentShell(
+    file?.mime_type,
+    knowledgeEditorPolicy.enabled,
+  );
+
   const isVideoTheater = hasCollection && file?.file_type === "video";
   const isAudioSide = hasCollection && file?.file_type !== "video";
 
@@ -162,19 +174,32 @@ export function FileDetailFullScreen({ fileId }: FileDetailFullScreenProps) {
     <div
       className={`mx-auto w-full flex-1 px-4 py-6 ${hasCollection ? "max-w-6xl" : "max-w-5xl"}`}
     >
-      <div className="mb-4">
-        <button
-          onClick={handleBack}
-          className="inline-flex cursor-pointer items-center gap-1 text-sm text-text-muted hover:text-text-primary"
-        >
-          <ArrowLeft size={16} />
-          {t("backTo", {
-            name: file?.folder_path
-              ? file.folder_path.split("/").pop()!
-              : (file?.drive ?? ""),
-          })}
-        </button>
-      </div>
+      {/* The same page row every other file detail surface wears. The
+          back control keeps this route's own handler: "back" from a
+          collection means the collection you were playing, not the
+          folder the current track happens to live in. The tree pane
+          does not exist here, so its toggle is left out. */}
+      {!contentBringsItsOwnRow && (
+        <div className="mb-4 -mx-4 -mt-6">
+          {file ? (
+            <FileDetailChrome
+              drive={file.drive}
+              folderPath={file.folder_path}
+              title={file.title || file.filename}
+              onBack={handleBack}
+              showTreeToggle={false}
+            />
+          ) : (
+            // The row cannot be drawn before the file names its own
+            // folder, but it can hold its place: without this the whole
+            // page steps down 48px the moment the fetch lands.
+            <div
+              aria-hidden
+              className="h-12 border-b border-bg-border bg-bg-card"
+            />
+          )}
+        </div>
+      )}
 
       <div className={isAudioSide ? "flex flex-col gap-4 md:flex-row" : ""}>
         <div className={isAudioSide ? "min-w-0 flex-1" : ""}>
@@ -188,6 +213,7 @@ export function FileDetailFullScreen({ fileId }: FileDetailFullScreenProps) {
             autoPlay={hasCollection}
             onRequestImageGallery={() => setGalleryOpen(true)}
             onAfterDelete={handleAfterDelete}
+            onBack={handleBack}
           />
 
           {isVideoTheater && (

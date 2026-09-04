@@ -1,6 +1,7 @@
 {
   "common": {
     "close": "閉じる",
+    "back": "戻る",
     "cancel": "キャンセル",
     "save": "保存",
     "delete": "削除",

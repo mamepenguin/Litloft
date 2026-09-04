@@ -1,3 +1,4 @@
+import type { ReactNode } from "react";
 import Link from "next/link";
 import { ChevronRight, Home } from "lucide-react";
 import { useTranslations } from "next-intl";
@@ -14,8 +15,14 @@ interface BreadcrumbProps {
    * the folder hierarchy without abusing ``folderPath``'s ``/``
    * splitting. When set, the drive name becomes a Link (since this
    * trailing label is the actual current location).
+   *
+   * A node rather than a string when the leaf needs to be more than
+   * text — the file detail page row hands its filename here, and on a
+   * Markdown note that filename is click-to-edit. A node is rendered
+   * as given, so the caller owns its truncation and styling; a string
+   * gets the leaf styling the folder segments use.
    */
-  trailingSegment?: string;
+  trailingSegment?: ReactNode;
 }
 
 export function Breadcrumb({
@@ -82,12 +89,23 @@ export function Breadcrumb({
       })}
 
       {trailingSegment && (
-        <span className="flex items-center gap-1">
+        <>
           <ChevronRight size={14} className="flex-shrink-0" />
-          <span className="font-medium text-text-primary truncate">
-            {trailingSegment}
-          </span>
-        </span>
+          {typeof trailingSegment === "string" ? (
+            // `title` because this is the one segment that is routinely
+            // too long for the row — both page headers this replaced
+            // carried one, and without it a truncated filename cannot be
+            // read at all.
+            <span
+              className="font-medium text-text-primary truncate"
+              title={trailingSegment}
+            >
+              {trailingSegment}
+            </span>
+          ) : (
+            trailingSegment
+          )}
+        </>
       )}
     </nav>
   );
