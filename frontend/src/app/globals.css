@@ -1,5 +1,24 @@
 @import "tailwindcss";
 
+/* Tailwind finds its own sources by walking out from this file, and it
+   skips two things on the way: paths a .gitignore excludes, and
+   symlinks. `src/addons/*` is both — the symlinks `setup-addons.sh`
+   makes are listed in the repository-root .gitignore — so every utility
+   class that appears ONLY in an addon generated no CSS at all here.
+   Core's `group-hover/snippet` was in the output; the intelligence
+   addon's `group-hover/cue` was not, and a button written to be revealed
+   on hover was simply invisible.
+
+   Docker never had the problem, which is why it took this long to
+   notice: `frontend/Dockerfile` deletes the symlinks and copies the
+   addon trees in as real files, and the image carries no .gitignore that
+   covers them. So the production build was always right and every local
+   one was wrong — the worst way round, since the local build is the one
+   anybody looks at while working on an addon's UI.
+
+   Naming the directory explicitly overrides both exclusions. */
+@source "../addons";
+
 /* ===== Pinterest Design System ===== */
 /* Warm white canvas · Coral Red (#d63031) · Plum Black (#211922) */
 /* Dark variant: warm plum dark (#1a0e10) · Bright Coral (#e85d5e) */
