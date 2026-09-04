@@ -31,6 +31,7 @@ A column down the right of the page, the same width and the same shape on every 
 - **Below it, tabs** — but only when there is more than one. **Info** is always there: relations, comments, EXIF where a file has it, and whatever addon sections apply. A media file with chapters gets a chapter tab, and one on a drive with the transcript addon switched on gets a transcript tab. A file with nothing but Info gets no tab strip at all, which is what a Markdown note has always looked like.
 - Core's own tabs appear when they have something in them — a file with no chapters has no chapter tab. An addon's tab appears whenever that addon is installed and switched on for the drive, so a video that has never been transcribed can still show an empty transcript tab.
 - **Open and close it** with the toggle at the end of the page row, or with `Cmd/Ctrl+\`. It starts open on a wide screen. Closed, nothing of it is left behind on the page.
+- **Where there is not room for both**, it covers the right side of the page instead of squeezing what is under it — the same width either way, because a narrower inspector wraps Japanese at a dozen characters a line. This goes by the room the page actually has, not by the window: with the folder tree open, the tree and the sidebar have already taken most of a laptop screen.
 - **On a phone** it is a bottom sheet with the same contents, opened from the same toggle.
 
 ## Chapters and the transcript, beside or below

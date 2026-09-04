@@ -864,7 +864,9 @@ narrow column.
 
 | Token | Value | Meaning |
 |---|---|---|
-| inspector width | `24rem` (384px) | Fixed. |
+| inspector width | `24rem` (384px) | Fixed, in both forms. When the row cannot hold it beside the canvas it covers the canvas at the same width rather than narrowing — 320px was tried and Japanese wrapped at 12–14 characters a line, so a responsive inspector is an unreadable one. |
+| canvas minimum | `34.5rem` (552px) | What the canvas keeps when the inspector is beside it. A player's number applied to every kind the shell hosts, deliberately: one skeleton, one minimum, and the video is the occupant that stops working first. |
+| beside threshold | `58.5rem` (936px) | The sum of the two above, measured on the row that holds both. |
 
 **A separate entry from the companion rail below, despite the same
 number.** They are different parts — one holds a document's metadata,
@@ -920,18 +922,35 @@ recompute it; do not nudge it to make a particular window look right.
 Widening the rail from 320px to 384px moved the threshold from 56rem to
 60rem for exactly this reason.
 
-**Three thresholds, three questions. Do not merge any two of them.**
+**Four thresholds, four questions. Do not merge any two of them.**
 
 | Threshold | Question | Measured against |
 |---|---|---|
 | `60rem` = 960px | Can a rail sit beside the player? | The host's **measured width**. Gates the grid's second column, so it applies on the collection route only — on the shell the companion is a tab, and a tab fits at any width. |
-| `1120px` (`VIEWPORT_OPEN_THRESHOLD`) | Does the inspector *start* open? | The **viewport**. Not a layout branch: it is how the default is derived when the reader has no stored choice, and any choice they make outranks it. §8.5's "measure the container" rule is about layout branches, so it does not apply. |
+| `58.5rem` = 936px (`CANVAS_MIN_REM + INSPECTOR_REM`) | Can the inspector sit *beside* the canvas, or must it cover it? | The **measured width of the row holding both** — never the canvas, whose width is the thing being decided. A sum, not a feel: 34.5rem of canvas plus the inspector's own 24rem. |
+| `1120px` (`VIEWPORT_OPEN_THRESHOLD`) | Does the inspector *start* open? | The **viewport**. Not a layout branch: it is how the default is derived when the reader has no stored choice, and any choice they make outranks it. |
 | 768px | Is the inspector a pane or a Bottom Sheet? | The **viewport**. |
 
-960 and 1120 sound like the same question and are not: 960 is "can they
-be side by side", 1120 is "should they be, by default". The band
-between them — where they fit but start closed — is a real state, and
-merging them would make it unsayable.
+**The middle two are the pair that has to stay apart**, and they are the
+same pair §8.5 draws above: the viewport decides whether the inspector
+*starts* open, the container decides whether it can be *beside*. A
+preference can outrank the first; nothing outranks the second, because
+it is a fact about the space rather than a choice about it.
+
+Keying placement to the viewport is what put a 296px video on screen at
+1200px — narrower than the same rule produced at 1120 — because the
+shell also renders inside the 2-pane right pane, where an inline sidebar
+and a 280px tree have already taken up to 520px the viewport says
+nothing about. That is this section's own rule, failing in the words it
+uses to state itself.
+
+960 and 936 are both container questions and still not one question:
+960 asks whether a *rail* fits beside the *player* inside the canvas,
+936 whether the *inspector* fits beside the *canvas*. Different boxes,
+different occupants. And 936 and 1120 are not one either — 936 is "can
+they be side by side", 1120 is "should they be, by default". The band
+between the latter two, where they fit but start closed, is a real
+state that one number cannot express.
 
 1120 was 1280 until 2026-09, which left a band of its own. The media
 layout's default puts the transcript and chapters in the inspector, so

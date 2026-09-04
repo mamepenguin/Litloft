@@ -124,3 +124,47 @@ describe("media detail, companion below the player", () => {
     expect(rule![0]).toMatch(/min-height:\s*0;/);
   });
 });
+
+/**
+ * The inspector's overlay form.
+ *
+ * jsdom does no layout, so the positioning that makes "covers the
+ * canvas rather than narrowing it" true is only readable as text.
+ */
+describe("inspector overlay placement", () => {
+  it("takes the pane out of flow without touching its width", () => {
+    // Narrowing was tried and rejected — under 320px Japanese wraps at
+    // 12–14 characters a line — so the pane keeps `w-96` and covers the
+    // canvas instead. A `width` here would be that rejected design
+    // arriving through the back door.
+    const rule = globalsCss().match(
+      /\[data-inspector-fit="overlay"\]\s+\.inspector-pane\s*\{[^}]*\}/,
+    );
+    expect(rule).not.toBeNull();
+    expect(rule![0]).toMatch(/position:\s*absolute;/);
+    expect(rule![0]).toMatch(/inset-block:\s*0;/);
+    expect(rule![0]).toMatch(/inset-inline-end:\s*0;/);
+    expect(rule![0]).not.toMatch(/width/);
+    expect(rule![0]).not.toMatch(/max-width/);
+  });
+
+  it("puts it in the floating-surface tier, not the dialog one", () => {
+    // DESIGN.md §Layering: above the canvas and the mini player, below
+    // every dialog — including the ones its own overflow menu opens.
+    const rule = globalsCss().match(
+      /\[data-inspector-fit="overlay"\]\s+\.inspector-pane\s*\{[^}]*\}/,
+    );
+    expect(rule![0]).toMatch(/z-index:\s*40;/);
+  });
+
+  it("gives it no shadow", () => {
+    // DESIGN.md §4 keeps properties panels at Level 0 and names
+    // decorative use on flat-surface components as forbidden. The pane
+    // already separates by surface colour and a left border, which is
+    // the depth that section asks for first.
+    const rule = globalsCss().match(
+      /\[data-inspector-fit="overlay"\]\s+\.inspector-pane\s*\{[^}]*\}/,
+    );
+    expect(rule![0]).not.toMatch(/box-shadow/);
+  });
+});
