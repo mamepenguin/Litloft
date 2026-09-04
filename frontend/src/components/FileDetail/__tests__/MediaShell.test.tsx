@@ -19,6 +19,7 @@ import { render, screen, waitFor, fireEvent } from "@testing-library/react";
 import { FileDetailContent } from "../../FileDetailContent";
 import type { FileItem } from "@/types";
 import { inspectorOpenStorageKey } from "@/lib/inspectorOpenStore";
+import { SHEET_PEEK_PX } from "@/components/MobileInspectorSheet";
 import { CANVAS_PADDING_REM } from "@/lib/layoutSizes";
 import {
   claimSlot,
@@ -343,6 +344,46 @@ describe("media on the shell, on a phone", () => {
     const { container } = await renderMediaAwaitingChrome();
 
     expect(container.querySelector(".media-detail-below")).toBeNull();
+  });
+
+  it("rests at the peek row, with the file's name and its actions", async () => {
+    // The point of the strip: on a phone the per-file controls used to
+    // be somewhere in a column the reader had to find. Exactly one
+    // action row on the page — the inspector's copy is hoisted away,
+    // because two would be two `⋮` menus over one file.
+    await renderMediaAwaitingChrome(
+      makeFile({ has_chapters: false, title: "Sample" }),
+    );
+
+    const peek = await screen.findByTestId("mobile-inspector-peek");
+    expect(peek).toHaveTextContent("Sample");
+    expect(peek).toContainElement(screen.getByTestId("file-action-row"));
+    expect(screen.getAllByTestId("file-action-row")).toHaveLength(1);
+  });
+
+  it("ends the page above the strip it rests behind", async () => {
+    // Without this the last thing in the canvas is permanently behind
+    // the 56px row and cannot be scrolled to.
+    const { container } = await renderMediaAwaitingChrome();
+    const main = container.querySelector("main");
+    expect(main?.style.paddingBottom).toBe(`${SHEET_PEEK_PX}px`);
+  });
+
+  it("raises the sheet to half, not straight to full", async () => {
+    // Half keeps the player on screen, which is the reason the design
+    // asks for three states rather than two.
+    await renderMediaAwaitingChrome();
+    expect(screen.getByTestId("mobile-inspector-sheet").dataset.snap).toBe(
+      "peek",
+    );
+
+    fireEvent.click(screen.getByTestId("inspector-toggle"));
+
+    await waitFor(() => {
+      expect(screen.getByTestId("mobile-inspector-sheet").dataset.snap).toBe(
+        "expanded",
+      );
+    });
   });
 
   it("puts it in the sheet, with its tabs", async () => {

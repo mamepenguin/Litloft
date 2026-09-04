@@ -629,6 +629,32 @@ scroll, restoring both on close. `useInertBackdrop` does this; attach its ref
 to the viewer's root rather than reaching for `document.body`, which a viewer
 rendered inline is itself inside.
 
+**The Bottom Sheet rests; it does not close.** Three states, not two:
+
+| State | Height | What is on screen |
+|---|---|---|
+| peek | `56px` | The file's name and the row that acts on it — like, favourite, the AI menu, the overflow |
+| half | 50% | The inspector's fixed part, the tab strip, and the tab |
+| full | 90vh | The same, with room for it |
+
+The resting state is the point. On a phone the per-file controls used to
+be somewhere in a column the reader had to find; at 56px they are in the
+same place on every file, and the page ends above them rather than
+behind them.
+
+**`modal` only at half and full.** vaul's modal mode puts
+`pointer-events: none` on `<body>` and `aria-hidden` on every other body
+child, which behind a 56px strip would make the page unscrollable and
+unreadable to a screen reader — the opposite of what the strip is for.
+The dim backdrop follows the same rule, for the same reason. What is
+below the rest stays **mounted and `inert`**: mounting it on expand
+would re-fetch the comments and lose the transcript's place every time
+the reader looked at the file's tags.
+
+A dismiss gesture — the backdrop, Escape, a swipe down — collapses to
+peek. There is no closed state to dismiss to, and refusing the gesture
+would leave a reader who tapped the dim with nothing happening.
+
 **A dialog must outrank the surface that launched it.** The mobile
 Bottom Sheet hosts the same inspector the desktop pane does, `[...]`
 menu included, so a dialog opened from inside it has to paint above it —

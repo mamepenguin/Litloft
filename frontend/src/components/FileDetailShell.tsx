@@ -17,7 +17,14 @@ import { inspectorOpenStore } from "@/lib/inspectorOpenStore";
 import { FileDetailChrome } from "./FileDetail/FileDetailChrome";
 import { useInspectorFit } from "./FileDetail/hooks/useInspectorFit";
 import { InspectorPane } from "./InspectorPane";
-import { MobileInspectorSheet } from "./MobileInspectorSheet";
+import {
+  MobileInspectorSheet,
+  SHEET_PEEK_PX,
+  SHEET_SNAP_HALF,
+  SHEET_SNAP_PEEK,
+  isSheetExpanded,
+  type SheetSnap,
+} from "./MobileInspectorSheet";
 
 interface FileDetailShellProps {
   drive: string;
@@ -48,6 +55,12 @@ interface FileDetailShellProps {
    * provide). When omitted, falls back to `inspector`.
    */
   mobileSheet?: ReactNode;
+  /**
+   * The 56px row the Bottom Sheet rests at: the file's name and the
+   * controls that act on it. Drawn by the sheet rather than scrolled
+   * to, because at rest it is the only part on screen.
+   */
+  sheetPeek?: ReactNode;
   children: ReactNode;
   /**
    * Handed the element that actually scrolls the canvas.
@@ -105,6 +118,7 @@ export function FileDetailShell({
   onBack,
   inspector,
   mobileSheet,
+  sheetPeek,
   children,
   onScrollRootChange,
   resetKey,
@@ -112,14 +126,15 @@ export function FileDetailShell({
   const t = useTranslations("inspector");
   const { open, setOpen } = useInspectorOpen(drive);
   const isMobile = useIsMobile();
-  const [mobileSheetOpen, setMobileSheetOpen] = useState(false);
+  const [sheetSnap, setSheetSnap] = useState<SheetSnap>(SHEET_SNAP_PEEK);
+  const sheetExpanded = isSheetExpanded(sheetSnap);
   const attachInspectorFitHost = useInspectorFit();
 
   // Reset transient UI on file change so the previously-open Sheet
   // doesn't bleed into the next file when the host re-uses one mounted
   // shell (review HIGH H1, hako 5rtHKXzQd9VJY7WNU5Deg).
   useEffect(() => {
-    setMobileSheetOpen(false);
+    setSheetSnap(SHEET_SNAP_PEEK);
   }, [resetKey]);
 
   // Re-evaluate the inspector default-open derivation on resize.
@@ -152,8 +167,14 @@ export function FileDetailShell({
 
   const inspectorOpenOnDesktop = !isMobile && open;
   const handleInspectorButton = useCallback(() => {
-    if (isMobile) setMobileSheetOpen((prev) => !prev);
-    else toggle();
+    if (isMobile) {
+      // Half rather than full: the point of raising the sheet is to
+      // read the inspector, and the player above it stays on screen at
+      // half. Full is a drag away for anyone who wants the whole thing.
+      setSheetSnap((prev) =>
+        isSheetExpanded(prev) ? SHEET_SNAP_PEEK : SHEET_SNAP_HALF,
+      );
+    } else toggle();
   }, [isMobile, toggle]);
 
   return (
@@ -168,7 +189,7 @@ export function FileDetailShell({
         titleNode={titleNode}
         onBack={onBack}
         inspector={{
-          open: isMobile ? mobileSheetOpen : open,
+          open: isMobile ? sheetExpanded : open,
           onToggle: handleInspectorButton,
         }}
       >
@@ -186,6 +207,15 @@ export function FileDetailShell({
         <main
           ref={onScrollRootChange}
           className="flex min-w-0 min-h-0 flex-1 flex-col overflow-auto"
+          // The sheet rests over the bottom of the page, so the page
+          // has to end above it. Without this the last thing in the
+          // canvas — a comment box, the end of a transcript — is
+          // permanently behind the strip and cannot be scrolled to.
+          style={
+            isMobile
+              ? { paddingBottom: `${SHEET_PEEK_PX}px` }
+              : undefined
+          }
         >
           {children}
         </main>
@@ -193,8 +223,9 @@ export function FileDetailShell({
       </div>
       {isMobile && (
         <MobileInspectorSheet
-          open={mobileSheetOpen}
-          onClose={() => setMobileSheetOpen(false)}
+          snap={sheetSnap}
+          onSnapChange={setSheetSnap}
+          peek={sheetPeek}
         >
           {mobileSheet ?? inspector}
         </MobileInspectorSheet>

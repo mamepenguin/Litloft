@@ -16,6 +16,7 @@ import { usePolicy } from "@/hooks/usePolicy";
 import { useAddonSlots } from "../AddonSlotsProvider";
 import { MarkdownAwareTagChips } from "../MarkdownAwareTagChips";
 import { FileDetailPresenter } from "./FileDetailPresenter";
+import { FileActionRow } from "./FileActionRow";
 import { FileMetaBlock } from "./FileMetaBlock";
 import { useCompanionMetrics } from "./hooks/useCompanionMetrics";
 import { useFileDetailData } from "./hooks/useFileDetailData";
@@ -311,8 +312,35 @@ export function FileDetailContainer({
       // one of those — a video's description is its show notes, not a
       // property of the file.
       hoistDescription={ridesShell && hasPlayer}
+      // On a phone the sheet's peek row is drawing it, and that row is
+      // the whole of what a resting sheet shows.
+      hoistActions={ridesShell && isMobile}
     />
   );
+
+  // The 56px the Bottom Sheet rests at. Built here rather than in the
+  // layout because it needs the same handlers `meta` does, and built
+  // only on the surface that has a sheet so the row cannot be mounted
+  // twice with the inspector's copy.
+  const sheetPeek =
+    ridesShell && isMobile ? (
+      <>
+        <h2 className="min-w-0 flex-1 truncate text-sm font-semibold text-text-primary">
+          {file.title || file.filename}
+        </h2>
+        <FileActionRow
+          file={file}
+          onFileChange={setFile}
+          onRefetch={data.refetch}
+          onStartEdit={data.startEditing}
+          onAfterDelete={onAfterDelete}
+          onRequestImageGallery={onRequestImageGallery}
+          videoRef={videoRef}
+          addonSlotProps={addonSlotProps}
+          compact
+        />
+      </>
+    ) : undefined;
 
   return (
     <FileDetailPresenter
@@ -349,6 +377,7 @@ export function FileDetailContainer({
       onRename={data.rename}
       onBack={onBack}
       meta={meta}
+      sheetPeek={sheetPeek}
     />
   );
 }

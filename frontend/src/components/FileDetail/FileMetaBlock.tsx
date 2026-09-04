@@ -1,19 +1,11 @@
 "use client";
 
 import type { ReactNode, RefObject } from "react";
-import { useTranslations } from "next-intl";
-import { Maximize2 } from "lucide-react";
-
 import { formatDuration, formatFileSize } from "@/lib/format";
 import type { MediaController } from "@/lib/mediaController";
 import type { FileItem } from "@/types";
-import { AddonSlot } from "../AddonSlot";
-import { CastButton } from "../CastButton";
-import { FavoriteButton } from "../FavoriteButton";
-import { FileActions } from "../FileActions";
-import { LikeButton } from "../LikeButton";
+import { FileActionRow } from "./FileActionRow";
 import { FileDescription } from "./FileDescription";
-import { TrustTierControl } from "../TrustTierControl";
 import { MetadataEditor } from "./MetadataEditor";
 
 interface FileMetaBlockProps {
@@ -49,6 +41,14 @@ interface FileMetaBlockProps {
    * inspector copy.
    */
   hoistDescription?: boolean;
+  /**
+   * Leave the action row out — the sheet's peek row is drawing it.
+   *
+   * Same shape as `hoistDescription`, and for the same reason: one row,
+   * placed by whoever is laying the surface out, rather than a second
+   * copy that drifts from the first.
+   */
+  hoistActions?: boolean;
 }
 
 /**
@@ -80,8 +80,8 @@ export function FileMetaBlock({
   addonSlotProps,
   tagChips,
   hoistDescription = false,
+  hoistActions = false,
 }: FileMetaBlockProps) {
-  const t = useTranslations("file");
   const hasDuration = isTimedMedia && file.duration != null;
 
   return (
@@ -113,51 +113,18 @@ export function FileMetaBlock({
               className="mt-1"
             />
           )}
-          {/* Wraps because this row also renders inside the 384px Markdown
-              inspector and on a phone, where it cannot fit on one line. */}
-          <div className="mt-2 flex flex-wrap items-center gap-1">
-            <LikeButton
-              fileId={file.id}
-              likedAt={file.liked_at}
-              onToggle={onFileChange}
-              showLabel
-            />
-            <FavoriteButton
-              fileId={file.id}
-              isFavorite={file.is_favorite}
-              onToggle={onFileChange}
-              showLabel
-            />
-            <TrustTierControl file={file} onChange={onFileChange} />
-            {file.file_type === "image" && onRequestImageGallery && (
-              <button
-                onClick={onRequestImageGallery}
-                className="rounded-lg p-2 text-text-muted hover:bg-bg-card hover:text-text-primary"
-                aria-label={t("galleryMode")}
-              >
-                <Maximize2 size={16} />
-              </button>
-            )}
-            {file.file_type === "video" && <CastButton mediaRef={videoRef} />}
-            {/* Named for what it holds, not for where it sits: Phase 2
-                lifts this whole row into the inspector's fixed header,
-                and the same entry also has to fit the 56px Bottom Sheet
-                peek row. Entries therefore bring their own trigger and
-                take no sizing from the host. Sits before the overflow
-                menu so `⋮` stays last, the way it reads everywhere else. */}
-            <AddonSlot
-              id="file-detail-actions"
-              layout="stack"
-              props={addonSlotProps}
-            />
-            <FileActions
+          {!hoistActions && (
+            <FileActionRow
               file={file}
-              onUpdate={onRefetch}
-              onDelete={() => onAfterDelete?.()}
-              onEdit={onStartEdit}
-              addonProps={addonSlotProps}
+              onFileChange={onFileChange}
+              onRefetch={onRefetch}
+              onStartEdit={onStartEdit}
+              onAfterDelete={onAfterDelete}
+              onRequestImageGallery={onRequestImageGallery}
+              videoRef={videoRef}
+              addonSlotProps={addonSlotProps}
             />
-          </div>
+          )}
           <div className="mt-3">{tagChips}</div>
         </div>
       )}

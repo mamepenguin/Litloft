@@ -18,7 +18,7 @@
  *     (B6 regression).
  */
 import { describe, it, expect, beforeEach, vi } from "vitest";
-import { render, screen, fireEvent } from "@testing-library/react";
+import { render, screen, fireEvent, waitFor } from "@testing-library/react";
 
 import { ShortcutsProvider } from "@/components/ShortcutsProvider";
 
@@ -193,14 +193,29 @@ describe("MarkdownDocumentLayout — mobile (< 768px)", () => {
   it("does NOT render the desktop inspector pane on mobile", () => {
     setViewportWidth(420);
     renderLayout();
-    expect(screen.queryByTestId("inspector-content")).toBeNull();
+    expect(screen.queryByTestId("inspector-pane")).toBeNull();
   });
 
-  it("opens the Bottom Sheet with the inspector content when the chrome toggle is tapped", async () => {
+  it("keeps the sheet's content out of reach at rest, not out of the DOM", async () => {
+    // The sheet rests at 56px rather than closing, and what is below
+    // that rest is mounted the whole time. Mounting it on expand would
+    // re-fetch the comments and lose the transcript's place every time
+    // the reader looked at the file's tags — so it is `inert` instead.
+    setViewportWidth(420);
+    renderLayout();
+    const content = await screen.findByTestId("inspector-content");
+    expect(content.closest("[inert]")).not.toBeNull();
+  });
+
+  it("brings it within reach when the chrome toggle is tapped", async () => {
     setViewportWidth(420);
     renderLayout();
     fireEvent.click(screen.getByTestId("inspector-toggle"));
-    expect(await screen.findByTestId("inspector-content")).toBeInTheDocument();
+    await waitFor(() => {
+      expect(
+        screen.getByTestId("inspector-content").closest("[inert]"),
+      ).toBeNull();
+    });
   });
 
   it("hides the split option in the view-mode toggle on mobile", () => {

@@ -62,6 +62,8 @@ export interface ShellLayoutProps {
   onBack?: () => void;
   /** Title, meta, action row and tags — placed, not built, here. */
   meta: ReactNode;
+  /** The Bottom Sheet's 56px resting row, on the surfaces that have one. */
+  sheetPeek?: ReactNode;
 }
 
 /**
@@ -113,6 +115,7 @@ export function ShellLayout({
   onRename,
   onBack,
   meta,
+  sheetPeek,
 }: ShellLayoutProps) {
   const tabLabels = useTranslations("inspector.tabs");
   // Global namespace: a slot entry's `i18n_key` names its own addon's.
@@ -287,6 +290,7 @@ export function ShellLayout({
         }
         inspector={inspector}
         mobileSheet={mobileSheet}
+        sheetPeek={sheetPeek}
         resetKey={fileId}
       >
         <MediaCanvas
@@ -338,6 +342,7 @@ export function ShellLayout({
       onScrollRootChange={onScrollRootChange}
       inspector={inspector}
       mobileSheet={mobileSheet}
+      sheetPeek={sheetPeek}
       resetKey={fileId}
       previewOnly={isHtmlPreview}
     >

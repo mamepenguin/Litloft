@@ -44,6 +44,8 @@ interface MarkdownDocumentLayoutProps {
   onBack?: () => void;
   inspector: ReactNode;
   mobileSheet?: ReactNode;
+  /** Forwarded to the shell; see `FileDetailShell`. */
+  sheetPeek?: ReactNode;
   children: ReactNode;
   /** Forwarded to the shell; see `FileDetailShell`. */
   onScrollRootChange?: (node: HTMLElement | null) => void;
@@ -81,6 +83,7 @@ export function MarkdownDocumentLayout({
   onBack,
   inspector,
   mobileSheet,
+  sheetPeek,
   children,
   onScrollRootChange,
   resetKey,
@@ -158,6 +161,7 @@ export function MarkdownDocumentLayout({
         }
         inspector={inspector}
         mobileSheet={mobileSheet}
+        sheetPeek={sheetPeek}
         onScrollRootChange={onScrollRootChange}
         resetKey={resetKey}
       >
