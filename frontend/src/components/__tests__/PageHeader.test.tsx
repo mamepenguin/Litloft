@@ -156,6 +156,48 @@ describe("PageHeader", () => {
     });
   });
 
+  // Conditional JSX yields `null` and `false` at least as often as
+  // `undefined`. Recognising only `undefined` made the contract depend on
+  // which falsy value a caller reached for, and `actions={cond ? <X/> : null}`
+  // — the natural spelling — drew an empty flex box that took up the row.
+  describe("an absent slot is absent however it is spelled", () => {
+    it.each([
+      ["null", null],
+      ["false", false],
+      ["undefined", undefined],
+    ])("draws no actions box for %s", (_label, value) => {
+      const { container } = render(
+        <PageHeader title="Trash" actions={value as never} />,
+      );
+      const titleRow = container.querySelector("header > div")!;
+      // Heading wrapper only — no second child holding an empty action group.
+      expect(titleRow.children).toHaveLength(1);
+    });
+
+    it.each([
+      ["null", null],
+      ["false", false],
+    ])("draws no scope line for %s", (_label, value) => {
+      render(<PageHeader title="Trash" scope={value as never} />);
+      const heading = screen.getByRole("heading", { level: 1 });
+      expect(heading.parentElement!.children).toHaveLength(1);
+    });
+
+    it("opens no trail row for a breadcrumb that is null", () => {
+      const { container } = render(
+        <PageHeader title="Trash" breadcrumb={null} />,
+      );
+      expect(container.querySelectorAll("header > div")).toHaveLength(1);
+    });
+
+    it("still draws what it is given", () => {
+      const { container } = render(
+        <PageHeader title="Trash" actions={<button>Empty</button>} />,
+      );
+      expect(container.querySelector("header > div")!.children).toHaveLength(2);
+    });
+  });
+
   describe("the title icon", () => {
     it("renders the icon it is given", () => {
       const { container } = render(<PageHeader titleIcon={Trash2} title="Trash" />);

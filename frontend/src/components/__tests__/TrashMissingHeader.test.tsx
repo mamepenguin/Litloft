@@ -154,6 +154,28 @@ describe("Missing header", () => {
     expect(header.textContent).not.toMatch(/\d+ items/);
   });
 
+  // The number is the drive's total, not how much of it has scrolled in.
+  // A fixture where the two differ is the only thing that can tell them
+  // apart: with a page equal to the total, `files.length` and `total` agree
+  // and the swap is invisible. On a drive missing 500 files it would show
+  // "30 items" and climb as the reader scrolls.
+  it("counts everything missing, not the page that has loaded", async () => {
+    apiMocks.getMissing.mockResolvedValue({
+      data: [file("a"), file("b")],
+      meta: { total: 500 },
+    });
+    render(<MissingView driveName="main" />);
+    await screen.findByRole("heading", { level: 1 });
+    // Asserted on the header's text, not with `findByText`: the count sits in
+    // the same element as the description, so the query has no node of its own
+    // to match.
+    await waitFor(() => {
+      const header = document.querySelector("header")!;
+      expect(header.textContent).toMatch(/500 items/);
+      expect(header.textContent).not.toMatch(/\b2 items/);
+    });
+  });
+
   it("keeps the view toggle, in the header's actions", async () => {
     render(<MissingView driveName="main" />);
     await waitFor(() =>
