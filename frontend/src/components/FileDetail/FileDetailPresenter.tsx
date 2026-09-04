@@ -1,6 +1,7 @@
 "use client";
 
 import type { ReactNode, RefObject } from "react";
+import { useTranslations } from "next-intl";
 
 import type { FileItem } from "@/types";
 import type { MediaController } from "@/lib/mediaController";
@@ -13,6 +14,9 @@ import { FilePreview } from "../FilePreview";
 import { RelatedFilesSection } from "../RelatedFilesSection";
 import { MarkdownDocumentLayout } from "../markdown/MarkdownDocumentLayout";
 import { FileDetailCanvas } from "./FileDetailCanvas";
+import { InspectorShell } from "./inspector/InspectorShell";
+import { RelatedGroup } from "./inspector/RelatedGroup";
+import { buildInspectorTabs } from "./inspector/tabs";
 import type { CompanionMetrics } from "./hooks/useCompanionMetrics";
 
 export interface FileDetailPresenterProps {
@@ -89,6 +93,8 @@ export function FileDetailPresenter({
   onBack,
   meta,
 }: FileDetailPresenterProps) {
+  const tabLabels = useTranslations("inspector.tabs");
+
   if (useDocumentLayout) {
     // 2026-05-12 inspector consolidation:
     //
@@ -115,10 +121,27 @@ export function FileDetailPresenter({
     // Verify mode) would only add noise. Skip the file-detail-sections
     // AddonSlot entirely in HTML mode — the inspector keeps the universal
     // file meta + tags + related + exif + comments stack.
-    const inspectorSections = (
+    // Everything below the fixed header. One tab for Markdown and HTML,
+    // so no tab strip is drawn and the inspector keeps the shape it has
+    // always had — which is what the design asked for.
+    const infoTabContent = (
       <>
-        {meta}
-        <RelatedFilesSection fileId={fileId} />
+        {/* One heading over both kinds of relation. Core's own
+            `file_relations` and whatever an addon derives from the file
+            were two headings answering the same question, so a reader
+            had to guess which one a given connection was filed under.
+            The addon half arrives through a slot rather than by id:
+            core naming `similar-files` here would be exactly the
+            core-to-addon dependency the rules forbid, and a slot is the
+            generic container that already exists for this. */}
+        <RelatedGroup>
+          <RelatedFilesSection fileId={fileId} />
+          <AddonSlot
+            id="file-relations"
+            layout="stack"
+            props={addonSlotProps}
+          />
+        </RelatedGroup>
         <ExifSection fileId={fileId} fileType={file.file_type} />
         {!isHtmlPreview && (
           <AddonSlot
@@ -130,6 +153,18 @@ export function FileDetailPresenter({
         )}
         <CommentSection fileId={fileId} />
       </>
+    );
+
+    const inspectorTabs = buildInspectorTabs({
+      info: { label: tabLabels("info"), content: infoTabContent },
+    });
+
+    const inspectorSections = (
+      <InspectorShell
+        header={meta}
+        tabs={inspectorTabs}
+        resetKey={fileId}
+      />
     );
 
     const heavySummarySections = (
@@ -144,9 +179,7 @@ export function FileDetailPresenter({
       </>
     );
 
-    const inspectorPaneContent = (
-      <div className="space-y-4 p-4">{inspectorSections}</div>
-    );
+    const inspectorPaneContent = inspectorSections;
 
     // Mobile Bottom Sheet content: inspector + heavy summaries inline.
     // Built only when actually on mobile so the underlying AddonSlot /
@@ -154,7 +187,8 @@ export function FileDetailPresenter({
     // surfaces (desktop pane *or* mobile sheet, never both).
     const mobileSheetContent = isMobile ? (
       <div className="space-y-4 p-4">
-        {inspectorSections}
+        {meta}
+        {infoTabContent}
         {!isHtmlPreview && heavySummarySections}
       </div>
     ) : undefined;

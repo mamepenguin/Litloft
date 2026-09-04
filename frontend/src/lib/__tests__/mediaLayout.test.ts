@@ -16,8 +16,12 @@ beforeEach(() => {
 });
 
 describe("readMediaLayout", () => {
-  it("is stacked when nothing has been chosen", () => {
-    expect(readMediaLayout()).toBe("stacked");
+  it("is beside when nothing has been chosen", () => {
+    // The redesign's confirmed shape puts the transcript and chapters in
+    // the inspector's tab strip, and that strip exists only in the
+    // beside form. A stacked default would have shown the arrangement
+    // the design settled on only to people who found the toggle.
+    expect(readMediaLayout()).toBe("beside");
   });
 
   it("prefers the attribute, which is what the CSS is acting on", () => {
@@ -26,14 +30,21 @@ describe("readMediaLayout", () => {
     expect(readMediaLayout()).toBe("beside");
   });
 
+  it("keeps a stored choice of the non-default", () => {
+    // The half of the default change that matters: nobody who has
+    // already chosen stacked gets moved by it.
+    window.localStorage.setItem("media-layout-preference", "stacked");
+    expect(readMediaLayout()).toBe("stacked");
+  });
+
   it("falls back to storage before the init script has run", () => {
     window.localStorage.setItem("media-layout-preference", "beside");
     expect(readMediaLayout()).toBe("beside");
   });
 
-  it("treats anything unrecognised as stacked", () => {
+  it("treats anything unrecognised as the default", () => {
     document.documentElement.setAttribute(ATTRIBUTE, "sideways");
-    expect(readMediaLayout()).toBe("stacked");
+    expect(readMediaLayout()).toBe("beside");
   });
 });
 

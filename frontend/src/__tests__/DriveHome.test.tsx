@@ -175,10 +175,18 @@ describe("DriveHome", () => {
 
     render(<DriveHome driveName="media" />);
 
+    // Waited on, not asserted once the file listing appears. Those are
+    // two different fetches, and `ContinueWatchingSection` returns null
+    // only when it is *done* loading with nothing — while the history
+    // request is in flight it draws its heading. So the old form passed
+    // whenever the listing happened to resolve second, and failed when
+    // it resolved first, which under load it does.
     await waitFor(() => {
       expect(screen.getByTestId("root-file-listing")).toBeInTheDocument();
     });
-    expect(screen.queryByText("Continue Watching")).toBeNull();
+    await waitFor(() => {
+      expect(screen.queryByText("Continue Watching")).toBeNull();
+    });
   });
 
   it("renders file titles from watch history", async () => {

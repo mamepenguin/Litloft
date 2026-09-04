@@ -1,8 +1,10 @@
 "use client";
 
 import { Suspense, useEffect, useMemo, useState } from "react";
+import { useTranslations } from "next-intl";
 import { useAddonSlots } from "./AddonSlotsProvider";
 import type { SlotEntry } from "@/lib/addons";
+import { slotEntryLabel } from "@/lib/slotLabel";
 
 type SlotModule = {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -103,6 +105,8 @@ export function AddonSlot({
   excludeIds,
 }: AddonSlotProps) {
   const { getSlotEntries } = useAddonSlots();
+  // Global namespace: a slot's `i18n_key` names its own addon's.
+  const tGlobal = useTranslations();
   const entries = getSlotEntries(id);
 
   const sorted = useMemo(() => {
@@ -135,7 +139,7 @@ export function AddonSlot({
                   : "text-text-muted hover:text-text-primary"
               }`}
             >
-              {entry.label}
+              {slotEntryLabel(entry, tGlobal)}
             </button>
           ))}
         </div>

@@ -830,7 +830,11 @@
       "tags": "Tags",
       "related": "Related files",
       "aiSummary": "AI summary",
-      "comments": "Comments"
+      "comments": "Comments",
+      "relatedGroup": "Related"
+    },
+    "tabs": {
+      "info": "Info"
     },
     "saveDot": {
       "idle": "Save state",
@@ -843,7 +847,8 @@
       "hint": "Click to rename",
       "label": "Filename",
       "failed": "Rename failed"
-    }
+    },
+    "tablistLabel": "Inspector sections"
   },
   "comments": {
     "title": "Comments",

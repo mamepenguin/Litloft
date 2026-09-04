@@ -24,7 +24,7 @@ stays on the row at every width, beside the path rather than instead of it.
 Video and `.loft` files get a **companion region** — a second column of playback-aware panels that belongs to the player rather than to the page below it.
 
 - **Chapters sit at the top**, addon panels below (the Intelligence addon's playback-following transcript is the one that ships today). They stack rather than sharing a tab strip, so a coarse index and the fine text can follow the same clock at once.
-- **Beside or below** — a toggle directly under the player swaps the region between a column beside the player and a full-width block under it. The choice is saved in `localStorage`, per device.
+- **Beside or below** — a toggle directly under the player swaps the region between a column beside the player and a full-width block under it. **Beside is the default**; the choice is saved in `localStorage`, per device, and a choice you have already made is kept.
 - In the beside form the column spans the whole page, so you can scroll the left side through metadata, summaries and comments while the rail stays put and keeps following playback.
 - The beside form only appears where it actually fits (the detail area has to be at least 60 rem wide). On a narrower window, or in the two-pane right pane, the region falls back to stacking below the player and the toggle is hidden.
 - **Audio never gets the rail.** The player is a couple of hundred pixels tall and a column beside it would leave half the width empty; the region stays full-width under the player.

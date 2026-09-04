@@ -830,7 +830,11 @@
       "tags": "タグ",
       "related": "関連ファイル",
       "aiSummary": "AI要約",
-      "comments": "コメント"
+      "comments": "コメント",
+      "relatedGroup": "関連"
+    },
+    "tabs": {
+      "info": "情報"
     },
     "saveDot": {
       "idle": "保存状態",
@@ -843,7 +847,8 @@
       "hint": "クリックして名前を変更",
       "label": "ファイル名",
       "failed": "名前の変更に失敗しました"
-    }
+    },
+    "tablistLabel": "インスペクタのセクション"
   },
   "comments": {
     "title": "コメント",

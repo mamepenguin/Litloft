@@ -785,6 +785,7 @@ Addons can inject UI components into predefined **slots** in the core applicatio
 |---------|----------|--------|----------|
 | `search-modes` | Search results page (`/drive/{drive}/search`); not the GlobalSearch popup | Stack | Semantic search, Find, and other custom retrievers. Receives a `context: "popup" \| "page"` prop (default `"popup"`); core mounts the slot only on the results page with `context: "page"` today, but the prop is reserved so addons may render a compact popup layout in the future without breaking compatibility. The GlobalSearch popup obtains semantic hits by calling intelligence's HTTP routes directly via the thin wrapper at `frontend/src/lib/semanticSearch.ts` — the established public-contract pattern — not via this slot |
 | `file-detail-sections` | File detail panel | Vertical stack | Transcripts, similar files, suggested tags, summaries, knowledge notes |
+| `file-relations` | Inside the file detail inspector's **Related** heading, under the core's own relations | Stack | Connections between *this* file and others that the addon derives rather than the user states — similarity, shared keywords. Core has one heading for both kinds, because two headings meant a reader had to guess which one a given connection was filed under. Two obligations: **move**, do not copy — an entry left in `file-detail-sections` renders in both places, and core cannot detect that; and note that the **Related** heading appears whenever any addon publishes here, whether or not your entry has computed anything, so a section that is only ever a placeholder does not belong in this slot. A collapsed control that computes when opened does. |
 | `dashboard-widgets` | Admin dashboard | Cards | Index statistics, cloud sync status |
 | `dashboard-alerts` | Admin dashboard, above the drive cards | Stack | Something is wrong and an operator should see it before anything else — a queue of failed jobs, a provider that stopped answering. Render nothing when there is nothing wrong: the host draws no wrapper and no heading, so an entry that always renders is a permanent band above the page. |
 | `folder-actions` | Folder toolbar | Inline buttons | Batch AI actions |
@@ -796,6 +797,27 @@ Addons can inject UI components into predefined **slots** in the core applicatio
 | `drive-home-sections` | Drive home page | Stack | Per-drive feature widgets (e.g. "Pickup" recommendations) |
 | `admin-settings-sections` | Admin settings page | Stack | Additional settings sections contributed by addons |
 | `admin-intelligence-sections` | Intelligence admin page (`/drive/{drive}/addons/intelligence/admin`) | Stack | Intelligence-specific settings panels (features, LLM provider, transcription, RAG) |
+
+### Naming a slot entry in the reader's language
+
+A slot entry's `label` is read straight from your `manifest.json`, which is a
+declaration and not a translation catalogue — so a label written there appears in
+English beside core's translated headings. Add `i18n_key` to the entry instead:
+
+```json
+{ "id": "transcript", "label": "Transcript", "priority": 10,
+  "i18n_key": "intelligence.slots.transcript" }
+```
+
+The key is resolved against the merged catalogue, and the key itself belongs in
+**your** addon's `frontend/messages/{ja,en}.json` — never in core's `messages-core/`
+(`frontend-conventions.md`). Keep `label` as well: it is the fallback, used when no
+key is given and when the key does not resolve, so an entry that ships a key before
+its translations reach the merged output degrades to English rather than to a raw
+key on screen.
+
+No core release is needed to adopt it. The backend passes manifest fields through
+untouched, so adding the field to a manifest is enough.
 
 ### Contributing to the file action row
 
