@@ -66,12 +66,18 @@ export function FileActionRow({
       // Wraps because it also renders inside the 384px inspector. The
       // peek row is the one place it must not: there it shares a line
       // with the title, so it stays on one line and sheds its labels.
-      // `pointer-coarse:min-h-11` is the row half of the touch floor
-      // (`DESIGN.md` §Row Actions): reached on the row so its controls
-      // inherit it, rather than each growing its own box.
+      // The touch floor is on the class, not on the row's height.
+      // `pointer-coarse:min-h-11` alone was wrong here: it makes the row
+      // 44px and `items-center` never stretches a child into it, so the
+      // targets stayed 28px inside a tall row — the case `DESIGN.md`
+      // §Row Actions names when it says to give the row's own controls
+      // the same treatment wherever alignment stops them inheriting it.
+      // `file-action-row-compact` grows each control to 44px on a coarse
+      // pointer instead, in CSS, because three of the four are not this
+      // component's to give a class to — one is an addon's.
       className={
         compact
-          ? "flex flex-shrink-0 items-center gap-0.5 pointer-coarse:min-h-11"
+          ? "file-action-row-compact flex flex-shrink-0 items-center gap-0.5"
           : "mt-2 flex flex-wrap items-center gap-1"
       }
     >
@@ -101,10 +107,10 @@ export function FileActionRow({
         <CastButton mediaRef={videoRef} />
       )}
       {/* Named for what it holds, not for where it sits: this row is
-          lifted into the inspector's fixed header on a desktop and into
-          the 56px peek row on a phone, so entries bring their own
-          trigger and take no sizing from the host. Before the overflow
-          menu, so `⋮` stays last the way it reads everywhere else. */}
+          drawn in the inspector's fixed header, and on a phone with the
+          sheet collapsed in the 56px strip instead — so entries bring
+          their own trigger and take no sizing from the host. Before the
+          overflow menu, so `⋮` stays last as it reads everywhere. */}
       <AddonSlot
         id="file-detail-actions"
         layout="stack"

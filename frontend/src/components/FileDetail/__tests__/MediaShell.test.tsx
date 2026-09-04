@@ -19,10 +19,7 @@ import { render, screen, waitFor, fireEvent } from "@testing-library/react";
 import { FileDetailContent } from "../../FileDetailContent";
 import type { FileItem } from "@/types";
 import { inspectorOpenStorageKey } from "@/lib/inspectorOpenStore";
-import {
-  SHEET_PEEK_PX,
-  SHEET_SNAP_FULL,
-} from "@/components/MobileInspectorSheet";
+import { SHEET_PEEK_PX } from "@/components/MobileInspectorSheet";
 import { CANVAS_PADDING_REM } from "@/lib/layoutSizes";
 import {
   claimSlot,
@@ -362,7 +359,9 @@ describe("media on the shell, on a phone", () => {
     expect(peek).toHaveTextContent("Sample");
     expect(peek).toContainElement(screen.getByTestId("file-action-row"));
     // One on screen. The inspector draws its own, but only while the
-    // sheet is up — and then the strip is gone.
+    // sheet is up — and the strip is gone then, so the two are
+    // mutually exclusive returns rather than a gate someone has to
+    // keep in step.
     expect(screen.getAllByTestId("file-action-row")).toHaveLength(1);
   });
 
@@ -379,9 +378,12 @@ describe("media on the shell, on a phone", () => {
     const peek = await screen.findByTestId("mobile-inspector-peek");
     expect(peek.querySelector("[data-testid='trust-tier-state']")).toBeNull();
     expect(peek).not.toHaveTextContent(/Unverified|未検証/);
-    // The floor is reached on the row, so its controls inherit it.
+    // The floor is reached by the controls, not by the row: a tall row
+    // with `items-center` leaves 28px targets inside it. The rule that
+    // grows them is CSS — jsdom does no layout — so this pins the hook
+    // the rule selects on and `mediaDetailTheaterCss` pins the rule.
     const row = screen.getByTestId("file-action-row");
-    expect(row.classList.contains("pointer-coarse:min-h-11")).toBe(true);
+    expect(row.classList.contains("file-action-row-compact")).toBe(true);
   });
 
   it("ends the page above the strip it rests behind", async () => {

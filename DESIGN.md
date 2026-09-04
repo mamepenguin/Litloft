@@ -603,7 +603,7 @@ picking a number one higher than whatever it currently sits under.
 | Tier | `z` | What belongs here |
 |---|---|---|
 | In-flow chrome | `z-10` – `z-30` | Sticky bars, the header (`z-20`), the file-detail inspector where it has to cover the canvas rather than sit beside it (`z-20`, §8.5), popovers anchored to a control, the sidebar backdrop (`z-30`) |
-| Floating surfaces | `z-40` | Sidebar in overlay mode, mini-player, upload progress, bottom-anchored mobile menus |
+| Floating surfaces | `z-40` | Sidebar in overlay mode, mini-player, upload progress, bottom-anchored mobile menus including the file detail sheet's resting strip |
 | Inspector sheet | `z-[45]` / `z-[46]` | The mobile Bottom Sheet — above every floating surface, below every dialog |
 | Modal dialogs | `z-50` | Confirm / Rename / Move and anything else that interrupts to ask a question, including addon dialogs |
 | Immersive viewers | `z-[60]` | Full-screen image gallery and archive viewer, which replace the page rather than overlay it |
@@ -656,6 +656,15 @@ scroll-lock and pointer-events extras and nothing about Radix.
 The cost is that what is below the strip unmounts on collapse and
 refetches on the way back up. That is what a closed sheet already did,
 and it is the cheaper of the two prices.
+
+**The resting strip owns `bottom-0` on the file surface.** It is
+full-width and permanent, so nothing else bottom-anchored may share the
+screen with it. Today nothing does — the mini player is desktop-only by
+breakpoint, and the upload toast lives in the folder listing that the
+two-pane layout replaces when a file is open — but both of those are
+consequences of other decisions rather than of this one. Anything new
+that anchors to the bottom of a file page has to go above the strip, not
+beside it.
 
 **Fade the backdrop from the first snap point.** vaul defaults
 `fadeFromIndex` to the *last* one, which leaves `half` — the state the
