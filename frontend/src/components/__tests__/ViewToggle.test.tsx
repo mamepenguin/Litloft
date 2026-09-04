@@ -1,5 +1,9 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { fireEvent, render, screen } from "@testing-library/react";
+import { readFileSync, readdirSync, statSync } from "node:fs";
+import { fileURLToPath } from "node:url";
+import { resolve, dirname, relative } from "node:path";
+import { stripComments } from "@/__tests__/helpers/stripComments";
 
 import { ViewToggle } from "../ViewToggle";
 
@@ -58,9 +62,10 @@ describe("ViewToggle (controlled)", () => {
   });
 
   // DESIGN.md §2.2: one accent fill per screen, and it belongs to what the
-  // screen is for. This toggle rides on the folder toolbar beside Upload and
-  // Play, and also on Trash, Missing and the inside of an archive, so a fill
-  // here was spending the budget on a view switch in four places.
+  // screen is for. This toggle rides on six screens — the folder toolbar
+  // beside Upload and Play, the drive home, a collection, Trash, Missing and
+  // the inside of an archive — so a fill here was spending the budget on a
+  // view switch in six places.
   it("does not spend an accent fill on the selected view", () => {
     render(<ViewToggle mode="list" onChange={vi.fn()} />);
     for (const label of ["List view", "Grid view"]) {
@@ -96,5 +101,47 @@ describe("ViewToggle (controlled)", () => {
     fireEvent.click(screen.getByLabelText("List view"));
     expect(localStorage.getItem(STORAGE_KEY)).toBeNull();
     expect(onChange).toHaveBeenCalledWith("list");
+  });
+});
+
+// Where this control actually appears.
+//
+// Its own comment claimed four screens and there were six, and that same list
+// was the list of backgrounds its contrast was measured against — so the prose
+// was doing the job of an enumeration while being maintained by hand. That is
+// the `>=` hazard in sentence form: the two it omitted could not contradict
+// it. The count is asserted instead, and the comment now cites this test.
+describe("where ViewToggle is used", () => {
+  const SRC = resolve(dirname(fileURLToPath(import.meta.url)), "../..");
+
+  function callSites(): string[] {
+    const out: string[] = [];
+    const walk = (dir: string) => {
+      for (const entry of readdirSync(dir, { withFileTypes: true })) {
+        const full = resolve(dir, entry.name);
+        if (entry.name === "node_modules" || entry.name.startsWith(".")) continue;
+        // Addon trees are symlinked in here and read at their own root.
+        if (entry.name === "addons" && dir === SRC) continue;
+        if (statSync(full).isDirectory()) walk(full);
+        else if (/\.tsx$/.test(entry.name) && !/\.test\.tsx$/.test(entry.name)) {
+          if (/<ViewToggle\b/.test(stripComments(readFileSync(full, "utf-8")))) {
+            out.push(relative(SRC, full));
+          }
+        }
+      }
+    };
+    walk(SRC);
+    return out.sort();
+  }
+
+  it("appears on exactly the screens its comment names", () => {
+    expect(callSites()).toEqual([
+      "components/CollectionDetail.tsx",
+      "components/RootFileListing.tsx",
+      "components/archive/ArchiveToolbar.tsx",
+      "components/folder/FolderToolbar.tsx",
+      "components/missing/MissingView.tsx",
+      "components/trash/TrashToolbar.tsx",
+    ]);
   });
 });

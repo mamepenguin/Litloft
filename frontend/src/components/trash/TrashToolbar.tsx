@@ -67,12 +67,18 @@ export function TrashToolbar({
           <div className="flex-1" />
           <div className="flex items-center gap-1 rounded-lg bg-bg-card p-1">
             <SortButton sort={sort} order={order} onChange={onSortChange} />
+            {/* Same pill as ViewToggle, so the same idiom: selection is a
+                border (DESIGN.md §Selected-state controls). It was an accent
+                fill, which put two different ways of saying "this one is on"
+                side by side in one control cluster — and spent the screen's
+                one fill on a mode toggle. */}
             <button
               onClick={onToggleSelectable}
-              className={`rounded-lg p-2 transition-colors ${
+              aria-pressed={selectable}
+              className={`rounded-lg border p-2 transition-colors ${
                 selectable
-                  ? "bg-accent text-white"
-                  : "text-text-muted hover:text-text-primary"
+                  ? "border-accent text-text-primary"
+                  : "border-transparent text-text-muted hover:text-text-primary"
               }`}
               aria-label={ts("selectMode")}
             >
