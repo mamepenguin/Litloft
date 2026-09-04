@@ -656,20 +656,25 @@ were hand-rolling the same recipe and drifting apart.
   `title` to the same string: with an `aria-label` present it becomes the accessible
   *description*, which NVDA and JAWS read after the name, so the sentence is
   announced twice.
-- **Touch targets.** The mobile rule is 44px, and the honest way to reach it is to
-  grow the hit area rather than the box — a taller control raises the row, and these
-  live in lists that are capped in height, where every pixel of row is a fraction of
-  the rows on screen. `relative` plus
-  `pointer-coarse:before:absolute pointer-coarse:before:-inset-1.5` gives 44px around
-  a 32px box.
+- **Touch targets: 44px on `pointer: coarse`, 32px on `fine`.** The 44px floor is
+  stated under the mobile sizing rules, so it governs touch input and says nothing
+  against a dense list on a desktop — where 32px already clears the 24px minimum for
+  repeated icon-only controls (hako `Prwd_iaXmCjWfY24KjFz2`). The two rules agree;
+  neither asks for 44px everywhere. Applying it everywhere is not free either: a
+  transcript runs to several hundred rows, and that extra height comes straight off
+  what fits in the mobile sheet the floor exists to protect.
 
-  Be exact about what that buys. It is 44px **horizontally**; vertically it is
-  bounded by the row pitch, because adjacent pseudo-elements overlap and the later
-  row wins the hit test. At a 38px pitch each control keeps 38px. Reaching 44px in
-  both axes means making the row 44px, which is a decision about the row — and worth
-  taking only together with the row's *primary* control, since a list whose secondary
-  action meets the floor and whose main one does not has bought nothing.
+  Reach it on **the row**, with `pointer-coarse:min-h-11`, and give the row's own
+  controls the same class wherever `items-start` stops them inheriting that height.
+  Not on one control: the row is what both of them are asking to be big enough, and a
+  list whose secondary action clears the floor while its primary one does not has
+  bought nothing.
 
+  Then grow the *action's* hit area rather than its box — `relative` plus
+  `pointer-coarse:before:absolute pointer-coarse:before:-inset-1.5` — so the icon
+  stays 32px at every pointer type. The 44px row is also what makes that overhang
+  safe: at a shorter pitch, adjacent pseudo-elements overlap and the later row wins
+  the hit test, so every control silently keeps less than it looks like it has.
 
 ### Section Header Labels (i18n)
 
