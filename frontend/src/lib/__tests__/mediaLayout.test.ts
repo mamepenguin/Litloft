@@ -8,6 +8,11 @@ const ATTRIBUTE = "data-media-layout";
 beforeEach(() => {
   document.documentElement.removeAttribute(ATTRIBUTE);
   window.localStorage.clear();
+  // "still applies the choice when storage refuses" leaves Storage.prototype
+  // throwing if it fails before its own restore. That patch is shared by
+  // localStorage and sessionStorage, so an unrestored one takes the rest of the
+  // file down with it — a cascade that reports the wrong culprit.
+  vi.restoreAllMocks();
 });
 
 describe("readMediaLayout", () => {
@@ -57,13 +62,16 @@ describe("useMediaLayoutPreference", () => {
       .mockImplementation(() => {
         throw new Error("private mode");
       });
-    const { result } = renderHook(() => useMediaLayoutPreference());
+    try {
+      const { result } = renderHook(() => useMediaLayoutPreference());
 
-    act(() => result.current[1]("beside"));
+      act(() => result.current[1]("beside"));
 
-    // Lost on reload, but the session it was chosen in still honours it.
-    expect(document.documentElement.getAttribute(ATTRIBUTE)).toBe("beside");
-    expect(result.current[0]).toBe("beside");
-    setItem.mockRestore();
+      // Lost on reload, but the session it was chosen in still honours it.
+      expect(document.documentElement.getAttribute(ATTRIBUTE)).toBe("beside");
+      expect(result.current[0]).toBe("beside");
+    } finally {
+      setItem.mockRestore();
+    }
   });
 });
