@@ -1171,12 +1171,21 @@ describe("FileDetailContent companion region", () => {
 
     // `makeFile` carries no `has_chapters` unless asked, which is exactly
     // the shape these endpoints answer with.
+    //
+    // The distinct title is a positive control for the merge. What could
+    // erase the flag is the response being stored, not the request being
+    // sent, so waiting on the mock having been called waits for the wrong
+    // event — it happens to work only because the resolution lands inside
+    // waitFor's first poll. The panel is already on screen from the initial
+    // render, so if that timing ever went the other way this would pass
+    // without the merge having happened, and say nothing. Waiting for the
+    // new title waits for the merge itself.
     (api.likeFile as ReturnType<typeof vi.fn>).mockResolvedValue(
-      makeFile({ liked_at: "2026-09-01T00:00:00Z" }),
+      makeFile({ liked_at: "2026-09-01T00:00:00Z", title: "Sample (liked)" }),
     );
 
     fireEvent.click(screen.getByRole("button", { name: "Mark as liked" }));
-    await waitFor(() => expect(api.likeFile).toHaveBeenCalled());
+    expect(await screen.findByText("Sample (liked)")).toBeInTheDocument();
 
     expect(screen.getByTestId("chapters-panel")).toBeInTheDocument();
     expect(grid(container)).not.toBeNull();
