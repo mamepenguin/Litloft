@@ -6,6 +6,7 @@ import * as api from "@/lib/api";
 import type { FileItem } from "@/types";
 import { FILE_CHAPTERS_UPDATED_EVENT } from "@/lib/addonEvents";
 import {
+  claimSlot,
   loaded,
   makeFile,
   setApiResponses,
@@ -713,3 +714,37 @@ describe("FileDetailContent rail width", () => {
     expect(host.dataset.mediaWidth).toBe("narrow");
   });
 });
+
+describe("the collection route and the Related group", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    usePolicyMock.mockReturnValue({ enabled: true, isLoading: false });
+    slotMocks.occupied.clear();
+    slotMocks.entries.clear();
+  });
+
+  afterEach(() => {
+    vi.unstubAllGlobals();
+    vi.restoreAllMocks();
+  });
+
+  it("reaches an addon's derived relations, which moved out of the other slot", async () => {
+    // An addon publishing to `file-relations` has *moved* its entry
+    // there — left in both, core would render it twice and could not
+    // detect that. So a host drawing only `file-detail-sections` does
+    // not merely style the section differently: it loses it. This route
+    // is the one host in that position, and the confirmed decision not
+    // to give it an inspector is not a decision to take a section off
+    // it (user ruling, 2026-09-04).
+    claimSlot("file-relations", [
+      { id: "derived", label: "Derived", priority: 10, addonName: "some-addon" },
+    ]);
+    setApiResponses(makeFile());
+    render(<FileDetailContent fileId="f1" drive="main" surface="collection" />);
+    await loaded();
+
+    expect(screen.getByTestId("addon-slot-file-relations")).toBeInTheDocument();
+    expect(screen.getByTestId("related-files")).toBeInTheDocument();
+  });
+});
+

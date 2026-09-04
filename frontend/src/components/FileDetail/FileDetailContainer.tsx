@@ -265,6 +265,18 @@ export function FileDetailContainer({
     knowledgeEditorPolicy.enabled,
   );
 
+  /**
+   * Whether the shell's canvas holds a viewer rather than the editor.
+   *
+   * The negation and not a list of kinds: everything the shell carries
+   * is either the document form (a note, and the HTML preview that
+   * borrows its single-scroll layout) or a viewer, so naming the viewer
+   * kinds here would be a second copy of the list in
+   * `ridesFileDetailShell` — and the two would drift the first time a
+   * kind joined.
+   */
+  const usesCanvasViewer = !useDocumentLayout;
+
   // Wire the inspector's tag chips through the editor's shared content
   // state when both (a) we're in the DocumentLayout fork and (b) the
   // editor has registered an entry. Falls back to standalone mode
@@ -373,6 +385,7 @@ export function FileDetailContainer({
       ridesShell={ridesShell}
       isHtmlPreview={isHtmlPreview}
       hasPlayer={hasPlayer}
+      usesCanvasViewer={usesCanvasViewer}
       playerFramed={playerFramed}
       companionKind={companionKind}
       railEligible={railEligible}

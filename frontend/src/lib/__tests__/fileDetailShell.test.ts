@@ -100,16 +100,55 @@ describe("ridesFileDetailShell", () => {
     }
   });
 
-  it("still leaves the kinds that have not been moved yet to their host", () => {
-    const notYet = [
-      { mimeType: "image/jpeg", fileType: "image" },
+  it("routes the other viewers through the shell as well", () => {
+    // The three §7 named. Each had one column with the viewer on top and
+    // everything else under it, so the viewer's height came out of what
+    // was left — a 190-page archive got 100px of it and 440px of
+    // metadata. The shell makes the viewer the canvas.
+    expect(canonical({ mimeType: "application/pdf", fileType: "document" })).toBe(
+      true,
+    );
+    expect(canonical({ mimeType: "application/zip", fileType: "archive" })).toBe(
+      true,
+    );
+    expect(canonical({ mimeType: "image/jpeg", fileType: "image" })).toBe(true);
+  });
+
+  it("goes by the kind, not by one mime per kind", () => {
+    // An archive is a `file_type`, and there are several mimes behind it
+    // — `.cbz` arrives as `application/x-cbz`, `.7z` as its own. Keying
+    // on the mime would route one archive through the shell and leave
+    // the next one on the old layout.
+    expect(canonical({ mimeType: "application/x-cbz", fileType: "archive" })).toBe(
+      true,
+    );
+    expect(canonical({ mimeType: "image/heic", fileType: "image" })).toBe(true);
+  });
+
+  it("leaves the other viewers on the collection route alone", () => {
+    for (const file of [
       { mimeType: "application/pdf", fileType: "document" },
       { mimeType: "application/zip", fileType: "archive" },
-      { mimeType: "text/plain", fileType: "document" },
-    ];
-    for (const file of notYet) {
-      expect(canonical(file)).toBe(false);
+      { mimeType: "image/jpeg", fileType: "image" },
+    ]) {
+      expect(collection(file)).toBe(false);
     }
+  });
+
+  it("still leaves the kinds nobody has moved to their host", () => {
+    // Plain text and the office formats keep the stacked layout: §7
+    // named three viewers, and a text file has no viewer whose height is
+    // being squeezed. They are Phase 4's.
+    expect(canonical({ mimeType: "text/plain", fileType: "document" })).toBe(
+      false,
+    );
+    expect(
+      canonical({
+        mimeType:
+          "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+        fileType: "document",
+      }),
+    ).toBe(false);
   });
 
   it("says no before the file has resolved", () => {

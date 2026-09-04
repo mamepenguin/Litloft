@@ -4,6 +4,8 @@ Litloft picks a viewer based on the file's MIME type. The same file detail page 
 
 The page has three parts: a **page row** at the top, the **viewer** below it, and an **inspector** down the right-hand side. The viewer keeps the things that belong to it and nothing else — for a video that is the player, its description and its long AI summary. Everything that is true of any file, whatever kind it is — its title, length and size, like and favourite, tags, relations, comments — is in the inspector, in the same place on every page.
 
+**The viewer gets the column to itself**, which matters most where the viewer is long: a 190-page comic used to open with about 100px of archive listing and everything else stacked below it, so the deeper the archive the less of it you could see, and going down a level moved every section under it. Video, audio, Markdown, PDF, archives and images all read this way. Plain text and the Office formats still stack.
+
 Addon sections (transcripts, AI summaries, EXIF, similar files) appear once they have something in them: a section that has not been generated yet is not shown, and the way to generate it is the **AI** menu in the inspector, beside the like and favourite buttons. Anything already generated keeps its own section, with its own regenerate control, and drops out of that menu.
 
 ## The page row
@@ -103,6 +105,8 @@ Audio keeps the browser's own `<audio controls>` bar rather than Litloft's — t
 
 ## Image viewer
 
+On the detail page the image has the column to itself, with its EXIF, tags and comments in the inspector, and the full-screen entry point stays in the inspector's action row.
+
 The full-screen image viewer is a page-turner for a folder of images. Archives get a separate viewer built from the same gesture handling, described under [ZIP archives](#zip-archives).
 
 ![Image viewer in two-page spread mode with right-to-left reading enabled](../images/user-guide/image-viewer-spread-rtl.png)
@@ -132,6 +136,7 @@ Litloft renders Markdown with a curated set of extensions:
 
 ## PDF viewer
 
+- The document has the page column to itself; its metadata, tags and comments are in the inspector.
 - Rendered page by page with PDF.js (`react-pdf`), inside the page rather than in a browser plugin frame — so text selection works and the Intelligence addon can quote the page you are looking at.
 - Page navigation and a zoom control (0.5x to 2x in 0.25 steps); the page fits the available width by default.
 - The initial page can be set from the URL, which is how Ask citations land on the right page.
@@ -145,6 +150,7 @@ What Litloft does read is a short text excerpt — up to 400 characters extracte
 
 ## ZIP archives
 
+- The listing has the page column to itself, so its height is its own rather than what is left after the metadata — and going into a folder inside the archive no longer moves anything under it, because there is nothing under it.
 - The archive is **not extracted on the server**; entries are streamed lazily.
 - The listing has grid and list view modes, sorting, and a breadcrumb for folders inside the archive.
 - Per-entry caps: 50 MB per entry, max 10 000 entries, max 3 concurrent extractions across all viewers.

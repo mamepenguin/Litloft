@@ -134,10 +134,11 @@ the hand, not the text.
 |---|---|
 | `Cmd/Ctrl+\` | Show / hide the inspector panel |
 
-On every page that has an inspector, which is Markdown notes, HTML previews and
-media. Desktop only — on a phone the inspector is a bottom sheet, opened from
-the toggle in the page row. This chord fires even while a note's editor has
-focus.
+On every page that has an inspector — Markdown notes, HTML previews, media,
+PDFs, archives and images, which since 2026-09 is every kind but plain text and
+the Office formats. Desktop only: on a phone the inspector is a bottom sheet
+that rests rather than closes, and the toggle in the page row raises it. This
+chord fires even while a note's editor has focus.
 
 ### Markdown editor (Knowledge addon)
 

@@ -35,6 +35,16 @@ export interface ShellLayoutProps {
   isHtmlPreview: boolean;
   /** Whether a player plays this file at all. */
   hasPlayer: boolean;
+  /**
+   * Whether the canvas is a viewer rather than the Knowledge editor.
+   *
+   * True for everything the shell carries except a Markdown note and an
+   * HTML preview: media, and — since 2026-09 — PDF, archives and images.
+   * Not the same question as `hasPlayer`: a PDF has no player, but it
+   * has a viewer, and before this the two were conflated because the
+   * shell only carried media.
+   */
+  usesCanvasViewer: boolean;
   /** Whether anyone could fill the companion. Decides what is mounted. */
   companionMountable: boolean;
   /** Whether anyone does, for this file. Decides what chrome is drawn. */
@@ -96,6 +106,7 @@ export function ShellLayout({
   isMobile,
   isHtmlPreview,
   hasPlayer,
+  usesCanvasViewer,
   companionMountable,
   companionOccupied,
   slotAvailability,
@@ -154,6 +165,11 @@ export function ShellLayout({
    * page keeps a single scroll.
    */
   const companionInTabs = !hasPlayer || isMobile || mediaLayout === "beside";
+  // A PDF has a canvas viewer but no playback clock, so nothing follows
+  // it: the companion, its tabs and the control that moves them between
+  // the two are all a player's, and a viewer that is not one has none of
+  // them. `hasPlayer` and not `usesCanvasViewer` at every one of these.
+  const playerCompanionOccupied = hasPlayer && companionOccupied;
 
   const playerSideEntries = hasPlayer ? getSlotEntries("player-side") : [];
 
@@ -205,7 +221,7 @@ export function ShellLayout({
    * Do not add a third: the general answer is a slot of its own, the
    * way `file-relations` is, not another id core has to know.
    */
-  const canvasSlotIds = hasPlayer
+  const canvasSlotIds = usesCanvasViewer
     ? ["detailed-summary"]
     : ["knowledge-edit", "detailed-summary"];
 
@@ -309,7 +325,7 @@ export function ShellLayout({
     <InspectorShell header={meta} tabs={buildTabs(true)} resetKey={fileId} />
   ) : undefined;
 
-  if (hasPlayer) {
+  if (usesCanvasViewer) {
     return (
       <FileDetailShell
         drive={drive}
@@ -327,7 +343,7 @@ export function ShellLayout({
           // desktop pane, and a phone's sheet is `FileDetailShell`'s own
           // state, not this store. Rendering the toggle on a phone would
           // write a preference and open nothing.
-          !isMobile && companionOccupied ? (
+          !isMobile && playerCompanionOccupied ? (
             <MediaLayoutToggle onBeside={() => setInspectorOpen(true)} />
           ) : undefined
         }
@@ -344,9 +360,13 @@ export function ShellLayout({
           isTimedMedia={isTimedMedia}
           mediaController={mediaController}
           companion={
-            companionInTabs || !companionMountable
+            companionInTabs || !hasPlayer || !companionMountable
               ? null
-              : { chaptersPresent, occupied: companionOccupied, slots: playerSideNodes }
+              : {
+                  chaptersPresent,
+                  occupied: playerCompanionOccupied,
+                  slots: playerSideNodes,
+                }
           }
           chaptersVersion={chaptersVersion}
           onChaptersResolved={onChaptersResolved}

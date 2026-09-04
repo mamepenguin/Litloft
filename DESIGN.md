@@ -949,6 +949,28 @@ reason the script has its `try`.
 
 ## 8.5 Layout
 
+### File detail: one shell, two canvases
+
+Every kind the file detail shell carries gets the same page row, the same
+fixed inspector header and the same Info tab. What differs is the canvas,
+and there are only two of them:
+
+| Canvas | Kinds | What is in it |
+|---|---|---|
+| **Viewer** | video, audio, `.loft`, PDF, archive, image | the viewer, and what belongs to that viewer alone — a media file's description, its long AI summary, and the transcript when the reader has put it below the player |
+| **Document** | a Markdown note, and the HTML preview that borrows its single scroll | the Knowledge editor, with the note's own chrome in the page row (save dot, view-mode switch, click-to-edit filename) |
+
+**The viewer has the column to itself.** That is the whole of the 2026-09
+change for PDF, archives and images: each of them used to be a viewer at
+the top of one column with the metadata stacked under it, so the viewer's
+height was what was left over. A 190-page archive at 1512×807 got 100px
+of listing under 440px of metadata, and going a level down inside it
+moved every section below.
+
+Two kinds are deliberately not here: plain text and the Office formats
+keep the stacked layout. A text file has no viewer whose height is being
+squeezed, and Office has no viewer at all. They are Phase 4's.
+
 ### Inspector column (document layout)
 
 The Markdown document layout puts an inspector beside the canvas: file
@@ -994,9 +1016,12 @@ been filed under.
   section weight a member is louder than the heading grouping it, which
   reads as two lists rather than one; a card inside the group draws a
   second box inside the group's own.
-- Ungrouped — the collection-playback route, which has no inspector and
-  stacks everything in one column — each is a section again and keeps
-  the card every other section there has.
+- Ungrouped — no addon has published to `file-relations` on this drive —
+  core's relations are a section again and keep the card every other
+  section there has. The collection-playback route draws the group too:
+  it has no inspector, but an addon that moved its entry into this slot
+  is no longer reachable through `file-detail-sections`, so leaving the
+  group out there would lose the section rather than restyle it.
 - **The members live in two repositories**, so the weights above are the
   contract between them, the way the duplicated frontmatter parsers are.
   Core's `RelatedFilesSection` reads it from a context; an addon's entry
@@ -1004,8 +1029,11 @@ been filed under.
 
 ### Companion region (media file detail)
 
-Chapters and the transcript. **Where it goes depends on which surface
-the file is on**, and the two answers are not variants of one layout:
+Chapters and the transcript. **A player's, not a canvas viewer's** — a
+PDF has a viewer but no playback clock, so nothing follows it, and the
+region, its tabs and the control that moves them between the two places
+are all absent there. **Where it goes depends on which surface the file
+is on**, and the two answers are not variants of one layout:
 
 | Surface | "Beside" means | "Below" means |
 |---|---|---|

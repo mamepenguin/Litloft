@@ -870,8 +870,13 @@ Markdown inspector and on a phone, so an entry must:
   no separator — the slot is a bare stack.
 - **Take no width or height from the host,** and hard-code neither. The
   same entry has to fit a narrow inspector column today.
-- **Keep its tap target at least 44px,** even where the drawn control is
-  smaller.
+- **Keep its tap target at least 44px on a coarse pointer,** even where
+  the drawn control is smaller — and keep it *itself*, with a
+  `pointer-coarse:` class of its own. The host grows the row's children
+  to 44px only in the compact form it uses inside a phone's resting
+  strip, and "compact" is a viewport-width test, not a pointer one. A
+  coarse-pointer tablet at 768px or wider gets the full row, which has
+  no such rule, so an entry relying on the host is 36px there.
 - **Render nothing when it has nothing to offer for this file.** The row
   belongs to the core's own controls; an entry that always draws is a
   permanent occupant of a line the user did not ask for.
@@ -1380,7 +1385,11 @@ services:
 
 | Slot | Slot entry ID | Description |
 |------|---------------|-------------|
-| `file-detail-sections` | `knowledge-edit` | Inline Markdown editor for per-file notes |
+| `file-detail-sections` | `knowledge-edit` | Inline Markdown editor for per-file notes. `.md` only — every other kind renders nothing |
+| `file-detail-actions` | `knowledge-media-capture` | Quote the current playback position, PDF page or text selection into the capture basket |
+| `file-actions-menu` | `knowledge-create-note` | Make a note linked to this file |
+| `header-actions` | `knowledge-capture-basket` | The capture basket itself |
+| `search-result-actions` | `knowledge-search-capture` | Quote a search result |
 | `active-summary-view` | `knowledge-active-summary` | Renders the knowledge note promoted as the active summary for a file |
 
 ### Data Model
