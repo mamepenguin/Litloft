@@ -56,8 +56,13 @@ export function ViewToggle({ mode: controlledMode, onChange }: ViewToggleProps) 
   // fill on the folder toolbar, on a control that only says which of two
   // equal views you are in. DESIGN.md §2.2 allows one fill per screen and it
   // belongs to what the screen is for, not to a view switch. This toggle also
-  // rides on Trash, Missing and the inside of an archive, so it is dropped
-  // here rather than at one call site.
+  // rides on six screens, so it is dropped here rather than at one call site:
+  // the folder toolbar, the drive home, a collection, Trash, Missing and the
+  // inside of an archive. (Four, in an earlier draft of this sentence. Two of
+  // the six sit inside a `bg-bg-elevated` pill and the rest on the page, and
+  // that list was also the list of backgrounds the contrast below was measured
+  // against — an enumeration written by hand is the same hazard in prose that
+  // `>=` is in an assertion.)
   //
   // Selection is carried by a **border**, the same device §Tabs uses, and not
   // by a surface. No surface token can carry it: `--bg-card` is `#ffffff` in

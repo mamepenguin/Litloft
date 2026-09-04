@@ -36,6 +36,40 @@ describe("TrashToolbar", () => {
     expect(screen.getByLabelText("File type")).toBeInTheDocument();
   });
 
+  // The select-mode button shares a pill with ViewToggle, so it has to say
+  // "on" the same way. It was an accent fill sitting directly beside the
+  // toggle's accent border — two idioms for one idea in one cluster — and it
+  // was also the screen's one fill (DESIGN.md §2.2) spent on a mode switch.
+  describe("the select-mode button", () => {
+    it("marks its pressed state with a border, not a fill", () => {
+      render(<TrashToolbar {...defaultProps} selectable />);
+      const button = screen.getByLabelText("Selection mode");
+      expect(button.classList.contains("border-accent")).toBe(true);
+      expect([...button.classList].filter((c) => /^bg-/.test(c))).toEqual([]);
+    });
+
+    it("reserves the border box when not pressed, so nothing shifts", () => {
+      render(<TrashToolbar {...defaultProps} />);
+      const button = screen.getByLabelText("Selection mode");
+      expect(button.classList.contains("border")).toBe(true);
+      expect(button.classList.contains("border-transparent")).toBe(true);
+      expect(button.classList.contains("border-accent")).toBe(false);
+    });
+
+    // A toggle that only looks pressed is not pressed to a screen reader.
+    it("reports its pressed state", () => {
+      const { unmount } = render(<TrashToolbar {...defaultProps} selectable />);
+      expect(
+        screen.getByLabelText("Selection mode").getAttribute("aria-pressed"),
+      ).toBe("true");
+      unmount();
+      render(<TrashToolbar {...defaultProps} />);
+      expect(
+        screen.getByLabelText("Selection mode").getAttribute("aria-pressed"),
+      ).toBe("false");
+    });
+  });
+
   it("puts every arranging control away when the trash is empty", () => {
     // An empty bin has nothing to sort, nothing to lay out, and nothing
     // to filter by kind. All that is left worth saying is "0 items".
