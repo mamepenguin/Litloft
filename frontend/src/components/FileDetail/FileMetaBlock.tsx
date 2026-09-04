@@ -12,7 +12,7 @@ import { CastButton } from "../CastButton";
 import { FavoriteButton } from "../FavoriteButton";
 import { FileActions } from "../FileActions";
 import { LikeButton } from "../LikeButton";
-import { SeekableDescription } from "../SeekableDescription";
+import { FileDescription } from "./FileDescription";
 import { TrustTierControl } from "../TrustTierControl";
 import { MetadataEditor } from "./MetadataEditor";
 
@@ -39,6 +39,16 @@ interface FileMetaBlockProps {
   addonSlotProps: Record<string, unknown>;
   /** The tag chip row, built by the container so it can pick its mode. */
   tagChips: ReactNode;
+  /**
+   * Leave the description out — the layout is drawing it elsewhere.
+   *
+   * Media on the shell does: the confirmed layout keeps the viewer and
+   * the long things belonging to it in the canvas, and a description is
+   * one of those. It is a flag rather than two components so there is
+   * one description rendering, not a canvas copy that drifts from an
+   * inspector copy.
+   */
+  hoistDescription?: boolean;
 }
 
 /**
@@ -69,6 +79,7 @@ export function FileMetaBlock({
   videoRef,
   addonSlotProps,
   tagChips,
+  hoistDescription = false,
 }: FileMetaBlockProps) {
   const t = useTranslations("file");
   const hasDuration = isTimedMedia && file.duration != null;
@@ -88,29 +99,19 @@ export function FileMetaBlock({
       ) : (
         <div>
           <h1 className="text-xl font-bold text-text-primary">{file.title}</h1>
-          {(hasDuration || file.description) && (
-            <div className="mt-1 text-xs text-text-muted">
-              {hasDuration && <span>{formatDuration(file.duration)} · </span>}
-              <span>{formatFileSize(file.file_size)}</span>
-              {file.description && (
-                <p className="mt-1 text-sm whitespace-pre-wrap">
-                  {isTimedMedia ? (
-                    <SeekableDescription
-                      text={file.description}
-                      durationSeconds={file.duration}
-                      mediaController={mediaController}
-                    />
-                  ) : (
-                    file.description
-                  )}
-                </p>
-              )}
-            </div>
-          )}
-          {!hasDuration && !file.description && (
-            <p className="mt-1 text-xs text-text-muted">
-              {formatFileSize(file.file_size)}
-            </p>
+          {/* One line, always. Which parts it has is a question about
+              the file; whether the line exists at all is not. */}
+          <div className="mt-1 text-xs text-text-muted">
+            {hasDuration && <span>{formatDuration(file.duration)} · </span>}
+            <span>{formatFileSize(file.file_size)}</span>
+          </div>
+          {!hoistDescription && (
+            <FileDescription
+              file={file}
+              isTimedMedia={isTimedMedia}
+              mediaController={mediaController}
+              className="mt-1"
+            />
           )}
           {/* Wraps because this row also renders inside the 384px Markdown
               inspector and on a phone, where it cannot fit on one line. */}

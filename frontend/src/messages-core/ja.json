@@ -834,7 +834,8 @@
       "relatedGroup": "関連"
     },
     "tabs": {
-      "info": "情報"
+      "info": "情報",
+      "chapters": "チャプター"
     },
     "saveDot": {
       "idle": "保存状態",

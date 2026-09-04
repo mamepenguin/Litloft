@@ -16,7 +16,34 @@ import { useMediaLayoutPreference } from "@/lib/mediaLayout";
  *
  * Spec: docs/superpowers/specs/2026-08-11-media-layout-toggle.md
  */
-export function MediaLayoutToggle() {
+interface MediaLayoutToggleProps {
+  /**
+   * Hide the button unless a rail can actually fit beside the player.
+   *
+   * True on the legacy stack, where "beside" means a second grid column
+   * and a narrow host has nowhere to put it — a control that does
+   * nothing when pressed is worse than no control. False on the shell,
+   * where "beside" means an inspector tab: the inspector is a fixed
+   * column that is already there, so both forms are reachable at every
+   * width and gating the button would only strand the reader in
+   * whichever one they were last in.
+   */
+  railGated?: boolean;
+  /**
+   * Called when the press chooses the beside form.
+   *
+   * On the shell "beside" means an inspector tab, so pressing it with
+   * the inspector closed moves the panel somewhere the reader cannot
+   * see and gives no sign of it. The host uses this to open the
+   * inspector, so the press lands the reader where the panel went.
+   */
+  onBeside?: () => void;
+}
+
+export function MediaLayoutToggle({
+  railGated = false,
+  onBeside,
+}: MediaLayoutToggleProps) {
   const t = useTranslations("file");
   const [layout, setLayout] = useMediaLayoutPreference();
   const beside = layout === "beside";
@@ -28,11 +55,14 @@ export function MediaLayoutToggle() {
   return (
     <button
       type="button"
-      onClick={() => setLayout(beside ? "stacked" : "beside")}
+      onClick={() => {
+        setLayout(beside ? "stacked" : "beside");
+        if (!beside) onBeside?.();
+      }}
       aria-pressed={beside}
       title={label}
       aria-label={label}
-      className="media-detail-layout-toggle h-9 w-9 items-center justify-center rounded-lg border border-bg-border bg-bg-card text-text-muted shadow-sm transition-colors hover:bg-bg-elevated hover:text-text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus-ring"
+      className={`${railGated ? "media-detail-layout-toggle" : "inline-flex"} h-9 w-9 items-center justify-center rounded-lg border border-bg-border bg-bg-card text-text-muted shadow-sm transition-colors hover:bg-bg-elevated hover:text-text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus-ring`}
     >
       <Icon size={16} />
     </button>

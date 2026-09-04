@@ -92,7 +92,12 @@ export function InspectorShell({
           // Scrolls rather than wraps: the sizing rules forbid a control
           // row wrapping, and a strip that wraps to two lines takes the
           // height back off the region it is labelling.
-          className="flex shrink-0 gap-1 overflow-x-auto border-b border-bg-border px-2"
+          //
+          // `pointer-coarse:min-h-11` is the row half of the touch floor
+          // (`DESIGN.md` §Row Actions): the strip is a row of controls,
+          // and the floor is reached on the row so its members inherit
+          // it rather than each growing its own box.
+          className="flex shrink-0 gap-1 overflow-x-auto border-b border-bg-border px-2 pointer-coarse:min-h-11"
         >
           {tabs.map((tab) => {
             const selected = tab.id === active?.id;
@@ -113,7 +118,7 @@ export function InspectorShell({
                 // the thing that makes a long strip tedious to get past.
                 tabIndex={selected ? 0 : -1}
                 onClick={() => setActiveId(tab.id)}
-                className={`whitespace-nowrap border-b-2 px-3 py-2 text-xs font-medium transition-colors ${
+                className={`whitespace-nowrap border-b-2 px-3 py-2 text-xs font-medium transition-colors pointer-coarse:min-h-11 ${
                   selected
                     ? "border-accent text-text-primary"
                     : "border-transparent text-text-muted hover:text-text-primary"

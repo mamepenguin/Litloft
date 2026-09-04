@@ -17,10 +17,22 @@ import { vi } from "vitest";
 import { screen } from "@testing-library/react";
 
 import * as api from "@/lib/api";
+import { inspectorOpenStore } from "@/lib/inspectorOpenStore";
+import type { SlotEntry } from "@/lib/addons";
 import type { FileItem } from "@/types";
 
-/** Which slots an addon has claimed. Empty is what most tests assume. */
-export const slotMocks = { occupied: new Set<string>() };
+/**
+ * Which slots an addon has claimed, and with what.
+ *
+ * `occupied` answers `hasSlot`, which is all most suites need. `entries`
+ * answers `getSlotEntries`, which the inspector's tab strip reads —
+ * there one tab is one entry, so a test that wants two tabs has to say
+ * what the second one is.
+ */
+export const slotMocks = {
+  occupied: new Set<string>(),
+  entries: new Map<string, SlotEntry[]>(),
+};
 
 /** Props every `EditableTagChips` render was given, newest last. */
 export const editableTagChipsCalls: Array<Record<string, unknown>> = [];
@@ -57,9 +69,31 @@ export const useAddonSlotsStub = () => ({
   addons: {},
   slots: {},
   loading: false,
-  getSlotEntries: () => [],
+  getSlotEntries: (slotId: string) => slotMocks.entries.get(slotId) ?? [],
   hasSlot: (slotId: string) => slotMocks.occupied.has(slotId),
 });
+
+/** One addon entry in a slot, and `hasSlot` told about it as well. */
+export function claimSlot(slotId: string, entries: SlotEntry[]) {
+  slotMocks.occupied.add(slotId);
+  slotMocks.entries.set(slotId, entries);
+}
+
+/** Stands in for an addon's own component inside a tab. */
+export function SlotEntryRendererStub({
+  entry,
+  props,
+}: {
+  entry: SlotEntry;
+  props: Record<string, unknown>;
+}) {
+  return (
+    <div
+      data-testid={`slot-entry-${entry.id}`}
+      data-fill-height={props?.fillHeight === true ? "true" : "false"}
+    />
+  );
+}
 
 export const useSidebarStub = () => ({
   requestRefresh: vi.fn(),
@@ -163,12 +197,22 @@ export function EditableTagChipsStub(props: Record<string, unknown>) {
 export function ChaptersPanelStub({
   onResolved,
   refreshToken,
+  className,
 }: {
   onResolved?: (n: number) => void;
   refreshToken?: number;
+  className?: string;
 }) {
+  // `className` is passed through because it is the host's half of the
+  // contract: the panel sits in three regions with three height budgets
+  // and holds none of them itself, so a stub that dropped the class
+  // would make every one of those placements look identical.
   return (
-    <div data-testid="chapters-panel" data-refresh-token={refreshToken}>
+    <div
+      data-testid="chapters-panel"
+      data-refresh-token={refreshToken}
+      className={className}
+    >
       <button
         data-testid="chapters-resolved-empty"
         onClick={() => onResolved?.(0)}
@@ -214,4 +258,27 @@ export const loaded = () => screen.findByTestId("file-actions");
 export function setApiResponses(file: FileItem) {
   (api.getFile as ReturnType<typeof vi.fn>).mockResolvedValue(file);
   (api.recordFileView as ReturnType<typeof vi.fn>).mockResolvedValue(undefined);
+}
+
+/**
+ * Set the viewport width. Defaults to a desktop one.
+ *
+ * jsdom reports 1024px, which is under the inspector's default-open
+ * threshold, so a file that rides the shell renders with the inspector
+ * collapsed — and the action row, the title and the tags live in the
+ * inspector now. A suite asserting on any of them is asserting about a
+ * desktop reader, so it has to be at a desktop width; otherwise it is
+ * testing the collapsed state and calling it the layout. Pass a phone
+ * width to test the other side of that.
+ *
+ * Call before `render`. `notifyViewportChange` is for anything already
+ * mounted, since the store derives the default at read time.
+ */
+export function setViewport(width = 1400) {
+  Object.defineProperty(window, "innerWidth", {
+    configurable: true,
+    writable: true,
+    value: width,
+  });
+  inspectorOpenStore.notifyViewportChange();
 }

@@ -17,6 +17,17 @@
  */
 
 const STORAGE_PREFIX = "inspector-open:";
+
+/**
+ * Where a drive's choice is kept.
+ *
+ * Exported so a test can arrange the state this store reads without
+ * writing the prefix out again — which is the same key in two places,
+ * and the copy in the test is the one nothing would update.
+ */
+export function inspectorOpenStorageKey(drive: string): string {
+  return `${STORAGE_PREFIX}${drive}`;
+}
 const VIEWPORT_OPEN_THRESHOLD = 1280;
 
 type Listener = () => void;

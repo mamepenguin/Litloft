@@ -811,6 +811,32 @@ div[data-citation-section-path]:not(tr) {
 
    60rem = 552px player + 384px rail + 24px gap.
    ------------------------------------------------------------------ */
+/* The media host, in either layout. Publishes the one height budget
+   the companion gets, so the box below the player and the rail beside
+   it cannot end up with two different answers to the same question.
+
+   60% of whatever scrolls — "60vh" as the confirmed design states it,
+   but measured, because a self-scrolling pane is not the viewport. The
+   fallback is the literal 60dvh, which is what it resolves to before
+   the first measurement lands. */
+.media-detail-host {
+  --companion-box-h: calc(var(--rail-avail, 100dvh) * 0.6);
+}
+
+/* The legacy vertical stack's own grid, and only it.
+
+   It is live on `/files/{id}` — the collection-playback theatre, which
+   keeps this layout because the canonical URL is a file's address and
+   giving this route a second inspector would be work to throw away. On
+   the canonical surface the companion is not a grid column any more;
+   it is an inspector tab, and `FileDetailShell` draws the page. */
+/* The long-form reading measure (DESIGN.md §3.4). A utility rather than
+   a number, because it was already written out in `MarkdownPreview` and
+   a second copy is how the two come to disagree. */
+.reading-measure {
+  max-width: 860px;
+}
+
 .media-detail-grid {
   display: grid;
   gap: 1.5rem;
@@ -865,7 +891,7 @@ div[data-citation-section-path]:not(tr) {
 .media-detail-companion-inner {
   display: flex;
   flex-direction: column;
-  max-height: 20rem;
+  max-height: var(--companion-box-h);
   overflow: hidden;
 }
 
@@ -978,10 +1004,10 @@ div[data-citation-section-path]:not(tr) {
   max-height: calc(var(--rail-avail, 100dvh) - 2rem);
 }
 
-/* The lead can afford more here. Stacked it shares a 20rem box, so a
-   12rem cap leaves the transcript 8rem; the rail is as tall as the
-   scroll container, so the same list can stay open without crowding
-   what it indexes.
+/* The lead can afford more here. Stacked it shares the box with the
+   body it indexes, and a 12rem cap leaves most of that box to the body;
+   the rail is as tall as the scroll container, so the same list can
+   stay open without crowding what it indexes.
 
    Bounded by the measured rail as well as by the absolute value,
    because the lead no longer shrinks: on a short window 22rem could
@@ -992,4 +1018,84 @@ div[data-citation-section-path]:not(tr) {
   [data-media-width="wide"]
   .media-detail-companion-lead {
   max-height: min(22rem, calc(var(--rail-avail, 100dvh) * 0.4));
+}
+
+/* ------------------------------------------------------------------
+   The companion, below the player, on the shell.
+
+   The reader has asked for the transcript under the player rather than
+   beside it, so it goes in the canvas — directly under the description,
+   which is where the confirmed layout puts it.
+
+   Two columns, and they are not the grid above: a short index on the
+   left at a fixed 200px and the body it indexes on the right, capped at
+   the reading measure. A time-ordered transcript must not be set in two
+   text columns — reading one to the bottom and back up to the top of
+   the next is exactly the wrong way through a clock — so the width that
+   is left over goes to the index instead of to a second column of text.
+
+   The box is bounded and scrolls inside itself. Letting it run to full
+   length puts the page in motion every time playback crosses a cue,
+   which takes the summaries under it out from under the reader.
+   ------------------------------------------------------------------ */
+.media-detail-below {
+  display: flex;
+  gap: 1.5rem;
+  align-items: stretch;
+  max-height: var(--companion-box-h);
+  /* Belt and braces. `max-height` on a row container clamps the line's
+     cross size, so the children are handed a definite height and scroll
+     inside themselves — but that is a subtler mechanism than the
+     main-axis shrink that bounds the column form, and an occupant that
+     ignores `fillHeight` would otherwise run past the box unnoticed. */
+  overflow: hidden;
+}
+
+/* The index takes the width the body's measure leaves — which means the
+   body has to claim that measure as its flex base, not merely as a cap.
+
+   Free space is shared from the bases, so a body based at 0 arrives
+   200px behind the index and stays there: at a 500px canvas that put a
+   340px chapter list beside a 140px transcript, the short index
+   outgrowing the long body it indexes.
+
+   With the body based at its measure the two never compete, because
+   each one's base is also the limit it cannot cross: the body's cap
+   equals its base so it can never grow, and the index's floor equals
+   its base so it can never shrink. Below 200 + 68ch the body absorbs
+   the whole deficit while the index sits frozen at its floor; above it
+   the body freezes at its measure and every surplus pixel goes to the
+   index, to a ceiling of 22rem. There is no case where they split a
+   difference.
+
+   200px is the confirmed floor. 22rem is a ceiling of its own: past
+   about 350px a column of timestamps and short titles stops reading as
+   an index and starts competing with what it indexes. It is not the
+   rail's `lead cap`, which is a height. */
+.media-detail-below-index {
+  flex: 1 1 12.5rem;
+  min-width: 12.5rem;
+  max-width: 22rem;
+  min-height: 0;
+}
+
+/* 68ch is the reading measure, not a round number picked here, and it
+   is the flex base rather than only a cap — see the index above for why
+   basing it at 0 hands the surplus to the wrong column.
+
+   `min-width: 0` is the half everyone forgets: without it a flex item
+   refuses to shrink below its content and the overflow moves up a level
+   instead of scrolling. */
+.media-detail-below-body {
+  display: flex;
+  flex-direction: column;
+  flex: 1 1 68ch;
+  min-width: 0;
+  min-height: 0;
+  max-width: 68ch;
+}
+
+.media-detail-below-body > * {
+  flex: 1 1 0%;
+  min-height: 0;
 }

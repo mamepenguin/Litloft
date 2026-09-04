@@ -57,14 +57,52 @@ describe("useMediaLayoutPreference", () => {
 
   it("drives the layout through the attribute, not a re-render", () => {
     const { result } = renderHook(() => useMediaLayoutPreference());
+    expect(result.current[0]).toBe("beside");
 
-    act(() => result.current[1]("beside"));
+    // The non-default, deliberately. Setting the value it already holds
+    // makes the last assertion true before the call as well as after,
+    // which is not a test of anything.
+    act(() => result.current[1]("stacked"));
 
     // The CSS reads this; nothing in React has to move for the layout
     // to change.
-    expect(document.documentElement.getAttribute(ATTRIBUTE)).toBe("beside");
-    expect(window.localStorage.getItem("media-layout-preference")).toBe("beside");
-    expect(result.current[0]).toBe("beside");
+    expect(document.documentElement.getAttribute(ATTRIBUTE)).toBe("stacked");
+    expect(window.localStorage.getItem("media-layout-preference")).toBe(
+      "stacked",
+    );
+    expect(result.current[0]).toBe("stacked");
+  });
+
+  it("has the stored value on its very first render", () => {
+    // Not "after mount". The shell moves the transcript between an
+    // inspector tab and the canvas from this value, so a first commit
+    // at the default would mount it beside the player and tear it down
+    // again on the next one — a fetch, a clock subscription and a
+    // scroll position, all discarded, for a reader who never asked for
+    // the beside form.
+    window.localStorage.setItem("media-layout-preference", "stacked");
+    const seen: string[] = [];
+    renderHook(() => {
+      const [layout] = useMediaLayoutPreference();
+      seen.push(layout);
+      return layout;
+    });
+
+    expect(seen[0]).toBe("stacked");
+  });
+
+  it("keeps every reader on the same value", () => {
+    // Two of them now: the toggle in the page row and the shell that
+    // decides where the transcript is drawn. Held per component, they
+    // would disagree — the button showing one form while the layout
+    // drew the other.
+    const first = renderHook(() => useMediaLayoutPreference());
+    const second = renderHook(() => useMediaLayoutPreference());
+    expect(second.result.current[0]).toBe("beside");
+
+    act(() => first.result.current[1]("stacked"));
+
+    expect(second.result.current[0]).toBe("stacked");
   });
 
   it("still applies the choice when storage refuses", () => {
@@ -76,11 +114,11 @@ describe("useMediaLayoutPreference", () => {
     try {
       const { result } = renderHook(() => useMediaLayoutPreference());
 
-      act(() => result.current[1]("beside"));
+      act(() => result.current[1]("stacked"));
 
       // Lost on reload, but the session it was chosen in still honours it.
-      expect(document.documentElement.getAttribute(ATTRIBUTE)).toBe("beside");
-      expect(result.current[0]).toBe("beside");
+      expect(document.documentElement.getAttribute(ATTRIBUTE)).toBe("stacked");
+      expect(result.current[0]).toBe("stacked");
     } finally {
       setItem.mockRestore();
     }

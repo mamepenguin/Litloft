@@ -546,6 +546,50 @@ explained why the button is off.
 - Menu (hamburger) button lives outside the sidebar as a `fixed top-3 left-3 z-50` floating control, visible in all states (sidebar open or closed, inline or overlay). The sidebar's logo row uses `pl-12` so the button visually sits in the sidebar's top-left without overlap.
 - Transform transition: `duration-150 ease-out`. Layout padding transition: `duration-150 ease-out`.
 
+### Inspector tab strip
+
+The row of tabs under the inspector's fixed header. One strip, one
+place: the file detail inspector is the only surface that has one, and
+what it is made of is decided by the file rather than by the layout.
+
+- **One tab is no strip.** A single-tab strip is chrome answering a
+  question nobody asked, so a Markdown note ends up with the shape it
+  has always had — no strip drawn at all.
+- **A core tab with no content is not a tab.** A tab is a row, and a row
+  that only announces a feature could exist is the thing the 2026-09
+  redesign set out to remove. So an archive gets a page-list tab *when
+  there is a page list*, and it appears the moment that list is
+  implemented, without anyone editing the strip.
+- **An addon tab is not content-gated yet**, because core cannot ask
+  "will you render anything for this file" without naming the addon.
+  Today an addon's tab appears whenever that addon claims the slot on
+  this drive, so a video that has never been transcribed still grows an
+  empty Transcript tab. The generic fix is a per-file availability
+  signal from the entry — the shape `ChaptersPanel.onResolved` already
+  uses for core's own occupant — and it is owed.
+- Composition: **core before addon**, addons in the priority their
+  manifests declare. Nothing in the strip knows an addon's name; a tab
+  is a slot entry, and its label comes from that entry's `i18n_key`
+  falling back to its manifest `label`.
+- Button: `px-3 py-2 text-xs font-medium`, `border-b-2` as the selected
+  indicator — `border-accent text-text-primary` selected,
+  `border-transparent text-text-muted` otherwise. The underline is the
+  state, not a fill: §2.2 keeps `accent` fills to one per screen, and
+  the page already spends it elsewhere.
+- **Roving tabindex.** One tab stop for the whole strip; `←` / `→` move
+  within it and take the focus with them. Every tab being its own stop
+  is what makes a long strip tedious to get past.
+- **Scrolls, never wraps** (`overflow-x-auto`). A control row that wraps
+  to two lines takes the height back off the region it is labelling, and
+  the mobile sizing rules forbid it outright.
+- **Every panel stays mounted; only the selected one is shown**
+  (`hidden`, not conditional rendering). The occupants hold fetches,
+  clock subscriptions and scroll positions — see §8.5 — so switching
+  tabs must move attention, not rebuild the panel. It also keeps every
+  `aria-controls` pointing at an element that exists.
+- Touch floor per §Row Actions: `pointer-coarse:min-h-11` on the strip
+  and on its buttons.
+
 ### Context Menus / Dropdowns
 
 - Radius: `rounded-2xl`
@@ -837,25 +881,61 @@ design puts a fixed header and a tab strip in this column, which 300px
 cannot hold. Recording the old number here so the next person to count
 the budget does not read 384 as drift and put it back.
 
-### Companion rail (media file detail)
+### Companion region (media file detail)
 
-A media file's detail page may put a companion column beside the
-player — chapters and the transcript. Widths:
+Chapters and the transcript. **Where it goes depends on which surface
+the file is on**, and the two answers are not variants of one layout:
+
+| Surface | "Beside" means | "Below" means |
+|---|---|---|
+| Canonical (`?file=`), on `FileDetailShell` | a **tab in the inspector** | a bounded box in the canvas, under the description |
+| Collection playback (`/files/{id}`), legacy stack | a **second column of `.media-detail-grid`** | the same box, under the player |
+
+The canonical surface has an inspector, so a column of its own would be
+a third one; the collection route deliberately does not have one (the
+canonical URL is a file's address, so a second inspector there would be
+work to throw away) and keeps the grid it already had.
+
+**The occupant is moved, never duplicated.** It fetches, subscribes to
+the playback clock and holds a scroll position, so a second copy is a
+second competing reader of the same file rather than a second render.
+Whichever of the two homes is in use, the other one is empty.
+
+Widths and heights:
 
 | Token | Value | Meaning |
 |---|---|---|
-| rail width | `24rem` (384px) | Fixed. 320px was tried first and Japanese wrapped at 12–14 characters a line, which reads as cramped. |
-| stacked height | `20rem` (320px) | The bounded box the companion becomes when it cannot sit beside the player. |
+| rail width | `24rem` (384px) | Fixed, on the grid. 320px was tried first and Japanese wrapped at 12–14 characters a line, which reads as cramped. |
+| box height | `60%` of the measured scroll container | The bounded box the companion becomes when it is below the player, on either surface. Expressed as `calc(var(--rail-avail) * 0.6)`, falling back to `60dvh` before the first measurement — "60vh", but measured, because a self-scrolling pane is not the viewport. |
+| below: index column | `12.5rem`–`22rem` (200–352px) | The chapter list beside the transcript, when there is one. 200px is the floor; past about 350px a column of timestamps stops reading as an index and starts competing with what it indexes. A width of its own — not the `lead cap, rail` below, which is a height. |
+| below: body column | `68ch` | The reading measure, and the body's **flex base**, not only its cap. A time-ordered transcript is never set in two text columns — reading one to the bottom and back to the top of the next is the wrong way through a clock — so leftover width goes to the index instead. Base and cap being the same number is what makes that exact: the body cannot grow past its measure and the index cannot shrink past its floor, so below the pair's combined width the body absorbs the whole deficit and above it the index takes the whole surplus. Basing the body at zero instead would have both grow from where they start, leaving the 200px index permanently 200px ahead. |
 | player minimum | `34.5rem` (552px) | Narrower than this and a 16:9 video stops being watchable. |
 | gap | `1.5rem` (24px) | The standard section gap. |
-| switch threshold | `60rem` (960px) | The sum of the first, third and fourth. |
-| lead cap, stacked | `12rem` (192px) | Most a short index may take of the 20rem box, leaving the body it indexes readable. |
+| switch threshold | `60rem` (960px) | The sum of the first, fifth and sixth. |
+| lead cap, stacked | `12rem` (192px) | Most a short index may take of the box, leaving the body it indexes readable. |
 | lead cap, rail | `22rem` (352px) | The same index where there is room for it. |
 
 The threshold is a **sum, not a feel**. Change either minimum and
 recompute it; do not nudge it to make a particular window look right.
 Widening the rail from 320px to 384px moved the threshold from 56rem to
 60rem for exactly this reason.
+
+**Three thresholds, three questions. Do not merge any two of them.**
+
+| Threshold | Question | Measured against |
+|---|---|---|
+| `60rem` = 960px | Can a rail sit beside the player? | The host's **measured width**. Gates the grid's second column, so it applies on the collection route only — on the shell the companion is a tab, and a tab fits at any width. |
+| `VIEWPORT_OPEN_THRESHOLD` (`lib/inspectorOpenStore.ts`) | Does the inspector *start* open? | The **viewport**. Not a layout branch: it is how the default is derived when the reader has no stored choice, and any choice they make outranks it. §8.5's "measure the container" rule is about layout branches, so it does not apply. |
+| 768px | Is the inspector a pane or a Bottom Sheet? | The **viewport**. |
+
+The first two sound like the same question and are not: 960 is "can they
+be side by side", the open threshold is "should they be, by default".
+The band between them — where they fit but start closed — is a real
+state, and merging them would make it unsayable. Which is also why the
+open threshold is named here rather than written out: it is the one of
+the three that is a default rather than a fact about the layout, and
+copying its value into this table is how the two would come to be read
+as one number.
 
 **The host holds the height, in both forms.** Which form is in use is a
 container-width question answered in CSS, while an occupant is handed

@@ -42,9 +42,18 @@ vi.mock("../../ExifSection", async () => ({
 vi.mock("../../AddonSlotsProvider", async () => ({
   useAddonSlots: (await import("./harness")).useAddonSlotsStub,
 }));
-vi.mock("../../AddonSlot", async () => ({
-  AddonSlot: (await import("./harness")).AddonSlotStub,
-}));
+// Both exports: `ShellLayout` takes `SlotEntryRenderer` by name, so a
+// factory that returns only `AddonSlot` leaves it `undefined`. It is
+// harmless while no suite here claims a `player-side` entry, and the
+// moment one does the failure is `Element type is invalid` pointing at
+// nothing in particular.
+vi.mock("../../AddonSlot", async () => {
+  const harness = await import("./harness");
+  return {
+    AddonSlot: harness.AddonSlotStub,
+    SlotEntryRenderer: harness.SlotEntryRendererStub,
+  };
+});
 vi.mock("@/hooks/usePolicy", async () => ({
   usePolicy: (await import("./harness")).usePolicyMock,
 }));
@@ -127,11 +136,22 @@ describe("file detail page row", () => {
     );
   });
 
-  it("draws none for a file whose host owns the row", async () => {
-    // A video does not ride the shell, so its row comes from the host —
-    // which is not mounted here. Nothing in between may draw one.
-    setApiResponses(makeFile());
+  it("draws exactly one for a video, which rides the shell too now", async () => {
+    setApiResponses(makeFile({ folder_path: "clips" }));
     render(<FileDetailContent fileId="f1" drive="main" />);
+    const row = await screen.findByTestId("file-detail-chrome");
+
+    expect(screen.getAllByTestId("file-detail-chrome")).toHaveLength(1);
+    expect(screen.getAllByTestId("file-detail-back")).toHaveLength(1);
+    expect(row).toHaveTextContent("clips");
+    expect(api.getFile).toHaveBeenCalledWith("f1");
+  });
+
+  it("draws none on the collection route, where the host owns the row", async () => {
+    // `/files/{id}` keeps the legacy stack, so its row comes from the
+    // host — which is not mounted here. Nothing in between may draw one.
+    setApiResponses(makeFile());
+    render(<FileDetailContent fileId="f1" drive="main" surface="collection" />);
     await loaded();
 
     expect(screen.queryByTestId("file-detail-chrome")).toBeNull();

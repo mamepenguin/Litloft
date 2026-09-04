@@ -570,7 +570,7 @@ export function MarkdownPreview({
   // matches how PDF / text previews now behave.
   const bodyClass = `markdown-body ${
     chrome
-      ? `mx-auto max-w-[860px] px-6 py-6 text-base leading-relaxed text-text-primary${className ? ` ${className}` : ""}`
+      ? `reading-measure mx-auto px-6 py-6 text-base leading-relaxed text-text-primary${className ? ` ${className}` : ""}`
       : className ?? ""
   }`.trim();
 

@@ -45,6 +45,8 @@ interface MarkdownDocumentLayoutProps {
   inspector: ReactNode;
   mobileSheet?: ReactNode;
   children: ReactNode;
+  /** Forwarded to the shell; see `FileDetailShell`. */
+  onScrollRootChange?: (node: HTMLElement | null) => void;
   resetKey?: string;
   /**
    * Hide the editor-only chrome elements (save state dot and the
@@ -80,6 +82,7 @@ export function MarkdownDocumentLayout({
   inspector,
   mobileSheet,
   children,
+  onScrollRootChange,
   resetKey,
   previewOnly = false,
 }: MarkdownDocumentLayoutProps): ReactElement {
@@ -155,6 +158,7 @@ export function MarkdownDocumentLayout({
         }
         inspector={inspector}
         mobileSheet={mobileSheet}
+        onScrollRootChange={onScrollRootChange}
         resetKey={resetKey}
       >
         {children}
