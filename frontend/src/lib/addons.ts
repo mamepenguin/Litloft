@@ -120,3 +120,22 @@ export function invalidateAddonsCache(): void {
   _cached.clear();
   _fetchPromise.clear();
 }
+
+/**
+ * Slot entries in the order their manifests asked for.
+ *
+ * Three places sort them and all three must agree: `AddonSlot` for a
+ * whole slot, the inspector's tab composer for one tab per entry, and
+ * the media canvas for the same entries in the box below the player.
+ * Written out three times, the beside and below forms of one panel
+ * ordered themselves differently the day a second addon shipped, and
+ * nothing said so — one of the three copies had no test at all.
+ *
+ * Returns a new array: `Array.prototype.sort` is in place, and the
+ * catalogue's own array is shared.
+ */
+export function sortSlotEntries<T extends { priority: number }>(
+  entries: readonly T[],
+): T[] {
+  return [...entries].sort((a, b) => a.priority - b.priority);
+}

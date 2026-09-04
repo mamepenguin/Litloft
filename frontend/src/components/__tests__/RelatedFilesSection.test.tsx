@@ -164,6 +164,35 @@ describe("RelatedFilesSection under the Related heading", () => {
     expect(screen.getByText(TITLE).parentElement!.querySelector("svg")).not.toBeNull();
   });
 
+  it("stays a section inside a group that has nothing to group with", async () => {
+    // The default installation: `ShellLayout` always wraps in
+    // `RelatedGroup`, so on a drive with no `file-relations` addon this
+    // component is inside the group and the group draws no heading. The
+    // two must agree — demoted with no heading above it, core's own
+    // relations become the one section in the inspector with no card and
+    // a name quieter than every neighbour.
+    //
+    // The other two cases here cannot see this: one renders with no
+    // provider at all, the other with an entry present. The provider is
+    // the thing under test, so the case has to be inside it.
+    fileRelationEntries.mockReturnValue([]);
+    getFileRelations.mockResolvedValue(fakeRelations());
+    const { container } = render(
+      <RelatedGroup>
+        <RelatedFilesSection fileId="f1" />
+      </RelatedGroup>,
+    );
+    await screen.findByText(TITLE);
+
+    expect(container.querySelector("h3")).toBeNull();
+    const heading = screen.getByText(TITLE).parentElement!;
+    expect(heading.classList.contains("text-text-primary")).toBe(true);
+    expect(heading.querySelector("svg")).not.toBeNull();
+    expect(
+      screen.getByText(TITLE).closest("section")!.classList.contains("border"),
+    ).toBe(true);
+  });
+
   it("reads as a part of the group when something groups it", async () => {
     // Grouped, this heading sits under "Related". At the weight it has
     // standing alone it is louder than the heading above it, which reads

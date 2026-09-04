@@ -1,6 +1,6 @@
 import type { ReactNode } from "react";
 
-import type { SlotEntry } from "@/lib/addons";
+import { sortSlotEntries, type SlotEntry } from "@/lib/addons";
 
 export interface InspectorTab {
   /** Stable across renders; used as the React key and the panel id. */
@@ -99,8 +99,9 @@ export function buildInspectorTabs({
     // back the catalogue's raw order, and `AddonSlot` — which does its
     // own sort — is not in this path, so a caller composing tabs by
     // hand would silently drop the ordering an addon declared.
-    ...[...addonTabs]
-      .sort((a, b) => a.entry.priority - b.entry.priority)
+    ...sortSlotEntries(
+      addonTabs.map((tab) => ({ ...tab, priority: tab.entry.priority })),
+    )
       .map((tab) => ({
         id: tab.entry.id,
         label: tab.label,

@@ -8,6 +8,7 @@ import type { MediaController } from "@/lib/mediaController";
 import type { DocumentCaptureController } from "@/lib/documentCapture";
 import { inspectorOpenStore } from "@/lib/inspectorOpenStore";
 import { useMediaLayoutPreference } from "@/lib/mediaLayout";
+import { sortSlotEntries } from "@/lib/addons";
 import { slotEntryLabel } from "@/lib/slotLabel";
 import { ActiveSummaryHost } from "../ActiveSummaryHost";
 import { AddonSlot, SlotEntryRenderer } from "../AddonSlot";
@@ -214,15 +215,13 @@ export function ShellLayout({
    * availability callback is per entry, and `AddonSlot` hands one props
    * object to all of them. Ordering is `AddonSlot`'s own rule, kept.
    */
-  const playerSideNodes = [...playerSideEntries]
-    .sort((a, b) => a.priority - b.priority)
-    .map((entry) => (
-      <SlotEntryRenderer
-        key={entry.id}
-        entry={entry}
-        props={playerSideProps(entry.id, false)}
-      />
-    ));
+  const playerSideNodes = sortSlotEntries(playerSideEntries).map((entry) => (
+    <SlotEntryRenderer
+      key={entry.id}
+      entry={entry}
+      props={playerSideProps(entry.id, false)}
+    />
+  ));
 
   /**
    * The `file-detail-sections` entries the canvas draws itself.

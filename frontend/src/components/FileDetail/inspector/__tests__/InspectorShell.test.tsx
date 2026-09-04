@@ -284,6 +284,52 @@ describe("InspectorShell", () => {
     );
   });
 
+  it("lets go of a tab that is unlisted while it is the one open", () => {
+    // The arrow-key test above walks the strip and so never reaches the
+    // line that resolves the selection — a separate expression, and the
+    // one this path uses. What reaches it is the entry answering "I have
+    // nothing" *while the reader is looking at it*: an empty fetch
+    // settles, a transcript is deleted, the host swaps the file under a
+    // reused mount.
+    //
+    // Resolved against every tab rather than the listed ones, the panel
+    // the entry has just called empty stays on screen — and worse, no
+    // button matches the selection, so none is `aria-selected` and the
+    // roving tabindex leaves every one of them at -1: the whole strip
+    // drops out of the keyboard tab order.
+    const shell = (available: boolean) => (
+      <InspectorShell
+        header={<div data-testid="header">header</div>}
+        tabs={buildInspectorTabs({
+          info,
+          coreTabs: [{ id: "chapters", label: "Chapters", content: <p>rows</p> }],
+          addonTabs: [
+            { entry: entry("a"), label: "A", content: <p>a body</p>, available },
+          ],
+        })}
+        resetKey="f1"
+      />
+    );
+    const { rerender } = render(shell(true));
+    fireEvent.click(screen.getByRole("tab", { name: "A" }));
+    expect(document.getElementById("inspector-panel-a")).not.toHaveAttribute(
+      "hidden",
+    );
+
+    rerender(shell(false));
+
+    expect(document.getElementById("inspector-panel-a")).toHaveAttribute(
+      "hidden",
+    );
+    // And the strip is still reachable: exactly one button is selected,
+    // and it is the one the keyboard can get to.
+    const selected = tabs().filter(
+      (tab) => tab.getAttribute("aria-selected") === "true",
+    );
+    expect(selected).toHaveLength(1);
+    expect(selected[0]).toHaveAttribute("tabindex", "0");
+  });
+
   it("gives an unlisted panel back its button when the entry changes its mind", () => {
     // The whole reason the panel stays mounted. A transcript that was
     // still fetching says "nothing" first and "something" a moment
