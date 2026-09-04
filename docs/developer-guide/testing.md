@@ -358,6 +358,17 @@ what verifies the addon against the core it is about to be pinned into. The
 collection check is what stops a tree that failed to land from producing a
 green run that tested none of it.
 
+**An addon's CI result is not reproducible, by design.** That job resolves
+`develop` to whatever its tip is at run time, not to a fixed SHA, so a pull
+request that changes nothing in the addon can turn red later because core moved
+underneath it. There is no way around it — an addon's frontend tests only run
+inside a core tree — and it is not a defect, but it will cost you an afternoon
+if you meet it without knowing. The symptom is a red job on a branch you have
+not touched, failing in a core file. Re-run it; if core has since merged the
+fix, that is all it needs. This has already happened once: the four addon pull
+requests that introduced these workflows were all red on a single core test
+until core's own fix merged.
+
 ### The rule the workflows are built around
 
 **Read the exit code, never the pass count.** No step pipes a test command into
