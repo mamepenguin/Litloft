@@ -256,6 +256,45 @@ Two things make the output usable: `--reporter=json --outputFile.json=…`
 so failing test names can be counted across runs, and keeping stderr, so
 unhandled errors are not lost.
 
+### The other shape: a test that needs another test to have run first
+
+The failures above are about timing. This one is about order, and no amount
+of re-running in the usual order will show it — that order is the only reason
+it passes.
+
+```bash
+cd frontend && pnpm exec vitest run --sequence.shuffle
+```
+
+That shuffles the files *and* the tests inside each file, which is the half
+that matters: both defects found the day this was written were between two
+tests in one file. Vitest prints the seed it picked —
+`Running tests with seed "1788505971306"` — and passing it back reproduces
+that exact order:
+
+```bash
+pnpm exec vitest run --sequence.shuffle --sequence.seed=1788505971306
+```
+
+Use that to verify a fix, rather than watching shuffled runs come back green.
+A shuffle that happens to pick a harmless order proves nothing, and eight of
+them prove nothing eight times. The deterministic form of the bug is usually
+"run this block on its own":
+
+```bash
+pnpm exec vitest run <file> -t "the second describe"
+```
+
+Both examples were the same defect, and it is worth recognising: **state a
+sibling test wrote, that nothing clears between tests.** `localStorage` in
+both cases — a capture basket seeded in one `describe` and read in the next,
+and a loop toggle that one test switches off and the next expects on. The
+fix is never to reorder; it is to give the block its own setup, or to clear
+the store in `beforeEach`.
+
+The `frontend (shuffled order)` CI job runs this on every pull request so
+the next one does not have to be found by hand.
+
 ### The shape almost every one of these has
 
 An assertion reading a state the test never waited for. In particular,
@@ -297,6 +336,7 @@ every pull request and on pushes to the default branch.
 | Job | What it runs |
 |---|---|
 | `frontend` | `setup-addons.sh`, install, merge translations, the collection check below, then `pnpm test`, `tsc --noEmit`, `pnpm lint` |
+| `frontend (shuffled order)` | the same suite under `--sequence.shuffle`. **Not a required check** — see below |
 | `mcp-server` | `pnpm test`, `tsc --noEmit` |
 | `backend` | `backend/Dockerfile.test` built and run |
 | `bootstrap` | `pytest tests/test_configure.py` on a bare Python 3.12 |
@@ -386,7 +426,8 @@ neither.
 
 Core's `develop` carries **classic branch protection** (the
 `branches/*/protection` API, not a ruleset) listing core's seven job names as
-required status checks. The four addon repositories' `main` branches will carry
+required status checks. There are eight jobs; `frontend (shuffled order)` is
+the one that is not on the list, and that is deliberate — see below. The four addon repositories' `main` branches will carry
 the same shape, with their own two job names, once their workflows have been
 observed green; until then they are unprotected.
 
@@ -398,6 +439,18 @@ What is deliberately *not* set:
   that is genuinely stuck.
 - **`strict` is false**, so a branch does not have to be rebased onto the tip
   before merging.
+- **`frontend (shuffled order)` is not required.** It picks a random seed, so
+  a required version could block a pull request over a test order nobody chose
+  and which the next run would not pick again. Reporting is enough: the job
+  goes red on the pull request where it can be seen, and its log carries the
+  seed to reproduce with. Making a random check mandatory during the largest
+  phase of a redesign trades a real risk of stalling for very little.
+
+  **The decision to revisit:** once the UI redesign's Phase 2 has landed and
+  the job has been green across a run of pull requests, promote it to a
+  required check — at which point the reproduce-by-seed step above becomes the
+  first thing to reach for, not a diagnostic aside. Promoting it is a two-part
+  edit, like any rename: the protection list and this paragraph.
 
 **A required check is matched by the job's `name:` string, literally.** Rename a
 job and the old name stays required forever: it can never be reported again, so

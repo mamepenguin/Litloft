@@ -53,6 +53,13 @@ describe("CollectionPanel", () => {
 
   beforeEach(() => {
     vi.clearAllMocks();
+    // The loop toggle persists to `localStorage["collection-loop"]`, and
+    // "toggles loop state" below turns it off. Without this, that test
+    // decides what every later one starts from: run it first and
+    // "renders loop toggle button" waits three seconds for a "Loop ON"
+    // control that is now labelled "Loop OFF". A test may not depend on
+    // another test having run, or not having run.
+    localStorage.clear();
 
     vi.mocked(getCollection).mockResolvedValue({
       id: "c1",

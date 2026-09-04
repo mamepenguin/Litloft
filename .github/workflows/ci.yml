@@ -140,6 +140,63 @@ jobs:
         run: pnpm lint
         working-directory: frontend
 
+  frontend-shuffled:
+    # The same suite, run in a random order. It answers a question the job
+    # above cannot: does any test depend on another test having run?
+    #
+    # Two were found the day this job was added, in different repositories,
+    # and both were the same defect — a test reading state a sibling test
+    # wrote (`localStorage`, which nothing clears between tests). Neither is
+    # visible in source order, and source order is the only order the
+    # required job ever runs.
+    #
+    # **This job is deliberately not a required status check.** Its seed is
+    # random, so requiring it would let an unrelated pull request be blocked
+    # at random by a test order nobody chose. It reports; it does not gate.
+    # See docs/developer-guide/testing.md for when that might change.
+    #
+    # Vitest prints the seed it picked ("Running tests with seed …"). To
+    # reproduce a failure exactly, pass that seed back:
+    #   pnpm exec vitest run --sequence.shuffle --sequence.seed=<seed>
+    #
+    # No collection guard here, unlike the job above: if the symlinks or the
+    # submodules failed, that job fails loudly and blocks the merge. This one
+    # would only be redundantly empty.
+    name: frontend (shuffled order)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: recursive
+
+      - uses: pnpm/action-setup@v4
+        with:
+          package_json_file: frontend/package.json
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: pnpm
+          cache-dependency-path: frontend/pnpm-lock.yaml
+
+      - name: Link addons into backend/ and frontend/
+        run: ./setup-addons.sh
+
+      - name: Install frontend dependencies
+        run: pnpm install --frozen-lockfile
+        working-directory: frontend
+
+      - name: Merge addon translations
+        run: node scripts/merge-addon-messages.mjs
+        working-directory: frontend
+
+      # `--sequence.shuffle` shuffles the files and the tests inside each
+      # file. The second half is the one that matters here: both defects it
+      # found were between two tests in one file.
+      - name: Test in a random order
+        run: pnpm exec vitest run --sequence.shuffle
+        working-directory: frontend
+
   mcp-server:
     name: mcp-server (vitest / tsc)
     runs-on: ubuntu-latest
