@@ -63,6 +63,30 @@ jobs:
         run: node scripts/merge-addon-messages.mjs
         working-directory: frontend
 
+      # The one way this job can be green and worthless: a submodule that did
+      # not check out, or a symlink that did not get made, costs nothing at
+      # collection time — vitest simply finds fewer files and reports every one
+      # of them passing. Ask the collector what it found instead of assuming.
+      - name: Fail if any addon's tests were not collected
+        shell: bash
+        working-directory: frontend
+        run: |
+          set -euo pipefail
+          collected="$(pnpm exec vitest list --filesOnly)"
+          status=0
+          for tree in ../addons/*/frontend; do
+            name="$(basename "$(dirname "$tree")")"
+            # An addon with no frontend tests of its own is not a failure.
+            if ! find "$tree" \( -name '*.test.ts' -o -name '*.test.tsx' \) -print -quit | grep -q .; then
+              continue
+            fi
+            if ! printf '%s\n' "$collected" | grep -q "^src/addons/$name/"; then
+              echo "::error::vitest collected no tests from addons/$name (submodule empty, or setup-addons.sh made no symlink)"
+              status=1
+            fi
+          done
+          exit $status
+
       # Runs core's suite and, through the symlinks above, every addon's
       # frontend tests. A fresh checkout needs nothing else: no drives.json,
       # passwords.json, .env, or docker-compose.override.yml.
