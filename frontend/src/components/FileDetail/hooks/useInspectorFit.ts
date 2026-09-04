@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef } from "react";
 
 /**
  * Canvas width the shell will not let the inspector take below, in rem.
@@ -46,44 +46,19 @@ const INSPECTOR_REM = 24;
  * is what changes width when the inspector opens, so measuring it would
  * make the answer depend on the answer.
  */
-export interface InspectorFit {
-  /** Attach to the row that holds the canvas and the inspector. */
-  attachHost: (node: HTMLElement | null) => void;
-  /**
-   * `null` until the first measurement. Only the *default* open state
-   * reads it — the placement itself is done in CSS from the attribute,
-   * so the pane is not re-rendered when the form changes.
-   */
-  fitsBeside: boolean | null;
-}
-
-export function useInspectorFit(): InspectorFit {
+export function useInspectorFit(): (node: HTMLElement | null) => void {
   const hostRef = useRef<HTMLElement | null>(null);
   const observerRef = useRef<ResizeObserver | null>(null);
-  // Mirrored in a ref so the measure callback can skip an unchanged
-  // value without depending on the state it sets. Crossing the
-  // threshold is rare; a window drag inside one form costs no render.
-  const fitsRef = useRef<boolean | null>(null);
-  const [fitsBeside, setFitsBeside] = useState<boolean | null>(null);
 
   const measure = useCallback(() => {
     const host = hostRef.current;
     if (!host) return;
-    // A zero width is "not laid out yet", not "no room". Acting on it
-    // would collapse the inspector for the first frame of every load and
-    // for the whole life of a subtree that is display:none — and the
-    // safe reading of an unknown is that nothing is taken away, so the
-    // attribute stays unset and the default stays the viewport's.
-    if (host.clientWidth === 0) return;
     const rootFontSize =
       Number.parseFloat(getComputedStyle(document.documentElement).fontSize) ||
       16;
     const fits =
       host.clientWidth >= (CANVAS_MIN_REM + INSPECTOR_REM) * rootFontSize;
     host.dataset.inspectorFit = fits ? "beside" : "overlay";
-    if (fits === fitsRef.current) return;
-    fitsRef.current = fits;
-    setFitsBeside(fits);
   }, []);
 
   useEffect(() => {
@@ -104,7 +79,7 @@ export function useInspectorFit(): InspectorFit {
   // A callback ref rather than a dependency: the row exists from the
   // first commit, but the effect and the ref land in an order that is
   // not fixed, and whichever runs second finds the other done.
-  const attachHost = useCallback(
+  return useCallback(
     (node: HTMLElement | null) => {
       const previous = hostRef.current;
       if (previous && observerRef.current) {
@@ -120,6 +95,4 @@ export function useInspectorFit(): InspectorFit {
     },
     [measure],
   );
-
-  return { attachHost, fitsBeside };
 }

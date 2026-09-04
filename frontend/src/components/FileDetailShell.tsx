@@ -110,15 +110,10 @@ export function FileDetailShell({
   resetKey,
 }: FileDetailShellProps): ReactElement {
   const t = useTranslations("inspector");
+  const { open, setOpen } = useInspectorOpen(drive);
   const isMobile = useIsMobile();
-  const { attachHost: attachInspectorFitHost, fitsBeside } = useInspectorFit();
-  // The fit takes part in the *default* only, ANDed with the viewport
-  // threshold. Without it the widths where the inspector has to overlay
-  // are also widths where it opens itself, so the page arrives with the
-  // panel over the video rather than beside a narrowed one — and either
-  // way nothing was pressed.
-  const { open, setOpen } = useInspectorOpen(drive, fitsBeside);
   const [mobileSheetOpen, setMobileSheetOpen] = useState(false);
+  const attachInspectorFitHost = useInspectorFit();
 
   // Reset transient UI on file change so the previously-open Sheet
   // doesn't bleed into the next file when the host re-uses one mounted
