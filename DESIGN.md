@@ -632,7 +632,44 @@ The one-line excerpt showing *where* a search hit matched, inside a file card or
 - Marker: `border-l-2 border-bg-border pl-2` — a rule, never a fill, never the accent border reserved for §3.3 prose blockquotes.
 - Text: `text-[11px] leading-relaxed text-text-muted`, clamped with `line-clamp-2`. The excerpt is truncated in the data layer too, so a long source never ships into the card's DOM.
 - **One snippet per hit.** Do not stack a row per match — the badges and timestamp pills above already enumerate the evidence, and repeating a timestamp as a text row shows the same fact twice.
-- Row actions (e.g. the Knowledge capture action in `search-result-actions`) sit at the row's trailing edge, revealed by `group-hover` / `focus-within`, and are always visible under `pointer-coarse`. Keep the action's box in flow at `opacity-0` so revealing it never reflows the excerpt.
+- Row actions follow the general rule below; the excerpt adds one constraint of its own — keep the action's box in flow at `opacity-0`, so revealing it never reflows the excerpt.
+
+### Row Actions
+
+A control repeated once per row — the capture button on a search snippet or a
+transcript line, a `⋮` on a list row. Written once here because three surfaces
+were hand-rolling the same recipe and drifting apart.
+
+- **Trailing edge of the row**, in flow, sized so revealing it reflows nothing.
+- **Hidden by default, revealed by the row.** Put `group/<name>` on the row and
+  `opacity-0 group-hover/<name>:opacity-100 group-focus-within/<name>:opacity-100`
+  on the action. The group goes on the **row**, not the action: focusing the row's
+  primary control has to reveal the secondary one, or the keyboard path is the one
+  path that never shows the control it needs.
+- **`opacity-0`, never `hidden` / `invisible` / `display: none`.** Those take the
+  action out of the tab order, and `group-focus-within` then has nothing to fire on.
+- **Always visible under `pointer-coarse`.** `group-hover` compiles inside
+  `@media (hover: hover)`, so a touch device gets no reveal at all without it.
+- **A name per row, not per control.** Several hundred identically-named buttons
+  give a screen reader no way to tell which row is about to be acted on. Put the
+  row's identity in the accessible name — a timestamp, a filename. Do not also set
+  `title` to the same string: with an `aria-label` present it becomes the accessible
+  *description*, which NVDA and JAWS read after the name, so the sentence is
+  announced twice.
+- **Touch targets.** The mobile rule is 44px, and the honest way to reach it is to
+  grow the hit area rather than the box — a taller control raises the row, and these
+  live in lists that are capped in height, where every pixel of row is a fraction of
+  the rows on screen. `relative` plus
+  `pointer-coarse:before:absolute pointer-coarse:before:-inset-1.5` gives 44px around
+  a 32px box.
+
+  Be exact about what that buys. It is 44px **horizontally**; vertically it is
+  bounded by the row pitch, because adjacent pseudo-elements overlap and the later
+  row wins the hit test. At a 38px pitch each control keeps 38px. Reaching 44px in
+  both axes means making the row 44px, which is a decision about the row — and worth
+  taking only together with the row's *primary* control, since a list whose secondary
+  action meets the floor and whose main one does not has bought nothing.
+
 
 ### Section Header Labels (i18n)
 

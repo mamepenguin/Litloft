@@ -720,11 +720,15 @@ When enabled, the intelligence addon contributes:
   - *AI Summary* (short)
   - *Detailed Summary* (long-form Markdown with citation chips)
   - *Visual Description* (vision LLM)
-  - *Transcript* (with Refine button)
+  - *Transcript* (with Refine button). Each line carries a quote button that adds it to
+    the capture basket; it appears when you hover or focus the line, and stays visible on
+    a touch screen, so several hundred of them do not read as a rule down the edge of the
+    text. Its name carries the line's timestamp, so a screen reader can tell them apart.
   - *CLIP Frames* (per-second thumbnails; collapsed by default)
   - *Visual index* (collapsed by default)
-  - *Similar Files* (collapsed by default; expanding it offers the *Find similar files*
-    button, since the search is heavy enough that it has always been run on request.
+  - *Similar Files* (collapsed by default; **expanding it is the request** — the search
+    is heavy, so it runs for the files you ask about and no others. Placeholder cards
+    hold the height while it works, and a failure says so and offers another go.
     Each result names the keywords it shares with the file you are on, taken from the
     keyword bag both files were indexed with, and names none when it shares none)
 - **File action row** — **AI**, beside the like and favourite buttons. It lists what this
