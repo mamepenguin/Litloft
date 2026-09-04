@@ -1141,3 +1141,29 @@ div[data-citation-section-path]:not(tr) {
      lands entirely inside this band. */
   z-index: 20;
 }
+
+/* ------------------------------------------------------------------
+   The action row in the Bottom Sheet's resting strip.
+
+   44px targets on a coarse pointer (`DESIGN.md` §Row Actions,
+   `00-basis.md` sizing rules). Grown here rather than by a class on
+   each control, because three of the four are not the row's to style:
+   two are shared buttons with their own sizing and one is whatever an
+   addon put in `file-detail-actions`.
+
+   Grown rather than overhung. The recipe's `::before` overhang keeps an
+   icon at 32px and is right in a list, where the row pitch is what
+   makes it safe; here the controls sit 2px apart on one line, so 44px
+   hit areas would overlap by a third and the later sibling would win
+   the hit test for its neighbour's edge. Four boxes at 44 come to
+   182px, which still leaves the file's name ~150px at 375px.
+   ------------------------------------------------------------------ */
+@media (pointer: coarse) {
+  .file-action-row-compact > * {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 2.75rem;
+    min-height: 2.75rem;
+  }
+}

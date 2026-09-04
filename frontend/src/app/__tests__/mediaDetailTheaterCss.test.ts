@@ -173,3 +173,19 @@ describe("inspector overlay placement", () => {
     expect(rule![0]).not.toMatch(/box-shadow/);
   });
 });
+
+describe("the sheet's resting action row", () => {
+  it("grows its controls to the touch floor on a coarse pointer", () => {
+    // Not the row: a tall row with `items-center` never stretches a
+    // child into it, which is how the targets stayed 28px inside a 44px
+    // row. Grown rather than overhung, because these four sit 2px apart
+    // and 44px hit areas would overlap by a third — the later sibling
+    // would then win the hit test for its neighbour's edge.
+    const rule = globalsCss().match(
+      /@media \(pointer: coarse\) \{\s*\.file-action-row-compact > \*\s*\{[^}]*\}/,
+    );
+    expect(rule).not.toBeNull();
+    expect(rule![0]).toMatch(/min-width:\s*2\.75rem;/);
+    expect(rule![0]).toMatch(/min-height:\s*2\.75rem;/);
+  });
+});

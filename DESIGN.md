@@ -603,7 +603,7 @@ picking a number one higher than whatever it currently sits under.
 | Tier | `z` | What belongs here |
 |---|---|---|
 | In-flow chrome | `z-10` – `z-30` | Sticky bars, the header (`z-20`), the file-detail inspector where it has to cover the canvas rather than sit beside it (`z-20`, §8.5), popovers anchored to a control, the sidebar backdrop (`z-30`) |
-| Floating surfaces | `z-40` | Sidebar in overlay mode, mini-player, upload progress, bottom-anchored mobile menus |
+| Floating surfaces | `z-40` | Sidebar in overlay mode, mini-player, upload progress, bottom-anchored mobile menus including the file detail sheet's resting strip |
 | Inspector sheet | `z-[45]` / `z-[46]` | The mobile Bottom Sheet — above every floating surface, below every dialog |
 | Modal dialogs | `z-50` | Confirm / Rename / Move and anything else that interrupts to ask a question, including addon dialogs |
 | Immersive viewers | `z-[60]` | Full-screen image gallery and archive viewer, which replace the page rather than overlay it |
@@ -628,6 +628,53 @@ one is open it marks every subtree outside itself `inert` and locks the body
 scroll, restoring both on close. `useInertBackdrop` does this; attach its ref
 to the viewer's root rather than reaching for `document.body`, which a viewer
 rendered inline is itself inside.
+
+**The Bottom Sheet rests; it does not close.** Three states, not two:
+
+| State | Height | What is on screen |
+|---|---|---|
+| peek | `56px` | The file's name and the row that acts on it — like, favourite, the AI menu, the overflow |
+| half | 50% | The inspector's fixed part, the tab strip, and the tab |
+| full | 90vh | The same, with room for it |
+
+The resting state is the point. On a phone the per-file controls used to
+be somewhere in a column the reader had to find; at 56px they are in the
+same place on every file, and the page ends above them rather than
+behind them.
+
+**The drawer exists only while it covers the page; the strip is drawn
+outside it.** vaul hands Radix's `Dialog.Root` nothing but `open`,
+`defaultOpen` and `onOpenChange` — its own `modal` prop never reaches
+Radix, which therefore defaults to modal and calls `hideOthers()` on
+every other body child. A drawer mounted at rest puts
+`aria-hidden="true"` on the whole application, on every file page a
+phone opens, for as long as it is open. The page stays scrollable, so
+nothing looks wrong; it is simply gone for anyone using a screen reader.
+**Passing `modal={false}` does not avoid this** — it controls vaul's own
+scroll-lock and pointer-events extras and nothing about Radix.
+
+The cost is that what is below the strip unmounts on collapse and
+refetches on the way back up. That is what a closed sheet already did,
+and it is the cheaper of the two prices.
+
+**The resting strip owns `bottom-0` on the file surface.** It is
+full-width and permanent, so nothing else bottom-anchored may share the
+screen with it. Today nothing does — the mini player is desktop-only by
+breakpoint, and the upload toast lives in the folder listing that the
+two-pane layout replaces when a file is open — but both of those are
+consequences of other decisions rather than of this one. Anything new
+that anchors to the bottom of a file page has to go above the strip, not
+beside it.
+
+**Fade the backdrop from the first snap point.** vaul defaults
+`fadeFromIndex` to the *last* one, which leaves `half` — the state the
+toggle opens — covering the page with no dim to say so, and a tap
+outside then collapses the sheet with nothing on screen having
+explained why.
+
+A dismiss gesture — the backdrop, Escape, a swipe down — collapses to
+peek. There is no closed state to dismiss to, and refusing the gesture
+would leave a reader who tapped the dim with nothing happening.
 
 **A dialog must outrank the surface that launched it.** The mobile
 Bottom Sheet hosts the same inspector the desktop pane does, `[...]`

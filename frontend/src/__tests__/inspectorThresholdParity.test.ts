@@ -4,6 +4,7 @@ import { resolve, dirname } from "node:path";
 
 import { describe, expect, it } from "vitest";
 
+import { SHEET_PEEK_PX } from "@/components/MobileInspectorSheet";
 import {
   CANVAS_PADDING_REM,
   COLUMN_REM,
@@ -115,5 +116,17 @@ describe("§8.5 widths", () => {
 
   it("documents the rail switch threshold as its own sum", () => {
     expect(remRow("switch threshold")).toBe(RAIL_MIN_REM);
+  });
+});
+
+describe("§Layering sheet states", () => {
+  it("documents the resting height the sheet actually uses", () => {
+    // Same rule as the §8.5 widths: a number in the design table and a
+    // constant in the code, with nothing between them, is the drift the
+    // parity suite exists to make unrepresentable.
+    const design = readFileSync(resolve(REPO_ROOT, "DESIGN.md"), "utf-8");
+    const row = design.match(/\|\s*peek\s*\|\s*`(\d+)px`\s*\|/);
+    expect(row).not.toBeNull();
+    expect(Number(row![1])).toBe(SHEET_PEEK_PX);
   });
 });

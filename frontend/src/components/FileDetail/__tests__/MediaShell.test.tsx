@@ -19,6 +19,7 @@ import { render, screen, waitFor, fireEvent } from "@testing-library/react";
 import { FileDetailContent } from "../../FileDetailContent";
 import type { FileItem } from "@/types";
 import { inspectorOpenStorageKey } from "@/lib/inspectorOpenStore";
+import { SHEET_PEEK_PX } from "@/components/MobileInspectorSheet";
 import { CANVAS_PADDING_REM } from "@/lib/layoutSizes";
 import {
   claimSlot,
@@ -343,6 +344,97 @@ describe("media on the shell, on a phone", () => {
     const { container } = await renderMediaAwaitingChrome();
 
     expect(container.querySelector(".media-detail-below")).toBeNull();
+  });
+
+  it("rests at the peek row, with the file's name and its actions", async () => {
+    // The point of the strip: on a phone the per-file controls used to
+    // be somewhere in a column the reader had to find. Exactly one
+    // action row on the page — the inspector's copy is hoisted away,
+    // because two would be two `⋮` menus over one file.
+    await renderMediaAwaitingChrome(
+      makeFile({ has_chapters: false, title: "Sample" }),
+    );
+
+    const peek = await screen.findByTestId("mobile-inspector-peek");
+    expect(peek).toHaveTextContent("Sample");
+    expect(peek).toContainElement(screen.getByTestId("file-action-row"));
+    // One on screen. The inspector draws its own, but only while the
+    // sheet is up — and the strip is gone then, so the two are
+    // mutually exclusive returns rather than a gate someone has to
+    // keep in step.
+    expect(screen.getAllByTestId("file-action-row")).toHaveLength(1);
+  });
+
+  it("carries only the four controls the strip is specified as", async () => {
+    // 題名 ＋ ♡ ☆ AI ▾ ⋮. The state chip belongs to the inspector's
+    // fixed part, and Cast and the gallery launcher to the file's own
+    // row — lifting them here is what took the strip past 375px with
+    // the title at zero width. The sizing rules say reduce the number
+    // of controls before stripping labels, and this is that reduction;
+    // the labels come off afterwards because the row shares a line with
+    // the name.
+    await renderMediaAwaitingChrome(makeFile({ has_chapters: false }));
+
+    const peek = await screen.findByTestId("mobile-inspector-peek");
+    expect(peek.querySelector("[data-testid='trust-tier-state']")).toBeNull();
+    expect(peek).not.toHaveTextContent(/Unverified|未検証/);
+    // The floor is reached by the controls, not by the row: a tall row
+    // with `items-center` leaves 28px targets inside it. The rule that
+    // grows them is CSS — jsdom does no layout — so this pins the hook
+    // the rule selects on and `mediaDetailTheaterCss` pins the rule.
+    const row = screen.getByTestId("file-action-row");
+    expect(row.classList.contains("file-action-row-compact")).toBe(true);
+  });
+
+  it("ends the page above the strip it rests behind", async () => {
+    // Without this the last thing in the canvas is permanently behind
+    // the 56px row and cannot be scrolled to.
+    const { container } = await renderMediaAwaitingChrome();
+    const main = container.querySelector("main");
+    expect(main?.style.paddingBottom).toBe(`${SHEET_PEEK_PX}px`);
+  });
+
+  it("raises the sheet to half, not straight to full", async () => {
+    // Half keeps the player on screen, which is the reason the design
+    // asks for three states rather than two. Asserted as *which*
+    // expanded state: a test that only says "expanded" passes for full
+    // as well, and full is the one that covers the player.
+    await renderMediaAwaitingChrome();
+    expect(screen.getByTestId("mobile-inspector-peek")).toBeInTheDocument();
+
+    fireEvent.click(screen.getByTestId("inspector-toggle"));
+
+    const sheet = await screen.findByTestId("mobile-inspector-sheet");
+    expect(sheet.dataset.snap).toBe("half");
+    expect(sheet.dataset.snap).not.toBe("full");
+  });
+
+  it("does not rebuild the player when the sheet goes up and comes back", async () => {
+    // The test §4.4 asks for before anything near the player is
+    // touched. A remounted `<video>` restarts at zero and rebinds
+    // `ended`, and a re-parented `.loft` iframe reloads outright — the
+    // browser's rule, not React's. The sheet must move without either.
+    await renderMediaAwaitingChrome();
+    const player = screen.getByTestId("file-preview");
+
+    fireEvent.click(screen.getByTestId("inspector-toggle"));
+    await screen.findByTestId("mobile-inspector-sheet");
+    expect(screen.getByTestId("file-preview")).toBe(player);
+
+    fireEvent.click(screen.getByTestId("inspector-toggle"));
+    await screen.findByTestId("mobile-inspector-peek");
+    expect(screen.getByTestId("file-preview")).toBe(player);
+  });
+
+  it("bounds the sheet's scroller by the state it is in", async () => {
+    // vaul keeps the content at full height and slides it, so at half
+    // the bottom of the scroll box is below the screen and cannot be
+    // scrolled to.
+    await renderMediaAwaitingChrome();
+    fireEvent.click(screen.getByTestId("inspector-toggle"));
+
+    const scroller = await screen.findByTestId("mobile-inspector-content");
+    expect(scroller.style.maxHeight).toBe("50vh");
   });
 
   it("puts it in the sheet, with its tabs", async () => {

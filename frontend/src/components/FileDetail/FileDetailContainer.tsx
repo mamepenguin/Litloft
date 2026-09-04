@@ -16,6 +16,7 @@ import { usePolicy } from "@/hooks/usePolicy";
 import { useAddonSlots } from "../AddonSlotsProvider";
 import { MarkdownAwareTagChips } from "../MarkdownAwareTagChips";
 import { FileDetailPresenter } from "./FileDetailPresenter";
+import { FileActionRow } from "./FileActionRow";
 import { FileMetaBlock } from "./FileMetaBlock";
 import { useCompanionMetrics } from "./hooks/useCompanionMetrics";
 import { useFileDetailData } from "./hooks/useFileDetailData";
@@ -314,6 +315,35 @@ export function FileDetailContainer({
     />
   );
 
+  // The 56px the Bottom Sheet rests at. Built here rather than in the
+  // layout because it needs the same handlers `meta` does, and built
+  // only on the surface that has a sheet so the row cannot be mounted
+  // twice with the inspector's copy.
+  const fileDisplayName = file.title || file.filename;
+  const sheetPeek =
+    ridesShell && isMobile ? (
+      <>
+        {/* Not a heading. The name is announced by the sheet's own
+            title when it is up, and a second heading for the same file
+            at a shallower level than the inspector's `h1` inverted the
+            document outline inside one dialog. */}
+        <span className="min-w-0 flex-1 truncate text-sm font-semibold text-text-primary">
+          {fileDisplayName}
+        </span>
+        <FileActionRow
+          file={file}
+          onFileChange={setFile}
+          onRefetch={data.refetch}
+          onStartEdit={data.startEditing}
+          onAfterDelete={onAfterDelete}
+          onRequestImageGallery={onRequestImageGallery}
+          videoRef={videoRef}
+          addonSlotProps={addonSlotProps}
+          compact
+        />
+      </>
+    ) : undefined;
+
   return (
     <FileDetailPresenter
       file={file}
@@ -349,6 +379,7 @@ export function FileDetailContainer({
       onRename={data.rename}
       onBack={onBack}
       meta={meta}
+      sheetPeek={sheetPeek}
     />
   );
 }

@@ -178,8 +178,27 @@ export function FileDetailChrome({
           type="button"
           onClick={inspector.onToggle}
           aria-pressed={inspector.open}
-          aria-label={inspector.open ? ti("close") : ti("openShortcut")}
-          title={inspector.open ? ti("close") : ti("openShortcut")}
+          // On a phone nothing closes: the sheet collapses to a strip
+          // that is still on screen, so "close" would describe an
+          // outcome the reader does not get.
+          aria-label={
+            isMobile
+              ? inspector.open
+                ? ti("collapseSheet")
+                : ti("expandSheet")
+              : inspector.open
+                ? ti("close")
+                : ti("openShortcut")
+          }
+          title={
+            isMobile
+              ? inspector.open
+                ? ti("collapseSheet")
+                : ti("expandSheet")
+              : inspector.open
+                ? ti("close")
+                : ti("openShortcut")
+          }
           data-testid="inspector-toggle"
           className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-lg text-text-muted transition-colors hover:bg-bg-elevated hover:text-text-primary"
         >

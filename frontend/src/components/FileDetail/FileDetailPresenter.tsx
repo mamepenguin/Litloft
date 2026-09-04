@@ -53,6 +53,8 @@ export interface FileDetailPresenterProps {
   onBack?: () => void;
   /** Title, meta, action row and tags — placed, not built, here. */
   meta: ReactNode;
+  /** The Bottom Sheet's 56px resting row, on the surfaces that have one. */
+  sheetPeek?: ReactNode;
 }
 
 /**
@@ -100,6 +102,7 @@ export function FileDetailPresenter({
   onRename,
   onBack,
   meta,
+  sheetPeek,
 }: FileDetailPresenterProps) {
   if (ridesShell) {
     return (
@@ -134,6 +137,7 @@ export function FileDetailPresenter({
         onRename={onRename}
         onBack={onBack}
         meta={meta}
+        sheetPeek={sheetPeek}
       />
     );
   }

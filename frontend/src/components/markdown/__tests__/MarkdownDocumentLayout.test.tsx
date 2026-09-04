@@ -193,10 +193,21 @@ describe("MarkdownDocumentLayout — mobile (< 768px)", () => {
   it("does NOT render the desktop inspector pane on mobile", () => {
     setViewportWidth(420);
     renderLayout();
+    expect(screen.queryByTestId("inspector-pane")).toBeNull();
+  });
+
+  it("shows the resting strip, not the inspector, at rest", () => {
+    // The sheet rests at 56px rather than closing. What is below that
+    // rest is not drawn: vaul's drawer is Radix-modal whether or not it
+    // is asked to be, so mounting it at rest would put `aria-hidden` on
+    // the whole page for as long as the file is open.
+    setViewportWidth(420);
+    renderLayout();
+    expect(screen.getByTestId("mobile-inspector-peek")).toBeInTheDocument();
     expect(screen.queryByTestId("inspector-content")).toBeNull();
   });
 
-  it("opens the Bottom Sheet with the inspector content when the chrome toggle is tapped", async () => {
+  it("brings up the inspector when the chrome toggle is tapped", async () => {
     setViewportWidth(420);
     renderLayout();
     fireEvent.click(screen.getByTestId("inspector-toggle"));
