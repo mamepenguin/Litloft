@@ -1051,6 +1051,16 @@ div[data-citation-section-path]:not(tr) {
   overflow: hidden;
 }
 
+/* Hidden, not removed. The occupants of this box are what report
+   whether they have anything for the file, so a box the layout dropped
+   because they had nothing yet would drop the reporters with it and
+   freeze the answer at its first guess. `display: none` keeps them
+   mounted, fetching and answering — the same bargain the inspector's
+   unlisted tab makes. */
+.media-detail-below[data-occupied="false"] {
+  display: none;
+}
+
 /* The index takes the width the body's measure leaves — which means the
    body has to claim that measure as its flex base, not merely as a cap.
 

@@ -2,7 +2,6 @@
 
 import type { ReactNode } from "react";
 
-import { AddonSlot } from "../AddonSlot";
 import { ChaptersPanel } from "../ChaptersPanel";
 import { FileDescription } from "./FileDescription";
 import { MediaPlayerBlock, type MediaPlayerBlockProps } from "./MediaPlayerBlock";
@@ -29,7 +28,13 @@ interface MediaCanvasProps
    * transcript fetches, follows the playback clock and holds a scroll
    * position, none of which survives being drawn twice.
    */
-  companion: { chaptersPresent: boolean } | null;
+  companion: {
+    chaptersPresent: boolean;
+    /** Whether anything in the box has content for this file. */
+    occupied: boolean;
+    /** The `player-side` entries, already built by the layout. */
+    slots: ReactNode;
+  } | null;
   chaptersVersion: number;
   onChaptersResolved: (count: number) => void;
   /**
@@ -105,7 +110,18 @@ export function MediaCanvas({
         // layout puts it: the reader has said they want the transcript
         // below the player, so it goes below the player and not below
         // the summaries that are about it.
-        <div className="media-detail-below">
+        //
+        // `data-occupied="false"` hides the box in CSS rather than
+        // dropping it, and that is the whole mechanism: its occupants
+        // are what report whether they have anything, so a box removed
+        // because they had nothing yet would remove the reporters and
+        // leave the answer stuck at its first guess. Same shape as the
+        // inspector's unlisted tab, which stays mounted and loses only
+        // its button.
+        <div
+          className="media-detail-below"
+          data-occupied={companion.occupied ? "true" : "false"}
+        >
           {companion.chaptersPresent && (
             <ChaptersPanel
               fileId={fileId}
@@ -115,13 +131,7 @@ export function MediaCanvas({
               className="media-detail-below-index"
             />
           )}
-          <div className="media-detail-below-body">
-            <AddonSlot
-              id="player-side"
-              layout="stack"
-              props={{ ...addonSlotProps, fillHeight: true }}
-            />
-          </div>
+          <div className="media-detail-below-body">{companion.slots}</div>
         </div>
       )}
 

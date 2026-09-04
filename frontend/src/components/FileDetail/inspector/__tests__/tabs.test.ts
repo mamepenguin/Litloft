@@ -98,6 +98,33 @@ describe("buildInspectorTabs", () => {
     expect(tabs.map((t) => t.id)).toEqual(["info", "chapters", "a"]);
   });
 
+  it("keeps an entry that says it has nothing, but takes its button away", () => {
+    // Both halves matter. Unlisting is the visible half; still building
+    // the tab is what makes the answer revisable — the panel is the
+    // thing that reports, so dropping it would freeze the first answer
+    // even once the file's transcript arrives.
+    const tabs = buildInspectorTabs({
+      info,
+      addonTabs: [
+        { entry: entry("a"), label: "A", content: "a", available: false },
+      ],
+    });
+    expect(tabs.map((t) => t.id)).toEqual(["info", "a"]);
+    expect(tabs[1].listed).toBe(false);
+    expect(tabs[1].content).toBe("a");
+  });
+
+  it("lists an entry that has not answered", () => {
+    // An addon written before the signal existed never calls the
+    // reporter, and its tab has to keep appearing — otherwise adding
+    // this took a working tab away from everyone who had not opted in.
+    const tabs = buildInspectorTabs({
+      info,
+      addonTabs: [{ entry: entry("a"), label: "A", content: "a" }],
+    });
+    expect(tabs[1].listed).toBe(true);
+  });
+
   it("uses the label it is given, never the entry's own", () => {
     // The entry's `label` is an English manifest literal. Resolving it
     // is the caller's job (`slotEntryLabel`), and this must not quietly
@@ -129,6 +156,22 @@ describe("showsTabStrip", () => {
         }),
       ),
     ).toBe(true);
+  });
+
+  it("is false when the only other tab has been unlisted", () => {
+    // A strip of one is no strip, and an unlisted tab is not one of the
+    // one. Counting `tabs.length` here instead would draw a strip whose
+    // only button is Info.
+    expect(
+      showsTabStrip(
+        buildInspectorTabs({
+          info,
+          addonTabs: [
+            { entry: entry("a"), label: "A", content: "a", available: false },
+          ],
+        }),
+      ),
+    ).toBe(false);
   });
 
   it("is false again when the only other tab has nothing in it", () => {

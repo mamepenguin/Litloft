@@ -25,6 +25,7 @@ import { InspectorShell } from "./inspector/InspectorShell";
 import { RelatedGroup } from "./inspector/RelatedGroup";
 import { buildInspectorTabs } from "./inspector/tabs";
 import type { CompanionMetrics } from "./hooks/useCompanionMetrics";
+import type { SlotAvailability } from "./hooks/useSlotAvailability";
 
 export interface ShellLayoutProps {
   file: FileItem;
@@ -34,8 +35,12 @@ export interface ShellLayoutProps {
   isHtmlPreview: boolean;
   /** Whether a player plays this file at all. */
   hasPlayer: boolean;
-  /** Whether anyone — core chapters or an addon — fills the companion. */
+  /** Whether anyone could fill the companion. Decides what is mounted. */
+  companionMountable: boolean;
+  /** Whether anyone does, for this file. Decides what chrome is drawn. */
   companionOccupied: boolean;
+  /** Per-file "have I anything" answers from the slot entries. */
+  slotAvailability: SlotAvailability;
   /** Whether the player's height is a function of its width. */
   playerFramed: boolean;
   isTimedMedia: boolean;
@@ -91,7 +96,9 @@ export function ShellLayout({
   isMobile,
   isHtmlPreview,
   hasPlayer,
+  companionMountable,
   companionOccupied,
+  slotAvailability,
   playerFramed,
   isTimedMedia,
   chaptersPresent,
@@ -149,6 +156,41 @@ export function ShellLayout({
   const companionInTabs = !hasPlayer || isMobile || mediaLayout === "beside";
 
   const playerSideEntries = hasPlayer ? getSlotEntries("player-side") : [];
+
+  /**
+   * What each `player-side` entry is given, wherever it is placed.
+   *
+   * `onAvailability` is the entry's channel for saying it has nothing
+   * for this file — the generic form of `ChaptersPanel.onResolved`, and
+   * the only way core can gate an addon's tab without knowing what the
+   * addon is. `labelledByHost` says the host has already written the
+   * entry's name above it, so it should not write it again: in the tab
+   * strip the button carries the label, and a panel that repeats it
+   * spends a line saying what the reader just pressed.
+   */
+  const playerSideProps = (entryId: string, labelledByHost: boolean) => ({
+    ...addonSlotProps,
+    fillHeight: true,
+    labelledByHost,
+    onAvailability: slotAvailability.reporterFor(entryId),
+  });
+
+  /**
+   * The same occupants, for the below form.
+   *
+   * Built here rather than by `AddonSlot` inside the canvas because the
+   * availability callback is per entry, and `AddonSlot` hands one props
+   * object to all of them. Ordering is `AddonSlot`'s own rule, kept.
+   */
+  const playerSideNodes = [...playerSideEntries]
+    .sort((a, b) => a.priority - b.priority)
+    .map((entry) => (
+      <SlotEntryRenderer
+        key={entry.id}
+        entry={entry}
+        props={playerSideProps(entry.id, false)}
+      />
+    ));
 
   /**
    * The `file-detail-sections` entries the canvas draws itself.
@@ -240,6 +282,7 @@ export function ShellLayout({
         ? playerSideEntries.map((entry) => ({
             entry,
             label: slotEntryLabel(entry, tGlobal),
+            available: slotAvailability.isAvailable(entry.id),
             // The panel is the height budget, so the occupant fills it
             // and scrolls inside itself. Without the wrapper the flex
             // chain stops here and a transcript lays itself out at full
@@ -248,7 +291,7 @@ export function ShellLayout({
               <div className="flex h-full min-h-0 flex-col">
                 <SlotEntryRenderer
                   entry={entry}
-                  props={{ ...addonSlotProps, fillHeight: true }}
+                  props={playerSideProps(entry.id, true)}
                 />
               </div>
             ),
@@ -301,9 +344,9 @@ export function ShellLayout({
           isTimedMedia={isTimedMedia}
           mediaController={mediaController}
           companion={
-            companionInTabs || !companionOccupied
+            companionInTabs || !companionMountable
               ? null
-              : { chaptersPresent }
+              : { chaptersPresent, occupied: companionOccupied, slots: playerSideNodes }
           }
           chaptersVersion={chaptersVersion}
           onChaptersResolved={onChaptersResolved}

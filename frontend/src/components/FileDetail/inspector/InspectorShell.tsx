@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useRef, useState, type ReactNode } from "react";
 import { useTranslations } from "next-intl";
 
-import { showsTabStrip, type InspectorTab } from "./tabs";
+import { listedTabs, showsTabStrip, type InspectorTab } from "./tabs";
 
 interface InspectorShellProps {
   /**
@@ -35,7 +35,11 @@ export function InspectorShell({
   resetKey,
 }: InspectorShellProps) {
   const t = useTranslations("inspector");
-  const firstId = tabs[0]?.id ?? "info";
+  // Only a listed tab can be selected. An unlisted one is mounted so it
+  // can keep reporting; giving it the selection would show a panel its
+  // own entry has just said is empty.
+  const listed = listedTabs(tabs);
+  const firstId = listed[0]?.id ?? "info";
   const [activeId, setActiveId] = useState<string>(firstId);
   const tabRefs = useRef(new Map<string, HTMLButtonElement>());
 
@@ -50,7 +54,7 @@ export function InspectorShell({
   // A tab can vanish under the selection — an addon's panel moves to the
   // canvas when the reader switches the transcript below the player, and
   // chapters go when a file turns out to have none.
-  const active = tabs.find((tab) => tab.id === activeId) ?? tabs[0];
+  const active = listed.find((tab) => tab.id === activeId) ?? listed[0];
 
   // ...and the selection follows it, rather than being remembered. Left
   // in state, a dead id springs back the moment its tab returns — the
@@ -70,13 +74,13 @@ export function InspectorShell({
       // A tablist owns its arrow keys; without this they scroll the page
       // behind it while the focus ring sits on a tab.
       event.preventDefault();
-      const index = tabs.findIndex((tab) => tab.id === active?.id);
-      const next = tabs[(index + delta + tabs.length) % tabs.length];
+      const index = listed.findIndex((tab) => tab.id === active?.id);
+      const next = listed[(index + delta + listed.length) % listed.length];
       if (!next) return;
       setActiveId(next.id);
       tabRefs.current.get(next.id)?.focus();
     },
-    [tabs, active?.id],
+    [listed, active?.id],
   );
 
   return (
@@ -99,7 +103,7 @@ export function InspectorShell({
           // it rather than each growing its own box.
           className="flex shrink-0 gap-1 overflow-x-auto border-b border-bg-border px-2 pointer-coarse:min-h-11"
         >
-          {tabs.map((tab) => {
+          {listed.map((tab) => {
             const selected = tab.id === active?.id;
             return (
               <button
@@ -148,8 +152,13 @@ export function InspectorShell({
           <div
             key={tab.id}
             id={`inspector-panel-${tab.id}`}
-            role={strip ? "tabpanel" : undefined}
-            aria-labelledby={strip ? `inspector-tab-${tab.id}` : undefined}
+            // An unlisted panel has no button pointing at it, so it is
+            // not a tabpanel — it is a mounted reporter that happens to
+            // live here.
+            role={strip && tab.listed ? "tabpanel" : undefined}
+            aria-labelledby={
+              strip && tab.listed ? `inspector-tab-${tab.id}` : undefined
+            }
             hidden={!selected}
             // Focusable because it is the only thing that scrolls and it
             // may hold nothing focusable — a transcript, a comment list.

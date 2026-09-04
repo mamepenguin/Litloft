@@ -20,6 +20,7 @@ import { FileActionRow } from "./FileActionRow";
 import { FileMetaBlock } from "./FileMetaBlock";
 import { useCompanionMetrics } from "./hooks/useCompanionMetrics";
 import { useFileDetailData } from "./hooks/useFileDetailData";
+import { useSlotAvailability } from "./hooks/useSlotAvailability";
 
 export interface FileDetailContentProps {
   fileId: string;
@@ -127,7 +128,8 @@ export function FileDetailContainer({
   autoPlay,
   surface = "canonical",
 }: FileDetailContentProps) {
-  const { hasSlot } = useAddonSlots();
+  const { getSlotEntries, hasSlot } = useAddonSlots();
+  const slotAvailability = useSlotAvailability(fileId);
   const isMobile = useIsMobile();
   const data = useFileDetailData(fileId);
   const { file, setFile } = data;
@@ -233,7 +235,25 @@ export function FileDetailContainer({
   // chapters are a core entity and `AddonSlot` can only load addon
   // components. So every question that used to be "does an addon fill
   // this?" becomes "does anyone?".
-  const companionOccupied = hasSlot("player-side") || data.chaptersPresent;
+  //
+  // Two answers to it, not one, and the difference is load-bearing.
+  //
+  // `companionMountable` is "could anyone fill it", and it is what
+  // decides whether the occupants are mounted at all. It must not
+  // consult availability: the occupants are what report availability, so
+  // a region unmounted because nothing was available yet would take the
+  // reporters down with it and freeze that answer for good.
+  //
+  // `companionOccupied` is "does anyone, for this file", and it is what
+  // the chrome reads — the layout toggle, the box the below form draws.
+  // A control that moves an empty region between two empty places is
+  // the "row that only says a feature exists" the redesign is removing.
+  const companionMountable = hasSlot("player-side") || data.chaptersPresent;
+  const companionOccupied =
+    data.chaptersPresent ||
+    getSlotEntries("player-side").some((entry) =>
+      slotAvailability.isAvailable(entry.id),
+    );
 
   const isHtmlPreview = file.mime_type === "text/html";
   // Whether the Knowledge editor is the thing in the canvas. Narrower
@@ -356,7 +376,9 @@ export function FileDetailContainer({
       playerFramed={playerFramed}
       companionKind={companionKind}
       railEligible={railEligible}
+      companionMountable={companionMountable}
       companionOccupied={companionOccupied}
+      slotAvailability={slotAvailability}
       isTimedMedia={isTimedMedia}
       chaptersPresent={data.chaptersPresent}
       chaptersVersion={data.chaptersVersion}

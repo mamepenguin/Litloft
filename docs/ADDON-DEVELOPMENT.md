@@ -785,7 +785,8 @@ Addons can inject UI components into predefined **slots** in the core applicatio
 |---------|----------|--------|----------|
 | `search-modes` | Search results page (`/drive/{drive}/search`); not the GlobalSearch popup | Stack | Semantic search, Find, and other custom retrievers. Receives a `context: "popup" \| "page"` prop (default `"popup"`); core mounts the slot only on the results page with `context: "page"` today, but the prop is reserved so addons may render a compact popup layout in the future without breaking compatibility. The GlobalSearch popup obtains semantic hits by calling intelligence's HTTP routes directly via the thin wrapper at `frontend/src/lib/semanticSearch.ts` — the established public-contract pattern — not via this slot |
 | `file-detail-sections` | File detail panel | Vertical stack | Transcripts, similar files, suggested tags, summaries, knowledge notes |
-| `file-relations` | Inside the file detail inspector's **Related** heading, under the core's own relations | Stack | Connections between *this* file and others that the addon derives rather than the user states — similarity, shared keywords. Core has one heading for both kinds, because two headings meant a reader had to guess which one a given connection was filed under. Two obligations: **move**, do not copy — an entry left in `file-detail-sections` renders in both places, and core cannot detect that; and note that the **Related** heading appears whenever any addon publishes here, whether or not your entry has computed anything, so a section that is only ever a placeholder does not belong in this slot. A collapsed control that computes when opened does. |
+| `file-relations` | Inside the file detail inspector's **Related** heading, under the core's own relations | Stack | Connections between *this* file and others that the addon derives rather than the user states — similarity, shared keywords. Core has one heading for both kinds, because two headings meant a reader had to guess which one a given connection was filed under. Two obligations: **move**, do not copy — an entry left in `file-detail-sections` renders in both places, and core cannot detect that; and note that the **Related** heading appears whenever any addon publishes here, whether or not your entry has computed anything, so a section that is only ever a placeholder does not belong in this slot. A collapsed control that computes when opened does. Under the heading your entry is one part of a group, not a section: draw its name at `text-xs font-medium text-text-muted` with no card and no glyph of its own, so the heading grouping it stays the louder of the two (`DESIGN.md` §The Related group — core's own member follows the same table). |
+| `player-side` | Beside a media player — an **inspector tab** where the reader has chosen "beside", a bounded box under the description where they have chosen "below" | Stack | Something that follows the file as it plays: a transcript, a cue list. One entry is one tab. See [Occupying the player-side slot](#occupying-the-player-side-slot) — the host places it two different ways and tells the entry which. |
 | `dashboard-widgets` | Admin dashboard | Cards | Index statistics, cloud sync status |
 | `dashboard-alerts` | Admin dashboard, above the drive cards | Stack | Something is wrong and an operator should see it before anything else — a queue of failed jobs, a provider that stopped answering. Render nothing when there is nothing wrong: the host draws no wrapper and no heading, so an entry that always renders is a permanent band above the page. |
 | `folder-actions` | Folder toolbar | Inline buttons | Batch AI actions |
@@ -818,6 +819,41 @@ key on screen.
 
 No core release is needed to adopt it. The backend passes manifest fields through
 untouched, so adding the field to a manifest is enough.
+
+### Occupying the `player-side` slot
+
+One entry is one tab. The host draws it in two places and hands it three
+props that say which, in addition to the usual slot props:
+
+| Prop | Meaning |
+|---|---|
+| `fillHeight: boolean` | The host has given you a height budget: fill it as a flex item and scroll inside yourself. `true` in both current placements. Do not use `h-full` — the budget is a `max-height` clamp, and a percentage height against that resolves to `auto`, so the list lays itself out at full length and is silently clipped. |
+| `labelledByHost: boolean` | The host has already written your name above you — the tab button carries it. Drop your own title when this is `true`, or the reader reads the name of the thing they just pressed twice. `false` in the box below the player, which has no heading of its own. |
+| `onAvailability: (available: boolean) => void` | Whether you have anything for this file. |
+
+**`onAvailability` is how a tab stops appearing on files it has nothing
+for.** Core cannot look inside your panel — asking "does the transcript
+have anything" by name would be the core-to-addon dependency the rules
+forbid — so you say so. It is the generic form of the `onResolved` core's
+own chapter panel uses.
+
+- **Call it with `false` as soon as you mount**, before your fetch
+  settles, and with `true` when you find something. Not calling it at all
+  means "available", which is what keeps every entry written before this
+  signal existed working unchanged — so an entry that wants gating has to
+  opt in by answering.
+- **Your component is not unmounted when you answer `false`.** The tab
+  loses its button and the panel is hidden; the box below the player is
+  hidden in CSS. You are the thing doing the reporting, so you stay
+  mounted and can take the answer back.
+- **The answer is per file.** Core forgets it when the file changes, but
+  it does not know which file your in-flight request was for — abandon a
+  stale response yourself, the way you already must for the rest of your
+  state.
+- The same answer decides whether core draws the beside/below toggle at
+  all. An entry that says `false` while the file has no chapters either
+  takes the toggle away with it, because both of the places it would move
+  the panel between are empty.
 
 ### Contributing to the file action row
 

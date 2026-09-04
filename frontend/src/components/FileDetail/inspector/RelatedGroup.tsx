@@ -1,9 +1,28 @@
 "use client";
 
-import type { ReactNode } from "react";
+import { createContext, useContext, type ReactNode } from "react";
 import { useTranslations } from "next-intl";
 
 import { useAddonSlots } from "../../AddonSlotsProvider";
+
+const GroupedContext = createContext(false);
+
+/**
+ * Whether a heading above this one has already named the concept.
+ *
+ * Read by the members of the group, which then draw themselves as its
+ * parts rather than as sections in their own right: no card of their
+ * own, and a name a step quieter than the one grouping them. Without
+ * it core's own relations announce themselves louder than the heading
+ * they sit under, which reads as two lists rather than one.
+ *
+ * A context and not a prop because the same components are also drawn
+ * ungrouped — on the collection-playback route, which has no inspector
+ * and stacks everything in one column.
+ */
+export function useInRelatedGroup(): boolean {
+  return useContext(GroupedContext);
+}
 
 /**
  * "Related", once, over both kinds of relation.
@@ -36,11 +55,13 @@ export function RelatedGroup({ children }: { children: ReactNode }) {
   }
 
   return (
-    <section>
-      <h3 className="mb-2 text-sm font-semibold text-text-muted">
-        {t("relatedGroup")}
-      </h3>
-      <div className="space-y-3">{children}</div>
-    </section>
+    <GroupedContext.Provider value={true}>
+      <section>
+        <h3 className="mb-2 text-sm font-semibold text-text-muted">
+          {t("relatedGroup")}
+        </h3>
+        <div className="space-y-3">{children}</div>
+      </section>
+    </GroupedContext.Provider>
   );
 }

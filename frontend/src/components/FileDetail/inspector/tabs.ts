@@ -7,6 +7,15 @@ export interface InspectorTab {
   id: string;
   label: string;
   content: ReactNode;
+  /**
+   * Whether the strip offers a button for it.
+   *
+   * An unlisted tab is still built and still mounted — it is the thing
+   * that reports whether it has anything, so dropping it would take the
+   * reporter with it and the answer could never change. It simply has
+   * no button and can never be the selection.
+   */
+  listed: boolean;
 }
 
 export interface BuildInspectorTabsInput {
@@ -21,8 +30,19 @@ export interface BuildInspectorTabsInput {
   /**
    * Addon-supplied tabs, one per `player-side` entry, already resolved
    * to a label and a rendered node by the caller.
+   *
+   * `available` is the entry's own answer to "have I anything for this
+   * file". `undefined` means it has not answered — either it never will
+   * (an addon written before the signal existed) or its fetch is still
+   * out — and an unanswered tab is listed, so nothing that works today
+   * stops working. Only an explicit `false` unlists it.
    */
-  addonTabs?: Array<{ entry: SlotEntry; label: string; content: ReactNode }>;
+  addonTabs?: Array<{
+    entry: SlotEntry;
+    label: string;
+    content: ReactNode;
+    available?: boolean;
+  }>;
 }
 
 /**
@@ -44,6 +64,12 @@ export interface BuildInspectorTabsInput {
  *    that answers a question nobody asked; a Markdown note's inspector
  *    then looks exactly as it did before any of this, which is what the
  *    design asked for.
+ * 3. **An entry that says it has nothing gets no button.** Core cannot
+ *    look inside an addon's panel — asking "will you draw anything for
+ *    this file" by id would be the core-to-addon dependency the rules
+ *    forbid — so the entry says so itself, through the same generic
+ *    signal core's own `ChaptersPanel.onResolved` already uses. Its
+ *    panel stays mounted: the panel is the thing doing the reporting.
  *
  * Nothing here knows an addon's id or name. Tabs arrive as slot entries
  * — the generic container core already defines — so an addon publishing
@@ -57,13 +83,18 @@ export function buildInspectorTabs({
   addonTabs = [],
 }: BuildInspectorTabsInput): InspectorTab[] {
   return [
-    { id: "info", label: info.label, content: info.content },
+    { id: "info", label: info.label, content: info.content, listed: true },
     ...coreTabs
       // `false` as well as nullish: `chaptersPresent && <ChaptersPanel/>`
       // is how a caller will naturally express a conditional tab, and it
       // yields `false`, not null.
       .filter((tab) => tab.content != null && tab.content !== false)
-      .map((tab) => ({ id: tab.id, label: tab.label, content: tab.content })),
+      .map((tab) => ({
+        id: tab.id,
+        label: tab.label,
+        content: tab.content,
+        listed: true,
+      })),
     // Sorted here rather than by the caller. `getSlotEntries` hands
     // back the catalogue's raw order, and `AddonSlot` — which does its
     // own sort — is not in this path, so a caller composing tabs by
@@ -74,11 +105,17 @@ export function buildInspectorTabs({
         id: tab.entry.id,
         label: tab.label,
         content: tab.content,
+        listed: tab.available !== false,
       })),
   ];
 }
 
+/** The tabs that get a button. */
+export function listedTabs(tabs: InspectorTab[]): InspectorTab[] {
+  return tabs.filter((tab) => tab.listed);
+}
+
 /** Whether the strip is worth drawing at all. */
 export function showsTabStrip(tabs: InspectorTab[]): boolean {
-  return tabs.length > 1;
+  return listedTabs(tabs).length > 1;
 }

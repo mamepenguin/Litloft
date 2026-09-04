@@ -37,8 +37,13 @@ interface FileDetailCanvasProps {
   railEligible: boolean;
   /** Whether the player's height is a function of its width. */
   playerFramed: boolean;
-  /** Whether anyone — core chapters or an addon — fills the companion. */
-  companionOccupied: boolean;
+  /**
+   * Whether anyone — core chapters or an addon — *could* fill the
+   * companion. Not whether they did: this route mounts the occupants
+   * inside the region it gates, so an answer that depended on what they
+   * found would unmount whoever was going to give it.
+   */
+  companionMountable: boolean;
   /** Meta, AI sections and comments, stacked under the player. */
   rest: ReactNode;
 }
@@ -75,7 +80,7 @@ export function FileDetailCanvas({
   companionKind,
   railEligible,
   playerFramed,
-  companionOccupied,
+  companionMountable,
   rest,
 }: FileDetailCanvasProps) {
   const { playerWrapperRef, attachRailHost } = metrics;
@@ -100,7 +105,7 @@ export function FileDetailCanvas({
       // Only where a rail is possible at all, and gated on top of that
       // by the measured width: here "beside" is a second grid column.
       layoutToggle={
-        railEligible && companionOccupied ? { railGated: true } : null
+        railEligible && companionMountable ? { railGated: true } : null
       }
     />
   );
@@ -113,7 +118,7 @@ export function FileDetailCanvas({
   // The companion region only exists for files a player actually
   // plays, and only when an addon has something to put in it. With no
   // occupant the grid never appears and the page is exactly as before.
-  if (!companionKind || !companionOccupied) {
+  if (!companionKind || !companionMountable) {
     return (
       <div className="media-detail-host w-full" style={mediaDetailStyle}>
         {playerLayoutNode}
