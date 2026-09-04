@@ -122,6 +122,12 @@ and nothing else — no `drives.json`, `passwords.json`, `.env`, or
 `tsc --noEmit` follows the symlinks and type-checks addon sources; `eslint` does
 not follow them and covers core only.
 
+### What to test
+
+- Components — render, interaction, accessibility (where reasonable).
+- Hooks (`useDebounce`, `useShortcuts`) — edge cases.
+- API helpers (`saveFileTags`, especially the MIME branching) — unit tests with `msw` for network.
+
 ## MCP server tests
 
 `mcp-server/` is a separate package with its own lockfile:
@@ -132,12 +138,6 @@ pnpm install --frozen-lockfile
 pnpm test
 pnpm exec tsc -p tsconfig.json --noEmit
 ```
-
-### What to test
-
-- Components — render, interaction, accessibility (where reasonable).
-- Hooks (`useDebounce`, `useShortcuts`) — edge cases.
-- API helpers (`saveFileTags`, especially the MIME branching) — unit tests with `msw` for network.
 
 ## End-to-end tests
 
@@ -291,18 +291,33 @@ every pull request and on pushes to the default branch.
 | `backend` | `backend/Dockerfile.test` built and run |
 | `bootstrap` | `pytest tests/test_configure.py` on a bare Python 3.12 |
 | `addon-backends` | `cloud-sync` and `media_import` test images built and run |
-| `frontend-image` | `frontend/Dockerfile` built, which is what runs `next build` |
+| `images` | `frontend/Dockerfile` and `backend/Dockerfile` built |
 
 `frontend` checks out submodules recursively, so it tests the **pinned** addon
-commits. `design-tokens.test.ts` and `i18n-keys.test.ts` walk `addons/*/frontend`
-directly, so an addon pointer left behind fails the job — which is what makes
-the submodule bump described in [CLAUDE.md](../../CLAUDE.md) load-bearing.
+commits — the pairing a fresh clone would get, not each addon's branch tip.
 
-`frontend-image` exists because `next build` is covered by nothing else, and
-cannot be run against the `frontend/src/addons` symlinks: Turbopack fails to
-resolve the dynamic `@/addons/<name>/Page` import through them. `frontend/Dockerfile`
-deletes the symlinks and copies the addon trees in first, so building the image
-is the only honest rehearsal of the production build.
+Be precise about what that catches, because it is easy to overclaim.
+`design-tokens.test.ts` and `i18n-keys.test.ts` walk `addons/*/frontend`
+directly, so the job fails when pinned addon code uses a design token core has
+removed, or ships a message namespace that displaces one of core's. It also
+fails when a submodule did not check out at all: `i18n-keys.test.ts` asserts it
+found at least one addon catalogue, and an uninitialised submodule leaves an
+empty directory rather than no directory.
+
+What it does **not** catch is a pointer that is simply behind, on an addon tree
+that is still internally consistent with core. That passes. The submodule bump
+described in [CLAUDE.md](../../CLAUDE.md) is enforced here only to the extent
+that the older code actually conflicts; the rest of it is still a review
+responsibility.
+
+`images` builds what no test builds. For the frontend that is `next build`,
+covered by neither vitest nor tsc, and impossible to run against the
+`frontend/src/addons` symlinks: Turbopack fails to resolve the dynamic
+`@/addons/<name>/Page` import through them. `frontend/Dockerfile` deletes the
+symlinks and copies the addon trees in first, so building the image is the only
+honest rehearsal. The backend earns a build by the same argument — its
+production Dockerfile has steps the test image does not share, notably the addon
+copy loop and the `addons/__init__.py` it creates.
 
 ### Addons
 

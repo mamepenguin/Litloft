@@ -24,6 +24,11 @@ concurrency:
   group: ci-${{ github.ref }}
   cancel-in-progress: true
 
+# Nothing here writes to the repository; the cross-repository checkouts read
+# public repositories only.
+permissions:
+  contents: read
+
 jobs:
   frontend:
     name: frontend (vitest / tsc / eslint)
@@ -31,10 +36,17 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with:
-          # The pinned addon commits, not their branch tips. design-tokens.test.ts
-          # and i18n-keys.test.ts walk addons/*/frontend directly, so an addon
-          # pointer left behind fails here. That is what makes the submodule bump
-          # described in CLAUDE.md load-bearing rather than advisory.
+          # The pinned addon commits, not their branch tips, so the job tests
+          # the pairing a fresh clone would get.
+          #
+          # Be precise about what that catches. design-tokens.test.ts and
+          # i18n-keys.test.ts walk addons/*/frontend directly, so pinned addon
+          # code that uses a token core has removed, or ships a namespace that
+          # displaces one of core's, fails here; so does a submodule that did
+          # not check out at all (i18n-keys asserts it found catalogues). A
+          # pointer that is merely behind, on a tree still consistent with
+          # core, passes all of them. Bumping the pointer is checked here only
+          # to the extent that the old code actually conflicts.
           submodules: recursive
 
       - uses: pnpm/action-setup@v4
@@ -99,9 +111,12 @@ jobs:
         run: pnpm exec tsc --noEmit
         working-directory: frontend
 
-      # eslint does not follow the symlinks, so this covers core only. Addon
-      # lint coverage would need the addon's own config; tsc is what guards
-      # them here.
+      # Two limits worth knowing, since neither is visible from the green tick.
+      # eslint does not follow the addon symlinks, so this covers core only —
+      # tsc is what guards addon sources. And the config downgrades several
+      # rules (including no-explicit-any) to warnings, which do not reach the
+      # exit code: only errors fail this step. Raising that is a separate
+      # decision about roughly a hundred existing warnings, not a CI change.
       - name: Lint
         run: pnpm lint
         working-directory: frontend
@@ -145,10 +160,10 @@ jobs:
       # Context is the repository root so the image can reach configure.py and
       # the compose files, which sit above backend/.
       - name: Build the test image
-        run: docker build -f backend/Dockerfile.test -t litloft-backend-test .
+        run: docker build -f backend/Dockerfile.test -t litloft-test .
 
       - name: Test
-        run: docker run --rm litloft-backend-test
+        run: docker run --rm litloft-test
 
   bootstrap:
     name: bootstrap (configure.py)
@@ -195,18 +210,28 @@ jobs:
       - name: Test
         run: docker run --rm addon-test
 
-  frontend-image:
-    # `next build` is covered by neither vitest nor tsc, and it cannot run
-    # against the frontend/src/addons symlinks — Turbopack fails to resolve the
-    # dynamic `@/addons/<name>/Page` import through them. frontend/Dockerfile
-    # deletes the symlinks and copies the addon trees in before building, so
-    # building the image is the only honest rehearsal of the production build.
-    name: frontend image (next build)
+  images:
+    # The production images, which no test builds.
+    #
+    # For the frontend that is `next build`, covered by neither vitest nor tsc,
+    # and impossible to run against the frontend/src/addons symlinks — Turbopack
+    # fails to resolve the dynamic `@/addons/<name>/Page` import through them.
+    # frontend/Dockerfile deletes the symlinks and copies the addon trees in
+    # first, so building the image is the only honest rehearsal.
+    #
+    # The backend earns a build by the same argument, even though its test image
+    # shares the requirements files: backend/Dockerfile has production-only
+    # steps of its own — the addon copy loop and the addons/__init__.py it
+    # creates — and nothing else would notice them breaking.
+    name: production images
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
         with:
           submodules: recursive
 
-      - name: Build the production image
+      - name: Build the frontend image
         run: docker build -f frontend/Dockerfile -t litloft-frontend .
+
+      - name: Build the backend image
+        run: docker build -f backend/Dockerfile -t litloft-backend .
