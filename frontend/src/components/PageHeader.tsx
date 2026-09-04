@@ -51,6 +51,20 @@ export interface PageHeaderProps {
   tabs?: ReactNode;
 }
 
+/**
+ * Whether a slot was given anything to draw.
+ *
+ * `undefined` was the only absence the first version recognised, so a caller
+ * writing the far more natural `actions={files.length > 0 ? <X/> : null}` got
+ * an empty flex box in the header — invisible, but occupying the row and
+ * shifting what sits beside it. Conditional JSX yields `null` and `false` at
+ * least as often as `undefined`, so treating one of the three as "absent" made
+ * the contract depend on which falsy value a caller happened to reach for.
+ */
+function given(node: ReactNode): boolean {
+  return node !== undefined && node !== null && node !== false;
+}
+
 export function PageHeader({
   breadcrumb,
   leading,
@@ -60,13 +74,13 @@ export function PageHeader({
   actions,
   tabs,
 }: PageHeaderProps) {
-  const hasTitle = title !== undefined;
+  const hasTitle = given(title);
 
   // Without a title the scope and the actions have nothing to sit under, so
   // they join the trail — "Documents / 2024  ·  138 items" reads as one
   // subject with its measure, where a second row would read as two.
-  const scopeOnTrail = !hasTitle && scope !== undefined;
-  const actionsOnTrail = !hasTitle && actions !== undefined;
+  const scopeOnTrail = !hasTitle && given(scope);
+  const actionsOnTrail = !hasTitle && given(actions);
 
   // The trail row also carries anything a missing title would have stranded.
   // Rendering it only for `leading || breadcrumb` would drop a titleless
@@ -77,10 +91,10 @@ export function PageHeader({
   // gave it a row holding nothing but that button, floating above its own
   // heading. `leading` joins the first row that exists instead.
   const hasTrailRow =
-    breadcrumb !== undefined ||
+    given(breadcrumb) ||
     scopeOnTrail ||
     actionsOnTrail ||
-    (leading !== undefined && !hasTitle);
+    (given(leading) && !hasTitle);
 
   return (
     <header className="flex flex-col gap-1 px-4 py-2">
@@ -125,11 +139,11 @@ export function PageHeader({
             <h1 className="truncate text-2xl font-bold text-text-primary">
               {title}
             </h1>
-            {scope !== undefined && (
+            {given(scope) && (
               <div className="mt-1 text-sm text-text-muted">{scope}</div>
             )}
           </div>
-          {actions !== undefined && (
+          {given(actions) && (
             <div className="flex flex-shrink-0 flex-wrap items-center gap-2">
               {actions}
             </div>

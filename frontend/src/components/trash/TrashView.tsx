@@ -8,7 +8,10 @@ import type { FileItem, FileType, SortField, SortOrder, ViewMode } from "@/types
 import { emptyTrash, getTrash, purgeFile, restoreFile } from "@/lib/api";
 import { useInfiniteScroll } from "@/hooks/useInfiniteScroll";
 import { useSelection } from "@/hooks/useSelection";
+import { Breadcrumb } from "@/components/Breadcrumb";
+import { Button } from "@/components/Button";
 import { ConfirmDialog } from "@/components/ConfirmDialog";
+import { PageHeader } from "@/components/PageHeader";
 import { EmptyState } from "@/components/EmptyState";
 import { SelectionBar } from "@/components/SelectionBar";
 import { TrashToolbar } from "@/components/trash/TrashToolbar";
@@ -103,23 +106,28 @@ export function TrashView({ driveName }: TrashViewProps) {
   }, []);
 
   return (
-    <div className="min-w-0 w-full flex-1 px-2 py-4 sm:px-4 sm:py-6">
-      <div className="mb-4 flex items-center justify-between">
-        <h1 className="flex items-center gap-2 text-xl font-bold text-text-primary">
-          <Trash2 size={24} className="text-text-muted" />
-          {tt("title")}
-        </h1>
-        {files.length > 0 && (
-          <button
-            onClick={() => setEmptyConfirmOpen(true)}
-            className="flex items-center gap-2 rounded-2xl bg-danger/10 px-3 py-2 text-sm font-medium text-danger transition-colors hover:bg-danger/20"
-          >
-            <Trash2 size={16} />
-            {tt("emptyTrash")}
-          </button>
-        )}
-      </div>
+    <div className="min-w-0 w-full flex-1 py-4 sm:py-6">
+      {/* This page names itself in its heading, so the trail carries only the
+          drive — "name the subject once". `driveIsAncestor` is also what
+          gives the view a way back to the drive; it had none. */}
+      <PageHeader
+        breadcrumb={<Breadcrumb driveName={driveName} driveIsAncestor />}
+        titleIcon={Trash2}
+        title={tt("title")}
+        actions={
+          files.length > 0 ? (
+            <Button variant="danger" onClick={() => setEmptyConfirmOpen(true)}>
+              <Trash2 size={16} />
+              {tt("emptyTrash")}
+            </Button>
+          ) : undefined
+        }
+      />
 
+      {/* `px-4`, matching PageHeader's own padding. The page used to be
+          `px-2 sm:px-4` throughout; keeping that here would leave the header
+          at 16px and the file list at 8px below `sm`. */}
+      <div className="px-4">
       <TrashToolbar
         sort={sort}
         order={order}
@@ -171,6 +179,7 @@ export function TrashView({ driveName }: TrashViewProps) {
         {loadingMore && (
           <div className="h-6 w-6 animate-spin rounded-full border-2 border-accent border-t-transparent" />
         )}
+      </div>
       </div>
 
       {selectable && (

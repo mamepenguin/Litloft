@@ -23,6 +23,22 @@ interface BreadcrumbProps {
    * gets the leaf styling the folder segments use.
    */
   trailingSegment?: ReactNode;
+  /**
+   * The page names its own location in a heading, so the trail stops at the
+   * drive and the drive becomes a Link rather than the leaf.
+   *
+   * The pairing rule is "name the subject once": a page either lets the trail
+   * name it — folders, the inside of an archive, which pass neither this nor
+   * `trailingSegment` — or names itself in an `<h1>` and sets this, so the
+   * trail carries only ancestors. Trash, Missing and a collection are the
+   * second kind; without it the drive renders as a non-clickable leaf and
+   * those pages have no way back to the drive at all, which is the state they
+   * shipped in.
+   *
+   * Redundant with `trailingSegment`, which already makes the drive a link.
+   * Passing both is harmless but says the same thing twice.
+   */
+  driveIsAncestor?: boolean;
 }
 
 export function Breadcrumb({
@@ -31,13 +47,14 @@ export function Breadcrumb({
   getDropTargetProps,
   isDropTarget,
   trailingSegment,
+  driveIsAncestor,
 }: BreadcrumbProps) {
   const t = useTranslations("toolbar");
   const segments = folderPath ? folderPath.split("/").filter(Boolean) : [];
   // When a trailing virtual segment is provided, the drive itself is no
   // longer the leaf — render it as a Link, the same way it behaves when
   // ``folderPath`` carries real segments.
-  const driveIsLeaf = segments.length === 0 && !trailingSegment;
+  const driveIsLeaf = segments.length === 0 && !trailingSegment && !driveIsAncestor;
 
   return (
     <nav className="flex min-w-0 flex-1 items-center gap-1 text-sm text-text-muted overflow-x-auto">

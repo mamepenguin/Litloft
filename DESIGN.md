@@ -646,6 +646,28 @@ one exception in the tree.
   running the other direction, so the tablist branch does not carry it.
 - Tabs clear the 44px floor on `pointer: coarse` (`pointer-coarse:min-h-11`).
 
+### Selected-state controls (segmented toggles, tabs)
+
+A control that says **which of N equal options you are in** — the grid/list
+toggle, a tab row — marks the selected one with a **border in the accent
+colour**, never with a fill.
+
+- A fill would spend §2.2's one accent per screen on a state indicator rather
+  than on what the screen is for. A 2px border is not a fill.
+- **A surface cannot carry this selection at this palette, and the arithmetic
+  is the reason.** `--bg-card` and `--bg-primary` are both `#ffffff` in the
+  light theme, so a card-coloured selected state *is* the page background
+  (1.00 : 1) wherever the control sits directly on the page. Measured against
+  every surface token, the best available was `--sand` at 1.23 : 1 light and
+  1.28 : 1 dark. The accent border measures 4.85 / 5.53 against the page and
+  4.48 / 4.83 inside a `--bg-elevated` pill, clearing the 3 : 1 that WCAG
+  1.4.11 asks of a state indicator.
+- **Give the unselected control `border-transparent`, not no border**, so the
+  box is the same size in both states and nothing shifts on selection.
+- The tab row's weight change (§Tabs) is a second, non-colour signal. A toggle
+  showing only icons has no text to thicken, which is why its border is doing
+  the whole job and has to clear 3 : 1 on its own.
+
 ### Cards
 
 - Radius: `rounded-xl` (12px)

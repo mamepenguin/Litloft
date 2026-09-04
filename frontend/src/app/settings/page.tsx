@@ -1,6 +1,7 @@
 "use client";
 
 import { useTranslations } from "next-intl";
+import { PageHeader } from "@/components/PageHeader";
 import { ProfileSection } from "@/components/settings/ProfileSection";
 import { ProfileGuide } from "@/components/settings/ProfileGuide";
 import { AppearanceSection } from "@/components/settings/AppearanceSection";
@@ -11,13 +12,18 @@ export default function SettingsPage() {
   const t = useTranslations("settings");
 
   return (
-    <main className="mx-auto w-full max-w-2xl px-4 py-8 space-y-8">
-      <h1 className="text-2xl font-bold text-text-primary">{t("title")}</h1>
-      <ProfileSection />
-      <ProfileGuide />
-      <AppearanceSection />
-      <LanguageSection />
-      <SidebarResetSection />
+    <main className="mx-auto w-full max-w-2xl py-8">
+      {/* PageHeader carries its own `px-4` (DESIGN.md §Page Header), so the
+          sections get theirs from a wrapper rather than from <main>, which
+          would otherwise pad the header twice. */}
+      <PageHeader title={t("title")} />
+      <div className="mt-6 space-y-8 px-4">
+        <ProfileSection />
+        <ProfileGuide />
+        <AppearanceSection />
+        <LanguageSection />
+        <SidebarResetSection />
+      </div>
     </main>
   );
 }
