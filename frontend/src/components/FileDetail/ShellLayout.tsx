@@ -6,6 +6,7 @@ import { useTranslations } from "next-intl";
 import type { FileItem } from "@/types";
 import type { MediaController } from "@/lib/mediaController";
 import type { DocumentCaptureController } from "@/lib/documentCapture";
+import { useInspectorOpen } from "@/hooks/useInspectorOpen";
 import { useMediaLayoutPreference } from "@/lib/mediaLayout";
 import { slotEntryLabel } from "@/lib/slotLabel";
 import { ActiveSummaryHost } from "../ActiveSummaryHost";
@@ -118,6 +119,10 @@ export function ShellLayout({
   const tGlobal = useTranslations();
   const { getSlotEntries } = useAddonSlots();
   const [mediaLayout] = useMediaLayoutPreference();
+  // Reading the same store the shell's own toggle reads, not a second
+  // copy of the state: choosing "beside" has to be able to reveal where
+  // it just put the panel.
+  const { setOpen: setInspectorOpen } = useInspectorOpen(drive);
 
   /**
    * Where chapters and the `player-side` occupants are mounted.
@@ -136,11 +141,6 @@ export function ShellLayout({
 
   const playerSideEntries = hasPlayer ? getSlotEntries("player-side") : [];
 
-  // Built twice deliberately: the desktop inspector and the mobile sheet
-  // are never mounted at the same time (the pane is desktop-only and the
-  // sheet renders nothing while closed), and the sheet takes the
-  // table-heavy summaries the desktop canvas keeps — a 90vh drawer at
-  // viewport width has room for them, a 384px column does not.
   /**
    * The `file-detail-sections` entries the canvas draws itself.
    *
@@ -158,6 +158,11 @@ export function ShellLayout({
     ? ["detailed-summary"]
     : ["knowledge-edit", "detailed-summary"];
 
+  // Built twice deliberately: the desktop inspector and the mobile sheet
+  // are never mounted at the same time (the pane is desktop-only and the
+  // sheet renders nothing while closed), and the sheet takes the
+  // table-heavy summaries the desktop canvas keeps — a 90vh drawer at
+  // viewport width has room for them, a 384px column does not.
   const heavySummaries = (
     <>
       <ActiveSummaryHost fileId={fileId} drive={drive} />
@@ -266,7 +271,9 @@ export function ShellLayout({
           // control that changes nothing is worse than no control. Same
           // value the canvas box is drawn from, so the two cannot come
           // to disagree about whether the region has an occupant.
-          !isMobile && companionOccupied ? <MediaLayoutToggle /> : undefined
+          !isMobile && companionOccupied ? (
+            <MediaLayoutToggle onBeside={() => setInspectorOpen(true)} />
+          ) : undefined
         }
         inspector={inspector}
         mobileSheet={mobileSheet}

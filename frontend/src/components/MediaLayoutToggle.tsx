@@ -29,9 +29,21 @@ interface MediaLayoutToggleProps {
    * whichever one they were last in.
    */
   railGated?: boolean;
+  /**
+   * Called when the press chooses the beside form.
+   *
+   * On the shell "beside" means an inspector tab, so pressing it with
+   * the inspector closed moves the panel somewhere the reader cannot
+   * see and gives no sign of it. The host uses this to open the
+   * inspector, so the press lands the reader where the panel went.
+   */
+  onBeside?: () => void;
 }
 
-export function MediaLayoutToggle({ railGated = false }: MediaLayoutToggleProps) {
+export function MediaLayoutToggle({
+  railGated = false,
+  onBeside,
+}: MediaLayoutToggleProps) {
   const t = useTranslations("file");
   const [layout, setLayout] = useMediaLayoutPreference();
   const beside = layout === "beside";
@@ -43,7 +55,10 @@ export function MediaLayoutToggle({ railGated = false }: MediaLayoutToggleProps)
   return (
     <button
       type="button"
-      onClick={() => setLayout(beside ? "stacked" : "beside")}
+      onClick={() => {
+        setLayout(beside ? "stacked" : "beside");
+        if (!beside) onBeside?.();
+      }}
       aria-pressed={beside}
       title={label}
       aria-label={label}

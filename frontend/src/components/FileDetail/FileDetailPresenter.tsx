@@ -25,6 +25,8 @@ export interface FileDetailPresenterProps {
   companionKind: string | null;
   /** Whether a player plays this file at all — `companionKind !== null`. */
   hasPlayer: boolean;
+  /** Whether the player's height is a function of its width. */
+  playerFramed: boolean;
   railEligible: boolean;
   companionOccupied: boolean;
   isTimedMedia: boolean;
@@ -73,6 +75,7 @@ export function FileDetailPresenter({
   isHtmlPreview,
   companionKind,
   hasPlayer,
+  playerFramed,
   railEligible,
   companionOccupied,
   isTimedMedia,
@@ -108,10 +111,7 @@ export function FileDetailPresenter({
         isHtmlPreview={isHtmlPreview}
         hasPlayer={hasPlayer}
         companionOccupied={companionOccupied}
-        // The same two kinds as `railEligible`, kept separate because
-        // they answer different questions — one is "can a rail fit
-        // beside it", this is "is its height a function of its width".
-        playerFramed={railEligible}
+        playerFramed={playerFramed}
         isTimedMedia={isTimedMedia}
         chaptersPresent={chaptersPresent}
         chaptersVersion={chaptersVersion}
@@ -181,6 +181,7 @@ export function FileDetailPresenter({
       onChaptersResolved={onChaptersResolved}
       companionKind={companionKind}
       railEligible={railEligible}
+      playerFramed={playerFramed}
       companionOccupied={companionOccupied}
       rest={rest}
     />

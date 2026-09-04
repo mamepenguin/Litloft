@@ -215,6 +215,18 @@ export function FileDetailContainer({
   // this" is how the description ends up rendered twice, or nowhere.
   const hasPlayer = companionKind !== null;
   const railEligible = companionKind === "video" || companionKind === "loft";
+  /**
+   * Whether the player's height is a function of its width.
+   *
+   * The same two kinds as `railEligible` today, and derived here rather
+   * than in each layout because it was written out in both — with the
+   * same paragraph explaining it twice — and they answer different
+   * questions: one is "can a rail fit beside it", this is "is its
+   * height expressible as a width cap". Only video and `.loft` build a
+   * fixed 16:9 frame; an image sizes itself from `max-h-[70vh]`, and
+   * PDF, text and archive previews have no ratio to invert.
+   */
+  const playerFramed = railEligible;
 
   // Core is an occupant of the companion region now, not just its host:
   // chapters are a core entity and `AddonSlot` can only load addon
@@ -311,6 +323,7 @@ export function FileDetailContainer({
       ridesShell={ridesShell}
       isHtmlPreview={isHtmlPreview}
       hasPlayer={hasPlayer}
+      playerFramed={playerFramed}
       companionKind={companionKind}
       railEligible={railEligible}
       companionOccupied={companionOccupied}

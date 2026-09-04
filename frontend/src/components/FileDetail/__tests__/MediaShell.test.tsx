@@ -135,6 +135,16 @@ async function renderMediaOnPhone(
   return utils;
 }
 
+/** Same, where the inspector starts closed and the action row is not on screen. */
+async function renderMediaWithInspectorClosed(
+  file: FileItem = makeFile({ has_chapters: true }),
+) {
+  setApiResponses(file);
+  const utils = render(<FileDetailContent fileId="f1" drive="main" />);
+  await screen.findByTestId("file-detail-chrome");
+  return utils;
+}
+
 const tabs = () =>
   screen.queryAllByRole("tab").map((tab) => tab.textContent?.trim());
 
@@ -275,6 +285,36 @@ describe("switching between the two forms", () => {
     expect(screen.getByTestId("file-preview")).toBe(player);
     expect(screen.getAllByTestId("addon-slot-player-side")).toHaveLength(1);
     expect(screen.queryByTestId("slot-entry-transcript")).toBeNull();
+  });
+
+  it("opens the inspector when the swap puts the panel in it", async () => {
+    // Beside means an inspector tab, so pressing it with the inspector
+    // closed moves the panel somewhere the reader cannot see and says
+    // nothing. Going the other way must not open it: below is in the
+    // canvas, which is already on screen.
+    window.localStorage.setItem("media-layout-preference", "stacked");
+    window.localStorage.setItem("inspector-open:main", "false");
+    withTranscript();
+    // Not `renderMedia`: its wait is on the action row, which lives in
+    // the inspector this case deliberately starts closed.
+    await renderMediaWithInspectorClosed();
+    expect(screen.queryByTestId("inspector-pane")).toBeNull();
+
+    fireEvent.click(layoutToggle()!);
+
+    await screen.findByTestId("inspector-pane");
+    expect(screen.getAllByTestId("slot-entry-transcript")).toHaveLength(1);
+  });
+
+  it("leaves the inspector alone going the other way", async () => {
+    window.localStorage.setItem("inspector-open:main", "false");
+    withTranscript();
+    await renderMediaWithInspectorClosed();
+
+    fireEvent.click(layoutToggle()!);
+
+    expect(screen.queryByTestId("inspector-pane")).toBeNull();
+    expect(screen.getAllByTestId("addon-slot-player-side")).toHaveLength(1);
   });
 
   it("offers the swap from the page row", async () => {

@@ -37,7 +37,7 @@ A column down the right of the page, the same width and the same shape on every 
 
 Video, audio and `.loft` files have panels that follow playback — chapters, and the Intelligence addon's transcript. A toggle in the page row decides where they go.
 
-- **Beside** — each becomes a tab in the inspector, so it sits alongside the player and follows the clock while you scroll the page past it. This is the default.
+- **Beside** — each becomes a tab in the inspector, so it sits alongside the player and follows the clock while you scroll the page past it. This is the default, and choosing it opens the inspector if it was closed, since that is where the panels have just gone.
 - **Below** — they move into the page instead, directly under the description: the transcript in a single column at a comfortable reading width, with the chapter list beside it as its index. The box has its own scrollbar and a height limit, so playback moving the transcript along does not move the page under you.
 - The choice is saved in `localStorage`, per device, and a choice you have already made is kept. **On a phone it does not apply**: there is no beside, so both panels go into the bottom sheet and the toggle is not shown.
 - The toggle appears only when there is something to move — no chapters and no addon panel means no control. For the addon half it goes by whether the addon is switched on for the drive rather than by whether this file has a transcript, so on an untranscribed video it is offered and moves an empty panel between the two places.
