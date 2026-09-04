@@ -79,21 +79,37 @@ jobs:
       # not check out, or a symlink that did not get made, costs nothing at
       # collection time — vitest simply finds fewer files and reports every one
       # of them passing. Ask the collector what it found instead of assuming.
+      #
+      # Walk addons/*/ rather than addons/*/frontend, because an uninitialised
+      # submodule leaves an empty directory that the narrower glob would step
+      # straight over — skipping the very case this step exists to catch.
       - name: Fail if any addon's tests were not collected
         shell: bash
         working-directory: frontend
         run: |
           set -euo pipefail
+          shopt -s nullglob
+          addons=(../addons/*/)
+          if [ ${#addons[@]} -eq 0 ]; then
+            echo "::error::no addons are checked out at all"
+            exit 1
+          fi
           collected="$(pnpm exec vitest list --filesOnly)"
           status=0
-          for tree in ../addons/*/frontend; do
-            name="$(basename "$(dirname "$tree")")"
-            # An addon with no frontend tests of its own is not a failure.
-            if ! find "$tree" \( -name '*.test.ts' -o -name '*.test.tsx' \) -print -quit | grep -q .; then
+          for dir in "${addons[@]}"; do
+            name="$(basename "$dir")"
+            if [ -z "$(ls -A "$dir")" ]; then
+              echo "::error::addons/$name is empty — its submodule did not check out"
+              status=1
+              continue
+            fi
+            # An addon need not ship a frontend, or any frontend test.
+            [ -d "$dir/frontend" ] || continue
+            if [ -z "$(find "$dir/frontend" \( -name '*.test.ts' -o -name '*.test.tsx' \) -print -quit)" ]; then
               continue
             fi
             if ! printf '%s\n' "$collected" | grep -q "^src/addons/$name/"; then
-              echo "::error::vitest collected no tests from addons/$name (submodule empty, or setup-addons.sh made no symlink)"
+              echo "::error::vitest collected no tests from addons/$name (setup-addons.sh made no symlink)"
               status=1
             fi
           done
