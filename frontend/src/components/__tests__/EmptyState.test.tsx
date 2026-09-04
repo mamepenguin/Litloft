@@ -42,6 +42,11 @@ describe("EmptyState", () => {
     // summary of a table is the sampling problem again in miniature: two rows
     // could swap icons and the total would not move. (Written after guessing
     // the total and getting it wrong, which is its own argument.)
+    // The expected values are lucide-react's own class names, because jsdom
+    // offers no other handle on which glyph was drawn. A lucide upgrade that
+    // renames them turns this red for a reason that is not a defect: updating
+    // the expectations is then the correct response, not suspecting the
+    // component.
     it("gives each variant the icon the table names", () => {
       const icons = Object.fromEntries(
         EMPTY_VARIANTS.map((variant) => {

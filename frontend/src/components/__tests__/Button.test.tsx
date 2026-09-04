@@ -98,6 +98,20 @@ describe("Button", () => {
     });
   });
 
+  // DESIGN.md §6 gives each variant a radius outright — `rounded-2xl` for
+  // four of them and `rounded-full` for Circle Action. Stated values with
+  // nothing measuring them are how §3.2's heading rows came to be blank.
+  it.each([
+    ["primary", "rounded-2xl"],
+    ["secondary", "rounded-2xl"],
+    ["danger", "rounded-2xl"],
+    ["ghost", "rounded-2xl"],
+    ["circle", "rounded-full"],
+  ] as const)("gives %s the radius DESIGN.md states", (variant, radius) => {
+    render(<Button variant={variant}>Add</Button>);
+    expect(screen.getByRole("button").classList.contains(radius)).toBe(true);
+  });
+
   describe("accent fill", () => {
     it("fills primary with the accent", () => {
       render(<Button variant="primary">Add</Button>);
@@ -156,6 +170,27 @@ describe("Button", () => {
         (c) => c.startsWith("before:") && !c.startsWith("pointer-coarse:"),
       );
       expect(ungated).toEqual([]);
+    });
+
+    // The arithmetic in the component's comment ("32 + 12 = 44") is only true
+    // if the box really is 32px. Padding could not promise that: `p-2` is 32px
+    // around a 16px glyph, 34px around the `size={18}` icon DESIGN.md itself
+    // uses as the example, and 40px around lucide's 24px default. So the box
+    // is fixed and asserted, rather than left to whatever the caller passes.
+    it("renders a fixed 32px box whatever glyph it is given", () => {
+      for (const glyph of [12, 18, 24]) {
+        const { unmount } = render(
+          <Button iconOnly aria-label={`Delete ${glyph}`}>
+            <Trash2 size={glyph} />
+          </Button>,
+        );
+        const button = screen.getByRole("button", { name: `Delete ${glyph}` });
+        expect(button.classList.contains("h-8")).toBe(true);
+        expect(button.classList.contains("w-8")).toBe(true);
+        // Padding would make the box depend on the glyph again.
+        expect([...button.classList].filter((c) => /^p-/.test(c))).toEqual([]);
+        unmount();
+      }
     });
 
     it("does not grow a labelled button's hit area", () => {

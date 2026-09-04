@@ -342,6 +342,19 @@ drifted across four values in fourteen page headers as a result. Leaving one
 row blank is what produced that, so a heading level that gains a rule gains
 it here rather than in the component that needed it.
 
+> **Known gap — H2 and H3 are stated ahead of the tree.** H1 has a single
+> implementation (`PageHeader`) and a test that pins its size, so the rule and
+> the code agree. H2 and H3 have neither: measured when these rows were
+> written, core holds **16 H2s and 5 H3s at some other size** (mostly
+> `text-sm`, concentrated under `app/admin/`, which UI redesign Phase 4 rebuilds
+> anyway). They move as the screens holding them are next opened, not in a
+> sweep — the same terms §6's button gap runs on, and for the same reason.
+>
+> Recording the count matters more than the rule here. A norm written with no
+> measurement beside it reads as satisfied, and the next person to add an
+> `<h2 className="text-sm">` will have no way to know whether they are the
+> first or the seventeenth.
+
 ### 3.3 Long-form Prose (MarkdownPreview / "reading-A")
 
 Applies wherever `.markdown-body` renders — `MarkdownPreview` (FilePreview `.md`, Ask answers, knowledge preview) and the `detailed_summary` segment wrappers. Keep these values identical across those surfaces so the reading experience is consistent.
@@ -525,16 +538,26 @@ explained why the button is off.
 > is itself a decision to pass defects through.** The local harm gets the
 > local fix instead.
 >
-> **What Phase 3 converts:** the 43 sites that already carry the
-> `disabled:bg-sand` treatment (42 of them accent fills, one not), plus any
-> non-accent sibling inside a file Phase 3 opens for another reason. The rest move opportunistically, when a
+> **What Phase 3 converts: 41 sites.** 43 already carry the
+> `disabled:bg-sand` treatment (42 of them accent fills; the one that is not is
+> `addons/knowledge/frontend/FolderView.tsx:159`), and two of those 43 are
+> cloud-sync's, which stay. Add to the 41 any non-accent sibling inside a file
+> Phase 3 opens for another reason. The rest move opportunistically, when a
 > later change touches the row they sit in — the same terms §2.2 gives the
 > accent fills that are not yet on `Button`.
 >
-> **`addons/cloud-sync` is deliberately not converted.** Its two sites
-> (`SyncDriveCard.tsx`) never share a row with a core button, so the harm this
-> rule guards against cannot occur there. This is a decision, not an oversight:
-> do not open that repository to "finish" the sweep.
+> **`addons/cloud-sync` is deliberately not converted**, and the reason is not
+> the one first written here. `SyncDriveCard.tsx:187-205` already puts a
+> `disabled:bg-sand` button and a `disabled:opacity-50` button in one
+> `flex gap-2` row, so "two disabled treatments in one row" is not hypothetical
+> there — it is on screen today. What keeps it harmless is that the two are
+> driven by *independent* flags (`actionLoading` and `logLoading`), so they are
+> never disabled by the same click and the reader never sees the two treatments
+> side by side in the same state. That is a narrower guarantee than the original
+> wording claimed, and it is the one that actually holds. **If those flags are
+> ever merged, this exemption expires** — which is why the reason is recorded
+> and not just the conclusion. Still a decision, not an oversight: do not open
+> that repository to "finish" the sweep without re-reading this paragraph.
 
 ### The `Button` component
 
@@ -595,8 +618,17 @@ Composition, top to bottom:
 
 `frontend/src/components/PageTabs.tsx`. **Underline tabs, and only underline
 tabs.** Selected is `border-accent font-semibold text-text-primary`; unselected
-is `border-transparent text-text-muted`, so selection costs a 2px border and
-nothing shifts.
+is `border-transparent text-text-muted`.
+
+The border costs no layout: both states carry `border-b-2` and only its colour
+changes. **The weight does** — `font-semibold` is wider than the unselected
+400, so the selected label grows and its neighbours move by a pixel or two.
+That is accepted rather than overlooked. Weight is a second, non-colour signal
+for which tab is current, and dropping it would leave a 2px accent underline as
+the only one, which is the thing §2.2 warns against for a different reason.
+(An earlier draft of this section claimed "nothing shifts". It was wrong, and
+the mutation that proved it — deleting `font-semibold` — went unnoticed by
+every test.)
 
 Two styles were retired for it. The pill (`ModeTabs`) painted its selected tab
 `bg-accent text-white` — the page's one accent fill (§2.2) spent on saying which
@@ -607,8 +639,11 @@ one exception in the tree.
 - **A row that navigates is not a tablist.** `role="tab"` promises a screen
   reader that activating the control swaps a panel in this view; a `<Link>`
   replaces the page. `PageTabs` decides from the items: any `href` and the row
-  is a `<nav>` with `aria-current`, none and it is a `role="tablist"`. Do not
-  set both, which is what `ModeTabs` did.
+  is a `<nav>` whose current item carries `aria-current="page"`; none, and it
+  is a `role="tablist"` whose current item carries `aria-selected`. Do not set
+  both, which is what `ModeTabs` did — and note that this cuts both ways:
+  `aria-current="page"` on a tab that swaps a panel is the same conflation
+  running the other direction, so the tablist branch does not carry it.
 - Tabs clear the 44px floor on `pointer: coarse` (`pointer-coarse:min-h-11`).
 
 ### Cards

@@ -29,13 +29,13 @@ export interface PageTabsProps {
   label: string;
 }
 
-const BASE =
+const BASE_CLASS =
   "-mb-px inline-flex items-center gap-1.5 rounded-t-xl border-b-2 px-4 py-2 text-sm transition-colors " +
   "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus-ring " +
   "pointer-coarse:min-h-11";
 
-const SELECTED = "border-accent font-semibold text-text-primary";
-const UNSELECTED = "border-transparent text-text-muted hover:text-text-primary";
+const SELECTED_CLASS = "border-accent font-semibold text-text-primary";
+const UNSELECTED_CLASS = "border-transparent text-text-muted hover:text-text-primary";
 
 /**
  * Whether these tabs navigate.
@@ -66,7 +66,7 @@ export function PageTabs({ items, current, onSelect, label }: PageTabsProps) {
           What is asserted instead is the tab's accessible name. */}
       {items.map((item) => {
         const active = item.key === current;
-        const className = `${BASE} ${active ? SELECTED : UNSELECTED}`;
+        const className = `${BASE_CLASS} ${active ? SELECTED_CLASS : UNSELECTED_CLASS}`;
         const Icon = item.icon;
         const content = (
           <>
@@ -94,7 +94,12 @@ export function PageTabs({ items, current, onSelect, label }: PageTabsProps) {
             type="button"
             role={isNav ? undefined : "tab"}
             aria-selected={isNav ? undefined : active}
-            aria-current={active ? "page" : undefined}
+            // No `aria-current="page"` here. It names the current *page* in a
+            // set of navigations, and this branch does not navigate — the
+            // state a tab is in is `aria-selected`, and carrying both says the
+            // same thing twice in two vocabularies. That pairing is the one
+            // this component exists to take apart, so repeating it on the
+            // button side would undo the point.
             onClick={() => onSelect?.(item.key)}
             className={className}
           >

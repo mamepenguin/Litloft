@@ -24,6 +24,8 @@ describe("PageHeader", () => {
       render(<PageHeader title="Trash" />);
       const h1 = screen.getByRole("heading", { level: 1 });
       expect(h1.classList.contains("text-2xl")).toBe(true);
+      // §3.2 states a weight in the same row as the size.
+      expect(h1.classList.contains("font-bold")).toBe(true);
       const otherSizes = [...h1.classList].filter(
         (c) => /^text-(xs|sm|base|lg|xl|3xl|4xl)$/.test(c),
       );
@@ -140,6 +142,17 @@ describe("PageHeader", () => {
     it("renders a bare header with nothing but a title", () => {
       const { container } = render(<PageHeader title="Settings" />);
       expect(container.querySelectorAll("header > div")).toHaveLength(1);
+    });
+
+    // DESIGN.md §Page Header states these two values outright ("Padding
+    // `px-4 py-2`, rows separated by `gap-1`"), and a stated value with
+    // nothing measuring it is how §3.2's H1 row came to be blank.
+    it("uses the padding and row spacing DESIGN.md states", () => {
+      const { container } = render(<PageHeader title="Settings" />);
+      const header = container.querySelector("header")!;
+      for (const cls of ["px-4", "py-2", "gap-1"]) {
+        expect(header.classList.contains(cls)).toBe(true);
+      }
     });
   });
 

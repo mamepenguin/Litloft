@@ -115,14 +115,16 @@ describe("PageTabs", () => {
       expect(selected.classList.contains("text-text-primary")).toBe(true);
     });
 
-    it("marks the current button tab as the current page too", () => {
+    // The mirror of the assertion above, and the reason it is a *negative*
+    // one: `aria-current="page"` names the current page in a set of
+    // navigations. A tab swaps a panel, so its state is `aria-selected` and
+    // nothing else. Carrying both would say one thing in two vocabularies —
+    // the exact pairing this component was written to separate.
+    it("puts no aria-current on a tab that does not navigate", () => {
       render(<PageTabs items={BUTTON_ITEMS} current="manage" label="Views" />);
-      expect(
-        screen.getByRole("tab", { name: "Manage" }).getAttribute("aria-current"),
-      ).toBe("page");
-      expect(
-        screen.getByRole("tab", { name: "Watch" }).getAttribute("aria-current"),
-      ).toBeNull();
+      for (const tab of screen.getAllByRole("tab")) {
+        expect(tab.getAttribute("aria-current")).toBeNull();
+      }
     });
 
     // `aria-selected` belongs to a tab. On a link it is invalid ARIA, and it
