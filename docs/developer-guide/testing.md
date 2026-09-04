@@ -18,24 +18,53 @@ docker run --rm litloft-test
 
 ### Addon backends
 
-Each addon carries its own image, built from the repository root for the same
-reason — an in-process addon imports the core `app` package, so both have to
-land in one tree:
+Each addon carries its own image. The build context differs between them, and
+it follows the direction of the dependency.
+
+`cloud-sync` and `media_import` run **in the core process** and their images
+`COPY backend/app/`, so the addon and the core package it imports have to land
+in one tree. Context is the repository root:
 
 ```bash
 docker build -f addons/cloud-sync/Dockerfile.test -t cloud-sync-test .
 docker run --rm cloud-sync-test
+
+docker build -f addons/media_import/Dockerfile.test -t media-import-test .
+docker run --rm media-import-test
 ```
 
-`knowledge`, `intelligence` and `media_import` follow the same shape. Core's
-image does not pick these up, so a change to an addon backend needs its own
-image run.
+`intelligence` and `knowledge` are **independent services** with their own `app`
+package, and import nothing from core. Context is the addon directory:
+
+```bash
+docker build -f addons/intelligence/Dockerfile.test -t intelligence-test addons/intelligence
+docker run --rm intelligence-test
+
+docker build -f addons/knowledge/Dockerfile.test -t knowledge-test addons/knowledge
+docker run --rm knowledge-test
+```
+
+Core's image does not pick any of these up, so a change to an addon backend
+needs its own image run. The same asymmetry decides who tests what in CI: see
+[CI](#ci) below.
 
 Pass arguments through to `pytest`:
 
 ```bash
 docker run --rm litloft-test -k internal_api_contract -vv
 ```
+
+### The bootstrap script
+
+`configure.py` is stdlib-only and is deliberately **not** copied into the
+backend test image, so its tests run on a bare interpreter:
+
+```bash
+python3 -m pytest tests/test_configure.py
+```
+
+They build their own addon trees under `tmp_path`, so a checkout without
+submodules is enough.
 
 ### What to test
 
@@ -62,6 +91,40 @@ Library constraints:
 
 - **vitest 3.x** only — vitest 4 has a rolldown native-bindings issue.
 - **jsdom 25.x** only — jsdom 29 breaks ESM compatibility.
+
+### Addon frontends run here too
+
+An addon's frontend has no runner of its own. Its components import core's
+(`@/components`, `@/hooks`, `@/lib`), and `frontend/src/addons/<name>` is a
+symlink into `addons/<name>/frontend`, so **core's vitest collects every addon
+test**. `setup-addons.sh` creates those symlinks and they are gitignored;
+without them the suite still passes, having silently collected nothing from any
+addon.
+
+What a fresh checkout needs before `pnpm test` is therefore:
+
+```bash
+./setup-addons.sh
+pnpm install --dir frontend --frozen-lockfile
+node frontend/scripts/merge-addon-messages.mjs
+```
+
+and nothing else — no `drives.json`, `passwords.json`, `.env`, or
+`docker-compose.override.yml`.
+
+`tsc --noEmit` follows the symlinks and type-checks addon sources; `eslint` does
+not follow them and covers core only.
+
+## MCP server tests
+
+`mcp-server/` is a separate package with its own lockfile:
+
+```bash
+cd mcp-server
+pnpm install --frozen-lockfile
+pnpm test
+pnpm exec tsc -p tsconfig.json --noEmit
+```
 
 ### What to test
 
@@ -90,12 +153,31 @@ Tests live under `frontend/e2e/`. Critical user flows:
 
 ### Artefacts
 
-Playwright produces screenshots, videos, and traces. CI uploads these on failure for diagnosis. Locally:
+Playwright produces screenshots, videos, and traces. Read them locally:
 
 ```bash
 pnpm test:e2e --reporter=html
 pnpm test:e2e:report
 ```
+
+### Why e2e is not in CI
+
+Deliberate, and worth restating before anyone "fixes" it:
+
+- `playwright.config.ts` declares no `webServer`. The suite expects a live stack
+  already answering on `localhost:3000`.
+- The specs read the real library through `/api/drives` and **skip themselves
+  when no drive answers** (`test.skip(() => !driveName)`). A CI run without
+  seeded drives would skip almost everything and report green — the exact
+  "passed, therefore fine" failure this CI exists to remove.
+- Several assertions are written against a Japanese UI (`browse.spec.ts` expects
+  `main h1` to contain `ドライブ`) while `defaultLocale` is `en`. The suite
+  assumes a developer's own environment, not a clean one.
+
+The e2e sources are not unguarded: `tsc --noEmit` and `eslint` both cover
+`frontend/e2e/`, so type and syntax rot is caught. Putting the suite in CI needs
+a compose profile that seeds a fixture drive first; that is its own piece of
+work, not a workflow edit.
 
 ## Coverage
 
@@ -190,14 +272,74 @@ wrong wait by raising it further.
 
 ## CI
 
-CI runs:
+GitHub Actions, one workflow per repository (`.github/workflows/ci.yml`), on
+every pull request and on pushes to the default branch.
 
-- Backend pytest in the test container.
-- Frontend `pnpm test`.
-- Playwright e2e against a freshly-built compose stack.
-- Linting (`ruff`, `eslint`) and type-checking (`mypy`, `tsc --noEmit`).
+### Core
 
-A failed lint or type check blocks merge. A failed flaky e2e test should be quarantined (skipped with a referenced issue) rather than retried.
+| Job | What it runs |
+|---|---|
+| `frontend` | `setup-addons.sh`, install, merge translations, then `pnpm test`, `tsc --noEmit`, `pnpm lint` |
+| `mcp-server` | `pnpm test`, `tsc --noEmit` |
+| `backend` | `backend/Dockerfile.test` built and run |
+| `bootstrap` | `pytest tests/test_configure.py` on a bare Python 3.12 |
+| `addon-backends` | `cloud-sync` and `media_import` test images built and run |
+| `frontend-image` | `frontend/Dockerfile` built, which is what runs `next build` |
+
+`frontend` checks out submodules recursively, so it tests the **pinned** addon
+commits. `design-tokens.test.ts` and `i18n-keys.test.ts` walk `addons/*/frontend`
+directly, so an addon pointer left behind fails the job — which is what makes
+the submodule bump described in [CLAUDE.md](../../CLAUDE.md) load-bearing.
+
+`frontend-image` exists because `next build` is covered by nothing else, and
+cannot be run against the `frontend/src/addons` symlinks: Turbopack fails to
+resolve the dynamic `@/addons/<name>/Page` import through them. `frontend/Dockerfile`
+deletes the symlinks and copies the addon trees in first, so building the image
+is the only honest rehearsal of the production build.
+
+### Addons
+
+Each addon repository has its own workflow with two jobs.
+
+Its **backend** job depends on which way the addon points. `intelligence` and
+`knowledge` are independent services and build their own image from their own
+checkout. `cloud-sync` and `media_import` compile against core's `app` package,
+so their images need a core tree; those two are *also* run by core's own CI,
+because a core change is what breaks them.
+
+Its **frontend** job checks out core `develop` with submodules, replaces
+`addons/<name>` with the commit under test, and runs core's whole suite. That is
+not redundancy: an addon's frontend tests only exist inside core's runner, and
+running them this way is what verifies the addon against the core it is about to
+be pinned into.
+
+### The rule the workflows are built around
+
+**Read the exit code, never the pass count.** No step pipes a test command into
+`tee`, a formatter, or a summariser; no step sets `continue-on-error`; no vitest
+run passes `--reporter=json`. Vitest reports an unhandled rejection as
+`Errors 1 error` while printing every test as passed, and exits 1 — and its JSON
+reporter does not carry those errors at all. Four PRs merged through that gap.
+If you need more output from a failing job, make the command itself louder;
+do not wrap it.
+
+`ruff` and `mypy` are not run: the repository configures neither and installs
+neither.
+
+### Branch protection
+
+Both branches that CI guards (`develop` on core, `main` on each addon) require
+the workflow's jobs to pass before merge. Only **required status checks** are
+enabled — no required reviewers, since a single-developer repository with
+mandatory review cannot merge its own pull requests — and administrators are not
+subject to the rule, so a genuinely stuck merge can still be forced.
+
+To inspect or remove protection on a branch:
+
+```bash
+gh api repos/mamepenguin/Litloft/branches/develop/protection
+gh api -X DELETE repos/mamepenguin/Litloft/branches/develop/protection
+```
 
 ## See also
 

@@ -50,7 +50,11 @@ Every PR includes tests for the behaviour it changes:
 - New feature → unit + integration tests; e2e if user-visible.
 - Refactor → existing tests must still pass. Coverage cannot drop.
 
-Run the full suite locally before opening the PR. CI will run it again.
+Run the full suite locally before opening the PR. CI will run it again, and
+`develop` requires it to pass before merge.
+
+When you run it locally, **read the exit code, not the pass count** — see
+[Flake hygiene](testing.md#flake-hygiene) for why the two disagree.
 
 ## Documentation
 
