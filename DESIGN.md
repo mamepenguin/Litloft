@@ -512,10 +512,12 @@ explained why the button is off.
 > `Button`, on the grounds that a converted button beside an unconverted
 > sibling — both disabled by the same click — shows two different disabled
 > states in one row. That harm is real and it is **local**: it needs the two
-> buttons to share a row. It does not reach across files, and there are 95
-> such call sites across five repositories.
+> buttons to share a row. It does not reach across files, and there are 88
+> such call sites across five repositories. (Counted by `className` value,
+> which is the unit the enforcing test uses. A line-based count says 95 and
+> is wrong: one class list can span several lines.)
 >
-> A pull request that moves 95 call sites cannot be reviewed. That is a
+> A pull request that moves 88 call sites cannot be reviewed. That is a
 > quality argument, not an effort one. Phase 2 measured it: independent review
 > ran 98 mutations against work its author had already mutated ~49 times, and
 > 28 survived the first pass — two of them defects that had already shipped.
@@ -523,9 +525,9 @@ explained why the button is off.
 > is itself a decision to pass defects through.** The local harm gets the
 > local fix instead.
 >
-> **What Phase 3 converts:** the 43 accent-filled sites (which already carry
-> the `disabled:bg-sand` treatment), plus any non-accent sibling inside a file
-> Phase 3 opens for another reason. The rest move opportunistically, when a
+> **What Phase 3 converts:** the 43 sites that already carry the
+> `disabled:bg-sand` treatment (42 of them accent fills, one not), plus any
+> non-accent sibling inside a file Phase 3 opens for another reason. The rest move opportunistically, when a
 > later change touches the row they sit in — the same terms §2.2 gives the
 > accent fills that are not yet on `Button`.
 >
