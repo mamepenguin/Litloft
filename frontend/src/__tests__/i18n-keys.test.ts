@@ -188,3 +188,77 @@ describe("addon i18n catalogues", () => {
     expect(shared).toEqual([]);
   });
 });
+
+/**
+ * A slot entry's `i18n_key` names a string in that addon's own catalogue.
+ *
+ * The manifest and the catalogue are two files that nothing keeps in
+ * step, and the failure is silent by design: `slotEntryLabel` falls back
+ * to the manifest's English `label` when a key does not resolve, so an
+ * addon that declares a key it never shipped renders "Transcript" in a
+ * row of Japanese tabs and reports nothing. That fallback is right — a
+ * readable wrong-language label beats a raw key path on screen — which
+ * is exactly why the check has to live somewhere else.
+ *
+ * Both sides are read as files here, so this cannot launder itself: it
+ * compares what the manifest asks for against what the catalogue holds,
+ * through no shared code at all.
+ */
+function manifestSlotKeys(): { addon: string; entry: string; key: string }[] {
+  if (!existsSync(ADDONS_DIR)) return [];
+  const out: { addon: string; entry: string; key: string }[] = [];
+  for (const dirent of readdirSync(ADDONS_DIR, { withFileTypes: true })) {
+    if (!dirent.isDirectory()) continue;
+    const manifestPath = resolve(ADDONS_DIR, dirent.name, "manifest.json");
+    if (!existsSync(manifestPath)) continue;
+    const manifest = JSON.parse(readFileSync(manifestPath, "utf-8")) as {
+      slots?: Record<string, { id: string; i18n_key?: string }[]>;
+    };
+    for (const entries of Object.values(manifest.slots ?? {})) {
+      for (const entry of entries) {
+        if (entry.i18n_key) {
+          out.push({ addon: dirent.name, entry: entry.id, key: entry.i18n_key });
+        }
+      }
+    }
+  }
+  return out;
+}
+
+describe("addon slot labels", () => {
+  const declared = manifestSlotKeys();
+  const catalogues = new Map(addonCatalogues().map((c) => [c.addon, c]));
+
+  it.each(declared.map((d) => [`${d.addon}/${d.entry}`, d] as const))(
+    "%s declares a key its own catalogue holds, in both locales",
+    (_name, { addon, key }) => {
+      const catalogue = catalogues.get(addon);
+      expect(catalogue).toBeDefined();
+      for (const locale of ["ja", "en"] as const) {
+        expect({ locale, key, value: lookupPath(catalogue![locale], key) }).toEqual(
+          { locale, key, value: expect.any(String) },
+        );
+      }
+    },
+  );
+
+  it.each(declared.map((d) => [`${d.addon}/${d.entry}`, d] as const))(
+    "%s keeps its key out of the core catalogue",
+    (_name, { key }) => {
+      // `frontend-conventions.md`: an addon's keys live in that addon's
+      // catalogue and never leak into `messages-core/`.
+      expect(lookupPath(jaMessages as MessageObject, key)).toBeUndefined();
+      expect(lookupPath(enMessages as MessageObject, key)).toBeUndefined();
+    },
+  );
+});
+
+/** The value at a dotted path, or undefined where the path stops short. */
+function lookupPath(tree: MessageObject, key: string): unknown {
+  let current: unknown = tree;
+  for (const part of key.split(".")) {
+    if (typeof current !== "object" || current === null) return undefined;
+    current = (current as Record<string, unknown>)[part];
+  }
+  return current;
+}
