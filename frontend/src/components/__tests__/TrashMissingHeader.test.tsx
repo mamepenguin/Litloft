@@ -35,6 +35,25 @@ vi.mock("@/lib/api", async (importOriginal) => ({
   ...apiMocks,
 }));
 
+// Both views scroll infinitely, so both construct an IntersectionObserver on
+// mount. jsdom has none. This passed locally only because another file in the
+// same worker had already stubbed the global — the suite was green for a
+// reason that had nothing to do with this file, and CI, which shards
+// differently, threw `IntersectionObserver is not defined`. A file that needs
+// a global installs it.
+vi.stubGlobal(
+  "IntersectionObserver",
+  class {
+    observe = vi.fn();
+    disconnect = vi.fn();
+    unobserve = vi.fn();
+    // Never reports an intersection: these tests assert on the header, and a
+    // sentinel that fires would pull the next page and change the count under
+    // them.
+    constructor(_cb: IntersectionObserverCallback) {}
+  },
+);
+
 vi.mock("@/components/TreeToggle", () => ({
   TreeToggle: () => <button data-testid="tree-toggle">tree</button>,
 }));
