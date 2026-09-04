@@ -99,10 +99,8 @@ export function FileMetaBlock({
       ) : (
         <div>
           <h1 className="text-xl font-bold text-text-primary">{file.title}</h1>
-          {/* Length and size on one line, always — it used to be drawn
-              by two branches that between them decided whether the file
-              even had a size, and the description being hoisted away
-              would have added a third. */}
+          {/* One line, always. Which parts it has is a question about
+              the file; whether the line exists at all is not. */}
           <div className="mt-1 text-xs text-text-muted">
             {hasDuration && <span>{formatDuration(file.duration)} · </span>}
             <span>{formatFileSize(file.file_size)}</span>

@@ -23,6 +23,8 @@ export interface FileDetailPresenterProps {
   ridesShell: boolean;
   isHtmlPreview: boolean;
   companionKind: string | null;
+  /** Whether a player plays this file at all — `companionKind !== null`. */
+  hasPlayer: boolean;
   railEligible: boolean;
   companionOccupied: boolean;
   isTimedMedia: boolean;
@@ -70,6 +72,7 @@ export function FileDetailPresenter({
   ridesShell,
   isHtmlPreview,
   companionKind,
+  hasPlayer,
   railEligible,
   companionOccupied,
   isTimedMedia,
@@ -103,7 +106,8 @@ export function FileDetailPresenter({
         drive={drive}
         isMobile={isMobile}
         isHtmlPreview={isHtmlPreview}
-        companionKind={companionKind}
+        hasPlayer={hasPlayer}
+        companionOccupied={companionOccupied}
         // The same two kinds as `railEligible`, kept separate because
         // they answer different questions — one is "can a rail fit
         // beside it", this is "is its height a function of its width".

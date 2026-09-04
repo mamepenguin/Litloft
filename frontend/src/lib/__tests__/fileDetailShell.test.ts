@@ -101,8 +101,14 @@ describe("ridesFileDetailShell", () => {
   });
 
   it("still leaves the kinds that have not been moved yet to their host", () => {
-    for (const mimeType of ["image/jpeg", "application/pdf", "application/zip"]) {
-      expect(canonical({ mimeType, fileType: "image" })).toBe(false);
+    const notYet = [
+      { mimeType: "image/jpeg", fileType: "image" },
+      { mimeType: "application/pdf", fileType: "document" },
+      { mimeType: "application/zip", fileType: "archive" },
+      { mimeType: "text/plain", fileType: "document" },
+    ];
+    for (const file of notYet) {
+      expect(canonical(file)).toBe(false);
     }
   });
 

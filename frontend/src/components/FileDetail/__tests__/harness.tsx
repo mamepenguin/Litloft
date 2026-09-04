@@ -261,19 +261,20 @@ export function setApiResponses(file: FileItem) {
 }
 
 /**
- * Widen the viewport past the inspector's default-open threshold.
+ * Set the viewport width. Defaults to a desktop one.
  *
- * jsdom reports 1024px, which is below it, so a file that rides the
- * shell renders with the inspector collapsed — and the action row, the
- * title and the tags live in the inspector now. A suite asserting on
- * any of them is asserting about a desktop reader, so it has to be at a
- * desktop width; otherwise it is testing the collapsed state and
- * calling it the layout.
+ * jsdom reports 1024px, which is under the inspector's default-open
+ * threshold, so a file that rides the shell renders with the inspector
+ * collapsed — and the action row, the title and the tags live in the
+ * inspector now. A suite asserting on any of them is asserting about a
+ * desktop reader, so it has to be at a desktop width; otherwise it is
+ * testing the collapsed state and calling it the layout. Pass a phone
+ * width to test the other side of that.
  *
  * Call before `render`. `notifyViewportChange` is for anything already
  * mounted, since the store derives the default at read time.
  */
-export function wideViewport(width = 1400) {
+export function setViewport(width = 1400) {
   Object.defineProperty(window, "innerWidth", {
     configurable: true,
     writable: true,

@@ -32,7 +32,11 @@ interface MediaCanvasProps
   companion: { chaptersPresent: boolean } | null;
   chaptersVersion: number;
   onChaptersResolved: (count: number) => void;
-  /** Detailed summary and the active-summary host, which need canvas width. */
+  /**
+   * Detailed summary and the active-summary host, which need canvas
+   * width. `null` on a phone, where the Bottom Sheet takes them —
+   * drawing them in both places mounts `ActiveSummaryHost` twice.
+   */
   heavySummaries: ReactNode;
 }
 
@@ -80,10 +84,14 @@ export function MediaCanvas({
         layoutToggle={null}
       />
 
+      {/* Capped at the long-form measure (§3.4). It is the file's show
+          notes and can run to many paragraphs; the canvas is as wide as
+          the page minus the inspector, which is well past comfortable. */}
       <FileDescription
         file={file}
         isTimedMedia={isTimedMedia}
         mediaController={mediaController}
+        className="max-w-[860px]"
       />
 
       {companion && (

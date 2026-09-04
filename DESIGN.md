@@ -552,11 +552,21 @@ The row of tabs under the inspector's fixed header. One strip, one
 place: the file detail inspector is the only surface that has one, and
 what it is made of is decided by the file rather than by the layout.
 
-- **A tab with no content is not a tab, and one tab is no strip.** A tab
-  is a row, and a row that only announces a feature could exist is the
-  thing the 2026-09 redesign set out to remove. So an archive gets a
-  page-list tab *when there is a page list*, and a Markdown note ends up
-  with the single-tab shape it has always had — no strip drawn at all.
+- **One tab is no strip.** A single-tab strip is chrome answering a
+  question nobody asked, so a Markdown note ends up with the shape it
+  has always had — no strip drawn at all.
+- **A core tab with no content is not a tab.** A tab is a row, and a row
+  that only announces a feature could exist is the thing the 2026-09
+  redesign set out to remove. So an archive gets a page-list tab *when
+  there is a page list*, and it appears the moment that list is
+  implemented, without anyone editing the strip.
+- **An addon tab is not content-gated yet**, because core cannot ask
+  "will you render anything for this file" without naming the addon.
+  Today an addon's tab appears whenever that addon claims the slot on
+  this drive, so a video that has never been transcribed still grows an
+  empty Transcript tab. The generic fix is a per-file availability
+  signal from the entry — the shape `ChaptersPanel.onResolved` already
+  uses for core's own occupant — and it is owed.
 - Composition: **core before addon**, addons in the priority their
   manifests declare. Nothing in the strip knows an addon's name; a tab
   is a slot entry, and its label comes from that entry's `i18n_key`
@@ -897,8 +907,8 @@ Widths and heights:
 |---|---|---|
 | rail width | `24rem` (384px) | Fixed, on the grid. 320px was tried first and Japanese wrapped at 12–14 characters a line, which reads as cramped. |
 | box height | `60%` of the measured scroll container | The bounded box the companion becomes when it is below the player, on either surface. Expressed as `calc(var(--rail-avail) * 0.6)`, falling back to `60dvh` before the first measurement — "60vh", but measured, because a self-scrolling pane is not the viewport. |
-| below: index column | `12.5rem` (200px) | The chapter list beside the transcript, when there is one. |
-| below: body column | `68ch` | The reading measure (§3.4). A time-ordered transcript is never set in two text columns — reading one to the bottom and back to the top of the next is the wrong way through a clock — so leftover width goes to the index instead. |
+| below: index column | `12.5rem`–`22rem` (200–352px) | The chapter list beside the transcript, when there is one. 200px is the floor; it takes whatever width the body's measure leaves, up to the rail's own lead cap. |
+| below: body column | `68ch` | The reading measure. A time-ordered transcript is never set in two text columns — reading one to the bottom and back to the top of the next is the wrong way through a clock — so leftover width goes to the index instead. |
 | player minimum | `34.5rem` (552px) | Narrower than this and a 16:9 video stops being watchable. |
 | gap | `1.5rem` (24px) | The standard section gap. |
 | switch threshold | `60rem` (960px) | The sum of the first, fifth and sixth. |

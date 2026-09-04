@@ -11,7 +11,7 @@ import {
   overlaySidebarSpy,
   setApiResponses,
   usePolicyMock,
-  wideViewport,
+  setViewport,
 } from "./harness";
 
 // Heavy children are mocked: these suites are about FileDetail's own
@@ -101,7 +101,7 @@ describe("FileDetailContent", () => {
     // Title, action row and tags live in the inspector, and jsdom's
     // 1024px would leave it collapsed. These cases are about a desktop
     // reader, so they run at a desktop width.
-    wideViewport();
+    setViewport();
   });
 
   it("calls recordFileView exactly once when mounted with a fileId", async () => {

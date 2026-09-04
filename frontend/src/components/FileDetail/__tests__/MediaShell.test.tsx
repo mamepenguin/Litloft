@@ -25,7 +25,7 @@ import {
   setApiResponses,
   slotMocks,
   usePolicyMock,
-  wideViewport,
+  setViewport,
 } from "./harness";
 
 vi.mock("next/navigation", () => ({
@@ -111,7 +111,7 @@ beforeEach(() => {
   slotMocks.entries.clear();
   window.localStorage.clear();
   document.documentElement.removeAttribute("data-media-layout");
-  wideViewport();
+  setViewport();
 });
 
 async function renderMedia(file: FileItem = makeFile({ has_chapters: true })) {
@@ -235,6 +235,16 @@ describe("media on the shell, below", () => {
     expect(screen.getAllByTestId("chapters-panel")).toHaveLength(1);
   });
 
+  it("draws no box at all when nothing would go in it", async () => {
+    // Below, desktop, a video with neither chapters nor an addon: an
+    // empty box would still take its own margin, and the toggle is
+    // hidden in that state, so the reader could not get out of it.
+    const { container } = await renderMedia(makeFile({ has_chapters: false }));
+
+    expect(container.querySelector(".media-detail-below")).toBeNull();
+    expect(layoutToggle()).toBeNull();
+  });
+
   it("gives the body the index's width back when there are no chapters", async () => {
     withTranscript();
     const { container } = await renderMedia(makeFile({ has_chapters: false }));
@@ -290,7 +300,7 @@ describe("media on the shell, on a phone", () => {
     // is the nested scroller MB-1 is about — the one where the page
     // stops moving the moment a finger lands on the transcript.
     window.localStorage.setItem("media-layout-preference", "stacked");
-    wideViewport(400);
+    setViewport(400);
   });
 
   it("keeps the companion out of the canvas whatever the preference says", async () => {
@@ -309,6 +319,24 @@ describe("media on the shell, on a phone", () => {
     await screen.findByTestId("mobile-inspector-sheet");
     expect(tabs()).toEqual(["Info", "Chapters", "Transcript"]);
     expect(screen.getAllByTestId("slot-entry-transcript")).toHaveLength(1);
+  });
+
+  it("hands the heavy summaries to the sheet and not also to the canvas", async () => {
+    // The sheet takes them on a phone because a 90vh drawer at viewport
+    // width has room for a markdown table. Drawing them in the canvas as
+    // well mounts `ActiveSummaryHost` twice — two fetches for one file,
+    // and two of whatever the detailed-summary section fetches.
+    await renderMediaOnPhone(makeFile({ has_chapters: false }));
+    fireEvent.click(screen.getByTestId("inspector-toggle"));
+    await screen.findByTestId("mobile-inspector-sheet");
+
+    expect(screen.getAllByTestId("active-summary-host")).toHaveLength(1);
+    expect(
+      screen.getAllByTestId("addon-slot-include:detailed-summary"),
+    ).toHaveLength(1);
+    expect(screen.getByTestId("mobile-inspector-sheet")).toContainElement(
+      screen.getByTestId("active-summary-host"),
+    );
   });
 });
 

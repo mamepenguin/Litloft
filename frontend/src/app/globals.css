@@ -997,10 +997,10 @@ div[data-citation-section-path]:not(tr) {
   max-height: calc(var(--rail-avail, 100dvh) - 2rem);
 }
 
-/* The lead can afford more here. Stacked it shares a 20rem box, so a
-   12rem cap leaves the transcript 8rem; the rail is as tall as the
-   scroll container, so the same list can stay open without crowding
-   what it indexes.
+/* The lead can afford more here. Stacked it shares the box with the
+   body it indexes, and a 12rem cap leaves most of that box to the body;
+   the rail is as tall as the scroll container, so the same list can
+   stay open without crowding what it indexes.
 
    Bounded by the measured rail as well as by the absolute value,
    because the lead no longer shrinks: on a short window 22rem could
@@ -1036,10 +1036,24 @@ div[data-citation-section-path]:not(tr) {
   gap: 1.5rem;
   align-items: stretch;
   max-height: var(--companion-box-h);
+  /* Belt and braces. `max-height` on a row container clamps the line's
+     cross size, so the children are handed a definite height and scroll
+     inside themselves — but that is a subtler mechanism than the
+     main-axis shrink that bounds the column form, and an occupant that
+     ignores `fillHeight` would otherwise run past the box unnoticed. */
+  overflow: hidden;
 }
 
+/* The index takes the width the body's measure leaves, up to the same
+   cap it gets beside the player. Fixed at 200px it never widened, so a
+   wide canvas spent the surplus on nothing: 200 + 24 + 68ch is about
+   770px, and the rest was gutter. 200px stays the floor — it is the
+   confirmed minimum — and 22rem the ceiling, which is the rail's own
+   lead cap rather than a new number. */
 .media-detail-below-index {
-  flex: 0 0 12.5rem;
+  flex: 1 1 12.5rem;
+  min-width: 12.5rem;
+  max-width: 22rem;
   min-height: 0;
 }
 

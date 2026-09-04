@@ -31,8 +31,10 @@ export interface ShellLayoutProps {
   drive: string;
   isMobile: boolean;
   isHtmlPreview: boolean;
-  /** Which player, if any, plays this file. `null` means none does. */
-  companionKind: string | null;
+  /** Whether a player plays this file at all. */
+  hasPlayer: boolean;
+  /** Whether anyone — core chapters or an addon — fills the companion. */
+  companionOccupied: boolean;
   /** Whether the player's height is a function of its width. */
   playerFramed: boolean;
   isTimedMedia: boolean;
@@ -85,7 +87,8 @@ export function ShellLayout({
   drive,
   isMobile,
   isHtmlPreview,
-  companionKind,
+  hasPlayer,
+  companionOccupied,
   playerFramed,
   isTimedMedia,
   chaptersPresent,
@@ -115,8 +118,6 @@ export function ShellLayout({
   const tGlobal = useTranslations();
   const { getSlotEntries } = useAddonSlots();
   const [mediaLayout] = useMediaLayoutPreference();
-
-  const hasPlayer = companionKind !== null;
 
   /**
    * Where chapters and the `player-side` occupants are mounted.
@@ -262,10 +263,10 @@ export function ShellLayout({
         chromeControls={
           // Only where there is something to move. With no chapters and
           // no `player-side` occupant the two forms are identical, and a
-          // control that changes nothing is worse than no control.
-          !isMobile && (chaptersPresent || playerSideEntries.length > 0) ? (
-            <MediaLayoutToggle />
-          ) : undefined
+          // control that changes nothing is worse than no control. Same
+          // value the canvas box is drawn from, so the two cannot come
+          // to disagree about whether the region has an occupant.
+          !isMobile && companionOccupied ? <MediaLayoutToggle /> : undefined
         }
         inspector={inspector}
         mobileSheet={mobileSheet}
@@ -278,10 +279,18 @@ export function ShellLayout({
           framed={playerFramed}
           isTimedMedia={isTimedMedia}
           mediaController={mediaController}
-          companion={companionInTabs ? null : { chaptersPresent }}
+          companion={
+            companionInTabs || !companionOccupied
+              ? null
+              : { chaptersPresent }
+          }
           chaptersVersion={chaptersVersion}
           onChaptersResolved={onChaptersResolved}
-          heavySummaries={heavySummaries}
+          // On a phone the sheet takes them instead: a 90vh drawer at
+          // viewport width has room for a markdown table and a 384px
+          // column does not, and drawing them in both places mounts
+          // `ActiveSummaryHost` twice — two fetches for one file.
+          heavySummaries={isMobile ? null : heavySummaries}
           videoRef={videoRef}
           initialTime={initialTime}
           initialPage={initialPage}

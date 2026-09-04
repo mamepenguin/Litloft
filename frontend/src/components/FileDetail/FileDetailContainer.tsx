@@ -211,6 +211,9 @@ export function FileDetailContainer({
   // companion region is possible at all and whether it may take the
   // rail form. `playerKind` owns the .loft-before-file_type ordering.
   const companionKind = playerKind(file);
+  // Asked once and passed down. Two spellings of "does a player play
+  // this" is how the description ends up rendered twice, or nowhere.
+  const hasPlayer = companionKind !== null;
   const railEligible = companionKind === "video" || companionKind === "loft";
 
   // Core is an occupant of the companion region now, not just its host:
@@ -295,7 +298,7 @@ export function FileDetailContainer({
       // belonging to it in the canvas, and for media the description is
       // one of those — a video's description is its show notes, not a
       // property of the file.
-      hoistDescription={ridesShell && companionKind !== null}
+      hoistDescription={ridesShell && hasPlayer}
     />
   );
 
@@ -307,6 +310,7 @@ export function FileDetailContainer({
       isMobile={isMobile}
       ridesShell={ridesShell}
       isHtmlPreview={isHtmlPreview}
+      hasPlayer={hasPlayer}
       companionKind={companionKind}
       railEligible={railEligible}
       companionOccupied={companionOccupied}
