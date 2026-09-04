@@ -15,6 +15,7 @@ import { useIsMobile } from "@/hooks/useIsMobile";
 import { useShortcuts } from "@/hooks/useShortcuts";
 import { inspectorOpenStore } from "@/lib/inspectorOpenStore";
 import { FileDetailChrome } from "./FileDetail/FileDetailChrome";
+import { useInspectorFit } from "./FileDetail/hooks/useInspectorFit";
 import { InspectorPane } from "./InspectorPane";
 import { MobileInspectorSheet } from "./MobileInspectorSheet";
 
@@ -112,6 +113,7 @@ export function FileDetailShell({
   const { open, setOpen } = useInspectorOpen(drive);
   const isMobile = useIsMobile();
   const [mobileSheetOpen, setMobileSheetOpen] = useState(false);
+  const attachInspectorFitHost = useInspectorFit();
 
   // Reset transient UI on file change so the previously-open Sheet
   // doesn't bleed into the next file when the host re-uses one mounted
@@ -172,7 +174,15 @@ export function FileDetailShell({
       >
         {chromeControls}
       </FileDetailChrome>
-      <div className="flex min-h-0 flex-1">
+      {/* `relative`, because the inspector is absolutely positioned
+          against this row when it cannot fit beside the canvas. The row
+          is also what `useInspectorFit` measures — never the canvas,
+          whose width is the thing being decided. */}
+      <div
+        ref={attachInspectorFitHost}
+        data-testid="inspector-fit-host"
+        className="relative flex min-h-0 flex-1"
+      >
         <main
           ref={onScrollRootChange}
           className="flex min-w-0 min-h-0 flex-1 flex-col overflow-auto"

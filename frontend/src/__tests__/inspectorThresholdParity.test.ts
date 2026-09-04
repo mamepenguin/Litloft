@@ -4,6 +4,14 @@ import { resolve, dirname } from "node:path";
 
 import { describe, expect, it } from "vitest";
 
+import {
+  CANVAS_PADDING_REM,
+  COLUMN_REM,
+  INSPECTOR_BESIDE_MIN_REM,
+  PLAYER_MIN_REM,
+  RAIL_MIN_REM,
+} from "@/lib/layoutSizes";
+
 /**
  * `DESIGN.md` names the inspector's default-open threshold; the store
  * decides it.
@@ -53,5 +61,59 @@ describe("inspector default-open threshold", () => {
     // between them, where they fit but stay closed until asked for, is
     // a state one number cannot express.
     expect(sourceThreshold()).toBe(1120);
+  });
+});
+
+/**
+ * The §8.5 width table against the module the layout computes from.
+ *
+ * Written as rows here rather than as one loop over the table, because
+ * a loop that finds no rows passes. Each of these is a number a reader
+ * of `DESIGN.md` will act on.
+ */
+describe("§8.5 widths", () => {
+  const design = () =>
+    readFileSync(resolve(REPO_ROOT, "DESIGN.md"), "utf-8");
+
+  const remRow = (label: string): number => {
+    const row = design().match(
+      new RegExp(`\\|\\s*${label}\\s*\\|\\s*\`([\\d.]+)rem\``),
+    );
+    expect({ label, found: row !== null }).toEqual({ label, found: true });
+    return Number(row![1]);
+  };
+
+  it("documents the player minimum the shell measures against", () => {
+    expect(remRow("player minimum")).toBe(PLAYER_MIN_REM);
+  });
+
+  it("documents the inspector's width", () => {
+    expect(remRow("inspector width")).toBe(COLUMN_REM);
+  });
+
+  it("documents the rail width as the same number, separately", () => {
+    // Two rows on purpose: they arrive at 24rem for the same reason
+    // rather than by sharing a value, and merging them would make a
+    // later change to one read as a change to both.
+    expect(remRow("rail width")).toBe(COLUMN_REM);
+  });
+
+  it("documents the canvas padding the player sits inside", () => {
+    expect(remRow("canvas padding")).toBe(CANVAS_PADDING_REM);
+  });
+
+  it("documents the beside threshold, and it is still a sum", () => {
+    expect(remRow("beside threshold")).toBe(INSPECTOR_BESIDE_MIN_REM);
+    // The sum, not a feel: `DESIGN.md` says to recompute it when a term
+    // moves, and this is what recomputing means. Written from the
+    // constants, never from literals — a `2` here would be a second
+    // copy of the padding term inside the test that checks the first.
+    expect(INSPECTOR_BESIDE_MIN_REM).toBe(
+      PLAYER_MIN_REM + CANVAS_PADDING_REM + COLUMN_REM,
+    );
+  });
+
+  it("documents the rail switch threshold as its own sum", () => {
+    expect(remRow("switch threshold")).toBe(RAIL_MIN_REM);
   });
 });

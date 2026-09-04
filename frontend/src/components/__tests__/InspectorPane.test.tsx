@@ -23,7 +23,7 @@ describe("the inspector column", () => {
     render(<InspectorPane>{null}</InspectorPane>);
     // `w-96` is 24rem is 384px. Asserting the class rather than a
     // computed width because jsdom applies no stylesheet.
-    expect(screen.getByTestId("inspector-pane").className).toContain("w-96");
+    expect(screen.getByTestId("inspector-pane").classList.contains("w-96")).toBe(true);
   });
 
   it("agrees with the rule that names it", () => {

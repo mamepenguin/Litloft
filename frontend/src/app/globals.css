@@ -1099,3 +1099,45 @@ div[data-citation-section-path]:not(tr) {
   flex: 1 1 0%;
   min-height: 0;
 }
+
+/* ------------------------------------------------------------------
+   The inspector, when the row cannot hold it beside the canvas.
+
+   It keeps its 384px and covers the canvas instead of narrowing it.
+   Narrowing was tried and rejected: below 320px Japanese wraps at 12–14
+   characters a line (`DESIGN.md` §8.5), so a "responsive" inspector is
+   an unreadable one.
+
+   The measurement is on the row, published by `useInspectorFit` — see
+   there for why this is a container question and the default-open
+   threshold next to it is a viewport one. Doing it in CSS from an
+   attribute means the pane is never re-rendered when the form changes,
+   which is load-bearing: it holds the tab panels, and a transcript's
+   scroll position and clock subscription would not survive a window
+   drag otherwise.
+
+   No shadow either. DESIGN.md §4 keeps properties panels at Level 0 and
+   asks for depth from surface colour and border first; the pane already
+   carries `bg-bg-card` against the canvas's `bg-bg-primary` and a left
+   border, which is the separation §4 describes. A shadow here would be
+   the decorative use that section forbids by name.
+
+   No backdrop, deliberately. The canvas keeps its left portion visible
+   and interactive — this is a panel that has run out of room, not a
+   modal asking a question — and the page row's toggle and `Cmd+\` are
+   both still there to close it.
+   ------------------------------------------------------------------ */
+[data-inspector-fit="overlay"] .inspector-pane {
+  position: absolute;
+  inset-block: 0;
+  inset-inline-end: 0;
+  /* In-flow chrome (DESIGN.md §Layering), not a floating surface. It is
+     above the canvas it covers and below everything that has to stay
+     reachable over it: the mini player and the upload progress at 40,
+     the sidebar's backdrop at 30 — the sidebar is modal while it is
+     open, and a bright interactive panel above its dim is the page
+     claiming to be two things at once. Sitting at 40 buried the mini
+     player outright, since it is 320px wide against the right edge and
+     lands entirely inside this band. */
+  z-index: 20;
+}

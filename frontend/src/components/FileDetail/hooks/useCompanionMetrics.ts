@@ -2,16 +2,9 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 
-const PLAYER_PEEK_PX = 48;
+import { RAIL_MIN_REM } from "@/lib/layoutSizes";
 
-/**
- * Width at which the companion may sit beside the player, in rem:
- * 552px player + 384px rail + 24px gap. Kept in rem, and resolved
- * against the root font size when measured, so a viewer who scales
- * text gets the layout these numbers were chosen for. Must stay in
- * step with the `[data-media-width="wide"]` rules in `globals.css`.
- */
-const RAIL_MIN_REM = 60;
+const PLAYER_PEEK_PX = 48;
 
 export interface CompanionMetrics {
   /** Visible height of whatever scrolls, published as `--rail-avail`. */

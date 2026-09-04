@@ -602,12 +602,23 @@ picking a number one higher than whatever it currently sits under.
 
 | Tier | `z` | What belongs here |
 |---|---|---|
-| In-flow chrome | `z-10` – `z-30` | Sticky bars, the header (`z-20`), popovers anchored to a control, the sidebar backdrop (`z-30`) |
+| In-flow chrome | `z-10` – `z-30` | Sticky bars, the header (`z-20`), the file-detail inspector where it has to cover the canvas rather than sit beside it (`z-20`, §8.5), popovers anchored to a control, the sidebar backdrop (`z-30`) |
 | Floating surfaces | `z-40` | Sidebar in overlay mode, mini-player, upload progress, bottom-anchored mobile menus |
 | Inspector sheet | `z-[45]` / `z-[46]` | The mobile Bottom Sheet — above every floating surface, below every dialog |
 | Modal dialogs | `z-50` | Confirm / Rename / Move and anything else that interrupts to ask a question, including addon dialogs |
 | Immersive viewers | `z-[60]` | Full-screen image gallery and archive viewer, which replace the page rather than overlay it |
 | Always on top | `z-[100]` | Shortcut cheat sheet, quick note, file save, toasts |
+
+**A panel that has run out of room is still in-flow chrome.** The
+inspector covers the canvas at widths where it cannot sit beside it, and
+that makes it look like a floating surface — but pick the tier by what
+the element *is*. It is part of the page's layout, not something
+floating over it, and putting it at `z-40` buried the mini player
+outright: that is ~320px against the right edge, entirely inside the
+panel's 384px band, so its close and restore buttons went with it. At
+`z-20` it also sits under the sidebar's backdrop, which is right — the
+sidebar is modal while open, and a bright interactive panel above its
+dim is the page claiming to be two things at once.
 
 **An immersive viewer takes the page out of reach, not just out of
 sight.** Its surface is opaque and covers everything, so nothing signals
@@ -864,7 +875,9 @@ narrow column.
 
 | Token | Value | Meaning |
 |---|---|---|
-| inspector width | `24rem` (384px) | Fixed. |
+| inspector width | `24rem` (384px) | Fixed, in both forms. When the row cannot hold it beside the canvas it covers the canvas at the same width rather than narrowing — 320px was tried and Japanese wrapped at 12–14 characters a line, so a responsive inspector is an unreadable one. |
+| canvas padding | `2rem` (32px) | What the canvas puts around its own contents. Part of the sum because the player is inside it — leave it out and the threshold hands the canvas exactly the player minimum, then the padding comes out of the player. |
+| beside threshold | `60.5rem` (968px) | Player minimum + canvas padding + inspector width, measured on the row that holds both. Never on the canvas: the canvas is what changes width when the inspector opens, so measuring it would make the answer depend on the answer. |
 
 **A separate entry from the companion rail below, despite the same
 number.** They are different parts — one holds a document's metadata,
@@ -920,18 +933,39 @@ recompute it; do not nudge it to make a particular window look right.
 Widening the rail from 320px to 384px moved the threshold from 56rem to
 60rem for exactly this reason.
 
-**Three thresholds, three questions. Do not merge any two of them.**
+**Four thresholds, four questions. Do not merge any two of them.**
 
 | Threshold | Question | Measured against |
 |---|---|---|
 | `60rem` = 960px | Can a rail sit beside the player? | The host's **measured width**. Gates the grid's second column, so it applies on the collection route only — on the shell the companion is a tab, and a tab fits at any width. |
-| `1120px` (`VIEWPORT_OPEN_THRESHOLD`) | Does the inspector *start* open? | The **viewport**. Not a layout branch: it is how the default is derived when the reader has no stored choice, and any choice they make outranks it. §8.5's "measure the container" rule is about layout branches, so it does not apply. |
+| `60.5rem` = 968px (`INSPECTOR_BESIDE_MIN_REM`) | Can the inspector sit *beside* the canvas, or must it cover it? | The **measured width of the row holding both** — never the canvas, whose width is the thing being decided. A sum, not a feel: the player's 34.5rem, the canvas's own 2rem of padding around it, and the inspector's 24rem. |
+| `1120px` (`VIEWPORT_OPEN_THRESHOLD`) | Does the inspector *start* open? | The **viewport**. Not a layout branch: it is how the default is derived when the reader has no stored choice, and any choice they make outranks it. |
 | 768px | Is the inspector a pane or a Bottom Sheet? | The **viewport**. |
 
-960 and 1120 sound like the same question and are not: 960 is "can they
-be side by side", 1120 is "should they be, by default". The band
-between them — where they fit but start closed — is a real state, and
-merging them would make it unsayable.
+**The middle two are the pair that has to stay apart**, and they are the
+same pair §8.5 draws above: the viewport decides whether the inspector
+*starts* open, the container decides whether it can be *beside*. A
+preference can outrank the first; nothing outranks the second, because
+it is a fact about the space rather than a choice about it.
+
+Keying placement to the viewport is what put a 296px video on screen at
+1200px — narrower than the same rule produced at 1120 — because the
+shell also renders inside the 2-pane right pane, where an inline sidebar
+and a 280px tree have already taken up to 520px the viewport says
+nothing about. That is this section's own rule, failing in the words it
+uses to state itself.
+
+960 and 968 are both container questions and still not one question:
+960 asks whether a *rail* fits beside the *player* inside the canvas,
+968 whether the *inspector* fits beside the *canvas*. Different boxes,
+different occupants, and they are near each other by coincidence of
+arithmetic rather than by meaning. 968 and 1120 are not one either —
+968 is "can they be side by side", 1120 is "should they be, by
+default". The band between those two, where they fit but start closed,
+is a real state that one number cannot express.
+
+Every one of these is derived in `lib/layoutSizes.ts` from the same
+three primitives, and the rows above are asserted against it.
 
 1120 was 1280 until 2026-09, which left a band of its own. The media
 layout's default puts the transcript and chapters in the inspector, so
