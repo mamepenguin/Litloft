@@ -139,7 +139,7 @@ describe("FileDetailContent companion region (collection route)", () => {
     const noCompanion = await renderFile(makeFile());
     expect(
       noCompanion.container.querySelector(
-        ".media-detail-player > [data-testid='file-preview']",
+        ".media-detail-player > .media-detail-player-frame > [data-testid='file-preview']",
       ),
     ).not.toBeNull();
     noCompanion.unmount();
@@ -154,7 +154,7 @@ describe("FileDetailContent companion region (collection route)", () => {
     );
     expect(
       promoted.container.querySelector(
-        ".media-detail-player > [data-testid='file-preview']",
+        ".media-detail-player > .media-detail-player-frame > [data-testid='file-preview']",
       ),
     ).not.toBeNull();
     promoted.unmount();
@@ -162,7 +162,7 @@ describe("FileDetailContent companion region (collection route)", () => {
     const gridLayout = await renderFile(makeFile());
     expect(
       gridLayout.container.querySelector(
-        ".media-detail-grid .media-detail-player > [data-testid='file-preview']",
+        ".media-detail-grid .media-detail-player > .media-detail-player-frame > [data-testid='file-preview']",
       ),
     ).not.toBeNull();
   });

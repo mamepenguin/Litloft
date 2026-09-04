@@ -20,6 +20,7 @@ import { InspectorPane } from "./InspectorPane";
 import {
   MobileInspectorSheet,
   SHEET_PEEK_PX,
+  SHEET_SNAP_FULL,
   SHEET_SNAP_HALF,
   SHEET_SNAP_PEEK,
   isSheetExpanded,
@@ -180,6 +181,20 @@ export function FileDetailShell({
   return (
     <div
       data-testid="file-detail-shell"
+      // Where the sheet is, published for CSS rather than passed down.
+      // The player reads it — through a stylesheet, never through a
+      // prop — to go sticky and then to dock above the sheet at full.
+      // Absent means "not a phone", which is the same test `isMobile`
+      // makes and saves the stylesheet a second one.
+      data-sheet-snap={
+        isMobile
+          ? sheetSnap === SHEET_SNAP_FULL
+            ? "full"
+            : isSheetExpanded(sheetSnap)
+              ? "half"
+              : "peek"
+          : undefined
+      }
       className="flex h-full w-full flex-col"
     >
       <FileDetailChrome

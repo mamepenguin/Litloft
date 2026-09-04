@@ -1167,3 +1167,50 @@ div[data-citation-section-path]:not(tr) {
     min-height: 2.75rem;
   }
 }
+
+/* ------------------------------------------------------------------
+   The player on a phone: stuck to the top, then docked above the sheet.
+
+   `data-sheet-snap` is on the shell root and is written only on a
+   phone, so its presence is the mobile test and the stylesheet needs no
+   second one. Everything here is CSS acting on that attribute — the
+   player is never told which form it is in, because telling it means
+   re-rendering it.
+
+   That constraint is the whole design. React Portal moves children by
+   `appendChild`, which reloads any <iframe> in the subtree — a browser
+   rule, not a React one — and a `.loft` embed loses its position, its
+   player state and its API binding on reload. A remounted <video>
+   restarts at zero and rebinds `ended`, which is how a completion path
+   would come to write a position that was never played
+   (`.claude/rules/design-decisions.md`, watch history). So the element
+   stays exactly where it is in the tree and only its position changes.
+   `MiniPlayerContainer` reached the same conclusion for the desktop
+   mini player; this is that answer applied to the sheet.
+   ------------------------------------------------------------------ */
+[data-sheet-snap] .media-detail-player-frame {
+  position: sticky;
+  top: 0;
+  /* Above the canvas that scrolls under it, below the resting strip and
+     the sheet (DESIGN.md §Layering). */
+  z-index: 10;
+}
+
+/* At full the sheet takes 90vh, so the player would be behind it. It
+   moves into the 10vh the sheet leaves — which is what "a mini player
+   in the sheet's header" means from the page's side, since the sheet's
+   own header is inside a portal this element must never enter.
+
+   Sized from the height rather than the width: the strip is what is
+   scarce, and 16:9 derived from a width would overrun it. */
+[data-sheet-snap="full"] .media-detail-player-frame {
+  position: fixed;
+  top: 0.5vh;
+  right: 0.75rem;
+  left: auto;
+  height: 9vh;
+  width: calc(9vh * 16 / 9);
+  overflow: hidden;
+  border-radius: 0.75rem;
+  z-index: 40;
+}

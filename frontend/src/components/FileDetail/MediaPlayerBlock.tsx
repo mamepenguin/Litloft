@@ -70,20 +70,31 @@ export function MediaPlayerBlock({
       className="media-detail-player"
       data-framed={framed ? "true" : undefined}
     >
-      <FilePreview
-        file={file}
-        videoRef={videoRef}
-        initialTime={initialTime}
-        initialPage={initialPage}
-        highlight={highlight}
-        onMediaController={onMediaController}
-        onDocumentCaptureController={onDocumentCaptureController}
-        markdownReloadKey={markdownReloadKey}
-        onMarkdownTagsSaved={onMarkdownTagsSaved}
-        miniPlayerRoot={miniPlayerRoot}
-        onEnded={onEnded}
-        autoPlay={autoPlay}
-      />
+      {/* An inner frame, not the wrapper above it. The wrapper is what
+          `useCompanionMetrics` measures for `--player-avail`, and a
+          measurement taken from an element that has just been made
+          sticky or fixed is a measurement of where it moved to. Same
+          anchor/inner split `MiniPlayerContainer` uses, for the same
+          reason. `globals.css` decides what this does; nothing here is
+          told which form it is in, because being told would mean
+          re-rendering it — and re-rendering is the one thing a player
+          must not do. */}
+      <div className="media-detail-player-frame">
+        <FilePreview
+          file={file}
+          videoRef={videoRef}
+          initialTime={initialTime}
+          initialPage={initialPage}
+          highlight={highlight}
+          onMediaController={onMediaController}
+          onDocumentCaptureController={onDocumentCaptureController}
+          markdownReloadKey={markdownReloadKey}
+          onMarkdownTagsSaved={onMarkdownTagsSaved}
+          miniPlayerRoot={miniPlayerRoot}
+          onEnded={onEnded}
+          autoPlay={autoPlay}
+        />
+      </div>
 
       {/* Directly below the player rather than inside its control bar:
           that bar belongs to the .loft embed and native video does not

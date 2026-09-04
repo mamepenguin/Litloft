@@ -657,6 +657,23 @@ The cost is that what is below the strip unmounts on collapse and
 refetches on the way back up. That is what a closed sheet already did,
 and it is the cheaper of the two prices.
 
+**The player follows the sheet, in CSS, and is never told about it.**
+On a phone it is `sticky` to the top of the canvas while the sheet is
+down, and at `full` — where the sheet would cover it — it docks into the
+10vh the sheet leaves, sized from that height rather than from a width
+that would overrun it. The state is published as `data-sheet-snap` on
+the shell root and read by a stylesheet.
+
+It has to be that way round. Handing the state down means re-rendering
+the player, and re-parenting it — which a portal does by `appendChild` —
+reloads any `<iframe>` in the subtree by the browser's own rule. A
+`.loft` embed loses its position, its player state and its API binding;
+a remounted `<video>` restarts at zero with `ended` rebound, which is
+how a completion path comes to write a position nobody played
+(`.claude/rules/design-decisions.md`, watch history). The element stays
+where it is and only its position changes — the same conclusion
+`MiniPlayerContainer` reached for the desktop mini player.
+
 **The resting strip owns `bottom-0` on the file surface.** It is
 full-width and permanent, so nothing else bottom-anchored may share the
 screen with it. Today nothing does — the mini player is desktop-only by

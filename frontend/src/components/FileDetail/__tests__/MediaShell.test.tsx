@@ -426,6 +426,59 @@ describe("media on the shell, on a phone", () => {
     expect(screen.getByTestId("file-preview")).toBe(player);
   });
 
+  it("publishes where the sheet is, for the player to read in CSS", async () => {
+    // The player is never handed the sheet's state. It is published on
+    // the shell root and a stylesheet acts on it, because handing it
+    // down means re-rendering the player, and re-rendering is what
+    // reloads a `.loft` iframe and restarts a `<video>` at zero.
+    await renderMediaAwaitingChrome();
+    const shell = screen.getByTestId("file-detail-shell");
+    expect(shell.dataset.sheetSnap).toBe("peek");
+
+    fireEvent.click(screen.getByTestId("inspector-toggle"));
+
+    await waitFor(() => {
+      expect(
+        screen.getByTestId("file-detail-shell").dataset.sheetSnap,
+      ).toBe("half");
+    });
+  });
+
+  it("frames the player without moving it in the tree", async () => {
+    // The frame is what the stylesheet positions. It is *inside* the
+    // wrapper `useCompanionMetrics` measures, because a measurement
+    // taken from an element that has just gone sticky is a measurement
+    // of where it went.
+    const { container } = await renderMediaAwaitingChrome();
+    const frame = container.querySelector(
+      ".media-detail-player > .media-detail-player-frame",
+    );
+    expect(frame).not.toBeNull();
+    expect(frame).toContainElement(screen.getByTestId("file-preview"));
+  });
+
+  it("keeps the same player element across every sheet transition", async () => {
+    // peek → half → full → peek. The guard §4.4 asks for, at each hop:
+    // a re-parented iframe reloads (the browser's rule, not React's)
+    // and a remounted `<video>` restarts at zero with `ended` rebound,
+    // which is how a completion path comes to write a position nobody
+    // played.
+    await renderMediaAwaitingChrome();
+    const player = screen.getByTestId("file-preview");
+
+    fireEvent.click(screen.getByTestId("inspector-toggle"));
+    await screen.findByTestId("mobile-inspector-sheet");
+    expect(screen.getByTestId("file-preview")).toBe(player);
+
+    fireEvent.keyDown(document, { key: "Escape" });
+    await screen.findByTestId("mobile-inspector-peek");
+    expect(screen.getByTestId("file-preview")).toBe(player);
+
+    fireEvent.click(screen.getByTestId("inspector-toggle"));
+    await screen.findByTestId("mobile-inspector-sheet");
+    expect(screen.getByTestId("file-preview")).toBe(player);
+  });
+
   it("bounds the sheet's scroller by the state it is in", async () => {
     // vaul keeps the content at full height and slides it, so at half
     // the bottom of the scroll box is below the screen and cannot be
