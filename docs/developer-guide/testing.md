@@ -335,18 +335,32 @@ neither.
 
 ### Branch protection
 
-Both branches that CI guards (`develop` on core, `main` on each addon) require
-the workflow's jobs to pass before merge. Only **required status checks** are
-enabled — no required reviewers, since a single-developer repository with
-mandatory review cannot merge its own pull requests — and administrators are not
-subject to the rule, so a genuinely stuck merge can still be forced.
+Both branches that CI guards — `develop` on core, `main` on each addon — carry
+**classic branch protection** (the `branches/*/protection` API, not a ruleset)
+listing that repository's job names as required status checks.
 
-To inspect or remove protection on a branch:
+What is deliberately *not* set:
+
+- **No required reviewers.** A single-developer repository with mandatory review
+  cannot merge its own pull requests.
+- **`enforce_admins` is false**, so an administrator can still force a merge
+  that is genuinely stuck.
+- **`strict` is false**, so a branch does not have to be rebased onto the tip
+  before merging.
+
+Read the current setting, or take it off:
 
 ```bash
 gh api repos/mamepenguin/Litloft/branches/develop/protection
 gh api -X DELETE repos/mamepenguin/Litloft/branches/develop/protection
 ```
+
+Substitute a repository and `main` for the addons. Note that GitHub offers two
+independent mechanisms and the API above only sees one of them: core also has a
+**ruleset** on `refs/heads/main` (deletion and non-fast-forward, unrelated to
+CI), and anything added later through the web UI defaults to a ruleset too.
+Those live at `gh api repos/mamepenguin/Litloft/rulesets`, and the delete above
+will not touch them.
 
 ## See also
 
