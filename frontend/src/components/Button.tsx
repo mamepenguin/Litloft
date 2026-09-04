@@ -1,0 +1,144 @@
+"use client";
+
+import type { ButtonHTMLAttributes, ReactNode } from "react";
+
+/**
+ * The five variants DESIGN.md §6 "Buttons" already names. This component
+ * does not introduce a sixth — it moves the recipes out of 43 hand-written
+ * class lists so the disabled treatment can only be written once.
+ */
+export type ButtonVariant = "primary" | "secondary" | "danger" | "ghost" | "circle";
+export type ButtonSize = "sm" | "md";
+
+/**
+ * Hover is `enabled:hover:`, never bare `hover:`.
+ *
+ * A bare `hover:` repaints a *disabled* button the moment the pointer rests on
+ * it, which is the same defect DESIGN.md §6 calls out for
+ * `disabled:hover:bg-accent` — the control that will not respond is the one
+ * lighting up under the cursor. Writing the guard into the variant makes it
+ * impossible for a call site to forget.
+ */
+const VARIANT_CLASS: Record<ButtonVariant, string> = {
+  primary: "bg-accent text-white enabled:hover:bg-accent-hover rounded-2xl",
+  secondary: "bg-sand text-text-primary enabled:hover:bg-sand-hover rounded-2xl",
+  danger: "text-danger enabled:hover:bg-danger/10 rounded-2xl",
+  ghost: "text-text-primary enabled:hover:bg-bg-elevated rounded-2xl",
+  circle: "bg-warm-light text-text-primary enabled:hover:bg-sand-hover rounded-full",
+};
+
+/**
+ * Padding, not height. A button sized by its padding grows with a Japanese
+ * label that wraps; one sized by `h-*` clips it (DESIGN.md §6 Primary:
+ * "ensure Japanese labels have enough room").
+ */
+const SIZE_CLASS: Record<ButtonSize, string> = {
+  sm: "px-3 py-1.5 text-xs",
+  md: "px-4 py-2 text-sm",
+};
+
+/** Icon-only buttons are square: the label's padding would sit off-centre. */
+const ICON_SIZE_CLASS: Record<ButtonSize, string> = {
+  sm: "p-1.5",
+  md: "p-2",
+};
+
+/**
+ * The disabled treatment, written once.
+ *
+ * DESIGN.md §6 "Disabled (every variant)" forbids `disabled:opacity-*`: a
+ * translucent control still says what it said, only dimmer, and the contrast
+ * loss lands hardest on the label that would have explained why it is off.
+ * The whole point of this component is that a caller cannot opt out — it
+ * passes `disabled` and gets this.
+ */
+const DISABLED_CLASS =
+  "disabled:bg-sand disabled:text-warm-silver disabled:cursor-not-allowed";
+
+/**
+ * Grow the hit area, not the box (DESIGN.md §Row Actions).
+ *
+ * `pointer-coarse` only: the 44px floor is stated under the mobile sizing
+ * rules, so it governs touch input. On a fine pointer the rendered 32px
+ * already clears the 24px minimum for repeated icon-only controls
+ * (hako `Prwd_iaXmCjWfY24KjFz2`), and the overhang would only overlap
+ * neighbours in a dense row.
+ *
+ * `-inset-1.5` is 6px on each edge: 32 + 12 = 44.
+ */
+const COARSE_HIT_AREA =
+  "relative pointer-coarse:before:absolute pointer-coarse:before:-inset-1.5 pointer-coarse:before:content-['']";
+
+const BASE_CLASS =
+  "inline-flex items-center justify-center gap-1.5 font-medium transition-colors " +
+  "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus-ring";
+
+type NativeButtonProps = Omit<
+  ButtonHTMLAttributes<HTMLButtonElement>,
+  "className" | "children"
+>;
+
+interface CommonProps extends NativeButtonProps {
+  variant?: ButtonVariant;
+  size?: ButtonSize;
+  /** Extra utilities for layout only — width, margin, flex. Not colour. */
+  className?: string;
+}
+
+/**
+ * A button with a visible label. `children` is the label, so no `aria-label`
+ * is required: adding one would replace the text a sighted user reads with a
+ * string only some users hear.
+ */
+interface LabelledButtonProps extends CommonProps {
+  iconOnly?: false;
+  children: ReactNode;
+}
+
+/**
+ * A button whose whole content is an icon. `aria-label` is **required by the
+ * type**, because a `<button>` holding one `<svg>` has no accessible name at
+ * all and nothing at runtime says so.
+ *
+ * hako `Prwd_iaXmCjWfY24KjFz2` asks for more than a name here — repeated
+ * icon-only controls need an *entity-specific* one ("Delete Q1 notes", not
+ * "Delete"). A type cannot check that; the review of each call site does.
+ */
+interface IconButtonProps extends CommonProps {
+  iconOnly: true;
+  "aria-label": string;
+  children: ReactNode;
+}
+
+export type ButtonProps = LabelledButtonProps | IconButtonProps;
+
+export function Button(props: ButtonProps) {
+  const {
+    variant = "secondary",
+    size = "md",
+    className = "",
+    iconOnly = false,
+    children,
+    type = "button",
+    ...rest
+  } = props as CommonProps & { iconOnly?: boolean; children: ReactNode };
+
+  const classes = [
+    BASE_CLASS,
+    VARIANT_CLASS[variant],
+    iconOnly ? ICON_SIZE_CLASS[size] : SIZE_CLASS[size],
+    iconOnly ? COARSE_HIT_AREA : "",
+    DISABLED_CLASS,
+    className,
+  ]
+    .filter(Boolean)
+    .join(" ");
+
+  return (
+    <button {...rest} type={type} className={classes}>
+      {children}
+    </button>
+  );
+}
+
+export default Button;

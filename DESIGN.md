@@ -325,11 +325,22 @@ Rules:
 | Role | Size | Weight | Line Height | Notes |
 |---|---|---|---|---|
 | Body | inherited (16px base) | 400 | 1.6 | Body default |
-| H1 | — | 700 | 1.35 (`:lang(ja)`) | — |
-| H2 | — | 700 | 1.40 (`:lang(ja)`) | — |
-| H3 | — | 600–700 | 1.45 (`:lang(ja)`) | — |
+| H1 | `text-2xl` (24px) | 700 | 1.35 (`:lang(ja)`) | The page's subject. One per page — see §6 "Page Header" |
+| H2 | `text-lg` (18px) | 700 | 1.40 (`:lang(ja)`) | A region within the page |
+| H3 | `text-sm` (14px) | 600–700 | 1.45 (`:lang(ja)`) | A label inside a region |
 | Caption / Label | 11–12px | 400–500 | — | Nav auxiliary labels |
 | Section header | 11px | 600 | — | UPPERCASE, English-only hardcoded labels |
+
+This is the scale for **chrome** — the headings that name regions of the
+interface. Long-form prose has its own scale in §3.3, in `em` against the
+element it sits in, which is why H3 here is smaller than body text while
+`.markdown-body h3` is larger: one is a label for a box, the other is a
+heading inside a text.
+
+All three sizes were blank until the UI redesign's Phase 3, and H1 had
+drifted across four values in fourteen page headers as a result. Leaving one
+row blank is what produced that, so a heading level that gains a rule gains
+it here rather than in the component that needed it.
 
 ### 3.3 Long-form Prose (MarkdownPreview / "reading-A")
 
@@ -494,10 +505,109 @@ explained why the button is off.
 > test scans for that pairing alone. Every other variant still carries
 > `disabled:opacity-*`, including the saturated `bg-accent-teal` fills with
 > white labels in the intelligence summary sections, which fade in exactly the
-> way this rule forbids. They are converted with the shared `Button` component
-> (UI redesign Phase 3) rather than one at a time, because a converted button
-> beside an unconverted sibling — both disabled by the same click — shows two
-> different disabled states in one row, which reads worse than either alone.
+> way this rule forbids.
+>
+> **Narrowed 2026-09-05 (UI redesign Phase 3, PR A1).** This paragraph used to
+> promise that Phase 3 would convert *every* remaining variant with the shared
+> `Button`, on the grounds that a converted button beside an unconverted
+> sibling — both disabled by the same click — shows two different disabled
+> states in one row. That harm is real and it is **local**: it needs the two
+> buttons to share a row. It does not reach across files, and there are 95
+> such call sites across five repositories.
+>
+> A pull request that moves 95 call sites cannot be reviewed. That is a
+> quality argument, not an effort one. Phase 2 measured it: independent review
+> ran 98 mutations against work its author had already mutated ~49 times, and
+> 28 survived the first pass — two of them defects that had already shipped.
+> **A PR too large to review is a PR that goes unreviewed, so making one large
+> is itself a decision to pass defects through.** The local harm gets the
+> local fix instead.
+>
+> **What Phase 3 converts:** the 43 accent-filled sites (which already carry
+> the `disabled:bg-sand` treatment), plus any non-accent sibling inside a file
+> Phase 3 opens for another reason. The rest move opportunistically, when a
+> later change touches the row they sit in — the same terms §2.2 gives the
+> accent fills that are not yet on `Button`.
+>
+> **`addons/cloud-sync` is deliberately not converted.** Its two sites
+> (`SyncDriveCard.tsx`) never share a row with a core button, so the harm this
+> rule guards against cannot occur there. This is a decision, not an oversight:
+> do not open that repository to "finish" the sweep.
+
+### The `Button` component
+
+`frontend/src/components/Button.tsx` renders the five variants above. Reach for
+it rather than writing the classes out; the variants exist here so that a
+recipe can be corrected in one place, and a hand-written class list is a copy
+that will not receive the correction.
+
+```tsx
+<Button variant="primary" onClick={add}>Add files</Button>
+<Button iconOnly aria-label="Delete Q1 notes" variant="ghost"><Trash2 size={18} /></Button>
+```
+
+- **`variant` defaults to `secondary`.** A default of `primary` would spend the
+  page's one accent fill (§2.2) every time a caller left the prop off.
+- **`iconOnly` requires `aria-label` in the type.** A `<button>` holding one
+  `<svg>` has no accessible name at all, and nothing at runtime says so. The
+  type can insist a name exists; only review can insist it is *entity-specific*
+  ("Delete Q1 notes", not "Delete"), which repeated icon-only controls need
+  (hako `Prwd_iaXmCjWfY24KjFz2`).
+- **`iconOnly` also grows the hit area on `pointer: coarse`**, by the §Row
+  Actions recipe — the overhang, not the box, so the icon stays 32px at every
+  pointer type.
+- **Hover is written `enabled:hover:`.** A bare `hover:` repaints a *disabled*
+  button under the cursor, which is the defect the Known gap above names for
+  `disabled:hover:bg-accent`. Guarding it inside the variant means a call site
+  cannot forget.
+- **`className` is for layout only** — width, margin, flex. A colour passed
+  here is a variant that should have been added above.
+
+### Page Header
+
+`frontend/src/components/PageHeader.tsx`. One header for every screen that has
+a subject. Fourteen styles were in the tree before this existed.
+
+Composition, top to bottom:
+
+| Part | Prop | Notes |
+|---|---|---|
+| Trail row | `leading`, `breadcrumb` | `leading` is a small navigation control (today only `<TreeToggle>`) and stays leftmost |
+| Subject row | `titleIcon`, `title`, `scope`, `actions` | `title` becomes the `<h1>` at the §3.2 size |
+| Tab row | `tabs` | A `<PageTabs>`, or nothing |
+
+- Padding `px-4 py-2`, rows separated by `gap-1`.
+- **Omit `title` when the breadcrumb is the subject.** Folders and the inside of
+  an archive name themselves in the trail; a heading repeating the last segment
+  states one subject twice. No `title`, no `<h1>`.
+- **`scope` is one line under the subject**: counts, duration, state, drive
+  name. With no title it joins the trail instead — "Documents / 2024 · 138
+  items" reads as one subject with its measure, where a second row reads as two.
+- **`leading` joins the first row that exists**, so the tree toggle does not
+  move between folder mode (trail) and search mode (subject).
+- The component renders and holds no state. The Container/Presenter split in
+  `.claude/rules/frontend-conventions.md` applies where state *and* UI are both
+  non-trivial; here half is missing.
+
+### Tabs
+
+`frontend/src/components/PageTabs.tsx`. **Underline tabs, and only underline
+tabs.** Selected is `border-accent font-semibold text-text-primary`; unselected
+is `border-transparent text-text-muted`, so selection costs a 2px border and
+nothing shifts.
+
+Two styles were retired for it. The pill (`ModeTabs`) painted its selected tab
+`bg-accent text-white` — the page's one accent fill (§2.2) spent on saying which
+tab you are already looking at. The segmented control on `/admin/settings` is a
+third; it survives until that screen is rebuilt (UI redesign Phase 4) and is the
+one exception in the tree.
+
+- **A row that navigates is not a tablist.** `role="tab"` promises a screen
+  reader that activating the control swaps a panel in this view; a `<Link>`
+  replaces the page. `PageTabs` decides from the items: any `href` and the row
+  is a `<nav>` with `aria-current`, none and it is a `role="tablist"`. Do not
+  set both, which is what `ModeTabs` did.
+- Tabs clear the 44px floor on `pointer: coarse` (`pointer-coarse:min-h-11`).
 
 ### Cards
 
