@@ -91,13 +91,23 @@ Library constraints:
 
 - **vitest 3.x** only — vitest 4 has a rolldown native-bindings issue.
 - **jsdom 25.x** only — jsdom 29 breaks ESM compatibility.
-- **Node 20** is what CI and `frontend/Dockerfile` run. A newer local Node
-  changes what jsdom hands back for Web Storage, so `src/test/setup.ts`
-  installs its own Map-backed `localStorage` / `sessionStorage`
-  unconditionally, and `src/test/__tests__/storage-shim.test.ts` guards that.
-  Do not make the shim conditional: jsdom's `Storage` is a Proxy that turns
-  `vi.spyOn(localStorage, "setItem")` into a *stored entry* named `setItem`,
-  leaving the real method in place and the spy recording nothing.
+- **Node 20** is what CI and `frontend/Dockerfile` run. `src/test/setup.ts`
+  replaces Web Storage with its own Map-backed shim, so the suite no longer
+  runs against a different storage object depending on the local Node version.
+  `src/test/__tests__/storage-shim.test.ts` guards two properties of that shim,
+  and both were learned the hard way:
+
+  - **It is installed unconditionally.** It used to appear only where jsdom
+    handed back an empty `{}`, which is version-dependent. jsdom's `Storage` is
+    a Proxy whose defineProperty trap treats any string key as a stored entry,
+    so `vi.spyOn(localStorage, "setItem")` against it writes a storage item
+    named `setItem`, leaves the real method in place, and records nothing.
+  - **It is a class, with `globalThis.Storage` pointing at it.** Do not
+    "simplify" it into an object literal. Tests that make storage throw patch
+    `Storage.prototype` — `nativePlayerUi`, `mediaLayout` and `listSnapshot` all
+    do — and a literal shares no prototype with anything, so those patches land
+    where the instance never looks and three error-path tests quietly stop
+    testing their error path.
 
 ### Addon frontends run here too
 
@@ -286,7 +296,7 @@ every pull request and on pushes to the default branch.
 
 | Job | What it runs |
 |---|---|
-| `frontend` | `setup-addons.sh`, install, merge translations, then `pnpm test`, `tsc --noEmit`, `pnpm lint` |
+| `frontend` | `setup-addons.sh`, install, merge translations, the collection check below, then `pnpm test`, `tsc --noEmit`, `pnpm lint` |
 | `mcp-server` | `pnpm test`, `tsc --noEmit` |
 | `backend` | `backend/Dockerfile.test` built and run |
 | `bootstrap` | `pytest tests/test_configure.py` on a bare Python 3.12 |
@@ -310,6 +320,17 @@ described in [CLAUDE.md](../../CLAUDE.md) is enforced here only to the extent
 that the older code actually conflicts; the rest of it is still a review
 responsibility.
 
+Before running the suite, the job asks `vitest list --filesOnly` what it
+actually collected, and fails naming any addon that contributed nothing. This is
+the step that makes the green tick mean something: a submodule that did not
+check out, or a symlink `setup-addons.sh` did not make, costs nothing at
+collection time — vitest simply finds fewer files and reports every remaining
+one as passing. It is the **first** line of defence for that, and
+`i18n-keys.test.ts`'s "found at least one addon catalogue" assertion is the
+second. Neither is redundant; do not remove one on the strength of the other.
+
+Each addon's own workflow runs the same check for itself.
+
 `images` builds what no test builds. For the frontend that is `next build`,
 covered by neither vitest nor tsc, and impossible to run against the
 `frontend/src/addons` symlinks: Turbopack fails to resolve the dynamic
@@ -330,10 +351,12 @@ so their images need a core tree; those two are *also* run by core's own CI,
 because a core change is what breaks them.
 
 Its **frontend** job checks out core `develop` with submodules, replaces
-`addons/<name>` with the commit under test, and runs core's whole suite. That is
-not redundancy: an addon's frontend tests only exist inside core's runner, and
-running them this way is what verifies the addon against the core it is about to
-be pinned into.
+`addons/<name>` with the commit under test, checks that `vitest list` collected
+that addon, and runs core's whole suite. That is not redundancy: an addon's
+frontend tests only exist inside core's runner, and running them this way is
+what verifies the addon against the core it is about to be pinned into. The
+collection check is what stops a tree that failed to land from producing a
+green run that tested none of it.
 
 ### The rule the workflows are built around
 
@@ -350,9 +373,11 @@ neither.
 
 ### Branch protection
 
-Both branches that CI guards — `develop` on core, `main` on each addon — carry
-**classic branch protection** (the `branches/*/protection` API, not a ruleset)
-listing that repository's job names as required status checks.
+Core's `develop` carries **classic branch protection** (the
+`branches/*/protection` API, not a ruleset) listing core's seven job names as
+required status checks. The four addon repositories' `main` branches will carry
+the same shape, with their own two job names, once their workflows have been
+observed green; until then they are unprotected.
 
 What is deliberately *not* set:
 
@@ -379,8 +404,9 @@ gh api repos/mamepenguin/Litloft/branches/develop/protection
 gh api -X DELETE repos/mamepenguin/Litloft/branches/develop/protection
 ```
 
-Substitute a repository and `main` for the addons. Note that GitHub offers two
-independent mechanisms and the API above only sees one of them: core also has a
+Substitute a repository and `main` for an addon, once it has been protected.
+Note that GitHub offers two independent mechanisms and the API above only sees
+one of them: core also has a
 **ruleset** on `refs/heads/main` (deletion and non-fast-forward, unrelated to
 CI), and anything added later through the web UI defaults to a ruleset too.
 Those live at `gh api repos/mamepenguin/Litloft/rulesets`, and the delete above

@@ -170,8 +170,9 @@ Most state is server-fetched. Client state is small: theme, autoplay, view mode 
 1. The merge script (combine `messages-core` + addon messages → `messages/`).
 2. `next build`.
 
-The Dockerfile chains both, and CI builds that image (`frontend-image`) so the
-production build is exercised on every pull request.
+The Dockerfile chains both, and CI's `images` job builds it on every pull
+request, so the production build is exercised rather than assumed. (That job
+builds `backend/Dockerfile` too.)
 
 `pnpm build` on a development checkout does **not** work, and is not expected
 to: Turbopack cannot resolve the dynamic `@/addons/<name>/Page` import through

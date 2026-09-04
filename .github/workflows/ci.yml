@@ -105,7 +105,10 @@ jobs:
             fi
             # An addon need not ship a frontend, or any frontend test.
             [ -d "$dir/frontend" ] || continue
-            if [ -z "$(find "$dir/frontend" \( -name '*.test.ts' -o -name '*.test.tsx' \) -print -quit)" ]; then
+            # Match what vitest's default include picks up, .spec included —
+            # an addon testing only in .spec files would otherwise read as
+            # having no tests and be skipped.
+            if [ -z "$(find "$dir/frontend" \( -name '*.test.*' -o -name '*.spec.*' \) -print -quit)" ]; then
               continue
             fi
             if ! printf '%s\n' "$collected" | grep -q "^src/addons/$name/"; then
