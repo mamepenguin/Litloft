@@ -14,9 +14,12 @@ import { describe, it, expect } from "vitest";
 import { buildInspectorTabs, showsTabStrip } from "../tabs";
 import type { SlotEntry } from "@/lib/addons";
 
+// The label deliberately differs from the id: with `label: id` a build
+// that keyed tabs off the label instead of the id would be
+// indistinguishable from a correct one.
 const entry = (id: string, priority = 10): SlotEntry => ({
   id,
-  label: id,
+  label: `manifest label for ${id}`,
   priority,
   addonName: "some-addon",
 });
@@ -49,6 +52,10 @@ describe("buildInspectorTabs", () => {
       coreTabs: [
         { id: "chapters", label: "Chapters", content: null },
         { id: "exif", label: "EXIF", content: undefined as never },
+        // `false` is the one that will actually occur:
+        // `chaptersPresent && <ChaptersPanel/>` is how a caller writes a
+        // conditional tab, and it yields `false` rather than nullish.
+        { id: "pages", label: "Pages", content: false as never },
       ],
     });
     expect(tabs.map((t) => t.id)).toEqual(["info"]);
@@ -66,6 +73,20 @@ describe("buildInspectorTabs", () => {
     // build that dropped one of them.
     expect(tabs).toHaveLength(3);
     expect(tabs.map((t) => t.id)).toEqual(["info", "a", "b"]);
+  });
+
+  it("orders addon tabs by the priority they declared", () => {
+    // `getSlotEntries` returns the catalogue's raw order and `AddonSlot`
+    // — which sorts — is not in this path, so if the composer did not
+    // sort, an addon's declared order would be silently dropped.
+    const tabs = buildInspectorTabs({
+      info,
+      addonTabs: [
+        { entry: entry("late", 90), label: "Late", content: "l" },
+        { entry: entry("early", 10), label: "Early", content: "e" },
+      ],
+    });
+    expect(tabs.map((t) => t.id)).toEqual(["info", "early", "late"]);
   });
 
   it("puts core's tabs before the addons'", () => {

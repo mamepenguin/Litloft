@@ -26,8 +26,11 @@ export function slotEntryLabel(
   if (!entry.i18n_key) return entry.label;
   try {
     const translated = t(entry.i18n_key);
-    // next-intl returns the key itself when it cannot resolve one.
-    if (!translated || translated === entry.i18n_key) return entry.label;
+    // next-intl hands back the key itself when it cannot resolve one,
+    // and some setups hand back the key with its namespace in front. A
+    // resolved label never contains its own dotted key, so treat either
+    // as "not found" rather than printing plumbing at the reader.
+    if (!translated || translated.endsWith(entry.i18n_key)) return entry.label;
     return translated;
   } catch {
     return entry.label;

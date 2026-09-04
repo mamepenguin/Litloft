@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState, type ReactNode } from "react";
+import { useTranslations } from "next-intl";
 
 import { showsTabStrip, type InspectorTab } from "./tabs";
 
@@ -33,18 +34,32 @@ export function InspectorShell({
   tabs,
   resetKey,
 }: InspectorShellProps) {
-  const [activeId, setActiveId] = useState<string>(tabs[0]?.id ?? "info");
+  const t = useTranslations("inspector");
+  const firstId = tabs[0]?.id ?? "info";
+  const [activeId, setActiveId] = useState<string>(firstId);
   const tabRefs = useRef(new Map<string, HTMLButtonElement>());
 
   useEffect(() => {
-    setActiveId("info");
+    setActiveId(firstId);
+    // Only on a file change. Naming `firstId` here would also fire when
+    // the strip's composition shifts, which is the selection-preserving
+    // behaviour just below.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [resetKey]);
 
   // A tab can vanish under the selection — an addon's panel moves to the
   // canvas when the reader switches the transcript below the player, and
-  // chapters go when a file turns out to have none. Falling back to the
-  // one tab that is always there beats rendering an empty region.
+  // chapters go when a file turns out to have none.
   const active = tabs.find((tab) => tab.id === activeId) ?? tabs[0];
+
+  // ...and the selection follows it, rather than being remembered. Left
+  // in state, a dead id springs back the moment its tab returns — the
+  // reader flips the transcript back beside the player and the inspector
+  // jumps off the tab they were reading, with nothing having been
+  // pressed.
+  useEffect(() => {
+    if (active && active.id !== activeId) setActiveId(active.id);
+  }, [active, activeId]);
   const strip = showsTabStrip(tabs);
 
   const onKeyDown = useCallback(
@@ -66,12 +81,12 @@ export function InspectorShell({
 
   return (
     <div className="flex h-full min-h-0 flex-col">
-      <div className="shrink-0 px-4 pb-3">{header}</div>
+      <div className="shrink-0 px-4 pt-4 pb-3">{header}</div>
 
       {strip && (
         <div
           role="tablist"
-          aria-label="Inspector"
+          aria-label={t("tablistLabel")}
           data-testid="inspector-tabs"
           onKeyDown={onKeyDown}
           // Scrolls rather than wraps: the sizing rules forbid a control
@@ -111,18 +126,37 @@ export function InspectorShell({
         </div>
       )}
 
-      {active && (
-        <div
-          id={`inspector-panel-${active.id}`}
-          role={strip ? "tabpanel" : undefined}
-          aria-labelledby={strip ? `inspector-tab-${active.id}` : undefined}
-          // The only thing that scrolls. The header above keeps its
-          // place while this moves.
-          className="min-h-0 flex-1 space-y-4 overflow-auto p-4"
-        >
-          {active.content}
-        </div>
-      )}
+      {/* Every panel is mounted; only one is shown. Rendering just the
+          selected one would destroy the others on each switch, and the
+          companion's occupants cannot survive that — `globals.css`
+          records the same invariant for the grid form: the transcript
+          fetches, subscribes to the playback clock and holds a scroll
+          position, so it is moved rather than remounted. A tab strip
+          that unmounts would re-fetch it and lose the reader's place
+          every time they looked at the file's tags.
+
+          It also keeps every `aria-controls` above pointing at an
+          element that exists. */}
+      {tabs.map((tab) => {
+        const selected = tab.id === active?.id;
+        return (
+          <div
+            key={tab.id}
+            id={`inspector-panel-${tab.id}`}
+            role={strip ? "tabpanel" : undefined}
+            aria-labelledby={strip ? `inspector-tab-${tab.id}` : undefined}
+            hidden={!selected}
+            // Focusable because it is the only thing that scrolls and it
+            // may hold nothing focusable — a transcript, a comment list.
+            // Chrome will not let a keyboard-only reader scroll such a
+            // region otherwise.
+            tabIndex={selected ? 0 : -1}
+            className="min-h-0 flex-1 space-y-4 overflow-auto p-4"
+          >
+            {tab.content}
+          </div>
+        );
+      })}
     </div>
   );
 }

@@ -59,13 +59,22 @@ export function buildInspectorTabs({
   return [
     { id: "info", label: info.label, content: info.content },
     ...coreTabs
+      // `false` as well as nullish: `chaptersPresent && <ChaptersPanel/>`
+      // is how a caller will naturally express a conditional tab, and it
+      // yields `false`, not null.
       .filter((tab) => tab.content != null && tab.content !== false)
       .map((tab) => ({ id: tab.id, label: tab.label, content: tab.content })),
-    ...addonTabs.map((tab) => ({
-      id: tab.entry.id,
-      label: tab.label,
-      content: tab.content,
-    })),
+    // Sorted here rather than by the caller. `getSlotEntries` hands
+    // back the catalogue's raw order, and `AddonSlot` — which does its
+    // own sort — is not in this path, so a caller composing tabs by
+    // hand would silently drop the ordering an addon declared.
+    ...[...addonTabs]
+      .sort((a, b) => a.entry.priority - b.entry.priority)
+      .map((tab) => ({
+        id: tab.entry.id,
+        label: tab.label,
+        content: tab.content,
+      })),
   ];
 }
 

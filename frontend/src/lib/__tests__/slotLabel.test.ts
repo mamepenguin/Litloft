@@ -3,7 +3,7 @@
  * declaration and not a catalogue. Rendering it directly is how the
  * addon tab reading "Transcript" ended up in a row of Japanese ones.
  */
-import { describe, it, expect } from "vitest";
+import { describe, it, expect, vi } from "vitest";
 
 import { slotEntryLabel } from "../slotLabel";
 
@@ -17,8 +17,8 @@ describe("slotEntryLabel", () => {
   it("prefers the translation an entry names", () => {
     expect(
       slotEntryLabel(
-        { label: "Transcript", i18n_key: "intelligence.slots.transcript" },
-        catalogue({ "intelligence.slots.transcript": "文字起こし" }),
+        { label: "Transcript", i18n_key: "some-addon.slots.thing" },
+        catalogue({ "some-addon.slots.thing": "文字起こし" }),
       ),
     ).toBe("文字起こし");
   });
@@ -27,9 +27,14 @@ describe("slotEntryLabel", () => {
     // Every entry that shipped before `i18n_key` existed. They have to
     // go on working, or adding the field would be a breaking change to
     // every addon at once.
-    expect(slotEntryLabel({ label: "Transcript" }, catalogue({}))).toBe(
-      "Transcript",
-    );
+    //
+    // The translator must not be consulted at all: real next-intl throws
+    // on `t(undefined)`, so a version that fell through to it would
+    // reach the catch and return the same answer here while crashing
+    // through a fake that merely returns undefined.
+    const t = vi.fn((key: string) => key);
+    expect(slotEntryLabel({ label: "Transcript" }, t)).toBe("Transcript");
+    expect(t).not.toHaveBeenCalled();
   });
 
   it("falls back when the key resolves to nothing", () => {
@@ -39,7 +44,7 @@ describe("slotEntryLabel", () => {
     // and a much better one than a raw key on screen.
     expect(
       slotEntryLabel(
-        { label: "Transcript", i18n_key: "intelligence.slots.transcript" },
+        { label: "Transcript", i18n_key: "some-addon.slots.thing" },
         catalogue({}),
       ),
     ).toBe("Transcript");
@@ -53,6 +58,18 @@ describe("slotEntryLabel", () => {
       slotEntryLabel({ label: "Transcript", i18n_key: "nope" }, () => {
         throw new Error("MISSING_MESSAGE");
       }),
+    ).toBe("Transcript");
+  });
+
+  it("falls back when the key comes back with a namespace glued to it", () => {
+    // Not hypothetical: a translator scoped to a namespace answers a
+    // miss with `<namespace>.<key>`, which is not equal to the key and
+    // would otherwise be rendered as a tab label.
+    expect(
+      slotEntryLabel(
+        { label: "Transcript", i18n_key: "some-addon.slots.thing" },
+        () => "undefined.some-addon.slots.thing",
+      ),
     ).toBe("Transcript");
   });
 

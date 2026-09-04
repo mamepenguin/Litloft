@@ -834,8 +834,7 @@
       "relatedGroup": "Related"
     },
     "tabs": {
-      "info": "Info",
-      "chapters": "Chapters"
+      "info": "Info"
     },
     "saveDot": {
       "idle": "Save state",
@@ -848,7 +847,8 @@
       "hint": "Click to rename",
       "label": "Filename",
       "failed": "Rename failed"
-    }
+    },
+    "tablistLabel": "Inspector sections"
   },
   "comments": {
     "title": "Comments",

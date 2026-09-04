@@ -58,12 +58,7 @@ interface AddonSlotProps {
   excludeIds?: string[];
 }
 
-/**
- * Renders one slot entry's component. Exported because the inspector's
- * tab strip mixes core tabs with addon ones and so cannot go through
- * `AddonSlot`, which renders a whole slot.
- */
-export function SlotEntryRenderer({
+function SlotEntryRenderer({
   entry,
   props,
 }: {
