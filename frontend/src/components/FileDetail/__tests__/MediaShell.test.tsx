@@ -18,6 +18,7 @@ import { render, screen, waitFor, fireEvent } from "@testing-library/react";
 
 import { FileDetailContent } from "../../FileDetailContent";
 import type { FileItem } from "@/types";
+import { inspectorOpenStorageKey } from "@/lib/inspectorOpenStore";
 import {
   claimSlot,
   loaded,
@@ -122,21 +123,16 @@ async function renderMedia(file: FileItem = makeFile({ has_chapters: true })) {
 }
 
 /**
- * A phone never opens the inspector by itself, so `loaded()` — which
- * waits for the action row — would wait for something behind a closed
- * sheet. The page row is the first thing the shell commits.
+ * Render and wait for the page row rather than the action row.
+ *
+ * `loaded()` waits for `file-actions`, which lives in the inspector —
+ * so it never arrives where the inspector starts closed, whether that
+ * is a phone's unopened sheet or a stored preference. The page row is
+ * the first thing the shell commits, and the toggle beside it is gated
+ * on the same resolved file, so nothing asserted after this is still
+ * pending.
  */
-async function renderMediaOnPhone(
-  file: FileItem = makeFile({ has_chapters: true }),
-) {
-  setApiResponses(file);
-  const utils = render(<FileDetailContent fileId="f1" drive="main" />);
-  await screen.findByTestId("file-detail-chrome");
-  return utils;
-}
-
-/** Same, where the inspector starts closed and the action row is not on screen. */
-async function renderMediaWithInspectorClosed(
+async function renderMediaAwaitingChrome(
   file: FileItem = makeFile({ has_chapters: true }),
 ) {
   setApiResponses(file);
@@ -293,11 +289,9 @@ describe("switching between the two forms", () => {
     // nothing. Going the other way must not open it: below is in the
     // canvas, which is already on screen.
     window.localStorage.setItem("media-layout-preference", "stacked");
-    window.localStorage.setItem("inspector-open:main", "false");
+    window.localStorage.setItem(inspectorOpenStorageKey("main"), "false");
     withTranscript();
-    // Not `renderMedia`: its wait is on the action row, which lives in
-    // the inspector this case deliberately starts closed.
-    await renderMediaWithInspectorClosed();
+    await renderMediaAwaitingChrome();
     expect(screen.queryByTestId("inspector-pane")).toBeNull();
 
     fireEvent.click(layoutToggle()!);
@@ -307,9 +301,9 @@ describe("switching between the two forms", () => {
   });
 
   it("leaves the inspector alone going the other way", async () => {
-    window.localStorage.setItem("inspector-open:main", "false");
+    window.localStorage.setItem(inspectorOpenStorageKey("main"), "false");
     withTranscript();
-    await renderMediaWithInspectorClosed();
+    await renderMediaAwaitingChrome();
 
     fireEvent.click(layoutToggle()!);
 
@@ -345,14 +339,14 @@ describe("media on the shell, on a phone", () => {
 
   it("keeps the companion out of the canvas whatever the preference says", async () => {
     withTranscript();
-    const { container } = await renderMediaOnPhone();
+    const { container } = await renderMediaAwaitingChrome();
 
     expect(container.querySelector(".media-detail-below")).toBeNull();
   });
 
   it("puts it in the sheet, with its tabs", async () => {
     withTranscript();
-    await renderMediaOnPhone();
+    await renderMediaAwaitingChrome();
 
     fireEvent.click(screen.getByTestId("inspector-toggle"));
 
@@ -366,7 +360,7 @@ describe("media on the shell, on a phone", () => {
     // width has room for a markdown table. Drawing them in the canvas as
     // well mounts `ActiveSummaryHost` twice — two fetches for one file,
     // and two of whatever the detailed-summary section fetches.
-    await renderMediaOnPhone(makeFile({ has_chapters: false }));
+    await renderMediaAwaitingChrome(makeFile({ has_chapters: false }));
     fireEvent.click(screen.getByTestId("inspector-toggle"));
     await screen.findByTestId("mobile-inspector-sheet");
 

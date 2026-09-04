@@ -1,12 +1,12 @@
 "use client";
 
-import type { ReactNode, RefObject } from "react";
+import { useCallback, type ReactNode, type RefObject } from "react";
 import { useTranslations } from "next-intl";
 
 import type { FileItem } from "@/types";
 import type { MediaController } from "@/lib/mediaController";
 import type { DocumentCaptureController } from "@/lib/documentCapture";
-import { useInspectorOpen } from "@/hooks/useInspectorOpen";
+import { inspectorOpenStore } from "@/lib/inspectorOpenStore";
 import { useMediaLayoutPreference } from "@/lib/mediaLayout";
 import { slotEntryLabel } from "@/lib/slotLabel";
 import { ActiveSummaryHost } from "../ActiveSummaryHost";
@@ -119,10 +119,16 @@ export function ShellLayout({
   const tGlobal = useTranslations();
   const { getSlotEntries } = useAddonSlots();
   const [mediaLayout] = useMediaLayoutPreference();
-  // Reading the same store the shell's own toggle reads, not a second
-  // copy of the state: choosing "beside" has to be able to reveal where
-  // it just put the panel.
-  const { setOpen: setInspectorOpen } = useInspectorOpen(drive);
+  // Writing to the store the shell's own toggle reads, rather than
+  // holding a second copy of the state: choosing "beside" has to be able
+  // to reveal where it just put the panel. The store rather than
+  // `useInspectorOpen`, because this only ever writes — subscribing
+  // would re-render this whole subtree on every open and close for a
+  // value it does not read.
+  const setInspectorOpen = useCallback(
+    (next: boolean) => inspectorOpenStore.set(drive, next),
+    [drive],
+  );
 
   /**
    * Where chapters and the `player-side` occupants are mounted.
@@ -271,6 +277,10 @@ export function ShellLayout({
           // control that changes nothing is worse than no control. Same
           // value the canvas box is drawn from, so the two cannot come
           // to disagree about whether the region has an occupant.
+          // `!isMobile` is not only about space: `onBeside` opens the
+          // desktop pane, and a phone's sheet is `FileDetailShell`'s own
+          // state, not this store. Rendering the toggle on a phone would
+          // write a preference and open nothing.
           !isMobile && companionOccupied ? (
             <MediaLayoutToggle onBeside={() => setInspectorOpen(true)} />
           ) : undefined

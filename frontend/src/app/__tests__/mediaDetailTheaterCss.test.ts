@@ -79,8 +79,10 @@ describe("media detail, companion below the player", () => {
   });
 
   it("gives the index a floor equal to its base, and a ceiling", () => {
-    // Fixed at its floor it never widened, and the body stops at the
-    // reading measure — so a wide canvas spent the surplus on nothing.
+    // Floor equal to base is what stops it shrinking, so it is frozen
+    // rather than shrunk-then-clamped when the canvas is narrow. The
+    // ceiling is its own number: past about 350px a column of
+    // timestamps stops reading as an index.
     const rule = globalsCss().match(/\.media-detail-below-index\s*\{[^}]*\}/);
     expect(rule).not.toBeNull();
     expect(rule![0]).toMatch(/flex:\s*1 1 12\.5rem;/);
