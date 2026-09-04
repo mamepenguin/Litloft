@@ -107,15 +107,28 @@ describe("the pre-paint preference script", () => {
     expect(document.documentElement.getAttribute("data-theme")).toBe("dark");
   });
 
-  it("agrees with the module that reads the same attribute", async () => {
+  it("defaults to the same layout the module does", async () => {
     // The two defaults live in different languages — a string of ES5
     // here, TypeScript in `mediaLayout.ts` — so nothing but a test can
-    // notice them drifting apart.
+    // notice them drifting apart. Which makes *how* they are compared
+    // the whole value of this test.
+    //
+    // The module has to be asked FIRST. `readMediaLayout` prefers the
+    // attribute, so asking it after the script has run only asks the
+    // script what it just wrote: that version passes with the two
+    // defaults set to opposite values, which is precisely the drift it
+    // claims to catch. Read with no attribute and no stored value and
+    // it has to fall through to its own default, which is the number
+    // under comparison.
     const { readMediaLayout } = await import("../mediaLayout");
-    runInitScript();
+    document.documentElement.removeAttribute("data-media-layout");
+    window.localStorage.clear();
+    const moduleDefault = readMediaLayout();
 
-    expect(readMediaLayout()).toBe(
-      document.documentElement.getAttribute("data-media-layout"),
-    );
+    runInitScript();
+    const scriptDefault =
+      document.documentElement.getAttribute("data-media-layout");
+
+    expect(scriptDefault).toBe(moduleDefault);
   });
 });
