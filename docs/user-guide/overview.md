@@ -20,7 +20,7 @@ A Litloft installation has:
 ### Browse and view
 - Folder browser with grid and list modes, lazy-loaded thumbnails.
 - Video and audio players with byte-range streaming, resume from last position, subtitles, sprite scrubbing previews.
-- Chapters on media files, plus a companion region (chapters, transcript, related material) that sits beside the player on wide screens or below it on narrow ones — see [viewers and players](viewers-and-players.md).
+- Chapters on media files, plus playback-following panels (chapters, transcript) that sit either as tabs in the file's inspector or in a bounded box under the player, whichever you choose — see [viewers and players](viewers-and-players.md).
 - Image viewer with swipe, double-page spread, slideshow, EXIF panel.
 - Markdown renderer with Mermaid, syntax highlighting, frontmatter chips, internal `loft://` links.
 - PDF viewer, ZIP archive browsing. Office files (DOCX/XLSX/PPTX) have no

@@ -58,7 +58,15 @@ interface AddonSlotProps {
   excludeIds?: string[];
 }
 
-function SlotEntryRenderer({
+/**
+ * One slot entry, loaded and rendered on its own.
+ *
+ * Exported because the inspector's tab strip composes core tabs and
+ * addon tabs into a single list, so it needs one entry at a time rather
+ * than the whole slot at once — `AddonSlot` renders every entry it
+ * finds, which is the wrong shape when each entry is its own tab.
+ */
+export function SlotEntryRenderer({
   entry,
   props,
 }: {

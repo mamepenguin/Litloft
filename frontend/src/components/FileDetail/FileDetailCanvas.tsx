@@ -1,14 +1,14 @@
 "use client";
 
-import type { CSSProperties, ReactNode, RefObject } from "react";
+import type { ReactNode, RefObject } from "react";
 
 import type { FileItem } from "@/types";
 import type { MediaController } from "@/lib/mediaController";
 import type { DocumentCaptureController } from "@/lib/documentCapture";
 import { AddonSlot } from "../AddonSlot";
 import { ChaptersPanel } from "../ChaptersPanel";
-import { FilePreview } from "../FilePreview";
-import { MediaLayoutToggle } from "../MediaLayoutToggle";
+import { MediaPlayerBlock } from "./MediaPlayerBlock";
+import { mediaHostStyle } from "./mediaHostStyle";
 import type { CompanionMetrics } from "./hooks/useCompanionMetrics";
 
 interface FileDetailCanvasProps {
@@ -75,8 +75,7 @@ export function FileDetailCanvas({
   companionOccupied,
   rest,
 }: FileDetailCanvasProps) {
-  const { railAvailable, playerAvailable, playerWrapperRef, attachRailHost } =
-    metrics;
+  const { playerWrapperRef, attachRailHost } = metrics;
 
   // Whether the player draws a fixed 16:9 frame, which is what makes
   // the height budget expressible as a width cap at all. Only video and
@@ -90,63 +89,35 @@ export function FileDetailCanvas({
   // it", this is "is its height a function of its width".
   const playerHasFixedFrame = railEligible;
 
-  const playerNode = (
-    <>
-      <FilePreview
-        file={file}
-        videoRef={videoRef}
-        initialTime={initialTime}
-        initialPage={initialPage}
-        highlight={highlight}
-        onMediaController={onMediaController}
-        onDocumentCaptureController={onDocumentCaptureController}
-        markdownReloadKey={markdownReloadKey}
-        onMarkdownTagsSaved={onMarkdownTagsSaved}
-        miniPlayerRoot={miniPlayerRoot}
-        onEnded={onEnded}
-        autoPlay={autoPlay}
-      />
-
-      {/* Directly below the player rather than inside its control bar:
-          that bar belongs to the .loft embed and native video does not
-          have one, so a button there would appear for some media and
-          not others. One row so an addon action and the core's own
-          layout toggle read as a single toolbar instead of stacking.
-          `empty:hidden` drops the row's own padding when neither child
-          renders (same trick as the heavy-summary footer). */}
-      <div className="flex items-center justify-end gap-2 px-3 pt-2 empty:hidden">
-        <AddonSlot
-          id="file-preview-actions"
-          layout="stack"
-          props={addonSlotProps}
-        />
-        {/* Only rendered where a rail is possible at all; the container
-            query decides whether it is visible. */}
-        {railEligible && companionOccupied && <MediaLayoutToggle />}
-      </div>
-    </>
-  );
-
   const playerLayoutNode = (
-    <div
-      ref={playerWrapperRef}
-      className="media-detail-player"
-      data-framed={playerHasFixedFrame ? "true" : undefined}
-    >
-      {playerNode}
-    </div>
+    <MediaPlayerBlock
+      file={file}
+      videoRef={videoRef}
+      initialTime={initialTime}
+      initialPage={initialPage}
+      highlight={highlight}
+      onMediaController={onMediaController}
+      onDocumentCaptureController={onDocumentCaptureController}
+      markdownReloadKey={markdownReloadKey}
+      onMarkdownTagsSaved={onMarkdownTagsSaved}
+      miniPlayerRoot={miniPlayerRoot}
+      onEnded={onEnded}
+      autoPlay={autoPlay}
+      addonSlotProps={addonSlotProps}
+      playerWrapperRef={playerWrapperRef}
+      framed={playerHasFixedFrame}
+      // Only where a rail is possible at all, and gated on top of that
+      // by the measured width: here "beside" is a second grid column.
+      layoutToggle={
+        railEligible && companionOccupied ? { railGated: true } : null
+      }
+    />
   );
 
-  // Publish the existing rail variables and the new player budget on a
+  // Publish the existing rail variables and the player budget on a
   // wrapper shared by every legacy layout branch. The grid path inherits
   // byte-for-byte the same rail values it used to own directly.
-  const mediaDetailStyle = {
-    "--rail-top": miniPlayerRoot ? "0px" : "var(--app-header-h, 0px)",
-    ...(railAvailable != null ? { "--rail-avail": `${railAvailable}px` } : {}),
-    ...(playerAvailable != null
-      ? { "--player-avail": `${playerAvailable}px` }
-      : {}),
-  } as CSSProperties;
+  const mediaDetailStyle = mediaHostStyle(metrics, miniPlayerRoot);
 
   // The companion region only exists for files a player actually
   // plays, and only when an addon has something to put in it. With no
@@ -175,6 +146,7 @@ export function FileDetailCanvas({
             mediaController={mediaController}
             refreshToken={chaptersVersion}
             onResolved={onChaptersResolved}
+            className="media-detail-companion-lead"
           />
         )}
         {/* The wrapper #31 said would break the flex chain. It is here

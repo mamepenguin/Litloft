@@ -1,3 +1,5 @@
+import { playerKind } from "./playerKind";
+
 /**
  * Does this file bring its own page row?
  *
@@ -27,4 +29,55 @@ export function usesDocumentShell(
 ): boolean {
   if (mimeType === "text/html") return true;
   return mimeType === "text/markdown" && knowledgeEditorEnabled;
+}
+
+/**
+ * Which file-detail surface is asking.
+ *
+ * `"canonical"` is `/drive/{drive}/{path}?file={id}`, the URL the app
+ * treats as a file's address. `"collection"` is `/files/{id}`, reached
+ * only with `?collection=` / `?folder_play=1` — the theatre for
+ * collection playback, where a player and the collection's own list
+ * share one column.
+ *
+ * The two differ because the design settled that the collection route
+ * is not where the inspector goes: the canonical URL is the file's
+ * address, so building a second inspector there would be work to throw
+ * away. It keeps the layout it has.
+ */
+export type FileDetailSurface = "canonical" | "collection";
+
+/**
+ * File kinds routed through `FileDetailShell` on the canonical surface.
+ *
+ * Media joined in 2026-09: the shell is what gives it a page row, an
+ * inspector and a tab strip. PDF, archives and images follow, and they
+ * join by being added here — one list, so a kind cannot be routed
+ * through the shell by the layout while a host still draws it a second
+ * page row.
+ */
+function ridesShellAsMedia(
+  fileType: string | undefined,
+  mimeType: string | undefined,
+): boolean {
+  return playerKind({ file_type: fileType, mime_type: mimeType }) !== null;
+}
+
+/**
+ * Does this file's detail page ride `FileDetailShell` on this surface?
+ *
+ * The document half is surface-independent: a Markdown note has drawn
+ * its own row on both surfaces since long before this, and taking that
+ * away would be a regression rather than a scoping decision. The media
+ * half is canonical-only, per `FileDetailSurface`.
+ */
+export function ridesFileDetailShell(args: {
+  surface: FileDetailSurface;
+  mimeType: string | undefined;
+  fileType: string | undefined;
+  knowledgeEditorEnabled: boolean;
+}): boolean {
+  if (usesDocumentShell(args.mimeType, args.knowledgeEditorEnabled)) return true;
+  if (args.surface !== "canonical") return false;
+  return ridesShellAsMedia(args.fileType, args.mimeType);
 }

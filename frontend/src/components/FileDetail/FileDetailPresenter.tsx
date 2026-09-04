@@ -1,7 +1,6 @@
 "use client";
 
 import type { ReactNode, RefObject } from "react";
-import { useTranslations } from "next-intl";
 
 import type { FileItem } from "@/types";
 import type { MediaController } from "@/lib/mediaController";
@@ -10,13 +9,9 @@ import { ActiveSummaryHost } from "../ActiveSummaryHost";
 import { AddonSlot } from "../AddonSlot";
 import { CommentSection } from "../CommentSection";
 import { ExifSection } from "../ExifSection";
-import { FilePreview } from "../FilePreview";
 import { RelatedFilesSection } from "../RelatedFilesSection";
-import { MarkdownDocumentLayout } from "../markdown/MarkdownDocumentLayout";
 import { FileDetailCanvas } from "./FileDetailCanvas";
-import { InspectorShell } from "./inspector/InspectorShell";
-import { RelatedGroup } from "./inspector/RelatedGroup";
-import { buildInspectorTabs } from "./inspector/tabs";
+import { ShellLayout } from "./ShellLayout";
 import type { CompanionMetrics } from "./hooks/useCompanionMetrics";
 
 export interface FileDetailPresenterProps {
@@ -24,12 +19,13 @@ export interface FileDetailPresenterProps {
   fileId: string;
   drive: string;
   isMobile: boolean;
-  /** Rides the document shell: Markdown with the editor policy on, or any HTML. */
-  useDocumentLayout: boolean;
+  /** Whether this file, on this surface, is drawn by `FileDetailShell`. */
+  ridesShell: boolean;
   isHtmlPreview: boolean;
   companionKind: string | null;
   railEligible: boolean;
   companionOccupied: boolean;
+  isTimedMedia: boolean;
   chaptersPresent: boolean;
   chaptersVersion: number;
   onChaptersResolved: (count: number) => void;
@@ -43,6 +39,7 @@ export interface FileDetailPresenterProps {
   initialPage?: number;
   highlight?: string;
   miniPlayerRoot?: Element | null;
+  onScrollRootChange: (node: HTMLElement | null) => void;
   onEnded?: () => void;
   autoPlay?: boolean;
   markdownReloadKey: number;
@@ -57,21 +54,25 @@ export interface FileDetailPresenterProps {
 /**
  * Which shape this file's detail page takes, and nothing else.
  *
- * Two of them today: the document shell (chrome + canvas + inspector),
- * and the legacy vertical stack the other file types still use. Both
- * are handed the same `meta` block and the same addon slot context, so
- * the difference between them is layout only.
+ * Two of them: the shell — a page row, a canvas and an inspector, worn
+ * by every kind that has been moved onto it — and the legacy vertical
+ * stack, which survives on the collection-playback route. That route is
+ * deliberately not getting an inspector (the canonical URL is a file's
+ * address, so a second one there would be work to throw away), so the
+ * stack is not dead code waiting to be deleted; it is that surface's
+ * layout.
  */
 export function FileDetailPresenter({
   file,
   fileId,
   drive,
   isMobile,
-  useDocumentLayout,
+  ridesShell,
   isHtmlPreview,
   companionKind,
   railEligible,
   companionOccupied,
+  isTimedMedia,
   chaptersPresent,
   chaptersVersion,
   onChaptersResolved,
@@ -85,6 +86,7 @@ export function FileDetailPresenter({
   initialPage,
   highlight,
   miniPlayerRoot,
+  onScrollRootChange,
   onEnded,
   autoPlay,
   markdownReloadKey,
@@ -93,162 +95,46 @@ export function FileDetailPresenter({
   onBack,
   meta,
 }: FileDetailPresenterProps) {
-  const tabLabels = useTranslations("inspector.tabs");
-
-  if (useDocumentLayout) {
-    // 2026-05-12 inspector consolidation:
-    //
-    // - The Inspector (and the mobile Bottom Sheet) hosts every
-    //   section that fits comfortably in a ~384px column: file meta,
-    //   tags, related files, exif, similar-files, comments, plus
-    //   residual addon sections (everything except `knowledge-edit`
-    //   and `detailed-summary`).
-    // - The canvas footer keeps only the **table-/structure-heavy**
-    //   summary surface — `ActiveSummaryHost` + intelligence's
-    //   `detailed-summary` slot. Both can carry markdown tables that
-    //   need canvas width to render without horizontal scroll.
-    // - On mobile, the canvas footer is suppressed entirely and the
-    //   heavy summaries move into the Bottom Sheet as well: the
-    //   90vh × viewport-width drawer is wide enough that tables
-    //   degrade gracefully (or scroll horizontally inside the drawer)
-    //   without the narrow-inspector problem. This avoids the
-    //   "long markdown body keeps the user from finding metadata"
-    //   pattern the previous canvas-footer layout had on phones.
-    // HTML preview is a pure renderer: intelligence has no concept of
-    // "indexing" an HTML artifact, and exposing the empty Suggested-Tags
-    // / Summary / Transcript / Index-Details / CLIP-Frames placeholders
-    // (plus their global keyboard hint chrome from DetailedSummarySection's
-    // Verify mode) would only add noise. Skip the file-detail-sections
-    // AddonSlot entirely in HTML mode — the inspector keeps the universal
-    // file meta + tags + related + exif + comments stack.
-    // Everything below the fixed header. One tab for Markdown and HTML,
-    // so no tab strip is drawn and the inspector keeps the shape it has
-    // always had — which is what the design asked for.
-    const infoTabContent = (
-      <>
-        {/* One heading over both kinds of relation. Core's own
-            `file_relations` and whatever an addon derives from the file
-            were two headings answering the same question, so a reader
-            had to guess which one a given connection was filed under.
-            The addon half arrives through a slot rather than by id:
-            core naming `similar-files` here would be exactly the
-            core-to-addon dependency the rules forbid, and a slot is the
-            generic container that already exists for this. */}
-        <RelatedGroup>
-          <RelatedFilesSection fileId={fileId} />
-          <AddonSlot
-            id="file-relations"
-            layout="stack"
-            props={addonSlotProps}
-          />
-        </RelatedGroup>
-        <ExifSection fileId={fileId} fileType={file.file_type} />
-        {!isHtmlPreview && (
-          <AddonSlot
-            id="file-detail-sections"
-            layout="stack"
-            excludeIds={["knowledge-edit", "detailed-summary"]}
-            props={addonSlotProps}
-          />
-        )}
-        <CommentSection fileId={fileId} />
-      </>
-    );
-
-    const inspectorTabs = buildInspectorTabs({
-      info: { label: tabLabels("info"), content: infoTabContent },
-    });
-
-    const inspectorSections = (
-      <InspectorShell
-        header={meta}
-        tabs={inspectorTabs}
-        resetKey={fileId}
-      />
-    );
-
-    const heavySummarySections = (
-      <>
-        <ActiveSummaryHost fileId={fileId} drive={drive} />
-        <AddonSlot
-          id="file-detail-sections"
-          layout="stack"
-          includeIds={["detailed-summary"]}
-          props={addonSlotProps}
-        />
-      </>
-    );
-
-    const inspectorPaneContent = inspectorSections;
-
-    // Mobile Bottom Sheet content: inspector + heavy summaries inline.
-    // Built only when actually on mobile so the underlying AddonSlot /
-    // CommentSection components mount exactly once across the two
-    // surfaces (desktop pane *or* mobile sheet, never both).
-    const mobileSheetContent = isMobile ? (
-      <div className="space-y-4 p-4">
-        {meta}
-        {infoTabContent}
-        {!isHtmlPreview && heavySummarySections}
-      </div>
-    ) : undefined;
-
+  if (ridesShell) {
     return (
-      <MarkdownDocumentLayout
+      <ShellLayout
+        file={file}
+        fileId={fileId}
         drive={drive}
-        folderPath={file.folder_path}
-        title={file.filename}
-        onRename={isHtmlPreview ? undefined : onRename}
+        isMobile={isMobile}
+        isHtmlPreview={isHtmlPreview}
+        companionKind={companionKind}
+        // The same two kinds as `railEligible`, kept separate because
+        // they answer different questions — one is "can a rail fit
+        // beside it", this is "is its height a function of its width".
+        playerFramed={railEligible}
+        isTimedMedia={isTimedMedia}
+        chaptersPresent={chaptersPresent}
+        chaptersVersion={chaptersVersion}
+        onChaptersResolved={onChaptersResolved}
+        metrics={metrics}
+        addonSlotProps={addonSlotProps}
+        mediaController={mediaController}
+        onMediaController={onMediaController}
+        onDocumentCaptureController={onDocumentCaptureController}
+        videoRef={videoRef}
+        initialTime={initialTime}
+        initialPage={initialPage}
+        highlight={highlight}
+        miniPlayerRoot={miniPlayerRoot}
+        onScrollRootChange={onScrollRootChange}
+        onEnded={onEnded}
+        autoPlay={autoPlay}
+        markdownReloadKey={markdownReloadKey}
+        onMarkdownTagsSaved={onMarkdownTagsSaved}
+        onRename={onRename}
         onBack={onBack}
-        inspector={inspectorPaneContent}
-        mobileSheet={mobileSheetContent}
-        resetKey={fileId}
-        previewOnly={isHtmlPreview}
-      >
-        {/* The canvas is at least as tall as the scroll viewport
-            (`flex-1` against the layout's scrolling <main>), and the
-            editor region takes whatever the footer leaves. Without
-            this, a short note ended at its own content height and the
-            sections under it floated in the middle of the screen with
-            dead space below. Long notes are unaffected: both boxes
-            keep their automatic minimum size and the page scrolls. */}
-        <div className="flex flex-1 flex-col">
-          <div className="relative isolate flex flex-1 flex-col bg-bg-primary">
-            {isHtmlPreview ? (
-              <FilePreview file={file} />
-            ) : (
-              <AddonSlot
-                id="file-detail-sections"
-                layout="stack"
-                includeIds={["knowledge-edit"]}
-                props={{ ...addonSlotProps, fillHeight: true }}
-              />
-            )}
-          </div>
-          {/* Canvas footer carries the table-heavy summaries on
-              desktop only; on mobile the same sections live in the
-              Bottom Sheet so the user does not have to scroll past a
-              long note to reach them. HTML preview skips the heavy
-              summary slot — intelligence does not index HTML and the
-              placeholder UI would be misleading. `empty:hidden`
-              because both occupants render nothing until the file has
-              a summary — the padded, top-bordered strip would
-              otherwise be a visible rule floating above the bottom of
-              the canvas with nothing under it. */}
-          {!isMobile && !isHtmlPreview && (
-            <div className="relative isolate space-y-6 border-t border-bg-border bg-bg-primary px-6 py-8 empty:hidden">
-              {heavySummarySections}
-            </div>
-          )}
-        </div>
-      </MarkdownDocumentLayout>
+        meta={meta}
+      />
     );
   }
 
-  // Legacy vertical stack — preserved for non-Markdown files and for
-  // drives where the Knowledge editor is policy-disabled. Phase 2's
-  // later PRs move this stack into the inspector; this PR only moves
-  // it into its own file.
+  // Legacy vertical stack. Everything under the player, in one column.
   const rest = (
     <>
       {meta}

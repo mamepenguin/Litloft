@@ -49,6 +49,17 @@ interface FileDetailShellProps {
   mobileSheet?: ReactNode;
   children: ReactNode;
   /**
+   * Handed the element that actually scrolls the canvas.
+   *
+   * The shell owns it, and two things outside the shell need it: the
+   * mini player's IntersectionObserver root, and the measurement that
+   * publishes `--rail-avail`. Before media rode the shell, the host's
+   * own wrapper was the scroller and the host passed it down; now that
+   * wrapper never scrolls, so a host still passing it would be
+   * measuring a box whose height is the whole page.
+   */
+  onScrollRootChange?: (node: HTMLElement | null) => void;
+  /**
    * Identifier of the file being shown. Used as the chrome / mobile
    * Sheet reset key so a host that re-uses one `<FileDetailShell>`
    * mount across files (e.g. the 2-pane right pane) starts each file in
@@ -94,6 +105,7 @@ export function FileDetailShell({
   inspector,
   mobileSheet,
   children,
+  onScrollRootChange,
   resetKey,
 }: FileDetailShellProps): ReactElement {
   const t = useTranslations("inspector");
@@ -161,7 +173,10 @@ export function FileDetailShell({
         {chromeControls}
       </FileDetailChrome>
       <div className="flex min-h-0 flex-1">
-        <main className="flex min-w-0 min-h-0 flex-1 flex-col overflow-auto">
+        <main
+          ref={onScrollRootChange}
+          className="flex min-w-0 min-h-0 flex-1 flex-col overflow-auto"
+        >
           {children}
         </main>
         {inspectorOpenOnDesktop && <InspectorPane>{inspector}</InspectorPane>}

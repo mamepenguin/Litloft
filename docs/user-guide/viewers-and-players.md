@@ -1,6 +1,10 @@
 # Viewers and players
 
-Litloft picks a viewer based on the file's MIME type. The same file detail page hosts every viewer; only the central component changes. Its address is `/drive/<drive>/<folder>?file=<id>` — `/files/<id>` still works and redirects there, except in collection playback, which stays on `/files/<id>` so the collection list and the player can share one column. Below the viewer you always get tags, comments and related files. Addon sections (transcripts, AI summaries, EXIF, similar files) appear once they have something in them: a section that has not been generated yet is not shown, and the way to generate it is the **AI** menu in the row beside the like and favourite buttons. Anything already generated keeps its own section, with its own regenerate control, and drops out of that menu.
+Litloft picks a viewer based on the file's MIME type. The same file detail page hosts every viewer; only the central component changes. Its address is `/drive/<drive>/<folder>?file=<id>` — `/files/<id>` still works and redirects there, except in collection playback, which stays on `/files/<id>` so the collection list and the player can share one column.
+
+The page has three parts: a **page row** at the top, the **viewer** below it, and an **inspector** down the right-hand side. The viewer keeps the things that belong to it and nothing else — for a video that is the player, its description and its long AI summary. Everything that is true of any file, whatever kind it is — its title, length and size, like and favourite, tags, relations, comments — is in the inspector, in the same place on every page.
+
+Addon sections (transcripts, AI summaries, EXIF, similar files) appear once they have something in them: a section that has not been generated yet is not shown, and the way to generate it is the **AI** menu in the inspector, beside the like and favourite buttons. Anything already generated keeps its own section, with its own regenerate control, and drops out of that menu.
 
 ## The page row
 
@@ -19,20 +23,29 @@ During collection playback the back control means something the path cannot say 
 collection you were playing, not the folder this track happens to live in — so there it
 stays on the row at every width, beside the path rather than instead of it.
 
-## The companion rail
+## The inspector
 
-Video and `.loft` files get a **companion region** — a second column of playback-aware panels that belongs to the player rather than to the page below it.
+A column down the right of the page, the same width and the same shape on every kind of file.
 
-- **Chapters sit at the top**, addon panels below (the Intelligence addon's playback-following transcript is the one that ships today). They stack rather than sharing a tab strip, so a coarse index and the fine text can follow the same clock at once.
-- **Beside or below** — a toggle directly under the player swaps the region between a column beside the player and a full-width block under it. **Beside is the default**; the choice is saved in `localStorage`, per device, and a choice you have already made is kept.
-- In the beside form the column spans the whole page, so you can scroll the left side through metadata, summaries and comments while the rail stays put and keeps following playback.
-- The beside form only appears where it actually fits (the detail area has to be at least 60 rem wide). On a narrower window, or in the two-pane right pane, the region falls back to stacking below the player and the toggle is hidden.
-- **Audio never gets the rail.** The player is a couple of hundred pixels tall and a column beside it would leave half the width empty; the region stays full-width under the player.
-- With no occupant — no chapters and no addon panel — the region is not rendered at all and the page looks exactly as it did before.
+- **The top part does not move.** Title, length and size, the like / favourite / **AI** / `⋮` row, and tags. It stays put while the rest scrolls, so those controls are in the same place on every file whatever is below them.
+- **Below it, tabs** — but only when there is more than one. **Info** is always there: relations, comments, EXIF where a file has it, and whatever addon sections apply. A media file with chapters or a transcript grows a tab for each. A file with nothing but Info gets no tab strip at all, which is what a Markdown note has always looked like.
+- A tab appears when it has something in it. An empty one is never shown as a promise that a feature exists.
+- **Open and close it** with the toggle at the end of the page row, or with `Cmd/Ctrl+\`. It starts open on a wide screen. Closed, nothing of it is left behind on the page.
+- **On a phone** it is a bottom sheet with the same contents, opened from the same toggle.
+
+## Chapters and the transcript, beside or below
+
+Video, audio and `.loft` files have panels that follow playback — chapters, and the Intelligence addon's transcript. A toggle in the page row decides where they go.
+
+- **Beside** — each becomes a tab in the inspector, so it sits alongside the player and follows the clock while you scroll the page past it. This is the default.
+- **Below** — they move into the page instead, directly under the description: the transcript in a single column at a comfortable reading width, with the chapter list beside it as its index. The box has its own scrollbar and a height limit, so playback moving the transcript along does not move the page under you.
+- The choice is saved in `localStorage`, per device, and a choice you have already made is kept.
+- The toggle appears only when there is something to move. With no chapters and no addon panel, there is nothing to place and no control for it.
+- **During collection playback** (`/files/<id>`) the page keeps its older layout, without an inspector, and "beside" there means a column next to the player rather than a tab. That form needs room — at least 60 rem of page width — and falls back to the stacked one on a narrower window. Audio never takes it there: the player is a couple of hundred pixels tall and a column beside it would leave half the width empty.
 
 ## Chapters
 
-A chapter list in the companion region, seekable by click, with the chapter the playhead is inside highlighted.
+A chapter list, seekable by click, with the chapter the playhead is inside highlighted. It sits wherever the beside/below toggle puts it.
 
 - **Where they come from** — three producers, all writing to the same core table:
   - **Container metadata**, read with `ffprobe` when the file is first scanned or uploaded (`source: "extracted"`).

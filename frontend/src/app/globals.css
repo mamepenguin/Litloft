@@ -811,6 +811,25 @@ div[data-citation-section-path]:not(tr) {
 
    60rem = 552px player + 384px rail + 24px gap.
    ------------------------------------------------------------------ */
+/* The media host, in either layout. Publishes the one height budget
+   the companion gets, so the box below the player and the rail beside
+   it cannot end up with two different answers to the same question.
+
+   60% of whatever scrolls — "60vh" as the confirmed design states it,
+   but measured, because a self-scrolling pane is not the viewport. The
+   fallback is the literal 60dvh, which is what it resolves to before
+   the first measurement lands. */
+.media-detail-host {
+  --companion-box-h: calc(var(--rail-avail, 100dvh) * 0.6);
+}
+
+/* The legacy vertical stack's own grid, and only it.
+
+   It is live on `/files/{id}` — the collection-playback theatre, which
+   keeps this layout because the canonical URL is a file's address and
+   giving this route a second inspector would be work to throw away. On
+   the canonical surface the companion is not a grid column any more;
+   it is an inspector tab, and `FileDetailShell` draws the page. */
 .media-detail-grid {
   display: grid;
   gap: 1.5rem;
@@ -865,7 +884,7 @@ div[data-citation-section-path]:not(tr) {
 .media-detail-companion-inner {
   display: flex;
   flex-direction: column;
-  max-height: 20rem;
+  max-height: var(--companion-box-h);
   overflow: hidden;
 }
 
@@ -992,4 +1011,52 @@ div[data-citation-section-path]:not(tr) {
   [data-media-width="wide"]
   .media-detail-companion-lead {
   max-height: min(22rem, calc(var(--rail-avail, 100dvh) * 0.4));
+}
+
+/* ------------------------------------------------------------------
+   The companion, below the player, on the shell.
+
+   The reader has asked for the transcript under the player rather than
+   beside it, so it goes in the canvas — directly under the description,
+   which is where the confirmed layout puts it.
+
+   Two columns, and they are not the grid above: a short index on the
+   left at a fixed 200px and the body it indexes on the right, capped at
+   the reading measure. A time-ordered transcript must not be set in two
+   text columns — reading one to the bottom and back up to the top of
+   the next is exactly the wrong way through a clock — so the width that
+   is left over goes to the index instead of to a second column of text.
+
+   The box is bounded and scrolls inside itself. Letting it run to full
+   length puts the page in motion every time playback crosses a cue,
+   which takes the summaries under it out from under the reader.
+   ------------------------------------------------------------------ */
+.media-detail-below {
+  display: flex;
+  gap: 1.5rem;
+  align-items: stretch;
+  max-height: var(--companion-box-h);
+}
+
+.media-detail-below-index {
+  flex: 0 0 12.5rem;
+  min-height: 0;
+}
+
+/* 68ch is the reading measure from DESIGN.md §3.4, not a round number
+   picked here. `min-width: 0` is the half everyone forgets: without it
+   a flex item refuses to shrink below its content and the overflow
+   moves up a level instead of scrolling. */
+.media-detail-below-body {
+  display: flex;
+  flex-direction: column;
+  flex: 1 1 0%;
+  min-width: 0;
+  min-height: 0;
+  max-width: 68ch;
+}
+
+.media-detail-below-body > * {
+  flex: 1 1 0%;
+  min-height: 0;
 }

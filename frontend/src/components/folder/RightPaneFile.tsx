@@ -11,7 +11,7 @@ import { useFileNav } from "@/hooks/useFileNav";
 import { usePolicy } from "@/hooks/usePolicy";
 import { useSelectedFile } from "@/hooks/useSelectedFile";
 import { getFile } from "@/lib/api";
-import { usesDocumentShell } from "@/lib/fileDetailShell";
+import { ridesFileDetailShell } from "@/lib/fileDetailShell";
 import { normalizeSortParam } from "@/lib/sortField";
 import type { FileItem } from "@/types";
 
@@ -87,7 +87,8 @@ export function RightPaneFile({ fileId, drive }: RightPaneFileProps) {
 
   // A file that rides `FileDetailShell` draws its own page row, because
   // the shell also owns the inspector toggle that sits in it. This host
-  // must not draw a second one.
+  // must not draw a second one. This is the canonical surface, so every
+  // kind that has been moved onto the shell rides it here.
   //
   // `usePolicy` is fail-open: it reports enabled during both the initial
   // load and the 30s-TTL background refetch. Only `enabled` is read, so
@@ -95,10 +96,12 @@ export function RightPaneFile({ fileId, drive }: RightPaneFileProps) {
   // editor — which would unmount the textarea and re-fire every child
   // effect, the observed 30-second reload-while-typing bug.
   const knowledgeEditorPolicy = usePolicy(drive, "knowledge", "editor");
-  const willUseDocumentLayout = usesDocumentShell(
-    file?.mime_type,
-    knowledgeEditorPolicy.enabled,
-  );
+  const contentBringsItsOwnRow = ridesFileDetailShell({
+    surface: "canonical",
+    mimeType: file?.mime_type,
+    fileType: file?.file_type,
+    knowledgeEditorEnabled: knowledgeEditorPolicy.enabled,
+  });
 
   // Drive arrow-key navigation through useFileNav (PR-2). selectFile
   // swaps ``?file=id`` so FileDetailContent re-mounts with the
@@ -157,7 +160,7 @@ export function RightPaneFile({ fileId, drive }: RightPaneFileProps) {
         // toggle and all, so handing it a second one would stack two
         // identical bars.
         chrome={
-          willUseDocumentLayout ? undefined : (
+          contentBringsItsOwnRow ? undefined : (
             <FileDetailChrome
               drive={drive}
               folderPath={file?.folder_path}

@@ -18,7 +18,7 @@
  * Spec: docs/superpowers/specs/2026-08-11-media-layout-toggle.md
  */
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useSyncExternalStore } from "react";
 
 import {
   DEFAULT_MEDIA_LAYOUT,
@@ -59,27 +59,54 @@ export function readMediaLayout(): MediaLayout {
   }
 }
 
+/**
+ * Everyone currently reading the preference.
+ *
+ * It was a plain `useState` per caller while the toggle was the only
+ * one: the layout itself is decided in CSS from the attribute, so no
+ * other component had to know. It does now — the file detail shell
+ * moves the transcript between an inspector tab and the canvas, which
+ * is a React decision, not a CSS one — and two independent `useState`s
+ * would have the toggle showing one form while the shell drew the
+ * other.
+ */
+const listeners = new Set<() => void>();
+
+function subscribe(listener: () => void): () => void {
+  listeners.add(listener);
+  return () => {
+    listeners.delete(listener);
+  };
+}
+
 export function useMediaLayoutPreference(): [
   MediaLayout,
   (value: MediaLayout) => void,
 ] {
-  // Starts at the default so the first client render matches the
-  // server's. Only the button's icon depends on this, and the layout
-  // does not, so settling a frame later is invisible.
-  const [layout, setLayout] = useState<MediaLayout>(DEFAULT_MEDIA_LAYOUT);
+  // `useSyncExternalStore` rather than state settled in an effect. The
+  // effect version rendered the default for one commit, which was
+  // invisible while only the button's icon depended on it and is not
+  // any more: the shell moves the transcript between an inspector tab
+  // and the canvas, so a stacked reader would have had it mounted
+  // beside the player and then torn down and rebuilt below it on the
+  // very next commit. The server snapshot keeps hydration honest — the
+  // markup the server produced is the default, and React re-reads once
+  // it is live.
+  const layout = useSyncExternalStore<MediaLayout>(
+    subscribe,
+    readMediaLayout,
+    () => DEFAULT_MEDIA_LAYOUT,
+  );
 
   useEffect(() => {
-    const current = readMediaLayout();
-    setLayout(current);
     // Re-apply on mount. Hydration reconciles `<html>`'s attributes and
     // drops the one the init script added, which is why ThemeProvider
     // re-applies `data-theme` too. Without this the preference survives
     // in storage but stops driving the CSS after the first paint.
-    document.documentElement.setAttribute(ATTRIBUTE, current);
+    document.documentElement.setAttribute(ATTRIBUTE, readMediaLayout());
   }, []);
 
   const update = useCallback((value: MediaLayout) => {
-    setLayout(value);
     if (typeof document !== "undefined") {
       document.documentElement.setAttribute(ATTRIBUTE, value);
     }
@@ -89,6 +116,10 @@ export function useMediaLayoutPreference(): [
       // localStorage unavailable (private mode, test env) — the
       // attribute still drives this session.
     }
+    // The attribute is written first, so every subscriber re-reads the
+    // same value from the same place and none can hold a copy that
+    // disagrees with what the CSS is acting on.
+    for (const listener of listeners) listener();
   }, []);
 
   return [layout, update];

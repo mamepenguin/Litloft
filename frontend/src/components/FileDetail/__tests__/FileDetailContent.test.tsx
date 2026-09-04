@@ -11,6 +11,7 @@ import {
   overlaySidebarSpy,
   setApiResponses,
   usePolicyMock,
+  wideViewport,
 } from "./harness";
 
 // Heavy children are mocked: these suites are about FileDetail's own
@@ -19,6 +20,14 @@ import {
 // need the same set do not each carry a copy; `vi.mock` itself has to
 // stay here, because it is hoisted per file.
 
+// The shell draws a breadcrumb and a tree toggle, both of which read
+// the router. Media rides the shell now, so this suite mounts it for
+// real rather than behind a stub — a stub is what let a second page row
+// ship once already.
+vi.mock("next/navigation", () => ({
+  usePathname: () => "/drive/main",
+  useSearchParams: () => new URLSearchParams(),
+}));
 vi.mock("../../FilePreview", async () => ({
   FilePreview: (await import("./harness")).FilePreviewStub,
 }));
@@ -89,6 +98,10 @@ describe("FileDetailContent", () => {
     // override this either by selecting a non-Markdown mime type or
     // by remocking before render.
     usePolicyMock.mockReturnValue({ enabled: true, isLoading: false });
+    // Title, action row and tags live in the inspector, and jsdom's
+    // 1024px would leave it collapsed. These cases are about a desktop
+    // reader, so they run at a desktop width.
+    wideViewport();
   });
 
   it("calls recordFileView exactly once when mounted with a fileId", async () => {
@@ -257,6 +270,7 @@ describe("FileDetailContent", () => {
         fileId="f1"
         drive="main"
         miniPlayerRoot={root}
+        surface="collection"
       />,
     );
     await loaded();
@@ -266,6 +280,31 @@ describe("FileDetailContent", () => {
       miniPlayerRoot?: Element | null;
     };
     expect(lastProps.miniPlayerRoot).toBe(root);
+  });
+
+  it("gives the player the shell's scroll container, not the host's", async () => {
+    // On the shell it is `<main>` that scrolls, so that is what the
+    // mini player has to observe and what `--rail-avail` is measured
+    // against. The host's wrapper is still on the page and still has a
+    // height; it just never scrolls any more, so a player still handed
+    // it would be watching a box the size of the whole document.
+    setApiResponses(makeFile());
+    const { FilePreview: MockedPreview } = await import("../../FilePreview");
+    const hostRoot = document.createElement("section");
+    const { container } = render(
+      <FileDetailContent fileId="f1" drive="main" miniPlayerRoot={hostRoot} />,
+    );
+    await loaded();
+
+    const main = container.querySelector("main");
+    expect(main).not.toBeNull();
+    await waitFor(() => {
+      const calls = (MockedPreview as ReturnType<typeof vi.fn>).mock.calls;
+      const lastProps = calls[calls.length - 1][0] as {
+        miniPlayerRoot?: Element | null;
+      };
+      expect(lastProps.miniPlayerRoot).toBe(main);
+    });
   });
 
   // ---------- Markdown DocumentLayout fork (spec 2026-05-10) ----------
@@ -369,7 +408,10 @@ describe("FileDetailContent", () => {
     }
   });
 
-  it("does not render MarkdownDocumentLayout for non-Markdown files", async () => {
+  it("puts a video on the shell, not on the Markdown wrapper", async () => {
+    // The Markdown wrapper carries the save dot, the view-mode toggle
+    // and the click-to-edit filename. A video rides the same shell and
+    // none of those, so it goes to `FileDetailShell` directly.
     setApiResponses(
       makeFile({
         file_type: "video",
@@ -381,8 +423,16 @@ describe("FileDetailContent", () => {
     expect(
       screen.queryByTestId("markdown-document-layout"),
     ).not.toBeInTheDocument();
-    // Legacy stack: full slot (no include/exclude)
-    expect(screen.getByTestId("addon-slot-all")).toBeInTheDocument();
+    expect(screen.getByTestId("file-detail-shell")).toBeInTheDocument();
+    // Split slot, not the legacy unfiltered one: the heavy summaries go
+    // to the canvas and everything else to the inspector.
+    expect(screen.queryByTestId("addon-slot-all")).toBeNull();
+    expect(
+      screen.getByTestId("addon-slot-exclude:knowledge-edit,detailed-summary"),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByTestId("addon-slot-include:detailed-summary"),
+    ).toBeInTheDocument();
     expect(
       screen.getByTestId("addon-slot-file-preview-actions"),
     ).toBeInTheDocument();

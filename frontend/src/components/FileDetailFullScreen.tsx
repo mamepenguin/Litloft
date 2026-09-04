@@ -12,7 +12,7 @@ import {
 } from "@/components/CollectionPanel";
 import { useSetOverrideDrive } from "@/components/CurrentDriveProvider";
 import { usePolicy } from "@/hooks/usePolicy";
-import { usesDocumentShell } from "@/lib/fileDetailShell";
+import { ridesFileDetailShell } from "@/lib/fileDetailShell";
 import { useOverlaySidebar } from "@/components/SidebarProvider";
 import { useFileNav } from "@/hooks/useFileNav";
 import { getFile } from "@/lib/api";
@@ -162,10 +162,12 @@ export function FileDetailFullScreen({ fileId }: FileDetailFullScreenProps) {
   // and the content itself, from one place so it cannot be got right in
   // two of the three.
   const knowledgeEditorPolicy = usePolicy(file?.drive ?? "", "knowledge", "editor");
-  const contentBringsItsOwnRow = usesDocumentShell(
-    file?.mime_type,
-    knowledgeEditorPolicy.enabled,
-  );
+  const contentBringsItsOwnRow = ridesFileDetailShell({
+    surface: "collection",
+    mimeType: file?.mime_type,
+    fileType: file?.file_type,
+    knowledgeEditorEnabled: knowledgeEditorPolicy.enabled,
+  });
 
   const isVideoTheater = hasCollection && file?.file_type === "video";
   const isAudioSide = hasCollection && file?.file_type !== "video";
@@ -214,6 +216,13 @@ export function FileDetailFullScreen({ fileId }: FileDetailFullScreenProps) {
             onRequestImageGallery={() => setGalleryOpen(true)}
             onAfterDelete={handleAfterDelete}
             onBack={handleBack}
+            // Collection playback keeps the legacy stack: the canonical
+            // URL is a file's address, so building this route a second
+            // inspector would be work to throw away. Media therefore
+            // stays out of the shell here — and the beside/below rail
+            // it already has stays with it, because not investing in a
+            // surface is not the same as taking something off it.
+            surface="collection"
           />
 
           {isVideoTheater && (

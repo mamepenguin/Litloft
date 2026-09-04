@@ -67,6 +67,38 @@ describe("useMediaLayoutPreference", () => {
     expect(result.current[0]).toBe("beside");
   });
 
+  it("has the stored value on its very first render", () => {
+    // Not "after mount". The shell moves the transcript between an
+    // inspector tab and the canvas from this value, so a first commit
+    // at the default would mount it beside the player and tear it down
+    // again on the next one — a fetch, a clock subscription and a
+    // scroll position, all discarded, for a reader who never asked for
+    // the beside form.
+    window.localStorage.setItem("media-layout-preference", "stacked");
+    const seen: string[] = [];
+    renderHook(() => {
+      const [layout] = useMediaLayoutPreference();
+      seen.push(layout);
+      return layout;
+    });
+
+    expect(seen[0]).toBe("stacked");
+  });
+
+  it("keeps every reader on the same value", () => {
+    // Two of them now: the toggle in the page row and the shell that
+    // decides where the transcript is drawn. Held per component, they
+    // would disagree — the button showing one form while the layout
+    // drew the other.
+    const first = renderHook(() => useMediaLayoutPreference());
+    const second = renderHook(() => useMediaLayoutPreference());
+    expect(second.result.current[0]).toBe("beside");
+
+    act(() => first.result.current[1]("stacked"));
+
+    expect(second.result.current[0]).toBe("stacked");
+  });
+
   it("still applies the choice when storage refuses", () => {
     const setItem = vi
       .spyOn(Storage.prototype, "setItem")

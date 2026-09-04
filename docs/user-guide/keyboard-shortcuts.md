@@ -128,14 +128,16 @@ and the edge taps** mirror, following the reading direction. The **swipe does
 not** — a swipe to the right is always "next page", because the swipe follows
 the hand, not the text.
 
-## Markdown documents
+## File detail
 
 | Key | Action |
 |---|---|
 | `Cmd/Ctrl+\` | Show / hide the inspector panel |
 
-Desktop only — the inspector has no separate panel on mobile. This chord fires
-even while the editor has focus.
+On every page that has an inspector, which is Markdown notes, HTML previews and
+media. Desktop only — on a phone the inspector is a bottom sheet, opened from
+the toggle in the page row. This chord fires even while a note's editor has
+focus.
 
 ### Markdown editor (Knowledge addon)
 

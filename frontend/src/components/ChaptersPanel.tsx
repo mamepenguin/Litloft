@@ -56,6 +56,17 @@ interface ChaptersPanelProps {
    * reports nothing-to-show rather than only acting on it.
    */
   onResolved?: (count: number) => void;
+  /**
+   * Layout classes from whoever is placing this.
+   *
+   * The panel used to carry `media-detail-companion-lead` itself, which
+   * made it the one thing in the companion region that decided its own
+   * height — against the rule that the host holds it in every form
+   * (`DESIGN.md` §8.5). It now sits in three places with three different
+   * budgets: the legacy grid, the canvas box below the player, and an
+   * inspector tab that is as tall as the inspector.
+   */
+  className?: string;
 }
 
 export function ChaptersPanel({
@@ -63,6 +74,7 @@ export function ChaptersPanel({
   mediaController,
   refreshToken = 0,
   onResolved,
+  className,
 }: ChaptersPanelProps) {
   const t = useTranslations("player");
   const [chapters, setChapters] = useState<FileChapter[]>([]);
@@ -103,7 +115,7 @@ export function ChaptersPanel({
 
   return (
     <section
-      className="media-detail-companion-lead flex flex-col overflow-hidden rounded-xl border border-bg-border bg-bg-card"
+      className={`flex min-h-0 flex-col overflow-hidden rounded-xl border border-bg-border bg-bg-card${className ? ` ${className}` : ""}`}
       aria-label={t("chapters")}
     >
       <button

@@ -834,7 +834,8 @@
       "relatedGroup": "Related"
     },
     "tabs": {
-      "info": "Info"
+      "info": "Info",
+      "chapters": "Chapters"
     },
     "saveDot": {
       "idle": "Save state",

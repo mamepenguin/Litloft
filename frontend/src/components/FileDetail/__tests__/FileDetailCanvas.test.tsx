@@ -80,7 +80,17 @@ vi.mock("../../SidebarProvider", async () => {
   };
 });
 
-describe("FileDetailContent companion region", () => {
+/**
+ * The legacy vertical stack, which is the collection-playback route's
+ * layout — `/files/{id}` with `?collection=` or `?folder_play=1`.
+ *
+ * It is not a leftover. The canonical URL is a file's address, so the
+ * design deliberately did not give this route a second inspector, and
+ * "not investing in a surface" is not the same as taking the rail it
+ * already has off it. Every case below is therefore still shipped
+ * behaviour; what changed in 2026-09 is only which surface it is on.
+ */
+describe("FileDetailContent companion region (collection route)", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     usePolicyMock.mockReturnValue({ enabled: true, isLoading: false });
@@ -99,7 +109,9 @@ describe("FileDetailContent companion region", () => {
 
   async function renderFile(file: FileItem) {
     setApiResponses(file);
-    const utils = render(<FileDetailContent fileId="f1" drive="main" />);
+    const utils = render(
+      <FileDetailContent fileId="f1" drive="main" surface="collection" />,
+    );
     await loaded();
     expect(api.getFile).toHaveBeenCalledWith("f1");
     return utils;
@@ -235,7 +247,12 @@ describe("FileDetailContent companion region", () => {
     slotMocks.occupied.add("player-side");
     setApiResponses(makeFile());
     const { container } = render(
-      <FileDetailContent fileId="f1" drive="main" miniPlayerRoot={pane} />,
+      <FileDetailContent
+        fileId="f1"
+        drive="main"
+        miniPlayerRoot={pane}
+        surface="collection"
+      />,
     );
     await loaded();
     expect(api.getFile).toHaveBeenCalledWith("f1");
@@ -524,7 +541,9 @@ describe("FileDetailContent layout toggle", () => {
 
   async function renderFile(file: FileItem) {
     setApiResponses(file);
-    const utils = render(<FileDetailContent fileId="f1" drive="main" />);
+    const utils = render(
+      <FileDetailContent fileId="f1" drive="main" surface="collection" />,
+    );
     await loaded();
     expect(api.getFile).toHaveBeenCalledWith("f1");
     return utils;
@@ -611,7 +630,9 @@ describe("FileDetailContent rail width", () => {
   async function renderAtWidth(width: number) {
     vi.spyOn(HTMLElement.prototype, "clientWidth", "get").mockReturnValue(width);
     setApiResponses(makeFile());
-    const { container } = render(<FileDetailContent fileId="f1" drive="main" />);
+    const { container } = render(
+      <FileDetailContent fileId="f1" drive="main" surface="collection" />,
+    );
     await loaded();
     expect(api.getFile).toHaveBeenCalledWith("f1");
     const host = await waitFor(() => {
@@ -651,14 +672,16 @@ describe("FileDetailContent rail width", () => {
     vi.spyOn(HTMLElement.prototype, "clientWidth", "get").mockReturnValue(1200);
     setApiResponses(makeFile());
     const { container, rerender } = render(
-      <FileDetailContent fileId="f1" drive="main" />,
+      <FileDetailContent fileId="f1" drive="main" surface="collection" />,
     );
     await loaded();
     expect(api.getFile).toHaveBeenCalledWith("f1");
     expect(container.querySelector("[data-media-width]")).toBeNull();
 
     slotMocks.occupied.add("player-side");
-    rerender(<FileDetailContent fileId="f1" drive="main" />);
+    rerender(
+      <FileDetailContent fileId="f1" drive="main" surface="collection" />,
+    );
 
     const host = await waitFor(() => {
       const found = container.querySelector<HTMLElement>("[data-media-width]");

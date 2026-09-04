@@ -6,7 +6,11 @@ import type { FileItem } from "@/types";
 import type { MediaController } from "@/lib/mediaController";
 import type { DocumentCaptureController } from "@/lib/documentCapture";
 import { playerKind } from "@/lib/playerKind";
-import { usesDocumentShell } from "@/lib/fileDetailShell";
+import {
+  ridesFileDetailShell,
+  usesDocumentShell,
+  type FileDetailSurface,
+} from "@/lib/fileDetailShell";
 import { useIsMobile } from "@/hooks/useIsMobile";
 import { usePolicy } from "@/hooks/usePolicy";
 import { useAddonSlots } from "../AddonSlotsProvider";
@@ -75,6 +79,12 @@ export interface FileDetailContentProps {
   onEnded?: () => void;
   /** Forwarded to ``FilePreview``: kick off playback on mount. */
   autoPlay?: boolean;
+  /**
+   * Which file-detail surface this is. Defaults to the canonical URL,
+   * which is where every host but the collection-playback route sits.
+   * See ``lib/fileDetailShell.ts`` for why the two differ.
+   */
+  surface?: FileDetailSurface;
 }
 
 /**
@@ -114,6 +124,7 @@ export function FileDetailContainer({
   onBack,
   onEnded,
   autoPlay,
+  surface = "canonical",
 }: FileDetailContentProps) {
   const { hasSlot } = useAddonSlots();
   const isMobile = useIsMobile();
@@ -129,7 +140,31 @@ export function FileDetailContainer({
   const [documentCaptureController, setDocumentCaptureController] =
     useState<DocumentCaptureController | null>(null);
 
-  const metrics = useCompanionMetrics(file?.id, miniPlayerRoot);
+  // Drive-scope policy lookup for the Knowledge editor. `usePolicy` is
+  // fail-open: during the initial load AND during the 30s-TTL background
+  // refetch it returns `enabled=true / isLoading=true`. We *only* read
+  // `enabled` here so the periodic refetch does not flip the layout
+  // branch out from under an open Editor, which would unmount the
+  // textarea, reset viewMode to "preview" and re-fire every child
+  // `useEffect([fileId])` — observed as a 30-second reload while typing.
+  const knowledgeEditorPolicy = usePolicy(drive, "knowledge", "editor");
+
+  const ridesShell = ridesFileDetailShell({
+    surface,
+    mimeType: file?.mime_type,
+    fileType: file?.file_type,
+    knowledgeEditorEnabled: knowledgeEditorPolicy.enabled,
+  });
+
+  // The shell owns the element that scrolls the canvas, so on the shell
+  // it — not the host's wrapper — is what the mini player observes and
+  // what `--rail-avail` is measured against. The host's wrapper is
+  // still there and still has a height; it just never scrolls any more,
+  // so measuring it would report the whole page.
+  const [shellScrollRoot, setShellScrollRoot] = useState<Element | null>(null);
+  const scrollRoot = ridesShell ? shellScrollRoot : (miniPlayerRoot ?? null);
+
+  const metrics = useCompanionMetrics(file?.id, scrollRoot);
 
   // The capture controller belongs to whatever viewer is mounted, and
   // the viewer is replaced when the file changes. Dropping it here
@@ -147,15 +182,6 @@ export function FileDetailContainer({
     },
     [onMediaController],
   );
-
-  // Drive-scope policy lookup for the Knowledge editor. `usePolicy` is
-  // fail-open: during the initial load AND during the 30s-TTL background
-  // refetch it returns `enabled=true / isLoading=true`. We *only* read
-  // `enabled` here so the periodic refetch does not flip the layout
-  // branch out from under an open Editor, which would unmount the
-  // textarea, reset viewMode to "preview" and re-fire every child
-  // `useEffect([fileId])` — observed as a 30-second reload while typing.
-  const knowledgeEditorPolicy = usePolicy(drive, "knowledge", "editor");
 
   // Phase 3.5 (spec 2026-05-10 §D2 / hako ZWLqXgdTwt9le4dAI3U8C): the
   // inspector's tag chips need to subscribe to the markdown content
@@ -194,6 +220,10 @@ export function FileDetailContainer({
   const companionOccupied = hasSlot("player-side") || data.chaptersPresent;
 
   const isHtmlPreview = file.mime_type === "text/html";
+  // Whether the Knowledge editor is the thing in the canvas. Narrower
+  // than `ridesShell`, and it must stay that way: it is what tells the
+  // tag chips to run against the editor's shared content state, and a
+  // PDF riding the same shell has no editor to run against.
   const useDocumentLayout = usesDocumentShell(
     file.mime_type,
     knowledgeEditorPolicy.enabled,
@@ -261,6 +291,11 @@ export function FileDetailContainer({
       videoRef={videoRef}
       addonSlotProps={addonSlotProps}
       tagChips={tagChipNode}
+      // The confirmed layout keeps the viewer and the long things
+      // belonging to it in the canvas, and for media the description is
+      // one of those — a video's description is its show notes, not a
+      // property of the file.
+      hoistDescription={ridesShell && companionKind !== null}
     />
   );
 
@@ -270,11 +305,12 @@ export function FileDetailContainer({
       fileId={fileId}
       drive={drive}
       isMobile={isMobile}
-      useDocumentLayout={useDocumentLayout}
+      ridesShell={ridesShell}
       isHtmlPreview={isHtmlPreview}
       companionKind={companionKind}
       railEligible={railEligible}
       companionOccupied={companionOccupied}
+      isTimedMedia={isTimedMedia}
       chaptersPresent={data.chaptersPresent}
       chaptersVersion={data.chaptersVersion}
       onChaptersResolved={data.onChaptersResolved}
@@ -287,7 +323,8 @@ export function FileDetailContainer({
       initialTime={initialTime}
       initialPage={initialPage}
       highlight={highlight}
-      miniPlayerRoot={miniPlayerRoot}
+      miniPlayerRoot={scrollRoot}
+      onScrollRootChange={setShellScrollRoot}
       onEnded={onEnded}
       autoPlay={autoPlay}
       markdownReloadKey={data.tagSaveVersion}

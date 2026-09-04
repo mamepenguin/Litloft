@@ -8,7 +8,7 @@
  */
 import { describe, it, expect } from "vitest";
 
-import { usesDocumentShell } from "../fileDetailShell";
+import { ridesFileDetailShell, usesDocumentShell } from "../fileDetailShell";
 
 describe("usesDocumentShell", () => {
   it("sends Markdown to the shell when the drive allows the editor", () => {
@@ -45,5 +45,69 @@ describe("usesDocumentShell", () => {
     // there would suppress the row for the whole of the fetch and then
     // add it, which is the jump the row is drawn early to avoid.
     expect(usesDocumentShell(undefined, true)).toBe(false);
+  });
+});
+
+describe("ridesFileDetailShell", () => {
+  const canonical = (file: { mimeType?: string; fileType?: string }) =>
+    ridesFileDetailShell({
+      surface: "canonical",
+      mimeType: file.mimeType,
+      fileType: file.fileType,
+      knowledgeEditorEnabled: true,
+    });
+  const collection = (file: { mimeType?: string; fileType?: string }) =>
+    ridesFileDetailShell({
+      surface: "collection",
+      mimeType: file.mimeType,
+      fileType: file.fileType,
+      knowledgeEditorEnabled: true,
+    });
+
+  it("routes media through the shell on the canonical surface", () => {
+    expect(canonical({ mimeType: "video/mp4", fileType: "video" })).toBe(true);
+    expect(canonical({ mimeType: "audio/mpeg", fileType: "audio" })).toBe(true);
+  });
+
+  it("routes a .loft there too, whatever its file_type says", () => {
+    // Classification reports `.loft` as video so search filters include
+    // it; the shell decision follows the player, not the classification.
+    expect(
+      canonical({
+        mimeType: "application/vnd.litloft.loft+json",
+        fileType: "document",
+      }),
+    ).toBe(true);
+  });
+
+  it("leaves media on the collection route alone", () => {
+    // `/files/{id}` keeps the legacy stack: the canonical URL is a
+    // file's address, so a second inspector there would be work to
+    // throw away.
+    expect(collection({ mimeType: "video/mp4", fileType: "video" })).toBe(false);
+    expect(collection({ mimeType: "audio/mpeg", fileType: "audio" })).toBe(
+      false,
+    );
+  });
+
+  it("keeps documents on the shell on both surfaces", () => {
+    // A note has drawn its own page row on both for far longer than any
+    // of this. Taking it away on one of them would be a regression, not
+    // a scoping decision.
+    for (const on of [canonical, collection]) {
+      expect(on({ mimeType: "text/markdown", fileType: "document" })).toBe(true);
+      expect(on({ mimeType: "text/html", fileType: "document" })).toBe(true);
+    }
+  });
+
+  it("still leaves the kinds that have not been moved yet to their host", () => {
+    for (const mimeType of ["image/jpeg", "application/pdf", "application/zip"]) {
+      expect(canonical({ mimeType, fileType: "image" })).toBe(false);
+    }
+  });
+
+  it("says no before the file has resolved", () => {
+    expect(canonical({})).toBe(false);
+    expect(collection({})).toBe(false);
   });
 });
