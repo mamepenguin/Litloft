@@ -1131,8 +1131,13 @@ div[data-citation-section-path]:not(tr) {
   position: absolute;
   inset-block: 0;
   inset-inline-end: 0;
-  /* Floating surfaces (DESIGN.md §Layering). Above the canvas and the
-     mini player, below every dialog — including the ones its own `⋮`
-     opens. */
-  z-index: 40;
+  /* In-flow chrome (DESIGN.md §Layering), not a floating surface. It is
+     above the canvas it covers and below everything that has to stay
+     reachable over it: the mini player and the upload progress at 40,
+     the sidebar's backdrop at 30 — the sidebar is modal while it is
+     open, and a bright interactive panel above its dim is the page
+     claiming to be two things at once. Sitting at 40 buried the mini
+     player outright, since it is 320px wide against the right edge and
+     lands entirely inside this band. */
+  z-index: 20;
 }

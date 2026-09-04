@@ -63,9 +63,23 @@ const fit = () => screen.getByTestId("inspector-fit-host").dataset.inspectorFit;
 
 describe("inspector placement", () => {
   it("sits beside the canvas when the row can hold both", () => {
-    // 936px = 552 canvas + 384 inspector. At the sum exactly, both fit.
-    renderAtRowWidth(936);
+    // 968px = 552 player + 32 of canvas padding + 384 inspector. At the
+    // sum exactly, both fit.
+    renderAtRowWidth(968);
     expect(fit()).toBe("beside");
+  });
+
+  it("counts the canvas's own padding, which the player is inside", () => {
+    // Without the padding term the threshold hands the canvas exactly
+    // the player minimum and the 32px comes back out of the player. The
+    // band that leaves broken is narrow and real: at a 936px row the
+    // player gets 520.
+    for (const row of [967, 936]) {
+      const { unmount } = renderAtRowWidth(row);
+      expect({ row, fit: fit() }).toEqual({ row, fit: "overlay" });
+      unmount();
+      vi.restoreAllMocks();
+    }
   });
 
   it("covers it one pixel short of that", () => {
@@ -76,7 +90,7 @@ describe("inspector placement", () => {
   });
 
   it("re-decides when the row is resized", () => {
-    renderAtRowWidth(935);
+    renderAtRowWidth(967);
     expect(fit()).toBe("overlay");
 
     vi.spyOn(HTMLElement.prototype, "clientWidth", "get").mockReturnValue(1200);
@@ -128,9 +142,12 @@ describe("inspector placement", () => {
   });
 
   it("leaves the same host beside where it always had room", () => {
-    // Tree off at the same viewports, and tree on at 1512 — the widths
-    // that were never broken must not start overlaying.
-    const rows = [1120, 1200 - 240, 1440 - 240, 1512 - 240 - 280];
+    // Tree off, and tree on at 1512 — widths where the player clears
+    // its minimum with the inspector beside it must not start
+    // overlaying. 1200 tree-off is absent on purpose: its 960px row
+    // leaves the player 544, so it belongs on the overlay side and the
+    // padding term is what put it there.
+    const rows = [1120, 1440 - 240, 1512 - 240 - 280];
     for (const row of rows) {
       const { unmount } = renderAtRowWidth(row);
       expect({ row, fit: fit() }).toEqual({ row, fit: "beside" });

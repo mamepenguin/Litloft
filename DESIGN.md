@@ -865,8 +865,8 @@ narrow column.
 | Token | Value | Meaning |
 |---|---|---|
 | inspector width | `24rem` (384px) | Fixed, in both forms. When the row cannot hold it beside the canvas it covers the canvas at the same width rather than narrowing — 320px was tried and Japanese wrapped at 12–14 characters a line, so a responsive inspector is an unreadable one. |
-| canvas minimum | `34.5rem` (552px) | What the canvas keeps when the inspector is beside it. A player's number applied to every kind the shell hosts, deliberately: one skeleton, one minimum, and the video is the occupant that stops working first. |
-| beside threshold | `58.5rem` (936px) | The sum of the two above, measured on the row that holds both. |
+| canvas padding | `2rem` (32px) | What the canvas puts around its own contents. Part of the sum because the player is inside it — leave it out and the threshold hands the canvas exactly the player minimum, then the padding comes out of the player. |
+| beside threshold | `60.5rem` (968px) | Player minimum + canvas padding + inspector width, measured on the row that holds both. Never on the canvas: the canvas is what changes width when the inspector opens, so measuring it would make the answer depend on the answer. |
 
 **A separate entry from the companion rail below, despite the same
 number.** They are different parts — one holds a document's metadata,
@@ -927,7 +927,7 @@ Widening the rail from 320px to 384px moved the threshold from 56rem to
 | Threshold | Question | Measured against |
 |---|---|---|
 | `60rem` = 960px | Can a rail sit beside the player? | The host's **measured width**. Gates the grid's second column, so it applies on the collection route only — on the shell the companion is a tab, and a tab fits at any width. |
-| `58.5rem` = 936px (`CANVAS_MIN_REM + INSPECTOR_REM`) | Can the inspector sit *beside* the canvas, or must it cover it? | The **measured width of the row holding both** — never the canvas, whose width is the thing being decided. A sum, not a feel: 34.5rem of canvas plus the inspector's own 24rem. |
+| `60.5rem` = 968px (`INSPECTOR_BESIDE_MIN_REM`) | Can the inspector sit *beside* the canvas, or must it cover it? | The **measured width of the row holding both** — never the canvas, whose width is the thing being decided. A sum, not a feel: the player's 34.5rem, the canvas's own 2rem of padding around it, and the inspector's 24rem. |
 | `1120px` (`VIEWPORT_OPEN_THRESHOLD`) | Does the inspector *start* open? | The **viewport**. Not a layout branch: it is how the default is derived when the reader has no stored choice, and any choice they make outranks it. |
 | 768px | Is the inspector a pane or a Bottom Sheet? | The **viewport**. |
 
@@ -944,13 +944,17 @@ and a 280px tree have already taken up to 520px the viewport says
 nothing about. That is this section's own rule, failing in the words it
 uses to state itself.
 
-960 and 936 are both container questions and still not one question:
+960 and 968 are both container questions and still not one question:
 960 asks whether a *rail* fits beside the *player* inside the canvas,
-936 whether the *inspector* fits beside the *canvas*. Different boxes,
-different occupants. And 936 and 1120 are not one either — 936 is "can
-they be side by side", 1120 is "should they be, by default". The band
-between the latter two, where they fit but start closed, is a real
-state that one number cannot express.
+968 whether the *inspector* fits beside the *canvas*. Different boxes,
+different occupants, and they are near each other by coincidence of
+arithmetic rather than by meaning. 968 and 1120 are not one either —
+968 is "can they be side by side", 1120 is "should they be, by
+default". The band between those two, where they fit but start closed,
+is a real state that one number cannot express.
+
+Every one of these is derived in `lib/layoutSizes.ts` from the same
+three primitives, and the rows above are asserted against it.
 
 1120 was 1280 until 2026-09, which left a band of its own. The media
 layout's default puts the transcript and chapters in the inspector, so

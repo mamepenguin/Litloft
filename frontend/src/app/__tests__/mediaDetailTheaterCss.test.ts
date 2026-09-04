@@ -148,13 +148,18 @@ describe("inspector overlay placement", () => {
     expect(rule![0]).not.toMatch(/max-width/);
   });
 
-  it("puts it in the floating-surface tier, not the dialog one", () => {
-    // DESIGN.md §Layering: above the canvas and the mini player, below
-    // every dialog — including the ones its own overflow menu opens.
+  it("stays under everything that has to stay reachable over it", () => {
+    // The mini player is ~320px against the right edge, so it lands
+    // entirely inside this panel's band; at 40 it was buried, close
+    // button and all. Below the sidebar's backdrop at 30 too — the
+    // sidebar is modal while open, and a bright interactive panel above
+    // its dim is the page claiming to be two things at once.
     const rule = globalsCss().match(
       /\[data-inspector-fit="overlay"\]\s+\.inspector-pane\s*\{[^}]*\}/,
     );
-    expect(rule![0]).toMatch(/z-index:\s*40;/);
+    const z = rule![0].match(/z-index:\s*(\d+);/);
+    expect(z).not.toBeNull();
+    expect(Number(z![1])).toBeLessThan(30);
   });
 
   it("gives it no shadow", () => {

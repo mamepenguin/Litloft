@@ -2,19 +2,7 @@
 
 import { useCallback, useEffect, useRef } from "react";
 
-/**
- * Canvas width the shell will not let the inspector take below, in rem.
- *
- * 34.5rem = 552px, the player minimum from `DESIGN.md` §8.5. It is a
- * player's number applied to every kind the shell hosts, deliberately:
- * one skeleton means one minimum, and of the things the canvas holds —
- * a 16:9 video, a note's editor, a PDF — the video is the one that
- * stops working first, so its floor is the floor.
- */
-const CANVAS_MIN_REM = 34.5;
-
-/** The inspector's own width, which it keeps in both forms. */
-const INSPECTOR_REM = 24;
+import { INSPECTOR_BESIDE_MIN_REM } from "@/lib/layoutSizes";
 
 /**
  * Whether the inspector can sit beside the canvas or has to cover it.
@@ -56,8 +44,7 @@ export function useInspectorFit(): (node: HTMLElement | null) => void {
     const rootFontSize =
       Number.parseFloat(getComputedStyle(document.documentElement).fontSize) ||
       16;
-    const fits =
-      host.clientWidth >= (CANVAS_MIN_REM + INSPECTOR_REM) * rootFontSize;
+    const fits = host.clientWidth >= INSPECTOR_BESIDE_MIN_REM * rootFontSize;
     host.dataset.inspectorFit = fits ? "beside" : "overlay";
   }, []);
 
