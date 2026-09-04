@@ -1277,7 +1277,7 @@ For the full design and the broader rationale, see `docs/superpowers/specs/2026-
 | `file-detail-sections` | `transcript` | Whisper transcript with per-file refine / revert |
 | `file-detail-sections` | `clip-frames` | CLIP frame analysis |
 | `file-actions-menu` | `index-details` | Per-file indexing state with a *Regenerate* button per task (`metadata`, `clip`, `whisper`, `text`) and recent provider stats, in a dialog opened from the file `[...]` menu |
-| `file-detail-sections` | `similar-files` | Visually similar files (collapsed by default; the detect button is inside) |
+| `file-detail-sections` | `similar-files` | Visually similar files (collapsed by default; expanding it starts the search) |
 | `drive-home-sections` | `pickup` | Recommended files widget on the drive home page |
 | `dashboard-widgets` | `index-status` | Index queue depth and model memory |
 | `dashboard-alerts` | `failed-jobs` | The failed-jobs warning band, above the drive cards. Absent when nothing has failed. |

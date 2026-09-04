@@ -178,7 +178,7 @@ Capture is the "I want to keep this bit" path. It works across the whole app, no
 - a **document selection or PDF page** — the selected text, or the page you are on;
 - a **transcript line** or an **Ask answer citation** from the intelligence addon.
 
-Each of these shows a quote-mark button that drops the item into the **capture basket** — a per-drive tray in the header, holding up to 100 items. The basket lives in the browser's session storage, so it is private to that tab session and never leaves the device until you commit it. Inside the basket you can reorder items, attach a note to each one, and drop the ones you do not want.
+Each of these offers a quote-mark button that drops the item into the **capture basket**. On the surfaces that repeat one per row — a search result, a transcript line — it appears on hover or focus and stays visible on a touch screen, rather than being drawn hundreds of times over — a per-drive tray in the header, holding up to 100 items. The basket lives in the browser's session storage, so it is private to that tab session and never leaves the device until you commit it. Inside the basket you can reorder items, attach a note to each one, and drop the ones you do not want.
 
 Committing writes Markdown into a note under a `## Captures` heading, one bullet per capture: a `loft://` link back to the source file (carrying `?t=` or `?page=` so the link lands at the right spot), the quote as a blockquote, and your note underneath. The note's `source_file_ids` are updated so the captures show up in the connections graph and the summary-note section.
 
