@@ -1052,15 +1052,21 @@ div[data-citation-section-path]:not(tr) {
 }
 
 /* The index takes the width the body's measure leaves — which means the
-   body has to claim that measure first, as its flex base.
+   body has to claim that measure as its flex base, not merely as a cap.
 
-   Both items grow, and free space is shared equally from their bases,
-   so a body based at 0 arrives 200px behind the index and stays there:
-   at a 500px canvas that put a 340px chapter list beside a 140px
-   transcript, the short index outgrowing the long body it indexes.
-   Basing the body at its own measure inverts that. Under pressure the
-   shrink is distributed by base too, so the body — the one that can
-   reflow — gives up the width and the index holds its floor.
+   Free space is shared from the bases, so a body based at 0 arrives
+   200px behind the index and stays there: at a 500px canvas that put a
+   340px chapter list beside a 140px transcript, the short index
+   outgrowing the long body it indexes.
+
+   With the body based at its measure the two never compete, because
+   each one's base is also the limit it cannot cross: the body's cap
+   equals its base so it can never grow, and the index's floor equals
+   its base so it can never shrink. Below 200 + 68ch the body absorbs
+   the whole deficit while the index sits frozen at its floor; above it
+   the body freezes at its measure and every surplus pixel goes to the
+   index, to a ceiling of 22rem. There is no case where they split a
+   difference.
 
    200px is the confirmed floor. 22rem is a ceiling of its own: past
    about 350px a column of timestamps and short titles stops reading as

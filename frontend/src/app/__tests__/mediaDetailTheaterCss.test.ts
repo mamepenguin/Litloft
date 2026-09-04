@@ -78,7 +78,7 @@ describe("media detail, companion below the player", () => {
     expect(rule![0]).toMatch(/overflow:\s*hidden;/);
   });
 
-  it("lets the index take the width the body's measure leaves", () => {
+  it("gives the index a floor equal to its base, and a ceiling", () => {
     // Fixed at its floor it never widened, and the body stops at the
     // reading measure — so a wide canvas spent the surplus on nothing.
     const rule = globalsCss().match(/\.media-detail-below-index\s*\{[^}]*\}/);
