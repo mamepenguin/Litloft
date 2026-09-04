@@ -189,3 +189,38 @@ describe("the sheet's resting action row", () => {
     expect(rule![0]).toMatch(/min-height:\s*2\.75rem;/);
   });
 });
+
+describe("the player on a phone", () => {
+  it("sticks the wrapper, which is the element that can travel", () => {
+    // A sticky box moves only within its own containing block. On the
+    // frame, whose parent holds the frame and an action row that is
+    // usually `empty:hidden`, the travel was zero — the player scrolled
+    // away exactly as it did before. The wrapper's parent is the canvas
+    // host, as tall as everything under the player.
+    const rule = globalsCss().match(
+      /\[data-sheet-snap\]\s+\.media-detail-player\s*\{[^}]*\}/,
+    );
+    expect(rule).not.toBeNull();
+    expect(rule![0]).toMatch(/position:\s*sticky;/);
+    expect(rule![0]).toMatch(/top:\s*0;/);
+  });
+
+  it("caps it from a variable that cannot drift while it is stuck", () => {
+    // `--player-avail` comes from this element's own offset, which is a
+    // constant zero while stuck against a scroll position that keeps
+    // growing — the cap would tighten as the reader scrolls. Dropping
+    // the cap is not the answer either: phone landscape is still under
+    // the mobile breakpoint, and an uncapped 667px-wide player is
+    // taller than its scrollport, so its control bar sits below the
+    // fold. `--rail-avail` is the scrollport itself and knows nothing
+    // about the player.
+    const rule = globalsCss().match(
+      /\[data-sheet-snap\]\s+\.media-detail-player\[data-framed="true"\]\s*\{[^}]*\}/,
+    );
+    expect(rule).not.toBeNull();
+    expect(rule![0]).toMatch(
+      /max-width:\s*calc\(var\(--rail-avail,\s*100dvh\)\s*\*\s*16\s*\/\s*9\);/,
+    );
+    expect(rule![0]).not.toMatch(/--player-avail/);
+  });
+});

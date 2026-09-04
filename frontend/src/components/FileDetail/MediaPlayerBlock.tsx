@@ -70,6 +70,10 @@ export function MediaPlayerBlock({
       className="media-detail-player"
       data-framed={framed ? "true" : undefined}
     >
+      {/* `globals.css` decides where this sits — on a phone the wrapper
+          above is stuck to the top of the canvas. Nothing here is told
+          about it, because being told means re-rendering, and
+          re-rendering is the one thing a player must not do. */}
       <FilePreview
         file={file}
         videoRef={videoRef}

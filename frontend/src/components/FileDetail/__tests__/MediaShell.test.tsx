@@ -426,6 +426,42 @@ describe("media on the shell, on a phone", () => {
     expect(screen.getByTestId("file-preview")).toBe(player);
   });
 
+  it("publishes where the sheet is, for the player to read in CSS", async () => {
+    // The player is never handed the sheet's state. It is published on
+    // the shell root and a stylesheet acts on it, because handing it
+    // down means re-rendering the player, and re-rendering is what
+    // reloads a `.loft` iframe and restarts a `<video>` at zero.
+    await renderMediaAwaitingChrome();
+    const shell = screen.getByTestId("file-detail-shell");
+    expect(shell.dataset.sheetSnap).toBe("peek");
+
+    fireEvent.click(screen.getByTestId("inspector-toggle"));
+
+    await waitFor(() => {
+      expect(
+        screen.getByTestId("file-detail-shell").dataset.sheetSnap,
+      ).toBe("expanded");
+    });
+  });
+
+  it("keeps the same player element across every sheet transition", async () => {
+    // The guard §4.4 asks for, at each hop: a re-parented iframe
+    // reloads (the browser's rule, not React's) and a remounted
+    // `<video>` restarts at zero with `ended` rebound, which is how a
+    // completion path comes to write a position nobody played. Element
+    // identity is the proxy — jsdom has no `currentTime` to survive.
+    await renderMediaAwaitingChrome();
+    const player = screen.getByTestId("file-preview");
+
+    fireEvent.click(screen.getByTestId("inspector-toggle"));
+    await screen.findByTestId("mobile-inspector-sheet");
+    expect(screen.getByTestId("file-preview")).toBe(player);
+
+    fireEvent.keyDown(document, { key: "Escape" });
+    await screen.findByTestId("mobile-inspector-peek");
+    expect(screen.getByTestId("file-preview")).toBe(player);
+  });
+
   it("bounds the sheet's scroller by the state it is in", async () => {
     // vaul keeps the content at full height and slides it, so at half
     // the bottom of the scroll box is below the screen and cannot be
@@ -512,6 +548,17 @@ describe("what the canvas keeps and what the inspector takes", () => {
     expect(CANVAS_PADDING_REM).toBe(2);
     // 2rem across the pair, so 1rem a side: `p-4` on Tailwind's scale.
     expect(canvas!.classList.contains("p-4")).toBe(true);
+  });
+
+  it("publishes no sheet state on a desktop, so its rules cannot apply", async () => {
+    // The attribute's presence is the mobile test the stylesheet makes.
+    // Published unconditionally, a desktop player would go sticky and
+    // lose its height budget with nothing on screen explaining why.
+    await renderMedia(makeFile({ has_chapters: false }));
+
+    expect(
+      screen.getByTestId("file-detail-shell").dataset.sheetSnap,
+    ).toBeUndefined();
   });
 
   it("keeps the action row in the inspector, where every kind has it", async () => {

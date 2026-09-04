@@ -657,6 +657,33 @@ The cost is that what is below the strip unmounts on collapse and
 refetches on the way back up. That is what a closed sheet already did,
 and it is the cheaper of the two prices.
 
+**The player is stuck to the top of the canvas on a phone, in CSS, and
+is never told about the sheet.** The sheet's state is published as
+`data-sheet-snap` on the shell root and read by a stylesheet.
+
+It has to be that way round. Handing the state down means re-rendering
+the player, and re-parenting it — which a portal does by `appendChild` —
+reloads any `<iframe>` in the subtree by the browser's own rule. A
+`.loft` embed loses its position, its player state and its API binding;
+a remounted `<video>` restarts at zero with `ended` rebound, which is
+how a completion path comes to write a position nobody played
+(`.claude/rules/design-decisions.md`, watch history). The element stays
+where it is and only its position changes — the same conclusion
+`MiniPlayerContainer` reached for the desktop mini player.
+
+**Sticky goes on the element that can travel.** A sticky box moves only
+within its own containing block, so putting it on a wrapper that
+contains nothing but the player gives it nowhere to go and it scrolls
+away like anything else. It belongs on the child of the tall thing.
+
+**At `full` the player is behind the sheet, and stays there.** Docking
+it into the strip the sheet leaves was tried and does not work: at
+`full` vaul is modal, so everything outside the drawer is inside
+Radix's `hideOthers()` — a docked player there is under the dim, inert,
+and hidden from a screen reader. Putting it *inside* the drawer means
+re-parenting, which is the one thing forbidden above. `full` is the
+state for reading, and `half` is one drag away.
+
 **The resting strip owns `bottom-0` on the file surface.** It is
 full-width and permanent, so nothing else bottom-anchored may share the
 screen with it. Today nothing does — the mini player is desktop-only by

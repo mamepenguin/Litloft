@@ -1167,3 +1167,59 @@ div[data-citation-section-path]:not(tr) {
     min-height: 2.75rem;
   }
 }
+
+/* ------------------------------------------------------------------
+   The player on a phone: stuck to the top of the canvas.
+
+   `data-sheet-snap` is on the shell root and is written only on a
+   phone, so its presence is the mobile test and the stylesheet needs no
+   second one.
+
+   **On the wrapper, not on the frame inside it.** A sticky box travels
+   only within its own containing block, and the frame's parent holds
+   the frame and an action row that is usually `empty:hidden` — so its
+   travel was zero and the "sticky" player scrolled away exactly as
+   before. The wrapper's parent is the canvas host, which is as tall as
+   the description, the companion and the summaries under it.
+
+   Nothing is re-parented and nothing is re-rendered. A portal moves
+   children by `appendChild`, which reloads any <iframe> in the subtree
+   by the browser's own rule — a `.loft` embed loses its position, its
+   player state and its API binding — and a remounted <video> restarts
+   at zero with `ended` rebound, which is how a completion path comes to
+   write a position nobody played (`.claude/rules/design-decisions.md`,
+   watch history). `MiniPlayerContainer` reached the same conclusion for
+   the desktop mini player.
+   ------------------------------------------------------------------ */
+[data-sheet-snap] .media-detail-player {
+  position: sticky;
+  top: 0;
+  /* Above the canvas that scrolls under it, below the resting strip and
+     the sheet (DESIGN.md §Layering). */
+  z-index: 10;
+}
+
+/* The same height budget, from a variable that does not drift.
+
+   `--player-avail` is derived from this element's own offset, and while
+   it is stuck that offset is a constant zero against a scroll position
+   that keeps growing — so the cap tightens as the reader scrolls and
+   the video shrinks under them. Mobile browsers resize on URL-bar
+   collapse, so the observer fires mid-scroll and it really happens.
+
+   Dropping the cap instead was wrong, and phone *landscape* is where it
+   showed: 667×375 is still under the mobile breakpoint, and an uncapped
+   player there is 375px tall against a ~327px scrollport. A sticky box
+   taller than its scrollport pins at the top and its own control bar is
+   below the fold until it unsticks.
+
+   `--rail-avail` is the scrollport's visible height, published on the
+   same host and measured from the pane or the window alone — nothing
+   about the player enters it, so it cannot drift while the player is
+   stuck. It also carries no `PLAYER_PEEK_PX` subtraction, which is
+   right here: that allowance exists so a little of what follows shows
+   under the player, and a player pinned at `top: 0` has the whole
+   scrollport to answer to. */
+[data-sheet-snap] .media-detail-player[data-framed="true"] {
+  max-width: calc(var(--rail-avail, 100dvh) * 16 / 9);
+}

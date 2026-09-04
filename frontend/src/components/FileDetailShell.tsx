@@ -180,6 +180,19 @@ export function FileDetailShell({
   return (
     <div
       data-testid="file-detail-shell"
+      // Where the sheet is, published for CSS rather than passed down.
+      // The player reads it — through a stylesheet, never through a
+      // prop — to stick to the top of the canvas. Absent means "not a
+      // phone", which is the same test `isMobile` makes and saves the
+      // stylesheet a second one.
+      //
+      // Two values, because two is what anything can distinguish: the
+      // shell branches on `isSheetExpanded` everywhere else, and a
+      // third value naming `full` had no reader, so it would have been
+      // either untested or quietly wrong the moment a drag reached it.
+      data-sheet-snap={
+        isMobile ? (sheetExpanded ? "expanded" : "peek") : undefined
+      }
       className="flex h-full w-full flex-col"
     >
       <FileDetailChrome
