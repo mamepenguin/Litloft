@@ -190,6 +190,20 @@ There are three destinations:
 
 Appends are ETag-guarded and serialised per target path, so two commits racing into the same daily note do not lose each other's captures.
 
+## The dashboard
+
+`/drive/{drive}/addons/knowledge` opens with the app's standard page header —
+title, a line saying what the page is for, and the same chrome every other
+screen uses — then the clip form, recent clips, and the connections graph.
+This is the whole of the addon's own page: the two-pane folder view that
+some of the source still describes has no route to it.
+
+The **capture basket** panel offers one filled action, *Append to …*, which
+sends the collected quotes to the destination named on the button. *Other
+save methods* opens the two alternatives — a new note, or an existing one you
+search for — as plain buttons, because a panel with three filled buttons has
+not said which one it is for.
+
 ## Web clipping
 
 Two endpoints, both drive-scoped:
