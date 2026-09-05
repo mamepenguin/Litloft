@@ -300,9 +300,20 @@ describe("page headings", () => {
   // is `staleEntries(...) === []`, and both excuses only ever *remove* paths
   // from that result — widening an empty set leaves it empty. So no tree, and
   // no number of declared windows, can make the real assertion go red when an
-  // excuse is too broad. Only an assertion that expects something *back* can,
-  // and only a source that says "this file is here and no longer writes one"
-  // reaches the excuses at all.
+  // excuse is too broad. Only an assertion that expects something *back* can.
+  //
+  // A real tree cannot supply one either, and not because the path is
+  // impossible: a file holding a window and writing no `<h1>` is the far side
+  // of every migration here. It is that the path which would witness an
+  // *over-broad* excuse holds its window on the **other** ledger — and a tree
+  // listing such a file under a heading it does not write is already red for
+  // the listing itself. The real assertion goes red for the wrong reason, and
+  // the defect hides behind it.
+  //
+  // Both excuses are reached for every present path. What the converted state
+  // buys is an excuse with an observable effect: on the near side the file
+  // still writes its heading, so nothing is excused whether or not the excuse
+  // is there.
   describe("what counts as stale", () => {
     /** A source that answers the same way for every path. */
     const saying = (answers: {

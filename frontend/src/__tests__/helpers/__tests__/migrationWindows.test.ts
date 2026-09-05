@@ -88,14 +88,24 @@ describe("migration windows", () => {
     }
   });
 
-  it("holds no name that cannot close a window", () => {
-    // Every entry carries at least one addon, so every entry is reachable by
-    // the loop above and its spelling is checked by `names addons that exist`.
-    // The version that listed the whole remaining phase had seven entries
-    // that neither test could see.
-    for (const [pr, { bumps }] of Object.entries(PENDING_BUMPS)) {
-      expect(bumps.length, pr).toBeGreaterThan(0);
-    }
+  it("holds exactly the pull requests that still move a pointer", () => {
+    // The whole table, not a property of each row. `bumps.length > 0` was the
+    // first version and it is a lower bound in a file that enumerates its
+    // other table exactly: it admitted an invented name, admitted a `bumps`
+    // widened to addons the PR does not touch — which widens what `closedBy`
+    // accepts, the one thing this table exists to constrain — and did not
+    // notice an entry disappearing.
+    //
+    // Non-emptiness is what makes every entry reachable by the two tests
+    // around this one, and equality gives it for free: neither listed PR has
+    // an empty `bumps`, so an added empty entry fails the key set here.
+    expect(Object.keys(PENDING_BUMPS).sort()).toEqual(["D1", "D5"]);
+    expect([...PENDING_BUMPS.D1.bumps].sort()).toEqual([
+      "intelligence",
+      "knowledge",
+      "media_import",
+    ]);
+    expect([...PENDING_BUMPS.D5.bumps].sort()).toEqual(["intelligence"]);
   });
 
   it("declares windows for addon paths only", () => {
@@ -221,7 +231,7 @@ describe("migration windows", () => {
     // Both hand-written tables — the windows' paths and `bumps` — spell addon
     // directory names, and a typo in either would read as a considered entry
     // while matching nothing. Every `PENDING_BUMPS` entry is reached, because
-    // the test above refuses an empty `bumps`.
+    // the test above pins the table and neither entry's `bumps` is empty.
     const declared = new Set<string>();
     for (const windows of Object.values(MIGRATION_WINDOWS)) {
       for (const path of Object.keys(windows)) declared.add(addonOf(path)!);
