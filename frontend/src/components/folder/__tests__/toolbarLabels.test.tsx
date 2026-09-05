@@ -83,10 +83,15 @@ const PRESSABLE = [
 function wordless(root: HTMLElement): string[] {
   return [...root.querySelectorAll<HTMLElement>(PRESSABLE)]
     // A file input is a mechanism, never the control: `AddButton` keeps two
-    // of them hidden and clicks them from a menu row. The row is what a
+    // of them hidden and clicks them from a menu row — four in the tree,
+    // because the toolbar draws the left group once per breakpoint. The row is what a
     // reader presses and the row is what this scan is about. Widening the
     // selector to `input` surfaced them, which is the scan working — they
     // are named here rather than left to widen the expected list.
+    //
+    // The predicate this really wants is "rendered and visible", which jsdom
+    // cannot answer. A styled, *visible* file input used as the control
+    // itself would slip past this — nothing in the tree does that today.
     .filter((b) => !(b instanceof HTMLInputElement && b.type === "file"))
     .filter((b) => (b.textContent ?? "").trim() === "")
     .map((b) => b.getAttribute("aria-label") ?? "(no accessible name)");
@@ -134,7 +139,8 @@ describe("the folder toolbar's wordless controls", () => {
     ["input", { type: "button", value: "" }],
     ["label", {}],
   ])("sees a wordless <%s %s>", (tag, attrs) => {
-    // Eight of these nine walked past the first version of the selector.
+    // Ten shapes. Of the eight an independent review tried against the
+    // first version of this selector, seven walked past it.
     const { container } = render(<FolderToolbar {...props} />);
     const stray = document.createElement(tag);
     for (const [k, v] of Object.entries(attrs)) stray.setAttribute(k, v as string);

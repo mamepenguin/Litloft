@@ -84,7 +84,23 @@ export function FilterMenu({
   };
 
   return (
-    <div className="relative">
+    <div
+      className="relative"
+      // On the box, not on the menu. Opening this leaves focus on the
+      // trigger, which is outside the menu — so a handler there fired only
+      // for someone who had already tabbed into a row. Measured: Escape
+      // after a mouse click, after Enter and after Space all left it open,
+      // and the test that said otherwise dispatched the event on the menu
+      // element directly, which is the one path a reader never takes.
+      onKeyDown={(e) => {
+        if (!open || e.key !== "Escape") return;
+        // Kept from the document: `escape-listeners.test.ts` records that a
+        // React `onKeyDown` is invisible to the shortcut registry, so an
+        // Escape that also reaches `ShortcutsProvider` gets answered twice.
+        e.stopPropagation();
+        close();
+      }}
+    >
       <button
         ref={triggerRef}
         onClick={() => setOpen((s) => !s)}
@@ -121,18 +137,12 @@ export function FilterMenu({
             aria-hidden="true"
             onClick={close}
           />
+          {/* The scrim is a mouse gesture, so Escape (handled on the box
+              above) is the keyboard's only way out. Arrow-key roving is the
+              rest of the APG menu contract and is not here yet; the rows are
+              ordinary buttons in tab order. */}
           <div
             role="menu"
-            // The only way out was the scrim, which is a mouse gesture.
-            // Arrow-key roving is the rest of the APG menu contract and is
-            // not here yet; Escape is the part whose absence leaves a
-            // keyboard user with no exit at all.
-            onKeyDown={(e) => {
-              if (e.key === "Escape") {
-                e.stopPropagation();
-                close();
-              }
-            }}
             className="fixed inset-x-2 bottom-4 z-40 max-h-[60vh] overflow-y-auto rounded-2xl border border-bg-border bg-bg-primary py-1 shadow-lg animate-fade-in-scale sm:absolute sm:inset-x-auto sm:bottom-auto sm:right-0 sm:top-full sm:mt-1 sm:max-h-[70vh] sm:min-w-[200px] sm:origin-top-right"
           >
             {/* `role="group"` + `aria-labelledby`: a `role="menu"` publishes

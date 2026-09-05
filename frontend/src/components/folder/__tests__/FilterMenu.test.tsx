@@ -307,13 +307,48 @@ describe("FilterMenu", () => {
     expect(screen.getAllByRole("group", { name: "File type" })).toHaveLength(1);
   });
 
-  it("lets a keyboard out", () => {
-    // The only exit was the scrim, which is a mouse gesture.
+  it.each([
+    ["the trigger, where focus is when it opens", () => trigger()],
+    ["a row, once the reader has tabbed in", () => screen.getAllByRole("menuitemradio")[0]],
+    ["the menu itself", () => screen.getByRole("menu")],
+  ])("lets a keyboard out from %s", (_label, target) => {
+    // Every path, because the first version only worked from one. Focus
+    // stays on the trigger when the menu opens, and the handler was on the
+    // menu — so Escape after a click, after Enter and after Space all left
+    // it open, while the test dispatched on the menu element and passed.
     render(<FilterMenu {...base} />);
     fireEvent.click(trigger());
-    fireEvent.keyDown(screen.getByRole("menu"), { key: "Escape" });
+    fireEvent.keyDown(target(), { key: "Escape" });
     expect(screen.queryByRole("menu")).not.toBeInTheDocument();
     expect(document.activeElement).toBe(trigger());
+  });
+
+  it("leaves other keys to whatever is above it", () => {
+    const onKeyDown = vi.fn();
+    render(
+      <div onKeyDown={onKeyDown}>
+        <FilterMenu {...base} />
+      </div>,
+    );
+    fireEvent.click(trigger());
+    fireEvent.keyDown(trigger(), { key: "ArrowDown" });
+    expect(onKeyDown).toHaveBeenCalledTimes(1);
+    // Escape is answered here and stopped: `escape-listeners.test.ts`
+    // records that a React handler is invisible to the shortcut registry,
+    // so one that also reached the document would be answered twice.
+    fireEvent.keyDown(trigger(), { key: "Escape" });
+    expect(onKeyDown).toHaveBeenCalledTimes(1);
+  });
+
+  it("ignores Escape when it is already closed", () => {
+    const onKeyDown = vi.fn();
+    render(
+      <div onKeyDown={onKeyDown}>
+        <FilterMenu {...base} />
+      </div>,
+    );
+    fireEvent.keyDown(trigger(), { key: "Escape" });
+    expect(onKeyDown).toHaveBeenCalledTimes(1);
   });
 
   it("names an unknown kind after itself, never after All", () => {
