@@ -1,6 +1,6 @@
 import { describe, it, expect } from "vitest";
 
-import { TYPE_OPTION_KEYS } from "@/components/folder/FolderToolbar";
+import { TYPE_OPTION_KEYS } from "@/components/folder/filterOptions";
 import { VALID_TYPES } from "@/app/drive/[name]/search/page";
 
 /**

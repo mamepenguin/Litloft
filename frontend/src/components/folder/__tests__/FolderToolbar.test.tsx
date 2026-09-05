@@ -298,9 +298,9 @@ describe("FolderToolbar", () => {
     expect(screen.queryByText(/\d+ items/)).toBeNull();
   });
 
-  it("opens type filter popover and lists options", () => {
+  it("opens the filter menu and lists the kinds", () => {
     render(<FolderToolbar {...defaultProps} />);
-    fireEvent.click(screen.getByLabelText("File type"));
+    fireEvent.click(screen.getByRole("button", { name: "Filter" }));
     expect(screen.getByText("All")).toBeInTheDocument();
     expect(screen.getByText("Video")).toBeInTheDocument();
     expect(screen.getByText("Image")).toBeInTheDocument();
@@ -310,7 +310,7 @@ describe("FolderToolbar", () => {
   it("calls onTypeFilterChange when picking from popover", () => {
     const onTypeFilterChange = vi.fn();
     render(<FolderToolbar {...defaultProps} onTypeFilterChange={onTypeFilterChange} />);
-    fireEvent.click(screen.getByLabelText("File type"));
+    fireEvent.click(screen.getByRole("button", { name: "Filter" }));
     fireEvent.click(screen.getByText("Video"));
     expect(onTypeFilterChange).toHaveBeenCalledWith("video");
   });
@@ -397,7 +397,7 @@ describe("FolderToolbar", () => {
     it("puts away the arranging controls", () => {
       render(<FolderToolbar {...empty} />);
       expect(screen.queryByTestId("sort-button")).not.toBeInTheDocument();
-      expect(screen.queryByLabelText("File type")).not.toBeInTheDocument();
+      expect(screen.queryByRole("button", { name: "Filter" })).not.toBeInTheDocument();
       expect(screen.queryByLabelText("Grid view")).not.toBeInTheDocument();
       expect(screen.queryByLabelText("List view")).not.toBeInTheDocument();
     });
@@ -431,7 +431,9 @@ describe("FolderToolbar", () => {
       // the user with no way back to the full listing.
       render(<FolderToolbar {...empty} typeFilter="audio" />);
       expect(screen.getByTestId("sort-button")).toBeInTheDocument();
-      expect(screen.getByLabelText("File type")).toBeInTheDocument();
+      // Named by what it is filtering by, not by the word "Filter": that is
+      // how the control says why the folder looks empty.
+      expect(screen.getByRole("button", { name: "Audio" })).toBeInTheDocument();
     });
 
     it("keeps them all when a trust filter is what emptied it", () => {
@@ -455,7 +457,7 @@ describe("FolderToolbar", () => {
       // chip: they are how the query gets widened.
       render(<FolderToolbar {...empty} isSearch />);
       expect(screen.getByTestId("sort-button")).toBeInTheDocument();
-      expect(screen.getByLabelText("File type")).toBeInTheDocument();
+      expect(screen.getByRole("button", { name: "Filter" })).toBeInTheDocument();
     });
 
     it("keeps them all when the folder count is simply not known", () => {
@@ -468,8 +470,13 @@ describe("FolderToolbar", () => {
 
   describe("the kinds it offers", () => {
     const kindMenu = () => {
-      fireEvent.click(screen.getByLabelText("File type"));
-      return screen.getAllByRole("menuitem").map((el) => el.textContent);
+      fireEvent.click(screen.getByRole("button", { name: "Filter" }));
+      // Only the kind section: the trust rows follow it under their own
+      // heading, and this is about the vocabulary of kinds.
+      return screen
+        .getAllByRole("menuitem")
+        .map((el) => el.textContent)
+        .slice(0, 9);
     };
 
     it("offers the whole vocabulary in a folder", () => {
