@@ -3,7 +3,7 @@ import { fileURLToPath } from "node:url";
 import { resolve, dirname } from "node:path";
 import {
   MIGRATION_WINDOWS,
-  PENDING_PRS,
+  PENDING_BUMPS,
   addonOf,
   addonPresent,
   openWindows,
@@ -49,7 +49,7 @@ describe("migration windows", () => {
 
   it("refuses a path declared on the other ledger", () => {
     // The same file can hold a window on each ledger, so asking the wrong one
-    // must not resolve. Four paths are already on both.
+    // must not resolve. Three paths hold one on each.
     expect(() =>
       windowSide(1, "page-headings", PATH, there),
     ).toThrow(/no migration window/);
@@ -69,20 +69,32 @@ describe("migration windows", () => {
   });
 
   it("names a pull request that will actually reach this file", () => {
-    // Three versions of this check. A regex on the shape admitted "A1",
+    // Four versions of this check. A regex on the shape admitted "A1",
     // shipped weeks ago, and "Z9", never planned. A flat list of open PRs
-    // admitted "C3" — knowledge's — on a media_import window. What closes a
-    // window is the PR that moves that addon's pointer, so that is what is
-    // asserted.
+    // admitted "C3" — knowledge's — on a media_import window. The third held
+    // every unlanded PR of the phase, seven of nine with an empty `bumps`,
+    // which no window could name and this loop never reached. What closes a
+    // window is the PR that moves that addon's pointer, so that is the only
+    // thing the list holds.
     for (const [ledger, windows] of Object.entries(MIGRATION_WINDOWS)) {
       for (const [path, w] of Object.entries(windows)) {
         const where = `${ledger}:${path}`;
-        expect(Object.keys(PENDING_PRS), where).toContain(w.closedBy);
+        expect(Object.keys(PENDING_BUMPS), where).toContain(w.closedBy);
         const addon = addonOf(path);
         expect(addon, where).not.toBeNull();
-        expect(PENDING_PRS[w.closedBy].bumps, where).toContain(addon);
+        expect(PENDING_BUMPS[w.closedBy].bumps, where).toContain(addon);
         expect(w.why.length, where).toBeGreaterThan(0);
       }
+    }
+  });
+
+  it("holds no name that cannot close a window", () => {
+    // Every entry carries at least one addon, so every entry is reachable by
+    // the loop above and its spelling is checked by `names addons that exist`.
+    // The version that listed the whole remaining phase had seven entries
+    // that neither test could see.
+    for (const [pr, { bumps }] of Object.entries(PENDING_BUMPS)) {
+      expect(bumps.length, pr).toBeGreaterThan(0);
     }
   });
 
@@ -102,7 +114,7 @@ describe("migration windows", () => {
   it("keeps each ledger's windows to itself", () => {
     // Keyed by ledger *then* path, so one file can be mid-migration on both.
     // Keying by path alone made a second entry a duplicate key that `tsc`
-    // rejects — which C2 and C3 need, and C1 happened not to.
+    // rejects — which intelligence needs and media_import happened not to.
     //
     // Both ledgers in full, sorted, rather than a count or the one path that
     // differs between them. A count would let a window move from one ledger to
@@ -134,10 +146,14 @@ describe("migration windows", () => {
   });
 
   it("declares a path on both ledgers at once", () => {
-    // What the ledger-then-path keying buys, against the declarations rather
-    // than a fixture: `staleEntries` in the heading detector scopes its excuse
-    // to its own ledger, and that scoping is unfalsifiable while no path is on
-    // both. Three are.
+    // What makes the ledger-then-path keying load-bearing rather than
+    // hypothetical. While only media_import held windows, the two were
+    // `Page.tsx` and `Composer.tsx` — different names, so keying by path alone
+    // still type-checked and the nesting was carrying nothing. Three paths now
+    // hold a window on each ledger, and keying by path alone is a duplicate
+    // key: `tsc` reports TS1117 once per shared path. That is checked by the
+    // type system on every run, not here; what is held here is the population
+    // it depends on, so a change that empties it cannot pass silently.
     const onBoth = Object.keys(MIGRATION_WINDOWS["page-headings"]).filter(
       (path) => path in MIGRATION_WINDOWS["button-adoption"],
     );
@@ -146,10 +162,6 @@ describe("migration windows", () => {
       "addons/intelligence/frontend/pages/find.tsx",
       "addons/intelligence/frontend/pages/search-compare.tsx",
     ]);
-    for (const path of onBoth) {
-      expect(windowSide(1, "page-headings", path, there), path).toBe("before");
-      expect(windowSide(1, "button-adoption", path, there), path).toBe("before");
-    }
   });
 
   it("lets one path hold a window on each ledger, with different answers", () => {
@@ -159,6 +171,9 @@ describe("migration windows", () => {
     // ledgers is asserted separately, above. The first version of this test
     // asserted the key names and that each value was an object; it passed with
     // both ledgers emptied, which is to say it asserted nothing at all.
+    //
+    // The endpoints below are 1-vs-3 rather than 1-vs-1 for that reason. A
+    // pair matching the declarations would pass whichever ledger resolved it.
     const SHARED = "addons/intelligence/frontend/Page.tsx";
     const fixture = {
       "page-headings": {
@@ -205,12 +220,13 @@ describe("migration windows", () => {
   it("names addons that exist", () => {
     // Both hand-written tables — the windows' paths and `bumps` — spell addon
     // directory names, and a typo in either would read as a considered entry
-    // while matching nothing.
+    // while matching nothing. Every `PENDING_BUMPS` entry is reached, because
+    // the test above refuses an empty `bumps`.
     const declared = new Set<string>();
     for (const windows of Object.values(MIGRATION_WINDOWS)) {
       for (const path of Object.keys(windows)) declared.add(addonOf(path)!);
     }
-    for (const { bumps } of Object.values(PENDING_PRS)) {
+    for (const { bumps } of Object.values(PENDING_BUMPS)) {
       for (const addon of bumps) declared.add(addon);
     }
     for (const addon of declared) {

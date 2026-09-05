@@ -135,6 +135,13 @@ function handWritten(): Record<string, number> {
           // Breadth is free here because the filter is `disabled:bg-sand`,
           // which no literal carries by accident, and comments are blanked
           // first so prose about the recipe is not the recipe.
+          //
+          // This counts the literals that carry the recipe, which is to say
+          // the *places* that write it — not the copies of it. One className
+          // holding the token twice reads as one, and that is the right unit:
+          // the ledger is a list of buttons to convert, and a second copy
+          // inside one attribute is not a second button. A second button is a
+          // second literal, and that does move the count.
           const n = stringLiterals(
             stripComments(readFileSync(full, "utf-8")),
           ).filter((v) => /\bdisabled:bg-sand\b/.test(v)).length;

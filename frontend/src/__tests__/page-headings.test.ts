@@ -138,27 +138,61 @@ function headings(): Heading[] {
 }
 
 /**
+ * What the staleness rule needs to know about a path.
+ *
+ * Taken rather than read, and as a required first argument rather than an
+ * option. The rule's two excuses — an absent addon, an open window — are both
+ * invisible on the near side of a migration, because a file that still writes
+ * its `<h1>` is not stale whether or not anything excuses it. Reading the
+ * filesystem directly meant the only tree that could witness them was one
+ * nobody has yet, and the fixture below said it was witnessing them while
+ * standing on the side where they do nothing.
+ *
+ * `windowSideIn` took the same shape for the same reason, and an *optional*
+ * parameter was rejected there because a caller could then substitute the
+ * mechanism it was supposed to be constrained by.
+ */
+interface HeadingSource {
+  /** Whether the addon holding this path is checked out at all. */
+  present(path: string): boolean;
+  /** Whether the file is in the tree. */
+  exists(path: string): boolean;
+  /** Whether it still writes an `<h1>` by hand. Asked only if it exists. */
+  writesHeading(path: string): boolean;
+}
+
+/**
  * Which of `paths` no longer earns its place on the not-yet-migrated list.
  *
  * A named function rather than a closure inside the assertion, so the ledger
  * scoping can be given input the real ledger does not contain.
  */
-function staleEntries(paths: string[]): string[] {
+function staleEntriesFrom(source: HeadingSource, paths: string[]): string[] {
   return paths.filter((f) => {
-    const abs = resolve(REPO_ROOT, f);
     // An addon that is not checked out is absent, not stale. The *addon*,
     // not the file: this read the file's own path, so a listed file deleted
     // or renamed inside a checked-out addon was excused forever rather than
     // reported — the one thing this test exists to catch, in the one place it
     // could not see.
-    if (f.startsWith("addons/") && !addonPresent(REPO_ROOT, f)) return false;
+    if (f.startsWith("addons/") && !source.present(f)) return false;
     // Nor is one whose window is open: the entry is stale on the far side of
     // the migration and correct on the near one, and this checkout can be on
     // either. Scoped to *this* ledger — unscoped, a button window's path
     // skipped the heading check too.
     if (f in MIGRATION_WINDOWS["page-headings"]) return false;
-    return !existsSync(abs) || !/<h1\b/.test(stripComments(readFileSync(abs, "utf-8")));
+    return !source.exists(f) || !source.writesHeading(f);
   });
+}
+
+const FROM_DISK: HeadingSource = {
+  present: (f) => addonPresent(REPO_ROOT, f),
+  exists: (f) => existsSync(resolve(REPO_ROOT, f)),
+  writesHeading: (f) =>
+    /<h1\b/.test(stripComments(readFileSync(resolve(REPO_ROOT, f), "utf-8"))),
+};
+
+function staleEntries(paths: string[]): string[] {
+  return staleEntriesFrom(FROM_DISK, paths);
 }
 
 describe("page headings", () => {
@@ -259,12 +293,54 @@ describe("page headings", () => {
     expect(staleEntries(Object.keys(NOT_YET_MIGRATED))).toEqual([]);
   });
 
-  // The rule above, against input written for it. With only the real ledger
-  // to work on, the ledger scoping below could not be wrong: no button
-  // window's path is in `NOT_YET_MIGRATED` today, so unscoping it changed
-  // nothing and no test noticed. Four paths are on both ledgers, and C2 puts
-  // them there.
+  // The rule above, against input written for it.
+  //
+  // Everything in this block needs a fixture, and the reason is structural
+  // rather than a gap in the declarations. The assertion the real ledger makes
+  // is `staleEntries(...) === []`, and both excuses only ever *remove* paths
+  // from that result — widening an empty set leaves it empty. So no tree, and
+  // no number of declared windows, can make the real assertion go red when an
+  // excuse is too broad. Only an assertion that expects something *back* can,
+  // and only a source that says "this file is here and no longer writes one"
+  // reaches the excuses at all.
   describe("what counts as stale", () => {
+    /** A source that answers the same way for every path. */
+    const saying = (answers: {
+      present: boolean;
+      exists: boolean;
+      writesHeading: boolean;
+    }): HeadingSource => ({
+      present: () => answers.present,
+      exists: () => answers.exists,
+      writesHeading: () => answers.writesHeading,
+    });
+
+    // The far side of the migration: the addon's pull request has landed, the
+    // file is there, and it no longer writes its own heading. Here the window
+    // is the only thing between it and the stale list — which is what the
+    // real-filesystem version below cannot show, because on this pointer the
+    // file still writes one and would be excused by nothing at all.
+    const CONVERTED = saying({
+      present: true,
+      exists: true,
+      writesHeading: false,
+    });
+
+    it("excuses a converted file while its window is open", () => {
+      expect(
+        staleEntriesFrom(CONVERTED, ["addons/media_import/frontend/Page.tsx"]),
+      ).toEqual([]);
+    });
+
+    it("reports a converted file that has no window", () => {
+      // The same source and the same answers, so the window is the only
+      // difference between this and the case above. Without it the first
+      // assertion would pass for a file nothing excuses.
+      expect(
+        staleEntriesFrom(CONVERTED, ["addons/media_import/frontend/api.ts"]),
+      ).toEqual(["addons/media_import/frontend/api.ts"]);
+    });
+
     it("excuses a path whose heading window is open", () => {
       expect(staleEntries(["addons/media_import/frontend/Page.tsx"])).toEqual([]);
     });

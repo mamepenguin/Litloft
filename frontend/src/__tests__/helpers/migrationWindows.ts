@@ -39,7 +39,7 @@ import { resolve } from "node:path";
  * *Closing is not enforced, only assigned.* Core cannot tell "the pointer has
  * moved past this migration" from "the addon's CI substituted its tree", and
  * those are the same observation from inside the suite. So a bump that leaves
- * its windows behind stays green. `PENDING_PRS` catches only the ordering
+ * its windows behind stays green. `PENDING_BUMPS` catches only the ordering
  * where the PR removes itself from that list first. **The acceptance
  * conditions in the phase spec are the real guarantee**, and this is written
  * down so that nobody mistakes the tripwire for one.
@@ -71,8 +71,9 @@ export interface MigrationWindow {
   after: number;
   /**
    * The pull request that removes this entry, by name. Must be one of
-   * `PENDING_PRS`: an entry closed by something already shipped is an entry
-   * nobody will come back for.
+   * `PENDING_BUMPS`, and must be one that bumps this window's own addon: an
+   * entry closed by something already shipped, or by a pull request that
+   * never reaches this file, is an entry nobody will come back for.
    */
   closedBy: string;
   /** Why the pair is unavoidable here, in one line. */
@@ -80,32 +81,33 @@ export interface MigrationWindow {
 }
 
 /**
- * Phase 3 pull requests that have not landed yet, and which addon pointers
- * each one moves.
+ * The pull requests that have not landed and that **move an addon pointer**,
+ * with the pointers each one moves.
  *
- * A window may only be closed by a PR that **bumps the addon whose file the
- * window names**. Two earlier versions were weaker: a regex on the shape of
+ * A window may only be closed by a PR that bumps the addon whose file the
+ * window names. Two earlier versions were weaker: a regex on the shape of
  * `closedBy` let `"A1"` — shipped weeks ago — and `"Z9"` — never planned —
  * through, and a flat list of names let a media_import window be closed by
  * `"C3"`, which is knowledge's, or `"D5"`, which bumps neither. A name that
  * passes a check is not an assignment unless the check knows what the name
  * is for.
  *
- * Shrinks as the phase lands — C1 is already gone. A pull request left here
- * after it merges is the stale claim this whole mechanism exists to avoid:
- * the list says "not landed yet", and a name in it that has would let a
- * window be assigned to a PR that will never come back for it. When the last
- * entry goes, so does this list.
+ * **Only bumping pull requests, not every pull request the phase still owes.**
+ * A third version of this list held the whole remaining phase, and seven of
+ * its nine entries carried an empty `bumps` — which meant no window could
+ * name them, and `names addons that exist` never iterated them, so a typo in
+ * one of those seven was undetectable. An entry nothing can check is a
+ * comment wearing the syntax of an assertion. The remaining-PR list lives in
+ * the phase spec, which is where a reader goes for it; this holds the two
+ * names a `closedBy` may actually be.
+ *
+ * It shrinks as the pointers move, and it can also grow — a later phase that
+ * bumps an addon adds itself. What must not happen is a name staying here
+ * after it merges: the list says "has not landed", and a window assigned to a
+ * name that has is a window nobody will come back for.
  */
-export const PENDING_PRS: Record<string, { bumps: readonly string[] }> = {
-  "B2b-2b": { bumps: [] },
-  C2a: { bumps: [] },
-  C2b: { bumps: [] },
-  C3: { bumps: [] },
+export const PENDING_BUMPS: Record<string, { bumps: readonly string[] }> = {
   D1: { bumps: ["media_import", "intelligence", "knowledge"] },
-  D2: { bumps: [] },
-  D3: { bumps: [] },
-  D4: { bumps: [] },
   D5: { bumps: ["intelligence"] },
 };
 
@@ -253,11 +255,12 @@ export function addonPresent(repoRoot: string, path: string): boolean {
  * As `windowSide`, but against a map given to it.
  *
  * A separate entry point rather than an option on the other one. The fixture
- * that shows per-ledger resolution needs a map holding one path on both
- * ledgers, which the declared one will not have until C2 — but offering that
- * as `opts.windows?` made it an *optional* parameter on the production
- * function, and a detector passing `{ before: 99, after: 0 }` then bypassed
- * the whole mechanism with nothing failing.
+ * that shows per-ledger resolution needs endpoints that *differ* between the
+ * two ledgers for one path, which the declared map cannot supply while every
+ * window in it runs 1 to 0 — but offering that as `opts.windows?` made it an
+ * *optional* parameter on the production function, and a detector passing
+ * `{ before: 99, after: 0 }` then bypassed the whole mechanism with nothing
+ * failing.
  *
  * What the split buys is visibility, not unreachability — and an earlier
  * draft of this paragraph claimed the second. A detector can still import
