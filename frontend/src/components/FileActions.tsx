@@ -224,7 +224,17 @@ export function FileActions({
             e.stopPropagation();
             setMenuOpen((prev) => !prev);
           }}
-          className="rounded-lg p-1.5 text-text-muted transition-colors hover:bg-bg-elevated hover:text-text-primary"
+          // The touch floor on the control, because the row's rule cannot
+          // reach it: `.file-action-row-touch > *` grows the *direct child*,
+          // and this button sits inside the `.relative` wrapper the menu
+          // needs — so the wrapper became 44x44 and the button stayed 28x28.
+          // §Row Actions asks for exactly this ("give the row's own controls
+          // the same class wherever alignment stops them inheriting that
+          // height"); `addons/knowledge/frontend/MediaCaptureAction.tsx` is
+          // the shape being copied, centring included. `p-1.5` has no
+          // `display`, so `h-11 w-11` alone would leave the glyph against the
+          // left padding edge — measured 6/14/22/14 instead of 14 all round.
+          className="inline-flex items-center justify-center rounded-lg p-1.5 text-text-muted transition-colors hover:bg-bg-elevated hover:text-text-primary pointer-coarse:h-11 pointer-coarse:w-11"
           aria-haspopup="menu"
           aria-expanded={menuOpen}
           aria-label={t("actions")}

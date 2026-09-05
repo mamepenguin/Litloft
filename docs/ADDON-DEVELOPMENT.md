@@ -873,11 +873,18 @@ Markdown inspector and on a phone, so an entry must:
   same entry has to fit a narrow inspector column today.
 - **Keep its tap target at least 44px on a coarse pointer,** even where
   the drawn control is smaller — and keep it *itself*, with a
-  `pointer-coarse:` class of its own. The host grows the row's children
-  to 44px only in the compact form it uses inside a phone's resting
-  strip, and "compact" is a viewport-width test, not a pointer one. A
-  coarse-pointer tablet at 768px or wider gets the full row, which has
-  no such rule, so an entry relying on the host is 36px there.
+  `pointer-coarse:` class of its own. The host does grow the row's
+  children on a coarse pointer, in both the compact strip and the full
+  inspector row, but the rule is `.file-action-row-touch > *` and it
+  reaches only the **direct child**. An entry that wraps its trigger —
+  for a menu, a popover, anything needing a positioned parent — gets the
+  wrapper grown and the control left where it was: measured at 28x28
+  inside a 44x44 wrapper, because the same rule's `align-items: center`
+  stops the height reaching through. Core's own overflow button has this
+  shape and carries its own `pointer-coarse:h-11 pointer-coarse:w-11`
+  for it. Size classes alone are not enough on a control with no
+  `display`: add `inline-flex items-center justify-center` or the glyph
+  sits against the padding edge.
 - **Render nothing when it has nothing to offer for this file.** The row
   belongs to the core's own controls; an entry that always draws is a
   permanent occupant of a line the user did not ask for.
