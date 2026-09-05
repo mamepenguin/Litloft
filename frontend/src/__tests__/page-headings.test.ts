@@ -145,8 +145,12 @@ function headings(): Heading[] {
 function staleEntries(paths: string[]): string[] {
   return paths.filter((f) => {
     const abs = resolve(REPO_ROOT, f);
-    // An addon that is not checked out is absent, not stale.
-    if (f.startsWith("addons/") && !existsSync(abs)) return false;
+    // An addon that is not checked out is absent, not stale. The *addon*,
+    // not the file: this read the file's own path, so a listed file deleted
+    // or renamed inside a checked-out addon was excused forever rather than
+    // reported — the one thing this test exists to catch, in the one place it
+    // could not see.
+    if (f.startsWith("addons/") && !addonPresent(REPO_ROOT, f)) return false;
     // Nor is one whose window is open: the entry is stale on the far side of
     // the migration and correct on the near one, and this checkout can be on
     // either. Scoped to *this* ledger — unscoped, a button window's path
@@ -281,6 +285,13 @@ describe("page headings", () => {
 
     it("treats an addon that is not checked out as absent", () => {
       expect(staleEntries(["addons/never-existed/frontend/x.tsx"])).toEqual([]);
+    });
+
+    it("still reports a file that has gone from an addon that is here", () => {
+      // Absence of the addon is a reason; absence of the file is the defect.
+      expect(
+        staleEntries(["addons/media_import/frontend/DeletedLongAgo.tsx"]),
+      ).toEqual(["addons/media_import/frontend/DeletedLongAgo.tsx"]);
     });
   });
 });

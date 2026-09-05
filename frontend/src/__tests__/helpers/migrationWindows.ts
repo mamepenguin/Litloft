@@ -26,6 +26,28 @@ import { resolve } from "node:path";
  * fails, with both values in the message. What it buys is exactly the width
  * the migration actually crosses, for exactly as long as it is crossing.
  *
+ * **Two residuals, both deliberate and neither closed by this mechanism.**
+ *
+ * *Per window, not per pull request.* Each entry is independent, so a ledger
+ * holding `n` open windows admits 2ⁿ combinations — C2 declares seven, and a
+ * tree where four of its conversions landed and three did not is green on
+ * both sides. "Exactly the width the migration crosses" is a claim about one
+ * window. Nothing here can tell a half-applied pull request from a whole one,
+ * because nothing here knows the windows belong to the same one.
+ *
+ * *Closing is not enforced, only assigned.* Core cannot tell "the pointer has
+ * moved past this migration" from "the addon's CI substituted its tree", and
+ * those are the same observation from inside the suite. So a bump that leaves
+ * its windows behind stays green. `PENDING_PRS` catches only the ordering
+ * where the PR removes itself from that list first. **The acceptance
+ * conditions in the phase spec are the real guarantee**, and this is written
+ * down so that nobody mistakes the tripwire for one.
+ *
+ * **Windows are for addon paths only.** The deadlock they exist for is a
+ * two-repository one; a core path has no second repository to wait for, and
+ * the heading ledger's subtraction is keyed per addon root and would not
+ * apply to one.
+ *
  * **Every entry names the pull request that deletes it**, and that name is
  * checked against the PRs this phase still has open. "Migrating" alone tells
  * the next reader nothing about when it ends, and a relaxation nobody is
@@ -57,16 +79,34 @@ export interface MigrationWindow {
 }
 
 /**
- * Phase 3 pull requests that have not landed yet.
+ * Phase 3 pull requests that have not landed yet, and which addon pointers
+ * each one moves.
  *
- * A window may only be closed by one of these. The first version asserted the
- * *shape* of `closedBy` (`/^[A-Z]\d/`), which let `"A1"` — shipped weeks ago —
- * and `"Z9"` — never planned — both through. A name that passes a regex is not
- * an assignment.
+ * A window may only be closed by a PR that **bumps the addon whose file the
+ * window names**. Two earlier versions were weaker: a regex on the shape of
+ * `closedBy` let `"A1"` — shipped weeks ago — and `"Z9"` — never planned —
+ * through, and a flat list of names let a media_import window be closed by
+ * `"C3"`, which is knowledge's, or `"D5"`, which bumps neither. A name that
+ * passes a check is not an assignment unless the check knows what the name
+ * is for.
  *
  * Shrinks as the phase lands. When the last entry goes, so does this list.
  */
-export const PENDING_PRS = ["C2", "C3", "D1", "D2", "D3", "D4", "D5"] as const;
+export const PENDING_PRS: Record<string, { bumps: readonly string[] }> = {
+  C1: { bumps: [] },
+  C2: { bumps: [] },
+  C3: { bumps: [] },
+  D1: { bumps: ["media_import", "intelligence", "knowledge"] },
+  D2: { bumps: [] },
+  D3: { bumps: [] },
+  D4: { bumps: [] },
+  D5: { bumps: ["intelligence"] },
+};
+
+/** The addon a window's path belongs to, or `null` for a core path. */
+export function addonOf(path: string): string | null {
+  return path.startsWith("addons/") ? path.split("/")[1] : null;
+}
 
 /**
  * Keyed by ledger **then** path, not by path alone.
@@ -136,9 +176,13 @@ export function windowSide(
   // be tested by making a file disappear, and the first test written for this
   // one passed against an *undeclared* path instead — the wrong error, from
   // the line above.
-  opts: { exists: boolean },
+  // `windows` is injectable so the per-ledger resolution can be shown against
+  // a fixture holding one path on both ledgers. The declared map has no such
+  // path today, so a test written against it could only assert the shape and
+  // would pass with both ledgers emptied — which the first one did.
+  opts: { exists: boolean; windows?: typeof MIGRATION_WINDOWS },
 ): "before" | "after" {
-  const w = MIGRATION_WINDOWS[ledger]?.[path];
+  const w = (opts.windows ?? MIGRATION_WINDOWS)[ledger]?.[path];
   if (!w) throw new Error(`${ledger}:${path}: no migration window is declared`);
   if (!opts.exists) {
     throw new Error(

@@ -4,6 +4,7 @@ import { resolve, dirname } from "node:path";
 import {
   MIGRATION_WINDOWS,
   PENDING_PRS,
+  addonOf,
   addonPresent,
   openWindows,
   windowSide,
@@ -66,16 +67,33 @@ describe("migration windows", () => {
     );
   });
 
-  it("names a pull request that has not landed yet", () => {
-    // Not a regex on the shape: `/^[A-Z]\d/` admitted "A1", which shipped
-    // weeks ago, and "Z9", which was never planned. A name that passes a
-    // pattern is not an assignment.
+  it("names a pull request that will actually reach this file", () => {
+    // Three versions of this check. A regex on the shape admitted "A1",
+    // shipped weeks ago, and "Z9", never planned. A flat list of open PRs
+    // admitted "C3" — knowledge's — on a media_import window. What closes a
+    // window is the PR that moves that addon's pointer, so that is what is
+    // asserted.
     for (const [ledger, windows] of Object.entries(MIGRATION_WINDOWS)) {
       for (const [path, w] of Object.entries(windows)) {
-        expect(PENDING_PRS as readonly string[], `${ledger}:${path}`).toContain(
-          w.closedBy,
-        );
-        expect(w.why.length, `${ledger}:${path}`).toBeGreaterThan(0);
+        const where = `${ledger}:${path}`;
+        expect(Object.keys(PENDING_PRS), where).toContain(w.closedBy);
+        const addon = addonOf(path);
+        expect(addon, where).not.toBeNull();
+        expect(PENDING_PRS[w.closedBy].bumps, where).toContain(addon);
+        expect(w.why.length, where).toBeGreaterThan(0);
+      }
+    }
+  });
+
+  it("declares windows for addon paths only", () => {
+    // The deadlock is a two-repository one. A core path has no second
+    // repository to wait for, and the heading ledger's subtraction is keyed
+    // per addon root — so a core window would be excused by the staleness
+    // rule while never being subtracted from a count. Input the helper
+    // accepts and the detectors cannot handle is a gap, not a feature.
+    for (const windows of Object.values(MIGRATION_WINDOWS)) {
+      for (const path of Object.keys(windows)) {
+        expect(addonOf(path), path).not.toBeNull();
       }
     }
   });
@@ -90,16 +108,31 @@ describe("migration windows", () => {
     ]);
   });
 
-  it("lets one path hold a window on each ledger", () => {
-    const both = Object.keys(MIGRATION_WINDOWS) as Array<
-      keyof typeof MIGRATION_WINDOWS
-    >;
-    expect(both).toEqual(["page-headings", "button-adoption"]);
-    // The shape admits it even where nothing uses it yet: a `Record` per
-    // ledger cannot collide, and that is the whole reason for the nesting.
-    for (const ledger of both) {
-      expect(typeof MIGRATION_WINDOWS[ledger]).toBe("object");
-    }
+  it("lets one path hold a window on each ledger, with different answers", () => {
+    // Against a fixture, because the declared map has no such path yet and
+    // C2 is the PR that adds four. The first version of this test asserted
+    // the key names and that each value was an object — it passed with both
+    // ledgers emptied, which is to say it asserted nothing about the property
+    // its name promises.
+    const SHARED = "addons/intelligence/frontend/Page.tsx";
+    const fixture = {
+      "page-headings": {
+        [SHARED]: { before: 1, after: 0, closedBy: "D1", why: "heading" },
+      },
+      "button-adoption": {
+        [SHARED]: { before: 3, after: 0, closedBy: "D1", why: "recipes" },
+      },
+    };
+    const at = (ledger: "page-headings" | "button-adoption", n: number) =>
+      windowSide(n, ledger, SHARED, { exists: true, windows: fixture });
+
+    expect(at("page-headings", 1)).toBe("before");
+    expect(at("button-adoption", 3)).toBe("before");
+    expect(at("page-headings", 0)).toBe("after");
+    expect(at("button-adoption", 0)).toBe("after");
+    // The other ledger's endpoint is not this one's.
+    expect(() => at("page-headings", 3)).toThrow(/expected 1 .*or 0/);
+    expect(() => at("button-adoption", 1)).toThrow(/expected 3 .*or 0/);
   });
 
   it("treats an addon that is not checked out as absent", () => {
