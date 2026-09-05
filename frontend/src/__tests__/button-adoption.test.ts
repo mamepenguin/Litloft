@@ -3,6 +3,12 @@ import { readFileSync, readdirSync, existsSync, statSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { resolve, dirname, relative } from "node:path";
 import { stringLiterals, stripComments } from "./helpers/sourceScan";
+import {
+  MIGRATION_WINDOWS,
+  addonPresent,
+  openWindows as declaredWindows,
+  windowSide,
+} from "./helpers/migrationWindows";
 
 /**
  * Where the disabled treatment is still written by hand.
@@ -88,6 +94,9 @@ const NOT_CONVERTED: Record<string, number> = {
   "addons/knowledge/frontend/KnowledgeDashboard.tsx": 1,
   "addons/knowledge/frontend/MoveDialog.tsx": 1,
   "addons/knowledge/frontend/UnresolvedLinkDialog.tsx": 1,
+  // Mid-migration: C1 converted this in the addon repository and the pointer
+  // here still names the commit before it. `MIGRATION_WINDOWS` declares both
+  // endpoints; D1 bumps the pointer and deletes this line.
   "addons/media_import/frontend/Composer.tsx": 1,
 };
 function handWritten(): Record<string, number> {
@@ -145,6 +154,23 @@ describe("Button adoption", () => {
    * `--recurse-submodules` failed it with a 26-vs-25 object diff and nothing
    * naming the cause. An absent addon is absent, not converted.
    */
+  /**
+   * The windows whose file is actually in this checkout.
+   *
+   * An addon that is not checked out is absent, not mid-migration — the same
+   * distinction `expected()` draws two lines down.
+   */
+  function openWindows(): string[] {
+    return declaredWindows("button-adoption", (path) =>
+      addonPresent(REPO_ROOT, path),
+    );
+  }
+
+  const side = (observed: Record<string, number>, path: string) =>
+    windowSide(observed[path] ?? 0, "button-adoption", path, {
+      exists: existsSync(resolve(REPO_ROOT, path)),
+    });
+
   function expected(): Record<string, number> {
     return Object.fromEntries(
       Object.entries(NOT_CONVERTED).filter(([f]) => {
@@ -165,7 +191,15 @@ describe("Button adoption", () => {
   // guard nothing can break is not a second defence, it is a sentence that
   // reads like one.
   it("leaves the disabled recipe written out only where it is listed", () => {
-    expect(handWritten()).toEqual(expected());
+    // Two acceptable ledgers while a window is open — the listed entry
+    // present, or gone — and nothing else. Deep-equal against whichever the
+    // observed side names, so a *different* file changing still fails.
+    const observed = handWritten();
+    const want = expected();
+    for (const path of openWindows()) {
+      if (side(observed, path) === "after") delete want[path];
+    }
+    expect(observed).toEqual(want);
   });
 
   // The population this phase is about. DESIGN.md §6 says 43 sites carry the
@@ -174,11 +208,19 @@ describe("Button adoption", () => {
   // remembered — and the second half keeps it honest in a checkout holding
   // fewer addons than this one.
   it("leaves exactly thirty sites unconverted across the repository", () => {
-    const total = Object.values(handWritten()).reduce((a, b) => a + b, 0);
+    const observed = handWritten();
+    const total = Object.values(observed).reduce((a, b) => a + b, 0);
+    // What the open windows have already taken off the total, on this side.
+    const crossed = openWindows()
+      .filter((path) => side(observed, path) === "after")
+      .reduce(
+        (a, path) => a + MIGRATION_WINDOWS["button-adoption"][path].before,
+        0,
+      );
     const listed = Object.values(expected()).reduce((a, b) => a + b, 0);
-    expect(total).toBe(listed);
+    expect(total).toBe(listed - crossed);
     if (listed === Object.values(NOT_CONVERTED).reduce((a, b) => a + b, 0)) {
-      expect(total).toBe(30);
+      expect(total).toBe(30 - crossed);
     }
   });
 

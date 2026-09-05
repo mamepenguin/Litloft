@@ -3,6 +3,12 @@ import { readFileSync, readdirSync, existsSync, statSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { resolve, dirname, relative } from "node:path";
 import { stripComments } from "./helpers/sourceScan";
+import {
+  MIGRATION_WINDOWS,
+  addonPresent,
+  openWindows,
+  windowSide,
+} from "./helpers/migrationWindows";
 
 /**
  * Every `<h1>` in core and in every addon checked out beside it.
@@ -71,7 +77,10 @@ const NOT_YET_MIGRATED: Record<string, string> = {
   "addons/intelligence/frontend/pages/find.tsx": "PR C2",
   "addons/intelligence/frontend/pages/pickup.tsx": "PR C2",
   "addons/intelligence/frontend/pages/search-compare.tsx": "PR C2",
-  "addons/media_import/frontend/Page.tsx": "PR C1",
+  // Mid-migration: C1 has converted this in the addon repository, and the
+  // pointer here still names the commit before it. `MIGRATION_WINDOWS`
+  // declares both endpoints; D1 bumps the pointer and deletes this line.
+  "addons/media_import/frontend/Page.tsx": "PR C1 (window open until D1)",
 
   // Not a page header at all: the landing panel of the knowledge two-pane
   // view. DESIGN.md's chrome scale does not govern it.
@@ -127,6 +136,30 @@ function headings(): Heading[] {
   return found;
 }
 
+/**
+ * Which of `paths` no longer earns its place on the not-yet-migrated list.
+ *
+ * A named function rather than a closure inside the assertion, so the ledger
+ * scoping can be given input the real ledger does not contain.
+ */
+function staleEntries(paths: string[]): string[] {
+  return paths.filter((f) => {
+    const abs = resolve(REPO_ROOT, f);
+    // An addon that is not checked out is absent, not stale. The *addon*,
+    // not the file: this read the file's own path, so a listed file deleted
+    // or renamed inside a checked-out addon was excused forever rather than
+    // reported — the one thing this test exists to catch, in the one place it
+    // could not see.
+    if (f.startsWith("addons/") && !addonPresent(REPO_ROOT, f)) return false;
+    // Nor is one whose window is open: the entry is stale on the far side of
+    // the migration and correct on the near one, and this checkout can be on
+    // either. Scoped to *this* ledger — unscoped, a button window's path
+    // skipped the heading check too.
+    if (f in MIGRATION_WINDOWS["page-headings"]) return false;
+    return !existsSync(abs) || !/<h1\b/.test(stripComments(readFileSync(abs, "utf-8")));
+  });
+}
+
 describe("page headings", () => {
   it("accounts for every <h1> in the tree", () => {
     const unaccounted = headings()
@@ -168,7 +201,32 @@ describe("page headings", () => {
       "addons/knowledge": 2,
       "addons/media_import": 1,
     };
-    for (const [root, expected] of Object.entries(EXPECTED_ADDON_HEADINGS)) {
+
+    // Headings per file, so a window can be asked about the file it names
+    // rather than the root it happens to sit in. The first version hard-coded
+    // `addons/media_import` in an `if` and never read the declarations at all
+    // — a window for another addon could be declared and go unread, which a
+    // mutation proved.
+    const perFile = new Map<string, number>();
+    for (const h of headings()) perFile.set(h.file, (perFile.get(h.file) ?? 0) + 1);
+
+    // What the open windows have already taken off each root, on this side.
+    const crossed = new Map<string, number>();
+    for (const path of openWindows("page-headings", (p) =>
+      addonPresent(REPO_ROOT, p),
+    )) {
+      const w = MIGRATION_WINDOWS["page-headings"][path];
+      const which = windowSide(perFile.get(path) ?? 0, "page-headings", path, {
+        exists: existsSync(resolve(REPO_ROOT, path)),
+      });
+      if (which === "after") {
+        const root = path.split("/").slice(0, 2).join("/");
+        crossed.set(root, (crossed.get(root) ?? 0) + w.before);
+      }
+    }
+
+    for (const [root, listed] of Object.entries(EXPECTED_ADDON_HEADINGS)) {
+      const expected = listed - (crossed.get(root) ?? 0);
       // The scanned path, not the submodule directory: an uninitialised
       // submodule leaves `addons/<name>/` behind as an empty directory, so
       // testing that would report a checkout that has nothing in it as
@@ -197,12 +255,43 @@ describe("page headings", () => {
   // Every entry must name a real file. A stale line is worse than no line: it
   // reads as a considered decision while excusing nothing.
   it("keeps the not-yet-migrated list free of stale entries", () => {
-    const stale = Object.keys(NOT_YET_MIGRATED).filter((f) => {
-      const abs = resolve(REPO_ROOT, f);
-      // An addon that is not checked out is absent, not stale.
-      if (f.startsWith("addons/") && !existsSync(abs)) return false;
-      return !existsSync(abs) || !/<h1\b/.test(stripComments(readFileSync(abs, "utf-8")));
+    expect(staleEntries(Object.keys(NOT_YET_MIGRATED))).toEqual([]);
+  });
+
+  // The rule above, against input written for it. With only the real ledger
+  // to work on, the ledger scoping below could not be wrong: no button
+  // window's path is in `NOT_YET_MIGRATED` today, so unscoping it changed
+  // nothing and no test noticed. Four paths are on both ledgers, and C2 puts
+  // them there.
+  describe("what counts as stale", () => {
+    it("excuses a path whose heading window is open", () => {
+      expect(staleEntries(["addons/media_import/frontend/Page.tsx"])).toEqual([]);
     });
-    expect(stale).toEqual([]);
+
+    it("does not excuse one whose window is on the other ledger", () => {
+      // `Composer.tsx` has no `<h1>` and never had one; its window is the
+      // button ledger's. Excusing it here would let a genuinely stale heading
+      // entry sit behind an unrelated migration.
+      expect(staleEntries(["addons/media_import/frontend/Composer.tsx"])).toEqual([
+        "addons/media_import/frontend/Composer.tsx",
+      ]);
+    });
+
+    it("reports a listed file that no longer writes one", () => {
+      expect(staleEntries(["addons/media_import/frontend/api.ts"])).toEqual([
+        "addons/media_import/frontend/api.ts",
+      ]);
+    });
+
+    it("treats an addon that is not checked out as absent", () => {
+      expect(staleEntries(["addons/never-existed/frontend/x.tsx"])).toEqual([]);
+    });
+
+    it("still reports a file that has gone from an addon that is here", () => {
+      // Absence of the addon is a reason; absence of the file is the defect.
+      expect(
+        staleEntries(["addons/media_import/frontend/DeletedLongAgo.tsx"]),
+      ).toEqual(["addons/media_import/frontend/DeletedLongAgo.tsx"]);
+    });
   });
 });
