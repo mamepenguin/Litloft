@@ -27,12 +27,22 @@ const REPO_ROOT = resolve(dirname(fileURLToPath(import.meta.url)), "../../..");
 const FRONTEND = resolve(REPO_ROOT, "frontend");
 const GLOBALS_CSS = resolve(FRONTEND, "src/app/globals.css");
 
-// This file spells out the patterns it forbids in order to explain them, so it
-// is the one file the scans below must not read. That also keeps
+// These two files spell out the patterns the scans forbid, in order to explain
+// them, so they are the files the scans must not read. That also keeps
 // IMPOSSIBLE_CLASS out of `probes`: `build` is cumulative, so a sentinel seen
 // twice would measure a repeat rather than an unknown, and would report itself
 // dead for the wrong reason.
+//
+// `sourceScan.ts` joined the list when the scanners moved into it. Two reasons,
+// both discovered by it failing: its prose explains what a check looks for
+// ("is this button both accent-filled…"), and `accent` is a real Tailwind
+// property prefix, so `accent-filled` reads as a dead colour utility. And its
+// regexes contain quote characters inside character classes — `["'\`]` — which
+// `stripComments` cannot tell from the start of a string, so the comments after
+// them are not reliably blanked. The scanner does not understand regex
+// literals; the file that holds the regexes is the one place that matters.
 const SELF = fileURLToPath(import.meta.url);
+const SCANNER = resolve(dirname(SELF), "helpers/sourceScan.ts");
 
 /**
  * Core plus every addon checked out beside it.
@@ -79,7 +89,7 @@ function sourceFiles(root: string): string[] {
 function eachLine(visit: (line: string, where: string) => void) {
   for (const root of SOURCE_ROOTS) {
     for (const file of sourceFiles(root)) {
-      if (file === SELF) continue;
+      if (file === SELF || file === SCANNER) continue;
       readFileSync(file, "utf-8")
         .split("\n")
         .forEach((line, i) => visit(line, `${relative(REPO_ROOT, file)}:${i + 1}`));
@@ -100,7 +110,7 @@ function eachLine(visit: (line: string, where: string) => void) {
 function eachClassAttribute(visit: (value: string, where: string) => void) {
   for (const root of SOURCE_ROOTS) {
     for (const file of sourceFiles(root)) {
-      if (file === SELF) continue;
+      if (file === SELF || file === SCANNER) continue;
       const text = stripComments(readFileSync(file, "utf-8"));
       const rel = relative(REPO_ROOT, file);
       const spans = [...classAttributeSpans(text), ...classConstSpans(text)];
@@ -164,7 +174,7 @@ function collect(): Collected {
 
   for (const root of SOURCE_ROOTS) {
     for (const file of sourceFiles(root)) {
-      if (file === SELF) continue;
+      if (file === SELF || file === SCANNER) continue;
       const text = stripComments(readFileSync(file, "utf-8"));
       const rel = relative(REPO_ROOT, file);
       const spans = classAttributeSpans(text);
