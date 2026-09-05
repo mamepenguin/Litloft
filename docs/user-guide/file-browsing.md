@@ -26,7 +26,7 @@ A toolbar above the grid lets you:
 - Turn on **Select mode** from the overflow (`…`) menu, then click cards to select them. `Cmd/Ctrl+click` turns selection on and toggles a card in one gesture, and `Shift+click` extends the selection to a range. A selection bar appears at the bottom with tag, rename, add-to-collection, copy, cut, move, and move-to-trash.
 - **Rescan** the drive, also from the overflow menu.
 - **Add** anything to the folder, from the one **Add** button: upload files, upload a folder, create a folder, create a note. It is the only filled button on the bar. An addon can contribute further rows, which appear below a separator at the bottom of the menu.
-- **Play** everything playable in the folder, next to Add, on folders that hold something playable.
+- **Play** everything playable in the folder, at the right-hand end of the bar, on folders that hold something playable.
 
 On a listing with nothing in it at all — no files and no subfolders —
 the toolbar drops the controls for arranging things: the view toggle,

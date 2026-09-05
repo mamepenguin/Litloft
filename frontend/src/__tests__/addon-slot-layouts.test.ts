@@ -4,7 +4,13 @@ import { join } from "node:path";
 import { stripComments } from "./helpers/sourceScan";
 
 /**
- * Every layout `AddonSlot` offers must render something different.
+ * Every layout `AddonSlot` offers must reach code of its own.
+ *
+ * This is a source scan, and it can only see that a branch *exists* —
+ * one whose body duplicates the default satisfies it. What each layout
+ * actually draws is asserted by rendering, in
+ * `components/__tests__/AddonSlot.test.tsx` ("what a layout draws"). The
+ * two together are the claim; either alone is half of it.
  *
  * `layout` carried a third value, `"menu"`, for the whole of its life
  * before Phase 3: it type-checked, it was documented by its own presence

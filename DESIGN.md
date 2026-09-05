@@ -256,7 +256,11 @@ ever written to the attribute.
   not fills and are not counted (§Selected-state controls uses the border for
   exactly this reason).
   `frontend/src/__tests__/accent-budget.test.tsx` renders the screens and
-  counts, so the rule fails a build rather than a review.
+  counts, so the rule fails a build rather than a review. It counts **the
+  core's own fills**: addon slots are stubbed there, so a control an addon
+  contributes to one of these screens spends from the same budget without
+  being seen. No addon fills accent today; if one does, it is the addon
+  PR's job to notice.
 - **`--sand`**: Use for secondary button backgrounds, tags, and mid-tone surfaces.
 - **`--accent-teal`**: Semantic status color for success / accepted state (e.g. confirmed tag).
 - **`--accent-amber`**: Semantic status color for AI-generated / suggestion-pending state (e.g. AI-suggested tag awaiting user approval). Pair with a dashed border to convey "pending". Do not use as a brand accent.

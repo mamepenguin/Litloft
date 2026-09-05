@@ -7,11 +7,20 @@ vi.mock("@/components/SortButton", () => ({
 }));
 
 const addonSlotIds: string[] = [];
+const addonSlotProps: Array<{ id: string; props: Record<string, unknown> }> = [];
 vi.mock("@/components/AddonSlot", () => ({
-  AddonSlot: ({ id }: { id: string }) => {
+  AddonSlot: ({ id, props }: { id: string; props: Record<string, unknown> }) => {
     addonSlotIds.push(id);
+    addonSlotProps.push({ id, props });
     return null;
   },
+}));
+
+// The real provider's default context answers `hasSlot: () => false`, which
+// would make the Add menu's addon rows unreachable from this file — and the
+// wiring that feeds them is FolderToolbar's, not AddButton's.
+vi.mock("@/components/AddonSlotsProvider", () => ({
+  useAddonSlots: () => ({ hasSlot: () => true }),
 }));
 
 // `AddButton` is *not* mocked here. It is the toolbar's one accent fill and
@@ -55,6 +64,7 @@ describe("FolderToolbar", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     addonSlotIds.length = 0;
+    addonSlotProps.length = 0;
   });
 
   // The standalone `folder-actions` slot is superseded by the rows
@@ -63,9 +73,62 @@ describe("FolderToolbar", () => {
   // and until it does, deleting this would take its entry point away. It
   // renders nothing once no manifest names it, so the removal is not
   // urgent — but it must not happen by accident either.
-  it("still offers the superseded folder-actions slot", () => {
+  it("still offers the superseded folder-actions slot at both widths", () => {
     render(<FolderToolbar {...defaultProps} />);
-    expect(addonSlotIds).toContain("folder-actions");
+    // Both call sites, counted. `toContain` was satisfied by either one
+    // alone, so deleting the desktop half — the main viewport, and the one
+    // an addon's users would actually notice — passed the whole suite.
+    expect(addonSlotIds.filter((id) => id === "folder-actions")).toHaveLength(2);
+  });
+
+  // The point of the PR: the Add menu's addon rows. Removing `addonProps`
+  // from the AddButton call kills the slot in production, and until this
+  // existed nothing failed when it did.
+  describe("the add menu's addon slot", () => {
+    const menuSlots = () =>
+      addonSlotProps.filter((s) => s.id === "folder-actions-menu");
+
+    // The slot lives inside the menu, so it is only asked for once the menu
+    // is open — and the toolbar draws the whole left group twice, once per
+    // breakpoint, each with its own menu.
+    const openEvery = () =>
+      screen
+        .getAllByRole("button", { name: "Add" })
+        .forEach((b) => fireEvent.click(b));
+
+    it("is asked for at both widths", () => {
+      render(<FolderToolbar {...defaultProps} />);
+      expect(menuSlots()).toHaveLength(0);
+      openEvery();
+      expect(menuSlots()).toHaveLength(2);
+    });
+
+    it("is handed the folder it is looking at", () => {
+      render(
+        <FolderToolbar {...defaultProps} folderPath="recipes/soup" />,
+      );
+      openEvery();
+      expect(menuSlots()[0].props).toMatchObject({
+        drive: "test-drive",
+        fileIds: ["file-1", "file-2"],
+        path: "recipes/soup",
+      });
+    });
+
+    it("says the drive root with an empty path, not undefined", () => {
+      render(<FolderToolbar {...defaultProps} />);
+      openEvery();
+      expect(menuSlots()[0].props.path).toBe("");
+    });
+
+    it("is not offered where there is no folder to write into", () => {
+      render(
+        <FolderToolbar {...defaultProps} isSearch isFolderAnchored={false} />,
+      );
+      // There is no Add button to open at all there.
+      expect(screen.queryByRole("button", { name: "Add" })).not.toBeInTheDocument();
+      expect(menuSlots()).toHaveLength(0);
+    });
   });
 
   it("puts upload and new folder behind one add menu", () => {

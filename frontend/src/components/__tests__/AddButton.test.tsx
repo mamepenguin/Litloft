@@ -4,12 +4,21 @@ import { render, screen, fireEvent, cleanup, act } from "@testing-library/react"
 import { AddButton, ADD_MENU_SLOT } from "@/components/AddButton";
 
 const slotEntries = { current: 0 };
+/**
+ * Whether the entry behind the slot draws anything *here*.
+ *
+ * Declaring a slot and filling it are different questions, and the gap
+ * between them is a designed state: an addon whose feature is switched
+ * off for this drive still declares the slot and still renders nothing
+ * (`.claude/rules/design-decisions.md`, Addons: scope and policy).
+ */
+const slotDraws = { current: true };
 const addonSlotCalls: Array<Record<string, unknown>> = [];
 
 vi.mock("@/components/AddonSlot", () => ({
   AddonSlot: (props: Record<string, unknown>) => {
     addonSlotCalls.push(props);
-    return <button role="menuitem">addon row</button>;
+    return slotDraws.current ? <button role="menuitem">addon row</button> : null;
   },
 }));
 
@@ -24,6 +33,7 @@ const open = () => fireEvent.click(screen.getByRole("button", { name: "Add" }));
 describe("AddButton", () => {
   beforeEach(() => {
     slotEntries.current = 0;
+    slotDraws.current = true;
     addonSlotCalls.length = 0;
   });
   afterEach(cleanup);
@@ -35,8 +45,11 @@ describe("AddButton", () => {
     render(<AddButton />);
     const trigger = screen.getByRole("button", { name: "Add" });
     expect(trigger).toHaveTextContent("Add");
+    // `getAttribute`, not `el.className`: the icons here are `<svg>`, whose
+    // `className` is an `SVGAnimatedString` that stringifies to
+    // "[object SVGAnimatedString]" — every class on them read as none.
     for (const el of trigger.querySelectorAll("[class]")) {
-      expect(el.className.toString().split(/\s+/)).not.toContain("hidden");
+      expect((el.getAttribute("class") ?? "").split(/\s+/)).not.toContain("hidden");
     }
   });
 
@@ -71,6 +84,23 @@ describe("AddButton", () => {
     expect(screen.queryByRole("menu")).not.toBeInTheDocument();
   });
 
+  it.each(["Files", "Folder", "New Folder", "New Note"])(
+    "returns focus to the trigger after %s",
+    (label) => {
+      // The chosen row unmounts with the menu. Without this, focus lands on
+      // <body> and a keyboard user is put back at the top of the document.
+      // Every row, not the one that happened to be checked: they close
+      // through one path so that this cannot be true of only some of them.
+      render(<AddButton onCreateFolder={vi.fn()} onCreateFile={vi.fn()} />);
+      const trigger = screen.getByRole("button", { name: "Add" });
+      open();
+      const row = screen.getByText(label);
+      act(() => (row as HTMLElement).focus());
+      fireEvent.click(row);
+      expect(document.activeElement).toBe(trigger);
+    },
+  );
+
   describe("the addon rows", () => {
     it("renders none without folder context, even when an addon is installed", () => {
       slotEntries.current = 1;
@@ -80,24 +110,47 @@ describe("AddButton", () => {
       expect(screen.queryByText("addon row")).not.toBeInTheDocument();
     });
 
+    const rule = () =>
+      screen.getByRole("menu").querySelector<HTMLElement>(".border-t");
+
     it("renders none when no addon has declared the slot", () => {
       render(<AddButton addonProps={{ drive: "d" }} />);
       open();
       expect(addonSlotCalls).toHaveLength(0);
-      // Nor the divider that would otherwise hang below the last row.
-      expect(
-        screen.getByRole("menu").querySelectorAll(".border-t"),
-      ).toHaveLength(0);
+      // Nor the rule that would otherwise hang below the last row.
+      expect(rule()).toBeNull();
     });
 
-    it("renders them under a divider when both are true", () => {
+    it("renders them under a rule when both are true", () => {
       slotEntries.current = 1;
       render(<AddButton addonProps={{ drive: "d", fileIds: ["a"] }} />);
       open();
       expect(screen.getByText("addon row")).toBeInTheDocument();
-      expect(
-        screen.getByRole("menu").querySelectorAll(".border-t"),
-      ).toHaveLength(1);
+      expect(rule()).not.toBeNull();
+      expect(rule()!.childElementCount).toBe(1);
+    });
+
+    it("takes the rule away with the rows, when a declared entry draws nothing", () => {
+      // The rule is the wrapper's own border rather than a sibling, so
+      // `empty:hidden` removes both at once. jsdom loads no stylesheet, so
+      // this asserts the mechanism — an empty box carrying that class —
+      // rather than the pixels.
+      slotEntries.current = 1;
+      slotDraws.current = false;
+      render(<AddButton addonProps={{ drive: "d" }} />);
+      open();
+      expect(screen.queryByText("addon row")).not.toBeInTheDocument();
+      expect(rule()!.childElementCount).toBe(0);
+      expect(rule()!.className.split(/\s+/)).toContain("empty:hidden");
+    });
+
+    it("keeps the rule out of the menu's role tree", () => {
+      // The rows inside must read as direct children of `role="menu"`, and
+      // a bare <div> between them breaks that relationship.
+      slotEntries.current = 1;
+      render(<AddButton addonProps={{ drive: "d" }} />);
+      open();
+      expect(rule()).toHaveAttribute("role", "none");
     });
 
     it("asks a slot of its own, not the toolbar's standalone one", () => {
@@ -110,6 +163,16 @@ describe("AddButton", () => {
       expect(ADD_MENU_SLOT).toBe("folder-actions-menu");
       expect(addonSlotCalls[0].id).toBe(ADD_MENU_SLOT);
       expect(addonSlotCalls[0].id).not.toBe("folder-actions");
+    });
+
+    it("returns focus to the trigger when an entry asks to close", () => {
+      slotEntries.current = 1;
+      render(<AddButton addonProps={{ drive: "d" }} />);
+      const trigger = screen.getByRole("button", { name: "Add" });
+      open();
+      const props = addonSlotCalls[0].props as Record<string, unknown>;
+      act(() => (props.onRequestClose as () => void)());
+      expect(document.activeElement).toBe(trigger);
     });
 
     it("keeps onRequestClose for itself", () => {

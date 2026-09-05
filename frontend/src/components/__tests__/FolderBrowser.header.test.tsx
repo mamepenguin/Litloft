@@ -95,19 +95,19 @@ vi.mock("@/components/AddButton", () => ({
     onCreateFile?: () => void;
   }) => (
     <>
-      <button aria-label="Add">Add</button>
+      {/* Named by their text, as the real rows are: `ActionMenuItem` puts
+          the label in the button's content and carries no `aria-label`, so
+          a stand-in with one would let an assertion pass against a naming
+          path the product does not use. */}
+      <button>Add</button>
       {onCreateFolder && (
-        <button onClick={() => onCreateFolder()} aria-label="New Folder">
-          New Folder
-        </button>
+        // Called with no arguments, as `ActionMenuItem` calls it. Passing
+        // the click event instead hands the handler an event where it
+        // expects a name.
+        <button onClick={() => onCreateFolder()}>New Folder</button>
       )}
       {onCreateFile && (
-        // Called with no arguments, as `ActionMenuItem` calls it. Passing
-        // the click event instead hands FolderBrowser's handler an event
-        // where it expects a name.
-        <button onClick={() => onCreateFile()} aria-label="New Note">
-          New Note
-        </button>
+        <button onClick={() => onCreateFile()}>New Note</button>
       )}
     </>
   ),

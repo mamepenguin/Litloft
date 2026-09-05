@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import {
   ChevronDown,
   File as FileIcon,
@@ -70,16 +70,29 @@ export function AddButton({
   onCreateFile,
   addonProps,
 }: AddButtonProps = {}) {
-  const tc = useTranslations("common");
   const tu = useTranslations("upload");
   const tf = useTranslations("folder");
   const t = useTranslations("toolbar");
   const [menuOpen, setMenuOpen] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
+  const triggerRef = useRef<HTMLButtonElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const folderInputRef = useRef<HTMLInputElement>(null);
   const { hasSlot } = useAddonSlots();
   const showAddonRows = addonProps !== undefined && hasSlot(ADD_MENU_SLOT);
+
+  /**
+   * The only way this menu closes.
+   *
+   * The row that was focused is about to unmount with the menu, and
+   * without moving focus first it lands on `<body>` — a keyboard user is
+   * returned to the top of the document having chosen something.
+   * `FileActions` carries the same line for the same reason.
+   */
+  const closeMenu = useCallback(() => {
+    setMenuOpen(false);
+    triggerRef.current?.focus();
+  }, []);
 
   useEffect(() => {
     if (!menuOpen) return;
@@ -127,6 +140,7 @@ export function AddButton({
             leave a `+` and a chevron, and the mobile rule is to carry fewer
             controls rather than nameless ones (00-basis, モバイルの寸法規則). */}
         <Button
+          ref={triggerRef}
           variant="primary"
           onClick={() => setMenuOpen((s) => !s)}
           aria-haspopup="menu"
@@ -145,7 +159,7 @@ export function AddButton({
               icon={FileIcon}
               label={tu("files")}
               onClick={() => {
-                setMenuOpen(false);
+                closeMenu();
                 fileInputRef.current?.click();
               }}
             />
@@ -153,7 +167,7 @@ export function AddButton({
               icon={Folder}
               label={tu("folder")}
               onClick={() => {
-                setMenuOpen(false);
+                closeMenu();
                 folderInputRef.current?.click();
               }}
             />
@@ -162,7 +176,7 @@ export function AddButton({
                 icon={FolderPlus}
                 label={tf("newFolder")}
                 onClick={() => {
-                  setMenuOpen(false);
+                  closeMenu();
                   onCreateFolder();
                 }}
               />
@@ -172,23 +186,36 @@ export function AddButton({
                 icon={FilePlus}
                 label={tf("newFile")}
                 onClick={() => {
-                  setMenuOpen(false);
+                  closeMenu();
                   onCreateFile();
                 }}
               />
             )}
             {showAddonRows && (
-              <>
-                <div className="my-1 border-t border-bg-border" />
+              /* The rule is this element's own border, not a sibling, so
+                 `empty:hidden` can take both away together. `hasSlot` only
+                 answers "did an addon declare this slot" — an entry that
+                 did may still render nothing here (a drive with the
+                 addon's feature policy off does exactly that), and the
+                 rule would then hang under the last core row with nothing
+                 beneath it. Ported from `FileActions`, which carries this
+                 for the same reason.
+
+                 `role="none"`: the rows inside must read as direct
+                 children of `role="menu"`, and the rule is decoration. */
+              <div
+                role="none"
+                className="mt-1 border-t border-bg-border pt-1 empty:hidden"
+              >
                 <AddonSlot
                   id={ADD_MENU_SLOT}
                   layout="stack"
                   props={{
                     ...addonProps,
-                    onRequestClose: () => setMenuOpen(false),
+                    onRequestClose: closeMenu,
                   }}
                 />
-              </>
+              </div>
             )}
           </div>
         )}
