@@ -565,6 +565,10 @@ describe("media on the shell, on a phone", () => {
     // the rule selects on and `mediaDetailTheaterCss` pins the rule.
     const row = screen.getByTestId("file-action-row");
     expect(row.classList.contains("file-action-row-compact")).toBe(true);
+    // And the hook the CSS actually selects on. It named the compact class
+    // alone, so the inspector's row — same controls, 4px gap instead of 2 —
+    // sat at 32px while this strip cleared the floor.
+    expect(row.classList.contains("file-action-row-touch")).toBe(true);
   });
 
   it("ends the page above the strip it rests behind", async () => {

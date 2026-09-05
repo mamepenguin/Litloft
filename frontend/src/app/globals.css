@@ -1167,9 +1167,16 @@ div[data-citation-section-path]:not(tr) {
    hit areas would overlap by a third and the later sibling would win
    the hit test for its neighbour's edge. Four boxes at 44 come to
    182px, which still leaves the file's name ~150px at 375px.
+
+   Both rows, not only the compact one. The inspector's row is the same
+   shape at a 4px gap, and it sat at 32px while the strip above it
+   cleared the floor — which §Row Actions names as the outcome that buys
+   nothing: "a list whose secondary action clears the floor while its
+   primary one does not". Measured in a browser before this was widened:
+   the AI trigger 44, Like / Favorite / gallery / overflow 32.
    ------------------------------------------------------------------ */
 @media (pointer: coarse) {
-  .file-action-row-compact > * {
+  .file-action-row-touch > * {
     display: inline-flex;
     align-items: center;
     justify-content: center;

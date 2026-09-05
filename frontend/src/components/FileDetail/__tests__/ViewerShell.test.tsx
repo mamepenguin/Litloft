@@ -177,7 +177,16 @@ describe.each(KINDS)("%s on the shell", (_name, kind) => {
     await renderKind(kind);
 
     expect(screen.getByTestId("inspector-pane")).toBeInTheDocument();
-    expect(screen.getByTestId("file-action-row")).toBeInTheDocument();
+    const row = screen.getByTestId("file-action-row");
+    expect(row).toBeInTheDocument();
+    // The inspector's row is not the compact strip, and it needs the touch
+    // floor for the same reason: the same controls at a 2-4px pitch. The CSS
+    // named only the compact class, so this row sat at 32px on a coarse
+    // pointer — measured in a browser — while the strip cleared 44. jsdom does
+    // no layout, so this pins the hook and `mediaDetailTheaterCss` pins the
+    // rule it selects.
+    expect(row.classList.contains("file-action-row-touch")).toBe(true);
+    expect(row.classList.contains("file-action-row-compact")).toBe(false);
     expect(screen.getByTestId("comments")).toBeInTheDocument();
     expect(screen.getByTestId("related-files")).toBeInTheDocument();
   });
