@@ -1,3 +1,6 @@
+import { existsSync } from "node:fs";
+import { resolve } from "node:path";
+
 /**
  * Ledger entries that are mid-migration across two repositories.
  *
@@ -23,30 +26,30 @@
  * fails, with both values in the message. What it buys is exactly the width
  * the migration actually crosses, for exactly as long as it is crossing.
  *
- * **Every entry names the pull request that deletes it.** "Migrating" alone
- * tells the next reader nothing about when it ends, and a relaxation nobody
- * is assigned to remove becomes a permanently loose detector — which is the
- * same thing as never having had a strict one.
+ * **Every entry names the pull request that deletes it**, and that name is
+ * checked against the PRs this phase still has open. "Migrating" alone tells
+ * the next reader nothing about when it ends, and a relaxation nobody is
+ * assigned to remove becomes a permanently loose detector — the same thing as
+ * never having had a strict one.
  */
 export type Ledger = "page-headings" | "button-adoption";
 
 export interface MigrationWindow {
   /**
-   * Which detector's ledger this entry belongs to.
-   *
-   * Two detectors key by path and a path can appear in both, so a window
-   * without this was read by whichever ran — `Page.tsx`'s heading window
-   * was counted against the button ledger and took a site off a total it
-   * had never been in.
+   * How many the ledger counts **for this file** while it holds the old
+   * shape — never a total over a directory. Both callers pass a per-file
+   * count and both subtract `before` from a listed total, so a root sum here
+   * would be added back at the wrong granularity. The first draft of
+   * `page-headings` passed a root total, which agreed with a file count only
+   * because media_import has one heading in one file.
    */
-  ledger: Ledger;
-  /** The ledger's value while the addon still holds the old shape. */
   before: number;
-  /** Its value once the addon's pull request has landed. `0` means gone. */
+  /** How many for that same file once the addon's pull request has landed. */
   after: number;
   /**
-   * The pull request that removes this entry, by name. Its acceptance
-   * conditions must include the removal — see the Phase 3 spec.
+   * The pull request that removes this entry, by name. Must be one of
+   * `PENDING_PRS`: an entry closed by something already shipped is an entry
+   * nobody will come back for.
    */
   closedBy: string;
   /** Why the pair is unavoidable here, in one line. */
@@ -54,51 +57,100 @@ export interface MigrationWindow {
 }
 
 /**
- * Keyed by the path each detector already keys its own ledger by.
+ * Phase 3 pull requests that have not landed yet.
  *
- * Phase 3 C2 and C3 reuse this shape for intelligence and knowledge; the
- * cycle is the same for every addon whose files a core detector counts.
+ * A window may only be closed by one of these. The first version asserted the
+ * *shape* of `closedBy` (`/^[A-Z]\d/`), which let `"A1"` — shipped weeks ago —
+ * and `"Z9"` — never planned — both through. A name that passes a regex is not
+ * an assignment.
+ *
+ * Shrinks as the phase lands. When the last entry goes, so does this list.
  */
-export const MIGRATION_WINDOWS: Record<string, MigrationWindow> = {
-  "addons/media_import/frontend/Page.tsx": {
-    ledger: "page-headings",
-    before: 1,
-    after: 0,
-    closedBy: "D1",
-    why: "PR C1 moves this page's <h1> into core's PageHeader",
+export const PENDING_PRS = ["C2", "C3", "D1", "D2", "D3", "D4", "D5"] as const;
+
+/**
+ * Keyed by ledger **then** path, not by path alone.
+ *
+ * The first version keyed by path and carried the ledger as a field, which
+ * recognised that one path can appear in both ledgers without being able to
+ * hold it: a second entry for the same file is a duplicate key, and `tsc`
+ * rejects it (TS1117). Four paths are already on both ledgers —
+ * `intelligence/Page.tsx`, `pages/find.tsx`, `pages/search-compare.tsx` and
+ * `knowledge/FolderView.tsx` — so C2 and C3 need what C1 happened not to.
+ */
+export const MIGRATION_WINDOWS: Record<
+  Ledger,
+  Record<string, MigrationWindow>
+> = {
+  "page-headings": {
+    "addons/media_import/frontend/Page.tsx": {
+      before: 1,
+      after: 0,
+      closedBy: "D1",
+      why: "PR C1 moves this page's <h1> into core's PageHeader",
+    },
   },
-  "addons/media_import/frontend/Composer.tsx": {
-    ledger: "button-adoption",
-    before: 1,
-    after: 0,
-    closedBy: "D1",
-    why: "PR C1 converts this button to core's Button",
+  "button-adoption": {
+    "addons/media_import/frontend/Composer.tsx": {
+      before: 1,
+      after: 0,
+      closedBy: "D1",
+      why: "PR C1 converts this button to core's Button",
+    },
   },
 };
 
 /**
- * The observed value, checked against exactly two declared endpoints.
+ * The windows of one ledger whose file this checkout actually holds.
  *
- * Returns which endpoint was seen so a caller can report it; throws with both
- * values named when it is neither.
+ * `present` decides only whether a *declared* window is in play; it cannot
+ * open one that is not declared.
  */
-/** The declared windows for one ledger, whose file this checkout holds. */
-export function openWindows(ledger: Ledger, present: (path: string) => boolean): string[] {
-  return Object.entries(MIGRATION_WINDOWS)
-    .filter(([path, w]) => w.ledger === ledger && present(path))
-    .map(([path]) => path);
+export function openWindows(
+  ledger: Ledger,
+  present: (path: string) => boolean,
+): string[] {
+  return Object.keys(MIGRATION_WINDOWS[ledger]).filter(present);
 }
 
+/** Is the addon holding this window's file checked out at all? */
+export function addonPresent(repoRoot: string, path: string): boolean {
+  if (!path.startsWith("addons/")) return true;
+  return existsSync(resolve(repoRoot, path.split("/").slice(0, 3).join("/")));
+}
+
+/**
+ * The observed count for one window's file, checked against exactly two
+ * declared endpoints.
+ *
+ * Returns which endpoint was seen; throws with both values named when it is
+ * neither, and when the file itself has gone. A deleted file counts nothing,
+ * which is indistinguishable from a converted one unless it is asked about
+ * separately — and no migration in this phase deletes a file.
+ */
 export function windowSide(
   observed: number,
+  ledger: Ledger,
   path: string,
+  // Taken, not looked up: a guard that reads the filesystem itself can only
+  // be tested by making a file disappear, and the first test written for this
+  // one passed against an *undeclared* path instead — the wrong error, from
+  // the line above.
+  opts: { exists: boolean },
 ): "before" | "after" {
-  const w = MIGRATION_WINDOWS[path];
-  if (!w) throw new Error(`${path}: no migration window is declared`);
+  const w = MIGRATION_WINDOWS[ledger]?.[path];
+  if (!w) throw new Error(`${ledger}:${path}: no migration window is declared`);
+  if (!opts.exists) {
+    throw new Error(
+      `${ledger}:${path}: the file is gone. A window spans a conversion, ` +
+        `not a deletion — ${w.closedBy} should be removing this entry, not ` +
+        `inheriting a missing file.`,
+    );
+  }
   if (observed === w.before) return "before";
   if (observed === w.after) return "after";
   throw new Error(
-    `${path}: expected ${w.before} (before ${w.closedBy}) or ${w.after} ` +
-      `(after it), got ${observed}. ${w.why}`,
+    `${ledger}:${path}: expected ${w.before} (before ${w.closedBy}) or ` +
+      `${w.after} (after it), got ${observed}. ${w.why}`,
   );
 }

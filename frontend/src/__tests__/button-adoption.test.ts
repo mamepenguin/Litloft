@@ -5,6 +5,7 @@ import { resolve, dirname, relative } from "node:path";
 import { stringLiterals, stripComments } from "./helpers/sourceScan";
 import {
   MIGRATION_WINDOWS,
+  addonPresent,
   openWindows as declaredWindows,
   windowSide,
 } from "./helpers/migrationWindows";
@@ -160,11 +161,15 @@ describe("Button adoption", () => {
    * distinction `expected()` draws two lines down.
    */
   function openWindows(): string[] {
-    return declaredWindows("button-adoption", (path) => {
-      if (!path.startsWith("addons/")) return true;
-      return existsSync(resolve(REPO_ROOT, path.split("/").slice(0, 3).join("/")));
-    });
+    return declaredWindows("button-adoption", (path) =>
+      addonPresent(REPO_ROOT, path),
+    );
   }
+
+  const side = (observed: Record<string, number>, path: string) =>
+    windowSide(observed[path] ?? 0, "button-adoption", path, {
+      exists: existsSync(resolve(REPO_ROOT, path)),
+    });
 
   function expected(): Record<string, number> {
     return Object.fromEntries(
@@ -190,16 +195,9 @@ describe("Button adoption", () => {
     // present, or gone — and nothing else. Deep-equal against whichever the
     // observed side names, so a *different* file changing still fails.
     const observed = handWritten();
-    const side = openWindows().reduce<Record<string, "before" | "after">>(
-      (acc, path) => {
-        acc[path] = windowSide(observed[path] ?? 0, path);
-        return acc;
-      },
-      {},
-    );
     const want = expected();
-    for (const [path, which] of Object.entries(side)) {
-      if (which === "after") delete want[path];
+    for (const path of openWindows()) {
+      if (side(observed, path) === "after") delete want[path];
     }
     expect(observed).toEqual(want);
   });
@@ -214,8 +212,11 @@ describe("Button adoption", () => {
     const total = Object.values(observed).reduce((a, b) => a + b, 0);
     // What the open windows have already taken off the total, on this side.
     const crossed = openWindows()
-      .filter((path) => windowSide(observed[path] ?? 0, path) === "after")
-      .reduce((a, path) => a + MIGRATION_WINDOWS[path].before, 0);
+      .filter((path) => side(observed, path) === "after")
+      .reduce(
+        (a, path) => a + MIGRATION_WINDOWS["button-adoption"][path].before,
+        0,
+      );
     const listed = Object.values(expected()).reduce((a, b) => a + b, 0);
     expect(total).toBe(listed - crossed);
     if (listed === Object.values(NOT_CONVERTED).reduce((a, b) => a + b, 0)) {
