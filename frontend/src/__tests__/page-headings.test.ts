@@ -1,5 +1,15 @@
-import { describe, it, expect } from "vitest";
-import { readFileSync, readdirSync, existsSync, statSync } from "node:fs";
+import { afterAll, beforeAll, describe, it, expect } from "vitest";
+import {
+  existsSync,
+  mkdirSync,
+  mkdtempSync,
+  readFileSync,
+  readdirSync,
+  rmSync,
+  statSync,
+  writeFileSync,
+} from "node:fs";
+import { tmpdir } from "node:os";
 import { fileURLToPath } from "node:url";
 import { resolve, dirname, relative } from "node:path";
 import { stripComments } from "./helpers/sourceScan";
@@ -130,15 +140,15 @@ function headings(): Heading[] {
  * excuse left, and the tests below reach it from disk — an addon that is not
  * checked out is any path under a directory this repository does not have.
  */
-function staleEntries(paths: string[]): string[] {
+function staleEntries(paths: string[], root: string = REPO_ROOT): string[] {
   return paths.filter((f) => {
     // An addon that is not checked out is absent, not stale. The *addon*,
     // not the file: this read the file's own path, so a listed file deleted
     // or renamed inside a checked-out addon was excused forever rather than
     // reported — the one thing this test exists to catch, in the one place it
     // could not see.
-    if (f.startsWith("addons/") && !addonPresent(REPO_ROOT, f)) return false;
-    const full = resolve(REPO_ROOT, f);
+    if (f.startsWith("addons/") && !addonPresent(root, f)) return false;
+    const full = resolve(root, f);
     if (!existsSync(full)) return true;
     return !/<h1\b/.test(stripComments(readFileSync(full, "utf-8")));
   });
@@ -226,30 +236,68 @@ describe("page headings", () => {
   // excuse is too broad; only one that expects something *back* can, and
   // that is what these are.
   describe("what counts as stale", () => {
-    it("does not excuse one listed by the other ledger", () => {
-      // `MoveDialog.tsx` has no `<h1>` and never had one — it is the button
-      // ledger's business, not this one's. A heading entry naming it is
-      // stale, and being known to another detector does not excuse it.
-      expect(staleEntries(["addons/knowledge/frontend/MoveDialog.tsx"])).toEqual([
-        "addons/knowledge/frontend/MoveDialog.tsx",
-      ]);
+    /**
+     * A tree of its own, not this repository's.
+     *
+     * These four cases used to name real files inside `addons/knowledge`,
+     * which made them fail on a `git clone` without `--recurse-submodules` —
+     * the one checkout where "an absent addon is absent, not stale" is the
+     * rule being exercised, and the only one where it could not be. They
+     * also could not survive the files they named being deleted, which is a
+     * thing addons do.
+     *
+     * The ledger's own assertion above still reads this repository. What
+     * moves here is only the rule's own behaviour, which is about paths and
+     * file contents and needs no particular repository to be true.
+     */
+    let root: string;
+
+    beforeAll(() => {
+      root = mkdtempSync(resolve(tmpdir(), "page-headings-"));
+      mkdirSync(resolve(root, "addons/present/frontend"), { recursive: true });
+      writeFileSync(
+        resolve(root, "addons/present/frontend/Heading.tsx"),
+        "export const A = () => <h1>title</h1>;\n",
+      );
+      writeFileSync(
+        resolve(root, "addons/present/frontend/NoHeading.tsx"),
+        "export const B = () => <h2>section</h2>;\n",
+      );
     });
 
-    it("reports a listed file that no longer writes one", () => {
-      expect(staleEntries(["addons/knowledge/frontend/api.ts"])).toEqual([
-        "addons/knowledge/frontend/api.ts",
-      ]);
+    afterAll(() => {
+      rmSync(root, { recursive: true, force: true });
+    });
+
+    it("keeps one that still writes a heading", () => {
+      expect(
+        staleEntries(["addons/present/frontend/Heading.tsx"], root),
+      ).toEqual([]);
+    });
+
+    /**
+     * One case, not the two this used to be.
+     *
+     * They were "a file that no longer writes one" and "a file the *other*
+     * ledger knows about" — but `staleEntries` does not consult the other
+     * ledger, so the second was the first with a different story attached
+     * to it. Naming two real files made them look like two rules.
+     */
+    it("reports a listed file that writes no heading", () => {
+      expect(
+        staleEntries(["addons/present/frontend/NoHeading.tsx"], root),
+      ).toEqual(["addons/present/frontend/NoHeading.tsx"]);
     });
 
     it("treats an addon that is not checked out as absent", () => {
-      expect(staleEntries(["addons/never-existed/frontend/x.tsx"])).toEqual([]);
+      expect(staleEntries(["addons/absent/frontend/x.tsx"], root)).toEqual([]);
     });
 
     it("still reports a file that has gone from an addon that is here", () => {
       // Absence of the addon is a reason; absence of the file is the defect.
       expect(
-        staleEntries(["addons/knowledge/frontend/DeletedLongAgo.tsx"]),
-      ).toEqual(["addons/knowledge/frontend/DeletedLongAgo.tsx"]);
+        staleEntries(["addons/present/frontend/Deleted.tsx"], root),
+      ).toEqual(["addons/present/frontend/Deleted.tsx"]);
     });
   });
 });
