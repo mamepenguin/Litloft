@@ -2,7 +2,7 @@ import { describe, it, expect } from "vitest";
 import { readFileSync, readdirSync, existsSync, statSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { resolve, dirname, relative } from "node:path";
-import { classValues } from "./helpers/sourceScan";
+import { stringLiterals, stripComments } from "./helpers/sourceScan";
 
 /**
  * Where the disabled treatment is still written by hand.
@@ -109,15 +109,24 @@ function handWritten(): Record<string, number> {
               ? relative(SRC, full)
               : `${label}/${relative(root, full)}`;
           if (rel === OWNER) continue;
-          // `classValues` reads attributes *and* `*_CLASS` constants, and
-          // handles `{"..."}`, `{`...`}` and `{[...]}` alike. The first
-          // version matched only `"..."` and `{`...`}`, so a recipe written
-          // any other way — 38 files in core write `className={<expr>}` — was
-          // invisible, and the set this file claims can only shrink could in
-          // fact grow without it noticing.
-          const n = classValues(readFileSync(full, "utf-8")).filter((v) =>
-            /\bdisabled:bg-sand\b/.test(v),
-          ).length;
+          // Every string literal, not only `className=` attributes and
+          // `*_CLASS` constants.
+          //
+          // The first version read attributes plus constants named by
+          // convention, and four ways of writing the same recipe hid from it:
+          // `const btnCls = "…"`, an object literal, a helper that returns the
+          // string, a `cva()` call. The convention was doing load-bearing work
+          // and is not kept — `PropertiesPanel.tsx` and `RelatedFilesSection.tsx`
+          // both hold class strings in a `const cls`. Enforcing it was the
+          // other option and is worse: it adds a rule to keep and leaves the
+          // premise in place. Reading every literal removes the premise.
+          //
+          // Breadth is free here because the filter is `disabled:bg-sand`,
+          // which no literal carries by accident, and comments are blanked
+          // first so prose about the recipe is not the recipe.
+          const n = stringLiterals(
+            stripComments(readFileSync(full, "utf-8")),
+          ).filter((v) => /\bdisabled:bg-sand\b/.test(v)).length;
           if (n > 0) counts[rel] = n;
         }
       }

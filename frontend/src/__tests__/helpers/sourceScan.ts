@@ -121,11 +121,14 @@ export function classAttributeSpans(text: string): [number, number][] {
 }
 
 /**
- * Every `className` value in a file, however it is written.
+ * Every `className` value in a file, as one string each.
  *
- * Attributes and `*_CLASS` constants both, because a shared component moves a
- * recipe out of an attribute and into a constant — and a scan that reads only
- * attributes then stops seeing the one copy that matters.
+ * Attribute spans and `*_CLASS` constant spans, so a check that needs two
+ * utilities in *one* value — "is this button both accent-filled and faded when
+ * disabled" — sees them together. Use `stringLiterals` instead when the
+ * question is whether a single token appears anywhere at all: this cannot see
+ * a class list held under any other name, and the union of the two
+ * double-counts, because an attribute span contains the literal inside it.
  */
 export function classValues(text: string): string[] {
   const stripped = stripComments(text);
@@ -133,4 +136,33 @@ export function classValues(text: string): string[] {
     ...classAttributeSpans(stripped),
     ...classConstSpans(stripped),
   ].map(([start, end]) => stripped.slice(start, end));
+}
+
+/**
+ * Every quoted string and template literal, wherever it sits.
+ *
+ * Walks rather than matches: a regex for `"..."` cannot tell a quote inside a
+ * template from one that opens a string, and `stripComments` already has the
+ * scanner that can.
+ */
+export function stringLiterals(text: string): string[] {
+  const out: string[] = [];
+  let i = 0;
+  while (i < text.length) {
+    const c = text[i];
+    if (c === '"' || c === "'" || c === "`") {
+      const start = i + 1;
+      i++;
+      while (i < text.length) {
+        if (text[i] === "\\") { i += 2; continue; }
+        if (text[i] === c) break;
+        i++;
+      }
+      out.push(text.slice(start, i));
+      i++;
+    } else {
+      i++;
+    }
+  }
+  return out;
 }
