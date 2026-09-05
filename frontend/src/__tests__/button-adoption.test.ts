@@ -128,34 +128,49 @@ function handWritten(): Record<string, number> {
 }
 
 describe("Button adoption", () => {
+  /**
+   * The listed sites, minus any addon that is not checked out.
+   *
+   * Widening this test to the addons brought back the defect the page-heading
+   * detector had already been fixed for: a `git clone` without
+   * `--recurse-submodules` failed it with a 26-vs-25 object diff and nothing
+   * naming the cause. An absent addon is absent, not converted.
+   */
+  function expected(): Record<string, number> {
+    return Object.fromEntries(
+      Object.entries(NOT_CONVERTED).filter(([f]) => {
+        if (!f.startsWith("addons/")) return true;
+        const root = resolve(REPO_ROOT, f.split("/").slice(0, 3).join("/"));
+        return existsSync(root);
+      }),
+    );
+  }
+
   // Exact, and per file. A total alone would let a conversion in one screen
   // pay for a new hand-written button in another.
+  //
+  // Bidirectional, so this is also the stale-entry check: a listed file that
+  // stopped writing the recipe by hand fails it just as a new hand-written one
+  // does. An earlier version had a second test for staleness, which could not
+  // fail on its own — `toEqual` had already caught every case it looked at. A
+  // guard nothing can break is not a second defence, it is a sentence that
+  // reads like one.
   it("leaves the disabled recipe written out only where it is listed", () => {
-    expect(handWritten()).toEqual(NOT_CONVERTED);
-  });
-
-  // A stale line reads as a considered exemption while excusing nothing.
-  it("keeps the list free of files that no longer need it", () => {
-    const counts = handWritten();
-    const stale = Object.keys(NOT_CONVERTED).filter((f) => {
-      // An addon that is not checked out is absent, not stale — the same
-      // allowance `page-headings.test.ts` makes, and for the same reason.
-      if (f.startsWith("addons/")) {
-        const root = resolve(REPO_ROOT, f.split("/").slice(0, 3).join("/"));
-        if (!existsSync(root)) return false;
-      }
-      return !(f in counts);
-    });
-    expect(stale).toEqual([]);
+    expect(handWritten()).toEqual(expected());
   });
 
   // The population this phase is about. DESIGN.md §6 says 43 sites carry the
-  // treatment; 13 are converted, so 30 remain. Asserting the total as well as
-  // the per-file map is what makes the two numbers in that paragraph checkable
-  // rather than remembered.
+  // treatment and 13 are converted, so 30 remain. Asserting the total as well
+  // as the per-file map is what makes both numbers checkable rather than
+  // remembered — and the second half keeps it honest in a checkout holding
+  // fewer addons than this one.
   it("leaves exactly thirty sites unconverted across the repository", () => {
     const total = Object.values(handWritten()).reduce((a, b) => a + b, 0);
-    expect(total).toBe(30);
+    const listed = Object.values(expected()).reduce((a, b) => a + b, 0);
+    expect(total).toBe(listed);
+    if (listed === Object.values(NOT_CONVERTED).reduce((a, b) => a + b, 0)) {
+      expect(total).toBe(30);
+    }
   });
 
   it("still owns the recipe in one place", () => {

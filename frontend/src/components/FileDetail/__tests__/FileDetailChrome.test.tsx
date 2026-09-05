@@ -305,3 +305,53 @@ describe("FileDetailChrome", () => {
     expect(back().parentElement?.className).toContain("md:hidden");
   });
 });
+/**
+ * The properties that are the reason this row is not a `PageHeader`.
+ *
+ * PR A2b declined to migrate it, and gave three reasons: a fixed-height chrome
+ * bar with its own border and surface, both width forms of the path rendered
+ * and one hidden in CSS, and `titleNode` held to a single instance. Only the
+ * third was pinned — the first two could be deleted with the whole suite
+ * green, which would leave the justification true of nothing.
+ *
+ * A reason offered for not doing work is a claim like any other. If it can
+ * stop being true without anything breaking, it stops being a reason.
+ */
+describe("what makes this a chrome bar rather than a page header", () => {
+  it("is a fixed-height bar with its own border and surface", () => {
+    render(<FileDetailChrome drive="main" folderPath="videos" title="a.mp4" />);
+    const row = screen.getByTestId("file-detail-chrome");
+    for (const cls of ["h-12", "shrink-0", "border-b", "bg-bg-card"]) {
+      expect(row.classList.contains(cls)).toBe(true);
+    }
+    // Padding would let a long path change the row's height, which is what
+    // the shell's layout measures against.
+    expect([...row.classList].filter((c) => /^py-/.test(c))).toEqual([]);
+  });
+
+  it("renders both width forms of the path and hides one in CSS", () => {
+    const { container } = render(
+      <FileDetailChrome drive="main" folderPath="videos" title="a.mp4" />,
+    );
+    // The wide form: present in the DOM at every width, shown from `md`.
+    // `classList.contains`, not a CSS selector — `md:flex` needs escaping and
+    // an escape that is wrong silently matches nothing, which would make this
+    // assertion pass by finding no element rather than by finding the right one.
+    // Three classes, not two: the tree-toggle wrapper is also `hidden md:flex`
+    // and its text is empty, so matching on two of them found that instead and
+    // the assertion below "passed" against the wrong element until it did not.
+    const wide = [...container.querySelectorAll("div")].find(
+      (el) =>
+        el.classList.contains("hidden") &&
+        el.classList.contains("md:flex") &&
+        el.classList.contains("flex-1"),
+    );
+    expect(wide).toBeDefined();
+    // The path itself, not merely a box: the wide form is the only one that
+    // carries the trail, which is the half a narrow screen gives up.
+    expect(wide!.textContent).toContain("videos");
+    // The narrow form carries the back control instead, and is hidden from
+    // `md` up rather than unmounted — no measurement decides between them.
+    expect(screen.getByTestId("file-detail-back")).toBeInTheDocument();
+  });
+});
