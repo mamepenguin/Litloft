@@ -12,8 +12,13 @@ import { stripComments } from "./helpers/sourceScan";
  * data layer can. That proxy holds exactly as long as every axis the header
  * counts by also makes `useFolderFiles` reset. Add an axis to the header that
  * the listing does not reset on, and the header waits for a fetch that never
- * begins: the count for the previous value of that axis stays on screen for
- * good.
+ * begins — and because a total is adopted only from a trusted subject, the
+ * count then never appears again, for any value of that axis, until some other
+ * axis moves.
+ *
+ * (That consequence read "stays on screen for good" until now, which was the
+ * failure mode before the guard moved to the write side. The guard changed and
+ * the prose did not.)
  *
  * Nothing said so. The relationship lived in two files that do not import each
  * other, and it is the sole support for a guard written against a real bug —
@@ -26,6 +31,36 @@ import { stripComments } from "./helpers/sourceScan";
 
 const SRC = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const read = (rel: string) => readFileSync(resolve(SRC, rel), "utf-8");
+
+
+/**
+ * Blank every quoted string, keeping length so nothing else shifts.
+ *
+ * A walk rather than a regex: a quote inside a template literal is not the
+ * start of a string, and this file's whole subject is scans whose premise is
+ * a spelling.
+ */
+function withoutStrings(text: string): string {
+  const out = text.split("");
+  let i = 0;
+  while (i < text.length) {
+    const c = text[i];
+    if (c === '"' || c === "'" || c === "`") {
+      out[i] = " ";
+      i++;
+      while (i < text.length) {
+        if (text[i] === "\\") { out[i] = " "; out[i + 1] = " "; i += 2; continue; }
+        const end = text[i] === c;
+        out[i] = " ";
+        i++;
+        if (end) break;
+      }
+    } else {
+      i++;
+    }
+  }
+  return out.join("");
+}
 
 /**
  * Every identifier `countedSubject` is built from.
@@ -40,9 +75,24 @@ function countedAxes(): string[] {
   const source = stripComments(read("components/FolderBrowser.tsx"));
   const start = source.indexOf("const countedSubject = [");
   expect(start).toBeGreaterThan(-1);
-  const body = source.slice(start + "const countedSubject = [".length, source.indexOf("].join(", start));
+  // To the end of the *statement*, not to `].join(`.
+  //
+  // Stopping at the join left everything after it unscanned, so an axis added
+  // as `].join(sep) + (selectable ? sep + "sel" : "")` was invisible while
+  // every assertion here still passed. That is an ordinary way to add one — a
+  // suffix on the existing key rather than a row in the array — and it is the
+  // fourth time in this phase that a scan's premise turned out to be its own
+  // spelling.
+  const end = source.indexOf(";", source.indexOf("].join(", start));
+  expect(end).toBeGreaterThan(start);
+  const body = source.slice(start + "const countedSubject = [".length, end);
+  // Neither string contents nor property names are axes. Extending the slice
+  // to the end of the statement brought both into range — `.join` and the
+  // `\u0000` inside the separator — and each would have been reported as an
+  // axis the listing does not reset on.
+  const values = withoutStrings(body).replace(/\.\s*[A-Za-z_$][\w$]*/g, "");
   const seen = new Set<string>();
-  for (const [name] of body.matchAll(/[A-Za-z_$][\w$]*/g)) {
+  for (const [name] of values.matchAll(/[A-Za-z_$][\w$]*/g)) {
     // String contents are values, not axes; so are the few operators that can
     // appear between them.
     if (["true", "false", "null", "undefined"].includes(name)) continue;
