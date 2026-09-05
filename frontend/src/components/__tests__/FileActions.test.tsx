@@ -138,6 +138,30 @@ describe("FileActions", () => {
     expect(screen.getByLabelText("File actions")).toBeInTheDocument();
   });
 
+  it("carries the touch floor on the button, not on its wrapper", () => {
+    // The row's rule is `.file-action-row-touch > *`, and this button is not
+    // a direct child of the row — the menu needs a `.relative` wrapper, so
+    // the wrapper grew to 44x44 and the button stayed 28x28, measured in a
+    // browser before and after that rule was widened to both rows. §Row
+    // Actions asks for the class on the control wherever alignment stops it
+    // inheriting the height, which is this case.
+    //
+    // This pins the classes, not the pixels. jsdom lays nothing out, and the
+    // shell tests that render this row mock `FileActions` away entirely, so
+    // no test in this repository ever sees this button inside that row. The
+    // measurement lives in the pull request; what lives here is the hook.
+    renderWithStack(<FileActions file={mockFile} />);
+    const button = screen.getByLabelText("File actions");
+    const tokens = button.className.split(/\s+/);
+    expect(tokens).toContain("pointer-coarse:h-11");
+    expect(tokens).toContain("pointer-coarse:w-11");
+    // `p-1.5` carries no `display`, so the size classes alone leave the glyph
+    // against the left padding edge — 6/14/22/14 rather than 14 all round.
+    expect(tokens).toContain("inline-flex");
+    expect(tokens).toContain("items-center");
+    expect(tokens).toContain("justify-center");
+  });
+
   it("exposes the menu to assistive tech", () => {
     renderWithStack(<FileActions file={mockFile} />);
     const trigger = screen.getByLabelText("File actions");

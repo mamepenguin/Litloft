@@ -72,13 +72,20 @@ export function FileActionRow({
       // targets stayed 28px inside a tall row — the case `DESIGN.md`
       // §Row Actions names when it says to give the row's own controls
       // the same treatment wherever alignment stops them inheriting it.
-      // `file-action-row-compact` grows each control to 44px on a coarse
+      // `file-action-row-touch` grows each control to 44px on a coarse
       // pointer instead, in CSS, because three of the four are not this
       // component's to give a class to — one is an addon's.
+      //
+      // On **both** rows. They hold the same controls at the same 2-4px
+      // pitch, and only the strip had the floor: the inspector's row left
+      // Like, Favorite, the gallery button and the overflow at 32px while an
+      // addon's trigger reached 44 on its own — which §Row Actions names as
+      // the outcome that buys nothing. `file-action-row-compact` stays as the
+      // compact row's identity, which its own test asserts.
       className={
         compact
-          ? "file-action-row-compact flex flex-shrink-0 items-center gap-0.5"
-          : "mt-2 flex flex-wrap items-center gap-1"
+          ? "file-action-row-touch file-action-row-compact flex flex-shrink-0 items-center gap-0.5"
+          : "file-action-row-touch mt-2 flex flex-wrap items-center gap-1"
       }
     >
       <LikeButton

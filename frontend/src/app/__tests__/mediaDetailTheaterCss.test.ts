@@ -192,15 +192,46 @@ describe("the sheet's resting action row", () => {
   it("grows its controls to the touch floor on a coarse pointer", () => {
     // Not the row: a tall row with `items-center` never stretches a
     // child into it, which is how the targets stayed 28px inside a 44px
-    // row. Grown rather than overhung, because these four sit 2px apart
-    // and 44px hit areas would overlap by a third — the later sibling
-    // would then win the hit test for its neighbour's edge.
-    const rule = globalsCss().match(
-      /@media \(pointer: coarse\) \{\s*\.file-action-row-compact > \*\s*\{[^}]*\}/,
+    // row. Grown rather than overhung, because these controls sit 2-4px
+    // apart and 44px hit areas would overlap by a third — the later
+    // sibling would then win the hit test for its neighbour's edge.
+    //
+    // The selector covers both rows. It named the compact one alone, and
+    // the inspector's row — same controls, 4px gap — stayed at 32px.
+    const css = globalsCss();
+    const rule = css.match(
+      /@media \(pointer: coarse\) \{\s*\.file-action-row-touch > \*\s*\{[^}]*\}/,
     );
     expect(rule).not.toBeNull();
     expect(rule![0]).toMatch(/min-width:\s*2\.75rem;/);
     expect(rule![0]).toMatch(/min-height:\s*2\.75rem;/);
+
+    // The other three, measured load-bearing and previously pinned by
+    // nothing. They are one unit rather than a box rule plus two garnishes:
+    // `align-items` is observable at all only because `display: inline-flex`
+    // gives a flex context to children that have none, and removing either of
+    // those alone leaves the gallery icon 6px off centre inside the box the
+    // rule just grew. `justify-content` centres it horizontally in three
+    // controls.
+    expect(rule![0]).toMatch(/display:\s*inline-flex;/);
+    expect(rule![0]).toMatch(/align-items:\s*center;/);
+    expect(rule![0]).toMatch(/justify-content:\s*center;/);
+
+    // At the top level, not nested in another at-rule.
+    //
+    // This test reads the stylesheet as text, so it can say the rule is
+    // written and never that it reaches a screen. Wrapping the whole block in
+    // `@media print { … }` leaves the substring above intact and passes —
+    // measured, with the floor gone everywhere: the compact strip back to
+    // 28x28 and the inspector row to 32. Counting braces closes that.
+    //
+    // **It does not close a later block overriding these declarations**, and
+    // nothing here can: that needs a browser this suite does not have.
+    const depth = [...css.slice(0, rule!.index!)].reduce(
+      (d, c) => (c === "{" ? d + 1 : c === "}" ? d - 1 : d),
+      0,
+    );
+    expect(depth).toBe(0);
   });
 });
 
