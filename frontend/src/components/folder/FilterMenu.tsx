@@ -6,6 +6,7 @@ import { useTranslations } from "next-intl";
 
 import type { FileKind, TrustFilter } from "@/types";
 import { TRUST_OPTION_KEYS, TYPE_OPTION_KEYS } from "./filterOptions";
+import { MENU_SURFACE } from "./ToolbarMenu";
 
 interface FilterMenuProps {
   typeFilter: FileKind | null;
@@ -132,21 +133,18 @@ export function FilterMenu({
       >
         <Filter size={16} className="shrink-0" />
         {/* Always a word, filtering or not. The two chips this replaces were
-            bare icons until something was selected.
-            Capped and elided below 640px, never below the word itself. With
-            both axes on, the face reads `Markdown · Verified only` — 211px
-            of a 343px bar, which wrapped `…` onto a second row at 375 in
-            both locales. `00-basis.md` allows eliding text at that width and
-            forbids the wrap, and the whole list stays in the accessible name
-            above. */}
+            bare icons until something was selected. */}
         <span
-          // Capped only when more than one axis is on, and only below
-          // 1024px. Two axes join with ` · ` and reach 211px, which wraps
-          // this bar at 375 on its own and at 768-848 once an addon holds
-          // the `folder-actions` slot — which the intelligence addon still
-          // does. One axis reaches 95px against what would be a 96px cap,
-          // so capping unconditionally would start eliding a single-axis
-          // face on the first label that grew by two characters.
+          // Capped only once a second axis is on, and only below 1024px.
+          // Two axes join with ` · ` and reach 211px, which wraps this bar
+          // at 375 on its own and again at 768 once the `folder-actions`
+          // slot is filled — which the intelligence addon still does. The
+          // 144px this control contributes to that arithmetic is the capped
+          // width, not its natural one.
+          //
+          // Conditional because one axis reaches 95px against a 96px cap:
+          // capping unconditionally would put a face that fits one label
+          // away from eliding for no reason.
           className={`truncate ${activeLabels.length > 1 ? "max-lg:max-w-24" : ""}`}
         >
           {isFiltering ? activeLabels.join(" · ") : t("filter")}
@@ -165,7 +163,7 @@ export function FilterMenu({
               ordinary buttons in tab order. */}
           <div
             role="menu"
-            className="fixed inset-x-2 bottom-4 z-40 max-h-[60vh] overflow-y-auto rounded-2xl border border-bg-border bg-bg-primary py-1 shadow-lg animate-fade-in-scale sm:absolute sm:inset-x-auto sm:bottom-auto sm:right-0 sm:top-full sm:mt-1 sm:max-h-[70vh] sm:min-w-[200px] sm:origin-top-right"
+            className={MENU_SURFACE}
           >
             {/* `role="group"` + `aria-labelledby`: a `role="menu"` publishes
                 only menuitem / group / separator children, so a bare <p>

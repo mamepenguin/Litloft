@@ -118,6 +118,10 @@ describe("ToolbarMenu", () => {
     //
     // jsdom lays nothing out, so nothing here can see the shape; what it can
     // see is that the recipe has not been edited without being re-measured.
+    // `sm:max-h-[70vh]` with the scroll kept is load-bearing above 640: the
+    // menu holds ten rows below 1024 and is anchored inside a sticky bar,
+    // so an uncapped one puts six of them past the bottom of a landscape
+    // phone with no way to scroll to them.
     //
     // Measured in Chromium on the folder toolbar, after the open animation
     // settles (`animate-fade-in-scale` starts at `scale(.95)`, and reading
@@ -140,8 +144,8 @@ describe("ToolbarMenu", () => {
       "overflow-y-auto", "rounded-2xl", "border", "border-bg-border",
       "bg-bg-primary", "py-1", "shadow-lg", "animate-fade-in-scale",
       "sm:absolute", "sm:inset-x-auto", "sm:bottom-auto", "sm:right-0",
-      "sm:top-full", "sm:mt-1", "sm:max-h-none", "sm:min-w-[200px]",
-      "sm:overflow-visible", "sm:origin-top-right",
+      "sm:top-full", "sm:mt-1", "sm:max-h-[70vh]", "sm:min-w-[200px]",
+      "sm:origin-top-right",
     ]);
   });
 });

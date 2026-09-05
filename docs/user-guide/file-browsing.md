@@ -31,23 +31,22 @@ A toolbar above the grid lets you:
 - **Add** anything to the folder, from the one **Add** button: upload files, upload a folder, create a folder, create a note. It is the only filled button on the bar. An addon can contribute further rows, which appear below a separator at the bottom of the menu.
 - **Play** everything playable in the folder, on folders that hold something playable.
 
-The bar sheds controls as it narrows, in two steps. Below 1024px **View**
-and **Sort** move inside `…` as sections of it — the same rows, in the same
-order. Below 768px **Add** moves too, into its own row just above the bar,
-with any addon buttons beside it, leaving **Play**, **Filter** and `…` on
-the bar itself.
+Below 768px the bar carries **Play**, **Filter** and `…`. **View** and
+**Sort** move inside `…` as sections of it — the same rows, in the same
+order — and **Add** moves into its own row just above the bar, with any
+addon buttons beside it.
 
 Nothing loses its label and nothing wraps onto a second row, in either
-language and with or without an addon on the bar. The Filter button naming
-both of its axes, and the "Search the whole drive" link on a folder reached
-through a tag, are the two whose labels can outgrow the space; both are
-shortened with an ellipsis rather than dropped, and the full text stays in
-the control's accessible name. Every control on the bar is at least 44px for
-touch.
+language. The Filter button naming both of its axes, and the "Search the
+whole drive" link on a folder reached through a tag, are the two whose
+labels can outgrow the space; both are shortened with an ellipsis rather
+than dropped, and the full text stays in the control's accessible name.
+Every control the app itself draws on the bar is at least 44px for touch —
+a button contributed by an addon is that addon's to size.
 
-Above 768px the **New Folder** name field opens inline beside **Add**, and
-between 768px and about 890px it takes a second row of its own until you
-finish naming the folder.
+The **New Folder** name field takes a line of its own while it is open,
+under the bar's controls at 768px and up and above them on a narrow
+screen, so it never displaces anything.
 
 On a listing with nothing in it at all — no files and no subfolders —
 the toolbar drops the controls for arranging things: View, Sort and the

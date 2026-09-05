@@ -158,18 +158,18 @@ const SCOPE: Record<string, string[]> = {
   "Filter: Markdown · Verified only": [],
   "More actions": [],
   "Search the whole drive": [],
-  // Two breakpoints, each set by what it costs. The left group fits the bar
-  // from 768; the three labelled arranging menus do not until 1024, because
-  // at 768 with the `folder-actions` slot filled the row comes to 771 in a
-  // 768 viewport (measured). The create-folder form opens inside the left
-  // group and inherits its scope.
+  // One breakpoint. Everything that leaves the bar leaves at 768, where
+  // `00-basis.md` ends the mobile form — the left group to the row above,
+  // the two arranging menus into `…`.
   Add: ["hidden", "md:flex"],
-  INPUT: ["md:w-40", "md:flex-initial", "md:w-auto", "hidden", "md:flex"],
-  Create: ["md:w-auto", "hidden", "md:flex"],
-  Cancel: ["md:w-auto", "hidden", "md:flex"],
-  "View: Grid view": ["hidden", "lg:flex"],
-  "Sort: Newest first": ["hidden", "lg:flex"],
-  "Sort: Relevance": ["hidden", "lg:flex"],
+  // The name field is not in the left group any more; it is a row of its
+  // own on the bar from 768, and a row of its own above the bar below that.
+  INPUT: ["md:w-40", "md:flex-initial", "hidden", "md:block"],
+  Create: ["hidden", "md:block"],
+  Cancel: ["hidden", "md:block"],
+  "View: Grid view": ["hidden", "md:flex"],
+  "Sort: Newest first": ["hidden", "md:flex"],
+  "Sort: Relevance": ["hidden", "md:flex"],
 };
 
 const nameOrTag = (b: HTMLElement) => nameOf(b) || b.tagName;
@@ -220,11 +220,12 @@ describe("what the folder toolbar keeps on the bar", () => {
         [...b.classList].filter((c) => c.startsWith("pointer-coarse:")).sort(),
       ]),
     );
+    // Same order as above, and for the same reason.
+    const unlisted = Object.keys(floors).filter((k) => FLOOR[k] === undefined);
+    expect(unlisted).toEqual([]);
     expect(floors).toEqual(
       Object.fromEntries(Object.keys(floors).map((k) => [k, FLOOR[k]])),
     );
-    // The dictionary is only a guard if every key resolved to something.
-    expect(Object.values(floors).every((v) => v && v.length > 0)).toBe(true);
   });
 
   it.each(STATES)("keeps each control at its declared widths while %s", (_state, overrides) => {
@@ -239,13 +240,15 @@ describe("what the folder toolbar keeps on the bar", () => {
         responsiveChain(b, bar(container)),
       ]),
     );
+    // Before the comparison, not after: `toEqual` already fails for a
+    // missing key (received `[]` against expected `undefined`), so asked
+    // second this could never run. Asked first it names the control that
+    // has no entry, which is the more useful failure.
+    const unlisted = Object.keys(chains).filter((k) => SCOPE[k] === undefined);
+    expect(unlisted).toEqual([]);
     expect(chains).toEqual(
       Object.fromEntries(Object.keys(chains).map((k) => [k, SCOPE[k]])),
     );
-    // `SCOPE[k]`, not the observed chain: `responsiveChain` always returns
-    // an array, so asking whether the observation is defined can never be
-    // false. The question is whether the table has an entry.
-    expect(Object.keys(chains).every((k) => SCOPE[k] !== undefined)).toBe(true);
   });
 
   it("lets the two controls that can outgrow the bar shrink instead of wrapping it", () => {
@@ -258,8 +261,10 @@ describe("what the folder toolbar keeps on the bar", () => {
     // not prevent it: the link is given a zero base (`flex-1`) and the face a
     // cap. This pins the recipes. It cannot pin the effect — jsdom lays
     // nothing out. Measured in Chromium, coarse pointer, both locales: the
-    // face goes 211 -> 144 below 640 and the bar is one row at 320 and 375;
-    // the link goes 201 -> 148 at 320 and the bar is one row from 320 up.
+    // face goes 211 -> 144 below 1024 and the bar is one row at 320 and
+    // 375. The link is 201 at its natural width and shrinks from there
+    // rather than pushing anything: 172 at 768 with an addon beside it, 148
+    // at 320. Without the wrapper's `flex` it fills instead — 998 at 1512.
     const { container } = render(
       <FolderToolbar
         {...props}
@@ -332,6 +337,67 @@ describe("what the folder toolbar keeps on the bar", () => {
         el = el.parentElement;
       }
     }
+  });
+
+  it("hands the left group from one row to the other with no width between", () => {
+    // The pair that decides where `Add`, the addon slot and the name field
+    // live: a `md:hidden` row above the bar and a `hidden md:flex` group on
+    // it. Two halves of one decision, exactly like `BAR_WIDE` and the
+    // overflow's `lg:hidden` — but invisible to `SCOPE`, which walks from a
+    // control *up to the bar* and so never reaches a sibling of the bar.
+    //
+    // Mutating the row's `md:hidden` to `sm:hidden` passed every test in
+    // this tree while `Add`, the name field and the addon's entry point
+    // vanished outright at 640-767. There is no overflow copy of `Add`;
+    // nothing else offers it.
+    //
+    // Read out of the DOM rather than written twice, so moving the
+    // breakpoint has to move every member or fail here.
+    const { container } = render(<FolderToolbar {...props} creatingFolder />);
+    const bp = (el: Element) => {
+      const shown = [...el.classList].find((c) => /^[a-z]{2}:(flex|block)$/.test(c));
+      const hidden = [...el.classList].find((c) => /^[a-z]{2}:hidden$/.test(c));
+      return (shown ?? hidden)?.split(":")[0];
+    };
+
+    const flowRow = container.firstElementChild!;
+    expect([...flowRow.classList]).toContain("md:hidden");
+
+    // Every element on the bar that appears at a breakpoint, partitioned by
+    // which one. Found by class rather than listed, so a fourth arrival has
+    // to join a group or fail the count.
+    const byBreakpoint: Record<string, number> = {};
+    for (const el of bar(container).querySelectorAll<HTMLElement>("*")) {
+      if (![...el.classList].includes("hidden")) continue;
+      const at = bp(el);
+      if (at) byBreakpoint[at] = (byBreakpoint[at] ?? 0) + 1;
+    }
+
+    // Five at one width: `Add`, the addon slot, the name field, and the two
+    // arranging menus. `toEqual` on the whole map, so a control that drifts
+    // to a second breakpoint fails with that breakpoint named rather than
+    // balancing out inside a total.
+    const wide = BAR_WIDE.className.replace("hidden ", "").split(":")[0];
+    expect(bp(flowRow)).toBe(wide);
+    expect(byBreakpoint).toEqual({ [wide]: 5 });
+  });
+
+  it("gives the name field a line rather than a place in the row", () => {
+    // `w-full` on the field's own wrapper is what keeps it from competing
+    // with the controls. Nested inside the left group it filled that group
+    // instead of taking a line, and the row it sat on wrapped — at 640-654
+    // while the group was on the bar from 640, and at 1024-1034 once the
+    // arranging menus returned to a bar already holding it.
+    //
+    // A class assertion. The pixels are in Chromium: with this, the bar is
+    // one row at every width from 320 to 1512 in both locales, with and
+    // without an addon on it.
+    const { container } = render(<FolderToolbar {...props} creatingFolder />);
+    const field = container.querySelector<HTMLElement>('input[type="text"]')!;
+    const row = field.parentElement!;
+    expect([...row.classList]).toContain("w-full");
+    // And it is not sharing that line with `Add`.
+    expect(row.querySelector("[aria-haspopup]")).toBeNull();
   });
 
   it("says which controls leave the bar in an attribute, not only in a class", () => {

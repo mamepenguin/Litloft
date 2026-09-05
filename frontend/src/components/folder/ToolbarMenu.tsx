@@ -6,42 +6,54 @@ import { Check } from "lucide-react";
 /**
  * The scope a toolbar control keeps, and the class that enforces it.
  *
- * `lg`. Two breakpoints govern what leaves this bar, and each is set by what
- * it costs rather than by a wish for symmetry: the left group can afford the
- * bar from 768 up, the three labelled arranging menus cannot until 1024.
+ * `md`, the same 768 the left group uses: below it the bar carries `Play`,
+ * `Filter` and `…`, and `View` and `Sort` are sections of `…`. `00-basis.md`
+ * calls 640-767 the mobile form with padding around it, and 案 2's
+ * acceptance list asks for four exposed controls plus a conditional `Play`
+ * on the desktop form — so 768 is where that form starts. (`00-basis.md`'s
+ * 768-1119 "intermediate width" is 案 1's inspector, not this toolbar.)
  *
- * Measured, coarse pointer, with the `folder-actions` slot filled — which
- * the intelligence addon still does, so it is the default install and not a
- * hypothetical: at 768, `Add` 100 + addon 81 + `Play` 74 + `View` 108 +
- * `Sort` 132 + `Filter` 144 + `…` 44, seven 8px gaps and 32px of `px-4`
- * comes to 771 against 768, and the bar wraps. It clears at 800 with the
- * stand-in measured here and needs more with a longer addon label. At 1024
- * the same row totals 788 — room to spare in both locales.
- *
- * `00-basis.md` supports the reading: 640-767 is "the mobile form with
- * padding around it", and 768-1119 is an intermediate width, not the
- * desktop one. The exposed row of 案 2 is a desktop layout.
+ * **The residual, measured rather than assumed.** One combination still
+ * wraps under `md`: both filter axes on, ordered by size, with the
+ * `folder-actions` slot filled — `Add` 100 + addon 81 + `Play` 74 + `View`
+ * 108 + `Sort` 132 + `Filter` 144 (capped) + `…` 44, seven 8px gaps and
+ * 32px of `px-4` is 772 against 768. Bisected at 1px it is 768-772 in
+ * English and 768-783 in Japanese, and nothing else in either locale wraps
+ * anywhere from 640 to 1512. Taking `View` and `Sort` off the bar across
+ * the whole of 768-1023 to buy back 5px and 16px is the worse trade: a
+ * half-screen window on a 1920 display is 960 wide, and 案 2's exposed row
+ * is what this phase is for.
  *
  * Stated as data as well as a class. jsdom computes no layout, and reading a
  * class list for the literal token `hidden` is not a proxy for it —
- * `max-lg:hidden` hides without that token and `lg:!flex` shows despite it.
+ * `max-md:hidden` hides without that token and `md:!flex` shows despite it.
  * `SelectionBar`'s `visibility()` does the same, and `toolbarBarScope` reads
  * the attribute, so this is two statements rather than one and a decoration.
  */
-export const BAR_WIDE = { className: "hidden lg:flex", "data-bar": "wide" } as const;
+export const BAR_WIDE = { className: "hidden md:flex", "data-bar": "wide" } as const;
 
 /**
- * The popover surface both toolbar menus open.
+ * The popover surface every menu on this bar opens.
  *
- * A bottom sheet under 640px and a menu anchored to its trigger above it —
- * the shape `FilterMenu` and the overflow `…` already use. Written once here
- * so a third menu on the same bar cannot open a fourth-looking one.
+ * A bottom sheet under 640px and a menu anchored to its trigger above it.
+ * Written once so the three cannot drift, and `FilterMenu` takes it too —
+ * an earlier extraction left that one call site writing its own copy, and
+ * the copies disagreed on the one property that decides whether a row can
+ * be reached.
+ *
+ * **It is capped and scrollable at every width.** `max-h-none` was safe
+ * while this menu held two rows; it holds ten below 1024, where `View` and
+ * `Sort` are sections of `…` rather than controls on the bar. Anchored
+ * inside a `sticky` bar, an uncapped menu is 561px tall on a 390px-high
+ * landscape phone with six rows below the fold, and page scrolling cannot
+ * bring them back — the menu moves with the bar. 70vh on the desktop side,
+ * 60vh on the sheet.
  */
 export const MENU_SURFACE =
   "fixed inset-x-2 bottom-4 z-40 max-h-[60vh] overflow-y-auto rounded-2xl border " +
   "border-bg-border bg-bg-primary py-1 shadow-lg animate-fade-in-scale " +
   "sm:absolute sm:inset-x-auto sm:bottom-auto sm:right-0 sm:top-full sm:mt-1 " +
-  "sm:max-h-none sm:min-w-[200px] sm:overflow-visible sm:origin-top-right";
+  "sm:max-h-[70vh] sm:min-w-[200px] sm:origin-top-right";
 
 interface ToolbarMenuProps {
   /** What the control does. Prefixes the accessible name. */

@@ -265,14 +265,12 @@ export function RootFileListing({ driveName, onFileAction, onFolderChange }: Roo
 
             {/* Sort + view toggle + overflow grouped in a single pill.
 
-              Deliberately *not* the folder toolbar's arrangement any more:
-              Phase 3 B2b-2b gave that bar labelled `View` and `Sort` menus,
-              because it was competing for room with Add, Play, Filter and
-              `…` and had six wordless icons on it. This bar carries three
+              Deliberately *not* the folder toolbar's arrangement. That bar
+              competes for room with Add, Play, Filter and `…`, so its view
+              and sort controls are labelled menus; this one carries three
               controls and has the space, so DESIGN.md §Selected-state
-              controls keeps the toggle here. The divergence is deliberate:
-              do not re-align the two bars without re-reading why this one
-              is not competing for room. */}
+              controls keeps the toggle. Do not re-align the two without
+              re-reading why this one is not competing for room. */}
             {!hideArrangingControls && (
             <div className="flex items-center gap-1 rounded-2xl bg-bg-elevated p-1">
               <SortButton

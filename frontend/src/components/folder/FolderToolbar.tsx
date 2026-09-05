@@ -141,7 +141,7 @@ export function FolderToolbar({
 
   const [moreOpen, setMoreOpen] = useState(false);
   // Held here, not inside each menu. The same choice is offered twice — on
-  // the bar above 640px and inside `…` below it — and two switchers each
+  // the bar from 768 up and inside `…` below it — and two switchers each
   // holding their own uncontrolled state would answer differently on the two
   // sides of that width.
   const view = useViewModeState(viewMode, onViewChange);
@@ -150,56 +150,64 @@ export function FolderToolbar({
 
 
   // Left mutating actions — rendered in two places:
-  // mobile (normal flow, above the sticky bar) and desktop (inside the sticky bar).
+  // below 768px in normal flow above the bar, and on the bar from 768 up.
   const leftActions = !hideMutatingActions ? (
-    <>
-      <AddButton
-        onCreateFolder={() => onSetCreatingFolder(true)}
-        onCreateFile={onCreateFile}
-        addonProps={{ fileIds, drive, path: folderPath ?? "" }}
-      />
+    <AddButton
+      onCreateFolder={() => onSetCreatingFolder(true)}
+      onCreateFile={onCreateFile}
+      addonProps={{ fileIds, drive, path: folderPath ?? "" }}
+    />
+  ) : null;
 
-      {creatingFolder && (
-        <div className="flex w-full items-center gap-2 md:w-auto">
-          <input
-            type="text"
-            autoFocus
-            value={newFolderName}
-            onChange={(e) => onSetNewFolderName(e.target.value)}
-            onKeyDown={(e) => {
-              if (e.key === "Enter") onCreateFolder();
-              if (e.key === "Escape") { onSetCreatingFolder(false); onSetNewFolderName(""); onSetFolderError(null); }
-            }}
-            placeholder={tf("namePlaceholder")}
-            className="min-w-0 flex-1 rounded-2xl bg-bg-card px-3 py-2 text-sm text-text-primary placeholder:text-text-muted outline-none focus:ring-2 focus:ring-focus-ring pointer-coarse:min-h-11 md:w-40 md:flex-initial"
-          />
-          {/* Not a second accent fill. This row opens from the Add menu and
-              Add stays on screen behind it, so filling Create would put two
-              on the bar at once — the state §2.2 exists to prevent. */}
-          <Button
-            variant="secondary"
-            size="sm"
-            onClick={onCreateFolder}
-            // Cancel beside it is `iconOnly`, which carries `Button`'s own
-            // `-inset-1.5` overhang: 6px of reach on each side into an 8px
-            // gap, so it clears 44 without colliding with this button's box.
-            // This one has a label and no overhang, so it needs the height.
-            className="pointer-coarse:min-h-11"
-          >
-            {tc("create")}
-          </Button>
-          <Button
-            iconOnly
-            variant="ghost"
-            aria-label={tc("cancel")}
-            onClick={() => { onSetCreatingFolder(false); onSetNewFolderName(""); onSetFolderError(null); }}
-          >
-            <X size={16} />
-          </Button>
-          {folderError && <span className="text-xs text-danger">{folderError}</span>}
-        </div>
-      )}
-    </>
+  /**
+   * The new-folder name field, on a row of its own.
+   *
+   * `w-full` and a direct child of the wrapping row, not a sibling of
+   * `Add` inside the left group. Nested there it filled the group rather
+   * than taking a line, so the group grew and the row it sat on wrapped —
+   * at 640-654 while the group was still on the bar from 640, and again at
+   * 1024-1034 once the arranging menus returned to a bar already holding
+   * it. A field that always has its own line cannot push anything.
+   */
+  const createFolderRow = creatingFolder ? (
+    <div className="flex w-full items-center gap-2">
+      <input
+        type="text"
+        autoFocus
+        value={newFolderName}
+        onChange={(e) => onSetNewFolderName(e.target.value)}
+        onKeyDown={(e) => {
+          if (e.key === "Enter") onCreateFolder();
+          if (e.key === "Escape") { onSetCreatingFolder(false); onSetNewFolderName(""); onSetFolderError(null); }
+        }}
+        placeholder={tf("namePlaceholder")}
+        className="min-w-0 flex-1 rounded-2xl bg-bg-card px-3 py-2 text-sm text-text-primary placeholder:text-text-muted outline-none focus:ring-2 focus:ring-focus-ring pointer-coarse:min-h-11 md:w-40 md:flex-initial"
+      />
+      {/* Not a second accent fill. This row opens from the Add menu and
+          Add stays on screen behind it, so filling Create would put two
+          on the bar at once — the state §2.2 exists to prevent. */}
+      <Button
+        variant="secondary"
+        size="sm"
+        onClick={onCreateFolder}
+        // Cancel beside it is `iconOnly`, which carries `Button`'s own
+        // `-inset-1.5` overhang: 6px of reach on each side into an 8px
+        // gap, so it clears 44 without colliding with this button's box.
+        // This one has a label and no overhang, so it needs the height.
+        className="pointer-coarse:min-h-11"
+      >
+        {tc("create")}
+      </Button>
+      <Button
+        iconOnly
+        variant="ghost"
+        aria-label={tc("cancel")}
+        onClick={() => { onSetCreatingFolder(false); onSetNewFolderName(""); onSetFolderError(null); }}
+      >
+        <X size={16} />
+      </Button>
+      {folderError && <span className="text-xs text-danger">{folderError}</span>}
+    </div>
   ) : null;
 
   return (
@@ -225,12 +233,13 @@ export function FolderToolbar({
             declares, and this renders nothing once the old slot is empty.
             Delete the two call sites when no manifest names it. */}
         <AddonSlot id="folder-actions" layout="stack" props={{ fileIds, drive, path: folderPath ?? "" }} />
+        {createFolderRow}
       </div>
 
       {/* Sticky control bar.
           - Mobile: right-side controls only (sort/view/filter/more/count).
             Left actions + AddonSlot scroll away in the normal-flow row above.
-          - Desktop (sm+): left actions + AddonSlot + right controls in one row.
+          - From 768: left actions + AddonSlot + right controls in one row.
           Must be a direct child of the flex column containing block so that
           sticky has sufficient height to actually stick.
           z-20 matches the Header so that FilterField's absolute search icon
@@ -252,7 +261,8 @@ export function FolderToolbar({
             link is an item inside it — `flex` on this div, which is what
             keeps the link at its content width. Without it the div is a
             block, the link fills it, and a bordered pill runs 998px across
-            the bar at 1512 around a 151px label (measured).
+            the bar at 1512 around a 151px label — 916px with an addon in
+            the slot beside it (both measured).
 
             `flex-1` gives the wrapper a base of zero. Wrapping is decided on
             base sizes, so that is what stops a long label pushing `…` onto a
@@ -289,7 +299,7 @@ export function FolderToolbar({
         )}
 
         {/* Arranging: which layout, which order, which subset. All three
-            carry a word; below 1024px the first two move into `…` so the row
+            carry a word; below 768px the first two move into `…` so the row
             stays one row. */}
         {!hideArrangingControls && (
           <>
@@ -338,13 +348,13 @@ export function FolderToolbar({
                   onClick={() => setMoreOpen(false)}
                 />
                 <div role="menu" className={MENU_SURFACE}>
-                {/* The two menus that are not on the bar below 1024px, drawn
-                    from the same rows they draw there. `lg:hidden` and
+                {/* The two menus that are not on the bar below 768px, drawn
+                    from the same rows they draw there. `md:hidden` and
                     `BAR_WIDE` are the two halves of one decision: a control
                     that leaves the bar has to arrive here, and a reader who
                     finds neither has lost the function. */}
                 {!hideArrangingControls && (
-                  <div className="lg:hidden" role="presentation">
+                  <div className="md:hidden" role="presentation">
                     <ViewGroup
                       mode={view.mode}
                       onSelect={(next) => {
@@ -429,6 +439,11 @@ export function FolderToolbar({
             )}
         </div>
 
+        {/* From 768 up the field lives here, on the bar, and `w-full` gives
+            it a line under the controls rather than a place among them.
+            Below 768 the copy in the normal-flow row above carries it, so
+            it is drawn once at every width. */}
+        <div className="hidden w-full md:block">{createFolderRow}</div>
       </div>
     </>
   );
