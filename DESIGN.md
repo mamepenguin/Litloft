@@ -566,10 +566,12 @@ explained why the button is off.
 > is itself a decision to pass defects through.** The local harm gets the
 > local fix instead.
 >
-> **Progress (PR D1b): 34 of the 43 converted, 9 remain.** The first 13 were
+> **Progress: 30 of the 39 converted, 9 remain.** The first 13 were
 > the call sites under `frontend/src/components/` (PR A2b); 11 more came from
-> media_import in C1 and intelligence in C2a and C2b, and the last 10 from
-> knowledge in C3. Every addon pointer has moved. Of the 9 left, seven are
+> media_import in C1 and intelligence in C2a and C2b, and 6 from
+> knowledge in C3. Every addon pointer has moved. The population fell from 43
+> to 39 when knowledge's unreachable two-pane view was deleted, taking four
+> converted sites with it; the 9 unconverted are untouched by that. Of the 9 left, seven are
 > core — four in the first-run wizard and one on the unlock gate, brand
 > surfaces outside the AppShell, plus two under `app/admin/`, which 案 15 /
 > 案 16 rebuild in Phase 4 — and two are cloud-sync's and stay, per the
@@ -581,11 +583,11 @@ explained why the button is off.
 > out 23 sites cannot be contradicted by them, which is the failure this
 > paragraph's own numbers exist to prevent.
 >
-> **What Phase 3 converts: 41 sites.** 43 already carry the
-> `disabled:bg-sand` treatment — 42 of them accent fills, the one exception
-> being an accent *tint* on knowledge's folder pane, converted in C3 — and
-> two of those 43 are
-> cloud-sync's, which stay. Add to the 41 any non-accent sibling inside a file
+> **What Phase 3 converts: 37 sites.** 39 carry the
+> `disabled:bg-sand` treatment, all of them accent fills — the one exception
+> was an accent *tint* on knowledge's folder pane, converted in C3 and
+> deleted with the pane — and two of those 39 are
+> cloud-sync's, which stay. Add to the 37 any non-accent sibling inside a file
 > Phase 3 opens for another reason. The rest move opportunistically, when a
 > later change touches the row they sit in — the same terms §2.2 gives the
 > accent fills that are not yet on `Button`.
@@ -1074,19 +1076,27 @@ Size is the one thing that varies, because density does:
 The sidebar is `text-[11px]` and not `text-sm` because its rows are `text-sm`: at the
 same size the heading and the rows below it stop being two levels.
 
-**Addon surfaces are not there yet.** Nineteen labels across three addons still
+**Addon surfaces are not there yet.** Fourteen labels across three addons still
 carry `uppercase` — most of them `<h2>` / `<h3>` section headings, not the
-field labels the first count called them:
+field labels the first count called them. Counted as occurrences of
+`uppercase` in each addon's non-test `.tsx`, so the table can be checked
+rather than remembered:
 
 | Addon | Count |
 |---|---|
-| `media_import` | 10 (`SubscriptionDetailPanel`, `Page`, `Composer`, `ActivityFeed`) |
-| `knowledge` | 8 (`EmptyState`, `FolderView`, `ClipModal`, `Sidebar`, `graph/GraphControls`) |
+| `media_import` | 11 (`SubscriptionDetailPanel`, `Page`, `Composer`, `ActivityFeed`) |
+| `knowledge` | 2 (`ActiveSummarySection`, `graph/GraphControls`) |
 | `intelligence` | 1 (`FailedJobsModal`) |
+
+Knowledge's row was 8 before its unreachable two-pane view was deleted; four
+of the files that carried them went with it. The media_import row read 10
+under whatever the first count measured and reads 11 under the method stated
+above — a discrepancy of one that this change did not create and has not
+chased down.
 
 They are the same shape and want the same sweep; it reaches three submodules, so
 it is deferred rather than smuggled into the change that wrote this rule.
-**New addon headings follow the rule above** — the nineteen are a backlog, not a
+**New addon headings follow the rule above** — the fourteen are a backlog, not a
 precedent. `frontend/src/__tests__/sidebar-headings.test.ts` enforces the rule in
 core only, for that reason.
 

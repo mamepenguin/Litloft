@@ -77,10 +77,6 @@ const NOT_YET_MIGRATED: Record<string, string> = {
   "frontend/src/components/FileDetail/FileMetaBlock.tsx":
     "inspector heading; demoted with the FileDetailChrome migration (PR A2b)",
 
-
-  // Not a page header at all: the landing panel of the knowledge two-pane
-  // view. DESIGN.md's chrome scale does not govern it.
-  "addons/knowledge/frontend/EmptyState.tsx": "knowledge landing panel, not a page header",
 };
 
 
@@ -192,7 +188,7 @@ describe("page headings", () => {
 
     const EXPECTED_ADDON_HEADINGS: Record<string, number> = {
       "addons/intelligence": 0,
-      "addons/knowledge": 1,
+      "addons/knowledge": 0,
       "addons/media_import": 0,
     };
 
