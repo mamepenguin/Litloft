@@ -160,6 +160,17 @@ export function addonPresent(repoRoot: string, path: string): boolean {
 }
 
 /**
+ * As `windowSide`, but against a map given to it.
+ *
+ * A separate entry point rather than an option on the other one. The fixture
+ * that shows per-ledger resolution needs a map holding one path on both
+ * ledgers, which the declared one will not have until C2 — but offering that
+ * as `opts.windows?` made it an *optional* parameter on the production
+ * function, and a detector passing `{ before: 99, after: 0 }` then bypassed
+ * the whole mechanism with nothing failing. The signature is the guard:
+ * `windows` is required here and absent there, so a production caller cannot
+ * reach it and no convention has to be remembered to keep that true.
+ *
  * The observed count for one window's file, checked against exactly two
  * declared endpoints.
  *
@@ -168,7 +179,8 @@ export function addonPresent(repoRoot: string, path: string): boolean {
  * which is indistinguishable from a converted one unless it is asked about
  * separately — and no migration in this phase deletes a file.
  */
-export function windowSide(
+export function windowSideIn(
+  windows: typeof MIGRATION_WINDOWS,
   observed: number,
   ledger: Ledger,
   path: string,
@@ -176,13 +188,9 @@ export function windowSide(
   // be tested by making a file disappear, and the first test written for this
   // one passed against an *undeclared* path instead — the wrong error, from
   // the line above.
-  // `windows` is injectable so the per-ledger resolution can be shown against
-  // a fixture holding one path on both ledgers. The declared map has no such
-  // path today, so a test written against it could only assert the shape and
-  // would pass with both ledgers emptied — which the first one did.
-  opts: { exists: boolean; windows?: typeof MIGRATION_WINDOWS },
+  opts: { exists: boolean },
 ): "before" | "after" {
-  const w = (opts.windows ?? MIGRATION_WINDOWS)[ledger]?.[path];
+  const w = windows[ledger]?.[path];
   if (!w) throw new Error(`${ledger}:${path}: no migration window is declared`);
   if (!opts.exists) {
     throw new Error(
@@ -197,4 +205,19 @@ export function windowSide(
     `${ledger}:${path}: expected ${w.before} (before ${w.closedBy}) or ` +
       `${w.after} (after it), got ${observed}. ${w.why}`,
   );
+}
+
+/**
+ * As above, against the declared windows and nothing a caller substitutes.
+ *
+ * Delegates, so the fixture test exercises the production code path rather
+ * than a parallel copy of it.
+ */
+export function windowSide(
+  observed: number,
+  ledger: Ledger,
+  path: string,
+  opts: { exists: boolean },
+): "before" | "after" {
+  return windowSideIn(MIGRATION_WINDOWS, observed, ledger, path, opts);
 }

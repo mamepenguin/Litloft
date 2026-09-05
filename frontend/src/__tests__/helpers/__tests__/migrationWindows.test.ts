@@ -8,6 +8,7 @@ import {
   addonPresent,
   openWindows,
   windowSide,
+  windowSideIn,
 } from "../migrationWindows";
 
 /**
@@ -123,8 +124,12 @@ describe("migration windows", () => {
         [SHARED]: { before: 3, after: 0, closedBy: "D1", why: "recipes" },
       },
     };
+    // `windowSideIn`, not `windowSide` with an option: an injectable map on
+    // the production function was a way for a *detector* to substitute its
+    // own endpoints, which one did in a mutation with nothing failing. The
+    // required first argument is the guard.
     const at = (ledger: "page-headings" | "button-adoption", n: number) =>
-      windowSide(n, ledger, SHARED, { exists: true, windows: fixture });
+      windowSideIn(fixture, n, ledger, SHARED, { exists: true });
 
     expect(at("page-headings", 1)).toBe("before");
     expect(at("button-adoption", 3)).toBe("before");
@@ -148,5 +153,24 @@ describe("migration windows", () => {
   it("cannot be handed a predicate that opens an undeclared window", () => {
     // `present` filters the declarations; it does not add to them.
     expect(openWindows("button-adoption", () => true)).toHaveLength(1);
+  });
+
+  it("names addons that exist", () => {
+    // Both hand-written tables — the windows' paths and `bumps` — spell addon
+    // directory names, and a typo in either would read as a considered entry
+    // while matching nothing.
+    const declared = new Set<string>();
+    for (const windows of Object.values(MIGRATION_WINDOWS)) {
+      for (const path of Object.keys(windows)) declared.add(addonOf(path)!);
+    }
+    for (const { bumps } of Object.values(PENDING_PRS)) {
+      for (const addon of bumps) declared.add(addon);
+    }
+    for (const addon of declared) {
+      expect(
+        addonPresent(REPO_ROOT, `addons/${addon}/frontend/x.tsx`),
+        addon,
+      ).toBe(true);
+    }
   });
 });
