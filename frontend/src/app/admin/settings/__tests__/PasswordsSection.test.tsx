@@ -120,11 +120,19 @@ describe("PasswordsSection", () => {
   it("empty passwords list shows 全公開モード notice and CTA", async () => {
     mockFetch.mockResolvedValueOnce(jsonResponse([]));
     render(<PasswordsSection />);
-    await waitFor(() => {
-      expect(screen.getByText(/全公開モード|public/i)).toBeInTheDocument();
+    // Wait for the CTA, which is what this test is about, rather than for the
+    // notice above it. The two render together today, but `/public/i` is loose
+    // enough to match earlier text, and gating on it let the synchronous
+    // assertion below run one render too soon — observed once as
+    // `Unable to find an accessible element with the role "button"` in CI, on
+    // a tree that was green locally and green on a rerun.
+    const cta = await screen.findByRole("button", {
+      name: /パスワード保護を有効化|enable/i,
     });
-    expect(
-      screen.getByRole("button", { name: /パスワード保護を有効化|enable/i }),
-    ).toBeInTheDocument();
+    // The notice through the CTA's own container, not by a document-wide text
+    // match. `/public/i` matches more than one element once the section has
+    // settled, so the original `waitFor` on it resolved on whichever appeared
+    // first — which is not necessarily the render that puts the CTA on screen.
+    expect(cta.closest("div")).toHaveTextContent(/全公開モード|public/i);
   });
 });
