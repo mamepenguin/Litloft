@@ -428,7 +428,8 @@
     "list": "リスト表示",
     "tree": "ツリー",
     "treeOn": "ツリーを表示",
-    "treeOff": "ツリーを隠す"
+    "treeOff": "ツリーを隠す",
+    "label": "表示"
   },
   "tree": {
     "filterAll": "すべて",
@@ -492,7 +493,9 @@
     "scanDone": "再スキャン完了 — 追加 {added} / 復帰 {recovered} / 見つからない {missing}",
     "scanDoneNoChange": "再スキャン完了 — 変更はありません",
     "scanAlreadyRunning": "このドライブは既に再スキャン中です",
-    "scanFailed": "再スキャンに失敗しました"
+    "scanFailed": "再スキャンに失敗しました",
+    "pinFolder": "このフォルダをピン留め",
+    "unpinFolder": "このフォルダのピン留めを解除"
   },
   "gallery": {
     "imageGallery": "画像ギャラリー",

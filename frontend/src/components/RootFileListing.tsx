@@ -263,10 +263,14 @@ export function RootFileListing({ driveName, onFileAction, onFolderChange }: Roo
               </Button>
             )}
 
-            {/* Sort + view toggle + overflow grouped in a single pill —
-                mirrors folder/FolderToolbar's right-group cluster so the
-                drive-home and folder-browser toolbars stay visually
-                consistent. */}
+            {/* Sort + view toggle + overflow grouped in a single pill.
+
+              Deliberately *not* the folder toolbar's arrangement. That bar
+              competes for room with Add, Play, Filter and `…`, so its view
+              and sort controls are labelled menus; this one carries three
+              controls and has the space, so DESIGN.md §Selected-state
+              controls keeps the toggle. Do not re-align the two without
+              re-reading why this one is not competing for room. */}
             {!hideArrangingControls && (
             <div className="flex items-center gap-1 rounded-2xl bg-bg-elevated p-1">
               <SortButton

@@ -6,6 +6,7 @@ import { useTranslations } from "next-intl";
 
 import type { FileKind, TrustFilter } from "@/types";
 import { TRUST_OPTION_KEYS, TYPE_OPTION_KEYS } from "./filterOptions";
+import { MENU_SURFACE } from "./ToolbarMenu";
 
 interface FilterMenuProps {
   typeFilter: FileKind | null;
@@ -117,7 +118,12 @@ export function FilterMenu({
         aria-label={
           isFiltering ? `${t("filter")}: ${activeLabels.join(" · ")}` : undefined
         }
-        className={`flex items-center gap-1.5 rounded-2xl border px-3 py-2 text-sm transition-colors ${
+        // `min-h-11`, not a hit-area overhang. `gap-2` on this bar is 8px and
+        // `Button`'s overhang reaches 6px each side, so two neighbours with
+        // one would overlap. DESIGN.md §Row Actions describes that mechanism
+        // but prescribes the overhang for controls repeated once per row, at
+        // a shorter pitch than this; the box is the simpler control here.
+        className={`flex items-center gap-1.5 rounded-2xl border px-3 py-2 text-sm transition-colors pointer-coarse:min-h-11 ${
           isFiltering
             ? "border-bg-border bg-bg-elevated text-text-primary font-medium"
             : "border-bg-border bg-bg-card text-text-muted hover:text-text-primary"
@@ -125,10 +131,24 @@ export function FilterMenu({
         aria-haspopup="menu"
         aria-expanded={open}
       >
-        <Filter size={16} />
+        <Filter size={16} className="shrink-0" />
         {/* Always a word, filtering or not. The two chips this replaces were
             bare icons until something was selected. */}
-        <span>{isFiltering ? activeLabels.join(" · ") : t("filter")}</span>
+        <span
+          // Capped only once a second axis is on, and only below 1024px.
+          // Two axes join with ` · ` and reach 211px, which wraps this bar
+          // at 375 on its own and again at 768 once the `folder-actions`
+          // slot is filled — which the intelligence addon still does. The
+          // 144px this control contributes to that arithmetic is the capped
+          // width, not its natural one.
+          //
+          // Conditional because one axis reaches 95px against a 96px cap:
+          // capping unconditionally would put a face that fits one label
+          // away from eliding for no reason.
+          className={`truncate ${activeLabels.length > 1 ? "max-lg:max-w-24" : ""}`}
+        >
+          {isFiltering ? activeLabels.join(" · ") : t("filter")}
+        </span>
       </button>
       {open && (
         <>
@@ -143,7 +163,7 @@ export function FilterMenu({
               ordinary buttons in tab order. */}
           <div
             role="menu"
-            className="fixed inset-x-2 bottom-4 z-40 max-h-[60vh] overflow-y-auto rounded-2xl border border-bg-border bg-bg-primary py-1 shadow-lg animate-fade-in-scale sm:absolute sm:inset-x-auto sm:bottom-auto sm:right-0 sm:top-full sm:mt-1 sm:max-h-[70vh] sm:min-w-[200px] sm:origin-top-right"
+            className={MENU_SURFACE}
           >
             {/* `role="group"` + `aria-labelledby`: a `role="menu"` publishes
                 only menuitem / group / separator children, so a bare <p>

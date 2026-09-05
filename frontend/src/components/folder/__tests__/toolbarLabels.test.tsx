@@ -2,6 +2,7 @@ import { describe, it, expect, vi, afterEach } from "vitest";
 import { render, screen, cleanup } from "@testing-library/react";
 
 import { FolderToolbar } from "../FolderToolbar";
+import { pressables } from "@/__tests__/helpers/pressable";
 
 vi.mock("@/components/AddonSlot", () => ({ AddonSlot: () => null }));
 
@@ -51,48 +52,9 @@ const props = {
   onReshuffle: vi.fn(),
 };
 
-/**
- * Controls whose whole content is an icon: no text a sighted reader gets.
- *
- * Not `button` alone. An anchor styled as a control, a `[role=button]`, a
- * `<summary>` — all of them put a pressable thing on the bar, and a scan
- * that only knows `<button>` reports a clean toolbar while one of them
- * sits on it wordless. Demonstrated: an `<a>` with an icon and no text was
- * added and every test passed.
- */
-const PRESSABLE = [
-  "button",
-  "a",
-  "input",
-  "label",
-  "summary",
-  "[tabindex]",
-  "[role=button]",
-  "[role=link]",
-  "[role=switch]",
-  "[role=tab]",
-  "[role=checkbox]",
-  "[role=option]",
-  // `^=`, not `=`: this PR's own rows are `menuitemradio`, and an exact
-  // attribute match let seven of eight shapes through — including the one
-  // role the PR had just started using, while listing the one it had
-  // stopped using.
-  "[role^=menuitem]",
-].join(", ");
-
+/** The pressable things with no text a sighted reader gets. */
 function wordless(root: HTMLElement): string[] {
-  return [...root.querySelectorAll<HTMLElement>(PRESSABLE)]
-    // A file input is a mechanism, never the control: `AddButton` keeps two
-    // of them hidden and clicks them from a menu row — four in the tree,
-    // because the toolbar draws the left group once per breakpoint. The row is what a
-    // reader presses and the row is what this scan is about. Widening the
-    // selector to `input` surfaced them, which is the scan working — they
-    // are named here rather than left to widen the expected list.
-    //
-    // The predicate this really wants is "rendered and visible", which jsdom
-    // cannot answer. A styled, *visible* file input used as the control
-    // itself would slip past this — nothing in the tree does that today.
-    .filter((b) => !(b instanceof HTMLInputElement && b.type === "file"))
+  return pressables(root)
     .filter((b) => (b.textContent ?? "").trim() === "")
     .map((b) => b.getAttribute("aria-label") ?? "(no accessible name)");
 }
@@ -100,20 +62,32 @@ function wordless(root: HTMLElement): string[] {
 describe("the folder toolbar's wordless controls", () => {
   afterEach(cleanup);
 
-  it("still has more than the overflow, and these are which", () => {
-    // 案 2 wants this list to be ["More actions"] alone. Merging the two
-    // filter chips into one labelled control took two off it; `表示 ▾` and
-    // `並び順 ▾` (Phase 3 B2b-2b) take the rest. Listed rather than counted
-    // so the next step edits this line and sees what it is removing.
+  it("has the overflow and nothing else, at every state that draws a control", () => {
+    // 案 2's target, reached. There were seven: upload's chevron aside, the
+    // two filter chips, reshuffle, sort, the two halves of the view toggle
+    // and `…`. The chips became one labelled `Filter`; reshuffle moved into
+    // the sort menu; sort and the view toggle became `Sort: <order>` and
+    // `View: <layout>`.
+    //
+    // Listed rather than counted, and asserted at four states rather than
+    // one: a control that only appears while something is selected — which
+    // is what both filter chips were — is invisible to a single render of
+    // the resting toolbar. `it.each` so a failure names the state.
     const { container } = render(<FolderToolbar {...props} />);
     // Rendered twice, once per breakpoint, so the names are deduplicated.
-    expect([...new Set(wordless(container))].sort()).toEqual([
-      "Grid view",
-      "List view",
-      "More actions",
-      "Reshuffle",
-      "Sort",
-    ]);
+    expect([...new Set(wordless(container))].sort()).toEqual(["More actions"]);
+  });
+
+  it.each([
+    ["filtering by kind", { typeFilter: "audio" as const }],
+    ["filtering by trust", { trustFilter: "verified" as const }],
+    ["in list view", { viewMode: "list" as const }],
+    ["ordered by size", { sort: "file_size" as const, order: "asc" as const }],
+    ["in select mode", { selectable: true }],
+    ["searching", { isSearch: true }],
+  ])("keeps it to the overflow while %s", (_state, overrides) => {
+    const { container } = render(<FolderToolbar {...props} {...overrides} />);
+    expect([...new Set(wordless(container))].sort()).toEqual(["More actions"]);
   });
 
   it("has none of them where the folder is empty but the overflow", () => {

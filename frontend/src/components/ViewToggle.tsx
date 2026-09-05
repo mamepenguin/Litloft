@@ -1,16 +1,9 @@
 "use client";
 
 import { Grid3X3, List } from "lucide-react";
-import { useEffect, useState } from "react";
 import { useTranslations } from "next-intl";
 import type { ViewMode } from "@/types";
-
-const STORAGE_KEY = "video-share-view-mode";
-const VALID_MODES: ViewMode[] = ["grid", "list"];
-
-function isViewMode(value: unknown): value is ViewMode {
-  return typeof value === "string" && (VALID_MODES as string[]).includes(value);
-}
+import { useViewModeState } from "@/components/viewMode";
 
 interface ViewToggleProps {
   /**
@@ -32,37 +25,21 @@ interface ViewToggleProps {
  */
 export function ViewToggle({ mode: controlledMode, onChange }: ViewToggleProps) {
   const t = useTranslations("view");
-  const isControlled = controlledMode !== undefined;
-  const [uncontrolledMode, setUncontrolledMode] = useState<ViewMode>("grid");
-  const mode = isControlled ? controlledMode : uncontrolledMode;
+  const { mode, select } = useViewModeState(controlledMode, onChange);
 
-  useEffect(() => {
-    if (isControlled) return;
-    const saved = localStorage.getItem(STORAGE_KEY);
-    if (!isViewMode(saved)) return;
-    setUncontrolledMode(saved);
-    onChange(saved);
-  }, [isControlled, onChange]);
-
-  function toggle(newMode: ViewMode) {
-    if (!isControlled) {
-      setUncontrolledMode(newMode);
-      localStorage.setItem(STORAGE_KEY, newMode);
-    }
-    onChange(newMode);
-  }
-
-  // The selected button used to be `bg-accent text-white` — a third accent
-  // fill on the folder toolbar, on a control that only says which of two
-  // equal views you are in. DESIGN.md §2.2 allows one fill per screen and it
-  // belongs to what the screen is for, not to a view switch. This toggle also
-  // rides on six screens, so it is dropped here rather than at one call site:
-  // the folder toolbar, the drive home, a collection, Trash, Missing and the
-  // inside of an archive. (Four, in an earlier draft of this sentence. Two of
-  // the six sit inside a `bg-bg-elevated` pill and the rest on the page, and
-  // that list was also the list of backgrounds the contrast below was measured
-  // against — an enumeration written by hand is the same hazard in prose that
-  // `>=` is in an assertion.)
+  // The selected button used to be `bg-accent text-white`, on a control that
+  // only says which of two equal views you are in. DESIGN.md §2.2 allows one
+  // fill per screen and it belongs to what the screen is for, not to a view
+  // switch. This toggle rides on five screens, so it is dropped here rather
+  // than at one call site: the drive home, a collection, Trash, Missing and
+  // the inside of an archive. **The list is asserted, not maintained here**
+  // — `ViewToggle.test.tsx` walks the tree for the call sites, because the
+  // sentence that used to hold them said four when there were six, and that
+  // same sentence was the list of backgrounds the contrast below was measured
+  // against. (Six until Phase 3 B2b-2b, which gave the folder toolbar a
+  // labelled `ViewMenu` instead. Of the five, the drive home sits in a
+  // `bg-bg-elevated` pill, Trash in a `bg-bg-card` one, and the other three
+  // on the page.)
   //
   // Selection is carried by a **border**, the same device §Tabs uses, and not
   // by a surface. No surface token can carry it: `--bg-card` is `#ffffff` in
@@ -83,14 +60,14 @@ export function ViewToggle({ mode: controlledMode, onChange }: ViewToggleProps) 
   return (
     <div className="flex gap-1">
       <button
-        onClick={() => toggle("grid")}
+        onClick={() => select("grid")}
         className={buttonClass(mode === "grid")}
         aria-label={t("grid")}
       >
         <Grid3X3 size={18} />
       </button>
       <button
-        onClick={() => toggle("list")}
+        onClick={() => select("list")}
         className={buttonClass(mode === "list")}
         aria-label={t("list")}
       >

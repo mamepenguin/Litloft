@@ -15,7 +15,6 @@ import { SelectionBar } from "@/components/SelectionBar";
 import { SmartFolderSaveButton } from "@/components/SmartFolderSaveButton";
 import { AddonSlot } from "@/components/AddonSlot";
 import { EmptyState } from "@/components/EmptyState";
-import { ViewToggle } from "@/components/ViewToggle";
 import { useClipboard } from "@/components/ClipboardProvider";
 import { useSelection } from "@/hooks/useSelection";
 import { useDragAndDrop } from "@/hooks/useDragAndDrop";
@@ -678,6 +677,11 @@ export function FolderBrowser({
         onCreateFolder={createFolder.handleCreateFolder}
         onCreateFile={isFolderAnchored ? createFile : undefined}
         onReshuffle={handleReshuffle}
+        // Only where the breadcrumb is standing in one folder. `isPinned`
+        // and the handler travel together so the row cannot name the flip it
+        // is not making.
+        isPinned={folderPath ? pinnedPaths.has(folderPath) : undefined}
+        onTogglePin={isFolderAnchored ? handleTogglePin : undefined}
       />}
 
       <div className="px-4 pb-6 pt-1 sm:pb-8 sm:pt-4">

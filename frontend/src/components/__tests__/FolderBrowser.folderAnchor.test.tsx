@@ -32,13 +32,6 @@ vi.mock("@/components/AddonSlot", () => ({ AddonSlot: () => null }));
 vi.mock("@/components/UploadZone", () => ({
   UploadZone: ({ children }: { children?: React.ReactNode }) => <>{children}</>,
 }));
-vi.mock("@/components/SortButton", () => ({
-  SortButton: ({ onChange }: { onChange: (s: string, o: string) => void }) => (
-    <button data-testid="sort-button" onClick={() => onChange("file_size", "asc")}>
-      Sort
-    </button>
-  ),
-}));
 vi.mock("@/components/AddButton", () => ({
   // Stands in for the one control that puts things in a folder. It renders a
   // row per prop it is given, so a test can still see *which* of them
@@ -179,6 +172,24 @@ beforeEach(() => {
 
 // ---- tests -------------------------------------------------------------------
 
+/**
+ * The two arranging controls, driven through their real menus.
+ *
+ * Both used to be stand-ins here — a `data-testid` button that called
+ * `onChange` directly. What that could not see is the wiring between the
+ * menu and the handler, which is the half `FolderBrowser` owns: the stub
+ * would have gone on passing with `SortMenu` wired to nothing.
+ */
+const sortTrigger = () => screen.queryAllByRole("button", { name: /^Sort/ });
+const chooseSort = (row: string) => {
+  fireEvent.click(sortTrigger()[0]);
+  fireEvent.click(screen.getByRole("menuitemradio", { name: row }));
+};
+const chooseView = (row: string) => {
+  fireEvent.click(screen.getAllByRole("button", { name: /^View/ })[0]);
+  fireEvent.click(screen.getByRole("menuitemradio", { name: row }));
+};
+
 describe("FolderBrowser — folder anchoring during a tag filter", () => {
   it("offers create-file and targets the anchored folder", () => {
     render(<FolderBrowser driveName="main" folderPath="recipes" tagFilter="soup" />);
@@ -204,33 +215,30 @@ describe("FolderBrowser — folder anchoring during a tag filter", () => {
 
   it("persists a sort change to the folder during a tag filter", () => {
     render(<FolderBrowser driveName="main" folderPath="recipes" tagFilter="soup" />);
-    fireEvent.click(screen.getAllByTestId("sort-button")[0]);
+    chooseSort("Size smallest");
     expect(mockSetSort).toHaveBeenCalledWith("file_size", "asc");
   });
 
   it("persists a viewMode change to the folder during a tag filter", () => {
     render(<FolderBrowser driveName="main" folderPath="recipes" tagFilter="soup" />);
-    const viewButtons = screen.getAllByRole("button", { name: /list|grid/i });
-    expect(viewButtons.length).toBeGreaterThan(0);
-    fireEvent.click(viewButtons[0]);
-    expect(mockSetViewMode).toHaveBeenCalled();
+    chooseView("List view");
+    expect(mockSetViewMode).toHaveBeenCalledWith("list");
   });
 
   it("keeps sort and viewMode session-local in search mode", () => {
     // No folder to anchor to — the per-folder stores must stay untouched.
     render(<FolderBrowser driveName="main" searchQuery="kyoto" />);
-    fireEvent.click(screen.getAllByTestId("sort-button")[0]);
+    chooseSort("Size smallest");
     expect(mockSetSort).not.toHaveBeenCalled();
 
-    const viewButtons = screen.getAllByRole("button", { name: /list|grid/i });
-    fireEvent.click(viewButtons[0]);
+    chooseView("List view");
     expect(mockSetViewMode).not.toHaveBeenCalled();
   });
 
   it("keeps sort and viewMode session-local in a special view", () => {
     listing.total = 3;
     render(<FolderBrowser driveName="main" view="favorites" />);
-    fireEvent.click(screen.getAllByTestId("sort-button")[0]);
+    chooseSort("Size smallest");
     expect(mockSetSort).not.toHaveBeenCalled();
   });
 
@@ -292,13 +300,13 @@ describe("FolderBrowser — what the toolbar is told about emptiness", () => {
     listing.total = 0;
     listing.folders = [];
     render(<FolderBrowser driveName="main" folderPath="empty" />);
-    expect(screen.queryAllByTestId("sort-button")).toHaveLength(0);
+    expect(sortTrigger()).toHaveLength(0);
   });
 
   it("keeps them for a folder that holds only subfolders", () => {
     listing.total = 0;
     listing.folders = [{ path: "a" }, { path: "b" }];
     render(<FolderBrowser driveName="main" folderPath="parent" />);
-    expect(screen.getAllByTestId("sort-button").length).toBeGreaterThan(0);
+    expect(sortTrigger()).toHaveLength(1);
   });
 });

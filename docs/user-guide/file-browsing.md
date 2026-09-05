@@ -20,19 +20,42 @@ The numbered areas in the screenshot map to the main browsing surfaces: breadcru
 
 A toolbar above the grid lets you:
 
-- Toggle **grid** / **list** view. In a real folder the choice is remembered per folder (localStorage, under `folderPrefs:{drive}`); on the drive root, in the flat views, and in search it falls back to a single global preference. Before you have ever chosen, the mode is guessed from what the folder mostly holds — Markdown folders open as a list, video/image/audio folders as a grid.
-- Sort by **newest / oldest** (indexed date), **title A-Z / Z-A**, **largest / smallest**, **most / least liked**, or **random**. Search results add a **relevance** option, which is their default. Sort is remembered per folder in the same place as the view mode. Random sort gets a reshuffle button next to the sort control.
+- Choose **grid** or **list** from the **View** menu. The button reads the layout that is on. In a real folder the choice is remembered per folder (localStorage, under `folderPrefs:{drive}`); on the drive root, in the flat views, and in search it falls back to a single global preference. Before you have ever chosen, the mode is guessed from what the folder mostly holds — Markdown folders open as a list, video/image/audio folders as a grid.
+- Put the listing in order from the **Sort** menu: **newest / oldest** (indexed date), **title A-Z / Z-A**, **largest / smallest**, or **random** — seven orders. Sorting by when you liked something is not among them; that order belongs to the Liked view, which chooses it for you, because inside an ordinary folder most rows have no like date at all. The button reads the order that is on. Search results add a **relevance** option, which is their default. Sort is remembered per folder in the same place as the view mode. While the order is random, the same menu offers **Reshuffle** below the orders.
 - Narrow the listing from the **Filter** menu, which holds both axes. **File type** (All / Video / Image / Audio / Document / Markdown / PDF / Archive / Other) — Markdown and PDF sit *under* Document, so choosing Document returns them too and choosing one of them narrows further. **Verification** (All / Verified only / Unjudged only) sits beside it, except in search results, where a ranked and truncated result set cannot be narrowed after the fact without quietly losing hits. The button carries the word *Filter* until something is on, then the names of what is on.
 
   The server applies both and narrows the query itself, so they are right about files you have not scrolled to yet, and the count beside the folder name is the server's. Three things sit outside that: the drive root's own file listing has no Filter menu at all; *recently played* fetches the last fifty and sifts verification over those rows in the browser, so its count is how many of the fifty are left; and a search count is the server's filename total plus the semantic hits the browser found on top of it.
 - Turn on **Select mode** from the overflow (`…`) menu, then click cards to select them. `Cmd/Ctrl+click` turns selection on and toggles a card in one gesture, and `Shift+click` extends the selection to a range. A selection bar appears at the bottom with tag, rename, add-to-collection, copy, cut, move, and move-to-trash. On a narrow screen it keeps **Tag** and **Move** and puts the other five behind `…`, with their names — it does not scroll sideways, so nothing is off the edge.
 - **Rescan** the drive, also from the overflow menu.
+- **Pin this folder** to the sidebar, also from the overflow menu — the same pin the folder's own right-click menu offers, for the folder you are standing in. It is not offered on the drive root, which has no folder to pin.
 - **Add** anything to the folder, from the one **Add** button: upload files, upload a folder, create a folder, create a note. It is the only filled button on the bar. An addon can contribute further rows, which appear below a separator at the bottom of the menu.
-- **Play** everything playable in the folder, at the right-hand end of the bar, on folders that hold something playable.
+- **Play** everything playable in the folder, on folders that hold something playable.
+
+Below 768px the bar carries **Play**, **Filter** and `…`. **View** and
+**Sort** move inside `…` as sections of it — the same rows, in the same
+order — and **Add** moves into its own row just above the bar, with any
+addon buttons beside it.
+
+Nothing loses its label. The Filter button naming both of its axes, and the
+"Search the whole drive" link on a folder reached through a tag, are the two
+whose labels can outgrow the space; both are shortened with an ellipsis
+rather than dropped, and the full text stays in the control's accessible
+name. Every control the app itself draws on the bar is at least 44px for
+touch — a button contributed by an addon is that addon's to size.
+
+The bar is a single row at every width, with one exception: between 768px
+and about 785px, with an addon button on the bar, both filter axes narrowed
+at once, and the listing sorted by title or by size, it takes a second row.
+Any one of those four conditions missing and it does not.
+
+The **New Folder** name field takes a line of its own while it is open,
+under the bar's controls at 768px and up and above them on a narrow
+screen, so it never displaces anything.
 
 On a listing with nothing in it at all — no files and no subfolders —
-the toolbar drops the controls for arranging things: the view toggle,
-the sort, and the type filter. What stays is everything that puts
+the toolbar drops the controls for arranging things: View, Sort and the
+Filter menu. They go from the overflow too, so they are put away rather
+than merely moved. What stays is everything that puts
 something in the folder (the Add menu and Rescan) and the count. A
 listing emptied by a filter keeps them all, because the filter that
 produced the empty result is also the way back out of it. The same
@@ -224,7 +247,7 @@ Below the carousels the drive home lists the files that sit at the drive root, u
 
 Pin a folder to keep it one click away from anywhere in the drive.
 
-- Right-click a folder → **Pin**. Pinned folders appear in the **Pins** section of the sidebar, not on the drive home page.
+- Right-click a folder → **Pin**, or, for the folder you are already inside, the toolbar's `…` → **Pin this folder**. Pinned folders appear in the **Pins** section of the sidebar, not on the drive home page.
 - Pins are per-drive and shared across viewers (they live in the drive DB, not the cookie). If you want viewer-private pins, that is a feature request.
 
 ## Smart folders (saved searches)

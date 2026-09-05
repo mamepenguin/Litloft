@@ -145,6 +145,12 @@ export function AddButton({
           onClick={() => setMenuOpen((s) => !s)}
           aria-haspopup="menu"
           aria-expanded={menuOpen}
+          // `size="md"` renders 36px tall, which is under the 44px touch
+          // floor the mobile sizing rules set — measured at every width from
+          // 320 up, including the phone, where this is the screen's one
+          // filled action. `min-h-11` rather than a bigger size, so the
+          // desktop box is unchanged.
+          className="pointer-coarse:min-h-11"
         >
           <Plus size={16} />
           {t("add")}
