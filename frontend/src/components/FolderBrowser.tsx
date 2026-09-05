@@ -503,6 +503,12 @@ export function FolderBrowser({
   // Search mode renders a virtual folder view: skip the UploadZone
   // wrapper (you can't drop files into search results) and the
   // clipboard paste banner (paste targets a folder path).
+  // The last count that was actually known. Adjusted during render rather
+  // than in an effect: this is derived state, and an effect would show the
+  // stale value for one commit before correcting it.
+  const [settledTotal, setSettledTotal] = useState<number | null>(null);
+  if (!loading && settledTotal !== total) setSettledTotal(total);
+
   const inner = (
     <div className="flex min-w-0 w-full flex-1 flex-col">
       {/* One header for both modes. The two used to be separate rows that
@@ -529,7 +535,20 @@ export function FolderBrowser({
         // The count lives here in both modes now. It used to be in the
         // header in search mode and in the toolbar in folder mode, which is
         // why the same fact was worded and placed two different ways.
-        scope={loading ? undefined : tCommon("items", { count: total })}
+        //
+        // `settledTotal`, not `total`: a refetch sets `total` to 0 and
+        // `loading` to true together, so neither raw value can be shown. The
+        // old toolbar showed `total` and flashed a false "0 items" on every
+        // sort change; gating on `loading` instead makes the count vanish and
+        // come back, and here that reflows the breadcrumb beside it, which the
+        // old separate row never did. Holding the last settled count avoids
+        // both — nothing is claimed that was not true a moment ago, and the
+        // row does not move.
+        scope={
+          settledTotal === null
+            ? undefined
+            : tCommon("items", { count: settledTotal })
+        }
         actions={
           isSearch ? (
             <>

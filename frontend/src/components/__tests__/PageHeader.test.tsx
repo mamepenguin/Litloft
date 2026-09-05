@@ -61,7 +61,11 @@ describe("PageHeader", () => {
       );
       const rows = container.querySelectorAll("header > div");
       expect(rows).toHaveLength(1);
-      expect(rows[0].querySelector("button")?.textContent).toBe("Tree");
+      // `firstElementChild`, not `querySelector("button")`: the latter finds a
+      // button anywhere in the row, so it asserts the control exists and says
+      // nothing about where. Moving `leading` to the end of the row — which is
+      // the failure "leftmost" is about — left it green.
+      expect(rows[0].firstElementChild?.textContent).toBe("Tree");
     });
 
     it("renders the leading control exactly once when both rows exist", () => {
