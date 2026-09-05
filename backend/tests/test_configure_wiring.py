@@ -300,3 +300,78 @@ class TestHandWrittenTemplate:
     def test_it_is_valid_yaml_as_shipped(self):
         doc = yaml.safe_load(TEMPLATE.read_text())
         assert "services" in doc
+
+
+class TestSetupAddonsPrunesWhatIsGone:
+    """`setup-addons.sh` removes links whose addon is no longer there.
+
+    The script only ever created. An addon that is deleted, renamed, or never
+    checked out left its symlink behind pointing at nothing, and the link
+    survived every later run — `frontend/src/addons/` is gitignored, so
+    nothing in a working copy prunes it. `frontend/Dockerfile` already deletes
+    every link before rebuilding, which is why an image never carried one and
+    a long-lived checkout accumulated them: two were sitting in this
+    repository, naming addons removed in April.
+
+    Run against a scratch tree rather than the real repository, so the test
+    cannot depend on which addons happen to be checked out.
+    """
+
+    SCRIPT = REPO / "setup-addons.sh"
+
+    def _tree(self, root: Path) -> None:
+        (root / "addons" / "present" / "frontend").mkdir(parents=True)
+        (root / "addons" / "present" / "backend").mkdir(parents=True)
+        (root / "frontend" / "src" / "addons").mkdir(parents=True)
+        (root / "backend" / "addons").mkdir(parents=True)
+        shutil.copy(self.SCRIPT, root / "setup-addons.sh")
+        (root / "setup-addons.sh").chmod(0o755)
+
+    def _run(self, root: Path):
+        return subprocess.run(
+            ["bash", str(root / "setup-addons.sh")],
+            capture_output=True,
+            text=True,
+            check=True,
+        )
+
+    def test_a_link_to_a_removed_addon_is_deleted(self, tmp_path):
+        self._tree(tmp_path)
+        for d in ("frontend/src/addons", "backend/addons"):
+            (tmp_path / d / "gone").symlink_to(tmp_path / "addons" / "gone" / "frontend")
+        # The precondition, asserted: both links exist and neither resolves.
+        for d in ("frontend/src/addons", "backend/addons"):
+            link = tmp_path / d / "gone"
+            assert link.is_symlink() and not link.exists()
+
+        self._run(tmp_path)
+
+        for d in ("frontend/src/addons", "backend/addons"):
+            assert not (tmp_path / d / "gone").is_symlink()
+
+    def test_a_link_that_resolves_is_left_alone(self, tmp_path):
+        """Only broken links go.
+
+        A link pointing somewhere unexpected but real is a developer's
+        deliberate choice; this script's job is to stop the tree claiming an
+        addon is installed when it is not, not to overrule that.
+        """
+        self._tree(tmp_path)
+        elsewhere = tmp_path / "elsewhere"
+        elsewhere.mkdir()
+        (tmp_path / "frontend" / "src" / "addons" / "custom").symlink_to(elsewhere)
+
+        self._run(tmp_path)
+
+        link = tmp_path / "frontend" / "src" / "addons" / "custom"
+        assert link.is_symlink() and link.resolve() == elsewhere.resolve()
+
+    def test_the_addons_that_are_here_are_still_linked(self, tmp_path):
+        """Pruning runs before linking and must not eat what follows it."""
+        self._tree(tmp_path)
+        self._run(tmp_path)
+
+        for d, half in (("frontend/src/addons", "frontend"), ("backend/addons", "backend")):
+            link = tmp_path / d / "present"
+            assert link.is_symlink()
+            assert link.resolve() == (tmp_path / "addons" / "present" / half).resolve()
