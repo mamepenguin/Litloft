@@ -109,14 +109,21 @@ describe("migration windows", () => {
 
   it("gives every entry at least one pointer to move", () => {
     // The property, kept beside the values rather than inferred from them.
+    //
+    // The two tests separate on whether the pinned expectations were updated
+    // to match, and not on anything about emptiness. The equality catches a
+    // change the pins were not moved for — an added entry, empty or not, is
+    // caught the same way and for the same reason. This one catches an empty
+    // `bumps` whether or not they were moved, which is the case that matters:
+    // an entry with no pointers is unnameable by any `closedBy` and invisible
+    // to `names addons that exist`, so emptying one and correcting its pin in
+    // the same edit would put back the unreachable entry the narrowing exists
+    // to remove.
+    //
     // An earlier version of the comment above claimed the equality gave this
-    // for free, because neither listed entry has an empty `bumps` — which
-    // covers an entry being *added* empty and not one being *edited* empty.
-    // Emptying a `bumps` and moving its pinned expectation to `[]` in the
-    // same edit passes the equality, and the entry is then unnameable by any
-    // `closedBy` and invisible to `names addons that exist`: the unreachable
-    // entry the narrowing existed to remove, back through the assertion that
-    // replaced the guard.
+    // for free. It drew the line at added-versus-edited, which is not where
+    // it falls: adding an empty entry and accommodating both pins passes the
+    // equality too.
     for (const [pr, { bumps }] of Object.entries(PENDING_BUMPS)) {
       expect(bumps.length, pr).toBeGreaterThan(0);
     }
