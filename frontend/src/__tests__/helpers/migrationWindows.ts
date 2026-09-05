@@ -167,9 +167,15 @@ export function addonPresent(repoRoot: string, path: string): boolean {
  * ledgers, which the declared one will not have until C2 — but offering that
  * as `opts.windows?` made it an *optional* parameter on the production
  * function, and a detector passing `{ before: 99, after: 0 }` then bypassed
- * the whole mechanism with nothing failing. The signature is the guard:
- * `windows` is required here and absent there, so a production caller cannot
- * reach it and no convention has to be remembered to keep that true.
+ * the whole mechanism with nothing failing.
+ *
+ * What the split buys is visibility, not unreachability — and an earlier
+ * draft of this paragraph claimed the second. A detector can still import
+ * this function directly; what it can no longer do is substitute the map by
+ * adding one key to an options object. Doing it now takes changing an import
+ * line, which a reader sees. Making it genuinely unreachable would mean a
+ * module the two detectors do not import, which is more structure than a
+ * residual this size is worth.
  *
  * The observed count for one window's file, checked against exactly two
  * declared endpoints.
