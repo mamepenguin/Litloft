@@ -566,14 +566,14 @@ explained why the button is off.
 > is itself a decision to pass defects through.** The local harm gets the
 > local fix instead.
 >
-> **Progress (PR D1): 24 of the 43 converted, 19 remain.** The first 13 were
-> the call sites under `frontend/src/components/` (PR A2b); the next 11 came
-> from the addons whose pointers have since moved — media_import in C1,
-> intelligence in C2a and C2b. Of the 19 left, seven are core — four in the
-> first-run wizard and one on the unlock gate, brand surfaces outside the
-> AppShell, plus two under `app/admin/`, which 案 15 / 案 16 rebuild in Phase 4
-> — ten are knowledge's and convert in C3, and two are cloud-sync's and stay,
-> per the paragraph above.
+> **Progress (PR D1b): 34 of the 43 converted, 9 remain.** The first 13 were
+> the call sites under `frontend/src/components/` (PR A2b); 11 more came from
+> media_import in C1 and intelligence in C2a and C2b, and the last 10 from
+> knowledge in C3. Every addon pointer has moved. Of the 9 left, seven are
+> core — four in the first-run wizard and one on the unlock gate, brand
+> surfaces outside the AppShell, plus two under `app/admin/`, which 案 15 /
+> 案 16 rebuild in Phase 4 — and two are cloud-sync's and stay, per the
+> paragraph above.
 >
 > `src/__tests__/button-adoption.test.ts` holds that list per file, across core
 > and every addon, so the set cannot change without an edit to it. Its first
@@ -582,8 +582,9 @@ explained why the button is off.
 > paragraph's own numbers exist to prevent.
 >
 > **What Phase 3 converts: 41 sites.** 43 already carry the
-> `disabled:bg-sand` treatment (42 of them accent fills; the one that is not is
-> `addons/knowledge/frontend/FolderView.tsx:159`), and two of those 43 are
+> `disabled:bg-sand` treatment — 42 of them accent fills, the one exception
+> being an accent *tint* on knowledge's folder pane, converted in C3 — and
+> two of those 43 are
 > cloud-sync's, which stay. Add to the 41 any non-accent sibling inside a file
 > Phase 3 opens for another reason. The rest move opportunistically, when a
 > later change touches the row they sit in — the same terms §2.2 gives the

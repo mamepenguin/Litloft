@@ -11,10 +11,15 @@ import { resolve } from "node:path";
  *
  * Core paths are always present, so they answer true.
  *
- * This outlived `migrationWindows.ts`, which D1b folded once the last
- * cross-repository migration finished. The two-repository *deadlock* that
- * module existed for is over; a checkout that simply lacks the submodule is
- * not, and both ledgers still have to answer for it.
+ * This outlived `migrationWindows.ts`, folded once the last cross-repository
+ * migration finished: the two-repository deadlock that module existed for is
+ * over, and this condition is not.
+ *
+ * **It does not make either ledger pass on a submodule-less clone.** The
+ * button ledger drops the absent addon's entries from both sides and holds;
+ * `page-headings.test.ts` names concrete `addons/knowledge/` paths in three
+ * of its own cases and fails without them. That is a pre-existing gap in
+ * those cases, not something this guarantees away.
  */
 export function addonPresent(repoRoot: string, path: string): boolean {
   if (!path.startsWith("addons/")) return true;

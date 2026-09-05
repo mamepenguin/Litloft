@@ -122,53 +122,26 @@ function headings(): Heading[] {
 }
 
 /**
- * What the staleness rule needs to know about a path.
- *
- * Taken rather than read, and as a required first argument rather than an
- * option. The rule's excuse — an addon that is not checked out — cannot be
- * witnessed by this checkout, which has every addon; reading the filesystem
- * directly meant the only tree that could exercise it was one nobody has.
- * The fixtures below supply the observation instead.
- *
- * Required rather than optional, so a caller cannot quietly fall back to the
- * filesystem and leave the fixture describing a tree it is not standing in.
- */
-interface HeadingSource {
-  /** Whether the addon holding this path is checked out at all. */
-  present(path: string): boolean;
-  /** Whether the file is in the tree. */
-  exists(path: string): boolean;
-  /** Whether it still writes an `<h1>` by hand. Asked only if it exists. */
-  writesHeading(path: string): boolean;
-}
-
-/**
  * Which of `paths` no longer earns its place on the not-yet-migrated list.
  *
- * A named function rather than a closure inside the assertion, so the ledger
- * scoping can be given input the real ledger does not contain.
+ * Reads the tree. It took an injected observation while the migration
+ * windows existed, because the state that made the rule's excuses do
+ * anything was one no checkout held. Both of those are gone: there is one
+ * excuse left, and the tests below reach it from disk — an addon that is not
+ * checked out is any path under a directory this repository does not have.
  */
-function staleEntriesFrom(source: HeadingSource, paths: string[]): string[] {
+function staleEntries(paths: string[]): string[] {
   return paths.filter((f) => {
     // An addon that is not checked out is absent, not stale. The *addon*,
     // not the file: this read the file's own path, so a listed file deleted
     // or renamed inside a checked-out addon was excused forever rather than
     // reported — the one thing this test exists to catch, in the one place it
     // could not see.
-    if (f.startsWith("addons/") && !source.present(f)) return false;
-    return !source.exists(f) || !source.writesHeading(f);
+    if (f.startsWith("addons/") && !addonPresent(REPO_ROOT, f)) return false;
+    const full = resolve(REPO_ROOT, f);
+    if (!existsSync(full)) return true;
+    return !/<h1\b/.test(stripComments(readFileSync(full, "utf-8")));
   });
-}
-
-const FROM_DISK: HeadingSource = {
-  present: (f) => addonPresent(REPO_ROOT, f),
-  exists: (f) => existsSync(resolve(REPO_ROOT, f)),
-  writesHeading: (f) =>
-    /<h1\b/.test(stripComments(readFileSync(resolve(REPO_ROOT, f), "utf-8"))),
-};
-
-function staleEntries(paths: string[]): string[] {
-  return staleEntriesFrom(FROM_DISK, paths);
 }
 
 describe("page headings", () => {
@@ -245,49 +218,14 @@ describe("page headings", () => {
     expect(staleEntries(Object.keys(NOT_YET_MIGRATED))).toEqual([]);
   });
 
-  // The rule above, against input written for it.
+  // The rule above, against paths the real ledger does not contain.
   //
-  // Everything in this block needs a fixture, and the reason is structural.
   // The assertion the real ledger makes is `staleEntries(...) === []`, and
   // the excuse only ever *removes* paths from that result — widening an
-  // empty set leaves it empty. So no tree can make the real assertion go red
-  // when the excuse is too broad. Only an assertion that expects something
-  // *back* can, and that is what these are.
-  //
-  // Neither excuse changes the result unless the path would otherwise be
-  // stale. That is what the converted state buys — an excuse with an
-  // observable effect. On the near side the file still writes its heading, so
-  // nothing is excused whether or not the excuse is there.
+  // empty set leaves it empty. So the real assertion cannot go red when the
+  // excuse is too broad; only one that expects something *back* can, and
+  // that is what these are.
   describe("what counts as stale", () => {
-    /** A source that answers the same way for every path. */
-    const saying = (answers: {
-      present: boolean;
-      exists: boolean;
-      writesHeading: boolean;
-    }): HeadingSource => ({
-      present: () => answers.present,
-      exists: () => answers.exists,
-      writesHeading: () => answers.writesHeading,
-    });
-
-    // A listed file that is present and no longer writes its own heading.
-    // Nothing excuses that, so it must come back as stale — this is the
-    // assertion that catches a ledger entry left behind after a conversion.
-    const CONVERTED = saying({
-      present: true,
-      exists: true,
-      writesHeading: false,
-    });
-
-
-    it("reports a listed file that stopped writing a heading", () => {
-      // A ledger entry is a claim about the tree, so an entry that has gone
-      // stale is a defect in the same way a missing one is.
-      expect(
-        staleEntriesFrom(CONVERTED, ["addons/knowledge/frontend/api.ts"]),
-      ).toEqual(["addons/knowledge/frontend/api.ts"]);
-    });
-
     it("does not excuse one listed by the other ledger", () => {
       // `MoveDialog.tsx` has no `<h1>` and never had one — it is the button
       // ledger's business, not this one's. A heading entry naming it is
