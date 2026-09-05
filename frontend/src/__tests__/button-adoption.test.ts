@@ -72,9 +72,14 @@ const NOT_CONVERTED: Record<string, number> = {
   "app/admin/markdown-images/MarkdownImagesPresenter.tsx": 2,
 
   // Addons. `Button` lives in core and an addon imports it, so these convert
-  // in the addon PRs — media_import in C1, intelligence in C2, knowledge in
-  // C3 — each of which is a pull request in its own repository. cloud-sync is
-  // out of Phase 3 entirely (DESIGN.md §6 records why).
+  // in the addon PRs — media_import in C1, intelligence in C2a/C2b, knowledge
+  // in C3 — each of which is a pull request in its own repository. cloud-sync
+  // is out of Phase 3 entirely (DESIGN.md §6 records why).
+  //
+  // The intelligence and media_import entries are mid-migration: the addon
+  // repository holds the converted file and the pointer here names the commit
+  // before it, so `MIGRATION_WINDOWS` declares both endpoints. D1 bumps the
+  // pointers and deletes those lines.
   "addons/cloud-sync/frontend/SyncDriveCard.tsx": 2,
   "addons/intelligence/frontend/AdminEmbeddingSettingsSection.tsx": 1,
   "addons/intelligence/frontend/AdminFeaturesSettingsSection.tsx": 1,
@@ -94,9 +99,6 @@ const NOT_CONVERTED: Record<string, number> = {
   "addons/knowledge/frontend/KnowledgeDashboard.tsx": 1,
   "addons/knowledge/frontend/MoveDialog.tsx": 1,
   "addons/knowledge/frontend/UnresolvedLinkDialog.tsx": 1,
-  // Mid-migration: C1 converted this in the addon repository and the pointer
-  // here still names the commit before it. `MIGRATION_WINDOWS` declares both
-  // endpoints; D1 bumps the pointer and deletes this line.
   "addons/media_import/frontend/Composer.tsx": 1,
 };
 function handWritten(): Record<string, number> {

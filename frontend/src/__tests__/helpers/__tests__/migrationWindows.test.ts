@@ -103,18 +103,62 @@ describe("migration windows", () => {
     // Keyed by ledger *then* path, so one file can be mid-migration on both.
     // Keying by path alone made a second entry a duplicate key that `tsc`
     // rejects — which C2 and C3 need, and C1 happened not to.
-    expect(openWindows("button-adoption", () => true)).toEqual([PATH]);
-    expect(openWindows("page-headings", () => true)).toEqual([
-      "addons/media_import/frontend/Page.tsx",
+    //
+    // Both ledgers in full, sorted, rather than a count or the one path that
+    // differs between them. A count would let a window move from one ledger to
+    // the other unnoticed, which is the whole distinction being asserted.
+    expect(openWindows("button-adoption", () => true).sort()).toEqual(
+      [
+        "addons/intelligence/frontend/AdminEmbeddingSettingsSection.tsx",
+        "addons/intelligence/frontend/AdminFeaturesSettingsSection.tsx",
+        "addons/intelligence/frontend/AdminLLMSettingsSection.tsx",
+        "addons/intelligence/frontend/AdminRAGSettingsSection.tsx",
+        "addons/intelligence/frontend/AdminTranscriptionSettingsSection.tsx",
+        "addons/intelligence/frontend/KnowledgeSaveDialog.tsx",
+        "addons/intelligence/frontend/Page.tsx",
+        "addons/intelligence/frontend/UnverifiedSourceSection.tsx",
+        "addons/intelligence/frontend/pages/find.tsx",
+        "addons/intelligence/frontend/pages/search-compare.tsx",
+        "addons/media_import/frontend/Composer.tsx",
+      ].sort(),
+    );
+    expect(openWindows("page-headings", () => true).sort()).toEqual(
+      [
+        "addons/intelligence/frontend/Page.tsx",
+        "addons/intelligence/frontend/pages/find.tsx",
+        "addons/intelligence/frontend/pages/pickup.tsx",
+        "addons/intelligence/frontend/pages/search-compare.tsx",
+        "addons/media_import/frontend/Page.tsx",
+      ].sort(),
+    );
+  });
+
+  it("declares a path on both ledgers at once", () => {
+    // What the ledger-then-path keying buys, against the declarations rather
+    // than a fixture: `staleEntries` in the heading detector scopes its excuse
+    // to its own ledger, and that scoping is unfalsifiable while no path is on
+    // both. Three are.
+    const onBoth = Object.keys(MIGRATION_WINDOWS["page-headings"]).filter(
+      (path) => path in MIGRATION_WINDOWS["button-adoption"],
+    );
+    expect(onBoth.sort()).toEqual([
+      "addons/intelligence/frontend/Page.tsx",
+      "addons/intelligence/frontend/pages/find.tsx",
+      "addons/intelligence/frontend/pages/search-compare.tsx",
     ]);
+    for (const path of onBoth) {
+      expect(windowSide(1, "page-headings", path, there), path).toBe("before");
+      expect(windowSide(1, "button-adoption", path, there), path).toBe("before");
+    }
   });
 
   it("lets one path hold a window on each ledger, with different answers", () => {
-    // Against a fixture, because the declared map has no such path yet and
-    // C2 is the PR that adds four. The first version of this test asserted
-    // the key names and that each value was an object — it passed with both
-    // ledgers emptied, which is to say it asserted nothing about the property
-    // its name promises.
+    // Against a fixture, because every declared window today runs 1 → 0 and
+    // so cannot show a count resolving *differently* per ledger — the property
+    // this test is named for. That the declared map holds a path on both
+    // ledgers is asserted separately, above. The first version of this test
+    // asserted the key names and that each value was an object; it passed with
+    // both ledgers emptied, which is to say it asserted nothing at all.
     const SHARED = "addons/intelligence/frontend/Page.tsx";
     const fixture = {
       "page-headings": {
@@ -151,8 +195,11 @@ describe("migration windows", () => {
   });
 
   it("cannot be handed a predicate that opens an undeclared window", () => {
-    // `present` filters the declarations; it does not add to them.
-    expect(openWindows("button-adoption", () => true)).toHaveLength(1);
+    // `present` filters the declarations; it does not add to them. The count
+    // is the declared population, so a predicate that invented a path would
+    // have to invent it here too.
+    expect(openWindows("button-adoption", () => true)).toHaveLength(11);
+    expect(openWindows("page-headings", () => true)).toHaveLength(5);
   });
 
   it("names addons that exist", () => {

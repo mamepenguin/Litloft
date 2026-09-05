@@ -29,11 +29,12 @@ import { resolve } from "node:path";
  * **Two residuals, both deliberate and neither closed by this mechanism.**
  *
  * *Per window, not per pull request.* Each entry is independent, so a ledger
- * holding `n` open windows admits 2ⁿ combinations — C2 declares seven, and a
- * tree where four of its conversions landed and three did not is green on
- * both sides. "Exactly the width the migration crosses" is a claim about one
- * window. Nothing here can tell a half-applied pull request from a whole one,
- * because nothing here knows the windows belong to the same one.
+ * holding `n` open windows admits 2ⁿ combinations — C2a and C2b declare
+ * fourteen between them, and a tree where ten of those conversions landed and
+ * four did not is green on both sides. "Exactly the width the migration
+ * crosses" is a claim about one window. Nothing here can tell a half-applied
+ * pull request from a whole one, because nothing here knows the windows
+ * belong to the same one.
  *
  * *Closing is not enforced, only assigned.* Core cannot tell "the pointer has
  * moved past this migration" from "the addon's CI substituted its tree", and
@@ -97,7 +98,9 @@ export interface MigrationWindow {
  * entry goes, so does this list.
  */
 export const PENDING_PRS: Record<string, { bumps: readonly string[] }> = {
-  C2: { bumps: [] },
+  "B2b-2b": { bumps: [] },
+  C2a: { bumps: [] },
+  C2b: { bumps: [] },
   C3: { bumps: [] },
   D1: { bumps: ["media_import", "intelligence", "knowledge"] },
   D2: { bumps: [] },
@@ -117,9 +120,9 @@ export function addonOf(path: string): string | null {
  * The first version keyed by path and carried the ledger as a field, which
  * recognised that one path can appear in both ledgers without being able to
  * hold it: a second entry for the same file is a duplicate key, and `tsc`
- * rejects it (TS1117). Four paths are already on both ledgers —
- * `intelligence/Page.tsx`, `pages/find.tsx`, `pages/search-compare.tsx` and
- * `knowledge/FolderView.tsx` — so C2 and C3 need what C1 happened not to.
+ * rejects it (TS1117). Three paths hold a window on each ledger today —
+ * `intelligence/Page.tsx`, `pages/find.tsx` and `pages/search-compare.tsx`
+ * — and `knowledge/FolderView.tsx` becomes the fourth in C3.
  */
 export const MIGRATION_WINDOWS: Record<
   Ledger,
@@ -132,6 +135,30 @@ export const MIGRATION_WINDOWS: Record<
       closedBy: "D1",
       why: "PR C1 moves this page's <h1> into core's PageHeader",
     },
+    "addons/intelligence/frontend/Page.tsx": {
+      before: 1,
+      after: 0,
+      closedBy: "D1",
+      why: "PR C2a moves Ask's <h1> into core's PageHeader",
+    },
+    "addons/intelligence/frontend/pages/find.tsx": {
+      before: 1,
+      after: 0,
+      closedBy: "D1",
+      why: "PR C2a moves Find's <h1> into core's PageHeader",
+    },
+    "addons/intelligence/frontend/pages/pickup.tsx": {
+      before: 1,
+      after: 0,
+      closedBy: "D1",
+      why: "PR C2b moves Pickup's <h1> into core's PageHeader",
+    },
+    "addons/intelligence/frontend/pages/search-compare.tsx": {
+      before: 1,
+      after: 0,
+      closedBy: "D1",
+      why: "PR C2b moves the comparison page's <h1> into core's PageHeader",
+    },
   },
   "button-adoption": {
     "addons/media_import/frontend/Composer.tsx": {
@@ -139,6 +166,66 @@ export const MIGRATION_WINDOWS: Record<
       after: 0,
       closedBy: "D1",
       why: "PR C1 converts this button to core's Button",
+    },
+    "addons/intelligence/frontend/Page.tsx": {
+      before: 1,
+      after: 0,
+      closedBy: "D1",
+      why: "PR C2a converts Ask's submit button to core's Button",
+    },
+    "addons/intelligence/frontend/pages/find.tsx": {
+      before: 1,
+      after: 0,
+      closedBy: "D1",
+      why: "PR C2a converts Find's submit button to core's Button",
+    },
+    "addons/intelligence/frontend/pages/search-compare.tsx": {
+      before: 1,
+      after: 0,
+      closedBy: "D1",
+      why: "PR C2b converts the comparison page's run button to core's Button",
+    },
+    "addons/intelligence/frontend/AdminEmbeddingSettingsSection.tsx": {
+      before: 1,
+      after: 0,
+      closedBy: "D1",
+      why: "PR C2b converts this settings section's save button to core's Button",
+    },
+    "addons/intelligence/frontend/AdminFeaturesSettingsSection.tsx": {
+      before: 1,
+      after: 0,
+      closedBy: "D1",
+      why: "PR C2b converts this settings section's save button to core's Button",
+    },
+    "addons/intelligence/frontend/AdminLLMSettingsSection.tsx": {
+      before: 1,
+      after: 0,
+      closedBy: "D1",
+      why: "PR C2b converts this settings section's save button to core's Button",
+    },
+    "addons/intelligence/frontend/AdminRAGSettingsSection.tsx": {
+      before: 1,
+      after: 0,
+      closedBy: "D1",
+      why: "PR C2b converts this settings section's save button to core's Button",
+    },
+    "addons/intelligence/frontend/AdminTranscriptionSettingsSection.tsx": {
+      before: 1,
+      after: 0,
+      closedBy: "D1",
+      why: "PR C2b converts this settings section's save button to core's Button",
+    },
+    "addons/intelligence/frontend/KnowledgeSaveDialog.tsx": {
+      before: 1,
+      after: 0,
+      closedBy: "D1",
+      why: "PR C2b converts this dialog's confirm button to core's Button",
+    },
+    "addons/intelligence/frontend/UnverifiedSourceSection.tsx": {
+      before: 1,
+      after: 0,
+      closedBy: "D1",
+      why: "PR C2b converts this section's action button to core's Button",
     },
   },
 };

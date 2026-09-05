@@ -72,14 +72,15 @@ const NOT_YET_MIGRATED: Record<string, string> = {
   "frontend/src/components/FileDetail/FileMetaBlock.tsx":
     "inspector heading; demoted with the FileDetailChrome migration (PR A2b)",
 
-  // Addons, migrating in PRs C1-C3.
-  "addons/intelligence/frontend/Page.tsx": "PR C2",
-  "addons/intelligence/frontend/pages/find.tsx": "PR C2",
-  "addons/intelligence/frontend/pages/pickup.tsx": "PR C2",
-  "addons/intelligence/frontend/pages/search-compare.tsx": "PR C2",
-  // Mid-migration: C1 has converted this in the addon repository, and the
-  // pointer here still names the commit before it. `MIGRATION_WINDOWS`
-  // declares both endpoints; D1 bumps the pointer and deletes this line.
+  // Addons, migrating in PRs C1-C3. Each conversion happens in the addon's own
+  // repository while the pointer here still names the commit before it, so
+  // `MIGRATION_WINDOWS` declares both endpoints for the ones already written.
+  // D1 bumps the pointers and deletes those lines.
+  "addons/intelligence/frontend/Page.tsx": "PR C2a (window open until D1)",
+  "addons/intelligence/frontend/pages/find.tsx": "PR C2a (window open until D1)",
+  "addons/intelligence/frontend/pages/pickup.tsx": "PR C2b (window open until D1)",
+  "addons/intelligence/frontend/pages/search-compare.tsx":
+    "PR C2b (window open until D1)",
   "addons/media_import/frontend/Page.tsx": "PR C1 (window open until D1)",
 
   // Not a page header at all: the landing panel of the knowledge two-pane
