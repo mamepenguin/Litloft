@@ -140,7 +140,7 @@ Slots are typed React components rendered with `<AddonSlot name="..." />`. The c
 - `file-detail-sections`
 - `dashboard-widgets`
 - `dashboard-alerts`
-- `folder-actions`
+- `folder-actions-menu`
 
 The `AddonSlotsProvider` re-fetches `/api/addons/status?drive=` on drive change, so per-drive policy filtering happens automatically. If no addon contributes to a slot, the slot is hidden — no holes in the UI.
 

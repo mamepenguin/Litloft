@@ -20,15 +20,13 @@ import type { UploadFileEntry } from "@/hooks/useUpload";
 /**
  * The slot for addon rows inside this menu.
  *
- * A second id rather than a second contract on `folder-actions`: that one
- * is drawn as a standalone button in the toolbar, and an entry written for
- * it renders a button. Rendering the same entry inside a `role="menu"`
- * gives a button in a dropdown whose own dropdown opens over its parent —
- * so changing what `folder-actions` means would break every addon on it
- * for as long as it took each repository to catch up. An addon moves by
- * changing which id it declares, and the toolbar's standalone button
- * disappears on its own once the old slot is empty (`AddonSlot` renders
- * nothing for a slot with no entries).
+ * A second id rather than a second contract on the slot it replaced: that
+ * one drew a standalone button in the toolbar, and an entry written for it
+ * renders a button. Rendering the same entry inside a `role="menu"` gives a
+ * button in a dropdown whose own dropdown opens over its parent, so
+ * redefining the old id would have broken every addon on it for as long as
+ * each repository took to catch up. Addons moved by declaring this id
+ * instead, and the old slot is gone.
  *
  * The contract is `file-actions-menu`'s, unchanged: entries draw
  * `ActionMenuItem` rows and are indistinguishable from the host's own.
@@ -162,12 +160,20 @@ export function AddButton({
             // Capped and scrollable, like every other menu on this bar.
             // `MENU_SURFACE` is anchored to the *right* of its trigger;
             // `Add` is the leftmost control, so this keeps its own
-            // left-anchored geometry and takes the height rules that make a
-            // menu reachable: without them, an addon contributing rows to
-            // `folder-actions-menu` pushes the last of them past the bottom
-            // of a landscape phone with no way to scroll to them, and the
-            // menu travels with the sticky bar so the page cannot scroll
-            // them back.
+            // left-anchored geometry and takes only the height rules.
+            //
+            // It grows with `folder-actions-menu`: three contributed rows
+            // take it from four to seven and from ~120px to 331. Measured
+            // uncapped, seven rows, bar pinned: 383 against a 375 fold at
+            // 667x375, and against 360 at 740x360 and 640x360. Capped, all
+            // of those fit and scroll.
+            //
+            // `max-h` is against the viewport, not against the room below
+            // the trigger — so before the bar pins, with `Header` and the
+            // breadcrumb above it, even the capped menu can end below the
+            // fold (441 of 393 at 852x393). Scrolling recovers that; what
+            // it cannot recover is a menu with no cap at all, which stays
+            // 331 tall however far the bar rises.
             className="absolute left-0 top-full z-30 mt-1 max-h-[60vh] min-w-[180px] overflow-y-auto rounded-xl border border-bg-border bg-bg-primary py-1 shadow-lg animate-fade-in-scale origin-top-left sm:max-h-[70vh]"
           >
             <ActionMenuItem

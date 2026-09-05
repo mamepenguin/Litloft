@@ -81,10 +81,19 @@ describe("FolderToolbar", () => {
   it("offers addons the menu, and no longer a place on the bar", () => {
     // `folder-actions` drew a second button beside `Add` — a control this
     // bar has no room for, measured wrapping it onto two rows between 768
-    // and 785px. No manifest names it, so the toolbar does not ask for it;
-    // `folder-actions-menu` is the way in.
+    // and 785px. `folder-actions-menu` is the way in.
+    //
+    // The menu is opened first, because the slot is only asked for once it
+    // is. Without that, `addonSlotIds` is empty and the second assertion
+    // is true of nothing — which left the half of this test's name about
+    // the menu unearned, and deleting `addonProps` from the `AddButton`
+    // call passed it.
     render(<FolderToolbar {...defaultProps} />);
+    screen
+      .getAllByRole("button", { name: "Add" })
+      .forEach((b) => fireEvent.click(b));
     expect(addonSlotIds).not.toContain("folder-actions");
+    expect(addonSlotIds).toContain("folder-actions-menu");
     expect(addonSlotIds.every((id) => id === "folder-actions-menu")).toBe(true);
   });
 

@@ -20,10 +20,13 @@ import { Check } from "lucide-react";
  * `Add` — closed when the last addon on the superseded `folder-actions`
  * slot moved into the `Add` menu, and the slot came out with it.
  *
- * That is the budget this breakpoint is spending: at 768 the row is `Add`
- * 100 + `Play` 74 + `View` 108 + `Sort` 132 + `Filter` 144 (capped) + `…`
- * 44, six 8px gaps and 32px of `px-4` — about 650 of 768. An addon putting
- * a labelled control back on this bar spends the rest of it.
+ * **The budget, in the locale that binds it.** At 768 the Japanese row is
+ * `追加` 100 + `再生` 72 + `グリッド表示` 126 + `タイトルA→Z` 131 + the
+ * capped filter 144 + `その他の操作` 44, six 8px gaps and 32px of `px-4`
+ * = **697 of 768**. English is 682. So an addon putting a labelled control
+ * back on this bar has **63px** to spend, not the ~118 a rounder number
+ * suggests — and the standalone `AI` button that used to sit here was 81,
+ * which is why it wrapped both locales.
  *
  * Stated as data as well as a class. jsdom computes no layout, and reading a
  * class list for the literal token `hidden` is not a proxy for it —

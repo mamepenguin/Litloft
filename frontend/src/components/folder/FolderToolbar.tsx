@@ -217,9 +217,8 @@ export function FolderToolbar({
           `00-basis.md` calls 640-767 the mobile form with padding around it,
           and the bar has to hold to the same rule across the whole of it —
           measured, the left group on the bar at 640 wrapped it as soon as
-          the New Folder field opened, and again once an addon held the
-          `folder-actions` slot. One breakpoint for what leaves the bar is
-          also simply easier to reason about than two. */}
+          the New Folder field opened. One breakpoint for what leaves the
+          bar is also simply easier to reason about than two. */}
       <div className="flex flex-wrap items-center gap-2 px-4 py-1 md:hidden">
         {leftActions}
         {createFolderRow}

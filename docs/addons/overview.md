@@ -97,7 +97,7 @@ Litloft's frontend has a small set of named slots:
 - `file-detail-actions` — the file's action row, beside like and favourite, for a per-file action worth one press.
 - `dashboard-widgets` — admin dashboard cards.
 - `dashboard-alerts` — a band above the drive cards, for something an operator should see before anything else. Absent when there is nothing to report.
-- `folder-actions` — appended to the folder context menu.
+- `folder-actions-menu` — rows in the folder toolbar's Add menu, under a separator below the app's own.
 - `file-actions-menu` — entries in the `[...]` overflow menu on the file detail page, for per-file actions that are too infrequent to earn a section.
 
 When no addon contributes to a slot, the slot disappears entirely (no holes in the UI). Per-drive policy filters which addons populate each slot per request.

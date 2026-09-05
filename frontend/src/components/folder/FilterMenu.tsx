@@ -137,10 +137,9 @@ export function FilterMenu({
         <span
           // Capped only once a second axis is on, and only below 1024px.
           // Two axes join with ` · ` and reach 211px, which wraps this bar
-          // at 375 on its own and again at 768 once the `folder-actions`
-          // slot is filled — which the intelligence addon still does. The
-          // 144px this control contributes to that arithmetic is the capped
-          // width, not its natural one.
+          // at 375 on its own. The 144px this control contributes to the
+          // budget in `ToolbarMenu.tsx` is that capped width, not its
+          // natural one.
           //
           // Conditional because one axis reaches 95px against a 96px cap:
           // capping unconditionally would put a face that fits one label
