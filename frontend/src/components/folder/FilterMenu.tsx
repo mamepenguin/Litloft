@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useId, useState } from "react";
 import { Check, Filter } from "lucide-react";
 import { useTranslations } from "next-intl";
 
@@ -11,9 +11,15 @@ interface FilterMenuProps {
   typeFilter: FileKind | null;
   onTypeFilterChange: (t: FileKind | null) => void;
   /**
-   * The trust axis is optional. Archive listings and other non-drive
-   * surfaces wire no handler, and the section is absent there rather
-   * than present and dead.
+   * The trust axis is optional, and **search** is the one surface that
+   * leaves it out — `FolderBrowser` passes no handler when `isSearch`,
+   * because a semantic result set is ranked and truncated server-side, so
+   * filtering it afterwards silently under-reports rather than narrowing.
+   * (An earlier draft of this sentence said "archive listings and other
+   * non-drive surfaces", copied from a comment on the chip this replaces.
+   * `ArchiveToolbar` imports neither this nor `FolderToolbar`; it has its
+   * own `<select>`. The reason was never checked before being repeated
+   * into a commit message and a PR body.)
    */
   trustFilter?: TrustFilter | null;
   onTrustFilterChange?: (t: TrustFilter | null) => void;
@@ -38,6 +44,7 @@ export function FilterMenu({
   onTrustFilterChange,
 }: FilterMenuProps) {
   const [open, setOpen] = useState(false);
+  const headingId = useId();
   const t = useTranslations("toolbar");
   const tFilter = useTranslations("filter");
   const tTrust = useTranslations("trustTier");
@@ -49,9 +56,15 @@ export function FilterMenu({
   // The words for what is on, in the order the sections appear. Both, when
   // both are set: a button that named only the first would be lying about
   // why the listing is short.
+  //
+  // The trust word is gated on the *handler*, not on the value. Without
+  // that, a caller passing a trust value and no handler gets a button
+  // reading "Verified only" over a menu with no verification section —
+  // named after a filter it offers no way to clear.
+  const showTrust = onTrustFilterChange !== undefined;
   const activeLabels = [
     typeFilter !== null ? tFilter(activeType?.labelKey ?? "type.all") : null,
-    trustFilter ? tTrust(activeTrust?.labelKey ?? "filterAll") : null,
+    showTrust && trustFilter ? tTrust(activeTrust?.labelKey ?? "filterAll") : null,
   ].filter(Boolean) as string[];
   const isFiltering = activeLabels.length > 0;
 
@@ -61,6 +74,19 @@ export function FilterMenu({
     <div className="relative">
       <button
         onClick={() => setOpen((s) => !s)}
+        // The name always begins with the word, and carries the values
+        // after it. Without the prefix this control answers to "Audio"
+        // while the tree pane's own kind filter answers to "Filter by
+        // type" — the broader word taken by the narrower thing, on one
+        // screen. It also makes the name findable without knowing the
+        // state.
+        // The same separator the face uses, deliberately: WCAG 2.5.3 asks
+        // that the accessible name contain the visible label, so a voice
+        // user saying what they read reaches the control. A different
+        // separator here would break that containment.
+        aria-label={
+          isFiltering ? `${t("filter")}: ${activeLabels.join(" · ")}` : undefined
+        }
         className={`flex items-center gap-1.5 rounded-2xl border px-3 py-2 text-sm transition-colors ${
           isFiltering
             ? "border-bg-border bg-bg-elevated text-text-primary font-medium"
@@ -85,13 +111,25 @@ export function FilterMenu({
             role="menu"
             className="fixed inset-x-2 bottom-4 z-40 max-h-[60vh] overflow-y-auto rounded-2xl border border-bg-border bg-bg-primary py-1 shadow-lg animate-fade-in-scale sm:absolute sm:inset-x-auto sm:bottom-auto sm:right-0 sm:top-full sm:mt-1 sm:max-h-[70vh] sm:min-w-[200px] sm:origin-top-right"
           >
-            <p className="px-3 py-1.5 text-xs font-semibold text-text-muted">
-              {t("fileType")}
-            </p>
+            {/* `role="group"` + `aria-labelledby`: a `role="menu"` publishes
+                only menuitem / group / separator children, so a bare <p>
+                heading reaches assistive technology as nothing at all — and
+                this menu holds two rows both named "All". `menuitemradio`
+                with `aria-checked` is what says which one is on; a tick
+                drawn as an unlabelled <svg> says it only to people who can
+                see it. */}
+            <div role="group" aria-labelledby={`${headingId}-type`}>
+              <p
+                id={`${headingId}-type`}
+                className="px-3 py-1.5 text-xs font-semibold text-text-muted"
+              >
+                {t("fileType")}
+              </p>
             {TYPE_OPTION_KEYS.map((opt) => (
               <button
                 key={opt.labelKey}
-                role="menuitem"
+                role="menuitemradio"
+                aria-checked={typeFilter === opt.value}
                 onClick={() => {
                   onTypeFilterChange(opt.value);
                   close();
@@ -108,19 +146,24 @@ export function FilterMenu({
                 {tFilter(opt.labelKey)}
               </button>
             ))}
+            </div>
 
-            {onTrustFilterChange && (
-              <>
-                <div className="my-1 border-t border-bg-border" />
-                <p className="px-3 py-1.5 text-xs font-semibold text-text-muted">
+            {showTrust && (
+              <div role="group" aria-labelledby={`${headingId}-trust`}>
+                <div className="my-1 border-t border-bg-border" role="separator" />
+                <p
+                  id={`${headingId}-trust`}
+                  className="px-3 py-1.5 text-xs font-semibold text-text-muted"
+                >
                   {tTrust("filterLabel")}
                 </p>
                 {TRUST_OPTION_KEYS.map((opt) => (
                   <button
                     key={opt.labelKey}
-                    role="menuitem"
+                    role="menuitemradio"
+                    aria-checked={(trustFilter ?? null) === opt.value}
                     onClick={() => {
-                      onTrustFilterChange(opt.value);
+                      onTrustFilterChange!(opt.value);
                       close();
                     }}
                     className={`flex w-full items-start gap-2 px-3 py-2 text-left text-sm transition-colors ${
@@ -147,7 +190,7 @@ export function FilterMenu({
                     </span>
                   </button>
                 ))}
-              </>
+              </div>
             )}
           </div>
         </>

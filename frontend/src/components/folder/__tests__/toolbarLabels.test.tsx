@@ -51,9 +51,19 @@ const props = {
   onReshuffle: vi.fn(),
 };
 
-/** Buttons whose whole content is an icon: no text a sighted reader gets. */
+/**
+ * Controls whose whole content is an icon: no text a sighted reader gets.
+ *
+ * Not `button` alone. An anchor styled as a control, a `[role=button]`, a
+ * `<summary>` — all of them put a pressable thing on the bar, and a scan
+ * that only knows `<button>` reports a clean toolbar while one of them
+ * sits on it wordless. Demonstrated: an `<a>` with an icon and no text was
+ * added and every test passed.
+ */
+const PRESSABLE = "button, a, [role=button], [role=menuitem], summary";
+
 function wordless(root: HTMLElement): string[] {
-  return [...root.querySelectorAll("button")]
+  return [...root.querySelectorAll<HTMLElement>(PRESSABLE)]
     .filter((b) => (b.textContent ?? "").trim() === "")
     .map((b) => b.getAttribute("aria-label") ?? "(no accessible name)");
 }
@@ -84,6 +94,15 @@ describe("the folder toolbar's wordless controls", () => {
     expect([...new Set(wordless(container))]).toEqual(["More actions"]);
   });
 
+  it("looks at everything pressable, not only <button>", () => {
+    const { container } = render(<FolderToolbar {...props} />);
+    const stray = document.createElement("a");
+    stray.setAttribute("href", "#");
+    stray.appendChild(document.createElement("svg"));
+    container.querySelector("div")!.appendChild(stray);
+    expect(wordless(container)).toContain("(no accessible name)");
+  });
+
   it("names the filter with a word at every state", () => {
     // The one this PR closed: two chips that were bare icons until
     // something was selected.
@@ -91,7 +110,7 @@ describe("the folder toolbar's wordless controls", () => {
     expect(wordless(container)).not.toContain("File type");
     expect(wordless(container)).not.toContain("Verification");
     expect(
-      screen.getAllByRole("button", { name: "Filter" }).length,
+      screen.getAllByRole("button", { name: /^Filter/ }).length,
     ).toBeGreaterThan(0);
   });
 });

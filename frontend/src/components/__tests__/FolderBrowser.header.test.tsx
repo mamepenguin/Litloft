@@ -418,8 +418,8 @@ describe("the count while a refetch is in flight", () => {
   it("forgets the count when the reader picks a type filter", () => {
     renderFolder();
     expect(screen.getByText("42 items")).toBeInTheDocument();
-    fireEvent.click(screen.getByRole("button", { name: "Filter" }));
-    fireEvent.click(screen.getByRole("menuitem", { name: "Video" }));
+    fireEvent.click(screen.getByRole("button", { name: /^Filter/ }));
+    fireEvent.click(screen.getByRole("menuitemradio", { name: "Video" }));
     expect(screen.queryByText(/\d+ items/)).toBeNull();
   });
 

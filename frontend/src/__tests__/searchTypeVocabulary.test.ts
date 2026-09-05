@@ -37,3 +37,21 @@ describe("the search page's kind vocabulary", () => {
     expect(VALID_TYPES).toEqual(offered);
   });
 });
+
+describe("the option tables are read-only to their readers", () => {
+  it("refuses a write", () => {
+    // `ReadonlyArray` is the only thing stopping one of three modules from
+    // reordering a table the other two read. Changing the declaration to
+    // `Array` type-checks silently, so the guarantee is asserted rather
+    // than assumed.
+    const writeAttempt = () => {
+      // @ts-expect-error the table is ReadonlyArray. If the declaration
+      // loosens to `Array`, this line stops being an error and `tsc` fails
+      // on the unused directive — which is the assertion.
+      TYPE_OPTION_KEYS.push({ value: null, labelKey: "type.all" });
+    };
+    // Never called: a runtime push would really mutate the shared table and
+    // leave the other tests in this file reading a corrupted one.
+    expect(typeof writeAttempt).toBe("function");
+  });
+});

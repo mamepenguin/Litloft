@@ -14,7 +14,6 @@ import { useTranslations } from "next-intl";
 import type { FileKind, SortField, SortOrder, TrustFilter, ViewMode } from "@/types";
 import { AddButton } from "@/components/AddButton";
 import { FilterMenu } from "./FilterMenu";
-import { TYPE_OPTION_KEYS } from "./filterOptions";
 import { Button } from "@/components/Button";
 import { SortButton } from "@/components/SortButton";
 import { ViewToggle } from "@/components/ViewToggle";
@@ -122,15 +121,10 @@ export function FolderToolbar({
   const t = useTranslations("toolbar");
   const tc = useTranslations("common");
   const ts = useTranslations("selection");
-  const tTrust = useTranslations("trustTier");
   const tf = useTranslations("folder");
-  const tFilter = useTranslations("filter");
 
   const [moreOpen, setMoreOpen] = useState(false);
 
-  const activeTypeOption = TYPE_OPTION_KEYS.find((opt) => opt.value === typeFilter);
-  const activeTypeLabel = tFilter(activeTypeOption?.labelKey ?? "type.all");
-  const isTypeFiltered = typeFilter !== null;
 
   // Left mutating actions — rendered in two places:
   // mobile (normal flow, above the sticky bar) and desktop (inside the sticky bar).
