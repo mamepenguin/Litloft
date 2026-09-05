@@ -25,16 +25,16 @@ A toolbar above the grid lets you:
 - Filter by file kind (All / Video / Image / Audio / Document / Markdown / PDF / Archive / Other). Markdown and PDF sit *under* Document: choosing Document returns them too, and choosing one of them narrows further. The server applies this and narrows the query itself, so it is right about files you have not scrolled to yet.
 - Turn on **Select mode** from the overflow (`…`) menu, then click cards to select them. `Cmd/Ctrl+click` turns selection on and toggles a card in one gesture, and `Shift+click` extends the selection to a range. A selection bar appears at the bottom with tag, rename, add-to-collection, copy, cut, move, and move-to-trash.
 - **Rescan** the drive, also from the overflow menu.
-- **Upload** and **New folder**, from the upload button.
+- **Add** anything to the folder, from the one **Add** button: upload files, upload a folder, create a folder, create a note. It is the only filled button on the bar. An addon can contribute further rows, which appear below a separator at the bottom of the menu.
+- **Play** everything playable in the folder, next to Add, on folders that hold something playable.
 
 On a listing with nothing in it at all — no files and no subfolders —
 the toolbar drops the controls for arranging things: the view toggle,
 the sort, and the type filter. What stays is everything that puts
-something in the folder (upload, new folder, new note, rescan) and the
-count. A listing emptied by a filter keeps them all, because the filter
-that produced the empty result is also the way back out of it. The same
+something in the folder (the Add menu and Rescan) and the count. A
+listing emptied by a filter keeps them all, because the filter that
+produced the empty result is also the way back out of it. The same
 applies to the drive root's own file listing and to an empty trash.
-- **New file** — create an empty `untitled-{timestamp}.md` in the current folder and jump straight into the editor (see below).
 
 The file list is paged: 30 files per request, fetched as you scroll. When you open a file and come back, the list is restored from a snapshot in `sessionStorage` — the pages you had already loaded and your scroll position both come back, so a deep scroll survives the round trip. The snapshot is skipped for random sort and for search results, and it expires after two hours.
 
@@ -53,7 +53,7 @@ For the keys these actions are bound to, see [keyboard shortcuts](keyboard-short
 
 From any folder view you can create a blank Markdown file in one click:
 
-- Click **新規ファイル / New File** in the toolbar, or
+- Choose **新規ノート / New Note** from the toolbar's **Add** menu, or
 - Press **`Cmd+N`** (macOS) / **`Ctrl+N`** (Windows / Linux) anywhere on the page.
 
 Behaviour:

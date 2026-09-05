@@ -22,8 +22,8 @@ vi.mock("next/link", () => ({
 vi.mock("@/components/UploadZone", () => ({
   UploadZone: ({ children }: { children: React.ReactNode }) => <>{children}</>,
 }));
-vi.mock("@/components/UploadButton", () => ({
-  UploadButton: () => <button>upload</button>,
+vi.mock("@/components/AddButton", () => ({
+  AddButton: () => <button>add</button>,
 }));
 vi.mock("@/components/SortButton", () => ({
   SortButton: () => <button>sort</button>,
@@ -293,12 +293,12 @@ describe("RootFileListing with nothing directly under the drive", () => {
     expect(screen.queryByLabelText("More actions")).toBeNull();
   });
 
-  it("keeps upload, so the drive root can stop being empty", async () => {
+  it("keeps the add menu, so the drive root can stop being empty", async () => {
     mockGetDriveFiles.mockResolvedValue(empty);
     render(<RootFileListing driveName="main" />);
 
     await screen.findByTestId("empty-state");
-    expect(screen.getByText("upload")).toBeInTheDocument();
+    expect(screen.getByText("add")).toBeInTheDocument();
   });
 
   it("keeps everything when there are files to arrange", async () => {

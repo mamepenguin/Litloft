@@ -16,7 +16,6 @@
     "move": "Move",
     "play": "Play",
     "pause": "Pause",
-    "upload": "Upload",
     "lock": "Lock",
     "items": "{count} items",
     "loadContent": "Load",
@@ -478,6 +477,7 @@
     "noSelection": "Select a file from the tree"
   },
   "toolbar": {
+    "add": "Add",
     "rescan": "Rescan",
     "rescanTitle": "Rescan drive",
     "fileType": "File type",

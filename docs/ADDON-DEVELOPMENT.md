@@ -789,7 +789,8 @@ Addons can inject UI components into predefined **slots** in the core applicatio
 | `player-side` | Beside a media player — an **inspector tab** where the reader has chosen "beside", a bounded box under the description where they have chosen "below" | Stack | Something that follows the file as it plays: a transcript, a cue list. One entry is one tab. See [Occupying the player-side slot](#occupying-the-player-side-slot) — the host places it two different ways and tells the entry which. |
 | `dashboard-widgets` | Admin dashboard | Cards | Index statistics, cloud sync status |
 | `dashboard-alerts` | Admin dashboard, above the drive cards | Stack | Something is wrong and an operator should see it before anything else — a queue of failed jobs, a provider that stopped answering. Render nothing when there is nothing wrong: the host draws no wrapper and no heading, so an entry that always renders is a permanent band above the page. |
-| `folder-actions` | Folder toolbar | Inline buttons | Batch AI actions |
+| `folder-actions-menu` | Inside the folder toolbar's **Add** menu, under a separator below the core's own rows | Stack of menu rows | Anything that puts something into the current folder — a batch of AI-written tags, an import from a URL. Receives `{ drive, fileIds, path }` plus the reserved `onRequestClose`, and draws `ActionMenuItem` rows under the same contract as `file-actions-menu`. |
+| `folder-actions` | Folder toolbar, beside the Add menu | Inline buttons | **Superseded by `folder-actions-menu`.** The toolbar keeps one accent-filled control (`DESIGN.md` §2.2) and this slot draws a second button next to it. Entries still render, so nothing breaks while an addon is on the old id; move by changing the id your manifest declares, and the standalone button disappears when the slot comes out empty. |
 | `file-actions-menu` | The `[...]` overflow menu on the file detail page | Stack of menu rows | Per-file actions too infrequent to deserve a section of their own. See [Contributing to the file actions menu](#contributing-to-the-file-actions-menu) — entries have extra obligations. |
 | `file-detail-actions` | The file detail page's primary action row, between the state controls and the `[...]` menu | Inline buttons | Per-file actions that deserve to be reachable in one press rather than through the overflow menu — the file counterpart of `folder-actions`. See [Contributing to the file action row](#contributing-to-the-file-action-row). |
 | `sidebar-sections` | Sidebar | Stack | Per-addon shortcuts |
@@ -945,6 +946,32 @@ Further constraints:
 - Returning `null` is fine and expected — an entry that does not apply to
   the current file should render nothing, and the host drops its
   separator when the slot comes out empty.
+
+### Contributing to the add menu
+
+`folder-actions-menu` is `file-actions-menu`'s counterpart for a folder,
+and the contract is the same one: **render `ActionMenuItem` directly**
+(a fragment for several rows), imported from
+`@/components/ActionMenuItem`. The host owns the `role="menu"` container,
+the separator above your rows, and their styling; you supply the rows.
+Wrapping them in your own element breaks the `menu` → `menuitem`
+relationship, and rendering a button gives a button inside a dropdown.
+
+| Prop | Type | Meaning |
+|---|---|---|
+| `drive` | `string` | The drive being browsed. |
+| `fileIds` | `string[]` | The files the listing currently holds. |
+| `path` | `string` | The folder being browsed, drive-relative; `""` at the drive root. |
+| `onRequestClose` | `() => void` | Ask the host to close the menu. Reserved: the host applies it after spreading the context above, so an entry cannot override it. |
+
+There is no `onDialogOpenChange` here. This menu is not the file detail
+page's `[...]`, which stays open behind a modal so its subtree survives —
+an entry here that needs a dialog should render the dialog outside the
+menu's subtree from the start.
+
+The host renders nothing at all — not even the separator — when no addon
+declares the slot, so an installed-but-idle addon costs the menu no
+space.
 
 ### Declaring Slots
 

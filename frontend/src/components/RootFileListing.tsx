@@ -13,7 +13,7 @@ import { FileList } from "@/components/FileList";
 import { ViewToggle } from "@/components/ViewToggle";
 import { SortButton } from "@/components/SortButton";
 import { EmptyState } from "@/components/EmptyState";
-import { UploadButton } from "@/components/UploadButton";
+import { AddButton } from "@/components/AddButton";
 import { UploadZone } from "@/components/UploadZone";
 import { SelectionBar } from "@/components/SelectionBar";
 import { FilterField } from "@/components/folder/FilterField";
@@ -218,7 +218,7 @@ export function RootFileListing({ driveName, onFileAction, onFolderChange }: Roo
 
         {/* Toolbar */}
         <div className="mb-4 flex flex-wrap items-center gap-2">
-          <UploadButton onCreateFolder={() => setCreatingFolder(true)} />
+          <AddButton onCreateFolder={() => setCreatingFolder(true)} />
 
           {creatingFolder && (
             <div className="flex w-full items-center gap-2 sm:w-auto">

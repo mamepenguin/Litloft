@@ -36,13 +36,18 @@ test.describe("Upload", () => {
     await page.goto(`/drive/${encodeURIComponent(driveName)}`);
     await waitForApp(page);
 
-    // Click upload button in main content toolbar
-    const uploadBtn = page.locator('main button[aria-label="アップロード"]');
-    await expect(uploadBtn).toBeVisible({ timeout: 5_000 });
+    // Upload is a row of the toolbar's one "Add" menu now, not a button of
+    // its own (UI redesign Phase 3, 案 2).
+    const addBtn = page.locator("main button", { hasText: "追加" }).first();
+    await expect(addBtn).toBeVisible({ timeout: 5_000 });
+    await addBtn.click();
+
+    const filesRow = page.getByRole("menuitem", { name: "ファイル", exact: true });
+    await expect(filesRow).toBeVisible({ timeout: 5_000 });
 
     // Set up file chooser before clicking
     const fileChooserPromise = page.waitForEvent("filechooser");
-    await uploadBtn.click();
+    await filesRow.click();
     const fileChooser = await fileChooserPromise;
     await fileChooser.setFiles(tempFile);
 

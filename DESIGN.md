@@ -244,6 +244,19 @@ ever written to the attribute.
 ### 2.2 Color Usage Rules
 
 - **`--accent`**: Use only for primary CTAs and brand highlights. Do not overuse.
+- **One accent *fill* per screen.** "Do not overuse" was the whole of this
+  rule for a long time and it is not a rule anyone can be wrong about, so
+  three screens grew two or three fills each and nothing said so. The
+  operational form: at rest, at most one control on a screen carries
+  `bg-accent` (or its twin `bg-accent-cta`) as a background. Two fills means
+  the screen has not decided what it is for — pick the one action the screen
+  exists for, and give every other control `secondary`, `ghost`, or a border.
+  This governs *fills*: `bg-accent/10` behind a hovered row,
+  `enabled:hover:bg-accent-hover`, and a `border-accent` selected state are
+  not fills and are not counted (§Selected-state controls uses the border for
+  exactly this reason).
+  `frontend/src/__tests__/accent-budget.test.tsx` renders the screens and
+  counts, so the rule fails a build rather than a review.
 - **`--sand`**: Use for secondary button backgrounds, tags, and mid-tone surfaces.
 - **`--accent-teal`**: Semantic status color for success / accepted state (e.g. confirmed tag).
 - **`--accent-amber`**: Semantic status color for AI-generated / suggestion-pending state (e.g. AI-suggested tag awaiting user approval). Pair with a dashed border to convey "pending". Do not use as a brand accent.

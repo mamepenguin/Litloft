@@ -39,13 +39,30 @@ vi.mock("@/components/SortButton", () => ({
     </button>
   ),
 }));
-vi.mock("@/components/UploadButton", () => ({
-  UploadButton: ({ onCreateFolder }: { onCreateFolder?: () => void }) => (
+vi.mock("@/components/AddButton", () => ({
+  // Stands in for the one control that puts things in a folder. It renders a
+  // row per prop it is given, so a test can still see *which* of them
+  // FolderBrowser decided to offer — the real menu keeps them behind a click.
+  AddButton: ({
+    onCreateFolder,
+    onCreateFile,
+  }: {
+    onCreateFolder?: () => void;
+    onCreateFile?: () => void;
+  }) => (
     <>
-      <button aria-label="Upload">Upload</button>
+      <button aria-label="Add">Add</button>
       {onCreateFolder && (
-        <button onClick={onCreateFolder} aria-label="New Folder">
+        <button onClick={() => onCreateFolder()} aria-label="New Folder">
           New Folder
+        </button>
+      )}
+      {onCreateFile && (
+        // Called with no arguments, as `ActionMenuItem` calls it. Passing
+        // the click event instead hands FolderBrowser's handler an event
+        // where it expects a name.
+        <button onClick={() => onCreateFile()} aria-label="New Note">
+          New Note
         </button>
       )}
     </>
@@ -173,9 +190,9 @@ describe("FolderBrowser — folder anchoring during a tag filter", () => {
     expect(mockCreateFile).toHaveBeenCalledWith("main", "recipes");
   });
 
-  it("offers upload and new-folder during a folder tag filter", () => {
+  it("offers the add menu and new-folder during a folder tag filter", () => {
     render(<FolderBrowser driveName="main" folderPath="recipes" tagFilter="soup" />);
-    expect(screen.getAllByLabelText("Upload").length).toBeGreaterThan(0);
+    expect(screen.getAllByLabelText("Add").length).toBeGreaterThan(0);
     expect(screen.getAllByLabelText("New Folder").length).toBeGreaterThan(0);
   });
 
@@ -244,20 +261,20 @@ describe("FolderBrowser — folder anchoring during a tag filter", () => {
   it("hides create-file in a special view", () => {
     render(<FolderBrowser driveName="main" view="favorites" />);
     expect(newNoteButtons()).toHaveLength(0);
-    expect(screen.queryByLabelText("Upload")).not.toBeInTheDocument();
+    expect(screen.queryByLabelText("Add")).not.toBeInTheDocument();
   });
 
   it("hides create-file in search mode", () => {
     render(<FolderBrowser driveName="main" searchQuery="kyoto" />);
     expect(newNoteButtons()).toHaveLength(0);
-    expect(screen.queryByLabelText("Upload")).not.toBeInTheDocument();
+    expect(screen.queryByLabelText("Add")).not.toBeInTheDocument();
   });
 
   it("hides create-file for a drive-root tag filter", () => {
     // No folderPath: there is no concrete folder to write into.
     render(<FolderBrowser driveName="main" tagFilter="soup" />);
     expect(newNoteButtons()).toHaveLength(0);
-    expect(screen.queryByLabelText("Upload")).not.toBeInTheDocument();
+    expect(screen.queryByLabelText("Add")).not.toBeInTheDocument();
   });
 
   it("still offers create-file for a plain folder listing", () => {
