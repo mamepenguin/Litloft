@@ -77,6 +77,7 @@ function file(id: string): FileItem {
 
 import { TrashView } from "../trash/TrashView";
 import { MissingView } from "../missing/MissingView";
+import { accentFills } from "@/__tests__/helpers/accentFills";
 
 beforeEach(() => {
   vi.clearAllMocks();
@@ -209,5 +210,35 @@ describe("Missing header", () => {
     render(<MissingView driveName="main" />);
     await screen.findByRole("heading", { level: 1 });
     expect(screen.queryByRole("button", { name: /Permanently Delete All/i })).toBeNull();
+  });
+});
+
+/**
+ * DESIGN.md §2.2: one accent fill per screen.
+ *
+ * Asserted here rather than in `accent-budget.test.tsx` because these two
+ * views need eight mocks between them, and a second copy of a screen's
+ * setup is a second copy to keep in step. That file's `SCREENS` table
+ * names this one and fails if it stops reaching for `accentFills`.
+ *
+ * Neither view has a fill today, and zero is the assertion: they are
+ * places to review and restore from, and the accent belongs to a screen's
+ * one action.
+ */
+describe("Trash and Missing spend no accent fill", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  it("holds none in the trash", async () => {
+    const { container } = render(<TrashView driveName="main" />);
+    await waitFor(() => expect(container.querySelector("h1")).toBeTruthy());
+    expect(accentFills(container)).toHaveLength(0);
+  });
+
+  it("holds none in missing", async () => {
+    const { container } = render(<MissingView driveName="main" />);
+    await waitFor(() => expect(container.querySelector("h1")).toBeTruthy());
+    expect(accentFills(container)).toHaveLength(0);
   });
 });

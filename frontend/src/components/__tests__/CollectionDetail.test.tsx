@@ -2,6 +2,7 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
 import { render, screen, waitFor, fireEvent } from "@testing-library/react";
 
 import { CollectionDetail } from "../CollectionDetail";
+import { accentFills } from "@/__tests__/helpers/accentFills";
 import type { FileItem } from "@/types";
 
 const mockPush = vi.fn();
@@ -325,5 +326,49 @@ describe("CollectionDetail", () => {
     render(<CollectionDetail drive="main" collectionId="c1" />);
     expect(await screen.findByTestId("file-list")).toBeInTheDocument();
     expect(screen.queryByTestId("file-grid")).toBeNull();
+  });
+});
+
+/**
+ * DESIGN.md §2.2: one accent fill per screen.
+ *
+ * Here rather than in `accent-budget.test.tsx` for the same reason as
+ * Trash and Missing — twelve mocks, and a second copy of them would be a
+ * second thing to keep in step. `SCREENS` names this file.
+ *
+ * One, not zero. A collection is a playlist and playing it is what the
+ * screen is for, so the fill is spent correctly here — the folder toolbar
+ * gives Play a border because *there* the fill belongs to Add, and a
+ * collection has nothing to add to. §2.2 asks for one action to own it,
+ * not for the same action to own it everywhere.
+ */
+describe("a collection spends its accent fill on Play", () => {
+  it("spends exactly one, on the thing the screen is for", async () => {
+    const { container } = render(
+      <CollectionDetail drive="main" collectionId="c1" />,
+    );
+    await waitFor(() => expect(container.querySelector("h1")).toBeTruthy());
+    // By label, not by count: `toHaveLength(1)` would pass just as well if
+    // the fill had moved to Delete.
+    expect(accentFills(container).map((el) => el.textContent?.trim())).toEqual([
+      "Play",
+    ]);
+  });
+
+  it("spends none when there is nothing to play", async () => {
+    apiMocks.getCollection.mockResolvedValueOnce({
+      id: "c1",
+      name: "My Collection",
+      description: "Hand-picked",
+      drive: "main",
+      items: [],
+      created_at: "",
+      updated_at: "",
+    });
+    const { container } = render(
+      <CollectionDetail drive="main" collectionId="c1" />,
+    );
+    await waitFor(() => expect(container.querySelector("h1")).toBeTruthy());
+    expect(accentFills(container)).toHaveLength(0);
   });
 });

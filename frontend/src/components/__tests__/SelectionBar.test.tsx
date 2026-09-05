@@ -117,3 +117,129 @@ describe("SelectionBar", () => {
     expect(screen.getByPlaceholderText("tag1, tag2...")).toBeInTheDocument();
   });
 });
+
+/**
+ * The 375px form.
+ *
+ * jsdom loads no stylesheet, so every branch of a responsive layout is in
+ * the tree at once and a plain `getByLabelText` cannot tell "on the bar"
+ * from "desktop only". These read the classes that decide it, which is
+ * also where the defect was: the row used to be
+ * `overflow-x-auto scrollbar-hide`, so four of seven actions sat off the
+ * right-hand edge of a 375px screen with the scrollbar hidden — 00-basis
+ * 原則 5, what is cut off should look cut off.
+ */
+describe("SelectionBar at 375px", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  /** Every bulk action, by accessible name, in the order the bar lists them. */
+  const ALL_ACTIONS = [
+    "Tagging",
+    "Rename",
+    "Add to collection",
+    "Copy",
+    "Cut",
+    "Move",
+    "Move to Trash",
+  ];
+
+  /** The two that survive the narrow width. Named, not counted. */
+  const KEPT = ["Tagging", "Move"];
+
+  const actionButtons = () =>
+    ALL_ACTIONS.map((name) => screen.getByLabelText(name));
+
+  const isDesktopOnly = (el: HTMLElement) =>
+    (el.getAttribute("class") ?? "").split(/\s+/).includes("hidden");
+
+  it("holds every action, and holds each of them once", () => {
+    render(<SelectionBar {...defaultProps} />);
+    // Not `>=`, and not a subset: the whole list, so an action added to the
+    // bar without a decision about 375px fails here.
+    expect(ALL_ACTIONS).toHaveLength(7);
+    for (const name of ALL_ACTIONS) {
+      expect(screen.getAllByLabelText(name)).toHaveLength(1);
+    }
+  });
+
+  it("keeps exactly the two the bar is used for", () => {
+    render(<SelectionBar {...defaultProps} />);
+    const kept = actionButtons()
+      .filter((el) => !isDesktopOnly(el))
+      .map((el) => el.getAttribute("aria-label"));
+    expect(kept).toEqual(KEPT);
+  });
+
+  it("puts the rest behind the overflow, and nowhere else", () => {
+    render(<SelectionBar {...defaultProps} />);
+    const hidden = actionButtons()
+      .filter(isDesktopOnly)
+      .map((el) => el.getAttribute("aria-label"));
+    // The partition: kept ∪ hidden is the whole list, with no overlap.
+    expect([...KEPT, ...hidden].sort()).toEqual([...ALL_ACTIONS].sort());
+
+    fireEvent.click(screen.getByLabelText("More actions for the selection"));
+    const rows = screen.getAllByRole("menuitem").map((r) => r.textContent?.trim());
+    expect(rows).toEqual(["Rename", "Collection", "Copy", "Cut", "Move to Trash"]);
+  });
+
+  it("gives the overflow rows their labels, not just icons", () => {
+    // "Fewer controls, not nameless ones" — the rule the old bar broke by
+    // dropping every label at `sm` and scrolling the icons sideways.
+    render(<SelectionBar {...defaultProps} />);
+    fireEvent.click(screen.getByLabelText("More actions for the selection"));
+    for (const row of screen.getAllByRole("menuitem")) {
+      expect(row.textContent?.trim().length).toBeGreaterThan(0);
+    }
+  });
+
+  it("runs the chosen action and closes", () => {
+    render(<SelectionBar {...defaultProps} />);
+    fireEvent.click(screen.getByLabelText("More actions for the selection"));
+    fireEvent.click(screen.getByRole("menuitem", { name: "Move to Trash" }));
+    expect(screen.getByTestId("confirm-dialog")).toBeInTheDocument();
+    expect(screen.queryByRole("menu")).not.toBeInTheDocument();
+  });
+
+  it("does not scroll its actions sideways", () => {
+    const { container } = render(<SelectionBar {...defaultProps} />);
+    const row = screen.getByLabelText("Move").parentElement!;
+    const classes = (row.getAttribute("class") ?? "").split(/\s+/);
+    expect(classes).not.toContain("overflow-x-auto");
+    expect(classes).not.toContain("scrollbar-hide");
+    // Nowhere in the bar, not merely on the row this test happened to pick.
+    for (const el of container.querySelectorAll("[class]")) {
+      expect((el.getAttribute("class") ?? "").split(/\s+/)).not.toContain(
+        "scrollbar-hide",
+      );
+    }
+  });
+
+  it("gives every control on the bar a coarse-pointer target", () => {
+    // 00-basis: 44px on touch. `min-h-11` on the box rather than a hit-area
+    // overhang, because these sit shoulder to shoulder and overlapping
+    // pseudo-elements let the later one win the hit test.
+    render(<SelectionBar {...defaultProps} />);
+    for (const el of actionButtons().filter((e) => !isDesktopOnly(e))) {
+      expect((el.getAttribute("class") ?? "").split(/\s+/)).toContain(
+        "pointer-coarse:min-h-11",
+      );
+    }
+    expect(
+      (screen.getByLabelText("More actions for the selection").getAttribute("class") ?? "").split(
+        /\s+/,
+      ),
+    ).toEqual(expect.arrayContaining(["h-11", "w-11"]));
+  });
+
+  it("needs no overflow in the trash, where there are two actions", () => {
+    render(<SelectionBar {...defaultProps} isTrashView />);
+    expect(screen.getByLabelText("Restore")).toBeInTheDocument();
+    expect(screen.getByLabelText("Permanently Delete")).toBeInTheDocument();
+    expect(isDesktopOnly(screen.getByLabelText("Restore"))).toBe(false);
+    expect(isDesktopOnly(screen.getByLabelText("Permanently Delete"))).toBe(false);
+    expect(screen.queryByLabelText("More actions for the selection")).not.toBeInTheDocument();
+  });
+});
