@@ -32,10 +32,17 @@ function useSortRows(sort: SortField, order: SortOrder, allowRelevance?: boolean
       value: { sort: o.sort, order: o.order },
       label: t(o.labelKey),
     })),
-    // A persisted order the current screen does not offer — `relevance`
-    // outside a search — names the control instead of naming itself. The
-    // alternative is a face that reads as one of the offered orders while
-    // the listing is in another.
+    // An order this screen does not offer names the control instead of
+    // naming itself; the alternative is a face reading as one of the offered
+    // orders while the listing is in another.
+    //
+    // Reachable, and by one route: `lib/sortField.ts`'s `isSortField` — the
+    // validator `resolveFolderSort` applies when reading a stored per-folder
+    // preference — admits `relevance`, while `allowRelevance` is false
+    // everywhere but search. So a folder whose stored order is `relevance`
+    // renders a menu with no matching row. `liked_at` is *not* a second
+    // route: the same validator excludes it, and the Liked view sorts
+    // through `effectiveSort` on the fetch rather than through this prop.
     activeLabel: active ? t(active.labelKey) : t("label"),
   };
 }

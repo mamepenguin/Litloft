@@ -2,6 +2,7 @@ import { describe, it, expect, vi, afterEach } from "vitest";
 import { render, screen, cleanup } from "@testing-library/react";
 
 import { FolderToolbar } from "../FolderToolbar";
+import { pressables } from "@/__tests__/helpers/pressable";
 
 vi.mock("@/components/AddonSlot", () => ({ AddonSlot: () => null }));
 
@@ -51,48 +52,9 @@ const props = {
   onReshuffle: vi.fn(),
 };
 
-/**
- * Controls whose whole content is an icon: no text a sighted reader gets.
- *
- * Not `button` alone. An anchor styled as a control, a `[role=button]`, a
- * `<summary>` — all of them put a pressable thing on the bar, and a scan
- * that only knows `<button>` reports a clean toolbar while one of them
- * sits on it wordless. Demonstrated: an `<a>` with an icon and no text was
- * added and every test passed.
- */
-const PRESSABLE = [
-  "button",
-  "a",
-  "input",
-  "label",
-  "summary",
-  "[tabindex]",
-  "[role=button]",
-  "[role=link]",
-  "[role=switch]",
-  "[role=tab]",
-  "[role=checkbox]",
-  "[role=option]",
-  // `^=`, not `=`: this PR's own rows are `menuitemradio`, and an exact
-  // attribute match let seven of eight shapes through — including the one
-  // role the PR had just started using, while listing the one it had
-  // stopped using.
-  "[role^=menuitem]",
-].join(", ");
-
+/** The pressable things with no text a sighted reader gets. */
 function wordless(root: HTMLElement): string[] {
-  return [...root.querySelectorAll<HTMLElement>(PRESSABLE)]
-    // A file input is a mechanism, never the control: `AddButton` keeps two
-    // of them hidden and clicks them from a menu row — four in the tree,
-    // because the toolbar draws the left group once per breakpoint. The row is what a
-    // reader presses and the row is what this scan is about. Widening the
-    // selector to `input` surfaced them, which is the scan working — they
-    // are named here rather than left to widen the expected list.
-    //
-    // The predicate this really wants is "rendered and visible", which jsdom
-    // cannot answer. A styled, *visible* file input used as the control
-    // itself would slip past this — nothing in the tree does that today.
-    .filter((b) => !(b instanceof HTMLInputElement && b.type === "file"))
+  return pressables(root)
     .filter((b) => (b.textContent ?? "").trim() === "")
     .map((b) => b.getAttribute("aria-label") ?? "(no accessible name)");
 }

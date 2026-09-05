@@ -31,10 +31,19 @@ A toolbar above the grid lets you:
 - **Add** anything to the folder, from the one **Add** button: upload files, upload a folder, create a folder, create a note. It is the only filled button on the bar. An addon can contribute further rows, which appear below a separator at the bottom of the menu.
 - **Play** everything playable in the folder, on folders that hold something playable.
 
-Below 768px the bar keeps **Play**, **Filter** and `…`, and **View** and
-**Sort** move inside `…` as sections of that menu — the same rows, in the
-same order. Nothing loses its label and nothing wraps onto a second row: at
-375px the bar is one row of three controls, each at least 44px for touch.
+**View** and **Sort** leave the bar below 768px and move inside `…` as
+sections of that menu — the same rows, in the same order. What stays is
+**Play**, **Filter** and `…`, joined by **Add** from 640px up (below that,
+Add sits in its own row above the bar).
+
+Nothing loses its label and nothing wraps onto a second row. Where a label
+is longer than the room for it — the Filter button naming both of its axes,
+or the "Search the whole drive" link on a folder reached through a tag — it
+is shortened with an ellipsis rather than dropped, and the full text stays
+in the button's accessible name. At 375px the bar is one row, and every
+control on it is at least 44px for touch. The one exception is above 640px,
+where the **New Folder** name field opens inline on the bar and can push it
+onto a second row; that form predates this arrangement.
 
 On a listing with nothing in it at all — no files and no subfolders —
 the toolbar drops the controls for arranging things: View, Sort and the

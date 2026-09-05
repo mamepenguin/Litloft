@@ -170,12 +170,21 @@ export function FolderToolbar({
               if (e.key === "Escape") { onSetCreatingFolder(false); onSetNewFolderName(""); onSetFolderError(null); }
             }}
             placeholder={tf("namePlaceholder")}
-            className="min-w-0 flex-1 rounded-2xl bg-bg-card px-3 py-2 text-sm text-text-primary placeholder:text-text-muted outline-none focus:ring-2 focus:ring-focus-ring sm:w-40 sm:flex-initial"
+            className="min-w-0 flex-1 rounded-2xl bg-bg-card px-3 py-2 text-sm text-text-primary placeholder:text-text-muted outline-none focus:ring-2 focus:ring-focus-ring pointer-coarse:min-h-11 sm:w-40 sm:flex-initial"
           />
           {/* Not a second accent fill. This row opens from the Add menu and
               Add stays on screen behind it, so filling Create would put two
               on the bar at once — the state §2.2 exists to prevent. */}
-          <Button variant="secondary" size="sm" onClick={onCreateFolder}>
+          <Button
+            variant="secondary"
+            size="sm"
+            onClick={onCreateFolder}
+            // Cancel beside it is `iconOnly`, which carries `Button`'s own
+            // `-inset-1.5` overhang: 6px of reach on each side into an 8px
+            // gap, so it clears 44 without colliding with this button's box.
+            // This one has a label and no overhang, so it needs the height.
+            className="pointer-coarse:min-h-11"
+          >
             {tc("create")}
           </Button>
           <Button
@@ -229,9 +238,17 @@ export function FolderToolbar({
           <AddonSlot id="folder-actions" layout="stack" props={{ fileIds, drive, path: folderPath ?? "" }} />
         </div>
 
-        {widenTagScope && <WidenTagScopeLink scope={widenTagScope} />}
-
-        <div className="flex-1" />
+        {/* The link takes the slack the spacer would have taken, rather than
+            sitting beside it at its full width. `flex-1` gives it a base of
+            zero, and wrapping is decided on base sizes — so a long label
+            shortens the link instead of pushing `…` onto a second row. */}
+        {widenTagScope ? (
+          <div className="min-w-0 flex-1">
+            <WidenTagScopeLink scope={widenTagScope} />
+          </div>
+        ) : (
+          <div className="flex-1" />
+        )}
 
         {/* RIGHT: view controls */}
         {/* Not the overflow menu, and not accent-filled. hako
@@ -311,7 +328,7 @@ export function FolderToolbar({
                     that leaves the bar has to arrive here, and a reader who
                     finds neither has lost the function. */}
                 {!hideArrangingControls && (
-                  <div className="md:hidden">
+                  <div className="md:hidden" role="presentation">
                     <ViewGroup
                       mode={view.mode}
                       onSelect={(next) => {

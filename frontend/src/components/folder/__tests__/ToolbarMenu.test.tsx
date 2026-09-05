@@ -2,7 +2,7 @@ import { describe, it, expect, vi, afterEach } from "vitest";
 import { render, screen, cleanup, fireEvent } from "@testing-library/react";
 import { Filter } from "lucide-react";
 
-import { MENU_SURFACE, MenuRadioGroup, ToolbarMenu } from "../ToolbarMenu";
+import { MenuRadioGroup, MenuSeparator, ToolbarMenu } from "../ToolbarMenu";
 
 const rows = (close: () => void) => (
   <button role="menuitem" onClick={close}>
@@ -108,9 +108,16 @@ describe("ToolbarMenu", () => {
   });
 
   it("keeps the popover's recipe, which is what keeps it on screen", () => {
-    // Pinned whole rather than searched. jsdom lays nothing out, so nothing
-    // here can see the shape; what it can see is that the recipe has not
-    // been edited without being re-measured.
+    // A literal, not the imported `MENU_SURFACE`. Comparing the element's
+    // class to the constant it is set from compares the constant to itself:
+    // an independent review deleted `sm:absolute` — the token that decides
+    // between a bottom sheet and a menu anchored to its trigger, the most
+    // consequential one in the string — and all 143 tests passed. The copy
+    // is the assertion. `FilterMenu.test.tsx` writes its own recipe out for
+    // the same reason.
+    //
+    // jsdom lays nothing out, so nothing here can see the shape; what it can
+    // see is that the recipe has not been edited without being re-measured.
     //
     // Measured in Chromium on the folder toolbar, after the open animation
     // settles (`animate-fade-in-scale` starts at `scale(.95)`, and reading
@@ -128,7 +135,26 @@ describe("ToolbarMenu", () => {
     fireEvent.click(screen.getByRole("button"));
     expect(
       (screen.getByRole("menu").getAttribute("class") ?? "").split(/\s+/),
-    ).toEqual(MENU_SURFACE.split(/\s+/));
+    ).toEqual([
+      "fixed", "inset-x-2", "bottom-4", "z-40", "max-h-[60vh]",
+      "overflow-y-auto", "rounded-2xl", "border", "border-bg-border",
+      "bg-bg-primary", "py-1", "shadow-lg", "animate-fade-in-scale",
+      "sm:absolute", "sm:inset-x-auto", "sm:bottom-auto", "sm:right-0",
+      "sm:top-full", "sm:mt-1", "sm:max-h-none", "sm:min-w-[200px]",
+      "sm:overflow-visible", "sm:origin-top-right",
+    ]);
+  });
+});
+
+describe("MenuSeparator", () => {
+  afterEach(cleanup);
+
+  it("is a separator to something that cannot see the line", () => {
+    // A `role="menu"` publishes only menuitem / group / separator children —
+    // the same rule this file's group test cites. A rule dropped to a bare
+    // <div> divides nothing for anyone not looking at it.
+    render(<MenuSeparator />);
+    expect(screen.getByRole("separator")).toBeInTheDocument();
   });
 });
 

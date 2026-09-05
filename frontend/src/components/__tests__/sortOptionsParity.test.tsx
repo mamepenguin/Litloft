@@ -61,10 +61,21 @@ describe("the orders a listing can be put in", () => {
     cleanup();
     const viaMenu = fromSortMenu();
     expect(viaMenu).toEqual(viaButton);
-    // `toBe`, not a floor: an order dropped from the shared table
-    // disappears from both sides at once and the comparison above stays
-    // true.
-    expect(viaMenu.length).toBe(7);
+    // A literal, because the comparison above cannot see the shared table
+    // move. Both sides derive from `sortOptions.ts`, so swapping two rows
+    // there swaps them identically on both and the equality still holds —
+    // demonstrated by mutation. The sequence is a real decision: newest
+    // first is the default and leads, the two title orders sit together,
+    // and `docs/user-guide/file-browsing.md` enumerates them in this order.
+    expect(viaMenu).toEqual([
+      "Newest first",
+      "Oldest first",
+      "Title A→Z",
+      "Title Z→A",
+      "Size largest",
+      "Size smallest",
+      "Random",
+    ]);
   });
 
   it("gain relevance on both, and only where a query asked for it", () => {
@@ -72,7 +83,27 @@ describe("the orders a listing can be put in", () => {
     cleanup();
     const viaMenu = fromSortMenu(true);
     expect(viaMenu).toEqual(viaButton);
+    // At the top, not merely present: it is the search default, so the row
+    // a reader reaches for first is the one they are already in.
     expect(viaMenu[0]).toBe("Relevance");
     expect(viaMenu.length).toBe(8);
+  });
+});
+
+describe("an order the screen does not offer", () => {
+  afterEach(cleanup);
+
+  it("makes the face name the control rather than an order it is not in", () => {
+    // `relevance` stored against a folder: `isSortField` admits it, and a
+    // folder listing passes `allowRelevance` false, so no row matches. The
+    // face falls back to the word for what the control does.
+    render(
+      <SortMenu sort="relevance" order="desc" onChange={vi.fn()} />,
+    );
+    const trigger = screen.getByRole("button");
+    expect(trigger).toHaveTextContent("Sort");
+    // One word, not "Sort: Sort" — and not an empty face with an accessible
+    // name of "Sort: ", which `/^Sort/` would still have matched.
+    expect(trigger).toHaveAccessibleName("Sort");
   });
 });

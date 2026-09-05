@@ -117,10 +117,12 @@ export function FilterMenu({
         aria-label={
           isFiltering ? `${t("filter")}: ${activeLabels.join(" · ")}` : undefined
         }
-        // `min-h-11`, not a hit-area overhang: this sits shoulder to shoulder
-        // with the other toolbar controls, and DESIGN.md §Row Actions says
-        // adjacent pseudo-elements overlap with the later one winning.
-        className={`flex items-center gap-1.5 rounded-2xl border px-3 py-2 text-sm transition-colors pointer-coarse:min-h-11 ${
+        // `min-h-11`, not a hit-area overhang. `gap-2` on this bar is 8px and
+        // `Button`'s overhang reaches 6px each side, so two neighbours with
+        // one would overlap. DESIGN.md §Row Actions describes that mechanism
+        // but prescribes the overhang for controls repeated once per row, at
+        // a shorter pitch than this; the box is the simpler control here.
+        className={`flex min-w-0 items-center gap-1.5 rounded-2xl border px-3 py-2 text-sm transition-colors pointer-coarse:min-h-11 ${
           isFiltering
             ? "border-bg-border bg-bg-elevated text-text-primary font-medium"
             : "border-bg-border bg-bg-card text-text-muted hover:text-text-primary"
@@ -128,10 +130,18 @@ export function FilterMenu({
         aria-haspopup="menu"
         aria-expanded={open}
       >
-        <Filter size={16} />
+        <Filter size={16} className="shrink-0" />
         {/* Always a word, filtering or not. The two chips this replaces were
-            bare icons until something was selected. */}
-        <span>{isFiltering ? activeLabels.join(" · ") : t("filter")}</span>
+            bare icons until something was selected.
+            Capped and elided below 640px, never below the word itself. With
+            both axes on, the face reads `Markdown · Verified only` — 211px
+            of a 343px bar, which wrapped `…` onto a second row at 375 in
+            both locales. `00-basis.md` allows eliding text at that width and
+            forbids the wrap, and the whole list stays in the accessible name
+            above. */}
+        <span className="truncate max-sm:max-w-24">
+          {isFiltering ? activeLabels.join(" · ") : t("filter")}
+        </span>
       </button>
       {open && (
         <>

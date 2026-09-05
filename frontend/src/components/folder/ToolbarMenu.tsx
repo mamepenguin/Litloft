@@ -10,8 +10,13 @@ import { Check } from "lucide-react";
  * the break at 768px and calls 640-767 "the mobile form with padding around
  * it" — and it is one row that stays one row, so what does not fit goes into
  * `…` rather than wrapping or losing its word ("reduce the number, not the
- * labels"). Measured at `sm`: a Japanese listing sorted by size wrapped the
- * bar onto two rows at 640px and stayed wrapped to 690.
+ * labels").
+ *
+ * Measured at `sm`, by bisection in Chromium with a coarse pointer: a
+ * Japanese listing sorted by size wraps onto two rows at every width from
+ * 640 through 656 and is one row from 658 up. (An earlier version of this
+ * line said "to 690", which was an interpolation between two measured
+ * points, 640 and 700, with nothing sampled between them.)
  *
  * Stated as data, not left to a reader of the class list. jsdom computes no
  * layout, and reading a class list for the literal token `hidden` is not a
@@ -104,10 +109,15 @@ export function ToolbarMenu({
         aria-label={value === label ? label : `${label}: ${value}`}
         aria-haspopup="menu"
         aria-expanded={open}
-        // `min-h-11`, not a hit-area overhang: these sit shoulder to
-        // shoulder on the bar, and DESIGN.md §Row Actions says adjacent
-        // pseudo-elements overlap with the later one winning, so every
-        // control would keep less than it looks like it has.
+        // `min-h-11`, not a hit-area overhang, and the reason is this bar's
+        // own arithmetic rather than a rule quoted from elsewhere: `gap-2`
+        // is 8px, `Button`'s overhang is `-inset-1.5` — 6px on each side, so
+        // 12px between neighbours — and two of them would overlap, the later
+        // one winning the hit test. DESIGN.md §Row Actions describes that
+        // mechanism, but it *prescribes* the overhang and scopes its warning
+        // to a shorter pitch than this, on controls repeated once per row.
+        // These are one-offs on a toolbar. Growing the box is simply the
+        // simpler thing here.
         className="flex items-center gap-1.5 rounded-2xl border border-bg-border bg-bg-card px-3 py-2 text-sm text-text-muted transition-colors hover:text-text-primary pointer-coarse:min-h-11"
       >
         <Icon size={16} />
