@@ -89,6 +89,18 @@ function isRestingAccentFill(token: string): boolean {
 }
 
 export function accentFills(root: HTMLElement): HTMLElement[] {
+  // A budget assertion against an empty tree is a green test that measured
+  // nothing, and it reads exactly like one that measured a screen. Replacing
+  // two screen assertions with `expect(accentFills(document.createElement("div")))
+  // .toHaveLength(0)` left the whole suite green and the coverage table
+  // satisfied, so the emptiness is refused here rather than trusted at each
+  // call site.
+  if (root.querySelectorAll("*").length === 0) {
+    throw new Error(
+      "accentFills: the root holds no elements — nothing was rendered, so " +
+        "counting fills proves nothing",
+    );
+  }
   return [...root.querySelectorAll<HTMLElement>("[class]")].filter((el) =>
     // `getAttribute`, not `el.className`: on an SVG element `className` is
     // an `SVGAnimatedString`, whose `toString()` is the literal

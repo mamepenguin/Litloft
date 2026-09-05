@@ -2,6 +2,7 @@ import { describe, it, expect, vi, afterEach, beforeEach } from "vitest";
 import { render, cleanup, screen, fireEvent } from "@testing-library/react";
 import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
+import { stripComments } from "./helpers/sourceScan";
 
 import { FolderToolbar } from "@/components/folder/FolderToolbar";
 import { RootFileListing } from "@/components/RootFileListing";
@@ -127,9 +128,17 @@ const folderProps = {
  * in a second place is how two copies of a screen's setup start
  * disagreeing — `TrashView` alone needs eight. **A list of screens is
  * prose unless something checks it**, so this is a table rather than a
- * comment: each entry names a file, and that file must reach for
- * `accentFills`. An earlier draft was a bare array of names, which could
- * be shortened by deleting a string.
+ * comment: each entry names a file, and that file must pass `accentFills`
+ * to an `expect`, and must not have disabled itself with `.skip` or
+ * narrowed itself with `.only`.
+ *
+ * **What this cannot prove.** It reads source; it does not watch the
+ * assertion run. A named file that keeps the call but renders the wrong
+ * thing satisfies it. The one hole that was demonstrated — an assertion
+ * against a freshly created `<div>` — is closed inside `accentFills`,
+ * which now refuses an empty root. The rest is what review is for, and
+ * saying so here is cheaper than a claim that reads stronger than the
+ * check.
  *
  * Ask, Find and Media Import are absent and are not omissions: they are
  * addon-owned pages, `frontend/src/addons/*` are gitignored symlinks that
@@ -245,11 +254,15 @@ describe("accent budget", () => {
     ]);
     const root = resolve(__dirname, "..", "..");
     for (const { screen: name, assertedIn } of SCREENS) {
-      const source = readFileSync(resolve(root, assertedIn), "utf8");
+      const source = stripComments(readFileSync(resolve(root, assertedIn), "utf8"));
       expect(
-        source.includes("accentFills"),
-        `${name}: ${assertedIn} does not reach for accentFills`,
+        /expect\(\s*accentFills\(/.test(source),
+        `${name}: ${assertedIn} never passes accentFills to an expect`,
       ).toBe(true);
+      expect(
+        /\.(skip|only)\s*\(/.test(source),
+        `${name}: ${assertedIn} disables or narrows its own tests`,
+      ).toBe(false);
     }
   });
 
