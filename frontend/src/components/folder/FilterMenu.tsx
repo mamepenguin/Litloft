@@ -1,6 +1,6 @@
 "use client";
 
-import { useId, useState } from "react";
+import { useId, useRef, useState } from "react";
 import { Check, Filter } from "lucide-react";
 import { useTranslations } from "next-intl";
 
@@ -45,6 +45,7 @@ export function FilterMenu({
 }: FilterMenuProps) {
   const [open, setOpen] = useState(false);
   const headingId = useId();
+  const triggerRef = useRef<HTMLButtonElement>(null);
   const t = useTranslations("toolbar");
   const tFilter = useTranslations("filter");
   const tTrust = useTranslations("trustTier");
@@ -63,16 +64,29 @@ export function FilterMenu({
   // named after a filter it offers no way to clear.
   const showTrust = onTrustFilterChange !== undefined;
   const activeLabels = [
-    typeFilter !== null ? tFilter(activeType?.labelKey ?? "type.all") : null,
+    // A kind outside the table falls back to itself, not to "All": naming
+    // the neutral option while the listing is narrowed is the one way this
+    // button can state the opposite of what is happening. Unreachable from a
+    // URL (`search/page.tsx` validates against the same table), reachable
+    // from an old persisted snapshot.
+    typeFilter !== null
+      ? activeType
+        ? tFilter(activeType.labelKey)
+        : typeFilter
+      : null,
     showTrust && trustFilter ? tTrust(activeTrust?.labelKey ?? "filterAll") : null,
   ].filter(Boolean) as string[];
   const isFiltering = activeLabels.length > 0;
 
-  const close = () => setOpen(false);
+  const close = () => {
+    setOpen(false);
+    triggerRef.current?.focus();
+  };
 
   return (
     <div className="relative">
       <button
+        ref={triggerRef}
         onClick={() => setOpen((s) => !s)}
         // The name always begins with the word, and carries the values
         // after it. Without the prefix this control answers to "Audio"
@@ -109,6 +123,16 @@ export function FilterMenu({
           />
           <div
             role="menu"
+            // The only way out was the scrim, which is a mouse gesture.
+            // Arrow-key roving is the rest of the APG menu contract and is
+            // not here yet; Escape is the part whose absence leaves a
+            // keyboard user with no exit at all.
+            onKeyDown={(e) => {
+              if (e.key === "Escape") {
+                e.stopPropagation();
+                close();
+              }
+            }}
             className="fixed inset-x-2 bottom-4 z-40 max-h-[60vh] overflow-y-auto rounded-2xl border border-bg-border bg-bg-primary py-1 shadow-lg animate-fade-in-scale sm:absolute sm:inset-x-auto sm:bottom-auto sm:right-0 sm:top-full sm:mt-1 sm:max-h-[70vh] sm:min-w-[200px] sm:origin-top-right"
           >
             {/* `role="group"` + `aria-labelledby`: a `role="menu"` publishes
@@ -121,6 +145,10 @@ export function FilterMenu({
             <div role="group" aria-labelledby={`${headingId}-type`}>
               <p
                 id={`${headingId}-type`}
+                // Named by, not read twice: `aria-labelledby` resolves a
+                // hidden element, so the group keeps its name while the
+                // paragraph stops being announced after it.
+                aria-hidden="true"
                 className="px-3 py-1.5 text-xs font-semibold text-text-muted"
               >
                 {t("fileType")}
@@ -149,10 +177,16 @@ export function FilterMenu({
             </div>
 
             {showTrust && (
-              <div role="group" aria-labelledby={`${headingId}-trust`}>
+              <>
+                {/* Outside the group, not its first child. It separates the
+                    two groups, and inside one the reader hears "verification
+                    group, separator" as though the group itself were being
+                    divided. */}
                 <div className="my-1 border-t border-bg-border" role="separator" />
+                <div role="group" aria-labelledby={`${headingId}-trust`}>
                 <p
                   id={`${headingId}-trust`}
+                  aria-hidden="true"
                   className="px-3 py-1.5 text-xs font-semibold text-text-muted"
                 >
                   {tTrust("filterLabel")}
@@ -190,7 +224,8 @@ export function FilterMenu({
                     </span>
                   </button>
                 ))}
-              </div>
+                </div>
+              </>
             )}
           </div>
         </>

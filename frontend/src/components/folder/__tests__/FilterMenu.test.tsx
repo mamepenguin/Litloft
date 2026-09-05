@@ -242,4 +242,87 @@ describe("FilterMenu", () => {
       "sm:origin-top-right",
     ]);
   });
+
+  it("keeps both of the trigger's recipes, resting and filtering", () => {
+    // The menu's class list is a constant, so pinning it guards nothing that
+    // can vary. The *trigger* is where the branch is, and swapping its two
+    // arms — filtering looking idle, idle looking filtered — passed every
+    // test in this file.
+    const RESTING = [
+      "flex", "items-center", "gap-1.5", "rounded-2xl", "border", "px-3",
+      "py-2", "text-sm", "transition-colors",
+      "border-bg-border", "bg-bg-card", "text-text-muted",
+      "hover:text-text-primary",
+    ];
+    const FILTERING = [
+      "flex", "items-center", "gap-1.5", "rounded-2xl", "border", "px-3",
+      "py-2", "text-sm", "transition-colors",
+      "border-bg-border", "bg-bg-elevated", "text-text-primary", "font-medium",
+    ];
+    const classes = () =>
+      (trigger().getAttribute("class") ?? "").split(/\s+/).filter(Boolean);
+
+    const { rerender } = render(<FilterMenu {...base} />);
+    expect(classes()).toEqual(RESTING);
+    rerender(<FilterMenu {...base} typeFilter="audio" />);
+    expect(classes()).toEqual(FILTERING);
+  });
+
+  it("marks every row as a radio, not only the one that is on", () => {
+    // `aria-checked` is required on every `menuitemradio`; a row missing it
+    // stops being a radio to assistive technology. Asserting only the
+    // checked ones cannot see that.
+    render(
+      <FilterMenu
+        {...base}
+        typeFilter="image"
+        trustFilter="verified"
+        onTrustFilterChange={vi.fn()}
+      />,
+    );
+    fireEvent.click(trigger());
+    expect(screen.getAllByRole("menuitemradio", { checked: true })).toHaveLength(2);
+    expect(screen.getAllByRole("menuitemradio", { checked: false })).toHaveLength(10);
+  });
+
+  it("puts the rule between the two groups, not inside one", () => {
+    // Inside, a reader hears "verification group, separator" as though the
+    // group were being divided rather than separated from what precedes it.
+    render(<FilterMenu {...base} trustFilter={null} onTrustFilterChange={vi.fn()} />);
+    fireEvent.click(trigger());
+    const menu = screen.getByRole("menu");
+    const rule = menu.querySelector('[role="separator"]')!;
+    expect(rule.parentElement).toBe(menu);
+    expect(rule.closest('[role="group"]')).toBeNull();
+  });
+
+  it("does not read a group's own heading back as its content", () => {
+    render(<FilterMenu {...base} trustFilter={null} onTrustFilterChange={vi.fn()} />);
+    fireEvent.click(trigger());
+    for (const g of screen.getAllByRole("group")) {
+      const heading = document.getElementById(g.getAttribute("aria-labelledby")!)!;
+      expect(heading).toHaveAttribute("aria-hidden", "true");
+    }
+    // The name survives being hidden: `aria-labelledby` resolves it anyway.
+    expect(screen.getAllByRole("group", { name: "File type" })).toHaveLength(1);
+  });
+
+  it("lets a keyboard out", () => {
+    // The only exit was the scrim, which is a mouse gesture.
+    render(<FilterMenu {...base} />);
+    fireEvent.click(trigger());
+    fireEvent.keyDown(screen.getByRole("menu"), { key: "Escape" });
+    expect(screen.queryByRole("menu")).not.toBeInTheDocument();
+    expect(document.activeElement).toBe(trigger());
+  });
+
+  it("names an unknown kind after itself, never after All", () => {
+    // Naming the neutral option while the listing is narrowed is the one
+    // way this button can state the opposite of what is happening.
+    // @ts-expect-error a kind outside the table, as an old snapshot holds
+    render(<FilterMenu {...base} typeFilter="bogus" />);
+    expect(trigger()).toHaveAccessibleName("Filter: bogus");
+    fireEvent.click(trigger());
+    expect(screen.queryAllByRole("menuitemradio", { checked: true })).toHaveLength(0);
+  });
 });

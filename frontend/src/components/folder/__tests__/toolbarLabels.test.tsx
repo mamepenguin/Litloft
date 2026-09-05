@@ -60,10 +60,34 @@ const props = {
  * sits on it wordless. Demonstrated: an `<a>` with an icon and no text was
  * added and every test passed.
  */
-const PRESSABLE = "button, a, [role=button], [role=menuitem], summary";
+const PRESSABLE = [
+  "button",
+  "a",
+  "input",
+  "label",
+  "summary",
+  "[tabindex]",
+  "[role=button]",
+  "[role=link]",
+  "[role=switch]",
+  "[role=tab]",
+  "[role=checkbox]",
+  "[role=option]",
+  // `^=`, not `=`: this PR's own rows are `menuitemradio`, and an exact
+  // attribute match let seven of eight shapes through — including the one
+  // role the PR had just started using, while listing the one it had
+  // stopped using.
+  "[role^=menuitem]",
+].join(", ");
 
 function wordless(root: HTMLElement): string[] {
   return [...root.querySelectorAll<HTMLElement>(PRESSABLE)]
+    // A file input is a mechanism, never the control: `AddButton` keeps two
+    // of them hidden and clicks them from a menu row. The row is what a
+    // reader presses and the row is what this scan is about. Widening the
+    // selector to `input` surfaced them, which is the scan working — they
+    // are named here rather than left to widen the expected list.
+    .filter((b) => !(b instanceof HTMLInputElement && b.type === "file"))
     .filter((b) => (b.textContent ?? "").trim() === "")
     .map((b) => b.getAttribute("aria-label") ?? "(no accessible name)");
 }
@@ -94,10 +118,26 @@ describe("the folder toolbar's wordless controls", () => {
     expect([...new Set(wordless(container))]).toEqual(["More actions"]);
   });
 
-  it("looks at everything pressable, not only <button>", () => {
+  it.each([
+    ["a", { href: "#" }],
+    ["div", { role: "button", tabindex: "0" }],
+    ["div", { role: "switch", tabindex: "0" }],
+    ["div", { role: "tab", tabindex: "0" }],
+    ["div", { role: "checkbox", tabindex: "0" }],
+    ["div", { role: "menuitemradio", tabindex: "0" }],
+    // No `tabindex`, so only the role catches it — and `[role=menuitem]`
+    // does not match `menuitemradio`, which is the role this PR's own rows
+    // use. The exact-match version listed the role the code had stopped
+    // using and missed the one it had started using.
+    ["div", { role: "menuitemradio" }],
+    ["div", { tabindex: "0" }],
+    ["input", { type: "button", value: "" }],
+    ["label", {}],
+  ])("sees a wordless <%s %s>", (tag, attrs) => {
+    // Eight of these nine walked past the first version of the selector.
     const { container } = render(<FolderToolbar {...props} />);
-    const stray = document.createElement("a");
-    stray.setAttribute("href", "#");
+    const stray = document.createElement(tag);
+    for (const [k, v] of Object.entries(attrs)) stray.setAttribute(k, v as string);
     stray.appendChild(document.createElement("svg"));
     container.querySelector("div")!.appendChild(stray);
     expect(wordless(container)).toContain("(no accessible name)");
