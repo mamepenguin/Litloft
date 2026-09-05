@@ -790,9 +790,9 @@ Addons can inject UI components into predefined **slots** in the core applicatio
 | `dashboard-widgets` | Admin dashboard | Cards | Index statistics, cloud sync status |
 | `dashboard-alerts` | Admin dashboard, above the drive cards | Stack | Something is wrong and an operator should see it before anything else — a queue of failed jobs, a provider that stopped answering. Render nothing when there is nothing wrong: the host draws no wrapper and no heading, so an entry that always renders is a permanent band above the page. |
 | `folder-actions-menu` | Inside the folder toolbar's **Add** menu, under a separator below the core's own rows | Stack of menu rows | Anything that puts something into the current folder — a batch of AI-written tags, an import from a URL. Receives `{ drive, fileIds, path }` plus the reserved `onRequestClose`, and draws `ActionMenuItem` rows under the same contract as `file-actions-menu`. |
-| `folder-actions` | Folder toolbar, beside the Add menu | Inline buttons | **Superseded by `folder-actions-menu`.** The toolbar keeps one accent-filled control (`DESIGN.md` §2.2) and this slot draws a second button next to it. Entries still render, so nothing breaks while an addon is on the old id; move by changing the id your manifest declares, and the standalone button disappears when the slot comes out empty. |
+| ~~`folder-actions`~~ | — | — | **Removed.** It drew a second button beside `Add`, which cost the folder toolbar a control it does not have room for — measured, it wrapped the bar onto two rows between 768 and 785px. Use `folder-actions-menu`. |
 | `file-actions-menu` | The `[...]` overflow menu on the file detail page | Stack of menu rows | Per-file actions too infrequent to deserve a section of their own. See [Contributing to the file actions menu](#contributing-to-the-file-actions-menu) — entries have extra obligations. |
-| `file-detail-actions` | The file detail page's primary action row, between the state controls and the `[...]` menu | Inline buttons | Per-file actions that deserve to be reachable in one press rather than through the overflow menu — the file counterpart of `folder-actions`. See [Contributing to the file action row](#contributing-to-the-file-action-row). |
+| `file-detail-actions` | The file detail page's primary action row, between the state controls and the `[...]` menu | Inline buttons | Per-file actions that deserve to be reachable in one press rather than through the overflow menu — the file counterpart of `folder-actions-menu`. See [Contributing to the file action row](#contributing-to-the-file-action-row). |
 | `sidebar-sections` | Sidebar | Stack | Per-addon shortcuts |
 | `loft-player` | File detail (external-source files) | Stack | Embedded player for URL-only files |
 | `active-summary-view` | File detail | Stack | Knowledge-promoted summary note rendering. Hidden when no addon registers — file detail page falls back to the AI summary section. |
@@ -1378,7 +1378,7 @@ For the full design and the broader rationale, see `docs/superpowers/specs/2026-
 | `drive-home-sections` | `pickup` | Recommended files widget on the drive home page |
 | `dashboard-widgets` | `index-status` | Index queue depth and model memory |
 | `dashboard-alerts` | `failed-jobs` | The failed-jobs warning band, above the drive cards. Absent when nothing has failed. |
-| `folder-actions` | `folder-ai-actions` | Batch AI actions button (auto-tags, summaries, transcript refine) |
+| `folder-actions-menu` | `folder-ai-actions` | Batch AI actions, as rows of the folder toolbar's **Add** menu (auto-tags, summaries, image descriptions) |
 | `file-detail-actions` | `file-ai-actions` | The **AI** menu beside the like and favourite buttons. Lists only what this file does not have yet (tag candidates, summary, detailed summary, chapter candidates, image description); each entry disappears once its section has content, and the button hides itself when nothing is left to offer |
 | `admin-intelligence-sections` | `admin-features` | Feature toggle panel on the intelligence admin page |
 | `admin-intelligence-sections` | `admin-llm` | LLM provider configuration panel |

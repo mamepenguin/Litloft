@@ -78,18 +78,23 @@ describe("FolderToolbar", () => {
     addonSlotProps.length = 0;
   });
 
-  // The standalone `folder-actions` slot is superseded by the rows
-  // `AddButton` draws from `folder-actions-menu`, and it is deliberately
-  // still here: an addon moves by changing the id its manifest declares,
-  // and until it does, deleting this would take its entry point away. It
-  // renders nothing once no manifest names it, so the removal is not
-  // urgent — but it must not happen by accident either.
-  it("still offers the superseded folder-actions slot at both widths", () => {
+  it("offers addons the menu, and no longer a place on the bar", () => {
+    // `folder-actions` drew a second button beside `Add` — a control this
+    // bar has no room for, measured wrapping it onto two rows between 768
+    // and 785px. `folder-actions-menu` is the way in.
+    //
+    // The menu is opened first, because the slot is only asked for once it
+    // is. Without that, `addonSlotIds` is empty and the second assertion
+    // is true of nothing — which left the half of this test's name about
+    // the menu unearned, and deleting `addonProps` from the `AddButton`
+    // call passed it.
     render(<FolderToolbar {...defaultProps} />);
-    // Both call sites, counted. `toContain` was satisfied by either one
-    // alone, so deleting the desktop half — the main viewport, and the one
-    // an addon's users would actually notice — passed the whole suite.
-    expect(addonSlotIds.filter((id) => id === "folder-actions")).toHaveLength(2);
+    screen
+      .getAllByRole("button", { name: "Add" })
+      .forEach((b) => fireEvent.click(b));
+    expect(addonSlotIds).not.toContain("folder-actions");
+    expect(addonSlotIds).toContain("folder-actions-menu");
+    expect(addonSlotIds.every((id) => id === "folder-actions-menu")).toBe(true);
   });
 
   // The point of the PR: the Add menu's addon rows. Removing `addonProps`

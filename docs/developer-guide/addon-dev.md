@@ -43,7 +43,7 @@ ADDON_META = {
     "scope": "drive",                 # drive | global | both
     "label": "My addon",
     "icon": "puzzle",
-    "slots": ["file-detail-sections", "folder-actions"],
+    "slots": ["file-detail-sections", "folder-actions-menu"],
     "features": {
         "transcription_cloud": True,
         "rag": True,
@@ -157,7 +157,7 @@ When you add a new internal endpoint, add the contract test in the same PR.
 
 ## Slot contributions
 
-Litloft's frontend hosts named slots (`search-modes`, `file-detail-sections`, `file-detail-actions`, `dashboard-widgets`, `dashboard-alerts`, `folder-actions`). To contribute:
+Litloft's frontend hosts named slots (`search-modes`, `file-detail-sections`, `file-detail-actions`, `dashboard-widgets`, `dashboard-alerts`, `folder-actions-menu`). To contribute:
 
 1. Declare the slot in your `ADDON_META.slots` array.
 2. Ship the React component under `addons/<name>/frontend/`.

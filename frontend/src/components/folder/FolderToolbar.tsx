@@ -17,7 +17,6 @@ import { AddButton } from "@/components/AddButton";
 import { FilterMenu } from "./FilterMenu";
 import { Button } from "@/components/Button";
 import { useViewModeState } from "@/components/viewMode";
-import { AddonSlot } from "@/components/AddonSlot";
 import { BAR_WIDE, MENU_SURFACE, MenuSeparator } from "./ToolbarMenu";
 import { SortGroup, SortMenu } from "./SortMenu";
 import { ViewGroup, ViewMenu } from "./ViewMenu";
@@ -211,34 +210,24 @@ export function FolderToolbar({
 
   return (
     <>
-      {/* Below 768px: left actions + AddonSlot in normal flow (not sticky),
-          so the sticky bar stays one row. Always rendered so AddonSlot
-          appears in the left group there even when hideMutatingActions is
-          true.
+      {/* Below 768px: the left actions in normal flow (not sticky), so the
+          sticky bar stays one row.
 
           `md`, not `sm`, and the same 768 the arranging menus use.
           `00-basis.md` calls 640-767 the mobile form with padding around it,
           and the bar has to hold to the same rule across the whole of it —
           measured, the left group on the bar at 640 wrapped it as soon as
-          the New Folder field opened, and again once an addon held the
-          `folder-actions` slot. One breakpoint for what leaves the bar is
-          also simply easier to reason about than two. */}
+          the New Folder field opened. One breakpoint for what leaves the
+          bar is also simply easier to reason about than two. */}
       <div className="flex flex-wrap items-center gap-2 px-4 py-1 md:hidden">
         {leftActions}
-        {/* The standalone form of the addon slot, superseded by the rows
-            `AddButton` draws from `folder-actions-menu`. It is still
-            rendered so an addon that has not moved yet keeps its entry
-            point; an addon moves by changing which id its manifest
-            declares, and this renders nothing once the old slot is empty.
-            Delete the two call sites when no manifest names it. */}
-        <AddonSlot id="folder-actions" layout="stack" props={{ fileIds, drive, path: folderPath ?? "" }} />
         {createFolderRow}
       </div>
 
       {/* Sticky control bar.
-          - Mobile: right-side controls only (sort/view/filter/more/count).
-            Left actions + AddonSlot scroll away in the normal-flow row above.
-          - From 768: left actions + AddonSlot + right controls in one row.
+          - Below 768: right-side controls only (view/sort/filter/more).
+            The left actions scroll away in the normal-flow row above.
+          - From 768: left actions + right controls in one row.
           Must be a direct child of the flex column containing block so that
           sticky has sufficient height to actually stick.
           z-20 matches the Header so that FilterField's absolute search icon
@@ -250,11 +239,6 @@ export function FolderToolbar({
             {leftActions}
           </div>
         )}
-
-        {/* Desktop only: the superseded `folder-actions` slot (see above) */}
-        <div className="hidden md:block">
-          <AddonSlot id="folder-actions" layout="stack" props={{ fileIds, drive, path: folderPath ?? "" }} />
-        </div>
 
         {/* The wrapper takes the slack the spacer would have taken, and the
             link is an item inside it — `flex` on this div, which is what

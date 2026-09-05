@@ -264,9 +264,9 @@ ever written to the attribute.
   counts, so the rule fails a build rather than a review. It counts **the
   core's own fills**: addon slots are stubbed there, so a control an addon
   contributes to a core screen spends from the same budget without being
-  seen. That is true of the folder toolbar today, where `folder-actions`
-  still draws beside the Add menu — the entry there happens to be
-  bordered, which is luck rather than enforcement.
+  seen. The folder toolbar no longer offers a place on the bar for one —
+  its addon rows are inside the `Add` menu — but other screens do, and
+  what an addon draws there is its choice rather than this rule's.
   **Addon-owned screens count their own**, in their own repository's
   tests, because that is where both the components and the tests live.
   Ask and Find are accent-filled today

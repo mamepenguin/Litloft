@@ -66,7 +66,7 @@
 |---|---|---|
 | DEV-01 | `developer-guide/architecture.md` の「全体構成」セクション（既存 ASCII アートを置換） | ブラウザ → Custom Server (:3000) → Backend (:8000) の経路図に、アドオン群を外側に衛星状に配置したトポロジ図。WebSocket 経路は別色で示す。 |
 | DEV-02 | `developer-guide/architecture.md` の「ファイル状態」セクション（既存 ASCII アートを置換） | ファイル状態の有限状態機械図。REF-01 と類似だが開発者向けに `deleted_at` / `missing_since` カラムの値も併記。 |
-| DEV-03 | `developer-guide/addon-dev.md` の「Slot System」セクション | スロット注入の概念図。1 ページに複数スロット（`search-modes` / `file-detail-sections` / `dashboard-widgets` / `folder-actions`）が並び、それぞれを別のアドオンが埋めている様子をカラーで色分けして示す。 |
+| DEV-03 | `developer-guide/addon-dev.md` の「Slot System」セクション | スロット注入の概念図。1 ページに複数スロット（`search-modes` / `file-detail-sections` / `dashboard-widgets` / `folder-actions-menu`）が並び、それぞれを別のアドオンが埋めている様子をカラーで色分けして示す。 |
 
 ## Reused
 

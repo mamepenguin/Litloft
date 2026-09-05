@@ -12,10 +12,10 @@ import { accentFills } from "./helpers/accentFills";
 
 /**
  * Stubbed, and it costs this file a blind spot worth naming: an addon
- * contributing a control to a core screen spends from the same budget,
- * and the folder toolbar still draws `folder-actions` beside the Add
- * menu. `FolderAIActionsButton` is bordered, so nothing is over budget
- * today — but that is the addon's choice, not this file's guarantee.
+ * contributing a control to a core screen spends from the same budget.
+ * The folder toolbar no longer offers a place on the bar for one, but
+ * other screens do, and what those addons draw is their choice rather
+ * than this file's guarantee.
  *
  * The stub is not a shortcut. `frontend/src/addons/*` is a set of
  * gitignored symlinks into the `addons/*` submodules, materialised by

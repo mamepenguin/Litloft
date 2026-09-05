@@ -225,4 +225,24 @@ describe("AddButton", () => {
       expect(screen.queryByRole("menu")).not.toBeInTheDocument();
     });
   });
+
+  it("caps its own height and scrolls, like the bar's other menus", () => {
+    // This menu grows with the addon rows below the separator, and it is
+    // anchored inside a `sticky` bar — so an uncapped one puts its last
+    // rows past the bottom of the viewport and page scrolling cannot bring
+    // them back, because the menu travels with the bar.
+    //
+    // Measured in Chromium with three addon rows contributed, seven rows
+    // in total: uncapped it is 331px and runs 3px past the fold on a
+    // 852x393 landscape phone. Capped it clamps to 275 there and scrolls.
+    // `MENU_SURFACE` is not reused because it anchors to the right of its
+    // trigger and `Add` is the leftmost control; the height rules are the
+    // part that has to be shared.
+    render(<AddButton />);
+    fireEvent.click(screen.getByRole("button", { name: "Add" }));
+    const classes = [...screen.getByRole("menu").classList];
+    expect(classes).toContain("max-h-[60vh]");
+    expect(classes).toContain("sm:max-h-[70vh]");
+    expect(classes).toContain("overflow-y-auto");
+  });
 });

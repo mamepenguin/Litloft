@@ -413,13 +413,13 @@ describe("what the folder toolbar keeps on the bar", () => {
       if (at) byBreakpoint[at] = (byBreakpoint[at] ?? 0) + 1;
     }
 
-    // Five at one width: `Add`, the addon slot, the name field, and the two
-    // arranging menus. `toEqual` on the whole map, so a control that drifts
-    // to a second breakpoint fails with that breakpoint named rather than
+    // Four at one width: `Add`, the name field, and the two arranging
+    // menus. `toEqual` on the whole map, so a control that drifts to a
+    // second breakpoint fails with that breakpoint named rather than
     // balancing out inside a total.
     const wide = BAR_WIDE.className.replace("hidden ", "").split(":")[0];
     expect(bp(flowRow)).toBe(wide);
-    expect(byBreakpoint).toEqual({ [wide]: 5 });
+    expect(byBreakpoint).toEqual({ [wide]: 4 });
   });
 
   it("draws the name field once per breakpoint, each on a line of its own", () => {
