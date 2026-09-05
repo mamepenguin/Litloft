@@ -3,7 +3,7 @@ import { fileURLToPath } from "node:url";
 import { resolve, dirname } from "node:path";
 import {
   MIGRATION_WINDOWS,
-  PENDING_PRS,
+  PENDING_BUMPS,
   addonOf,
   addonPresent,
   openWindows,
@@ -49,7 +49,7 @@ describe("migration windows", () => {
 
   it("refuses a path declared on the other ledger", () => {
     // The same file can hold a window on each ledger, so asking the wrong one
-    // must not resolve. Four paths are already on both.
+    // must not resolve. Three paths hold one on each.
     expect(() =>
       windowSide(1, "page-headings", PATH, there),
     ).toThrow(/no migration window/);
@@ -69,20 +69,63 @@ describe("migration windows", () => {
   });
 
   it("names a pull request that will actually reach this file", () => {
-    // Three versions of this check. A regex on the shape admitted "A1",
+    // Four versions of this check. A regex on the shape admitted "A1",
     // shipped weeks ago, and "Z9", never planned. A flat list of open PRs
-    // admitted "C3" — knowledge's — on a media_import window. What closes a
-    // window is the PR that moves that addon's pointer, so that is what is
-    // asserted.
+    // admitted "C3" — knowledge's — on a media_import window. The third held
+    // every unlanded PR of the phase, seven of nine with an empty `bumps`,
+    // which no window could name and this loop never reached. What closes a
+    // window is the PR that moves that addon's pointer, so that is the only
+    // thing the list holds.
     for (const [ledger, windows] of Object.entries(MIGRATION_WINDOWS)) {
       for (const [path, w] of Object.entries(windows)) {
         const where = `${ledger}:${path}`;
-        expect(Object.keys(PENDING_PRS), where).toContain(w.closedBy);
+        expect(Object.keys(PENDING_BUMPS), where).toContain(w.closedBy);
         const addon = addonOf(path);
         expect(addon, where).not.toBeNull();
-        expect(PENDING_PRS[w.closedBy].bumps, where).toContain(addon);
+        expect(PENDING_BUMPS[w.closedBy].bumps, where).toContain(addon);
         expect(w.why.length, where).toBeGreaterThan(0);
       }
+    }
+  });
+
+  it("holds exactly these pull requests, and exactly the pointers each moves", () => {
+    // The whole table, not a property of each row. `bumps.length > 0` alone
+    // was the first version and it is a lower bound in a file that enumerates
+    // its other table exactly: it admitted an invented name, admitted a
+    // `bumps` widened to addons the PR does not touch — which widens what
+    // `closedBy` accepts, the one thing this table exists to constrain — and
+    // did not notice an entry disappearing.
+    //
+    // The name says both halves because the second does the work the first
+    // cannot: the key set alone would let the pointers be rewritten.
+    expect(Object.keys(PENDING_BUMPS).sort()).toEqual(["D1", "D5"]);
+    expect([...PENDING_BUMPS.D1.bumps].sort()).toEqual([
+      "intelligence",
+      "knowledge",
+      "media_import",
+    ]);
+    expect([...PENDING_BUMPS.D5.bumps].sort()).toEqual(["intelligence"]);
+  });
+
+  it("gives every entry at least one pointer to move", () => {
+    // The property, kept beside the values rather than inferred from them.
+    //
+    // The two tests separate on whether the pinned expectations were updated
+    // to match, and not on anything about emptiness. The equality catches a
+    // change the pins were not moved for — an added entry, empty or not, is
+    // caught the same way and for the same reason. This one catches an empty
+    // `bumps` whether or not they were moved, which is the case that matters:
+    // an entry with no pointers is unnameable by any `closedBy` and invisible
+    // to `names addons that exist`, so emptying one and correcting its pin in
+    // the same edit would put back the unreachable entry the narrowing exists
+    // to remove.
+    //
+    // An earlier version of the comment above claimed the equality gave this
+    // for free. It drew the line at added-versus-edited, which is not where
+    // it falls: adding an empty entry and accommodating both pins passes the
+    // equality too.
+    for (const [pr, { bumps }] of Object.entries(PENDING_BUMPS)) {
+      expect(bumps.length, pr).toBeGreaterThan(0);
     }
   });
 
@@ -102,19 +145,66 @@ describe("migration windows", () => {
   it("keeps each ledger's windows to itself", () => {
     // Keyed by ledger *then* path, so one file can be mid-migration on both.
     // Keying by path alone made a second entry a duplicate key that `tsc`
-    // rejects — which C2 and C3 need, and C1 happened not to.
-    expect(openWindows("button-adoption", () => true)).toEqual([PATH]);
-    expect(openWindows("page-headings", () => true)).toEqual([
-      "addons/media_import/frontend/Page.tsx",
+    // rejects — which intelligence needs and media_import happened not to.
+    //
+    // Both ledgers in full, sorted, rather than a count or the one path that
+    // differs between them. A count would let a window move from one ledger to
+    // the other unnoticed, which is the whole distinction being asserted.
+    expect(openWindows("button-adoption", () => true).sort()).toEqual(
+      [
+        "addons/intelligence/frontend/AdminEmbeddingSettingsSection.tsx",
+        "addons/intelligence/frontend/AdminFeaturesSettingsSection.tsx",
+        "addons/intelligence/frontend/AdminLLMSettingsSection.tsx",
+        "addons/intelligence/frontend/AdminRAGSettingsSection.tsx",
+        "addons/intelligence/frontend/AdminTranscriptionSettingsSection.tsx",
+        "addons/intelligence/frontend/KnowledgeSaveDialog.tsx",
+        "addons/intelligence/frontend/Page.tsx",
+        "addons/intelligence/frontend/UnverifiedSourceSection.tsx",
+        "addons/intelligence/frontend/pages/find.tsx",
+        "addons/intelligence/frontend/pages/search-compare.tsx",
+        "addons/media_import/frontend/Composer.tsx",
+      ].sort(),
+    );
+    expect(openWindows("page-headings", () => true).sort()).toEqual(
+      [
+        "addons/intelligence/frontend/Page.tsx",
+        "addons/intelligence/frontend/pages/find.tsx",
+        "addons/intelligence/frontend/pages/pickup.tsx",
+        "addons/intelligence/frontend/pages/search-compare.tsx",
+        "addons/media_import/frontend/Page.tsx",
+      ].sort(),
+    );
+  });
+
+  it("declares a path on both ledgers at once", () => {
+    // What makes the ledger-then-path keying load-bearing rather than
+    // hypothetical. While only media_import held windows, the two were
+    // `Page.tsx` and `Composer.tsx` — different names, so keying by path alone
+    // still type-checked and the nesting was carrying nothing. Three paths now
+    // hold a window on each ledger, and keying by path alone is a duplicate
+    // key: `tsc` reports TS1117 once per shared path. That is checked by the
+    // type system on every run, not here; what is held here is the population
+    // it depends on, so a change that empties it cannot pass silently.
+    const onBoth = Object.keys(MIGRATION_WINDOWS["page-headings"]).filter(
+      (path) => path in MIGRATION_WINDOWS["button-adoption"],
+    );
+    expect(onBoth.sort()).toEqual([
+      "addons/intelligence/frontend/Page.tsx",
+      "addons/intelligence/frontend/pages/find.tsx",
+      "addons/intelligence/frontend/pages/search-compare.tsx",
     ]);
   });
 
   it("lets one path hold a window on each ledger, with different answers", () => {
-    // Against a fixture, because the declared map has no such path yet and
-    // C2 is the PR that adds four. The first version of this test asserted
-    // the key names and that each value was an object — it passed with both
-    // ledgers emptied, which is to say it asserted nothing about the property
-    // its name promises.
+    // Against a fixture, because every declared window today runs 1 → 0 and
+    // so cannot show a count resolving *differently* per ledger — the property
+    // this test is named for. That the declared map holds a path on both
+    // ledgers is asserted separately, above. The first version of this test
+    // asserted the key names and that each value was an object; it passed with
+    // both ledgers emptied, which is to say it asserted nothing at all.
+    //
+    // The endpoints below are 1-vs-3 rather than 1-vs-1 for that reason. A
+    // pair matching the declarations would pass whichever ledger resolved it.
     const SHARED = "addons/intelligence/frontend/Page.tsx";
     const fixture = {
       "page-headings": {
@@ -151,19 +241,23 @@ describe("migration windows", () => {
   });
 
   it("cannot be handed a predicate that opens an undeclared window", () => {
-    // `present` filters the declarations; it does not add to them.
-    expect(openWindows("button-adoption", () => true)).toHaveLength(1);
+    // `present` filters the declarations; it does not add to them. The count
+    // is the declared population, so a predicate that invented a path would
+    // have to invent it here too.
+    expect(openWindows("button-adoption", () => true)).toHaveLength(11);
+    expect(openWindows("page-headings", () => true)).toHaveLength(5);
   });
 
   it("names addons that exist", () => {
     // Both hand-written tables — the windows' paths and `bumps` — spell addon
     // directory names, and a typo in either would read as a considered entry
-    // while matching nothing.
+    // while matching nothing. Every `PENDING_BUMPS` entry is reached, because
+    // the test above refuses an entry with no pointers.
     const declared = new Set<string>();
     for (const windows of Object.values(MIGRATION_WINDOWS)) {
       for (const path of Object.keys(windows)) declared.add(addonOf(path)!);
     }
-    for (const { bumps } of Object.values(PENDING_PRS)) {
+    for (const { bumps } of Object.values(PENDING_BUMPS)) {
       for (const addon of bumps) declared.add(addon);
     }
     for (const addon of declared) {

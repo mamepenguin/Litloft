@@ -144,7 +144,7 @@ const folderProps = {
  * addon-owned pages, `frontend/src/addons/*` are gitignored symlinks that
  * `setup-addons.sh` materialises, and a core assertion about them passes
  * or fails on what a checkout happens to hold. They are counted in their
- * own repositories, in C1 and C2 — where the work is real, since Ask and
+ * own repositories, in C1 and C2a — where the work is real, since Ask and
  * Find are accent-filled today (`intelligence/frontend/Page.tsx`,
  * `pages/find.tsx`).
  */
