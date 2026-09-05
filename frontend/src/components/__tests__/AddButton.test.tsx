@@ -12,12 +12,13 @@ const slotEntries = { current: 0 };
  * off for this drive still declares the slot and still renders nothing
  * (`.claude/rules/design-decisions.md`, Addons: scope and policy).
  */
-const slotDraws = { current: true };
+const slotDraws = { current: true as boolean | "whitespace" };
 const addonSlotCalls: Array<Record<string, unknown>> = [];
 
 vi.mock("@/components/AddonSlot", () => ({
   AddonSlot: (props: Record<string, unknown>) => {
     addonSlotCalls.push(props);
+    if (slotDraws.current === "whitespace") return <>{" "}</>;
     return slotDraws.current ? <button role="menuitem">addon row</button> : null;
   },
 }));
@@ -135,13 +136,32 @@ describe("AddButton", () => {
       // `empty:hidden` removes both at once. jsdom loads no stylesheet, so
       // this asserts the mechanism — an empty box carrying that class —
       // rather than the pixels.
+      //
+      // `:empty`, not `childElementCount`. They are not the same predicate:
+      // CSS counts *nodes*, so a text node keeps a box non-empty while
+      // `childElementCount` still reads 0. Asserted the way the browser
+      // decides, or this test cannot tell the working case from the broken
+      // one (jsdom's nwsapi implements `:empty` to the CSS 3 definition).
       slotEntries.current = 1;
       slotDraws.current = false;
       render(<AddButton addonProps={{ drive: "d" }} />);
       open();
       expect(screen.queryByText("addon row")).not.toBeInTheDocument();
-      expect(rule()!.childElementCount).toBe(0);
+      expect(rule()!.matches(":empty")).toBe(true);
       expect(rule()!.className.split(/\s+/)).toContain("empty:hidden");
+    });
+
+    it("cannot take the rule away from an entry that renders whitespace", () => {
+      // The boundary of the CSS mechanism, asserted so it is a known
+      // property rather than a surprise: `:empty` is about nodes, and a
+      // literal `{" "}` is a node. `docs/ADDON-DEVELOPMENT.md` tells
+      // entries to return `null`; this is what the other choice costs.
+      slotEntries.current = 1;
+      slotDraws.current = "whitespace";
+      render(<AddButton addonProps={{ drive: "d" }} />);
+      open();
+      expect(rule()!.childElementCount).toBe(0);
+      expect(rule()!.matches(":empty")).toBe(false);
     });
 
     it("keeps the rule out of the menu's role tree", () => {

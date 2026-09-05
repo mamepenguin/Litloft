@@ -7,12 +7,17 @@ import type { FileItem } from "@/types";
 
 /**
  * Stubbed, and it costs this file a blind spot worth naming: an addon
- * contributing a control to one of these screens spends from the same
- * budget, and the folder toolbar still draws `folder-actions` beside the
- * Add menu. No addon fills accent today (`FolderAIActionsButton` is
- * bordered), so what this counts is the core's own fills. Rendering an
- * addon's real component here would mean core tests importing addon code,
- * which the load order does not allow.
+ * contributing a control to a core screen spends from the same budget,
+ * and the folder toolbar still draws `folder-actions` beside the Add
+ * menu. `FolderAIActionsButton` is bordered, so nothing is over budget
+ * today — but that is the addon's choice, not this file's guarantee.
+ *
+ * The stub is not a shortcut. `addons/` is a set of gitignored symlinks
+ * that CI materialises with `setup-addons.sh`, so a core assertion about
+ * an addon's pixels would pass or fail on which addons a checkout
+ * happens to hold — the failure `button-adoption.test.ts` was already
+ * fixed for once. Addon-owned screens are counted in the addon's own
+ * repository instead.
  */
 vi.mock("@/components/AddonSlot", () => ({ AddonSlot: () => null }));
 
@@ -75,30 +80,57 @@ function playableFile(): FileItem {
  *
  * **A fill at rest, not the token.** `bg-accent/10` is a tint behind a
  * hovered row and `bg-accent-teal` is a different colour, so neither is
- * this utility at all. Of the utility itself, what is excluded is a fill
- * that only paints in a transient *state* — `hover:`, `focus:`,
- * `active:`, `disabled:` and their kin. **Responsive and theme variants
- * are not excluded**: `sm:bg-accent` paints at rest on every desktop
- * width, which is the width this toolbar is designed at, and an earlier
- * draft of this rule waved it through by excluding every prefixed token
- * on the grounds that prefixed fills "only paint under a pointer" —
- * true of `hover:`, false of `sm:` and `dark:`.
+ * this utility at all. Of the utility itself, the only thing excluded is
+ * a fill that needs an ongoing interaction to be visible at all.
+ *
+ * **The exclusion is a closed set of five pointer/keyboard states, not a
+ * list of variants to skip**, and that shape is the point. A skip-list
+ * fails towards a *missed* second fill, and this detector's cheap error
+ * is the other one — a false positive costs a review comment, a false
+ * negative ships the thing the rule exists to prevent. Two drafts of it
+ * were wrong in the expensive direction: the first excluded every
+ * prefixed token ("they only paint under a pointer" — true of `hover:`,
+ * false of `sm:` and `dark:`), and the second still skipped `enabled:`,
+ * `visited:`, `target:`, and the whole `aria-` and `data-` families.
+ * Those last two are not pseudo-classes but open prefixes whose common
+ * members are resting states — `aria-selected`, `data-[state=open]` —
+ * so a selected-state fill written that way passed silently, which is
+ * the exact case the paragraph above it in `DESIGN.md` §2.2 is about.
+ * `data-[theme=dark]:` also contradicted that draft's own sentence about
+ * theme variants, since `data-theme` is how this app switches theme
+ * (`globals.css`).
+ *
+ * `disabled:` counts too, deliberately: a disabled control is sitting
+ * there filled, which `DESIGN.md` §6 names as its own defect.
  */
 const ACCENT_FILLS = new Set(["bg-accent", "bg-accent-cta"]);
 
-/**
- * Variants that make a fill conditional on a transient interaction.
- * Anything else — a breakpoint, a colour scheme, `print:` — still paints
- * with the control sitting there untouched.
- */
-const STATE_VARIANTS =
-  /^(hover|focus|focus-visible|focus-within|active|visited|target|disabled|enabled|group-hover|group-focus|peer-hover|peer-focus|aria-|data-)/;
+/** The five states a fill can need an ongoing interaction to be seen in. */
+const INTERACTION_STATES = new Set([
+  "hover",
+  "focus",
+  "focus-visible",
+  "focus-within",
+  "active",
+]);
+
+/** Prefixes that relay one of those from another element, unchanged. */
+const RELAY = /^(group|peer|has|in)-/;
+
+function isInteractionVariant(variant: string): boolean {
+  // An arbitrary value may spell one of these without being one:
+  // `data-[state=active]` is a resting state whose value reads "active".
+  const bare = variant.replace(/\[[^\]]*\]/g, "");
+  // `not-hover:` is deliberately not relayed — it paints when the pointer
+  // is *away*, which is the resting case.
+  return INTERACTION_STATES.has(bare.replace(RELAY, ""));
+}
 
 function isRestingAccentFill(token: string): boolean {
   const parts = token.split(":");
   const utility = parts.pop() ?? "";
   if (!ACCENT_FILLS.has(utility)) return false;
-  return !parts.some((variant) => STATE_VARIANTS.test(variant));
+  return !parts.some(isInteractionVariant);
 }
 
 export function accentFills(root: HTMLElement): HTMLElement[] {
@@ -144,10 +176,18 @@ const folderProps = {
 };
 
 /**
- * The screens under the budget, named here so the set cannot be narrowed
- * by choosing what to render. Phase 3 B2c adds the remaining five — Trash,
- * Missing, a collection, Ask and Find — plus Media Import in C1, and the
- * list is the record of that.
+ * The **core** screens under the budget, named here so the set cannot be
+ * narrowed by choosing what to render. Phase 3 B2c adds the three that
+ * are left — Trash, Missing and a collection.
+ *
+ * Ask, Find and Media Import are not on this list and are not omissions:
+ * they are addon-owned pages, and the assertion for them belongs beside
+ * their components, in C1 and C2. An earlier draft of this comment
+ * promised all six from here while the stub two blocks up explained why
+ * three of them could not be reached — a list and its own impossibility
+ * in one file. Ask and Find are accent-filled today
+ * (`addons/intelligence/frontend/Page.tsx`, `pages/find.tsx`), so
+ * whoever writes C2 is inheriting work, not confirming a clean slate.
  *
  * The drive root is here rather than in B2c because it draws the same
  * three controls as the folder toolbar from its own copy of the markup,
@@ -155,6 +195,73 @@ const folderProps = {
  * is not a rule.
  */
 const SCREENS = ["folder toolbar", "drive root"] as const;
+
+/**
+ * The classifier, pinned directly.
+ *
+ * Reaching it only through a rendered screen means the table below is
+ * whatever the screens happen to use, and every wrong entry two earlier
+ * drafts had was a variant no screen used yet.
+ */
+describe("what counts as a fill at rest", () => {
+  const has = (token: string) => {
+    const el = document.createElement("div");
+    el.setAttribute("class", token);
+    const box = document.createElement("div");
+    box.appendChild(el);
+    return accentFills(box).length === 1;
+  };
+
+  it.each([
+    // Plain, and variants that change nothing about being at rest.
+    "bg-accent",
+    "bg-accent-cta",
+    "sm:bg-accent",
+    "dark:bg-accent",
+    "print:bg-accent",
+    // Resting states that earlier drafts skipped. `enabled:` is the
+    // complement of `disabled:` and is this repo's own idiom
+    // (`Button.tsx` writes `enabled:hover:`); `disabled:bg-accent` is the
+    // defect DESIGN.md §6 names; the `aria-`/`data-` families are mostly
+    // selected-state, which §2.2 asks to be a border and not a fill.
+    "enabled:bg-accent",
+    "disabled:bg-accent",
+    "visited:bg-accent",
+    "target:bg-accent",
+    "aria-selected:bg-accent",
+    "aria-current:bg-accent",
+    "aria-pressed:bg-accent",
+    "data-[state=active]:bg-accent",
+    "data-[theme=dark]:bg-accent",
+    // Paints when the pointer is away — the resting half of a hover pair.
+    "not-hover:bg-accent",
+  ])("counts %s", (token) => expect(has(token)).toBe(true));
+
+  it.each([
+    "hover:bg-accent",
+    "focus:bg-accent",
+    "focus-visible:bg-accent",
+    "focus-within:bg-accent",
+    "active:bg-accent",
+    "group-hover:bg-accent",
+    "peer-focus:bg-accent",
+    "group-active:bg-accent",
+    "has-hover:bg-accent",
+    // One interaction anywhere in the chain is enough.
+    "sm:hover:bg-accent",
+    "dark:group-hover:bg-accent",
+  ])("does not count %s", (token) => expect(has(token)).toBe(false));
+
+  it.each([
+    "bg-accent/10",
+    "bg-accent-hover",
+    "bg-accent-teal",
+    "border-accent",
+    "text-accent",
+  ])("does not count %s, which is not this fill at all", (token) =>
+    expect(has(token)).toBe(false),
+  );
+});
 
 describe("accent budget", () => {
   afterEach(cleanup);

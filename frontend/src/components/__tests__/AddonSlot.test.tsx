@@ -226,10 +226,18 @@ describe("AddonSlot — what a layout draws", () => {
     { id: "intelligence-similar", label: "Similar", priority: 20, addonName: "intelligence" },
   ];
 
-  it("stacks every entry at once, with no chrome of its own", () => {
+  it("stacks every entry at once, with no chrome of its own", async () => {
     slotsState.entries = twoEntries;
     const { container } = render(<AddonSlot id="file-detail-sections" layout="stack" />);
     expect(container.querySelectorAll("button")).toHaveLength(0);
+    // *Every* entry, not the first: reading `firstElementChild` alone let a
+    // stack that dropped everything after the first pass this assertion
+    // while the file's other tests caught it — a test whose name outran
+    // what it looked at.
+    await waitFor(() =>
+      expect(screen.getByTestId("rendered-intelligence-similar")).toBeInTheDocument(),
+    );
+    expect(screen.getByTestId("rendered-intelligence-summary")).toBeInTheDocument();
     // A fragment: the entries are the host's own children, which is what
     // lets a menu host keep `menu` → `menuitem` intact.
     expect(container.firstElementChild?.getAttribute("data-testid")).toBe(
