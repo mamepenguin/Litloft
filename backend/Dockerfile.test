@@ -24,5 +24,6 @@ COPY backend/pytest.ini ./
 COPY configure.py ./_repo/configure.py
 COPY docker-compose.override.yml.example ./_repo/docker-compose.override.yml.example
 COPY docker-compose.yml ./_repo/docker-compose.yml
+COPY setup-addons.sh ./_repo/setup-addons.sh
 
 CMD ["pytest", "-v", "--tb=short", "--cov=app", "--cov-report=term-missing"]

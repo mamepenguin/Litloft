@@ -20,6 +20,31 @@ if [ ! -f "$BACKEND_ADDONS/__init__.py" ]; then
   touch "$BACKEND_ADDONS/__init__.py"
 fi
 
+# Remove symlinks for addons that are no longer here.
+#
+# The loop below only ever creates. An addon that is deleted, renamed, or
+# never checked out leaves its link behind pointing at nothing, and the link
+# outlives every later run of this script — `frontend/src/addons/` is
+# gitignored, so nothing else prunes it in a working copy. `frontend/Dockerfile`
+# already does exactly this (`find src/addons -maxdepth 1 -type l -delete`)
+# before rebuilding, which is why an image is never affected and a long-lived
+# checkout is.
+#
+# Only broken links are removed, and only from the two directories this script
+# owns. A link that resolves is left alone even if it points somewhere
+# unexpected: this script's job is to stop lying about what is installed, not
+# to overrule a developer who pointed one somewhere on purpose.
+pruned=0
+for dir in "$BACKEND_ADDONS" "$FRONTEND_ADDONS"; do
+  for link in "$dir"/*; do
+    [ -L "$link" ] || continue
+    [ -e "$link" ] && continue
+    rm "$link"
+    echo "Pruned: ${link#$SCRIPT_DIR/} (target is gone)"
+    pruned=$((pruned + 1))
+  done
+done
+
 linked=0
 
 for addon_dir in "$ADDONS_DIR"/*/; do
@@ -57,4 +82,4 @@ for addon_dir in "$ADDONS_DIR"/*/; do
   fi
 done
 
-echo "Done. $linked symlink(s) created."
+echo "Done. $linked symlink(s) created, $pruned pruned."
