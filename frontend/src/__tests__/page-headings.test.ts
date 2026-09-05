@@ -3,6 +3,7 @@ import { readFileSync, readdirSync, existsSync, statSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { resolve, dirname, relative } from "node:path";
 import { stripComments } from "./helpers/sourceScan";
+import { MIGRATION_WINDOWS, windowSide } from "./helpers/migrationWindows";
 
 /**
  * Every `<h1>` in core and in every addon checked out beside it.
@@ -71,7 +72,10 @@ const NOT_YET_MIGRATED: Record<string, string> = {
   "addons/intelligence/frontend/pages/find.tsx": "PR C2",
   "addons/intelligence/frontend/pages/pickup.tsx": "PR C2",
   "addons/intelligence/frontend/pages/search-compare.tsx": "PR C2",
-  "addons/media_import/frontend/Page.tsx": "PR C1",
+  // Mid-migration: C1 has converted this in the addon repository, and the
+  // pointer here still names the commit before it. `MIGRATION_WINDOWS`
+  // declares both endpoints; D1 bumps the pointer and deletes this line.
+  "addons/media_import/frontend/Page.tsx": "PR C1 (window open until D1)",
 
   // Not a page header at all: the landing panel of the knowledge two-pane
   // view. DESIGN.md's chrome scale does not govern it.
@@ -166,8 +170,16 @@ describe("page headings", () => {
     const EXPECTED_ADDON_HEADINGS: Record<string, number> = {
       "addons/intelligence": 4,
       "addons/knowledge": 2,
-      "addons/media_import": 1,
     };
+    // media_import is crossing: its one heading is `Page.tsx`'s, and whether
+    // this checkout sees it depends on which side of C1 the pinned commit is
+    // on. Both endpoints are declared, and a third value still fails.
+    if (existsSync(resolve(REPO_ROOT, "addons/media_import/frontend"))) {
+      windowSide(
+        perRoot.get("addons/media_import/frontend") ?? 0,
+        "addons/media_import/frontend/Page.tsx",
+      );
+    }
     for (const [root, expected] of Object.entries(EXPECTED_ADDON_HEADINGS)) {
       // The scanned path, not the submodule directory: an uninitialised
       // submodule leaves `addons/<name>/` behind as an empty directory, so
@@ -201,6 +213,10 @@ describe("page headings", () => {
       const abs = resolve(REPO_ROOT, f);
       // An addon that is not checked out is absent, not stale.
       if (f.startsWith("addons/") && !existsSync(abs)) return false;
+      // Nor is one whose window is open: the entry is stale on the far side
+      // of the migration and correct on the near one, and this checkout can
+      // be on either. `MIGRATION_WINDOWS` names the PR that ends that.
+      if (f in MIGRATION_WINDOWS) return false;
       return !existsSync(abs) || !/<h1\b/.test(stripComments(readFileSync(abs, "utf-8")));
     });
     expect(stale).toEqual([]);
