@@ -235,7 +235,7 @@ export const MIGRATION_WINDOWS: Record<
       closedBy: "D1",
       why: "PR C2b converts this section's action button to core's Button",
     },
-      "addons/knowledge/frontend/CaptureBasket.tsx": {
+    "addons/knowledge/frontend/CaptureBasket.tsx": {
       before: 3,
       after: 0,
       closedBy: "D1",

@@ -49,7 +49,7 @@ describe("migration windows", () => {
 
   it("refuses a path declared on the other ledger", () => {
     // The same file can hold a window on each ledger, so asking the wrong one
-    // must not resolve. Three paths hold one on each.
+    // must not resolve. Four paths hold one on each.
     expect(() =>
       windowSide(1, "page-headings", PATH, there),
     ).toThrow(/no migration window/);
