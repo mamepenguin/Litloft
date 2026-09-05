@@ -428,7 +428,8 @@
     "list": "List view",
     "tree": "Tree",
     "treeOn": "Show tree",
-    "treeOff": "Hide tree"
+    "treeOff": "Hide tree",
+    "label": "View"
   },
   "tree": {
     "filterAll": "All",
@@ -492,7 +493,9 @@
     "scanDone": "Rescan finished — {added} added, {recovered} recovered, {missing} missing",
     "scanDoneNoChange": "Rescan finished — nothing changed",
     "scanAlreadyRunning": "This drive is already being rescanned",
-    "scanFailed": "Rescan failed"
+    "scanFailed": "Rescan failed",
+    "pinFolder": "Pin this folder",
+    "unpinFolder": "Unpin this folder"
   },
   "gallery": {
     "imageGallery": "Image gallery",

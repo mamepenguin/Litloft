@@ -250,13 +250,13 @@ describe("FilterMenu", () => {
     // test in this file.
     const RESTING = [
       "flex", "items-center", "gap-1.5", "rounded-2xl", "border", "px-3",
-      "py-2", "text-sm", "transition-colors",
+      "py-2", "text-sm", "transition-colors", "pointer-coarse:min-h-11",
       "border-bg-border", "bg-bg-card", "text-text-muted",
       "hover:text-text-primary",
     ];
     const FILTERING = [
       "flex", "items-center", "gap-1.5", "rounded-2xl", "border", "px-3",
-      "py-2", "text-sm", "transition-colors",
+      "py-2", "text-sm", "transition-colors", "pointer-coarse:min-h-11",
       "border-bg-border", "bg-bg-elevated", "text-text-primary", "font-medium",
     ];
     const classes = () =>

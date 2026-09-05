@@ -2,10 +2,6 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
 import { render, screen, fireEvent, within } from "@testing-library/react";
 import { FolderToolbar } from "../FolderToolbar";
 
-vi.mock("@/components/SortButton", () => ({
-  SortButton: () => <button data-testid="sort-button">Sort</button>,
-}));
-
 const addonSlotIds: string[] = [];
 const addonSlotProps: Array<{ id: string; props: Record<string, unknown> }> = [];
 vi.mock("@/components/AddonSlot", () => ({
@@ -31,6 +27,21 @@ vi.mock("@/components/AddonSlotsProvider", () => ({
 const openAddMenu = () => {
   fireEvent.click(screen.getAllByRole("button", { name: "Add" })[0]);
 };
+
+/**
+ * The sort control on the bar, by its accessible name.
+ *
+ * Not a stand-in. An earlier version of this file mocked `SortButton` and
+ * asserted the stand-in's `data-testid`, which is the shape `toolbarLabels`
+ * records as having hidden a control from a count. `SortMenu` names itself
+ * `Sort: <the order that is on>`, so the prefix finds it at every order —
+ * including the fallback where the order is one this screen does not offer
+ * and the name is the bare word.
+ */
+const sortControl = () => screen.queryByRole("button", { name: /^Sort/ });
+
+/** The rows of the sort menu, which is where reshuffle now lives. */
+const openSortMenu = () => fireEvent.click(sortControl()!);
 
 const defaultProps = {
   isSpecialView: false,
@@ -358,28 +369,39 @@ describe("FolderToolbar", () => {
     expect(screen.getByText("Selection mode")).toBeInTheDocument();
   });
 
-  it("shows reshuffle button when sort is random and onReshuffle is provided", () => {
+  // Reshuffle used to be a bare `⇄` sitting on the bar beside the sort
+  // button, appearing and disappearing as the order changed. It is a row of
+  // the sort menu now — the row that turns the random order on is two lines
+  // above it, and a control that is only meaningful in one of seven states
+  // is not what the bar is for.
+  it("offers reshuffle inside the sort menu when the order is random", () => {
     const onReshuffle = vi.fn();
     render(<FolderToolbar {...defaultProps} sort="random" onReshuffle={onReshuffle} />);
-    expect(screen.getByLabelText("Reshuffle")).toBeInTheDocument();
+    expect(screen.queryByText("Reshuffle")).not.toBeInTheDocument();
+    openSortMenu();
+    expect(screen.getByRole("menuitem", { name: "Reshuffle" })).toBeInTheDocument();
   });
 
-  it("does not show reshuffle button when sort is not random", () => {
+  it("does not offer reshuffle when the order is not random", () => {
     const onReshuffle = vi.fn();
     render(<FolderToolbar {...defaultProps} sort="created_at" onReshuffle={onReshuffle} />);
-    expect(screen.queryByLabelText("Reshuffle")).not.toBeInTheDocument();
+    openSortMenu();
+    expect(screen.queryByText("Reshuffle")).not.toBeInTheDocument();
   });
 
-  it("does not show reshuffle button when onReshuffle is not provided", () => {
+  it("does not offer reshuffle when onReshuffle is not provided", () => {
     render(<FolderToolbar {...defaultProps} sort="random" />);
-    expect(screen.queryByLabelText("Reshuffle")).not.toBeInTheDocument();
+    openSortMenu();
+    expect(screen.queryByText("Reshuffle")).not.toBeInTheDocument();
   });
 
-  it("calls onReshuffle when reshuffle button is clicked", () => {
+  it("calls onReshuffle from the sort menu and closes it", () => {
     const onReshuffle = vi.fn();
     render(<FolderToolbar {...defaultProps} sort="random" onReshuffle={onReshuffle} />);
-    fireEvent.click(screen.getByLabelText("Reshuffle"));
+    openSortMenu();
+    fireEvent.click(screen.getByRole("menuitem", { name: "Reshuffle" }));
     expect(onReshuffle).toHaveBeenCalledTimes(1);
+    expect(screen.queryByRole("menu")).not.toBeInTheDocument();
   });
 
   describe("an empty folder", () => {
@@ -396,10 +418,9 @@ describe("FolderToolbar", () => {
 
     it("puts away the arranging controls", () => {
       render(<FolderToolbar {...empty} />);
-      expect(screen.queryByTestId("sort-button")).not.toBeInTheDocument();
+      expect(sortControl()).not.toBeInTheDocument();
       expect(screen.queryByRole("button", { name: /^Filter/ })).not.toBeInTheDocument();
-      expect(screen.queryByLabelText("Grid view")).not.toBeInTheDocument();
-      expect(screen.queryByLabelText("List view")).not.toBeInTheDocument();
+      expect(screen.queryByRole("button", { name: /^View/ })).not.toBeInTheDocument();
     });
 
     it("keeps the ways of putting something in it", () => {
@@ -422,15 +443,15 @@ describe("FolderToolbar", () => {
       // Subfolders are laid out by the same view toggle. A folder of
       // eight folders and no files is not an empty folder.
       render(<FolderToolbar {...empty} folderCount={8} />);
-      expect(screen.getByTestId("sort-button")).toBeInTheDocument();
-      expect(screen.getByLabelText("Grid view")).toBeInTheDocument();
+      expect(sortControl()).toBeInTheDocument();
+      expect(screen.getByRole("button", { name: /^View/ })).toBeInTheDocument();
     });
 
     it("keeps them all when a filter is what emptied it", () => {
       // Hiding the type chip that produced the empty result would leave
       // the user with no way back to the full listing.
       render(<FolderToolbar {...empty} typeFilter="audio" />);
-      expect(screen.getByTestId("sort-button")).toBeInTheDocument();
+      expect(sortControl()).toBeInTheDocument();
       // Named by what it is filtering by, not by the word "Filter": that is
       // how the control says why the folder looks empty.
       expect(screen.getByRole("button", { name: "Filter: Audio" })).toBeInTheDocument();
@@ -444,19 +465,19 @@ describe("FolderToolbar", () => {
           onTrustFilterChange={vi.fn()}
         />,
       );
-      expect(screen.getByTestId("sort-button")).toBeInTheDocument();
+      expect(sortControl()).toBeInTheDocument();
     });
 
     it("keeps them all when a tag filter is what emptied it", () => {
       render(<FolderToolbar {...empty} tagFilter="recipes" />);
-      expect(screen.getByTestId("sort-button")).toBeInTheDocument();
+      expect(sortControl()).toBeInTheDocument();
     });
 
     it("keeps them all for an empty search", () => {
       // A search that found nothing still needs its sort and its type
       // chip: they are how the query gets widened.
       render(<FolderToolbar {...empty} isSearch />);
-      expect(screen.getByTestId("sort-button")).toBeInTheDocument();
+      expect(sortControl()).toBeInTheDocument();
       expect(screen.getByRole("button", { name: /^Filter/ })).toBeInTheDocument();
     });
 
@@ -464,7 +485,7 @@ describe("FolderToolbar", () => {
       // Callers that never pass folderCount must behave as they did.
       const { folderCount: _ignored, ...withoutCount } = empty;
       render(<FolderToolbar {...withoutCount} />);
-      expect(screen.getByTestId("sort-button")).toBeInTheDocument();
+      expect(sortControl()).toBeInTheDocument();
     });
   });
 

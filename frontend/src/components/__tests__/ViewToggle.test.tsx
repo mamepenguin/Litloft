@@ -135,11 +135,14 @@ describe("where ViewToggle is used", () => {
   }
 
   it("appears on exactly the screens its comment names", () => {
+    // Five, not six. The folder toolbar left in Phase 3 B2b-2b: two adjacent
+    // icons that only a border told apart became one control reading
+    // `View: <layout>`, which is what took the last unlabelled icons but `…`
+    // off that bar. The other five keep the toggle.
     expect(callSites()).toEqual([
       "components/CollectionDetail.tsx",
       "components/RootFileListing.tsx",
       "components/archive/ArchiveToolbar.tsx",
-      "components/folder/FolderToolbar.tsx",
       "components/missing/MissingView.tsx",
       "components/trash/TrashToolbar.tsx",
     ]);

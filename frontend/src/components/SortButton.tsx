@@ -4,28 +4,7 @@ import { useState } from "react";
 import { ArrowDownUp, Check } from "lucide-react";
 import { useTranslations } from "next-intl";
 import type { SortField, SortOrder } from "@/types";
-
-interface SortOption {
-  labelKey: string;
-  sort: SortField;
-  order: SortOrder;
-}
-
-const RELEVANCE_OPTION: SortOption = {
-  labelKey: "relevance",
-  sort: "relevance",
-  order: "desc",
-};
-
-const baseSortOptions: SortOption[] = [
-  { labelKey: "newestFirst", sort: "created_at", order: "desc" },
-  { labelKey: "oldestFirst", sort: "created_at", order: "asc" },
-  { labelKey: "titleAZ", sort: "title", order: "asc" },
-  { labelKey: "titleZA", sort: "title", order: "desc" },
-  { labelKey: "sizeLargest", sort: "file_size", order: "desc" },
-  { labelKey: "sizeSmallest", sort: "file_size", order: "asc" },
-  { labelKey: "random", sort: "random", order: "desc" },
-];
+import { isDefaultSort, sortOptionsFor, type SortOption } from "@/components/sortOptions";
 
 interface SortButtonProps {
   sort: SortField;
@@ -43,17 +22,8 @@ export function SortButton({ sort, order, onChange, allowRelevance }: SortButton
   const t = useTranslations("sort");
   const [open, setOpen] = useState(false);
 
-  const sortOptions: SortOption[] = allowRelevance
-    ? [RELEVANCE_OPTION, ...baseSortOptions]
-    : baseSortOptions;
-
-  // Relevance is the search-mode default, so only treat it as
-  // "active highlighting" when the toolbar is in non-search mode.
-  const defaultIsRelevance = allowRelevance;
-  const isDefaultActive = defaultIsRelevance
-    ? sort === "relevance" && order === "desc"
-    : sort === "created_at" && order === "desc";
-  const isActive = !isDefaultActive;
+  const sortOptions: SortOption[] = sortOptionsFor(allowRelevance);
+  const isActive = !isDefaultSort(sort, order, allowRelevance);
 
   return (
     <div className="relative">

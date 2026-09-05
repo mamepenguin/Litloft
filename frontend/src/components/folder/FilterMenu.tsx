@@ -117,7 +117,10 @@ export function FilterMenu({
         aria-label={
           isFiltering ? `${t("filter")}: ${activeLabels.join(" · ")}` : undefined
         }
-        className={`flex items-center gap-1.5 rounded-2xl border px-3 py-2 text-sm transition-colors ${
+        // `min-h-11`, not a hit-area overhang: this sits shoulder to shoulder
+        // with the other toolbar controls, and DESIGN.md §Row Actions says
+        // adjacent pseudo-elements overlap with the later one winning.
+        className={`flex items-center gap-1.5 rounded-2xl border px-3 py-2 text-sm transition-colors pointer-coarse:min-h-11 ${
           isFiltering
             ? "border-bg-border bg-bg-elevated text-text-primary font-medium"
             : "border-bg-border bg-bg-card text-text-muted hover:text-text-primary"

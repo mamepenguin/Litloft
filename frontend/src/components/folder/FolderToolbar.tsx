@@ -4,9 +4,10 @@ import { useState } from "react";
 import {
   CheckSquare,
   MoreHorizontal,
+  Pin,
+  PinOff,
   Play,
   RefreshCw,
-  Shuffle,
   X,
 } from "lucide-react";
 
@@ -15,9 +16,11 @@ import type { FileKind, SortField, SortOrder, TrustFilter, ViewMode } from "@/ty
 import { AddButton } from "@/components/AddButton";
 import { FilterMenu } from "./FilterMenu";
 import { Button } from "@/components/Button";
-import { SortButton } from "@/components/SortButton";
-import { ViewToggle } from "@/components/ViewToggle";
+import { useViewModeState } from "@/components/viewMode";
 import { AddonSlot } from "@/components/AddonSlot";
+import { BAR_WIDE, MENU_SURFACE, MenuSeparator } from "./ToolbarMenu";
+import { SortGroup, SortMenu } from "./SortMenu";
+import { ViewGroup, ViewMenu } from "./ViewMenu";
 import { WidenTagScopeLink, type WidenTagScope } from "./WidenTagScopeLink";
 
 interface FolderToolbarProps {
@@ -89,6 +92,17 @@ interface FolderToolbarProps {
    */
   onCreateFile?: () => void;
   onReshuffle?: () => void;
+  /**
+   * Whether this folder is already pinned to the sidebar, and how to flip
+   * it. Both or neither: without the flag the overflow row would have to
+   * guess which of "Pin" and "Unpin" it is offering, and it is drawn on the
+   * one folder a reader is already looking at.
+   *
+   * Omitted wherever there is no single folder to pin — search, the flat
+   * virtual views, and the drive root, whose path is empty.
+   */
+  isPinned?: boolean;
+  onTogglePin?: (folderPath: string) => void;
 }
 
 export function FolderToolbar({
@@ -99,6 +113,7 @@ export function FolderToolbar({
   onSortChange, onTypeFilterChange, onTrustFilterChange, onViewChange, onToggleSelectable,
   onScan, onPlayAll, onSetCreatingFolder, onSetNewFolderName,
   onSetFolderError, onCreateFolder, onCreateFile, onReshuffle,
+  isPinned, onTogglePin,
 }: FolderToolbarProps) {
   // Upload / New folder / New note all need the same thing: a folder to
   // write into. A folder-scoped tag filter now has one — the folder the
@@ -124,6 +139,13 @@ export function FolderToolbar({
   const tf = useTranslations("folder");
 
   const [moreOpen, setMoreOpen] = useState(false);
+  // Held here, not inside each menu. The same choice is offered twice — on
+  // the bar above 640px and inside `…` below it — and two switchers each
+  // holding their own uncontrolled state would answer differently on the two
+  // sides of that width.
+  const view = useViewModeState(viewMode, onViewChange);
+  // A drive root has no path to pin, and `""` would pin the drive itself.
+  const pinnablePath = folderPath && onTogglePin ? folderPath : null;
 
 
   // Left mutating actions — rendered in two places:
@@ -218,57 +240,55 @@ export function FolderToolbar({
             wherever the folder has something to play — but §2.2 gives the
             screen one fill and `Add` holds it. */}
         {hasPlayableFiles && !hidePlayAll && (
-          <Button variant="secondary" size="sm" onClick={onPlayAll}>
+          <Button
+            variant="secondary"
+            size="sm"
+            onClick={onPlayAll}
+            // Its word survives 375px. The mobile rule reduces the *number*
+            // of controls on the bar, and dropping the label instead would
+            // put back the unnamed icon 案 2 is spending this whole PR
+            // removing.
+            className="pointer-coarse:min-h-11"
+          >
             <Play size={16} />
             {tc("play")}
           </Button>
         )}
 
-        {/* One way in to narrowing the listing, where there were two
-            unlabelled chips. `FilterMenu` holds both axes as sections. */}
+        {/* Arranging: which layout, which order, which subset. All three
+            carry a word; below 640px the first two move into `…` so the row
+            stays one row. */}
         {!hideArrangingControls && (
-          <FilterMenu
-            typeFilter={typeFilter}
-            onTypeFilterChange={onTypeFilterChange}
-            trustFilter={trustFilter}
-            onTrustFilterChange={onTrustFilterChange}
-          />
+          <>
+            <ViewMenu mode={view.mode} onSelect={view.select} {...BAR_WIDE} />
+            <SortMenu
+              sort={sort}
+              order={order}
+              onChange={onSortChange}
+              allowRelevance={isSearch}
+              onReshuffle={sort === "random" ? onReshuffle : undefined}
+              {...BAR_WIDE}
+            />
+            {/* One way in to narrowing the listing, where there were two
+                unlabelled chips. `FilterMenu` holds both axes as sections. */}
+            <FilterMenu
+              typeFilter={typeFilter}
+              onTypeFilterChange={onTypeFilterChange}
+              trustFilter={trustFilter}
+              onTrustFilterChange={onTrustFilterChange}
+            />
+          </>
         )}
 
-        {sort === "random" && onReshuffle && !hideArrangingControls && (
-          <button
-            onClick={onReshuffle}
-            className="rounded-lg p-2 text-text-muted transition-colors hover:text-text-primary"
-            aria-label={t("reshuffle")}
-            title={t("reshuffle")}
-          >
-            <Shuffle size={16} />
-          </button>
-        )}
-
-        {/* Sort + view toggle + overflow grouped in a single pill */}
-        <div className="flex items-center gap-1 rounded-2xl bg-bg-elevated p-1">
-          {!hideArrangingControls && (
-            <>
-              <SortButton
-                sort={sort}
-                order={order}
-                onChange={onSortChange}
-                allowRelevance={isSearch}
-              />
-
-              <ViewToggle mode={viewMode} onChange={onViewChange} />
-            </>
-          )}
-
-          {/* Overflow: select-mode + rescan (low-frequency, not search-mode) */}
-          <div className="relative">
+        {/* Overflow: the low-frequency actions at every width, and the two
+            arranging menus at the widths where they are off the bar. */}
+        <div className="relative">
             <button
               onClick={() => setMoreOpen((s) => !s)}
-              className={`rounded-lg p-2 transition-colors ${
+              className={`flex items-center justify-center rounded-2xl border border-bg-border p-2 transition-colors pointer-coarse:h-11 pointer-coarse:w-11 ${
                 selectable
                   ? "bg-bg-card text-text-primary"
-                  : "text-text-muted hover:text-text-primary"
+                  : "bg-bg-card text-text-muted hover:text-text-primary"
               }`}
               aria-haspopup="menu"
               aria-expanded={moreOpen}
@@ -284,10 +304,42 @@ export function FolderToolbar({
                   aria-hidden="true"
                   onClick={() => setMoreOpen(false)}
                 />
-                <div
-                  role="menu"
-                  className="fixed inset-x-2 bottom-4 z-40 max-h-[60vh] overflow-y-auto rounded-2xl border border-bg-border bg-bg-primary py-1 shadow-lg animate-fade-in-scale sm:absolute sm:inset-x-auto sm:bottom-auto sm:right-0 sm:top-full sm:mt-1 sm:max-h-none sm:min-w-[200px] sm:overflow-visible sm:origin-top-right"
-                >
+                <div role="menu" className={MENU_SURFACE}>
+                {/* The two menus that are not on the bar below 768px, drawn
+                    from the same rows they draw there. `md:hidden` and
+                    `BAR_WIDE` are the two halves of one decision: a control
+                    that leaves the bar has to arrive here, and a reader who
+                    finds neither has lost the function. */}
+                {!hideArrangingControls && (
+                  <div className="md:hidden">
+                    <ViewGroup
+                      mode={view.mode}
+                      onSelect={(next) => {
+                        view.select(next);
+                        setMoreOpen(false);
+                      }}
+                    />
+                    <MenuSeparator />
+                    <SortGroup
+                      sort={sort}
+                      order={order}
+                      allowRelevance={isSearch}
+                      onChange={(nextSort, nextOrder) => {
+                        onSortChange(nextSort, nextOrder);
+                        setMoreOpen(false);
+                      }}
+                      onReshuffle={
+                        sort === "random" && onReshuffle
+                          ? () => {
+                              onReshuffle();
+                              setMoreOpen(false);
+                            }
+                          : undefined
+                      }
+                    />
+                    <MenuSeparator />
+                  </div>
+                )}
                 <button
                   role="menuitem"
                   onClick={() => {
@@ -320,10 +372,28 @@ export function FolderToolbar({
                     <span className="flex-1">{t("rescan")}</span>
                   </button>
                 )}
+                {pinnablePath && (
+                  <button
+                    role="menuitem"
+                    onClick={() => {
+                      onTogglePin!(pinnablePath);
+                      setMoreOpen(false);
+                    }}
+                    className="flex w-full items-center gap-2.5 px-3 py-2 text-left text-sm text-text-primary transition-colors hover:bg-bg-elevated"
+                  >
+                    {isPinned ? (
+                      <PinOff size={16} className="flex-shrink-0" />
+                    ) : (
+                      <Pin size={16} className="flex-shrink-0" />
+                    )}
+                    <span className="flex-1">
+                      {isPinned ? t("unpinFolder") : t("pinFolder")}
+                    </span>
+                  </button>
+                )}
                 </div>
               </>
             )}
-          </div>
         </div>
 
       </div>

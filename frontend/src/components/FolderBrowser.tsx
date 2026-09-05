@@ -678,6 +678,11 @@ export function FolderBrowser({
         onCreateFolder={createFolder.handleCreateFolder}
         onCreateFile={isFolderAnchored ? createFile : undefined}
         onReshuffle={handleReshuffle}
+        // Only where the breadcrumb is standing in one folder. `isPinned`
+        // and the handler travel together so the row cannot name the flip it
+        // is not making.
+        isPinned={folderPath ? pinnedPaths.has(folderPath) : undefined}
+        onTogglePin={isFolderAnchored ? handleTogglePin : undefined}
       />}
 
       <div className="px-4 pb-6 pt-1 sm:pb-8 sm:pt-4">

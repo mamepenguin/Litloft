@@ -1,0 +1,194 @@
+import { describe, it, expect, vi, afterEach } from "vitest";
+import { render, screen, cleanup, fireEvent } from "@testing-library/react";
+import { Filter } from "lucide-react";
+
+import { MENU_SURFACE, MenuRadioGroup, ToolbarMenu } from "../ToolbarMenu";
+
+const rows = (close: () => void) => (
+  <button role="menuitem" onClick={close}>
+    A row
+  </button>
+);
+
+describe("ToolbarMenu", () => {
+  afterEach(cleanup);
+
+  it("names itself for the control and for the state", () => {
+    // WCAG 2.5.3: the accessible name has to contain the visible label, so
+    // a voice user saying what they read reaches the control. The face reads
+    // the state, so the name is `control: state` and containment holds in
+    // both directions — the word for what it does is findable without
+    // knowing the state.
+    render(
+      <ToolbarMenu label="Sort" value="Newest first" icon={Filter}>
+        {rows}
+      </ToolbarMenu>,
+    );
+    const trigger = screen.getByRole("button");
+    expect(trigger).toHaveAccessibleName("Sort: Newest first");
+    expect(trigger).toHaveTextContent("Newest first");
+  });
+
+  it("says one thing once when the state is the control's own word", () => {
+    // Reachable: an order the screen does not offer — `relevance` outside a
+    // search — falls back to naming the control, and "Sort: Sort" is a name
+    // that repeats itself.
+    render(
+      <ToolbarMenu label="Sort" value="Sort" icon={Filter}>
+        {rows}
+      </ToolbarMenu>,
+    );
+    expect(screen.getByRole("button")).toHaveAccessibleName("Sort");
+  });
+
+  it("reports whether it is open, and closes on Escape with focus back on it", () => {
+    render(
+      <ToolbarMenu label="Sort" value="Newest first" icon={Filter}>
+        {rows}
+      </ToolbarMenu>,
+    );
+    const trigger = screen.getByRole("button", { name: "Sort: Newest first" });
+    expect(trigger).toHaveAttribute("aria-expanded", "false");
+    fireEvent.click(trigger);
+    expect(trigger).toHaveAttribute("aria-expanded", "true");
+
+    // On the box, not on the menu: opening leaves focus on the trigger,
+    // which is outside the menu. `FilterMenu` records the measurement that
+    // a handler on the menu only fires for someone already tabbed into it.
+    fireEvent.keyDown(trigger, { key: "Escape" });
+    expect(screen.queryByRole("menu")).not.toBeInTheDocument();
+    // The row that was focused unmounts with the menu; without the return,
+    // focus lands on <body>.
+    expect(document.activeElement).toBe(trigger);
+  });
+
+  it("stops Escape rather than letting the shortcut stack answer it twice", () => {
+    // `escape-listeners.test.ts` records the mechanism: a React `onKeyDown`
+    // is invisible to the shortcut registry, so an Escape that also reaches
+    // the document gets answered by both.
+    const outer = vi.fn();
+    render(
+      <div onKeyDown={outer}>
+        <ToolbarMenu label="Sort" value="Newest first" icon={Filter}>
+          {rows}
+        </ToolbarMenu>
+      </div>,
+    );
+    const trigger = screen.getByRole("button");
+    fireEvent.click(trigger);
+    fireEvent.keyDown(trigger, { key: "Escape" });
+    expect(outer).not.toHaveBeenCalled();
+  });
+
+  it("leaves other keys, and a closed menu's Escape, to whatever is above it", () => {
+    const outer = vi.fn();
+    render(
+      <div onKeyDown={outer}>
+        <ToolbarMenu label="Sort" value="Newest first" icon={Filter}>
+          {rows}
+        </ToolbarMenu>
+      </div>,
+    );
+    const trigger = screen.getByRole("button");
+    fireEvent.keyDown(trigger, { key: "Escape" });
+    fireEvent.click(trigger);
+    fireEvent.keyDown(trigger, { key: "ArrowDown" });
+    expect(outer).toHaveBeenCalledTimes(2);
+  });
+
+  it("closes when the scrim is pressed", () => {
+    const { container } = render(
+      <ToolbarMenu label="Sort" value="Newest first" icon={Filter}>
+        {rows}
+      </ToolbarMenu>,
+    );
+    fireEvent.click(screen.getByRole("button"));
+    fireEvent.click(container.querySelector('[aria-hidden="true"]')!);
+    expect(screen.queryByRole("menu")).not.toBeInTheDocument();
+  });
+
+  it("keeps the popover's recipe, which is what keeps it on screen", () => {
+    // Pinned whole rather than searched. jsdom lays nothing out, so nothing
+    // here can see the shape; what it can see is that the recipe has not
+    // been edited without being re-measured.
+    //
+    // Measured in Chromium on the folder toolbar, after the open animation
+    // settles (`animate-fade-in-scale` starts at `scale(.95)`, and reading
+    // the box during it reports 95% of every number). At 375px, through the
+    // overflow — which is the only trigger on the bar at that width — it is
+    // the bottom sheet: left 8, 359x480, the width the viewport leaves
+    // between `inset-x-2` and the height `max-h-[60vh]` caps. At 1512px the
+    // sort menu is 200x290 hanging under its own trigger, right edges
+    // aligned at 1366.
+    render(
+      <ToolbarMenu label="Sort" value="Newest first" icon={Filter}>
+        {rows}
+      </ToolbarMenu>,
+    );
+    fireEvent.click(screen.getByRole("button"));
+    expect(
+      (screen.getByRole("menu").getAttribute("class") ?? "").split(/\s+/),
+    ).toEqual(MENU_SURFACE.split(/\s+/));
+  });
+});
+
+describe("MenuRadioGroup", () => {
+  afterEach(cleanup);
+
+  it("marks every row as a radio, not only the one that is on", () => {
+    // `aria-checked` is required on every `menuitemradio`; a row missing it
+    // stops being a radio to assistive technology, and asserting only the
+    // checked one cannot see that.
+    render(
+      <MenuRadioGroup
+        heading="View"
+        options={[
+          { value: "grid", label: "Grid view" },
+          { value: "list", label: "List view" },
+        ]}
+        isSelected={(v) => v === "grid"}
+        onSelect={vi.fn()}
+      />,
+    );
+    const radios = screen.getAllByRole("menuitemradio");
+    expect(radios.map((r) => r.getAttribute("aria-checked"))).toEqual([
+      "true",
+      "false",
+    ]);
+  });
+
+  it("gives the group a name without reading the heading back as a row", () => {
+    // A `role="menu"` publishes only menuitem / group / separator children,
+    // so a bare <p> heading reaches assistive technology as nothing at all —
+    // and these menus hold rows whose words repeat across sections.
+    render(
+      <MenuRadioGroup
+        heading="View"
+        options={[{ value: "grid", label: "Grid view" }]}
+        isSelected={() => false}
+        onSelect={vi.fn()}
+      />,
+    );
+    const group = screen.getByRole("group");
+    expect(group).toHaveAccessibleName("View");
+    expect(document.getElementById(group.getAttribute("aria-labelledby")!))
+      .toHaveAttribute("aria-hidden", "true");
+  });
+
+  it("hands the pressed row's own value back", () => {
+    const onSelect = vi.fn();
+    render(
+      <MenuRadioGroup
+        heading="View"
+        options={[
+          { value: "grid", label: "Grid view" },
+          { value: "list", label: "List view" },
+        ]}
+        isSelected={() => false}
+        onSelect={onSelect}
+      />,
+    );
+    fireEvent.click(screen.getByRole("menuitemradio", { name: "List view" }));
+    expect(onSelect).toHaveBeenCalledWith("list");
+  });
+});

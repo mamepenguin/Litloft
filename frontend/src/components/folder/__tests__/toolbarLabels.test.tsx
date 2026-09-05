@@ -100,20 +100,32 @@ function wordless(root: HTMLElement): string[] {
 describe("the folder toolbar's wordless controls", () => {
   afterEach(cleanup);
 
-  it("still has more than the overflow, and these are which", () => {
-    // 案 2 wants this list to be ["More actions"] alone. Merging the two
-    // filter chips into one labelled control took two off it; `表示 ▾` and
-    // `並び順 ▾` (Phase 3 B2b-2b) take the rest. Listed rather than counted
-    // so the next step edits this line and sees what it is removing.
+  it("has the overflow and nothing else, at every state that draws a control", () => {
+    // 案 2's target, reached. There were seven: upload's chevron aside, the
+    // two filter chips, reshuffle, sort, the two halves of the view toggle
+    // and `…`. The chips became one labelled `Filter`; reshuffle moved into
+    // the sort menu; sort and the view toggle became `Sort: <order>` and
+    // `View: <layout>`.
+    //
+    // Listed rather than counted, and asserted at four states rather than
+    // one: a control that only appears while something is selected — which
+    // is what both filter chips were — is invisible to a single render of
+    // the resting toolbar. `it.each` so a failure names the state.
     const { container } = render(<FolderToolbar {...props} />);
     // Rendered twice, once per breakpoint, so the names are deduplicated.
-    expect([...new Set(wordless(container))].sort()).toEqual([
-      "Grid view",
-      "List view",
-      "More actions",
-      "Reshuffle",
-      "Sort",
-    ]);
+    expect([...new Set(wordless(container))].sort()).toEqual(["More actions"]);
+  });
+
+  it.each([
+    ["filtering by kind", { typeFilter: "audio" as const }],
+    ["filtering by trust", { trustFilter: "verified" as const }],
+    ["in list view", { viewMode: "list" as const }],
+    ["ordered by size", { sort: "file_size" as const, order: "asc" as const }],
+    ["in select mode", { selectable: true }],
+    ["searching", { isSearch: true }],
+  ])("keeps it to the overflow while %s", (_state, overrides) => {
+    const { container } = render(<FolderToolbar {...props} {...overrides} />);
+    expect([...new Set(wordless(container))].sort()).toEqual(["More actions"]);
   });
 
   it("has none of them where the folder is empty but the overflow", () => {

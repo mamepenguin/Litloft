@@ -722,6 +722,16 @@ colour**, never with a fill.
 - The tab row's weight change (§Tabs) is a second, non-colour signal. A toggle
   showing only icons has no text to thicken, which is why its border is doing
   the whole job and has to clear 3 : 1 on its own.
+- **On a crowded bar, prefer a labelled menu to a segmented toggle.** The
+  border says *which* option is on; it cannot say what the options are, so a
+  segmented toggle of icons puts N wordless controls on the bar to express one
+  choice. A menu whose face reads the option that is on — `View: List view`,
+  `Sort: Newest first` — spends one control, carries a word at every state,
+  and grows without taking more width. Use it where the bar is competing for
+  room or where N is above two; the toggle stays where the two options are
+  glanceable and the row has space (the drive home, Trash, a collection,
+  Missing, inside an archive). The name is `label: state`, so WCAG 2.5.3's
+  containment holds while the control is still findable by what it does.
 
 ### Cards
 
