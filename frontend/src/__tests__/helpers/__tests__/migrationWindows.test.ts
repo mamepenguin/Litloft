@@ -162,6 +162,14 @@ describe("migration windows", () => {
         "addons/intelligence/frontend/UnverifiedSourceSection.tsx",
         "addons/intelligence/frontend/pages/find.tsx",
         "addons/intelligence/frontend/pages/search-compare.tsx",
+        "addons/knowledge/frontend/CaptureBasket.tsx",
+        "addons/knowledge/frontend/ClipDuplicateDialog.tsx",
+        "addons/knowledge/frontend/ClipInput.tsx",
+        "addons/knowledge/frontend/ClipPasteForm.tsx",
+        "addons/knowledge/frontend/FolderView.tsx",
+        "addons/knowledge/frontend/KnowledgeDashboard.tsx",
+        "addons/knowledge/frontend/MoveDialog.tsx",
+        "addons/knowledge/frontend/UnresolvedLinkDialog.tsx",
         "addons/media_import/frontend/Composer.tsx",
       ].sort(),
     );
@@ -171,6 +179,7 @@ describe("migration windows", () => {
         "addons/intelligence/frontend/pages/find.tsx",
         "addons/intelligence/frontend/pages/pickup.tsx",
         "addons/intelligence/frontend/pages/search-compare.tsx",
+        "addons/knowledge/frontend/FolderView.tsx",
         "addons/media_import/frontend/Page.tsx",
       ].sort(),
     );
@@ -180,7 +189,7 @@ describe("migration windows", () => {
     // What makes the ledger-then-path keying load-bearing rather than
     // hypothetical. While only media_import held windows, the two were
     // `Page.tsx` and `Composer.tsx` — different names, so keying by path alone
-    // still type-checked and the nesting was carrying nothing. Three paths now
+    // still type-checked and the nesting was carrying nothing. Four paths now
     // hold a window on each ledger, and keying by path alone is a duplicate
     // key: `tsc` reports TS1117 once per shared path. That is checked by the
     // type system on every run, not here; what is held here is the population
@@ -192,6 +201,7 @@ describe("migration windows", () => {
       "addons/intelligence/frontend/Page.tsx",
       "addons/intelligence/frontend/pages/find.tsx",
       "addons/intelligence/frontend/pages/search-compare.tsx",
+      "addons/knowledge/frontend/FolderView.tsx",
     ]);
   });
 
@@ -244,8 +254,8 @@ describe("migration windows", () => {
     // `present` filters the declarations; it does not add to them. The count
     // is the declared population, so a predicate that invented a path would
     // have to invent it here too.
-    expect(openWindows("button-adoption", () => true)).toHaveLength(11);
-    expect(openWindows("page-headings", () => true)).toHaveLength(5);
+    expect(openWindows("button-adoption", () => true)).toHaveLength(19);
+    expect(openWindows("page-headings", () => true)).toHaveLength(6);
   });
 
   it("names addons that exist", () => {

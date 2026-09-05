@@ -29,9 +29,9 @@ import { resolve } from "node:path";
  * **Two residuals, both deliberate and neither closed by this mechanism.**
  *
  * *Per window, not per pull request.* Each entry is independent, so a ledger
- * holding `n` open windows admits 2ⁿ combinations — C2a and C2b declare
- * fourteen between them, and a tree where ten of those conversions landed and
- * four did not is green on both sides. "Exactly the width the migration
+ * holding `n` open windows admits 2ⁿ combinations — twenty-five are declared
+ * across three addons, and a tree where some of those conversions landed and
+ * others did not is green on both sides. "Exactly the width the migration
  * crosses" is a claim about one window. Nothing here can tell a half-applied
  * pull request from a whole one, because nothing here knows the windows
  * belong to the same one.
@@ -122,9 +122,9 @@ export function addonOf(path: string): string | null {
  * The first version keyed by path and carried the ledger as a field, which
  * recognised that one path can appear in both ledgers without being able to
  * hold it: a second entry for the same file is a duplicate key, and `tsc`
- * rejects it (TS1117). Three paths hold a window on each ledger today —
- * `intelligence/Page.tsx`, `pages/find.tsx` and `pages/search-compare.tsx`
- * — and `knowledge/FolderView.tsx` becomes the fourth in C3.
+ * rejects it (TS1117). Four paths hold a window on each ledger:
+ * `intelligence/Page.tsx`, `pages/find.tsx`, `pages/search-compare.tsx` and
+ * `knowledge/FolderView.tsx`.
  */
 export const MIGRATION_WINDOWS: Record<
   Ledger,
@@ -160,6 +160,12 @@ export const MIGRATION_WINDOWS: Record<
       after: 0,
       closedBy: "D1",
       why: "PR C2b moves the comparison page's <h1> into core's PageHeader",
+    },
+    "addons/knowledge/frontend/FolderView.tsx": {
+      before: 1,
+      after: 0,
+      closedBy: "D1",
+      why: "PR C3 demotes this pane heading to an <h2>; it heads a region, not a page",
     },
   },
   "button-adoption": {
@@ -228,6 +234,54 @@ export const MIGRATION_WINDOWS: Record<
       after: 0,
       closedBy: "D1",
       why: "PR C2b converts this section's action button to core's Button",
+    },
+      "addons/knowledge/frontend/CaptureBasket.tsx": {
+      before: 3,
+      after: 0,
+      closedBy: "D1",
+      why: "PR C3 converts this basket's three buttons to core's Button",
+    },
+    "addons/knowledge/frontend/ClipDuplicateDialog.tsx": {
+      before: 1,
+      after: 0,
+      closedBy: "D1",
+      why: "PR C3 converts this dialog's confirm button to core's Button",
+    },
+    "addons/knowledge/frontend/ClipInput.tsx": {
+      before: 1,
+      after: 0,
+      closedBy: "D1",
+      why: "PR C3 converts this form's submit button to core's Button",
+    },
+    "addons/knowledge/frontend/ClipPasteForm.tsx": {
+      before: 1,
+      after: 0,
+      closedBy: "D1",
+      why: "PR C3 converts this form's submit button to core's Button",
+    },
+    "addons/knowledge/frontend/FolderView.tsx": {
+      before: 1,
+      after: 0,
+      closedBy: "D1",
+      why: "PR C3 converts this pane's action button to core's Button",
+    },
+    "addons/knowledge/frontend/KnowledgeDashboard.tsx": {
+      before: 1,
+      after: 0,
+      closedBy: "D1",
+      why: "PR C3 converts this dashboard's action button to core's Button",
+    },
+    "addons/knowledge/frontend/MoveDialog.tsx": {
+      before: 1,
+      after: 0,
+      closedBy: "D1",
+      why: "PR C3 converts this dialog's confirm button to core's Button",
+    },
+    "addons/knowledge/frontend/UnresolvedLinkDialog.tsx": {
+      before: 1,
+      after: 0,
+      closedBy: "D1",
+      why: "PR C3 converts this dialog's confirm button to core's Button",
     },
   },
 };
