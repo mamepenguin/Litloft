@@ -119,9 +119,10 @@ describe("ToolbarMenu", () => {
     // jsdom lays nothing out, so nothing here can see the shape; what it can
     // see is that the recipe has not been edited without being re-measured.
     // `sm:max-h-[70vh]` with the scroll kept is load-bearing above 640: the
-    // menu holds ten rows below 1024 and is anchored inside a sticky bar,
-    // so an uncapped one puts six of them past the bottom of a landscape
-    // phone with no way to scroll to them.
+    // menu holds ten rows below 768 — `View` and `Sort` are sections of it
+    // there — and is anchored inside a sticky bar, so an uncapped one puts
+    // six of them past the bottom of a landscape phone with no way to
+    // scroll to them. Below 640 the sheet form is already capped at 60vh.
     //
     // Measured in Chromium on the folder toolbar, after the open animation
     // settles (`animate-fade-in-scale` starts at `scale(.95)`, and reading
@@ -203,6 +204,25 @@ describe("MenuRadioGroup", () => {
     expect(group).toHaveAccessibleName("View");
     expect(document.getElementById(group.getAttribute("aria-labelledby")!))
       .toHaveAttribute("aria-hidden", "true");
+  });
+
+  it("draws a focused row's ring inside the row", () => {
+    // The menu scrolls on both axes — CSS resolves `overflow-x` to `auto`
+    // once the other axis is not `visible` — so an outline drawn around a
+    // full-width row is clipped at the padding edges. A negative offset
+    // puts it inside. Dropping the cap that causes this is not the
+    // alternative: it is what makes a ten-row menu reachable at 640-767.
+    render(
+      <MenuRadioGroup
+        heading="View"
+        options={[{ value: "grid", label: "Grid view" }]}
+        isSelected={() => false}
+        onSelect={vi.fn()}
+      />,
+    );
+    expect([...screen.getByRole("menuitemradio").classList]).toContain(
+      "focus-visible:-outline-offset-2",
+    );
   });
 
   it("hands the pressed row's own value back", () => {

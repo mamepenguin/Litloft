@@ -101,16 +101,46 @@ function responsiveChain(control: HTMLElement, root: HTMLElement): string[] {
  * controls, a set that does not grow with state, while these measure floors
  * and widths, which do.
  */
+const BASE = ["Add", "Play", "View: Grid view", "Sort: Newest first", "Filter", "More actions"];
+
+/**
+ * Each state, and **the controls the bar carries in it**.
+ *
+ * The expected list is declared, not derived. The first version of these
+ * tables built the expectation from the observation
+ * (`Object.fromEntries(Object.keys(observed)…)`), which can catch a wrong
+ * value and an unlisted control but is blind to a *missing* one by
+ * construction: a control that disappears drops out of both sides of the
+ * comparison at once. Deleting either copy of the name field — making New
+ * Folder unreachable above 768 or below it — passed the whole suite.
+ */
 const STATES = [
-  ["resting", {}],
-  ["filtering on both axes", { typeFilter: "markdown" as const, trustFilter: "verified" as const }],
-  ["scoped to a tag", {
-    tagFilter: "recipes",
-    widenTagScope: { tagName: "recipes", href: "/drive/d?tag=recipes" },
-  }],
-  ["naming a new folder", { creatingFolder: true }],
-  ["in select mode", { selectable: true }],
-  ["searching", { isSearch: true, hasPlayableFiles: false }],
+  ["resting", {}, BASE],
+  [
+    "filtering on both axes",
+    { typeFilter: "markdown" as const, trustFilter: "verified" as const },
+    BASE.map((c) => (c === "Filter" ? "Filter: Markdown · Verified only" : c)),
+  ],
+  [
+    "scoped to a tag",
+    {
+      tagFilter: "recipes",
+      widenTagScope: { tagName: "recipes", href: "/drive/d?tag=recipes" },
+    },
+    // A tag filter hides Play — it has always been scoped to a plain folder
+    // listing — and adds the way back out to the whole drive.
+    [...BASE.filter((c) => c !== "Play"), "Search the whole drive"],
+  ],
+  ["naming a new folder", { creatingFolder: true }, [...BASE, "INPUT", "Create", "Cancel"]],
+  ["in select mode", { selectable: true }, BASE],
+  [
+    "searching",
+    { isSearch: true, hasPlayableFiles: false },
+    // The face reads the order that is *on*, and these props pass
+    // `created_at`. `allowRelevance` adds a row to the menu; it does not
+    // change the listing's order.
+    BASE.filter((c) => c !== "Play"),
+  ],
 ] as const;
 
 /**
@@ -200,6 +230,16 @@ describe("what the folder toolbar keeps on the bar", () => {
       "Sort: Newest first",
       "View: Grid view",
     ]);
+  });
+
+  it.each(STATES)("carries exactly its declared controls while %s", (_state, overrides, expected) => {
+    // The assertion the two tables below cannot make. They key by name, so
+    // a control that vanishes vanishes from the expectation with it; this
+    // one names what has to be there.
+    const { container } = render(<FolderToolbar {...props} {...overrides} />);
+    expect(controls(bar(container)).map(nameOrTag).sort()).toEqual(
+      [...expected].sort(),
+    );
   });
 
   it.each(STATES)("gives every control a touch floor while %s", (_state, overrides) => {
@@ -343,7 +383,7 @@ describe("what the folder toolbar keeps on the bar", () => {
     // The pair that decides where `Add`, the addon slot and the name field
     // live: a `md:hidden` row above the bar and a `hidden md:flex` group on
     // it. Two halves of one decision, exactly like `BAR_WIDE` and the
-    // overflow's `lg:hidden` — but invisible to `SCOPE`, which walks from a
+    // overflow's `md:hidden` — but invisible to `SCOPE`, which walks from a
     // control *up to the bar* and so never reaches a sibling of the bar.
     //
     // Mutating the row's `md:hidden` to `sm:hidden` passed every test in
@@ -382,12 +422,55 @@ describe("what the folder toolbar keeps on the bar", () => {
     expect(byBreakpoint).toEqual({ [wide]: 5 });
   });
 
+  it("draws the name field once per breakpoint, each on a line of its own", () => {
+    // Two copies, one per scope, and each individually required. Deleting
+    // either one used to pass the whole suite: the bar-scoped tables never
+    // look outside `.sticky`, so the flow-row copy was unread, and the
+    // partition test counts the wrapper `div`, which survives its contents
+    // being removed. Below 768 the missing copy makes New Folder
+    // unreachable on a phone; above it, on a desktop.
+    const { container } = render(<FolderToolbar {...props} creatingFolder />);
+    const fields = [...container.querySelectorAll<HTMLElement>('input[type="text"]')];
+    expect(fields).toHaveLength(2);
+
+    const scopeOf = (field: HTMLElement, token: string) => {
+      let el: HTMLElement | null = field;
+      while (el) {
+        if ([...el.classList].includes(token)) return el;
+        el = el.parentElement;
+      }
+      return null;
+    };
+    // One under the row that exists below 768, one under a wrapper that
+    // exists from 768 — and that wrapper carries the `w-full` that gives it
+    // a line. Asserted on the wrapper, not on the inner row: the inner one
+    // has `w-full` too, and it is the outer one that is the flex item.
+    const flow = fields.find((f) => scopeOf(f, "md:hidden"));
+    const onBar = fields.find((f) => scopeOf(f, "md:block"));
+    expect(flow).toBeDefined();
+    expect(onBar).toBeDefined();
+    expect([...scopeOf(onBar!, "md:block")!.classList].sort()).toEqual([
+      "hidden",
+      "md:block",
+      "w-full",
+    ]);
+  });
+
+  it("puts nothing on the bar when no folder is being named", () => {
+    // The wrapper is rendered inside the condition, not around it. An
+    // always-present `w-full` box is a flex item whether or not it holds
+    // anything: empty, it takes a line and the row-gap with it, and the
+    // resting bar measures 68px instead of 60 at every width from 768 up.
+    // jsdom cannot see that height; it can see that the box is not there.
+    const { container } = render(<FolderToolbar {...props} />);
+    expect(bar(container).querySelectorAll(".w-full")).toHaveLength(0);
+  });
+
   it("gives the name field a line rather than a place in the row", () => {
     // `w-full` on the field's own wrapper is what keeps it from competing
-    // with the controls. Nested inside the left group it filled that group
-    // instead of taking a line, and the row it sat on wrapped — at 640-654
-    // while the group was on the bar from 640, and at 1024-1034 once the
-    // arranging menus returned to a bar already holding it.
+    // with the controls. Nested inside the left group, `w-full` is 100% of
+    // that group rather than of the row, so the group grows and the row it
+    // sits on wraps instead.
     //
     // A class assertion. The pixels are in Chromium: with this, the bar is
     // one row at every width from 320 to 1512 in both locales, with and

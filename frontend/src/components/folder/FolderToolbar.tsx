@@ -162,12 +162,11 @@ export function FolderToolbar({
   /**
    * The new-folder name field, on a row of its own.
    *
-   * `w-full` and a direct child of the wrapping row, not a sibling of
-   * `Add` inside the left group. Nested there it filled the group rather
-   * than taking a line, so the group grew and the row it sat on wrapped —
-   * at 640-654 while the group was still on the bar from 640, and again at
-   * 1024-1034 once the arranging menus returned to a bar already holding
-   * it. A field that always has its own line cannot push anything.
+   * `w-full` and a **direct child of the wrapping row**, not a sibling of
+   * `Add` inside the left group. Nested there, `w-full` is 100% of the
+   * group rather than of the row, so the group grows and the row it sits
+   * on wraps instead — a ragged second line whose contents depend on the
+   * width. A field with a line of its own cannot displace a control.
    */
   const createFolderRow = creatingFolder ? (
     <div className="flex w-full items-center gap-2">
@@ -442,8 +441,16 @@ export function FolderToolbar({
         {/* From 768 up the field lives here, on the bar, and `w-full` gives
             it a line under the controls rather than a place among them.
             Below 768 the copy in the normal-flow row above carries it, so
-            it is drawn once at every width. */}
-        <div className="hidden w-full md:block">{createFolderRow}</div>
+            it is drawn once at every width.
+
+            The wrapper is inside the condition, not around the contents: an
+            always-rendered `w-full` box is a flex item whether or not it
+            holds anything, so an empty one takes a line and the row-gap
+            with it — 68px of resting bar instead of 60, at every width from
+            768 up. */}
+        {createFolderRow && (
+          <div className="hidden w-full md:block">{createFolderRow}</div>
+        )}
       </div>
     </>
   );

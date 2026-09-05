@@ -36,13 +36,17 @@ Below 768px the bar carries **Play**, **Filter** and `…`. **View** and
 order — and **Add** moves into its own row just above the bar, with any
 addon buttons beside it.
 
-Nothing loses its label and nothing wraps onto a second row, in either
-language. The Filter button naming both of its axes, and the "Search the
-whole drive" link on a folder reached through a tag, are the two whose
-labels can outgrow the space; both are shortened with an ellipsis rather
-than dropped, and the full text stays in the control's accessible name.
-Every control the app itself draws on the bar is at least 44px for touch —
-a button contributed by an addon is that addon's to size.
+Nothing loses its label. The Filter button naming both of its axes, and the
+"Search the whole drive" link on a folder reached through a tag, are the two
+whose labels can outgrow the space; both are shortened with an ellipsis
+rather than dropped, and the full text stays in the control's accessible
+name. Every control the app itself draws on the bar is at least 44px for
+touch — a button contributed by an addon is that addon's to size.
+
+The bar is a single row at every width, with one exception: between 768px
+and about 785px, with an addon button on the bar, both filter axes narrowed
+at once, and the listing sorted by title or by size, it takes a second row.
+Any one of those four conditions missing and it does not.
 
 The **New Folder** name field takes a line of its own while it is open,
 under the bar's controls at 768px and up and above them on a narrow
