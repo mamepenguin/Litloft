@@ -8,6 +8,7 @@ import { useShortcuts } from "@/hooks/useShortcuts";
 
 import type { FileItem, FileKind, SortField, SortOrder, TrustFilter, ViewMode } from "@/types";
 import { Breadcrumb } from "@/components/Breadcrumb";
+import { PageHeader } from "@/components/PageHeader";
 import { TreeToggle } from "@/components/TreeToggle";
 import { UploadZone } from "@/components/UploadZone";
 import { SelectionBar } from "@/components/SelectionBar";
@@ -504,54 +505,55 @@ export function FolderBrowser({
   // clipboard paste banner (paste targets a folder path).
   const inner = (
     <div className="flex min-w-0 w-full flex-1 flex-col">
-      {/* Outermost header row — Y-aligned with the file preview's
-          PaneShell header (px-4 py-3) so TreeToggle sits at the same
-          height regardless of folder/file/search mode. The breadcrumb
-          / search title share this row; TreeToggle is leftmost. */}
-      {isSearch ? (
-        <header className="flex flex-wrap items-start gap-2 px-4 py-2">
-          <TreeToggle drive={driveName} />
-          <div className="min-w-0 flex-1">
-            <h1 className="truncate text-2xl font-bold text-text-primary">
-              {tSearch("heading", { query: searchQuery ?? "" })}
-            </h1>
-            {!loading && (
-              <p className="mt-1 text-sm text-text-muted">
-                {tCommon("items", { count: total })}
-              </p>
-            )}
-          </div>
-          <div className="flex flex-shrink-0 flex-wrap items-center gap-2">
-            <SmartFolderSaveButton
-              drive={driveName}
-              query={searchQuery ?? ""}
-              typeFilter={typeFilter}
-              smartFolderId={smartFolderId ?? null}
+      {/* One header for both modes. The two used to be separate rows that
+          happened to line up: a `<header>` in search mode and a bare `<div>`
+          in folder mode, each spelling out its own padding and its own idea
+          of where the count goes. `PageHeader` is Y-aligned with the file
+          preview's PaneShell header, so TreeToggle sits at the same height
+          in folder, file and search mode alike. */}
+      <PageHeader
+        leading={<TreeToggle drive={driveName} />}
+        breadcrumb={
+          isSearch ? undefined : (
+            <Breadcrumb
+              driveName={driveName}
+              folderPath={folderPath}
+              getDropTargetProps={(dragState.isDragging || isInternalDragging) ? getDropTargetProps : undefined}
+              isDropTarget={(dragState.isDragging || isInternalDragging) ? isDropTarget : undefined}
             />
-            <AddonSlot
-              id="search-modes"
-              layout="stack"
-              props={{
-                context: "page",
-                query: searchQuery ?? "",
-                drive: driveName,
-                filter: typeFilter ?? "all",
-                onSelect: handleSemanticSelect,
-              }}
-            />
-          </div>
-        </header>
-      ) : (
-        <div className="flex items-center gap-2 px-4 py-2">
-          <TreeToggle drive={driveName} />
-          <Breadcrumb
-            driveName={driveName}
-            folderPath={folderPath}
-            getDropTargetProps={(dragState.isDragging || isInternalDragging) ? getDropTargetProps : undefined}
-            isDropTarget={(dragState.isDragging || isInternalDragging) ? isDropTarget : undefined}
-          />
-        </div>
-      )}
+          )
+        }
+        // Search names its subject in a heading because there is no path to
+        // name it; a folder is named by its trail.
+        title={isSearch ? tSearch("heading", { query: searchQuery ?? "" }) : undefined}
+        // The count lives here in both modes now. It used to be in the
+        // header in search mode and in the toolbar in folder mode, which is
+        // why the same fact was worded and placed two different ways.
+        scope={loading ? undefined : tCommon("items", { count: total })}
+        actions={
+          isSearch ? (
+            <>
+              <SmartFolderSaveButton
+                drive={driveName}
+                query={searchQuery ?? ""}
+                typeFilter={typeFilter}
+                smartFolderId={smartFolderId ?? null}
+              />
+              <AddonSlot
+                id="search-modes"
+                layout="stack"
+                props={{
+                  context: "page",
+                  query: searchQuery ?? "",
+                  drive: driveName,
+                  filter: typeFilter ?? "all",
+                  onSelect: handleSemanticSelect,
+                }}
+              />
+            </>
+          ) : undefined
+        }
+      />
 
       {!hideToolbar && <FolderToolbar
         isSpecialView={isSpecialView}

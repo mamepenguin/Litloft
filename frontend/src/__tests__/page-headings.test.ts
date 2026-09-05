@@ -58,8 +58,6 @@ const NOT_YET_MIGRATED: Record<string, string> = {
     "admin tool — 案 15 (Phase 4)",
 
   // Purpose-built chrome that PageHeader has to absorb rather than replace.
-  "frontend/src/components/FolderBrowser.tsx":
-    "folder + search headers move with the toolbar rebuild (案 2, PR B2)",
   // The inspector's fixed block. It heads a region rather than the page, so it
   // wants to be an <h2> — but `FileDetailChrome` does not emit a page heading
   // yet, so demoting it now would leave the file detail page with no <h1> at
@@ -160,10 +158,10 @@ describe("page headings", () => {
         : "frontend/src";
       perRoot.set(root, (perRoot.get(root) ?? 0) + 1);
     }
-    // 12, not the 11 a file count would suggest: `app/admin/page.tsx` holds
+    // 11, not the 10 a file count would suggest: `app/admin/page.tsx` holds
     // two, one per branch. That is precisely the case a per-file allowlist
     // cannot see, which is why counts are asserted at all.
-    expect(perRoot.get("frontend/src")).toBe(12);
+    expect(perRoot.get("frontend/src")).toBe(11);
 
     const EXPECTED_ADDON_HEADINGS: Record<string, number> = {
       "addons/intelligence": 4,
