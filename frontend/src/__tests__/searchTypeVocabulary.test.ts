@@ -1,6 +1,6 @@
 import { describe, it, expect } from "vitest";
 
-import { TYPE_OPTION_KEYS } from "@/components/folder/FolderToolbar";
+import { TYPE_OPTION_KEYS } from "@/components/folder/filterOptions";
 import { VALID_TYPES } from "@/app/drive/[name]/search/page";
 
 /**
@@ -35,5 +35,23 @@ describe("the search page's kind vocabulary", () => {
     // that has to be explained.
     const offered = TYPE_OPTION_KEYS.map((o) => o.value).filter((v) => v !== null);
     expect(VALID_TYPES).toEqual(offered);
+  });
+});
+
+describe("the option tables are read-only to their readers", () => {
+  it("refuses a write", () => {
+    // `ReadonlyArray` is the only thing stopping one of three modules from
+    // reordering a table the other two read. Changing the declaration to
+    // `Array` type-checks silently, so the guarantee is asserted rather
+    // than assumed.
+    const writeAttempt = () => {
+      // @ts-expect-error the table is ReadonlyArray. If the declaration
+      // loosens to `Array`, this line stops being an error and `tsc` fails
+      // on the unused directive — which is the assertion.
+      TYPE_OPTION_KEYS.push({ value: null, labelKey: "type.all" });
+    };
+    // Never called: a runtime push would really mutate the shared table and
+    // leave the other tests in this file reading a corrupted one.
+    expect(typeof writeAttempt).toBe("function");
   });
 });

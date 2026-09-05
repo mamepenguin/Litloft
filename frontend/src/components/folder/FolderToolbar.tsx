@@ -2,13 +2,10 @@
 
 import { useState } from "react";
 import {
-  Check,
   CheckSquare,
-  Filter,
   MoreHorizontal,
   Play,
   RefreshCw,
-  ShieldCheck,
   Shuffle,
   X,
 } from "lucide-react";
@@ -16,6 +13,7 @@ import {
 import { useTranslations } from "next-intl";
 import type { FileKind, SortField, SortOrder, TrustFilter, ViewMode } from "@/types";
 import { AddButton } from "@/components/AddButton";
+import { FilterMenu } from "./FilterMenu";
 import { Button } from "@/components/Button";
 import { SortButton } from "@/components/SortButton";
 import { ViewToggle } from "@/components/ViewToggle";
@@ -93,33 +91,6 @@ interface FolderToolbarProps {
   onReshuffle?: () => void;
 }
 
-const TRUST_OPTION_KEYS: ReadonlyArray<{ value: TrustFilter | null; labelKey: string }> = [
-  { value: null, labelKey: "filterAll" },
-  { value: "verified", labelKey: "filterVerified" },
-  { value: "unreviewed", labelKey: "filterUnreviewed" },
-];
-
-/**
- * The one vocabulary, read from the one place it is written
- * (`filter.type.*`). The toolbar used to carry its own copy of these
- * words under `toolbar.*`, forty pixels from a chip that offered four
- * different ones.
- *
- * Markdown and PDF sit under `document`: choosing `document` returns
- * them too, and choosing one of them narrows further.
- */
-export const TYPE_OPTION_KEYS: ReadonlyArray<{ value: FileKind | null; labelKey: string }> = [
-  { value: null, labelKey: "type.all" },
-  { value: "video", labelKey: "type.video" },
-  { value: "image", labelKey: "type.image" },
-  { value: "audio", labelKey: "type.audio" },
-  { value: "document", labelKey: "type.document" },
-  { value: "markdown", labelKey: "type.markdown" },
-  { value: "pdf", labelKey: "type.pdf" },
-  { value: "archive", labelKey: "type.archive" },
-  { value: "other", labelKey: "type.other" },
-];
-
 export function FolderToolbar({
   isSpecialView, isFolderAnchored, isSearch, tagFilter, hasPlayableFiles,
   sort, order, typeFilter, trustFilter, total, folderCount, selectable, scanning,
@@ -150,17 +121,10 @@ export function FolderToolbar({
   const t = useTranslations("toolbar");
   const tc = useTranslations("common");
   const ts = useTranslations("selection");
-  const tTrust = useTranslations("trustTier");
   const tf = useTranslations("folder");
-  const tFilter = useTranslations("filter");
 
-  const [typeFilterOpen, setTypeFilterOpen] = useState(false);
-  const [trustFilterOpen, setTrustFilterOpen] = useState(false);
   const [moreOpen, setMoreOpen] = useState(false);
 
-  const activeTypeOption = TYPE_OPTION_KEYS.find((opt) => opt.value === typeFilter);
-  const activeTypeLabel = tFilter(activeTypeOption?.labelKey ?? "type.all");
-  const isTypeFiltered = typeFilter !== null;
 
   // Left mutating actions — rendered in two places:
   // mobile (normal flow, above the sticky bar) and desktop (inside the sticky bar).
@@ -260,134 +224,15 @@ export function FolderToolbar({
           </Button>
         )}
 
-        {/* Trust filter — sibling chip. Hidden where no handler is wired
-            (archive listings and other non-drive surfaces). */}
-        {onTrustFilterChange && !hideArrangingControls && (
-          <div className="relative">
-            <button
-              onClick={() => setTrustFilterOpen((s) => !s)}
-              className={`flex items-center gap-1.5 rounded-2xl border px-3 py-2 text-sm transition-colors ${
-                trustFilter
-                  ? "border-bg-border bg-bg-elevated text-text-primary font-medium"
-                  : "border-bg-border bg-bg-card text-text-muted hover:text-text-primary"
-              }`}
-              aria-haspopup="menu"
-              aria-expanded={trustFilterOpen}
-              aria-label={tTrust("filterLabel")}
-            >
-              <ShieldCheck size={16} />
-              {trustFilter && (
-                <span className="text-sm font-medium">
-                  {tTrust(
-                    TRUST_OPTION_KEYS.find((o) => o.value === trustFilter)
-                      ?.labelKey ?? "filterAll"
-                  )}
-                </span>
-              )}
-            </button>
-            {trustFilterOpen && (
-              <>
-                <div
-                  className="fixed inset-0 z-30 bg-black/30 sm:bg-transparent"
-                  aria-hidden="true"
-                  onClick={() => setTrustFilterOpen(false)}
-                />
-                <div
-                  role="menu"
-                  className="fixed inset-x-2 bottom-4 z-40 max-h-[60vh] overflow-y-auto rounded-2xl border border-bg-border bg-bg-primary py-1 shadow-lg animate-fade-in-scale sm:absolute sm:inset-x-auto sm:bottom-auto sm:right-0 sm:top-full sm:mt-1 sm:max-h-none sm:min-w-[160px] sm:overflow-visible sm:origin-top-right"
-                >
-                  {TRUST_OPTION_KEYS.map((opt) => (
-                    <button
-                      key={opt.labelKey}
-                      role="menuitem"
-                      onClick={() => {
-                        onTrustFilterChange(opt.value);
-                        setTrustFilterOpen(false);
-                      }}
-                      className={`flex w-full items-start gap-2 px-3 py-2 text-left text-sm transition-colors ${
-                        (trustFilter ?? null) === opt.value
-                          ? "bg-bg-elevated text-text-primary font-medium"
-                          : "text-text-primary hover:bg-bg-elevated"
-                      }`}
-                    >
-                      <span className="mt-0.5 w-4 flex-shrink-0">
-                        {(trustFilter ?? null) === opt.value && <Check size={14} />}
-                      </span>
-                      <span className="flex-1">
-                        {tTrust(opt.labelKey)}
-                        {/* "Unjudged" is not a tier — it selects files
-                            nobody has ruled on, which spans both tiers
-                            because the migrated backlog is verified and
-                            unjudged. The word alone reads as a third
-                            state, so it says what it means here. */}
-                        {opt.value === "unreviewed" && (
-                          <span className="mt-0.5 block text-xs font-normal text-text-muted">
-                            {tTrust("filterUnreviewedHint")}
-                          </span>
-                        )}
-                      </span>
-                    </button>
-                  ))}
-                </div>
-              </>
-            )}
-          </div>
-        )}
-
-        {/* Type filter — single chip + popover */}
+        {/* One way in to narrowing the listing, where there were two
+            unlabelled chips. `FilterMenu` holds both axes as sections. */}
         {!hideArrangingControls && (
-        <div className="relative">
-          <button
-            onClick={() => setTypeFilterOpen((s) => !s)}
-            className={`flex items-center gap-1.5 rounded-2xl border px-3 py-2 text-sm transition-colors ${
-              isTypeFiltered
-                ? "border-bg-border bg-bg-elevated text-text-primary font-medium"
-                : "border-bg-border bg-bg-card text-text-muted hover:text-text-primary"
-            }`}
-            aria-haspopup="menu"
-            aria-expanded={typeFilterOpen}
-            aria-label={t("fileType")}
-          >
-            <Filter size={16} />
-            {isTypeFiltered && (
-              <span className="text-sm font-medium">{activeTypeLabel}</span>
-            )}
-          </button>
-          {typeFilterOpen && (
-            <>
-              <div
-                className="fixed inset-0 z-30 bg-black/30 sm:bg-transparent"
-                aria-hidden="true"
-                onClick={() => setTypeFilterOpen(false)}
-              />
-              <div
-                role="menu"
-                className="fixed inset-x-2 bottom-4 z-40 max-h-[60vh] overflow-y-auto rounded-2xl border border-bg-border bg-bg-primary py-1 shadow-lg animate-fade-in-scale sm:absolute sm:inset-x-auto sm:bottom-auto sm:right-0 sm:top-full sm:mt-1 sm:max-h-none sm:min-w-[160px] sm:overflow-visible sm:origin-top-right"
-              >
-              {TYPE_OPTION_KEYS.map((opt) => (
-                <button
-                  key={opt.labelKey}
-                  role="menuitem"
-                  onClick={() => {
-                    onTypeFilterChange(opt.value);
-                    setTypeFilterOpen(false);
-                  }}
-                  className={`flex w-full items-center gap-2 px-3 py-2 text-left text-sm transition-colors ${
-                    typeFilter === opt.value
-                      ? "bg-bg-elevated text-text-primary font-medium"
-                      : "text-text-primary hover:bg-bg-elevated"
-                  }`}
-                >
-                  <span className="w-4 flex-shrink-0">
-                    {typeFilter === opt.value && <Check size={14} />}
-                  </span>
-                  {tFilter(opt.labelKey)}
-                </button>
-              ))}
-              </div>
-            </>
-          )}
-        </div>
+          <FilterMenu
+            typeFilter={typeFilter}
+            onTypeFilterChange={onTypeFilterChange}
+            trustFilter={trustFilter}
+            onTrustFilterChange={onTrustFilterChange}
+          />
         )}
 
         {sort === "random" && onReshuffle && !hideArrangingControls && (
