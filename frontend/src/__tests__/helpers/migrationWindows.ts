@@ -90,10 +90,13 @@ export interface MigrationWindow {
  * passes a check is not an assignment unless the check knows what the name
  * is for.
  *
- * Shrinks as the phase lands. When the last entry goes, so does this list.
+ * Shrinks as the phase lands — C1 is already gone. A pull request left here
+ * after it merges is the stale claim this whole mechanism exists to avoid:
+ * the list says "not landed yet", and a name in it that has would let a
+ * window be assigned to a PR that will never come back for it. When the last
+ * entry goes, so does this list.
  */
 export const PENDING_PRS: Record<string, { bumps: readonly string[] }> = {
-  C1: { bumps: [] },
   C2: { bumps: [] },
   C3: { bumps: [] },
   D1: { bumps: ["media_import", "intelligence", "knowledge"] },
