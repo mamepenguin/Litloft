@@ -224,7 +224,21 @@ describe("Button adoption", () => {
     ).toEqual([]);
     // The near side through the same functions: nothing crossed, and every
     // knowledge entry still listed.
-    const unconverted = handWritten();
+    //
+    // Built from the ledger's own `before` endpoints, **not** from
+    // `handWritten()`. Reading the checkout here asserts which side of the
+    // migration this tree happens to be on, which is the deadlock the
+    // windows exist to break: the addon's CI drops its converted tree into
+    // core and runs core's suite, so the moment the conversion lands this
+    // line fails — and core cannot be fixed first, because core still pins
+    // the unconverted commit. Both endpoints are declared; both are asked
+    // about as declarations.
+    const unconverted = Object.fromEntries(
+      openWindows().map((path) => [
+        path,
+        MIGRATION_WINDOWS["button-adoption"][path].before,
+      ]),
+    );
     expect(crossedFrom(unconverted)).toBe(0);
     expect(
       Object.keys(wantFrom(unconverted)).filter((k) =>
