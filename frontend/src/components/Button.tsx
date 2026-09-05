@@ -33,10 +33,12 @@ const VARIANT_CLASS: Record<ButtonVariant, string> = {
  * "ensure Japanese labels have enough room").
  *
  * The three values are the ones the tree already used, counted before they
- * were named: `md` on nine call sites, `sm` on four, `lg` on four. An earlier
- * draft of this file invented `sm` as `px-3 py-1.5 text-xs`, which matched
- * nothing — a scale written without measuring the thing it was meant to
- * replace, which is how five sizes came to exist in the first place.
+ * were named: `md` on nine call sites, `sm` on four, `lg` on four. Exact on
+ * padding; on type size, three of the four `lg` sites used `text-sm` and one
+ * used `text-base`, which this rounds down. An earlier draft of this file
+ * invented `sm` as `px-3 py-1.5 text-xs`, which matched nothing — a scale
+ * written without measuring the thing it was meant to replace, which is how
+ * five sizes came to exist in the first place.
  */
 const SIZE_CLASS: Record<ButtonSize, string> = {
   sm: "px-3 py-1.5 text-sm",

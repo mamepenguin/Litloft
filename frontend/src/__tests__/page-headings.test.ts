@@ -2,7 +2,7 @@ import { describe, it, expect } from "vitest";
 import { readFileSync, readdirSync, existsSync, statSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { resolve, dirname, relative } from "node:path";
-import { stripComments } from "./helpers/stripComments";
+import { stripComments } from "./helpers/sourceScan";
 
 /**
  * Every `<h1>` in core and in every addon checked out beside it.

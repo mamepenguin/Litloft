@@ -112,6 +112,34 @@ describe("Button", () => {
     expect(screen.getByRole("button").classList.contains(radius)).toBe(true);
   });
 
+  // The conversion sweep deleted `flex items-center gap-2` from call sites and
+  // left the layout to this class, so nothing in the app draws its own row any
+  // more — and nothing was checking it. Every one of these could be removed
+  // with 4314 tests still green, while a dialog's button silently stopped
+  // centring its spinner against its label.
+  describe("the layout every call site now depends on", () => {
+    it.each(["inline-flex", "items-center", "justify-center", "gap-1.5", "font-medium"])(
+      "carries %s",
+      (cls) => {
+        render(<Button>Save</Button>);
+        expect(screen.getByRole("button").classList.contains(cls)).toBe(true);
+      },
+    );
+
+    it("centres an icon against its label", () => {
+      render(
+        <Button>
+          <Trash2 size={16} />
+          Delete
+        </Button>,
+      );
+      const button = screen.getByRole("button");
+      // A block button would stack them; the row is what the call sites gave up.
+      expect(button.classList.contains("inline-flex")).toBe(true);
+      expect(button.classList.contains("block")).toBe(false);
+    });
+  });
+
   // The scale is stated in DESIGN.md §6, and it was derived from the call
   // sites rather than invented: the first draft's `sm` matched none of them.
   it.each([
@@ -245,5 +273,41 @@ describe("Button", () => {
     const button = screen.getByRole("button");
     expect(button.classList.contains("w-full")).toBe(true);
     expect(button.classList.contains("bg-accent")).toBe(true);
+  });
+
+  // The type-level promises, asserted in the suite rather than left to a
+  // reader. `tsc --noEmit` runs in CI, but it only catches a violated
+  // constraint if some call site violates it — loosening `size?: never` or
+  // making `aria-label` optional passed both the suite and `tsc`, because
+  // nothing in the tree happened to exercise them. `@ts-expect-error` is the
+  // call site that does.
+  describe("what the types refuse", () => {
+    it("refuses an icon-only button with no accessible name", () => {
+      // @ts-expect-error - `aria-label` is required when `iconOnly` is set.
+      const bad = <Button iconOnly><Trash2 size={16} /></Button>;
+      expect(bad).toBeTruthy();
+    });
+
+    it("refuses a size on an icon-only button", () => {
+      const bad = (
+        // @ts-expect-error - the box is fixed, so `size` would do nothing.
+        <Button iconOnly size="lg" aria-label="Delete Q1 notes">
+          <Trash2 size={16} />
+        </Button>
+      );
+      expect(bad).toBeTruthy();
+    });
+
+    it("refuses a size outside the scale", () => {
+      // @ts-expect-error - only sm | md | lg exist.
+      const bad = <Button size="xl">Save</Button>;
+      expect(bad).toBeTruthy();
+    });
+
+    it("refuses a variant outside the five", () => {
+      // @ts-expect-error - DESIGN.md §6 names five.
+      const bad = <Button variant="tertiary">Save</Button>;
+      expect(bad).toBeTruthy();
+    });
   });
 });

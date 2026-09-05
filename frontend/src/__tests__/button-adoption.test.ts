@@ -2,7 +2,7 @@ import { describe, it, expect } from "vitest";
 import { readFileSync, readdirSync, existsSync, statSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { resolve, dirname, relative } from "node:path";
-import { stripComments } from "./helpers/stripComments";
+import { classValues } from "./helpers/sourceScan";
 
 /**
  * Where the disabled treatment is still written by hand.
@@ -11,17 +11,37 @@ import { stripComments } from "./helpers/stripComments";
  * copy that will not receive a correction. This test holds the list of copies
  * that remain, so the set can only shrink by a change that edits this file.
  *
- * The alternative — a comment saying "the app screens are done, setup and
- * admin are not" — is the shape that has already failed twice in this phase:
- * a hand-maintained enumeration cannot be contradicted by what it leaves out.
- * `ViewToggle`'s comment said four screens when there were six, and the h1
- * acceptance criterion measured "the migrated screens only", which is a set
- * chosen so that it passes.
+ * **Core and every addon.** The first version of this file scanned
+ * `frontend/src` alone and skipped the `frontend/src/addons` symlinks, which
+ * meant it measured 20 of the 43 sites the phase is about — the addons hold
+ * 23 more. It condemned hand-maintained enumerations in this very comment
+ * while being one: a scope that leaves out 23 sites cannot be contradicted by
+ * them. Addons are read at their real roots rather than through the symlinks,
+ * the way `design-tokens.test.ts` does, so an addon that is checked out but
+ * not enabled is still counted.
+ *
+ * That failure is the reason the comment above is worth keeping: `ViewToggle`
+ * named four screens when there were six, the h1 criterion measured "migrated
+ * screens only", and this file measured "core only". Three times, one shape.
  */
 
 const REPO_ROOT = resolve(dirname(fileURLToPath(import.meta.url)), "../../..");
 const SRC = resolve(REPO_ROOT, "frontend/src");
 const ADDON_LINK_DIR = resolve(SRC, "addons");
+const ADDONS_DIR = resolve(REPO_ROOT, "addons");
+
+/** Core, plus every addon checked out beside it, read at its real root. */
+const SOURCE_ROOTS: Array<[label: string, dir: string]> = [
+  ["frontend/src", SRC],
+  ...(existsSync(ADDONS_DIR)
+    ? readdirSync(ADDONS_DIR, { withFileTypes: true })
+        .filter((e) => e.isDirectory())
+        .map((e): [string, string] => [
+          `addons/${e.name}/frontend`,
+          resolve(ADDONS_DIR, e.name, "frontend"),
+        ])
+    : []),
+];
 
 /** The component that owns the recipe. Not a leftover. */
 const OWNER = "components/Button.tsx";
@@ -36,44 +56,74 @@ const OWNER = "components/Button.tsx";
  * pixels no one is looking at.
  */
 const NOT_CONVERTED: Record<string, number> = {
+  // Core, brand surfaces outside the AppShell.
   "app/setup/steps/CompleteStep.tsx": 1,
   "app/setup/steps/DriveStep.tsx": 1,
   "app/setup/steps/LanguageStep.tsx": 1,
   "app/setup/steps/PasswordStep.tsx": 1,
   "app/unlock/page.tsx": 1,
+  // Core, rebuilt whole by 案 15 / 案 16 in Phase 4.
   "app/admin/markdown-images/MarkdownImagesPresenter.tsx": 2,
+
+  // Addons. `Button` lives in core and an addon imports it, so these convert
+  // in the addon PRs — media_import in C1, intelligence in C2, knowledge in
+  // C3 — each of which is a pull request in its own repository. cloud-sync is
+  // out of Phase 3 entirely (DESIGN.md §6 records why).
+  "addons/cloud-sync/frontend/SyncDriveCard.tsx": 2,
+  "addons/intelligence/frontend/AdminEmbeddingSettingsSection.tsx": 1,
+  "addons/intelligence/frontend/AdminFeaturesSettingsSection.tsx": 1,
+  "addons/intelligence/frontend/AdminLLMSettingsSection.tsx": 1,
+  "addons/intelligence/frontend/AdminRAGSettingsSection.tsx": 1,
+  "addons/intelligence/frontend/AdminTranscriptionSettingsSection.tsx": 1,
+  "addons/intelligence/frontend/KnowledgeSaveDialog.tsx": 1,
+  "addons/intelligence/frontend/Page.tsx": 1,
+  "addons/intelligence/frontend/UnverifiedSourceSection.tsx": 1,
+  "addons/intelligence/frontend/pages/find.tsx": 1,
+  "addons/intelligence/frontend/pages/search-compare.tsx": 1,
+  "addons/knowledge/frontend/CaptureBasket.tsx": 3,
+  "addons/knowledge/frontend/ClipDuplicateDialog.tsx": 1,
+  "addons/knowledge/frontend/ClipInput.tsx": 1,
+  "addons/knowledge/frontend/ClipPasteForm.tsx": 1,
+  "addons/knowledge/frontend/FolderView.tsx": 1,
+  "addons/knowledge/frontend/KnowledgeDashboard.tsx": 1,
+  "addons/knowledge/frontend/MoveDialog.tsx": 1,
+  "addons/knowledge/frontend/UnresolvedLinkDialog.tsx": 1,
+  "addons/media_import/frontend/Composer.tsx": 1,
 };
-
-/** Whole `className` values, however many lines they span. */
-function classValues(text: string): string[] {
-  const out: string[] = [];
-  for (const m of text.matchAll(/className\s*=\s*(?:"([^"]*)"|\{`([^`]*)`\})/g)) {
-    out.push(m[1] ?? m[2] ?? "");
-  }
-  return out;
-}
-
 function handWritten(): Record<string, number> {
   const counts: Record<string, number> = {};
-  const walk = (dir: string) => {
-    if (dir === ADDON_LINK_DIR) return;
-    for (const entry of readdirSync(dir, { withFileTypes: true })) {
-      const full = resolve(dir, entry.name);
-      if (entry.name === "node_modules" || entry.name.startsWith(".")) continue;
-      if (!existsSync(full)) continue;
-      if (statSync(full).isDirectory()) walk(full);
-      else if (/\.tsx?$/.test(entry.name) && !/\.test\.tsx?$/.test(entry.name)) {
-        const rel = relative(SRC, full);
-        if (rel === OWNER) continue;
-        const text = stripComments(readFileSync(full, "utf-8"));
-        const n = classValues(text).filter((v) =>
-          /\bdisabled:bg-sand\b/.test(v),
-        ).length;
-        if (n > 0) counts[rel] = n;
+  for (const [label, root] of SOURCE_ROOTS) {
+    if (!existsSync(root)) continue;
+    const walk = (dir: string) => {
+      // The symlinks under `frontend/src/addons` point at the roots already
+      // walked above; following them would count every addon site twice.
+      if (dir === ADDON_LINK_DIR) return;
+      for (const entry of readdirSync(dir, { withFileTypes: true })) {
+        const full = resolve(dir, entry.name);
+        if (entry.name === "node_modules" || entry.name.startsWith(".")) continue;
+        if (!existsSync(full)) continue;
+        if (statSync(full).isDirectory()) walk(full);
+        else if (/\.tsx?$/.test(entry.name) && !/\.test\.tsx?$/.test(entry.name)) {
+          const rel =
+            label === "frontend/src"
+              ? relative(SRC, full)
+              : `${label}/${relative(root, full)}`;
+          if (rel === OWNER) continue;
+          // `classValues` reads attributes *and* `*_CLASS` constants, and
+          // handles `{"..."}`, `{`...`}` and `{[...]}` alike. The first
+          // version matched only `"..."` and `{`...`}`, so a recipe written
+          // any other way — 38 files in core write `className={<expr>}` — was
+          // invisible, and the set this file claims can only shrink could in
+          // fact grow without it noticing.
+          const n = classValues(readFileSync(full, "utf-8")).filter((v) =>
+            /\bdisabled:bg-sand\b/.test(v),
+          ).length;
+          if (n > 0) counts[rel] = n;
+        }
       }
-    }
-  };
-  walk(SRC);
+    };
+    walk(root);
+  }
   return counts;
 }
 
@@ -87,8 +137,25 @@ describe("Button adoption", () => {
   // A stale line reads as a considered exemption while excusing nothing.
   it("keeps the list free of files that no longer need it", () => {
     const counts = handWritten();
-    const stale = Object.keys(NOT_CONVERTED).filter((f) => !(f in counts));
+    const stale = Object.keys(NOT_CONVERTED).filter((f) => {
+      // An addon that is not checked out is absent, not stale — the same
+      // allowance `page-headings.test.ts` makes, and for the same reason.
+      if (f.startsWith("addons/")) {
+        const root = resolve(REPO_ROOT, f.split("/").slice(0, 3).join("/"));
+        if (!existsSync(root)) return false;
+      }
+      return !(f in counts);
+    });
     expect(stale).toEqual([]);
+  });
+
+  // The population this phase is about. DESIGN.md §6 says 43 sites carry the
+  // treatment; 13 are converted, so 30 remain. Asserting the total as well as
+  // the per-file map is what makes the two numbers in that paragraph checkable
+  // rather than remembered.
+  it("leaves exactly thirty sites unconverted across the repository", () => {
+    const total = Object.values(handWritten()).reduce((a, b) => a + b, 0);
+    expect(total).toBe(30);
   });
 
   it("still owns the recipe in one place", () => {

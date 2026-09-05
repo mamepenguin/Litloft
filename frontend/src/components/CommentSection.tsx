@@ -181,9 +181,14 @@ export function CommentSection({ fileId }: CommentSectionProps) {
           maxLength={1000}
           className="flex-1 resize-none rounded-2xl border border-bg-border bg-bg-card px-3 py-2 text-sm text-text-primary placeholder:text-text-muted outline-none focus:ring-2 focus:ring-focus-ring"
         />
+        {/* `iconOnly`: the content is one glyph and the name is on the
+            `aria-label`, which is exactly the case that wants a fixed 32px box
+            and the coarse-pointer hit area. Converting it as a labelled `md`
+            button — which is what its old `px-3 py-2` mapped to — would have
+            widened it by 8px and left it without either. */}
         <Button
           variant="primary"
-          size="md"
+          iconOnly
           className="self-end"
           onClick={handlePost}
           disabled={!body.trim() || posting}
