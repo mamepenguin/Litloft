@@ -29,9 +29,9 @@ import { resolve } from "node:path";
  * **Two residuals, both deliberate and neither closed by this mechanism.**
  *
  * *Per window, not per pull request.* Each entry is independent, so a ledger
- * holding `n` open windows admits 2ⁿ combinations — twenty-five are declared
- * across three addons, and a tree where some of those conversions landed and
- * others did not is green on both sides. "Exactly the width the migration
+ * holding `n` open windows admits 2ⁿ combinations — nine are declared for the
+ * one addon still crossing, and a tree where some of its conversions landed
+ * and others did not is green on both sides. "Exactly the width the migration
  * crosses" is a claim about one window. Nothing here can tell a half-applied
  * pull request from a whole one, because nothing here knows the windows
  * belong to the same one.
@@ -107,7 +107,7 @@ export interface MigrationWindow {
  * name that has is a window nobody will come back for.
  */
 export const PENDING_BUMPS: Record<string, { bumps: readonly string[] }> = {
-  D1: { bumps: ["media_import", "intelligence", "knowledge"] },
+  D1b: { bumps: ["knowledge"] },
   D5: { bumps: ["intelligence"] },
 };
 
@@ -122,165 +122,69 @@ export function addonOf(path: string): string | null {
  * The first version keyed by path and carried the ledger as a field, which
  * recognised that one path can appear in both ledgers without being able to
  * hold it: a second entry for the same file is a duplicate key, and `tsc`
- * rejects it (TS1117). Four paths hold a window on each ledger:
- * `intelligence/Page.tsx`, `pages/find.tsx`, `pages/search-compare.tsx` and
- * `knowledge/FolderView.tsx`.
+ * rejects it (TS1117). One path holds a window on each ledger today —
+ * `knowledge/FolderView.tsx` — and three more did until D1 removed
+ * intelligence's.
  */
 export const MIGRATION_WINDOWS: Record<
   Ledger,
   Record<string, MigrationWindow>
 > = {
   "page-headings": {
-    "addons/media_import/frontend/Page.tsx": {
-      before: 1,
-      after: 0,
-      closedBy: "D1",
-      why: "PR C1 moves this page's <h1> into core's PageHeader",
-    },
-    "addons/intelligence/frontend/Page.tsx": {
-      before: 1,
-      after: 0,
-      closedBy: "D1",
-      why: "PR C2a moves Ask's <h1> into core's PageHeader",
-    },
-    "addons/intelligence/frontend/pages/find.tsx": {
-      before: 1,
-      after: 0,
-      closedBy: "D1",
-      why: "PR C2a moves Find's <h1> into core's PageHeader",
-    },
-    "addons/intelligence/frontend/pages/pickup.tsx": {
-      before: 1,
-      after: 0,
-      closedBy: "D1",
-      why: "PR C2b moves Pickup's <h1> into core's PageHeader",
-    },
-    "addons/intelligence/frontend/pages/search-compare.tsx": {
-      before: 1,
-      after: 0,
-      closedBy: "D1",
-      why: "PR C2b moves the comparison page's <h1> into core's PageHeader",
-    },
     "addons/knowledge/frontend/FolderView.tsx": {
       before: 1,
       after: 0,
-      closedBy: "D1",
+      closedBy: "D1b",
       why: "PR C3 demotes this pane heading to an <h2>; it heads a region, not a page",
     },
   },
   "button-adoption": {
-    "addons/media_import/frontend/Composer.tsx": {
-      before: 1,
-      after: 0,
-      closedBy: "D1",
-      why: "PR C1 converts this button to core's Button",
-    },
-    "addons/intelligence/frontend/Page.tsx": {
-      before: 1,
-      after: 0,
-      closedBy: "D1",
-      why: "PR C2a converts Ask's submit button to core's Button",
-    },
-    "addons/intelligence/frontend/pages/find.tsx": {
-      before: 1,
-      after: 0,
-      closedBy: "D1",
-      why: "PR C2a converts Find's submit button to core's Button",
-    },
-    "addons/intelligence/frontend/pages/search-compare.tsx": {
-      before: 1,
-      after: 0,
-      closedBy: "D1",
-      why: "PR C2b converts the comparison page's run button to core's Button",
-    },
-    "addons/intelligence/frontend/AdminEmbeddingSettingsSection.tsx": {
-      before: 1,
-      after: 0,
-      closedBy: "D1",
-      why: "PR C2b converts this settings section's save button to core's Button",
-    },
-    "addons/intelligence/frontend/AdminFeaturesSettingsSection.tsx": {
-      before: 1,
-      after: 0,
-      closedBy: "D1",
-      why: "PR C2b converts this settings section's save button to core's Button",
-    },
-    "addons/intelligence/frontend/AdminLLMSettingsSection.tsx": {
-      before: 1,
-      after: 0,
-      closedBy: "D1",
-      why: "PR C2b converts this settings section's save button to core's Button",
-    },
-    "addons/intelligence/frontend/AdminRAGSettingsSection.tsx": {
-      before: 1,
-      after: 0,
-      closedBy: "D1",
-      why: "PR C2b converts this settings section's save button to core's Button",
-    },
-    "addons/intelligence/frontend/AdminTranscriptionSettingsSection.tsx": {
-      before: 1,
-      after: 0,
-      closedBy: "D1",
-      why: "PR C2b converts this settings section's save button to core's Button",
-    },
-    "addons/intelligence/frontend/KnowledgeSaveDialog.tsx": {
-      before: 1,
-      after: 0,
-      closedBy: "D1",
-      why: "PR C2b converts this dialog's confirm button to core's Button",
-    },
-    "addons/intelligence/frontend/UnverifiedSourceSection.tsx": {
-      before: 1,
-      after: 0,
-      closedBy: "D1",
-      why: "PR C2b converts this section's action button to core's Button",
-    },
     "addons/knowledge/frontend/CaptureBasket.tsx": {
       before: 3,
       after: 0,
-      closedBy: "D1",
+      closedBy: "D1b",
       why: "PR C3 converts this basket's three buttons to core's Button",
     },
     "addons/knowledge/frontend/ClipDuplicateDialog.tsx": {
       before: 1,
       after: 0,
-      closedBy: "D1",
+      closedBy: "D1b",
       why: "PR C3 converts this dialog's confirm button to core's Button",
     },
     "addons/knowledge/frontend/ClipInput.tsx": {
       before: 1,
       after: 0,
-      closedBy: "D1",
+      closedBy: "D1b",
       why: "PR C3 converts this form's submit button to core's Button",
     },
     "addons/knowledge/frontend/ClipPasteForm.tsx": {
       before: 1,
       after: 0,
-      closedBy: "D1",
+      closedBy: "D1b",
       why: "PR C3 converts this form's submit button to core's Button",
     },
     "addons/knowledge/frontend/FolderView.tsx": {
       before: 1,
       after: 0,
-      closedBy: "D1",
+      closedBy: "D1b",
       why: "PR C3 converts this pane's action button to core's Button",
     },
     "addons/knowledge/frontend/KnowledgeDashboard.tsx": {
       before: 1,
       after: 0,
-      closedBy: "D1",
+      closedBy: "D1b",
       why: "PR C3 converts this dashboard's action button to core's Button",
     },
     "addons/knowledge/frontend/MoveDialog.tsx": {
       before: 1,
       after: 0,
-      closedBy: "D1",
+      closedBy: "D1b",
       why: "PR C3 converts this dialog's confirm button to core's Button",
     },
     "addons/knowledge/frontend/UnresolvedLinkDialog.tsx": {
       before: 1,
       after: 0,
-      closedBy: "D1",
+      closedBy: "D1b",
       why: "PR C3 converts this dialog's confirm button to core's Button",
     },
   },

@@ -25,7 +25,7 @@ const REPO_ROOT = resolve(
 );
 const there = { exists: true };
 const gone = { exists: false };
-const PATH = "addons/media_import/frontend/Composer.tsx";
+const PATH = "addons/knowledge/frontend/MoveDialog.tsx";
 
 describe("migration windows", () => {
   it("admits both declared endpoints and says which", () => {
@@ -43,13 +43,13 @@ describe("migration windows", () => {
 
   it("refuses a path nobody declared", () => {
     expect(() =>
-      windowSide(0, "button-adoption", "addons/media_import/frontend/api.ts", there),
+      windowSide(0, "button-adoption", "addons/knowledge/frontend/api.ts", there),
     ).toThrow(/no migration window/);
   });
 
   it("refuses a path declared on the other ledger", () => {
     // The same file can hold a window on each ledger, so asking the wrong one
-    // must not resolve. Four paths hold one on each.
+    // must not resolve. One path holds one on each.
     expect(() =>
       windowSide(1, "page-headings", PATH, there),
     ).toThrow(/no migration window/);
@@ -98,12 +98,8 @@ describe("migration windows", () => {
     //
     // The name says both halves because the second does the work the first
     // cannot: the key set alone would let the pointers be rewritten.
-    expect(Object.keys(PENDING_BUMPS).sort()).toEqual(["D1", "D5"]);
-    expect([...PENDING_BUMPS.D1.bumps].sort()).toEqual([
-      "intelligence",
-      "knowledge",
-      "media_import",
-    ]);
+    expect(Object.keys(PENDING_BUMPS).sort()).toEqual(["D1b", "D5"]);
+    expect([...PENDING_BUMPS.D1b.bumps].sort()).toEqual(["knowledge"]);
     expect([...PENDING_BUMPS.D5.bumps].sort()).toEqual(["intelligence"]);
   });
 
@@ -152,16 +148,6 @@ describe("migration windows", () => {
     // the other unnoticed, which is the whole distinction being asserted.
     expect(openWindows("button-adoption", () => true).sort()).toEqual(
       [
-        "addons/intelligence/frontend/AdminEmbeddingSettingsSection.tsx",
-        "addons/intelligence/frontend/AdminFeaturesSettingsSection.tsx",
-        "addons/intelligence/frontend/AdminLLMSettingsSection.tsx",
-        "addons/intelligence/frontend/AdminRAGSettingsSection.tsx",
-        "addons/intelligence/frontend/AdminTranscriptionSettingsSection.tsx",
-        "addons/intelligence/frontend/KnowledgeSaveDialog.tsx",
-        "addons/intelligence/frontend/Page.tsx",
-        "addons/intelligence/frontend/UnverifiedSourceSection.tsx",
-        "addons/intelligence/frontend/pages/find.tsx",
-        "addons/intelligence/frontend/pages/search-compare.tsx",
         "addons/knowledge/frontend/CaptureBasket.tsx",
         "addons/knowledge/frontend/ClipDuplicateDialog.tsx",
         "addons/knowledge/frontend/ClipInput.tsx",
@@ -170,39 +156,26 @@ describe("migration windows", () => {
         "addons/knowledge/frontend/KnowledgeDashboard.tsx",
         "addons/knowledge/frontend/MoveDialog.tsx",
         "addons/knowledge/frontend/UnresolvedLinkDialog.tsx",
-        "addons/media_import/frontend/Composer.tsx",
       ].sort(),
     );
-    expect(openWindows("page-headings", () => true).sort()).toEqual(
-      [
-        "addons/intelligence/frontend/Page.tsx",
-        "addons/intelligence/frontend/pages/find.tsx",
-        "addons/intelligence/frontend/pages/pickup.tsx",
-        "addons/intelligence/frontend/pages/search-compare.tsx",
-        "addons/knowledge/frontend/FolderView.tsx",
-        "addons/media_import/frontend/Page.tsx",
-      ].sort(),
-    );
+    expect(openWindows("page-headings", () => true).sort()).toEqual([
+      "addons/knowledge/frontend/FolderView.tsx",
+    ]);
   });
 
   it("declares a path on both ledgers at once", () => {
     // What makes the ledger-then-path keying load-bearing rather than
     // hypothetical. While only media_import held windows, the two were
     // `Page.tsx` and `Composer.tsx` — different names, so keying by path alone
-    // still type-checked and the nesting was carrying nothing. Four paths now
-    // hold a window on each ledger, and keying by path alone is a duplicate
+    // still type-checked and the nesting was carrying nothing. One path holds
+    // a window on each ledger today, and keying by path alone is a duplicate
     // key: `tsc` reports TS1117 once per shared path. That is checked by the
     // type system on every run, not here; what is held here is the population
     // it depends on, so a change that empties it cannot pass silently.
     const onBoth = Object.keys(MIGRATION_WINDOWS["page-headings"]).filter(
       (path) => path in MIGRATION_WINDOWS["button-adoption"],
     );
-    expect(onBoth.sort()).toEqual([
-      "addons/intelligence/frontend/Page.tsx",
-      "addons/intelligence/frontend/pages/find.tsx",
-      "addons/intelligence/frontend/pages/search-compare.tsx",
-      "addons/knowledge/frontend/FolderView.tsx",
-    ]);
+    expect(onBoth.sort()).toEqual(["addons/knowledge/frontend/FolderView.tsx"]);
   });
 
   it("lets one path hold a window on each ledger, with different answers", () => {
@@ -215,13 +188,13 @@ describe("migration windows", () => {
     //
     // The endpoints below are 1-vs-3 rather than 1-vs-1 for that reason. A
     // pair matching the declarations would pass whichever ledger resolved it.
-    const SHARED = "addons/intelligence/frontend/Page.tsx";
+    const SHARED = "addons/knowledge/frontend/FolderView.tsx";
     const fixture = {
       "page-headings": {
-        [SHARED]: { before: 1, after: 0, closedBy: "D1", why: "heading" },
+        [SHARED]: { before: 1, after: 0, closedBy: "D1b", why: "heading" },
       },
       "button-adoption": {
-        [SHARED]: { before: 3, after: 0, closedBy: "D1", why: "recipes" },
+        [SHARED]: { before: 3, after: 0, closedBy: "D1b", why: "recipes" },
       },
     };
     // `windowSideIn`, not `windowSide` with an option: an injectable map on
@@ -254,8 +227,8 @@ describe("migration windows", () => {
     // `present` filters the declarations; it does not add to them. The count
     // is the declared population, so a predicate that invented a path would
     // have to invent it here too.
-    expect(openWindows("button-adoption", () => true)).toHaveLength(19);
-    expect(openWindows("page-headings", () => true)).toHaveLength(6);
+    expect(openWindows("button-adoption", () => true)).toHaveLength(8);
+    expect(openWindows("page-headings", () => true)).toHaveLength(1);
   });
 
   it("names addons that exist", () => {

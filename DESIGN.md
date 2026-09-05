@@ -566,13 +566,14 @@ explained why the button is off.
 > is itself a decision to pass defects through.** The local harm gets the
 > local fix instead.
 >
-> **Progress (PR A2b): 13 of the 43 converted, 30 remain.** The 13 are the
-> call sites under `frontend/src/components/`. Of the 30, seven are core —
-> four in the first-run wizard and one on the unlock gate, brand surfaces
-> outside the AppShell, plus two under `app/admin/`, which 案 15 / 案 16 rebuild
-> in Phase 4 — and 23 are in addons, which convert in their own repositories'
-> pull requests (media_import in C1, intelligence in C2, knowledge in C3;
-> cloud-sync stays, per the paragraph above).
+> **Progress (PR D1): 24 of the 43 converted, 19 remain.** The first 13 were
+> the call sites under `frontend/src/components/` (PR A2b); the next 11 came
+> from the addons whose pointers have since moved — media_import in C1,
+> intelligence in C2a and C2b. Of the 19 left, seven are core — four in the
+> first-run wizard and one on the unlock gate, brand surfaces outside the
+> AppShell, plus two under `app/admin/`, which 案 15 / 案 16 rebuild in Phase 4
+> — ten are knowledge's and convert in C3, and two are cloud-sync's and stay,
+> per the paragraph above.
 >
 > `src/__tests__/button-adoption.test.ts` holds that list per file, across core
 > and every addon, so the set cannot change without an edit to it. Its first
