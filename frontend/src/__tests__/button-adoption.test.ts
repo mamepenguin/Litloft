@@ -180,6 +180,59 @@ describe("Button adoption", () => {
     );
   }
 
+  /**
+   * The listed sites a given observation has already crossed off.
+   *
+   * Taken as an argument so the crossing can be asked about a tree this
+   * checkout does not hold. D1 deleted the last window sitting on `after`;
+   * every one that remains is on `before`, so `side(...) === "after"` is
+   * false everywhere here and both of these branches became unreachable.
+   * They could be broken and nothing would notice until an addon's CI dropped
+   * a converted tree into core, a repository away and weeks later.
+   *
+   * The ledger still judges. `observed` supplies counts; `windowSide` reads
+   * `MIGRATION_WINDOWS` and refuses anything that is neither endpoint.
+   */
+  function crossedFrom(observed: Record<string, number>): number {
+    return openWindows()
+      .filter((path) => side(observed, path) === "after")
+      .reduce(
+        (a, path) => a + MIGRATION_WINDOWS["button-adoption"][path].before,
+        0,
+      );
+  }
+
+  /** The listed map with everything that observation has crossed removed. */
+  function wantFrom(observed: Record<string, number>): Record<string, number> {
+    const want = expected();
+    for (const path of openWindows()) {
+      if (side(observed, path) === "after") delete want[path];
+    }
+    return want;
+  }
+
+  it("crosses a converted addon off the listed sites", () => {
+    // The half D1 made unreachable, asked about a tree where knowledge has
+    // been converted: no file writes the recipe, so every one of its eight
+    // windows resolves to `after`.
+    const converted = {};
+    expect(crossedFrom(converted)).toBe(10);
+    expect(
+      Object.keys(wantFrom(converted)).filter((k) =>
+        k.startsWith("addons/knowledge/"),
+      ),
+    ).toEqual([]);
+    // The near side through the same functions: nothing crossed, and every
+    // knowledge entry still listed.
+    const unconverted = handWritten();
+    expect(crossedFrom(unconverted)).toBe(0);
+    expect(
+      Object.keys(wantFrom(unconverted)).filter((k) =>
+        k.startsWith("addons/knowledge/"),
+      ),
+    ).toHaveLength(8);
+  });
+
   // Exact, and per file. A total alone would let a conversion in one screen
   // pay for a new hand-written button in another.
   //
@@ -193,12 +246,7 @@ describe("Button adoption", () => {
     // Two acceptable ledgers while a window is open — the listed entry
     // present, or gone — and nothing else. Deep-equal against whichever the
     // observed side names, so a *different* file changing still fails.
-    const observed = handWritten();
-    const want = expected();
-    for (const path of openWindows()) {
-      if (side(observed, path) === "after") delete want[path];
-    }
-    expect(observed).toEqual(want);
+    expect(handWritten()).toEqual(wantFrom(handWritten()));
   });
 
   // The population this phase is about. DESIGN.md §6 says 43 sites carry the
@@ -210,13 +258,7 @@ describe("Button adoption", () => {
   it("leaves exactly nineteen sites unconverted across the repository", () => {
     const observed = handWritten();
     const total = Object.values(observed).reduce((a, b) => a + b, 0);
-    // What the open windows have already taken off the total, on this side.
-    const crossed = openWindows()
-      .filter((path) => side(observed, path) === "after")
-      .reduce(
-        (a, path) => a + MIGRATION_WINDOWS["button-adoption"][path].before,
-        0,
-      );
+    const crossed = crossedFrom(observed);
     const listed = Object.values(expected()).reduce((a, b) => a + b, 0);
     expect(total).toBe(listed - crossed);
     if (listed === Object.values(NOT_CONVERTED).reduce((a, b) => a + b, 0)) {

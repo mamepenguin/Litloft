@@ -72,17 +72,69 @@ const NOT_YET_MIGRATED: Record<string, string> = {
   "frontend/src/components/FileDetail/FileMetaBlock.tsx":
     "inspector heading; demoted with the FileDetailChrome migration (PR A2b)",
 
-  // knowledge is the last addon still crossing. Its conversion happens in its
-  // own repository while the pointer here names the commit before it, so
-  // `MIGRATION_WINDOWS` declares both endpoints; D1b bumps that pointer and
-  // deletes this line. media_import and intelligence used to be here too.
 
   // Not a page header at all: the landing panel of the knowledge two-pane
   // view. DESIGN.md's chrome scale does not govern it.
   "addons/knowledge/frontend/EmptyState.tsx": "knowledge landing panel, not a page header",
-  // A pane heading written as <h1>. Demoted in PR C3.
+  // A pane heading written as <h1>. Demoted in PR C3 — and knowledge is the
+  // last addon still crossing, so `MIGRATION_WINDOWS` declares both endpoints
+  // for this file while its pointer names the commit before the conversion.
+  // **D1b bumps that pointer and deletes the entry below.** media_import and
+  // intelligence used to be listed here too, until D1.
   "addons/knowledge/frontend/FolderView.tsx": "pane heading, demoted to <h2> in PR C3",
 };
+
+/**
+ * What a window observes, so the crossing can be asked about a tree this
+ * checkout does not hold.
+ *
+ * The map stays hard-wired: `windowSide` reads `MIGRATION_WINDOWS` and judges
+ * the count against it, so nothing here can invent a window or move an
+ * endpoint — a count that matches neither is thrown out with both named. What
+ * is injectable is the *observation*, which is what `HeadingSource` already
+ * injects one rule further down, and strictly less than `windowSideIn` takes.
+ */
+interface CrossingSource {
+  /** How many headings this path writes. */
+  countOf(path: string): number;
+  /** Whether the file is in the tree. */
+  exists(path: string): boolean;
+  /** Whether the addon holding it is checked out. */
+  present(path: string): boolean;
+}
+
+/**
+ * Each root's expected heading count, with the crossed windows taken off.
+ *
+ * Extracted because D1 deleted the last window sitting on `after`: every one
+ * that remains is on `before`, so `windowSide(...) === "after"` is false
+ * everywhere in this checkout and this subtraction became unreachable. It
+ * could be broken — the `+ w.before`, the `- crossed`, the `=== "after"` —
+ * and nothing would notice until an addon's CI dropped a converted tree into
+ * core, in another repository, weeks later. The fixture below is what makes
+ * the crossing half fail here instead.
+ */
+function expectedPerRootFrom(
+  listedByRoot: Record<string, number>,
+  source: CrossingSource,
+): Map<string, number> {
+  const crossed = new Map<string, number>();
+  for (const path of openWindows("page-headings", source.present)) {
+    const w = MIGRATION_WINDOWS["page-headings"][path];
+    const which = windowSide(source.countOf(path), "page-headings", path, {
+      exists: source.exists(path),
+    });
+    if (which === "after") {
+      const root = path.split("/").slice(0, 2).join("/");
+      crossed.set(root, (crossed.get(root) ?? 0) + w.before);
+    }
+  }
+  const out = new Map<string, number>();
+  for (const [root, listed] of Object.entries(listedByRoot)) {
+    out.set(root, listed - (crossed.get(root) ?? 0));
+  }
+  return out;
+}
 
 /** The one component allowed to emit a page's `<h1>`. */
 const OWNER = "frontend/src/components/PageHeader.tsx";
@@ -239,23 +291,14 @@ describe("page headings", () => {
     const perFile = new Map<string, number>();
     for (const h of headings()) perFile.set(h.file, (perFile.get(h.file) ?? 0) + 1);
 
-    // What the open windows have already taken off each root, on this side.
-    const crossed = new Map<string, number>();
-    for (const path of openWindows("page-headings", (p) =>
-      addonPresent(REPO_ROOT, p),
-    )) {
-      const w = MIGRATION_WINDOWS["page-headings"][path];
-      const which = windowSide(perFile.get(path) ?? 0, "page-headings", path, {
-        exists: existsSync(resolve(REPO_ROOT, path)),
-      });
-      if (which === "after") {
-        const root = path.split("/").slice(0, 2).join("/");
-        crossed.set(root, (crossed.get(root) ?? 0) + w.before);
-      }
-    }
+    const expectedPerRoot = expectedPerRootFrom(EXPECTED_ADDON_HEADINGS, {
+      countOf: (path) => perFile.get(path) ?? 0,
+      exists: (path) => existsSync(resolve(REPO_ROOT, path)),
+      present: (path) => addonPresent(REPO_ROOT, path),
+    });
 
     for (const [root, listed] of Object.entries(EXPECTED_ADDON_HEADINGS)) {
-      const expected = listed - (crossed.get(root) ?? 0);
+      const expected = expectedPerRoot.get(root) ?? listed;
       // The scanned path, not the submodule directory: an uninitialised
       // submodule leaves `addons/<name>/` behind as an empty directory, so
       // testing that would report a checkout that has nothing in it as
@@ -324,6 +367,13 @@ describe("page headings", () => {
       writesHeading: () => answers.writesHeading,
     });
 
+    // One test used to sit here asserting that a path with an open window is
+    // excused. It could not fail: on the near side the file still writes its
+    // heading, so it is not stale whether or not anything excuses it, and
+    // removing the window left it green on both sides of D1. The fixture
+    // below measures the same property against the far side, where the excuse
+    // is the only thing doing any work.
+    //
     // The far side of the migration: the addon's pull request has landed, the
     // file is there, and it no longer writes its own heading. Here the window
     // is the only thing between it and the stale list — which is what the
@@ -341,6 +391,31 @@ describe("page headings", () => {
       ).toEqual([]);
     });
 
+    it("takes a crossed window off its root's expected count", () => {
+      // The half D1 made unreachable. Every declared window now sits on
+      // `before`, so nothing in this tree resolves to `after` and the
+      // subtraction above is never exercised by it — this asks the same
+      // function about a tree where knowledge's heading has been converted.
+      //
+      // The ledger still judges: `countOf` supplies an observation, and a
+      // count matching neither endpoint is refused by `windowSide` with both
+      // named. The map is not injectable here.
+      const converted = expectedPerRootFrom(
+        { "addons/knowledge": 2 },
+        { countOf: () => 0, exists: () => true, present: () => true },
+      );
+      // 2 listed, 1 crossed by `FolderView.tsx` → 1 left, which is
+      // `EmptyState.tsx`, the entry that never migrates.
+      expect(converted.get("addons/knowledge")).toBe(1);
+
+      // And the near side, through the same function: nothing crossed.
+      const unconverted = expectedPerRootFrom(
+        { "addons/knowledge": 2 },
+        { countOf: () => 1, exists: () => true, present: () => true },
+      );
+      expect(unconverted.get("addons/knowledge")).toBe(2);
+    });
+
     it("reports a converted file that has no window", () => {
       // The same source and the same answers, so the window is the only
       // difference between this and the case above. Without it the first
@@ -348,10 +423,6 @@ describe("page headings", () => {
       expect(
         staleEntriesFrom(CONVERTED, ["addons/knowledge/frontend/api.ts"]),
       ).toEqual(["addons/knowledge/frontend/api.ts"]);
-    });
-
-    it("excuses a path whose heading window is open", () => {
-      expect(staleEntries(["addons/knowledge/frontend/FolderView.tsx"])).toEqual([]);
     });
 
     it("does not excuse one whose window is on the other ledger", () => {

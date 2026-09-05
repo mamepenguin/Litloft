@@ -188,13 +188,13 @@ describe("migration windows", () => {
     //
     // The endpoints below are 1-vs-3 rather than 1-vs-1 for that reason. A
     // pair matching the declarations would pass whichever ledger resolved it.
-    const SHARED = "addons/intelligence/frontend/Page.tsx";
+    const SHARED = "addons/knowledge/frontend/FolderView.tsx";
     const fixture = {
       "page-headings": {
-        [SHARED]: { before: 1, after: 0, closedBy: "D1", why: "heading" },
+        [SHARED]: { before: 1, after: 0, closedBy: "D1b", why: "heading" },
       },
       "button-adoption": {
-        [SHARED]: { before: 3, after: 0, closedBy: "D1", why: "recipes" },
+        [SHARED]: { before: 3, after: 0, closedBy: "D1b", why: "recipes" },
       },
     };
     // `windowSideIn`, not `windowSide` with an option: an injectable map on
