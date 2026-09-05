@@ -31,14 +31,30 @@ vi.mock("@/components/Breadcrumb", () => ({
   ),
 }));
 vi.mock("@/components/TreeToggle", () => ({
-  TreeToggle: () => <button data-testid="tree-toggle">tree</button>,
+  TreeToggle: ({ drive }: { drive: string }) => (
+    <button data-testid="tree-toggle" data-drive={drive}>
+      tree
+    </button>
+  ),
 }));
 vi.mock("@/components/SelectionBar", () => ({ SelectionBar: () => null }));
 vi.mock("@/components/SmartFolderSaveButton", () => ({
-  SmartFolderSaveButton: () => <button>Save search</button>,
+  SmartFolderSaveButton: (props: Record<string, unknown>) => (
+    <button data-save-props={JSON.stringify(props)}>Save search</button>
+  ),
 }));
 vi.mock("@/components/AddonSlot", () => ({
-  AddonSlot: ({ id }: { id: string }) => <div data-testid={`slot-${id}`} />,
+  AddonSlot: ({ id, layout, props }: { id: string; layout?: string; props?: Record<string, unknown> }) => (
+    <div
+      data-testid={`slot-${id}`}
+      data-layout={String(layout ?? "")}
+      data-slot-props={JSON.stringify({
+        ...props,
+        // A function does not survive JSON; record only whether one arrived.
+        onSelect: props?.onSelect ? "fn" : "none",
+      })}
+    />
+  ),
 }));
 vi.mock("@/components/UploadZone", () => ({
   UploadZone: ({ children }: { children?: React.ReactNode }) => <>{children}</>,
@@ -104,6 +120,11 @@ vi.mock("@/hooks/useCreateFile", () => ({
 }));
 
 /** What the listing reports, and whether it is still fetching. */
+const dragging = vi.hoisted(() => ({ internal: false }));
+vi.mock("@/hooks/useIsInternalDragging", () => ({
+  useIsInternalDragging: () => dragging.internal,
+}));
+
 const listing = vi.hoisted(() => ({
   total: 0,
   loading: false,
@@ -145,6 +166,24 @@ vi.mock("@/hooks/useFolderViewMode", () => ({
 }));
 
 
+/**
+ * Every piece of mutable fixture state, reset once for the whole file.
+ *
+ * Per-`describe` resets were what shipped first, and each listed only the
+ * fields its own tests touched — so `listing.loading`, added later by one
+ * describe, leaked into two others. In source order they ran after it and
+ * passed; under `--sequence.shuffle` they ran before it and failed on seed
+ * 1788571302594. A shared mutable fixture with per-block resets asks every
+ * block to remember every field, which is a thing to forget rather than a
+ * thing to check.
+ */
+beforeEach(() => {
+  listing.total = 42;
+  listing.loading = false;
+  listing.folders = [];
+  dragging.internal = false;
+});
+
 // ---- the header --------------------------------------------------------------
 
 function renderFolder(props: { searchQuery?: string } = {}) {
@@ -154,10 +193,6 @@ function renderFolder(props: { searchQuery?: string } = {}) {
 }
 
 describe("the folder header", () => {
-  beforeEach(() => {
-    listing.total = 42;
-    listing.folders = [];
-  });
 
   it("names the folder with its trail and no heading", () => {
     renderFolder();
@@ -186,10 +221,6 @@ describe("the folder header", () => {
 });
 
 describe("the search header", () => {
-  beforeEach(() => {
-    listing.total = 42;
-    listing.folders = [];
-  });
 
   it("names the search in a heading, since there is no trail to name it", () => {
     renderFolder({ searchQuery: "cats" });
@@ -228,11 +259,6 @@ describe("the search header", () => {
 });
 
 describe("the count while a refetch is in flight", () => {
-  beforeEach(() => {
-    listing.total = 42;
-    listing.loading = false;
-    listing.folders = [];
-  });
 
   // A refetch sets `total` to 0 and `loading` to true together, so the raw
   // values are a false "0 items" and a blank. The old toolbar showed the
@@ -269,11 +295,6 @@ describe("the count while a refetch is in flight", () => {
 });
 
 describe("what the header hands the breadcrumb", () => {
-  beforeEach(() => {
-    listing.total = 42;
-    listing.loading = false;
-    listing.folders = [];
-  });
 
   it("passes the drive and folder it was given", () => {
     renderFolder();
@@ -291,5 +312,67 @@ describe("what the header hands the breadcrumb", () => {
     const trail = screen.getByLabelText("Breadcrumb");
     expect(trail.getAttribute("data-drop-props")).toBe("no");
     expect(trail.getAttribute("data-drop-target")).toBe("no");
+  });
+});
+
+describe("what the header hands its children", () => {
+
+  // Sixteen mutations to these props passed before this: the stubs rendered
+  // and the tests only asked whether something appeared. They survived the
+  // move intact, but nothing said so.
+  it("gives the tree toggle the drive it is browsing", () => {
+    renderFolder();
+    expect(screen.getByTestId("tree-toggle").getAttribute("data-drive")).toBe("main");
+  });
+
+  it("gives the save-search button the query, filter and smart folder", () => {
+    renderFolder({ searchQuery: "cats" });
+    const props = JSON.parse(
+      screen.getByRole("button", { name: "Save search" }).getAttribute("data-save-props")!,
+    );
+    expect(props.query).toBe("cats");
+    expect(props.drive).toBe("main");
+    expect(props).toHaveProperty("typeFilter");
+    expect(props).toHaveProperty("smartFolderId");
+  });
+
+  // `onSelect` is the semantic-search result handler. Disconnecting it left
+  // the slot rendering and the suite green, and a reader clicking a semantic
+  // result would simply get nothing.
+  it("gives the addon slot its query, drive, filter and select handler", () => {
+    renderFolder({ searchQuery: "cats" });
+    const slot = screen.getByTestId("slot-search-modes");
+    expect(slot.getAttribute("data-layout")).toBe("stack");
+    const props = JSON.parse(slot.getAttribute("data-slot-props")!);
+    expect(props.context).toBe("page");
+    expect(props.query).toBe("cats");
+    expect(props.drive).toBe("main");
+    expect(props.filter).toBe("all");
+    expect(props.onSelect).toBe("fn");
+  });
+});
+
+describe("the trail's drop target", () => {
+
+  const dropProps = () => {
+    const trail = screen.getByLabelText("Breadcrumb");
+    return {
+      handlers: trail.getAttribute("data-drop-props"),
+      target: trail.getAttribute("data-drop-target"),
+    };
+  };
+
+  it("is withheld while nothing is being dragged", () => {
+    renderFolder();
+    expect(dropProps()).toEqual({ handlers: "no", target: "no" });
+  });
+
+  // The condition is an OR of two sources — this browser's own drag state and
+  // a drag started elsewhere in the app. Reducing it to either term, or
+  // turning it into an AND, left the suite green.
+  it("is offered once a drag starts elsewhere in the app", () => {
+    dragging.internal = true;
+    renderFolder();
+    expect(dropProps()).toEqual({ handlers: "yes", target: "yes" });
   });
 });

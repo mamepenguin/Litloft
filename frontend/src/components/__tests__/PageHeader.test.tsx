@@ -68,6 +68,16 @@ describe("PageHeader", () => {
       expect(rows[0].firstElementChild?.textContent).toBe("Tree");
     });
 
+    // The title row draws `leading` when there is no trail above it, and
+    // "exactly once" was only asserted for the case where both rows exist —
+    // so drawing it twice *within* the title row passed. A duplicated control
+    // is not cosmetic here: `TreeToggle` is stateful, and two of them means
+    // the hidden one still answers clicks and keyboard focus.
+    it("renders the leading control exactly once on a title-only header", () => {
+      render(<PageHeader leading={<button>Tree</button>} title="Results" />);
+      expect(screen.getAllByRole("button", { name: "Tree" })).toHaveLength(1);
+    });
+
     it("renders the leading control exactly once when both rows exist", () => {
       render(
         <PageHeader
