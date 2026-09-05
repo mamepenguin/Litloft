@@ -234,6 +234,7 @@
     "random": "Random"
   },
   "selection": {
+    "moreActions": "More actions for the selection",
     "selected": "{count} selected",
     "selectAll": "Select all",
     "deselect": "Deselect",

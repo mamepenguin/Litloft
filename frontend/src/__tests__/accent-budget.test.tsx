@@ -1,9 +1,14 @@
 import { describe, it, expect, vi, afterEach, beforeEach } from "vitest";
 import { render, cleanup, screen, fireEvent } from "@testing-library/react";
+import { readFileSync } from "node:fs";
+import { resolve } from "node:path";
+import { stripComments } from "./helpers/sourceScan";
 
 import { FolderToolbar } from "@/components/folder/FolderToolbar";
 import { RootFileListing } from "@/components/RootFileListing";
+import { SelectionBar } from "@/components/SelectionBar";
 import type { FileItem } from "@/types";
+import { accentFills } from "./helpers/accentFills";
 
 /**
  * Stubbed, and it costs this file a blind spot worth naming: an addon
@@ -37,10 +42,17 @@ vi.mock("@/components/UploadZone", () => ({
 }));
 vi.mock("@/components/SortButton", () => ({ SortButton: () => <button>sort</button> }));
 vi.mock("@/components/TreeToggle", () => ({ TreeToggle: () => <button>tree</button> }));
-vi.mock("@/components/SelectionBar", () => ({ SelectionBar: () => null }));
 vi.mock("@/components/EmptyState", () => ({ EmptyState: () => <div /> }));
 vi.mock("@/components/FileGrid", () => ({ FileGrid: () => <div data-testid="grid" /> }));
 vi.mock("@/components/FileList", () => ({ FileList: () => <div data-testid="list" /> }));
+
+vi.mock("@/components/ClipboardProvider", () => ({
+  useClipboard: () => ({ clipboard: null, clear: vi.fn(), copy: vi.fn(), cut: vi.fn() }),
+}));
+vi.mock("@/components/ConfirmDialog", () => ({ ConfirmDialog: () => null }));
+vi.mock("@/components/MoveDialog", () => ({ MoveDialog: () => null }));
+vi.mock("@/components/CollectionPicker", () => ({ CollectionPicker: () => null }));
+vi.mock("@/components/BatchRenameDialog", () => ({ BatchRenameDialog: () => null }));
 
 const mockGetDriveFiles = vi.fn();
 vi.mock("@/lib/api", () => {
@@ -55,6 +67,12 @@ vi.mock("@/lib/api", () => {
     getDriveFiles: (...args: unknown[]) => mockGetDriveFiles(...args),
     scanDrive: vi.fn(),
     createFolder: vi.fn(),
+    batchDelete: vi.fn(),
+    batchGetFiles: vi.fn(),
+    batchMove: vi.fn(),
+    batchPurge: vi.fn(),
+    batchRestore: vi.fn(),
+    batchTag: vi.fn(),
   };
 });
 
@@ -68,106 +86,6 @@ function playableFile(): FileItem {
     trust_reviewed_at: null, created_at: "2026-01-01T00:00:00Z",
     updated_at: "2026-01-01T00:00:00Z",
   };
-}
-
-/**
- * One accent fill per screen (DESIGN.md §2.2, 00-basis 原則 2).
- *
- * The folder toolbar carried three at once — upload, play-all and the
- * selected half of the view toggle — which is the state §2.2 describes as
- * "the screen has not decided what it is for". This holds the budget
- * mechanically, because a fourth is one `className` away and nothing else
- * in the tree would notice.
- *
- * **A fill at rest, not the token.** `bg-accent/10` is a tint behind a
- * hovered row and `bg-accent-teal` is a different colour, so neither is
- * this utility at all. Of the utility itself, the only thing excluded is
- * a fill that needs an ongoing interaction to be visible at all.
- *
- * **The exclusion is a closed set of five pointer/keyboard states, not a
- * list of variants to skip**, and that shape is the point. A skip-list
- * fails towards a *missed* second fill, and this detector's cheap error
- * is the other one — a false positive costs a review comment, a false
- * negative ships the thing the rule exists to prevent. Two drafts of it
- * were wrong in the expensive direction: the first excluded every
- * prefixed token ("they only paint under a pointer" — true of `hover:`,
- * false of `sm:` and `dark:`), and the second still skipped `enabled:`,
- * `visited:`, `target:`, and the whole `aria-` and `data-` families.
- * Those last two are not pseudo-classes but open prefixes whose common
- * members are resting states — `aria-selected`, `data-[state=open]` —
- * so a selected-state fill written that way passed silently, which is
- * the exact case the paragraph above it in `DESIGN.md` §2.2 is about.
- * `data-[theme=dark]:` also contradicted that draft's own sentence about
- * theme variants, since `data-theme` is how this app switches theme
- * (`globals.css`).
- *
- * `disabled:` counts too, deliberately: a disabled control is sitting
- * there filled, which `DESIGN.md` §6 names as its own defect.
- *
- * **Two known limits, both on the cheap side.** A colon inside an
- * arbitrary variant is split on like any other — `[&:hover]:bg-accent`
- * and `has-[:hover]:bg-accent` are counted though they paint only under
- * a pointer — and `starting:` (`@starting-style`) is counted though it
- * paints for one frame. Both cost a review comment on a control nobody
- * writes that way today; a bracket-aware splitter would be more surface
- * to get wrong than the thing it protects, which is how the two earlier
- * drafts of this rule went wrong.
- */
-const ACCENT_FILLS = new Set(["bg-accent", "bg-accent-cta"]);
-
-/** The five states a fill can need an ongoing interaction to be seen in. */
-const INTERACTION_STATES = new Set([
-  "hover",
-  "focus",
-  "focus-visible",
-  "focus-within",
-  "active",
-]);
-
-/**
- * Prefixes that relay one of those from another element, unchanged.
- *
- * Repeated, because they compose: `group-has-hover:` is one hover
- * relayed twice. Stripping once left it unrecognised.
- */
-const RELAY = /^((group|peer|has|in)-)+/;
-
-/**
- * There is no step here that strips arbitrary values, and there was one.
- *
- * It claimed to stop `data-[state=active]` being read as `active`, and
- * deleting it changed no verdict in the table below: the comparison is
- * for a whole name, and `data-[state=active]` is not `active` with the
- * brackets left on. Worse, stripping is the one direction that can
- * *create* a match — `group-hover[x]` would reduce to `hover` — which is
- * the expensive failure. A guard whose removal breaks nothing was
- * protecting against nothing.
- */
-function isInteractionVariant(variant: string): boolean {
-  // A named group or peer suffixes the variant: `group-hover/sidebar:`.
-  // Standard syntax, and without this the name made the whole variant
-  // unrecognisable — a hover fill would have failed a build.
-  const unnamed = variant.replace(/\/.*$/, "");
-  // `not-hover:` is deliberately not relayed — it paints when the pointer
-  // is *away*, which is the resting case.
-  return INTERACTION_STATES.has(unnamed.replace(RELAY, ""));
-}
-
-function isRestingAccentFill(token: string): boolean {
-  const parts = token.split(":");
-  const utility = parts.pop() ?? "";
-  if (!ACCENT_FILLS.has(utility)) return false;
-  return !parts.some(isInteractionVariant);
-}
-
-export function accentFills(root: HTMLElement): HTMLElement[] {
-  return [...root.querySelectorAll<HTMLElement>("[class]")].filter((el) =>
-    // `getAttribute`, not `el.className`: on an SVG element `className` is
-    // an `SVGAnimatedString`, whose `toString()` is the literal
-    // "[object SVGAnimatedString]". lucide passes `className` straight to
-    // its `<svg>`, so a fill put on an icon read as no classes at all.
-    (el.getAttribute("class") ?? "").split(/\s+/).some(isRestingAccentFill),
-  );
 }
 
 const folderProps = {
@@ -203,25 +121,41 @@ const folderProps = {
 };
 
 /**
- * The **core** screens under the budget, named here so the set cannot be
- * narrowed by choosing what to render. Phase 3 B2c adds the three that
- * are left — Trash, Missing and a collection.
+ * Every core screen under the budget, and the file that asserts it.
  *
- * Ask, Find and Media Import are not on this list and are not omissions:
- * they are addon-owned pages, and the assertion for them belongs beside
- * their components, in C1 and C2. An earlier draft of this comment
- * promised all six from here while the stub two blocks up explained why
- * three of them could not be reached — a list and its own impossibility
- * in one file. Ask and Find are accent-filled today
- * (`addons/intelligence/frontend/Page.tsx`, `pages/find.tsx`), so
- * whoever writes C2 is inheriting work, not confirming a clean slate.
+ * Two of them are rendered below, where the setup is cheap. The rest are
+ * asserted in their own test files, because reproducing a screen's mocks
+ * in a second place is how two copies of a screen's setup start
+ * disagreeing — `TrashView` alone needs eight. **A list of screens is
+ * prose unless something checks it**, so this is a table rather than a
+ * comment: each entry names a file, and that file must pass `accentFills`
+ * to an `expect`, and must not have disabled itself with `.skip` or
+ * narrowed itself with `.only`.
  *
- * The drive root is here rather than in B2c because it draws the same
- * three controls as the folder toolbar from its own copy of the markup,
- * and a rule stated in `DESIGN.md` while a screen this PR edits breaks it
- * is not a rule.
+ * **What this cannot prove.** It reads source; it does not watch the
+ * assertion run. A named file that keeps the call but renders the wrong
+ * thing satisfies it. The one hole that was demonstrated — an assertion
+ * against a freshly created `<div>` — is closed inside `accentFills`,
+ * which now refuses an empty root. The rest is what review is for, and
+ * saying so here is cheaper than a claim that reads stronger than the
+ * check.
+ *
+ * Ask, Find and Media Import are absent and are not omissions: they are
+ * addon-owned pages, `frontend/src/addons/*` are gitignored symlinks that
+ * `setup-addons.sh` materialises, and a core assertion about them passes
+ * or fails on what a checkout happens to hold. They are counted in their
+ * own repositories, in C1 and C2 — where the work is real, since Ask and
+ * Find are accent-filled today (`intelligence/frontend/Page.tsx`,
+ * `pages/find.tsx`).
  */
-const SCREENS = ["folder toolbar", "drive root"] as const;
+const SCREENS: ReadonlyArray<{ screen: string; assertedIn: string }> = [
+  { screen: "folder toolbar", assertedIn: "src/__tests__/accent-budget.test.tsx" },
+  { screen: "drive root", assertedIn: "src/__tests__/accent-budget.test.tsx" },
+  { screen: "selection bar over a folder", assertedIn: "src/__tests__/accent-budget.test.tsx" },
+  { screen: "trash", assertedIn: "src/components/__tests__/TrashMissingHeader.test.tsx" },
+  { screen: "missing", assertedIn: "src/components/__tests__/TrashMissingHeader.test.tsx" },
+  { screen: "collection", assertedIn: "src/components/__tests__/CollectionDetail.test.tsx" },
+];
 
 /**
  * The classifier, pinned directly.
@@ -309,8 +243,31 @@ describe("what counts as a fill at rest", () => {
 describe("accent budget", () => {
   afterEach(cleanup);
 
-  it("covers the screens it says it covers", () => {
-    expect([...SCREENS]).toEqual(["folder toolbar", "drive root"]);
+  it("covers six core screens, and each one somewhere that runs", () => {
+    expect(SCREENS.map((s) => s.screen)).toEqual([
+      "folder toolbar",
+      "drive root",
+      "selection bar over a folder",
+      "trash",
+      "missing",
+      "collection",
+    ]);
+    const root = resolve(__dirname, "..", "..");
+    for (const { screen: name, assertedIn } of SCREENS) {
+      const source = stripComments(readFileSync(resolve(root, assertedIn), "utf8"));
+      expect(
+        /expect\(\s*accentFills\(/.test(source),
+        `${name}: ${assertedIn} never passes accentFills to an expect`,
+      ).toBe(true);
+      // Not `\.(skip|only)\s*\(`: `it.skipIf(true)(...)` has `If` between
+      // the name and the parenthesis, and slipped through while disabling
+      // one of the two screen assertions. Anything whose name *starts*
+      // skip / only / runIf / todo counts.
+      expect(
+        /\.(skip|only|runIf|todo)[A-Za-z]*\s*[(<]/.test(source),
+        `${name}: ${assertedIn} disables or narrows its own tests`,
+      ).toBe(false);
+    }
   });
 
   describe("folder toolbar", () => {
@@ -352,6 +309,29 @@ describe("accent budget", () => {
         <FolderToolbar {...folderProps} isSearch isFolderAnchored={false} />,
       );
       expect(accentFills(container)).toHaveLength(0);
+    });
+
+    it("still spends only one with the selection bar up", () => {
+      // The bar floats over the folder, so its own Apply button is on the
+      // same screen as Add. It was a second fill.
+      const { container } = render(
+        <>
+          <FolderToolbar {...folderProps} />
+          <SelectionBar
+            count={2}
+            selectedIds={new Set(["a", "b"])}
+            totalCount={5}
+            drive="test-drive"
+            currentPath=""
+            onSelectAll={vi.fn()}
+            onClear={vi.fn()}
+            onComplete={vi.fn()}
+          />
+        </>,
+      );
+      fireEvent.click(screen.getByLabelText("Tagging"));
+      expect(screen.getByText("Apply")).toBeInTheDocument();
+      expect(fillLabels(container)).toEqual(["Add"]);
     });
 
     it("spends none in an empty special view", () => {

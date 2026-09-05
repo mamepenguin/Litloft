@@ -234,6 +234,7 @@
     "random": "ランダム"
   },
   "selection": {
+    "moreActions": "選択中のその他の操作",
     "selected": "{count}件選択",
     "selectAll": "すべて選択",
     "deselect": "選択解除",

@@ -251,6 +251,11 @@ ever written to the attribute.
   `bg-accent` (or its twin `bg-accent-cta`) as a background. Two fills means
   the screen has not decided what it is for — pick the one action the screen
   exists for, and give every other control `secondary`, `ghost`, or a border.
+  **Which action that is changes per screen.** Play is bordered on a folder,
+  where the fill belongs to Add, and filled on a collection, which has nothing
+  to add to and exists to be played. A screen with no such action spends none:
+  Trash and Missing are places to review and restore from, and carry no fill
+  at all.
   This governs *fills*: `bg-accent/10` behind a hovered row,
   `enabled:hover:bg-accent-hover`, and a `border-accent` selected state are
   not fills and are not counted (§Selected-state controls uses the border for
