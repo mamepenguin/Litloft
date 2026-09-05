@@ -302,18 +302,22 @@ describe("page headings", () => {
   // no number of declared windows, can make the real assertion go red when an
   // excuse is too broad. Only an assertion that expects something *back* can.
   //
-  // A real tree cannot supply one either, and not because the path is
-  // impossible: a file holding a window and writing no `<h1>` is the far side
-  // of every migration here. It is that the path which would witness an
-  // *over-broad* excuse holds its window on the **other** ledger — and a tree
-  // listing such a file under a heading it does not write is already red for
-  // the listing itself. The real assertion goes red for the wrong reason, and
-  // the defect hides behind it.
+  // A real tree cannot supply that assertion's input either, and not because
+  // the path is impossible: a file holding a window and writing no `<h1>` is
+  // the far side of every heading migration here. It is that the path which
+  // would witness an *over-broad* excuse holds its window on the **other**
+  // ledger — and a tree listing such a file under a heading it does not write
+  // is already red for the listing itself.
   //
-  // Both excuses are reached for every present path. What the converted state
-  // buys is an excuse with an observable effect: on the near side the file
-  // still writes its heading, so nothing is excused whether or not the excuse
-  // is there.
+  // Introducing the over-broad excuse then turns that red **green**; it does
+  // not hide under it. The one tree where it does hide is a list that also
+  // holds an unrelated stale entry: there the assertion stays red and the
+  // count silently drops by one.
+  //
+  // Neither excuse changes the result unless the path would otherwise be
+  // stale. That is what the converted state buys — an excuse with an
+  // observable effect. On the near side the file still writes its heading, so
+  // nothing is excused whether or not the excuse is there.
   describe("what counts as stale", () => {
     /** A source that answers the same way for every path. */
     const saying = (answers: {

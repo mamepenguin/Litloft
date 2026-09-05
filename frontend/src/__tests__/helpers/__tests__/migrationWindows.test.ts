@@ -88,17 +88,16 @@ describe("migration windows", () => {
     }
   });
 
-  it("holds exactly the pull requests that still move a pointer", () => {
-    // The whole table, not a property of each row. `bumps.length > 0` was the
-    // first version and it is a lower bound in a file that enumerates its
-    // other table exactly: it admitted an invented name, admitted a `bumps`
-    // widened to addons the PR does not touch — which widens what `closedBy`
-    // accepts, the one thing this table exists to constrain — and did not
-    // notice an entry disappearing.
+  it("holds exactly these pull requests, and exactly the pointers each moves", () => {
+    // The whole table, not a property of each row. `bumps.length > 0` alone
+    // was the first version and it is a lower bound in a file that enumerates
+    // its other table exactly: it admitted an invented name, admitted a
+    // `bumps` widened to addons the PR does not touch — which widens what
+    // `closedBy` accepts, the one thing this table exists to constrain — and
+    // did not notice an entry disappearing.
     //
-    // Non-emptiness is what makes every entry reachable by the two tests
-    // around this one, and equality gives it for free: neither listed PR has
-    // an empty `bumps`, so an added empty entry fails the key set here.
+    // The name says both halves because the second does the work the first
+    // cannot: the key set alone would let the pointers be rewritten.
     expect(Object.keys(PENDING_BUMPS).sort()).toEqual(["D1", "D5"]);
     expect([...PENDING_BUMPS.D1.bumps].sort()).toEqual([
       "intelligence",
@@ -106,6 +105,21 @@ describe("migration windows", () => {
       "media_import",
     ]);
     expect([...PENDING_BUMPS.D5.bumps].sort()).toEqual(["intelligence"]);
+  });
+
+  it("gives every entry at least one pointer to move", () => {
+    // The property, kept beside the values rather than inferred from them.
+    // An earlier version of the comment above claimed the equality gave this
+    // for free, because neither listed entry has an empty `bumps` — which
+    // covers an entry being *added* empty and not one being *edited* empty.
+    // Emptying a `bumps` and moving its pinned expectation to `[]` in the
+    // same edit passes the equality, and the entry is then unnameable by any
+    // `closedBy` and invisible to `names addons that exist`: the unreachable
+    // entry the narrowing existed to remove, back through the assertion that
+    // replaced the guard.
+    for (const [pr, { bumps }] of Object.entries(PENDING_BUMPS)) {
+      expect(bumps.length, pr).toBeGreaterThan(0);
+    }
   });
 
   it("declares windows for addon paths only", () => {
@@ -231,7 +245,7 @@ describe("migration windows", () => {
     // Both hand-written tables — the windows' paths and `bumps` — spell addon
     // directory names, and a typo in either would read as a considered entry
     // while matching nothing. Every `PENDING_BUMPS` entry is reached, because
-    // the test above pins the table and neither entry's `bumps` is empty.
+    // the test above refuses an entry with no pointers.
     const declared = new Set<string>();
     for (const windows of Object.values(MIGRATION_WINDOWS)) {
       for (const path of Object.keys(windows)) declared.add(addonOf(path)!);
