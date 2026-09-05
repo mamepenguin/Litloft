@@ -3,7 +3,11 @@ import { readFileSync, readdirSync, existsSync, statSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { resolve, dirname, relative } from "node:path";
 import { compile } from "tailwindcss";
-import { stripComments } from "./helpers/stripComments";
+import {
+  stripComments,
+  classAttributeSpans,
+  classConstSpans,
+} from "./helpers/sourceScan";
 
 // Tailwind v4 emits no rule at all for a utility whose token it does not know.
 // The class stays in the DOM, nothing warns, and the element simply renders
@@ -132,83 +136,6 @@ const COLOUR_UTILITY = new RegExp(
   String.raw`^(?:${PROPERTIES.join("|")})-[a-z][a-z0-9-]*(?:\/\d{1,3})?$`,
 );
 
-/**
- * Character spans of every `className` / `class` attribute value in a file.
- *
- * Collecting per line cannot see the static half of a multi-line template —
- * `` className={`… border-bg-border … ${ `` contributes nothing if the closing
- * backtick is on a later line, and that is a shape this codebase uses freely.
- * Walking the attribute value as one span, brace to brace, reads it whole.
- */
-/**
- * A class list is not always written at the point of use.
- *
- * A shared component exists precisely so a recipe lives in one place, which
- * moves it out of a `className=` attribute and into a `const` — and out of
- * this scan, which is how `Button.tsx` came to hold the project's only copy of
- * the accent fill and the disabled treatment while being invisible to the test
- * enforcing both. Centralising a rule must not cost the rule its enforcement.
- *
- * The convention this relies on: **a constant holding Tailwind classes is
- * named `*_CLASS` or `*_CLASSES`.** Matching on a name rather than sniffing
- * every string literal keeps the scan explicit — a constant opts in by being
- * named for what it is, and one that is not named that way is not silently
- * assumed to be prose.
- */
-function classConstSpans(text: string): [number, number][] {
-  const spans: [number, number][] = [];
-  for (const m of text.matchAll(
-    /\b(?:const|let|var)\s+[A-Za-z_$][\w$]*_CLASS(?:ES)?\b[^=\n]*=\s*/g,
-  )) {
-    const at = m.index! + m[0].length;
-    const opener = text[at];
-    if (opener === '"' || opener === "'" || opener === "`") {
-      // Adjacent literals joined with `+` are one list; take to the statement end.
-      let i = at + 1;
-      for (; i < text.length; i++) {
-        if (text[i] === "\\") i++;
-        else if (text[i] === opener) {
-          const rest = text.slice(i + 1);
-          const cont = /^\s*\+\s*["'`]/.exec(rest);
-          if (!cont) break;
-          i += cont[0].length;
-        }
-      }
-      if (i < text.length) spans.push([at, i + 1]);
-    } else if (opener === "{" || opener === "[") {
-      const close = opener === "{" ? "}" : "]";
-      let depth = 0;
-      let i = at;
-      for (; i < text.length; i++) {
-        if (text[i] === opener) depth++;
-        else if (text[i] === close && --depth === 0) break;
-      }
-      if (i < text.length) spans.push([at, i + 1]);
-    }
-  }
-  return spans;
-}
-
-function classAttributeSpans(text: string): [number, number][] {
-  const spans: [number, number][] = [];
-  for (const m of text.matchAll(/\bclass(?:Name)?\s*=\s*/g)) {
-    const at = m.index! + m[0].length;
-    const opener = text[at];
-    if (opener === '"' || opener === "'" || opener === "`") {
-      const close = text.indexOf(opener, at + 1);
-      if (close !== -1) spans.push([at, close + 1]);
-    } else if (opener === "{") {
-      let depth = 0;
-      let i = at;
-      for (; i < text.length; i++) {
-        if (text[i] === "{") depth++;
-        else if (text[i] === "}" && --depth === 0) break;
-      }
-      if (i < text.length) spans.push([at, i + 1]);
-    }
-  }
-  return spans;
-}
 
 
 /** String and template literal contents, with the offset each starts at. */

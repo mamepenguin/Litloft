@@ -538,6 +538,20 @@ explained why the button is off.
 > is itself a decision to pass defects through.** The local harm gets the
 > local fix instead.
 >
+> **Progress (PR A2b): 13 of the 43 converted, 30 remain.** The 13 are the
+> call sites under `frontend/src/components/`. Of the 30, seven are core —
+> four in the first-run wizard and one on the unlock gate, brand surfaces
+> outside the AppShell, plus two under `app/admin/`, which 案 15 / 案 16 rebuild
+> in Phase 4 — and 23 are in addons, which convert in their own repositories'
+> pull requests (media_import in C1, intelligence in C2, knowledge in C3;
+> cloud-sync stays, per the paragraph above).
+>
+> `src/__tests__/button-adoption.test.ts` holds that list per file, across core
+> and every addon, so the set cannot change without an edit to it. Its first
+> version scanned core alone and so measured 20 of the 43 — a scope that leaves
+> out 23 sites cannot be contradicted by them, which is the failure this
+> paragraph's own numbers exist to prevent.
+>
 > **What Phase 3 converts: 41 sites.** 43 already carry the
 > `disabled:bg-sand` treatment (42 of them accent fills; the one that is not is
 > `addons/knowledge/frontend/FolderView.tsx:159`), and two of those 43 are
@@ -573,6 +587,18 @@ that will not receive the correction.
 
 - **`variant` defaults to `secondary`.** A default of `primary` would spend the
   page's one accent fill (§2.2) every time a caller left the prop off.
+- **Three sizes, and they were counted rather than chosen**: `sm`
+  (`px-3 py-1.5 text-sm`), `md` (`px-4 py-2 text-sm`, the default) and `lg`
+  (`px-5 py-2.5 text-sm`). These are the values the tree already used — nine
+  call sites on `md`, four on `sm`, four on `lg`. The component's first draft
+  invented `sm` as `px-3 py-1.5 text-xs`, which matched nothing: a scale
+  written without measuring what it was replacing, which is how five sizes
+  came to exist. (Exact on padding; on type size three of the four `lg` sites
+  used `text-sm` and one used `text-base`, which the scale rounds down.)
+  **A labelled button is sized by padding, never `h-*`**, so a Japanese label
+  that wraps grows it instead of being clipped. An `iconOnly` button is the
+  exception and is a fixed `h-8 w-8` square — it has no label to wrap, and the
+  hit-area arithmetic needs a known box.
 - **`iconOnly` requires `aria-label` in the type.** A `<button>` holding one
   `<svg>` has no accessible name at all, and nothing at runtime says so. The
   type can insist a name exists; only review can insist it is *entity-specific*

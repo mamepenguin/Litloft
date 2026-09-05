@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import { Star, X } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { useShortcuts } from "@/hooks/useShortcuts";
+import { Button } from "@/components/Button";
 
 interface SmartFolderSaveDialogProps {
   open: boolean;
@@ -115,13 +116,14 @@ export function SmartFolderSaveDialog({
             >
               {tc("cancel")}
             </button>
-            <button
+            <Button
+              variant="primary"
+              size="md"
               type="submit"
               disabled={!canSubmit}
-              className="rounded-2xl bg-accent px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-accent-hover disabled:bg-sand disabled:text-warm-silver disabled:cursor-not-allowed"
             >
               {submitLabel}
-            </button>
+            </Button>
           </div>
         </form>
       </div>

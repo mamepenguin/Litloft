@@ -6,6 +6,7 @@ import { Library, Plus, X } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { addCollectionItems, createCollection, getCollections } from "@/lib/api";
 import type { CollectionSummary } from "@/types";
+import { Button } from "@/components/Button";
 
 interface CollectionPickerProps {
   open: boolean;
@@ -104,13 +105,14 @@ export function CollectionPicker({ open, drive, fileIds, onClose }: CollectionPi
               placeholder={t("newCollectionPlaceholder")}
               className="min-w-0 flex-1 rounded-2xl bg-bg-card px-2 py-1.5 text-sm text-text-primary placeholder:text-text-muted outline-none focus:ring-2 focus:ring-focus-ring"
             />
-            <button
+            <Button
+              variant="primary"
+              size="sm"
               onClick={handleCreateAndAdd}
               disabled={adding || !newName.trim()}
-              className="rounded-2xl bg-accent px-3 py-1.5 text-sm text-white hover:bg-accent-hover disabled:bg-sand disabled:text-warm-silver disabled:cursor-not-allowed"
             >
               {tc("create")}
-            </button>
+            </Button>
           </div>
         ) : (
           <button

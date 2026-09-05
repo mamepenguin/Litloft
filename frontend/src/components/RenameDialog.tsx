@@ -5,6 +5,7 @@ import { Pencil, X } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { useShortcuts } from "@/hooks/useShortcuts";
 import { selectStem } from "@/lib/filename";
+import { Button } from "@/components/Button";
 
 interface RenameDialogProps {
   open: boolean;
@@ -92,13 +93,14 @@ export function RenameDialog({
             >
               {tc("cancel")}
             </button>
-            <button
+            <Button
+              variant="primary"
+              size="md"
               type="submit"
               disabled={!name.trim() || name.trim() === currentName}
-              className="rounded-2xl bg-accent px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-accent-hover disabled:bg-sand disabled:text-warm-silver disabled:cursor-not-allowed"
             >
               {tc("change")}
-            </button>
+            </Button>
           </div>
         </form>
       </div>

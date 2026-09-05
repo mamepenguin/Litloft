@@ -12,6 +12,7 @@ import {
   type PrefixSuffixAction,
   type RenamePreviewFile,
 } from "@/lib/renamePreview";
+import { Button } from "@/components/Button";
 
 type RenameMode = "template" | "regex" | "prefix_suffix";
 
@@ -212,15 +213,16 @@ export function BatchRenameDialog({
             >
               {tc("cancel")}
             </button>
-            <button
+            <Button
+              variant="primary"
+              size="lg"
               type="button"
               onClick={handleSubmit}
               disabled={changedCount === 0 || submitting || !!regexError}
-              className="flex items-center gap-2 rounded-2xl bg-accent px-5 py-2.5 text-sm font-medium text-white transition-colors hover:bg-accent-hover disabled:bg-sand disabled:text-warm-silver disabled:cursor-not-allowed disabled:pointer-events-none"
             >
               {submitting && <Loader2 size={14} className="animate-spin" />}
               {t("execute")}
-            </button>
+            </Button>
           </div>
         </div>
       </div>

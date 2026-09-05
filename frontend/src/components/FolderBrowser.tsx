@@ -35,6 +35,7 @@ import { useTreeRefresh } from "@/components/TreeRefreshContext";
 import { FolderToolbar } from "@/components/folder/FolderToolbar";
 import { FolderContent } from "@/components/folder/FolderContent";
 import { buildWidenTagScope } from "@/components/folder/WidenTagScopeLink";
+import { Button } from "@/components/Button";
 
 /**
  * How long scrolling must be idle before the list snapshot is
@@ -607,13 +608,14 @@ export function FolderBrowser({
               mode: clipboard.clipboard.mode === "copy" ? tcb("modeCopy") : tcb("modeCut"),
             })}
           </span>
-          <button
+          <Button
+            variant="primary"
+            size="sm"
             onClick={handlePaste}
             disabled={pasting}
-            className="rounded-2xl bg-accent px-3 py-1.5 text-sm font-medium text-white transition-colors hover:bg-accent-hover disabled:bg-sand disabled:text-warm-silver disabled:cursor-not-allowed"
           >
             {tcb("pasteHere")}
-          </button>
+          </Button>
           <button
             onClick={clipboard.clear}
             className="rounded-lg p-1.5 text-text-muted transition-colors hover:text-text-primary"

@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import { FolderPlus, X } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { useShortcuts } from "@/hooks/useShortcuts";
+import { Button } from "@/components/Button";
 
 interface NameInputDialogProps {
   open: boolean;
@@ -95,13 +96,14 @@ export function NameInputDialog({
             >
               {tc("cancel")}
             </button>
-            <button
+            <Button
+              variant="primary"
+              size="md"
               type="submit"
               disabled={!name.trim()}
-              className="rounded-2xl bg-accent px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-accent-hover disabled:bg-sand disabled:text-warm-silver disabled:cursor-not-allowed"
             >
               {submitLabel ?? tc("create")}
-            </button>
+            </Button>
           </div>
         </form>
       </div>

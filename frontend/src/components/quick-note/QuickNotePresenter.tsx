@@ -12,6 +12,7 @@ import {
 import { useTranslations } from "next-intl";
 
 import { FolderPicker } from "../FolderPicker";
+import { Button } from "@/components/Button";
 
 export interface QuickNotePresenterProps {
   open: boolean;
@@ -248,14 +249,15 @@ export function QuickNotePresenter({
           >
             {tc("cancel")}
           </button>
-          <button
+          <Button
+            variant="primary"
+            size="lg"
             type="button"
             onClick={onSave}
             disabled={!canSave}
-            className="rounded-2xl bg-accent px-5 py-2.5 text-sm font-medium text-white transition-colors hover:bg-accent-hover disabled:bg-sand disabled:text-warm-silver disabled:cursor-not-allowed"
           >
             {submitting ? t("saving") : tc("save")}
-          </button>
+          </Button>
         </div>
 
         {/* Discard confirmation. Rendered inside the panel rather than as a

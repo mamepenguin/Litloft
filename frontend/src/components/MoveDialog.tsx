@@ -7,6 +7,7 @@ import { useTranslations } from "next-intl";
 import { useShortcuts } from "@/hooks/useShortcuts";
 import { getFolders } from "@/lib/api";
 import type { Folder as FolderType } from "@/types";
+import { Button } from "@/components/Button";
 
 interface MoveDialogProps {
   open: boolean;
@@ -224,13 +225,14 @@ export function MoveDialog({
             >
               {tc("cancel")}
             </button>
-            <button
+            <Button
+              variant="primary"
+              size="md"
               onClick={handleConfirm}
               disabled={isCurrentPath}
-              className="rounded-2xl bg-accent px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-accent-hover disabled:bg-sand disabled:text-warm-silver disabled:cursor-not-allowed"
             >
               {t("moveHere")}
-            </button>
+            </Button>
           </div>
         </div>
       </div>

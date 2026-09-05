@@ -3,7 +3,7 @@ import { fireEvent, render, screen } from "@testing-library/react";
 import { readFileSync, readdirSync, statSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { resolve, dirname, relative } from "node:path";
-import { stripComments } from "@/__tests__/helpers/stripComments";
+import { stripComments } from "@/__tests__/helpers/sourceScan";
 
 import { ViewToggle } from "../ViewToggle";
 

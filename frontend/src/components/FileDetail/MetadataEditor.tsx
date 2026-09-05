@@ -2,6 +2,7 @@
 
 import { useTranslations } from "next-intl";
 import { Check, X } from "lucide-react";
+import { Button } from "@/components/Button";
 
 interface MetadataEditorProps {
   title: string;
@@ -48,14 +49,15 @@ export function MetadataEditor({
         className="w-full rounded-2xl bg-bg-card px-3 py-2 text-sm text-text-primary outline-none focus:ring-2 focus:ring-focus-ring"
       />
       <div className="flex gap-2">
-        <button
+        <Button
+          variant="primary"
+          size="sm"
           onClick={onSave}
           disabled={saving}
-          className="flex items-center gap-1 rounded-2xl bg-accent px-3 py-1.5 text-sm font-medium text-white hover:bg-accent-hover disabled:bg-sand disabled:text-warm-silver disabled:cursor-not-allowed"
         >
           <Check size={14} />
           {tc("save")}
-        </button>
+        </Button>
         <button
           onClick={onCancel}
           className="flex items-center gap-1 rounded-lg bg-bg-card px-3 py-1.5 text-sm text-text-muted hover:text-text-primary"

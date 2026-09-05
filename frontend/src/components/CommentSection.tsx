@@ -8,6 +8,7 @@ import { useTranslations } from "next-intl";
 import { createComment, deleteComment, getComments, updateComment } from "@/lib/api";
 import type { Comment } from "@/types";
 import { ConfirmDialog } from "./ConfirmDialog";
+import { Button } from "@/components/Button";
 
 interface CommentSectionProps {
   fileId: string;
@@ -180,14 +181,21 @@ export function CommentSection({ fileId }: CommentSectionProps) {
           maxLength={1000}
           className="flex-1 resize-none rounded-2xl border border-bg-border bg-bg-card px-3 py-2 text-sm text-text-primary placeholder:text-text-muted outline-none focus:ring-2 focus:ring-focus-ring"
         />
-        <button
+        {/* `iconOnly`: the content is one glyph and the name is on the
+            `aria-label`, which is exactly the case that wants a fixed 32px box
+            and the coarse-pointer hit area. Converting it as a labelled `md`
+            button — which is what its old `px-3 py-2` mapped to — would have
+            widened it by 8px and left it without either. */}
+        <Button
+          variant="primary"
+          iconOnly
+          className="self-end"
           onClick={handlePost}
           disabled={!body.trim() || posting}
-          className="self-end rounded-2xl bg-accent px-3 py-2 text-sm font-medium text-white transition-colors hover:bg-accent-hover disabled:bg-sand disabled:text-warm-silver disabled:cursor-not-allowed"
           aria-label={t("post")}
         >
           <Send size={16} />
-        </button>
+        </Button>
       </div>
 
       {error && (
@@ -248,13 +256,14 @@ export function CommentSection({ fileId }: CommentSectionProps) {
                     className="w-full resize-none rounded-2xl border border-bg-border bg-bg-card px-3 py-2 text-sm text-text-primary outline-none focus:ring-2 focus:ring-focus-ring"
                   />
                   <div className="mt-2 flex gap-2">
-                    <button
+                    <Button
+                      variant="primary"
+                      size="sm"
                       onClick={handleEditSave}
                       disabled={!editBody.trim() || savingEdit}
-                      className="rounded-2xl bg-accent px-3 py-1.5 text-sm font-medium text-white transition-colors hover:bg-accent-hover disabled:bg-sand disabled:text-warm-silver disabled:cursor-not-allowed"
                     >
                       {t("save")}
-                    </button>
+                    </Button>
                     <button
                       onClick={cancelEdit}
                       className="rounded-2xl bg-bg-elevated px-3 py-1.5 text-sm text-text-muted transition-colors hover:text-text-primary"

@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
-import { render, screen, waitFor } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import type { ReactNode } from "react";
 
 import { RenameDialog } from "../RenameDialog";
@@ -70,6 +70,35 @@ describe("RenameDialog", () => {
       const input = screen.getByRole("textbox") as HTMLInputElement;
       expect(input.value).toBe("second-file.png");
       expect(input.selectionEnd).toBe("second-file".length);
+    });
+  });
+
+  // The confirm button is a `<Button type="submit">` inside a `<form>` after
+  // the Phase 3 sweep. Nothing was checking that: turning it back into a
+  // plain `type="button"` left every test green, and the user-visible failure
+  // is "type a new name, press Change, nothing happens".
+  describe("submitting the form", () => {
+    it("renames when the confirm button is pressed", async () => {
+      const { onRename } = renderDialog("old.md");
+      const input = await focusedInput();
+      fireEvent.change(input, { target: { value: "new.md" } });
+      fireEvent.click(screen.getByRole("button", { name: "Change" }));
+      await waitFor(() => expect(onRename).toHaveBeenCalledWith("new.md"));
+    });
+
+    it("keeps the confirm button a submit control", async () => {
+      renderDialog("old.md");
+      expect(
+        screen.getByRole("button", { name: "Change" }).getAttribute("type"),
+      ).toBe("submit");
+    });
+
+    it("stays disabled until the name actually changes", async () => {
+      renderDialog("old.md");
+      const confirm = screen.getByRole("button", { name: "Change" });
+      expect(confirm).toBeDisabled();
+      fireEvent.change(await focusedInput(), { target: { value: "new.md" } });
+      expect(confirm).not.toBeDisabled();
     });
   });
 });
