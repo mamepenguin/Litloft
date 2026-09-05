@@ -8,14 +8,31 @@
  */
 
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { render, screen } from "@testing-library/react";
+import { fireEvent, render, screen } from "@testing-library/react";
 
 import { FolderBrowser } from "../FolderBrowser";
 
 // ---- heavy children / infrastructure ----------------------------------------
 
 vi.mock("@/components/folder/FolderContent", () => ({
-  FolderContent: () => <div data-testid="folder-content" />,
+  // Exposes the drag-start handler it is given, so a test can begin a drag
+  // *inside* this browser — the other half of the drop-target condition, which
+  // the app-wide hook cannot reach.
+  FolderContent: ({ onDragStart }: { onDragStart?: (e: unknown, f: unknown) => void }) => (
+    <div data-testid="folder-content">
+      <button
+        data-testid="drag-source"
+        onClick={() =>
+          onDragStart?.({ dataTransfer: { setData: () => {}, effectAllowed: "" } }, {
+            id: "f1",
+            filename: "a.mp4",
+          })
+        }
+      >
+        drag
+      </button>
+    </div>
+  ),
 }));
 vi.mock("@/components/Breadcrumb", () => ({
   Breadcrumb: (props: Record<string, unknown>) => (
@@ -186,7 +203,13 @@ beforeEach(() => {
 
 // ---- the header --------------------------------------------------------------
 
-function renderFolder(props: { searchQuery?: string } = {}) {
+function renderFolder(
+  props: {
+    searchQuery?: string;
+    typeFilter?: "video" | "image";
+    smartFolderId?: string;
+  } = {},
+) {
   return render(
     <FolderBrowser driveName="main" folderPath="videos" {...props} />,
   );
@@ -281,6 +304,42 @@ describe("the count while a refetch is in flight", () => {
     expect(screen.queryByText(/\d+ items/)).toBeNull();
   });
 
+  // The window the other tests jump over.
+  //
+  // `reset()` is an effect, so on the render where the subject changes the
+  // hook still reports `loading: false` and the previous subject's `total`.
+  // Every other test here assigns `listing.loading = true` *before*
+  // rerendering, which forges the state the real sequence has not reached yet
+  // — so they exercise the read side and never the adoption. Leaving `loading`
+  // alone is the whole point of this one.
+  it("does not adopt the old count when the subject changes before loading starts", () => {
+    const { rerender } = renderFolder();
+    expect(screen.getByText("42 items")).toBeInTheDocument();
+    // `loading` untouched, `total` untouched: exactly what the hook reports on
+    // the first render after a navigation.
+    rerender(<FolderBrowser driveName="main" folderPath="videos/empty" />);
+    expect(screen.queryByText(/\d+ items/)).toBeNull();
+  });
+
+  // Two subjects with the same count. Without the subject term on the *write*
+  // side, the adoption is skipped — `settled.total !== total` is false when
+  // both are 42 — and the count then never returns for the second folder.
+  it("re-adopts a count that happens to equal the previous one", () => {
+    const { rerender } = renderFolder();
+    expect(screen.getByText("42 items")).toBeInTheDocument();
+
+    rerender(<FolderBrowser driveName="main" folderPath="videos/other" />);
+    expect(screen.queryByText(/\d+ items/)).toBeNull();
+
+    // The fetch for the new folder starts, then lands on the same number.
+    listing.loading = true;
+    rerender(<FolderBrowser driveName="main" folderPath="videos/other" />);
+    listing.loading = false;
+    listing.total = 42;
+    rerender(<FolderBrowser driveName="main" folderPath="videos/other" />);
+    expect(screen.getByText("42 items")).toBeInTheDocument();
+  });
+
   // The count is remembered per subject, not per component. This route is the
   // same for every folder in a drive, so React keeps the state across a move
   // and the previous folder's count would otherwise sit beside the new
@@ -308,6 +367,58 @@ describe("the count while a refetch is in flight", () => {
       <FolderBrowser driveName="main" folderPath="videos" searchQuery="dogs" />,
     );
     expect(screen.queryByText(/\d+ items/)).toBeNull();
+  });
+
+  // Every axis in the key, one test each.
+  //
+  // Three of the five were in the key and unexercised: dropping `driveName`,
+  // `view` or `tagFilter` from it left the suite green. All three change
+  // without a remount — one route serves every drive, view and tag — so each
+  // is a way for a count to outlive what it counted.
+  //
+  // Driven without touching `loading`, for the reason the test above exists:
+  // setting it first jumps the window where the adoption happens, and three
+  // more tests written that way would jump it three more times.
+  it.each([
+    ["the drive", { driveName: "other" }],
+    ["the view", { view: "favorites" }],
+    ["the tag filter", { tagFilter: "cats" }],
+  ])("forgets the count when %s changes", (_label, next) => {
+    const { rerender } = renderFolder();
+    expect(screen.getByText("42 items")).toBeInTheDocument();
+    rerender(
+      <FolderBrowser driveName="main" folderPath="videos" {...next} />,
+    );
+    expect(screen.queryByText(/\d+ items/)).toBeNull();
+  });
+
+  // The type filter is in the key too, but it cannot be driven by a rerender:
+  // the prop only seeds internal state (`useState(typeFilterProp ?? …)`), and
+  // the value that matters afterwards is the one the toolbar sets. So it is
+  // driven the way a reader drives it. Before it was added to the key, picking
+  // a filter left the unfiltered count on screen until the filtered one
+  // arrived — the same defect as a folder move, inside one folder.
+  it("forgets the count when the reader picks a type filter", () => {
+    renderFolder();
+    expect(screen.getByText("42 items")).toBeInTheDocument();
+    fireEvent.click(screen.getByLabelText("File type"));
+    fireEvent.click(screen.getByText("Video"));
+    expect(screen.queryByText(/\d+ items/)).toBeNull();
+  });
+
+  // Not in the key, deliberately: these reorder the same set, so the count is
+  // still true and hiding it would be a flicker with nothing behind it.
+  it.each([
+    ["sort", { sort: "file_size" as const }],
+    ["order", { order: "asc" as const }],
+  ])("keeps the count when only %s changes", (_label, next) => {
+    const { rerender } = renderFolder();
+    listing.loading = true;
+    listing.total = 0;
+    rerender(
+      <FolderBrowser driveName="main" folderPath="videos" {...next} />,
+    );
+    expect(screen.getByText("42 items")).toBeInTheDocument();
   });
 
   it("takes the new count once the refetch settles", () => {
@@ -354,29 +465,34 @@ describe("what the header hands its children", () => {
     expect(screen.getByTestId("tree-toggle").getAttribute("data-drive")).toBe("main");
   });
 
+  // Non-default values throughout. `toHaveProperty("smartFolderId")` was
+  // satisfied by the `null` every render produces, and `filter` was asserted
+  // as `"all"` — which is the `?? "all"` fallback answering, so the left half
+  // of `typeFilter ?? "all"` was never once evaluated. An assertion written
+  // with a default is true before the code runs.
   it("gives the save-search button the query, filter and smart folder", () => {
-    renderFolder({ searchQuery: "cats" });
+    renderFolder({ searchQuery: "cats", typeFilter: "video", smartFolderId: "sf1" });
     const props = JSON.parse(
       screen.getByRole("button", { name: "Save search" }).getAttribute("data-save-props")!,
     );
     expect(props.query).toBe("cats");
     expect(props.drive).toBe("main");
-    expect(props).toHaveProperty("typeFilter");
-    expect(props).toHaveProperty("smartFolderId");
+    expect(props.typeFilter).toBe("video");
+    expect(props.smartFolderId).toBe("sf1");
   });
 
   // `onSelect` is the semantic-search result handler. Disconnecting it left
   // the slot rendering and the suite green, and a reader clicking a semantic
   // result would simply get nothing.
   it("gives the addon slot its query, drive, filter and select handler", () => {
-    renderFolder({ searchQuery: "cats" });
+    renderFolder({ searchQuery: "cats", typeFilter: "video" });
     const slot = screen.getByTestId("slot-search-modes");
     expect(slot.getAttribute("data-layout")).toBe("stack");
     const props = JSON.parse(slot.getAttribute("data-slot-props")!);
     expect(props.context).toBe("page");
     expect(props.query).toBe("cats");
     expect(props.drive).toBe("main");
-    expect(props.filter).toBe("all");
+    expect(props.filter).toBe("video");
     expect(props.onSelect).toBe("fn");
   });
 });
@@ -399,6 +515,15 @@ describe("the trail's drop target", () => {
   // The condition is an OR of two sources — this browser's own drag state and
   // a drag started elsewhere in the app. Reducing it to either term, or
   // turning it into an AND, left the suite green.
+  // The condition is an OR, and only one of its terms was ever driven. This
+  // one drives the other: a drag begun inside this browser, reported by
+  // `useDragAndDrop` rather than by the app-wide hook.
+  it("is offered once a drag starts inside this browser", () => {
+    renderFolder();
+    fireEvent.click(screen.getByTestId("drag-source"));
+    expect(dropProps()).toEqual({ handlers: "yes", target: "yes" });
+  });
+
   it("is offered once a drag starts elsewhere in the app", () => {
     dragging.internal = true;
     renderFolder();

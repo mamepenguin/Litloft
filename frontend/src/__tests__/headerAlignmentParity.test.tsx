@@ -1,4 +1,7 @@
 import { describe, it, expect } from "vitest";
+import { createElement } from "react";
+import { render } from "@testing-library/react";
+import { PageHeader } from "@/components/PageHeader";
 import { readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { resolve, dirname } from "node:path";
@@ -43,21 +46,38 @@ describe("the tree toggle lands at the same height in every mode", () => {
     expect(chrome).toContain("items-center");
   });
 
-  it("starts the page header's subject row rather than centring it", () => {
-    const header = read("components/PageHeader.tsx");
-    // Both rows: the trail centres (one line, nothing to align against), the
-    // subject row starts (two lines, and the toggle belongs against the first).
-    expect(header).toContain('className="flex min-w-0 items-start gap-2"');
-    expect(header).toContain('className="flex min-w-0 items-center gap-2"');
-    expect(header).toContain("px-4 py-2");
+  // Rendered, not scanned, and asked which row is which.
+  //
+  // A source scan for both class strings passes while they are *swapped* —
+  // both spellings survive the swap — and swapping them is precisely the
+  // breakage this file exists to catch: a centred subject row drops the toggle
+  // about 12px in search mode, and a top-aligned trail row buys nothing.
+  it("starts the subject row and centres the trail row, and not the reverse", () => {
+    const { container } = render(
+      createElement(PageHeader, {
+        leading: createElement("button", null, "Tree"),
+        breadcrumb: createElement("nav", null, "trail"),
+        title: "Results",
+      }),
+    );
+    const [trailRow, subjectRow] = [
+      ...container.querySelectorAll("header > div"),
+    ];
+    expect(trailRow.classList.contains("items-center")).toBe(true);
+    expect(trailRow.classList.contains("items-start")).toBe(false);
+    expect(subjectRow.classList.contains("items-start")).toBe(true);
+    expect(subjectRow.classList.contains("items-center")).toBe(false);
+    expect(container.querySelector("header")!.classList.contains("py-2")).toBe(true);
   });
 
   it("keeps the toggle the height the arithmetic assumes", () => {
     expect(read("components/TreeToggle.tsx")).toContain("h-8");
   });
 
-  // The arithmetic itself. If any of the three numbers above moves, this is
-  // the line that says what it was for.
+  // The arithmetic itself — documentation, not a detector. Both sides are
+  // computed from constants defined in this file, so it passes whatever the
+  // source says. It is here to state what the three assertions above are for;
+  // they are the ones that bind.
   it("puts both centres at the same offset", () => {
     const fileDetailRowHeight = px(12); // h-12
     const fileDetailCentre = fileDetailRowHeight / 2;

@@ -503,30 +503,66 @@ export function FolderBrowser({
   // Search mode renders a virtual folder view: skip the UploadZone
   // wrapper (you can't drop files into search results) and the
   // clipboard paste banner (paste targets a folder path).
-  // The last count that was actually known, **for the thing being counted**.
+  // The last count that was actually known, for the thing being counted.
   //
-  // Adjusted during render rather than in an effect: this is derived state,
-  // and an effect would show the stale value for one commit before correcting
-  // it. The subject is part of what is remembered because this component is
-  // not remounted when the subject changes — the route is the same for every
-  // folder, tag and query in a drive, so React keeps the state. Without the
-  // key, opening an empty subfolder from a folder of 500 leaves "500 items"
-  // beside the new folder's trail until the fetch lands: not a count that was
-  // true a moment ago, but a confident wrong count about a different subject.
-  // That is worse than the "0 items" flash this replaced, which at least
-  // erred towards "nothing here yet".
+  // Three pieces, and the third is the one that is easy to leave out.
+  //
+  // 1. Adjusted during render rather than in an effect: this is derived state,
+  //    and an effect would show the stale value for one commit first.
+  // 2. Keyed by subject, because this component is not remounted when the
+  //    subject changes — one route serves every folder, view, tag and query in
+  //    a drive, so React keeps the state and a remembered count would
+  //    otherwise outlive what it counted.
+  // 3. Adopted only from a `total` that belongs to this subject. `!loading` is
+  //    not enough to know that, and this is the part a first fix got wrong.
+  //    `reset()` lives in an effect, so on the render where the subject
+  //    changes the hook still reports `loading: false` and the *previous*
+  //    subject's `total` — a true-looking condition that stamps the old count
+  //    under the new subject's name and keeps it there for the whole fetch.
+  //
+  // **This is an approximation, and the header cannot make it exact.** Only
+  // the data layer knows which query a `total` came from; `useFolderFiles`
+  // reports `{ loading: false, total: <previous subject's> }` for one render,
+  // which is a lie its other consumers absorb in a frame — a stale file list
+  // under the new trail, a flicker of the toolbar's arranging controls. This
+  // component is the one that *latches*, turning that frame into a persistent
+  // claim, so it owes the guard. The real fix is for `useFolderFiles` to
+  // derive `loading` from its own reset key; that repairs every consumer at
+  // once and shrinks this to nothing. It is not done here because its blast
+  // radius reaches `RootFileListing` and two behaviours that need tests of
+  // their own.
+  //
+  // `trusted` is the proxy that stands in for the knowledge this component
+  // lacks: a subject becomes trustworthy at mount (nothing stale to inherit)
+  // or once a fetch for it has been seen to start. That rests on the data
+  // layer resetting for every axis named below, which
+  // `folderCountSubjectParity.test.ts` holds.
   const countedSubject = [
     driveName,
     folderPath ?? "",
     view ?? "",
     tagFilter ?? "",
+    typeFilter ?? "",
     searchQuery ?? "",
+    // NUL, because it cannot occur in a path, a tag or a query. The axes are
+    // joined into one string, so a separator any of them could contain would
+    // let two different subjects agree — `folder="a/b", tag=null` and
+    // `folder="a", tag="b"` under a `/`, say.
   ].join("\u0000");
+
+  // Deliberately absent: `sort` and `order`. They reset the listing, but they
+  // reorder the same set, so the count is still true and hiding it would be a
+  // flicker with nothing behind it.
+  const [trusted, setTrusted] = useState<string | null>(countedSubject);
+  if (trusted !== null && trusted !== countedSubject) setTrusted(null);
+  if (trusted === null && loading) setTrusted(countedSubject);
+
   const [settled, setSettled] = useState<{ subject: string; total: number } | null>(
     null,
   );
   if (
     !loading &&
+    trusted === countedSubject &&
     (settled === null || settled.subject !== countedSubject || settled.total !== total)
   ) {
     setSettled({ subject: countedSubject, total });
