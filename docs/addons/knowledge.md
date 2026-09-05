@@ -4,7 +4,6 @@ The `knowledge` addon turns Litloft into a personal notes vault and web-clip arc
 
 ## What it provides
 
-- **Notes browser** — a sidebar over the drive's `.md` files with folders, pinning, renaming, moving, tag editing, and sort by updated / created / name.
 - **Markdown editor** — a CodeMirror 6 editor with live preview, autosave, wiki links, and drag-and-drop image upload.
 - **Version history** — every text write is snapshotted; the editor lists past versions with a diff and a restore action.
 - **Source capture** — collect quotes and timestamps from anywhere in Litloft into a basket, then commit them into a note.

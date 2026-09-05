@@ -15,11 +15,12 @@ import { resolve } from "node:path";
  * migration finished: the two-repository deadlock that module existed for is
  * over, and this condition is not.
  *
- * **It does not make either ledger pass on a submodule-less clone.** The
- * button ledger drops the absent addon's entries from both sides and holds;
- * `page-headings.test.ts` names concrete `addons/knowledge/` paths in three
- * of its own cases and fails without them. That is a pre-existing gap in
- * those cases, not something this guarantees away.
+ * **It is not what makes a ledger pass on a submodule-less clone.** The
+ * button ledger drops the absent addon's entries from both sides; the
+ * heading ledger asserts each addon's count only where the addon is there,
+ * and tests its own staleness rule against a fixture tree rather than
+ * against `addons/knowledge`, which is what it did until those three cases
+ * were the only thing failing such a clone.
  */
 export function addonPresent(repoRoot: string, path: string): boolean {
   if (!path.startsWith("addons/")) return true;

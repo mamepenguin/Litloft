@@ -566,12 +566,14 @@ explained why the button is off.
 > is itself a decision to pass defects through.** The local harm gets the
 > local fix instead.
 >
-> **Progress: 30 of the 39 converted, 9 remain.** The first 13 were
+> **Progress: 31 of the 40 converted, 9 remain.** The first 13 were
 > the call sites under `frontend/src/components/` (PR A2b); 11 more came from
-> media_import in C1 and intelligence in C2a and C2b, and 6 from
+> media_import in C1 and intelligence in C2a and C2b, and 7 from
 > knowledge in C3. Every addon pointer has moved. The population fell from 43
-> to 39 when knowledge's unreachable two-pane view was deleted, taking four
-> converted sites with it; the 9 unconverted are untouched by that. Of the 9 left, seven are
+> to 40 when knowledge's unreachable two-pane view was deleted, taking three
+> converted sites with it — `ClipInput`, `FolderView` and `MoveDialog`; the
+> fourth deleted file that held one, `UnresolvedLinkDialog`, came back in
+> review. The 9 unconverted are untouched by that. Of the 9 left, seven are
 > core — four in the first-run wizard and one on the unlock gate, brand
 > surfaces outside the AppShell, plus two under `app/admin/`, which 案 15 /
 > 案 16 rebuild in Phase 4 — and two are cloud-sync's and stay, per the
@@ -579,14 +581,22 @@ explained why the button is off.
 >
 > `src/__tests__/button-adoption.test.ts` holds that list per file, across core
 > and every addon, so the set cannot change without an edit to it. Its first
-> version scanned core alone and so measured 20 of the 43 — a scope that leaves
-> out 23 sites cannot be contradicted by them, which is the failure this
-> paragraph's own numbers exist to prevent.
+> version scanned core alone and so measured 20 of the 43 the population then
+> held — a scope that leaves out 23 sites cannot be contradicted by them,
+> which is the failure this paragraph's own numbers exist to prevent.
 >
-> **What Phase 3 converts: 37 sites.** 39 carry the
+> **Only the 9 is checked.** That test asserts the unconverted sites per file
+> and their total; 40, 31 and 38 are historical bookkeeping that no test can
+> recompute, because "converted" is a fact about a file's past and the tree
+> holds 52 `<Button>` call sites for every reason including this one. They
+> are kept honest by being derived here from measurements, and by being wrong
+> once already: the four this paragraph first blamed on the deletion were
+> counted before one of the four files came back in review.
+>
+> **What Phase 3 converts: 38 sites.** 40 carry the
 > `disabled:bg-sand` treatment, all of them accent fills — the one exception
 > was an accent *tint* on knowledge's folder pane, converted in C3 and
-> deleted with the pane — and two of those 39 are
+> deleted with the pane — and two of those 40 are
 > cloud-sync's, which stay. Add to the 37 any non-accent sibling inside a file
 > Phase 3 opens for another reason. The rest move opportunistically, when a
 > later change touches the row they sit in — the same terms §2.2 gives the
@@ -1089,10 +1099,10 @@ rather than remembered:
 | `intelligence` | 1 (`FailedJobsModal`) |
 
 Knowledge's row was 8 before its unreachable two-pane view was deleted; four
-of the files that carried them went with it. The media_import row read 10
-under whatever the first count measured and reads 11 under the method stated
-above — a discrepancy of one that this change did not create and has not
-chased down.
+of the files that carried them went with it. The media_import row read 10 and
+measures 11, and the 10 was wrong when it was written rather than overtaken
+by a later change: the count is 11 at the pin that commit carried, and
+`git log -S uppercase` shows no change since.
 
 They are the same shape and want the same sweep; it reaches three submodules, so
 it is deferred rather than smuggled into the change that wrote this rule.
