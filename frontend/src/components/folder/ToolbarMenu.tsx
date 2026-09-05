@@ -13,25 +13,17 @@ import { Check } from "lucide-react";
  * on the desktop form — so 768 is where that form starts. (`00-basis.md`'s
  * 768-1119 "intermediate width" is 案 1's inspector, not this toolbar.)
  *
- * **The residual, measured across all seven orders.** The bar wraps only
- * with both filter axes on *and* the `folder-actions` slot filled, and only
- * at the widest sort faces. Bisected at 1px, both locales, every order:
+ * **Nothing wraps this bar.** Measured in Chromium at 1px over 320-1512,
+ * both locales, all seven orders, with and without both filter axes: one
+ * row everywhere. The one combination that used to take two — both axes
+ * narrowed, ordered by title or size, and an addon drawing a button beside
+ * `Add` — closed when the last addon on the superseded `folder-actions`
+ * slot moved into the `Add` menu, and the slot came out with it.
  *
- * - en, `Size smallest`: 768-772. No other English order wraps.
- * - ja, `タイトルA→Z` / `タイトルZ→A`: 768-785.
- * - ja, `サイズ 小→大` / `サイズ 大→小`: 768-783.
- * - Every other order, and every state with the slot empty: no wrap
- *   anywhere from 320 to 1512.
- *
- * At 768 in Japanese that is `追加` 100 + `AI` 81 + `再生` 72 + `グリッド表示`
- * 126 + `タイトルA→Z` 131 + `Markdown · 検証済みのみ` 144 (the *capped*
- * width) + `その他の操作` 44, seven 8px gaps and 32px of `px-4` = 786. The
- * orders span 31px — `新しい順` is 100 — which is why sampling two of them
- * found two of the four bands.
- *
- * Taking `View` and `Sort` off the bar across the whole of 768-1023 to buy
- * back 5px and 18px is the worse trade: a half-screen window on a 1920
- * display is 960 wide, and 案 2's exposed row is what this phase is for.
+ * That is the budget this breakpoint is spending: at 768 the row is `Add`
+ * 100 + `Play` 74 + `View` 108 + `Sort` 132 + `Filter` 144 (capped) + `…`
+ * 44, six 8px gaps and 32px of `px-4` — about 650 of 768. An addon putting
+ * a labelled control back on this bar spends the rest of it.
  *
  * Stated as data as well as a class. jsdom computes no layout, and reading a
  * class list for the literal token `hidden` is not a proxy for it —

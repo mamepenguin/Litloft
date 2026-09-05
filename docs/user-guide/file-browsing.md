@@ -13,7 +13,7 @@ The numbered areas in the screenshot map to the main browsing surfaces: breadcru
 - Folders show a thumbnail (borrowed from the first video or image anywhere beneath them) and a file count. The count is **recursive** — it includes every active file in the folder *and* its subfolders.
 - Clicking opens that folder.
 - Right-click (or long-press on touch) opens the **folder menu**: Open, New file here, New folder here, Pin / Unpin, Rename, Move, Delete. Which entries appear depends on the surface — the tree pane offers the create actions, the folder grid does not.
-- Addon actions are not in this menu. They live in the `folder-actions` slot in the toolbar above the grid, which receives the current folder and the ids of the files listed in it (for example, *intelligence* offers batch refine/regenerate there).
+- Addon actions appear in this menu too, below a separator under the app's own rows — *intelligence* offers its batch AI actions there, for the files the listing is showing.
 - The folder list is derived from the paths of the files in the drive, so a folder holding no files at all would otherwise vanish. Those are recorded in the `empty_folders` table and merged back into the listing with a count of 0.
 
 ## File grid and list modes

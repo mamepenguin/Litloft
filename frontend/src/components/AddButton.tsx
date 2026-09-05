@@ -159,7 +159,16 @@ export function AddButton({
         {menuOpen && (
           <div
             role="menu"
-            className="absolute left-0 top-full z-30 mt-1 min-w-[180px] rounded-xl border border-bg-border bg-bg-primary py-1 shadow-lg animate-fade-in-scale origin-top-left"
+            // Capped and scrollable, like every other menu on this bar.
+            // `MENU_SURFACE` is anchored to the *right* of its trigger;
+            // `Add` is the leftmost control, so this keeps its own
+            // left-anchored geometry and takes the height rules that make a
+            // menu reachable: without them, an addon contributing rows to
+            // `folder-actions-menu` pushes the last of them past the bottom
+            // of a landscape phone with no way to scroll to them, and the
+            // menu travels with the sticky bar so the page cannot scroll
+            // them back.
+            className="absolute left-0 top-full z-30 mt-1 max-h-[60vh] min-w-[180px] overflow-y-auto rounded-xl border border-bg-border bg-bg-primary py-1 shadow-lg animate-fade-in-scale origin-top-left sm:max-h-[70vh]"
           >
             <ActionMenuItem
               icon={FileIcon}
