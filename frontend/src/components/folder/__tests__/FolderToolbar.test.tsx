@@ -215,9 +215,13 @@ describe("FolderToolbar", () => {
     expect(screen.getAllByText("Invalid folder name").length).toBeGreaterThan(0);
   });
 
-  it("shows total count", () => {
+  // The count moved to `PageHeader`'s scope line, where search mode had
+  // always kept it — the toolbar and the header used to state the same fact
+  // in two places and two wordings. Asserted here as an absence so the two
+  // cannot quietly both come back.
+  it("does not state the count; the page header does", () => {
     render(<FolderToolbar {...defaultProps} />);
-    expect(screen.getByText("42 items")).toBeInTheDocument();
+    expect(screen.queryByText(/\d+ items/)).toBeNull();
   });
 
   it("opens type filter popover and lists options", () => {
@@ -328,10 +332,11 @@ describe("FolderToolbar", () => {
       expect(screen.getAllByLabelText("New Note").length).toBeGreaterThan(0);
     });
 
-    it("keeps the count, and the way back to a rescan", () => {
+    it("keeps the way back to a rescan", () => {
       render(<FolderToolbar {...empty} />);
-      expect(screen.getByText(/0/)).toBeInTheDocument();
-      // Rescan is how an empty folder stops being empty.
+      // Rescan is how an empty folder stops being empty. The count that used
+      // to be asserted alongside it is the header's now, and an empty folder
+      // still shows it — `FolderBrowser.header.test.tsx` holds that.
       expect(screen.getByLabelText("More actions")).toBeInTheDocument();
     });
 

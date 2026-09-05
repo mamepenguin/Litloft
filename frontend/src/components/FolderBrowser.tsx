@@ -8,6 +8,7 @@ import { useShortcuts } from "@/hooks/useShortcuts";
 
 import type { FileItem, FileKind, SortField, SortOrder, TrustFilter, ViewMode } from "@/types";
 import { Breadcrumb } from "@/components/Breadcrumb";
+import { PageHeader } from "@/components/PageHeader";
 import { TreeToggle } from "@/components/TreeToggle";
 import { UploadZone } from "@/components/UploadZone";
 import { SelectionBar } from "@/components/SelectionBar";
@@ -502,56 +503,137 @@ export function FolderBrowser({
   // Search mode renders a virtual folder view: skip the UploadZone
   // wrapper (you can't drop files into search results) and the
   // clipboard paste banner (paste targets a folder path).
+  // The last count that was actually known, for the thing being counted.
+  //
+  // Three pieces, and the third is the one that is easy to leave out.
+  //
+  // 1. Adjusted during render rather than in an effect: this is derived state,
+  //    and an effect would show the stale value for one commit first.
+  // 2. Keyed by subject, because this component is not remounted when the
+  //    subject changes — one route serves every folder, view, tag and query in
+  //    a drive, so React keeps the state and a remembered count would
+  //    otherwise outlive what it counted.
+  // 3. Adopted only from a `total` that belongs to this subject. `!loading` is
+  //    not enough to know that, and this is the part a first fix got wrong.
+  //    `reset()` lives in an effect, so on the render where the subject
+  //    changes the hook still reports `loading: false` and the *previous*
+  //    subject's `total` — a true-looking condition that stamps the old count
+  //    under the new subject's name and keeps it there for the whole fetch.
+  //
+  // **This is an approximation, and the header cannot make it exact.** Only
+  // the data layer knows which query a `total` came from; `useFolderFiles`
+  // reports `{ loading: false, total: <previous subject's> }` for one render,
+  // which is a lie its other consumers absorb in a frame — a stale file list
+  // under the new trail, a flicker of the toolbar's arranging controls. This
+  // component is the one that *latches*, turning that frame into a persistent
+  // claim, so it owes the guard. The real fix is for `useFolderFiles` to
+  // derive `loading` from its own reset key; that repairs every consumer at
+  // once and shrinks this to nothing. It is not done here because its blast
+  // radius reaches `RootFileListing` and two behaviours that need tests of
+  // their own.
+  //
+  // `trusted` is the proxy that stands in for the knowledge this component
+  // lacks: a subject becomes trustworthy at mount (nothing stale to inherit)
+  // or once a fetch for it has been seen to start. That rests on the data
+  // layer resetting for every axis named below, which
+  // `folderCountSubjectParity.test.ts` holds.
+  const countedSubject = [
+    driveName,
+    folderPath ?? "",
+    view ?? "",
+    tagFilter ?? "",
+    typeFilter ?? "",
+    searchQuery ?? "",
+    // NUL, because it cannot occur in a path, a tag or a query. The axes are
+    // joined into one string, so a separator any of them could contain would
+    // let two different subjects agree — `folder="a/b", tag=null` and
+    // `folder="a", tag="b"` under a `/`, say.
+  ].join("\u0000");
+
+  // Deliberately absent: `sort` and `order`. They reset the listing, but they
+  // reorder the same set, so the count is still true and hiding it would be a
+  // flicker with nothing behind it.
+  const [trusted, setTrusted] = useState<string | null>(countedSubject);
+  if (trusted !== null && trusted !== countedSubject) setTrusted(null);
+  if (trusted === null && loading) setTrusted(countedSubject);
+
+  const [settled, setSettled] = useState<{ subject: string; total: number } | null>(
+    null,
+  );
+  if (
+    !loading &&
+    trusted === countedSubject &&
+    (settled === null || settled.subject !== countedSubject || settled.total !== total)
+  ) {
+    setSettled({ subject: countedSubject, total });
+  }
+  const settledTotal =
+    settled !== null && settled.subject === countedSubject ? settled.total : null;
+
   const inner = (
     <div className="flex min-w-0 w-full flex-1 flex-col">
-      {/* Outermost header row — Y-aligned with the file preview's
-          PaneShell header (px-4 py-3) so TreeToggle sits at the same
-          height regardless of folder/file/search mode. The breadcrumb
-          / search title share this row; TreeToggle is leftmost. */}
-      {isSearch ? (
-        <header className="flex flex-wrap items-start gap-2 px-4 py-2">
-          <TreeToggle drive={driveName} />
-          <div className="min-w-0 flex-1">
-            <h1 className="truncate text-2xl font-bold text-text-primary">
-              {tSearch("heading", { query: searchQuery ?? "" })}
-            </h1>
-            {!loading && (
-              <p className="mt-1 text-sm text-text-muted">
-                {tCommon("items", { count: total })}
-              </p>
-            )}
-          </div>
-          <div className="flex flex-shrink-0 flex-wrap items-center gap-2">
-            <SmartFolderSaveButton
-              drive={driveName}
-              query={searchQuery ?? ""}
-              typeFilter={typeFilter}
-              smartFolderId={smartFolderId ?? null}
+      {/* One header for both modes. The two used to be separate rows that
+          happened to line up: a `<header>` in search mode and a bare `<div>`
+          in folder mode, each spelling out its own padding and its own idea
+          of where the count goes. `PageHeader` is Y-aligned with the file
+          preview's PaneShell header, so TreeToggle sits at the same height
+          in folder, file and search mode alike. */}
+      <PageHeader
+        leading={<TreeToggle drive={driveName} />}
+        breadcrumb={
+          isSearch ? undefined : (
+            <Breadcrumb
+              driveName={driveName}
+              folderPath={folderPath}
+              getDropTargetProps={(dragState.isDragging || isInternalDragging) ? getDropTargetProps : undefined}
+              isDropTarget={(dragState.isDragging || isInternalDragging) ? isDropTarget : undefined}
             />
-            <AddonSlot
-              id="search-modes"
-              layout="stack"
-              props={{
-                context: "page",
-                query: searchQuery ?? "",
-                drive: driveName,
-                filter: typeFilter ?? "all",
-                onSelect: handleSemanticSelect,
-              }}
-            />
-          </div>
-        </header>
-      ) : (
-        <div className="flex items-center gap-2 px-4 py-2">
-          <TreeToggle drive={driveName} />
-          <Breadcrumb
-            driveName={driveName}
-            folderPath={folderPath}
-            getDropTargetProps={(dragState.isDragging || isInternalDragging) ? getDropTargetProps : undefined}
-            isDropTarget={(dragState.isDragging || isInternalDragging) ? isDropTarget : undefined}
-          />
-        </div>
-      )}
+          )
+        }
+        // Search names its subject in a heading because there is no path to
+        // name it; a folder is named by its trail.
+        title={isSearch ? tSearch("heading", { query: searchQuery ?? "" }) : undefined}
+        // The count lives here in both modes now. It used to be in the
+        // header in search mode and in the toolbar in folder mode, which is
+        // why the same fact was worded and placed two different ways.
+        //
+        // `settledTotal`, not `total`: a refetch sets `total` to 0 and
+        // `loading` to true together, so neither raw value can be shown. The
+        // old toolbar showed `total` and flashed a false "0 items" on every
+        // sort change; gating on `loading` instead makes the count vanish and
+        // come back, and here that reflows the breadcrumb beside it, which the
+        // old separate row never did. Holding the last settled count avoids
+        // both — nothing is claimed that was not true a moment ago, and the
+        // row does not move.
+        scope={
+          settledTotal === null
+            ? undefined
+            : tCommon("items", { count: settledTotal })
+        }
+        actions={
+          isSearch ? (
+            <>
+              <SmartFolderSaveButton
+                drive={driveName}
+                query={searchQuery ?? ""}
+                typeFilter={typeFilter}
+                smartFolderId={smartFolderId ?? null}
+              />
+              <AddonSlot
+                id="search-modes"
+                layout="stack"
+                props={{
+                  context: "page",
+                  query: searchQuery ?? "",
+                  drive: driveName,
+                  filter: typeFilter ?? "all",
+                  onSelect: handleSemanticSelect,
+                }}
+              />
+            </>
+          ) : undefined
+        }
+      />
 
       {!hideToolbar && <FolderToolbar
         isSpecialView={isSpecialView}

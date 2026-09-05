@@ -479,11 +479,6 @@ export function FolderToolbar({
           </div>
         </div>
 
-        {!isSearch && (
-          <span className="text-sm text-text-muted whitespace-nowrap">
-            {tc("items", { count: total })}
-          </span>
-        )}
       </div>
     </>
   );
