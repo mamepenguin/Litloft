@@ -76,10 +76,23 @@ const NOT_CONVERTED: Record<string, number> = {
   // in C3 — each of which is a pull request in its own repository. cloud-sync
   // is out of Phase 3 entirely (DESIGN.md §6 records why).
   //
-  // The intelligence and media_import entries are mid-migration: the addon
-  // repository holds the converted file and the pointer here names the commit
-  // before it, so `MIGRATION_WINDOWS` declares both endpoints. D1 bumps the
-  // pointers and deletes those lines.
+  // Three of the four addons are in different states, and `MIGRATION_WINDOWS`
+  // looks the same for all of them — the map records which endpoints are
+  // admissible, never why:
+  //
+  // * **media_import** is mid-migration in the original sense. Its repository
+  //   holds the converted commit and the pointer here names the one before it.
+  // * **intelligence** is already bumped. The gitlink names the converted
+  //   commit, so its windows resolve to `after` in a fresh clone, and D1 has
+  //   nothing left to move for it — only entries to delete.
+  // * **knowledge**'s windows were declared *ahead of* the addon work, because
+  //   core's ledger has to admit the converted shape before that repository's
+  //   own CI can go green. **Its pointer must not move until C3 lands.**
+  //
+  // Nothing in this suite can tell those apart: "declared ahead of the work"
+  // and "the work exists upstream, the pin is behind" are the same observation
+  // from in here, which is why this is a comment and not a field. A field
+  // nothing checks is what `PENDING_BUMPS`'s docstring already warns about.
   "addons/cloud-sync/frontend/SyncDriveCard.tsx": 2,
   "addons/intelligence/frontend/AdminEmbeddingSettingsSection.tsx": 1,
   "addons/intelligence/frontend/AdminFeaturesSettingsSection.tsx": 1,
