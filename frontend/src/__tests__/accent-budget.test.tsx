@@ -12,12 +12,13 @@ import type { FileItem } from "@/types";
  * menu. `FolderAIActionsButton` is bordered, so nothing is over budget
  * today — but that is the addon's choice, not this file's guarantee.
  *
- * The stub is not a shortcut. `addons/` is a set of gitignored symlinks
- * that CI materialises with `setup-addons.sh`, so a core assertion about
- * an addon's pixels would pass or fail on which addons a checkout
- * happens to hold — the failure `button-adoption.test.ts` was already
- * fixed for once. Addon-owned screens are counted in the addon's own
- * repository instead.
+ * The stub is not a shortcut. `frontend/src/addons/*` is a set of
+ * gitignored symlinks into the `addons/*` submodules, materialised by
+ * `setup-addons.sh` (`.github/workflows/ci.yml`), so a core assertion
+ * about an addon's pixels would pass or fail on what a checkout happens
+ * to hold — the failure `button-adoption.test.ts` was already fixed for
+ * once. Addon-owned screens are counted in the addon's own repository
+ * instead.
  */
 vi.mock("@/components/AddonSlot", () => ({ AddonSlot: () => null }));
 
@@ -102,6 +103,15 @@ function playableFile(): FileItem {
  *
  * `disabled:` counts too, deliberately: a disabled control is sitting
  * there filled, which `DESIGN.md` §6 names as its own defect.
+ *
+ * **Two known limits, both on the cheap side.** A colon inside an
+ * arbitrary variant is split on like any other — `[&:hover]:bg-accent`
+ * and `has-[:hover]:bg-accent` are counted though they paint only under
+ * a pointer — and `starting:` (`@starting-style`) is counted though it
+ * paints for one frame. Both cost a review comment on a control nobody
+ * writes that way today; a bracket-aware splitter would be more surface
+ * to get wrong than the thing it protects, which is how the two earlier
+ * drafts of this rule went wrong.
  */
 const ACCENT_FILLS = new Set(["bg-accent", "bg-accent-cta"]);
 
@@ -114,16 +124,33 @@ const INTERACTION_STATES = new Set([
   "active",
 ]);
 
-/** Prefixes that relay one of those from another element, unchanged. */
-const RELAY = /^(group|peer|has|in)-/;
+/**
+ * Prefixes that relay one of those from another element, unchanged.
+ *
+ * Repeated, because they compose: `group-has-hover:` is one hover
+ * relayed twice. Stripping once left it unrecognised.
+ */
+const RELAY = /^((group|peer|has|in)-)+/;
 
+/**
+ * There is no step here that strips arbitrary values, and there was one.
+ *
+ * It claimed to stop `data-[state=active]` being read as `active`, and
+ * deleting it changed no verdict in the table below: the comparison is
+ * for a whole name, and `data-[state=active]` is not `active` with the
+ * brackets left on. Worse, stripping is the one direction that can
+ * *create* a match — `group-hover[x]` would reduce to `hover` — which is
+ * the expensive failure. A guard whose removal breaks nothing was
+ * protecting against nothing.
+ */
 function isInteractionVariant(variant: string): boolean {
-  // An arbitrary value may spell one of these without being one:
-  // `data-[state=active]` is a resting state whose value reads "active".
-  const bare = variant.replace(/\[[^\]]*\]/g, "");
+  // A named group or peer suffixes the variant: `group-hover/sidebar:`.
+  // Standard syntax, and without this the name made the whole variant
+  // unrecognisable — a hover fill would have failed a build.
+  const unnamed = variant.replace(/\/.*$/, "");
   // `not-hover:` is deliberately not relayed — it paints when the pointer
   // is *away*, which is the resting case.
-  return INTERACTION_STATES.has(bare.replace(RELAY, ""));
+  return INTERACTION_STATES.has(unnamed.replace(RELAY, ""));
 }
 
 function isRestingAccentFill(token: string): boolean {
@@ -235,6 +262,14 @@ describe("what counts as a fill at rest", () => {
     "data-[theme=dark]:bg-accent",
     // Paints when the pointer is away — the resting half of a hover pair.
     "not-hover:bg-accent",
+    // Relayed *resting* states, which the relay prefixes must not swallow.
+    "group-data-[state=active]:bg-accent",
+    "data-[state=hover]:bg-accent",
+    // The row that makes the absent bracket-stripping step load-bearing:
+    // with it, this reduces to `hover` and a resting fill goes unseen.
+    "group-hover[x]:bg-accent",
+    "peer-checked:bg-accent",
+    "group-aria-selected:bg-accent",
   ])("counts %s", (token) => expect(has(token)).toBe(true));
 
   it.each([
@@ -247,6 +282,14 @@ describe("what counts as a fill at rest", () => {
     "peer-focus:bg-accent",
     "group-active:bg-accent",
     "has-hover:bg-accent",
+    "in-hover:bg-accent",
+    // Relays compose, so the prefix is stripped as many times as it is
+    // written.
+    "group-has-hover:bg-accent",
+    // A named group or peer. Standard syntax, and the name used to make
+    // the variant unrecognisable — a hover fill failing a build.
+    "group-hover/sidebar:bg-accent",
+    "peer-focus/email:bg-accent",
     // One interaction anywhere in the chain is enough.
     "sm:hover:bg-accent",
     "dark:group-hover:bg-accent",
