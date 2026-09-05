@@ -13,7 +13,8 @@ import { FileList } from "@/components/FileList";
 import { ViewToggle } from "@/components/ViewToggle";
 import { SortButton } from "@/components/SortButton";
 import { EmptyState } from "@/components/EmptyState";
-import { UploadButton } from "@/components/UploadButton";
+import { AddButton } from "@/components/AddButton";
+import { Button } from "@/components/Button";
 import { UploadZone } from "@/components/UploadZone";
 import { SelectionBar } from "@/components/SelectionBar";
 import { FilterField } from "@/components/folder/FilterField";
@@ -218,7 +219,7 @@ export function RootFileListing({ driveName, onFileAction, onFolderChange }: Roo
 
         {/* Toolbar */}
         <div className="mb-4 flex flex-wrap items-center gap-2">
-          <UploadButton onCreateFolder={() => setCreatingFolder(true)} />
+          <AddButton onCreateFolder={() => setCreatingFolder(true)} />
 
           {creatingFolder && (
             <div className="flex w-full items-center gap-2 sm:w-auto">
@@ -234,18 +235,20 @@ export function RootFileListing({ driveName, onFileAction, onFolderChange }: Roo
                 placeholder={tf("namePlaceholder")}
                 className="min-w-0 flex-1 rounded-2xl bg-bg-card px-3 py-2 text-sm text-text-primary placeholder:text-text-muted outline-none focus:ring-2 focus:ring-focus-ring sm:w-40 sm:flex-initial"
               />
-              <button
-                onClick={handleCreateFolder}
-                className="rounded-2xl bg-accent px-3 py-2 text-sm text-white hover:bg-accent-hover"
-              >
+              {/* The twin of the folder toolbar's inline Create, and not a
+                  second accent fill for the same reason: Add stays on screen
+                  behind this row (DESIGN.md §2.2). */}
+              <Button variant="secondary" size="sm" onClick={handleCreateFolder}>
                 {tc("create")}
-              </button>
-              <button
+              </Button>
+              <Button
+                iconOnly
+                variant="ghost"
+                aria-label={tc("cancel")}
                 onClick={() => { setCreatingFolder(false); setNewFolderName(""); setFolderError(null); }}
-                className="rounded-lg p-2 text-text-muted hover:text-text-primary"
               >
                 <X size={16} />
-              </button>
+              </Button>
               {folderError && <span className="text-xs text-danger">{folderError}</span>}
             </div>
           )}
@@ -254,14 +257,10 @@ export function RootFileListing({ driveName, onFileAction, onFolderChange }: Roo
 
           <div className="flex items-center gap-2">
             {hasPlayableFiles && (
-              <button
-                onClick={handlePlayAll}
-                className="flex items-center gap-1.5 rounded-2xl bg-accent px-3 py-2 text-sm font-medium text-white transition-colors hover:bg-accent-hover"
-                aria-label={t("playAll")}
-              >
+              <Button variant="secondary" size="sm" onClick={handlePlayAll}>
                 <Play size={16} />
-                <span className="hidden sm:inline">{tc("play")}</span>
-              </button>
+                {tc("play")}
+              </Button>
             )}
 
             {/* Sort + view toggle + overflow grouped in a single pill —

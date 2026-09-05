@@ -39,14 +39,31 @@ vi.mock("@/components/SortButton", () => ({
     </button>
   ),
 }));
-vi.mock("@/components/UploadButton", () => ({
-  UploadButton: ({ onCreateFolder }: { onCreateFolder?: () => void }) => (
+vi.mock("@/components/AddButton", () => ({
+  // Stands in for the one control that puts things in a folder. It renders a
+  // row per prop it is given, so a test can still see *which* of them
+  // FolderBrowser decided to offer — the real menu keeps them behind a click.
+  AddButton: ({
+    onCreateFolder,
+    onCreateFile,
+  }: {
+    onCreateFolder?: () => void;
+    onCreateFile?: () => void;
+  }) => (
     <>
-      <button aria-label="Upload">Upload</button>
+      {/* Named by their text, as the real rows are: `ActionMenuItem` puts
+          the label in the button's content and carries no `aria-label`, so
+          a stand-in with one would let an assertion pass against a naming
+          path the product does not use. */}
+      <button>Add</button>
       {onCreateFolder && (
-        <button onClick={onCreateFolder} aria-label="New Folder">
-          New Folder
-        </button>
+        // Called with no arguments, as `ActionMenuItem` calls it. Passing
+        // the click event instead hands the handler an event where it
+        // expects a name.
+        <button onClick={() => onCreateFolder()}>New Folder</button>
+      )}
+      {onCreateFile && (
+        <button onClick={() => onCreateFile()}>New Note</button>
       )}
     </>
   ),
@@ -149,7 +166,7 @@ vi.mock("@/hooks/useFolderViewMode", () => ({
 // ---- helpers -----------------------------------------------------------------
 
 function newNoteButtons() {
-  return screen.queryAllByLabelText("New Note");
+  return screen.queryAllByRole("button", { name: "New Note" });
 }
 
 beforeEach(() => {
@@ -173,10 +190,10 @@ describe("FolderBrowser — folder anchoring during a tag filter", () => {
     expect(mockCreateFile).toHaveBeenCalledWith("main", "recipes");
   });
 
-  it("offers upload and new-folder during a folder tag filter", () => {
+  it("offers the add menu and new-folder during a folder tag filter", () => {
     render(<FolderBrowser driveName="main" folderPath="recipes" tagFilter="soup" />);
-    expect(screen.getAllByLabelText("Upload").length).toBeGreaterThan(0);
-    expect(screen.getAllByLabelText("New Folder").length).toBeGreaterThan(0);
+    expect(screen.getAllByRole("button", { name: "Add" }).length).toBeGreaterThan(0);
+    expect(screen.getAllByRole("button", { name: "New Folder" }).length).toBeGreaterThan(0);
   });
 
   it("keys per-folder sort and viewMode on the anchored folder during a tag filter", () => {
@@ -244,20 +261,20 @@ describe("FolderBrowser — folder anchoring during a tag filter", () => {
   it("hides create-file in a special view", () => {
     render(<FolderBrowser driveName="main" view="favorites" />);
     expect(newNoteButtons()).toHaveLength(0);
-    expect(screen.queryByLabelText("Upload")).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Add" })).not.toBeInTheDocument();
   });
 
   it("hides create-file in search mode", () => {
     render(<FolderBrowser driveName="main" searchQuery="kyoto" />);
     expect(newNoteButtons()).toHaveLength(0);
-    expect(screen.queryByLabelText("Upload")).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Add" })).not.toBeInTheDocument();
   });
 
   it("hides create-file for a drive-root tag filter", () => {
     // No folderPath: there is no concrete folder to write into.
     render(<FolderBrowser driveName="main" tagFilter="soup" />);
     expect(newNoteButtons()).toHaveLength(0);
-    expect(screen.queryByLabelText("Upload")).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Add" })).not.toBeInTheDocument();
   });
 
   it("still offers create-file for a plain folder listing", () => {

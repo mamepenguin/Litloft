@@ -38,7 +38,7 @@ vi.mock("@/components/UploadZone", () => ({
   UploadZone: ({ children }: { children?: React.ReactNode }) => <>{children}</>,
 }));
 vi.mock("@/components/SortButton", () => ({ SortButton: () => null }));
-vi.mock("@/components/UploadButton", () => ({ UploadButton: () => null }));
+vi.mock("@/components/AddButton", () => ({ AddButton: () => null }));
 
 vi.mock("next/navigation", () => ({
   useRouter: () => ({ push: vi.fn(), replace: vi.fn() }),

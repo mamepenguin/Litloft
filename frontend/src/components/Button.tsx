@@ -1,6 +1,6 @@
 "use client";
 
-import type { ButtonHTMLAttributes, ReactNode } from "react";
+import type { ButtonHTMLAttributes, Ref, ReactNode } from "react";
 
 /**
  * The five variants DESIGN.md §6 "Buttons" already names. This component
@@ -110,6 +110,15 @@ interface CommonProps extends NativeButtonProps {
   size?: ButtonSize;
   /** Extra utilities for layout only — width, margin, flex. Not colour. */
   className?: string;
+  /**
+   * Forwarded to the `<button>`. React 19 passes `ref` as an ordinary
+   * prop to a function component, so no `forwardRef` is needed — but
+   * `ButtonHTMLAttributes` does not declare it, and without this line a
+   * caller that needs the element (to return focus to it after closing a
+   * menu, say) cannot reach it through this component and would write
+   * the recipe out by hand instead.
+   */
+  ref?: Ref<HTMLButtonElement>;
 }
 
 /**

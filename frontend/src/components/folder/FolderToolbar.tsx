@@ -5,7 +5,6 @@ import {
   Check,
   CheckSquare,
   Filter,
-  FilePlus,
   MoreHorizontal,
   Play,
   RefreshCw,
@@ -16,8 +15,9 @@ import {
 
 import { useTranslations } from "next-intl";
 import type { FileKind, SortField, SortOrder, TrustFilter, ViewMode } from "@/types";
+import { AddButton } from "@/components/AddButton";
+import { Button } from "@/components/Button";
 import { SortButton } from "@/components/SortButton";
-import { UploadButton } from "@/components/UploadButton";
 import { ViewToggle } from "@/components/ViewToggle";
 import { AddonSlot } from "@/components/AddonSlot";
 import { WidenTagScopeLink, type WidenTagScope } from "./WidenTagScopeLink";
@@ -166,7 +166,11 @@ export function FolderToolbar({
   // mobile (normal flow, above the sticky bar) and desktop (inside the sticky bar).
   const leftActions = !hideMutatingActions ? (
     <>
-      <UploadButton onCreateFolder={() => onSetCreatingFolder(true)} />
+      <AddButton
+        onCreateFolder={() => onSetCreatingFolder(true)}
+        onCreateFile={onCreateFile}
+        addonProps={{ fileIds, drive, path: folderPath ?? "" }}
+      />
 
       {creatingFolder && (
         <div className="flex w-full items-center gap-2 sm:w-auto">
@@ -182,31 +186,22 @@ export function FolderToolbar({
             placeholder={tf("namePlaceholder")}
             className="min-w-0 flex-1 rounded-2xl bg-bg-card px-3 py-2 text-sm text-text-primary placeholder:text-text-muted outline-none focus:ring-2 focus:ring-focus-ring sm:w-40 sm:flex-initial"
           />
-          <button
-            onClick={onCreateFolder}
-            className="rounded-2xl bg-accent px-3 py-2 text-sm font-medium text-white hover:bg-accent-hover"
-          >
+          {/* Not a second accent fill. This row opens from the Add menu and
+              Add stays on screen behind it, so filling Create would put two
+              on the bar at once — the state §2.2 exists to prevent. */}
+          <Button variant="secondary" size="sm" onClick={onCreateFolder}>
             {tc("create")}
-          </button>
-          <button
+          </Button>
+          <Button
+            iconOnly
+            variant="ghost"
+            aria-label={tc("cancel")}
             onClick={() => { onSetCreatingFolder(false); onSetNewFolderName(""); onSetFolderError(null); }}
-            className="rounded-lg p-2 text-text-muted hover:text-text-primary"
           >
             <X size={16} />
-          </button>
+          </Button>
           {folderError && <span className="text-xs text-danger">{folderError}</span>}
         </div>
-      )}
-
-      {onCreateFile && !creatingFolder && (
-        <button
-          onClick={() => onCreateFile()}
-          className="flex items-center gap-2 rounded-2xl border border-bg-border bg-bg-card px-3 py-2 text-sm font-medium text-text-primary transition-colors hover:bg-bg-elevated"
-          aria-label={tf("newFile")}
-        >
-          <FilePlus size={16} />
-          <span className="hidden sm:inline">{tf("newFile")}</span>
-        </button>
       )}
     </>
   ) : null;
@@ -218,6 +213,12 @@ export function FolderToolbar({
           even when hideMutatingActions is true. */}
       <div className="flex flex-wrap items-center gap-2 px-4 py-1 sm:hidden">
         {leftActions}
+        {/* The standalone form of the addon slot, superseded by the rows
+            `AddButton` draws from `folder-actions-menu`. It is still
+            rendered so an addon that has not moved yet keeps its entry
+            point; an addon moves by changing which id its manifest
+            declares, and this renders nothing once the old slot is empty.
+            Delete the two call sites when no manifest names it. */}
         <AddonSlot id="folder-actions" layout="stack" props={{ fileIds, drive, path: folderPath ?? "" }} />
       </div>
 
@@ -237,7 +238,7 @@ export function FolderToolbar({
           </div>
         )}
 
-        {/* Desktop only: AddonSlot in sticky bar */}
+        {/* Desktop only: the superseded `folder-actions` slot (see above) */}
         <div className="hidden sm:block">
           <AddonSlot id="folder-actions" layout="stack" props={{ fileIds, drive, path: folderPath ?? "" }} />
         </div>
@@ -247,15 +248,16 @@ export function FolderToolbar({
         <div className="flex-1" />
 
         {/* RIGHT: view controls */}
+        {/* Not the overflow menu, and not accent-filled. hako
+            `55N_yML35Q2jdVBsCxc06` settles both halves: playing a music album
+            or a video folder is a first-class action, so it stays exposed
+            wherever the folder has something to play — but §2.2 gives the
+            screen one fill and `Add` holds it. */}
         {hasPlayableFiles && !hidePlayAll && (
-          <button
-            onClick={onPlayAll}
-            className="flex items-center gap-1.5 rounded-2xl bg-accent px-3 py-2 text-sm font-medium text-white transition-all hover:bg-accent-hover"
-            aria-label={t("playAll")}
-          >
+          <Button variant="secondary" size="sm" onClick={onPlayAll}>
             <Play size={16} />
-            <span className="hidden sm:inline">{tc("play")}</span>
-          </button>
+            {tc("play")}
+          </Button>
         )}
 
         {/* Trust filter — sibling chip. Hidden where no handler is wired

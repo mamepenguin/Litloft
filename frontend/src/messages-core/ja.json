@@ -16,7 +16,6 @@
     "move": "移動",
     "play": "再生",
     "pause": "一時停止",
-    "upload": "アップロード",
     "lock": "ロック",
     "items": "{count}件",
     "loadContent": "読み込む",
@@ -478,6 +477,7 @@
     "noSelection": "ツリーからファイルを選択してください"
   },
   "toolbar": {
+    "add": "追加",
     "rescan": "再スキャン",
     "rescanTitle": "ドライブを再スキャン",
     "fileType": "ファイルタイプ",

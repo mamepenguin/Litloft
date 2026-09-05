@@ -37,7 +37,24 @@ function loadAddonSlotModule(addonName: string): Promise<SlotModule> {
 interface AddonSlotProps {
   id: string;
   props?: Record<string, unknown>;
-  layout?: "tabs" | "stack" | "menu";
+  /**
+   * How the host draws the entries it gets back.
+   *
+   * There is no `"menu"` here, and its absence is the design rather than
+   * an omission. A menu-shaped slot is already expressible: the host
+   * opens its own `role="menu"` container, renders the slot inside it
+   * with `layout="stack"`, and each entry draws
+   * `components/ActionMenuItem` rows — the contract `file-actions-menu`
+   * has shipped under since spec `2026-08-30-file-actions-menu-addon-slot.md`
+   * §6, with two addons on it. A second mechanism for the same shape
+   * would give the host two ways to say one thing, and `AddonSlot`
+   * cannot draw a row for an entry anyway: it holds the entry's label,
+   * not its icon or its action.
+   *
+   * `addon-slot-layouts.test.ts` holds every value here to a branch
+   * below, so this union cannot grow a member that renders nothing again.
+   */
+  layout?: "tabs" | "stack";
   /**
    * Optional allowlist by entry id. When provided, only entries whose
    * `id` is in the list are rendered. Both filters are applied before

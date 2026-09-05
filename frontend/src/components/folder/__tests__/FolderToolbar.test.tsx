@@ -6,24 +6,31 @@ vi.mock("@/components/SortButton", () => ({
   SortButton: () => <button data-testid="sort-button">Sort</button>,
 }));
 
+const addonSlotIds: string[] = [];
+const addonSlotProps: Array<{ id: string; props: Record<string, unknown> }> = [];
 vi.mock("@/components/AddonSlot", () => ({
-  AddonSlot: () => null,
+  AddonSlot: ({ id, props }: { id: string; props: Record<string, unknown> }) => {
+    addonSlotIds.push(id);
+    addonSlotProps.push({ id, props });
+    return null;
+  },
 }));
 
-// UploadButton is rendered in both the mobile row and the desktop sticky bar.
-// Mock it to a stable shape so tests can target it without CSS-based visibility.
-vi.mock("@/components/UploadButton", () => ({
-  UploadButton: ({ onCreateFolder }: { onCreateFolder?: () => void }) => (
-    <>
-      <button aria-label="Upload">Upload</button>
-      {onCreateFolder && (
-        <button onClick={onCreateFolder} aria-label="New Folder">
-          New Folder
-        </button>
-      )}
-    </>
-  ),
+// The real provider's default context answers `hasSlot: () => false`, which
+// would make the Add menu's addon rows unreachable from this file — and the
+// wiring that feeds them is FolderToolbar's, not AddButton's.
+vi.mock("@/components/AddonSlotsProvider", () => ({
+  useAddonSlots: () => ({ hasSlot: () => true }),
 }));
+
+// `AddButton` is *not* mocked here. It is the toolbar's one accent fill and
+// it now holds upload, new folder and new note, so a stand-in would leave
+// this file asserting the stand-in's shape rather than the group the toolbar
+// actually renders. It appears twice — mobile row and desktop sticky bar —
+// so every lookup takes the first.
+const openAddMenu = () => {
+  fireEvent.click(screen.getAllByRole("button", { name: "Add" })[0]);
+};
 
 const defaultProps = {
   isSpecialView: false,
@@ -56,34 +63,107 @@ const defaultProps = {
 describe("FolderToolbar", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    addonSlotIds.length = 0;
+    addonSlotProps.length = 0;
   });
 
-  it("renders upload button and new folder button", () => {
+  // The standalone `folder-actions` slot is superseded by the rows
+  // `AddButton` draws from `folder-actions-menu`, and it is deliberately
+  // still here: an addon moves by changing the id its manifest declares,
+  // and until it does, deleting this would take its entry point away. It
+  // renders nothing once no manifest names it, so the removal is not
+  // urgent — but it must not happen by accident either.
+  it("still offers the superseded folder-actions slot at both widths", () => {
     render(<FolderToolbar {...defaultProps} />);
-    // Both buttons appear in mobile row and desktop sticky bar (CSS-only split).
-    expect(screen.getAllByLabelText("Upload").length).toBeGreaterThan(0);
-    expect(screen.getAllByLabelText("New Folder").length).toBeGreaterThan(0);
+    // Both call sites, counted. `toContain` was satisfied by either one
+    // alone, so deleting the desktop half — the main viewport, and the one
+    // an addon's users would actually notice — passed the whole suite.
+    expect(addonSlotIds.filter((id) => id === "folder-actions")).toHaveLength(2);
   });
 
-  it("renders new note button when onCreateFile is provided", () => {
-    const onCreateFile = vi.fn();
-    render(<FolderToolbar {...defaultProps} onCreateFile={onCreateFile} />);
-    expect(screen.getAllByLabelText("New Note").length).toBeGreaterThan(0);
+  // The point of the PR: the Add menu's addon rows. Removing `addonProps`
+  // from the AddButton call kills the slot in production, and until this
+  // existed nothing failed when it did.
+  describe("the add menu's addon slot", () => {
+    const menuSlots = () =>
+      addonSlotProps.filter((s) => s.id === "folder-actions-menu");
+
+    // The slot lives inside the menu, so it is only asked for once the menu
+    // is open — and the toolbar draws the whole left group twice, once per
+    // breakpoint, each with its own menu.
+    const openEvery = () =>
+      screen
+        .getAllByRole("button", { name: "Add" })
+        .forEach((b) => fireEvent.click(b));
+
+    it("is asked for at both widths", () => {
+      render(<FolderToolbar {...defaultProps} />);
+      expect(menuSlots()).toHaveLength(0);
+      openEvery();
+      expect(menuSlots()).toHaveLength(2);
+    });
+
+    it("is handed the folder it is looking at", () => {
+      render(
+        <FolderToolbar {...defaultProps} folderPath="recipes/soup" />,
+      );
+      openEvery();
+      expect(menuSlots()[0].props).toMatchObject({
+        drive: "test-drive",
+        fileIds: ["file-1", "file-2"],
+        path: "recipes/soup",
+      });
+    });
+
+    it("says the drive root with an empty path, not undefined", () => {
+      render(<FolderToolbar {...defaultProps} />);
+      openEvery();
+      expect(menuSlots()[0].props.path).toBe("");
+    });
+
+    it("is not offered where there is no folder to write into", () => {
+      render(
+        <FolderToolbar {...defaultProps} isSearch isFolderAnchored={false} />,
+      );
+      // There is no Add button to open at all there.
+      expect(screen.queryByRole("button", { name: "Add" })).not.toBeInTheDocument();
+      expect(menuSlots()).toHaveLength(0);
+    });
   });
 
-  it("does not render new note button when onCreateFile is omitted", () => {
+  it("puts upload and new folder behind one add menu", () => {
     render(<FolderToolbar {...defaultProps} />);
-    expect(screen.queryByLabelText("New Note")).not.toBeInTheDocument();
+    // Nothing on the bar until it is opened: the three controls that used to
+    // sit here are rows now.
+    expect(screen.queryByText("Files")).not.toBeInTheDocument();
+    expect(screen.queryByText("New Folder")).not.toBeInTheDocument();
+    openAddMenu();
+    expect(screen.getByText("Files")).toBeInTheDocument();
+    expect(screen.getByText("Folder")).toBeInTheDocument();
+    expect(screen.getByText("New Folder")).toBeInTheDocument();
+  });
+
+  it("offers new note in the add menu when onCreateFile is provided", () => {
+    render(<FolderToolbar {...defaultProps} onCreateFile={vi.fn()} />);
+    openAddMenu();
+    expect(screen.getByText("New Note")).toBeInTheDocument();
+  });
+
+  it("does not offer new note when onCreateFile is omitted", () => {
+    render(<FolderToolbar {...defaultProps} />);
+    openAddMenu();
+    expect(screen.queryByText("New Note")).not.toBeInTheDocument();
   });
 
   it("clicking new note calls onCreateFile", () => {
     const onCreateFile = vi.fn();
     render(<FolderToolbar {...defaultProps} onCreateFile={onCreateFile} />);
-    fireEvent.click(screen.getAllByLabelText("New Note")[0]);
+    openAddMenu();
+    fireEvent.click(screen.getByText("New Note"));
     expect(onCreateFile).toHaveBeenCalledTimes(1);
   });
 
-  it("hides new note button in special view even if onCreateFile is provided", () => {
+  it("hides the add menu entirely in special view", () => {
     const onCreateFile = vi.fn();
     render(
       <FolderToolbar
@@ -93,13 +173,7 @@ describe("FolderToolbar", () => {
         onCreateFile={onCreateFile}
       />,
     );
-    expect(screen.queryByLabelText("New Note")).not.toBeInTheDocument();
-  });
-
-  it("hides upload and folder buttons in special view", () => {
-    render(<FolderToolbar {...defaultProps} isSpecialView={true} isFolderAnchored={false} />);
-    expect(screen.queryByLabelText("Upload")).not.toBeInTheDocument();
-    expect(screen.queryByLabelText("New Folder")).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Add" })).not.toBeInTheDocument();
   });
 
   // spec 2026-08-21-folder-scoped-tag-filter §6.2: the toolbar's gate is
@@ -117,24 +191,23 @@ describe("FolderToolbar", () => {
         onCreateFile={onCreateFile}
       />,
     );
-    expect(screen.getAllByLabelText("Upload").length).toBeGreaterThan(0);
-    expect(screen.getAllByLabelText("New Folder").length).toBeGreaterThan(0);
-    expect(screen.getAllByLabelText("New Note").length).toBeGreaterThan(0);
+    expect(screen.getAllByRole("button", { name: "Add" }).length).toBeGreaterThan(0);
+    openAddMenu();
+    expect(screen.getByText("New Folder")).toBeInTheDocument();
+    expect(screen.getByText("New Note")).toBeInTheDocument();
   });
 
-  it("hides upload and folder buttons for a tag filter with no folder anchor", () => {
+  it("hides the add menu for a tag filter with no folder anchor", () => {
     // A drive-root tag filter has no concrete folder to write into.
     render(
       <FolderToolbar {...defaultProps} tagFilter="nature" isFolderAnchored={false} />,
     );
-    expect(screen.queryByLabelText("Upload")).not.toBeInTheDocument();
-    expect(screen.queryByLabelText("New Folder")).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Add" })).not.toBeInTheDocument();
   });
 
-  it("hides upload and folder buttons in search mode", () => {
+  it("hides the add menu in search mode", () => {
     render(<FolderToolbar {...defaultProps} isSearch={true} isFolderAnchored={false} />);
-    expect(screen.queryByLabelText("Upload")).not.toBeInTheDocument();
-    expect(screen.queryByLabelText("New Folder")).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Add" })).not.toBeInTheDocument();
   });
 
   // spec 2026-08-21-folder-scoped-tag-filter §8
@@ -160,7 +233,8 @@ describe("FolderToolbar", () => {
 
   it("clicking new folder triggers onSetCreatingFolder", () => {
     render(<FolderToolbar {...defaultProps} />);
-    fireEvent.click(screen.getAllByLabelText("New Folder")[0]);
+    openAddMenu();
+    fireEvent.click(screen.getByText("New Folder"));
     expect(defaultProps.onSetCreatingFolder).toHaveBeenCalledWith(true);
   });
 
@@ -243,12 +317,15 @@ describe("FolderToolbar", () => {
 
   it("shows play all button when hasPlayableFiles", () => {
     render(<FolderToolbar {...defaultProps} hasPlayableFiles={true} />);
-    expect(screen.getByLabelText("Play all")).toBeInTheDocument();
+    // Named by the label a sighted reader sees, not by an `aria-label` that
+    // said something else. It used to carry both, so screen readers heard
+    // "Play all" where the button read "Play".
+    expect(screen.getByRole("button", { name: "Play" })).toBeInTheDocument();
   });
 
   it("hides play all in special view", () => {
     render(<FolderToolbar {...defaultProps} hasPlayableFiles={true} isSpecialView={true} />);
-    expect(screen.queryByLabelText("Play all")).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Play" })).not.toBeInTheDocument();
   });
 
   it("opens overflow menu and exposes rescan + select mode", () => {
@@ -327,9 +404,10 @@ describe("FolderToolbar", () => {
 
     it("keeps the ways of putting something in it", () => {
       render(<FolderToolbar {...empty} onCreateFile={vi.fn()} />);
-      expect(screen.getAllByLabelText("Upload").length).toBeGreaterThan(0);
-      expect(screen.getAllByLabelText("New Folder").length).toBeGreaterThan(0);
-      expect(screen.getAllByLabelText("New Note").length).toBeGreaterThan(0);
+      openAddMenu();
+      expect(screen.getByText("Files")).toBeInTheDocument();
+      expect(screen.getByText("New Folder")).toBeInTheDocument();
+      expect(screen.getByText("New Note")).toBeInTheDocument();
     });
 
     it("keeps the way back to a rescan", () => {
