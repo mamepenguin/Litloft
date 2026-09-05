@@ -503,11 +503,36 @@ export function FolderBrowser({
   // Search mode renders a virtual folder view: skip the UploadZone
   // wrapper (you can't drop files into search results) and the
   // clipboard paste banner (paste targets a folder path).
-  // The last count that was actually known. Adjusted during render rather
-  // than in an effect: this is derived state, and an effect would show the
-  // stale value for one commit before correcting it.
-  const [settledTotal, setSettledTotal] = useState<number | null>(null);
-  if (!loading && settledTotal !== total) setSettledTotal(total);
+  // The last count that was actually known, **for the thing being counted**.
+  //
+  // Adjusted during render rather than in an effect: this is derived state,
+  // and an effect would show the stale value for one commit before correcting
+  // it. The subject is part of what is remembered because this component is
+  // not remounted when the subject changes — the route is the same for every
+  // folder, tag and query in a drive, so React keeps the state. Without the
+  // key, opening an empty subfolder from a folder of 500 leaves "500 items"
+  // beside the new folder's trail until the fetch lands: not a count that was
+  // true a moment ago, but a confident wrong count about a different subject.
+  // That is worse than the "0 items" flash this replaced, which at least
+  // erred towards "nothing here yet".
+  const countedSubject = [
+    driveName,
+    folderPath ?? "",
+    view ?? "",
+    tagFilter ?? "",
+    searchQuery ?? "",
+  ].join("\u0000");
+  const [settled, setSettled] = useState<{ subject: string; total: number } | null>(
+    null,
+  );
+  if (
+    !loading &&
+    (settled === null || settled.subject !== countedSubject || settled.total !== total)
+  ) {
+    setSettled({ subject: countedSubject, total });
+  }
+  const settledTotal =
+    settled !== null && settled.subject === countedSubject ? settled.total : null;
 
   const inner = (
     <div className="flex min-w-0 w-full flex-1 flex-col">

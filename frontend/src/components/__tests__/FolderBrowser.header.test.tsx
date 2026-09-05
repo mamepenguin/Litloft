@@ -281,6 +281,35 @@ describe("the count while a refetch is in flight", () => {
     expect(screen.queryByText(/\d+ items/)).toBeNull();
   });
 
+  // The count is remembered per subject, not per component. This route is the
+  // same for every folder in a drive, so React keeps the state across a move
+  // and the previous folder's count would otherwise sit beside the new
+  // folder's trail — a confident wrong number about something else, which is
+  // worse than the "0 items" flash it replaced.
+  //
+  // The other tests here `rerender` with the *same* `folderPath`, so none of
+  // them can see this: they only ever exercise a subject that did not change.
+  it("forgets the count when the folder changes", () => {
+    const { rerender } = renderFolder();
+    expect(screen.getByText("42 items")).toBeInTheDocument();
+    listing.loading = true;
+    listing.total = 0;
+    rerender(<FolderBrowser driveName="main" folderPath="videos/empty" />);
+    expect(screen.queryByText("42 items")).toBeNull();
+    expect(screen.queryByText(/\d+ items/)).toBeNull();
+  });
+
+  it("forgets the count when the search query changes", () => {
+    const { rerender } = renderFolder({ searchQuery: "cats" });
+    expect(screen.getByText("42 items")).toBeInTheDocument();
+    listing.loading = true;
+    listing.total = 0;
+    rerender(
+      <FolderBrowser driveName="main" folderPath="videos" searchQuery="dogs" />,
+    );
+    expect(screen.queryByText(/\d+ items/)).toBeNull();
+  });
+
   it("takes the new count once the refetch settles", () => {
     const { rerender } = renderFolder();
     listing.loading = true;
