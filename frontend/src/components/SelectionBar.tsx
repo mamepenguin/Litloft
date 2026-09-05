@@ -32,9 +32,9 @@ import { CollectionPicker } from "./CollectionPicker";
  * scrollbar (`overflow-x-auto scrollbar-hide`), so at 375px four of them
  * were off the right-hand edge with nothing saying so — 00-basis 原則 5,
  * "what is cut off should look cut off". They are one list now: the first
- * `KEPT_ON_BAR` stay on the bar at every width and the rest move into
- * `…` below 640px, where they keep their labels. Fewer controls, not
- * nameless ones (00-basis, モバイルの寸法規則).
+ * marked `keepOnBar` stay at every width and the rest move into `…` below
+ * 640px, where they keep their labels. Fewer controls, not nameless ones
+ * (00-basis, モバイルの寸法規則).
  */
 export interface BulkAction {
   id: string;
@@ -303,7 +303,17 @@ export function SelectionBar({
             the wrapper outside the card, so the card's `overflow-hidden` has
             nothing to clip. `z-30` is the tier DESIGN.md §Layering gives a
             popover anchored to a control, and the same one `AddButton` and
-            `FileActions` use. */}
+            `FileActions` use.
+
+            `right-3` pins it to the card's right edge rather than to the
+            trigger. Measured: below 640px the wrapper is the viewport, so
+            the two overlap at every design width (320, 375, 430). Between
+            480px and 639px they separate — 206px apart at 639px — because
+            the trigger sits just after Move on the left while the menu stays
+            right. Accepted rather than fixed: following the trigger means
+            computing a position again, which is what put this menu inside
+            the clipping card in the first place, and the band where it
+            happens is one the `sm:` layout is about to take over anyway. */}
         <div
           role="menu"
           className="absolute bottom-full right-3 z-30 mb-2 min-w-[200px] rounded-2xl border border-bg-border bg-bg-primary py-1 shadow-lg animate-fade-in-scale sm:hidden"
@@ -387,7 +397,7 @@ export function SelectionBar({
                 grouping this file's own comment says the order exists to
                 serve. */}
             <div className="flex items-center gap-1 px-2 py-2">
-              {actions.map((action) => {
+              {actions.map((action, index) => {
                 // Tagging replaces its own button and nothing else. Wrapping
                 // the whole row in the branch emptied the bar of the other
                 // six actions, at every width.
@@ -431,7 +441,7 @@ export function SelectionBar({
                   <ActionButton
                     key={action.id}
                     action={action}
-                    keepDividerNarrow={groupSurvivesNarrow(actions, actions.indexOf(action))}
+                    keepDividerNarrow={groupSurvivesNarrow(actions, index)}
                   />
                 );
               })}

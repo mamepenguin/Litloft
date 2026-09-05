@@ -259,8 +259,12 @@ describe("accent budget", () => {
         /expect\(\s*accentFills\(/.test(source),
         `${name}: ${assertedIn} never passes accentFills to an expect`,
       ).toBe(true);
+      // Not `\.(skip|only)\s*\(`: `it.skipIf(true)(...)` has `If` between
+      // the name and the parenthesis, and slipped through while disabling
+      // one of the two screen assertions. Anything whose name *starts*
+      // skip / only / runIf / todo counts.
       expect(
-        /\.(skip|only)\s*\(/.test(source),
+        /\.(skip|only|runIf|todo)[A-Za-z]*\s*[(<]/.test(source),
         `${name}: ${assertedIn} disables or narrows its own tests`,
       ).toBe(false);
     }
