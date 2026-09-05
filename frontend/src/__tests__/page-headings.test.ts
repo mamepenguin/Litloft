@@ -72,16 +72,10 @@ const NOT_YET_MIGRATED: Record<string, string> = {
   "frontend/src/components/FileDetail/FileMetaBlock.tsx":
     "inspector heading; demoted with the FileDetailChrome migration (PR A2b)",
 
-  // Addons, migrating in PRs C1-C3. Each conversion happens in the addon's own
-  // repository while the pointer here still names the commit before it, so
-  // `MIGRATION_WINDOWS` declares both endpoints for the ones already written.
-  // D1 bumps the pointers and deletes those lines.
-  "addons/intelligence/frontend/Page.tsx": "PR C2a (window open until D1)",
-  "addons/intelligence/frontend/pages/find.tsx": "PR C2a (window open until D1)",
-  "addons/intelligence/frontend/pages/pickup.tsx": "PR C2b (window open until D1)",
-  "addons/intelligence/frontend/pages/search-compare.tsx":
-    "PR C2b (window open until D1)",
-  "addons/media_import/frontend/Page.tsx": "PR C1 (window open until D1)",
+  // knowledge is the last addon still crossing. Its conversion happens in its
+  // own repository while the pointer here names the commit before it, so
+  // `MIGRATION_WINDOWS` declares both endpoints; D1b bumps that pointer and
+  // deletes this line. media_import and intelligence used to be here too.
 
   // Not a page header at all: the landing panel of the knowledge two-pane
   // view. DESIGN.md's chrome scale does not govern it.
@@ -232,9 +226,9 @@ describe("page headings", () => {
     expect(perRoot.get("frontend/src")).toBe(11);
 
     const EXPECTED_ADDON_HEADINGS: Record<string, number> = {
-      "addons/intelligence": 4,
+      "addons/intelligence": 0,
       "addons/knowledge": 2,
-      "addons/media_import": 1,
+      "addons/media_import": 0,
     };
 
     // Headings per file, so a window can be asked about the file it names
@@ -343,7 +337,7 @@ describe("page headings", () => {
 
     it("excuses a converted file while its window is open", () => {
       expect(
-        staleEntriesFrom(CONVERTED, ["addons/media_import/frontend/Page.tsx"]),
+        staleEntriesFrom(CONVERTED, ["addons/knowledge/frontend/FolderView.tsx"]),
       ).toEqual([]);
     });
 
@@ -352,26 +346,26 @@ describe("page headings", () => {
       // difference between this and the case above. Without it the first
       // assertion would pass for a file nothing excuses.
       expect(
-        staleEntriesFrom(CONVERTED, ["addons/media_import/frontend/api.ts"]),
-      ).toEqual(["addons/media_import/frontend/api.ts"]);
+        staleEntriesFrom(CONVERTED, ["addons/knowledge/frontend/api.ts"]),
+      ).toEqual(["addons/knowledge/frontend/api.ts"]);
     });
 
     it("excuses a path whose heading window is open", () => {
-      expect(staleEntries(["addons/media_import/frontend/Page.tsx"])).toEqual([]);
+      expect(staleEntries(["addons/knowledge/frontend/FolderView.tsx"])).toEqual([]);
     });
 
     it("does not excuse one whose window is on the other ledger", () => {
-      // `Composer.tsx` has no `<h1>` and never had one; its window is the
+      // `MoveDialog.tsx` has no `<h1>` and never had one; its window is the
       // button ledger's. Excusing it here would let a genuinely stale heading
       // entry sit behind an unrelated migration.
-      expect(staleEntries(["addons/media_import/frontend/Composer.tsx"])).toEqual([
-        "addons/media_import/frontend/Composer.tsx",
+      expect(staleEntries(["addons/knowledge/frontend/MoveDialog.tsx"])).toEqual([
+        "addons/knowledge/frontend/MoveDialog.tsx",
       ]);
     });
 
     it("reports a listed file that no longer writes one", () => {
-      expect(staleEntries(["addons/media_import/frontend/api.ts"])).toEqual([
-        "addons/media_import/frontend/api.ts",
+      expect(staleEntries(["addons/knowledge/frontend/api.ts"])).toEqual([
+        "addons/knowledge/frontend/api.ts",
       ]);
     });
 
@@ -382,8 +376,8 @@ describe("page headings", () => {
     it("still reports a file that has gone from an addon that is here", () => {
       // Absence of the addon is a reason; absence of the file is the defect.
       expect(
-        staleEntries(["addons/media_import/frontend/DeletedLongAgo.tsx"]),
-      ).toEqual(["addons/media_import/frontend/DeletedLongAgo.tsx"]);
+        staleEntries(["addons/knowledge/frontend/DeletedLongAgo.tsx"]),
+      ).toEqual(["addons/knowledge/frontend/DeletedLongAgo.tsx"]);
     });
   });
 });
