@@ -21,7 +21,7 @@ The numbered areas in the screenshot map to the main browsing surfaces: breadcru
 A toolbar above the grid lets you:
 
 - Choose **grid** or **list** from the **View** menu. The button reads the layout that is on. In a real folder the choice is remembered per folder (localStorage, under `folderPrefs:{drive}`); on the drive root, in the flat views, and in search it falls back to a single global preference. Before you have ever chosen, the mode is guessed from what the folder mostly holds — Markdown folders open as a list, video/image/audio folders as a grid.
-- Put the listing in order from the **Sort** menu: **newest / oldest** (indexed date), **title A-Z / Z-A**, **largest / smallest**, or **random** — seven orders. (Eight, in an earlier version of this line, which listed *most / least liked*. That order exists but the menu has never offered it: inside an ordinary folder most rows have no like date at all, so it belongs to the Liked view and is chosen for you there.) The button reads the order that is on. Search results add a **relevance** option, which is their default. Sort is remembered per folder in the same place as the view mode. While the order is random, the same menu offers **Reshuffle** below the orders.
+- Put the listing in order from the **Sort** menu: **newest / oldest** (indexed date), **title A-Z / Z-A**, **largest / smallest**, or **random** — seven orders. Sorting by when you liked something is not among them; that order belongs to the Liked view, which chooses it for you, because inside an ordinary folder most rows have no like date at all. The button reads the order that is on. Search results add a **relevance** option, which is their default. Sort is remembered per folder in the same place as the view mode. While the order is random, the same menu offers **Reshuffle** below the orders.
 - Narrow the listing from the **Filter** menu, which holds both axes. **File type** (All / Video / Image / Audio / Document / Markdown / PDF / Archive / Other) — Markdown and PDF sit *under* Document, so choosing Document returns them too and choosing one of them narrows further. **Verification** (All / Verified only / Unjudged only) sits beside it, except in search results, where a ranked and truncated result set cannot be narrowed after the fact without quietly losing hits. The button carries the word *Filter* until something is on, then the names of what is on.
 
   The server applies both and narrows the query itself, so they are right about files you have not scrolled to yet, and the count beside the folder name is the server's. Three things sit outside that: the drive root's own file listing has no Filter menu at all; *recently played* fetches the last fifty and sifts verification over those rows in the browser, so its count is how many of the fifty are left; and a search count is the server's filename total plus the semantic hits the browser found on top of it.
@@ -31,19 +31,23 @@ A toolbar above the grid lets you:
 - **Add** anything to the folder, from the one **Add** button: upload files, upload a folder, create a folder, create a note. It is the only filled button on the bar. An addon can contribute further rows, which appear below a separator at the bottom of the menu.
 - **Play** everything playable in the folder, on folders that hold something playable.
 
-**View** and **Sort** leave the bar below 768px and move inside `…` as
-sections of that menu — the same rows, in the same order. What stays is
-**Play**, **Filter** and `…`, joined by **Add** from 640px up (below that,
-Add sits in its own row above the bar).
+The bar sheds controls as it narrows, in two steps. Below 1024px **View**
+and **Sort** move inside `…` as sections of it — the same rows, in the same
+order. Below 768px **Add** moves too, into its own row just above the bar,
+with any addon buttons beside it, leaving **Play**, **Filter** and `…` on
+the bar itself.
 
-Nothing loses its label and nothing wraps onto a second row. Where a label
-is longer than the room for it — the Filter button naming both of its axes,
-or the "Search the whole drive" link on a folder reached through a tag — it
-is shortened with an ellipsis rather than dropped, and the full text stays
-in the button's accessible name. At 375px the bar is one row, and every
-control on it is at least 44px for touch. The one exception is above 640px,
-where the **New Folder** name field opens inline on the bar and can push it
-onto a second row; that form predates this arrangement.
+Nothing loses its label and nothing wraps onto a second row, in either
+language and with or without an addon on the bar. The Filter button naming
+both of its axes, and the "Search the whole drive" link on a folder reached
+through a tag, are the two whose labels can outgrow the space; both are
+shortened with an ellipsis rather than dropped, and the full text stays in
+the control's accessible name. Every control on the bar is at least 44px for
+touch.
+
+Above 768px the **New Folder** name field opens inline beside **Add**, and
+between 768px and about 890px it takes a second row of its own until you
+finish naming the folder.
 
 On a listing with nothing in it at all — no files and no subfolders —
 the toolbar drops the controls for arranging things: View, Sort and the

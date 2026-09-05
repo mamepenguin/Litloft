@@ -122,7 +122,7 @@ export function FilterMenu({
         // one would overlap. DESIGN.md §Row Actions describes that mechanism
         // but prescribes the overhang for controls repeated once per row, at
         // a shorter pitch than this; the box is the simpler control here.
-        className={`flex min-w-0 items-center gap-1.5 rounded-2xl border px-3 py-2 text-sm transition-colors pointer-coarse:min-h-11 ${
+        className={`flex items-center gap-1.5 rounded-2xl border px-3 py-2 text-sm transition-colors pointer-coarse:min-h-11 ${
           isFiltering
             ? "border-bg-border bg-bg-elevated text-text-primary font-medium"
             : "border-bg-border bg-bg-card text-text-muted hover:text-text-primary"
@@ -139,7 +139,16 @@ export function FilterMenu({
             both locales. `00-basis.md` allows eliding text at that width and
             forbids the wrap, and the whole list stays in the accessible name
             above. */}
-        <span className="truncate max-sm:max-w-24">
+        <span
+          // Capped only when more than one axis is on, and only below
+          // 1024px. Two axes join with ` · ` and reach 211px, which wraps
+          // this bar at 375 on its own and at 768-848 once an addon holds
+          // the `folder-actions` slot — which the intelligence addon still
+          // does. One axis reaches 95px against what would be a 96px cap,
+          // so capping unconditionally would start eliding a single-axis
+          // face on the first label that grew by two characters.
+          className={`truncate ${activeLabels.length > 1 ? "max-lg:max-w-24" : ""}`}
+        >
           {isFiltering ? activeLabels.join(" · ") : t("filter")}
         </span>
       </button>

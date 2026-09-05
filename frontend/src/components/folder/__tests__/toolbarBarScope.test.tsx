@@ -158,19 +158,32 @@ const SCOPE: Record<string, string[]> = {
   "Filter: Markdown · Verified only": [],
   "More actions": [],
   "Search the whole drive": [],
-  // The left group has had its own row above the bar since before this
-  // phase; it is not part of what B2b-2b moved. The create-folder form
-  // opens inside that group, so it inherits the same scope.
-  Add: ["hidden", "sm:flex"],
-  INPUT: ["sm:w-40", "sm:flex-initial", "sm:w-auto", "hidden", "sm:flex"],
-  Create: ["sm:w-auto", "hidden", "sm:flex"],
-  Cancel: ["sm:w-auto", "hidden", "sm:flex"],
-  "View: Grid view": ["hidden", "md:flex"],
-  "Sort: Newest first": ["hidden", "md:flex"],
-  "Sort: Relevance": ["hidden", "md:flex"],
+  // Two breakpoints, each set by what it costs. The left group fits the bar
+  // from 768; the three labelled arranging menus do not until 1024, because
+  // at 768 with the `folder-actions` slot filled the row comes to 771 in a
+  // 768 viewport (measured). The create-folder form opens inside the left
+  // group and inherits its scope.
+  Add: ["hidden", "md:flex"],
+  INPUT: ["md:w-40", "md:flex-initial", "md:w-auto", "hidden", "md:flex"],
+  Create: ["md:w-auto", "hidden", "md:flex"],
+  Cancel: ["md:w-auto", "hidden", "md:flex"],
+  "View: Grid view": ["hidden", "lg:flex"],
+  "Sort: Newest first": ["hidden", "lg:flex"],
+  "Sort: Relevance": ["hidden", "lg:flex"],
 };
 
 const nameOrTag = (b: HTMLElement) => nameOf(b) || b.tagName;
+
+/**
+ * The tables below key by accessible name, and `Object.fromEntries` keeps
+ * the last of any duplicate — so two controls sharing a name would collapse
+ * into one row and the other would go unchecked. Nothing on this bar shares
+ * one today; this is what says so.
+ */
+function namesAreUnique(root: HTMLElement): boolean {
+  const names = controls(root).map(nameOrTag);
+  return new Set(names).size === names.length;
+}
 
 describe("what the folder toolbar keeps on the bar", () => {
   afterEach(cleanup);
@@ -200,6 +213,7 @@ describe("what the folder toolbar keeps on the bar", () => {
     // this suite has that lesson written down twice — and it cannot see a
     // control that invented a third recipe either.
     const { container } = render(<FolderToolbar {...props} {...overrides} />);
+    expect(namesAreUnique(bar(container))).toBe(true);
     const floors = Object.fromEntries(
       controls(bar(container)).map((b) => [
         nameOrTag(b),
@@ -228,7 +242,10 @@ describe("what the folder toolbar keeps on the bar", () => {
     expect(chains).toEqual(
       Object.fromEntries(Object.keys(chains).map((k) => [k, SCOPE[k]])),
     );
-    expect(Object.values(chains).every((v) => v !== undefined)).toBe(true);
+    // `SCOPE[k]`, not the observed chain: `responsiveChain` always returns
+    // an array, so asking whether the observation is defined can never be
+    // false. The question is whether the table has an entry.
+    expect(Object.keys(chains).every((k) => SCOPE[k] !== undefined)).toBe(true);
   });
 
   it("lets the two controls that can outgrow the bar shrink instead of wrapping it", () => {
@@ -255,18 +272,66 @@ describe("what the folder toolbar keeps on the bar", () => {
 
     const face = screen.getByRole("button", { name: /^Filter:/ });
     expect([...face.querySelector("span")!.classList].sort()).toEqual([
-      "max-sm:max-w-24",
+      "max-lg:max-w-24",
       "truncate",
     ]);
-    expect([...face.classList]).toContain("min-w-0");
+    // The icon must not be the thing that shrinks. Without `shrink-0` the
+    // flex line takes the reduction out of the 16px glyph before the text,
+    // and the control loses the mark that says what it is.
+    expect([...face.querySelector("svg")!.classList]).toContain("shrink-0");
 
     const link = screen.getByRole("link", { name: "Search the whole drive" });
+    // `flex` on the wrapper is what makes the link an item rather than a
+    // block that fills it. Without it the link's own `display:flex` spans
+    // the whole grower — 998px at 1512 around a 151px label, measured. All
+    // three classes, exactly, because each does a different job: `flex`
+    // stops the fill, `flex-1` gives a zero base so a long label cannot
+    // wrap the row, `min-w-0` lets it shrink once the slack is gone.
     expect([...link.parentElement!.classList].sort()).toEqual([
+      "flex",
       "flex-1",
       "min-w-0",
     ]);
     expect([...link.classList]).toContain("min-w-0");
     expect([...link.querySelector("span")!.classList]).toContain("truncate");
+    expect([...link.querySelector("svg")!.classList]).toContain("shrink-0");
+  });
+
+  it("caps the filter face only once a second axis makes it long", () => {
+    // The cap is 96px and the widest single-axis face is "Unjudged only" at
+    // 95 — one label-length from eliding a face that fits. Two axes join
+    // with ` · ` and reach 211, which is what wraps the bar. So the cap
+    // arrives with the second axis rather than sitting on the control.
+    const face = () => screen.getByRole("button", { name: /^Filter/ });
+    const classes = () => [...face().querySelector("span")!.classList].sort();
+
+    const { rerender } = render(<FolderToolbar {...props} />);
+    expect(classes()).toEqual(["truncate"]);
+
+    rerender(<FolderToolbar {...props} typeFilter="markdown" />);
+    expect(classes()).toEqual(["truncate"]);
+
+    rerender(
+      <FolderToolbar {...props} typeFilter="markdown" trustFilter="verified" />,
+    );
+    expect(classes()).toEqual(["max-lg:max-w-24", "truncate"]);
+  });
+
+  it("keeps the overflow's breakpoint wrapper out of the menu's own children", () => {
+    // `role="menu"` publishes only menuitem / group / separator children, so
+    // a bare <div> between the menu and its two `role="group"` sections
+    // takes them out of the menu's ownership. `presentation` re-parents
+    // them. The same rule this file's group tests cite.
+    render(<FolderToolbar {...props} />);
+    fireEvent.click(screen.getByLabelText("More actions"));
+    const menu = screen.getByRole("menu");
+    for (const group of menu.querySelectorAll('[role="group"]')) {
+      let el = group.parentElement;
+      while (el && el !== menu) {
+        expect(el.getAttribute("role")).toBe("presentation");
+        el = el.parentElement;
+      }
+    }
   });
 
   it("says which controls leave the bar in an attribute, not only in a class", () => {

@@ -22,15 +22,11 @@ describe("FilterMenu", () => {
     // target for this toolbar is one unlabelled icon, the overflow.
     render(<FilterMenu {...base} />);
     expect(trigger()).toHaveAccessibleName("Filter");
-    // The face's own recipe, at rest. It is not classless any more: with
-    // both axes on it reads `Markdown · Verified only`, 211px of a 343px
-    // bar, which wrapped the toolbar at 375px until it was capped and
-    // elided. Pinned in both states below, so the cap cannot be dropped —
-    // or applied to only one of them.
-    expect([...trigger().querySelector("span")!.classList].sort()).toEqual([
-      "max-sm:max-w-24",
-      "truncate",
-    ]);
+    // The face's own recipe, at rest. It is not classless any more, but it
+    // carries no cap either: one axis reaches 95px, and capping that at 96
+    // would put a single-axis face one label-length away from eliding for
+    // no reason. The cap arrives with the second axis — asserted below.
+    expect([...trigger().querySelector("span")!.classList]).toEqual(["truncate"]);
   });
 
   it("offers both axes in one press, under their own headings", () => {
@@ -257,13 +253,13 @@ describe("FilterMenu", () => {
     // arms — filtering looking idle, idle looking filtered — passed every
     // test in this file.
     const RESTING = [
-      "flex", "min-w-0", "items-center", "gap-1.5", "rounded-2xl", "border", "px-3",
+      "flex", "items-center", "gap-1.5", "rounded-2xl", "border", "px-3",
       "py-2", "text-sm", "transition-colors", "pointer-coarse:min-h-11",
       "border-bg-border", "bg-bg-card", "text-text-muted",
       "hover:text-text-primary",
     ];
     const FILTERING = [
-      "flex", "min-w-0", "items-center", "gap-1.5", "rounded-2xl", "border", "px-3",
+      "flex", "items-center", "gap-1.5", "rounded-2xl", "border", "px-3",
       "py-2", "text-sm", "transition-colors", "pointer-coarse:min-h-11",
       "border-bg-border", "bg-bg-elevated", "text-text-primary", "font-medium",
     ];

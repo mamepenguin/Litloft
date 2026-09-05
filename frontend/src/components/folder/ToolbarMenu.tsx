@@ -6,25 +6,29 @@ import { Check } from "lucide-react";
 /**
  * The scope a toolbar control keeps, and the class that enforces it.
  *
- * `md`, not `sm`. The mobile form runs to 767px — `00-basis.md` sizing puts
- * the break at 768px and calls 640-767 "the mobile form with padding around
- * it" — and it is one row that stays one row, so what does not fit goes into
- * `…` rather than wrapping or losing its word ("reduce the number, not the
- * labels").
+ * `lg`. Two breakpoints govern what leaves this bar, and each is set by what
+ * it costs rather than by a wish for symmetry: the left group can afford the
+ * bar from 768 up, the three labelled arranging menus cannot until 1024.
  *
- * Measured at `sm`, by bisection in Chromium with a coarse pointer: a
- * Japanese listing sorted by size wraps onto two rows at every width from
- * 640 through 656 and is one row from 658 up. (An earlier version of this
- * line said "to 690", which was an interpolation between two measured
- * points, 640 and 700, with nothing sampled between them.)
+ * Measured, coarse pointer, with the `folder-actions` slot filled — which
+ * the intelligence addon still does, so it is the default install and not a
+ * hypothetical: at 768, `Add` 100 + addon 81 + `Play` 74 + `View` 108 +
+ * `Sort` 132 + `Filter` 144 + `…` 44, seven 8px gaps and 32px of `px-4`
+ * comes to 771 against 768, and the bar wraps. It clears at 800 with the
+ * stand-in measured here and needs more with a longer addon label. At 1024
+ * the same row totals 788 — room to spare in both locales.
  *
- * Stated as data, not left to a reader of the class list. jsdom computes no
- * layout, and reading a class list for the literal token `hidden` is not a
- * proxy for it — `max-md:hidden` hides without that token and `md:!flex`
- * shows despite it. `SelectionBar`'s `visibility()` learned this first; the
- * two toolbars now say their membership the same way.
+ * `00-basis.md` supports the reading: 640-767 is "the mobile form with
+ * padding around it", and 768-1119 is an intermediate width, not the
+ * desktop one. The exposed row of 案 2 is a desktop layout.
+ *
+ * Stated as data as well as a class. jsdom computes no layout, and reading a
+ * class list for the literal token `hidden` is not a proxy for it —
+ * `max-lg:hidden` hides without that token and `lg:!flex` shows despite it.
+ * `SelectionBar`'s `visibility()` does the same, and `toolbarBarScope` reads
+ * the attribute, so this is two statements rather than one and a decoration.
  */
-export const BAR_WIDE = { className: "hidden md:flex", "data-bar": "wide" } as const;
+export const BAR_WIDE = { className: "hidden lg:flex", "data-bar": "wide" } as const;
 
 /**
  * The popover surface both toolbar menus open.

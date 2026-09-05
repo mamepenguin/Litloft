@@ -57,10 +57,11 @@ interface FolderToolbarProps {
   drive: string;
   folderPath?: string;
   /**
-   * Current viewMode. When provided, ViewToggle is controlled
-   * (FolderBrowser owns persistence via useFolderViewMode); when
-   * omitted, ViewToggle falls back to its uncontrolled mode and
-   * persists to the global default key.
+   * Current viewMode. When provided, the view switcher is controlled and
+   * `FolderBrowser` owns persistence via `useFolderViewMode`; when omitted,
+   * `useViewModeState` holds it here and persists to the global default
+   * key. Search and the flat virtual views take the second path: there is
+   * no folder to key a per-folder preference on.
    */
   viewMode?: ViewMode;
   /**
@@ -159,7 +160,7 @@ export function FolderToolbar({
       />
 
       {creatingFolder && (
-        <div className="flex w-full items-center gap-2 sm:w-auto">
+        <div className="flex w-full items-center gap-2 md:w-auto">
           <input
             type="text"
             autoFocus
@@ -170,7 +171,7 @@ export function FolderToolbar({
               if (e.key === "Escape") { onSetCreatingFolder(false); onSetNewFolderName(""); onSetFolderError(null); }
             }}
             placeholder={tf("namePlaceholder")}
-            className="min-w-0 flex-1 rounded-2xl bg-bg-card px-3 py-2 text-sm text-text-primary placeholder:text-text-muted outline-none focus:ring-2 focus:ring-focus-ring pointer-coarse:min-h-11 sm:w-40 sm:flex-initial"
+            className="min-w-0 flex-1 rounded-2xl bg-bg-card px-3 py-2 text-sm text-text-primary placeholder:text-text-muted outline-none focus:ring-2 focus:ring-focus-ring pointer-coarse:min-h-11 md:w-40 md:flex-initial"
           />
           {/* Not a second accent fill. This row opens from the Add menu and
               Add stays on screen behind it, so filling Create would put two
@@ -203,10 +204,19 @@ export function FolderToolbar({
 
   return (
     <>
-      {/* Mobile only: left actions + AddonSlot in normal flow (not sticky).
-          Always rendered so AddonSlot appears in the left group on mobile
-          even when hideMutatingActions is true. */}
-      <div className="flex flex-wrap items-center gap-2 px-4 py-1 sm:hidden">
+      {/* Below 768px: left actions + AddonSlot in normal flow (not sticky),
+          so the sticky bar stays one row. Always rendered so AddonSlot
+          appears in the left group there even when hideMutatingActions is
+          true.
+
+          `md`, not `sm`, and the same 768 the arranging menus use.
+          `00-basis.md` calls 640-767 the mobile form with padding around it,
+          and the bar has to hold to the same rule across the whole of it —
+          measured, the left group on the bar at 640 wrapped it as soon as
+          the New Folder field opened, and again once an addon held the
+          `folder-actions` slot. One breakpoint for what leaves the bar is
+          also simply easier to reason about than two. */}
+      <div className="flex flex-wrap items-center gap-2 px-4 py-1 md:hidden">
         {leftActions}
         {/* The standalone form of the addon slot, superseded by the rows
             `AddButton` draws from `folder-actions-menu`. It is still
@@ -228,22 +238,28 @@ export function FolderToolbar({
       <div className="sticky top-0 z-20 mb-2 flex flex-wrap items-center gap-2 bg-bg-primary px-4 py-2">
         {/* Desktop: left actions inside sticky bar */}
         {leftActions && (
-          <div className="hidden items-center gap-2 sm:flex">
+          <div className="hidden items-center gap-2 md:flex">
             {leftActions}
           </div>
         )}
 
         {/* Desktop only: the superseded `folder-actions` slot (see above) */}
-        <div className="hidden sm:block">
+        <div className="hidden md:block">
           <AddonSlot id="folder-actions" layout="stack" props={{ fileIds, drive, path: folderPath ?? "" }} />
         </div>
 
-        {/* The link takes the slack the spacer would have taken, rather than
-            sitting beside it at its full width. `flex-1` gives it a base of
-            zero, and wrapping is decided on base sizes — so a long label
-            shortens the link instead of pushing `…` onto a second row. */}
+        {/* The wrapper takes the slack the spacer would have taken, and the
+            link is an item inside it — `flex` on this div, which is what
+            keeps the link at its content width. Without it the div is a
+            block, the link fills it, and a bordered pill runs 998px across
+            the bar at 1512 around a 151px label (measured).
+
+            `flex-1` gives the wrapper a base of zero. Wrapping is decided on
+            base sizes, so that is what stops a long label pushing `…` onto a
+            second row; `min-w-0` is what lets the link shrink below its
+            content once the slack is gone. */}
         {widenTagScope ? (
-          <div className="min-w-0 flex-1">
+          <div className="flex min-w-0 flex-1">
             <WidenTagScopeLink scope={widenTagScope} />
           </div>
         ) : (
@@ -273,7 +289,7 @@ export function FolderToolbar({
         )}
 
         {/* Arranging: which layout, which order, which subset. All three
-            carry a word; below 640px the first two move into `…` so the row
+            carry a word; below 1024px the first two move into `…` so the row
             stays one row. */}
         {!hideArrangingControls && (
           <>
@@ -322,13 +338,13 @@ export function FolderToolbar({
                   onClick={() => setMoreOpen(false)}
                 />
                 <div role="menu" className={MENU_SURFACE}>
-                {/* The two menus that are not on the bar below 768px, drawn
-                    from the same rows they draw there. `md:hidden` and
+                {/* The two menus that are not on the bar below 1024px, drawn
+                    from the same rows they draw there. `lg:hidden` and
                     `BAR_WIDE` are the two halves of one decision: a control
                     that leaves the bar has to arrive here, and a reader who
                     finds neither has lost the function. */}
                 {!hideArrangingControls && (
-                  <div className="md:hidden" role="presentation">
+                  <div className="lg:hidden" role="presentation">
                     <ViewGroup
                       mode={view.mode}
                       onSelect={(next) => {

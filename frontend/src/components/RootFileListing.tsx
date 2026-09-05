@@ -270,10 +270,9 @@ export function RootFileListing({ driveName, onFileAction, onFolderChange }: Roo
               because it was competing for room with Add, Play, Filter and
               `…` and had six wordless icons on it. This bar carries three
               controls and has the space, so DESIGN.md §Selected-state
-              controls keeps the toggle here. The two toolbars diverge on
-              purpose; an earlier version of this comment claimed they
-              mirrored each other, and went on claiming it after the cluster
-              it named had been deleted. */}
+              controls keeps the toggle here. The divergence is deliberate:
+              do not re-align the two bars without re-reading why this one
+              is not competing for room. */}
             {!hideArrangingControls && (
             <div className="flex items-center gap-1 rounded-2xl bg-bg-elevated p-1">
               <SortButton
