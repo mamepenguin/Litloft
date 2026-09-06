@@ -43,6 +43,7 @@ const defaultProps = {
     "aria-hidden": undefined,
     style: { opacity: 1, pointerEvents: "auto" as const },
   },
+  onIntervalOpenChange: vi.fn(),
   handleImageAreaClick: vi.fn(),
   closeViewer: vi.fn(),
   splitMode: false,

@@ -17,6 +17,8 @@ export interface SlideshowIntervalMenuProps {
   label: string;
   closeLabel: string;
   formatSeconds: (seconds: number) => string;
+  /** Lets the frame hold its chrome open while this panel is up. */
+  onOpenChange?: (open: boolean) => void;
 }
 
 /**
@@ -41,8 +43,13 @@ export function SlideshowIntervalMenu({
   label,
   closeLabel,
   formatSeconds,
+  onOpenChange,
 }: SlideshowIntervalMenuProps) {
   const [open, setOpen] = useState(false);
+  const setOpenAndReport = (next: boolean) => {
+    setOpen(next);
+    onOpenChange?.(next);
+  };
   const pointerMode = usePointerMode();
   // `unknown` means matchMedia answered neither query. The popover is the
   // safer guess there: it is reachable by tap, where a sheet sized for a
@@ -56,7 +63,7 @@ export function SlideshowIntervalMenu({
         aria-label={label}
         aria-haspopup="menu"
         aria-expanded={open}
-        onClick={() => setOpen((v) => !v)}
+        onClick={() => setOpenAndReport(!open)}
         className="inline-flex items-center gap-1 rounded-lg px-2 py-1 text-sm text-white/80 transition-colors hover:bg-white/10 hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus-ring"
       >
         <Timer size={16} aria-hidden="true" />
@@ -68,7 +75,12 @@ export function SlideshowIntervalMenu({
         createPortal(
           <OverFrameSettingsPanel
             placement={placement}
-            onClose={() => setOpen(false)}
+            // The viewers' chrome bar is at the top of the frame, so the
+            // popover parks under it. Measured: parked against the
+            // bottom edge it opened 549px below the button that opened
+            // it, in the opposite corner of a 1512x757 frame.
+            anchor="top"
+            onClose={() => setOpenAndReport(false)}
             closeLabel={closeLabel}
             testId="slideshow-interval-panel"
             backdropTestId="slideshow-interval-backdrop"
@@ -96,7 +108,7 @@ export function SlideshowIntervalMenu({
                       ].join(" ")}
                       onClick={() => {
                         onChange(seconds);
-                        setOpen(false);
+                        setOpenAndReport(false);
                       }}
                     >
                       {checked && <Check size={14} aria-hidden="true" />}

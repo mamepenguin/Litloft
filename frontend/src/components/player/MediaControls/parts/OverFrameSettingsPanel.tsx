@@ -10,8 +10,17 @@ import type { ReactNode } from "react";
  */
 export type OverFramePlacement = "sheet" | "popover";
 
+/**
+ * Which edge the popover parks against — the edge the bar holding its
+ * trigger is on. The player's controls are at the bottom of the frame;
+ * the full-screen viewers' are at the top, and a panel that ignores the
+ * difference opens in the far corner from the button that was pressed.
+ */
+export type OverFrameAnchor = "top" | "bottom";
+
 export interface OverFrameSettingsPanelProps {
   placement?: OverFramePlacement;
+  anchor?: OverFrameAnchor;
   onClose: () => void;
   /** Accessible name for the area that dismisses the panel. */
   closeLabel: string;
@@ -35,6 +44,7 @@ export interface OverFrameSettingsPanelProps {
  */
 export function OverFrameSettingsPanel({
   placement = "sheet",
+  anchor = "bottom",
   onClose,
   closeLabel,
   testId,
@@ -42,11 +52,15 @@ export function OverFrameSettingsPanel({
   children,
 }: OverFrameSettingsPanelProps) {
   const isPopover = placement === "popover";
+  // The sheet always rises from the bottom edge, wherever its trigger
+  // is: a thumb reaches the bottom of a phone and not the top of it.
+  const fromTop = isPopover && anchor === "top";
 
   return (
     <div
       className={[
-        "absolute inset-0 z-20 flex flex-col justify-end",
+        "absolute inset-0 z-20 flex flex-col",
+        fromTop ? "justify-start" : "justify-end",
         isPopover ? "items-end" : "",
       ].join(" ")}
     >
@@ -71,9 +85,12 @@ export function OverFrameSettingsPanel({
         className={[
           "relative flex flex-col gap-2 bg-black/85 px-3 pb-3 pt-3 text-white",
           isPopover
-            ? // Clear of the control bar below it, which is where the
-              // button that opened this lives.
-              "mb-16 mr-2 w-64 rounded-2xl"
+            ? // Clear of the bar the button that opened this lives in.
+              // Written out per branch rather than composed, so Tailwind
+              // can see both class names in the source.
+              fromTop
+              ? "mt-14 mr-2 w-64 rounded-2xl"
+              : "mb-16 mr-2 w-64 rounded-2xl"
             : "rounded-t-2xl",
           // The frame is only as tall as its content — on a phone that
           // can be barely 200px. The panel is sized to fit inside that;

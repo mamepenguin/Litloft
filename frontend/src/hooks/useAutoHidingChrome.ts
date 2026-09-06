@@ -39,10 +39,26 @@ export interface AutoHidingChrome {
  * the pointer events are not bound there and the viewer's own tap
  * handler calls `toggle` instead.
  */
-export function useAutoHidingChrome(
+export interface AutoHidingChromeOptions {
+  /** False while the frame is closed: nothing to withdraw from. */
+  enabled?: boolean;
+  /**
+   * Hold the chrome open. For a panel the reader has opened over the
+   * frame: reading it is not idleness, and withdrawing the bar out from
+   * under an open panel leaves the panel floating with the control that
+   * opened it gone. Measured: 2.6s after opening the interval panel, the
+   * bar was `opacity: 0` and `inert` while the panel stayed at full
+   * opacity.
+   */
+  held?: boolean;
+  idleMs?: number;
+}
+
+export function useAutoHidingChrome({
   enabled = true,
+  held = false,
   idleMs = CHROME_IDLE_MS,
-): AutoHidingChrome {
+}: AutoHidingChromeOptions = {}): AutoHidingChrome {
   const [visible, setVisible] = useState(true);
   const timerRef = useRef<number | null>(null);
   const pointerMode = usePointerMode();
@@ -50,9 +66,9 @@ export function useAutoHidingChrome(
   const arm = useCallback(() => {
     if (timerRef.current !== null) window.clearTimeout(timerRef.current);
     timerRef.current = null;
-    if (!enabled) return;
+    if (!enabled || held) return;
     timerRef.current = window.setTimeout(() => setVisible(false), idleMs);
-  }, [enabled, idleMs]);
+  }, [enabled, held, idleMs]);
 
   const show = useCallback(() => {
     setVisible(true);
@@ -69,6 +85,7 @@ export function useAutoHidingChrome(
       setVisible(true);
       return;
     }
+    if (held) setVisible(true);
     arm();
 
     // Keys and focus count on every device: a tablet with a keyboard
@@ -91,7 +108,7 @@ export function useAutoHidingChrome(
       if (timerRef.current !== null) window.clearTimeout(timerRef.current);
       timerRef.current = null;
     };
-  }, [enabled, pointerMode, arm, show]);
+  }, [enabled, held, pointerMode, arm, show]);
 
   return {
     visible,

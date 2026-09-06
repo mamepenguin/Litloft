@@ -305,6 +305,7 @@ export function ArchivePreview({
         setSlideshowInterval={imageViewer.setSlideshowInterval}
         showControls={imageViewer.showControls}
         chromeProps={imageViewer.chromeProps}
+        onIntervalOpenChange={imageViewer.setChromeHeld}
         handleImageAreaClick={imageViewer.handleImageAreaClick}
         closeViewer={closeViewerFull}
         splitMode={imageViewer.splitMode}

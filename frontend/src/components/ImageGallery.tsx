@@ -64,7 +64,8 @@ export function ImageGallery({
   const [slideshowInterval, setSlideshowInterval] = useState(5);
   // Chrome that withdraws when the frame is left alone. Shared with the
   // archive's image viewer, which kept an identical copy of the timer.
-  const chrome = useAutoHidingChrome(open);
+  const [intervalOpen, setIntervalOpen] = useState(false);
+  const chrome = useAutoHidingChrome({ enabled: open, held: intervalOpen });
   const showControls = chrome.visible;
 
   const [splitMode, setSplitMode] = useState(() =>
@@ -353,6 +354,7 @@ export function ImageGallery({
                 label={t("slideshowInterval")}
                 closeLabel={tc("close")}
                 formatSeconds={(sec) => t("seconds", { sec })}
+                onOpenChange={setIntervalOpen}
               />
               <button
                 onClick={() => setPlaying((p) => !p)}

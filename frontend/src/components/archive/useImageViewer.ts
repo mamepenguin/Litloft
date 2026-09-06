@@ -43,6 +43,8 @@ interface ImageViewerResult {
   showControls: boolean;
   /** Bring the chrome back — used when the viewer changes what it shows. */
   showChrome: () => void;
+  /** Hold it open while a panel over the frame is up. */
+  setChromeHeld: React.Dispatch<React.SetStateAction<boolean>>;
   handleImageAreaClick: () => void;
   chromeProps: AutoHidingChrome["chromeProps"];
   splitMode: boolean;
@@ -69,7 +71,11 @@ export function useImageViewer(
   // Chrome that withdraws when the frame is left alone, on the same
   // terms as the image gallery's — the two used to keep separate copies
   // of the same timer, both gated on slideshow playback.
-  const chrome = useAutoHidingChrome(viewMode === "image");
+  const [chromeHeld, setChromeHeld] = useState(false);
+  const chrome = useAutoHidingChrome({
+    enabled: viewMode === "image",
+    held: chromeHeld,
+  });
 
   const [splitMode, setSplitMode] = useState(() =>
     readLocalBool("image-viewer:split-mode", false),
@@ -232,6 +238,7 @@ export function useImageViewer(
     setSlideshowInterval,
     showControls: chrome.visible,
     showChrome: chrome.show,
+    setChromeHeld,
     handleImageAreaClick: chrome.toggle,
     chromeProps: chrome.chromeProps,
     splitMode,

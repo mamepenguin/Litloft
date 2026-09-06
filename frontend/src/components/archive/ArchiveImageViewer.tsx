@@ -31,6 +31,7 @@ interface ArchiveImageViewerProps {
   setSlideshowInterval: React.Dispatch<React.SetStateAction<number>>;
   showControls: boolean;
   chromeProps: AutoHidingChrome["chromeProps"];
+  onIntervalOpenChange: (open: boolean) => void;
   handleImageAreaClick: () => void;
   closeViewer: () => void;
   splitMode: boolean;
@@ -57,6 +58,7 @@ export function ArchiveImageViewer({
   setSlideshowInterval,
   showControls,
   chromeProps,
+  onIntervalOpenChange,
   handleImageAreaClick,
   closeViewer,
   splitMode,
@@ -125,6 +127,7 @@ export function ArchiveImageViewer({
                 label={t("slideshowInterval")}
                 closeLabel={tc("close")}
                 formatSeconds={(sec) => t("seconds", { sec })}
+                onOpenChange={onIntervalOpenChange}
               />
               <button
                 onClick={() => setPlaying((p) => !p)}

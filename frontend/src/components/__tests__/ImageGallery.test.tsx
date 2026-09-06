@@ -280,6 +280,38 @@ describe("ImageGallery", () => {
     expect(backdrop.className).not.toMatch(/bg-black\/\d/);
   });
 
+  it("parks the popover under the bar that opened it, not above it", async () => {
+    // The panel's shell was written for the player, whose controls are
+    // at the bottom of the frame. These viewers' bar is at the top, and
+    // the shell parked against the bottom edge regardless: measured at
+    // 1512x757, the panel opened 621px from the button that opened it,
+    // in the opposite corner. With the anchor it is 78px away and clears
+    // the 54px bar by 2. jsdom lays nothing out, so the margin that
+    // decides it is what can be pinned here.
+    stubPointer("fine");
+    const panel = await openIntervalPanel();
+    expect(panel.className).toMatch(/(^|\s)mt-14(\s|$)/);
+    expect(panel.className).not.toMatch(/(^|\s)mb-16(\s|$)/);
+  });
+
+  it("holds the chrome open while the interval panel is up", async () => {
+    // Reading a panel is not idleness. Measured in the browser before
+    // this hold existed: 2.6s after opening the panel the bar was
+    // `opacity: 0` and `inert` while the panel stayed at full opacity —
+    // a panel floating where the control that opened it used to be.
+    stubPointer("fine");
+    const panel = await openIntervalPanel();
+
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(5000);
+    });
+
+    expect(screen.getByTestId("slideshow-interval-panel")).toBe(panel);
+    expect(screen.getByText("Photo 1").closest("div")!).not.toHaveAttribute(
+      "inert",
+    );
+  });
+
   it("puts withdrawn chrome out of reach, not just out of sight", async () => {
     // §Layering. An `opacity: 0` element keeps its place in the tab
     // order, so a keyboard user lands on controls nobody can see.
