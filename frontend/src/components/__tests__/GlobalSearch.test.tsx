@@ -65,6 +65,8 @@ vi.mock("../FileTypeIcon", () => ({
 
 function makeFile(overrides: Partial<FileItem> = {}): FileItem {
   return {
+    image_width: null,
+    image_height: null,
     id: "f1",
     filename: "f1.mp4",
     title: "f1",

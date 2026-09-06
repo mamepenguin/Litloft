@@ -75,6 +75,8 @@ vi.mock("@/lib/listSnapshot", () => ({
 }));
 
 const FILE: FileItem = {
+  image_width: null,
+  image_height: null,
   id: "f1", filename: "a.jpg", title: "a", description: "", drive: "main",
   folder_path: "photos", file_type: "image", mime_type: "image/jpeg",
   thumbnail_url: "", has_thumbnail: true, file_size: 1, duration: null,

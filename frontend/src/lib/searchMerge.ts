@@ -222,6 +222,8 @@ function fileItemFromHit(hit: SemanticHit): FileItem {
     has_thumbnail: true,
     file_size: 0,
     duration: null,
+    image_width: null,
+    image_height: null,
     liked_at: null,
     // Hydration failed, so the real tier is unknown. The values below are
     // only placeholders to satisfy the shape; `trust_unknown` is what a

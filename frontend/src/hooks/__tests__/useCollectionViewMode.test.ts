@@ -50,6 +50,8 @@ function makeFile(
   filename = `${id}.dat`,
 ): FileItem {
   return {
+    image_width: null,
+    image_height: null,
     id,
     filename,
     title: id,

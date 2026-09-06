@@ -18,6 +18,8 @@ import type { DuplicatesResponse, FileItem } from "@/types";
 const makeDrive = (name: string) => ({ name, protected: false });
 
 const makeFile = (id: string, overrides?: Partial<FileItem>): FileItem => ({
+  image_width: null,
+  image_height: null,
   id,
   filename: `${id}.jpg`,
   title: `File ${id}`,

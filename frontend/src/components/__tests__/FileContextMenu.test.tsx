@@ -47,6 +47,8 @@ vi.mock("../ClipboardProvider", () => ({
 import { renameFile, moveFile, deleteFile } from "@/lib/api";
 
 const file: FileItem = {
+  image_width: null,
+  image_height: null,
   id: "abc123def456",
   filename: "movie.mp4",
   title: "Movie",

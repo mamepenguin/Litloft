@@ -18,6 +18,8 @@ function makeFile(
   trust_reviewed_at: string | null,
 ): FileItem {
   return {
+    image_width: null,
+    image_height: null,
     id: "f1",
     filename: "clip.md",
     title: "clip",

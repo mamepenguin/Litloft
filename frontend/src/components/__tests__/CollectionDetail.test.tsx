@@ -110,6 +110,8 @@ function makeFile(
   type: FileItem["file_type"] = "document",
 ): FileItem {
   return {
+    image_width: null,
+    image_height: null,
     id,
     filename: `${id}.dat`,
     title: `File ${id}`,

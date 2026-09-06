@@ -5,6 +5,8 @@ import { MergedResultItem } from "../MergedResultItem";
 
 function makeFile(overrides: Partial<FileItemWithMatch> = {}): FileItemWithMatch {
   return {
+    image_width: null,
+    image_height: null,
     id: "f1",
     filename: "f1.mp4",
     title: "f1",

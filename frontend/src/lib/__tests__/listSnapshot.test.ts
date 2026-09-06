@@ -11,6 +11,8 @@ import type { FileItem } from "@/types";
 
 function makeFile(id: string): FileItem {
   return {
+    image_width: null,
+    image_height: null,
     id,
     filename: `${id}.mp4`,
     title: `File ${id}`,

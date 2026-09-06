@@ -102,6 +102,8 @@ import { RootFileListing } from "../RootFileListing";
 
 function makeFile(id: string, filename: string, mime: string, type: FileItem["file_type"]): FileItem {
   return {
+    image_width: null,
+    image_height: null,
     id,
     filename,
     title: filename,

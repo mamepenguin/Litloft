@@ -640,6 +640,20 @@ def get_file_neighbors(
     sort_col = getattr(File, sort)
     current_val = getattr(file, sort)
 
+    # The folder's active files, whatever the ordering can reach.
+    # ``position`` is counted against the rows the sort can actually rank,
+    # so under ``sort=liked_at`` the two populations differ: a liked file
+    # in a mostly-unliked folder is "2" of a total that counts every file.
+    # That is the documented contract (docs/reference/api.md), because
+    # ``total`` answers "how big is this folder" for a listing, not "how
+    # far can prev/next walk".
+    folder = db.query(File.id).filter(
+        File.drive == file.drive,
+        File.folder_path == file.folder_path,
+        active_file_filter(),
+    )
+    total = folder.count()
+
     if current_val is None:
         # ``liked_at`` is the only sortable column that can be NULL, and
         # the keyset comparisons below need a total order. A file that was
@@ -647,51 +661,58 @@ def get_file_neighbors(
         # no neighbours there rather than a position invented by comparing
         # against NULL. Liked files are unaffected: every comparison an
         # unliked row makes against a real timestamp is NULL, so those rows
-        # drop out of the queries on their own.
-        return NeighborsResponse(prev_id=None, next_id=None)
+        # drop out of the queries on their own. ``position`` is null for
+        # the same reason: there is no order to take a place in.
+        return NeighborsResponse(
+            prev_id=None, next_id=None, position=None, total=total
+        )
 
-    base = db.query(File.id).filter(
-        File.drive == file.drive,
-        File.folder_path == file.folder_path,
-        File.id != file.id,
-        active_file_filter(),
-    )
+    base = folder.filter(File.id != file.id)
 
     if order == "asc":
-        prev_query = base.filter(
-            or_(
-                sort_col < current_val,
-                and_(sort_col == current_val, File.id < file.id),
-            )
-        ).order_by(sort_col.desc(), File.id.desc()).limit(1)
-
-        next_query = base.filter(
-            or_(
-                sort_col > current_val,
-                and_(sort_col == current_val, File.id > file.id),
-            )
-        ).order_by(sort_col.asc(), File.id.asc()).limit(1)
+        before = or_(
+            sort_col < current_val,
+            and_(sort_col == current_val, File.id < file.id),
+        )
+        after = or_(
+            sort_col > current_val,
+            and_(sort_col == current_val, File.id > file.id),
+        )
+        prev_query = base.filter(before).order_by(
+            sort_col.desc(), File.id.desc()
+        ).limit(1)
+        next_query = base.filter(after).order_by(
+            sort_col.asc(), File.id.asc()
+        ).limit(1)
     else:
-        prev_query = base.filter(
-            or_(
-                sort_col > current_val,
-                and_(sort_col == current_val, File.id > file.id),
-            )
-        ).order_by(sort_col.asc(), File.id.asc()).limit(1)
-
-        next_query = base.filter(
-            or_(
-                sort_col < current_val,
-                and_(sort_col == current_val, File.id < file.id),
-            )
-        ).order_by(sort_col.desc(), File.id.desc()).limit(1)
+        before = or_(
+            sort_col > current_val,
+            and_(sort_col == current_val, File.id > file.id),
+        )
+        after = or_(
+            sort_col < current_val,
+            and_(sort_col == current_val, File.id < file.id),
+        )
+        prev_query = base.filter(before).order_by(
+            sort_col.asc(), File.id.asc()
+        ).limit(1)
+        next_query = base.filter(after).order_by(
+            sort_col.desc(), File.id.desc()
+        ).limit(1)
 
     prev_row = prev_query.first()
     next_row = next_query.first()
 
+    # The same predicate that finds the previous file counts everything
+    # ahead of this one. Writing a second copy is what lets the two drift
+    # apart on the day the ``asc`` branch changes.
+    position = base.filter(before).count() + 1
+
     return NeighborsResponse(
         prev_id=prev_row[0] if prev_row else None,
         next_id=next_row[0] if next_row else None,
+        position=position,
+        total=total,
     )
 
 

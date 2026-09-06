@@ -62,6 +62,8 @@ import { ContinueWatchingSection } from "../ContinueWatchingSection";
 import { deleteWatchProgress } from "@/lib/api";
 
 const item1: WatchHistoryItem = {
+  image_width: null,
+  image_height: null,
   id: "file-1",
   filename: "video1.mp4",
   title: "Video One",

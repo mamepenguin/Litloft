@@ -5,6 +5,8 @@ import type { FileItem } from "@/types";
 
 function file(overrides: Partial<FileItem>): FileItem {
   return {
+    image_width: null,
+    image_height: null,
     id: overrides.id ?? "id",
     filename: "f",
     title: "t",

@@ -41,6 +41,10 @@ class FileResponse(_UtcDateTimeMixin, BaseModel):
     has_thumbnail: bool
     file_size: int
     duration: float | None
+    # Populated for images only. Videos stay null: their thumbnails are
+    # letterboxed to 320x180, so a listing has no true ratio to lay out.
+    image_width: int | None = None
+    image_height: int | None = None
     liked_at: datetime | None
     is_favorite: bool
     tags: list[str]
@@ -165,6 +169,11 @@ class PaginatedResponse(BaseModel):
 class NeighborsResponse(BaseModel):
     prev_id: str | None
     next_id: str | None
+    # 1-origin place of this file in the folder's ordering. None when the
+    # sort key cannot order it (an unliked file under ``sort=liked_at``);
+    # ``total`` still counts the folder in that case.
+    position: int | None = None
+    total: int = 0
 
 
 class DriveResponse(BaseModel):
@@ -516,6 +525,10 @@ class WatchHistoryItemResponse(_UtcDateTimeMixin, BaseModel):
     has_thumbnail: bool
     file_size: int
     duration: float | None
+    # Mirrors FileResponse: the frontend's WatchHistoryItem extends
+    # FileItem, so a field dropped here would make that type lie.
+    image_width: int | None = None
+    image_height: int | None = None
     liked_at: datetime | None
     is_favorite: bool
     tags: list[str]
@@ -999,6 +1012,8 @@ def file_to_response(
         has_thumbnail=file.thumbnail_path is not None,
         file_size=file.file_size,
         duration=file.duration,
+        image_width=file.image_width,
+        image_height=file.image_height,
         liked_at=file.liked_at,
         is_favorite=file.is_favorite,
         tags=[tag.name for tag in file.tags],

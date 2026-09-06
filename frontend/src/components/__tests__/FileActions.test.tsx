@@ -95,6 +95,8 @@ vi.mock("../AddonSlot", () => ({
 }));
 
 const mockFile: FileItem = {
+  image_width: null,
+  image_height: null,
   id: "file-1",
   filename: "test.mp4",
   title: "Test",

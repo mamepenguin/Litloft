@@ -43,7 +43,12 @@ async function dispatchKey(key: string) {
   });
 }
 
-const sampleNeighbors: Neighbors = { prev_id: "prev1", next_id: "next1" };
+const sampleNeighbors: Neighbors = {
+  prev_id: "prev1",
+  next_id: "next1",
+  position: 2,
+  total: 3,
+};
 
 describe("useFileNav", () => {
   beforeEach(() => {

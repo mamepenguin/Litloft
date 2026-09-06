@@ -62,6 +62,8 @@ vi.mock("@/components/FolderCard", () => ({
 }));
 
 const mockFile = (id: string): FileItem => ({
+  image_width: null,
+  image_height: null,
   id,
   filename: `${id}.mp4`,
   title: id,

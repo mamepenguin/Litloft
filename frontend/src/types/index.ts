@@ -29,6 +29,14 @@ export interface FileItem {
   has_thumbnail: boolean;
   file_size: number;
   duration: number | null;
+  /**
+   * Pixel dimensions of the source image, for laying a listing out at the
+   * real aspect ratio. Null for everything that is not an image — including
+   * video, whose thumbnail is letterboxed to 320x180 so the true ratio has
+   * nowhere to show. Spec `2026-09-06-ui-redesign-p4-viewers.md`.
+   */
+  image_width: number | null;
+  image_height: number | null;
   liked_at: string | null;
   is_favorite: boolean;
   tags: string[];
@@ -174,6 +182,13 @@ export interface PinnedFolder {
 export interface Neighbors {
   prev_id: string | null;
   next_id: string | null;
+  /**
+   * 1-origin place of the file in its folder's ordering, for an `n / N`
+   * readout. Null when the sort key cannot order it (an unliked file under
+   * `sort=liked_at`); `total` still counts the folder in that case.
+   */
+  position: number | null;
+  total: number;
 }
 
 export interface CollectionSummary {
