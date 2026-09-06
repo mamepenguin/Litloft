@@ -121,13 +121,21 @@ export type FolderKind =
   | "pdf"
   | "audio"
   | "document"
+  | "archive"
   | "other";
 
 export interface Folder {
   name: string;
   path: string;
   file_count: number;
-  thumbnail_file_id: string | null;
+  /**
+   * How many active files of each kind the folder holds, recursively.
+   *
+   * A kind the folder holds none of is absent rather than zero, and the
+   * values partition `file_count`. Empty for a folder with no files, and
+   * empty in the folder-mutation responses, which do not compute it.
+   */
+  kind_counts: Record<string, number>;
   dominant_kind: FolderKind | null;
 }
 

@@ -215,15 +215,31 @@ class DriveAddonPoliciesResponse(BaseModel):
 
 
 FolderKind = Literal[
-    "markdown", "video", "image", "pdf", "audio", "document", "other"
+    "markdown", "video", "image", "pdf", "audio", "document", "archive", "other"
 ]
+"""The vocabulary a folder's contents are described in.
+
+`FileKind` minus `subtitle`, which no surface offers a word for and
+`_classify_kind` folds into `other`. `archive` is here because the folder
+card names it: the Filter menu offers *Archive*, so a folder of zips
+saying "40 items · Other" beside a filter that returns those forty would
+be two names for one thing.
+"""
 
 
 class FolderResponse(BaseModel):
     name: str
     path: str
     file_count: int
-    thumbnail_file_id: str | None
+    kind_counts: dict[str, int] = {}
+    """How many active files of each kind the folder holds, recursively.
+
+    Keys are ``FolderKind`` values; a kind the folder holds none of is
+    absent rather than zero. The counts sum to ``file_count``, so a
+    renderer can show the largest few and leave the rest to subtraction.
+
+    Empty for a folder with no files (an ``EmptyFolder`` row).
+    """
     dominant_kind: FolderKind | None = None
 
 

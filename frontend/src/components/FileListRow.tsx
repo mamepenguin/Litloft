@@ -122,9 +122,13 @@ function FileListRowImpl({
           DESIGN.md §3.6. */}
       <div className="min-w-0 max-w-list-row flex-1">
         <div className="flex items-center gap-2">
-          <h3 className="min-w-0 flex-1 truncate text-sm font-semibold text-text-primary">
+          {/* Not a heading, for the reason the cards are not (D-5):
+              thirty sibling names in a listing are not thirty
+              sections, and list mode is one click from grid mode in
+              the same folder. The name is the row's link's. */}
+          <span className="min-w-0 flex-1 truncate text-sm font-semibold text-text-primary">
             {file.title}
-          </h3>
+          </span>
           <span className="hidden flex-shrink-0 text-xs tabular-nums text-text-muted sm:inline">
             {formatFileSize(file.file_size)}
           </span>

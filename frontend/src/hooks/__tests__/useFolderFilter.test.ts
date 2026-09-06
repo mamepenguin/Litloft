@@ -16,7 +16,7 @@ function makeFolder(name: string): Folder {
     name,
     path: name,
     file_count: 0,
-    thumbnail_file_id: null,
+    kind_counts: {},
     dominant_kind: null,
   };
 }

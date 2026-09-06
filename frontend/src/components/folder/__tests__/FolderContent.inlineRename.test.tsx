@@ -39,7 +39,7 @@ const notes: Folder = {
   name: "Notes",
   path: "Notes",
   file_count: 2,
-  thumbnail_file_id: null,
+  kind_counts: {},
   dominant_kind: null,
 };
 

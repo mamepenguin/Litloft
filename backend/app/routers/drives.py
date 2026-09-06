@@ -3,7 +3,7 @@ import logging
 from typing import Annotated, Literal
 
 from fastapi import APIRouter, Depends, HTTPException, Query
-from sqlalchemy import func, or_
+from sqlalchemy import case, func, or_
 from sqlalchemy.orm import Session
 
 import app.config as config
@@ -112,23 +112,6 @@ FileKind = Literal[
 TreeKind = FileKind
 
 
-def _classify_kind(file_type: str | None, mime_type: str | None) -> str:
-    """Map a File row's (file_type, mime_type) to the user-facing kind taxonomy."""
-    if mime_type == "text/markdown":
-        return "markdown"
-    if mime_type == "application/pdf":
-        return "pdf"
-    if file_type == "video":
-        return "video"
-    if file_type == "image":
-        return "image"
-    if file_type == "audio":
-        return "audio"
-    if file_type == "document":
-        return "document"
-    return "other"
-
-
 # The extensions that name a kind when the mime does not. `classify()`
 # always records a mime today, but rows written before it did — or by
 # anything that skipped it — carry NULL, and those are precisely the
@@ -142,6 +125,87 @@ _KIND_SUFFIXES: dict[str, tuple[str, ...]] = {
     "markdown": (".md", ".markdown"),
     "pdf": (".pdf",),
 }
+
+
+# The `file_type` values that are a kind under their own name. The rest
+# of `FileKind` is either nested under `document` (markdown, pdf, handled
+# by mime below) or has no label anywhere in the UI (`subtitle`, which
+# `filter.type.*` does not offer and so is folded into `other`).
+_FLAT_FOLDER_KINDS = frozenset({"video", "image", "audio", "document", "archive"})
+
+
+def _kind_by_suffix(filename: str | None) -> str | None:
+    """The nested kind a filename names, or `None`.
+
+    Split out because the folder roll-up cannot pass a filename: it
+    groups, and a filename would make every row its own group. It groups
+    on this answer instead (`_suffix_kind_case`), so both callers share
+    one precedence rather than two that agreed once.
+    """
+    if not filename:
+        return None
+    lowered = filename.lower()
+    for kind, suffixes in _KIND_SUFFIXES.items():
+        if lowered.endswith(suffixes):
+            return kind
+    return None
+
+
+def _suffix_kind_case():
+    """`_kind_by_suffix` as a SQL expression, for grouping."""
+    return case(
+        *[
+            (File.filename.ilike(f"%{suffix}"), kind)
+            for kind, suffixes in _KIND_SUFFIXES.items()
+            for suffix in suffixes
+        ],
+        else_=None,
+    )
+
+
+def _classify_kind_parts(
+    file_type: str | None,
+    mime_type: str | None,
+    suffix_kind: str | None,
+) -> str:
+    """The precedence, over parts a grouped query can carry."""
+    for kind, mimes in _KIND_MIMES.items():
+        if mime_type in mimes:
+            return kind
+    if suffix_kind is not None:
+        return suffix_kind
+    if file_type in _FLAT_FOLDER_KINDS:
+        return file_type
+    return "other"
+
+
+def _classify_kind(
+    file_type: str | None,
+    mime_type: str | None,
+    filename: str | None = None,
+) -> str:
+    """Map a File row to the kind vocabulary the UI names files by.
+
+    **This has to agree with `_apply_kind_filter`**, because the two are
+    read side by side: the folder card says "40 items · Archive" and the
+    Filter menu's *Archive* is expected to return those forty rows. Two
+    implementations that agreed the day they were written is what
+    produced the drift `_apply_kind_filter`'s own docstring is about, so
+    the points of contact are spelled out here:
+
+    - the flat kinds are `file_type` itself, `archive` included — it used
+      to fall into `other`, which was invisible while this only fed
+      `dominant_kind` (a view-mode guess) and wrong the moment it became
+      a label;
+    - markdown and PDF are recognised by mime, or by extension for rows
+      whose mime was never recorded, exactly as `_KIND_SUFFIXES` exists
+      for. A caller with no `filename` to hand gets the mime-only half.
+
+    `subtitle` is the one deliberate divergence: `?type=subtitle` selects
+    those rows, and nothing in the UI offers that filter or a word for
+    the kind, so they are counted as `other`.
+    """
+    return _classify_kind_parts(file_type, mime_type, _kind_by_suffix(filename))
 
 
 def _apply_kind_filter(query, kind: FileKind | None):
@@ -381,41 +445,21 @@ def list_folders(
         if folder_full_path not in folders:
             folders[folder_full_path] = 0
 
-    # Collect thumbnail file IDs for each folder
-    thumbnail_map: dict[str, str] = {}
-    if folders:
-        thumb_query = db.query(File.id, File.folder_path, File.filename).filter(
-            File.drive == drive_name,
-            active_file_filter(),
-            File.file_type.in_(["video", "image"]),
-        )
-        if path:
-            thumb_query = thumb_query.filter(
-                File.folder_path.like(_escape_like(path) + "/%", escape="\\")
-            )
-        else:
-            thumb_query = thumb_query.filter(File.folder_path != "")
-
-        thumb_query = thumb_query.order_by(File.filename.asc())
-
-        for file_id, file_folder_path, _ in thumb_query.all():
-            for folder_path in folders:
-                if folder_path in thumbnail_map:
-                    continue
-                if file_folder_path == folder_path or file_folder_path.startswith(folder_path + "/"):
-                    thumbnail_map[folder_path] = file_id
-            # Early exit if all folders have thumbnails
-            if len(thumbnail_map) == len(folders):
-                break
-
-    # Compute dominant_kind per top-level folder (recursive).
-    # Topic 9: ".md 過半 → two-pane / video/image 過半 → grid" の判定材料。
+    # Per-kind totals for each top-level folder, recursive.
+    #
+    # Two consumers, one scan: `dominant_kind` (which view mode a folder
+    # opens in) is the argmax of these counts, and the folder card shows
+    # the largest few of them beside the total. The breakdown used to be
+    # built here and thrown away.
+    kind_counts: dict[str, dict[str, int]] = {}
     dominant_kind_map: dict[str, str | None] = {fp: None for fp in folders}
     if folders:
+        suffix_kind = _suffix_kind_case()
         kind_query = db.query(
             File.folder_path,
             File.file_type,
             File.mime_type,
+            suffix_kind,
             func.count(File.id),
         ).filter(
             File.drive == drive_name,
@@ -427,22 +471,34 @@ def list_folders(
             )
         else:
             kind_query = kind_query.filter(File.folder_path != "")
-        kind_query = kind_query.group_by(File.folder_path, File.file_type, File.mime_type)
+        kind_query = kind_query.group_by(
+            File.folder_path, File.file_type, File.mime_type, suffix_kind
+        )
 
-        # Rows describe per-(folder_path, kind) totals. Roll up into the top-level
-        # folder (depth-1 segment under `path`) so each row hits one bucket in O(1).
-        kind_counts: dict[str, dict[str, int]] = {}
-        for fp, ft, mt, count in kind_query.all():
-            remainder = fp[len(path) + 1:] if path else fp
+        def _roll_up(folder_path: str, kind: str, count: int) -> None:
+            remainder = (
+                folder_path[len(path) + 1:] if path else folder_path
+            )
             if not remainder:
-                continue
+                return
             top_segment = remainder.split("/")[0]
             top = f"{path}/{top_segment}" if path else top_segment
             if top not in folders:
-                continue
-            kind = _classify_kind(ft, mt)
+                return
             bucket = kind_counts.setdefault(top, {})
             bucket[kind] = bucket.get(kind, 0) + count
+
+        # Rows describe per-(folder_path, kind) totals. Roll up into the top-level
+        # folder (depth-1 segment under `path`) so each row hits one bucket in O(1).
+        #
+        # Grouped, so a drive of 100k files is a few hundred rows rather
+        # than 100k. `_classify_kind` needs the filename for the rows
+        # whose mime was never recorded — the ones `?type=markdown` finds
+        # by extension — and a filename would make every row its own
+        # group, so the group key carries what the filename decides
+        # (`_suffix_kind_case`) instead of the filename itself.
+        for fp, ft, mt, sk, count in kind_query.all():
+            _roll_up(fp, _classify_kind_parts(ft, mt, sk), count)
 
         for top, counts in kind_counts.items():
             dominant_kind_map[top] = max(counts.items(), key=lambda kv: kv[1])[0]
@@ -452,7 +508,7 @@ def list_folders(
             name=fp.split("/")[-1],
             path=fp,
             file_count=count,
-            thumbnail_file_id=thumbnail_map.get(fp),
+            kind_counts=kind_counts.get(fp, {}),
             dominant_kind=dominant_kind_map.get(fp),
         )
         for fp, count in sorted(folders.items())

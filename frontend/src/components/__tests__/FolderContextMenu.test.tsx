@@ -28,7 +28,7 @@ const folder: Folder = {
   name: "Travel Photos",
   path: "Travel Photos",
   file_count: 12,
-  thumbnail_file_id: null,
+  kind_counts: {},
   dominant_kind: null,
 };
 

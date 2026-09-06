@@ -264,9 +264,14 @@ function atWidth(width: number) {
   widths.mockReturnValue(width);
 }
 
-/** Cards actually in the DOM — the row renders them or it does not. */
+/**
+ * Cards actually in the DOM — the row renders them or it does not.
+ *
+ * By title text, not by heading role: a card title is not a heading
+ * (`card-titles.test.ts`).
+ */
 function cardCount(): number {
-  return screen.queryAllByRole("heading", { name: /^Clip \d+$/ }).length;
+  return screen.queryAllByText(/^Clip \d+$/).length;
 }
 
 describe("a shelf shows what fits and no more", () => {

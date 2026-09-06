@@ -6,11 +6,12 @@ The drive home page (`/drive/<name>`) is the main browsing surface. Folders are 
 
 ![Annotated drive home page showing the breadcrumb, folder grid, file grid, and content rows](../images/user-guide/drive-home-overview.png)
 
-The numbered areas in the screenshot map to the main browsing surfaces: breadcrumb navigation, folder cards, file cards, and the activity rows that surface recent or in-progress items. The screenshot predates the current header: **Add** now sits at the right-hand end of the breadcrumb row rather than above the file listing, and the content rows wrap instead of scrolling sideways.
+The numbered areas in the screenshot map to the main browsing surfaces: breadcrumb navigation, folder cards, file cards, and the activity rows that surface recent or in-progress items. The screenshot predates the current layout: **Add** now sits at the right-hand end of the breadcrumb row rather than above the file listing, the content rows wrap instead of scrolling sideways, and folder cards carry a glyph and a breakdown rather than a borrowed thumbnail.
 
 ## Folder grid
 
-- Folders show a thumbnail (borrowed from the first video or image anywhere beneath them) and a file count. The count is **recursive** — it includes every active file in the folder *and* its subfolders.
+- Folders show a file count and what that count is made of: *138 items · Video 135 · Document 3*. Both the count and the breakdown are **recursive** — they cover every active file in the folder *and* its subfolders. When everything in a folder is one kind, that kind is named without repeating the number: *12 items · Document*. At most the two largest kinds are named; the rest is the difference from the total.
+- Folder cards and folder rows carry the folder glyph, never a picture borrowed from inside the folder. What a folder holds is said in words, where it can be read; a photograph of one file in it could not be, and only some folders had one.
 - Clicking opens that folder.
 - Right-click (or long-press on touch) opens the **folder menu**: Open, New file here, New folder here, Pin / Unpin, Rename, Move, Delete. Which entries appear depends on the surface — the tree pane offers the create actions, the folder grid does not.
 - Addon actions appear in this menu too, below a separator under the app's own rows — *intelligence* offers its batch AI actions there, for the files the listing is showing.

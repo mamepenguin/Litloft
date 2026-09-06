@@ -69,16 +69,13 @@ export function FolderListRow({
 
   // The same 14×24 frame `FileListRow` gives a thumbnail, so folder rows
   // and file rows line their text up on the same left edge.
-  const thumbnail = folder.thumbnail_file_id ? (
-    <div className="h-14 w-24 flex-shrink-0 overflow-hidden rounded-lg bg-bg-elevated">
-      <img
-        src={`/api/files/${folder.thumbnail_file_id}/thumbnail`}
-        alt={folder.name}
-        className="h-full w-full object-cover"
-        loading="lazy"
-      />
-    </div>
-  ) : (
+  //
+  // A glyph, never a photograph, for the reason the folder card gives:
+  // borrowing a picture from somewhere beneath the folder mixed pictures
+  // and line art in one column and said nothing the name did not (D-4).
+  // The row keeps its bare count rather than the card's breakdown — it is
+  // a fixed-width column beside a name that already truncates.
+  const thumbnail = (
     <div className="flex h-14 w-24 flex-shrink-0 items-center justify-center rounded-lg bg-bg-elevated">
       <Folder size={22} className="text-text-muted" />
     </div>
@@ -131,9 +128,13 @@ export function FolderListRow({
         >
           {thumbnail}
           <div className="flex min-w-0 max-w-list-row flex-1 items-center gap-2">
-            <h3 className="min-w-0 flex-1 truncate text-sm font-semibold text-text-primary">
+            {/* Not a heading, for the reason the cards are not (D-5):
+                thirty sibling names in a listing are not thirty
+                sections, and list mode is one click from grid mode in
+                the same folder. The name is the row's link's. */}
+            <span className="min-w-0 flex-1 truncate text-sm font-semibold text-text-primary">
               {folder.name}
-            </h3>
+            </span>
             {meta}
           </div>
         </Link>
