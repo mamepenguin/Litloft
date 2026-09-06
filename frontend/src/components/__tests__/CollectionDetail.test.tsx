@@ -356,6 +356,114 @@ describe("CollectionDetail", () => {
  * collection has nothing to add to. §2.2 asks for one action to own it,
  * not for the same action to own it everywhere.
  */
+describe("deleting a collection", () => {
+  const openMenu = async () => {
+    const trigger = await screen.findByRole("button", {
+      name: /More actions for My Collection/,
+    });
+    fireEvent.click(trigger);
+    return trigger;
+  };
+
+  it("names itself for the collection it acts on", async () => {
+    // An icon-only control repeated across screens needs a name that
+    // says which entity it belongs to, not just "More".
+    render(<CollectionDetail drive="main" collectionId="c1" />);
+    const trigger = await screen.findByRole("button", {
+      name: /More actions for My Collection/,
+    });
+    expect(trigger).toHaveAttribute("aria-haspopup", "menu");
+    // Both states. Asserted only after opening, a hard-coded `"true"`
+    // would pass — the property is that it reflects the menu, not that
+    // it says the word.
+    expect(trigger).toHaveAttribute("aria-expanded", "false");
+    fireEvent.click(trigger);
+    expect(trigger).toHaveAttribute("aria-expanded", "true");
+  });
+
+  it("closes on Escape", async () => {
+    // Without this the only ways out of a menu are an outside click and
+    // picking a row. Handled on the box rather than on `document`, so it
+    // cannot answer a press aimed at whatever is stacked above it.
+    render(<CollectionDetail drive="main" collectionId="c1" />);
+    await openMenu();
+    expect(screen.getByRole("menuitem")).toBeInTheDocument();
+    fireEvent.keyDown(screen.getByRole("menu"), { key: "Escape" });
+    expect(screen.queryByRole("menuitem")).toBeNull();
+  });
+
+  it("offers Delete with its name, in danger colour", async () => {
+    render(<CollectionDetail drive="main" collectionId="c1" />);
+    await openMenu();
+    const item = screen.getByRole("menuitem", { name: "Delete collection" });
+    expect(item.className).toMatch(/\btext-danger\b/);
+  });
+
+  it("offers nothing that already has a path of its own", async () => {
+    // Renaming, the description and the order are each reachable
+    // already — the title and scope edit in place, the order is the
+    // items pane. A second route to one action is 原則 3.
+    render(<CollectionDetail drive="main" collectionId="c1" />);
+    await openMenu();
+    expect(screen.getAllByRole("menuitem")).toHaveLength(1);
+  });
+
+  it("still goes through the confirmation, and deletes on confirm", async () => {
+    render(<CollectionDetail drive="main" collectionId="c1" />);
+    await openMenu();
+    fireEvent.click(screen.getByRole("menuitem", { name: "Delete collection" }));
+
+    // The menu closes behind the choice; the dialog is what answers next.
+    expect(screen.queryByRole("menuitem")).toBeNull();
+    expect(await screen.findByText("Delete collection?")).toBeInTheDocument();
+
+    // The dialog's confirm carries the same words as the row that
+    // opened it, which is what a confirm button should say; the row is
+    // gone by now, so the name is unambiguous.
+    fireEvent.click(screen.getByRole("button", { name: "Delete collection" }));
+    await waitFor(() =>
+      expect(apiMocks.deleteCollection).toHaveBeenCalledWith("main", "c1"),
+    );
+  });
+});
+
+describe("an empty collection", () => {
+  beforeEach(() => {
+    apiMocks.getCollection.mockResolvedValue({
+      id: "c1",
+      name: "My Collection",
+      description: "Hand-picked",
+      drive: "main",
+      items: [],
+      created_at: "",
+      updated_at: "",
+    });
+  });
+
+  it("says what to do about it, and where", async () => {
+    // It was a bare `<p>No items</p>` — not an `EmptyState` call site at
+    // all, which is why Phase 3's pass over the other ten did not reach
+    // it. The one obvious next step is not on this screen.
+    render(<CollectionDetail drive="main" collectionId="c1" />);
+    expect(
+      await screen.findByText("Nothing in this collection yet"),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole("link", { name: "Browse the drive" }),
+    ).toHaveAttribute("href", "/drive/main");
+  });
+
+  it("still offers Delete — an empty collection is the one you delete", async () => {
+    render(<CollectionDetail drive="main" collectionId="c1" />);
+    fireEvent.click(
+      await screen.findByRole("button", { name: /More actions for My Collection/ }),
+    );
+    expect(
+      screen.getByRole("menuitem", { name: "Delete collection" }),
+    ).toBeInTheDocument();
+  });
+});
+
 describe("a collection spends its accent fill on Play", () => {
   it("spends exactly one, on the thing the screen is for", async () => {
     const { container } = render(
@@ -383,6 +491,27 @@ describe("a collection spends its accent fill on Play", () => {
       <CollectionDetail drive="main" collectionId="c1" />,
     );
     await waitFor(() => expect(container.querySelector("h1")).toBeTruthy());
-    expect(accentFills(container)).toHaveLength(0);
+    // Not zero any more, and still one: Play is gone with nothing to
+    // play, and the empty state's one call to action takes the budget
+    // instead. By label, because "one fill somewhere" would also be true
+    // of Play returning beside a collection that holds nothing.
+    expect(accentFills(container).map((el) => el.textContent?.trim())).toEqual([
+      "Browse the drive",
+    ]);
+  });
+
+  it("keeps Delete out of the budget, and out of the header's own row", async () => {
+    const { container } = render(
+      <CollectionDetail drive="main" collectionId="c1" />,
+    );
+    await waitFor(() => expect(container.querySelector("h1")).toBeTruthy());
+    // The destructive control is behind `…` now, so it is neither a fill
+    // nor a tap target beside Play.
+    expect(
+      screen.queryByRole("button", { name: "Delete collection" }),
+    ).toBeNull();
+    expect(accentFills(container).map((el) => el.textContent?.trim())).toEqual([
+      "Play",
+    ]);
   });
 });

@@ -89,6 +89,7 @@ describe("the shared toolbar menu has one home", () => {
     // "None of them are in `folder/`" is also true of a walk that found no
     // imports at all. These are the files that hold one.
     expect(menuImporters().map((i) => i.file)).toEqual([
+      "frontend/src/components/OverflowMenu.tsx",
       "frontend/src/components/PdfPreview.tsx",
       "frontend/src/components/ViewMenu.tsx",
       "frontend/src/components/__tests__/ToolbarMenu.test.tsx",

@@ -298,6 +298,63 @@ describe("RootFileListing toolbar right group (FolderToolbar parity)", () => {
   });
 });
 
+describe("the drive root's overflow menu", () => {
+  // It moved into the shared `OverflowMenu` so there would be one `…`
+  // rather than three. Nothing about what it holds changed, and these
+  // pin the parts a conversion is likeliest to drop.
+  const openMenu = async () => {
+    mockGetDriveFiles.mockResolvedValue({
+      data: [makeFile("1", "intro.mp4", "video/mp4", "video")],
+      meta: { total: 1, page: 1, limit: 30 },
+    });
+    render(<RootFileListing driveName="main" />);
+    fireEvent.click(await screen.findByRole("button", { name: /more actions/i }));
+  };
+
+  it("still holds both of its rows", async () => {
+    await openMenu();
+    expect(screen.getAllByRole("menuitem")).toHaveLength(2);
+    expect(screen.getByRole("menuitem", { name: /selection mode/i })).toBeInTheDocument();
+    expect(screen.getByRole("menuitem", { name: /rescan/i })).toBeInTheDocument();
+  });
+
+  it("is a sheet on a phone and a dropdown above 640px", async () => {
+    // The old menu was full-width and bottom-anchored below `sm`, with a
+    // scrim behind it — a 180px panel hanging off a toolbar button is a
+    // poor target at 375px. jsdom lays nothing out, so the breakpointed
+    // classes are what is pinned.
+    await openMenu();
+    const panel = screen.getByRole("menu");
+    const classes = (panel.getAttribute("class") ?? "").split(/\s+/);
+    expect(classes).toContain("fixed");
+    expect(classes).toContain("bottom-4");
+    expect(classes).toContain("sm:absolute");
+    expect(classes).toContain("sm:top-full");
+  });
+
+  it("says which of its rows is in effect", async () => {
+    // Select mode is a toggle, and its row carried a held treatment
+    // before the conversion. A menu that looks the same either way makes
+    // the reader open it to find out what it already did.
+    await openMenu();
+    const row = screen.getByRole("menuitem", { name: /selection mode/i });
+    expect(row).toHaveAttribute("aria-pressed", "false");
+
+    fireEvent.click(row);
+    fireEvent.click(screen.getByRole("button", { name: /more actions/i }));
+    const again = screen.getByRole("menuitem", { name: /selection mode/i });
+    expect(again).toHaveAttribute("aria-pressed", "true");
+    expect(again.className).toMatch(/\bbg-bg-elevated\b/);
+  });
+
+  it("closes when the sheet's backdrop is tapped", async () => {
+    await openMenu();
+    const backdrop = document.querySelector('[aria-hidden][class*="bg-black/30"]')!;
+    fireEvent.click(backdrop);
+    expect(screen.queryByRole("menuitem")).toBeNull();
+  });
+});
+
 describe("RootFileListing with nothing directly under the drive", () => {
   // A drive that keeps every file inside a subfolder is in this state
   // permanently, so it is the most-seen instance of the rule, not the

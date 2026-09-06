@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { CheckSquare, FileText, MoreHorizontal, Play, RefreshCw } from "lucide-react";
+import { CheckSquare, FileText, Play, RefreshCw } from "lucide-react";
 
 import { useTranslations } from "next-intl";
 import { getDriveFiles } from "@/lib/api";
@@ -11,6 +11,8 @@ import { FileGrid } from "@/components/FileGrid";
 import { FileList } from "@/components/FileList";
 import { ViewToggle } from "@/components/ViewToggle";
 import { SortButton } from "@/components/SortButton";
+import { ActionMenuItem } from "@/components/ActionMenuItem";
+import { OverflowMenu } from "@/components/OverflowMenu";
 import { EmptyState } from "@/components/EmptyState";
 import { SearchX } from "lucide-react";
 import { useFilePicker } from "@/components/useFilePicker";
@@ -73,7 +75,6 @@ export function RootFileListing({ driveName, onFileAction, onFolderChange }: Roo
   const isFilterEmpty = filter.isActive && visibleFiles.length === 0;
 
   const [selectable, setSelectable] = useState(false);
-  const [moreOpen, setMoreOpen] = useState(false);
   const selection = useSelection();
 
   const [refreshKey, setRefreshKey] = useState(0);
@@ -235,69 +236,33 @@ export function RootFileListing({ driveName, onFileAction, onFolderChange }: Roo
               <ViewToggle onChange={handleViewChange} />
 
               {/* Overflow: select-mode + rescan (low-frequency) */}
-              <div className="relative">
-                <button
-                  onClick={() => setMoreOpen((s) => !s)}
-                  className={`rounded-lg p-2 transition-colors ${
-                    selectable
-                      ? "bg-bg-card text-text-primary"
-                      : "text-text-muted hover:text-text-primary"
-                  }`}
-                  aria-haspopup="menu"
-                  aria-expanded={moreOpen}
-                  aria-label={t("more")}
-                  title={t("more")}
-                >
-                  <MoreHorizontal size={16} />
-                </button>
-                {moreOpen && (
+              <OverflowMenu label={t("more")} active={selectable}>
+                {(close) => (
                   <>
-                    <div
-                      className="fixed inset-0 z-30 bg-black/30 sm:bg-transparent"
-                      aria-hidden="true"
-                      onClick={() => setMoreOpen(false)}
+                    <ActionMenuItem
+                      icon={CheckSquare}
+                      label={ts("selectMode")}
+                      active={selectable}
+                      onClick={() => {
+                        setSelectable((v) => {
+                          if (v) selection.clear();
+                          return !v;
+                        });
+                        close();
+                      }}
                     />
-                    <div
-                      role="menu"
-                      className="fixed inset-x-2 bottom-4 z-40 max-h-[60vh] overflow-y-auto rounded-2xl border border-bg-border bg-bg-primary py-1 shadow-lg animate-fade-in-scale sm:absolute sm:inset-x-auto sm:bottom-auto sm:right-0 sm:top-full sm:mt-1 sm:max-h-none sm:min-w-[200px] sm:overflow-visible sm:origin-top-right"
-                    >
-                      <button
-                        role="menuitem"
-                        onClick={() => {
-                          setSelectable((s) => {
-                            if (s) selection.clear();
-                            return !s;
-                          });
-                          setMoreOpen(false);
-                        }}
-                        className={`flex w-full items-center gap-2.5 px-3 py-2 text-left text-sm transition-colors ${
-                          selectable
-                            ? "bg-bg-elevated text-text-primary font-medium"
-                            : "text-text-primary hover:bg-bg-elevated"
-                        }`}
-                      >
-                        <CheckSquare size={16} className="flex-shrink-0" />
-                        <span className="flex-1">{ts("selectMode")}</span>
-                      </button>
-                      <button
-                        role="menuitem"
-                        onClick={() => {
-                          if (!scanning) handleScan();
-                          setMoreOpen(false);
-                        }}
-                        disabled={scanning}
-                        className="flex w-full items-center gap-2.5 px-3 py-2 text-left text-sm text-text-primary transition-colors hover:bg-bg-elevated disabled:opacity-50"
-                      >
-                        <RefreshCw
-                          size={16}
-                          className={`flex-shrink-0 ${scanning ? "animate-spin" : ""}`}
-                        />
-                        <span className="flex-1">{t("rescan")}</span>
-                      </button>
-                    </div>
+                    <ActionMenuItem
+                      icon={RefreshCw}
+                      label={t("rescan")}
+                      disabled={scanning}
+                      onClick={() => {
+                        if (!scanning) handleScan();
+                        close();
+                      }}
+                    />
                   </>
                 )}
-              </div>
+              </OverflowMenu>
             </div>
             )}
           </div>

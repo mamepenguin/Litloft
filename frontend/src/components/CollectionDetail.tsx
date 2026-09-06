@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { ArrowLeft, Play, Trash2 } from "lucide-react";
+import { ArrowLeft, ListPlus, Play, Trash2 } from "lucide-react";
 import { useTranslations } from "next-intl";
 
 import {
@@ -14,6 +14,9 @@ import {
 } from "@/lib/api";
 import { Breadcrumb } from "@/components/Breadcrumb";
 import { Button } from "@/components/Button";
+import { ActionMenuItem } from "@/components/ActionMenuItem";
+import { EmptyState } from "@/components/EmptyState";
+import { OverflowMenu } from "@/components/OverflowMenu";
 import { PageHeader } from "@/components/PageHeader";
 import { CollectionItemsPane } from "@/components/CollectionItemsPane";
 import { FileGrid } from "@/components/FileGrid";
@@ -342,24 +345,46 @@ export function CollectionDetail({ drive, collectionId }: CollectionDetailProps)
                   {t("play")}
                 </Button>
               )}
-              <Button
-                variant="ghost"
-                iconOnly
-                onClick={() => setDeletingCollection(true)}
-                aria-label={t("deleteCollection")}
-                className="hover:text-danger"
-              >
-                <Trash2 size={16} />
-              </Button>
+              {/* Behind `…`, with its name on it. An icon-only Trash
+                  standing beside the screen's primary action put a
+                  destructive control one mis-aimed tap from Play, named
+                  only by a tooltip nobody on a phone can see (COL-2).
+                  Renaming, the description and the order are not in here:
+                  each already has a path — the title and scope are edited
+                  in place, the order is the items pane — and a second
+                  route to one action is 原則 3. */}
+              <OverflowMenu label={t("moreActions", { name: detail.name })}>
+                {(close) => (
+                  <ActionMenuItem
+                    icon={Trash2}
+                    danger
+                    label={t("deleteCollection")}
+                    onClick={() => {
+                      close();
+                      setDeletingCollection(true);
+                    }}
+                  />
+                )}
+              </OverflowMenu>
             </>
           }
         />
 
         <div className="px-4">
         {items.length === 0 ? (
-          <div className="flex flex-col items-center justify-center gap-3 py-16 text-sm text-text-muted">
-            <p>{t("empty")}</p>
-          </div>
+          // Was a bare `<p>No items</p>`, which is why Phase 3's pass over
+          // the ten `EmptyState` call sites did not reach it — it was not
+          // a call site. An empty collection has one obvious next step,
+          // and it is not on this screen.
+          <EmptyState
+            icon={ListPlus}
+            title={t("emptyTitle")}
+            description={t("emptyDescription")}
+            primaryAction={{
+              label: t("emptyAction"),
+              href: `/drive/${encodeURIComponent(drive)}`,
+            }}
+          />
         ) : (
           <>
             <div className="mb-4 flex items-center justify-end">
