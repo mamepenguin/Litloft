@@ -26,6 +26,13 @@ interface UseFolderTreeQueryOpts {
    */
   flatLoad?: boolean;
   /**
+   * Ask the endpoint for file nodes as well as folders (F-7). Off by
+   * default, matching the endpoint. It is part of the cache key: the two
+   * answers are different lists, and serving one for the other is what
+   * makes a toggle look broken.
+   */
+  includeFiles?: boolean;
+  /**
    * Bump to force a cache drop and refetch (e.g. after a context-menu
    * mutation renames / moves / deletes a node). Treated like a fourth
    * dimension of the cache key.
@@ -46,14 +53,24 @@ interface UseFolderTreeQueryResult {
 
 /**
  * Lazy-loads folder-tree children for each folder path requested in
- * `pathsToLoad`. Cached per (drive, typeFilter, mode, path); when any of
- * those change the cache is dropped because counts and visibility differ.
+ * `pathsToLoad`. Cached per (drive, typeFilter, mode, includeFiles, path);
+ * when any of those change the cache is dropped because counts and
+ * visibility differ.
  */
 export function useFolderTreeQuery(opts: UseFolderTreeQueryOpts): UseFolderTreeQueryResult {
-  const { drive, typeFilter, pathsToLoad, flatLoad = false, refreshKey = 0 } = opts;
+  const {
+    drive,
+    typeFilter,
+    pathsToLoad,
+    flatLoad = false,
+    includeFiles = false,
+    refreshKey = 0,
+  } = opts;
   const [byPath, setByPath] = useState<Map<string, FetchState>>(new Map());
   const inflight = useRef<Map<string, AbortController>>(new Map());
-  const cacheKey = `${drive}::${typeFilter ?? ""}::${flatLoad ? "flat" : "lazy"}::${refreshKey}`;
+  const cacheKey = `${drive}::${typeFilter ?? ""}::${flatLoad ? "flat" : "lazy"}::${
+    includeFiles ? "files" : "folders"
+  }::${refreshKey}`;
   const cacheKeyRef = useRef(cacheKey);
 
   // Drop cache + cancel inflight when drive, typeFilter, or mode changes.
@@ -76,8 +93,13 @@ export function useFolderTreeQuery(opts: UseFolderTreeQueryOpts): UseFolderTreeQ
         return next;
       });
       const params = flatLoad
-        ? { type_filter: typeFilter, flat: true }
-        : { root: path, type_filter: typeFilter, depth: 1 };
+        ? { type_filter: typeFilter, flat: true, include_files: includeFiles }
+        : {
+            root: path,
+            type_filter: typeFilter,
+            depth: 1,
+            include_files: includeFiles,
+          };
       getFolderTree(drive, params, { signal: controller.signal })
         .then((nodes) => {
           if (controller.signal.aborted) return;
@@ -100,7 +122,7 @@ export function useFolderTreeQuery(opts: UseFolderTreeQueryOpts): UseFolderTreeQ
           inflight.current.delete(path);
         });
     },
-    [drive, typeFilter, flatLoad],
+    [drive, typeFilter, flatLoad, includeFiles],
   );
 
   // Trigger fetch for any requested path that we haven't loaded yet. In

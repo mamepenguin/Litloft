@@ -1,6 +1,8 @@
 import { act, cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
+import { treeIncludeFilesStore } from "@/lib/treeIncludeFilesStore";
+
 const mockGetFolderTree = vi.fn();
 // Spies (not plain functions) because the inline-rename tests assert on
 // their arguments; reset in beforeEach like mockGetFolderTree.
@@ -90,9 +92,12 @@ beforeEach(() => {
   mockRenameFile.mockReset().mockResolvedValue({});
   localStorage.removeItem(driveExpKey("work"));
   localStorage.removeItem(driveFilterKey("work"));
+  localStorage.removeItem("tree:includeFiles:work");
+  treeIncludeFilesStore.reset();
 });
 
 afterEach(() => {
+  treeIncludeFilesStore.reset();
   // Unmount any rendered components before vi.restoreAllMocks so a
   // pending debounce timer cannot fire after the api mock has been
   // wiped (which would crash on the next fetchPath round-trip with
@@ -828,5 +833,82 @@ describe("FolderTreePane inline rename", () => {
       expect(screen.queryByRole("textbox", { name: /new name/i })).not.toBeInTheDocument(),
     );
     expect(mockRenameFolder).not.toHaveBeenCalled();
+  });
+});
+
+/**
+ * F-7. The tree is a map of the drive's shape; the pane beside it already
+ * lists the files in the folder you are standing in.
+ */
+describe("FolderTreePane — show files too", () => {
+  const toggle = () => screen.getByRole("button", { name: /Show files too/i });
+
+  async function renderPane() {
+    render(
+      <FolderTreePane
+        drive="work"
+        selectedPath={null}
+        onSelectFolder={vi.fn()}
+        onSelectFile={vi.fn()}
+      />,
+    );
+    await waitFor(() => expect(mockGetFolderTree).toHaveBeenCalled());
+  }
+
+  it("asks for folders only until it is pressed", async () => {
+    mockGetFolderTree.mockResolvedValue([]);
+    await renderPane();
+
+    expect(mockGetFolderTree).toHaveBeenLastCalledWith(
+      "work",
+      expect.objectContaining({ include_files: false }),
+      expect.any(Object),
+    );
+    expect(toggle()).toHaveAttribute("aria-pressed", "false");
+  });
+
+  it("refetches with files once it is pressed", async () => {
+    mockGetFolderTree.mockResolvedValue([]);
+    await renderPane();
+    const before = mockGetFolderTree.mock.calls.length;
+
+    act(() => {
+      fireEvent.click(toggle());
+    });
+
+    await waitFor(() =>
+      expect(mockGetFolderTree.mock.calls.length).toBeGreaterThan(before),
+    );
+    expect(mockGetFolderTree).toHaveBeenLastCalledWith(
+      "work",
+      expect.objectContaining({ include_files: true }),
+      expect.any(Object),
+    );
+    expect(toggle()).toHaveAttribute("aria-pressed", "true");
+  });
+
+  it("remembers the answer for the drive", async () => {
+    mockGetFolderTree.mockResolvedValue([]);
+    await renderPane();
+    act(() => {
+      fireEvent.click(toggle());
+    });
+    await waitFor(() =>
+      expect(localStorage.getItem("tree:includeFiles:work")).toBe("true"),
+    );
+  });
+
+  it("starts pressed on a drive where it was left pressed", async () => {
+    localStorage.setItem("tree:includeFiles:work", "true");
+    treeIncludeFilesStore.reset();
+    mockGetFolderTree.mockResolvedValue([]);
+    await renderPane();
+
+    expect(toggle()).toHaveAttribute("aria-pressed", "true");
+    expect(mockGetFolderTree).toHaveBeenLastCalledWith(
+      "work",
+      expect.objectContaining({ include_files: true }),
+      expect.any(Object),
+    );
   });
 });

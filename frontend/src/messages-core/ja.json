@@ -456,7 +456,8 @@
     "errorRetry": "再試行",
     "empty": "このフォルダにファイルはありません",
     "dropToRoot": "ここにドロップしてドライブ直下へ移動",
-    "paneHeading": "フォルダ"
+    "paneHeading": "フォルダ",
+    "includeFiles": "ファイルも表示"
   },
   "filter": {
     "placeholder": {

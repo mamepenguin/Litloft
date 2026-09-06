@@ -32,7 +32,7 @@ describe("useFolderTreeQuery", () => {
     expect(result.current.childrenByPath.get("")).toHaveLength(1);
     expect(mockGetFolderTree).toHaveBeenCalledWith(
       "work",
-      { root: "", type_filter: null, depth: 1 },
+      { root: "", type_filter: null, depth: 1, include_files: false },
       expect.objectContaining({ signal: expect.any(AbortSignal) }),
     );
   });
@@ -78,7 +78,59 @@ describe("useFolderTreeQuery", () => {
     await waitFor(() => expect(mockGetFolderTree).toHaveBeenCalledTimes(2));
     expect(mockGetFolderTree).toHaveBeenLastCalledWith(
       "work",
-      { root: "", type_filter: "markdown", depth: 1 },
+      { root: "", type_filter: "markdown", depth: 1, include_files: false },
+      expect.any(Object),
+    );
+  });
+
+  /**
+   * F-7. The two answers are different lists, so serving one for the other
+   * is what makes a toggle look broken: you press it and nothing moves.
+   */
+  it("drops cache when includeFiles changes", async () => {
+    mockGetFolderTree.mockResolvedValue([]);
+
+    const { result, rerender } = renderHook(
+      ({ includeFiles }: { includeFiles: boolean }) =>
+        useFolderTreeQuery({
+          drive: "work",
+          typeFilter: null,
+          pathsToLoad: new Set([""]),
+          includeFiles,
+        }),
+      { initialProps: { includeFiles: false } },
+    );
+
+    await waitFor(() => expect(result.current.childrenByPath.has("")).toBe(true));
+    expect(mockGetFolderTree).toHaveBeenCalledTimes(1);
+
+    rerender({ includeFiles: true });
+
+    await waitFor(() => expect(mockGetFolderTree).toHaveBeenCalledTimes(2));
+    expect(mockGetFolderTree).toHaveBeenLastCalledWith(
+      "work",
+      { root: "", type_filter: null, depth: 1, include_files: true },
+      expect.any(Object),
+    );
+  });
+
+  it("carries includeFiles into flat mode too, which is what the filter searches", async () => {
+    mockGetFolderTree.mockResolvedValue([]);
+
+    renderHook(() =>
+      useFolderTreeQuery({
+        drive: "work",
+        typeFilter: null,
+        pathsToLoad: new Set([""]),
+        flatLoad: true,
+        includeFiles: true,
+      }),
+    );
+
+    await waitFor(() => expect(mockGetFolderTree).toHaveBeenCalledTimes(1));
+    expect(mockGetFolderTree).toHaveBeenLastCalledWith(
+      "work",
+      { type_filter: null, flat: true, include_files: true },
       expect.any(Object),
     );
   });
@@ -108,7 +160,7 @@ describe("useFolderTreeQuery", () => {
     expect(mockGetFolderTree).toHaveBeenCalledTimes(1);
     expect(mockGetFolderTree).toHaveBeenCalledWith(
       "work",
-      { type_filter: null, flat: true },
+      { type_filter: null, flat: true, include_files: false },
       expect.objectContaining({ signal: expect.any(AbortSignal) }),
     );
     // All three nodes (including the deep one) live under "".
@@ -144,7 +196,7 @@ describe("useFolderTreeQuery", () => {
     // The second call is the lazy-load form (root + depth).
     expect(mockGetFolderTree).toHaveBeenLastCalledWith(
       "work",
-      { root: "", type_filter: null, depth: 1 },
+      { root: "", type_filter: null, depth: 1, include_files: false },
       expect.any(Object),
     );
   });

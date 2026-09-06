@@ -159,11 +159,26 @@ Scope and behaviour:
 
 This is the lightest of three search layers. For drive-wide search use the global search popup; for natural-language questions use intelligence Ask. See [Search](search.md).
 
+### What the tree lists
+
+The tree shows **folders only**. It is a map of the drive's shape, and the pane
+beside it already lists the files in the folder you are standing in — drawing
+them in both places spends the tree's height saying the same thing twice, and
+on a drive of any size the folders get pushed off the bottom by the files under
+the first one.
+
+**Show files too**, at the foot of the pane, brings them back. The setting is
+remembered per drive, so a drive of notes — where the file *is* the destination
+— can keep them on while a video drive keeps them off. Turning it on also gives
+a caret to folders that hold only files: with files hidden those are leaves,
+because expanding them would show nothing. A folder's file count is shown
+either way; that is the folder's size, not a count of what the tree draws.
+
 ### Tree pane filter
 
 When the folder tree pane is open, it has its own filter row at the top — text plus a kind dropdown offering the same nine choices as the toolbar — but different in scope:
 
-- Matches against **file and folder names** across the whole tree of the current drive.
+- Matches against **folder names** across the whole tree of the current drive — and against **file names** as well when *Show files too* is on. The filter searches what the tree lists, so its reach follows that setting rather than diverging from it.
 - Tree structure is preserved: matched items are highlighted, ancestors are shown in a dimmed style as path context, non-matching siblings are hidden.
 - The **type filter** is persisted per drive in localStorage (so a photo drive can default to *Image*); the **text filter** is not — it clears when the tree pane is closed, when the drive changes, or when the page is reloaded.
 - Switching the tree filter on triggers a one-shot full-tree fetch (the tree is normally lazy-expanded), so the first keystroke on a very large drive may take a moment.

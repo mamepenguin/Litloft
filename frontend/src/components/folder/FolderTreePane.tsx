@@ -1,14 +1,17 @@
 "use client";
 
 import { useVirtualizer } from "@tanstack/react-virtual";
+import { Check } from "lucide-react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useTranslations } from "next-intl";
 
+import { Button } from "@/components/Button";
 import { FileContextMenu } from "@/components/FileContextMenu";
 import { FolderContextMenu } from "@/components/FolderContextMenu";
 import { useCreateFile } from "@/hooks/useCreateFile";
 import { useDragAndDrop } from "@/hooks/useDragAndDrop";
 import { useFolderTreeQuery } from "@/hooks/useFolderTreeQuery";
+import { useTreeIncludeFiles } from "@/hooks/useTreeIncludeFiles";
 import { useInitialReveal } from "@/hooks/useInitialReveal";
 import { useInlineRename } from "@/hooks/useInlineRename";
 import { useIsInternalDragging } from "@/hooks/useIsInternalDragging";
@@ -223,11 +226,13 @@ export function FolderTreePane({
     () => gatherPathsToLoad(expansion.expanded),
     [expansion.expanded],
   );
+  const { includeFiles, setIncludeFiles } = useTreeIncludeFiles(drive);
   const { childrenByPath, loading } = useFolderTreeQuery({
     drive,
     typeFilter: filter,
     pathsToLoad,
     flatLoad: filterActive,
+    includeFiles,
     refreshKey,
   });
 
@@ -653,6 +658,23 @@ export function FolderTreePane({
             })}
           </div>
         )}
+      </div>
+      {/* Foot of the pane, because the pane heading is already the filter
+          field and because this answers a question about the whole tree
+          rather than about any row in it. `aria-pressed` rather than a
+          checkbox: it is a control that changes what the pane draws, the
+          same shape as the tree toggle in the toolbar. */}
+      <div className="flex-shrink-0 border-t border-bg-border px-2 py-1.5">
+        <Button
+          variant="ghost"
+          size="sm"
+          aria-pressed={includeFiles}
+          onClick={() => setIncludeFiles(!includeFiles)}
+          className="w-full justify-start"
+        >
+          {includeFiles ? <Check size={14} /> : <span className="w-3.5" />}
+          {t("includeFiles")}
+        </Button>
       </div>
     </div>
   );

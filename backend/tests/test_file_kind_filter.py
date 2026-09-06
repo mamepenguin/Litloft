@@ -57,8 +57,10 @@ def _listing_names(c, kind: str | None = None) -> set[str]:
 
 
 def _tree_names(c, kind: str | None = None, *, flat: bool = True) -> set[str]:
-    url = f"/api/drives/{TEST_DRIVE}/folder-tree?flat=true" if flat \
-        else f"/api/drives/{TEST_DRIVE}/folder-tree?root="
+    # `include_files` is what this helper is about: it reads the file nodes
+    # out of the tree, and the tree only carries them when asked.
+    url = f"/api/drives/{TEST_DRIVE}/folder-tree?flat=true&include_files=true" if flat \
+        else f"/api/drives/{TEST_DRIVE}/folder-tree?root=&include_files=true"
     if kind is not None:
         url += f"&type_filter={kind}"
     res = c.get(url)

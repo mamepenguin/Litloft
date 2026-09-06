@@ -186,8 +186,9 @@ def _list_folder_tree_flat(
     db: Session,
     drive_name: str,
     type_filter: "TreeKind | None",
+    include_files: bool,
 ) -> list[FolderTreeNode]:
-    """Return the entire drive tree (folders + files) as a flat list.
+    """Return the entire drive tree as a flat list.
 
     Used by the tree filter (spec 2026-05-09) which must evaluate matches
     against the whole drive, not just the root level. Folders are emitted
@@ -196,17 +197,24 @@ def _list_folder_tree_flat(
     like the lazy-load path. Soft-deleted / missing files are excluded
     via ``active_file_filter()``.
 
+    ``include_files`` is what makes the tree filter agree with the tree it
+    filters: the pane's filter field says "find a folder", and it is this
+    list it searches, so with files hidden the filter must not match a
+    filename either.
+
     Caps the response at ``_FLAT_TREE_MAX_ENTRIES`` so a runaway drive
     cannot blow up the frontend.
     """
-    file_query = db.query(File).filter(
-        File.drive == drive_name,
-        active_file_filter(),
-    )
-    file_query = _apply_kind_filter(file_query, type_filter)
-    files = file_query.order_by(File.folder_path.asc(), File.filename.asc()).limit(
-        _FLAT_TREE_MAX_ENTRIES,
-    ).all()
+    files: list[File] = []
+    if include_files:
+        file_query = db.query(File).filter(
+            File.drive == drive_name,
+            active_file_filter(),
+        )
+        file_query = _apply_kind_filter(file_query, type_filter)
+        files = file_query.order_by(File.folder_path.asc(), File.filename.asc()).limit(
+            _FLAT_TREE_MAX_ENTRIES,
+        ).all()
 
     # Collect every folder path that contains visible content.
     folder_paths: set[str] = set()
@@ -463,6 +471,7 @@ def list_folder_tree(
     type_filter: TreeKind | None = None,
     depth: int = Query(1, ge=1, le=1),
     flat: bool = False,
+    include_files: bool = False,
 ):
     """Lazy-expandable folder tree for the 2-pane left tree (spec topic 10).
 
@@ -470,11 +479,21 @@ def list_folder_tree(
     under ``root``:
 
     - subfolders (always shown so the user can navigate even when filtered)
-    - files at depth 1 whose ``mime_type`` / ``file_type`` matches ``type_filter``
+    - with ``include_files``, files at depth 1 whose ``mime_type`` /
+      ``file_type`` matches ``type_filter``
+
+    ``include_files`` defaults to ``False`` — the tree is a map of the
+    drive's shape, and the pane beside it already lists the files in the
+    folder you are standing in. The default matches the UI's default so
+    that reading this reference and reading the screen give the same
+    answer; the "Show files too" toggle is what sends ``true``.
 
     Folders carry ``file_count`` (recursive count after filter) and
-    ``has_children`` (any subfolder OR file_count > 0) so the tree can
-    decide whether to render an expand caret.
+    ``has_children`` so the tree can decide whether to render an expand
+    caret. ``has_children`` follows ``include_files``, because it answers
+    "will expanding this show anything": with files hidden, a folder
+    holding only files is a leaf. ``file_count`` does not follow it — that
+    is the folder's size, which does not change with what the tree draws.
 
     Flat mode (``flat=true``, spec 2026-05-09 tree filter): returns the
     *entire* drive tree as a single flat list of folder + file nodes
@@ -488,16 +507,18 @@ def list_folder_tree(
         root = _validate_folder_path(root)
 
     if flat:
-        return _list_folder_tree_flat(db, drive_name, type_filter)
+        return _list_folder_tree_flat(db, drive_name, type_filter, include_files)
 
     # Files at depth 1 directly under root
-    file_query = db.query(File).filter(
-        File.drive == drive_name,
-        active_file_filter(),
-        File.folder_path == root,
-    )
-    file_query = _apply_kind_filter(file_query, type_filter)
-    direct_files = file_query.order_by(File.filename.asc()).all()
+    direct_files: list[File] = []
+    if include_files:
+        file_query = db.query(File).filter(
+            File.drive == drive_name,
+            active_file_filter(),
+            File.folder_path == root,
+        )
+        file_query = _apply_kind_filter(file_query, type_filter)
+        direct_files = file_query.order_by(File.filename.asc()).all()
 
     # Subfolder enumeration: collect distinct first-segment names under root.
     # Folder visibility is independent of type_filter (Topic 2-A).
@@ -575,7 +596,7 @@ def list_folder_tree(
             name=name,
             path=full_path,
             file_count=file_count,
-            has_children=has_subfolder or file_count > 0,
+            has_children=has_subfolder or (include_files and file_count > 0),
         ))
 
     file_nodes = [
