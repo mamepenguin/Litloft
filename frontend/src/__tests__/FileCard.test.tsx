@@ -121,3 +121,67 @@ describe("FileCard", () => {
     expect(container.querySelector(".bg-accent")).toBeNull();
   });
 });
+
+describe("what a card says first", () => {
+  const meta = (container: HTMLElement) =>
+    container.querySelector(".mt-1")?.textContent ?? "";
+
+  it("leaves the size off a video — the badge already says the length", () => {
+    // D-3's example: a 19-minute video labelled "83 B", because a
+    // `.loft` reference file's row carries the pointer's size.
+    const { container } = render(
+      <FileCard file={makeFile({ file_type: "video", duration: 1140, file_size: 83 })} />,
+    );
+    expect(meta(container)).not.toContain("83 B");
+    expect(screen.getByText("19:00")).toBeInTheDocument();
+  });
+
+  it("leaves it off audio too", () => {
+    const { container } = render(
+      <FileCard file={makeFile({ file_type: "audio", duration: 200, file_size: 83 })} />,
+    );
+    expect(meta(container)).not.toContain("83 B");
+  });
+
+  it("keeps the date when nothing else survives", () => {
+    // A video whose length was never probed draws no badge either, so
+    // the row must not come out empty.
+    const { container } = render(
+      <FileCard file={makeFile({ file_type: "video", duration: null })} />,
+    );
+    expect(screen.queryByText(/^\d+:\d\d$/)).toBeNull();
+    expect(meta(container).trim()).not.toBe("");
+  });
+
+  it("leads an image with its dimensions, not its size", () => {
+    const { container } = render(
+      <FileCard
+        file={makeFile({
+          file_type: "image",
+          mime_type: "image/png",
+          image_width: 1920,
+          image_height: 1080,
+          file_size: 83,
+        })}
+      />,
+    );
+    expect(meta(container)).toContain("1920 × 1080");
+    expect(meta(container)).not.toContain("83 B");
+  });
+
+  it("gives an unprobed image the date alone", () => {
+    const { container } = render(
+      <FileCard file={makeFile({ file_type: "image", mime_type: "image/png", file_size: 83 })} />,
+    );
+    expect(meta(container)).not.toContain("83 B");
+    expect(meta(container)).not.toContain("×");
+    expect(meta(container).trim()).not.toBe("");
+  });
+
+  it("still leads a document with its size", () => {
+    const { container } = render(
+      <FileCard file={makeFile({ file_type: "document", file_size: 83 })} />,
+    );
+    expect(meta(container)).toContain("83 B");
+  });
+});

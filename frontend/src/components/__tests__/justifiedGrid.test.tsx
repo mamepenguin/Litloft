@@ -235,11 +235,17 @@ describe("FileGrid — justified rows", () => {
     }
     expect(screen.queryAllByText(/^(jpg|png)$/i)).toHaveLength(0);
 
-    // And the same rows on the card form do draw them — otherwise the
-    // assertions above are about fixtures that say nothing anywhere.
+    // And the same rows on the card form do draw a meta row — otherwise
+    // the assertions above are about fixtures that say nothing anywhere.
+    //
+    // The control checks the extension badge rather than the size. A
+    // card leads an image with its dimensions, never its size
+    // (`lib/cardPrimaryMeta.ts`), and dropping the dimensions is what
+    // forces the card form here — so in this fixture the card's first
+    // metadatum is deliberately absent. The badge is drawn by the card
+    // form and by nothing else, which is what a control needs.
     cleanup();
     render(<FileGrid files={files.map((f) => ({ ...f, image_width: null, image_height: null }))} />);
-    expect(screen.getAllByText(sizes[0]).length).toBeGreaterThan(0);
     expect(screen.queryAllByText(/^(jpg|png)$/i).length).toBeGreaterThan(0);
   });
 
