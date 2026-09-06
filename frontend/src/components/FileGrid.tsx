@@ -6,6 +6,7 @@ import { useContextMenu } from "@/hooks/useContextMenu";
 import { cardGridTemplate, useCardColumns } from "@/lib/cardGrid";
 import { deriveListMeta } from "@/lib/listMeta";
 import { FileCard } from "./FileCard";
+import { JustifiedFileCell } from "./JustifiedFileCell";
 import { FileContextMenu } from "./FileContextMenu";
 import { MatchOverlay } from "./MatchOverlay";
 
@@ -52,7 +53,10 @@ export function FileGrid({
   // Decided once for the listing rather than per card: the question is
   // about the column, not the file. Only the boolean crosses into the
   // card, so the memo there still holds.
-  const { showExtensionBadge } = useMemo(() => deriveListMeta(files), [files]);
+  const { showExtensionBadge, justifyThumbnails } = useMemo(
+    () => deriveListMeta(files),
+    [files],
+  );
 
   // Stable across renders so memoized cards don't see new props every
   // time the parent re-renders. The card hands its own `file` back.
@@ -81,6 +85,57 @@ export function FileGrid({
     [onDragStart],
   );
 
+  const cardProps = (file: FileItemWithMatch) => ({
+    file,
+    onFavoriteToggle,
+    onContextMenu: handleContextMenu,
+    onTouchStart: handleTouchStart,
+    onTouchEnd: handlers.onTouchEnd,
+    onTouchMove: handlers.onTouchMove,
+    selectable,
+    selected: selectedIds?.has(file.id),
+    onSelect,
+    onMetaSelect,
+    onShiftSelect,
+    sortQuery,
+    draggable,
+    isDragging: draggedIds?.has(file.id),
+    onDragStart: onDragStart ? handleDragStart : undefined,
+    onDragEnd,
+  });
+
+  // A search result set is not packed even when it is all photographs:
+  // the match overlay is a per-row column that is saying something, and
+  // a justified cell has nowhere to put it.
+  const hasMatchMeta = files.some((file) => file.match_meta);
+
+  // Same rows, packed at their own proportions rather than into equal
+  // cards. Which one a folder gets is derived from the folder, not
+  // chosen by the reader — `lib/listMeta.ts`.
+  if (justifyThumbnails && !hasMatchMeta) {
+    return (
+      <>
+        <div className="justified-grid-host">
+          <div className="justified-grid">
+            {files.map((file) => (
+              <JustifiedFileCell key={file.id} {...cardProps(file)} />
+            ))}
+            {/* Absorbs the last line's slack. See globals.css. */}
+            <div className="justified-grid-tail" aria-hidden />
+          </div>
+        </div>
+
+        <FileContextMenu
+          open={menuState.open}
+          position={menuState.position}
+          target={target}
+          onClose={close}
+          onUpdate={onRefresh}
+        />
+      </>
+    );
+  }
+
   return (
     <>
       <div
@@ -91,23 +146,8 @@ export function FileGrid({
         {files.map((file) => (
           <FileCard
             key={file.id}
-            file={file}
-            onFavoriteToggle={onFavoriteToggle}
-            onContextMenu={handleContextMenu}
-            onTouchStart={handleTouchStart}
-            onTouchEnd={handlers.onTouchEnd}
-            onTouchMove={handlers.onTouchMove}
-            selectable={selectable}
-            selected={selectedIds?.has(file.id)}
-            onSelect={onSelect}
-            onMetaSelect={onMetaSelect}
-            onShiftSelect={onShiftSelect}
-            sortQuery={sortQuery}
+            {...cardProps(file)}
             showExtensionBadge={showExtensionBadge}
-            draggable={draggable}
-            isDragging={draggedIds?.has(file.id)}
-            onDragStart={onDragStart ? handleDragStart : undefined}
-            onDragEnd={onDragEnd}
             matchOverlay={
               file.match_meta ? (
                 <MatchOverlay match={file.match_meta} fileId={file.id} file={file} />

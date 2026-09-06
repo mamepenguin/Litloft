@@ -101,13 +101,18 @@ describe("deriveListMeta", () => {
 
   it("leaves a one-item list exactly as it was", () => {
     const meta = deriveListMeta([file({ file_type: "image", filename: "shot.jpg" })]);
-    expect(meta).toEqual({ showTypeLabel: true, showExtensionBadge: true });
+    expect(meta).toEqual({
+      showTypeLabel: true,
+      showExtensionBadge: true,
+      justifyThumbnails: false,
+    });
   });
 
   it("leaves an empty list exactly as it was", () => {
     expect(deriveListMeta([])).toEqual({
       showTypeLabel: true,
       showExtensionBadge: true,
+      justifyThumbnails: false,
     });
   });
 
@@ -126,5 +131,60 @@ describe("deriveListMeta", () => {
     for (const value of Object.values(meta)) {
       expect(typeof value).toBe("boolean");
     }
+  });
+});
+
+describe("deriveListMeta — justifyThumbnails", () => {
+  /** `n` images that carry real dimensions. */
+  function photos(n: number, w = 3000, h = 4000): FileItem[] {
+    return Array.from({ length: n }, (_, i) =>
+      file({
+        id: `p${i}`,
+        file_type: "image",
+        filename: `DSC_${i}.jpg`,
+        mime_type: "image/jpeg",
+        image_width: w,
+        image_height: h,
+      }),
+    );
+  }
+
+  it("packs a folder of measured photographs", () => {
+    expect(deriveListMeta(photos(20)).justifyThumbnails).toBe(true);
+  });
+
+  it("does not pack a folder of videos", () => {
+    const meta = deriveListMeta(repeat(20, { file_type: "video" }));
+    expect(meta.justifyThumbnails).toBe(false);
+  });
+
+  it("packs at the 90% threshold and not below it", () => {
+    const at = deriveListMeta([
+      ...photos(18),
+      ...repeat(2, { file_type: "video" }),
+    ]);
+    const below = deriveListMeta([
+      ...photos(17),
+      ...repeat(3, { file_type: "video" }),
+    ]);
+    expect(at.justifyThumbnails).toBe(true);
+    expect(below.justifyThumbnails).toBe(false);
+  });
+
+  it("does not pack images whose dimensions were never stored", () => {
+    const meta = deriveListMeta(
+      repeat(20, {
+        file_type: "image",
+        filename: "shot.jpg",
+        mime_type: "image/jpeg",
+        image_width: null,
+        image_height: null,
+      }),
+    );
+    expect(meta.justifyThumbnails).toBe(false);
+  });
+
+  it("does not pack a single photograph", () => {
+    expect(deriveListMeta(photos(1)).justifyThumbnails).toBe(false);
   });
 });

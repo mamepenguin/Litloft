@@ -72,6 +72,27 @@ Each file card shows:
 - A thin *progress bar* along the bottom for partially-watched media.
 - A favourite star, shown on hover and always shown once the file is a favourite.
 
+### Photo folders pack instead
+
+A folder that is almost entirely images lays its thumbnails out at the
+pictures' own proportions rather than in equal cards: variable widths,
+a fixed height per row, and each row filled to the edge. A tall
+photograph is drawn tall and a panorama is drawn wide, so the black
+bars that a 16:9 card puts around them are gone.
+
+There is no switch for this. The grid packs when at least nine of every
+ten files in view are images whose dimensions are known, which is what
+a photo folder looks like and what a video folder does not — video
+thumbnails really are 16:9, and their cards keep the meta line, which
+in a folder of videos is the part that tells one row from another. A
+packed cell shows nothing but the picture; its filename appears when
+you hover or tab to it, and is always shown on a touch screen. Search
+results are never packed, because the match line under each result is
+saying something.
+
+Very wide and very tall pictures are cropped to fit between 3:1 and
+1:2. A picture whose dimensions were never recorded is drawn square.
+
 For the keys these actions are bound to, see [keyboard shortcuts](keyboard-shortcuts.md).
 
 ## Creating a new file
