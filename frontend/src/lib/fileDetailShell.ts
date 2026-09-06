@@ -79,6 +79,39 @@ function ridesShellAsViewer(
 }
 
 /**
+ * Does this file's viewer get a floor under it in the canvas?
+ *
+ * An archive of seven entries drew a 200px band and left the rest of
+ * the canvas empty; so did a short text file. The viewer is what the
+ * page is for, and its height came from how much happened to be inside
+ * it. A floor of 70% of the canvas fixes that without capping anything
+ * — more content still grows past it.
+ *
+ * **Archives, PDFs and plain text only.** The floor is expressed in
+ * `cqh`, which needs `container-type: size` on the canvas, and a
+ * containment context wrapped around a `<video>`, `<audio>` or
+ * cross-origin iframe renders its whole subtree rotated and spinning on
+ * iOS Safari (`DESIGN.md`, "Which mechanism depends on what is inside").
+ * A PDF is a `<canvas>` and an archive is `<img>`, so both are safe;
+ * media is not, and is excluded here rather than guarded in the CSS.
+ *
+ * Images are excluded for a different reason: `FilePreview` already
+ * gives them `max-h-[70vh]`, so a floor would only add white space
+ * around a small photograph.
+ */
+export function viewerTakesCanvasFloor(
+  fileType: string | undefined,
+  mimeType: string | undefined,
+): boolean {
+  if (playerKind({ file_type: fileType, mime_type: mimeType }) !== null) {
+    return false;
+  }
+  if (fileType === "archive") return true;
+  if (mimeType === "application/pdf") return true;
+  return (mimeType ?? "").startsWith("text/");
+}
+
+/**
  * Does this file's detail page ride `FileDetailShell` on this surface?
  *
  * The document half is surface-independent: a Markdown note has drawn

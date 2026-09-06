@@ -7,11 +7,15 @@ import type { FileItem } from "@/types";
 import type { MediaController } from "@/lib/mediaController";
 import type { DocumentCaptureController } from "@/lib/documentCapture";
 import type { PdfController } from "@/lib/pdfController";
+import type { ArchiveController } from "@/lib/archiveController";
 import { PdfPagesTab } from "./pdf/PdfPagesTab";
 import { usePdfState } from "./pdf/usePdfState";
+import { ArchivePagesPanel } from "./archive/ArchivePagesPanel";
+import { useArchiveState } from "./archive/useArchiveState";
 import { inspectorOpenStore } from "@/lib/inspectorOpenStore";
 import { useMediaLayoutPreference } from "@/lib/mediaLayout";
 import { sortSlotEntries } from "@/lib/addons";
+import { viewerTakesCanvasFloor } from "@/lib/fileDetailShell";
 import { slotEntryLabel } from "@/lib/slotLabel";
 import { ActiveSummaryHost } from "../ActiveSummaryHost";
 import { AddonSlot, SlotEntryRenderer } from "../AddonSlot";
@@ -154,6 +158,9 @@ export function ShellLayout({
    */
   const [pdfController, setPdfController] = useState<PdfController | null>(null);
   const pdfState = usePdfState(pdfController);
+  const [archiveController, setArchiveController] =
+    useState<ArchiveController | null>(null);
+  const archiveState = useArchiveState(archiveController);
   // Global namespace: a slot entry's `i18n_key` names its own addon's.
   const tGlobal = useTranslations();
   const { getSlotEntries } = useAddonSlots();
@@ -319,11 +326,17 @@ export function ShellLayout({
            */
           id: "pages",
           label: tabLabels("pages"),
-          content:
-            pdfController &&
-            (pdfState.numPages > 1 || (pdfState.outline ?? []).length > 0) ? (
+          content: pdfController ? (
+            pdfState.numPages > 1 || (pdfState.outline ?? []).length > 0 ? (
               <PdfPagesTab controller={pdfController} />
-            ) : null,
+            ) : null
+          ) : archiveController && archiveState.entries.length > 1 ? (
+            /* One entry is not an index: the canvas already shows it,
+               and rule 1 drops a tab whose content adds nothing. With
+               `info` left alone there is then no tab strip either
+               (rule 2). */
+            <ArchivePagesPanel controller={archiveController} />
+          ) : null,
         },
         {
           id: "chapters",
@@ -379,6 +392,7 @@ export function ShellLayout({
         title={file.title || file.filename}
         onBack={onBack}
         onScrollRootChange={onScrollRootChange}
+        canvasFloor={viewerTakesCanvasFloor(file.file_type, file.mime_type)}
         chromeControls={
           <>
             {/* Only where there is something to move. With no chapters
@@ -437,6 +451,7 @@ export function ShellLayout({
           onMediaController={onMediaController}
           onDocumentCaptureController={onDocumentCaptureController}
           onPdfController={setPdfController}
+          onArchiveController={setArchiveController}
           markdownReloadKey={markdownReloadKey}
           onMarkdownTagsSaved={onMarkdownTagsSaved}
           miniPlayerRoot={miniPlayerRoot}

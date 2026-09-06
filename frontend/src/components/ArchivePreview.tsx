@@ -1,14 +1,16 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 
 import { useTranslations } from "next-intl";
 import { getArchiveContents } from "@/lib/api";
+import { ArchiveContentsStore, type ArchiveController } from "@/lib/archiveController";
 import { isTextPreviewable } from "./TextPreview";
 import type { ArchiveContents, ArchiveEntry } from "@/types";
 import type { ArchiveViewMode } from "./archive/archiveUtils";
 import { defaultArchiveViewMode, MAX_TEXT_AUTO_LOAD } from "./archive/archiveUtils";
+import { getDirname } from "./archive/archiveUtils";
 import { useArchiveNavigation } from "./archive/useArchiveNavigation";
 import { useArchiveSort } from "./archive/useArchiveSort";
 import { useArchiveViewMode } from "./archive/useArchiveViewMode";
@@ -20,7 +22,14 @@ import { ArchiveFileListing } from "./archive/ArchiveFileListing";
 import { ArchiveEntryGrid } from "./archive/ArchiveEntryGrid";
 import { ArchiveToolbar } from "./archive/ArchiveToolbar";
 
-export function ArchivePreview({ fileId }: { fileId: string }) {
+export function ArchivePreview({
+  fileId,
+  onArchiveController,
+}: {
+  fileId: string;
+  /** Publishes the archive's contents for the inspector's index tab. */
+  onArchiveController?: (controller: ArchiveController | null) => void;
+}) {
   const router = useRouter();
   const searchParams = useSearchParams();
   const currentPath = searchParams.get("archivePath") || "";
@@ -68,6 +77,7 @@ export function ArchivePreview({ fileId }: { fileId: string }) {
     currentEntries,
     imageEntries,
     breadcrumbs,
+    navigateArchive,
     handleDirClick,
     handleBreadcrumbClick,
   } = useArchiveNavigation(archive, currentPath, searchParamsString, router);
@@ -139,6 +149,58 @@ export function ArchivePreview({ fileId }: { fileId: string }) {
     if (isTextPreviewable(entry.mime_type, entry.filename)) return true;
     return false;
   };
+
+  // The inspector's index reaches into levels the canvas is not on, so
+  // opening one of its leaves is two steps: move the level, then open.
+  // `handleFileClick` reads `imageEntries`, which is the *current*
+  // level — called before the move lands it would open the wrong page,
+  // or none.
+  const [pendingOpen, setPendingOpen] = useState<string | null>(null);
+
+  const openFromIndex = useCallback(
+    (entry: ArchiveEntry) => {
+      if (entry.is_dir) {
+        handleDirClick(entry);
+        return;
+      }
+      const parent = getDirname(entry.path);
+      if (parent === currentPath) {
+        handleFileClick(entry);
+        return;
+      }
+      setPendingOpen(entry.path);
+      navigateArchive(parent);
+    },
+    [currentPath, handleDirClick, handleFileClick, navigateArchive],
+  );
+
+  useEffect(() => {
+    if (!pendingOpen) return;
+    const entry = currentEntries.find((e) => e.path === pendingOpen);
+    // Only once the level has actually arrived. Until then the effect
+    // re-runs on the next render with nothing to do.
+    if (!entry) return;
+    setPendingOpen(null);
+    handleFileClick(entry);
+  }, [pendingOpen, currentEntries, handleFileClick]);
+
+  const archiveStore = useMemo(() => new ArchiveContentsStore(), []);
+
+  // In effects, not during render: `set` notifies its subscribers
+  // synchronously, and the subscriber is a component in the inspector's
+  // subtree.
+  useEffect(() => {
+    archiveStore.setOpener(openFromIndex);
+  }, [archiveStore, openFromIndex]);
+
+  useEffect(() => {
+    archiveStore.set({ entries: archive?.entries ?? [], currentPath });
+  }, [archiveStore, archive, currentPath]);
+
+  useEffect(() => {
+    onArchiveController?.(archiveStore);
+    return () => onArchiveController?.(null);
+  }, [onArchiveController, archiveStore]);
 
   if (loading) {
     return (

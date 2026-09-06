@@ -37,6 +37,13 @@ interface FileDetailShellProps {
   /** Type-specific controls in the page row, before the inspector toggle. */
   chromeControls?: ReactNode;
   /**
+   * Whether the canvas becomes a size container, so the viewer inside
+   * it can take a floor as a fraction of it (`DESIGN.md` §8.5). Only
+   * for kinds with no media element in the subtree — see
+   * `viewerTakesCanvasFloor`, which is where that is decided.
+   */
+  canvasFloor?: boolean;
+  /**
    * Host override for the page row's back control. Without it the row
    * links to the parent folder, which is what "back" means from a file.
    */
@@ -115,6 +122,7 @@ export function FileDetailShell({
   title,
   titleNode,
   chromeControls,
+  canvasFloor,
   onBack,
   inspector,
   mobileSheet,
@@ -219,6 +227,7 @@ export function FileDetailShell({
       >
         <main
           ref={onScrollRootChange}
+          data-canvas-floor={canvasFloor ? "true" : undefined}
           className="flex min-w-0 min-h-0 flex-1 flex-col overflow-auto"
           // The sheet rests over the bottom of the page, so the page
           // has to end above it. Without this the last thing in the

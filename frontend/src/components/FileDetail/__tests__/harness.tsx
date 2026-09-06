@@ -26,6 +26,11 @@ import {
   type PdfController,
   type PdfDocumentState,
 } from "@/lib/pdfController";
+import {
+  ArchiveContentsStore,
+  type ArchiveController,
+  type ArchiveState,
+} from "@/lib/archiveController";
 
 /**
  * Which slots an addon has claimed, and with what.
@@ -66,11 +71,18 @@ export const publishedPdfState: { value: Partial<PdfDocumentState> | null } = {
   value: null,
 };
 
+/** What the archive viewer would publish, when a test wants one. */
+export const publishedArchiveState: {
+  value: Partial<ArchiveState> | null;
+} = { value: null };
+
 export const FilePreviewStub = vi.fn(
   ({
     onPdfController,
+    onArchiveController,
   }: {
     onPdfController?: (c: PdfController | null) => void;
+    onArchiveController?: (c: ArchiveController | null) => void;
   }) => {
     useEffect(() => {
       if (!onPdfController || !publishedPdfState.value) return;
@@ -79,6 +91,13 @@ export const FilePreviewStub = vi.fn(
       onPdfController(store);
       return () => onPdfController(null);
     }, [onPdfController]);
+    useEffect(() => {
+      if (!onArchiveController || !publishedArchiveState.value) return;
+      const store = new ArchiveContentsStore();
+      store.set(publishedArchiveState.value);
+      onArchiveController(store);
+      return () => onArchiveController(null);
+    }, [onArchiveController]);
     return <div data-testid="file-preview" />;
   },
 );

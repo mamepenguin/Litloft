@@ -22,7 +22,15 @@ interface ArchiveEntryCardProps {
   showFilename?: boolean;
 }
 
-function ImageCard({ entry, fileId }: { entry: ArchiveEntry; fileId: string }) {
+function ImageCard({
+  entry,
+  fileId,
+  onRatio,
+}: {
+  entry: ArchiveEntry;
+  fileId: string;
+  onRatio: (ratio: number) => void;
+}) {
   const [src, setSrc] = useState<string | null>(null);
   const [error, setError] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
@@ -50,6 +58,16 @@ function ImageCard({ entry, fileId }: { entry: ArchiveEntry; fileId: string }) {
           src={src}
           alt={entry.filename}
           className="h-full w-full object-cover"
+          // The archive has no stored dimensions — the entry list is
+          // read out of the zip's directory, which carries none. But
+          // the cell loads the original image rather than a thumbnail,
+          // so the browser can be asked once it has one.
+          onLoad={(e) => {
+            const img = e.currentTarget;
+            if (img.naturalWidth > 0 && img.naturalHeight > 0) {
+              onRatio(img.naturalWidth / img.naturalHeight);
+            }
+          }}
           onError={() => setError(true)}
         />
       ) : (
@@ -63,7 +81,16 @@ function ImageCard({ entry, fileId }: { entry: ArchiveEntry; fileId: string }) {
   );
 }
 
-const CELL_CLASS = "aspect-square w-full overflow-hidden rounded-xl bg-bg-card";
+/**
+ * What a cell is drawn at before its picture has loaded — the
+ * proportions of a scanned page.
+ */
+export const UNMEASURED_PAGE_RATIO = 0.7;
+
+/** Folders, text and binaries have no proportions of their own. */
+export const NON_IMAGE_RATIO = 1;
+
+const CELL_CLASS = "h-full w-full overflow-hidden rounded-xl bg-bg-card";
 
 /**
  * A cell, pressable or not.
@@ -76,20 +103,30 @@ const CELL_CLASS = "aspect-square w-full overflow-hidden rounded-xl bg-bg-card";
 function CellBox({
   clickable,
   onClick,
+  ratio,
   children,
 }: {
   clickable: boolean;
   onClick: () => void;
+  ratio: number;
   children: React.ReactNode;
 }) {
+  // The row geometry reads this; see `.justified-grid` in globals.css
+  // and DESIGN.md §8.5.
+  const style = { "--jg-ratio": ratio } as React.CSSProperties;
   if (!clickable) {
-    return <div className={`${CELL_CLASS} relative`}>{children}</div>;
+    return (
+      <div className={`justified-grid-cell relative ${CELL_CLASS}`} style={style}>
+        {children}
+      </div>
+    );
   }
   return (
     <button
       type="button"
       onClick={onClick}
-      className={`${CELL_CLASS} cursor-pointer transition-colors hover:bg-bg-elevated`}
+      style={style}
+      className={`justified-grid-cell relative ${CELL_CLASS} cursor-pointer transition-colors hover:bg-bg-elevated`}
     >
       {children}
     </button>
@@ -104,8 +141,17 @@ export function ArchiveEntryCard({
   showFilename = true,
 }: ArchiveEntryCardProps) {
   const t = useTranslations("archive");
+  // Portrait, until the picture says otherwise. A scanned page is the
+  // shape this grid is mostly made of, and a square placeholder that
+  // grows taller on load moves every cell after it on the row; starting
+  // at the common case makes that the exception rather than the rule.
+  const [ratio, setRatio] = useState(
+    entry.is_dir || entry.file_type !== "image"
+      ? NON_IMAGE_RATIO
+      : UNMEASURED_PAGE_RATIO,
+  );
   return (
-    <CellBox clickable={isClickable} onClick={onClick}>
+    <CellBox clickable={isClickable} onClick={onClick} ratio={ratio}>
       {/* The listing puts a labelled button beside the row; a 193px cell has
           no line to put one on, so the affordance is an icon with an
           accessible name. `p-2` on a 16px glyph is a 32x32 target, over the
@@ -132,7 +178,7 @@ export function ArchiveEntryCard({
       ) : entry.file_type === "image" ? (
         <div className="flex h-full flex-col">
           <div className="min-h-0 flex-1 overflow-hidden">
-            <ImageCard entry={entry} fileId={fileId} />
+            <ImageCard entry={entry} fileId={fileId} onRatio={setRatio} />
           </div>
           {showFilename && (
             <div className="shrink-0 px-2 py-1 text-left">

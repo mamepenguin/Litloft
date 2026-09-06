@@ -1343,3 +1343,31 @@ div[data-citation-section-path]:not(tr) {
     transition: none;
   }
 }
+
+/* A floor under the canvas viewer — DESIGN.md §8.5.
+
+   An archive of seven entries drew a 200px band with the rest of the
+   canvas empty, and so did a short text file: the viewer is what the
+   page is for, and its height came from how much happened to be inside
+   it. `70cqh` is 70% of the canvas — the scrollport left after the page
+   row and beside the inspector — and not `70vh`, because the canvas is
+   not the viewport (it is 384px narrower with the inspector open, and
+   shorter by the page row).
+
+   `container-type: size` is safe here only because the attribute is set
+   for archives, PDFs and plain text alone: a containment context around
+   a `<video>`, `<audio>` or cross-origin iframe renders its subtree
+   rotated and spinning on iOS Safari. `lib/fileDetailShell.ts`
+   (`viewerTakesCanvasFloor`) is where that exclusion lives.
+
+   A floor, not a ceiling: a 2439-entry archive still grows past it. The
+   320px absolute is for a short phone, where 70% of a small canvas is
+   less than a viewer's worth. */
+main[data-canvas-floor="true"] {
+  container-type: size;
+  container-name: viewer-canvas;
+}
+
+main[data-canvas-floor="true"] .media-detail-player {
+  min-height: max(320px, 70cqh);
+}

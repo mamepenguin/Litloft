@@ -1579,12 +1579,13 @@ one.
 and a name that cannot be reached at all is worse than one that is
 always drawn.
 
-**The band is decorative; the cell is named by `aria-label` on the
-link.** `aria-hidden` on the band and an explicit label is what makes
-the accessible name the same string in every branch — a name computed
-from contents says the title twice on a text row, because the text
-preview draws it too, and it would vanish entirely the day someone hides
-a band that looks like decoration.
+**The cell is named by `aria-label` on the link.** An explicit label is
+what makes the accessible name the same string in every branch — a name
+computed from contents says the title twice on a text row, because the
+text preview draws it too. The band is deliberately *not* `aria-hidden`:
+with the label present it cannot add a second copy anyway, and leaving
+it in the tree means that if the label is ever dropped the name degrades
+to the visible filename rather than to nothing.
 
 **The 10% that are not photographs get `FileCard`'s answer.** The 90%
 threshold admits them on purpose, so a cell draws a thumbnail, a text
@@ -1598,6 +1599,36 @@ the preview and measures its width with a `ResizeObserver` — and either
 answer is fine as long as the pair stays consistent. Here the row height
 is the only thing switching on width, so giving up the preview is the
 cheaper half to lose.
+
+### A floor under the canvas viewer
+
+An archive holding seven entries drew a 200px band with the rest of the
+canvas empty under it, and so did a short text file: the viewer is the
+whole reason the page exists, and its height came from how much
+happened to be inside it.
+
+The canvas viewer takes `min-height: max(320px, 70cqh)` — **70% of the
+canvas**, not of the viewport. The canvas is the scrollport left after
+the page row and beside the inspector, which is 384px narrower and a
+row shorter than the window; `70vh` would be measuring something else
+and would move when a phone's URL bar collapsed.
+
+A floor, not a ceiling. A 2439-entry archive still grows past it. The
+`320px` absolute is for a short phone, where 70% of a small canvas is
+less than a viewer's worth.
+
+**Archives, PDFs and plain text only.** `cqh` needs `container-type:
+size` on the canvas, and a containment context around a `<video>`,
+`<audio>` or cross-origin iframe renders its subtree rotated and
+spinning on iOS Safari (see *Which mechanism depends on what is
+inside*). A PDF page is a `<canvas>` and an archive cell is an `<img>`,
+so both are safe; media is not. The exclusion is in
+`lib/fileDetailShell.ts` (`viewerTakesCanvasFloor`), where a test can
+see it — not in the stylesheet, where jsdom cannot.
+
+Images are excluded for a different reason: `FilePreview` already caps
+them at `70vh`, so a floor would add white space around a small
+photograph and nothing else.
 
 ### Sticking below the header
 

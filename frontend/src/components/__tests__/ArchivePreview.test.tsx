@@ -375,3 +375,99 @@ describe("ArchivePreview", () => {
     );
   });
 });
+
+describe("ArchivePreview — the index's press", () => {
+  it("publishes the whole archive and the level to the inspector", async () => {
+    // The controller is handed over once and updated in place — the
+    // inspector subscribes, it is not re-mounted per level. So what is
+    // asserted is the state it holds once the archive has loaded, not
+    // what it held at the moment it was handed over.
+    const published: Array<import("@/lib/archiveController").ArchiveController> =
+      [];
+    renderWithShortcuts(
+      <ArchivePreview
+        fileId="file-1"
+        onArchiveController={(c) => {
+          if (c) published.push(c);
+        }}
+      />,
+    );
+    await screen.findByText("cover.jpg");
+    expect(published).toHaveLength(1);
+    const state = published[0].getState();
+    // Every entry at every depth, not the level the canvas is on.
+    expect(state.entries).toHaveLength(8);
+    expect(state.currentPath).toBe("");
+  });
+
+  it("descends into a directory the index hands it", async () => {
+    let controller: import("@/lib/archiveController").ArchiveController | null =
+      null;
+    renderWithShortcuts(
+      <ArchivePreview
+        fileId="file-1"
+        onArchiveController={(c) => {
+          controller = c;
+        }}
+      />,
+    );
+    await screen.findByText("cover.jpg");
+    mockPush.mockClear();
+
+    const dir = controller!
+      .getState()
+      .entries.find((e) => e.path === "chapter1/")!;
+    controller!.open(dir);
+
+    expect(mockPush).toHaveBeenCalledWith("?archivePath=chapter1");
+  });
+
+  it("moves to the level first for a leaf that is not on this one", async () => {
+    // `handleFileClick` reads the *current* level's image list, so
+    // calling it before the move lands would open the wrong page or
+    // none. The URL write is the observable half of that ordering.
+    let controller: import("@/lib/archiveController").ArchiveController | null =
+      null;
+    renderWithShortcuts(
+      <ArchivePreview
+        fileId="file-1"
+        onArchiveController={(c) => {
+          controller = c;
+        }}
+      />,
+    );
+    await screen.findByText("cover.jpg");
+    mockPush.mockClear();
+
+    const deep = controller!
+      .getState()
+      .entries.find((e) => e.path === "chapter1/002.jpg")!;
+    controller!.open(deep);
+
+    expect(mockPush).toHaveBeenCalledWith("?archivePath=chapter1");
+  });
+
+  it("opens a leaf on this level without moving anywhere", async () => {
+    let controller: import("@/lib/archiveController").ArchiveController | null =
+      null;
+    renderWithShortcuts(
+      <ArchivePreview
+        fileId="file-1"
+        onArchiveController={(c) => {
+          controller = c;
+        }}
+      />,
+    );
+    await screen.findByText("cover.jpg");
+    mockPush.mockClear();
+
+    const here = controller!
+      .getState()
+      .entries.find((e) => e.path === "readme.txt")!;
+    controller!.open(here);
+
+    expect(mockPush).not.toHaveBeenCalled();
+    // The text viewer is what "open" means for a `.txt`.
+    await screen.findByTestId("text-viewer");
+  });
+});
