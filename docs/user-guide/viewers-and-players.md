@@ -153,6 +153,13 @@ Office files have **no in-app viewer**. The detail page says so and offers the f
 
 What Litloft does read is a short text excerpt — up to 400 characters extracted server-side with `python-docx` / `openpyxl` / `python-pptx` — which is used as the file's thumbnail in listings and makes the document findable by search.
 
+**The detail page shows the first lines of that excerpt**, under the download panel and behind a rule, so you can tell which of five similarly named spreadsheets this is without opening any of them. What it is *not*:
+
+- It is not a viewer. There is no scrolling, no page turning, and no way to read further — at most ten lines, and never more than the 400 characters the backend already extracts.
+- It does not appear when the extraction is empty, or fails. The page then looks exactly as it did before: the panel and the download.
+- It is not asked for at all on a file over 20 MB. Extraction opens the file every time, and a large workbook takes seconds.
+- `.doc`, `.xls` and `.ppt` — the older binary formats — have no extraction, so they have no excerpt either.
+
 ## ZIP archives
 
 - The listing has the page column to itself, so its height is its own rather than what is left after the metadata — and going into a folder inside the archive no longer moves anything under it, because there is nothing under it.

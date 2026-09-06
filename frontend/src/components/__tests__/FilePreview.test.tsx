@@ -1,4 +1,4 @@
-import { describe, it, expect, vi } from "vitest";
+import { afterEach, describe, it, expect, vi } from "vitest";
 import { render, screen } from "@testing-library/react";
 
 import { accentFills } from "@/__tests__/helpers/accentFills";
@@ -273,5 +273,38 @@ describe("FilePreview's PDF controller pass-through", () => {
     expect(
       (await screen.findByTestId("pdf-preview")).getAttribute("data-has-pdf-controller"),
     ).toBe("false");
+  });
+});
+
+
+describe("FilePreview's Office excerpt", () => {
+  const XLSX = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet";
+  const originalFetch = globalThis.fetch;
+  afterEach(() => {
+    globalThis.fetch = originalFetch;
+  });
+
+  it("puts the extracted text under the panel that says there is no preview", async () => {
+    globalThis.fetch = vi.fn().mockResolvedValue({
+      ok: true,
+      text: async () => "Trade statistics, 2019 return",
+    }) as unknown as typeof fetch;
+
+    render(<FilePreview file={makeFile({ file_type: "document", mime_type: XLSX, filename: "trade.xlsx" })} />);
+
+    // Both, and in this order: the excerpt is an addition to the empty
+    // state, not a replacement for it — a reader still needs the download.
+    expect(await screen.findByText("Trade statistics, 2019 return")).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: /download/i })).toBeInTheDocument();
+  });
+
+  it("asks for nothing on a file that is not Office", async () => {
+    const fetchMock = vi.fn();
+    globalThis.fetch = fetchMock as unknown as typeof fetch;
+
+    render(<FilePreview file={makeFile({ file_type: "other", mime_type: "application/octet-stream", filename: "blob.bin" })} />);
+
+    await screen.findByRole("link", { name: /download/i });
+    expect(fetchMock).not.toHaveBeenCalled();
   });
 });

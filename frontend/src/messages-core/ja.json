@@ -171,7 +171,8 @@
     "layoutBeside": "文字起こしを動画の横に表示",
     "layoutStack": "文字起こしを動画の下に表示",
     "actionsFor": "{name} の操作",
-    "pdfThumbnails": "ページのサムネイル"
+    "pdfThumbnails": "ページのサムネイル",
+    "officeExcerpt": "抽出テキストの冒頭"
   },
   "search": {
     "label": "検索",
