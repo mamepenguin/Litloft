@@ -1333,6 +1333,47 @@ describe("GlobalSearch", () => {
        * the right row for the wrong reason passes those; only the landing
        * point is the thing the reader was promised.
        */
+      /**
+       * A hit that outranks a name match, which takes several channels at
+       * once: a name match scores `1 x FILENAME_BOOST` = 2.0, and this is
+       * what a file whose audio, picture and text all match looks like.
+       * Without it, "the list reordered" is a claim no assertion can see.
+       */
+      const strongHit = (id: string) =>
+        makeHit({
+          file_id: id,
+          filename: `${id}.mp4`,
+          score: 0.99,
+          match_types: ["transcript", "clip", "content"],
+          segments: [
+            {
+              time_range: [10, 20],
+              matches: [
+                { type: "transcript", score: 0.99 },
+                { type: "clip", score: 0.99 },
+                { type: "content", score: 0.99 },
+              ],
+            },
+          ],
+        });
+
+      const oneNameHit = () => {
+        mockGetDriveFiles.mockResolvedValue({
+          data: [makeFile({ id: "f1", title: "filename-hit" })],
+          meta: { total: 1, page: 1, limit: 8 },
+        });
+        let release: (hits: SemanticHit[]) => void = () => {};
+        mockFetchSemanticHits.mockImplementation(
+          () => new Promise<SemanticHit[]>((r) => (release = r)),
+        );
+        return { release: (hits: SemanticHit[]) => release(hits) };
+      };
+
+      const rowIds = () =>
+        screen
+          .getAllByTestId("merged-result-item")
+          .map((row) => row.getAttribute("data-file-id"));
+
       const highlightFirstRow = async () => {
         const input = screen.getAllByRole("textbox")[0];
         fireEvent.keyDown(input, { key: "ArrowDown" });
@@ -1346,15 +1387,8 @@ describe("GlobalSearch", () => {
         return input;
       };
 
-      it("still opens the file the reader highlighted after the list moves", async () => {
-        mockGetDriveFiles.mockResolvedValue({
-          data: [makeFile({ id: "f1", title: "filename-hit" })],
-          meta: { total: 1, page: 1, limit: 8 },
-        });
-        let release: (hits: SemanticHit[]) => void = () => {};
-        mockFetchSemanticHits.mockImplementation(
-          () => new Promise<SemanticHit[]>((r) => (release = r)),
-        );
+      it("follows its file to a new position", async () => {
+        const { release } = oneNameHit();
 
         render(<GlobalSearch />);
         fireEvent.click(screen.getByLabelText("Search"));
@@ -1365,7 +1399,42 @@ describe("GlobalSearch", () => {
         const input = await highlightFirstRow();
 
         await act(async () => {
-          release([makeHit({ file_id: "f2", filename: "semantic-hit.mp4" })]);
+          release([strongHit("s0")]);
+          await Promise.resolve();
+          await Promise.resolve();
+        });
+        await waitFor(() =>
+          expect(screen.getAllByTestId("merged-result-item")).toHaveLength(2),
+        );
+        // The highlighted file really did move — without this the test
+        // cannot tell "follows its file" from "kept its position".
+        expect(rowIds()).toEqual(["s0", "f1"]);
+
+        mockRouterPush.mockClear();
+        fireEvent.keyDown(input, { key: "Enter" });
+        expect(mockRouterPush).toHaveBeenCalledWith("/files/f1");
+      });
+
+      it("keeps the view-all row on the end of the list, not on a number", async () => {
+        // "View all results" is a position, but a position in the list's
+        // shape. Pinned to its index it becomes a file row as soon as the
+        // list grows past it, and Enter opens something the reader never
+        // highlighted.
+        const { release } = oneNameHit();
+
+        render(<GlobalSearch />);
+        fireEvent.click(screen.getByLabelText("Search"));
+        await typeQuery("hit");
+        await waitFor(() =>
+          expect(screen.getAllByTestId("merged-result-item")).toHaveLength(1),
+        );
+
+        const input = screen.getAllByRole("textbox")[0];
+        fireEvent.keyDown(input, { key: "ArrowDown" }); // the file
+        fireEvent.keyDown(input, { key: "ArrowDown" }); // view all results
+
+        await act(async () => {
+          release([strongHit("s0")]);
           await Promise.resolve();
           await Promise.resolve();
         });
@@ -1373,7 +1442,40 @@ describe("GlobalSearch", () => {
           expect(screen.getAllByTestId("merged-result-item")).toHaveLength(2),
         );
 
-        // Wherever f1 ended up in the new order, that is what Enter opens.
+        mockRouterPush.mockClear();
+        fireEvent.keyDown(input, { key: "Enter" });
+        expect(mockRouterPush).toHaveBeenCalledWith("/drive/main/search?q=hit");
+      });
+
+      it("does not let a late watch-history reply take the highlight", async () => {
+        // The history request is about the empty state's list, which is not
+        // on screen. It has nothing to say about a result the reader has
+        // highlighted, and the ruling allows exactly one reason to let go.
+        let releaseHistory: (items: unknown[]) => void = () => {};
+        mockGetWatchHistory.mockImplementation(
+          () => new Promise((r) => (releaseHistory = r as (i: unknown[]) => void)),
+        );
+        mockGetDriveFiles.mockResolvedValue({
+          data: [makeFile({ id: "f1", title: "filename-hit" })],
+          meta: { total: 1, page: 1, limit: 8 },
+        });
+        mockFetchSemanticHits.mockResolvedValue([]);
+
+        render(<GlobalSearch />);
+        fireEvent.click(screen.getByLabelText("Search"));
+        await typeQuery("hit");
+        await waitFor(() =>
+          expect(screen.getAllByTestId("merged-result-item")).toHaveLength(1),
+        );
+        const input = await highlightFirstRow();
+
+        await act(async () => {
+          releaseHistory([]);
+          await Promise.resolve();
+          await Promise.resolve();
+        });
+
+        mockRouterPush.mockClear();
         fireEvent.keyDown(input, { key: "Enter" });
         expect(mockRouterPush).toHaveBeenCalledWith("/files/f1");
       });
@@ -1450,34 +1552,33 @@ describe("GlobalSearch", () => {
       });
 
       it("does not pin a highlight the reader never moved", async () => {
-        // An untouched default is not about any file, so a reorder must not
+        // An untouched default is not about any file, so a paint must not
         // fasten it to one — the row that is first afterwards is first for
         // its own reasons.
+        //
+        // Two paints, because one cannot see the failure: an
+        // implementation that writes the first row's id down on paint one
+        // only acts on it when a later paint moves that file. The cached
+        // snapshot gives the first, the fetch gives the second.
+        mockReadSearchCache.mockReturnValue({
+          filenameMatches: [makeFile({ id: "f1", title: "filename-hit" })],
+          filenameTotal: 1,
+          semanticHits: [],
+          ts: Date.now(),
+        });
         mockGetDriveFiles.mockResolvedValue({
           data: [makeFile({ id: "f1", title: "filename-hit" })],
           meta: { total: 1, page: 1, limit: 8 },
         });
-        let release: (hits: SemanticHit[]) => void = () => {};
-        mockFetchSemanticHits.mockImplementation(
-          () => new Promise<SemanticHit[]>((r) => (release = r)),
-        );
+        mockFetchSemanticHits.mockResolvedValue([strongHit("s0")]);
 
         render(<GlobalSearch />);
         fireEvent.click(screen.getByLabelText("Search"));
         await typeQuery("hit");
-        await waitFor(() =>
-          expect(screen.getAllByTestId("merged-result-item")).toHaveLength(1),
-        );
 
-        await act(async () => {
-          release([makeHit({ file_id: "f2", filename: "semantic-hit.mp4" })]);
-          await Promise.resolve();
-          await Promise.resolve();
-        });
-        await waitFor(() =>
-          expect(screen.getAllByTestId("merged-result-item")).toHaveLength(2),
-        );
+        await waitFor(() => expect(rowIds()).toEqual(["s0", "f1"]));
 
+        // The reader never pressed an arrow key.
         mockRouterPush.mockClear();
         const input = screen.getAllByRole("textbox")[0];
         fireEvent.keyDown(input, { key: "Enter" });
@@ -1622,6 +1723,39 @@ describe("GlobalSearch", () => {
     });
   });
 
+  describe("the highlight on the empty state", () => {
+    it("stays on its row when a row above it is removed", async () => {
+      // The recent files and the saved terms are one index space, and
+      // taking a row out shifts everything below it up. The highlight is a
+      // promise about where Enter lands here too.
+      localStorage.setItem(
+        "search-history:main",
+        JSON.stringify(["alpha", "beta", "gamma"]),
+      );
+      mockGetWatchHistory.mockResolvedValue([]);
+
+      render(<GlobalSearch />);
+      fireEvent.click(screen.getByLabelText("Search"));
+      await act(async () => {
+        await Promise.resolve();
+        await Promise.resolve();
+      });
+
+      const input = screen.getAllByRole("textbox")[0];
+      fireEvent.keyDown(input, { key: "ArrowDown" }); // alpha
+      fireEvent.keyDown(input, { key: "ArrowDown" }); // beta
+
+      fireEvent.click(screen.getByLabelText('Remove "alpha" from history'));
+      await act(async () => {
+        await Promise.resolve();
+      });
+
+      mockRouterPush.mockClear();
+      fireEvent.keyDown(input, { key: "Enter" });
+      expect(mockRouterPush).toHaveBeenCalledWith("/drive/main/search?q=beta");
+    });
+  });
+
   /**
    * S-4. The badges say why a file matched, in one word each — "Visual",
    * "Keyword". Those are the search's words, not the reader's, and there
@@ -1657,7 +1791,9 @@ describe("GlobalSearch", () => {
       // legend that took the results away to answer would make them run
       // the search again.
       await openLegend();
-      expect(screen.getAllByPlaceholderText("Search in main...").length).toBeGreaterThanOrEqual(1);
+      // Exactly one: this component draws one branch or the other, and a
+      // lower bound passes on a popup drawn twice.
+      expect(screen.getAllByPlaceholderText("Search in main...")).toHaveLength(1);
     });
 
     it("gives Escape back one thing at a time", async () => {
@@ -1668,12 +1804,48 @@ describe("GlobalSearch", () => {
       const firstHelp = enMessages.search.matchFilenameHelp;
       expect(screen.queryByText(firstHelp)).toBeNull();
       // ...and the search the reader opened is still there.
-      expect(screen.getAllByPlaceholderText("Search in main...").length).toBeGreaterThanOrEqual(1);
+      expect(screen.getAllByPlaceholderText("Search in main...")).toHaveLength(1);
 
       // A second Escape closes that, so nothing has been made harder to
       // leave — only ordered.
       fireEvent.keyDown(document, { key: "Escape" });
       expect(screen.queryByPlaceholderText("Search in main...")).toBeNull();
+    });
+
+    it("answers on the mobile draw too, which is a different branch", async () => {
+      // The two draws build the body from separate branch chains, and the
+      // legend is most needed here: `title` — the alternative §4 rejected —
+      // does not exist on a touch screen at all. A saved term puts the
+      // empty state on screen, which is what the popup opens on.
+      const mql = window.matchMedia as unknown as ReturnType<typeof vi.fn>;
+      const answer = (matches: boolean) => (query: string) => ({
+        matches,
+        media: query,
+        onchange: null,
+        addListener: vi.fn(),
+        removeListener: vi.fn(),
+        addEventListener: vi.fn(),
+        removeEventListener: vi.fn(),
+        dispatchEvent: vi.fn(),
+      });
+      mql.mockImplementation(answer(true));
+      try {
+        localStorage.setItem("search-history:main", JSON.stringify(["kyoto"]));
+        renderWithShortcuts(<GlobalSearch />);
+        fireEvent.click(screen.getByLabelText("Search"));
+        // The mobile sheet's back arrow, so this pins the branch as well.
+        expect(screen.getByLabelText("Close")).toBeInTheDocument();
+
+        fireEvent.click(
+          await screen.findByRole("button", { name: /What the badges mean/ }),
+        );
+        expect(
+          screen.getByText(enMessages.search.matchFilenameHelp),
+        ).toBeInTheDocument();
+      } finally {
+        mql.mockImplementation(answer(false));
+        localStorage.removeItem("search-history:main");
+      }
     });
 
     it("is a target a thumb can hit", async () => {

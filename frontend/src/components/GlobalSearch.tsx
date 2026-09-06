@@ -108,18 +108,31 @@ export function GlobalSearch() {
   const [composing, setComposing] = useState(false);
   const [selectedIndex, setSelectedIndex] = useState(-1);
   /**
-   * The file the highlight is on, once the reader has put it somewhere.
+   * What the highlight is on, once the reader has put it somewhere.
    *
    * The highlight is a promise about where the next Enter lands, and the
    * list moves underneath it: the second stage reorders by relevance, so
    * the row at a given position is a different file a second later. A
    * position cannot keep that promise; a file can.
    *
-   * `null` while the reader has not moved it. An untouched highlight is
-   * not about any file, so it must not be pinned to one — the default
-   * belongs wherever the default belongs after a reorder.
+   * Three states, because two of them are not "a file" and they are not
+   * each other:
+   *
+   *  - `none` — the reader has not moved it. An untouched highlight is not
+   *    about anything, so it must not be fastened to a file.
+   *  - `tail` — the "view all results" row. A position, but a position in
+   *    the list's *shape*: it is the row after the last one, so it follows
+   *    the end of the list and Enter still runs the query. Collapsing this
+   *    into `none` leaves the index pinned to a number the list grows
+   *    past, and the row the reader chose becomes a file row underneath
+   *    them.
+   *  - `file` — the row they picked, followed by id.
    */
-  const highlightedIdRef = useRef<string | null>(null);
+  type Highlighted =
+    | { kind: "none" }
+    | { kind: "tail" }
+    | { kind: "file"; id: string };
+  const highlightedRef = useRef<Highlighted>({ kind: "none" });
   // Render mobile fullscreen vs. desktop modal based on viewport width.
   // Prior versions dual-rendered both DOM trees and relied on Tailwind
   // `sm:*` classes to hide one — but that surfaces both copies in
@@ -313,10 +326,14 @@ export function GlobalSearch() {
   // never moved.
   const mergedOrder = merged.map((f) => f.id).join("\u0000");
   useEffect(() => {
-    const held = highlightedIdRef.current;
-    if (held === null) return;
-    const next = merged.findIndex((file) => file.id === held);
-    if (next === -1) highlightedIdRef.current = null;
+    const held = highlightedRef.current;
+    if (held.kind === "none") return;
+    if (held.kind === "tail") {
+      setSelectedIndex(merged.length);
+      return;
+    }
+    const next = merged.findIndex((file) => file.id === held.id);
+    if (next === -1) highlightedRef.current = { kind: "none" };
     setSelectedIndex(next);
     // `merged` is deliberately absent: `mergedOrder` is the same fact in a
     // form that does not change when the array is rebuilt identically.
@@ -326,9 +343,21 @@ export function GlobalSearch() {
   // A new question, a new list. Nothing here is the same list moving, so
   // there is no file to keep pointing at.
   useEffect(() => {
-    highlightedIdRef.current = null;
+    highlightedRef.current = { kind: "none" };
     setSelectedIndex(-1);
-  }, [query, open, recentData]);
+  }, [query, open]);
+
+  // Recent files arriving replaces the *empty state's* list, and the index
+  // into that list is a position. It says nothing about a list of results,
+  // so it must not reach a highlight the reader put on one: a history reply
+  // landing after they arrowed onto a result would otherwise take the
+  // highlight off a row that never moved.
+  const queryIsEmpty = query.trim().length === 0;
+  useEffect(() => {
+    if (!queryIsEmpty) return;
+    highlightedRef.current = { kind: "none" };
+    setSelectedIndex(-1);
+  }, [recentData, queryIsEmpty]);
 
   useEffect(() => {
     if (selectedIndex < 0) return;
@@ -511,7 +540,19 @@ export function GlobalSearch() {
 
   function handleRemoveHistory(term: string, e: React.MouseEvent) {
     e.stopPropagation();
-    if (drive) setHistory(removeFromHistory(drive, term));
+    if (!drive) return;
+    // The empty state's rows are files then terms, in one index space, and
+    // taking one out shifts everything below it up. The highlight is a
+    // promise about where Enter lands here too, so it moves with the row
+    // it is on rather than staying on a number.
+    const removedIndex = emptyItems.findIndex(
+      (item) => item.kind === "term" && item.term === term,
+    );
+    if (removedIndex >= 0 && selectedIndex >= 0) {
+      if (removedIndex === selectedIndex) setSelectedIndex(-1);
+      else if (removedIndex < selectedIndex) setSelectedIndex(selectedIndex - 1);
+    }
+    setHistory(removeFromHistory(drive, term));
   }
 
   function handleFillInput(term: string, e: React.MouseEvent) {
@@ -550,14 +591,20 @@ export function GlobalSearch() {
    * at the old position — writing down whichever file had just slid under
    * the highlight, which is the accident this exists to prevent.
    *
-   * The "view all results" row is a position, not a file, and so is every
-   * row of the empty state, whose list a new query replaces outright.
+   * The empty state's rows are positions in a list of their own, which no
+   * reorder here touches; `handleRemoveHistory` is what keeps the
+   * highlight on its row when that list loses one.
    */
   function moveHighlight(next: (prev: number) => number) {
     setSelectedIndex((prev) => {
       const index = next(prev);
-      const file = showEmptyState ? undefined : merged[index];
-      highlightedIdRef.current = file ? file.id : null;
+      if (showEmptyState || index < 0) {
+        highlightedRef.current = { kind: "none" };
+      } else if (index >= merged.length) {
+        highlightedRef.current = { kind: "tail" };
+      } else {
+        highlightedRef.current = { kind: "file", id: merged[index].id };
+      }
       return index;
     });
   }
@@ -749,7 +796,13 @@ export function GlobalSearch() {
 
             {/* Body */}
             <div className="flex-1 overflow-y-auto">
-              {!drive ? (
+              {/* First in the chain, as on the desktop draw: the entry to
+                  it is always in the footer, so pressing it always
+                  answers — including over the empty state, which is what
+                  the popup opens on. */}
+              {legendOpen ? (
+                <MatchLegend />
+              ) : !drive ? (
                 <div className="py-12 text-center text-sm text-text-muted">
                   {t("goToDrive")}
                 </div>
@@ -764,8 +817,6 @@ export function GlobalSearch() {
                   onFillInput={handleFillInput}
                   onRemoveTerm={handleRemoveHistory}
                 />
-              ) : legendOpen ? (
-                <MatchLegend />
               ) : hasQuery ? (
                 resultsList(true)
               ) : null}

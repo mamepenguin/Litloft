@@ -1,11 +1,9 @@
 /**
  * The badges that say why a search result matched.
  *
- * One table, because there were two: `MergedResultItem` and `MatchOverlay`
- * each carried the same eight rows with the same tokens, and the legend
- * would have made three. A legend built from a different list than the
- * badges is a legend that can describe a badge nobody draws, and miss one
- * that is on screen.
+ * Every surface that draws these badges, and the legend that explains
+ * them, reads this table — so the legend cannot describe a badge nobody
+ * draws, and a badge cannot arrive without a sentence.
  *
  * `labelKey` is the `search` namespace key for the badge's own word, and
  * `helpKey` is the sentence the legend adds to it. Both live in

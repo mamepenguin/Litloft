@@ -128,8 +128,9 @@ describe("the search vocabulary core draws", () => {
       ]),
     ].sort();
     // Rule (7): the loop below is true of no keys at all, so the population
-    // is asserted first. Sixteen from the badge table, eight from the
-    // components' own calls.
+    // is asserted first. Sixteen from the badge table, seventeen distinct
+    // from the components' own calls (`matchedPages` is asked for by two of
+    // them).
     expect(used.length).toBe(33);
     const missing = used.filter((key) => !(key in namespaces[locale]));
     // Named, not counted: a failure should say which word is missing.
