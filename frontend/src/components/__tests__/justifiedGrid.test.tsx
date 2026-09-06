@@ -8,10 +8,27 @@
  * like no rule at all.
  */
 
-import { describe, it, expect, vi } from "vitest";
-import { fireEvent, render, screen } from "@testing-library/react";
+import { describe, it, expect, vi, beforeAll } from "vitest";
+import { cleanup, fireEvent, render, screen } from "@testing-library/react";
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
+
+// `TextThumbnail` observes itself into view; jsdom has no such observer,
+// and the preview fetch is not what these tests are about.
+beforeAll(() => {
+  vi.stubGlobal(
+    "IntersectionObserver",
+    class {
+      observe() {}
+      unobserve() {}
+      disconnect() {}
+      takeRecords() { return []; }
+      root = null;
+      rootMargin = "";
+      thresholds = [];
+    },
+  );
+});
 
 vi.mock("next/link", () => ({
   default: ({ children, href, ...props }: { children: React.ReactNode; href: string; [key: string]: unknown }) => (
@@ -41,6 +58,7 @@ vi.mock("@/lib/api", () => ({
 
 import { FileGrid } from "../FileGrid";
 import { JG_MAX_RATIO, JG_MIN_RATIO } from "@/lib/justifiedGrid";
+import { formatFileSize } from "@/lib/format";
 import type { FileItem } from "@/types";
 
 const makeFile = (overrides: Partial<FileItem> = {}): FileItem => ({
@@ -89,6 +107,11 @@ const clips = (n: number) =>
   Array.from({ length: n }, (_, i) =>
     makeFile({ id: `v${i}`, title: `Clip ${i}`, filename: `clip-${i}.mp4` }),
   );
+
+const css = readFileSync(
+  join(__dirname, "..", "..", "app", "globals.css"),
+  "utf8",
+);
 
 const grid = (c: HTMLElement) => c.querySelector(".justified-grid");
 const cells = (c: HTMLElement) => c.querySelectorAll(".justified-grid-cell");
@@ -170,19 +193,170 @@ describe("FileGrid — justified rows", () => {
     expect(grid(container)!.lastElementChild).toHaveClass("justified-grid-tail");
   });
 
+  it("gives that absorber a grow factor that dominates the cells", () => {
+    // The element existing is not the property. Free space on a flex
+    // line is shared in proportion to the grow factors, and every cell
+    // carries `flex-grow: var(--jg-ratio)` — up to `JG_MAX_RATIO`, summed
+    // across the line. At `flex-grow: 1` the absorber took 129px of the
+    // 590 going spare and the last row still stretched 1.645x (measured
+    // in Chromium on a 1469px grid). jsdom lays nothing out, so the
+    // factor itself is what is pinned here; the layout is measured in a
+    // browser.
+    const tail = css.match(
+      /\.justified-grid > \.justified-grid-tail \{([^}]*)\}/,
+    );
+    expect(tail).not.toBeNull();
+    const grow = Number(tail![1].match(/flex-grow:\s*([\d.]+)/)![1]);
+    // Three orders above the largest total a line can present: even a
+    // line of a hundred 3:1 panoramas sums to 300.
+    expect(grow).toBeGreaterThan(JG_MAX_RATIO * 1000);
+  });
+
   it("carries no meta row", () => {
-    render(<FileGrid files={photos(20)} />);
-    // The equal card draws the size and the relative date under the
-    // thumbnail. A justified cell has unequal widths, so it draws
-    // neither.
-    expect(screen.queryByText(/1000 KB|1 MB/)).toBeNull();
-    expect(screen.queryAllByText(/^jpg$/i)).toHaveLength(0);
+    // The fixtures are chosen so the card form would draw all three
+    // columns: mixed extensions turn the badge on, and the sizes are
+    // whatever `formatFileSize` really produces. The previous version of
+    // this test matched `/1000 KB|1 MB/` against a 1024000-byte file,
+    // which formats as "1000.0 KB" — and every row was a `.jpg`, so the
+    // badge was already off. It passed with the whole feature deleted.
+    const files = [
+      ...photos(19),
+      { ...photos(1)[0], id: "png", filename: "shot.png", title: "Shot PNG" },
+    ];
+    const { container } = render(<FileGrid files={files} />);
+
+    // The population is not empty, and it really is the justified form.
+    expect(cells(container)).toHaveLength(20);
+
+    const sizes = files.map((f) => formatFileSize(f.file_size));
+    expect(new Set(sizes).size).toBeGreaterThan(0);
+    for (const size of new Set(sizes)) {
+      expect(screen.queryByText(size)).toBeNull();
+    }
+    expect(screen.queryAllByText(/^(jpg|png)$/i)).toHaveLength(0);
+
+    // And the same rows on the card form do draw them — otherwise the
+    // assertions above are about fixtures that say nothing anywhere.
+    cleanup();
+    render(<FileGrid files={files.map((f) => ({ ...f, image_width: null, image_height: null }))} />);
+    expect(screen.getAllByText(sizes[0]).length).toBeGreaterThan(0);
+    expect(screen.queryAllByText(/^(jpg|png)$/i).length).toBeGreaterThan(0);
   });
 
   it("names every cell, for the hover band to reveal", () => {
     const { container } = render(<FileGrid files={photos(20)} />);
     const names = container.querySelectorAll(".justified-grid-name");
     expect(names).toHaveLength(20);
+  });
+
+  it("draws the ten percent that are not photographs as themselves", () => {
+    // `JUSTIFY_THRESHOLD` admits 10% non-image rows on purpose, so the
+    // cell has to answer for them. Both of these have no thumbnail, and
+    // both were drawing the shared placeholder — one picture for two
+    // different files.
+    const files = [
+      ...photos(18),
+      makeFile({
+        id: "txt",
+        title: "Notes",
+        filename: "notes.txt",
+        file_type: "document",
+        mime_type: "text/plain",
+        has_thumbnail: false,
+        duration: null,
+      }),
+      makeFile({
+        id: "zip",
+        title: "Archive",
+        filename: "backup.zip",
+        file_type: "archive",
+        mime_type: "application/zip",
+        has_thumbnail: false,
+        duration: null,
+      }),
+    ];
+    const { container } = render(<FileGrid files={files} />);
+
+    expect(cells(container)).toHaveLength(20);
+    // Eighteen photographs have a thumbnail; the other two must not.
+    expect(container.querySelectorAll("img")).toHaveLength(18);
+    expect(screen.getByTestId("text-thumbnail")).toBeInTheDocument();
+    // The archive gets a type icon — an `<svg>` from lucide, which is
+    // the only svg a justified cell draws apart from the selection tick
+    // (selection is off here).
+    expect(container.querySelectorAll("svg")).toHaveLength(1);
+  });
+
+  it("keeps a video's duration badge and mounts no player for it", () => {
+    // The badge is the half of the video answer the cell was dropping.
+    // The hover preview is the half it must not have: the grid host is a
+    // `container-type` context, and a containment context around a
+    // `<video>` renders its subtree rotated and spinning on iOS Safari
+    // (`DESIGN.md`, confirmed on device). Nothing on desktop reproduces
+    // that and no test can see it, so what is testable is the absence of
+    // the element — asserted here so nobody restores it for parity with
+    // `FileCard`, which is not under a container query.
+    const files = [
+      ...photos(18),
+      makeFile({
+        id: "v1",
+        title: "Clip",
+        filename: "clip.mp4",
+        file_type: "video",
+        duration: 125,
+      }),
+      makeFile({ id: "v2", title: "Clip 2", filename: "clip2.mp4", duration: null }),
+    ];
+    const { container } = render(<FileGrid files={files} />);
+
+    expect(cells(container)).toHaveLength(20);
+    expect(screen.getByText("2:05")).toBeInTheDocument();
+    expect(screen.queryAllByTestId("video-preview-container")).toHaveLength(0);
+  });
+
+  it("names every cell the same way, whatever it draws", () => {
+    // The name is on the link, not derived from the caption band — the
+    // band is decorative (`opacity: 0`, `pointer-events: none`) and a
+    // later change could hide it without anything noticing. The text
+    // branch renders the title of its own accord, so a name computed
+    // from contents said it twice there and once everywhere else.
+    const files = [
+      ...photos(18),
+      makeFile({
+        id: "txt",
+        title: "Notes",
+        filename: "notes.txt",
+        file_type: "document",
+        mime_type: "text/plain",
+        has_thumbnail: false,
+        duration: null,
+      }),
+      makeFile({
+        id: "zip",
+        title: "Archive",
+        filename: "backup.zip",
+        file_type: "archive",
+        mime_type: "application/zip",
+        has_thumbnail: false,
+        duration: null,
+      }),
+    ];
+    render(<FileGrid files={files} />);
+
+    for (const name of ["Photo 0", "Notes", "Archive"]) {
+      expect(screen.getByRole("link", { name })).toBeInTheDocument();
+    }
+    expect(screen.getAllByRole("link")).toHaveLength(20);
+  });
+
+  it("does not put the filename into the image's accessible name twice", () => {
+    // The caption band already names the cell, inside the same link.
+    const { container } = render(<FileGrid files={photos(20)} />);
+    const alts = [...container.querySelectorAll("img")].map((i) =>
+      i.getAttribute("alt"),
+    );
+    expect(alts).toHaveLength(20);
+    expect(alts.every((a) => a === "")).toBe(true);
   });
 
   it("keeps shift range selection in DOM order", () => {
@@ -210,11 +384,6 @@ describe("FileGrid — justified rows", () => {
 });
 
 describe("justified row geometry", () => {
-  const css = readFileSync(
-    join(__dirname, "..", "..", "app", "globals.css"),
-    "utf8",
-  );
-
   /**
    * The row height is CSS, so this is where it is pinned. It is a
    * container query rather than a media query because the grid renders
@@ -227,9 +396,21 @@ describe("justified row geometry", () => {
     expect(css).toContain("container-type: inline-size");
   });
 
-  it("shows the name without a hover where there is none", () => {
-    expect(css).toContain("@media (pointer: coarse)");
+  it("reveals the name on hover and on focus", () => {
+    // Both halves of "ホバーとフォーカスの両方", each named. The hover
+    // selector had no assertion at all before.
+    expect(css).toMatch(/\.group:hover > \.justified-grid-name/);
     expect(css).toMatch(/\.group:focus-within > \.justified-grid-name/);
+  });
+
+  it("shows the name without a hover where there is none", () => {
+    // `@media (pointer: coarse)` alone is not evidence: globals.css has
+    // carried such a block since before this feature, so `toContain`
+    // stayed green with the rule deleted. The block that has to exist is
+    // the one naming this class.
+    expect(css).toMatch(
+      /@media \(pointer: coarse\) \{\s*\.justified-grid-name \{[^}]*opacity:/,
+    );
   });
 
   it("gives the slack absorber no height", () => {

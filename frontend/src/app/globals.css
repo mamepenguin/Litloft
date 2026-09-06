@@ -1289,9 +1289,19 @@ div[data-citation-section-path]:not(tr) {
    would blow up to half a row each and read as the most important
    pictures in the folder. A zero-height absorber takes the slack; the
    height is zero rather than absent so the `gap` above it does not open
-   an empty row. */
+   an empty row.
+
+   The grow factor has to *dominate*, not merely participate. Free space
+   on a flex line is shared in proportion to the grow factors, and every
+   cell already carries `flex-grow: var(--jg-ratio)` — up to 3, and
+   summed across the line. At `flex-grow: 1` the absorber lost that
+   argument: measured on a 1469px grid, a three-cell last row still
+   stretched 1.645x while the absorber took 129px of the 590 going
+   spare. 9999 is three orders above the largest total a line can
+   present (3 x however many cells fit), so the residue is under a pixel
+   — measured 150.1px against a 150px basis. */
 .justified-grid > .justified-grid-tail {
-  flex-grow: 1;
+  flex-grow: 9999;
   flex-basis: 0;
   height: 0;
 }
