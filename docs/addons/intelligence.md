@@ -236,6 +236,15 @@ candidate pending; generation and dismissal do not write core chapters.
 
 ### Ask (RAG)
 
+The page names itself *Ask this drive*, offers an example question rather than
+echoing the `?q=` it was opened with, and puts the number of files it will read
+above the box — the same line *Find* carries, because a drive is a boundary and
+"found nothing" and "looked in the wrong place" read alike without it. The count
+comes from core's own drive listing and is simply absent when that call fails: a
+wrong number here would be read as the size of the index and believed. Under the
+box it says that answers take a few seconds and that transcripts and text are
+sent to the LLM API, before anything is sent.
+
 `POST /api/addons/intelligence/ask` is question answering over your library:
 
 - **Stage 1 (hierarchical, optional)** — coarse shortlist of files based on per-file summary embeddings. Bypassed for tiny drives (`min_drive_files_for_shortlist`) and when the top cosine is too low (`coarse_score_threshold`).
