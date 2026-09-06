@@ -653,7 +653,6 @@ export function FolderBrowser({
                 id="search-modes"
                 layout="stack"
                 props={{
-                  context: "page",
                   query: searchQuery ?? "",
                   drive: driveName,
                   filter: typeFilter ?? "all",

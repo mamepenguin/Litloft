@@ -65,6 +65,10 @@ vi.mock("@/components/AddonSlot", () => ({
     <div
       data-testid={`slot-${id}`}
       data-layout={String(layout ?? "")}
+      // The names separately from the values: `JSON.stringify` drops every
+      // function, so a callback prop is invisible in the serialized object
+      // and a test enumerating its keys would not see one arrive.
+      data-slot-prop-keys={Object.keys(props ?? {}).sort().join(",")}
       data-slot-props={JSON.stringify({
         ...props,
         // A function does not survive JSON; record only whether one arrived.
@@ -506,7 +510,13 @@ describe("what the header hands its children", () => {
     const slot = screen.getByTestId("slot-search-modes");
     expect(slot.getAttribute("data-layout")).toBe("stack");
     const props = JSON.parse(slot.getAttribute("data-slot-props")!);
-    expect(props.context).toBe("page");
+    // The slot is mounted in one place; these four are what that place
+    // hands over, and anything else arriving fails here. Read off the key
+    // list rather than the serialized object, which cannot show a
+    // function.
+    expect(slot.getAttribute("data-slot-prop-keys")).toBe(
+      "drive,filter,onSelect,query",
+    );
     expect(props.query).toBe("cats");
     expect(props.drive).toBe("main");
     expect(props.filter).toBe("video");
