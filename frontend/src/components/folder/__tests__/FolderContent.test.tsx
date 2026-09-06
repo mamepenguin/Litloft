@@ -20,9 +20,38 @@ vi.mock("@/components/FileList", () => ({
   ),
 }));
 
+/**
+ * The real component is exercised in its own file. This stub keeps the
+ * variant visible as a testid — and now draws the actions too, because
+ * the calls to action moved *inside* it: a stub that swallowed them would
+ * make every assertion about them pass whether or not this file passes any.
+ */
 vi.mock("@/components/EmptyState", () => ({
-  EmptyState: ({ variant }: { variant: string }) => (
-    <div data-testid={`empty-${variant}`}>Empty</div>
+  EmptyState: ({
+    variant,
+    title,
+    primaryAction,
+    secondaryActions,
+  }: {
+    variant?: string;
+    title?: React.ReactNode;
+    primaryAction?: { label: string; onClick?: () => void; href?: string };
+    secondaryActions?: readonly { label: string; onClick?: () => void; href?: string }[];
+  }) => (
+    <div data-testid={`empty-${variant ?? "custom"}`}>
+      {title}
+      {[primaryAction, ...(secondaryActions ?? [])].map((action) =>
+        !action ? null : action.href !== undefined ? (
+          <a key={action.label} href={action.href}>
+            {action.label}
+          </a>
+        ) : (
+          <button key={action.label} type="button" onClick={action.onClick}>
+            {action.label}
+          </button>
+        ),
+      )}
+    </div>
   ),
 }));
 

@@ -1,6 +1,8 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
+
+import { dispatchUploadEvent, useFilePicker } from "./useFilePicker";
 import {
   ChevronDown,
   File as FileIcon,
@@ -32,13 +34,6 @@ import type { UploadFileEntry } from "@/hooks/useUpload";
  * `ActionMenuItem` rows and are indistinguishable from the host's own.
  */
 export const ADD_MENU_SLOT = "folder-actions-menu";
-
-function dispatchUploadEvent(detail: File[] | UploadFileEntry[]) {
-  const uploadZone = document.querySelector<HTMLElement>("[data-upload-zone]");
-  if (uploadZone) {
-    uploadZone.dispatchEvent(new CustomEvent("upload-files", { detail }));
-  }
-}
 
 interface AddButtonProps {
   onCreateFolder?: () => void;
@@ -74,7 +69,7 @@ export function AddButton({
   const [menuOpen, setMenuOpen] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
   const triggerRef = useRef<HTMLButtonElement>(null);
-  const fileInputRef = useRef<HTMLInputElement>(null);
+  const filePicker = useFilePicker();
   const folderInputRef = useRef<HTMLInputElement>(null);
   const { hasSlot } = useAddonSlots();
   const showAddonRows = addonProps !== undefined && hasSlot(ADD_MENU_SLOT);
@@ -105,18 +100,7 @@ export function AddButton({
 
   return (
     <>
-      <input
-        ref={fileInputRef}
-        type="file"
-        multiple
-        className="hidden"
-        onChange={(e) => {
-          if (e.target.files) {
-            dispatchUploadEvent(Array.from(e.target.files));
-          }
-          e.target.value = "";
-        }}
-      />
+      {filePicker.input}
       <input
         ref={folderInputRef}
         type="file"
@@ -181,7 +165,7 @@ export function AddButton({
               label={tu("files")}
               onClick={() => {
                 closeMenu();
-                fileInputRef.current?.click();
+                filePicker.open();
               }}
             />
             <ActionMenuItem

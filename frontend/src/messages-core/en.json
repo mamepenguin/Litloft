@@ -416,7 +416,9 @@
     "noTrashTitle": "Trash is empty",
     "noTrashDescription": "Deleted files will appear here.",
     "noTagMatchesTitle": "No matches in this folder",
-    "noTagMatchesDescription": "Nothing here carries this tag."
+    "noTagMatchesDescription": "Nothing here carries this tag.",
+    "addFilesAction": "Add files",
+    "createNoteAction": "New note"
   },
   "theme": {
     "system": "System",

@@ -5,6 +5,7 @@ import type { FileItem } from "@/types";
 
 vi.mock("@/lib/api", () => ({
   getStreamUrl: (id: string) => `/api/files/${id}/stream`,
+  getDownloadUrl: (id: string) => `/api/files/${id}/stream?download=true`,
   getThumbnailUrl: (id: string) => `/api/files/${id}/thumbnail`,
 }));
 
@@ -180,7 +181,38 @@ describe("FilePreview", () => {
   it("renders fallback for unsupported files", () => {
     const file = makeFile({ file_type: "other", mime_type: "application/octet-stream", filename: "data.bin" });
     render(<FilePreview file={file} />);
-    expect(screen.getByText("data.bin")).toBeInTheDocument();
-    expect(screen.getByText("Preview not available")).toBeInTheDocument();
+    expect(screen.getByText(/data\.bin/)).toBeInTheDocument();
+    expect(
+      screen.getByRole("heading", { name: "Preview not available" }),
+    ).toBeInTheDocument();
+  });
+
+  /**
+   * The page said four times that it had nothing, and gave no way out. Both
+   * of these are `<a>`, not buttons: a download whose address cannot be
+   * copied or middle-clicked is a worse download, and
+   * `docs/user-guide/viewers-and-players.md` has described this action
+   * since before it existed.
+   */
+  it("offers the file itself when it cannot be previewed", () => {
+    const file = makeFile({ file_type: "other", mime_type: "application/octet-stream", filename: "data.bin" });
+    render(<FilePreview file={file} />);
+
+    const download = screen.getByRole("link", { name: "Download" });
+    expect(download).toHaveAttribute("href", expect.stringContaining("download=true"));
+    const open = screen.getByRole("link", { name: "Open in new tab" });
+    expect(open).toHaveAttribute("href", expect.stringContaining(`/files/${file.id}/stream`));
+    expect(open.getAttribute("href")).not.toContain("download=true");
+  });
+
+  // DESIGN.md §2.2 — one accent fill per screen, and this screen is the
+  // whole of the file's own area when nothing can be drawn in it.
+  it("spends one accent fill on the download", () => {
+    const file = makeFile({ file_type: "other", mime_type: "application/octet-stream", filename: "data.bin" });
+    const { container } = render(<FilePreview file={file} />);
+    const filled = [...container.querySelectorAll("[class*='bg-accent']")].filter(
+      (el) => !/bg-accent\//.test(el.className),
+    );
+    expect(filled.map((el) => el.textContent)).toEqual(["Download"]);
   });
 });

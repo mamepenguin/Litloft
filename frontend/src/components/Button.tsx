@@ -155,6 +155,29 @@ interface IconButtonProps extends Omit<CommonProps, "size"> {
 
 export type ButtonProps = LabelledButtonProps | IconButtonProps;
 
+/**
+ * The recipe, without the `<button>`.
+ *
+ * For the one case that is a destination rather than an action: a call to
+ * action that navigates has to be an `<a>`, or it loses the things a link
+ * is — a middle click, a copied address, the browser's own "open in new
+ * tab". `EmptyState` is that case. Nothing else should reach for this;
+ * a control that does something is a `Button`.
+ */
+export function buttonClass({
+  variant = "secondary",
+  size = "md",
+  className = "",
+}: {
+  variant?: ButtonVariant;
+  size?: ButtonSize;
+  className?: string;
+} = {}): string {
+  return [BASE_CLASS, VARIANT_CLASS[variant], SIZE_CLASS[size], DISABLED_CLASS, className]
+    .filter(Boolean)
+    .join(" ");
+}
+
 export function Button(props: ButtonProps) {
   const {
     variant = "secondary",
@@ -166,16 +189,11 @@ export function Button(props: ButtonProps) {
     ...rest
   } = props as CommonProps & { iconOnly?: boolean; children: ReactNode };
 
-  const classes = [
-    BASE_CLASS,
-    VARIANT_CLASS[variant],
-    iconOnly ? ICON_BOX_CLASS : SIZE_CLASS[size],
-    iconOnly ? COARSE_HIT_AREA : "",
-    DISABLED_CLASS,
-    className,
-  ]
-    .filter(Boolean)
-    .join(" ");
+  const classes = iconOnly
+    ? [BASE_CLASS, VARIANT_CLASS[variant], ICON_BOX_CLASS, COARSE_HIT_AREA, DISABLED_CLASS, className]
+        .filter(Boolean)
+        .join(" ")
+    : buttonClass({ variant, size, className });
 
   return (
     <button {...rest} type={type} className={classes}>

@@ -3,13 +3,16 @@
 import { useCallback, useState, type Ref } from "react";
 import dynamic from "next/dynamic";
 import { useTranslations } from "next-intl";
+import { FileQuestion } from "lucide-react";
 import type { FileItem } from "@/types";
+import { getDownloadUrl } from "@/lib/api";
 import { VideoPlayer } from "./VideoPlayer";
 import { AudioPlayer } from "./AudioPlayer";
 import { TextPreview, isTextPreviewable } from "./TextPreview";
 import { MarkdownFileViewer } from "./MarkdownPreview";
 import { HtmlPreview } from "./HtmlPreview";
 import { ArchivePreview } from "./ArchivePreview";
+import { EmptyState } from "@/components/EmptyState";
 import { FileTypeIcon } from "./FileTypeIcon";
 import { AddonSlot } from "./AddonSlot";
 import LoftPlayer from "./loft/LoftPlayer";
@@ -131,6 +134,7 @@ export function FilePreview({
   miniPlayerRoot,
 }: FilePreviewProps) {
   const t = useTranslations("file");
+  const tc = useTranslations("common");
   // Mirror the published MediaController locally so MiniPlayerContainer
   // can react to play/pause without requiring every caller of
   // FilePreview to thread the controller back down. The relay still
@@ -274,12 +278,26 @@ export function FilePreview({
     );
   }
 
+  /**
+   * Nothing to show, so say what can be done instead.
+   *
+   * This was an icon, a filename, a size and "Preview not available" —
+   * four lines that all say the same thing and none of which is a way
+   * out. The file is still openable, and `docs/user-guide/viewers-and-
+   * players.md` has described a Download action here since before one
+   * existed. Both are destinations, so both are links: a download the
+   * reader cannot copy the address of is worse than the `<a>` it should
+   * have been.
+   */
   return (
-    <div className="flex w-full flex-col items-center justify-center rounded-xl bg-bg-card py-16">
-      <FileTypeIcon fileType={file.file_type} size={64} className="mb-4 text-text-muted" />
-      <p className="text-sm text-text-muted">{file.filename}</p>
-      <p className="mt-1 text-xs text-text-muted">{formatFileSize(file.file_size)}</p>
-      <p className="mt-4 text-xs text-text-muted">{t("noPreview")}</p>
+    <div className="w-full rounded-xl bg-bg-card">
+      <EmptyState
+        icon={FileQuestion}
+        title={t("noPreview")}
+        description={`${file.filename} · ${formatFileSize(file.file_size)}`}
+        primaryAction={{ label: tc("download"), href: getDownloadUrl(file.id) }}
+        secondaryActions={[{ label: t("openInNewTab"), href: getStreamUrl(file.id) }]}
+      />
     </div>
   );
 }

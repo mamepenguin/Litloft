@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, type RefObject } from "react";
+import { SearchX } from "lucide-react";
 import { useTranslations } from "next-intl";
 
 import { useContextMenu } from "@/hooks/useContextMenu";
@@ -18,7 +19,7 @@ import { cardGridColumns } from "@/lib/cardGrid";
 
 import { FilterField } from "./FilterField";
 import { useFolderCardRename } from "./useFolderCardRename";
-import { WidenTagScopeLink, type WidenTagScope } from "./WidenTagScopeLink";
+import { type WidenTagScope } from "./WidenTagScopeLink";
 
 interface FolderContentProps {
   files: FileItemWithMatch[];
@@ -59,6 +60,14 @@ interface FolderContentProps {
    * 2026-08-21-folder-scoped-tag-filter §8 / §8.1).
    */
   widenTagScope?: WidenTagScope | null;
+  /**
+   * The same two doors the toolbar's add menu holds, for the folder that
+   * has nothing in it yet. Both are optional for the same reason the menu
+   * rows are: a view with no concrete folder to write into has nowhere to
+   * put a file, and offers neither.
+   */
+  onAddFiles?: () => void;
+  onCreateFile?: () => void;
 }
 
 export function FolderContent({
@@ -67,12 +76,14 @@ export function FolderContent({
   pinnedPaths, sentinelRef, dragState, isDropTarget, getDropTargetProps,
   selectedIds, onSelect, onMetaSelect, onShiftSelect, onTogglePin, onFavoriteToggle, onRefresh,
   onDragStart, onDragEnd, selectedCount, isDropDisabled, onFolderDragStart,
-  widenTagScope,
+  widenTagScope, onAddFiles, onCreateFile,
 }: FolderContentProps) {
   // Show folder-card drop targets for both local drags and cross-pane
   // drags originating from the tree pane.
   const isInternalDragging = useIsInternalDragging();
   const tFilter = useTranslations("filter");
+  const tToolbar = useTranslations("toolbar");
+  const tEmpty = useTranslations("empty");
   const [menuTarget, setMenuTarget] = useState<Folder | null>(null);
   const { menuState: folderMenuState, close: closeFolderMenu, handlers: folderMenuHandlers } = useContextMenu();
   const filter = useFolderFilter<FileItemWithMatch>(files, folders);
@@ -158,16 +169,11 @@ export function FolderContent({
           <div className="h-8 w-8 animate-spin rounded-full border-2 border-accent border-t-transparent" />
         </div>
       ) : isFilterEmpty ? (
-        <div className="flex flex-col items-center justify-center gap-3 py-12 text-sm text-text-muted">
-          <p>{tFilter("empty.folder")}</p>
-          <button
-            type="button"
-            onClick={filter.clear}
-            className="rounded-2xl border border-bg-border bg-bg-card px-4 py-2 text-sm text-text-primary transition-colors hover:bg-bg-elevated"
-          >
-            {tFilter("clear")}
-          </button>
-        </div>
+        <EmptyState
+          icon={SearchX}
+          title={tFilter("empty.folder")}
+          secondaryActions={[{ label: tFilter("clear"), onClick: filter.clear }]}
+        />
       ) : files.length === 0 && folders.length === 0 ? (
         // In search mode the FolderContent represents only the
         // filename/metadata-text match axis. The intelligence
@@ -185,12 +191,25 @@ export function FolderContent({
         ) : isRecentAdded ? (
           <EmptyState variant="no-recent-added" />
         ) : widenTagScope ? (
-          <div className="flex flex-col items-center">
-            <EmptyState variant="no-tag-matches" />
-            <WidenTagScopeLink scope={widenTagScope} className="-mt-8 mb-16 flex items-center gap-2 rounded-2xl bg-accent px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-accent-hover" />
-          </div>
+          <EmptyState
+            variant="no-tag-matches"
+            primaryAction={{
+              label: tToolbar("searchWholeDrive"),
+              href: widenTagScope.href,
+            }}
+          />
         ) : (
-          <EmptyState variant="no-files" />
+          <EmptyState
+            variant="no-files"
+            primaryAction={
+              onAddFiles ? { label: tEmpty("addFilesAction"), onClick: onAddFiles } : undefined
+            }
+            secondaryActions={
+              onCreateFile
+                ? [{ label: tEmpty("createNoteAction"), onClick: onCreateFile }]
+                : undefined
+            }
+          />
         )
       ) : viewMode === "grid" ? (
         <FileGrid

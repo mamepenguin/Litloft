@@ -23,12 +23,19 @@ interface ShortcutsContextValue {
   push(ctx: ShortcutContextDef): void;
   pop(id: string): void;
   stack: ShortcutContextDef[];
+  /**
+   * The cheat sheet has always answered `?`, and nothing on screen said so.
+   * The one caller is the search modal's footer, which is where someone
+   * looking for a keyboard already is.
+   */
+  openCheatSheet(): void;
 }
 
 export const ShortcutsContext = createContext<ShortcutsContextValue>({
   push: () => {},
   pop: () => {},
   stack: [],
+  openCheatSheet: () => {},
 });
 
 export function useShortcutsContext(): ShortcutsContextValue {
@@ -38,6 +45,7 @@ export function useShortcutsContext(): ShortcutsContextValue {
 export function ShortcutsProvider({ children }: { children: ReactNode }): ReactElement {
   const [stack, setStack] = useState<ShortcutContextDef[]>([]);
   const [cheatSheetOpen, setCheatSheetOpen] = useState(false);
+  const openCheatSheet = useCallback(() => setCheatSheetOpen(true), []);
 
   // Keep a ref to the latest stack so the keydown handler always sees it
   // without needing to be re-registered on every stack change.
@@ -145,7 +153,7 @@ export function ShortcutsProvider({ children }: { children: ReactNode }): ReactE
   }, [cheatSheetOpen]);
 
   return (
-    <ShortcutsContext.Provider value={{ push, pop, stack }}>
+    <ShortcutsContext.Provider value={{ push, pop, stack, openCheatSheet }}>
       {children}
       <ShortcutCheatSheet
         open={cheatSheetOpen}

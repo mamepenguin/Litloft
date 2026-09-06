@@ -416,7 +416,9 @@
     "noTrashTitle": "ゴミ箱は空です",
     "noTrashDescription": "削除されたファイルはここに表示されます。",
     "noTagMatchesTitle": "このフォルダには一致するファイルがありません",
-    "noTagMatchesDescription": "このタグが付いたファイルはここにありません。"
+    "noTagMatchesDescription": "このタグが付いたファイルはここにありません。",
+    "addFilesAction": "ファイルを追加",
+    "createNoteAction": "ノートを作成"
   },
   "theme": {
     "system": "システム",
