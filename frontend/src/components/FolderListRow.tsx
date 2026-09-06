@@ -128,9 +128,13 @@ export function FolderListRow({
         >
           {thumbnail}
           <div className="flex min-w-0 max-w-list-row flex-1 items-center gap-2">
-            <h3 className="min-w-0 flex-1 truncate text-sm font-semibold text-text-primary">
+            {/* Not a heading, for the reason the cards are not (D-5):
+                thirty sibling names in a listing are not thirty
+                sections, and list mode is one click from grid mode in
+                the same folder. The name is the row's link's. */}
+            <span className="min-w-0 flex-1 truncate text-sm font-semibold text-text-primary">
               {folder.name}
-            </h3>
+            </span>
             {meta}
           </div>
         </Link>

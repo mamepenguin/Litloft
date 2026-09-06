@@ -46,7 +46,8 @@ interface FolderNode {
   name: string;
   path: string;
   file_count: number;
-  thumbnail_file_id: string | null;
+  /** Per-kind totals, recursive, keyed by the kind vocabulary `?type=` takes. */
+  kind_counts?: Record<string, number>;
   dominant_kind?: string | null;
   subfolders?: FolderNode[];
 }

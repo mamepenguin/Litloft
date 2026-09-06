@@ -215,8 +215,16 @@ class DriveAddonPoliciesResponse(BaseModel):
 
 
 FolderKind = Literal[
-    "markdown", "video", "image", "pdf", "audio", "document", "other"
+    "markdown", "video", "image", "pdf", "audio", "document", "archive", "other"
 ]
+"""The vocabulary a folder's contents are described in.
+
+`FileKind` minus `subtitle`, which no surface offers a word for and
+`_classify_kind` folds into `other`. `archive` is here because the folder
+card names it: the Filter menu offers *Archive*, so a folder of zips
+saying "40 items · Other" beside a filter that returns those forty would
+be two names for one thing.
+"""
 
 
 class FolderResponse(BaseModel):

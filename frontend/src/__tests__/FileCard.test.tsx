@@ -55,6 +55,18 @@ const makeFile = (overrides: Partial<FileItem> = {}): FileItem => ({
 });
 
 describe("FileCard", () => {
+  it("keeps the title as the card's accessible name", () => {
+    // The title stopped being an `<h3>` (D-5), and dropping the tag must
+    // not drop the name: what a screen reader navigates a listing by is
+    // the link's name, so that is what is asserted rather than the text
+    // being present somewhere on the card.
+    render(<FileCard file={makeFile()} />);
+    expect(
+      screen.getByRole("link", { name: /Test Video/ }),
+    ).toBeInTheDocument();
+    expect(screen.queryByRole("heading")).toBeNull();
+  });
+
   it("renders file title", () => {
     render(<FileCard file={makeFile()} />);
     expect(screen.getByText("Test Video")).toBeInTheDocument();

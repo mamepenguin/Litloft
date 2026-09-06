@@ -73,6 +73,7 @@ function fileToKind(file: FileItem): FolderKind {
     return "markdown";
   }
   if (file.file_type === "document") return "document";
+  if (file.file_type === "archive") return "archive";
   return "other";
 }
 

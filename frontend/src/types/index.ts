@@ -121,6 +121,7 @@ export type FolderKind =
   | "pdf"
   | "audio"
   | "document"
+  | "archive"
   | "other";
 
 export interface Folder {

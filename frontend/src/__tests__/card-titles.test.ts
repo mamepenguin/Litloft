@@ -3,7 +3,7 @@ import { readFileSync, readdirSync, existsSync, statSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { resolve, dirname, relative } from "node:path";
 
-import { stripComments } from "./helpers/sourceScan";
+import { classAttributeSpans, stripComments } from "./helpers/sourceScan";
 
 /**
  * A card's title is not a heading.
@@ -77,34 +77,69 @@ function headingsIn(jsx: string): number {
  * and `cardTiles` asserts the extent it found is plausible so a
  * mis-parse fails loudly instead of silently returning an empty subtree.
  */
-function elementAt(body: string, at: number): string {
+function elementAt(body: string, at: number): string | null {
   const start = body.lastIndexOf("<", at);
-  if (start === -1) return "";
+  if (start === -1) return null;
   const tag = /^<([A-Za-z][\w.]*)/.exec(body.slice(start));
-  if (!tag) return "";
+  if (!tag) return null;
   const name = tag[1];
+
+  /**
+   * The `>` that ends the opening tag at `from`, and whether it closed
+   * the element outright.
+   *
+   * Not `indexOf(">")`: the first `>` after a tag name is very often
+   * inside an attribute — `onClick={() => …}` is the common case — and
+   * taking it misreads a plain element as self-closing, which drops its
+   * `</name>` from the count and truncates the subtree silently. Braces
+   * and quotes are tracked so the tag's own `>` is the one found.
+   */
+  const endOfTag = (from: number): { at: number; selfClosing: boolean } | null => {
+    let depth = 0;
+    let quote: string | null = null;
+    for (let i = from; i < body.length; i += 1) {
+      const ch = body[i];
+      if (quote) {
+        if (ch === "\\") i += 1;
+        else if (ch === quote) quote = null;
+        continue;
+      }
+      if (ch === '"' || ch === "'" || ch === "`") quote = ch;
+      else if (ch === "{") depth += 1;
+      else if (ch === "}") depth -= 1;
+      else if (ch === ">" && depth === 0) {
+        return { at: i, selfClosing: body[i - 1] === "/" };
+      }
+    }
+    return null;
+  };
+
+  // A tag-name boundary, so a `<Link>` does not count `<LinkButton` as a
+  // nested open — depth would never return to zero and the subtree would
+  // run to the end of the file, dragging unrelated headings in.
+  const opens = new RegExp(`<${name}(?=[\\s/>])`, "g");
+  const closes = new RegExp(`</${name}\\s*>`, "g");
+
   let i = start;
   let depth = 0;
   while (i < body.length) {
-    const open = body.indexOf(`<${name}`, i);
-    const close = body.indexOf(`</${name}`, i);
-    if (close === -1) return body.slice(start);
-    if (open !== -1 && open < close) {
-      // A self-closing open contributes no close to wait for.
-      const gt = body.indexOf(">", open);
-      if (gt !== -1 && body[gt - 1] === "/") {
-        i = gt + 1;
-        continue;
-      }
-      depth += 1;
-      i = open + name.length + 1;
+    opens.lastIndex = i;
+    closes.lastIndex = i;
+    const open = opens.exec(body);
+    const close = closes.exec(body);
+    if (!close) return null;
+    if (open && open.index < close.index) {
+      const end = endOfTag(open.index);
+      if (!end) return null;
+      if (!end.selfClosing) depth += 1;
+      i = end.at + 1;
       continue;
     }
     depth -= 1;
-    if (depth === 0) return body.slice(start, body.indexOf(">", close) + 1);
-    i = close + name.length + 2;
+    if (depth === 0) return body.slice(start, close.index + close[0].length);
+    i = close.index + close[0].length;
   }
-  return body.slice(start);
+  return null;
 }
 
 /**
@@ -118,15 +153,23 @@ function elementAt(body: string, at: number): string {
 function cardTiles(body: string): string[] {
   const stripped = stripComments(body);
   const out: string[] = [];
-  for (const m of stripped.matchAll(/className=(?:"([^"]*)"|\{`([^`]*)`\})/g)) {
-    const value = m[1] ?? m[2] ?? "";
-    if (!/\bshadow-card\b/.test(value)) continue;
-    const subtree = elementAt(stripped, m.index!);
-    // A tile that came back shorter than its own class list means the
-    // matcher lost the element; better to fail than to report zero.
-    expect(subtree.length).toBeGreaterThan(value.length);
-    out.push(subtree);
+  // `classAttributeSpans`, not a regex for `className="…"`: this tree
+  // writes class lists as ternaries, `cn(…)` calls and constants too,
+  // and a scan that reads only the two literal forms drops those
+  // elements out of the population without failing. `MiniPlayerContainer`
+  // is one — its `shadow-card` sits inside a ternary.
+  for (const [from, to] of classAttributeSpans(stripped)) {
+    if (!/\bshadow-card\b/.test(stripped.slice(from, to))) continue;
+    const subtree = elementAt(stripped, from);
+    // A tile the matcher could not delimit is a hole, not a pass.
+    expect(subtree, `unparsed card tile at offset ${from}`).not.toBeNull();
+    out.push(subtree!);
   }
+  // And the count itself: every `shadow-card` in the file is one tile.
+  // Without this a class form the scan cannot reach shrinks the
+  // population silently, which is the failure this whole file is for.
+  const mentions = [...stripped.matchAll(/\bshadow-card\b/g)].length;
+  expect(out.length).toBe(mentions);
   return out;
 }
 
@@ -172,24 +215,27 @@ describe("no card titles itself with a heading", () => {
     expect(offenders).toEqual([]);
   });
 
-  it("keeps the name reachable, as the card's own text", () => {
-    // Dropping the tag must not drop the name. Both cards still render
-    // the title inside the element that carries the link.
-    for (const rel of [
-      "frontend/src/components/FileCard.tsx",
-      "frontend/src/components/FolderCard.tsx",
-    ]) {
-      const body = readFileSync(resolve(REPO_ROOT, rel), "utf-8");
-      expect(body).toMatch(/\{(?:file\.title|folder\.name)\}/);
-    }
-  });
-
   it("holds the deferred one where it is", () => {
     // Not an exemption that can quietly widen: the drive picker's tile
     // carries exactly one heading today, and this says so.
     const body = readFileSync(resolve(REPO_ROOT, DEFERRED), "utf-8");
     const inTiles = cardTiles(body).reduce((n, t) => n + headingsIn(t), 0);
     expect(inTiles).toBe(1);
+  });
+});
+
+describe("list mode holds the same line", () => {
+  /**
+   * List rows are not card tiles, so the sweep above cannot see them —
+   * and list mode is one click from grid mode in the same folder, with
+   * the same thirty names in it. Asserted directly rather than left to
+   * the tile scan, which is keyed on a treatment a row does not carry.
+   */
+  it.each([
+    "frontend/src/components/FileListRow.tsx",
+    "frontend/src/components/FolderListRow.tsx",
+  ])("%s emits no heading either", (rel) => {
+    expect(headingsIn(readFileSync(resolve(REPO_ROOT, rel), "utf-8"))).toBe(0);
   });
 });
 

@@ -73,6 +73,27 @@ describe("FolderCard", () => {
     expect(screen.queryByText(/Audio/)).toBeNull();
   });
 
+  it("gives the breakdown the card's full width, not the strip beside the glyph", () => {
+    // Measured, not guessed: beside a 48px glyph inside a 160px card at
+    // 375px the meta had 68px, which cut "3 items · Document" mid-word —
+    // less than the bare count it replaced. Its own row gives it 128px
+    // there. jsdom lays nothing out, so what is pinned is the structure
+    // that produces the width: the meta is a sibling of the row holding
+    // the glyph, not a child of it.
+    const { container } = render(
+      <FolderCard folder={mixedFolder} {...baseFolderProps} />,
+    );
+    const meta = screen.getByText("138 items · Video 135 · Document 3");
+    const glyph = container.querySelector("svg")!;
+    // The meta's own parent spans the card: it holds the glyph too, one
+    // row up. In the layout this replaced, the meta lived inside the
+    // narrow text column beside the glyph, whose box holds no glyph.
+    expect(meta.parentElement!.contains(glyph)).toBe(true);
+    // And it is not inside the glyph's row, which is the strip.
+    const glyphRow = glyph.parentElement!.parentElement!;
+    expect(glyphRow.contains(meta)).toBe(false);
+  });
+
   it("says only the count for a folder with nothing in it", () => {
     render(<FolderCard folder={emptyFolder} {...baseFolderProps} />);
     expect(screen.getByText("0 items")).toBeInTheDocument();

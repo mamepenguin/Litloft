@@ -1,3 +1,4 @@
+import pytest
 import shutil
 from pathlib import Path
 
@@ -658,3 +659,97 @@ class TestListDriveFilesRecursive:
         assert untagged.json()["meta"]["total"] == 2
         assert tagged.json()["meta"]["total"] == 1
         assert tagged.json()["data"][0]["folder_path"] == "recipes/nested"
+
+
+class TestKindVocabularyParity:
+    """The card's label and the Filter menu's option are one vocabulary.
+
+    A folder card that says "40 items · Archive" is read beside a Filter
+    menu offering *Archive*, and the two are expected to name the same
+    forty rows. They are two functions — `_classify_kind` buckets a row,
+    `_apply_kind_filter` selects rows of a bucket — so nothing but this
+    holds them together. It is the same shape as the toolbar/URL pair in
+    `frontend/src/__tests__/searchTypeVocabulary.test.ts`.
+
+    Both sides run: each row is classified, then fetched back through
+    `?type=<that kind>`. A parity test whose two halves shared an
+    implementation would be asserting only that a function is
+    deterministic.
+    """
+
+    # (filename, file_type, mime_type, expected kind)
+    ROWS = [
+        ("clip.mp4", "video", "video/mp4", "video"),
+        ("shot.png", "image", "image/png", "image"),
+        ("song.mp3", "audio", "audio/mpeg", "audio"),
+        ("memo.txt", "document", "text/plain", "document"),
+        ("paper.pdf", "document", "application/pdf", "pdf"),
+        ("note.md", "document", "text/markdown", "markdown"),
+        ("backup.zip", "archive", "application/zip", "archive"),
+        # The rows the extension fallback exists for: written by
+        # something that did not record a real mime, so the column holds
+        # the octet-stream default. The listing finds these by filename,
+        # so the card has to count them the same way.
+        ("legacy.md", "document", "application/octet-stream", "markdown"),
+        ("legacy.pdf", "document", "application/octet-stream", "pdf"),
+    ]
+
+    @pytest.mark.parametrize("filename,file_type,mime_type,expected", ROWS)
+    def test_each_row_is_counted_as_the_kind_that_selects_it(
+        self, client, filename, file_type, mime_type, expected
+    ):
+        from app.models import File
+        from app.routers.drives import _classify_kind
+
+        c, db, drive_dir, data_dir = client
+        d = drive_dir / "one"
+        d.mkdir(exist_ok=True)
+        (d / filename).write_text("x")
+        db.add(
+            File(
+                filename=filename,
+                title=filename,
+                drive=TEST_DRIVE,
+                folder_path="one",
+                file_path=f"one/{filename}",
+                file_size=1,
+                file_type=file_type,
+                mime_type=mime_type,
+            )
+        )
+        db.commit()
+
+        assert _classify_kind(file_type, mime_type, filename) == expected
+
+        # The other side, through the API: the filter for that kind
+        # returns this row.
+        res = c.get(f"/api/drives/{TEST_DRIVE}/files?type={expected}&recursive=true")
+        assert res.status_code == 200
+        assert [f["filename"] for f in res.json()["data"]] == [filename]
+
+        # And the folder card counts it under the same name.
+        folders = c.get(f"/api/drives/{TEST_DRIVE}/folders").json()
+        assert folders[0]["kind_counts"] == {expected: 1}
+
+    def test_the_vocabulary_is_the_filter_menu_s_own(self, client):
+        """Every kind the classifier can emit is one `?type=` accepts.
+
+        The other direction is deliberately not asserted: `?type=subtitle`
+        exists and nothing classifies into it, because no surface offers
+        the filter or a word for the kind.
+        """
+        from app.routers.drives import _FLAT_FOLDER_KINDS, _KIND_MIMES, FileKind
+        from typing import get_args
+
+        emitted = set(_FLAT_FOLDER_KINDS) | set(_KIND_MIMES) | {"other"}
+        assert emitted <= set(get_args(FileKind))
+        assert emitted == {
+            "video",
+            "image",
+            "audio",
+            "document",
+            "archive",
+            "markdown",
+            "pdf",
+            "other",
+        }
