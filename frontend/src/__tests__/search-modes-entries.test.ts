@@ -29,33 +29,39 @@ interface SlotEntry {
   priority?: number;
 }
 
-function searchModeEntryIds(addon: string): string[] | null {
+/** The addon's `slots`, or `null` when the addon is not checked out. */
+function slotsOf(addon: string): Record<string, SlotEntry[]> | null {
   const manifest = resolve(REPO_ROOT, "addons", addon, "manifest.json");
-  // A clone without `--recurse-submodules` has no addon to read. Absent is
-  // absent, not empty — an empty answer here would satisfy an expectation
-  // of "no entries" and turn a missing checkout into a passing claim.
   if (!existsSync(manifest)) return null;
   const parsed = JSON.parse(readFileSync(manifest, "utf-8")) as {
     slots?: Record<string, SlotEntry[]>;
   };
-  return (parsed.slots?.["search-modes"] ?? []).map((entry) => entry.id);
+  return parsed.slots ?? {};
 }
 
 describe("the search-modes slot", () => {
-  const entries = searchModeEntryIds("intelligence");
+  const slots = slotsOf("intelligence");
+  /**
+   * A clone without `--recurse-submodules` has no manifest to read, and a
+   * test that quietly passes there says the claim held when nothing was
+   * checked. Skipped, so the absence is visible in the report.
+   *
+   * CI never takes this branch: the workflow checks out
+   * `submodules: recursive` and fails outright on an empty addon directory.
+   */
+  const whenPresent = it.skipIf(slots === null);
 
-  it("offers exactly the modes that draw something", () => {
-    if (entries === null) return; // submodule-less clone; see above
+  whenPresent("registers the slot it is being measured on", () => {
+    // Rule (7), and the one real vacuity risk here: a manifest with no
+    // `search-modes` key at all reads as an empty entry list, which is a
+    // different thing from a slot registered with nothing in it.
+    expect(Object.keys(slots!)).toContain("search-modes");
+  });
+
+  whenPresent("offers exactly the modes that draw something", () => {
     // `toEqual`, not a length or a `toContain`: the failure worth catching
     // is an entry arriving or leaving without anyone looking, and both
     // directions have now happened.
-    expect(entries).toEqual(["find-mode"]);
-  });
-
-  it("reads a manifest that has the slot at all", () => {
-    // Rule (7). "The entries are exactly these" would also hold of a
-    // manifest this function failed to parse into anything.
-    if (entries === null) return;
-    expect(entries.length).toBe(1);
+    expect(slots!["search-modes"].map((entry) => entry.id)).toEqual(["find-mode"]);
   });
 });

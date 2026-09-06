@@ -759,8 +759,8 @@ When enabled, the intelligence addon contributes:
 - **Drive home** — *Pickup*, a carousel of files you have never opened, with a link through to the full feed at `/drive/{drive}/addons/intelligence/pickup` once it holds at least 40
 - **File `[...]` menu** — *Index details*, a dialog showing per-task state with a *Regenerate* button for each task (`metadata`, `clip`, `whisper`, `text`) plus recent provider stats for failure context. It sits in the overflow menu rather than in the inspector because it answers an operator's question, not a reader's.
 - **Folder actions** — inside the folder toolbar's **Add** menu: *Create AI tag candidates…*,
-  *Create AI summaries…*, *Create image descriptions…*, plus *Refine all transcripts in folder*.
-  The first three each ask before they start, and the question says how many files it is about.
+  *Create AI summaries…*, and *Create image descriptions…*.
+  Each one asks before it starts, and the question says how many files it is about.
   That number is the rows the folder has loaded, which part-way down a long folder is not the
   whole folder — which is why it is in the question rather than in the label, where it would
   change as you scroll. Declining sends nothing and leaves the row usable.
