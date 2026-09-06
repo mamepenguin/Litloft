@@ -423,6 +423,27 @@ describe("TwoPaneLayout — the tree borrows the sidebar's place", () => {
    * lands the reader on a screen with nothing on it.
    */
   describe("a narrow window", () => {
+    /**
+     * ...on the very first painted frame, not after an effect corrects it.
+     * A passive effect runs after paint, so a width read there would paint
+     * one frame of the exact screen this rule prevents — and
+     * `hasEverEnabled` latches inside that frame, mounting the tree pane
+     * and firing its folder-tree fetch and WebSocket subscription for a
+     * tree that is then suppressed for the whole session, on the device
+     * where that costs most. A settled measurement cannot see either half.
+     */
+    it("never renders a frame of the tree over the content", async () => {
+      besideMatches = false;
+      renderPane();
+      // No `waitFor`: the assertion is about the first render, so waiting
+      // would be waiting for the correction rather than for the state.
+      expect(document.querySelector("aside")!.className).toContain("w-0");
+      expect(mockGetFolderTree).not.toHaveBeenCalled();
+
+      await waitFor(() => expect(screen.getByText("right")).toBeInTheDocument());
+      expect(mockGetFolderTree).not.toHaveBeenCalled();
+    });
+
     it("shows the content, not a full-viewport tree", async () => {
       besideMatches = false;
       renderPane();
@@ -460,6 +481,41 @@ describe("TwoPaneLayout — the tree borrows the sidebar's place", () => {
         ),
       );
       expect(document.querySelector("aside")).not.toHaveAttribute("aria-hidden", "true");
+    });
+
+    /**
+     * A request made below `md` is about the screen in front of you, so it
+     * dies when that screen goes. Kept, it comes back on a rotation the
+     * reader never asked anything on — with the stored preference off, so
+     * the width rule cannot catch it either.
+     */
+    it("forgets the narrow request once the window is wide again", async () => {
+      besideMatches = false;
+      treeEnabledStore.set("work", false);
+      renderPane();
+      await waitFor(() => expect(screen.getByText("right")).toBeInTheDocument());
+
+      await act(async () => {
+        treeNarrowOpenStore.set("work", true);
+      });
+      await waitFor(() =>
+        expect(document.querySelector("aside")!.className).toContain("w-[100vw]"),
+      );
+
+      // Rotate to landscape: the request stops applying...
+      await act(async () => {
+        setViewportBeside(true);
+      });
+      await waitFor(() =>
+        expect(document.querySelector("aside")!.className).toContain("w-0"),
+      );
+      expect(treeNarrowOpenStore.get("work")).toBe(false);
+
+      // ...and back to portrait, where nobody has asked for anything.
+      await act(async () => {
+        setViewportBeside(false);
+      });
+      expect(document.querySelector("aside")!.className).toContain("w-0");
     });
 
     it("still opens full-viewport when the reader asks for it there", async () => {

@@ -21,7 +21,7 @@ import { useSelection } from "@/hooks/useSelection";
 import { useDragAndDrop } from "@/hooks/useDragAndDrop";
 import { useFolderSort, useFolderViewMode } from "@/hooks/useFolderViewMode";
 import { useSelectedFile } from "@/hooks/useSelectedFile";
-import { useTreeEnabled } from "@/hooks/useTreeEnabled";
+import { useTreeVisible } from "@/hooks/useTreeVisible";
 import { buildListSnapshotKey, clearListSnapshot, loadListSnapshot, saveListSnapshot } from "@/lib/listSnapshot";
 import { useScrollContainer } from "@/lib/scrollContainer";
 import { deriveDominantKind } from "@/lib/dominantKind";
@@ -190,13 +190,16 @@ export function FolderBrowser({
     snapshotMode === "grid" || snapshotMode === "list" ? snapshotMode : "grid",
   );
   const viewMode: ViewMode = isFolderAnchored ? folderViewMode.viewMode : globalViewMode;
-  const { enabled: treeEnabled } = useTreeEnabled(driveName);
+  // The effective state: this asks what is on screen, and below `md` a
+  // stored "on" is suppressed. Reading the stored key here would hide the
+  // toolbar for a pane that is not there.
+  const { visible: treeVisible } = useTreeVisible(driveName);
   const { fileId: selectedFileId } = useSelectedFile();
   const scrollContainerRef = useScrollContainer();
   // While the user is reading a file in the tree's right pane, the
   // FolderToolbar's folder-targeted actions (upload, new folder, sort, ...)
   // are noise — hide on every viewport.
-  const hideToolbar = treeEnabled && selectedFileId !== null && selectedFileId.length > 0;
+  const hideToolbar = treeVisible && selectedFileId !== null && selectedFileId.length > 0;
 
   const didRestoreScrollRef = useRef(false);
   useLayoutEffect(() => {

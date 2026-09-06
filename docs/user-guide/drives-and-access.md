@@ -77,7 +77,9 @@ If `passwords.json` is empty (`[]`) or absent, every viewer is implicitly an adm
 
 The drive you are in is the row at the top of the sidebar, under the Litloft logo. Press it to
 open the others and pick one. On surfaces that belong to no drive — the root page and
-`/admin` — there is nothing to name, so the list is simply shown open.
+`/admin` — that row names the list instead, as "Drives (4)", and folds the same way.
+It starts folded, and folds again whenever you arrive somewhere new, so it is
+open only while you are asking it something.
 
 Only drives you can currently see are listed. A protected drive you have not unlocked is
 absent from the list, exactly as it is absent from the root page and from the API: its

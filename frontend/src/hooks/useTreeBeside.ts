@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useCallback, useSyncExternalStore } from "react";
 
 /**
  * Can the tree and the content sit side by side?
@@ -17,21 +17,30 @@ import { useEffect, useState } from "react";
 export const TREE_BESIDE_QUERY = "(min-width: 768px)"; // Tailwind `md`
 
 export function useTreeBeside(): boolean {
-  // True on the server and on the first client frame: the tree is drawn
-  // by CSS width at `md`, so starting wide and narrowing matches what the
-  // stylesheet would have painted anyway.
-  const [beside, setBeside] = useState(true);
-  useEffect(() => {
-    // jsdom omits `matchMedia`, and this hook is now reached from every
-    // screen that draws a toolbar. Keeping the default rather than
-    // throwing puts those screens where the stylesheet would have put
-    // them at `md`; a test that cares about the narrow case stubs it.
-    if (typeof window.matchMedia !== "function") return;
+  // `useSyncExternalStore`, not `useState` + `useEffect`. A passive effect
+  // runs after paint, so on a phone the first painted frame would be the
+  // wide answer — a full-viewport tree over the folder, which is the exact
+  // screen this rule exists to prevent — and anything deriving its initial
+  // state from that frame would latch the wrong value for the session.
+  //
+  // jsdom omits `matchMedia`, and this hook is reached from every screen
+  // with a toolbar. Answering "beside" there puts those screens where the
+  // stylesheet would have put them at `md`; a test that cares about the
+  // narrow case stubs it.
+  const subscribe = useCallback((onChange: () => void) => {
+    if (typeof window.matchMedia !== "function") return () => {};
     const mql = window.matchMedia(TREE_BESIDE_QUERY);
-    const sync = () => setBeside(mql.matches);
-    sync();
-    mql.addEventListener("change", sync);
-    return () => mql.removeEventListener("change", sync);
+    mql.addEventListener("change", onChange);
+    return () => mql.removeEventListener("change", onChange);
   }, []);
-  return beside;
+  return useSyncExternalStore(
+    subscribe,
+    () =>
+      typeof window.matchMedia === "function"
+        ? window.matchMedia(TREE_BESIDE_QUERY).matches
+        : true,
+    // The server has no viewport. `md` is the wider branch and the one the
+    // stylesheet paints without JavaScript.
+    () => true,
+  );
 }

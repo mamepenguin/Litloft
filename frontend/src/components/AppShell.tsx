@@ -18,8 +18,7 @@ function MenuButton() {
       aria-label={t("menu")}
       // The sidebar and the tree are the two surfaces that name where you
       // are, and only one of them holds that job at a time, so both
-      // controls have to say which. This one said nothing at all — no
-      // pressed state to a screen reader and none on screen.
+      // controls have to say which.
       aria-pressed={isOpen}
       // PWA safe-area: when iOS runs in standalone mode the viewport
       // can extend under the status bar, so anchor the fixed menu

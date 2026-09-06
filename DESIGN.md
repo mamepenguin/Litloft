@@ -823,6 +823,10 @@ colour**, never with a fill.
   - **Overlay** (viewport < 1200px, **or** file detail / knowledge addon at any width): slides over content with a `z-30 bg-black/50` backdrop. Closes on backdrop click and `ESC`. Body scroll is locked while open. State is ephemeral — not persisted.
 - Transitioning into overlay mode forces closed initial state; transitioning out restores the persisted global preference.
 
+- Nav-item click behavior: **inline mode keeps the sidebar open** across navigations; **overlay mode closes it** before the route change so the backdrop is gone on arrival. The hamburger, backdrop click, and `ESC` always close regardless of mode. Overlay mode and inline mode share the same sidebar layout — no empty top bar; the first visible row is the logo.
+- Menu (hamburger) button lives outside the sidebar as a `fixed top-3 left-3 z-50` floating control, visible in all states (sidebar open or closed, inline or overlay). The sidebar's logo row uses `pl-12` so the button visually sits in the sidebar's top-left without overlap.
+- Transform transition: `duration-150 ease-out`. Layout padding transition: `duration-150 ease-out`.
+
 #### The three axes of "where you are"
 
 The sidebar's location surface has three independent pieces of state. **They are not
@@ -834,6 +838,12 @@ answers unreachable.
 | Is the sidebar open? | `SidebarProvider.isOpen` | `localStorage["sidebar-open"]` | open | same | same |
 | Is it lending its place? | `SidebarProvider.routeOverlay` ＋ `narrow` | no | not lending | width only — there is no tree here | width, **or** the folder tree being open |
 | Is the drive list open? | `SidebarDriveSwitcher.open` | no | folded | opens from the "Drives (N)" row | opens from the current-drive row |
+
+**One exception, on both sides of that last row.** With a single visible drive
+there is nothing to fold into and nothing to fold: on a drive the current-drive
+row is a label rather than a button, and off one there is no fold row at all and
+the list is drawn open. Folded or open it is one line either way, so a control
+would turn one line into two — and a choice between one thing is not a choice.
 
 **Exclusivity (NAV-2).** The sidebar and the folder tree both name where you are, and
 design principle 3 allows one such surface at a time, so the tree borrows the sidebar's
@@ -862,9 +872,6 @@ so `/` is not a state the sidebar remembers.
 **Thresholds are per question.** The tree uses `md` (768px): can the tree and the content
 sit side by side? The sidebar uses 1200px: can the sidebar and the content? Two questions,
 two numbers, and merging them would answer one of them with the other's measurement.
-- Nav-item click behavior: **inline mode keeps the sidebar open** across navigations; **overlay mode closes it** before the route change so the backdrop is gone on arrival. The hamburger, backdrop click, and `ESC` always close regardless of mode. Overlay mode and inline mode share the same sidebar layout — no empty top bar; the first visible row is the logo.
-- Menu (hamburger) button lives outside the sidebar as a `fixed top-3 left-3 z-50` floating control, visible in all states (sidebar open or closed, inline or overlay). The sidebar's logo row uses `pl-12` so the button visually sits in the sidebar's top-left without overlap.
-- Transform transition: `duration-150 ease-out`. Layout padding transition: `duration-150 ease-out`.
 
 ### Inspector tab strip
 

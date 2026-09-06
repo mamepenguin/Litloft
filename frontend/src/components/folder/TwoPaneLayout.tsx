@@ -10,9 +10,7 @@ import { ScrollContainerContext } from "@/lib/scrollContainer";
 
 import { useGuardedRouter } from "@/hooks/useGuardedRouter";
 import { useSelectedFile } from "@/hooks/useSelectedFile";
-import { useTreeEnabled } from "@/hooks/useTreeEnabled";
 import { useTreeVisible } from "@/hooks/useTreeVisible";
-import { useTreeBeside } from "@/hooks/useTreeBeside";
 import { treeNarrowOpenStore } from "@/lib/treeNarrowOpenStore";
 import { TreeRefreshContext } from "@/components/TreeRefreshContext";
 import { useOverlaySidebarWhen } from "@/components/SidebarProvider";
@@ -80,7 +78,7 @@ export function TwoPaneLayout({
   const router = useGuardedRouter();
   const pathname = usePathname();
   const { fileId, selectFile, clearFile } = useSelectedFile();
-  const { enabled: treeEnabled, setEnabled: setTreeEnabled } = useTreeEnabled(drive);
+
 
   // Explicit tree refresh key — allows FolderBrowser (and other children)
   // to signal the tree to re-fetch after mutations even when a WS event
@@ -138,7 +136,6 @@ export function TwoPaneLayout({
   // Both come from `useTreeVisible`, which the toolbar's toggle also
   // reads, so the button cannot report "on" over a tree that is not there.
   const { visible: treeOpen, beside: treeBeside } = useTreeVisible(drive);
-  const beside = useTreeBeside();
 
   // NAV-2. The sidebar and the tree both name where you are, and design
   // principle 3 allows one such surface at a time. The tree borrows the
@@ -176,13 +173,7 @@ export function TwoPaneLayout({
             <div className="flex items-center justify-end border-b border-bg-border p-1 md:hidden">
               <button
                 type="button"
-                onClick={() => {
-                  // The narrow tree is a request about this screen, so
-                  // dismissing it must not rewrite the setting a wider
-                  // window reads.
-                  treeNarrowOpenStore.set(drive, false);
-                  if (beside) setTreeEnabled(false);
-                }}
+                onClick={() => treeNarrowOpenStore.set(drive, false)}
                 aria-label={tView("treeOff")}
                 className="rounded-lg p-2 text-text-muted hover:text-text-primary"
               >

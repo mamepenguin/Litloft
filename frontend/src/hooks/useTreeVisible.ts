@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useSyncExternalStore } from "react";
+import { useCallback, useEffect, useSyncExternalStore } from "react";
 
 import { useTreeBeside } from "@/hooks/useTreeBeside";
 import { useTreeEnabled } from "@/hooks/useTreeEnabled";
@@ -40,6 +40,15 @@ export function useTreeVisible(drive: string): UseTreeVisibleResult {
     () => treeNarrowOpenStore.get(drive),
     () => false,
   );
+
+  // A request made below `md` dies the moment it stops applying. The
+  // module holds it for the life of the tab otherwise, so a tablet rotated
+  // to landscape and back would find the full-viewport tree waiting on a
+  // screen where nobody asked for it — with the stored preference off, so
+  // the width rule could not catch it either.
+  useEffect(() => {
+    if (beside) treeNarrowOpenStore.set(drive, false);
+  }, [beside, drive]);
 
   const visible = beside ? enabled : narrowOpen;
 
