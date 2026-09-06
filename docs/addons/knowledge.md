@@ -300,6 +300,8 @@ Alongside it, a **Create note** action in any file's `[...]` menu creates a stub
 
 Edges present in both are deduplicated. Nodes can be coloured by file type, tag, folder, or flat, and the view can be focused on one file to a chosen depth. Notes with no connection at all are listed separately as unlinked notes rather than drawn as floating dots.
 
+A legend names whichever grouping is in use, and it follows the interface language. Colouring by file type reads *Markdown / Video / Image / PDF / Other* in English and the same five in Japanese — `Markdown` and `PDF` stay as they are, being names rather than words. Colouring by tag or folder shows the data itself, which is not translated; the one exception is the drive root, which has no folder name to show and is named as the root in the reading language. Flat colouring shows no legend, there being one colour to explain.
+
 Two honesty guards: above roughly 200 nodes the UI suggests picking a centre file, and if the core returns a full page of relations (5000) the response is marked truncated and the UI says the graph is incomplete instead of presenting a partial picture as whole.
 
 ## Note scanner
