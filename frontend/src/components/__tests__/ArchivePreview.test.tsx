@@ -27,7 +27,7 @@ vi.mock("../ViewToggle", () => ({
 function renderWithShortcuts(ui: ReactNode) {
   return render(<ShortcutsProvider>{ui}</ShortcutsProvider>);
 }
-import type { ArchiveContents } from "@/types";
+import type { ArchiveContents, ArchiveEntry } from "@/types";
 
 const mockArchive: ArchiveContents = {
   entries: [
@@ -381,6 +381,37 @@ describe("ArchivePreview", () => {
   });
 });
 
+
+/**
+ * The controller, once it actually holds the archive.
+ *
+ * Reading `getState()` straight after the grid appears assumes the
+ * store's effect has run for the *loaded* archive rather than for the
+ * `null` the fetch sets first. That assumption held in file order and
+ * broke under `--sequence.shuffle` in CI, where the lookup returned
+ * `undefined` and the press threw on `entry.is_dir`. Waiting for the
+ * thing being read removes the assumption instead of hiding it.
+ */
+async function loadedEntries(
+  controller: () => import("@/lib/archiveController").ArchiveController | null,
+) {
+  await waitFor(() => {
+    expect(controller()?.getState().entries.length).toBeGreaterThan(0);
+  });
+  return controller()!.getState().entries;
+}
+
+/** Fails by name rather than by `undefined` reaching the component. */
+function entryAt(entries: ArchiveEntry[], path: string) {
+  const found = entries.find((e) => e.path === path);
+  if (!found) {
+    throw new Error(
+      `no archive entry at ${path}; have ${entries.map((e) => e.path).join(", ")}`,
+    );
+  }
+  return found;
+}
+
 describe("ArchivePreview — the index's press", () => {
   it("publishes the whole archive and the level to the inspector", async () => {
     // The controller is handed over once and updated in place — the
@@ -460,9 +491,10 @@ describe("ArchivePreview — the index's press", () => {
     await screen.findByText("cover.jpg");
     mockPush.mockClear();
 
-    const dir = controller!
-      .getState()
-      .entries.find((e) => e.path === "chapter1/")!;
+    const dir = entryAt(
+      await loadedEntries(() => controller),
+      "chapter1/",
+    );
     controller!.open(dir);
 
     expect(mockPush).toHaveBeenCalledWith("?archivePath=chapter1");
@@ -487,9 +519,10 @@ describe("ArchivePreview — the index's press", () => {
     await screen.findByText("cover.jpg");
     mockPush.mockClear();
 
-    const deep = controller!
-      .getState()
-      .entries.find((e) => e.path === "chapter1/002.jpg")!;
+    const deep = entryAt(
+      await loadedEntries(() => controller),
+      "chapter1/002.jpg",
+    );
     await act(async () => {
       controller!.open(deep);
     });
@@ -536,12 +569,14 @@ describe("ArchivePreview — the index's press", () => {
     );
     await screen.findByText("cover.jpg");
 
-    const deep = controller!
-      .getState()
-      .entries.find((e) => e.path === "chapter1/002.jpg")!;
-    const here = controller!
-      .getState()
-      .entries.find((e) => e.path === "readme.txt")!;
+    const deep = entryAt(
+      await loadedEntries(() => controller),
+      "chapter1/002.jpg",
+    );
+    const here = entryAt(
+      await loadedEntries(() => controller),
+      "readme.txt",
+    );
     await act(async () => {
       controller!.open(deep);
     });
@@ -578,9 +613,10 @@ describe("ArchivePreview — the index's press", () => {
     );
     await screen.findByText("cover.jpg");
 
-    const deep = controller!
-      .getState()
-      .entries.find((e) => e.path === "chapter1/002.jpg")!;
+    const deep = entryAt(
+      await loadedEntries(() => controller),
+      "chapter1/002.jpg",
+    );
     controller!.open(deep);
 
     // The reader presses the root breadcrumb instead — the real control,
@@ -626,9 +662,10 @@ describe("ArchivePreview — the index's press", () => {
     await screen.findByText("cover.jpg");
     mockPush.mockClear();
 
-    const here = controller!
-      .getState()
-      .entries.find((e) => e.path === "readme.txt")!;
+    const here = entryAt(
+      await loadedEntries(() => controller),
+      "readme.txt",
+    );
     controller!.open(here);
 
     expect(mockPush).not.toHaveBeenCalled();
