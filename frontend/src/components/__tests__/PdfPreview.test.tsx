@@ -1,8 +1,28 @@
-import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { act, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { useEffect, type ReactNode } from "react";
-import { describe, expect, it, vi } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { PdfPreview } from "../PdfPreview";
+import { ShortcutsProvider } from "../ShortcutsProvider";
+
+/**
+ * What the mocked document says it holds. Set per test before rendering.
+ *
+ * `getOutline` is part of the contract this component reads, so the fake has
+ * to answer it: a fake that omits it exercises only the branch where the call
+ * throws, and the outline path would then be untested while looking covered.
+ */
+const pdfDoc = {
+  numPages: 8,
+  outline: null as unknown,
+  getOutline: async () => pdfDoc.outline,
+  getDestination: async (name: string) => pdfDoc.destinations[name] ?? null,
+  getPageIndex: async (ref: unknown) => (ref as { index: number }).index,
+  destinations: {} as Record<string, unknown>,
+};
+
+/** How many times a `<Page>` was drawn, across every render of the document. */
+let pageRenders: number[] = [];
 
 vi.mock("react-pdf", () => ({
   pdfjs: { GlobalWorkerOptions: {} },
@@ -11,15 +31,26 @@ vi.mock("react-pdf", () => ({
     onLoadSuccess,
   }: {
     children: ReactNode;
-    onLoadSuccess: (pdf: { numPages: number }) => void;
+    onLoadSuccess: (pdf: unknown) => void;
   }) => {
-    useEffect(() => onLoadSuccess({ numPages: 8 }), [onLoadSuccess]);
+    useEffect(() => {
+      onLoadSuccess(pdfDoc);
+    }, [onLoadSuccess]);
     return <div>{children}</div>;
   },
-  Page: ({ pageNumber }: { pageNumber: number }) => (
-    <div data-pdf-page={pageNumber}>Selectable page {pageNumber}</div>
-  ),
+  Page: ({ pageNumber }: { pageNumber: number }) => {
+    pageRenders.push(pageNumber);
+    return <div data-pdf-page={pageNumber}>Selectable page {pageNumber}</div>;
+  },
 }));
+
+beforeEach(() => {
+  pdfDoc.numPages = 8;
+  pdfDoc.outline = null;
+  pdfDoc.destinations = {};
+  pdfDoc.getOutline = async () => pdfDoc.outline;
+  pageRenders = [];
+});
 
 describe("PdfPreview", () => {
   it("publishes the current page as the non-OCR fallback", async () => {
@@ -102,5 +133,349 @@ describe("PdfPreview", () => {
       kind: "page",
       locator: { page: 5 },
     });
+  });
+});
+
+describe("PdfPreview page navigation", () => {
+  const pageBox = () => screen.getByLabelText("Page number") as HTMLInputElement;
+
+  function renderViewer(props: Partial<React.ComponentProps<typeof PdfPreview>> = {}) {
+    return render(
+      <ShortcutsProvider>
+        <PdfPreview fileId="pdf123456789" title="Paper" {...props} />
+      </ShortcutsProvider>,
+    );
+  }
+
+  it("goes to a page typed into the box and confirmed with Enter", async () => {
+    renderViewer();
+    await screen.findByText("Selectable page 1");
+
+    fireEvent.change(pageBox(), { target: { value: "5" } });
+    fireEvent.keyDown(pageBox(), { key: "Enter" });
+
+    expect(await screen.findByText("Selectable page 5")).toBeInTheDocument();
+    expect(pageBox().value).toBe("5");
+  });
+
+  it("goes to a page confirmed by leaving the box", async () => {
+    renderViewer();
+    await screen.findByText("Selectable page 1");
+
+    fireEvent.change(pageBox(), { target: { value: "4" } });
+    fireEvent.blur(pageBox());
+
+    expect(await screen.findByText("Selectable page 4")).toBeInTheDocument();
+  });
+
+  it("puts the box back rather than moving to an edge", async () => {
+    renderViewer();
+    await screen.findByText("Selectable page 1");
+
+    for (const bad of ["0", "9", "abc", ""]) {
+      fireEvent.change(pageBox(), { target: { value: bad } });
+      fireEvent.blur(pageBox());
+      expect(screen.getByText("Selectable page 1")).toBeInTheDocument();
+      expect(pageBox().value).toBe("1");
+    }
+  });
+
+  it("does not redraw the page while the number is being typed", async () => {
+    renderViewer();
+    await screen.findByText("Selectable page 1");
+    const before = pageRenders.length;
+
+    // Three keystrokes towards "225" in a document that has 8 pages: each one
+    // re-renders the toolbar, and none of them may re-render the page. This
+    // is what makes the draft state load-bearing rather than decorative.
+    fireEvent.change(pageBox(), { target: { value: "2" } });
+    fireEvent.change(pageBox(), { target: { value: "22" } });
+    fireEvent.change(pageBox(), { target: { value: "225" } });
+
+    expect(pageRenders.length).toBe(before);
+  });
+
+  it("turns pages with PageUp and PageDown", async () => {
+    renderViewer();
+    await screen.findByText("Selectable page 1");
+
+    fireEvent.keyDown(document, { key: "PageDown" });
+    expect(await screen.findByText("Selectable page 2")).toBeInTheDocument();
+
+    fireEvent.keyDown(document, { key: "PageUp" });
+    expect(await screen.findByText("Selectable page 1")).toBeInTheDocument();
+  });
+
+  it("leaves the arrows to the folder's previous and next file", async () => {
+    // `useFileNav` binds them whenever `playerKind` is null, which a PDF is,
+    // and `keyboard-shortcuts.md` has published that meaning. Taking them for
+    // one file kind makes the arrows mean two things.
+    renderViewer();
+    await screen.findByText("Selectable page 1");
+
+    fireEvent.keyDown(document, { key: "ArrowRight" });
+    fireEvent.keyDown(document, { key: "ArrowLeft" });
+
+    expect(screen.getByText("Selectable page 1")).toBeInTheDocument();
+  });
+
+  it("does not turn the page while the number box has focus", async () => {
+    renderViewer();
+    await screen.findByText("Selectable page 1");
+
+    pageBox().focus();
+    fireEvent.keyDown(pageBox(), { key: "PageDown" });
+
+    expect(screen.getByText("Selectable page 1")).toBeInTheDocument();
+  });
+
+  it("sizes the box by the page count's digits", async () => {
+    pdfDoc.numPages = 225;
+    renderViewer();
+    await screen.findByText("Selectable page 1");
+    expect(pageBox().style.width).toBe("5ch");
+  });
+
+  it("publishes the document's outline, with a page per entry", async () => {
+    pdfDoc.numPages = 225;
+    pdfDoc.destinations = { intro: [{ index: 2 }] };
+    pdfDoc.outline = [
+      { title: "Introduction", dest: "intro", items: [] },
+      { title: "Nowhere", dest: "missing", items: [] },
+    ];
+    const onPdfController = vi.fn();
+    renderViewer({ onPdfController });
+
+    await screen.findByText("Selectable page 1");
+    const controller = onPdfController.mock.calls.at(-1)?.[0];
+    await waitFor(() => {
+      expect(controller.getState().outline).toEqual([
+        { depth: 0, title: "Introduction", page: 3 },
+        { depth: 0, title: "Nowhere", page: null },
+      ]);
+    });
+    expect(controller.getState().numPages).toBe(225);
+  });
+
+  it("publishes an empty outline, not a missing one, for a PDF without one", async () => {
+    const onPdfController = vi.fn();
+    renderViewer({ onPdfController });
+    await screen.findByText("Selectable page 1");
+
+    const controller = onPdfController.mock.calls.at(-1)?.[0];
+    // `null` means "not asked yet" and decides whether the tab can exist;
+    // `[]` means the document answered and has none.
+    await waitFor(() => expect(controller.getState().outline).toEqual([]));
+  });
+
+  it("answers even when the document cannot be asked", async () => {
+    // `null` is "not asked yet" and it is what the shell reads to decide
+    // whether the page-list tab can exist. A document whose outline call
+    // fails has to leave that state, or a consumer waits forever.
+    pdfDoc.getOutline = async () => {
+      throw new Error("broken");
+    };
+    const onPdfController = vi.fn();
+    renderViewer({ onPdfController });
+    await screen.findByText("Selectable page 1");
+
+    const controller = onPdfController.mock.calls.at(-1)?.[0];
+    await waitFor(() => expect(controller.getState().outline).toEqual([]));
+  });
+
+  it("moves the page when the controller is asked to", async () => {
+    const onPdfController = vi.fn();
+    renderViewer({ onPdfController });
+    await screen.findByText("Selectable page 1");
+
+    const controller = onPdfController.mock.calls.at(-1)?.[0];
+    act(() => controller.goToPage(6));
+    expect(await screen.findByText("Selectable page 6")).toBeInTheDocument();
+
+    // And refuses one the document does not have.
+    act(() => controller.goToPage(99));
+    expect(screen.getByText("Selectable page 6")).toBeInTheDocument();
+  });
+});
+
+describe("PdfPreview, the page box under pressure", () => {
+  const pageBox = () => screen.getByLabelText("Page number") as HTMLInputElement;
+
+  function renderViewer(props: Partial<React.ComponentProps<typeof PdfPreview>> = {}) {
+    return render(
+      <ShortcutsProvider>
+        <PdfPreview fileId="pdf123456789" title="Paper" {...props} />
+      </ShortcutsProvider>,
+    );
+  }
+
+  it("abandons the draft on Escape rather than committing it", async () => {
+    renderViewer();
+    await screen.findByText("Selectable page 1");
+
+    pageBox().focus();
+    fireEvent.change(pageBox(), { target: { value: "5" } });
+    fireEvent.keyDown(pageBox(), { key: "Escape" });
+
+    // `blur()` re-enters React's `onBlur` synchronously, and the handler
+    // there closes over the draft from before the state update — so Escape
+    // used to commit the number it was meant to throw away.
+    expect(screen.getByText("Selectable page 1")).toBeInTheDocument();
+    expect(pageBox().value).toBe("1");
+  });
+
+  it("leaves an IME's confirming Enter to the IME", async () => {
+    renderViewer();
+    await screen.findByText("Selectable page 1");
+
+    pageBox().focus();
+    fireEvent.change(pageBox(), { target: { value: "5" } });
+    // Mid-conversion.
+    fireEvent.keyDown(pageBox(), { key: "Enter", isComposing: true });
+    expect(screen.getByText("Selectable page 1")).toBeInTheDocument();
+
+    // And the keystroke that *ends* the conversion, which arrives afterwards
+    // looking exactly like a bare press — `lib/ime.ts` records the
+    // measurement, and `InlineNameEditor` guards the same way.
+    fireEvent.compositionEnd(pageBox());
+    fireEvent.keyDown(pageBox(), { key: "Enter" });
+    expect(screen.getByText("Selectable page 1")).toBeInTheDocument();
+    expect(document.activeElement).not.toBe(document.body);
+  });
+
+  it("still takes a deliberate Enter after a conversion has ended", async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true });
+    renderViewer();
+    await screen.findByText("Selectable page 1");
+
+    fireEvent.change(pageBox(), { target: { value: "5" } });
+    fireEvent.compositionEnd(pageBox());
+    // Past the grace window: someone who chose a candidate with the mouse and
+    // then reached for the keyboard takes far longer than this.
+    vi.advanceTimersByTime(200);
+    fireEvent.keyDown(pageBox(), { key: "Enter" });
+    vi.useRealTimers();
+
+    expect(await screen.findByText("Selectable page 5")).toBeInTheDocument();
+  });
+
+  it("does not leave a draft standing over a page that moved underneath it", async () => {
+    const onPdfController = vi.fn();
+    renderViewer({ onPdfController });
+    await screen.findByText("Selectable page 1");
+
+    fireEvent.change(pageBox(), { target: { value: "9" } });
+    const controller = onPdfController.mock.calls.at(-1)?.[0];
+    act(() => controller.goToPage(3));
+
+    // A box reading "9" while the canvas is on 3 is a counter that lies about
+    // where the reader is, with nothing to make it stop.
+    expect(await screen.findByText("Selectable page 3")).toBeInTheDocument();
+    expect(pageBox().value).toBe("3");
+  });
+
+  it("stops describing the previous document when the file changes", async () => {
+    pdfDoc.numPages = 225;
+    pdfDoc.outline = [{ title: "Part I", dest: "a", items: [] }];
+    pdfDoc.destinations = { a: [{ index: 0 }] };
+    const onPdfController = vi.fn();
+    const { rerender } = render(
+      <ShortcutsProvider>
+        <PdfPreview fileId="pdfaaaaaaaaa" title="A" onPdfController={onPdfController} />
+      </ShortcutsProvider>,
+    );
+    await screen.findByText("Selectable page 1");
+    const controller = onPdfController.mock.calls.at(-1)?.[0];
+    await waitFor(() => expect(controller.getState().numPages).toBe(225));
+
+    // The mount is reused across files — the `[fileId]` resets exist for
+    // that reason. Left alone, the page list draws A's table of contents over
+    // B, and a jump validated against A's length sets page 121 on a 3-page
+    // document.
+    rerender(
+      <ShortcutsProvider>
+        <PdfPreview fileId="pdfbbbbbbbbb" title="B" onPdfController={onPdfController} />
+      </ShortcutsProvider>,
+    );
+    expect(controller.getState().numPages).toBe(0);
+    expect(controller.getState().outline).toBeNull();
+    controller.goToPage(121);
+    expect(screen.getByText("Selectable page 1")).toBeInTheDocument();
+  });
+});
+
+describe("PdfPreview, the page keys' scope", () => {
+  function renderViewer() {
+    return render(
+      <ShortcutsProvider>
+        <div>
+          <PdfPreview fileId="pdf123456789" title="Paper" />
+          <button type="button">Elsewhere on the page</button>
+        </div>
+      </ShortcutsProvider>,
+    );
+  }
+
+  it("turns pages while nothing else is focused", async () => {
+    renderViewer();
+    await screen.findByText("Selectable page 1");
+    fireEvent.keyDown(document, { key: "PageDown" });
+    expect(await screen.findByText("Selectable page 2")).toBeInTheDocument();
+  });
+
+  it("leaves the key alone once focus is somewhere else", async () => {
+    // `ShortcutsProvider` calls `preventDefault` on every match, so an
+    // unscoped binding stops `PageDown` scrolling the inspector — whose panel
+    // is `tabIndex={0}` so a keyboard reader can scroll it — and stops it
+    // scrolling a page zoomed past the canvas box.
+    renderViewer();
+    await screen.findByText("Selectable page 1");
+
+    // In `act`, because focusing schedules the state change that pops the
+    // shortcut context, and the provider's listener reads a ref that the
+    // effect updates. Outside `act` the keydown can beat the pop.
+    act(() => {
+      screen.getByRole("button", { name: "Elsewhere on the page" }).focus();
+    });
+    fireEvent.keyDown(document, { key: "PageDown" });
+
+    expect(screen.getByText("Selectable page 1")).toBeInTheDocument();
+  });
+
+  it("takes the key back when focus returns to the viewer", async () => {
+    renderViewer();
+    await screen.findByText("Selectable page 1");
+    act(() => {
+      screen.getByRole("button", { name: "Elsewhere on the page" }).focus();
+    });
+    act(() => {
+      (screen.getByLabelText("Next page") as HTMLElement).focus();
+    });
+
+    fireEvent.keyDown(document, { key: "PageDown" });
+    expect(await screen.findByText("Selectable page 2")).toBeInTheDocument();
+  });
+
+  it("resolves a destination that names its page outright", async () => {
+    // pdf.js hands back a page *reference* for most documents and a 0-based
+    // page *index* for some; `getPageIndex` throws on the second, which made
+    // every row of such a document's contents dead.
+    pdfDoc.numPages = 30;
+    pdfDoc.destinations = { intro: [4] };
+    pdfDoc.outline = [{ title: "Introduction", dest: "intro", items: [] }];
+    const onPdfController = vi.fn();
+    render(
+      <ShortcutsProvider>
+        <PdfPreview fileId="pdf123456789" title="Paper" onPdfController={onPdfController} />
+      </ShortcutsProvider>,
+    );
+    await screen.findByText("Selectable page 1");
+
+    const controller = onPdfController.mock.calls.at(-1)?.[0];
+    await waitFor(() =>
+      expect(controller.getState().outline).toEqual([
+        { depth: 0, title: "Introduction", page: 5 },
+      ]),
+    );
   });
 });

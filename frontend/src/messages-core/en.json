@@ -152,6 +152,10 @@
     "pdfZoomIn": "Zoom in",
     "pdfLoading": "Loading PDF...",
     "pdfLoadFailed": "Could not load this PDF. Open it in a new tab instead.",
+    "pdfPageNumber": "Page number",
+    "pdfShortcuts": "PDF viewer",
+    "pdfOutline": "Contents",
+    "pdfGoToPage": "Go to page {page}",
     "typeVideo": "Video",
     "typeImage": "Image",
     "typeAudio": "Audio",
@@ -166,7 +170,8 @@
     "relatedFileSizeBytes": "{size} bytes",
     "layoutBeside": "Move transcript beside the player",
     "layoutStack": "Move transcript below the player",
-    "actionsFor": "Actions for {name}"
+    "actionsFor": "Actions for {name}",
+    "pdfThumbnails": "Page thumbnails"
   },
   "search": {
     "label": "Search",
@@ -845,7 +850,8 @@
     },
     "tabs": {
       "info": "Info",
-      "chapters": "Chapters"
+      "chapters": "Chapters",
+      "pages": "Pages"
     },
     "saveDot": {
       "idle": "Save state",

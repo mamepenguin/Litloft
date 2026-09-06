@@ -13,6 +13,7 @@
  * `state` is mutable on purpose. It is how a test says "an addon claims
  * this slot" or "the policy is still loading" without re-mocking.
  */
+import { useEffect } from "react";
 import { vi } from "vitest";
 import { screen } from "@testing-library/react";
 
@@ -20,6 +21,11 @@ import * as api from "@/lib/api";
 import { inspectorOpenStore } from "@/lib/inspectorOpenStore";
 import type { SlotEntry } from "@/lib/addons";
 import type { FileItem } from "@/types";
+import {
+  PdfDocumentStore,
+  type PdfController,
+  type PdfDocumentState,
+} from "@/lib/pdfController";
 
 /**
  * Which slots an addon has claimed, and with what.
@@ -47,7 +53,35 @@ export const usePolicyMock = vi.fn();
  */
 export const overlaySidebarSpy = vi.fn();
 
-export const FilePreviewStub = vi.fn(() => <div data-testid="file-preview" />);
+/**
+ * What the stubbed viewer publishes upward, when a test wants it to.
+ *
+ * The PDF viewer hands the shell a `PdfController` and the shell decides
+ * whether the page-list tab exists from what that controller says the
+ * document holds. A stub that never publishes leaves that decision
+ * permanently on its "no document" branch, so the tab's own rules would look
+ * covered while nothing exercised them.
+ */
+export const publishedPdfState: { value: Partial<PdfDocumentState> | null } = {
+  value: null,
+};
+
+export const FilePreviewStub = vi.fn(
+  ({
+    onPdfController,
+  }: {
+    onPdfController?: (c: PdfController | null) => void;
+  }) => {
+    useEffect(() => {
+      if (!onPdfController || !publishedPdfState.value) return;
+      const store = new PdfDocumentStore();
+      store.set(publishedPdfState.value);
+      onPdfController(store);
+      return () => onPdfController(null);
+    }, [onPdfController]);
+    return <div data-testid="file-preview" />;
+  },
+);
 
 export const ActiveSummaryHostStub = () => (
   <div data-testid="active-summary-host" />

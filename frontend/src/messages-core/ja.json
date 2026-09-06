@@ -152,6 +152,10 @@
     "pdfZoomIn": "拡大",
     "pdfLoading": "PDFを読み込み中...",
     "pdfLoadFailed": "PDFを読み込めませんでした。新しいタブで開いてください。",
+    "pdfPageNumber": "ページ番号",
+    "pdfShortcuts": "PDF ビューア",
+    "pdfOutline": "目次",
+    "pdfGoToPage": "{page}ページ目へ",
     "typeVideo": "動画",
     "typeImage": "画像",
     "typeAudio": "音声",
@@ -166,7 +170,8 @@
     "relatedFileSizeBytes": "{size}バイト",
     "layoutBeside": "文字起こしを動画の横に表示",
     "layoutStack": "文字起こしを動画の下に表示",
-    "actionsFor": "{name} の操作"
+    "actionsFor": "{name} の操作",
+    "pdfThumbnails": "ページのサムネイル"
   },
   "search": {
     "label": "検索",
@@ -845,7 +850,8 @@
     },
     "tabs": {
       "info": "情報",
-      "chapters": "チャプター"
+      "chapters": "チャプター",
+      "pages": "ページ"
     },
     "saveDot": {
       "idle": "保存状態",

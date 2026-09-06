@@ -4,10 +4,19 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { ChevronLeft, ChevronRight, ExternalLink, Minus, Plus } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { Document, Page, pdfjs } from "react-pdf";
+import type { PDFDocumentProxy } from "pdfjs-dist";
 import "react-pdf/dist/Page/TextLayer.css";
 import "react-pdf/dist/Page/AnnotationLayer.css";
 
 import { getStreamUrl } from "@/lib/api";
+import { COMPOSITION_GRACE_MS, IME_KEY_CODE } from "@/lib/ime";
+import { useShortcuts } from "@/hooks/useShortcuts";
+import {
+  flattenOutline,
+  parsePageInput,
+  PdfDocumentStore,
+  type PdfController,
+} from "@/lib/pdfController";
 import {
   DocumentCaptureStore,
   readDocumentSelection,
@@ -28,6 +37,7 @@ export function PdfPreview({
   title,
   initialPage,
   onDocumentCaptureController,
+  onPdfController,
 }: {
   fileId: string;
   title: string;
@@ -35,6 +45,8 @@ export function PdfPreview({
   onDocumentCaptureController?: (
     controller: DocumentCaptureController | null,
   ) => void;
+  /** Published upward so the inspector's page list can read and move it. */
+  onPdfController?: (controller: PdfController | null) => void;
 }) {
   const t = useTranslations("file");
   const rootRef = useRef<HTMLDivElement>(null);
@@ -46,10 +58,29 @@ export function PdfPreview({
   const [zoom, setZoom] = useState(1);
   const [availableWidth, setAvailableWidth] = useState(800);
   const src = getStreamUrl(fileId);
+  const pdfStore = useMemo(() => new PdfDocumentStore(), []);
+
+  /**
+   * What this mount last loaded.
+   *
+   * The reset below must not run on the first pass: `<Document>` reports
+   * `onLoadSuccess` from a child effect, which React runs *before* this one,
+   * so an unguarded reset would clear the count the document had just given.
+   */
+  const loadedFileRef = useRef(fileId);
 
   useEffect(() => {
+    if (loadedFileRef.current === fileId) return;
+    loadedFileRef.current = fileId;
     setZoom(1);
-  }, [fileId]);
+    setNumPages(0);
+    setPageDraft(null);
+    // The store describes a document, and the document is changing. Left
+    // alone, the page list would draw the previous file's table of contents
+    // over this one, and `goToPage` would validate a jump against the
+    // previous file's length — setting page 121 on a three-page PDF.
+    pdfStore.set({ numPages: 0, outline: null });
+  }, [fileId, pdfStore]);
 
   useEffect(() => {
     const requested =
@@ -93,16 +124,200 @@ export function PdfPreview({
     return () => observer.disconnect();
   }, []);
 
-  const handleLoad = useCallback(
-    ({ numPages: count }: { numPages: number }) => {
-      setNumPages(count);
-      setPage((current) => Math.min(Math.max(1, current), count));
+  const [pageDraft, setPageDraft] = useState<string | null>(null);
+  const pageInputRef = useRef<HTMLInputElement>(null);
+  const compositionEndedAtRef = useRef(0);
+
+  useEffect(() => {
+    pdfStore.onGoToPage = (next) => setPage(next);
+    onPdfController?.(pdfStore);
+    return () => {
+      pdfStore.onGoToPage = null;
+      onPdfController?.(null);
+    };
+  }, [onPdfController, pdfStore]);
+
+  useEffect(() => {
+    pdfStore.set({ page, numPages, src });
+  }, [page, numPages, src, pdfStore]);
+
+  /**
+   * A draft is about the page it was typed on top of.
+   *
+   * The page can move underneath it — an Ask citation arriving as a new
+   * `initialPage`, or a press in the page list — and a box still reading `9`
+   * while the canvas is on 3 is a counter that lies about where the reader
+   * is, with nothing to make it stop.
+   */
+  useEffect(() => {
+    setPageDraft(null);
+  }, [page]);
+
+  /**
+   * The outline is a property of the loaded document, so it costs no request.
+   * `getOutline()` answers `null` for a PDF that has none, which is a
+   * different fact from "not asked yet" — `flattenOutline` turns it into `[]`
+   * and the store's `null` keeps the distinction.
+   */
+  const loadOutline = useCallback(
+    async (pdf: PDFDocumentProxy) => {
+      try {
+        const raw = await pdf.getOutline();
+        const outline = await flattenOutline(raw, async (dest) => {
+          try {
+            const resolved =
+              typeof dest === "string" ? await pdf.getDestination(dest) : dest;
+            if (!Array.isArray(resolved)) return null;
+            const target = resolved[0];
+            // Most destinations name a page by reference, which only the
+            // document can resolve. Some name it by 0-based index outright,
+            // and `getPageIndex` throws on those — a table of contents whose
+            // rows were all dead because every one of them took the wrong
+            // branch is indistinguishable from a document with no outline.
+            if (typeof target === "number") return target + 1;
+            const index = await pdf.getPageIndex(target);
+            return index + 1;
+          } catch {
+            // A destination naming a page the document does not have. The
+            // row stays, without a jump: dropping it would silently shorten
+            // a table of contents the author wrote.
+            return null;
+          }
+        });
+        pdfStore.set({ outline });
+      } catch {
+        // The viewer answers either way. A consumer that saw `null` forever
+        // would be waiting on a document that has already failed to say.
+        pdfStore.set({ outline: [] });
+      }
     },
-    [],
+    [pdfStore],
   );
 
-  const movePage = (delta: number) => {
+  /**
+   * Deliberately not `async`: react-pdf calls this from an effect in some
+   * versions and in the tests, and a returned promise is read there as a
+   * cleanup function.
+   */
+  const handleLoad = useCallback(
+    (pdf: PDFDocumentProxy) => {
+      const count = pdf.numPages;
+      setNumPages(count);
+      setPage((current) => Math.min(Math.max(1, current), count));
+      void loadOutline(pdf);
+    },
+    [loadOutline],
+  );
+
+  const movePage = useCallback((delta: number) => {
     setPage((current) => Math.min(numPages || 1, Math.max(1, current + delta)));
+  }, [numPages]);
+
+  /**
+   * Whether the reader is inside the viewer.
+   *
+   * §8 (b) scopes the page keys to "while the viewer is in the focus scope",
+   * and the reason is concrete: `ShortcutsProvider` calls `preventDefault` on
+   * every match, so an unscoped binding stops `PageDown` scrolling the
+   * inspector — whose panel is `tabIndex={0}` precisely so a keyboard reader
+   * can scroll it — and stops it scrolling a page zoomed past the canvas box.
+   *
+   * Body counts as inside: a reader who has clicked nothing has focused
+   * nothing, and the viewer is what the page is for.
+   */
+  const [inScope, setInScope] = useState(true);
+  useEffect(() => {
+    const update = () => {
+      const active = document.activeElement;
+      setInScope(
+        !active ||
+          active === document.body ||
+          rootRef.current?.contains(active) === true,
+      );
+    };
+    update();
+    document.addEventListener("focusin", update);
+    document.addEventListener("focusout", update);
+    return () => {
+      document.removeEventListener("focusin", update);
+      document.removeEventListener("focusout", update);
+    };
+  }, []);
+
+  /**
+   * `PageUp` / `PageDown`, and deliberately not `←` / `→`.
+   *
+   * `useFileNav` binds the arrows to the previous and next file in the folder
+   * whenever `playerKind` is null, which a PDF is, and
+   * `docs/user-guide/keyboard-shortcuts.md` has published that meaning. One
+   * kind of file where the arrows mean something else is a thing the reader
+   * has to remember.
+   *
+   * Typing a number is not also a page turn, and that is the registry's own
+   * default rather than a gate here: a `ShortcutDef` with no `editingOnly`
+   * fires only when nothing editable has focus.
+   */
+  useShortcuts(
+    "pdf-viewer",
+    t("pdfShortcuts"),
+    [
+      {
+        key: "pagedown",
+        label: t("pdfNextPage"),
+        handler: () => movePage(1),
+      },
+      {
+        key: "pageup",
+        label: t("pdfPreviousPage"),
+        handler: () => movePage(-1),
+      },
+    ],
+    numPages > 1 && inScope,
+  );
+
+  /**
+   * Held apart from the rest of the toolbar's render.
+   *
+   * Every keystroke in the page box is a state change, and a 225-page PDF
+   * cannot afford to re-render the canvas on each of them. The element
+   * depends on the page and the width and on nothing else, so a draft the
+   * reader has not confirmed yet costs a toolbar render and no more.
+   */
+  const pageElement = useMemo(
+    () => (
+      <Page
+        pageNumber={page}
+        width={Math.min(900, availableWidth) * zoom}
+        renderTextLayer
+        renderAnnotationLayer
+      />
+    ),
+    [page, availableWidth, zoom],
+  );
+
+  /**
+   * Set for the length of one blur, by the Escape path.
+   *
+   * `blur()` re-enters React's `onBlur` synchronously, and the handler there
+   * closes over the `pageDraft` from *before* `setPageDraft(null)` — so
+   * Escape committed the number it was meant to throw away. A ref is read at
+   * the moment the blur runs, which a state update is not.
+   */
+  const abandoningRef = useRef(false);
+
+  const commitPageInput = () => {
+    if (abandoningRef.current) {
+      abandoningRef.current = false;
+      setPageDraft(null);
+      return;
+    }
+    if (pageDraft === null) return;
+    const parsed = parsePageInput(pageDraft, numPages);
+    // Out of range puts the box back rather than moving the page. A reader
+    // who typed `999` into a 225-page document and landed on 225 cannot tell
+    // that from the number having been accepted.
+    if (parsed !== null) setPage(parsed);
+    setPageDraft(null);
   };
 
   return (
@@ -117,8 +332,59 @@ export function PdfPreview({
         >
           <ChevronLeft size={16} />
         </button>
-        <span className="min-w-20 text-center text-xs font-mono text-text-muted">
-          {page} / {numPages || "–"}
+        <span className="flex items-center gap-1 text-xs font-mono text-text-muted">
+          {/* `text`, not `number`: the spinner a browser draws does not fit a
+              box sized to the page count, and it is chrome the OS owns —
+              the same reason the viewers' `<select>`s went. `inputMode`
+              still brings up the numeric keypad. */}
+          <input
+            ref={pageInputRef}
+            type="text"
+            inputMode="numeric"
+            value={pageDraft ?? String(page)}
+            aria-label={t("pdfPageNumber")}
+            onChange={(e) => setPageDraft(e.target.value)}
+            onBlur={commitPageInput}
+            onCompositionEnd={() => {
+              compositionEndedAtRef.current = Date.now();
+            }}
+            onKeyDown={(e) => {
+              // An IME is mid-conversion: every key belongs to it. And the
+              // key that *confirms* a conversion arrives afterwards looking
+              // exactly like a bare press, which is why `lib/ime.ts` exists
+              // and why the grace window is needed as well as `isComposing`.
+              // `InlineNameEditor` is the same shape of field and guards the
+              // same way; this box was the only Enter/Escape field that did
+              // not.
+              if (e.nativeEvent.isComposing || e.keyCode === IME_KEY_CODE) return;
+              if (
+                (e.key === "Enter" || e.key === "Escape") &&
+                Date.now() - compositionEndedAtRef.current < COMPOSITION_GRACE_MS
+              ) {
+                compositionEndedAtRef.current = 0;
+                return;
+              }
+
+              if (e.key === "Enter") {
+                e.preventDefault();
+                commitPageInput();
+                pageInputRef.current?.blur();
+              } else if (e.key === "Escape") {
+                e.preventDefault();
+                // Both halves: the state update is what puts the box back,
+                // and the ref is what stops the blur this triggers from
+                // committing the draft it still closes over.
+                abandoningRef.current = true;
+                setPageDraft(null);
+                pageInputRef.current?.blur();
+              }
+            }}
+            // Sized by the page count's digits, so a 9-page document does not
+            // carry a box built for 2000.
+            style={{ width: `${String(numPages || 1).length + 2}ch` }}
+            className="rounded-2xl border border-bg-border bg-bg-primary px-1 py-0.5 text-center text-text-primary focus-visible:outline focus-visible:outline-2 focus-visible:outline-[var(--focus-ring)]"
+          />
+          <span>/ {numPages || "–"}</span>
         </span>
         <button
           type="button"
@@ -170,12 +436,7 @@ export function PdfPreview({
           error={<p className="py-16 text-sm text-danger">{t("pdfLoadFailed")}</p>}
         >
           <section data-pdf-page={page} aria-label={`${title}, ${page}`}>
-            <Page
-              pageNumber={page}
-              width={Math.min(900, availableWidth) * zoom}
-              renderTextLayer
-              renderAnnotationLayer
-            />
+            {pageElement}
           </section>
         </Document>
       </div>
