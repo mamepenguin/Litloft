@@ -114,9 +114,10 @@ export function ArchiveEntryCard({
         <a
           href={getArchiveEntryUrl(fileId, entry.path)}
           download={entry.filename}
-          className="absolute right-1 top-1 z-10 rounded-lg p-2 text-text-muted transition-colors hover:bg-bg-elevated hover:text-text-primary"
+          className="absolute right-1 top-1 z-10 flex items-center justify-center rounded-lg p-2 text-text-muted transition-colors hover:bg-bg-elevated hover:text-text-primary pointer-coarse:h-11 pointer-coarse:w-11"
+          // No `title` beside it: the two say the same thing, and the tooltip
+          // arrives as a redundant accessible description read after the name.
           aria-label={t("downloadFile", { name: entry.filename })}
-          title={t("download")}
         >
           <Download size={16} />
         </a>
@@ -146,11 +147,21 @@ export function ArchiveEntryCard({
             size={32}
             className="shrink-0 text-text-muted"
           />
-          <span className="max-w-full truncate text-xs text-text-primary">
+          <span
+            className={`max-w-full truncate text-xs ${
+              isClickable ? "text-text-primary" : "text-text-muted"
+            }`}
+          >
             {entry.filename}
           </span>
-          <span className="text-xs text-text-muted">
-            {formatFileSize(entry.file_size)}
+          {/* The reason, in the same words the listing uses. A corner icon on
+              its own says there is a download and not why it is the only
+              thing on offer, which is less than the `opacity-60` it replaced
+              managed to convey. */}
+          <span className="max-w-full truncate text-xs text-text-muted">
+            {isClickable
+              ? formatFileSize(entry.file_size)
+              : `${formatFileSize(entry.file_size)} · ${t("previewUnavailable")}`}
           </span>
         </div>
       )}

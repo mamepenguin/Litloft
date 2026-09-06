@@ -88,6 +88,16 @@ const mockArchive: ArchiveContents = {
       is_dir: false,
     },
     {
+      // Over `MAX_TEXT_AUTO_LOAD`, so opening it must ask first.
+      path: "huge.log",
+      filename: "huge.log",
+      file_size: 4 * 1024 * 1024,
+      compressed_size: 900000,
+      file_type: "document",
+      mime_type: "text/plain",
+      is_dir: false,
+    },
+    {
       path: "data.bin",
       filename: "data.bin",
       file_size: 1024,
@@ -97,7 +107,7 @@ const mockArchive: ArchiveContents = {
       is_dir: false,
     },
   ],
-  total_entries: 7,
+  total_entries: 8,
   total_size: 1140000,
 };
 
@@ -269,10 +279,32 @@ describe("ArchivePreview", () => {
     await waitFor(() => {
       expect(screen.getByText("readme.txt")).toBeInTheDocument();
     });
+    // The precondition, asserted rather than assumed: this test reaches the
+    // grid through `useArchiveViewMode`'s storage, and a change to that key
+    // or its shape would silently turn it into a second copy of the listing
+    // test below — leaving D-14 uncovered with the suite green. The listing
+    // renders a `<ul role="list">`; the grid does not.
+    expect(screen.queryByRole("list")).toBeNull();
+
     fireEvent.click(screen.getByText("readme.txt"));
 
     expect(await screen.findByTestId("text-viewer")).toBeInTheDocument();
     expect(await screen.findByText("hello from the zip")).toBeInTheDocument();
+  });
+
+  it("asks before fetching a text entry over 1 MB", async () => {
+    globalThis.fetch = vi.fn() as unknown as typeof fetch;
+    render(<ArchivePreview fileId="test-id" />);
+
+    await waitFor(() => {
+      expect(screen.getByText("huge.log")).toBeInTheDocument();
+    });
+    fireEvent.click(screen.getByText("huge.log"));
+
+    // The gate lives in `handleFileClick`, not in the viewer, so the viewer's
+    // own tests — which take `textConfirmed` as a prop — never reach it.
+    expect(await screen.findByText("Load")).toBeInTheDocument();
+    expect(globalThis.fetch).not.toHaveBeenCalled();
   });
 
   it("opens it from the listing too", async () => {
@@ -300,13 +332,15 @@ describe("ArchivePreview", () => {
 
     // Not a bare red sentence: the entry turned out not to be openable, and
     // the download is the way out of that.
-    const failure = await screen.findByText("This file could not be opened");
-    const link = within(failure.closest("div")!.parentElement!).getByRole("link");
+    await screen.findByText("This file could not be opened");
+    // Named exactly "Download": the viewer's own header link is named
+    // "Download readme.txt", so this picks out the empty state's action
+    // rather than either one that happens to be on screen.
+    const link = screen.getByRole("link", { name: "Download" });
     // `EmptyState`'s action carries `download` as a flag, so the name comes
     // from the URL rather than the attribute.
     expect(link.hasAttribute("download")).toBe(true);
     expect(link.getAttribute("href")).toContain("readme.txt");
-    expect(link.textContent).toBe("Download");
   });
 
   it("opens a source file the mime table has no name for", async () => {

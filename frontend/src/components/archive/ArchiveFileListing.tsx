@@ -18,7 +18,18 @@ interface ArchiveFileListingProps {
 }
 
 const ROW_CLASS =
-  "flex w-full items-center gap-3 border-b border-bg-border px-4 py-2.5 text-left";
+  "flex w-full items-center gap-3 border-b border-bg-border px-4 py-2.5 text-left " +
+  // DESIGN.md §Row Actions: reach the 44px touch floor on the *row*. Without
+  // it only the rows holding a Download cleared it — the button carries its
+  // own floor — and "a list whose secondary action clears the floor while its
+  // primary one does not has bought nothing" is the case the rule names.
+  //
+  // Measured with a coarse pointer: 44px for every row, and 65 for one
+  // carrying the Download, which is the labelled `Button` §6 (b) asks for
+  // rather than the icon the rule's overhang advice is written about. The
+  // rows are still not all the same height; what changed is that the floor is
+  // now the row's, so the openable ones do not sit under it.
+  "pointer-coarse:min-h-11";
 
 /**
  * A row, pressable or not.
@@ -130,6 +141,12 @@ export function ArchiveFileListing({
                           <a
                             href={getArchiveEntryUrl(fileId, entry.path)}
                             download={entry.filename}
+                            // Named per row, not per control: a code ZIP puts
+                            // two thousand of these in a screen reader's links
+                            // list, and "Download" repeated says nothing about
+                            // which row is about to be acted on. The visible
+                            // word is inside the name, so WCAG 2.5.3 holds.
+                            aria-label={t("downloadFile", { name: entry.filename })}
                             className={`${buttonClass({ variant: "secondary", size: "sm" })} shrink-0`}
                           >
                             {t("download")}

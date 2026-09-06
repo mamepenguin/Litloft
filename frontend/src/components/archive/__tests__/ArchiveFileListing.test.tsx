@@ -102,6 +102,13 @@ describe("ArchiveFileListing", () => {
       "image.jpg",
     ]);
     expect(links[0].textContent).toBe("Download");
+    // A name per row, not per control: a 2 439-file ZIP otherwise hands a
+    // screen reader that many links all called "Download". The visible word
+    // stays inside the name, so WCAG 2.5.3's containment holds.
+    expect(links.map((a) => a.getAttribute("aria-label"))).toEqual([
+      "Download readme.txt",
+      "Download image.jpg",
+    ]);
   });
 
   it("shows empty message when no entries", () => {
@@ -122,6 +129,22 @@ describe("ArchiveFileListing", () => {
     expect(buttons[0].textContent).toContain("photos");
     expect(document.querySelectorAll("[disabled]").length).toBe(0);
     expect(document.querySelectorAll(".opacity-60").length).toBe(0);
+  });
+
+  it("puts the touch floor on the row, so rows are evenly pitched", () => {
+    // jsdom computes no layout, so what is asserted is the class that
+    // decides it. Measured in Chromium with a coarse pointer: without this
+    // the dead-end rows were 44px (the Download's own floor) and the
+    // openable ones 40, which is the uneven pitch DESIGN.md §Row Actions
+    // rules out.
+    render(
+      <ArchiveFileListing {...defaultProps} isClickable={(e) => e.is_dir} />
+    );
+    const rows = [...document.querySelectorAll("li > *")];
+    expect(rows.length).toBe(3);
+    for (const row of rows) {
+      expect(row.className).toContain("pointer-coarse:min-h-11");
+    }
   });
 
   it("keeps every openable row a control", () => {

@@ -42,10 +42,14 @@ const TEXT_MIME_EXACT = new Set([
 const TEXT_SUFFIXES = new Set([
   "dart", "rs", "go", "kt", "kts", "swift", "rb", "php", "lua", "r",
   "c", "h", "cc", "cpp", "hpp", "cs", "java", "scala", "ex", "exs",
-  "vue", "svelte", "tsx", "jsx", "mjs", "cjs", "mts", "cts",
-  "toml", "ini", "cfg", "conf", "env", "properties",
+  "vue", "svelte", "ts", "tsx", "jsx", "mjs", "cjs", "mts", "cts",
+  "toml", "ini", "cfg", "conf", "env", "properties", "yml", "yaml",
   "gradle", "cmake", "mk", "dockerfile", "gitignore", "editorconfig",
+  "gitattributes", "gitmodules", "gitconfig", "dockerignore",
+  "npmrc", "nvmrc", "prettierrc", "eslintrc", "babelrc", "browserslistrc",
   "sql", "graphql", "gql", "proto", "patch", "diff", "lock",
+  "md", "markdown", "rst", "adoc", "tex", "csv", "tsv", "log",
+  "py", "sh", "bash", "zsh", "tf", "tfvars",
 ]);
 
 /**
@@ -75,10 +79,22 @@ export function isTextPreviewable(mimeType: string, filename?: string): boolean 
 
   const base = filename.slice(filename.lastIndexOf("/") + 1).toLowerCase();
   if (TEXT_FILENAMES.has(base)) return true;
+
+  if (base.startsWith(".")) {
+    // A dotfile's *leading* segment names its type, not its trailing one:
+    // `.gitignore`, and `.env.local` as much as `.env`. Reading the last
+    // segment instead would ask whether `local` is a language.
+    const lead = base.slice(1).split(".")[0];
+    return TEXT_SUFFIXES.has(lead) || TEXT_FILENAMES.has(lead);
+  }
+
   const dot = base.lastIndexOf(".");
-  // A dotfile's leading dot introduces the whole name rather than an
-  // extension, so `.gitignore` and `.env` are read as `gitignore` and `env`.
-  if (dot <= 0) return TEXT_SUFFIXES.has(base.replace(/^\./, ""));
+  // No extension at all, and the whole-filename list above already said no.
+  // Matching such a name against the *extension* list is how `bin/go`,
+  // `usr/bin/env` and `bin/patch` — ELF binaries named after the languages
+  // and tools on that list — would be opened and rendered as text, which is
+  // the outcome an allowlist exists to prevent.
+  if (dot < 0) return false;
   return TEXT_SUFFIXES.has(base.slice(dot + 1));
 }
 

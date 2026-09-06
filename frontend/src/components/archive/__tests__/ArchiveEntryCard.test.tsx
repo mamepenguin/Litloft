@@ -141,6 +141,16 @@ describe("ArchiveEntryCard", () => {
     const link = screen.getByRole("link", { name: "Download locked.bin" });
     expect(link.getAttribute("download")).toBe("locked.bin");
     expect(document.querySelectorAll(".opacity-60").length).toBe(0);
+    // A 44px target on a touch screen. `p-2` on a 16px glyph is 32, which is
+    // over the 24x24 floor a repeated disclosure control needs and under the
+    // one DESIGN.md sets for a finger.
+    expect(link.className).toContain("pointer-coarse:h-11");
+    expect(link.className).toContain("pointer-coarse:w-11");
+    // And a name, not a name plus a tooltip saying the same thing.
+    expect(link.hasAttribute("title")).toBe(false);
+    // The reason, in the listing's words. A corner icon says there is a
+    // download, not why it is all there is.
+    expect(screen.getByText(/No preview/)).toBeInTheDocument();
 
     fireEvent.click(screen.getByText("locked.bin"));
     expect(onClick).not.toHaveBeenCalled();
@@ -157,6 +167,8 @@ describe("ArchiveEntryCard", () => {
     );
     expect(screen.queryByRole("link")).toBeNull();
     expect(screen.getByRole("button")).toBeInTheDocument();
+    // And no reason label, for the same rule the listing's rows follow.
+    expect(screen.queryByText(/No preview/)).toBeNull();
   });
 
   it("calls onClick when the card is clicked and clickable", () => {

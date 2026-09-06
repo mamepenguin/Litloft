@@ -1,6 +1,6 @@
 "use client";
 
-import { ArrowLeft, FileWarning } from "lucide-react";
+import { ArrowLeft, Download, FileWarning } from "lucide-react";
 import { useTranslations } from "next-intl";
 
 import { getArchiveEntryUrl } from "@/lib/api";
@@ -41,8 +41,20 @@ export function ArchiveTextViewer({
           <ArrowLeft size={16} />
           {t("backToList")}
         </button>
-        <span className="text-sm text-text-muted">
+        <span className="flex items-center gap-2 text-sm text-text-muted">
           {viewingEntry.filename}
+          {/* An openable entry keeps a way to the file itself, the way the
+              page-turner does for images. Removing it from the listing row
+              (ARC-1 (b) — an openable row says nothing extra) left a text
+              entry with no route to disk short of the whole archive. */}
+          <a
+            href={getArchiveEntryUrl(fileId, viewingEntry.path)}
+            download={viewingEntry.filename}
+            className="flex items-center justify-center rounded-lg p-1 transition-colors hover:bg-bg-elevated hover:text-text-primary pointer-coarse:h-11 pointer-coarse:w-11"
+            aria-label={t("downloadFile", { name: viewingEntry.filename })}
+          >
+            <Download size={16} />
+          </a>
         </span>
       </div>
 

@@ -58,6 +58,13 @@ describe("isTextPreviewable", () => {
       ".env",
       "schema.sql",
       "Component.vue",
+      // Measured inside the image `backend/Dockerfile` builds: it carries no
+      // `/etc/mime.types`, so Python's own table answers, and these three
+      // come back `application/octet-stream` there. The name is the only
+      // thing left that knows what they are.
+      "server.ts",
+      "docker-compose.yml",
+      "config.yaml",
     ]) {
       expect(isTextPreviewable(OPAQUE, name)).toBe(true);
     }
@@ -67,6 +74,36 @@ describe("isTextPreviewable", () => {
     for (const name of ["app.bin", "photo.raw", "a.out", "lib.so", "notes"]) {
       expect(isTextPreviewable(OPAQUE, name)).toBe(false);
     }
+  });
+
+  it("refuses an executable named after the language it compiles", () => {
+    // A `bin/` tree inside a ZIP is where an extension allowlist meets names
+    // with no extension. Matching those against the *extension* list opened
+    // ELF binaries and rendered them into a `<pre>` — and, being openable,
+    // they lost the download too. `usr/bin/env` is in a large share of
+    // tarball-shaped archives.
+    for (const name of [
+      "usr/bin/env",
+      "bin/go",
+      "bin/java",
+      "bin/swift",
+      "bin/patch",
+      "bin/diff",
+      "bin/c",
+      "bin/r",
+    ]) {
+      expect(isTextPreviewable(OPAQUE, name)).toBe(false);
+    }
+  });
+
+  it("reads a dotfile by its leading segment, not its trailing one", () => {
+    expect(isTextPreviewable(OPAQUE, ".gitignore")).toBe(true);
+    expect(isTextPreviewable(OPAQUE, ".gitattributes")).toBe(true);
+    expect(isTextPreviewable(OPAQUE, ".env")).toBe(true);
+    // `.env.local` is an env file. Reading the last segment would ask
+    // whether `local` is a language, and answer no.
+    expect(isTextPreviewable(OPAQUE, ".env.local")).toBe(true);
+    expect(isTextPreviewable(OPAQUE, ".DS_Store")).toBe(false);
   });
 
   it("still answers on the mime alone, for the callers that pass no name", () => {
