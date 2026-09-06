@@ -3,7 +3,7 @@
 import { useCallback, useMemo, useState } from "react";
 import type { FileItem, FileItemWithMatch } from "@/types";
 import { useContextMenu } from "@/hooks/useContextMenu";
-import { cardGridColumns } from "@/lib/cardGrid";
+import { cardGridTemplate, useCardColumns } from "@/lib/cardGrid";
 import { deriveListMeta } from "@/lib/listMeta";
 import { FileCard } from "./FileCard";
 import { FileContextMenu } from "./FileContextMenu";
@@ -47,6 +47,7 @@ export function FileGrid({
 }) {
   const { menuState, close, handlers } = useContextMenu();
   const [target, setTarget] = useState<FileItem | null>(null);
+  const { ref: gridRef, columns } = useCardColumns();
 
   // Decided once for the listing rather than per card: the question is
   // about the column, not the file. Only the boolean crosses into the
@@ -83,8 +84,9 @@ export function FileGrid({
   return (
     <>
       <div
-        className="grid gap-x-4 gap-y-6"
-        style={{ gridTemplateColumns: cardGridColumns }}
+        ref={gridRef}
+        className="grid gap-x-3 gap-y-6"
+        style={{ gridTemplateColumns: cardGridTemplate(columns) }}
       >
         {files.map((file) => (
           <FileCard
