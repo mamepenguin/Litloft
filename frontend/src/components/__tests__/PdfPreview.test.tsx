@@ -797,17 +797,22 @@ describe("PdfPreview zoom modes", () => {
     expect(resizeTargets[0]).toBe(document.querySelector(".overflow-auto"));
   });
 
-  it("reserves the vertical scrollbar's gutter on the scroll box", async () => {
-    // Not cosmetic. Without the gutter a classic vertical scrollbar
+  it("reserves the scrollbar's gutter on both edges of the scroll box", async () => {
+    // Not cosmetic. Without a reservation a classic vertical scrollbar
     // takes its width out of `contentRect.width` as it appears, and
     // `fit-width` oscillates: wider box, taller page, scrollbar, narrower
-    // box, shorter page, no scrollbar. jsdom lays nothing out, so the
-    // declaration is what can be pinned here.
+    // box, shorter page, no scrollbar.
+    //
+    // `both-edges` rather than plain `stable`: "whole page" draws no
+    // vertical scrollbar at all, so a one-sided reservation would leave
+    // the page centred ~15px off true. jsdom lays nothing out, so the
+    // declaration is what can be pinned here; the two numbers behind the
+    // keyword are measured in the PR.
     renderViewer();
     await screen.findByText("Selectable page 1");
 
     const box = document.querySelector(".overflow-auto")!;
-    expect(box.className).toMatch(/\[scrollbar-gutter:stable\]/);
+    expect(box.className).toMatch(/\[scrollbar-gutter:stable_both-edges\]/);
   });
 
   it("keeps the box's padding class in step with the fallback that names it", async () => {

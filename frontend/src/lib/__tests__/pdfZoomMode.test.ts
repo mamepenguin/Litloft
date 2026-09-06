@@ -6,7 +6,7 @@ import {
   CSS_PX_PER_PT,
   DEFAULT_PDF_ZOOM_MODE,
   MAX_FITTED_WIDTH,
-  MIN_FITTED_WIDTH,
+  UNMEASURED_FITTED_WIDTH,
   PDF_ZOOM_MODES,
   parsePdfZoomMode,
   pdfPageWidth,
@@ -140,6 +140,49 @@ describe("pdfPageWidth", () => {
     }
   });
 
+  it("never draws a fitted page wider than the box it is fitted to", () => {
+    // The promise each fitted mode's name makes. A `fit-page` page wider
+    // than its box has a horizontal scrollbar, and a "whole page" you
+    // scroll sideways to see is not one; `fit-width` that overflows the
+    // width is the same contradiction. Below what used to be the floor
+    // the page is drawn small instead — 266px of box gives 266px of
+    // page, not 280 with 14 of it past the edge.
+    // Derived, not listed: every mode but `actual`, which is exempt by
+    // its own claim. A fourth fitted mode is covered the day it exists.
+    const fitted = PDF_ZOOM_MODES.filter((mode) => mode !== "actual");
+    expect(fitted.length).toBeGreaterThan(0);
+    for (const available of [266, 200, 120, 40, 1]) {
+      for (const mode of fitted) {
+        expect(
+          pdfPageWidth({ mode, available, availableHeight: 570, pageBox: A4 }),
+        ).toBeLessThanOrEqual(available);
+      }
+    }
+    expect(
+      pdfPageWidth({
+        mode: "fit-page",
+        available: 266,
+        availableHeight: 570,
+        pageBox: A4,
+      }),
+    ).toBe(266);
+  });
+
+  it("fits a box too short to hold a floor's worth of page", () => {
+    // The height side of the same promise. `availableHeight` of 50 used
+    // to be raised to 200, which drew a 141px-wide page 200px tall in a
+    // 50px box — overflowing the one direction the mode exists to keep
+    // whole.
+    const width = pdfPageWidth({
+      mode: "fit-page",
+      available: 900,
+      availableHeight: 50,
+      pageBox: A4,
+    });
+    expect(width).toBeCloseTo(50 * (595 / 842), 3);
+    expect(width * (842 / 595)).toBeLessThanOrEqual(50 + 1e-6);
+  });
+
   it("returns a positive width for a box that has measured nothing", () => {
     // The state the guard above is named for — `display: none`, detached,
     // observed before first layout — reports zero on *both* axes, and a
@@ -160,7 +203,7 @@ describe("pdfPageWidth", () => {
         availableHeight: 900,
         pageBox: A4,
       }),
-    ).toBe(MIN_FITTED_WIDTH);
+    ).toBe(UNMEASURED_FITTED_WIDTH);
   });
 
   it("fits the width for a page reporting no size", () => {

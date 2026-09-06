@@ -226,13 +226,13 @@ export function PdfPreview({
     // Neither number is a function of the page any more, which is what
     // makes the cycle unavailable rather than merely unlikely.
     //
-    // What it costs: when a horizontal scrollbar *is* drawn — above zoom
-    // 1, or in a box narrower than `MIN_FITTED_WIDTH`, where the fit
-    // functions floor the width above `available` — the height still
-    // reads as though it were not, so it overstates the visible height by
-    // the scrollbar's own thickness. That is ~15px classic, 0 overlay,
-    // and it makes a fitted page about 10px wider than a true fit. The
-    // page was already overflowing in that state.
+    // What it costs: when a horizontal scrollbar *is* drawn — which for
+    // a fitted mode means above zoom 1, since neither fit function
+    // returns more than `available` — the height still reads as though
+    // it were not, so it overstates the visible height by the
+    // scrollbar's own thickness. That is ~15px classic, 0 overlay, and
+    // it makes a fitted page about 10px wider than a true fit. The page
+    // was already overflowing in that state.
     //
     // `borderBoxSize` postdates `ResizeObserver` itself, so the guard at
     // the top of this effect does not cover it. Falling back to the
@@ -639,7 +639,7 @@ export function PdfPreview({
         // child does not fit, which is the case where centring has
         // nothing to centre anyway.
         //
-        // `scrollbar-gutter: stable` is load-bearing, not cosmetic. Without
+        // The gutter reservation is load-bearing, not cosmetic. Without
         // it a classic vertical scrollbar takes its width out of
         // `contentRect.width` when it appears, and `fit-width` oscillates:
         // a wider box makes a taller page, a taller page raises the
@@ -649,21 +649,38 @@ export function PdfPreview({
         // took the width in the first place, and the property is inert
         // there.
         //
-        // It costs a visible asymmetry. In "whole page" the page is fitted
-        // to the height and no vertical scrollbar is ever drawn, so the
-        // reserved gutter stays empty and `safe center` centres the page
-        // in the content box the gutter was taken out of — on classic
-        // scrollbars the page sits ~15px left of true centre. `both-edges`
-        // would even that out by reserving the same strip twice; that
-        // trades the asymmetry for the width, and is a change to how the
-        // viewer looks rather than to whether it settles.
+        // `both-edges`, not plain `stable`, and the second word is the
+        // one doing the work. In "whole page" the page is fitted to the
+        // height and no vertical scrollbar is ever drawn, so a one-sided
+        // reservation stays empty and `safe center` centres the page
+        // inside the box that strip was taken out of: on classic
+        // scrollbars the page sits ~15px left of true centre. The mode is
+        // called "whole page", and what that name promises is the page
+        // entire and centred — a position decided by which side the
+        // browser keeps its scrollbar on is not that. Reserving the same
+        // strip on both edges makes the centring true, and makes it the
+        // same in every mode — no mode is centred against a different
+        // box. Which is not to say every mode is centred: `safe center`
+        // above falls back to `start` for a page that does not fit, so
+        // `actual` on a large page pins left while "whole page" centres.
+        // That is the alignment rule's doing, not the gutter's.
+        //
+        // What it costs, so that the next person to find it expensive can
+        // see the trade rather than only the argument: 15px per edge, so
+        // 30px of content width wherever scrollbars are classic. Nothing
+        // on overlay scrollbars, which is every touch device. A fitted
+        // page is that much narrower, and since the fit functions no
+        // longer floor the width, below roughly 389px of viewport
+        // (page width is about `viewport - 109` there) that is the whole
+        // of the page's size. Reverting to plain `stable` buys 15px of
+        // it back and returns the off-centre page.
         //
         // Where the property is unsupported (Safari before 18.2) *and*
         // scroll bars are set to always show, the oscillation above comes
         // back exactly as it was. That pairing is rare because the
         // platform without the property is usually the platform with
         // overlay scrollbars, but it is a setting, not an impossibility.
-        className="flex h-[80vh] [justify-content:safe_center] overflow-auto [scrollbar-gutter:stable] bg-bg-elevated p-4"
+        className="flex h-[80vh] [justify-content:safe_center] overflow-auto [scrollbar-gutter:stable_both-edges] bg-bg-elevated p-4"
       >
         <Document
           file={src}
