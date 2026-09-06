@@ -587,7 +587,14 @@ export function GlobalSearch() {
             </>
           )}
 
-          {!loading && !hasResults && (
+          {/* `semanticPending` belongs in this gate as much as `loading`
+              does. "No results" is a verdict, and while a stage that
+              could still produce some is out, it is a verdict on a search
+              that has not finished — the phrase a semantic search exists
+              for is exactly the one no filename matches. On a drive
+              without that stage the flag is never set, so the verdict
+              arrives as soon as it is true. */}
+          {!loading && !semanticPending && !hasResults && (
             <div className={`text-center text-sm text-text-muted ${mobile ? "py-12" : "py-8"}`}>
               {t("noResults")}
             </div>

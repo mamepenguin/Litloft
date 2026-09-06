@@ -919,7 +919,7 @@ describe("GlobalSearch", () => {
     });
 
     /**
-     * The two stages, which used to be one `Promise.all`.
+     * The two stages.
      *
      * Semantic search takes around five seconds on a cold index. Waiting for
      * it before drawing anything meant the name match the user was almost
@@ -1089,6 +1089,75 @@ describe("GlobalSearch", () => {
         expect(screen.queryByText("stale-hit.mp4")).toBeNull();
         expect(screen.queryByText("old-query-row")).toBeNull();
         expect(screen.getByText("new-query-row")).toBeInTheDocument();
+      });
+
+      /**
+       * "No results" is a verdict, and stage one alone cannot reach it:
+       * the phrase a semantic search exists for is exactly the one no
+       * filename matches. Every other test here seeds a non-empty name
+       * result, so this branch had nothing holding it.
+       */
+      it("does not call it empty while the second stage is still out", async () => {
+        mockGetDriveFiles.mockResolvedValue({
+          data: [],
+          meta: { total: 0, page: 1, limit: 8 },
+        });
+        let release: (hits: SemanticHit[]) => void = () => {};
+        mockFetchSemanticHits.mockImplementation(
+          () => new Promise<SemanticHit[]>((r) => (release = r)),
+        );
+
+        render(<GlobalSearch />);
+        fireEvent.click(screen.getByLabelText("Search"));
+        await typeQuery("kyoto temple");
+
+        await screen.findByText(/Also searching by meaning/);
+        expect(screen.queryByText(/No matching files found/i)).toBeNull();
+
+        await act(async () => {
+          release([makeHit({ file_id: "f2", filename: "kyoto-temple.mp4" })]);
+          await Promise.resolve();
+          await Promise.resolve();
+        });
+
+        await waitFor(() =>
+          expect(screen.getAllByTestId("merged-result-item")).toHaveLength(1),
+        );
+        expect(screen.queryByText(/No matching files found/i)).toBeNull();
+      });
+
+      it("says so once the second stage has come back empty as well", async () => {
+        mockGetDriveFiles.mockResolvedValue({
+          data: [],
+          meta: { total: 0, page: 1, limit: 8 },
+        });
+        mockFetchSemanticHits.mockResolvedValue([]);
+
+        render(<GlobalSearch />);
+        fireEvent.click(screen.getByLabelText("Search"));
+        await typeQuery("nothing at all");
+
+        await waitFor(() =>
+          expect(screen.getByText(/No matching files found/i)).toBeInTheDocument(),
+        );
+      });
+
+      it("says so straight away on a drive with no second stage", async () => {
+        // The verdict is not delayed by a stage that does not exist.
+        mockIsSemanticSearchAvailable.mockResolvedValue(false);
+        mockGetDriveFiles.mockResolvedValue({
+          data: [],
+          meta: { total: 0, page: 1, limit: 8 },
+        });
+
+        render(<GlobalSearch />);
+        fireEvent.click(screen.getByLabelText("Search"));
+        await typeQuery("nothing at all");
+
+        await waitFor(() =>
+          expect(screen.getByText(/No matching files found/i)).toBeInTheDocument(),
+        );
+        expect(screen.queryByText(/Also searching by meaning/)).toBeNull();
       });
 
       /**
@@ -1303,7 +1372,7 @@ describe("GlobalSearch", () => {
       expect(mockFetchSemanticHits).not.toHaveBeenCalled();
     });
 
-    it("rapid query change aborts the prior request (signal passed and aborted)", async () => {
+    it("issues one request for a query changed inside the debounce window", async () => {
       const capturedSignals: AbortSignal[] = [];
       mockGetDriveFiles.mockImplementation(
         async (
@@ -1340,6 +1409,13 @@ describe("GlobalSearch", () => {
       // The first change is abandoned before its debounce fires, so its
       // request never goes out at all; exactly one signal is issued, and
       // it is live because it belongs to the query that is on screen.
+      //
+      // So this measures the debounce, not the abort — the name used to
+      // say "aborts the prior request" and the body proves the opposite,
+      // because there is no prior request to abort. The generation guard
+      // is carried by `does not let an abandoned name stage paint over
+      // the current one`, which holds a request open across the change
+      // and does go red when `ctrl.abort()` is removed.
       expect(capturedSignals.length).toBe(1);
       expect(capturedSignals.map((s) => s.aborted)).toEqual([false]);
     });
