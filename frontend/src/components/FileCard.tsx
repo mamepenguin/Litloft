@@ -11,6 +11,7 @@ import { TagList } from "./TagList";
 import { FileTypeIcon } from "./FileTypeIcon";
 import { VideoPreview } from "./VideoPreview";
 import { TextThumbnail } from "./TextThumbnail";
+import { cardPrimaryMeta, formatDimensions } from "@/lib/cardPrimaryMeta";
 
 function FileCardImpl({
   file,
@@ -71,6 +72,7 @@ function FileCardImpl({
 }) {
   const formatRelativeDate = useRelativeDate();
   const clipboard = useClipboard();
+  const primaryMeta = cardPrimaryMeta(file);
   const isCutFile = clipboard.isCut(file.id);
   const { Wrapper, wrapperProps } = useFileCardLink({
     file,
@@ -178,8 +180,16 @@ function FileCardImpl({
             {file.title}
           </span>
           <div className="mt-1 flex flex-wrap items-center gap-x-1.5 gap-y-0.5 text-xs text-text-muted">
-            <span className="tabular-nums">{formatFileSize(file.file_size)}</span>
-            <span className="opacity-40">·</span>
+            {primaryMeta.kind !== "none" && (
+              <>
+                <span className="tabular-nums">
+                  {primaryMeta.kind === "dimensions"
+                    ? formatDimensions(primaryMeta.width, primaryMeta.height)
+                    : formatFileSize(file.file_size)}
+                </span>
+                <span className="opacity-40">·</span>
+              </>
+            )}
             <span className="tabular-nums">{formatRelativeDate(file.created_at)}</span>
             {file.tags.length > 0 && (
               <>

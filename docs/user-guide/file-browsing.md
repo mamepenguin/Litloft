@@ -94,7 +94,15 @@ Each file card shows:
 
 - Thumbnail (320x180 JPEG; lazy-generated on first access).
 - The file's **title**, not its filename. The title is derived from the filename and is cosmetic — this is why renaming in place is not offered on the cards (see below).
-- Size and the date the file was indexed, plus up to two tags.
+- The date the file was indexed, plus up to two tags — and, before the date, the one fact the card has not already told you:
+
+  | Kind | First shows | Because |
+  |---|---|---|
+  | Video, Audio | nothing — the date leads | the length is already on the thumbnail badge, and for a reference file the size is the pointer's, not the media's |
+  | Image | its dimensions, e.g. *1920 × 1080* | the one fact that tells two photographs apart at card size |
+  | Everything else | its size | |
+
+  An image whose dimensions were never read — a broken file, or one in a format the scanner could not measure — shows the date alone rather than falling back to its size, so two image cards side by side never describe themselves in different terms.
 - A duration badge for video and audio. Everything else gets an extension badge, but only where it distinguishes something: in a folder whose files all share one extension the badge is dropped, and the list view drops its type label the same way when every row is the same kind. Both come back the moment the listing is mixed — including when a later page brings in a different kind.
 - A thin *progress bar* along the bottom for partially-watched media.
 - A favourite star, shown on hover and always shown once the file is a favourite.

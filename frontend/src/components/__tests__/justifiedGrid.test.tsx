@@ -58,7 +58,7 @@ vi.mock("@/lib/api", () => ({
 
 import { FileGrid } from "../FileGrid";
 import { JG_MAX_RATIO, JG_MIN_RATIO } from "@/lib/justifiedGrid";
-import { formatFileSize } from "@/lib/format";
+import { formatRelativeDate } from "@/lib/format";
 import type { FileItem } from "@/types";
 
 const makeFile = (overrides: Partial<FileItem> = {}): FileItem => ({
@@ -228,19 +228,30 @@ describe("FileGrid — justified rows", () => {
     // The population is not empty, and it really is the justified form.
     expect(cells(container)).toHaveLength(20);
 
-    const sizes = files.map((f) => formatFileSize(f.file_size));
-    expect(new Set(sizes).size).toBeGreaterThan(0);
-    for (const size of new Set(sizes)) {
-      expect(screen.queryByText(size)).toBeNull();
-    }
+    // The date, not the size. Every fixture here is an image, and a card
+    // leads an image with its dimensions or with nothing
+    // (`lib/cardPrimaryMeta.ts`) — so `formatFileSize` now produces a
+    // string no form in the app draws for these rows, and asserting its
+    // absence would pass whatever the cell rendered. The date is the one
+    // column the card form draws for every kind, which makes it the one
+    // that can tell the two forms apart. Computed rather than written
+    // out: `formatRelativeDate` changes shape once the fixture's year is
+    // not the current one.
+    const date = formatRelativeDate(files[0].created_at);
+    expect(screen.queryAllByText(date)).toHaveLength(0);
     expect(screen.queryAllByText(/^(jpg|png)$/i)).toHaveLength(0);
 
-    // And the same rows on the card form do draw them — otherwise the
-    // assertions above are about fixtures that say nothing anywhere.
+    // And the same rows on the card form do draw a meta row — otherwise
+    // the assertions above are about fixtures that say nothing anywhere.
+    //
+    // Exact counts, not "more than none": twenty rows over two distinct
+    // extensions, so `deriveListMeta` turns the badge on for all of them
+    // and every card draws its date. Nineteen of twenty silently losing
+    // either would otherwise leave the control green.
     cleanup();
     render(<FileGrid files={files.map((f) => ({ ...f, image_width: null, image_height: null }))} />);
-    expect(screen.getAllByText(sizes[0]).length).toBeGreaterThan(0);
-    expect(screen.queryAllByText(/^(jpg|png)$/i).length).toBeGreaterThan(0);
+    expect(screen.queryAllByText(date)).toHaveLength(20);
+    expect(screen.queryAllByText(/^(jpg|png)$/i)).toHaveLength(20);
   });
 
   it("names every cell, for the hover band to reveal", () => {
