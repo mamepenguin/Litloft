@@ -26,13 +26,20 @@ These are available on every page.
 |---|---|
 | `?` | Open the shortcut cheat sheet for the current page |
 | `Esc` | Close the topmost modal / dialog |
-| `Cmd/Ctrl+K` | Open the drive-wide file switcher |
-| `Cmd/Ctrl+Shift+F` | Open search |
+| `Cmd/Ctrl+K` | Open the drive-wide search modal |
+| `Cmd/Ctrl+Shift+F` | Open the drive-wide search modal |
 | `N` | Open Quick Note (see [Quick Note](quick-note.md)) |
 
-`Cmd/Ctrl+K` and `Cmd/Ctrl+Shift+F` open the same modal — the first lands on
-recently opened files, the second on search. While the modal is open, either
-chord closes it again.
+`Cmd/Ctrl+K` and `Cmd/Ctrl+Shift+F` open the same modal in the same state,
+with the cursor in the same input — the in-app cheat sheet (`?`) names them
+both the same way for that reason. They both exist because `Cmd/Ctrl+K` is a
+single chord you can reach one-handed, and `Cmd/Ctrl+Shift+F` is what many
+people's fingers already know. While the modal is open, either chord closes it
+again.
+
+What the modal is depends on whether you type, not on which chord opened it:
+before you type it lists what you recently opened, and typing turns it into a
+search. See [search](search.md#the-search-modal).
 
 ### Quick Note panel
 

@@ -199,7 +199,8 @@
     "recentFiles": "最近のファイル",
     "recentSearches": "最近の検索",
     "sceneSearchToggle": "シーン検索",
-    "sceneSearchHint": "動画の中で特定のシーンが映っている箇所を探す"
+    "sceneSearchHint": "動画の中で特定のシーンが映っている箇所を探す",
+    "semanticPending": "意味でも探しています…"
   },
   "smartFolder": {
     "sectionTitle": "スマートフォルダ",
@@ -923,7 +924,6 @@
     "paste": "ペースト",
     "newFile": "ノート作成",
     "search": "検索",
-    "switcher": "ファイルに移動",
     "prevFile": "前のファイル",
     "nextFile": "次のファイル",
     "loftPlayer": "動画プレーヤー",

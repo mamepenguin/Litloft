@@ -918,6 +918,349 @@ describe("GlobalSearch", () => {
       expect(screen.getByText("semantic-hit.mp4")).toBeInTheDocument();
     });
 
+    /**
+     * The two stages, which used to be one `Promise.all`.
+     *
+     * Semantic search takes around five seconds on a cold index. Waiting for
+     * it before drawing anything meant the name match the user was almost
+     * certainly after sat behind a spinner for those five seconds.
+     */
+    describe("two stages", () => {
+      const neverResolves = () => new Promise<never>(() => {});
+
+      it("draws the name matches while semantic search is still out", async () => {
+        mockGetDriveFiles.mockResolvedValue({
+          data: [makeFile({ id: "f1", title: "filename-hit" })],
+          meta: { total: 1, page: 1, limit: 8 },
+        });
+        mockFetchSemanticHits.mockImplementation(neverResolves);
+
+        render(<GlobalSearch />);
+        fireEvent.click(screen.getByLabelText("Search"));
+        await typeQuery("hit");
+
+        await waitFor(() =>
+          expect(screen.getByText("filename-hit")).toBeInTheDocument(),
+        );
+      });
+
+      it("says so in the footer, outside the list that is about to move", async () => {
+        mockGetDriveFiles.mockResolvedValue({
+          data: [makeFile({ id: "f1", title: "filename-hit" })],
+          meta: { total: 1, page: 1, limit: 8 },
+        });
+        mockFetchSemanticHits.mockImplementation(neverResolves);
+
+        render(<GlobalSearch />);
+        fireEvent.click(screen.getByLabelText("Search"));
+        await typeQuery("hit");
+
+        const pending = await screen.findByText(/Also searching by meaning/);
+        // In the results list it would push every row down the moment the
+        // second stage landed, which is what the footer row exists to avoid.
+        expect(pending.closest(".overflow-y-auto")).toBeNull();
+        const panel = screen
+          .getByPlaceholderText(/Search/)
+          .closest(".bg-bg-primary");
+        expect(panel).toContainElement(pending);
+        // "Inside the panel, outside the list" is also true of a line put
+        // under the input, above the results — which is the placement this
+        // row exists instead of. It is the footer's second column.
+        const entry = screen.getByRole("button", { name: /Keyboard Shortcuts/ });
+        const footer = entry.parentElement!;
+        expect(footer).toContainElement(pending);
+        expect([...footer.children]).toEqual([entry, pending]);
+      });
+
+      it("reshuffles the list when the semantic hits land", async () => {
+        mockGetDriveFiles.mockResolvedValue({
+          data: [makeFile({ id: "f1", title: "filename-hit" })],
+          meta: { total: 1, page: 1, limit: 8 },
+        });
+        let release: (hits: SemanticHit[]) => void = () => {};
+        mockFetchSemanticHits.mockImplementation(
+          () => new Promise<SemanticHit[]>((r) => (release = r)),
+        );
+
+        render(<GlobalSearch />);
+        fireEvent.click(screen.getByLabelText("Search"));
+        await typeQuery("hit");
+
+        await waitFor(() =>
+          expect(screen.getAllByTestId("merged-result-item")).toHaveLength(1),
+        );
+
+        await act(async () => {
+          release([makeHit({ file_id: "f2", filename: "semantic-hit.mp4" })]);
+          await Promise.resolve();
+          await Promise.resolve();
+        });
+
+        await waitFor(() =>
+          expect(screen.getAllByTestId("merged-result-item")).toHaveLength(2),
+        );
+        expect(screen.queryByText(/Also searching by meaning/)).toBeNull();
+      });
+
+      it("says nothing on a drive that has no semantic search to wait for", async () => {
+        mockIsSemanticSearchAvailable.mockResolvedValue(false);
+        mockGetDriveFiles.mockResolvedValue({
+          data: [makeFile({ id: "f1", title: "filename-hit" })],
+          meta: { total: 1, page: 1, limit: 8 },
+        });
+
+        render(<GlobalSearch />);
+        fireEvent.click(screen.getByLabelText("Search"));
+        await typeQuery("hit");
+
+        await waitFor(() =>
+          expect(screen.getByText("filename-hit")).toBeInTheDocument(),
+        );
+        // Not "0 semantic results": on a drive without the addon that is the
+        // absence of a feature, not the outcome of a search.
+        expect(screen.queryByText(/Also searching by meaning/)).toBeNull();
+        expect(mockFetchSemanticHits).not.toHaveBeenCalled();
+      });
+
+      /**
+       * ...and it stays silent while the answer to "does this drive have
+       * semantic search" is itself outstanding. Announcing a second stage
+       * before knowing there is one is the same claim, made earlier.
+       */
+      it("says nothing while it is still finding out whether there is a second stage", async () => {
+        mockIsSemanticSearchAvailable.mockImplementation(neverResolves);
+        mockGetDriveFiles.mockResolvedValue({
+          data: [makeFile({ id: "f1", title: "filename-hit" })],
+          meta: { total: 1, page: 1, limit: 8 },
+        });
+
+        render(<GlobalSearch />);
+        fireEvent.click(screen.getByLabelText("Search"));
+        await typeQuery("hit");
+
+        await waitFor(() =>
+          expect(screen.getByText("filename-hit")).toBeInTheDocument(),
+        );
+        expect(screen.queryByText(/Also searching by meaning/)).toBeNull();
+      });
+
+      /**
+       * Two stages that resolve independently can interleave with a new
+       * query's stages. The abort on the old query is what keeps them apart,
+       * so this resolves the old query's slow stage *after* the new query has
+       * already painted.
+       */
+      it("does not let a stage from an abandoned query paint over the current one", async () => {
+        const releases: Array<(hits: SemanticHit[]) => void> = [];
+        mockFetchSemanticHits.mockImplementation(
+          () => new Promise<SemanticHit[]>((r) => releases.push(r)),
+        );
+        mockGetDriveFiles.mockResolvedValueOnce({
+          data: [makeFile({ id: "old", title: "old-query-row" })],
+          meta: { total: 1, page: 1, limit: 8 },
+        });
+
+        render(<GlobalSearch />);
+        fireEvent.click(screen.getByLabelText("Search"));
+        await typeQuery("old");
+        await waitFor(() =>
+          expect(screen.getByText("old-query-row")).toBeInTheDocument(),
+        );
+
+        mockGetDriveFiles.mockResolvedValueOnce({
+          data: [makeFile({ id: "new", title: "new-query-row" })],
+          meta: { total: 1, page: 1, limit: 8 },
+        });
+        await typeQuery("new");
+        await waitFor(() =>
+          expect(screen.getByText("new-query-row")).toBeInTheDocument(),
+        );
+
+        // The first query's semantic stage comes back now, long after its
+        // rows were replaced.
+        await act(async () => {
+          releases[0]?.([
+            makeHit({ file_id: "stale", filename: "stale-hit.mp4" }),
+          ]);
+          await Promise.resolve();
+          await Promise.resolve();
+        });
+
+        expect(screen.queryByText("stale-hit.mp4")).toBeNull();
+        expect(screen.queryByText("old-query-row")).toBeNull();
+        expect(screen.getByText("new-query-row")).toBeInTheDocument();
+      });
+
+      /**
+       * ...and only then. A second stage that adds nothing produces the
+       * same rows in the same order; taking the highlight off a list that
+       * never moved sends the user's next Enter to the search page
+       * instead of to the row they were on.
+       */
+      it("keeps the keyboard selection when the second stage changes nothing", async () => {
+        mockGetDriveFiles.mockResolvedValue({
+          data: [
+            makeFile({ id: "f1", title: "first-hit" }),
+            makeFile({ id: "f2", title: "second-hit" }),
+          ],
+          meta: { total: 2, page: 1, limit: 8 },
+        });
+        let release: (hits: SemanticHit[]) => void = () => {};
+        mockFetchSemanticHits.mockImplementation(
+          () => new Promise<SemanticHit[]>((r) => (release = r)),
+        );
+
+        render(<GlobalSearch />);
+        fireEvent.click(screen.getByLabelText("Search"));
+        await typeQuery("hit");
+        await waitFor(() =>
+          expect(screen.getAllByTestId("merged-result-item")).toHaveLength(2),
+        );
+
+        const selectedTitles = () =>
+          screen
+            .getAllByTestId("merged-result-item")
+            .filter((row) => row.className.split(/\s+/).includes("bg-bg-elevated"))
+            .map((row) => row.textContent);
+
+        const input = screen.getAllByRole("textbox")[0];
+        fireEvent.keyDown(input, { key: "ArrowDown" });
+        await waitFor(() => expect(selectedTitles()).toHaveLength(1));
+        const before = selectedTitles();
+
+        await act(async () => {
+          release([]);
+          await Promise.resolve();
+          await Promise.resolve();
+        });
+
+        await waitFor(() =>
+          expect(screen.queryByText(/Also searching by meaning/)).toBeNull(),
+        );
+        expect(screen.getAllByTestId("merged-result-item")).toHaveLength(2);
+        expect(selectedTitles()).toEqual(before);
+      });
+
+      /**
+       * The abandoned stage the other test holds open is the semantic one.
+       * The name stage resolves promptly there, so its own abort check and
+       * `paint()`'s are never the guard that fires — delete either and that
+       * test stays green. This one holds the *name* stage open instead.
+       */
+      it("does not let an abandoned name stage paint over the current one", async () => {
+        mockFetchSemanticHits.mockResolvedValue([]);
+        const releases: Array<(res: unknown) => void> = [];
+        mockGetDriveFiles.mockImplementationOnce(
+          () => new Promise((r) => releases.push(r)),
+        );
+
+        render(<GlobalSearch />);
+        fireEvent.click(screen.getByLabelText("Search"));
+        await typeQuery("old");
+
+        mockGetDriveFiles.mockResolvedValueOnce({
+          data: [makeFile({ id: "new", title: "new-query-row" })],
+          meta: { total: 1, page: 1, limit: 8 },
+        });
+        await typeQuery("new");
+        await waitFor(() =>
+          expect(screen.getByText("new-query-row")).toBeInTheDocument(),
+        );
+
+        await act(async () => {
+          releases[0]?.({
+            data: [makeFile({ id: "old", title: "old-query-row" })],
+            meta: { total: 1, page: 1, limit: 8 },
+          });
+          await Promise.resolve();
+          await Promise.resolve();
+        });
+
+        expect(screen.queryByText("old-query-row")).toBeNull();
+        expect(screen.getByText("new-query-row")).toBeInTheDocument();
+      });
+
+      /**
+       * The cleanup clears the flag as well as the `.finally`, because a
+       * modal closed mid-stage-two never reaches that `.finally` for the
+       * generation the user is looking at next.
+       */
+      it("stops saying it is searching when the modal closes mid-stage", async () => {
+        mockGetDriveFiles.mockResolvedValue({
+          data: [makeFile({ id: "f1", title: "filename-hit" })],
+          meta: { total: 1, page: 1, limit: 8 },
+        });
+        mockFetchSemanticHits.mockImplementation(neverResolves);
+
+        render(<GlobalSearch />);
+        fireEvent.click(screen.getByLabelText("Search"));
+        await typeQuery("hit");
+        await screen.findByText(/Also searching by meaning/);
+
+        // The backdrop rather than Escape: this render has no
+        // `ShortcutsProvider` around it, and the point is the unmount, not
+        // which gesture caused it.
+        const backdrop = document.querySelector(".bg-black\\/50");
+        expect(backdrop).not.toBeNull();
+        fireEvent.click(backdrop!);
+        await waitFor(() =>
+          expect(screen.queryByPlaceholderText(/Search/)).toBeNull(),
+        );
+
+        fireEvent.click(screen.getByLabelText("Search"));
+        // Reopened with no query typed: there is no second stage running,
+        // so the footer must not still be reporting one.
+        expect(screen.queryByText(/Also searching by meaning/)).toBeNull();
+      });
+
+      /**
+       * Relevance sorting sees only name matches until the second stage
+       * arrives, so the row under the highlight afterwards is a different
+       * file. Enter would open something the user never picked.
+       */
+      it("drops the keyboard selection when the second stage reorders the list", async () => {
+        mockGetDriveFiles.mockResolvedValue({
+          data: [makeFile({ id: "f1", title: "filename-hit" })],
+          meta: { total: 1, page: 1, limit: 8 },
+        });
+        let release: (hits: SemanticHit[]) => void = () => {};
+        mockFetchSemanticHits.mockImplementation(
+          () => new Promise<SemanticHit[]>((r) => (release = r)),
+        );
+
+        render(<GlobalSearch />);
+        fireEvent.click(screen.getByLabelText("Search"));
+        await typeQuery("hit");
+        await waitFor(() =>
+          expect(screen.getAllByTestId("merged-result-item")).toHaveLength(1),
+        );
+
+        // Every row carries `hover:bg-bg-elevated` at rest, so the selected
+        // state is the bare token and has to be matched as one.
+        const selectedRows = () =>
+          screen
+            .getAllByTestId("merged-result-item")
+            .filter((row) =>
+              row.className.split(/\s+/).includes("bg-bg-elevated"),
+            );
+
+        const input = screen.getAllByRole("textbox")[0];
+        fireEvent.keyDown(input, { key: "ArrowDown" });
+        await waitFor(() => expect(selectedRows()).toHaveLength(1));
+
+        await act(async () => {
+          release([makeHit({ file_id: "f2", filename: "semantic-hit.mp4" })]);
+          await Promise.resolve();
+          await Promise.resolve();
+        });
+
+        await waitFor(() =>
+          expect(screen.getAllByTestId("merged-result-item")).toHaveLength(2),
+        );
+        expect(selectedRows()).toHaveLength(0);
+      });
+    });
+
     it("writes resolved results into the search cache", async () => {
       mockGetDriveFiles.mockResolvedValue({
         data: [makeFile({ id: "f1" })],
@@ -935,11 +1278,12 @@ describe("GlobalSearch", () => {
       const lastCall = mockWriteSearchCache.mock.calls.at(-1)!;
       const [key, partial] = lastCall;
       expect(key).toMatchObject({ drive: "main", query: "video" });
-      expect(partial).toMatchObject({
-        filenameMatches: expect.any(Array),
-        filenameTotal: 1,
-        semanticHits: expect.any(Array),
-      });
+      // Lengths, not `expect.any(Array)`: an empty array satisfies that,
+      // and a cache entry holding a name-only list is served for the next
+      // 60 seconds as if it were the finished answer.
+      expect(partial).toMatchObject({ filenameTotal: 1 });
+      expect((partial as { filenameMatches: unknown[] }).filenameMatches).toHaveLength(1);
+      expect((partial as { semanticHits: unknown[] }).semanticHits).toHaveLength(1);
     });
 
     it("availability=false → does not call fetchSemanticHits, only filename rows render", async () => {
@@ -986,20 +1330,18 @@ describe("GlobalSearch", () => {
         await Promise.resolve();
       });
 
-      // The cleanup of the prior effect (debounced request) should have
-      // aborted its signal. Either the prior signal was aborted, or
-      // the prior request never fired (timer cleared) — at minimum the
-      // last issued signal should be live and earlier ones aborted.
-      const aborted = capturedSignals.filter((s) => s.aborted);
-      const live = capturedSignals.filter((s) => !s.aborted);
-      // At least one signal must have been observed.
-      expect(capturedSignals.length).toBeGreaterThan(0);
-      // The most recent signal should still be live.
-      expect(live.length).toBeGreaterThanOrEqual(1);
-      // If multiple effects fired, the older ones must be aborted.
-      if (capturedSignals.length > 1) {
-        expect(aborted.length).toBeGreaterThanOrEqual(1);
-      }
+      // Enumerated rather than bounded. The signal is the *whole*
+      // generation guard — every write in the effect is behind
+      // `ctrl.signal.aborted` — so "at least one was aborted" is not
+      // enough to carry it: lower bounds hold at every count above the
+      // bound, and a conditional assertion is vacuous whenever its
+      // condition is false.
+      //
+      // The first change is abandoned before its debounce fires, so its
+      // request never goes out at all; exactly one signal is issued, and
+      // it is live because it belongs to the query that is on screen.
+      expect(capturedSignals.length).toBe(1);
+      expect(capturedSignals.map((s) => s.aborted)).toEqual([false]);
     });
 
     it("cache hit → readSearchCache returns data; rows render before debounce fires", async () => {
