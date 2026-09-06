@@ -23,12 +23,12 @@ import {
  * it locally.
  *
  * **The population is built from what renders cards**, not from a naming
- * pattern. `grid-cols-1 sm:grid-cols-2 …` was the shape the spec listed,
- * and scanning for it alone would have missed `RightPaneFolder`, whose
- * folder row was a bare `grid-cols-2` sitting directly above a `FileGrid`
- * that counted its columns differently. (`RightPaneFolder` currently has
- * no production caller — only `RightPaneFile` is mounted — so it is in
- * the population because it is a card grid in this tree, not because a
+ * pattern. A scan keyed on `grid-cols-1 sm:grid-cols-2 …` reads only the
+ * grids that spell their columns that way, and a bare `grid-cols-2` —
+ * `RightPaneFolder`'s folder row, directly above a `FileGrid` — sits
+ * outside it while breaking the same rule. (`RightPaneFolder` has no
+ * production caller: only `RightPaneFile` is mounted. It is in the
+ * population because it is a card grid in this tree, not because a
  * viewer can reach it.)
  */
 
@@ -286,9 +286,11 @@ describe("DESIGN.md §8.5 states the rule the code implements", () => {
   const design = () => readFileSync(resolve(REPO_ROOT, "DESIGN.md"), "utf-8");
 
   it("names the minimum column count, and it is the one in the code", () => {
-    const row = design().match(
-      /\*\*Card grid minimum width: `16rem`\. Minimum column count: (\d+)\.\*\*/,
-    );
+    const row = design()
+      .replace(/\s+/g, " ")
+      .match(
+        /\*\*Card grid minimum width: `16rem`\. Minimum column count: (\d+)\.\*\*/,
+      );
     expect(row).not.toBeNull();
     expect(Number(row![1])).toBe(MIN_CARD_COLUMNS);
   });
@@ -297,16 +299,19 @@ describe("DESIGN.md §8.5 states the rule the code implements", () => {
     // 375px phone less its `px-4` gutters, and 400px likewise: the two
     // widths `00-basis.md` names. A reader acts on these numbers, so
     // they are checked against the formula rather than trusted.
-    const body = design();
+    const body = design().replace(/\s+/g, " ");
     expect(body).toMatch(/≈165px at 375px/);
-    expect(body).toMatch(/≈178px at\s+400px/);
+    expect(body).toMatch(/≈178px at 400px/);
     expect(Math.floor((343 - CARD_GAP_PX) / columnsFor(343))).toBe(165);
     expect(Math.floor((368 - CARD_GAP_PX) / columnsFor(368))).toBe(178);
   });
 
   it("forbids writing the auto-fill template into a card grid", () => {
-    expect(design()).toMatch(
-      /Do not write\n`repeat\(auto-fill, minmax\(min\(16rem, 100%\), 1fr\)\)`/,
+    // Whitespace-insensitive: the prose is wrapped by hand, so a reflow
+    // moves the line break and a regex that pinned it would go red for a
+    // paragraph that still says the same thing.
+    expect(design().replace(/\s+/g, " ")).toMatch(
+      /Do not write `repeat\(auto-fill, [^`]*\)`/,
     );
   });
 });

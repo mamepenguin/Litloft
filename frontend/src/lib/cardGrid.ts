@@ -15,20 +15,18 @@ import { useCallback, useRef, useState } from "react";
  * mount a `<video>` for hover preview and `container-type` around a
  * media element breaks rendering on iOS Safari.
  *
- * `auto-fill` alone measured the container too and needed no observer.
- * It is not enough here for two reasons, and only the second is about
- * CSS's limits:
+ * `auto-fill` also measures the container and needs no observer, and it
+ * can hold the floor: `min(16rem, calc(50% - <gap>/2))` never resolves
+ * to more than half the container, so the track count never reaches one.
+ * {@link cardGridColumns} is exactly that, and it is what an unmeasured
+ * grid renders.
  *
- * 1. `minmax(min(16rem, 100%), 1fr)` collapses to one column below
- *    16rem — on a 375px phone, the single-column list `00-basis.md`
- *    rules out. CSS *can* express the floor, as
- *    `minmax(min(16rem, calc(50% - <gap>/2)), 1fr)`.
- * 2. The count is also a number, not only a layout: the drive home's
- *    rows render exactly as many cards as fit. Having CSS derive it for
- *    the grid and JS derive it for the row is one rule written twice,
- *    and the second copy is where this codebase keeps finding drift.
- *
- * So the measurement happens once, here, and both consumers read it.
+ * The count is measured anyway because it is also a *number*: the drive
+ * home's rows render exactly as many cards as fit, and that needs the
+ * integer, not a track listing. CSS deriving it for the grid while JS
+ * derives it for the row is one rule written twice, and the second copy
+ * is where this codebase keeps finding drift. So it is measured once,
+ * here, and both consumers read it.
  */
 export const CARD_MIN_WIDTH = "16rem";
 
@@ -54,12 +52,19 @@ export const CARD_GAP_PX = 12;
 export const MIN_CARD_COLUMNS = 2;
 
 /**
- * Fallback template for a grid that has not been measured yet — no
- * `ResizeObserver`, or the first render on the server. It gets the
- * column count right everywhere except below `CARD_MIN_WIDTH`, which is
- * the one case a measured grid corrects.
+ * Template for a grid that has not been measured yet — no
+ * `ResizeObserver`, or a server render, where the ref never runs.
+ *
+ * `calc(50% - <half the gap>)` rather than `100%`: the percentage
+ * resolves against the grid container's inline content size, so the
+ * track floor is never more than half the container and `auto-fill`
+ * cannot land on one column. With `100%` here, a server-rendered 375px
+ * page would paint a single column before hydration — the shape the
+ * floor exists to remove, back for one frame.
  */
-export const cardGridColumns = `repeat(auto-fill, minmax(min(${CARD_MIN_WIDTH}, 100%), 1fr))`;
+export const cardGridColumns =
+  `repeat(auto-fill, minmax(min(${CARD_MIN_WIDTH}, ` +
+  `calc(50% - ${CARD_GAP_PX / 2}px)), 1fr))`;
 
 /** How many cards of `CARD_MIN_PX` fit in `width`, floored at two. */
 export function columnsFor(width: number): number {
@@ -111,7 +116,16 @@ export function useCardColumns(): {
     // `display:none` subtree and of a grid with no children. Reporting
     // the floor there would claim a measurement that never happened.
     if (host.clientWidth === 0) return;
-    setColumns(columnsFor(host.clientWidth));
+    // The content box, not the padding box. `clientWidth` includes
+    // padding, and the tracks are laid inside it, so a grid with `p-2`
+    // would be told it fits a column that has nowhere to go.
+    const style = getComputedStyle(host);
+    const inner =
+      host.clientWidth -
+      (Number.parseFloat(style.paddingLeft) || 0) -
+      (Number.parseFloat(style.paddingRight) || 0);
+    if (inner <= 0) return;
+    setColumns(columnsFor(inner));
   }, []);
 
   const attach = useCallback(
