@@ -32,11 +32,11 @@ A toolbar above the grid lets you:
 - **Play** everything playable in the folder, on folders that hold something playable.
 
 **Folders follow the mode too.** In grid mode they are cards above the file
-cards; in list mode they are rows above the file rows, the same height and with
-their text on the same left edge. A grid of cards sitting above a column of
+cards; in list mode they are rows above the file rows, the same height and
+reading the same way. A grid of cards sitting above a column of
 rows would be two answers to "what am I looking at" on one screen. A folder row
 does everything a folder card does — it takes a drop, renames in place, and
-right-clicks to the same folder menu.
+right-clicks to the same folder menu, and carries the same `⋮` button as a file row for reaching those actions from the keyboard.
 
 On a wide screen a row's **contents** stop at 960px, so the name and the size
 stay near enough each other to read as one row rather than as two things at

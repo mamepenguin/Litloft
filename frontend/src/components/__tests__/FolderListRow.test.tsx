@@ -122,6 +122,76 @@ describe("FolderListRow", () => {
     expect(screen.queryByRole("link")).toBeNull();
   });
 
+  /**
+   * Right-click and long-press are the only other ways to those actions,
+   * and a keyboard has neither. A column of rows showing a `⋮` on every
+   * file and none on the folders reads as the folder being a different
+   * kind of thing rather than as an omission.
+   */
+  describe("the actions button", () => {
+    it("opens the same menu the right-click opens", () => {
+      const onContextMenu = vi.fn();
+      render(
+        <FolderListRow
+          folder={folder()}
+          driveName="main"
+          onContextMenu={onContextMenu}
+        />,
+      );
+      fireEvent.click(screen.getByRole("button", { name: /Actions for travel/i }));
+      expect(onContextMenu).toHaveBeenCalledTimes(1);
+    });
+
+    it("names the folder it acts on", () => {
+      // Repeated icon-only controls need an entity-specific name — a
+      // column of "Actions" tells a screen reader nothing about which row.
+      render(
+        <FolderListRow folder={folder({ name: "kyoto" })} driveName="main" onContextMenu={vi.fn()} />,
+      );
+      expect(screen.getByRole("button", { name: "Actions for kyoto" })).toBeInTheDocument();
+    });
+
+    it("anchors the menu to itself when there is no pointer", () => {
+      // Enter and Space produce a click with `clientX/clientY` of 0, which
+      // would clamp the menu to the top-left of the window, rows away from
+      // the folder it belongs to.
+      const onContextMenu = vi.fn();
+      render(
+        <FolderListRow folder={folder()} driveName="main" onContextMenu={onContextMenu} />,
+      );
+      const button = screen.getByRole("button", { name: /Actions for travel/i });
+      // jsdom lays nothing out, so every rect is zeros and "not 0" would
+      // be a claim about jsdom rather than about the anchoring. Give the
+      // button a box and check the menu is put against *that* box.
+      button.getBoundingClientRect = () =>
+        ({ left: 120, bottom: 340 }) as DOMRect;
+      fireEvent.click(button, { clientX: 0, clientY: 0 });
+
+      const event = onContextMenu.mock.calls[0][0];
+      expect(event.clientX).toBe(120);
+      expect(event.clientY).toBe(340);
+    });
+
+    it("is not drawn where the host has no menu to open", () => {
+      render(<FolderListRow folder={folder()} driveName="main" />);
+      expect(screen.queryByRole("button", { name: /Actions for/i })).toBeNull();
+    });
+
+    it("holds its place rather than appearing on hover", () => {
+      // Revealing it on hover reflows the row under the pointer. It shows
+      // on focus for the keyboard and stays put on touch.
+      render(
+        <FolderListRow folder={folder()} driveName="main" onContextMenu={vi.fn()} />,
+      );
+      const cls = screen
+        .getByRole("button", { name: /Actions for travel/i })
+        .className.split(/\s+/);
+      expect(cls).toContain("opacity-0");
+      expect(cls).toContain("focus-visible:opacity-100");
+      expect(cls).toContain("pointer-coarse:opacity-100");
+    });
+  });
+
   it("hands its right-click to the host, which owns the one folder menu", () => {
     const onContextMenu = vi.fn();
     const { container } = render(

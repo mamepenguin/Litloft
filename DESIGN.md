@@ -471,6 +471,11 @@ column of `FileListRow` and `FolderListRow`.
   reading measure for a row. They share a number and nothing else, which
   is why this one has a name rather than a literal at each call site —
   §8.5 already warns that four thresholds must not be merged.
+- **Nor is it §3.4's 860px.** That caps a column of running text, where the
+  measure is about how far the eye travels back to the start of the next
+  line. This caps a row, where it is about how far apart the two ends of
+  one line may sit and still read as one thing. Same section, same word,
+  different question.
 
 ## 4. Depth & Elevation
 

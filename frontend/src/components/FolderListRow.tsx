@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { Folder } from "lucide-react";
+import { Folder, MoreVertical } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { RENAME_FOCUS_ATTR } from "@/hooks/useInlineRename";
 import type { Folder as FolderType } from "@/types";
@@ -60,6 +60,7 @@ export function FolderListRow({
   onCardBlur,
 }: FolderListRowProps) {
   const t = useTranslations("folder");
+  const tFile = useTranslations("file");
   // While the name is being edited the row stops being a drag source: a
   // text selection inside a `draggable` ancestor is swallowed by the drag
   // system, so the field would be impossible to select in.
@@ -136,6 +137,48 @@ export function FolderListRow({
             {meta}
           </div>
         </Link>
+      )}
+      {/* The same reason `FileListRow` has one: right-click and long-press
+          are the only other ways in, and a keyboard has neither. Without
+          it a column of rows shows a `⋮` on every file and none on the
+          folders, which reads as the folder being a different kind of
+          thing rather than as an omission.
+
+          It holds its place with `opacity-0` rather than appearing on
+          hover, so the row does not reflow under the pointer; it shows on
+          focus for the keyboard and stays put on touch, where there is no
+          hover to reveal it. Sized past its 16px glyph to a 24px target
+          (hako `Prwd_iaXmCjWfY24KjFz2`), and 44px where the pointer is a
+          finger (`00-basis.md`). */}
+      {onContextMenu && (
+        <button
+          type="button"
+          aria-label={tFile("actionsFor", { name: folder.name })}
+          onClick={(e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            // Enter and Space on a button produce a click with no pointer,
+            // so `clientX/clientY` are 0 and the menu opens clamped to the
+            // top-left of the window — rows away from the one it belongs
+            // to. Anchor it to the button, which is where a pointer click
+            // would have put it anyway.
+            if (e.clientX === 0 && e.clientY === 0) {
+              const box = e.currentTarget.getBoundingClientRect();
+              onContextMenu({
+                ...e,
+                preventDefault: () => {},
+                stopPropagation: () => {},
+                clientX: box.left,
+                clientY: box.bottom,
+              } as unknown as React.MouseEvent);
+              return;
+            }
+            onContextMenu(e);
+          }}
+          className="flex h-6 w-6 flex-shrink-0 items-center justify-center rounded-lg text-text-muted opacity-0 transition-opacity hover:bg-bg-elevated hover:text-text-primary focus-visible:opacity-100 group-hover:opacity-100 focus-within:opacity-100 pointer-coarse:h-11 pointer-coarse:w-11 pointer-coarse:opacity-100"
+        >
+          <MoreVertical size={16} />
+        </button>
       )}
     </div>
   );
