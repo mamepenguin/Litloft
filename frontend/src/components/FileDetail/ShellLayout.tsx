@@ -1,11 +1,14 @@
 "use client";
 
-import { useCallback, type ReactNode, type RefObject } from "react";
+import { useCallback, useState, type ReactNode, type RefObject } from "react";
 import { useTranslations } from "next-intl";
 
 import type { FileItem } from "@/types";
 import type { MediaController } from "@/lib/mediaController";
 import type { DocumentCaptureController } from "@/lib/documentCapture";
+import type { PdfController } from "@/lib/pdfController";
+import { PdfPagesTab } from "./pdf/PdfPagesTab";
+import { usePdfState } from "./pdf/usePdfState";
 import { inspectorOpenStore } from "@/lib/inspectorOpenStore";
 import { useMediaLayoutPreference } from "@/lib/mediaLayout";
 import { sortSlotEntries } from "@/lib/addons";
@@ -140,6 +143,16 @@ export function ShellLayout({
   sheetPeek,
 }: ShellLayoutProps) {
   const tabLabels = useTranslations("inspector.tabs");
+
+  /**
+   * The PDF canvas viewer's page state, when the canvas holds one.
+   *
+   * Same shape as `mediaController`: the canvas publishes it upward, because
+   * only the thing that loaded the document knows what is in it, and the
+   * inspector's page list is in a different subtree.
+   */
+  const [pdfController, setPdfController] = useState<PdfController | null>(null);
+  const pdfState = usePdfState(pdfController);
   // Global namespace: a slot entry's `i18n_key` names its own addon's.
   const tGlobal = useTranslations();
   const { getSlotEntries } = useAddonSlots();
@@ -295,6 +308,23 @@ export function ShellLayout({
       },
       coreTabs: [
         {
+          /**
+           * A table of contents, a thumbnail rail, or neither.
+           *
+           * Null is how a tab is dropped (`buildInspectorTabs` rule 1), so a
+           * one-page PDF with no outline grows no tab — and with `info` alone
+           * left, no tab strip either (rule 2). The condition is about what
+           * the document has, not about what kind of file it is.
+           */
+          id: "pages",
+          label: tabLabels("pages"),
+          content:
+            pdfController &&
+            (pdfState.numPages > 1 || (pdfState.outline ?? []).length > 0) ? (
+              <PdfPagesTab controller={pdfController} />
+            ) : null,
+        },
+        {
           id: "chapters",
           label: tabLabels("chapters"),
           content:
@@ -397,6 +427,7 @@ export function ShellLayout({
           highlight={highlight}
           onMediaController={onMediaController}
           onDocumentCaptureController={onDocumentCaptureController}
+          onPdfController={setPdfController}
           markdownReloadKey={markdownReloadKey}
           onMarkdownTagsSaved={onMarkdownTagsSaved}
           miniPlayerRoot={miniPlayerRoot}

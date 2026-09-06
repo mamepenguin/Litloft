@@ -22,6 +22,7 @@ import { getStreamUrl, getThumbnailUrl } from "@/lib/api";
 import { playerKind } from "@/lib/playerKind";
 import type { MediaController } from "@/lib/mediaController";
 import type { DocumentCaptureController } from "@/lib/documentCapture";
+import type { PdfController } from "@/lib/pdfController";
 
 /**
  * Loaded on the client only.
@@ -86,6 +87,8 @@ interface FilePreviewProps {
   onDocumentCaptureController?: (
     controller: DocumentCaptureController | null,
   ) => void;
+  /** PDF only: the canvas viewer's page state, for the inspector's page list. */
+  onPdfController?: (controller: PdfController | null) => void;
   /**
    * ``.md`` only: bump to force the Properties Panel source to
    * refetch (keeps frontmatter display in sync when the outer
@@ -129,6 +132,7 @@ export function FilePreview({
   highlight,
   onMediaController,
   onDocumentCaptureController,
+  onPdfController,
   markdownReloadKey,
   onMarkdownTagsSaved,
   miniPlayerRoot,
@@ -259,6 +263,7 @@ export function FilePreview({
         title={file.title || file.filename}
         initialPage={initialPage}
         onDocumentCaptureController={onDocumentCaptureController}
+        onPdfController={onPdfController}
       />
     );
   }

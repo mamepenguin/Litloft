@@ -105,7 +105,21 @@ API.
 | `→` | Next file in the current folder |
 
 These bindings are not active on video / audio pages — there `←` and `→` are
-seek controls.
+seek controls. They **are** active on a PDF, which is why the PDF viewer uses
+`PageUp` / `PageDown` for its own pages rather than taking the arrows: one
+kind of file where `←` means something else is a thing you would have to
+remember.
+
+## PDF viewer
+
+| Key | Action |
+|---|---|
+| `PageUp` | Previous page |
+| `PageDown` | Next page |
+| `Enter` | Confirm the page number you typed |
+| `Esc` | Abandon the page number you typed |
+
+`PageUp` and `PageDown` do not fire while the page-number box has focus.
 
 ## Image gallery and archive page-turner
 

@@ -25,6 +25,7 @@ import {
   slotMocks,
   usePolicyMock,
   setViewport,
+  publishedPdfState,
 } from "./harness";
 
 vi.mock("next/navigation", () => ({
@@ -59,6 +60,14 @@ vi.mock("@/hooks/usePolicy", async () => ({
 vi.mock("../../CommentSection", async () => ({
   CommentSection: (await import("./harness")).CommentSectionStub,
 }));
+// The real one pulls in react-pdf, whose worker needs a canvas jsdom has
+// not got. What this suite asks is whether the tab exists, not what is
+// drawn inside it; `usePdfState` is the real hook, so the condition that
+// decides the tab is still the production one.
+vi.mock("../pdf/PdfPagesTab", () => ({
+  PdfPagesTab: () => <div data-testid="pdf-pages-tab" />,
+}));
+
 vi.mock("../../EditableTagChips", async () => ({
   EditableTagChips: (await import("./harness")).EditableTagChipsStub,
 }));
@@ -104,6 +113,7 @@ beforeEach(() => {
   vi.clearAllMocks();
   usePolicyMock.mockReturnValue({ enabled: true, isLoading: false });
   slotMocks.occupied.clear();
+  publishedPdfState.value = null;
   slotMocks.entries.clear();
   window.localStorage.clear();
   // Clearing storage is not enough: `readMediaLayout` prefers the
@@ -259,5 +269,43 @@ describe.each(KINDS)("%s on the shell", (_name, kind) => {
         name: /transcript (beside|below) the player/i,
       }),
     ).toBeNull();
+  });
+});
+
+
+describe("the PDF's page-list tab", () => {
+  const renderPdf = async (state: NonNullable<typeof publishedPdfState.value>) => {
+    publishedPdfState.value = state;
+    return renderKind(PDF);
+  };
+
+  it("appears for a document with more than one page", async () => {
+    await renderPdf({ numPages: 225, outline: [] });
+    expect(tabs()).toEqual(["Info", "Pages"]);
+  });
+
+  it("appears for a one-page document that has an outline", async () => {
+    // The condition is about what the document holds, not how long it is: a
+    // single-page PDF with a table of contents still has somewhere to go.
+    await renderPdf({
+      numPages: 1,
+      outline: [{ depth: 0, title: "Figure 1", page: 1 }],
+    });
+    expect(tabs()).toEqual(["Info", "Pages"]);
+  });
+
+  it("does not appear for a one-page document with nothing in it", async () => {
+    await renderPdf({ numPages: 1, outline: [] });
+    // And with `info` left alone, no tab strip at all — `buildInspectorTabs`
+    // rule 2.
+    expect(tabs()).toEqual([]);
+  });
+
+  it("does not appear for a file that publishes no document at all", async () => {
+    // Every other kind on this shell. The tab must not be a PDF-shaped hole
+    // in an image's inspector.
+    publishedPdfState.value = null;
+    await renderKind(PDF);
+    expect(tabs()).toEqual([]);
   });
 });

@@ -5,6 +5,7 @@ import type { RefObject } from "react";
 import type { FileItem } from "@/types";
 import type { MediaController } from "@/lib/mediaController";
 import type { DocumentCaptureController } from "@/lib/documentCapture";
+import type { PdfController } from "@/lib/pdfController";
 import { AddonSlot } from "../AddonSlot";
 import { FilePreview } from "../FilePreview";
 import { MediaLayoutToggle } from "../MediaLayoutToggle";
@@ -17,6 +18,8 @@ export interface MediaPlayerBlockProps {
   highlight?: string;
   onMediaController: (mc: MediaController | null) => void;
   onDocumentCaptureController: (c: DocumentCaptureController | null) => void;
+  /** PDF only: the canvas viewer's page state, for the inspector's page list. */
+  onPdfController?: (c: PdfController | null) => void;
   markdownReloadKey: number;
   onMarkdownTagsSaved: () => void;
   miniPlayerRoot?: Element | null;
@@ -54,6 +57,7 @@ export function MediaPlayerBlock({
   highlight,
   onMediaController,
   onDocumentCaptureController,
+  onPdfController,
   markdownReloadKey,
   onMarkdownTagsSaved,
   miniPlayerRoot,
@@ -82,6 +86,7 @@ export function MediaPlayerBlock({
         highlight={highlight}
         onMediaController={onMediaController}
         onDocumentCaptureController={onDocumentCaptureController}
+        onPdfController={onPdfController}
         markdownReloadKey={markdownReloadKey}
         onMarkdownTagsSaved={onMarkdownTagsSaved}
         miniPlayerRoot={miniPlayerRoot}
