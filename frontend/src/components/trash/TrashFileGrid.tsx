@@ -72,17 +72,28 @@ export function TrashFileGrid({
               className={`group relative block rounded-xl overflow-hidden transition-all duration-200 ease-out hover:bg-bg-card ${
                 selectable ? "cursor-pointer select-none" : ""
               } ${selected ? "ring-2 ring-accent bg-bg-card" : ""}`}
-              onClick={selectable
-                ? (e) => {
-                    if (e.shiftKey && onShiftSelect) {
-                      e.preventDefault();
-                      onShiftSelect(file.id);
-                    } else {
-                      onSelect?.(file.id);
-                    }
-                  }
-                : undefined
-              }
+              /* Not gated on `selectable`: Cmd/Ctrl-click is how a
+                 selection is *started* here, which is why the host's
+                 handler turns selection mode on before it toggles. With
+                 the handler attached only in selection mode there was no
+                 way in, and the press did nothing at all. */
+              onClick={(e) => {
+                // Shift first once a selection is running: Cmd/Ctrl+Shift
+                // extends the range rather than toggling one file, which is
+                // the order `useFileCardLink` uses in the ordinary listing.
+                if (selectable && e.shiftKey && onShiftSelect) {
+                  e.preventDefault();
+                  onShiftSelect(file.id);
+                  return;
+                }
+                if ((e.metaKey || e.ctrlKey) && onMetaSelect) {
+                  e.preventDefault();
+                  onMetaSelect(file.id);
+                  return;
+                }
+                if (!selectable) return;
+                onSelect?.(file.id);
+              }}
               onContextMenu={selectable ? undefined : (e) => {
                 e.preventDefault();
                 e.stopPropagation();
