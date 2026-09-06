@@ -506,7 +506,16 @@ describe("what the header hands its children", () => {
     const slot = screen.getByTestId("slot-search-modes");
     expect(slot.getAttribute("data-layout")).toBe("stack");
     const props = JSON.parse(slot.getAttribute("data-slot-props")!);
-    expect(props.context).toBe("page");
+    // Enumerated, not spot-checked: the slot is mounted in one place and
+    // this is what that place hands over. A `context` telling the addon
+    // which of two layouts to draw was one of them, for a second layout
+    // no caller ever asked for — it fails here if it comes back.
+    expect(Object.keys(props).sort()).toEqual([
+      "drive",
+      "filter",
+      "onSelect",
+      "query",
+    ]);
     expect(props.query).toBe("cats");
     expect(props.drive).toBe("main");
     expect(props.filter).toBe("video");

@@ -6,7 +6,7 @@
 - `docs/superpowers/specs/2026-05-02-search-results-unification-phase3.md` — unification of the results page into a single list
 - `docs/superpowers/specs/2026-05-03-search-popup-semantic-merge.md` — popup semantic merge + cache handoff
 
-**Scope:** the two-layer search UX. The `Cmd/Ctrl+Shift+F` quick-launcher popup (filename + semantic merged in parallel), and the virtual-folder-style results page at `/drive/{drive}/search` (including cache hydrate from the popup). The Smart Folder (saved searches) DB / API / UI. Page-context extensions for the intelligence addon's `search-modes` slot.
+**Scope:** the two-layer search UX. The `Cmd/Ctrl+Shift+F` quick-launcher popup (filename + semantic merged in parallel), and the virtual-folder-style results page at `/drive/{drive}/search` (including cache hydrate from the popup). The Smart Folder (saved searches) DB / API / UI. The intelligence addon's `search-modes` entry on the results page.
 
 ## Architecture
 
@@ -30,8 +30,8 @@ GlobalSearch (popup)               ── filename + semantic in parallel → me
         ▼
 FolderBrowser (searchQuery=q)
   ├─ "Search: \"q\"" heading + SmartFolderSaveButton replace the breadcrumb
-  ├─ <AddonSlot id="search-modes" props={{ context: "page", ... }} />
-  │     intelligence: SemanticSearchSlot / FindModeSlot / AskSearchMode
+  ├─ <AddonSlot id="search-modes" props={{ query, drive, filter, onSelect }} />
+  │     intelligence: FindModeSlot
   └─ FileGrid (= same as a regular folder; preview / right-click / multi-select / batch all work)
         │
         ▼
@@ -65,7 +65,7 @@ The 2026-05-01 spec's "do not surface semantic in the popup" decision **rested o
 | `frontend/src/lib/semanticSearch.ts` | Thin wrapper over intelligence's semantic-search HTTP routes. Exposes `isSemanticSearchAvailable(drive)` and `fetchSemanticHits(query, drive, {limit?, signal?})`. Leading comment makes explicit that "HTTP routes are the addon's public contract". AbortSignal-aware (2026-05-03). |
 | `frontend/src/lib/api.ts` | `getDriveFiles(drive, params, {signal?})` accepts an AbortSignal (extended 2026-05-03). Smart Folder CRUD lives in separate functions. |
 | `frontend/src/app/drive/[name]/search/page.tsx` | Route for the search results page. Reads `q` / `type` / `sort` / `order` / `smart_folder_id` from `useSearchParams` and passes them through to `FolderBrowser` — a thin wrapper. |
-| `frontend/src/components/FolderBrowser.tsx` | The shared generic browser. Accepts the `searchQuery` / `typeFilter` / `smartFolderId` props. When `searchQuery` is set, it hides the breadcrumb and renders the "Search: \"q\"" heading plus `<AddonSlot id="search-modes" props={{ context: "page", ... }} />` at the top. The FileGrid is shared with regular folders. |
+| `frontend/src/components/FolderBrowser.tsx` | The shared generic browser. Accepts the `searchQuery` / `typeFilter` / `smartFolderId` props. When `searchQuery` is set, it hides the breadcrumb and renders the "Search: \"q\"" heading plus `<AddonSlot id="search-modes" props={{ query, drive, filter, onSelect }} />` at the top. The FileGrid is shared with regular folders. |
 | `frontend/src/components/folder/useFolderFiles.ts` | Data-fetching hook. With `searchQuery` set, it calls `readSearchCache` on mount; on hit, it seeds `useInfiniteScroll`'s initial state with `filenameMatches` / `filenameTotal` / page=1 and primes `semanticHits` (fetch is skipped). On miss, it fetches normally. Even on hit, semantic is revalidated. |
 | `frontend/src/components/SmartFolderSaveButton.tsx` | The button next to the "Search: ..." heading. With no `smart_folder_id` URL param, it shows "★ Save as Smart Folder"; with one, it shows "Saved: {name}" plus an Update / Rename / Delete dropdown. |
 | `frontend/src/components/SmartFolderSaveDialog.tsx` | Name-entry dialog (used for POST). |
@@ -147,17 +147,16 @@ Changes to `type` / `sort` / `order` use `router.replace` (no history entry). Ch
 
 ## Intelligence addon integration
 
-The `search-modes` slot supports both the popup and page contexts.
+The `search-modes` slot has one mount, on the results page, and entries draw one layout.
 
 | Path | Purpose |
 |---|---|
-| `addons/intelligence/frontend/src/components/SemanticSearchSlot.tsx` | Accepts a `context: "popup" \| "page"` prop (default `"popup"`, back-compat). For `page`, renders a card layout suited to the grid; for `popup`, the original compact vertical stack. |
-| `addons/intelligence/frontend/src/components/FindModeSlot.tsx` | Same pattern. Find mode supports the page-context layout. |
-| `addons/intelligence/manifest.json` | Registers `semantic-search` / `ask` / `find-mode` under `slots["search-modes"]`. |
+| `addons/intelligence/frontend/FindModeSlot.tsx` | A right-aligned chip that hands the query off to the Find page. |
+| `addons/intelligence/manifest.json` | Registers `find-mode` under `slots["search-modes"]`. |
 
-Phase 3 removed the `AddonSlot` call from the popup, so the `search-modes` slot only renders on the search results page (context="page"). When intelligence is not installed, `AddonSlot` simply renders nothing; both the page and the popup work normally.
+The popup does not mount this slot. It gets semantic hits from `frontend/src/lib/semanticSearch.ts`, which is the public-contract path, and merges them into the one result list. When intelligence is not installed, `AddonSlot` renders nothing and both surfaces work normally.
 
-For the slot mechanism in detail, see "UI Slot System" in `docs/ADDON-DEVELOPMENT.md`. The `context` prop is a single bit that lets the slot return a richer layout on the page; it is not a wire-shape change (back-compat is preserved).
+For the slot mechanism in detail, see "UI Slot System" in `docs/ADDON-DEVELOPMENT.md`.
 
 ## Related rules
 

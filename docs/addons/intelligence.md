@@ -406,10 +406,10 @@ Both trigger points are explicit user actions and both override the
 "already settled, do not re-run" guard that protects background sweeps:
 
 - The **Retry** button on the file page, for one file.
-- The **folder** button, for every image in the folder. Because it
-  overrides that guard, it re-describes images that already have a
-  description — that is what its confirmation means by *all* — and is
-  capped at 500 files per request.
+- The **folder** button, for the images among the files the folder has
+  loaded. Because it overrides that guard, it re-describes images that
+  already have a description, and its confirmation says how many files it
+  is about. It is capped at 500 files per request.
 
 Automatic paths (`on_index`, the startup sweep) never override it, so
 turning the feature on does not re-spend on work that is already done.
@@ -758,7 +758,12 @@ When enabled, the intelligence addon contributes:
   with nothing left to generate — or nothing applicable — the button is not shown.
 - **Drive home** — *Pickup*, a carousel of files you have never opened, with a link through to the full feed at `/drive/{drive}/addons/intelligence/pickup` once it holds at least 40
 - **File `[...]` menu** — *Index details*, a dialog showing per-task state with a *Regenerate* button for each task (`metadata`, `clip`, `whisper`, `text`) plus recent provider stats for failure context. It sits in the overflow menu rather than in the inspector because it answers an operator's question, not a reader's.
-- **Folder actions** — *Refine all transcripts in folder*, *Regenerate summaries*.
+- **Folder actions** — inside the folder toolbar's **Add** menu: *Create AI tag candidates…*,
+  *Create AI summaries…*, *Create image descriptions…*, plus *Refine all transcripts in folder*.
+  The first three each ask before they start, and the question says how many files it is about.
+  That number is the rows the folder has loaded, which part-way down a long folder is not the
+  whole folder — which is why it is in the question rather than in the label, where it would
+  change as you scroll. Declining sends nothing and leaves the row usable.
 - **Dashboard widget** — *Index Status* (queue depth and model memory). The eleven per-task queues are listed only while they are moving; the idle ones sit behind a *Show N idle queues* disclosure, since the running/waiting total above already says how much work there is.
 - **Dashboard alert** — a *Failed jobs* band above the drive cards, which opens the *Failed jobs* modal (per-file × per-task retry). It is absent entirely when nothing has failed.
 
