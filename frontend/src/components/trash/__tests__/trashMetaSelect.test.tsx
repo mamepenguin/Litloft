@@ -57,6 +57,27 @@ const files = vi.hoisted(() => [
     created_at: "2026-01-01T00:00:00Z",
     updated_at: "2026-01-01T00:00:00Z",
   },
+  {
+    id: "f3",
+    filename: "doc1.pdf",
+    title: "Doc 1",
+    description: "",
+    drive: "main",
+    folder_path: "",
+    file_type: "document",
+    mime_type: "application/pdf",
+    thumbnail_url: "",
+    has_thumbnail: false,
+    file_size: 4096,
+    duration: 0,
+    liked_at: null,
+    is_favorite: false,
+    tags: [],
+    subtitles: [],
+    deleted_at: new Date(Date.now() - 5 * 24 * 60 * 60 * 1000).toISOString(),
+    created_at: "2026-01-01T00:00:00Z",
+    updated_at: "2026-01-01T00:00:00Z",
+  },
 ]);
 
 vi.mock("@/lib/api", () => ({
@@ -156,6 +177,34 @@ describe("Cmd/Ctrl-click in the trash", () => {
     fireEvent.click(await screen.findByText("Video 1"), { metaKey: true });
 
     await waitFor(() => expect(selectionCount()).toBe("1 selected"));
+  });
+
+  it("lets Shift extend the range even with Cmd held, once a selection is running", async () => {
+    // Cmd/Ctrl+Shift extended a range before this fix, because the handler
+    // only existed in selection mode and answered `shiftKey` first. Entering
+    // selection mode must not cost that.
+    render(<TrashView driveName="main" />);
+    fireEvent.click(await screen.findByText("Video 1"), { metaKey: true });
+    await waitFor(() => expect(selectionCount()).toBe("1 selected"));
+
+    // Third file, so the two readings give different numbers: a range from
+    // the first reaches three, a toggle of this one only reaches two.
+    fireEvent.click(screen.getByText("Doc 1"), { metaKey: true, shiftKey: true });
+
+    await waitFor(() => expect(selectionCount()).toBe("3 selected"));
+  });
+
+  it("lets Shift extend the range in the list too", async () => {
+    render(<TrashView driveName="main" />);
+    await screen.findByText("Video 1");
+    fireEvent.click(screen.getByTestId("show-list"));
+
+    fireEvent.click(await screen.findByText("Video 1"), { metaKey: true });
+    await waitFor(() => expect(selectionCount()).toBe("1 selected"));
+
+    fireEvent.click(screen.getByText("Doc 1"), { metaKey: true, shiftKey: true });
+
+    await waitFor(() => expect(selectionCount()).toBe("3 selected"));
   });
 
   it("leaves a plain click in the list alone while selection mode is off", async () => {

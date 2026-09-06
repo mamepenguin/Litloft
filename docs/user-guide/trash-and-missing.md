@@ -76,6 +76,8 @@ The 30-day clock starts ticking. Trashed files:
 - Existing collection entries pointing at them remain (rendered as muted, non-playable).
 - Are visible in the **Trash** view, where they can be restored or purged.
 
+Several at once: the Trash view has the same selection gestures as an ordinary file listing. `Cmd/Ctrl+click` a card to turn selection on and pick it in one gesture, `Shift+click` to extend the selection to a range, and the selection bar at the bottom restores or purges the whole set.
+
 ### Restore from trash
 
 `restore_file()` clears both `deleted_at` and `missing_since`. The dual-clear is a defensive safety net for situations where the file went both missing and trashed in the wrong order — a future bug or an out-of-band edit will not leave you in a half-restored state.
