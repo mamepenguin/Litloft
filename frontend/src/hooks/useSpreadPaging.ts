@@ -6,7 +6,6 @@ import {
   canPageBack,
   canPageForward,
   halfLabel,
-  isOnFirstHalf,
   isSpreadActive,
   pageBack,
   pageForward,
@@ -21,7 +20,6 @@ export interface UseSpreadPagingOptions extends SpreadState {
 
 export interface SpreadPaging {
   activeSplit: boolean;
-  isFirstSubPage: boolean;
   subPageLabel: "A" | "B" | null;
   canGoPrev: boolean;
   canGoNext: boolean;
@@ -30,7 +28,15 @@ export interface SpreadPaging {
 }
 
 /**
- * The seven values a page-turner needs, from the six it holds.
+ * The values a page-turner needs, from the six it holds.
+ *
+ * Six out, not the seven each viewer used to derive: `isFirstSubPage`
+ * had no consumer left once both viewers moved onto this, and it is the
+ * one place `isOnFirstHalf` would escape the module ungated. Every other
+ * export wraps that primitive in an `isSpreadActive` check, which is
+ * what `pageBack`'s docstring leans on when it argues for consulting
+ * `spreadMode` — publishing an ungated half would be the one thing that
+ * could make that argument false.
  *
  * Both full-screen viewers had their own copy. They agreed, which is the
  * dangerous state: the next change to how a page turns has to be made
@@ -107,7 +113,6 @@ export function useSpreadPaging({
 
   return {
     activeSplit: isSpreadActive(state),
-    isFirstSubPage: isOnFirstHalf(state),
     subPageLabel: halfLabel(state),
     canGoPrev: canPageBack(state),
     canGoNext: canPageForward(state),

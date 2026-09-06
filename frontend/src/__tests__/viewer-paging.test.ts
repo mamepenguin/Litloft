@@ -64,6 +64,20 @@ describe("spread paging", () => {
     expect(importers.map(rel)).toEqual(["hooks/useSpreadPaging.ts"]);
   });
 
+  it("keeps the ungated half inside the module that gates it", () => {
+    // `isOnFirstHalf` is the primitive every other export wraps in an
+    // `isSpreadActive` check. `pageBack`'s docstring argues for
+    // consulting `splitMode` *because* no consumer reads the half
+    // ungated — so a caller holding the raw value would not just be
+    // untidy, it would make that argument false, and would say "second
+    // half" of a page that is not split at all.
+    const owners = sourceFiles().filter(
+      (f) =>
+        rel(f) !== "lib/spreadPaging.ts" && /\bisOnFirstHalf\b/.test(code(f)),
+    );
+    expect(owners.map(rel)).toEqual([]);
+  });
+
   it("is reached by both viewers", () => {
     // The other half of the claim: one implementation is only an
     // improvement if it is the one that runs.
