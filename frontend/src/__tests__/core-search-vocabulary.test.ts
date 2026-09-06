@@ -4,6 +4,7 @@ import { resolve, dirname, relative } from "node:path";
 import { fileURLToPath } from "node:url";
 
 import { stripComments } from "./helpers/sourceScan";
+import { MATCH_BADGES } from "@/lib/matchBadges";
 import ja from "@/messages-core/ja.json";
 import en from "@/messages-core/en.json";
 
@@ -29,7 +30,12 @@ import en from "@/messages-core/en.json";
  *  2. **How much each asks for** — a per-caller count. The population below
  *     is a union, and the two badge-drawing files ask for the *same* nine
  *     keys, so one of them quietly dropping one is invisible in the union.
- *  3. **That all of it resolves** — every key, in both catalogues.
+ *  3. **That all of it resolves** — every key, in both catalogues. The
+ *     population is the callers' own `t()` keys *plus* the label and help
+ *     keys declared in `lib/matchBadges.ts`: the badges and the legend are
+ *     drawn from that table rather than from strings in the components, so
+ *     a population read only out of the components would miss sixteen of
+ *     the words core needs.
  *
  * **The population is not "keys that look like badges."** A `match[A-Z]`
  * pattern misses `matchedPages` — lowercase after `match` — which is
@@ -51,10 +57,16 @@ const SRC_ROOT = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const CALLERS: Record<string, number> = {
   "app/drive/[name]/search/page.tsx": 2,
   "components/FolderBrowser.tsx": 1,
-  "components/GlobalSearch.tsx": 8,
-  "components/MatchOverlay.tsx": 9,
-  "components/search/MergedResultItem.tsx": 9,
+  "components/GlobalSearch.tsx": 9,
+  // One each: the badge words come from `MATCH_BADGES`, and `matchedPages`
+  // is the line that is not a badge.
+  "components/MatchOverlay.tsx": 1,
+  "components/search/MergedResultItem.tsx": 1,
   "components/search/SearchEmptyState.tsx": 4,
+  // None by name: the legend draws every word it shows out of
+  // `MATCH_BADGES`, which is the point of it — a legend with literals of
+  // its own could describe a badge that is not there.
+  "components/search/MatchLegend.tsx": 0,
 };
 
 const HANDLE = /(?:const|let)\s+(\w+)\s*=\s*useTranslations\(\s*"search"\s*\)/;
@@ -110,13 +122,32 @@ describe("the search vocabulary core draws", () => {
 
   it.each(["ja", "en"] as const)("resolves in core's own %s catalogue", (locale) => {
     const used = [
-      ...new Set(Object.keys(CALLERS).flatMap(searchKeysUsedIn)),
+      ...new Set([
+        ...Object.keys(CALLERS).flatMap(searchKeysUsedIn),
+        ...MATCH_BADGES.flatMap((badge) => [badge.labelKey, badge.helpKey]),
+      ]),
     ].sort();
     // Rule (7): the loop below is true of no keys at all, so the population
-    // is asserted first.
-    expect(used.length).toBe(24);
+    // is asserted first. Sixteen from the badge table, eight from the
+    // components' own calls.
+    expect(used.length).toBe(33);
     const missing = used.filter((key) => !(key in namespaces[locale]));
     // Named, not counted: a failure should say which word is missing.
     expect(missing).toEqual([]);
+  });
+
+  it("draws its badges from a table with every badge in it", () => {
+    // The legend describes what this table holds, so a badge missing from
+    // it is a badge with no explanation — and one nothing draws.
+    expect(MATCH_BADGES.map((badge) => badge.key)).toEqual([
+      "filename",
+      "path",
+      "metadata",
+      "transcript",
+      "clip",
+      "clip_thumbnail",
+      "content",
+      "retrieval_keywords",
+    ]);
   });
 });

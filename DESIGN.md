@@ -1127,6 +1127,30 @@ Default table aesthetic for MarkdownPreview and any other reading-surface table.
   `+N` for the rest. One rule for both surfaces
   (`frontend/src/lib/matchTimestamps.ts`).
 
+### Match badges and their legend
+
+The badges on a search result say *why* the file matched, in one word each.
+Eight of them exist, and one word is not enough to carry "Visual" or
+"Keyword" to a reader who has not built the index.
+
+- **One table.** `frontend/src/lib/matchBadges.ts` holds the eight — the
+  `match_meta` key, the two catalogue keys, and the tokens. Both surfaces
+  that draw badges and the legend that explains them read it, so the legend
+  cannot describe a badge nobody draws or leave one on screen unexplained.
+- **The explanation is not on the badge.** No `title`: with an accessible
+  name present it becomes an accessible *description* and is read out a
+  second time (§Row Actions), and it never appears on a touch screen at all.
+- **It is asked for, never volunteered.** The way in is a footer entry in
+  the search popup, beside the shortcut entry, at the touch floor
+  `pointer-coarse:min-h-11` and outside the scrolling list. Nothing shows it
+  automatically: "the first time" has nowhere to live but `localStorage`,
+  which forgets on the next browser.
+- **It is not a second modal.** The legend takes the list's place while it is
+  open, and Escape closes the legend alone, leaving the search where the
+  reader left it — two stacked overlays make Escape ambiguous. The ordering
+  is `NESTED_OVERLAY_PRIORITY` in `lib/shortcuts.ts`, a tier above the modal,
+  rather than registration order.
+
 ### Search Snippet (MatchOverlay excerpt row)
 
 The one-line excerpt showing *where* a search hit matched, inside a file card or list row. It is a quotation in a dense surface, so it deliberately does **not** reuse the long-form `blockquote` treatment from §3.3 — a `bg-bg-elevated` fill would read as a nested card in the grid, and it collapses into the row's own `hover:bg-bg-elevated` state.

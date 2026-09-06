@@ -32,7 +32,7 @@ Each hit shows its title, and under it a second line only when that line says so
 
 - Matches the **title** and the **folder path**. The title starts out as the filename with the extension dropped, so filename search works out of the box; renaming the title changes what a keyword search sees.
 - Case-insensitive, substring match. No fuzzy matching.
-- Each result carries a small badge saying where it matched — a filename hit, a folder-path hit, or both.
+- Each result carries a small badge saying where it matched — a filename hit, a folder-path hit, or both. The badges are one word each, and **What the badges mean** at the bottom of the search popup explains all of them, whether or not one is on screen at the time. Press Escape once to leave the list of meanings and go back to your results.
 - A folder-path match is deliberately ranked low, so searching `kyoto` surfaces the files under `travel/kyoto/` without burying a file actually named for Kyoto.
 
 The description field is not searched.

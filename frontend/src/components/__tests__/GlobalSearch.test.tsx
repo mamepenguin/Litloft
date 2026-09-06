@@ -7,6 +7,8 @@ import { useShortcuts } from "@/hooks/useShortcuts";
 import type { FileItem } from "@/types";
 import type { SemanticHit } from "@/lib/searchMerge";
 import { accentFills } from "@/__tests__/helpers/accentFills";
+import { MATCH_BADGES } from "@/lib/matchBadges";
+import enMessages from "@/messages-core/en.json";
 
 function renderWithShortcuts(ui: ReactNode) {
   return render(<ShortcutsProvider>{ui}</ShortcutsProvider>);
@@ -996,9 +998,14 @@ describe("GlobalSearch", () => {
         // under the input, above the results — which is the placement this
         // row exists instead of. It is the footer's second column.
         const entry = screen.getByRole("button", { name: /Keyboard Shortcuts/ });
-        const footer = entry.parentElement!;
+        const legend = screen.getByRole("button", { name: /What the badges mean/ });
+        const entries = entry.parentElement!;
+        const footer = entries.parentElement!;
         expect(footer).toContainElement(pending);
-        expect([...footer.children]).toEqual([entry, pending]);
+        // Two columns: the ways in on the left, what the second stage is
+        // doing on the right.
+        expect([...footer.children]).toEqual([entries, pending]);
+        expect([...entries.children]).toEqual([entry, legend]);
       });
 
       it("reshuffles the list when the semantic hits land", async () => {
@@ -1493,6 +1500,72 @@ describe("GlobalSearch", () => {
       expect(mockRouterPush).toHaveBeenCalledWith(
         "/drive/main/search?q=vacation",
       );
+    });
+  });
+
+  /**
+   * S-4. The badges say why a file matched, in one word each — "Visual",
+   * "Keyword". Those are the search's words, not the reader's, and there
+   * was nowhere at all to find out what they meant.
+   */
+  describe("the badge legend", () => {
+    const openLegend = async () => {
+      renderWithShortcuts(<GlobalSearch />);
+      fireEvent.click(screen.getByLabelText("Search"));
+      // The panel is portalled and its viewport question settles in an
+      // effect, so wait for the thing being asserted about rather than
+      // assuming the click painted it.
+      await screen.findByRole("button", { name: /What the badges mean/ });
+      fireEvent.click(screen.getByRole("button", { name: /What the badges mean/ }));
+    };
+
+    it("explains every badge, not the ones that happen to be on screen", async () => {
+      await openLegend();
+      // Enumerated from the table both surfaces draw from, so a badge
+      // added without a sentence fails here rather than shipping mute.
+      expect(MATCH_BADGES.length).toBe(8);
+      for (const badge of MATCH_BADGES) {
+        const help = enMessages.search[badge.helpKey as keyof typeof enMessages.search];
+        // The sentence exists in core's own catalogue...
+        expect(typeof help).toBe("string");
+        // ...and it is on screen.
+        expect(screen.getByText(help as string)).toBeInTheDocument();
+      }
+    });
+
+    it("does not close the search to say it", async () => {
+      // The reader asked what a badge means while looking at results. A
+      // legend that took the results away to answer would make them run
+      // the search again.
+      await openLegend();
+      expect(screen.getAllByPlaceholderText("Search in main...").length).toBeGreaterThanOrEqual(1);
+    });
+
+    it("gives Escape back one thing at a time", async () => {
+      await openLegend();
+      fireEvent.keyDown(document, { key: "Escape" });
+
+      // The legend is gone...
+      const firstHelp = enMessages.search.matchFilenameHelp;
+      expect(screen.queryByText(firstHelp)).toBeNull();
+      // ...and the search the reader opened is still there.
+      expect(screen.getAllByPlaceholderText("Search in main...").length).toBeGreaterThanOrEqual(1);
+
+      // A second Escape closes that, so nothing has been made harder to
+      // leave — only ordered.
+      fireEvent.keyDown(document, { key: "Escape" });
+      expect(screen.queryByPlaceholderText("Search in main...")).toBeNull();
+    });
+
+    it("is a target a thumb can hit", async () => {
+      // `pointer-coarse:min-h-11` is 44px on a touch screen, matching the
+      // shortcut entry beside it.
+      await openLegend();
+      const entry = screen.getByRole("button", { name: /What the badges mean/ });
+      expect(entry.className).toContain("pointer-coarse:min-h-11");
+      // And it is not inside the list that moves when the second stage
+      // lands.
+      expect(entry.closest(".overflow-y-auto")).toBeNull();
     });
   });
 });

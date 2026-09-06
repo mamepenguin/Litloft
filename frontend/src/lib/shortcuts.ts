@@ -33,6 +33,18 @@ export interface ShortcutContextDef {
 export const OVERLAY_PRIORITY = 100
 
 /**
+ * Tier for something opened *on top of* an overlay, which takes Escape
+ * before the overlay under it does — so closing it leaves that overlay
+ * where the reader left it.
+ *
+ * A tier rather than a later push at `OVERLAY_PRIORITY`: within a tier the
+ * order is "most recently pushed", which for two contexts in one component
+ * is hook order — true, but not a rule a reader can see or a later edit
+ * can be trusted to preserve.
+ */
+export const NESTED_OVERLAY_PRIORITY = 200
+
+/**
  * Order a shortcut stack for resolution: highest priority tier first, and
  * within a tier the most recently pushed context first.
  */

@@ -3,10 +3,11 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { useRouter } from "next/navigation";
-import { ArrowLeft, ArrowRight, Search, X } from "lucide-react";
+import { ArrowLeft, ArrowRight, Info, Search, X } from "lucide-react";
 import { useShortcuts } from "@/hooks/useShortcuts";
+import { MatchLegend } from "@/components/search/MatchLegend";
 import { useShortcutsContext } from "@/components/ShortcutsProvider";
-import { OVERLAY_PRIORITY } from "@/lib/shortcuts";
+import { NESTED_OVERLAY_PRIORITY, OVERLAY_PRIORITY } from "@/lib/shortcuts";
 
 import { useTranslations } from "next-intl";
 import { getDriveFiles, getWatchHistory } from "@/lib/api";
@@ -87,6 +88,7 @@ export function GlobalSearch() {
   const tc = useTranslations("common");
   const router = useRouter();
   const [open, setOpen] = useState(false);
+  const [legendOpen, setLegendOpen] = useState(false);
   const [query, setQuery] = useState("");
   const [merged, setMerged] = useState<FileItemWithMatch[]>([]);
   const [total, setTotal] = useState(0);
@@ -143,6 +145,7 @@ export function GlobalSearch() {
 
   const closeSearch = useCallback(() => {
     setOpen(false);
+    setLegendOpen(false);
     setQuery("");
     setMerged([]);
     setTotal(0);
@@ -215,6 +218,31 @@ export function GlobalSearch() {
     ],
     open,
     OVERLAY_PRIORITY,
+  );
+
+  /**
+   * While the legend is up, Escape closes the legend and nothing else.
+   *
+   * A tier above the modal's own context rather than a later push at the
+   * same one: "registered further down this component" is not a rule a
+   * reader can see, and the modal's Escape has to stay exactly where it is
+   * for every other moment. Closing the legend leaves the search where the
+   * reader left it — they opened one thing and they close one thing.
+   */
+  useShortcuts(
+    "search-legend",
+    t("badgeLegend"),
+    [
+      {
+        key: "escape",
+        label: tc("close"),
+        editingOnly: false,
+        hidden: true,
+        handler: () => setLegendOpen(false),
+      },
+    ],
+    open && legendOpen,
+    NESTED_OVERLAY_PRIORITY,
   );
 
   // Recently-opened files come from the server, not a local list: opening any
@@ -555,6 +583,28 @@ export function GlobalSearch() {
       <span />
     );
 
+  /**
+   * The way into the legend, beside the shortcut entry.
+   *
+   * A toggle, not a second modal: A-4 settled that two overlays make
+   * Escape ambiguous, and the reader who opens this has a list of results
+   * in front of them they are trying to read. `pointer-coarse:min-h-11`
+   * matches the shortcut entry — 44px is the tap target, and this row is
+   * outside the scrolling list so it does not move under the thumb when
+   * the second stage lands.
+   */
+  const legendEntry = () => (
+    <button
+      type="button"
+      onClick={() => setLegendOpen((v) => !v)}
+      aria-expanded={legendOpen}
+      className="inline-flex items-center gap-1.5 rounded-lg px-2 py-1 text-xs text-text-muted transition-colors hover:text-text-primary pointer-coarse:min-h-11"
+    >
+      <Info size={13} className="shrink-0" />
+      {t("badgeLegend")}
+    </button>
+  );
+
   const resultsList = (mobile: boolean) => (
     <div className={mobile ? "" : "max-h-[50vh] overflow-y-auto"}>
       {loading && merged.length === 0 ? (
@@ -666,6 +716,8 @@ export function GlobalSearch() {
                   onFillInput={handleFillInput}
                   onRemoveTerm={handleRemoveHistory}
                 />
+              ) : legendOpen ? (
+                <MatchLegend />
               ) : hasQuery ? (
                 resultsList(true)
               ) : null}
@@ -677,14 +729,17 @@ export function GlobalSearch() {
                 Two columns — the shortcut entry, and the progress the
                 second stage reports. */}
             <div className="flex items-center justify-between border-t border-bg-border px-4 py-2">
-              <button
-                type="button"
-                onClick={openShortcuts}
-                className="inline-flex items-center gap-2 rounded-lg px-2 py-1 text-xs text-text-muted transition-colors hover:text-text-primary pointer-coarse:min-h-11"
-              >
-                <kbd className="rounded border border-bg-border px-1.5 py-0.5 font-sans text-[11px]">?</kbd>
-                {tsc("title")}
-              </button>
+              <div className="flex items-center gap-1">
+                <button
+                  type="button"
+                  onClick={openShortcuts}
+                  className="inline-flex items-center gap-2 rounded-lg px-2 py-1 text-xs text-text-muted transition-colors hover:text-text-primary pointer-coarse:min-h-11"
+                >
+                  <kbd className="rounded border border-bg-border px-1.5 py-0.5 font-sans text-[11px]">?</kbd>
+                  {tsc("title")}
+                </button>
+                {legendEntry()}
+              </div>
               {searchProgress()}
             </div>
           </div>,
@@ -724,7 +779,11 @@ export function GlobalSearch() {
             </div>
 
             {/* History or Results */}
-            {!drive ? (
+            {/* The legend first: its entry is always in the footer, so
+                pressing it always answers. */}
+            {legendOpen ? (
+              <MatchLegend />
+            ) : !drive ? (
               <div className="py-8 text-center text-sm text-text-muted">
                 {t("goToDrive")}
               </div>
@@ -749,14 +808,17 @@ export function GlobalSearch() {
                 Two columns — the shortcut entry, and the progress the
                 second stage reports. */}
             <div className="flex items-center justify-between border-t border-bg-border px-4 py-2">
-              <button
-                type="button"
-                onClick={openShortcuts}
-                className="inline-flex items-center gap-2 rounded-lg px-2 py-1 text-xs text-text-muted transition-colors hover:text-text-primary pointer-coarse:min-h-11"
-              >
-                <kbd className="rounded border border-bg-border px-1.5 py-0.5 font-sans text-[11px]">?</kbd>
-                {tsc("title")}
-              </button>
+              <div className="flex items-center gap-1">
+                <button
+                  type="button"
+                  onClick={openShortcuts}
+                  className="inline-flex items-center gap-2 rounded-lg px-2 py-1 text-xs text-text-muted transition-colors hover:text-text-primary pointer-coarse:min-h-11"
+                >
+                  <kbd className="rounded border border-bg-border px-1.5 py-0.5 font-sans text-[11px]">?</kbd>
+                  {tsc("title")}
+                </button>
+                {legendEntry()}
+              </div>
               {searchProgress()}
             </div>
           </div>
