@@ -24,6 +24,9 @@ vi.mock("@/lib/api", () => ({
 }));
 
 import { FileCard } from "../components/FileCard";
+import { FileGrid } from "../components/FileGrid";
+import { CarouselSection } from "../components/CarouselSection";
+import { ContinueWatchingSection } from "../components/ContinueWatchingSection";
 import type { FileItem } from "@/types";
 
 const makeFile = (overrides: Partial<FileItem> = {}): FileItem => ({
@@ -183,5 +186,45 @@ describe("what a card says first", () => {
       <FileCard file={makeFile({ file_type: "document", file_size: 83 })} />,
     );
     expect(meta(container)).toContain("83 B");
+  });
+});
+
+describe("every host draws the same card", () => {
+  // §3.4 asks for one case per host. There is one `FileCard` and no
+  // second implementation to drift from, so the risk is a host that
+  // stops passing the file through — but the drive-home rows are where
+  // the change is most visible (their cards are media by construction,
+  // so every one of them drops to a bare date) and nothing pinned that.
+  const video = makeFile({ file_type: "video", duration: 1140, file_size: 83 });
+
+  const noSizeButDated = (container: HTMLElement) => {
+    const meta = container.querySelector(".mt-1")?.textContent ?? "";
+    expect(meta).not.toContain("83 B");
+    expect(meta.trim()).not.toBe("");
+  };
+
+  it("FileGrid", () => {
+    const { container } = render(<FileGrid files={[video]} />);
+    noSizeButDated(container);
+    expect(screen.getByText("19:00")).toBeInTheDocument();
+  });
+
+  it("CarouselSection", () => {
+    const { container } = render(
+      <CarouselSection title="Recently added" files={[video]} loading={false} />,
+    );
+    noSizeButDated(container);
+    expect(screen.getByText("19:00")).toBeInTheDocument();
+  });
+
+  it("ContinueWatchingSection", () => {
+    const { container } = render(
+      <ContinueWatchingSection
+        items={[{ ...video, watch_progress: { position: 30, duration: 1140 } }]}
+        loading={false}
+      />,
+    );
+    noSizeButDated(container);
+    expect(screen.getByText("19:00")).toBeInTheDocument();
   });
 });
