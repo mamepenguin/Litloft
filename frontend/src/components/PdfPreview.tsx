@@ -24,6 +24,7 @@ import {
   parsePdfZoomMode,
   pdfPageWidth,
   type PageBox,
+  rasterPixelRatio,
   type PdfZoomMode,
 } from "@/lib/pdfZoomMode";
 import { MenuRadioGroup, ToolbarMenu } from "@/components/ToolbarMenu";
@@ -351,11 +352,25 @@ export function PdfPreview({
     pageBox,
   });
 
+  const drawWidth = baseWidth * zoom;
+
   const pageElement = useMemo(
     () => (
       <Page
         pageNumber={page}
-        width={baseWidth * zoom}
+        width={drawWidth}
+        // A budget for pixels, not for layout. The page keeps the size
+        // the mode promises; only the raster behind it gets coarser, and
+        // only where the browser would otherwise refuse the allocation
+        // and paint nothing. See `rasterPixelRatio`.
+        devicePixelRatio={rasterPixelRatio({
+          cssWidth: drawWidth,
+          cssHeight: pageBox
+            ? drawWidth * (pageBox.height / pageBox.width)
+            : drawWidth,
+          devicePixelRatio:
+            typeof window === "undefined" ? 1 : window.devicePixelRatio || 1,
+        })}
         onLoadSuccess={(loaded) => {
           // The page's own size, in points. Read from the viewport at
           // scale 1 rather than from react-pdf's derived `width`, which
@@ -380,7 +395,7 @@ export function PdfPreview({
         renderAnnotationLayer
       />
     ),
-    [page, baseWidth, zoom],
+    [page, drawWidth, pageBox],
   );
 
   /**

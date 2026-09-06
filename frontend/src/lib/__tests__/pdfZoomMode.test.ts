@@ -1,6 +1,8 @@
 import { describe, it, expect } from "vitest";
 
 import {
+  MAX_RASTER_PIXELS,
+  rasterPixelRatio,
   CSS_PX_PER_PT,
   DEFAULT_PDF_ZOOM_MODE,
   MAX_FITTED_WIDTH,
@@ -146,5 +148,52 @@ describe("parsePdfZoomMode", () => {
     expect(parsePdfZoomMode(null)).toBe(DEFAULT_PDF_ZOOM_MODE);
     expect(parsePdfZoomMode("")).toBe(DEFAULT_PDF_ZOOM_MODE);
     expect(parsePdfZoomMode("fit-height")).toBe(DEFAULT_PDF_ZOOM_MODE);
+  });
+});
+
+
+describe("rasterPixelRatio", () => {
+  const A4_AT_ACTUAL = { cssWidth: 794, cssHeight: 1123 };
+
+  it("renders at the display's own ratio when the raster fits", () => {
+    expect(
+      rasterPixelRatio({ ...A4_AT_ACTUAL, devicePixelRatio: 2 }),
+    ).toBe(2);
+    // 794 x 1123 x 2 x 2 = 3.57M — well inside the budget.
+    expect(A4_AT_ACTUAL.cssWidth * A4_AT_ACTUAL.cssHeight * 4).toBeLessThan(
+      MAX_RASTER_PIXELS,
+    );
+  });
+
+  it("never renders finer than the display, however small the page", () => {
+    expect(rasterPixelRatio({ cssWidth: 10, cssHeight: 10, devicePixelRatio: 1 })).toBe(1);
+  });
+
+  it("drops the ratio rather than the size when the budget bites", () => {
+    // A0 at actual size, zoomed to 200%, on a DPR-2 screen: the raster
+    // the browser was being asked for is ~228M pixels, which Safari
+    // refuses — and the page then paints blank with nothing thrown.
+    const a0x2 = { cssWidth: 3178 * 2, cssHeight: 4493 * 2 };
+    const ratio = rasterPixelRatio({ ...a0x2, devicePixelRatio: 2 });
+    expect(ratio).toBeLessThan(2);
+    const pixels = a0x2.cssWidth * ratio * (a0x2.cssHeight * ratio);
+    expect(pixels).toBeLessThanOrEqual(MAX_RASTER_PIXELS + 1);
+    // And the layout is untouched — that is the whole point of budgeting
+    // pixels rather than width.
+    expect(a0x2.cssWidth).toBe(6356);
+  });
+
+  it("bites on iOS at 100% too, where the old code did not notice", () => {
+    const a0 = { cssWidth: 3178, cssHeight: 4493 };
+    const ratio = rasterPixelRatio({ ...a0, devicePixelRatio: 2 });
+    expect(ratio).toBeLessThan(2);
+    expect(a0.cssWidth * ratio * (a0.cssHeight * ratio)).toBeLessThanOrEqual(
+      MAX_RASTER_PIXELS + 1,
+    );
+  });
+
+  it("survives a page it has no size for", () => {
+    expect(rasterPixelRatio({ cssWidth: 0, cssHeight: 0, devicePixelRatio: 3 })).toBe(3);
+    expect(rasterPixelRatio({ cssWidth: 100, cssHeight: 100, devicePixelRatio: 0 })).toBe(1);
   });
 });

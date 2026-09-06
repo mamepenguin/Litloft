@@ -85,3 +85,44 @@ export function parsePdfZoomMode(raw: string | null): PdfZoomMode {
     ? (raw as PdfZoomMode)
     : DEFAULT_PDF_ZOOM_MODE;
 }
+
+
+/**
+ * The most device pixels a single page raster may ask for.
+ *
+ * react-pdf sizes its canvas `width * zoom * devicePixelRatio` on each
+ * axis, so the backing store grows with the square of the zoom. An A0
+ * page (2384 x 3370pt) at actual size and 200% on a DPR-2 screen asks
+ * for 12715 x 17973 = 228M pixels, about 914 MB — past what Safari
+ * will allocate, and iOS is past its limit at 100%. The allocation then
+ * fails with nothing thrown and the page paints blank.
+ *
+ * 16.7M is the conservative figure (iOS Safari's documented area cap).
+ * It is a budget for *pixels*, not for layout: when it bites, the page
+ * is still drawn at the size the mode promises and only its resolution
+ * drops. "Actual size" stays actual.
+ */
+export const MAX_RASTER_PIXELS = 16_700_000;
+
+/**
+ * The device-pixel ratio to render at, given the page's CSS size.
+ *
+ * Returns the display's own ratio when the raster fits the budget, and
+ * a smaller one when it does not — never above the display's, because
+ * rendering finer than the screen buys nothing.
+ */
+export function rasterPixelRatio({
+  cssWidth,
+  cssHeight,
+  devicePixelRatio,
+}: {
+  cssWidth: number;
+  cssHeight: number;
+  devicePixelRatio: number;
+}): number {
+  const dpr = devicePixelRatio > 0 ? devicePixelRatio : 1;
+  if (cssWidth <= 0 || cssHeight <= 0) return dpr;
+  const area = cssWidth * cssHeight;
+  const budgeted = Math.sqrt(MAX_RASTER_PIXELS / area);
+  return Math.min(dpr, budgeted);
+}

@@ -3,6 +3,7 @@ import { useEffect, type ReactNode } from "react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { PdfPreview } from "../PdfPreview";
+import { MAX_RASTER_PIXELS, rasterPixelRatio } from "@/lib/pdfZoomMode";
 import { ShortcutsProvider } from "../ShortcutsProvider";
 
 /**
@@ -27,6 +28,9 @@ let pageRenders: number[] = [];
 /** The `width` each of those renders was handed, newest last. */
 let pageWidths: number[] = [];
 
+/** The `devicePixelRatio` each render was handed. */
+let pageRatios: number[] = [];
+
 /** The page size the mocked document reports, in PDF points. */
 let mockPageBox = { width: 595, height: 842 };
 
@@ -47,16 +51,19 @@ vi.mock("react-pdf", () => ({
   Page: ({
     pageNumber,
     width,
+    devicePixelRatio,
     onLoadSuccess,
   }: {
     pageNumber: number;
     width: number;
+    devicePixelRatio?: number;
     onLoadSuccess?: (page: {
       getViewport: (o: { scale: number }) => { width: number; height: number };
     }) => void;
   }) => {
     pageRenders.push(pageNumber);
     pageWidths.push(width);
+    pageRatios.push(devicePixelRatio ?? 1);
     useEffect(() => {
       onLoadSuccess?.({
         getViewport: () => ({ ...mockPageBox }),
@@ -107,6 +114,7 @@ beforeEach(() => {
   pdfDoc.getOutline = async () => pdfDoc.outline;
   pageRenders = [];
   pageWidths = [];
+  pageRatios = [];
   mockPageBox = { width: 595, height: 842 };
   window.localStorage.clear();
 });
@@ -656,6 +664,41 @@ describe("PdfPreview zoom modes", () => {
 
     reportSize(0, { width: 532 });
     expect(lastWidth()).toBe(500);
+  });
+
+  it("budgets the raster rather than the layout on a very large page", async () => {
+    // A0. At actual size the page is 3178px wide, and at 200% the canvas
+    // behind it would be 12715 x 17973 device pixels on a DPR-2 screen —
+    // an allocation Safari refuses, after which the page paints blank
+    // with nothing thrown. The size the mode promises is unchanged; only
+    // the ratio drops.
+    Object.defineProperty(window, "devicePixelRatio", {
+      value: 2,
+      configurable: true,
+    });
+    mockPageBox = { width: 2384, height: 3370 };
+    renderViewer();
+    await screen.findByText("Selectable page 1");
+
+    fireEvent.click(menu());
+    fireEvent.click(modeRow("Actual size"));
+    fireEvent.click(screen.getByRole("button", { name: "Zoom in" }));
+    fireEvent.click(screen.getByRole("button", { name: "Zoom in" }));
+
+    const w = lastWidth();
+    const ratio = pageRatios[pageRatios.length - 1];
+    // Still 2384pt x 96/72 x 1.5 — the layout kept its promise.
+    expect(w).toBeCloseTo(2384 * (96 / 72) * 1.5, 3);
+    expect(ratio).toBeLessThan(2);
+    const h = w * (3370 / 2384);
+    expect(w * ratio * (h * ratio)).toBeLessThanOrEqual(MAX_RASTER_PIXELS + 1);
+  });
+
+  it("renders an ordinary page at the display's own ratio", () => {
+    // The budget must not quietly coarsen every page.
+    expect(
+      rasterPixelRatio({ cssWidth: 794, cssHeight: 1123, devicePixelRatio: 2 }),
+    ).toBe(2);
   });
 
   it("sizes a whole page from the box it is in, padding already excluded", async () => {
