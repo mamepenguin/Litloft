@@ -2,7 +2,7 @@ import { describe, it, expect, vi, afterEach } from "vitest";
 import { render, screen, cleanup, fireEvent, within } from "@testing-library/react";
 
 import { FolderToolbar } from "../FolderToolbar";
-import { BAR_WIDE } from "../ToolbarMenu";
+import { BAR_WIDE } from "@/components/ToolbarMenu";
 import { pressables } from "@/__tests__/helpers/pressable";
 
 vi.mock("@/components/AddonSlot", () => ({ AddonSlot: () => null }));

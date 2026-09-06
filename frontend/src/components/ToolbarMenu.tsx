@@ -37,6 +37,16 @@ import { Check } from "lucide-react";
 export const BAR_WIDE = { className: "hidden md:flex", "data-bar": "wide" } as const;
 
 /**
+ * What a toolbar calls the band a folding control lives in.
+ *
+ * Two toolbars fold, at two breakpoints, for two different reasons — the
+ * folder's six controls at `md` and the archive's three at `sm` — so the
+ * value names the band rather than the width. Read by the tests that check a
+ * control which left the bar arrived in the overflow.
+ */
+export type BarScope = "wide" | "roomy";
+
+/**
  * The popover surface every menu on this bar opens.
  *
  * A bottom sheet under 640px and a menu anchored to its trigger above it.
@@ -53,11 +63,33 @@ export const BAR_WIDE = { className: "hidden md:flex", "data-bar": "wide" } as c
  * bottom of a landscape phone, and page scrolling cannot bring the rest
  * back — it is inside a `sticky` bar and travels with it.
  */
-export const MENU_SURFACE =
+const MENU_SURFACE_BASE =
   "fixed inset-x-2 bottom-4 z-40 max-h-[60vh] overflow-y-auto rounded-2xl border " +
   "border-bg-border bg-bg-primary py-1 shadow-lg animate-fade-in-scale " +
-  "sm:absolute sm:inset-x-auto sm:bottom-auto sm:right-0 sm:top-full sm:mt-1 " +
-  "sm:max-h-[70vh] sm:min-w-[200px] sm:origin-top-right";
+  "sm:absolute sm:inset-x-auto sm:bottom-auto sm:top-full sm:mt-1 " +
+  "sm:max-h-[70vh] sm:min-w-[200px]";
+
+/**
+ * Which edge the anchored form hangs from.
+ *
+ * Only the anchored form has a side: the sheet below 640 spans the viewport.
+ * `end` is the default because the folder toolbar's menus sit at the right of
+ * its bar, and a menu opening rightward from there runs off the screen.
+ *
+ * `start` exists because the archive toolbar's menus sit at the *left* of its
+ * bar, where the default does the same thing in the other direction —
+ * measured in Chromium at 768 and 1512, the `min-w-[200px]` sort menu hung
+ * from a trigger ending at x=145 and put its left edge at **-55**, with two
+ * columns of every row off the frame. It does not scroll into view: the menu
+ * is `absolute` inside a bar the page does not scroll sideways.
+ */
+const MENU_ALIGN = {
+  end: " sm:right-0 sm:origin-top-right",
+  start: " sm:left-0 sm:origin-top-left",
+} as const;
+
+/** The end-aligned surface, for the menus written without `ToolbarMenu`. */
+export const MENU_SURFACE = MENU_SURFACE_BASE + MENU_ALIGN.end;
 
 interface ToolbarMenuProps {
   /** What the control does. Prefixes the accessible name. */
@@ -67,7 +99,9 @@ interface ToolbarMenuProps {
   icon: ComponentType<{ size?: number }>;
   /** Layout only — which widths this control lives at. */
   className?: string;
-  "data-bar"?: "wide";
+  "data-bar"?: BarScope;
+  /** Which edge the anchored menu hangs from. See `MENU_ALIGN`. */
+  align?: keyof typeof MENU_ALIGN;
   /** Rows. Given `close` so a row can dismiss the menu it was pressed in. */
   children: (close: () => void) => ReactNode;
 }
@@ -93,6 +127,7 @@ export function ToolbarMenu({
   icon: Icon,
   className = "",
   "data-bar": bar,
+  align = "end",
   children,
 }: ToolbarMenuProps) {
   const [open, setOpen] = useState(false);
@@ -155,7 +190,7 @@ export function ToolbarMenu({
               rest of the APG menu contract and is not here yet; the rows are
               ordinary buttons in tab order — the same gap `FilterMenu`
               records. */}
-          <div role="menu" className={MENU_SURFACE}>
+          <div role="menu" className={MENU_SURFACE_BASE + MENU_ALIGN[align]}>
             {children(close)}
           </div>
         </>

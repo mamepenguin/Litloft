@@ -6,7 +6,7 @@ import { useTranslations } from "next-intl";
 
 import type { FileKind, TrustFilter } from "@/types";
 import { TRUST_OPTION_KEYS, TYPE_OPTION_KEYS } from "./filterOptions";
-import { MENU_SURFACE } from "./ToolbarMenu";
+import { MENU_SURFACE } from "@/components/ToolbarMenu";
 
 interface FilterMenuProps {
   typeFilter: FileKind | null;

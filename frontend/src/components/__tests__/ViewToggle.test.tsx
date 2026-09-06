@@ -135,16 +135,22 @@ describe("where ViewToggle is used", () => {
   }
 
   it("appears on exactly the screens its comment names", () => {
-    // Five, not six. The folder toolbar left in Phase 3 B2b-2b: two adjacent
+    // Four. Two toolbars have left: the folder's in Phase 3 B2b-2b and the
+    // archive's in Phase 4 P4V-5, both for the same reason — two adjacent
     // icons that only a border told apart became one control reading
-    // `View: <layout>`, which is what took the last unlabelled icons but `…`
-    // off that bar. The other five keep the toggle.
+    // `View: <layout>`. The four that remain keep the toggle.
     expect(callSites()).toEqual([
       "components/CollectionDetail.tsx",
       "components/RootFileListing.tsx",
-      "components/archive/ArchiveToolbar.tsx",
       "components/missing/MissingView.tsx",
       "components/trash/TrashToolbar.tsx",
     ]);
+  });
+
+  it("is asserted against a tree that actually holds call sites", () => {
+    // "Every call site is one of these four" is also true of a walker that
+    // found none — a renamed directory, a changed extension filter, a `SRC`
+    // that no longer resolves. The count is what says the walk ran.
+    expect(callSites().length).toBe(4);
   });
 });

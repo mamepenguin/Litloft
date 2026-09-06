@@ -144,10 +144,36 @@ describe("ToolbarMenu", () => {
       "fixed", "inset-x-2", "bottom-4", "z-40", "max-h-[60vh]",
       "overflow-y-auto", "rounded-2xl", "border", "border-bg-border",
       "bg-bg-primary", "py-1", "shadow-lg", "animate-fade-in-scale",
-      "sm:absolute", "sm:inset-x-auto", "sm:bottom-auto", "sm:right-0",
+      "sm:absolute", "sm:inset-x-auto", "sm:bottom-auto",
       "sm:top-full", "sm:mt-1", "sm:max-h-[70vh]", "sm:min-w-[200px]",
-      "sm:origin-top-right",
+      "sm:right-0", "sm:origin-top-right",
     ]);
+  });
+
+  it("hangs the anchored form from the edge the caller names", () => {
+    // The archive toolbar's menus sit at the *left* of its bar, where the
+    // default runs off the screen the way the default's absence would run
+    // off it on the folder's: measured in Chromium at 768 and 1512, the
+    // 200px-wide sort menu hung from a trigger ending at x=145 and put its
+    // left edge at **-55**. It cannot be scrolled back into view — the menu
+    // is `absolute` inside a bar the page does not scroll sideways.
+    //
+    // Only the anchored form has a side. The sheet below 640 spans the
+    // viewport, so `inset-x-2` is asserted to be the same in both.
+    render(
+      <ToolbarMenu label="Sort" value="Newest first" icon={Filter} align="start">
+        {rows}
+      </ToolbarMenu>,
+    );
+    fireEvent.click(screen.getByRole("button"));
+    const classes = (screen.getByRole("menu").getAttribute("class") ?? "").split(
+      /\s+/,
+    );
+    expect(classes.filter((c) => /^sm:(left|right|origin)/.test(c))).toEqual([
+      "sm:left-0",
+      "sm:origin-top-left",
+    ]);
+    expect(classes).toContain("inset-x-2");
   });
 });
 

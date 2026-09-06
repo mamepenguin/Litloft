@@ -5,7 +5,7 @@ import { useTranslations } from "next-intl";
 
 import type { SortField, SortOrder } from "@/types";
 import { sortOptionsFor } from "@/components/sortOptions";
-import { MenuRadioGroup, MenuSeparator, ToolbarMenu } from "./ToolbarMenu";
+import { MenuRadioGroup, MenuSeparator, ToolbarMenu } from "@/components/ToolbarMenu";
 
 interface SortProps {
   sort: SortField;
