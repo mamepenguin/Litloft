@@ -1600,6 +1600,28 @@ answer is fine as long as the pair stays consistent. Here the row height
 is the only thing switching on width, so giving up the preview is the
 cheaper half to lose.
 
+**The archive listing uses these rows too, with the ratio measured from
+the picture rather than the database.** A zip directory carries no
+dimensions, but the cell loads the original image, so the browser is
+asked on `load`; until then the cell is drawn at 0.7, a scanned page's
+usual shape, so the common case is the one that does not reflow. A
+picture that fails to load goes back to square, because what is drawn
+then is a 32px icon. Folders, text and binaries are square throughout.
+
+**Its filename band is over the picture, not under it.** A caption in
+the flex column shortened the image area while the cell's width still
+came from the picture's own ratio, so `object-fit: cover` cropped the
+difference — about 12% of the height on a 200px row and 20% on a 120px
+one, in exactly the mixed levels that show captions.
+
+**Cells carry `min-width: 0`.** The grid these replaced was
+`repeat(N, minmax(0, 1fr))`, so a long name could not widen a column. A
+flex item's automatic minimum is its min-content width instead, and the
+archive puts a `truncate` — that is, `white-space: nowrap` — filename in
+flow. One long name would otherwise become the cell's minimum, the row
+would stop justifying, and `cover` would go back to cropping its
+neighbours.
+
 ### A floor under the canvas viewer
 
 An archive holding seven entries drew a 200px band with the rest of the

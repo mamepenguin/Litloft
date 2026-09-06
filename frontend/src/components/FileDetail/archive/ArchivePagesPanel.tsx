@@ -1,12 +1,14 @@
 "use client";
 
-import { useMemo, useState, useSyncExternalStore } from "react";
+import { useCallback, useMemo, useState, useSyncExternalStore } from "react";
 import { useTranslations } from "next-intl";
-import { Folder } from "lucide-react";
+import { Download, Folder } from "lucide-react";
 
 import type { ArchiveController } from "@/lib/archiveController";
 import { FileTypeIcon } from "@/components/FileTypeIcon";
-import type { FileType } from "@/types";
+import { getArchiveEntryUrl } from "@/lib/api";
+import { canOpenArchiveEntry } from "@/components/archive/archiveUtils";
+import type { ArchiveEntry, FileType } from "@/types";
 
 /**
  * How many rows are drawn before the filter has narrowed anything.
@@ -30,19 +32,97 @@ export const INITIAL_ROWS = 200;
  * behind Cmd+K. `00-basis.md` F-4: a filter that moves you somewhere has
  * to be predictable, and a ranked answer to "main" is not.
  */
+/**
+ * One path, pressable or not.
+ *
+ * The same rule the canvas keeps: an entry the viewer cannot open is
+ * not a control in the off position, so it is not a button. Pressing one
+ * used to move the canvas into a folder nobody asked for and then do
+ * nothing — `handleFileClick` matches neither the image nor the text
+ * arm and returns silently. The download is the way out, exactly as it
+ * is in the listing.
+ */
+function IndexRow({
+  entry,
+  fileId,
+  onOpen,
+}: {
+  entry: ArchiveEntry;
+  fileId: string;
+  onOpen: () => void;
+}) {
+  const t = useTranslations("archive");
+  const icon = entry.is_dir ? (
+    <Folder size={14} className="flex-shrink-0 text-accent" />
+  ) : (
+    <FileTypeIcon
+      fileType={(entry.file_type as FileType) || "other"}
+      size={14}
+      className="flex-shrink-0 text-text-muted"
+    />
+  );
+  /* Truncated from the *left*: in a 384px column the tail of
+     `lib/src/widgets/main.dart` is the part that tells two paths apart,
+     and `direction: rtl` is what makes the ellipsis land at the front.
+     `bdi` keeps the path itself reading left-to-right inside it. */
+  const path = (
+    <span className="min-w-0 flex-1 truncate text-left text-xs [direction:rtl]">
+      <bdi>{entry.path}</bdi>
+    </span>
+  );
+
+  if (!canOpenArchiveEntry(entry)) {
+    return (
+      <div
+        data-testid="archive-index-dead-row"
+        title={entry.path}
+        className="flex w-full items-center gap-2 rounded-lg px-2 py-1.5 text-text-muted"
+      >
+        {icon}
+        {path}
+        <a
+          href={getArchiveEntryUrl(fileId, entry.path)}
+          download={entry.filename}
+          aria-label={t("downloadFile", { name: entry.filename })}
+          className="flex-shrink-0 rounded-lg p-1 transition-colors hover:bg-bg-elevated hover:text-text-primary pointer-coarse:h-11 pointer-coarse:w-11 pointer-coarse:p-3"
+        >
+          <Download size={14} />
+        </a>
+      </div>
+    );
+  }
+
+  return (
+    <button
+      type="button"
+      onClick={onOpen}
+      data-testid="archive-index-row"
+      title={entry.path}
+      className="flex w-full items-center gap-2 rounded-lg px-2 py-1.5 text-left text-text-primary transition-colors hover:bg-bg-elevated pointer-coarse:min-h-11"
+    >
+      {icon}
+      {path}
+    </button>
+  );
+}
+
 export function ArchivePagesPanel({
   controller,
+  fileId,
   className = "",
 }: {
   controller: ArchiveController;
+  /** For the download an unopenable entry offers instead of a press. */
+  fileId: string;
   className?: string;
 }) {
   const t = useTranslations("archive");
-  const state = useSyncExternalStore(
-    (listener) => controller.subscribe(listener),
-    () => controller.getState(),
-    () => controller.getState(),
+  const subscribe = useCallback(
+    (listener: () => void) => controller.subscribe(listener),
+    [controller],
   );
+  const snapshot = useCallback(() => controller.getState(), [controller]);
+  const state = useSyncExternalStore(subscribe, snapshot, snapshot);
   const [query, setQuery] = useState("");
 
   const matches = useMemo(() => {
@@ -74,31 +154,11 @@ export function ArchivePagesPanel({
         <ul className="min-h-0 flex-1 overflow-y-auto" data-testid="archive-index-list">
           {shown.map((entry) => (
             <li key={entry.path}>
-              <button
-                type="button"
-                onClick={() => controller.open(entry)}
-                data-testid="archive-index-row"
-                title={entry.path}
-                className="flex w-full items-center gap-2 rounded-lg px-2 py-1.5 text-left transition-colors hover:bg-bg-elevated pointer-coarse:min-h-11"
-              >
-                {entry.is_dir ? (
-                  <Folder size={14} className="flex-shrink-0 text-accent" />
-                ) : (
-                  <FileTypeIcon
-                    fileType={(entry.file_type as FileType) || "other"}
-                    size={14}
-                    className="flex-shrink-0 text-text-muted"
-                  />
-                )}
-                {/* Truncated from the *left*: in a 384px column the tail
-                    of `lib/src/widgets/main.dart` is the part that tells
-                    two paths apart, and `direction: rtl` is what makes
-                    the ellipsis land at the front. `bdi` keeps the path
-                    itself reading left-to-right inside it. */}
-                <span className="min-w-0 flex-1 truncate text-left text-xs text-text-primary [direction:rtl]">
-                  <bdi>{entry.path}</bdi>
-                </span>
-              </button>
+              <IndexRow
+                entry={entry}
+                fileId={fileId}
+                onOpen={() => controller.open(entry)}
+              />
             </li>
           ))}
           {hidden > 0 && (

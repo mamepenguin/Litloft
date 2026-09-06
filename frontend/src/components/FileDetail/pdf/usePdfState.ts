@@ -1,6 +1,6 @@
 "use client";
 
-import { useSyncExternalStore } from "react";
+import { useCallback, useSyncExternalStore } from "react";
 
 import type { PdfController, PdfDocumentState } from "@/lib/pdfController";
 
@@ -15,9 +15,16 @@ import type { PdfController, PdfDocumentState } from "@/lib/pdfController";
 const NO_DOCUMENT: PdfDocumentState = { src: "", numPages: 0, page: 1, outline: null };
 
 export function usePdfState(controller: PdfController | null): PdfDocumentState {
-  return useSyncExternalStore(
-    (listener) => controller?.subscribe(listener) ?? (() => {}),
-    () => controller?.getState() ?? NO_DOCUMENT,
-    () => controller?.getState() ?? NO_DOCUMENT,
+  // Stable per controller — see the note in `archive/useArchiveState.ts`.
+  // Both files had the same inline-arrow shape; fixed together so the
+  // pair does not drift.
+  const subscribe = useCallback(
+    (listener: () => void) => controller?.subscribe(listener) ?? (() => {}),
+    [controller],
   );
+  const snapshot = useCallback(
+    () => controller?.getState() ?? NO_DOCUMENT,
+    [controller],
+  );
+  return useSyncExternalStore(subscribe, snapshot, snapshot);
 }

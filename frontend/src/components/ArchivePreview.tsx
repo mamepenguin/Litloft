@@ -10,7 +10,7 @@ import { isTextPreviewable } from "./TextPreview";
 import type { ArchiveContents, ArchiveEntry } from "@/types";
 import type { ArchiveViewMode } from "./archive/archiveUtils";
 import { defaultArchiveViewMode, MAX_TEXT_AUTO_LOAD } from "./archive/archiveUtils";
-import { getDirname } from "./archive/archiveUtils";
+import { canOpenArchiveEntry, getDirname } from "./archive/archiveUtils";
 import { useArchiveNavigation } from "./archive/useArchiveNavigation";
 import { useArchiveSort } from "./archive/useArchiveSort";
 import { useArchiveViewMode } from "./archive/useArchiveViewMode";
@@ -148,12 +148,9 @@ export function ArchivePreview({
     [imageEntries, imageViewer, textViewer]
   );
 
-  const isClickable = (entry: ArchiveEntry): boolean => {
-    if (entry.is_dir) return true;
-    if (entry.file_type === "image") return true;
-    if (isTextPreviewable(entry.mime_type, entry.filename)) return true;
-    return false;
-  };
+  // The same predicate the inspector's index uses — see
+  // `archiveUtils.canOpenArchiveEntry`.
+  const isClickable = canOpenArchiveEntry;
 
   // The inspector's index reaches into levels the canvas is not on, so
   // opening one of its leaves is two steps: move the level, then open.

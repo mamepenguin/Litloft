@@ -93,7 +93,7 @@ function ridesShellAsViewer(
  * mind", which is a guess. The list answers "is this one of the viewers
  * I have checked", which is the question that matters.
  */
-const _FLOORED_MIMES: ReadonlySet<string> = new Set(["application/pdf"]);
+const FLOORED_MIMES: ReadonlySet<string> = new Set(["application/pdf"]);
 
 /**
  * Does this file's viewer get a floor under it in the canvas?
@@ -124,7 +124,7 @@ export function viewerTakesCanvasFloor(
     return false;
   }
   if (fileType === "archive") return true;
-  return _FLOORED_MIMES.has(mimeType ?? "");
+  return FLOORED_MIMES.has(mimeType ?? "");
 }
 
 /**

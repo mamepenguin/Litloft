@@ -335,7 +335,7 @@ export function ShellLayout({
                and rule 1 drops a tab whose content adds nothing. With
                `info` left alone there is then no tab strip either
                (rule 2). */
-            <ArchivePagesPanel controller={archiveController} />
+            <ArchivePagesPanel controller={archiveController} fileId={fileId} />
           ) : null,
         },
         {

@@ -1283,6 +1283,15 @@ div[data-citation-section-path]:not(tr) {
   flex-grow: var(--jg-ratio);
   flex-basis: calc(var(--jg-ratio) * var(--jg-row-h));
   height: var(--jg-row-h);
+  /* A flex item's automatic minimum is its min-content width, and the
+     grid these cells replaced was `repeat(N, minmax(0, 1fr))` — a floor
+     of zero. The photo cell keeps every string out of flow so it never
+     noticed; the archive cell puts a `truncate` filename in flow, and
+     `truncate` is `white-space: nowrap`, so one long name became the
+     cell's minimum. The row then stopped justifying and `cover` went
+     back to cropping its neighbours, which is the defect the justified
+     rows exist to remove. */
+  min-width: 0;
 }
 
 /* The last line does not stretch. Without this, two leftover cells

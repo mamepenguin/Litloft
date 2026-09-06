@@ -97,6 +97,9 @@ function ImageCard({
   );
 }
 
+/* No `h-full w-full` here: `.justified-grid > .justified-grid-cell`
+   sets the height and `flex-basis` sets the width, so both would be
+   overridden anyway. */
 const CELL_CLASS = "overflow-hidden rounded-xl bg-bg-card";
 
 /**

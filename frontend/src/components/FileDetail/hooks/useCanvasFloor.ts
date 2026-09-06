@@ -41,18 +41,31 @@ export function useCanvasFloor(
 ): (node: HTMLElement | null) => void {
   const hostRef = useRef<HTMLElement | null>(null);
   const observerRef = useRef<ResizeObserver | null>(null);
+  /**
+   * Read through a ref, not a dependency.
+   *
+   * The returned callback ref has to keep one identity for the life of
+   * the mount: the host composes it with `onScrollRootChange`, and a new
+   * identity makes React detach and reattach, which sends that setter
+   * `null` and back. Downstream that tears down the mini-player portal
+   * root and re-initialises the companion metrics — on a rotation across
+   * the mobile breakpoint, or on paging from an archive to a video,
+   * neither of which is a scroll-root change at all.
+   */
+  const enabledRef = useRef(enabled);
 
   const publish = useCallback(() => {
     const host = hostRef.current;
     if (!host) return;
-    if (!enabled) {
+    if (!enabledRef.current) {
       host.style.removeProperty(CANVAS_HEIGHT_VAR);
       return;
     }
-    // The content box: `clientHeight` includes padding, and on a phone
-    // the canvas carries a bottom padding the size of the sheet's peek.
-    // Counting it would promise the viewer height that is behind the
-    // sheet.
+    // `clientHeight` is the padding box. Nothing that reaches here is
+    // padded — the shell pads the canvas only on mobile, and mobile has
+    // no floor — but the subtraction is kept as the statement that the
+    // floor is a fraction of the *content* box, so a padded desktop
+    // canvas would not promise height it does not have.
     const style = getComputedStyle(host);
     const inner =
       host.clientHeight -
@@ -62,11 +75,12 @@ export function useCanvasFloor(
     // would claim a measurement that never happened.
     if (inner <= 0) return;
     host.style.setProperty(CANVAS_HEIGHT_VAR, `${inner}px`);
-  }, [enabled]);
+  }, []);
 
   useEffect(() => {
+    enabledRef.current = enabled;
     publish();
-  }, [publish]);
+  }, [enabled, publish]);
 
   return useCallback(
     (node: HTMLElement | null) => {

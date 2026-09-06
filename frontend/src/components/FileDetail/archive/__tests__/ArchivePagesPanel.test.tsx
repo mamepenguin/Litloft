@@ -10,6 +10,11 @@ import { ArchivePagesPanel, INITIAL_ROWS } from "../ArchivePagesPanel";
 import { ArchiveContentsStore } from "@/lib/archiveController";
 import type { ArchiveEntry } from "@/types";
 
+vi.mock("@/lib/api", () => ({
+  getArchiveEntryUrl: (fileId: string, path: string) =>
+    `/api/files/${fileId}/archive/entry?path=${encodeURIComponent(path)}`,
+}));
+
 vi.mock("@/components/FileTypeIcon", () => ({
   FileTypeIcon: ({ fileType }: { fileType: string }) => (
     <span data-testid={`icon-${fileType}`} />
@@ -35,7 +40,7 @@ function mount(entries: ArchiveEntry[]) {
   store.set({ entries, currentPath: "" });
   const opened: ArchiveEntry[] = [];
   store.setOpener((e) => opened.push(e));
-  const view = render(<ArchivePagesPanel controller={store} />);
+  const view = render(<ArchivePagesPanel controller={store} fileId="file-1" />);
   return { store, opened, ...view };
 }
 
@@ -79,6 +84,33 @@ describe("ArchivePagesPanel", () => {
     fireEvent.change(filter(), { target: { value: "nothing-here" } });
     expect(rows()).toHaveLength(0);
     expect(screen.getByText("Nothing matches")).toBeInTheDocument();
+  });
+
+  it("does not present an unopenable entry as a control", () => {
+    // The canvas draws such an entry as a non-button row with a
+    // download; the index used to draw a button that moved the canvas
+    // into a folder and then did nothing at all.
+    const { opened } = mount([
+      entry("lib/main.dart"),
+      entry("a.out", { file_type: "other", mime_type: "application/octet-stream" }),
+      entry("photo.raw", { file_type: "other", mime_type: "application/octet-stream" }),
+    ]);
+
+    expect(rows()).toHaveLength(1);
+    expect(rows()[0].getAttribute("title")).toBe("lib/main.dart");
+
+    const dead = screen.getAllByTestId("archive-index-dead-row");
+    expect(dead.map((r) => r.getAttribute("title"))).toEqual([
+      "a.out",
+      "photo.raw",
+    ]);
+    // Each offers the way out the listing offers.
+    for (const row of dead) {
+      const link = row.querySelector("a[download]");
+      expect(link).not.toBeNull();
+      expect(link!.getAttribute("href")).toContain("archive/entry");
+    }
+    expect(opened).toHaveLength(0);
   });
 
   it("hands a pressed row to the viewer", () => {

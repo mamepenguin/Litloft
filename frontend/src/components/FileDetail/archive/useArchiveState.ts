@@ -1,6 +1,6 @@
 "use client";
 
-import { useSyncExternalStore } from "react";
+import { useCallback, useSyncExternalStore } from "react";
 
 import type { ArchiveController, ArchiveState } from "@/lib/archiveController";
 
@@ -17,9 +17,16 @@ const NO_ARCHIVE: ArchiveState = { entries: [], currentPath: "" };
 export function useArchiveState(
   controller: ArchiveController | null,
 ): ArchiveState {
-  return useSyncExternalStore(
-    (listener) => controller?.subscribe(listener) ?? (() => {}),
-    () => controller?.getState() ?? NO_ARCHIVE,
-    () => controller?.getState() ?? NO_ARCHIVE,
+  // Stable per controller. An inline arrow changes identity every render,
+  // and React then tears the subscription down and re-establishes it in
+  // an effect after each one — `ShellLayout` re-renders often.
+  const subscribe = useCallback(
+    (listener: () => void) => controller?.subscribe(listener) ?? (() => {}),
+    [controller],
   );
+  const snapshot = useCallback(
+    () => controller?.getState() ?? NO_ARCHIVE,
+    [controller],
+  );
+  return useSyncExternalStore(subscribe, snapshot, snapshot);
 }

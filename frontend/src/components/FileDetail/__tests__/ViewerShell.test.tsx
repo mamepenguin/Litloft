@@ -359,7 +359,7 @@ describe("the archive's page-list tab", () => {
     expect(tabs()).toEqual([]);
   });
 
-  it("gives an archive's canvas the size container its floor needs", async () => {
+  it("marks an archive's canvas as the one the floor measures", async () => {
     const { container } = await renderArchive(["001.jpg", "002.jpg"]);
     expect(
       container.querySelector('main[data-canvas-floor="true"]'),

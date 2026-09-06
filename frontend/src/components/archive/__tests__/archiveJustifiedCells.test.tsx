@@ -174,6 +174,19 @@ describe("the canvas viewer's floor", () => {
     "utf8",
   );
 
+  it("gives every cell a zero minimum, because the archive puts text in flow", () => {
+    // The grid these replaced was `repeat(N, minmax(0, 1fr))`. A flex
+    // item's automatic minimum is its min-content width instead, and an
+    // archive cell carries a `truncate` — `white-space: nowrap` —
+    // filename in flow, so one long name would become the cell's
+    // minimum and the row would stop justifying.
+    const rule = css.match(
+      /\.justified-grid > \.justified-grid-cell \{([^}]*)\}/,
+    );
+    expect(rule).not.toBeNull();
+    expect(rule![1]).toMatch(/min-width:\s*0/);
+  });
+
   it("takes its height from a measurement, not a container query", () => {
     expect(css).toContain(
       "min-height: max(320px, calc(var(--canvas-h, 0px) * 0.7))",
