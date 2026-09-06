@@ -659,8 +659,21 @@ export function PdfPreview({
         // entire and centred — a position decided by which side the
         // browser keeps its scrollbar on is not that. Reserving the same
         // strip on both edges makes the centring true, and makes it the
-        // same in every mode, so switching modes moves the page's size
-        // and nothing else.
+        // same in every mode — no mode is centred against a different
+        // box. Which is not to say every mode is centred: `safe center`
+        // above falls back to `start` for a page that does not fit, so
+        // `actual` on a large page pins left while "whole page" centres.
+        // That is the alignment rule's doing, not the gutter's.
+        //
+        // What it costs, so that the next person to find it expensive can
+        // see the trade rather than only the argument: 15px per edge, so
+        // 30px of content width wherever scrollbars are classic. Nothing
+        // on overlay scrollbars, which is every touch device. A fitted
+        // page is that much narrower, and since the fit functions no
+        // longer floor the width, below roughly 389px of viewport
+        // (page width is about `viewport - 109` there) that is the whole
+        // of the page's size. Reverting to plain `stable` buys 15px of
+        // it back and returns the off-centre page.
         //
         // Where the property is unsupported (Safari before 18.2) *and*
         // scroll bars are set to always show, the oscillation above comes

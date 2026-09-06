@@ -43,17 +43,20 @@ export const MAX_FITTED_WIDTH = 900;
  * The width a fitted page is drawn at when the box has not been measured
  * at all.
  *
- * A fallback, not a floor. It answers one question — "how wide, before
- * anything has reported a size?" — and a real measurement always wins,
- * however small. It used to clamp measurements too, on the reasoning
- * that a box this narrow is unreadable either way so the page may as
- * well overflow it; that reasoning was wrong about which failure is
- * worse. A `fit-page` page wider than its box has a horizontal
- * scrollbar, and a "whole page" you have to scroll sideways to see is
- * not a whole page. The mode's name is a promise, and a page drawn small
- * keeps it where a page drawn past the edge breaks it.
+ * Named for the state it answers for, because it is not a minimum: a
+ * real measurement always wins, however small, and
+ * `Math.max(UNMEASURED_FITTED_WIDTH, measured)` at a new call site would
+ * be undoing this rather than using it.
+ *
+ * It was a floor once, on the reasoning that a box this narrow is
+ * unreadable either way so the page may as well overflow it. That was
+ * wrong about which failure is worse. A `fit-page` page wider than its
+ * box has a horizontal scrollbar, and a "whole page" you have to scroll
+ * sideways to see is not a whole page. The mode's name is a promise, and
+ * a page drawn small keeps it where a page drawn past the edge breaks
+ * it.
  */
-export const MIN_FITTED_WIDTH = 280;
+export const UNMEASURED_FITTED_WIDTH = 280;
 
 /** CSS pixels per PDF point: PDF units are 72dpi, CSS is 96. */
 export const CSS_PX_PER_PT = 96 / 72;
@@ -86,7 +89,7 @@ export function pdfPageWidth({
   // Bounded by `available` whenever there is one. Only a box that has
   // reported nothing falls back to a number of our own.
   const fitWidth =
-    available > 0 ? Math.min(MAX_FITTED_WIDTH, available) : MIN_FITTED_WIDTH;
+    available > 0 ? Math.min(MAX_FITTED_WIDTH, available) : UNMEASURED_FITTED_WIDTH;
   if (!pageBox || pageBox.width <= 0 || pageBox.height <= 0) return fitWidth;
 
   if (mode === "actual") return pageBox.width * CSS_PX_PER_PT;
