@@ -102,6 +102,36 @@ describe("AddButton", () => {
     },
   );
 
+  describe("which edge the menu grows from", () => {
+    // jsdom lays nothing out, so this reads the anchor rather than the
+    // geometry. That is the property the caller actually chooses: the
+    // panel is wider than its trigger, so the anchor decides whether it
+    // grows into the page or off the edge of it. On the folder toolbar
+    // Add is the leftmost control; in the drive root's page header it is
+    // the rightmost, 16px from the viewport edge, where a left anchor
+    // put ~60px of a 180px panel outside the window.
+    const openPanel = () => {
+      fireEvent.click(screen.getByRole("button", { name: "Add" }));
+      return screen.getByRole("menu");
+    };
+
+    it("grows rightward from the left edge by default", () => {
+      render(<AddButton />);
+      const classes = openPanel().getAttribute("class")!.split(/\s+/);
+      expect(classes).toContain("left-0");
+      expect(classes).toContain("origin-top-left");
+      expect(classes).not.toContain("right-0");
+    });
+
+    it("grows leftward from the right edge when asked", () => {
+      render(<AddButton align="right" />);
+      const classes = openPanel().getAttribute("class")!.split(/\s+/);
+      expect(classes).toContain("right-0");
+      expect(classes).toContain("origin-top-right");
+      expect(classes).not.toContain("left-0");
+    });
+  });
+
   describe("the addon rows", () => {
     it("renders none without folder context, even when an addon is installed", () => {
       slotEntries.current = 1;

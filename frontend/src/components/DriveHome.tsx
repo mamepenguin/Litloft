@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
-import { Folder, History, Play, Clock, Star, ThumbsUp, X } from "lucide-react";
+import { Folder, History, Clock, Star, ThumbsUp, X } from "lucide-react";
 import { useTranslations } from "next-intl";
 import type { FileItem, Folder as FolderType, PaginatedResponse, WatchHistoryItem } from "@/types";
 import { addPin, createFolder, getDriveFiles, getFolders, getPins, getWatchHistory, removePin } from "@/lib/api";
@@ -291,7 +291,15 @@ export function DriveHome({ driveName }: DriveHomeProps) {
       <PageHeader
         leading={<TreeToggle drive={driveName} />}
         breadcrumb={<Breadcrumb driveName={driveName} folderPath="" />}
-        actions={<AddButton onCreateFolder={() => setCreatingFolder(true)} />}
+        actions={
+          <AddButton
+            // Rightmost here, unlike the folder toolbar's leftmost one:
+            // the menu is wider than its trigger, so anchored left it
+            // would grow off the right edge of the page.
+            align="right"
+            onCreateFolder={() => setCreatingFolder(true)}
+          />
+        }
       />
 
       {/* The name field opens directly under the button that asked for
@@ -310,6 +318,7 @@ export function DriveHome({ driveName }: DriveHomeProps) {
               if (e.key === "Escape") cancelCreateFolder();
             }}
             placeholder={tf("namePlaceholder")}
+            aria-invalid={folderError !== null}
             className="min-w-0 flex-1 rounded-2xl bg-bg-card px-3 py-2 text-sm text-text-primary placeholder:text-text-muted outline-none focus:ring-2 focus:ring-focus-ring sm:w-40 sm:flex-initial"
           />
           {/* The twin of the folder toolbar's inline Create, and not a
@@ -326,7 +335,14 @@ export function DriveHome({ driveName }: DriveHomeProps) {
           >
             <X size={16} />
           </Button>
-          {folderError && <span className="text-xs text-danger">{folderError}</span>}
+          {/* Announced, like the rename error further down this file. A
+              rejected name is the only feedback there is, and the row
+              stays open for it to be fixed. */}
+          {folderError && (
+            <span role="alert" className="text-xs text-danger">
+              {folderError}
+            </span>
+          )}
         </div>
       )}
       <div className="space-y-8 px-4 pb-6 pt-2 sm:px-6 sm:pb-8 sm:pt-4">

@@ -316,13 +316,27 @@ describe("RootFileListing with nothing directly under the drive", () => {
     expect(screen.queryByLabelText("More actions")).toBeNull();
   });
 
+  it("draws no toolbar row when every control in it is hidden", async () => {
+    // The row's left-hand side went to the page header, and on an empty
+    // unfiltered listing everything on its right-hand side is hidden
+    // too. Left in place it would still spend its `mb-4` — 16px of blank
+    // between the heading and the count, holding nothing. Read by class
+    // because the margin *is* the defect; there is nothing semantic to
+    // query for a box with no content.
+    mockGetDriveFiles.mockResolvedValue(empty);
+    const { container } = render(<RootFileListing driveName="main" />);
+
+    await screen.findByTestId("empty-state");
+    expect(container.querySelector(".mb-4.flex.flex-wrap")).toBeNull();
+  });
+
   it("offers no add menu of its own — that lives in the page header", async () => {
-    // This section used to hold the Add button, and dropped the arranging
-    // controls around it while keeping it. It holds neither now: on the
-    // drive root the button sits in `PageHeader`, where it is reachable
-    // without scrolling past the folder row and the content rows. That
-    // the empty drive root can still stop being empty is asserted in
-    // `src/__tests__/DriveHome.test.tsx`.
+    // This section used to hold the Add button, and kept it while
+    // dropping the arranging controls around it. It holds neither now: on
+    // the drive root the button sits in `PageHeader`, unconditionally, so
+    // "the empty drive root can still stop being empty" is no longer a
+    // property of this component's empty state — it follows from Add
+    // being in the header at all (`src/__tests__/DriveHome.test.tsx`).
     mockGetDriveFiles.mockResolvedValue(empty);
     render(<RootFileListing driveName="main" />);
 

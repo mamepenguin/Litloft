@@ -1,6 +1,6 @@
 # Browsing files
 
-The drive home page (`/drive/<name>`) is the main browsing surface. Folders are walked from the drive root; subfolders open at `/drive/<name>/<path>`. The breadcrumb row carries the tree toggle on the left and the **Add** button on the right; below it you find a folder grid, a file grid, and several *content rows* (Recently added, Continue watching, Favourites, Liked). Every surface reads the same backend, and a change you make on one of them refreshes the others (see [real-time updates](#real-time-updates) for what does and does not propagate between separate tabs).
+The drive home page (`/drive/<name>`) is the main browsing surface. Folders are walked from the drive root; subfolders open at `/drive/<name>/<path>`. The breadcrumb row carries the tree toggle on the left and the **Add** button on the right; below it you find a folder grid, several *content rows* (Continue watching, Recently played, Recently added, Favourites, Liked), and the drive root's own file listing last. Every surface reads the same backend, and a change you make on one of them refreshes the others (see [real-time updates](#real-time-updates) for what does and does not propagate between separate tabs).
 
 ## Drive home layout
 

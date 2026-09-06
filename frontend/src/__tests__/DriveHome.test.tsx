@@ -392,21 +392,39 @@ describe("the drive root's header", () => {
     expect(container.querySelectorAll("h1")).toHaveLength(0);
   });
 
-  it("keeps Add reachable on a drive root with nothing in it", async () => {
-    // A drive that keeps every file inside a subfolder is in this state
-    // permanently. The file listing below drops its arranging controls
-    // when it is empty; the way to stop being empty must survive that.
-    // (This assertion used to live in `RootFileListing.test.tsx`.)
+  it("opens its menu away from the edge it sits against", async () => {
+    // Add is the rightmost control in the header, and the panel is wider
+    // than the trigger. `AddButton.test.tsx` holds the two anchors; this
+    // holds that this caller asked for the right one, which is the half
+    // that a default would silently get wrong.
     render(<DriveHome driveName="media" />);
-    expect(await screen.findByRole("button", { name: "Add" })).toBeInTheDocument();
+    fireEvent.click(await screen.findByRole("button", { name: "Add" }));
+    const classes = screen.getByRole("menu").getAttribute("class")!.split(/\s+/);
+    expect(classes).toContain("right-0");
+    expect(classes).not.toContain("left-0");
   });
 
   it("opens the name field under the header, and creates from it", async () => {
-    render(<DriveHome driveName="media" />);
+    const { container } = render(<DriveHome driveName="media" />);
     fireEvent.click(await screen.findByRole("button", { name: "Add" }));
     fireEvent.click(screen.getByText("New Folder"));
 
     const field = screen.getByPlaceholderText("Folder name...");
+
+    // Where it opens is the requirement, not merely that it left the
+    // listing: a field at the bottom of the page splits one action across
+    // the length of it, which is the defect this move is fixing. Moving
+    // the JSX below `RootFileListing` breaks nothing without this.
+    const header = container.querySelector("header")!;
+    const listing = screen.getByTestId("root-file-listing");
+    expect(
+      header.compareDocumentPosition(field) &
+        Node.DOCUMENT_POSITION_FOLLOWING,
+    ).toBeTruthy();
+    expect(
+      field.compareDocumentPosition(listing) &
+        Node.DOCUMENT_POSITION_FOLLOWING,
+    ).toBeTruthy();
     fireEvent.change(field, { target: { value: "Reading" } });
 
     const foldersBefore = mockGetFolders.mock.calls.length;
@@ -417,8 +435,11 @@ describe("the drive root's header", () => {
     );
     // The folder row has to be refetched, or the folder the user just made
     // is not there. `refreshFolders` also refreshes the tree.
+    // Exactly one refetch. `>=` would also pass a change that refetched
+    // twice, which is the shape "refresh the folder row, leave the file
+    // listing alone" exists to avoid.
     await waitFor(() =>
-      expect(mockGetFolders.mock.calls.length).toBeGreaterThan(foldersBefore),
+      expect(mockGetFolders.mock.calls.length).toBe(foldersBefore + 1),
     );
     await waitFor(() =>
       expect(screen.queryByPlaceholderText("Folder name...")).toBeNull(),
@@ -434,7 +455,16 @@ describe("the drive root's header", () => {
     fireEvent.change(field, { target: { value: "a/b" } });
     fireEvent.keyDown(field, { key: "Enter" });
 
-    await screen.findByText("Invalid folder name");
+    // Announced, not just printed: a rejected name is the only feedback
+    // there is, and a field that silently refuses is indistinguishable
+    // from one that is still working.
+    expect(await screen.findByRole("alert")).toHaveTextContent(
+      "Invalid folder name",
+    );
+    expect(screen.getByPlaceholderText("Folder name...")).toHaveAttribute(
+      "aria-invalid",
+      "true",
+    );
     expect(mockCreateFolder).not.toHaveBeenCalled();
     // The row stays open on a rejection — the name is still there to fix.
     expect(screen.getByPlaceholderText("Folder name...")).toBeInTheDocument();

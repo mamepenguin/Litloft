@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import { CheckSquare, FileText, MoreHorizontal, Play, RefreshCw } from "lucide-react";
 
 import { useTranslations } from "next-intl";
-import { getDriveFiles, scanDrive } from "@/lib/api";
+import { getDriveFiles } from "@/lib/api";
 import type { FileItem, SortField, SortOrder, ViewMode } from "@/types";
 import { FileGrid } from "@/components/FileGrid";
 import { FileList } from "@/components/FileList";
@@ -192,17 +192,22 @@ export function RootFileListing({ driveName, onFileAction, onFolderChange }: Roo
           </h2>
         </div>
 
+        {filePicker.input}
+
         {/* Toolbar.
             Adding lives in the page header, not here: on the drive root
             this section sits below the folder row and up to five content
             rows, so an Add button here is a screenful away from the top
             of the page it acts on (D-2). The header is also where this
-            screen spends its one accent fill. */}
-        <div className="mb-4 flex flex-wrap items-center gap-2">
-          {filePicker.input}
+            screen spends its one accent fill.
 
-          <div className="flex-1" />
-
+            With nothing left on the left-hand side, the row is drawn only
+            when the right-hand group has something in it — on an empty,
+            unfiltered drive root every control inside it is hidden, and
+            an empty row would still spend its `mb-4` between the heading
+            and the count. */}
+        {(hasPlayableFiles || !hideArrangingControls) && (
+        <div className="mb-4 flex flex-wrap items-center justify-end gap-2">
           <div className="flex items-center gap-2">
             {hasPlayableFiles && (
               <Button variant="secondary" size="sm" onClick={handlePlayAll}>
@@ -297,6 +302,7 @@ export function RootFileListing({ driveName, onFileAction, onFolderChange }: Roo
             )}
           </div>
         </div>
+        )}
 
         {/* Filter row (client-side) */}
         <div className="mb-4">

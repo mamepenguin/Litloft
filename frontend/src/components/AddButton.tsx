@@ -48,6 +48,15 @@ interface AddButtonProps {
    * A caller with no folder context gives no addon rows.
    */
   addonProps?: Record<string, unknown>;
+  /**
+   * Which edge of the trigger the menu grows from.
+   *
+   * `"left"` for a control at the left end of a bar (the folder
+   * toolbar), `"right"` for one at the right end (the drive root's page
+   * header) — the panel is wider than the trigger, so an anchor on the
+   * wrong side leaves the far edge outside the viewport.
+   */
+  align?: "left" | "right";
 }
 
 /**
@@ -62,6 +71,7 @@ export function AddButton({
   onCreateFolder,
   onCreateFile,
   addonProps,
+  align = "left",
 }: AddButtonProps = {}) {
   const tu = useTranslations("upload");
   const tf = useTranslations("folder");
@@ -143,8 +153,12 @@ export function AddButton({
             role="menu"
             // Capped and scrollable, like every other menu on this bar.
             // `MENU_SURFACE` is anchored to the *right* of its trigger;
-            // `Add` is the leftmost control, so this keeps its own
-            // left-anchored geometry and takes only the height rules.
+            // this keeps its own geometry and takes only the height rules,
+            // because which side it grows from depends on the caller: on
+            // the folder toolbar `Add` is the leftmost control, and in the
+            // drive root's `PageHeader` it is the rightmost, where a
+            // left-anchored 180px panel behind a ~100px trigger runs off
+            // the right edge of a phone.
             //
             // It grows with `folder-actions-menu`: three contributed rows
             // take it from four to seven and from ~120px to 331. Measured
@@ -158,7 +172,11 @@ export function AddButton({
             // fold (441 of 393 at 852x393). Scrolling recovers that; what
             // it cannot recover is a menu with no cap at all, which stays
             // 331 tall however far the bar rises.
-            className="absolute left-0 top-full z-30 mt-1 max-h-[60vh] min-w-[180px] overflow-y-auto rounded-xl border border-bg-border bg-bg-primary py-1 shadow-lg animate-fade-in-scale origin-top-left sm:max-h-[70vh]"
+            className={`absolute top-full z-30 mt-1 max-h-[60vh] min-w-[180px] overflow-y-auto rounded-xl border border-bg-border bg-bg-primary py-1 shadow-lg animate-fade-in-scale sm:max-h-[70vh] ${
+              align === "right"
+                ? "right-0 origin-top-right"
+                : "left-0 origin-top-left"
+            }`}
           >
             <ActionMenuItem
               icon={FileIcon}
