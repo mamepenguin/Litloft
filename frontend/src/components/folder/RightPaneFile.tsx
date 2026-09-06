@@ -13,6 +13,7 @@ import { usePolicy } from "@/hooks/usePolicy";
 import { useSelectedFile } from "@/hooks/useSelectedFile";
 import { getFile } from "@/lib/api";
 import { ridesFileDetailShell } from "@/lib/fileDetailShell";
+import { resolveFileNavOrdering } from "@/lib/fileNavOrdering";
 import { normalizeSortParam } from "@/lib/sortField";
 import type { FileItem } from "@/types";
 
@@ -111,10 +112,21 @@ export function RightPaneFile({ fileId, drive }: RightPaneFileProps) {
   // PR-5: ``selectFile`` itself routes through ``navigationGuard`` so
   // a dirty editor on the current file gets the global ``DirtyBlocker``
   // dialog before the swap fires; this hook stays surface-agnostic.
+  // Not `?sort=`: a folder-anchored listing keeps its order in
+  // localStorage and never writes it to the URL, so reading the URL here
+  // walked a different sequence from the one on screen — and then
+  // printed a position in it.
+  const navOrdering = resolveFileNavOrdering({
+    drive,
+    folderPath: file?.folder_path,
+    params: searchParams,
+  });
+
   const fileNav = useFileNav({
     fileId: file ? fileId : null,
-    sort: normalizeSortParam(searchParams.get("sort")),
-    order: searchParams.get("order") ?? undefined,
+    sort: navOrdering.sort,
+    order: navOrdering.order,
+    countable: navOrdering.countable,
     fileType: file?.file_type ?? null,
     mimeType: file?.mime_type ?? null,
     enabled: true,

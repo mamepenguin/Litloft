@@ -109,7 +109,9 @@ On the detail page the image has the column to itself, with its EXIF, tags and c
 
 The page row above it carries a **previous / next pair with the image's place in the folder between them** (`12 / 995`). They walk the same sequence the `←` / `→` keys have always walked — the folder's files in the sort order the listing was using — and the button at either end of the folder is disabled rather than hidden, so being at the end is something you can see before you press.
 
-The count is the length of that sequence, not the count of the listing you came from: opening an image out of a filtered or searched listing still walks the whole folder. Sorting by *liked* is the one case where a file can be outside the sequence entirely — a file you have never liked has no place in a like-ordered walk — and there both arrows are disabled and no count is drawn.
+**The count appears only where it would be true.** The arrows walk the file's folder in the order that folder is sorted in, and that is the same sequence as the listing when you opened the image from a plain folder view — so the count is drawn. Open it out of a search, a tag, a smart folder, or a cross-folder view like *Favourites* or *Liked*, and the arrows still walk the folder while the listing was showing something else; the two buttons stay and the number is simply absent. A wrong count would say a file is there that pressing next cannot reach.
+
+Sorting by *liked* has the same shape from the other side: a file you have never liked has no place in a like-ordered walk at all, so both arrows are disabled and nothing is counted.
 
 On a screen narrower than 640px the count is dropped and the two buttons stay.
 

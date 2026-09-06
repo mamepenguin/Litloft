@@ -71,6 +71,8 @@ const KINDS: Array<[string, Partial<FileItem>, boolean]> = [
   ["markdown", { filename: "note.md", file_type: "document", mime_type: "text/markdown", duration: null }, false],
   ["pdf", { filename: "book.pdf", file_type: "document", mime_type: "application/pdf", duration: null }, false],
   ["archive", { filename: "scan.zip", file_type: "archive", mime_type: "application/zip", duration: null }, false],
+  ["html", { filename: "report.html", file_type: "document", mime_type: "text/html", duration: null }, false],
+  ["loft", { filename: "talk.loft", file_type: "video", mime_type: "application/vnd.litloft.loft+json" }, false],
 ];
 
 beforeEach(() => {
@@ -98,11 +100,13 @@ describe("prev / next in the page row", () => {
 
   it("covers every kind the shell hosts", () => {
     // Rule 7: "only the image kind has them" is also true of a table
-    // with no image row in it. Both sides are named here.
+    // with no image row in it. Both sides are named here. `text/html`
+    // rides via `usesDocumentShell` and `.loft` via `playerKind`; both
+    // were missing, so the table's name was wider than the table.
     expect(KINDS.filter(([, , shown]) => shown).map(([name]) => name)).toEqual([
       "image",
     ]);
-    expect(KINDS.filter(([, , shown]) => !shown)).toHaveLength(5);
+    expect(KINDS.filter(([, , shown]) => !shown)).toHaveLength(7);
   });
 
   it("shows the place in the folder beside them, on the image", async () => {

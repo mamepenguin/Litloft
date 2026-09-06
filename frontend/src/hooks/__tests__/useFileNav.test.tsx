@@ -323,6 +323,29 @@ describe("useFileNav", () => {
     expect(result.current.total).toBeNull();
   });
 
+  it("withholds the count for a listing the arrows do not match", async () => {
+    // The endpoint answers with a real position and total either way —
+    // it only knows about the folder. Whether that number is *true of
+    // what the reader is looking at* is the caller's question, and the
+    // arrows keep working regardless.
+    const onNavigate = vi.fn();
+    const { result } = renderHook(
+      () =>
+        useFileNav({
+          fileId: "current",
+          fileType: "image",
+          enabled: true,
+          countable: false,
+          onNavigate,
+        }),
+      { wrapper: Wrapper },
+    );
+    await waitFor(() => expect(result.current.nextId).toBe("next1"));
+    expect(result.current.position).toBeNull();
+    expect(result.current.total).toBeNull();
+    expect(result.current.prevId).toBe("prev1");
+  });
+
   it("hands out the same navigation the arrow keys run", async () => {
     // One path into "go to the next file". Two would be how one of them
     // ends up bypassing `navigationGuard` and losing an unsaved edit.

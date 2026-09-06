@@ -37,16 +37,30 @@ vi.mock("next/navigation", () => ({
 // We capture the props it received so the host's wiring (drive,
 // callbacks, miniPlayerRoot) can be asserted.
 const fileDetailProps: Array<Record<string, unknown>> = [];
-vi.mock("@/components/FileDetailContent", () => ({
-  FileDetailContent: (props: Record<string, unknown>) => {
-    fileDetailProps.push(props);
-    return (
-      <div data-testid="file-detail-content">
-        detail:{props.fileId as string}
-      </div>
-    );
-  },
-}));
+// The stub reads the file-nav context, because that is the thing being
+// tested here: the real consumer is four components below this slot and
+// is not mounted, so without this the two `<FileNavProvider>` lines
+// could be deleted with the whole suite still green.
+vi.mock("@/components/FileDetailContent", async () => {
+  const { useFileNavState } = await import("@/lib/fileNavContext");
+  return {
+    FileDetailContent: (props: Record<string, unknown>) => {
+      fileDetailProps.push(props);
+      const nav = useFileNavState();
+      return (
+        <div data-testid="file-detail-content">
+          detail:{props.fileId as string}
+          {nav && (
+            <span data-testid="published-walk">
+              {nav.position ?? "-"}/{nav.total ?? "-"}:{nav.prevId ?? "-"}:
+              {nav.nextId ?? "-"}
+            </span>
+          )}
+        </div>
+      );
+    },
+  };
+});
 
 const imageGalleryProps: Array<Record<string, unknown>> = [];
 vi.mock("@/components/ImageGallery", () => ({
@@ -69,8 +83,25 @@ vi.mock("@/components/TreeToggle", () => ({
 // RightPaneFile's host wiring is what we test, not the hook's internals
 // (PR-2 has its own tests). PR-5 dropped the per-host dirty dialog —
 // the global ``<DirtyBlocker />`` owns it now.
+// The mock's shape is the hook's whole contract as far as this host is
+// concerned, and `vi.mock` factories are not type-checked — an
+// incomplete one hands `undefined` to the provider, which
+// `FileNavControls` then formats. All six fields, deliberately.
+const fileNavResult = {
+  prevId: null as string | null,
+  nextId: null as string | null,
+  position: null as number | null,
+  total: null as number | null,
+  navigatePrev: vi.fn(),
+  navigateNext: vi.fn(),
+};
+const useFileNavMock = vi.fn(
+  (_opts: { sort?: string; order?: string; countable?: boolean }) =>
+    fileNavResult,
+);
 vi.mock("@/hooks/useFileNav", () => ({
-  useFileNav: vi.fn(() => ({ prevId: null, nextId: null })),
+  useFileNav: (opts: Record<string, unknown>) =>
+    useFileNavMock(opts as Parameters<typeof useFileNavMock>[0]),
 }));
 
 const mockClearFile = vi.fn();
@@ -385,5 +416,62 @@ describe("RightPaneFile", () => {
       // add a second one.
       expect(screen.queryByTestId("file-detail-chrome")).toBeNull();
     });
+  });
+});
+
+describe("RightPaneFile — the prev/next walk it publishes", () => {
+  beforeEach(() => {
+    useFileNavMock.mockClear();
+    localStorage.clear();
+    Object.assign(fileNavResult, {
+      prevId: "before",
+      nextId: "after",
+      position: 12,
+      total: 995,
+    });
+  });
+
+  it("mounts the provider the page row reads", async () => {
+    // The wire that makes the feature exist: `FileNavProvider` has one
+    // production caller and `useFileNavState` one consumer, and deleting
+    // the two provider lines left the whole suite green. A file kind
+    // that draws the controls is what proves the wire, so this is an
+    // image.
+    mockGetFile.mockResolvedValue({
+      ...baseFile,
+      filename: "DSC_0412.jpg",
+      title: "DSC_0412",
+      file_type: "image",
+      mime_type: "image/jpeg",
+      folder_path: "photos",
+    });
+    render(<RightPaneFile fileId="f1" drive="media" />);
+
+    // The slot's occupant can read the walk, which is only true if the
+    // host mounted the provider around it.
+    expect(await screen.findByTestId("published-walk")).toHaveTextContent(
+      "12/995:before:after",
+    );
+  });
+
+  it("asks for the folder's stored order, not the URL's", async () => {
+    localStorage.setItem(
+      "folderPrefs:media",
+      JSON.stringify({ photos: { sort: "title", order: "asc" } }),
+    );
+    mockGetFile.mockResolvedValue({
+      ...baseFile,
+      filename: "DSC_0412.jpg",
+      file_type: "image",
+      mime_type: "image/jpeg",
+      folder_path: "photos",
+    });
+    render(<RightPaneFile fileId="f1" drive="media" />);
+    await screen.findByTestId("published-walk");
+
+    const call = useFileNavMock.mock.calls.at(-1)![0];
+    expect(call.sort).toBe("title");
+    expect(call.order).toBe("asc");
+    expect(call.countable).toBe(true);
   });
 });

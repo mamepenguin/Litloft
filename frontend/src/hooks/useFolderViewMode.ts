@@ -118,7 +118,7 @@ function isSortOrder(v: unknown): v is SortOrder {
   return v === "asc" || v === "desc";
 }
 
-function resolveFolderSort(drive: string, folderPath: string): { sort: SortField; order: SortOrder } {
+export function resolveFolderSort(drive: string, folderPath: string): { sort: SortField; order: SortOrder } {
   const entry = loadFolderPrefs(drive)[folderPath];
   return {
     sort: isSortField(entry?.sort) ? entry.sort : DEFAULT_SORT,

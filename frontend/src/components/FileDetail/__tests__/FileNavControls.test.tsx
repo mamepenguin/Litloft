@@ -96,6 +96,18 @@ describe("FileNavControls", () => {
     }
   });
 
+  it("draws no readout for a listing the arrows do not match", () => {
+    // The ruling: a count is drawn only when the readout, the arrows and
+    // the listing are the same sequence. `useFileNav` nulls both halves
+    // when they are not, so this component needs no rule of its own —
+    // but a null `position` beside a real `total` would still format, so
+    // the pair is what is asserted.
+    renderControls(nav({ position: null, total: 995 }));
+    expect(readout()).toBeNull();
+    renderControls(nav({ position: 12, total: null }));
+    expect(readout()).toBeNull();
+  });
+
   it("draws nothing where no host published a walk", () => {
     const { container } = render(<FileNavControls />);
     expect(container).toBeEmptyDOMElement();
