@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, type RefObject } from "react";
+import { useEffect, useRef, useState, type RefObject } from "react";
 import { createPortal } from "react-dom";
 import { Check, Timer } from "lucide-react";
 
@@ -50,6 +50,30 @@ export function SlideshowIntervalMenu({
     setOpen(next);
     onOpenChange?.(next);
   };
+
+  // Report the one close the callback cannot see: this component going
+  // away with the panel still up.
+  //
+  // The archive's viewer can be closed out from under an open panel —
+  // `ArchivePreview` closes it from an effect on `currentPath`, which is
+  // URL-backed, so browser Back does it. The hold lives in
+  // `useImageViewer`, which outlives this component, so without this the
+  // flag latches on and the chrome never withdraws again for the life of
+  // the page. State derived from a child's lifetime but stored in a
+  // parent that outlives it is the shape that latches.
+  // Only when it was actually open: a cleanup that always reported
+  // would be claiming a transition that never happened, and the frame
+  // would hear "closed" from a panel that was never up.
+  const reportRef = useRef(onOpenChange);
+  reportRef.current = onOpenChange;
+  const openRef = useRef(open);
+  openRef.current = open;
+  useEffect(
+    () => () => {
+      if (openRef.current) reportRef.current?.(false);
+    },
+    [],
+  );
   const pointerMode = usePointerMode();
   // `unknown` means matchMedia answered neither query. The popover is the
   // safer guess there: it is reachable by tap, where a sheet sized for a

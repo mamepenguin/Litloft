@@ -127,7 +127,11 @@ export function OverFrameSettingsPanel({
           // narrow window pushes its top rows off the frame instead.
           isPopover ? "max-h-[calc(100%-5rem)]" : "max-h-full",
           "overflow-y-auto",
-          "animate-slide-up-bar",
+          // From the edge it hangs off. A panel parked under the top bar
+          // that rises from below starts a panel-height down the frame,
+          // in open space, and travels toward its own trigger — the
+          // anchor's own defect over again, in time instead of space.
+          fromTop ? "animate-slide-down-bar" : "animate-slide-up-bar",
         ].join(" ")}
       >
         {children}

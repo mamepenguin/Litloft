@@ -306,6 +306,17 @@ describe("ImageGallery", () => {
     expect(panel.className).not.toMatch(/(^|\s)mb-16(\s|$)/);
   });
 
+  it("enters from the edge it hangs off", async () => {
+    // The anchor moved where the panel comes to rest and left where it
+    // comes *from* alone: a top-anchored panel rising from below starts
+    // a panel-height down the frame, in open space, and travels toward
+    // its own trigger. The anchor's defect over again, in time.
+    stubPointer("fine");
+    const panel = await openIntervalPanel();
+    expect(panel.className).toMatch(/animate-slide-down-bar/);
+    expect(panel.className).not.toMatch(/animate-slide-up-bar/);
+  });
+
   it("dismisses the panel on Escape without closing the viewer", async () => {
     // The panel's own handler only sees keys whose React path runs
     // through it, and opening it leaves focus on the trigger — a sibling
