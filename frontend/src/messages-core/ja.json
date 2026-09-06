@@ -178,7 +178,8 @@
     "pdfZoomMode": "表示倍率",
     "pdfZoomMode_fit-width": "幅に合わせる",
     "pdfZoomMode_fit-page": "ページ全体",
-    "pdfZoomMode_actual": "実寸"
+    "pdfZoomMode_actual": "実寸",
+    "pdfRenderTooLarge": "この倍率ではページを描画できませんでした。倍率を下げてください。"
   },
   "search": {
     "label": "検索",

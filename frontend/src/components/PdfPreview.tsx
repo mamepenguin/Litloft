@@ -83,6 +83,7 @@ export function PdfPreview({
   /** The current page's size in PDF points, once the document says. */
   const [pageBox, setPageBox] = useState<PageBox | null>(null);
   const [zoomMode, setZoomMode] = useState<PdfZoomMode>(DEFAULT_PDF_ZOOM_MODE);
+  const [renderFailed, setRenderFailed] = useState(false);
 
   // Read after mount, not in the initialiser: the server render has no
   // storage, and a value read during it would be hydrated over.
@@ -171,9 +172,14 @@ export function PdfPreview({
     const box = pageBoxRef.current;
     if (!box || typeof ResizeObserver === "undefined") return;
     const observer = new ResizeObserver(([entry]) => {
-      // Less the `p-4` on both sides, the same allowance the width
-      // measurement makes.
-      setAvailableHeight(Math.max(200, entry.contentRect.height - 32));
+      // No padding allowance here. `contentRect` is the content box, and
+      // this observer watches the padded box itself, so `p-4` is already
+      // out of it. The width observer above subtracts 32 because it
+      // watches the *root* — a different element, with no padding of its
+      // own, which therefore still contains this box's. Subtracting here
+      // too drew every whole-page render ~5.6% short, with a band of
+      // dead grey under it.
+      setAvailableHeight(Math.max(200, entry.contentRect.height));
     });
     observer.observe(box);
     return () => observer.disconnect();
@@ -363,6 +369,13 @@ export function PdfPreview({
               : { width: view.width, height: view.height },
           );
         }}
+        // A page can fail to raster with nothing thrown: the canvas is
+        // sized `width * zoom * devicePixelRatio` on each axis, and a
+        // very large page at 200% asks for an allocation the browser
+        // may simply refuse. Without this the page goes blank and the
+        // reader has no way to know that zooming out is the way back.
+        onRenderError={() => setRenderFailed(true)}
+        onRenderSuccess={() => setRenderFailed(false)}
         renderTextLayer
         renderAnnotationLayer
       />
@@ -542,6 +555,14 @@ export function PdfPreview({
           error={<p className="py-16 text-sm text-danger">{t("pdfLoadFailed")}</p>}
         >
           <section data-pdf-page={page} aria-label={`${title}, ${page}`}>
+            {renderFailed && (
+              <p
+                data-testid="pdf-render-failed"
+                className="py-16 text-sm text-danger"
+              >
+                {t("pdfRenderTooLarge")}
+              </p>
+            )}
             {pageElement}
           </section>
         </Document>

@@ -70,7 +70,37 @@ vi.mock("react-pdf", () => ({
   },
 }));
 
+/**
+ * jsdom ships no `ResizeObserver`, so both of the viewer's measurement
+ * effects returned early and `availableWidth` / `availableHeight` were
+ * frozen at their defaults. That is why deleting the whole height
+ * observer left the suite green, and why the fit-page arithmetic — a
+ * double padding subtraction — was invisible here.
+ */
+let resizeCallbacks: ResizeObserverCallback[] = [];
+class DrivableResizeObserver {
+  constructor(cb: ResizeObserverCallback) {
+    resizeCallbacks.push(cb);
+  }
+  observe() {}
+  unobserve() {}
+  disconnect() {}
+}
+/** Feed the nth observer a content-box size. 0 = width (root), 1 = height (box). */
+function reportSize(index: number, rect: { width?: number; height?: number }) {
+  const cb = resizeCallbacks[index];
+  if (!cb) throw new Error(`no ResizeObserver at ${index}`);
+  act(() => {
+    cb(
+      [{ contentRect: { width: 0, height: 0, ...rect } }] as unknown as ResizeObserverEntry[],
+      {} as ResizeObserver,
+    );
+  });
+}
+
 beforeEach(() => {
+  resizeCallbacks = [];
+  vi.stubGlobal("ResizeObserver", DrivableResizeObserver);
   pdfDoc.numPages = 8;
   pdfDoc.outline = null;
   pdfDoc.destinations = {};
@@ -610,15 +640,37 @@ describe("PdfPreview zoom modes", () => {
     expect(box.className).not.toMatch(/(^|\s)justify-center(\s|$)/);
   });
 
-  it("never draws a fitted page wider than the cap", async () => {
-    // jsdom reports a zero-width box and no ResizeObserver entries, so
-    // the component's 800px default stands in for the canvas — the cap
-    // itself is exercised against a real 2000px canvas in
-    // `lib/__tests__/pdfZoomMode.test.ts`. What this asserts is that the
-    // viewer goes through that function at all.
+  it("hands <Page> the width the fit function computed", async () => {
+    // `<= 900` was true of the 800px default whether or not the cap
+    // existed, so it passed with `MAX_FITTED_WIDTH` deleted. The exact
+    // number is what pins the path from the measured width to `<Page>`;
+    // the cap itself is exercised against a 2000px canvas in
+    // `lib/__tests__/pdfZoomMode.test.ts`, which is where it belongs.
     renderViewer();
     await screen.findByText("Selectable page 1");
-    expect(lastWidth()).toBeLessThanOrEqual(900);
     expect(pageWidths.length).toBeGreaterThan(0);
+    expect(lastWidth()).toBe(800);
+
+    reportSize(0, { width: 2032 });
+    expect(lastWidth()).toBe(900);
+
+    reportSize(0, { width: 532 });
+    expect(lastWidth()).toBe(500);
+  });
+
+  it("sizes a whole page from the box it is in, padding already excluded", async () => {
+    // `contentRect` is the content box and this observer watches the
+    // padded box itself, so subtracting `p-4` again drew every whole-page
+    // render ~5.6% short with a band of dead grey under it. This is the
+    // assertion that sees it.
+    renderViewer();
+    await screen.findByText("Selectable page 1");
+
+    fireEvent.click(menu());
+    fireEvent.click(modeRow("Whole page"));
+    reportSize(1, { height: 574 });
+
+    // A4: the width at which 574px of height is exactly filled.
+    expect(lastWidth()).toBeCloseTo(574 * (595 / 842), 3);
   });
 });

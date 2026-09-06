@@ -178,7 +178,8 @@
     "pdfZoomMode": "Zoom mode",
     "pdfZoomMode_fit-width": "Fit width",
     "pdfZoomMode_fit-page": "Whole page",
-    "pdfZoomMode_actual": "Actual size"
+    "pdfZoomMode_actual": "Actual size",
+    "pdfRenderTooLarge": "The page could not be drawn at this zoom. Try a smaller one."
   },
   "search": {
     "label": "Search",
