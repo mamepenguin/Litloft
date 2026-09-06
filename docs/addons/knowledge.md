@@ -119,6 +119,16 @@ There are three view modes, switched from the segmented toggle in the chrome or 
 
 If the window narrows past the mobile breakpoint while you are in Split, the editor drops you into Preview and stays there — it does not bounce back when you rotate the device again.
 
+### The formatting toolbar
+
+Above the text is a row of formatting controls in four groups — headings, emphasis, block, insert — followed by the button that inserts a link to another file in the library, and a `…` at the right end.
+
+The row never wraps. What does not fit moves into the `…`, and it is the *number* of controls that gives, never their size, so a control that is on the bar is always full size. Six formats stay at every width: heading 1, heading 2, bold, bullet list, link and code. Heading 3, italic and strikethrough return once the bar is wide enough, and numbered list, task list and blockquote once it is wider still. Whatever is not on the bar is in the `…` — never both, and never neither.
+
+The measurement is the bar's own width, not the window's. That distinction is load-bearing: widening the window to 768px opens the folder tree beside the editor and makes the bar *narrower*, so a rule written against the window would put more controls into less room.
+
+The `…` also holds the two actions that concern the document rather than the text in it — **Keep this version** and **Version history**. They are not formatting and do not sit in a row named for it.
+
 ### Live preview
 
 Live preview is not a separate pane; it is styling applied inside the editor. Headings take their heading size, `**bold**` renders bold, links render as links, blockquotes and fenced code blocks get their own line treatment, list bullets become real bullets, task list markers become clickable checkboxes, and `---` becomes a rule.
@@ -154,7 +164,7 @@ Recording is entirely core's — it happens on the write, whoever made it, wheth
 There are three ways to open it, all leading to the same panel:
 
 - its own heading at the foot of the note;
-- the **version history** button in the editor toolbar, beside *Keep this version*, so where a version is made is where the existing ones are found;
+- **Version history** in the editor toolbar's `…` menu, beside *Keep this version*, so where a version is made is where the existing ones are found;
 - the **Version history** entry in the file's `⋮` menu.
 
 The last two reveal the panel and scroll to it rather than opening a window over the note. Both appear only for a note that has the editor mounted — Markdown, on a drive where the editor is switched on.
