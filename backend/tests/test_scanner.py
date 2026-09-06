@@ -29,10 +29,19 @@ class TestFilenameToTitle:
     def test_is_measured_against_the_shared_table(self):
         from tests.test_filename_title_parity import CASES
 
-        # Not a redirect note in a comment: this fails if the parity file
-        # is deleted or its table emptied, which is the only way the cases
-        # this class used to own could go missing unnoticed.
-        assert len(CASES) >= 20
+        # Not a redirect note in a comment: this fails if the parity file is
+        # deleted, and it names the four cases this class used to own -- the
+        # `str.title()` regressions, which are the ones the shared table
+        # gained from the move and so the ones a later tidy-up is most
+        # likely to read as duplicates. A count would not say which cases
+        # survived; these are the ones that have to.
+        moved_here = {
+            "02 charon's burden.mp3",
+            "6484215695_3df06f6b39_o.jpg",
+            "MacBook-Neo-review.mp4",
+            "ヤンニョムチキン-韓国風-甘辛.mp4",
+        }
+        assert moved_here <= {case["filename"] for case in CASES}
 
 
 class TestGetFolderPath:

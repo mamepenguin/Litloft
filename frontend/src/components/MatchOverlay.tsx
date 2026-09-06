@@ -72,6 +72,11 @@ function TimestampLink({
         // browser doesn't double-fire with the wrapping <a>.
         e.stopPropagation();
       }}
+      // The pill's identity for the parity detector, which must not have to
+      // recognise a pill by the shape of the text inside it: a pill that
+      // stopped formatting as a time would leave the population instead of
+      // failing the assertion.
+      data-testid="match-timestamp-pill"
       className="rounded-lg px-1.5 py-0.5 text-[10px] font-medium text-text-muted transition-colors hover:bg-accent/10"
     >
       {formatDuration(seconds)}

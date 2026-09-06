@@ -98,8 +98,14 @@ const SHARED_META: MatchMeta = {
   ],
 };
 
-const pillTexts = () =>
-  screen.getAllByText(/^\d+:\d{2}(:\d{2})?$/).map((el) => el.textContent);
+/**
+ * The pills, by identity rather than by the shape of what they say. Read as
+ * `/^\d+:\d{2}(:\d{2})?$/` a pill rendered as `3600` — or as `1:00:00.5`
+ * — leaves the population instead of failing, which is the shape of the
+ * past-the-hour gap this file exists to close.
+ */
+const pills = () => screen.getAllByTestId("match-timestamp-pill");
+const pillTexts = () => pills().map((el) => el.textContent);
 
 describe("timestamp pills read the same on both surfaces", () => {
   /**
@@ -178,7 +184,7 @@ describe("timestamp pills read the same on both surfaces", () => {
    */
   it("spends no accent on the pills, on either surface", () => {
     render(<MergedResultItem file={makeFile({ match_meta: SHARED_META })} onSelect={vi.fn()} />);
-    for (const pill of screen.getAllByText(/^\d+:\d{2}(:\d{2})?$/)) {
+    for (const pill of pills()) {
       expect(pill.className).not.toContain("text-accent");
       expect(pill.className).toContain("text-text-muted");
       expect(pill.className).toContain("hover:bg-accent/10");
@@ -186,7 +192,7 @@ describe("timestamp pills read the same on both surfaces", () => {
     cleanup();
 
     render(<MatchOverlay match={SHARED_META} fileId="f1" />);
-    for (const pill of screen.getAllByText(/^\d+:\d{2}(:\d{2})?$/)) {
+    for (const pill of pills()) {
       expect(pill.className).not.toContain("text-accent");
       expect(pill.className).toContain("text-text-muted");
       expect(pill.className).toContain("hover:bg-accent/10");

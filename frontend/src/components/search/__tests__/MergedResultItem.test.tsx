@@ -46,7 +46,7 @@ describe("MergedResultItem", () => {
     expect(screen.getByText("Filename")).toBeInTheDocument();
     expect(screen.queryByText("Transcript")).not.toBeInTheDocument();
     // No "M:SS" formatted time pill in DOM
-    expect(screen.queryByText(/^\d+:\d{2}(:\d{2})?$/)).not.toBeInTheDocument();
+    expect(screen.queryAllByTestId("match-timestamp-pill")).toEqual([]);
   });
 
   it("semantic-only transcript hit at [120, 150] shows Transcript badge + 2:00 timestamp pill", () => {
@@ -166,7 +166,9 @@ describe("MergedResultItem", () => {
 
     // Enumerated, not counted: a `<=` bound holds at every cap from zero
     // to the bound.
-    expect(screen.getAllByText(/^\d+:\d{2}(:\d{2})?$/).map((p) => p.textContent)).toEqual([
+    expect(
+      screen.getAllByTestId("match-timestamp-pill").map((p) => p.textContent),
+    ).toEqual([
       "0:10",
       "0:20",
       "0:30",
