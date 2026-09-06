@@ -335,17 +335,38 @@ describe("FolderContent", () => {
   });
 
   it("hides sentinel when isRecent", () => {
-    const { container } = render(
-      <FolderContent {...defaultProps} isRecent={true} />
+    // The sentinel is the infinite-scroll trigger: `FolderContent` renders it
+    // under `!isRecent` and hands it `sentinelRef`, so the ref is the thing
+    // to look at rather than a class substring.
+    //
+    // This used to assert only that no `.animate-spin` had rendered. That is
+    // true whether or not a sentinel is there — the spinner needs
+    // `loadingMore`, which is false by default — so the test passed without
+    // ever looking at its own subject.
+    const attached = createRef<HTMLDivElement>();
+    const { container: withSentinel, unmount } = render(
+      <FolderContent {...defaultProps} sentinelRef={attached} isRecent={false} />,
     );
-    // sentinel ref div should not be rendered for recent view
-    // The sentinel is inside a conditional that checks !isRecent
-    // Kept on purpose: this test is named for the sentinel but only asserts
-    // that no spinner rendered, which is true even when a sentinel does.
-    // Deleting the binding would settle the gap by hiding it.
-    // eslint-disable-next-line @typescript-eslint/no-unused-vars
-    const sentinels = container.querySelectorAll("[class*='py-4']");
-    // Check no sentinel with loadingMore spinner
+    // Rule 7: the absence asserted below is only worth anything if there is
+    // something to be absent. One sentinel exists when `isRecent` is off.
+    expect(attached.current).toBeInstanceOf(HTMLElement);
+    expect(withSentinel.querySelectorAll("[class*='py-4']")).toHaveLength(1);
+    unmount();
+
+    // `loadingMore` on, which is the only state that draws the spinner — so
+    // the spinner claim below says something now instead of being vacuous.
+    const detached = createRef<HTMLDivElement>();
+    const { container } = render(
+      <FolderContent
+        {...defaultProps}
+        sentinelRef={detached}
+        isRecent={true}
+        loadingMore={true}
+      />,
+    );
+
+    expect(detached.current).toBeNull();
+    expect(container.querySelectorAll("[class*='py-4']")).toHaveLength(0);
     expect(container.querySelector(".animate-spin")).not.toBeInTheDocument();
   });
 
