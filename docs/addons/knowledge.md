@@ -149,7 +149,25 @@ Editor keyboard chords are listed in [Keyboard shortcuts](../user-guide/keyboard
 
 Every write to a `.md` or `.txt` file — from this editor, from the API, from a clip, from a capture commit — is stored by the core as a compressed snapshot in its `file_versions` table. Creating a text file records an initial version too, so the history starts from the file's first byte.
 
-Recording is entirely core's — it happens on the write, whoever made it, whether or not this addon is installed. What the addon adds is the way to browse and act on it: a collapsible **Version history** panel below the editor text. It lists versions newest first, 50 to a page, each row showing relative time (with the exact timestamp underneath), the saver's nickname if they have set one, and a `+N −M` line delta against the previous version. Selecting a row shows the diff and a read-only preview of that version's full text.
+Recording is entirely core's — it happens on the write, whoever made it, whether or not this addon is installed. What the addon adds is the way to browse and act on it: a collapsible **Version history** panel at the foot of the editor.
+
+There are three ways to open it, all leading to the same panel:
+
+- its own heading at the foot of the note;
+- the **version history** button in the editor toolbar, beside *Keep this version*, so where a version is made is where the existing ones are found;
+- the **Version history** entry in the file's `⋮` menu.
+
+The last two reveal the panel and scroll to it rather than opening a window over the note. Both appear only for a note that has the editor mounted — Markdown, on a drive where the editor is switched on.
+
+Versions are listed newest first, 50 to a page. Each row leads with the exact timestamp and gives the relative time underneath: two versions saved the same afternoon are both "12 days ago", and only the timestamp tells them apart. Under that the row names the kind — *Kept version* or *Autosaved* — followed by the saver's nickname if they have set one, and a `+N −M` line delta against the previous version sits at the end.
+
+Selecting a row shows what changed in it. That area distinguishes three states, because they are three different answers:
+
+- **still loading** — placeholder lines, while the version's own text loads separately and appears as soon as it is ready;
+- **nothing changed** — said in words, not left blank;
+- **could not be loaded** — the message with a **Retry** beside it, which re-requests only the changes. The rest of the version stays on screen.
+
+The version's full text sits below, behind a closed **Read-only preview** disclosure. It is the raw Markdown, deliberately: the panel is for seeing what is stored, and rendering it would hide that. The one thing rewritten for reading is the heading anchors a table of contents is made of: a destination that is a plain `#` fragment is percent-decoded, so the list reads `[Introduction](#1-introduction)` instead of a line of `%E3%81%AF`. That is the whole of the exception — anything else, including code of any kind, a destination carrying a title, and an image's own path, is shown exactly as it was saved. A fragment that is not valid percent-encoding is left as written too.
 
 Four behaviours are worth knowing:
 
