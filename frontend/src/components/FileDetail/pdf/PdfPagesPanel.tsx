@@ -1,6 +1,12 @@
 "use client";
 
-import { useEffect, useRef, useState, useSyncExternalStore } from "react";
+import {
+  useEffect,
+  useRef,
+  useState,
+  useSyncExternalStore,
+  type RefObject,
+} from "react";
 import { useTranslations } from "next-intl";
 import { Document, Page } from "react-pdf";
 
@@ -53,6 +59,8 @@ export function PdfPagesPanel({
    * Chromium — 16 in the rail before this, 8 after.
    */
   const [paintedTo, setPaintedTo] = useState(0);
+  /** The first page in the window. Moves when the canvas leaves it. */
+  const [first, setFirst] = useState(1);
   const sentinelRef = useRef<HTMLLIElement>(null);
   const currentRef = useRef<HTMLButtonElement>(null);
 
@@ -68,7 +76,7 @@ export function PdfPagesPanel({
     });
     observer.observe(el);
     return () => observer.disconnect();
-  }, [state.numPages, paintedTo, window_]);
+  }, [state.numPages, paintedTo, window_, first]);
 
   // Following the canvas, not driving it: pressing a row moves the page, and
   // so does `PageDown`, and the rail has to keep up with both.
@@ -76,8 +84,50 @@ export function PdfPagesPanel({
     currentRef.current?.scrollIntoView({ block: "nearest" });
   }, [state.page]);
 
-  const shown = Math.min(window_, state.numPages);
+  // A new document starts its rail over. Without this, a reader who grew
+  // document A's rail to 40 opens document B with 40 thumbnails mounted at
+  // once — the bounded-first-render property, lost on the second PDF of a
+  // session.
+  const [seenSrc, setSeenSrc] = useState(state.src);
+  if (seenSrc !== state.src) {
+    setSeenSrc(state.src);
+    setWindow(INITIAL_THUMBNAIL_WINDOW);
+    setPaintedTo(0);
+    setFirst(1);
+  }
+
+  /**
+   * The window moves to hold the page the canvas is on.
+   *
+   * The rail marks the current page and scrolls it into view, and neither is
+   * possible while that page is outside the window: a jump to 180 left the
+   * rail showing 1-8, marking nothing, with no way to reach 180 but scrolling
+   * to the sentinel twenty-two times. *Extending* to 180 would answer that
+   * and mount a hundred and eighty rasters at once, which is the freeze the
+   * bound exists to prevent — so the window is re-seated instead. The
+   * current page sits second in it, so the one before is still there.
+   */
+  const last = Math.min(first + window_ - 1, state.numPages);
+  if (state.numPages > 0 && (state.page < first || state.page > last)) {
+    setFirst(Math.max(1, state.page - 1));
+    setPaintedTo(0);
+  }
+  const start = first;
+  const shown = Math.min(first + window_ - 1, state.numPages);
   const outline = state.outline ?? [];
+
+  /**
+   * The entry the reader is inside, not the one that names this exact page.
+   *
+   * An outline gives a chapter's first page; the reader is on page 7 of a
+   * chapter that starts at 3. Matching exactly leaves every page but the
+   * chapter openings marked as belonging to nothing.
+   */
+  const activeOutlineIndex = outline.reduce(
+    (best, item, i) =>
+      item.page !== null && item.page <= state.page ? i : best,
+    -1,
+  );
 
   return (
     <div className={`flex min-h-0 flex-col gap-4 overflow-y-auto ${className}`}>
@@ -88,14 +138,20 @@ export function PdfPagesPanel({
               <li key={`${i}-${item.title}`}>
                 <button
                   type="button"
-                  disabled={item.page === null}
+                  // `aria-disabled`, not `disabled`: a row with no reachable
+                  // destination is still part of the table of contents its
+                  // author wrote, and a `disabled` button leaves the tab
+                  // order — a keyboard reader would find the list silently
+                  // shorter than the one on screen.
+                  aria-disabled={item.page === null || undefined}
+                  aria-current={i === activeOutlineIndex ? "true" : undefined}
                   onClick={() => item.page !== null && controller.goToPage(item.page)}
                   style={{ paddingLeft: `${item.depth * 12 + 8}px` }}
                   className={`flex w-full items-baseline gap-2 rounded-lg py-1.5 pr-2 text-left text-sm transition-colors pointer-coarse:min-h-11 ${
-                    item.page === state.page
+                    i === activeOutlineIndex
                       ? "bg-bg-elevated font-medium text-text-primary"
-                      : "text-text-muted enabled:hover:bg-bg-elevated enabled:hover:text-text-primary"
-                  }`}
+                      : "text-text-muted hover:bg-bg-elevated hover:text-text-primary"
+                  } ${item.page === null ? "cursor-default opacity-100" : ""}`}
                 >
                   <span className="min-w-0 flex-1">{item.title}</span>
                   {item.page !== null && (
@@ -108,8 +164,12 @@ export function PdfPagesPanel({
         </nav>
       )}
 
-      <ol className="flex flex-col items-center gap-2" data-testid="pdf-thumbnails">
-        {Array.from({ length: shown }, (_, i) => i + 1).map((n) => (
+      <ol
+        aria-label={t("pdfThumbnails")}
+        className="flex flex-col items-center gap-2"
+        data-testid="pdf-thumbnails"
+      >
+        {Array.from({ length: Math.max(0, shown - start + 1) }, (_, i) => start + i).map((n) => (
           <li key={n}>
             <button
               type="button"
@@ -150,11 +210,55 @@ export function PdfPagesPanel({
  * URL again, taken from the controller. The bytes come from the browser's
  * cache; what is paid twice is pdf.js's parse, and the alternative is
  * threading a proxy through the shell as a prop, which makes the shell depend
- * on pdf.js in a tree the server renders (`lib/pdfDependencies.test.ts`
- * exists to prevent exactly that).
+ * on pdf.js in a tree the server renders. (`lib/pdfDependencies.test.ts`
+ * asserts the pdfjs and react-pdf versions agree; keeping the worker out of
+ * the server bundle is what `next/dynamic` with `ssr: false` does, and
+ * `FilePreview` loads the viewer the same way.)
  */
+/**
+ * Whether this subtree has ever been on screen.
+ *
+ * `InspectorShell` mounts every panel and hides the ones that are not
+ * selected — the invariant is written into that file, and it is there so a
+ * panel does not lose a fetch or a scroll position when the reader tabs away.
+ * A thumbnail rail has neither, and mounting it eagerly is not free: pdf.js
+ * opens the document a second time and rasterises eight pages behind a
+ * `display: none`, for every multi-page PDF, whether or not anyone opens the
+ * tab. A hidden element has no layout, so this is exactly what
+ * `IntersectionObserver` answers.
+ *
+ * Once true it stays true: coming back to the tab must not re-parse.
+ */
+function useHasBeenVisible(ref: RefObject<HTMLElement | null>): boolean {
+  const [seen, setSeen] = useState(false);
+  useEffect(() => {
+    if (seen) return;
+    const el = ref.current;
+    if (!el) return;
+    if (typeof IntersectionObserver === "undefined") {
+      // No observer to ask — jsdom, and any browser old enough not to have
+      // one. Draw it rather than leave the tab permanently empty.
+      setSeen(true);
+      return;
+    }
+    const observer = new IntersectionObserver(([entry]) => {
+      if (entry.isIntersecting) setSeen(true);
+    });
+    observer.observe(el);
+    return () => observer.disconnect();
+  }, [ref, seen]);
+  return seen;
+}
+
 export function PdfPagesTab({ controller }: { controller: PdfController }) {
   const t = useTranslations("file");
+  const hostRef = useRef<HTMLDivElement>(null);
+  const visible = useHasBeenVisible(hostRef);
+
+  if (!visible) {
+    return <div ref={hostRef} className="h-full w-full" />;
+  }
+
   return (
     <Document
       file={controller.getState().src}

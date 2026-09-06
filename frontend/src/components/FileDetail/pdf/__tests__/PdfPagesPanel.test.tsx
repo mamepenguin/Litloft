@@ -6,6 +6,7 @@ import { PdfDocumentStore } from "@/lib/pdfController";
 import {
   INITIAL_THUMBNAIL_WINDOW,
   PdfPagesPanel,
+  PdfPagesTab,
 } from "../PdfPagesPanel";
 
 /** Whether the fake pages report a completed paint. */
@@ -177,7 +178,12 @@ describe("PdfPagesPanel", () => {
     const row = within(screen.getByRole("navigation", { name: "Contents" })).getByRole(
       "button",
     );
-    expect(row).toBeDisabled();
+    // `aria-disabled`, not `disabled`: the row is still part of the table of
+    // contents its author wrote, and a `disabled` button leaves the tab
+    // order — a keyboard reader would find the list shorter than the one on
+    // screen.
+    expect(row.getAttribute("aria-disabled")).toBe("true");
+    expect(row).not.toBeDisabled();
     fireEvent.click(row);
     expect(go).not.toHaveBeenCalled();
   });
@@ -187,5 +193,147 @@ describe("PdfPagesPanel", () => {
     expect(screen.queryByRole("navigation")).toBeNull();
     // The rail is still there — that is the half this panel always has.
     expect(screen.getByTestId("pdf-thumbnails")).toBeInTheDocument();
+  });
+});
+
+describe("PdfPagesPanel, following the document", () => {
+  it("moves the window to hold the page the canvas is on, without growing it", () => {
+    // A jump to 180 left the rail showing 1-8, marking nothing, with no way
+    // to reach 180 but scrolling to the sentinel twenty-two times. Extending
+    // to 180 would answer that and mount a hundred and eighty rasters at
+    // once, which is the freeze the bound exists to prevent.
+    render(<PdfPagesPanel controller={storeWith({ numPages: 225, page: 180 })} />);
+
+    expect(mounted().length).toBe(INITIAL_THUMBNAIL_WINDOW);
+    expect(mounted()[0]).toBe(179);
+    expect(
+      screen.getByRole("button", { name: "Go to page 180" }).getAttribute("aria-current"),
+    ).toBe("true");
+  });
+
+  it("re-seats when the page leaves the window, and only then", () => {
+    const store = storeWith({ numPages: 225, page: 1 });
+    const { rerender } = render(<PdfPagesPanel controller={store} />);
+    expect(mounted()).toEqual([1, 2, 3, 4, 5, 6, 7, 8]);
+
+    // Inside the window: nothing moves, so the rail does not jump under a
+    // reader turning pages one at a time.
+    act(() => store.set({ page: 5 }));
+    rerender(<PdfPagesPanel controller={store} />);
+    expect(mounted()).toEqual([1, 2, 3, 4, 5, 6, 7, 8]);
+
+    act(() => store.set({ page: 9 }));
+    rerender(<PdfPagesPanel controller={store} />);
+    expect(mounted()).toEqual([8, 9, 10, 11, 12, 13, 14, 15]);
+  });
+
+  it("stops the window at the end of the document", () => {
+    render(<PdfPagesPanel controller={storeWith({ numPages: 225, page: 225 })} />);
+    expect(mounted()).toEqual([224, 225]);
+  });
+
+  it("starts the window over when the document changes", () => {
+    // A reader who grew document A's rail to 40 must not open document B with
+    // 40 thumbnails mounted at once.
+    const store = storeWith({ numPages: 225, page: 1, src: "/a.pdf" });
+    const { rerender } = render(<PdfPagesPanel controller={store} />);
+    act(() => {
+      observers[0].cb(
+        [{ isIntersecting: true } as IntersectionObserverEntry],
+        {} as IntersectionObserver,
+      );
+    });
+    expect(mounted().length).toBe(INITIAL_THUMBNAIL_WINDOW * 2);
+
+    act(() => store.set({ src: "/b.pdf", numPages: 225, page: 1 }));
+    rerender(<PdfPagesPanel controller={store} />);
+    expect(mounted().length).toBe(INITIAL_THUMBNAIL_WINDOW);
+  });
+
+  it("marks the outline entry the reader is inside, not only its first page", () => {
+    // An outline gives a chapter's opening page; the reader is on page 7 of a
+    // chapter that starts at 3. Matching exactly leaves every page but an
+    // opening marked as belonging to nothing.
+    const store = storeWith({
+      numPages: 225,
+      page: 7,
+      outline: [
+        { depth: 0, title: "Part I", page: 1 },
+        { depth: 0, title: "Chapter 1", page: 3 },
+        { depth: 0, title: "Chapter 2", page: 40 },
+      ],
+    });
+    render(<PdfPagesPanel controller={store} />);
+
+    const rows = within(
+      screen.getByRole("navigation", { name: "Contents" }),
+    ).getAllByRole("button");
+    expect(rows.map((r) => r.getAttribute("aria-current"))).toEqual([
+      null,
+      "true",
+      null,
+    ]);
+  });
+
+  it("names the thumbnail rail", () => {
+    render(<PdfPagesPanel controller={storeWith({ numPages: 3, page: 1 })} />);
+    expect(screen.getByRole("list", { name: "Page thumbnails" })).toBeInTheDocument();
+  });
+});
+
+describe("PdfPagesTab", () => {
+  it("opens no document until the tab has been on screen", () => {
+    // `InspectorShell` mounts every panel and hides the ones that are not
+    // selected, so an eager `<Document>` means pdf.js parses the file a
+    // second time and rasterises eight pages behind a `display: none` — for
+    // every multi-page PDF, whether or not anyone opens the tab.
+    let intersect: ((visible: boolean) => void) | null = null;
+    vi.stubGlobal(
+      "IntersectionObserver",
+      class {
+        constructor(cb: IntersectionObserverCallback) {
+          intersect = (visible) =>
+            cb(
+              [{ isIntersecting: visible } as IntersectionObserverEntry],
+              this as unknown as IntersectionObserver,
+            );
+        }
+        observe() {}
+        disconnect() {}
+        unobserve() {}
+      },
+    );
+
+    const store = storeWith({ numPages: 225, page: 1, src: "/a.pdf" });
+    render(<PdfPagesTab controller={store} />);
+    expect(mounted().length).toBe(0);
+
+    act(() => intersect!(true));
+    expect(mounted().length).toBe(INITIAL_THUMBNAIL_WINDOW);
+  });
+
+  it("keeps the document open once the reader has left the tab", () => {
+    let intersect: ((visible: boolean) => void) | null = null;
+    vi.stubGlobal(
+      "IntersectionObserver",
+      class {
+        constructor(cb: IntersectionObserverCallback) {
+          intersect = (visible) =>
+            cb(
+              [{ isIntersecting: visible } as IntersectionObserverEntry],
+              this as unknown as IntersectionObserver,
+            );
+        }
+        observe() {}
+        disconnect() {}
+        unobserve() {}
+      },
+    );
+
+    render(<PdfPagesTab controller={storeWith({ numPages: 225, page: 1, src: "/a.pdf" })} />);
+    act(() => intersect!(true));
+    act(() => intersect!(false));
+    // Coming back to the tab must not re-parse the document.
+    expect(mounted().length).toBe(INITIAL_THUMBNAIL_WINDOW);
   });
 });

@@ -142,7 +142,8 @@ Litloft renders Markdown with a curated set of extensions:
 - **The page number is a box you can type into.** Enter or leaving the box confirms it; `Esc` abandons what you typed. A number the document does not have — `0`, `999`, anything that is not a number — leaves the page where it was and puts the box back, rather than taking you to the first or last page.
 - `PageUp` / `PageDown` turn pages. `←` and `→` keep meaning the previous and next file in the folder, as they do for every other non-media file; they are not taken over here. Neither key turns a page while the page box has focus.
 - **A Pages tab in the inspector** holds the document's table of contents, if it has one, and a rail of page thumbnails. Pressing an entry or a thumbnail goes there, and the page you are on is marked. The tab appears only when there is something in it — a one-page PDF with no contents has no Pages tab, and with nothing else to show beside Info it has no tab strip at all.
-- The thumbnail rail is drawn as far as you have scrolled, not all at once: a 225-page document opens having rendered eight thumbnails, not 225.
+- The thumbnail rail draws a window, not the whole document: a 225-page PDF opens having rendered eight thumbnails, and scrolling the rail adds eight more at a time. Jumping somewhere far away — typing a page number, or following a contents entry — moves the window there rather than drawing everything in between.
+- The Pages tab does not open the document until you look at it, so a PDF you never inspect costs nothing extra.
 - The initial page can be set from the URL, which is how Ask citations land on the right page.
 - Pages stream from the backend as they are needed; the viewer does not rasterise the whole document up front.
 

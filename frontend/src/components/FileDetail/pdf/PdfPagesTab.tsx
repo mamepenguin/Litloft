@@ -5,10 +5,10 @@ import dynamic from "next/dynamic";
 /**
  * Loaded the way the viewer itself is, and for the same reason.
  *
- * `lib/pdfDependencies.test.ts` keeps pdf.js out of anything the server
- * renders: it needs a canvas and a worker, and importing it statically here
- * would put the worker into the shell's bundle for every file kind, not just
- * PDFs. `FilePreview` already does exactly this for the viewer.
+ * pdf.js needs a canvas and a worker, so it must not reach the server, and a
+ * static import here would put the worker into the shell's bundle for every
+ * file kind rather than just PDFs. `FilePreview` loads the viewer the same
+ * way and records the server-render failure that taught it.
  */
 export const PdfPagesTab = dynamic(
   () => import("./PdfPagesPanel").then((m) => m.PdfPagesTab),

@@ -170,7 +170,8 @@
     "relatedFileSizeBytes": "{size}バイト",
     "layoutBeside": "文字起こしを動画の横に表示",
     "layoutStack": "文字起こしを動画の下に表示",
-    "actionsFor": "{name} の操作"
+    "actionsFor": "{name} の操作",
+    "pdfThumbnails": "ページのサムネイル"
   },
   "search": {
     "label": "検索",

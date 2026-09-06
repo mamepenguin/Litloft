@@ -170,7 +170,8 @@
     "relatedFileSizeBytes": "{size} bytes",
     "layoutBeside": "Move transcript beside the player",
     "layoutStack": "Move transcript below the player",
-    "actionsFor": "Actions for {name}"
+    "actionsFor": "Actions for {name}",
+    "pdfThumbnails": "Page thumbnails"
   },
   "search": {
     "label": "Search",

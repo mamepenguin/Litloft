@@ -36,8 +36,18 @@ vi.mock("../HtmlPreview", () => ({
 }));
 
 vi.mock("../PdfPreview", () => ({
-  PdfPreview: ({ fileId, initialPage }: { fileId: string; initialPage?: number }) => (
-    <div data-testid="pdf-preview">{fileId}:{initialPage ?? 1}</div>
+  PdfPreview: ({
+    fileId,
+    initialPage,
+    onPdfController,
+  }: {
+    fileId: string;
+    initialPage?: number;
+    onPdfController?: unknown;
+  }) => (
+    <div data-testid="pdf-preview" data-has-pdf-controller={String(Boolean(onPdfController))}>
+      {fileId}:{initialPage ?? 1}
+    </div>
   ),
 }));
 
@@ -239,5 +249,29 @@ describe("FilePreview", () => {
     const file = makeFile({ file_type: "other", mime_type: "application/octet-stream", filename: "data.bin" });
     const { container } = render(<FilePreview file={file} />);
     expect(accentFills(container).map((el) => el.textContent)).toEqual(["Download"]);
+  });
+});
+
+
+describe("FilePreview's PDF controller pass-through", () => {
+  it("hands the viewer the callback the shell gave it", async () => {
+    // The page-list tab exists only if this reaches the viewer, and nothing
+    // in the shell's own suite can see the wire: it stubs `FilePreview`.
+    // Deleting the prop here used to leave every test green.
+    const file = makeFile({ file_type: "document", mime_type: "application/pdf", filename: "doc.pdf" });
+    render(<FilePreview file={file} onPdfController={vi.fn()} />);
+
+    expect(
+      (await screen.findByTestId("pdf-preview")).getAttribute("data-has-pdf-controller"),
+    ).toBe("true");
+  });
+
+  it("passes nothing when the caller offered nothing", async () => {
+    const file = makeFile({ file_type: "document", mime_type: "application/pdf", filename: "doc.pdf" });
+    render(<FilePreview file={file} />);
+
+    expect(
+      (await screen.findByTestId("pdf-preview")).getAttribute("data-has-pdf-controller"),
+    ).toBe("false");
   });
 });
