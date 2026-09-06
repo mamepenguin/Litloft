@@ -38,6 +38,45 @@ describe("deriveDominantKind", () => {
     expect(deriveDominantKind([])).toBeNull();
   });
 
+  it("wants a majority, not a plurality", () => {
+    // "What the folder mostly holds" is what the view-mode rule and the
+    // user guide both say this answers, and the difference is whether a
+    // viewer's global preference is ever consulted: `viewModeForKind`
+    // has an answer for every kind, so a plurality here would make the
+    // global default unreachable in every non-empty folder.
+    const mix = [
+      file({ id: "a", file_type: "other" }),
+      file({ id: "b", file_type: "other" }),
+      file({ id: "c", file_type: "video", mime_type: "video/mp4" }),
+      file({ id: "d", file_type: "image", mime_type: "image/png" }),
+      file({ id: "e", file_type: "audio", mime_type: "audio/mpeg" }),
+    ];
+    // `other` is the largest at 2 of 5, and 2 is not more than half.
+    expect(deriveDominantKind(mix)).toBeNull();
+  });
+
+  it("takes the kind that is more than half, and only that", () => {
+    const threeOfFive = [
+      file({ id: "a", file_type: "audio", mime_type: "audio/mpeg" }),
+      file({ id: "b", file_type: "audio", mime_type: "audio/mpeg" }),
+      file({ id: "c", file_type: "audio", mime_type: "audio/mpeg" }),
+      file({ id: "d", file_type: "video", mime_type: "video/mp4" }),
+      file({ id: "e", file_type: "image", mime_type: "image/png" }),
+    ];
+    expect(deriveDominantKind(threeOfFive)).toBe("audio");
+
+    // Exactly half is not more than half — a folder split evenly between
+    // two kinds has no answer, which is the same rule
+    // `dominantCollectionKind` applies on the other surface.
+    const half = [
+      file({ id: "a", file_type: "audio", mime_type: "audio/mpeg" }),
+      file({ id: "b", file_type: "audio", mime_type: "audio/mpeg" }),
+      file({ id: "c", file_type: "video", mime_type: "video/mp4" }),
+      file({ id: "d", file_type: "video", mime_type: "video/mp4" }),
+    ];
+    expect(deriveDominantKind(half)).toBeNull();
+  });
+
   it("classifies markdown via mime_type even when file_type=document", () => {
     expect(
       deriveDominantKind([

@@ -2,6 +2,7 @@ import { act, renderHook } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 
 import { resolveFolderViewMode, useFolderSort, useFolderViewMode } from "../useFolderViewMode";
+import type { FolderKind } from "@/types";
 
 const GLOBAL_KEY = "video-share-view-mode";
 const driveKey = (drive: string) => `folderPrefs:${drive}`;
@@ -67,14 +68,47 @@ describe("resolveFolderViewMode (layered fallback, grid|list)", () => {
     expect(result).toBe("list");
   });
 
-  it("layer 3: dominant_kind=document falls through to global", () => {
+  it.each([
+    ["audio", "list"],
+    ["archive", "list"],
+    ["other", "list"],
+    ["document", "grid"],
+    ["pdf", "grid"],
+  ] as const)(
+    "opens a %s-dominant folder as a %s, like a collection of the same",
+    (dominantKind, expected) => {
+      // The folder half of the change, and the half with the wider blast
+      // radius — every folder page, not just collections. Asserted on
+      // behaviour so a re-introduced local table fails here and not only
+      // in a source scan.
+      localStorage.setItem(GLOBAL_KEY, expected === "grid" ? "list" : "grid");
+      expect(
+        resolveFolderViewMode({ drive: "work", folderPath: "f", dominantKind }),
+      ).toBe(expected);
+    },
+  );
+
+  it("layer 3 is reached only by a mixed folder", () => {
+    // `viewModeForKind` is total over `FolderKind` now, so every folder
+    // with a dominant kind is answered at layer 2 — `document` used to
+    // fall through here, on the strength of a `default:` arm rather than
+    // of a decision about what its cards look like. The global default
+    // is what a folder with *no* dominant kind falls back to.
     localStorage.setItem(GLOBAL_KEY, "list");
-    const result = resolveFolderViewMode({
-      drive: "work",
-      folderPath: "docs",
-      dominantKind: "document",
-    });
-    expect(result).toBe("list");
+    expect(
+      resolveFolderViewMode({
+        drive: "work",
+        folderPath: "docs",
+        dominantKind: "document",
+      }),
+    ).toBe("grid");
+    expect(
+      resolveFolderViewMode({
+        drive: "work",
+        folderPath: "mixed",
+        dominantKind: null,
+      }),
+    ).toBe("list");
   });
 
   it("layer 4: built-in default = grid", () => {
@@ -302,5 +336,66 @@ describe("useFolderViewMode setter", () => {
 
     rerender({ folderPath: "photos" });
     expect(result.current.viewMode).toBe("grid");
+  });
+});
+
+describe("useFolderViewMode holds the mode a folder opened in", () => {
+  it("does not restyle a folder as later pages arrive", () => {
+    // The dominant kind is derived from the pages loaded so far, so
+    // without a latch a folder whose first page is mostly audio opens as
+    // a list and its next page of video turns it into a grid mid-scroll.
+    const { result, rerender } = renderHook(
+      ({ dominantKind }) =>
+        useFolderViewMode({ drive: "work", folderPath: "album", dominantKind }),
+      { initialProps: { dominantKind: "audio" as FolderKind | null } },
+    );
+    expect(result.current.viewMode).toBe("list");
+
+    rerender({ dominantKind: "video" });
+    expect(result.current.viewMode).toBe("list");
+  });
+
+  it("takes the first real answer, not the empty first render", () => {
+    // A folder mounts before its files arrive, so the first render
+    // reports no dominant kind. `null` does not latch.
+    const { result, rerender } = renderHook(
+      ({ dominantKind }) =>
+        useFolderViewMode({ drive: "work", folderPath: "album", dominantKind }),
+      { initialProps: { dominantKind: null as FolderKind | null } },
+    );
+    rerender({ dominantKind: "audio" });
+    expect(result.current.viewMode).toBe("list");
+  });
+
+  it("starts over in a different folder", () => {
+    const { result, rerender } = renderHook(
+      ({ folderPath, dominantKind }) =>
+        useFolderViewMode({ drive: "work", folderPath, dominantKind }),
+      {
+        initialProps: {
+          folderPath: "album",
+          dominantKind: "audio" as FolderKind | null,
+        },
+      },
+    );
+    expect(result.current.viewMode).toBe("list");
+
+    rerender({ folderPath: "clips", dominantKind: "video" });
+    expect(result.current.viewMode).toBe("grid");
+  });
+
+  it("keeps an explicit choice, and remembers it for the folder", () => {
+    const { result } = renderHook(() =>
+      useFolderViewMode({ drive: "work", folderPath: "album", dominantKind: "audio" }),
+    );
+    expect(result.current.viewMode).toBe("list");
+
+    act(() => result.current.setViewMode("grid"));
+    expect(result.current.viewMode).toBe("grid");
+
+    const fresh = renderHook(() =>
+      useFolderViewMode({ drive: "work", folderPath: "album", dominantKind: "audio" }),
+    );
+    expect(fresh.result.current.viewMode).toBe("grid");
   });
 });

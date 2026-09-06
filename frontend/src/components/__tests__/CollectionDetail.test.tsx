@@ -94,8 +94,8 @@ vi.mock("@/components/FileGrid", () => ({
   ),
 }));
 vi.mock("@/components/FileList", () => ({
-  FileList: ({ files }: { files: FileItem[] }) => (
-    <div data-testid="file-list">
+  FileList: ({ files, showOrdinals }: { files: FileItem[]; showOrdinals?: boolean }) => (
+    <div data-testid="file-list" data-ordinals={showOrdinals ? "on" : "off"}>
       {files.map((f) => (
         <div key={f.id} data-testid="list-row">
           {f.title}
@@ -209,6 +209,18 @@ describe("CollectionDetail", () => {
     await waitFor(() => expect(screen.getByTestId("file-grid")).toBeInTheDocument());
     fireEvent.click(screen.getByLabelText("List view"));
     expect(screen.getByTestId("file-list")).toBeInTheDocument();
+  });
+
+  it("numbers its rows, whichever way the list was reached", async () => {
+    // A collection's order *is* the collection — unlike a folder, where
+    // the order is a sort the reader picked. So the numbers are not a
+    // property of the audio default that put this list on screen; they
+    // are asked for unconditionally, and this reaches the list through
+    // the toggle to say so.
+    render(<CollectionDetail drive="main" collectionId="c1" />);
+    await waitFor(() => expect(screen.getByTestId("file-grid")).toBeInTheDocument());
+    fireEvent.click(screen.getByLabelText("List view"));
+    expect(screen.getByTestId("file-list")).toHaveAttribute("data-ordinals", "on");
   });
 
   it("persists a description edit through updateCollection", async () => {

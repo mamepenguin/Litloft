@@ -22,6 +22,16 @@ import { TextThumbnail } from "./TextThumbnail";
 
 interface FileListRowProps {
   file: FileItemWithMatch;
+  /**
+   * The row's position in the listing, 1-based, drawn ahead of the
+   * thumbnail. Only the collection view passes it: elsewhere the order
+   * is a sort the reader chose and can change, so a number beside each
+   * row would name a position that means nothing.
+   *
+   * A per-row primitive, like `selected` and `isDragging` — see the
+   * prop-shape note below.
+   */
+  ordinal?: number;
   selectable?: boolean;
   /**
    * Resolved boolean rather than an `(id) => boolean` predicate, and a
@@ -53,6 +63,7 @@ interface FileListRowProps {
 
 function FileListRowImpl({
   file,
+  ordinal,
   selectable,
   selected,
   isDragging,
@@ -95,6 +106,23 @@ function FileListRowImpl({
 
   const content = (
     <>
+      {ordinal !== undefined && (
+        // `aria-hidden`: the row's accessible name is its title, and a
+        // reader announced as "1, Track 1" is being read a column that
+        // says what the reading order already says.
+        //
+        // Unpadded, and `tabular-nums` in a fixed width for the
+        // alignment a leading zero would otherwise buy. The collection's
+        // other pane numbers the same items on the same screen
+        // (`CollectionItemsPane`), and two numberings side by side have
+        // to read the same.
+        <span
+          aria-hidden
+          className="w-6 flex-shrink-0 text-right text-xs tabular-nums text-text-muted"
+        >
+          {ordinal}
+        </span>
+      )}
       <div className="relative h-14 w-24 flex-shrink-0 overflow-hidden rounded-lg bg-bg-elevated sm:h-14 sm:w-24">
         {hasThumbnail ? (
           <img
