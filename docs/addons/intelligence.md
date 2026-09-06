@@ -239,9 +239,11 @@ candidate pending; generation and dismissal do not write core chapters.
 The page names itself *Ask this drive*, offers an example question rather than
 echoing the `?q=` it was opened with, and puts the number of files it will read
 above the box — the same line *Find* carries, because a drive is a boundary and
-"found nothing" and "looked in the wrong place" read alike without it. The count
-comes from core's own drive listing and is simply absent when that call fails: a
-wrong number here would be read as the size of the index and believed. Under the
+"found nothing" and "looked in the wrong place" read alike without it. That count
+is the size of the **drive**, not of the index: it is every active file there,
+while Ask retrieves from the subset carrying a transcript, a caption or an
+embedding. The line is simply absent when the call behind it fails, because a
+wrong number would be read as the size of the index and believed. Under the
 box it says that answers take a few seconds and that transcripts and text are
 sent to the LLM API, before anything is sent.
 
