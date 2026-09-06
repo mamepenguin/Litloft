@@ -76,9 +76,12 @@ export function SidebarDriveSwitcher({ drives, currentDrive, close }: SidebarDri
       type="button"
       onClick={() => setOpen((v) => !v)}
       aria-expanded={open}
-      // The accessible name contains the visible label (WCAG 2.5.3), so
-      // "click drives" reaches it.
-      aria-label={t("allDrives", { count: others.length })}
+      // No `aria-label`: the row's content is already "Drives (4)", so its
+      // accessible name is the visible text and WCAG 2.5.3 is satisfied by
+      // the content. An override identical to it is one more string to
+      // keep in step. The current-drive row does carry one, because there
+      // the text is just a drive name and the label adds what pressing it
+      // does.
       className={`w-full ${rowClass(false)}`}
     >
       <HardDrive size={16} className="shrink-0" />

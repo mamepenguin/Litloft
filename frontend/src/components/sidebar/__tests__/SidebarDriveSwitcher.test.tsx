@@ -83,9 +83,11 @@ describe("SidebarDriveSwitcher", () => {
     it("names itself with the words on screen (WCAG 2.5.3)", () => {
       renderRoot();
       const row = screen.getByRole("button", { name: /Drives \(3\)/ });
-      // Someone saying "click drives" has to reach it, so the accessible
-      // name has to contain what the row reads.
-      expect(row.getAttribute("aria-label")).toContain("Drives");
+      // Its content *is* its accessible name, so the query above is the
+      // assertion. No `aria-label`: an override identical to the visible
+      // text is one more string to keep in step, and this row has nothing
+      // to add to what it already reads.
+      expect(row.getAttribute("aria-label")).toBeNull();
       expect(row.textContent).toContain("Drives");
     });
 
