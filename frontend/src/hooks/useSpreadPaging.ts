@@ -59,8 +59,11 @@ export function useSpreadPaging({
   const turn = useCallback(
     (next: SpreadPosition | null) => {
       if (!next) return;
-      // The half is set before the index, so the page being left keeps its
-      // own position while the new one comes up.
+      // Both land in one commit, so the page being left never repaints
+      // with the incoming half. That comes from batching, not from the
+      // order these two lines are written in — swapping them changes
+      // nothing, and reading the order as load-bearing would be a
+      // guarantee this does not give.
       setShowRightHalf(next.showRightHalf);
       // A delta through the updater rather than an absolute. The two agree
       // for one call per render and differ if two turns land in the same

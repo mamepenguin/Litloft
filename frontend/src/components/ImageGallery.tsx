@@ -169,7 +169,6 @@ export function ImageGallery({
 
   const {
     activeSplit,
-    isFirstSubPage,
     subPageLabel,
     canGoPrev,
     canGoNext,

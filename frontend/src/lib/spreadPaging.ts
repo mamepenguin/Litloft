@@ -80,8 +80,13 @@ export function pageForward(s: SpreadState): SpreadPosition | null {
  * Landing on the previous page lands on its *last* half, which is why
  * this one consults `splitMode` and not `isSpreadActive`: whether the
  * page you are arriving at has two halves is not something the page you
- * are leaving can answer. It is corrected once that page reports its own
- * proportions.
+ * are leaving can answer.
+ *
+ * Nothing corrects the guess afterwards, and nothing needs to. Every
+ * consumer reads `showRightHalf` under an `isSpreadActive` gate, so on a
+ * page that turns out to be tall the value is never read, and the next
+ * turn overwrites it. A reader who took this for self-healing and read
+ * the half outside that gate would inherit a stale one.
  */
 export function pageBack(s: SpreadState): SpreadPosition | null {
   if (isSpreadActive(s) && !isOnFirstHalf(s)) {
