@@ -6,6 +6,7 @@ import {
   CSS_PX_PER_PT,
   DEFAULT_PDF_ZOOM_MODE,
   MAX_FITTED_WIDTH,
+  MIN_FITTED_WIDTH,
   PDF_ZOOM_MODES,
   parsePdfZoomMode,
   pdfPageWidth,
@@ -124,6 +125,44 @@ describe("pdfPageWidth", () => {
     expect(PDF_ZOOM_MODES).toHaveLength(3);
   });
 
+  it("treats a box with no height as not laid out yet", () => {
+    // `<Page width={0}>` gives react-pdf `scale: 0` and a zero-area
+    // canvas; a negative height gives a negative scale.
+    for (const availableHeight of [0, -1]) {
+      expect(
+        pdfPageWidth({
+          mode: "fit-page",
+          available: 640,
+          availableHeight,
+          pageBox: A4,
+        }),
+      ).toBe(640);
+    }
+  });
+
+  it("returns a positive width for a box that has measured nothing", () => {
+    // The state the guard above is named for — `display: none`, detached,
+    // observed before first layout — reports zero on *both* axes, and a
+    // zero width reaches `<Page>` as `scale: 0` exactly like a zero
+    // height. Every mode, so the floor is the function's contract rather
+    // than one branch's.
+    for (const mode of PDF_ZOOM_MODES) {
+      for (const pageBox of [A4, null]) {
+        expect(
+          pdfPageWidth({ mode, available: 0, availableHeight: 0, pageBox }),
+        ).toBeGreaterThan(0);
+      }
+    }
+    expect(
+      pdfPageWidth({
+        mode: "fit-width",
+        available: 0,
+        availableHeight: 900,
+        pageBox: A4,
+      }),
+    ).toBe(MIN_FITTED_WIDTH);
+  });
+
   it("fits the width for a page reporting no size", () => {
     expect(
       pdfPageWidth({
@@ -151,14 +190,11 @@ describe("parsePdfZoomMode", () => {
   });
 });
 
-
 describe("rasterPixelRatio", () => {
   const A4_AT_ACTUAL = { cssWidth: 794, cssHeight: 1123 };
 
   it("renders at the display's own ratio when the raster fits", () => {
-    expect(
-      rasterPixelRatio({ ...A4_AT_ACTUAL, devicePixelRatio: 2 }),
-    ).toBe(2);
+    expect(rasterPixelRatio({ ...A4_AT_ACTUAL, devicePixelRatio: 2 })).toBe(2);
     // 794 x 1123 x 2 x 2 = 3.57M — well inside the budget.
     expect(A4_AT_ACTUAL.cssWidth * A4_AT_ACTUAL.cssHeight * 4).toBeLessThan(
       MAX_RASTER_PIXELS,
@@ -166,7 +202,9 @@ describe("rasterPixelRatio", () => {
   });
 
   it("never renders finer than the display, however small the page", () => {
-    expect(rasterPixelRatio({ cssWidth: 10, cssHeight: 10, devicePixelRatio: 1 })).toBe(1);
+    expect(
+      rasterPixelRatio({ cssWidth: 10, cssHeight: 10, devicePixelRatio: 1 }),
+    ).toBe(1);
   });
 
   it("drops the ratio rather than the size when the budget bites", () => {
@@ -193,7 +231,11 @@ describe("rasterPixelRatio", () => {
   });
 
   it("survives a page it has no size for", () => {
-    expect(rasterPixelRatio({ cssWidth: 0, cssHeight: 0, devicePixelRatio: 3 })).toBe(3);
-    expect(rasterPixelRatio({ cssWidth: 100, cssHeight: 100, devicePixelRatio: 0 })).toBe(1);
+    expect(
+      rasterPixelRatio({ cssWidth: 0, cssHeight: 0, devicePixelRatio: 3 }),
+    ).toBe(3);
+    expect(
+      rasterPixelRatio({ cssWidth: 100, cssHeight: 100, devicePixelRatio: 0 }),
+    ).toBe(1);
   });
 });

@@ -22,10 +22,15 @@ export const PDF_ZOOM_MODE_KEY = "pdf-zoom-mode";
 /**
  * The widest a *fitted* page is drawn, in CSS pixels.
  *
- * A 2000px canvas stretching an A4 to full width puts more than 200
- * characters on a line, which is the far side of `DESIGN.md` §3.4
- * Reading Measure. The cap is not explained in the UI — an explanation
- * is owed for things the reader can choose, and this is not one of them.
+ * `DESIGN.md` §3.7 Fitted page measure. It is deliberately **not**
+ * §3.4's 860px: a rendered PDF page is an image of a page, not
+ * reflowable text, so the line length is the author's and the only thing
+ * this number controls is how far that fixed layout is scaled up. A
+ * 2000px canvas stretching an A4 to full width still puts over 200
+ * characters on a line, which is the far side of what §3.4 is about —
+ * the same concern reached by a different route, which is why it has its
+ * own measure. The cap is not explained in the UI — an explanation is
+ * owed for things the reader can choose, and this is not one of them.
  *
  * It does not apply to `actual`: that mode's whole claim is that the
  * page is the size it says it is, and a capped "actual size" is a lie
@@ -33,6 +38,20 @@ export const PDF_ZOOM_MODE_KEY = "pdf-zoom-mode";
  * distinction only shows on paper bigger than that.
  */
 export const MAX_FITTED_WIDTH = 900;
+
+/**
+ * The narrowest a fitted page is drawn, and the shortest box `fit-page`
+ * will fit one to.
+ *
+ * These are floors on the *answer*, not guesses about the box. A box
+ * narrower than 280px or shorter than 200px is a sliver in which no page
+ * is legible either way, so the page overflows it rather than shrinking
+ * to nothing. They live here because the contract is this function's:
+ * every mode returns a positive width for every input, including the
+ * zeroes an unlaid-out element reports.
+ */
+export const MIN_FITTED_WIDTH = 280;
+export const MIN_FITTED_HEIGHT = 200;
 
 /** CSS pixels per PDF point: PDF units are 72dpi, CSS is 96. */
 export const CSS_PX_PER_PT = 96 / 72;
@@ -62,17 +81,31 @@ export function pdfPageWidth({
   availableHeight: number;
   pageBox: PageBox | null;
 }): number {
-  const fitWidth = Math.min(MAX_FITTED_WIDTH, available);
+  const fitWidth = Math.min(
+    MAX_FITTED_WIDTH,
+    Math.max(MIN_FITTED_WIDTH, available),
+  );
   if (!pageBox || pageBox.width <= 0 || pageBox.height <= 0) return fitWidth;
 
   if (mode === "actual") return pageBox.width * CSS_PX_PER_PT;
 
   if (mode === "fit-page") {
+    // A box with no height is "not laid out yet" — the same answer the
+    // absent `pageBox` gives above, and not "a page zero pixels wide".
+    // `<Page width={0}>` makes react-pdf take `scale: 0` and produce a
+    // zero-area canvas; a negative one, a negative scale. The floor
+    // below would turn a zero into a 141px page, which is a wrong page
+    // rather than no answer, so the guard has to come first.
+    if (availableHeight <= 0) return fitWidth;
     // The width at which the page's own proportions make it exactly as
-    // tall as the box. Still capped and still bounded by the available
-    // width: "whole page" means nothing is cut off, not that it fills
-    // the widest dimension it could.
-    const byHeight = availableHeight * (pageBox.width / pageBox.height);
+    // tall as the box. Still capped and still bounded by `fitWidth`:
+    // "whole page" means nothing is cut off, not that it fills the
+    // widest dimension it could. Bounded by `fitWidth`, note, not by
+    // `available` — below `MIN_FITTED_WIDTH` the floor wins and the page
+    // deliberately overflows a box too narrow to read one in.
+    const byHeight =
+      Math.max(MIN_FITTED_HEIGHT, availableHeight) *
+      (pageBox.width / pageBox.height);
     return Math.min(fitWidth, byHeight);
   }
 
@@ -85,7 +118,6 @@ export function parsePdfZoomMode(raw: string | null): PdfZoomMode {
     ? (raw as PdfZoomMode)
     : DEFAULT_PDF_ZOOM_MODE;
 }
-
 
 /**
  * The most device pixels a single page raster may ask for.
