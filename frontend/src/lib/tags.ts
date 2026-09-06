@@ -27,7 +27,6 @@
 import type { FileItem } from "@/types";
 import { updateFileTags as updateFileTagsFlat } from "@/lib/api";
 import {
-  ConflictError,
   getFileTextContent,
   putFileTextContent,
 } from "@/lib/fileContent";

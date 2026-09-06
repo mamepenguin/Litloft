@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useState } from "react";
-import { RotateCcw, Trash2 } from "lucide-react";
+import { Trash2 } from "lucide-react";
 import { useTranslations } from "next-intl";
 
 import type { FileItem, FileType, SortField, SortOrder, ViewMode } from "@/types";

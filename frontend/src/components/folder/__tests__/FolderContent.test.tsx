@@ -340,6 +340,10 @@ describe("FolderContent", () => {
     );
     // sentinel ref div should not be rendered for recent view
     // The sentinel is inside a conditional that checks !isRecent
+    // Kept on purpose: this test is named for the sentinel but only asserts
+    // that no spinner rendered, which is true even when a sentinel does.
+    // Deleting the binding would settle the gap by hiding it.
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
     const sentinels = container.querySelectorAll("[class*='py-4']");
     // Check no sentinel with loadingMore spinner
     expect(container.querySelector(".animate-spin")).not.toBeInTheDocument();

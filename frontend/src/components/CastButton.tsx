@@ -9,7 +9,7 @@ export function CastButton({ mediaRef }: { mediaRef: RefObject<HTMLVideoElement 
   const t = useTranslations("player");
   const [available, setAvailable] = useState(false);
   const [state, setState] = useState<CastState>("disconnected");
-  const [watchId, setWatchId] = useState<number | null>(null);
+  const [, setWatchId] = useState<number | null>(null);
 
   useEffect(() => {
     const el = mediaRef.current;

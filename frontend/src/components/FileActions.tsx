@@ -6,7 +6,6 @@ import { createPortal } from "react-dom";
 import { useTranslations } from "next-intl";
 import {
   deleteFile,
-  getDownloadUrl,
   moveFile,
   renameFile,
 } from "@/lib/api";
@@ -48,7 +47,6 @@ export function FileActions({
   addonProps,
 }: FileActionsProps) {
   const t = useTranslations("file");
-  const tc = useTranslations("common");
   const tt = useTranslations("trash");
   const [menuOpen, setMenuOpen] = useState(false);
   const [renameOpen, setRenameOpen] = useState(false);
@@ -142,11 +140,6 @@ export function FileActions({
       return () => clearTimeout(timer);
     }
   }, [error]);
-
-  const handleDownload = useCallback(() => {
-    setMenuOpen(false);
-    window.open(getDownloadUrl(file.id), "_blank");
-  }, [file.id]);
 
   const handleRename = useCallback(
     async (newName: string) => {

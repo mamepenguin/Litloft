@@ -32,6 +32,31 @@ const eslintConfig = defineConfig([
     },
   },
   {
+    // A prop that is declared, passed, and destructured but never read is
+    // not tidiness: it is wiring that was never finished. `#189` was two of
+    // them — `onMetaSelect` reached `TrashFileGrid` and `TrashFileList` and
+    // neither called it, so Cmd/Ctrl-click multi-selection in the trash was
+    // silently dead. TypeScript does not object, and a test that calls the
+    // module's API rather than pressing the thing cannot see it.
+    //
+    // `ignoreRestSiblings` is off deliberately. It defaults to true so that
+    // `const { a, ...rest } = props` can drop `a` on purpose — but there is
+    // no instance of that idiom in `src`, so the allowance would only ever
+    // hide a real one. `_`-prefix anything genuinely meant to be discarded.
+    rules: {
+      "@typescript-eslint/no-unused-vars": [
+        "error",
+        {
+          args: "after-used",
+          ignoreRestSiblings: false,
+          varsIgnorePattern: "^_",
+          argsIgnorePattern: "^_",
+          caughtErrorsIgnorePattern: "^_",
+        },
+      ],
+    },
+  },
+  {
     files: ["server.js"],
     rules: {
       "@typescript-eslint/no-require-imports": "off",

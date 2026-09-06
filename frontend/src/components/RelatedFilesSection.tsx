@@ -7,7 +7,6 @@ import { useTranslations } from "next-intl";
 import {
   getFileRelations,
   type FileRelationItem,
-  type RelatedFileSummary,
 } from "@/lib/api";
 import { useInRelatedGroup } from "./FileDetail/inspector/RelatedGroup";
 

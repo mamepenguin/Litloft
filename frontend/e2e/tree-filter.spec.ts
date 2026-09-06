@@ -18,7 +18,6 @@ let firstFolderPath: string | null = null;
 let hasMarkdownFile = false;
 
 const TREE_PLACEHOLDER_RE = /名前で絞り込み|Filter by name/i;
-const TREE_TOGGLE_NAME_RE = /^(ツリーを表示|ツリーを隠す|Show tree|Hide tree)$/;
 const TYPE_DROPDOWN_LABEL_RE = /^(すべて|All|Markdown|動画|Video|画像|Image|PDF)$/;
 
 test.beforeAll(async () => {

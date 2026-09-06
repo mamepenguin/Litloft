@@ -86,17 +86,6 @@ function sourceFiles(root: string): string[] {
   return out;
 }
 
-function eachLine(visit: (line: string, where: string) => void) {
-  for (const root of SOURCE_ROOTS) {
-    for (const file of sourceFiles(root)) {
-      if (file === SELF || file === SCANNER) continue;
-      readFileSync(file, "utf-8")
-        .split("\n")
-        .forEach((line, i) => visit(line, `${relative(REPO_ROOT, file)}:${i + 1}`));
-    }
-  }
-}
-
 /**
  * Every `className` value in the tree, as one string each, however many lines
  * it spans.

@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { render, fireEvent, act } from "@testing-library/react";
+import { render, fireEvent } from "@testing-library/react";
 import { useState } from "react";
 import { ShortcutsProvider } from "../ShortcutsProvider";
 import { OVERLAY_PRIORITY } from "@/lib/shortcuts";

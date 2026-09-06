@@ -36,7 +36,6 @@ interface PickedFile {
 }
 
 let driveName: string | null = null;
-let writableDrive: string | null = null;
 let anyFile: PickedFile | null = null;
 let secondFileSameFolder: PickedFile | null = null;
 let nonMediaFile: PickedFile | null = null;
@@ -45,7 +44,6 @@ let imageFile: PickedFile | null = null;
 
 const RIGHT_PANE_BACK_RE = /ツリーへ戻る|Back to tree/i;
 const GALLERY_BTN_RE = /ギャラリー|gallery/i;
-const TREE_TOGGLE_RE = /ツリー|tree/i;
 
 function folderUrl(drive: string, folderPath: string): string {
   const segs = folderPath
@@ -85,7 +83,6 @@ test.beforeAll(async () => {
   const drive = await getFirstDrive();
   if (!drive) return;
   driveName = drive.name;
-  writableDrive = drive.readonly ? null : drive.name;
 
   // Generic fixtures off the first drive — covers the redirect /
   // mobile / negative-playlist tests without caring about file type.

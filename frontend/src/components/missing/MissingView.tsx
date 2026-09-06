@@ -41,7 +41,6 @@ export function MissingView({ driveName }: MissingViewProps) {
     loading,
     loadingMore,
     sentinelRef,
-    reset,
     setItems: setFiles,
   } = useInfiniteScroll<FileItem>({ fetchPage, limit: 30 });
 
