@@ -146,7 +146,12 @@ Litloft renders Markdown with a curated set of extensions:
 
 - The document has the page column to itself; its metadata, tags and comments are in the inspector.
 - Rendered page by page with PDF.js (`react-pdf`), inside the page rather than in a browser plugin frame — so text selection works and the Intelligence addon can quote the page you are looking at.
-- Page navigation and a zoom control (0.5x to 2x in 0.25 steps); the page fits the available width by default.
+- Page navigation and a zoom control (0.5x to 2x in 0.25 steps).
+- **A zoom-mode menu with three entries**, since a percentage on its own could not say "show me the whole page":
+  - **Fit width** (the default) — the page fills the column, up to a limit. The limit is there so a wide window does not stretch a page of prose into 200-character lines.
+  - **Whole page** — the page is sized so its full height fits, which is how an A4 page arrives complete rather than cut off at the bottom.
+  - **Actual size** — the page at the size it would print at (96 pixels to the inch against the PDF's own points). This one is not limited: a mode that claims to show the page at its own size and then shrinks it is saying something untrue.
+- Choosing a mode puts the zoom back to 100%, because "whole page" at 150% is not the whole page. Zooming afterwards leaves the mode where it is and just changes the magnification. The mode you picked is remembered on this device.
 - **The page number is a box you can type into.** Enter or leaving the box confirms it; `Esc` abandons what you typed. A number the document does not have — `0`, `999`, anything that is not a number — leaves the page where it was and puts the box back, rather than taking you to the first or last page.
 - `PageUp` / `PageDown` turn pages. `←` and `→` keep meaning the previous and next file in the folder, as they do for every other non-media file; they are not taken over here. Neither key turns a page while the page box has focus.
 - **A Pages tab in the inspector** holds the document's table of contents, if it has one, and a rail of page thumbnails. Pressing an entry or a thumbnail goes there, and the page you are on is marked. The tab appears only when there is something in it — a one-page PDF with no contents has no Pages tab, and with nothing else to show beside Info it has no tab strip at all.

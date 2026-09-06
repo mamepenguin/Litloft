@@ -1,7 +1,14 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { ChevronLeft, ChevronRight, ExternalLink, Minus, Plus } from "lucide-react";
+import {
+  ChevronLeft,
+  ChevronRight,
+  ExternalLink,
+  Maximize2,
+  Minus,
+  Plus,
+} from "lucide-react";
 import { useTranslations } from "next-intl";
 import { Document, Page, pdfjs } from "react-pdf";
 import type { PDFDocumentProxy } from "pdfjs-dist";
@@ -9,6 +16,18 @@ import "react-pdf/dist/Page/TextLayer.css";
 import "react-pdf/dist/Page/AnnotationLayer.css";
 
 import { getStreamUrl } from "@/lib/api";
+import { readStored, writeStored } from "@/lib/safeStorage";
+import {
+  DEFAULT_PDF_ZOOM_MODE,
+  PDF_ZOOM_MODES,
+  PDF_ZOOM_MODE_KEY,
+  parsePdfZoomMode,
+  pdfPageWidth,
+  type PageBox,
+  rasterPixelRatio,
+  type PdfZoomMode,
+} from "@/lib/pdfZoomMode";
+import { MenuRadioGroup, ToolbarMenu } from "@/components/ToolbarMenu";
 import { COMPOSITION_GRACE_MS, IME_KEY_CODE } from "@/lib/ime";
 import { useShortcuts } from "@/hooks/useShortcuts";
 import {
@@ -57,6 +76,31 @@ export function PdfPreview({
   );
   const [zoom, setZoom] = useState(1);
   const [availableWidth, setAvailableWidth] = useState(800);
+  // The scroll box's height, for "whole page". Its own measurement
+  // rather than a share of the viewport: §7's floor makes the box a
+  // fraction of the canvas, which is not the window.
+  const [availableHeight, setAvailableHeight] = useState(600);
+  const pageBoxRef = useRef<HTMLDivElement>(null);
+  /** The current page's size in PDF points, once the document says. */
+  const [pageBox, setPageBox] = useState<PageBox | null>(null);
+  const [zoomMode, setZoomMode] = useState<PdfZoomMode>(DEFAULT_PDF_ZOOM_MODE);
+  const [renderFailed, setRenderFailed] = useState(false);
+
+  // Read after mount, not in the initialiser: the server render has no
+  // storage, and a value read during it would be hydrated over.
+  useEffect(() => {
+    setZoomMode(parsePdfZoomMode(readStored(PDF_ZOOM_MODE_KEY)));
+  }, []);
+
+  const chooseZoomMode = useCallback((next: PdfZoomMode) => {
+    setZoomMode(next);
+    writeStored(PDF_ZOOM_MODE_KEY, next);
+    // A mode is a statement about the whole page; carrying a 150% into
+    // "whole page" would mean the page does not fit, which is the one
+    // thing that mode promises. Zoom afterwards still works, and leaves
+    // the mode where it is.
+    setZoom(1);
+  }, []);
   const src = getStreamUrl(fileId);
   const pdfStore = useMemo(() => new PdfDocumentStore(), []);
 
@@ -74,6 +118,7 @@ export function PdfPreview({
     loadedFileRef.current = fileId;
     setZoom(1);
     setNumPages(0);
+    setPageBox(null);
     setPageDraft(null);
     // The store describes a document, and the document is changing. Left
     // alone, the page list would draw the previous file's table of contents
@@ -121,6 +166,23 @@ export function PdfPreview({
       setAvailableWidth(Math.max(280, entry.contentRect.width - 32));
     });
     observer.observe(root);
+    return () => observer.disconnect();
+  }, []);
+
+  useEffect(() => {
+    const box = pageBoxRef.current;
+    if (!box || typeof ResizeObserver === "undefined") return;
+    const observer = new ResizeObserver(([entry]) => {
+      // No padding allowance here. `contentRect` is the content box, and
+      // this observer watches the padded box itself, so `p-4` is already
+      // out of it. The width observer above subtracts 32 because it
+      // watches the *root* — a different element, with no padding of its
+      // own, which therefore still contains this box's. Subtracting here
+      // too drew every whole-page render ~5.6% short, with a band of
+      // dead grey under it.
+      setAvailableHeight(Math.max(200, entry.contentRect.height));
+    });
+    observer.observe(box);
     return () => observer.disconnect();
   }, []);
 
@@ -283,16 +345,57 @@ export function PdfPreview({
    * depends on the page and the width and on nothing else, so a draft the
    * reader has not confirmed yet costs a toolbar render and no more.
    */
+  const baseWidth = pdfPageWidth({
+    mode: zoomMode,
+    available: availableWidth,
+    availableHeight,
+    pageBox,
+  });
+
+  const drawWidth = baseWidth * zoom;
+
   const pageElement = useMemo(
     () => (
       <Page
         pageNumber={page}
-        width={Math.min(900, availableWidth) * zoom}
+        width={drawWidth}
+        // A budget for pixels, not for layout. The page keeps the size
+        // the mode promises; only the raster behind it gets coarser, and
+        // only where the browser would otherwise refuse the allocation
+        // and paint nothing. See `rasterPixelRatio`.
+        devicePixelRatio={rasterPixelRatio({
+          cssWidth: drawWidth,
+          cssHeight: pageBox
+            ? drawWidth * (pageBox.height / pageBox.width)
+            : drawWidth,
+          devicePixelRatio:
+            typeof window === "undefined" ? 1 : window.devicePixelRatio || 1,
+        })}
+        onLoadSuccess={(loaded) => {
+          // The page's own size, in points. Read from the viewport at
+          // scale 1 rather than from react-pdf's derived `width`, which
+          // is already the number we handed it.
+          const view = loaded.getViewport({ scale: 1 });
+          setPageBox((current) =>
+            current &&
+            current.width === view.width &&
+            current.height === view.height
+              ? current
+              : { width: view.width, height: view.height },
+          );
+        }}
+        // A page can fail to raster with nothing thrown: the canvas is
+        // sized `width * zoom * devicePixelRatio` on each axis, and a
+        // very large page at 200% asks for an allocation the browser
+        // may simply refuse. Without this the page goes blank and the
+        // reader has no way to know that zooming out is the way back.
+        onRenderError={() => setRenderFailed(true)}
+        onRenderSuccess={() => setRenderFailed(false)}
         renderTextLayer
         renderAnnotationLayer
       />
     ),
-    [page, availableWidth, zoom],
+    [page, drawWidth, pageBox],
   );
 
   /**
@@ -396,6 +499,27 @@ export function PdfPreview({
           <ChevronRight size={16} />
         </button>
         <span className="mx-1 h-5 w-px bg-bg-border" />
+        <ToolbarMenu
+          label={t("pdfZoomMode")}
+          value={t(`pdfZoomMode_${zoomMode}` as never)}
+          icon={Maximize2}
+          align="start"
+        >
+          {(close) => (
+            <MenuRadioGroup
+              heading={t("pdfZoomMode")}
+              options={PDF_ZOOM_MODES.map((mode) => ({
+                value: mode,
+                label: t(`pdfZoomMode_${mode}` as never),
+              }))}
+              isSelected={(mode) => mode === zoomMode}
+              onSelect={(mode) => {
+                chooseZoomMode(mode);
+                close();
+              }}
+            />
+          )}
+        </ToolbarMenu>
         <button
           type="button"
           onClick={() => setZoom((value) => Math.max(MIN_ZOOM, value - ZOOM_STEP))}
@@ -428,7 +552,17 @@ export function PdfPreview({
         </a>
       </div>
 
-      <div className="flex h-[80vh] justify-center overflow-auto bg-bg-elevated p-4">
+      <div
+        ref={pageBoxRef}
+        // `safe center`, not `center`. A flex container centres an
+        // overflowing child by pushing half the overflow past its *start*
+        // edge, and there is nothing to scroll to there: measured on an
+        // A0 page at actual size, 1176px of a 3178px page was
+        // unreachable. `safe` falls back to `start` exactly when the
+        // child does not fit, which is the case where centring has
+        // nothing to centre anyway.
+        className="flex h-[80vh] [justify-content:safe_center] overflow-auto bg-bg-elevated p-4"
+      >
         <Document
           file={src}
           onLoadSuccess={handleLoad}
@@ -436,6 +570,14 @@ export function PdfPreview({
           error={<p className="py-16 text-sm text-danger">{t("pdfLoadFailed")}</p>}
         >
           <section data-pdf-page={page} aria-label={`${title}, ${page}`}>
+            {renderFailed && (
+              <p
+                data-testid="pdf-render-failed"
+                className="py-16 text-sm text-danger"
+              >
+                {t("pdfRenderTooLarge")}
+              </p>
+            )}
             {pageElement}
           </section>
         </Document>

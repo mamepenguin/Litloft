@@ -174,7 +174,12 @@
     "layoutStack": "文字起こしを動画の下に表示",
     "actionsFor": "{name} の操作",
     "pdfThumbnails": "ページのサムネイル",
-    "officeExcerpt": "抽出テキストの冒頭"
+    "officeExcerpt": "抽出テキストの冒頭",
+    "pdfZoomMode": "表示倍率",
+    "pdfZoomMode_fit-width": "幅に合わせる",
+    "pdfZoomMode_fit-page": "ページ全体",
+    "pdfZoomMode_actual": "実寸",
+    "pdfRenderTooLarge": "この倍率ではページを描画できませんでした。倍率を下げてください。"
   },
   "search": {
     "label": "検索",

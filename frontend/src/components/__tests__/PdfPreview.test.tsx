@@ -3,6 +3,7 @@ import { useEffect, type ReactNode } from "react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { PdfPreview } from "../PdfPreview";
+import { MAX_RASTER_PIXELS, rasterPixelRatio } from "@/lib/pdfZoomMode";
 import { ShortcutsProvider } from "../ShortcutsProvider";
 
 /**
@@ -24,6 +25,15 @@ const pdfDoc = {
 /** How many times a `<Page>` was drawn, across every render of the document. */
 let pageRenders: number[] = [];
 
+/** The `width` each of those renders was handed, newest last. */
+let pageWidths: number[] = [];
+
+/** The `devicePixelRatio` each render was handed. */
+let pageRatios: number[] = [];
+
+/** The page size the mocked document reports, in PDF points. */
+let mockPageBox = { width: 595, height: 842 };
+
 vi.mock("react-pdf", () => ({
   pdfjs: { GlobalWorkerOptions: {} },
   Document: ({
@@ -38,18 +48,75 @@ vi.mock("react-pdf", () => ({
     }, [onLoadSuccess]);
     return <div>{children}</div>;
   },
-  Page: ({ pageNumber }: { pageNumber: number }) => {
+  Page: ({
+    pageNumber,
+    width,
+    devicePixelRatio,
+    onLoadSuccess,
+  }: {
+    pageNumber: number;
+    width: number;
+    devicePixelRatio?: number;
+    onLoadSuccess?: (page: {
+      getViewport: (o: { scale: number }) => { width: number; height: number };
+    }) => void;
+  }) => {
     pageRenders.push(pageNumber);
+    pageWidths.push(width);
+    pageRatios.push(devicePixelRatio ?? 1);
+    useEffect(() => {
+      onLoadSuccess?.({
+        getViewport: () => ({ ...mockPageBox }),
+      });
+      // Reporting the page's own size does not depend on how wide it was
+      // asked to draw, so the effect must not re-run when that changes —
+      // it would set the same value back and loop.
+      // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [pageNumber]);
     return <div data-pdf-page={pageNumber}>Selectable page {pageNumber}</div>;
   },
 }));
 
+/**
+ * jsdom ships no `ResizeObserver`, so both of the viewer's measurement
+ * effects returned early and `availableWidth` / `availableHeight` were
+ * frozen at their defaults. That is why deleting the whole height
+ * observer left the suite green, and why the fit-page arithmetic — a
+ * double padding subtraction — was invisible here.
+ */
+let resizeCallbacks: ResizeObserverCallback[] = [];
+class DrivableResizeObserver {
+  constructor(cb: ResizeObserverCallback) {
+    resizeCallbacks.push(cb);
+  }
+  observe() {}
+  unobserve() {}
+  disconnect() {}
+}
+/** Feed the nth observer a content-box size. 0 = width (root), 1 = height (box). */
+function reportSize(index: number, rect: { width?: number; height?: number }) {
+  const cb = resizeCallbacks[index];
+  if (!cb) throw new Error(`no ResizeObserver at ${index}`);
+  act(() => {
+    cb(
+      [{ contentRect: { width: 0, height: 0, ...rect } }] as unknown as ResizeObserverEntry[],
+      {} as ResizeObserver,
+    );
+  });
+}
+
 beforeEach(() => {
+  resizeCallbacks = [];
+  vi.stubGlobal("ResizeObserver", DrivableResizeObserver);
   pdfDoc.numPages = 8;
   pdfDoc.outline = null;
   pdfDoc.destinations = {};
   pdfDoc.getOutline = async () => pdfDoc.outline;
   pageRenders = [];
+  pageWidths = [];
+  pageRatios = [];
+  mockPageBox = { width: 595, height: 842 };
+  window.localStorage.clear();
 });
 
 describe("PdfPreview", () => {
@@ -477,5 +544,176 @@ describe("PdfPreview, the page keys' scope", () => {
         { depth: 0, title: "Introduction", page: 5 },
       ]),
     );
+  });
+});
+
+describe("PdfPreview zoom modes", () => {
+  function renderViewer() {
+    return render(
+      <ShortcutsProvider>
+        <PdfPreview fileId="pdf123456789" title="Paper" />
+      </ShortcutsProvider>,
+    );
+  }
+
+  const menu = () => screen.getByRole("button", { name: /Zoom mode/ });
+  const modeRow = (name: string) =>
+    screen.getByRole("menuitemradio", { name: new RegExp(name, "i") });
+  const lastWidth = () => pageWidths[pageWidths.length - 1];
+
+  it("offers exactly three modes, with fit width on", async () => {
+    renderViewer();
+    await screen.findByText("Selectable page 1");
+
+    fireEvent.click(menu());
+    const rows = screen
+      .getAllByRole("menuitemradio")
+      .map((row) => row.textContent?.trim());
+    expect(rows).toEqual(["Fit width", "Whole page", "Actual size"]);
+    expect(modeRow("Fit width")).toHaveAttribute("aria-checked", "true");
+  });
+
+  it("names the mode that is on, on the control itself", async () => {
+    renderViewer();
+    await screen.findByText("Selectable page 1");
+    expect(menu()).toHaveTextContent("Fit width");
+
+    fireEvent.click(menu());
+    fireEvent.click(modeRow("Actual size"));
+    expect(menu()).toHaveTextContent("Actual size");
+  });
+
+  it("draws actual size at 96 pixels to the inch", async () => {
+    renderViewer();
+    await screen.findByText("Selectable page 1");
+
+    fireEvent.click(menu());
+    fireEvent.click(modeRow("Actual size"));
+    // A4: 595pt x 96/72.
+    expect(lastWidth()).toBeCloseTo(595 * (96 / 72), 5);
+  });
+
+  it("puts the zoom back to 100% when the mode changes", async () => {
+    renderViewer();
+    await screen.findByText("Selectable page 1");
+
+    fireEvent.click(screen.getByRole("button", { name: "Zoom in" }));
+    expect(screen.getByText("125%")).toBeInTheDocument();
+
+    fireEvent.click(menu());
+    fireEvent.click(modeRow("Whole page"));
+    expect(screen.getByText("100%")).toBeInTheDocument();
+  });
+
+  it("leaves the mode alone when the zoom changes", async () => {
+    renderViewer();
+    await screen.findByText("Selectable page 1");
+
+    fireEvent.click(menu());
+    fireEvent.click(modeRow("Actual size"));
+    fireEvent.click(screen.getByRole("button", { name: "Zoom in" }));
+
+    expect(menu()).toHaveTextContent("Actual size");
+    expect(screen.getByText("125%")).toBeInTheDocument();
+    expect(lastWidth()).toBeCloseTo(595 * (96 / 72) * 1.25, 5);
+  });
+
+  it("remembers the mode across a remount", async () => {
+    const first = renderViewer();
+    await screen.findByText("Selectable page 1");
+    fireEvent.click(menu());
+    fireEvent.click(modeRow("Whole page"));
+    first.unmount();
+
+    renderViewer();
+    await screen.findByText("Selectable page 1");
+    expect(menu()).toHaveTextContent("Whole page");
+  });
+
+  it("centres the page only while it fits", async () => {
+    // A flex container centres an overflowing child by pushing half the
+    // overflow past its *start* edge, where there is nothing to scroll
+    // to. Measured on an A0 page at actual size: 1176px of a 3178px page
+    // was unreachable. `safe center` falls back to `start` exactly when
+    // the child does not fit — which is the case where centring has
+    // nothing to centre anyway. jsdom lays nothing out, so the rule is
+    // pinned as the declaration; the reachability is a browser
+    // measurement.
+    renderViewer();
+    await screen.findByText("Selectable page 1");
+    const box = document.querySelector(".overflow-auto")!;
+    expect(box.className).toContain("[justify-content:safe_center]");
+    // And not alongside plain `justify-center`, which would win or lose
+    // on stylesheet order rather than on intent.
+    expect(box.className).not.toMatch(/(^|\s)justify-center(\s|$)/);
+  });
+
+  it("hands <Page> the width the fit function computed", async () => {
+    // `<= 900` was true of the 800px default whether or not the cap
+    // existed, so it passed with `MAX_FITTED_WIDTH` deleted. The exact
+    // number is what pins the path from the measured width to `<Page>`;
+    // the cap itself is exercised against a 2000px canvas in
+    // `lib/__tests__/pdfZoomMode.test.ts`, which is where it belongs.
+    renderViewer();
+    await screen.findByText("Selectable page 1");
+    expect(pageWidths.length).toBeGreaterThan(0);
+    expect(lastWidth()).toBe(800);
+
+    reportSize(0, { width: 2032 });
+    expect(lastWidth()).toBe(900);
+
+    reportSize(0, { width: 532 });
+    expect(lastWidth()).toBe(500);
+  });
+
+  it("budgets the raster rather than the layout on a very large page", async () => {
+    // A0. At actual size the page is 3178px wide, and at 200% the canvas
+    // behind it would be 12715 x 17973 device pixels on a DPR-2 screen —
+    // an allocation Safari refuses, after which the page paints blank
+    // with nothing thrown. The size the mode promises is unchanged; only
+    // the ratio drops.
+    Object.defineProperty(window, "devicePixelRatio", {
+      value: 2,
+      configurable: true,
+    });
+    mockPageBox = { width: 2384, height: 3370 };
+    renderViewer();
+    await screen.findByText("Selectable page 1");
+
+    fireEvent.click(menu());
+    fireEvent.click(modeRow("Actual size"));
+    fireEvent.click(screen.getByRole("button", { name: "Zoom in" }));
+    fireEvent.click(screen.getByRole("button", { name: "Zoom in" }));
+
+    const w = lastWidth();
+    const ratio = pageRatios[pageRatios.length - 1];
+    // Still 2384pt x 96/72 x 1.5 — the layout kept its promise.
+    expect(w).toBeCloseTo(2384 * (96 / 72) * 1.5, 3);
+    expect(ratio).toBeLessThan(2);
+    const h = w * (3370 / 2384);
+    expect(w * ratio * (h * ratio)).toBeLessThanOrEqual(MAX_RASTER_PIXELS + 1);
+  });
+
+  it("renders an ordinary page at the display's own ratio", () => {
+    // The budget must not quietly coarsen every page.
+    expect(
+      rasterPixelRatio({ cssWidth: 794, cssHeight: 1123, devicePixelRatio: 2 }),
+    ).toBe(2);
+  });
+
+  it("sizes a whole page from the box it is in, padding already excluded", async () => {
+    // `contentRect` is the content box and this observer watches the
+    // padded box itself, so subtracting `p-4` again drew every whole-page
+    // render ~5.6% short with a band of dead grey under it. This is the
+    // assertion that sees it.
+    renderViewer();
+    await screen.findByText("Selectable page 1");
+
+    fireEvent.click(menu());
+    fireEvent.click(modeRow("Whole page"));
+    reportSize(1, { height: 574 });
+
+    // A4: the width at which 574px of height is exactly filled.
+    expect(lastWidth()).toBeCloseTo(574 * (595 / 842), 3);
   });
 });
