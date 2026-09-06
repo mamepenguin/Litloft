@@ -454,11 +454,14 @@ describe("RightPaneFile — the prev/next walk it publishes", () => {
     );
   });
 
-  it("asks for the folder's stored order, not the URL's", async () => {
-    localStorage.setItem(
-      "folderPrefs:media",
-      JSON.stringify({ photos: { sort: "title", order: "asc" } }),
-    );
+  it("asks for the ordering the listing declared, and counts only what it marked", async () => {
+    // The URL is what the listing wrote and the redirect carried. An
+    // earlier version read `folderPrefs` here instead, which the drive
+    // root never writes and which let the arrows and the full-screen
+    // gallery walk two different orderings of one folder.
+    mockSearchParams.set("sort", "title");
+    mockSearchParams.set("order", "asc");
+    mockSearchParams.set("nav", "folder");
     mockGetFile.mockResolvedValue({
       ...baseFile,
       filename: "DSC_0412.jpg",
@@ -473,5 +476,9 @@ describe("RightPaneFile — the prev/next walk it publishes", () => {
     expect(call.sort).toBe("title");
     expect(call.order).toBe("asc");
     expect(call.countable).toBe(true);
+
+    mockSearchParams.delete("sort");
+    mockSearchParams.delete("order");
+    mockSearchParams.delete("nav");
   });
 });

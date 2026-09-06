@@ -5,136 +5,89 @@
  * The ruling: a count is drawn only when the readout, the arrows and
  * the listing are the same sequence. A wrong `N` says a file is there
  * that nothing can reach.
+ *
+ * The cases here are written against the URLs the detail pane actually
+ * renders under, not the ones the listing had. `/files/{id}` redirects
+ * to the file's own folder and carries only `t / page / highlight /
+ * sort / order / edit / nav` — so a table enumerating `view=liked`,
+ * `q=`, `smart_folder_id=` and friends would be a table of states this
+ * function never sees. That was the previous version of this file.
  */
-import { describe, it, expect, beforeEach } from "vitest";
+import { describe, it, expect } from "vitest";
 
-import { resolveFileNavOrdering } from "../fileNavOrdering";
+import { PLAIN_FOLDER_NAV, resolveFileNavOrdering } from "../fileNavOrdering";
 
-const params = (qs = "") => new URLSearchParams(qs);
-
-/** The shape `useFolderViewMode` stores per drive. */
-function storeFolderSort(
-  drive: string,
-  folderPath: string,
-  sort: string,
-  order: string,
-) {
-  localStorage.setItem(
-    `folderPrefs:${drive}`,
-    JSON.stringify({ [folderPath]: { sort, order } }),
-  );
-}
-
-beforeEach(() => localStorage.clear());
+const at = (qs: string) =>
+  resolveFileNavOrdering({ params: new URLSearchParams(qs) });
 
 describe("resolveFileNavOrdering", () => {
-  it("follows the folder's stored order, not the URL's", () => {
-    // The listing keeps a folder-anchored sort in localStorage and never
-    // writes it to the URL. Reading `?sort=` walked `created_at desc`
-    // while the reader looked at "Name A-Z", and then printed a place in
-    // it: "247 / 995" next to the third row on screen.
-    storeFolderSort("media", "photos", "title", "asc");
-    const o = resolveFileNavOrdering({
-      drive: "media",
-      folderPath: "photos",
-      params: params("sort=file_size&order=desc"),
+  it("counts a listing that said it was a plain folder", () => {
+    expect(at("sort=title&order=asc&nav=folder")).toEqual({
+      sort: "title",
+      order: "asc",
+      countable: true,
     });
-    expect(o).toEqual({ sort: "title", order: "asc", countable: true });
   });
 
-  it("counts a plain folder listing", () => {
-    const o = resolveFileNavOrdering({
-      drive: "media",
-      folderPath: "photos",
-      params: params(),
-    });
-    expect(o.countable).toBe(true);
-    // The default the listing itself falls back to.
-    expect(o.sort).toBe("created_at");
+  it("takes the order from the URL, which is where the listing put it", () => {
+    // Both listings write `?sort=&order=` into their file links and the
+    // redirect carries them. An earlier version read `folderPrefs`
+    // instead — wrong for the drive root, which never writes an entry,
+    // and a second source of truth for an ordering the full-screen
+    // gallery reads from the URL.
+    expect(at("sort=file_size&order=desc&nav=folder").sort).toBe("file_size");
+    expect(at("sort=file_size&order=desc&nav=folder").order).toBe("desc");
   });
 
-  it("counts the drive root, which has no folder path", () => {
-    const o = resolveFileNavOrdering({
-      drive: "media",
-      folderPath: "",
-      params: params(),
-    });
-    expect(o.countable).toBe(true);
+  it("does not count a listing that said nothing", () => {
+    // Everything that is not a plain folder: a search, a tag, a smart
+    // folder, Favourites, Liked, Trash, a type or trust filter, the name
+    // box, a collection. None of them are distinguishable here after the
+    // redirect, which is exactly why none of them set the marker.
+    const walked = at("sort=liked_at&order=desc");
+    expect(walked.countable).toBe(false);
+    // The arrows still walk, and they walk the order the listing named —
+    // the Liked view's `liked_at` reaches the endpoint as before.
+    expect(walked.sort).toBe("liked_at");
+    expect(walked.order).toBe("desc");
   });
 
-  it("does not count a listing the endpoint cannot reproduce", () => {
-    // Each of these is a different population from "this file's folder",
-    // and the listing is unmounted the moment a file is selected, so
-    // there is nothing left to ask.
-    const cases: Array<[string, string]> = [
-      ["a search", "q=beach"],
-      ["a tag filter", "tag=holiday"],
-      ["a smart folder", "smart_folder_id=7"],
-      ["a recursive listing", "recursive=true"],
-      ["a cross-folder view", "view=favorites"],
-      ["the liked view", "view=liked"],
-      ["a standalone view", "view=trash"],
-    ];
-    expect(cases).toHaveLength(7);
-    for (const [, qs] of cases) {
-      expect(
-        resolveFileNavOrdering({
-          drive: "media",
-          folderPath: "photos",
-          params: params(qs),
-        }).countable,
-      ).toBe(false);
-    }
+  it("does not count a marker it does not recognise", () => {
+    expect(at("sort=title&order=asc&nav=collection").countable).toBe(false);
+    expect(at("sort=title&order=asc&nav=").countable).toBe(false);
+    expect(PLAIN_FOLDER_NAV).toBe("folder");
   });
 
-  it("still follows the Liked view's own order while refusing to count it", () => {
-    // `liked_at` reaches the endpoint through the URL rather than a
-    // folder preference, and the arrows should walk it.
-    const o = resolveFileNavOrdering({
-      drive: "media",
-      folderPath: "photos",
-      params: params("view=liked&sort=liked_at&order=desc"),
-    });
-    expect(o.sort).toBe("liked_at");
-    expect(o.order).toBe("desc");
-    expect(o.countable).toBe(false);
-  });
-
-  it("never forwards a sort the endpoint rejects", () => {
+  it("never forwards a sort the endpoint rejects, and does not count it", () => {
     // `random` and `relevance` order a search result set and are not
     // keysets. Forwarding one 422s, `useFileNav` catches, and the reader
     // gets two permanently disabled arrows — worse than the nothing that
-    // was drawn before.
+    // was drawn before. `random` has no place to hold in any case.
     for (const bad of ["random", "relevance"]) {
-      const fromUrl = resolveFileNavOrdering({
-        drive: "media",
-        folderPath: "photos",
-        params: params(`q=x&sort=${bad}`),
-      });
-      expect(fromUrl.sort).toBeUndefined();
-
-      storeFolderSort("media", "photos", bad, "desc");
-      const fromPrefs = resolveFileNavOrdering({
-        drive: "media",
-        folderPath: "photos",
-        params: params(),
-      });
-      expect(fromPrefs.sort).toBeUndefined();
-      // And a random folder is not countable either: there is no place
-      // to be in an order that is redrawn every time.
-      expect(fromPrefs.countable).toBe(false);
-      localStorage.clear();
+      const o = at(`sort=${bad}&order=desc&nav=folder`);
+      expect(o.sort).toBeUndefined();
+      expect(o.countable).toBe(false);
     }
   });
 
-  it("survives a preference left behind by an older build", () => {
-    storeFolderSort("media", "photos", "not_a_field", "sideways");
-    const o = resolveFileNavOrdering({
-      drive: "media",
-      folderPath: "photos",
-      params: params(),
+  it("does not count a folder whose listing named no order at all", () => {
+    // `random` listings emit an empty `sortQuery`, so the marker cannot
+    // arrive without a sort; a URL with the marker and no sort is a
+    // hand-edited one.
+    expect(at("nav=folder").countable).toBe(false);
+    expect(at("nav=folder").sort).toBeUndefined();
+  });
+
+  it("survives a sort value left behind by an older build", () => {
+    expect(at("sort=not_a_field&order=sideways&nav=folder").sort).toBeUndefined();
+    expect(at("sort=not_a_field&nav=folder").countable).toBe(false);
+  });
+
+  it("counts nothing on a bare URL", () => {
+    expect(at("")).toEqual({
+      sort: undefined,
+      order: undefined,
+      countable: false,
     });
-    expect(o.sort).toBe("created_at");
-    expect(o.countable).toBe(true);
   });
 });

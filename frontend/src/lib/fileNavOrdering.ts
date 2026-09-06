@@ -1,5 +1,3 @@
-import { resolveFolderSort } from "@/hooks/useFolderViewMode";
-import { isCrossFolderView, isStandaloneView } from "@/lib/driveViews";
 import { normalizeSortParam } from "@/lib/sortField";
 
 /**
@@ -17,24 +15,34 @@ const NEIGHBOURS_SORTS = new Set([
   "liked_at",
 ]);
 
+/**
+ * The value a listing puts in `nav` to say "the rows I am showing are
+ * this file's folder, in the order this same URL names, and nothing
+ * else".
+ */
+export const PLAIN_FOLDER_NAV = "folder";
+
 export interface FileNavOrdering {
   sort: string | undefined;
   order: string | undefined;
   /**
-   * Whether an `n / N` readout would be true.
+   * Whether an `n / N` readout would be true of what the reader was
+   * looking at.
    *
-   * The arrows walk the file's folder in a stored order. The listing the
-   * reader came from may be walking something else — a search result
-   * set, a tag, a cross-folder view — and `/neighbors` has no way to
-   * reproduce those: the listing is unmounted the moment a file is
-   * selected (`TwoPaneLayout` swaps it for the pane), so its filters are
-   * not merely unread, they no longer exist.
+   * **This is declared by the listing, never inferred here.** Inferring
+   * it was the first attempt and it did not work: `/files/{id}`
+   * redirects to the file's own folder and carries only a handful of
+   * query keys, so `view` / `q` / `tag` / `smart_folder_id` are gone by
+   * the time this runs — and `typeFilter` / `trustFilter` / the name box
+   * were never in the URL at all. A guard reading the URL saw a plain
+   * folder in every one of those cases and drew a count for a sequence
+   * the arrows could not walk.
    *
-   * The ruling is that a count is drawn only when the readout, the
-   * arrows and the listing are the same sequence. Where they are not,
-   * the arrows still work and the number is simply absent — a wrong `N`
-   * says a file is there that nothing can reach, which is worse than no
-   * `N` at all.
+   * The listing is the only place that knows, and it knows at the moment
+   * of the click. So it says so, and this reads what it said. Anything
+   * that does not say it is not counted — including surfaces that never
+   * go through the redirect at all, such as a collection, whose order is
+   * a hand-made position and whose rows can span folders.
    */
   countable: boolean;
 }
@@ -43,49 +51,28 @@ export interface FileNavOrdering {
  * What ordering the prev/next walk should use, and whether it can be
  * counted.
  *
- * The sort is read from the same `folderPrefs` entry the listing reads,
- * not from the URL: a folder-anchored listing keeps its sort in
- * localStorage and never writes it to the URL, so taking `?sort=` here
- * asked `/neighbors` for `created_at desc` while the reader was looking
- * at "Name A-Z" — and the readout then named a position in an ordering
- * nobody could see.
+ * The order comes from the URL, which is where both listings already put
+ * it — the folder listing writes `?sort=&order=` into its file links and
+ * the redirect carries them, and the drive root does the same. An
+ * earlier version read `folderPrefs` instead, which was wrong twice
+ * over: the drive root never writes a `folderPrefs` entry, and reading a
+ * second source let the arrows and the full-screen gallery walk two
+ * different orderings of one folder.
  */
 export function resolveFileNavOrdering({
-  drive,
-  folderPath,
   params,
 }: {
-  drive: string;
-  folderPath: string | undefined;
   params: URLSearchParams;
 }): FileNavOrdering {
-  const view = params.get("view");
   const urlSort = normalizeSortParam(params.get("sort"));
-  const listingIsElsewhere =
-    !!params.get("q") ||
-    !!params.get("tag") ||
-    !!params.get("smart_folder_id") ||
-    params.get("recursive") === "true" ||
-    isCrossFolderView(view) ||
-    isStandaloneView(view);
-
-  if (listingIsElsewhere) {
-    return {
-      // The URL's sort still applies where there is one — the Liked view
-      // puts `liked_at` there, and the walk should follow it.
-      sort: urlSort && NEIGHBOURS_SORTS.has(urlSort) ? urlSort : undefined,
-      order: params.get("order") ?? undefined,
-      countable: false,
-    };
-  }
-
-  // A plain folder listing. Its order is the folder's stored preference,
-  // which is exactly what the arrows should follow — and `random`, which
-  // a folder may hold, is an order the endpoint cannot walk and nothing
-  // can be counted in anyway.
-  const stored = resolveFolderSort(drive, folderPath ?? "");
-  if (!NEIGHBOURS_SORTS.has(stored.sort)) {
-    return { sort: undefined, order: undefined, countable: false };
-  }
-  return { sort: stored.sort, order: stored.order, countable: true };
+  const sort = urlSort && NEIGHBOURS_SORTS.has(urlSort) ? urlSort : undefined;
+  const order = params.get("order") ?? undefined;
+  return {
+    sort,
+    order,
+    // A sort the endpoint cannot walk is not countable either: `random`
+    // has no place to hold, and an absent one means the listing did not
+    // name its order.
+    countable: params.get("nav") === PLAIN_FOLDER_NAV && sort !== undefined,
+  };
 }

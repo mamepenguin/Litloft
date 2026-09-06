@@ -465,9 +465,32 @@ export function FolderBrowser({
 
   const effectiveSort = isRecentAdded ? "created_at" : isLiked ? "liked_at" : sort;
   const effectiveOrder = isRecentAdded || isLiked ? "desc" : order;
+  /**
+   * Whether the rows on screen are "this folder, in this order" and
+   * nothing else.
+   *
+   * Handed to the file links as `nav=folder`, and it is the only thing
+   * that lets the detail pane draw an `n / N`. The pane cannot work
+   * this out for itself: `/files/{id}` redirects to the file's own
+   * folder and drops `view` / `q` / `tag` / `smart_folder_id`, and
+   * `typeFilter` / `trustFilter` were never in the URL at all. So the
+   * listing says it, at the moment it still knows.
+   *
+   * `random` is excluded because there is no place to hold in an order
+   * that is redrawn on every load.
+   */
+  const listingIsPlainFolder =
+    isFolderAnchored &&
+    !isSearch &&
+    !tagFilter &&
+    !typeFilter &&
+    !trustFilter &&
+    effectiveSort !== "random";
+
   const sortQuery = effectiveSort === "random"
     ? ""
-    : `?sort=${effectiveSort}&order=${effectiveOrder}`;
+    : `?sort=${effectiveSort}&order=${effectiveOrder}` +
+      (listingIsPlainFolder ? "&nav=folder" : "");
 
   const hasPlayableFiles = files.some(
     (f) => f.file_type === "audio" || f.file_type === "video"

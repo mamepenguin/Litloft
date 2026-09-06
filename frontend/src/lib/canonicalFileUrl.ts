@@ -10,6 +10,14 @@ import type { FileItem } from "@/types";
  * - ``edit``: Phase 2 Pre-PR — Knowledge editor auto-start signal
  *   forwarded so ``useCreateFile``'s ``router.push("/files/${id}?edit=1")``
  *   reaches the inline editor through the redirect.
+ * - ``nav``: which sequence the reader was walking when they opened
+ *   this file. Set by the listing, read only by
+ *   ``lib/fileNavOrdering.ts``. It has to survive the redirect because
+ *   the redirect is exactly what destroys the evidence: it rewrites the
+ *   path to the file's own folder and drops ``view`` / ``q`` / ``tag``
+ *   / ``smart_folder_id``, so by the time the pane renders, a file
+ *   opened out of Liked is indistinguishable from one opened out of its
+ *   folder.
  */
 export const CARRIED_QUERY_KEYS = [
   "t",
@@ -18,6 +26,7 @@ export const CARRIED_QUERY_KEYS = [
   "sort",
   "order",
   "edit",
+  "nav",
 ] as const;
 
 /**

@@ -112,15 +112,9 @@ export function RightPaneFile({ fileId, drive }: RightPaneFileProps) {
   // PR-5: ``selectFile`` itself routes through ``navigationGuard`` so
   // a dirty editor on the current file gets the global ``DirtyBlocker``
   // dialog before the swap fires; this hook stays surface-agnostic.
-  // Not `?sort=`: a folder-anchored listing keeps its order in
-  // localStorage and never writes it to the URL, so reading the URL here
-  // walked a different sequence from the one on screen — and then
-  // printed a position in it.
-  const navOrdering = resolveFileNavOrdering({
-    drive,
-    folderPath: file?.folder_path,
-    params: searchParams,
-  });
+  // The listing said what it was showing; this reads it. See
+  // `lib/fileNavOrdering.ts` for why nothing here may infer it.
+  const navOrdering = resolveFileNavOrdering({ params: searchParams });
 
   const fileNav = useFileNav({
     fileId: file ? fileId : null,

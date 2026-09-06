@@ -93,6 +93,16 @@ export function FolderContent({
   const isFilterEmpty =
     filter.isActive && filteredFiles.length === 0 && filteredFolders.length === 0;
 
+  // The name box narrows the rows without touching the URL, and it is
+  // not visible to `FolderBrowser` above — so the "this is the whole
+  // folder" marker it set is withdrawn here while the box has something
+  // in it. See `lib/fileNavOrdering.ts`.
+  const rowSortQuery = filter.isActive
+    ? sortQuery.replace(/([?&])nav=folder&?/, (_m, lead: string) =>
+        lead === "?" ? "?" : "&",
+      ).replace(/[?&]$/, "")
+    : sortQuery;
+
   // Inline rename. Folder cards show the real folder name, so editing
   // here edits exactly the string on screen (spec §2). File cards show
   // `file.title`, a cosmetic derivation, and keep the dialog.
@@ -233,7 +243,7 @@ export function FolderContent({
           onSelect={onSelect}
           onMetaSelect={onMetaSelect}
           onShiftSelect={onShiftSelect}
-          sortQuery={sortQuery}
+          sortQuery={rowSortQuery}
           draggable={!selectable || selectedCount > 0}
           draggedIds={dragState.draggedFileIdSet}
           onDragStart={onDragStart}
@@ -249,7 +259,7 @@ export function FolderContent({
           onSelect={onSelect}
           onMetaSelect={onMetaSelect}
           onShiftSelect={onShiftSelect}
-          sortQuery={sortQuery}
+          sortQuery={rowSortQuery}
           draggable={!selectable || selectedCount > 0}
           draggedIds={dragState.draggedFileIdSet}
           onDragStart={onDragStart}
