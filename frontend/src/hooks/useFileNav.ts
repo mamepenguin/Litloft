@@ -43,6 +43,17 @@ interface UseFileNavOpts {
 interface UseFileNavResult {
   prevId: string | null;
   nextId: string | null;
+  /**
+   * 1-origin place in the sequence the arrows walk, and its size. Both
+   * come straight from `/neighbors`, which counts them over exactly the
+   * rows `prevId` / `nextId` can reach — so a visible `n / N` and the
+   * buttons beside it cannot disagree. Null before the fetch resolves,
+   * and null when the ordering cannot rank this file.
+   */
+  position: number | null;
+  total: number | null;
+  navigatePrev: () => void;
+  navigateNext: () => void;
 }
 
 /**
@@ -119,5 +130,13 @@ export function useFileNav({
   return {
     prevId: neighbors?.prev_id ?? null,
     nextId: neighbors?.next_id ?? null,
+    position: neighbors?.position ?? null,
+    total: neighbors?.total ?? null,
+    // Handed out so a visible button and the arrow key run the same
+    // code. Two call paths into "go to the next file" is how one of
+    // them ends up skipping `navigationGuard` and losing an unsaved
+    // edit.
+    navigatePrev,
+    navigateNext,
   };
 }

@@ -169,11 +169,13 @@ class PaginatedResponse(BaseModel):
 class NeighborsResponse(BaseModel):
     prev_id: str | None
     next_id: str | None
-    # 1-origin place of this file in the folder's ordering. None when the
-    # sort key cannot order it (an unliked file under ``sort=liked_at``);
-    # ``total`` still counts the folder in that case.
+    # 1-origin place of this file in the sequence the arrows walk, out of
+    # ``total``. Both are null together when the sort key cannot order
+    # this file (an unliked file under ``sort=liked_at``): it is not in
+    # the sequence, so it has neither a place in it nor a reason to
+    # report its size.
     position: int | None = None
-    total: int = 0
+    total: int | None = None
 
 
 class DriveResponse(BaseModel):
