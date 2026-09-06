@@ -186,6 +186,31 @@ a caret to folders that hold only files: with files hidden those are leaves,
 because expanding them would show nothing. A folder's file count is shown
 either way; that is the folder's size, not a count of what the tree draws.
 
+### The tree and the sidebar take turns
+
+Opening the folder tree **puts the sidebar away**. Both of them tell you where
+you are, and one surface answering that at a time is enough — with both open on
+a 1512px screen they take 520px between them before any of your files appear.
+
+The sidebar is put away, not shut: the hamburger still opens it over the top
+whenever you want it, and closing the tree brings it back exactly as you had
+it. If you keep the sidebar open, it is open again the moment the tree goes;
+if you keep it closed, it stays closed. Nothing about your setting is changed
+by the tree borrowing the space. Below 1200px the sidebar already opens over
+the content rather than beside it, so there is nothing to lend and nothing
+changes.
+
+Both buttons show which one is holding the job: the tree toggle in the toolbar
+and the hamburger each look pressed while their surface is the one on.
+
+The path above the file list is always there, whichever of the two is showing.
+
+**On a narrow window the tree stays closed** even if you left it open on a
+bigger screen — below 768px it would fill the viewport and leave no room for
+the folder you came to look at. Your setting is untouched, so widening the
+window brings the tree straight back. You can still open it deliberately down
+there; it fills the screen and the ✕ in its header closes it again.
+
 ### Tree pane filter
 
 When the folder tree pane is open, it has its own filter row at the top — text plus a kind dropdown offering the same nine choices as the toolbar — but different in scope:

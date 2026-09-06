@@ -10,8 +10,10 @@ import { ScrollContainerContext } from "@/lib/scrollContainer";
 
 import { useGuardedRouter } from "@/hooks/useGuardedRouter";
 import { useSelectedFile } from "@/hooks/useSelectedFile";
-import { useTreeEnabled } from "@/hooks/useTreeEnabled";
+import { useTreeVisible } from "@/hooks/useTreeVisible";
+import { treeNarrowOpenStore } from "@/lib/treeNarrowOpenStore";
 import { TreeRefreshContext } from "@/components/TreeRefreshContext";
+import { useOverlaySidebarWhen } from "@/components/SidebarProvider";
 
 import { FolderTreePane } from "./FolderTreePane";
 import { RightPaneFile } from "./RightPaneFile";
@@ -76,7 +78,7 @@ export function TwoPaneLayout({
   const router = useGuardedRouter();
   const pathname = usePathname();
   const { fileId, selectFile, clearFile } = useSelectedFile();
-  const { enabled: treeEnabled, setEnabled: setTreeEnabled } = useTreeEnabled(drive);
+
 
   // Explicit tree refresh key — allows FolderBrowser (and other children)
   // to signal the tree to re-fetch after mutations even when a WS event
@@ -129,16 +131,29 @@ export function TwoPaneLayout({
   // the tree's expansion / scroll state survives toggles.
   const sectionRef = useRef<HTMLElement | null>(null);
 
-  const [hasEverEnabled, setHasEverEnabled] = useState(treeEnabled);
+  // `treeOpen` is the effective state and `treeBeside` is the narrower
+  // question of whether it is beside the content rather than over it.
+  // Both come from `useTreeVisible`, which the toolbar's toggle also
+  // reads, so the button cannot report "on" over a tree that is not there.
+  const { visible: treeOpen, beside: treeBeside } = useTreeVisible(drive);
+
+  // NAV-2. The sidebar and the tree both name where you are, and design
+  // principle 3 allows one such surface at a time. The tree borrows the
+  // sidebar's place while it is open *beside* the content — over it there
+  // is nothing to borrow, and below 1200px the sidebar is an overlay
+  // already, so no width test is duplicated here.
+  useOverlaySidebarWhen(treeBeside);
+
+  const [hasEverEnabled, setHasEverEnabled] = useState(treeOpen);
   useEffect(() => {
-    if (treeEnabled && !hasEverEnabled) setHasEverEnabled(true);
-  }, [treeEnabled, hasEverEnabled]);
-  const treeAsideWidth = treeEnabled
+    if (treeOpen && !hasEverEnabled) setHasEverEnabled(true);
+  }, [treeOpen, hasEverEnabled]);
+  const treeAsideWidth = treeOpen
     ? hasFile
       ? "w-0 md:w-[280px]"
       : "w-[100vw] md:w-[280px]"
     : "w-0";
-  const showSectionOnMobile = !treeEnabled || hasFile;
+  const showSectionOnMobile = !treeOpen || hasFile;
 
   return (
     <TreeRefreshContext.Provider value={refreshTree}>
@@ -147,18 +162,18 @@ export function TwoPaneLayout({
         <aside
           className={`h-full flex-shrink-0 overflow-hidden transition-[width] duration-150 ease-out ${treeAsideWidth}`}
           aria-label={leftPaneAriaLabel ?? "Folder tree"}
-          aria-hidden={!treeEnabled}
+          aria-hidden={!treeOpen}
           // `inert` removes the subtree from tab order and pointer events
           // while the tree is closed. aria-hidden alone hides it from
           // screen readers but lets keyboard focus still land on the
           // (visually clipped) tree rows underneath.
-          inert={!treeEnabled}
+          inert={!treeOpen}
         >
           <div className="flex h-full w-[100vw] flex-col md:w-[280px]">
             <div className="flex items-center justify-end border-b border-bg-border p-1 md:hidden">
               <button
                 type="button"
-                onClick={() => setTreeEnabled(false)}
+                onClick={() => treeNarrowOpenStore.set(drive, false)}
                 aria-label={tView("treeOff")}
                 className="rounded-lg p-2 text-text-muted hover:text-text-primary"
               >

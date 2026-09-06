@@ -133,10 +133,29 @@ export function useSidebar(): SidebarContextValue {
   return ctx ?? defaultValue;
 }
 
-export function useOverlaySidebar(): void {
+/**
+ * Ask the sidebar to give up its place for as long as `active` holds.
+ *
+ * Overlay is the right shape for "something else needs this space", not
+ * `close()`: overlay stops the sidebar taking width, forces it shut,
+ * restores the reader's stored preference on the way out, and — the part
+ * `close()` gets wrong — leaves `localStorage` alone, so a reader who
+ * keeps the sidebar open still has it open once the borrower is done.
+ * The hamburger still opens it over the top meanwhile, so nothing is
+ * taken away, only moved.
+ *
+ * Counting is in `setOverlayMode`, so two borrowers at once are fine.
+ */
+export function useOverlaySidebarWhen(active: boolean): void {
   const { setOverlayMode } = useSidebar();
   useEffect(() => {
+    if (!active) return;
     setOverlayMode(true);
     return () => setOverlayMode(false);
-  }, [setOverlayMode]);
+  }, [active, setOverlayMode]);
+}
+
+/** The unconditional form: borrows for as long as the caller is mounted. */
+export function useOverlaySidebar(): void {
+  useOverlaySidebarWhen(true);
 }

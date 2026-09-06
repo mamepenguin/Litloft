@@ -47,6 +47,7 @@
     "tags": "Tags",
     "tagsScoped": "Tags — under {folder}",
     "allTags": "All tags ({count})",
+    "allDrives": "Drives ({count})",
     "collections": "Collections",
     "createCollection": "Create collection",
     "collectionNamePlaceholder": "Collection name...",

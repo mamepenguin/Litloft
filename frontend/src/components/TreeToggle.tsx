@@ -4,7 +4,7 @@ import { PanelLeft, PanelLeftClose } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { usePathname, useSearchParams } from "next/navigation";
 
-import { useTreeEnabled } from "@/hooks/useTreeEnabled";
+import { useTreeVisible } from "@/hooks/useTreeVisible";
 import { routeHidesTree } from "@/lib/driveViews";
 
 interface TreeToggleProps {
@@ -30,7 +30,11 @@ export function TreeToggle({ drive, visible = true }: TreeToggleProps) {
   const t = useTranslations("view");
   const pathname = usePathname();
   const searchParams = useSearchParams();
-  const { enabled, setEnabled } = useTreeEnabled(drive);
+  // The effective state, not the stored one. Below `md` a stored "on" is
+  // suppressed so the reader is not left on a full-viewport tree with the
+  // folder they came for behind it; a button reporting "on" over a tree
+  // that is not there would be the screen lying about itself.
+  const { visible: treeVisible, toggle } = useTreeVisible(drive);
 
   // Suppress on routes where the tree is unavailable (DriveLayout
   // doesn't mount TwoPaneLayout there, so clicking the toggle would
@@ -41,13 +45,20 @@ export function TreeToggle({ drive, visible = true }: TreeToggleProps) {
   return (
     <button
       type="button"
-      onClick={() => setEnabled(!enabled)}
-      aria-pressed={enabled}
-      aria-label={enabled ? t("treeOff") : t("treeOn")}
-      title={enabled ? t("treeOff") : t("treeOn")}
-      className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-lg text-text-muted transition-colors hover:bg-bg-elevated hover:text-text-primary"
+      onClick={toggle}
+      aria-pressed={treeVisible}
+      aria-label={treeVisible ? t("treeOff") : t("treeOn")}
+      title={treeVisible ? t("treeOff") : t("treeOn")}
+      // Pressed reads the same way the sidebar's active link does
+      // (`Sidebar.tsx`), so the two controls that decide which surface
+      // names your location look alike when they are on. No accent: the
+      // screen's one fill belongs to its one action, and
+      // `accent-budget.test.tsx` holds that.
+      className={`flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-lg transition-colors hover:bg-bg-elevated hover:text-text-primary ${
+        treeVisible ? "bg-bg-elevated text-text-primary" : "text-text-muted"
+      }`}
     >
-      {enabled ? <PanelLeftClose size={16} /> : <PanelLeft size={16} />}
+      {treeVisible ? <PanelLeftClose size={16} /> : <PanelLeft size={16} />}
     </button>
   );
 }
