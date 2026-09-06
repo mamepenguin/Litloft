@@ -10,6 +10,7 @@ import {
   useAutoHidingChrome,
   type AutoHidingChrome,
 } from "@/hooks/useAutoHidingChrome";
+import { useSpreadPaging } from "@/hooks/useSpreadPaging";
 import type { ArchiveViewMode } from "./archiveUtils";
 
 function readLocalBool(key: string, def: boolean): boolean {
@@ -105,45 +106,17 @@ export function useImageViewer(
     setShowRightHalf(readingDirection === "rtl");
   }, [readingDirection]);
 
-  // Navigation with split mode awareness
-  const navigateNext = useCallback(() => {
-    const inActiveSplit = splitMode && isCurrentLandscape;
-    const isOnFirstSubPage =
-      readingDirection === "ltr" ? !showRightHalf : showRightHalf;
-
-    if (inActiveSplit && isOnFirstSubPage) {
-      setShowRightHalf(readingDirection === "ltr");
-    } else if (imageIndex < imageEntries.length - 1) {
-      setShowRightHalf(readingDirection === "rtl");
-      setImageIndex((prev) => prev + 1);
-    }
-  }, [
+  const paging = useSpreadPaging({
+    index: imageIndex,
+    setIndex: setImageIndex,
+    count: imageEntries.length,
     splitMode,
-    isCurrentLandscape,
     readingDirection,
-    showRightHalf,
-    imageIndex,
-    imageEntries.length,
-  ]);
-
-  const navigatePrev = useCallback(() => {
-    const inActiveSplit = splitMode && isCurrentLandscape;
-    const isOnFirstSubPage =
-      readingDirection === "ltr" ? !showRightHalf : showRightHalf;
-
-    if (inActiveSplit && !isOnFirstSubPage) {
-      setShowRightHalf(readingDirection === "rtl");
-    } else if (imageIndex > 0) {
-      setShowRightHalf(splitMode && readingDirection === "ltr");
-      setImageIndex((prev) => prev - 1);
-    }
-  }, [
-    splitMode,
     isCurrentLandscape,
-    readingDirection,
     showRightHalf,
-    imageIndex,
-  ]);
+    setShowRightHalf,
+  });
+  const { navigatePrev, navigateNext } = paging;
 
   // Wrap onClose to also reset image viewer state
   const closeViewer = useCallback(() => {
