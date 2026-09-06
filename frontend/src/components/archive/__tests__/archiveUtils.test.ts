@@ -5,13 +5,13 @@ import {
   getDirname,
   getEntriesInDir,
   inferDirectories,
-  INTERVAL_OPTIONS,
   MAX_TEXT_AUTO_LOAD,
 } from "../archiveUtils";
+import { INTERVAL_OPTIONS } from "@/lib/slideshow";
 
 function makeEntry(
   path: string,
-  overrides: Partial<ArchiveEntry> = {}
+  overrides: Partial<ArchiveEntry> = {},
 ): ArchiveEntry {
   const is_dir = path.endsWith("/");
   const filename = is_dir
@@ -146,7 +146,7 @@ describe("constants", () => {
 describe("defaultArchiveViewMode", () => {
   const file = (
     filename: string,
-    file_type: ArchiveEntry["file_type"]
+    file_type: ArchiveEntry["file_type"],
   ): ArchiveEntry => ({
     path: filename,
     filename,
@@ -174,7 +174,7 @@ describe("defaultArchiveViewMode", () => {
 
   it("gives a level of folders a list", () => {
     expect(defaultArchiveViewMode([dir("src"), dir("lib"), dir("docs")])).toBe(
-      "list"
+      "list",
     );
   });
 
@@ -198,7 +198,7 @@ describe("defaultArchiveViewMode", () => {
 
   it("counts only the files, so folders beside the pages do not tip it", () => {
     expect(
-      defaultArchiveViewMode([dir("a"), dir("b"), dir("c"), ...images(2)])
+      defaultArchiveViewMode([dir("a"), dir("b"), dir("c"), ...images(2)]),
     ).toBe("grid");
   });
 });

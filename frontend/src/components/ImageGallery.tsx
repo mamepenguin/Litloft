@@ -14,6 +14,8 @@ import { useTranslations } from "next-intl";
 import { useImageAreaGestures } from "@/hooks/useImageAreaGestures";
 import { useInertBackdrop } from "@/hooks/useInertBackdrop";
 import { useShortcuts } from "@/hooks/useShortcuts";
+import { useAutoHidingChrome } from "@/hooks/useAutoHidingChrome";
+import { SlideshowIntervalMenu } from "@/components/gallery/SlideshowIntervalMenu";
 import { getDriveFiles, getStreamUrl } from "@/lib/api";
 import type { FileItem, SortField, SortOrder } from "@/types";
 
@@ -24,8 +26,6 @@ interface ImageGalleryProps {
   order?: string;
   onClose: (currentFileId: string | null) => void;
 }
-
-const INTERVAL_OPTIONS = [3, 5, 10] as const;
 
 function readLocalBool(key: string, def: boolean): boolean {
   try {
@@ -62,18 +62,20 @@ export function ImageGallery({
 
   const [playing, setPlaying] = useState(false);
   const [slideshowInterval, setSlideshowInterval] = useState(5);
-  const [showControls, setShowControls] = useState(true);
+  // Chrome that withdraws when the frame is left alone. Shared with the
+  // archive's image viewer, which kept an identical copy of the timer.
+  const [intervalOpen, setIntervalOpen] = useState(false);
+  const chrome = useAutoHidingChrome({ enabled: open, held: intervalOpen });
+  const showControls = chrome.visible;
 
   const [splitMode, setSplitMode] = useState(() =>
-    readLocalBool("image-viewer:split-mode", false)
+    readLocalBool("image-viewer:split-mode", false),
   );
   const [readingDirection, setReadingDirection] = useState<"ltr" | "rtl">(() =>
-    readLocalString("image-viewer:reading-direction", "ltr")
+    readLocalString("image-viewer:reading-direction", "ltr"),
   );
   const [isCurrentLandscape, setIsCurrentLandscape] = useState(false);
   const [showRightHalf, setShowRightHalf] = useState(false);
-
-  const hideTimerRef = useRef<number | null>(null);
 
   const readingDirectionRef = useRef(readingDirection);
 
@@ -203,10 +205,15 @@ export function ImageGallery({
       setShowRightHalf(splitMode && readingDirection === "ltr");
       setCurrentIndex((prev) => prev - 1);
     }
-  }, [splitMode, isCurrentLandscape, readingDirection, showRightHalf, currentIndex]);
+  }, [
+    splitMode,
+    isCurrentLandscape,
+    readingDirection,
+    showRightHalf,
+    currentIndex,
+  ]);
 
-  const canGoPrev =
-    currentIndex > 0 || (activeSplit && !isFirstSubPage);
+  const canGoPrev = currentIndex > 0 || (activeSplit && !isFirstSubPage);
   const canGoNext =
     currentIndex < images.length - 1 || (activeSplit && isFirstSubPage);
 
@@ -238,9 +245,7 @@ export function ImageGallery({
     if (!playing || images.length <= 1) return;
 
     const timer = window.setTimeout(() => {
-      setCurrentIndex((prev) =>
-        prev >= images.length - 1 ? 0 : prev + 1
-      );
+      setCurrentIndex((prev) => (prev >= images.length - 1 ? 0 : prev + 1));
     }, slideshowInterval * 1000);
 
     return () => window.clearTimeout(timer);
@@ -292,42 +297,11 @@ export function ImageGallery({
     open,
   );
 
-  // Auto-hide controls during slideshow
-  useEffect(() => {
-    if (hideTimerRef.current) {
-      window.clearTimeout(hideTimerRef.current);
-      hideTimerRef.current = null;
-    }
-    if (playing) {
-      hideTimerRef.current = window.setTimeout(
-        () => setShowControls(false),
-        3000
-      );
-    }
-    return () => {
-      if (hideTimerRef.current) window.clearTimeout(hideTimerRef.current);
-    };
-  }, [playing, currentIndex]);
-
-  function handleImageAreaClick() {
-    setShowControls((prev) => !prev);
-    if (hideTimerRef.current) {
-      window.clearTimeout(hideTimerRef.current);
-      hideTimerRef.current = null;
-    }
-    if (playing) {
-      hideTimerRef.current = window.setTimeout(
-        () => setShowControls(false),
-        3000
-      );
-    }
-  }
-
   const gestureHandlers = useImageAreaGestures({
     readingDirection,
     navigatePrev,
     navigateNext,
-    toggleControls: handleImageAreaClick,
+    toggleControls: chrome.toggle,
   });
 
   const backdropRef = useInertBackdrop<HTMLDivElement>(open);
@@ -336,7 +310,6 @@ export function ImageGallery({
   useEffect(() => {
     if (!open) {
       setPlaying(false);
-      setShowControls(true);
       setImages([]);
       setCurrentIndex(0);
       setLoading(true);
@@ -356,7 +329,7 @@ export function ImageGallery({
       {/* Header */}
       <div
         className="absolute inset-x-0 top-0 z-10 flex items-center justify-between bg-gradient-to-b from-black/80 to-transparent px-4 py-3 transition-opacity duration-300"
-        style={{ opacity: showControls ? 1 : 0, pointerEvents: showControls ? "auto" : "none" }}
+        {...chrome.chromeProps}
       >
         <span className="max-w-[40%] truncate text-sm text-white/80">
           {currentImage.title}
@@ -372,18 +345,15 @@ export function ImageGallery({
         <div className="flex items-center gap-2">
           {images.length > 1 && (
             <>
-              <select
+              <SlideshowIntervalMenu
                 value={slideshowInterval}
-                onChange={(e) => setSlideshowInterval(Number(e.target.value))}
-                className="rounded-lg bg-white/10 px-2 py-1 text-sm text-white outline-none"
-                aria-label={t("slideshowInterval")}
-              >
-                {INTERVAL_OPTIONS.map((sec) => (
-                  <option key={sec} value={sec}>
-                    {t("seconds", { sec })}
-                  </option>
-                ))}
-              </select>
+                onChange={setSlideshowInterval}
+                frameRef={backdropRef}
+                label={t("slideshowInterval")}
+                closeLabel={tc("close")}
+                formatSeconds={(sec) => t("seconds", { sec })}
+                onOpenChange={setIntervalOpen}
+              />
               <button
                 onClick={() => setPlaying((p) => !p)}
                 className="rounded-full p-1.5 text-white/80 transition-colors hover:bg-white/10 hover:text-white"
@@ -441,9 +411,7 @@ export function ImageGallery({
                 width: activeSplit ? "200%" : "100%",
                 flexShrink: activeSplit ? 0 : undefined,
                 transform:
-                  activeSplit && showRightHalf
-                    ? "translateX(-50%)"
-                    : undefined,
+                  activeSplit && showRightHalf ? "translateX(-50%)" : undefined,
               }}
             >
               <img

@@ -20,7 +20,11 @@ function makeImage(path: string): ArchiveEntry {
   };
 }
 
-const images = [makeImage("img1.jpg"), makeImage("img2.jpg"), makeImage("img3.jpg")];
+const images = [
+  makeImage("img1.jpg"),
+  makeImage("img2.jpg"),
+  makeImage("img3.jpg"),
+];
 
 const defaultProps = {
   fileId: "file-1",
@@ -34,6 +38,13 @@ const defaultProps = {
   slideshowInterval: 5,
   setSlideshowInterval: vi.fn(),
   showControls: true,
+  chromeProps: {
+    inert: false,
+    "aria-hidden": undefined,
+    style: { opacity: 1, pointerEvents: "auto" as const },
+    onPointerDown: vi.fn(),
+  },
+  onIntervalOpenChange: vi.fn(),
   handleImageAreaClick: vi.fn(),
   closeViewer: vi.fn(),
   splitMode: false,
@@ -54,7 +65,7 @@ describe("ArchiveImageViewer", () => {
     expect(img).toBeInTheDocument();
     expect(img).toHaveAttribute(
       "src",
-      "/api/files/file-1/archive/entry?path=img2.jpg"
+      "/api/files/file-1/archive/entry?path=img2.jpg",
     );
   });
 
@@ -71,13 +82,25 @@ describe("ArchiveImageViewer", () => {
   });
 
   it("hides prev button at first image", () => {
-    render(<ArchiveImageViewer {...defaultProps} imageIndex={0} currentImage={images[0]} />);
+    render(
+      <ArchiveImageViewer
+        {...defaultProps}
+        imageIndex={0}
+        currentImage={images[0]}
+      />,
+    );
     expect(screen.queryByLabelText("Previous image")).not.toBeInTheDocument();
     expect(screen.getByLabelText("Next image")).toBeInTheDocument();
   });
 
   it("hides next button at last image", () => {
-    render(<ArchiveImageViewer {...defaultProps} imageIndex={2} currentImage={images[2]} />);
+    render(
+      <ArchiveImageViewer
+        {...defaultProps}
+        imageIndex={2}
+        currentImage={images[2]}
+      />,
+    );
     expect(screen.getByLabelText("Previous image")).toBeInTheDocument();
     expect(screen.queryByLabelText("Next image")).not.toBeInTheDocument();
   });
@@ -100,7 +123,7 @@ describe("ArchiveImageViewer", () => {
     const link = screen.getByLabelText("Download");
     expect(link).toHaveAttribute(
       "href",
-      "/api/files/file-1/archive/entry?path=img2.jpg"
+      "/api/files/file-1/archive/entry?path=img2.jpg",
     );
     expect(link).toHaveAttribute("download", "img2.jpg");
   });
@@ -117,7 +140,7 @@ describe("ArchiveImageViewer", () => {
 
   it("shows loading spinner when imageLoading is true", () => {
     const { container } = render(
-      <ArchiveImageViewer {...defaultProps} imageLoading={true} />
+      <ArchiveImageViewer {...defaultProps} imageLoading={true} />,
     );
     expect(container.querySelector(".animate-spin")).toBeInTheDocument();
   });
@@ -134,9 +157,9 @@ describe("ArchiveImageViewer", () => {
 describe("ArchiveImageViewer backdrop", () => {
   function outsideTheViewer() {
     const viewer = document.querySelector('[role="dialog"]');
-    return [...document.querySelectorAll("button, a[href], input, select")].filter(
-      (el) => !viewer?.contains(el) && !el.closest("[inert]"),
-    );
+    return [
+      ...document.querySelectorAll("button, a[href], input, select"),
+    ].filter((el) => !viewer?.contains(el) && !el.closest("[inert]"));
   }
 
   it("puts the page out of reach and locks the scroll while mounted", () => {

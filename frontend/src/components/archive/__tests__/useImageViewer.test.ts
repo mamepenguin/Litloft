@@ -82,7 +82,7 @@ describe("useImageViewer", () => {
     );
     act(() => {
       document.dispatchEvent(
-        new KeyboardEvent("keydown", { key: "ArrowRight", bubbles: true })
+        new KeyboardEvent("keydown", { key: "ArrowRight", bubbles: true }),
       );
     });
     expect(result.current.imageIndex).toBe(1);
@@ -98,7 +98,7 @@ describe("useImageViewer", () => {
     });
     act(() => {
       document.dispatchEvent(
-        new KeyboardEvent("keydown", { key: "ArrowLeft", bubbles: true })
+        new KeyboardEvent("keydown", { key: "ArrowLeft", bubbles: true }),
       );
     });
     expect(result.current.imageIndex).toBe(1);
@@ -111,7 +111,7 @@ describe("useImageViewer", () => {
     );
     act(() => {
       document.dispatchEvent(
-        new KeyboardEvent("keydown", { key: "ArrowLeft", bubbles: true })
+        new KeyboardEvent("keydown", { key: "ArrowLeft", bubbles: true }),
       );
     });
     expect(result.current.imageIndex).toBe(0);
@@ -127,20 +127,19 @@ describe("useImageViewer", () => {
     });
     act(() => {
       document.dispatchEvent(
-        new KeyboardEvent("keydown", { key: "ArrowRight", bubbles: true })
+        new KeyboardEvent("keydown", { key: "ArrowRight", bubbles: true }),
       );
     });
     expect(result.current.imageIndex).toBe(2);
   });
 
   it("calls onClose on Escape key", () => {
-    renderHook(
-      () => useImageViewer("image", imageEntries, "file-1", onClose),
-      { wrapper },
-    );
+    renderHook(() => useImageViewer("image", imageEntries, "file-1", onClose), {
+      wrapper,
+    });
     act(() => {
       document.dispatchEvent(
-        new KeyboardEvent("keydown", { key: "Escape", bubbles: true })
+        new KeyboardEvent("keydown", { key: "Escape", bubbles: true }),
       );
     });
     expect(onClose).toHaveBeenCalled();
@@ -153,13 +152,13 @@ describe("useImageViewer", () => {
     );
     act(() => {
       document.dispatchEvent(
-        new KeyboardEvent("keydown", { key: " ", bubbles: true })
+        new KeyboardEvent("keydown", { key: " ", bubbles: true }),
       );
     });
     expect(result.current.playing).toBe(true);
     act(() => {
       document.dispatchEvent(
-        new KeyboardEvent("keydown", { key: " ", bubbles: true })
+        new KeyboardEvent("keydown", { key: " ", bubbles: true }),
       );
     });
     expect(result.current.playing).toBe(false);
@@ -196,17 +195,22 @@ describe("useImageViewer", () => {
     expect(result.current.imageIndex).toBe(0);
   });
 
-  it("auto-hides controls after 3 seconds when playing", () => {
+  it("auto-hides controls after 2 seconds of being left alone", () => {
+    // Not "while playing". A reader looking at one image is the case the
+    // old gate never covered, and it is the common one. 1999ms asserts
+    // the boundary rather than only that it eventually happens — 3000ms
+    // was true of a 2s timer and a 3s one alike.
     const { result } = renderHook(
       () => useImageViewer("image", imageEntries, "file-1", onClose),
       { wrapper },
     );
+    expect(result.current.playing).toBe(false);
     act(() => {
-      result.current.setPlaying(true);
+      vi.advanceTimersByTime(1999);
     });
     expect(result.current.showControls).toBe(true);
     act(() => {
-      vi.advanceTimersByTime(3000);
+      vi.advanceTimersByTime(1);
     });
     expect(result.current.showControls).toBe(false);
   });
@@ -217,10 +221,30 @@ describe("useImageViewer", () => {
       { wrapper },
     );
     act(() => {
-      result.current.setShowControls(false);
+      result.current.handleImageAreaClick();
     });
+    expect(result.current.showControls).toBe(false);
     act(() => {
       result.current.handleImageAreaClick();
+    });
+    expect(result.current.showControls).toBe(true);
+  });
+
+  it("brings the controls back and restarts the clock on showChrome", () => {
+    const { result } = renderHook(
+      () => useImageViewer("image", imageEntries, "file-1", onClose),
+      { wrapper },
+    );
+    act(() => {
+      vi.advanceTimersByTime(2000);
+    });
+    expect(result.current.showControls).toBe(false);
+    act(() => {
+      result.current.showChrome();
+    });
+    expect(result.current.showControls).toBe(true);
+    act(() => {
+      vi.advanceTimersByTime(1999);
     });
     expect(result.current.showControls).toBe(true);
   });
@@ -232,7 +256,7 @@ describe("useImageViewer", () => {
     );
     act(() => {
       document.dispatchEvent(
-        new KeyboardEvent("keydown", { key: "ArrowRight", bubbles: true })
+        new KeyboardEvent("keydown", { key: "ArrowRight", bubbles: true }),
       );
     });
     expect(result.current.imageIndex).toBe(0);

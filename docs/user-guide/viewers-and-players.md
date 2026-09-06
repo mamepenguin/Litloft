@@ -122,7 +122,8 @@ The full-screen image viewer is a page-turner for a folder of images. Archives g
 - **Swipe navigation** — horizontal swipe (50 px threshold) advances; swiping right goes to the next image in both reading directions.
 - **Edge taps** — tapping the left or right 25% of the screen turns the page. These *are* reading-direction-aware: in *right-to-left* mode (manga, Arabic, Hebrew) they are mirrored, as are the on-screen arrows and the arrow keys.
 - **Centre tap** — toggles the controls bar.
-- **Slideshow** — play/pause button with an interval of 3, 5 or 10 seconds. Controls fade out three seconds into playback.
+- **The controls withdraw when you leave the frame alone**, two seconds after the last thing you did, whether or not a slideshow is running — a bar sitting over a still image you are looking at is the case this is for. Moving the mouse brings it back, and so does a key or reaching it with Tab; on a touch screen a tap does, and touching the bar itself keeps it up while you reach for a control on it. While the interval panel is open the bar stays up, and `Esc` closes the panel rather than the viewer. While it is away it is out of reach as well as out of sight, so Tab does not land on buttons you cannot see. What withdraws is the bar, not the viewer: `Esc` still closes.
+- **Slideshow** — play/pause button with an interval of 3, 5 or 10 seconds. The interval is picked from a small panel rather than a drop-down: a sheet from the bottom edge on touch, a narrow popover above the button with a mouse.
 - **Spread (double-page)** — shows a landscape image as two half-width pages, turned one at a time, for scanned comics and magazines. Portrait images are unaffected.
 - **Reading direction** — LTR (default) or RTL. The toggle appears while spread mode is on.
 - **HEIC support** — converted to JPEG on the fly using Pillow + pillow-heif, and cached. ffmpeg-based fallbacks are intentionally avoided because they produce black thumbnails for HEIC.
@@ -188,7 +189,7 @@ What Litloft does read is a short text excerpt — up to 400 characters extracte
 - **What counts as text is decided by the entry's name as well as its type.** A ZIP has no reliable type information for source files, so `main.dart`, `main.rs`, `Cargo.toml`, `Makefile`, `LICENSE` and the like open by extension or by whole filename against a fixed list. Anything not on that list — `app.bin`, `photo.raw`, `a.out` — stays a download. This list decides only what this viewer will render; it does not change how a file is classified anywhere else in Litloft.
 - The text viewer carries a **download** for the entry it is showing, the way the page-turner does. A text entry over 1 MB still asks before it is fetched, and if the fetch fails the viewer says so and offers the download there too.
 - **A Pages tab in the inspector is a flat index of the whole archive**, with a filter. The listing shows the level you are on; this shows every entry at every depth, so typing `main` in a 2439-file source zip finds `lib/src/main.dart` without walking down to it. Pressing a row goes to that entry — into the folder, or straight into the page-turner or text viewer for an entry that can be opened. Matching is plain substring matching on the path, not the semantic search behind `Cmd+K`. The first two hundred entries are listed and the filter reaches the rest; an archive holding a single entry gets no tab, because the listing already shows it.
-- The archive page-turner shares the image viewer's gestures, spread mode and reading direction, and adds a per-entry **download** button.
+- The archive page-turner shares the image viewer's gestures, spread mode, reading direction, slideshow interval panel and withdrawing controls, and adds a per-entry **download** button.
 
 ## Text files
 

@@ -15,7 +15,8 @@ import { useImageAreaGestures } from "@/hooks/useImageAreaGestures";
 import { useInertBackdrop } from "@/hooks/useInertBackdrop";
 import { getArchiveEntryUrl } from "@/lib/api";
 import type { ArchiveEntry } from "@/types";
-import { INTERVAL_OPTIONS } from "./archiveUtils";
+import { SlideshowIntervalMenu } from "@/components/gallery/SlideshowIntervalMenu";
+import type { AutoHidingChrome } from "@/hooks/useAutoHidingChrome";
 
 interface ArchiveImageViewerProps {
   fileId: string;
@@ -29,6 +30,8 @@ interface ArchiveImageViewerProps {
   slideshowInterval: number;
   setSlideshowInterval: React.Dispatch<React.SetStateAction<number>>;
   showControls: boolean;
+  chromeProps: AutoHidingChrome["chromeProps"];
+  onIntervalOpenChange: (open: boolean) => void;
   handleImageAreaClick: () => void;
   closeViewer: () => void;
   splitMode: boolean;
@@ -54,6 +57,8 @@ export function ArchiveImageViewer({
   slideshowInterval,
   setSlideshowInterval,
   showControls,
+  chromeProps,
+  onIntervalOpenChange,
   handleImageAreaClick,
   closeViewer,
   splitMode,
@@ -99,10 +104,7 @@ export function ArchiveImageViewer({
       {/* Header */}
       <div
         className="absolute inset-x-0 top-0 z-10 flex items-center justify-between bg-gradient-to-b from-black/80 to-transparent px-4 py-3 transition-opacity duration-300"
-        style={{
-          opacity: showControls ? 1 : 0,
-          pointerEvents: showControls ? "auto" : "none",
-        }}
+        {...chromeProps}
       >
         <span className="max-w-[40%] truncate text-sm text-white/80">
           {currentImage.filename}
@@ -118,20 +120,15 @@ export function ArchiveImageViewer({
         <div className="flex items-center gap-2">
           {imageEntries.length > 1 && (
             <>
-              <select
+              <SlideshowIntervalMenu
                 value={slideshowInterval}
-                onChange={(e) =>
-                  setSlideshowInterval(Number(e.target.value))
-                }
-                className="rounded-lg bg-white/10 px-2 py-1 text-sm text-white outline-none"
-                aria-label={t("slideshowInterval")}
-              >
-                {INTERVAL_OPTIONS.map((sec) => (
-                  <option key={sec} value={sec}>
-                    {t("seconds", { sec })}
-                  </option>
-                ))}
-              </select>
+                onChange={setSlideshowInterval}
+                frameRef={backdropRef}
+                label={t("slideshowInterval")}
+                closeLabel={tc("close")}
+                formatSeconds={(sec) => t("seconds", { sec })}
+                onOpenChange={onIntervalOpenChange}
+              />
               <button
                 onClick={() => setPlaying((p) => !p)}
                 className="rounded-full p-1.5 text-white/80 transition-colors hover:bg-white/10 hover:text-white"
@@ -209,36 +206,34 @@ export function ArchiveImageViewer({
       </div>
 
       {/* Navigation buttons */}
-      {showControls &&
-        (readingDirection === "ltr" ? canGoPrev : canGoNext) && (
-          <button
-            onClick={(e) => {
-              e.stopPropagation();
-              readingDirection === "ltr" ? navigatePrev() : navigateNext();
-            }}
-            className="absolute left-4 top-1/2 -translate-y-1/2 rounded-full bg-black/50 p-2 text-white/70 transition-opacity hover:text-white"
-            aria-label={
-              readingDirection === "ltr" ? t("prevImage") : t("nextImage")
-            }
-          >
-            <ChevronLeft size={32} />
-          </button>
-        )}
-      {showControls &&
-        (readingDirection === "ltr" ? canGoNext : canGoPrev) && (
-          <button
-            onClick={(e) => {
-              e.stopPropagation();
-              readingDirection === "ltr" ? navigateNext() : navigatePrev();
-            }}
-            className="absolute right-4 top-1/2 -translate-y-1/2 rounded-full bg-black/50 p-2 text-white/70 transition-opacity hover:text-white"
-            aria-label={
-              readingDirection === "ltr" ? t("nextImage") : t("prevImage")
-            }
-          >
-            <ChevronRight size={32} />
-          </button>
-        )}
+      {showControls && (readingDirection === "ltr" ? canGoPrev : canGoNext) && (
+        <button
+          onClick={(e) => {
+            e.stopPropagation();
+            readingDirection === "ltr" ? navigatePrev() : navigateNext();
+          }}
+          className="absolute left-4 top-1/2 -translate-y-1/2 rounded-full bg-black/50 p-2 text-white/70 transition-opacity hover:text-white"
+          aria-label={
+            readingDirection === "ltr" ? t("prevImage") : t("nextImage")
+          }
+        >
+          <ChevronLeft size={32} />
+        </button>
+      )}
+      {showControls && (readingDirection === "ltr" ? canGoNext : canGoPrev) && (
+        <button
+          onClick={(e) => {
+            e.stopPropagation();
+            readingDirection === "ltr" ? navigateNext() : navigatePrev();
+          }}
+          className="absolute right-4 top-1/2 -translate-y-1/2 rounded-full bg-black/50 p-2 text-white/70 transition-opacity hover:text-white"
+          aria-label={
+            readingDirection === "ltr" ? t("nextImage") : t("prevImage")
+          }
+        >
+          <ChevronRight size={32} />
+        </button>
+      )}
     </div>
   );
 }
