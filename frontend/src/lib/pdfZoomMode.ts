@@ -98,9 +98,11 @@ export function pdfPageWidth({
     // rather than no answer, so the guard has to come first.
     if (availableHeight <= 0) return fitWidth;
     // The width at which the page's own proportions make it exactly as
-    // tall as the box. Still capped and still bounded by the available
-    // width: "whole page" means nothing is cut off, not that it fills
-    // the widest dimension it could.
+    // tall as the box. Still capped and still bounded by `fitWidth`:
+    // "whole page" means nothing is cut off, not that it fills the
+    // widest dimension it could. Bounded by `fitWidth`, note, not by
+    // `available` — below `MIN_FITTED_WIDTH` the floor wins and the page
+    // deliberately overflows a box too narrow to read one in.
     const byHeight =
       Math.max(MIN_FITTED_HEIGHT, availableHeight) *
       (pageBox.width / pageBox.height);

@@ -118,6 +118,8 @@ function reportSize(rect: {
   width?: number;
   height?: number;
   contentHeight?: number;
+  /** Stage a browser whose entries predate `borderBoxSize`. */
+  omitBorderBox?: boolean;
 }) {
   const cb = resizeCallbacks[0];
   if (!cb) throw new Error("the viewer registered no ResizeObserver");
@@ -133,12 +135,14 @@ function reportSize(rect: {
             width: rect.width ?? 0,
             height: rect.contentHeight ?? usableHeight,
           },
-          borderBoxSize: [
-            {
-              inlineSize: (rect.width ?? 0) + 32,
-              blockSize: usableHeight + 32,
-            },
-          ],
+          borderBoxSize: rect.omitBorderBox
+            ? undefined
+            : [
+                {
+                  inlineSize: (rect.width ?? 0) + 32,
+                  blockSize: usableHeight + 32,
+                },
+              ],
         },
       ] as unknown as ResizeObserverEntry[],
       {} as ResizeObserver,
@@ -804,6 +808,61 @@ describe("PdfPreview zoom modes", () => {
 
     const box = document.querySelector(".overflow-auto")!;
     expect(box.className).toMatch(/\[scrollbar-gutter:stable\]/);
+  });
+
+  it("keeps the box's padding class in step with the fallback that names it", async () => {
+    // The height is the border box less the padding, and the padding is
+    // read off the element — except where nothing computes styles, which
+    // is this environment, where a `32` stands in. Change `p-4` and that
+    // constant is silently 16px wrong for jsdom while every arithmetic
+    // assertion here still passes, because the fake supplies its own
+    // border box. This is the assertion that notices.
+    renderViewer();
+    await screen.findByText("Selectable page 1");
+
+    const box = document.querySelector(".overflow-auto")!;
+    expect(box.className).toMatch(/(^|\s)p-4(\s|$)/);
+  });
+
+  it("takes the padding from the element, not from a constant", async () => {
+    // `p-4` is `1rem`, so a reader whose browser default font size is
+    // 20px has 40px of padding, not 32. Assuming 32 fits every whole
+    // page 8px too tall and hands the mode the permanent vertical
+    // scrollbar it exists to avoid. jsdom computes no stylesheet, but it
+    // does compute inline styles, which is enough to drive the read.
+    renderViewer();
+    await screen.findByText("Selectable page 1");
+
+    const box = document.querySelector(".overflow-auto") as HTMLElement;
+    box.style.paddingTop = "20px";
+    box.style.paddingBottom = "20px";
+
+    fireEvent.click(menu());
+    fireEvent.click(modeRow("Whole page"));
+    // The fake's border box is `height + 32`; the usable height is that
+    // less the 40px actually on the element.
+    reportSize({ width: 900, height: 574 });
+
+    expect(lastWidth()).toBeCloseTo((606 - 40) * (595 / 842), 3);
+  });
+
+  it("falls back to the content box where entries carry no border box", async () => {
+    // `borderBoxSize` postdates `ResizeObserver`, so the `typeof
+    // ResizeObserver` guard does not cover it. Indexing it blind throws
+    // inside the callback: the width is set first and survives, the
+    // height stays frozen at its default, and every "whole page" is
+    // fitted to an imaginary 600px box with nothing visible but a
+    // console entry.
+    renderViewer();
+    await screen.findByText("Selectable page 1");
+
+    fireEvent.click(menu());
+    fireEvent.click(modeRow("Whole page"));
+    reportSize({ width: 900, contentHeight: 574, omitBorderBox: true });
+
+    // The old, merely-imperfect reading: the content box, padding
+    // already out of it.
+    expect(lastWidth()).toBeCloseTo(574 * (595 / 842), 3);
   });
 
   it("keeps a whole page the same size when a horizontal scrollbar appears", async () => {

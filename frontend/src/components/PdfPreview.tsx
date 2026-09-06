@@ -66,8 +66,32 @@ const MODE_LABEL_KEY = {
   actual: "pdfZoomMode_actual",
 } as const satisfies Record<PdfZoomMode, string>;
 
-/** `p-4` top plus bottom, the only padding on the scroll box. */
+/**
+ * `p-4` top plus bottom, at the default root font size.
+ *
+ * The fallback only, for environments that compute no styles — jsdom, in
+ * this project. Everywhere else the padding is read off the element,
+ * because `p-4` is `1rem` and a reader whose browser default is 20px has
+ * 40px of it, not 32; a hard 32 there fits every "whole page" 8px too
+ * tall and gives the mode the permanent scrollbar it exists to avoid.
+ */
 const PAGE_BOX_PADDING_Y = 32;
+
+/**
+ * The scroll box's vertical padding, in used pixels.
+ *
+ * `getComputedStyle` resolves the `rem` that the class is written in.
+ * The test pins `p-4` on the element so the fallback above cannot drift
+ * away from the class it names.
+ */
+function pageBoxPaddingY(box: Element): number {
+  const style = getComputedStyle(box);
+  const top = parseFloat(style.paddingTop);
+  const bottom = parseFloat(style.paddingBottom);
+  return Number.isFinite(top) && Number.isFinite(bottom)
+    ? top + bottom
+    : PAGE_BOX_PADDING_Y;
+}
 
 const MIN_ZOOM = 0.5;
 const MAX_ZOOM = 2;
@@ -199,14 +223,30 @@ export function PdfPreview({
     // retires the scrollbar, the height grows back. The border box is
     // `h-[80vh]` whether or not anything is scrolling.
     //
-    // What that trades away: above zoom 1 a `fit-page` page can overflow
-    // horizontally, and the scrollbar then covers its last 32px of
-    // height. At zoom <= 1 the mode's own arithmetic keeps the page
-    // inside the width, so no horizontal scrollbar exists to cover
-    // anything and the subtraction is exact.
+    // Neither number is a function of the page any more, which is what
+    // makes the cycle unavailable rather than merely unlikely.
+    //
+    // What it costs: when a horizontal scrollbar *is* drawn — above zoom
+    // 1, or in a box narrower than `MIN_FITTED_WIDTH`, where the fit
+    // functions floor the width above `available` — the height still
+    // reads as though it were not, so it overstates the visible height by
+    // the scrollbar's own thickness. That is ~15px classic, 0 overlay,
+    // and it makes a fitted page about 10px wider than a true fit. The
+    // page was already overflowing in that state.
+    //
+    // `borderBoxSize` postdates `ResizeObserver` itself, so the guard at
+    // the top of this effect does not cover it. Falling back to the
+    // content box restores the merely-imperfect reading rather than
+    // throwing inside the callback and freezing the height at its
+    // default.
     const observer = new ResizeObserver(([entry]) => {
+      const borderHeight = entry.borderBoxSize?.[0]?.blockSize;
       setAvailableWidth(entry.contentRect.width);
-      setAvailableHeight(entry.borderBoxSize[0].blockSize - PAGE_BOX_PADDING_Y);
+      setAvailableHeight(
+        borderHeight === undefined
+          ? entry.contentRect.height
+          : borderHeight - pageBoxPaddingY(box),
+      );
     });
     observer.observe(box);
     return () => observer.disconnect();
@@ -608,6 +648,21 @@ export function PdfPreview({
         // the same number in both states. Overlay scrollbars (macOS) never
         // took the width in the first place, and the property is inert
         // there.
+        //
+        // It costs a visible asymmetry. In "whole page" the page is fitted
+        // to the height and no vertical scrollbar is ever drawn, so the
+        // reserved gutter stays empty and `safe center` centres the page
+        // in the content box the gutter was taken out of — on classic
+        // scrollbars the page sits ~15px left of true centre. `both-edges`
+        // would even that out by reserving the same strip twice; that
+        // trades the asymmetry for the width, and is a change to how the
+        // viewer looks rather than to whether it settles.
+        //
+        // Where the property is unsupported (Safari before 18.2) *and*
+        // scroll bars are set to always show, the oscillation above comes
+        // back exactly as it was. That pairing is rare because the
+        // platform without the property is usually the platform with
+        // overlay scrollbars, but it is a setting, not an impossibility.
         className="flex h-[80vh] [justify-content:safe_center] overflow-auto [scrollbar-gutter:stable] bg-bg-elevated p-4"
       >
         <Document

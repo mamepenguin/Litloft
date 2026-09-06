@@ -481,7 +481,9 @@ column of `FileListRow` and `FolderListRow`.
 
 A **fitted** page image is capped at **900px** wide, as `MAX_FITTED_WIDTH`
 in `lib/pdfZoomMode.ts`. It applies to the PDF viewer's `fit-width` and
-`fit-page` modes.
+`fit-page` modes, **before the reader's own zoom** — which multiplies it,
+to 1800px at 200%. The cap decides where fitting stops, not how large a
+page the reader may ask for.
 
 - **This is not §3.4's 860px either.** §3.4 caps running text, where the
   cap decides the line length. A rendered page is an image of a page: the
