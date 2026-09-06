@@ -27,6 +27,7 @@ import Link from "next/link";
 import { useTranslations } from "next-intl";
 import type { FileItemWithMatch, MatchMeta } from "@/types";
 import { formatDuration } from "@/lib/format";
+import { collectMatchTimestamps } from "@/lib/matchTimestamps";
 import { AddonSlot } from "@/components/AddonSlot";
 import { buildSearchSnippet } from "@/lib/searchCapture";
 
@@ -71,14 +72,12 @@ function TimestampLink({
         // browser doesn't double-fire with the wrapping <a>.
         e.stopPropagation();
       }}
-      className="rounded-lg px-1.5 py-0.5 text-[10px] font-medium text-accent transition-colors hover:bg-accent/10"
+      className="rounded-lg px-1.5 py-0.5 text-[10px] font-medium text-text-muted transition-colors hover:bg-accent/10"
     >
       {formatDuration(seconds)}
     </Link>
   );
 }
-
-const MAX_TIMESTAMP_PILLS = 3;
 
 export function MatchOverlay({
   match,
@@ -120,16 +119,8 @@ export function MatchOverlay({
   if (match.content) activeTypes.push("content");
   if (match.retrieval_keywords) activeTypes.push("retrieval_keywords");
 
-  // Tag each segment with its source so the React key stays unique
-  // when a transcript hit and a clip hit happen to share the same
-  // time_range (rare but possible when ASR aligns with a CLIP frame).
-  const timestampSegments = [
-    ...(match.transcript ?? []).map((s) => ({ ...s, kind: "tr" as const })),
-    ...(match.clip ?? []).map((s) => ({ ...s, kind: "cl" as const })),
-  ]
-    .filter((s) => s.time_range[0] >= 0)
-    .sort((a, b) => a.time_range[0] - b.time_range[0])
-    .slice(0, MAX_TIMESTAMP_PILLS);
+  const { shown: timestampSegments, overflow: timestampOverflow } =
+    collectMatchTimestamps(match);
 
   const matchedPages = match.matched_pages ?? [];
   const snippet = file ? buildSearchSnippet(file) : null;
@@ -156,11 +147,16 @@ export function MatchOverlay({
         <div className="flex flex-wrap gap-0.5">
           {timestampSegments.map((seg) => (
             <TimestampLink
-              key={`${seg.kind}-${seg.time_range[0]}-${seg.time_range[1]}`}
-              seconds={seg.time_range[0]}
+              key={`${seg.kind}-${seg.seconds}`}
+              seconds={seg.seconds}
               fileId={fileId}
             />
           ))}
+          {timestampOverflow > 0 && (
+            <span className="px-1.5 py-0.5 text-[10px] text-text-muted">
+              +{timestampOverflow}
+            </span>
+          )}
         </div>
       )}
       {matchedPages.length > 0 && (

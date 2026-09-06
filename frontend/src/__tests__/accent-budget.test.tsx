@@ -136,11 +136,13 @@ const folderProps = {
  *
  * **What this cannot prove.** It reads source; it does not watch the
  * assertion run. A named file that keeps the call but renders the wrong
- * thing satisfies it. The one hole that was demonstrated — an assertion
- * against a freshly created `<div>` — is closed inside `accentFills`,
- * which now refuses an empty root. The rest is what review is for, and
- * saying so here is cheaper than a claim that reads stronger than the
- * check.
+ * thing satisfies it — a file could pass `accentFills` a screen other
+ * than the one its row names, or the same screen in a state it never
+ * reaches, and this table would not know. The one hole that was
+ * demonstrated — an assertion against a freshly created `<div>` — is
+ * closed inside `accentFills`, which now refuses an empty root. The rest
+ * is what review is for, and saying so here is cheaper than a claim that
+ * reads stronger than the check.
  *
  * Ask, Find and Media Import are absent and are not omissions: they are
  * addon-owned pages, `frontend/src/addons/*` are gitignored symlinks that
@@ -159,6 +161,7 @@ const SCREENS: ReadonlyArray<{ screen: string; assertedIn: string }> = [
   { screen: "collection", assertedIn: "src/components/__tests__/CollectionDetail.test.tsx" },
   { screen: "empty folder", assertedIn: "src/__tests__/accent-budget.test.tsx" },
   { screen: "file detail — no preview", assertedIn: "src/components/__tests__/FilePreview.test.tsx" },
+  { screen: "search modal", assertedIn: "src/components/__tests__/GlobalSearch.test.tsx" },
 ];
 
 /**
@@ -247,7 +250,7 @@ describe("what counts as a fill at rest", () => {
 describe("accent budget", () => {
   afterEach(cleanup);
 
-  it("covers six core screens, and each one somewhere that runs", () => {
+  it("covers nine core screens, and each one somewhere that runs", () => {
     expect(SCREENS.map((s) => s.screen)).toEqual([
       "folder toolbar",
       "drive root",
@@ -257,6 +260,7 @@ describe("accent budget", () => {
       "collection",
       "empty folder",
       "file detail — no preview",
+      "search modal",
     ]);
     const root = resolve(__dirname, "..", "..");
     for (const { screen: name, assertedIn } of SCREENS) {
