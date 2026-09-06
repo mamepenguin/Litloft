@@ -5,10 +5,13 @@ import { useCallback, type Dispatch, type SetStateAction } from "react";
 import {
   canPageBack,
   canPageForward,
+  faceAt,
+  faceLabel,
   halfLabel,
   isSpreadActive,
   pageBack,
   pageForward,
+  type SpreadFace,
   type SpreadPosition,
   type SpreadState,
 } from "@/lib/spreadPaging";
@@ -25,6 +28,10 @@ export interface SpreadPaging {
   canGoNext: boolean;
   navigatePrev: () => void;
   navigateNext: () => void;
+  /** What is on screen at once, and what to draw for it. */
+  face: SpreadFace;
+  /** `7` or `7–8`, one-based, for the counter. */
+  faceLabel: string;
 }
 
 /**
@@ -46,20 +53,22 @@ export interface SpreadPaging {
 export function useSpreadPaging({
   index,
   count,
-  splitMode,
+  spreadMode,
   readingDirection,
-  isCurrentLandscape,
   showRightHalf,
+  orientationAt,
+  canPair,
   setIndex,
   setShowRightHalf,
 }: UseSpreadPagingOptions): SpreadPaging {
   const state: SpreadState = {
     index,
     count,
-    splitMode,
+    spreadMode,
     readingDirection,
-    isCurrentLandscape,
     showRightHalf,
+    orientationAt,
+    canPair,
   };
 
   const turn = useCallback(
@@ -91,10 +100,11 @@ export function useSpreadPaging({
       turn,
       index,
       count,
-      splitMode,
+      spreadMode,
       readingDirection,
-      isCurrentLandscape,
       showRightHalf,
+      orientationAt,
+      canPair,
     ],
   );
   const navigateNext = useCallback(
@@ -104,14 +114,17 @@ export function useSpreadPaging({
       turn,
       index,
       count,
-      splitMode,
+      spreadMode,
       readingDirection,
-      isCurrentLandscape,
       showRightHalf,
+      orientationAt,
+      canPair,
     ],
   );
 
   return {
+    face: faceAt(state),
+    faceLabel: faceLabel(state),
     activeSplit: isSpreadActive(state),
     subPageLabel: halfLabel(state),
     canGoPrev: canPageBack(state),

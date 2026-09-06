@@ -11,6 +11,10 @@ import {
   type AutoHidingChrome,
 } from "@/hooks/useAutoHidingChrome";
 import { useSpreadPaging } from "@/hooks/useSpreadPaging";
+import { useSpreadFits } from "@/hooks/useSpreadFits";
+import { useNeighbourOrientation } from "@/hooks/useNeighbourOrientation";
+import { readSpreadMode, writeSpreadMode } from "@/lib/spreadPreference";
+import type { Orientation, SpreadFace } from "@/lib/spreadPaging";
 import type { ArchiveViewMode } from "./archiveUtils";
 
 function readLocalBool(key: string, def: boolean): boolean {
@@ -46,10 +50,16 @@ interface ImageViewerResult {
   showChrome: () => void;
   /** Hold it open while a panel over the frame is up. */
   setChromeHeld: React.Dispatch<React.SetStateAction<boolean>>;
+  /** What is on screen at once, and how the counter reads it. */
+  face: SpreadFace;
+  faceLabel: string;
+  subPageLabel: "A" | "B" | null;
+  canGoPrev: boolean;
+  canGoNext: boolean;
   handleImageAreaClick: () => void;
   chromeProps: AutoHidingChrome["chromeProps"];
-  splitMode: boolean;
-  setSplitMode: React.Dispatch<React.SetStateAction<boolean>>;
+  spreadMode: boolean;
+  setSpreadMode: React.Dispatch<React.SetStateAction<boolean>>;
   readingDirection: "ltr" | "rtl";
   setReadingDirection: React.Dispatch<React.SetStateAction<"ltr" | "rtl">>;
   isCurrentLandscape: boolean;
@@ -78,9 +88,7 @@ export function useImageViewer(
     held: chromeHeld,
   });
 
-  const [splitMode, setSplitMode] = useState(() =>
-    readLocalBool("image-viewer:split-mode", false),
-  );
+  const [spreadMode, setSpreadMode] = useState(() => readSpreadMode());
   const [readingDirection, setReadingDirection] = useState<"ltr" | "rtl">(() =>
     readLocalString("image-viewer:reading-direction", "ltr"),
   );
@@ -89,13 +97,13 @@ export function useImageViewer(
 
   const readingDirectionRef = useRef(readingDirection);
 
-  // Persist splitMode to localStorage
+  // Persist spreadMode to localStorage
   useEffect(() => {
     try {
-      localStorage.setItem("image-viewer:split-mode", String(splitMode));
+      writeSpreadMode(spreadMode);
     } catch {}
     setShowRightHalf(readingDirectionRef.current === "rtl");
-  }, [splitMode]);
+  }, [spreadMode]);
 
   // Persist readingDirection to localStorage
   useEffect(() => {
@@ -106,14 +114,41 @@ export function useImageViewer(
     setShowRightHalf(readingDirection === "rtl");
   }, [readingDirection]);
 
+  const canPair = useSpreadFits();
+
+  /**
+   * A zip entry has no stored dimensions — the scanner reads image sizes
+   * off a drive, and pages inside an archive are never scanned — so the
+   * next page's shape has to be fetched. Exactly one is: pairing asks
+   * about the immediate next page and no other, and a reader flipping
+   * through a 190-page book must not pull the book down behind them.
+   */
+  const nextEntry = imageEntries[imageIndex + 1];
+  const nextOrientation = useNeighbourOrientation(
+    spreadMode && canPair && nextEntry
+      ? getArchiveEntryUrl(fileId, nextEntry.path)
+      : null,
+  );
+  const orientationAt = useCallback(
+    (i: number): Orientation => {
+      if (i === imageIndex) {
+        return isCurrentLandscape ? "landscape" : "portrait";
+      }
+      if (i === imageIndex + 1) return nextOrientation;
+      return "unknown";
+    },
+    [imageIndex, isCurrentLandscape, nextOrientation],
+  );
+
   const paging = useSpreadPaging({
     index: imageIndex,
     setIndex: setImageIndex,
     count: imageEntries.length,
-    splitMode,
+    spreadMode,
     readingDirection,
-    isCurrentLandscape,
     showRightHalf,
+    orientationAt,
+    canPair,
     setShowRightHalf,
   });
   const { navigatePrev, navigateNext } = paging;
@@ -154,11 +189,26 @@ export function useImageViewer(
     if (!playing || viewMode !== "image" || imageEntries.length <= 1) return;
 
     const timer = window.setTimeout(() => {
-      setImageIndex((prev) => (prev >= imageEntries.length - 1 ? 0 : prev + 1));
+      // A face at a time, not an index at a time: two pages showing side
+      // by side are one thing to look at, and a split page is two.
+      if (paging.canGoNext) {
+        paging.navigateNext();
+      } else {
+        setImageIndex(0);
+        setShowRightHalf(readingDirection === "rtl");
+      }
     }, slideshowInterval * 1000);
 
     return () => window.clearTimeout(timer);
-  }, [playing, imageIndex, slideshowInterval, imageEntries.length, viewMode]);
+  }, [
+    playing,
+    imageIndex,
+    slideshowInterval,
+    imageEntries.length,
+    viewMode,
+    paging,
+    readingDirection,
+  ]);
 
   const tsc = useTranslations("shortcuts");
 
@@ -214,8 +264,8 @@ export function useImageViewer(
     setChromeHeld,
     handleImageAreaClick: chrome.toggle,
     chromeProps: chrome.chromeProps,
-    splitMode,
-    setSplitMode,
+    spreadMode,
+    setSpreadMode,
     readingDirection,
     setReadingDirection,
     isCurrentLandscape,
@@ -223,5 +273,10 @@ export function useImageViewer(
     showRightHalf,
     navigatePrev,
     navigateNext,
+    face: paging.face,
+    faceLabel: paging.faceLabel,
+    subPageLabel: paging.subPageLabel,
+    canGoPrev: paging.canGoPrev,
+    canGoNext: paging.canGoNext,
   };
 }

@@ -411,8 +411,6 @@
     "prevImage": "Previous image",
     "nextImage": "Next image",
     "backToList": "Back to list",
-    "splitMode": "Spread mode",
-    "splitModeToggle": "Toggle spread mode",
     "ltr": "LTR",
     "rtl": "RTL",
     "readingDirection": "Reading direction",
@@ -431,7 +429,9 @@
     "indexFilterPlaceholder": "Filter by path",
     "indexFilterLabel": "Filter the archive's contents",
     "indexNoMatch": "Nothing matches",
-    "indexMoreEntries": "{count} more"
+    "indexMoreEntries": "{count} more",
+    "spreadMode": "Spread",
+    "spreadModeToggle": "Read as spread / Read single pages"
   },
   "empty": {
     "noFilesTitle": "No files",
@@ -543,11 +543,11 @@
     "nextImage": "Next image",
     "slideshowInterval": "Slideshow interval",
     "seconds": "{sec}s",
-    "splitMode": "Spread mode",
-    "splitModeToggle": "Toggle spread mode",
     "ltr": "LTR",
     "rtl": "RTL",
-    "readingDirection": "Reading direction"
+    "readingDirection": "Reading direction",
+    "spreadMode": "Spread",
+    "spreadModeToggle": "Read as spread / Read single pages"
   },
   "unlock": {
     "title": "Unlock",

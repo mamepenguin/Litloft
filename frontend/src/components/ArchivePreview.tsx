@@ -306,10 +306,15 @@ export function ArchivePreview({
         showControls={imageViewer.showControls}
         chromeProps={imageViewer.chromeProps}
         onIntervalOpenChange={imageViewer.setChromeHeld}
+        face={imageViewer.face}
+        faceLabel={imageViewer.faceLabel}
+        subPageLabel={imageViewer.subPageLabel}
+        canGoPrev={imageViewer.canGoPrev}
+        canGoNext={imageViewer.canGoNext}
         handleImageAreaClick={imageViewer.handleImageAreaClick}
         closeViewer={closeViewerFull}
-        splitMode={imageViewer.splitMode}
-        setSplitMode={imageViewer.setSplitMode}
+        spreadMode={imageViewer.spreadMode}
+        setSpreadMode={imageViewer.setSpreadMode}
         readingDirection={imageViewer.readingDirection}
         setReadingDirection={imageViewer.setReadingDirection}
         isCurrentLandscape={imageViewer.isCurrentLandscape}

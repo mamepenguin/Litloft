@@ -17,12 +17,7 @@ import { getArchiveEntryUrl } from "@/lib/api";
 import type { ArchiveEntry } from "@/types";
 import { SlideshowIntervalMenu } from "@/components/gallery/SlideshowIntervalMenu";
 import type { AutoHidingChrome } from "@/hooks/useAutoHidingChrome";
-import {
-  canPageBack,
-  canPageForward,
-  halfLabel,
-  isSpreadActive,
-} from "@/lib/spreadPaging";
+import type { SpreadFace } from "@/lib/spreadPaging";
 
 interface ArchiveImageViewerProps {
   fileId: string;
@@ -38,10 +33,15 @@ interface ArchiveImageViewerProps {
   showControls: boolean;
   chromeProps: AutoHidingChrome["chromeProps"];
   onIntervalOpenChange: (open: boolean) => void;
+  face: SpreadFace;
+  faceLabel: string;
+  subPageLabel: "A" | "B" | null;
+  canGoPrev: boolean;
+  canGoNext: boolean;
   handleImageAreaClick: () => void;
   closeViewer: () => void;
-  splitMode: boolean;
-  setSplitMode: React.Dispatch<React.SetStateAction<boolean>>;
+  spreadMode: boolean;
+  setSpreadMode: React.Dispatch<React.SetStateAction<boolean>>;
   readingDirection: "ltr" | "rtl";
   setReadingDirection: React.Dispatch<React.SetStateAction<"ltr" | "rtl">>;
   isCurrentLandscape: boolean;
@@ -65,10 +65,15 @@ export function ArchiveImageViewer({
   showControls,
   chromeProps,
   onIntervalOpenChange,
+  face,
+  faceLabel,
+  subPageLabel,
+  canGoPrev,
+  canGoNext,
   handleImageAreaClick,
   closeViewer,
-  splitMode,
-  setSplitMode,
+  spreadMode,
+  setSpreadMode,
   readingDirection,
   setReadingDirection,
   isCurrentLandscape,
@@ -80,22 +85,7 @@ export function ArchiveImageViewer({
   const t = useTranslations("archive");
   const tc = useTranslations("common");
 
-  // The same arithmetic the viewer's own hook runs, read rather than
-  // repeated. This component is handed the position as props and only
-  // renders it, so it asks the shared functions instead of owning a
-  // second copy of the rules.
-  const position = {
-    index: imageIndex,
-    count: imageEntries.length,
-    splitMode,
-    readingDirection,
-    isCurrentLandscape,
-    showRightHalf,
-  };
-  const activeSplit = isSpreadActive(position);
-  const subPageLabel = halfLabel(position);
-  const canGoPrev = canPageBack(position);
-  const canGoNext = canPageForward(position);
+  const activeSplit = face.kind === "half";
 
   const gestureHandlers = useImageAreaGestures({
     readingDirection,
@@ -126,7 +116,7 @@ export function ArchiveImageViewer({
 
         {imageEntries.length > 0 && (
           <span className="text-sm text-white/60">
-            {imageIndex + 1} / {imageEntries.length}
+            {faceLabel} / {imageEntries.length}
             {subPageLabel !== null ? ` ${subPageLabel}` : ""}
           </span>
         )}
@@ -152,7 +142,7 @@ export function ArchiveImageViewer({
               </button>
             </>
           )}
-          {splitMode && (
+          {spreadMode && (
             <button
               onClick={() =>
                 setReadingDirection((d) => (d === "ltr" ? "rtl" : "ltr"))
@@ -164,9 +154,9 @@ export function ArchiveImageViewer({
             </button>
           )}
           <button
-            onClick={() => setSplitMode((m) => !m)}
-            className={`rounded-full p-1.5 transition-colors hover:bg-white/10 ${splitMode ? "text-white" : "text-white/60 hover:text-white"}`}
-            aria-label={t("splitModeToggle")}
+            onClick={() => setSpreadMode((m) => !m)}
+            className={`rounded-full p-1.5 transition-colors hover:bg-white/10 ${spreadMode ? "text-white" : "text-white/60 hover:text-white"}`}
+            aria-label={t("spreadModeToggle")}
           >
             <BookOpen size={18} />
           </button>
@@ -197,25 +187,53 @@ export function ArchiveImageViewer({
           <div className="absolute h-8 w-8 animate-spin rounded-full border-2 border-white border-t-transparent" />
         )}
         <div
+          data-face={face.kind}
           className="flex h-full items-center justify-center"
           style={{
+            // Splitting draws one page at twice the frame's width and
+            // slides it; pairing draws two pages inside one frame's
+            // width. Same word, opposite arithmetic.
             width: activeSplit ? "200%" : "100%",
             flexShrink: activeSplit ? 0 : undefined,
             transform:
               activeSplit && showRightHalf ? "translateX(-50%)" : undefined,
+            // Right-to-left reading puts the first page of a pair on the
+            // right. The `flex-direction` does it, so the two `<img>`
+            // elements stay in reading order in the DOM and a screen
+            // reader hears them in the order they are read.
+            flexDirection:
+              face.kind === "pair" && readingDirection === "rtl"
+                ? "row-reverse"
+                : "row",
           }}
         >
-          <img
-            src={getArchiveEntryUrl(fileId, currentImage.path)}
-            alt={currentImage.filename}
-            className="max-h-full max-w-full select-none object-contain"
-            onLoad={(e) => {
-              setImageLoading(false);
-              const img = e.currentTarget;
-              setIsCurrentLandscape(img.naturalWidth > img.naturalHeight);
-            }}
-            draggable={false}
-          />
+          {face.indices.map((i, slot) => {
+            const entry = imageEntries[i];
+            if (!entry) return null;
+            return (
+              <img
+                key={entry.path}
+                src={getArchiveEntryUrl(fileId, entry.path)}
+                alt={entry.filename}
+                className="max-h-full select-none object-contain"
+                style={{
+                  maxWidth: face.kind === "pair" ? "50%" : "100%",
+                }}
+                onLoad={(e) => {
+                  setImageLoading(false);
+                  // Only the page the position is named by decides
+                  // whether this face is a split one. The second page of
+                  // a pair reporting its own shape here would flip the
+                  // face out from under itself.
+                  if (slot === 0 && i === imageIndex) {
+                    const img = e.currentTarget;
+                    setIsCurrentLandscape(img.naturalWidth > img.naturalHeight);
+                  }
+                }}
+                draggable={false}
+              />
+            );
+          })}
         </div>
       </div>
 

@@ -132,9 +132,16 @@ remember.
 
 | Key | Action |
 |---|---|
-| `←` / `→` | Previous / next image (reading-direction aware) |
+| `←` / `→` | Previous / next **face** (reading-direction aware) |
 | `Space` | Start / stop the slideshow |
 | `Esc` | Close the viewer |
+
+A press moves to the next **face** — what is on the screen at once — rather
+than to the next file. With the spread switch off a face is one page, so the
+arrows behave as they always did. With it on, a wide page is turned a half at
+a time and the count stays put (`3 / 190 A`, then `B`), while two tall pages
+side by side are turned together and the count moves by two (`7–8 / 190` to
+`9–10 / 190`).
 
 | Gesture | Action |
 |---|---|
@@ -148,6 +155,12 @@ RTL (right-to-left) mirroring is partial, and deliberately so: the **arrow keys
 and the edge taps** mirror, following the reading direction. The **swipe does
 not** — a swipe to the right is always "next page", because the swipe follows
 the hand, not the text.
+
+A press moves to the next **face** — what is on the screen at once — not to
+the next file. With the spread switch off that is one page, so the arrows
+behave as they always did. With it on, a wide page is turned a half at a
+time and stays put in the count, while two tall pages side by side are turned
+together and the count moves by two (`7–8 / 190` to `9–10 / 190`).
 
 ## File detail
 
