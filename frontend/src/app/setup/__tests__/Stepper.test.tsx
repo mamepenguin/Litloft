@@ -76,9 +76,7 @@ describe("Stepper", () => {
 
   it("marks intermediate index correctly: completed / active / future", () => {
     // currentIndex=2 of 4 steps  ->  [completed, completed, active, future]
-    const { container } = render(
-      <Stepper steps={PUBLIC_STEPS} currentIndex={2} />,
-    );
+    render(<Stepper steps={PUBLIC_STEPS} currentIndex={2} />);
 
     const items = screen.getAllByRole("listitem");
     expect(items).toHaveLength(4);

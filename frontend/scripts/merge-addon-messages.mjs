@@ -8,7 +8,7 @@
 // Called: Dockerfile (after addon frontend copy, before pnpm build)
 //         Direct host deployment: run once before pnpm build / pnpm dev
 
-import { readFileSync, writeFileSync, readdirSync, existsSync, mkdirSync, copyFileSync } from 'node:fs'
+import { readFileSync, writeFileSync, readdirSync, existsSync, mkdirSync } from 'node:fs'
 import { resolve, basename, dirname } from 'node:path'
 
 const ROOT = resolve(dirname(new URL(import.meta.url).pathname), '..')

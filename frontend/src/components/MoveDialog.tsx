@@ -41,7 +41,7 @@ export function MoveDialog({
       try {
         const result = await getFolders(drive, path || undefined);
         setFolders(result);
-      } catch (err) {
+      } catch {
         setError(t("moveFolderLoadFailed"));
         setFolders([]);
       } finally {

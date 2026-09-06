@@ -45,9 +45,7 @@ export function FileContextMenu({
   onOpenInNewTab,
   onStartInlineRename,
 }: FileContextMenuProps) {
-  const tc = useTranslations("common");
   const tt = useTranslations("trash");
-  const tf = useTranslations("file");
   const [renameOpen, setRenameOpen] = useState(false);
   const [moveOpen, setMoveOpen] = useState(false);
   const [deleteOpen, setDeleteOpen] = useState(false);

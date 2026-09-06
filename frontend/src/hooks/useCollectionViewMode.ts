@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useMemo, useState } from "react";
 
 import type { CollectionItemEntry, FileItem, FolderKind, ViewMode } from "@/types";
 import { viewModeForKind } from "@/lib/viewModeForKind";

@@ -1,4 +1,4 @@
-import type { ArchiveContents, AuthStatus, BatchRenameRequest, BatchRenameResponse, ChunkResponse, CollectionDetail, CollectionSummary, Comment, CommentsResponse, DashboardResponse, Drive, DriveSummary, DuplicatesResponse, FileExif, FileItem, FileType, Folder, FolderTreeNode, Neighbors, PaginatedResponse, PinnedFolder, SortField, SortOrder, Tag, TrustFilter, TrustTier, FileKind, UnlockResult, UploadInitResponse, WatchHistoryItem, WatchProgress } from "@/types";
+import type { ArchiveContents, AuthStatus, BatchRenameRequest, BatchRenameResponse, ChunkResponse, CollectionDetail, CollectionSummary, Comment, CommentsResponse, DashboardResponse, Drive, DriveSummary, DuplicatesResponse, FileExif, FileItem, Folder, FolderTreeNode, Neighbors, PaginatedResponse, PinnedFolder, SortField, SortOrder, Tag, TrustFilter, TrustTier, FileKind, UnlockResult, UploadInitResponse, WatchHistoryItem, WatchProgress } from "@/types";
 import type { SmartFolder, SmartFolderCreate, SmartFolderUpdate } from "@/types/smartFolder";
 
 const API_BASE = "/api";

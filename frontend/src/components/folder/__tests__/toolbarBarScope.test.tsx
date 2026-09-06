@@ -305,7 +305,7 @@ describe("what the folder toolbar keeps on the bar", () => {
     // 375. The link is 201 at its natural width and shrinks from there
     // rather than pushing anything: 172 at 768 with an addon beside it, 148
     // at 320. Without the wrapper's `flex` it fills instead — 998 at 1512.
-    const { container } = render(
+    render(
       <FolderToolbar
         {...props}
         typeFilter="markdown"

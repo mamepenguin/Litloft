@@ -41,10 +41,6 @@ function emit(): void {
   for (const l of listeners) l();
 }
 
-function key(fileId: string, source: DirtySource): string {
-  return `${fileId}::${source}`;
-}
-
 export const dirtyRegistry = {
   /**
    * Mark or clear a single ``(fileId, source)`` pair. No-op if the

@@ -14,7 +14,6 @@ import { HtmlPreview } from "./HtmlPreview";
 import { ArchivePreview } from "./ArchivePreview";
 import { EmptyState } from "@/components/EmptyState";
 import { OfficeExcerpt } from "./OfficeExcerpt";
-import { FileTypeIcon } from "./FileTypeIcon";
 import { AddonSlot } from "./AddonSlot";
 import LoftPlayer from "./loft/LoftPlayer";
 import { MiniPlayerContainer } from "./MiniPlayerContainer";

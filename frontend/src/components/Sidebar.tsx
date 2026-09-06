@@ -25,6 +25,9 @@ import { useReorderableDnD } from "./sidebar/useReorderableDnD";
  * Stable IDs for the four reorderable sections (canonical order = default display order).
  * These IDs match the keys used by useSidebarSectionCollapsed to keep namespaces consistent.
  */
+// Read only by `typeof` on the next line, which the rule does not count as
+// a use. The declaration cannot go: the type is derived from the value.
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
 const REORDERABLE_SECTIONS = ["collections", "pins", "smart-folders", "tags"] as const;
 type ReorderableSectionId = (typeof REORDERABLE_SECTIONS)[number];
 
