@@ -78,6 +78,12 @@ function makeFile(overrides: Partial<FileItemWithMatch> = {}): FileItemWithMatch
  * Exercises both halves of the rule at once — six segments naming four
  * moments, one of them found twice by two channels, and one pair a
  * fraction of a second apart.
+ *
+ * One of the three that survive is past the hour, where `formatDuration`
+ * switches to `H:MM:SS`. That is what makes the pill matcher's hour form
+ * load-bearing: narrowed to `M:SS` it would drop the pill out of the
+ * population rather than fail, which is how a cap or de-duplication bug on
+ * a long recording would hide.
  */
 const SHARED_META: MatchMeta = {
   transcript: [
@@ -87,13 +93,13 @@ const SHARED_META: MatchMeta = {
   ],
   clip: [
     { time_range: [889, 893], score: 0.5 },
-    { time_range: [1500, 1505], score: 0.4 },
-    { time_range: [2400, 2405], score: 0.3 },
+    { time_range: [3661, 3670], score: 0.4 },
+    { time_range: [7322, 7330], score: 0.3 },
   ],
 };
 
 const pillTexts = () =>
-  screen.getAllByText(/^\d+:\d{2}$/).map((el) => el.textContent);
+  screen.getAllByText(/^\d+:\d{2}(:\d{2})?$/).map((el) => el.textContent);
 
 describe("timestamp pills read the same on both surfaces", () => {
   /**
@@ -110,7 +116,11 @@ describe("timestamp pills read the same on both surfaces", () => {
     const page = pillTexts();
     cleanup();
 
-    expect(popup).toEqual(["13:19", "14:49", "25:00"]);
+    // `1:01:01` is here so the pill matcher's hour form is load-bearing:
+    // `formatDuration` switches at sixty minutes, and a matcher that only
+    // took `M:SS` would drop this pill out of the population instead of
+    // failing.
+    expect(popup).toEqual(["13:19", "14:49", "1:01:01"]);
     expect(page).toEqual(popup);
   });
 
@@ -168,7 +178,7 @@ describe("timestamp pills read the same on both surfaces", () => {
    */
   it("spends no accent on the pills, on either surface", () => {
     render(<MergedResultItem file={makeFile({ match_meta: SHARED_META })} onSelect={vi.fn()} />);
-    for (const pill of screen.getAllByText(/^\d+:\d{2}$/)) {
+    for (const pill of screen.getAllByText(/^\d+:\d{2}(:\d{2})?$/)) {
       expect(pill.className).not.toContain("text-accent");
       expect(pill.className).toContain("text-text-muted");
       expect(pill.className).toContain("hover:bg-accent/10");
@@ -176,7 +186,7 @@ describe("timestamp pills read the same on both surfaces", () => {
     cleanup();
 
     render(<MatchOverlay match={SHARED_META} fileId="f1" />);
-    for (const pill of screen.getAllByText(/^\d+:\d{2}$/)) {
+    for (const pill of screen.getAllByText(/^\d+:\d{2}(:\d{2})?$/)) {
       expect(pill.className).not.toContain("text-accent");
       expect(pill.className).toContain("text-text-muted");
       expect(pill.className).toContain("hover:bg-accent/10");

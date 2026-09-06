@@ -46,7 +46,7 @@ describe("MergedResultItem", () => {
     expect(screen.getByText("Filename")).toBeInTheDocument();
     expect(screen.queryByText("Transcript")).not.toBeInTheDocument();
     // No "M:SS" formatted time pill in DOM
-    expect(screen.queryByText(/^\d+:\d{2}$/)).not.toBeInTheDocument();
+    expect(screen.queryByText(/^\d+:\d{2}(:\d{2})?$/)).not.toBeInTheDocument();
   });
 
   it("semantic-only transcript hit at [120, 150] shows Transcript badge + 2:00 timestamp pill", () => {
@@ -166,7 +166,7 @@ describe("MergedResultItem", () => {
 
     // Enumerated, not counted: a `<=` bound holds at every cap from zero
     // to the bound.
-    expect(screen.getAllByText(/^\d+:\d{2}$/).map((p) => p.textContent)).toEqual([
+    expect(screen.getAllByText(/^\d+:\d{2}(:\d{2})?$/).map((p) => p.textContent)).toEqual([
       "0:10",
       "0:20",
       "0:30",
@@ -175,16 +175,38 @@ describe("MergedResultItem", () => {
   });
 
   /**
-   * S-1. `file.title` is the backend's `_filename_to_title`: the filename
-   * with its extension dropped and underscores turned into spaces, so the
-   * filename under the title usually repeats it with ".mp4" glued on. The
+   * S-1. A title starts life as `filenameToTitle(filename)`, so the
+   * filename under it usually repeats it with ".mp4" glued back on. The
    * line draws only when it has something else to say.
+   *
+   * The titles here are the ones a backend can actually produce — the
+   * first draft of these cases used "kyoto" for `kyoto.mp4`, which is not
+   * a title this system ever writes, and they passed against a rule that
+   * did nothing for real files.
    */
   describe("the second line", () => {
+    it("draws the title, which is what the second line is second to", () => {
+      // Nothing in this file said the first line exists, so folding the
+      // two into one `<p>{subtitle ?? file.title}</p>` passed every
+      // `<p>`-count assertion below while the title disappeared.
+      render(
+        <MergedResultItem
+          file={makeFile({
+            filename: "kyoto.mp4",
+            title: "Autumn in Kyoto",
+            folder_path: "travel/2026",
+          })}
+          onSelect={vi.fn()}
+        />,
+      );
+      expect(screen.getByText("Autumn in Kyoto")).toBeInTheDocument();
+      expect(screen.getByText("travel/2026/kyoto.mp4")).toBeInTheDocument();
+    });
+
     it("is absent when the filename is the title plus an extension", () => {
       const { container } = render(
         <MergedResultItem
-          file={makeFile({ filename: "kyoto.mp4", title: "kyoto", folder_path: "" })}
+          file={makeFile({ filename: "kyoto.mp4", title: "Kyoto", folder_path: "" })}
           onSelect={vi.fn()}
         />,
       );
@@ -214,7 +236,7 @@ describe("MergedResultItem", () => {
         <MergedResultItem
           file={makeFile({
             filename: "kyoto.mp4",
-            title: "kyoto",
+            title: "Kyoto",
             folder_path: "travel/2026",
           })}
           onSelect={vi.fn()}
@@ -224,14 +246,14 @@ describe("MergedResultItem", () => {
       expect(screen.queryByText(/kyoto\.mp4/)).not.toBeInTheDocument();
     });
 
-    it("keeps the filename when the title is not just the stem", () => {
-      // The backend also turns underscores into spaces, so a title can
-      // differ from the stem by more than an extension.
+    it("keeps the filename when the title no longer derives from it", () => {
+      // A title is editable. Once it has been changed the filename is a
+      // fact the title does not carry, so the line says it.
       render(
         <MergedResultItem
           file={makeFile({
             filename: "kyoto_day_1.mp4",
-            title: "kyoto day 1",
+            title: "Kyoto day 1 (edited)",
             folder_path: "travel/2026",
           })}
           onSelect={vi.fn()}
@@ -261,7 +283,7 @@ describe("MergedResultItem", () => {
         <MergedResultItem
           file={makeFile({
             filename: "archive.tar.gz",
-            title: "archive.tar",
+            title: "Archive.tar",
             folder_path: "",
           })}
           onSelect={vi.fn()}

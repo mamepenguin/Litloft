@@ -13,7 +13,7 @@
 
 import { useTranslations } from "next-intl";
 import { formatDuration } from "@/lib/format";
-import { splitFilename } from "@/lib/filename";
+import { filenameToTitle } from "@/lib/filenameTitle";
 import { collectMatchTimestamps } from "@/lib/matchTimestamps";
 import type { FileItemWithMatch, MatchMeta } from "@/types";
 
@@ -50,26 +50,31 @@ function selectActiveBadgeKeys(meta: MatchMeta | undefined): string[] {
 /**
  * The second line carries two different facts, and only sometimes both.
  *
- * `file.title` is the backend's `_filename_to_title`: the filename with
- * its extension dropped and underscores turned into spaces. So the
- * filename under the title is usually the title again with an extension
- * glued on — but not always, because the underscore rule means
- * `kyoto_day_1.mp4` titles as "kyoto day 1", and because the line is also
- * where the folder path lives.
+ * A file's title starts life as `filenameToTitle(filename)`, so repeating
+ * the filename under it usually repeats the title with an extension glued
+ * back on. Not always: the title is editable, and a row built from an
+ * unhydrated semantic hit is titled with the raw filename instead. And the
+ * line is also where the folder path lives.
  *
- * The line therefore says whichever of the two facts is new:
- *   stem === title  →  the folder path alone, or nothing at all
- *   stem !== title  →  the path and the filename
+ * So it says whichever of the two facts is new:
+ *   the title still derives from the filename  →  the folder path alone,
+ *                                                 or nothing at all
+ *   it does not                                →  the path and the filename
+ *
+ * The comparison goes through `filenameToTitle` rather than through the
+ * stem, because deriving a title is three steps and the stem is one of
+ * them: `kyoto.mp4` is titled "Kyoto", so comparing stems answers "no" for
+ * every filename that starts with a lower-case letter — which is most of
+ * them.
  */
 function secondLine(file: FileItemWithMatch): string | null {
   const folder = file.folder_path ? `${file.folder_path}/` : "";
-  // Both suppressions matter. `stem === title` is the ordinary case; the
-  // exact match is the semantic-only row, which `mergeResults` builds
-  // without a file record and titles with the raw filename, extension and
-  // all (`searchMerge.ts` `title: hit.filename`).
+  // Both suppressions matter. The derived title is the ordinary case; the
+  // exact match is the row `mergeResults` builds without a file record and
+  // titles with the raw filename, extension and all (`searchMerge.ts`
+  // `title: hit.filename`).
   const saysNothingNew =
-    file.filename === file.title ||
-    splitFilename(file.filename).stem === file.title;
+    file.filename === file.title || filenameToTitle(file.filename) === file.title;
   return saysNothingNew ? folder || null : `${folder}${file.filename}`;
 }
 

@@ -859,6 +859,12 @@ describe("GlobalSearch", () => {
      * The match badges tint with `bg-accent/15` and friends, which are
      * transparencies rather than this fill, and the timestamp pills are
      * `text-text-muted`, which is not a fill at all.
+     *
+     * So this is a forward guard, not a check on the colour change that
+     * put the modal in `SCREENS`: `accentFills` counts `bg-accent` at
+     * rest and nothing here ever painted one, before or after. What makes
+     * it a claim rather than a formality is the case below — adding one
+     * fill to this screen turns it red.
      */
     it("spends no accent fill, with badges and pills on screen", async () => {
       mockGetDriveFiles.mockResolvedValue({
@@ -888,6 +894,29 @@ describe("GlobalSearch", () => {
       expect(screen.getAllByText(/^\d+:\d{2}$/)).toHaveLength(2);
       expect(screen.getByText("Transcript")).toBeInTheDocument();
 
+      expect(accentFills(document.body)).toHaveLength(0);
+    });
+
+    it("would notice a fill, which is what makes the budget a claim", async () => {
+      mockGetDriveFiles.mockResolvedValue({
+        data: [makeFile({ id: "f1", title: "filename-hit" })],
+        meta: { total: 1, page: 1, limit: 8 },
+      });
+      mockFetchSemanticHits.mockResolvedValue([]);
+
+      render(<GlobalSearch />);
+      fireEvent.click(screen.getByLabelText("Search"));
+      await typeQuery("hit");
+      await waitFor(() =>
+        expect(screen.getAllByTestId("merged-result-item")).toHaveLength(1),
+      );
+
+      // The mutation, applied in the test rather than argued for in the
+      // PR body: one resting `bg-accent` anywhere on this screen.
+      const row = screen.getAllByTestId("merged-result-item")[0];
+      row.classList.add("bg-accent");
+      expect(accentFills(document.body)).toHaveLength(1);
+      row.classList.remove("bg-accent");
       expect(accentFills(document.body)).toHaveLength(0);
     });
 
