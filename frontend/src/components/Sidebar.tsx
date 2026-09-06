@@ -3,6 +3,7 @@
 import { Suspense, useCallback, useEffect, useMemo } from "react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { LockOpen } from "lucide-react";
+import { useTranslations } from "next-intl";
 import { useShortcuts } from "@/hooks/useShortcuts";
 
 import { lock as lockApi } from "@/lib/api";
@@ -32,6 +33,7 @@ const REORDERABLE_SECTIONS = ["collections", "pins", "smart-folders", "tags"] as
 type ReorderableSectionId = (typeof REORDERABLE_SECTIONS)[number];
 
 function SidebarNav() {
+  const t = useTranslations("sidebar");
   const pathname = usePathname();
   const searchParams = useSearchParams();
   const router = useRouter();
@@ -197,7 +199,7 @@ function SidebarNav() {
             className="flex w-full items-center gap-2 rounded-2xl px-3 py-2 text-xs text-text-muted transition-colors hover:bg-bg-elevated hover:text-text-primary"
           >
             <LockOpen size={14} />
-            Lock
+            {t("lock")}
           </button>
         </div>
       )}

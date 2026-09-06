@@ -1,6 +1,7 @@
-import { fireEvent, render, screen } from "@testing-library/react";
+import { cleanup, fireEvent, render, screen } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 
+import { accentFills } from "@/__tests__/helpers/accentFills";
 import type { MarkdownImageAnalysis } from "@/lib/markdownImageImport";
 import { MarkdownImagesPresenter } from "../MarkdownImagesPresenter";
 
@@ -30,16 +31,19 @@ const analysis: MarkdownImageAnalysis = {
   samples: [],
 };
 
-function renderPresenter(selectedHosts = new Set<string>()) {
+function renderPresenter(
+  selectedHosts = new Set<string>(),
+  withAnalysis = true,
+) {
   const onHostToggle = vi.fn();
   const onImport = vi.fn();
-  render(
+  const view = render(
     <MarkdownImagesPresenter
       drives={[{ name: "recipes", protected: false, file_count: 1000 }]}
       drive="recipes"
       folderPath=""
       recursive
-      analysis={analysis}
+      analysis={withAnalysis ? analysis : null}
       selectedHosts={selectedHosts}
       job={null}
       loading={false}
@@ -53,7 +57,7 @@ function renderPresenter(selectedHosts = new Set<string>()) {
       onCancel={vi.fn()}
     />,
   );
-  return { onHostToggle, onImport };
+  return { onHostToggle, onImport, container: view.container };
 }
 
 describe("MarkdownImagesPresenter", () => {
@@ -71,10 +75,6 @@ describe("MarkdownImagesPresenter", () => {
     expect(screen.getByText("1,000")).toBeInTheDocument();
     expect(screen.getByLabelText("images.example.com")).not.toBeChecked();
     expect(screen.getByRole("button", { name: "Attach 0" })).toBeDisabled();
-    expect(screen.getByRole("button", { name: "Analyze" })).toHaveClass(
-      "rounded-2xl",
-      "hover:bg-accent-hover",
-    );
   });
 
   it("enables import only when selected hosts contribute candidates", () => {
@@ -84,14 +84,31 @@ describe("MarkdownImagesPresenter", () => {
 
     const importButton = screen.getByRole("button", { name: "Attach 10" });
     expect(importButton).toBeEnabled();
-    expect(importButton).toHaveClass(
-      "rounded-2xl",
-      "hover:bg-accent-hover",
-    );
     fireEvent.click(importButton);
     expect(onImport).toHaveBeenCalledOnce();
 
     fireEvent.click(screen.getByLabelText("cdn.example.net"));
     expect(onHostToggle).toHaveBeenCalledWith("cdn.example.net");
+  });
+
+  /**
+   * This screen is two steps and the fill follows whichever one is
+   * current — Analyze until there is an analysis, Import afterwards.
+   *
+   * Both states are rendered and measured. Measuring one would go green
+   * with half the swap working: leave Analyze `primary` after the
+   * analysis arrives and the "before" state still spends exactly one,
+   * while the screen the user is actually looking at spends two.
+   */
+  it("spends exactly one accent fill in each of its two states", () => {
+    const before = renderPresenter(new Set(), false);
+    const beforeFills = accentFills(before.container);
+    expect(beforeFills.map((el) => el.textContent?.trim())).toEqual(["Analyze"]);
+    cleanup();
+
+    const after = renderPresenter(new Set(["images.example.com"]));
+    expect(accentFills(after.container).map((el) => el.textContent?.trim())).toEqual(
+      ["Attach 10"],
+    );
   });
 });

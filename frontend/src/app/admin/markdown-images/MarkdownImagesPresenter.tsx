@@ -19,6 +19,8 @@ import type {
   MarkdownImageAnalysis,
   MarkdownImageImportJob,
 } from "@/lib/markdownImageImport";
+import { Button } from "@/components/Button";
+import { PageHeader } from "@/components/PageHeader";
 
 const COUNT_KEYS = [
   "total_markdown",
@@ -83,8 +85,14 @@ function JobStatus({ job, onCancel }: { job: MarkdownImageImportJob; onCancel: (
         )}
       </div>
 
+      {/* Teal, for the reason `IndexStatusWidget` already gives about its
+          own bar: a filled accent bar at 100% reads as the thing to press,
+          and DESIGN.md §2.2 keeps the accent for the call to action. */}
       <div className="h-2 overflow-hidden rounded-full bg-bg-elevated">
-        <div className="h-full bg-accent transition-[width]" style={{ width: `${percent}%` }} />
+        <div
+          className="h-full bg-accent-teal transition-[width]"
+          style={{ width: `${percent}%` }}
+        />
       </div>
       <div className="mt-2 flex justify-between text-xs text-text-muted">
         <span>{t("progress", { processed: job.processed, total: job.total })}</span>
@@ -132,146 +140,158 @@ export function MarkdownImagesPresenter(props: Props) {
   const jobActive = props.job ? ACTIVE_STATES.has(props.job.state) : false;
 
   return (
-    <div className="mx-auto w-full min-w-0 max-w-4xl px-4 py-6 sm:px-6">
-      <div className="mb-6 flex items-center gap-3">
-        <Link
-          href="/admin"
-          aria-label={t("back")}
-          className="rounded-2xl p-2 text-text-muted transition-colors hover:bg-bg-elevated hover:text-text-primary"
-        >
-          <ArrowLeft size={18} />
-        </Link>
-        <ImageDown size={22} className="text-accent" />
-        <h1 className="text-xl font-bold text-text-primary">{t("title")}</h1>
-      </div>
-
-      {props.error && (
-        <div className="mb-5 flex items-start gap-2 rounded-xl bg-danger/10 px-4 py-3 text-sm text-danger">
-          <AlertCircle size={16} className="mt-0.5 shrink-0" />
-          {props.error}
-        </div>
-      )}
-
-      <section className="pb-6">
-        <h2 className="mb-4 text-sm font-semibold text-text-primary">{t("scope")}</h2>
-        <div className="grid min-w-0 gap-4 sm:grid-cols-2">
-          <label className="block min-w-0 text-sm text-text-muted">
-            <span className="mb-1.5 block">{t("drive")}</span>
-            <select
-              value={props.drive}
-              onChange={(event) => props.onDriveChange(event.target.value)}
-              className="h-11 w-full min-w-0 max-w-full rounded-2xl border border-bg-border bg-bg-primary px-3 text-text-primary transition-colors hover:bg-bg-elevated focus:outline-none focus:ring-2 focus:ring-focus-ring"
-            >
-              {props.drives.map((drive) => (
-                <option key={drive.name} value={drive.name}>{drive.name}</option>
-              ))}
-            </select>
-          </label>
-          <div className="min-w-0">
-            <span className="mb-1.5 block text-sm text-text-muted">{t("folder")}</span>
-            {props.drive ? (
-              <FolderPicker
-                drive={props.drive}
-                value={props.folderPath}
-                onChange={props.onFolderPathChange}
-              />
-            ) : (
-              <div className="h-11 rounded-2xl border border-bg-border bg-bg-elevated" />
-            )}
-          </div>
-        </div>
-        <label className="mt-4 inline-flex items-center gap-2 text-sm text-text-primary">
-          <input
-            type="checkbox"
-            checked={props.recursive}
-            onChange={(event) => props.onRecursiveChange(event.target.checked)}
-            className="h-4 w-4 accent-accent"
-          />
-          {t("recursive")}
-        </label>
-        <div className="mt-5">
-          <button
-            type="button"
-            onClick={props.onAnalyze}
-            disabled={!props.drive || props.loading || jobActive}
-            className="inline-flex h-10 items-center gap-2 rounded-2xl bg-accent px-4 text-sm font-semibold text-white transition-colors hover:bg-accent-hover disabled:cursor-not-allowed disabled:bg-sand disabled:text-warm-silver disabled:hover:bg-sand"
+    <div className="mx-auto w-full min-w-0 max-w-4xl py-2">
+      <PageHeader
+        leading={
+          <Link
+            href="/admin"
+            aria-label={t("back")}
+            className="rounded-2xl p-2 text-text-muted transition-colors hover:bg-bg-elevated hover:text-text-primary"
           >
-            {props.loading ? <Loader2 size={16} className="animate-spin" /> : <Search size={16} />}
-            {t("analyze")}
-          </button>
-        </div>
-      </section>
+            <ArrowLeft size={18} />
+          </Link>
+        }
+        titleIcon={ImageDown}
+        title={t("title")}
+      />
 
-      {props.analysis && (
-        <section className="border-t border-bg-border py-6">
-          <h2 className="mb-4 text-sm font-semibold text-text-primary">{t("analysis")}</h2>
-          <div className="grid grid-cols-2 gap-x-6 gap-y-3 sm:grid-cols-4">
-            {COUNT_KEYS.map((key) => (
-              <div key={key}>
-                <div className="text-xs text-text-muted">{t(`counts.${key}`)}</div>
-                <div className="text-lg font-semibold text-text-primary">
-                  {(props.analysis?.counts[key] ?? 0).toLocaleString()}
-                </div>
-              </div>
-            ))}
+      {/* `PageHeader` brings `px-4`; the body matches it. */}
+      <div className="px-4 pb-4">
+
+        {props.error && (
+          <div className="mb-5 flex items-start gap-2 rounded-xl bg-danger/10 px-4 py-3 text-sm text-danger">
+            <AlertCircle size={16} className="mt-0.5 shrink-0" />
+            {props.error}
           </div>
+        )}
 
-          <h3 className="mb-2 mt-6 text-sm font-medium text-text-primary">{t("hosts")}</h3>
-          {Object.keys(props.analysis.host_counts).length === 0 ? (
-            <p className="text-sm text-text-muted">{t("noCandidates")}</p>
-          ) : (
-            <div className="divide-y divide-bg-border overflow-hidden rounded-xl border border-bg-border">
-              {Object.entries(props.analysis.host_counts).map(([host, count]) => (
-                <label
-                  key={host}
-                  className="flex cursor-pointer items-center gap-3 px-3 py-2.5 transition-colors hover:bg-bg-elevated"
-                >
-                  <input
-                    type="checkbox"
-                    aria-label={host}
-                    checked={props.selectedHosts.has(host)}
-                    onChange={() => props.onHostToggle(host)}
-                    className="h-4 w-4 accent-accent"
-                  />
-                  <span className="min-w-0 flex-1 truncate text-sm text-text-primary">{host}</span>
-                  <span className="text-sm tabular-nums text-text-muted">{count.toLocaleString()}</span>
-                </label>
+        <section className="pb-6">
+          <h2 className="mb-4 text-sm font-semibold text-text-primary">{t("scope")}</h2>
+          <div className="grid min-w-0 gap-4 sm:grid-cols-2">
+            <label className="block min-w-0 text-sm text-text-muted">
+              <span className="mb-1.5 block">{t("drive")}</span>
+              <select
+                value={props.drive}
+                onChange={(event) => props.onDriveChange(event.target.value)}
+                className="h-11 w-full min-w-0 max-w-full rounded-2xl border border-bg-border bg-bg-primary px-3 text-text-primary transition-colors hover:bg-bg-elevated focus:outline-none focus:ring-2 focus:ring-focus-ring"
+              >
+                {props.drives.map((drive) => (
+                  <option key={drive.name} value={drive.name}>{drive.name}</option>
+                ))}
+              </select>
+            </label>
+            <div className="min-w-0">
+              <span className="mb-1.5 block text-sm text-text-muted">{t("folder")}</span>
+              {props.drive ? (
+                <FolderPicker
+                  drive={props.drive}
+                  value={props.folderPath}
+                  onChange={props.onFolderPathChange}
+                />
+              ) : (
+                <div className="h-11 rounded-2xl border border-bg-border bg-bg-elevated" />
+              )}
+            </div>
+          </div>
+          <label className="mt-4 inline-flex items-center gap-2 text-sm text-text-primary">
+            <input
+              type="checkbox"
+              checked={props.recursive}
+              onChange={(event) => props.onRecursiveChange(event.target.checked)}
+              className="h-4 w-4 accent-accent"
+            />
+            {t("recursive")}
+          </label>
+          <div className="mt-5">
+            {/* This screen is two steps, and only one of them is the thing
+                to press now: before there is an analysis, Analyze is it;
+                afterwards Import is, and Analyze becomes the way back. So
+                the fill moves rather than being spent twice. */}
+            <Button
+              variant={props.analysis ? "secondary" : "primary"}
+              onClick={props.onAnalyze}
+              disabled={!props.drive || props.loading || jobActive}
+            >
+              {props.loading ? (
+                <Loader2 size={16} className="animate-spin" />
+              ) : (
+                <Search size={16} />
+              )}
+              {t("analyze")}
+            </Button>
+          </div>
+        </section>
+
+        {props.analysis && (
+          <section className="border-t border-bg-border py-6">
+            <h2 className="mb-4 text-sm font-semibold text-text-primary">{t("analysis")}</h2>
+            <div className="grid grid-cols-2 gap-x-6 gap-y-3 sm:grid-cols-4">
+              {COUNT_KEYS.map((key) => (
+                <div key={key}>
+                  <div className="text-xs text-text-muted">{t(`counts.${key}`)}</div>
+                  <div className="text-lg font-semibold text-text-primary">
+                    {(props.analysis?.counts[key] ?? 0).toLocaleString()}
+                  </div>
+                </div>
               ))}
             </div>
-          )}
 
-          <div className="mt-5 flex flex-wrap items-center gap-3">
-            <button
-              type="button"
-              onClick={props.onImport}
-              disabled={selectedCount === 0 || props.loading || jobActive}
-              className="inline-flex h-10 items-center gap-2 rounded-2xl bg-accent px-4 text-sm font-semibold text-white transition-colors hover:bg-accent-hover disabled:cursor-not-allowed disabled:bg-sand disabled:text-warm-silver disabled:hover:bg-sand"
-            >
-              <Download size={16} />
-              {t("import", { count: selectedCount })}
-            </button>
-            <span className="text-xs text-text-muted">{t("selected", { count: selectedCount })}</span>
-          </div>
-
-          {props.analysis.samples.length > 0 && (
-            <div className="mt-6 overflow-hidden rounded-xl border border-bg-border">
-              <div className="border-b border-bg-border bg-bg-elevated px-3 py-2 text-sm font-medium text-text-primary">
-                {t("samples")}
-              </div>
-              <div className="max-h-64 divide-y divide-bg-border overflow-y-auto">
-                {props.analysis.samples.map((sample, index) => (
-                  <div key={`${sample.file_path}-${index}`} className="flex gap-3 px-3 py-2 text-xs">
-                    <span className="min-w-0 flex-1 truncate text-text-primary">{sample.file_path}</span>
-                    <span className="shrink-0 text-text-muted">{sample.hostname ?? t(`counts.${sample.category}`)}</span>
-                  </div>
+            <h3 className="mb-2 mt-6 text-sm font-medium text-text-primary">{t("hosts")}</h3>
+            {Object.keys(props.analysis.host_counts).length === 0 ? (
+              <p className="text-sm text-text-muted">{t("noCandidates")}</p>
+            ) : (
+              <div className="divide-y divide-bg-border overflow-hidden rounded-xl border border-bg-border">
+                {Object.entries(props.analysis.host_counts).map(([host, count]) => (
+                  <label
+                    key={host}
+                    className="flex cursor-pointer items-center gap-3 px-3 py-2.5 transition-colors hover:bg-bg-elevated"
+                  >
+                    <input
+                      type="checkbox"
+                      aria-label={host}
+                      checked={props.selectedHosts.has(host)}
+                      onChange={() => props.onHostToggle(host)}
+                      className="h-4 w-4 accent-accent"
+                    />
+                    <span className="min-w-0 flex-1 truncate text-sm text-text-primary">{host}</span>
+                    <span className="text-sm tabular-nums text-text-muted">{count.toLocaleString()}</span>
+                  </label>
                 ))}
               </div>
-            </div>
-          )}
-        </section>
-      )}
+            )}
 
-      {props.job && <JobStatus job={props.job} onCancel={props.onCancel} />}
+            <div className="mt-5 flex flex-wrap items-center gap-3">
+              <Button
+                variant="primary"
+                onClick={props.onImport}
+                disabled={selectedCount === 0 || props.loading || jobActive}
+              >
+                <Download size={16} />
+                {t("import", { count: selectedCount })}
+              </Button>
+              <span className="text-xs text-text-muted">{t("selected", { count: selectedCount })}</span>
+            </div>
+
+            {props.analysis.samples.length > 0 && (
+              <div className="mt-6 overflow-hidden rounded-xl border border-bg-border">
+                <div className="border-b border-bg-border bg-bg-elevated px-3 py-2 text-sm font-medium text-text-primary">
+                  {t("samples")}
+                </div>
+                <div className="max-h-64 divide-y divide-bg-border overflow-y-auto">
+                  {props.analysis.samples.map((sample, index) => (
+                    <div key={`${sample.file_path}-${index}`} className="flex gap-3 px-3 py-2 text-xs">
+                      <span className="min-w-0 flex-1 truncate text-text-primary">{sample.file_path}</span>
+                      <span className="shrink-0 text-text-muted">{sample.hostname ?? t(`counts.${sample.category}`)}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+          </section>
+        )}
+
+        {props.job && <JobStatus job={props.job} onCancel={props.onCancel} />}
+      </div>
     </div>
   );
 }

@@ -12,6 +12,7 @@ import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
 
 import { RestartBanner } from "@/components/RestartBanner";
+import { PageHeader } from "@/components/PageHeader";
 
 type GateState = "loading" | "ok" | "forbidden";
 
@@ -70,11 +71,11 @@ export default function AdminLayout({
 
   if (gate === "forbidden") {
     return (
-      <div className="mx-auto max-w-2xl px-4 py-12 sm:px-6">
-        <h1 className="mb-2 text-xl font-bold text-text-primary">
-          {t("forbiddenTitle")}
-        </h1>
-        <p className="text-sm text-text-muted">{t("forbiddenMessage")}</p>
+      // 403 is what this route displays, so "you cannot see this" is the
+      // page's subject and gets the page's heading — not a special case
+      // that keeps a hand-written one.
+      <div className="mx-auto max-w-2xl py-8">
+        <PageHeader title={t("forbiddenTitle")} scope={t("forbiddenMessage")} />
       </div>
     );
   }

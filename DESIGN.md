@@ -612,17 +612,19 @@ explained why the button is off.
 > is itself a decision to pass defects through.** The local harm gets the
 > local fix instead.
 >
-> **Progress: 31 of the 40 converted, 9 remain.** The first 13 were
+> **Progress: 33 of the 40 converted, 7 remain.** The first 13 were
 > the call sites under `frontend/src/components/` (PR A2b); 11 more came from
 > media_import in C1 and intelligence in C2a and C2b, and 7 from
 > knowledge in C3. Every addon pointer has moved. The population fell from 43
 > to 40 when knowledge's unreachable two-pane view was deleted, taking three
 > converted sites with it — `ClipInput`, `FolderView` and `MoveDialog`; the
 > fourth deleted file that held one, `UnresolvedLinkDialog`, came back in
-> review. The 9 unconverted are untouched by that. Of the 9 left, seven are
-> core — four in the first-run wizard and one on the unlock gate, brand
-> surfaces outside the AppShell, plus two under `app/admin/`, which 案 15 /
-> 案 16 rebuild in Phase 4 — and two are cloud-sync's and stay, per the
+> review. The 7 unconverted are untouched by that. The two under
+> `app/admin/` — the analyse and import buttons on the Markdown-image tool —
+> were converted by 案 15 in Phase 4, which also made the fill move between
+> them rather than being spent on both at once. Of the 7 left, five are core
+> — four in the first-run wizard and one on the unlock gate, brand surfaces
+> outside the AppShell — and two are cloud-sync's and stay, per the
 > paragraph above.
 >
 > `src/__tests__/button-adoption.test.ts` holds that list per file, across core
@@ -631,8 +633,8 @@ explained why the button is off.
 > held — a scope that leaves out 23 sites cannot be contradicted by them,
 > which is the failure this paragraph's own numbers exist to prevent.
 >
-> **Only the 9 is checked.** That test asserts the unconverted sites per file
-> and their total; 40, 31 and 38 are historical bookkeeping that no test can
+> **Only the 7 is checked.** That test asserts the unconverted sites per file
+> and their total; 40, 33 and 38 are historical bookkeeping that no test can
 > recompute, because "converted" is a fact about a file's past and the tree
 > holds 50 `<Button>` call sites for every reason including this one. They
 > are kept honest by being derived here from measurements, and by being wrong
