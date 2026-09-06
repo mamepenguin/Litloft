@@ -12,7 +12,7 @@ The page is composed of stacked sections, each driven by an API call:
 
 For every drive in `drives.json`:
 
-- **File counts by type** — videos, audio, images, documents, archives, other.
+- **File counts by type** — video, audio, document, archive, image, other, in that fixed order and always all six. A type the drive holds none of reads as `0` in muted text rather than being left out, so the breakdown on one card lines up with the breakdown on the next. Subtitle files are counted under *other*: the six names are what the card shows, and the total has to match the file count above it.
 - **Trash count and bytes** — how much would be reclaimed by an empty-trash cycle.
 - **Missing count** — files that disappeared from disk and are awaiting recovery.
 - **Last scan** — when the scanner last walked this drive.

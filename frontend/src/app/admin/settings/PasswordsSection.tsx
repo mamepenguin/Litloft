@@ -14,6 +14,7 @@ import {
   getPasswords,
   type PasswordEntry,
 } from "@/lib/adminConfig";
+import { Button } from "@/components/Button";
 
 interface ModalState {
   draft: { password: string; groups: string };
@@ -135,21 +136,26 @@ export function PasswordsSection(): React.ReactElement {
 
   return (
     <section className="rounded-xl border border-bg-border bg-bg-card p-6">
-      <div className="mb-6 flex items-start justify-between">
-        <div>
+      {/* See `DrivesSection` for why the left side gives and the button
+          does not. */}
+      <div className="mb-6 flex items-start justify-between gap-3">
+        <div className="min-w-0">
           <h2 className="text-lg font-semibold text-text-primary">
             {t("title")}
           </h2>
           <p className="mt-1 text-sm text-text-muted">{t("description")}</p>
         </div>
         {!isPublic && (
-          <button
-            type="button"
-            onClick={openAdd}
-            className="rounded-2xl bg-accent px-3 py-1.5 text-xs font-medium text-white hover:bg-accent-hover"
-          >
-            {t("addButton")}
-          </button>
+          <div className="flex-shrink-0">
+            <Button
+              variant="primary"
+              size="sm"
+              onClick={openAdd}
+              className="whitespace-nowrap"
+            >
+              {t("addButton")}
+            </Button>
+          </div>
         )}
       </div>
 
@@ -162,13 +168,14 @@ export function PasswordsSection(): React.ReactElement {
       ) : isPublic ? (
         <div className="rounded-2xl bg-bg-elevated p-4">
           <p className="mb-3 text-sm text-text-primary">{t("publicMode")}</p>
-          <button
-            type="button"
+          <Button
+            variant="primary"
+            size="sm"
             onClick={openAdd}
-            className="rounded-2xl bg-accent px-3 py-1.5 text-xs font-medium text-white hover:bg-accent-hover"
+            className="whitespace-nowrap"
           >
             {t("enableProtection")}
-          </button>
+          </Button>
         </div>
       ) : (
         <ul className="divide-y divide-bg-border">

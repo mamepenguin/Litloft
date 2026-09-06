@@ -13,6 +13,7 @@ import {
   putDrives,
   type DriveEntry,
 } from "@/lib/adminConfig";
+import { Button } from "@/components/Button";
 
 interface ModalState {
   mode: "add" | "edit";
@@ -157,20 +158,28 @@ export function DrivesSection(): React.ReactElement {
 
   return (
     <section className="rounded-xl border border-bg-border bg-bg-card p-6">
-      <div className="mb-6 flex items-start justify-between">
-        <div>
+      {/* The prose gives, the button does not. Without `min-w-0` on the
+          left and `flex-shrink-0` on the right, a long heading and its
+          sentence squeeze the button until its label breaks over two
+          lines — and `Button` is sized by padding, so the label wrapping
+          is what `whitespace-nowrap` has to stop. */}
+      <div className="mb-6 flex items-start justify-between gap-3">
+        <div className="min-w-0">
           <h2 className="text-lg font-semibold text-text-primary">
             {t("title")}
           </h2>
           <p className="mt-1 text-sm text-text-muted">{t("description")}</p>
         </div>
-        <button
-          type="button"
-          onClick={openAdd}
-          className="rounded-2xl bg-accent px-3 py-1.5 text-xs font-medium text-white hover:bg-accent-hover"
-        >
-          {t("addButton")}
-        </button>
+        <div className="flex-shrink-0">
+          <Button
+            variant="primary"
+            size="sm"
+            onClick={openAdd}
+            className="whitespace-nowrap"
+          >
+            {t("addButton")}
+          </Button>
+        </div>
       </div>
 
       <details className="mb-4 rounded-xl bg-bg-elevated p-4 text-sm">

@@ -71,6 +71,7 @@ If `passwords.json` is empty (`[]`) or absent, every viewer is implicitly an adm
 
 ## Resetting access
 
+- **Lock again** from the bottom of the sidebar. The control appears only once you hold at least one group, and drops every unlock on that device. It is labelled in the interface language.
 - **Clear cookies** in the browser to forget all unlocks on that device.
 - **Edit `passwords.json`** to revoke or change passwords. Existing JWTs remain valid until they expire because the backend does not maintain a session table; for instant revocation, also rotate `JWT_SECRET` in `.env` and restart the backend, which invalidates every issued token.
 

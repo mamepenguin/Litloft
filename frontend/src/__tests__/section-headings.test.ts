@@ -47,6 +47,24 @@ const ADDON_LINK_DIR = resolve(REPO_ROOT, "frontend/src/addons");
 /** The class list every section heading in the app is written with. */
 const HEADING_CLASSES = "flex items-center gap-2 text-lg font-bold text-text-primary";
 
+/**
+ * The admin dashboard's cards name themselves the same way, one level
+ * down: an 18px glyph and an `<h3>`, side by side at the top of the card.
+ *
+ * They are here rather than in a file of their own because they are the
+ * same claim — a heading's glyph tells you which heading it is, and its
+ * colour is not allowed to say anything else. The dashboard had three of
+ * them and two colours, which read as one card mattering more than the
+ * others.
+ *
+ * The shape is the glyph *immediately* followed by the `<h3>`. The class
+ * list alone matches ten places in the tree that are not card headings —
+ * a dialog title, a wizard step, a picker — and none of them carries an
+ * icon beside it.
+ */
+const CARD_HEADING_CLASSES = "text-sm font-semibold text-text-primary";
+const CARD_ICON_SIZE = 18;
+
 /** Components whose `icon` prop is rendered as a section heading icon. */
 const SECTION_COMPONENTS = ["CarouselSection", "ContinueWatchingSection"];
 
@@ -76,6 +94,8 @@ interface HeadingIcon {
   size: number | null;
   colour: string | null;
   where: string;
+  /** Which rung of the outline it names. Sizes differ; colour does not. */
+  level: "section" | "card";
 }
 
 /** `<Glyph size={20} className="…" />`, wherever it appears in `body`. */
@@ -112,7 +132,24 @@ function headingIcons(): HeadingIcon[] {
         const end = text.indexOf("</h2>", start);
         if (end === -1) continue;
         for (const icon of iconsIn(text.slice(start, end))) {
-          out.push({ ...icon, where: `${rel}:${lineOf(start + icon.at)}` });
+          out.push({
+            ...icon,
+            where: `${rel}:${lineOf(start + icon.at)}`,
+            level: "section",
+          });
+        }
+      }
+
+      // Shape 3: an 18px glyph immediately followed by a card `<h3>`.
+      for (const m of text.matchAll(
+        new RegExp(
+          `<([A-Z][A-Za-z0-9]*)\\s([^<>]*?)/>\\s*<h3[^>]*${CARD_HEADING_CLASSES}`,
+          "gs",
+        ),
+      )) {
+        for (const icon of iconsIn(`<${m[1]} ${m[2]}/>`)) {
+          if (icon.size !== CARD_ICON_SIZE) continue;
+          out.push({ ...icon, where: `${rel}:${lineOf(m.index!)}`, level: "card" });
         }
       }
 
@@ -134,7 +171,11 @@ function headingIcons(): HeadingIcon[] {
         const owner = [...before.matchAll(/<([A-Z][A-Za-z0-9]*)[\s>]/g)].pop();
         if (!owner || !SECTION_COMPONENTS.includes(owner[1])) continue;
         for (const icon of iconsIn(text.slice(open + 1, i))) {
-          out.push({ ...icon, where: `${rel}:${lineOf(m.index!)}` });
+          out.push({
+            ...icon,
+            where: `${rel}:${lineOf(m.index!)}`,
+            level: "section",
+          });
         }
       }
     }
@@ -168,10 +209,12 @@ describe("section heading icons", () => {
         : "frontend/src";
       perRoot.set(root, (perRoot.get(root) ?? 0) + 1);
     }
-    expect(perRoot.get("frontend/src")).toBe(7);
+    // Seven drive-home sections plus the admin dashboard's two cards.
+    expect(perRoot.get("frontend/src")).toBe(9);
 
     const EXPECTED_ADDON_ICONS: Record<string, number> = {
-      "addons/intelligence": 1,
+      // "Pickup" on the drive home, and the index-status card on /admin.
+      "addons/intelligence": 2,
       "addons/knowledge": 0,
       "addons/media_import": 0,
       "addons/cloud-sync": 0,
@@ -205,10 +248,20 @@ describe("section heading icons", () => {
   it("sizes the ones that head a section alike", () => {
     // A page title is not a section heading: the "Pickup" feed page's
     // own <h1> keeps its larger glyph and neither shape matches it.
-    const wrong = icons.filter((i) => i.size !== REQUIRED_SIZE);
+    //
+    // Per level, because the two rungs are two sizes: a section heading
+    // is 20px and a card heading 18px, which is the same relation their
+    // type carries. One number over both would have to be a range, and a
+    // range is what let four colours in.
+    const wrong = icons.filter(
+      (i) => i.size !== (i.level === "card" ? CARD_ICON_SIZE : REQUIRED_SIZE),
+    );
     expect(
       wrong.map((i) => `${i.where} <${i.glyph}> is size ${i.size}`),
     ).toEqual([]);
+    // Neither level is empty, so neither branch of that filter is prose.
+    expect(icons.some((i) => i.level === "card")).toBe(true);
+    expect(icons.some((i) => i.level === "section")).toBe(true);
   });
 
   it("leaves each section of one column its own glyph", () => {

@@ -65,7 +65,8 @@
       "byCount": "By count",
       "toggle": "Toggle tag sort order"
     },
-    "clearTag": "Clear tag filter"
+    "clearTag": "Clear tag filter",
+    "lock": "Lock"
   },
   "drive": {
     "empty": "No drives found",

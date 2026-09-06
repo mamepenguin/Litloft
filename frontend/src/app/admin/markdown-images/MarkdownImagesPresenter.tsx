@@ -19,6 +19,8 @@ import type {
   MarkdownImageAnalysis,
   MarkdownImageImportJob,
 } from "@/lib/markdownImageImport";
+import { Button } from "@/components/Button";
+import { PageHeader } from "@/components/PageHeader";
 
 const COUNT_KEYS = [
   "total_markdown",
@@ -83,8 +85,14 @@ function JobStatus({ job, onCancel }: { job: MarkdownImageImportJob; onCancel: (
         )}
       </div>
 
+      {/* Teal, for the reason `IndexStatusWidget` already gives about its
+          own bar: a filled accent bar at 100% reads as the thing to press,
+          and DESIGN.md §2.2 keeps the accent for the call to action. */}
       <div className="h-2 overflow-hidden rounded-full bg-bg-elevated">
-        <div className="h-full bg-accent transition-[width]" style={{ width: `${percent}%` }} />
+        <div
+          className="h-full bg-accent-teal transition-[width]"
+          style={{ width: `${percent}%` }}
+        />
       </div>
       <div className="mt-2 flex justify-between text-xs text-text-muted">
         <span>{t("progress", { processed: job.processed, total: job.total })}</span>
@@ -132,18 +140,23 @@ export function MarkdownImagesPresenter(props: Props) {
   const jobActive = props.job ? ACTIVE_STATES.has(props.job.state) : false;
 
   return (
-    <div className="mx-auto w-full min-w-0 max-w-4xl px-4 py-6 sm:px-6">
-      <div className="mb-6 flex items-center gap-3">
-        <Link
-          href="/admin"
-          aria-label={t("back")}
-          className="rounded-2xl p-2 text-text-muted transition-colors hover:bg-bg-elevated hover:text-text-primary"
-        >
-          <ArrowLeft size={18} />
-        </Link>
-        <ImageDown size={22} className="text-accent" />
-        <h1 className="text-xl font-bold text-text-primary">{t("title")}</h1>
-      </div>
+    <div className="mx-auto w-full min-w-0 max-w-4xl py-2">
+      <PageHeader
+        leading={
+          <Link
+            href="/admin"
+            aria-label={t("back")}
+            className="rounded-2xl p-2 text-text-muted transition-colors hover:bg-bg-elevated hover:text-text-primary"
+          >
+            <ArrowLeft size={18} />
+          </Link>
+        }
+        titleIcon={ImageDown}
+        title={t("title")}
+      />
+
+      {/* `PageHeader` brings `px-4`; the body matches it. */}
+      <div className="px-4 pb-4">
 
       {props.error && (
         <div className="mb-5 flex items-start gap-2 rounded-xl bg-danger/10 px-4 py-3 text-sm text-danger">
@@ -190,15 +203,22 @@ export function MarkdownImagesPresenter(props: Props) {
           {t("recursive")}
         </label>
         <div className="mt-5">
-          <button
-            type="button"
+          {/* This screen is two steps, and only one of them is the thing
+              to press now: before there is an analysis, Analyze is it;
+              afterwards Import is, and Analyze becomes the way back. So
+              the fill moves rather than being spent twice. */}
+          <Button
+            variant={props.analysis ? "secondary" : "primary"}
             onClick={props.onAnalyze}
             disabled={!props.drive || props.loading || jobActive}
-            className="inline-flex h-10 items-center gap-2 rounded-2xl bg-accent px-4 text-sm font-semibold text-white transition-colors hover:bg-accent-hover disabled:cursor-not-allowed disabled:bg-sand disabled:text-warm-silver disabled:hover:bg-sand"
           >
-            {props.loading ? <Loader2 size={16} className="animate-spin" /> : <Search size={16} />}
+            {props.loading ? (
+              <Loader2 size={16} className="animate-spin" />
+            ) : (
+              <Search size={16} />
+            )}
             {t("analyze")}
-          </button>
+          </Button>
         </div>
       </section>
 
@@ -241,15 +261,14 @@ export function MarkdownImagesPresenter(props: Props) {
           )}
 
           <div className="mt-5 flex flex-wrap items-center gap-3">
-            <button
-              type="button"
+            <Button
+              variant="primary"
               onClick={props.onImport}
               disabled={selectedCount === 0 || props.loading || jobActive}
-              className="inline-flex h-10 items-center gap-2 rounded-2xl bg-accent px-4 text-sm font-semibold text-white transition-colors hover:bg-accent-hover disabled:cursor-not-allowed disabled:bg-sand disabled:text-warm-silver disabled:hover:bg-sand"
             >
               <Download size={16} />
               {t("import", { count: selectedCount })}
-            </button>
+            </Button>
             <span className="text-xs text-text-muted">{t("selected", { count: selectedCount })}</span>
           </div>
 
@@ -272,6 +291,7 @@ export function MarkdownImagesPresenter(props: Props) {
       )}
 
       {props.job && <JobStatus job={props.job} onCancel={props.onCancel} />}
+      </div>
     </div>
   );
 }

@@ -63,9 +63,6 @@ const NOT_CONVERTED: Record<string, number> = {
   "app/setup/steps/LanguageStep.tsx": 1,
   "app/setup/steps/PasswordStep.tsx": 1,
   "app/unlock/page.tsx": 1,
-  // Core, rebuilt whole by 案 15 / 案 16 in Phase 4.
-  "app/admin/markdown-images/MarkdownImagesPresenter.tsx": 2,
-
   // Addons. `Button` lives in core and an addon imports it, so these convert
   // in the addon PRs — media_import in C1, intelligence in C2a/C2b,
   // knowledge in C3 — each a pull request in its own repository. All three
@@ -155,21 +152,21 @@ describe("Button adoption", () => {
 
   // The population this phase is about. DESIGN.md §6 says 40 sites carry the
   // treatment — 43 until knowledge's unreachable two-pane view took three
-  // with it; 13 were converted in A2b, 11 more in C1/C2a/C2b and 7 in C3, so
-  // 9 remain. Only this 9 is asserted anywhere: the other numbers are that
+  // with it; 13 were converted in A2b, 11 more in C1/C2a/C2b, 7 in C3 and the
+  // Markdown-image tool's 2 in Phase 4's 案 15, so 7 remain. Only this 9 is asserted anywhere: the other numbers are that
   // paragraph's bookkeeping, and this comment is the copy of them that goes
   // stale, so it is worth re-reading when the paragraph moves. Asserting the
   // total as well as the per-file map
   // is what makes both numbers checkable rather than remembered — and the
   // second half keeps it honest in a checkout holding fewer addons than
   // this one.
-  it("leaves exactly nine sites unconverted across the repository", () => {
+  it("leaves exactly seven sites unconverted across the repository", () => {
     const observed = handWritten();
     const total = Object.values(observed).reduce((a, b) => a + b, 0);
     const listed = Object.values(expected()).reduce((a, b) => a + b, 0);
     expect(total).toBe(listed);
     if (listed === Object.values(NOT_CONVERTED).reduce((a, b) => a + b, 0)) {
-      expect(total).toBe(9);
+      expect(total).toBe(7);
     }
   });
 
