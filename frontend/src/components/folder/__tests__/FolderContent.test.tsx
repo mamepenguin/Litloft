@@ -61,6 +61,12 @@ vi.mock("@/components/FolderCard", () => ({
   ),
 }));
 
+vi.mock("@/components/FolderListRow", () => ({
+  FolderListRow: ({ folder }: { folder: Folder }) => (
+    <div data-testid="folder-list-row">{folder.name}</div>
+  ),
+}));
+
 const mockFile = (id: string): FileItem => ({
   image_width: null,
   image_height: null,
@@ -140,6 +146,42 @@ describe("FolderContent", () => {
     render(<FolderContent {...defaultProps} viewMode="list" />);
     expect(screen.getByTestId("file-list")).toBeInTheDocument();
     expect(screen.queryByTestId("file-grid")).not.toBeInTheDocument();
+  });
+
+  /**
+   * F-8. A grid of folder cards sitting above a column of file rows is
+   * two answers to "what am I looking at" on one screen.
+   */
+  describe("folders follow the view mode", () => {
+    const withFolders = {
+      ...defaultProps,
+      folders: [mockFolder("travel"), mockFolder("work")],
+    };
+
+    it("draws folders as cards in grid mode", () => {
+      render(<FolderContent {...withFolders} viewMode="grid" />);
+      expect(screen.getAllByTestId("folder-card")).toHaveLength(2);
+      expect(screen.queryAllByTestId("folder-list-row")).toHaveLength(0);
+    });
+
+    it("draws folders as rows in list mode", () => {
+      render(<FolderContent {...withFolders} viewMode="list" />);
+      expect(screen.getAllByTestId("folder-list-row")).toHaveLength(2);
+      expect(screen.queryAllByTestId("folder-card")).toHaveLength(0);
+    });
+
+    it("drops the card grid's column template in list mode", () => {
+      const { container: grid } = render(
+        <FolderContent {...withFolders} viewMode="grid" />,
+      );
+      const gridBox = grid.querySelector("[style*='grid-template-columns']");
+      expect(gridBox).not.toBeNull();
+
+      const { container: list } = render(
+        <FolderContent {...withFolders} viewMode="list" />,
+      );
+      expect(list.querySelector("[style*='grid-template-columns']")).toBeNull();
+    });
   });
 
   it("shows loading spinner when loading", () => {

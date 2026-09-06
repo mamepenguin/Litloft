@@ -116,7 +116,11 @@ function FileListRowImpl({
           </span>
         )}
       </div>
-      <div className="min-w-0 flex-1">
+      {/* The cap is on the row's contents, not on the row. Capping the
+          row would shrink the hover band and the click target with it,
+          leaving a lit strip floating in the middle of a wide window.
+          DESIGN.md §3.6. */}
+      <div className="min-w-0 max-w-list-row flex-1">
         <div className="flex items-center gap-2">
           <h3 className="min-w-0 flex-1 truncate text-sm font-semibold text-text-primary">
             {file.title}

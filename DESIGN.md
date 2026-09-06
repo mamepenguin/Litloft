@@ -453,6 +453,25 @@ p, li, dd {
 
 ---
 
+### 3.6 List row measure
+
+A listing row's **contents** are capped at `60rem` (960px), exposed as the
+`max-w-list-row` utility (`--container-list-row`). It applies to the text
+column of `FileListRow` and `FolderListRow`.
+
+- **The cap is on the contents, not on the row.** The row keeps its full
+  width, so the hover band and the click target still span the listing. A
+  capped row is a lit strip floating in the middle of a wide window.
+- **Why there is a cap at all**: the title takes the space that is going
+  and the size and date pin to the right edge, so on a 1512px screen the
+  two halves of one row sit ~700px apart and the eye has to travel to pair
+  them up.
+- **This is not §8.5's `60rem`.** That one asks whether a rail can sit
+  beside the player and is measured against a container; this one is a
+  reading measure for a row. They share a number and nothing else, which
+  is why this one has a name rather than a literal at each call site —
+  §8.5 already warns that four thresholds must not be merged.
+
 ## 4. Depth & Elevation
 
 | Level | Treatment | Usage |
