@@ -73,7 +73,17 @@ function rendersCards(body: string): boolean {
   return (
     /<FileCard\b/.test(body) ||
     /<FolderCard\b/.test(body) ||
-    /getThumbnailUrl\(/.test(body)
+    /getThumbnailUrl\(/.test(body) ||
+    // A grid that takes its cards as `children` carries none of those
+    // tokens — `SectionRow` is the drive home's shelf and its cells are
+    // built by its two callers. Calling the measuring hook is what it
+    // does have, and a file that calls it *is* laying out a card grid.
+    //
+    // This does not make the sweep circular. The clause only adds files;
+    // a card grid that counts its own columns still has no
+    // `useCardColumns` call and is caught by the three token tests
+    // above, which is the case this whole file exists to fail on.
+    /useCardColumns\(\)/.test(body)
   );
 }
 
@@ -197,6 +207,7 @@ describe("every card grid goes through lib/cardGrid", () => {
       new Set([
         "frontend/src/components/FileGrid.tsx",
         "frontend/src/components/DriveHome.tsx",
+        "frontend/src/components/SectionRow.tsx",
         "frontend/src/components/folder/FolderContent.tsx",
         "frontend/src/components/folder/RightPaneFolder.tsx",
         "frontend/src/components/missing/MissingFileGrid.tsx",
@@ -213,10 +224,10 @@ describe("every card grid goes through lib/cardGrid", () => {
   });
 
   it("hands every grid element the measuring ref", () => {
-    // Seven grid elements over six components: `DriveHome` renders its
+    // Eight grid elements over seven components: `DriveHome` renders its
     // skeleton and its loaded folder row from one hook.
-    expect(sites.length).toBe(7);
-    expect(useCardColumnsCallSites().length).toBe(6);
+    expect(sites.length).toBe(8);
+    expect(useCardColumnsCallSites().length).toBe(7);
 
     // Counting the hook calls is not enough: a component can call it and
     // never attach the ref, in which case the element is laid out by the

@@ -51,7 +51,7 @@ function FileCardImpl({
    * `lib/listMeta.ts` for the rule, and the memo note at the bottom of
    * this file for why it arrives as a primitive.
    *
-   * Defaults to drawing it: the drive-home carousels render cards
+   * Defaults to drawing it: the drive-home rows render cards
    * directly and are mixed by construction, so the rule would only ever
    * confirm what the default already does.
    */

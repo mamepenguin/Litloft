@@ -8,6 +8,7 @@ import type { FileItem } from "@/types";
 import { useContextMenu } from "@/hooks/useContextMenu";
 import { FileCard } from "./FileCard";
 import { FileContextMenu } from "./FileContextMenu";
+import { SectionRow } from "./SectionRow";
 
 interface CarouselSectionProps {
   title: string;
@@ -15,6 +16,14 @@ interface CarouselSectionProps {
   files: FileItem[];
   loading: boolean;
   seeAllHref?: string;
+  /**
+   * How many files the section has in total, when the caller knows.
+   *
+   * The row shows only what fits, so "there is more" has to be said in
+   * words — D-1's complaint was never the scroll strip itself but that
+   * nothing told the reader how much was past the edge.
+   */
+  totalCount?: number;
   onRefresh?: () => void;
   refreshing?: boolean;
   onFileAction?: () => void;
@@ -22,13 +31,11 @@ interface CarouselSectionProps {
 
 function SkeletonCard() {
   return (
-    <div className="w-48 flex-shrink-0 snap-start sm:w-56">
-      <div className="animate-pulse rounded-xl overflow-hidden">
-        <div className="aspect-video bg-bg-elevated" />
-        <div className="p-3 space-y-2">
-          <div className="h-4 w-3/4 rounded-lg bg-bg-elevated" />
-          <div className="h-3 w-1/2 rounded-lg bg-bg-elevated" />
-        </div>
+    <div className="animate-pulse rounded-xl overflow-hidden">
+      <div className="aspect-video bg-bg-elevated" />
+      <div className="p-3 space-y-2">
+        <div className="h-4 w-3/4 rounded-lg bg-bg-elevated" />
+        <div className="h-3 w-1/2 rounded-lg bg-bg-elevated" />
       </div>
     </div>
   );
@@ -40,6 +47,7 @@ export function CarouselSection({
   files,
   loading,
   seeAllHref,
+  totalCount,
   onRefresh,
   refreshing,
   onFileAction,
@@ -80,35 +88,34 @@ export function CarouselSection({
               href={seeAllHref}
               className="text-sm text-text-muted transition-colors hover:text-accent"
             >
-              {tc("seeAll")}
+              {totalCount === undefined
+                ? tc("seeAll")
+                : tc("seeAllCount", { count: totalCount })}
             </Link>
           )}
         </div>
       </div>
 
-      <div className="-mx-4 px-4 overflow-x-auto scrollbar-hide sm:-mx-0 sm:px-0">
-        <div className="flex gap-3 pb-2 snap-x snap-mandatory">
-          {loading
-            ? Array.from({ length: 6 }).map((_, i) => <SkeletonCard key={i} />)
-            : files.map((file) => (
-                <div key={file.id} className="w-48 flex-shrink-0 snap-start sm:w-56">
-                  <FileCard
-                    file={file}
-                    onContextMenu={(e, f) => {
-                      setTarget(f);
-                      handlers.onContextMenu(e);
-                    }}
-                    onTouchStart={(e, f) => {
-                      setTarget(f);
-                      handlers.onTouchStart(e);
-                    }}
-                    onTouchEnd={handlers.onTouchEnd}
-                    onTouchMove={handlers.onTouchMove}
-                  />
-                </div>
-              ))}
-        </div>
-      </div>
+      <SectionRow>
+        {loading
+          ? Array.from({ length: 6 }).map((_, i) => <SkeletonCard key={i} />)
+          : files.map((file) => (
+              <FileCard
+                key={file.id}
+                file={file}
+                onContextMenu={(e, f) => {
+                  setTarget(f);
+                  handlers.onContextMenu(e);
+                }}
+                onTouchStart={(e, f) => {
+                  setTarget(f);
+                  handlers.onTouchStart(e);
+                }}
+                onTouchEnd={handlers.onTouchEnd}
+                onTouchMove={handlers.onTouchMove}
+              />
+            ))}
+      </SectionRow>
 
       <FileContextMenu
         open={menuState.open}

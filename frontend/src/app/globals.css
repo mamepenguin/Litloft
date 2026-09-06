@@ -730,14 +730,6 @@ div[data-citation-section-path]:not(tr) {
   overflow-wrap: anywhere;
 }
 
-@utility scrollbar-hide {
-  -ms-overflow-style: none;
-  scrollbar-width: none;
-  &::-webkit-scrollbar {
-    display: none;
-  }
-}
-
 @utility scrollbar-hover {
   scrollbar-width: thin;
   scrollbar-color: transparent transparent;

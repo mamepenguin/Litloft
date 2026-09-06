@@ -29,6 +29,16 @@ interface DriveHomeProps {
 
 interface SectionState {
   files: FileItem[];
+  /**
+   * How many files match the section's query, not how many it holds.
+   *
+   * `getDriveFiles` returns it in `meta.total` and the row shows at most
+   * `SECTION_LIMIT` of them, so this is the only thing that can say how
+   * much is past the edge. `undefined` while loading and after a failed
+   * fetch — the row falls back to an unqualified "See all" rather than
+   * claiming a number it does not have.
+   */
+  total?: number;
   loading: boolean;
 }
 
@@ -101,18 +111,18 @@ export function DriveHome({ driveName }: DriveHomeProps) {
   });
 
   const applyFileSections = useCallback((results: PromiseSettledResult<any>[]) => {
-    setRecent({
-      files: results[0].status === "fulfilled" ? results[0].value.data : [],
-      loading: false,
-    });
-    setFavorites({
-      files: results[1].status === "fulfilled" ? results[1].value.data : [],
-      loading: false,
-    });
-    setLiked({
-      files: results[2].status === "fulfilled" ? results[2].value.data : [],
-      loading: false,
-    });
+    const section = (result: PromiseSettledResult<any>): SectionState =>
+      result.status === "fulfilled"
+        ? {
+            files: result.value.data,
+            total: result.value.meta?.total,
+            loading: false,
+          }
+        : { files: [], loading: false };
+
+    setRecent(section(results[0]));
+    setFavorites(section(results[1]));
+    setLiked(section(results[2]));
   }, []);
 
   const fetchFileSections = useCallback(() => {
@@ -201,8 +211,8 @@ export function DriveHome({ driveName }: DriveHomeProps) {
   }, [fetchFileSections, applyFileSections]);
 
   // Both halves of the page follow the drive: the folder grid *and* the
-  // Recently added / Favourites / Popular carousels. Refreshing only the
-  // grid left the carousels showing files that had been deleted or moved
+  // Recently added / Favourites / Popular rows. Refreshing only the
+  // grid left the rows showing files that had been deleted or moved
   // elsewhere.
   //
   // `drive.file_updated` matters here because favouriting is a content
@@ -346,6 +356,7 @@ export function DriveHome({ driveName }: DriveHomeProps) {
         icon={<Clock size={20} className="text-text-muted" />}
         files={recent.files}
         loading={recent.loading}
+        totalCount={recent.total}
         seeAllHref={`${driveBase}?view=recent-added`}
         onFileAction={refetchAllSections}
       />
@@ -355,6 +366,7 @@ export function DriveHome({ driveName }: DriveHomeProps) {
         icon={<Star size={20} className="text-text-muted" />}
         files={favorites.files}
         loading={favorites.loading}
+        totalCount={favorites.total}
         seeAllHref={`${driveBase}?view=favorites`}
         onFileAction={refetchAllSections}
       />
@@ -364,6 +376,7 @@ export function DriveHome({ driveName }: DriveHomeProps) {
         icon={<ThumbsUp size={20} className="text-text-muted" />}
         files={liked.files}
         loading={liked.loading}
+        totalCount={liked.total}
         seeAllHref={`${driveBase}?view=liked`}
         onFileAction={refetchAllSections}
       />

@@ -11,6 +11,7 @@
     "change": "Change",
     "refresh": "Refresh",
     "seeAll": "See all",
+    "seeAllCount": "See all ({count})",
     "download": "Download",
     "rename": "Rename",
     "move": "Move",

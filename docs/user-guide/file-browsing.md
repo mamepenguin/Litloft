@@ -1,12 +1,12 @@
 # Browsing files
 
-The drive home page (`/drive/<name>`) is the main browsing surface. Folders are walked from the drive root; subfolders open at `/drive/<name>/<path>`. Below the breadcrumb you find a folder grid, a file grid, and several *carousels* (Recently added, Continue watching, Favourites, Liked). Every surface reads the same backend, and a change you make on one of them refreshes the others (see [real-time updates](#real-time-updates) for what does and does not propagate between separate tabs).
+The drive home page (`/drive/<name>`) is the main browsing surface. Folders are walked from the drive root; subfolders open at `/drive/<name>/<path>`. Below the breadcrumb you find a folder grid, a file grid, and several *content rows* (Recently added, Continue watching, Favourites, Liked). Every surface reads the same backend, and a change you make on one of them refreshes the others (see [real-time updates](#real-time-updates) for what does and does not propagate between separate tabs).
 
 ## Drive home layout
 
-![Annotated drive home page showing the breadcrumb, folder grid, file grid, and content carousels](../images/user-guide/drive-home-overview.png)
+![Annotated drive home page showing the breadcrumb, folder grid, file grid, and content rows](../images/user-guide/drive-home-overview.png)
 
-The numbered areas in the screenshot map to the main browsing surfaces: breadcrumb navigation, folder cards, file cards, and the activity carousels that surface recent or in-progress items.
+The numbered areas in the screenshot map to the main browsing surfaces: breadcrumb navigation, folder cards, file cards, and the activity rows that surface recent or in-progress items.
 
 ## Folder grid
 
@@ -303,7 +303,7 @@ Clicking a tag in the sidebar while you are inside a folder filters *that folder
 
 Tags themselves — how they are stored, edited, and searched — are covered in [tags and relations](tags-and-relations.md).
 
-## Carousels
+## Content rows
 
 The drive home page surfaces several content rows:
 
@@ -315,7 +315,15 @@ The drive home page surfaces several content rows:
 
 Continue watching and Recently played need a profile; without one, no history is recorded and the two rows do not appear. See [profile and preferences](profile-preferences.md).
 
-Below the carousels the drive home lists the files that sit at the drive root, using the same grid as any other folder.
+A row shows as many cards as fit its width and no more — it does not
+scroll sideways, so nothing is hidden off the right-hand edge. Below
+640px that is two columns over two rows; wider, a single row of however
+many columns the space holds. **See all** opens the full listing, and
+where the count is known it is on the link: *See all (619)*. Continue
+watching and Recently played carry no count, because the watch-history
+API returns the page rather than the total.
+
+Below the content rows the drive home lists the files that sit at the drive root, using the same grid as any other folder.
 
 ## Pinned folders
 
