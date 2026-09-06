@@ -477,6 +477,26 @@ column of `FileListRow` and `FolderListRow`.
   one line may sit and still read as one thing. Same section, same word,
   different question.
 
+### 3.7 Fitted page measure
+
+A **fitted** page image is capped at **900px** wide, as `MAX_FITTED_WIDTH`
+in `lib/pdfZoomMode.ts`. It applies to the PDF viewer's `fit-width` and
+`fit-page` modes.
+
+- **This is not §3.4's 860px either.** §3.4 caps running text, where the
+  cap decides the line length. A rendered page is an image of a page: the
+  line length is already fixed by whoever wrote it, and all this number
+  decides is how far that fixed layout is scaled up. Stretching an A4 to a
+  2000px canvas puts over 200 characters on a line, which is the far side
+  of what §3.4 is about — the same concern, reached by a different route,
+  so it gets its own measure rather than borrowing one.
+- **It does not apply to `actual` size.** That mode's whole claim is that
+  the page is the size it says it is, and a capped "actual size" is a lie.
+  A4 at 96dpi is 794px, so the distinction only shows on paper larger than
+  that.
+- The cap is not explained in the UI. An explanation is owed for things
+  the reader can choose, and this is not one of them.
+
 ## 4. Depth & Elevation
 
 | Level | Treatment | Usage |

@@ -50,16 +50,24 @@ pdfjs.GlobalWorkerOptions.workerSrc = new URL(
 /**
  * The message key for each mode, spelled out.
  *
- * A template literal cast with `as never` turns off next-intl's key
- * checking entirely, so a typo or a renamed mode becomes a runtime
- * `MISSING_MESSAGE` instead of a type error — and these were the only
- * two such casts in the codebase.
+ * What this buys is exhaustiveness, not key checking. `satisfies
+ * Record<PdfZoomMode, string>` makes adding or renaming a mode a type
+ * error here, where the label it needs is decided.
+ *
+ * It does not catch a typo in the key itself: next-intl only checks keys
+ * against an augmented `AppConfig["Messages"]`, this frontend augments
+ * nothing, so `Messages` is `Record<string, any>` and `t` accepts any
+ * string. That is also why the `as never` casts this replaced were
+ * turning off a check that was never on — they read as if it were.
  */
 const MODE_LABEL_KEY = {
   "fit-width": "pdfZoomMode_fit-width",
   "fit-page": "pdfZoomMode_fit-page",
   actual: "pdfZoomMode_actual",
 } as const satisfies Record<PdfZoomMode, string>;
+
+/** `p-4` top plus bottom, the only padding on the scroll box. */
+const PAGE_BOX_PADDING_Y = 32;
 
 const MIN_ZOOM = 0.5;
 const MAX_ZOOM = 2;
@@ -173,28 +181,32 @@ export function PdfPreview({
     return () => document.removeEventListener("selectionchange", update);
   }, [page, store]);
 
-
   useEffect(() => {
     const box = pageBoxRef.current;
     if (!box || typeof ResizeObserver === "undefined") return;
-    // One observer, on the scroll box, for both axes.
+    // One observer, on the scroll box. Two axes, read from two of that
+    // element's boxes, because each has to be immune to a different
+    // scrollbar.
     //
-    // They used to be two, on two different elements — width from the
-    // root, height from this box — and that asymmetry was a bug factory.
-    // It cost a doubled padding subtraction, and it left a feedback
-    // path: this box's `contentRect` shrinks by a horizontal
-    // scrollbar's thickness, a smaller height gives `fit-page` a
-    // narrower page, a narrower page can retire the scrollbar, and the
-    // height grows back. macOS overlay scrollbars hide it; classic ones
-    // do not.
+    // Width comes from the content box, which excludes `p-4` and the
+    // vertical scrollbar's gutter — reserved unconditionally below, so
+    // the number does not move when the scrollbar comes and goes.
     //
-    // Measuring both from the box closes it: `contentRect` already
-    // excludes `p-4` *and* the space a scrollbar takes, so a fitted page
-    // can never be wider than what it was measured against. No hand
-    // subtraction, and no slack standing in for a guarantee.
+    // Height comes from the *border* box, minus that same padding. The
+    // content box would be the tidier read, but a horizontal scrollbar
+    // takes its thickness out of it, and `fit-page` turns height into
+    // width: a shorter box makes a narrower page, a narrower page
+    // retires the scrollbar, the height grows back. The border box is
+    // `h-[80vh]` whether or not anything is scrolling.
+    //
+    // What that trades away: above zoom 1 a `fit-page` page can overflow
+    // horizontally, and the scrollbar then covers its last 32px of
+    // height. At zoom <= 1 the mode's own arithmetic keeps the page
+    // inside the width, so no horizontal scrollbar exists to cover
+    // anything and the subtraction is exact.
     const observer = new ResizeObserver(([entry]) => {
-      setAvailableWidth(Math.max(280, entry.contentRect.width));
-      setAvailableHeight(Math.max(200, entry.contentRect.height));
+      setAvailableWidth(entry.contentRect.width);
+      setAvailableHeight(entry.borderBoxSize[0].blockSize - PAGE_BOX_PADDING_Y);
     });
     observer.observe(box);
     return () => observer.disconnect();
@@ -285,9 +297,14 @@ export function PdfPreview({
     [loadOutline],
   );
 
-  const movePage = useCallback((delta: number) => {
-    setPage((current) => Math.min(numPages || 1, Math.max(1, current + delta)));
-  }, [numPages]);
+  const movePage = useCallback(
+    (delta: number) => {
+      setPage((current) =>
+        Math.min(numPages || 1, Math.max(1, current + delta)),
+      );
+    },
+    [numPages],
+  );
 
   /**
    * Whether the reader is inside the viewer.
@@ -473,10 +490,12 @@ export function PdfPreview({
               // `InlineNameEditor` is the same shape of field and guards the
               // same way; this box was the only Enter/Escape field that did
               // not.
-              if (e.nativeEvent.isComposing || e.keyCode === IME_KEY_CODE) return;
+              if (e.nativeEvent.isComposing || e.keyCode === IME_KEY_CODE)
+                return;
               if (
                 (e.key === "Enter" || e.key === "Escape") &&
-                Date.now() - compositionEndedAtRef.current < COMPOSITION_GRACE_MS
+                Date.now() - compositionEndedAtRef.current <
+                  COMPOSITION_GRACE_MS
               ) {
                 compositionEndedAtRef.current = 0;
                 return;
@@ -536,7 +555,9 @@ export function PdfPreview({
         </ToolbarMenu>
         <button
           type="button"
-          onClick={() => setZoom((value) => Math.max(MIN_ZOOM, value - ZOOM_STEP))}
+          onClick={() =>
+            setZoom((value) => Math.max(MIN_ZOOM, value - ZOOM_STEP))
+          }
           disabled={zoom <= MIN_ZOOM}
           aria-label={t("pdfZoomOut")}
           className="inline-flex h-8 w-8 items-center justify-center rounded-lg text-text-muted hover:bg-bg-elevated disabled:opacity-30"
@@ -548,7 +569,9 @@ export function PdfPreview({
         </span>
         <button
           type="button"
-          onClick={() => setZoom((value) => Math.min(MAX_ZOOM, value + ZOOM_STEP))}
+          onClick={() =>
+            setZoom((value) => Math.min(MAX_ZOOM, value + ZOOM_STEP))
+          }
           disabled={zoom >= MAX_ZOOM}
           aria-label={t("pdfZoomIn")}
           className="inline-flex h-8 w-8 items-center justify-center rounded-lg text-text-muted hover:bg-bg-elevated disabled:opacity-30"
@@ -575,13 +598,27 @@ export function PdfPreview({
         // unreachable. `safe` falls back to `start` exactly when the
         // child does not fit, which is the case where centring has
         // nothing to centre anyway.
-        className="flex h-[80vh] [justify-content:safe_center] overflow-auto bg-bg-elevated p-4"
+        //
+        // `scrollbar-gutter: stable` is load-bearing, not cosmetic. Without
+        // it a classic vertical scrollbar takes its width out of
+        // `contentRect.width` when it appears, and `fit-width` oscillates:
+        // a wider box makes a taller page, a taller page raises the
+        // scrollbar, the scrollbar narrows the box, the shorter page
+        // retires it. Reserving the gutter unconditionally makes the width
+        // the same number in both states. Overlay scrollbars (macOS) never
+        // took the width in the first place, and the property is inert
+        // there.
+        className="flex h-[80vh] [justify-content:safe_center] overflow-auto [scrollbar-gutter:stable] bg-bg-elevated p-4"
       >
         <Document
           file={src}
           onLoadSuccess={handleLoad}
-          loading={<p className="py-16 text-sm text-text-muted">{t("pdfLoading")}</p>}
-          error={<p className="py-16 text-sm text-danger">{t("pdfLoadFailed")}</p>}
+          loading={
+            <p className="py-16 text-sm text-text-muted">{t("pdfLoading")}</p>
+          }
+          error={
+            <p className="py-16 text-sm text-danger">{t("pdfLoadFailed")}</p>
+          }
         >
           <section data-pdf-page={page} aria-label={`${title}, ${page}`}>
             {renderFailed && (

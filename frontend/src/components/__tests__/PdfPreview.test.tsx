@@ -1,4 +1,10 @@
-import { act, fireEvent, render, screen, waitFor } from "@testing-library/react";
+import {
+  act,
+  fireEvent,
+  render,
+  screen,
+  waitFor,
+} from "@testing-library/react";
 import { useEffect, type ReactNode } from "react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -85,30 +91,56 @@ vi.mock("react-pdf", () => ({
  * double padding subtraction — was invisible here.
  */
 let resizeCallbacks: ResizeObserverCallback[] = [];
+let resizeTargets: Element[] = [];
 class DrivableResizeObserver {
   constructor(cb: ResizeObserverCallback) {
     resizeCallbacks.push(cb);
   }
-  observe() {}
+  observe(target: Element) {
+    // Recorded, not ignored. Which element is observed is the whole
+    // subject of this fix, and an `observe()` that drops its argument
+    // lets the viewer watch the root again with the suite green.
+    resizeTargets.push(target);
+  }
   unobserve() {}
   disconnect() {}
 }
 /**
- * Feed the viewer's observer a content-box size.
+ * Feed the viewer's one observer a size.
  *
- * There is one, on the scroll box, reporting both axes — two observers
- * on two different elements is what produced the doubled padding
- * subtraction and the scrollbar feedback path.
+ * `height` is the usable height — the border box less `p-4` — because
+ * that is what the viewer derives and what the fit arithmetic is written
+ * against. `contentHeight` is the content box, which a horizontal
+ * scrollbar shrinks *without* moving the border box; pass it to stage
+ * that state and nothing else.
  */
-function reportSize(rect: { width?: number; height?: number }) {
+function reportSize(rect: {
+  width?: number;
+  height?: number;
+  contentHeight?: number;
+}) {
   const cb = resizeCallbacks[0];
   if (!cb) throw new Error("the viewer registered no ResizeObserver");
   if (resizeCallbacks.length !== 1) {
     throw new Error(`expected one observer, found ${resizeCallbacks.length}`);
   }
+  const usableHeight = rect.height ?? 0;
   act(() => {
     cb(
-      [{ contentRect: { width: 0, height: 0, ...rect } }] as unknown as ResizeObserverEntry[],
+      [
+        {
+          contentRect: {
+            width: rect.width ?? 0,
+            height: rect.contentHeight ?? usableHeight,
+          },
+          borderBoxSize: [
+            {
+              inlineSize: (rect.width ?? 0) + 32,
+              blockSize: usableHeight + 32,
+            },
+          ],
+        },
+      ] as unknown as ResizeObserverEntry[],
       {} as ResizeObserver,
     );
   });
@@ -116,6 +148,7 @@ function reportSize(rect: { width?: number; height?: number }) {
 
 beforeEach(() => {
   resizeCallbacks = [];
+  resizeTargets = [];
   vi.stubGlobal("ResizeObserver", DrivableResizeObserver);
   pdfDoc.numPages = 8;
   pdfDoc.outline = null;
@@ -147,7 +180,9 @@ describe("PdfPreview", () => {
       locator: { page: 3 },
     });
 
-    fireEvent.click(screen.getByRole("button", { name: /pdfNextPage|Next page/ }));
+    fireEvent.click(
+      screen.getByRole("button", { name: /pdfNextPage|Next page/ }),
+    );
     await screen.findByText("Selectable page 4");
     expect(controller?.getSnapshot()).toEqual({
       kind: "page",
@@ -213,9 +248,12 @@ describe("PdfPreview", () => {
 });
 
 describe("PdfPreview page navigation", () => {
-  const pageBox = () => screen.getByLabelText("Page number") as HTMLInputElement;
+  const pageBox = () =>
+    screen.getByLabelText("Page number") as HTMLInputElement;
 
-  function renderViewer(props: Partial<React.ComponentProps<typeof PdfPreview>> = {}) {
+  function renderViewer(
+    props: Partial<React.ComponentProps<typeof PdfPreview>> = {},
+  ) {
     return render(
       <ShortcutsProvider>
         <PdfPreview fileId="pdf123456789" title="Paper" {...props} />
@@ -375,9 +413,12 @@ describe("PdfPreview page navigation", () => {
 });
 
 describe("PdfPreview, the page box under pressure", () => {
-  const pageBox = () => screen.getByLabelText("Page number") as HTMLInputElement;
+  const pageBox = () =>
+    screen.getByLabelText("Page number") as HTMLInputElement;
 
-  function renderViewer(props: Partial<React.ComponentProps<typeof PdfPreview>> = {}) {
+  function renderViewer(
+    props: Partial<React.ComponentProps<typeof PdfPreview>> = {},
+  ) {
     return render(
       <ShortcutsProvider>
         <PdfPreview fileId="pdf123456789" title="Paper" {...props} />
@@ -457,7 +498,11 @@ describe("PdfPreview, the page box under pressure", () => {
     const onPdfController = vi.fn();
     const { rerender } = render(
       <ShortcutsProvider>
-        <PdfPreview fileId="pdfaaaaaaaaa" title="A" onPdfController={onPdfController} />
+        <PdfPreview
+          fileId="pdfaaaaaaaaa"
+          title="A"
+          onPdfController={onPdfController}
+        />
       </ShortcutsProvider>,
     );
     await screen.findByText("Selectable page 1");
@@ -470,7 +515,11 @@ describe("PdfPreview, the page box under pressure", () => {
     // document.
     rerender(
       <ShortcutsProvider>
-        <PdfPreview fileId="pdfbbbbbbbbb" title="B" onPdfController={onPdfController} />
+        <PdfPreview
+          fileId="pdfbbbbbbbbb"
+          title="B"
+          onPdfController={onPdfController}
+        />
       </ShortcutsProvider>,
     );
     expect(controller.getState().numPages).toBe(0);
@@ -542,7 +591,11 @@ describe("PdfPreview, the page keys' scope", () => {
     const onPdfController = vi.fn();
     render(
       <ShortcutsProvider>
-        <PdfPreview fileId="pdf123456789" title="Paper" onPdfController={onPdfController} />
+        <PdfPreview
+          fileId="pdf123456789"
+          title="Paper"
+          onPdfController={onPdfController}
+        />
       </ShortcutsProvider>,
     );
     await screen.findByText("Selectable page 1");
@@ -725,5 +778,50 @@ describe("PdfPreview zoom modes", () => {
 
     // A4: the width at which 574px of height is exactly filled.
     expect(lastWidth()).toBeCloseTo(574 * (595 / 842), 3);
+  });
+
+  it("measures the scroll box itself, not the root that contains it", async () => {
+    // The name of this fix. The root has no padding of its own and does
+    // not narrow when the box's scrollbar appears, so measuring it is
+    // exactly the defect that produced the doubled subtraction — and
+    // every other assertion here still passes with the observer moved
+    // back to it, because the fake feeds numbers regardless of target.
+    renderViewer();
+    await screen.findByText("Selectable page 1");
+
+    expect(resizeTargets).toHaveLength(1);
+    expect(resizeTargets[0]).toBe(document.querySelector(".overflow-auto"));
+  });
+
+  it("reserves the vertical scrollbar's gutter on the scroll box", async () => {
+    // Not cosmetic. Without the gutter a classic vertical scrollbar
+    // takes its width out of `contentRect.width` as it appears, and
+    // `fit-width` oscillates: wider box, taller page, scrollbar, narrower
+    // box, shorter page, no scrollbar. jsdom lays nothing out, so the
+    // declaration is what can be pinned here.
+    renderViewer();
+    await screen.findByText("Selectable page 1");
+
+    const box = document.querySelector(".overflow-auto")!;
+    expect(box.className).toMatch(/\[scrollbar-gutter:stable\]/);
+  });
+
+  it("keeps a whole page the same size when a horizontal scrollbar appears", async () => {
+    // The height comes from the border box for this reason. A horizontal
+    // scrollbar takes its thickness out of the *content* box only, and
+    // `fit-page` turns height into width: were the height read from
+    // there, a narrower page would retire the scrollbar, the height would
+    // grow back, and the page would flicker between two widths forever.
+    renderViewer();
+    await screen.findByText("Selectable page 1");
+
+    fireEvent.click(menu());
+    fireEvent.click(modeRow("Whole page"));
+    reportSize({ width: 900, height: 574 });
+    const settled = lastWidth();
+
+    // Same element, same 80vh: only the content box shrank.
+    reportSize({ width: 900, height: 574, contentHeight: 559 });
+    expect(lastWidth()).toBe(settled);
   });
 });
