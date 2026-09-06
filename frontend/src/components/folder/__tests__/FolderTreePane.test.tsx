@@ -8,8 +8,28 @@ const mockGetFolderTree = vi.fn();
 // their arguments; reset in beforeEach like mockGetFolderTree.
 const mockRenameFolder = vi.fn();
 const mockRenameFile = vi.fn();
+/**
+ * The endpoint's own rule, in the mock: folders only unless asked.
+ *
+ * Without it the flag is invisible here — every test seeding `kind:"file"`
+ * nodes renders file rows whatever the toggle says, so a test written
+ * against the old default keeps passing against the new one and nothing
+ * says it has stopped describing the product.
+ */
+function applyIncludeFiles(
+  nodes: unknown,
+  params: { include_files?: boolean } | undefined,
+) {
+  if (!Array.isArray(nodes) || params?.include_files) return nodes;
+  return nodes.filter((n) => (n as { kind?: string }).kind !== "file");
+}
+
 vi.mock("@/lib/api", () => ({
-  getFolderTree: (...args: unknown[]) => mockGetFolderTree(...args),
+  getFolderTree: async (
+    drive: unknown,
+    params: { include_files?: boolean } | undefined,
+    ...rest: unknown[]
+  ) => applyIncludeFiles(await mockGetFolderTree(drive, params, ...rest), params),
   // Pin and mutation surfaces consumed by the new context menus on the
   // tree rows. afterEach calls vi.restoreAllMocks() which would erase
   // mockResolvedValue from a `vi.fn()`, so we use plain functions for
@@ -112,6 +132,18 @@ afterEach(() => {
 });
 
 describe("FolderTreePane", () => {
+  /**
+   * These fixtures put files in the tree, which is the "Show files too"
+   * state rather than the default one. Kept rather than rewritten: what
+   * they assert — chevrons, selection, the filter's cascade, spring-load,
+   * inline rename — is true of a tree with files in it, and that is a
+   * state the product still has. F-7 changed which state is the default,
+   * not which states exist.
+   */
+  beforeEach(() => {
+    treeIncludeFilesStore.set("work", true);
+  });
+
   it("loads root and renders folder names", async () => {
     mockGetFolderTree.mockResolvedValue([
       { kind: "folder", name: "Q1", path: "Q1", file_count: 3, has_children: true },
@@ -315,6 +347,18 @@ describe("FolderTreePane", () => {
  * then.
  */
 describe("FolderTreePane filter (Phase 4)", () => {
+  /**
+   * These fixtures put files in the tree, which is the "Show files too"
+   * state rather than the default one. Kept rather than rewritten: what
+   * they assert — chevrons, selection, the filter's cascade, spring-load,
+   * inline rename — is true of a tree with files in it, and that is a
+   * state the product still has. F-7 changed which state is the default,
+   * not which states exist.
+   */
+  beforeEach(() => {
+    treeIncludeFilesStore.set("work", true);
+  });
+
   it("renders the FilterField placeholder in place of TypeFilterChips", async () => {
     mockGetFolderTree.mockResolvedValue([]);
 
@@ -470,6 +514,18 @@ describe("FolderTreePane filter (Phase 4)", () => {
  * Spring-loaded drag — spec 2026-08-21-inline-rename-and-spring-loaded-drag §6.
  */
 describe("FolderTreePane spring-loaded expansion", () => {
+  /**
+   * These fixtures put files in the tree, which is the "Show files too"
+   * state rather than the default one. Kept rather than rewritten: what
+   * they assert — chevrons, selection, the filter's cascade, spring-load,
+   * inline rename — is true of a tree with files in it, and that is a
+   * state the product still has. F-7 changed which state is the default,
+   * not which states exist.
+   */
+  beforeEach(() => {
+    treeIncludeFilesStore.set("work", true);
+  });
+
   function mockTree() {
     mockGetFolderTree.mockImplementation(
       (_drive: string, params: { root?: string }) => {
@@ -660,6 +716,18 @@ describe("FolderTreePane spring-loaded expansion", () => {
  * Inline rename — spec 2026-08-21-inline-rename-and-spring-loaded-drag §3.
  */
 describe("FolderTreePane inline rename", () => {
+  /**
+   * These fixtures put files in the tree, which is the "Show files too"
+   * state rather than the default one. Kept rather than rewritten: what
+   * they assert — chevrons, selection, the filter's cascade, spring-load,
+   * inline rename — is true of a tree with files in it, and that is a
+   * state the product still has. F-7 changed which state is the default,
+   * not which states exist.
+   */
+  beforeEach(() => {
+    treeIncludeFilesStore.set("work", true);
+  });
+
   function mockTree() {
     mockGetFolderTree.mockImplementation(
       (_drive: string, params: { root?: string }) => {
@@ -841,6 +909,12 @@ describe("FolderTreePane inline rename", () => {
  * lists the files in the folder you are standing in.
  */
 describe("FolderTreePane — show files too", () => {
+  // The default state, which the describes above deliberately leave.
+  beforeEach(() => {
+    localStorage.removeItem("tree:includeFiles:work");
+    treeIncludeFilesStore.reset();
+  });
+
   const toggle = () => screen.getByRole("button", { name: /Show files too/i });
 
   async function renderPane() {
@@ -896,6 +970,36 @@ describe("FolderTreePane — show files too", () => {
     await waitFor(() =>
       expect(localStorage.getItem("tree:includeFiles:work")).toBe("true"),
     );
+  });
+
+  it("reports nothing found in the words the field asked in", async () => {
+    // The filter searches what the tree lists. Told there is no matching
+    // *file* after asking for a folder, the reader would be reading about
+    // a search the pane did not run.
+    mockGetFolderTree.mockResolvedValue([
+      { kind: "folder", name: "Notes", path: "Notes", file_count: 1, has_children: false },
+    ]);
+    await renderPane();
+
+    const field = await screen.findByPlaceholderText(/Find a folder/i);
+    fireEvent.change(field, { target: { value: "zzzz" } });
+
+    expect(await screen.findByText("No matching folders")).toBeInTheDocument();
+    expect(screen.queryByText(/No matching files or folders/)).toBeNull();
+  });
+
+  it("names files as well once they are listed", async () => {
+    localStorage.setItem("tree:includeFiles:work", "true");
+    treeIncludeFilesStore.reset();
+    mockGetFolderTree.mockResolvedValue([
+      { kind: "folder", name: "Notes", path: "Notes", file_count: 1, has_children: false },
+    ]);
+    await renderPane();
+
+    const field = await screen.findByPlaceholderText(/Find a folder/i);
+    fireEvent.change(field, { target: { value: "zzzz" } });
+
+    expect(await screen.findByText("No matching files or folders")).toBeInTheDocument();
   });
 
   it("starts pressed on a drive where it was left pressed", async () => {

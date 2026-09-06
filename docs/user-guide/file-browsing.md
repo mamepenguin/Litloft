@@ -178,7 +178,8 @@ either way; that is the folder's size, not a count of what the tree draws.
 
 When the folder tree pane is open, it has its own filter row at the top — text plus a kind dropdown offering the same nine choices as the toolbar — but different in scope:
 
-- Matches against **folder names** across the whole tree of the current drive — and against **file names** as well when *Show files too* is on. The filter searches what the tree lists, so its reach follows that setting rather than diverging from it.
+- Matches against **folder names** across the whole tree of the current drive — and against **file names** as well when *Show files too* is on. The filter searches what the tree lists, so its reach follows that setting rather than diverging from it, and the "nothing found" line names the same thing the field asked for.
+- The **kind** dropdown beside it filters files, so with *Show files too* off it changes only the counts shown against each folder, not which rows appear. Turn *Show files too* on to narrow the rows by kind.
 - Tree structure is preserved: matched items are highlighted, ancestors are shown in a dimmed style as path context, non-matching siblings are hidden.
 - The **type filter** is persisted per drive in localStorage (so a photo drive can default to *Image*); the **text filter** is not — it clears when the tree pane is closed, when the drive changes, or when the page is reloaded.
 - Switching the tree filter on triggers a one-shot full-tree fetch (the tree is normally lazy-expanded), so the first keystroke on a very large drive may take a moment.

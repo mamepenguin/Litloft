@@ -596,7 +596,12 @@ export function FolderTreePane({
           <div className="px-3 py-4 text-xs text-text-muted">{t("loading")}</div>
         ) : isFilterEmpty ? (
           <div className="flex flex-col items-start gap-2 px-3 py-4 text-xs text-text-muted">
-            <p>{tFilter("empty.tree")}</p>
+            {/* The filter searches what the tree lists, so the sentence
+                that reports nothing found names the same population. With
+                files hidden the field above says "find a folder", and
+                being told there is no matching *file* would describe a
+                search the pane did not run. */}
+            <p>{tFilter(includeFiles ? "empty.treeWithFiles" : "empty.tree")}</p>
             <button
               type="button"
               onClick={handleClear}

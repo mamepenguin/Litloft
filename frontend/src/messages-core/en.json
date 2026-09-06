@@ -477,7 +477,8 @@
       "pdf": "PDF"
     },
     "empty": {
-      "tree": "No matching files or folders",
+      "tree": "No matching folders",
+      "treeWithFiles": "No matching files or folders",
       "folder": "No matching files in this folder"
     },
     "clear": "Clear filters",
