@@ -91,6 +91,11 @@ export function GlobalSearch() {
   const [merged, setMerged] = useState<FileItemWithMatch[]>([]);
   const [total, setTotal] = useState(0);
   const [loading, setLoading] = useState(false);
+  // Stage two of the two-stage search: true only between the moment the
+  // drive is known to have semantic search and the moment its hits land.
+  // A drive without the intelligence addon never sets it, so the footer
+  // never says "also searching by meaning" where nothing is.
+  const [semanticPending, setSemanticPending] = useState(false);
   const [history, setHistory] = useState<string[]>([]);
   // Kept with its drive so a stale payload can never be rendered — see the
   // fetch effect below.
@@ -156,9 +161,16 @@ export function GlobalSearch() {
     openCheatSheet();
   }, [closeSearch, openCheatSheet]);
 
-  // Both bindings open the same modal. ctrl+k is the switcher ergonomics
-  // (one chord, reachable one-handed); ctrl+shift+f is kept so existing
-  // muscle memory keeps working.
+  // Both bindings open the same modal, in the same state, with the cursor
+  // in the same input. ctrl+k is the ergonomics (one chord, reachable
+  // one-handed); ctrl+shift+f is there because that is what many people's
+  // fingers already know.
+  //
+  // They carry the same label for that reason. Two rows in the cheat sheet
+  // naming one action is honest; two names for it would be the screen
+  // claiming a difference that the handlers do not have, which is the
+  // reading `docs/user-guide/keyboard-shortcuts.md` §Global was corrected
+  // to remove.
   //
   // `editingOnly` is deliberately left unset here. Unset means "fires only
   // when no editing element has focus", which is what partitions these from
@@ -173,7 +185,7 @@ export function GlobalSearch() {
     },
     {
       key: "ctrl+k",
-      label: tsc("switcher"),
+      label: tsc("search"),
       handler: openSearch,
     },
   ]);
@@ -244,9 +256,23 @@ export function GlobalSearch() {
   // Resetting whenever the composition changes stops a late-arriving payload
   // from sliding rows underneath a live selection and retargeting the user's
   // Enter, and keeps the index from pointing past the end of a shorter list.
+  //
+  // The row order is in here because the search resolves in two stages and
+  // the second one reorders: relevance sorting sees only name matches until
+  // the semantic hits arrive, so the row under the highlight is a different
+  // file afterwards. Dropping the selection is the honest answer — following
+  // the file id instead would move the highlight somewhere the eye has to
+  // hunt for, and anyone arrowing during those seconds is watching the
+  // footer say the list is not settled yet.
+  //
+  // It is the *order*, not the array. `paint()` builds a fresh array every
+  // run, including the one where the second stage came back with nothing to
+  // add, so keying on the array would yank the highlight off a list that
+  // never moved.
+  const mergedOrder = merged.map((f) => f.id).join("\u0000");
   useEffect(() => {
     setSelectedIndex(-1);
-  }, [query, open, recentData]);
+  }, [query, open, recentData, mergedOrder]);
 
   useEffect(() => {
     if (selectedIndex < 0) return;
@@ -290,51 +316,103 @@ export function GlobalSearch() {
 
     debounceRef.current = setTimeout(() => {
       setLoading(true);
+
+      // Two stages, resolving independently. Name matching is one round
+      // trip; semantic search is around five seconds on a cold index. So
+      // the name matches paint the moment they land, and the semantic hits
+      // merge in and re-rank when they arrive — the switcher is as fast as
+      // the faster of the two rather than as slow as the slower.
+      //
+      // `ctrl.signal.aborted` is the whole generation guard. The cleanup
+      // below aborts synchronously when the query, the drive or `open`
+      // changes, and every write to React state is behind that check, so
+      // a stage belonging to an older query cannot reach `setMerged`
+      // however the two stages interleave. A second guard keyed on the
+      // query string would say the same thing twice and could never be
+      // observed false.
+      //
+      // For the same reason the guard sits in `paint`, once, rather than
+      // in each stage's `.then`. Two guards on one path hide each other:
+      // remove either and the other still stops the write, so neither can
+      // be shown to matter. The locals below are closure-scoped, so a
+      // stage that resolves after its generation ends assigns to an object
+      // nothing will read.
+      let filenameRes: Awaited<ReturnType<typeof getDriveFiles>> | null = null;
+      let semanticHits: SemanticHit[] = [];
+
+      const paint = () => {
+        // Nothing to draw from until stage one lands. If semantic search
+        // is the faster of the two, its hits wait here rather than
+        // rendering a list with no name matches in it.
+        if (ctrl.signal.aborted || !filenameRes) return;
+        const m = mergeResults({
+          filenameMatches: filenameRes.data,
+          semanticHits,
+          filenameTotal: filenameRes.meta.total,
+        });
+        const sorted = sortMerged(m.files, "relevance", "desc");
+        setMerged(sorted.slice(0, POPUP_LIMIT));
+        setTotal(m.total);
+      };
+
+      const onStageFailure = () => {
+        // Stale-while-revalidate: keep the cached snapshot rendered
+        // when revalidation fails on a transient network blip. Only
+        // wipe state when there was nothing cached to fall back on.
+        if (!ctrl.signal.aborted && !cached && !filenameRes) {
+          setMerged([]);
+          setTotal(0);
+        }
+      };
+
       const filenameP = getDriveFiles(
         drive,
         { search: trimmed, limit: POPUP_LIMIT },
         { signal: ctrl.signal },
-      );
-      const semanticP = isSemanticSearchAvailable(drive).then((available) => {
-        if (!available || ctrl.signal.aborted) return [] as SemanticHit[];
-        return fetchSemanticHits(trimmed, drive, {
-          limit: POPUP_LIMIT,
-          signal: ctrl.signal,
-        });
-      });
-      Promise.all([filenameP, semanticP])
-        .then(([filenameRes, semanticHits]) => {
-          if (ctrl.signal.aborted) return;
-          const m = mergeResults({
-            filenameMatches: filenameRes.data,
-            semanticHits,
-            filenameTotal: filenameRes.meta.total,
-          });
-          const sorted = sortMerged(m.files, "relevance", "desc");
-          setMerged(sorted.slice(0, POPUP_LIMIT));
-          setTotal(m.total);
-          writeSearchCache(cacheKey, {
-            filenameMatches: filenameRes.data,
-            filenameTotal: filenameRes.meta.total,
-            semanticHits,
-          });
+      )
+        .then((res) => {
+          filenameRes = res;
+          paint();
         })
-        .catch(() => {
-          // Stale-while-revalidate: keep the cached snapshot rendered
-          // when revalidation fails on a transient network blip. Only
-          // wipe state when there was nothing cached to fall back on.
-          if (!ctrl.signal.aborted && !cached) {
-            setMerged([]);
-            setTotal(0);
-          }
-        })
+        .catch(onStageFailure)
         .finally(() => {
           if (!ctrl.signal.aborted) setLoading(false);
         });
+
+      const semanticP = isSemanticSearchAvailable(drive)
+        .then((available) => {
+          if (!available || ctrl.signal.aborted) return [] as SemanticHit[];
+          setSemanticPending(true);
+          return fetchSemanticHits(trimmed, drive, {
+            limit: POPUP_LIMIT,
+            signal: ctrl.signal,
+          });
+        })
+        .then((hits) => {
+          semanticHits = hits;
+          paint();
+        })
+        .catch(onStageFailure)
+        .finally(() => {
+          if (!ctrl.signal.aborted) setSemanticPending(false);
+        });
+
+      // The cache still holds one entry per query with both stages in it,
+      // so a re-opened popup paints the finished list in one go rather
+      // than replaying the two stages from a snapshot.
+      void Promise.all([filenameP, semanticP]).then(() => {
+        if (ctrl.signal.aborted || !filenameRes) return;
+        writeSearchCache(cacheKey, {
+          filenameMatches: filenameRes.data,
+          filenameTotal: filenameRes.meta.total,
+          semanticHits,
+        });
+      });
     }, 300);
 
     return () => {
       ctrl.abort();
+      setSemanticPending(false);
       if (debounceRef.current) clearTimeout(debounceRef.current);
     };
   }, [query, open, drive]);
@@ -464,6 +542,19 @@ export function GlobalSearch() {
     />
   );
 
+  // The right column of the footer row. It exists because the search runs in
+  // two stages and only the first is fast: name matches come back in one
+  // round trip, semantic hits take seconds on a cold index. Putting the
+  // "still looking" line here rather than in the results keeps it out of the
+  // list that is about to be reordered — a row inside the list would slide
+  // the results down the moment the second stage landed.
+  const searchProgress = () =>
+    semanticPending ? (
+      <span className="text-xs text-text-muted">{t("semanticPending")}</span>
+    ) : (
+      <span />
+    );
+
   const resultsList = (mobile: boolean) => (
     <div className={mobile ? "" : "max-h-[50vh] overflow-y-auto"}>
       {loading && merged.length === 0 ? (
@@ -496,7 +587,14 @@ export function GlobalSearch() {
             </>
           )}
 
-          {!loading && !hasResults && (
+          {/* `semanticPending` belongs in this gate as much as `loading`
+              does. "No results" is a verdict, and while a stage that
+              could still produce some is out, it is a verdict on a search
+              that has not finished — the phrase a semantic search exists
+              for is exactly the one no filename matches. On a drive
+              without that stage the flag is never set, so the verdict
+              arrives as soon as it is true. */}
+          {!loading && !semanticPending && !hasResults && (
             <div className={`text-center text-sm text-text-muted ${mobile ? "py-12" : "py-8"}`}>
               {t("noResults")}
             </div>
@@ -573,11 +671,11 @@ export function GlobalSearch() {
               ) : null}
             </div>
 
-            {/* Outside the scroll area on purpose: 案 5 (Phase 4) makes
-                Cmd+K two-stage, with semantic hits arriving after the
-                name matches, and a row inside the list would slide down
-                the page every time they land. Two columns, the right one
-                empty, so that stage has somewhere to put its progress. */}
+            {/* Outside the scroll area on purpose: the search resolves in
+                two stages, and a row inside the list would slide the
+                results down the page every time the second one lands.
+                Two columns — the shortcut entry, and the progress the
+                second stage reports. */}
             <div className="flex items-center justify-between border-t border-bg-border px-4 py-2">
               <button
                 type="button"
@@ -587,7 +685,7 @@ export function GlobalSearch() {
                 <kbd className="rounded border border-bg-border px-1.5 py-0.5 font-sans text-[11px]">?</kbd>
                 {tsc("title")}
               </button>
-              <span />
+              {searchProgress()}
             </div>
           </div>,
           document.body
@@ -640,11 +738,11 @@ export function GlobalSearch() {
               resultsList(false)
             ) : null}
 
-            {/* Outside the scroll area on purpose: 案 5 (Phase 4) makes
-                Cmd+K two-stage, with semantic hits arriving after the
-                name matches, and a row inside the list would slide down
-                the page every time they land. Two columns, the right one
-                empty, so that stage has somewhere to put its progress. */}
+            {/* Outside the scroll area on purpose: the search resolves in
+                two stages, and a row inside the list would slide the
+                results down the page every time the second one lands.
+                Two columns — the shortcut entry, and the progress the
+                second stage reports. */}
             <div className="flex items-center justify-between border-t border-bg-border px-4 py-2">
               <button
                 type="button"
@@ -654,7 +752,7 @@ export function GlobalSearch() {
                 <kbd className="rounded border border-bg-border px-1.5 py-0.5 font-sans text-[11px]">?</kbd>
                 {tsc("title")}
               </button>
-              <span />
+              {searchProgress()}
             </div>
           </div>
         </div>,

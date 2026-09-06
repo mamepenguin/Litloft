@@ -22,6 +22,8 @@ The modal only ever shows the drive you are currently in — it never crosses a 
 
 Once you type, the modal runs the same search the search page does (see below) and shows the top 8 hits, plus a row that takes you to the full result page.
 
+It arrives in two stages. Name matches come back in a single round trip and are drawn straight away, so typing a filename you already know gets you there without waiting. If the drive has semantic search, the footer says it is still looking by meaning; when those hits land the list is re-ranked with them mixed in, which can move rows. On a drive without the intelligence addon that second stage does not exist, and the footer says nothing — there is no result to wait for.
+
 Each hit shows its title, and under it a second line only when that line says something the title does not — the folder the file sits in, or a filename that is not simply the title with an extension on the end. A file called `kyoto.mp4` titled "kyoto" gets its folder or nothing at all; `kyoto_day_1.mp4` titled "kyoto day 1" still shows its filename.
 
 ## Built-in keyword search

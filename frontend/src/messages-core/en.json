@@ -199,7 +199,8 @@
     "recentFiles": "Recent files",
     "recentSearches": "Recent searches",
     "sceneSearchToggle": "Scene search",
-    "sceneSearchHint": "Find specific moments inside videos"
+    "sceneSearchHint": "Find specific moments inside videos",
+    "semanticPending": "Also searching by meaning…"
   },
   "smartFolder": {
     "sectionTitle": "Smart Folders",
@@ -923,7 +924,6 @@
     "paste": "Paste",
     "newFile": "New Note",
     "search": "Search",
-    "switcher": "Go to file",
     "prevFile": "Previous file",
     "nextFile": "Next file",
     "loftPlayer": "Video Player",
