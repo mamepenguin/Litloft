@@ -182,6 +182,17 @@ describe("section heading icons", () => {
       if (!existsSync(resolve(REPO_ROOT, root, "frontend"))) continue;
       expect(perRoot.get(root) ?? 0).toBe(expected);
     }
+
+    // A fifth addon's heading would be counted by nobody: the map above is
+    // a fixed set of keys, and a root missing from it is simply never
+    // asked about. The single total this replaced did catch that, so the
+    // guard comes with it — an unlisted root is a heading nothing checks
+    // the colour or the size of a count for.
+    expect(
+      [...perRoot.keys()].filter(
+        (root) => root !== "frontend/src" && !(root in EXPECTED_ADDON_ICONS),
+      ),
+    ).toEqual([]);
   });
 
   it("paints them all the same, because the difference carried no meaning", () => {

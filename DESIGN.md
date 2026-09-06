@@ -588,7 +588,7 @@ explained why the button is off.
 > **Only the 9 is checked.** That test asserts the unconverted sites per file
 > and their total; 40, 31 and 38 are historical bookkeeping that no test can
 > recompute, because "converted" is a fact about a file's past and the tree
-> holds 52 `<Button>` call sites for every reason including this one. They
+> holds 50 `<Button>` call sites for every reason including this one. They
 > are kept honest by being derived here from measurements, and by being wrong
 > once already: the four this paragraph first blamed on the deletion were
 > counted before one of the four files came back in review.
@@ -597,7 +597,7 @@ explained why the button is off.
 > `disabled:bg-sand` treatment, all of them accent fills — the one exception
 > was an accent *tint* on knowledge's folder pane, converted in C3 and
 > deleted with the pane — and two of those 40 are
-> cloud-sync's, which stay. Add to the 37 any non-accent sibling inside a file
+> cloud-sync's, which stay. Add to the 38 any non-accent sibling inside a file
 > Phase 3 opens for another reason. The rest move opportunistically, when a
 > later change touches the row they sit in — the same terms §2.2 gives the
 > accent fills that are not yet on `Button`.
