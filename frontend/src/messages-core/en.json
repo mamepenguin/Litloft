@@ -407,7 +407,11 @@
     "filterText": "Text",
     "filterVideo": "Video",
     "filterAudio": "Audio",
-    "filterOther": "Other"
+    "filterOther": "Other",
+    "indexFilterPlaceholder": "Filter by path",
+    "indexFilterLabel": "Filter the archive's contents",
+    "indexNoMatch": "Nothing matches",
+    "indexMoreEntries": "{count} more"
   },
   "empty": {
     "noFilesTitle": "No files",

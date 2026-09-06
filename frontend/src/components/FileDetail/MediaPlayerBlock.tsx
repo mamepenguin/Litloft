@@ -6,6 +6,7 @@ import type { FileItem } from "@/types";
 import type { MediaController } from "@/lib/mediaController";
 import type { DocumentCaptureController } from "@/lib/documentCapture";
 import type { PdfController } from "@/lib/pdfController";
+import type { ArchiveController } from "@/lib/archiveController";
 import { AddonSlot } from "../AddonSlot";
 import { FilePreview } from "../FilePreview";
 import { MediaLayoutToggle } from "../MediaLayoutToggle";
@@ -20,6 +21,7 @@ export interface MediaPlayerBlockProps {
   onDocumentCaptureController: (c: DocumentCaptureController | null) => void;
   /** PDF only: the canvas viewer's page state, for the inspector's page list. */
   onPdfController?: (c: PdfController | null) => void;
+  onArchiveController?: (c: ArchiveController | null) => void;
   markdownReloadKey: number;
   onMarkdownTagsSaved: () => void;
   miniPlayerRoot?: Element | null;
@@ -58,6 +60,7 @@ export function MediaPlayerBlock({
   onMediaController,
   onDocumentCaptureController,
   onPdfController,
+  onArchiveController,
   markdownReloadKey,
   onMarkdownTagsSaved,
   miniPlayerRoot,
@@ -87,6 +90,7 @@ export function MediaPlayerBlock({
         onMediaController={onMediaController}
         onDocumentCaptureController={onDocumentCaptureController}
         onPdfController={onPdfController}
+        onArchiveController={onArchiveController}
         markdownReloadKey={markdownReloadKey}
         onMarkdownTagsSaved={onMarkdownTagsSaved}
         miniPlayerRoot={miniPlayerRoot}

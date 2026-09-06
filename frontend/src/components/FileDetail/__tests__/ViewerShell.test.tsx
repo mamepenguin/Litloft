@@ -13,7 +13,7 @@
  * what let a second page row ship once already.
  */
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { render, screen } from "@testing-library/react";
+import { cleanup, render, screen } from "@testing-library/react";
 
 import { FileDetailContent } from "../../FileDetailContent";
 import type { FileItem } from "@/types";
@@ -26,6 +26,7 @@ import {
   usePolicyMock,
   setViewport,
   publishedPdfState,
+  publishedArchiveState,
 } from "./harness";
 
 vi.mock("next/navigation", () => ({
@@ -114,6 +115,7 @@ beforeEach(() => {
   usePolicyMock.mockReturnValue({ enabled: true, isLoading: false });
   slotMocks.occupied.clear();
   publishedPdfState.value = null;
+  publishedArchiveState.value = null;
   slotMocks.entries.clear();
   window.localStorage.clear();
   // Clearing storage is not enough: `readMediaLayout` prefers the
@@ -307,5 +309,111 @@ describe("the PDF's page-list tab", () => {
     publishedPdfState.value = null;
     await renderKind(PDF);
     expect(tabs()).toEqual([]);
+  });
+});
+
+
+describe("the archive's page-list tab", () => {
+  const entry = (path: string) => ({
+    path,
+    filename: path.split("/").pop()!,
+    file_size: 10,
+    compressed_size: 5,
+    file_type: "image",
+    mime_type: "image/jpeg",
+    is_dir: path.endsWith("/"),
+  });
+
+  const renderArchive = async (paths: string[]) => {
+    publishedArchiveState.value = {
+      entries: paths.map(entry),
+      currentPath: "",
+    };
+    return renderKind(ARCHIVE);
+  };
+
+  it("gives the archive an Info and a Pages tab, and no others", async () => {
+    await renderArchive(["001.jpg", "002.jpg", "003.jpg"]);
+    expect(tabs()).toEqual(["Info", "Pages"]);
+  });
+
+  it("indexes the whole archive, not the level the canvas is on", async () => {
+    await renderArchive(["lib/", "lib/main.dart", "README.md"]);
+    const rows = screen
+      .getAllByTestId("archive-index-row")
+      .map((row) => row.getAttribute("title"));
+    expect(rows).toEqual(["lib/", "lib/main.dart", "README.md"]);
+  });
+
+  it("draws no strip for an archive holding one entry", async () => {
+    // One entry is not an index: the canvas already shows it, so the tab
+    // has nothing the canvas does not (rule 1), and with Info left alone
+    // there is no strip either (rule 2).
+    await renderArchive(["only.jpg"]);
+    expect(tabs()).toEqual([]);
+  });
+
+  it("draws no strip for a file that publishes no archive at all", async () => {
+    publishedArchiveState.value = null;
+    await renderKind(ARCHIVE);
+    expect(tabs()).toEqual([]);
+  });
+
+  it("marks an archive's canvas as the one the floor measures", async () => {
+    const { container } = await renderArchive(["001.jpg", "002.jpg"]);
+    expect(
+      container.querySelector('main[data-canvas-floor="true"]'),
+    ).not.toBeNull();
+  });
+
+  it("gives an image's canvas no floor", async () => {
+    // `FilePreview` already caps an image at 70vh; a floor under it would
+    // only add white space around a small photograph.
+    const { container } = await renderKind(IMAGE);
+    expect(container.querySelector('main[data-canvas-floor="true"]')).toBeNull();
+  });
+
+  it("gives a phone's canvas no floor, whatever the kind", async () => {
+    // On a phone the canvas is the whole screen rather than a column
+    // beside an inspector, so a short viewer leaves no empty gutter to
+    // fix. And the player is `position: sticky` under
+    // `[data-sheet-snap]`: a floor there pins 70% of the screen to the
+    // top for the entire scroll, leaving the description and comments a
+    // slot to be read through.
+    setViewport(600);
+    publishedArchiveState.value = {
+      entries: [entry("001.jpg"), entry("002.jpg")],
+      currentPath: "",
+    };
+    const { container } = await renderKind(ARCHIVE);
+    expect(container.querySelector('main[data-canvas-floor="true"]')).toBeNull();
+    // The same file on a wide screen does get one — otherwise this is
+    // just an assertion that nothing anywhere has a floor.
+    cleanup();
+    setViewport();
+    const wide = await renderKind(ARCHIVE);
+    expect(
+      wide.container.querySelector('main[data-canvas-floor="true"]'),
+    ).not.toBeNull();
+  });
+
+  it("never gives a canvas holding a player one", async () => {
+    // `container-type` around a `<video>` renders the whole subtree
+    // rotated and spinning on iOS Safari (`DESIGN.md`). The exclusion is
+    // in `viewerTakesCanvasFloor`, not in the CSS, so it is testable
+    // here — jsdom evaluates no container query.
+    const { container } = await renderKind({
+      mime_type: "video/mp4",
+      file_type: "video",
+    });
+    expect(container.querySelector('main[data-canvas-floor="true"]')).toBeNull();
+  });
+
+  it("gives a PDF's canvas the floor too", async () => {
+    publishedPdfState.value = { numPages: 225, outline: [] };
+    const { container } = await renderKind(PDF);
+    expect(
+      container.querySelector('main[data-canvas-floor="true"]'),
+    ).not.toBeNull();
   });
 });

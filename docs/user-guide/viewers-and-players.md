@@ -154,6 +154,7 @@ Litloft renders Markdown with a curated set of extensions:
 - The Pages tab does not open the document until you look at it, so a PDF you never inspect costs nothing extra.
 - The initial page can be set from the URL, which is how Ask citations land on the right page.
 - Pages stream from the backend as they are needed; the viewer does not rasterise the whole document up front.
+- On a wide screen the page column has a floor of 70% of its height, so a short document does not draw a band with empty space under it. On a phone it does not, because there the document already has the screen.
 
 ## Office (DOCX / XLSX / PPTX) preview
 
@@ -170,16 +171,18 @@ What Litloft does read is a short text excerpt — up to 400 characters extracte
 
 ## ZIP archives
 
-- The listing has the page column to itself, so its height is its own rather than what is left after the metadata — and going into a folder inside the archive no longer moves anything under it, because there is nothing under it.
+- The listing has the page column to itself, so its height is its own rather than what is left after the metadata — and going into a folder inside the archive no longer moves anything under it, because there is nothing under it. **It also has a floor on a wide screen**: an archive holding three entries still gets 70% of the column rather than shrinking to a band with empty space under it. A floor, not a ceiling — a level with hundreds of pages grows past it as before. On a phone there is no floor, because there the listing already has the screen to itself.
 - The archive is **not extracted on the server**; entries are streamed lazily.
 - The listing has grid and list view modes, sorting, a file-type filter, and a breadcrumb for folders inside the archive.
   **Sort** offers field and direction as one list of six — name, size or type, each way round — the same shape the folder toolbar uses.
 - **Which view a level opens in is read off the level itself**: a grid where most of the files there are images, a list otherwise, and a list for a level holding only folders. Choosing a view yourself ends the derivation for that archive — every level of it stays in the view you picked, and Litloft remembers that for the fifty archives you most recently chose a view in. Another archive starts from its own contents again.
 - Per-entry caps: 50 MB per entry, max 10 000 entries, max 3 concurrent extractions across all viewers.
+- **Grid cells are drawn at the pages' own proportions.** A scanned page is taller than it is wide, and square cells cropped the top and bottom off every one of them; the cells now vary in width and pack into full rows. Each cell starts at a page's usual shape and takes the picture's real one once it has loaded, so a level of scans settles as you scroll rather than all at once. Folders, text and files with no preview stay square. How many cells fit on a row is decided by the width the listing actually has — with the inspector open that is 384px less than the window, which the old fixed column counts did not know.
 - Entry names are shown under the thumbnails, except where the level holds nothing but images — in a scanned comic every cell would otherwise repeat the same page-number pattern under identical thumbnails. A level that mixes images with anything else keeps the names, and folders always keep theirs.
 - Click an entry → an image page-turner takes over the page, or a text viewer opens under the listing. Both work in either view. **An entry that cannot be opened is not clickable**: the row says *No preview* and carries a labelled **Download** beside it, and a grid cell carries a download icon in its corner. Nothing happens on a press because there is nothing to press — the way out is the download.
 - **What counts as text is decided by the entry's name as well as its type.** A ZIP has no reliable type information for source files, so `main.dart`, `main.rs`, `Cargo.toml`, `Makefile`, `LICENSE` and the like open by extension or by whole filename against a fixed list. Anything not on that list — `app.bin`, `photo.raw`, `a.out` — stays a download. This list decides only what this viewer will render; it does not change how a file is classified anywhere else in Litloft.
 - The text viewer carries a **download** for the entry it is showing, the way the page-turner does. A text entry over 1 MB still asks before it is fetched, and if the fetch fails the viewer says so and offers the download there too.
+- **A Pages tab in the inspector is a flat index of the whole archive**, with a filter. The listing shows the level you are on; this shows every entry at every depth, so typing `main` in a 2439-file source zip finds `lib/src/main.dart` without walking down to it. Pressing a row goes to that entry — into the folder, or straight into the page-turner or text viewer for an entry that can be opened. Matching is plain substring matching on the path, not the semantic search behind `Cmd+K`. The first two hundred entries are listed and the filter reaches the rest; an archive holding a single entry gets no tab, because the listing already shows it.
 - The archive page-turner shares the image viewer's gestures, spread mode and reading direction, and adds a per-entry **download** button.
 
 ## Text files

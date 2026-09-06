@@ -1,3 +1,4 @@
+import { isTextPreviewable } from "@/components/TextPreview";
 import type { ArchiveEntry, ViewMode } from "@/types";
 
 export const INTERVAL_OPTIONS = [3, 5, 10] as const;
@@ -107,4 +108,22 @@ export function defaultArchiveViewMode(entries: ArchiveEntry[]): ViewMode {
   // read as a rule the arithmetic does not have, and a test naming it could
   // not tell the branch from its absence.
   return images.length * 2 > files.length ? "grid" : "list";
+}
+
+
+/**
+ * Whether pressing this entry does anything.
+ *
+ * One predicate, three callers: the grid cell, the list row and the
+ * inspector's index. The index used to present every row as a button,
+ * so an unopenable leaf on the current level was a press that moved
+ * nothing and said nothing — `handleFileClick` matches neither arm and
+ * returns. `docs/user-guide/viewers-and-players.md` states the rule the
+ * other two already kept: an entry that cannot be opened is not
+ * clickable, and the way out is the download.
+ */
+export function canOpenArchiveEntry(entry: ArchiveEntry): boolean {
+  if (entry.is_dir) return true;
+  if (entry.file_type === "image") return true;
+  return isTextPreviewable(entry.mime_type, entry.filename);
 }

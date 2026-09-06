@@ -40,24 +40,35 @@ export function ArchiveEntryGrid({
     );
   }
 
+  // Justified rather than a column count, and the column count is gone
+  // rather than moved: `grid-cols-2 sm: md: lg: xl:` measured the
+  // *window*, and this grid renders beside a 384px inspector, so it was
+  // counting columns for a width it does not have (`DESIGN.md` §8.5,
+  // "Measure against the container, not the viewport"). A justified row
+  // has no column count to get wrong, and a scanned page stops being
+  // cropped square into the bargain.
   return (
-    <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6">
-      {entries.map((entry) => (
-        <ArchiveEntryCard
-          key={entry.path}
-          entry={entry}
-          fileId={fileId}
-          isClickable={isClickable(entry)}
-          showFilename={showImageFilenames}
-          onClick={() => {
-            if (entry.is_dir) {
-              handleDirClick(entry);
-            } else {
-              handleFileClick(entry);
-            }
-          }}
-        />
-      ))}
+    <div className="justified-grid-host">
+      <div className="justified-grid">
+        {entries.map((entry) => (
+          <ArchiveEntryCard
+            key={entry.path}
+            entry={entry}
+            fileId={fileId}
+            isClickable={isClickable(entry)}
+            showFilename={showImageFilenames}
+            onClick={() => {
+              if (entry.is_dir) {
+                handleDirClick(entry);
+              } else {
+                handleFileClick(entry);
+              }
+            }}
+          />
+        ))}
+        {/* Keeps the last line from stretching. See globals.css. */}
+        <div className="justified-grid-tail" aria-hidden />
+      </div>
     </div>
   );
 }

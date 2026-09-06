@@ -79,6 +79,55 @@ function ridesShellAsViewer(
 }
 
 /**
+ * Mimes whose viewer gets a floor, named rather than matched.
+ *
+ * `startsWith("text/")` was the first spelling and it was two mistakes.
+ * It is unreachable — plain text does not ride the shell at all, so the
+ * branch never fired and the claim that a short text file gets a floor
+ * was never true — and it was a trap for whoever makes it reachable:
+ * `text/html` is also `text/`, and `text/html` is rendered in
+ * `HtmlPreview`'s sandboxed iframe, which is exactly what the rule
+ * below forbids putting a floor near.
+ *
+ * A prefix match answers "does this name look like the family I had in
+ * mind", which is a guess. The list answers "is this one of the viewers
+ * I have checked", which is the question that matters.
+ */
+const FLOORED_MIMES: ReadonlySet<string> = new Set(["application/pdf"]);
+
+/**
+ * Does this file's viewer get a floor under it in the canvas?
+ *
+ * An archive of seven entries drew a 200px band and left the rest of
+ * the canvas empty. The viewer is what the page is for, and its height
+ * came from how much happened to be inside it. A floor of 70% of the
+ * canvas fixes that without capping anything — more content still grows
+ * past it.
+ *
+ * **Archives and PDFs.** The floor is a fraction of a measured canvas
+ * height, and the measurement is cheap; what is not cheap is what the
+ * floor sits next to. A cross-origin iframe or a `<video>` under a
+ * containment context renders its subtree rotated and spinning on iOS
+ * Safari, and while the floor no longer establishes one, the two lists
+ * are kept in step deliberately — this predicate is the place where
+ * "which viewers have I actually looked at" is written down.
+ *
+ * Images are excluded for a different reason: `FilePreview` already
+ * gives them `max-h-[70vh]`, so a floor would add white space around a
+ * small photograph and nothing else.
+ */
+export function viewerTakesCanvasFloor(
+  fileType: string | undefined,
+  mimeType: string | undefined,
+): boolean {
+  if (playerKind({ file_type: fileType, mime_type: mimeType }) !== null) {
+    return false;
+  }
+  if (fileType === "archive") return true;
+  return FLOORED_MIMES.has(mimeType ?? "");
+}
+
+/**
  * Does this file's detail page ride `FileDetailShell` on this surface?
  *
  * The document half is surface-independent: a Markdown note has drawn

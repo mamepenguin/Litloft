@@ -1292,6 +1292,15 @@ div[data-citation-section-path]:not(tr) {
   flex-grow: var(--jg-ratio);
   flex-basis: calc(var(--jg-ratio) * var(--jg-row-h));
   height: var(--jg-row-h);
+  /* A flex item's automatic minimum is its min-content width, and the
+     grid these cells replaced was `repeat(N, minmax(0, 1fr))` — a floor
+     of zero. The photo cell keeps every string out of flow so it never
+     noticed; the archive cell puts a `truncate` filename in flow, and
+     `truncate` is `white-space: nowrap`, so one long name became the
+     cell's minimum. The row then stopped justifying and `cover` went
+     back to cropping its neighbours, which is the defect the justified
+     rows exist to remove. */
+  min-width: 0;
 }
 
 /* The last line does not stretch. Without this, two leftover cells
@@ -1351,4 +1360,45 @@ div[data-citation-section-path]:not(tr) {
   .justified-grid-name {
     transition: none;
   }
+}
+
+/* A floor under the canvas viewer — DESIGN.md §8.5.
+
+   An archive of seven entries drew a 200px band with the rest of the
+   canvas empty under it, and the viewer is the whole reason the page
+   exists. It gets 70% of the canvas: the scrollport left after the page
+   row and beside the inspector, which is 384px narrower and a row
+   shorter than the window.
+
+   `--canvas-h` is published by `useCanvasFloor` from a ResizeObserver
+   on the canvas itself — not `70cqh`. `container-type: size` implies
+   `contain: layout`, which would make the canvas the containing block
+   for every `position: fixed` descendant and give it its own stacking
+   context; the archive canvas holds two unportalled fixed elements
+   (the full-screen page-turner and the toolbar's overflow backdrop),
+   and under containment the page-turner covers the column instead of
+   the viewport while the backdrop has already made the rest inert.
+   Measuring is also the mechanism `lib/cardGrid.ts` uses and the shape
+   DESIGN.md prescribes wherever a subtree may hold media.
+
+   A floor, not a ceiling: a 2439-entry archive still grows past it. The
+   320px absolute is for a short desktop window. `--canvas-h` is absent
+   until the canvas has been measured, and the `max()` then resolves to
+   the absolute alone rather than to nothing. */
+main[data-canvas-floor="true"] .media-detail-player {
+  min-height: max(320px, calc(var(--canvas-h, 0px) * 0.7));
+  /* The `min-height` alone reserves the height on this wrapper and
+     stops there: it is a block box, and a block box does not stretch
+     its in-flow children. The viewer inside kept its content height and
+     the reserved space became emptiness *inside* the wrapper — the same
+     picture as before the floor, with the gap moved up one element.
+     Measuring `.media-detail-player` cannot see that; measure the
+     viewer's own box. */
+  display: flex;
+  flex-direction: column;
+}
+
+main[data-canvas-floor="true"] .media-detail-player > :first-child {
+  flex: 1 1 auto;
+  min-height: 0;
 }

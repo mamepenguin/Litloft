@@ -1664,12 +1664,13 @@ one.
 and a name that cannot be reached at all is worse than one that is
 always drawn.
 
-**The band is decorative; the cell is named by `aria-label` on the
-link.** `aria-hidden` on the band and an explicit label is what makes
-the accessible name the same string in every branch — a name computed
-from contents says the title twice on a text row, because the text
-preview draws it too, and it would vanish entirely the day someone hides
-a band that looks like decoration.
+**The cell is named by `aria-label` on the link.** An explicit label is
+what makes the accessible name the same string in every branch — a name
+computed from contents says the title twice on a text row, because the
+text preview draws it too. The band is deliberately *not* `aria-hidden`:
+with the label present it cannot add a second copy anyway, and leaving
+it in the tree means that if the label is ever dropped the name degrades
+to the visible filename rather than to nothing.
 
 **The 10% that are not photographs get `FileCard`'s answer.** The 90%
 threshold admits them on purpose, so a cell draws a thumbnail, a text
@@ -1683,6 +1684,76 @@ the preview and measures its width with a `ResizeObserver` — and either
 answer is fine as long as the pair stays consistent. Here the row height
 is the only thing switching on width, so giving up the preview is the
 cheaper half to lose.
+
+**The archive listing uses these rows too, with the ratio measured from
+the picture rather than the database.** A zip directory carries no
+dimensions, but the cell loads the original image, so the browser is
+asked on `load`; until then the cell is drawn at 0.7, a scanned page's
+usual shape, so the common case is the one that does not reflow. A
+picture that fails to load goes back to square, because what is drawn
+then is a 32px icon. Folders, text and binaries are square throughout.
+
+**Its filename band is over the picture, not under it.** A caption in
+the flex column shortened the image area while the cell's width still
+came from the picture's own ratio, so `object-fit: cover` cropped the
+difference — about 12% of the height on a 200px row and 20% on a 120px
+one, in exactly the mixed levels that show captions.
+
+**Cells carry `min-width: 0`.** The grid these replaced was
+`repeat(N, minmax(0, 1fr))`, so a long name could not widen a column. A
+flex item's automatic minimum is its min-content width instead, and the
+archive puts a `truncate` — that is, `white-space: nowrap` — filename in
+flow. One long name would otherwise become the cell's minimum, the row
+would stop justifying, and `cover` would go back to cropping its
+neighbours.
+
+### A floor under the canvas viewer
+
+An archive holding seven entries drew a 200px band with the rest of the
+canvas empty under it: the viewer is the whole reason the page exists,
+and its height came from how much happened to be inside it.
+
+The canvas viewer takes `min-height: max(320px, calc(var(--canvas-h) *
+0.7))` — **70% of the canvas**, not of the viewport. The canvas is the
+scrollport left after the page row and beside the inspector, which is
+384px narrower and a row shorter than the window.
+
+A floor, not a ceiling. A 2439-entry archive still grows past it.
+
+**`--canvas-h` is measured, not `70cqh`** — and the reason has nothing
+to do with heights. `container-type: size` implies `contain: layout`,
+which makes the element the containing block for every `position:
+fixed` descendant and gives it a stacking context of its own. The
+archive canvas holds two unportalled fixed elements: the full-screen
+page-turner and the toolbar's overflow backdrop. Under containment the
+page-turner's `inset-0` resolves to the canvas — it covers the column
+instead of the screen, cannot rise above the header, and scrolls away
+with the content, while its inert backdrop has already made everything
+behind it unclickable. So the height is published from a
+`ResizeObserver`, which is the mechanism `lib/cardGrid.ts` already uses
+and the shape this document prescribes wherever a subtree may hold
+media.
+
+The lesson generalises past this floor: **`container-type` is not only
+a question about media in the subtree.** It changes what `position:
+fixed` means underneath it. Check for fixed descendants before
+establishing one, not just for `<video>`.
+
+**Archives and PDFs only, and not on a phone.** Which viewers get a
+floor is a named list in `lib/fileDetailShell.ts`
+(`viewerTakesCanvasFloor`), not a mime prefix: `startsWith("text/")`
+was the first spelling, it was unreachable — plain text does not ride
+the shell — and it would have matched `text/html`, which renders in a
+sandboxed opaque-origin iframe. A prefix asks "does this look like the
+family I meant"; a list asks "is this one I have checked".
+
+Images are excluded for a different reason: `FilePreview` already caps
+them at `70vh`, so a floor would add white space around a small
+photograph and nothing else. A phone is excluded because there the
+canvas *is* the screen — there is no gutter beside a short viewer to
+fix — and the player is `position: sticky` under `[data-sheet-snap]`,
+so a floor would pin 70% of the screen for the whole scroll and leave
+the description and comments a slot to be read through.
 
 ### Sticking below the header
 

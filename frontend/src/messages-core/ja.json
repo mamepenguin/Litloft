@@ -407,7 +407,11 @@
     "filterText": "テキスト",
     "filterVideo": "動画",
     "filterAudio": "音声",
-    "filterOther": "その他"
+    "filterOther": "その他",
+    "indexFilterPlaceholder": "パスで絞り込む",
+    "indexFilterLabel": "書庫の中を絞り込む",
+    "indexNoMatch": "一致するものはありません",
+    "indexMoreEntries": "ほか {count} 件"
   },
   "empty": {
     "noFilesTitle": "ファイルがありません",

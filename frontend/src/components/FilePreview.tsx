@@ -24,6 +24,7 @@ import { playerKind } from "@/lib/playerKind";
 import type { MediaController } from "@/lib/mediaController";
 import type { DocumentCaptureController } from "@/lib/documentCapture";
 import type { PdfController } from "@/lib/pdfController";
+import type { ArchiveController } from "@/lib/archiveController";
 
 /**
  * Loaded on the client only.
@@ -90,6 +91,8 @@ interface FilePreviewProps {
   ) => void;
   /** PDF only: the canvas viewer's page state, for the inspector's page list. */
   onPdfController?: (controller: PdfController | null) => void;
+  /** Archive only: the zip's contents, for the inspector's index tab. */
+  onArchiveController?: (controller: ArchiveController | null) => void;
   /**
    * ``.md`` only: bump to force the Properties Panel source to
    * refetch (keeps frontmatter display in sync when the outer
@@ -134,6 +137,7 @@ export function FilePreview({
   onMediaController,
   onDocumentCaptureController,
   onPdfController,
+  onArchiveController,
   markdownReloadKey,
   onMarkdownTagsSaved,
   miniPlayerRoot,
@@ -270,7 +274,12 @@ export function FilePreview({
   }
 
   if (file.file_type === "archive") {
-    return <ArchivePreview fileId={file.id} />;
+    return (
+      <ArchivePreview
+        fileId={file.id}
+        onArchiveController={onArchiveController}
+      />
+    );
   }
 
   if (isTextPreviewable(file.mime_type)) {

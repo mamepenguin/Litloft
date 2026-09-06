@@ -22,7 +22,26 @@ interface ArchiveEntryCardProps {
   showFilename?: boolean;
 }
 
-function ImageCard({ entry, fileId }: { entry: ArchiveEntry; fileId: string }) {
+/**
+ * What a cell is drawn at before its picture has loaded — the
+ * proportions of a scanned page.
+ */
+export const UNMEASURED_PAGE_RATIO = 0.7;
+
+/** Folders, text and binaries have no proportions of their own. */
+export const NON_IMAGE_RATIO = 1;
+
+/* No `h-full w-full`: the row rule sets the height and `flex-basis`
+   sets the width, so both were being overridden. */
+function ImageCard({
+  entry,
+  fileId,
+  onRatio,
+}: {
+  entry: ArchiveEntry;
+  fileId: string;
+  onRatio: (ratio: number) => void;
+}) {
   const [src, setSrc] = useState<string | null>(null);
   const [error, setError] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
@@ -50,7 +69,22 @@ function ImageCard({ entry, fileId }: { entry: ArchiveEntry; fileId: string }) {
           src={src}
           alt={entry.filename}
           className="h-full w-full object-cover"
-          onError={() => setError(true)}
+          // The archive has no stored dimensions — the entry list is
+          // read out of the zip's directory, which carries none. But
+          // the cell loads the original image rather than a thumbnail,
+          // so the browser can be asked once it has one.
+          onLoad={(e) => {
+            const img = e.currentTarget;
+            if (img.naturalWidth > 0 && img.naturalHeight > 0) {
+              onRatio(img.naturalWidth / img.naturalHeight);
+            }
+          }}
+          onError={() => {
+            setError(true);
+            // The cell now draws a 32px icon, not a page. Leaving it at
+            // a page's proportions gives the icon a tall portrait box.
+            onRatio(NON_IMAGE_RATIO);
+          }}
         />
       ) : (
         <FileTypeIcon
@@ -63,7 +97,10 @@ function ImageCard({ entry, fileId }: { entry: ArchiveEntry; fileId: string }) {
   );
 }
 
-const CELL_CLASS = "aspect-square w-full overflow-hidden rounded-xl bg-bg-card";
+/* No `h-full w-full` here: `.justified-grid > .justified-grid-cell`
+   sets the height and `flex-basis` sets the width, so both would be
+   overridden anyway. */
+const CELL_CLASS = "overflow-hidden rounded-xl bg-bg-card";
 
 /**
  * A cell, pressable or not.
@@ -76,20 +113,30 @@ const CELL_CLASS = "aspect-square w-full overflow-hidden rounded-xl bg-bg-card";
 function CellBox({
   clickable,
   onClick,
+  ratio,
   children,
 }: {
   clickable: boolean;
   onClick: () => void;
+  ratio: number;
   children: React.ReactNode;
 }) {
+  // The row geometry reads this; see `.justified-grid` in globals.css
+  // and DESIGN.md §8.5.
+  const style = { "--jg-ratio": ratio } as React.CSSProperties;
   if (!clickable) {
-    return <div className={`${CELL_CLASS} relative`}>{children}</div>;
+    return (
+      <div className={`justified-grid-cell relative ${CELL_CLASS}`} style={style}>
+        {children}
+      </div>
+    );
   }
   return (
     <button
       type="button"
       onClick={onClick}
-      className={`${CELL_CLASS} cursor-pointer transition-colors hover:bg-bg-elevated`}
+      style={style}
+      className={`justified-grid-cell relative ${CELL_CLASS} cursor-pointer transition-colors hover:bg-bg-elevated`}
     >
       {children}
     </button>
@@ -104,8 +151,17 @@ export function ArchiveEntryCard({
   showFilename = true,
 }: ArchiveEntryCardProps) {
   const t = useTranslations("archive");
+  // Portrait, until the picture says otherwise. A scanned page is the
+  // shape this grid is mostly made of, and a square placeholder that
+  // grows taller on load moves every cell after it on the row; starting
+  // at the common case makes that the exception rather than the rule.
+  const [ratio, setRatio] = useState(
+    entry.is_dir || entry.file_type !== "image"
+      ? NON_IMAGE_RATIO
+      : UNMEASURED_PAGE_RATIO,
+  );
   return (
-    <CellBox clickable={isClickable} onClick={onClick}>
+    <CellBox clickable={isClickable} onClick={onClick} ratio={ratio}>
       {/* The listing puts a labelled button beside the row; a 193px cell has
           no line to put one on, so the affordance is an icon with an
           accessible name. `p-2` on a 16px glyph is a 32x32 target, over the
@@ -130,14 +186,19 @@ export function ArchiveEntryCard({
           </span>
         </div>
       ) : entry.file_type === "image" ? (
-        <div className="flex h-full flex-col">
-          <div className="min-h-0 flex-1 overflow-hidden">
-            <ImageCard entry={entry} fileId={fileId} />
-          </div>
+        <div className="relative h-full w-full">
+          <ImageCard entry={entry} fileId={fileId} onRatio={setRatio} />
+          {/* Over the picture, not under it. A caption in the flex
+              column shortened the image area while the cell's width
+              still came from the *picture's* ratio, so `object-fit:
+              cover` cropped the difference — about 12% of the height on
+              a 200px row and 20% on a 120px one. The photo grid's
+              `.justified-grid-name` band is the same answer to the same
+              problem. */}
           {showFilename && (
-            <div className="shrink-0 px-2 py-1 text-left">
-              <p className="truncate text-xs text-text-primary">{entry.filename}</p>
-            </div>
+            <p className="absolute inset-x-0 bottom-0 truncate bg-gradient-to-t from-black/70 to-transparent px-2 py-1 text-left text-xs text-white">
+              {entry.filename}
+            </p>
           )}
         </div>
       ) : (
