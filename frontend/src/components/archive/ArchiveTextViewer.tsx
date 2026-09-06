@@ -1,13 +1,16 @@
 "use client";
 
-import { ArrowLeft } from "lucide-react";
+import { ArrowLeft, FileWarning } from "lucide-react";
 import { useTranslations } from "next-intl";
 
+import { getArchiveEntryUrl } from "@/lib/api";
 import { formatFileSize } from "@/lib/format";
+import { EmptyState } from "../EmptyState";
 import type { ArchiveEntry } from "@/types";
 
 interface ArchiveTextViewerProps {
   viewingEntry: ArchiveEntry;
+  fileId: string;
   textConfirmed: boolean;
   textLoading: boolean;
   textError: string | null;
@@ -18,6 +21,7 @@ interface ArchiveTextViewerProps {
 
 export function ArchiveTextViewer({
   viewingEntry,
+  fileId,
   textConfirmed,
   textLoading,
   textError,
@@ -60,11 +64,20 @@ export function ArchiveTextViewer({
           <p className="text-sm text-text-muted">{tt("loading")}</p>
         </div>
       ) : textError ? (
-        <div className="flex items-center justify-center py-16">
-          <p className="text-sm text-danger">
-            {tt("loadFailed", { error: textError ?? "" })}
-          </p>
-        </div>
+        // The one place in this viewer that is genuinely a dead end, and so
+        // the one place `EmptyState` belongs: the entry is not openable after
+        // all, and the download is the way out. A bare red sentence said what
+        // went wrong and offered nothing.
+        <EmptyState
+          icon={FileWarning}
+          title={t("textLoadFailedTitle")}
+          description={tt("loadFailed", { error: textError })}
+          primaryAction={{
+            label: t("download"),
+            href: getArchiveEntryUrl(fileId, viewingEntry.path),
+            download: true,
+          }}
+        />
       ) : (
         <pre className="max-h-[60vh] overflow-auto p-4 font-mono text-sm leading-relaxed text-text-primary whitespace-pre-wrap break-words">
           {textContent}

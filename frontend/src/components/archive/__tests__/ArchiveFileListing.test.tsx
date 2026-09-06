@@ -76,10 +76,32 @@ describe("ArchiveFileListing", () => {
     expect(sizes).toHaveLength(2); // readme.txt and image.jpg
   });
 
-  it("shows download links for files", () => {
+  // ARC-1. A row that opens says so by being pressable; writing a reason and
+  // a way out on a row that already has one is the inverse of the rule that
+  // keeps a column out of the listing when every cell would say the same.
+  it("offers a reason and a download only where the row is a dead end", () => {
     render(<ArchiveFileListing {...defaultProps} />);
-    expect(screen.getByLabelText("Download readme.txt")).toBeInTheDocument();
-    expect(screen.getByLabelText("Download image.jpg")).toBeInTheDocument();
+    expect(screen.queryByText("No preview")).toBeNull();
+    expect(screen.queryByRole("link")).toBeNull();
+  });
+
+  it("gives every dead-end row a reason and a download", () => {
+    // `ArchivePreview`'s own predicate always admits a directory, so the fake
+    // does too — a listing where even folders are dead ends is not a state
+    // this component is ever handed.
+    render(
+      <ArchiveFileListing {...defaultProps} isClickable={(e) => e.is_dir} />
+    );
+
+    // Two, not three: a directory is always openable, so the count says the
+    // treatment is per-row rather than per-listing.
+    expect(screen.getAllByText("No preview").length).toBe(2);
+    const links = screen.getAllByRole("link");
+    expect(links.map((a) => a.getAttribute("download"))).toEqual([
+      "readme.txt",
+      "image.jpg",
+    ]);
+    expect(links[0].textContent).toBe("Download");
   });
 
   it("shows empty message when no entries", () => {
@@ -87,21 +109,24 @@ describe("ArchiveFileListing", () => {
     expect(screen.getByText("This folder is empty")).toBeInTheDocument();
   });
 
-  it("disables non-clickable entries", () => {
+  it("makes a dead-end row not a control, rather than a control that is off", () => {
     render(
-      <ArchiveFileListing {...defaultProps} isClickable={() => false} />
+      <ArchiveFileListing {...defaultProps} isClickable={(e) => e.is_dir} />
     );
+
+    // The one button left is the directory's. A `disabled` row put an
+    // unreachable control in the tab order and dimmed the name that would
+    // have explained it, which DESIGN.md §6 forbids for exactly that reason.
     const buttons = screen.getAllByRole("button");
-    const entryButtons = buttons.filter((b) => b.hasAttribute("disabled"));
-    expect(entryButtons.length).toBeGreaterThan(0);
+    expect(buttons.length).toBe(1);
+    expect(buttons[0].textContent).toContain("photos");
+    expect(document.querySelectorAll("[disabled]").length).toBe(0);
+    expect(document.querySelectorAll(".opacity-60").length).toBe(0);
   });
 
-  it("renders children", () => {
-    render(
-      <ArchiveFileListing {...defaultProps}>
-        <div data-testid="child">Extra content</div>
-      </ArchiveFileListing>
-    );
-    expect(screen.getByTestId("child")).toBeInTheDocument();
+  it("keeps every openable row a control", () => {
+    // The assertion above is also true of a listing that rendered nothing.
+    render(<ArchiveFileListing {...defaultProps} />);
+    expect(screen.getAllByRole("button").length).toBe(3);
   });
 });

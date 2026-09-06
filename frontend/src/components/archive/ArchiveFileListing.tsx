@@ -1,11 +1,12 @@
 "use client";
 
-import { ChevronRight, Download, Folder } from "lucide-react";
+import { ChevronRight, Folder } from "lucide-react";
 
 import { useTranslations } from "next-intl";
 import { getArchiveEntryUrl } from "@/lib/api";
 import { formatFileSize } from "@/lib/format";
 import { FileTypeIcon } from "../FileTypeIcon";
+import { buttonClass } from "../Button";
 import type { ArchiveEntry, FileType } from "@/types";
 
 interface ArchiveFileListingProps {
@@ -14,7 +15,41 @@ interface ArchiveFileListingProps {
   handleDirClick: (entry: ArchiveEntry) => void;
   handleFileClick: (entry: ArchiveEntry) => void;
   isClickable: (entry: ArchiveEntry) => boolean;
-  children?: React.ReactNode;
+}
+
+const ROW_CLASS =
+  "flex w-full items-center gap-3 border-b border-bg-border px-4 py-2.5 text-left";
+
+/**
+ * A row, pressable or not.
+ *
+ * The two are different elements rather than one element with a flag,
+ * because a dead-end row now holds a download link: nesting an `<a>` inside a
+ * `<button>` is invalid HTML, and browsers recover from it by hoisting the
+ * link out of the button, which puts the two controls in an order the markup
+ * does not describe.
+ */
+function RowBox({
+  clickable,
+  onClick,
+  children,
+}: {
+  clickable: boolean;
+  onClick: () => void;
+  children: React.ReactNode;
+}) {
+  if (!clickable) {
+    return <div className={ROW_CLASS}>{children}</div>;
+  }
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className={`${ROW_CLASS} cursor-pointer transition-colors hover:bg-bg-elevated`}
+    >
+      {children}
+    </button>
+  );
 }
 
 export function ArchiveFileListing({
@@ -23,7 +58,6 @@ export function ArchiveFileListing({
   handleDirClick,
   handleFileClick,
   isClickable,
-  children,
 }: ArchiveFileListingProps) {
   const t = useTranslations("archive");
 
@@ -40,21 +74,21 @@ export function ArchiveFileListing({
                 const clickable = isClickable(entry);
                 return (
                   <li key={entry.path}>
-                    <button
-                      type="button"
+                    {/* The row is a button only while it opens something.
+                        `disabled` used to carry both halves of the sentence:
+                        it dimmed a row that says nothing about why, and it
+                        put an unreachable control in the tab order's place.
+                        A row that cannot be opened is not a control that is
+                        off — it is not a control. */}
+                    <RowBox
+                      clickable={clickable}
                       onClick={() => {
                         if (entry.is_dir) {
                           handleDirClick(entry);
-                        } else if (clickable) {
+                        } else {
                           handleFileClick(entry);
                         }
                       }}
-                      disabled={!clickable}
-                      className={`flex w-full items-center gap-3 border-b border-bg-border px-4 py-2.5 text-left transition-colors ${
-                        clickable
-                          ? "hover:bg-bg-elevated cursor-pointer"
-                          : "opacity-60 cursor-default"
-                      }`}
                     >
                       {entry.is_dir ? (
                         <Folder
@@ -83,16 +117,24 @@ export function ArchiveFileListing({
                         </span>
                       )}
 
-                      {!entry.is_dir && (
-                        <a
-                          href={getArchiveEntryUrl(fileId, entry.path)}
-                          download={entry.filename}
-                          onClick={(e) => e.stopPropagation()}
-                          className="shrink-0 rounded-lg p-1 text-text-muted transition-colors hover:bg-bg-card hover:text-text-primary"
-                          aria-label={t("downloadFile", { name: entry.filename })}
-                        >
-                          <Download size={14} />
-                        </a>
+                      {/* Only where the row is a dead end. A row that opens
+                          says so by being pressable, and writing "you can
+                          press this" on every openable row is the inverse of
+                          the rule that keeps rows out of the listing when
+                          they have nothing to say. */}
+                      {!entry.is_dir && !clickable && (
+                        <>
+                          <span className="shrink-0 text-xs text-text-muted">
+                            {t("previewUnavailable")}
+                          </span>
+                          <a
+                            href={getArchiveEntryUrl(fileId, entry.path)}
+                            download={entry.filename}
+                            className={`${buttonClass({ variant: "secondary", size: "sm" })} shrink-0`}
+                          >
+                            {t("download")}
+                          </a>
+                        </>
                       )}
 
                       {entry.is_dir && (
@@ -101,15 +143,13 @@ export function ArchiveFileListing({
                           className="shrink-0 text-text-muted"
                         />
                       )}
-                    </button>
+                    </RowBox>
                   </li>
                 );
               })}
             </ul>
           )}
       </div>
-
-      {children}
     </div>
   );
 }

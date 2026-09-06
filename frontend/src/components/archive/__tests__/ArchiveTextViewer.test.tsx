@@ -15,6 +15,7 @@ const textEntry: ArchiveEntry = {
 
 const defaultProps = {
   viewingEntry: textEntry,
+  fileId: "zip-1",
   textConfirmed: false,
   textLoading: false,
   textError: null,

@@ -1,4 +1,4 @@
-import { render, screen, waitFor, fireEvent } from "@testing-library/react";
+import { render, screen, waitFor, fireEvent, within } from "@testing-library/react";
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import type { ReactNode } from "react";
 import { ArchivePreview } from "../ArchivePreview";
@@ -77,6 +77,17 @@ const mockArchive: ArchiveContents = {
       is_dir: false,
     },
     {
+      // Opened by its extension, not by its mime: `classify` has no bucket
+      // for Dart, so a ZIP entry named `main.dart` arrives here opaque.
+      path: "main.dart",
+      filename: "main.dart",
+      file_size: 512,
+      compressed_size: 400,
+      file_type: "other",
+      mime_type: "application/octet-stream",
+      is_dir: false,
+    },
+    {
       path: "data.bin",
       filename: "data.bin",
       file_size: 1024,
@@ -86,7 +97,7 @@ const mockArchive: ArchiveContents = {
       is_dir: false,
     },
   ],
-  total_entries: 6,
+  total_entries: 7,
   total_size: 1140000,
 };
 
@@ -233,14 +244,105 @@ describe("ArchivePreview", () => {
     });
   });
 
-  it("non-previewable files are disabled", async () => {
+  // D-14, and the reason it is a regression test rather than a fix note: the
+  // text viewer used to be the file listing's `children`, so pressing a text
+  // entry in the grid set `viewerMode` to "text" and drew nothing at all. The
+  // press looked like it had missed.
+  it("opens the text viewer from the grid, not only from the listing", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockResolvedValue({ ok: true, text: async () => "hello from the zip" })
+    );
+    // The root level derives a list (one image among three files), so the
+    // grid is reached the way a reader reaches it: by choosing it.
+    localStorage.setItem(
+      "archive-view-choices",
+      JSON.stringify([{ id: "test-id", mode: "grid" }])
+    );
+    render(<ArchivePreview fileId="test-id" />);
+
+    await waitFor(() => {
+      expect(screen.getByText("readme.txt")).toBeInTheDocument();
+    });
+    fireEvent.click(screen.getByText("readme.txt"));
+
+    expect(await screen.findByTestId("text-viewer")).toBeInTheDocument();
+    expect(await screen.findByText("hello from the zip")).toBeInTheDocument();
+    vi.unstubAllGlobals();
+  });
+
+  it("opens it from the listing too", async () => {
+    // The assertion above is only interesting if the listing still works —
+    // moving the viewer out of the listing is what could have broken it.
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockResolvedValue({ ok: true, text: async () => "hello from the zip" })
+    );
+    render(<ArchivePreview fileId="test-id" />);
+
+    await waitFor(() => {
+      expect(screen.getByText("readme.txt")).toBeInTheDocument();
+    });
+    fireEvent.click(screen.getByText("readme.txt"));
+
+    expect(await screen.findByTestId("text-viewer")).toBeInTheDocument();
+    vi.unstubAllGlobals();
+  });
+
+  it("offers a download when the text cannot be fetched", async () => {
+    vi.stubGlobal("fetch", vi.fn().mockResolvedValue({ ok: false, status: 500, statusText: "Server Error" }));
+    render(<ArchivePreview fileId="test-id" />);
+
+    await waitFor(() => {
+      expect(screen.getByText("readme.txt")).toBeInTheDocument();
+    });
+    fireEvent.click(screen.getByText("readme.txt"));
+
+    // Not a bare red sentence: the entry turned out not to be openable, and
+    // the download is the way out of that.
+    const failure = await screen.findByText("This file could not be opened");
+    const link = within(failure.closest("div")!.parentElement!).getByRole("link");
+    // `EmptyState`'s action carries `download` as a flag, so the name comes
+    // from the URL rather than the attribute.
+    expect(link.hasAttribute("download")).toBe(true);
+    expect(link.getAttribute("href")).toContain("readme.txt");
+    expect(link.textContent).toBe("Download");
+    vi.unstubAllGlobals();
+  });
+
+  it("opens a source file the mime table has no name for", async () => {
+    // ARC-1. `isTextPreviewable` reads the entry's name here because the mime
+    // is `application/octet-stream` — the same value `data.bin` carries, so
+    // the mime alone cannot tell the two apart.
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockResolvedValue({ ok: true, text: async () => "void main() {}" })
+    );
+    render(<ArchivePreview fileId="test-id" />);
+
+    await waitFor(() => {
+      expect(screen.getByText("main.dart")).toBeInTheDocument();
+    });
+    const row = screen.getByText("main.dart").closest("li")!;
+    expect(within(row).queryByText("No preview")).toBeNull();
+
+    fireEvent.click(screen.getByText("main.dart"));
+    expect(await screen.findByText("void main() {}")).toBeInTheDocument();
+    vi.unstubAllGlobals();
+  });
+
+  it("non-previewable files are not controls, and are given a way out", async () => {
     render(<ArchivePreview fileId="test-id" />);
 
     await waitFor(() => {
       expect(screen.getByText("data.bin")).toBeInTheDocument();
     });
 
-    const binButton = screen.getByText("data.bin").closest("button");
-    expect(binButton).toBeDisabled();
+    const row = screen.getByText("data.bin").closest("li")!;
+    expect(row.querySelector("button")).toBeNull();
+    expect(within(row).getByText("No preview")).toBeInTheDocument();
+    expect(within(row).getByRole("link").getAttribute("download")).toBe(
+      "data.bin"
+    );
   });
 });

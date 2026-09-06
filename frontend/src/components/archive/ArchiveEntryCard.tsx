@@ -1,7 +1,8 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { Folder } from "lucide-react";
+import { useTranslations } from "next-intl";
+import { Download, Folder } from "lucide-react";
 import { getArchiveEntryUrl } from "@/lib/api";
 import { formatFileSize } from "@/lib/format";
 import { FileTypeIcon } from "../FileTypeIcon";
@@ -62,6 +63,39 @@ function ImageCard({ entry, fileId }: { entry: ArchiveEntry; fileId: string }) {
   );
 }
 
+const CELL_CLASS = "aspect-square w-full overflow-hidden rounded-xl bg-bg-card";
+
+/**
+ * A cell, pressable or not.
+ *
+ * The dead-end cell is a `<div>` and not a disabled `<button>` for the same
+ * two reasons the listing's rows are: it carries a download link, which
+ * cannot be nested inside a button, and a thing that was never openable is
+ * not a control in the off position.
+ */
+function CellBox({
+  clickable,
+  onClick,
+  children,
+}: {
+  clickable: boolean;
+  onClick: () => void;
+  children: React.ReactNode;
+}) {
+  if (!clickable) {
+    return <div className={`${CELL_CLASS} relative`}>{children}</div>;
+  }
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className={`${CELL_CLASS} cursor-pointer transition-colors hover:bg-bg-elevated`}
+    >
+      {children}
+    </button>
+  );
+}
+
 export function ArchiveEntryCard({
   entry,
   fileId,
@@ -69,17 +103,24 @@ export function ArchiveEntryCard({
   isClickable,
   showFilename = true,
 }: ArchiveEntryCardProps) {
+  const t = useTranslations("archive");
   return (
-    <button
-      type="button"
-      onClick={isClickable ? onClick : undefined}
-      disabled={!isClickable}
-      className={`aspect-square w-full overflow-hidden rounded-xl bg-bg-card transition-colors ${
-        isClickable
-          ? "cursor-pointer hover:bg-bg-elevated"
-          : "cursor-default opacity-60"
-      }`}
-    >
+    <CellBox clickable={isClickable} onClick={onClick}>
+      {/* The listing puts a labelled button beside the row; a 193px cell has
+          no line to put one on, so the affordance is an icon with an
+          accessible name. `p-2` on a 16px glyph is a 32x32 target, over the
+          24x24 floor a repeated disclosure control needs. */}
+      {!entry.is_dir && !isClickable && (
+        <a
+          href={getArchiveEntryUrl(fileId, entry.path)}
+          download={entry.filename}
+          className="absolute right-1 top-1 z-10 rounded-lg p-2 text-text-muted transition-colors hover:bg-bg-elevated hover:text-text-primary"
+          aria-label={t("downloadFile", { name: entry.filename })}
+          title={t("download")}
+        >
+          <Download size={16} />
+        </a>
+      )}
       {entry.is_dir ? (
         <div className="flex h-full flex-col items-center justify-center gap-2">
           <Folder size={40} className="text-accent" />
@@ -113,6 +154,6 @@ export function ArchiveEntryCard({
           </span>
         </div>
       )}
-    </button>
+    </CellBox>
   );
 }

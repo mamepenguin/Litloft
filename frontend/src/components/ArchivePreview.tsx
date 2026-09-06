@@ -122,7 +122,7 @@ export function ArchivePreview({ fileId }: { fileId: string }) {
         setViewerMode("image");
         imageViewer.setShowControls(true);
         imageViewer.setPlaying(false);
-      } else if (isTextPreviewable(entry.mime_type)) {
+      } else if (isTextPreviewable(entry.mime_type, entry.filename)) {
         setViewingEntry(entry);
         setViewerMode("text");
         textViewer.setTextContent(null);
@@ -136,7 +136,7 @@ export function ArchivePreview({ fileId }: { fileId: string }) {
   const isClickable = (entry: ArchiveEntry): boolean => {
     if (entry.is_dir) return true;
     if (entry.file_type === "image") return true;
-    if (isTextPreviewable(entry.mime_type)) return true;
+    if (isTextPreviewable(entry.mime_type, entry.filename)) return true;
     return false;
   };
 
@@ -221,19 +221,24 @@ export function ArchivePreview({ fileId }: { fileId: string }) {
           handleDirClick={handleDirClick}
           handleFileClick={handleFileClick}
           isClickable={isClickable}
-        >
-          {viewerMode === "text" && viewingEntry && (
-            <ArchiveTextViewer
-              viewingEntry={viewingEntry}
-              textConfirmed={textViewer.textConfirmed}
-              textLoading={textViewer.textLoading}
-              textError={textViewer.textError}
-              textContent={textViewer.textContent}
-              setTextConfirmed={textViewer.setTextConfirmed}
-              closeViewer={closeViewerFull}
-            />
-          )}
-        </ArchiveFileListing>
+        />
+      )}
+
+      {/* Outside the branch, because `viewerMode === "text"` means the same
+          thing in both layouts. It used to be the file listing's `children`,
+          so pressing a text entry in the grid set the mode and drew nothing:
+          the press looked like it had missed. */}
+      {viewerMode === "text" && viewingEntry && (
+        <ArchiveTextViewer
+          viewingEntry={viewingEntry}
+          fileId={fileId}
+          textConfirmed={textViewer.textConfirmed}
+          textLoading={textViewer.textLoading}
+          textError={textViewer.textError}
+          textContent={textViewer.textContent}
+          setTextConfirmed={textViewer.setTextConfirmed}
+          closeViewer={closeViewerFull}
+        />
       )}
     </div>
   );

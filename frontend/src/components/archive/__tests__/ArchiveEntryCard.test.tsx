@@ -122,7 +122,10 @@ describe("ArchiveEntryCard", () => {
     expect(screen.queryByTestId("icon-document")).not.toBeInTheDocument();
   });
 
-  it("disables the card when isClickable=false", () => {
+  // D-14. A grid cell had no way out at all: the listing's row carried a
+  // download and the cell carried nothing, so a level defaulting to grid left
+  // an unopenable entry with nowhere to go.
+  it("gives a dead-end cell a download, and stops being a control", () => {
     const entry = makeEntry("locked.bin", { file_type: "other" });
     const onClick = vi.fn();
     render(
@@ -134,11 +137,26 @@ describe("ArchiveEntryCard", () => {
       />
     );
 
-    const button = screen.getByRole("button");
-    expect(button).toBeDisabled();
+    expect(screen.queryByRole("button")).toBeNull();
+    const link = screen.getByRole("link", { name: "Download locked.bin" });
+    expect(link.getAttribute("download")).toBe("locked.bin");
+    expect(document.querySelectorAll(".opacity-60").length).toBe(0);
 
-    fireEvent.click(button);
+    fireEvent.click(screen.getByText("locked.bin"));
     expect(onClick).not.toHaveBeenCalled();
+  });
+
+  it("does not put a download on a cell that opens", () => {
+    render(
+      <ArchiveEntryCard
+        entry={makeEntry("photo.jpg", { file_type: "image" })}
+        fileId="file-1"
+        onClick={vi.fn()}
+        isClickable
+      />
+    );
+    expect(screen.queryByRole("link")).toBeNull();
+    expect(screen.getByRole("button")).toBeInTheDocument();
   });
 
   it("calls onClick when the card is clicked and clickable", () => {

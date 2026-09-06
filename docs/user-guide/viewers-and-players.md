@@ -157,7 +157,9 @@ What Litloft does read is a short text excerpt — up to 400 characters extracte
 - **Which view a level opens in is read off the level itself**: a grid where most of the files there are images, a list otherwise, and a list for a level holding only folders. Choosing a view yourself ends the derivation for that archive — every level of it stays in the view you picked, and Litloft remembers that for the fifty archives you most recently chose a view in. Another archive starts from its own contents again.
 - Per-entry caps: 50 MB per entry, max 10 000 entries, max 3 concurrent extractions across all viewers.
 - Entry names are shown under the thumbnails, except where the level holds nothing but images — in a scanned comic every cell would otherwise repeat the same page-number pattern under identical thumbnails. A level that mixes images with anything else keeps the names, and folders always keep theirs.
-- Click an entry → an image page-turner or a text viewer opens over the listing if the type is recognised, else the entry downloads.
+- Click an entry → an image page-turner or a text viewer opens over the listing, in either view. **An entry that cannot be opened is not clickable**: the row says *No preview* and carries a labelled **Download** beside it, and a grid cell carries a download icon in its corner. Nothing happens on a press because there is nothing to press — the way out is the download.
+- **What counts as text is decided by the entry's name as well as its type.** A ZIP has no reliable type information for source files, so `main.dart`, `main.rs`, `Cargo.toml`, `Makefile`, `LICENSE` and the like open by extension or by whole filename against a fixed list. Anything not on that list — `app.bin`, `photo.raw`, `a.out` — stays a download. This list decides only what this viewer will render; it does not change how a file is classified anywhere else in Litloft.
+- A text entry over 1 MB still asks before it is fetched, and if the fetch fails the viewer says so and offers the download.
 - The archive page-turner shares the image viewer's gestures, spread mode and reading direction, and adds a per-entry **download** button.
 
 ## Text files
