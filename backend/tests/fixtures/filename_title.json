@@ -1,0 +1,20 @@
+{
+  "_comment": "Shared by backend/tests/test_filename_title_parity.py and frontend/src/lib/__tests__/filenameTitle.parity.test.ts. `_filename_to_title` decides what a file is called before anyone renames it, and the search result row compares against that title to decide whether repeating the filename underneath says anything. Two implementations, one table.",
+  "cases": [
+    { "filename": "video.mp4", "title": "Video" },
+    { "filename": "kyoto.mp4", "title": "Kyoto" },
+    { "filename": "My Video.mp4", "title": "My Video" },
+    { "filename": "my_vacation_2024.mp4", "title": "My vacation 2024" },
+    { "filename": "summer_trip-2024.mp4", "title": "Summer trip-2024" },
+    { "filename": "trip-to-tokyo.mp4", "title": "Trip-to-tokyo" },
+    { "filename": "archive.tar.gz", "title": "Archive.tar" },
+    { "filename": "README", "title": "README" },
+    { "filename": "2026-08-11.md", "title": "2026-08-11" },
+    { "filename": "  spaced  .md", "title": "Spaced" },
+    { "filename": "_.md", "title": "_" },
+    { "filename": "MacBook-Neo-review.md", "title": "MacBook-Neo-review" },
+    { "filename": "charon's moon.md", "title": "Charon's moon" },
+    { "filename": "京都の紅葉.mp4", "title": "京都の紅葉" },
+    { "filename": "京都_の_紅葉.mp4", "title": "京都 の 紅葉" }
+  ]
+}

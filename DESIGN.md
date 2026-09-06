@@ -1020,6 +1020,20 @@ Default table aesthetic for MarkdownPreview and any other reading-surface table.
 - **Exception**: vertical-header tables (`tbody th`) may keep a subtle fill on the header column to distinguish the axis.
 - Mobile (`max-width: 767px`): trim table `font-size` to `0.93em`. Do not reflow — horizontal scroll is preferred to structure loss.
 
+### Search result timestamp pills
+
+- Colour: **`text-text-muted`**, with `hover:bg-accent/10` kept.
+- Not `text-accent`, and specifically **not** the rule §2.5 gives timestamp
+  links inside a description. There the timestamp is the thing being offered;
+  in a result row it is the third rank of information, under a title that is
+  not accented itself, and a row full of accent spends the screen's loudest
+  colour on "there is also a hit at 13:19".
+- The colour went and the affordance did not: the pills are still links, and
+  still light up under the pointer.
+- At most three per hit, de-duplicated on the whole second, with a quiet
+  `+N` for the rest. One rule for both surfaces
+  (`frontend/src/lib/matchTimestamps.ts`).
+
 ### Search Snippet (MatchOverlay excerpt row)
 
 The one-line excerpt showing *where* a search hit matched, inside a file card or list row. It is a quotation in a dense surface, so it deliberately does **not** reuse the long-form `blockquote` treatment from §3.3 — a `bg-bg-elevated` fill would read as a nested card in the grid, and it collapses into the row's own `hover:bg-bg-elevated` state.

@@ -124,6 +124,27 @@ describe("collectMatchTimestamps", () => {
     expect(overflow).toBe(0);
   });
 
+  it("keeps a hit at the very start of the file", () => {
+    // `start > 0` instead of `>= 0` passes every other case here and
+    // silently drops the opening seconds of a video, where a transcript
+    // segment routinely begins.
+    const { shown } = collectMatchTimestamps({
+      transcript: [seg(0), seg(30)],
+    });
+    expect(shown.map((p) => p.seconds)).toEqual([0, 30]);
+  });
+
+  it("keeps moments past the hour, which read differently", () => {
+    // `formatDuration` switches to H:MM:SS at sixty minutes, so a pill
+    // matcher written as /^\d+:\d{2}$/ stops seeing these — which is how
+    // a cap or a de-duplication bug on a long recording would hide.
+    const { shown, overflow } = collectMatchTimestamps({
+      transcript: [seg(3600), seg(3661), seg(7322), seg(9000)],
+    });
+    expect(shown.map((p) => p.seconds)).toEqual([3600, 3661, 7322]);
+    expect(overflow).toBe(1);
+  });
+
   it("is empty for a file with no match metadata at all", () => {
     expect(collectMatchTimestamps(undefined)).toEqual({
       shown: [],

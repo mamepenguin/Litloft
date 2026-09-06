@@ -20,9 +20,12 @@ export interface MatchTimestampPill {
    */
   seconds: number;
   /**
-   * Which channel produced it. Only used to keep React keys unique when
-   * a transcript hit and a scene hit share a second; the two draw
-   * identically, because to the reader they are the same moment.
+   * Which channel produced it. Nothing draws differently for it — to the
+   * reader a moment is a moment — and after de-duplication it is not
+   * needed to keep React keys unique either, since no two pills in
+   * `shown` share a floored second. It is here so a caller can say which
+   * channel a moment came from, and so a test can pin which one wins a
+   * tie: the earlier raw value, because the sort is stable and by time.
    */
   kind: "transcript" | "clip";
 }

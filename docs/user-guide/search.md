@@ -24,7 +24,7 @@ Once you type, the modal runs the same search the search page does (see below) a
 
 It arrives in two stages. Name matches come back in a single round trip and are drawn straight away, so typing a filename you already know gets you there without waiting. If the drive has semantic search, the footer says it is still looking by meaning; when those hits land the list is re-ranked with them mixed in, which can move rows. On a drive without the intelligence addon that second stage does not exist, and the footer says nothing — there is no result to wait for.
 
-Each hit shows its title, and under it a second line only when that line says something the title does not — the folder the file sits in, or a filename that is not simply the title with an extension on the end. A file called `kyoto.mp4` titled "kyoto" gets its folder or nothing at all; `kyoto_day_1.mp4` titled "kyoto day 1" still shows its filename.
+Each hit shows its title, and under it a second line only when that line says something the title does not — the folder the file sits in, or a filename the title no longer derives from. A file called `kyoto.mp4` still titled "Kyoto" gets its folder or nothing at all; the same file retitled "Autumn in Kyoto" shows its filename again, because by then the filename is a fact the title has stopped carrying.
 
 ## Built-in keyword search
 
@@ -74,7 +74,7 @@ When the [intelligence addon](../addons/intelligence.md) is enabled for a drive,
 
 - Embeddings cover text, transcripts, and a representative CLIP frame per video. Hybrid retrieval: BM25 + dense vectors blended with `search.alpha` (`0.7` in the shipped config).
 - Each card shows why it matched — filename, path, metadata, audio, content, scene, or thumbnail — using the same badge row as a keyword-only result.
-- Transcript and scene hits add clickable timestamps that jump the player straight to that moment. Up to three are shown, on the card and in the modal alike; if the hit names more moments than that, a quiet `+2` says how many were left out. Two hits that land in the same second — a spoken phrase and a scene, say — are one moment and get one timestamp, not two identical ones. The overflow count is not clickable: it knows how many moments were dropped, not which one you meant.
+- Transcript and scene hits add clickable timestamps that jump the player straight to that moment. Up to three are shown, on the card and in the modal alike; if the hit names more moments than that, a quiet `+N` says how many were left out. Two hits that land in the same second — a spoken phrase and a scene, say — are one moment and get one timestamp, not two identical ones. The overflow count is not clickable: it knows how many moments were dropped, not which one you meant.
 - PDF hits list the pages they matched.
 
 Without the addon the list is keyword-only, and the badges simply say so.

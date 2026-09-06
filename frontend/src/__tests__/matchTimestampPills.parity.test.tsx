@@ -93,7 +93,7 @@ const SHARED_META: MatchMeta = {
 };
 
 const pillTexts = () =>
-  screen.getAllByText(/^\d+:\d{2}$/).map((el) => el.textContent);
+  screen.getAllByText(/^\d+:\d{2}(:\d{2})?$/).map((el) => el.textContent);
 
 describe("timestamp pills read the same on both surfaces", () => {
   /**
@@ -168,7 +168,7 @@ describe("timestamp pills read the same on both surfaces", () => {
    */
   it("spends no accent on the pills, on either surface", () => {
     render(<MergedResultItem file={makeFile({ match_meta: SHARED_META })} onSelect={vi.fn()} />);
-    for (const pill of screen.getAllByText(/^\d+:\d{2}$/)) {
+    for (const pill of screen.getAllByText(/^\d+:\d{2}(:\d{2})?$/)) {
       expect(pill.className).not.toContain("text-accent");
       expect(pill.className).toContain("text-text-muted");
       expect(pill.className).toContain("hover:bg-accent/10");
@@ -176,7 +176,7 @@ describe("timestamp pills read the same on both surfaces", () => {
     cleanup();
 
     render(<MatchOverlay match={SHARED_META} fileId="f1" />);
-    for (const pill of screen.getAllByText(/^\d+:\d{2}$/)) {
+    for (const pill of screen.getAllByText(/^\d+:\d{2}(:\d{2})?$/)) {
       expect(pill.className).not.toContain("text-accent");
       expect(pill.className).toContain("text-text-muted");
       expect(pill.className).toContain("hover:bg-accent/10");

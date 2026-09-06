@@ -695,7 +695,12 @@ export function GlobalSearch() {
         !isMobileViewport &&
         createPortal(
           // Desktop: centered modal
-        <div className="fixed inset-0 z-50 flex items-start justify-center pt-[10vh]">
+        // `px-4`: between 640px (where the mobile sheet stops) and 768px
+        // (where `max-w-3xl` starts binding) the panel is `w-full` against
+        // an unpadded container, so without it the card's border and its
+        // rounded corners sit flush against the viewport edge and the
+        // backdrop disappears at the sides.
+        <div className="fixed inset-0 z-50 flex items-start justify-center px-4 pt-[10vh]">
           <div
             className="fixed inset-0 bg-black/50 animate-fade-in"
             onClick={closeSearch}
