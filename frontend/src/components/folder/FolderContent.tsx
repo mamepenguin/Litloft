@@ -13,6 +13,7 @@ import { FileGrid } from "@/components/FileGrid";
 import { FileList } from "@/components/FileList";
 import { EmptyState } from "@/components/EmptyState";
 import { FolderCard } from "@/components/FolderCard";
+import { FolderListRow } from "@/components/FolderListRow";
 import { FolderContextMenu } from "@/components/FolderContextMenu";
 
 import { cardGridTemplate, useCardColumns } from "@/lib/cardGrid";
@@ -20,6 +21,40 @@ import { cardGridTemplate, useCardColumns } from "@/lib/cardGrid";
 import { FilterField } from "./FilterField";
 import { useFolderCardRename } from "./useFolderCardRename";
 import { type WidenTagScope } from "./WidenTagScopeLink";
+
+/**
+ * The band of folders above the files: a card grid, or a column of rows.
+ *
+ * Both branches are written out with literal class strings because
+ * `card-grid.test.ts` builds its population by reading them out of the
+ * source. A single element with a conditional `className` still renders a
+ * grid but is invisible to that scan, so the grid would quietly leave the
+ * set of grids the floor rule is checked against.
+ */
+function FolderShelf({
+  list,
+  gridRef,
+  columns,
+  children,
+}: {
+  list: boolean;
+  gridRef: (node: HTMLElement | null) => void;
+  columns: number;
+  children: React.ReactNode;
+}) {
+  if (list) {
+    return <div className="mb-6">{children}</div>;
+  }
+  return (
+    <div
+      ref={gridRef}
+      className="mb-6 grid gap-3"
+      style={{ gridTemplateColumns: cardGridTemplate(columns) }}
+    >
+      {children}
+    </div>
+  );
+}
 
 interface FolderContentProps {
   files: FileItemWithMatch[];
@@ -127,39 +162,53 @@ export function FolderContent({
       </div>
 
       {filteredFolders.length > 0 && (
-        <div
-          ref={folderGridRef}
-          className="mb-6 grid gap-3"
-          style={{ gridTemplateColumns: cardGridTemplate(columns) }}
+        // One set of props, two shapes. The list draws folders as rows
+        // so a list stays a list: a grid of cards above a column of rows
+        // is two answers to "what am I looking at" on one screen.
+        // Everything a folder can do — drop target, inline rename, the
+        // one `FolderContextMenu` — is handed to whichever shape is
+        // drawn, from here, so neither grows a second definition.
+        // Two elements rather than one with a conditional `className`:
+        // `card-grid.test.ts` finds every card grid by reading the literal
+        // class strings in the source, and a grid hidden inside a ternary
+        // drops out of that population without failing anything.
+        <FolderShelf
+          list={viewMode === "list"}
+          gridRef={folderGridRef}
+          columns={columns}
         >
           {filteredFolders.map((folder) => {
             const disabled = isDropDisabled(folder.path);
-            return (
-              <FolderCard
-                key={folder.path}
-                folder={folder}
-                driveName={driveName}
-                isDropTarget={(dragState.isDragging || isInternalDragging) && !disabled && isDropTarget(folder.path)}
-                dropTargetProps={(dragState.isDragging || isInternalDragging) && !disabled ? getDropTargetProps(folder.path) : undefined}
-                draggable={!!onRefresh}
-                isDragging={dragState.draggedFolderPath === folder.path}
-                onDragStart={(e) => onFolderDragStart(e, folder.path)}
-                onDragEnd={onDragEnd}
-                {...rename.cardProps(folder)}
-                onContextMenu={(e) => {
-                  setMenuTarget(folder);
-                  folderMenuHandlers.onContextMenu(e);
-                }}
-                onTouchStart={(e) => {
-                  setMenuTarget(folder);
-                  folderMenuHandlers.onTouchStart(e);
-                }}
-                onTouchEnd={folderMenuHandlers.onTouchEnd}
-                onTouchMove={folderMenuHandlers.onTouchMove}
-              />
+            const dragging = dragState.isDragging || isInternalDragging;
+            const folderProps = {
+              folder,
+              driveName,
+              isDropTarget: dragging && !disabled && isDropTarget(folder.path),
+              dropTargetProps:
+                dragging && !disabled ? getDropTargetProps(folder.path) : undefined,
+              draggable: !!onRefresh,
+              isDragging: dragState.draggedFolderPath === folder.path,
+              onDragStart: (e: React.DragEvent) => onFolderDragStart(e, folder.path),
+              onDragEnd,
+              ...rename.cardProps(folder),
+              onContextMenu: (e: React.MouseEvent) => {
+                setMenuTarget(folder);
+                folderMenuHandlers.onContextMenu(e);
+              },
+              onTouchStart: (e: React.TouchEvent) => {
+                setMenuTarget(folder);
+                folderMenuHandlers.onTouchStart(e);
+              },
+              onTouchEnd: folderMenuHandlers.onTouchEnd,
+              onTouchMove: folderMenuHandlers.onTouchMove,
+            };
+            return viewMode === "list" ? (
+              <FolderListRow key={folder.path} {...folderProps} />
+            ) : (
+              <FolderCard key={folder.path} {...folderProps} />
             );
           })}
-        </div>
+        </FolderShelf>
       )}
 
       <FolderContextMenu

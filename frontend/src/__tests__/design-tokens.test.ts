@@ -256,6 +256,43 @@ describe("design tokens", () => {
     expect(dead.has("text-sm")).toBe(false);
   });
 
+  /**
+   * The same failure mode as a dead colour, on the one non-colour token
+   * this repo names: Tailwind emits nothing for `max-w-list-row` if
+   * `--container-list-row` is not declared, the class stays in the DOM,
+   * and the row silently loses its cap. `candidates` above is filtered to
+   * colour utilities, so nothing else would notice.
+   *
+   * The value is asserted in three places at once — the token, the class,
+   * and DESIGN.md §3.6 — because a measure that the document and the code
+   * disagree about is worse than one that is written down nowhere.
+   */
+  it("gives the list-row measure a token, a user, and a documented value", () => {
+    expect(dead.has("max-w-list-row")).toBe(false);
+
+    const css = readFileSync(GLOBALS_CSS, "utf-8");
+    expect(css).toMatch(/--container-list-row:\s*60rem;/);
+
+    const design = readFileSync(resolve(REPO_ROOT, "DESIGN.md"), "utf-8");
+    expect(design).toMatch(/### 3\.6 List row measure/);
+    expect(design).toMatch(/`60rem` \(960px\)[^]*`max-w-list-row`/);
+
+    // ...and the rows that are supposed to carry it do, named rather than
+    // counted. `probes` would say yes on the strength of this file and the
+    // row's own test both writing the string, which is not a user.
+    const ROWS = [
+      "frontend/src/components/FileListRow.tsx",
+      "frontend/src/components/FolderListRow.tsx",
+    ];
+    expect(ROWS.length).toBe(2);
+    for (const row of ROWS) {
+      expect(
+        readFileSync(resolve(REPO_ROOT, row), "utf-8"),
+        `${row} does not carry max-w-list-row`,
+      ).toContain("max-w-list-row");
+    }
+  });
+
   it("every colour utility the source writes produces CSS", () => {
     const offenders = candidates
       .filter((c) => {

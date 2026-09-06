@@ -123,6 +123,15 @@
   --color-graph-cat-5: var(--graph-cat-5);
   --color-graph-cat-6: var(--graph-cat-6);
   --shadow-card: var(--shadow-card);
+  /* `max-w-list-row`. A listing row stretches to whatever width the
+     window has, so on a wide screen a title and its size sit at opposite
+     ends of the screen with half a metre of nothing between them and the
+     eye has to travel to pair them up. See DESIGN.md §3.6.
+     Named rather than written as `max-w-[60rem]` at each call site
+     because DESIGN.md §8.5 already has a 60rem that answers a different
+     question ("can a rail sit beside the player"), and two unrelated
+     rules wearing the same number get merged by the next reader. */
+  --container-list-row: 60rem;
   /* Pin Sans font stack: system-ui with broad CJK fallbacks */
   --font-sans: -apple-system, system-ui, "Segoe UI", Roboto, "Oxygen-Sans",
     "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol", Ubuntu, Cantarell,

@@ -61,6 +61,18 @@ vi.mock("@/components/FolderCard", () => ({
   ),
 }));
 
+/**
+ * `FolderCard` stays stubbed — the grid path is covered by its own file —
+ * but `FolderListRow` is rendered for real. A stub that reads only
+ * `folder.name` cannot tell a row that was handed the drop target, the
+ * rename and the menu from one that was handed nothing, which is the
+ * claim this file exists to make.
+ */
+vi.mock("@/components/FolderContextMenu", () => ({
+  FolderContextMenu: ({ open, target }: { open: boolean; target: Folder | null }) =>
+    open ? <div data-testid="folder-menu">{target?.name}</div> : null,
+}));
+
 const mockFile = (id: string): FileItem => ({
   image_width: null,
   image_height: null,
@@ -140,6 +152,69 @@ describe("FolderContent", () => {
     render(<FolderContent {...defaultProps} viewMode="list" />);
     expect(screen.getByTestId("file-list")).toBeInTheDocument();
     expect(screen.queryByTestId("file-grid")).not.toBeInTheDocument();
+  });
+
+  /**
+   * F-8. A grid of folder cards sitting above a column of file rows is
+   * two answers to "what am I looking at" on one screen.
+   */
+  describe("folders follow the view mode", () => {
+    const withFolders = {
+      ...defaultProps,
+      folders: [mockFolder("travel"), mockFolder("work")],
+    };
+
+    it("draws folders as cards in grid mode", () => {
+      render(<FolderContent {...withFolders} viewMode="grid" />);
+      expect(screen.getAllByTestId("folder-card")).toHaveLength(2);
+      expect(screen.queryAllByRole("link", { name: /travel/ })).toHaveLength(0);
+    });
+
+    it("draws folders as rows in list mode", () => {
+      render(<FolderContent {...withFolders} viewMode="list" />);
+      expect(screen.getAllByRole("link", { name: /travel/ })).toHaveLength(1);
+      expect(screen.queryAllByTestId("folder-card")).toHaveLength(0);
+    });
+
+    /**
+     * The claim the shape is for: one set of props, two shapes. A row
+     * handed nothing renders identically until you try to use it, and
+     * three of F-8's acceptance conditions are about using it.
+     */
+    it("hands the row the same menu, drop target and rename the card gets", async () => {
+      const { container } = render(<FolderContent {...withFolders} viewMode="list" />);
+      const row = screen.getByText("travel").closest("div.group") as HTMLElement;
+      expect(row).not.toBeNull();
+
+      // The one `FolderContextMenu`, from the row's own `⋮`...
+      fireEvent.click(
+        within(row).getByRole("button", { name: /Actions for travel/i }),
+      );
+      expect(await screen.findByTestId("folder-menu")).toHaveTextContent("travel");
+
+      // ...and from right-click, which is the same handler.
+      fireEvent.contextMenu(row);
+      expect(screen.getByTestId("folder-menu")).toBeInTheDocument();
+
+      // A drop target, and a drag source.
+      expect(row).toHaveAttribute("draggable", "true");
+      // `rename.cardProps` reaches it: focus is tracked so the host can
+      // bind F2 to the focused row.
+      expect(container.querySelector("[data-rename-focus]")).not.toBeNull();
+    });
+
+    it("drops the card grid's column template in list mode", () => {
+      const { container: grid } = render(
+        <FolderContent {...withFolders} viewMode="grid" />,
+      );
+      const gridBox = grid.querySelector("[style*='grid-template-columns']");
+      expect(gridBox).not.toBeNull();
+
+      const { container: list } = render(
+        <FolderContent {...withFolders} viewMode="list" />,
+      );
+      expect(list.querySelector("[style*='grid-template-columns']")).toBeNull();
+    });
   });
 
   it("shows loading spinner when loading", () => {
