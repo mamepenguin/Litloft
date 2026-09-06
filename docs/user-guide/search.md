@@ -17,6 +17,7 @@ Before you type anything, the modal is a **switcher**: it lists the files you mo
 - **Recently opened files** come from your watch history on the server, so the list follows you between devices and browsers. Opening a file's detail page is enough to put it there — it is not limited to media you played.
 - **Recent searches** are stored per drive in your browser, up to 20 terms. Each row has two small buttons: one fills the input with that term instead of running it, the other drops it from the list.
 - Arrow keys walk both sections as one list, and Enter activates the highlighted row.
+- Results arrive in two stages, and the second one reorders the list. A row you have highlighted keeps its highlight through that — Enter opens the file you picked, wherever it has moved to. The highlight is dropped only if that file drops out of the list.
 
 The modal only ever shows the drive you are currently in — it never crosses a drive boundary, and outside a drive it just asks you to open one first.
 

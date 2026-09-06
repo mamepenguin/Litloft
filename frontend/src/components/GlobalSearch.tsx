@@ -107,6 +107,19 @@ export function GlobalSearch() {
   } | null>(null);
   const [composing, setComposing] = useState(false);
   const [selectedIndex, setSelectedIndex] = useState(-1);
+  /**
+   * The file the highlight is on, once the reader has put it somewhere.
+   *
+   * The highlight is a promise about where the next Enter lands, and the
+   * list moves underneath it: the second stage reorders by relevance, so
+   * the row at a given position is a different file a second later. A
+   * position cannot keep that promise; a file can.
+   *
+   * `null` while the reader has not moved it. An untouched highlight is
+   * not about any file, so it must not be pinned to one — the default
+   * belongs wherever the default belongs after a reorder.
+   */
+  const highlightedIdRef = useRef<string | null>(null);
   // Render mobile fullscreen vs. desktop modal based on viewport width.
   // Prior versions dual-rendered both DOM trees and relied on Tailwind
   // `sm:*` classes to hide one — but that surfaces both copies in
@@ -287,11 +300,12 @@ export function GlobalSearch() {
   //
   // The row order is in here because the search resolves in two stages and
   // the second one reorders: relevance sorting sees only name matches until
-  // the semantic hits arrive, so the row under the highlight is a different
-  // file afterwards. Dropping the selection is the honest answer — following
-  // the file id instead would move the highlight somewhere the eye has to
-  // hunt for, and anyone arrowing during those seconds is watching the
-  // footer say the list is not settled yet.
+  // the semantic hits arrive, so the row at a given position is a different
+  // file afterwards. The highlight follows its *file* through that — the
+  // accident being avoided is "the next Enter opens something the reader
+  // did not choose", and a file that is still listed has not stopped being
+  // the answer just because it moved. It is dropped when its file leaves
+  // the list, which is the only case where there is nothing to point at.
   //
   // It is the *order*, not the array. `paint()` builds a fresh array every
   // run, including the one where the second stage came back with nothing to
@@ -299,8 +313,22 @@ export function GlobalSearch() {
   // never moved.
   const mergedOrder = merged.map((f) => f.id).join("\u0000");
   useEffect(() => {
+    const held = highlightedIdRef.current;
+    if (held === null) return;
+    const next = merged.findIndex((file) => file.id === held);
+    if (next === -1) highlightedIdRef.current = null;
+    setSelectedIndex(next);
+    // `merged` is deliberately absent: `mergedOrder` is the same fact in a
+    // form that does not change when the array is rebuilt identically.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [mergedOrder]);
+
+  // A new question, a new list. Nothing here is the same list moving, so
+  // there is no file to keep pointing at.
+  useEffect(() => {
+    highlightedIdRef.current = null;
     setSelectedIndex(-1);
-  }, [query, open, recentData, mergedOrder]);
+  }, [query, open, recentData]);
 
   useEffect(() => {
     if (selectedIndex < 0) return;
@@ -514,6 +542,26 @@ export function GlobalSearch() {
   const showEmptyState = emptyItems.length > 0;
   const recentFileCount = hasQuery ? 0 : recentFiles.length;
 
+  /**
+   * Move the highlight, and record which file it landed on.
+   *
+   * The recording happens here rather than in an effect on `selectedIndex`:
+   * an effect also runs when the *list* changes, and would re-read the row
+   * at the old position — writing down whichever file had just slid under
+   * the highlight, which is the accident this exists to prevent.
+   *
+   * The "view all results" row is a position, not a file, and so is every
+   * row of the empty state, whose list a new query replaces outright.
+   */
+  function moveHighlight(next: (prev: number) => number) {
+    setSelectedIndex((prev) => {
+      const index = next(prev);
+      const file = showEmptyState ? undefined : merged[index];
+      highlightedIdRef.current = file ? file.id : null;
+      return index;
+    });
+  }
+
   function activateEmptyItem(item: EmptyItem | undefined) {
     if (!item) return;
     if (item.kind === "term") {
@@ -542,10 +590,10 @@ export function GlobalSearch() {
             : hasResults
               ? merged.length
               : -1;
-          if (maxIdx >= 0) setSelectedIndex((prev) => Math.min(maxIdx, prev + 1));
+          if (maxIdx >= 0) moveHighlight((prev) => Math.min(maxIdx, prev + 1));
         } else if (e.key === "ArrowUp") {
           e.preventDefault();
-          setSelectedIndex((prev) => Math.max(-1, prev - 1));
+          moveHighlight((prev) => Math.max(-1, prev - 1));
         } else if (e.key === "Enter" && !composing) {
           if (selectedIndex >= 0 && showEmptyState) {
             activateEmptyItem(emptyItems[selectedIndex]);

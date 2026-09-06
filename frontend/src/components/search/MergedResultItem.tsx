@@ -85,6 +85,10 @@ export function MergedResultItem({ file, onSelect, isSelected = false }: Props) 
     <button
       type="button"
       data-testid="merged-result-item"
+      // Which file this row is, for tests about the highlight: the
+      // highlight follows a file rather than a position, so a test that
+      // identified rows by position could not tell the two apart.
+      data-file-id={file.id}
       onClick={() => onSelect(`/files/${file.id}`)}
       className={`flex w-full items-start gap-3 px-4 py-2.5 text-left transition-colors ${isSelected ? "bg-bg-elevated" : "hover:bg-bg-elevated"}`}
     >

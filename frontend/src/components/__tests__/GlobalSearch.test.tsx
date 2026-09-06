@@ -1323,7 +1323,136 @@ describe("GlobalSearch", () => {
        * arrives, so the row under the highlight afterwards is a different
        * file. Enter would open something the user never picked.
        */
-      it("drops the keyboard selection when the second stage reorders the list", async () => {
+      /**
+       * The highlight is a promise about where the next Enter lands, and
+       * the accident worth preventing is exactly one: **the next Enter
+       * goes somewhere the reader did not choose.**
+       *
+       * So these assert where Enter lands, not what `selectedIndex` holds
+       * and not which row wears the selected token. A highlight that is on
+       * the right row for the wrong reason passes those; only the landing
+       * point is the thing the reader was promised.
+       */
+      const highlightFirstRow = async () => {
+        const input = screen.getAllByRole("textbox")[0];
+        fireEvent.keyDown(input, { key: "ArrowDown" });
+        await waitFor(() =>
+          expect(
+            screen
+              .getAllByTestId("merged-result-item")
+              .filter((row) => row.className.split(/\s+/).includes("bg-bg-elevated")),
+          ).toHaveLength(1),
+        );
+        return input;
+      };
+
+      it("still opens the file the reader highlighted after the list moves", async () => {
+        mockGetDriveFiles.mockResolvedValue({
+          data: [makeFile({ id: "f1", title: "filename-hit" })],
+          meta: { total: 1, page: 1, limit: 8 },
+        });
+        let release: (hits: SemanticHit[]) => void = () => {};
+        mockFetchSemanticHits.mockImplementation(
+          () => new Promise<SemanticHit[]>((r) => (release = r)),
+        );
+
+        render(<GlobalSearch />);
+        fireEvent.click(screen.getByLabelText("Search"));
+        await typeQuery("hit");
+        await waitFor(() =>
+          expect(screen.getAllByTestId("merged-result-item")).toHaveLength(1),
+        );
+        const input = await highlightFirstRow();
+
+        await act(async () => {
+          release([makeHit({ file_id: "f2", filename: "semantic-hit.mp4" })]);
+          await Promise.resolve();
+          await Promise.resolve();
+        });
+        await waitFor(() =>
+          expect(screen.getAllByTestId("merged-result-item")).toHaveLength(2),
+        );
+
+        // Wherever f1 ended up in the new order, that is what Enter opens.
+        fireEvent.keyDown(input, { key: "Enter" });
+        expect(mockRouterPush).toHaveBeenCalledWith("/files/f1");
+      });
+
+      it("lets go once the file it was pointing at is gone", async () => {
+        // The popup keeps eight rows. Enough name matches to fill it, and
+        // semantic hits that outrank the highlighted one, and the file the
+        // reader chose is sliced off the end — the one case where there is
+        // nothing left to point at.
+        mockGetDriveFiles.mockResolvedValue({
+          data: Array.from({ length: 8 }, (_, i) =>
+            makeFile({ id: `n${i}`, title: `filename-hit ${i}` }),
+          ),
+          meta: { total: 8, page: 1, limit: 8 },
+        });
+        let release: (hits: SemanticHit[]) => void = () => {};
+        mockFetchSemanticHits.mockImplementation(
+          () => new Promise<SemanticHit[]>((r) => (release = r)),
+        );
+
+        render(<GlobalSearch />);
+        fireEvent.click(screen.getByLabelText("Search"));
+        await typeQuery("hit");
+        await waitFor(() =>
+          expect(screen.getAllByTestId("merged-result-item")).toHaveLength(8),
+        );
+
+        // Highlight the last row, which is the one with the least to hold
+        // its place.
+        const input = screen.getAllByRole("textbox")[0];
+        for (let i = 0; i < 8; i++) fireEvent.keyDown(input, { key: "ArrowDown" });
+        const lastId = screen.getAllByTestId("merged-result-item")[7].getAttribute("data-file-id");
+
+        // A name match scores `1 × FILENAME_BOOST` = 2.0, so displacing one
+        // takes a hit that is strong on several channels at once — which is
+        // what a hit on a file whose audio, picture and text all match
+        // looks like.
+        const strongHit = (i: number) =>
+          makeHit({
+            file_id: `s${i}`,
+            filename: `semantic-hit-${i}.mp4`,
+            score: 0.99,
+            match_types: ["transcript", "clip", "content"],
+            segments: [
+              {
+                time_range: [10, 20],
+                matches: [
+                  { type: "transcript", score: 0.99 },
+                  { type: "clip", score: 0.99 },
+                  { type: "content", score: 0.99 },
+                ],
+              },
+            ],
+          });
+
+        await act(async () => {
+          release(Array.from({ length: 8 }, (_, i) => strongHit(i)));
+          await Promise.resolve();
+          await Promise.resolve();
+        });
+        await waitFor(() =>
+          expect(
+            screen
+              .getAllByTestId("merged-result-item")
+              .some((row) => row.getAttribute("data-file-id") === lastId),
+          ).toBe(false),
+        );
+
+        mockRouterPush.mockClear();
+        fireEvent.keyDown(input, { key: "Enter" });
+        // The query, not a file: with nothing to point at, Enter must not
+        // open whatever slid into that position.
+        expect(mockRouterPush).toHaveBeenCalledWith("/drive/main/search?q=hit");
+      });
+
+      it("does not pin a highlight the reader never moved", async () => {
+        // An untouched default is not about any file, so a reorder must not
+        // fasten it to one — the row that is first afterwards is first for
+        // its own reasons.
         mockGetDriveFiles.mockResolvedValue({
           data: [makeFile({ id: "f1", title: "filename-hit" })],
           meta: { total: 1, page: 1, limit: 8 },
@@ -1340,29 +1469,19 @@ describe("GlobalSearch", () => {
           expect(screen.getAllByTestId("merged-result-item")).toHaveLength(1),
         );
 
-        // Every row carries `hover:bg-bg-elevated` at rest, so the selected
-        // state is the bare token and has to be matched as one.
-        const selectedRows = () =>
-          screen
-            .getAllByTestId("merged-result-item")
-            .filter((row) =>
-              row.className.split(/\s+/).includes("bg-bg-elevated"),
-            );
-
-        const input = screen.getAllByRole("textbox")[0];
-        fireEvent.keyDown(input, { key: "ArrowDown" });
-        await waitFor(() => expect(selectedRows()).toHaveLength(1));
-
         await act(async () => {
           release([makeHit({ file_id: "f2", filename: "semantic-hit.mp4" })]);
           await Promise.resolve();
           await Promise.resolve();
         });
-
         await waitFor(() =>
           expect(screen.getAllByTestId("merged-result-item")).toHaveLength(2),
         );
-        expect(selectedRows()).toHaveLength(0);
+
+        mockRouterPush.mockClear();
+        const input = screen.getAllByRole("textbox")[0];
+        fireEvent.keyDown(input, { key: "Enter" });
+        expect(mockRouterPush).toHaveBeenCalledWith("/drive/main/search?q=hit");
       });
     });
 
