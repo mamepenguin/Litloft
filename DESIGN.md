@@ -1486,6 +1486,70 @@ makes that structural rather than a habit. Breakpoint column counts
 cannot do it: they fire on window size and so mis-count inside the tree
 pane, which is 280px narrower than the window.
 
+### Justified thumbnail rows
+
+A folder whose rows are all photographs does not go into equal cards.
+Every thumbnail is a 320×180 JPEG with the picture letterboxed inside
+it, so a grid of 16:9 cards draws black bars on three or four of every
+ten cells in a folder of portraits. Those rows are packed at their own
+proportions instead: variable widths, one fixed height per row, each
+line filling the width exactly.
+
+**Which shape a listing gets is derived, not chosen.** `deriveListMeta`
+answers it from the rows that are loaded — `justifyThumbnails` is true
+when at least 90% of them are images with stored dimensions — and it
+sits beside the two flags that already hide a column whose every row
+says the same word. A third `ViewMode` would be asking the reader a
+question the folder has already answered.
+
+**Video folders stay on equal cards**, and not only because their
+thumbnails are genuinely 16:9. A justified cell carries no meta row —
+unequal widths mean a caption under each cell never lines up into a
+column — and in a folder of videos the relative date was measured to be
+the one column still distinguishing anything. Packing them would spend
+the black bars to buy nothing and drop the one line that was working.
+
+**Flexbox does the arithmetic; nothing measures.** `flex-grow` is
+distributed per wrapped line, so a cell with `flex-grow: <ratio>` and
+`flex-basis: calc(<ratio> * var(--jg-row-h))` makes each line resolve to
+exactly the container width. No `ResizeObserver`, no container query —
+the same reasoning as the equal-card grid's `auto-fill`, one step up in
+generality.
+
+**The last line does not stretch.** A trailing `flex-grow: 1;
+flex-basis: 0` absorber takes the slack, so two leftover photographs
+stay their own size instead of blowing up to half a row each and reading
+as the two most important pictures in the folder. Its height is `0`
+rather than absent, so the row `gap` above it does not open an empty
+line.
+
+**Row height: 120px under 40rem, 200px at or above it** — switched with
+a container query on the grid's own width, not a media query. The grid
+renders beside a 280px tree pane, and these cells hold `<img>` and
+nothing else, so a containment context here is safe (see *Which
+mechanism depends on what is inside*).
+
+**Ratio stops: 0.5× and 3×.** A 10:1 panorama laid out at the row height
+would be wider than the row on its own; a 1:10 strip would be a
+hairline. Both are cropped by `object-fit: cover` instead. The stops
+also cap how far a thumbnail is enlarged: a 3:1 cell on a 200px row is
+600px wide, drawn from 320px of stored pixels — 1.87×, the worst case
+the layout can ask for. A row with no stored dimensions is drawn square,
+because a 16:9 cell among portraits is the widest thing on the line and
+so the one placement a reader would read as deliberate.
+
+**`object-fit: cover` puts the padding back, so no thumbnail is
+regenerated.** The stored JPEG is the picture centred in a 320×180
+frame; cropping that frame to a cell of the picture's own ratio removes
+exactly the bars, because the padding is symmetric. The cost is
+resolution, bounded by the 3× stop above. Generating unpadded image
+thumbnails stays available and is not needed for this.
+
+**The filename is a hover/focus band, and is always visible under
+`pointer: coarse`** — there is no hover to ask with on a touch screen,
+and a name that cannot be reached at all is worse than one that is
+always drawn.
+
 ### Sticking below the header
 
 `--app-header-h` is published by `Header` from its measured height (the

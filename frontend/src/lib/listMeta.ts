@@ -1,4 +1,5 @@
 import type { FileItem } from "@/types";
+import { hasKnownRatio } from "./justifiedGrid";
 
 /**
  * Which repeated columns a file listing should bother drawing.
@@ -20,7 +21,31 @@ import type { FileItem } from "@/types";
 export interface ListMeta {
   showTypeLabel: boolean;
   showExtensionBadge: boolean;
+  /**
+   * Whether the listing may pack its thumbnails at their real
+   * proportions instead of into equal 16:9 cards. True only when nearly
+   * every loaded row is an image whose dimensions are known — see
+   * `DESIGN.md` §8.5 "Justified thumbnail rows".
+   *
+   * This is the second column of the same question the flags above ask:
+   * a folder of 995 photographs is told apart from a folder of videos by
+   * what is in it, not by a switch the reader has to find. A justified
+   * cell carries no meta row, and in a video folder the relative date is
+   * the one column that was still distinguishing anything, so video
+   * folders stay on equal cards.
+   */
+  justifyThumbnails: boolean;
 }
+
+/**
+ * How much of a listing has to be measurable images before it packs.
+ *
+ * Not 100%: a folder of photographs routinely holds a stray `.txt` or a
+ * file whose header would not parse, and one such row should not put
+ * 995 photographs back into letterboxed cards. The rows that fall
+ * outside are drawn square (`JG_FALLBACK_RATIO`).
+ */
+export const JUSTIFY_THRESHOLD = 0.9;
 
 /** Rows that would carry an extension badge at all. */
 function badgeExtension(file: FileItem): string | null {
@@ -34,7 +59,14 @@ export function deriveListMeta(files: readonly FileItem[]): ListMeta {
   // A list of one has no repetition to remove; hiding a column there
   // would only take information away.
   if (files.length < 2) {
-    return { showTypeLabel: true, showExtensionBadge: true };
+    // A list of one has no repetition to remove, and nothing to pack
+    // against either — a single cell stretched to the full row width is
+    // not a justified row, it is one very large thumbnail.
+    return {
+      showTypeLabel: true,
+      showExtensionBadge: true,
+      justifyThumbnails: false,
+    };
   }
 
   const types = new Set(files.map((f) => f.file_type));
@@ -48,10 +80,13 @@ export function deriveListMeta(files: readonly FileItem[]): ListMeta {
     extensions.add(ext);
   }
 
+  const measurable = files.filter(hasKnownRatio).length;
+
   return {
     showTypeLabel: types.size > 1,
     // Same threshold, applied to the rows the column actually covers: a
     // single badge among many rows is what marks that row out.
     showExtensionBadge: badged < 2 || extensions.size > 1,
+    justifyThumbnails: measurable >= files.length * JUSTIFY_THRESHOLD,
   };
 }
