@@ -412,8 +412,6 @@
     "prevImage": "前の画像",
     "nextImage": "次の画像",
     "backToList": "一覧に戻る",
-    "splitMode": "見開きモード",
-    "splitModeToggle": "見開きモード切り替え",
     "ltr": "LTR",
     "rtl": "RTL",
     "readingDirection": "読み方向",
@@ -432,7 +430,9 @@
     "indexFilterPlaceholder": "パスで絞り込む",
     "indexFilterLabel": "書庫の中を絞り込む",
     "indexNoMatch": "一致するものはありません",
-    "indexMoreEntries": "ほか {count} 件"
+    "indexMoreEntries": "ほか {count} 件",
+    "spreadMode": "見開き",
+    "spreadModeToggle": "見開きで読む／単ページで読む"
   },
   "empty": {
     "noFilesTitle": "ファイルがありません",
@@ -544,11 +544,11 @@
     "nextImage": "次の画像",
     "slideshowInterval": "スライドショー間隔",
     "seconds": "{sec}秒",
-    "splitMode": "見開きモード",
-    "splitModeToggle": "見開きモード切り替え",
     "ltr": "LTR",
     "rtl": "RTL",
-    "readingDirection": "読み方向"
+    "readingDirection": "読み方向",
+    "spreadMode": "見開き",
+    "spreadModeToggle": "見開きで読む／単ページで読む"
   },
   "unlock": {
     "title": "ロック解除",

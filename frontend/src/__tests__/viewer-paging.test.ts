@@ -35,11 +35,26 @@ const code = (f: string) => stripComments(readFileSync(f, "utf8"));
  * place with the other left alone passes every test either viewer has.
  */
 describe("spread paging", () => {
-  it("derives the active spread in exactly one place", () => {
+  it("decides what is on screen at once in exactly one place", () => {
+    // `faceAtIndex` answers "what does this position draw?" — one page,
+    // two, or half of one. A second implementation would be the
+    // duplication this module exists to end, in the place it matters
+    // most.
     const owners = sourceFiles().filter((f) =>
-      /splitMode\s*&&\s*[\w.]*isCurrentLandscape/.test(code(f)),
+      /export function faceAtIndex/.test(code(f)),
     );
     expect(owners.map(rel)).toEqual(["lib/spreadPaging.ts"]);
+  });
+
+  it("keeps the width rule out of the viewers", () => {
+    // Whether two pages fit is one question with one answer. A viewer
+    // holding its own copy would disagree with the paging on a resize.
+    const owners = sourceFiles().filter(
+      (f) =>
+        rel(f) !== "hooks/useSpreadFits.ts" &&
+        /innerWidth\s*>=\s*window\.innerHeight/.test(code(f)),
+    );
+    expect(owners).toEqual([]);
   });
 
   it("decides which half is first in exactly one place", () => {

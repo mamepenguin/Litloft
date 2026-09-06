@@ -249,6 +249,90 @@ describe("useImageViewer", () => {
     expect(result.current.showControls).toBe(true);
   });
 
+  it("turns the slide at the interval, not the interval plus a render", () => {
+    // The effect used to depend on the whole `paging` object, which
+    // `useSpreadPaging` rebuilds every render, so any render tore the
+    // timer down and started it again. The chrome's own idle timer
+    // guarantees one two seconds into every slide, so a 3-second
+    // interval ran at 5.
+    const { result } = renderHook(
+      () => useImageViewer("image", imageEntries, "file-1", onClose),
+      { wrapper },
+    );
+    act(() => {
+      result.current.setSlideshowInterval(3);
+      result.current.setPlaying(true);
+    });
+    expect(result.current.imageIndex).toBe(0);
+
+    // The chrome withdraws here, which is a state change in this hook.
+    act(() => {
+      vi.advanceTimersByTime(2000);
+    });
+    expect(result.current.showControls).toBe(false);
+    expect(result.current.imageIndex).toBe(0);
+
+    act(() => {
+      vi.advanceTimersByTime(1000);
+    });
+    expect(result.current.imageIndex).toBe(1);
+  });
+
+  it("does not pair on a page nothing has measured", () => {
+    // `isCurrentLandscape` is a two-valued `useState(false)` written only
+    // by the on-screen image's `onLoad`, so before that resolves the
+    // current page read as *portrait*. Collapsing the three-valued
+    // answer in the direction that pairs draws a spread and then takes
+    // it away mid-load; a stale value may only ever split.
+    localStorage.setItem("image-viewer:spread-mode", "true");
+    const { result } = renderHook(
+      () => useImageViewer("image", imageEntries, "file-1", onClose),
+      { wrapper },
+    );
+    act(() => {
+      result.current.setImageIndex(1);
+    });
+    // The neighbour has answered; this page has not.
+    act(() => {
+      result.current.rememberOrientation(2, "portrait");
+    });
+
+    expect(result.current.face.kind).toBe("single");
+
+    act(() => {
+      result.current.rememberOrientation(1, "portrait");
+    });
+    expect(result.current.face.kind).toBe("pair");
+    expect(result.current.face.indices).toEqual([1, 2]);
+  });
+
+  it("remembers what it has seen, so a turn back is one press", () => {
+    // A two-entry lookup cannot answer about a page behind the reader,
+    // and `pageBack` has to ask: it lands on the start of the face
+    // holding the previous index. Answered `unknown`, every backward
+    // turn landed on an intermediate single face.
+    localStorage.setItem("image-viewer:spread-mode", "true");
+    const { result } = renderHook(
+      () => useImageViewer("image", imageEntries, "file-1", onClose),
+      { wrapper },
+    );
+    act(() => {
+      for (const [i, o] of [
+        [0, "portrait"],
+        [1, "portrait"],
+        [2, "portrait"],
+      ] as const) {
+        result.current.rememberOrientation(i, o);
+      }
+      result.current.setImageIndex(3);
+    });
+
+    act(() => {
+      result.current.navigatePrev();
+    });
+    expect(result.current.imageIndex).toBe(1);
+  });
+
   it("does not respond to keys when viewMode is not image", () => {
     const { result } = renderHook(
       () => useImageViewer("listing", imageEntries, "file-1", onClose),

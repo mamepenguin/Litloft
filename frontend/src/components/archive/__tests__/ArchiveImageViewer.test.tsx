@@ -45,10 +45,21 @@ const defaultProps = {
     onPointerDown: vi.fn(),
   },
   onIntervalOpenChange: vi.fn(),
+  rememberOrientation: vi.fn(),
+  face: {
+    kind: "single" as const,
+    index: 1,
+    indices: [1],
+    showRightHalf: false,
+  },
+  faceLabel: "2",
+  subPageLabel: null,
+  canGoPrev: true,
+  canGoNext: true,
   handleImageAreaClick: vi.fn(),
   closeViewer: vi.fn(),
-  splitMode: false,
-  setSplitMode: vi.fn(),
+  spreadMode: false,
+  setSpreadMode: vi.fn(),
   readingDirection: "ltr" as const,
   setReadingDirection: vi.fn(),
   isCurrentLandscape: false,
@@ -59,6 +70,43 @@ const defaultProps = {
 };
 
 describe("ArchiveImageViewer", () => {
+  it("tells the viewer what every drawn page turned out to be", () => {
+    // The map that lets a turn back ask about a page behind the reader
+    // has exactly one filler, and it is this call. Wired end to end and
+    // never made, pairing stopped after the first face — and neither of
+    // the hook's tests could see it, because both call
+    // `rememberOrientation` from the test body rather than through the
+    // component that owns the call.
+    const rememberOrientation = vi.fn();
+    render(
+      <ArchiveImageViewer
+        {...defaultProps}
+        rememberOrientation={rememberOrientation}
+        face={{
+          kind: "pair",
+          index: 1,
+          indices: [1, 2],
+          showRightHalf: false,
+        }}
+      />,
+    );
+
+    const images = screen.getAllByRole("img");
+    expect(images).toHaveLength(2);
+
+    // Both pages of the pair, not only the one the face is named by:
+    // the second is the index the next face's pairing will ask about.
+    Object.defineProperty(images[0], "naturalWidth", { value: 800 });
+    Object.defineProperty(images[0], "naturalHeight", { value: 1200 });
+    fireEvent.load(images[0]);
+    Object.defineProperty(images[1], "naturalWidth", { value: 1600 });
+    Object.defineProperty(images[1], "naturalHeight", { value: 900 });
+    fireEvent.load(images[1]);
+
+    expect(rememberOrientation).toHaveBeenCalledWith(1, "portrait");
+    expect(rememberOrientation).toHaveBeenCalledWith(2, "landscape");
+  });
+
   it("renders current image", () => {
     render(<ArchiveImageViewer {...defaultProps} />);
     const img = screen.getByAltText("img2.jpg");
@@ -87,6 +135,7 @@ describe("ArchiveImageViewer", () => {
         {...defaultProps}
         imageIndex={0}
         currentImage={images[0]}
+        canGoPrev={false}
       />,
     );
     expect(screen.queryByLabelText("Previous image")).not.toBeInTheDocument();
@@ -99,6 +148,7 @@ describe("ArchiveImageViewer", () => {
         {...defaultProps}
         imageIndex={2}
         currentImage={images[2]}
+        canGoNext={false}
       />,
     );
     expect(screen.getByLabelText("Previous image")).toBeInTheDocument();
