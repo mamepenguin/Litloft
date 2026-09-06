@@ -14,8 +14,8 @@ import { addonPresent } from "./helpers/addonPresent";
  *
  * **Core and every addon.** The first version of this file scanned
  * `frontend/src` alone and skipped the `frontend/src/addons` symlinks, which
- * meant it measured 20 of the 43 sites the phase is about — the addons hold
- * 23 more. It condemned hand-maintained enumerations in this very comment
+ * meant it measured 20 of the 43 sites the phase was then about — the addons
+ * held 23 more. It condemned hand-maintained enumerations in this very comment
  * while being one: a scope that leaves out 23 sites cannot be contradicted by
  * them. Addons are read at their real roots rather than through the symlinks,
  * the way `design-tokens.test.ts` does, so an addon that is checked out but
@@ -153,9 +153,13 @@ describe("Button adoption", () => {
     expect(handWritten()).toEqual(expected());
   });
 
-  // The population this phase is about. DESIGN.md §6 says 43 sites carry the
-  // treatment; 13 were converted in A2b, 11 more in C1/C2a/C2b and the last
-  // 10 in C3, so 9 remain. Asserting the total as well as the per-file map
+  // The population this phase is about. DESIGN.md §6 says 40 sites carry the
+  // treatment — 43 until knowledge's unreachable two-pane view took three
+  // with it; 13 were converted in A2b, 11 more in C1/C2a/C2b and 7 in C3, so
+  // 9 remain. Only this 9 is asserted anywhere: the other numbers are that
+  // paragraph's bookkeeping, and this comment is the copy of them that goes
+  // stale, so it is worth re-reading when the paragraph moves. Asserting the
+  // total as well as the per-file map
   // is what makes both numbers checkable rather than remembered — and the
   // second half keeps it honest in a checkout holding fewer addons than
   // this one.

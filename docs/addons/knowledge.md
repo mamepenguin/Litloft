@@ -4,7 +4,6 @@ The `knowledge` addon turns Litloft into a personal notes vault and web-clip arc
 
 ## What it provides
 
-- **Notes browser** — a sidebar over the drive's `.md` files with folders, pinning, renaming, moving, tag editing, and sort by updated / created / name.
 - **Markdown editor** — a CodeMirror 6 editor with live preview, autosave, wiki links, and drag-and-drop image upload.
 - **Version history** — every text write is snapshotted; the editor lists past versions with a diff and a restore action.
 - **Source capture** — collect quotes and timestamps from anywhere in Litloft into a basket, then commit them into a note.
@@ -178,7 +177,7 @@ Capture is the "I want to keep this bit" path. It works across the whole app, no
 - a **document selection or PDF page** — the selected text, or the page you are on;
 - a **transcript line** or an **Ask answer citation** from the intelligence addon.
 
-Each of these offers a quote-mark button that drops the item into the **capture basket**. On the surfaces that repeat one per row — a search result, a transcript line — it appears on hover or focus and stays visible on a touch screen, rather than being drawn hundreds of times over — a per-drive tray in the header, holding up to 100 items. The basket lives in the browser's session storage, so it is private to that tab session and never leaves the device until you commit it. Inside the basket you can reorder items, attach a note to each one, and drop the ones you do not want.
+Each of these offers a quote-mark button that drops the item into the **capture basket**. On the surfaces that repeat one per row — a search result, a transcript line — it appears on hover or focus and stays visible on a touch screen, rather than being drawn hundreds of times over — a per-drive tray in the header, holding up to 100 items. The basket lives in the browser's session storage, so it is private to that tab session and never leaves the device until you commit it. Inside the basket you can reorder items, attach a note to each one, and drop the ones you do not want. An empty basket says which surfaces the quote button appears on, so the panel is not the only place that has to be learned by finding it.
 
 Committing writes Markdown into a note under a `## Captures` heading, one bullet per capture: a `loft://` link back to the source file (carrying `?t=` or `?page=` so the link lands at the right spot), the quote as a blockquote, and your note underneath. The note's `source_file_ids` are updated so the captures show up in the connections graph and the summary-note section.
 
@@ -195,8 +194,9 @@ Appends are ETag-guarded and serialised per target path, so two commits racing i
 `/drive/{drive}/addons/knowledge` opens with the app's standard page header —
 title, a line saying what the page is for, and the same chrome every other
 screen uses — then the clip form, recent clips, and the connections graph.
-This is the whole of the addon's own page: the two-pane folder view that
-some of the source still describes has no route to it.
+This is the whole of the addon's own page. A two-pane folder view once lived
+beside it; it lost its route, and its components were deleted rather than
+left to look alive.
 
 The **capture basket** panel offers one filled action, *Append to …*, which
 sends the collected quotes to the destination named on the button. *Other

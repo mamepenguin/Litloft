@@ -151,11 +151,48 @@ describe("section heading icons", () => {
     // rather than a lower bound, because the failure this is really
     // aimed at is a *new* heading the scan cannot see — under `>=` that
     // stays green, which is how the original count came out at seven
-    // when there were eight. Eight is the drive home column's seven
-    // sections plus "Pickup", which the intelligence addon adds to the
-    // same column. Adding a section means updating this number, which
-    // is the point: it forces someone to look at the list.
-    expect(icons.length).toBe(8);
+    // when there were eight. Adding a section means updating a number
+    // here, which is the point: it forces someone to look at the list.
+    //
+    // Per root, not as one total, for the reason `page-headings.test.ts`
+    // gives: a single number over core plus whichever submodules happen to
+    // be checked out fails a `git clone` without `--recurse-submodules`
+    // with "expected 7 to be 8" and nothing naming the cause. This file
+    // did exactly that until the clone was measured. Core's seven are the
+    // drive home column's sections; the eighth was always the intelligence
+    // addon's "Pickup", asserted here only where that addon is present.
+    const perRoot = new Map<string, number>();
+    for (const icon of icons) {
+      const root = icon.where.startsWith("addons/")
+        ? icon.where.split("/").slice(0, 2).join("/")
+        : "frontend/src";
+      perRoot.set(root, (perRoot.get(root) ?? 0) + 1);
+    }
+    expect(perRoot.get("frontend/src")).toBe(7);
+
+    const EXPECTED_ADDON_ICONS: Record<string, number> = {
+      "addons/intelligence": 1,
+      "addons/knowledge": 0,
+      "addons/media_import": 0,
+      "addons/cloud-sync": 0,
+    };
+    for (const [root, expected] of Object.entries(EXPECTED_ADDON_ICONS)) {
+      // The scanned path, not the submodule directory: an uninitialised
+      // submodule leaves an empty directory behind.
+      if (!existsSync(resolve(REPO_ROOT, root, "frontend"))) continue;
+      expect(perRoot.get(root) ?? 0).toBe(expected);
+    }
+
+    // A fifth addon's heading would be counted by nobody: the map above is
+    // a fixed set of keys, and a root missing from it is simply never
+    // asked about. The single total this replaced did catch that, so the
+    // guard comes with it — an unlisted root is a heading nothing checks
+    // the colour or the size of a count for.
+    expect(
+      [...perRoot.keys()].filter(
+        (root) => root !== "frontend/src" && !(root in EXPECTED_ADDON_ICONS),
+      ),
+    ).toEqual([]);
   });
 
   it("paints them all the same, because the difference carried no meaning", () => {
