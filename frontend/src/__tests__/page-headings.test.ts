@@ -61,7 +61,6 @@ const NOT_YET_MIGRATED: Record<string, string> = {
   "frontend/src/app/unlock/page.tsx": "unlock gate, outside the AppShell",
 
   // Rebuilt whole in Phase 4; migrating the header now means touching them twice.
-  "frontend/src/app/page.tsx": "root drive picker — hero band is 案 9 (Phase 4)",
   "frontend/src/app/admin/layout.tsx": "admin shell — 案 15 (Phase 4)",
   "frontend/src/app/admin/page.tsx": "admin dashboard — 案 15 (Phase 4)",
   "frontend/src/app/admin/settings/page.tsx": "admin settings — 案 16 (Phase 4)",
@@ -181,10 +180,10 @@ describe("page headings", () => {
         : "frontend/src";
       perRoot.set(root, (perRoot.get(root) ?? 0) + 1);
     }
-    // 11, not the 10 a file count would suggest: `app/admin/page.tsx` holds
+    // 10, not the 9 a file count would suggest: `app/admin/page.tsx` holds
     // two, one per branch. That is precisely the case a per-file allowlist
     // cannot see, which is why counts are asserted at all.
-    expect(perRoot.get("frontend/src")).toBe(11);
+    expect(perRoot.get("frontend/src")).toBe(10);
 
     const EXPECTED_ADDON_HEADINGS: Record<string, number> = {
       "addons/intelligence": 0,
