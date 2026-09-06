@@ -77,8 +77,6 @@ export function ImageGallery({
   const [isCurrentLandscape, setIsCurrentLandscape] = useState(false);
   const [showRightHalf, setShowRightHalf] = useState(false);
 
-  const hideTimerRef = useRef<number | null>(null);
-
   const readingDirectionRef = useRef(readingDirection);
 
   // Persist splitMode to localStorage

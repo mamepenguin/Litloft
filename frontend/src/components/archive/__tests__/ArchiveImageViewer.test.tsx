@@ -42,6 +42,7 @@ const defaultProps = {
     inert: false,
     "aria-hidden": undefined,
     style: { opacity: 1, pointerEvents: "auto" as const },
+    onPointerDown: vi.fn(),
   },
   onIntervalOpenChange: vi.fn(),
   handleImageAreaClick: vi.fn(),

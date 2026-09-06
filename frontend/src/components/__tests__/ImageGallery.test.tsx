@@ -252,7 +252,10 @@ describe("ImageGallery", () => {
   }
 
   async function openIntervalPanel() {
-    render(<ImageGallery {...defaultProps} />);
+    // With the provider: the panel claims Escape through the shortcut
+    // stack, so a bare render would leave it unregistered and the test
+    // would be measuring nothing.
+    renderWithShortcuts(<ImageGallery {...defaultProps} />);
     await act(async () => {
       await vi.runAllTimersAsync();
     });
@@ -301,6 +304,21 @@ describe("ImageGallery", () => {
     const panel = await openIntervalPanel();
     expect(panel.className).toMatch(/(^|\s)mt-14(\s|$)/);
     expect(panel.className).not.toMatch(/(^|\s)mb-16(\s|$)/);
+  });
+
+  it("dismisses the panel on Escape without closing the viewer", async () => {
+    // The panel's own handler only sees keys whose React path runs
+    // through it, and opening it leaves focus on the trigger — a sibling
+    // of the portal. So Escape went past to the viewer's shortcut, and a
+    // reader dismissing a three-option menu lost their place in the
+    // folder. The `<select>` this replaced swallowed Escape.
+    stubPointer("fine");
+    await openIntervalPanel();
+
+    fireEvent.keyDown(document, { key: "Escape" });
+
+    expect(screen.queryByTestId("slideshow-interval-panel")).toBeNull();
+    expect(defaultProps.onClose).not.toHaveBeenCalled();
   });
 
   it("holds the chrome open while the interval panel is up", async () => {

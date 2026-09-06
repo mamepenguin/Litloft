@@ -23,6 +23,17 @@ export interface AutoHidingChrome {
     inert: boolean;
     "aria-hidden": boolean | undefined;
     style: { opacity: number; pointerEvents: "auto" | "none" };
+    /**
+     * Touching the chrome restarts its clock.
+     *
+     * On a coarse pointer the document listeners hear nothing a reader
+     * does: `pointermove` is unbound there and a tap on a button is not
+     * reliably a `focusin` — iOS does not focus a `<button>` on tap. So
+     * a bar summoned by a centre tap had a flat two seconds to live, and
+     * withdrew mid-reach while the reader was on their way to it. Bound
+     * on the bar, where no toggle handler competes.
+     */
+    onPointerDown: () => void;
   };
 }
 
@@ -88,15 +99,20 @@ export function useAutoHidingChrome({
     if (held) setVisible(true);
     arm();
 
+    // `pointerdown` is not here, on any device. The viewer's own centre
+    // tap toggles the chrome, and a press that both restores here and
+    // toggles there cancels itself: the bar appears for the length of
+    // the press and is gone again on release, however many times you
+    // try. That was written as a touch-only hazard and scoped out of the
+    // coarse set alone; it cancels wherever both are bound, and a mouse
+    // has `pointermove` to restore with anyway.
+    //
     // Keys and focus count on every device: a tablet with a keyboard
-    // case has no pointer to move but a reader all the same. Pointer
-    // events are bound only where they mean something — on a touch
-    // screen a tap would both restore here and toggle in the viewer's
-    // own handler, and the two would cancel out.
+    // case has no pointer to move but a reader all the same.
     const events: string[] =
       pointerMode === "coarse"
         ? ["keydown", "focusin"]
-        : ["pointermove", "pointerdown", "keydown", "focusin"];
+        : ["pointermove", "keydown", "focusin"];
     const onActivity = () => show();
     for (const type of events) {
       document.addEventListener(type, onActivity, true);
@@ -121,6 +137,7 @@ export function useAutoHidingChrome({
         opacity: visible ? 1 : 0,
         pointerEvents: visible ? "auto" : "none",
       },
+      onPointerDown: show,
     },
   };
 }

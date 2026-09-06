@@ -2,6 +2,9 @@
 
 import type { ReactNode } from "react";
 
+import { useShortcuts } from "@/hooks/useShortcuts";
+import { OVERLAY_PRIORITY } from "@/lib/shortcuts";
+
 /**
  * `sheet` spans the frame's width and rises from its bottom edge — the
  * touch layout, where the button that opens it is a thumb's reach from
@@ -52,6 +55,30 @@ export function OverFrameSettingsPanel({
   children,
 }: OverFrameSettingsPanelProps) {
   const isPopover = placement === "popover";
+
+  // Escape belongs to the panel while the panel is up.
+  //
+  // The `onKeyDown` below only sees keys whose React path runs through
+  // this element, and opening the panel leaves focus on the trigger — a
+  // sibling of this portal, not a child. So the key went straight past
+  // to whatever the frame had registered, which in both image viewers is
+  // the shortcut that closes the viewer: a reader dismissing a
+  // three-option menu lost their place in the folder. A native
+  // `<select>` swallowed Escape, so this was a regression against what
+  // it replaced.
+  //
+  // Through the shortcut stack rather than a listener of its own. A
+  // listener does not know what is stacked above it, and this panel is
+  // the newest thing on screen precisely when it should answer — which
+  // is what `OVERLAY_PRIORITY` says, and what a raw `document` listener
+  // could only approximate by racing.
+  useShortcuts(
+    "over-frame-settings",
+    closeLabel,
+    [{ key: "escape", label: closeLabel, handler: onClose }],
+    true,
+    OVERLAY_PRIORITY,
+  );
   // The sheet always rises from the bottom edge, wherever its trigger
   // is: a thumb reaches the bottom of a phone and not the top of it.
   const fromTop = isPopover && anchor === "top";
