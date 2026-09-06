@@ -47,6 +47,20 @@ pdfjs.GlobalWorkerOptions.workerSrc = new URL(
   import.meta.url,
 ).toString();
 
+/**
+ * The message key for each mode, spelled out.
+ *
+ * A template literal cast with `as never` turns off next-intl's key
+ * checking entirely, so a typo or a renamed mode becomes a runtime
+ * `MISSING_MESSAGE` instead of a type error — and these were the only
+ * two such casts in the codebase.
+ */
+const MODE_LABEL_KEY = {
+  "fit-width": "pdfZoomMode_fit-width",
+  "fit-page": "pdfZoomMode_fit-page",
+  actual: "pdfZoomMode_actual",
+} as const satisfies Record<PdfZoomMode, string>;
+
 const MIN_ZOOM = 0.5;
 const MAX_ZOOM = 2;
 const ZOOM_STEP = 0.25;
@@ -159,27 +173,27 @@ export function PdfPreview({
     return () => document.removeEventListener("selectionchange", update);
   }, [page, store]);
 
-  useEffect(() => {
-    const root = rootRef.current;
-    if (!root || typeof ResizeObserver === "undefined") return;
-    const observer = new ResizeObserver(([entry]) => {
-      setAvailableWidth(Math.max(280, entry.contentRect.width - 32));
-    });
-    observer.observe(root);
-    return () => observer.disconnect();
-  }, []);
 
   useEffect(() => {
     const box = pageBoxRef.current;
     if (!box || typeof ResizeObserver === "undefined") return;
+    // One observer, on the scroll box, for both axes.
+    //
+    // They used to be two, on two different elements — width from the
+    // root, height from this box — and that asymmetry was a bug factory.
+    // It cost a doubled padding subtraction, and it left a feedback
+    // path: this box's `contentRect` shrinks by a horizontal
+    // scrollbar's thickness, a smaller height gives `fit-page` a
+    // narrower page, a narrower page can retire the scrollbar, and the
+    // height grows back. macOS overlay scrollbars hide it; classic ones
+    // do not.
+    //
+    // Measuring both from the box closes it: `contentRect` already
+    // excludes `p-4` *and* the space a scrollbar takes, so a fitted page
+    // can never be wider than what it was measured against. No hand
+    // subtraction, and no slack standing in for a guarantee.
     const observer = new ResizeObserver(([entry]) => {
-      // No padding allowance here. `contentRect` is the content box, and
-      // this observer watches the padded box itself, so `p-4` is already
-      // out of it. The width observer above subtracts 32 because it
-      // watches the *root* — a different element, with no padding of its
-      // own, which therefore still contains this box's. Subtracting here
-      // too drew every whole-page render ~5.6% short, with a band of
-      // dead grey under it.
+      setAvailableWidth(Math.max(280, entry.contentRect.width));
       setAvailableHeight(Math.max(200, entry.contentRect.height));
     });
     observer.observe(box);
@@ -501,7 +515,7 @@ export function PdfPreview({
         <span className="mx-1 h-5 w-px bg-bg-border" />
         <ToolbarMenu
           label={t("pdfZoomMode")}
-          value={t(`pdfZoomMode_${zoomMode}` as never)}
+          value={t(MODE_LABEL_KEY[zoomMode])}
           icon={Maximize2}
           align="start"
         >
@@ -510,7 +524,7 @@ export function PdfPreview({
               heading={t("pdfZoomMode")}
               options={PDF_ZOOM_MODES.map((mode) => ({
                 value: mode,
-                label: t(`pdfZoomMode_${mode}` as never),
+                label: t(MODE_LABEL_KEY[mode]),
               }))}
               isSelected={(mode) => mode === zoomMode}
               onSelect={(mode) => {

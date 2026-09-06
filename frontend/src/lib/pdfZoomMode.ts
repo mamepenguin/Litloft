@@ -23,8 +23,12 @@ export const PDF_ZOOM_MODE_KEY = "pdf-zoom-mode";
  * The widest a *fitted* page is drawn, in CSS pixels.
  *
  * A 2000px canvas stretching an A4 to full width puts more than 200
- * characters on a line, which is the far side of `DESIGN.md` §3.4
- * Reading Measure. The cap is not explained in the UI — an explanation
+ * characters on a line, which is the far side of what `DESIGN.md` §3.4
+ * Reading Measure is about. It is deliberately **not** §3.4's 860px: a
+ * rendered PDF page is an image of a page, not reflowable text, so the
+ * line length is the author's and the only thing this number controls
+ * is how far that fixed layout is scaled up. It gets its own measure
+ * for that reason. The cap is not explained in the UI — an explanation
  * is owed for things the reader can choose, and this is not one of them.
  *
  * It does not apply to `actual`: that mode's whole claim is that the
@@ -68,6 +72,13 @@ export function pdfPageWidth({
   if (mode === "actual") return pageBox.width * CSS_PX_PER_PT;
 
   if (mode === "fit-page") {
+    // A box with no height is "not laid out yet", the same answer the
+    // absent `pageBox` gives above — not "a page zero pixels wide".
+    // `<Page width={0}>` makes react-pdf take `scale: 0` and produce a
+    // zero-area canvas, and a negative one a negative scale. The
+    // caller's `Math.max(200, ...)` floor used to be the only thing
+    // preventing that, with nothing in either file saying so.
+    if (availableHeight <= 0) return fitWidth;
     // The width at which the page's own proportions make it exactly as
     // tall as the box. Still capped and still bounded by the available
     // width: "whole page" means nothing is cut off, not that it fills

@@ -124,6 +124,22 @@ describe("pdfPageWidth", () => {
     expect(PDF_ZOOM_MODES).toHaveLength(3);
   });
 
+  it("treats a box with no height as not laid out yet", () => {
+    // `<Page width={0}>` gives react-pdf `scale: 0` and a zero-area
+    // canvas; a negative height gives a negative scale. The caller's
+    // floor used to be the only thing preventing it.
+    for (const availableHeight of [0, -1]) {
+      expect(
+        pdfPageWidth({
+          mode: "fit-page",
+          available: 640,
+          availableHeight,
+          pageBox: A4,
+        }),
+      ).toBe(640);
+    }
+  });
+
   it("fits the width for a page reporting no size", () => {
     expect(
       pdfPageWidth({

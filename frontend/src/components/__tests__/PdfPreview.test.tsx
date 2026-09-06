@@ -93,10 +93,19 @@ class DrivableResizeObserver {
   unobserve() {}
   disconnect() {}
 }
-/** Feed the nth observer a content-box size. 0 = width (root), 1 = height (box). */
-function reportSize(index: number, rect: { width?: number; height?: number }) {
-  const cb = resizeCallbacks[index];
-  if (!cb) throw new Error(`no ResizeObserver at ${index}`);
+/**
+ * Feed the viewer's observer a content-box size.
+ *
+ * There is one, on the scroll box, reporting both axes — two observers
+ * on two different elements is what produced the doubled padding
+ * subtraction and the scrollbar feedback path.
+ */
+function reportSize(rect: { width?: number; height?: number }) {
+  const cb = resizeCallbacks[0];
+  if (!cb) throw new Error("the viewer registered no ResizeObserver");
+  if (resizeCallbacks.length !== 1) {
+    throw new Error(`expected one observer, found ${resizeCallbacks.length}`);
+  }
   act(() => {
     cb(
       [{ contentRect: { width: 0, height: 0, ...rect } }] as unknown as ResizeObserverEntry[],
@@ -659,11 +668,12 @@ describe("PdfPreview zoom modes", () => {
     expect(pageWidths.length).toBeGreaterThan(0);
     expect(lastWidth()).toBe(800);
 
-    reportSize(0, { width: 2032 });
+    // `contentRect` is the content box already — no hand subtraction.
+    reportSize({ width: 2032, height: 574 });
     expect(lastWidth()).toBe(900);
 
-    reportSize(0, { width: 532 });
-    expect(lastWidth()).toBe(500);
+    reportSize({ width: 532, height: 574 });
+    expect(lastWidth()).toBe(532);
   });
 
   it("budgets the raster rather than the layout on a very large page", async () => {
@@ -711,7 +721,7 @@ describe("PdfPreview zoom modes", () => {
 
     fireEvent.click(menu());
     fireEvent.click(modeRow("Whole page"));
-    reportSize(1, { height: 574 });
+    reportSize({ width: 900, height: 574 });
 
     // A4: the width at which 574px of height is exactly filled.
     expect(lastWidth()).toBeCloseTo(574 * (595 / 842), 3);
