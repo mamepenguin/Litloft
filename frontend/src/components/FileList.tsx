@@ -21,6 +21,7 @@ export function FileList({
   draggedIds,
   onDragStart,
   onDragEnd,
+  showOrdinals,
 }: {
   files: FileItemWithMatch[];
   onFavoriteToggle?: (file: FileItem) => void;
@@ -36,6 +37,15 @@ export function FileList({
   draggedIds?: ReadonlySet<string>;
   onDragStart?: (e: React.DragEvent, fileId: string) => void;
   onDragEnd?: () => void;
+  /**
+   * Number the rows, 1-based, in the order they are given.
+   *
+   * Only the collection view asks for this. Everywhere else the order is
+   * a sort the reader picked and can change, so a number beside each row
+   * would name a position that means nothing — a collection's order is
+   * the thing itself.
+   */
+  showOrdinals?: boolean;
 }) {
   const [menuPos, setMenuPos] = useState<{ open: boolean; x: number; y: number }>({
     open: false, x: 0, y: 0,
@@ -73,10 +83,15 @@ export function FileList({
   return (
     <>
       <div className="flex flex-col">
-        {files.map((file) => (
+        {files.map((file, index) => (
           <FileListRow
             key={file.id}
             file={file}
+            // The array index, not `position`: reordering leaves gaps in
+            // the stored positions, and a list numbered 1, 2, 4 is
+            // reporting a database detail. `CollectionItemsPane` numbers
+            // its rows the same way.
+            ordinal={showOrdinals ? index + 1 : undefined}
             selectable={selectable}
             selected={selectedIds?.has(file.id)}
             isDragging={draggedIds?.has(file.id)}

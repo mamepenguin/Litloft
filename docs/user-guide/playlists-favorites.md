@@ -35,6 +35,8 @@ A **collection** is an ordered list of files within a single drive.
 - Collections are **drive-scoped**: a file belongs to exactly one drive, and a collection can only contain files from its own drive.
 - A file can appear in multiple collections.
 - The order is editable: drag-and-drop within the collection editor.
+- **The list view numbers the rows**, from 01. A collection's order is the collection, unlike a folder's, which is whichever sort you last chose — so the numbers say where you are in it. They count positions in the list you are looking at, so reordering renumbers from 1 rather than leaving gaps.
+- Which view a collection opens in follows the same rule as a folder's ([file browsing](file-browsing.md#file-grid-and-list-modes)): a collection that is mostly audio or mostly unclassified files opens as a list, because a card of either can only draw the same icon. Anything you choose for a collection is remembered and keeps winning over that.
 
 ### What collections do
 

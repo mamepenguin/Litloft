@@ -146,12 +146,49 @@ describe("resolveCollectionViewMode", () => {
     ).toBe("list");
   });
 
-  it("auto-detects grid for video/image/audio", () => {
+  it("auto-detects grid for the kinds whose cards show a picture", () => {
+    for (const dominantKind of ["video", "image", "pdf", "document"] as const) {
+      expect(
+        resolveCollectionViewMode({ drive: "main", collectionId: "c1", dominantKind }),
+      ).toBe("grid");
+    }
+  });
+
+  it("opens an album as a list, not fifty identical glyphs", () => {
+    // COL-1's own example. `audio` used to map to `grid`, where a card
+    // can draw nothing but `FileTypeIcon` — the same headphone shape,
+    // once per track, four times the height of a row.
     expect(
       resolveCollectionViewMode({
         drive: "main",
         collectionId: "c1",
-        dominantKind: "video",
+        dominantKind: "audio",
+      }),
+    ).toBe("list");
+  });
+
+  it("opens a collection of unclassified files as a list too", () => {
+    expect(
+      resolveCollectionViewMode({
+        drive: "main",
+        collectionId: "c1",
+        dominantKind: "other",
+      }),
+    ).toBe("list");
+  });
+
+  it("lets a stored choice beat the table", () => {
+    // The change of default must not overrule a viewer who has already
+    // switched an audio collection to a grid.
+    mockStorage.setItem(
+      "collectionPrefs:main",
+      JSON.stringify({ c1: { viewMode: "grid" } }),
+    );
+    expect(
+      resolveCollectionViewMode({
+        drive: "main",
+        collectionId: "c1",
+        dominantKind: "audio",
       }),
     ).toBe("grid");
   });

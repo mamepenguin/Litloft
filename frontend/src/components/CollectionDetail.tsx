@@ -370,7 +370,7 @@ export function CollectionDetail({ drive, collectionId }: CollectionDetailProps)
               {viewMode === "grid" ? (
                 <FileGrid files={files} onRefresh={load} />
               ) : (
-                <FileList files={files} onRefresh={load} />
+                <FileList files={files} onRefresh={load} showOrdinals />
               )}
             </FileNavigationOverrideProvider>
           </>

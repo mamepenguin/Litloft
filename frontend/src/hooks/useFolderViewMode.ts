@@ -4,6 +4,7 @@ import { useCallback, useEffect, useState } from "react";
 
 import type { FolderKind, SortField, SortOrder, ViewMode } from "@/types";
 import { isSortField } from "@/lib/sortField";
+import { viewModeForKind } from "@/lib/viewModeForKind";
 
 const GLOBAL_KEY = "video-share-view-mode";
 const PER_DRIVE_PREFIX = "folderPrefs:";
@@ -52,19 +53,6 @@ function loadGlobalDefault(): ViewMode | null {
   return isViewMode(raw) ? raw : null;
 }
 
-function autoDetectMode(kind: FolderKind | null): ViewMode | null {
-  switch (kind) {
-    case "markdown":
-      return "list";
-    case "video":
-    case "image":
-    case "audio":
-      return "grid";
-    default:
-      return null;
-  }
-}
-
 interface ResolveOpts {
   drive: string;
   folderPath: string;
@@ -76,7 +64,7 @@ export function resolveFolderViewMode(opts: ResolveOpts): ViewMode {
   const prefs = loadFolderPrefs(drive);
   const stored = prefs[folderPath]?.viewMode;
   if (isViewMode(stored)) return stored;
-  const auto = autoDetectMode(dominantKind);
+  const auto = viewModeForKind(dominantKind);
   if (auto) return auto;
   const global = loadGlobalDefault();
   if (global) return global;

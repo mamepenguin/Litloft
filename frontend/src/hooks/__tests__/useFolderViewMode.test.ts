@@ -67,14 +67,27 @@ describe("resolveFolderViewMode (layered fallback, grid|list)", () => {
     expect(result).toBe("list");
   });
 
-  it("layer 3: dominant_kind=document falls through to global", () => {
+  it("layer 3 is reached only by a mixed folder", () => {
+    // `viewModeForKind` is total over `FolderKind` now, so every folder
+    // with a dominant kind is answered at layer 2 — `document` used to
+    // fall through here, on the strength of a `default:` arm rather than
+    // of a decision about what its cards look like. The global default
+    // is what a folder with *no* dominant kind falls back to.
     localStorage.setItem(GLOBAL_KEY, "list");
-    const result = resolveFolderViewMode({
-      drive: "work",
-      folderPath: "docs",
-      dominantKind: "document",
-    });
-    expect(result).toBe("list");
+    expect(
+      resolveFolderViewMode({
+        drive: "work",
+        folderPath: "docs",
+        dominantKind: "document",
+      }),
+    ).toBe("grid");
+    expect(
+      resolveFolderViewMode({
+        drive: "work",
+        folderPath: "mixed",
+        dominantKind: null,
+      }),
+    ).toBe("list");
   });
 
   it("layer 4: built-in default = grid", () => {

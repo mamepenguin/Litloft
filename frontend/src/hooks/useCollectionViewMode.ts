@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 
 import type { CollectionItemEntry, FileItem, FolderKind, ViewMode } from "@/types";
+import { viewModeForKind } from "@/lib/viewModeForKind";
 
 /**
  * Spec ``docs/superpowers/specs/2026-05-12-playlist-to-collection.md`` §6.3:
@@ -104,19 +105,6 @@ export function dominantCollectionKind(
   return null;
 }
 
-function autoDetectMode(kind: FolderKind | null): ViewMode | null {
-  switch (kind) {
-    case "markdown":
-      return "list";
-    case "video":
-    case "image":
-    case "audio":
-      return "grid";
-    default:
-      return null;
-  }
-}
-
 interface ResolveOpts {
   drive: string;
   collectionId: string;
@@ -128,7 +116,7 @@ export function resolveCollectionViewMode(opts: ResolveOpts): ViewMode {
   const prefs = loadPrefs(drive);
   const stored = prefs[collectionId]?.viewMode;
   if (isViewMode(stored)) return stored;
-  const auto = autoDetectMode(dominantKind);
+  const auto = viewModeForKind(dominantKind);
   if (auto) return auto;
   const global = loadGlobalDefault();
   if (global) return global;
