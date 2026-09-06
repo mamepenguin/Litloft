@@ -42,8 +42,7 @@ function describeError(
       if (!message.startsWith("errors.")) {
         return {
           message,
-          field:
-            typeof detail === "object" ? detail?.field : undefined,
+          field: typeof detail === "object" ? detail?.field : undefined,
         };
       }
     }
@@ -145,14 +144,11 @@ export function DrivesSection(): React.ReactElement {
     }
   }, [confirm, drives, t]);
 
-  const updateDraft = useCallback(
-    (patch: Partial<DriveEntry>) => {
-      setModal((prev) =>
-        prev ? { ...prev, draft: { ...prev.draft, ...patch } } : prev,
-      );
-    },
-    [],
-  );
+  const updateDraft = useCallback((patch: Partial<DriveEntry>) => {
+    setModal((prev) =>
+      prev ? { ...prev, draft: { ...prev.draft, ...patch } } : prev,
+    );
+  }, []);
 
   const sortedDrives = useMemo(() => drives, [drives]);
 
@@ -172,7 +168,7 @@ export function DrivesSection(): React.ReactElement {
         </div>
         <div className="flex-shrink-0">
           <Button
-            variant="primary"
+            variant="secondary"
             size="sm"
             onClick={openAdd}
             className="whitespace-nowrap"
@@ -194,9 +190,7 @@ export function DrivesSection(): React.ReactElement {
         </div>
       </details>
 
-      {loadError && (
-        <p className="mb-3 text-xs text-danger">{loadError}</p>
-      )}
+      {loadError && <p className="mb-3 text-xs text-danger">{loadError}</p>}
 
       <ul className="divide-y divide-bg-border">
         {sortedDrives.map((drive, index) => (
@@ -323,9 +317,7 @@ function DriveModal({
             />
           </label>
         </div>
-        {error && (
-          <p className="mt-3 text-xs text-danger">{error.message}</p>
-        )}
+        {error && <p className="mt-3 text-xs text-danger">{error.message}</p>}
         <div className="mt-4 flex justify-end gap-2">
           <button
             type="button"
@@ -334,13 +326,9 @@ function DriveModal({
           >
             {t("cancelButton")}
           </button>
-          <button
-            type="button"
-            onClick={onSave}
-            className="rounded-2xl bg-accent px-4 py-2 text-sm font-medium text-white hover:bg-accent-hover"
-          >
+          <Button variant="primary" onClick={onSave}>
             {t("saveButton")}
-          </button>
+          </Button>
         </div>
       </div>
     </div>
@@ -375,9 +363,7 @@ function ConfirmDeleteDialog({
         <p className="text-sm text-text-muted">
           {t("deleteConfirmBody", { name })}
         </p>
-        {error && (
-          <p className="mt-3 text-xs text-danger">{error.message}</p>
-        )}
+        {error && <p className="mt-3 text-xs text-danger">{error.message}</p>}
         <div className="mt-4 flex justify-end gap-2">
           <button
             type="button"
@@ -386,13 +372,9 @@ function ConfirmDeleteDialog({
           >
             {t("cancelButton")}
           </button>
-          <button
-            type="button"
-            onClick={onConfirm}
-            className="rounded-2xl bg-accent px-4 py-2 text-sm font-medium text-white hover:bg-accent-hover"
-          >
+          <Button variant="primary" onClick={onConfirm}>
             {t("confirmButton")}
-          </button>
+          </Button>
         </div>
       </div>
     </div>

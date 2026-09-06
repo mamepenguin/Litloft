@@ -708,7 +708,9 @@
       "copyCommand": "docker compose restart backend",
       "copyButton": "コピー",
       "copied": "コピーしました"
-    }
+    },
+    "tableLabel": "ドライブごとのアドオン設定",
+    "tabsLabel": "設定の種類"
   },
   "text": {
     "fileSizeLarge": "ファイルサイズが大きすぎます ({size})",

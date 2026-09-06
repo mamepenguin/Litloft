@@ -66,6 +66,120 @@ function setupSuccessfulLoads() {
   });
 }
 
+/**
+ * Real backends label their addons; the identifier is the fallback.
+ *
+ * `label` is optional on `AddonStatusEntry` — `adminConfig.ts` says so
+ * where it parses the response, and tolerating a backend that omits it is
+ * the reason the fallback exists. So one entry here carries a label and
+ * one does not, in the same fixture.
+ */
+const labelledStatusResponse = {
+  addons: {
+    intelligence: {
+      ...addonsStatusResponse.addons.intelligence,
+      label: "Intelligence",
+    },
+    knowledge: { scope: "drive" },
+  },
+  slots: {},
+};
+
+function setupLabelledLoads() {
+  mockFetch.mockImplementation((url: string) => {
+    if (url === "/api/admin/config/addon-policy") {
+      return Promise.resolve(jsonResponse(initialPolicy));
+    }
+    if (url === "/api/addons/status") {
+      return Promise.resolve(jsonResponse(labelledStatusResponse));
+    }
+    return Promise.resolve(jsonResponse({ ok: true }));
+  });
+}
+
+describe("AddonPolicySection column headings", () => {
+  it("names an addon the way a person would, and falls back to the identifier", async () => {
+    setupLabelledLoads();
+    render(<AddonPolicySection />);
+    const heads = await screen.findAllByRole("columnheader");
+    const text = heads.map((h) => h.textContent?.trim());
+    expect(text).toContain("Intelligence");
+    // The unlabelled one is still drawn, under its identifier, rather than
+    // the column vanishing or the row falling over.
+    expect(text).toContain("knowledge");
+    expect(text).not.toContain("intelligence");
+  });
+
+  /**
+   * The accessible name keeps the identifiers even though the heading no
+   * longer shows them. It has to be unique across the page, and `label` is
+   * neither required nor guaranteed distinct.
+   */
+  it("addresses a cell by identifier even where the heading reads otherwise", async () => {
+    setupLabelledLoads();
+    render(<AddonPolicySection />);
+    expect(
+      await screen.findByRole("checkbox", { name: "main / intelligence" }),
+    ).toBeInTheDocument();
+  });
+});
+
+describe("AddonPolicySection layout", () => {
+  it("puts the feature's name in the row-header column and its switch in the addon's", async () => {
+    setupSuccessfulLoads();
+    render(<AddonPolicySection />);
+    const row = await screen.findByTestId(
+      "feature-row-main-intelligence-transcription_cloud",
+    );
+    const cells = Array.from(row.children);
+    // Column 0 is the row header; the switch belongs to intelligence's
+    // column, which is column 1. Reading them positionally is the point —
+    // "the toggle is under the checkbox that governs it" is a claim about
+    // which cell it is in, and nothing else says it.
+    expect(cells[0]!.textContent).toContain("↳");
+    expect(cells[0]!.querySelector('[role="switch"]')).toBeNull();
+    const switchCell = cells.find((c) => c.querySelector('[role="switch"]'))!;
+    expect(cells.indexOf(switchCell)).toBe(1);
+    expect(switchCell.className).toContain("text-center");
+  });
+
+  /**
+   * A state, not a call to action. DESIGN.md §2.2 gives state colour to
+   * teal and keeps the accent fill for the one thing to press.
+   */
+  it("paints an enabled feature switch teal, not accent", async () => {
+    setupSuccessfulLoads();
+    render(<AddonPolicySection />);
+    const sw = await screen.findByRole("switch", {
+      name: "main / intelligence / transcription_cloud",
+    });
+    expect(sw.className).toContain("bg-accent-teal");
+    // `\b` is no help here: the boundary after "accent" matches inside
+    // "bg-accent-teal" too, so the guard has to say "not followed by a
+    // hyphen".
+    expect(sw.className).not.toMatch(/bg-accent(?![-\w])/);
+  });
+
+  /**
+   * The columns run off a narrow screen, and a scroll region that cannot
+   * take focus cannot be scrolled without a pointer — the last addon's
+   * column is then simply unreachable.
+   */
+  it("lets a keyboard reach the columns that are off-screen", async () => {
+    setupSuccessfulLoads();
+    render(<AddonPolicySection />);
+    const table = await screen.findByRole("table");
+    const region = table.closest("[tabindex]");
+    expect(region).not.toBeNull();
+    expect(region!.getAttribute("tabindex")).toBe("0");
+    expect(region!.className).toContain("overflow-x-auto");
+    // `w-full` is what made the table fold its headings instead of
+    // scrolling; `min-w-full` keeps it from shrinking below the region.
+    expect(table.className).toContain("min-w-full");
+    expect(table.className).not.toMatch(/(?<![-\w])w-full/);
+  });
+});
+
 describe("AddonPolicySection", () => {
   it("loads policy and addon list and renders matrix of toggles", async () => {
     setupSuccessfulLoads();

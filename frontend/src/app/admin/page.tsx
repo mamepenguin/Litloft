@@ -323,14 +323,14 @@ export default function AdminDashboardPage() {
       // The page's subject in this state is that it cannot be shown, so
       // the refusal takes the heading rather than sitting under the
       // dashboard's name as if the dashboard were merely empty.
-      <div className="mx-auto max-w-2xl py-8">
+      <div className="mx-auto w-full min-w-0 max-w-2xl py-8">
         <PageHeader title={t("title")} scope={t("forbidden")} />
       </div>
     );
   }
 
   return (
-    <div className="mx-auto max-w-5xl py-2">
+    <div className="mx-auto w-full min-w-0 max-w-5xl py-2">
       <PageHeader
         title={t("title")}
         actions={

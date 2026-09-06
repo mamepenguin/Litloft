@@ -708,7 +708,9 @@
       "copyCommand": "docker compose restart backend",
       "copyButton": "Copy",
       "copied": "Copied"
-    }
+    },
+    "tableLabel": "Addon policy by drive",
+    "tabsLabel": "Settings sections"
   },
   "text": {
     "fileSizeLarge": "File is large ({size})",

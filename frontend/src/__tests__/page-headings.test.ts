@@ -60,8 +60,6 @@ const NOT_YET_MIGRATED: Record<string, string> = {
   "frontend/src/app/setup/steps/LanguageStep.tsx": "first-run wizard, brand surface",
   "frontend/src/app/unlock/page.tsx": "unlock gate, outside the AppShell",
 
-  // Rebuilt whole in Phase 4; migrating the header now means touching them twice.
-  "frontend/src/app/admin/settings/page.tsx": "admin settings — 案 16 (Phase 4)",
 
   // Purpose-built chrome that PageHeader has to absorb rather than replace.
   // The inspector's fixed block. It heads a region rather than the page, so it
@@ -176,14 +174,14 @@ describe("page headings", () => {
         : "frontend/src";
       perRoot.set(root, (perRoot.get(root) ?? 0) + 1);
     }
-    // Six: the three brand surfaces the list keeps (`WelcomeStep`,
-    // `LanguageStep`, `unlock/page.tsx`), the inspector's block,
-    // `admin/settings/page.tsx` which 案 16 takes next, and `PageHeader`'s
-    // own — `OWNER` is excluded from the allowlist check above, never from
-    // this count. `app/admin/page.tsx` used to contribute two of its own,
-    // one per branch: precisely the case a per-file allowlist cannot see,
-    // which is why counts are asserted at all.
-    expect(perRoot.get("frontend/src")).toBe(6);
+    // Five, and this is the end of the migration: the three brand surfaces
+    // the list keeps (`WelcomeStep`, `LanguageStep`, `unlock/page.tsx`),
+    // the inspector's block, and `PageHeader`'s own — `OWNER` is excluded
+    // from the allowlist check above, never from this count.
+    // `app/admin/page.tsx` used to contribute two of its own, one per
+    // branch: precisely the case a per-file allowlist cannot see, which is
+    // why counts are asserted at all.
+    expect(perRoot.get("frontend/src")).toBe(5);
 
     const EXPECTED_ADDON_HEADINGS: Record<string, number> = {
       "addons/intelligence": 0,
