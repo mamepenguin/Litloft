@@ -48,7 +48,7 @@ A locked drive is **invisible**, not just refused:
 - API responses omit it entirely (the drive list does not include it).
 - Direct URL access returns `404 Not Found` rather than `403 Forbidden`.
 - The frontend never names a locked drive. The home screen ends its grid with an outlined card leading to `/unlock` when protected drives exist that you have not unlocked — but the card carries no drive name, no count, no group name, and no total. It says only that a password will get you further.
-- That card is absent for a viewer who already holds every access group, and absent when nothing is protected at all.
+- That card is absent for a viewer the backend counts as an admin, and absent when nothing is protected at all. Those are usually the same as "holds every access group", with one exception: a password carrying the `__admin__` group counts as admin without unlocking any drive, so such a viewer sees no locked drives *and* no card. `/unlock` still answers to its URL.
 
 This *hidden by default* model is by design: it makes a casual-snooping observer unable to tell whether a private drive even exists. A generic way in does not weaken it — the observer learns that *some* password exists, which the `/unlock` page itself already tells anyone who visits it.
 

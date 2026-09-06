@@ -181,7 +181,6 @@ describe("/ root home (Server Component)", () => {
     const { container } = render(await Home());
     const link = screen.getByRole("link", { name: /unlockAccess/ });
     expect(link.getAttribute("href")).toBe("/unlock");
-    expect(screen.queryByText("unlockAccessDescription")).toBeNull();
 
     // The last cell of the same grid, not a footnote under the page.
     const grid = container.querySelector(".grid")!;

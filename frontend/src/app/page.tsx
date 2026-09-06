@@ -74,10 +74,21 @@ export default async function Home() {
   ]);
   const t = await getTranslations("drive");
   const nickname = readNickname(cookieStore.get(COOKIE_NAME)?.value);
-  // "Is there still something locked?" is already answerable here.
-  // `is_admin` means "can see every protected drive" (`types/index.ts`,
-  // and `routers/auth.py` agrees), so a viewer who holds them all has
-  // nothing left to unlock and gets no entry. No backend change.
+  // "Is there still something locked?" is already answerable here, so no
+  // backend change: `is_admin` is what the backend calls a viewer who may
+  // see every protected drive, and such a viewer has nothing left to
+  // unlock.
+  //
+  // Those are not quite the same viewer. `auth.is_admin()` returns true
+  // for anyone holding the `__admin__` sentinel *before* it compares
+  // groups against the drives, while `filter_drives()` ignores the
+  // sentinel entirely — so a password carrying `__admin__` but not every
+  // `access_group` (the setup wizard writes the first half; a drive added
+  // later with a new group creates the second) sees locked drives and is
+  // offered no way in. The card still reveals nothing, and `/unlock`
+  // still answers to its URL, so what is lost is the affordance. Widening
+  // `is_admin` would change who reaches `/admin`, which is not this
+  // change's to make.
   const showLockedEntry =
     (authStatus?.has_protected_drives ?? false) && !(authStatus?.is_admin ?? false);
 
