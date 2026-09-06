@@ -116,6 +116,33 @@ describe("api", () => {
       const url = mockFetch.mock.calls[0][0] as string;
       expect(url).not.toContain("type_filter");
     });
+
+    /**
+     * F-7. Everything above this layer mocks `@/lib/api`, so this is the
+     * only place the wire is looked at: the hook can pass
+     * `include_files: true` all day and the request still leave without it.
+     */
+    it("sends include_files when the tree is asked for files", async () => {
+      mockFetch.mockResolvedValueOnce(jsonResponse([]));
+      await getFolderTree("main", { root: "", include_files: true });
+      const url = mockFetch.mock.calls[0][0] as string;
+      expect(url).toContain("include_files=true");
+    });
+
+    it("sends it in flat mode too, which is what the tree filter searches", async () => {
+      mockFetch.mockResolvedValueOnce(jsonResponse([]));
+      await getFolderTree("main", { flat: true, include_files: true });
+      const url = mockFetch.mock.calls[0][0] as string;
+      expect(url).toContain("flat=true");
+      expect(url).toContain("include_files=true");
+    });
+
+    it("says nothing when it wants folders, because that is the endpoint's default", async () => {
+      mockFetch.mockResolvedValueOnce(jsonResponse([]));
+      await getFolderTree("main", { include_files: false });
+      const url = mockFetch.mock.calls[0][0] as string;
+      expect(url).not.toContain("include_files");
+    });
   });
 
   describe("getDriveFiles", () => {

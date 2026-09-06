@@ -30,7 +30,13 @@ export async function getFolders(drive: string, path?: string): Promise<Folder[]
 
 export async function getFolderTree(
   drive: string,
-  params: { root?: string; type_filter?: FileKind | null; depth?: number; flat?: boolean } = {},
+  params: {
+    root?: string;
+    type_filter?: FileKind | null;
+    depth?: number;
+    flat?: boolean;
+    include_files?: boolean;
+  } = {},
   options?: RequestOptions,
 ): Promise<FolderTreeNode[]> {
   const search = new URLSearchParams();
@@ -38,6 +44,9 @@ export async function getFolderTree(
   if (params.type_filter) search.set("type_filter", params.type_filter);
   if (params.depth !== undefined) search.set("depth", String(params.depth));
   if (params.flat) search.set("flat", "true");
+  // Only sent when true: the endpoint's default is folders-only, and the
+  // UI's default is the same, so the quiet case is the empty query string.
+  if (params.include_files) search.set("include_files", "true");
   const qs = search.toString();
   return fetchJSON<FolderTreeNode[]>(
     `${API_BASE}/drives/${encodeURIComponent(drive)}/folder-tree${qs ? `?${qs}` : ""}`,

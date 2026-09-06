@@ -456,7 +456,8 @@
     "errorRetry": "Retry",
     "empty": "No files in this folder",
     "dropToRoot": "Drop here to move to drive root",
-    "paneHeading": "Folders"
+    "paneHeading": "Folders",
+    "includeFiles": "Show files too"
   },
   "filter": {
     "placeholder": {
@@ -476,7 +477,8 @@
       "pdf": "PDF"
     },
     "empty": {
-      "tree": "No matching files or folders",
+      "tree": "No matching folders",
+      "treeWithFiles": "No matching files or folders",
       "folder": "No matching files in this folder"
     },
     "clear": "Clear filters",
