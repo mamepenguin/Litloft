@@ -21,9 +21,11 @@ FIXTURE = Path(__file__).parent / "fixtures" / "filename_title.json"
 CASES = json.loads(FIXTURE.read_text(encoding="utf-8"))["cases"]
 
 
-def test_the_table_is_not_empty():
-    # "Every case agrees" is also true of no cases.
-    assert len(CASES) >= 10
+def test_the_whole_table_is_read():
+    # "Every case agrees" is also true of no cases -- and of half of them.
+    # The count is exact, and the frontend's partner test writes the same
+    # number down, so removing a case takes an edit in two languages.
+    assert len(CASES) == 26
 
 
 @pytest.mark.parametrize("case", CASES, ids=lambda c: c["filename"])

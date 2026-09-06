@@ -3,6 +3,8 @@ import { readFileSync, readdirSync, existsSync, statSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { resolve, dirname, relative } from "node:path";
 
+import { SIDEBAR_HEADING_CLASSES } from "@/test/sidebarHeadingClasses";
+
 /**
  * The sidebar's section headings had drifted apart on four axes at once
  * — element (`div` vs `button`), chevron, who owned the vertical margin
@@ -36,14 +38,12 @@ const SIDEBAR_DIR = resolve(REPO_ROOT, "frontend/src/components/sidebar");
 const SIDEBAR_ROOT_FILE = resolve(REPO_ROOT, "frontend/src/components/Sidebar.tsx");
 
 /**
- * The classes that make a sidebar section heading look like one.
- *
- * Matched as a set, not as a substring: written in another order
- * (`font-semibold text-[11px] text-text-muted`) the same declaration
- * would slip past a substring test, and Tailwind does not care about
- * the order.
+ * The classes that make a sidebar section heading look like one, from the
+ * one file that names them — `SidebarDriveSwitcher.test.tsx` asks the same
+ * question of the rendered DOM and has to be asking it about the same
+ * classes.
  */
-const HEADING_CLASSES = ["text-[11px]", "font-semibold", "text-text-muted"];
+const HEADING_CLASSES = [...SIDEBAR_HEADING_CLASSES];
 
 /** Every class list in a file, `className="…"` or a template literal. */
 function classLists(text: string): string[] {

@@ -28,10 +28,16 @@ interface Case {
 const cases: Case[] = JSON.parse(readFileSync(FIXTURE, "utf-8")).cases;
 
 describe("filenameToTitle agrees with the backend", () => {
-  it("reads a table with cases in it", () => {
+  it("reads the whole table, not some of it", () => {
     // "Every case agrees" is also true of no cases, and this file resolves
     // a path across the repo — a rename would otherwise leave it green.
-    expect(cases.length).toBeGreaterThanOrEqual(10);
+    //
+    // Exact, not a floor: under `>=` deleting the cases that cost the most
+    // to keep passing — the scripts, the apostrophe, the interior capital —
+    // halves the coverage both suites are built on and neither says
+    // anything. The number is also written down on the Python side, so a
+    // deletion is a two-file edit, which is what makes someone look.
+    expect(cases.length).toBe(26);
   });
 
   it.each(cases.map((c) => [c.filename, c.title] as const))(

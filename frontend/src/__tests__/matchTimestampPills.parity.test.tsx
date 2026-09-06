@@ -80,10 +80,9 @@ function makeFile(overrides: Partial<FileItemWithMatch> = {}): FileItemWithMatch
  * fraction of a second apart.
  *
  * One of the three that survive is past the hour, where `formatDuration`
- * switches to `H:MM:SS`. That is what makes the pill matcher's hour form
- * load-bearing: narrowed to `M:SS` it would drop the pill out of the
- * population rather than fail, which is how a cap or de-duplication bug on
- * a long recording would hide.
+ * switches to `H:MM:SS`. Both surfaces have to switch with it, and a cap or
+ * de-duplication bug shows up on a long recording, so the two halves of the
+ * rule are measured where the format changes as well as where it does not.
  */
 const SHARED_META: MatchMeta = {
   transcript: [
@@ -98,8 +97,15 @@ const SHARED_META: MatchMeta = {
   ],
 };
 
-const pillTexts = () =>
-  screen.getAllByText(/^\d+:\d{2}(:\d{2})?$/).map((el) => el.textContent);
+/**
+ * The pills, by identity rather than by the shape of what they say. A
+ * population selected on the text — `3600`, or `1:00:00.5`, against some
+ * pattern for a time — loses the pills that stop matching it, so a pill
+ * that started rendering wrongly would leave the population instead of
+ * failing the assertions below.
+ */
+const pills = () => screen.getAllByTestId("match-timestamp-pill");
+const pillTexts = () => pills().map((el) => el.textContent);
 
 describe("timestamp pills read the same on both surfaces", () => {
   /**
@@ -116,10 +122,8 @@ describe("timestamp pills read the same on both surfaces", () => {
     const page = pillTexts();
     cleanup();
 
-    // `1:01:01` is here so the pill matcher's hour form is load-bearing:
-    // `formatDuration` switches at sixty minutes, and a matcher that only
-    // took `M:SS` would drop this pill out of the population instead of
-    // failing.
+    // `1:01:01`, not just `13:19`: `formatDuration` switches format at
+    // sixty minutes, and the claim is that both surfaces switch with it.
     expect(popup).toEqual(["13:19", "14:49", "1:01:01"]);
     expect(page).toEqual(popup);
   });
@@ -178,7 +182,7 @@ describe("timestamp pills read the same on both surfaces", () => {
    */
   it("spends no accent on the pills, on either surface", () => {
     render(<MergedResultItem file={makeFile({ match_meta: SHARED_META })} onSelect={vi.fn()} />);
-    for (const pill of screen.getAllByText(/^\d+:\d{2}(:\d{2})?$/)) {
+    for (const pill of pills()) {
       expect(pill.className).not.toContain("text-accent");
       expect(pill.className).toContain("text-text-muted");
       expect(pill.className).toContain("hover:bg-accent/10");
@@ -186,7 +190,7 @@ describe("timestamp pills read the same on both surfaces", () => {
     cleanup();
 
     render(<MatchOverlay match={SHARED_META} fileId="f1" />);
-    for (const pill of screen.getAllByText(/^\d+:\d{2}(:\d{2})?$/)) {
+    for (const pill of pills()) {
       expect(pill.className).not.toContain("text-accent");
       expect(pill.className).toContain("text-text-muted");
       expect(pill.className).toContain("hover:bg-accent/10");

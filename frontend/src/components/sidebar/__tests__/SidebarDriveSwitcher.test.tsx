@@ -4,6 +4,7 @@ import { fireEvent, render, screen } from "@testing-library/react";
 import { SidebarDriveSwitcher } from "../SidebarDriveSwitcher";
 import { SidebarLibrarySection } from "../SidebarLibrarySection";
 import type { Drive } from "@/types";
+import { wearsSidebarHeadingClasses } from "@/test/sidebarHeadingClasses";
 
 const drive = (name: string, isProtected = false): Drive => ({
   name,
@@ -93,12 +94,21 @@ describe("SidebarDriveSwitcher", () => {
 
     it("is a fold row, not a section heading", () => {
       // Phase 1 cut the sidebar to five headings and
-      // `sidebar-headings.test.ts` pins that count; adding one here would
-      // undo that as a side effect of a different change.
+      // `sidebar-headings.test.ts` pins that count from the source; this is
+      // the same claim about what reaches the screen. A sidebar heading is
+      // a `div` around a `button`, never an `h1`-`h6`, so the classes it
+      // wears are what identify one.
       const { container } = renderRoot();
       const row = screen.getByRole("button", { name: /Drives \(3\)/ });
       expect(row.tagName).toBe("BUTTON");
-      expect(container.querySelectorAll("h1,h2,h3,h4,h5,h6")).toHaveLength(0);
+
+      const classed = [...container.querySelectorAll("[class]")];
+      // "None of them wears a heading" is also true of nothing at all, and
+      // the row this test is about has to be one of the ones being asked.
+      expect(classed).toContain(row);
+      expect(
+        classed.filter(wearsSidebarHeadingClasses).map((el) => el.className),
+      ).toEqual([]);
     });
 
     it("shows the one drive rather than a row to unfold it", () => {

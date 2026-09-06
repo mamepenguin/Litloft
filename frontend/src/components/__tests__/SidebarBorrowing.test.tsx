@@ -133,6 +133,26 @@ describe("lending the sidebar its place", () => {
     expect(open()).toBe("true");
   });
 
+  it("gives the place back when the borrower goes away without warning", () => {
+    // A borrower does not always get to say it is finished. Navigating
+    // from a folder with the tree open to `/`, `/admin`, an addon route or
+    // `?view=trash` unmounts the whole layout that was holding the space,
+    // and the only thing left to hand it back is the effect's own cleanup.
+    // Without it the count never returns to zero and the sidebar takes no
+    // width anywhere, at any width, until the tab is reloaded.
+    localStorage.setItem("sidebar-open", "true");
+    render(<UnmountHarness />);
+    expect(overlay()).toBe("true");
+    expect(open()).toBe("false");
+
+    act(() => {
+      screen.getByText("unmount").click();
+    });
+
+    expect(overlay()).toBe("false");
+    expect(open()).toBe("true");
+  });
+
   it("waits for the last borrower", () => {
     // Two surfaces can want the space at once; the count is what stops
     // the first one to finish handing it back on behalf of both.
@@ -164,6 +184,28 @@ describe("lending the sidebar its place", () => {
 function Borrower({ active }: { active: boolean }) {
   useOverlaySidebarWhen(active);
   return null;
+}
+
+/** Reads the provider's answer without borrowing, so it outlives the borrower. */
+function Readout() {
+  const { isOpen, isOverlay } = useSidebar();
+  return (
+    <div>
+      <span data-testid="open">{String(isOpen)}</span>
+      <span data-testid="overlay">{String(isOverlay)}</span>
+    </div>
+  );
+}
+
+function UnmountHarness() {
+  const [mounted, setMounted] = useState(true);
+  return (
+    <SidebarProvider>
+      {mounted && <Borrower active={true} />}
+      <Readout />
+      <button onClick={() => setMounted(false)}>unmount</button>
+    </SidebarProvider>
+  );
 }
 
 vi.mock("next/navigation", () => ({

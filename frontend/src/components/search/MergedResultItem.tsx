@@ -154,6 +154,9 @@ export function MergedResultItem({ file, onSelect, isSelected = false }: Props) 
                     onSelect(`/files/${file.id}?t=${Math.floor(ts.seconds)}`);
                   }
                 }}
+                // See `MatchOverlay`'s pill: the detector selects on this
+                // rather than on the shape of the rendered time.
+                data-testid="match-timestamp-pill"
                 className="cursor-pointer rounded-lg px-1.5 py-0.5 text-[10px] font-medium text-text-muted transition-colors hover:bg-accent/10"
               >
                 {formatDuration(ts.seconds)}

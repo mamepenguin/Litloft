@@ -378,6 +378,10 @@ describe("TwoPaneLayout", () => {
 /**
  * NAV-2. The sidebar and the tree both name where you are, and one such
  * surface at a time is design principle 3.
+ *
+ * The waits below are on the answer itself rather than on `overlayRequests`
+ * growing — the array's length is a proxy for the thing being asserted, and
+ * an unmade request reads `undefined` here, so nothing can pass vacuously.
  */
 describe("TwoPaneLayout — the tree borrows the sidebar's place", () => {
   const renderPane = () => {
@@ -396,15 +400,13 @@ describe("TwoPaneLayout — the tree borrows the sidebar's place", () => {
 
   it("asks for the place while the tree is open beside the content", async () => {
     renderPane();
-    await waitFor(() => expect(overlayRequests.length).toBeGreaterThan(0));
-    expect(overlayRequests.at(-1)).toBe(true);
+    await waitFor(() => expect(overlayRequests.at(-1)).toBe(true));
   });
 
   it("gives it back when the tree closes", async () => {
     treeEnabledStore.set("work", false);
     renderPane();
-    await waitFor(() => expect(overlayRequests.length).toBeGreaterThan(0));
-    expect(overlayRequests.at(-1)).toBe(false);
+    await waitFor(() => expect(overlayRequests.at(-1)).toBe(false));
   });
 
   it("does not ask while the tree is not beside the content", async () => {
@@ -413,8 +415,7 @@ describe("TwoPaneLayout — the tree borrows the sidebar's place", () => {
     // preference alone.
     besideMatches = false;
     renderPane();
-    await waitFor(() => expect(overlayRequests.length).toBeGreaterThan(0));
-    expect(overlayRequests.at(-1)).toBe(false);
+    await waitFor(() => expect(overlayRequests.at(-1)).toBe(false));
   });
 
   /**
@@ -516,6 +517,111 @@ describe("TwoPaneLayout — the tree borrows the sidebar's place", () => {
         setViewportBeside(false);
       });
       expect(document.querySelector("aside")!.className).toContain("w-0");
+    });
+
+    /**
+     * MB-5 is a claim about the content `<section>`, not about the tree's
+     * `<aside>`: the defect was a phone showing a full-viewport tree with
+     * nothing of the folder behind it. Tailwind classes are inert in jsdom,
+     * so what is asserted is the class the section is given — the one
+     * decision the component makes — and each case first checks that the
+     * section is holding the content it would be hiding, because "it is
+     * hidden" is also true of an empty box.
+     */
+    describe("the content section", () => {
+      const section = () => document.querySelector("section")!;
+
+      it("is on screen whenever the tree is not over it", async () => {
+        besideMatches = false;
+        renderPane();
+        await waitFor(() => expect(screen.getByText("right")).toBeInTheDocument());
+
+        expect(screen.getByText("right").closest("section")).toBe(section());
+        // Tokens, not substrings: `md:flex` contains "flex".
+        expect(section().classList.contains("flex")).toBe(true);
+        expect(section().classList.contains("hidden")).toBe(false);
+      });
+
+      it("steps aside for a tree that has taken the whole viewport", async () => {
+        besideMatches = false;
+        treeEnabledStore.set("work", false);
+        renderPane();
+        await waitFor(() => expect(screen.getByText("right")).toBeInTheDocument());
+
+        await act(async () => {
+          treeNarrowOpenStore.set("work", true);
+        });
+        await waitFor(() =>
+          expect(document.querySelector("aside")!.className).toContain("w-[100vw]"),
+        );
+
+        // There is something behind the tree, which is what makes hiding
+        // it the right thing to assert.
+        expect(screen.getByText("right").closest("section")).toBe(section());
+        expect(section().classList.contains("hidden")).toBe(true);
+        expect(section().classList.contains("flex")).toBe(false);
+        expect(section().classList.contains("md:flex")).toBe(true);
+      });
+
+      it("comes back for an open file, which the tree is not covering", async () => {
+        // With `?file=` the tree pane is the one that gives way below `md`
+        // (`w-0 md:w-[280px]`), so the reader is looking at the file. A rule
+        // written as "hide the content whenever the tree is on" would leave
+        // them looking at nothing.
+        besideMatches = false;
+        treeEnabledStore.set("work", false);
+        mockSearchParams = new URLSearchParams("file=abc");
+        mockGetFile.mockResolvedValue(baseFile("abc"));
+        renderPane();
+        await waitFor(() =>
+          expect(screen.getByTestId("file-detail-content")).toBeInTheDocument(),
+        );
+
+        await act(async () => {
+          treeNarrowOpenStore.set("work", true);
+        });
+        // The tree really is open, which the `<aside>` says only through
+        // its wide width here: with `?file=` it gives way below `md`
+        // either way, so `w-0` alone cannot tell the two apart.
+        await waitFor(() =>
+          expect(document.querySelector("aside")!.className).toContain("md:w-[280px]"),
+        );
+
+        expect(screen.getByTestId("file-detail-content").closest("section")).toBe(section());
+        expect(section().classList.contains("flex")).toBe(true);
+        expect(section().classList.contains("hidden")).toBe(false);
+      });
+    });
+
+    /**
+     * The ✕ in the tree's own header is the only way off a full-viewport
+     * tree on a phone — `docs/user-guide/file-browsing.md` says so, and the
+     * toolbar's toggle is behind the tree at that width.
+     */
+    it("closes again from the ✕ in the tree's header", async () => {
+      besideMatches = false;
+      treeEnabledStore.set("work", false);
+      renderPane();
+      await waitFor(() => expect(screen.getByText("right")).toBeInTheDocument());
+
+      await act(async () => {
+        treeNarrowOpenStore.set("work", true);
+      });
+      await waitFor(() =>
+        expect(document.querySelector("aside")!.className).toContain("w-[100vw]"),
+      );
+
+      await act(async () => {
+        fireEvent.click(screen.getByRole("button", { name: "Hide tree" }));
+      });
+
+      await waitFor(() =>
+        expect(document.querySelector("aside")!.className).toContain("w-0"),
+      );
+      expect(treeNarrowOpenStore.get("work")).toBe(false);
+      // The reader asked about this screen, so the setting the wider one
+      // reads is none of its business — in either direction.
+      expect(localStorage.getItem("tree:enabled:work")).toBe("false");
     });
 
     it("still opens full-viewport when the reader asks for it there", async () => {
