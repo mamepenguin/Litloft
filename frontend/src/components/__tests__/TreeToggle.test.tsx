@@ -85,4 +85,42 @@ describe("TreeToggle", () => {
     const { container } = render(<TreeToggle drive="work" />);
     expect(container.firstChild).toBeNull();
   });
+
+  /**
+   * NAV-2 rule 3. The tree toggle and the sidebar's hamburger decide which
+   * surface names where you are, and only one of them holds that job at a
+   * time — so both have to show whether they hold it. This one carried
+   * `aria-pressed` and looked identical either way.
+   */
+  describe("pressed state", () => {
+    const activeClasses = ["bg-bg-elevated", "text-text-primary"];
+
+    it("looks pressed when the tree is on", () => {
+      treeEnabledStore.set("work", true);
+      render(<TreeToggle drive="work" />);
+      const button = screen.getByRole("button");
+      expect(button).toHaveAttribute("aria-pressed", "true");
+      const classes = button.className.split(/\s+/);
+      for (const c of activeClasses) expect(classes).toContain(c);
+    });
+
+    it("does not when it is off", () => {
+      treeEnabledStore.set("work", false);
+      render(<TreeToggle drive="work" />);
+      const button = screen.getByRole("button");
+      expect(button).toHaveAttribute("aria-pressed", "false");
+      const classes = button.className.split(/\s+/);
+      // Tokens, not substrings: `hover:bg-bg-elevated` is on the button in
+      // both states and contains the resting class as a substring.
+      for (const c of activeClasses) expect(classes).not.toContain(c);
+      expect(classes).toContain("text-text-muted");
+    });
+
+    it("spends no accent on it", () => {
+      // The screen's one fill belongs to its one action.
+      treeEnabledStore.set("work", true);
+      render(<TreeToggle drive="work" />);
+      expect(screen.getByRole("button").className).not.toMatch(/(^|[\s:])bg-accent/);
+    });
+  });
 });

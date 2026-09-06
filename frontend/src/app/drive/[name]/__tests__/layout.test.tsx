@@ -3,6 +3,23 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { treeEnabledStore } from "@/lib/treeEnabledStore";
 
+// jsdom has no `matchMedia`. `TwoPaneLayout` asks it whether the tree and
+// the content fit side by side; this layout's assertions are all about
+// wiring rather than width, so it always answers yes.
+Object.defineProperty(window, "matchMedia", {
+  writable: true,
+  value: (query: string) => ({
+    matches: true,
+    media: query,
+    onchange: null,
+    addListener: () => {},
+    removeListener: () => {},
+    addEventListener: () => {},
+    removeEventListener: () => {},
+    dispatchEvent: () => true,
+  }),
+});
+
 let mockPathname = "/drive/work";
 let mockSearchParams = new URLSearchParams();
 let mockParams: Record<string, string | string[]> = { name: "work" };

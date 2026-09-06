@@ -812,7 +812,7 @@ colour**, never with a fill.
 - Composition, top to bottom: **logo → current drive → views → addons → reorderable sections → Lock.**
   The drive you are on is one row at the top that opens the others, not a list at the bottom: it is
   where you are, and the sidebar reads as a place before it reads as a menu. Off a drive (root, `/admin`)
-  the list is shown open, because there is no "here" to fold into. The views carry no heading — a
+  that row names the list instead — "Drives (N)" — and folds the same way. The views carry no heading — a
   heading over the whole top of the column labels nothing, since there is nothing beside it to tell it
   from. The four reorderable sections (collections / pins / smart folders / tags) keep their own headings
   because their order is the user's to change.
@@ -822,6 +822,46 @@ colour**, never with a fill.
   - **Inline** (viewport ≥ 1200px, non-overlay routes): no backdrop. The outer layout adds `min-[1200px]:pl-60` to reserve space so content sits beside the sidebar. Toggling persists to `localStorage["sidebar-open"]`.
   - **Overlay** (viewport < 1200px, **or** file detail / knowledge addon at any width): slides over content with a `z-30 bg-black/50` backdrop. Closes on backdrop click and `ESC`. Body scroll is locked while open. State is ephemeral — not persisted.
 - Transitioning into overlay mode forces closed initial state; transitioning out restores the persisted global preference.
+
+#### The three axes of "where you are"
+
+The sidebar's location surface has three independent pieces of state. **They are not
+merged**: each answers a different question, and collapsing any two makes one of the
+answers unreachable.
+
+| Axis | Owner | Persisted | Default | Off a drive (`/`, `/admin`) | On a drive |
+|---|---|---|---|---|---|
+| Is the sidebar open? | `SidebarProvider.isOpen` | `localStorage["sidebar-open"]` | open | same | same |
+| Is it lending its place? | `SidebarProvider.routeOverlay` ＋ `narrow` | no | not lending | width only — there is no tree here | width, **or** the folder tree being open |
+| Is the drive list open? | `SidebarDriveSwitcher.open` | no | folded | opens from the "Drives (N)" row | opens from the current-drive row |
+
+**Exclusivity (NAV-2).** The sidebar and the folder tree both name where you are, and
+design principle 3 allows one such surface at a time, so the tree borrows the sidebar's
+place while it is open. Three rules follow:
+
+1. **Borrow, do not take.** The borrower asks for overlay mode
+   (`useOverlaySidebarWhen`), never `close()`. Overlay stops the sidebar taking width and
+   forces it shut, restores the stored preference when the borrower is done, and leaves
+   `localStorage` untouched — `close()` writes `false` into it, so "put it back when I
+   close the tree" could not hold. The hamburger still opens the sidebar over the top
+   meanwhile: nothing is taken away, only moved.
+2. **The breadcrumb stays.** `PageHeader` draws it in every combination of the two, so
+   the path is readable whichever surface is showing.
+3. **Both controls show their state.** `TreeToggle` and the hamburger each carry
+   `aria-pressed` and the active-link treatment (`bg-bg-elevated text-text-primary`) when
+   on. No accent fill — the screen's one fill belongs to its one action.
+
+Below 1200px the sidebar is already an overlay, so the tree's request changes nothing and
+the exclusivity is invisible rather than special-cased.
+
+**The drive list's default is a default, not a suppression.** The first two axes restore
+what the system took away; this one was never taken, so there is nothing to restore and
+nothing to persist. It folds when the drive changes — including to and from "no drive" —
+so `/` is not a state the sidebar remembers.
+
+**Thresholds are per question.** The tree uses `md` (768px): can the tree and the content
+sit side by side? The sidebar uses 1200px: can the sidebar and the content? Two questions,
+two numbers, and merging them would answer one of them with the other's measurement.
 - Nav-item click behavior: **inline mode keeps the sidebar open** across navigations; **overlay mode closes it** before the route change so the backdrop is gone on arrival. The hamburger, backdrop click, and `ESC` always close regardless of mode. Overlay mode and inline mode share the same sidebar layout — no empty top bar; the first visible row is the logo.
 - Menu (hamburger) button lives outside the sidebar as a `fixed top-3 left-3 z-50` floating control, visible in all states (sidebar open or closed, inline or overlay). The sidebar's logo row uses `pl-12` so the button visually sits in the sidebar's top-left without overlap.
 - Transform transition: `duration-150 ease-out`. Layout padding transition: `duration-150 ease-out`.

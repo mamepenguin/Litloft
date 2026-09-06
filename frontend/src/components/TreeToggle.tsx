@@ -45,7 +45,14 @@ export function TreeToggle({ drive, visible = true }: TreeToggleProps) {
       aria-pressed={enabled}
       aria-label={enabled ? t("treeOff") : t("treeOn")}
       title={enabled ? t("treeOff") : t("treeOn")}
-      className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-lg text-text-muted transition-colors hover:bg-bg-elevated hover:text-text-primary"
+      // Pressed reads the same way the sidebar's active link does
+      // (`Sidebar.tsx`), so the two controls that decide which surface
+      // names your location look alike when they are on. No accent: the
+      // screen's one fill belongs to its one action, and
+      // `accent-budget.test.tsx` holds that.
+      className={`flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-lg transition-colors hover:bg-bg-elevated hover:text-text-primary ${
+        enabled ? "bg-bg-elevated text-text-primary" : "text-text-muted"
+      }`}
     >
       {enabled ? <PanelLeftClose size={16} /> : <PanelLeft size={16} />}
     </button>

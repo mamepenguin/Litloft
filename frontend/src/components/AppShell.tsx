@@ -10,12 +10,17 @@ import { useSidebar } from "./SidebarProvider";
 import { ShortcutsProvider } from "./ShortcutsProvider";
 
 function MenuButton() {
-  const { toggle } = useSidebar();
+  const { toggle, isOpen } = useSidebar();
   const t = useTranslations("header");
   return (
     <button
       onClick={toggle}
       aria-label={t("menu")}
+      // The sidebar and the tree are the two surfaces that name where you
+      // are, and only one of them holds that job at a time, so both
+      // controls have to say which. This one said nothing at all — no
+      // pressed state to a screen reader and none on screen.
+      aria-pressed={isOpen}
       // PWA safe-area: when iOS runs in standalone mode the viewport
       // can extend under the status bar, so anchor the fixed menu
       // button to the safe-area top + 12px instead of a raw 12px
@@ -24,7 +29,9 @@ function MenuButton() {
       style={{
         top: "calc(env(safe-area-inset-top, 0px) + 12px)",
       }}
-      className="fixed left-3 z-50 flex h-10 w-10 items-center justify-center rounded-2xl text-text-muted transition-colors hover:bg-bg-elevated hover:text-text-primary"
+      className={`fixed left-3 z-50 flex h-10 w-10 items-center justify-center rounded-2xl transition-colors hover:bg-bg-elevated hover:text-text-primary ${
+        isOpen ? "bg-bg-elevated text-text-primary" : "text-text-muted"
+      }`}
     >
       <Menu size={20} />
     </button>

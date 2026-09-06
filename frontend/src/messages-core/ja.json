@@ -47,6 +47,7 @@
     "tags": "タグ",
     "tagsScoped": "タグ — {folder} 以下",
     "allTags": "すべてのタグ（{count}）",
+    "allDrives": "ドライブ（{count}）",
     "collections": "コレクション",
     "createCollection": "コレクション作成",
     "collectionNamePlaceholder": "コレクション名...",

@@ -52,8 +52,14 @@ vi.mock("@/lib/api", () => ({
 }));
 
 // SidebarProvider is consumed by usePinnedFolders.
+// `overlayRequests` records what the tree asked the sidebar for, which is
+// how the exclusivity rule is observed without mounting a real sidebar.
+const overlayRequests = vi.hoisted(() => [] as boolean[]);
 vi.mock("@/components/SidebarProvider", () => ({
   useSidebar: () => ({ requestRefresh: vi.fn() }),
+  useOverlaySidebarWhen: (active: boolean) => {
+    overlayRequests.push(active);
+  },
 }));
 
 // Clipboard provider is consumed by FileContextMenu.
@@ -139,7 +145,35 @@ const baseFile = (id: string) => ({
   updated_at: "2026-05-01T00:00:00Z",
 });
 
+// jsdom has no `matchMedia`. The tree asks it one question — are the tree
+// and the content wide enough to sit side by side — so the stub answers
+// that, and `setViewportBeside` is how a test moves the window.
+let besideMatches = true;
+const mediaListeners = new Set<() => void>();
+function setViewportBeside(next: boolean) {
+  besideMatches = next;
+  for (const l of mediaListeners) l();
+}
+Object.defineProperty(window, "matchMedia", {
+  writable: true,
+  value: (query: string) => ({
+    get matches() {
+      return besideMatches;
+    },
+    media: query,
+    onchange: null,
+    addListener: (l: () => void) => mediaListeners.add(l),
+    removeListener: (l: () => void) => mediaListeners.delete(l),
+    addEventListener: (_: string, l: () => void) => mediaListeners.add(l),
+    removeEventListener: (_: string, l: () => void) => mediaListeners.delete(l),
+    dispatchEvent: () => true,
+  }),
+});
+
 beforeEach(() => {
+  besideMatches = true;
+  mediaListeners.clear();
+  overlayRequests.length = 0;
   mockReplace.mockReset();
   mockPush.mockReset();
   mockGetFolderTree.mockReset();
@@ -336,5 +370,158 @@ describe("TwoPaneLayout", () => {
     // pane was overridden.
     expect(mockGetFolderTree).not.toHaveBeenCalled();
     expect(screen.getByLabelText("Custom items")).toBeInTheDocument();
+  });
+});
+
+/**
+ * NAV-2. The sidebar and the tree both name where you are, and one such
+ * surface at a time is design principle 3.
+ */
+describe("TwoPaneLayout — the tree borrows the sidebar's place", () => {
+  const renderPane = () => {
+    mockGetFolderTree.mockResolvedValue([]);
+    mockGetFolders.mockResolvedValue([]);
+    mockGetDriveFiles.mockResolvedValue({
+      data: [],
+      meta: { total: 0, page: 1, limit: 30 },
+    });
+    return render(
+      <TwoPaneLayout drive="work" folderPath="">
+        <div>right</div>
+      </TwoPaneLayout>,
+    );
+  };
+
+  it("asks for the place while the tree is open beside the content", async () => {
+    renderPane();
+    await waitFor(() => expect(overlayRequests.length).toBeGreaterThan(0));
+    expect(overlayRequests.at(-1)).toBe(true);
+  });
+
+  it("gives it back when the tree closes", async () => {
+    treeEnabledStore.set("work", false);
+    renderPane();
+    await waitFor(() => expect(overlayRequests.length).toBeGreaterThan(0));
+    expect(overlayRequests.at(-1)).toBe(false);
+  });
+
+  it("does not ask while the tree is not beside the content", async () => {
+    // Below `md` the sidebar is already an overlay, so there is nothing to
+    // borrow, and the request must not be made on the strength of a stored
+    // preference alone.
+    besideMatches = false;
+    renderPane();
+    await waitFor(() => expect(overlayRequests.length).toBeGreaterThan(0));
+    expect(overlayRequests.at(-1)).toBe(false);
+  });
+
+  /**
+   * MB-5. Below `md` the tree takes the whole viewport and the content
+   * `<section>` is `hidden`, so a stored "tree open" carried onto a phone
+   * lands the reader on a screen with nothing on it.
+   */
+  describe("a narrow window", () => {
+    it("shows the content, not a full-viewport tree", async () => {
+      besideMatches = false;
+      renderPane();
+      await waitFor(() => expect(screen.getByText("right")).toBeInTheDocument());
+      const aside = document.querySelector("aside")!;
+      expect(aside.className).toContain("w-0");
+      expect(aside.className).not.toContain("w-[100vw]");
+      expect(aside).toHaveAttribute("aria-hidden", "true");
+      expect(aside).toHaveAttribute("inert");
+    });
+
+    it("leaves the stored preference alone", async () => {
+      besideMatches = false;
+      renderPane();
+      await waitFor(() => expect(screen.getByText("right")).toBeInTheDocument());
+      // The setting is the reader's; the window is not an instruction to
+      // change it. Widening has to bring the tree back.
+      expect(localStorage.getItem("tree:enabled:work")).toBe("true");
+      expect(treeEnabledStore.get("work")).toBe(true);
+    });
+
+    it("brings the tree back when the window widens again", async () => {
+      besideMatches = false;
+      renderPane();
+      await waitFor(() => expect(screen.getByText("right")).toBeInTheDocument());
+      expect(document.querySelector("aside")!.className).toContain("w-0");
+
+      await act(async () => {
+        setViewportBeside(true);
+      });
+
+      await waitFor(() =>
+        expect(document.querySelector("aside")!.className).toContain(
+          "md:w-[280px]",
+        ),
+      );
+      expect(document.querySelector("aside")).not.toHaveAttribute("aria-hidden", "true");
+    });
+
+    it("still opens full-viewport when the reader asks for it there", async () => {
+      // Turning it on while narrow is an explicit "show me this now",
+      // which is a different thing from a setting carried over.
+      besideMatches = false;
+      treeEnabledStore.set("work", false);
+      renderPane();
+      await waitFor(() => expect(screen.getByText("right")).toBeInTheDocument());
+
+      await act(async () => {
+        treeEnabledStore.set("work", true);
+      });
+
+      await waitFor(() =>
+        expect(document.querySelector("aside")!.className).toContain("w-[100vw]"),
+      );
+    });
+  });
+});
+
+/**
+ * NAV-2 rule 2. Making the two surfaces exclusive is only safe because a
+ * third thing names your location in every combination of them — the
+ * breadcrumb in `PageHeader`, which the right pane draws. The rule is
+ * "do not break this", so it needs something that notices if it breaks.
+ */
+describe("TwoPaneLayout — the breadcrumb survives every combination", () => {
+  const combinations: Array<[string, { tree: boolean; beside: boolean }]> = [
+    ["tree on, sidebar has its place", { tree: true, beside: false }],
+    ["tree on, sidebar lending", { tree: true, beside: true }],
+    ["tree off, wide", { tree: false, beside: true }],
+    ["tree off, narrow", { tree: false, beside: false }],
+  ];
+
+  it.each(combinations)("keeps it with the %s", async (_label, state) => {
+    besideMatches = state.beside;
+    treeEnabledStore.set("work", state.tree);
+    mockGetFolderTree.mockResolvedValue([]);
+    mockGetFolders.mockResolvedValue([]);
+    mockGetDriveFiles.mockResolvedValue({
+      data: [],
+      meta: { total: 0, page: 1, limit: 30 },
+    });
+
+    render(
+      <TwoPaneLayout drive="work" folderPath="travel">
+        <nav aria-label="Breadcrumb">
+          <span>travel</span>
+        </nav>
+      </TwoPaneLayout>,
+    );
+
+    await waitFor(() =>
+      expect(screen.getByLabelText("Breadcrumb")).toBeInTheDocument(),
+    );
+    expect(screen.getByText("travel")).toBeInTheDocument();
+  });
+
+  it("covers all four combinations", () => {
+    // "They all keep it" is also true of an empty table.
+    expect(combinations).toHaveLength(4);
+    expect(
+      new Set(combinations.map(([, s]) => `${s.tree}:${s.beside}`)).size,
+    ).toBe(4);
   });
 });

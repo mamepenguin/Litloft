@@ -49,18 +49,88 @@ describe("SidebarDriveSwitcher", () => {
     expect(screen.queryByRole("link", { name: /vault/ })).not.toBeInTheDocument();
   });
 
-  it("lists every drive where there is no current one, so the way in survives", () => {
-    // The root picker and /admin have no drive to fold into. Folding
-    // anyway would leave the switch naming nothing.
-    render(<SidebarDriveSwitcher drives={DRIVES} currentDrive={null} close={vi.fn()} />);
+  /**
+   * H-2's sidebar half. On the root the body already lists every drive as
+   * a card; a sidebar repeating it is the same answer twice on one screen.
+   */
+  describe("off a drive", () => {
+    const renderRoot = () =>
+      render(<SidebarDriveSwitcher drives={DRIVES} currentDrive={null} close={vi.fn()} />);
 
-    expect(screen.queryByRole("button", { name: /Switch drive/ })).not.toBeInTheDocument();
-    for (const name of ["media", "notes", "vault"]) {
-      expect(screen.getByRole("link", { name: new RegExp(name) })).toHaveAttribute(
-        "href",
-        `/drive/${name}`,
+    it("folds the list behind a row that names it", () => {
+      renderRoot();
+      const row = screen.getByRole("button", { name: /Drives \(3\)/ });
+      expect(row).toHaveAttribute("aria-expanded", "false");
+      for (const name of ["media", "notes", "vault"]) {
+        expect(screen.queryByRole("link", { name: new RegExp(name) })).toBeNull();
+      }
+    });
+
+    it("opens on one press", () => {
+      renderRoot();
+      fireEvent.click(screen.getByRole("button", { name: /Drives \(3\)/ }));
+      expect(
+        screen.getByRole("button", { name: /Drives \(3\)/ }),
+      ).toHaveAttribute("aria-expanded", "true");
+      for (const name of ["media", "notes", "vault"]) {
+        expect(screen.getByRole("link", { name: new RegExp(name) })).toHaveAttribute(
+          "href",
+          `/drive/${name}`,
+        );
+      }
+    });
+
+    it("names itself with the words on screen (WCAG 2.5.3)", () => {
+      renderRoot();
+      const row = screen.getByRole("button", { name: /Drives \(3\)/ });
+      // Someone saying "click drives" has to reach it, so the accessible
+      // name has to contain what the row reads.
+      expect(row.getAttribute("aria-label")).toContain("Drives");
+      expect(row.textContent).toContain("Drives");
+    });
+
+    it("is a fold row, not a section heading", () => {
+      // Phase 1 cut the sidebar to five headings and
+      // `sidebar-headings.test.ts` pins that count; adding one here would
+      // undo that as a side effect of a different change.
+      const { container } = renderRoot();
+      const row = screen.getByRole("button", { name: /Drives \(3\)/ });
+      expect(row.tagName).toBe("BUTTON");
+      expect(container.querySelectorAll("h1,h2,h3,h4,h5,h6")).toHaveLength(0);
+    });
+
+    it("shows the one drive rather than a row to unfold it", () => {
+      // Folded or open it is one line either way, so the fold row would
+      // turn one line into two. A choice between one thing is not a choice.
+      render(
+        <SidebarDriveSwitcher drives={[drive("media")]} currentDrive={null} close={vi.fn()} />,
       );
-    }
+      expect(screen.queryByRole("button")).toBeNull();
+      expect(screen.getByRole("link", { name: /media/ })).toBeInTheDocument();
+    });
+
+    it("folds again on the way back from a drive", () => {
+      const { rerender } = renderRoot();
+      fireEvent.click(screen.getByRole("button", { name: /Drives \(3\)/ }));
+      expect(screen.getByRole("link", { name: /notes/ })).toBeInTheDocument();
+
+      rerender(<SidebarDriveSwitcher drives={DRIVES} currentDrive="notes" close={vi.fn()} />);
+      rerender(<SidebarDriveSwitcher drives={DRIVES} currentDrive={null} close={vi.fn()} />);
+
+      expect(
+        screen.getByRole("button", { name: /Drives \(3\)/ }),
+      ).toHaveAttribute("aria-expanded", "false");
+    });
+
+    it("remembers nothing across the trip", () => {
+      const before = new Set(Object.keys(localStorage));
+      renderRoot();
+      fireEvent.click(screen.getByRole("button", { name: /Drives \(3\)/ }));
+      // The first two axes of the sidebar restore what the system took
+      // away. This one was never taken, so there is nothing to restore
+      // and no key to add. DESIGN.md §Sidebar.
+      expect(new Set(Object.keys(localStorage))).toEqual(before);
+    });
   });
 
   it("offers no switch when there is nowhere else to go", () => {

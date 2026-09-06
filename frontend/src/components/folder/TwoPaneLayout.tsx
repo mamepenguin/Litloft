@@ -12,6 +12,7 @@ import { useGuardedRouter } from "@/hooks/useGuardedRouter";
 import { useSelectedFile } from "@/hooks/useSelectedFile";
 import { useTreeEnabled } from "@/hooks/useTreeEnabled";
 import { TreeRefreshContext } from "@/components/TreeRefreshContext";
+import { useOverlaySidebarWhen } from "@/components/SidebarProvider";
 
 import { FolderTreePane } from "./FolderTreePane";
 import { RightPaneFile } from "./RightPaneFile";
@@ -129,16 +130,63 @@ export function TwoPaneLayout({
   // the tree's expansion / scroll state survives toggles.
   const sectionRef = useRef<HTMLElement | null>(null);
 
+  // The tree and the content sit side by side from `md` up. Below that the
+  // tree takes the whole viewport, so a stored "tree open" carried onto a
+  // phone lands the reader on a screen with no content on it at all.
+  //
+  // The threshold is `md` because that is the breakpoint the widths below
+  // are written against; it is deliberately **not** merged with the
+  // sidebar's 1200px, which answers a different question — whether the
+  // sidebar and the content fit together, not whether the tree and the
+  // content do.
+  const TREE_BESIDE_QUERY = "(min-width: 768px)"; // Tailwind `md`
+  const [beside, setBeside] = useState(true);
+  useEffect(() => {
+    const mql = window.matchMedia(TREE_BESIDE_QUERY);
+    const sync = () => setBeside(mql.matches);
+    sync();
+    mql.addEventListener("change", sync);
+    return () => mql.removeEventListener("change", sync);
+  }, []);
+
+  // Effective, not stored. Narrowing the window must not write `false`
+  // into `tree:enabled:{drive}` — that is the reader's setting, and it has
+  // to come back when the window widens again.
+  const treeShown = treeEnabled && beside;
+
+  // Pressing the toggle while narrow is an explicit "show me this now",
+  // which is different from a setting carried over from a wider window, so
+  // the full-viewport tree stays reachable — the ✕ in its header closes it
+  // again. The flag is cleared whenever the tree is switched off or the
+  // window widens, so it never becomes a second stored preference.
+  const [openedWhileNarrow, setOpenedWhileNarrow] = useState(false);
+  const wasEnabled = useRef(treeEnabled);
+  useEffect(() => {
+    const justTurnedOn = treeEnabled && !wasEnabled.current;
+    wasEnabled.current = treeEnabled;
+    if (justTurnedOn && !beside) setOpenedWhileNarrow(true);
+    if (!treeEnabled || beside) setOpenedWhileNarrow(false);
+  }, [treeEnabled, beside]);
+
+  const treeOpen = treeShown || (treeEnabled && openedWhileNarrow);
+
+  // NAV-2. The sidebar and the tree both name where you are, and design
+  // principle 3 allows one such surface at a time. The tree borrows the
+  // sidebar's place while it is open; below 1200px the sidebar is already
+  // an overlay, so asking again changes nothing and no width test is
+  // duplicated here.
+  useOverlaySidebarWhen(treeShown);
+
   const [hasEverEnabled, setHasEverEnabled] = useState(treeEnabled);
   useEffect(() => {
     if (treeEnabled && !hasEverEnabled) setHasEverEnabled(true);
   }, [treeEnabled, hasEverEnabled]);
-  const treeAsideWidth = treeEnabled
+  const treeAsideWidth = treeOpen
     ? hasFile
       ? "w-0 md:w-[280px]"
       : "w-[100vw] md:w-[280px]"
     : "w-0";
-  const showSectionOnMobile = !treeEnabled || hasFile;
+  const showSectionOnMobile = !treeOpen || hasFile;
 
   return (
     <TreeRefreshContext.Provider value={refreshTree}>
@@ -147,12 +195,12 @@ export function TwoPaneLayout({
         <aside
           className={`h-full flex-shrink-0 overflow-hidden transition-[width] duration-150 ease-out ${treeAsideWidth}`}
           aria-label={leftPaneAriaLabel ?? "Folder tree"}
-          aria-hidden={!treeEnabled}
+          aria-hidden={!treeOpen}
           // `inert` removes the subtree from tab order and pointer events
           // while the tree is closed. aria-hidden alone hides it from
           // screen readers but lets keyboard focus still land on the
           // (visually clipped) tree rows underneath.
-          inert={!treeEnabled}
+          inert={!treeOpen}
         >
           <div className="flex h-full w-[100vw] flex-col md:w-[280px]">
             <div className="flex items-center justify-end border-b border-bg-border p-1 md:hidden">
