@@ -24,6 +24,12 @@ const pdfDoc = {
 /** How many times a `<Page>` was drawn, across every render of the document. */
 let pageRenders: number[] = [];
 
+/** The `width` each of those renders was handed, newest last. */
+let pageWidths: number[] = [];
+
+/** The page size the mocked document reports, in PDF points. */
+let mockPageBox = { width: 595, height: 842 };
+
 vi.mock("react-pdf", () => ({
   pdfjs: { GlobalWorkerOptions: {} },
   Document: ({
@@ -38,8 +44,28 @@ vi.mock("react-pdf", () => ({
     }, [onLoadSuccess]);
     return <div>{children}</div>;
   },
-  Page: ({ pageNumber }: { pageNumber: number }) => {
+  Page: ({
+    pageNumber,
+    width,
+    onLoadSuccess,
+  }: {
+    pageNumber: number;
+    width: number;
+    onLoadSuccess?: (page: {
+      getViewport: (o: { scale: number }) => { width: number; height: number };
+    }) => void;
+  }) => {
     pageRenders.push(pageNumber);
+    pageWidths.push(width);
+    useEffect(() => {
+      onLoadSuccess?.({
+        getViewport: () => ({ ...mockPageBox }),
+      });
+      // Reporting the page's own size does not depend on how wide it was
+      // asked to draw, so the effect must not re-run when that changes —
+      // it would set the same value back and loop.
+      // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [pageNumber]);
     return <div data-pdf-page={pageNumber}>Selectable page {pageNumber}</div>;
   },
 }));
@@ -50,6 +76,9 @@ beforeEach(() => {
   pdfDoc.destinations = {};
   pdfDoc.getOutline = async () => pdfDoc.outline;
   pageRenders = [];
+  pageWidths = [];
+  mockPageBox = { width: 595, height: 842 };
+  window.localStorage.clear();
 });
 
 describe("PdfPreview", () => {
@@ -477,5 +506,119 @@ describe("PdfPreview, the page keys' scope", () => {
         { depth: 0, title: "Introduction", page: 5 },
       ]),
     );
+  });
+});
+
+describe("PdfPreview zoom modes", () => {
+  function renderViewer() {
+    return render(
+      <ShortcutsProvider>
+        <PdfPreview fileId="pdf123456789" title="Paper" />
+      </ShortcutsProvider>,
+    );
+  }
+
+  const menu = () => screen.getByRole("button", { name: /Zoom mode/ });
+  const modeRow = (name: string) =>
+    screen.getByRole("menuitemradio", { name: new RegExp(name, "i") });
+  const lastWidth = () => pageWidths[pageWidths.length - 1];
+
+  it("offers exactly three modes, with fit width on", async () => {
+    renderViewer();
+    await screen.findByText("Selectable page 1");
+
+    fireEvent.click(menu());
+    const rows = screen
+      .getAllByRole("menuitemradio")
+      .map((row) => row.textContent?.trim());
+    expect(rows).toEqual(["Fit width", "Whole page", "Actual size"]);
+    expect(modeRow("Fit width")).toHaveAttribute("aria-checked", "true");
+  });
+
+  it("names the mode that is on, on the control itself", async () => {
+    renderViewer();
+    await screen.findByText("Selectable page 1");
+    expect(menu()).toHaveTextContent("Fit width");
+
+    fireEvent.click(menu());
+    fireEvent.click(modeRow("Actual size"));
+    expect(menu()).toHaveTextContent("Actual size");
+  });
+
+  it("draws actual size at 96 pixels to the inch", async () => {
+    renderViewer();
+    await screen.findByText("Selectable page 1");
+
+    fireEvent.click(menu());
+    fireEvent.click(modeRow("Actual size"));
+    // A4: 595pt x 96/72.
+    expect(lastWidth()).toBeCloseTo(595 * (96 / 72), 5);
+  });
+
+  it("puts the zoom back to 100% when the mode changes", async () => {
+    renderViewer();
+    await screen.findByText("Selectable page 1");
+
+    fireEvent.click(screen.getByRole("button", { name: "Zoom in" }));
+    expect(screen.getByText("125%")).toBeInTheDocument();
+
+    fireEvent.click(menu());
+    fireEvent.click(modeRow("Whole page"));
+    expect(screen.getByText("100%")).toBeInTheDocument();
+  });
+
+  it("leaves the mode alone when the zoom changes", async () => {
+    renderViewer();
+    await screen.findByText("Selectable page 1");
+
+    fireEvent.click(menu());
+    fireEvent.click(modeRow("Actual size"));
+    fireEvent.click(screen.getByRole("button", { name: "Zoom in" }));
+
+    expect(menu()).toHaveTextContent("Actual size");
+    expect(screen.getByText("125%")).toBeInTheDocument();
+    expect(lastWidth()).toBeCloseTo(595 * (96 / 72) * 1.25, 5);
+  });
+
+  it("remembers the mode across a remount", async () => {
+    const first = renderViewer();
+    await screen.findByText("Selectable page 1");
+    fireEvent.click(menu());
+    fireEvent.click(modeRow("Whole page"));
+    first.unmount();
+
+    renderViewer();
+    await screen.findByText("Selectable page 1");
+    expect(menu()).toHaveTextContent("Whole page");
+  });
+
+  it("centres the page only while it fits", async () => {
+    // A flex container centres an overflowing child by pushing half the
+    // overflow past its *start* edge, where there is nothing to scroll
+    // to. Measured on an A0 page at actual size: 1176px of a 3178px page
+    // was unreachable. `safe center` falls back to `start` exactly when
+    // the child does not fit — which is the case where centring has
+    // nothing to centre anyway. jsdom lays nothing out, so the rule is
+    // pinned as the declaration; the reachability is a browser
+    // measurement.
+    renderViewer();
+    await screen.findByText("Selectable page 1");
+    const box = document.querySelector(".overflow-auto")!;
+    expect(box.className).toContain("[justify-content:safe_center]");
+    // And not alongside plain `justify-center`, which would win or lose
+    // on stylesheet order rather than on intent.
+    expect(box.className).not.toMatch(/(^|\s)justify-center(\s|$)/);
+  });
+
+  it("never draws a fitted page wider than the cap", async () => {
+    // jsdom reports a zero-width box and no ResizeObserver entries, so
+    // the component's 800px default stands in for the canvas — the cap
+    // itself is exercised against a real 2000px canvas in
+    // `lib/__tests__/pdfZoomMode.test.ts`. What this asserts is that the
+    // viewer goes through that function at all.
+    renderViewer();
+    await screen.findByText("Selectable page 1");
+    expect(lastWidth()).toBeLessThanOrEqual(900);
+    expect(pageWidths.length).toBeGreaterThan(0);
   });
 });
