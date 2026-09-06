@@ -17,44 +17,22 @@ from app.services.scanner import (
 
 
 class TestFilenameToTitle:
-    # Underscores separate words in a filename because a space cannot; a hyphen
-    # is a character the author chose, and often the only thing holding a
-    # compound name together. Only the first is a separator to normalise.
-    @pytest.mark.parametrize(
-        "filename,expected",
-        [
-            ("my_vacation_2024.mp4", "My vacation 2024"),
-            ("summer_trip-2024.mp4", "Summer trip-2024"),
-            ("video.mp4", "Video"),
-            ("My Video.mp4", "My Video"),
-            ("trip-to-tokyo.mp4", "Trip-to-tokyo"),
-        ],
-    )
-    def test_normalises_separators_and_capitalises_the_first_letter(
-        self, filename, expected
-    ):
-        assert _filename_to_title(filename) == expected
+    """The rule itself is measured in `test_filename_title_parity.py`.
 
-    # `str.title()` uppercases after every non-alphabetic character, so an
-    # apostrophe, a digit or an interior capital each got mangled, and every
-    # word past the first was lowercased. Latin filenames hit this constantly;
-    # Japanese ones do not, which is why it went unnoticed.
-    @pytest.mark.parametrize(
-        "filename,expected",
-        [
-            ("02 charon's burden.mp3", "02 charon's burden"),
-            ("6484215695_3df06f6b39_o.jpg", "6484215695 3df06f6b39 o"),
-            ("MacBook-Neo-review.mp4", "MacBook-Neo-review"),
-            ("ヤンニョムチキン-韓国風-甘辛.mp4", "ヤンニョムチキン-韓国風-甘辛"),
-        ],
-    )
-    def test_preserves_the_spelling_the_author_wrote(self, filename, expected):
-        assert _filename_to_title(filename) == expected
+    Its cases used to live here as three inline tables, and the frontend
+    grew a fourth. They are one table now, in
+    `fixtures/filename_title.json`, which both suites read — the cases that
+    matter most to the frontend (interior capitals, apostrophes, digits)
+    were the ones only this file had.
+    """
 
-    def test_never_returns_a_blank_title(self):
-        # Normalising a name made only of separators would leave nothing to
-        # show, so the stem stands as written rather than the row going empty.
-        assert _filename_to_title("_.mp4") == "_"
+    def test_is_measured_against_the_shared_table(self):
+        from tests.test_filename_title_parity import CASES
+
+        # Not a redirect note in a comment: this fails if the parity file
+        # is deleted or its table emptied, which is the only way the cases
+        # this class used to own could go missing unnoticed.
+        assert len(CASES) >= 20
 
 
 class TestGetFolderPath:
