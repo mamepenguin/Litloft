@@ -172,9 +172,11 @@ function FileCardImpl({
           )}
         </div>
         <div className="p-3">
-          <h3 className="line-clamp-2 text-sm font-semibold text-text-primary">
+          {/* Not a heading — see `FolderCard`. The accessible name is the
+              card's link, which is unchanged. */}
+          <span className="block line-clamp-2 text-sm font-semibold text-text-primary">
             {file.title}
-          </h3>
+          </span>
           <div className="mt-1 flex flex-wrap items-center gap-x-1.5 gap-y-0.5 text-xs text-text-muted">
             <span className="tabular-nums">{formatFileSize(file.file_size)}</span>
             <span className="opacity-40">·</span>

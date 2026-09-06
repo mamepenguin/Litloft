@@ -69,7 +69,7 @@ afterEach(() => {
 describe("RightPaneFolder", () => {
   it("renders folders and files in grid by default", async () => {
     mockGetFolders.mockResolvedValue([
-      { name: "sub", path: "Q1/sub", file_count: 1, thumbnail_file_id: null, dominant_kind: null },
+      { name: "sub", path: "Q1/sub", file_count: 1, kind_counts: {}, dominant_kind: null },
     ]);
     mockGetDriveFiles.mockResolvedValue({
       data: [sampleFile("a"), sampleFile("b")],

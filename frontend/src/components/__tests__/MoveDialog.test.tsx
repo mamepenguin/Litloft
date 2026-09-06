@@ -4,8 +4,8 @@ import { MoveDialog } from "../MoveDialog";
 
 vi.mock("@/lib/api", () => ({
   getFolders: vi.fn().mockResolvedValue([
-    { name: "photos", path: "photos", file_count: 5, thumbnail_file_id: null, dominant_kind: null },
-    { name: "docs", path: "docs", file_count: 3, thumbnail_file_id: null, dominant_kind: null },
+    { name: "photos", path: "photos", file_count: 5, kind_counts: {}, dominant_kind: null },
+    { name: "docs", path: "docs", file_count: 3, kind_counts: {}, dominant_kind: null },
   ]),
 }));
 

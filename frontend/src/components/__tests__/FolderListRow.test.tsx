@@ -18,7 +18,7 @@ const folder = (overrides: Partial<Folder> = {}): Folder => ({
   name: "travel",
   path: "travel",
   file_count: 5,
-  thumbnail_file_id: null,
+  kind_counts: {},
   dominant_kind: null,
   ...overrides,
 });
@@ -51,6 +51,18 @@ const file = (): FileItem => ({
 });
 
 describe("FolderListRow", () => {
+  it("draws a glyph, and never a photograph", () => {
+    // The row carried the same borrowed thumbnail the card did, so the
+    // same column mixed pictures and line art (D-4). Asserted on a
+    // folder with files in it, which is the case that used to produce
+    // the picture.
+    const { container } = render(
+      <FolderListRow folder={folder({ file_count: 12, kind_counts: { video: 12 } })} driveName="main" />,
+    );
+    expect(container.querySelector("img")).toBeNull();
+    expect(container.querySelector("svg")).toBeTruthy();
+  });
+
   it("links into the folder, path-encoded", () => {
     render(
       <FolderListRow

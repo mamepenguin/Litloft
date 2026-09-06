@@ -44,7 +44,7 @@ const BASE_SNAPSHOT: Omit<ListSnapshot, "ts"> = {
   pagesLoaded: 3,
   items: [makeFile("a"), makeFile("b")],
   total: 90,
-  folders: [{ name: "sub", path: "photos/sub", file_count: 5, thumbnail_file_id: null, dominant_kind: null }],
+  folders: [{ name: "sub", path: "photos/sub", file_count: 5, kind_counts: {}, dominant_kind: null }],
   filters: { sort: "created_at", order: "desc", typeFilter: null, viewMode: "grid" },
 };
 

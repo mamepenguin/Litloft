@@ -7,75 +7,98 @@ const baseFolderProps = {
   driveName: "test-drive",
 };
 
-const folderWithoutThumbnail: Folder = {
+const emptyFolder: Folder = {
   name: "Travel Photos",
   path: "Travel Photos",
-  file_count: 42,
-  thumbnail_file_id: null,
+  file_count: 0,
+  kind_counts: {},
   dominant_kind: null,
 };
 
-const folderWithThumbnail: Folder = {
+const mixedFolder: Folder = {
   name: "Music Collection",
   path: "Music Collection",
-  file_count: 15,
-  thumbnail_file_id: "thumb123abc",
-  dominant_kind: null,
+  file_count: 138,
+  kind_counts: { video: 135, document: 3 },
+  dominant_kind: "video",
 };
 
 describe("FolderCard", () => {
-  it("renders folder icon when thumbnail_file_id is null", () => {
+  it("draws a glyph, and never a photograph", () => {
+    // The card used to borrow a picture from the first video or image
+    // anywhere beneath the folder, so a row of folders mixed photos and
+    // line art in one column. Asserted on the mixed folder, which is
+    // exactly the case that used to produce a photo.
     const { container } = render(
-      <FolderCard folder={folderWithoutThumbnail} {...baseFolderProps} />
+      <FolderCard folder={mixedFolder} {...baseFolderProps} />,
     );
+    expect(container.querySelector("img")).toBeNull();
     expect(screen.queryByRole("img")).toBeNull();
-    const svgIcon = container.querySelector("svg");
-    expect(svgIcon).toBeTruthy();
+    expect(container.querySelector("svg")).toBeTruthy();
   });
 
-  it("renders thumbnail image when thumbnail_file_id is set", () => {
-    render(
-      <FolderCard folder={folderWithThumbnail} {...baseFolderProps} />
-    );
-    const img = screen.getByRole("img");
-    expect(img).toBeInTheDocument();
+  it("says what the count is made of", () => {
+    render(<FolderCard folder={mixedFolder} {...baseFolderProps} />);
+    expect(
+      screen.getByText("138 items · Video 135 · Document 3"),
+    ).toBeInTheDocument();
   });
 
-  it("thumbnail image has correct src URL", () => {
+  it("names a single kind without repeating its count", () => {
     render(
-      <FolderCard folder={folderWithThumbnail} {...baseFolderProps} />
+      <FolderCard
+        folder={{ ...mixedFolder, file_count: 12, kind_counts: { document: 12 } }}
+        {...baseFolderProps}
+      />,
     );
-    const img = screen.getByAltText("Music Collection");
-    expect(img).toHaveAttribute("src", "/api/files/thumb123abc/thumbnail");
+    expect(screen.getByText("12 items · Document")).toBeInTheDocument();
+    // The number is already to its left; saying it twice is the shape
+    // `lib/listMeta.ts` calls a column with one distinct value.
+    expect(screen.queryByText(/Document 12/)).toBeNull();
   });
 
-  it("thumbnail image has lazy loading attribute", () => {
+  it("names the two largest kinds and stops", () => {
     render(
-      <FolderCard folder={folderWithThumbnail} {...baseFolderProps} />
+      <FolderCard
+        folder={{
+          ...mixedFolder,
+          file_count: 20,
+          kind_counts: { video: 10, document: 6, image: 3, audio: 1 },
+        }}
+        {...baseFolderProps}
+      />,
     );
-    const img = screen.getByRole("img");
-    expect(img).toHaveAttribute("loading", "lazy");
+    expect(screen.getByText("20 items · Video 10 · Document 6")).toBeInTheDocument();
+    expect(screen.queryByText(/Image/)).toBeNull();
+    expect(screen.queryByText(/Audio/)).toBeNull();
   });
 
-  it("renders folder name when thumbnail_file_id is null", () => {
-    render(
-      <FolderCard folder={folderWithoutThumbnail} {...baseFolderProps} />
+  it("says only the count for a folder with nothing in it", () => {
+    render(<FolderCard folder={emptyFolder} {...baseFolderProps} />);
+    expect(screen.getByText("0 items")).toBeInTheDocument();
+  });
+
+  it("puts no heading on the title", () => {
+    // A grid of thirty cards used to emit thirty `<h3>`s at the same
+    // depth as the six section names above them (D-5). The name is still
+    // the link's accessible name, which is what a reader navigates by.
+    const { container } = render(
+      <FolderCard folder={mixedFolder} {...baseFolderProps} />,
     );
+    expect(container.querySelectorAll("h1, h2, h3, h4, h5, h6")).toHaveLength(0);
+    expect(
+      screen.getByRole("link", { name: /Music Collection/ }),
+    ).toBeInTheDocument();
+  });
+
+  it("renders the folder name", () => {
+    render(<FolderCard folder={emptyFolder} {...baseFolderProps} />);
     expect(screen.getByText("Travel Photos")).toBeInTheDocument();
-    expect(screen.getByText("42 items")).toBeInTheDocument();
-  });
-
-  it("renders folder name and file count when thumbnail_file_id is set", () => {
-    render(
-      <FolderCard folder={folderWithThumbnail} {...baseFolderProps} />
-    );
-    expect(screen.getByText("Music Collection")).toBeInTheDocument();
-    expect(screen.getByText("15 items")).toBeInTheDocument();
   });
 
   it("links to correct folder path", () => {
     render(
-      <FolderCard folder={folderWithThumbnail} {...baseFolderProps} />
+      <FolderCard folder={mixedFolder} {...baseFolderProps} />
     );
     const link = screen.getByRole("link");
     expect(link).toHaveAttribute(
@@ -88,7 +111,7 @@ describe("FolderCard", () => {
     const onContextMenu = vi.fn();
     const { container } = render(
       <FolderCard
-        folder={folderWithThumbnail}
+        folder={mixedFolder}
         {...baseFolderProps}
         onContextMenu={onContextMenu}
       />
@@ -101,7 +124,7 @@ describe("FolderCard", () => {
   it("does not render legacy hover action buttons", () => {
     render(
       <FolderCard
-        folder={folderWithThumbnail}
+        folder={mixedFolder}
         {...baseFolderProps}
         onContextMenu={vi.fn()}
       />
@@ -117,7 +140,7 @@ describe("FolderCard", () => {
 describe("FolderCard inline rename", () => {
   const editingProps = {
     ...baseFolderProps,
-    folder: folderWithoutThumbnail,
+    folder: emptyFolder,
     isEditing: true,
     onRenameCommit: vi.fn().mockResolvedValue(undefined),
     onRenameCancel: vi.fn(),
@@ -163,7 +186,7 @@ describe("FolderCard inline rename", () => {
     const { container } = render(
       <FolderCard
         {...baseFolderProps}
-        folder={folderWithoutThumbnail}
+        folder={emptyFolder}
         onCardFocus={onCardFocus}
       />,
     );

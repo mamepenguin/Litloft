@@ -381,35 +381,13 @@ def list_folders(
         if folder_full_path not in folders:
             folders[folder_full_path] = 0
 
-    # Collect thumbnail file IDs for each folder
-    thumbnail_map: dict[str, str] = {}
-    if folders:
-        thumb_query = db.query(File.id, File.folder_path, File.filename).filter(
-            File.drive == drive_name,
-            active_file_filter(),
-            File.file_type.in_(["video", "image"]),
-        )
-        if path:
-            thumb_query = thumb_query.filter(
-                File.folder_path.like(_escape_like(path) + "/%", escape="\\")
-            )
-        else:
-            thumb_query = thumb_query.filter(File.folder_path != "")
-
-        thumb_query = thumb_query.order_by(File.filename.asc())
-
-        for file_id, file_folder_path, _ in thumb_query.all():
-            for folder_path in folders:
-                if folder_path in thumbnail_map:
-                    continue
-                if file_folder_path == folder_path or file_folder_path.startswith(folder_path + "/"):
-                    thumbnail_map[folder_path] = file_id
-            # Early exit if all folders have thumbnails
-            if len(thumbnail_map) == len(folders):
-                break
-
-    # Compute dominant_kind per top-level folder (recursive).
-    # Topic 9: ".md 過半 → two-pane / video/image 過半 → grid" の判定材料。
+    # Per-kind totals for each top-level folder, recursive.
+    #
+    # Two consumers, one scan: `dominant_kind` (which view mode a folder
+    # opens in) is the argmax of these counts, and the folder card shows
+    # the largest few of them beside the total. The breakdown used to be
+    # built here and thrown away.
+    kind_counts: dict[str, dict[str, int]] = {}
     dominant_kind_map: dict[str, str | None] = {fp: None for fp in folders}
     if folders:
         kind_query = db.query(
@@ -431,7 +409,6 @@ def list_folders(
 
         # Rows describe per-(folder_path, kind) totals. Roll up into the top-level
         # folder (depth-1 segment under `path`) so each row hits one bucket in O(1).
-        kind_counts: dict[str, dict[str, int]] = {}
         for fp, ft, mt, count in kind_query.all():
             remainder = fp[len(path) + 1:] if path else fp
             if not remainder:
@@ -452,7 +429,7 @@ def list_folders(
             name=fp.split("/")[-1],
             path=fp,
             file_count=count,
-            thumbnail_file_id=thumbnail_map.get(fp),
+            kind_counts=kind_counts.get(fp, {}),
             dominant_kind=dominant_kind_map.get(fp),
         )
         for fp, count in sorted(folders.items())

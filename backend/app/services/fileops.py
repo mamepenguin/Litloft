@@ -646,7 +646,10 @@ def move_folder(drive: str, path: str, target_path: str, db: Session) -> dict:
         "name": folder_name,
         "path": new_path,
         "file_count": file_count,
-        "thumbnail_file_id": None,
+        # No `kind_counts`: the schema default (`{}`) stands. Classifying
+        # kinds needs the listing endpoint's roll-up, and this response is
+        # discarded by every caller — the UI refetches the folder row.
+        # `file_count` here is direct children only, for the same reason.
         "file_ids": affected_ids,
     }
 
@@ -817,7 +820,7 @@ def create_folder(drive: str, parent_path: str, name: str, db: Session) -> dict:
     db.add(ef)
     db.commit()
 
-    return {"name": name, "path": folder_path, "file_count": 0, "thumbnail_file_id": None}
+    return {"name": name, "path": folder_path, "file_count": 0, "kind_counts": {}}
 
 
 def rename_folder(drive: str, path: str, new_name: str, db: Session) -> dict:
@@ -856,7 +859,10 @@ def rename_folder(drive: str, path: str, new_name: str, db: Session) -> dict:
         "name": new_name,
         "path": new_path,
         "file_count": file_count,
-        "thumbnail_file_id": None,
+        # No `kind_counts`: the schema default (`{}`) stands. Classifying
+        # kinds needs the listing endpoint's roll-up, and this response is
+        # discarded by every caller — the UI refetches the folder row.
+        # `file_count` here is direct children only, for the same reason.
         "file_ids": affected_ids,
     }
 

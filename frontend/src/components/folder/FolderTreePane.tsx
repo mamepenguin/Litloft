@@ -117,7 +117,7 @@ function gatherPathsToLoad(expanded: Set<string>): Set<string> {
 /**
  * Build a minimal {@link Folder} from a tree node so the existing
  * {@link FolderContextMenu} can mutate it without us touching its
- * surface. Fields the menu does not consume (`thumbnail_file_id`,
+ * surface. Fields the menu does not consume (`kind_counts`,
  * `dominant_kind`, full `file_count` accuracy) are stubbed.
  */
 function nodeToFolder(node: Extract<FolderTreeNode, { kind: "folder" }>): Folder {
@@ -125,7 +125,7 @@ function nodeToFolder(node: Extract<FolderTreeNode, { kind: "folder" }>): Folder
     name: node.name,
     path: node.path,
     file_count: node.file_count,
-    thumbnail_file_id: null,
+    kind_counts: {},
     dominant_kind: null,
   };
 }

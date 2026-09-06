@@ -196,86 +196,104 @@ class TestListFolders:
         assert res.status_code == 200
         assert res.json() == []
 
-    def test_thumbnail_file_id_with_video(self, client):
-        """Folder with video files returns thumbnail_file_id (first by filename)."""
-        c, db, drive_dir, data_dir = client
-        _seed(db, drive_dir)
-        res = c.get(f"/api/drives/{TEST_DRIVE}/folders")
-        assert res.status_code == 200
-        folders = res.json()
-        for f in folders:
-            assert f["thumbnail_file_id"] is not None
-
-    def test_thumbnail_file_id_selects_first_by_filename(self, client):
-        """thumbnail_file_id picks the first image/video file by filename ASC."""
+    def test_kind_counts_breaks_the_total_down_by_kind(self, client):
+        """The folder card's breakdown, and `dominant_kind`'s own input."""
         from app.models import File
 
         c, db, drive_dir, data_dir = client
-        d = drive_dir / "gallery"
+        d = drive_dir / "mixed"
         d.mkdir()
-        shutil.copy(FIXTURES_DIR / "short_video.mp4", d / "b_second.mp4")
-        shutil.copy(FIXTURES_DIR / "short_video.mp4", d / "a_first.mp4")
-        size = d.joinpath("a_first.mp4").stat().st_size
-        file_a = File(
-            filename="a_first.mp4",
-            title="A",
-            drive=TEST_DRIVE,
-            folder_path="gallery",
-            file_path="gallery/a_first.mp4",
-            file_size=size,
-            file_type="video",
-            mime_type="video/mp4",
-        )
-        file_b = File(
-            filename="b_second.mp4",
-            title="B",
-            drive=TEST_DRIVE,
-            folder_path="gallery",
-            file_path="gallery/b_second.mp4",
-            file_size=size,
-            file_type="video",
-            mime_type="video/mp4",
-        )
-        db.add(file_b)
-        db.add(file_a)
+        rows = [
+            ("a.mp4", "video", "video/mp4"),
+            ("b.mp4", "video", "video/mp4"),
+            ("c.mp4", "video", "video/mp4"),
+            ("d.txt", "document", "text/plain"),
+            ("e.png", "image", "image/png"),
+        ]
+        for name, ft, mt in rows:
+            (d / name).write_text("x")
+            db.add(
+                File(
+                    filename=name,
+                    title=name,
+                    drive=TEST_DRIVE,
+                    folder_path="mixed",
+                    file_path=f"mixed/{name}",
+                    file_size=1,
+                    file_type=ft,
+                    mime_type=mt,
+                )
+            )
         db.commit()
-        db.refresh(file_a)
 
-        res = c.get(f"/api/drives/{TEST_DRIVE}/folders")
-        folders = res.json()
+        folders = c.get(f"/api/drives/{TEST_DRIVE}/folders").json()
         assert len(folders) == 1
-        assert folders[0]["thumbnail_file_id"] == file_a.id
+        assert folders[0]["kind_counts"] == {"video": 3, "document": 1, "image": 1}
+        # The breakdown is a partition of the total, which is what lets a
+        # renderer show the largest few and leave the rest to subtraction.
+        assert sum(folders[0]["kind_counts"].values()) == folders[0]["file_count"]
+        assert folders[0]["dominant_kind"] == "video"
 
-    def test_thumbnail_file_id_null_for_non_media_files(self, client):
-        """Folder with only non-image/non-video files returns null thumbnail."""
+    def test_kind_counts_rolls_subfolders_up(self, client):
+        """Recursive, exactly like `file_count` beside it."""
         from app.models import File
 
         c, db, drive_dir, data_dir = client
-        d = drive_dir / "docs"
-        d.mkdir()
-        (d / "readme.txt").write_text("hello")
+        d = drive_dir / "parent" / "child"
+        d.mkdir(parents=True)
+        (d / "clip.mp4").write_text("x")
         db.add(
             File(
-                filename="readme.txt",
-                title="Readme",
+                filename="clip.mp4",
+                title="Clip",
                 drive=TEST_DRIVE,
-                folder_path="docs",
-                file_path="docs/readme.txt",
-                file_size=5,
-                file_type="document",
-                mime_type="text/plain",
+                folder_path="parent/child",
+                file_path="parent/child/clip.mp4",
+                file_size=1,
+                file_type="video",
+                mime_type="video/mp4",
             )
         )
         db.commit()
 
-        res = c.get(f"/api/drives/{TEST_DRIVE}/folders")
-        folders = res.json()
+        folders = c.get(f"/api/drives/{TEST_DRIVE}/folders").json()
         assert len(folders) == 1
-        assert folders[0]["name"] == "docs"
-        assert folders[0]["thumbnail_file_id"] is None
+        assert folders[0]["name"] == "parent"
+        assert folders[0]["kind_counts"] == {"video": 1}
+        assert folders[0]["file_count"] == 1
 
-    def test_thumbnail_file_id_null_for_empty_folder(self, client):
-        """Empty folder returns null thumbnail."""
+    def test_kind_counts_uses_the_refined_kinds_not_file_type(self, client):
+        """Markdown and PDF are their own kinds, not `document`.
+
+        `_classify_kind` is the vocabulary here — the same one the type
+        filter offers — so a folder of notes reports `markdown`, not the
+        `document` its `file_type` column holds.
+        """
+        from app.models import File
+
+        c, db, drive_dir, data_dir = client
+        d = drive_dir / "notes"
+        d.mkdir()
+        for name, mt in (("a.md", "text/markdown"), ("b.pdf", "application/pdf")):
+            (d / name).write_text("x")
+            db.add(
+                File(
+                    filename=name,
+                    title=name,
+                    drive=TEST_DRIVE,
+                    folder_path="notes",
+                    file_path=f"notes/{name}",
+                    file_size=1,
+                    file_type="document",
+                    mime_type=mt,
+                )
+            )
+        db.commit()
+
+        folders = c.get(f"/api/drives/{TEST_DRIVE}/folders").json()
+        assert folders[0]["kind_counts"] == {"markdown": 1, "pdf": 1}
+
+    def test_kind_counts_empty_for_a_folder_with_no_files(self, client):
         from app.models import EmptyFolder
 
         c, db, drive_dir, data_dir = client
@@ -283,40 +301,27 @@ class TestListFolders:
         db.add(EmptyFolder(drive=TEST_DRIVE, path="empty"))
         db.commit()
 
-        res = c.get(f"/api/drives/{TEST_DRIVE}/folders")
-        folders = res.json()
+        folders = c.get(f"/api/drives/{TEST_DRIVE}/folders").json()
         assert len(folders) == 1
         assert folders[0]["name"] == "empty"
-        assert folders[0]["thumbnail_file_id"] is None
+        assert folders[0]["kind_counts"] == {}
+        assert folders[0]["file_count"] == 0
 
-    def test_thumbnail_from_subfolder(self, client):
-        """Parent folder uses image/video from subfolder as thumbnail."""
-        from app.models import File
+    def test_no_thumbnail_file_id(self, client):
+        """The field is gone, and so is the scan that filled it.
 
+        Its only consumers were the folder card and the folder list row,
+        which both draw a glyph now. Leaving the field would keep a
+        whole-subtree scan running for something nothing reads — and the
+        assertion has to be that it is *absent*, since a renderer reading
+        `undefined` looks exactly like one reading `null`.
+        """
         c, db, drive_dir, data_dir = client
-        d = drive_dir / "parent" / "child"
-        d.mkdir(parents=True)
-        shutil.copy(FIXTURES_DIR / "short_video.mp4", d / "clip.mp4")
-        size = d.joinpath("clip.mp4").stat().st_size
-        child_file = File(
-            filename="clip.mp4",
-            title="Clip",
-            drive=TEST_DRIVE,
-            folder_path="parent/child",
-            file_path="parent/child/clip.mp4",
-            file_size=size,
-            file_type="video",
-            mime_type="video/mp4",
-        )
-        db.add(child_file)
-        db.commit()
-        db.refresh(child_file)
-
-        res = c.get(f"/api/drives/{TEST_DRIVE}/folders")
-        folders = res.json()
-        assert len(folders) == 1
-        assert folders[0]["name"] == "parent"
-        assert folders[0]["thumbnail_file_id"] == child_file.id
+        _seed(db, drive_dir)
+        folders = c.get(f"/api/drives/{TEST_DRIVE}/folders").json()
+        assert folders, "no folders to check"
+        for f in folders:
+            assert "thumbnail_file_id" not in f
 
 
 class TestListDriveFiles:
