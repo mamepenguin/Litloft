@@ -640,6 +640,13 @@ def get_file_neighbors(
     sort_col = getattr(File, sort)
     current_val = getattr(file, sort)
 
+    # The folder's active files, whatever the ordering can reach.
+    # ``position`` is counted against the rows the sort can actually rank,
+    # so under ``sort=liked_at`` the two populations differ: a liked file
+    # in a mostly-unliked folder is "2" of a total that counts every file.
+    # That is the documented contract (docs/reference/api.md), because
+    # ``total`` answers "how big is this folder" for a listing, not "how
+    # far can prev/next walk".
     folder = db.query(File.id).filter(
         File.drive == file.drive,
         File.folder_path == file.folder_path,

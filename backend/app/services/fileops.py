@@ -275,6 +275,8 @@ def copy_file(db: Session, file_id: str, target_drive: str | None, target_folder
         file_type=source.file_type,
         mime_type=source.mime_type,
         duration=source.duration,
+        image_width=source.image_width,
+        image_height=source.image_height,
         is_favorite=False,
         liked_at=None,
     )

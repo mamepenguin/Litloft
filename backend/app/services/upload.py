@@ -13,6 +13,7 @@ import app.config as config
 from app.models import TRUST_UNVERIFIED, File
 from app.services.chapters import probe_file_chapters
 from app.services.filetype import classify, is_probeable_media
+from app.services.image_dimensions import read_image_dimensions
 from app.services.fileops import (
     _filename_to_title,
     remove_empty_folder_if_has_files,
@@ -222,6 +223,14 @@ def complete_upload(upload_id: str, db: Session) -> tuple[File, bool]:
         db.flush()
         existing = None
 
+    # Read from the file that just landed, not from whatever the row
+    # said before. A re-upload to the same path replaces the picture, and
+    # the scanner's backfill only visits rows whose width is still NULL —
+    # so a stale value here would never be corrected.
+    dimensions = (
+        read_image_dimensions(target_full) if file_type == "image" else None
+    )
+
     recovered_missing = False
     if existing is not None and existing.deleted_at is None:
         # Reuse the row in place. Covers a Missing ghost (classic recover)
@@ -237,6 +246,8 @@ def complete_upload(upload_id: str, db: Session) -> tuple[File, bool]:
         existing.mime_type = mime_type
         existing.thumbnail_path = thumbnail_rel
         existing.duration = duration
+        existing.image_width = dimensions[0] if dimensions else None
+        existing.image_height = dimensions[1] if dimensions else None
         existing.file_hash = None
         existing.chapters_probed_at = None
         # An earlier verification was about content this upload just
@@ -257,6 +268,8 @@ def complete_upload(upload_id: str, db: Session) -> tuple[File, bool]:
             mime_type=mime_type,
             thumbnail_path=thumbnail_rel,
             duration=duration,
+            image_width=dimensions[0] if dimensions else None,
+            image_height=dimensions[1] if dimensions else None,
         )
         db.add(file_record)
     db.flush()
