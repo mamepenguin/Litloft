@@ -639,7 +639,7 @@ export function PdfPreview({
         // child does not fit, which is the case where centring has
         // nothing to centre anyway.
         //
-        // `scrollbar-gutter: stable` is load-bearing, not cosmetic. Without
+        // The gutter reservation is load-bearing, not cosmetic. Without
         // it a classic vertical scrollbar takes its width out of
         // `contentRect.width` when it appears, and `fit-width` oscillates:
         // a wider box makes a taller page, a taller page raises the
@@ -649,21 +649,25 @@ export function PdfPreview({
         // took the width in the first place, and the property is inert
         // there.
         //
-        // It costs a visible asymmetry. In "whole page" the page is fitted
-        // to the height and no vertical scrollbar is ever drawn, so the
-        // reserved gutter stays empty and `safe center` centres the page
-        // in the content box the gutter was taken out of — on classic
-        // scrollbars the page sits ~15px left of true centre. `both-edges`
-        // would even that out by reserving the same strip twice; that
-        // trades the asymmetry for the width, and is a change to how the
-        // viewer looks rather than to whether it settles.
+        // `both-edges`, not plain `stable`, and the second word is the
+        // one doing the work. In "whole page" the page is fitted to the
+        // height and no vertical scrollbar is ever drawn, so a one-sided
+        // reservation stays empty and `safe center` centres the page
+        // inside the box that strip was taken out of: on classic
+        // scrollbars the page sits ~15px left of true centre. The mode is
+        // called "whole page", and what that name promises is the page
+        // entire and centred — a position decided by which side the
+        // browser keeps its scrollbar on is not that. Reserving the same
+        // strip on both edges makes the centring true, and makes it the
+        // same in every mode, so switching modes moves the page's size
+        // and nothing else.
         //
         // Where the property is unsupported (Safari before 18.2) *and*
         // scroll bars are set to always show, the oscillation above comes
         // back exactly as it was. That pairing is rare because the
         // platform without the property is usually the platform with
         // overlay scrollbars, but it is a setting, not an impossibility.
-        className="flex h-[80vh] [justify-content:safe_center] overflow-auto [scrollbar-gutter:stable] bg-bg-elevated p-4"
+        className="flex h-[80vh] [justify-content:safe_center] overflow-auto [scrollbar-gutter:stable_both-edges] bg-bg-elevated p-4"
       >
         <Document
           file={src}
