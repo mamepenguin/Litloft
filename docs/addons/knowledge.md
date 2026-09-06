@@ -167,7 +167,7 @@ Selecting a row shows what changed in it. That area distinguishes three states, 
 - **nothing changed** — said in words, not left blank;
 - **could not be loaded** — the message with a **Retry** beside it, which re-requests only the changes. The rest of the version stays on screen.
 
-The version's full text sits below, behind a closed **Read-only preview** disclosure. It is the raw Markdown, deliberately: the panel is for seeing what is stored, and rendering it would hide that. The one thing rewritten for reading is link targets, which are percent-decoded, so a table of contents reads `[Introduction](#1-introduction)` instead of a line of `%E3%81%AF`. A target that is not valid percent-encoding is shown exactly as written.
+The version's full text sits below, behind a closed **Read-only preview** disclosure. It is the raw Markdown, deliberately: the panel is for seeing what is stored, and rendering it would hide that. The one thing rewritten for reading is the heading anchors a table of contents is made of: a destination that is a plain `#` fragment is percent-decoded, so the list reads `[Introduction](#1-introduction)` instead of a line of `%E3%81%AF`. That is the whole of the exception — anything else, including code of any kind, a destination carrying a title, and an image's own path, is shown exactly as it was saved. A fragment that is not valid percent-encoding is left as written too.
 
 Four behaviours are worth knowing:
 
