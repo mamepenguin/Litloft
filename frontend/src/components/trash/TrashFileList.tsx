@@ -67,17 +67,25 @@ export function TrashFileList({
               className={`group flex items-center gap-3 rounded-lg bg-bg-card p-2.5 sm:p-2 transition-colors hover:bg-bg-elevated ${
                 selectable ? "cursor-pointer select-none" : ""
               } ${fileSelected ? "ring-2 ring-accent" : ""}`}
-              onClick={selectable
-                ? (e) => {
-                    if (e.shiftKey && onShiftSelect) {
-                      e.preventDefault();
-                      onShiftSelect(file.id);
-                    } else {
-                      onSelect?.(file.id);
-                    }
-                  }
-                : undefined
-              }
+              /* Not gated on `selectable`: Cmd/Ctrl-click is how a
+                 selection is *started* here, which is why the host's
+                 handler turns selection mode on before it toggles. With
+                 the handler attached only in selection mode there was no
+                 way in, and the press did nothing at all. */
+              onClick={(e) => {
+                if ((e.metaKey || e.ctrlKey) && onMetaSelect) {
+                  e.preventDefault();
+                  onMetaSelect(file.id);
+                  return;
+                }
+                if (!selectable) return;
+                if (e.shiftKey && onShiftSelect) {
+                  e.preventDefault();
+                  onShiftSelect(file.id);
+                } else {
+                  onSelect?.(file.id);
+                }
+              }}
               onContextMenu={selectable ? undefined : (e) => {
                 e.preventDefault();
                 e.stopPropagation();
