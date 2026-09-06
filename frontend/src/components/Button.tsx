@@ -158,11 +158,14 @@ export type ButtonProps = LabelledButtonProps | IconButtonProps;
 /**
  * The recipe, without the `<button>`.
  *
- * For the one case that is a destination rather than an action: a call to
+ * For the case that is a destination rather than an action: a call to
  * action that navigates has to be an `<a>`, or it loses the things a link
  * is — a middle click, a copied address, the browser's own "open in new
- * tab". `EmptyState` is that case. Nothing else should reach for this;
- * a control that does something is a `Button`.
+ * tab". `EmptyState` was the first; the archive listing's per-entry download
+ * is the second, and it is the same case — a file endpoint reached with
+ * `download`, not a control that runs something. **A control that *does*
+ * something is a `Button`**, and that is still the line: reach for this only
+ * when the thing is a URL.
  */
 export function buttonClass({
   variant = "secondary",

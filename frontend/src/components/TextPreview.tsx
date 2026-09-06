@@ -25,11 +25,77 @@ const TEXT_MIME_EXACT = new Set([
   "application/toml",
 ]);
 
-export function isTextPreviewable(mimeType: string): boolean {
+/**
+ * Extensions this viewer can read that no mime says so for.
+ *
+ * The mime an archive entry carries comes from `classify(decoded_name)`
+ * (`backend/app/services/filetype.py`), which is the same table core's search,
+ * type labels and drive filters read. Teaching *it* about `.dart` would move
+ * every `.dart` file in every drive into the "document" bucket of a listing —
+ * a different question from whether this component can render one. So the
+ * allowlist lives here, beside the renderer whose capability it describes.
+ *
+ * An allowlist, not a denylist: `.bin`, `.raw` and `a.out` have to stay
+ * unreadable, and a rule shaped as "anything but these" admits every format
+ * nobody has thought of yet.
+ */
+const TEXT_SUFFIXES = new Set([
+  "dart", "rs", "go", "kt", "kts", "swift", "rb", "php", "lua", "r",
+  "c", "h", "cc", "cpp", "hpp", "cs", "java", "scala", "ex", "exs",
+  "vue", "svelte", "ts", "tsx", "jsx", "mjs", "cjs", "mts", "cts",
+  "toml", "ini", "cfg", "conf", "env", "properties", "yml", "yaml",
+  "gradle", "cmake", "mk", "dockerfile", "gitignore", "editorconfig",
+  "gitattributes", "gitmodules", "gitconfig", "dockerignore",
+  "npmrc", "nvmrc", "prettierrc", "eslintrc", "babelrc", "browserslistrc",
+  "sql", "graphql", "gql", "proto", "patch", "diff", "lock",
+  "md", "markdown", "rst", "adoc", "tex", "csv", "tsv", "log",
+  "py", "sh", "bash", "zsh", "tf", "tfvars",
+]);
+
+/**
+ * Files whose whole name is the type. No extension to read.
+ */
+const TEXT_FILENAMES = new Set([
+  "makefile", "dockerfile", "license", "licence", "readme", "changelog",
+  "authors", "contributing", "notice", "copying", "codeowners", "procfile",
+  "gemfile", "rakefile", "brewfile", "vagrantfile", "justfile",
+]);
+
+/**
+ * Can this viewer render the entry?
+ *
+ * `filename` is optional because the callers that pass a real file have a
+ * mime worth trusting — it was set by the same `classify` on the way in. The
+ * archive is the caller that does not: a ZIP entry's mime is guessed from a
+ * name, and the guess is `application/octet-stream` for anything the drive
+ * listing has no bucket for.
+ */
+export function isTextPreviewable(mimeType: string, filename?: string): boolean {
   if (TEXT_MIME_PREFIXES.some((prefix) => mimeType.startsWith(prefix))) {
     return true;
   }
-  return TEXT_MIME_EXACT.has(mimeType);
+  if (TEXT_MIME_EXACT.has(mimeType)) return true;
+  if (filename === undefined) return false;
+
+  const base = filename.slice(filename.lastIndexOf("/") + 1).toLowerCase();
+  if (TEXT_FILENAMES.has(base)) return true;
+
+  if (base.startsWith(".")) {
+    // A dotfile's *leading* segment names its type, not its trailing one:
+    // `.gitignore`, and `.env.local` as much as `.env`. Reading the last
+    // segment instead would ask whether `local` is a language.
+    const lead = base.slice(1).split(".")[0];
+    return TEXT_SUFFIXES.has(lead) || TEXT_FILENAMES.has(lead);
+  }
+
+  const dot = base.lastIndexOf(".");
+  // No extension at all, and the whole-filename list above already said no.
+  // Matching such a name against the *extension* list is how `bin/go`,
+  // `usr/bin/env` and `bin/patch` — ELF binaries named after the languages
+  // and tools on that list — would be opened and rendered as text, which is
+  // the outcome an allowlist exists to prevent.
+  if (dot < 0) return false;
+  return TEXT_SUFFIXES.has(base.slice(dot + 1));
 }
 
 export function TextPreview({
