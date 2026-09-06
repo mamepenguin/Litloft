@@ -1433,11 +1433,17 @@ Keep the threshold in `rem` on both sides and resolve it against the
 root font size when measuring, so scaled text still gets the layout the
 numbers were chosen for.
 
-**A grid of equal cards goes through `lib/cardGrid.ts`.** Do not write
-`repeat(auto-fill, minmax(min(16rem, 100%), 1fr))` — or a `sm:`/`lg:`/
-`xl:` column count — into a card grid directly. Call `useCardColumns()`,
-attach its `ref` to the grid element, and pass its `columns` through
-`cardGridTemplate()`.
+**A core grid of equal cards goes through `lib/cardGrid.ts`.** Do not
+write `repeat(auto-fill, minmax(min(16rem, 100%), 1fr))` — or a
+`sm:`/`lg:`/`xl:` column count — into a card grid directly. Call
+`useCardColumns()`, attach its `ref` to the grid element, and pass its
+`columns` through `cardGridTemplate()`.
+
+Addon card grids are not through it yet: `intelligence`'s
+`SimilarFilesSection` and `media_import`'s `WatchLaneSection` still count
+their own columns. They clear the floor of two, so the rule they break is
+the container one, and each is a separate repository's PR — not a
+silent exemption, an unfinished sweep.
 
 **Card grid minimum width: `16rem`. Minimum column count: 2.**
 `min(16rem, 100%)` collapses to a single column below 256px, and a 375px
@@ -1451,6 +1457,14 @@ at all, rather than how wide to draw them (§ the drive home's rows). CSS
 deriving it for layout while JS derives it for the count is two
 implementations of one rule, and they drift. One measurement feeds both.
 The `auto-fill` string survives as the pre-measurement fallback only.
+
+An unmeasured grid — a server render, or no `ResizeObserver` — still
+holds the floor: `cardGridColumns` caps its track at
+`calc(50% - <half the gap>)`, so `auto-fill` cannot reach one column.
+The percentage resolves against the grid container's inline content
+size. That is the whole CSS answer to the floor; the count is measured
+because it is also a number the rows need, not because CSS could not
+lay the grid out.
 
 **The gap is part of the rule, not a per-grid choice.** `columnsFor`
 divides by `CARD_MIN_PX + CARD_GAP_PX`, so a grid with a wider column

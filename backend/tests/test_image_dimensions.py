@@ -7,6 +7,8 @@ reports 16:9 for every image. These tests pin the columns the scanner fills.
 
 import io
 import json
+import shutil
+from pathlib import Path
 
 import pytest
 from PIL import Image
@@ -17,6 +19,8 @@ from app.services import scanner as scanner_module
 from app.services.image_dimensions import read_image_dimensions
 from app.services.scanner import _scan_and_register, register_single_file
 from tests.conftest import TEST_DRIVE
+
+FIXTURES_DIR = Path(__file__).parent / "fixtures"
 
 # Distinct per format so a test cannot pass by reading the wrong file.
 FORMAT_SIZES = {
@@ -170,6 +174,10 @@ class TestBackfill:
         _write_image(drive / "known.png", (100, 200), "png")
         (drive / "notes.txt").write_text("text")
         (drive / "doc.pdf").write_bytes(b"%PDF-1.4\n%stub\n")
+        # Video shares the most of the update branch a non-image can —
+        # it has a thumbnail generator and probes as media — so it is the
+        # non-image most likely to fall into the dimension read.
+        shutil.copy(FIXTURES_DIR / "short_video.mp4", drive / "clip.mp4")
 
         # First pass registers everything; the second is the one under test.
         _scan_and_register(db_session, "test-drive")
@@ -196,14 +204,18 @@ class TestBackfill:
         prove there was something to skip."""
         _write_image(drive / "known.png", (100, 200), "png")
         (drive / "notes.txt").write_text("text")
+        shutil.copy(FIXTURES_DIR / "short_video.mp4", drive / "clip.mp4")
 
         _scan_and_register(db_session, "test-drive")
         db_session.commit()
 
         rows = db_session.query(File).all()
-        assert len(rows) == 2
+        assert len(rows) == 3
         assert sum(1 for r in rows if r.file_type == "image") == 1
-        assert sum(1 for r in rows if r.file_type != "image") == 1
+        assert {r.file_type for r in rows if r.file_type != "image"} == {
+            "document",
+            "video",
+        }
 
 
 def _upload(c, drive, filename, payload, folder=""):
