@@ -11,6 +11,9 @@ import { ScrollContainerContext } from "@/lib/scrollContainer";
 import { useGuardedRouter } from "@/hooks/useGuardedRouter";
 import { useSelectedFile } from "@/hooks/useSelectedFile";
 import { useTreeEnabled } from "@/hooks/useTreeEnabled";
+import { useTreeVisible } from "@/hooks/useTreeVisible";
+import { useTreeBeside } from "@/hooks/useTreeBeside";
+import { treeNarrowOpenStore } from "@/lib/treeNarrowOpenStore";
 import { TreeRefreshContext } from "@/components/TreeRefreshContext";
 import { useOverlaySidebarWhen } from "@/components/SidebarProvider";
 
@@ -130,57 +133,24 @@ export function TwoPaneLayout({
   // the tree's expansion / scroll state survives toggles.
   const sectionRef = useRef<HTMLElement | null>(null);
 
-  // The tree and the content sit side by side from `md` up. Below that the
-  // tree takes the whole viewport, so a stored "tree open" carried onto a
-  // phone lands the reader on a screen with no content on it at all.
-  //
-  // The threshold is `md` because that is the breakpoint the widths below
-  // are written against; it is deliberately **not** merged with the
-  // sidebar's 1200px, which answers a different question — whether the
-  // sidebar and the content fit together, not whether the tree and the
-  // content do.
-  const TREE_BESIDE_QUERY = "(min-width: 768px)"; // Tailwind `md`
-  const [beside, setBeside] = useState(true);
-  useEffect(() => {
-    const mql = window.matchMedia(TREE_BESIDE_QUERY);
-    const sync = () => setBeside(mql.matches);
-    sync();
-    mql.addEventListener("change", sync);
-    return () => mql.removeEventListener("change", sync);
-  }, []);
-
-  // Effective, not stored. Narrowing the window must not write `false`
-  // into `tree:enabled:{drive}` — that is the reader's setting, and it has
-  // to come back when the window widens again.
-  const treeShown = treeEnabled && beside;
-
-  // Pressing the toggle while narrow is an explicit "show me this now",
-  // which is different from a setting carried over from a wider window, so
-  // the full-viewport tree stays reachable — the ✕ in its header closes it
-  // again. The flag is cleared whenever the tree is switched off or the
-  // window widens, so it never becomes a second stored preference.
-  const [openedWhileNarrow, setOpenedWhileNarrow] = useState(false);
-  const wasEnabled = useRef(treeEnabled);
-  useEffect(() => {
-    const justTurnedOn = treeEnabled && !wasEnabled.current;
-    wasEnabled.current = treeEnabled;
-    if (justTurnedOn && !beside) setOpenedWhileNarrow(true);
-    if (!treeEnabled || beside) setOpenedWhileNarrow(false);
-  }, [treeEnabled, beside]);
-
-  const treeOpen = treeShown || (treeEnabled && openedWhileNarrow);
+  // `treeOpen` is the effective state and `treeBeside` is the narrower
+  // question of whether it is beside the content rather than over it.
+  // Both come from `useTreeVisible`, which the toolbar's toggle also
+  // reads, so the button cannot report "on" over a tree that is not there.
+  const { visible: treeOpen, beside: treeBeside } = useTreeVisible(drive);
+  const beside = useTreeBeside();
 
   // NAV-2. The sidebar and the tree both name where you are, and design
   // principle 3 allows one such surface at a time. The tree borrows the
-  // sidebar's place while it is open; below 1200px the sidebar is already
-  // an overlay, so asking again changes nothing and no width test is
-  // duplicated here.
-  useOverlaySidebarWhen(treeShown);
+  // sidebar's place while it is open *beside* the content — over it there
+  // is nothing to borrow, and below 1200px the sidebar is an overlay
+  // already, so no width test is duplicated here.
+  useOverlaySidebarWhen(treeBeside);
 
-  const [hasEverEnabled, setHasEverEnabled] = useState(treeEnabled);
+  const [hasEverEnabled, setHasEverEnabled] = useState(treeOpen);
   useEffect(() => {
-    if (treeEnabled && !hasEverEnabled) setHasEverEnabled(true);
-  }, [treeEnabled, hasEverEnabled]);
+    if (treeOpen && !hasEverEnabled) setHasEverEnabled(true);
+  }, [treeOpen, hasEverEnabled]);
   const treeAsideWidth = treeOpen
     ? hasFile
       ? "w-0 md:w-[280px]"
@@ -206,7 +176,13 @@ export function TwoPaneLayout({
             <div className="flex items-center justify-end border-b border-bg-border p-1 md:hidden">
               <button
                 type="button"
-                onClick={() => setTreeEnabled(false)}
+                onClick={() => {
+                  // The narrow tree is a request about this screen, so
+                  // dismissing it must not rewrite the setting a wider
+                  // window reads.
+                  treeNarrowOpenStore.set(drive, false);
+                  if (beside) setTreeEnabled(false);
+                }}
                 aria-label={tView("treeOff")}
                 className="rounded-lg p-2 text-text-muted hover:text-text-primary"
               >

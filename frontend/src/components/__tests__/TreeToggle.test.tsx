@@ -1,7 +1,32 @@
-import { fireEvent, render, screen } from "@testing-library/react";
+import { act, fireEvent, render, screen } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { treeEnabledStore } from "@/lib/treeEnabledStore";
+import { treeNarrowOpenStore } from "@/lib/treeNarrowOpenStore";
+
+// jsdom has no `matchMedia`. The toggle asks it whether the tree fits
+// beside the content; `setBeside` is how a test moves the window.
+let besideMatches = true;
+const mediaListeners = new Set<() => void>();
+function setBeside(next: boolean) {
+  besideMatches = next;
+  for (const l of mediaListeners) l();
+}
+Object.defineProperty(window, "matchMedia", {
+  writable: true,
+  value: (query: string) => ({
+    get matches() {
+      return besideMatches;
+    },
+    media: query,
+    onchange: null,
+    addListener: (l: () => void) => mediaListeners.add(l),
+    removeListener: (l: () => void) => mediaListeners.delete(l),
+    addEventListener: (_: string, l: () => void) => mediaListeners.add(l),
+    removeEventListener: (_: string, l: () => void) => mediaListeners.delete(l),
+    dispatchEvent: () => true,
+  }),
+});
 
 // The toggle auto-hides on cross-folder routes (favorites / search / …)
 // so the route hooks must return a folder-style pathname. Each test
@@ -19,6 +44,9 @@ import { TreeToggle } from "../TreeToggle";
 beforeEach(() => {
   localStorage.clear();
   treeEnabledStore.reset();
+  treeNarrowOpenStore.reset();
+  besideMatches = true;
+  mediaListeners.clear();
   mockPathname = "/drive/work";
   mockSearchParams = new URLSearchParams();
 });
@@ -121,6 +149,59 @@ describe("TreeToggle", () => {
       treeEnabledStore.set("work", true);
       render(<TreeToggle drive="work" />);
       expect(screen.getByRole("button").className).not.toMatch(/(^|[\s:])bg-accent/);
+    });
+  });
+
+  /**
+   * MB-5. Below `md` the tree covers the viewport and the content is
+   * hidden, so a stored "on" carried onto a phone is suppressed. The
+   * button has to say so: reporting "on" over a tree that is not on
+   * screen is the screen lying about itself.
+   */
+  describe("on a narrow window", () => {
+    it("reads unpressed even where the setting says on", () => {
+      treeEnabledStore.set("work", true);
+      besideMatches = false;
+      render(<TreeToggle drive="work" />);
+      const button = screen.getByRole("button");
+      expect(button).toHaveAttribute("aria-pressed", "false");
+      expect(button.className.split(/\s+/)).toContain("text-text-muted");
+    });
+
+    it("opens the tree there without touching the stored setting", () => {
+      treeEnabledStore.set("work", true);
+      besideMatches = false;
+      render(<TreeToggle drive="work" />);
+
+      fireEvent.click(screen.getByRole("button"));
+
+      expect(screen.getByRole("button")).toHaveAttribute("aria-pressed", "true");
+      // Asking for it here is about this screen. The setting a wider
+      // window reads is the reader's and is left alone.
+      expect(localStorage.getItem("tree:enabled:work")).toBe("true");
+      expect(treeNarrowOpenStore.get("work")).toBe(true);
+    });
+
+    it("opens it there even when the setting says off", () => {
+      treeEnabledStore.set("work", false);
+      besideMatches = false;
+      render(<TreeToggle drive="work" />);
+
+      fireEvent.click(screen.getByRole("button"));
+
+      expect(screen.getByRole("button")).toHaveAttribute("aria-pressed", "true");
+      expect(localStorage.getItem("tree:enabled:work")).toBe("false");
+    });
+
+    it("goes back to the stored answer when the window widens", () => {
+      treeEnabledStore.set("work", true);
+      besideMatches = false;
+      render(<TreeToggle drive="work" />);
+      expect(screen.getByRole("button")).toHaveAttribute("aria-pressed", "false");
+
+      act(() => setBeside(true));
+
+      expect(screen.getByRole("button")).toHaveAttribute("aria-pressed", "true");
     });
   });
 });

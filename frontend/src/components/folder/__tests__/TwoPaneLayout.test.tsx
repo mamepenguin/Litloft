@@ -10,6 +10,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { dirtyRegistry } from "@/lib/dirtyRegistry";
 import { navigationGuard } from "@/lib/navigationGuard";
 import { treeEnabledStore } from "@/lib/treeEnabledStore";
+import { treeNarrowOpenStore } from "@/lib/treeNarrowOpenStore";
 
 const mockReplace = vi.fn();
 const mockPush = vi.fn();
@@ -174,6 +175,7 @@ beforeEach(() => {
   besideMatches = true;
   mediaListeners.clear();
   overlayRequests.length = 0;
+  treeNarrowOpenStore.reset();
   mockReplace.mockReset();
   mockPush.mockReset();
   mockGetFolderTree.mockReset();
@@ -461,20 +463,23 @@ describe("TwoPaneLayout — the tree borrows the sidebar's place", () => {
     });
 
     it("still opens full-viewport when the reader asks for it there", async () => {
-      // Turning it on while narrow is an explicit "show me this now",
-      // which is a different thing from a setting carried over.
+      // Asking for it on the screen in front of you is a different act
+      // from a setting carried over from a wider one, so it goes through
+      // `treeNarrowOpenStore` rather than through the stored preference.
       besideMatches = false;
       treeEnabledStore.set("work", false);
       renderPane();
       await waitFor(() => expect(screen.getByText("right")).toBeInTheDocument());
 
       await act(async () => {
-        treeEnabledStore.set("work", true);
+        treeNarrowOpenStore.set("work", true);
       });
 
       await waitFor(() =>
         expect(document.querySelector("aside")!.className).toContain("w-[100vw]"),
       );
+      // ...and it is a request about this screen, not a new setting.
+      expect(localStorage.getItem("tree:enabled:work")).toBe("false");
     });
   });
 });
