@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { cleanup, render, screen, waitFor, within } from "@testing-library/react";
+import { cleanup, render, screen, within } from "@testing-library/react";
 
 import { accentFills } from "@/__tests__/helpers/accentFills";
 
@@ -32,7 +32,7 @@ vi.mock("@/lib/api", () => ({
   getDashboard: (...args: unknown[]) => mockGetDashboard(...args),
 }));
 
-import AdminDashboardPage, { driveTypeCounts } from "@/app/admin/page";
+import AdminDashboardPage from "@/app/admin/page";
 
 function drive(name: string, fileTypes: Record<string, number>) {
   return {
@@ -62,51 +62,16 @@ beforeEach(() => {
 
 afterEach(cleanup);
 
-/**
- * The breakdown exists so two drive cards can be compared down the
- * column. That is a claim about the *set* and its *order*, and the
- * response can supply neither: `file_types` comes from a `group_by` with
- * no guaranteed order and no zero-count rows.
- */
-describe("drive type breakdown", () => {
-  it("always names all six types, in the declared order", () => {
-    const counts = driveTypeCounts({ image: 2, video: 5 });
-    expect(counts.map((c) => c.type)).toEqual([
-      "video",
-      "audio",
-      "document",
-      "archive",
-      "image",
-      "other",
-    ]);
-    expect(counts).toHaveLength(6);
-  });
-
-  it("keeps the six even when the drive reports nothing", () => {
-    const counts = driveTypeCounts({});
-    expect(counts).toHaveLength(6);
-    expect(counts.every((c) => c.count === 0)).toBe(true);
-  });
-
-  /**
-   * `FileType` has seven members and the order has six; `subtitle` is the
-   * one left out. Dropping it would leave the breakdown adding up to less
-   * than the file count printed directly above it, with nothing on screen
-   * saying why.
-   */
-  it("folds a type it does not name into `other` rather than dropping it", () => {
-    const counts = driveTypeCounts({ subtitle: 3, other: 4 });
-    const byType = Object.fromEntries(counts.map((c) => [c.type, c.count]));
-    expect(byType.other).toBe(7);
-    expect(counts.reduce((a, c) => a + c.count, 0)).toBe(7);
-  });
-});
-
 describe("/admin dashboard", () => {
   async function renderDashboard(drives: ReturnType<typeof drive>[]) {
     mockGetDashboard.mockResolvedValue({ drives, system });
     const view = render(<AdminDashboardPage />);
-    await waitFor(() => expect(mockGetDashboard).toHaveBeenCalled());
+    // The rendered result, not the call that starts it. `getDashboard` is
+    // invoked synchronously inside `render`'s act, so waiting for the mock
+    // returns while the skeletons may still be on screen — and a skeleton
+    // has no accent fill and no alerts wrapper either, so two of the
+    // assertions below would pass over nothing.
+    await screen.findAllByRole("heading", { level: 3 });
     return view;
   }
 
@@ -154,7 +119,16 @@ describe("/admin dashboard", () => {
     const { container } = await renderDashboard([drive("Media", { video: 1 })]);
     const alerts = container.querySelector(".empty\\:hidden");
     const drivesSection = container.querySelector("section");
+    const header = container.querySelector("header");
     expect(alerts).not.toBeNull();
+    // Both bounds. With only the lower one, moving the band above the
+    // page's own title left this green — and "anything wrong, above
+    // everything that is fine" is a claim about a position inside the
+    // page, not above its heading.
+    expect(
+      header!.compareDocumentPosition(alerts!) &
+        Node.DOCUMENT_POSITION_FOLLOWING,
+    ).toBeTruthy();
     expect(
       alerts!.compareDocumentPosition(drivesSection!) &
         Node.DOCUMENT_POSITION_FOLLOWING,

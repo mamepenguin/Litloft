@@ -57,10 +57,25 @@ const HEADING_CLASSES = "flex items-center gap-2 text-lg font-bold text-text-pri
  * them and two colours, which read as one card mattering more than the
  * others.
  *
- * The shape is the glyph *immediately* followed by the `<h3>`. The class
- * list alone matches ten places in the tree that are not card headings —
- * a dialog title, a wizard step, a picker — and none of them carries an
- * icon beside it.
+ * The shape is the glyph *immediately* followed by the `<h3>`, because the
+ * class list alone matches ten places in the tree that are not card
+ * headings — a dialog title, a wizard step, a picker.
+ *
+ * **What adjacency costs, named rather than implied.** A card heading whose
+ * glyph sits behind a wrapper `<div>` is not seen.
+ * `addons/cloud-sync/frontend/SyncDriveCard.tsx` is one, and its glyph is
+ * `text-accent-cta` — the very treatment this rule removes. It is left
+ * uncovered on purpose: cloud-sync is outside this phase entirely
+ * (DESIGN.md §6 records why, and `button-adoption.test.ts` keeps its two
+ * hand-written sites for the same reason), so widening the shape to reach
+ * it would mean sweeping in an addon nobody is reviewing. **`"addons/
+ * cloud-sync": 0` below is therefore a limit of this scan, not a fact
+ * about that addon** — when cloud-sync comes into scope, widen the shape
+ * to a bounded window before the heading and expect the number to move.
+ *
+ * Loosening adjacency without that is not free: a window of a few hundred
+ * characters also picks up `knowledge/VersionHistoryPanel.tsx`'s 15px
+ * disclosure chevron, which is a row control and not a heading at all.
  */
 const CARD_HEADING_CLASSES = "text-sm font-semibold text-text-primary";
 const CARD_ICON_SIZE = 18;
@@ -148,7 +163,11 @@ function headingIcons(): HeadingIcon[] {
         ),
       )) {
         for (const icon of iconsIn(`<${m[1]} ${m[2]}/>`)) {
-          if (icon.size !== CARD_ICON_SIZE) continue;
+          // Collected whatever its size is, and judged below. Filtering on
+          // the size here made the size assertion's card branch dead code
+          // *and* dropped a wrong-sized glyph out of the colour check with
+          // it: `size={20} className="text-accent"` on a card heading left
+          // all four tests green as long as the count still added up.
           out.push({ ...icon, where: `${rel}:${lineOf(m.index!)}`, level: "card" });
         }
       }
@@ -217,6 +236,7 @@ describe("section heading icons", () => {
       "addons/intelligence": 2,
       "addons/knowledge": 0,
       "addons/media_import": 0,
+      // Not "cloud-sync has none" — see the note on adjacency above.
       "addons/cloud-sync": 0,
     };
     for (const [root, expected] of Object.entries(EXPECTED_ADDON_ICONS)) {

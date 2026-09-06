@@ -176,10 +176,13 @@ describe("page headings", () => {
         : "frontend/src";
       perRoot.set(root, (perRoot.get(root) ?? 0) + 1);
     }
-    // Six: the four brand surfaces the list keeps, the inspector's block,
-    // and `admin/settings/page.tsx`, which 案 16 takes next. `app/admin/page.tsx`
-    // used to contribute two of its own, one per branch — precisely the case a
-    // per-file allowlist cannot see, which is why counts are asserted at all.
+    // Six: the three brand surfaces the list keeps (`WelcomeStep`,
+    // `LanguageStep`, `unlock/page.tsx`), the inspector's block,
+    // `admin/settings/page.tsx` which 案 16 takes next, and `PageHeader`'s
+    // own — `OWNER` is excluded from the allowlist check above, never from
+    // this count. `app/admin/page.tsx` used to contribute two of its own,
+    // one per branch: precisely the case a per-file allowlist cannot see,
+    // which is why counts are asserted at all.
     expect(perRoot.get("frontend/src")).toBe(6);
 
     const EXPECTED_ADDON_HEADINGS: Record<string, number> = {

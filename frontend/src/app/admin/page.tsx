@@ -19,6 +19,7 @@ import {
 
 import { getDashboard } from "@/lib/api";
 import { formatFileSize } from "@/lib/format";
+import { driveTypeCounts } from "@/lib/driveTypeBreakdown";
 import { useWebSocket } from "@/hooks/useWebSocket";
 import { DuplicatesSection } from "@/components/DuplicatesSection";
 import { AddonSlot } from "@/components/AddonSlot";
@@ -50,25 +51,6 @@ function usageColorClass(percent: number): string {
   if (percent >= 70) return "bg-accent-amber";
   return "bg-accent-teal";
 }
-
-/**
- * The order the breakdown is read in, and the whole of it.
- *
- * Declared rather than derived, because the only reason these are in an
- * order at all is so two drive cards can be compared down the column —
- * and the response cannot supply that. `file_types` comes from a
- * `group_by` (`routers/admin.py`) whose order is not guaranteed, and it
- * omits whatever is zero, so the card used to draw a different number of
- * figures in a different sequence for every drive.
- */
-const DRIVE_TYPE_ORDER = [
-  "video",
-  "audio",
-  "document",
-  "archive",
-  "image",
-  "other",
-] as const;
 
 function DriveCardSkeleton() {
   return (
@@ -123,27 +105,6 @@ function UsageBar({
       </div>
     </div>
   );
-}
-
-/**
- * The counts, in `DRIVE_TYPE_ORDER`, always all six.
- *
- * A type the order does not name is folded into `other` rather than
- * dropped: `FileType` has seven members and this has six, and `subtitle`
- * is the one left out. Discarding it silently would leave the breakdown
- * adding up to less than the file count above it with nothing on screen
- * saying why.
- */
-export function driveTypeCounts(
-  fileTypes: Record<string, number>,
-): Array<{ type: (typeof DRIVE_TYPE_ORDER)[number]; count: number }> {
-  const known = new Set<string>(DRIVE_TYPE_ORDER);
-  const counts = new Map<string, number>(DRIVE_TYPE_ORDER.map((t) => [t, 0]));
-  for (const [type, count] of Object.entries(fileTypes)) {
-    const bucket = known.has(type) ? type : "other";
-    counts.set(bucket, (counts.get(bucket) ?? 0) + count);
-  }
-  return DRIVE_TYPE_ORDER.map((type) => ({ type, count: counts.get(type)! }));
 }
 
 function FileTypeBreakdown({

@@ -152,14 +152,14 @@ describe("Button adoption", () => {
 
   // The population this phase is about. DESIGN.md §6 says 40 sites carry the
   // treatment — 43 until knowledge's unreachable two-pane view took three
-  // with it; 13 were converted in A2b, 11 more in C1/C2a/C2b, 7 in C3 and the
-  // Markdown-image tool's 2 in Phase 4's 案 15, so 7 remain. Only this 9 is asserted anywhere: the other numbers are that
-  // paragraph's bookkeeping, and this comment is the copy of them that goes
-  // stale, so it is worth re-reading when the paragraph moves. Asserting the
-  // total as well as the per-file map
-  // is what makes both numbers checkable rather than remembered — and the
-  // second half keeps it honest in a checkout holding fewer addons than
-  // this one.
+  // with it; 13 were converted in A2b, 11 more in C1/C2a/C2b, 7 in C3 and
+  // the Markdown-image tool's 2 in Phase 4's 案 15, so 7 remain. Only this 7
+  // is asserted anywhere: the other numbers are that paragraph's
+  // bookkeeping, and this comment is the copy of them that goes stale, so
+  // it is worth re-reading when the paragraph moves. Asserting the total as
+  // well as the per-file map is what makes both numbers checkable rather
+  // than remembered — and the second half keeps it honest in a checkout
+  // holding fewer addons than this one.
   it("leaves exactly seven sites unconverted across the repository", () => {
     const observed = handWritten();
     const total = Object.values(observed).reduce((a, b) => a + b, 0);
