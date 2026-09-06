@@ -3,6 +3,8 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { MoreHorizontal } from "lucide-react";
 
+import { MENU_SURFACE } from "@/components/ToolbarMenu";
+
 interface OverflowMenuProps {
   /**
    * The accessible name. Required, and required to be specific: a screen
@@ -12,8 +14,10 @@ interface OverflowMenuProps {
    */
   label: string;
   /**
-   * Whether the control it fronts is currently on — the drive root's
-   * `…` holds Select mode, and the button reads as pressed while it is.
+   * Whether something inside is currently on — the drive root's `…`
+   * holds Select mode. Visual only: the state belongs to the row, which
+   * carries `aria-pressed`, and a trigger that is already
+   * `aria-haspopup` would be claiming to be two controls.
    */
   active?: boolean;
   /**
@@ -35,10 +39,18 @@ interface OverflowMenuProps {
  * geometry because its trigger is a labelled primary button that can sit
  * at either end of a row (see the `align` note there).
  *
- * No Escape listener. `ShortcutsProvider` is the one place that knows
- * what is stacked above what, and a menu that binds its own `document`
- * keydown answers a press aimed at the dialog in front of it
- * (`__tests__/escape-listeners.test.ts`).
+ * Escape is answered by a React `onKeyDown` on the box, not by a
+ * `document` listener: a listener does not know what is stacked above
+ * it and would answer a press aimed at the dialog in front. It stops
+ * there, because a press that also reached `ShortcutsProvider` would be
+ * answered twice. `ToolbarMenu` records the same reasoning, and
+ * `escape-listeners.test.ts` permits exactly this shape.
+ *
+ * The surface is `MENU_SURFACE` — a sheet below 640px, a right-anchored
+ * dropdown above it — because every other menu on a bar in this app is
+ * that surface, and a `…` rendering two ways on two screens that hold
+ * the same rows is the drift this component exists to end. `AddButton`
+ * is the one menu that does not use it, and says why: it anchors left.
  */
 export function OverflowMenu({ label, active, children }: OverflowMenuProps) {
   const [open, setOpen] = useState(false);
@@ -62,7 +74,15 @@ export function OverflowMenu({ label, active, children }: OverflowMenuProps) {
   }, [open]);
 
   return (
-    <div ref={menuRef} className="relative">
+    <div
+      ref={menuRef}
+      className="relative"
+      onKeyDown={(e) => {
+        if (!open || e.key !== "Escape") return;
+        e.stopPropagation();
+        close();
+      }}
+    >
       <button
         ref={triggerRef}
         type="button"
@@ -83,22 +103,14 @@ export function OverflowMenu({ label, active, children }: OverflowMenuProps) {
       </button>
       {open && (
         <>
-          {/* A sheet on a phone, a dropdown above 640px — the shape the
-              drive root's menu already had, kept because a 180px panel
-              hanging off a toolbar button is a poor target at 375px and
-              a full-width sheet is not. The scrim dims behind the sheet
-              and is transparent on the dropdown, where the page below it
-              should stay visible. */}
+          {/* The scrim dims behind the sheet and is transparent under the
+              dropdown, where the page below should stay visible. */}
           <div
             className="fixed inset-0 z-30 bg-black/30 sm:bg-transparent"
             aria-hidden
             onClick={() => setOpen(false)}
           />
-          <div
-            role="menu"
-            aria-label={label}
-            className="fixed inset-x-2 bottom-4 z-40 max-h-[60vh] overflow-y-auto rounded-2xl border border-bg-border bg-bg-primary py-1 shadow-lg animate-fade-in-scale sm:absolute sm:inset-x-auto sm:bottom-auto sm:right-0 sm:top-full sm:mt-1 sm:max-h-[70vh] sm:min-w-[200px] sm:origin-top-right sm:rounded-xl"
-          >
+          <div role="menu" aria-label={label} className={MENU_SURFACE}>
             {children(close)}
           </div>
         </>

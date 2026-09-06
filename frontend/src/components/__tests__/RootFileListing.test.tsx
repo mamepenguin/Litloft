@@ -332,6 +332,21 @@ describe("the drive root's overflow menu", () => {
     expect(classes).toContain("sm:top-full");
   });
 
+  it("says which of its rows is in effect", async () => {
+    // Select mode is a toggle, and its row carried a held treatment
+    // before the conversion. A menu that looks the same either way makes
+    // the reader open it to find out what it already did.
+    await openMenu();
+    const row = screen.getByRole("menuitem", { name: /selection mode/i });
+    expect(row).toHaveAttribute("aria-pressed", "false");
+
+    fireEvent.click(row);
+    fireEvent.click(screen.getByRole("button", { name: /more actions/i }));
+    const again = screen.getByRole("menuitem", { name: /selection mode/i });
+    expect(again).toHaveAttribute("aria-pressed", "true");
+    expect(again.className).toMatch(/\bbg-bg-elevated\b/);
+  });
+
   it("closes when the sheet's backdrop is tapped", async () => {
     await openMenu();
     const backdrop = document.querySelector('[aria-hidden][class*="bg-black/30"]')!;

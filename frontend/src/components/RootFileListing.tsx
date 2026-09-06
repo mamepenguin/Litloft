@@ -242,6 +242,7 @@ export function RootFileListing({ driveName, onFileAction, onFolderChange }: Roo
                     <ActionMenuItem
                       icon={CheckSquare}
                       label={ts("selectMode")}
+                      active={selectable}
                       onClick={() => {
                         setSelectable((v) => {
                           if (v) selection.clear();

@@ -369,9 +369,27 @@ describe("deleting a collection", () => {
     // An icon-only control repeated across screens needs a name that
     // says which entity it belongs to, not just "More".
     render(<CollectionDetail drive="main" collectionId="c1" />);
-    const trigger = await openMenu();
+    const trigger = await screen.findByRole("button", {
+      name: /More actions for My Collection/,
+    });
     expect(trigger).toHaveAttribute("aria-haspopup", "menu");
+    // Both states. Asserted only after opening, a hard-coded `"true"`
+    // would pass — the property is that it reflects the menu, not that
+    // it says the word.
+    expect(trigger).toHaveAttribute("aria-expanded", "false");
+    fireEvent.click(trigger);
     expect(trigger).toHaveAttribute("aria-expanded", "true");
+  });
+
+  it("closes on Escape", async () => {
+    // Without this the only ways out of a menu are an outside click and
+    // picking a row. Handled on the box rather than on `document`, so it
+    // cannot answer a press aimed at whatever is stacked above it.
+    render(<CollectionDetail drive="main" collectionId="c1" />);
+    await openMenu();
+    expect(screen.getByRole("menuitem")).toBeInTheDocument();
+    fireEvent.keyDown(screen.getByRole("menu"), { key: "Escape" });
+    expect(screen.queryByRole("menuitem")).toBeNull();
   });
 
   it("offers Delete with its name, in danger colour", async () => {

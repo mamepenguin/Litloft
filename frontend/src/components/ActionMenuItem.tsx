@@ -13,6 +13,12 @@ export interface ActionMenuItemProps {
   disabled?: boolean;
   /** Destructive actions (delete, purge). Uses the danger token per DESIGN.md §Buttons. */
   danger?: boolean;
+  /**
+   * A row that toggles something which is currently on — Select mode.
+   * Drawn as a held state and announced as one, so the menu says which
+   * of its rows is in effect rather than leaving it to the trigger.
+   */
+  active?: boolean;
 }
 
 /**
@@ -28,6 +34,7 @@ export function ActionMenuItem({
   onClick,
   disabled,
   danger,
+  active,
 }: ActionMenuItemProps) {
   return (
     <button
@@ -41,10 +48,13 @@ export function ActionMenuItem({
       }}
       // `:hover` still matches a disabled button, so without the override the
       // danger row tints accent under the pointer while refusing the click.
+      aria-pressed={active}
       className={`flex w-full items-center gap-2 px-3 py-2 text-left text-sm transition-colors disabled:opacity-50 disabled:hover:bg-transparent ${
         danger
           ? "text-danger hover:bg-accent/10"
-          : "text-text-muted hover:bg-bg-elevated hover:text-text-primary"
+          : active
+            ? "bg-bg-elevated font-medium text-text-primary"
+            : "text-text-muted hover:bg-bg-elevated hover:text-text-primary"
       }`}
     >
       <Icon size={14} />

@@ -17,6 +17,7 @@ import { AddButton } from "@/components/AddButton";
 import { FilterMenu } from "./FilterMenu";
 import { Button } from "@/components/Button";
 import { useViewModeState } from "@/components/viewMode";
+import { ActionMenuItem } from "@/components/ActionMenuItem";
 import { BAR_WIDE, MENU_SURFACE, MenuSeparator } from "@/components/ToolbarMenu";
 import { SortGroup, SortMenu } from "./SortMenu";
 import { ViewGroup, ViewMenu } from "@/components/ViewMenu";
@@ -366,21 +367,21 @@ export function FolderToolbar({
                     <MenuSeparator />
                   </div>
                 )}
-                <button
-                  role="menuitem"
+                {/* The same row the drive root draws, from the same
+                    component, so the two cannot describe one state two
+                    ways. The menu around it stays hand-written: its
+                    trigger is a bordered bar control and it carries the
+                    view and sort groups below 768px, neither of which
+                    `OverflowMenu` covers. */}
+                <ActionMenuItem
+                  icon={CheckSquare}
+                  label={ts("selectMode")}
+                  active={selectable}
                   onClick={() => {
                     onToggleSelectable();
                     setMoreOpen(false);
                   }}
-                  className={`flex w-full items-center gap-2.5 px-3 py-2 text-left text-sm transition-colors ${
-                    selectable
-                      ? "bg-bg-elevated text-text-primary font-medium"
-                      : "text-text-primary hover:bg-bg-elevated"
-                  }`}
-                >
-                  <CheckSquare size={16} className="flex-shrink-0" />
-                  <span className="flex-1">{ts("selectMode")}</span>
-                </button>
+                />
                 {!isSearch && (
                   <button
                     role="menuitem"
