@@ -223,13 +223,20 @@ export function ArchiveImageViewer({
                 }}
                 onLoad={(e) => {
                   setImageLoading(false);
+                  const img = e.currentTarget;
+                  const landscape = img.naturalWidth > img.naturalHeight;
+                  // Every drawn page, not only the one the face is named
+                  // by: the second page of a pair is exactly the index
+                  // the *next* face will ask about, and a page the
+                  // reader has seen is one they can turn back to. This
+                  // is the only thing that ever fills the map.
+                  rememberOrientation(i, landscape ? "landscape" : "portrait");
                   // Only the page the position is named by decides
                   // whether this face is a split one. The second page of
                   // a pair reporting its own shape here would flip the
                   // face out from under itself.
                   if (slot === 0 && i === imageIndex) {
-                    const img = e.currentTarget;
-                    setIsCurrentLandscape(img.naturalWidth > img.naturalHeight);
+                    setIsCurrentLandscape(landscape);
                   }
                 }}
                 draggable={false}
