@@ -45,7 +45,6 @@ interface ArchiveImageViewerProps {
   setSpreadMode: React.Dispatch<React.SetStateAction<boolean>>;
   readingDirection: "ltr" | "rtl";
   setReadingDirection: React.Dispatch<React.SetStateAction<"ltr" | "rtl">>;
-  isCurrentLandscape: boolean;
   setIsCurrentLandscape: React.Dispatch<React.SetStateAction<boolean>>;
   showRightHalf: boolean;
   navigatePrev: () => void;
@@ -78,7 +77,6 @@ export function ArchiveImageViewer({
   setSpreadMode,
   readingDirection,
   setReadingDirection,
-  isCurrentLandscape,
   setIsCurrentLandscape,
   showRightHalf,
   navigatePrev,

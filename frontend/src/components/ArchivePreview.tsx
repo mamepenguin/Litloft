@@ -318,7 +318,6 @@ export function ArchivePreview({
         setSpreadMode={imageViewer.setSpreadMode}
         readingDirection={imageViewer.readingDirection}
         setReadingDirection={imageViewer.setReadingDirection}
-        isCurrentLandscape={imageViewer.isCurrentLandscape}
         setIsCurrentLandscape={imageViewer.setIsCurrentLandscape}
         showRightHalf={imageViewer.showRightHalf}
         navigatePrev={imageViewer.navigatePrev}
