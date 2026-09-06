@@ -1081,7 +1081,7 @@ screen — verified in the running app. Were vaul to leave a transform on
 block and the dialog would be confined to the sheet instead; it does
 not today.
 
-### Over-video chrome (player controls, mini-player buttons)
+### Over-video chrome (player controls, mini-player buttons, full-screen viewers)
 
 Chrome that sits **on top of a video frame** is the one place that deliberately ignores the light/dark theme tokens. The backdrop is the video itself — near-black in practice — so theme-following surfaces would render pale controls on a black frame in light mode and become unreadable.
 
@@ -1099,6 +1099,10 @@ Chrome that sits **on top of a video frame** is the one place that deliberately 
 - **Transient gesture feedback** (what a touch gesture just did, with no button of its own) is the one place a half-disc appears: `w-1/2` filled `bg-white/15`, rounded on its inner edge only (`rounded-r-full` on the left half, `rounded-l-full` on the right). It carries an icon plus a label, animates in with `animate-fade-in-scale`, and clears itself. It is `aria-hidden` — the same operation must also be reachable as a real button or shortcut.
 - **Transient state pills** (a mode that is on right now, e.g. a held speed boost) use `bg-black/70 rounded-2xl` and sit clear of the control bar, at `top-4` centred.
 - **Player settings** are one panel (`bg-black/85`) rendered inside the frame, in two shapes: a full-width sheet rising from the bottom edge on touch, and a `w-64` `rounded-2xl` popover parked above the button that opened it on mouse. The popover skips the dimming backdrop — a mouse user sees the whole frame at once and the panel covers very little of it. Settings do **not** go in the bar as bare native controls: a `<select>` there is sized by its widest option and drawn by the OS, so it matches nothing else in the row.
+
+- **This section is about chrome over a frame, not about video.** The full-screen image gallery and the archive's image viewer draw the same kind of bar over the same kind of black frame, so the same rules bind them: no bare native controls (both carried a `<select>` for the slideshow interval), the two panel shapes above for anything a reader picks from, and the withdrawal rule below.
+- **Chrome over a frame withdraws when the frame is left alone** — 2 seconds — and returns on any sign of a reader: pointer movement, a press, a key, or focus arriving. On a coarse pointer there is no movement to read, so a tap toggles it instead. Withdrawal is a property of the chrome, not of what the frame is doing: gating it on playback leaves a bar over a still image forever, and restoring it only on a click leaves a mouse user with no way to see what is underneath.
+- Withdrawn chrome is `inert`, per §Layering. `opacity: 0` alone leaves it in the tab order, so a keyboard reader lands on controls nobody can see.
 
 Do not "fix" these to semantic surface tokens. Everything **outside** the video frame (metadata panels, action bars, mini-player placeholder) uses the normal themed tokens.
 

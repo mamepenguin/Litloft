@@ -1,7 +1,6 @@
 import { isTextPreviewable } from "@/components/TextPreview";
 import type { ArchiveEntry, ViewMode } from "@/types";
 
-export const INTERVAL_OPTIONS = [3, 5, 10] as const;
 export const MAX_TEXT_AUTO_LOAD = 1024 * 1024; // 1MB
 
 export type ArchiveViewMode = "listing" | "image" | "text";
@@ -13,7 +12,7 @@ export function getDirname(path: string): string {
 
 export function getEntriesInDir(
   entries: ArchiveEntry[],
-  dirPath: string
+  dirPath: string,
 ): ArchiveEntry[] {
   return entries.filter((entry) => {
     if (dirPath === "") {
@@ -42,7 +41,7 @@ export function getEntriesInDir(
 
 export function inferDirectories(
   entries: ArchiveEntry[],
-  currentPath: string
+  currentPath: string,
 ): ArchiveEntry[] {
   // Some ZIPs don't have explicit directory entries.
   // Infer directories from file paths.
@@ -65,7 +64,7 @@ export function inferDirectories(
   const existingDirPaths = new Set(
     entries
       .filter((e) => e.is_dir)
-      .map((e) => (e.path.endsWith("/") ? e.path.slice(0, -1) : e.path))
+      .map((e) => (e.path.endsWith("/") ? e.path.slice(0, -1) : e.path)),
   );
 
   const inferred: ArchiveEntry[] = [];
@@ -109,7 +108,6 @@ export function defaultArchiveViewMode(entries: ArchiveEntry[]): ViewMode {
   // not tell the branch from its absence.
   return images.length * 2 > files.length ? "grid" : "list";
 }
-
 
 /**
  * Whether pressing this entry does anything.

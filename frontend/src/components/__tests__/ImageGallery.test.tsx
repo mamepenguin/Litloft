@@ -1,5 +1,5 @@
 import { describe, expect, it, vi, beforeEach, afterEach } from "vitest";
-import { render, screen, fireEvent, act } from "@testing-library/react";
+import { render, screen, fireEvent, act, within } from "@testing-library/react";
 import type { ReactNode } from "react";
 import { ImageGallery } from "../ImageGallery";
 import { ShortcutsProvider } from "../ShortcutsProvider";
@@ -65,6 +65,20 @@ function setupMock(data: FileItem[] = images) {
   });
 }
 
+/**
+ * Put a reader back in front of the frame.
+ *
+ * `runAllTimersAsync` settles the image load, and it also runs the
+ * chrome's 2s idle timer, so anything that asserts on the chrome has to
+ * say that someone is still there. A pointer move is what a real one
+ * would produce.
+ */
+function wakeChrome() {
+  act(() => {
+    document.dispatchEvent(new Event("pointermove", { bubbles: true }));
+  });
+}
+
 describe("ImageGallery", () => {
   beforeEach(() => {
     vi.useFakeTimers();
@@ -79,7 +93,7 @@ describe("ImageGallery", () => {
 
   it("renders nothing when open is false", () => {
     const { container } = render(
-      <ImageGallery {...defaultProps} open={false} />
+      <ImageGallery {...defaultProps} open={false} />,
     );
     expect(container.firstChild).toBeNull();
   });
@@ -116,6 +130,7 @@ describe("ImageGallery", () => {
       await vi.runAllTimersAsync();
     });
 
+    wakeChrome();
     const nextBtn = screen.getByLabelText("Next image");
     fireEvent.click(nextBtn);
 
@@ -129,6 +144,7 @@ describe("ImageGallery", () => {
       await vi.runAllTimersAsync();
     });
 
+    wakeChrome();
     expect(screen.queryByLabelText("Previous image")).toBeNull();
     expect(screen.getByLabelText("Next image")).toBeInTheDocument();
   });
@@ -140,16 +156,24 @@ describe("ImageGallery", () => {
       await vi.runAllTimersAsync();
     });
 
+    wakeChrome();
     expect(screen.getByLabelText("Previous image")).toBeInTheDocument();
     expect(screen.queryByLabelText("Next image")).toBeNull();
   });
 
-  it("calls onClose on Escape key", async () => {
+  it("closes on Escape even after the chrome has withdrawn", async () => {
+    // What withdraws is the chrome, not the viewer. Escape has to reach
+    // the reader's way out whether or not the bar with the close button
+    // in it is on screen.
     renderWithShortcuts(<ImageGallery {...defaultProps} />);
 
     await act(async () => {
       await vi.runAllTimersAsync();
     });
+
+    expect(screen.getByText("Photo 1").closest("div")!).toHaveAttribute(
+      "inert",
+    );
 
     fireEvent.keyDown(document, { key: "Escape" });
     expect(defaultProps.onClose).toHaveBeenCalledOnce();
@@ -208,16 +232,93 @@ describe("ImageGallery", () => {
     expect(screen.queryByLabelText("Slideshow interval")).toBeNull();
   });
 
-  it("shows interval selector", async () => {
+  /** Answer the pointer queries the way a given device would. */
+  function stubPointer(mode: "fine" | "coarse") {
+    vi.stubGlobal("matchMedia", (query: string) => ({
+      matches: query.includes(mode),
+      media: query,
+      addEventListener: () => {},
+      removeEventListener: () => {},
+    }));
+  }
+
+  async function openIntervalPanel() {
+    render(<ImageGallery {...defaultProps} />);
+    await act(async () => {
+      await vi.runAllTimersAsync();
+    });
+    wakeChrome();
+    fireEvent.click(screen.getByLabelText("Slideshow interval"));
+    return screen.getByTestId("slideshow-interval-panel");
+  }
+
+  it("gives a mouse the popover and a finger the sheet", async () => {
+    // `DESIGN.md` §Over-video chrome names two shapes, not one that
+    // stretches. The panel is the video player's own shell, so this also
+    // pins that the viewers are using it rather than a lookalike.
+    stubPointer("fine");
+    expect(await openIntervalPanel()).toHaveAttribute(
+      "data-placement",
+      "popover",
+    );
+  });
+
+  it("gives a finger the sheet", async () => {
+    stubPointer("coarse");
+    expect(await openIntervalPanel()).toHaveAttribute(
+      "data-placement",
+      "sheet",
+    );
+  });
+
+  it("does not dim behind the popover", async () => {
+    // §Over-video chrome: a mouse user sees the whole frame at once and
+    // the panel covers very little of it, so there is nothing to dim.
+    stubPointer("fine");
+    await openIntervalPanel();
+    const backdrop = screen.getByTestId("slideshow-interval-backdrop");
+    expect(backdrop.className).not.toMatch(/bg-black\/\d/);
+  });
+
+  it("puts withdrawn chrome out of reach, not just out of sight", async () => {
+    // §Layering. An `opacity: 0` element keeps its place in the tab
+    // order, so a keyboard user lands on controls nobody can see.
+    render(<ImageGallery {...defaultProps} />);
+    await act(async () => {
+      await vi.runAllTimersAsync();
+    });
+
+    const bar = screen.getByText("Photo 1").closest("div")!;
+    expect(bar).toHaveAttribute("inert");
+    expect(bar).toHaveAttribute("aria-hidden", "true");
+
+    wakeChrome();
+    expect(bar).not.toHaveAttribute("inert");
+  });
+
+  it("offers the interval as over-frame chrome rather than a native select", async () => {
+    // `DESIGN.md` §Over-video chrome: a bare `<select>` in a bar over
+    // media is sized by its widest option and drawn by the OS, so it
+    // matches nothing else in the row.
     render(<ImageGallery {...defaultProps} />);
 
     await act(async () => {
       await vi.runAllTimersAsync();
     });
+    wakeChrome();
 
-    const select = screen.getByLabelText("Slideshow interval");
-    expect(select).toBeInTheDocument();
-    expect(select).toHaveValue("5");
+    expect(document.querySelectorAll("select")).toHaveLength(0);
+
+    const trigger = screen.getByLabelText("Slideshow interval");
+    expect(trigger).toHaveTextContent("5s");
+    fireEvent.click(trigger);
+
+    const panel = screen.getByTestId("slideshow-interval-panel");
+    expect(panel).toBeInTheDocument();
+    const chosen = within(panel)
+      .getAllByRole("radio")
+      .find((r) => r.getAttribute("aria-checked") === "true");
+    expect(chosen).toHaveTextContent("5s");
   });
 });
 
@@ -228,9 +329,9 @@ describe("ImageGallery", () => {
 describe("ImageGallery backdrop", () => {
   function outsideTheViewer() {
     const viewer = document.querySelector('[role="dialog"]');
-    return [...document.querySelectorAll("button, a[href], input, select")].filter(
-      (el) => !viewer?.contains(el) && !el.closest("[inert]"),
-    );
+    return [
+      ...document.querySelectorAll("button, a[href], input, select"),
+    ].filter((el) => !viewer?.contains(el) && !el.closest("[inert]"));
   }
 
   it("puts the page out of reach and locks the scroll while open", () => {

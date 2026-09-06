@@ -6,6 +6,10 @@ import { useTranslations } from "next-intl";
 import { getArchiveEntryUrl } from "@/lib/api";
 import { useShortcuts } from "@/hooks/useShortcuts";
 import type { ArchiveEntry } from "@/types";
+import {
+  useAutoHidingChrome,
+  type AutoHidingChrome,
+} from "@/hooks/useAutoHidingChrome";
 import type { ArchiveViewMode } from "./archiveUtils";
 
 function readLocalBool(key: string, def: boolean): boolean {
@@ -37,8 +41,10 @@ interface ImageViewerResult {
   slideshowInterval: number;
   setSlideshowInterval: React.Dispatch<React.SetStateAction<number>>;
   showControls: boolean;
-  setShowControls: React.Dispatch<React.SetStateAction<boolean>>;
+  /** Bring the chrome back — used when the viewer changes what it shows. */
+  showChrome: () => void;
   handleImageAreaClick: () => void;
+  chromeProps: AutoHidingChrome["chromeProps"];
   splitMode: boolean;
   setSplitMode: React.Dispatch<React.SetStateAction<boolean>>;
   readingDirection: "ltr" | "rtl";
@@ -54,20 +60,22 @@ export function useImageViewer(
   viewMode: ArchiveViewMode,
   imageEntries: ArchiveEntry[],
   fileId: string,
-  onClose: () => void
+  onClose: () => void,
 ): ImageViewerResult {
   const [imageIndex, setImageIndex] = useState(0);
   const [imageLoading, setImageLoading] = useState(false);
   const [playing, setPlaying] = useState(false);
   const [slideshowInterval, setSlideshowInterval] = useState(5);
-  const [showControls, setShowControls] = useState(true);
-  const hideTimerRef = useRef<number | null>(null);
+  // Chrome that withdraws when the frame is left alone, on the same
+  // terms as the image gallery's — the two used to keep separate copies
+  // of the same timer, both gated on slideshow playback.
+  const chrome = useAutoHidingChrome(viewMode === "image");
 
   const [splitMode, setSplitMode] = useState(() =>
-    readLocalBool("image-viewer:split-mode", false)
+    readLocalBool("image-viewer:split-mode", false),
   );
   const [readingDirection, setReadingDirection] = useState<"ltr" | "rtl">(() =>
-    readLocalString("image-viewer:reading-direction", "ltr")
+    readLocalString("image-viewer:reading-direction", "ltr"),
   );
   const [isCurrentLandscape, setIsCurrentLandscape] = useState(false);
   const [showRightHalf, setShowRightHalf] = useState(false);
@@ -123,14 +131,20 @@ export function useImageViewer(
       setShowRightHalf(splitMode && readingDirection === "ltr");
       setImageIndex((prev) => prev - 1);
     }
-  }, [splitMode, isCurrentLandscape, readingDirection, showRightHalf, imageIndex]);
+  }, [
+    splitMode,
+    isCurrentLandscape,
+    readingDirection,
+    showRightHalf,
+    imageIndex,
+  ]);
 
   // Wrap onClose to also reset image viewer state
   const closeViewer = useCallback(() => {
     setPlaying(false);
-    setShowControls(true);
+    chrome.show();
     onClose();
-  }, [onClose]);
+  }, [chrome, onClose]);
 
   // Set loading state when image changes
   useEffect(() => {
@@ -161,9 +175,7 @@ export function useImageViewer(
     if (!playing || viewMode !== "image" || imageEntries.length <= 1) return;
 
     const timer = window.setTimeout(() => {
-      setImageIndex((prev) =>
-        prev >= imageEntries.length - 1 ? 0 : prev + 1
-      );
+      setImageIndex((prev) => (prev >= imageEntries.length - 1 ? 0 : prev + 1));
     }, slideshowInterval * 1000);
 
     return () => window.clearTimeout(timer);
@@ -206,39 +218,8 @@ export function useImageViewer(
         },
       },
     ],
-    viewMode === "image"
+    viewMode === "image",
   );
-
-  // Auto-hide controls during slideshow
-  useEffect(() => {
-    if (hideTimerRef.current) {
-      window.clearTimeout(hideTimerRef.current);
-      hideTimerRef.current = null;
-    }
-    if (playing && viewMode === "image") {
-      hideTimerRef.current = window.setTimeout(
-        () => setShowControls(false),
-        3000
-      );
-    }
-    return () => {
-      if (hideTimerRef.current) window.clearTimeout(hideTimerRef.current);
-    };
-  }, [playing, imageIndex, viewMode]);
-
-  const handleImageAreaClick = useCallback(() => {
-    setShowControls((prev) => !prev);
-    if (hideTimerRef.current) {
-      window.clearTimeout(hideTimerRef.current);
-      hideTimerRef.current = null;
-    }
-    if (playing) {
-      hideTimerRef.current = window.setTimeout(
-        () => setShowControls(false),
-        3000
-      );
-    }
-  }, [playing]);
 
   return {
     imageIndex,
@@ -249,9 +230,10 @@ export function useImageViewer(
     setPlaying,
     slideshowInterval,
     setSlideshowInterval,
-    showControls,
-    setShowControls,
-    handleImageAreaClick,
+    showControls: chrome.visible,
+    showChrome: chrome.show,
+    handleImageAreaClick: chrome.toggle,
+    chromeProps: chrome.chromeProps,
     splitMode,
     setSplitMode,
     readingDirection,

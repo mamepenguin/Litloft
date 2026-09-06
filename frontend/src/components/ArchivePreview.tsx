@@ -5,11 +5,17 @@ import { useRouter, useSearchParams } from "next/navigation";
 
 import { useTranslations } from "next-intl";
 import { getArchiveContents } from "@/lib/api";
-import { ArchiveContentsStore, type ArchiveController } from "@/lib/archiveController";
+import {
+  ArchiveContentsStore,
+  type ArchiveController,
+} from "@/lib/archiveController";
 import { isTextPreviewable } from "./TextPreview";
 import type { ArchiveContents, ArchiveEntry } from "@/types";
 import type { ArchiveViewMode } from "./archive/archiveUtils";
-import { defaultArchiveViewMode, MAX_TEXT_AUTO_LOAD } from "./archive/archiveUtils";
+import {
+  defaultArchiveViewMode,
+  MAX_TEXT_AUTO_LOAD,
+} from "./archive/archiveUtils";
 import { canOpenArchiveEntry, getDirname } from "./archive/archiveUtils";
 import { useArchiveNavigation } from "./archive/useArchiveNavigation";
 import { useArchiveSort } from "./archive/useArchiveSort";
@@ -43,7 +49,15 @@ export function ArchivePreview({
   const [viewerMode, setViewerMode] = useState<ArchiveViewMode>("listing");
   const [viewingEntry, setViewingEntry] = useState<ArchiveEntry | null>(null);
 
-  const { sort, order, typeFilter, setSort, setOrder, setTypeFilter, applySortFilter } = useArchiveSort();
+  const {
+    sort,
+    order,
+    typeFilter,
+    setSort,
+    setOrder,
+    setTypeFilter,
+    applySortFilter,
+  } = useArchiveSort();
 
   useEffect(() => {
     let cancelled = false;
@@ -65,7 +79,7 @@ export function ArchivePreview({
       .catch((err) => {
         if (!cancelled) {
           setError(
-            err instanceof Error ? err.message : "Failed to load archive"
+            err instanceof Error ? err.message : "Failed to load archive",
           );
           setLoading(false);
         }
@@ -92,7 +106,7 @@ export function ArchivePreview({
   // question the derivation answers is what this level holds.
   const { viewMode, setViewMode } = useArchiveViewMode(
     fileId,
-    defaultArchiveViewMode(currentEntries)
+    defaultArchiveViewMode(currentEntries),
   );
 
   const closeViewer = useCallback(() => {
@@ -104,7 +118,7 @@ export function ArchivePreview({
     viewerMode,
     imageEntries,
     fileId,
-    closeViewer
+    closeViewer,
   );
 
   const textViewer = useTextViewer(viewerMode, viewingEntry, fileId);
@@ -115,7 +129,7 @@ export function ArchivePreview({
     setViewerMode("listing");
     setViewingEntry(null);
     imageViewer.setPlaying(false);
-    imageViewer.setShowControls(true);
+    imageViewer.showChrome();
     textViewer.setTextContent(null);
     textViewer.setTextError(null);
     textViewer.setTextConfirmed(false);
@@ -125,7 +139,7 @@ export function ArchivePreview({
     setViewerMode("listing");
     setViewingEntry(null);
     imageViewer.setPlaying(false);
-    imageViewer.setShowControls(true);
+    imageViewer.showChrome();
   }, [currentPath]);
 
   const handleFileClick = useCallback(
@@ -135,7 +149,7 @@ export function ArchivePreview({
         imageViewer.setImageIndex(idx >= 0 ? idx : 0);
         setViewingEntry(entry);
         setViewerMode("image");
-        imageViewer.setShowControls(true);
+        imageViewer.showChrome();
         imageViewer.setPlaying(false);
       } else if (isTextPreviewable(entry.mime_type, entry.filename)) {
         setViewingEntry(entry);
@@ -145,7 +159,7 @@ export function ArchivePreview({
         textViewer.setTextConfirmed(entry.file_size <= MAX_TEXT_AUTO_LOAD);
       }
     },
-    [imageEntries, imageViewer, textViewer]
+    [imageEntries, imageViewer, textViewer],
   );
 
   // The same predicate the inspector's index uses — see
@@ -290,6 +304,7 @@ export function ArchivePreview({
         slideshowInterval={imageViewer.slideshowInterval}
         setSlideshowInterval={imageViewer.setSlideshowInterval}
         showControls={imageViewer.showControls}
+        chromeProps={imageViewer.chromeProps}
         handleImageAreaClick={imageViewer.handleImageAreaClick}
         closeViewer={closeViewerFull}
         splitMode={imageViewer.splitMode}
