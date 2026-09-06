@@ -31,17 +31,6 @@ interface ImageGalleryProps {
   onClose: (currentFileId: string | null) => void;
 }
 
-function readLocalBool(key: string, def: boolean): boolean {
-  try {
-    const val = localStorage.getItem(key);
-    if (val === "true") return true;
-    if (val === "false") return false;
-    return def;
-  } catch {
-    return def;
-  }
-}
-
 function readLocalString<T extends string>(key: string, def: T): T {
   try {
     return (localStorage.getItem(key) as T | null) ?? def;
