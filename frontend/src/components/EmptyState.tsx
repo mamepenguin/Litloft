@@ -4,7 +4,9 @@ import { Clock, File, FilePlus, Search, RefreshCw, Star, Tag, ThumbsUp, Trash2 }
 import type { LucideIcon } from "lucide-react";
 import type { ReactNode } from "react";
 import { useTranslations } from "next-intl";
-import { Button } from "./Button";
+import Link from "next/link";
+
+import { Button, buttonClass } from "./Button";
 
 /**
  * Exported so a test can draw every one of them.
@@ -86,10 +88,32 @@ const variantConfig: Record<
   },
 };
 
-export interface EmptyStateAction {
-  label: string;
-  onClick: () => void;
-}
+/**
+ * Something to do, or somewhere to go.
+ *
+ * The two are not interchangeable: a destination rendered as a `<button>`
+ * cannot be middle-clicked, copied, or opened in a new tab, and the one
+ * call to action this component has that *is* a destination — widening a
+ * tag filter to the whole drive — was previously drawn outside the
+ * component with its own hand-written accent recipe, sitting under a
+ * `-mt-8` that pulled it up into the space the actions row now occupies.
+ */
+export type EmptyStateAction =
+  | { label: string; onClick: () => void; href?: never; newTab?: never; download?: never }
+  /**
+   * A destination. `newTab` and `download` are what separate a route from
+   * a file: a route belongs to the router and gets `next/link`, and the
+   * file endpoints must not, because `<Link>` prefetches an internal href
+   * on sight — which for `/api/files/{id}/stream` means fetching the file
+   * body when the empty state scrolls into view.
+   */
+  | {
+      label: string;
+      href: string;
+      onClick?: never;
+      newTab?: boolean;
+      download?: boolean;
+    };
 
 interface BaseProps {
   /**
@@ -135,6 +159,35 @@ interface DirectProps extends BaseProps {
 
 export type EmptyStateProps = VariantProps | DirectProps;
 
+function renderAction(action: EmptyStateAction, variant: "primary" | "secondary") {
+  if (action.href === undefined) {
+    return (
+      <Button key={action.label} variant={variant} onClick={action.onClick}>
+        {action.label}
+      </Button>
+    );
+  }
+  const className = buttonClass({ variant });
+  // A file, not a route: a bare anchor, so nothing prefetches it, and
+  // `rel` because `target="_blank"` without it hands the opened page a
+  // `window.opener`.
+  return action.newTab || action.download ? (
+    <a
+      key={action.label}
+      href={action.href}
+      className={className}
+      {...(action.newTab ? { target: "_blank", rel: "noopener noreferrer" } : {})}
+      {...(action.download ? { download: true } : {})}
+    >
+      {action.label}
+    </a>
+  ) : (
+    <Link key={action.label} href={action.href} className={className}>
+      {action.label}
+    </Link>
+  );
+}
+
 export function EmptyState(props: EmptyStateProps) {
   const t = useTranslations("empty");
   const { primaryAction, secondaryActions } = props;
@@ -168,16 +221,8 @@ export function EmptyState(props: EmptyStateProps) {
       )}
       {(primaryAction || (secondaryActions && secondaryActions.length > 0)) && (
         <div className="mt-4 flex flex-wrap items-center justify-center gap-2">
-          {primaryAction && (
-            <Button variant="primary" onClick={primaryAction.onClick}>
-              {primaryAction.label}
-            </Button>
-          )}
-          {secondaryActions?.map((action) => (
-            <Button key={action.label} variant="secondary" onClick={action.onClick}>
-              {action.label}
-            </Button>
-          ))}
+          {primaryAction && renderAction(primaryAction, "primary")}
+          {secondaryActions?.map((action) => renderAction(action, "secondary"))}
         </div>
       )}
     </div>

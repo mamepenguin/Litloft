@@ -15,6 +15,7 @@ import { SelectionBar } from "@/components/SelectionBar";
 import { SmartFolderSaveButton } from "@/components/SmartFolderSaveButton";
 import { AddonSlot } from "@/components/AddonSlot";
 import { EmptyState } from "@/components/EmptyState";
+import { useFilePicker } from "@/components/useFilePicker";
 import { useClipboard } from "@/components/ClipboardProvider";
 import { useSelection } from "@/hooks/useSelection";
 import { useDragAndDrop } from "@/hooks/useDragAndDrop";
@@ -323,6 +324,7 @@ export function FolderBrowser({
   }, [reset]);
 
   const tSearch = useTranslations("search");
+  const tFilter = useTranslations("filter");
   const tCommon = useTranslations("common");
   const { pinnedPaths, handleTogglePin } = usePinnedFolders(driveName);
   const selection = useSelection();
@@ -336,6 +338,9 @@ export function FolderBrowser({
   // target folder; we pass undefined to FolderToolbar and disable the
   // shortcut below so neither path can fire.
   const { createFile } = useCreateFile(driveName, folderPath ?? "");
+  // The empty folder's two doors are the add menu's two doors. Same picker,
+  // so the two cannot disagree about what an upload is.
+  const filePicker = useFilePicker();
   const [pasting, setPasting] = useState(false);
 
   const handlePaste = useCallback(async () => {
@@ -717,14 +722,37 @@ export function FolderBrowser({
           searchMerge). The search-modes slot now contributes header
           chips (e.g. Find handoff) only — no full-width section. */}
       {isSearch && !loading && files.length === 0 && (
-        <EmptyState variant="no-results" />
+        <EmptyState
+          variant="no-results"
+          // No primary: the way out of a search that found nothing is a
+          // different search, and this page cannot write it for you. A
+          // filter it *can* undo is offered, and only while one is on —
+          // an action that does nothing is worse than none, because the
+          // reader spends a click finding that out.
+          secondaryActions={
+            typeFilter || trustFilter
+              ? [
+                  {
+                    label: tFilter("clear"),
+                    onClick: () => {
+                      setTypeFilter(null);
+                      setTrustFilter(null);
+                    },
+                  },
+                ]
+              : undefined
+          }
+        />
       )}
 
+      {filePicker.input}
       <FolderContent
         files={files}
         folders={folders}
         driveName={driveName}
         widenTagScope={widenTagScope}
+        onAddFiles={isFolderAnchored ? filePicker.open : undefined}
+        onCreateFile={isFolderAnchored ? createFile : undefined}
         viewMode={viewMode}
         loading={loading}
         loadingMore={loadingMore}

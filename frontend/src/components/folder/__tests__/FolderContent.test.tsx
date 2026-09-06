@@ -1,5 +1,5 @@
 import { describe, it, expect, vi } from "vitest";
-import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { FolderContent } from "../FolderContent";
 import type { FileItem, Folder } from "@/types";
 import { createRef } from "react";
@@ -20,9 +20,38 @@ vi.mock("@/components/FileList", () => ({
   ),
 }));
 
+/**
+ * The real component is exercised in its own file. This stub keeps the
+ * variant visible as a testid — and now draws the actions too, because
+ * the calls to action moved *inside* it: a stub that swallowed them would
+ * make every assertion about them pass whether or not this file passes any.
+ */
 vi.mock("@/components/EmptyState", () => ({
-  EmptyState: ({ variant }: { variant: string }) => (
-    <div data-testid={`empty-${variant}`}>Empty</div>
+  EmptyState: ({
+    variant,
+    title,
+    primaryAction,
+    secondaryActions,
+  }: {
+    variant?: string;
+    title?: React.ReactNode;
+    primaryAction?: { label: string; onClick?: () => void; href?: string };
+    secondaryActions?: readonly { label: string; onClick?: () => void; href?: string }[];
+  }) => (
+    <div data-testid={`empty-${variant ?? "custom"}`}>
+      {title}
+      {[primaryAction, ...(secondaryActions ?? [])].map((action) =>
+        !action ? null : action.href !== undefined ? (
+          <a key={action.label} href={action.href}>
+            {action.label}
+          </a>
+        ) : (
+          <button key={action.label} type="button" onClick={action.onClick}>
+            {action.label}
+          </button>
+        ),
+      )}
+    </div>
   ),
 }));
 
@@ -143,6 +172,34 @@ describe("FolderContent", () => {
   });
 
   // spec 2026-08-21-folder-scoped-tag-filter §8 / §8.1
+  /**
+   * The empty folder's two doors, asserted where they are drawn.
+   *
+   * `FolderBrowser`'s own test presses them, but through a stand-in for
+   * this component — so it holds the wiring and not the rendering. Removing
+   * both actions here left that test green.
+   */
+  it("offers files and a note when the folder is empty", () => {
+    render(
+      <FolderContent
+        {...defaultProps}
+        files={[]}
+        folders={[]}
+        onAddFiles={() => undefined}
+        onCreateFile={() => undefined}
+      />,
+    );
+    const empty = screen.getByTestId("empty-no-files");
+    expect(within(empty).getByRole("button", { name: "Add files" })).toBeInTheDocument();
+    expect(within(empty).getByRole("button", { name: "New note" })).toBeInTheDocument();
+  });
+
+  it("offers neither where there is no folder to put them in", () => {
+    render(<FolderContent {...defaultProps} files={[]} folders={[]} />);
+    const empty = screen.getByTestId("empty-no-files");
+    expect(within(empty).queryByRole("button")).toBeNull();
+  });
+
   it("shows a tag-specific empty state with a way to widen to the drive", () => {
     render(
       <FolderContent

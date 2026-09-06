@@ -37,8 +37,29 @@ vi.mock("@/components/TreeToggle", () => ({
 vi.mock("@/components/SelectionBar", () => ({
   SelectionBar: () => null,
 }));
+/**
+ * Drawn, not swallowed: the filter's empty state and the drive-root one are
+ * both this component now, and their call to action is the thing under
+ * test. A stub returning a bare `<div>` made every assertion about them
+ * pass whether or not anything was wired.
+ */
 vi.mock("@/components/EmptyState", () => ({
-  EmptyState: () => <div data-testid="empty-state" />,
+  EmptyState: ({
+    title,
+    secondaryActions,
+  }: {
+    title?: React.ReactNode;
+    secondaryActions?: readonly { label: string; onClick?: () => void }[];
+  }) => (
+    <div data-testid="empty-state">
+      {title}
+      {secondaryActions?.map((action) => (
+        <button key={action.label} type="button" onClick={action.onClick}>
+          {action.label}
+        </button>
+      ))}
+    </div>
+  ),
 }));
 
 // Capture how many files reach FileGrid.

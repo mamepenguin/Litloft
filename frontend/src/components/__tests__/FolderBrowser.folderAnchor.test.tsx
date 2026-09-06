@@ -22,7 +22,22 @@ import { FolderBrowser } from "../FolderBrowser";
 // ---- heavy children / infrastructure ----------------------------------------
 
 vi.mock("@/components/folder/FolderContent", () => ({
-  FolderContent: () => <div data-testid="folder-content" />,
+  // Draws the two doors the browser hands it and nothing else. The point
+  // of the tests at the bottom of this file is *which* of them arrive and
+  // what happens when one is pressed, so a stand-in that swallowed them
+  // would leave both questions unasked.
+  FolderContent: ({
+    onAddFiles,
+    onCreateFile,
+  }: {
+    onAddFiles?: () => void;
+    onCreateFile?: () => void;
+  }) => (
+    <div data-testid="folder-content">
+      {onAddFiles && <button onClick={() => onAddFiles()}>Add files</button>}
+      {onCreateFile && <button onClick={() => onCreateFile()}>Empty-state new note</button>}
+    </div>
+  ),
 }));
 vi.mock("@/components/Breadcrumb", () => ({ Breadcrumb: () => <nav /> }));
 vi.mock("@/components/TreeToggle", () => ({ TreeToggle: () => null }));
@@ -308,5 +323,57 @@ describe("FolderBrowser — what the toolbar is told about emptiness", () => {
     listing.folders = [{ path: "a" }, { path: "b" }];
     render(<FolderBrowser driveName="main" folderPath="parent" />);
     expect(sortTrigger()).toHaveLength(1);
+  });
+});
+
+/**
+ * The empty folder's own doors, and the picker behind one of them.
+ *
+ * `FolderBrowser` owns the hidden `<input>` and `FolderContent` owns the
+ * button several components away, so "the prop was passed" is not the
+ * question — the question is whether pressing it reaches the file chooser.
+ * The header of this file makes the same argument about creation being
+ * gated twice.
+ */
+describe("FolderBrowser — the empty folder's own doors", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  const addFilesButton = () => screen.getByRole("button", { name: "Add files" });
+
+  it("opens the file chooser when the empty state asks for files", () => {
+    render(<FolderBrowser driveName="main" folderPath="recipes" />);
+
+    const input = document.querySelector<HTMLInputElement>('input[type="file"]');
+    expect(input).not.toBeNull();
+    const clicked = vi.fn();
+    input!.addEventListener("click", clicked);
+
+    fireEvent.click(addFilesButton());
+    expect(clicked).toHaveBeenCalledTimes(1);
+  });
+
+  it("offers both doors on an anchored folder", () => {
+    render(<FolderBrowser driveName="main" folderPath="recipes" />);
+    expect(addFilesButton()).toBeInTheDocument();
+    expect(
+      screen.getByRole("button", { name: "Empty-state new note" }),
+    ).toBeInTheDocument();
+  });
+
+  // The same gate the toolbar uses. A view with no concrete folder has
+  // nowhere to put a file, and offering the door anyway would upload into
+  // whatever the last folder happened to be.
+  it.each([
+    ["a special view", { driveName: "main", view: "favorites" as const }],
+    ["a search", { driveName: "main", searchQuery: "cake" }],
+    ["the drive root", { driveName: "main" }],
+  ])("offers neither in %s", (_case, props) => {
+    render(<FolderBrowser {...props} />);
+    expect(screen.queryByRole("button", { name: "Add files" })).toBeNull();
+    expect(
+      screen.queryByRole("button", { name: "Empty-state new note" }),
+    ).toBeNull();
   });
 });

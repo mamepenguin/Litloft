@@ -155,6 +155,49 @@ interface IconButtonProps extends Omit<CommonProps, "size"> {
 
 export type ButtonProps = LabelledButtonProps | IconButtonProps;
 
+/**
+ * The recipe, without the `<button>`.
+ *
+ * For the one case that is a destination rather than an action: a call to
+ * action that navigates has to be an `<a>`, or it loses the things a link
+ * is — a middle click, a copied address, the browser's own "open in new
+ * tab". `EmptyState` is that case. Nothing else should reach for this;
+ * a control that does something is a `Button`.
+ */
+export function buttonClass({
+  variant = "secondary",
+  size = "md",
+  className = "",
+}: {
+  variant?: ButtonVariant;
+  size?: ButtonSize;
+  className?: string;
+} = {}): string {
+  return [
+    BASE_CLASS,
+    // `enabled:hover:` is button-only, and this is not a button.
+    //
+    // CSS `:enabled` matches `button`, `input`, `select`, `textarea`,
+    // `optgroup`, `option` and `fieldset` — never an `<a>`. Wearing the
+    // recipe unaltered gave the three link call-to-actions no hover state
+    // at all, beside `Button`s that light up: identical to the eye, dead
+    // under the pointer. The `disabled:` half is likewise unreachable
+    // markup on an anchor, so it is dropped rather than carried.
+    //
+    // §6's guard was written against a *disabled button* repainting under
+    // the cursor. The condition it guards cannot arise here.
+    VARIANT_CLASS[variant].replaceAll("enabled:hover:", "hover:"),
+    SIZE_CLASS[size],
+    // A link is a row action too. `Button` gives its icon-only shape an
+    // overhang and its labelled shape the padding; an anchor gets neither
+    // unless it is asked, and these sit where a finger goes.
+    "pointer-coarse:min-h-11",
+    className,
+  ]
+    .filter(Boolean)
+    .join(" ");
+}
+
 export function Button(props: ButtonProps) {
   const {
     variant = "secondary",

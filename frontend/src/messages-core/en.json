@@ -130,7 +130,7 @@
     "renameFailed": "Failed to rename",
     "moveFailed": "Failed to move",
     "deleteFailed": "Failed to delete",
-    "noPreview": "Preview not available",
+    "noPreview": "This kind of file cannot be shown in a browser",
     "prevFile": "Previous file",
     "nextFile": "Next file",
     "edit": "Edit",
@@ -416,7 +416,9 @@
     "noTrashTitle": "Trash is empty",
     "noTrashDescription": "Deleted files will appear here.",
     "noTagMatchesTitle": "No matches in this folder",
-    "noTagMatchesDescription": "Nothing here carries this tag."
+    "noTagMatchesDescription": "Nothing here carries this tag.",
+    "addFilesAction": "Add files",
+    "createNoteAction": "New note"
   },
   "theme": {
     "system": "System",

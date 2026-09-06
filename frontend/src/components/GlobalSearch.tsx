@@ -5,6 +5,7 @@ import { createPortal } from "react-dom";
 import { useRouter } from "next/navigation";
 import { ArrowLeft, ArrowRight, Search, X } from "lucide-react";
 import { useShortcuts } from "@/hooks/useShortcuts";
+import { useShortcutsContext } from "@/components/ShortcutsProvider";
 import { OVERLAY_PRIORITY } from "@/lib/shortcuts";
 
 import { useTranslations } from "next-intl";
@@ -133,12 +134,27 @@ export function GlobalSearch() {
     }, 50);
   }, [drive]);
 
+  const { openCheatSheet } = useShortcutsContext();
+
   const closeSearch = useCallback(() => {
     setOpen(false);
     setQuery("");
     setMerged([]);
     setTotal(0);
   }, []);
+
+  /**
+   * Close this, then open that.
+   *
+   * Two overlays at once make Escape ambiguous — the provider ignores every
+   * other shortcut while the cheat sheet is up, so the modal underneath
+   * would still be there when it closes, and the reader would press Escape
+   * twice to leave something they opened once.
+   */
+  const openShortcuts = useCallback(() => {
+    closeSearch();
+    openCheatSheet();
+  }, [closeSearch, openCheatSheet]);
 
   // Both bindings open the same modal. ctrl+k is the switcher ergonomics
   // (one chord, reachable one-handed); ctrl+shift+f is kept so existing
@@ -556,6 +572,23 @@ export function GlobalSearch() {
                 resultsList(true)
               ) : null}
             </div>
+
+            {/* Outside the scroll area on purpose: 案 5 (Phase 4) makes
+                Cmd+K two-stage, with semantic hits arriving after the
+                name matches, and a row inside the list would slide down
+                the page every time they land. Two columns, the right one
+                empty, so that stage has somewhere to put its progress. */}
+            <div className="flex items-center justify-between border-t border-bg-border px-4 py-2">
+              <button
+                type="button"
+                onClick={openShortcuts}
+                className="inline-flex items-center gap-2 rounded-lg px-2 py-1 text-xs text-text-muted transition-colors hover:text-text-primary pointer-coarse:min-h-11"
+              >
+                <kbd className="rounded border border-bg-border px-1.5 py-0.5 font-sans text-[11px]">?</kbd>
+                {tsc("title")}
+              </button>
+              <span />
+            </div>
           </div>,
           document.body
         )}
@@ -606,6 +639,23 @@ export function GlobalSearch() {
             ) : hasQuery ? (
               resultsList(false)
             ) : null}
+            </div>
+
+            {/* Outside the scroll area on purpose: 案 5 (Phase 4) makes
+                Cmd+K two-stage, with semantic hits arriving after the
+                name matches, and a row inside the list would slide down
+                the page every time they land. Two columns, the right one
+                empty, so that stage has somewhere to put its progress. */}
+            <div className="flex items-center justify-between border-t border-bg-border px-4 py-2">
+              <button
+                type="button"
+                onClick={openShortcuts}
+                className="inline-flex items-center gap-2 rounded-lg px-2 py-1 text-xs text-text-muted transition-colors hover:text-text-primary pointer-coarse:min-h-11"
+              >
+                <kbd className="rounded border border-bg-border px-1.5 py-0.5 font-sans text-[11px]">?</kbd>
+                {tsc("title")}
+              </button>
+              <span />
             </div>
           </div>,
           document.body

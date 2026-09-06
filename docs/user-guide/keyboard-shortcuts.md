@@ -220,3 +220,9 @@ Pages register shortcuts via the `useShortcuts()` hook
 If a key chord is not listed here, press `?` on the page in question. The cheat
 sheet is generated from the active hook registrations, so it always reflects
 what is actually wired.
+
+The search modal (`Cmd/Ctrl+K`) carries the same door along its bottom edge —
+**? Keyboard Shortcuts** — for readers who have not been told about `?`.
+Pressing it closes the search and opens the sheet, rather than stacking the
+two: while the sheet is up every other shortcut is ignored, so two layers
+would make Escape mean different things on consecutive presses.

@@ -1,10 +1,13 @@
 import { describe, it, expect, vi } from "vitest";
 import { render, screen } from "@testing-library/react";
+
+import { accentFills } from "@/__tests__/helpers/accentFills";
 import { FilePreview } from "../FilePreview";
 import type { FileItem } from "@/types";
 
 vi.mock("@/lib/api", () => ({
   getStreamUrl: (id: string) => `/api/files/${id}/stream`,
+  getDownloadUrl: (id: string) => `/api/files/${id}/stream?download=true`,
   getThumbnailUrl: (id: string) => `/api/files/${id}/thumbnail`,
 }));
 
@@ -180,7 +183,59 @@ describe("FilePreview", () => {
   it("renders fallback for unsupported files", () => {
     const file = makeFile({ file_type: "other", mime_type: "application/octet-stream", filename: "data.bin" });
     render(<FilePreview file={file} />);
-    expect(screen.getByText("data.bin")).toBeInTheDocument();
-    expect(screen.getByText("Preview not available")).toBeInTheDocument();
+    expect(screen.getByText(/data\.bin/)).toBeInTheDocument();
+    expect(
+      screen.getByRole("heading", { name: "This kind of file cannot be shown in a browser" }),
+    ).toBeInTheDocument();
+  });
+
+  /**
+   * The page said four times that it had nothing, and gave no way out. Both
+   * of these are `<a>`, not buttons: a download whose address cannot be
+   * copied or middle-clicked is a worse download, and
+   * `docs/user-guide/viewers-and-players.md` has described this action
+   * since before it existed.
+   */
+  it("offers the file itself when it cannot be previewed", () => {
+    const file = makeFile({ file_type: "other", mime_type: "application/octet-stream", filename: "data.bin" });
+    render(<FilePreview file={file} />);
+
+    const download = screen.getByRole("link", { name: "Download" });
+    expect(download).toHaveAttribute("href", expect.stringContaining("download=true"));
+    // The attribute, not just the label: without `target` the "new tab"
+    // link navigates in this one, and the label is then the only place the
+    // promise lives. `rel` because a `_blank` without it hands the opened
+    // page a `window.opener`.
+    expect(download).toHaveAttribute("download");
+    const open = screen.getByRole("link", { name: "Open in new tab" });
+    expect(open).toHaveAttribute("href", expect.stringContaining(`/files/${file.id}/stream`));
+    expect(open.getAttribute("href")).not.toContain("download=true");
+    expect(open).toHaveAttribute("target", "_blank");
+    expect(open).toHaveAttribute("rel", "noopener noreferrer");
+
+    // Neither goes through the router: `<Link>` prefetches an internal
+    // href when it comes into view, which for a file endpoint means
+    // fetching the body of a file nobody asked for yet.
+    expect(download.getAttribute("data-prefetch")).toBeNull();
+    for (const el of [download, open]) {
+      expect(el.tagName).toBe("A");
+    }
+  });
+
+  /**
+   * DESIGN.md §2.2 — one accent fill per screen, and this screen is the
+   * whole of the file's own area when nothing can be drawn in it.
+   *
+   * Through the shared detector, not a local re-implementation: the first
+   * draft of this test read `[class*='bg-accent']` and disagreed with
+   * `accentFills` about `hover:bg-accent` (a fill it must not count), about
+   * `bg-accent-cta` (one it must), and about `<svg>`, where `className` is
+   * an `SVGAnimatedString` rather than a string. That helper exists because
+   * two earlier hand-rolled versions were wrong in the expensive direction.
+   */
+  it("spends one accent fill on the download", () => {
+    const file = makeFile({ file_type: "other", mime_type: "application/octet-stream", filename: "data.bin" });
+    const { container } = render(<FilePreview file={file} />);
+    expect(accentFills(container).map((el) => el.textContent)).toEqual(["Download"]);
   });
 });

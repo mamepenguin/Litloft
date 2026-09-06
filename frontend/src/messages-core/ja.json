@@ -130,7 +130,7 @@
     "renameFailed": "名前の変更に失敗しました",
     "moveFailed": "移動に失敗しました",
     "deleteFailed": "削除に失敗しました",
-    "noPreview": "プレビューは対応していません",
+    "noPreview": "この形式はブラウザで表示できません",
     "prevFile": "前のファイル",
     "nextFile": "次のファイル",
     "edit": "編集",
@@ -416,7 +416,9 @@
     "noTrashTitle": "ゴミ箱は空です",
     "noTrashDescription": "削除されたファイルはここに表示されます。",
     "noTagMatchesTitle": "このフォルダには一致するファイルがありません",
-    "noTagMatchesDescription": "このタグが付いたファイルはここにありません。"
+    "noTagMatchesDescription": "このタグが付いたファイルはここにありません。",
+    "addFilesAction": "ファイルを追加",
+    "createNoteAction": "ノートを作成"
   },
   "theme": {
     "system": "システム",

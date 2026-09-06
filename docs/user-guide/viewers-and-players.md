@@ -144,7 +144,7 @@ Litloft renders Markdown with a curated set of extensions:
 
 ## Office (DOCX / XLSX / PPTX) preview
 
-Office files have **no in-app viewer**. The detail page shows the file type, name and size with a *Download* action.
+Office files have **no in-app viewer**. The detail page says so and offers the file itself: *Download*, and *Open in new tab* beside it. Both are links, so either can be middle-clicked or copied.
 
 What Litloft does read is a short text excerpt — up to 400 characters extracted server-side with `python-docx` / `openpyxl` / `python-pptx` — which is used as the file's thumbnail in listings and makes the document findable by search.
 

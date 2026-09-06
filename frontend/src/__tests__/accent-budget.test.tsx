@@ -4,6 +4,7 @@ import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { stripComments } from "./helpers/sourceScan";
 
+import { EmptyState } from "@/components/EmptyState";
 import { FolderToolbar } from "@/components/folder/FolderToolbar";
 import { RootFileListing } from "@/components/RootFileListing";
 import { SelectionBar } from "@/components/SelectionBar";
@@ -42,7 +43,6 @@ vi.mock("@/components/UploadZone", () => ({
 }));
 vi.mock("@/components/SortButton", () => ({ SortButton: () => <button>sort</button> }));
 vi.mock("@/components/TreeToggle", () => ({ TreeToggle: () => <button>tree</button> }));
-vi.mock("@/components/EmptyState", () => ({ EmptyState: () => <div /> }));
 vi.mock("@/components/FileGrid", () => ({ FileGrid: () => <div data-testid="grid" /> }));
 vi.mock("@/components/FileList", () => ({ FileList: () => <div data-testid="list" /> }));
 
@@ -155,6 +155,8 @@ const SCREENS: ReadonlyArray<{ screen: string; assertedIn: string }> = [
   { screen: "trash", assertedIn: "src/components/__tests__/TrashMissingHeader.test.tsx" },
   { screen: "missing", assertedIn: "src/components/__tests__/TrashMissingHeader.test.tsx" },
   { screen: "collection", assertedIn: "src/components/__tests__/CollectionDetail.test.tsx" },
+  { screen: "empty folder", assertedIn: "src/__tests__/accent-budget.test.tsx" },
+  { screen: "file detail — no preview", assertedIn: "src/components/__tests__/FilePreview.test.tsx" },
 ];
 
 /**
@@ -251,6 +253,8 @@ describe("accent budget", () => {
       "trash",
       "missing",
       "collection",
+      "empty folder",
+      "file detail — no preview",
     ]);
     const root = resolve(__dirname, "..", "..");
     for (const { screen: name, assertedIn } of SCREENS) {
@@ -301,6 +305,46 @@ describe("accent budget", () => {
       const { container } = render(
         <FolderToolbar {...folderProps} creatingFolder />,
       );
+      expect(fillLabels(container)).toEqual(["Add"]);
+    });
+
+    /**
+     * The empty folder, where the toolbar and the empty state are on
+     * screen together.
+     *
+     * This file used to stub `EmptyState` to an empty `<div>`, so the one
+     * screen where a second fill could appear was the one screen it could
+     * not see — and the first version of D4 put a filled "Add files" there,
+     * beside the toolbar's Add.
+     */
+    it("still spends only one when the folder is empty", () => {
+      const { container } = render(
+        <>
+          <FolderToolbar {...folderProps} />
+          <EmptyState
+            variant="no-files"
+            secondaryActions={[
+              { label: "Add files", onClick: () => undefined },
+              { label: "New note", onClick: () => undefined },
+            ]}
+          />
+        </>,
+      );
+      expect(screen.getByRole("button", { name: "Add files" })).toBeInTheDocument();
+      expect(fillLabels(container)).toEqual(["Add"]);
+    });
+
+    it("still spends only one when a tag filter matched nothing", () => {
+      const { container } = render(
+        <>
+          <FolderToolbar {...folderProps} />
+          <EmptyState
+            variant="no-tag-matches"
+            secondaryActions={[{ label: "Search the whole drive", href: "/drive/family?tag=x" }]}
+          />
+        </>,
+      );
+      expect(screen.getByRole("link", { name: "Search the whole drive" })).toBeInTheDocument();
       expect(fillLabels(container)).toEqual(["Add"]);
     });
 
