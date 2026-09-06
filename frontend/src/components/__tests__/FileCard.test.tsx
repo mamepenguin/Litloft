@@ -1,4 +1,4 @@
-import { describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { fireEvent, render, screen } from "@testing-library/react";
 
 vi.mock("next/link", () => ({
@@ -256,5 +256,45 @@ describe("FileCard", () => {
       expect(onSelect).toHaveBeenCalledWith("abc123def456");
       expect(onNavigate).not.toHaveBeenCalled();
     });
+  });
+});
+
+
+describe("FileCard's text preview for Office files", () => {
+  beforeEach(() => {
+    // `TextThumbnail` waits to be scrolled into view before it fetches.
+    vi.stubGlobal(
+      "IntersectionObserver",
+      class {
+        observe() {}
+        disconnect() {}
+        unobserve() {}
+      },
+    );
+  });
+  afterEach(() => vi.unstubAllGlobals());
+
+  const XLSX = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet";
+
+  const office = (mime: string): FileItem => ({
+    ...mockFile,
+    filename: "trade.xlsx",
+    title: "Trade",
+    file_type: "document",
+    mime_type: mime,
+    has_thumbnail: false,
+    duration: null,
+  });
+
+  it("draws the extracted-text card for an Office file with no thumbnail", () => {
+    // The three mimes moved into `lib/officeFiles.ts` so the detail page's
+    // excerpt and this card cannot drift. This is the card's half of that.
+    render(<FileCard file={office(XLSX)} />);
+    expect(document.querySelector('[data-testid="text-thumbnail"]')).not.toBeNull();
+  });
+
+  it("does not draw it for a format the backend cannot extract", () => {
+    render(<FileCard file={office("application/vnd.ms-excel")} />);
+    expect(document.querySelector('[data-testid="text-thumbnail"]')).toBeNull();
   });
 });

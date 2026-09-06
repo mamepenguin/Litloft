@@ -171,7 +171,8 @@
     "layoutBeside": "Move transcript beside the player",
     "layoutStack": "Move transcript below the player",
     "actionsFor": "Actions for {name}",
-    "pdfThumbnails": "Page thumbnails"
+    "pdfThumbnails": "Page thumbnails",
+    "officeExcerpt": "Extracted text, first lines"
   },
   "search": {
     "label": "Search",

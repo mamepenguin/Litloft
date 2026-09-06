@@ -294,6 +294,17 @@ export function getStreamUrl(id: string): string {
   return `${API_BASE}/files/${id}/stream`;
 }
 
+/**
+ * The server-side text extraction, for the formats that have one.
+ *
+ * Two components ask for it — the listing's thumbnail card and the detail
+ * page's excerpt — and a hand-spelled path in each is a second place for the
+ * route to drift from.
+ */
+export function getPreviewTextUrl(id: string): string {
+  return `${API_BASE}/files/${id}/preview-text`;
+}
+
 export function getDownloadUrl(id: string): string {
   return `${API_BASE}/files/${id}/stream?download=true`;
 }

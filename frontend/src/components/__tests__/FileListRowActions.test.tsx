@@ -174,3 +174,39 @@ describe("the list row's overflow button", () => {
     expect(actions()).toBeNull();
   });
 });
+
+
+describe("FileListRow's text preview for Office files", () => {
+  const XLSX = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet";
+  const office = (mime: string) => ({
+    ...file,
+    filename: "trade.xlsx",
+    title: "Trade",
+    file_type: "document" as const,
+    mime_type: mime,
+    has_thumbnail: false,
+  });
+
+  it("draws the extracted-text card for a format the backend can extract", () => {
+    // The list view's half of the `OFFICE_MIMES` consolidation. Deleting the
+    // Office branch here used to leave the whole suite green: only the grid's
+    // copy was covered.
+    render(<FileListRow file={office(XLSX)} onContextMenu={vi.fn()} />);
+    expect(document.querySelector('[data-testid="text-thumbnail"]')).not.toBeNull();
+  });
+
+  it("does not draw it for one it cannot", () => {
+    render(
+      <FileListRow file={office("application/vnd.ms-excel")} onContextMenu={vi.fn()} />,
+    );
+    expect(document.querySelector('[data-testid="text-thumbnail"]')).toBeNull();
+  });
+
+  it("still draws it for a plain text file", () => {
+    // The inline chain the consolidation replaced also admitted `text/*`.
+    render(
+      <FileListRow file={office("text/plain")} onContextMenu={vi.fn()} />,
+    );
+    expect(document.querySelector('[data-testid="text-thumbnail"]')).not.toBeNull();
+  });
+});

@@ -2,12 +2,10 @@
 
 import { useEffect, useRef, useState } from "react";
 import type { FileItem } from "@/types";
+import { getPreviewTextUrl } from "@/lib/api";
+import { OFFICE_MIMES } from "@/lib/officeFiles";
 
-const OFFICE_MIMES = new Set([
-  "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
-  "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-  "application/vnd.openxmlformats-officedocument.presentationml.presentation",
-]);
+
 
 /**
  * How much of the file to read for the preview.
@@ -78,7 +76,7 @@ export function TextThumbnail({ file }: { file: FileItem }) {
 
           const isOffice = OFFICE_MIMES.has(file.mime_type ?? "");
           const fetchPromise = isOffice
-            ? fetch(`/api/files/${file.id}/preview-text`)
+            ? fetch(getPreviewTextUrl(file.id))
             : fetch(`/api/files/${file.id}/stream`, {
                 headers: { Range: `bytes=0-${PREVIEW_WINDOW_BYTES - 1}` },
               });
@@ -107,7 +105,11 @@ export function TextThumbnail({ file }: { file: FileItem }) {
   }, [file.id, file.mime_type]);
 
   return (
-    <div ref={containerRef} className="h-full w-full relative overflow-hidden bg-bg-elevated">
+    <div
+      ref={containerRef}
+      data-testid="text-thumbnail"
+      className="h-full w-full relative overflow-hidden bg-bg-elevated"
+    >
       <div className="p-3 h-full">
         <p className="text-[13px] font-bold leading-tight text-text-primary select-none line-clamp-3">
           {file.title}

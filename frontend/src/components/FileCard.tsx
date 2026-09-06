@@ -2,6 +2,7 @@ import { useRelativeDate } from "@/hooks/useRelativeDate";
 import Link from "next/link";
 import { memo, type ReactNode } from "react";
 import type { FileItem, WatchProgress } from "@/types";
+import { OFFICE_MIMES } from "@/lib/officeFiles";
 import { formatDuration, formatFileSize } from "@/lib/format";
 import { getThumbnailUrl } from "@/lib/api";
 import { useFileNavigationOverride } from "@/lib/fileNavigationOverride";
@@ -79,12 +80,11 @@ function FileCardImpl({
   const fileNavigationOverride = useFileNavigationOverride();
   const isCutFile = clipboard.isCut(file.id);
   const hasThumbnail = file.has_thumbnail || file.file_type === "video" || file.file_type === "image";
-  const isTextPreviewable = !hasThumbnail && file.file_type === "document" && (
-    (file.mime_type?.startsWith('text/') ?? false) ||
-    file.mime_type === "application/vnd.openxmlformats-officedocument.wordprocessingml.document" ||
-    file.mime_type === "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" ||
-    file.mime_type === "application/vnd.openxmlformats-officedocument.presentationml.presentation"
-  );
+  const isTextPreviewable =
+    !hasThumbnail &&
+    file.file_type === "document" &&
+    ((file.mime_type?.startsWith("text/") ?? false) ||
+      OFFICE_MIMES.has(file.mime_type ?? ""));
 
   // ``selectable`` (multi-select mode) wins over the navigation
   // override because the user's intent is selection, not opening.

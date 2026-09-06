@@ -9,6 +9,7 @@ import { getThumbnailUrl } from "@/lib/api";
 import { useFileNavigationOverride } from "@/lib/fileNavigationOverride";
 import { formatDuration, formatFileSize } from "@/lib/format";
 import type { FileItem, FileItemWithMatch } from "@/types";
+import { OFFICE_MIMES } from "@/lib/officeFiles";
 
 import { MoreVertical } from "lucide-react";
 
@@ -74,12 +75,11 @@ function FileListRowImpl({
 
   const hasThumbnail =
     file.has_thumbnail || file.file_type === "video" || file.file_type === "image";
-  const isTextPreviewable = !hasThumbnail && file.file_type === "document" && (
-    (file.mime_type?.startsWith("text/") ?? false) ||
-    file.mime_type === "application/vnd.openxmlformats-officedocument.wordprocessingml.document" ||
-    file.mime_type === "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" ||
-    file.mime_type === "application/vnd.openxmlformats-officedocument.presentationml.presentation"
-  );
+  const isTextPreviewable =
+    !hasThumbnail &&
+    file.file_type === "document" &&
+    ((file.mime_type?.startsWith("text/") ?? false) ||
+      OFFICE_MIMES.has(file.mime_type ?? ""));
   const hasDuration =
     (file.file_type === "video" || file.file_type === "audio") && file.duration != null;
   const isCutFile = clipboard.isCut(file.id);

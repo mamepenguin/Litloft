@@ -13,6 +13,7 @@ import { MarkdownFileViewer } from "./MarkdownPreview";
 import { HtmlPreview } from "./HtmlPreview";
 import { ArchivePreview } from "./ArchivePreview";
 import { EmptyState } from "@/components/EmptyState";
+import { OfficeExcerpt } from "./OfficeExcerpt";
 import { FileTypeIcon } from "./FileTypeIcon";
 import { AddonSlot } from "./AddonSlot";
 import LoftPlayer from "./loft/LoftPlayer";
@@ -302,6 +303,15 @@ export function FilePreview({
         description={`${file.filename} · ${formatFileSize(file.file_size)}`}
         primaryAction={{ label: tc("download"), href: getDownloadUrl(file.id), download: true }}
         secondaryActions={[{ label: t("openInNewTab"), href: getStreamUrl(file.id), newTab: true }]}
+      />
+      {/* Under the panel, behind a rule. Office is not on the shell — p2's
+          handover says so with its reasons — so this is the legacy canvas,
+          and putting it there is not the same decision as moving the kind. */}
+      <OfficeExcerpt
+        fileId={file.id}
+        mimeType={file.mime_type}
+        fileSize={file.file_size}
+        missing={file.missing_since !== null}
       />
     </div>
   );
