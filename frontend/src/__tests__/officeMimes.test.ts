@@ -98,6 +98,7 @@ describe("the OOXML mime list", () => {
     expect(importers).toEqual([
       "frontend/src/components/FileCard.tsx",
       "frontend/src/components/FileListRow.tsx",
+      "frontend/src/components/JustifiedFileCell.tsx",
       "frontend/src/components/OfficeExcerpt.tsx",
       "frontend/src/components/TextThumbnail.tsx",
     ]);

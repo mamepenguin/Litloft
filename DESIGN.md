@@ -1516,12 +1516,17 @@ exactly the container width. No `ResizeObserver`, no container query —
 the same reasoning as the equal-card grid's `auto-fill`, one step up in
 generality.
 
-**The last line does not stretch.** A trailing `flex-grow: 1;
-flex-basis: 0` absorber takes the slack, so two leftover photographs
-stay their own size instead of blowing up to half a row each and reading
-as the two most important pictures in the folder. Its height is `0`
-rather than absent, so the row `gap` above it does not open an empty
-line.
+**The last line does not stretch** — but only because the absorber's
+grow factor *dominates*. Free space is shared in proportion to the grow
+factors, and every cell already carries `flex-grow: var(--jg-ratio)`,
+summed across the line. A trailing absorber at `flex-grow: 1` therefore
+loses the argument: measured on a 1469px grid, a three-cell last row
+still stretched 1.645x — more than any full row on the page — while the
+absorber took 129px of the 590 going spare. It is `flex-grow: 9999`,
+three orders above the largest total a line can present, which leaves a
+residue under a pixel (measured 150.1px against a 150px basis). Its
+height is `0` rather than absent, so the row `gap` above it does not
+open an empty line.
 
 **Row height: 120px under 40rem, 200px at or above it** — switched with
 a container query on the grid's own width, not a media query. The grid
@@ -1531,19 +1536,37 @@ mechanism depends on what is inside*).
 
 **Ratio stops: 0.5× and 3×.** A 10:1 panorama laid out at the row height
 would be wider than the row on its own; a 1:10 strip would be a
-hairline. Both are cropped by `object-fit: cover` instead. The stops
-also cap how far a thumbnail is enlarged: a 3:1 cell on a 200px row is
-600px wide, drawn from 320px of stored pixels — 1.87×, the worst case
-the layout can ask for. A row with no stored dimensions is drawn square,
-because a 16:9 cell among portraits is the widest thing on the line and
-so the one placement a reader would read as deliberate.
+hairline. Both are cropped by `object-fit: cover` instead. A row with no
+stored dimensions is drawn square, because a 16:9 cell among portraits
+is the widest thing on the line and so the one placement a reader would
+read as deliberate.
+
+**The stops do not bound the enlargement, because the line stretches on
+top of them.** Only width grows — the row height is fixed — so every
+cell on a line is widened by the same factor and `object-fit: cover`
+crops into the picture past the padding. Measured on the 995-photo
+folder: 1.007–1.271× per row at 1512px, and **1.010–2.075× at 375px**,
+where a line often holds one or two cells and there is more slack to
+share. The widest cell measured was 949px drawn from a 320px thumbnail —
+**2.97×**.
+
+So the paragraph below is true of an unstretched cell and only
+approximately true of a real one: the further a line has to stretch, the
+more of the picture goes. Bounding it properly means varying the row
+height per line rather than only the widths, which flexbox cannot do on
+its own — it needs the row heights computed in JS, the way a classic
+justified-gallery layout does. Not done; recorded here so the next
+reader does not take the crop for zero.
 
 **`object-fit: cover` puts the padding back, so no thumbnail is
 regenerated.** The stored JPEG is the picture centred in a 320×180
-frame; cropping that frame to a cell of the picture's own ratio removes
-exactly the bars, because the padding is symmetric. The cost is
-resolution, bounded by the 3× stop above. Generating unpadded image
-thumbnails stays available and is not needed for this.
+frame; cropping that frame to a cell of the picture's *own* ratio removes
+exactly the bars, because the padding is symmetric. A stretched cell is
+not at its own ratio, so it removes the bars and then some — see the
+measured factors above. Generating unpadded image thumbnails stays
+available and would raise the resolution ceiling, but it does not
+address the crop, which is a layout property rather than a thumbnail
+one.
 
 **The filename is a hover/focus band, and is always visible under
 `pointer: coarse`** — there is no hover to ask with on a touch screen,

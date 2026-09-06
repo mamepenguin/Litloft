@@ -3,10 +3,15 @@
 import { memo } from "react";
 import type { FileItem } from "@/types";
 import { getThumbnailUrl } from "@/lib/api";
+import { formatDuration } from "@/lib/format";
+import { OFFICE_MIMES } from "@/lib/officeFiles";
 import { justifiedRatio } from "@/lib/justifiedGrid";
 import { useFileCardLink } from "@/hooks/useFileCardLink";
 import { useClipboard } from "./ClipboardProvider";
 import { FavoriteButton } from "./FavoriteButton";
+import { FileTypeIcon } from "./FileTypeIcon";
+import { TextThumbnail } from "./TextThumbnail";
+import { VideoPreview } from "./VideoPreview";
 
 function JustifiedFileCellImpl({
   file,
@@ -54,6 +59,20 @@ function JustifiedFileCellImpl({
     sortQuery,
   });
   const ratio = justifiedRatio(file);
+  // The same three-way answer `FileCard` gives. A justified listing is
+  // at least 90% measurable images by construction, but the other 10%
+  // is real: a `notes.txt` and a `receipt.pdf` in a photo folder both
+  // have no thumbnail, and drawing the shared placeholder for each made
+  // them the same picture.
+  const hasThumbnail =
+    file.has_thumbnail ||
+    file.file_type === "video" ||
+    file.file_type === "image";
+  const isTextPreviewable =
+    !hasThumbnail &&
+    file.file_type === "document" &&
+    ((file.mime_type?.startsWith("text/") ?? false) ||
+      OFFICE_MIMES.has(file.mime_type ?? ""));
 
   return (
     <div
@@ -93,13 +112,35 @@ function JustifiedFileCellImpl({
         onTouchEnd={selectable ? undefined : onTouchEnd}
         onTouchMove={selectable ? undefined : onTouchMove}
       >
-        <img
-          src={getThumbnailUrl(file.id)}
-          alt={file.title}
-          className="h-full w-full object-cover"
-          loading="lazy"
-          draggable="false"
-        />
+        {hasThumbnail ? (
+          <img
+            src={getThumbnailUrl(file.id)}
+            // Empty: the name is already in the caption band below,
+            // inside this same link, so a filled `alt` makes the
+            // accessible name say it twice.
+            alt=""
+            className="h-full w-full object-cover"
+            loading="lazy"
+            draggable="false"
+          />
+        ) : isTextPreviewable ? (
+          <TextThumbnail file={file} />
+        ) : (
+          <div className="flex h-full w-full items-center justify-center">
+            <FileTypeIcon
+              fileType={file.file_type}
+              size={32}
+              className="text-text-muted"
+            />
+          </div>
+        )}
+        {file.file_type === "video" && <VideoPreview fileId={file.id} />}
+        {(file.file_type === "video" || file.file_type === "audio") &&
+          file.duration != null && (
+            <span className="absolute bottom-2 right-2 rounded-lg bg-black/70 px-1.5 py-0.5 text-xs font-medium text-white">
+              {formatDuration(file.duration)}
+            </span>
+          )}
         {/*
           The name is the only meta a justified cell carries, and it is
           hidden until asked for: the cells are unequal widths, so a
