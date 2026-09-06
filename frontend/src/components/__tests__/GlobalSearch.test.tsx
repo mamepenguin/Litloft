@@ -6,6 +6,7 @@ import { ShortcutsProvider } from "../ShortcutsProvider";
 import { useShortcuts } from "@/hooks/useShortcuts";
 import type { FileItem } from "@/types";
 import type { SemanticHit } from "@/lib/searchMerge";
+import { accentFills } from "@/__tests__/helpers/accentFills";
 
 function renderWithShortcuts(ui: ReactNode) {
   return render(<ShortcutsProvider>{ui}</ShortcutsProvider>);
@@ -845,6 +846,49 @@ describe("GlobalSearch", () => {
         "main",
         expect.objectContaining({ limit: expect.any(Number) }),
       );
+    });
+
+    /**
+     * The accent budget, for the screen `accent-budget.test.tsx` names but
+     * cannot set up: the modal needs a router, an API and fake timers
+     * before it draws a row at all.
+     *
+     * Zero is the assertion. The modal is a place to pick from, and every
+     * row in it is equally the thing you might want — a fill on one of
+     * them would be the screen claiming a primary action it does not have.
+     * The match badges tint with `bg-accent/15` and friends, which are
+     * transparencies rather than this fill, and the timestamp pills are
+     * `text-text-muted`, which is not a fill at all.
+     */
+    it("spends no accent fill, with badges and pills on screen", async () => {
+      mockGetDriveFiles.mockResolvedValue({
+        data: [makeFile({ id: "f1", title: "filename-hit" })],
+        meta: { total: 1, page: 1, limit: 8 },
+      });
+      mockFetchSemanticHits.mockResolvedValue([
+        makeHit({
+          file_id: "f2",
+          filename: "semantic-hit.mp4",
+          segments: [
+            { time_range: [10, 20], matches: [{ type: "transcript", score: 0.7 }] },
+            { time_range: [90, 99], matches: [{ type: "transcript", score: 0.6 }] },
+          ],
+        }),
+      ]);
+
+      render(<GlobalSearch />);
+      fireEvent.click(screen.getByLabelText("Search"));
+      await typeQuery("hit");
+      await waitFor(() =>
+        expect(screen.getAllByTestId("merged-result-item").length).toBe(2),
+      );
+      // The population the name claims. Without this the segment mapping
+      // could break, no pill would render, and zero fills would still be
+      // found on a screen that was never measured.
+      expect(screen.getAllByText(/^\d+:\d{2}$/)).toHaveLength(2);
+      expect(screen.getByText("Transcript")).toBeInTheDocument();
+
+      expect(accentFills(document.body)).toHaveLength(0);
     });
 
     it("renders MergedResultItem rows in mergeResults+sortMerged order", async () => {

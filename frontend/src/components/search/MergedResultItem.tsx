@@ -6,17 +6,16 @@
  * Style + badge-selection logic mirrors `MatchOverlay.tsx` (page-side
  * card overlay) so popup quick-pick rows and the search-results page
  * read consistently. Color tokens follow DESIGN.md §2.2 (warm palette
- * only). The popup variant differs from MatchOverlay in two ways:
- *  - 5 timestamp pills instead of 3 (popup is denser, no card chrome
- *    competing for visual budget).
- *  - Row layout (thumbnail + text column) instead of card overlay.
+ * only). The popup variant differs from MatchOverlay in its row layout
+ * (thumbnail + text column) rather than a card overlay; the timestamp
+ * pills follow one rule on both, from `lib/matchTimestamps.ts`.
  */
 
 import { useTranslations } from "next-intl";
 import { formatDuration } from "@/lib/format";
+import { splitFilename } from "@/lib/filename";
+import { collectMatchTimestamps } from "@/lib/matchTimestamps";
 import type { FileItemWithMatch, MatchMeta } from "@/types";
-
-const MAX_POPUP_PILLS = 5;
 
 const BADGE_STYLES: Record<string, string> = {
   filename: "bg-accent/15 text-accent",
@@ -48,20 +47,30 @@ function selectActiveBadgeKeys(meta: MatchMeta | undefined): string[] {
   return keys;
 }
 
-function collectTimestamps(
-  meta: MatchMeta | undefined,
-): Array<{ seconds: number }> {
-  if (!meta) return [];
-  const out: Array<{ seconds: number }> = [];
-  for (const t of meta.transcript ?? []) {
-    const start = t.time_range?.[0];
-    if (typeof start === "number" && start >= 0) out.push({ seconds: start });
-  }
-  for (const c of meta.clip ?? []) {
-    const start = c.time_range?.[0];
-    if (typeof start === "number" && start >= 0) out.push({ seconds: start });
-  }
-  return out.slice(0, MAX_POPUP_PILLS);
+/**
+ * The second line carries two different facts, and only sometimes both.
+ *
+ * `file.title` is the backend's `_filename_to_title`: the filename with
+ * its extension dropped and underscores turned into spaces. So the
+ * filename under the title is usually the title again with an extension
+ * glued on — but not always, because the underscore rule means
+ * `kyoto_day_1.mp4` titles as "kyoto day 1", and because the line is also
+ * where the folder path lives.
+ *
+ * The line therefore says whichever of the two facts is new:
+ *   stem === title  →  the folder path alone, or nothing at all
+ *   stem !== title  →  the path and the filename
+ */
+function secondLine(file: FileItemWithMatch): string | null {
+  const folder = file.folder_path ? `${file.folder_path}/` : "";
+  // Both suppressions matter. `stem === title` is the ordinary case; the
+  // exact match is the semantic-only row, which `mergeResults` builds
+  // without a file record and titles with the raw filename, extension and
+  // all (`searchMerge.ts` `title: hit.filename`).
+  const saysNothingNew =
+    file.filename === file.title ||
+    splitFilename(file.filename).stem === file.title;
+  return saysNothingNew ? folder || null : `${folder}${file.filename}`;
 }
 
 interface Props {
@@ -86,8 +95,9 @@ export function MergedResultItem({ file, onSelect, isSelected = false }: Props) 
   };
 
   const badgeKeys = selectActiveBadgeKeys(meta);
-  const timestamps = collectTimestamps(meta);
+  const { shown: timestamps, overflow } = collectMatchTimestamps(meta);
   const matchedPages = meta?.matched_pages ?? [];
+  const subtitle = secondLine(file);
 
   return (
     <button
@@ -106,11 +116,8 @@ export function MergedResultItem({ file, onSelect, isSelected = false }: Props) 
       />
       <div className="min-w-0 flex-1">
         <p className="truncate text-sm text-text-primary">{file.title}</p>
-        {(file.folder_path || file.filename !== file.title) && (
-          <p className="truncate text-xs text-text-muted">
-            {file.folder_path ? `${file.folder_path}/` : ""}
-            {file.filename}
-          </p>
+        {subtitle && (
+          <p className="truncate text-xs text-text-muted">{subtitle}</p>
         )}
         {badgeKeys.length > 0 && (
           <div className="mt-0.5 flex flex-wrap items-center gap-1">
@@ -126,9 +133,9 @@ export function MergedResultItem({ file, onSelect, isSelected = false }: Props) 
         )}
         {timestamps.length > 0 && (
           <div className="mt-1 flex flex-wrap gap-0.5">
-            {timestamps.map((ts, i) => (
+            {timestamps.map((ts) => (
               <span
-                key={`${ts.seconds}-${i}`}
+                key={`${ts.kind}-${ts.seconds}`}
                 role="button"
                 tabIndex={0}
                 onClick={(e) => {
@@ -142,11 +149,16 @@ export function MergedResultItem({ file, onSelect, isSelected = false }: Props) 
                     onSelect(`/files/${file.id}?t=${Math.floor(ts.seconds)}`);
                   }
                 }}
-                className="cursor-pointer rounded-lg px-1.5 py-0.5 text-[10px] font-medium text-accent transition-colors hover:bg-accent/10"
+                className="cursor-pointer rounded-lg px-1.5 py-0.5 text-[10px] font-medium text-text-muted transition-colors hover:bg-accent/10"
               >
                 {formatDuration(ts.seconds)}
               </span>
             ))}
+            {overflow > 0 && (
+              <span className="px-1.5 py-0.5 text-[10px] text-text-muted">
+                +{overflow}
+              </span>
+            )}
           </div>
         )}
         {matchedPages.length > 0 && (
