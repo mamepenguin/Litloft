@@ -15,6 +15,7 @@ import { useImageAreaGestures } from "@/hooks/useImageAreaGestures";
 import { useInertBackdrop } from "@/hooks/useInertBackdrop";
 import { useShortcuts } from "@/hooks/useShortcuts";
 import { useAutoHidingChrome } from "@/hooks/useAutoHidingChrome";
+import { useSpreadPaging } from "@/hooks/useSpreadPaging";
 import { SlideshowIntervalMenu } from "@/components/gallery/SlideshowIntervalMenu";
 import { getDriveFiles, getStreamUrl } from "@/lib/api";
 import type { FileItem, SortField, SortOrder } from "@/types";
@@ -166,56 +167,24 @@ export function ImageGallery({
 
   const currentImage = images[currentIndex] ?? file;
 
-  const activeSplit = splitMode && isCurrentLandscape;
-  const isFirstSubPage =
-    readingDirection === "ltr" ? !showRightHalf : showRightHalf;
-  const subPageLabel = activeSplit ? (isFirstSubPage ? "A" : "B") : null;
-
-  // Navigation with split mode awareness
-  const navigateNext = useCallback(() => {
-    const inActiveSplit = splitMode && isCurrentLandscape;
-    const isOnFirstSubPage =
-      readingDirection === "ltr" ? !showRightHalf : showRightHalf;
-
-    if (inActiveSplit && isOnFirstSubPage) {
-      setShowRightHalf(readingDirection === "ltr");
-    } else if (currentIndex < images.length - 1) {
-      // Immediately set the first sub-page of the next image (old image retains its position).
-      setShowRightHalf(readingDirection === "rtl");
-      setCurrentIndex((prev) => prev + 1);
-    }
-  }, [
+  const {
+    activeSplit,
+    isFirstSubPage,
+    subPageLabel,
+    canGoPrev,
+    canGoNext,
+    navigatePrev,
+    navigateNext,
+  } = useSpreadPaging({
+    index: currentIndex,
+    setIndex: setCurrentIndex,
+    count: images.length,
     splitMode,
-    isCurrentLandscape,
     readingDirection,
-    showRightHalf,
-    currentIndex,
-    images.length,
-  ]);
-
-  const navigatePrev = useCallback(() => {
-    const inActiveSplit = splitMode && isCurrentLandscape;
-    const isOnFirstSubPage =
-      readingDirection === "ltr" ? !showRightHalf : showRightHalf;
-
-    if (inActiveSplit && !isOnFirstSubPage) {
-      setShowRightHalf(readingDirection === "rtl");
-    } else if (currentIndex > 0) {
-      // Immediately set the last sub-page (B) of the previous image: LTR=right(true), RTL=left(false).
-      setShowRightHalf(splitMode && readingDirection === "ltr");
-      setCurrentIndex((prev) => prev - 1);
-    }
-  }, [
-    splitMode,
     isCurrentLandscape,
-    readingDirection,
     showRightHalf,
-    currentIndex,
-  ]);
-
-  const canGoPrev = currentIndex > 0 || (activeSplit && !isFirstSubPage);
-  const canGoNext =
-    currentIndex < images.length - 1 || (activeSplit && isFirstSubPage);
+    setShowRightHalf,
+  });
 
   // Close handler: notify parent of the current image
   const handleClose = useCallback(() => {

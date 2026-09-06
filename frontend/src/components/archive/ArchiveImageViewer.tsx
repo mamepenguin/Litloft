@@ -17,6 +17,12 @@ import { getArchiveEntryUrl } from "@/lib/api";
 import type { ArchiveEntry } from "@/types";
 import { SlideshowIntervalMenu } from "@/components/gallery/SlideshowIntervalMenu";
 import type { AutoHidingChrome } from "@/hooks/useAutoHidingChrome";
+import {
+  canPageBack,
+  canPageForward,
+  halfLabel,
+  isSpreadActive,
+} from "@/lib/spreadPaging";
 
 interface ArchiveImageViewerProps {
   fileId: string;
@@ -74,14 +80,22 @@ export function ArchiveImageViewer({
   const t = useTranslations("archive");
   const tc = useTranslations("common");
 
-  const activeSplit = splitMode && isCurrentLandscape;
-  const isFirstSubPage =
-    readingDirection === "ltr" ? !showRightHalf : showRightHalf;
-  const subPageLabel = activeSplit ? (isFirstSubPage ? "A" : "B") : null;
-
-  const canGoPrev = imageIndex > 0 || (activeSplit && !isFirstSubPage);
-  const canGoNext =
-    imageIndex < imageEntries.length - 1 || (activeSplit && isFirstSubPage);
+  // The same arithmetic the viewer's own hook runs, read rather than
+  // repeated. This component is handed the position as props and only
+  // renders it, so it asks the shared functions instead of owning a
+  // second copy of the rules.
+  const position = {
+    index: imageIndex,
+    count: imageEntries.length,
+    splitMode,
+    readingDirection,
+    isCurrentLandscape,
+    showRightHalf,
+  };
+  const activeSplit = isSpreadActive(position);
+  const subPageLabel = halfLabel(position);
+  const canGoPrev = canPageBack(position);
+  const canGoNext = canPageForward(position);
 
   const gestureHandlers = useImageAreaGestures({
     readingDirection,
