@@ -226,13 +226,13 @@ export function PdfPreview({
     // Neither number is a function of the page any more, which is what
     // makes the cycle unavailable rather than merely unlikely.
     //
-    // What it costs: when a horizontal scrollbar *is* drawn — above zoom
-    // 1, or in a box narrower than `MIN_FITTED_WIDTH`, where the fit
-    // functions floor the width above `available` — the height still
-    // reads as though it were not, so it overstates the visible height by
-    // the scrollbar's own thickness. That is ~15px classic, 0 overlay,
-    // and it makes a fitted page about 10px wider than a true fit. The
-    // page was already overflowing in that state.
+    // What it costs: when a horizontal scrollbar *is* drawn — which for
+    // a fitted mode means above zoom 1, since neither fit function
+    // returns more than `available` — the height still reads as though
+    // it were not, so it overstates the visible height by the
+    // scrollbar's own thickness. That is ~15px classic, 0 overlay, and
+    // it makes a fitted page about 10px wider than a true fit. The page
+    // was already overflowing in that state.
     //
     // `borderBoxSize` postdates `ResizeObserver` itself, so the guard at
     // the top of this effect does not cover it. Falling back to the

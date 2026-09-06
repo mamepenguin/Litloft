@@ -140,6 +140,45 @@ describe("pdfPageWidth", () => {
     }
   });
 
+  it("never draws a fitted page wider than the box it is fitted to", () => {
+    // The promise each fitted mode's name makes. A `fit-page` page wider
+    // than its box has a horizontal scrollbar, and a "whole page" you
+    // scroll sideways to see is not one; `fit-width` that overflows the
+    // width is the same contradiction. Below what used to be the floor
+    // the page is drawn small instead — 266px of box gives 266px of
+    // page, not 280 with 14 of it past the edge.
+    for (const available of [266, 200, 120, 40, 1]) {
+      for (const mode of ["fit-width", "fit-page"] as const) {
+        expect(
+          pdfPageWidth({ mode, available, availableHeight: 570, pageBox: A4 }),
+        ).toBeLessThanOrEqual(available);
+      }
+    }
+    expect(
+      pdfPageWidth({
+        mode: "fit-page",
+        available: 266,
+        availableHeight: 570,
+        pageBox: A4,
+      }),
+    ).toBe(266);
+  });
+
+  it("fits a box too short to hold a floor's worth of page", () => {
+    // The height side of the same promise. `availableHeight` of 50 used
+    // to be raised to 200, which drew a 141px-wide page 200px tall in a
+    // 50px box — overflowing the one direction the mode exists to keep
+    // whole.
+    const width = pdfPageWidth({
+      mode: "fit-page",
+      available: 900,
+      availableHeight: 50,
+      pageBox: A4,
+    });
+    expect(width).toBeCloseTo(50 * (595 / 842), 3);
+    expect(width * (842 / 595)).toBeLessThanOrEqual(50 + 1e-6);
+  });
+
   it("returns a positive width for a box that has measured nothing", () => {
     // The state the guard above is named for — `display: none`, detached,
     // observed before first layout — reports zero on *both* axes, and a
