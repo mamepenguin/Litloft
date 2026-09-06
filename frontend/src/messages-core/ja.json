@@ -11,6 +11,7 @@
     "change": "変更",
     "refresh": "更新",
     "seeAll": "すべて見る",
+    "seeAllCount": "すべて見る（{count}）",
     "download": "ダウンロード",
     "rename": "名前を変更",
     "move": "移動",

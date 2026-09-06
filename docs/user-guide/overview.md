@@ -40,7 +40,7 @@ A Litloft installation has:
 - Tag and type filters.
 - Saved searches as Smart Folders.
 - Duplicate detection by content hash.
-- Continue-watching, recently added, favourites, and liked carousels per drive.
+- Continue-watching, recently added, favourites, and liked rows per drive.
 
 ### File operations
 - Drag-and-drop upload (folder upload supported, chunked with resume).

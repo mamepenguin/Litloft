@@ -73,7 +73,25 @@ function rendersCards(body: string): boolean {
   return (
     /<FileCard\b/.test(body) ||
     /<FolderCard\b/.test(body) ||
-    /getThumbnailUrl\(/.test(body)
+    /getThumbnailUrl\(/.test(body) ||
+    // A grid that takes its cards as `children` carries none of those
+    // tokens — `SectionRow` is the drive home's shelf and its cells are
+    // built by its two callers. Calling the measuring hook is what it
+    // does have, and a file that calls it *is* laying out a card grid.
+    //
+    // The clause only ever adds files, so it weakens nothing: every grid
+    // the four token tests caught before is still caught.
+    //
+    // **It does not close the hole it patches, and the difference
+    // matters.** It admits `SectionRow` because `SectionRow` reaches for
+    // the helper. A second children-taking grid that hand-wrote
+    // `grid-cols-2 sm:grid-cols-4` would carry none of the four tokens
+    // and stay outside the population entirely — invisible rather than
+    // failing. Nothing in the tree has that shape today. Catching it
+    // needs a fifth clause keyed on the shape itself (a grid element
+    // whose only child is `{children}` or `Children.toArray(`), which is
+    // worth writing the day a second one appears.
+    /useCardColumns\(\)/.test(body)
   );
 }
 
@@ -197,6 +215,7 @@ describe("every card grid goes through lib/cardGrid", () => {
       new Set([
         "frontend/src/components/FileGrid.tsx",
         "frontend/src/components/DriveHome.tsx",
+        "frontend/src/components/SectionRow.tsx",
         "frontend/src/components/folder/FolderContent.tsx",
         "frontend/src/components/folder/RightPaneFolder.tsx",
         "frontend/src/components/missing/MissingFileGrid.tsx",
@@ -213,10 +232,10 @@ describe("every card grid goes through lib/cardGrid", () => {
   });
 
   it("hands every grid element the measuring ref", () => {
-    // Seven grid elements over six components: `DriveHome` renders its
+    // Eight grid elements over seven components: `DriveHome` renders its
     // skeleton and its loaded folder row from one hook.
-    expect(sites.length).toBe(7);
-    expect(useCardColumnsCallSites().length).toBe(6);
+    expect(sites.length).toBe(8);
+    expect(useCardColumnsCallSites().length).toBe(7);
 
     // Counting the hook calls is not enough: a component can call it and
     // never attach the ref, in which case the element is laid out by the

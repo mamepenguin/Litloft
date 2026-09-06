@@ -262,7 +262,7 @@ Access control is applied **twice**: once on the internal filter (Internal API `
 
 A feed of files in this drive that **you have never opened**, ranked by
 how well they match the interests your watch history describes. It sits
-on the drive home as a carousel, with the full feed on its own page.
+on the drive home as a content row, with the full feed on its own page.
 
 Nothing is sent anywhere — this feature makes no LLM calls. It reads the
 embeddings indexing has already produced.
@@ -297,11 +297,12 @@ embeddings do not carry, so the feature does not pretend to make it.
 **Per drive.** A drive is a security boundary: the feed never draws on
 another drive, and a locked drive contributes nothing.
 
-**When it appears.** The carousel needs a viewer profile (a nickname) —
+**When it appears.** The row needs a viewer profile (a nickname) —
 without one there is no watch history to read. It stays hidden until the
 first sweep after you have watched something. The link to the full page
-appears once the feed holds at least 40 files; below that the carousel
-is already showing everything there is.
+appears once the feed holds at least 40 files; below that there is no
+page to link to, and the row shows as many of the day's twelve as fit
+its width.
 
 **How fast it forgets.** An interest halves in weight every week you do
 not touch it. Stop watching something you had been watching heavily and
@@ -315,8 +316,8 @@ floor a current interest gets.
 
 **Freshness.** The feed is rebuilt when a scan completes and on an
 hourly sweep, and only for viewers whose history has actually changed.
-The carousel shows a different twelve each day, drawn from the top of
-the feed; the page itself keeps a stable order so paging through it does
+The row draws a different twelve each day from the top of the feed and
+shows as many of them as fit its width; the page itself keeps a stable order so paging through it does
 not repeat or skip.
 
 ### Retrieval keywords
@@ -756,7 +757,7 @@ When enabled, the intelligence addon contributes:
   candidates, an image description. Generating one makes its section appear and removes
   it from the menu, which is where its regenerate control lives from then on. On a file
   with nothing left to generate — or nothing applicable — the button is not shown.
-- **Drive home** — *Pickup*, a carousel of files you have never opened, with a link through to the full feed at `/drive/{drive}/addons/intelligence/pickup` once it holds at least 40
+- **Drive home** — *Pickup*, a row of files you have never opened, with a link through to the full feed at `/drive/{drive}/addons/intelligence/pickup` once it holds at least 40
 - **File `[...]` menu** — *Index details*, a dialog showing per-task state with a *Regenerate* button for each task (`metadata`, `clip`, `whisper`, `text`) plus recent provider stats for failure context. It sits in the overflow menu rather than in the inspector because it answers an operator's question, not a reader's.
 - **Folder actions** — inside the folder toolbar's **Add** menu: *Create AI tag candidates…*,
   *Create AI summaries…*, and *Create image descriptions…*.

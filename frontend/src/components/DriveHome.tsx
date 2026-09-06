@@ -4,7 +4,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { Folder, History, Play, Clock, Star, ThumbsUp } from "lucide-react";
 import { useTranslations } from "next-intl";
-import type { FileItem, Folder as FolderType, WatchHistoryItem } from "@/types";
+import type { FileItem, Folder as FolderType, PaginatedResponse, WatchHistoryItem } from "@/types";
 import { addPin, getDriveFiles, getFolders, getPins, getWatchHistory, removePin } from "@/lib/api";
 import { useDragAndDrop } from "@/hooks/useDragAndDrop";
 import { useContextMenu } from "@/hooks/useContextMenu";
@@ -29,6 +29,17 @@ interface DriveHomeProps {
 
 interface SectionState {
   files: FileItem[];
+  /**
+   * How many files match the section's query, not how many it holds.
+   *
+   * `getDriveFiles` returns it in `meta.total` and the row shows at most
+   * `SECTION_LIMIT` of them, so this is the only thing that can say how
+   * much is past the edge. `undefined` while loading, and after a failed
+   * fetch — where it is moot, since a row with no files does not render.
+   * `CarouselSection` falls back to an unqualified "See all" either way,
+   * rather than claiming a number it does not have.
+   */
+  total?: number;
   loading: boolean;
 }
 
@@ -100,22 +111,22 @@ export function DriveHome({ driveName }: DriveHomeProps) {
     },
   });
 
-  const applyFileSections = useCallback((results: PromiseSettledResult<any>[]) => {
-    setRecent({
-      files: results[0].status === "fulfilled" ? results[0].value.data : [],
-      loading: false,
-    });
-    setFavorites({
-      files: results[1].status === "fulfilled" ? results[1].value.data : [],
-      loading: false,
-    });
-    setLiked({
-      files: results[2].status === "fulfilled" ? results[2].value.data : [],
-      loading: false,
-    });
+  const applyFileSections = useCallback((results: PromiseSettledResult<PaginatedResponse>[]) => {
+    const section = (result: PromiseSettledResult<PaginatedResponse>): SectionState =>
+      result.status === "fulfilled"
+        ? {
+            files: result.value.data,
+            total: result.value.meta.total,
+            loading: false,
+          }
+        : { files: [], loading: false };
+
+    setRecent(section(results[0]));
+    setFavorites(section(results[1]));
+    setLiked(section(results[2]));
   }, []);
 
-  const fetchFileSections = useCallback(() => {
+  const fetchFileSections = useCallback((): Promise<PromiseSettledResult<PaginatedResponse>[]> => {
     return Promise.allSettled([
       getDriveFiles(driveName, { sort: "created_at", order: "desc", limit: SECTION_LIMIT }),
       getDriveFiles(driveName, { favorite: true, sort: "created_at", order: "desc", limit: SECTION_LIMIT }),
@@ -135,7 +146,7 @@ export function DriveHome({ driveName }: DriveHomeProps) {
       }
 
       const promises: [
-        Promise<PromiseSettledResult<any>[]>,
+        Promise<PromiseSettledResult<PaginatedResponse>[]>,
         Promise<FolderType[]>,
         Promise<{ path: string }[]>,
         Promise<WatchHistoryItem[]> | null,
@@ -201,8 +212,8 @@ export function DriveHome({ driveName }: DriveHomeProps) {
   }, [fetchFileSections, applyFileSections]);
 
   // Both halves of the page follow the drive: the folder grid *and* the
-  // Recently added / Favourites / Popular carousels. Refreshing only the
-  // grid left the carousels showing files that had been deleted or moved
+  // Recently added / Favourites / Popular rows. Refreshing only the
+  // grid left the rows showing files that had been deleted or moved
   // elsewhere.
   //
   // `drive.file_updated` matters here because favouriting is a content
@@ -324,6 +335,13 @@ export function DriveHome({ driveName }: DriveHomeProps) {
         <ContinueWatchingSection
           items={continueWatching}
           loading={continueWatchingLoading}
+          // The same destination Recently played uses, and for the same
+          // reason it is needed at all: the row draws only what fits, so
+          // without a link the rest of the history is unreachable from
+          // here. Recently played is this history without the 90%
+          // completion gate — a superset, so nothing a reader came for
+          // is missing from it.
+          seeAllHref={`${driveBase}?view=recent`}
           onRemoveItem={handleRemoveWatchItem}
         />
       )}
@@ -346,6 +364,7 @@ export function DriveHome({ driveName }: DriveHomeProps) {
         icon={<Clock size={20} className="text-text-muted" />}
         files={recent.files}
         loading={recent.loading}
+        totalCount={recent.total}
         seeAllHref={`${driveBase}?view=recent-added`}
         onFileAction={refetchAllSections}
       />
@@ -355,6 +374,7 @@ export function DriveHome({ driveName }: DriveHomeProps) {
         icon={<Star size={20} className="text-text-muted" />}
         files={favorites.files}
         loading={favorites.loading}
+        totalCount={favorites.total}
         seeAllHref={`${driveBase}?view=favorites`}
         onFileAction={refetchAllSections}
       />
@@ -364,6 +384,7 @@ export function DriveHome({ driveName }: DriveHomeProps) {
         icon={<ThumbsUp size={20} className="text-text-muted" />}
         files={liked.files}
         loading={liked.loading}
+        totalCount={liked.total}
         seeAllHref={`${driveBase}?view=liked`}
         onFileAction={refetchAllSections}
       />

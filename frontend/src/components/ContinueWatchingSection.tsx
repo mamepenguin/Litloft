@@ -9,6 +9,7 @@ import { deleteWatchProgress } from "@/lib/api";
 import { useContextMenu } from "@/hooks/useContextMenu";
 import { FileCard } from "./FileCard";
 import { FileContextMenu } from "./FileContextMenu";
+import { SectionRow } from "./SectionRow";
 
 interface ContinueWatchingSectionProps {
   items: WatchHistoryItem[];
@@ -17,17 +18,18 @@ interface ContinueWatchingSectionProps {
   icon?: React.ReactNode;
   seeAllHref?: string;
   onRemoveItem?: (fileId: string) => void;
+  // No `totalCount`: `getWatchHistory` returns a bare array and has no
+  // total to pass. Declaring the prop and leaving it undefined would
+  // read as "nobody got round to it".
 }
 
 function SkeletonCard() {
   return (
-    <div className="w-48 flex-shrink-0 snap-start sm:w-56">
-      <div className="animate-pulse rounded-xl overflow-hidden">
-        <div className="aspect-video bg-bg-elevated" />
-        <div className="p-3 space-y-2">
-          <div className="h-4 w-3/4 rounded-lg bg-bg-elevated" />
-          <div className="h-3 w-1/2 rounded-lg bg-bg-elevated" />
-        </div>
+    <div className="animate-pulse rounded-xl overflow-hidden">
+      <div className="aspect-video bg-bg-elevated" />
+      <div className="p-3 space-y-2">
+        <div className="h-4 w-3/4 rounded-lg bg-bg-elevated" />
+        <div className="h-3 w-1/2 rounded-lg bg-bg-elevated" />
       </div>
     </div>
   );
@@ -67,30 +69,27 @@ export function ContinueWatchingSection({
         )}
       </div>
 
-      <div className="-mx-4 px-4 overflow-x-auto scrollbar-hide sm:-mx-0 sm:px-0">
-        <div className="flex gap-3 pb-2 snap-x snap-mandatory">
-          {loading
-            ? Array.from({ length: 4 }).map((_, i) => <SkeletonCard key={i} />)
-            : items.map((item) => (
-                <div key={item.id} className="w-48 flex-shrink-0 snap-start sm:w-56">
-                  <FileCard
-                    file={item}
-                    watchProgress={item.watch_progress}
-                    onContextMenu={(e, f) => {
-                      setTarget(f);
-                      handlers.onContextMenu(e);
-                    }}
-                    onTouchStart={(e, f) => {
-                      setTarget(f);
-                      handlers.onTouchStart(e);
-                    }}
-                    onTouchEnd={handlers.onTouchEnd}
-                    onTouchMove={handlers.onTouchMove}
-                  />
-                </div>
-              ))}
-        </div>
-      </div>
+      <SectionRow>
+        {loading
+          ? Array.from({ length: 4 }).map((_, i) => <SkeletonCard key={i} />)
+          : items.map((item) => (
+              <FileCard
+                key={item.id}
+                file={item}
+                watchProgress={item.watch_progress}
+                onContextMenu={(e, f) => {
+                  setTarget(f);
+                  handlers.onContextMenu(e);
+                }}
+                onTouchStart={(e, f) => {
+                  setTarget(f);
+                  handlers.onTouchStart(e);
+                }}
+                onTouchEnd={handlers.onTouchEnd}
+                onTouchMove={handlers.onTouchMove}
+              />
+            ))}
+      </SectionRow>
 
       <FileContextMenu
         open={menuState.open}
