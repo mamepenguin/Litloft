@@ -287,7 +287,15 @@ describe("FileGrid — justified rows", () => {
     expect(container.querySelectorAll("svg")).toHaveLength(1);
   });
 
-  it("keeps a video's preview and duration in the ten percent", () => {
+  it("keeps a video's duration badge and mounts no player for it", () => {
+    // The badge is the half of the video answer the cell was dropping.
+    // The hover preview is the half it must not have: the grid host is a
+    // `container-type` context, and a containment context around a
+    // `<video>` renders its subtree rotated and spinning on iOS Safari
+    // (`DESIGN.md`, confirmed on device). Nothing on desktop reproduces
+    // that and no test can see it, so what is testable is the absence of
+    // the element — asserted here so nobody restores it for parity with
+    // `FileCard`, which is not under a container query.
     const files = [
       ...photos(18),
       makeFile({
@@ -299,9 +307,46 @@ describe("FileGrid — justified rows", () => {
       }),
       makeFile({ id: "v2", title: "Clip 2", filename: "clip2.mp4", duration: null }),
     ];
-    render(<FileGrid files={files} />);
-    // 2:05 — the badge the card form draws, which the cell was dropping.
+    const { container } = render(<FileGrid files={files} />);
+
+    expect(cells(container)).toHaveLength(20);
     expect(screen.getByText("2:05")).toBeInTheDocument();
+    expect(screen.queryAllByTestId("video-preview-container")).toHaveLength(0);
+  });
+
+  it("names every cell the same way, whatever it draws", () => {
+    // The name is on the link, not derived from the caption band — the
+    // band is decorative (`opacity: 0`, `pointer-events: none`) and a
+    // later change could hide it without anything noticing. The text
+    // branch renders the title of its own accord, so a name computed
+    // from contents said it twice there and once everywhere else.
+    const files = [
+      ...photos(18),
+      makeFile({
+        id: "txt",
+        title: "Notes",
+        filename: "notes.txt",
+        file_type: "document",
+        mime_type: "text/plain",
+        has_thumbnail: false,
+        duration: null,
+      }),
+      makeFile({
+        id: "zip",
+        title: "Archive",
+        filename: "backup.zip",
+        file_type: "archive",
+        mime_type: "application/zip",
+        has_thumbnail: false,
+        duration: null,
+      }),
+    ];
+    render(<FileGrid files={files} />);
+
+    for (const name of ["Photo 0", "Notes", "Archive"]) {
+      expect(screen.getByRole("link", { name })).toBeInTheDocument();
+    }
+    expect(screen.getAllByRole("link")).toHaveLength(20);
   });
 
   it("does not put the filename into the image's accessible name twice", () => {

@@ -1283,12 +1283,6 @@ div[data-citation-section-path]:not(tr) {
   flex-grow: var(--jg-ratio);
   flex-basis: calc(var(--jg-ratio) * var(--jg-row-h));
   height: var(--jg-row-h);
-  /* A flex item's automatic minimum size is its content's, and the
-     content here is a 320x180 thumbnail. Where that resolves above the
-     basis, line-breaking would use the thumbnail's width instead and
-     put one cell on a row that fits five. Not observed in Chromium at
-     375-1512, but it costs nothing to say. */
-  min-width: 0;
 }
 
 /* The last line does not stretch. Without this, two leftover cells

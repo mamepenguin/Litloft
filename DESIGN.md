@@ -1542,13 +1542,19 @@ is the widest thing on the line and so the one placement a reader would
 read as deliberate.
 
 **The stops do not bound the enlargement, because the line stretches on
-top of them.** Only width grows — the row height is fixed — so every
-cell on a line is widened by the same factor and `object-fit: cover`
-crops into the picture past the padding. Measured on the 995-photo
-folder: 1.007–1.271× per row at 1512px, and **1.010–2.075× at 375px**,
-where a line often holds one or two cells and there is more slack to
-share. The widest cell measured was 949px drawn from a 320px thumbnail —
-**2.97×**.
+top of them, and the stretch itself has no bound.** Only width grows —
+the row height is fixed — so every cell on a line is widened by the same
+factor and `object-fit: cover` crops into the picture past the padding.
+Line-breaking is greedy, so a line can end up holding a single narrow
+cell: at `--jg-row-h: 120px` a 0.5-ratio cell is 60px and the next 3.0
+cell is 360px, which will not fit beside it on a 375px line, and the
+narrow one is then stretched alone to the full width — **6.25×**.
+
+Two measured samples, not limits, both taken on the 995-photo folder
+after the absorber fix below: **per-row stretch** ran 1.007–1.271× at
+1512px and 1.010–2.075× at 375px, and the **worst single cell's
+enlargement over its 320px stored thumbnail** was 2.97× (a 949px cell).
+The two are different quantities; neither is a ceiling.
 
 So the paragraph below is true of an unstretched cell and only
 approximately true of a real one: the further a line has to stretch, the
@@ -1572,6 +1578,26 @@ one.
 `pointer: coarse`** — there is no hover to ask with on a touch screen,
 and a name that cannot be reached at all is worse than one that is
 always drawn.
+
+**The band is decorative; the cell is named by `aria-label` on the
+link.** `aria-hidden` on the band and an explicit label is what makes
+the accessible name the same string in every branch — a name computed
+from contents says the title twice on a text row, because the text
+preview draws it too, and it would vanish entirely the day someone hides
+a band that looks like decoration.
+
+**The 10% that are not photographs get `FileCard`'s answer.** The 90%
+threshold admits them on purpose, so a cell draws a thumbnail, a text
+preview or a type icon on the same three-way test the card form uses,
+plus a duration badge for timed media. What it does *not* draw is the
+hover video preview: the grid host is a `container-type` context, and a
+containment context around a `<video>` renders its subtree rotated and
+spinning on iOS Safari (see *Which mechanism depends on what is
+inside*). The card grid resolves that tension the other way — it keeps
+the preview and measures its width with a `ResizeObserver` — and either
+answer is fine as long as the pair stays consistent. Here the row height
+is the only thing switching on width, so giving up the preview is the
+cheaper half to lose.
 
 ### Sticking below the header
 
