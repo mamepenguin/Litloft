@@ -4,6 +4,7 @@ import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { stripComments } from "./helpers/sourceScan";
 
+import { DriveHome } from "@/components/DriveHome";
 import { EmptyState } from "@/components/EmptyState";
 import { FolderToolbar } from "@/components/folder/FolderToolbar";
 import { RootFileListing } from "@/components/RootFileListing";
@@ -47,7 +48,39 @@ vi.mock("@/components/FileGrid", () => ({ FileGrid: () => <div data-testid="grid
 vi.mock("@/components/FileList", () => ({ FileList: () => <div data-testid="list" /> }));
 
 vi.mock("@/components/ClipboardProvider", () => ({
-  useClipboard: () => ({ clipboard: null, clear: vi.fn(), copy: vi.fn(), cut: vi.fn() }),
+  useClipboard: () => ({ clipboard: null, clear: vi.fn(), copy: vi.fn(), cut: vi.fn(), paste: vi.fn(), isCut: () => false }),
+}));
+// The drive root's own screen is `DriveHome`. `RootFileListing` stays
+// real inside it — the point of the cases below is that the fill is in
+// the header and nowhere in the listing.
+//
+// **`useProfile` is not ambient, and stubbing it hides a state.**
+// `hasProfile` gates both watch-history rows out of the tree, and their
+// cards draw a `bg-accent` progress bar, so a nickname plus one
+// half-watched file is a screen this file would otherwise never render —
+// the failure the `SCREENS` docblock warns about. `mockProfile` is
+// mutable and the last case below sets it.
+const mockProfile = { nickname: null as string | null };
+vi.mock("@/components/ProfileProvider", () => ({
+  useProfile: () => ({
+    nickname: mockProfile.nickname,
+    setNickname: vi.fn(),
+    clearNickname: vi.fn(),
+  }),
+}));
+vi.mock("@/components/SidebarProvider", () => ({
+  useSidebar: () => ({ isOpen: false, toggle: vi.fn(), close: vi.fn(), refreshKey: 0, requestRefresh: vi.fn() }),
+}));
+vi.mock("@/hooks/useDragAndDrop", () => ({
+  useDragAndDrop: () => ({
+    dragState: { isDragging: false, draggedFolderPath: null, draggedFileIdSet: new Set() },
+    handleDragStart: vi.fn(),
+    handleFolderDragStart: vi.fn(),
+    handleDragEnd: vi.fn(),
+    getDropTargetProps: vi.fn(),
+    isDropTarget: () => false,
+    isDropDisabled: () => false,
+  }),
 }));
 vi.mock("@/components/ConfirmDialog", () => ({ ConfirmDialog: () => null }));
 vi.mock("@/components/MoveDialog", () => ({ MoveDialog: () => null }));
@@ -55,6 +88,7 @@ vi.mock("@/components/CollectionPicker", () => ({ CollectionPicker: () => null }
 vi.mock("@/components/BatchRenameDialog", () => ({ BatchRenameDialog: () => null }));
 
 const mockGetDriveFiles = vi.fn();
+const mockGetWatchHistory = vi.fn();
 vi.mock("@/lib/api", () => {
   class ApiStatusError extends Error {
     constructor(readonly status: number, message: string) {
@@ -65,6 +99,17 @@ vi.mock("@/lib/api", () => {
   return {
     ApiStatusError,
     getDriveFiles: (...args: unknown[]) => mockGetDriveFiles(...args),
+    getFolders: vi.fn().mockResolvedValue([]),
+    getPins: vi.fn().mockResolvedValue([]),
+    getWatchHistory: (...args: unknown[]) => mockGetWatchHistory(...args),
+    addPin: vi.fn(),
+    removePin: vi.fn(),
+    deleteFile: vi.fn(),
+    renameFile: vi.fn(),
+    moveFile: vi.fn(),
+    getThumbnailUrl: (id: string) => `/api/files/${id}/thumbnail`,
+    getDownloadUrl: (id: string) => `/api/files/${id}/stream?download=true`,
+    getStreamUrl: (id: string) => `/api/files/${id}/stream`,
     scanDrive: vi.fn(),
     createFolder: vi.fn(),
     batchDelete: vi.fn(),
@@ -403,12 +448,17 @@ describe("accent budget — drive root", () => {
   beforeEach(() => {
     mockGetDriveFiles.mockReset();
     mockGetDriveFiles.mockResolvedValue({ data: [playableFile()], meta: { total: 1 } });
+    mockGetWatchHistory.mockReset();
+    mockGetWatchHistory.mockResolvedValue([]);
+    mockProfile.nickname = null;
   });
   afterEach(cleanup);
 
   it("spends its one fill on Add, with something playable in the drive", async () => {
-    const { container } = render(<RootFileListing driveName="main" />);
-    // Play only appears once the listing knows it holds something playable.
+    const { container } = render(<DriveHome driveName="main" />);
+    // Play only appears once the listing knows it holds something playable,
+    // and waiting for it is what proves the file listing has rendered — the
+    // half of the screen the fill used to be in.
     expect(await screen.findByRole("button", { name: "Play" })).toBeInTheDocument();
     expect(
       [...new Set(accentFills(container).map((el) => el.textContent?.trim() ?? ""))],
@@ -419,12 +469,59 @@ describe("accent budget — drive root", () => {
     // The inline Create is the folder toolbar's twin, in this screen's own
     // copy of the markup. Reaching it means going through the Add menu,
     // which is the only way the row opens now.
-    const { container } = render(<RootFileListing driveName="main" />);
+    const { container } = render(<DriveHome driveName="main" />);
     fireEvent.click(await screen.findByRole("button", { name: "Add" }));
     fireEvent.click(screen.getByText("New Folder"));
     expect(screen.getByPlaceholderText("Folder name...")).toBeInTheDocument();
     expect(
       [...new Set(accentFills(container).map((el) => el.textContent?.trim() ?? ""))],
     ).toEqual(["Add"]);
+  });
+
+  it("puts Add in the header, not in the listing below it", async () => {
+    render(<DriveHome driveName="main" />);
+    const add = await screen.findByRole("button", { name: "Add" });
+    expect(add.closest("header")).not.toBeNull();
+  });
+
+  it("still spends one on Add with a half-watched row on screen", async () => {
+    // The state a viewer with a nickname sees most of the time, and the
+    // one the old mock made unreachable. A watch-progress bar is a
+    // resting `bg-accent`, so `accentFills` counts it — and it should:
+    // this is not an exception carved out of the rule but a mark rather
+    // than a control. What the budget is about is how many things ask to
+    // be the screen's subject, and the way to tell them apart here is
+    // that a mark carries no name and is sized by an inline width.
+    mockProfile.nickname = "Alice";
+    mockGetWatchHistory.mockResolvedValue([
+      { ...playableFile(), watch_progress: { position: 30, duration: 120 } },
+    ]);
+
+    const { container } = render(<DriveHome driveName="main" />);
+    await screen.findByRole("button", { name: "Add" });
+    await screen.findByText("Continue Watching");
+
+    const fills = accentFills(container);
+    const controls = fills.filter((el) => el.textContent?.trim());
+    expect(controls.map((el) => el.textContent!.trim())).toEqual(["Add"]);
+
+    const marks = fills.filter((el) => !el.textContent?.trim());
+    // Two rows read the same history: Continue watching and Recently
+    // played. Both draw the bar, and neither is a control.
+    expect(marks.length).toBe(2);
+    for (const mark of marks) {
+      expect((mark as HTMLElement).style.width).not.toBe("");
+    }
+  });
+
+  it("leaves the file listing with no fill of its own", async () => {
+    // The fill moved; it was not copied. Asserting only that the header has
+    // one cannot tell the two apart — a detector whose expected values come
+    // from what it observes cannot see "this disappeared" — so the screen it
+    // left is checked directly.
+    const { container } = render(<RootFileListing driveName="main" />);
+    expect(await screen.findByRole("button", { name: "Play" })).toBeInTheDocument();
+    expect(accentFills(container)).toHaveLength(0);
+    expect(screen.queryByRole("button", { name: "Add" })).toBeNull();
   });
 });
