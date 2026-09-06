@@ -295,8 +295,8 @@ export function FilePreview({
         icon={FileQuestion}
         title={t("noPreview")}
         description={`${file.filename} · ${formatFileSize(file.file_size)}`}
-        primaryAction={{ label: tc("download"), href: getDownloadUrl(file.id) }}
-        secondaryActions={[{ label: t("openInNewTab"), href: getStreamUrl(file.id) }]}
+        primaryAction={{ label: tc("download"), href: getDownloadUrl(file.id), download: true }}
+        secondaryActions={[{ label: t("openInNewTab"), href: getStreamUrl(file.id), newTab: true }]}
       />
     </div>
   );

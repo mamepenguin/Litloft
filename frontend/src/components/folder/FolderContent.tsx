@@ -193,22 +193,32 @@ export function FolderContent({
         ) : widenTagScope ? (
           <EmptyState
             variant="no-tag-matches"
-            primaryAction={{
-              label: tToolbar("searchWholeDrive"),
-              href: widenTagScope.href,
-            }}
+            // Secondary, though the spec said primary: the folder toolbar's
+            // `Add` is the screen's one accent fill and it is on screen
+            // here too, so a filled call to action in the empty state
+            // makes two (DESIGN.md §2.2, 原則 2). The toolbar owns the
+            // fill; the empty state owns the words.
+            secondaryActions={[
+              {
+                label: tToolbar("searchWholeDrive"),
+                href: widenTagScope.href,
+              },
+            ]}
           />
         ) : (
           <EmptyState
             variant="no-files"
-            primaryAction={
-              onAddFiles ? { label: tEmpty("addFilesAction"), onClick: onAddFiles } : undefined
-            }
-            secondaryActions={
-              onCreateFile
+            // Both secondary, for the same reason as the tag case above:
+            // the toolbar's `Add` is already the folder screen's accent
+            // fill, and it does not go away when the folder is empty.
+            secondaryActions={[
+              ...(onAddFiles
+                ? [{ label: tEmpty("addFilesAction"), onClick: onAddFiles }]
+                : []),
+              ...(onCreateFile
                 ? [{ label: tEmpty("createNoteAction"), onClick: onCreateFile }]
-                : undefined
-            }
+                : []),
+            ]}
           />
         )
       ) : viewMode === "grid" ? (

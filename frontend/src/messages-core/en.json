@@ -130,7 +130,7 @@
     "renameFailed": "Failed to rename",
     "moveFailed": "Failed to move",
     "deleteFailed": "Failed to delete",
-    "noPreview": "Preview not available",
+    "noPreview": "This kind of file cannot be shown in a browser",
     "prevFile": "Previous file",
     "nextFile": "Next file",
     "edit": "Edit",

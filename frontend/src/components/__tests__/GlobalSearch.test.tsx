@@ -164,6 +164,47 @@ describe("GlobalSearch", () => {
       fireEvent.click(screen.getByLabelText("Search"));
     };
 
+    /**
+     * The mobile draw, which no test in this file had ever rendered:
+     * `matchMedia` is stubbed `matches: false` at the top, so
+     * `isMobileViewport` was false everywhere and the whole branch was
+     * unreachable. Deleting that footer left the suite green while the PR
+     * claimed the entry was "in both render paths".
+     */
+    it("is on the mobile draw too, which is a different branch", () => {
+      const mql = window.matchMedia as unknown as ReturnType<typeof vi.fn>;
+      mql.mockImplementation((query: string) => ({
+        matches: true,
+        media: query,
+        onchange: null,
+        addListener: vi.fn(),
+        removeListener: vi.fn(),
+        addEventListener: vi.fn(),
+        removeEventListener: vi.fn(),
+        dispatchEvent: vi.fn(),
+      }));
+      try {
+        openModal();
+        // The mobile sheet has a back arrow the desktop modal does not,
+        // so this asserts the branch as well as the footer in it.
+        expect(screen.getByLabelText("Close")).toBeInTheDocument();
+        expect(
+          screen.getByRole("button", { name: /Keyboard Shortcuts/ }),
+        ).toBeInTheDocument();
+      } finally {
+        mql.mockImplementation((query: string) => ({
+          matches: false,
+          media: query,
+          onchange: null,
+          addListener: vi.fn(),
+          removeListener: vi.fn(),
+          addEventListener: vi.fn(),
+          removeEventListener: vi.fn(),
+          dispatchEvent: vi.fn(),
+        }));
+      }
+    });
+
     it("is in the footer, outside the scrolling results", () => {
       openModal();
       const entry = screen.getByRole("button", { name: /Keyboard Shortcuts/ });

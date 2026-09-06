@@ -653,6 +653,15 @@ that will not receive the correction.
   button under the cursor, which is the defect the Known gap above names for
   `disabled:hover:bg-accent`. Guarding it inside the variant means a call site
   cannot forget.
+- **A link wearing this recipe takes `buttonClass()`, which un-guards the
+  hover.** CSS `:enabled` matches form elements — `button`, `input`, `select`,
+  `textarea`, `optgroup`, `option`, `fieldset` — and never an `<a>`, so the
+  guard above silently removes the hover state instead of conditioning it, and
+  the `disabled:` classes beside it are unreachable markup. `buttonClass` emits
+  bare `hover:` and no `disabled:` for that reason, and adds the coarse-pointer
+  floor `Button` gives only its icon-only shape. The condition the guard exists
+  for — a disabled control repainting — cannot arise on an anchor.
+  **A destination is a link; only an action is a `Button`.**
 - **`className` is for layout only** — width, margin, flex. A colour passed
   here is a variant that should have been added above.
 

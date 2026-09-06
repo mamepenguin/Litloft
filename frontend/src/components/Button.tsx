@@ -173,7 +173,27 @@ export function buttonClass({
   size?: ButtonSize;
   className?: string;
 } = {}): string {
-  return [BASE_CLASS, VARIANT_CLASS[variant], SIZE_CLASS[size], DISABLED_CLASS, className]
+  return [
+    BASE_CLASS,
+    // `enabled:hover:` is button-only, and this is not a button.
+    //
+    // CSS `:enabled` matches `button`, `input`, `select`, `textarea`,
+    // `optgroup`, `option` and `fieldset` — never an `<a>`. Wearing the
+    // recipe unaltered gave the three link call-to-actions no hover state
+    // at all, beside `Button`s that light up: identical to the eye, dead
+    // under the pointer. The `disabled:` half is likewise unreachable
+    // markup on an anchor, so it is dropped rather than carried.
+    //
+    // §6's guard was written against a *disabled button* repainting under
+    // the cursor. The condition it guards cannot arise here.
+    VARIANT_CLASS[variant].replaceAll("enabled:hover:", "hover:"),
+    SIZE_CLASS[size],
+    // A link is a row action too. `Button` gives its icon-only shape an
+    // overhang and its labelled shape the padding; an anchor gets neither
+    // unless it is asked, and these sit where a finger goes.
+    "pointer-coarse:min-h-11",
+    className,
+  ]
     .filter(Boolean)
     .join(" ");
 }
@@ -189,11 +209,16 @@ export function Button(props: ButtonProps) {
     ...rest
   } = props as CommonProps & { iconOnly?: boolean; children: ReactNode };
 
-  const classes = iconOnly
-    ? [BASE_CLASS, VARIANT_CLASS[variant], ICON_BOX_CLASS, COARSE_HIT_AREA, DISABLED_CLASS, className]
-        .filter(Boolean)
-        .join(" ")
-    : buttonClass({ variant, size, className });
+  const classes = [
+    BASE_CLASS,
+    VARIANT_CLASS[variant],
+    iconOnly ? ICON_BOX_CLASS : SIZE_CLASS[size],
+    iconOnly ? COARSE_HIT_AREA : "",
+    DISABLED_CLASS,
+    className,
+  ]
+    .filter(Boolean)
+    .join(" ");
 
   return (
     <button {...rest} type={type} className={classes}>

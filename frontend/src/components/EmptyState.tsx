@@ -99,8 +99,21 @@ const variantConfig: Record<
  * `-mt-8` that pulled it up into the space the actions row now occupies.
  */
 export type EmptyStateAction =
-  | { label: string; onClick: () => void; href?: never }
-  | { label: string; href: string; onClick?: never };
+  | { label: string; onClick: () => void; href?: never; newTab?: never; download?: never }
+  /**
+   * A destination. `newTab` and `download` are what separate a route from
+   * a file: a route belongs to the router and gets `next/link`, and the
+   * file endpoints must not, because `<Link>` prefetches an internal href
+   * on sight — which for `/api/files/{id}/stream` means fetching the file
+   * body when the empty state scrolls into view.
+   */
+  | {
+      label: string;
+      href: string;
+      onClick?: never;
+      newTab?: boolean;
+      download?: boolean;
+    };
 
 interface BaseProps {
   /**
@@ -147,14 +160,31 @@ interface DirectProps extends BaseProps {
 export type EmptyStateProps = VariantProps | DirectProps;
 
 function renderAction(action: EmptyStateAction, variant: "primary" | "secondary") {
-  return action.href !== undefined ? (
-    <Link key={action.label} href={action.href} className={buttonClass({ variant })}>
+  if (action.href === undefined) {
+    return (
+      <Button key={action.label} variant={variant} onClick={action.onClick}>
+        {action.label}
+      </Button>
+    );
+  }
+  const className = buttonClass({ variant });
+  // A file, not a route: a bare anchor, so nothing prefetches it, and
+  // `rel` because `target="_blank"` without it hands the opened page a
+  // `window.opener`.
+  return action.newTab || action.download ? (
+    <a
+      key={action.label}
+      href={action.href}
+      className={className}
+      {...(action.newTab ? { target: "_blank", rel: "noopener noreferrer" } : {})}
+      {...(action.download ? { download: true } : {})}
+    >
+      {action.label}
+    </a>
+  ) : (
+    <Link key={action.label} href={action.href} className={className}>
       {action.label}
     </Link>
-  ) : (
-    <Button key={action.label} variant={variant} onClick={action.onClick}>
-      {action.label}
-    </Button>
   );
 }
 

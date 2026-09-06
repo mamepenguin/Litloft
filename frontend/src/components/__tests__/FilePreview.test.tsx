@@ -1,5 +1,7 @@
 import { describe, it, expect, vi } from "vitest";
 import { render, screen } from "@testing-library/react";
+
+import { accentFills } from "@/__tests__/helpers/accentFills";
 import { FilePreview } from "../FilePreview";
 import type { FileItem } from "@/types";
 
@@ -183,7 +185,7 @@ describe("FilePreview", () => {
     render(<FilePreview file={file} />);
     expect(screen.getByText(/data\.bin/)).toBeInTheDocument();
     expect(
-      screen.getByRole("heading", { name: "Preview not available" }),
+      screen.getByRole("heading", { name: "This kind of file cannot be shown in a browser" }),
     ).toBeInTheDocument();
   });
 
@@ -200,19 +202,40 @@ describe("FilePreview", () => {
 
     const download = screen.getByRole("link", { name: "Download" });
     expect(download).toHaveAttribute("href", expect.stringContaining("download=true"));
+    // The attribute, not just the label: without `target` the "new tab"
+    // link navigates in this one, and the label is then the only place the
+    // promise lives. `rel` because a `_blank` without it hands the opened
+    // page a `window.opener`.
+    expect(download).toHaveAttribute("download");
     const open = screen.getByRole("link", { name: "Open in new tab" });
     expect(open).toHaveAttribute("href", expect.stringContaining(`/files/${file.id}/stream`));
     expect(open.getAttribute("href")).not.toContain("download=true");
+    expect(open).toHaveAttribute("target", "_blank");
+    expect(open).toHaveAttribute("rel", "noopener noreferrer");
+
+    // Neither goes through the router: `<Link>` prefetches an internal
+    // href when it comes into view, which for a file endpoint means
+    // fetching the body of a file nobody asked for yet.
+    expect(download.getAttribute("data-prefetch")).toBeNull();
+    for (const el of [download, open]) {
+      expect(el.tagName).toBe("A");
+    }
   });
 
-  // DESIGN.md §2.2 — one accent fill per screen, and this screen is the
-  // whole of the file's own area when nothing can be drawn in it.
+  /**
+   * DESIGN.md §2.2 — one accent fill per screen, and this screen is the
+   * whole of the file's own area when nothing can be drawn in it.
+   *
+   * Through the shared detector, not a local re-implementation: the first
+   * draft of this test read `[class*='bg-accent']` and disagreed with
+   * `accentFills` about `hover:bg-accent` (a fill it must not count), about
+   * `bg-accent-cta` (one it must), and about `<svg>`, where `className` is
+   * an `SVGAnimatedString` rather than a string. That helper exists because
+   * two earlier hand-rolled versions were wrong in the expensive direction.
+   */
   it("spends one accent fill on the download", () => {
     const file = makeFile({ file_type: "other", mime_type: "application/octet-stream", filename: "data.bin" });
     const { container } = render(<FilePreview file={file} />);
-    const filled = [...container.querySelectorAll("[class*='bg-accent']")].filter(
-      (el) => !/bg-accent\//.test(el.className),
-    );
-    expect(filled.map((el) => el.textContent)).toEqual(["Download"]);
+    expect(accentFills(container).map((el) => el.textContent)).toEqual(["Download"]);
   });
 });

@@ -13,7 +13,9 @@ import { FileList } from "@/components/FileList";
 import { ViewToggle } from "@/components/ViewToggle";
 import { SortButton } from "@/components/SortButton";
 import { EmptyState } from "@/components/EmptyState";
+import { SearchX } from "lucide-react";
 import { AddButton } from "@/components/AddButton";
+import { useFilePicker } from "@/components/useFilePicker";
 import { Button } from "@/components/Button";
 import { UploadZone } from "@/components/UploadZone";
 import { SelectionBar } from "@/components/SelectionBar";
@@ -69,6 +71,8 @@ export function RootFileListing({ driveName, onFileAction, onFolderChange }: Roo
   } = useInfiniteScroll<FileItem>({ fetchPage, limit: LIMIT });
 
   const filter = useFolderFilter<FileItem>(files);
+  const filePicker = useFilePicker();
+  const tEmpty = useTranslations("empty");
   const visibleFiles = filter.files;
   const isFilterEmpty = filter.isActive && visibleFiles.length === 0;
 
@@ -220,6 +224,7 @@ export function RootFileListing({ driveName, onFileAction, onFolderChange }: Roo
         {/* Toolbar */}
         <div className="mb-4 flex flex-wrap items-center gap-2">
           <AddButton onCreateFolder={() => setCreatingFolder(true)} />
+          {filePicker.input}
 
           {creatingFolder && (
             <div className="flex w-full items-center gap-2 sm:w-auto">
@@ -368,18 +373,18 @@ export function RootFileListing({ driveName, onFileAction, onFolderChange }: Roo
             <div className="h-8 w-8 animate-spin rounded-full border-2 border-accent border-t-transparent" />
           </div>
         ) : isFilterEmpty ? (
-          <div className="flex flex-col items-center justify-center gap-3 py-12 text-sm text-text-muted">
-            <p>{tFilter("empty.folder")}</p>
-            <button
-              type="button"
-              onClick={filter.clear}
-              className="rounded-2xl border border-bg-border bg-bg-card px-4 py-2 text-sm text-text-primary transition-colors hover:bg-bg-elevated"
-            >
-              {tFilter("clear")}
-            </button>
-          </div>
+          <EmptyState
+            icon={SearchX}
+            title={tFilter("empty.folder")}
+            secondaryActions={[{ label: tFilter("clear"), onClick: filter.clear }]}
+          />
         ) : files.length === 0 ? (
-          <EmptyState variant="no-files" />
+          // Secondary, not filled: this screen's accent is the `Add` in the
+          // header above, which is on it whether or not the drive is empty.
+          <EmptyState
+            variant="no-files"
+            secondaryActions={[{ label: tEmpty("addFilesAction"), onClick: filePicker.open }]}
+          />
         ) : viewMode === "grid" ? (
           <FileGrid
             files={visibleFiles}
