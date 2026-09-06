@@ -62,10 +62,12 @@ describe("ViewToggle (controlled)", () => {
   });
 
   // DESIGN.md §2.2: one accent fill per screen, and it belongs to what the
-  // screen is for. This toggle rides on six screens — the folder toolbar
-  // beside Upload and Play, the drive home, a collection, Trash, Missing and
-  // the inside of an archive — so a fill here was spending the budget on a
-  // view switch in six places.
+  // screen is for. This toggle rode on six screens when the fill came off —
+  // the folder toolbar beside Upload and Play, the drive home, a collection,
+  // Trash, Missing and the inside of an archive — so it was spending the
+  // budget on a view switch in six places. Two of the six have since taken a
+  // labelled `ViewMenu` instead; the four the test below enumerates are what
+  // is left, and they are the backgrounds the contrast was measured against.
   it("does not spend an accent fill on the selected view", () => {
     render(<ViewToggle mode="list" onChange={vi.fn()} />);
     for (const label of ["List view", "Grid view"]) {
@@ -135,16 +137,16 @@ describe("where ViewToggle is used", () => {
   }
 
   it("appears on exactly the screens its comment names", () => {
-    // Five, not six. The folder toolbar left in Phase 3 B2b-2b: two adjacent
+    // Four. Two toolbars have left: the folder's in Phase 3 B2b-2b and the
+    // archive's in Phase 4 P4V-5, both for the same reason — two adjacent
     // icons that only a border told apart became one control reading
-    // `View: <layout>`, which is what took the last unlabelled icons but `…`
-    // off that bar. The other five keep the toggle.
+    // `View: <layout>`. The four that remain keep the toggle.
     expect(callSites()).toEqual([
       "components/CollectionDetail.tsx",
       "components/RootFileListing.tsx",
-      "components/archive/ArchiveToolbar.tsx",
       "components/missing/MissingView.tsx",
       "components/trash/TrashToolbar.tsx",
     ]);
   });
+
 });

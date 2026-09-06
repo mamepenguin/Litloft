@@ -1,12 +1,13 @@
 import { describe, it, expect } from "vitest";
+import type { ArchiveEntry } from "@/types";
 import {
+  defaultArchiveViewMode,
   getDirname,
   getEntriesInDir,
   inferDirectories,
   INTERVAL_OPTIONS,
   MAX_TEXT_AUTO_LOAD,
 } from "../archiveUtils";
-import type { ArchiveEntry } from "@/types";
 
 function makeEntry(
   path: string,
@@ -139,5 +140,65 @@ describe("constants", () => {
 
   it("MAX_TEXT_AUTO_LOAD is 1MB", () => {
     expect(MAX_TEXT_AUTO_LOAD).toBe(1024 * 1024);
+  });
+});
+
+describe("defaultArchiveViewMode", () => {
+  const file = (
+    filename: string,
+    file_type: ArchiveEntry["file_type"]
+  ): ArchiveEntry => ({
+    path: filename,
+    filename,
+    file_size: 10,
+    compressed_size: 10,
+    file_type,
+    mime_type: "",
+    is_dir: false,
+  });
+
+  const dir = (name: string): ArchiveEntry => ({
+    path: `${name}/`,
+    filename: name,
+    file_size: 0,
+    compressed_size: 0,
+    file_type: "other",
+    mime_type: "",
+    is_dir: true,
+  });
+
+  const images = (n: number) =>
+    Array.from({ length: n }, (_, i) => file(`p${i}.jpg`, "image"));
+  const texts = (n: number) =>
+    Array.from({ length: n }, (_, i) => file(`f${i}.txt`, "document"));
+
+  it("gives a level of folders a list", () => {
+    expect(defaultArchiveViewMode([dir("src"), dir("lib"), dir("docs")])).toBe(
+      "list"
+    );
+  });
+
+  it("gives an empty level a list", () => {
+    expect(defaultArchiveViewMode([])).toBe("list");
+  });
+
+  it("gives a level that is mostly images a grid", () => {
+    expect(defaultArchiveViewMode([...images(8), ...texts(2)])).toBe("grid");
+  });
+
+  it("gives a level that is mostly text a list", () => {
+    expect(defaultArchiveViewMode([...texts(8), ...images(2)])).toBe("list");
+  });
+
+  it("gives an evenly split level a list", () => {
+    // "A majority", not "at least half": the grid costs a 193px square per
+    // entry and half the entries would not fill one.
+    expect(defaultArchiveViewMode([...images(5), ...texts(5)])).toBe("list");
+  });
+
+  it("counts only the files, so folders beside the pages do not tip it", () => {
+    expect(
+      defaultArchiveViewMode([dir("a"), dir("b"), dir("c"), ...images(2)])
+    ).toBe("grid");
   });
 });

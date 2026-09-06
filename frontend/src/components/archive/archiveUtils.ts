@@ -1,4 +1,4 @@
-import type { ArchiveEntry } from "@/types";
+import type { ArchiveEntry, ViewMode } from "@/types";
 
 export const INTERVAL_OPTIONS = [3, 5, 10] as const;
 export const MAX_TEXT_AUTO_LOAD = 1024 * 1024; // 1MB
@@ -84,4 +84,27 @@ export function inferDirectories(
   }
 
   return inferred;
+}
+
+/**
+ * Which layout a level of an archive opens in, when nobody has said.
+ *
+ * The rule is about the level's contents, not about the archive: a code ZIP
+ * is a list at `src/` and a grid inside `docs/screenshots/`, and the reason
+ * is the same both times — a 193px square is worth spending on a picture and
+ * not on a name. Directories are judged separately because they never carry
+ * a thumbnail either way; a level holding only folders would otherwise be a
+ * grid of folder icons, which is the face the survey measured and objected to.
+ *
+ * Same shape as `deriveListMeta`: a rule the renderer applies to whatever it
+ * was handed, rather than a case per archive.
+ */
+export function defaultArchiveViewMode(entries: ArchiveEntry[]): ViewMode {
+  const files = entries.filter((entry) => !entry.is_dir);
+  const images = files.filter((entry) => entry.file_type === "image");
+  // A level of folders, and an empty one, fall out of the same comparison:
+  // no files means no image majority. Spelling them as their own branch would
+  // read as a rule the arithmetic does not have, and a test naming it could
+  // not tell the branch from its absence.
+  return images.length * 2 > files.length ? "grid" : "list";
 }

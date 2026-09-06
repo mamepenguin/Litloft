@@ -17,9 +17,9 @@ import { AddButton } from "@/components/AddButton";
 import { FilterMenu } from "./FilterMenu";
 import { Button } from "@/components/Button";
 import { useViewModeState } from "@/components/viewMode";
-import { BAR_WIDE, MENU_SURFACE, MenuSeparator } from "./ToolbarMenu";
+import { BAR_WIDE, MENU_SURFACE, MenuSeparator } from "@/components/ToolbarMenu";
 import { SortGroup, SortMenu } from "./SortMenu";
-import { ViewGroup, ViewMenu } from "./ViewMenu";
+import { ViewGroup, ViewMenu } from "@/components/ViewMenu";
 import { WidenTagScopeLink, type WidenTagScope } from "./WidenTagScopeLink";
 
 interface FolderToolbarProps {

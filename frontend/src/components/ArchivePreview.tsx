@@ -8,7 +8,7 @@ import { getArchiveContents } from "@/lib/api";
 import { isTextPreviewable } from "./TextPreview";
 import type { ArchiveContents, ArchiveEntry } from "@/types";
 import type { ArchiveViewMode } from "./archive/archiveUtils";
-import { MAX_TEXT_AUTO_LOAD } from "./archive/archiveUtils";
+import { defaultArchiveViewMode, MAX_TEXT_AUTO_LOAD } from "./archive/archiveUtils";
 import { useArchiveNavigation } from "./archive/useArchiveNavigation";
 import { useArchiveSort } from "./archive/useArchiveSort";
 import { useArchiveViewMode } from "./archive/useArchiveViewMode";
@@ -34,7 +34,6 @@ export function ArchivePreview({ fileId }: { fileId: string }) {
   const [viewerMode, setViewerMode] = useState<ArchiveViewMode>("listing");
   const [viewingEntry, setViewingEntry] = useState<ArchiveEntry | null>(null);
 
-  const { viewMode, setViewMode } = useArchiveViewMode();
   const { sort, order, typeFilter, setSort, setOrder, setTypeFilter, applySortFilter } = useArchiveSort();
 
   useEffect(() => {
@@ -72,6 +71,14 @@ export function ArchivePreview({ fileId }: { fileId: string }) {
     handleDirClick,
     handleBreadcrumbClick,
   } = useArchiveNavigation(archive, currentPath, searchParamsString, router);
+
+  // Derived from the level, not from what the filter left of it: narrowing to
+  // images would otherwise flip the layout under the reader's hand, and the
+  // question the derivation answers is what this level holds.
+  const { viewMode, setViewMode } = useArchiveViewMode(
+    fileId,
+    defaultArchiveViewMode(currentEntries)
+  );
 
   const closeViewer = useCallback(() => {
     setViewerMode("listing");
