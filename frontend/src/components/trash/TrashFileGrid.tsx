@@ -9,6 +9,7 @@ import type { FileItem } from "@/types";
 import { getDaysRemaining } from "@/lib/trash";
 import { getThumbnailUrl } from "@/lib/api";
 import { formatFileSize } from "@/lib/format";
+import { cardGridTemplate, useCardColumns } from "@/lib/cardGrid";
 import { FileTypeIcon } from "@/components/FileTypeIcon";
 import { ContextMenu, type MenuItem } from "@/components/ContextMenu";
 
@@ -33,6 +34,7 @@ export function TrashFileGrid({
     open: false, x: 0, y: 0,
   });
   const [target, setTarget] = useState<FileItem | null>(null);
+  const { ref: gridRef, columns } = useCardColumns();
 
   const closeMenu = useCallback(() => {
     setMenuPos({ open: false, x: 0, y: 0 });
@@ -54,7 +56,11 @@ export function TrashFileGrid({
 
   return (
     <>
-      <div className="grid grid-cols-1 gap-x-4 gap-y-6 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+      <div
+        ref={gridRef}
+        className="grid gap-x-4 gap-y-6"
+        style={{ gridTemplateColumns: cardGridTemplate(columns) }}
+      >
         {files.map((file) => {
           const hasThumbnail = file.has_thumbnail || file.file_type === "video" || file.file_type === "image";
           const selected = isSelected?.(file.id);

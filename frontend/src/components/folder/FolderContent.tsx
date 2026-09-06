@@ -15,7 +15,7 @@ import { EmptyState } from "@/components/EmptyState";
 import { FolderCard } from "@/components/FolderCard";
 import { FolderContextMenu } from "@/components/FolderContextMenu";
 
-import { cardGridColumns } from "@/lib/cardGrid";
+import { cardGridTemplate, useCardColumns } from "@/lib/cardGrid";
 
 import { FilterField } from "./FilterField";
 import { useFolderCardRename } from "./useFolderCardRename";
@@ -85,6 +85,7 @@ export function FolderContent({
   const tToolbar = useTranslations("toolbar");
   const tEmpty = useTranslations("empty");
   const [menuTarget, setMenuTarget] = useState<Folder | null>(null);
+  const { ref: folderGridRef, columns } = useCardColumns();
   const { menuState: folderMenuState, close: closeFolderMenu, handlers: folderMenuHandlers } = useContextMenu();
   const filter = useFolderFilter<FileItemWithMatch>(files, folders);
   const filteredFiles = filter.files;
@@ -117,8 +118,9 @@ export function FolderContent({
 
       {filteredFolders.length > 0 && (
         <div
+          ref={folderGridRef}
           className="mb-6 grid gap-3"
-          style={{ gridTemplateColumns: cardGridColumns }}
+          style={{ gridTemplateColumns: cardGridTemplate(columns) }}
         >
           {filteredFolders.map((folder) => {
             const disabled = isDropDisabled(folder.path);

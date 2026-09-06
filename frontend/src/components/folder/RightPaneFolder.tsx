@@ -8,6 +8,7 @@ import { FileGrid } from "@/components/FileGrid";
 import { FileList } from "@/components/FileList";
 import { FolderCard } from "@/components/FolderCard";
 import { EmptyState } from "@/components/EmptyState";
+import { cardGridTemplate, useCardColumns } from "@/lib/cardGrid";
 import { getDriveFiles, getFolders } from "@/lib/api";
 import type { FileItem, Folder } from "@/types";
 
@@ -30,6 +31,7 @@ interface RightPaneFolderProps {
 export function RightPaneFolder({ drive, folderPath }: RightPaneFolderProps) {
   const t = useTranslations("view");
   const [innerMode, setInnerMode] = useState<InnerViewMode>("grid");
+  const { ref: folderGridRef, columns } = useCardColumns();
   const [folders, setFolders] = useState<Folder[]>([]);
   const [files, setFiles] = useState<FileItem[]>([]);
   const [loading, setLoading] = useState(true);
@@ -116,7 +118,11 @@ export function RightPaneFolder({ drive, folderPath }: RightPaneFolderProps) {
         ) : (
           <>
             {folders.length > 0 && (
-              <div className="mb-4 grid grid-cols-2 gap-2">
+              <div
+                ref={folderGridRef}
+                className="mb-4 grid gap-2"
+                style={{ gridTemplateColumns: cardGridTemplate(columns) }}
+              >
                 {folders.map((folder) => (
                   <FolderCard key={folder.path} folder={folder} driveName={drive} />
                 ))}

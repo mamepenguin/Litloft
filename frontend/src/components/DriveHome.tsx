@@ -8,6 +8,7 @@ import type { FileItem, Folder as FolderType, WatchHistoryItem } from "@/types";
 import { addPin, getDriveFiles, getFolders, getPins, getWatchHistory, removePin } from "@/lib/api";
 import { useDragAndDrop } from "@/hooks/useDragAndDrop";
 import { useContextMenu } from "@/hooks/useContextMenu";
+import { cardGridTemplate, useCardColumns } from "@/lib/cardGrid";
 import { useTreeRefresh } from "@/components/TreeRefreshContext";
 import { useWebSocketRefresh } from "@/hooks/useWebSocketRefresh";
 import { AddonSlot } from "./AddonSlot";
@@ -50,6 +51,7 @@ export function DriveHome({ driveName }: DriveHomeProps) {
   const [foldersLoading, setFoldersLoading] = useState(true);
   const [pinnedPaths, setPinnedPaths] = useState<Set<string>>(new Set());
   const [menuTarget, setMenuTarget] = useState<FolderType | null>(null);
+  const { ref: folderGridRef, columns } = useCardColumns();
   const { menuState: folderMenuState, close: closeFolderMenu, handlers: folderMenuHandlers } = useContextMenu();
   const { requestRefresh: refreshSidebar } = useSidebar();
   const emptySelection = useMemo(() => new Set<string>(), []);
@@ -263,7 +265,11 @@ export function DriveHome({ driveName }: DriveHomeProps) {
           )}
 
           {foldersLoading ? (
-            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+            <div
+              ref={folderGridRef}
+              className="grid gap-3"
+              style={{ gridTemplateColumns: cardGridTemplate(columns) }}
+            >
               {Array.from({ length: 4 }).map((_, i) => (
                 <div key={i} className="animate-pulse rounded-2xl bg-bg-card p-4">
                   <div className="flex items-center gap-3">
@@ -277,7 +283,11 @@ export function DriveHome({ driveName }: DriveHomeProps) {
               ))}
             </div>
           ) : (
-            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+            <div
+              ref={folderGridRef}
+              className="grid gap-3"
+              style={{ gridTemplateColumns: cardGridTemplate(columns) }}
+            >
               {folders.slice(0, MAX_FOLDERS).map((folder) => {
                 const disabled = isDropDisabled(folder.path);
                 return (

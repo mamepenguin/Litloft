@@ -1433,17 +1433,33 @@ Keep the threshold in `rem` on both sides and resolve it against the
 root font size when measuring, so scaled text still gets the layout the
 numbers were chosen for.
 
-**For a grid of equal cards, neither mechanism is needed.**
-`repeat(auto-fill, minmax(min(<card-min>, 100%), 1fr))` lets the
-container's own width choose the column count, with no query, no
-observer, and nothing to keep in sync. Prefer it over breakpoint
-column counts wherever the cells are interchangeable.
+**A grid of equal cards goes through `lib/cardGrid.ts`.** Do not write
+`repeat(auto-fill, minmax(min(16rem, 100%), 1fr))` — or a `sm:`/`lg:`/
+`xl:` column count — into a card grid directly. Call `useCardColumns()`,
+attach its `ref` to the grid element, and pass its `columns` through
+`cardGridTemplate()`.
 
-**Card grid minimum: `16rem`.** Used by the file grid (`FileGrid`) and
-the folder grid above it (`FolderContent`), which must agree so the two
-rows of cards line up. Both previously used `sm:`/`lg:`/`xl:` column
-counts and so mis-counted columns inside the tree pane, which is
-280px narrower than the window.
+**Card grid minimum width: `16rem`. Minimum column count: 2.**
+`auto-fill` measures the container, which is right, but it has no way to
+express a floor: `min(16rem, 100%)` collapses to a single column below
+256px, and a 375px phone then shows one full-width tile per row — less
+per screen than the list view, which is the shape the mobile sizing rule
+rules out. The floor is why the count is computed in JS rather than left
+to CSS. The `auto-fill` string survives as the pre-measurement fallback
+only.
+
+Card widths the rule produces, at `gap-3` and less the page's `px-4`
+gutters: **≈165px at 375px** and **≈178px at 400px** (2 columns),
+**≈294px in a 600px pane** (2 columns) and in a 1213px canvas beside the
+open tree pane (4 columns).
+
+Every card grid measures itself, so they all agree: the file grid
+(`FileGrid`), the folder grids above it (`FolderContent`, `DriveHome`,
+`RightPaneFolder`), and the trash and missing grids. A folder row and
+the file grid under it have to line up, and a shared helper is what
+makes that structural rather than a habit. Breakpoint column counts
+cannot do it: they fire on window size and so mis-count inside the tree
+pane, which is 280px narrower than the window.
 
 ### Sticking below the header
 
