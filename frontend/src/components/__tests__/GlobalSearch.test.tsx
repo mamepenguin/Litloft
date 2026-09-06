@@ -228,6 +228,64 @@ describe("GlobalSearch", () => {
       expect(panel!.parentElement!.children).toHaveLength(2);
     });
 
+    /**
+     * S-3. The modal is portalled to `document.body` and its backdrop covers
+     * the viewport, so the panel is centred on the viewport while every other
+     * surface is centred on the content area inside the 240px sidebar. At
+     * 1512px with the sidebar inline those two centres are 120px apart, and
+     * the fix is not to give the overlay a second coordinate system but to
+     * make the panel wide enough that the offset stops reading as "left of
+     * centre": 120px is 23% of 512px and 16% of 768px.
+     */
+    it("is 768px wide on the desktop centre, not 512px", () => {
+      openModal();
+      const panel = screen
+        .getByPlaceholderText(/Search/)
+        .closest(".bg-bg-primary");
+      expect(panel).not.toBeNull();
+      expect(panel!.className).toContain("max-w-3xl");
+      expect(panel!.className).not.toContain("max-w-lg");
+    });
+
+    /**
+     * ...and the widening stops at the desktop branch. Below 640px the sheet
+     * is full-screen, so any `max-w-*` on it would cap a surface that is
+     * meant to be the whole viewport.
+     */
+    it("leaves the mobile sheet uncapped", () => {
+      const mql = window.matchMedia as unknown as ReturnType<typeof vi.fn>;
+      mql.mockImplementation((query: string) => ({
+        matches: true,
+        media: query,
+        onchange: null,
+        addListener: vi.fn(),
+        removeListener: vi.fn(),
+        addEventListener: vi.fn(),
+        removeEventListener: vi.fn(),
+        dispatchEvent: vi.fn(),
+      }));
+      try {
+        openModal();
+        const sheet = screen
+          .getByPlaceholderText(/Search/)
+          .closest(".bg-bg-primary");
+        expect(sheet).not.toBeNull();
+        expect(sheet!.className).toContain("inset-0");
+        expect(sheet!.className).not.toMatch(/\bmax-w-/);
+      } finally {
+        mql.mockImplementation((query: string) => ({
+          matches: false,
+          media: query,
+          onchange: null,
+          addListener: vi.fn(),
+          removeListener: vi.fn(),
+          addEventListener: vi.fn(),
+          removeEventListener: vi.fn(),
+          dispatchEvent: vi.fn(),
+        }));
+      }
+    });
+
     it("closes the search and opens the cheat sheet", () => {
       openModal();
       fireEvent.click(screen.getByRole("button", { name: /Keyboard Shortcuts/ }));
