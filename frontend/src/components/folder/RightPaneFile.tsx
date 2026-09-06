@@ -8,6 +8,7 @@ import { FileDetailContent } from "@/components/FileDetailContent";
 import { FileDetailChrome } from "@/components/FileDetail/FileDetailChrome";
 import { ImageGallery } from "@/components/ImageGallery";
 import { useFileNav } from "@/hooks/useFileNav";
+import { FileNavProvider } from "@/lib/fileNavContext";
 import { usePolicy } from "@/hooks/usePolicy";
 import { useSelectedFile } from "@/hooks/useSelectedFile";
 import { getFile } from "@/lib/api";
@@ -110,7 +111,7 @@ export function RightPaneFile({ fileId, drive }: RightPaneFileProps) {
   // PR-5: ``selectFile`` itself routes through ``navigationGuard`` so
   // a dirty editor on the current file gets the global ``DirtyBlocker``
   // dialog before the swap fires; this hook stays surface-agnostic.
-  useFileNav({
+  const fileNav = useFileNav({
     fileId: file ? fileId : null,
     sort: normalizeSortParam(searchParams.get("sort")),
     order: searchParams.get("order") ?? undefined,
@@ -170,16 +171,22 @@ export function RightPaneFile({ fileId, drive }: RightPaneFileProps) {
         }
         scrollRef={setScrollRootCb}
       >
-        <FileDetailContent
-          fileId={fileId}
-          drive={drive}
-          initialTime={initialTime}
-          initialPage={initialPage}
-          highlight={highlight}
-          miniPlayerRoot={scrollRoot}
-          onRequestImageGallery={() => setGalleryOpen(true)}
-          onAfterDelete={clearFile}
-        />
+        {/* Published rather than passed down: the page row that draws
+            the visible prev / next sits four components below here, and
+            the hook has to stay with the host because only the host
+            knows what "navigate" means in its URL model. */}
+        <FileNavProvider value={fileNav}>
+          <FileDetailContent
+            fileId={fileId}
+            drive={drive}
+            initialTime={initialTime}
+            initialPage={initialPage}
+            highlight={highlight}
+            miniPlayerRoot={scrollRoot}
+            onRequestImageGallery={() => setGalleryOpen(true)}
+            onAfterDelete={clearFile}
+          />
+        </FileNavProvider>
       </PaneShell>
       {file && (
         <ImageGallery

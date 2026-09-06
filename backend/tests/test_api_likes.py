@@ -185,13 +185,13 @@ class TestSortField:
 
         res = c.get(f"/api/files/{unliked.id}/neighbors?sort=liked_at")
         assert res.status_code == 200
-        # ``total`` counts the folder either way; only the place in the
-        # ordering is undefined for a file the ordering cannot rank.
+        # No place in the ordering, and no count either: the size of a
+        # sequence this file is not part of answers nothing.
         assert res.json() == {
             "prev_id": None,
             "next_id": None,
             "position": None,
-            "total": 2,
+            "total": None,
         }
 
     def test_unliked_files_are_not_neighbours_of_a_liked_one(self, client):
@@ -201,11 +201,15 @@ class TestSortField:
         c.post(f"/api/files/{liked.id}/like")
 
         res = c.get(f"/api/files/{liked.id}/neighbors?sort=liked_at")
+        # And the count says one, not two: the unliked file is not a
+        # neighbour, so it is not in the sequence being counted either.
+        # "1 of 2" beside a disabled next button claims a file that the
+        # arrows cannot reach.
         assert res.json() == {
             "prev_id": None,
             "next_id": None,
             "position": 1,
-            "total": 2,
+            "total": 1,
         }
 
     def test_liked_view_orders_by_when_it_was_liked(self, client):

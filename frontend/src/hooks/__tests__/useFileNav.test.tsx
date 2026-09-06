@@ -276,4 +276,77 @@ describe("useFileNav", () => {
     );
     expect(result.current.nextId).toBe("next1");
   });
+
+  it("returns the place in the folder and its size", async () => {
+    const onNavigate = vi.fn();
+    const { result } = renderHook(
+      () =>
+        useFileNav({
+          fileId: "current",
+          fileType: "image",
+          enabled: true,
+          onNavigate,
+        }),
+      { wrapper: Wrapper },
+    );
+    await waitFor(() => expect(result.current.position).toBe(2));
+    expect(result.current.total).toBe(3);
+  });
+
+  it("reports no place when the ordering cannot rank the file", async () => {
+    vi.mocked(api.getFileNeighbors).mockResolvedValue({
+      prev_id: null,
+      next_id: null,
+      position: null,
+      total: null,
+    });
+    const onNavigate = vi.fn();
+    const { result } = renderHook(
+      () =>
+        useFileNav({
+          fileId: "unliked",
+          sort: "liked_at",
+          fileType: "image",
+          enabled: true,
+          onNavigate,
+        }),
+      { wrapper: Wrapper },
+    );
+    await waitFor(() =>
+      expect(api.getFileNeighbors).toHaveBeenCalledWith(
+        "unliked",
+        "liked_at",
+        undefined,
+      ),
+    );
+    expect(result.current.position).toBeNull();
+    expect(result.current.total).toBeNull();
+  });
+
+  it("hands out the same navigation the arrow keys run", async () => {
+    // One path into "go to the next file". Two would be how one of them
+    // ends up bypassing `navigationGuard` and losing an unsaved edit.
+    const onNavigate = vi.fn();
+    const { result } = renderHook(
+      () =>
+        useFileNav({
+          fileId: "current",
+          fileType: "image",
+          enabled: true,
+          onNavigate,
+        }),
+      { wrapper: Wrapper },
+    );
+    await waitFor(() => expect(result.current.nextId).toBe("next1"));
+
+    act(() => result.current.navigateNext());
+    expect(onNavigate).toHaveBeenCalledWith("next1");
+
+    await dispatchKey("ArrowRight");
+    expect(onNavigate).toHaveBeenCalledTimes(2);
+    expect(onNavigate).toHaveBeenLastCalledWith("next1");
+
+    act(() => result.current.navigatePrev());
+    expect(onNavigate).toHaveBeenLastCalledWith("prev1");
+  });
 });

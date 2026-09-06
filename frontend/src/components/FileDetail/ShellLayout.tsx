@@ -24,6 +24,7 @@ import { FilePreview } from "../FilePreview";
 import { MediaLayoutToggle } from "../MediaLayoutToggle";
 import { RelatedFilesSection } from "../RelatedFilesSection";
 import { MarkdownDocumentLayout } from "../markdown/MarkdownDocumentLayout";
+import { FileNavControls } from "./FileNavControls";
 import { MediaCanvas } from "./MediaCanvas";
 import { InspectorShell } from "./inspector/InspectorShell";
 import { RelatedGroup } from "./inspector/RelatedGroup";
@@ -379,18 +380,26 @@ export function ShellLayout({
         onBack={onBack}
         onScrollRootChange={onScrollRootChange}
         chromeControls={
-          // Only where there is something to move. With no chapters and
-          // no `player-side` occupant the two forms are identical, and a
-          // control that changes nothing is worse than no control. Same
-          // value the canvas box is drawn from, so the two cannot come
-          // to disagree about whether the region has an occupant.
-          // `!isMobile` is not only about space: `onBeside` opens the
-          // desktop pane, and a phone's sheet is `FileDetailShell`'s own
-          // state, not this store. Rendering the toggle on a phone would
-          // write a preference and open nothing.
-          !isMobile && hasPlayer && companionOccupied ? (
-            <MediaLayoutToggle onBeside={() => setInspectorOpen(true)} />
-          ) : undefined
+          <>
+            {/* Only where there is something to move. With no chapters
+                and no `player-side` occupant the two forms are
+                identical, and a control that changes nothing is worse
+                than no control. Same value the canvas box is drawn
+                from, so the two cannot come to disagree about whether
+                the region has an occupant. `!isMobile` is not only
+                about space: `onBeside` opens the desktop pane, and a
+                phone's sheet is `FileDetailShell`'s own state, not this
+                store. Rendering the toggle on a phone would write a
+                preference and open nothing. */}
+            {!isMobile && hasPlayer && companionOccupied && (
+              <MediaLayoutToggle onBeside={() => setInspectorOpen(true)} />
+            )}
+            {/* Images only. The arrow keys walk the folder for archives,
+                PDFs and text as well, but those are surfaces for reading
+                into a file, and a pair of arrows in their page row reads
+                as the viewer's own paging instead. */}
+            {file.file_type === "image" && <FileNavControls />}
+          </>
         }
         inspector={inspector}
         mobileSheet={mobileSheet}

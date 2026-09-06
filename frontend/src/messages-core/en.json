@@ -133,6 +133,7 @@
     "noPreview": "This kind of file cannot be shown in a browser",
     "prevFile": "Previous file",
     "nextFile": "Next file",
+    "positionOf": "{position} / {total}",
     "edit": "Edit",
     "summaryEdit": "Edit",
     "summarySave": "Save",

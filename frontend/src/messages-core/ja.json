@@ -133,6 +133,7 @@
     "noPreview": "この形式はブラウザで表示できません",
     "prevFile": "前のファイル",
     "nextFile": "次のファイル",
+    "positionOf": "{position} / {total}",
     "edit": "編集",
     "summaryEdit": "編集",
     "summarySave": "保存",
