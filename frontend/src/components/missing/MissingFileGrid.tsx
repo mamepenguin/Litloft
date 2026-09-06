@@ -49,7 +49,7 @@ export function MissingFileGrid({
     <>
       <div
         ref={gridRef}
-        className="grid gap-x-4 gap-y-6"
+        className="grid gap-x-3 gap-y-6"
         style={{ gridTemplateColumns: cardGridTemplate(columns) }}
       >
         {files.map((file) => {

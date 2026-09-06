@@ -120,7 +120,7 @@ export function RightPaneFolder({ drive, folderPath }: RightPaneFolderProps) {
             {folders.length > 0 && (
               <div
                 ref={folderGridRef}
-                className="mb-4 grid gap-2"
+                className="mb-4 grid gap-3"
                 style={{ gridTemplateColumns: cardGridTemplate(columns) }}
               >
                 {folders.map((folder) => (

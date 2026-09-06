@@ -15,18 +15,35 @@ import { useCallback, useRef, useState } from "react";
  * mount a `<video>` for hover preview and `container-type` around a
  * media element breaks rendering on iOS Safari.
  *
- * `auto-fill` alone measured the container too, and needed no observer —
- * but it has no way to express a floor. `minmax(min(16rem, 100%), 1fr)`
- * collapses to one column below 16rem, which on a 375px phone is the
- * single-column list `00-basis.md` rules out. The floor is why the count
- * is computed here rather than left to CSS.
+ * `auto-fill` alone measured the container too and needed no observer.
+ * It is not enough here for two reasons, and only the second is about
+ * CSS's limits:
+ *
+ * 1. `minmax(min(16rem, 100%), 1fr)` collapses to one column below
+ *    16rem — on a 375px phone, the single-column list `00-basis.md`
+ *    rules out. CSS *can* express the floor, as
+ *    `minmax(min(16rem, calc(50% - <gap>/2)), 1fr)`.
+ * 2. The count is also a number, not only a layout: the drive home's
+ *    rows render exactly as many cards as fit. Having CSS derive it for
+ *    the grid and JS derive it for the row is one rule written twice,
+ *    and the second copy is where this codebase keeps finding drift.
+ *
+ * So the measurement happens once, here, and both consumers read it.
  */
 export const CARD_MIN_WIDTH = "16rem";
 
 /** `CARD_MIN_WIDTH` resolved against the 16px root font size. */
 export const CARD_MIN_PX = 256;
 
-/** `gap-3`, the gap between cards. */
+/**
+ * `gap-3`, the column gap every card grid uses.
+ *
+ * Shared rather than per-grid: `columnsFor` divides by
+ * `CARD_MIN_PX + CARD_GAP_PX`, so a grid with a wider gap would be told
+ * it fits a column it does not — cards under the declared 16rem — and
+ * two grids with different gaps put their tracks at different x even
+ * when they agree on the count. `card-grid.test.ts` holds them to it.
+ */
 export const CARD_GAP_PX = 12;
 
 /**

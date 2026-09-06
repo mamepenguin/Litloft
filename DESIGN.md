@@ -1440,13 +1440,24 @@ attach its `ref` to the grid element, and pass its `columns` through
 `cardGridTemplate()`.
 
 **Card grid minimum width: `16rem`. Minimum column count: 2.**
-`auto-fill` measures the container, which is right, but it has no way to
-express a floor: `min(16rem, 100%)` collapses to a single column below
-256px, and a 375px phone then shows one full-width tile per row — less
-per screen than the list view, which is the shape the mobile sizing rule
-rules out. The floor is why the count is computed in JS rather than left
-to CSS. The `auto-fill` string survives as the pre-measurement fallback
-only.
+`min(16rem, 100%)` collapses to a single column below 256px, and a 375px
+phone then shows one full-width tile per row — less per screen than the
+list view, which is the shape the mobile sizing rule rules out.
+
+CSS alone *can* hold the floor: `minmax(min(16rem, calc(50% - <gap>/2)),
+1fr)` yields the same counts at every width. It is not used because the
+count is also a **number** the shelves need — how many cards to render
+at all, rather than how wide to draw them (§ the drive home's rows). CSS
+deriving it for layout while JS derives it for the count is two
+implementations of one rule, and they drift. One measurement feeds both.
+The `auto-fill` string survives as the pre-measurement fallback only.
+
+**The gap is part of the rule, not a per-grid choice.** `columnsFor`
+divides by `CARD_MIN_PX + CARD_GAP_PX`, so a grid with a wider column
+gap under-fills — cards below the declared 16rem — and a folder row only
+lines up with the file grid beneath it if their tracks start at the same
+x, which needs the same gap and not just the same count. Every card grid
+uses `gap-3` on the column axis; the row axis is free.
 
 Card widths the rule produces, at `gap-3` and less the page's `px-4`
 gutters: **≈165px at 375px** and **≈178px at 400px** (2 columns),

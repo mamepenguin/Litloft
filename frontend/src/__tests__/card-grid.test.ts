@@ -57,10 +57,17 @@ function sourceFiles(): string[] {
 
 /**
  * A file lays out cards if it renders a `FileCard` / `FolderCard`, or
- * builds a card cell itself around a thumbnail. That covers the six
- * screens with a card grid and nothing else: the components that call
- * `getThumbnailUrl` without a grid (`FileListRow`, the collection panes,
- * the players' media-session artwork) have no grid className to find.
+ * builds a card cell itself around a thumbnail.
+ *
+ * **This reads one file's own tokens.** A grid that delegates its cell to
+ * a component defined elsewhere is invisible here — `ArchiveEntryGrid`
+ * lays out `ArchiveEntryCard`, which takes its `<img src>` as a prop, and
+ * no token in the grid's file says "thumbnail". Following the component
+ * graph instead was tried and is worse: keying on "renders an `<img>`
+ * from a thumbnail" pulls in `PropertiesPanel`, `FilePreview` and the
+ * collection panes, and still misses `ArchiveEntryCard`. So the reach is
+ * stated rather than overclaimed, and the one grid it misses is named
+ * below with why it is out of scope anyway.
  */
 function rendersCards(body: string): boolean {
   return (
@@ -220,6 +227,53 @@ describe("every card grid goes through lib/cardGrid", () => {
     expect(unattached).toEqual([]);
   });
 
+  it("uses the column gap the helper counts with", () => {
+    // `columnsFor` divides by `CARD_MIN_PX + CARD_GAP_PX`. A grid whose
+    // real column gap is wider under-fills — a 1060px container returns 4
+    // at gap-3 but only fits 4 at 16px if it is 1072px wide, so the cards
+    // land under the 16rem the design declares. A narrower gap loses a
+    // column it had room for. And a folder row and the file grid below it
+    // only line up if their tracks start at the same x, which needs the
+    // same gap, not just the same count.
+    const wrongGap = sites
+      .filter((s) => {
+        const gaps = [...s.className.matchAll(/\bgap(?:-x)?-(\d+)\b/g)].map(
+          (m) => Number(m[1]) * 4,
+        );
+        return gaps.length === 0 || gaps.some((g) => g !== CARD_GAP_PX);
+      })
+      .map((s) => `${s.file}:${s.line} — ${s.className}`);
+    expect(wrongGap).toEqual([]);
+  });
+
+  it("writes its grid className where the scan can read it", () => {
+    // `gridClassNames` reads `className="…"` and a plain template
+    // literal. A card grid whose classes are assembled in an expression
+    // would contribute zero sites, drop out of the population, and leave
+    // the exact-set assertion above still passing — a silent hole rather
+    // than a failure. So the shape itself is pinned.
+    //
+    // Matched on a literal that carries grid classes: `grid-cols-…`, or
+    // `grid` followed by more classes. A bare `"grid"` is not enough to
+    // flag — it is also the name of a view mode in this tree
+    // (`RightPaneFolder`'s `innerMode === "grid"`), and a guard that
+    // fires on that would be removed rather than obeyed. The residual
+    // gap is `cn("grid", "gap-3")` exactly; nothing in core writes that.
+    const dynamic: string[] = [];
+    for (const file of sourceFiles()) {
+      const body = readFileSync(file, "utf-8");
+      if (!rendersCards(body)) continue;
+      for (const m of body.matchAll(/className=\{(?!`)([^}]*)\}/g)) {
+        if (/\bgrid-cols-/.test(m[1]) || /["'`]\s*grid\s+\S/.test(m[1])) {
+          dynamic.push(
+            `${relative(REPO_ROOT, file)}:${body.slice(0, m.index!).split("\n").length}`,
+          );
+        }
+      }
+    }
+    expect(dynamic).toEqual([]);
+  });
+
   it("takes its template from the helper, not from a literal", () => {
     const handwritten = sites
       .filter((s) => !/cardGridTemplate\(/.test(s.tag))
@@ -270,9 +324,14 @@ describe("grids that are not card grids", () => {
    *   (`.claude/rules/frontend-conventions.md`), so it can run no
    *   observer. Two columns of text rows at 375px is not the layout the
    *   floor exists to produce.
-   * - `archive/ArchiveEntryGrid.tsx` — archive page cells, which already
-   *   start at two columns and are due to be laid out by real aspect
-   *   ratio.
+   * - `archive/ArchiveEntryGrid.tsx` — **is** a grid of thumbnail cards,
+   *   and is excluded on scope, not on kind: P4V-7 rebuilds it to lay
+   *   pages out by their real aspect ratio, and converting it here would
+   *   be rewriting the same element twice. It clears the floor already
+   *   (`grid-cols-2`, pinned below), but its `xl:grid-cols-6` still
+   *   fires on window size — so inside a 1213px canvas beside the tree
+   *   pane it draws six ~192px columns, which is the mis-count §8.5
+   *   names. That is a known miss, not a fixed one.
    *
    * The check is that they stay out by staying non-card grids, not that
    * a list of exemptions is maintained.
@@ -281,7 +340,10 @@ describe("grids that are not card grids", () => {
     "frontend/src/components/RelatedFilesSection.tsx",
     "frontend/src/app/page.tsx",
     "frontend/src/components/archive/ArchiveEntryGrid.tsx",
-  ])("%s renders no file or folder card", (rel) => {
+  ])("%s stays outside the scan's reach", (rel) => {
+    // True of the tokens, and that is all this asserts. For the first
+    // two it is also true of the screen; for the archive grid it is not,
+    // which is why the reason above is about scope.
     const body = readFileSync(resolve(REPO_ROOT, rel), "utf-8");
     expect(rendersCards(body)).toBe(false);
   });
