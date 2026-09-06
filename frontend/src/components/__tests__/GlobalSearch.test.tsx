@@ -205,12 +205,25 @@ describe("GlobalSearch", () => {
       }
     });
 
-    it("is in the footer, outside the scrolling results", () => {
+    it("is in the footer, inside the panel and outside the scrolling results", () => {
       openModal();
       const entry = screen.getByRole("button", { name: /Keyboard Shortcuts/ });
       // Not inside the list: 案 5's semantic hits arrive after the name
       // matches, and a row in that list slides as they land.
       expect(entry.closest(".overflow-y-auto")).toBeNull();
+
+      // ...and inside the card that paints the modal. "Outside the list"
+      // alone is also true of a footer that has escaped the card entirely,
+      // which is how one shipped: no background of its own, and a second
+      // child for `justify-center` to centre, which drags the panel left.
+      const panel = screen
+        .getByPlaceholderText(/Search/)
+        .closest(".bg-bg-primary");
+      expect(panel).not.toBeNull();
+      expect(panel).toContainElement(entry);
+
+      // The centring wrapper holds the backdrop and that card, nothing else.
+      expect(panel!.parentElement!.children).toHaveLength(2);
     });
 
     it("closes the search and opens the cheat sheet", () => {

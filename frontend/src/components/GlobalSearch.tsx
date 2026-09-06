@@ -597,7 +597,7 @@ export function GlobalSearch() {
         !isMobileViewport &&
         createPortal(
           // Desktop: centered modal
-          <div className="fixed inset-0 z-50 flex items-start justify-center pt-[10vh]">
+        <div className="fixed inset-0 z-50 flex items-start justify-center pt-[10vh]">
           <div
             className="fixed inset-0 bg-black/50 animate-fade-in"
             onClick={closeSearch}
@@ -639,7 +639,6 @@ export function GlobalSearch() {
             ) : hasQuery ? (
               resultsList(false)
             ) : null}
-            </div>
 
             {/* Outside the scroll area on purpose: 案 5 (Phase 4) makes
                 Cmd+K two-stage, with semantic hits arriving after the
@@ -657,7 +656,8 @@ export function GlobalSearch() {
               </button>
               <span />
             </div>
-          </div>,
+          </div>
+        </div>,
           document.body
         )}
     </>
