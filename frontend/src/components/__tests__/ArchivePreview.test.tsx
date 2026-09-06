@@ -430,6 +430,14 @@ describe("ArchivePreview — the index's press", () => {
     );
     await screen.findByText("cover.jpg");
     expect(published).toHaveLength(1);
+    // Waited for, not read straight after the row appears. The store is
+    // filled from a `useEffect` — deliberately, because `set` notifies
+    // its subscribers synchronously and one of them is a component — so
+    // it lands a flush later than the row that `findByText` sees. Read
+    // without waiting, this passes locally and fails under load.
+    await waitFor(() =>
+      expect(published[0].getState().entries).toHaveLength(8),
+    );
     const state = published[0].getState();
     // Every entry at every depth, not the level the canvas is on.
     expect(state.entries).toHaveLength(8);
@@ -452,7 +460,11 @@ describe("ArchivePreview — the index's press", () => {
       />,
     );
     await screen.findByText("cover.jpg");
-    expect(controller!.getState().entries).toHaveLength(8);
+    // Same flush gap as above: the row is rendered, the store is filled
+    // by an effect. This is the assertion that failed on develop.
+    await waitFor(() =>
+      expect(controller!.getState().entries).toHaveLength(8),
+    );
 
     let resolveSecond: (v: ArchiveContents) => void = () => {};
     mockedGetArchiveContents.mockReturnValueOnce(
