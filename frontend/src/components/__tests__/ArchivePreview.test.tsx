@@ -130,8 +130,16 @@ beforeEach(() => {
   localStorage.clear();
 });
 
+const originalFetch = globalThis.fetch;
+
 afterEach(() => {
   localStorage.clear();
+  // Restored by hand, not with `vi.unstubAllGlobals()`: the
+  // `IntersectionObserver` stub above is installed once at module scope, and
+  // unstubbing everything takes it away with the fetch — after which every
+  // later render of a grid cell throws and the failure lands somewhere else
+  // entirely. Only visible under `--sequence.shuffle`.
+  globalThis.fetch = originalFetch;
 });
 
 describe("ArchivePreview", () => {
@@ -249,10 +257,7 @@ describe("ArchivePreview", () => {
   // entry in the grid set `viewerMode` to "text" and drew nothing at all. The
   // press looked like it had missed.
   it("opens the text viewer from the grid, not only from the listing", async () => {
-    vi.stubGlobal(
-      "fetch",
-      vi.fn().mockResolvedValue({ ok: true, text: async () => "hello from the zip" })
-    );
+    globalThis.fetch = vi.fn().mockResolvedValue({ ok: true, text: async () => "hello from the zip" }) as unknown as typeof fetch;
     // The root level derives a list (one image among three files), so the
     // grid is reached the way a reader reaches it: by choosing it.
     localStorage.setItem(
@@ -268,16 +273,12 @@ describe("ArchivePreview", () => {
 
     expect(await screen.findByTestId("text-viewer")).toBeInTheDocument();
     expect(await screen.findByText("hello from the zip")).toBeInTheDocument();
-    vi.unstubAllGlobals();
   });
 
   it("opens it from the listing too", async () => {
     // The assertion above is only interesting if the listing still works —
     // moving the viewer out of the listing is what could have broken it.
-    vi.stubGlobal(
-      "fetch",
-      vi.fn().mockResolvedValue({ ok: true, text: async () => "hello from the zip" })
-    );
+    globalThis.fetch = vi.fn().mockResolvedValue({ ok: true, text: async () => "hello from the zip" }) as unknown as typeof fetch;
     render(<ArchivePreview fileId="test-id" />);
 
     await waitFor(() => {
@@ -286,11 +287,10 @@ describe("ArchivePreview", () => {
     fireEvent.click(screen.getByText("readme.txt"));
 
     expect(await screen.findByTestId("text-viewer")).toBeInTheDocument();
-    vi.unstubAllGlobals();
   });
 
   it("offers a download when the text cannot be fetched", async () => {
-    vi.stubGlobal("fetch", vi.fn().mockResolvedValue({ ok: false, status: 500, statusText: "Server Error" }));
+    globalThis.fetch = vi.fn().mockResolvedValue({ ok: false, status: 500, statusText: "Server Error" }) as unknown as typeof fetch;
     render(<ArchivePreview fileId="test-id" />);
 
     await waitFor(() => {
@@ -307,17 +307,13 @@ describe("ArchivePreview", () => {
     expect(link.hasAttribute("download")).toBe(true);
     expect(link.getAttribute("href")).toContain("readme.txt");
     expect(link.textContent).toBe("Download");
-    vi.unstubAllGlobals();
   });
 
   it("opens a source file the mime table has no name for", async () => {
     // ARC-1. `isTextPreviewable` reads the entry's name here because the mime
     // is `application/octet-stream` — the same value `data.bin` carries, so
     // the mime alone cannot tell the two apart.
-    vi.stubGlobal(
-      "fetch",
-      vi.fn().mockResolvedValue({ ok: true, text: async () => "void main() {}" })
-    );
+    globalThis.fetch = vi.fn().mockResolvedValue({ ok: true, text: async () => "void main() {}" }) as unknown as typeof fetch;
     render(<ArchivePreview fileId="test-id" />);
 
     await waitFor(() => {
@@ -328,7 +324,6 @@ describe("ArchivePreview", () => {
 
     fireEvent.click(screen.getByText("main.dart"));
     expect(await screen.findByText("void main() {}")).toBeInTheDocument();
-    vi.unstubAllGlobals();
   });
 
   it("non-previewable files are not controls, and are given a way out", async () => {
