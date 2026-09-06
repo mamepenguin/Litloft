@@ -17,6 +17,7 @@ Before you type anything, the modal is a **switcher**: it lists the files you mo
 - **Recently opened files** come from your watch history on the server, so the list follows you between devices and browsers. Opening a file's detail page is enough to put it there — it is not limited to media you played.
 - **Recent searches** are stored per drive in your browser, up to 20 terms. Each row has two small buttons: one fills the input with that term instead of running it, the other drops it from the list.
 - Arrow keys walk both sections as one list, and Enter activates the highlighted row.
+- Results arrive in two stages, and the second one reorders the list. A row you have highlighted keeps its highlight through that — Enter opens the file you picked, wherever it has moved to. The highlight is dropped only if that file drops out of the list.
 
 The modal only ever shows the drive you are currently in — it never crosses a drive boundary, and outside a drive it just asks you to open one first.
 
@@ -32,7 +33,7 @@ Each hit shows its title, and under it a second line only when that line says so
 
 - Matches the **title** and the **folder path**. The title starts out as the filename with the extension dropped, so filename search works out of the box; renaming the title changes what a keyword search sees.
 - Case-insensitive, substring match. No fuzzy matching.
-- Each result carries a small badge saying where it matched — a filename hit, a folder-path hit, or both.
+- Each result carries a small badge saying where it matched — a filename hit, a folder-path hit, or both. The badges are one word each, and **What the badges mean** at the bottom of the search popup explains all of them, whether or not one is on screen at the time. Press Escape once to leave the list of meanings and go back to your results.
 - A folder-path match is deliberately ranked low, so searching `kyoto` surfaces the files under `travel/kyoto/` without burying a file actually named for Kyoto.
 
 The description field is not searched.

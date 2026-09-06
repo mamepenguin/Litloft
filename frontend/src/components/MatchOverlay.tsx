@@ -28,24 +28,12 @@ import { useTranslations } from "next-intl";
 import type { FileItemWithMatch, MatchMeta } from "@/types";
 import { formatDuration } from "@/lib/format";
 import { collectMatchTimestamps } from "@/lib/matchTimestamps";
+import { MATCH_BADGE_STYLES, matchBadgeLabels } from "@/lib/matchBadges";
 import { AddonSlot } from "@/components/AddonSlot";
 import { buildSearchSnippet } from "@/lib/searchCapture";
 
-const MATCH_TYPE_STYLES: Record<string, string> = {
-  filename: "bg-accent/15 text-accent",
-  // path uses the same accent family as filename/metadata but at lower opacity.
-  // Label policy: spec `2026-05-02-search-path-match.md`.
-  path: "bg-accent/5 text-accent",
-  metadata: "bg-accent/10 text-accent",
-  transcript: "bg-accent-teal/15 text-accent-teal",
-  clip: "bg-accent-amber/15 text-accent-amber",
-  clip_thumbnail: "bg-accent-amber/10 text-accent-amber",
-  content: "bg-warm-light text-text-primary",
-  retrieval_keywords: "bg-warm-light text-text-muted",
-};
-
 function MatchBadge({ type, label }: { type: string; label: string }) {
-  const style = MATCH_TYPE_STYLES[type] ?? "bg-sand text-text-primary";
+  const style = MATCH_BADGE_STYLES[type] ?? "bg-sand text-text-primary";
   return (
     <span
       className={`inline-flex rounded-lg px-1.5 py-0.5 text-[10px] font-medium ${style}`}
@@ -95,16 +83,7 @@ export function MatchOverlay({
 }) {
   const t = useTranslations("search");
 
-  const labels: Record<string, string> = {
-    filename: t("matchFilename"),
-    path: t("matchPath"),
-    metadata: t("matchMetadata"),
-    transcript: t("matchTranscript"),
-    clip: t("matchClip"),
-    clip_thumbnail: t("matchClipThumbnail"),
-    content: t("matchContent"),
-    retrieval_keywords: t("matchRetrievalKeywords"),
-  };
+  const labels = matchBadgeLabels(t);
 
   // filename (substring) and metadata (embedding) are semantically close;
   // collapse to one when both are true so the card doesn't get cluttered.

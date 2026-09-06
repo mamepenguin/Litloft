@@ -15,22 +15,8 @@ import { useTranslations } from "next-intl";
 import { formatDuration } from "@/lib/format";
 import { filenameToTitle } from "@/lib/filenameTitle";
 import { collectMatchTimestamps } from "@/lib/matchTimestamps";
+import { MATCH_BADGE_STYLES, matchBadgeLabels } from "@/lib/matchBadges";
 import type { FileItemWithMatch, MatchMeta } from "@/types";
-
-const BADGE_STYLES: Record<string, string> = {
-  filename: "bg-accent/15 text-accent",
-  path: "bg-accent/5 text-accent",
-  metadata: "bg-accent/10 text-accent",
-  transcript: "bg-accent-teal/15 text-accent-teal",
-  clip: "bg-accent-amber/15 text-accent-amber",
-  clip_thumbnail: "bg-accent-amber/10 text-accent-amber",
-  content: "bg-warm-light text-text-primary",
-  // SIRA-style LLM-expanded keyword hit. Re-uses the warm-light tone
-  // of the content badge so it sits visually adjacent to the existing
-  // keyword chips; the distinct label is what tells users the match
-  // came from an expansion rather than the document body.
-  retrieval_keywords: "bg-warm-light text-text-muted",
-};
 
 function selectActiveBadgeKeys(meta: MatchMeta | undefined): string[] {
   if (!meta) return [];
@@ -88,16 +74,7 @@ export function MergedResultItem({ file, onSelect, isSelected = false }: Props) 
   const t = useTranslations("search");
   const meta = file.match_meta;
 
-  const labels: Record<string, string> = {
-    filename: t("matchFilename"),
-    path: t("matchPath"),
-    metadata: t("matchMetadata"),
-    transcript: t("matchTranscript"),
-    clip: t("matchClip"),
-    clip_thumbnail: t("matchClipThumbnail"),
-    content: t("matchContent"),
-    retrieval_keywords: t("matchRetrievalKeywords"),
-  };
+  const labels = matchBadgeLabels(t);
 
   const badgeKeys = selectActiveBadgeKeys(meta);
   const { shown: timestamps, overflow } = collectMatchTimestamps(meta);
@@ -108,6 +85,10 @@ export function MergedResultItem({ file, onSelect, isSelected = false }: Props) 
     <button
       type="button"
       data-testid="merged-result-item"
+      // Which file this row is, for tests about the highlight: the
+      // highlight follows a file rather than a position, so a test that
+      // identified rows by position could not tell the two apart.
+      data-file-id={file.id}
       onClick={() => onSelect(`/files/${file.id}`)}
       className={`flex w-full items-start gap-3 px-4 py-2.5 text-left transition-colors ${isSelected ? "bg-bg-elevated" : "hover:bg-bg-elevated"}`}
     >
@@ -129,7 +110,7 @@ export function MergedResultItem({ file, onSelect, isSelected = false }: Props) 
             {badgeKeys.map((key) => (
               <span
                 key={key}
-                className={`inline-flex rounded-lg px-1.5 py-0.5 text-[10px] font-medium ${BADGE_STYLES[key]}`}
+                className={`inline-flex rounded-lg px-1.5 py-0.5 text-[10px] font-medium ${MATCH_BADGE_STYLES[key]}`}
               >
                 {labels[key]}
               </span>
