@@ -1603,32 +1603,50 @@ cheaper half to lose.
 ### A floor under the canvas viewer
 
 An archive holding seven entries drew a 200px band with the rest of the
-canvas empty under it, and so did a short text file: the viewer is the
-whole reason the page exists, and its height came from how much
-happened to be inside it.
+canvas empty under it: the viewer is the whole reason the page exists,
+and its height came from how much happened to be inside it.
 
-The canvas viewer takes `min-height: max(320px, 70cqh)` — **70% of the
-canvas**, not of the viewport. The canvas is the scrollport left after
-the page row and beside the inspector, which is 384px narrower and a
-row shorter than the window; `70vh` would be measuring something else
-and would move when a phone's URL bar collapsed.
+The canvas viewer takes `min-height: max(320px, calc(var(--canvas-h) *
+0.7))` — **70% of the canvas**, not of the viewport. The canvas is the
+scrollport left after the page row and beside the inspector, which is
+384px narrower and a row shorter than the window.
 
-A floor, not a ceiling. A 2439-entry archive still grows past it. The
-`320px` absolute is for a short phone, where 70% of a small canvas is
-less than a viewer's worth.
+A floor, not a ceiling. A 2439-entry archive still grows past it.
 
-**Archives, PDFs and plain text only.** `cqh` needs `container-type:
-size` on the canvas, and a containment context around a `<video>`,
-`<audio>` or cross-origin iframe renders its subtree rotated and
-spinning on iOS Safari (see *Which mechanism depends on what is
-inside*). A PDF page is a `<canvas>` and an archive cell is an `<img>`,
-so both are safe; media is not. The exclusion is in
-`lib/fileDetailShell.ts` (`viewerTakesCanvasFloor`), where a test can
-see it — not in the stylesheet, where jsdom cannot.
+**`--canvas-h` is measured, not `70cqh`** — and the reason has nothing
+to do with heights. `container-type: size` implies `contain: layout`,
+which makes the element the containing block for every `position:
+fixed` descendant and gives it a stacking context of its own. The
+archive canvas holds two unportalled fixed elements: the full-screen
+page-turner and the toolbar's overflow backdrop. Under containment the
+page-turner's `inset-0` resolves to the canvas — it covers the column
+instead of the screen, cannot rise above the header, and scrolls away
+with the content, while its inert backdrop has already made everything
+behind it unclickable. So the height is published from a
+`ResizeObserver`, which is the mechanism `lib/cardGrid.ts` already uses
+and the shape this document prescribes wherever a subtree may hold
+media.
+
+The lesson generalises past this floor: **`container-type` is not only
+a question about media in the subtree.** It changes what `position:
+fixed` means underneath it. Check for fixed descendants before
+establishing one, not just for `<video>`.
+
+**Archives and PDFs only, and not on a phone.** Which viewers get a
+floor is a named list in `lib/fileDetailShell.ts`
+(`viewerTakesCanvasFloor`), not a mime prefix: `startsWith("text/")`
+was the first spelling, it was unreachable — plain text does not ride
+the shell — and it would have matched `text/html`, which renders in a
+sandboxed opaque-origin iframe. A prefix asks "does this look like the
+family I meant"; a list asks "is this one I have checked".
 
 Images are excluded for a different reason: `FilePreview` already caps
 them at `70vh`, so a floor would add white space around a small
-photograph and nothing else.
+photograph and nothing else. A phone is excluded because there the
+canvas *is* the screen — there is no gutter beside a short viewer to
+fix — and the player is `position: sticky` under `[data-sheet-snap]`,
+so a floor would pin 70% of the screen for the whole scroll and leave
+the description and comments a slot to be read through.
 
 ### Sticking below the header
 

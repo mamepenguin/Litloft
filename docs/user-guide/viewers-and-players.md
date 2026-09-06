@@ -154,7 +154,7 @@ Litloft renders Markdown with a curated set of extensions:
 - The Pages tab does not open the document until you look at it, so a PDF you never inspect costs nothing extra.
 - The initial page can be set from the URL, which is how Ask citations land on the right page.
 - Pages stream from the backend as they are needed; the viewer does not rasterise the whole document up front.
-- The page column has a floor of 70% of its height, so a short document does not draw a band with empty space under it.
+- On a wide screen the page column has a floor of 70% of its height, so a short document does not draw a band with empty space under it. On a phone it does not, because there the document already has the screen.
 
 ## Office (DOCX / XLSX / PPTX) preview
 
@@ -171,7 +171,7 @@ What Litloft does read is a short text excerpt — up to 400 characters extracte
 
 ## ZIP archives
 
-- The listing has the page column to itself, so its height is its own rather than what is left after the metadata — and going into a folder inside the archive no longer moves anything under it, because there is nothing under it. **It also has a floor**: an archive holding three entries still gets 70% of the column rather than shrinking to a band with empty space under it. A floor, not a ceiling — a level with hundreds of pages grows past it as before.
+- The listing has the page column to itself, so its height is its own rather than what is left after the metadata — and going into a folder inside the archive no longer moves anything under it, because there is nothing under it. **It also has a floor on a wide screen**: an archive holding three entries still gets 70% of the column rather than shrinking to a band with empty space under it. A floor, not a ceiling — a level with hundreds of pages grows past it as before. On a phone there is no floor, because there the listing already has the screen to itself.
 - The archive is **not extracted on the server**; entries are streamed lazily.
 - The listing has grid and list view modes, sorting, a file-type filter, and a breadcrumb for folders inside the archive.
   **Sort** offers field and direction as one list of six — name, size or type, each way round — the same shape the folder toolbar uses.

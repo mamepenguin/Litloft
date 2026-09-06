@@ -10,6 +10,7 @@ import {
 } from "react";
 import { useTranslations } from "next-intl";
 
+import { useCanvasFloor } from "./FileDetail/hooks/useCanvasFloor";
 import { useInspectorOpen } from "@/hooks/useInspectorOpen";
 import { useIsMobile } from "@/hooks/useIsMobile";
 import { useShortcuts } from "@/hooks/useShortcuts";
@@ -37,10 +38,8 @@ interface FileDetailShellProps {
   /** Type-specific controls in the page row, before the inspector toggle. */
   chromeControls?: ReactNode;
   /**
-   * Whether the canvas becomes a size container, so the viewer inside
-   * it can take a floor as a fraction of it (`DESIGN.md` §8.5). Only
-   * for kinds with no media element in the subtree — see
-   * `viewerTakesCanvasFloor`, which is where that is decided.
+   * Whether the viewer inside the canvas takes a floor as a fraction of
+   * it (`DESIGN.md` §8.5). Decided by `viewerTakesCanvasFloor`.
    */
   canvasFloor?: boolean;
   /**
@@ -134,6 +133,23 @@ export function FileDetailShell({
   const t = useTranslations("inspector");
   const { open, setOpen } = useInspectorOpen(drive);
   const isMobile = useIsMobile();
+
+  // Not on a phone. There the canvas is the whole screen rather than a
+  // column beside an inspector, so a short viewer leaves no empty
+  // gutter to fix — and the player is `position: sticky` under
+  // `[data-sheet-snap]`, so a floor would pin 70% of the screen to the
+  // top for the whole scroll and leave the description and comments a
+  // slot to read through.
+  const floorActive = !!canvasFloor && !isMobile;
+  const measureCanvas = useCanvasFloor(floorActive);
+  const attachCanvas = useCallback(
+    (node: HTMLElement | null) => {
+      measureCanvas(node);
+      onScrollRootChange?.(node);
+    },
+    [measureCanvas, onScrollRootChange],
+  );
+
   const [sheetSnap, setSheetSnap] = useState<SheetSnap>(SHEET_SNAP_PEEK);
   const sheetExpanded = isSheetExpanded(sheetSnap);
   const attachInspectorFitHost = useInspectorFit();
@@ -226,8 +242,8 @@ export function FileDetailShell({
         className="relative flex min-h-0 flex-1"
       >
         <main
-          ref={onScrollRootChange}
-          data-canvas-floor={canvasFloor ? "true" : undefined}
+          ref={attachCanvas}
+          data-canvas-floor={floorActive ? "true" : undefined}
           className="flex min-w-0 min-h-0 flex-1 flex-col overflow-auto"
           // The sheet rests over the bottom of the page, so the page
           // has to end above it. Without this the last thing in the

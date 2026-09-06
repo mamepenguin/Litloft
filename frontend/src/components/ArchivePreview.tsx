@@ -49,6 +49,11 @@ export function ArchivePreview({
     let cancelled = false;
     setLoading(true);
     setError(null);
+    // The index is published from this state and the panel subscribes
+    // rather than remounting, so leaving the old archive in place shows
+    // zip A's contents beside zip B's spinner — and pressing a row then
+    // writes A's path into B's URL.
+    setArchive(null);
 
     getArchiveContents(fileId)
       .then((data) => {
@@ -177,12 +182,20 @@ export function ArchivePreview({
   useEffect(() => {
     if (!pendingOpen) return;
     const entry = currentEntries.find((e) => e.path === pendingOpen);
-    // Only once the level has actually arrived. Until then the effect
-    // re-runs on the next render with nothing to do.
-    if (!entry) return;
-    setPendingOpen(null);
-    handleFileClick(entry);
-  }, [pendingOpen, currentEntries, handleFileClick]);
+    if (entry) {
+      setPendingOpen(null);
+      handleFileClick(entry);
+      return;
+    }
+    // The level the entry lives on is not the level we are on, and this
+    // is not the render that carries it. Two cases look the same here:
+    // the navigation has not landed yet, and the reader went somewhere
+    // else instead — pressing a breadcrumb while the push was in
+    // flight. Waiting forever turns the second into a page that opens
+    // itself later, when the reader eventually walks into that folder.
+    // So a pending open survives exactly the level it was issued from.
+    if (getDirname(pendingOpen) !== currentPath) setPendingOpen(null);
+  }, [pendingOpen, currentEntries, currentPath, handleFileClick]);
 
   const archiveStore = useMemo(() => new ArchiveContentsStore(), []);
 

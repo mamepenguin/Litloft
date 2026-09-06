@@ -13,7 +13,7 @@
  * what let a second page row ship once already.
  */
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { render, screen } from "@testing-library/react";
+import { cleanup, render, screen } from "@testing-library/react";
 
 import { FileDetailContent } from "../../FileDetailContent";
 import type { FileItem } from "@/types";
@@ -371,6 +371,30 @@ describe("the archive's page-list tab", () => {
     // only add white space around a small photograph.
     const { container } = await renderKind(IMAGE);
     expect(container.querySelector('main[data-canvas-floor="true"]')).toBeNull();
+  });
+
+  it("gives a phone's canvas no floor, whatever the kind", async () => {
+    // On a phone the canvas is the whole screen rather than a column
+    // beside an inspector, so a short viewer leaves no empty gutter to
+    // fix. And the player is `position: sticky` under
+    // `[data-sheet-snap]`: a floor there pins 70% of the screen to the
+    // top for the entire scroll, leaving the description and comments a
+    // slot to be read through.
+    setViewport(600);
+    publishedArchiveState.value = {
+      entries: [entry("001.jpg"), entry("002.jpg")],
+      currentPath: "",
+    };
+    const { container } = await renderKind(ARCHIVE);
+    expect(container.querySelector('main[data-canvas-floor="true"]')).toBeNull();
+    // The same file on a wide screen does get one — otherwise this is
+    // just an assertion that nothing anywhere has a floor.
+    cleanup();
+    setViewport();
+    const wide = await renderKind(ARCHIVE);
+    expect(
+      wide.container.querySelector('main[data-canvas-floor="true"]'),
+    ).not.toBeNull();
   });
 
   it("never gives a canvas holding a player one", async () => {

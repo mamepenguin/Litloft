@@ -1,4 +1,4 @@
-import { render, screen, waitFor, fireEvent, within } from "@testing-library/react";
+import { act, render, screen, waitFor, fireEvent, within } from "@testing-library/react";
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import type { ReactNode } from "react";
 import { ArchivePreview } from "../ArchivePreview";
@@ -135,6 +135,11 @@ const mockedGetArchiveContents = vi.mocked(getArchiveContents);
 
 beforeEach(() => {
   vi.clearAllMocks();
+  // `mockReset` as well as `clearAllMocks`: a `mockReturnValueOnce`
+  // queued by a test that changes `fileId` mid-run is not cleared by
+  // `clearAllMocks`, and an unconsumed one is then handed to whichever
+  // test happens to run next.
+  mockedGetArchiveContents.mockReset();
   mockedGetArchiveContents.mockResolvedValue(mockArchive);
   mockSearchParams.delete("archivePath");
   localStorage.clear();
@@ -400,6 +405,47 @@ describe("ArchivePreview — the index's press", () => {
     expect(state.currentPath).toBe("");
   });
 
+  it("empties the index while a different archive is loading", async () => {
+    // The panel subscribes to the store rather than remounting, and the
+    // App Router keeps this component's state across a file change. Left
+    // alone, zip A's index sits beside zip B's spinner — and pressing a
+    // row there writes A's path into B's URL.
+    let controller: import("@/lib/archiveController").ArchiveController | null =
+      null;
+    const view = renderWithShortcuts(
+      <ArchivePreview
+        fileId="file-1"
+        onArchiveController={(c) => {
+          if (c) controller = c;
+        }}
+      />,
+    );
+    await screen.findByText("cover.jpg");
+    expect(controller!.getState().entries).toHaveLength(8);
+
+    let resolveSecond: (v: ArchiveContents) => void = () => {};
+    mockedGetArchiveContents.mockReturnValueOnce(
+      new Promise<ArchiveContents>((res) => {
+        resolveSecond = res;
+      }),
+    );
+    view.rerender(
+      <ShortcutsProvider>
+        <ArchivePreview
+          fileId="file-2"
+          onArchiveController={(c) => {
+            if (c) controller = c;
+          }}
+        />
+      </ShortcutsProvider>,
+    );
+
+    await waitFor(() => expect(controller!.getState().entries).toHaveLength(0));
+    await act(async () => {
+      resolveSecond({ entries: [], total_entries: 0, total_size: 0 });
+    });
+  });
+
   it("descends into a directory the index hands it", async () => {
     let controller: import("@/lib/archiveController").ArchiveController | null =
       null;
@@ -422,13 +468,15 @@ describe("ArchivePreview — the index's press", () => {
     expect(mockPush).toHaveBeenCalledWith("?archivePath=chapter1");
   });
 
-  it("moves to the level first for a leaf that is not on this one", async () => {
+  it("moves to the level first for a leaf that is not on this one, then opens it", async () => {
     // `handleFileClick` reads the *current* level's image list, so
-    // calling it before the move lands would open the wrong page or
-    // none. The URL write is the observable half of that ordering.
+    // calling it before the move lands opens the wrong page or none.
+    // The whole point is the second half — the earlier version of this
+    // test stopped at the URL write, never moved `mockSearchParams`, and
+    // so stayed green with `pendingOpen` deleted outright.
     let controller: import("@/lib/archiveController").ArchiveController | null =
       null;
-    renderWithShortcuts(
+    const view = renderWithShortcuts(
       <ArchivePreview
         fileId="file-1"
         onArchiveController={(c) => {
@@ -445,6 +493,65 @@ describe("ArchivePreview — the index's press", () => {
     controller!.open(deep);
 
     expect(mockPush).toHaveBeenCalledWith("?archivePath=chapter1");
+    // Nothing has opened yet: the level has not arrived. The page-turner
+    // is a dialog; the grid draws an `<img alt="002.jpg">` of its own, so
+    // the alt text cannot tell the two apart.
+    expect(screen.queryByRole("dialog")).toBeNull();
+
+    // The navigation lands. `useSearchParams` is a mock, so the level
+    // change has to be delivered by hand — which is exactly the step
+    // whose absence made the old test vacuous.
+    mockSearchParams.set("archivePath", "chapter1");
+    view.rerender(
+      <ShortcutsProvider>
+        <ArchivePreview fileId="file-1" onArchiveController={() => {}} />
+      </ShortcutsProvider>,
+    );
+
+    await screen.findByRole("dialog");
+  });
+
+  it("drops a pending open the reader navigated away from", async () => {
+    // Press a deep leaf, then go somewhere else before it lands. Waiting
+    // forever turns that into a page that opens itself later, the moment
+    // the reader happens to walk into that folder.
+    let controller: import("@/lib/archiveController").ArchiveController | null =
+      null;
+    const view = renderWithShortcuts(
+      <ArchivePreview
+        fileId="file-1"
+        onArchiveController={(c) => {
+          controller = c;
+        }}
+      />,
+    );
+    await screen.findByText("cover.jpg");
+
+    const deep = controller!
+      .getState()
+      .entries.find((e) => e.path === "chapter1/002.jpg")!;
+    controller!.open(deep);
+
+    // The reader presses the root breadcrumb instead; that push wins.
+    mockSearchParams.delete("archivePath");
+    view.rerender(
+      <ShortcutsProvider>
+        <ArchivePreview fileId="file-1" onArchiveController={() => {}} />
+      </ShortcutsProvider>,
+    );
+    await screen.findByText("cover.jpg");
+
+    // Later, they walk into chapter1 themselves. Nothing should open.
+    mockSearchParams.set("archivePath", "chapter1");
+    view.rerender(
+      <ShortcutsProvider>
+        <ArchivePreview fileId="file-1" onArchiveController={() => {}} />
+      </ShortcutsProvider>,
+    );
+    // The level really did change — chapter1's pages are on screen.
+    await screen.findByAltText("001.jpg");
+    // And nothing opened itself.
+    expect(screen.queryByRole("dialog")).toBeNull();
   });
 
   it("opens a leaf on this level without moving anywhere", async () => {

@@ -17,6 +17,7 @@ import {
   NON_IMAGE_RATIO,
   UNMEASURED_PAGE_RATIO,
 } from "../ArchiveEntryCard";
+import { viewerTakesCanvasFloor } from "@/lib/fileDetailShell";
 import type { ArchiveEntry } from "@/types";
 
 vi.mock("@/lib/api", () => ({
@@ -145,6 +146,16 @@ describe("archive grid cells", () => {
     expect(ratioOf(cells(container)[0])).toBe(0.7);
   });
 
+  it("stops drawing a page shape once the picture has failed", () => {
+    // `onError` swaps the picture for a 32px type icon. Leaving the cell
+    // at a page's proportions gives that icon a tall portrait box on a
+    // row of photographs.
+    const { container } = renderGrid(pages(3));
+    const img = container.querySelector("img")!;
+    fireEvent.error(img);
+    expect(ratioOf(cells(container)[0])).toBe(1);
+  });
+
   it("keeps folders and binaries square", () => {
     const { container } = renderGrid([
       entry("src/"),
@@ -163,10 +174,58 @@ describe("the canvas viewer's floor", () => {
     "utf8",
   );
 
-  it("measures the canvas, not the viewport", () => {
-    expect(css).toContain("min-height: max(320px, 70cqh)");
-    expect(css).toMatch(
-      /main\[data-canvas-floor="true"\] \{[^}]*container-type: size;/,
+  it("takes its height from a measurement, not a container query", () => {
+    expect(css).toContain(
+      "min-height: max(320px, calc(var(--canvas-h, 0px) * 0.7))",
     );
+  });
+
+  it("establishes no containment context on the canvas", () => {
+    // The reason is not tidiness. `container-type: size` implies
+    // `contain: layout`, which makes the canvas the containing block for
+    // every `position: fixed` descendant — and the archive canvas holds
+    // two that are not portalled: `ArchiveImageViewer`'s full-screen
+    // page-turner and the toolbar's overflow backdrop. Under containment
+    // the page-turner covers the column instead of the viewport, cannot
+    // rise above the header, and scrolls away, while `useInertBackdrop`
+    // has already made everything behind it unclickable.
+    const floorRules = [
+      ...css.matchAll(/main\[data-canvas-floor="true"\][^{]*\{([^}]*)\}/g),
+    ];
+    expect(floorRules.length).toBeGreaterThan(0);
+    for (const [, body] of floorRules) {
+      expect(body).not.toMatch(/container-type/);
+      expect(body).not.toMatch(/\bcontain\s*:/);
+    }
+  });
+
+  it("keeps the unportalled fixed overlays that the containment would have caught", () => {
+    // The population the rule above protects. If either of these is ever
+    // portalled or stops being `fixed`, this test says so — and the
+    // containment answer becomes available again.
+    const viewer = readFileSync(
+      join(__dirname, "..", "ArchiveImageViewer.tsx"),
+      "utf8",
+    );
+    const toolbar = readFileSync(join(__dirname, "..", "ArchiveToolbar.tsx"), "utf8");
+    expect(viewer).toMatch(/fixed inset-0/);
+    expect(toolbar).toMatch(/fixed inset-0/);
+    expect(viewer).not.toMatch(/createPortal/);
+  });
+});
+
+describe("which viewers get a floor", () => {
+  it("names them, rather than matching a mime prefix", () => {
+    // `startsWith("text/")` was unreachable *and* a trap: it also
+    // matches `text/html`, which is rendered in a sandboxed
+    // (opaque-origin) iframe.
+    expect(viewerTakesCanvasFloor("archive", "application/zip")).toBe(true);
+    expect(viewerTakesCanvasFloor("document", "application/pdf")).toBe(true);
+    expect(viewerTakesCanvasFloor("document", "text/html")).toBe(false);
+    expect(viewerTakesCanvasFloor("document", "text/plain")).toBe(false);
+    expect(viewerTakesCanvasFloor("document", "text/markdown")).toBe(false);
+    expect(viewerTakesCanvasFloor("image", "image/jpeg")).toBe(false);
+    expect(viewerTakesCanvasFloor("video", "video/mp4")).toBe(false);
+    expect(viewerTakesCanvasFloor("audio", "audio/mpeg")).toBe(false);
   });
 });

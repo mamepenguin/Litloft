@@ -22,6 +22,17 @@ interface ArchiveEntryCardProps {
   showFilename?: boolean;
 }
 
+/**
+ * What a cell is drawn at before its picture has loaded — the
+ * proportions of a scanned page.
+ */
+export const UNMEASURED_PAGE_RATIO = 0.7;
+
+/** Folders, text and binaries have no proportions of their own. */
+export const NON_IMAGE_RATIO = 1;
+
+/* No `h-full w-full`: the row rule sets the height and `flex-basis`
+   sets the width, so both were being overridden. */
 function ImageCard({
   entry,
   fileId,
@@ -68,7 +79,12 @@ function ImageCard({
               onRatio(img.naturalWidth / img.naturalHeight);
             }
           }}
-          onError={() => setError(true)}
+          onError={() => {
+            setError(true);
+            // The cell now draws a 32px icon, not a page. Leaving it at
+            // a page's proportions gives the icon a tall portrait box.
+            onRatio(NON_IMAGE_RATIO);
+          }}
         />
       ) : (
         <FileTypeIcon
@@ -81,16 +97,7 @@ function ImageCard({
   );
 }
 
-/**
- * What a cell is drawn at before its picture has loaded — the
- * proportions of a scanned page.
- */
-export const UNMEASURED_PAGE_RATIO = 0.7;
-
-/** Folders, text and binaries have no proportions of their own. */
-export const NON_IMAGE_RATIO = 1;
-
-const CELL_CLASS = "h-full w-full overflow-hidden rounded-xl bg-bg-card";
+const CELL_CLASS = "overflow-hidden rounded-xl bg-bg-card";
 
 /**
  * A cell, pressable or not.
@@ -176,14 +183,19 @@ export function ArchiveEntryCard({
           </span>
         </div>
       ) : entry.file_type === "image" ? (
-        <div className="flex h-full flex-col">
-          <div className="min-h-0 flex-1 overflow-hidden">
-            <ImageCard entry={entry} fileId={fileId} onRatio={setRatio} />
-          </div>
+        <div className="relative h-full w-full">
+          <ImageCard entry={entry} fileId={fileId} onRatio={setRatio} />
+          {/* Over the picture, not under it. A caption in the flex
+              column shortened the image area while the cell's width
+              still came from the *picture's* ratio, so `object-fit:
+              cover` cropped the difference — about 12% of the height on
+              a 200px row and 20% on a 120px one. The photo grid's
+              `.justified-grid-name` band is the same answer to the same
+              problem. */}
           {showFilename && (
-            <div className="shrink-0 px-2 py-1 text-left">
-              <p className="truncate text-xs text-text-primary">{entry.filename}</p>
-            </div>
+            <p className="absolute inset-x-0 bottom-0 truncate bg-gradient-to-t from-black/70 to-transparent px-2 py-1 text-left text-xs text-white">
+              {entry.filename}
+            </p>
           )}
         </div>
       ) : (
