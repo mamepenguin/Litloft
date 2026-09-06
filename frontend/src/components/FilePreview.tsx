@@ -311,6 +311,7 @@ export function FilePreview({
         fileId={file.id}
         mimeType={file.mime_type}
         fileSize={file.file_size}
+        missing={file.missing_since !== null}
       />
     </div>
   );

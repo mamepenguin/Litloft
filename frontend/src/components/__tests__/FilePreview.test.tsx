@@ -9,6 +9,7 @@ vi.mock("@/lib/api", () => ({
   getStreamUrl: (id: string) => `/api/files/${id}/stream`,
   getDownloadUrl: (id: string) => `/api/files/${id}/stream?download=true`,
   getThumbnailUrl: (id: string) => `/api/files/${id}/thumbnail`,
+  getPreviewTextUrl: (id: string) => `/api/files/${id}/preview-text`,
 }));
 
 vi.mock("../VideoPlayer", () => ({

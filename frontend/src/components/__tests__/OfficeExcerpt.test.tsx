@@ -101,9 +101,63 @@ describe("OfficeExcerpt", () => {
     const section = await screen.findByTestId("office-excerpt");
 
     // No scrolling and no page turning: the whole claim of §10 is that this
-    // does not become a viewer, and a scroll container is the first step.
-    expect(section.className).not.toContain("overflow");
+    // does not become a viewer, and a scroll container is the first step. The
+    // section *and everything in it*, because a scroll box would arrive on
+    // the paragraph rather than on the wrapper.
+    for (const el of [section, ...section.querySelectorAll("*")]) {
+      expect(el.className).not.toContain("overflow");
+      expect(el.className).not.toContain("max-h-");
+    }
     expect(section.querySelectorAll("button").length).toBe(0);
     expect(section.querySelector("p")?.className).toContain("line-clamp-10");
+  });
+});
+
+
+describe("OfficeExcerpt across files", () => {
+  const DOCX2 = "application/vnd.openxmlformats-officedocument.wordprocessingml.document";
+
+  it("does not leave the previous file's text under the next file's name", async () => {
+    respondWith("Document A");
+    const { rerender } = render(
+      <OfficeExcerpt fileId="a" mimeType={DOCX2} fileSize={1024} />
+    );
+    expect(await screen.findByText("Document A")).toBeInTheDocument();
+
+    // B's extraction is still in flight — the state a slow LAN and a large
+    // workbook put the reader in for seconds. A's text must not stand under
+    // B's name while it is, and a response-path reset is too late to say so.
+    fetchMock = vi.fn(() => new Promise(() => {}));
+    globalThis.fetch = fetchMock as unknown as typeof fetch;
+    rerender(<OfficeExcerpt fileId="b" mimeType={DOCX2} fileSize={1024} />);
+    expect(screen.queryByText("Document A")).toBeNull();
+
+    // And also when it comes back with nothing.
+    respondWith("", false);
+    rerender(<OfficeExcerpt fileId="c" mimeType={DOCX2} fileSize={1024} />);
+    await waitFor(() => expect(screen.queryByTestId("office-excerpt")).toBeNull());
+  });
+
+  it("asks for nothing about a file the scanner can no longer find", () => {
+    // Streaming a missing file answers 410; the round trip buys nothing.
+    render(<OfficeExcerpt fileId="a" mimeType={DOCX2} fileSize={1024} missing />);
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
+
+  it("abandons the extraction when the reader moves on", async () => {
+    const signals: AbortSignal[] = [];
+    fetchMock = vi.fn((_url: string, init?: RequestInit) => {
+      if (init?.signal) signals.push(init.signal);
+      return new Promise(() => {});
+    });
+    globalThis.fetch = fetchMock as unknown as typeof fetch;
+
+    const { unmount } = render(
+      <OfficeExcerpt fileId="a" mimeType={DOCX2} fileSize={1024} />
+    );
+    expect(signals[0].aborted).toBe(false);
+    unmount();
+    // The extraction is the expensive thing the size guard exists to bound.
+    expect(signals[0].aborted).toBe(true);
   });
 });

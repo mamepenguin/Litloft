@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import type { FileItem } from "@/types";
+import { getPreviewTextUrl } from "@/lib/api";
 import { OFFICE_MIMES } from "@/lib/officeFiles";
 
 
@@ -75,7 +76,7 @@ export function TextThumbnail({ file }: { file: FileItem }) {
 
           const isOffice = OFFICE_MIMES.has(file.mime_type ?? "");
           const fetchPromise = isOffice
-            ? fetch(`/api/files/${file.id}/preview-text`)
+            ? fetch(getPreviewTextUrl(file.id))
             : fetch(`/api/files/${file.id}/stream`, {
                 headers: { Range: `bytes=0-${PREVIEW_WINDOW_BYTES - 1}` },
               });

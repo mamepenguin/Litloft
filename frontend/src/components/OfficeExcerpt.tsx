@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { useTranslations } from "next-intl";
 
+import { getPreviewTextUrl } from "@/lib/api";
 import { wantsOfficeExcerpt } from "@/lib/officeFiles";
 
 /**
@@ -24,32 +25,40 @@ export function OfficeExcerpt({
   fileId,
   mimeType,
   fileSize,
+  missing = false,
 }: {
   fileId: string;
   mimeType: string | null | undefined;
   fileSize: number;
+  /** A file the scanner can no longer find. Streaming it answers 410. */
+  missing?: boolean;
 }) {
   const t = useTranslations("file");
   const [text, setText] = useState<string | null>(null);
 
   useEffect(() => {
-    if (!wantsOfficeExcerpt(mimeType, fileSize)) {
-      setText(null);
-      return;
-    }
-    let cancelled = false;
-    fetch(`/api/files/${fileId}/preview-text`, { credentials: "include" })
+    // Cleared first, unconditionally. This mount is reused when the reader
+    // moves between files, and an excerpt left standing while the next one is
+    // in flight — or after it fails — is the previous document's text under
+    // this document's name.
+    setText(null);
+    if (missing || !wantsOfficeExcerpt(mimeType, fileSize)) return;
+
+    // Aborted on the way out: the extraction is the expensive thing the 20 MB
+    // guard exists to bound, and leaving it running after the reader has
+    // moved on spends exactly what the guard was protecting.
+    const controller = new AbortController();
+    fetch(getPreviewTextUrl(fileId), {
+      credentials: "include",
+      signal: controller.signal,
+    })
       .then((res) => (res.ok ? res.text() : ""))
-      .then((raw) => {
-        if (!cancelled) setText(raw.trim() || null);
-      })
+      .then((raw) => setText(raw.trim() || null))
       // A failed extraction leaves the panel above exactly as it was. There
       // is nothing to say about it: the reader was not promised this.
       .catch(() => {});
-    return () => {
-      cancelled = true;
-    };
-  }, [fileId, mimeType, fileSize]);
+    return () => controller.abort();
+  }, [fileId, mimeType, fileSize, missing]);
 
   if (text === null) return null;
 

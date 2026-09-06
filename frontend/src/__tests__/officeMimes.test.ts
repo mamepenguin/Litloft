@@ -73,11 +73,33 @@ describe("the OOXML mime list", () => {
     expect(filesNamingOoxmlMimes()).toEqual(["frontend/src/lib/officeFiles.ts"]);
   });
 
-  it("is written down at all", () => {
+  it("is written down at all, by a walk that read the whole tree", () => {
     // "Nowhere but `officeFiles.ts`" is also true of a walk that read nothing
     // — a renamed directory, a changed extension filter, a `REPO_ROOT` that
-    // no longer resolves.
+    // no longer resolves. The count of files actually opened is what says
+    // otherwise; `ROOTS.length` only says the roots were computed, and an
+    // addon root that resolves to an empty walk still passes that.
     expect(filesNamingOoxmlMimes().length).toBe(1);
+    for (const root of ROOTS) {
+      expect(sourceFiles(root).length).toBeGreaterThan(0);
+    }
     expect(ROOTS.length).toBeGreaterThan(1);
+  });
+
+  it("is read by every consumer, rather than each keeping its own answer", () => {
+    // The scan above says nobody spells the mimes out. It does not say anyone
+    // *uses* the set — a component that quietly dropped the import would pass
+    // it while its Office branch went dead. These are the four files whose
+    // behaviour depends on the list.
+    const importers = ROOTS.flatMap(sourceFiles)
+      .filter((file) => /from "@\/lib\/officeFiles"/.test(readFileSync(file, "utf-8")))
+      .map((file) => relative(REPO_ROOT, file))
+      .sort();
+    expect(importers).toEqual([
+      "frontend/src/components/FileCard.tsx",
+      "frontend/src/components/FileListRow.tsx",
+      "frontend/src/components/OfficeExcerpt.tsx",
+      "frontend/src/components/TextThumbnail.tsx",
+    ]);
   });
 });
