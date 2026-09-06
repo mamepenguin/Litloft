@@ -230,6 +230,56 @@ describe("ArchiveToolbar", () => {
     expect(overflow.className).toContain(`${breakpoint}:hidden`);
   });
 
+  // The contract `ToolbarMenu` documents and its own test asserts, applied to
+  // the one menu on this bar that is written by hand. Without the Escape the
+  // menu cannot be dismissed from the keyboard at all; without the focus
+  // return it unmounts with focus on `<body>` and the next Tab restarts from
+  // the top of the document.
+  it("closes the overflow on Escape and hands focus back to its trigger", () => {
+    renderToolbar();
+    const trigger = screen.getByRole("button", { name: "More actions" });
+    const menu = openMenu(/^More actions$/);
+
+    fireEvent.keyDown(menu, { key: "Escape" });
+    expect(screen.queryByRole("menu")).toBeNull();
+    expect(document.activeElement).toBe(trigger);
+  });
+
+  it("hands focus back when a row in the overflow is pressed", () => {
+    renderToolbar();
+    const trigger = screen.getByRole("button", { name: "More actions" });
+    fireEvent.click(
+      within(openMenu(/^More actions$/)).getByRole("menuitemradio", {
+        name: "Image",
+      })
+    );
+    expect(screen.queryByRole("menu")).toBeNull();
+    expect(document.activeElement).toBe(trigger);
+  });
+
+  it("does not let the Escape reach the shortcut registry as well", () => {
+    // A React `onKeyDown` is invisible to `ShortcutsProvider`, so an Escape
+    // that bubbles past this box is answered twice — once here and once by
+    // whatever the registry has on the stack.
+    renderToolbar();
+    const onDocumentEscape = vi.fn();
+    document.addEventListener("keydown", onDocumentEscape);
+    fireEvent.keyDown(openMenu(/^More actions$/), { key: "Escape" });
+    document.removeEventListener("keydown", onDocumentEscape);
+    expect(onDocumentEscape).not.toHaveBeenCalled();
+  });
+
+  // The anchored form of every menu here is `absolute` inside this card. A
+  // clipping ancestor paints about four pixels of a 290px popover and hides
+  // every row at 640 and up — measured only by opening it, which jsdom cannot
+  // do, so what is asserted is the property that decides it.
+  it("does not clip the popovers its own menus open", () => {
+    const { container } = renderToolbar();
+    const card = container.firstElementChild as HTMLElement;
+    expect(card.className).not.toContain("overflow-hidden");
+    expect(controlsRow().closest(".overflow-hidden")).toBeNull();
+  });
+
   it("offers every folded row inside the overflow menu", () => {
     renderToolbar();
     const menu = openMenu(/^More actions$/);

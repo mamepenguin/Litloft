@@ -1,45 +1,76 @@
 import { describe, it, expect } from "vitest";
-import { readFileSync, readdirSync, statSync } from "node:fs";
-import { relative, resolve } from "node:path";
+import { existsSync, readFileSync, readdirSync, statSync } from "node:fs";
+import { dirname, relative, resolve } from "node:path";
+import { fileURLToPath } from "node:url";
 
-const SRC = resolve(__dirname, "../..");
+const REPO_ROOT = resolve(dirname(fileURLToPath(import.meta.url)), "../../../..");
+const ADDONS_DIR = resolve(REPO_ROOT, "addons");
 
-/** Every source file under `src/`, addon trees excluded. */
-function sourceFiles(): string[] {
+/**
+ * Core's tree and every addon's, each read at its own root.
+ *
+ * Addons are symlinked into `frontend/src/addons` and share core's tsconfig
+ * paths, so an addon component can write `@/components/folder/ToolbarMenu`
+ * and resolve it. Walking `frontend/src` alone would follow the symlink and
+ * report addon files under a core-relative path; skipping the link without
+ * reading the trees would drop them from the scan entirely, which is the
+ * shape this test exists to refuse. `escape-listeners.test.ts` reads them the
+ * same way.
+ */
+const ROOTS = [
+  resolve(REPO_ROOT, "frontend/src"),
+  ...(existsSync(ADDONS_DIR)
+    ? readdirSync(ADDONS_DIR, { withFileTypes: true })
+        .filter((e) => e.isDirectory())
+        .map((e) => resolve(ADDONS_DIR, e.name, "frontend"))
+        .filter(existsSync)
+    : []),
+];
+
+function sourceFiles(root: string): string[] {
   const out: string[] = [];
   const walk = (dir: string) => {
     for (const entry of readdirSync(dir, { withFileTypes: true })) {
       const full = resolve(dir, entry.name);
       if (entry.name === "node_modules" || entry.name.startsWith(".")) continue;
-      // Addon trees are symlinked in here and read at their own root.
-      if (entry.name === "addons" && dir === SRC) continue;
+      // Read at its own root instead, so a file is never scanned twice under
+      // two different paths.
+      if (entry.name === "addons" && dir === ROOTS[0]) continue;
       if (statSync(full).isDirectory()) walk(full);
-      else if (/\.tsx?$/.test(entry.name)) out.push(relative(SRC, full));
+      else if (/\.tsx?$/.test(entry.name)) out.push(full);
     }
   };
-  walk(SRC);
+  walk(root);
   return out.sort();
 }
 
 /**
- * Files importing from a `ToolbarMenu` or `ViewMenu` module, by the path they
- * name it at. Every import specifier is read and then matched — a filter over
- * names that look like the ones we expect would score a `folder/ToolbarMenu`
- * spelt some other way as no import at all, which is the case this test
- * exists to catch.
+ * Files naming a `ToolbarMenu` or `ViewMenu` module, by the path they name it
+ * at. Every module specifier is read and then matched — a filter over names
+ * that look like the ones we expect would score a `folder/ToolbarMenu` spelt
+ * some other way as no import at all, which is the case this test exists to
+ * catch. Both quote styles, `import(...)`, and an explicit extension are all
+ * ways of writing the same specifier, so all four are read.
  */
 function menuImporters(): Array<{ file: string; from: string }> {
   const out: Array<{ file: string; from: string }> = [];
-  for (const file of sourceFiles()) {
-    const source = readFileSync(resolve(SRC, file), "utf-8");
-    for (const match of source.matchAll(/from\s+"([^"]+)"/g)) {
-      const from = match[1];
-      if (/(^|\/)(ToolbarMenu|ViewMenu)$/.test(from)) {
-        out.push({ file, from });
+  for (const root of ROOTS) {
+    for (const file of sourceFiles(root)) {
+      const source = readFileSync(file, "utf-8");
+      for (const match of source.matchAll(
+        /(?:from|import|require)\s*\(?\s*["']([^"']+)["']/g
+      )) {
+        const from = match[1].replace(/\.(tsx?|jsx?)$/, "");
+        if (/(^|\/)(ToolbarMenu|ViewMenu)$/.test(from)) {
+          out.push({ file: relative(REPO_ROOT, file), from });
+        }
       }
     }
   }
-  return out;
+  // Code-unit order, not `localeCompare`: collation is ICU-dependent, and the
+  // expected list below would then read differently on a machine with a
+  // different one.
+  return out.sort((a, b) => (a.file < b.file ? -1 : a.file > b.file ? 1 : 0));
 }
 
 describe("the shared toolbar menu has one home", () => {
@@ -58,15 +89,29 @@ describe("the shared toolbar menu has one home", () => {
     // "None of them are in `folder/`" is also true of a walk that found no
     // imports at all. These are the files that hold one.
     expect(menuImporters().map((i) => i.file)).toEqual([
-      "components/ViewMenu.tsx",
-      "components/__tests__/ToolbarMenu.test.tsx",
-      "components/archive/ArchiveToolbar.tsx",
-      "components/archive/ArchiveToolbar.tsx",
-      "components/folder/FilterMenu.tsx",
-      "components/folder/FolderToolbar.tsx",
-      "components/folder/FolderToolbar.tsx",
-      "components/folder/SortMenu.tsx",
-      "components/folder/__tests__/toolbarBarScope.test.tsx",
+      "frontend/src/components/ViewMenu.tsx",
+      "frontend/src/components/__tests__/ToolbarMenu.test.tsx",
+      "frontend/src/components/archive/ArchiveToolbar.tsx",
+      "frontend/src/components/archive/ArchiveToolbar.tsx",
+      "frontend/src/components/folder/FilterMenu.tsx",
+      "frontend/src/components/folder/FolderToolbar.tsx",
+      "frontend/src/components/folder/FolderToolbar.tsx",
+      "frontend/src/components/folder/SortMenu.tsx",
+      "frontend/src/components/folder/__tests__/toolbarBarScope.test.tsx",
+    ]);
+  });
+
+  it("reads every addon tree, not only core's", () => {
+    // Asserted rather than assumed: a non-recursive clone has no addon
+    // sources, and the scan above would then be silently core-only. The
+    // roots are named so that state is visible instead of invisible.
+    const submodules = readFileSync(resolve(REPO_ROOT, ".gitmodules"), "utf-8")
+      .split("\n")
+      .flatMap((line) => line.match(/path\s*=\s*addons\/(.+)$/)?.[1] ?? []);
+    expect(submodules.length).toBeGreaterThan(0);
+    expect(ROOTS.map((r) => relative(REPO_ROOT, r))).toEqual([
+      "frontend/src",
+      ...submodules.sort().map((name) => `addons/${name}/frontend`),
     ]);
   });
 });

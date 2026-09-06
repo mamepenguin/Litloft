@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { ArrowDownUp, ChevronRight, Download, Filter, MoreHorizontal } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { getDownloadUrl } from "@/lib/api";
@@ -141,6 +141,15 @@ export function ArchiveToolbar({
   const tSort = useTranslations("sort");
   const tToolbar = useTranslations("toolbar");
   const [moreOpen, setMoreOpen] = useState(false);
+  const moreRef = useRef<HTMLButtonElement>(null);
+
+  // Closing must put focus back on the trigger; without it the menu unmounts
+  // with focus on `<body>` and the next Tab restarts from the top of the
+  // document.
+  const closeMore = () => {
+    setMoreOpen(false);
+    moreRef.current?.focus();
+  };
 
   const activeSort = SORT_OPTIONS.find(
     (o) => o.value.sort === sort && o.value.order === order
@@ -148,7 +157,13 @@ export function ArchiveToolbar({
   const activeFilter = TYPE_FILTERS.find((f) => f.value === typeFilter);
 
   return (
-    <div className="mb-3 overflow-hidden rounded-xl bg-bg-card">
+    // No `overflow-hidden`, and it is load-bearing: the anchored form of
+    // every menu on this bar is `absolute` inside this card, so clipping to
+    // the card's box paints about four pixels of a 290px popover and hides
+    // every row at 640 and up. The rule it used to enforce — the breadcrumb
+    // row's `border-b` inside the rounded corners — never needed it: that
+    // border sits at y≈45, well inside the straight part of a 12px radius.
+    <div className="mb-3 rounded-xl bg-bg-card">
       <div className="flex flex-wrap items-center gap-2 border-b border-bg-border px-4 py-2.5">
         <div className="flex min-w-0 flex-1 items-center gap-1">
           {breadcrumbs.map((crumb, i) => (
@@ -246,8 +261,21 @@ export function ArchiveToolbar({
             emits a utility only when it finds the literal token in a source
             file, and a class assembled at runtime produces no CSS at all.
             That the two widths agree is asserted in the test instead. */}
-        <div className="relative sm:hidden">
+        <div
+          className="relative sm:hidden"
+          // On the box, not on the menu: opening this leaves focus on the
+          // trigger, which is outside the menu. `stopPropagation` because a
+          // React `onKeyDown` is invisible to the shortcut registry, and an
+          // Escape that also reaches `ShortcutsProvider` gets answered twice.
+          // Same contract `ToolbarMenu` documents and its test asserts.
+          onKeyDown={(e) => {
+            if (!moreOpen || e.key !== "Escape") return;
+            e.stopPropagation();
+            closeMore();
+          }}
+        >
           <button
+            ref={moreRef}
             onClick={() => setMoreOpen((open) => !open)}
             className="flex items-center justify-center rounded-2xl border border-bg-border bg-bg-card p-2 text-text-muted transition-colors hover:text-text-primary pointer-coarse:h-11 pointer-coarse:w-11"
             aria-haspopup="menu"
@@ -262,7 +290,7 @@ export function ArchiveToolbar({
               <div
                 className="fixed inset-0 z-30 bg-black/30 sm:bg-transparent"
                 aria-hidden="true"
-                onClick={() => setMoreOpen(false)}
+                onClick={closeMore}
               />
               <div role="menu" className={MENU_SURFACE}>
                 <ArchiveSortGroup
@@ -271,7 +299,7 @@ export function ArchiveToolbar({
                   onSelect={(v) => {
                     onSortChange(v.sort);
                     onOrderChange(v.order);
-                    setMoreOpen(false);
+                    closeMore();
                   }}
                 />
                 <MenuSeparator />
@@ -279,7 +307,7 @@ export function ArchiveToolbar({
                   typeFilter={typeFilter}
                   onSelect={(value) => {
                     onTypeFilterChange(value);
-                    setMoreOpen(false);
+                    closeMore();
                   }}
                 />
               </div>

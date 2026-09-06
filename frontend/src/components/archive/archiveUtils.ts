@@ -101,7 +101,10 @@ export function inferDirectories(
  */
 export function defaultArchiveViewMode(entries: ArchiveEntry[]): ViewMode {
   const files = entries.filter((entry) => !entry.is_dir);
-  if (files.length === 0) return "list";
   const images = files.filter((entry) => entry.file_type === "image");
+  // A level of folders, and an empty one, fall out of the same comparison:
+  // no files means no image majority. Spelling them as their own branch would
+  // read as a rule the arithmetic does not have, and a test naming it could
+  // not tell the branch from its absence.
   return images.length * 2 > files.length ? "grid" : "list";
 }

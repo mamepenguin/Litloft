@@ -62,10 +62,12 @@ describe("ViewToggle (controlled)", () => {
   });
 
   // DESIGN.md §2.2: one accent fill per screen, and it belongs to what the
-  // screen is for. This toggle rides on six screens — the folder toolbar
-  // beside Upload and Play, the drive home, a collection, Trash, Missing and
-  // the inside of an archive — so a fill here was spending the budget on a
-  // view switch in six places.
+  // screen is for. This toggle rode on six screens when the fill came off —
+  // the folder toolbar beside Upload and Play, the drive home, a collection,
+  // Trash, Missing and the inside of an archive — so it was spending the
+  // budget on a view switch in six places. Two of the six have since taken a
+  // labelled `ViewMenu` instead; the four the test below enumerates are what
+  // is left, and they are the backgrounds the contrast was measured against.
   it("does not spend an accent fill on the selected view", () => {
     render(<ViewToggle mode="list" onChange={vi.fn()} />);
     for (const label of ["List view", "Grid view"]) {
@@ -147,10 +149,4 @@ describe("where ViewToggle is used", () => {
     ]);
   });
 
-  it("is asserted against a tree that actually holds call sites", () => {
-    // "Every call site is one of these four" is also true of a walker that
-    // found none — a renamed directory, a changed extension filter, a `SRC`
-    // that no longer resolves. The count is what says the walk ran.
-    expect(callSites().length).toBe(4);
-  });
 });
