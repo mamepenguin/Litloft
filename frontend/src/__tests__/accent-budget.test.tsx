@@ -4,6 +4,7 @@ import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { stripComments } from "./helpers/sourceScan";
 
+import { DriveHome } from "@/components/DriveHome";
 import { EmptyState } from "@/components/EmptyState";
 import { FolderToolbar } from "@/components/folder/FolderToolbar";
 import { RootFileListing } from "@/components/RootFileListing";
@@ -47,7 +48,28 @@ vi.mock("@/components/FileGrid", () => ({ FileGrid: () => <div data-testid="grid
 vi.mock("@/components/FileList", () => ({ FileList: () => <div data-testid="list" /> }));
 
 vi.mock("@/components/ClipboardProvider", () => ({
-  useClipboard: () => ({ clipboard: null, clear: vi.fn(), copy: vi.fn(), cut: vi.fn() }),
+  useClipboard: () => ({ clipboard: null, clear: vi.fn(), copy: vi.fn(), cut: vi.fn(), paste: vi.fn(), isCut: () => false }),
+}));
+// The drive root's own screen is `DriveHome`; these are its ambient
+// providers, not part of what is measured. `RootFileListing` stays real
+// inside it — the point of the two cases below is that the fill is in the
+// header and nowhere in the listing.
+vi.mock("@/components/ProfileProvider", () => ({
+  useProfile: () => ({ nickname: null, setNickname: vi.fn(), clearNickname: vi.fn() }),
+}));
+vi.mock("@/components/SidebarProvider", () => ({
+  useSidebar: () => ({ isOpen: false, toggle: vi.fn(), close: vi.fn(), refreshKey: 0, requestRefresh: vi.fn() }),
+}));
+vi.mock("@/hooks/useDragAndDrop", () => ({
+  useDragAndDrop: () => ({
+    dragState: { isDragging: false, draggedFolderPath: null, draggedFileIdSet: new Set() },
+    handleDragStart: vi.fn(),
+    handleFolderDragStart: vi.fn(),
+    handleDragEnd: vi.fn(),
+    getDropTargetProps: vi.fn(),
+    isDropTarget: () => false,
+    isDropDisabled: () => false,
+  }),
 }));
 vi.mock("@/components/ConfirmDialog", () => ({ ConfirmDialog: () => null }));
 vi.mock("@/components/MoveDialog", () => ({ MoveDialog: () => null }));
@@ -65,6 +87,17 @@ vi.mock("@/lib/api", () => {
   return {
     ApiStatusError,
     getDriveFiles: (...args: unknown[]) => mockGetDriveFiles(...args),
+    getFolders: vi.fn().mockResolvedValue([]),
+    getPins: vi.fn().mockResolvedValue([]),
+    getWatchHistory: vi.fn().mockResolvedValue([]),
+    addPin: vi.fn(),
+    removePin: vi.fn(),
+    deleteFile: vi.fn(),
+    renameFile: vi.fn(),
+    moveFile: vi.fn(),
+    getThumbnailUrl: (id: string) => `/api/files/${id}/thumbnail`,
+    getDownloadUrl: (id: string) => `/api/files/${id}/stream?download=true`,
+    getStreamUrl: (id: string) => `/api/files/${id}/stream`,
     scanDrive: vi.fn(),
     createFolder: vi.fn(),
     batchDelete: vi.fn(),
@@ -407,8 +440,10 @@ describe("accent budget — drive root", () => {
   afterEach(cleanup);
 
   it("spends its one fill on Add, with something playable in the drive", async () => {
-    const { container } = render(<RootFileListing driveName="main" />);
-    // Play only appears once the listing knows it holds something playable.
+    const { container } = render(<DriveHome driveName="main" />);
+    // Play only appears once the listing knows it holds something playable,
+    // and waiting for it is what proves the file listing has rendered — the
+    // half of the screen the fill used to be in.
     expect(await screen.findByRole("button", { name: "Play" })).toBeInTheDocument();
     expect(
       [...new Set(accentFills(container).map((el) => el.textContent?.trim() ?? ""))],
@@ -419,12 +454,29 @@ describe("accent budget — drive root", () => {
     // The inline Create is the folder toolbar's twin, in this screen's own
     // copy of the markup. Reaching it means going through the Add menu,
     // which is the only way the row opens now.
-    const { container } = render(<RootFileListing driveName="main" />);
+    const { container } = render(<DriveHome driveName="main" />);
     fireEvent.click(await screen.findByRole("button", { name: "Add" }));
     fireEvent.click(screen.getByText("New Folder"));
     expect(screen.getByPlaceholderText("Folder name...")).toBeInTheDocument();
     expect(
       [...new Set(accentFills(container).map((el) => el.textContent?.trim() ?? ""))],
     ).toEqual(["Add"]);
+  });
+
+  it("puts Add in the header, not in the listing below it", async () => {
+    const { container } = render(<DriveHome driveName="main" />);
+    const add = await screen.findByRole("button", { name: "Add" });
+    expect(add.closest("header")).not.toBeNull();
+  });
+
+  it("leaves the file listing with no fill of its own", async () => {
+    // The fill moved; it was not copied. Asserting only that the header has
+    // one cannot tell the two apart — a detector whose expected values come
+    // from what it observes cannot see "this disappeared" — so the screen it
+    // left is checked directly.
+    const { container } = render(<RootFileListing driveName="main" />);
+    expect(await screen.findByRole("button", { name: "Play" })).toBeInTheDocument();
+    expect(accentFills(container)).toHaveLength(0);
+    expect(screen.queryByRole("button", { name: "Add" })).toBeNull();
   });
 });

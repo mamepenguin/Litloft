@@ -1,12 +1,12 @@
 # Browsing files
 
-The drive home page (`/drive/<name>`) is the main browsing surface. Folders are walked from the drive root; subfolders open at `/drive/<name>/<path>`. Below the breadcrumb you find a folder grid, a file grid, and several *content rows* (Recently added, Continue watching, Favourites, Liked). Every surface reads the same backend, and a change you make on one of them refreshes the others (see [real-time updates](#real-time-updates) for what does and does not propagate between separate tabs).
+The drive home page (`/drive/<name>`) is the main browsing surface. Folders are walked from the drive root; subfolders open at `/drive/<name>/<path>`. The breadcrumb row carries the tree toggle on the left and the **Add** button on the right; below it you find a folder grid, a file grid, and several *content rows* (Recently added, Continue watching, Favourites, Liked). Every surface reads the same backend, and a change you make on one of them refreshes the others (see [real-time updates](#real-time-updates) for what does and does not propagate between separate tabs).
 
 ## Drive home layout
 
 ![Annotated drive home page showing the breadcrumb, folder grid, file grid, and content rows](../images/user-guide/drive-home-overview.png)
 
-The numbered areas in the screenshot map to the main browsing surfaces: breadcrumb navigation, folder cards, file cards, and the activity rows that surface recent or in-progress items.
+The numbered areas in the screenshot map to the main browsing surfaces: breadcrumb navigation, folder cards, file cards, and the activity rows that surface recent or in-progress items. The screenshot predates the current header: **Add** now sits at the right-hand end of the breadcrumb row rather than above the file listing, and the content rows wrap instead of scrolling sideways.
 
 ## Folder grid
 
@@ -29,6 +29,8 @@ A toolbar above the grid lets you:
 - **Rescan** the drive, also from the overflow menu.
 - **Pin this folder** to the sidebar, also from the overflow menu — the same pin the folder's own right-click menu offers, for the folder you are standing in. It is not offered on the drive root, which has no folder to pin.
 - **Add** anything to the folder, from the one **Add** button: upload files, upload a folder, create a folder, create a note. It is the only filled button on the bar. An addon can contribute further rows, which appear below a separator at the bottom of the menu.
+
+  On the drive root this button is in the breadcrumb row instead, at the top of the page — the file listing there is the last of up to seven sections, so a button above it would be a screenful of scrolling from the page it acts on. It offers uploading and **New Folder** only; creating a note and the addon rows are folder-toolbar features. **New Folder** opens its name field directly under the breadcrumb row.
 - **Play** everything playable in the folder, on folders that hold something playable.
 
 **Folders follow the mode too.** In grid mode they are cards above the file

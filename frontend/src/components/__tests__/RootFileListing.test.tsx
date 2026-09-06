@@ -316,12 +316,18 @@ describe("RootFileListing with nothing directly under the drive", () => {
     expect(screen.queryByLabelText("More actions")).toBeNull();
   });
 
-  it("keeps the add menu, so the drive root can stop being empty", async () => {
+  it("offers no add menu of its own — that lives in the page header", async () => {
+    // This section used to hold the Add button, and dropped the arranging
+    // controls around it while keeping it. It holds neither now: on the
+    // drive root the button sits in `PageHeader`, where it is reachable
+    // without scrolling past the folder row and the content rows. That
+    // the empty drive root can still stop being empty is asserted in
+    // `src/__tests__/DriveHome.test.tsx`.
     mockGetDriveFiles.mockResolvedValue(empty);
     render(<RootFileListing driveName="main" />);
 
     await screen.findByTestId("empty-state");
-    expect(screen.getByText("add")).toBeInTheDocument();
+    expect(screen.queryByText("add")).toBeNull();
   });
 
   it("keeps everything when there are files to arrange", async () => {

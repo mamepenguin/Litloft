@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { act, render, screen, waitFor } from "@testing-library/react";
+import { act, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { useState } from "react";
 
 import { WebSocketContext } from "@/components/WebSocketProvider";
@@ -66,7 +66,9 @@ const mockGetDriveFiles = vi.fn();
 const mockGetFolders = vi.fn();
 const mockGetPins = vi.fn();
 const mockGetWatchHistory = vi.fn();
+const mockCreateFolder = vi.fn();
 vi.mock("@/lib/api", () => ({
+  createFolder: (...args: unknown[]) => mockCreateFolder(...args),
   getDriveFiles: (...args: unknown[]) => mockGetDriveFiles(...args),
   getFolders: (...args: unknown[]) => mockGetFolders(...args),
   getPins: (...args: unknown[]) => mockGetPins(...args),
@@ -125,6 +127,7 @@ describe("DriveHome", () => {
     mockGetFolders.mockResolvedValue([]);
     mockGetPins.mockResolvedValue([]);
     mockGetWatchHistory.mockResolvedValue([]);
+    mockCreateFolder.mockResolvedValue(undefined);
   });
 
   it("asks the backend for liked files, ordered by when they were liked", async () => {
@@ -358,5 +361,93 @@ describe("the drive home's content rows", () => {
       const seeAll = section.querySelector("a[href*='view=recent']");
       expect(seeAll, `${heading} has no See all`).not.toBeNull();
     }
+  });
+});
+
+describe("the drive root's header", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    mockProfile.nickname = null;
+    mockGetDriveFiles.mockResolvedValue({ data: [], meta: { total: 0, page: 1, limit: 12 } });
+    mockGetFolders.mockResolvedValue([]);
+    mockGetPins.mockResolvedValue([]);
+    mockGetWatchHistory.mockResolvedValue([]);
+    mockCreateFolder.mockResolvedValue(undefined);
+  });
+
+  it("carries Add beside the breadcrumb", async () => {
+    render(<DriveHome driveName="media" />);
+    const add = await screen.findByRole("button", { name: "Add" });
+    // In the header, not merely on the page: the whole point of D-2 is
+    // that this control was a screenful of scrolling below the top.
+    expect(add.closest("header")).not.toBeNull();
+  });
+
+  it("names no subject of its own", async () => {
+    // The breadcrumb is the subject on this screen, so `PageHeader` emits
+    // no `<h1>` (`page-headings.test.ts` holds the other side of this).
+    // Moving the header into that component must not have introduced one.
+    const { container } = render(<DriveHome driveName="media" />);
+    await screen.findByRole("button", { name: "Add" });
+    expect(container.querySelectorAll("h1")).toHaveLength(0);
+  });
+
+  it("keeps Add reachable on a drive root with nothing in it", async () => {
+    // A drive that keeps every file inside a subfolder is in this state
+    // permanently. The file listing below drops its arranging controls
+    // when it is empty; the way to stop being empty must survive that.
+    // (This assertion used to live in `RootFileListing.test.tsx`.)
+    render(<DriveHome driveName="media" />);
+    expect(await screen.findByRole("button", { name: "Add" })).toBeInTheDocument();
+  });
+
+  it("opens the name field under the header, and creates from it", async () => {
+    render(<DriveHome driveName="media" />);
+    fireEvent.click(await screen.findByRole("button", { name: "Add" }));
+    fireEvent.click(screen.getByText("New Folder"));
+
+    const field = screen.getByPlaceholderText("Folder name...");
+    fireEvent.change(field, { target: { value: "Reading" } });
+
+    const foldersBefore = mockGetFolders.mock.calls.length;
+    fireEvent.keyDown(field, { key: "Enter" });
+
+    await waitFor(() =>
+      expect(mockCreateFolder).toHaveBeenCalledWith("media", "", "Reading"),
+    );
+    // The folder row has to be refetched, or the folder the user just made
+    // is not there. `refreshFolders` also refreshes the tree.
+    await waitFor(() =>
+      expect(mockGetFolders.mock.calls.length).toBeGreaterThan(foldersBefore),
+    );
+    await waitFor(() =>
+      expect(screen.queryByPlaceholderText("Folder name...")).toBeNull(),
+    );
+  });
+
+  it("rejects a name with a path separator without calling the API", async () => {
+    render(<DriveHome driveName="media" />);
+    fireEvent.click(await screen.findByRole("button", { name: "Add" }));
+    fireEvent.click(screen.getByText("New Folder"));
+
+    const field = screen.getByPlaceholderText("Folder name...");
+    fireEvent.change(field, { target: { value: "a/b" } });
+    fireEvent.keyDown(field, { key: "Enter" });
+
+    await screen.findByText("Invalid folder name");
+    expect(mockCreateFolder).not.toHaveBeenCalled();
+    // The row stays open on a rejection — the name is still there to fix.
+    expect(screen.getByPlaceholderText("Folder name...")).toBeInTheDocument();
+  });
+
+  it("closes the name field on Escape", async () => {
+    render(<DriveHome driveName="media" />);
+    fireEvent.click(await screen.findByRole("button", { name: "Add" }));
+    fireEvent.click(screen.getByText("New Folder"));
+
+    const field = screen.getByPlaceholderText("Folder name...");
+    fireEvent.keyDown(field, { key: "Escape" });
+    expect(screen.queryByPlaceholderText("Folder name...")).toBeNull();
+    expect(mockCreateFolder).not.toHaveBeenCalled();
   });
 });

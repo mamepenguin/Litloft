@@ -2,11 +2,10 @@
 
 import { useCallback, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { CheckSquare, FileText, MoreHorizontal, Play, RefreshCw, X } from "lucide-react";
+import { CheckSquare, FileText, MoreHorizontal, Play, RefreshCw } from "lucide-react";
 
 import { useTranslations } from "next-intl";
-import { createFolder, getDriveFiles, scanDrive } from "@/lib/api";
-import { useTreeRefresh } from "@/components/TreeRefreshContext";
+import { getDriveFiles, scanDrive } from "@/lib/api";
 import type { FileItem, SortField, SortOrder, ViewMode } from "@/types";
 import { FileGrid } from "@/components/FileGrid";
 import { FileList } from "@/components/FileList";
@@ -14,7 +13,6 @@ import { ViewToggle } from "@/components/ViewToggle";
 import { SortButton } from "@/components/SortButton";
 import { EmptyState } from "@/components/EmptyState";
 import { SearchX } from "lucide-react";
-import { AddButton } from "@/components/AddButton";
 import { useFilePicker } from "@/components/useFilePicker";
 import { Button } from "@/components/Button";
 import { UploadZone } from "@/components/UploadZone";
@@ -37,11 +35,9 @@ const LIMIT = 30;
 export function RootFileListing({ driveName, onFileAction, onFolderChange }: RootFileListingProps) {
   const t = useTranslations("toolbar");
   const tc = useTranslations("common");
-  const tf = useTranslations("folder");
   const ts = useTranslations("selection");
   const td = useTranslations("drive");
   const tFilter = useTranslations("filter");
-  const refreshTree = useTreeRefresh();
   const [viewMode, setViewMode] = useState<ViewMode>("grid");
   const [sort, setSort] = useState<SortField>("created_at");
   const [order, setOrder] = useState<SortOrder>("desc");
@@ -133,34 +129,6 @@ export function RootFileListing({ driveName, onFileAction, onFolderChange }: Roo
   // eslint-disable-next-line react-hooks/exhaustive-deps -- intentionally triggered only by refreshKey
   }, [refreshKey]);
 
-  const [creatingFolder, setCreatingFolder] = useState(false);
-  const [newFolderName, setNewFolderName] = useState("");
-  const [folderError, setFolderError] = useState<string | null>(null);
-
-  async function handleCreateFolder() {
-    const name = newFolderName.trim();
-    if (!name) return;
-    if (name.includes("/") || name.includes("\\") || name === ".." || name === "." || name.startsWith(".")) {
-      setFolderError(tf("invalidName"));
-      return;
-    }
-    if (name.length > 255) {
-      setFolderError(tf("nameTooLong"));
-      return;
-    }
-    setFolderError(null);
-    try {
-      await createFolder(driveName, "", name);
-      setNewFolderName("");
-      setCreatingFolder(false);
-      refresh();
-      refreshTree();
-      onFolderChange?.();
-    } catch {
-      setFolderError(tf("createFailed"));
-    }
-  }
-
   const handleViewChange = useCallback((mode: ViewMode) => {
     setViewMode(mode);
   }, []);
@@ -224,42 +192,14 @@ export function RootFileListing({ driveName, onFileAction, onFolderChange }: Roo
           </h2>
         </div>
 
-        {/* Toolbar */}
+        {/* Toolbar.
+            Adding lives in the page header, not here: on the drive root
+            this section sits below the folder row and up to five content
+            rows, so an Add button here is a screenful away from the top
+            of the page it acts on (D-2). The header is also where this
+            screen spends its one accent fill. */}
         <div className="mb-4 flex flex-wrap items-center gap-2">
-          <AddButton onCreateFolder={() => setCreatingFolder(true)} />
           {filePicker.input}
-
-          {creatingFolder && (
-            <div className="flex w-full items-center gap-2 sm:w-auto">
-              <input
-                type="text"
-                autoFocus
-                value={newFolderName}
-                onChange={(e) => setNewFolderName(e.target.value)}
-                onKeyDown={(e) => {
-                  if (e.key === "Enter") handleCreateFolder();
-                  if (e.key === "Escape") { setCreatingFolder(false); setNewFolderName(""); setFolderError(null); }
-                }}
-                placeholder={tf("namePlaceholder")}
-                className="min-w-0 flex-1 rounded-2xl bg-bg-card px-3 py-2 text-sm text-text-primary placeholder:text-text-muted outline-none focus:ring-2 focus:ring-focus-ring sm:w-40 sm:flex-initial"
-              />
-              {/* The twin of the folder toolbar's inline Create, and not a
-                  second accent fill for the same reason: Add stays on screen
-                  behind this row (DESIGN.md §2.2). */}
-              <Button variant="secondary" size="sm" onClick={handleCreateFolder}>
-                {tc("create")}
-              </Button>
-              <Button
-                iconOnly
-                variant="ghost"
-                aria-label={tc("cancel")}
-                onClick={() => { setCreatingFolder(false); setNewFolderName(""); setFolderError(null); }}
-              >
-                <X size={16} />
-              </Button>
-              {folderError && <span className="text-xs text-danger">{folderError}</span>}
-            </div>
-          )}
 
           <div className="flex-1" />
 
