@@ -299,10 +299,10 @@ another drive, and a locked drive contributes nothing.
 
 **When it appears.** The row needs a viewer profile (a nickname) —
 without one there is no watch history to read. It stays hidden until the
-first sweep after you have watched something. The link to the full page
-appears once the feed holds at least 40 files; below that there is no
-page to link to, and the row shows as many of the day's twelve as fit
-its width.
+first sweep after you have watched something. The row shows as many of
+the day's twelve as fit its width, and **See all** carries the size of
+the whole feed — that link is the only way to what the row could not
+draw, so it is there whenever there is a feed.
 
 **How fast it forgets.** An interest halves in weight every week you do
 not touch it. Stop watching something you had been watching heavily and
@@ -757,7 +757,7 @@ When enabled, the intelligence addon contributes:
   candidates, an image description. Generating one makes its section appear and removes
   it from the menu, which is where its regenerate control lives from then on. On a file
   with nothing left to generate — or nothing applicable — the button is not shown.
-- **Drive home** — *Pickup*, a row of files you have never opened, with a link through to the full feed at `/drive/{drive}/addons/intelligence/pickup` once it holds at least 40
+- **Drive home** — *Pickup*, a row of files you have never opened, with a link through to the full feed at `/drive/{drive}/addons/intelligence/pickup`, carrying the feed's size
 - **File `[...]` menu** — *Index details*, a dialog showing per-task state with a *Regenerate* button for each task (`metadata`, `clip`, `whisper`, `text`) plus recent provider stats for failure context. It sits in the overflow menu rather than in the inspector because it answers an operator's question, not a reader's.
 - **Folder actions** — inside the folder toolbar's **Add** menu: *Create AI tag candidates…*,
   *Create AI summaries…*, and *Create image descriptions…*.
