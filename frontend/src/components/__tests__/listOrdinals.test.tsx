@@ -72,10 +72,12 @@ const tracks = [track(1), track(2), track(3)];
 
 describe("numbering a list", () => {
   it("numbers the rows from one when asked", () => {
+    // Unpadded, matching `CollectionItemsPane`, which numbers the same
+    // items on the same screen.
     render(<FileList files={tracks} showOrdinals />);
-    expect(screen.getByText("01")).toBeInTheDocument();
-    expect(screen.getByText("02")).toBeInTheDocument();
-    expect(screen.getByText("03")).toBeInTheDocument();
+    expect(screen.getByText("1")).toBeInTheDocument();
+    expect(screen.getByText("2")).toBeInTheDocument();
+    expect(screen.getByText("3")).toBeInTheDocument();
   });
 
   it("numbers by position in the list, not by the file's own id", () => {
@@ -85,10 +87,10 @@ describe("numbering a list", () => {
     render(<FileList files={[track(9), track(4)]} showOrdinals />);
     const rows = screen.getAllByText(/^Track \d$/);
     expect(rows.map((r) => r.textContent)).toEqual(["Track 9", "Track 4"]);
-    expect(screen.getByText("01")).toBeInTheDocument();
-    expect(screen.getByText("02")).toBeInTheDocument();
-    expect(screen.queryByText("09")).toBeNull();
-    expect(screen.queryByText("04")).toBeNull();
+    expect(screen.getByText("1")).toBeInTheDocument();
+    expect(screen.getByText("2")).toBeInTheDocument();
+    expect(screen.queryByText("9")).toBeNull();
+    expect(screen.queryByText("4")).toBeNull();
   });
 
   it("draws no numbers when not asked", () => {
@@ -99,7 +101,7 @@ describe("numbering a list", () => {
     // nothing at all.
     render(<FileList files={tracks} />);
     expect(screen.getAllByText(/^Track \d$/)).toHaveLength(3);
-    for (const n of ["01", "02", "03"]) {
+    for (const n of ["1", "2", "3"]) {
       expect(screen.queryByText(n)).toBeNull();
     }
   });

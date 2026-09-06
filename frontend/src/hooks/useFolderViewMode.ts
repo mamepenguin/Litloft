@@ -1,10 +1,11 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 
 import type { FolderKind, SortField, SortOrder, ViewMode } from "@/types";
 import { isSortField } from "@/lib/sortField";
 import { viewModeForKind } from "@/lib/viewModeForKind";
+import { useLatchedKind } from "@/hooks/useLatchedKind";
 
 const GLOBAL_KEY = "video-share-view-mode";
 const PER_DRIVE_PREFIX = "folderPrefs:";
@@ -78,11 +79,15 @@ interface UseFolderViewModeResult {
 
 export function useFolderViewMode(opts: ResolveOpts): UseFolderViewModeResult {
   const { drive, folderPath, dominantKind } = opts;
-  const [viewMode, setViewModeState] = useState<ViewMode>(() => resolveFolderViewMode(opts));
+  const at = `${drive}\u0000${folderPath}`;
+  const latched = useLatchedKind(at, dominantKind);
 
-  useEffect(() => {
-    setViewModeState(resolveFolderViewMode({ drive, folderPath, dominantKind }));
-  }, [drive, folderPath, dominantKind]);
+  const resolved = useMemo(
+    () => resolveFolderViewMode({ drive, folderPath, dominantKind: latched }),
+    [drive, folderPath, latched],
+  );
+  const [chosen, setChosen] = useState<{ at: string; mode: ViewMode } | null>(null);
+  const viewMode = chosen?.at === at ? chosen.mode : resolved;
 
   const setViewMode = useCallback(
     (mode: ViewMode) => {
@@ -92,9 +97,9 @@ export function useFolderViewMode(opts: ResolveOpts): UseFolderViewModeResult {
         [folderPath]: { ...prefs[folderPath], viewMode: mode },
       };
       saveFolderPrefs(drive, next);
-      setViewModeState(mode);
+      setChosen({ at, mode });
     },
-    [drive, folderPath],
+    [drive, folderPath, at],
   );
 
   return { viewMode, setViewMode };

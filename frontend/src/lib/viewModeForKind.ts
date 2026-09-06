@@ -20,7 +20,18 @@ import type { FolderKind, ViewMode } from "@/types";
  * | markdown | `TextThumbnail`, but a note is read by its title | list |
  * | audio, archive, other | `FileTypeIcon`, the same glyph every time | list |
  *
- * `markdown` is the one row that is not derived from the picture: it can
+ * **Two rows hold for most of the kind rather than all of it.**
+ * `TextThumbnail` covers `text/*` and the three OOXML mimes
+ * (`lib/officeFiles.ts`), so a folder of `.doc` / `.xls` / `.ppt` is
+ * `document` and gets the icon; and `generate_pdf_thumbnail` runs on
+ * `application/pdf` only, so a `.pdf` whose mime was never recorded gets
+ * the icon too. Both are minorities of their kind, and both would be
+ * better fixed where the picture is made than by splitting the kind: a
+ * table with a row per mime is not a rule anyone can hold in their head.
+ * Stated rather than left implied, because "derived from the card" is
+ * the whole claim this module rests on.
+ *
+ * `markdown` is the one row not derived from the picture at all: it can
  * draw one and still opens as a list, because a wall of note previews is
  * not how a notebook is navigated. It was already `list` before this
  * table existed.

@@ -1,42 +1,48 @@
 import { describe, it, expect } from "vitest";
-import { readFileSync } from "node:fs";
+import { readFileSync, readdirSync, existsSync, statSync } from "node:fs";
 import { fileURLToPath } from "node:url";
-import { resolve, dirname } from "node:path";
+import { resolve, dirname, relative } from "node:path";
 
+import { stripComments } from "@/__tests__/helpers/sourceScan";
 import { viewModeForKind } from "@/lib/viewModeForKind";
-import type { FolderKind } from "@/types";
+import type { FolderKind, ViewMode } from "@/types";
 
 const REPO_ROOT = resolve(dirname(fileURLToPath(import.meta.url)), "../../../..");
 
 /**
- * The table, written out rather than derived.
+ * The table, written out rather than derived — and typed so the type
+ * system carries the totality in here too.
  *
- * Every `FolderKind`, so adding one and leaving it out of the table
- * fails here as well as in the compiler.
+ * A hand-written array with a length assertion would have been a claim
+ * about a constant this file owns: adding a ninth `FolderKind` and a
+ * ninth row to `VIEW_MODE_FOR_KIND` (which tsc does force) would leave
+ * every assertion below green. Written as a mapped type, the test file
+ * stops compiling until the new kind is decided here as well.
  */
-const TABLE: ReadonlyArray<[FolderKind, "grid" | "list"]> = [
-  ["video", "grid"],
-  ["image", "grid"],
-  ["pdf", "grid"],
-  ["document", "grid"],
-  ["markdown", "list"],
-  ["audio", "list"],
-  ["archive", "list"],
-  ["other", "list"],
-];
+const TABLE: { [K in FolderKind]: ViewMode } = {
+  video: "grid",
+  image: "grid",
+  pdf: "grid",
+  document: "grid",
+  markdown: "list",
+  audio: "list",
+  archive: "list",
+  other: "list",
+};
+
+const ROWS = Object.entries(TABLE) as [FolderKind, ViewMode][];
 
 describe("viewModeForKind", () => {
-  it.each(TABLE)("opens a %s listing as a %s", (kind, expected) => {
+  it.each(ROWS)("opens a %s listing as a %s", (kind, expected) => {
     expect(viewModeForKind(kind)).toBe(expected);
   });
 
   it("covers every kind there is", () => {
-    // `FolderKind` is a type, so the count is the only thing a test can
-    // compare against. Eight, matching `types/index.ts` and the backend
-    // classifier it mirrors: `FileKind` less `subtitle`, which no
-    // surface offers a word for.
-    expect(TABLE).toHaveLength(8);
-    expect(new Set(TABLE.map(([k]) => k)).size).toBe(8);
+    // The mapped type above is what forces this; the count is here so
+    // the number is stated somewhere a reader can check against
+    // `types/index.ts` and the backend classifier it mirrors —
+    // `FileKind` less `subtitle`, which no surface offers a word for.
+    expect(ROWS).toHaveLength(8);
   });
 
   it("has no answer for a mixed listing", () => {
@@ -62,24 +68,59 @@ describe("viewModeForKind", () => {
   });
 });
 
+/**
+ * Every file that maps a kind to a view mode.
+ *
+ * Walked, not listed: the case this block exists for is a *third* copy,
+ * and a scan of the two files that used to hold copies cannot see one.
+ *
+ * Matched on the two shapes a mapping can take rather than on the name
+ * `autoDetectMode`, because the next copy will not be called that — a
+ * table entry (`audio: "grid"`, `"audio": "grid"`) or a switch arm
+ * (`case "audio": … return "grid"`). Both are what a re-introduced local
+ * rule looks like; neither matches a type declaration, a snapshot
+ * serialiser, or a toolbar that happens to mention both words.
+ */
+const KIND_NAMES =
+  "markdown|video|image|pdf|audio|document|archive|other";
+const ENTRY = new RegExp(
+  `(?:^|[\\s{,])"?(?:${KIND_NAMES})"?\\s*:\\s*"(?:grid|list)"`,
+  "m",
+);
+const SWITCH_ARM = new RegExp(
+  `case\\s+"(?:${KIND_NAMES})"\\s*:[\\s\\S]{0,120}?return\\s+"(?:grid|list)"`,
+);
+
+function kindToModeMappers(): string[] {
+  const out: string[] = [];
+  const walk = (dir: string) => {
+    for (const entry of readdirSync(dir, { withFileTypes: true })) {
+      const full = resolve(dir, entry.name);
+      if (entry.name === "node_modules" || entry.name.startsWith(".")) continue;
+      if (entry.name === "__tests__" || entry.name === "addons") continue;
+      if (!existsSync(full)) continue;
+      if (statSync(full).isDirectory()) {
+        walk(full);
+        continue;
+      }
+      if (!/\.tsx?$/.test(entry.name)) continue;
+      const body = stripComments(readFileSync(full, "utf-8"));
+      if (ENTRY.test(body) || SWITCH_ARM.test(body)) {
+        out.push(relative(REPO_ROOT, full));
+      }
+    }
+  };
+  walk(resolve(REPO_ROOT, "frontend/src"));
+  return out;
+}
+
 describe("the rule is written once", () => {
   const hooks = [
     "frontend/src/hooks/useFolderViewMode.ts",
     "frontend/src/hooks/useCollectionViewMode.ts",
   ];
 
-  it("leaves no copy of the old switch in either hook", () => {
-    // The two hooks held the same `autoDetectMode` verbatim, and the
-    // copies had already drifted from what either screen needed —
-    // fixing one and not the other is the likeliest way this regresses.
-    for (const rel of hooks) {
-      const body = readFileSync(resolve(REPO_ROOT, rel), "utf-8");
-      expect(body).not.toMatch(/function autoDetectMode\b/);
-      expect(body).toMatch(/viewModeForKind/);
-    }
-  });
-
-  it("is imported by both, from the one module", () => {
+  it("is imported by both hooks, from the one module", () => {
     for (const rel of hooks) {
       const body = readFileSync(resolve(REPO_ROOT, rel), "utf-8");
       expect(body).toMatch(
@@ -88,14 +129,11 @@ describe("the rule is written once", () => {
     }
   });
 
-  it("is the only place a kind is mapped to a view mode", () => {
-    // Not just "the two hooks agree": a third copy elsewhere would leave
-    // both of them green. Scanned as a pair of tokens rather than by
-    // name, since the next copy will not be called `autoDetectMode`.
-    for (const rel of hooks) {
-      const body = readFileSync(resolve(REPO_ROOT, rel), "utf-8");
-      expect(body).not.toMatch(/case "markdown":/);
-      expect(body).not.toMatch(/case "audio":/);
-    }
+  it("is the only file in the tree that maps a kind to a mode", () => {
+    const mappers = kindToModeMappers();
+    // The population is non-empty and contains the module itself, so
+    // "nothing else maps kinds" cannot pass by finding nothing at all.
+    expect(mappers).toContain("frontend/src/lib/viewModeForKind.ts");
+    expect(mappers).toEqual(["frontend/src/lib/viewModeForKind.ts"]);
   });
 });

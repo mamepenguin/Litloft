@@ -4,6 +4,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 
 import type { CollectionItemEntry, FileItem, FolderKind, ViewMode } from "@/types";
 import { viewModeForKind } from "@/lib/viewModeForKind";
+import { useLatchedKind } from "@/hooks/useLatchedKind";
 
 /**
  * Spec ``docs/superpowers/specs/2026-05-12-playlist-to-collection.md`` §6.3:
@@ -141,15 +142,15 @@ export function useCollectionViewMode({
   items,
 }: UseCollectionViewModeOpts): UseCollectionViewModeResult {
   const dominantKind = useMemo(() => dominantCollectionKind(items), [items]);
-  const [viewMode, setViewModeState] = useState<ViewMode>(() =>
-    resolveCollectionViewMode({ drive, collectionId, dominantKind }),
-  );
+  const at = `${drive}\u0000${collectionId}`;
+  const latched = useLatchedKind(at, dominantKind);
 
-  useEffect(() => {
-    setViewModeState(
-      resolveCollectionViewMode({ drive, collectionId, dominantKind }),
-    );
-  }, [drive, collectionId, dominantKind]);
+  const resolved = useMemo(
+    () => resolveCollectionViewMode({ drive, collectionId, dominantKind: latched }),
+    [drive, collectionId, latched],
+  );
+  const [chosen, setChosen] = useState<{ at: string; mode: ViewMode } | null>(null);
+  const viewMode = chosen?.at === at ? chosen.mode : resolved;
 
   const setViewMode = useCallback(
     (mode: ViewMode) => {
@@ -159,9 +160,9 @@ export function useCollectionViewMode({
         [collectionId]: { ...prefs[collectionId], viewMode: mode },
       };
       savePrefs(drive, next);
-      setViewModeState(mode);
+      setChosen({ at, mode });
     },
-    [drive, collectionId],
+    [drive, collectionId, at],
   );
 
   return { viewMode, setViewMode, dominantKind };

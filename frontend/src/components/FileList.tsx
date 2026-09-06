@@ -87,10 +87,14 @@ export function FileList({
           <FileListRow
             key={file.id}
             file={file}
-            // The array index, not `position`: reordering leaves gaps in
-            // the stored positions, and a list numbered 1, 2, 4 is
-            // reporting a database detail. `CollectionItemsPane` numbers
-            // its rows the same way.
+            // The array index, not `position`. Reordering rewrites the
+            // stored positions densely, but **removing** an item does
+            // not — `remove_collection_item` deletes the row and `add`
+            // takes `max_position + 1` — and the optimistic local swap
+            // in `CollectionDetail` moves an item without touching its
+            // `position` at all. Either way a column of stored positions
+            // reads 1, 2, 4, which is a database detail.
+            // `CollectionItemsPane` derives its numbers the same way.
             ordinal={showOrdinals ? index + 1 : undefined}
             selectable={selectable}
             selected={selectedIds?.has(file.id)}

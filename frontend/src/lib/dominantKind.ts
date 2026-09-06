@@ -17,8 +17,19 @@ import type { FileItem, FolderKind } from "@/types";
  *   file_type "document"    → document
  *   else                    → other
  *
- * Returns the most common kind, or null when there are no files. Ties
- * are broken deterministically by the order of the input list.
+ * Returns the kind holding **more than half** the files, or null when
+ * no kind does — "what the folder mostly holds", which is what both the
+ * view-mode rule and the user guide say this means.
+ *
+ * A plurality is not enough, and the difference decides whether a
+ * viewer's global view preference is ever consulted. `viewModeForKind`
+ * answers for every kind there is, so a plurality here would mean every
+ * non-empty folder is answered by the kind table and the global
+ * preference is unreachable — a folder of 40% other / 30% video / 30%
+ * image would open as a list on the strength of a 40% plurality, for a
+ * viewer who asked for grids everywhere. `dominantCollectionKind` has
+ * always gated on a majority; this is the same rule on the other
+ * surface (原則 4).
  */
 export function deriveDominantKind(files: FileItem[]): FolderKind | null {
   if (files.length === 0) return null;
@@ -35,7 +46,7 @@ export function deriveDominantKind(files: FileItem[]): FolderKind | null {
       bestCount = count;
     }
   }
-  return bestKind;
+  return bestCount > files.length / 2 ? bestKind : null;
 }
 
 function classify(file: FileItem): FolderKind {

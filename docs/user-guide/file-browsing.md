@@ -29,9 +29,11 @@ A toolbar above the grid lets you:
   | PDF | grid | the card carries its first page |
   | Document | grid | the card carries the shape of the text |
   | Markdown | list | it could show a preview, but a note is found by its title |
-  | Audio, Other | list | the card can only draw the same icon, once per file |
+  | Audio, Archive, Other | list | the card can only draw the same icon, once per file |
 
-  Audio and Other used to open as a grid, which turned a fifty-track album into fifty copies of the same headphone icon. A folder with no majority kind falls back to your global preference. Anything you have already chosen for a folder keeps winning over all of this.
+  "Mostly" means **more than half** — a folder with no such majority falls back to your global preference, and anything you have already chosen for a folder keeps winning over all of it.
+
+  Five of the eight kinds changed here. Audio, Archive and Other used to open as a grid, which turned a fifty-track album into fifty copies of the same headphone icon. PDF and Document used to fall through to your global preference and now do not, so if that preference is **list** those two will open as grids from now on; switching one folder to a list is remembered for that folder as before.
 - Put the listing in order from the **Sort** menu: **newest / oldest** (indexed date), **title A-Z / Z-A**, **largest / smallest**, or **random** — seven orders. Sorting by when you liked something is not among them; that order belongs to the Liked view, which chooses it for you, because inside an ordinary folder most rows have no like date at all. The button reads the order that is on. Search results add a **relevance** option, which is their default. Sort is remembered per folder in the same place as the view mode. While the order is random, the same menu offers **Reshuffle** below the orders.
 - Narrow the listing from the **Filter** menu, which holds both axes. **File type** (All / Video / Image / Audio / Document / Markdown / PDF / Archive / Other) — Markdown and PDF sit *under* Document, so choosing Document returns them too and choosing one of them narrows further. **Verification** (All / Verified only / Unjudged only) sits beside it, except in search results, where a ranked and truncated result set cannot be narrowed after the fact without quietly losing hits. The button carries the word *Filter* until something is on, then the names of what is on.
 

@@ -229,20 +229,62 @@ describe("useCollectionViewMode", () => {
     ).toEqual({ c1: { viewMode: "list" } });
   });
 
-  it("re-resolves when dominantKind shifts", () => {
-    const videoItems = [makeItem(makeFile("a", "video", "video/mp4"))];
-    const markdownItems = [
-      makeItem(makeFile("b", "document", "text/markdown", "b.md")),
-      makeItem(makeFile("c", "document", "text/markdown", "c.md"), 1, 2),
+  it("resolves on the first items it is given, not on an empty mount", () => {
+    // A listing mounts before its items arrive, so the first render has
+    // no dominant kind. Resolving then and correcting later paints the
+    // wrong layout first — a fifty-track album flashing fifty grid cards
+    // on the way to the list this rule exists to give it.
+    const audioItems = [
+      makeItem(makeFile("a", "audio", "audio/mpeg")),
+      makeItem(makeFile("b", "audio", "audio/mpeg"), 1, 2),
     ];
     const { result, rerender } = renderHook(
       ({ items }) =>
         useCollectionViewMode({ drive: "main", collectionId: "c1", items }),
-      { initialProps: { items: videoItems } },
+      { initialProps: { items: [] as typeof audioItems } },
     );
-    expect(result.current.viewMode).toBe("grid");
-    rerender({ items: markdownItems });
+    rerender({ items: audioItems });
     expect(result.current.viewMode).toBe("list");
+  });
+
+  it("does not restyle a listing the reader is already reading", () => {
+    // The kind is latched at the first answer. Items can keep arriving —
+    // a folder's next page, a collection re-fetched after an edit — and
+    // the mode a listing opened in stays the mode it is in.
+    const audioItems = [
+      makeItem(makeFile("a", "audio", "audio/mpeg")),
+      makeItem(makeFile("b", "audio", "audio/mpeg"), 1, 2),
+    ];
+    const videoHeavy = [
+      ...audioItems,
+      makeItem(makeFile("c", "video", "video/mp4"), 2, 3),
+      makeItem(makeFile("d", "video", "video/mp4"), 3, 4),
+      makeItem(makeFile("e", "video", "video/mp4"), 4, 5),
+    ];
+    const { result, rerender } = renderHook(
+      ({ items }) =>
+        useCollectionViewMode({ drive: "main", collectionId: "c1", items }),
+      { initialProps: { items: audioItems } },
+    );
+    expect(result.current.viewMode).toBe("list");
+    rerender({ items: videoHeavy });
+    expect(result.current.viewMode).toBe("list");
+  });
+
+  it("starts over on a different collection", () => {
+    const audioItems = [
+      makeItem(makeFile("a", "audio", "audio/mpeg")),
+      makeItem(makeFile("b", "audio", "audio/mpeg"), 1, 2),
+    ];
+    const videoItems = [makeItem(makeFile("c", "video", "video/mp4"))];
+    const { result, rerender } = renderHook(
+      ({ collectionId, items }) =>
+        useCollectionViewMode({ drive: "main", collectionId, items }),
+      { initialProps: { collectionId: "c1", items: audioItems } },
+    );
+    expect(result.current.viewMode).toBe("list");
+    rerender({ collectionId: "c2", items: videoItems });
+    expect(result.current.viewMode).toBe("grid");
   });
 
   it("keeps the per-collection override even when items shift", () => {

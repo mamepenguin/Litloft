@@ -107,8 +107,20 @@ function FileListRowImpl({
   const content = (
     <>
       {ordinal !== undefined && (
-        <span className="w-6 flex-shrink-0 text-right text-xs tabular-nums text-text-muted">
-          {String(ordinal).padStart(2, "0")}
+        // `aria-hidden`: the row's accessible name is its title, and a
+        // reader announced as "1, Track 1" is being read a column that
+        // says what the reading order already says.
+        //
+        // Unpadded, and `tabular-nums` in a fixed width for the
+        // alignment a leading zero would otherwise buy. The collection's
+        // other pane numbers the same items on the same screen
+        // (`CollectionItemsPane`), and two numberings side by side have
+        // to read the same.
+        <span
+          aria-hidden
+          className="w-6 flex-shrink-0 text-right text-xs tabular-nums text-text-muted"
+        >
+          {ordinal}
         </span>
       )}
       <div className="relative h-14 w-24 flex-shrink-0 overflow-hidden rounded-lg bg-bg-elevated sm:h-14 sm:w-24">
