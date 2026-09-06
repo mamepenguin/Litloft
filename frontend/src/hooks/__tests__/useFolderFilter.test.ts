@@ -23,6 +23,8 @@ function makeFolder(name: string): Folder {
 
 function makeFile(overrides: Partial<FileItem>): FileItem {
   return {
+    image_width: null,
+    image_height: null,
     id: overrides.id ?? "f",
     filename: overrides.filename ?? "a.mp4",
     title: overrides.title ?? overrides.filename ?? "a",

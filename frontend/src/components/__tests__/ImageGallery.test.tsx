@@ -19,6 +19,8 @@ const mockGetDriveFiles = vi.mocked(getDriveFiles);
 
 function makeImage(id: string, title: string): FileItem {
   return {
+    image_width: null,
+    image_height: null,
     id,
     filename: `${title}.jpg`,
     title,

@@ -22,6 +22,8 @@ import { FileCard } from "../FileCard";
 import type { FileItem } from "@/types";
 
 const mockFile: FileItem = {
+  image_width: null,
+  image_height: null,
   id: "abc123def456",
   filename: "test.mp4",
   title: "Test Video",

@@ -90,6 +90,8 @@ import { DriveHome } from "../components/DriveHome";
 import type { WatchHistoryItem } from "@/types";
 
 const makeWatchHistoryItem = (id: string): WatchHistoryItem => ({
+  image_width: null,
+  image_height: null,
   id,
   filename: `${id}.mp4`,
   title: `Video ${id}`,

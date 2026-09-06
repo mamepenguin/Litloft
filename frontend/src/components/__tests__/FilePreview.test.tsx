@@ -66,6 +66,8 @@ vi.mock("../AddonSlot", () => ({
 
 function makeFile(overrides: Partial<FileItem> = {}): FileItem {
   return {
+    image_width: null,
+    image_height: null,
     id: "file-1",
     filename: "test.mp4",
     title: "Test",

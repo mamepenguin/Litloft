@@ -78,6 +78,8 @@ vi.mock("@/lib/api", () => {
 
 function playableFile(): FileItem {
   return {
+    image_width: null,
+    image_height: null,
     id: "f1", filename: "a.mp4", title: "a", description: "", drive: "main",
     folder_path: "", file_type: "video", mime_type: "video/mp4",
     thumbnail_url: "", has_thumbnail: false, file_size: 1, duration: 10,

@@ -5,6 +5,8 @@ import { buildSearchSnippet } from "../searchCapture";
 
 function file(overrides: Partial<FileItemWithMatch> = {}): FileItemWithMatch {
   return {
+    image_width: null,
+    image_height: null,
     id: "file123",
     filename: "lecture.mp4",
     title: "Lecture",

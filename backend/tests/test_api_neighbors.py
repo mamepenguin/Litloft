@@ -148,3 +148,81 @@ class TestNeighborsEdgeCases:
         data = res.json()
         assert data["prev_id"] == files_a[0].id
         assert data["next_id"] == files_a[2].id
+
+
+class TestNeighborsPosition:
+    """`position` / `total` back the `n / N` readout in the image viewer.
+
+    Spec `2026-09-06-ui-redesign-p4-viewers.md` §1.
+    """
+
+    def test_position_runs_from_one_to_total(self, client):
+        c, db, drive_dir, _ = client
+        files = _seed_files(db, drive_dir, count=3)
+        # created_at desc → [2, 1, 0]
+        expected = {files[2].id: 1, files[1].id: 2, files[0].id: 3}
+
+        for file_id, position in expected.items():
+            data = c.get(f"/api/files/{file_id}/neighbors").json()
+            assert data["position"] == position
+            assert data["total"] == 3
+
+    @pytest.mark.parametrize(
+        "order,positions",
+        [
+            ("asc", [1, 2, 3, 4, 5]),
+            ("desc", [5, 4, 3, 2, 1]),
+        ],
+    )
+    def test_reversing_the_order_reverses_the_position(
+        self, client, order, positions
+    ):
+        c, db, drive_dir, _ = client
+        files = _seed_files(db, drive_dir, count=5)
+
+        actual = [
+            c.get(
+                f"/api/files/{f.id}/neighbors?sort=title&order={order}"
+            ).json()["position"]
+            for f in files
+        ]
+        assert actual == positions
+
+    def test_a_lone_file_is_one_of_one(self, client):
+        c, db, drive_dir, _ = client
+        files = _seed_files(db, drive_dir, count=1)
+
+        data = c.get(f"/api/files/{files[0].id}/neighbors").json()
+        assert data["position"] == 1
+        assert data["total"] == 1
+
+    def test_total_counts_only_the_files_own_folder(self, client):
+        c, db, drive_dir, _ = client
+        files_a = _seed_files(db, drive_dir, folder="folderA", count=3)
+        _seed_files(db, drive_dir, folder="folderB", count=4)
+
+        data = c.get(f"/api/files/{files_a[0].id}/neighbors").json()
+        assert data["total"] == 3
+
+    def test_total_excludes_trashed_files(self, client):
+        c, db, drive_dir, _ = client
+        files = _seed_files(db, drive_dir, count=3)
+
+        from datetime import UTC, datetime
+
+        files[0].deleted_at = datetime.now(UTC)
+        db.commit()
+
+        data = c.get(f"/api/files/{files[2].id}/neighbors").json()
+        assert data["total"] == 2
+
+    def test_an_unliked_file_has_a_count_but_no_place(self, client):
+        c, db, drive_dir, _ = client
+        files = _seed_files(db, drive_dir, count=3)
+
+        data = c.get(
+            f"/api/files/{files[0].id}/neighbors?sort=liked_at&order=desc"
+        ).json()
+        # Nothing was liked, so there is no like-ordering to have a place in.
+        assert data["position"] is None
+        assert data["total"] == 3

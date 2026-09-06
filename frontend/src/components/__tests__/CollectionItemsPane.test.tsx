@@ -21,6 +21,8 @@ vi.mock("@/lib/api", () => ({
 
 function makeFile(id: string): FileItem {
   return {
+    image_width: null,
+    image_height: null,
     id,
     filename: `${id}.md`,
     title: `File ${id}`,

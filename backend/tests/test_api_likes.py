@@ -185,7 +185,14 @@ class TestSortField:
 
         res = c.get(f"/api/files/{unliked.id}/neighbors?sort=liked_at")
         assert res.status_code == 200
-        assert res.json() == {"prev_id": None, "next_id": None}
+        # ``total`` counts the folder either way; only the place in the
+        # ordering is undefined for a file the ordering cannot rank.
+        assert res.json() == {
+            "prev_id": None,
+            "next_id": None,
+            "position": None,
+            "total": 2,
+        }
 
     def test_unliked_files_are_not_neighbours_of_a_liked_one(self, client):
         c, db, drive_dir, data_dir = client
@@ -194,7 +201,12 @@ class TestSortField:
         c.post(f"/api/files/{liked.id}/like")
 
         res = c.get(f"/api/files/{liked.id}/neighbors?sort=liked_at")
-        assert res.json() == {"prev_id": None, "next_id": None}
+        assert res.json() == {
+            "prev_id": None,
+            "next_id": None,
+            "position": 1,
+            "total": 2,
+        }
 
     def test_liked_view_orders_by_when_it_was_liked(self, client):
         """Ordering by ``created_at`` would rank by when the file entered

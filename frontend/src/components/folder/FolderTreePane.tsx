@@ -153,6 +153,8 @@ function nodeToFile(
     has_thumbnail: false,
     file_size: 0,
     duration: null,
+    image_width: null,
+    image_height: null,
     liked_at: null,
     // Display placeholder: this stand-in never grounds an answer (Ask
     // filters server-side) and never mounts the trust control, so it

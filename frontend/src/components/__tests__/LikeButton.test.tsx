@@ -13,6 +13,8 @@ const mockLikeFile = vi.mocked(likeFile);
 
 function makeFile(likedAt: string | null): FileItem {
   return {
+    image_width: null,
+    image_height: null,
     id: "f1",
     filename: "clip.mp4",
     title: "Clip",

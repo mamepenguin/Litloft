@@ -32,6 +32,8 @@ vi.mock("../FileTypeIcon", () => ({
 }));
 
 const mockFile: FileItem = {
+  image_width: null,
+  image_height: null,
   id: "audio-1",
   filename: "song.mp3",
   title: "Test Song",

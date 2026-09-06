@@ -59,6 +59,8 @@ import { FileList } from "../FileList";
 import type { FileItem } from "@/types";
 
 const makeFile = (overrides: Partial<FileItem> = {}): FileItem => ({
+  image_width: null,
+  image_height: null,
   id: "file1",
   filename: "test.mp4",
   title: "Test Video",

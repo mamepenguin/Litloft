@@ -72,6 +72,12 @@ class File(Base):
     mime_type: Mapped[str] = mapped_column(String, nullable=False, default="application/octet-stream")
     thumbnail_path: Mapped[str | None] = mapped_column(String, nullable=True)
     duration: Mapped[float | None] = mapped_column(Float, nullable=True)
+    # Pixel dimensions of the source image. Videos are left NULL on
+    # purpose: their thumbnails are letterboxed to 320x180, so a listing
+    # can only ever lay them out at 16:9 and the true ratio has no
+    # consumer. The ``image_`` prefix says which files carry a value.
+    image_width: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    image_height: Mapped[int | None] = mapped_column(Integer, nullable=True)
     chapters_probed_at: Mapped[datetime | None] = mapped_column(
         DateTime, nullable=True, default=None
     )

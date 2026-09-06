@@ -26,6 +26,7 @@ from app.services.frontmatter import (
     parse as parse_frontmatter,
 )
 from app.services.hash import compute_file_hash
+from app.services.image_dimensions import read_image_dimensions
 from app.services.markdown_images import project_markdown_thumbnail
 from app.services.maintenance import (
     MaintenanceBusyError,
@@ -310,6 +311,9 @@ def register_single_file(db: Session, drive_name: str, file_path: Path) -> str:
             pass
 
     if file_type == "image":
+        dimensions = read_image_dimensions(file_path)
+        if dimensions is not None:
+            file_record.image_width, file_record.image_height = dimensions
         exif = extract_exif(file_path)
         if exif is not None:
             db.add(FileExif(file_id=file_record.id, **exif))
@@ -402,6 +406,15 @@ def _scan_and_register(db: Session, drive_name: str) -> dict[str, int]:
                 ).exists():
                     _relocate_thumbnail(file_record, expected_thumb, file_type, item)
                     needs_update = True
+
+            # Backfilling only rows that still lack a width keeps this to a
+            # single pass over a drive scanned before the columns existed.
+            # Non-images never enter the branch, so nothing that has no
+            # dimensions to read is opened.
+            if file_type == "image" and file_record.image_width is None:
+                dimensions = read_image_dimensions(item)
+                if dimensions is not None:
+                    file_record.image_width, file_record.image_height = dimensions
 
             if file_type == "image" and db.get(FileExif, file_record.id) is None:
                 exif = extract_exif(item)
@@ -612,6 +625,9 @@ def _scan_and_register(db: Session, drive_name: str) -> dict[str, int]:
         _ensure_md_id_for_new_file(db, file_record, item)
 
         if file_type == "image":
+            dimensions = read_image_dimensions(item)
+            if dimensions is not None:
+                file_record.image_width, file_record.image_height = dimensions
             exif = extract_exif(item)
             if exif is not None:
                 db.add(FileExif(file_id=file_record.id, **exif))

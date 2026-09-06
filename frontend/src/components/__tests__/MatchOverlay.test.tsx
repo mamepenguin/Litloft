@@ -6,6 +6,8 @@ import { MatchOverlay } from "../MatchOverlay";
 
 function makeFile(overrides: Partial<FileItemWithMatch> = {}): FileItemWithMatch {
   return {
+    image_width: null,
+    image_height: null,
     id: "f1",
     filename: "lecture.mp4",
     title: "Lecture",

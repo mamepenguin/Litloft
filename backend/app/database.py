@@ -689,6 +689,22 @@ def _migrate(engine_) -> None:
                 "ON files (liked_at)"
             ))
 
+    # === Spec 2026-09-06-ui-redesign-p4-viewers: pixel dimensions for the
+    # justified image grid. The columns stay NULL after this runs; the
+    # scanner backfills them for images it finds with no width recorded.
+    inspector_dimensions = inspect(engine_)
+    if "files" in inspector_dimensions.get_table_names():
+        dimension_columns = {
+            column["name"] for column in inspector_dimensions.get_columns("files")
+        }
+        with engine_.begin() as conn:
+            if "image_width" not in dimension_columns:
+                logger.info("Migrating: adding 'image_width' column to files")
+                conn.execute(text("ALTER TABLE files ADD COLUMN image_width INTEGER"))
+            if "image_height" not in dimension_columns:
+                logger.info("Migrating: adding 'image_height' column to files")
+                conn.execute(text("ALTER TABLE files ADD COLUMN image_height INTEGER"))
+
 
 def _backfill_mangled_titles(engine_) -> None:
     """Re-derive titles that `str.title()` had mangled.

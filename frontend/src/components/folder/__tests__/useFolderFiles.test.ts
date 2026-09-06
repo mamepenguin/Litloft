@@ -5,6 +5,8 @@ import type { FileItem, Folder } from "@/types";
 import type { ListSnapshot } from "@/lib/listSnapshot";
 
 const mockFile = (id: string, drive = "main"): FileItem => ({
+  image_width: null,
+  image_height: null,
   id,
   filename: `${id}.mp4`,
   title: id,

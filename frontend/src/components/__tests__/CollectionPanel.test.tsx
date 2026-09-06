@@ -5,6 +5,8 @@ import type { FileItem } from "@/types";
 
 function makeTrackFile(id: string, type: "audio" | "video" = "audio"): FileItem {
   return {
+    image_width: null,
+    image_height: null,
     id,
     filename: `${id}.mp3`,
     title: `Track ${id}`,
