@@ -300,8 +300,9 @@ another drive, and a locked drive contributes nothing.
 **When it appears.** The row needs a viewer profile (a nickname) —
 without one there is no watch history to read. It stays hidden until the
 first sweep after you have watched something. The link to the full page
-appears once the feed holds at least 40 files; below that the row
-is already showing everything there is.
+appears once the feed holds at least 40 files; below that there is no
+page to link to, and the row shows as many of the day's twelve as fit
+its width.
 
 **How fast it forgets.** An interest halves in weight every week you do
 not touch it. Stop watching something you had been watching heavily and

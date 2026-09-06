@@ -264,3 +264,99 @@ describe("DriveHome", () => {
     });
   });
 });
+
+describe("the drive home's content rows", () => {
+  const oneFile = () => ({
+    id: "f1",
+    filename: "clip.mp4",
+    title: "Clip",
+    description: "",
+    drive: "media",
+    folder_path: "",
+    file_type: "video",
+    mime_type: "video/mp4",
+    thumbnail_url: "",
+    has_thumbnail: false,
+    file_size: 1024,
+    duration: 120,
+    image_width: null,
+    image_height: null,
+    liked_at: null,
+    is_favorite: false,
+    tags: [],
+    subtitles: [],
+    deleted_at: null,
+    missing_since: null,
+    trust_tier: "verified" as const,
+    trust_reviewed_at: null,
+    created_at: "2026-01-01T00:00:00",
+    updated_at: "2026-01-01T00:00:00",
+  });
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+    mockProfile.nickname = null;
+    mockGetFolders.mockResolvedValue([]);
+    mockGetPins.mockResolvedValue([]);
+    mockGetWatchHistory.mockResolvedValue([]);
+  });
+
+  it("carries the server's total through to the See all link", async () => {
+    // The whole point of the change, and the half of it that no
+    // component test can see: `applyFileSections` reads `meta.total` off
+    // a response the row never fetches itself. Delete that one line and
+    // `CarouselSection`'s own tests stay green while the count silently
+    // stops appearing.
+    mockGetDriveFiles.mockResolvedValue({
+      data: [oneFile()],
+      meta: { total: 619, page: 1, limit: 12 },
+    });
+    render(<DriveHome driveName="media" />);
+    // All three file rows read from the same mock, so all three carry it.
+    const links = await screen.findAllByRole("link", { name: "See all (619)" });
+    expect(links).toHaveLength(3);
+  });
+
+  it("gives each row its own total, and drops a row whose fetch failed", async () => {
+    // The three rows are one `allSettled`, so a single shared total would
+    // pass a test that resolves all three the same way. Recently added
+    // resolves with 619; Favourites and Liked reject, and a row with
+    // nothing in it does not render at all — which is also why "a failed
+    // section shows no count" is not assertable here and is asserted
+    // against `CarouselSection` directly in `section-rows.test.tsx`.
+    mockGetDriveFiles
+      .mockResolvedValueOnce({ data: [oneFile()], meta: { total: 619, page: 1, limit: 12 } })
+      .mockRejectedValueOnce(new Error("network"))
+      .mockRejectedValueOnce(new Error("network"));
+
+    render(<DriveHome driveName="media" />);
+
+    const links = await screen.findAllByRole("link", { name: "See all (619)" });
+    expect(links).toHaveLength(1);
+    expect(links[0].getAttribute("href")).toContain("view=recent-added");
+    expect(screen.queryByText("Favorites")).toBeNull();
+  });
+
+  it("gives both watch-history rows somewhere to send the reader", async () => {
+    // The rows draw only what fits, so a row without a destination
+    // discards the rest of the history with nothing saying so. Continue
+    // watching has no view of its own; Recently played is the same
+    // history without the 90% gate, so it is a superset and an honest
+    // target for both.
+    mockProfile.nickname = "Alice";
+    mockGetDriveFiles.mockResolvedValue({ data: [], meta: { total: 0, page: 1, limit: 12 } });
+    mockGetWatchHistory.mockResolvedValue([
+      makeWatchHistoryItem("v1"),
+      makeWatchHistoryItem("v2"),
+    ]);
+    render(<DriveHome driveName="media" />);
+
+    await screen.findByText("Continue Watching");
+    const rows = ["Continue Watching", "Recently Viewed"];
+    for (const heading of rows) {
+      const section = screen.getByText(heading).closest("section")!;
+      const seeAll = section.querySelector("a[href*='view=recent']");
+      expect(seeAll, `${heading} has no See all`).not.toBeNull();
+    }
+  });
+});

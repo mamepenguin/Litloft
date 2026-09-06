@@ -79,10 +79,18 @@ function rendersCards(body: string): boolean {
     // built by its two callers. Calling the measuring hook is what it
     // does have, and a file that calls it *is* laying out a card grid.
     //
-    // This does not make the sweep circular. The clause only adds files;
-    // a card grid that counts its own columns still has no
-    // `useCardColumns` call and is caught by the three token tests
-    // above, which is the case this whole file exists to fail on.
+    // The clause only ever adds files, so it weakens nothing: every grid
+    // the four token tests caught before is still caught.
+    //
+    // **It does not close the hole it patches, and the difference
+    // matters.** It admits `SectionRow` because `SectionRow` reaches for
+    // the helper. A second children-taking grid that hand-wrote
+    // `grid-cols-2 sm:grid-cols-4` would carry none of the four tokens
+    // and stay outside the population entirely — invisible rather than
+    // failing. Nothing in the tree has that shape today. Catching it
+    // needs a fifth clause keyed on the shape itself (a grid element
+    // whose only child is `{children}` or `Children.toArray(`), which is
+    // worth writing the day a second one appears.
     /useCardColumns\(\)/.test(body)
   );
 }

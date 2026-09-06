@@ -310,6 +310,9 @@ describe("a shelf shows what fits and no more", () => {
     const { container } = render(
       <CarouselSection title="Recently added" files={twelveFiles} loading={false} />,
     );
+    // Both absences below are also true of a row that rendered nothing,
+    // and "every dropped card is gone" is true of the empty set.
+    expect(cardCount()).toBe(4);
     expect(container.textContent).not.toContain("Clip 5");
     expect(screen.queryByText("Clip 11")).toBeNull();
   });

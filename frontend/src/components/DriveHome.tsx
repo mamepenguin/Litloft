@@ -4,7 +4,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { Folder, History, Play, Clock, Star, ThumbsUp } from "lucide-react";
 import { useTranslations } from "next-intl";
-import type { FileItem, Folder as FolderType, WatchHistoryItem } from "@/types";
+import type { FileItem, Folder as FolderType, PaginatedResponse, WatchHistoryItem } from "@/types";
 import { addPin, getDriveFiles, getFolders, getPins, getWatchHistory, removePin } from "@/lib/api";
 import { useDragAndDrop } from "@/hooks/useDragAndDrop";
 import { useContextMenu } from "@/hooks/useContextMenu";
@@ -34,9 +34,10 @@ interface SectionState {
    *
    * `getDriveFiles` returns it in `meta.total` and the row shows at most
    * `SECTION_LIMIT` of them, so this is the only thing that can say how
-   * much is past the edge. `undefined` while loading and after a failed
-   * fetch — the row falls back to an unqualified "See all" rather than
-   * claiming a number it does not have.
+   * much is past the edge. `undefined` while loading, and after a failed
+   * fetch — where it is moot, since a row with no files does not render.
+   * `CarouselSection` falls back to an unqualified "See all" either way,
+   * rather than claiming a number it does not have.
    */
   total?: number;
   loading: boolean;
@@ -110,12 +111,12 @@ export function DriveHome({ driveName }: DriveHomeProps) {
     },
   });
 
-  const applyFileSections = useCallback((results: PromiseSettledResult<any>[]) => {
-    const section = (result: PromiseSettledResult<any>): SectionState =>
+  const applyFileSections = useCallback((results: PromiseSettledResult<PaginatedResponse>[]) => {
+    const section = (result: PromiseSettledResult<PaginatedResponse>): SectionState =>
       result.status === "fulfilled"
         ? {
             files: result.value.data,
-            total: result.value.meta?.total,
+            total: result.value.meta.total,
             loading: false,
           }
         : { files: [], loading: false };
@@ -125,7 +126,7 @@ export function DriveHome({ driveName }: DriveHomeProps) {
     setLiked(section(results[2]));
   }, []);
 
-  const fetchFileSections = useCallback(() => {
+  const fetchFileSections = useCallback((): Promise<PromiseSettledResult<PaginatedResponse>[]> => {
     return Promise.allSettled([
       getDriveFiles(driveName, { sort: "created_at", order: "desc", limit: SECTION_LIMIT }),
       getDriveFiles(driveName, { favorite: true, sort: "created_at", order: "desc", limit: SECTION_LIMIT }),
@@ -145,7 +146,7 @@ export function DriveHome({ driveName }: DriveHomeProps) {
       }
 
       const promises: [
-        Promise<PromiseSettledResult<any>[]>,
+        Promise<PromiseSettledResult<PaginatedResponse>[]>,
         Promise<FolderType[]>,
         Promise<{ path: string }[]>,
         Promise<WatchHistoryItem[]> | null,
@@ -334,6 +335,13 @@ export function DriveHome({ driveName }: DriveHomeProps) {
         <ContinueWatchingSection
           items={continueWatching}
           loading={continueWatchingLoading}
+          // The same destination Recently played uses, and for the same
+          // reason it is needed at all: the row draws only what fits, so
+          // without a link the rest of the history is unreachable from
+          // here. Recently played is this history without the 90%
+          // completion gate — a superset, so nothing a reader came for
+          // is missing from it.
+          seeAllHref={`${driveBase}?view=recent`}
           onRemoveItem={handleRemoveWatchItem}
         />
       )}

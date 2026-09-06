@@ -316,12 +316,19 @@ The drive home page surfaces several content rows:
 Continue watching and Recently played need a profile; without one, no history is recorded and the two rows do not appear. See [profile and preferences](profile-preferences.md).
 
 A row shows as many cards as fit its width and no more — it does not
-scroll sideways, so nothing is hidden off the right-hand edge. Below
-640px that is two columns over two rows; wider, a single row of however
-many columns the space holds. **See all** opens the full listing, and
-where the count is known it is on the link: *See all (619)*. Continue
-watching and Recently played carry no count, because the watch-history
-API returns the page rather than the total.
+scroll sideways, so nothing is hidden off the right-hand edge. The width
+that counts is the row's own, not the window's: a row about 790px wide
+or narrower — any phone, and any window with the tree pane open beside
+it — shows two columns over two rows, and a wider one shows a single row
+of as many columns as fit.
+
+Every row therefore has a **See all**, because that link is the only way
+to the cards the row did not draw. Where the count is known it is on the
+link: *See all (619)*. Continue watching and Recently played carry no
+count, because the watch-history API returns the page rather than the
+total, and both send you to the same place — Recently played is the
+whole history, so it holds everything Continue watching was showing you
+and more.
 
 Below the content rows the drive home lists the files that sit at the drive root, using the same grid as any other folder.
 
