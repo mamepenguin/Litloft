@@ -70,12 +70,18 @@ function setupMock(data: FileItem[] = images) {
  *
  * `runAllTimersAsync` settles the image load, and it also runs the
  * chrome's 2s idle timer, so anything that asserts on the chrome has to
- * say that someone is still there. A pointer move is what a real one
- * would produce.
+ * say that someone is still there.
+ *
+ * Both signals, because the viewer listens to different ones per pointer
+ * mode: a coarse pointer produces no movement, so `pointermove` is not
+ * bound there. Sending only that one made these tests depend on which
+ * pointer mode the previous test happened to leave stubbed — the
+ * shuffled-order run is what said so.
  */
 function wakeChrome() {
   act(() => {
     document.dispatchEvent(new Event("pointermove", { bubbles: true }));
+    document.dispatchEvent(new Event("focusin", { bubbles: true }));
   });
 }
 
@@ -87,6 +93,9 @@ describe("ImageGallery", () => {
   });
 
   afterEach(() => {
+    // A stubbed `matchMedia` outlives its test otherwise, and the next
+    // one resolves a pointer mode it never asked for.
+    vi.unstubAllGlobals();
     vi.useRealTimers();
     vi.restoreAllMocks();
   });
