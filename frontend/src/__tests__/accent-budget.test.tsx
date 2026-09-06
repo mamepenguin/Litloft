@@ -198,6 +198,7 @@ const folderProps = {
  * `pages/find.tsx`).
  */
 const SCREENS: ReadonlyArray<{ screen: string; assertedIn: string }> = [
+  { screen: "root drive picker", assertedIn: "src/app/__tests__/page.test.tsx" },
   { screen: "folder toolbar", assertedIn: "src/__tests__/accent-budget.test.tsx" },
   { screen: "drive root", assertedIn: "src/__tests__/accent-budget.test.tsx" },
   { screen: "selection bar over a folder", assertedIn: "src/__tests__/accent-budget.test.tsx" },
@@ -295,8 +296,9 @@ describe("what counts as a fill at rest", () => {
 describe("accent budget", () => {
   afterEach(cleanup);
 
-  it("covers nine core screens, and each one somewhere that runs", () => {
+  it("covers ten core screens, and each one somewhere that runs", () => {
     expect(SCREENS.map((s) => s.screen)).toEqual([
+      "root drive picker",
       "folder toolbar",
       "drive root",
       "selection bar over a folder",

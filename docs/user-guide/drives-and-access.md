@@ -47,9 +47,10 @@ A locked drive is **invisible**, not just refused:
 
 - API responses omit it entirely (the drive list does not include it).
 - Direct URL access returns `404 Not Found` rather than `403 Forbidden`.
-- The frontend never links to `/unlock`. Viewers must know to type the URL directly.
+- The frontend never names a locked drive. The home screen ends its grid with an outlined card leading to `/unlock` when protected drives exist that you have not unlocked — but the card carries no drive name, no count, no group name, and no total. It says only that a password will get you further.
+- That card is absent for a viewer who already holds every access group, and absent when nothing is protected at all.
 
-This *hidden by default* model is by design: it makes a casual-snooping observer unable to tell whether a private drive even exists.
+This *hidden by default* model is by design: it makes a casual-snooping observer unable to tell whether a private drive even exists. A generic way in does not weaken it — the observer learns that *some* password exists, which the `/unlock` page itself already tells anyone who visits it.
 
 ## Master viewer (admin)
 
@@ -63,7 +64,7 @@ If `passwords.json` is empty (`[]`) or absent, every viewer is implicitly an adm
 
 ## The unlock flow
 
-1. Viewer navigates to `/unlock` (no link from the UI; type the URL).
+1. Viewer navigates to `/unlock`, from the home screen's unlock card or by typing the URL.
 2. They enter a password and optionally tick **Remember this device**.
 3. The backend issues a JWT (`access_token` cookie). Default lifetime 24 hours; with *remember me* it is 1 year.
 4. Subsequent requests include the cookie; the backend reads the unlocked groups from the JWT payload.

@@ -179,28 +179,22 @@ describe("no card titles itself with a heading", () => {
     body: readFileSync(f, "utf-8"),
   }));
 
-  /**
-   * Outside the sweep, on scope rather than on kind: the drive picker's
-   * cell carries the same `<h3>` inside the same tile, and it is 案 9's
-   * screen in the peripherals bundle. Converting it here would be
-   * rewriting an element two bundles are working on. It is pinned below
-   * so the known instance cannot grow.
-   */
-  const DEFERRED = "frontend/src/app/page.tsx";
-
-  const tiles = files
-    .filter((f) => f.rel !== DEFERRED)
-    .flatMap((f) => cardTiles(f.body).map((tile) => ({ rel: f.rel, tile })));
+  const tiles = files.flatMap((f) =>
+    cardTiles(f.body).map((tile) => ({ rel: f.rel, tile })),
+  );
 
   it("finds the card tiles it is meant to be checking", () => {
     // "None of them holds a heading" is also true of an empty set, and
     // this walk crosses four addon repos whose checkouts can be absent.
     expect(tiles.length).toBeGreaterThan(0);
-    // The two the finding is about, by name, so a refactor that renames
-    // or splits them cannot quietly drop them from the population.
+    // The three the finding is about, by name, so a refactor that renames
+    // or splits them cannot quietly drop them from the population. The
+    // drive picker was deferred here until 案 9 rebuilt its header; it is
+    // in the sweep now, which is what removing an exemption has to mean.
     for (const named of [
       "frontend/src/components/FileCard.tsx",
       "frontend/src/components/FolderCard.tsx",
+      "frontend/src/app/page.tsx",
     ]) {
       expect(tiles.map((t) => t.rel)).toContain(named);
     }
@@ -213,14 +207,6 @@ describe("no card titles itself with a heading", () => {
       .map((t) => `${t.rel} — ${t.n}`);
     // Not a floor: one heading in one card is the whole defect.
     expect(offenders).toEqual([]);
-  });
-
-  it("holds the deferred one where it is", () => {
-    // Not an exemption that can quietly widen: the drive picker's tile
-    // carries exactly one heading today, and this says so.
-    const body = readFileSync(resolve(REPO_ROOT, DEFERRED), "utf-8");
-    const inTiles = cardTiles(body).reduce((n, t) => n + headingsIn(t), 0);
-    expect(inTiles).toBe(1);
   });
 });
 
