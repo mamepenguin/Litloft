@@ -45,7 +45,7 @@ describe("MergedResultItem", () => {
 
     expect(screen.getByText("Filename")).toBeInTheDocument();
     expect(screen.queryByText("Transcript")).not.toBeInTheDocument();
-    // No "M:SS" formatted time pill in DOM
+    // No timestamp pill in the DOM.
     expect(screen.queryAllByTestId("match-timestamp-pill")).toEqual([]);
   });
 
@@ -141,9 +141,12 @@ describe("MergedResultItem", () => {
     const onSelect = vi.fn();
     render(<MergedResultItem file={file} onSelect={onSelect} />);
 
-    // Badge visible, pill suppressed.
+    // Badge visible, pill suppressed. By identity, not by the shape of the
+    // text: a placeholder that did render reads `-1:-1`, which no
+    // time-shaped pattern matches, so it would leave the population instead
+    // of failing this line.
     expect(screen.getByText("Transcript")).toBeInTheDocument();
-    expect(screen.queryByText(/^-?\d+:\d{2}$/)).not.toBeInTheDocument();
+    expect(screen.queryAllByTestId("match-timestamp-pill")).toEqual([]);
   });
 
   it("renders three timestamp pills and counts the rest", () => {

@@ -96,9 +96,8 @@ describe("SidebarDriveSwitcher", () => {
       // Phase 1 cut the sidebar to five headings and
       // `sidebar-headings.test.ts` pins that count from the source; this is
       // the same claim about what reaches the screen. A sidebar heading is
-      // a `div` around a `button` and has never been an `h1`-`h6`, so
-      // counting heading *elements* here was zero either way — what tells
-      // the two apart is the classes they wear.
+      // a `div` around a `button`, never an `h1`-`h6`, so the classes it
+      // wears are what identify one.
       const { container } = renderRoot();
       const row = screen.getByRole("button", { name: /Drives \(3\)/ });
       expect(row.tagName).toBe("BUTTON");

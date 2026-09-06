@@ -580,6 +580,12 @@ describe("TwoPaneLayout — the tree borrows the sidebar's place", () => {
         await act(async () => {
           treeNarrowOpenStore.set("work", true);
         });
+        // The tree really is open, which the `<aside>` says only through
+        // its wide width here: with `?file=` it gives way below `md`
+        // either way, so `w-0` alone cannot tell the two apart.
+        await waitFor(() =>
+          expect(document.querySelector("aside")!.className).toContain("md:w-[280px]"),
+        );
 
         expect(screen.getByTestId("file-detail-content").closest("section")).toBe(section());
         expect(section().classList.contains("flex")).toBe(true);
