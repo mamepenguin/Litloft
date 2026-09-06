@@ -20,21 +20,30 @@ export const LEGACY_SPLIT_MODE_KEY = "image-viewer:split-mode";
  * that used to win.
  */
 export function readSpreadMode(fallback = false): boolean {
+  let legacy: string | null = null;
   try {
     const current = localStorage.getItem(SPREAD_MODE_KEY);
     if (current === "true") return true;
     if (current === "false") return false;
-
-    const legacy = localStorage.getItem(LEGACY_SPLIT_MODE_KEY);
-    if (legacy === "true" || legacy === "false") {
-      localStorage.setItem(SPREAD_MODE_KEY, legacy);
-      localStorage.removeItem(LEGACY_SPLIT_MODE_KEY);
-      return legacy === "true";
-    }
-    return fallback;
+    legacy = localStorage.getItem(LEGACY_SPLIT_MODE_KEY);
   } catch {
     return fallback;
   }
+
+  if (legacy !== "true" && legacy !== "false") return fallback;
+
+  // The answer is decided before anything is written. Safari in private
+  // browsing reads and refuses to write, and a `setItem` inside the read
+  // path threw past the answer and into a `catch` that returned the
+  // default — so the one reader this migration exists for opened in
+  // single-page mode, every time.
+  try {
+    localStorage.setItem(SPREAD_MODE_KEY, legacy);
+    localStorage.removeItem(LEGACY_SPLIT_MODE_KEY);
+  } catch {
+    // Carried for this session; asked again on the next.
+  }
+  return legacy === "true";
 }
 
 export function writeSpreadMode(value: boolean): void {

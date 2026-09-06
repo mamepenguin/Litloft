@@ -56,6 +56,8 @@ interface ImageViewerResult {
   subPageLabel: "A" | "B" | null;
   canGoPrev: boolean;
   canGoNext: boolean;
+  /** Told by the viewer as each page reports its own proportions. */
+  rememberOrientation: (index: number, orientation: Orientation) => void;
   handleImageAreaClick: () => void;
   chromeProps: AutoHidingChrome["chromeProps"];
   spreadMode: boolean;
@@ -129,15 +131,54 @@ export function useImageViewer(
       ? getArchiveEntryUrl(fileId, nextEntry.path)
       : null,
   );
+  /**
+   * What each page turned out to be, remembered as it loads.
+   *
+   * A two-entry lookup — this page and the prefetched next — cannot
+   * answer about a page *behind* the reader, and turning back has to:
+   * `pageBack` lands on the start of the face holding the previous
+   * index, which means asking whether that index pairs. Answered
+   * `unknown`, every backward turn through a paired book landed on an
+   * intermediate single face, so a face cost two presses back and one
+   * forward, showing one page twice all the way down.
+   *
+   * No extra fetch: every page the reader can turn back to is a page
+   * they have already loaded.
+   */
+  const [orientations, setOrientations] = useState<Record<number, Orientation>>(
+    {},
+  );
+
+  // A different archive, or a different level of one, is a different
+  // book. Keeping the old shapes would pair the new one on them.
+  useEffect(() => {
+    setOrientations({});
+  }, [imageEntries]);
+
+  const rememberOrientation = useCallback((i: number, o: Orientation) => {
+    setOrientations((prev) => (prev[i] === o ? prev : { ...prev, [i]: o }));
+  }, []);
+
+  useEffect(() => {
+    if (nextOrientation !== "unknown") {
+      rememberOrientation(imageIndex + 1, nextOrientation);
+    }
+  }, [imageIndex, nextOrientation, rememberOrientation]);
+
   const orientationAt = useCallback(
     (i: number): Orientation => {
-      if (i === imageIndex) {
-        return isCurrentLandscape ? "landscape" : "portrait";
-      }
+      const measured = orientations[i];
+      if (measured) return measured;
+      // Not "portrait". `isCurrentLandscape` is a two-valued default
+      // that reads `false` before the page has loaded, and collapsing
+      // the three-valued answer in the direction that *pairs* is how a
+      // spread gets drawn and then taken away mid-load. A stale value
+      // may only ever split, which is the pre-existing behaviour.
+      if (i === imageIndex && isCurrentLandscape) return "landscape";
       if (i === imageIndex + 1) return nextOrientation;
       return "unknown";
     },
-    [imageIndex, isCurrentLandscape, nextOrientation],
+    [orientations, imageIndex, isCurrentLandscape, nextOrientation],
   );
 
   const paging = useSpreadPaging({
@@ -206,7 +247,13 @@ export function useImageViewer(
     slideshowInterval,
     imageEntries.length,
     viewMode,
-    paging,
+    // The two values it uses, not the object that holds them:
+    // `useSpreadPaging` returns a fresh literal every render, so
+    // depending on it tore down and rearmed the timer on each one. The
+    // chrome's own idle timer guarantees a render two seconds into every
+    // slide, so a 3-second interval was running at 5.
+    paging.canGoNext,
+    paging.navigateNext,
     readingDirection,
   ]);
 
@@ -278,5 +325,6 @@ export function useImageViewer(
     subPageLabel: paging.subPageLabel,
     canGoPrev: paging.canGoPrev,
     canGoNext: paging.canGoNext,
+    rememberOrientation,
   };
 }

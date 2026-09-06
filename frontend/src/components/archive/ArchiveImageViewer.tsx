@@ -17,7 +17,7 @@ import { getArchiveEntryUrl } from "@/lib/api";
 import type { ArchiveEntry } from "@/types";
 import { SlideshowIntervalMenu } from "@/components/gallery/SlideshowIntervalMenu";
 import type { AutoHidingChrome } from "@/hooks/useAutoHidingChrome";
-import type { SpreadFace } from "@/lib/spreadPaging";
+import type { Orientation, SpreadFace } from "@/lib/spreadPaging";
 
 interface ArchiveImageViewerProps {
   fileId: string;
@@ -38,6 +38,7 @@ interface ArchiveImageViewerProps {
   subPageLabel: "A" | "B" | null;
   canGoPrev: boolean;
   canGoNext: boolean;
+  rememberOrientation: (index: number, orientation: Orientation) => void;
   handleImageAreaClick: () => void;
   closeViewer: () => void;
   spreadMode: boolean;
@@ -70,6 +71,7 @@ export function ArchiveImageViewer({
   subPageLabel,
   canGoPrev,
   canGoNext,
+  rememberOrientation,
   handleImageAreaClick,
   closeViewer,
   spreadMode,

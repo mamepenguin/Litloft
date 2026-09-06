@@ -311,6 +311,7 @@ export function ArchivePreview({
         subPageLabel={imageViewer.subPageLabel}
         canGoPrev={imageViewer.canGoPrev}
         canGoNext={imageViewer.canGoNext}
+        rememberOrientation={imageViewer.rememberOrientation}
         handleImageAreaClick={imageViewer.handleImageAreaClick}
         closeViewer={closeViewerFull}
         spreadMode={imageViewer.spreadMode}

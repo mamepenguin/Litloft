@@ -1,4 +1,4 @@
-import { describe, expect, it, beforeEach } from "vitest";
+import { describe, expect, it, beforeEach, vi } from "vitest";
 
 import {
   LEGACY_SPLIT_MODE_KEY,
@@ -42,6 +42,23 @@ describe("the spread preference", () => {
 
     writeSpreadMode(false);
     expect(readSpreadMode()).toBe(false);
+  });
+
+  it("still answers with the migrated value when the write is refused", () => {
+    // Safari in private browsing reads and refuses to write. The
+    // `setItem` used to throw past the answer and into a `catch` that
+    // returned the default, so the one reader this migration exists for
+    // opened in single-page mode — every time, since the removal never
+    // ran either.
+    localStorage.setItem(LEGACY_SPLIT_MODE_KEY, "true");
+    const setItem = localStorage.setItem.bind(localStorage);
+    vi.spyOn(Storage.prototype, "setItem").mockImplementation((k, v) => {
+      if (k === SPREAD_MODE_KEY) throw new DOMException("QuotaExceeded");
+      setItem(k, v);
+    });
+
+    expect(readSpreadMode()).toBe(true);
+    vi.restoreAllMocks();
   });
 
   it("prefers the new key when both are somehow present", () => {

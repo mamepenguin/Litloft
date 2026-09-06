@@ -178,6 +178,49 @@ describe("pairing two tall pages", () => {
   });
 });
 
+describe("turning back through a paired book", () => {
+  /**
+   * A viewer that only knows the page it is on and the one after it.
+   *
+   * The archive's shape before it remembered what it had loaded. The
+   * pure functions were right and their fixture was omniscient, so the
+   * one caller that could not answer about a page behind the reader
+   * violated the precondition quietly.
+   */
+  function shortSighted(index: number, over: Partial<SpreadState> = {}) {
+    return state({
+      index,
+      orientationAt: (i: number) =>
+        i === index || i === index + 1 ? "portrait" : "unknown",
+      ...over,
+    });
+  }
+
+  it("needs one press per face, not two", () => {
+    // From the 4-5 face (index 3), back should reach the 2-3 face at
+    // index 1. Answered `unknown` about index 2, it landed on a single
+    // face at 2 — a page the reader had just seen as the right half of
+    // the face they were leaving.
+    const remembering = state({ index: 3 });
+    expect(pageBack(remembering)?.index).toBe(1);
+
+    // The same turn with a viewer that cannot look behind itself.
+    expect(pageBack(shortSighted(3))?.index).toBe(2);
+  });
+
+  it("is symmetric: back then forward returns to where it started", () => {
+    // The property the two-press bug broke. A face is one press either
+    // way, so a turn back and a turn forward is a round trip.
+    for (const index of [1, 3, 5, 7]) {
+      const here = state({ index });
+      const back = pageBack(here);
+      expect(back).not.toBeNull();
+      const returned = pageForward(state({ index: back!.index }));
+      expect(returned?.index).toBe(index);
+    }
+  });
+});
+
 describe("both ends", () => {
   it("stops at the start and the end", () => {
     expect(pageBack(state({ index: 0 }))).toBeNull();

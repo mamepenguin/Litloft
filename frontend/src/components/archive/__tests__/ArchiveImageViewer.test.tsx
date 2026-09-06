@@ -45,6 +45,7 @@ const defaultProps = {
     onPointerDown: vi.fn(),
   },
   onIntervalOpenChange: vi.fn(),
+  rememberOrientation: vi.fn(),
   face: {
     kind: "single" as const,
     index: 1,
