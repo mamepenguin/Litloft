@@ -150,11 +150,24 @@ describe("pairing two tall pages", () => {
     expect(canPageForward(atEnd)).toBe(false);
   });
 
-  it("does not pair when the frame is too narrow, mode still on", () => {
+  it("comes apart when the frame narrows and pairs again when it widens", () => {
+    // The switch stays on throughout; it is the window that changed.
+    // `canPair` is the only input that moves here, so this is the whole
+    // of what a resize does to the face.
+    const wide = state({ index: 1, canPair: true });
     const narrow = state({ index: 1, canPair: false });
+
+    expect(wide.spreadMode).toBe(true);
     expect(narrow.spreadMode).toBe(true);
+
+    expect(faceAt(wide).kind).toBe("pair");
     expect(faceAt(narrow).kind).toBe("single");
-    expect(faceAt(state({ index: 1 })).kind).toBe("pair");
+    expect(faceAt(wide).kind).toBe("pair");
+
+    // And the turn follows the face rather than the index: two pages
+    // showing means two pages turned.
+    expect(pageForward(wide)?.index).toBe(3);
+    expect(pageForward(narrow)?.index).toBe(2);
   });
 
   it("counts what is on the screen, not just where the index is", () => {
