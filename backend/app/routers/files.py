@@ -640,34 +640,39 @@ def get_file_neighbors(
     sort_col = getattr(File, sort)
     current_val = getattr(file, sort)
 
-    # The folder's active files, whatever the ordering can reach.
-    # ``position`` is counted against the rows the sort can actually rank,
-    # so under ``sort=liked_at`` the two populations differ: a liked file
-    # in a mostly-unliked folder is "2" of a total that counts every file.
-    # That is the documented contract (docs/reference/api.md), because
-    # ``total`` answers "how big is this folder" for a listing, not "how
-    # far can prev/next walk".
     folder = db.query(File.id).filter(
         File.drive == file.drive,
         File.folder_path == file.folder_path,
         active_file_filter(),
     )
-    total = folder.count()
+
+    # ``position`` and ``total`` count the same rows the arrows can walk,
+    # which is why the NULL filter is here and not only in the keyset
+    # comparisons below. A NULL sort key drops out of every ``<`` / ``>``
+    # on its own, so under ``sort=liked_at`` a folder of one liked file
+    # and one unliked one used to answer "1 of 2" beside a next button
+    # that had nowhere to go. Counting a population the reader cannot
+    # reach is worse than not counting: it says something is there.
+    #
+    # ``liked_at`` is the only nullable sort column today. The filter is
+    # written for all of them anyway rather than branching on the column
+    # name — a second nullable sort would otherwise reintroduce this
+    # silently.
+    ranked = folder.filter(sort_col.is_not(None))
+    total = ranked.count()
 
     if current_val is None:
-        # ``liked_at`` is the only sortable column that can be NULL, and
-        # the keyset comparisons below need a total order. A file that was
-        # never liked has no place in a like-ordered sequence, so it has
-        # no neighbours there rather than a position invented by comparing
-        # against NULL. Liked files are unaffected: every comparison an
-        # unliked row makes against a real timestamp is NULL, so those rows
-        # drop out of the queries on their own. ``position`` is null for
-        # the same reason: there is no order to take a place in.
+        # The keyset comparisons need a total order, and a file that was
+        # never liked has no place in a like-ordered sequence: it has no
+        # neighbours there rather than a position invented by comparing
+        # against NULL. ``total`` goes with it. The count of liked files
+        # is a true number, but printed beside a file that is not one of
+        # them it would answer a question nobody asked.
         return NeighborsResponse(
-            prev_id=None, next_id=None, position=None, total=total
+            prev_id=None, next_id=None, position=None, total=None
         )
 
-    base = folder.filter(File.id != file.id)
+    base = ranked.filter(File.id != file.id)
 
     if order == "asc":
         before = or_(

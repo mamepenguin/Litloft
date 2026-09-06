@@ -183,12 +183,14 @@ export interface Neighbors {
   prev_id: string | null;
   next_id: string | null;
   /**
-   * 1-origin place of the file in its folder's ordering, for an `n / N`
-   * readout. Null when the sort key cannot order it (an unliked file under
-   * `sort=liked_at`); `total` still counts the folder in that case.
+   * 1-origin place of the file in the sequence `prev_id` / `next_id`
+   * walk, out of `total`. The two count exactly the rows the arrows can
+   * reach, so the readout cannot promise a file the buttons cannot get
+   * to. Both are null when the sort key cannot order this file (an
+   * unliked file under `sort=liked_at`) — it is not in the sequence.
    */
   position: number | null;
-  total: number;
+  total: number | null;
 }
 
 export interface CollectionSummary {

@@ -107,6 +107,14 @@ Audio keeps the browser's own `<audio controls>` bar rather than Litloft's — t
 
 On the detail page the image has the column to itself, with its EXIF, tags and comments in the inspector, and the full-screen entry point stays in the inspector's action row.
 
+The page row above it carries a **previous / next pair with the image's place in the folder between them** (`12 / 995`). They walk the same sequence the `←` / `→` keys have always walked — the folder's files in the sort order the listing was using — and the button at either end of the folder is disabled rather than hidden, so being at the end is something you can see before you press.
+
+**The count appears only where it would be true.** The arrows walk the file's folder, in the order the listing you came from was using. When that listing was a plain folder view — the whole folder, no filter — the two are the same sequence and the count is drawn. Open the image out of a search, a tag, a smart folder, a collection, a cross-folder view like *Favourites* or *Liked*, or a folder narrowed by the type chip or the name box, and the arrows still walk the folder while the listing was showing something else; the two buttons stay and the number is simply absent. A wrong count would say a file is there that pressing next cannot reach.
+
+Sorting by *liked* has the same shape from the other side: a file you have never liked has no place in a like-ordered walk at all, so both arrows are disabled and nothing is counted.
+
+On a screen narrower than 640px the count is dropped and the two buttons stay.
+
 The full-screen image viewer is a page-turner for a folder of images. Archives get a separate viewer built from the same gesture handling, described under [ZIP archives](#zip-archives).
 
 ![Image viewer in two-page spread mode with right-to-left reading enabled](../images/user-guide/image-viewer-spread-rtl.png)

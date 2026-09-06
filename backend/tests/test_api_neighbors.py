@@ -216,13 +216,67 @@ class TestNeighborsPosition:
         data = c.get(f"/api/files/{files[2].id}/neighbors").json()
         assert data["total"] == 2
 
-    def test_an_unliked_file_has_a_count_but_no_place(self, client):
+    def test_an_unliked_file_has_neither_a_place_nor_a_count(self, client):
         c, db, drive_dir, _ = client
         files = _seed_files(db, drive_dir, count=3)
 
         data = c.get(
             f"/api/files/{files[0].id}/neighbors?sort=liked_at&order=desc"
         ).json()
-        # Nothing was liked, so there is no like-ordering to have a place in.
+        # Nothing was liked, so there is no like-ordering to have a place
+        # in — and no reason to report the size of a sequence this file is
+        # not part of.
         assert data["position"] is None
-        assert data["total"] == 3
+        assert data["total"] is None
+
+    def test_the_count_matches_what_the_arrows_can_reach(self, client):
+        """The readout and the arrows count one population, not two.
+
+        Under ``sort=liked_at`` a never-liked row drops out of every
+        keyset comparison on its own, so it is unreachable by prev/next.
+        Counting it anyway produced "1 of 3" beside a next button with
+        nowhere to go — the readout claiming files that are not there.
+        """
+        c, db, drive_dir, _ = client
+        files = _seed_files(db, drive_dir, count=3)
+
+        from datetime import UTC, datetime
+
+        liked = files[1]
+        liked.liked_at = datetime.now(UTC)
+        db.commit()
+
+        data = c.get(
+            f"/api/files/{liked.id}/neighbors?sort=liked_at&order=desc"
+        ).json()
+        assert data["position"] == 1
+        assert data["total"] == 1
+        assert data["prev_id"] is None
+        assert data["next_id"] is None
+
+    def test_two_liked_files_of_five_walk_a_sequence_of_two(self, client):
+        """The non-degenerate case: the arrows really do move, twice."""
+        c, db, drive_dir, _ = client
+        files = _seed_files(db, drive_dir, count=5)
+
+        from datetime import UTC, datetime, timedelta
+
+        now = datetime.now(UTC)
+        files[1].liked_at = now - timedelta(days=1)
+        files[3].liked_at = now
+        db.commit()
+
+        newer = c.get(
+            f"/api/files/{files[3].id}/neighbors?sort=liked_at&order=desc"
+        ).json()
+        older = c.get(
+            f"/api/files/{files[1].id}/neighbors?sort=liked_at&order=desc"
+        ).json()
+
+        assert (newer["position"], newer["total"]) == (1, 2)
+        assert (older["position"], older["total"]) == (2, 2)
+        # And the arrow the count promises actually reaches the other one.
+        assert newer["next_id"] == files[1].id
+        assert older["prev_id"] == files[3].id
+        assert newer["prev_id"] is None
+        assert older["next_id"] is None

@@ -8,10 +8,12 @@ import { FileDetailContent } from "@/components/FileDetailContent";
 import { FileDetailChrome } from "@/components/FileDetail/FileDetailChrome";
 import { ImageGallery } from "@/components/ImageGallery";
 import { useFileNav } from "@/hooks/useFileNav";
+import { FileNavProvider } from "@/lib/fileNavContext";
 import { usePolicy } from "@/hooks/usePolicy";
 import { useSelectedFile } from "@/hooks/useSelectedFile";
 import { getFile } from "@/lib/api";
 import { ridesFileDetailShell } from "@/lib/fileDetailShell";
+import { resolveFileNavOrdering } from "@/lib/fileNavOrdering";
 import { normalizeSortParam } from "@/lib/sortField";
 import type { FileItem } from "@/types";
 
@@ -110,10 +112,15 @@ export function RightPaneFile({ fileId, drive }: RightPaneFileProps) {
   // PR-5: ``selectFile`` itself routes through ``navigationGuard`` so
   // a dirty editor on the current file gets the global ``DirtyBlocker``
   // dialog before the swap fires; this hook stays surface-agnostic.
-  useFileNav({
+  // The listing said what it was showing; this reads it. See
+  // `lib/fileNavOrdering.ts` for why nothing here may infer it.
+  const navOrdering = resolveFileNavOrdering({ params: searchParams });
+
+  const fileNav = useFileNav({
     fileId: file ? fileId : null,
-    sort: normalizeSortParam(searchParams.get("sort")),
-    order: searchParams.get("order") ?? undefined,
+    sort: navOrdering.sort,
+    order: navOrdering.order,
+    countable: navOrdering.countable,
     fileType: file?.file_type ?? null,
     mimeType: file?.mime_type ?? null,
     enabled: true,
@@ -170,16 +177,22 @@ export function RightPaneFile({ fileId, drive }: RightPaneFileProps) {
         }
         scrollRef={setScrollRootCb}
       >
-        <FileDetailContent
-          fileId={fileId}
-          drive={drive}
-          initialTime={initialTime}
-          initialPage={initialPage}
-          highlight={highlight}
-          miniPlayerRoot={scrollRoot}
-          onRequestImageGallery={() => setGalleryOpen(true)}
-          onAfterDelete={clearFile}
-        />
+        {/* Published rather than passed down: the page row that draws
+            the visible prev / next sits four components below here, and
+            the hook has to stay with the host because only the host
+            knows what "navigate" means in its URL model. */}
+        <FileNavProvider value={fileNav}>
+          <FileDetailContent
+            fileId={fileId}
+            drive={drive}
+            initialTime={initialTime}
+            initialPage={initialPage}
+            highlight={highlight}
+            miniPlayerRoot={scrollRoot}
+            onRequestImageGallery={() => setGalleryOpen(true)}
+            onAfterDelete={clearFile}
+          />
+        </FileNavProvider>
       </PaneShell>
       {file && (
         <ImageGallery

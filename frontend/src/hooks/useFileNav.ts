@@ -30,6 +30,14 @@ interface UseFileNavOpts {
    */
   enabled?: boolean;
   /**
+   * Whether an `n / N` readout would be true of what the reader is
+   * looking at. False makes `position` and `total` null however the
+   * endpoint answers — see `lib/fileNavOrdering.ts`, where the rule
+   * lives. The arrows are unaffected; only the claim about how many
+   * there are is withheld.
+   */
+  countable?: boolean;
+  /**
    * Invoked when the user presses ArrowLeft / ArrowRight. Hosts wire
    * this to ``selectFile(id)`` (2-pane) or
    * ``router.replace(/files/{id})`` (fullscreen). Both call sites
@@ -43,6 +51,17 @@ interface UseFileNavOpts {
 interface UseFileNavResult {
   prevId: string | null;
   nextId: string | null;
+  /**
+   * 1-origin place in the sequence the arrows walk, and its size. Both
+   * come straight from `/neighbors`, which counts them over exactly the
+   * rows `prevId` / `nextId` can reach — so a visible `n / N` and the
+   * buttons beside it cannot disagree. Null before the fetch resolves,
+   * and null when the ordering cannot rank this file.
+   */
+  position: number | null;
+  total: number | null;
+  navigatePrev: () => void;
+  navigateNext: () => void;
 }
 
 /**
@@ -67,6 +86,7 @@ export function useFileNav({
   fileType,
   mimeType,
   enabled = true,
+  countable = true,
   onNavigate,
 }: UseFileNavOpts): UseFileNavResult {
   const tsc = useTranslations("shortcuts");
@@ -119,5 +139,13 @@ export function useFileNav({
   return {
     prevId: neighbors?.prev_id ?? null,
     nextId: neighbors?.next_id ?? null,
+    position: countable ? (neighbors?.position ?? null) : null,
+    total: countable ? (neighbors?.total ?? null) : null,
+    // Handed out so a visible button and the arrow key run the same
+    // code. Two call paths into "go to the next file" is how one of
+    // them ends up skipping `navigationGuard` and losing an unsaved
+    // edit.
+    navigatePrev,
+    navigateNext,
   };
 }

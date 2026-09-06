@@ -175,9 +175,12 @@ export function RootFileListing({ driveName, onFileAction, onFolderChange }: Roo
     [onFileAction, setFiles],
   );
 
+  // The drive root *is* a folder — `folder_path` is `""` — and this
+  // listing shows all of it in the order the URL names, so the detail
+  // pane may count it. See `lib/fileNavOrdering.ts`.
   const sortQuery = sort === "random"
     ? ""
-    : `?sort=${sort}&order=${order}`;
+    : `?sort=${sort}&order=${order}&nav=folder`;
 
   const router = useRouter();
 
