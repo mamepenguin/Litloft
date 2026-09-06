@@ -180,6 +180,27 @@ describe("the canvas viewer's floor", () => {
     );
   });
 
+  it("stretches the viewer into the height it reserves", () => {
+    // `min-height` on the wrapper alone reserves the space and stops:
+    // a block box does not stretch its in-flow children, so the viewer
+    // kept its content height and the reserved space became emptiness
+    // inside the wrapper — the same picture as before, one element up.
+    // Measuring `.media-detail-player` cannot tell the two apart, which
+    // is why this pins the mechanism that carries the height down.
+    const wrapper = css.match(
+      /main\[data-canvas-floor="true"\] \.media-detail-player \{([^}]*)\}/,
+    );
+    expect(wrapper).not.toBeNull();
+    expect(wrapper![1]).toMatch(/display:\s*flex/);
+    expect(wrapper![1]).toMatch(/flex-direction:\s*column/);
+
+    const child = css.match(
+      /main\[data-canvas-floor="true"\] \.media-detail-player > :first-child \{([^}]*)\}/,
+    );
+    expect(child).not.toBeNull();
+    expect(child![1]).toMatch(/flex:\s*1 1 auto/);
+  });
+
   it("establishes no containment context on the canvas", () => {
     // The reason is not tidiness. `container-type: size` implies
     // `contain: layout`, which makes the canvas the containing block for

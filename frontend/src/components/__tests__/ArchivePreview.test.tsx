@@ -490,13 +490,21 @@ describe("ArchivePreview — the index's press", () => {
     const deep = controller!
       .getState()
       .entries.find((e) => e.path === "chapter1/002.jpg")!;
-    controller!.open(deep);
+    await act(async () => {
+      controller!.open(deep);
+    });
 
     expect(mockPush).toHaveBeenCalledWith("?archivePath=chapter1");
     // Nothing has opened yet: the level has not arrived. The page-turner
     // is a dialog; the grid draws an `<img alt="002.jpg">` of its own, so
     // the alt text cannot tell the two apart.
     expect(screen.queryByRole("dialog")).toBeNull();
+
+    // The commit that `router.push` guarantees before the level changes.
+    // Without it the mock delivers the request and the level change in
+    // one flush, which the browser never does — and the effect that
+    // decides whether the pending open survives never runs in between.
+    await act(async () => {});
 
     // The navigation lands. `useSearchParams` is a mock, so the level
     // change has to be delivered by hand — which is exactly the step
@@ -509,6 +517,49 @@ describe("ArchivePreview — the index's press", () => {
     );
 
     await screen.findByRole("dialog");
+  });
+
+  it("lets a second press replace the one still in flight", async () => {
+    // A deep press, then a same-level press before the first lands. The
+    // same-level entry opens straight away; if the deep one is still
+    // armed it opens too, the moment its navigation arrives — a page the
+    // reader pressed once and got twice.
+    let controller: import("@/lib/archiveController").ArchiveController | null =
+      null;
+    const view = renderWithShortcuts(
+      <ArchivePreview
+        fileId="file-1"
+        onArchiveController={(c) => {
+          controller = c;
+        }}
+      />,
+    );
+    await screen.findByText("cover.jpg");
+
+    const deep = controller!
+      .getState()
+      .entries.find((e) => e.path === "chapter1/002.jpg")!;
+    const here = controller!
+      .getState()
+      .entries.find((e) => e.path === "readme.txt")!;
+    await act(async () => {
+      controller!.open(deep);
+    });
+    await act(async () => {
+      controller!.open(here);
+    });
+    await screen.findByTestId("text-viewer");
+
+    // The deep request's navigation lands afterwards. Nothing should
+    // open on top of the text viewer.
+    mockSearchParams.set("archivePath", "chapter1");
+    view.rerender(
+      <ShortcutsProvider>
+        <ArchivePreview fileId="file-1" onArchiveController={() => {}} />
+      </ShortcutsProvider>,
+    );
+    await screen.findByAltText("001.jpg");
+    expect(screen.queryByRole("dialog")).toBeNull();
   });
 
   it("drops a pending open the reader navigated away from", async () => {
@@ -532,7 +583,14 @@ describe("ArchivePreview — the index's press", () => {
       .entries.find((e) => e.path === "chapter1/002.jpg")!;
     controller!.open(deep);
 
-    // The reader presses the root breadcrumb instead; that push wins.
+    // The reader presses the root breadcrumb instead — the real control,
+    // because cancelling on another move is what makes this work: a
+    // reader who leaves and comes back leaves `currentPath` exactly
+    // where the request was issued, so no amount of watching state can
+    // tell the two apart.
+    await act(async () => {
+      fireEvent.click(screen.getByText("Archive"));
+    });
     mockSearchParams.delete("archivePath");
     view.rerender(
       <ShortcutsProvider>

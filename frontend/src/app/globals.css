@@ -1369,4 +1369,18 @@ div[data-citation-section-path]:not(tr) {
    the absolute alone rather than to nothing. */
 main[data-canvas-floor="true"] .media-detail-player {
   min-height: max(320px, calc(var(--canvas-h, 0px) * 0.7));
+  /* The `min-height` alone reserves the height on this wrapper and
+     stops there: it is a block box, and a block box does not stretch
+     its in-flow children. The viewer inside kept its content height and
+     the reserved space became emptiness *inside* the wrapper — the same
+     picture as before the floor, with the gap moved up one element.
+     Measuring `.media-detail-player` cannot see that; measure the
+     viewer's own box. */
+  display: flex;
+  flex-direction: column;
+}
+
+main[data-canvas-floor="true"] .media-detail-player > :first-child {
+  flex: 1 1 auto;
+  min-height: 0;
 }

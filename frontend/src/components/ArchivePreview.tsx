@@ -160,10 +160,49 @@ export function ArchivePreview({
   // `handleFileClick` reads `imageEntries`, which is the *current*
   // level — called before the move lands it would open the wrong page,
   // or none.
-  const [pendingOpen, setPendingOpen] = useState<string | null>(null);
+  /**
+   * A leaf the index asked for, and the level that request was made
+   * from.
+   *
+   * `from` is the load-bearing half. `setPendingOpen` is a default-lane
+   * update and `router.push` is a transition, so React commits this
+   * state *before* the level changes and flushes effects in between. An
+   * expiry that compared the target parent against `currentPath` was
+   * therefore false on the very commit that set it, and the request
+   * cancelled itself every time.
+   */
+  const [pendingOpen, setPendingOpen] = useState<{
+    path: string;
+    from: string;
+  } | null>(null);
+
+  // Any other way of moving cancels a request the index made. Guessing
+  // from `currentPath` cannot: a reader who leaves and comes back
+  // leaves it exactly where it was.
+  const cancelPendingOpen = useCallback(() => setPendingOpen(null), []);
+
+  const openBreadcrumb = useCallback(
+    (path: string) => {
+      cancelPendingOpen();
+      handleBreadcrumbClick(path);
+    },
+    [cancelPendingOpen, handleBreadcrumbClick],
+  );
+
+  const openDir = useCallback(
+    (entry: ArchiveEntry) => {
+      cancelPendingOpen();
+      handleDirClick(entry);
+    },
+    [cancelPendingOpen, handleDirClick],
+  );
 
   const openFromIndex = useCallback(
     (entry: ArchiveEntry) => {
+      // Whatever else happens, a new press replaces an old one. Without
+      // this a deep press followed by a same-level press opens the
+      // second and then the first, when its navigation lands.
+      setPendingOpen(null);
       if (entry.is_dir) {
         handleDirClick(entry);
         return;
@@ -173,7 +212,7 @@ export function ArchivePreview({
         handleFileClick(entry);
         return;
       }
-      setPendingOpen(entry.path);
+      setPendingOpen({ path: entry.path, from: currentPath });
       navigateArchive(parent);
     },
     [currentPath, handleDirClick, handleFileClick, navigateArchive],
@@ -181,20 +220,27 @@ export function ArchivePreview({
 
   useEffect(() => {
     if (!pendingOpen) return;
-    const entry = currentEntries.find((e) => e.path === pendingOpen);
+    const entry = currentEntries.find((e) => e.path === pendingOpen.path);
     if (entry) {
       setPendingOpen(null);
       handleFileClick(entry);
       return;
     }
-    // The level the entry lives on is not the level we are on, and this
-    // is not the render that carries it. Two cases look the same here:
-    // the navigation has not landed yet, and the reader went somewhere
-    // else instead — pressing a breadcrumb while the push was in
-    // flight. Waiting forever turns the second into a page that opens
-    // itself later, when the reader eventually walks into that folder.
-    // So a pending open survives exactly the level it was issued from.
-    if (getDirname(pendingOpen) !== currentPath) setPendingOpen(null);
+    // Not there yet, or not going to be. The request is alive on the
+    // level it was issued from — the navigation is still in flight —
+    // and on the level it is headed for, where the entries may not have
+    // arrived in this render. A landing anywhere else means the reader
+    // went somewhere else, and waiting on would open a page they never
+    // asked for the moment they walk into that folder.
+    //
+    // This cannot see the reader going somewhere else and *back*, since
+    // that leaves `currentPath` equal to `from` again. That case is
+    // dropped at its source instead: every control that starts a
+    // different move clears the request.
+    const target = getDirname(pendingOpen.path);
+    if (currentPath !== pendingOpen.from && currentPath !== target) {
+      setPendingOpen(null);
+    }
   }, [pendingOpen, currentEntries, currentPath, handleFileClick]);
 
   const archiveStore = useMemo(() => new ArchiveContentsStore(), []);
@@ -265,12 +311,15 @@ export function ArchivePreview({
   const displayEntries = applySortFilter(currentEntries);
 
   return (
-    <div className="w-full">
+    // `h-full`: the canvas reserves a floor on the wrapper above and
+    // stretches this box into it, so the listing gets the height rather
+    // than leaving it empty underneath.
+    <div className="flex h-full w-full flex-col">
       <ArchiveToolbar
         fileId={fileId}
         archive={archive}
         breadcrumbs={breadcrumbs}
-        handleBreadcrumbClick={handleBreadcrumbClick}
+        handleBreadcrumbClick={openBreadcrumb}
         sort={sort}
         order={order}
         typeFilter={typeFilter}
@@ -285,7 +334,7 @@ export function ArchivePreview({
         <ArchiveEntryGrid
           entries={displayEntries}
           fileId={fileId}
-          handleDirClick={handleDirClick}
+          handleDirClick={openDir}
           handleFileClick={handleFileClick}
           isClickable={isClickable}
         />
@@ -293,7 +342,7 @@ export function ArchivePreview({
         <ArchiveFileListing
           entries={displayEntries}
           fileId={fileId}
-          handleDirClick={handleDirClick}
+          handleDirClick={openDir}
           handleFileClick={handleFileClick}
           isClickable={isClickable}
         />
