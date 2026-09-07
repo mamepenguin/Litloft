@@ -11,6 +11,7 @@ import { getThumbnailUrl } from "@/lib/api";
 import { formatDuration, formatFileSize } from "@/lib/format";
 import { FileTypeIcon } from "@/components/FileTypeIcon";
 import { ContextMenu, type MenuItem } from "@/components/ContextMenu";
+import { Button } from "@/components/Button";
 
 interface TrashFileListProps {
   files: FileItem[];
@@ -64,7 +65,7 @@ export function TrashFileList({
           return (
             <div
               key={file.id}
-              className={`group flex items-center gap-3 rounded-lg bg-bg-card p-2.5 sm:p-2 transition-colors hover:bg-bg-elevated ${
+              className={`group/trash-item flex items-center gap-3 rounded-lg bg-bg-card p-2.5 sm:p-2 transition-colors hover:bg-bg-elevated pointer-coarse:min-h-11 ${
                 selectable ? "cursor-pointer select-none" : ""
               } ${fileSelected ? "ring-2 ring-accent" : ""}`}
               /* Not gated on `selectable`: Cmd/Ctrl-click is how a
@@ -151,21 +152,30 @@ export function TrashFileList({
               </div>
 
               {!selectable && (
-                <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                  <button
+                <div className="flex flex-shrink-0 items-center gap-1 opacity-0 transition-opacity group-hover/trash-item:opacity-100 group-focus-within/trash-item:opacity-100 pointer-coarse:opacity-100">
+                  {/* Icon only here, with the words in the accessible name:
+                      a row already carries a title, a size and a date, and
+                      two labels per row is what pushes the title into an
+                      ellipsis. `title` is deliberately not set to the same
+                      string — beside an `aria-label` it becomes the
+                      accessible *description* and is announced a second
+                      time (§Row Actions). */}
+                  <Button
+                    variant="ghost"
+                    iconOnly
                     onClick={(e) => { e.stopPropagation(); onRestore(file.id); }}
-                    className="rounded-lg p-1.5 text-text-muted transition-colors hover:bg-bg-card hover:text-accent"
-                    aria-label={tt("restore")}
+                    aria-label={tt("restoreNamed", { name: file.title })}
                   >
                     <RotateCcw size={14} />
-                  </button>
-                  <button
+                  </Button>
+                  <Button
+                    variant="danger"
+                    iconOnly
                     onClick={(e) => { e.stopPropagation(); onPurge(file.id); }}
-                    className="rounded-lg p-1.5 text-text-muted transition-colors hover:bg-danger/10 hover:text-danger"
-                    aria-label={tt("purge")}
+                    aria-label={tt("purgeNamed", { name: file.title })}
                   >
                     <Trash2 size={14} />
-                  </button>
+                  </Button>
                 </div>
               )}
             </div>

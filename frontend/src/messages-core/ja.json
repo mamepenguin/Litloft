@@ -630,7 +630,6 @@
     },
     "sidebarReset": {
       "title": "サイドバーの並び順",
-      "description": "サイドバーのセクション順・アイテム順・タグの並び順をすべて初期状態に戻します。",
       "button": "並び順をリセット",
       "confirmTitle": "並び順をリセット",
       "confirmBody": "サイドバーのカスタマイズした並び順をすべて初期状態に戻します。よろしいですか？",
@@ -710,7 +709,10 @@
       "copyButton": "コピー",
       "copied": "コピーしました"
     },
-    "tabsLabel": "設定の種類"
+    "tabsLabel": "設定の種類",
+    "preferences": {
+      "title": "表示と操作"
+    }
   },
   "text": {
     "fileSizeLarge": "ファイルサイズが大きすぎます ({size})",
@@ -760,7 +762,9 @@
     "confirmMoveToTrash": "「{name}」をゴミ箱に移動しますか？",
     "batchConfirmMoveToTrash": "{count}件のファイルをゴミ箱に移動しますか？",
     "batchPurgeTitle": "完全に削除",
-    "batchPurgeMessage": "{count}件のファイルを完全に削除しますか？この操作は取り消せません。"
+    "batchPurgeMessage": "{count}件のファイルを完全に削除しますか？この操作は取り消せません。",
+    "restoreNamed": "{name} を復元",
+    "purgeNamed": "{name} を完全削除"
   },
   "missing": {
     "title": "見つからないファイル",
@@ -777,7 +781,8 @@
     "description": "ディスク上で見つからなかったファイル。ファイルが戻ってきたら自動的に復帰します。",
     "scanWarning": "{count}件のファイルが見つかりません",
     "scanWarningDescription": "ドライブのマウント状態を確認してください。",
-    "scanRecovered": "{count}件のファイルが復帰しました"
+    "scanRecovered": "{count}件のファイルが復帰しました",
+    "purgeNamed": "{name} を完全削除"
   },
   "admin": {
     "title": "ダッシュボード",

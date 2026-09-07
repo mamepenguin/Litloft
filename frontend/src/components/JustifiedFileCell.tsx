@@ -167,12 +167,13 @@ function JustifiedFileCellImpl({
         <span className="justified-grid-name">{file.title}</span>
         {onFavoriteToggle && (
           <div
-            className={`absolute top-2 right-2 ${file.is_favorite ? "opacity-100" : "opacity-0 group-hover:opacity-100 focus-within:opacity-100"} transition-opacity`}
+            className={`absolute top-2 right-2 ${file.is_favorite ? "opacity-100" : "opacity-0 group-hover:opacity-100 focus-within:opacity-100 pointer-coarse:opacity-100"} transition-opacity`}
           >
             <FavoriteButton
               fileId={file.id}
               isFavorite={file.is_favorite}
               onToggle={onFavoriteToggle}
+              entityName={file.title}
             />
           </div>
         )}

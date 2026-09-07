@@ -630,7 +630,6 @@
     },
     "sidebarReset": {
       "title": "Sidebar order",
-      "description": "Reset the sidebar section order, item order, and tag sort to defaults.",
       "button": "Reset order",
       "confirmTitle": "Reset order",
       "confirmBody": "This resets all your customised sidebar ordering to defaults. Continue?",
@@ -710,7 +709,10 @@
       "copyButton": "Copy",
       "copied": "Copied"
     },
-    "tabsLabel": "Settings sections"
+    "tabsLabel": "Settings sections",
+    "preferences": {
+      "title": "Display and behaviour"
+    }
   },
   "text": {
     "fileSizeLarge": "File is large ({size})",
@@ -760,7 +762,9 @@
     "confirmMoveToTrash": "Move \"{name}\" to trash?",
     "batchConfirmMoveToTrash": "Move {count} files to trash?",
     "batchPurgeTitle": "Permanently Delete",
-    "batchPurgeMessage": "Permanently delete {count} files? This action cannot be undone."
+    "batchPurgeMessage": "Permanently delete {count} files? This action cannot be undone.",
+    "restoreNamed": "Restore {name}",
+    "purgeNamed": "Permanently delete {name}"
   },
   "missing": {
     "title": "Missing Files",
@@ -777,7 +781,8 @@
     "description": "Files that were not found on disk. They will be automatically recovered if they come back.",
     "scanWarning": "{count} files are missing",
     "scanWarningDescription": "Please verify the drive's mount state.",
-    "scanRecovered": "{count} files recovered"
+    "scanRecovered": "{count} files recovered",
+    "purgeNamed": "Permanently delete {name}"
   },
   "admin": {
     "title": "Dashboard",
