@@ -94,11 +94,10 @@ tests obstruct change — but to know which survivors were meant to survive.
 
 The reviewer restores the tree and fixes nothing.
 
-**Author self-mutation does not substitute for this.** Measured across four PRs,
-authors who mutated their own change to zero survivors were followed by
-independent review that ran 57-79 mutations and left 24-38 alive, including
-already-shipped bugs. Killing your own mutations proves you tested what you
-thought of.
+**Author self-mutation does not substitute for this.** Measured over four PRs, the
+author ran 3-26 mutations and left at most one alive; independent review then ran
+57-79 on the same commits and left 24-38 alive, shipped bugs among them. Killing
+your own mutations proves you tested what you thought of.
 
 ## R-4: The fix commit gets its own review
 
@@ -142,7 +141,7 @@ apply to writing one and to reviewing one:
    from observed keys catches wrong values and unregistered additions, but
    **cannot catch a deletion** — the removed element leaves both sides at once.
    Declare the expected set per state. (Measured: deleting either copy of the
-   name field left 4616 tests green.)
+   name field left the whole suite green.)
 6. **A submodule pointer bump is an edit to every citation that points inside it.**
    Grep for `file:line` references into the submodule when bumping. Not writing
    line numbers in comments is the cheaper prevention.
