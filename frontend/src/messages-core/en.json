@@ -700,7 +700,8 @@
         "loadFailed": "Failed to load addon policy",
         "saveFailed": "Failed to save",
         "unknown_addon": "Addon does not exist in manifest"
-      }
+      },
+      "tableLabel": "Addon policy by drive"
     },
     "restartBanner": {
       "title": "Pending changes — restart required",
@@ -709,7 +710,6 @@
       "copyButton": "Copy",
       "copied": "Copied"
     },
-    "tableLabel": "Addon policy by drive",
     "tabsLabel": "Settings sections"
   },
   "text": {

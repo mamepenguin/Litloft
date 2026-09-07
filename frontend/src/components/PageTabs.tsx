@@ -28,6 +28,11 @@ export interface PageTabItem {
    * panel to point at, so it is ignored there.
    */
   controls?: string;
+  /**
+   * The `id` put on the rendered tab, so its panel can point back with
+   * `aria-labelledby`. `InspectorShell` already pairs the two this way.
+   */
+  id?: string;
 }
 
 export interface PageTabsProps {
@@ -101,6 +106,7 @@ export function PageTabs({ items, current, onSelect, label }: PageTabsProps) {
           <button
             key={item.key}
             type="button"
+            id={isNav ? undefined : item.id}
             role={isNav ? undefined : "tab"}
             aria-selected={isNav ? undefined : active}
             aria-controls={isNav ? undefined : item.controls}

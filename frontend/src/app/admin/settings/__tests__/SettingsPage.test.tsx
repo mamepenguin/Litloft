@@ -52,6 +52,10 @@ describe("/admin/settings", () => {
       const panel = container.querySelector(`#${id}`);
       expect(panel).not.toBeNull();
       expect(panel!.getAttribute("role")).toBe("tabpanel");
+      // And back again: a reader who lands in the panel is told which tab
+      // it belongs to. Both references, or the pair is half-declared.
+      expect(panel!.getAttribute("aria-labelledby")).toBe(tab.id);
+      expect(tab.id).toBeTruthy();
     }
   });
 
@@ -80,13 +84,19 @@ describe("/admin/settings", () => {
    * not drawn at all — a single tab, permanently selected, is chrome that
    * asks to be read and then says nothing.
    */
-  it("draws no tab row when there is only one section", () => {
+  it("draws no tab row when there is only one section, and no orphan panel", () => {
     slots.has = false;
-    render(<AdminSettingsPage />);
+    const { container } = render(<AdminSettingsPage />);
     expect(screen.queryByRole("tablist")).toBeNull();
     expect(screen.queryAllByRole("tab")).toHaveLength(0);
-    // The panel it would have controlled is still the page's content.
-    expect(screen.getAllByRole("tabpanel")).toHaveLength(1);
+    // And no `tabpanel` either: the role's whole meaning is "the tab above
+    // swapped me in", so with no tab above it is a plain div holding the
+    // page's content.
+    expect(screen.queryAllByRole("tabpanel")).toHaveLength(0);
+    const panel = container.querySelector("#settings-panel-system")!;
+    expect(panel).not.toBeNull();
+    expect(panel.getAttribute("role")).toBeNull();
+    expect(panel.getAttribute("aria-labelledby")).toBeNull();
   });
 
   /**

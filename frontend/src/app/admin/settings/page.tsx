@@ -17,6 +17,11 @@ const PANEL_ID: Record<Tab, string> = {
   intelligence: "settings-panel-intelligence",
 };
 
+const TAB_ID: Record<Tab, string> = {
+  system: "settings-tab-system",
+  intelligence: "settings-tab-intelligence",
+};
+
 export default function AdminSettingsPage(): React.ReactElement {
   const t = useTranslations("settings");
   const [activeTab, setActiveTab] = useState<Tab>("system");
@@ -26,6 +31,7 @@ export default function AdminSettingsPage(): React.ReactElement {
   const items: PageTabItem[] = [
     {
       key: "system",
+      id: TAB_ID.system,
       label: t("tabs.system"),
       controls: PANEL_ID.system,
     },
@@ -33,12 +39,15 @@ export default function AdminSettingsPage(): React.ReactElement {
       ? [
           {
             key: "intelligence",
+            id: TAB_ID.intelligence,
             label: t("tabs.intelligence"),
             controls: PANEL_ID.intelligence,
           },
         ]
       : []),
   ];
+
+  const tabbed = items.length > 1;
 
   return (
     // `w-full` is not decoration. This div is a flex item of the
@@ -57,10 +66,11 @@ export default function AdminSettingsPage(): React.ReactElement {
         title={t("title")}
         // One tab is not a choice, so with intelligence absent the row is
         // not drawn at all rather than drawn holding a single selected
-        // item. The panel below keeps its `role`, because it is still the
-        // thing this page shows.
+        // item — and the panel below then drops `role="tabpanel"` with it.
+        // A tabpanel whose whole meaning is "the tab above swapped me in"
+        // has nothing to attach to when there is no tab above.
         tabs={
-          items.length > 1 ? (
+          tabbed ? (
             <PageTabs
               items={items}
               current={activeTab}
@@ -77,7 +87,8 @@ export default function AdminSettingsPage(): React.ReactElement {
       <div className="px-4 pb-6 pt-4">
         <div
           id={PANEL_ID.system}
-          role="tabpanel"
+          role={tabbed ? "tabpanel" : undefined}
+          aria-labelledby={tabbed ? TAB_ID.system : undefined}
           className={activeTab === "system" ? "space-y-8" : "hidden"}
         >
           <DrivesSection />
@@ -90,6 +101,7 @@ export default function AdminSettingsPage(): React.ReactElement {
           <div
             id={PANEL_ID.intelligence}
             role="tabpanel"
+            aria-labelledby={TAB_ID.intelligence}
             className={activeTab === "intelligence" ? "space-y-8" : "hidden"}
           >
             <AddonSlot id="admin-intelligence-sections" layout="stack" />

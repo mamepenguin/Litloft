@@ -700,7 +700,8 @@
         "loadFailed": "アドオン設定の読み込みに失敗しました",
         "saveFailed": "保存に失敗しました",
         "unknown_addon": "存在しないアドオンです"
-      }
+      },
+      "tableLabel": "ドライブごとのアドオン設定"
     },
     "restartBanner": {
       "title": "保留中の変更があります。反映には再起動が必要です",
@@ -709,7 +710,6 @@
       "copyButton": "コピー",
       "copied": "コピーしました"
     },
-    "tableLabel": "ドライブごとのアドオン設定",
     "tabsLabel": "設定の種類"
   },
   "text": {

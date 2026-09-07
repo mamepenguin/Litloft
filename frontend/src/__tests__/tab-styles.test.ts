@@ -66,7 +66,31 @@ function sourceFiles(): Array<{ rel: string; body: string }> {
   return out;
 }
 
-/** The two shapes the other two styles were written in. */
+/**
+ * Every class list in a file — written at the point of use, or held in a
+ * `*_CLASS` constant.
+ *
+ * The constant half is not optional: a shared component exists precisely so
+ * a recipe lives in one place, which moves it out of `className=` and into
+ * a `const`. `PageTabs` keeps both of its states that way, so a scan that
+ * read only attributes found nothing in the very file that owns the style.
+ * `button-adoption.test.ts` makes the same point about `Button.tsx`.
+ */
+function classStrings(body: string): string[] {
+  const out: string[] = [];
+  for (const m of body.matchAll(/className=(?:"([^"]*)"|\{`([^`]*)`\}|\{"([^"]*)"\})/g)) {
+    out.push(m[1] ?? m[2] ?? m[3] ?? "");
+  }
+  for (const m of body.matchAll(/\bconst\s+[A-Za-z_$][\w$]*(?:CLASS|CLASSES|Class|Classes)\b[^=]*=\s*([^;]+);/g)) {
+    // A recipe may be split across concatenated literals; join them back
+    // into the one class list they are.
+    const parts = [...m[1]!.matchAll(/["'`]([^"'`]*)["'`]/g)].map((q) => q[1]!);
+    if (parts.length) out.push(parts.join(" "));
+  }
+  return out;
+}
+
+/** The shape the retired underline style was written in. */
 const STYLES: Array<[name: string, pattern: RegExp]> = [
   // The underline. `PageTabs` owns it, and `InspectorShell` is the one
   // documented second writer — see `UNDERLINE_EXCEPTIONS`.
@@ -79,11 +103,31 @@ const STYLES: Array<[name: string, pattern: RegExp]> = [
   // *tab* control only when the pills are inside the track, and a first
   // draft of this file flagged both of those innocents by matching one
   // half each.
-  [
-    "segmented control (equal-width pills inside a filled track)",
-    /rounded-2xl bg-bg-elevated p-1\b[\s\S]*?\bflex-1 rounded-xl\b/,
-  ],
 ];
+
+/**
+ * Two `className` values in one file: the track, and a pill inside it.
+ *
+ * Written as a predicate rather than one regex because both halves have to
+ * be *sets* of tokens, not an ordered substring — `bg-bg-elevated
+ * rounded-2xl p-1` is the same control written in a different order, and a
+ * sequence pattern would let it through untouched.
+ *
+ * The scope is the file, not the element, and that is a real limit: a file
+ * already carrying a track (the drive root's sort/view/`…` cluster) would
+ * be flagged by an unrelated `flex-1 rounded-xl` added anywhere in it. The
+ * narrower form — both halves inside one element — needs a JSX parse, and
+ * the false positive it would prevent is one this tree has not produced.
+ */
+const TRACK_TOKENS = ["rounded-2xl", "bg-bg-elevated", "p-1"];
+const PILL_TOKENS = ["flex-1", "rounded-xl"];
+
+function drawsSegmentedControl(body: string): boolean {
+  const lists = classStrings(body).map((c) => new Set(c.split(/\s+/)));
+  const has = (tokens: string[]) =>
+    lists.some((set) => tokens.every((t) => set.has(t)));
+  return has(TRACK_TOKENS) && has(PILL_TOKENS);
+}
 
 /**
  * The inspector's tab strip writes the underline out by hand, and stays.
@@ -112,35 +156,63 @@ describe("one tab style", () => {
     expect(files.map((f) => f.rel)).toContain(OWNER);
   });
 
-  it.each(STYLES)("is not written by hand anywhere: %s", (name, pattern) => {
-    const allowed = name.startsWith("underline") ? UNDERLINE_EXCEPTIONS : [];
+  it.each(STYLES)("is not written by hand anywhere: %s", (_name, pattern) => {
     const offenders = files
-      .filter((f) => f.rel !== OWNER && !allowed.includes(f.rel))
+      .filter((f) => f.rel !== OWNER && !UNDERLINE_EXCEPTIONS.includes(f.rel))
       .filter((f) => pattern.test(f.body))
       .map((f) => f.rel);
     expect(offenders).toEqual([]);
   });
 
+  it("is not written by hand anywhere: the segmented control", () => {
+    const offenders = files
+      .filter((f) => drawsSegmentedControl(f.body))
+      .map((f) => f.rel);
+    expect(offenders).toEqual([]);
+  });
+
   /**
-   * The exception earns its place by looking identical, so this reads the
-   * two files against each other rather than trusting the paragraph above.
-   * A drift in either direction — the inspector picking a different
-   * selected colour, `PageTabs` changing its own — fails here.
+   * The exception earns its place by looking identical, so this compares
+   * the two selected-state class strings rather than searching whole
+   * files for tokens. A file-wide `toContain` is true the moment the token
+   * appears anywhere, for any reason — which is how the first version of
+   * this test passed while the inspector's selected tab was missing
+   * `font-semibold` entirely.
+   *
+   * `font-semibold` is the token that matters most here, and DESIGN.md
+   * §Tabs says why: it is the second, non-colour signal for which tab is
+   * current, and without it a 2px underline is the only one. That section
+   * also records that an earlier draft got this wrong and that the
+   * mutation proving it went unnoticed by every test.
    */
+  const SELECTED_TOKENS = ["border-accent", "font-semibold", "text-text-primary"];
+  const UNSELECTED_TOKENS = ["border-transparent", "text-text-muted"];
+  const SHARED_TOKENS = ["border-b-2", "pointer-coarse:min-h-11"];
+
   it("holds the exception to the owner's own recipe", () => {
-    const owner = files.find((f) => f.rel === OWNER)!.body;
-    for (const rel of UNDERLINE_EXCEPTIONS) {
-      const body = files.find((f) => f.rel === rel);
-      expect(body, `${rel} is not in the population`).toBeDefined();
-      for (const token of [
-        "border-b-2",
-        "border-accent",
-        "border-transparent",
-        "text-text-muted",
-        "pointer-coarse:min-h-11",
-      ]) {
-        expect(owner, `owner lost ${token}`).toContain(token);
-        expect(body!.body, `${rel} lost ${token}`).toContain(token);
+    const bodyOf = (rel: string) => {
+      const f = files.find((x) => x.rel === rel);
+      expect(f, `${rel} is not in the population`).toBeDefined();
+      return f!.body;
+    };
+    /** The class string that paints a tab in one of the two states. */
+    const stateClasses = (body: string, marker: string) =>
+      classStrings(body).filter((c) => c.includes(marker));
+
+    for (const rel of [OWNER, ...UNDERLINE_EXCEPTIONS]) {
+      const body = bodyOf(rel);
+      const selected = stateClasses(body, "border-accent");
+      const unselected = stateClasses(body, "border-transparent");
+      expect(selected.length, `${rel} selected state`).toBe(1);
+      expect(unselected.length, `${rel} unselected state`).toBe(1);
+      for (const token of SELECTED_TOKENS) {
+        expect(selected[0], `${rel} selected lost ${token}`).toContain(token);
+      }
+      for (const token of UNSELECTED_TOKENS) {
+        expect(unselected[0], `${rel} unselected lost ${token}`).toContain(token);
+      }
+      for (const token of SHARED_TOKENS) {
+        expect(body, `${rel} lost ${token}`).toContain(token);
       }
     }
   });

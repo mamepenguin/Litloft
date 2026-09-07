@@ -11,7 +11,13 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { render, screen, fireEvent, waitFor } from "@testing-library/react";
 
+import { readFileSync } from "node:fs";
+import { fileURLToPath } from "node:url";
+import { resolve, dirname } from "node:path";
+
 import { AddonPolicySection } from "@/app/admin/settings/AddonPolicySection";
+
+const REPO_ROOT = resolve(dirname(fileURLToPath(import.meta.url)), "../../../../../..");
 
 const mockFetch = vi.fn();
 
@@ -165,6 +171,47 @@ describe("AddonPolicySection layout", () => {
    * take focus cannot be scrolled without a pointer — the last addon's
    * column is then simply unreachable.
    */
+  /**
+   * The name the region announces has to be a name.
+   *
+   * `src/test/setup.ts`'s global `next-intl` mock renders a miss as
+   * `` `${namespace}.${key}` `` — exactly what the real runtime does — so a
+   * key written in the wrong namespace renders as a developer identifier
+   * and no rendered assertion can tell the difference. The region shipped
+   * announcing "settings.addonPolicy.tableLabel", on the very control
+   * added for screen-reader reachability.
+   *
+   * So the key the component asked for is resolved against the real
+   * catalogues here. Whatever namespace it moves to, it has to exist in
+   * both.
+   */
+  it("announces a name, not the key path", async () => {
+    setupSuccessfulLoads();
+    render(<AddonPolicySection />);
+    const region = await screen.findByRole("region");
+    const name = region.getAttribute("aria-label")!;
+    expect(name).toBeTruthy();
+    // next-intl renders a miss as the key path it could not resolve, so
+    // that shape *is* the symptom. Asserted as a shape rather than as one
+    // literal string, which would have to move every time the wording does.
+    expect(name, `announced a key path: ${name}`).not.toMatch(
+      /^[a-z][\w]*(\.[\w]+)+$/,
+    );
+    // And it is the message the catalogues hold, in both locales.
+    for (const locale of ["en", "ja"]) {
+      const messages = JSON.parse(
+        readFileSync(
+          resolve(REPO_ROOT, `frontend/src/messages-core/${locale}.json`),
+          "utf-8",
+        ),
+      );
+      const values = JSON.stringify(messages.settings.addonPolicy);
+      expect(values, `${locale}.json has no label for the table`).toContain(
+        '"tableLabel"',
+      );
+    }
+  });
+
   it("lets a keyboard reach the columns that are off-screen", async () => {
     setupSuccessfulLoads();
     render(<AddonPolicySection />);

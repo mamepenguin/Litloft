@@ -16,7 +16,15 @@
 // it does not interpret addon names or feature names. Adding or changing
 // per-feature toggles is a manifest + addon-i18n change, no core edits.
 
-import { Fragment, useCallback, useEffect, useMemo, useState } from "react";
+import {
+  Fragment,
+  useCallback,
+  useEffect,
+  useLayoutEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
 import { useTranslations } from "next-intl";
 
 import {
@@ -76,6 +84,7 @@ function readFeature(
 
 export function AddonPolicySection(): React.ReactElement {
   const t = useTranslations("settings.addonPolicy");
+
   const tRoot = useTranslations();
   const [policy, setPolicy] = useState<AddonPolicy>({});
   const [addons, setAddons] = useState<AddonStatusEntry[]>([]);
@@ -150,6 +159,30 @@ export function AddonPolicySection(): React.ReactElement {
     [policy, t],
   );
 
+  /**
+   * Whether the table is actually wider than the room it has.
+   *
+   * The fade says "there is more to the right", so it has to be false when
+   * there is not: at 1512px the region is 686px wide for a 686px table and
+   * an unconditional fade dimmed the last column for nothing.
+   *
+   * Measured on mount in a layout effect, so the first paint is already
+   * right, and re-measured by a `ResizeObserver` for the pane and window
+   * changes that follow.
+   */
+  const scrollRef = useRef<HTMLDivElement>(null);
+  const [overflows, setOverflows] = useState(false);
+  useLayoutEffect(() => {
+    const el = scrollRef.current;
+    if (!el) return;
+    const measure = () => setOverflows(el.scrollWidth > el.clientWidth);
+    measure();
+    if (typeof ResizeObserver === "undefined") return;
+    const ro = new ResizeObserver(measure);
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, [drives, addons]);
+
   return (
     <section className="rounded-xl border border-bg-border bg-bg-card p-6">
       <h2 className="mb-1 text-lg font-semibold text-text-primary">
@@ -169,6 +202,7 @@ export function AddonPolicySection(): React.ReactElement {
         // alone never showed.
         <div className="relative">
           <div
+            ref={scrollRef}
             className="overflow-x-auto"
             tabIndex={0}
             role="region"
@@ -322,10 +356,17 @@ export function AddonPolicySection(): React.ReactElement {
               </tbody>
             </table>
           </div>
-          <div
-            className="pointer-events-none absolute inset-y-0 right-0 w-8 bg-gradient-to-l from-bg-primary to-transparent"
-            aria-hidden
-          />
+          {overflows && (
+            <div
+              // `from-bg-card`, the surface this actually sits on. Both
+              // tokens are `#ffffff` in the light theme, so the wrong one
+              // measures identically there and shows up only in dark, as a
+              // darker smear down the right edge of the card — DESIGN.md
+              // records that coincidence as a trap for exactly this reason.
+              className="pointer-events-none absolute inset-y-0 right-0 w-8 bg-gradient-to-l from-bg-card to-transparent"
+              aria-hidden
+            />
+          )}
         </div>
       )}
 
