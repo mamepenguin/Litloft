@@ -81,7 +81,11 @@ The drive you are in is the row at the top of the sidebar, under the Litloft log
 open the others and pick one. On surfaces that belong to no drive — the root page and
 `/admin` — that row names the list instead, as "Drives (4)", and folds the same way.
 It starts folded, and folds again whenever you arrive somewhere new, so it is
-open only while you are asking it something.
+open only while you are asking it something. On the root page that also means the sidebar
+names no drive at all until you open it: the page's own cards are the list, and a sidebar
+repeating them would be the same answer twice on one screen. The exception is an install
+with a single visible drive, where there is nothing to choose between and no fold row —
+that drive is listed, because folding one line into two would not be a saving.
 
 Only drives you can currently see are listed. A protected drive you have not unlocked is
 absent from the list, exactly as it is absent from the root page and from the API: its
