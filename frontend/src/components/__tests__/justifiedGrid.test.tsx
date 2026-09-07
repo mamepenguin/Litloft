@@ -113,6 +113,18 @@ const css = readFileSync(
   "utf8",
 );
 
+/** One declaration block, comments removed — comments carry the word
+ *  "height" in prose and would answer the assertions below. */
+const rule = (selector: string) => {
+  const source = css.match(
+    new RegExp(`^${selector.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")} \\{([^}]*)\\}`, "m"),
+  );
+  if (!source) throw new Error(`no rule for ${selector} in globals.css`);
+  return source[1].replace(/\/\*[\s\S]*?\*\//g, "");
+};
+const gridRule = rule(".justified-grid");
+const cellRule = rule(".justified-grid > .justified-grid-cell");
+
 const grid = (c: HTMLElement) => c.querySelector(".justified-grid");
 const cells = (c: HTMLElement) => c.querySelectorAll(".justified-grid-cell");
 
@@ -422,6 +434,49 @@ describe("justified row geometry", () => {
     expect(css).toMatch(
       /@media \(pointer: coarse\) \{\s*\.justified-grid-name \{[^}]*opacity:/,
     );
+  });
+
+  /**
+   * The cell is the shape of its picture, and that is where the crop
+   * comes from when it is not.
+   *
+   * jsdom cannot see this property: it lays nothing out, so every
+   * `getBoundingClientRect()` in this file is zeros and a cell drawn at
+   * the wrong ratio measures exactly like one drawn at the right ratio.
+   * What is checkable here is the declaration that decides it, and the
+   * defect this replaces *was* a declaration — `height: var(--jg-row-h)`
+   * beside `flex-grow: var(--jg-ratio)` takes the height from the row
+   * and the width from the line, and the two disagree by however far the
+   * line had to stretch. The geometry itself is measured in a browser;
+   * `|cellAR - ratio|` ran 0.13-1.43 with a pinned height and 0.0002
+   * without one, over five container widths.
+   */
+  it("takes a cell's height from its ratio and not from the row", () => {
+    expect(cellRule).toMatch(/aspect-ratio:\s*var\(--jg-ratio\)/);
+    // Any `height` here wins over the ratio, which is the disagreement.
+    expect(cellRule).not.toMatch(/[;{\s]height\s*:/);
+  });
+
+  it("bounds how far a line may grow before the crop returns", () => {
+    // Greedy line-breaking can leave one narrow cell holding a whole
+    // line, and its ratio then turns the grid's width into height: 801px
+    // measured on a 701px grid. Past the ceiling the cell keeps its
+    // width and drops its ratio, so the bound is the crop, deliberately.
+    expect(cellRule).toMatch(
+      /max-height:\s*calc\(\s*var\(--jg-row-h\)\s*\*\s*var\(--jg-max-stretch\)\s*\)/,
+    );
+    // Measured, not picked: 2.5 re-crops 4 cells of the 995-photo folder
+    // at 332px of grid and none at 445 or 1052. A number this test does
+    // not pin is a number nobody has to measure again.
+    const stretch = Number(css.match(/--jg-max-stretch:\s*([\d.]+)/)![1]);
+    expect(stretch).toBe(2.5);
+  });
+
+  it("lets each cell keep its own height inside the line", () => {
+    // `stretch` is the flex default, and it would hand the tallest cell's
+    // height to every cell beside it — an archive entry that puts a
+    // filename and a size in flow next to four pictures that did not.
+    expect(gridRule).toMatch(/align-items:\s*flex-start/);
   });
 
   it("gives the slack absorber no height", () => {

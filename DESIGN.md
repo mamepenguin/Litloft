@@ -1639,8 +1639,8 @@ A folder whose rows are all photographs does not go into equal cards.
 Every thumbnail is a 320×180 JPEG with the picture letterboxed inside
 it, so a grid of 16:9 cards draws black bars on three or four of every
 ten cells in a folder of portraits. Those rows are packed at their own
-proportions instead: variable widths, one fixed height per row, each
-line filling the width exactly.
+proportions instead: variable widths, a height of its own per line, and
+each line filling the width exactly.
 
 **Which shape a listing gets is derived, not chosen.** `deriveListMeta`
 answers it from the rows that are loaded — `justifyThumbnails` is true
@@ -1675,11 +1675,26 @@ residue under a pixel (measured 150.1px against a 150px basis). Its
 height is `0` rather than absent, so the row `gap` above it does not
 open an empty line.
 
-**Row height: 120px under 40rem, 200px at or above it** — switched with
-a container query on the grid's own width, not a media query. The grid
-renders beside a 280px tree pane, and these cells hold `<img>` and
-nothing else, so a containment context here is safe (see *Which
-mechanism depends on what is inside*).
+**Row height: a line starts at 120px under 40rem, 200px at or above
+it** — switched with a container query on the grid's own width, not a
+media query. The grid renders beside a 280px tree pane, and these cells
+hold `<img>` and nothing else, so a containment context here is safe
+(see *Which mechanism depends on what is inside*).
+
+`--jg-row-h` is the height a line is laid out *from*, not the height it
+ends at: it is the basis every cell's width is measured against, so it
+decides how many cells a line holds, and the line then takes whatever
+height those cells' ratios ask for. Measured on the 995-photo folder,
+rows came out 200–330px over 280 rows at 1052px of grid and 111–300px
+over 631 rows at 332px. (Under the basis is real: a 3.0 cell whose 360px basis
+does not fit a 332px line shrinks to it.)
+
+Both figures are about width, and neither has to move for the rows to
+take heights of their own: flex resolves the main axis first, so where a
+cell's height comes from cannot reach the width. Measured over all 995
+cells at 332, 387, 445, 701 and 1052px of grid, every cell resolves to
+the same width with the height pinned to `--jg-row-h` and with it taken
+from the ratio — identical to the pixel at every width.
 
 **Ratio stops: 0.5× and 3×.** A 10:1 panorama laid out at the row height
 would be wider than the row on its own; a 1:10 strip would be a
@@ -1688,38 +1703,61 @@ stored dimensions is drawn square, because a 16:9 cell among portraits
 is the widest thing on the line and so the one placement a reader would
 read as deliberate.
 
-**The stops do not bound the enlargement, because the line stretches on
-top of them, and the stretch itself has no bound.** Only width grows —
-the row height is fixed — so every cell on a line is widened by the same
-factor and `object-fit: cover` crops into the picture past the padding.
-Line-breaking is greedy, so a line can end up holding a single narrow
-cell: at `--jg-row-h: 120px` a 0.5-ratio cell is 60px and the next 3.0
-cell is 360px, which will not fit beside it on a 375px line, and the
-narrow one is then stretched alone to the full width — **6.25×**.
+**The stops do not bound the stretch, so the cell is shaped by its
+ratio rather than by the row.** `flex-grow` shares free space along the
+main axis only, so a line that has to stretch widens every cell on it by
+the same factor — and a cell with a height pinned to `--jg-row-h` is then
+at the wrong proportions by exactly that factor, with `object-fit: cover`
+cutting into the picture past the padding to make up the difference. The
+cell therefore has no height of its own: `aspect-ratio: var(--jg-ratio)`
+takes it from the width flex has already resolved.
 
-Two measured samples, not limits, both taken on the 995-photo folder
-after the absorber fix below: **per-row stretch** ran 1.007–1.271× at
-1512px and 1.010–2.075× at 375px, and the **worst single cell's
-enlargement over its 320px stored thumbnail** was 2.97× (a 949px cell).
-The two are different quantities; neither is a ceiling.
+That gives each line a height of its own without anything measuring.
+Cells on one line share that line's stretch factor, so `width / ratio`
+lands on the same number for every one of them and the row is still
+level. Computing row heights in JS is what a classic justified gallery
+does; flexbox reaches the same place from the other end, because the
+height it needs is a function of a width it has already produced.
 
-So the paragraph below is true of an unstretched cell and only
-approximately true of a real one: the further a line has to stretch, the
-more of the picture goes. Bounding it properly means varying the row
-height per line rather than only the widths, which flexbox cannot do on
-its own — it needs the row heights computed in JS, the way a classic
-justified-gallery layout does. Not done; recorded here so the next
-reader does not take the crop for zero.
+Measured as `max |cell ratio − --jg-ratio|` over all 995 cells of the
+photo folder, at 332 / 387 / 445 / 701 / 1052px of grid: **1.77 / 2.20 /
+2.21 / 2.17 / 0.90 with the height pinned, and 0.12 / 0.29 / 0.0003 /
+0.07 / 0.0001 with it derived.** As a crop factor at 387px, that is
+3.28× of the picture's own proportions before and 1.31× after. The
+190-page manga archive ran 0.23 and 0.03 before, and 0 after.
+
+**A line may reach 2.5× the height it started from, and no further.**
+Line-breaking is greedy, so a line can end up holding one narrow cell,
+whose ratio then turns the whole grid width into height. The stops bound
+that but not usefully: drive the ratios to the worst line each grid
+width admits and the cell measures 392px at 332, 447px at 387, 487px at
+445, 801px at 701 and 485px at 1052 — up to 4.1× the basis.
+`max-height: calc(var(--jg-row-h) * var(--jg-max-stretch))` stops there.
+A cell that reaches the ceiling keeps its width and gives up its ratio,
+so the crop comes back for exactly the lines that need bounding, and
+nowhere else.
+
+**2.5 is measured, and it is a trade in both directions.** On the
+995-photo folder at 332px of grid, the ceiling is reached by 78 cells of
+995 at 2.0, by 4 at 2.5 and by none at 3.0 — the worst re-cropped picture
+losing 1.41×, 1.13× and nothing. Across the five widths 2.5 catches 4, 3,
+0, 1 and 0 cells, worst 1.31×, where pinning the height cropped every
+cell of every line that had to stretch, by up to 3.28×. 3.0 would leave this folder untouched and is
+the wrong reading of the number: the ceiling is there for the line
+composition the folder does not happen to contain, and at 3.0 that line
+is 360px tall on a phone and 600px on a 1024px viewport. What is bought
+by paying 4 cells of 995 is 300px and 500px.
 
 **`object-fit: cover` puts the padding back, so no thumbnail is
 regenerated.** The stored JPEG is the picture centred in a 320×180
 frame; cropping that frame to a cell of the picture's *own* ratio removes
-exactly the bars, because the padding is symmetric. A stretched cell is
-not at its own ratio, so it removes the bars and then some — see the
-measured factors above. Generating unpadded image thumbnails stays
-available and would raise the resolution ceiling, but it does not
-address the crop, which is a layout property rather than a thumbnail
-one.
+exactly the bars, because the padding is symmetric — and the cell *is* at
+the picture's own ratio, which is what `aspect-ratio` above buys. The one
+exception is a cell that reached the ceiling: there the ratio is gone and
+`cover` cuts into the picture, measured at up to 1.31× on the 995-photo
+folder. Generating unpadded image thumbnails stays available and would
+raise the resolution ceiling, but it does not address that crop, which is
+a layout property rather than a thumbnail one.
 
 **The filename is a hover/focus band, and is always visible under
 `pointer: coarse`** — there is no hover to ask with on a touch screen,

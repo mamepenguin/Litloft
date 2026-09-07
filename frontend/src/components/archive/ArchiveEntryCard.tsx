@@ -31,8 +31,8 @@ export const UNMEASURED_PAGE_RATIO = 0.7;
 /** Folders, text and binaries have no proportions of their own. */
 export const NON_IMAGE_RATIO = 1;
 
-/* No `h-full w-full`: the row rule sets the height and `flex-basis`
-   sets the width, so both were being overridden. */
+/* No `h-full w-full`: `flex-basis` sets the width and the row rule
+   takes the height from it, so both were being overridden. */
 function ImageCard({
   entry,
   fileId,
@@ -97,9 +97,9 @@ function ImageCard({
   );
 }
 
-/* No `h-full w-full` here: `.justified-grid > .justified-grid-cell`
-   sets the height and `flex-basis` sets the width, so both would be
-   overridden anyway. */
+/* No `h-full w-full` here either: `.justified-grid > .justified-grid-cell`
+   sizes the whole box from `--jg-ratio`, so both would be overridden
+   anyway. */
 const CELL_CLASS = "overflow-hidden rounded-xl bg-bg-card";
 
 /**

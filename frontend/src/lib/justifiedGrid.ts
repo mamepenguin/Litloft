@@ -4,10 +4,12 @@ import type { FileItem } from "@/types";
  * The geometry of a justified thumbnail row — see `DESIGN.md` §8.5
  * "Justified thumbnail rows" for why the rows exist at all.
  *
- * The row height itself is CSS (`--jg-row-h` in `globals.css`), because
- * it switches on the grid's own width and nothing here measures. What
- * lives here is the per-cell ratio, which comes from the file and so
- * has to be computed per row and handed to CSS as an inline value.
+ * The height a line starts from is CSS (`--jg-row-h` in `globals.css`),
+ * because it switches on the grid's own width and nothing here
+ * measures; the height it ends at follows from these ratios in the
+ * browser's own flex pass. What lives here is the per-cell ratio, which
+ * comes from the file and so has to be computed per row and handed to
+ * CSS as an inline value.
  */
 
 /**

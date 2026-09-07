@@ -111,9 +111,16 @@ Each file card shows:
 
 A folder that is almost entirely images lays its thumbnails out at the
 pictures' own proportions rather than in equal cards: variable widths,
-a fixed height per row, and each row filled to the edge. A tall
-photograph is drawn tall and a panorama is drawn wide, so the black
-bars that a 16:9 card puts around them are gone.
+a height per row rather than one for the whole grid, and each row
+filled to the edge. A tall photograph is drawn tall and a panorama is
+drawn wide, at the shape of the picture and not an approximation of it,
+so the black bars that a 16:9 card puts around them are gone.
+
+One row can be much taller than its neighbours — a single narrow
+picture on a line of its own claims the whole width, and its height
+follows. That is capped at two and a half times the row's usual height;
+a picture that runs into the cap is cropped to fit, which on a folder
+of a thousand photographs happened to four of them.
 
 There is no switch for this. The grid packs when at least nine of every
 ten files in view are images whose dimensions are known, which is what

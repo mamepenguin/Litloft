@@ -1277,13 +1277,31 @@ div[data-citation-section-path]:not(tr) {
 
 .justified-grid {
   --jg-gap: 0.5rem;
-  /* A phone row fits two or three portrait cells at 120px; the desktop
-     height is where a 3:1 panorama stops out-resolving its 320px
-     thumbnail. */
+  /* The height a line is laid out from, not the height it ends at: this
+     is the basis every cell's width is measured against, so it decides
+     how many cells a line holds, and the line then takes whatever height
+     those cells' ratios ask for. A phone row fits two or three portrait
+     cells at 120px; the desktop value is where a 3:1 panorama stops
+     out-resolving its 320px thumbnail.
+
+     Both figures are about width, and where a cell's height comes from
+     cannot reach its width — flex resolves the main axis first. Measured
+     over all 995 cells of the photo folder at 332 / 387 / 445 / 701 /
+     1052px of grid, every cell resolves to the same width to the pixel
+     with the height pinned here and with it taken from the ratio. */
   --jg-row-h: 120px;
+  /* How far past `--jg-row-h` a line may grow before the picture starts
+     being cropped again — see the `max-height` below. */
+  --jg-max-stretch: 2.5;
   display: flex;
   flex-wrap: wrap;
   gap: var(--jg-gap);
+  /* Every cell takes the height its own ratio asks for. Cells on one
+     line all ask for the same one — they share the line's stretch
+     factor — so the row is still level, and `stretch` would instead let
+     a single odd cell (an archive entry with text in flow) hand its
+     height to every picture beside it. */
+  align-items: flex-start;
 }
 
 @container justified-grid (min-width: 40rem) {
@@ -1295,7 +1313,30 @@ div[data-citation-section-path]:not(tr) {
 .justified-grid > .justified-grid-cell {
   flex-grow: var(--jg-ratio);
   flex-basis: calc(var(--jg-ratio) * var(--jg-row-h));
-  height: var(--jg-row-h);
+  /* No `height`: the cell is the shape of its picture, so that the only
+     thing `object-fit: cover` has left to remove is the thumbnail's own
+     padding. Flex resolves the main axis first, so this reads a width
+     that has already been stretched to fill the line, and the height
+     follows it — which is how a line ends up with a height of its own
+     without anything measuring. */
+  aspect-ratio: var(--jg-ratio);
+  /* The ceiling, and the one place the crop comes back.
+
+     Line-breaking is greedy, so a line can end up holding one narrow
+     cell, and its ratio then turns the whole grid width into height. The
+     stops (`JG_MIN_RATIO`) put a bound on that but not a useful one:
+     drive the ratios to the worst line a grid width admits and the cell
+     comes out 392px at 332, 447px at 387, 487px at 445, 801px at 701 and
+     485px at 1052 — up to 4.1x the value the line was laid out from.
+
+     A cell that reaches this height keeps its width and gives up its
+     ratio, so the crop returns for exactly the lines that need bounding
+     and nowhere else. 2.5 is measured: on the 995-photo folder the
+     ceiling is reached by 4, 3, 0, 1 and 0 cells of 995 at those same
+     widths, and the worst picture it re-crops loses 1.31x, against the
+     3.28x that a height pinned to `--jg-row-h` costs every cell on the
+     page. See DESIGN.md for what 2.0 and 3.0 cost. */
+  max-height: calc(var(--jg-row-h) * var(--jg-max-stretch));
   /* A flex item's automatic minimum is its min-content width, and the
      grid these cells replaced was `repeat(N, minmax(0, 1fr))` — a floor
      of zero. The photo cell keeps every string out of flow so it never
