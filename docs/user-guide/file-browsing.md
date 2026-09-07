@@ -127,6 +127,15 @@ it, and at most one on a wide screen.
 wide stops a little short of the right-hand side, and the narrower it is
 the larger the gap.
 
+The last row is also the only one that changes when the next page of
+thirty arrives: it stops being last, fills out to the edge like every
+row above it, and its pictures grow. They travel to their new size
+rather than snapping to it, and the pictures that have just arrived fade
+in. Nothing above that row moves — rows are filled from the left as far
+as they go, so a picture loaded later can never land on an earlier row.
+Dragging the window to a new width is not animated, and none of this
+plays if your system asks for reduced motion.
+
 There is no switch for this. The grid packs when at least nine of every
 ten files in view are images whose dimensions are known, which is what
 a photo folder looks like and what a video folder does not — video
