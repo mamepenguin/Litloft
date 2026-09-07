@@ -1384,6 +1384,31 @@ div[data-citation-section-path]:not(tr) {
   height: 0;
 }
 
+/* The two states `useJustifiedFlip` puts a cell through when the set of
+   cells changes — a page of infinite scroll arriving, a filter, a
+   re-sort. The transform is per cell and written from JS; the duration
+   and the easing are here, with the rest of DESIGN.md §7.
+
+   `top left` in both: the hook inverts a change to the cell's own box by
+   its top-left corner, which is the corner a flex line lays out from.
+   Only the line that was last changes, so nothing above the fold moves.
+
+   The `prefers-reduced-motion` rule at the top of this file shortens the
+   play to nothing, but the hook does not get that far — it asks
+   `matchMedia` and writes no transform at all, so the inverted frame is
+   never painted either. */
+.justified-grid-cell[data-flip="invert"] {
+  transform-origin: top left;
+  transition: none;
+}
+
+.justified-grid-cell[data-flip="play"] {
+  transform-origin: top left;
+  transition:
+    transform 200ms ease-out,
+    opacity 200ms ease-out;
+}
+
 /* The filename, on request. Unequal cell widths mean a permanent
    caption would not line up into a column, so it is a hover/focus band
    — except where there is no hover to ask with. */

@@ -79,6 +79,9 @@ function JustifiedFileCellImpl({
       // The ratio is per file, so it cannot live in a stylesheet. The
       // row geometry that reads it is `.justified-grid` in globals.css.
       style={{ "--jg-ratio": ratio } as React.CSSProperties}
+      // What `useJustifiedFlip` recognises the same cell by across a
+      // re-render. The React key is not readable from the DOM.
+      data-flip-key={file.id}
       draggable={draggable}
       onDragStart={onDragStart ? (e) => onDragStart(e, file) : undefined}
       onDragEnd={onDragEnd}

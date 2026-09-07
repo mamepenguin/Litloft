@@ -1035,6 +1035,26 @@ non-`.md` files.
 
 All animations are disabled under `@media (prefers-reduced-motion: reduce)`.
 
+### A change to a list's contents is carried, not cut to
+
+Where the set of cells in a listing is replaced — a page of infinite scroll
+arriving, a filter, a re-sort — the cells that were already there travel from
+where they were rather than appearing at their new size and position in one
+frame. The previous rect is inverted with a `transform` and released (FLIP);
+200ms, `ease-out`, as the table above.
+
+- **A cell that did not exist has no previous position**, so it is never moved
+  into place. It fades in over the same 200ms.
+- **A resize is not one of these changes.** Following a drag frame by frame
+  reads as weight; the rule is for discrete changes only, and a grid whose own
+  width moved between two commits is left to snap.
+- **Under `prefers-reduced-motion: reduce` no transform is written at all.**
+  Shortening the transition is not enough on its own — the inverted frame is
+  painted before the transition starts.
+
+`hooks/useJustifiedFlip.ts` and the two `.justified-grid-cell[data-flip]` states
+in `globals.css`.
+
 ---
 
 ## 8. Display preferences applied before first paint
