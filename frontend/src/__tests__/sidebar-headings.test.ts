@@ -170,11 +170,15 @@ describe("section header labels", () => {
    * Japanese, where the property does nothing, so in a column that
    * mixes scripts it stops being what makes the headings look alike.
    *
-   * Core only. Nineteen labels across three addons still write
-   * `uppercase` — mostly `<h2>` / `<h3>` section headings. Same shape,
-   * same sweep wanted, but it reaches three submodules and is recorded
-   * in `DESIGN.md` §Section Header Labels as a backlog rather than
-   * smuggled into this change.
+   * Core only. Fourteen labels across three addons still write
+   * `uppercase` — mostly `<h2>` / `<h3>` section headings. Counted the
+   * way `DESIGN.md` §Section Header Labels counts them, so the two
+   * numbers can be compared: occurrences of the string `uppercase` in
+   * each addon's non-test `.tsx` (`media_import` 11, `knowledge` 2,
+   * `intelligence` 1, `cloud-sync` 0) — occurrences, not files and not
+   * headings. Same shape, same sweep wanted, but it reaches three
+   * submodules and is recorded in `DESIGN.md` §Section Header Labels
+   * as a backlog rather than smuggled into this change.
    *
    * The exception is an addon heading rendered into a *core* surface —
    * `cloud-sync`'s dashboard widget shared a screen with `/admin`'s own
