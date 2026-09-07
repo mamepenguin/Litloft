@@ -819,7 +819,8 @@ div[data-citation-section-path]:not(tr) {
    It was a container query until 2026-08-12. Do not put it back:
    `container-type` establishes a containment context, and on iOS
    Safari one wrapped around a <video> or a cross-origin iframe renders
-   the whole subtree rotated and spinning. See DESIGN.md §10 and hako
+   the whole subtree rotated and spinning. See DESIGN.md
+   §"Measure against the container, not the viewport" and hako
    7bFYOh3vFZP9EEuf9Ym_5.
 
    60rem = 552px player + 384px rail + 24px gap.

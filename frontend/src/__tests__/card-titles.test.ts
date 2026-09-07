@@ -144,7 +144,7 @@ function elementAt(body: string, at: number): string | null {
 
 /**
  * The card tiles in a file: every element carrying the raised, rounded
- * treatment `DESIGN.md` §7 calls a card.
+ * treatment `DESIGN.md` §Cards calls a card.
  *
  * Keyed on the treatment, not on the filename — `*Card.tsx` is a naming
  * pattern, and this tree holds both cards not named `Card` and files
