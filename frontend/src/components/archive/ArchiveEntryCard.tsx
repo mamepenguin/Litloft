@@ -72,11 +72,9 @@ function ImageCard({
           // read out of the zip's directory, which carries none. But
           // the cell loads the original image rather than a thumbnail,
           // so the browser can be asked once it has one.
-          // Through the stops, like every other writer of `--jg-ratio`.
-          // A zip carries whatever was put in it, and the cell's height
-          // now comes from this number rather than being pinned, so an
-          // unstopped 12:1 scan draws a 28px band instead of a cropped
-          // row (measured on a 332px grid).
+          // Through the stops. A zip carries whatever was put in it, and
+          // a cell's height comes from this number, so a panoramic scan
+          // outside the stops is a band rather than a row.
           onLoad={(e) => {
             const img = e.currentTarget;
             if (img.naturalWidth > 0 && img.naturalHeight > 0) {

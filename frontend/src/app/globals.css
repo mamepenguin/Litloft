@@ -1284,22 +1284,18 @@ div[data-citation-section-path]:not(tr) {
      cells at 120px; the desktop value is where a 3:1 panorama stops
      out-resolving its 320px thumbnail.
 
-     Neither figure moves when a line takes its height from its ratios,
-     because a cell's height cannot reach its width — flex resolves the
-     main axis first. Measured over all 995 cells of the photo folder,
-     rendered by the app at 332 / 387 / 445 / 701 / 1052px of grid: every
-     cell is the same width to the pixel with the height pinned here and
-     with it taken from the ratio.
+     Neither figure has to move for a line to take its height from its
+     ratios, because a cell's height cannot reach its width — flex
+     resolves the main axis first, and the widths measure identical
+     either way.
 
-     That is only half of what the 200px figure was chosen against.
-     `cover` scales the stored 320x180 by `max(w / 320, h / 180)`, and
-     the height term is no longer a constant: worst scale over the same
-     995 cells goes 1.04 / 1.21 / 1.39 / 2.19 / 2.19 pinned to 1.67 /
-     1.67 / 1.65 / 2.78 / 2.19 derived, and the count drawn above 1:1
-     goes 279 / 32 / 9 / 995 / 995 to 313 / 140 / 119 / 995 / 995. The
-     trade is deliberate — the alternative to upscaling the picture is
-     cropping it — but the resolution ceiling for these two numbers is
-     now `--jg-row-h * --jg-max-stretch`, not `--jg-row-h`. */
+     That is only half of what the 200px figure was chosen against, and
+     the other half did move: `cover` scales the stored 320x180 by
+     `max(w / 320, h / 180)`, and the height term is `--jg-row-h *
+     --jg-max-stretch` rather than `--jg-row-h`, so more of the grid is
+     drawn above 1:1. The trade is deliberate — the alternative to
+     upscaling the picture is cropping it — and DESIGN.md carries the
+     measurement. */
   --jg-row-h: 120px;
   /* How far past `--jg-row-h` a line may grow before the picture starts
      being cropped again — see the `max-height` below. */
@@ -1310,19 +1306,16 @@ div[data-citation-section-path]:not(tr) {
   /* Every cell takes the height its own ratio asks for. Cells on one
      line all ask for the same one — they share the line's stretch
      factor — so the row is level either way, and with every cell
-     carrying an `aspect-ratio` this declaration is measurably inert:
-     toggling it to `stretch` moves the 995-photo folder by at most
-     0.047px of height and 0px of width at every one of the five grid
-     widths, and a 190-page archive by at most 0.031px.
+     carrying an `aspect-ratio` this declaration is inert on everything
+     the app draws.
 
      What it guards is the cell that has no ratio to take a height from,
      or whose content is taller than the one it has: there `stretch`
-     hands that height to every picture on the line. Measured at 332px,
-     two 0.7 pictures beside such a cell — 120 / 120 / 300 here, 300 /
-     300 / 300 under `stretch`. Nothing renders that today — every writer
-     of `--jg-ratio` goes through the stops, and the archive's text
-     branch clips — which is why it does not show up as a difference. It
-     is the reason the two are not the same choice. */
+     hands that height to every picture on the line, and `flex-start`
+     leaves it to the one cell. Nothing reaches that state today — no
+     cell is laid out outside the stops, and the archive's text branch
+     clips — which is why it does not show up as a difference. It is the
+     reason the two are not the same choice. */
   align-items: flex-start;
 }
 
@@ -1349,20 +1342,14 @@ div[data-citation-section-path]:not(tr) {
      width: a lone cell is the whole line, so its grow factor is its
      ratio, and a factor under 1 distributes only that fraction of the
      free space (Flexbox 9.7.4). The stops therefore bound this, but not
-     usefully — drive the ratios to the worst line each grid width admits
-     and the cell measures 392px at 332, 447px at 387, 488px at 445,
-     801px at 701 and 489px at 1052, up to 4.1x the basis.
+     usefully — driven to the worst line a grid width admits, a cell
+     reaches about 4x the basis.
 
      A cell that reaches this height keeps its width and gives up its
      ratio, so the crop returns for exactly the lines that need bounding
-     and nowhere else. 2.5 is measured on the 995-photo folder rendered
-     at those five widths: 4, 3, 0, 1 and 0 cells reach the ceiling and
-     the worst re-cropped picture loses 1.31x, against 3.28x for every
-     cell of every stretched line when the height is pinned. 2.0 costs 99
-     cells and 1.64x; 3.0 costs 2 and 1.09x but raises the cap to 360px
-     on a phone. At 1052 the worst line any folder admits is 489px, so
-     nothing can reach the 500px ceiling there — the 0 is arithmetic,
-     not evidence. */
+     and nowhere else. 2.5 rather than 2.0 or 3.0 is a measured trade
+     between how many pictures the ceiling re-crops and how tall it lets
+     a line become; DESIGN.md carries the three of them side by side. */
   max-height: calc(var(--jg-row-h) * var(--jg-max-stretch));
   /* A flex item's automatic minimum is its min-content width, and the
      grid these cells replaced was `repeat(N, minmax(0, 1fr))` — a floor

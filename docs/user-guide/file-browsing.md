@@ -119,13 +119,13 @@ so the black bars that a 16:9 card puts around them are gone.
 One row can be much taller than its neighbours — a single narrow
 picture ends up on a line of its own, takes most of the width, and its
 height follows. That is capped at two and a half times the row's usual
-height; a picture that runs into the cap is cropped to fit, which on a
-folder of a thousand photographs happened to eight of them.
+height, and a picture that runs into the cap is cropped to fit. On a
+folder of a thousand photographs, a handful of rows on a phone reach it
+and none do on a wide screen.
 
-*Most* of the width, not all: a lone picture taller than it is wide
-stops short of the right-hand edge, and the narrower it is the larger
-the gap. On that same folder it happened on five rows out of eleven
-hundred, by up to 15px.
+*Almost* to the edge, in one case: a lone picture taller than it is
+wide stops a little short of the right-hand side, and the narrower it is
+the larger the gap.
 
 There is no switch for this. The grid packs when at least nine of every
 ten files in view are images whose dimensions are known, which is what

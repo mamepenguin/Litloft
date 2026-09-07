@@ -33,14 +33,18 @@ export const JG_MAX_RATIO = 3;
 export const JG_FALLBACK_RATIO = 1;
 
 /**
- * The stops, applied to a ratio from any source.
+ * The stops, applied to a ratio measured from a picture.
  *
- * Every path that writes `--jg-ratio` goes through this, not only the
- * one that reads the database: the row's height comes from the ratio, so
- * an unstopped one is no longer a wide cell that `cover` crops but a
- * band. Measured with a 12:1 entry, which a scanned panorama in a zip
- * produces: 332x28 on a phone and 1052x88 on a desktop, against the
- * 332x111 and 1052x200 the 3.0 stop gives it.
+ * A cell's height comes from its ratio, so a ratio outside the stops is
+ * not a wide cell that `object-fit: cover` crops but a band. Both places
+ * that measure a picture pass through here: `justifiedRatio` below, for
+ * the dimensions the scanner stored, and the archive grid, for the
+ * `naturalWidth` of a page it has decoded.
+ *
+ * The values that stand in for a picture — `JG_FALLBACK_RATIO`, and the
+ * archive's `UNMEASURED_PAGE_RATIO` and `NON_IMAGE_RATIO` — do not pass
+ * through here. They are inside the stops as written, and
+ * `archiveJustifiedCells.test.tsx` is where that is asserted.
  */
 export function clampRatio(ratio: number): number {
   if (!Number.isFinite(ratio) || ratio <= 0) return JG_FALLBACK_RATIO;

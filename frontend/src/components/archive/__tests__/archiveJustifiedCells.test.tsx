@@ -17,7 +17,11 @@ import {
   NON_IMAGE_RATIO,
   UNMEASURED_PAGE_RATIO,
 } from "../ArchiveEntryCard";
-import { JG_MAX_RATIO, JG_MIN_RATIO } from "@/lib/justifiedGrid";
+import {
+  JG_FALLBACK_RATIO,
+  JG_MAX_RATIO,
+  JG_MIN_RATIO,
+} from "@/lib/justifiedGrid";
 import { viewerTakesCanvasFloor } from "@/lib/fileDetailShell";
 import type { ArchiveEntry } from "@/types";
 
@@ -158,11 +162,10 @@ describe("archive grid cells", () => {
   });
 
   it("stops a page whose proportions are outside the row's range", () => {
-    // A zip carries whatever was put in it, and the cell's height now
-    // comes from this number instead of being pinned to `--jg-row-h`.
-    // Unstopped, a 12:1 scan measures 332x28 on a phone grid and
-    // 1052x88 on a desktop one; through the stops it is 332x111 and
-    // 1052x200, cropped by `object-fit: cover` like every other extreme.
+    // A zip carries whatever was put in it, and a cell's height comes
+    // from this number, so a page outside the stops is a band rather
+    // than a row. Inside them it is cropped by `object-fit: cover`, the
+    // same trade the file grid makes for an extreme photograph.
     // Literals, not the constants, for the reason the 0.7 test gives.
     for (const [w, h, want] of [
       [12000, 1000, 3],
@@ -178,6 +181,23 @@ describe("archive grid cells", () => {
     }
     // The same stops the file grid uses, not a second pair beside them.
     expect([JG_MIN_RATIO, JG_MAX_RATIO]).toEqual([0.5, 3]);
+  });
+
+  it("keeps every unmeasured stand-in inside the stops", () => {
+    // `clampRatio` is on the two paths that measure a picture, and only
+    // those. The other three values a cell can carry are constants, and
+    // what makes "no cell is laid out outside the stops" true is that
+    // each of them is written inside the range rather than clamped at
+    // use. Nothing else says so, and a fourth constant added outside the
+    // range would draw a band.
+    for (const [name, value] of [
+      ["UNMEASURED_PAGE_RATIO", UNMEASURED_PAGE_RATIO],
+      ["NON_IMAGE_RATIO", NON_IMAGE_RATIO],
+      ["JG_FALLBACK_RATIO", JG_FALLBACK_RATIO],
+    ] as const) {
+      expect(value, name).toBeGreaterThanOrEqual(JG_MIN_RATIO);
+      expect(value, name).toBeLessThanOrEqual(JG_MAX_RATIO);
+    }
   });
 
   it("keeps folders and binaries square", () => {
