@@ -1035,22 +1035,28 @@ non-`.md` files.
 
 All animations are disabled under `@media (prefers-reduced-motion: reduce)`.
 
-### A change to a list's contents is carried, not cut to
+### A page appended to a list is carried, not cut to
 
-Where the set of cells in a listing is replaced — a page of infinite scroll
-arriving, a filter, a re-sort — the cells that were already there travel from
-where they were rather than appearing at their new size and position in one
+When a page of infinite scroll arrives, the cells that were already there travel
+from where they were rather than appearing at their new size and position in one
 frame. The previous rect is inverted with a `transform` and released (FLIP);
 200ms, `ease-out`, as the table above.
 
 - **A cell that did not exist has no previous position**, so it is never moved
   into place. It fades in over the same 200ms.
-- **A resize is not one of these changes.** Following a drag frame by frame
-  reads as weight; the rule is for discrete changes only, and a grid whose own
-  width moved between two commits is left to snap.
+- **A grid whose own width moved is left to snap**, and so is the first change
+  to arrive after it moved. Following a drag frame by frame reads as weight, and
+  the width the cells were last measured against is what says whether this is
+  that drag. A sort, a Filter-menu change and the in-folder text filter all land
+  here — the first two empty the list before the replacement arrives, the third
+  takes the scrollbar with it — so **none of them are carried**. Do not write a
+  rule here that says they are without measuring it again.
 - **Under `prefers-reduced-motion: reduce` no transform is written at all.**
   Shortening the transition is not enough on its own — the inverted frame is
   painted before the transition starts.
+- **The duration lives in two places** — the CSS state and the hook that takes
+  the marks off after it. A test compares them; the drift is silent otherwise,
+  and only in one direction.
 
 `hooks/useJustifiedFlip.ts` and the two `.justified-grid-cell[data-flip]` states
 in `globals.css`.

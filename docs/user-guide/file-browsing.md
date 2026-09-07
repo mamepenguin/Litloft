@@ -133,8 +133,13 @@ row above it, and its pictures grow. They travel to their new size
 rather than snapping to it, and the pictures that have just arrived fade
 in. Nothing above that row moves — rows are filled from the left as far
 as they go, so a picture loaded later can never land on an earlier row.
-Dragging the window to a new width is not animated, and none of this
-plays if your system asks for reduced motion.
+
+Only that arrival is carried. Dragging the window to a new width is not
+animated, and neither is the first page that arrives after the drag —
+one page later it is back. Sorting, the Filter menu and the in-folder
+filter all redraw rather than travel, because each of them changes the
+width the row is measured against or clears the list before the new one
+arrives. And none of it plays if your system asks for reduced motion.
 
 There is no switch for this. The grid packs when at least nine of every
 ten files in view are images whose dimensions are known, which is what

@@ -8,8 +8,8 @@
  * like no rule at all.
  */
 
-import { describe, it, expect, vi, beforeAll } from "vitest";
-import { cleanup, fireEvent, render, screen } from "@testing-library/react";
+import { describe, it, expect, vi, beforeAll, afterAll } from "vitest";
+import { act, cleanup, fireEvent, render, screen } from "@testing-library/react";
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
 
@@ -58,6 +58,7 @@ vi.mock("@/lib/api", () => ({
 
 import { FileGrid } from "../FileGrid";
 import { JG_MAX_RATIO, JG_MIN_RATIO } from "@/lib/justifiedGrid";
+import { FLIP_DURATION_MS } from "@/hooks/useJustifiedFlip";
 import { formatRelativeDate } from "@/lib/format";
 import type { FileItem } from "@/types";
 
@@ -234,6 +235,153 @@ describe("FileGrid — justified rows", () => {
     // Three orders above the largest total a line can present: even a
     // line of a hundred 3:1 panoramas sums to 300.
     expect(grow).toBeGreaterThan(JG_MAX_RATIO * 1000);
+  });
+
+  describe("the append transition", () => {
+    /**
+     * The two rules carry the whole visible behaviour: `invert` is
+     * `transition: none` so the previous rect is taken without a play,
+     * and `play` is the 200ms that runs it back. Deleting either leaves
+     * the hook writing transforms nothing interpolates.
+     */
+    const invertRule = rule('.justified-grid-cell[data-flip="invert"]');
+    const playRule = rule('.justified-grid-cell[data-flip="play"]');
+
+    it("holds the invert still and plays the release", () => {
+      expect(invertRule).toMatch(/transition:\s*none/);
+      expect(playRule).toMatch(/transition:\s*[^;]*transform\s+\d+ms/);
+      expect(playRule).toMatch(/opacity\s+\d+ms/);
+    });
+
+    it("inverts about the corner a flex line lays out from, in both states", () => {
+      // `center` here and the invert lands on the wrong point: every
+      // cell starts half its own growth off its old position and drifts
+      // sideways as it plays. Both states need it — the value has to be
+      // in force for the write *and* for the release.
+      for (const [name, decls] of [
+        ["invert", invertRule],
+        ["play", playRule],
+      ] as const) {
+        expect(decls, `transform-origin on ${name}`).toMatch(
+          /transform-origin:\s*top left/,
+        );
+      }
+    });
+
+    /**
+     * The listing actually playing it.
+     *
+     * `useJustifiedFlip.test.tsx` renders its own fixture, which sets
+     * `data-flip-key` itself and calls the hook itself, so it cannot
+     * notice either connecting line disappearing — the
+     * `useJustifiedFlip(justifiedRef)` call in `FileGrid` or the
+     * attribute on the cell. This renders the real component and appends
+     * to it.
+     *
+     * jsdom lays nothing out, so the boxes are scripted: four cells on
+     * one unstretched last line, then two more arrive and that line
+     * fills the row.
+     */
+    const boxes = new Map<string, [number, number, number, number]>();
+    let realRect: PropertyDescriptor;
+
+    const script = (entries: Record<string, [number, number, number, number]>) => {
+      boxes.clear();
+      for (const [key, value] of Object.entries(entries)) boxes.set(key, value);
+    };
+
+    // Put back for the sibling tests in this file, which render the same
+    // component and would otherwise measure a script that is not theirs.
+    beforeAll(() => {
+      const found = Object.getOwnPropertyDescriptor(
+        Element.prototype,
+        "getBoundingClientRect",
+      );
+      if (!found) throw new Error("jsdom no longer owns getBoundingClientRect");
+      realRect = found;
+    });
+
+    afterAll(() => {
+      Object.defineProperty(Element.prototype, "getBoundingClientRect", realRect);
+    });
+
+    it("plays it on the real listing when a page is appended", async () => {
+      Object.defineProperty(Element.prototype, "getBoundingClientRect", {
+        configurable: true,
+        value(this: Element) {
+          const key = this.classList.contains("justified-grid")
+            ? "grid"
+            : this.getAttribute("data-flip-key");
+          const [left, top, width, height] = boxes.get(key ?? "") ?? [0, 0, 0, 0];
+          return {
+            x: left, y: top, left, top, width, height,
+            right: left + width, bottom: top + height,
+            toJSON: () => ({}),
+          } as DOMRect;
+        },
+      });
+      try {
+        script({
+          grid: [0, 0, 1000, 200],
+          p0: [0, 0, 200, 200], p1: [208, 0, 200, 200],
+          p2: [416, 0, 200, 200], p3: [624, 0, 200, 200],
+        });
+        const { container, rerender } = render(<FileGrid files={photos(4)} />);
+        expect(container.querySelectorAll("[data-flip]")).toHaveLength(0);
+
+        // The next page. The line that was last fills the row, so its
+        // four cells grow and the three after the first slide right.
+        script({
+          grid: [0, 0, 1000, 450],
+          p0: [0, 0, 244, 244], p1: [252, 0, 244, 244],
+          p2: [504, 0, 244, 244], p3: [756, 0, 244, 244],
+          p4: [0, 252, 400, 200], p5: [408, 252, 400, 200],
+        });
+        await act(async () => {
+          rerender(<FileGrid files={photos(6)} />);
+        });
+
+        // Four carried, two faded in. Exact: a scan that stops seeing one
+        // of them is the failure this is here to catch.
+        expect(
+          [...container.querySelectorAll("[data-flip]")].map((cell) => [
+            cell.getAttribute("data-flip-key"),
+            cell.getAttribute("data-flip"),
+          ]),
+        ).toEqual([
+          ["p0", "play"], ["p1", "play"], ["p2", "play"],
+          ["p3", "play"], ["p4", "play"], ["p5", "play"],
+        ]);
+      } finally {
+        Object.defineProperty(Element.prototype, "getBoundingClientRect", realRect);
+        boxes.clear();
+      }
+    });
+
+    it("agrees with the hook about how long the play lasts", () => {
+      // Two copies by necessity — a CSS declaration and a JS timer — and
+      // the drift is silent and one-directional. `settle` removes
+      // `data-flip` at `FLIP_DURATION_MS + 50`, which removes
+      // `transition-property` and cancels a play still running: a CSS
+      // duration longer than the constant makes every play jump to its
+      // end value part-way through. Read off the stylesheet by a
+      // different implementation than the one that writes it.
+      const durations = [...playRule.matchAll(/(\d+)ms/g)].map((m) => Number(m[1]));
+      expect(durations).toHaveLength(2);
+      for (const ms of durations) expect(ms).toBe(FLIP_DURATION_MS);
+    });
+  });
+
+  it("names every cell with the file's own id, for the transition to key on", () => {
+    // `useJustifiedFlip` recognises a cell across a re-render by this
+    // attribute and nothing else, and the hook's own suite renders a
+    // fixture that sets it by hand — so without this the attribute can
+    // be deleted from the real cell with every test still green.
+    const files = photos(7);
+    const { container } = render(<FileGrid files={files} />);
+    expect(
+      [...cells(container)].map((cell) => cell.getAttribute("data-flip-key")),
+    ).toEqual(files.map((file) => file.id));
   });
 
   it("carries no meta row", () => {

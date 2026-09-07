@@ -3,9 +3,15 @@
 import { useCallback, useEffect, useLayoutEffect, useRef, type RefObject } from "react";
 
 /**
- * Carries a justified grid across a change to its cell set — a page of
- * infinite scroll arriving, a filter, a re-sort — instead of cutting to
- * the new layout in one frame.
+ * Carries a justified grid across a page of infinite scroll arriving,
+ * instead of cutting to the new layout in one frame.
+ *
+ * Appends are the only change that reaches this. A sort or a Filter-menu
+ * change goes through `useFolderFiles`'s reset key, which empties the
+ * list before the replacement arrives, and the in-folder text filter
+ * takes the scrollbar with it when it narrows — 1189px to 1200px on the
+ * folder below. Both are refused here, by the two guards further down,
+ * and refusing them is right: neither is a change to *this* layout.
  *
  * What a change actually moves, measured on the 995-photograph folder at
  * a 1189px grid: nothing above the last line. `flex-wrap` fills lines
@@ -17,12 +23,20 @@ import { useCallback, useEffect, useLayoutEffect, useRef, type RefObject } from 
  * after the first slides right. Three moved and four resized in one
  * measured round; one resized and none moved in the next.
  *
- * The scale is uniform. A line's cells share their free space in
- * proportion to `flex-grow`, which is `--jg-ratio`, so every width on the
- * line ends up multiplied by the same factor — and `aspect-ratio` carries
- * the height along by that same factor. Inverting the change is therefore
- * a zoom, not a squash, and the picture inside is not distorted while it
- * plays.
+ * The scale is uniform **while `max-height` does not bind**. A line's
+ * cells share their free space in proportion to `flex-grow`, which is
+ * `--jg-ratio`, so every width on the line ends up multiplied by the same
+ * factor — and `aspect-ratio` carries the height along by that same
+ * factor. Inverting that is a zoom rather than a squash, and the picture
+ * is not distorted while it plays; measured `|sx - sy| <= 9.7e-5` over 68
+ * inversions.
+ *
+ * Where the cap binds, the height stops following the width and the two
+ * factors come apart by construction — 0.31 against 0.40 in a
+ * constructed 332px case. That frame is a squash. It is left alone
+ * rather than corrected: no append has been observed reaching it, and
+ * forcing the width factor onto both axes would land every cell off its
+ * old height to fix a case nobody has seen.
  *
  * No clipping is needed while it plays: the inverted cell sits at its own
  * previous rect, which was inside a grid of the same width, and the
@@ -37,8 +51,17 @@ const KEY_ATTR = "data-flip-key";
 /** Reads the two states in globals.css. */
 const FLIP_ATTR = "data-flip";
 
-/** Matches the transition in `.justified-grid-cell[data-flip="play"]`. */
-const DURATION_MS = 200;
+/**
+ * The play, and the delay after which the marks come off.
+ *
+ * Exported because the same number is written again as `200ms` in
+ * `.justified-grid-cell[data-flip="play"]`, and the two have to agree:
+ * `settle` removes `data-flip`, which removes `transition-property` and
+ * so cancels a play still running. A CSS duration longer than this one
+ * makes every play jump to its end value part-way through, silently.
+ * `justifiedGrid.test.tsx` reads the stylesheet and compares.
+ */
+export const FLIP_DURATION_MS = 200;
 
 /**
  * Below this a cell is where it was, and a transform that resolves to
@@ -48,10 +71,13 @@ const EPSILON_PX = 0.5;
 const EPSILON_SCALE = 0.005;
 
 /**
- * How far outside the window a cell is still worth animating. A re-sort
- * moves every cell in the listing and only the ones on screen are being
- * watched; the bound is what keeps the work proportional to the screen
- * rather than to the folder.
+ * How far outside the window a cell is still worth animating.
+ *
+ * An append moves one line, so this bounds nothing today. It is here for
+ * the shape of the loop rather than for a path that runs: the loop is
+ * over every cell in the listing, which on this folder is 995, and a
+ * bound proportional to the screen is what keeps a future change to the
+ * set from being proportional to the folder.
  */
 const VIEWPORT_MARGIN_PX = 400;
 
@@ -225,7 +251,7 @@ export function useJustifiedFlip(gridRef: RefObject<HTMLElement | null>): void {
       cell.style.transform = "";
       cell.style.opacity = "";
     }
-    timer.current = setTimeout(settle, DURATION_MS + 50);
+    timer.current = setTimeout(settle, FLIP_DURATION_MS + 50);
   });
 
   useEffect(() => settle, [settle]);
