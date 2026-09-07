@@ -74,7 +74,7 @@ export default function AdminLayout({
       // 403 is what this route displays, so "you cannot see this" is the
       // page's subject and gets the page's heading — not a special case
       // that keeps a hand-written one.
-      <div className="mx-auto max-w-2xl py-8">
+      <div className="mx-auto w-full min-w-0 max-w-2xl py-8">
         <PageHeader title={t("forbiddenTitle")} scope={t("forbiddenMessage")} />
       </div>
     );

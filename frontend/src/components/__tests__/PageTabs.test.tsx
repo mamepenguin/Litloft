@@ -184,4 +184,28 @@ describe("PageTabs", () => {
       expect(ungated).toEqual([]);
     });
   });
+
+  /**
+   * A mixed row is treated as navigating, and a navigating row has no
+   * panel — so the `<button>` half must not claim one. Mixed is the only
+   * shape where the guard is reachable: an all-`href` row never renders a
+   * button, so dropping `isNav ? undefined :` regressed nothing any test
+   * could see.
+   */
+  it("emits no aria-controls on a row that navigates", () => {
+    render(
+      <PageTabs
+        items={[
+          { key: "a", label: "A", href: "/a", controls: "panel-a", id: "tab-a" },
+          { key: "b", label: "B", controls: "panel-b", id: "tab-b" },
+        ]}
+        current="a"
+        label="Views"
+      />,
+    );
+    const button = screen.getByRole("button", { name: "B" });
+    expect(button.getAttribute("aria-controls")).toBeNull();
+    expect(button.getAttribute("role")).toBeNull();
+    expect(button.id).toBe("");
+  });
 });

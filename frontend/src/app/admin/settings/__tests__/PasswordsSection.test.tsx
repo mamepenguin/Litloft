@@ -12,6 +12,7 @@ import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { render, screen, fireEvent, waitFor } from "@testing-library/react";
 
 import { PasswordsSection } from "@/app/admin/settings/PasswordsSection";
+import { accentFills } from "@/__tests__/helpers/accentFills";
 
 const mockFetch = vi.fn();
 
@@ -30,6 +31,56 @@ function jsonResponse(data: unknown, status = 200) {
     headers: { "Content-Type": "application/json" },
   });
 }
+
+describe("PasswordsSection accent budget", () => {
+  /**
+   * 裁定 R2, in all three of this section's states.
+   *
+   * The page's one fill belongs to the thing it is for — saving a
+   * password — which lives inside the modal. "Add a password" is how you
+   * reach the form, not the act itself, so the header button is
+   * `secondary`; so is the public-mode button, which does the same thing
+   * from an empty list.
+   *
+   * All three are measured because all three were edited and nothing saw
+   * them: reverting either `secondary` left the whole suite green.
+   */
+  it("spends nothing with a list on screen and the modal closed", async () => {
+    mockFetch.mockResolvedValueOnce(
+      jsonResponse([{ password: "***", groups: ["default"] }]),
+    );
+    const { container } = render(<PasswordsSection />);
+    await waitFor(() => {
+      expect(screen.getAllByText("***").length).toBeGreaterThanOrEqual(1);
+    });
+    expect(accentFills(container)).toEqual([]);
+  });
+
+  it("spends exactly one once the modal that saves is open", async () => {
+    mockFetch.mockResolvedValueOnce(
+      jsonResponse([{ password: "***", groups: ["default"] }]),
+    );
+    const { container } = render(<PasswordsSection />);
+    await waitFor(() => {
+      expect(screen.getAllByText("***").length).toBeGreaterThanOrEqual(1);
+    });
+    fireEvent.click(screen.getByRole("button", { name: /追加|add/i }));
+    expect(accentFills(container)).toHaveLength(1);
+  });
+
+  it("spends nothing in public mode either", async () => {
+    // `[]` is the graceful-degradation state: no passwords configured, so
+    // every drive is public and the section offers to start protecting.
+    mockFetch.mockResolvedValueOnce(jsonResponse([]));
+    const { container } = render(<PasswordsSection />);
+    await waitFor(() => {
+      expect(
+        screen.getByRole("button", { name: /有効|enable/i }),
+      ).toBeInTheDocument();
+    });
+    expect(accentFills(container)).toEqual([]);
+  });
+});
 
 describe("PasswordsSection", () => {
   it("loads masked passwords and shows '***' (never the real value)", async () => {

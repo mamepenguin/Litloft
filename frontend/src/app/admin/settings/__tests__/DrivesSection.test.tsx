@@ -10,6 +10,7 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { render, screen, fireEvent, waitFor } from "@testing-library/react";
 
+import { accentFills } from "@/__tests__/helpers/accentFills";
 import { DrivesSection } from "@/app/admin/settings/DrivesSection";
 
 const mockFetch = vi.fn();
@@ -34,6 +35,30 @@ const initialDrives = [
   { name: "main", path: "/data/main", access_group: "default" },
   { name: "private", path: "/data/private", access_group: "secret" },
 ];
+
+describe("DrivesSection accent budget", () => {
+  /**
+   * The page's one fill belongs to the thing it is for, which is saving a
+   * setting — not to "add a row", which is how you get to the form that
+   * saves one. So the section header spends nothing, and the modal that
+   * opens over it spends exactly one.
+   *
+   * The two states are measured separately because a modal is a second
+   * surface: it is not on screen until it is, and a single measurement of
+   * the closed page would say nothing about what the open one spends.
+   */
+  it("spends nothing until the modal that saves something is open", async () => {
+    mockFetch.mockResolvedValueOnce(jsonResponse(initialDrives));
+    const { container } = render(<DrivesSection />);
+    await waitFor(() => {
+      expect(screen.getByText("main")).toBeInTheDocument();
+    });
+    expect(accentFills(container)).toEqual([]);
+
+    fireEvent.click(screen.getByRole("button", { name: /add/i }));
+    expect(accentFills(container)).toHaveLength(1);
+  });
+});
 
 describe("DrivesSection", () => {
   it("loads drives from API on mount and shows the list", async () => {

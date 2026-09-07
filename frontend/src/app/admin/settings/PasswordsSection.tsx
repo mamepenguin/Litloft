@@ -35,8 +35,7 @@ function describeError(
       if (!message.startsWith("errors.")) {
         return {
           message,
-          field:
-            typeof detail === "object" ? detail?.field : undefined,
+          field: typeof detail === "object" ? detail?.field : undefined,
         };
       }
     }
@@ -148,7 +147,7 @@ export function PasswordsSection(): React.ReactElement {
         {!isPublic && (
           <div className="flex-shrink-0">
             <Button
-              variant="primary"
+              variant="secondary"
               size="sm"
               onClick={openAdd}
               className="whitespace-nowrap"
@@ -159,9 +158,7 @@ export function PasswordsSection(): React.ReactElement {
         )}
       </div>
 
-      {loadError && (
-        <p className="mb-3 text-xs text-danger">{loadError}</p>
-      )}
+      {loadError && <p className="mb-3 text-xs text-danger">{loadError}</p>}
 
       {entries === null ? (
         <p className="text-xs text-text-muted">…</p>
@@ -169,7 +166,7 @@ export function PasswordsSection(): React.ReactElement {
         <div className="rounded-2xl bg-bg-elevated p-4">
           <p className="mb-3 text-sm text-text-primary">{t("publicMode")}</p>
           <Button
-            variant="primary"
+            variant="secondary"
             size="sm"
             onClick={openAdd}
             className="whitespace-nowrap"
@@ -267,9 +264,7 @@ function PasswordModal({
             />
           </label>
         </div>
-        {error && (
-          <p className="mt-3 text-xs text-danger">{error.message}</p>
-        )}
+        {error && <p className="mt-3 text-xs text-danger">{error.message}</p>}
         <div className="mt-4 flex justify-end gap-2">
           <button
             type="button"
@@ -278,13 +273,9 @@ function PasswordModal({
           >
             {t("cancelButton")}
           </button>
-          <button
-            type="button"
-            onClick={onSave}
-            className="rounded-2xl bg-accent px-4 py-2 text-sm font-medium text-white hover:bg-accent-hover"
-          >
+          <Button variant="primary" onClick={onSave}>
             {t("saveButton")}
-          </button>
+          </Button>
         </div>
       </div>
     </div>

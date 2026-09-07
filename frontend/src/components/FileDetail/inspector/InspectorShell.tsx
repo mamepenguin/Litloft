@@ -124,7 +124,7 @@ export function InspectorShell({
                 onClick={() => setActiveId(tab.id)}
                 className={`whitespace-nowrap border-b-2 px-3 py-2 text-xs font-medium transition-colors pointer-coarse:min-h-11 ${
                   selected
-                    ? "border-accent text-text-primary"
+                    ? "border-accent font-semibold text-text-primary"
                     : "border-transparent text-text-muted hover:text-text-primary"
                 }`}
               >

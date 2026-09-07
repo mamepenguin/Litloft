@@ -19,6 +19,20 @@ export interface PageTabItem {
    */
   href?: string;
   icon?: LucideIcon;
+  /**
+   * The `id` of the `role="tabpanel"` this tab swaps in.
+   *
+   * Only meaningful on a row that does not navigate: `role="tab"` promises
+   * a screen reader there is a panel, and without `aria-controls` there is
+   * no way to say which. A navigating row replaces the page and has no
+   * panel to point at, so it is ignored there.
+   */
+  controls?: string;
+  /**
+   * The `id` put on the rendered tab, so its panel can point back with
+   * `aria-labelledby`. `InspectorShell` already pairs the two this way.
+   */
+  id?: string;
 }
 
 export interface PageTabsProps {
@@ -92,8 +106,10 @@ export function PageTabs({ items, current, onSelect, label }: PageTabsProps) {
           <button
             key={item.key}
             type="button"
+            id={isNav ? undefined : item.id}
             role={isNav ? undefined : "tab"}
             aria-selected={isNav ? undefined : active}
+            aria-controls={isNav ? undefined : item.controls}
             // No `aria-current="page"` here. It names the current *page* in a
             // set of navigations, and this branch does not navigate — the
             // state a tab is in is `aria-selected`, and carrying both says the

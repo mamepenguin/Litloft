@@ -700,7 +700,8 @@
         "loadFailed": "Failed to load addon policy",
         "saveFailed": "Failed to save",
         "unknown_addon": "Addon does not exist in manifest"
-      }
+      },
+      "tableLabel": "Addon policy by drive"
     },
     "restartBanner": {
       "title": "Pending changes — restart required",
@@ -708,7 +709,8 @@
       "copyCommand": "docker compose restart backend",
       "copyButton": "Copy",
       "copied": "Copied"
-    }
+    },
+    "tabsLabel": "Settings sections"
   },
   "text": {
     "fileSizeLarge": "File is large ({size})",

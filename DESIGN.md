@@ -757,9 +757,18 @@ every test.)
 
 Two styles were retired for it. The pill (`ModeTabs`) painted its selected tab
 `bg-accent text-white` — the page's one accent fill (§2.2) spent on saying which
-tab you are already looking at. The segmented control on `/admin/settings` is a
-third; it survives until that screen is rebuilt (UI redesign Phase 4) and is the
-one exception in the tree.
+tab you are already looking at. The segmented control on `/admin/settings` was
+the third, and it is gone: 案 16 rebuilt that screen onto `PageTabs` in Phase 4.
+
+**One hand-written instance remains, and it is this style rather than a fourth.**
+The inspector's tab strip (`components/FileDetail/inspector/InspectorShell.tsx`)
+draws the same recipe itself because it carries a roving `tabIndex` — one tab
+stop for the whole strip, with the arrows moving inside it — which `PageTabs`
+does not have and which a file's strip, running to a dozen entries, needs.
+`src/__tests__/tab-styles.test.ts` sweeps core and every addon for a second
+writer of either retired style, holds that exemption by name, and checks the
+inspector's selected and unselected class strings against `PageTabs`'s own so
+"the same recipe" stays true rather than being asserted here and drifting there.
 
 - **A row that navigates is not a tablist.** `role="tab"` promises a screen
   reader that activating the control swaps a panel in this view; a `<Link>`

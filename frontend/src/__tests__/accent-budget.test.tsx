@@ -199,6 +199,18 @@ const folderProps = {
  */
 const SCREENS: ReadonlyArray<{ screen: string; assertedIn: string }> = [
   { screen: "root drive picker", assertedIn: "src/app/__tests__/page.test.tsx" },
+  { screen: "admin dashboard", assertedIn: "src/app/admin/__tests__/AdminDashboard.test.tsx" },
+  {
+    screen: "admin markdown-images",
+    assertedIn: "src/app/admin/markdown-images/__tests__/MarkdownImagesPresenter.test.tsx",
+  },
+  // Three files, because this screen is assembled from three components
+  // and the page-level test mocks them out to measure its own chrome. A
+  // row naming one file would say the whole screen is measured there, and
+  // it is not — the ledger is what another author reads.
+  { screen: "admin settings — chrome", assertedIn: "src/app/admin/settings/__tests__/SettingsPage.test.tsx" },
+  { screen: "admin settings — drives", assertedIn: "src/app/admin/settings/__tests__/DrivesSection.test.tsx" },
+  { screen: "admin settings — passwords", assertedIn: "src/app/admin/settings/__tests__/PasswordsSection.test.tsx" },
   { screen: "folder toolbar", assertedIn: "src/__tests__/accent-budget.test.tsx" },
   { screen: "drive root", assertedIn: "src/__tests__/accent-budget.test.tsx" },
   { screen: "selection bar over a folder", assertedIn: "src/__tests__/accent-budget.test.tsx" },
@@ -296,9 +308,14 @@ describe("what counts as a fill at rest", () => {
 describe("accent budget", () => {
   afterEach(cleanup);
 
-  it("covers ten core screens, and each one somewhere that runs", () => {
+  it("covers fifteen core screens, and each one somewhere that runs", () => {
     expect(SCREENS.map((s) => s.screen)).toEqual([
       "root drive picker",
+      "admin dashboard",
+      "admin markdown-images",
+      "admin settings — chrome",
+      "admin settings — drives",
+      "admin settings — passwords",
       "folder toolbar",
       "drive root",
       "selection bar over a folder",

@@ -216,7 +216,7 @@ export function CollectionDetail({ drive, collectionId }: CollectionDetailProps)
 
   if (notFound || !detail) {
     return (
-      <div className="mx-auto max-w-4xl px-4 py-12">
+      <div className="mx-auto w-full min-w-0 max-w-4xl px-4 py-12">
         <button
           type="button"
           onClick={() => router.push(`/drive/${encodeURIComponent(drive)}`)}
