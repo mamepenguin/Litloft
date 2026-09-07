@@ -120,8 +120,8 @@ One row can be much taller than its neighbours — a single narrow
 picture ends up on a line of its own, takes most of the width, and its
 height follows. That is capped at two and a half times the row's usual
 height, and a picture that runs into the cap is cropped to fit. On a
-folder of a thousand photographs, a handful of rows on a phone reach it
-and none do on a wide screen.
+folder of a thousand photographs, a handful of pictures on a phone reach
+it, and at most one on a wide screen.
 
 *Almost* to the edge, in one case: a lone picture taller than it is
 wide stops a little short of the right-hand side, and the narrower it is

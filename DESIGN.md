@@ -1639,9 +1639,7 @@ A folder whose rows are all photographs does not go into equal cards.
 Every thumbnail is a 320×180 JPEG with the picture letterboxed inside
 it, so a grid of 16:9 cards draws black bars on three or four of every
 ten cells in a folder of portraits. Those rows are packed at their own
-proportions instead: variable widths and a height of its own per line,
-each line filled to the width — by its cells, or by the absorber at the
-end where the cells fall short of it.
+proportions instead: variable widths and a height of its own per line.
 
 **Which shape a listing gets is derived, not chosen.** `deriveListMeta`
 answers it from the rows that are loaded — `justifyThumbnails` is true
@@ -1749,10 +1747,9 @@ height it needs is a function of a width it has already produced.
 
 How far off a cell's proportions were, and how close they are now, was
 measured in Chrome on the app's own grid at five container widths, on a
-995-photo folder and on a 190-page manga archive. The figures are in the
-pull request that made the change; what belongs here is that a cell is at
-its picture's ratio, exactly, everywhere the ceiling below does not
-engage.
+995-photo folder and on a 190-page manga archive. What belongs here is
+that a cell is at its picture's ratio, exactly, everywhere the ceiling
+below does not engage.
 
 **A lone narrow cell does not fill its line.** `flex-grow` is the cell's
 ratio, and free space on a line whose grow factors sum to less than one
@@ -1773,7 +1770,7 @@ cells at different heights.
 Line-breaking is greedy, so a line can end up holding one narrow cell,
 and the width it takes then becomes height. The stops bound that but not
 usefully — driven to the worst line each grid width admits, a cell
-reaches about 4× the basis.
+reaches 2.4× to 4.1× the basis, depending on the width.
 `max-height: calc(var(--jg-row-h) * var(--jg-max-stretch))` stops there.
 A cell that reaches the ceiling keeps its width and gives up its ratio,
 so the crop comes back for exactly the lines that need bounding, and
@@ -1793,13 +1790,13 @@ than one of them:
 
 Against pinning the height, which cropped every cell of every line that
 had to stretch. 3.0 does not leave the folder untouched — it still
-catches two cells at 387px — it buys a handful and raises the cap by 60px
-on a phone and 100px at 1024px. That is the trade; 2.5 is the side of it
-this takes.
+catches two cells at 387px — and it raises the cap by 60px on a phone and
+100px at 1024px. That is the trade; 2.5 is the side of it this takes.
 
-The 0 at 1052 is arithmetic rather than evidence: the worst line that
-width admits is shorter than the ceiling, so nothing can reach it there
-at any of the three values.
+The 0 at 1052 is arithmetic rather than evidence at 2.5 and 3.0: the
+worst line that width admits is 489px, shorter than either the 500px or
+the 600px ceiling. At 2.0 the cap there is 400px, which that line does
+reach, so the 0 in that row is this folder's measurement.
 
 **`object-fit: cover` puts the padding back, so no thumbnail is
 regenerated.** The stored JPEG is the picture centred in a 320×180

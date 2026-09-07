@@ -126,9 +126,8 @@ const rules: [string, string][] = [
  * Every declaration the sheet makes for one selector, joined.
  *
  * Joined rather than "the first block": `.justified-grid` is written
- * twice, once plainly and once inside the container query, and a rule
- * that is overridden three hundred lines later is exactly the failure
- * these assertions exist to notice.
+ * twice, once plainly and once inside the container query, and both
+ * blocks are declarations about the same element.
  */
 const rule = (selector: string) => {
   const found = rules.filter(([sel]) => sel === selector);
@@ -464,16 +463,14 @@ describe("justified row geometry", () => {
    * So do not read these as guarding the geometry. There is no bound on
    * the ways CSS can give the cell a height — a later rule at any
    * specificity, `@media` / `@container` / `@layer`, an inline `style`,
-   * a `size-*` or `[height:…]` utility on the element — and two rounds of
-   * regex whitelists were each broken by a spelling the next one did not
-   * know. What is left is a narrow, honest claim: these declarations are
-   * present, and one of them is not accompanied by a competing `height`
-   * in its own block. That catches a declaration going missing. It does
-   * not catch one being overridden.
+   * a `size-*` or `[height:…]` utility on the element. What these assert
+   * is narrower: that these declarations are present, and that one of
+   * them is not accompanied by a competing `height` in its own block.
+   * That catches a declaration going missing. It does not catch one
+   * being overridden.
    *
    * The geometry itself was measured in Chrome on the app's own grid with
-   * all 995 cells of the photo folder rendered, at five container widths;
-   * the figures are in the pull request that made the change.
+   * all 995 cells of the photo folder rendered, at five container widths.
    */
   it("declares the cell's shape from its ratio", () => {
     expect(cellRule).toMatch(/aspect-ratio:\s*var\(--jg-ratio\)/);

@@ -1289,9 +1289,9 @@ div[data-citation-section-path]:not(tr) {
      resolves the main axis first, and the widths measure identical
      either way.
 
-     That is only half of what the 200px figure was chosen against, and
-     the other half did move: `cover` scales the stored 320x180 by
-     `max(w / 320, h / 180)`, and the height term is `--jg-row-h *
+     That is only half of what the 200px figure was chosen against:
+     `cover` scales the stored 320x180 by `max(w / 320, h / 180)`, and
+     the height term is `--jg-row-h *
      --jg-max-stretch` rather than `--jg-row-h`, so more of the grid is
      drawn above 1:1. The trade is deliberate — the alternative to
      upscaling the picture is cropping it — and DESIGN.md carries the
@@ -1343,7 +1343,7 @@ div[data-citation-section-path]:not(tr) {
      ratio, and a factor under 1 distributes only that fraction of the
      free space (Flexbox 9.7.4). The stops therefore bound this, but not
      usefully — driven to the worst line a grid width admits, a cell
-     reaches about 4x the basis.
+     reaches 2.4x to 4.1x the basis, depending on the width.
 
      A cell that reaches this height keeps its width and gives up its
      ratio, so the crop returns for exactly the lines that need bounding
