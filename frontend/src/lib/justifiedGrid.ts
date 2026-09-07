@@ -32,6 +32,21 @@ export const JG_MAX_RATIO = 3;
  */
 export const JG_FALLBACK_RATIO = 1;
 
+/**
+ * The stops, applied to a ratio from any source.
+ *
+ * Every path that writes `--jg-ratio` goes through this, not only the
+ * one that reads the database: the row's height comes from the ratio, so
+ * an unstopped one is no longer a wide cell that `cover` crops but a
+ * band. Measured with a 12:1 entry, which a scanned panorama in a zip
+ * produces: 332x28 on a phone and 1052x88 on a desktop, against the
+ * 332x111 and 1052x200 the 3.0 stop gives it.
+ */
+export function clampRatio(ratio: number): number {
+  if (!Number.isFinite(ratio) || ratio <= 0) return JG_FALLBACK_RATIO;
+  return Math.min(JG_MAX_RATIO, Math.max(JG_MIN_RATIO, ratio));
+}
+
 /** The aspect ratio a justified cell is laid out at, stops applied. */
 export function justifiedRatio(file: {
   image_width: number | null;
@@ -43,7 +58,7 @@ export function justifiedRatio(file: {
   // is `NaN`, which CSS drops silently — a cell laid out at whatever
   // `flex-basis: calc(NaN * ...)` falls back to.
   if (w == null || h == null || w <= 0 || h <= 0) return JG_FALLBACK_RATIO;
-  return Math.min(JG_MAX_RATIO, Math.max(JG_MIN_RATIO, w / h));
+  return clampRatio(w / h);
 }
 
 /** Whether this row can be laid out at its real proportions. */

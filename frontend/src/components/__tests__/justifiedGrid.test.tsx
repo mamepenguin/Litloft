@@ -113,17 +113,53 @@ const css = readFileSync(
   "utf8",
 );
 
-/** One declaration block, comments removed — comments carry the word
+/** `globals.css` with comments stripped — comments carry words like
  *  "height" in prose and would answer the assertions below. */
+const sheet = css.replace(/\/\*[\s\S]*?\*\//g, "");
+
+/** Every rule in the sheet, as `[selector, declarations]`. */
+const rules: [string, string][] = [
+  ...sheet.matchAll(/([^{}]+)\{([^{}]*)\}/g),
+].map((m) => [m[1].trim(), m[2]]);
+
+/**
+ * Every declaration the sheet makes for one selector, joined.
+ *
+ * Joined rather than "the first block": `.justified-grid` is written
+ * twice, once plainly and once inside the container query, and a rule
+ * that is overridden three hundred lines later is exactly the failure
+ * these assertions exist to notice.
+ */
 const rule = (selector: string) => {
-  const source = css.match(
-    new RegExp(`^${selector.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")} \\{([^}]*)\\}`, "m"),
-  );
-  if (!source) throw new Error(`no rule for ${selector} in globals.css`);
-  return source[1].replace(/\/\*[\s\S]*?\*\//g, "");
+  const found = rules.filter(([sel]) => sel === selector);
+  if (found.length === 0) throw new Error(`no rule for ${selector}`);
+  return found.map(([, decls]) => decls).join("\n");
 };
 const gridRule = rule(".justified-grid");
 const cellRule = rule(".justified-grid > .justified-grid-cell");
+
+/**
+ * Every rule that can size a justified cell.
+ *
+ * A selector list counts if any of its selectors ends in
+ * `.justified-grid-cell` — that is what "targets the cell" means here,
+ * and `.justified-grid-host .justified-grid-cell` has to be caught the
+ * same as the one rule that is meant to exist.
+ */
+const cellRules = rules.filter(([sel]) =>
+  sel
+    .split(",")
+    .some((one) => /\.justified-grid-cell(?::[a-z-]+)?$/.test(one.trim())),
+);
+
+/** The two files that put `justified-grid-cell` on an element. */
+const callSites = [
+  ["JustifiedFileCell.tsx", join(__dirname, "..", "JustifiedFileCell.tsx")],
+  [
+    "archive/ArchiveEntryCard.tsx",
+    join(__dirname, "..", "archive", "ArchiveEntryCard.tsx"),
+  ],
+] as const;
 
 const grid = (c: HTMLElement) => c.querySelector(".justified-grid");
 const cells = (c: HTMLElement) => c.querySelectorAll(".justified-grid-cell");
@@ -447,14 +483,61 @@ describe("justified row geometry", () => {
    * defect this replaces *was* a declaration — `height: var(--jg-row-h)`
    * beside `flex-grow: var(--jg-ratio)` takes the height from the row
    * and the width from the line, and the two disagree by however far the
-   * line had to stretch. The geometry itself is measured in a browser;
-   * `|cellAR - ratio|` ran 0.13-1.43 with a pinned height and 0.0002
-   * without one, over five container widths.
+   * line had to stretch. The geometry itself is measured in a browser,
+   * over all 995 cells of the photo folder as the app renders them, at
+   * 332 / 387 / 445 / 701 / 1052px of grid: `max |cellAR - ratio|` ran
+   * 1.77 / 2.20 / 2.21 / 2.17 / 0.90 with a pinned height and 0.12 /
+   * 0.29 / 0.0003 / 0.07 / 0.0001 without one. The tail of the derived
+   * figures is not rounding — it is the ceiling below, which gives up
+   * the ratio by design on the lines it catches.
+   *
+   * "Here" is the whole stylesheet, not one block. A later rule at the
+   * same or higher specificity restores the pinned geometry exactly —
+   * appending `.justified-grid-cell { height: var(--jg-row-h) }` to
+   * `globals.css` puts `max |cellAR - ratio|` back to 1.77 and 0.90 at
+   * 332 and 1052px, digit for digit — so a test that reads one block
+   * cannot see the defect come back.
    */
   it("takes a cell's height from its ratio and not from the row", () => {
     expect(cellRule).toMatch(/aspect-ratio:\s*var\(--jg-ratio\)/);
-    // Any `height` here wins over the ratio, which is the disagreement.
-    expect(cellRule).not.toMatch(/[;{\s]height\s*:/);
+    // Exactly one rule in the sheet sizes the cell, and it declares no
+    // `height` — a second one, anywhere later, would win over the ratio.
+    expect(cellRules).toHaveLength(1);
+    for (const [, decls] of cellRules) {
+      expect(decls).not.toMatch(/(?:^|[;{\s])height\s*:/);
+    }
+  });
+
+  it("puts no height utility on the cell element either", () => {
+    // The same blind spot from the other side: a `h-[120px]` in the
+    // className of the element carrying `justified-grid-cell` pins the
+    // height without touching the stylesheet. `h-full` happens to be
+    // inert on a flex item of an auto-height container (measured: the
+    // five widths are unchanged), but the rule that separates the two is
+    // not worth encoding — the cell element carries no height utility.
+    for (const [name, path] of callSites) {
+      const source = readFileSync(path, "utf8");
+      // `${CELL_CLASS}` is where the archive keeps most of its utilities,
+      // so an interpolation has to be followed or the check reads half
+      // the class list. String constants in the same file, only — an
+      // import would be a different file and a different question.
+      const consts = new Map(
+        [...source.matchAll(/const\s+(\w+)\s*=\s*"([^"]*)"/g)].map((m) => [
+          m[1],
+          m[2],
+        ]),
+      );
+      const resolve = (text: string) =>
+        text.replace(/\$\{(\w+)\}/g, (whole, id) => consts.get(id) ?? whole);
+      const classLists = [
+        ...[...source.matchAll(/`([^`]*justified-grid-cell[^`]*)`/g)].map((m) => m[1]),
+        ...[...source.matchAll(/"([^"]*justified-grid-cell[^"]*)"/g)].map((m) => m[1]),
+      ].map(resolve);
+      expect(classLists.length, `${name} names the cell class`).toBeGreaterThan(0);
+      for (const list of classLists) {
+        expect(list, name).not.toMatch(/(?:^|[\s:])(?:max-|min-)?h-/);
+      }
+    }
   });
 
   it("bounds how far a line may grow before the crop returns", () => {
@@ -472,11 +555,21 @@ describe("justified row geometry", () => {
     expect(stretch).toBe(2.5);
   });
 
-  it("lets each cell keep its own height inside the line", () => {
-    // `stretch` is the flex default, and it would hand the tallest cell's
-    // height to every cell beside it — an archive entry that puts a
-    // filename and a size in flow next to four pictures that did not.
-    expect(gridRule).toMatch(/align-items:\s*flex-start/);
+  it("lets a cell with no usable ratio keep its height to itself", () => {
+    // `stretch` is the flex default, and it hands the tallest cell's
+    // height to every cell beside it. With every cell carrying an
+    // `aspect-ratio` there is no tallest cell, so this is inert on
+    // everything the app renders today (measured: at most 0.047px of
+    // height across 995 photo cells and 190 archive cells). What it
+    // guards is the cell whose ratio does not apply, or whose content is
+    // taller than its ratio height: measured at 332px, two 0.7 pictures
+    // beside one are 120 / 120 / 300 under `flex-start` and 300 / 300 /
+    // 300 under `stretch`.
+    //
+    // `start` and `flex-start` are the same value in a flex container;
+    // rejecting the synonym would be a false failure at a later
+    // refactor.
+    expect(gridRule).toMatch(/align-items:\s*(?:flex-start|start)\s*;/);
   });
 
   it("gives the slack absorber no height", () => {
