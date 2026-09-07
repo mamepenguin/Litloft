@@ -499,6 +499,9 @@ will not touch them.
 
 ## See also
 
+- `.claude/rules/review-workflow.md` — the detector rules (what an enumerating
+  test must assert, and why a lower bound is never enough), and how a change is
+  reviewed before it merges.
 - [Backend development](backend-dev.md)
 - [Frontend development](frontend-dev.md)
 - [Contributing](contributing.md)

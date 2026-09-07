@@ -118,6 +118,7 @@ the rule you relied on when a review finding comes from one.
 | `backend/` | `.claude/rules/backend-conventions.md` |
 | `frontend/`, `addons/*/frontend/` | `.claude/rules/frontend-conventions.md` |
 | `backend/app/routers/internal.py` (adding, removing, or changing an endpoint) | `.claude/rules/internal-api-policy.md` |
+| Sending a change to review, or reviewing one (code or security) | `.claude/rules/review-workflow.md` |
 
 `AGENTS.md` is a symlink to this file, so Codex and Claude Code read the same
 project instructions. Agent-specific guidance does not belong here: it goes in
