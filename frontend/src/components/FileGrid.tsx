@@ -51,11 +51,10 @@ export function FileGrid({
   const [target, setTarget] = useState<FileItem | null>(null);
   const { ref: gridRef, columns } = useCardColumns();
   const justifiedRef = useRef<HTMLDivElement | null>(null);
-  // Carries the packed rows across a change to the set — the page that
-  // infinite scroll appends, a filter, a re-sort. Declared here rather
-  // than inside the branch below because a hook cannot be: the ref is
-  // null on every render that takes the card branch, and the hook does
-  // nothing then.
+  // Carries the packed rows across a change to the set. Declared here
+  // rather than inside the branch below because a hook cannot be: the
+  // ref is null on every render that takes the card branch, and the hook
+  // does nothing then.
   useJustifiedFlip(justifiedRef);
 
   // Decided once for the listing rather than per card: the question is

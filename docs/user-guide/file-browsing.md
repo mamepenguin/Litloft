@@ -134,12 +134,14 @@ rather than snapping to it, and the pictures that have just arrived fade
 in. Nothing above that row moves — rows are filled from the left as far
 as they go, so a picture loaded later can never land on an earlier row.
 
-Only that arrival is carried. Dragging the window to a new width is not
-animated, and neither is the first page that arrives after the drag —
-one page later it is back. Sorting, the Filter menu and the in-folder
-filter all redraw rather than travel, because each of them changes the
-width the row is measured against or clears the list before the new one
-arrives. And none of it plays if your system asks for reduced motion.
+The same travel happens whenever pictures that are already on screen
+stay on screen and simply re-flow — narrowing the in-folder filter does
+it too. What redraws instead is anything that clears the listing and
+reloads it from the top, such as changing the sort: there is nothing
+left on screen for the new pictures to have travelled from. Dragging the
+window to a new width does not animate either, and neither does the
+first page that arrives after the drag — one page later it is back. And
+none of it plays if your system asks for reduced motion.
 
 There is no switch for this. The grid packs when at least nine of every
 ten files in view are images whose dimensions are known, which is what

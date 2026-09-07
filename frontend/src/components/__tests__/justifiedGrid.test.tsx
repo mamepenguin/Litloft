@@ -341,17 +341,25 @@ describe("FileGrid — justified rows", () => {
           rerender(<FileGrid files={photos(6)} />);
         });
 
-        // Four carried, two faded in. Exact: a scan that stops seeing one
-        // of them is the failure this is here to catch.
+        // The post-condition, per cell: four carried and two faded in,
+        // each in the state whose rule carries the transition and each
+        // released — nothing inline still holding it off its layout box.
+        // Declared, not counted, and not read back off the elements.
         expect(
-          [...container.querySelectorAll("[data-flip]")].map((cell) => [
-            cell.getAttribute("data-flip-key"),
-            cell.getAttribute("data-flip"),
-          ]),
-        ).toEqual([
-          ["p0", "play"], ["p1", "play"], ["p2", "play"],
-          ["p3", "play"], ["p4", "play"], ["p5", "play"],
-        ]);
+          [...container.querySelectorAll<HTMLElement>("[data-flip]")].map((cell) => ({
+            key: cell.getAttribute("data-flip-key"),
+            flip: cell.getAttribute("data-flip"),
+            transform: cell.style.transform,
+            opacity: cell.style.opacity,
+          })),
+        ).toEqual(
+          ["p0", "p1", "p2", "p3", "p4", "p5"].map((key) => ({
+            key,
+            flip: "play",
+            transform: "",
+            opacity: "",
+          })),
+        );
       } finally {
         Object.defineProperty(Element.prototype, "getBoundingClientRect", realRect);
         boxes.clear();

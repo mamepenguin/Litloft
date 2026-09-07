@@ -1384,16 +1384,15 @@ div[data-citation-section-path]:not(tr) {
   height: 0;
 }
 
-/* The two states `useJustifiedFlip` puts a cell through when a page of
-   infinite scroll arrives. The transform is per cell and written from
-   JS; the duration and the easing are here, with the rest of DESIGN.md
-   §7 — and `justifiedGrid.test.tsx` checks the 200ms below against the
-   hook's own copy, because the hook takes its marks off at 250ms and a
+/* The two states `useJustifiedFlip` puts a cell through when the set of
+   cells changes. The transform is per cell and written from JS; the
+   duration and the easing are here, with the rest of DESIGN.md §7 — and
+   the tests read the 200ms below against both of the hook's own copies,
+   because the hook takes its marks off after a delay of its own and a
    longer duration here would cut every play short.
 
    `top left` in both: the hook inverts a change to the cell's own box by
    its top-left corner, which is the corner a flex line lays out from.
-   Only the line that was last changes, so nothing above the fold moves.
 
    The `prefers-reduced-motion` rule at the top of this file shortens the
    play to nothing, but the hook does not get that far — it asks

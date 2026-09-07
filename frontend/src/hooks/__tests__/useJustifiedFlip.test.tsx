@@ -2,7 +2,31 @@ import { describe, it, expect, beforeAll, afterAll, afterEach, vi } from "vitest
 import { render, act, waitFor } from "@testing-library/react";
 import { useRef } from "react";
 
-import { useJustifiedFlip } from "../useJustifiedFlip";
+import { readFileSync } from "node:fs";
+import { fileURLToPath } from "node:url";
+import { dirname, resolve } from "node:path";
+
+import { useJustifiedFlip, FLIP_DURATION_MS } from "../useJustifiedFlip";
+
+/**
+ * How long `.justified-grid-cell[data-flip="play"]` says the play lasts,
+ * read off the stylesheet. The other end of the pair the timer below has
+ * to outlast — `justifiedGrid.test.tsx` compares the same declaration
+ * against `FLIP_DURATION_MS`; this file compares it against the delay
+ * the hook actually schedules, which is the term the invariant is about
+ * and which no constant is proof of.
+ */
+const CSS_PLAY_MS = (() => {
+  const sheet = readFileSync(
+    resolve(dirname(fileURLToPath(import.meta.url)), "../../app/globals.css"),
+    "utf-8",
+  );
+  const block = /\.justified-grid-cell\[data-flip="play"\]\s*\{([^}]*)\}/.exec(sheet);
+  if (!block) throw new Error("no play rule in globals.css");
+  const durations = [...block[1].matchAll(/(\d+)ms/g)].map((m) => Number(m[1]));
+  if (durations.length === 0) throw new Error("no duration in the play rule");
+  return Math.max(...durations);
+})();
 
 /**
  * What is pinned here is the **branching**, not the geometry.
@@ -17,6 +41,32 @@ import { useJustifiedFlip } from "../useJustifiedFlip";
  * The rects below are a script, not a layout. They let the arithmetic
  * and the four ways out of it be exercised — which is what breaks when
  * someone edits the hook.
+ *
+ * ## What stays green here, and is meant to
+ *
+ * Five deletions leave this file passing, and none of them can be
+ * reached from jsdom. They are recorded rather than covered, because a
+ * jsdom assertion for any of them would pass for a reason unrelated to
+ * why the line exists, and would then have to be maintained as if it
+ * were evidence:
+ *
+ * - `void grid.offsetWidth`. The reflow between writing the invert and
+ *   arming the play. Deleting it stops every play from animating, and
+ *   jsdom resolves no styles, so nothing here can tell. The most
+ *   load-bearing line in the hook that no test reads.
+ * - `settle()` at the top of the layout effect. It exists so the
+ *   measurement reads the layout rather than a cell mid-play; the
+ *   fixtures script their rects, so a transform in flight changes
+ *   nothing they report.
+ * - `ease-out` → `linear` in the two CSS transitions.
+ * - `Math.round` on the measured width.
+ * - The unmount cleanup.
+ *
+ * All five want a browser. That is PR 1e's subject — `frontend/e2e/`
+ * exists but CI runs none of it, and a detector that does not run is not
+ * a detector. Adding jsdom stand-ins for them here would put the fourth
+ * instance of this PR's recurring defect into the file written to stop
+ * it: an assertion that looks like coverage and observes nothing.
  */
 
 interface Box {
@@ -163,6 +213,52 @@ function watchMotion(container: HTMLElement): Motion {
   };
 }
 
+/**
+ * Where a FLIP has to leave a cell once the play is armed — asked of the
+ * cell, not of a log of what the hook wrote.
+ *
+ * A log of writes cannot answer this. Every value the hook writes is
+ * also written by a hook that never takes it back: `invert` sets the
+ * transform, `play` clears it, and both land in one microtask, so the
+ * same strings appear in the record stream whether or not the release
+ * happened. Deleting `cell.style.transform = ""` used to pass every
+ * assertion in this file while, in a browser, holding the cell at its
+ * old rect for 250ms and then teleporting it — worse than not animating
+ * at all.
+ *
+ * The post-condition has no such blind spot, because it is a statement
+ * about the cell rather than about the hook: the cell is in the state
+ * whose rule carries the transition, and nothing inline is still holding
+ * it off the position the layout gave it. A missing release fails it, a
+ * missing `play` fails it, and both missing fails it.
+ *
+ * What it cannot say is that the position the layout gave it is the
+ * right one. jsdom lays nothing out and the rects here are a script, so
+ * "released to its layout box" is as far as this goes; that the box is
+ * the one the previous rect was inverted from is measured in a browser,
+ * not here.
+ */
+function armed(container: HTMLElement) {
+  return [...container.querySelectorAll<HTMLElement>("[data-flip]")].map((cell) => ({
+    key: cell.getAttribute("data-flip-key"),
+    flip: cell.getAttribute("data-flip"),
+    transform: cell.style.transform,
+    opacity: cell.style.opacity,
+  }));
+}
+
+/** The same question after the marks come off: nothing of ours is left. */
+function settled(container: HTMLElement) {
+  return [...container.querySelectorAll<HTMLElement>(".justified-grid-cell")].map(
+    (cell) => ({
+      key: cell.getAttribute("data-flip-key"),
+      flip: cell.getAttribute("data-flip"),
+      transform: cell.style.transform,
+      opacity: cell.style.opacity,
+    }),
+  );
+}
+
 /** `translate(dx, dy) scale(sx, sy)` out of one captured style string. */
 function invert(write: string) {
   const m = /transform: translate\((-?[\d.]+)px, (-?[\d.]+)px\) scale\(([\d.]+), ([\d.]+)\)/.exec(
@@ -211,6 +307,7 @@ describe("useJustifiedFlip", () => {
     const motion = watchMotion(container);
     expect(motion.styles).toEqual([]);
     expect(motion.marked).toEqual([]);
+    expect(armed(container)).toEqual([]);
     expect(container.querySelectorAll("[data-flip]")).toHaveLength(0);
   });
 
@@ -241,13 +338,16 @@ describe("useJustifiedFlip", () => {
     expect(motion.styles.filter((w) => /opacity: 0/.test(w))).toHaveLength(1);
     expect(motion.styles.filter((w) => /opacity: 0/.test(w))[0]).not.toContain("transform");
 
-    // The handoff, which is what makes any of it animate: `invert` is
-    // `transition: none` and `play` is the 200ms. A cell that never
-    // reaches `play` has its transform written and cleared inside one
-    // frame and snaps, with every style assertion above still passing.
-    // All three cells go through it — the two that move and the one
-    // that fades.
-    expect(motion.marked).toEqual(["a", "b", "c"]);
+    // The post-condition. Every animated cell is in the state whose rule
+    // carries the transition, and nothing inline is still holding it off
+    // its layout box. This is the assertion that a missing `play`, a
+    // missing release, or both together all fail — see `armed`.
+    expect(armed(container)).toEqual([
+      { key: "a", flip: "play", transform: "", opacity: "" },
+      { key: "b", flip: "play", transform: "", opacity: "" },
+      { key: "c", flip: "play", transform: "", opacity: "" },
+    ]);
+    // And each of them got there the one way that arms a transition.
     for (const key of ["a", "b", "c"]) {
       expect(motion.flip(key), `data-flip on ${key}`).toEqual(["invert", "play"]);
     }
@@ -266,6 +366,7 @@ describe("useJustifiedFlip", () => {
 
     expect(motion.styles).toEqual([]);
     expect(motion.marked).toEqual([]);
+    expect(armed(container)).toEqual([]);
     expect(container.querySelectorAll("[data-flip]")).toHaveLength(0);
   });
 
@@ -300,6 +401,7 @@ describe("useJustifiedFlip", () => {
 
     expect(motion.styles).toEqual([]);
     expect(motion.marked).toEqual([]);
+    expect(armed(container)).toEqual([]);
   });
 
   it("does not treat a different listing as a change to this one", async () => {
@@ -318,6 +420,7 @@ describe("useJustifiedFlip", () => {
 
     expect(motion.styles).toEqual([]);
     expect(motion.marked).toEqual([]);
+    expect(armed(container)).toEqual([]);
   });
 
   it("leaves a cell that did not move alone", async () => {
@@ -349,18 +452,60 @@ describe("useJustifiedFlip", () => {
     await act(async () => {
       rerender(<Grid keys={["a", "b", "c"]} />);
     });
-    // `toBe`, not a lower bound: `secondPage()` moves `a` and `b` and
-    // adds `c`, so three is the count every time, and a scan that stops
-    // seeing one of them is exactly what this is here to catch.
-    expect(container.querySelectorAll("[data-flip]")).toHaveLength(3);
+    // Declared per cell, not counted: `secondPage()` moves `a` and `b`
+    // and adds `c`, so all three are armed and released, every time.
+    expect(armed(container)).toEqual([
+      { key: "a", flip: "play", transform: "", opacity: "" },
+      { key: "b", flip: "play", transform: "", opacity: "" },
+      { key: "c", flip: "play", transform: "", opacity: "" },
+    ]);
 
     await waitFor(() => {
       expect(container.querySelectorAll("[data-flip]")).toHaveLength(0);
     });
     expect(motion.flip("a")).toEqual(["invert", "play", null]);
-    for (const cell of container.querySelectorAll<HTMLElement>(".justified-grid-cell")) {
-      expect(cell.style.transform).toBe("");
-      expect(cell.style.opacity).toBe("");
+    expect(settled(container)).toEqual([
+      { key: "a", flip: null, transform: "", opacity: "" },
+      { key: "b", flip: null, transform: "", opacity: "" },
+      { key: "c", flip: null, transform: "", opacity: "" },
+    ]);
+  });
+
+  it("keeps the marks on for at least as long as the stylesheet plays", async () => {
+    // The limit, written into the test rather than left in prose.
+    // `settle` removes `data-flip`, which removes `transition-property`
+    // and cancels a play still running, so the delay has to outlast the
+    // CSS duration — in that direction only. The constant is one of the
+    // two terms and proves neither: this runs the clock against the
+    // timer the hook actually schedules, and reads the other term out of
+    // the stylesheet.
+    expect(CSS_PLAY_MS).toBe(FLIP_DURATION_MS);
+    vi.useFakeTimers();
+    try {
+      firstPage();
+      const { container, rerender } = render(<Grid keys={["a", "b"]} />);
+      secondPage();
+      await act(async () => {
+        rerender(<Grid keys={["a", "b", "c"]} />);
+      });
+      expect(armed(container)).toHaveLength(3);
+
+      // Still playing at the last moment the stylesheet is animating.
+      await act(async () => {
+        vi.advanceTimersByTime(CSS_PLAY_MS);
+      });
+      expect(
+        armed(container),
+        `marks came off before the ${CSS_PLAY_MS}ms play finished`,
+      ).toHaveLength(3);
+
+      // And gone once the delay is up.
+      await act(async () => {
+        vi.advanceTimersByTime(1000);
+      });
+      expect(armed(container)).toEqual([]);
+    } finally {
+      vi.useRealTimers();
     }
   });
 
@@ -384,7 +529,10 @@ describe("useJustifiedFlip", () => {
     expect(inverts).toEqual([{ dx: 0, dy: 0, sx: 300 / 450, sy: 200 / 300 }]);
     // `c` is new and on screen, so it fades; `b` is off the bottom and
     // is not touched at all.
-    expect(motion.marked).toEqual(["a", "c"]);
+    expect(armed(container)).toEqual([
+      { key: "a", flip: "play", transform: "", opacity: "" },
+      { key: "c", flip: "play", transform: "", opacity: "" },
+    ]);
   });
 
   it("leaves the first change after a width change to snap as well", async () => {
@@ -414,6 +562,7 @@ describe("useJustifiedFlip", () => {
       rerender(<Grid keys={["a", "b", "c"]} />);
     });
     expect(motion.marked).toEqual([]);
+    expect(armed(container)).toEqual([]);
 
     // And the one after that, which has a baseline at the new width.
     layout.set(GRID, { left: 0, top: 0, width: 1400, height: 600 });
@@ -422,7 +571,7 @@ describe("useJustifiedFlip", () => {
     await act(async () => {
       rerender(<Grid keys={["a", "b", "c", "d"]} />);
     });
-    expect(motion.marked).toEqual(["a", "d"]);
+    expect(armed(container).map((cell) => cell.key)).toEqual(["a", "d"]);
   });
 
   it("re-measures only when the cell set changes", async () => {
@@ -441,5 +590,6 @@ describe("useJustifiedFlip", () => {
 
     expect(motion.styles).toEqual([]);
     expect(motion.marked).toEqual([]);
+    expect(armed(container)).toEqual([]);
   });
 });

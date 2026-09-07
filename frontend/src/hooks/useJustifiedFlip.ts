@@ -3,15 +3,18 @@
 import { useCallback, useEffect, useLayoutEffect, useRef, type RefObject } from "react";
 
 /**
- * Carries a justified grid across a page of infinite scroll arriving,
- * instead of cutting to the new layout in one frame.
+ * Carries a justified grid across a change to its cell set, instead of
+ * cutting to the new layout in one frame.
  *
- * Appends are the only change that reaches this. A sort or a Filter-menu
- * change goes through `useFolderFiles`'s reset key, which empties the
- * list before the replacement arrives, and the in-folder text filter
- * takes the scrollbar with it when it narrows — 1189px to 1200px on the
- * folder below. Both are refused here, by the two guards further down,
- * and refusing them is right: neither is a change to *this* layout.
+ * **Which changes reach it is decided by the guards below, not by naming
+ * the feature that caused them.** A change is carried when the cells
+ * still have somewhere to come from: some key survives the change, and
+ * the grid is the width it was measured at. A change that empties the
+ * listing first has no survivors, and one that moved the container has
+ * no measurement that still describes it — both are refused, whatever
+ * produced them. Do not record here which product controls land on which
+ * side: that answer depends on the width, the folder and how far a
+ * filter narrows, and it has been wrong twice.
  *
  * What a change actually moves, measured on the 995-photograph folder at
  * a 1189px grid: nothing above the last line. `flex-wrap` fills lines
@@ -33,10 +36,21 @@ import { useCallback, useEffect, useLayoutEffect, useRef, type RefObject } from 
  *
  * Where the cap binds, the height stops following the width and the two
  * factors come apart by construction — 0.31 against 0.40 in a
- * constructed 332px case. That frame is a squash. It is left alone
- * rather than corrected: no append has been observed reaching it, and
- * forcing the width factor onto both axes would land every cell off its
- * old height to fix a case nobody has seen.
+ * constructed 332px case. That frame is a squash.
+ *
+ * It is left alone rather than corrected, and the cost of correcting it
+ * is *not* the reason: putting the width factor on both axes would move
+ * an uncapped cell off its old height by `h * |sx - sy|`, which the
+ * figure above bounds at a twentieth of a pixel. The reason is that the
+ * correction is not obviously better than the defect — it replaces a
+ * squashed first frame with a capped cell starting at the wrong height —
+ * and that nothing has been observed reaching the cap to judge between
+ * them. Note what that absence is worth: at the 200px row height the cap
+ * needs a lone line of ratios summing under 2.38 followed by a cell of
+ * ratio over 3.56, and `JG_MAX_RATIO` is 3, so a wide grid cannot reach
+ * it at all. Only the 120px row height is a test of this, and roughly a
+ * sixth of this folder is portrait, so it is a pairing that has not come
+ * up rather than one the geometry excludes.
  *
  * No clipping is needed while it plays: the inverted cell sits at its own
  * previous rect, which was inside a grid of the same width, and the
@@ -54,14 +68,21 @@ const FLIP_ATTR = "data-flip";
 /**
  * The play, and the delay after which the marks come off.
  *
- * Exported because the same number is written again as `200ms` in
- * `.justified-grid-cell[data-flip="play"]`, and the two have to agree:
- * `settle` removes `data-flip`, which removes `transition-property` and
- * so cancels a play still running. A CSS duration longer than this one
- * makes every play jump to its end value part-way through, silently.
- * `justifiedGrid.test.tsx` reads the stylesheet and compares.
+ * The invariant is `FLIP_SETTLE_MS >= the CSS duration`, in that
+ * direction only. `settle` removes `data-flip`, which removes
+ * `transition-property` and so cancels a play still running: too short a
+ * delay makes every cell jump to its end value part-way through, and
+ * nothing about the page says so. Too long costs a stale attribute.
+ *
+ * Three copies of one number, so the tests read all three ends —
+ * `justifiedGrid.test.tsx` compares the stylesheet against
+ * `FLIP_DURATION_MS`, and `useJustifiedFlip.test.tsx` runs the clock
+ * forward against the timer this actually schedules.
  */
 export const FLIP_DURATION_MS = 200;
+
+/** How long the marks stay on. See `FLIP_DURATION_MS`. */
+export const FLIP_SETTLE_MS = FLIP_DURATION_MS + 50;
 
 /**
  * Below this a cell is where it was, and a transform that resolves to
@@ -73,11 +94,16 @@ const EPSILON_SCALE = 0.005;
 /**
  * How far outside the window a cell is still worth animating.
  *
- * An append moves one line, so this bounds nothing today. It is here for
- * the shape of the loop rather than for a path that runs: the loop is
- * over every cell in the listing, which on this folder is 995, and a
- * bound proportional to the screen is what keeps a future change to the
- * set from being proportional to the folder.
+ * Load-bearing on every change, not a guard against a hypothetical: a
+ * page arrives below the fold, so most of what arrives is outside this
+ * band and is left alone. Removing it would put an inline `opacity` on
+ * every cell in the listing instead — which is the whole folder, not the
+ * page.
+ *
+ * The band is measured against the window, while the listing scrolls
+ * inside a `<section>` that is shorter and offset under the header. That
+ * is generous in the safe direction: it can only include a cell that
+ * cannot be seen, never exclude one that can.
  */
 const VIEWPORT_MARGIN_PX = 400;
 
@@ -244,6 +270,11 @@ export function useJustifiedFlip(gridRef: RefObject<HTMLElement | null>): void {
     // resolved, or setting the end value in the same pass is not a change
     // for it to interpolate. Same idiom as `useOptimisticFileToggle`, and
     // one read covers every cell.
+    //
+    // Load-bearing and unreachable from jsdom, which resolves no styles:
+    // delete this line and every play stops animating with the whole
+    // suite still green. It is one of the survivors listed in
+    // `useJustifiedFlip.test.tsx`.
     void grid.offsetWidth;
 
     for (const cell of inFlight.current) {
@@ -251,7 +282,7 @@ export function useJustifiedFlip(gridRef: RefObject<HTMLElement | null>): void {
       cell.style.transform = "";
       cell.style.opacity = "";
     }
-    timer.current = setTimeout(settle, FLIP_DURATION_MS + 50);
+    timer.current = setTimeout(settle, FLIP_SETTLE_MS);
   });
 
   useEffect(() => settle, [settle]);
