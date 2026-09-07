@@ -18,7 +18,7 @@ A Litloft installation has:
 ## What you can do
 
 ### Browse and view
-- Home screen listing every drive you can see as a card with its file count. When drives you cannot see are still locked, the grid ends with an outlined card that leads to `/unlock` — it names nothing about what is behind it (see [drives and access control](drives-and-access.md)).
+- Home screen listing every drive you can see as a card with its file count. Where there is more than one drive to choose between, the sidebar does not list them again there — it folds to a single *Drives (N)* row you can open, so the page gives one answer rather than two. With a single drive the fold would be the same one line either way, so that drive is simply listed. When drives you cannot see are still locked, the grid ends with an outlined card that leads to `/unlock` — it names nothing about what is behind it (see [drives and access control](drives-and-access.md)).
 - Folder browser with grid and list modes, lazy-loaded thumbnails.
 - Video and audio players with byte-range streaming, resume from last position, subtitles, sprite scrubbing previews.
 - Chapters on media files, plus playback-following panels (chapters, transcript) that sit either as tabs in the file's inspector or in a bounded box under the player, whichever you choose — see [viewers and players](viewers-and-players.md).

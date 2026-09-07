@@ -1,6 +1,13 @@
 "use client";
 
-import { createContext, useCallback, useContext, useMemo, useState } from "react";
+import {
+  createContext,
+  useCallback,
+  useContext,
+  useEffect,
+  useMemo,
+  useState,
+} from "react";
 import { usePathname } from "next/navigation";
 
 interface CurrentDriveContextValue {
@@ -33,6 +40,26 @@ export function CurrentDriveProvider({ children }: { children: React.ReactNode }
   const [overrideFolderPath, setOverrideFolderPathState] = useState<string | null>(null);
 
   const pathDrive = driveFromPath(pathname);
+
+  /**
+   * An override belongs to the route that published it, and dies with it.
+   *
+   * `currentDrive` is `pathDrive ?? overrideDrive`, so on a route whose URL
+   * carries no drive — `/`, `/admin`, `/settings` — a stale override is the
+   * whole answer. That is how the root page came to name a drive beside its
+   * own cards: the sidebar's collection click publishes one and never
+   * clears it, and the two components that do clear it do so in their own
+   * effect cleanups, which is three separate places remembering to keep one
+   * invariant.
+   *
+   * Clearing on every navigation makes it structural instead. A surface
+   * that still owns a drive republishes it in its own effect, which runs
+   * after the route change — `FileDetailFullScreen` already does, after its
+   * fetch, and `CollectionDetail` synchronously on mount.
+   */
+  useEffect(() => {
+    setOverrideDriveState(null);
+  }, [pathname]);
 
   const setOverrideDrive = useCallback((drive: string | null) => {
     setOverrideDriveState(drive);
