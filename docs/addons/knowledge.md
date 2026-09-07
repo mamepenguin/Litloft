@@ -123,7 +123,9 @@ If the window narrows past the mobile breakpoint while you are in Split, the edi
 
 Above the text is a row of formatting controls in four groups — headings, emphasis, block, insert — followed by the button that inserts a link to another file in the library, and a `…` at the right end.
 
-The row never wraps. What does not fit moves into the `…`, and it is the *number* of controls that gives, never their size, so a control that is on the bar is always full size. Six formats stay at every width: heading 1, heading 2, bold, bullet list, link and code. Heading 3, italic and strikethrough return once the bar is wide enough, and numbered list, task list and blockquote once it is wider still. Whatever is not on the bar is in the `…` — never both, and never neither.
+The row never wraps. What does not fit moves into the `…`, and it is the *number* of controls that gives, never their size, so a control that is on the bar is always full size. Five formats stay at every width: heading 2, bold, bullet list, link and code. Heading 1 joins them on all but the narrowest touch bars; heading 3, italic and strikethrough return once the bar is wider; and numbered list, task list and blockquote once it is wider still. Whatever is not on the bar is in the `…` — never both, and never neither.
+
+A finger needs a larger target than a pointer, so on a touch screen the controls sit further apart and the same bar holds fewer of them. Heading 1 is the one that gives way there: a note takes its title from its frontmatter and its filename, so a heading 1 at the top of the body repeats it, and headings that start at heading 2 leave heading 2 on the bar.
 
 The measurement is the bar's own width, not the window's. That distinction is load-bearing: widening the window to 768px opens the folder tree beside the editor and makes the bar *narrower*, so a rule written against the window would put more controls into less room.
 
