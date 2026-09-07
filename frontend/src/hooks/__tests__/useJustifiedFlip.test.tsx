@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeAll, afterEach, vi } from "vitest";
+import { describe, it, expect, beforeAll, afterAll, afterEach, vi } from "vitest";
 import { render, act, waitFor } from "@testing-library/react";
 import { useRef } from "react";
 
@@ -45,6 +45,16 @@ function box(b: Box): DOMRect {
   } as DOMRect;
 }
 
+/**
+ * Put back, not left in place: this patches a prototype every other suite
+ * shares, and the shuffled CI job runs whatever file comes next in the
+ * same environment.
+ */
+const realRect = Object.getOwnPropertyDescriptor(
+  Element.prototype,
+  "getBoundingClientRect",
+);
+
 beforeAll(() => {
   Object.defineProperty(Element.prototype, "getBoundingClientRect", {
     configurable: true,
@@ -55,6 +65,12 @@ beforeAll(() => {
       return box(layout.get(key ?? "") ?? { left: 0, top: 0, width: 0, height: 0 });
     },
   });
+});
+
+afterAll(() => {
+  if (realRect) {
+    Object.defineProperty(Element.prototype, "getBoundingClientRect", realRect);
+  }
 });
 
 afterEach(() => {
