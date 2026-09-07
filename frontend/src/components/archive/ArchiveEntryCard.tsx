@@ -5,6 +5,7 @@ import { useTranslations } from "next-intl";
 import { Download, Folder } from "lucide-react";
 import { getArchiveEntryUrl } from "@/lib/api";
 import { formatFileSize } from "@/lib/format";
+import { clampRatio } from "@/lib/justifiedGrid";
 import { FileTypeIcon } from "../FileTypeIcon";
 import type { ArchiveEntry, FileType } from "@/types";
 
@@ -31,8 +32,6 @@ export const UNMEASURED_PAGE_RATIO = 0.7;
 /** Folders, text and binaries have no proportions of their own. */
 export const NON_IMAGE_RATIO = 1;
 
-/* No `h-full w-full`: the row rule sets the height and `flex-basis`
-   sets the width, so both were being overridden. */
 function ImageCard({
   entry,
   fileId,
@@ -73,10 +72,13 @@ function ImageCard({
           // read out of the zip's directory, which carries none. But
           // the cell loads the original image rather than a thumbnail,
           // so the browser can be asked once it has one.
+          // Through the stops. A zip carries whatever was put in it, and
+          // a cell's height comes from this number, so a panoramic scan
+          // outside the stops is a band rather than a row.
           onLoad={(e) => {
             const img = e.currentTarget;
             if (img.naturalWidth > 0 && img.naturalHeight > 0) {
-              onRatio(img.naturalWidth / img.naturalHeight);
+              onRatio(clampRatio(img.naturalWidth / img.naturalHeight));
             }
           }}
           onError={() => {
@@ -97,9 +99,10 @@ function ImageCard({
   );
 }
 
-/* No `h-full w-full` here: `.justified-grid > .justified-grid-cell`
-   sets the height and `flex-basis` sets the width, so both would be
-   overridden anyway. */
+/* No `h-full w-full` on the cell: `.justified-grid > .justified-grid-cell`
+   sizes the whole box from `--jg-ratio`, so both would be overridden
+   anyway. The boxes *inside* it do carry them, and correctly — they fill
+   a cell that has already been sized. */
 const CELL_CLASS = "overflow-hidden rounded-xl bg-bg-card";
 
 /**

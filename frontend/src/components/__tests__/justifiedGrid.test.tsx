@@ -113,6 +113,30 @@ const css = readFileSync(
   "utf8",
 );
 
+/** `globals.css` with comments stripped — comments carry words like
+ *  "height" in prose and would answer the assertions below. */
+const sheet = css.replace(/\/\*[\s\S]*?\*\//g, "");
+
+/** Every rule in the sheet, as `[selector, declarations]`. */
+const rules: [string, string][] = [
+  ...sheet.matchAll(/([^{}]+)\{([^{}]*)\}/g),
+].map((m) => [m[1].trim(), m[2]]);
+
+/**
+ * Every declaration the sheet makes for one selector, joined.
+ *
+ * Joined rather than "the first block": `.justified-grid` is written
+ * twice, once plainly and once inside the container query, and both
+ * blocks are declarations about the same element.
+ */
+const rule = (selector: string) => {
+  const found = rules.filter(([sel]) => sel === selector);
+  if (found.length === 0) throw new Error(`no rule for ${selector}`);
+  return found.map(([, decls]) => decls).join("\n");
+};
+const gridRule = rule(".justified-grid");
+const cellRule = rule(".justified-grid > .justified-grid-cell");
+
 const grid = (c: HTMLElement) => c.querySelector(".justified-grid");
 const cells = (c: HTMLElement) => c.querySelectorAll(".justified-grid-cell");
 
@@ -422,6 +446,66 @@ describe("justified row geometry", () => {
     expect(css).toMatch(
       /@media \(pointer: coarse\) \{\s*\.justified-grid-name \{[^}]*opacity:/,
     );
+  });
+
+  /**
+   * What follows checks declarations, and nothing more than that.
+   *
+   * The property these rules exist for — that a cell is drawn at the
+   * shape of the picture inside it — is a layout property, and layout is
+   * not something this file can see. jsdom lays nothing out, so every
+   * `getBoundingClientRect()` here is zeros and a cell at the wrong ratio
+   * measures exactly like one at the right ratio. **It is not something
+   * CI sees either**: `.github/workflows/ci.yml` runs vitest, `tsc`,
+   * eslint and the image builds, and the Playwright specs under
+   * `frontend/e2e/` are not among them.
+   *
+   * So do not read these as guarding the geometry. There is no bound on
+   * the ways CSS can give the cell a height — a later rule at any
+   * specificity, `@media` / `@container` / `@layer`, an inline `style`,
+   * a `size-*` or `[height:…]` utility on the element. What these assert
+   * is narrower: that these declarations are present, and that one of
+   * them is not accompanied by a competing `height` in its own block.
+   * That catches a declaration going missing. It does not catch one
+   * being overridden.
+   *
+   * The geometry itself was measured in Chrome on the app's own grid with
+   * all 995 cells of the photo folder rendered, at five container widths.
+   */
+  it("declares the cell's shape from its ratio", () => {
+    expect(cellRule).toMatch(/aspect-ratio:\s*var\(--jg-ratio\)/);
+    // In this block, which is the block that sets the shape. A `height`
+    // beside `aspect-ratio` is the disagreement the ratio exists to end.
+    expect(cellRule).not.toMatch(/(?:^|[;{\s])height\s*:/);
+  });
+
+  it("declares a ceiling on the height, in multiples of the basis", () => {
+    // Greedy line-breaking can leave one narrow cell holding a whole
+    // line, and the width it takes then becomes height. Past the ceiling
+    // the cell keeps its width and gives up its ratio, so the bound is
+    // the crop, deliberately — see DESIGN.md §8.5 for what the value
+    // costs at 2.0 and 3.0.
+    expect(cellRule).toMatch(
+      /max-height:\s*calc\(\s*var\(--jg-row-h\)\s*\*\s*var\(--jg-max-stretch\)\s*\)/,
+    );
+    // Pinned rather than read back: the value was chosen by measuring
+    // three of them, so moving it is a decision, not a refactor.
+    const stretch = Number(css.match(/--jg-max-stretch:\s*([\d.]+)/)![1]);
+    expect(stretch).toBe(2.5);
+  });
+
+  it("declares that a cell keeps its height to itself", () => {
+    // `stretch` is the flex default, and it hands the tallest cell's
+    // height to every cell beside it. With every cell carrying an
+    // `aspect-ratio` there is no tallest cell, so this is inert on
+    // everything the app renders today; what it guards is the cell whose
+    // ratio does not apply, or whose content is taller than its ratio
+    // height. See the comment on the declaration.
+    //
+    // `start` and `flex-start` are the same value in a flex container;
+    // rejecting the synonym would be a false failure at a later
+    // refactor.
+    expect(gridRule).toMatch(/align-items:\s*(?:flex-start|start)\s*;/);
   });
 
   it("gives the slack absorber no height", () => {
