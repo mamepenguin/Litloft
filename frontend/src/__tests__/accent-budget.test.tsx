@@ -211,6 +211,7 @@ const SCREENS: ReadonlyArray<{ screen: string; assertedIn: string }> = [
   { screen: "admin settings — chrome", assertedIn: "src/app/admin/settings/__tests__/SettingsPage.test.tsx" },
   { screen: "admin settings — drives", assertedIn: "src/app/admin/settings/__tests__/DrivesSection.test.tsx" },
   { screen: "admin settings — passwords", assertedIn: "src/app/admin/settings/__tests__/PasswordsSection.test.tsx" },
+  { screen: "personal settings", assertedIn: "src/app/settings/__tests__/page.test.tsx" },
   { screen: "folder toolbar", assertedIn: "src/__tests__/accent-budget.test.tsx" },
   { screen: "drive root", assertedIn: "src/__tests__/accent-budget.test.tsx" },
   { screen: "selection bar over a folder", assertedIn: "src/__tests__/accent-budget.test.tsx" },
@@ -308,7 +309,7 @@ describe("what counts as a fill at rest", () => {
 describe("accent budget", () => {
   afterEach(cleanup);
 
-  it("covers fifteen core screens, and each one somewhere that runs", () => {
+  it("covers sixteen core screens, and each one somewhere that runs", () => {
     expect(SCREENS.map((s) => s.screen)).toEqual([
       "root drive picker",
       "admin dashboard",
@@ -316,6 +317,7 @@ describe("accent budget", () => {
       "admin settings — chrome",
       "admin settings — drives",
       "admin settings — passwords",
+      "personal settings",
       "folder toolbar",
       "drive root",
       "selection bar over a folder",

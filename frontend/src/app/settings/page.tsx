@@ -4,9 +4,7 @@ import { useTranslations } from "next-intl";
 import { PageHeader } from "@/components/PageHeader";
 import { ProfileSection } from "@/components/settings/ProfileSection";
 import { ProfileGuide } from "@/components/settings/ProfileGuide";
-import { AppearanceSection } from "@/components/settings/AppearanceSection";
-import { LanguageSection } from "@/components/settings/LanguageSection";
-import { SidebarResetSection } from "@/components/settings/SidebarResetSection";
+import { PreferencesSection } from "@/components/settings/PreferencesSection";
 
 export default function SettingsPage() {
   const t = useTranslations("settings");
@@ -20,9 +18,7 @@ export default function SettingsPage() {
       <div className="mt-6 space-y-8 px-4">
         <ProfileSection />
         <ProfileGuide />
-        <AppearanceSection />
-        <LanguageSection />
-        <SidebarResetSection />
+        <PreferencesSection />
       </div>
     </main>
   );

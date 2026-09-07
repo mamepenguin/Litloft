@@ -99,11 +99,10 @@ export function MiniPlayerContainer({
             {/* Both buttons top-left so they don't collide with
                 existing player-owned overlays (AutoplayToggle /
                 PiPToggle / CastButton live at top-right). */}
-            <div className="absolute left-2 top-2 z-20 flex gap-1.5 opacity-0 transition-opacity duration-150 focus-within:opacity-100 group-hover/mini:opacity-100">
+            <div className="absolute left-2 top-2 z-20 flex gap-1.5 opacity-0 transition-opacity duration-150 focus-within:opacity-100 group-hover/mini:opacity-100 pointer-coarse:opacity-100">
               <button
                 type="button"
                 aria-label={t("miniPlayerClose")}
-                title={t("miniPlayerClose")}
                 onClick={closeAndStop}
                 className="rounded-full bg-black/70 p-1.5 text-white hover:bg-black/90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus-ring"
               >
@@ -112,7 +111,6 @@ export function MiniPlayerContainer({
               <button
                 type="button"
                 aria-label={t("miniPlayerRestore")}
-                title={t("miniPlayerRestore")}
                 onClick={restore}
                 className="rounded-full bg-black/70 p-1.5 text-white hover:bg-black/90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus-ring"
               >
