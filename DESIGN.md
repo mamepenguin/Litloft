@@ -173,7 +173,10 @@ All tokens are exposed as Tailwind utility classes via `@theme inline` (e.g.
 `globals.css` and are absent from `@theme inline`, so `bg-danger-bg` and
 `shadow-kbd-shadow` do not exist. Tailwind v4 emits nothing for a utility whose
 token it does not know — no error, no warning — so writing one gives an element
-with no background. For an error surface in markup, use `bg-danger/15`.
+with no background. For an error surface in markup, use the alpha derivation `bg-danger/15`.
+`frontend/src/__tests__/design-tokens.test.ts` compiles every colour utility
+written in core and the addons against this stylesheet and fails on the ones
+that produce no rule, which is what stops this from recurring.
 
 #### Light mode (`:root`, `[data-theme="light"]`)
 
@@ -351,6 +354,12 @@ it sits in, which is why H3 here is smaller than body text while
 `.markdown-body h3` is larger: one is a label for a box, the other a heading
 inside a text. A heading level that gains a rule gains it here, not in the
 component that needed it.
+
+> **Known gap — H2 and H3 are stated ahead of the tree.** H1 has a single
+> implementation (`PageHeader`) and a test that pins its size, so the rule and
+> the code agree. H2 and H3 have neither. They move as the screens holding them
+> are next opened, not in a sweep — the same terms §6's button gap runs on, and
+> for the same reason.
 
 ### 3.3 Long-form Prose (MarkdownPreview / "reading-A")
 
@@ -532,6 +541,26 @@ cards listing media.
 - **Do not use `disabled:opacity-*`.** Transparency dims a control without
   changing what it says, and the contrast loss lands hardest on the label.
 
+> **Known gap — the rule is ahead of the code.** Only buttons filled with
+> `bg-accent` (or `bg-accent-cta`, its twin) follow this today; the enforcing
+> test scans for that pairing alone. Every other variant still carries
+> `disabled:opacity-*`, including the saturated `bg-accent-teal` fills with
+> white labels in the intelligence summary sections, which fade in exactly the
+> way this rule forbids. They move opportunistically, when a later change
+> touches the row they sit in — the same terms §2.2 gives the accent fills that
+> are not yet on `Button`.
+>
+> **`addons/cloud-sync` is deliberately not converted.** `SyncDriveCard.tsx`
+> already puts a `disabled:bg-sand` button and a `disabled:opacity-50` button in
+> one `flex gap-2` row, so "two disabled treatments in one row" is not
+> hypothetical there — it is on screen today. What keeps it harmless is that the
+> two are driven by *independent* flags (`actionLoading` and `logLoading`), so
+> they are never disabled by the same click and the reader never sees the two
+> treatments side by side in the same state. **If those flags are ever merged,
+> this exemption expires** — which is why the reason is recorded and not just
+> the conclusion. Still a decision, not an oversight: do not open that
+> repository to "finish" the sweep without re-reading this paragraph.
+
 ### The `Button` component
 
 `frontend/src/components/Button.tsx` renders the five variants above. Reach for
@@ -554,8 +583,10 @@ corrected in.
   entity-specific ("Delete Q1 notes", not "Delete").
 - **`iconOnly` grows the hit area on `pointer: coarse`** by the §Row Actions
   recipe — the overhang, not the box.
-- **Hover is written `enabled:hover:`** — a bare `hover:` repaints a *disabled*
-  button under the cursor.
+- **Hover is written `enabled:hover:`.** A bare `hover:` repaints a *disabled*
+  button under the cursor, which is the defect the Known gap above names for
+  `disabled:hover:bg-accent`. Guarding it inside the variant means a call site
+  cannot forget.
 - **A link wearing this recipe takes `buttonClass()`**, which emits bare `hover:`
   and no `disabled:`: CSS `:enabled` never matches an `<a>`. **A destination is a
   link; only an action is a `Button`.**
@@ -919,8 +950,27 @@ the upper rule; §Sidebar defers to it rather than stating its own.
 
 The sidebar is `text-[11px]` and not `text-sm` because its rows are `text-sm`: at
 the same size the heading and the rows stop being two levels.
-`frontend/src/__tests__/sidebar-headings.test.ts` enforces this in core. **An
-addon heading that lands inside a core surface is held to it too.**
+**Addon surfaces are not there yet.** Fourteen labels across three addons still
+carry `uppercase` — most of them `<h2>` / `<h3>` section headings, not field
+labels. Counted as occurrences of `uppercase` in each addon's non-test `.tsx`,
+so the table can be checked rather than remembered:
+
+| Addon | Count |
+|---|---|
+| `media_import` | 11 |
+| `knowledge` | 2 |
+| `intelligence` | 1 |
+
+They are the same shape and want the same sweep; it reaches three submodules, so
+it is deferred rather than smuggled into the change that wrote this rule.
+**New addon headings follow the rule above** — the fourteen are a backlog, not a
+precedent. `frontend/src/__tests__/sidebar-headings.test.ts` enforces the rule in
+core only, for that reason. **An addon heading that lands inside a core surface
+is not part of the backlog** — it is a violation the moment core's neighbouring
+headings change.
+
+This governs headings. A `<dt>` field label in §Properties Panel and a machine
+string on a row are not headings, and keep `uppercase`.
 
 ### Properties Panel (Obsidian-style frontmatter display)
 
@@ -931,7 +981,8 @@ A Markdown note's frontmatter, above the rendered body, as a label-value table.
   the metadata counterpart to code blocks in §3.3's content-block family.
 - **No row dividers**: `py-2.5` padding alone separates rows.
 - **Row** `grid grid-cols-[minmax(80px,auto)_1fr] gap-x-4 px-4 py-2.5`; label
-  (`dt`) `text-xs uppercase tracking-wide text-text-muted`; value (`dd`)
+  (`dt`) `text-xs uppercase tracking-wide text-text-muted` — matches the
+  section-header label style but stays terse (one token); value (`dd`)
   `text-sm text-text-primary break-anywhere` with `min-w-0`.
 - **Empty frontmatter renders nothing.** Recognised keys get typed renderers;
   unknown keys fall through to plain text.
@@ -1083,7 +1134,7 @@ competing reader of the same file.
 
 | Token | Value | Meaning |
 |---|---|---|
-| rail width | `24rem` (384px) | Fixed, on the grid. Below this Japanese wraps at 12–14 characters a line. |
+| rail width | `24rem` (384px) | Fixed, on the grid. 320px was tried first and Japanese wrapped at 12–14 characters a line, which reads as cramped. |
 | box height | `60%` of the measured scroll container | The bounded box below the player: `calc(var(--rail-avail) * 0.6)`, falling back to `60dvh` before the first measurement — "60vh", but measured, because a self-scrolling pane is not the viewport. |
 | below: index column | `12.5rem`–`22rem` (200–352px) | The chapter list beside the transcript. 200px is the floor; past about 350px a column of timestamps competes with what it indexes. |
 | below: body column | `68ch` | The reading measure, and the body's **flex base**, not only its cap. Base and cap being one number is what makes the split exact: below the pair's combined width the body absorbs the whole deficit, above it the index takes the whole surplus. |
@@ -1178,7 +1229,9 @@ Card widths the rule produces, at `gap-3` and less the page's `px-4` gutters:
 pane** (2 columns) and in a 1213px canvas beside the open tree pane (4 columns).
 Every card grid measures itself, so the file grid (`FileGrid`), the folder grids
 above it (`FolderContent`, `DriveHome`, `RightPaneFolder`) and the trash and
-missing grids all agree.
+missing grids all agree. Breakpoint column counts cannot do it: they fire on
+window size and so mis-count inside the tree pane, which is 280px narrower than
+the window.
 
 ### Justified thumbnail rows
 
@@ -1223,6 +1276,11 @@ height of its own per line.
   the file grid reading stored dimensions, the archive grid reading a decoded
   page's `naturalWidth` — clamp through `clampRatio`; the three constants that
   stand in for a picture are written inside the stops and asserted by a test.
+- **The obvious repair, `flex-grow: max(1, var(--jg-ratio))`, is wrong.** It
+  decouples the grow factor from the basis, and the whole of this section rests
+  on the two being proportional: that is what makes every cell on a line share
+  one stretch factor and therefore land on one height. With `max()` in there, a
+  line mixing ratios above and below 1 draws its cells at different heights.
 - **A line may reach `--jg-max-stretch` (2.5) times the height it started from
   and no further**, via `max-height: calc(var(--jg-row-h) *
   var(--jg-max-stretch))`. Line-breaking is greedy, so a line can hold one narrow
