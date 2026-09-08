@@ -25,7 +25,7 @@ import { readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { resolve, dirname } from "node:path";
 
-import { FileActions } from "@/components/FileActions";
+import { FileActions, MENU_GAP_PX } from "@/components/FileActions";
 import {
   MobileInspectorSheet,
   SHEET_PEEK_PX,
@@ -188,36 +188,51 @@ describe("the file-actions layout fixture's class lists", () => {
     );
   });
 
-  // All four corners, declared one by one rather than derived from what
-  // the component happened to render: a table built out of the rendered
-  // strings would stay green with a corner deleted from both sides.
-  const CORNERS: { up: boolean; left: boolean }[] = [
-    { up: false, left: false },
-    { up: false, left: true },
-    { up: true, left: false },
-    { up: true, left: true },
-  ];
+  // Every corner, as the cross product of the fixture's two axis groups
+  // rather than as a hand-written list: a list can be walked back to one
+  // entry and stay green, and three of the four corners would go
+  // uncompared with nothing to say so. `VERTICAL` and `HORIZONTAL` are
+  // themselves pinned against the fixture's declared keys below, so
+  // shrinking the population has to disagree with the fixture first.
+  const VERTICAL = ["down", "up"] as const;
+  const HORIZONTAL = ["right", "left"] as const;
+  const CORNERS = VERTICAL.flatMap((up) =>
+    HORIZONTAL.map((left) => ({ up, left })),
+  );
+
+  it("covers every axis group the fixture declares, and no others", () => {
+    expect([...VERTICAL, ...HORIZONTAL].sort()).toEqual(
+      ["down", "left", "right", "up"].sort(),
+    );
+    expect(CORNERS).toHaveLength(VERTICAL.length * HORIZONTAL.length);
+  });
 
   for (const corner of CORNERS) {
-    it(`declares the menu's ${corner.up ? "upward" : "downward"} / ${
-      corner.left ? "left" : "right"
-    } class list`, () => {
-      openAt(corner);
+    it(`declares the menu's ${corner.up} / ${corner.left} class list`, () => {
+      openAt({ up: corner.up === "up", left: corner.left === "left" });
       expectComposedOf(screen.getByRole("menu").className, [
         str("menuBase"),
-        str(corner.up ? "up" : "down"),
-        str(corner.left ? "left" : "right"),
+        str(corner.up),
+        str(corner.left),
       ]);
     });
   }
 
-  // The toast's two, driven through a rejected delete so it is the real
-  // one. Two rather than four because the toast reuses the menu's flags:
-  // one corner per axis is what shows it follows both.
+  // The toast's, driven through a rejected delete so it is the real one.
+  // Two rather than four because the toast reuses the menu's flags: what
+  // has to be shown is that it follows *each axis*, which is why the
+  // population is checked for covering both values of both rather than
+  // for its length. Walk it back to one entry and an axis loses its
+  // second value.
   const TOASTS = [
     { up: true, left: true },
     { up: false, left: false },
   ];
+
+  it("drives the toast through both values of both axes", () => {
+    expect(new Set(TOASTS.map((c) => c.up))).toEqual(new Set([true, false]));
+    expect(new Set(TOASTS.map((c) => c.left))).toEqual(new Set([true, false]));
+  });
 
   for (const corner of TOASTS) {
     it(`declares the toast's ${corner.up ? "upward" : "downward"} / ${
@@ -259,11 +274,22 @@ describe("the file-actions layout fixture's class lists", () => {
     expect(strip.style.height).toBe(`${SHEET_PEEK_PX}px`);
   });
 
+  it("declares the gap the component adds to the menu's height", () => {
+    // `MENU_GAP_PX` is the `mt-1` / `mb-1` in the class lists above, and
+    // until this line said so it was two independent literals and a
+    // sentence: `MENU_GAP_PX = 5` was green everywhere, and the jsdom
+    // boundary pair only bounds it to 3-6. The browser spec measures the
+    // gap Chromium actually leaves against the fixture's number, so this
+    // is the link that makes that a measurement of the component.
+    expect(SPEC.gapPx).toBe(MENU_GAP_PX);
+  });
+
   it("declares every key the fixture uses, and no others", () => {
     // The fixture's builders index `SPEC` by name, so a key removed here
     // and there together would leave both halves agreeing about nothing.
     expect(Object.keys(SPEC).sort()).toEqual([
       "down",
+      "gapPx",
       "left",
       "menuBase",
       "menuItem",

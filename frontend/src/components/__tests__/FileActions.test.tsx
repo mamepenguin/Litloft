@@ -424,16 +424,30 @@ describe("FileActions menu direction, as the menu's own height moves", () => {
    * `e2e-layout/file-actions-menu.spec.ts`.
    */
   let fireResize: (() => void) | undefined;
+  // What the observer was pointed at, and whether it was taken down.
+  // Recorded rather than ignored: with `observe` an empty method, pointing
+  // the observer at `document.body` — or deleting the call — leaves every
+  // case here green while reinstating the defect the commit is named
+  // after, because the menu is `absolute` and nothing else's box changes
+  // when the addon rows land.
+  let observed: Element[] = [];
+  let disconnected = 0;
 
   beforeEach(() => {
     fireResize = undefined;
+    observed = [];
+    disconnected = 0;
     class ResizeObserverMock {
       constructor(callback: () => void) {
         fireResize = callback;
       }
-      observe() {}
+      observe(target: Element) {
+        observed.push(target);
+      }
       unobserve() {}
-      disconnect() {}
+      disconnect() {
+        disconnected += 1;
+      }
     }
     vi.stubGlobal("ResizeObserver", ResizeObserverMock);
   });
@@ -456,6 +470,12 @@ describe("FileActions menu direction, as the menu's own height moves", () => {
     fireEvent.click(screen.getByLabelText("File actions"));
     expect(screen.getByRole("menu").className).toContain("top-full");
 
+    // The menu box itself, and nothing else. The box that grows when the
+    // slot resolves is this one; an observer on any other element never
+    // fires, and the direction the first open derived from a menu with no
+    // addon rows in it is the one it keeps.
+    expect(observed).toEqual([screen.getByRole("menu")]);
+
     state.menuHeight = 450;
     act(() => fireResize!());
 
@@ -463,10 +483,37 @@ describe("FileActions menu direction, as the menu's own height moves", () => {
     expect(screen.getByRole("menu").className).not.toContain("top-full");
   });
 
-  it("derives the direction once per observed change, not once per flip", () => {
-    // The observer is keyed on the menu's size, and flipping moves the box
-    // without resizing it — so one height change is one re-derivation. If
-    // the flip fed back into the measurement this count would climb.
+  it("stops observing when the menu closes", () => {
+    // The subtree the observer points into is unmounted on close, and a
+    // new observer is made on the next open. Without the teardown the page
+    // accumulates one live `ResizeObserver` per open for its whole life.
+    mountWithBoxes({ top: 440, bottom: 468, left: 300, right: 328 }, 150);
+    renderWithStack(<FileActions file={mockFile} />);
+
+    fireEvent.click(screen.getByLabelText("File actions"));
+    expect(observed).toHaveLength(1);
+    expect(disconnected).toBe(0);
+
+    fireEvent.keyDown(document, { key: "Escape" });
+    expect(screen.queryByRole("menu")).not.toBeInTheDocument();
+    expect(disconnected).toBe(1);
+
+    // And the next open gets its own, pointed at the new box.
+    fireEvent.click(screen.getByLabelText("File actions"));
+    expect(observed).toHaveLength(2);
+    expect(observed[1]).toBe(screen.getByRole("menu"));
+  });
+
+  it("derives the direction once per React-visible change, not once per flip", () => {
+    // One height change through the observer is one re-derivation, and
+    // the flip that follows does not feed back into it.
+    //
+    // The count is the stub's, not a browser's: a real `ResizeObserver`
+    // queues a notification when `observe()` is called, so Chromium reads
+    // the box once more than this. What this holds is that nothing in the
+    // component re-enters `measure` on its own. The premise that makes
+    // that safe in a browser — the two directions being the same size —
+    // is measured in `e2e-layout/file-actions-menu.spec.ts`.
     const state = mountWithBoxes(
       { top: 440, bottom: 468, left: 300, right: 328 },
       150,
@@ -496,10 +543,34 @@ describe("FileActions menu direction, as the menu's own height moves", () => {
  * column's name. Its box is stated like every other rect here; jsdom lays
  * nothing out.
  */
-function Column({ children }: { children: React.ReactNode }) {
+function Column({
+  children,
+  inner,
+  positioned,
+}: {
+  children: React.ReactNode;
+  /**
+   * How the menu's subtree is anchored inside the column. `fixed` is the
+   * resting strip (`MobileInspectorSheet`), which is laid out against the
+   * viewport and is therefore not clipped by the column at all; `absolute`
+   * takes the subtree out of the column's flow, after which only a
+   * positioned ancestor can still be its containing block.
+   */
+  inner?: "fixed" | "absolute";
+  /** Whether the column itself is positioned, and so can still be a
+   *  containing block for an `absolute` subtree inside it. */
+  positioned?: boolean;
+}) {
   return (
-    <div data-bounds="clip" style={{ overflowX: "auto", overflowY: "auto" }}>
-      {children}
+    <div
+      data-bounds="clip"
+      style={{
+        overflowX: "auto",
+        overflowY: "auto",
+        ...(positioned ? { position: "relative" as const } : {}),
+      }}
+    >
+      {inner ? <div style={{ position: inner }}>{children}</div> : children}
     </div>
   );
 }
@@ -524,10 +595,12 @@ describe("FileActions menu direction, against the frame that clips it", () => {
     trigger: { top: number; bottom: number; left: number; right: number },
     menuHeight: number,
     column: { top: number; bottom: number; left: number },
+    inner?: "fixed" | "absolute",
+    positioned?: boolean,
   ) {
     mountWithBoxes(trigger, menuHeight, column);
     renderWithStack(
-      <Column>
+      <Column inner={inner} positioned={positioned}>
         <FileActions file={mockFile} />
       </Column>,
     );
@@ -574,6 +647,57 @@ describe("FileActions menu direction, against the frame that clips it", () => {
     );
     expect(className.includes("left-0")).toBe(true);
     expect(className.includes("right-0")).toBe(false);
+  });
+
+  it("ignores a scroller above a fixed subtree, which it does not clip", () => {
+    // The resting strip is `fixed bottom-0`, so it is laid out against the
+    // viewport and an `overflow` box anywhere above it clips nothing. Same
+    // boxes as the first case — a column ending at 500 with a 100px menu —
+    // except that the trigger is inside a fixed box, and the answer
+    // reverses: there are 300px below in the viewport, so the menu stays
+    // down. Taking the column's word for it would flip a menu that had
+    // room, and on the strip itself it flips the reasoning the other way
+    // and draws the menu off the bottom again.
+    const className = openInColumn(
+      { top: 440, bottom: 468, left: 300, right: 328 },
+      100,
+      { top: 300, bottom: 500, left: 0 },
+      "fixed",
+    );
+    expect(className.includes("top-full")).toBe(true);
+    expect(className.includes("bottom-full")).toBe(false);
+  });
+
+  it("ignores a static scroller above an absolute subtree", () => {
+    // Past an `absolute` box, the containing block is the nearest
+    // positioned ancestor — so a static `overflow` box between the two is
+    // not in the chain and does not clip. The column here is static, and
+    // the frame falls through to the viewport for the same reason.
+    const className = openInColumn(
+      { top: 440, bottom: 468, left: 300, right: 328 },
+      100,
+      { top: 300, bottom: 500, left: 0 },
+      "absolute",
+    );
+    expect(className.includes("top-full")).toBe(true);
+    expect(className.includes("bottom-full")).toBe(false);
+  });
+
+  it("still uses a positioned scroller above an absolute subtree", () => {
+    // The other side of the case above, and what stops the rule from
+    // reading "an absolute subtree is never clipped": a *positioned*
+    // overflow box is still the containing block, so it still clips, and
+    // the same boxes that stayed downward through a static column flip
+    // upward through this one.
+    const className = openInColumn(
+      { top: 440, bottom: 468, left: 300, right: 328 },
+      100,
+      { top: 300, bottom: 500, left: 0 },
+      "absolute",
+      true,
+    );
+    expect(className.includes("bottom-full")).toBe(true);
+    expect(className.includes("top-full")).toBe(false);
   });
 
   it("measures the window against what is visible, not the layout viewport", () => {

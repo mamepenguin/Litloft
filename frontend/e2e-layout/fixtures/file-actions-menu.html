@@ -22,6 +22,11 @@
       them actually puts the box; `fileActionsMenuFixtureParity.test.tsx`
       renders the real components and fails if any list here drifts from
       what they emit.
+
+      The two numbers are pinned by the same parity test rather than
+      restated here: `stripHeightPx` against `SHEET_PEEK_PX` and `gapPx`
+      against `MENU_GAP_PX`, the value the component adds to the menu's
+      height before asking whether the menu fits.
     -->
     <script type="application/json" id="fixture-markup">
       {
@@ -35,7 +40,8 @@
         "right": "right-0",
         "left": "left-0",
         "strip": "fixed bottom-0 left-0 right-0 z-40 flex items-center gap-2 border-t border-bg-border bg-bg-card px-4",
-        "stripHeightPx": 56
+        "stripHeightPx": 56,
+        "gapPx": 4
       }
     </script>
 

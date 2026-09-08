@@ -221,10 +221,7 @@ verify a layout.** A later rule at any specificity, an `@media` / `@container` /
 `@layer` block, or an inline style each override a declaration that is still,
 textually, right where the assertion looks for it.
 
-What it holds today, all of it measured rather than matched. The list below and
-everything after it is about the **justified-grid** fixture, which is the oldest
-and the most worked-over; the others follow the same shape, each with its own
-parity test:
+What `file-actions-menu` holds, measured in Chromium:
 
 - the `⋮` menu hung `top-full` inside the Bottom Sheet's 56px resting strip
   starts at the bottom edge of the screen and runs off it, and `bottom-full`
@@ -233,7 +230,13 @@ parity test:
   `ResizeObserver` drive the flip without oscillating;
 - a `whitespace-nowrap` error toast hung `right-0` from a trigger at its
   column's left edge crosses that edge, and `left-0` keeps it inside both of
-  them;
+  them.
+
+What **justified-grid** holds, all of it measured rather than matched. This list
+and every paragraph after it is about that fixture, which is the oldest and the
+most worked-over; the others follow the same shape, each with its own parity
+test:
+
 - a justified cell's realized aspect ratio equals its `--jg-ratio`, at five grid
   widths;
 - the `max-height` ceiling — a cell that reaches it keeps its width and gives up

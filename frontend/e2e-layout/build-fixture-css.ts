@@ -82,11 +82,20 @@ const REQUIRED = [
   "max-h-\\[70vh\\]",
   ".sticky",
   // `file-actions-menu.spec.ts` measures which side of a trigger a popup
-  // lands on. These two utilities *are* the answer it measures: without
-  // them both boxes sit at the wrapper's own origin, every case reads the
-  // same numbers, and half of them pass for that reason.
+  // lands on, so every utility that *is* one of those answers belongs
+  // here: without them the two boxes sit at the wrapper's own origin,
+  // every case reads the same numbers, and the ones asserting "the same"
+  // pass for that reason. Both vertical answers, both horizontal ones, and
+  // the offsets the gap assertions measure.
   ".top-full",
   ".bottom-full",
+  ".left-0",
+  ".right-0",
+  ".mt-1",
+  ".mb-1",
+  // A different requirement, and not one of the answers: this is what
+  // makes the toast wider than its trigger, which is the premise of the
+  // column cases rather than their subject.
   ".whitespace-nowrap",
 ];
 

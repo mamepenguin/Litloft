@@ -25,12 +25,17 @@ import { CollectionPicker } from "./CollectionPicker";
 const MENU_WIDTH_PX = 160;
 
 /**
- * Must match the menu's `mt-1` / `mb-1`. The gap is part of the room the
+ * The menu's `mt-1` / `mb-1`, in pixels. The gap is part of the room the
  * menu needs, so it belongs inside the comparison: without it a menu whose
  * height lands in the last 4px of the space below is kept downward and its
  * final pixels sit past the edge.
+ *
+ * Exported so the claim is checkable rather than asserted here in prose:
+ * `fileActionsMenuFixtureParity.test.tsx` pins it against the number the
+ * layout fixture builds its boxes from, and `e2e-layout` measures the gap
+ * Chromium actually leaves against that same number.
  */
-const MENU_GAP_PX = 4;
+export const MENU_GAP_PX = 4;
 
 interface FileActionsProps {
   file: FileItem;
@@ -110,15 +115,44 @@ export function FileActions({
       const triggerRect = trigger.getBoundingClientRect();
       const menuHeight = menuBox.getBoundingClientRect().height;
 
+      // The first ancestor that *clips this menu* — which is not the same
+      // as the first ancestor with an `overflow` value. An overflow box
+      // clips a positioned descendant only while it stays in that
+      // descendant's containing-block chain, and two things leave it:
+      //
+      //   - a `fixed` ancestor is laid out against the viewport, so
+      //     nothing above it clips the subtree. The resting strip this fix
+      //     exists for is exactly that (`fixed bottom-0`), so without the
+      //     stop a scroller anywhere above the shell would hand both axes
+      //     a box the strip is not inside.
+      //   - past an `absolute` ancestor, only a *positioned* box can still
+      //     be the containing block, so static overflow boxes above one
+      //     are not clippers either.
+      //
+      // The exception is an ancestor with `transform` / `filter` /
+      // `contain`, which makes itself the containing block of even a fixed
+      // descendant. vaul's drawer is one; the menu is not inside it at
+      // rest, which is the state this decision is about.
       let bounds: { left: number; top: number; bottom: number } | null = null;
+      let onlyPositionedClips = false;
       for (let el = trigger.parentElement; el; el = el.parentElement) {
-        const { overflowX, overflowY } = getComputedStyle(el);
-        const clips = /auto|scroll|hidden/.test(overflowX + overflowY);
-        if (clips) {
+        const { overflowX, overflowY, position } = getComputedStyle(el);
+        // Positive test rather than `!== "static"`: an unset `position`
+        // reads as `""` outside a browser, and the whole point of the flag
+        // is that a *static* box past an `absolute` cannot clip.
+        const positioned =
+          position === "relative" ||
+          position === "absolute" ||
+          position === "fixed" ||
+          position === "sticky";
+        const inChain = !onlyPositionedClips || positioned;
+        if (inChain && /auto|scroll|hidden/.test(overflowX + overflowY)) {
           const rect = el.getBoundingClientRect();
           bounds = { left: rect.left, top: rect.top, bottom: rect.bottom };
           break;
         }
+        if (position === "fixed") break;
+        if (position === "absolute") onlyPositionedClips = true;
       }
       // `window.innerHeight` is the layout viewport, which the keyboard
       // does not move; `visualViewport` is what is actually on screen.

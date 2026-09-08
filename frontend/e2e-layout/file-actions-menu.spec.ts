@@ -40,12 +40,24 @@
  */
 
 import { test, expect } from "@playwright/test";
+import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { pathToFileURL } from "node:url";
 
-const FIXTURE = pathToFileURL(
-  resolve(__dirname, "fixtures", "file-actions-menu.html"),
-).href;
+const FIXTURE_FILE = resolve(__dirname, "fixtures", "file-actions-menu.html");
+const FIXTURE = pathToFileURL(FIXTURE_FILE).href;
+
+/**
+ * The same declarations the page builds its boxes from, read rather than
+ * restated — a second copy of a number here could not disagree with the
+ * one being measured. `fileActionsMenuFixtureParity.test.tsx` is what ties
+ * these to the components.
+ */
+const SPEC: Record<string, string | number> = JSON.parse(
+  readFileSync(FIXTURE_FILE, "utf8").match(
+    /<script type="application\/json" id="fixture-markup">([\s\S]*?)<\/script>/,
+  )![1],
+);
 
 interface Box {
   top: number;
@@ -99,13 +111,35 @@ const PHONES = [
 const ITEM_COUNTS = [1, 7, 14];
 
 /**
- * `mt-1` / `mb-1`, the offset in the class lists this fixture writes.
- * Also what `MENU_GAP_PX` in `FileActions.tsx` has to equal — the
- * component adds it to the menu's height before asking whether the menu
- * fits, and a fixture measuring a different gap would agree with the
- * component about nothing.
+ * The populations, stated apart from the arrays.
+ *
+ * Both can otherwise be walked back to one entry with everything green —
+ * five of the six strip cases, the only measurements of this menu's
+ * geometry anywhere, deleted with nothing to say so. Same guard the
+ * sibling fixture in this directory uses (`justified-grid.spec.ts`,
+ * "is exactly the set this file tests"), enumerated rather than counted so
+ * that swapping a height for another one is red as well.
+ *
+ * Its honest limit: the arrays and this expectation live in the same file,
+ * so what it buys is that shrinking either takes two edits, not proof from
+ * outside.
  */
-const GAP_PX = 4;
+test("is exactly the set of screens and menus this file measures", () => {
+  expect(PHONES.map((p) => `${p.width}x${p.height}`)).toEqual([
+    "375x667",
+    "393x852",
+  ]);
+  expect(ITEM_COUNTS).toEqual([1, 7, 14]);
+});
+
+/**
+ * `mt-1` / `mb-1`, taken from the fixture rather than written again here.
+ * The parity test pins the same number against `MENU_GAP_PX`, which the
+ * component adds to the menu's height before asking whether the menu
+ * fits — so measuring the gap Chromium leaves against this value is a
+ * measurement of the component's constant and not of a local literal.
+ */
+const GAP_PX = SPEC.gapPx as number;
 
 test.describe("the file menu on the Bottom Sheet's resting strip", () => {
   // The strip is a phone surface, and the trigger carries
@@ -182,6 +216,11 @@ test.describe("the error toast against its column's left edge", () => {
   // the component flips it; the question here is only whether the toast
   // beside it does the same.
   const COLUMN = { left: 40, width: 240 };
+  /**
+   * Handed to the page, so it is the string being measured rather than a
+   * constant beside one. Its length is what makes the toast wider than its
+   * trigger, and that is asserted on the rendered box below.
+   */
   const MESSAGE = "Failed to delete";
 
   test("crosses the edge when it keeps right-0 and the menu flips without it", async ({
@@ -196,11 +235,11 @@ test.describe("the error toast against its column's left edge", () => {
           align: "left",
           toastAlign: "right",
           items: 7,
-          error: "Failed to delete",
+          error: c.message,
           left: c.left,
           width: c.width,
         }),
-      COLUMN,
+      { ...COLUMN, message: MESSAGE },
     );
 
     const m = await page.evaluate(() => window.measureAnchor());
@@ -223,11 +262,11 @@ test.describe("the error toast against its column's left edge", () => {
           direction: "down",
           align: "left",
           items: 7,
-          error: "Failed to delete",
+          error: c.message,
           left: c.left,
           width: c.width,
         }),
-      COLUMN,
+      { ...COLUMN, message: MESSAGE },
     );
 
     const m = await page.evaluate(() => window.measureAnchor());
@@ -240,6 +279,5 @@ test.describe("the error toast against its column's left edge", () => {
     // The message is what makes the box wide enough for any of this to
     // matter: `whitespace-nowrap` means it cannot wrap out of trouble.
     expect(m.toast!.width).toBeGreaterThan(m.trigger.width);
-    expect(MESSAGE.length).toBeGreaterThan(0);
   });
 });
