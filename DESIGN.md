@@ -1035,6 +1035,37 @@ non-`.md` files.
 
 All animations are disabled under `@media (prefers-reduced-motion: reduce)`.
 
+### A change to a list's contents is carried, not cut to
+
+When the set of cells in a listing changes, the cells that were already there
+travel from where they were rather than appearing at their new size and position
+in one frame. The previous rect is inverted with a `transform` and released
+(FLIP); 200ms, `ease-out`, as the table above.
+
+Three conditions decide it, and they are conditions rather than a list of the
+controls that meet them. **Do not write the list here.** Which control lands on
+which side depends on the width, the folder, and how far a filter narrows, and
+it has been recorded wrongly twice.
+
+- **A cell has to have somewhere to come from.** One that did not exist before
+  has no previous position, so it is never moved into place — it fades in over
+  the same 200ms. A change where *no* cell survives is a different listing
+  rather than a change to this one, and is not carried at all.
+- **The measurement has to still describe the container.** A grid whose own
+  width moved is left to snap, and so is the first change after it moved:
+  following a drag frame by frame reads as weight, and the width the cells were
+  last measured at is what tells the two apart.
+- **`prefers-reduced-motion: reduce` writes no transform at all.** Shortening
+  the transition is not enough on its own — the inverted frame is painted before
+  the transition starts.
+
+The play's length is written in three places — the CSS state, the constant, and
+the delay after which the marks come off. The marks coming off cancels a play
+still running, so the delay must outlast the CSS; tests read all three.
+
+`hooks/useJustifiedFlip.ts` and the two `.justified-grid-cell[data-flip]` states
+in `globals.css`.
+
 ---
 
 ## 8. Display preferences applied before first paint

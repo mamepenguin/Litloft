@@ -127,6 +127,22 @@ it, and at most one on a wide screen.
 wide stops a little short of the right-hand side, and the narrower it is
 the larger the gap.
 
+The last row is also the only one that changes when the next page of
+thirty arrives: it stops being last, fills out to the edge like every
+row above it, and its pictures grow. They travel to their new size
+rather than snapping to it, and the pictures that have just arrived fade
+in. Nothing above that row moves — rows are filled from the left as far
+as they go, so a picture loaded later can never land on an earlier row.
+
+The same travel happens whenever pictures that are already on screen
+stay on screen and simply re-flow — narrowing the in-folder filter does
+it too. What redraws instead is anything that clears the listing and
+reloads it from the top, such as changing the sort: there is nothing
+left on screen for the new pictures to have travelled from. Dragging the
+window to a new width does not animate either, and neither does the
+first page that arrives after the drag — one page later it is back. And
+none of it plays if your system asks for reduced motion.
+
 There is no switch for this. The grid packs when at least nine of every
 ten files in view are images whose dimensions are known, which is what
 a photo folder looks like and what a video folder does not — video

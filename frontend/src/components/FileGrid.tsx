@@ -1,8 +1,9 @@
 "use client";
 
-import { useCallback, useMemo, useState } from "react";
+import { useCallback, useMemo, useRef, useState } from "react";
 import type { FileItem, FileItemWithMatch } from "@/types";
 import { useContextMenu } from "@/hooks/useContextMenu";
+import { useJustifiedFlip } from "@/hooks/useJustifiedFlip";
 import { cardGridTemplate, useCardColumns } from "@/lib/cardGrid";
 import { deriveListMeta } from "@/lib/listMeta";
 import { FileCard } from "./FileCard";
@@ -49,6 +50,12 @@ export function FileGrid({
   const { menuState, close, handlers } = useContextMenu();
   const [target, setTarget] = useState<FileItem | null>(null);
   const { ref: gridRef, columns } = useCardColumns();
+  const justifiedRef = useRef<HTMLDivElement | null>(null);
+  // Carries the packed rows across a change to the set. Declared here
+  // rather than inside the branch below because a hook cannot be: the
+  // ref is null on every render that takes the card branch, and the hook
+  // does nothing then.
+  useJustifiedFlip(justifiedRef);
 
   // Decided once for the listing rather than per card: the question is
   // about the column, not the file. Only the boolean crosses into the
@@ -116,7 +123,7 @@ export function FileGrid({
     return (
       <>
         <div className="justified-grid-host">
-          <div className="justified-grid">
+          <div className="justified-grid" ref={justifiedRef}>
             {files.map((file) => (
               <JustifiedFileCell key={file.id} {...cardProps(file)} />
             ))}
