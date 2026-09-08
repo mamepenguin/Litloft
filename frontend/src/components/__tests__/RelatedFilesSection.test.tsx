@@ -254,13 +254,18 @@ describe("the column count is asked of the container, not the window", () => {
     const host = container.querySelector(".related-files-host");
     expect(host).not.toBeNull();
     // The host is a wrapper of its own rather than the section, and the
-    // nesting is what makes the 44rem threshold mean one thing: the
+    // nesting is what makes the 45rem threshold mean one thing: the
     // section carries `p-4` when it stands alone and none when it is
     // part of the Related group, so its inline size is the grid's width
     // in one case and 2rem more in the other.
     const grid = container.querySelector(".related-files-grid")!;
     expect(grid.parentElement).toBe(host);
-    expect(host!.classList.contains("p-4")).toBe(false);
+    // The whole class list, not `contains("p-4") === false`. One named
+    // token is the "check a known-bad value instead of declaring the
+    // expected set" shape detector rule 5 exists to reject, and it let
+    // `related-files-host px-4` through every suite in this change —
+    // which is the one mistake the wrapper is here to prevent.
+    expect(host!.getAttribute("class")).toBe("related-files-host");
   });
 
   it("carries no viewport breakpoint on the grid", async () => {

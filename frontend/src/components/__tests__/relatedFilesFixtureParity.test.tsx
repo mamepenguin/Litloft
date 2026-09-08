@@ -28,7 +28,7 @@
  */
 
 import { describe, it, expect, vi, afterEach } from "vitest";
-import { cleanup, render, screen } from "@testing-library/react";
+import { cleanup, fireEvent, render, screen, act } from "@testing-library/react";
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
 
@@ -36,8 +36,14 @@ import type { FileRelationsResponse } from "@/lib/api";
 
 const getFileRelations = vi.fn<(id: string) => Promise<FileRelationsResponse>>();
 
+// `getStreamUrl` is not used by the component today, and that is the
+// point: the hover case below has to be able to render a `VideoPreview`
+// if somebody adds one, or it would fail for the wrong reason and read
+// as a guard that works.
 vi.mock("@/lib/api", () => ({
   getFileRelations: (id: string) => getFileRelations(id),
+  getStreamUrl: (id: string) => `/api/files/${id}/stream`,
+  getThumbnailUrl: (id: string) => `/api/files/${id}/thumbnail`,
 }));
 
 vi.mock("../AddonSlotsProvider", () => ({
@@ -89,8 +95,8 @@ const SHAPES: Record<string, Markup> = JSON.parse(
   )![1],
 );
 
-/** Three tile shapes: a picture, a kind glyph, and a missing file. */
-const SHAPE_COUNT = 3;
+/** Four tile shapes: a picture, a video, a kind glyph, a missing file. */
+const SHAPE_COUNT = 4;
 
 const tokens = (className: string) => className.split(/\s+/).filter(Boolean);
 const normalise = (className: string) => tokens(className).join(" ");
@@ -170,6 +176,14 @@ const relation = (over: Partial<Relation["file"]>, id: number): Relation => ({
  */
 const STATES: Record<string, Relation> = {
   thumbnail: relation({}, 1),
+  // A video relation, and the media guard below is why it is here: the
+  // way this codebase mounts a `<video>` is behind `file_type ===
+  // "video"` plus a hover delay, so states that are all images and
+  // documents never walk that branch.
+  video: relation(
+    { filename: "clip.mp4", file_type: "video", mime_type: "video/mp4" },
+    4,
+  ),
   icon: relation(
     {
       filename: "notes.md",
@@ -215,9 +229,18 @@ describe("the related-files layout fixture's markup table", () => {
     // renamed either, every case in `related-files.spec.ts` would go on
     // measuring a page that still lays out correctly — and the app would
     // be back to one unconditional column, or none of the rules at all.
+    //
+    // Both sides are declared **whole**. `df1474e5` pinned the grid's
+    // list exactly and checked the host with
+    // `classList.contains("p-4") === false`: one named token, so
+    // `related-files-host px-4` passed all sixty assertions in this
+    // change — and that is the one mistake the wrapper exists to
+    // prevent. The query then fires on the host's 720px while the grid
+    // inside it is 688, and each column is 340px, under the rail again.
     await renderTile(STATES.thumbnail);
     const host = document.querySelector(".related-files-host")!;
     const grid = host.firstElementChild!;
+    expect(classOf(host)).toBe("related-files-host");
     expect(classOf(grid)).toBe("related-files-grid grid gap-2");
     expect(FIXTURE_HTML).toContain('host.className = "related-files-host"');
     expect(FIXTURE_HTML).toContain(
@@ -228,7 +251,7 @@ describe("the related-files layout fixture's markup table", () => {
 
 describe("no media in the containment scope", () => {
   // The precondition the whole mechanism rests on, and the one thing in
-  // this change that jsdom is genuinely the right tool for.
+  // this change that jsdom is the right tool for.
   //
   // `container-type` establishes a containment context, and on iOS Safari
   // one wrapped around a `<video>`, `<audio>` or cross-origin iframe
@@ -238,28 +261,81 @@ describe("no media in the containment scope", () => {
   // neither can a developer's own machine. What makes the query safe here
   // is a fact about the subtree, and a fact about a subtree is exactly
   // what a DOM assertion can hold.
-  it("the host's subtree holds no video, audio or iframe", async () => {
-    for (const state of Object.values(STATES)) {
-      cleanup();
-      await renderTile(state);
-      const host = document.querySelector(".related-files-host")!;
-      expect(host.querySelectorAll("video, audio, iframe, object, embed"))
-        .toHaveLength(0);
+  //
+  // **The question is reachability, not first paint.** This repository's
+  // `<video>` is not in anybody's initial render: `VideoPreview` mounts
+  // one 200ms after `mouseenter` (`HOVER_DELAY_MS`), `FileCard` puts
+  // exactly that inside a thumbnail box the same shape as this tile's,
+  // and `lib/cardGrid.ts` names it as the reason the card grids measure
+  // with a `ResizeObserver` instead of asking `@container`. So "give the
+  // related-file tile the hover preview the card has" is an ordinary
+  // next change, and a guard that only looks at the tree as rendered
+  // would pass it.
+  const media = (root: Element) =>
+    root.querySelectorAll("video, audio, iframe, object, embed");
+
+  it("holds no media before or after the interaction that mounts one", async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true });
+    try {
+      for (const state of Object.values(STATES)) {
+        cleanup();
+        await renderTile(state);
+        const host = document.querySelector(".related-files-host")!;
+        expect(media(host), "on first paint").toHaveLength(0);
+
+        // The events `VideoPreview` listens for, on **every element in
+        // the scope** and not just the tile. `mouseenter` does not
+        // bubble and React derives `onMouseEnter` from it, so firing on
+        // an ancestor reaches nothing: the first version of this guard
+        // fired on the anchor alone and a `VideoPreview` added to the
+        // tile survived it. Where a future author puts the handler is
+        // not something this test should have to know.
+        for (const el of [host, ...host.querySelectorAll("*")]) {
+          fireEvent.mouseOver(el);
+          fireEvent.mouseEnter(el);
+          fireEvent.pointerEnter(el);
+          fireEvent.focus(el);
+          fireEvent.touchStart(el, { touches: [{ clientX: 0, clientY: 0 }] });
+        }
+        await act(async () => {
+          vi.advanceTimersByTime(2000);
+        });
+        expect(media(host), "after hover").toHaveLength(0);
+      }
+    } finally {
+      vi.useRealTimers();
     }
   });
 
-  it("the section takes no children and mounts no addon slot", () => {
-    // The other half of it: a subtree with no media today stays that way
-    // only while nothing external can be put in it. `RelatedFilesSection`
-    // renders its own tiles and nothing else — the sibling
-    // `file-relations` slot, which an addon *can* fill with anything, is
-    // outside the host on both surfaces (`ShellLayout`,
-    // `FileDetailPresenter`).
-    const source = readFileSync(
-      join(__dirname, "..", "RelatedFilesSection.tsx"),
-      "utf8",
-    );
-    expect(source).not.toContain("AddonSlot");
-    expect(source).not.toContain("children");
+  it("contains nothing but the grid, and nothing but tiles inside it", async () => {
+    // The other half, and it replaces two substring checks over the
+    // component's own source (`not.toContain("AddonSlot")`,
+    // `not.toContain("children")`). Those were the shape this PR's own
+    // docstrings reject twice — text standing in for a fact about a
+    // subtree — and the second matched comment prose, so a future
+    // comment using the word would have turned the suite red saying
+    // nothing useful.
+    //
+    // Declared as the whole shape instead: the containment scope is the
+    // grid and the tiles, and the tiles are pinned element-for-element
+    // by the cases above. Anything added anywhere inside — an addon
+    // slot, a preview, a heading — lands in one of the two and is red.
+    getFileRelations.mockResolvedValue({
+      relations: Object.values(STATES).map((r, i) => ({
+        ...r,
+        relation_id: i + 1,
+      })),
+    });
+    const { container } = render(<RelatedFilesSection fileId="f1" />);
+    await screen.findAllByRole("link");
+
+    const host = container.querySelector(".related-files-host")!;
+    expect(Array.from(host.children).map((c) => classOf(c))).toEqual([
+      "related-files-grid grid gap-2",
+    ]);
+    const grid = host.firstElementChild!;
+    expect(
+      Array.from(grid.children).map((c) => c.tagName.toLowerCase()),
+    ).toEqual(Object.keys(STATES).map(() => "a"));
   });
 });

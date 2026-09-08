@@ -1500,17 +1500,30 @@ main[data-canvas-floor="true"] .media-detail-player > :first-child {
    the viewport": the rule was already written, this grid was not
    following it.
 
-   THE THRESHOLD IS THE RAIL'S OWN COLUMN. The rail leaves the grid
-   22rem (352px), and at one column that tile shows 25 of those 27
-   characters. Two columns are worth having exactly when each of them is
-   at least that wide, so the switch is at 2 x 22rem + the 0.5rem gap,
-   rounded to 44rem. Measured 2026-09-08 on
-   `4822843331_db5bab77bb_o.jpg`: at a 704px grid each column is 348px
-   and shows 25 characters — the same reading the rail gives at one
-   column — against 24 at 43rem. A wide surface must not produce a tile
-   narrower than the narrow surface does; that is backwards, and it is
-   what the stacked layout did at a 768px window (456px grid, 224px
-   tiles, five of ten characters).
+   THE THRESHOLD IS THE RAIL'S OWN COLUMN. A wide surface must not
+   produce a tile narrower than the narrow surface does; that is
+   backwards, and it is what the stacked layout did at a 768px window
+   (456px grid, 224px tiles, five of ten characters of a Japanese
+   filename). So two columns are worth having exactly where each of them
+   is at least as wide as the one column the rail already gives.
+
+   The rail leaves the grid 22rem (352px) before the inspector pane's
+   scrollbar, so the sum is 2 x 22rem + the 0.5rem gap = 44.5rem, and
+   the rounding to a whole rem GOES UP. Rounding down inverts the rule
+   it comes from: at 44rem each column is (704 - 8) / 2 = 348px, four
+   pixels UNDER the rail's 352, and the tile that was supposed to read
+   at least as well reads one character worse — measured on
+   `15792094940_54b0fd8f84_o.jpg`, 26 characters in the rail against 25
+   at a 44rem switch. At 45rem each column is 356px and every real name
+   measured reads the same or better. 44rem shipped in df1474e5 and was
+   wrong for exactly this reason.
+
+   `22rem` is the rail before its scrollbar, and that is the form to
+   derive from rather than an average: where the pane draws a classic
+   15px scrollbar the list gets 336px instead, and the threshold has to
+   satisfy the WIDEST rail it can face, not the narrowest. Either way
+   the rail itself is nowhere near 45rem, so its own column count does
+   not depend on which.
 
    A CONTAINER QUERY, and the host is a wrapper rather than the
    section. `container-type` establishes a containment context, and on
@@ -1538,7 +1551,7 @@ main[data-canvas-floor="true"] .media-detail-player > :first-child {
   grid-template-columns: minmax(0, 1fr);
 }
 
-@container related-files (min-width: 44rem) {
+@container related-files (min-width: 45rem) {
   .related-files-grid {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }

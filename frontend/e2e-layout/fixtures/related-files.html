@@ -28,11 +28,21 @@
       fails if this table and the component come apart in either
       direction.
 
-      Two shapes, because the thumbnail box holds either an `<img>` or the
-      kind glyph and they are different subtrees. `missing` is the third
-      class list the anchor can carry (`opacity-60`), and it adds a badge
-      to the second row — which takes width away from the folder path but
-      not from the name.
+      Four shapes. The thumbnail box holds either an `<img>` or the kind
+      glyph and they are different subtrees; the glyph beside the name is
+      the file's kind, so `video` is its own row rather than `thumbnail`
+      with a different picture. `missing` is the third class list the
+      anchor can carry (`opacity-60`), and it adds a badge to the second
+      row — which takes width away from the folder path but not from the
+      name.
+
+      `video` is not here for its geometry, which is `thumbnail`'s. It is
+      here because the parity test's media guard has to have a video
+      relation to render: this repository mounts `<video>` behind
+      `file_type === "video"` and a hover delay, so a guard whose states
+      are all images and documents walks past the branch it exists to
+      catch. Measured — with three shapes, adding `VideoPreview` to the
+      tile under that condition survived every suite.
 
       The lucide `<path>` children are a deliberate stop: their `d` is the
       icon's business and moves no box.
@@ -66,6 +76,50 @@
                     {
                       "tag": "svg",
                       "class": "lucide lucide-image text-text-muted",
+                      "attrs": { "width": "14", "height": "14" }
+                    },
+                    { "tag": "span", "class": "truncate", "children": [] }
+                  ]
+                },
+                {
+                  "tag": "div",
+                  "class": "flex items-center gap-2 text-xs text-text-muted",
+                  "children": [
+                    { "tag": "span", "class": "truncate", "children": [] }
+                  ]
+                }
+              ]
+            }
+          ]
+        },
+
+        "video": {
+          "tag": "a",
+          "class": "group flex gap-3 rounded-xl border border-bg-border bg-bg-card p-2 transition-colors hover:border-warm-silver/60 hover:bg-bg-elevated",
+          "attrs": { "href": "*" },
+          "children": [
+            {
+              "tag": "div",
+              "class": "relative flex h-16 w-24 shrink-0 items-center justify-center overflow-hidden rounded-lg bg-bg-elevated",
+              "children": [
+                {
+                  "tag": "img",
+                  "class": "h-full w-full object-cover",
+                  "attrs": { "alt": "", "loading": "lazy", "src": "*" }
+                }
+              ]
+            },
+            {
+              "tag": "div",
+              "class": "flex min-w-0 flex-1 flex-col justify-between py-0.5",
+              "children": [
+                {
+                  "tag": "div",
+                  "class": "flex items-center gap-1.5 text-sm font-medium text-text-primary",
+                  "children": [
+                    {
+                      "tag": "svg",
+                      "class": "lucide lucide-film text-text-muted",
                       "attrs": { "width": "14", "height": "14" }
                     },
                     { "tag": "span", "class": "truncate", "children": [] }
@@ -243,7 +297,7 @@
        * 1280px window — and `sm:grid-cols-2`, the declaration this
        * component was fixed for, is exactly that rule.
        */
-      window.buildRelated = ({ width, count, shapes, name, folder }) => {
+      window.buildRelated = ({ width, count, shapes, forceColumns, name, folder }) => {
         const frame = document.getElementById("frame");
         frame.style.width = `${width}px`;
         frame.replaceChildren();
@@ -252,6 +306,14 @@
         host.className = "related-files-host";
         const grid = document.createElement("div");
         grid.className = "related-files-grid grid gap-2";
+        // `forceColumns` overrides the stylesheet's answer, and is used
+        // for exactly one thing: laying out the column count a rejected
+        // threshold would have produced, so the reason it was rejected
+        // is a measurement in the suite rather than a paragraph in a
+        // comment. Nothing else may pass it.
+        if (forceColumns) {
+          grid.style.gridTemplateColumns = `repeat(${forceColumns}, minmax(0, 1fr))`;
+        }
 
         for (let i = 0; i < count; i++) {
           grid.append(buildTile(shapes?.[i] ?? "thumbnail", name, folder));
@@ -267,7 +329,7 @@
        *
        * The character count is measured with the span's own resolved font
        * through a canvas, not guessed from a width: what the reader gets
-       * is a number of glyphs, and that is the thing the 44rem threshold
+       * is a number of glyphs, and that is the thing the threshold
        * was chosen against.
        */
       window.measureRelated = () => {

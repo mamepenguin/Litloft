@@ -40,10 +40,11 @@
  *
  * **The case list is finite**, so a query keyed above the widest case
  * here is unreachable — measured: `@container related-files (min-width:
- * 1500px)` adding a third column survives, since 1400 is the widest
- * width below. The widths are not arbitrary: each one is a measured
- * surface (the rail's grid, the stack at three window sizes) or a point
- * either side of the threshold.
+ * 1500px)` adding a third column survives, since 1200 is the widest
+ * width below. The widths are not arbitrary: every one of them is a
+ * width a real surface produces, or a point either side of the
+ * threshold. There are **three** such surfaces, not two — see
+ * `SURFACES` below.
  *
  * **Nothing here is about the tiles themselves.** Rendering them in
  * reverse order survives both this file and the jsdom suites; what a
@@ -67,36 +68,64 @@ const FIXTURE = pathToFileURL(
 ).href;
 
 /**
- * The rail's grid, measured in the running app: a 24rem inspector column
- * leaves the section 351-352px whatever the window is doing. This is the
- * width the whole change is about.
+ * The rail's grid: a 24rem inspector column, less the pane's `px-4`.
+ *
+ * **Before the pane's scrollbar**, which is the form to derive a
+ * threshold from. The inspector is `overflow-auto` and always scrolls,
+ * so where the browser draws a classic 15px scrollbar the list gets 336
+ * instead; the threshold has to satisfy the widest rail it can face, not
+ * the narrowest. The rail's own column count is the same either way —
+ * both are far below the switch.
  */
 const RAIL_GRID = 352;
 
+/** `gap-2` between the columns. */
+const GAP = 8;
+
 /**
- * The threshold, in px at the 16px root font size: `44rem`.
+ * The threshold, in px at the 16px root font size: `45rem`.
  *
- * Derived rather than picked — twice `RAIL_GRID` plus the `gap-2`
- * between the columns, rounded to a whole rem. Two columns are worth
- * having exactly when each of them is at least as wide as the one column
- * the rail already gives.
+ * Derived, not picked: twice `RAIL_GRID` plus `GAP` is 712, and the
+ * rounding to a whole rem **goes up**. Rounding down to 44rem is what
+ * shipped in `df1474e5`, and it inverts the rule it comes from — each
+ * column is then 348px, four under the rail's 352, and reads one
+ * character worse. `thresholdColumn()` below is the arithmetic, so the
+ * two cannot drift.
  */
-const THRESHOLD = 704;
+const THRESHOLD = 720;
+
+/** What one column is at a given container width, at two columns. */
+const columnAt = (container: number) => (container - GAP) / 2;
 
 /**
- * A real filename out of the library the bug was measured in, and the
- * one the 44rem threshold was chosen against. 27 characters, of which
- * the first ten are what tells one of these files from the next.
+ * The three places this list is drawn, and the widths each produces.
+ *
+ * Two of them are stacks, and they are not the same stack — a claim
+ * `df1474e5` got wrong. The canonical surface sits in the 2-pane right
+ * pane, so its width is the window less the 280px tree and the padding.
+ * The collection route (`?collection=`, `?folder_play=1`) is 2-pane
+ * exempt and capped by `max-w-6xl` less `px-4`, so it is never wider
+ * than 1120 whatever the window is — and it stays two columns at a
+ * 900px window where the canonical stack has already dropped to one.
  */
-const NAME = "4822843331_db5bab77bb_o.jpg";
+const SURFACES = {
+  /** The inspector rail, at every window width it exists at. */
+  rail: [RAIL_GRID],
+  /** Canonical stack, 2-pane: window - 280 tree - 32 padding. */
+  canonicalStack: [456, 588, 807, 1144],
+  /** Collection route: capped at 1120, and 721 at a 768px window. */
+  collectionStack: [721, 853, 1072, 1120],
+};
+
+/**
+ * A real filename out of the library the bug was measured in.
+ *
+ * 28 characters, long enough to overflow the name column at every width
+ * asserted below — which is what makes the name column's width a
+ * question about the layout rather than about the font.
+ */
+const NAME = "15792094940_54b0fd8f84_o.jpg";
 const FOLDER = "test_images";
-
-/**
- * What the rail shows at one column, measured: 25 of the 27 characters.
- * Every other surface is held to this, because a wider container
- * producing a narrower tile than the narrowest surface is backwards.
- */
-const RAIL_CHARS = 25;
 
 interface Measurement {
   gridWidth: number;
@@ -117,6 +146,7 @@ declare global {
       width: number;
       count: number;
       shapes?: string[];
+      forceColumns?: number;
       name: string;
       folder: string;
     }) => void;
@@ -129,6 +159,7 @@ async function layout(
   width: number,
   count = 11,
   shapes?: string[],
+  forceColumns?: number,
 ): Promise<Measurement> {
   // The window is sized to the frame, not left at the default 1280px.
   // That is the whole point: `sm:grid-cols-2` is invisible to a suite
@@ -137,7 +168,7 @@ async function layout(
   await page.setViewportSize({ width: width + 40, height: 900 });
   await page.evaluate(
     (spec) => window.buildRelated(spec),
-    { width, count, shapes, name: NAME, folder: FOLDER },
+    { width, count, shapes, forceColumns, name: NAME, folder: FOLDER },
   );
   return page.evaluate(() => window.measureRelated());
 }
@@ -151,60 +182,136 @@ test.describe("the column count is the container's question", () => {
     // The defect, stated as its own test. The rail is 352px whether the
     // window is 768 or 1456, and a viewport breakpoint gave it two
     // columns at every one of them.
+    //
+    // Everything asserted here is a width, and a width is what the CSS
+    // decides — no glyph count is written down. `df1474e5` typed the
+    // rail's character count in as a literal and then compared the
+    // threshold against the literal, so both sides of the comparison
+    // came from one observation and the comparison could not fail on
+    // the thing it was about. The character claim now lives in the next
+    // test, between two measurements taken in the same run.
     const m = await layout(page, RAIL_GRID);
     expect(m.columns).toBe(1);
     expect(m.rows).toBe(11);
     for (const tile of m.tiles) {
       expect(tile.width).toBeCloseTo(RAIL_GRID, 0);
-      expect(tile.nameChars).toBe(RAIL_CHARS);
+      // The name overflows here, so its column is the tile's leftovers
+      // and not the string's own width. Stated rather than assumed: it
+      // is the precondition that makes `nameWidth` a layout fact.
+      expect(tile.nameChars).toBeLessThan(tile.nameLength);
+      expect(tile.nameWidth).toBeCloseTo(m.tiles[0].nameWidth, 0);
     }
   });
 
-  test("one column just under the threshold, two at it", async ({ page }) => {
+  test("one column just under the threshold, and a wider column at it", async ({ page }) => {
     const under = await layout(page, THRESHOLD - 8);
     expect(under.columns).toBe(1);
 
+    const rail = await layout(page, RAIL_GRID);
     const at = await layout(page, THRESHOLD);
     expect(at.columns).toBe(2);
-    // And the point of putting it there: at the threshold each column
-    // reads as well as the rail's single one.
+
+    // The rule, as arithmetic on widths: each column at the switch is
+    // exactly `(720 - 8) / 2`, and that is wider than the rail's single
+    // column. Both numbers are exact, so neither can drift under the
+    // comparison that follows.
+    expect(columnAt(THRESHOLD)).toBe(356);
     for (const tile of at.tiles) {
-      expect(tile.nameChars).toBeGreaterThanOrEqual(RAIL_CHARS);
+      expect(tile.width).toBeCloseTo(columnAt(THRESHOLD), 0);
+      expect(tile.width).toBeGreaterThan(rail.tiles[0].width);
+    }
+
+    // And the consequence, measured in this run against this run's rail
+    // rather than against a number typed in from another machine: the
+    // switch never costs the reader a character. Not `toBe` — the
+    // column at the threshold is deliberately *wider* than the rail's,
+    // so equality would be asserting the opposite of the rule. What
+    // stops the inequality from drifting is that both of its operands
+    // are pinned exactly above.
+    for (const tile of at.tiles) {
+      expect(tile.nameWidth).toBeGreaterThan(rail.tiles[0].nameWidth);
+      expect(tile.nameChars).toBeGreaterThanOrEqual(rail.tiles[0].nameChars);
     }
   });
 
-  test("the legacy stack keeps its two columns where it had room", async ({ page }) => {
-    // Measured in the app at a 1456px window: the stacked column is
-    // 1144px. This is the surface a naive one-column fix would have
-    // ruined.
+  test("a switch one rem lower would cost the reader a character", async ({ page }) => {
+    // Why the rounding goes up, as a measurement rather than as a
+    // paragraph. 44rem shipped in `df1474e5`; at it each column is
+    // 348px, four pixels under the rail, and the name column loses a
+    // character it had at one column in the rail.
+    const rail = await layout(page, RAIL_GRID);
+    const lower = await layout(page, THRESHOLD - 16);
+    expect(lower.columns).toBe(1);
+
+    // The layout the old threshold would have produced, forced: two
+    // columns in a 704px container.
+    const forced = await layout(page, THRESHOLD - 16, 11, undefined, 2);
+    expect(forced.tiles[0].width).toBeCloseTo(columnAt(704), 0);
+    expect(forced.tiles[0].width).toBeLessThan(rail.tiles[0].width);
+    expect(forced.tiles[0].nameChars).toBeLessThan(rail.tiles[0].nameChars);
+  });
+
+  test("the canonical stack keeps its two columns where it had room", async ({ page }) => {
+    // 1144px is that surface at a 1456px window, measured.
     const m = await layout(page, 1144);
     expect(m.columns).toBe(2);
     expect(m.tiles[0].nameChars).toBe(m.tiles[0].nameLength);
   });
 
-  test("the legacy stack drops to one column where it did not", async ({ page }) => {
-    // 456px is the stacked column at a 768px window, measured. It was
-    // two columns of 224px there — five of ten characters of a Japanese
+  test("the canonical stack drops to one column where it did not", async ({ page }) => {
+    // 456px is that surface at a 768px window, measured. It was two
+    // columns of 224px there — five of ten characters of a Japanese
     // filename, the same defect as the rail's with a different number.
     const m = await layout(page, 456);
     expect(m.columns).toBe(1);
     expect(m.tiles[0].width).toBeCloseTo(456, 0);
   });
+
+  test("the collection route keeps two columns where the canonical stack has none", async ({ page }) => {
+    // The third surface, and the reason it is worth its own case: at a
+    // 900px window the canonical stack is 588px and drops to one
+    // column, while this one is 853px and keeps two. A commit that
+    // knows about two surfaces states "1 column at 900" and is wrong
+    // about half the app.
+    const m = await layout(page, 853);
+    expect(m.columns).toBe(2);
+    expect(m.tiles[0].width).toBeCloseTo(columnAt(853), 0);
+
+    // Its ceiling, which no window width exceeds.
+    const capped = await layout(page, 1120);
+    expect(capped.columns).toBe(2);
+  });
 });
 
-test.describe("no width produces a tile narrower than the narrowest surface", () => {
+test.describe("no width produces a tile narrower than the rail's single column", () => {
   // The invariant the threshold exists to hold, swept rather than
   // spot-checked: a tile is either the whole container or at least as
-  // wide as the rail's single column. A 172px tile inside a 351px
-  // container — what shipped — violates both halves at once.
-  const WIDTHS = [320, RAIL_GRID, 456, 588, 640, THRESHOLD - 8, THRESHOLD, 807, 1144, 1400];
+  // wide as the rail's one column. A 172px tile inside a 351px
+  // container — what shipped before `df1474e5` — violates both halves
+  // at once.
+  //
+  // The floor is `RAIL_GRID`, the number the describe block names. It
+  // was `THRESHOLD / 2 - 4` — four whole pixels of unexplained slop, an
+  // order above the sub-pixel tolerance used elsewhere in this file,
+  // and it was exactly the amount by which the 44rem threshold broke
+  // the rule. A floor loosened to admit the one case it was written to
+  // judge is not a floor.
+  const WIDTHS = [
+    320,
+    ...SURFACES.rail,
+    ...SURFACES.canonicalStack,
+    ...SURFACES.collectionStack,
+    THRESHOLD - 8,
+    THRESHOLD,
+    1200,
+  ];
 
-  for (const width of WIDTHS) {
+  for (const width of [...new Set(WIDTHS)].sort((a, b) => a - b)) {
     test(`${width}px`, async ({ page }) => {
       const m = await layout(page, width);
       for (const tile of m.tiles) {
         const full = Math.abs(tile.width - m.gridWidth) < 1;
-        expect(full || tile.width >= THRESHOLD / 2 - 4).toBe(true);
+        expect(full || tile.width >= RAIL_GRID).toBe(true);
       }
     });
   }
@@ -215,12 +322,11 @@ test.describe("the shapes the tile actually comes in", () => {
     // Three class lists, one geometry: the anchor's `opacity-60` and the
     // second row's badge change no box, and the thumbnail slot is `w-24`
     // whether it holds a picture or the glyph. Asserted rather than
-    // assumed, because if they differed the character counts above would
-    // only be true of the shape they were measured on.
+    // assumed, because if they differed the widths above would only be
+    // true of the shape they were measured on.
     const m = await layout(page, RAIL_GRID, 3, ["thumbnail", "icon", "missing"]);
     expect(m.tiles.map((t) => t.shape)).toEqual(["thumbnail", "icon", "missing"]);
-    const widths = new Set(m.tiles.map((t) => Math.round(t.nameWidth)));
-    expect(widths.size).toBe(1);
-    for (const tile of m.tiles) expect(tile.nameChars).toBe(RAIL_CHARS);
+    expect(new Set(m.tiles.map((t) => Math.round(t.nameWidth))).size).toBe(1);
+    expect(new Set(m.tiles.map((t) => t.nameChars)).size).toBe(1);
   });
 });
