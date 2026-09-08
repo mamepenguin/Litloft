@@ -1,3 +1,5 @@
+import stat
+from pathlib import Path
 from unittest.mock import patch, MagicMock
 
 import pytest
@@ -7,6 +9,7 @@ from app.services import thumbnail as thumbnail_service
 
 from app.services.thumbnail import (
     generate_image_thumbnail,
+    generate_pdf_thumbnail,
     generate_thumbnail,
     get_media_chapters,
     get_video_duration,
@@ -474,3 +477,330 @@ class TestNonUtf8SubprocessOutput:
         generate_image_thumbnail("/fake/image.jpg", output)
 
         assert mock_run.call_args.kwargs["errors"] == "replace"
+
+
+class TestPictureThumbnailBox:
+    """A picture keeps its own shape; a frame keeps its frame.
+
+    The box is square and the picture is fitted inside it, so a portrait
+    reaches 320 on the tall edge instead of being letterboxed into a
+    landscape frame. Video and PDF are deliberately not part of that, and
+    two of the tests below exist to say so rather than to describe the
+    change.
+    """
+
+    # Half of these are shapes whose fitted edge lands on a half, which is
+    # where the three rounding rules used to part company: ffmpeg rounds a
+    # half away from zero, Python's `round` to even, and `Image.thumbnail`
+    # picks the integer that best preserves the ratio. The five shapes
+    # this list started as were the ones all three happened to agree on.
+    SHAPES = [
+        # (source, expected thumbnail)
+        ((768, 1024), (240, 320)),
+        ((1920, 1080), (320, 180)),
+        ((1000, 1000), (320, 320)),
+        ((3000, 1000), (320, 107)),
+        ((1600, 900), (320, 180)),
+        ((301, 640), (151, 320)),
+        ((303, 384), (253, 320)),
+        ((308, 512), (193, 320)),
+        ((640, 361), (320, 181)),
+        ((640, 193), (320, 97)),
+        ((65, 640), (33, 320)),
+        ((66, 768), (28, 320)),
+        # `scale` reads a computed 0 as "keep the input edge", so the
+        # output stops being proportional. The prediction has to say what
+        # the generator does, not what the geometry would.
+        ((4000, 6), (320, 6)),
+    ]
+
+    def test_the_filter_pads_nothing(self):
+        vf = thumbnail_service.image_scale_filter()
+        assert "pad=" not in vf
+        # The box is taken against the source on each edge, which is what
+        # keeps a small picture at its own size.
+        assert "min(320,iw)" in vf
+        assert "min(320,ih)" in vf
+
+    @pytest.mark.parametrize("source,expected", SHAPES)
+    def test_ffmpeg_produces_the_size_the_arithmetic_predicts(
+        self, source, expected, tmp_path
+    ):
+        """The parity pair: two implementations of one box.
+
+        ``image_thumbnail_size`` is arithmetic in Python and the filter is
+        resolved by ffmpeg. The scanner's migration test asks the first
+        what the second would produce, so a drift between them would make
+        it regenerate the wrong files, or none.
+        """
+        path = tmp_path / "photo.jpg"
+        Image.new("RGB", source, (200, 80, 40)).save(path)
+        output = tmp_path / "thumb.jpg"
+
+        assert generate_image_thumbnail(str(path), str(output)) is True
+        with Image.open(output) as thumbnail:
+            assert thumbnail.size == expected
+        assert thumbnail_service.image_thumbnail_size(*source) == expected
+
+    @pytest.mark.parametrize("source,expected", SHAPES)
+    def test_the_heic_path_answers_the_same_size_as_ffmpeg(
+        self, source, expected, tmp_path
+    ):
+        """The parity pair the box needs and the arithmetic does not give.
+
+        Two libraries, one box. `image_thumbnail_size` agreeing with
+        ffmpeg says nothing about Pillow, and the HEIC branch used to be
+        a pixel narrower on 5 of these — same picture, different
+        thumbnail, and a migration prediction that was right for one
+        format only.
+        """
+        pytest.importorskip("pillow_heif")
+        import pillow_heif
+
+        pillow_heif.register_heif_opener()
+        path = tmp_path / "photo.heic"
+        Image.new("RGB", source, (200, 80, 40)).save(path, format="HEIF")
+        output = tmp_path / "thumb.jpg"
+
+        assert generate_image_thumbnail(str(path), str(output)) is True
+        with Image.open(output) as thumbnail:
+            assert thumbnail.size == expected
+
+    @pytest.mark.parametrize(
+        "source,expected",
+        [
+            ((0, 100), None),
+            ((100, 0), None),
+            ((-1, 100), None),
+        ],
+    )
+    def test_a_source_with_no_area_has_no_predicted_size(self, source, expected):
+        # The migration asks this of stored dimensions, which a broken
+        # header can make nonsense. `None` is what makes it leave the file
+        # alone rather than divide by it.
+        assert thumbnail_service.image_thumbnail_size(*source) is expected
+
+    def test_a_picture_smaller_than_the_box_is_not_grown_into_it(self, tmp_path):
+        # The letterboxed frame had to be filled, so a 64px icon was
+        # scaled up to 180 and stored as interpolation. Fitting inside the
+        # box has no frame to fill.
+        path = tmp_path / "icon.png"
+        Image.new("RGB", (64, 64), (10, 10, 10)).save(path)
+        output = tmp_path / "thumb.jpg"
+
+        assert generate_image_thumbnail(str(path), str(output)) is True
+        with Image.open(output) as thumbnail:
+            assert thumbnail.size == (64, 64)
+
+    def test_a_video_frame_still_gets_its_letterbox(self, tmp_path):
+        # Not an oversight and not collateral: a video card is a fixed
+        # 16:9 frame, the padding is invisible inside it, and the
+        # candidate-rejection analysis upstream reads the unpadded frame.
+        candidate = tmp_path / "frame.png"
+        Image.new("RGB", (80, 180), (220, 30, 30)).save(candidate)
+        output = tmp_path / "thumb.jpg"
+
+        assert thumbnail_service._finalize_video_thumbnail(candidate, str(output))
+        with Image.open(output) as thumbnail:
+            assert thumbnail.size == (320, 180)
+        assert "pad=320:180" in thumbnail_service.SCALE_FILTER
+
+    def test_a_page_still_gets_its_white_frame(self, tmp_path):
+        pytest.importorskip("fitz")
+        import fitz
+
+        pdf = tmp_path / "doc.pdf"
+        document = fitz.open()
+        page = document.new_page(width=595, height=842)  # A4 portrait
+        # Inked, not blank. On a blank page every pixel is white and the
+        # assertion below cannot tell the frame from the paper.
+        page.draw_rect(fitz.Rect(40, 40, 555, 802), color=(0, 0, 0), fill=(0, 0, 0))
+        document.save(str(pdf))
+        document.close()
+        output = tmp_path / "thumb.jpg"
+
+        assert generate_pdf_thumbnail(str(pdf), str(output)) is True
+        with Image.open(output) as thumbnail:
+            assert thumbnail.size == (320, 180)
+            # White at the edge and ink in the middle: the frame is there
+            # and the page is inside it, rather than the page filling the
+            # frame. A portrait page cropped to 16:9 would be all ink.
+            assert thumbnail.getpixel((2, 90)) == (255, 255, 255)
+            centre = thumbnail.getpixel((160, 90))
+            assert max(centre) < 40, centre
+
+
+class TestAtomicThumbnailWrite:
+    """The property, not a consequence of it.
+
+    `test_the_replacement_is_never_visible_half_written` in
+    `test_scanner.py` exercises the failure path — a generator that
+    writes nothing and returns False — so it dies on "write straight to
+    the destination" and lives on anything that still writes through a
+    temporary file and then copies it. Replacing `os.replace` with
+    `shutil.copyfile` reintroduces the whole defect (`copyfile` truncates
+    and refills, so a reader sees a partial file on every *successful*
+    write) and left the suite green.
+
+    A rename gives the destination the temporary file's inode. A rewrite
+    of any kind keeps the one it had. That is the difference, and it is
+    observable without racing anything.
+    """
+
+    def _seed(self, tmp_path):
+        source = tmp_path / "photo.jpg"
+        Image.new("RGB", (768, 1024), (20, 90, 160)).save(source)
+        destination = tmp_path / "thumb.jpg"
+        Image.new("RGB", (320, 180), (0, 0, 0)).save(destination)
+        return source, destination
+
+    def test_the_new_bytes_arrive_by_rename(self, tmp_path):
+        source, destination = self._seed(tmp_path)
+        before = destination.stat().st_ino
+
+        assert thumbnail_service.write_thumbnail_atomically(
+            generate_image_thumbnail, str(source), str(destination)
+        )
+
+        assert destination.stat().st_ino != before, (
+            "the destination kept its inode, so it was written in place "
+            "rather than replaced"
+        )
+        with Image.open(destination) as thumbnail:
+            assert thumbnail.size == (240, 320)
+
+    def test_the_generator_is_never_handed_the_destination(self, tmp_path):
+        source, destination = self._seed(tmp_path)
+        handed = []
+
+        def record(src, dst):
+            handed.append(dst)
+            Image.new("RGB", (10, 10), (1, 2, 3)).save(dst)
+            return True
+
+        assert thumbnail_service.write_thumbnail_atomically(
+            record, str(source), str(destination)
+        )
+        assert handed == [handed[0]]
+        assert handed[0] != str(destination)
+        assert Path(handed[0]).parent == destination.parent
+
+    def test_a_replaced_thumbnail_keeps_the_mode_its_neighbours_have(self, tmp_path):
+        # `mkstemp` opens at 0600 and `replace` carries the mode across.
+        # Every other thumbnail in the directory is whatever the generator
+        # creates under the process umask, and `data/` is a bind mount, so
+        # a divergence here is a host user losing read access to part of
+        # it.
+        source, destination = self._seed(tmp_path)
+        direct = tmp_path / "direct.jpg"
+        assert generate_image_thumbnail(str(source), str(direct))
+        expected = stat.S_IMODE(direct.stat().st_mode)
+
+        assert thumbnail_service.write_thumbnail_atomically(
+            generate_image_thumbnail, str(source), str(destination)
+        )
+        assert stat.S_IMODE(destination.stat().st_mode) == expected
+
+    def test_a_generator_that_fails_leaves_the_old_bytes_and_no_litter(self, tmp_path):
+        source, destination = self._seed(tmp_path)
+        served = destination.read_bytes()
+
+        assert (
+            thumbnail_service.write_thumbnail_atomically(
+                lambda src, dst: False, str(source), str(destination)
+            )
+            is False
+        )
+        assert destination.read_bytes() == served
+        assert sorted(p.name for p in tmp_path.iterdir()) == [
+            "photo.jpg",
+            "thumb.jpg",
+        ]
+
+
+class TestEveryThumbnailWriteGoesThroughTheAtomicOne:
+    """The callers, not just the recipe.
+
+    `TestAtomicThumbnailWrite` pins what `write_thumbnail_atomically`
+    does. It says nothing about who uses it, and reverting either of the
+    two callers this PR converted to a direct write left the whole suite
+    green — the shape `review-workflow.md` names: *when extracting a
+    shared recipe, include the callers you are fixing; grep by role, not
+    by directory.*
+
+    So this greps by role, in the test rather than in a shell: every
+    invocation of a thumbnail generator anywhere under `backend/app`,
+    including one reached through a variable that `get_thumbnail_generator`
+    was assigned to under any name. The expected set is empty, exactly —
+    a new call site that writes to its destination directly fails here,
+    and so does an old one changed back.
+    """
+
+    #: `thumbnail.py` is where the generators live and where the helper
+    #: calls one. Scanning it would report its own definitions.
+    EXEMPT = {"services/thumbnail.py"}
+
+    NAMED_GENERATORS = {
+        "generate_image_thumbnail",
+        "generate_thumbnail",
+        "generate_pdf_thumbnail",
+        "_generate_heic_thumbnail",
+    }
+
+    def _direct_calls(self, path):
+        import ast
+
+        tree = ast.parse(path.read_text(encoding="utf-8"))
+        # Anything `get_thumbnail_generator(...)` was bound to, whatever
+        # the local variable is called.
+        bound = set()
+        for node in ast.walk(tree):
+            if not isinstance(node, ast.Assign):
+                continue
+            value = node.value
+            if (
+                isinstance(value, ast.Call)
+                and isinstance(value.func, ast.Name)
+                and value.func.id == "get_thumbnail_generator"
+            ):
+                bound.update(
+                    t.id for t in node.targets if isinstance(t, ast.Name)
+                )
+        callable_names = self.NAMED_GENERATORS | bound
+
+        hits = []
+        for node in ast.walk(tree):
+            if (
+                isinstance(node, ast.Call)
+                and isinstance(node.func, ast.Name)
+                and node.func.id in callable_names
+            ):
+                hits.append(f"{path.name}:{node.lineno} {node.func.id}(...)")
+        return hits
+
+    def test_no_generator_is_handed_its_destination_directly(self):
+        app_dir = Path(thumbnail_service.__file__).resolve().parents[1]
+        direct = []
+        scanned = 0
+        for path in sorted(app_dir.rglob("*.py")):
+            if str(path.relative_to(app_dir)).replace("\\", "/") in self.EXEMPT:
+                continue
+            scanned += 1
+            direct.extend(self._direct_calls(path))
+
+        # The scan finding nothing because it scanned nothing is the way
+        # this test would go quiet.
+        assert scanned > 20, scanned
+        assert direct == []
+
+    def test_the_scan_can_see_a_direct_call(self, tmp_path):
+        # Without this the assertion above proves only that the walk found
+        # no `Call` nodes at all.
+        sample = tmp_path / "sample.py"
+        sample.write_text(
+            "def f(src, dst):\n"
+            "    gen = get_thumbnail_generator('image', 'image/jpeg')\n"
+            "    return gen(src, dst)\n",
+            encoding="utf-8",
+        )
+        assert self._direct_calls(sample) == ["sample.py:3 gen(...)"]

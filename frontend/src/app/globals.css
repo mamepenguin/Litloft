@@ -1291,10 +1291,9 @@ div[data-citation-section-path]:not(tr) {
      either way.
 
      That is only half of what the 200px figure was chosen against:
-     `cover` scales the stored 320x180 by `max(w / 320, h / 180)`, and
-     the height term is `--jg-row-h *
-     --jg-max-stretch` rather than `--jg-row-h`, so more of the grid is
-     drawn above 1:1. The trade is deliberate — the alternative to
+     `cover` scales the stored thumbnail by however much the cell exceeds
+     it, and the cell's height term is `--jg-row-h * --jg-max-stretch`
+     rather than `--jg-row-h`, so more of the grid is drawn above 1:1. The trade is deliberate — the alternative to
      upscaling the picture is cropping it — and DESIGN.md carries the
      measurement. */
   --jg-row-h: 120px;

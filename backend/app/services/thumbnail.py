@@ -1,5 +1,7 @@
 import json
 import logging
+import math
+import os
 import subprocess
 import tempfile
 from collections import Counter
@@ -154,6 +156,14 @@ def has_video_stream(media_path: str) -> bool | None:
 
 CANDIDATE_SCALE_FILTER = "scale=320:180:force_original_aspect_ratio=decrease"
 SCALE_FILTER = f"{CANDIDATE_SCALE_FILTER},pad=320:180:(ow-iw)/2:(oh-ih)/2"
+
+# The longest edge a picture thumbnail is allowed, in either direction.
+#
+# A picture keeps its own proportions and is not padded onto a frame, so
+# the box is square and only one of the two edges reaches it. 320 is the
+# same number the video frame uses for its width, so a landscape picture
+# is stored at exactly the size it was before.
+IMAGE_THUMBNAIL_BOX = 320
 
 SEEK_MIN = 2.0
 SEEK_MAX = 60.0
@@ -358,6 +368,58 @@ def generate_thumbnail(video_path: str, output_path: str) -> bool:
     return _run_ffmpeg_thumbnail(video_path, output_path, fallback_seek, SCALE_FILTER)
 
 
+def image_scale_filter(box: int = IMAGE_THUMBNAIL_BOX) -> str:
+    """Fit a picture inside a square box without padding or upscaling.
+
+    ``min(box,iw)`` rather than a bare ``box``: ``decrease`` fits the
+    picture inside whatever box it is given, and a box larger than the
+    source is still a box it will grow into. Taking the minimum on each
+    edge first makes the box no larger than the picture, so a small
+    picture is stored at its own size.
+    """
+    return (
+        f"scale='min({box},iw)':'min({box},ih)'"
+        ":force_original_aspect_ratio=decrease"
+    )
+
+
+def _round_like_scale(value: float) -> int:
+    """``scale`` rounds a half up, away from zero; Python rounds it to even.
+
+    The difference shows on every source whose fitted edge lands on a
+    half — 640x361 is one — and it is not cosmetic here: the caller
+    below decides from this number whether a stored thumbnail is the one
+    the generator would produce today.
+    """
+    return math.floor(value + 0.5)
+
+
+def image_thumbnail_size(
+    width: int, height: int, box: int = IMAGE_THUMBNAIL_BOX
+) -> tuple[int, int] | None:
+    """The size the generators produce for a source of this size.
+
+    A second implementation of what ffmpeg and Pillow are asked to do,
+    so a caller can ask what a thumbnail *should* measure without opening
+    one. `test_thumbnail.py` runs the three against each other, because a
+    drift between them is what makes the migration read a thumbnail as
+    the wrong generation.
+
+    The box is taken against the source on each edge before the factor is
+    formed, which is what keeps a small picture at its own size. A factor
+    that rounds an edge to zero leaves that edge alone: ``scale`` reads a
+    computed 0 as "keep the input", and the prediction has to say what
+    the generator does rather than what the geometry would.
+    """
+    if width <= 0 or height <= 0:
+        return None
+    factor = min(min(box, width) / width, min(box, height) / height)
+    return (
+        _round_like_scale(width * factor) or width,
+        _round_like_scale(height * factor) or height,
+    )
+
+
 def generate_image_thumbnail(image_path: str, output_path: str) -> bool:
     from app.services.heic import is_heic_file
 
@@ -374,8 +436,7 @@ def generate_image_thumbnail(image_path: str, output_path: str) -> bool:
                 "-i", image_path,
                 "-frames:v", "1",
                 "-vf",
-                "scale=320:180:force_original_aspect_ratio=decrease,"
-                "pad=320:180:(ow-iw)/2:(oh-ih)/2",
+                image_scale_filter(),
                 "-q:v", "2",
                 "-y",
                 output_path,
@@ -417,6 +478,14 @@ def generate_pdf_thumbnail(pdf_path: str, output_path: str) -> bool:
         img = Image.frombytes("RGB", [pix.width, pix.height], pix.samples)
         img.thumbnail((320, 180))
 
+        # A page keeps its frame, where a picture does not.
+        #
+        # The white is the page's own margin continued to the edge of the
+        # card, and it is what makes a first page read as a page. Fitting
+        # the sheet to its own proportions instead would leave the card
+        # cropping a portrait page to 16:9, which is a band of body text
+        # with no edges in it — recognisable as neither the document nor
+        # a picture of one.
         thumb_w, thumb_h = img.size
         canvas = Image.new("RGB", (320, 180), (255, 255, 255))
         canvas.paste(img, ((320 - thumb_w) // 2, (180 - thumb_h) // 2))
@@ -426,6 +495,58 @@ def generate_pdf_thumbnail(pdf_path: str, output_path: str) -> bool:
     except Exception as e:
         logger.error("PDF thumbnail failed for %s: %s", pdf_path, e)
         return False
+
+
+def _process_umask() -> int:
+    """The umask, read the only way the platform offers: by setting it.
+
+    At import, so the swap is not racing another thread's file creation.
+    """
+    mask = os.umask(0)
+    os.umask(mask)
+    return mask
+
+
+# What the generators produce when they create their own output, which is
+# what the rest of `data/thumbnails/` is.
+_FILE_MODE = 0o666 & ~_process_umask()
+
+
+def write_thumbnail_atomically(generator, source: str, destination: str) -> bool:
+    """Generate into a sibling temporary file, then rename it into place.
+
+    A destination that already exists is one the thumbnail endpoint is
+    serving, and every generator here writes its output incrementally —
+    ffmpeg truncates the file and fills it, Pillow the same — so a reader
+    arriving mid-write is served a partial JPEG or an empty one. `rename`
+    within a directory is atomic, so a reader sees one file or the other
+    and never a file being written.
+
+    Conventions: "Atomic file writes: write to `.tmp` then `os.replace()`".
+    """
+    target = Path(destination)
+    target.parent.mkdir(parents=True, exist_ok=True)
+    fd, tmp_name = tempfile.mkstemp(
+        prefix=f".{target.stem}.", suffix=".jpg", dir=target.parent
+    )
+    os.close(fd)
+    try:
+        if not generator(source, tmp_name):
+            return False
+        # `mkstemp` opens at 0600 and `replace` carries the source's mode
+        # to the destination, so without this a replaced thumbnail ends up
+        # readable only by the process that wrote it — where every
+        # thumbnail beside it, written by the generator directly, is
+        # 0644. `data/` is a bind mount, so the difference is the host
+        # user's backup job losing access to a growing subset of it.
+        os.chmod(tmp_name, _FILE_MODE)
+        os.replace(tmp_name, destination)
+        return True
+    finally:
+        try:
+            os.unlink(tmp_name)
+        except OSError:
+            pass
 
 
 def get_thumbnail_generator(file_type: str, mime_type: str | None):
@@ -456,14 +577,28 @@ def _generate_heic_thumbnail(image_path: str, output_path: str) -> bool:
 
         with Image.open(image_path) as img:
             oriented = ImageOps.exif_transpose(img)
-            oriented.thumbnail((320, 180))
-
-            thumb_w, thumb_h = oriented.size
-            canvas = Image.new("RGB", (320, 180), (0, 0, 0))
-            offset_x = (320 - thumb_w) // 2
-            offset_y = (180 - thumb_h) // 2
-            canvas.paste(oriented, (offset_x, offset_y))
-            canvas.save(output_path, format="JPEG", quality=85, exif=b"")
+            # Resized to a size that is computed, not to ``thumbnail``'s
+            # own fit. `Image.thumbnail` picks the integer that best
+            # preserves the ratio and breaks ties downwards, which is a
+            # third rounding rule beside ffmpeg's and this module's — so
+            # the same picture came out a pixel narrower as HEIC than as
+            # JPEG, and the migration's prediction was right for only one
+            # of them.
+            target = image_thumbnail_size(*oriented.size)
+            if target is not None and target != oriented.size:
+                # `reducing_gap` is what `Image.thumbnail` passes and this
+                # branch used to get for free: a cheap `reduce()` down to
+                # twice the target before the convolution. Without it a
+                # 12 MP phone photo spends 7x longer in the resample, on
+                # the scan path, for a format phones shoot in. The target
+                # is computed rather than derived from the resampling, so
+                # it is the same size either way.
+                oriented = oriented.resize(
+                    target, Image.Resampling.LANCZOS, reducing_gap=2.0
+                )
+            oriented.convert("RGB").save(
+                output_path, format="JPEG", quality=85, exif=b""
+            )
 
         return output.exists()
     except Exception as e:

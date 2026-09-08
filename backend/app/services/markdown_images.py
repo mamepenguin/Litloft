@@ -18,7 +18,10 @@ from sqlalchemy.orm import Session
 
 import app.config as config
 from app.models import File, active_file_filter
-from app.services.thumbnail import generate_image_thumbnail
+from app.services.thumbnail import (
+    generate_image_thumbnail,
+    write_thumbnail_atomically,
+)
 
 ImageSyntax = Literal["inline", "reference", "html"]
 
@@ -347,21 +350,9 @@ def _atomic_copy(source: Path, destination: Path) -> None:
 
 
 def _generate_atomic(source: Path, destination: Path) -> bool:
-    destination.parent.mkdir(parents=True, exist_ok=True)
-    fd, tmp_name = tempfile.mkstemp(
-        prefix=f".{destination.stem}.", suffix=".jpg", dir=destination.parent
+    return write_thumbnail_atomically(
+        generate_image_thumbnail, str(source), str(destination)
     )
-    os.close(fd)
-    try:
-        if not generate_image_thumbnail(str(source), tmp_name):
-            return False
-        os.replace(tmp_name, destination)
-        return True
-    finally:
-        try:
-            os.unlink(tmp_name)
-        except OSError:
-            pass
 
 
 def project_markdown_thumbnail(

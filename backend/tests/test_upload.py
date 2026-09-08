@@ -240,3 +240,62 @@ class TestUploadFlow:
             "chunk_size": 10,
         })
         assert res.status_code == 400
+
+
+class TestUploadThumbnailIsNotWrittenInPlace:
+    """The destination can be a thumbnail the endpoint is serving.
+
+    A file that goes missing keeps its thumbnail on disk and the endpoint
+    keeps serving it; an upload to the same path revives that record
+    (`design-decisions.md`). So finalising an upload can land on a live
+    thumbnail, and writing the generator's output straight there hands a
+    reader a truncated JPEG.
+    """
+
+    def _upload(self, c, name, payload):
+        res = c.post(
+            f"/api/drives/{TEST_DRIVE}/upload/init",
+            json={
+                "filename": name,
+                "file_size": len(payload),
+                "folder_path": "",
+                "chunk_size": len(payload),
+            },
+        )
+        assert res.status_code == 200
+        upload_id = res.json()["upload_id"]
+        c.post(
+            f"/api/drives/{TEST_DRIVE}/upload/{upload_id}/chunk",
+            data={"chunk_index": "0"},
+            files={"chunk": ("chunk", io.BytesIO(payload), "image/jpeg")},
+        )
+        return c.post(f"/api/drives/{TEST_DRIVE}/upload/{upload_id}/complete")
+
+    def test_the_generator_is_handed_a_temporary_path(self, client, monkeypatch):
+        from PIL import Image
+
+        from app.services import upload as upload_service
+
+        c, db, drive_dir, data_dir = client
+        buffer = io.BytesIO()
+        Image.new("RGB", (768, 1024), (30, 90, 160)).save(buffer, format="JPEG")
+        payload = buffer.getvalue()
+
+        handed = []
+
+        def record(source, destination):
+            handed.append(destination)
+            Image.new("RGB", (240, 320), (1, 2, 3)).save(destination)
+            return True
+
+        monkeypatch.setattr(
+            upload_service, "get_thumbnail_generator", lambda *_: record
+        )
+        res = self._upload(c, "photo.jpg", payload)
+        assert res.status_code == 200
+
+        assert len(handed) == 1
+        expected = data_dir / "thumbnails" / TEST_DRIVE / "photo.jpg"
+        assert handed[0] != str(expected)
+        assert Path(handed[0]).parent == expected.parent
+        assert expected.exists()

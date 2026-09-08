@@ -1266,11 +1266,11 @@ the window.
 
 ### Justified thumbnail rows
 
-A folder whose rows are all photographs does not go into equal cards: every
-thumbnail is a 320×180 JPEG with the picture letterboxed inside it, so 16:9 cards
-draw black bars on three or four of every ten cells in a folder of portraits.
-Those rows are packed at their own proportions instead — variable widths and a
-height of its own per line.
+A folder whose rows are all photographs does not go into equal cards: a 16:9 card
+shows the middle of a tall picture and nothing else of it, and three or four of
+every ten cells in a folder of portraits are that crop. Those rows are packed at
+their own proportions instead — variable widths and a height of its own per
+line.
 
 - **Which shape a listing gets is derived, not chosen.** `deriveListMeta` answers
   it from the rows that are loaded: `justifyThumbnails` is true when at least 90%
@@ -1317,11 +1317,17 @@ height of its own per line.
   var(--jg-max-stretch))`. Line-breaking is greedy, so a line can hold one narrow
   cell whose width then becomes height. A cell that reaches the ceiling keeps its
   width and gives up its ratio, so the crop returns for exactly those lines.
-- **`object-fit: cover` puts the padding back, so no thumbnail is regenerated.**
-  Cropping the 320×180 frame to a cell of the picture's *own* ratio removes
-  exactly the bars, because the padding is symmetric. Unpadded thumbnails would
-  raise the resolution ceiling but do not address the crop, which is a layout
-  property rather than a thumbnail one.
+- **Where the cell's ratio is the picture's, `object-fit: cover` crops back to it
+  either way.** A thumbnail stored at the picture's own proportions is already
+  the cell's shape; one still letterboxed onto a 320×180 frame has the bars cut
+  off again, to within the pixel the pad rounds by. That is what lets the stored
+  thumbnails be replaced a drive at a time rather than all at once.
+- **Where it is not, a letterboxed thumbnail keeps some of its bars.** Which
+  cells those are follows from `justifiedRatio`, not from a list kept here. A
+  part-migrated drive is not broken, but it is not uniform; and a picture whose
+  stored dimensions are missing stays that way, because the scan replaces a
+  thumbnail only where it can predict the size and the prediction is made from
+  those dimensions.
 - **The filename is a hover/focus band, always visible under `pointer: coarse`.**
 - **The cell is named by `aria-label` on the link**, so the accessible name is
   the same string in every branch; the band is deliberately not `aria-hidden`.

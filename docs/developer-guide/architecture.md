@@ -43,7 +43,7 @@ Backend never has `ports:` exposed externally. The frontend is the only public e
 | Path | What |
 |---|---|
 | `data/data.db` | The core SQLite DB. |
-| `data/thumbnails/` | Lazy-generated 320x180 JPEGs. |
+| `data/thumbnails/` | Lazy-generated JPEGs, at most 320px on the long edge. Video and PDF are letterboxed onto a fixed 320x180 frame; a picture keeps its own proportions. |
 | `data/uploads/` | In-flight chunked upload state. |
 | `data/snapshots/` | Periodic SQLite snapshots (admin-triggered). |
 | `data/converted/` | ffmpeg conversion cache (e.g. HEIC → JPEG). |

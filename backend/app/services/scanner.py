@@ -34,7 +34,12 @@ from app.services.maintenance import (
     maintenance_operation,
 )
 from app.services.subtitle import is_subtitle_file
-from app.services.thumbnail import get_thumbnail_generator, get_video_duration
+from app.services.thumbnail import (
+    get_thumbnail_generator,
+    get_video_duration,
+    image_thumbnail_size,
+    write_thumbnail_atomically,
+)
 from app.services import event_hooks
 from app.services.fileops import _cleanup_empty_parents, _filename_to_title
 from app.services.ws import broadcast_from_thread
@@ -126,6 +131,41 @@ def _expected_thumbnail_path(drive_name: str, folder_path: str, nfc_stem: str) -
     )
 
 
+# The size a picture thumbnail had while it was letterboxed onto a frame.
+# Only one shape ever came out of that, whatever the picture was.
+_LETTERBOXED_SIZE = (320, 180)
+
+
+def _is_letterboxed_image_thumbnail(file_record: File) -> bool:
+    """Whether this picture's stored thumbnail predates the unpadded box.
+
+    Asked of the stored dimensions first, which costs nothing: a picture
+    whose thumbnail *should* be 320x180 today is one that was 16:9 all
+    along, and its old thumbnail is the same bytes as its new one. Only
+    where the two answers differ is the file on disk opened, and JPEG
+    keeps its size in the header, so that read stops after a few bytes.
+
+    A picture with no stored dimensions is left alone. There is nothing
+    to compare against, and the scan backfills the dimensions in the same
+    pass, so it becomes answerable on the next one.
+    """
+    if file_record.image_width is None or file_record.image_height is None:
+        return False
+    expected = image_thumbnail_size(file_record.image_width, file_record.image_height)
+    if expected is None or expected == _LETTERBOXED_SIZE:
+        return False
+    if not file_record.thumbnail_path:
+        return False
+    stored = config.THUMBNAILS_DIR / file_record.thumbnail_path
+    try:
+        from PIL import Image
+
+        with Image.open(stored) as thumbnail:
+            return thumbnail.size == _LETTERBOXED_SIZE
+    except (OSError, ValueError):
+        return False
+
+
 def _relocate_thumbnail(
     file_record: File,
     new_thumb_rel: str,
@@ -150,7 +190,9 @@ def _relocate_thumbnail(
             return
 
     gen_fn = get_thumbnail_generator(file_type, file_record.mime_type)
-    if gen_fn and gen_fn(str(item_path), str(new_thumb_full)):
+    if gen_fn and write_thumbnail_atomically(
+        gen_fn, str(item_path), str(new_thumb_full)
+    ):
         file_record.thumbnail_path = new_thumb_rel
     else:
         file_record.thumbnail_path = None
@@ -267,7 +309,9 @@ def register_single_file(db: Session, drive_name: str, file_path: Path) -> str:
     if gen_fn is not None:
         thumbnail_rel = _expected_thumbnail_path(drive_name, folder_path, nfc_stem)
         thumbnail_full = config.THUMBNAILS_DIR / thumbnail_rel
-        if not gen_fn(str(file_path), str(thumbnail_full)):
+        if not write_thumbnail_atomically(
+            gen_fn, str(file_path), str(thumbnail_full)
+        ):
             thumbnail_rel = None
 
     file_hash = compute_file_hash(file_path)
@@ -399,13 +443,28 @@ def _scan_and_register(db: Session, drive_name: str) -> dict[str, int]:
             ):
                 needs_update = True
 
-            if get_thumbnail_generator(file_type, mime_type) is not None:
+            gen_fn = get_thumbnail_generator(file_type, mime_type)
+            if gen_fn is not None:
                 expected_thumb = _expected_thumbnail_path(drive_name, folder_path, nfc_stem)
                 if file_record.thumbnail_path != expected_thumb or not (
                     config.THUMBNAILS_DIR / expected_thumb
                 ).exists():
                     _relocate_thumbnail(file_record, expected_thumb, file_type, item)
                     needs_update = True
+                elif file_type == "image" and _is_letterboxed_image_thumbnail(
+                    file_record
+                ):
+                    # Replaced as the drive is walked rather than all at
+                    # once, so a library of a hundred thousand pictures
+                    # pays for it over the scans it already runs. Both
+                    # shapes draw correctly in the meantime — a card
+                    # crops to 16:9 either way, and a justified cell is
+                    # already the picture's own ratio — so a half-migrated
+                    # drive is not a broken one.
+                    if write_thumbnail_atomically(
+                        gen_fn, str(item), str(config.THUMBNAILS_DIR / expected_thumb)
+                    ):
+                        needs_update = True
 
             # Backfilling only rows that still lack a width keeps this to a
             # single pass over a drive scanned before the columns existed.
@@ -594,7 +653,7 @@ def _scan_and_register(db: Session, drive_name: str) -> dict[str, int]:
         if gen_fn is not None:
             thumbnail_rel = _expected_thumbnail_path(drive_name, folder_path, nfc_stem)
             thumbnail_full = config.THUMBNAILS_DIR / thumbnail_rel
-            if not gen_fn(str(item), str(thumbnail_full)):
+            if not write_thumbnail_atomically(gen_fn, str(item), str(thumbnail_full)):
                 thumbnail_rel = None
 
         if file_size is None:
