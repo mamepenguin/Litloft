@@ -131,7 +131,9 @@ apply to writing one and to reviewing one:
    stays green when the scan fails to pick up something new, which is the exact
    failure the detector exists to catch. **This applies to the measured scope as
    well**: shrinking the population without moving the expected count is not
-   shrinking it.
+   shrinking it. `toBeGreaterThan(0)`, `toBeGreaterThanOrEqual(n)` and
+   `toBeLessThanOrEqual(n)` are the same rule wearing other names, and all three
+   have been written into new detectors here since it was set down.
 2. **A parity test must run both sides through different implementations.**
    Reading the same table twice is not parity. Write the limit into the test.
 3. **Wait for the thing you assert on, not for the request that starts it.**
@@ -142,20 +144,81 @@ apply to writing one and to reviewing one:
    **cannot catch a deletion** — the removed element leaves both sides at once.
    Declare the expected set per state. (Measured: deleting either copy of the
    name field left the whole suite green.)
+
+   **This is the one that keeps happening.** Five consecutive PRs wrote a new
+   detector and each one had this shape somewhere: a parity test flattening both
+   sides into one token set, so deleting a row from the table left them equal; a
+   suite covering six of the seven surfaces, so losing a surface changed nothing;
+   a `describe.each` population that could be walked back to any length and stay
+   green; a threshold copied by hand from the measurement it was supposed to
+   check, so it could not disagree with it; and a `toHaveLength(7)` counting the
+   test's own literal.
+
+   **The parameters are part of the observation.** A test asserting "no inner
+   scrollbar appears" ran at `height: 812` — one of the few viewport heights
+   where that is true, and neither a phone nor the app's own table. Pick the
+   dimensions the thing actually has, and declare the expectation for each of
+   them, rather than the one where the claim survives.
 6. **A submodule pointer bump is an edit to every citation that points inside it.**
    Grep for `file:line` references into the submodule when bumping. Not writing
    line numbers in comments is the cheaper prevention.
 
-Three recurring shapes that are not rules but show up at the same rate:
+Recurring shapes that are not rules but show up at the same rate:
 
+- **State the mechanism, not the measurement.** A figure measured at one width, in
+  one folder, written into a comment as a general claim is false as soon as anyone
+  measures elsewhere — and correcting it writes a fresh surface for the next false
+  one. "The in-folder filter is not carried" was measured where the scrollbar
+  disappears; at a different filter depth it stays and sixteen cells carry.
+  "`VIEWPORT_MARGIN_PX` bounds nothing today" was false on every append. The rule
+  is what the code tests — *a set that lost its shared keys is not carried, a grid
+  whose width changed is rejected* — and that holds at every width. **Numbers go in
+  the PR body**, which is dated and never re-verified. Same line as `DESIGN.md`'s.
+- **Do not count. Enumerate.** A count is a claim of completeness, and it is the
+  claim that goes stale silently. "Four inline copies" was five; "three exceptions"
+  was true of two; the number of surfaces a rule governs moved twice in one day.
 - **When replacing rotten prose, verify the replacement.** A docstring rewritten
   to describe a removed mechanism was itself false in both of its new claims.
+  Twice since, a PR rewrote two docstrings and left the two beside them asserting
+  what the same PR had just falsified.
 - **When extracting a shared recipe, include the callers you are fixing.** Grep by
   *role* ("everything that is a menu surface"), not by directory — twice, the
   file that already held the correct value was left out and the broken one kept.
+  Three times since: a 304 added to one branch of a handler and not its
+  placeholder branch, an atomic write applied in one generator and not the upload
+  path, and a table fixed in the settings screen but not the first-run wizard.
 - **Adding a reporting path means counting the silent ones.** A change that
   introduced a toast wired it into one of three failure paths and left two
   `catch { /* non-critical */ }` in place.
+
+## What a test here cannot hold
+
+Three limits, each of which cost two review rounds to accept:
+
+- **Matching the text of a stylesheet cannot verify a layout property.** There is
+  no bounded list of ways CSS can give a box a height — a later rule, higher
+  specificity, `@media`, `@container`, `@layer`, an inline style, `size-*`, an
+  arbitrary value, `block-size`, an element-type or class-list selector the
+  fixture did not write. A whitelist of spellings loses to the next spelling, and
+  it lost twice here before the third attempt stopped trying.
+- **jsdom lays nothing out.** Every `getBoundingClientRect()` is zeros, so a cell
+  drawn at the wrong ratio measures like one drawn right. Width, overflow,
+  stickiness, a forced reflow, a transition's easing: none are reachable.
+- **A detector CI does not run is not a detector.** `frontend/e2e/` held eleven
+  Playwright specs that no workflow executed, so "add an e2e test" was not an
+  answer to anything.
+
+**The honest response to all three is to narrow what the test claims**, and to say
+in its docstring which of these limits applies and where the property was actually
+measured. Writing "this prevents X" when it does not is rule 4's failure inside the
+file written to prevent it — which happened, in the suite added to stop it.
+
+Where the property is worth holding mechanically, `frontend/e2e-layout/` measures
+real boxes in a real browser against a static fixture: no Next.js, no backend, no
+seeded drives, and it runs in CI in about 45 seconds. Its own limit is that the
+fixture writes its own markup, so it holds the stylesheet and not the components —
+which is why each fixture has a parity test pinning it against the components it
+imitates.
 
 ## Waiting
 
