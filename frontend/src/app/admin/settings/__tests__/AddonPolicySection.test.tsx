@@ -232,9 +232,13 @@ describe("AddonPolicySection", () => {
     setupSuccessfulLoads();
     render(<AddonPolicySection />);
     await waitFor(() => {
-      expect(screen.getByText("intelligence")).toBeInTheDocument();
+      expect(
+        screen.getByRole("columnheader", { name: "intelligence" }),
+      ).toBeInTheDocument();
     });
-    expect(screen.getByText("knowledge")).toBeInTheDocument();
+    expect(
+      screen.getByRole("columnheader", { name: "knowledge" }),
+    ).toBeInTheDocument();
     // Drive labels also rendered
     expect(screen.getByText("main")).toBeInTheDocument();
     expect(screen.getByText("private")).toBeInTheDocument();
@@ -244,7 +248,9 @@ describe("AddonPolicySection", () => {
     setupSuccessfulLoads();
     render(<AddonPolicySection />);
     await waitFor(() => {
-      expect(screen.getByText("intelligence")).toBeInTheDocument();
+      expect(
+        screen.getByRole("columnheader", { name: "intelligence" }),
+      ).toBeInTheDocument();
     });
 
     // Find a checkbox/toggle for main x knowledge (currently false)
@@ -265,7 +271,9 @@ describe("AddonPolicySection", () => {
     setupSuccessfulLoads();
     render(<AddonPolicySection />);
     await waitFor(() => {
-      expect(screen.getByText("intelligence")).toBeInTheDocument();
+      expect(
+        screen.getByRole("columnheader", { name: "intelligence" }),
+      ).toBeInTheDocument();
     });
 
     // main has intelligence: true → sub-toggle present
@@ -285,7 +293,9 @@ describe("AddonPolicySection", () => {
     setupSuccessfulLoads();
     render(<AddonPolicySection />);
     await waitFor(() => {
-      expect(screen.getByText("intelligence")).toBeInTheDocument();
+      expect(
+        screen.getByRole("columnheader", { name: "intelligence" }),
+      ).toBeInTheDocument();
     });
 
     const subToggle = screen.getByLabelText(
@@ -333,7 +343,9 @@ describe("AddonPolicySection", () => {
 
     render(<AddonPolicySection />);
     await waitFor(() => {
-      expect(screen.getByText("intelligence")).toBeInTheDocument();
+      expect(
+        screen.getByRole("columnheader", { name: "intelligence" }),
+      ).toBeInTheDocument();
     });
 
     const toggles = screen.getAllByRole("checkbox");
@@ -344,5 +356,122 @@ describe("AddonPolicySection", () => {
         screen.getByText(/unknown_addon|manifest|存在しない addon/),
       ).toBeInTheDocument();
     });
+  });
+});
+
+
+/**
+ * The rule this section shares with the listings (`lib/listMeta.ts`): a
+ * line whose words are the same on every row is not telling the reader
+ * which row they are on.
+ *
+ * Measured on the running app before the change: the transcription
+ * feature's help paragraph was rendered four times, once per drive with
+ * intelligence enabled, in a 186px-wide column, and the table stood
+ * 1152px tall against an 863px viewport. Without them it is 548px.
+ *
+ * **jsdom cannot see either of those numbers.** It lays nothing out, so
+ * nothing here observes the column width, the table's height, or whether
+ * the sticky column headings stay on screen — those were measured in
+ * Chrome and are recorded in the PR. What this file can see, and what it
+ * asserts, is how many times each paragraph is in the document.
+ */
+describe("AddonPolicySection says each explanation once", () => {
+  /**
+   * The rendered strings, read from the catalogue the component reads.
+   *
+   * Not the key paths: the global `next-intl` mock resolves against the
+   * real merged messages, so a key path is what a *miss* renders as —
+   * counting those would count zero copies of everything and pass.
+   */
+  const feature = JSON.parse(
+    readFileSync(resolve(REPO_ROOT, "frontend/src/messages/en.json"), "utf-8"),
+  ).intelligence.policyFeatures.transcriptionCloud;
+  const HELP: string = feature.help;
+  const WARNING: string = feature.warning;
+  const LABEL: string = feature.label;
+
+  /** Three drives, all with intelligence on: three rows, one legend. */
+  const threeDrives = {
+    main: { intelligence: true },
+    photos: { intelligence: true },
+    work: { intelligence: true },
+  };
+
+  function setupDrives(policy: Record<string, Record<string, unknown>>) {
+    mockFetch.mockImplementation((url: string) => {
+      if (url === "/api/admin/config/addon-policy") {
+        return Promise.resolve(jsonResponse(policy));
+      }
+      if (url === "/api/addons/status") {
+        return Promise.resolve(jsonResponse(addonsStatusResponse));
+      }
+      return Promise.resolve(jsonResponse({ ok: true }));
+    });
+  }
+
+  it("draws the help once however many drives show the feature", async () => {
+    setupDrives(threeDrives);
+    render(<AddonPolicySection />);
+
+    // Three rows, so three switches and three copies of the row's own
+    // name — that part is per-row and stays.
+    await waitFor(() => {
+      expect(screen.getAllByRole("switch")).toHaveLength(3);
+    });
+    // The feature's *name* is per-row and stays per-row — one in each of
+    // the three rows — and the legend names it once more so its entry can
+    // be told from the next feature's. Counted by where they are rather
+    // than by text alone, because the two are different elements saying
+    // the same words on purpose.
+    const named = (root: ParentNode, selector: string) =>
+      Array.from(root.querySelectorAll(selector)).filter((el) =>
+        el.textContent!.includes(LABEL),
+      );
+    expect(named(document.body, "tbody td")).toHaveLength(3);
+    expect(named(document.body, "dt")).toHaveLength(1);
+    // `toBe(1)`, not `toBeLessThan(4)`: a bound would go green again the
+    // moment a second copy came back for a different reason.
+    expect(screen.getAllByText(HELP)).toHaveLength(1);
+  });
+
+  it("draws the warning once however many drives have it off", async () => {
+    setupDrives({
+      main: { intelligence: { transcription_cloud: false } },
+      photos: { intelligence: { transcription_cloud: false } },
+      work: { intelligence: { transcription_cloud: false } },
+    });
+    render(<AddonPolicySection />);
+
+    await waitFor(() => {
+      expect(screen.getAllByRole("switch")).toHaveLength(3);
+    });
+    expect(screen.getAllByText(WARNING)).toHaveLength(1);
+  });
+
+  it("says nothing about a feature no drive is showing a row for", async () => {
+    // A legend entry for a control that is not on the page is the
+    // "heading for a thing that does not exist yet" the redesign's first
+    // principle rejects.
+    setupDrives({ main: { intelligence: false }, photos: { intelligence: false } });
+    render(<AddonPolicySection />);
+
+    await waitFor(() => {
+      expect(
+        screen.getByRole("columnheader", { name: "intelligence" }),
+      ).toBeInTheDocument();
+    });
+    expect(screen.queryAllByText(HELP)).toHaveLength(0);
+    expect(screen.queryAllByText(LABEL)).toHaveLength(0);
+  });
+
+  it("keeps the warning out of it while every drive has the feature on", async () => {
+    setupDrives(threeDrives);
+    render(<AddonPolicySection />);
+
+    await waitFor(() => {
+      expect(screen.getAllByRole("switch")).toHaveLength(3);
+    });
+    expect(screen.queryAllByText(WARNING)).toHaveLength(0);
   });
 });

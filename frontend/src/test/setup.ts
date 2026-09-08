@@ -109,10 +109,17 @@ function lookup(tree: MessageTree, path: string): unknown {
 vi.mock("next-intl", () => {
   const messages = enMessages as unknown as MessageTree;
 
-  const useTranslations = (namespace: string) => {
+  // `namespace` is optional in the real `next-intl`: `useTranslations()`
+  // resolves a whole path from the root, which is how core reaches an
+  // addon's own catalogue (`AddonSlot`, `ShellLayout`, the addon-policy
+  // legend). Glueing `undefined.` on the front made every one of those
+  // an unresolvable miss under jsdom, so no test could assert on the
+  // words an addon supplies — only on the identifier the miss produced.
+  const useTranslations = (namespace?: string) => {
     const t = (key: string, values?: Record<string, unknown>) => {
-      const raw = lookup(messages, `${namespace}.${key}`);
-      let text = typeof raw === "string" ? raw : `${namespace}.${key}`;
+      const path = namespace === undefined ? key : `${namespace}.${key}`;
+      const raw = lookup(messages, path);
+      let text = typeof raw === "string" ? raw : path;
       if (values) {
         text = Object.entries(values).reduce(
           (str, [k, v]) => str.replace(`{${k}}`, String(v)),

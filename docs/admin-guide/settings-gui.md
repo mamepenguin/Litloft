@@ -44,6 +44,21 @@ A matrix of `drives × addons`. Each cell:
 - A simple `bool` for addons without sub-features.
 - An expandable row of `feature: bool` toggles for addons that declare them.
 
+**Each explanation is written once, under the table, not on every row.** A
+sub-feature's description is a property of the feature and says nothing about
+which drive you are looking at, so repeating it per drive made four drives
+produce four copies of the same paragraph in a column too narrow to hold it —
+the table stood taller than the window for that reason alone. The rows carry
+the feature's name and its switch; what it does, and what happens after you
+turn it off, are in the list below the table, once per feature, and only for
+features the table is currently showing a row for.
+
+**The column headings stay put while you scroll the table.** With several
+drives the checkboxes outlive their headings, and an unlabelled column of
+checkboxes says nothing. The table gets a height cap of 70% of the window and
+scrolls inside it, which only happens when it is longer than that — with four
+drives it is not, and there is no inner scrollbar to catch a phone's swipe.
+
 Saving writes the policy into the corresponding drive's `addons` field in `drives.json`. The intelligence addon, for example, exposes `transcription_cloud` and `rag` flags — useful when you want a *Private* drive to opt out of cloud transcription and Ask while keeping local indexing.
 
 Unspecified keys are *graceful-degradation*: the addon's default applies. To force a feature off explicitly, toggle it visibly to off.

@@ -82,6 +82,57 @@ function readFeature(
   return feature.default;
 }
 
+/**
+ * One entry per feature the table is currently showing a row for.
+ *
+ * The same rule the listings use for a repeated column
+ * (`lib/listMeta.ts`): a paragraph whose words do not change from row to
+ * row is not telling the reader which row they are on. A feature's help
+ * text is a property of the feature and the drive is not in it, so four
+ * drives got four copies of it — measured, one identical 186px-wide
+ * paragraph rendered four times, and the table stood 1152px tall.
+ *
+ * `offAnywhere` is why the warning is here too rather than left inline.
+ * It is drawn only for a switch that is off, so it looked per-row; the
+ * words are the same on every row that draws it, which is the same
+ * failure with a smaller population. What is genuinely per-row is the
+ * switch, and the switch stays in the row.
+ */
+interface LegendEntry {
+  key: string;
+  addonLabel: string;
+  i18nKey: string;
+  offAnywhere: boolean;
+}
+
+function legendEntries(
+  policy: AddonPolicy,
+  addons: AddonStatusEntry[],
+  drives: string[],
+): LegendEntry[] {
+  const entries: LegendEntry[] = [];
+  for (const addon of addons) {
+    for (const feature of addon.policy_features ?? []) {
+      // Only where the table has a row for it: a legend explaining a
+      // control nobody can see is the "heading for a thing that does not
+      // exist yet" the redesign's first principle is against.
+      const shown = drives.filter((drive) =>
+        readToggle(policy, drive, addon.name),
+      );
+      if (shown.length === 0) continue;
+      entries.push({
+        key: `${addon.name}-${feature.name}`,
+        addonLabel: addon.label ?? addon.name,
+        i18nKey: feature.i18n_key,
+        offAnywhere: shown.some(
+          (drive) => !readFeature(policy, drive, addon.name, feature),
+        ),
+      });
+    }
+  }
+  return entries;
+}
+
 export function AddonPolicySection(): React.ReactElement {
   const t = useTranslations("settings.addonPolicy");
 
@@ -116,6 +167,11 @@ export function AddonPolicySection(): React.ReactElement {
   }, []);
 
   const drives = useMemo(() => Object.keys(policy), [policy]);
+
+  const legend = useMemo(
+    () => legendEntries(policy, addons, drives),
+    [policy, addons, drives],
+  );
 
   const toggle = useCallback(
     async (drive: string, addon: string) => {
@@ -203,7 +259,21 @@ export function AddonPolicySection(): React.ReactElement {
         <div className="relative">
           <div
             ref={scrollRef}
-            className="overflow-x-auto"
+            // Bounded, and that is what makes the column headings stick.
+            // `position: sticky` resolves against the nearest scrollport,
+            // and `overflow-x: auto` already made this element one in both
+            // axes — so a `sticky` head inside it stuck to a box that never
+            // scrolled and did nothing at all. Measured: with the wrapper
+            // unbounded the head stayed 290px above the viewport; bounded,
+            // it sits at the wrapper's top edge through a 500px scroll.
+            //
+            // The cap only bites when the table is longer than it, which is
+            // the case that needs the headings — at four drives the table is
+            // 548px against a 604px box, so there is no inner scrollbar to
+            // trap a phone's swipe. The alternative, sticking to the page,
+            // needs this element not to be a scrollport, and it has to be
+            // one: the columns run off a narrow screen.
+            className="max-h-[70vh] overflow-x-auto overflow-y-auto"
             tabIndex={0}
             role="region"
             aria-label={t("tableLabel")}
@@ -213,13 +283,18 @@ export function AddonPolicySection(): React.ReactElement {
                 already had was never used. `min-w-full` keeps it from
                 shrinking below the container when there are few columns. */}
             <table className="min-w-full border-collapse text-sm">
+              {/* `sticky top-0` on the cells, not on the row: a `<tr>` is
+                  not a positioned box in most engines, so the offset has to
+                  go on the `<th>`s. They need their own background too —
+                  a sticky head over transparent cells shows the rows
+                  travelling underneath it. */}
               <thead>
                 <tr>
-                  <th className="whitespace-nowrap py-2 pr-6 text-left text-xs font-semibold tracking-wide text-text-muted" />
+                  <th className="sticky top-0 z-10 whitespace-nowrap bg-bg-card py-2 pr-6 text-left text-xs font-semibold tracking-wide text-text-muted" />
                   {addons.map((addon) => (
                     <th
                       key={addon.name}
-                      className="whitespace-nowrap px-4 py-2 text-center text-sm font-medium text-text-primary"
+                      className="sticky top-0 z-10 whitespace-nowrap bg-bg-card px-4 py-2 text-center text-sm font-medium text-text-primary"
                     >
                       {/* The display name, falling back to the identifier.
                         `label` is optional on `AddonStatusEntry` and an older
@@ -267,8 +342,6 @@ export function AddonPolicySection(): React.ReactElement {
                           feature,
                         );
                         const labelKey = `${feature.i18n_key}.label`;
-                        const helpKey = `${feature.i18n_key}.help`;
-                        const warningKey = `${feature.i18n_key}.warning`;
                         return (
                           <tr
                             key={`${drive}-${addon.name}-${feature.name}`}
@@ -283,27 +356,26 @@ export function AddonPolicySection(): React.ReactElement {
                               the switch under a neighbouring column's
                               heading — the reading this layout is here to
                               fix. */}
-                            <td className="py-2 pr-6 pl-4">
-                              <div className="flex items-start gap-2">
+                            {/* The name of the feature, and nothing else.
+                              What it does and what happens when it is
+                              turned off are the same words on every
+                              drive's row, so they are said once, under
+                              the table — see `FeatureLegend`. Before
+                              that, one paragraph appeared four times in
+                              a 186px column and the table was 1152px
+                              tall; without them it is 548px, which is
+                              less than a viewport. */}
+                            <td className="whitespace-nowrap py-2 pr-6 pl-4">
+                              <div className="flex items-center gap-2">
                                 <span
-                                  className="mt-0.5 text-text-muted"
+                                  className="text-text-muted"
                                   aria-hidden="true"
                                 >
                                   ↳
                                 </span>
-                                <div className="min-w-0">
-                                  <p className="text-sm text-text-primary">
-                                    {tRoot(labelKey)}
-                                  </p>
-                                  <p className="text-xs text-text-muted">
-                                    {tRoot(helpKey)}
-                                  </p>
-                                  {!featureChecked && (
-                                    <p className="mt-1 text-xs text-text-muted">
-                                      {tRoot(warningKey)}
-                                    </p>
-                                  )}
-                                </div>
+                                <span className="text-sm text-text-primary">
+                                  {tRoot(labelKey)}
+                                </span>
                               </div>
                             </td>
                             {addons.map((a, idx) =>
@@ -368,6 +440,27 @@ export function AddonPolicySection(): React.ReactElement {
             />
           )}
         </div>
+      )}
+
+      {loaded && legend.length > 0 && (
+        <dl className="mt-6 space-y-4 border-t border-bg-border pt-4">
+          {legend.map((entry) => (
+            <div key={entry.key}>
+              <dt className="text-sm text-text-primary">
+                <span className="text-text-muted">{entry.addonLabel}</span>{" "}
+                {tRoot(`${entry.i18nKey}.label`)}
+              </dt>
+              <dd className="mt-0.5 text-xs text-text-muted">
+                {tRoot(`${entry.i18nKey}.help`)}
+              </dd>
+              {entry.offAnywhere && (
+                <dd className="mt-1 text-xs text-text-muted">
+                  {tRoot(`${entry.i18nKey}.warning`)}
+                </dd>
+              )}
+            </div>
+          ))}
+        </dl>
       )}
 
       {loaded && (drives.length === 0 || addons.length === 0) && (

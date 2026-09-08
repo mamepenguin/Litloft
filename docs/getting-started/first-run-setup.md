@@ -51,7 +51,9 @@ The wizard makes you create at least one password whose `groups` cover **every**
 
 ## Step 6 — Addon policy
 
-If addons are installed, you see a matrix of `drives × addons`. Toggle each cell to opt the drive in or out of that addon. Most addons declare per-feature flags too — for example, the `intelligence` addon exposes a `transcription_cloud` toggle so you can keep some drives strictly local.
+If addons are installed, the step opens with **a short list of what each addon is** — once, not once per drive — followed by one card per drive holding a switch for each addon. Turn a drive's switch on to opt it in.
+
+Per-feature flags are not offered here. The wizard is a yes-or-no per addon; the finer toggles an addon declares — the `intelligence` addon's `transcription_cloud`, for one — are edited afterwards at `/admin/settings`, which is also where you would go to change any of this later.
 
 The defaults are addon-specific. Most addons are **off** unless explicitly enabled, but the policy is *graceful-degradation*: if a feature is unspecified the addon decides whether to enable it.
 
