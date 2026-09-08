@@ -1232,6 +1232,7 @@ competing reader of the same file.
 | Token | Value | Meaning |
 |---|---|---|
 | rail width | `24rem` (384px) | Fixed, on the grid. 320px was tried first and Japanese wrapped at 12–14 characters a line, which reads as cramped. |
+| related-files second column | `44rem` (704px) of the **list's own width** | Twice the `22rem` the inspector leaves the list, plus the `gap-2` between the columns, rounded to a whole rem. A second column is worth having exactly where each column is at least as wide as the one column the rail already gives: measured on a 27-character filename, 25 characters either way, against 4 when a viewport breakpoint put two columns in the rail. |
 | box height | `60%` of the measured scroll container | The bounded box below the player: `calc(var(--rail-avail) * 0.6)`, falling back to `60dvh` before the first measurement — "60vh", but measured, because a self-scrolling pane is not the viewport. |
 | below: index column | `12.5rem`–`22rem` (200–352px) | The chapter list beside the transcript. 200px is the floor; past about 350px a column of timestamps competes with what it indexes. |
 | below: body column | `68ch` | The reading measure, and the body's **flex base**, not only its cap. Base and cap being one number is what makes the split exact: below the pair's combined width the body absorbs the whole deficit, above it the index takes the whole surplus. |
@@ -1302,6 +1303,24 @@ No desktop browser shows it.
 - Keep the threshold in `rem` on both sides and resolve it against the root font
   size when measuring, so scaled text still gets the layout the numbers were
   chosen for.
+- **"No media" is a fact about the scope, so scope it deliberately and hold it.**
+  Put `container-type` on a wrapper whose subtree is only the thing being laid
+  out, not on a section that also hosts an addon slot — an addon may render
+  anything. `relatedFilesFixtureParity.test.tsx` asserts the emptiness for the
+  related-files list; jsdom cannot see a column count but it can see a `<video>`,
+  and on this question it is the only suite that can, because no desktop browser
+  reproduces the bug.
+- **Put the wrapper where its inline size *is* the laid-out element's width.**
+  A section whose padding changes with context (the related-files list has `p-4`
+  standing alone and none inside the Related group) cannot be the container: one
+  threshold would mean two different widths.
+
+**A container query is not verifiable by reading the stylesheet.** #200 measured
+that: the defect came back in full by appending one line to the end of
+`globals.css` and every suite stayed green. A new threshold gets a case in
+`frontend/e2e-layout/`, which lays the markup out in Chromium against the app's
+own compiled sheet, plus a parity test keeping that fixture's markup the
+component's.
 
 **A core grid of equal cards goes through `lib/cardGrid.ts`.** Do not write
 `repeat(auto-fill, minmax(min(16rem, 100%), 1fr))` — or a `sm:`/`lg:`/`xl:`

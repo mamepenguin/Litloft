@@ -1487,3 +1487,59 @@ main[data-canvas-floor="true"] .media-detail-player > :first-child {
   flex: 1 1 auto;
   min-height: 0;
 }
+
+/* Related files: two tiles per row only where two tiles are readable.
+
+   The grid had `sm:grid-cols-2`, and `sm:` is a VIEWPORT breakpoint.
+   The section renders in two places whose widths have nothing to do
+   with the window: the inspector rail, fixed at 24rem, and the legacy
+   stack, which is whatever is left after the sidebar. So a 1512px
+   window put two columns inside a 351px rail — a 172px tile whose name
+   column is 37px, showing four characters of a 27-character filename,
+   on all eleven tiles. DESIGN.md §"Measure against the container, not
+   the viewport": the rule was already written, this grid was not
+   following it.
+
+   THE THRESHOLD IS THE RAIL'S OWN COLUMN. The rail leaves the grid
+   22rem (352px), and at one column that tile shows 25 of those 27
+   characters. Two columns are worth having exactly when each of them is
+   at least that wide, so the switch is at 2 x 22rem + the 0.5rem gap,
+   rounded to 44rem. Measured 2026-09-08 on
+   `4822843331_db5bab77bb_o.jpg`: at a 704px grid each column is 348px
+   and shows 25 characters — the same reading the rail gives at one
+   column — against 24 at 43rem. A wide surface must not produce a tile
+   narrower than the narrow surface does; that is backwards, and it is
+   what the stacked layout did at a 768px window (456px grid, 224px
+   tiles, five of ten characters).
+
+   A CONTAINER QUERY, and the host is a wrapper rather than the
+   section. `container-type` establishes a containment context, and on
+   iOS Safari one wrapped around a <video>, <audio> or cross-origin
+   iframe renders the whole subtree rotated and spinning (globals.css
+   line ~820, hako 7bFYOh3vFZP9EEuf9Ym_5) — so this is only safe
+   because the scope holds `<img>`, lucide `<svg>` and text and nothing
+   else, and because `RelatedFilesSection` takes no children and mounts
+   no addon slot, so nothing external can enter it. The sibling
+   `file-relations` slot is outside this wrapper. Same reasoning, and
+   the same shape, as `.justified-grid-host`.
+
+   The wrapper is what makes the threshold mean one thing. The section
+   itself carries `p-4` when it stands alone and no padding when it is
+   part of the Related group, so its inline size is the grid's width in
+   one case and 2rem more in the other, and a single number could not be
+   right for both. The wrapper has no padding, so its inline size IS the
+   grid's width. */
+.related-files-host {
+  container-type: inline-size;
+  container-name: related-files;
+}
+
+.related-files-grid {
+  grid-template-columns: minmax(0, 1fr);
+}
+
+@container related-files (min-width: 44rem) {
+  .related-files-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}

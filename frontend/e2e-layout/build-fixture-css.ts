@@ -60,6 +60,12 @@ const REQUIRED = [
   ".justified-grid-tail",
   "--jg-row-h",
   "box-sizing",
+  // `related-files.spec.ts` measures a column count, and a sheet missing
+  // these lays every tile out at `auto` — one column at every width,
+  // which is what three of its four cases assert. It would pass having
+  // measured a page with no opinions.
+  ".related-files-host",
+  ".related-files-grid",
 ];
 
 /**

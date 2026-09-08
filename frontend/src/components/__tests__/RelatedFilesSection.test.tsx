@@ -223,3 +223,61 @@ describe("RelatedFilesSection under the Related heading", () => {
     );
   });
 });
+
+
+describe("the column count is asked of the container, not the window", () => {
+  /**
+   * **jsdom cannot see a column count.** It lays nothing out, so
+   * `getBoundingClientRect()` is zeros here and a grid drawn at two
+   * columns in a 351px rail measures exactly like one drawn at one.
+   * Neither can reading `globals.css` as a string: #200 measured that
+   * and found the defect came back in full by appending one line to the
+   * end of the stylesheet while every suite stayed green.
+   *
+   * The column count is measured in `e2e-layout/related-files.spec.ts`,
+   * in Chromium, against the app's own compiled sheet — and
+   * `relatedFilesFixtureParity.test.tsx` keeps that fixture's tile the
+   * component's own markup.
+   *
+   * What is left for this file is the half that is a fact about the
+   * markup, and it is not a small half: the rule these two assertions
+   * hold is `DESIGN.md` §"Measure against the container, not the
+   * viewport", and what shipped was a viewport breakpoint on this exact
+   * element. They say the grid asks the right *question*. They say
+   * nothing about the answer.
+   */
+  it("puts the grid inside the container host", async () => {
+    getFileRelations.mockResolvedValue(fakeRelations());
+    const { container } = renderSection("f1");
+    await screen.findByText(TITLE);
+
+    const host = container.querySelector(".related-files-host");
+    expect(host).not.toBeNull();
+    // The host is a wrapper of its own rather than the section, and the
+    // nesting is what makes the 44rem threshold mean one thing: the
+    // section carries `p-4` when it stands alone and none when it is
+    // part of the Related group, so its inline size is the grid's width
+    // in one case and 2rem more in the other.
+    const grid = container.querySelector(".related-files-grid")!;
+    expect(grid.parentElement).toBe(host);
+    expect(host!.classList.contains("p-4")).toBe(false);
+  });
+
+  it("carries no viewport breakpoint on the grid", async () => {
+    // `sm:grid-cols-2` is what shipped, and `sm:` is 640px of *window*.
+    // Any `sm:`/`md:`/`lg:`/`xl:`/`2xl:` here is the same mistake again,
+    // whatever it sets.
+    getFileRelations.mockResolvedValue(fakeRelations());
+    const { container } = renderSection("f1");
+    await screen.findByText(TITLE);
+
+    const grid = container.querySelector(".related-files-grid")!;
+    const viewportPrefixed = Array.from(grid.classList).filter((c) =>
+      /^(sm|md|lg|xl|2xl):/.test(c),
+    );
+    expect(viewportPrefixed).toEqual([]);
+    // And it does not set a column count of its own either: the count
+    // comes from the stylesheet, in one place, both sides of the query.
+    expect(Array.from(grid.classList).filter((c) => c.includes("grid-cols"))).toEqual([]);
+  });
+});
