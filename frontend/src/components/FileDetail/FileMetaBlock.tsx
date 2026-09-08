@@ -1,7 +1,7 @@
 "use client";
 
 import type { ReactNode, RefObject } from "react";
-import { formatDuration, formatFileSize } from "@/lib/format";
+import { primaryMetaLine } from "@/lib/primaryMeta";
 import type { MediaController } from "@/lib/mediaController";
 import type { FileItem } from "@/types";
 import { FileActionRow } from "./FileActionRow";
@@ -44,7 +44,8 @@ interface FileMetaBlockProps {
 }
 
 /**
- * Title, length / size, description, the per-file action row, and tags.
+ * Title, the file's first facts, description, the per-file action row,
+ * and tags.
  *
  * One block, rendered on whichever surface the layout puts it on. That
  * is the point: this is the part of file detail that does not change
@@ -73,7 +74,13 @@ export function FileMetaBlock({
   tagChips,
   hoistDescription = false,
 }: FileMetaBlockProps) {
-  const hasDuration = isTimedMedia && file.duration != null;
+  // `lib/primaryMeta.ts`, the same rule every listing leads with. This
+  // surface has no thumbnail to hang a badge on, so the length is drawn
+  // here instead, ahead of whatever the rule adds: for a video that is
+  // nothing, which is how "23:58 · 83 B" becomes "23:58" and an image
+  // gains its dimensions. Shared with the trash and missing cards,
+  // which have no badge either.
+  const metaLine = primaryMetaLine(file);
 
   return (
     <div className="mt-4">
@@ -90,12 +97,16 @@ export function FileMetaBlock({
       ) : (
         <div>
           <h1 className="text-xl font-bold text-text-primary">{file.title}</h1>
-          {/* One line, always. Which parts it has is a question about
-              the file; whether the line exists at all is not. */}
-          <div className="mt-1 text-xs text-text-muted">
-            {hasDuration && <span>{formatDuration(file.duration)} · </span>}
-            <span>{formatFileSize(file.file_size)}</span>
-          </div>
+          {/* One line where there is anything to put on it, and no
+              line where there is not. A video whose length was never
+              probed has neither part — measured 2026-09-08, 56 of the
+              first 60 rows of a real `.loft` folder — and an empty line
+              there is a gap between
+              the title and the description standing in for a fact
+              nobody has (原則 1). */}
+          {metaLine !== null && (
+            <div className="mt-1 text-xs text-text-muted">{metaLine}</div>
+          )}
           {!hoistDescription && (
             <FileDescription
               file={file}

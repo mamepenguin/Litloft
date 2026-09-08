@@ -2,7 +2,7 @@ import { useRelativeDate } from "@/hooks/useRelativeDate";
 import { memo, type ReactNode } from "react";
 import type { FileItem, WatchProgress } from "@/types";
 import { OFFICE_MIMES } from "@/lib/officeFiles";
-import { formatDuration, formatFileSize } from "@/lib/format";
+import { formatDuration } from "@/lib/format";
 import { getThumbnailUrl } from "@/lib/api";
 import { useFileCardLink } from "@/hooks/useFileCardLink";
 import { useClipboard } from "./ClipboardProvider";
@@ -11,7 +11,7 @@ import { TagList } from "./TagList";
 import { FileTypeIcon } from "./FileTypeIcon";
 import { VideoPreview } from "./VideoPreview";
 import { TextThumbnail } from "./TextThumbnail";
-import { cardPrimaryMeta, formatDimensions } from "@/lib/cardPrimaryMeta";
+import { hasKnownLength, primaryMetaText } from "@/lib/primaryMeta";
 
 function FileCardImpl({
   file,
@@ -72,7 +72,7 @@ function FileCardImpl({
 }) {
   const formatRelativeDate = useRelativeDate();
   const clipboard = useClipboard();
-  const primaryMeta = cardPrimaryMeta(file);
+  const primaryText = primaryMetaText(file);
   const isCutFile = clipboard.isCut(file.id);
   const { Wrapper, wrapperProps } = useFileCardLink({
     file,
@@ -145,7 +145,7 @@ function FileCardImpl({
           {file.file_type === "video" && (
             <VideoPreview fileId={file.id} />
           )}
-          {(file.file_type === "video" || file.file_type === "audio") && file.duration != null && (
+          {hasKnownLength(file) && (
             <span className="absolute bottom-2 right-2 rounded-lg bg-black/70 px-1.5 py-0.5 text-xs font-medium text-white">
               {formatDuration(file.duration)}
             </span>
@@ -181,13 +181,9 @@ function FileCardImpl({
             {file.title}
           </span>
           <div className="mt-1 flex flex-wrap items-center gap-x-1.5 gap-y-0.5 text-xs text-text-muted">
-            {primaryMeta.kind !== "none" && (
+            {primaryText !== null && (
               <>
-                <span className="tabular-nums">
-                  {primaryMeta.kind === "dimensions"
-                    ? formatDimensions(primaryMeta.width, primaryMeta.height)
-                    : formatFileSize(file.file_size)}
-                </span>
+                <span className="tabular-nums">{primaryText}</span>
                 <span className="opacity-40">·</span>
               </>
             )}

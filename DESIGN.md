@@ -651,6 +651,72 @@ with a **border in the accent colour**, never a fill.
 - Hover changes the surface colour only. **Never expand or darken the shadow on
   hover, and never use `scale()`.**
 
+### The first fact under a file's name
+
+What a card, a list row and the file page each say first about a file is one
+rule, in one table: `frontend/src/lib/primaryMeta.ts`. Not a list of exceptions
+but a question asked of the kind — *what has this surface not already said, that
+a reader would use to tell this file from the one beside it?*
+
+| Kind | First metadatum |
+|---|---|
+| video, audio | none |
+| image | its dimensions, `1920 × 1080` |
+| everything else | its size |
+
+- **One table, and every surface that draws a file's name with a fact under it.**
+  Named rather than counted, because a count is a claim about completeness and
+  two of them were wrong before this list existed: `FileCard`, `FileListRow`,
+  `FileMetaBlock`, `TrashFileList`, `TrashFileGrid`, `MissingFileList`,
+  `MissingFileGrid`, `AudioPlayer`, and the duplicates panel's file row.
+  `JustifiedFileCell` draws a badge and no meta line, so it takes
+  `hasKnownLength` and nothing else. A rule written down and read by one caller
+  is indistinguishable from no rule: `FileCard` alone obeyed it for a while, and
+  every other surface went on labelling a 19-minute video "83 B".
+- **A viewer is one of these surfaces.** The audio panel is a filename with a
+  fact beneath it, so it reads the same table, and the answer for audio is to
+  draw nothing — the length is on the `<audio controls>` transport bar below it.
+  Being in the viewer column rather than the inspector does not make it a
+  different question.
+- **What the table does not cover** is a quantity that is not a fact about one
+  file: disk and cache usage, a duplicate group's wasted bytes, a "too large to
+  preview" warning, an entry inside an archive, and the size beside
+  `FilePreview`'s Download button, which `playerKind` puts out of reach of video
+  and audio anyway.
+- **The size is not a neutral default.** On a `.loft` reference row `file_size`
+  is the pointer's, not the media's, so for video and audio it is not merely
+  redundant but false.
+- **Where the length goes is the surface's business, not the table's**, and it
+  is the one thing to check before handing the table to a new surface. A
+  surface that says it elsewhere — a thumbnail badge (`FileCard`,
+  `FileListRow`, `JustifiedFileCell`, `TrashFileList`, `MissingFileList`, all
+  five under `hasKnownLength`) or a transport bar (`AudioPlayer`) — asks only
+  `primaryMetaText`. A surface with nowhere else to put it (`FileMetaBlock`,
+  `TrashFileGrid`, `MissingFileGrid`, the duplicates row) draws it at the head
+  of the line the table finishes — `primaryMetaLine`. The video row of the
+  table is `none` everywhere for the same reason; taking that to mean "draw
+  nothing" on a badgeless card would delete the length from it entirely.
+- **`primaryMetaLine` returns one string, never two.** The length and the
+  table's answer are mutually exclusive by construction, so the shape says so
+  rather than a comment saying so. An earlier version returned a list and
+  joined it with a separator that nothing could ever reach.
+- **A missing badge is not always an omission to correct.** The corner
+  `FileCard` puts the length in, `bottom-2 right-2`, is the deadline's on a
+  trash card and the neighbour of the *missing* mark on a missing one. Those
+  cards are not `FileCard` with a badge forgotten.
+- **A kind gets one answer, not two.** An image whose dimensions were never
+  probed does *not* fall back to its size — a fallback stops "kind → first
+  metadatum" being a function, and two image cards would then describe
+  themselves differently for a reason the reader cannot see.
+- **Nothing is drawn where nothing is known.** Where a surface has neither a
+  length nor anything the table adds, it draws no line at all rather than an
+  empty one.
+- **This is not the `deriveListMeta` question.** That one asks whether a column
+  *varies* across the loaded rows and drops it where it does not; this one asks
+  whether a fact belongs to the kind at all. Uniformity cannot detect wrongness,
+  so the size column is not gated on it — sixty rows differing in their sizes
+  are still sixty wrong sizes. Kind first, variation second.
+
 ### Inputs
 
 - Radius `rounded-2xl`; border `border border-bg-border` or

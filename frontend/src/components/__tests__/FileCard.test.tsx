@@ -56,7 +56,7 @@ describe("FileCard", () => {
 
   it("leaves the size off a video, whose length the badge already says", () => {
     // `mockFile` is a video. A card leads with the one fact it has not
-    // said yet (`lib/cardPrimaryMeta.ts`), and for video that is
+    // said yet (`lib/primaryMeta.ts`), and for video that is
     // nothing — the size on a `.loft` reference row is the pointer's,
     // which is how D-3 got "19 minutes, 83 B".
     render(<FileCard file={mockFile} />);

@@ -14,6 +14,7 @@ import {
 
 import { batchDelete, getDrives, getDuplicates, getThumbnailUrl } from "@/lib/api";
 import { formatFileSize } from "@/lib/format";
+import { primaryMetaLine } from "@/lib/primaryMeta";
 import { ConfirmDialog } from "@/components/ConfirmDialog";
 import type { Drive, DuplicateGroup, DuplicatesResponse, FileItem } from "@/types";
 
@@ -87,6 +88,7 @@ function FileRow({
   onToggle: () => void;
 }) {
   const t = useTranslations("admin");
+  const metaLine = primaryMetaLine(file);
 
   return (
     <label
@@ -119,7 +121,13 @@ function FileRow({
               {file.folder_path || "/"}
             </span>
           </span>
-          <span>{formatFileSize(file.file_size)}</span>
+          {/* A name with a fact under it, so the table in
+              `lib/primaryMeta.ts` governs it — measured: this drive's
+              duplicate groups include `.loft` video pairs that read
+              "83 B" for a 5:34 video. No badge on the 40px thumbnail,
+              so the length goes on the line. The group's own byte
+              figure is one line up, on the header. */}
+          {metaLine !== null && <span>{metaLine}</span>}
         </div>
       </div>
       {isKept && (

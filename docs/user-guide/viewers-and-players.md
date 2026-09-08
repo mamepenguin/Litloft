@@ -2,7 +2,7 @@
 
 Litloft picks a viewer based on the file's MIME type. The same file detail page hosts every viewer; only the central component changes. Its address is `/drive/<drive>/<folder>?file=<id>` — `/files/<id>` still works and redirects there, except in collection playback, which stays on `/files/<id>` so the collection list and the player can share one column.
 
-The page has three parts: a **page row** at the top, the **viewer** below it, and an **inspector** down the right-hand side. The viewer keeps the things that belong to it and nothing else — for a video that is the player, its description and its long AI summary. Everything that is true of any file, whatever kind it is — its title, length and size, like and favourite, tags, relations, comments — is in the inspector, in the same place on every page.
+The page has three parts: a **page row** at the top, the **viewer** below it, and an **inspector** down the right-hand side. The viewer keeps the things that belong to it and nothing else — for a video that is the player, its description and its long AI summary. Everything that is true of any file, whatever kind it is — its title and its first facts, like and favourite, tags, relations, comments — is in the inspector, in the same place on every page.
 
 **The viewer gets the column to itself**, which matters most where the viewer is long: a 190-page comic used to open with about 100px of archive listing and everything else stacked below it, so the deeper the archive the less of it you could see, and going down a level moved every section under it. Video, audio, Markdown, PDF, archives and images all read this way. Plain text and the Office formats still stack.
 
@@ -29,7 +29,7 @@ stays on the row at every width, beside the path rather than instead of it.
 
 A column down the right of the page, the same width and the same shape on every kind of file.
 
-- **The top part does not move.** Title, length and size, the like / favourite / **AI** / `⋮` row, and tags. It stays put while the rest scrolls, so those controls are in the same place on every file whatever is below them.
+- **The top part does not move.** Title, the line of first facts under it (see [the table in *File browsing*](file-browsing.md#file-grid-and-list-modes) — a video's length, an image's dimensions, a document's size; nothing at all where none of those is known), the like / favourite / **AI** / `⋮` row, and tags. It stays put while the rest scrolls, so those controls are in the same place on every file whatever is below them.
 - **Below it, tabs** — but only when there is more than one. **Info** is always there: relations, comments, EXIF where a file has it, and whatever addon sections apply. A media file with chapters gets a chapter tab, and one on a drive with the transcript addon switched on gets a transcript tab. A file with nothing but Info gets no tab strip at all, which is what a Markdown note has always looked like.
 - **A tab appears when it has something in it.** A file with no chapters has no chapter tab, and a video that has never been transcribed has no transcript tab — the addon is asked whether it has anything for this file rather than merely whether it is switched on. A panel that is still loading may take a moment to claim its tab.
 - **Open and close it** with the toggle at the end of the page row, or with `Cmd/Ctrl+\`. It starts open on a wide screen. Closed, nothing of it is left behind on the page.
@@ -99,6 +99,7 @@ Litloft draws **its own control bar** over the video frame. The same bar, gestur
 
 Audio keeps the browser's own `<audio controls>` bar rather than Litloft's — there is no frame to draw over.
 
+- **The panel says the filename and nothing under it.** A name with a fact beneath it is governed by [the table in *File browsing*](file-browsing.md#file-grid-and-list-modes), and for audio that table's answer is *nothing*: the length is already on the transport bar directly below, and the size on a reference file is the pointer's — this panel used to read "83 B" under the name of a 23-minute track while the inspector correctly said "23:58".
 - Resume from last position and `last_played_at` updated on open.
 - Media session for OS controls. Title and subtitle come from Litloft's own metadata (file title, folder path); the artwork is the file's Litloft thumbnail, not embedded ID3 art.
 - Cast button and an autoplay toggle sit below the player.

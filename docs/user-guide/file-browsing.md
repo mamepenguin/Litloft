@@ -53,9 +53,9 @@ rows would be two answers to "what am I looking at" on one screen. A folder row
 does everything a folder card does — it takes a drop, renames in place, and
 right-clicks to the same folder menu, and carries the same `⋮` button as a file row for reaching those actions from the keyboard.
 
-On a wide screen a row's **contents** stop at 960px, so the name and the size
-stay near enough each other to read as one row rather than as two things at
-opposite ends of the window. The row itself still spans the full width, so the
+On a wide screen a row's **contents** stop at 960px, so the name and the
+columns beside it stay near enough each other to read as one row rather than as
+two things at opposite ends of the window. The row itself still spans the full width, so the
 whole strip stays clickable and lights up on hover.
 
 Below 768px the bar carries **Play**, **Filter** and `…`. **View** and
@@ -94,7 +94,7 @@ Each file card shows:
 
 - Thumbnail (lazy-generated on first access). A photograph is stored at its own proportions, at most 320px on its longest side, and the card shows the middle of it — a tall photograph fills the card rather than sitting in black bars. Video and PDF thumbnails are a fixed 320x180 frame.
 - The file's **title**, not its filename. The title is derived from the filename and is cosmetic — this is why renaming in place is not offered on the cards (see below).
-- The date the file was indexed, plus up to two tags — and, before the date, the one fact the card has not already told you:
+- The date the file was indexed, plus up to two tags — and, before the date, the one fact the file has not already told you:
 
   | Kind | First shows | Because |
   |---|---|---|
@@ -103,6 +103,10 @@ Each file card shows:
   | Everything else | its size | |
 
   An image whose dimensions were never read — a broken file, or one in a format the scanner could not measure — shows the date alone rather than falling back to its size, so two image cards side by side never describe themselves in different terms.
+
+  **The same table governs every surface that puts a fact under a file's name**: the cards and rows here, the file page, the audio player's panel, the Trash and Missing views, and the duplicates list in the admin dashboard. A file is described in the same terms wherever you meet it.
+
+  What differs between them is only where the length goes. A card or a row with a thumbnail badge puts it there, and the audio panel has the player's own transport bar right below it, so for those the table's *nothing* for video and audio leaves the length already said. A surface with nowhere else to put it — the file page, the Trash and Missing cards, whose badge corner is taken by the deadline and the *missing* mark, and the duplicates row — draws the length itself at the head of the same line: a video reads *23:58* rather than *23:58 · 83 B*. Where there is neither a length nor anything the table would add, the line is not drawn at all rather than left standing empty.
 - A duration badge for video and audio. Everything else gets an extension badge, but only where it distinguishes something: in a folder whose files all share one extension the badge is dropped, and the list view drops its type label the same way when every row is the same kind. Both come back the moment the listing is mixed — including when a later page brings in a different kind.
 - A thin *progress bar* along the bottom for partially-watched media.
 - A favourite star, shown on hover and always shown once the file is a favourite.

@@ -410,7 +410,7 @@ describe("FileGrid — justified rows", () => {
 
     // The date, not the size. Every fixture here is an image, and a card
     // leads an image with its dimensions or with nothing
-    // (`lib/cardPrimaryMeta.ts`) — so `formatFileSize` now produces a
+    // (`lib/primaryMeta.ts`) — so `formatFileSize` now produces a
     // string no form in the app draws for these rows, and asserting its
     // absence would pass whatever the cell rendered. The date is the one
     // column the card form draws for every kind, which makes it the one

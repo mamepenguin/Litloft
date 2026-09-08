@@ -41,6 +41,8 @@ A single card with global stats:
 
 Files sharing a `file_hash` are grouped here. Useful when consolidating after a bulk import. Each row links to the file detail page so you can pick a winner and delete the rest.
 
+Under each row's filename is its folder and then the same first fact any other listing gives it ([the table in *File browsing*](../user-guide/file-browsing.md#file-grid-and-list-modes)) — so a duplicated video shows its length rather than a byte figure that, on a reference file, is the pointer's. The group's own byte figure is on the header line above the rows, beside the file count.
+
 ### Addon alerts
 
 Above the drive cards, before anything else on the page, addons may raise something an operator should see first — the intelligence addon puts its failed indexing jobs here. The band is absent when nothing is wrong; it is not a section with an empty state.
