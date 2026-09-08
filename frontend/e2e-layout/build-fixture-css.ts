@@ -60,6 +60,21 @@ const REQUIRED = [
   ".justified-grid-tail",
   "--jg-row-h",
   "box-sizing",
+  // A sheet missing these does not pass — `related-files.spec.ts` goes
+  // red, measured: four cases, the one-column ones among them, because
+  // with no rules the tile is not the width the case names and the name
+  // column is not the app's. What the needles buy is the *diagnosis*.
+  // Without them the failure is four measurements that do not say why,
+  // and a reader traces them back to an empty stylesheet by hand; with
+  // them `globalSetup` throws before a browser opens, naming the sheet
+  // and the missing rule.
+  ".related-files-host",
+  ".related-files-grid",
+  // The class selectors alone are not the rule. A sheet that compiled
+  // both and dropped the query would lay every tile out at one column
+  // and be caught only by the spec — the failure this list exists to
+  // pre-empt, one step later.
+  "@container related-files",
 ];
 
 /**

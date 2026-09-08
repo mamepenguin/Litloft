@@ -1210,6 +1210,23 @@ whatever an addon derives (similarity, shared keywords).
 - **The members live in two repositories**, so the weights above are the contract
   between them.
 
+**The list of relations takes a second column at `45rem` of its own width**, and
+that width is not the window's: the same list is drawn in the 24rem inspector
+rail, in the canonical vertical stack (the window less the 280px tree pane) and
+in the collection route's, capped at 1120px by `max-w-6xl`. A viewport
+breakpoint put two columns inside a 351px rail — 172px tiles showing four
+characters of a 27-character filename, on every tile, at every window width.
+
+| Token | Value | Meaning |
+|---|---|---|
+| second-column threshold | `45rem` (720px) of the **list's own width** | `2 × 22rem + 0.5rem gap = 44.5rem`, rounded to a whole rem **upward**. A second column is worth having exactly where each column is at least as wide as the one column the rail already gives, and rounding down inverts that: at `44rem` each column is 348px against the rail's 352 and reads a character worse. Measured on `15792094940_54b0fd8f84_o.jpg`: 26 characters in the rail, 25 at a 44rem switch, 26 at 45rem. |
+| the rail's own grid | `22rem` (352px) | The 24rem rail less the pane's `px-4`, **before its scrollbar**. The pane always scrolls, so a classic 15px scrollbar leaves 336 instead; derive from the widest form, because the threshold has to satisfy the widest rail it can face. The rail's own column count is the same either way. |
+
+The wrapper carrying `container-type` is inside the section, not the section
+itself: ungrouped it has `p-4` and grouped it has none, so the section's inline
+size is the list's width in one case and 2rem more in the other, and one
+threshold could not mean one width on both.
+
 ### Companion region (media file detail)
 
 Chapters and the transcript. **A player's, not a canvas viewer's** — a PDF has a
@@ -1231,7 +1248,7 @@ competing reader of the same file.
 
 | Token | Value | Meaning |
 |---|---|---|
-| rail width | `24rem` (384px) | Fixed, on the grid. 320px was tried first and Japanese wrapped at 12–14 characters a line, which reads as cramped. |
+| rail width | `24rem` (384px) | Fixed, on the grid. 320px was tried first and Japanese wrapped at 12–14 characters a line, which reads as cramped. **§The Related group's `45rem` is twice this less the inspector's padding, plus a gap — change this and recompute that**, and note it moves twice as fast as the `60rem` below. |
 | box height | `60%` of the measured scroll container | The bounded box below the player: `calc(var(--rail-avail) * 0.6)`, falling back to `60dvh` before the first measurement — "60vh", but measured, because a self-scrolling pane is not the viewport. |
 | below: index column | `12.5rem`–`22rem` (200–352px) | The chapter list beside the transcript. 200px is the floor; past about 350px a column of timestamps competes with what it indexes. |
 | below: body column | `68ch` | The reading measure, and the body's **flex base**, not only its cap. Base and cap being one number is what makes the split exact: below the pair's combined width the body absorbs the whole deficit, above it the index takes the whole surplus. |
@@ -1302,6 +1319,32 @@ No desktop browser shows it.
 - Keep the threshold in `rem` on both sides and resolve it against the root font
   size when measuring, so scaled text still gets the layout the numbers were
   chosen for.
+- **"No media" is a fact about the scope, so scope it deliberately and hold it.**
+  Put `container-type` on a wrapper whose subtree is only the thing being laid
+  out, not on a section that also hosts an addon slot — an addon may render
+  anything. jsdom cannot see a column count but it can see a `<video>`, and on
+  this question it is the only suite that can, because no desktop browser
+  reproduces the bug.
+- **Ask whether media is *reachable*, not whether it is in the first paint.**
+  This repository's `<video>` is not in anybody's initial render: `VideoPreview`
+  mounts one 200ms after `mouseenter`, and `lib/cardGrid.ts` names exactly that
+  as the reason the card grids measure instead of asking `@container`. A guard
+  that renders a subtree and looks at it passes the change that adds a hover
+  preview. Fire the events and run the timers out first
+  (`relatedFilesFixtureParity.test.tsx`), and declare the scope's whole shape —
+  the host's children and the grid's — so anything added anywhere inside it is
+  red rather than only the elements someone thought to name.
+- **Put the wrapper where its inline size *is* the laid-out element's width.**
+  A section whose padding changes with context (the related-files list has `p-4`
+  standing alone and none inside the Related group) cannot be the container: one
+  threshold would mean two different widths.
+
+**A container query is not verifiable by reading the stylesheet.** #200 measured
+that: the defect came back in full by appending one line to the end of
+`globals.css` and every suite stayed green. A new threshold gets a case in
+`frontend/e2e-layout/`, which lays the markup out in Chromium against the app's
+own compiled sheet, plus a parity test keeping that fixture's markup the
+component's.
 
 **A core grid of equal cards goes through `lib/cardGrid.ts`.** Do not write
 `repeat(auto-fill, minmax(min(16rem, 100%), 1fr))` — or a `sm:`/`lg:`/`xl:`

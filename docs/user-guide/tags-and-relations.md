@@ -110,6 +110,12 @@ The file detail page has a **Related files** section listing every relation, in 
 
 The section hides itself entirely when a file has no relations.
 
+**One tile per row or two, decided by the space the list has** — not by the size of the window.
+
+The same list is drawn in three places of very different widths: the inspector, a fixed 24rem column whatever the screen is doing; and the vertical layout, which some files get on the file page and every file gets while a collection or a folder is playing. The vertical one is as wide as the page allows — at most 1120px, and less again when the folder tree is beside it.
+
+Two tiles fit a row only where there is 45rem to put them in. Below that each tile takes the row, because a second column that halves the width also halves the filename, and a related file whose name you cannot read is not a link you can follow. On a 1512px screen that makes the inspector one column and the vertical layout two.
+
 ### API
 
 Reading relations for a file is a public endpoint:

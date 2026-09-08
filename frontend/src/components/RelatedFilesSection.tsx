@@ -110,10 +110,18 @@ export function RelatedFilesSection({ fileId }: { fileId: string }) {
           ({relations.length})
         </span>
       </div>
-      <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
-        {relations.map((item) => (
-          <RelatedFileTile key={item.relation_id} item={item} />
-        ))}
+      {/* The column count is a question about this grid's own width,
+          not the window's: the same markup renders in the 24rem
+          inspector rail and in the full-width legacy stack, and
+          `sm:grid-cols-2` answered it with the viewport — two columns
+          in a 351px rail. `globals.css` has the threshold and why the
+          container is a wrapper here rather than the section. */}
+      <div className="related-files-host">
+        <div className="related-files-grid grid gap-2">
+          {relations.map((item) => (
+            <RelatedFileTile key={item.relation_id} item={item} />
+          ))}
+        </div>
       </div>
     </section>
   );
