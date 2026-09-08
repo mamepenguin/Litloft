@@ -167,6 +167,11 @@ Most state is server-fetched. Client state is small: theme, autoplay, view mode 
   static fixture with no app behind it — jsdom lays nothing out, so anything
   about a box's realized size or shape has to be asserted there. It is in CI
   (`pnpm test:e2e:layout`); see [testing.md](testing.md).
+- **A new cell shape inside `.justified-grid` needs a row in that fixture's
+  markup table.** The fixture hand-writes the markup it measures, so a selector
+  naming an element type or a class it does not write is invisible to it;
+  `justifiedGridFixtureParity.test.tsx` fails when the table and the components
+  come apart, and it only knows the callers listed in it.
 
 ## Build
 

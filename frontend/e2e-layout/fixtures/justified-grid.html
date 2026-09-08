@@ -4,15 +4,117 @@
     <meta charset="utf-8" />
     <title>justified grid — layout fixture</title>
     <!--
-      The compiled globals.css, built by ../build-fixture-css.mjs.
+      The compiled globals.css, built by ../build-fixture-css.ts.
 
       This page carries no <style> block of its own on purpose. Every
       declaration a cell obeys has to have come out of the app's own
-      stylesheet, or the measurement below is a test of the fixture.
+      stylesheet, or the measurement is a test of the fixture.
     -->
     <link rel="stylesheet" href="./globals.built.css" />
   </head>
   <body>
+    <!--
+      Every cell shape the app puts inside `.justified-grid`, written out
+      as the element type and the exact class list the component renders.
+
+      Half of what the CSS says is about which element carries which
+      class, so a fixture that wrote a shape of its own would hold the
+      stylesheet only for markup nothing ships. Two callers write these
+      cells — `JustifiedFileCell` and `ArchiveEntryCard` — and the second
+      draws a `<button>` carrying `overflow-hidden`, which is why
+      `button.justified-grid-cell` and `.justified-grid-cell.overflow-hidden`
+      are real selectors and not hypotheticals.
+
+      **This table is not the components' own; it is a second copy.**
+      `justifiedGridFixtureParity.test.tsx` renders both components over
+      every reachable combination of their props and fails if the class
+      vocabulary here and the class vocabulary there come apart, in either
+      direction. Editing one side alone is a red suite.
+
+      `chain` is the descendant chain the builder nests inside the cell,
+      outermost first. The parity test locates each entry in the rendered
+      component by its own classes and then requires the match to be
+      exact, so a class added on either side is caught.
+    -->
+    <script type="application/json" id="fixture-markup">
+      {
+        "photo": {
+          "source": "JustifiedFileCell",
+          "tag": "div",
+          "class": "justified-grid-cell relative",
+          "chain": [
+            {
+              "tag": "a",
+              "class": "group relative block h-full w-full overflow-hidden rounded-xl bg-bg-elevated"
+            },
+            { "tag": "img", "class": "h-full w-full object-cover" }
+          ]
+        },
+        "photoDraggable": {
+          "source": "JustifiedFileCell",
+          "tag": "div",
+          "class": "justified-grid-cell relative select-none",
+          "chain": [
+            {
+              "tag": "a",
+              "class": "group relative block h-full w-full overflow-hidden rounded-xl bg-bg-elevated"
+            },
+            { "tag": "img", "class": "h-full w-full object-cover" }
+          ]
+        },
+        "photoDragging": {
+          "source": "JustifiedFileCell",
+          "tag": "div",
+          "class": "justified-grid-cell relative opacity-40 select-none",
+          "chain": [
+            {
+              "tag": "a",
+              "class": "group relative block h-full w-full overflow-hidden rounded-xl bg-bg-elevated"
+            },
+            { "tag": "img", "class": "h-full w-full object-cover" }
+          ]
+        },
+        "photoCut": {
+          "source": "JustifiedFileCell",
+          "tag": "div",
+          "class": "justified-grid-cell relative opacity-50",
+          "chain": [
+            {
+              "tag": "a",
+              "class": "group relative block h-full w-full overflow-hidden rounded-xl bg-bg-elevated"
+            },
+            { "tag": "img", "class": "h-full w-full object-cover" }
+          ]
+        },
+        "archiveOpenable": {
+          "source": "ArchiveEntryCard",
+          "tag": "button",
+          "class": "justified-grid-cell relative overflow-hidden rounded-xl bg-bg-card cursor-pointer transition-colors hover:bg-bg-elevated",
+          "chain": [
+            { "tag": "div", "class": "relative h-full w-full" },
+            {
+              "tag": "div",
+              "class": "flex h-full w-full items-center justify-center"
+            },
+            { "tag": "img", "class": "h-full w-full object-cover" }
+          ]
+        },
+        "archiveDeadEnd": {
+          "source": "ArchiveEntryCard",
+          "tag": "div",
+          "class": "justified-grid-cell relative overflow-hidden rounded-xl bg-bg-card",
+          "chain": [
+            { "tag": "div", "class": "relative h-full w-full" },
+            {
+              "tag": "div",
+              "class": "flex h-full w-full items-center justify-center"
+            },
+            { "tag": "img", "class": "h-full w-full object-cover" }
+          ]
+        }
+      }
+    </script>
+
     <!-- The width the grid is laid out at. The spec sets it per case;
          `.justified-grid-host` establishes the container the row height
          switches on, so this is the only free variable in the page. -->
@@ -26,18 +128,59 @@
       const PIXEL =
         "data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7";
 
+      const SHAPES = JSON.parse(
+        document.getElementById("fixture-markup").textContent,
+      );
+
+      window.fixtureMarkup = () => SHAPES;
+
+      const build = (spec) => {
+        const el = document.createElement(spec.tag);
+        el.className = spec.class;
+        if (spec.tag === "img") {
+          el.src = PIXEL;
+          el.alt = "";
+        }
+        if (spec.tag === "a") el.href = "#";
+        if (spec.tag === "button") el.type = "button";
+        return el;
+      };
+
       /**
-       * The markup `JustifiedFileCell` renders, by hand.
-       *
-       * Kept in the same shape as the component — `justified-grid-cell
-       * relative` on the cell, the `group relative block h-full w-full`
-       * anchor inside it, the `h-full w-full object-cover` image, and the
-       * `justified-grid-tail` after the last cell — because half of what
-       * the CSS says is about which element carries which class. A
-       * fixture that simplified the tree would stop being able to see a
-       * selector aimed at the inner wrapper.
+       * One cell of the named shape, built from the table above and
+       * nothing else — so a shape that drifts from the table cannot be
+       * drawn, and the table is the only thing the parity test has to
+       * keep honest.
        */
-      window.buildGrid = ({ ratios, width, flip }) => {
+      const buildCell = (shape, ratio, index, flip) => {
+        const spec = SHAPES[shape];
+        if (!spec) throw new Error(`no such cell shape: ${shape}`);
+        const cell = build(spec);
+        cell.style.setProperty("--jg-ratio", String(ratio));
+        cell.dataset.flipKey = `p${index}`;
+        cell.dataset.shape = shape;
+        if (flip) cell.dataset.flip = flip;
+
+        let parent = cell;
+        for (const link of spec.chain) {
+          const child = build(link);
+          parent.append(child);
+          parent = child;
+        }
+        return cell;
+      };
+
+      /**
+       * The grid, at a chosen width and in a viewport that could contain
+       * it.
+       *
+       * The viewport matters: a rule keyed to `@media (max-width: …)`
+       * rather than to the container is invisible to a suite that leaves
+       * the window at its default 1280px while laying out a 420px grid,
+       * and 420px is a phone. Sizing the window to the grid means the
+       * narrow cases are measured in a window a phone could have.
+       */
+      window.buildGrid = ({ ratios, width, flip, shapes }) => {
         const frame = document.getElementById("frame");
         frame.style.width = `${width}px`;
         frame.replaceChildren();
@@ -48,25 +191,7 @@
         grid.className = "justified-grid";
 
         ratios.forEach((ratio, i) => {
-          const cell = document.createElement("div");
-          cell.className = "justified-grid-cell relative";
-          cell.style.setProperty("--jg-ratio", String(ratio));
-          cell.dataset.flipKey = `p${i}`;
-          if (flip) cell.dataset.flip = flip;
-
-          const link = document.createElement("a");
-          link.className =
-            "group relative block h-full w-full overflow-hidden rounded-xl bg-bg-elevated";
-          link.href = "#";
-
-          const img = document.createElement("img");
-          img.className = "h-full w-full object-cover";
-          img.src = PIXEL;
-          img.alt = "";
-
-          link.append(img);
-          cell.append(link);
-          grid.append(cell);
+          grid.append(buildCell(shapes?.[i] ?? "photo", ratio, i, flip));
         });
 
         const tail = document.createElement("div");
@@ -79,7 +204,8 @@
       };
 
       /**
-       * Every cell's realized box, plus the ratio it was asked for.
+       * Every cell's realized box, plus the ratio it was asked for and
+       * the markup it was built as.
        *
        * `getBoundingClientRect` rather than `offsetWidth`: the layout
        * engine resolves flex to a fraction of a pixel and the integer
@@ -93,6 +219,13 @@
               ratio: Number(
                 getComputedStyle(cell).getPropertyValue("--jg-ratio"),
               ),
+              shape: cell.dataset.shape,
+              tag: cell.tagName.toLowerCase(),
+              className: cell.className,
+              chain: Array.from(cell.querySelectorAll("*")).map((el) => ({
+                tag: el.tagName.toLowerCase(),
+                className: el.className,
+              })),
               width: rect.width,
               height: rect.height,
               top: rect.top,

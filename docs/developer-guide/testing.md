@@ -180,15 +180,20 @@ pnpm test:e2e:report
 ### Layout invariants, which are a separate suite
 
 `frontend/e2e-layout/` is also Playwright, and has nothing else in common with
-the twelve specs above. It opens a **static page off `file://`** — no app, no
+the eleven specs above. It opens a **static page off `file://`** — no app, no
 backend, no drives — carrying the app's own compiled `globals.css` and a row of
 hand-placed cells with known `--jg-ratio` values, and measures the boxes
 Chromium produces.
 
 ```bash
 cd frontend
-pnpm test:e2e:layout          # ~3s locally, browser already installed
+pnpm test:e2e:layout          # 22 tests, ~2.5s, browser already installed
 ```
+
+The CI job around it measured **57s** on its first run — a cold cache, so 25s of
+that was the Chromium download and 6s was the tests. That is the second-cheapest
+job in the workflow. The warm figure has no measurement yet: the only run so far
+is the one that populated the cache.
 
 It has its own config (`playwright-layout.config.ts`) so that neither run can
 pull the other in, and its `globalSetup` compiles `src/app/globals.css` into the
@@ -218,13 +223,38 @@ What it holds today, all of it measured rather than matched:
   stays at its bases — which is where `.justified-grid-tail`'s `flex-grow: 9999`
   becomes visible as a number;
 - the `[data-flip]` transition Chromium resolves, against the hook's own
-  `FLIP_DURATION_MS`.
+  `FLIP_DURATION_MS`;
+- all of the above **once per cell shape the app ships** —
+  `JustifiedFileCell` in each of its four states and `ArchiveEntryCard`'s
+  `<button>` and dead-end `<div>`. This is the axis that decides what a
+  selector can reach: a browser suite sees only markup the fixture writes, and
+  while the fixture drew one shape, `button.justified-grid-cell`,
+  `.justified-grid-cell.overflow-hidden` and `.justified-grid-cell.select-none`
+  all broke shipped cells while staying green.
+
+The fixture's fidelity is itself asserted, in the other suite.
+`src/components/__tests__/justifiedGridFixtureParity.test.tsx` renders both
+components over every reachable combination of the props that decide a cell's
+class, and compares the result to the JSON table the fixture builds from. It is
+a parity test rather than one table read twice — one side is a React render, the
+other is hand-written HTML — so drift in **either** direction is red: eleven
+mutations, on both sides, all killed.
 
 **What it cannot see, because there is no app in it:** the forced reflow
 (`void grid.offsetWidth`) between `useJustifiedFlip`'s invert and play, the
 hook's settle timing, its rect rounding, its unmount cleanup, and the FLIP
 wiring itself. Those are jsdom's, by postcondition, in
-`useJustifiedFlip.test.tsx`. A green tick here says nothing about any of them.
+`useJustifiedFlip.test.tsx`. An inline `style` written by a component rather
+than by the fixture is in the same class. A green tick here says nothing about
+any of them.
+
+**And the case list is finite.** The fixture sizes the window to the grid, so a
+`@media` rule keyed to a phone width is now tested at a phone width; but a query
+keyed outside the range the tested widths imply — `@container justified-grid
+(min-width: 1500px)`, past the widest grid here — is unreachable and survives.
+Adding a width is how that closes, not prose. Likewise the parity test knows the
+two components that write a `.justified-grid-cell` today; a third would arrive
+unnoticed until someone gave it a row in the table.
 
 ### Why e2e is not in CI
 
@@ -232,10 +262,12 @@ Deliberate, and worth restating before anyone "fixes" it:
 
 - `playwright.config.ts` declares no `webServer`. The suite expects a live stack
   already answering on `localhost:3000`.
-- The specs read the real library through `/api/drives` and **skip themselves
-  when no drive answers** (`test.skip(() => !driveName)`). A CI run without
-  seeded drives would skip almost everything and report green — the exact
-  "passed, therefore fine" failure this CI exists to remove.
+- Ten of the eleven read the real library through `/api/drives` and **skip
+  themselves when no drive answers** (`test.skip(() => !driveName)`). A CI run
+  without seeded drives would skip almost everything and report green — the
+  exact "passed, therefore fine" failure this CI exists to remove. The
+  eleventh, `source-capture.spec.ts`, carries no guard and would go red
+  instead. Neither result is a check.
 - Several assertions are written against a Japanese UI (`browse.spec.ts` expects
   `main h1` to contain `ドライブ`) while `defaultLocale` is `en`. The suite
   assumes a developer's own environment, not a clean one.
@@ -245,7 +277,7 @@ The e2e sources are not unguarded: `tsc --noEmit` and `eslint` both cover
 a compose profile that seeds a fixture drive first; that is its own piece of
 work, not a workflow edit.
 
-This reasoning is about **these twelve specs**, not about browsers. The layout
+This reasoning is about **these eleven specs**, not about browsers. The layout
 suite above runs in CI precisely because it shares none of the three problems:
 nothing to serve, nothing to seed, and nothing to skip.
 

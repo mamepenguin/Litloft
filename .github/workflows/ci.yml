@@ -223,13 +223,25 @@ jobs:
     # off `file://` that carries the app's own compiled globals.css and a
     # hand-placed row of cells, and asserts the boxes Chromium produces.
     #
-    # It is deliberately NOT the twelve specs under `frontend/e2e/`. Those
-    # need a live stack on localhost:3000 and a seeded library, and they
-    # skip themselves when no drive answers — in CI they would report green
-    # having run almost nothing, which is the exact failure this workflow
-    # exists to remove. See docs/developer-guide/testing.md, "Why e2e is not
-    # in CI". The two runs get two Playwright configs so that neither can
-    # pull the other in.
+    # A browser suite can only see a selector that matches the markup in
+    # front of it, so the fixture writes every cell shape the app ships —
+    # JustifiedFileCell in each of its states, and ArchiveEntryCard's
+    # <button>. That is not a detail: while it drew one shape,
+    # `button.justified-grid-cell`, `.justified-grid-cell.overflow-hidden`
+    # and `.justified-grid-cell.select-none` each broke a shipped cell and
+    # stayed green. The class lists are kept honest from the jsdom side, by
+    # justifiedGridFixtureParity.test.tsx in the `frontend` job above.
+    #
+    # It is deliberately NOT the eleven specs under `frontend/e2e/` — twelve
+    # files, of which helpers.ts is not a spec; `playwright test --list` says
+    # 45 tests in 11 files. Those need a live stack on localhost:3000 and a
+    # seeded library. Ten of them skip themselves when no drive answers, so in
+    # CI they would report green having run almost nothing, which is the exact
+    # failure this workflow exists to remove; the eleventh,
+    # source-capture.spec.ts, carries no guard at all and would simply go red.
+    # Neither outcome is a check. See docs/developer-guide/testing.md, "Why
+    # e2e is not in CI". The two runs get two Playwright configs so that
+    # neither can pull the other in.
     #
     # No submodules and no setup-addons.sh: the fixture links a sheet
     # compiled from src/app/globals.css, and its `@source "../addons"` names

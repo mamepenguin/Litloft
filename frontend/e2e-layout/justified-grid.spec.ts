@@ -18,70 +18,114 @@
  * with known `--jg-ratio` values, and measures the boxes the browser
  * produces.
  *
- * ## What it can see, and what it cannot
+ * ## What it can see
  *
- * It can see anything decided by CSS plus the cells' own inline ratios:
- * the shape of a cell, the `max-height` ceiling, which lines justify, the
- * row height the container query picks, and the transition the FLIP play
- * state resolves to.
+ * Anything decided by CSS plus the cells' own inline ratios: the shape of
+ * a cell, the `max-height` ceiling, which lines justify, the row height
+ * the container query picks, and the transition the FLIP play state
+ * resolves to.
  *
- * It cannot see anything the app *does*, because there is no app here.
- * Out of scope, and named so nobody reads a green tick as covering them:
+ * That reaches a selector only if the selector matches markup the fixture
+ * writes, so the fixture writes **every cell shape the app ships** —
+ * `JustifiedFileCell` in each of its states, and `ArchiveEntryCard`'s
+ * `<button>` and dead-end `<div>`. The class lists come from the table in
+ * the fixture, and `justifiedGridFixtureParity.test.tsx` renders both
+ * components over every reachable combination of their props and fails if
+ * that table and the components come apart in either direction.
  *
- * - `void grid.offsetWidth` in `useJustifiedFlip` — the forced reflow
- *   between the invert and the play. Deleting it stops every animation
- *   and no suite in this repository notices (#203).
- * - the hook's `settle()` timing, its rect rounding, and its unmount
- *   cleanup.
- * - the FLIP wiring itself — that a change to the cell set reaches the
- *   hook at all. `useJustifiedFlip.test.tsx` holds that by postcondition.
+ * ## What it cannot see
  *
- * Those need the React tree and a real listing. This file is a fixture.
+ * Named so nobody reads a green tick as covering them.
+ *
+ * **No app is running**, so: `void grid.offsetWidth` in `useJustifiedFlip`
+ * — the forced reflow between the invert and the play, whose deletion
+ * stops every animation and which no suite in this repository notices
+ * (#203); the hook's `settle()` timing, its rect rounding, and its unmount
+ * cleanup; and the FLIP wiring itself, which
+ * `useJustifiedFlip.test.tsx` holds by postcondition. An inline `style`
+ * written by a component rather than by the fixture is in this class too.
+ *
+ * **The case list is finite**, so a query keyed above the widths below is
+ * unreachable: `@container justified-grid (min-width: 1500px)` is past the
+ * widest grid here and survives. The viewport is *not* in this class any
+ * more — the fixture sizes the window to the grid, so a `@media` rule
+ * keyed to a phone width is tested at a phone width — but a viewport
+ * query outside the range the widths imply is.
+ *
+ * **Only the cell element is pinned exhaustively.** The parity test
+ * enumerates every class the two components can put on a
+ * `.justified-grid-cell`; the descendant chain is pinned only in the
+ * shapes drawn here. And nothing detects a *third* caller appearing: the
+ * parity test knows about the two that exist.
  */
 
 import { test, expect } from "@playwright/test";
+import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { pathToFileURL } from "node:url";
 
 import { FLIP_DURATION_MS } from "../src/hooks/useJustifiedFlip";
 
-const FIXTURE = pathToFileURL(
-  resolve(__dirname, "fixtures", "justified-grid.html"),
-).href;
+const FIXTURE_FILE = resolve(__dirname, "fixtures", "justified-grid.html");
+const FIXTURE = pathToFileURL(FIXTURE_FILE).href;
+
+type ShapeSpec = {
+  source: string;
+  tag: string;
+  class: string;
+  chain: { tag: string; class: string }[];
+};
 
 /**
- * The figures `globals.css` and `DESIGN.md` §8.5 carry, written out here
- * rather than read back out of the sheet.
+ * The cell shapes the fixture declares, read out of the page itself.
  *
- * Reading them back would make the assertions move whenever the sheet
- * moved, which is the one thing a pinned value is for: each of these was
- * chosen by measuring alternatives, so changing one is a decision and
- * should arrive with this file edited.
+ * Read rather than restated so that a shape added to the fixture gets a
+ * geometry test without anyone remembering to add one — the count below
+ * is what stops that from silently going the other way.
  */
+const SHAPES: Record<string, ShapeSpec> = JSON.parse(
+  readFileSync(FIXTURE_FILE, "utf8").match(
+    /<script type="application\/json" id="fixture-markup">([\s\S]*?)<\/script>/,
+  )![1],
+);
+
+/** `JustifiedFileCell` in four states, `ArchiveEntryCard` in two. */
+const SHAPE_COUNT = 6;
+
 const JG_GAP = 8;
 const JG_ROW_H_NARROW = 120;
 const JG_ROW_H_WIDE = 200;
 /** `@container justified-grid (min-width: 40rem)`, at a 16px root. */
 const JG_CONTAINER_BREAKPOINT = 640;
 const JG_MAX_STRETCH = 2.5;
+/** `flex-grow` on `.justified-grid-tail`, the last line's slack absorber. */
+const JG_TAIL_GROW = 9999;
 
 const ceilingAt = (rowH: number) => rowH * JG_MAX_STRETCH;
 
 type Cell = {
   ratio: number;
+  shape: string;
+  tag: string;
+  className: string;
+  chain: { tag: string; className: string }[];
   width: number;
   height: number;
   top: number;
   left: number;
 };
 
+type GridSpec = {
+  ratios: number[];
+  width: number;
+  flip?: "invert" | "play";
+  shapes?: string[];
+};
+
 declare global {
   interface Window {
-    buildGrid: (spec: {
-      ratios: number[];
-      width: number;
-      flip?: "invert" | "play";
-    }) => void;
+    fixtureMarkup: () => Record<string, ShapeSpec>;
+    buildGrid: (spec: GridSpec) => void;
     measureCells: () => Cell[];
     measureGrid: () => { width: number; gap: number };
     measureFlip: () => {
@@ -93,9 +137,6 @@ declare global {
   }
 }
 
-/** `flex-grow` on `.justified-grid-tail`, the last line's slack absorber. */
-const JG_TAIL_GROW = 9999;
-
 /**
  * How far a measured box may sit from the figure the geometry predicts.
  *
@@ -103,14 +144,25 @@ const JG_TAIL_GROW = 9999;
  * against is exact, and the tolerance only has to cover the layout
  * engine's own quantisation. Chromium resolves lengths to a 64th of a
  * pixel, which bounds a single value's error at 7.8e-3 px; the worst
- * observed across every case in this file is 4.3e-3 px absolute and 9.3e-5
- * relative, and the whole suite still passes at a tolerance of 5e-3.
- * 5e-2 is what is written, six times the bound, because a line-fill
- * assertion sums five of those errors and none of the defects this file
- * exists to catch move anything by less than a pixel.
+ * observed across every case in this file is 4.3e-3 px, and the whole
+ * suite still passes at a tolerance of 5e-3. 5e-2 is what is written, six
+ * times the bound, because a line-fill assertion sums five of those errors
+ * and none of the defects this file exists to catch move anything by less
+ * than a pixel.
+ *
+ * Every comparison between a measured length and a predicted one goes
+ * through `expectPx`, so tightening this value below the quantisation
+ * reddens the suite. `REL` is the same tolerance expressed against a
+ * ratio, where the worst observed is 9.3e-5.
  */
 const PX = 0.05;
 const REL = 1e-3;
+
+const expectPx = (actual: number, expected: number, what: string) =>
+  expect(
+    Math.abs(actual - expected),
+    `${what}: measured ${actual}px, predicted ${expected}px`,
+  ).toBeLessThan(PX);
 
 /**
  * Where each cell on an unstretched line lands.
@@ -135,10 +187,36 @@ const unstretchedWidths = (
     gridWidth -
     bases.reduce((sum, basis) => sum + basis, 0) -
     JG_GAP * ratios.length;
-  const growSum =
-    ratios.reduce((sum, ratio) => sum + ratio, 0) + JG_TAIL_GROW;
+  const growSum = ratios.reduce((sum, ratio) => sum + ratio, 0) + JG_TAIL_GROW;
   return bases.map((basis, i) => basis + (ratios[i] * free) / growSum);
 };
+
+/**
+ * Lay out a grid, in a window that could contain it.
+ *
+ * The viewport is sized to the grid rather than left at the config's
+ * 1280px default. A 420px grid is a phone, and measuring one inside a
+ * desktop window is a combination the app never draws — worse, it puts
+ * every `@media (max-width: …)` rule out of reach of the narrow cases,
+ * which is the width band `--jg-row-h: 120px` exists for. The 80px is
+ * the room a scrollbar and a little chrome would take.
+ */
+async function layout(page: import("@playwright/test").Page, spec: GridSpec) {
+  await page.setViewportSize({ width: spec.width + 80, height: 900 });
+  await page.evaluate((s) => window.buildGrid(s), spec);
+  return page.evaluate(() => window.measureCells());
+}
+
+/** The cell was built as the shape the fixture's table declares. */
+function expectShape(cell: Cell, shape: string) {
+  const spec = SHAPES[shape];
+  expect(cell.shape).toBe(shape);
+  expect(cell.tag).toBe(spec.tag);
+  expect(cell.className).toBe(spec.class);
+  expect(cell.chain).toEqual(
+    spec.chain.map((link) => ({ tag: link.tag, className: link.class })),
+  );
+}
 
 test.beforeEach(async ({ page }) => {
   await page.goto(FIXTURE);
@@ -165,18 +243,15 @@ test.describe("the row height the container query picks", () => {
 
   for (const { width, rowH } of cases) {
     test(`is ${rowH}px on a ${width}px grid`, async ({ page }) => {
-      await page.evaluate(
-        (w) => window.buildGrid({ ratios: [1], width: w }),
-        width,
-      );
-      const cells = await page.evaluate(() => window.measureCells());
+      const cells = await layout(page, { ratios: [1], width });
 
       expect(cells).toHaveLength(1);
-      expect(cells[0].width).toBeCloseTo(
+      expectPx(
+        cells[0].width,
         unstretchedWidths([1], rowH, width)[0],
-        1,
+        "lone cell width",
       );
-      expect(cells[0].height).toBeCloseTo(cells[0].width, 1);
+      expectPx(cells[0].height, cells[0].width, "lone cell height");
     });
   }
 });
@@ -188,12 +263,34 @@ test.describe("the row height the container query picks", () => {
  * case rather than counted from the run. A count read back from the
  * measurement would let a change that clamps every cell pass.
  */
-test.describe("a cell is the shape of its own ratio", () => {
-  const RATIOS = [
-    3, 0.5, 1, 1.5, 0.75, 2, 4 / 3, 0.6, 2.5, 1, 0.8, 1.2, 1.77, 0.66, 1, 2.2,
-    0.9, 1.4,
-  ];
+const RATIOS = [
+  3, 0.5, 1, 1.5, 0.75, 2, 4 / 3, 0.6, 2.5, 1, 0.8, 1.2, 1.77, 0.66, 1, 2.2,
+  0.9, 1.4,
+];
 
+function expectRatios(cells: Cell[], rowH: number, clamped: number) {
+  expect(cells).toHaveLength(RATIOS.length);
+  expect(cells.map((c) => c.ratio)).toEqual(RATIOS);
+
+  const ceiling = ceilingAt(rowH);
+  const atCeiling = cells.filter((c) => c.height > ceiling - PX);
+  expect(atCeiling).toHaveLength(clamped);
+
+  for (const cell of atCeiling) {
+    // A cell that reaches the ceiling gives up its ratio and keeps its
+    // width, so its height is the ceiling exactly.
+    expectPx(cell.height, ceiling, "clamped cell height");
+  }
+
+  for (const cell of cells.filter((c) => c.height <= ceiling - PX)) {
+    expect(
+      Math.abs(cell.width / cell.height - cell.ratio) / cell.ratio,
+      `cell at ratio ${cell.ratio}: measured ${cell.width} x ${cell.height}`,
+    ).toBeLessThan(REL);
+  }
+}
+
+test.describe("a cell is the shape of its own ratio", () => {
   const cases = [
     { width: 420, rowH: JG_ROW_H_NARROW, clamped: 0 },
     // The first width on the wide side of the query, and the one width in
@@ -207,32 +304,58 @@ test.describe("a cell is the shape of its own ratio", () => {
 
   for (const { width, rowH, clamped } of cases) {
     test(`at every ratio on a ${width}px grid`, async ({ page }) => {
-      await page.evaluate(
-        ({ ratios, w }) => window.buildGrid({ ratios, width: w }),
-        { ratios: RATIOS, w: width },
-      );
-      const cells = await page.evaluate(() => window.measureCells());
-
-      expect(cells).toHaveLength(RATIOS.length);
-      expect(cells.map((c) => c.ratio)).toEqual(RATIOS);
-
-      const ceiling = ceilingAt(rowH);
-      const atCeiling = cells.filter((c) => c.height > ceiling - PX);
-      expect(atCeiling).toHaveLength(clamped);
-
-      for (const cell of atCeiling) {
-        // A cell that reaches the ceiling gives up its ratio and keeps
-        // its width, so its height is the ceiling exactly.
-        expect(cell.height).toBeCloseTo(ceiling, 1);
-      }
-
-      for (const cell of cells.filter((c) => c.height <= ceiling - PX)) {
-        expect(
-          Math.abs(cell.width / cell.height - cell.ratio) / cell.ratio,
-        ).toBeLessThan(REL);
-      }
+      expectRatios(await layout(page, { ratios: RATIOS, width }), rowH, clamped);
     });
   }
+});
+
+/**
+ * The same invariant, once per cell shape the app ships.
+ *
+ * This is the axis #200's review left open and the one that made three
+ * further CSS-only bypasses survive: a selector naming an element type or
+ * a class the fixture did not happen to write is unreachable, however
+ * correct the geometry assertions are. `button.justified-grid-cell`,
+ * `.justified-grid-cell.overflow-hidden` and `.justified-grid-cell.select-none`
+ * are all real markup, and all three went green against a fixture that
+ * only ever drew `<div class="justified-grid-cell relative">`.
+ *
+ * One width is enough here: the shapes differ in markup, not in geometry,
+ * so the width sweep above stays on the common shape.
+ */
+test.describe("every cell shape the app ships", () => {
+  test("is exactly the set this file tests", () => {
+    expect(Object.keys(SHAPES)).toHaveLength(SHAPE_COUNT);
+  });
+
+  for (const shape of Object.keys(SHAPES)) {
+    test(`${shape} (${SHAPES[shape].source}) is the shape of its own ratio`, async ({
+      page,
+    }) => {
+      const cells = await layout(page, {
+        ratios: RATIOS,
+        width: 1200,
+        shapes: RATIOS.map(() => shape),
+      });
+      for (const cell of cells) expectShape(cell, shape);
+      expectRatios(cells, JG_ROW_H_WIDE, 0);
+    });
+  }
+
+  /**
+   * And mixed, which is what an archive folder actually draws: an
+   * openable page beside an entry with no preview.
+   */
+  test("mixes on one line without either shape losing its ratio", async ({
+    page,
+  }) => {
+    const shapes = RATIOS.map((_, i) =>
+      i % 2 === 0 ? "archiveOpenable" : "archiveDeadEnd",
+    );
+    const cells = await layout(page, { ratios: RATIOS, width: 1200, shapes });
+    cells.forEach((cell, i) => expectShape(cell, shapes[i]));
+    expectRatios(cells, JG_ROW_H_WIDE, 0);
+  });
 });
 
 /**
@@ -249,15 +372,11 @@ test("clamps a stranded cell at the ceiling and leaves its width alone", async (
   page,
 }) => {
   const WIDTH = 700;
-  const RATIOS = [3, 0.5, 3, 3];
+  const RATIO_SET = [3, 0.5, 3, 3];
   const STRANDED = 0.5;
 
-  await page.evaluate(
-    ({ ratios, w }) => window.buildGrid({ ratios, width: w }),
-    { ratios: RATIOS, w: WIDTH },
-  );
-  const cells = await page.evaluate(() => window.measureCells());
-  expect(cells).toHaveLength(RATIOS.length);
+  const cells = await layout(page, { ratios: RATIO_SET, width: WIDTH });
+  expect(cells).toHaveLength(RATIO_SET.length);
 
   const stranded = cells[1];
   expect(stranded.ratio).toBe(STRANDED);
@@ -272,9 +391,8 @@ test("clamps a stranded cell at the ceiling and leaves its width alone", async (
   // is left — 100 + 0.5 * 600 here. The clamp does not move it: the cell
   // keeps its width and gives up its ratio.
   const basis = STRANDED * JG_ROW_H_WIDE;
-  expect(stranded.width).toBeCloseTo(basis + STRANDED * (WIDTH - basis), 1);
-
-  expect(stranded.height).toBeCloseTo(ceilingAt(JG_ROW_H_WIDE), 1);
+  expectPx(stranded.width, basis + STRANDED * (WIDTH - basis), "stranded width");
+  expectPx(stranded.height, ceilingAt(JG_ROW_H_WIDE), "stranded height");
   // And the ratio really is gone, rather than the ceiling happening to
   // agree with it.
   expect(stranded.width / stranded.height).toBeGreaterThan(STRANDED + 0.2);
@@ -310,16 +428,12 @@ test.describe("lines fill the grid", () => {
 
   for (const { name, width, ratios, filledLines, lastLine } of cases) {
     test(`with ${name}`, async ({ page }) => {
-      await page.evaluate(
-        ({ ratios, w }) => window.buildGrid({ ratios, width: w }),
-        { ratios, w: width },
-      );
-      const cells = await page.evaluate(() => window.measureCells());
+      const cells = await layout(page, { ratios, width });
       const grid = await page.evaluate(() => window.measureGrid());
 
       expect(cells).toHaveLength(ratios.length);
       expect(grid.gap).toBe(JG_GAP);
-      expect(grid.width).toBeCloseTo(width, 1);
+      expectPx(grid.width, width, "grid width");
 
       const lines = new Map<number, Cell[]>();
       for (const cell of cells) {
@@ -332,9 +446,8 @@ test.describe("lines fill the grid", () => {
       for (const top of tops.slice(0, -1)) {
         const line = lines.get(top)!;
         const spanned =
-          line.reduce((sum, c) => sum + c.width, 0) +
-          JG_GAP * (line.length - 1);
-        expect(spanned).toBeCloseTo(grid.width, 1);
+          line.reduce((sum, c) => sum + c.width, 0) + JG_GAP * (line.length - 1);
+        expectPx(spanned, grid.width, `line at y=${top}`);
       }
 
       // The last line keeps every cell at its basis: `.justified-grid-tail`
@@ -348,7 +461,7 @@ test.describe("lines fill the grid", () => {
         grid.width,
       );
       last.forEach((cell, i) => {
-        expect(cell.width).toBeCloseTo(expected[i], 1);
+        expectPx(cell.width, expected[i], `last line cell ${i}`);
       });
     });
   }
@@ -371,9 +484,7 @@ test.describe("the FLIP transition", () => {
   test("plays transform and opacity, eased out, for the hook's duration", async ({
     page,
   }) => {
-    await page.evaluate(() =>
-      window.buildGrid({ ratios: [1, 1], width: 900, flip: "play" }),
-    );
+    await layout(page, { ratios: [1, 1], width: 900, flip: "play" });
     const flip = await page.evaluate(() => window.measureFlip());
 
     expect(flip.transitionProperty).toBe("transform, opacity");
@@ -386,9 +497,7 @@ test.describe("the FLIP transition", () => {
   });
 
   test("does not animate the inverted frame", async ({ page }) => {
-    await page.evaluate(() =>
-      window.buildGrid({ ratios: [1, 1], width: 900, flip: "invert" }),
-    );
+    await layout(page, { ratios: [1, 1], width: 900, flip: "invert" });
     const flip = await page.evaluate(() => window.measureFlip());
 
     expect(flip.transitionProperty).toBe("none");

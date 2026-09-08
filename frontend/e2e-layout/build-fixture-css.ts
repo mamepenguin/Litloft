@@ -22,6 +22,17 @@
  * directory, and Tailwind skips it silently when it is absent. That is why
  * the CI job checks out without submodules and never runs
  * `setup-addons.sh` — no addon writes a rule the justified grid reads.
+ *
+ * `@tailwindcss/cli` is pinned exactly while its two neighbours in
+ * package.json float on `^4`, which is an asymmetry that can produce a
+ * skew: `pnpm update` moves `tailwindcss` and `@tailwindcss/postcss` to the
+ * next minor and leaves the CLI behind, after which the sheet measured here
+ * is emitted by a different compiler from the one that builds the app —
+ * different preflight, possibly different `@container` or `aspect-ratio`
+ * output — and the claim above quietly stops being true. `assertSameCompiler`
+ * is what re-checks it; the exact pin is what makes the check meaningful,
+ * since floating the CLI would let pnpm resolve it ahead of the other two
+ * rather than in step with them.
  */
 
 import { execFileSync } from "node:child_process";
@@ -46,7 +57,37 @@ const REQUIRED = [
   "box-sizing",
 ];
 
+/**
+ * The compiler that emits this sheet is the compiler that builds the app.
+ *
+ * Read from the installed packages rather than from package.json, because
+ * the ranges there are what disagree — the resolved versions are what
+ * decide whether the output is the app's.
+ */
+function assertSameCompiler() {
+  const versionOf = (pkg: string): string =>
+    JSON.parse(
+      readFileSync(
+        join(__dirname, "..", "node_modules", pkg, "package.json"),
+        "utf8",
+      ),
+    ).version;
+
+  const cli = versionOf("@tailwindcss/cli");
+  const app = versionOf("tailwindcss");
+  const postcss = versionOf("@tailwindcss/postcss");
+  if (cli !== app || cli !== postcss) {
+    throw new Error(
+      `Tailwind version skew: @tailwindcss/cli ${cli} compiles this fixture, ` +
+        `but the app is built by tailwindcss ${app} / @tailwindcss/postcss ` +
+        `${postcss}. Move the pin in package.json so all three match, or the ` +
+        `sheet measured here is not the sheet that ships.`,
+    );
+  }
+}
+
 export default function buildFixtureCss() {
+  assertSameCompiler();
   execFileSync(
     join(__dirname, "..", "node_modules", ".bin", "tailwindcss"),
     ["--input", INPUT_CSS, "--output", FIXTURE_CSS],
