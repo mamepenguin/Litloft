@@ -4,7 +4,7 @@ Litloft picks a viewer based on the file's MIME type. The same file detail page 
 
 The page has three parts: a **page row** at the top, the **viewer** below it, and an **inspector** down the right-hand side. The viewer keeps the things that belong to it and nothing else — for a video that is the player, its description and its long AI summary. Everything that is true of any file, whatever kind it is — its title and its first facts, like and favourite, tags, relations, comments — is in the inspector, in the same place on every page.
 
-**The viewer gets the column to itself**, which matters most where the viewer is long: a 190-page comic used to open with about 100px of archive listing and everything else stacked below it, so the deeper the archive the less of it you could see, and going down a level moved every section under it. Video, audio, Markdown, PDF, archives and images all read this way. Plain text and the Office formats still stack.
+**The viewer gets the column to itself**, which matters most where the viewer is long: a 190-page comic used to open with about 100px of archive listing and everything else stacked below it, so the deeper the archive the less of it you could see, and going down a level moved every section under it. **Every kind of file reads this way**, including the ones with no viewer at all — a spreadsheet's page is the same page as a video's, with the *cannot be shown* panel where the player would be. The one page that keeps the older stacked form is the theatre a collection or a folder plays in, which has no inspector by design.
 
 Addon sections (AI summaries, tag candidates, visual descriptions) appear once they have something in them: a section that has not been generated yet is not shown, and the way to generate it is the **AI** menu in the inspector, beside the like and favourite buttons. Anything already generated keeps its own section, with its own regenerate control, and drops out of that menu. Two things are not sections: the **transcript** is a tab of its own, and **similar files** sits under the inspector's **Related** heading beside the file's stated relations.
 
@@ -170,6 +170,8 @@ Litloft renders Markdown with a curated set of extensions:
 
 Office files have **no in-app viewer**. The detail page says so and offers the file itself: *Download*, and *Open in new tab* beside it. Both are links, so either can be middle-clicked or copied.
 
+That panel sits in the viewer column like any other viewer, so the page around it is the page every other kind has: one breadcrumb row with the inspector toggle in it, and the title, size, tags, relations and comments in the inspector rather than stacked down the middle of the screen. Until 2026-09 these files had no inspector and no way to open one — not as a decision about them, but because the layout was given out kind by kind and nobody had reached them.
+
 What Litloft does read is a short text excerpt — up to 400 characters extracted server-side with `python-docx` / `openpyxl` / `python-pptx` — which is used as the file's thumbnail in listings and makes the document findable by search.
 
 **The detail page shows the first lines of that excerpt**, under the download panel and behind a rule, so you can tell which of five similarly named spreadsheets this is without opening any of them. What it is *not*:
@@ -197,7 +199,7 @@ What Litloft does read is a short text excerpt — up to 400 characters extracte
 
 ## Text files
 
-`.txt`, source code and similar text MIME types are shown read-only, with the search term highlighted when you arrive from a search result. A file over 1 MB is not fetched until you confirm, so opening a huge log by accident costs nothing.
+`.txt`, source code and similar text MIME types are shown read-only, with the search term highlighted when you arrive from a search result. A file over 1 MB is not fetched until you confirm, so opening a huge log by accident costs nothing. The text has the viewer column to itself, with everything else in the inspector — the same page a video or a PDF gets.
 
 Writing text content back is possible through the API (`PUT /api/files/{id}/content`), restricted to `text/markdown` and `text/plain`:
 

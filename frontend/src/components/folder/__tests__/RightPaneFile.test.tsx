@@ -168,20 +168,19 @@ describe("RightPaneFile", () => {
     render(<RightPaneFile fileId="abc123" drive="work" />);
     expect(screen.getByText("Loading...")).toBeInTheDocument();
     await waitFor(() =>
-      expect(screen.getByText("My Document")).toBeInTheDocument(),
+      expect(screen.getByTestId("file-detail-content")).toBeInTheDocument(),
     );
     expect(screen.getByTestId("file-detail-content")).toHaveTextContent(
       "detail:abc123",
     );
   });
 
-  it("falls back to filename when title is empty", async () => {
-    mockGetFile.mockResolvedValue({ ...baseFile, title: "" });
-    render(<RightPaneFile fileId="abc123" drive="work" />);
-    await waitFor(() =>
-      expect(screen.getByText("doc.txt")).toBeInTheDocument(),
-    );
-  });
+  // The "falls back to filename when title is empty" case was here, and
+  // it was about this host's own page-row title. That row is gone from
+  // the resolved state — `FileDetailShell` draws it now, for every kind
+  // — so the fallback moved with it. `ShellLayout.test.tsx` asserts it
+  // where it lives; leaving a copy here would have gone on passing
+  // against a row nobody draws.
 
   it("suppresses the PaneShell header for Markdown files (DocumentLayout owns chrome)", async () => {
     // 2026-05-11 chrome consolidation: when the file is text/markdown
@@ -229,7 +228,7 @@ describe("RightPaneFile", () => {
     mockGetFile.mockResolvedValue(baseFile);
     render(<RightPaneFile fileId="abc123" drive="work" />);
     await waitFor(() =>
-      expect(screen.getByText("My Document")).toBeInTheDocument(),
+      expect(screen.getByTestId("file-detail-content")).toBeInTheDocument(),
     );
     expect(screen.queryByText("Open details")).toBeNull();
     expect(screen.queryByRole("link", { name: /open details/i })).toBeNull();
@@ -251,11 +250,15 @@ describe("RightPaneFile", () => {
       <RightPaneFile fileId="abc123" drive="work" />,
     );
     await waitFor(() =>
-      expect(screen.getByText("My Document")).toBeInTheDocument(),
+      expect(screen.getByTestId("file-detail-content")).toBeInTheDocument(),
     );
     rerender(<RightPaneFile fileId="z9" drive="work" />);
+    // Observed on what this host actually publishes — the id it hands
+    // down — rather than on a title only its old page row rendered.
     await waitFor(() =>
-      expect(screen.getByText("Other")).toBeInTheDocument(),
+      expect(screen.getByTestId("file-detail-content")).toHaveTextContent(
+        "detail:z9",
+      ),
     );
     expect(mockGetFile).toHaveBeenCalledTimes(2);
   });
@@ -268,7 +271,7 @@ describe("RightPaneFile", () => {
     mockGetFile.mockResolvedValue(baseFile);
     render(<RightPaneFile fileId="abc123" drive="work" />);
     await waitFor(() =>
-      expect(screen.getByText("My Document")).toBeInTheDocument(),
+      expect(screen.getByTestId("file-detail-content")).toBeInTheDocument(),
     );
     expect(
       screen.queryByRole("button", { name: /back to tree/i }),
@@ -282,7 +285,7 @@ describe("RightPaneFile", () => {
     mockGetFile.mockResolvedValue(baseFile);
     render(<RightPaneFile fileId="abc123" drive="work" />);
     await waitFor(() =>
-      expect(screen.getByText("My Document")).toBeInTheDocument(),
+      expect(screen.getByTestId("file-detail-content")).toBeInTheDocument(),
     );
     const lastProps = fileDetailProps[fileDetailProps.length - 1];
     expect(lastProps.initialTime).toBe(10);
@@ -328,7 +331,7 @@ describe("RightPaneFile", () => {
     mockGetFile.mockResolvedValue(baseFile);
     render(<RightPaneFile fileId="abc123" drive="work" />);
     await waitFor(() =>
-      expect(screen.getByText("My Document")).toBeInTheDocument(),
+      expect(screen.getByTestId("file-detail-content")).toBeInTheDocument(),
     );
     // After the second render (post ref attach), miniPlayerRoot should
     // be a real Element. Wait for that to propagate.
@@ -342,7 +345,7 @@ describe("RightPaneFile", () => {
     mockGetFile.mockResolvedValue(baseFile);
     render(<RightPaneFile fileId="abc123" drive="work" />);
     await waitFor(() =>
-      expect(screen.getByText("My Document")).toBeInTheDocument(),
+      expect(screen.getByTestId("file-detail-content")).toBeInTheDocument(),
     );
     const lastProps = fileDetailProps[fileDetailProps.length - 1];
     const onAfterDelete = lastProps.onAfterDelete as () => void;
@@ -356,23 +359,53 @@ describe("RightPaneFile", () => {
   // where the equivalent bug lived on the other host, is whether this
   // one decides to draw a row at all.
   describe("the page row", () => {
-    it("carries the breadcrumb for a file that has no shell of its own", async () => {
-      mockGetFile.mockResolvedValue(baseFile);
+    it("draws the row while the file is still being fetched", async () => {
+      // The one state where this host still owns the row: nothing is
+      // mounted yet that could draw one, so the breadcrumb is here and
+      // the title is empty because there is no title to know.
+      let resolveFile: (f: unknown) => void = () => {};
+      mockGetFile.mockReturnValue(
+        new Promise((resolve) => {
+          resolveFile = resolve;
+        }),
+      );
       render(<RightPaneFile fileId="abc123" drive="work" />);
-      await waitFor(() =>
-        expect(screen.getByText("My Document")).toBeInTheDocument(),
-      );
 
-      const row = screen.getByTestId("file-detail-chrome");
+      const row = await screen.findByTestId("file-detail-chrome");
       expect(row).toHaveTextContent("work");
-      expect(row).toHaveTextContent("Q1");
-      expect(row).toHaveTextContent("My Document");
-      // The phone form of the same row, which is where MB-3's missing
-      // way back used to be.
-      expect(screen.getByTestId("file-detail-back")).toHaveAttribute(
-        "href",
-        "/drive/work/Q1",
+
+      resolveFile(baseFile);
+      await waitFor(() =>
+        expect(screen.getByTestId("file-detail-content")).toBeInTheDocument(),
       );
+    });
+
+    it("draws no row of its own once the file has resolved, whatever it is", async () => {
+      // Every kind, and that is the change: this host is the canonical
+      // surface, where `ridesFileDetailShell` is now true for anything
+      // that has resolved. It used to be a list, and a file outside it
+      // — a plain text file, an `.xlsx` — got this host's row and no
+      // inspector at all, because the row and the inspector are one
+      // thing and the shell owns both.
+      for (const file of [
+        baseFile,
+        { ...baseFile, filename: "sheet.xlsx", mime_type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" },
+        { ...baseFile, filename: "note.md", mime_type: "text/markdown" },
+        { ...baseFile, filename: "paper.pdf", mime_type: "application/pdf" },
+        { ...baseFile, filename: "clip.mp4", mime_type: "video/mp4", file_type: "video" as const },
+        { ...baseFile, filename: "blob.bin", mime_type: "application/octet-stream", file_type: "other" as const },
+      ]) {
+        mockGetFile.mockResolvedValue(file);
+        const view = render(<RightPaneFile fileId="abc123" drive="work" />);
+        await waitFor(() =>
+          expect(screen.getByTestId("file-detail-content")).toBeInTheDocument(),
+        );
+        expect(
+          screen.queryByTestId("file-detail-chrome"),
+          file.filename,
+        ).toBeNull();
+        view.unmount();
+      }
     });
 
     it("leaves it to the shell for a video too, on this surface", async () => {

@@ -482,16 +482,24 @@ describe("FileDetailContent", () => {
     expect(screen.getByTestId("markdown-document-layout")).toBeInTheDocument();
     expect(screen.queryByTestId("addon-slot-all")).toBeNull();
 
-    // And back again: policy flips off.
+    // And back again: policy flips off. What it flips *to* is no longer
+    // the legacy stack — every kind rides the shell on this surface now
+    // — so the note keeps its page row and its inspector and loses only
+    // the editor, which is the thing the policy is about.
     usePolicyMock.mockReturnValue({ enabled: false, isLoading: false });
     rerender(<FileDetailContent fileId="f1" drive="work" />);
     expect(
       screen.queryByTestId("markdown-document-layout"),
     ).not.toBeInTheDocument();
-    expect(screen.getByTestId("addon-slot-all")).toBeInTheDocument();
+    expect(screen.getByTestId("file-detail-shell")).toBeInTheDocument();
   });
 
-  it("falls back to legacy stack when usePolicy reports editor disabled", async () => {
+  it("drops the editor but keeps the shell when usePolicy reports it disabled", async () => {
+    // This used to fall all the way back to the legacy vertical stack.
+    // The policy is about the *editor*, and taking the page row and the
+    // inspector away with it was the list-of-kinds predicate speaking,
+    // not a decision: a note with the editor off is a viewer like any
+    // other, and viewers ride the shell.
     usePolicyMock.mockReturnValue({ enabled: false, isLoading: false });
     setApiResponses(
       makeFile({
@@ -505,7 +513,7 @@ describe("FileDetailContent", () => {
     expect(
       screen.queryByTestId("markdown-document-layout"),
     ).not.toBeInTheDocument();
-    expect(screen.getByTestId("addon-slot-all")).toBeInTheDocument();
+    expect(screen.getByTestId("file-detail-shell")).toBeInTheDocument();
   });
 
   it("uses DocumentLayout while usePolicy is still loading (no 30s refetch flicker)", async () => {

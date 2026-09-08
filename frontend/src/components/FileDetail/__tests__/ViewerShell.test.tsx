@@ -1,6 +1,14 @@
 /**
- * PDF, archives and images on `FileDetailShell` — §7 of the 2026-09
- * redesign.
+ * Every kind that is not the document form on `FileDetailShell`.
+ *
+ * It began as §7 of the 2026-09 redesign — PDF, archives and images —
+ * and the rest of the kinds arrived by removing the list rather than by
+ * lengthening it. What the list produced was never a decision about the
+ * kinds outside it: an `.xlsx` had no inspector and no way to open one,
+ * and neither did `text/plain`, which was the largest group left behind
+ * and has a perfectly good viewer. The shell is the skeleton for opening
+ * a file, so on the canonical surface every kind rides it and the rows
+ * below say so one kind at a time.
  *
  * The measurement that produced it: a 190-page comic at 1512×807 gave
  * its viewer 100px and the metadata under it 440px. The viewer's height
@@ -11,6 +19,15 @@
  *
  * The shell is left real, as in `MediaShell.test.tsx`. Stubbing it is
  * what let a second page row ship once already.
+ *
+ * **What these rows cannot see**, named so a green tick is not read as
+ * covering it: anything decided by layout. jsdom lays nothing out, so
+ * the canvas floor is invisible here in one direction — measured,
+ * adding a spreadsheet's mime to `FLOORED_MIMES` survives this file
+ * entirely, while taking archives out of it does not, because the
+ * archive case asserts the flag. Whether the inspector is a pane, an
+ * overlay or a sheet at a given width is `ShellLayout`'s own suite and
+ * a browser's; the widths themselves were measured by hand.
  */
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { cleanup, render, screen } from "@testing-library/react";
@@ -103,11 +120,39 @@ vi.mock("../../SidebarProvider", async () => {
 const PDF = { mime_type: "application/pdf", file_type: "document" as const };
 const ARCHIVE = { mime_type: "application/x-zip-compressed", file_type: "archive" as const };
 const IMAGE = { mime_type: "image/jpeg", file_type: "image" as const };
+/**
+ * The kinds that were only ever a fallthrough.
+ *
+ * Two of them have a viewer (`TextPreview` reads the text ones), and two
+ * have only the "cannot show this" panel with its download and its
+ * extracted excerpt. Both halves are here because the skeleton is the
+ * same question either way: the old stack gave all four a full-width
+ * column of metadata and no inspector at all.
+ */
+const SPREADSHEET = {
+  mime_type:
+    "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+  file_type: "document" as const,
+};
+const WORD = {
+  mime_type:
+    "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+  file_type: "document" as const,
+};
+const TEXT = { mime_type: "text/plain", file_type: "document" as const };
+const UNKNOWN = {
+  mime_type: "application/octet-stream",
+  file_type: "other" as const,
+};
 
 const KINDS: [string, Partial<FileItem>][] = [
   ["a PDF", PDF],
   ["an archive", ARCHIVE],
   ["an image", IMAGE],
+  ["a spreadsheet", SPREADSHEET],
+  ["a Word document", WORD],
+  ["a plain text file", TEXT],
+  ["a file nothing can preview", UNKNOWN],
 ];
 
 beforeEach(() => {
