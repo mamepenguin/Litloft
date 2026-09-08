@@ -190,12 +190,14 @@ cd frontend
 pnpm test:e2e:layout          # 22 tests, ~2.5s, browser already installed
 ```
 
-The CI job around it measured **57s cold and 38s warm** — cold being the first
-run, which had to download Chromium (25s of it); warm being a cache hit, where
-`playwright install --with-deps chromium` is the apt step only (11s). The tests
-themselves are 6s either way. It is the cheapest job in the workflow after
-`bootstrap` (12s) and `mcp-server` (21s), against 227s for `production images`
-and 303s for `frontend`.
+The CI job around it measured **57s cold, and 38s and 48s over two warm runs.**
+Cold is the first run, which had to download Chromium — 25s of it. Warm is a
+cache hit, where `playwright install --with-deps chromium` still runs apt and
+takes 11-16s; that variation between two otherwise identical runs is where the
+10s spread comes from, and it is the runner's, not the suite's. The tests
+themselves are 6s in all three. It is the cheapest job in the workflow after
+`bootstrap` (12-16s) and `mcp-server` (19-21s), against ~2m for
+`production images` and ~5m for `frontend`.
 
 It has its own config (`playwright-layout.config.ts`) so that neither run can
 pull the other in, and its `globalSetup` compiles `src/app/globals.css` into the
