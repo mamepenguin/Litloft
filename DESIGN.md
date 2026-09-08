@@ -650,6 +650,18 @@ with a **border in the accent colour**, never a fill.
   MiniPlayer); dense list rows and inline cards stay flat.
 - Hover changes the surface colour only. **Never expand or darken the shadow on
   hover, and never use `scale()`.**
+- **A card's name clamps to two lines**, `line-clamp-2`, and the file grids that
+  are not `FileCard` — trash, missing — clamp to the same two.
+- **Nothing else in that class list may set a `display`.** `line-clamp-*`
+  compiles to `display: -webkit-box` plus `-webkit-line-clamp`, and the clamp is
+  a property of that box: any other `display` utility on the same element
+  overrides it at equal specificity and leaves `-webkit-line-clamp` nothing to
+  act on, with the clamp still written on the element and nothing rendering
+  differently from a card that never had one. `block` beside a clamp is the
+  spelling this has taken twice. `line-clamp-none` is the exception — it is the
+  clamp's own release valve and is meant to be paired with one, as
+  `PropertiesPanel` pairs it. `frontend/src/__tests__/line-clamp-display.test.ts`
+  holds the mechanical half of this rule for core and every checked-out addon.
 
 ### The first fact under a file's name
 
