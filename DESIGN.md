@@ -1317,13 +1317,16 @@ line.
   var(--jg-max-stretch))`. Line-breaking is greedy, so a line can hold one narrow
   cell whose width then becomes height. A cell that reaches the ceiling keeps its
   width and gives up its ratio, so the crop returns for exactly those lines.
-- **The cell's ratio is the picture's, so `object-fit: cover` crops nothing
+- **Where the cell's ratio is the picture's, `object-fit: cover` crops back to it
   either way.** A thumbnail stored at the picture's own proportions is already
-  the cell's shape; one still letterboxed onto a 320×180 frame is cropped back to
-  it, because the padding is symmetric. That is what lets the stored thumbnails
-  be replaced a drive at a time rather than all at once — the two shapes are
-  indistinguishable here, and the ceiling on how much of the picture a stretched
-  line can resolve is the only thing that moves.
+  the cell's shape; one still letterboxed onto a 320×180 frame has the bars cut
+  off again, to within the pixel the pad rounds by. That is what lets the stored
+  thumbnails be replaced a drive at a time rather than all at once.
+- **The two exceptions are the two above**: a line that reaches the stretch
+  ceiling, and a picture outside the ratio stops. The cell's ratio is not the
+  picture's on either, so a letterboxed thumbnail keeps some of its bars there
+  and an unpadded one has none. A part-migrated drive is not broken, but it is
+  not uniform either — those rows lose their bars when the scan reaches them.
 - **The filename is a hover/focus band, always visible under `pointer: coarse`.**
 - **The cell is named by `aria-label` on the link**, so the accessible name is
   the same string in every branch; the band is deliberately not `aria-hidden`.

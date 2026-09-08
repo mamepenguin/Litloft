@@ -1119,9 +1119,26 @@ def get_preview_text(
     return Response(content=text, media_type="text/plain; charset=utf-8")
 
 
+def _if_none_match(request: Request, etag: str) -> bool:
+    """RFC 9110 §13.1.2, to the extent a thumbnail needs it.
+
+    `*` matches anything that exists; otherwise the header is a list and
+    a weak validator compares equal to its strong form, because a
+    revalidating browser echoes whatever it was sent.
+    """
+    header = request.headers.get("if-none-match")
+    if not header:
+        return False
+    if header.strip() == "*":
+        return True
+    strip_weak = lambda tag: tag[2:] if tag.startswith("W/") else tag
+    return strip_weak(etag) in {strip_weak(t.strip()) for t in header.split(",")}
+
+
 @router.get("/{file_id}/thumbnail")
 def get_thumbnail(
     file_id: FileId,
+    request: Request,
     db: Annotated[Session, Depends(get_db)],
     unlocked_groups: Annotated[list[str], Depends(get_unlocked_groups)],
 ):
@@ -1135,15 +1152,32 @@ def get_thumbnail(
             # Revalidate, do not re-download. A thumbnail is regenerated
             # under a URL that never changes — the picture box replacing
             # the old letterboxed frame is one occasion, an edited file
-            # another — and without this a browser applies heuristic
-            # freshness and keeps painting the copy it already has. The
-            # strong ETag `FileResponse` derives from the file makes the
-            # revalidation a 304 with no body.
-            return FastAPIFileResponse(
+            # another — so without `no-cache` a browser applies heuristic
+            # freshness and keeps painting the copy it already has.
+            #
+            # The 304 is answered here rather than left to the response
+            # class. `FileResponse` sets an ETag but does not read
+            # `If-None-Match`; only `StaticFiles` wraps it in a
+            # `NotModifiedResponse`. Sending `no-cache` without this turns
+            # every cache hit into a full body, which is the opposite of
+            # what the header is for.
+            try:
+                stat_result = thumb_path.stat()
+            except OSError:
+                raise HTTPException(status_code=404, detail="Thumbnail not found")
+            response = FastAPIFileResponse(
                 str(thumb_path),
                 media_type="image/jpeg",
+                stat_result=stat_result,
                 headers={"Cache-Control": "no-cache"},
             )
+            etag = response.headers.get("etag")
+            if etag and _if_none_match(request, etag):
+                return Response(
+                    status_code=304,
+                    headers={"ETag": etag, "Cache-Control": "no-cache"},
+                )
+            return response
 
     if PLACEHOLDER_THUMBNAIL.exists():
         return FastAPIFileResponse(

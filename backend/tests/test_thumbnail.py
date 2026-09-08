@@ -487,6 +487,11 @@ class TestPictureThumbnailBox:
     change.
     """
 
+    # Half of these are shapes whose fitted edge lands on a half, which is
+    # where the three rounding rules used to part company: ffmpeg rounds a
+    # half away from zero, Python's `round` to even, and `Image.thumbnail`
+    # picks the integer that best preserves the ratio. The five shapes
+    # this list started as were the ones all three happened to agree on.
     SHAPES = [
         # (source, expected thumbnail)
         ((768, 1024), (240, 320)),
@@ -494,6 +499,17 @@ class TestPictureThumbnailBox:
         ((1000, 1000), (320, 320)),
         ((3000, 1000), (320, 107)),
         ((1600, 900), (320, 180)),
+        ((301, 640), (151, 320)),
+        ((303, 384), (253, 320)),
+        ((308, 512), (193, 320)),
+        ((640, 361), (320, 181)),
+        ((640, 193), (320, 97)),
+        ((65, 640), (33, 320)),
+        ((66, 768), (28, 320)),
+        # `scale` reads a computed 0 as "keep the input edge", so the
+        # output stops being proportional. The prediction has to say what
+        # the generator does, not what the geometry would.
+        ((4000, 6), (320, 6)),
     ]
 
     def test_the_filter_pads_nothing(self):
@@ -523,6 +539,44 @@ class TestPictureThumbnailBox:
         with Image.open(output) as thumbnail:
             assert thumbnail.size == expected
         assert thumbnail_service.image_thumbnail_size(*source) == expected
+
+    @pytest.mark.parametrize("source,expected", SHAPES)
+    def test_the_heic_path_answers_the_same_size_as_ffmpeg(
+        self, source, expected, tmp_path
+    ):
+        """The parity pair the box needs and the arithmetic does not give.
+
+        Two libraries, one box. `image_thumbnail_size` agreeing with
+        ffmpeg says nothing about Pillow, and the HEIC branch used to be
+        a pixel narrower on 5 of these — same picture, different
+        thumbnail, and a migration prediction that was right for one
+        format only.
+        """
+        pytest.importorskip("pillow_heif")
+        import pillow_heif
+
+        pillow_heif.register_heif_opener()
+        path = tmp_path / "photo.heic"
+        Image.new("RGB", source, (200, 80, 40)).save(path, format="HEIF")
+        output = tmp_path / "thumb.jpg"
+
+        assert generate_image_thumbnail(str(path), str(output)) is True
+        with Image.open(output) as thumbnail:
+            assert thumbnail.size == expected
+
+    @pytest.mark.parametrize(
+        "source,expected",
+        [
+            ((0, 100), None),
+            ((100, 0), None),
+            ((-1, 100), None),
+        ],
+    )
+    def test_a_source_with_no_area_has_no_predicted_size(self, source, expected):
+        # The migration asks this of stored dimensions, which a broken
+        # header can make nonsense. `None` is what makes it leave the file
+        # alone rather than divide by it.
+        assert thumbnail_service.image_thumbnail_size(*source) is expected
 
     def test_a_picture_smaller_than_the_box_is_not_grown_into_it(self, tmp_path):
         # The letterboxed frame had to be filled, so a 64px icon was
@@ -555,7 +609,10 @@ class TestPictureThumbnailBox:
 
         pdf = tmp_path / "doc.pdf"
         document = fitz.open()
-        document.new_page(width=595, height=842)  # A4 portrait
+        page = document.new_page(width=595, height=842)  # A4 portrait
+        # Inked, not blank. On a blank page every pixel is white and the
+        # assertion below cannot tell the frame from the paper.
+        page.draw_rect(fitz.Rect(40, 40, 555, 802), color=(0, 0, 0), fill=(0, 0, 0))
         document.save(str(pdf))
         document.close()
         output = tmp_path / "thumb.jpg"
@@ -563,6 +620,9 @@ class TestPictureThumbnailBox:
         assert generate_pdf_thumbnail(str(pdf), str(output)) is True
         with Image.open(output) as thumbnail:
             assert thumbnail.size == (320, 180)
-            # White to the edge, not the picture's own shape: a portrait
-            # page cropped to 16:9 is a band of body text with no edges.
+            # White at the edge and ink in the middle: the frame is there
+            # and the page is inside it, rather than the page filling the
+            # frame. A portrait page cropped to 16:9 would be all ink.
             assert thumbnail.getpixel((2, 90)) == (255, 255, 255)
+            centre = thumbnail.getpixel((160, 90))
+            assert max(centre) < 40, centre

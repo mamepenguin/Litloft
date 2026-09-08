@@ -38,6 +38,7 @@ from app.services.thumbnail import (
     get_thumbnail_generator,
     get_video_duration,
     image_thumbnail_size,
+    write_thumbnail_atomically,
 )
 from app.services import event_hooks
 from app.services.fileops import _cleanup_empty_parents, _filename_to_title
@@ -456,7 +457,9 @@ def _scan_and_register(db: Session, drive_name: str) -> dict[str, int]:
                     # crops to 16:9 either way, and a justified cell is
                     # already the picture's own ratio — so a half-migrated
                     # drive is not a broken one.
-                    if gen_fn(str(item), str(config.THUMBNAILS_DIR / expected_thumb)):
+                    if write_thumbnail_atomically(
+                        gen_fn, str(item), str(config.THUMBNAILS_DIR / expected_thumb)
+                    ):
                         needs_update = True
 
             # Backfilling only rows that still lack a width keeps this to a

@@ -1,5 +1,7 @@
 import json
 import logging
+import math
+import os
 import subprocess
 import tempfile
 from collections import Counter
@@ -381,17 +383,41 @@ def image_scale_filter(box: int = IMAGE_THUMBNAIL_BOX) -> str:
     )
 
 
-def image_thumbnail_size(width: int, height: int, box: int = IMAGE_THUMBNAIL_BOX):
-    """The size ``image_scale_filter`` produces for a source of this size.
+def _round_like_scale(value: float) -> int:
+    """``scale`` rounds a half up, away from zero; Python rounds it to even.
 
-    A second implementation of the same arithmetic, so a caller can ask
-    what a thumbnail *should* measure without opening one. ``scale``
-    rounds each edge to an integer, so this rounds the same way.
+    The difference shows on every source whose fitted edge lands on a
+    half — 640x361 is one — and it is not cosmetic here: the caller
+    below decides from this number whether a stored thumbnail is the one
+    the generator would produce today.
+    """
+    return math.floor(value + 0.5)
+
+
+def image_thumbnail_size(
+    width: int, height: int, box: int = IMAGE_THUMBNAIL_BOX
+) -> tuple[int, int] | None:
+    """The size the generators produce for a source of this size.
+
+    A second implementation of what ffmpeg and Pillow are asked to do,
+    so a caller can ask what a thumbnail *should* measure without opening
+    one. `test_thumbnail.py` runs the three against each other, because a
+    drift between them is what makes the migration read a thumbnail as
+    the wrong generation.
+
+    The box is taken against the source on each edge before the factor is
+    formed, which is what keeps a small picture at its own size. A factor
+    that rounds an edge to zero leaves that edge alone: ``scale`` reads a
+    computed 0 as "keep the input", and the prediction has to say what
+    the generator does rather than what the geometry would.
     """
     if width <= 0 or height <= 0:
         return None
-    scale = min(box / width, box / height, 1.0)
-    return max(1, round(width * scale)), max(1, round(height * scale))
+    factor = min(min(box, width) / width, min(box, height) / height)
+    return (
+        _round_like_scale(width * factor) or width,
+        _round_like_scale(height * factor) or height,
+    )
 
 
 def generate_image_thumbnail(image_path: str, output_path: str) -> bool:
@@ -471,6 +497,36 @@ def generate_pdf_thumbnail(pdf_path: str, output_path: str) -> bool:
         return False
 
 
+def write_thumbnail_atomically(generator, source: str, destination: str) -> bool:
+    """Generate into a sibling temporary file, then rename it into place.
+
+    A destination that already exists is one the thumbnail endpoint is
+    serving, and every generator here writes its output incrementally —
+    ffmpeg truncates the file and fills it, Pillow the same — so a reader
+    arriving mid-write is served a partial JPEG or an empty one. `rename`
+    within a directory is atomic, so a reader sees one file or the other
+    and never a file being written.
+
+    Conventions: "Atomic file writes: write to `.tmp` then `os.replace()`".
+    """
+    target = Path(destination)
+    target.parent.mkdir(parents=True, exist_ok=True)
+    fd, tmp_name = tempfile.mkstemp(
+        prefix=f".{target.stem}.", suffix=".jpg", dir=target.parent
+    )
+    os.close(fd)
+    try:
+        if not generator(source, tmp_name):
+            return False
+        os.replace(tmp_name, destination)
+        return True
+    finally:
+        try:
+            os.unlink(tmp_name)
+        except OSError:
+            pass
+
+
 def get_thumbnail_generator(file_type: str, mime_type: str | None):
     """Return the thumbnail generator for this file type, or None if not thumbnailable."""
     from app.services.filetype import LOFT_MIME_TYPE
@@ -499,9 +555,16 @@ def _generate_heic_thumbnail(image_path: str, output_path: str) -> bool:
 
         with Image.open(image_path) as img:
             oriented = ImageOps.exif_transpose(img)
-            # ``thumbnail`` fits inside the box and never grows, which is
-            # what ``image_scale_filter`` arranges on the ffmpeg side.
-            oriented.thumbnail((IMAGE_THUMBNAIL_BOX, IMAGE_THUMBNAIL_BOX))
+            # Resized to a size that is computed, not to ``thumbnail``'s
+            # own fit. `Image.thumbnail` picks the integer that best
+            # preserves the ratio and breaks ties downwards, which is a
+            # third rounding rule beside ffmpeg's and this module's — so
+            # the same picture came out a pixel narrower as HEIC than as
+            # JPEG, and the migration's prediction was right for only one
+            # of them.
+            target = image_thumbnail_size(*oriented.size)
+            if target is not None and target != oriented.size:
+                oriented = oriented.resize(target, Image.Resampling.LANCZOS)
             oriented.convert("RGB").save(
                 output_path, format="JPEG", quality=85, exif=b""
             )
