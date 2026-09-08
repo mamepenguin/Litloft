@@ -1185,12 +1185,21 @@ column with metadata stacked under it, where its height is whatever is left over
   worth having is the same one: the title, tags, relations and comments belong in
   the inspector whether or not anything can be drawn beside them.
 - **The exceptions are named where they are actually exceptional**, and they are
-  three, each with its own predicate in `lib/fileDetailShell.ts`: the document
-  canvas (`usesDocumentShell`), the canvas floor (`viewerTakesCanvasFloor`, which
-  is now the only place recording which viewers have been looked at), and the
-  collection surface, which keeps the stacked layout deliberately — the canonical
-  URL is a file's address, so a second inspector on the theatre route would be
-  work to throw away.
+  not all the same shape — listed rather than counted, because a count is a claim
+  about completeness:
+  - `usesDocumentShell(mime, editorEnabled)` — which canvas goes inside the
+    shell, the editor's single scroll or a viewer.
+  - `viewerTakesCanvasFloor(fileType, mime)` — whether the viewer gets a floor
+    under it, and the allowlist inside it is where "which viewers have I actually
+    looked at" is written down for that question.
+  - **The surface, which is not a predicate at all**: a `FileDetailSurface` the
+    caller declares, honoured by one line inside `ridesFileDetailShell` and set
+    to `"collection"` at exactly one call site (`FileDetailFullScreen`). The
+    collection route keeps the stacked layout deliberately — the canonical URL is
+    a file's address, so a second inspector on the theatre route would be work to
+    throw away — but nothing in this file decides that, so a second caller
+    passing `"collection"` would move a page off the shell with no predicate to
+    notice.
 
 ### Inspector column (document layout)
 

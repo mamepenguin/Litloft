@@ -145,6 +145,8 @@ const UNKNOWN = {
   file_type: "other" as const,
 };
 
+const SUBTITLE = { mime_type: "text/vtt", file_type: "subtitle" as const };
+
 const KINDS: [string, Partial<FileItem>][] = [
   ["a PDF", PDF],
   ["an archive", ARCHIVE],
@@ -152,8 +154,59 @@ const KINDS: [string, Partial<FileItem>][] = [
   ["a spreadsheet", SPREADSHEET],
   ["a Word document", WORD],
   ["a plain text file", TEXT],
+  ["a subtitle track", SUBTITLE],
   ["a file nothing can preview", UNKNOWN],
 ];
+
+/**
+ * The population, pinned — because `describe.each` will happily run a
+ * shorter table and report a smaller, greener number.
+ *
+ * Measured before this existed: deleting the two rows this whole change
+ * was made to add left `48 passed` and `tsc --noEmit` with no errors,
+ * and nothing anywhere said 8 rows was ever the count. That is detector
+ * rule 1's second sentence exactly — shrinking the measured scope
+ * without moving the expected count is not shrinking it.
+ *
+ * Two assertions, because they fail on different things. The count
+ * catches any row leaving. The `file_type` set catches a whole *kind*
+ * leaving, which is the failure that matters here and which the count
+ * would miss if a row were swapped rather than dropped — and it is
+ * declared, not collected, so a deletion cannot take both sides with it.
+ */
+const KIND_COUNT = 8;
+
+/**
+ * Every `FileType` this suite is responsible for.
+ *
+ * Not all seven: `video` and `audio` ride the shell through
+ * `MediaShell.test.tsx`, which owns the player-shaped rows this file has
+ * no equivalent of. Written out rather than derived from `FileType` so
+ * the split between the two suites is a statement someone has to change
+ * on purpose.
+ */
+const COVERED_FILE_TYPES = ["archive", "document", "image", "other", "subtitle"];
+
+describe("the kinds this suite covers", () => {
+  it("runs every row it declares", () => {
+    expect(KINDS).toHaveLength(KIND_COUNT);
+  });
+
+  it("covers every file_type that is not a player's", () => {
+    expect([...new Set(KINDS.map(([, kind]) => kind.file_type))].sort()).toEqual(
+      COVERED_FILE_TYPES,
+    );
+  });
+
+  it("gives each row a distinct name and mime", () => {
+    // A row duplicated rather than added keeps the count honest while
+    // measuring the same thing twice.
+    expect(new Set(KINDS.map(([name]) => name)).size).toBe(KIND_COUNT);
+    expect(new Set(KINDS.map(([, kind]) => kind.mime_type)).size).toBe(
+      KIND_COUNT,
+    );
+  });
+});
 
 beforeEach(() => {
   vi.clearAllMocks();
@@ -181,6 +234,10 @@ async function renderKind(kind: Partial<FileItem>) {
   setApiResponses(
     makeFile({
       description: "Recorded on location.",
+      // A folder, not the drive root. The back link resolves to the
+      // drive either way, so a root file cannot tell a row that carries
+      // the file's own folder from one that has forgotten it.
+      folder_path: "Trips",
       ...kind,
       has_chapters: false,
     }),
@@ -248,13 +305,23 @@ describe.each(KINDS)("%s on the shell", (_name, kind) => {
     expect(screen.getByTestId("related-files")).toBeInTheDocument();
   });
 
-  it("draws exactly one page row", async () => {
+  it("draws exactly one page row, with exactly one way back in it", async () => {
     // The failure this replaces: a host drawing a row for a kind that
     // now brings its own gave two breadcrumbs and, on a phone, two back
     // controls.
+    //
+    // The back link is asserted here and not only in
+    // `FileDetailPageRow.test.tsx`, which covers a note and a video —
+    // both of which rode the shell already. For the kinds this change
+    // moved, the row is new, and "the row exists" is not the property
+    // MB-3 was about: a page row with no way out of it is the shape
+    // that shipped once.
     await renderKind(kind);
 
     expect(screen.getAllByTestId("file-detail-chrome")).toHaveLength(1);
+    const back = screen.getAllByTestId("file-detail-back");
+    expect(back).toHaveLength(1);
+    expect(back[0]).toHaveAttribute("href", "/drive/main/Trips");
   });
 
   it("offers no tab strip until something has a tab to claim", async () => {

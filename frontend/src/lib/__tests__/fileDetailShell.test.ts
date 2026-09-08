@@ -164,9 +164,21 @@ describe("ridesFileDetailShell", () => {
     // Enumerated over the union rather than over the kinds anyone
     // happened to think of, which is how `subtitle` and `other` came to
     // be on the old vertical stack without a decision being made about
-    // either. One representative mime per kind, declared: a value
-    // collected from the code under test could not catch a kind being
-    // dropped, because it would leave both sides at once.
+    // either.
+    //
+    // **What enforces the enumeration is `tsc`, not this test.** The
+    // mapped type below is what makes a `FileType` added or removed a
+    // compile error (`TS2741` / `TS2353`) — measured, both directions,
+    // and `pnpm test` stays green through both. `pnpm typecheck` runs
+    // it locally and CI runs `tsc --noEmit`. The `toHaveLength` beside
+    // the table is **not** the guard: it counts the literal four lines
+    // above it, so it can only ever agree with itself. It is here as
+    // the follow-up — once `tsc` has forced the table to change, the
+    // count has to be moved by hand, which is the moment somebody reads
+    // this comment.
+    //
+    // What this test *does* check at runtime is the answer for each
+    // representative mime, which is the part `tsc` cannot see.
     const REPRESENTATIVE: { [K in FileType]: string } = {
       video: "video/mp4",
       image: "image/jpeg",
@@ -187,6 +199,12 @@ describe("ridesFileDetailShell", () => {
     // cannot be silently left out of it: given a resolved file, the only
     // thing that changes the answer on the canonical surface is the
     // document form, which is `true` on both surfaces anyway.
+    //
+    // The expected side is written out. It was `kinds.map(() => true)`,
+    // which is detector rule 5 in its purest form — both sides derived
+    // from `kinds`, so deleting a row shrank them together and the
+    // suite stayed green having measured less. A row removed now leaves
+    // eight `true`s against seven answers.
     const kinds = [
       { mimeType: "video/mp4", fileType: "video" },
       { mimeType: "application/pdf", fileType: "document" },
@@ -197,7 +215,16 @@ describe("ridesFileDetailShell", () => {
       { mimeType: "application/octet-stream", fileType: "other" },
       { mimeType: undefined, fileType: "other" },
     ];
-    expect(kinds.map(canonical)).toEqual(kinds.map(() => true));
+    expect(kinds.map(canonical)).toEqual([
+      true,
+      true,
+      true,
+      true,
+      true,
+      true,
+      true,
+      true,
+    ]);
   });
 
   it("says no before the file has resolved, so the host keeps drawing the row", () => {

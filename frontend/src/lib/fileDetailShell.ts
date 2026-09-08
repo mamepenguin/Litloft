@@ -1,18 +1,18 @@
 import { playerKind } from "./playerKind";
 
 /**
- * Does this file bring its own page row?
+ * Is the document form — the Knowledge editor's single scroll — what
+ * this file's canvas holds?
  *
- * Markdown notes and HTML previews ride `FileDetailShell`, which draws
- * the page row itself because it also owns the inspector toggle that
- * sits in it. Every other type gets the row from its host. A host that
- * draws one anyway ends up with two breadcrumbs and, on a phone, two
- * back controls.
- *
- * This predicate used to be written out at each of the three places
- * that need it, with a comment at one of them asking the other two to
- * stay in lockstep. They did not: the fullscreen host never had it at
- * all. One function instead, so there is nothing to keep in step.
+ * Narrower than `ridesFileDetailShell` and it has to stay that way. The
+ * shell draws the page row for whatever rides it, and on the canonical
+ * surface that is every kind; this asks the separate question of which
+ * *canvas* goes inside it. Who draws the row is the other predicate's
+ * answer, at each of the two hosts that still ask
+ * (`FileDetailContainer`, `FileDetailFullScreen`) — written out at each
+ * of them once, with a comment asking the others to stay in lockstep,
+ * until they did not and the fullscreen host turned out never to have
+ * had it at all.
  *
  * @param mimeType  The file's mime type, or undefined before it resolves.
  * @param knowledgeEditorEnabled  The drive's `knowledge` / `editor`
@@ -50,13 +50,12 @@ export type FileDetailSurface = "canonical" | "collection";
 /**
  * Mimes whose viewer gets a floor, named rather than matched.
  *
- * `startsWith("text/")` was the first spelling and it was two mistakes.
- * It is unreachable — plain text does not ride the shell at all, so the
- * branch never fired and the claim that a short text file gets a floor
- * was never true — and it was a trap for whoever makes it reachable:
- * `text/html` is also `text/`, and `text/html` is rendered in
- * `HtmlPreview`'s sandboxed iframe, which is exactly what the rule
- * below forbids putting a floor near.
+ * `startsWith("text/")` was the first spelling, and the list replaced
+ * it. The prefix reaches every `text/*` that is not the document form —
+ * `text/plain` and `text/vtt` among them — and would hand each of them a
+ * floor of 70% of the canvas on the strength of the name alone. The one
+ * member it does *not* reach is `text/html`, which takes
+ * `usesDocumentShell` and never arrives at the canvas branch at all.
  *
  * A prefix match answers "does this name look like the family I had in
  * mind", which is a guess. The list answers "is this one of the viewers
@@ -77,13 +76,16 @@ const FLOORED_MIMES: ReadonlySet<string> = new Set(["application/pdf"]);
  * height, and the measurement is cheap; what is not cheap is what the
  * floor sits next to. A cross-origin iframe or a `<video>` under a
  * containment context renders its subtree rotated and spinning on iOS
- * Safari, and while the floor no longer establishes one, this predicate
- * is now the **only** place where "which viewers have I actually looked
- * at" is written down — `ridesFileDetailShell` stopped being a list of
- * kinds, so nothing else carries that knowledge. A kind absent from
- * here rides the shell and gets no floor, which is the safe half: a
- * viewer that is a short panel keeps its own height, exactly as it did
- * on the old stack.
+ * Safari, and while the floor no longer establishes one, this list is
+ * where "which viewers have I actually looked at" is written down for
+ * *this* question — `ridesFileDetailShell` stopped being a list of
+ * kinds, so it no longer carries any. Other per-viewer facts live with
+ * whoever needs them (`ShellLayout` gives only an image the folder
+ * arrows; `FileDetailContainer` gives only a player's description to the
+ * canvas); this one is not a register of them. A kind absent from here
+ * rides the shell and gets no floor, which is the safe half: a viewer
+ * that is a short panel keeps its own height, exactly as it did on the
+ * old stack.
  *
  * Images are excluded for a different reason: `FilePreview` already
  * gives them `max-h-[70vh]`, so a floor would add white space around a
