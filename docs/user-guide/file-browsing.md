@@ -104,7 +104,9 @@ Each file card shows:
 
   An image whose dimensions were never read — a broken file, or one in a format the scanner could not measure — shows the date alone rather than falling back to its size, so two image cards side by side never describe themselves in different terms.
 
-  **The same table governs a list row and the file page**, so a file is described in the same terms wherever you meet it. A row puts the length on its own thumbnail badge exactly as a card does. The file page has no badge, so it draws the length itself at the head of the line under the title — a video reads *23:58* there rather than *23:58 · 83 B* — and where there is neither a length nor anything the table would add, the line is not drawn at all rather than left standing empty.
+  **The same table governs every surface that names a file**: the cards and rows here, the file page, and the Trash and Missing views. A file is described in the same terms wherever you meet it.
+
+  What differs between them is only where the length goes. A card or a row with a thumbnail badge puts it there, so the table's *nothing* for video leaves the length already said. A surface with no badge — the file page, and the Trash and Missing cards, whose badge corner is taken by the deadline and the *missing* mark — draws the length itself at the head of the same line: a video reads *23:58* rather than *23:58 · 83 B*. Where there is neither a length nor anything the table would add, the line is not drawn at all rather than left standing empty.
 - A duration badge for video and audio. Everything else gets an extension badge, but only where it distinguishes something: in a folder whose files all share one extension the badge is dropped, and the list view drops its type label the same way when every row is the same kind. Both come back the moment the listing is mixed — including when a later page brings in a different kind.
 - A thin *progress bar* along the bottom for partially-watched media.
 - A favourite star, shown on hover and always shown once the file is a favourite.

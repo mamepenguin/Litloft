@@ -8,7 +8,8 @@ import { useTranslations } from "next-intl";
 import type { FileItem } from "@/types";
 import { getDaysRemaining } from "@/lib/trash";
 import { getThumbnailUrl } from "@/lib/api";
-import { formatDuration, formatFileSize } from "@/lib/format";
+import { formatDuration } from "@/lib/format";
+import { hasKnownLength, primaryMetaText } from "@/lib/primaryMeta";
 import { FileTypeIcon } from "@/components/FileTypeIcon";
 import { ContextMenu, type MenuItem } from "@/components/ContextMenu";
 import { Button } from "@/components/Button";
@@ -58,7 +59,12 @@ export function TrashFileList({
       <div className="flex flex-col gap-2.5 sm:gap-2">
         {files.map((file) => {
           const hasThumbnail = file.has_thumbnail || file.file_type === "video" || file.file_type === "image";
-          const hasDuration = (file.file_type === "video" || file.file_type === "audio") && file.duration != null;
+          const hasDuration = hasKnownLength(file);
+          // The badge above says the length, so the rule in
+          // `lib/primaryMeta.ts` applies here exactly as it does on a
+          // folder row: for video and audio the size is redundant, and
+          // on a `.loft` reference row it is the pointer's.
+          const primaryText = primaryMetaText(file);
           const fileSelected = isSelected?.(file.id);
           const daysRemaining = file.deleted_at ? getDaysRemaining(file.deleted_at) : 0;
 
@@ -139,15 +145,19 @@ export function TrashFileList({
                   <h3 className="min-w-0 flex-1 truncate text-sm font-semibold text-text-muted">
                     {file.title}
                   </h3>
-                  <span className="hidden flex-shrink-0 text-xs tabular-nums text-text-muted sm:inline">
-                    {formatFileSize(file.file_size)}
-                  </span>
+                  {primaryText !== null && (
+                    <span className="hidden flex-shrink-0 text-xs tabular-nums text-text-muted sm:inline">
+                      {primaryText}
+                    </span>
+                  )}
                 </div>
                 <div className="mt-0.5 flex flex-wrap items-center gap-x-1.5 gap-y-0.5 text-xs text-text-muted">
                   <span>{tt("daysRemaining", { days: daysRemaining })}</span>
                   <span className="opacity-40">·</span>
                   <span className="tabular-nums">{formatRelativeDate(file.updated_at)}</span>
-                  <span className="flex-shrink-0 sm:hidden">{formatFileSize(file.file_size)}</span>
+                  {primaryText !== null && (
+                    <span className="flex-shrink-0 sm:hidden">{primaryText}</span>
+                  )}
                 </div>
               </div>
 

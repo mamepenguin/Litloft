@@ -78,6 +78,8 @@ The 30-day clock starts ticking. Trashed files:
 
 Several at once: the Trash view has the same selection gestures as an ordinary file listing. `Cmd/Ctrl+click` a card to turn selection on and pick it in one gesture, `Shift+click` to extend the selection to a range, and the selection bar at the bottom restores or purges the whole set.
 
+Trash and Missing describe a file in the same terms an ordinary listing does — [the table in *File browsing*](file-browsing.md#file-grid-and-list-modes) — so a video is not labelled with its reference file's size here either. The rows carry a length badge and so say nothing extra for a video; the **cards** have no badge, because the corner an ordinary card puts the length in is the deadline's on a trash card and the *missing* mark's on a missing one, so those two draw the length on the meta line instead. Where the length was never read, the card shows its date alone.
+
 ### Restore from trash
 
 `restore_file()` clears both `deleted_at` and `missing_since`. The dual-clear is a defensive safety net for situations where the file went both missing and trashed in the wrong order — a future bug or an out-of-band edit will not leave you in a half-restored state.

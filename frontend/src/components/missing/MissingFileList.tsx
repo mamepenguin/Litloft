@@ -7,7 +7,8 @@ import { useTranslations } from "next-intl";
 
 import type { FileItem } from "@/types";
 import { getThumbnailUrl } from "@/lib/api";
-import { formatDuration, formatFileSize } from "@/lib/format";
+import { formatDuration } from "@/lib/format";
+import { hasKnownLength, primaryMetaText } from "@/lib/primaryMeta";
 import { FileTypeIcon } from "@/components/FileTypeIcon";
 import { ContextMenu, type MenuItem } from "@/components/ContextMenu";
 import { Button } from "@/components/Button";
@@ -49,7 +50,12 @@ export function MissingFileList({
       <div className="flex flex-col gap-2.5 sm:gap-2">
         {files.map((file) => {
           const hasThumbnail = file.has_thumbnail || file.file_type === "video" || file.file_type === "image";
-          const hasDuration = (file.file_type === "video" || file.file_type === "audio") && file.duration != null;
+          const hasDuration = hasKnownLength(file);
+          // Same rule, same reason as the folder row: the badge above
+          // already says the length (`lib/primaryMeta.ts`). The size a
+          // missing file reports is its last known one, which does not
+          // make it the right first fact for a video either.
+          const primaryText = primaryMetaText(file);
           const fileSelected = isSelected?.(file.id);
 
           return (
@@ -118,9 +124,11 @@ export function MissingFileList({
                   <h3 className="min-w-0 flex-1 truncate text-sm font-semibold text-text-muted">
                     {file.title}
                   </h3>
-                  <span className="hidden flex-shrink-0 text-xs tabular-nums text-text-muted sm:inline">
-                    {formatFileSize(file.file_size)}
-                  </span>
+                  {primaryText !== null && (
+                    <span className="hidden flex-shrink-0 text-xs tabular-nums text-text-muted sm:inline">
+                      {primaryText}
+                    </span>
+                  )}
                 </div>
                 <div className="mt-0.5 flex flex-wrap items-center gap-x-1.5 gap-y-0.5 text-xs text-text-muted">
                   <span className="rounded-lg bg-warm-silver/20 px-1.5 py-0.5 text-[10px] font-medium text-warm-silver">
@@ -132,7 +140,9 @@ export function MissingFileList({
                       <span className="tabular-nums">{formatRelativeDate(file.missing_since)}</span>
                     </>
                   )}
-                  <span className="flex-shrink-0 sm:hidden">{formatFileSize(file.file_size)}</span>
+                  {primaryText !== null && (
+                    <span className="flex-shrink-0 sm:hidden">{primaryText}</span>
+                  )}
                 </div>
               </div>
 

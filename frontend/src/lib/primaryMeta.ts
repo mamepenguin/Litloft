@@ -1,5 +1,5 @@
 import type { FileItem, FileType } from "@/types";
-import { formatFileSize } from "./format";
+import { formatDuration, formatFileSize } from "./format";
 
 /**
  * What a file says first about itself, beneath its name.
@@ -30,17 +30,22 @@ import { formatFileSize } from "./format";
  * differently for a reason invisible to the reader. Nothing is drawn
  * where nothing is known (原則 1).
  *
- * **Where the length goes is the surface's business, not this rule's.**
- * The three callers differ only in that:
+ * **Where the length goes is the surface's business, not this rule's**,
+ * and it is the one thing to settle before handing this table to a new
+ * surface. The callers split on it, and on nothing else:
  *
- * - `FileCard` and `FileListRow` draw it as a badge on the thumbnail,
- *   both under `duration != null`, so the meta row never repeats it.
- * - `FileMetaBlock` has no thumbnail to put a badge on, so it draws the
- *   length inline at the head of the same line this rule finishes.
+ * - `FileCard`, `FileListRow`, `TrashFileList` and `MissingFileList`
+ *   draw it as a badge on the thumbnail, all four under
+ *   `hasKnownLength`, so their meta row never repeats it.
+ * - `FileMetaBlock`, `TrashFileGrid` and `MissingFileGrid` have no badge
+ *   to put it on, so they draw the length themselves at the head of the
+ *   line this rule finishes — `primaryMetaParts` below. On a trash card
+ *   that is not an oversight to correct by adding a badge: the corner
+ *   `FileCard` puts the length in (`bottom-2 right-2`) is already the
+ *   deadline's, which is the fact that surface exists to say.
  *
- * In all three the video branch is `none` for the same reason, and
- * where the length was never probed all three say nothing rather than
- * substituting the size.
+ * On all of them the video branch is `none` for the same reason, and
+ * where the length was never probed none of them substitutes the size.
  */
 export type PrimaryMeta =
   | { kind: "none" }
@@ -57,6 +62,21 @@ export function primaryMeta(file: FileItem): PrimaryMeta {
       : { kind: "none" };
   }
   return { kind: "size" };
+}
+
+/**
+ * Whether this file has a length worth drawing anywhere.
+ *
+ * One definition rather than the copy each badge used to spell out, so
+ * a surface cannot draw a badge under one condition and suppress its
+ * size under another — which is precisely the disagreement that lets a
+ * fact go missing from a card altogether.
+ */
+export function hasKnownLength(file: FileItem): boolean {
+  return (
+    (file.file_type === "video" || file.file_type === "audio") &&
+    file.duration != null
+  );
 }
 
 /** `1920 × 1080`, with the multiplication sign rather than a letter x. */
@@ -80,4 +100,20 @@ export function primaryMetaText(file: FileItem): string | null {
     case "size":
       return formatFileSize(file.file_size);
   }
+}
+
+/**
+ * The whole first line, for a surface that has no badge to hang a
+ * length on: the length where it is known, then whatever the rule adds.
+ *
+ * Empty is a real answer, and the caller is expected to draw nothing at
+ * all rather than an empty line — a video whose length was never probed
+ * has neither part, and on a folder of `.loft` references that is most
+ * of them.
+ */
+export function primaryMetaParts(file: FileItem): string[] {
+  return [
+    hasKnownLength(file) ? formatDuration(file.duration) : null,
+    primaryMetaText(file),
+  ].filter((part): part is string => part !== null);
 }

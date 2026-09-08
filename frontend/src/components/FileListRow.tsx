@@ -8,7 +8,7 @@ import { useRelativeDate } from "@/hooks/useRelativeDate";
 import { getThumbnailUrl } from "@/lib/api";
 import { useFileNavigationOverride } from "@/lib/fileNavigationOverride";
 import { formatDuration } from "@/lib/format";
-import { primaryMetaText } from "@/lib/primaryMeta";
+import { hasKnownLength, primaryMetaText } from "@/lib/primaryMeta";
 import type { FileItem, FileItemWithMatch } from "@/types";
 import { OFFICE_MIMES } from "@/lib/officeFiles";
 
@@ -92,8 +92,7 @@ function FileListRowImpl({
     file.file_type === "document" &&
     ((file.mime_type?.startsWith("text/") ?? false) ||
       OFFICE_MIMES.has(file.mime_type ?? ""));
-  const hasDuration =
-    (file.file_type === "video" || file.file_type === "audio") && file.duration != null;
+  const hasDuration = hasKnownLength(file);
   const isCutFile = clipboard.isCut(file.id);
   // The same rule the cards lead with, and for the same reason: this
   // row draws the length on its own thumbnail badge above, under the

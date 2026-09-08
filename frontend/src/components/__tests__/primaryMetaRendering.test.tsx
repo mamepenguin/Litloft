@@ -1,5 +1,5 @@
 /**
- * The kind rule as the three surfaces actually render it.
+ * The kind rule as the seven surfaces actually render it.
  *
  * `primaryMeta` is unit-tested next to itself. What this file checks is
  * that every surface which leads with a fact about a file asks it and
@@ -9,10 +9,17 @@
  * written the table down and only `FileCard` read it, so a list row and
  * a detail page went on saying "83 B" about a 19-minute video.
  *
- * `FileListRow` draws its meta twice — once for `sm:` and up, once for
- * below it — and jsdom holds both, so every assertion here is made per
- * branch. A single `getAllByText` would have passed with one of the two
- * branches still unfixed.
+ * `FileListRow` and the trash / missing rows each draw their meta twice
+ * — once for `sm:` and up, once for below it — and jsdom holds both, so
+ * every assertion here is made per branch. A single `getAllByText`
+ * would have passed with one of the two branches still unfixed.
+ *
+ * The seven surfaces split on one thing only: whether they have a
+ * thumbnail badge to put a length on. `FileCard`, `FileListRow` and the
+ * two list forms do; `FileMetaBlock` and the two card forms do not, and
+ * draw the length on the meta line themselves. Both halves are checked
+ * here, because reading "video shows no size" off a surface that also
+ * shows no length is how a card loses its length altogether.
  */
 
 import { describe, it, expect, vi, beforeAll } from "vitest";
@@ -65,6 +72,10 @@ vi.mock("@/components/FileDetail/FileActionRow", () => ({
 import { formatRelativeDate } from "@/lib/format";
 import { FileList } from "../FileList";
 import { FileMetaBlock } from "../FileDetail/FileMetaBlock";
+import { TrashFileList } from "../trash/TrashFileList";
+import { TrashFileGrid } from "../trash/TrashFileGrid";
+import { MissingFileList } from "../missing/MissingFileList";
+import { MissingFileGrid } from "../missing/MissingFileGrid";
 import type { FileItem } from "@/types";
 
 const makeFile = (overrides: Partial<FileItem> = {}): FileItem => ({
@@ -281,5 +292,123 @@ describe("FileMetaBlock — the same rule, on a surface with no badge", () => {
   it("keeps the size for a document", () => {
     const { container } = renderBlock(makeFile({ ...DOC, file_size: 25437 }));
     expect(metaLine(container)).toBe("24.8 KB");
+  });
+});
+
+
+/**
+ * The meta line of a card that has no badge: every span of it, in order.
+ * The separator is included deliberately — dropping a fact without the
+ * dot that separated it is a distinct failure from dropping neither.
+ */
+const cardMeta = (container: HTMLElement) =>
+  [...container.querySelectorAll("div.mt-1.text-xs.text-text-muted span")]
+    .map((el) => el.textContent!.trim())
+    .filter(Boolean);
+
+const TRASHED = { deleted_at: "2026-01-01T00:00:00" };
+const GONE = { missing_since: "2026-01-01T00:00:00" };
+const noop = () => {};
+
+describe("Trash and missing rows — badge present, so the rule applies as it does on a folder row", () => {
+  const trashRow = (file: FileItem) =>
+    render(<TrashFileList files={[file]} onRestore={noop} onPurge={noop} />);
+  const missingRow = (file: FileItem) =>
+    render(<MissingFileList files={[file]} onPurge={noop} />);
+
+  it("drops a trashed video's size from both branches and keeps its badge", () => {
+    const { container } = trashRow(makeFile({ ...VIDEO, ...TRASHED, duration: 1438 }));
+    expect(desktopMeta(container)).not.toContain("83 B");
+    expect(mobileMeta(container)).not.toContain("83 B");
+    expect(screen.getByText("23:58")).toBeInTheDocument();
+  });
+
+  it("drops a missing video's size from both branches and keeps its badge", () => {
+    const { container } = missingRow(makeFile({ ...VIDEO, ...GONE, duration: 1438 }));
+    expect(desktopMeta(container)).not.toContain("83 B");
+    expect(mobileMeta(container)).not.toContain("83 B");
+    expect(screen.getByText("23:58")).toBeInTheDocument();
+  });
+
+  it("gives a trashed image its dimensions in both branches", () => {
+    const { container } = trashRow(
+      makeFile({ ...IMAGE, ...TRASHED, image_width: 1920, image_height: 1080, file_size: 2295580 }),
+    );
+    expect(desktopMeta(container)).toContain("1920 × 1080");
+    expect(mobileMeta(container)).toContain("1920 × 1080");
+    expect(screen.queryByText("2.2 MB")).toBeNull();
+  });
+
+  it("gives a missing image its dimensions in both branches", () => {
+    const { container } = missingRow(
+      makeFile({ ...IMAGE, ...GONE, image_width: 1920, image_height: 1080, file_size: 2295580 }),
+    );
+    expect(desktopMeta(container)).toContain("1920 × 1080");
+    expect(mobileMeta(container)).toContain("1920 × 1080");
+    expect(screen.queryByText("2.2 MB")).toBeNull();
+  });
+
+  it("keeps a document's size in both branches, on both surfaces", () => {
+    // The size is what the trash is asked for — how much purging this
+    // gets back — and for a document it is also the true figure.
+    const { container: trash } = trashRow(makeFile({ ...DOC, ...TRASHED, file_size: 25437 }));
+    expect(desktopMeta(trash)).toContain("24.8 KB");
+    expect(mobileMeta(trash)).toContain("24.8 KB");
+
+    const { container: missing } = missingRow(makeFile({ ...DOC, ...GONE, file_size: 25437 }));
+    expect(desktopMeta(missing)).toContain("24.8 KB");
+    expect(mobileMeta(missing)).toContain("24.8 KB");
+  });
+});
+
+describe("Trash and missing cards — no badge, so the length goes on the line", () => {
+  const trashCard = (file: FileItem) =>
+    render(<TrashFileGrid files={[file]} onRestore={noop} onPurge={noop} />);
+  const missingCard = (file: FileItem) =>
+    render(<MissingFileGrid files={[file]} onPurge={noop} />);
+
+  it("draws a trashed video's length itself, since no badge does", () => {
+    // This is where copying the row's answer would have gone wrong: the
+    // card has no badge — the corner `FileCard` puts the length in is
+    // this surface's deadline — so "no first metadatum" would leave the
+    // length nowhere on the card at all.
+    const { container } = trashCard(makeFile({ ...VIDEO, ...TRASHED, duration: 1438 }));
+    expect(cardMeta(container)).toContain("23:58");
+    expect(cardMeta(container)).not.toContain("83 B");
+  });
+
+  it("draws a missing video's length itself too", () => {
+    const { container } = missingCard(makeFile({ ...VIDEO, ...GONE, duration: 1438 }));
+    expect(cardMeta(container)).toContain("23:58");
+    expect(cardMeta(container)).not.toContain("83 B");
+  });
+
+  it("leaves a trash card with its date alone when the length is unknown, and no orphaned dot", () => {
+    const { container } = trashCard(makeFile({ ...VIDEO, ...TRASHED }));
+    expect(cardMeta(container)).toEqual([formatRelativeDate("2026-01-01T00:00:00")]);
+  });
+
+  it("leaves a missing card with its date alone when the length is unknown", () => {
+    const { container } = missingCard(makeFile({ ...VIDEO, ...GONE }));
+    expect(cardMeta(container)).toEqual([formatRelativeDate("2026-01-01T00:00:00")]);
+  });
+
+  it("gives the cards an image's dimensions rather than its size", () => {
+    const image = { ...IMAGE, image_width: 1920, image_height: 1080, file_size: 2295580 };
+    const { container: trash } = trashCard(makeFile({ ...image, ...TRASHED }));
+    expect(cardMeta(trash)).toContain("1920 × 1080");
+    expect(cardMeta(trash)).not.toContain("2.2 MB");
+
+    const { container: missing } = missingCard(makeFile({ ...image, ...GONE }));
+    expect(cardMeta(missing)).toContain("1920 × 1080");
+    expect(cardMeta(missing)).not.toContain("2.2 MB");
+  });
+
+  it("keeps a document's size on both cards", () => {
+    const { container: trash } = trashCard(makeFile({ ...DOC, ...TRASHED, file_size: 25437 }));
+    expect(cardMeta(trash)).toContain("24.8 KB");
+
+    const { container: missing } = missingCard(makeFile({ ...DOC, ...GONE, file_size: 25437 }));
+    expect(cardMeta(missing)).toContain("24.8 KB");
   });
 });

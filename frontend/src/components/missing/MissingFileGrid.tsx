@@ -7,7 +7,7 @@ import { useTranslations } from "next-intl";
 
 import type { FileItem } from "@/types";
 import { getThumbnailUrl } from "@/lib/api";
-import { formatFileSize } from "@/lib/format";
+import { primaryMetaParts } from "@/lib/primaryMeta";
 import { cardGridTemplate, useCardColumns } from "@/lib/cardGrid";
 import { FileTypeIcon } from "@/components/FileTypeIcon";
 import { ContextMenu, type MenuItem } from "@/components/ContextMenu";
@@ -72,6 +72,7 @@ export function MissingFileGrid({
             file.file_type === "video" ||
             file.file_type === "image";
           const selected = isSelected?.(file.id);
+          const metaParts = primaryMetaParts(file);
 
           return (
             <div
@@ -160,12 +161,17 @@ export function MissingFileGrid({
                   {file.title}
                 </h3>
                 <div className="mt-1 flex flex-wrap items-center gap-x-1.5 gap-y-0.5 text-xs text-text-muted">
-                  <span className="tabular-nums">
-                    {formatFileSize(file.file_size)}
-                  </span>
+                  {/* No badge on this card either — see `TrashFileGrid`
+                      — so the length goes on the line. Both halves are
+                      optional here, so the separator belongs to neither
+                      of them and is drawn only where it has something
+                      on each side. */}
+                  {metaParts.length > 0 && (
+                    <span className="tabular-nums">{metaParts.join(" · ")}</span>
+                  )}
                   {file.missing_since && (
                     <>
-                      <span className="opacity-40">·</span>
+                      {metaParts.length > 0 && <span className="opacity-40">·</span>}
                       <span className="tabular-nums">
                         {formatRelativeDate(file.missing_since)}
                       </span>

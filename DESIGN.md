@@ -664,16 +664,26 @@ a reader would use to tell this file from the one beside it?*
 | image | its dimensions, `1920 × 1080` |
 | everything else | its size |
 
-- **One table, three surfaces.** A rule written down and read by one caller is
+- **One table, seven surfaces.** A rule written down and read by one caller is
   indistinguishable from no rule: `FileCard` alone obeyed it for a while, and a
-  list row and a detail page went on labelling a 19-minute video "83 B".
+  list row, a detail page and the four trash / missing forms went on labelling a
+  19-minute video "83 B".
 - **The size is not a neutral default.** On a `.loft` reference row `file_size`
   is the pointer's, not the media's, so for video and audio it is not merely
   redundant but false.
-- **Where the length goes is the surface's business, not the table's.** A card
-  and a list row have a thumbnail and put it on a badge; the file page has none,
-  so it draws the length at the head of the same line. The video row of the
-  table is `none` on all three for the same reason.
+- **Where the length goes is the surface's business, not the table's**, and it
+  is the one thing to check before handing the table to a new surface. A
+  surface with a badge (`FileCard`, `FileListRow`, `TrashFileList`,
+  `MissingFileList`, all four under `hasKnownLength`) has already said the
+  length. A surface without one (`FileMetaBlock`, `TrashFileGrid`,
+  `MissingFileGrid`) draws it at the head of the line the table finishes —
+  `primaryMetaParts`. The video row of the table is `none` on all seven for
+  the same reason; taking that to mean "draw nothing" on a badgeless card
+  would delete the length from it entirely.
+- **A missing badge is not always an omission to correct.** The corner
+  `FileCard` puts the length in, `bottom-2 right-2`, is the deadline's on a
+  trash card and the neighbour of the *missing* mark on a missing one. Those
+  cards are not `FileCard` with a badge forgotten.
 - **A kind gets one answer, not two.** An image whose dimensions were never
   probed does *not* fall back to its size — a fallback stops "kind → first
   metadatum" being a function, and two image cards would then describe

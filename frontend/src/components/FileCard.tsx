@@ -11,7 +11,7 @@ import { TagList } from "./TagList";
 import { FileTypeIcon } from "./FileTypeIcon";
 import { VideoPreview } from "./VideoPreview";
 import { TextThumbnail } from "./TextThumbnail";
-import { primaryMetaText } from "@/lib/primaryMeta";
+import { hasKnownLength, primaryMetaText } from "@/lib/primaryMeta";
 
 function FileCardImpl({
   file,
@@ -145,7 +145,7 @@ function FileCardImpl({
           {file.file_type === "video" && (
             <VideoPreview fileId={file.id} />
           )}
-          {(file.file_type === "video" || file.file_type === "audio") && file.duration != null && (
+          {hasKnownLength(file) && (
             <span className="absolute bottom-2 right-2 rounded-lg bg-black/70 px-1.5 py-0.5 text-xs font-medium text-white">
               {formatDuration(file.duration)}
             </span>

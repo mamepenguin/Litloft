@@ -1,6 +1,12 @@
 import { describe, it, expect } from "vitest";
 
-import { primaryMeta, primaryMetaText, formatDimensions } from "@/lib/primaryMeta";
+import {
+  primaryMeta,
+  primaryMetaText,
+  primaryMetaParts,
+  hasKnownLength,
+  formatDimensions,
+} from "@/lib/primaryMeta";
 import type { FileItem, FileType } from "@/types";
 
 const file = (overrides: Partial<FileItem> = {}): FileItem => ({
@@ -131,6 +137,62 @@ describe("primaryMetaText", () => {
         file_type === "image" ? { image_width: 1920, image_height: 1080 } : {};
       const f = file({ file_type, ...probed });
       expect(primaryMetaText(f) === null).toBe(primaryMeta(f).kind === "none");
+    }
+  });
+});
+
+describe("hasKnownLength", () => {
+  it("is true for exactly the two kinds that have one, and only once probed", () => {
+    // Every badge in the app used to spell this out for itself. One
+    // definition is the point: a surface that badged under one
+    // condition and suppressed its size under another would drop a
+    // fact off the card with neither half looking wrong.
+    const EXPECTED_TRUE: FileType[] = ["video", "audio"];
+    for (const file_type of Object.keys(EXPECTED) as FileType[]) {
+      expect(hasKnownLength(file({ file_type, duration: 1438 }))).toBe(
+        EXPECTED_TRUE.includes(file_type),
+      );
+      expect(hasKnownLength(file({ file_type, duration: null }))).toBe(false);
+    }
+  });
+});
+
+describe("primaryMetaParts", () => {
+  it("leads with the length on a surface that has no badge for it", () => {
+    expect(primaryMetaParts(file({ file_type: "video", duration: 1438 }))).toEqual([
+      "23:58",
+    ]);
+    expect(primaryMetaParts(file({ file_type: "audio", duration: 1438 }))).toEqual([
+      "23:58",
+    ]);
+  });
+
+  it("is empty — not a size — for a video whose length was never probed", () => {
+    // The caller draws no line at all on this. Falling back to the size
+    // here is the "83 B" the whole rule exists to stop.
+    expect(primaryMetaParts(file({ file_type: "video" }))).toEqual([]);
+  });
+
+  it("carries the rule's own answer for the kinds that have one", () => {
+    expect(primaryMetaParts(file({ file_type: "document", file_size: 25437 }))).toEqual([
+      "24.8 KB",
+    ]);
+    expect(
+      primaryMetaParts(file({ file_type: "image", image_width: 1920, image_height: 1080 })),
+    ).toEqual(["1920 × 1080"]);
+    expect(primaryMetaParts(file({ file_type: "image" }))).toEqual([]);
+  });
+
+  it("never puts a length and a size on the same line", () => {
+    // The two are mutually exclusive by construction — a kind with a
+    // length has no first metadatum — and a line reading
+    // "23:58 · 83 B" is precisely the defect that was reported.
+    for (const file_type of Object.keys(EXPECTED) as FileType[]) {
+      const probed =
+        file_type === "image" ? { image_width: 1920, image_height: 1080 } : {};
+      expect(
+        primaryMetaParts(file({ file_type, duration: 1438, ...probed })).length,
+      ).toBeLessThanOrEqual(1);
     }
   });
 });

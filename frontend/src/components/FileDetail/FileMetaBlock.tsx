@@ -1,8 +1,7 @@
 "use client";
 
 import type { ReactNode, RefObject } from "react";
-import { formatDuration } from "@/lib/format";
-import { primaryMetaText } from "@/lib/primaryMeta";
+import { primaryMetaParts } from "@/lib/primaryMeta";
 import type { MediaController } from "@/lib/mediaController";
 import type { FileItem } from "@/types";
 import { FileActionRow } from "./FileActionRow";
@@ -75,16 +74,13 @@ export function FileMetaBlock({
   tagChips,
   hoistDescription = false,
 }: FileMetaBlockProps) {
-  const hasDuration = isTimedMedia && file.duration != null;
-  // `lib/primaryMeta.ts`, the same rule the cards and the list rows
-  // lead with. This surface has no thumbnail to hang a badge on, so it
-  // draws the length itself, ahead of whatever the rule adds: for a
-  // video that is nothing, which is how "23:58 · 83 B" becomes "23:58"
-  // and an image gains its dimensions.
-  const parts = [
-    hasDuration ? formatDuration(file.duration) : null,
-    primaryMetaText(file),
-  ].filter((part): part is string => part !== null);
+  // `lib/primaryMeta.ts`, the same rule every listing leads with. This
+  // surface has no thumbnail to hang a badge on, so the length is drawn
+  // here instead, ahead of whatever the rule adds: for a video that is
+  // nothing, which is how "23:58 · 83 B" becomes "23:58" and an image
+  // gains its dimensions. Shared with the trash and missing cards,
+  // which have no badge either.
+  const parts = primaryMetaParts(file);
 
   return (
     <div className="mt-4">
