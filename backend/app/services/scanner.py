@@ -190,7 +190,9 @@ def _relocate_thumbnail(
             return
 
     gen_fn = get_thumbnail_generator(file_type, file_record.mime_type)
-    if gen_fn and gen_fn(str(item_path), str(new_thumb_full)):
+    if gen_fn and write_thumbnail_atomically(
+        gen_fn, str(item_path), str(new_thumb_full)
+    ):
         file_record.thumbnail_path = new_thumb_rel
     else:
         file_record.thumbnail_path = None
@@ -307,7 +309,9 @@ def register_single_file(db: Session, drive_name: str, file_path: Path) -> str:
     if gen_fn is not None:
         thumbnail_rel = _expected_thumbnail_path(drive_name, folder_path, nfc_stem)
         thumbnail_full = config.THUMBNAILS_DIR / thumbnail_rel
-        if not gen_fn(str(file_path), str(thumbnail_full)):
+        if not write_thumbnail_atomically(
+            gen_fn, str(file_path), str(thumbnail_full)
+        ):
             thumbnail_rel = None
 
     file_hash = compute_file_hash(file_path)
@@ -649,7 +653,7 @@ def _scan_and_register(db: Session, drive_name: str) -> dict[str, int]:
         if gen_fn is not None:
             thumbnail_rel = _expected_thumbnail_path(drive_name, folder_path, nfc_stem)
             thumbnail_full = config.THUMBNAILS_DIR / thumbnail_rel
-            if not gen_fn(str(item), str(thumbnail_full)):
+            if not write_thumbnail_atomically(gen_fn, str(item), str(thumbnail_full)):
                 thumbnail_rel = None
 
         if file_size is None:

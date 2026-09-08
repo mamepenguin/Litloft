@@ -497,6 +497,21 @@ def generate_pdf_thumbnail(pdf_path: str, output_path: str) -> bool:
         return False
 
 
+def _process_umask() -> int:
+    """The umask, read the only way the platform offers: by setting it.
+
+    At import, so the swap is not racing another thread's file creation.
+    """
+    mask = os.umask(0)
+    os.umask(mask)
+    return mask
+
+
+# What the generators produce when they create their own output, which is
+# what the rest of `data/thumbnails/` is.
+_FILE_MODE = 0o666 & ~_process_umask()
+
+
 def write_thumbnail_atomically(generator, source: str, destination: str) -> bool:
     """Generate into a sibling temporary file, then rename it into place.
 
@@ -518,6 +533,13 @@ def write_thumbnail_atomically(generator, source: str, destination: str) -> bool
     try:
         if not generator(source, tmp_name):
             return False
+        # `mkstemp` opens at 0600 and `replace` carries the source's mode
+        # to the destination, so without this a replaced thumbnail ends up
+        # readable only by the process that wrote it — where every
+        # thumbnail beside it, written by the generator directly, is
+        # 0644. `data/` is a bind mount, so the difference is the host
+        # user's backup job losing access to a growing subset of it.
+        os.chmod(tmp_name, _FILE_MODE)
         os.replace(tmp_name, destination)
         return True
     finally:
@@ -564,7 +586,16 @@ def _generate_heic_thumbnail(image_path: str, output_path: str) -> bool:
             # of them.
             target = image_thumbnail_size(*oriented.size)
             if target is not None and target != oriented.size:
-                oriented = oriented.resize(target, Image.Resampling.LANCZOS)
+                # `reducing_gap` is what `Image.thumbnail` passes and this
+                # branch used to get for free: a cheap `reduce()` down to
+                # twice the target before the convolution. Without it a
+                # 12 MP phone photo spends 7x longer in the resample, on
+                # the scan path, for a format phones shoot in. The target
+                # is computed rather than derived from the resampling, so
+                # it is the same size either way.
+                oriented = oriented.resize(
+                    target, Image.Resampling.LANCZOS, reducing_gap=2.0
+                )
             oriented.convert("RGB").save(
                 output_path, format="JPEG", quality=85, exif=b""
             )

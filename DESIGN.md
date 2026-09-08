@@ -1322,11 +1322,12 @@ line.
   the cell's shape; one still letterboxed onto a 320×180 frame has the bars cut
   off again, to within the pixel the pad rounds by. That is what lets the stored
   thumbnails be replaced a drive at a time rather than all at once.
-- **The two exceptions are the two above**: a line that reaches the stretch
-  ceiling, and a picture outside the ratio stops. The cell's ratio is not the
-  picture's on either, so a letterboxed thumbnail keeps some of its bars there
-  and an unpadded one has none. A part-migrated drive is not broken, but it is
-  not uniform either — those rows lose their bars when the scan reaches them.
+- **Where it is not, a letterboxed thumbnail keeps some of its bars.** Which
+  cells those are follows from `justifiedRatio`, not from a list kept here. A
+  part-migrated drive is not broken, but it is not uniform; and a picture whose
+  stored dimensions are missing stays that way, because the scan replaces a
+  thumbnail only where it can predict the size and the prediction is made from
+  those dimensions.
 - **The filename is a hover/focus band, always visible under `pointer: coarse`.**
 - **The cell is named by `aria-label` on the link**, so the accessible name is
   the same string in every branch; the band is deliberately not `aria-hidden`.

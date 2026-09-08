@@ -1135,6 +1135,42 @@ def _if_none_match(request: Request, etag: str) -> bool:
     return strip_weak(etag) in {strip_weak(t.strip()) for t in header.split(",")}
 
 
+def _revalidating_image(request: Request, path: Path) -> Response:
+    """A `no-cache` image response that answers its own revalidation.
+
+    The two belong together, on every branch that sends the header.
+    `FileResponse` sets an ETag and ignores `If-None-Match` — only
+    `StaticFiles` wraps it in a `NotModifiedResponse` — so `no-cache`
+    alone turns every cache hit into a full body, which is the opposite
+    of what the header is for.
+
+    `no-cache` at all because the bytes behind a thumbnail URL change
+    while the URL does not: a thumbnail regenerated into the picture box,
+    a replaced file, a placeholder that a later scan turns into a real
+    picture.
+    """
+    try:
+        stat_result = os.stat(path)
+    except OSError:
+        raise HTTPException(status_code=404, detail="Thumbnail not found")
+    response = FastAPIFileResponse(
+        str(path),
+        media_type="image/jpeg",
+        stat_result=stat_result,
+        headers={"Cache-Control": "no-cache"},
+    )
+    etag = response.headers.get("etag")
+    if not etag or not _if_none_match(request, etag):
+        return response
+    # RFC 9110 §15.4.5: a 304 carries the header fields a 200 would have
+    # sent that are useful for updating the cached entry.
+    headers = {"ETag": etag, "Cache-Control": "no-cache"}
+    last_modified = response.headers.get("last-modified")
+    if last_modified:
+        headers["Last-Modified"] = last_modified
+    return Response(status_code=304, headers=headers)
+
+
 @router.get("/{file_id}/thumbnail")
 def get_thumbnail(
     file_id: FileId,
@@ -1149,42 +1185,10 @@ def get_thumbnail(
             str(config.THUMBNAILS_DIR / file.thumbnail_path), config.DATA_DIR
         )
         if thumb_path.exists():
-            # Revalidate, do not re-download. A thumbnail is regenerated
-            # under a URL that never changes — the picture box replacing
-            # the old letterboxed frame is one occasion, an edited file
-            # another — so without `no-cache` a browser applies heuristic
-            # freshness and keeps painting the copy it already has.
-            #
-            # The 304 is answered here rather than left to the response
-            # class. `FileResponse` sets an ETag but does not read
-            # `If-None-Match`; only `StaticFiles` wraps it in a
-            # `NotModifiedResponse`. Sending `no-cache` without this turns
-            # every cache hit into a full body, which is the opposite of
-            # what the header is for.
-            try:
-                stat_result = thumb_path.stat()
-            except OSError:
-                raise HTTPException(status_code=404, detail="Thumbnail not found")
-            response = FastAPIFileResponse(
-                str(thumb_path),
-                media_type="image/jpeg",
-                stat_result=stat_result,
-                headers={"Cache-Control": "no-cache"},
-            )
-            etag = response.headers.get("etag")
-            if etag and _if_none_match(request, etag):
-                return Response(
-                    status_code=304,
-                    headers={"ETag": etag, "Cache-Control": "no-cache"},
-                )
-            return response
+            return _revalidating_image(request, thumb_path)
 
     if PLACEHOLDER_THUMBNAIL.exists():
-        return FastAPIFileResponse(
-            str(PLACEHOLDER_THUMBNAIL),
-            media_type="image/jpeg",
-            headers={"Cache-Control": "no-cache"},
-        )
+        return _revalidating_image(request, PLACEHOLDER_THUMBNAIL)
 
     raise HTTPException(status_code=404, detail="Thumbnail not found")
 

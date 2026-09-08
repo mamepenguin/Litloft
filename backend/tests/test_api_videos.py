@@ -123,6 +123,73 @@ class TestThumbnailRevalidation:
         assert res.content == b""
         assert res.headers["etag"] == etag
 
+    def test_a_weakened_validator_still_matches(self, client):
+        # Everything reaches this endpoint through the Next.js custom
+        # server, and a proxy that recompresses may weaken the validator;
+        # the browser then echoes `W/"…"`. Without the weak comparison
+        # the whole `no-cache` arrangement pays a full body on every view
+        # behind such a proxy, silently.
+        c, db, drive_dir, data_dir = client
+        file = self._seed_thumbnail(db, drive_dir, data_dir)
+        etag = c.get(f"/api/files/{file.id}/thumbnail").headers["etag"]
+
+        res = c.get(
+            f"/api/files/{file.id}/thumbnail", headers={"If-None-Match": f"W/{etag}"}
+        )
+        assert res.status_code == 304
+        assert res.content == b""
+
+    @pytest.mark.parametrize("spacing", ['"other", {tag}', '"other",{tag}'])
+    def test_a_validator_inside_a_list_still_matches(self, spacing, client):
+        # `If-None-Match` is a list, and a cache that holds more than one
+        # representation sends more than one tag.
+        c, db, drive_dir, data_dir = client
+        file = self._seed_thumbnail(db, drive_dir, data_dir)
+        etag = c.get(f"/api/files/{file.id}/thumbnail").headers["etag"]
+
+        res = c.get(
+            f"/api/files/{file.id}/thumbnail",
+            headers={"If-None-Match": spacing.format(tag=etag)},
+        )
+        assert res.status_code == 304
+        assert res.content == b""
+
+    def test_a_304_carries_what_the_200_would_have_said_about_freshness(self, client):
+        # RFC 9110 §15.4.5: the fields a 200 would have sent that are
+        # useful for updating the stored entry.
+        c, db, drive_dir, data_dir = client
+        file = self._seed_thumbnail(db, drive_dir, data_dir)
+        full = c.get(f"/api/files/{file.id}/thumbnail")
+
+        res = c.get(
+            f"/api/files/{file.id}/thumbnail",
+            headers={"If-None-Match": full.headers["etag"]},
+        )
+        assert res.status_code == 304
+        assert res.headers["last-modified"] == full.headers["last-modified"]
+        assert res.headers["cache-control"] == "no-cache"
+
+    def test_the_placeholder_revalidates_the_same_way(self, client):
+        # The other branch of the same handler. Every video or image
+        # whose thumbnail generation failed renders an `<img>` at this
+        # URL, so the branch is on screen, not a corner — and it sent
+        # `no-cache` with an ETag and no conditional handling, which is
+        # the defect the branch above it was fixed for.
+        c, db, drive_dir, data_dir = client
+        file = _seed_file(db, drive_dir)
+        assert file.thumbnail_path is None
+
+        full = c.get(f"/api/files/{file.id}/thumbnail")
+        assert full.status_code == 200
+        assert full.headers["cache-control"] == "no-cache"
+
+        res = c.get(
+            f"/api/files/{file.id}/thumbnail",
+            headers={"If-None-Match": full.headers["etag"]},
+        )
+        assert res.status_code == 304
+        assert res.content == b""
+
     def test_a_wildcard_validator_also_gets_a_304(self, client):
         c, db, drive_dir, data_dir = client
         file = self._seed_thumbnail(db, drive_dir, data_dir)

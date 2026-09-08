@@ -22,7 +22,11 @@ from app.services.fileops import (
     validate_path_safe,
     validate_within_drive,
 )
-from app.services.thumbnail import get_thumbnail_generator, get_video_duration
+from app.services.thumbnail import (
+    get_thumbnail_generator,
+    get_video_duration,
+    write_thumbnail_atomically,
+)
 from app.services.ws import broadcast_from_thread
 
 logger = logging.getLogger(__name__)
@@ -199,7 +203,13 @@ def complete_upload(upload_id: str, db: Session) -> tuple[File, bool]:
             else f"{session.drive}/{Path(session.filename).stem}.jpg"
         )
         thumbnail_full = config.THUMBNAILS_DIR / thumbnail_rel
-        if not gen_fn(str(target_full), str(thumbnail_full)):
+        # Atomically: a thumbnail is kept when its file goes missing and is
+        # still served, and an upload to the same path revives that record
+        # (`design-decisions.md`), so this destination can be one the
+        # thumbnail endpoint is reading right now.
+        if not write_thumbnail_atomically(
+            gen_fn, str(target_full), str(thumbnail_full)
+        ):
             thumbnail_rel = None
 
     # Reconcile any DB record already holding this file_path so the UNIQUE

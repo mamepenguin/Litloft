@@ -1,3 +1,5 @@
+import stat
+from pathlib import Path
 from unittest.mock import patch, MagicMock
 
 import pytest
@@ -626,3 +628,179 @@ class TestPictureThumbnailBox:
             assert thumbnail.getpixel((2, 90)) == (255, 255, 255)
             centre = thumbnail.getpixel((160, 90))
             assert max(centre) < 40, centre
+
+
+class TestAtomicThumbnailWrite:
+    """The property, not a consequence of it.
+
+    `test_the_replacement_is_never_visible_half_written` in
+    `test_scanner.py` exercises the failure path — a generator that
+    writes nothing and returns False — so it dies on "write straight to
+    the destination" and lives on anything that still writes through a
+    temporary file and then copies it. Replacing `os.replace` with
+    `shutil.copyfile` reintroduces the whole defect (`copyfile` truncates
+    and refills, so a reader sees a partial file on every *successful*
+    write) and left the suite green.
+
+    A rename gives the destination the temporary file's inode. A rewrite
+    of any kind keeps the one it had. That is the difference, and it is
+    observable without racing anything.
+    """
+
+    def _seed(self, tmp_path):
+        source = tmp_path / "photo.jpg"
+        Image.new("RGB", (768, 1024), (20, 90, 160)).save(source)
+        destination = tmp_path / "thumb.jpg"
+        Image.new("RGB", (320, 180), (0, 0, 0)).save(destination)
+        return source, destination
+
+    def test_the_new_bytes_arrive_by_rename(self, tmp_path):
+        source, destination = self._seed(tmp_path)
+        before = destination.stat().st_ino
+
+        assert thumbnail_service.write_thumbnail_atomically(
+            generate_image_thumbnail, str(source), str(destination)
+        )
+
+        assert destination.stat().st_ino != before, (
+            "the destination kept its inode, so it was written in place "
+            "rather than replaced"
+        )
+        with Image.open(destination) as thumbnail:
+            assert thumbnail.size == (240, 320)
+
+    def test_the_generator_is_never_handed_the_destination(self, tmp_path):
+        source, destination = self._seed(tmp_path)
+        handed = []
+
+        def record(src, dst):
+            handed.append(dst)
+            Image.new("RGB", (10, 10), (1, 2, 3)).save(dst)
+            return True
+
+        assert thumbnail_service.write_thumbnail_atomically(
+            record, str(source), str(destination)
+        )
+        assert handed == [handed[0]]
+        assert handed[0] != str(destination)
+        assert Path(handed[0]).parent == destination.parent
+
+    def test_a_replaced_thumbnail_keeps_the_mode_its_neighbours_have(self, tmp_path):
+        # `mkstemp` opens at 0600 and `replace` carries the mode across.
+        # Every other thumbnail in the directory is whatever the generator
+        # creates under the process umask, and `data/` is a bind mount, so
+        # a divergence here is a host user losing read access to part of
+        # it.
+        source, destination = self._seed(tmp_path)
+        direct = tmp_path / "direct.jpg"
+        assert generate_image_thumbnail(str(source), str(direct))
+        expected = stat.S_IMODE(direct.stat().st_mode)
+
+        assert thumbnail_service.write_thumbnail_atomically(
+            generate_image_thumbnail, str(source), str(destination)
+        )
+        assert stat.S_IMODE(destination.stat().st_mode) == expected
+
+    def test_a_generator_that_fails_leaves_the_old_bytes_and_no_litter(self, tmp_path):
+        source, destination = self._seed(tmp_path)
+        served = destination.read_bytes()
+
+        assert (
+            thumbnail_service.write_thumbnail_atomically(
+                lambda src, dst: False, str(source), str(destination)
+            )
+            is False
+        )
+        assert destination.read_bytes() == served
+        assert sorted(p.name for p in tmp_path.iterdir()) == [
+            "photo.jpg",
+            "thumb.jpg",
+        ]
+
+
+class TestEveryThumbnailWriteGoesThroughTheAtomicOne:
+    """The callers, not just the recipe.
+
+    `TestAtomicThumbnailWrite` pins what `write_thumbnail_atomically`
+    does. It says nothing about who uses it, and reverting either of the
+    two callers this PR converted to a direct write left the whole suite
+    green — the shape `review-workflow.md` names: *when extracting a
+    shared recipe, include the callers you are fixing; grep by role, not
+    by directory.*
+
+    So this greps by role, in the test rather than in a shell: every
+    invocation of a thumbnail generator anywhere under `backend/app`,
+    including one reached through a variable that `get_thumbnail_generator`
+    was assigned to under any name. The expected set is empty, exactly —
+    a new call site that writes to its destination directly fails here,
+    and so does an old one changed back.
+    """
+
+    #: `thumbnail.py` is where the generators live and where the helper
+    #: calls one. Scanning it would report its own definitions.
+    EXEMPT = {"services/thumbnail.py"}
+
+    NAMED_GENERATORS = {
+        "generate_image_thumbnail",
+        "generate_thumbnail",
+        "generate_pdf_thumbnail",
+        "_generate_heic_thumbnail",
+    }
+
+    def _direct_calls(self, path):
+        import ast
+
+        tree = ast.parse(path.read_text(encoding="utf-8"))
+        # Anything `get_thumbnail_generator(...)` was bound to, whatever
+        # the local variable is called.
+        bound = set()
+        for node in ast.walk(tree):
+            if not isinstance(node, ast.Assign):
+                continue
+            value = node.value
+            if (
+                isinstance(value, ast.Call)
+                and isinstance(value.func, ast.Name)
+                and value.func.id == "get_thumbnail_generator"
+            ):
+                bound.update(
+                    t.id for t in node.targets if isinstance(t, ast.Name)
+                )
+        callable_names = self.NAMED_GENERATORS | bound
+
+        hits = []
+        for node in ast.walk(tree):
+            if (
+                isinstance(node, ast.Call)
+                and isinstance(node.func, ast.Name)
+                and node.func.id in callable_names
+            ):
+                hits.append(f"{path.name}:{node.lineno} {node.func.id}(...)")
+        return hits
+
+    def test_no_generator_is_handed_its_destination_directly(self):
+        app_dir = Path(thumbnail_service.__file__).resolve().parents[1]
+        direct = []
+        scanned = 0
+        for path in sorted(app_dir.rglob("*.py")):
+            if str(path.relative_to(app_dir)).replace("\\", "/") in self.EXEMPT:
+                continue
+            scanned += 1
+            direct.extend(self._direct_calls(path))
+
+        # The scan finding nothing because it scanned nothing is the way
+        # this test would go quiet.
+        assert scanned > 20, scanned
+        assert direct == []
+
+    def test_the_scan_can_see_a_direct_call(self, tmp_path):
+        # Without this the assertion above proves only that the walk found
+        # no `Call` nodes at all.
+        sample = tmp_path / "sample.py"
+        sample.write_text(
+            "def f(src, dst):\n"
+            "    gen = get_thumbnail_generator('image', 'image/jpeg')\n"
+            "    return gen(src, dst)\n",
+            encoding="utf-8",
+        )
+        assert self._direct_calls(sample) == ["sample.py:3 gen(...)"]
